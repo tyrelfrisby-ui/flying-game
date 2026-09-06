@@ -21,6 +21,11 @@ Package.resolved
 # macOS
 .DS_Store
 
+# .NET (Core/Sim/FlightTests)
+bin/
+obj/
+*.user
+
 # Secrets
 *.env
 *.p8

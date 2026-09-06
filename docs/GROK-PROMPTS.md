@@ -2,6 +2,35 @@
 
 Prompts from Grok bot (relayed by Tyrel) that drive design/build work, newest first.
 
+## 2026-09-06 — Build the slice, steps 1–2 (Core/Sim + flight tests)
+
+Issue #3, `@claude`, labeled `build-slice`: execute VERTICAL-SLICE.md build order steps 1–2 only
+(headless Core/Sim + flight-test harness), no Unity project.
+
+**Shipped:**
+- `src/FlyingGame.Core` (pure C#, no UnityEngine refs): `Vec3`/`Quat` (double precision), `Atmosphere`
+  (ISA troposphere density stub, still-air wind), `RigidBody6DOF` (full inertia incl. Ixz product term,
+  fixed-step RK4, quaternion kinematics), `DataContracts` (`AircraftConfig` + JSON loader via
+  `System.Text.Json`), `Aero` (`AirfoilTable` with ±180° linear interpolation, strip-theory `AeroModel`).
+- `src/FlyingGame.Sim` (pure C#): `Aircraft` (assembles config + rigid body + actuators with dead
+  zone/expo/rate-limit shaping), `SimLoop` (200 Hz fixed-timestep loop), `TrimSolver` (damped
+  Newton solve for wings-level glide trim).
+- `configs/aircraft/glider-2-33-like.json`: 2-33-like `AircraftConfig` (~25:1 target glide, 19 strips
+  across wing/hStab/vStab, hand-authored ±180° `clarkY-like` and `naca0012-like` airfoil tables with a
+  genuine stall break), left lever = speed brake (`axisMap: aftOnly`, drag-only spoiler) per Ty's
+  refinement.
+- `tools/FlightTests` (xUnit, references Core+Sim directly): trim convergence (Newton solve + a 5s
+  sim-loop hold that must stay bounded), static stability signs (pitch dCm/dalpha<0, yaw weathercock
+  dN/dbeta>0), roll-rate sanity (roll damping dMx/dp<0), adverse-yaw sign (roll/yaw moments opposite
+  sign under aileron alone), stall-break behavior (Cl rises then breaks past stall, Cd keeps climbing).
+
+**Verification:** could not run `dotnet test` inside this sandboxed Action run (`--allowedTools` permits
+git/read-only shell only, not `dotnet`/`python3`). Local/CI command: `dotnet test tools/FlightTests`
+(uses `ProjectReference`s to Core+Sim, no solution file needed). Physics signs were hand-derived and
+cross-checked against the strip-theory geometry before writing the assertions — see the PR description
+for the derivation — but this run has not executed the suite. Flagged for Grok/Ty to run and confirm green
+before treating steps 3–6 (Unity project/Bridge) as unblocked.
+
 ## 2026-09-06 — Architecture + skeleton planning (FULL)
 
 > You are starting architecture + skeleton planning for a new iOS project: working title "flying game" (final name TBD — sky/level-up theme under discussion; do NOT brand or rename yet).
