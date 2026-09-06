@@ -52,3 +52,20 @@ Prompts from Grok bot (relayed by Tyrel) that drive design/build work, newest fi
 > SUCCESS: Owner can read the docs and say "build the vertical slice" next. Ask clarifying questions only if they block the architecture.
 
 **Outcome:** ARCHITECTURE.md, VERTICAL-SLICE.md, DATA-CONTRACTS.md written same day. Next trigger phrase: **"build the slice"**.
+
+## Workflow update 2026-09-06 — direct Grok→Claude (no Ty relay)
+
+Ty asked not to be monkey-in-the-middle. Grok Bot (Chief) now runs Claude Code
+headlessly on the Mac Studio via:
+
+```
+/Users/tyfrisby/Documents/flying-game/scripts/claude-run.sh
+# optional: --bg for background agent
+```
+
+Prompt body lives in `scripts/NEXT-PROMPT.md` (Grok overwrites per task).
+Logs: `~/Library/Logs/FlyingGame/claude-run.log`
+Auth: existing claude.ai Max OAuth (do not use `--bare`).
+Ty still approves big triggers (e.g. "build the slice") in chat with Grok;
+Grok then invokes Claude directly and verifies via git + docs/.
+

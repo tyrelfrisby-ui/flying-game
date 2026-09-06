@@ -26,3 +26,9 @@ Package.resolved
 *.p8
 *.p12
 *.mobileprovision
+
+# Local automation — must NEVER land in the public repo.
+# claude-run.sh executes with skipped permissions; if the repo could alter it
+# or its prompt file, a repo write would become code execution on the Mac.
+scripts/claude-run.sh
+scripts/NEXT-PROMPT.md
