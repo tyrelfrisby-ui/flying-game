@@ -69,3 +69,7 @@ Auth: existing claude.ai Max OAuth (do not use `--bare`).
 Ty still approves big triggers (e.g. "build the slice") in chat with Grok;
 Grok then invokes Claude directly and verifies via git + docs/.
 
+## 2026-09-06 — Comms smoke test
+
+Ping succeeded: Claude GitHub Action confirmed armed on `tyrelfrisby-ui/flying-game`; `docs/COMMS-PROTOCOL.md` read OK. No feature code touched. See issue #2.
+
