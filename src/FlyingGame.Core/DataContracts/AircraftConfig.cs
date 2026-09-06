@@ -42,6 +42,12 @@ public sealed class SurfaceConfig
 {
     public string Id { get; set; } = "";
     public List<StripConfig> Strips { get; set; } = new();
+
+    /// <summary>
+    /// Oswald span-efficiency factor for this surface's induced drag (Cd_i = Cl²/(π·AR·e)).
+    /// Airfoil tables carry PROFILE drag only; induced drag is computed per strip from this.
+    /// </summary>
+    public double OswaldE { get; set; } = 0.85;
 }
 
 public sealed class StripConfig

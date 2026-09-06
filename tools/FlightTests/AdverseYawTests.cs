@@ -22,13 +22,22 @@ public class AdverseYawTests
     [Fact]
     public void AileronDeflectionYawsOppositeTheRollDirection()
     {
-        Vec3 bodyVelocity = new(20.0 * Math.Cos(5.0 * Math.PI / 180.0), 0, 20.0 * Math.Sin(5.0 * Math.PI / 180.0));
+        double alphaRad = 5.0 * Math.PI / 180.0;
+        Vec3 bodyVelocity = new(20.0 * Math.Cos(alphaRad), 0, 20.0 * Math.Sin(alphaRad));
         ControlDeflections withAileron = new(aileronRad: 0.2, elevatorRad: 0, rudderRad: 0, spoilerFraction: 0);
 
         (_, Vec3 moment) = AeroModel.Compute(Config, Tables, bodyVelocity, Vec3.Zero, Vec3.Zero, AirDensity, withAileron);
 
-        Assert.True(Math.Abs(moment.X) > 1.0, $"Aileron deflection produced negligible roll authority (Mx={moment.X:F4}).");
-        Assert.True(moment.X * moment.Z < 0.0,
-            $"Expected adverse yaw (roll and yaw moments opposite sign): Mx={moment.X:F4}, Mz(N)={moment.Z:F4}.");
+        // Cn_da is defined in STABILITY axes (velocity-aligned). Reading yaw about the body z-axis
+        // at nonzero alpha is contaminated by the (much larger) roll moment leaking through the
+        // frame tilt: Mz_body picks up +Mx*sin(alpha)-scale crosstalk. Rotate the moment vector by
+        // -alpha about y to get the aerodynamically meaningful roll/yaw pair.
+        double sinA = Math.Sin(alphaRad), cosA = Math.Cos(alphaRad);
+        double rollStab = moment.X * cosA + moment.Z * sinA;
+        double yawStab = -moment.X * sinA + moment.Z * cosA;
+
+        Assert.True(Math.Abs(rollStab) > 1.0, $"Aileron deflection produced negligible roll authority (L_stab={rollStab:F4}).");
+        Assert.True(rollStab * yawStab < 0.0,
+            $"Expected adverse yaw (stability-axes roll and yaw moments opposite sign): L_stab={rollStab:F4}, N_stab={yawStab:F4}.");
     }
 }

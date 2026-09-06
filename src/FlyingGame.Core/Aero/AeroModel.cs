@@ -13,6 +13,36 @@ namespace FlyingGame.Core.Aero;
 public static class AeroModel
 {
     private const double MinSpeedMs = 1e-4;
+    private const double MinInducedAspectRatio = 0.5; // below this, treat as a low-AR body: table drag only
+
+    /// <summary>
+    /// Geometric aspect ratio b²/S from the strip layout: span from strip-center extent plus half a
+    /// strip width (area/chord) at each tip, area as the strip sum. Single-strip surfaces get AR from
+    /// that strip alone (width²/area).
+    /// </summary>
+    private static double GeometricAspectRatio(SurfaceConfig surface, bool isVertical)
+    {
+        double area = 0.0, min = double.MaxValue, max = double.MinValue;
+        StripConfig? first = null, last = null;
+        foreach (StripConfig strip in surface.Strips)
+        {
+            area += strip.Area;
+            double spanCoord = isVertical ? strip.PosVec().Z : strip.PosVec().Y;
+            if (spanCoord < min) { min = spanCoord; first = strip; }
+            if (spanCoord > max) { max = spanCoord; last = strip; }
+        }
+
+        if (area <= 0.0 || first is null || last is null)
+        {
+            return 0.0;
+        }
+
+        double endWidths = (WidthOf(first) + WidthOf(last)) * 0.5;
+        double span = (max - min) + endWidths;
+        return span * span / area;
+
+        static double WidthOf(StripConfig s) => s.Chord > 1e-9 ? s.Area / s.Chord : 0.0;
+    }
 
     /// <summary>
     /// Computes total aerodynamic force and moment (body axes, about the CG) for the aircraft in its
@@ -35,6 +65,8 @@ public static class AeroModel
         {
             bool isVertical = surface.Id.Contains("vstab", StringComparison.OrdinalIgnoreCase)
                                || surface.Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
+
+            double aspectRatio = GeometricAspectRatio(surface, isVertical);
 
             foreach (StripConfig strip in surface.Strips)
             {
@@ -86,9 +118,23 @@ public static class AeroModel
                 }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
+
+                // Drag polar: airfoil tables carry PROFILE drag only; induced drag is added here
+                // per strip as Cl²/(π·AR·e) so it varies with local alpha (and therefore with
+                // control deflection — this is where adverse yaw's drag asymmetry comes from).
+                // The cos² taper retires the lifting-line term post-stall, where it is invalid
+                // and the table's flat-plate drag takes over.
+                double cdInduced = 0.0;
+                if (aspectRatio > MinInducedAspectRatio)
+                {
+                    double cosAlpha = Math.Cos(alpha);
+                    double attachedTaper = cosAlpha > 0.0 ? cosAlpha * cosAlpha : 0.0;
+                    cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper;
+                }
+
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed;
                 double lift = q * strip.Area * coeffs.Cl;
-                double drag = q * strip.Area * coeffs.Cd;
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
 
                 Vec3 force = liftDir * lift - dragDir * drag;

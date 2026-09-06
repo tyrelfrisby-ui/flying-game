@@ -27,6 +27,10 @@ One file per aircraft. The physics reads ONLY this — no aircraft-specific code
   ],
 
   "airfoilTables": {                  // full ±180° so post-stall is real
+    // cd = PROFILE drag only. Induced drag is computed per strip in AeroModel as
+    // Cl²/(π·AR·oswaldE) — AR from the surface's strip geometry, oswaldE per surface
+    // (optional, default 0.85) — so the drag polar varies with local alpha and control
+    // deflection instead of being baked flat into the table.
     "clarkY-like": { "alphaRad": [...], "cl": [...], "cd": [...], "cm": [...] }
   },
 
