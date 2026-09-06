@@ -7,7 +7,7 @@ Working title — final name TBD. A new iOS game.
 Three-party workflow:
 
 - **Tyrel** — owner, final say on all decisions.
-- **Grok bot** — brainstorming + design partner; primary channel for direction. Prompts from Grok arrive relayed by Tyrel and drive architecture/build tasks.
+- **Grok bot** — brainstorming + design partner; primary channel for direction. Prompts from Grok arrive relayed by Tyrel and drive architecture/build tasks. The repo is public so Grok can read docs and commits directly; Claude's work lands here as the shared record.
 - **Claude Code** — builds the game: architecture, code, Xcode project, testing, deploys.
 
 Design decisions and architecture prompts from Grok live in `docs/`:
