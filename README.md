@@ -10,8 +10,13 @@ Three-party workflow:
 - **Grok bot** — brainstorming + design partner; primary channel for direction. Prompts from Grok arrive relayed by Tyrel and drive architecture/build tasks.
 - **Claude Code** — builds the game: architecture, code, Xcode project, testing, deploys.
 
-Design decisions and architecture prompts from Grok live in `docs/`.
+Design decisions and architecture prompts from Grok live in `docs/`:
+
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — engine-agnostic aero core, Unity assemblies, core systems, risks
+- [VERTICAL-SLICE.md](docs/VERTICAL-SLICE.md) — v0 scope: Arena 1 Challenges 1–2 (wings level + best glide)
+- [DATA-CONTRACTS.md](docs/DATA-CONTRACTS.md) — AircraftConfig / ChallengeDefinition / ProgressSave
+- [GROK-PROMPTS.md](docs/GROK-PROMPTS.md) — log of relayed Grok prompts
 
 ## Status
 
-- 2026-09-06: Repo created. Awaiting full architecture + skeleton planning prompt from Grok.
+- 2026-09-06: Repo created; architecture + vertical-slice planning docs written. **Waiting on owner review — next trigger: "build the slice".**
