@@ -21,10 +21,21 @@ public class TrimConvergenceTests
 
         Assert.True(trim.Converged, $"Trim solver failed to converge (residual={trim.ResidualNorm:E3} after {trim.Iterations} iterations).");
         Assert.InRange(trim.AlphaRad, 0.0, 20.0 * Math.PI / 180.0);
-        Assert.True(trim.ThetaRad < 0.0, $"Unpowered glider must trim in a descent (theta<0); got {trim.ThetaRad * 180.0 / Math.PI:F2} deg.");
+
+        // The unpowered invariant is a descending FLIGHT PATH (gamma < 0), not a nose-down
+        // attitude: theta = gamma + alpha, and alpha routinely exceeds |gamma|, putting the
+        // nose slightly above the horizon while the glider descends.
+        double gammaRad = trim.ThetaRad - trim.AlphaRad;
+        Assert.True(gammaRad < 0.0, $"Unpowered glider must trim on a descending flight path (gamma<0); got gamma={gammaRad * 180.0 / Math.PI:F2} deg.");
+        Assert.InRange(Math.Abs(trim.ThetaRad), 0.0, 15.0 * Math.PI / 180.0); // attitude itself just needs to be sane
+
         Assert.InRange(Math.Abs(trim.ElevatorRad), 0.0, config.Controls.Elevator.MaxDeflRad);
         Assert.False(double.IsNaN(trim.GlideRatio), "Glide ratio came out NaN — trim likely produced near-zero drag.");
         Assert.InRange(trim.GlideRatio, 5.0, 60.0); // config targets ~25:1; generous band around it
+
+        // Kinematic consistency: in steady glide, L/D must equal the glide slope 1/tan(-gamma).
+        double slopeRatio = 1.0 / Math.Tan(-gammaRad);
+        Assert.InRange(trim.GlideRatio, slopeRatio * 0.9, slopeRatio * 1.1);
     }
 
     [Fact]
