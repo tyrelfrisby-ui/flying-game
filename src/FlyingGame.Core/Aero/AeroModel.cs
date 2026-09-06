@@ -94,7 +94,14 @@ public static class AeroModel
                 }
                 else
                 {
-                    double uu = vLocal.X, ww = vLocal.Z;
+                    // Dihedral effect: a panel with dihedral Γ presents its surface to lateral flow,
+                    // so sideslip shifts the strip's local AoA — upwind panel gains α, downwind loses
+                    // it (Δα ≈ β·Γ). This is THE roll-from-sideslip mechanism (banks a spin into the
+                    // rotation); it emerges per strip and keeps working post-stall via the tables.
+                    double dihedral = strip.DihedralRad;
+                    double sideSign = Math.Sign(strip.PosVec().Y);
+                    double uu = vLocal.X;
+                    double ww = vLocal.Z * Math.Cos(dihedral) + vLocal.Y * Math.Sin(dihedral) * sideSign;
                     planeSpeed = Math.Sqrt(uu * uu + ww * ww);
                     if (planeSpeed < MinSpeedMs)
                     {
