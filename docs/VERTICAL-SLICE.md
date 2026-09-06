@@ -36,9 +36,9 @@ Challenges 3–11, spins as a challenge, prop/engine, other aircraft, wind/therm
 - Both challenges pass/fail correctly from JSON with no challenge-specific C#.
 
 ## Build order (when "build the slice" is given)
-1. Core math + 6DOF + flight-test harness scaffold (headless, no Unity yet)
+1. Core math + 6DOF + flight-test harness scaffold (headless, no Unreal yet)
 2. Strip-theory aero + 2-33 config + harness tests green
-3. Unity project + Bridge (sim→Transform, chase cam, ground plane)
+3. Unreal project + Bridge (NativeAOT Core/Sim static lib linked in, sim→Actor transform, chase cam, ground plane)
 4. Bubble field + on-device perf pass ← gate: fail here means rethink the visual before proceeding
-5. Touchpads + feel tuning on device
-6. ChallengeRunner + the two challenge JSONs + HUD + save
+5. Touch dual-sticks (Unreal Enhanced Input + on-screen touch widgets) + feel tuning on device
+6. ChallengeRunner (Unreal C++/Blueprints) + the two challenge JSONs + HUD (UMG) + save

@@ -1,53 +1,65 @@
 # Flying Game — Architecture
 
-Working title only. iOS (iPhone + iPad), Unity first, aero core engine-agnostic. Planning doc — nothing here is built yet.
+Working title only. iOS (iPhone + iPad), Unreal Engine first, aero core engine-agnostic. Planning doc — nothing here is built yet.
 
 ## The one big decision
 
-**The flight model does not use Unity's physics.** All aero and rigid-body math lives in a pure C# assembly with zero UnityEngine references. Unity is just the renderer, input surface, and scene host: each frame it hands stick positions to the sim and copies the sim's position/attitude onto the airplane's Transform.
+**The flight model does not use Unreal's physics.** All aero and rigid-body math lives in a pure C# assembly with zero engine references (no `UnrealEngine`/UE API usage). Unreal is just the renderer, input surface, and scene host: each frame it hands stick positions to the sim and copies the sim's position/attitude onto the airplane's Actor transform.
+
+Because Core/Sim stay pure C# but Unreal's native language is C++ (with Blueprints on top), the two sides need an interop plan. The simplest credible path for an iOS target: compile `FlyingGame.Core` + `FlyingGame.Sim` with **.NET NativeAOT** into a static library exposing a thin C ABI (`[UnmanagedCallersOnly]` exports — step, set-controls, read-state). A UE C++ module (`FlyingGame.Bridge`) links that static library directly and calls it every tick. This avoids embedding Mono/CoreCLR (which needs JIT — disallowed by Apple on iOS) and keeps Core/Sim's source completely engine-free; only the Bridge module knows the C ABI exists. This is a plan, not yet built — see "Out of scope this session" below.
 
 Why this matters for this project specifically:
 
 1. **The physics north star is testable without a screen.** Because the core is plain C#, we can run automated "flight tests" as unit tests: trim the glider, command full aileron, and assert the nose yaws *away* from the turn (adverse yaw); hold full aft stick + rudder and assert autorotation develops with the right rotation rate sign. Spin fidelity gets verified in CI, not by eyeballing the chase cam.
-2. **Engine-agnostic for real.** If Unreal ever happens, the aero core moves unchanged.
-3. **Precision control.** We choose our own integrator and timestep instead of fighting PhysX, which was never built for post-stall aerodynamics.
+2. **Engine-agnostic for real.** Core/Sim have zero engine references; if the target engine ever changes again, only the Bridge/interop layer moves, not the physics.
+3. **Precision control.** We choose our own integrator and timestep instead of fighting the engine's built-in rigid-body physics (Chaos), which was never built for post-stall aerodynamics.
 
-## Assemblies (Unity asmdefs)
+## Modules
 
 ```
-FlyingGame.Core     pure C#, noEngineReferences=true. Math, atmosphere,
-                    RigidBody6DOF, AeroModel, PropModel (stub), data contracts.
-FlyingGame.Sim      pure C#. Fixed-timestep sim loop, aircraft assembly
-                    (airframe + surfaces + engine), flight-state snapshot API.
-FlyingGame.Bridge   Unity. Adapters: sim→Transform, touch input→sim controls,
-                    camera rig, bubble field renderer, ground/crash detection.
-FlyingGame.Game     Unity. Challenge runner, arenas, scoring, progression,
-                    economy (stubs until needed), save/load.
-FlyingGame.UI       Unity. Dual touchpads, gauges, HUD, menus, callouts.
+FlyingGame.Core     pure C#, zero engine references. Compiled via .NET
+                    NativeAOT into a static lib with a C ABI (iOS has no
+                    JIT, so this is the interop path, not Mono/CoreCLR
+                    embedding). Math, atmosphere, RigidBody6DOF, AeroModel,
+                    PropModel (stub), data contracts.
+FlyingGame.Sim      pure C#, same NativeAOT target as Core. Fixed-timestep
+                    sim loop, aircraft assembly (airframe + surfaces +
+                    engine), flight-state snapshot API.
+FlyingGame.Bridge   Unreal C++ module. Only module that calls the Core/Sim
+                    C ABI. Adapters: sim→Actor transform, touch input→sim
+                    controls, camera rig, bubble field renderer,
+                    ground/crash detection.
+FlyingGame.Game     Unreal C++ + Blueprints. Challenge runner, arenas,
+                    scoring, progression, economy (stubs until needed),
+                    save/load.
+FlyingGame.UI       Unreal UMG/Slate + Blueprints. Dual touchpads, gauges,
+                    HUD, menus, callouts.
 ```
 
-Dependency direction is strictly downward: `UI → Game → Bridge → Sim → Core`. Core and Sim never reference anything Unity.
+Dependency direction is strictly downward: `UI → Game → Bridge → Sim → Core`. Core and Sim never reference anything Unreal; Bridge is the only module that crosses the C#/C++ boundary.
 
 ## Folder layout
 
 ```
 flying-game/
   docs/                      planning + Grok prompt log
-  unity/                     Unity project (created when slice is built)
-    Assets/_Project/
-      Scripts/{Core,Sim,Bridge,Game,UI}/   one asmdef each
-      Configs/               AircraftConfig + ChallengeDefinition JSON
-      Art/  Audio/  Prefabs/  Scenes/  Settings/
+  unreal/                    Unreal project (TODO: not yet scaffolded)
+    Source/FlyingGame/
+      Core/  Sim/            pure C# sources, built via NativeAOT into a
+                              static lib the Bridge module links against
+      Bridge/  Game/  UI/    Unreal C++ modules
+    Content/                 Blueprints, maps, art, audio
+    Config/                  AircraftConfig + ChallengeDefinition JSON
   tools/FlightTests/         dotnet test project compiling the SAME
                              Core+Sim source files for headless flight tests
 ```
 
-Unity target: current Unity 6 LTS, URP (mobile render pipeline), landscape only, Metal.
+Unreal target: UE 5.x, mobile forward renderer, landscape only, Metal.
 
 ## Core systems
 
 ### RigidBody6DOF (Core)
-State: world position, attitude quaternion, body-frame velocity (u,v,w), body rates (p,q,r). Full inertia tensor including Ixz product (matters for spin — it couples roll and yaw). Integrator: RK4 at a fixed small step (target 200 Hz sim substeps inside Unity's 50 Hz FixedUpdate), quaternion renormalized each step. Double precision internally if float proves noisy post-stall (see Risks).
+State: world position, attitude quaternion, body-frame velocity (u,v,w), body rates (p,q,r). Full inertia tensor including Ixz product (matters for spin — it couples roll and yaw). Integrator: RK4 at a fixed small step (target 200 Hz sim substeps inside a fixed 50 Hz host tick), quaternion renormalized each step. Double precision internally if float proves noisy post-stall (see Risks).
 
 ### AeroModel (Core) — strip theory, because spins must be emergent
 Each lifting surface (wing, horizontal tail, vertical tail) is divided into spanwise strips. Per strip, per step:
@@ -94,4 +106,4 @@ See [DATA-CONTRACTS.md](DATA-CONTRACTS.md) for `AircraftConfig`, `ChallengeDefin
 5. **Scope.** Six arenas + economy is a big game. Mitigation: the vertical-slice contract in [VERTICAL-SLICE.md](VERTICAL-SLICE.md) — nothing outside it gets built until it ships.
 
 ## Out of scope this session
-No Unity project, no code, no aero implementation, no IAP, no branding. Next step when Ty approves: **"build the slice."**
+No Unreal project, no code, no aero implementation, no IAP, no branding (a placeholder `unreal/` folder marked TODO is fine; no scaffolded content). Next step when Ty approves: **"build the slice."**

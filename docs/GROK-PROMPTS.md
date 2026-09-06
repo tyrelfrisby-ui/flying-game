@@ -69,3 +69,30 @@ Auth: existing claude.ai Max OAuth (do not use `--bare`).
 Ty still approves big triggers (e.g. "build the slice") in chat with Grok;
 Grok then invokes Claude directly and verifies via git + docs/.
 
+## 2026-09-06 — Engine switch: Unity → Unreal (docs only, issue #5)
+
+Ty decided the game ships on **Unreal Engine**, not Unity. Directive: update
+planning docs and any Unity-specific wording to match; do not rewrite the
+Core/Sim C# aero core, don't touch Glass Overlay, don't rename the working
+title, iOS stays the target platform, no full Unreal scaffold yet (docs
+first).
+
+**Outcome:**
+- `ARCHITECTURE.md`: Unity → Unreal as scene/renderer/input host; documented
+  the Bridge interop plan — Core/Sim stay pure C#, compiled with **.NET
+  NativeAOT** into a static lib with a C ABI (avoids embedding Mono/CoreCLR,
+  which needs JIT that iOS disallows), linked into a `FlyingGame.Bridge`
+  Unreal C++ module; `unity/` folder layout renamed to `unreal/`
+  (Source/Content/Config), marked TODO/unscaffolded.
+- `VERTICAL-SLICE.md`: build-order steps 1, 3, 5, 6 updated for Unreal
+  project + Bridge, Enhanced Input touch dual-sticks, and a C++/Blueprints
+  ChallengeRunner + UMG HUD.
+- `COMMS-PROTOCOL.md`: local Mac channel description and the `build the
+  slice` trigger note updated from Unity to Unreal (cloud Actions still
+  can't build Unreal to iPhone, same reasoning as before).
+- `DATA-CONTRACTS.md`: no Unity-specific wording found — left unchanged.
+- `README.md`: doc index blurb updated (Unity assemblies → Unreal modules).
+
+Core/Sim remain pure C#, untouched. Next local-task candidate: "create UE
+project + Bridge" (NativeAOT build + C ABI linkage as the first spike).
+
