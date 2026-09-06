@@ -397,7 +397,7 @@
             -0.3
           ],
           "chord": 0.6,
-          "area": 0.3333,
+          "area": 0.25,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "naca0012-like",
@@ -413,7 +413,7 @@
             -0.7
           ],
           "chord": 0.6,
-          "area": 0.3333,
+          "area": 0.25,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "naca0012-like",
@@ -429,13 +429,29 @@
             -1.1
           ],
           "chord": 0.6,
-          "area": 0.3333,
+          "area": 0.25,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "naca0012-like",
           "control": {
             "surface": "rudder",
             "gain": 0.8
+          }
+        },
+        {
+          "pos": [
+            -4.5,
+            0,
+            0.15
+          ],
+          "chord": 0.7,
+          "area": 0.25,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "rudder",
+            "gain": 0.9
           }
         }
       ]
@@ -751,5 +767,6 @@
     "vneMs": 60,
     "gMax": 4.7,
     "gMin": -2.3
-  }
+  },
+  "wakeBlanketMaxLoss": 0.5
 }

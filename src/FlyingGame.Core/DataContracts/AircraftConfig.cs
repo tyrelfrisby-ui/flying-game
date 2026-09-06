@@ -17,6 +17,13 @@ public sealed class AircraftConfig
     public ControlsConfig Controls { get; set; } = new();
     public FuselageConfig Fuselage { get; set; } = new();
     public object? Propulsion { get; set; }
+
+    /// <summary>
+    /// Max fraction of dynamic pressure the tail loses when fully inside a fully-stalled wing's wake
+    /// (tail blanketing — the mechanism that lets a spin's nose ride high). 0 disables. Optional,
+    /// schema-safe default.
+    /// </summary>
+    public double WakeBlanketMaxLoss { get; set; } = 0.7;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 }

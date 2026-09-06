@@ -61,8 +61,11 @@ public static class AeroModel
         Vec3 totalForce = Vec3.Zero;
         Vec3 totalMoment = Vec3.Zero;
 
+        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg);
+
         foreach (SurfaceConfig surface in config.Surfaces)
         {
+            bool isWing = surface.Id.Contains("wing", StringComparison.OrdinalIgnoreCase);
             bool isVertical = surface.Id.Contains("vstab", StringComparison.OrdinalIgnoreCase)
                                || surface.Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
 
@@ -139,7 +142,12 @@ public static class AeroModel
                     cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper;
                 }
 
-                double q = 0.5 * airDensity * planeSpeed * planeSpeed;
+                // Tail blanketing: strips of non-wing surfaces sitting inside the stalled wing's
+                // separated wake lose dynamic pressure. In a spin this is what stops the tail from
+                // producing near-CLmax upload and lets the nose ride high.
+                double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), config.WakeBlanketMaxLoss);
+
+                double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 double lift = q * strip.Area * coeffs.Cl;
                 double drag = q * strip.Area * (coeffs.Cd + cdInduced);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
@@ -157,6 +165,104 @@ public static class AeroModel
         ApplyFuselage(config, bodyVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
 
         return (totalForce, totalMoment);
+    }
+
+    /// <summary>
+    /// Geometry of the stalled wing's separated wake (NACA spin-research style). The wake sheds from
+    /// the wing and convects downstream with the flow: in body axes it occupies the angular band
+    /// between the wing chord plane (elevation ~0) and the freestream direction (elevation ~alpha),
+    /// growing with a spread margin. Strength scales with the stalled fraction of wing area.
+    /// </summary>
+    private readonly struct WingWake
+    {
+        private const double StallAlphaRad = 15.0 * Math.PI / 180.0;
+        private const double SpreadRad = 6.0 * Math.PI / 180.0;
+
+        private readonly Vec3 _origin;        // area-weighted wing quarter-chord position
+        private readonly double _flowAlpha;   // wake convection elevation (freestream alpha)
+        private readonly double _stalledFrac; // stalled wing area / total wing area
+
+        public WingWake(Vec3 origin, double flowAlpha, double stalledFrac)
+        {
+            _origin = origin;
+            _flowAlpha = flowAlpha;
+            _stalledFrac = stalledFrac;
+        }
+
+        public static double StallAlpha => StallAlphaRad;
+
+        /// <summary>1 = clean air; down to (1 - maxLoss) fully inside a fully-stalled wing's wake.</summary>
+        public double DynamicPressureFactor(Vec3 stripPos, double maxLoss)
+        {
+            if (_stalledFrac <= 0.0 || maxLoss <= 0.0)
+            {
+                return 1.0;
+            }
+
+            double aft = _origin.X - stripPos.X;   // distance behind the wing (+x forward)
+            if (aft < 0.1)
+            {
+                return 1.0;                        // ahead of / on the wing: no wake
+            }
+
+            // Elevation of the strip above the wing plane, seen from the wake origin (+z is down,
+            // so "up" is -z). The wake band spans elevation [0, flowAlpha] +/- spread.
+            double elevation = Math.Atan2(-(stripPos.Z - _origin.Z), aft);
+            double lo = Math.Min(0.0, _flowAlpha) - SpreadRad;
+            double hi = Math.Max(0.0, _flowAlpha) + SpreadRad;
+
+            // Smooth edge falloff over the spread margin.
+            double inside;
+            if (elevation <= lo || elevation >= hi)
+            {
+                inside = 0.0;
+            }
+            else
+            {
+                double edgeDist = Math.Min(elevation - lo, hi - elevation);
+                inside = Math.Clamp(edgeDist / SpreadRad, 0.0, 1.0);
+            }
+
+            return 1.0 - maxLoss * _stalledFrac * inside;
+        }
+    }
+
+    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg)
+    {
+        Vec3 freestream = bodyVelocity - windBody;
+        double flowAlpha = Math.Abs(freestream.X) > MinSpeedMs || Math.Abs(freestream.Z) > MinSpeedMs
+            ? Math.Atan2(freestream.Z, freestream.X)
+            : 0.0;
+
+        double totalArea = 0.0, stalledArea = 0.0, sumX = 0.0, sumZ = 0.0;
+        foreach (SurfaceConfig surface in config.Surfaces)
+        {
+            if (!surface.Id.Contains("wing", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            foreach (StripConfig strip in surface.Strips)
+            {
+                Vec3 pos = strip.PosVec();
+                Vec3 vLocal = freestream + Vec3.Cross(bodyRates, pos - cg);
+                double localAlpha = Math.Atan2(vLocal.Z, vLocal.X) + strip.IncidenceRad;
+                totalArea += strip.Area;
+                sumX += pos.X * strip.Area;
+                sumZ += pos.Z * strip.Area;
+                if (Math.Abs(localAlpha) > WingWake.StallAlpha)
+                {
+                    stalledArea += strip.Area;
+                }
+            }
+        }
+
+        if (totalArea <= 0.0)
+        {
+            return new WingWake(Vec3.Zero, 0.0, 0.0);
+        }
+
+        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, stalledArea / totalArea);
     }
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce)
