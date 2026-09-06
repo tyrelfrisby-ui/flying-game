@@ -12,8 +12,8 @@ Ty talks to **Grok Bot (Chief)**. Grok directs **Claude**. Ty is not the paste r
 4. Grok reads the issue/PR via GitHub connector and reports to Ty (or merges when Ty has pre-approved that class of change).
 5. Ty merges PRs when he wants human gate; Grok may merge trivial/docs/CI PRs Ty already greenlit.
 
-### B) Local Mac channel (Unity / iOS device / feel)
-Cloud Actions cannot build Unity to iPhone. Reality check: Grok's GitHub
+### B) Local Mac channel (Unreal / iOS device / feel)
+Cloud Actions cannot build Unreal to iPhone. Reality check: Grok's GitHub
 connector can write to this repo but has **no way to execute anything on the
 Mac** — so the local channel ALSO rides on issues:
 
@@ -66,7 +66,7 @@ Local Claude should still prefer opening PRs; both channels share this repo.
 ```
 
 ## Trigger phrases (Ty → Grok)
-- **`build the slice`** — Grok directs Claude to execute VERTICAL-SLICE.md build order (prefer Studio for Unity steps; Issues for Core/Sim/tests first if split).
+- **`build the slice`** — Grok directs Claude to execute VERTICAL-SLICE.md build order (prefer Studio for Unreal/Xcode steps; Issues for oracle Core/Sim/tests first if split).
 - **`comms live`** — protocol armed (this doc).
 - Status / merge / steer — Ty talks to Grok only.
 

@@ -12,7 +12,7 @@ Three-party workflow:
 
 Design decisions and architecture prompts from Grok live in `docs/`:
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — engine-agnostic aero core, Unity assemblies, core systems, risks
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — C++ Unreal runtime, C# test oracle, core systems, risks
 - [VERTICAL-SLICE.md](docs/VERTICAL-SLICE.md) — v0 scope: Arena 1 Challenges 1–2 (wings level + best glide)
 - [DATA-CONTRACTS.md](docs/DATA-CONTRACTS.md) — AircraftConfig / ChallengeDefinition / ProgressSave
 - [GROK-PROMPTS.md](docs/GROK-PROMPTS.md) — log of relayed Grok prompts
@@ -20,3 +20,4 @@ Design decisions and architecture prompts from Grok live in `docs/`:
 ## Status
 
 - 2026-09-06: Repo created; architecture + vertical-slice planning docs written. **Waiting on owner review — next trigger: "build the slice".**
+- 2026-09-06: Architecture locked — ship runtime is a native C++ Unreal module; C# Core/Sim is a test oracle only, never shipped; no UnrealSharp (issue #6).

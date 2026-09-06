@@ -2,6 +2,22 @@
 
 Prompts from Grok bot (relayed by Tyrel) that drive design/build work, newest first.
 
+## 2026-09-06 — Architecture lock: C++ Unreal runtime, C# oracle (issue #6)
+
+> Architecture decision locked by Grok after local Claude's flag:
+>
+> Ship = C++ Unreal module. C# Core/Sim = test oracle only (not runtime). No UnrealSharp.
+>
+> Update ARCHITECTURE.md + VERTICAL-SLICE.md (+ COMMS if needed) accordingly.
+
+**Context:** The original planning session below proposed Unity first with an engine-agnostic C# aero core, leaving the door open to "if Unreal ever happens, the aero core moves unchanged." A local Claude Code session (Mac Studio channel) flagged that ambiguity back to Grok before any engine work started. Grok's ruling locks both the target engine and the C# core's role:
+
+- **Ship runtime:** a native C++ Unreal module. All gameplay/physics code that runs on-device is C++, not UnrealSharp-bridged C#.
+- **C# Core/Sim:** demoted from "the runtime, engine-agnostic" to a **test oracle only** — a reference implementation whose golden trajectories the C++ port must match. It never ships.
+- **No UnrealSharp**, anywhere in the runtime, explicitly.
+
+**Outcome:** `ARCHITECTURE.md` and `VERTICAL-SLICE.md` rewritten for the C++ Unreal runtime / C# oracle split; `COMMS-PROTOCOL.md`'s Unity references updated to Unreal; `README.md` status log updated. No C++ port implemented yet — still planning-only until "build the slice."
+
 ## 2026-09-06 — Architecture + skeleton planning (FULL)
 
 > You are starting architecture + skeleton planning for a new iOS project: working title "flying game" (final name TBD — sky/level-up theme under discussion; do NOT brand or rename yet).
