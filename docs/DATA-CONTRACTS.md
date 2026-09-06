@@ -34,7 +34,9 @@ One file per aircraft. The physics reads ONLY this — no aircraft-specific code
     "aileron":  { "maxDeflRad": 0.35, "rateRadPerSec": 3.0, "expo": 0.3, "deadZone": 0.05 },
     "elevator": { "...": "same shape" },
     "rudder":   { "...": "same shape" },
-    "spoiler":  { "maxDeflRad": 0.9,  "dragOnly": true }
+    "spoiler":  { "maxDeflRad": 0.9,  "dragOnly": true,
+                  "axis": "throttleLever",          // glider: throttle lever IS the speed brake
+                  "axisMap": "aftOnly" }            // neutral=stowed, full aft=deployed, forward inert
   },
 
   "fuselage": { "cd0Area": 0.08, "sideForceArea": 1.5, "damping": {"p":0,"q":0,"r":0} },

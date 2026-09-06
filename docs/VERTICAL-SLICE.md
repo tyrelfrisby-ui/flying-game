@@ -10,7 +10,7 @@ The smallest build that proves the whole idea: real 6DOF glider physics, visible
 
 **Bubble field v1:** instanced, air-mass-fixed, wrapping grid around the aircraft; profiled on the oldest supported device before art polish.
 
-**Controls:** dual RC touchpads (LEFT throttle+rudder — throttle inert on the glider; RIGHT elevator+aileron), dead zone/expo from config.
+**Controls:** dual RC touchpads (LEFT vertical = speed brake on the glider — neutral stowed, full aft fully deployed, forward inert; LEFT horizontal = rudder; RIGHT elevator+aileron), dead zone/expo from config.
 
 **Camera:** chase cam v1.
 

@@ -68,7 +68,7 @@ Interface defined now, implemented later: thrust from a prop table, plus P-facto
 ISA density vs altitude (thin-air arena later), steady wind + gust field interface. Wind is also what the BubbleField reads — bubbles ride the same air mass the wings feel.
 
 ### Input (Bridge/UI)
-Two virtual RC touchpads. LEFT pad: vertical = throttle (spring-loaded off for glider spoiler variant TBD), horizontal = rudder. RIGHT pad: vertical = elevator, horizontal = aileron. Per-axis dead zone, expo curve, and rate limits live in config, not code — feel tuning is data. Controller support later.
+Two virtual RC touchpads. LEFT pad: vertical = throttle on powered aircraft; **on the glider the same lever is the speed brake** — neutral (centered thumb) = fully stowed, full aft = fully deployed, forward of neutral does nothing. Same thumb geometry across every aircraft. LEFT horizontal = rudder. RIGHT pad: vertical = elevator, horizontal = aileron. Per-axis dead zone, expo curve, and rate limits live in config, not code — feel tuning is data. Controller support later.
 
 ### BubbleField (Bridge)
 An infinite-feeling, evenly spaced 3D grid of small bubbles, **fixed in the air mass** (they translate with wind relative to terrain). Implementation: only a local block around the aircraft exists; GPU-instanced meshes; when the aircraft moves a grid cell, bubbles wrap modulo grid spacing so the field never ends. Distance fade by shrinking the mesh (avoid transparent overdraw — see Risks). v0 is passive flow visualization: relative streaming past the canopy IS the AoA/sideslip display. A later pass adds local deflection near the wing (upwash/downwash) driven by the same aero state.
