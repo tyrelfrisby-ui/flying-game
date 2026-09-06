@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>FlyingGame.Core</RootNamespace>
+    <AssemblyName>FlyingGame.Core</AssemblyName>
+    <!-- Pure C#, no UnityEngine references (mirrors the Unity asmdef's noEngineReferences=true). -->
+  </PropertyGroup>
+
+</Project>
