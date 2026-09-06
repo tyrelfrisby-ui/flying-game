@@ -24,7 +24,21 @@ Package.resolved
 # .NET (Core/Sim/FlightTests)
 bin/
 obj/
+bin~/
+obj~/
 *.user
+
+# Unity (unity/ project)
+unity/Library/
+unity/Temp/
+unity/Logs/
+unity/UserSettings/
+unity/obj/
+unity/Assets/StreamingAssets/aircraft/
+unity/Assets/StreamingAssets/aircraft.meta
+*.csproj.meta
+unity/*.csproj
+unity/*.sln
 
 # Secrets
 *.env

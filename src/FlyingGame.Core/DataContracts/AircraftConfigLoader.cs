@@ -1,3 +1,7 @@
+// Unity has no System.Text.Json; there the Bridge assembly supplies a Newtonsoft-based loader
+// (UnityAircraftConfigLoader) deserializing into these same data classes. This file only compiles
+// in the headless dotnet build (FlightTests).
+#if !UNITY_5_3_OR_NEWER
 using System.Text.Json;
 
 namespace FlyingGame.Core.DataContracts;
@@ -29,3 +33,4 @@ public static class AircraftConfigLoader
         return config;
     }
 }
+#endif

@@ -1,0 +1,16 @@
+{
+    "name": "FlyingGame.Sim",
+    "rootNamespace": "FlyingGame.Sim",
+    "references": [
+        "FlyingGame.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

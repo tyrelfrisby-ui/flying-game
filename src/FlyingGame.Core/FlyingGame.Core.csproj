@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- No ImplicitUsings: Unity compiles these same sources and has no implicit-usings feature.
+         GlobalUsings.cs provides the shared set explicitly for both compilers. -->
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>FlyingGame.Core</RootNamespace>
     <AssemblyName>FlyingGame.Core</AssemblyName>
-    <!-- Pure C#, no UnityEngine references (mirrors the Unity asmdef's noEngineReferences=true). -->
+    <!-- Trailing ~ hides these from Unity's asset importer (src/ doubles as a UPM package). -->
+    <BaseIntermediateOutputPath>obj~/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin~/</BaseOutputPath>
   </PropertyGroup>
-
 </Project>

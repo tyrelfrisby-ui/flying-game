@@ -1,16 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>FlyingGame.Sim</RootNamespace>
     <AssemblyName>FlyingGame.Sim</AssemblyName>
-    <!-- Pure C#, no UnityEngine references. -->
+    <BaseIntermediateOutputPath>obj~/</BaseIntermediateOutputPath>
+    <BaseOutputPath>bin~/</BaseOutputPath>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\FlyingGame.Core\FlyingGame.Core.csproj" />
   </ItemGroup>
-
 </Project>
