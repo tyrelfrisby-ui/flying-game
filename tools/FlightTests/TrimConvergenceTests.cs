@@ -1,3 +1,4 @@
+using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
