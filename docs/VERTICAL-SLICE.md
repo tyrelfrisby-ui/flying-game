@@ -24,7 +24,7 @@ The smallest build that proves the whole idea: real 6DOF glider physics, visible
 
 **Save:** local `ProgressSave` JSON with best score per challenge.
 
-**Flight-test harness:** `tools/FlightTests` running headless on the same core: trim convergence, static stability signs, roll-rate sanity, **adverse-yaw sign test**, stall-break behavior. Green harness = physics credible before it's ever flown by thumb.
+**Flight-test harness:** `tools/FlightTests` running headless on the C# oracle: trim convergence, static stability signs, roll-rate sanity, **adverse-yaw sign test**, stall-break behavior. Green harness = physics credible before it's ever ported. The same scenarios/assertions are then replayed against the C++ Unreal port — that has to go green too before it's ever flown by thumb.
 
 ## Explicitly NOT in v0
 Challenges 3–11, spins as a challenge, prop/engine, other aircraft, wind/thermals, landings, lives/credits/IAP, unlocks, free play, menus beyond challenge select, sound design, final art, name/branding.
@@ -32,13 +32,13 @@ Challenges 3–11, spins as a challenge, prop/engine, other aircraft, wind/therm
 ## Definition of done
 - Runs 60 fps on the oldest supported iPhone with the full bubble field.
 - Ty flies both challenges and the glider *feels like a 2-33* on trim, control harmony, and adverse yaw (visible in the bubbles: nose swings opposite the roll input).
-- Flight-test harness green in CI.
-- Both challenges pass/fail correctly from JSON with no challenge-specific C#.
+- C# oracle's flight-test harness green in CI, **and** the C++ Unreal port replays the same assertions green (trim, stability signs, adverse yaw, stall-break) — no gameplay flies on unverified C++ physics.
+- Both challenges pass/fail correctly from JSON with no challenge-specific code.
 
 ## Build order (when "build the slice" is given)
-1. Core math + 6DOF + flight-test harness scaffold (headless, no Unity yet)
-2. Strip-theory aero + 2-33 config + harness tests green
-3. Unity project + Bridge (sim→Transform, chase cam, ground plane)
+1. Core math + 6DOF + flight-test harness scaffold (headless C# oracle, no Unreal yet)
+2. Strip-theory aero + 2-33 config + oracle harness tests green
+3. Port Core+Sim to the C++ Unreal module + parity tests replaying the oracle's assertions; Unreal project + Bridge (Sim→Actor transform, chase cam, ground plane)
 4. Bubble field + on-device perf pass ← gate: fail here means rethink the visual before proceeding
-5. Touchpads + feel tuning on device
-6. ChallengeRunner + the two challenge JSONs + HUD + save
+5. Touch dual-sticks (Unreal Enhanced Input) + feel tuning on device
+6. ChallengeRunner (C++/Blueprints) + the two challenge JSONs + UMG HUD + save

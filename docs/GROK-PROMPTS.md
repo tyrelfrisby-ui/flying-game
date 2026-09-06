@@ -69,3 +69,21 @@ Auth: existing claude.ai Max OAuth (do not use `--bare`).
 Ty still approves big triggers (e.g. "build the slice") in chat with Grok;
 Grok then invokes Claude directly and verifies via git + docs/.
 
+## 2026-09-06 — Engine target: Unreal; dual-core aero (Path a locked)
+
+Ty (via Grok) locked the engine target to **Unreal Engine** (Unity dropped).
+For aero/physics, **Path (a)** is locked: ship it as a native **C++ Unreal
+module**, ported from the existing **C# `Core`/`Sim`**, which stays in the
+repo as the **oracle** — its FlightTests assertions (trim, stability signs,
+adverse yaw, stall-break, later spin) are authored once in C# and replayed
+against the C++ port; a behavior only counts as shipped once both sides
+agree. **Path (b), UnrealSharp, was rejected** for shipping physics — it
+still depends on Mono/CoreCLR plumbing that's fragile and out of our control
+on iOS, an unacceptable App Store risk.
+
+**Outcome:** `ARCHITECTURE.md`, `VERTICAL-SLICE.md`, `COMMS-PROTOCOL.md`, and
+`README.md` updated so docs no longer imply the C# oracle plugs directly
+into Unreal — the C++ port + parity-vs-oracle path is explicit. No Unreal
+project scaffolded — docs only. Next trigger: create the Unreal project +
+C++ Bridge module (local-task, Mac/UE install).
+

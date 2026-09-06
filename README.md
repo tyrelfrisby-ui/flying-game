@@ -12,7 +12,7 @@ Three-party workflow:
 
 Design decisions and architecture prompts from Grok live in `docs/`:
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — engine-agnostic aero core, Unity assemblies, core systems, risks
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — dual-core aero (C# design oracle + ported C++ Unreal runtime), Unreal modules, core systems, risks
 - [VERTICAL-SLICE.md](docs/VERTICAL-SLICE.md) — v0 scope: Arena 1 Challenges 1–2 (wings level + best glide)
 - [DATA-CONTRACTS.md](docs/DATA-CONTRACTS.md) — AircraftConfig / ChallengeDefinition / ProgressSave
 - [GROK-PROMPTS.md](docs/GROK-PROMPTS.md) — log of relayed Grok prompts
