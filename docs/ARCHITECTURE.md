@@ -1,6 +1,8 @@
 # Flying Game — Architecture
 
-Working title only. iOS (iPhone + iPad), Unity first, aero core engine-agnostic. Planning doc — nothing here is built yet.
+Working title only. Planning doc.
+
+**Engine decision (Ty, 2026-09-06):** iOS (iPhone + iPad) ships on **Unity** — mobile-first pipeline, C# end to end, fast on-device iteration. A later **Mac desktop version ships on Unreal** for top-tier visuals (UE 5.8 already installed at `/Users/Shared/Epic Games/UE_5.8`). The engine-agnostic core below is what makes one game on two engines possible: the C# core stays the single source of truth and flight-test oracle; the Unreal build gets a C++ port of the core that must pass the same flight tests. Nothing Unreal-specific is built until iOS ships its slice.
 
 ## The one big decision
 
@@ -9,7 +11,7 @@ Working title only. iOS (iPhone + iPad), Unity first, aero core engine-agnostic.
 Why this matters for this project specifically:
 
 1. **The physics north star is testable without a screen.** Because the core is plain C#, we can run automated "flight tests" as unit tests: trim the glider, command full aileron, and assert the nose yaws *away* from the turn (adverse yaw); hold full aft stick + rudder and assert autorotation develops with the right rotation rate sign. Spin fidelity gets verified in CI, not by eyeballing the chase cam.
-2. **Engine-agnostic for real.** If Unreal ever happens, the aero core moves unchanged.
+2. **Engine-agnostic for real.** The Mac desktop version on Unreal is now planned: the aero core's C# stays the oracle, and the Unreal build carries a C++ port verified against the same flight tests.
 3. **Precision control.** We choose our own integrator and timestep instead of fighting PhysX, which was never built for post-stall aerodynamics.
 
 ## Assemblies (Unity asmdefs)
