@@ -85,7 +85,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -101,7 +101,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -117,7 +117,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -133,7 +133,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -149,7 +149,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -165,7 +165,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": -0.5
+            "gain": 0.5
           }
         },
         {
@@ -233,7 +233,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         },
         {
@@ -249,7 +249,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         },
         {
@@ -265,7 +265,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         },
         {
@@ -281,7 +281,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         },
         {
@@ -297,7 +297,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         },
         {
@@ -313,7 +313,7 @@
           "airfoil": "clarkY-like",
           "control": {
             "surface": "aileron",
-            "gain": 0.5
+            "gain": -0.5
           }
         }
       ]
