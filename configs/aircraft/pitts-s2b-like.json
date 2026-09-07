@@ -11,9 +11,9 @@
     ],
     "inertia": {
       "ixx": 660,
-      "iyy": 1147,
-      "izz": 1450,
-      "ixz": 40
+      "iyy": 1262,
+      "izz": 1482,
+      "ixz": 50
     }
   },
   "surfaces": [
@@ -1614,7 +1614,7 @@
     "propDiameterM": 1.98,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 2.4,
+    "propInertia": 9.0,
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
