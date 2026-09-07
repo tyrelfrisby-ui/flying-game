@@ -3,7 +3,7 @@
   "id": "pitts-s2b-like",
   "displayName": "Aerobat Biplane",
   "mass": {
-    "massKg": 700,
+    "massKg": 737,
     "cg": [
       -0.03,
       0,
@@ -11,8 +11,8 @@
     ],
     "inertia": {
       "ixx": 660,
-      "iyy": 1262,
-      "izz": 1482,
+      "iyy": 1121,
+      "izz": 1341,
       "ixz": 50
     }
   },
