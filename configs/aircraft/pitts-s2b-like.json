@@ -811,7 +811,7 @@
           "area": 0.14,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -827,7 +827,7 @@
           "area": 0.14,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -843,7 +843,7 @@
           "area": 0.14,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "naca0012-like",
+          "airfoil": "fin-lowAR",
           "control": {
             "surface": "rudder",
             "gain": 0.45
@@ -1366,7 +1366,7 @@
       "sideArea": 3.2,
       "sideCenterX": -0.3,
       "cd": 1.2,
-      "lengthM": 0.0
+      "lengthM": 4.0
     }
   },
   "propulsion": {
@@ -1395,5 +1395,5 @@
     "gMax": 6.0,
     "gMin": -3.0
   },
-  "verticalBlanketFactor": 1.0
+  "verticalBlanketFactor": 0.5
 }
