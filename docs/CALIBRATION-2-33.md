@@ -134,3 +134,13 @@ Pitts: owner angular-momentum theory -> Ixx sweep 290/430/660 vs the accelerated
 only Ixx 660 passes (2.1->4.9 rad/s alpha 84). Kept 660/1147/1450/40 — behaviorally validated;
 low component estimates must be missing wing/strut mass; swing-test data wanted. Ailerons
 verified outboard-only on both wings. Crossover deepens with Ixx (not inertia-limited).
+
+
+## Tail-resolution round (2026-09-07 late) — OPEN ITEM
+
+Tail resolution doubled fleet-wide (stab/elev 8 spanwise, fin 6 / rudder 8 vertical). Glider/C172
+converged (unchanged); Pitts neutral IMPROVED 1.3->2.0. OPEN: Pitts accelerated-spin litmus FAILS
+at fine resolution (full-forward recovers at all inertia combos to Ixx1200); vortex-breakdown
+decline added to fin-lowAR (0.82/0.52/0.24 at 50/60/75) — insufficient alone. NEXT SESSION FIRST:
+stab-wake-on-DOWN-elevator shielding (TN-1329 mechanism applied to the elevator itself), then
+re-run litmus + full fleet matrix.
