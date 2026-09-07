@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "id": "a1c2-best-glide",
+  "arena": "arena1-farm-grid",
+  "aircraftId": "glider-2-33-like",
+  "titleKey": "challenge.a1c2.title",
+  "spawn": {
+    "pos": [
+      0,
+      0,
+      -600
+    ],
+    "headingRad": 0,
+    "iasMs": 30,
+    "attitudeTrim": true
+  },
+  "phases": [
+    {
+      "id": "onspeed",
+      "durationSec": 30,
+      "tolerances": [
+        {
+          "signal": "iasMs",
+          "target": 23.5,
+          "band": 2.0,
+          "targetMode": "absolute",
+          "weight": 1
+        },
+        {
+          "signal": "bankRad",
+          "target": 0,
+          "band": 0.13963,
+          "targetMode": "absolute",
+          "weight": 0.5
+        }
+      ],
+      "callouts": [
+        {
+          "atSec": 0,
+          "textKey": "callout.pitchForBestGlide"
+        }
+      ]
+    }
+  ],
+  "scoring": {
+    "mode": "accuracyPercent",
+    "passThreshold": 75
+  },
+  "fail": {
+    "onGroundContact": "crash",
+    "onOverstress": "crash",
+    "bailAllowed": true
+  }
+}
