@@ -25,7 +25,15 @@ namespace FlyingGame.Bridge
         public double AlphaDeg { get; private set; }
         public double BetaDeg { get; private set; }
 
+        // Spin grading (owner benchmarks: ~100 ft/s descent, ~300 ft and ~3 s per turn in a 2-33).
+        public double DescentFtPerSec { get; private set; }
+        public double SecPerTurn { get; private set; }      // 0 when not rotating
+        public double FtPerTurn { get; private set; }
+
         private double _accumulator;
+        private double _prevHeadingRad;
+        private double _headingRateFilt;
+        private double _descentFilt;
 
         private void Awake()
         {
@@ -51,6 +59,33 @@ namespace FlyingGame.Bridge
         {
             Sim.Advance(Time.deltaTime, Inputs, ref _accumulator);
             ApplyStateToTransform();
+            UpdateSpinMetrics(Time.deltaTime);
+        }
+
+        private void UpdateSpinMetrics(double dt)
+        {
+            if (dt <= 0)
+            {
+                return;
+            }
+
+            RigidBodyState s = Sim.Aircraft.State;
+            Quat q = s.Attitude;
+            double heading = System.Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+            double dPsi = heading - _prevHeadingRad;
+            if (dPsi > System.Math.PI) dPsi -= 2 * System.Math.PI;
+            if (dPsi < -System.Math.PI) dPsi += 2 * System.Math.PI;
+            _prevHeadingRad = heading;
+
+            double k = 1 - System.Math.Exp(-dt / 0.8); // ~0.8 s low-pass
+            _headingRateFilt += (dPsi / dt - _headingRateFilt) * k;
+            double sinkMs = s.Attitude.Rotate(s.Velocity).Z; // world +z is down
+            _descentFilt += (sinkMs - _descentFilt) * k;
+
+            DescentFtPerSec = _descentFilt * 3.28084;
+            double omega = System.Math.Abs(_headingRateFilt);
+            SecPerTurn = omega > 0.15 ? 2 * System.Math.PI / omega : 0;
+            FtPerTurn = SecPerTurn > 0 ? DescentFtPerSec * SecPerTurn : 0;
         }
 
         public void ResetFlight()

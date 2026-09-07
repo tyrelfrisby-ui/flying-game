@@ -27,6 +27,13 @@ namespace FlyingGame.Bridge
                 $"AoA {Driver.AlphaDeg:F1}°   β {Driver.BetaDeg:F1}°", _style);
             GUI.Label(new Rect(16, 34, 760, 22),
                 "arrows = stick (Down pulls)  ·  A/D = rudder  ·  S/W = speed brake  ·  R = reset", _style);
+
+            // Spin grading line — only when the wing is stalled and rotation is established.
+            if (Driver.AlphaDeg > 16.0 && Driver.SecPerTurn > 0)
+            {
+                GUI.Label(new Rect(16, 58, 760, 22),
+                    $"SPIN  {Driver.SecPerTurn:F1} s/turn   {Driver.FtPerTurn:F0} ft/turn   {Driver.DescentFtPerSec:F0} ft/s down", _style);
+            }
         }
     }
 }
