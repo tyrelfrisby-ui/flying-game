@@ -196,3 +196,21 @@ MATCHED to lower to preserve the developed-spin equilibrium; +0.05 m forward sta
 incidence). Upper-stalls-first is now real -> asymmetric spin entry. NOTE: developed-spin depth
 tuning (ACCEL litmus) was done on a uniform wing; with the now-correct top/bottom asymmetry the
 Pitts spin develops slower and needs a re-tune pass on the split-wing model — flagged.
+
+
+## New-singles spin matrix (2026-09-07) + true multi-engine
+
+Multi-engine model built: per-mount thrust + prop effects, engine-out asymmetric yaw at spanwise
+arm, counter-rotating cancellation. MultiEngineTests green (Seminole twin).
+
+Spin matrix, 4 new singles, om=rad/s about vertical, R/L = commanded/opposite:
+- STEARMAN: clean upright spin (3.0 R, alpha 31), aileron-in accelerates, mirror-ish inverted.
+  Docile trainer character. GOOD.
+- EXTRA 300: symmetric -> near-identical upright/inverted (neutral ~0.5 both), aileron drives
+  it hard both ways (into 5-7, out reverses). Aerobatic snap character. GOOD.
+- P-51: solid upright spin (2.8, alpha 34); inverted also spins (3.5). Fighter. GOOD.
+- F-86: FLAT/high-alpha (alpha 130!) — the swept jet is departing to very deep alpha not a
+  classic spin. Needs jet-specific spin tuning (swept-wing pitch-up/deep-stall is real F-86
+  behavior but 130 deg is too far). FLAGGED for tuning pass.
+General: all developed spins currently tend fast/shallow like the early Pitts — per-aircraft
+deep-stall table tuning (the glider/Pitts playbook) is the remaining pass for each.
