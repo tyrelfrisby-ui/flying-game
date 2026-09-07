@@ -71,8 +71,10 @@ public static class AeroModel
         Vec3 windBody,
         double airDensity,
         ControlDeflections controls,
-        double wakeStalledFracOverride = -1.0)
+        double wakeStalledFracOverride = -1.0,
+        StripFlowState? flowState = null)
     {
+        int stripIndex = 0;
         Vec3 cg = config.Mass.CgVec();
         Vec3 totalForce = Vec3.Zero;
         Vec3 totalMoment = Vec3.Zero;
@@ -91,6 +93,7 @@ public static class AeroModel
 
             foreach (StripConfig strip in surface.Strips)
             {
+                int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
                 Vec3 r = strip.PosVec() - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
 
@@ -171,6 +174,29 @@ public static class AeroModel
                 }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
+
+                // Two-branch stall: blend the ATTACHED branch (linear lift carried past the static
+                // stall — capped dynamic overshoot) with the SEPARATED branch (the table's post-stall
+                // data) by this strip's own separation memory. Only meaningful in the transition band;
+                // deep post-stall the strip is always separated and the table rules.
+                if (flowState is not null && idx < flowState.Separation.Length)
+                {
+                    flowState.LocalAlphaRad[idx] = alpha;
+                    double sep = flowState.Separation[idx];
+                    double aClMax = table.AlphaClMaxRad;
+                    if (sep < 1.0 && Math.Abs(alpha) > aClMax && Math.Abs(alpha) < aClMax + 20.0 * Math.PI / 180.0)
+                    {
+                        double sign = Math.Sign(alpha);
+                        AeroCoefficients atStall = table.Sample(sign * aClMax);
+                        // Attached branch: hold ~Clmax with a gentle continued rise, capped at 1.15x.
+                        double clAttached = sign * Math.Min(Math.Abs(atStall.Cl) * 1.15,
+                            Math.Abs(atStall.Cl) + 0.8 * (Math.Abs(alpha) - aClMax));
+                        double cl = (1.0 - sep) * clAttached + sep * coeffs.Cl;
+                        double cd = (1.0 - sep) * atStall.Cd + sep * coeffs.Cd;
+                        double cm = (1.0 - sep) * atStall.Cm + sep * coeffs.Cm;
+                        coeffs = new AeroCoefficients(cl, cd, cm);
+                    }
+                }
 
                 // Drag polar: airfoil tables carry PROFILE drag only; induced drag is added here
                 // per strip as Cl²/(π·AR·e) so it varies with local alpha (and therefore with

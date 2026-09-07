@@ -849,7 +849,7 @@
       "deadZone": 0.05
     },
     "elevator": {
-      "maxDeflRad": 0.4,
+      "maxDeflRad": 0.49,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
       "deadZone": 0.03

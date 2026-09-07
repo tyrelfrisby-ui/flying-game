@@ -22,6 +22,7 @@ public sealed class Aircraft
     private double _rudderRad;
     private double _spoilerFraction;
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
+    private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
@@ -95,15 +96,32 @@ public sealed class Aircraft
         double tau = instantFrac > _wakeStalledFrac ? 0.25 : 1.0;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
+        int stripCount = Config.Surfaces.Sum(s => s.Strips.Count);
+        _flowState.EnsureSize(stripCount);
+
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             return (aeroForce + gravityBody, aeroMoment);
         }
 
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
+
+        // Advance per-strip separation memory (two-branch stall hysteresis): a strip SEPARATES fast
+        // above 16 deg local alpha, REATTACHES slowly below 11 deg, and holds in the band between —
+        // so the inner wing stays committed to the separated branch while the outer wing flies the
+        // attached one at the same |alpha| history. LocalAlphaRad was recorded during the last stage.
+        const double sepOn = 16.0 * Math.PI / 180.0, sepOff = 11.0 * Math.PI / 180.0;
+        for (int i = 0; i < stripCount; i++)
+        {
+            double a = Math.Abs(_flowState.LocalAlphaRad[i]);
+            double s0 = _flowState.Separation[i];
+            double target = a > sepOn ? 1.0 : a < sepOff ? 0.0 : s0;
+            double tauSec = target > s0 ? 0.15 : 0.6;
+            _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
+        }
     }
 
     private static double ShapeAxis(double input, ControlAxisConfig axis)
