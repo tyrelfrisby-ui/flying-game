@@ -94,7 +94,9 @@ public sealed class Aircraft
 
         double altitudeM = -State.Position.Z;
         double airDensity = Atmosphere.DensityAtAltitude(altitudeM);
-        Vec3 windBody = Atmosphere.WindAtPosition(State.Position);
+        // Turbulence wind is world-frame; the aero model works in body frame, so rotate it in.
+        Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
+        Vec3 windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
@@ -149,6 +151,7 @@ public sealed class Aircraft
         }
 
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
+        Atmosphere.AdvanceTime(dt);
 
         // Proposal 1: downwash transport lag (Cm-alphadot) — eps arrives at the tail one
         // transport time (tail-arm / V) late.

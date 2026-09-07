@@ -19,6 +19,9 @@ namespace FlyingGame.Bridge
         public float BubbleSize = 0.35f;
         public float FadeStartFraction = 0.6f;   // begin shrinking beyond this fraction of the block radius
 
+        public FlyingGame.Core.Turbulence Turbulence;   // set by the scene/weather; null = calm
+        public float GustDisplayScale = 0.6f;            // seconds of gust velocity shown as bubble offset
+
         private Mesh _mesh;
         private Material _material;
         private readonly List<Matrix4x4> _matrices = new();
@@ -55,6 +58,16 @@ namespace FlyingGame.Bridge
                     Mathf.Round((center.y - _airMassOrigin.y) / Spacing) + iy,
                     Mathf.Round((center.z - _airMassOrigin.z) / Spacing) + iz);
                 Vector3 pos = _airMassOrigin + latticeFromAircraft * Spacing;
+
+                // Turbulence made visible: each bubble is displaced by the LOCAL gust — eddies show as
+                // clusters of bubbles swirling together, and the aircraft visibly flies through moving
+                // air. Same field the wings feel (via Atmosphere), sampled at the bubble's sim position.
+                if (Turbulence != null)
+                {
+                    var simPos = CoordinateMap.ToSim(pos);
+                    FlyingGame.Core.MathTypes.Vec3 gust = Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
+                    pos += CoordinateMap.ToUnity(gust) * GustDisplayScale;
+                }
 
                 float dist = Vector3.Distance(pos, center);
                 if (dist > blockRadius)

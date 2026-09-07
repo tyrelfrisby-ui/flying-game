@@ -22,6 +22,15 @@ public static class Atmosphere
         return pressure / (GasConstantAir * temperature);
     }
 
-    /// <summary>Steady wind + gust field, still air (zero) for the v0 vertical slice.</summary>
-    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition) => MathTypes.Vec3.Zero;
+    /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>
+    public static Turbulence? ActiveTurbulence { get; set; }
+
+    /// <summary>Shared sim clock (s) for the frozen turbulence field; advanced by the sim each step.</summary>
+    public static double SimTimeSec { get; set; }
+
+    public static void AdvanceTime(double dt) => SimTimeSec += dt;
+
+    /// <summary>Wind (world frame, m/s) at a position: turbulence gust if active, else still air.</summary>
+    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition) =>
+        ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero;
 }

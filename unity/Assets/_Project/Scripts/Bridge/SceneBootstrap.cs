@@ -143,6 +143,9 @@ namespace FlyingGame.Bridge
 
             var chHud = cam.gameObject.AddComponent<ChallengeHud>();
             chHud.Controller = aircraft.GetComponent<ChallengeController>();
+
+            var weather = aircraft.AddComponent<WeatherController>();
+            weather.Bubbles = bubbles;
         }
     }
 }

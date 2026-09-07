@@ -14,6 +14,10 @@ namespace FlyingGame.Bridge
         public static Vector3 ToUnity(Vec3 sim) =>
             new((float)sim.Y, (float)-sim.Z, (float)sim.X);
 
+        /// <summary>Inverse of ToUnity: Unity y-up world position/vector back to sim NED.</summary>
+        public static Vec3 ToSim(Vector3 unity) =>
+            new(unity.z, unity.x, -unity.y);
+
         public static Quaternion ToUnity(Quat simAttitude)
         {
             Vector3 forward = ToUnity(simAttitude.Rotate(new Vec3(1, 0, 0)));
