@@ -58,3 +58,12 @@ against these — Ty's eye is the final acceptance test.
   depth, rudder power, elevator power, deep Cm (x0.49 total), CG (aft tips into reversal).
   Next principled lever: measured full-range section data (Sheldahl/Critzos type) for the separated
   branch at 20-30 deg — where the equilibrium actually sits — rather than more factor tuning.
+
+
+## Phase-portrait energy budget (branch, V2 cycle, 2026-09-06)
+
+Pitch work per component over one orbit (sign pattern robust; magnitudes approximate —
+component isolation cannot replicate per-strip memory): WING +2519 J and INERTIAL COUPLE
++1875 J PUMP the cycle; stab −7295, elevator −5225, ailerons −2538 damp it. The cycle's
+engine is the wing's deep-alpha pitching moment — all remaining spin work converges on
+measured high-AoA CP-walk data for the wing section.
