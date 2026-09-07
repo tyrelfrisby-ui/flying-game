@@ -180,9 +180,9 @@ public static class AeroModel
                 if (isAileronStrip && Math.Abs(controlDeflRad) > 1e-9)
                 {
                     double sep = flowState is not null && idx < flowState.Separation.Length ? flowState.Separation[idx] : 0.0;
-                    controlDeltaAlpha *= 1.0 - 0.7 * sep;
+                    controlDeltaAlpha *= 1.0 - 0.85 * sep; // post-stall authority halved again (owner: still too strong; NACA shape kept)
                     double deltaGeom = strip.Control!.Gain * controlDeflRad;
-                    cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 3.0 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
+                    cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
                 }
 
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
