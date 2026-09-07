@@ -105,3 +105,13 @@ its own. Enlarged below-stab rudder (36% per 3-view) insufficient alone. Directi
 at deep alpha = THE open problem. Next: phase-space basin study; candidate real-ship direction
 mechanisms: rotational flow asymmetry at the fin from spin-axis offset, fuselage side-crossflow
 asymmetry, pro-spin aileron-drag differential.
+
+
+## Falsification run: Cm shift removed entirely (2026-09-07)
+
+Owner-directed. Deep Cm clamped to attached camber value across all tables, full matrix re-run:
+glider spin COLLAPSES (net -0.2 vs -1.5 — the measured Cp walk is load-bearing); C172 completely
+insensitive (steep spin never samples deep Cm); Pitts crossover WORSENS (-7.0 vs -4.0) and ACCEL
+mode still accelerates (inertia-driven). VERDICT: keep the measured Cp walk. Crossover cause
+re-confirmed as attached-authority grabs during alpha-oscillation dips — the oscillation damping
+remains the single blocking physics item.
