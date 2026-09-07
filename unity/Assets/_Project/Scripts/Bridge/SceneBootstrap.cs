@@ -17,6 +17,7 @@ namespace FlyingGame.Bridge
         private static void Build()
         {
             BuildGround();
+            BuildRunway();
             BuildCardinalLetters();
             BuildSun();
             GameObject aircraft = BuildAircraft();
@@ -53,6 +54,26 @@ namespace FlyingGame.Bridge
             tex.Apply();
             tex.wrapMode = TextureWrapMode.Repeat;
             return tex;
+        }
+
+        private static void BuildRunway()
+        {
+            // A 1500 m x 30 m asphalt strip along +x (sim north-ish), centered near origin at ground z=0.
+            var rw = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rw.name = "Runway";
+            Object.Destroy(rw.GetComponent<Collider>());
+            rw.transform.position = new Vector3(0, 0.02f, 400f);   // slightly above ground plane
+            rw.transform.localScale = new Vector3(30f, 0.05f, 1500f);
+            rw.GetComponent<MeshRenderer>().material.color = new Color(0.22f, 0.22f, 0.24f);
+            // Centerline stripes.
+            for (int i = 0; i < 40; i++)
+            {
+                var stripe = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.Destroy(stripe.GetComponent<Collider>());
+                stripe.transform.position = new Vector3(0, 0.06f, -300f + i * 36f);
+                stripe.transform.localScale = new Vector3(0.6f, 0.05f, 16f);
+                stripe.GetComponent<MeshRenderer>().material.color = Color.white;
+            }
         }
 
         private static void BuildCardinalLetters()

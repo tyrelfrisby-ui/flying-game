@@ -224,10 +224,19 @@ public sealed class DampingConfig
 
 public sealed class GearConfig
 {
-    public double[] Pos { get; set; } = { 0, 0, 0 };
-    public double SpringN { get; set; }
-    public double DampNs { get; set; }
-    public bool Brake { get; set; }
+    public double[] Pos { get; set; } = { 0, 0, 0 };  // wheel contact point vs CG (m); +z is DOWN (below CG)
+    public double SpringN { get; set; }               // oleo strut stiffness (N/m compression)
+    public double DampNs { get; set; }                // oil damping (N per m/s compression rate)
+    public bool Brake { get; set; }                   // wheel has a brake
+    public bool IsTailwheel { get; set; }             // tailwheel (small, low cornering) vs main
+    public bool IsSteerable { get; set; }             // steered by rudder (nosewheel / steerable tailwheel)
+    public double MaxSteerRad { get; set; } = 0.5;    // steering authority when steerable
+    public double TireMu { get; set; } = 0.8;         // dry tarmac friction (limits tire force)
+    public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
+    public double RollResistN { get; set; } = 40;     // rolling resistance at full load
+    public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
+
+    public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }
 
 public sealed class LimitsConfig

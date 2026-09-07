@@ -1470,13 +1470,35 @@
   "gear": [
     {
       "pos": [
-        0,
-        0,
-        0.9
+        0.0,
+        0.0,
+        1.0
       ],
-      "springN": 20000,
+      "springN": 50000,
+      "dampNs": 2500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 5000,
+      "rollResistN": 40
+    },
+    {
+      "pos": [
+        -4.0,
+        0,
+        0.6
+      ],
+      "springN": 15000,
       "dampNs": 2000,
-      "brake": false
+      "brake": false,
+      "isTailwheel": true,
+      "isSteerable": false,
+      "maxSteerRad": 0,
+      "tireMu": 0.5,
+      "corneringStiffnessN": 800,
+      "rollResistN": 30
     }
   ],
   "limits": {

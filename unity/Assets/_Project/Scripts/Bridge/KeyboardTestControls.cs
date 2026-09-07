@@ -48,6 +48,7 @@ namespace FlyingGame.Bridge
                 _driver.ResetFlight();
             }
 
+            _driver.Sim.Aircraft.BrakeInput = Input.GetKey(KeyCode.B) ? 1f : 0f;
             _driver.Inputs = new ControlInputs(_aileron, _elevator, _rudder, _lever);
         }
 

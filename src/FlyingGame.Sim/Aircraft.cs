@@ -26,6 +26,7 @@ public sealed class Aircraft
     public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
     public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
+    public double BrakeInput { get; set; }     // 0..1 wheel braking (on ground)
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
     /// <summary>External world-frame force (N) applied at ExternalForcePointBody — the aerotow rope
@@ -126,6 +127,13 @@ public sealed class Aircraft
                 Vec3 fBody = s.Attitude.Conjugate().Rotate(ExternalForceWorld);
                 totalF += fBody;
                 totalM += Vec3.Cross(ExternalForcePointBody - Config.Mass.CgVec(), fBody);
+            }
+            if (Config.Gear.Count > 0)
+            {
+                double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput);
+                totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
+                totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
             if (Config.Propulsion is not null)
             {
