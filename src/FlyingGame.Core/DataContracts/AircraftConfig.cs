@@ -113,6 +113,23 @@ public sealed class FuselageConfig
     public double Cd0Area { get; set; }
     public double SideForceArea { get; set; }
     public DampingConfig Damping { get; set; } = new();
+
+    /// <summary>
+    /// Slender-body crossflow drag (optional; zero areas disable). At high alpha/beta the fuselage is
+    /// broadside to the flow: plan-view area produces normal force (arrests spin flattening), side-view
+    /// area produces yaw-restoring side force when the fin is stalled/blanketed. Forces act at the
+    /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
+    /// </summary>
+    public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+public sealed class CrossflowConfig
+{
+    public double PlanArea { get; set; }
+    public double PlanCenterX { get; set; }
+    public double SideArea { get; set; }
+    public double SideCenterX { get; set; }
+    public double Cd { get; set; } = 1.2; // circular-cylinder crossflow drag coefficient
 }
 
 public sealed class DampingConfig

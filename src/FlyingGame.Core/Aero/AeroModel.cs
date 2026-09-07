@@ -310,6 +310,26 @@ public static class AeroModel
             // Crude linear side-force term: damps sideslip velocity, doesn't need to be exact.
             double sideForce = -0.5 * airDensity * speed * bodyVelocity.Y * config.Fuselage.SideForceArea;
             totalForce += new Vec3(0, sideForce, 0);
+
+            // Slender-body crossflow drag (quadratic, acts at area centers so it makes MOMENTS):
+            // plan-view normal force arrests spin flattening; side-view force weathervanes the nose
+            // when the fin is stalled/blanketed at big beta.
+            CrossflowConfig cf = config.Fuselage.Crossflow;
+            if (cf.PlanArea > 0.0)
+            {
+                double w = bodyVelocity.Z;
+                double fz = -0.5 * airDensity * cf.PlanArea * cf.Cd * w * Math.Abs(w);
+                totalForce += new Vec3(0, 0, fz);
+                totalMoment += Vec3.Cross(new Vec3(cf.PlanCenterX, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+            }
+
+            if (cf.SideArea > 0.0)
+            {
+                double v = bodyVelocity.Y;
+                double fy = -0.5 * airDensity * cf.SideArea * cf.Cd * v * Math.Abs(v);
+                totalForce += new Vec3(0, fy, 0);
+                totalMoment += Vec3.Cross(new Vec3(cf.SideCenterX, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));
+            }
         }
 
         totalMoment -= new Vec3(
