@@ -115,3 +115,22 @@ insensitive (steep spin never samples deep Cm); Pitts crossover WORSENS (-7.0 vs
 mode still accelerates (inertia-driven). VERDICT: keep the measured Cp walk. Crossover cause
 re-confirmed as attached-authority grabs during alpha-oscillation dips — the oscillation damping
 remains the single blocking physics item.
+
+
+## Rotary-balance validation round (2026-09-07, NASA CR-3099)
+
+Report downloaded (single-engine trainer, Langley spin tunnel, spin control set). Figures read:
+Cn vs Omega*b/2V LINEAR damping slope ~-0.08/unit, alpha-independent 30-90 deg; Cl near-zero
+plateau |Omega|<0.4 with strong damping walls (equilibrium spin rates at plateau edges).
+
+Model vs data (virtual rotary balance, C172): Cl structure MATCHES (walls -0.11 vs -0.10, excess
+propelling +0.05 in-plateau); Cn damping 6-10x TOO WEAK. Data caught a SIGN BUG in distributed-
+crossflow station velocities (omega x r inverted -> anti-damping) — fixed. Physical fuselage
+reaches ~-0.03 of the -0.08 target; remainder = wing rotational drag differential (finite-AR
+deep-Cd cut removed real damping) -> NEXT REBALANCE: restore deep Cd toward measured, let spins
+re-equilibrate per tunnel curves. DF adoption parked until then (owner: data first).
+
+Pitts: owner angular-momentum theory -> Ixx sweep 290/430/660 vs the accelerated-spin litmus:
+only Ixx 660 passes (2.1->4.9 rad/s alpha 84). Kept 660/1147/1450/40 — behaviorally validated;
+low component estimates must be missing wing/strut mass; swing-test data wanted. Ailerons
+verified outboard-only on both wings. Crossover deepens with Ixx (not inertia-limited).
