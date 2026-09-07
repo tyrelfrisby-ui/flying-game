@@ -13,7 +13,8 @@ namespace FlyingGame.Bridge
     /// </summary>
     public sealed class FlightSimDriver : MonoBehaviour
     {
-        public const string AircraftId = "glider-2-33-like";
+        public string AircraftId { get; private set; } = "glider-2-33-like";
+        public string AircraftName { get; private set; } = "";
         public const double SpawnAltitudeM = 600.0;
         public const double SpawnIasMs = 22.0;
 
@@ -38,6 +39,7 @@ namespace FlyingGame.Bridge
         private void Awake()
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
+            AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
             TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, SpawnAltitudeM);
             if (!trim.Converged)
             {
@@ -92,6 +94,12 @@ namespace FlyingGame.Bridge
         {
             _accumulator = 0;
             Awake();
+        }
+
+        public void SwitchAircraft(string id)
+        {
+            AircraftId = id;
+            ResetFlight();
         }
 
         private void ApplyStateToTransform()

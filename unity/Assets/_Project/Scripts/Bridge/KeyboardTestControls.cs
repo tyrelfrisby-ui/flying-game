@@ -25,7 +25,11 @@ namespace FlyingGame.Bridge
             _rudder = Ramp(_rudder, Axis(KeyCode.D, KeyCode.A));
 
             float leverMove = Axis(KeyCode.S, KeyCode.W);
-            _lever = Mathf.Clamp(_lever + leverMove * RampPerSec * 0.4f * Time.deltaTime, 0f, 1f);
+            _lever = Mathf.Clamp(_lever + leverMove * RampPerSec * 0.4f * Time.deltaTime, -1f, 1f); // fwd(-)=throttle, aft(+)=brake/idle
+
+            if (Input.GetKeyDown(KeyCode.Alpha1)) _driver.SwitchAircraft("glider-2-33-like");
+            if (Input.GetKeyDown(KeyCode.Alpha2)) _driver.SwitchAircraft("c172-like");
+            if (Input.GetKeyDown(KeyCode.Alpha3)) _driver.SwitchAircraft("pitts-s2b-like");
 
             if (Input.GetKeyDown(KeyCode.R))
             {

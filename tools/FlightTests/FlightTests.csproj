@@ -24,8 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\configs\aircraft\glider-2-33-like.json">
-      <Link>TestData\glider-2-33-like.json</Link>
+    <None Include="..\..\configs\aircraft\*.json">
+      <Link>TestData\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

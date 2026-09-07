@@ -16,7 +16,7 @@ public sealed class AircraftConfig
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
     public ControlsConfig Controls { get; set; } = new();
     public FuselageConfig Fuselage { get; set; } = new();
-    public object? Propulsion { get; set; }
+    public PropulsionConfig? Propulsion { get; set; }
 
     /// <summary>Time constants of separation dynamics (optional; defaults = tuned values). The
     /// oscillation damping of the deep spin lives here, not in gains/areas.</summary>
@@ -125,6 +125,20 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+public sealed class PropulsionConfig
+{
+    public double MaxPowerW { get; set; }
+    public double PropDiameterM { get; set; }
+    public double IdleRpm { get; set; } = 700;
+    public double MaxRpm { get; set; } = 2700;
+    public double PropInertia { get; set; } = 1.7;      // prop + crank about x, kg m^2
+    public int RotationSign { get; set; } = 1;          // +1 = right-hand (clockwise from behind)
+    public double Efficiency { get; set; } = 0.75;
+    public double ThrustLineZ { get; set; } = 0.0;      // + below CG (z down)
+    public double PFactorK { get; set; } = 0.35;        // lateral thrust offset fraction of radius per sin(alpha)
+    public double SlipstreamK { get; set; } = 0.12;     // spiral-slipstream yaw moment coefficient
 }
 
 public sealed class StallDynamicsConfig

@@ -22,6 +22,7 @@ public sealed class Aircraft
     private double _rudderRad;
     private double _spoilerFraction;
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
+    private double _throttle01;      // powered aircraft only
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
@@ -59,8 +60,12 @@ public sealed class Aircraft
     /// <summary>Advances the aircraft by one fixed timestep: shapes stick input into deflection targets (dead zone/expo/max travel), slews actuators toward them, then integrates the rigid body via RK4.</summary>
     public void Step(ControlInputs inputs, double dt)
     {
-        // axisMap "aftOnly": neutral (0) and forward (negative) both mean stowed; only aft (positive) deploys.
-        double spoilerTarget = Math.Clamp(Math.Max(0.0, inputs.ThrottleLever), 0.0, 1.0);
+        // One lever, two meanings: powered aircraft read it as THROTTLE (full forward = full power),
+        // the glider reads aft-of-neutral as speed brake (axisMap "aftOnly") — same thumb geometry.
+        double spoilerTarget = Config.Propulsion is null
+            ? Math.Clamp(Math.Max(0.0, inputs.ThrottleLever), 0.0, 1.0)
+            : 0.0;
+        _throttle01 = Config.Propulsion is null ? 0.0 : Math.Clamp((1.0 - inputs.ThrottleLever) * 0.5, 0.0, 1.0);
         ControlDeflections targets = new(
             ShapeAxis(inputs.Aileron, Config.Controls.Aileron),
             ShapeAxis(inputs.Elevator, Config.Controls.Elevator),
@@ -104,7 +109,15 @@ public sealed class Aircraft
             (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
-            return (aeroForce + gravityBody, aeroMoment);
+            Vec3 totalF = aeroForce + gravityBody;
+            Vec3 totalM = aeroMoment;
+            if (Config.Propulsion is not null)
+            {
+                (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _throttle01, s.Velocity, s.Rates, airDensity);
+                totalF += pF;
+                totalM += pM;
+            }
+            return (totalF, totalM);
         }
 
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);

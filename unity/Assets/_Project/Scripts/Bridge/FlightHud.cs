@@ -26,7 +26,7 @@ namespace FlyingGame.Bridge
                 $"IAS {Driver.IasMs:F1} m/s ({kt:F0} kt)   ALT {Driver.AltitudeM:F0} m   " +
                 $"AoA {Driver.AlphaDeg:F1}°   β {Driver.BetaDeg:F1}°", _style);
             GUI.Label(new Rect(16, 34, 760, 22),
-                "arrows = stick (Down pulls)  ·  A/D = rudder  ·  S/W = speed brake  ·  R = reset", _style);
+                $"{Driver.AircraftName}  ·  1/2/3 = aircraft  ·  arrows = stick  ·  A/D = rudder  ·  S/W = brake/throttle  ·  R = reset", _style);
 
             // Spin grading line — only when the wing is stalled and rotation is established.
             if (Driver.AlphaDeg > 16.0 && Driver.SecPerTurn > 0)
