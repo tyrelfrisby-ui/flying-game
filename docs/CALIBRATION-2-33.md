@@ -164,3 +164,17 @@ mid-span 101 / 2/3-span 179; non-wing 53. TOTAL Ixx = 458 (mid) / 536 (2/3). Lit
 BOTH analyzed values FAIL (458 dies, 536 recovers); only 660 accelerates (1.8->4.6). Gap closed
 by the omitted FOUR AILERONS + SPADES (~22 kg @ ~2.4 m = +127): 536+127 = 663 ~= 660. The
 litmus-validated 660 is now ALSO structurally derived. KEPT.
+
+
+## Inverted spin matrix (2026-09-07, owner-directed)
+
+All three sustain genuine inverted spins (negative alpha, rudder-commanded). Highlights:
+- Pitts inv+antiElev (pull with rudder held): converts to an ACCELERATING UPRIGHT spin (0.6->1.9,
+  a=24) — the real crossover. Pitts inv+power: reverses/accelerates opposite (0.6->-3.0) — the
+  gyroscopic asymmetry with sign correctly FLIPPED inverted.
+- Glider inv-neutral: alpha -12, sink 83 (docile inverted spin); antiElev crosses to upright.
+- C172 inv-neutral weak (0.9) — plausible for a type not approved inverted; power mild inverted.
+- Aileron into inverted spin accelerates hard on all three (Pitts to 8.7 rad/s crossover);
+  aileron out reverses — MAGNITUDES suspect (same reattachment-grab mechanism as upright).
+- CODE NOTE: the anti-spin elevator stall effect currently gates only DOWN-deflection (upright
+  convention); inverted spins' anti-spin direction is UP — symmetric treatment pending owner call.
