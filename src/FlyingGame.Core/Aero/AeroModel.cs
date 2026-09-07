@@ -171,7 +171,20 @@ public static class AeroModel
                 // angle misreads flow-from-below as tail-first and commanded the rudder BACKWARD
                 // during deep phases (found via spin direction-reversal hunt).
                 double chordwiseFactor = Math.Clamp(2.0 * vLocal.X / Math.Max(vLocal.Length, MinSpeedMs), -1.0, 1.0);
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * chordwiseFactor;
+                // Owner (CFI) observation: moving the stick from pro-spin THROUGH neutral toward
+                // anti-spin, the elevator hits a 'stall' — down-deflection into the stalled tail flow
+                // loses ~half its power (the deflected-down surface works in the stab's separated
+                // wake). Gated by wake stalled fraction: zero effect in normal flight.
+                double deflEff = controlDeflRad;
+                if (strip.Control is not null && strip.Control.Surface == "elevator" && controlDeflRad > 0)
+                {
+                    // Gate by ROTATION (persists through the anti-spin push; zero in normal flight):
+                    // the tail flow of a rotating aircraft stays separated regardless of the
+                    // instantaneous alpha the push produces.
+                    double rotGate = Math.Clamp(Math.Sqrt(bodyRates.X * bodyRates.X + bodyRates.Z * bodyRates.Z) / 1.5, 0.0, 1.0);
+                    deflEff *= 1.0 - 0.5 * rotGate;
+                }
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure drag — so roll authority fades

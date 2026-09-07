@@ -144,3 +144,14 @@ at fine resolution (full-forward recovers at all inertia combos to Ixx1200); vor
 decline added to fin-lowAR (0.82/0.52/0.24 at 50/60/75) — insufficient alone. NEXT SESSION FIRST:
 stab-wake-on-DOWN-elevator shielding (TN-1329 mechanism applied to the elevator itself), then
 re-run litmus + full fleet matrix.
+
+
+## Anti-spin elevator stall effect (owner-directed, 2026-09-07)
+
+Implemented: elevator DOWN-deflection (anti-spin) loses 50% power, gated by rotation magnitude
+(persists through the push, zero in normal flight) — the owner's observed 'stall through neutral
+moving anti-spin'. Kept: physical, harmless attached. INSUFFICIENT for the Pitts ACCEL litmus:
+even relieving back pressure alone stops our Pitts spin, because it spins at V~26 m/s (tail keeps
+too much q) vs real S-2B ~16 m/s where the flyweight couple dominates. ROOT: Pitts spin
+equilibrium too fast/shallow (alpha 27 vs real 35-45) — same disease the glider had. NEXT: deepen
+Pitts spin equilibrium (alpha up, V down); litmus should return naturally.
