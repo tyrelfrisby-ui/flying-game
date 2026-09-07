@@ -150,6 +150,21 @@ public static class AeroModel
                 double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
+                // The FADED fraction of a deflected control doesn't vanish — in separated flow the
+                // surface works as a deflected flat plate: normal force (how a rudder still yaws a
+                // spinning aircraft) + pressure drag. Flat-plate coefficients scaled by the flap
+                // chord fraction (gain^2 proxy) and the faded fraction, so attached flight is
+                // untouched and the blend is continuous.
+                double clPlate = 0.0, cdPlate = 0.0;
+                if (isVertical && strip.Control is not null && controlEffectiveness < 1.0 && Math.Abs(controlDeflRad) > 1e-9)
+                {
+                    double faded = 1.0 - controlEffectiveness;
+                    double cfOverC = Math.Min(1.0, strip.Control.Gain * strip.Control.Gain);
+                    double deltaGeom = strip.Control.Gain * controlDeflRad;
+                    clPlate = 1.1 * Math.Sin(deltaGeom) * Math.Cos(deltaGeom) * cfOverC * faded;
+                    cdPlate = 1.3 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * cfOverC * faded;
+                }
+
                 AeroCoefficients coeffs = table.Sample(alpha);
 
                 // Drag polar: airfoil tables carry PROFILE drag only; induced drag is added here
@@ -171,8 +186,8 @@ public static class AeroModel
                 double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), config.WakeBlanketMaxLoss);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
-                double lift = q * strip.Area * coeffs.Cl;
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced);
+                double lift = q * strip.Area * (coeffs.Cl + clPlate);
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdPlate);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
 
                 Vec3 force = liftDir * lift - dragDir * drag;

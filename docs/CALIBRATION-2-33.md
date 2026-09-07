@@ -28,9 +28,10 @@ against these — Ty's eye is the final acceptance test.
 | Spin sink | ~80–100 ft/s | ~90 ft/s ✓ |
 | Spin direction always commanded | yes | yes ✓ (after control-effectiveness fade) |
 | Inside-tip AoA >90° in developed spin | yes (Ty) | reached 98–117° in fast-rotation states ✓ |
-| ft per turn | **200 (owner goal)** | ~470 avg / ~380 at peak rotation ✗ |
-| s per turn | 2.5–3.0 | 4.4 peak / 5.3 avg ✗ |
-| spin stability (no flatten/fall-out) | stable | stable ✓ (stall hysteresis) |
+| ft per turn | **200 (owner goal)** | ~445 ✗ (rate-limited) |
+| s per turn | 2.5–3.0 | 3.9 peak / 4.2 avg ✗ |
+| spin sideslip | ~10–20° | ~19° ✓ (was −33: plate rudder + finite-AR drag) |
+| spin stability (no flatten/fall-out) | stable | very stable ✓ (max α 23, hysteresis) |
 
 ## Open physics items (in priority order)
 
