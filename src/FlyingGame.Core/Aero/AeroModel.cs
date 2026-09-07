@@ -208,6 +208,11 @@ public static class AeroModel
             // Elevation of the strip above the wing plane, seen from the wake origin (+z is down,
             // so "up" is -z). The wake band spans elevation [0, flowAlpha] +/- spread.
             double elevation = Math.Atan2(-(stripPos.Z - _origin.Z), aft);
+            // NOTE (2026-09-06 experiment): growing the wake's LOWER boundary with stall depth
+            // (blanketing the stab, which sits just below the wing plane) produced target-beating
+            // rotation peaks (2.8 s/turn, 222 ft/turn) but a relaxation limit cycle — the spin
+            // repeatedly fell out and rebuilt (net turns ~0.1). Likely needs stall HYSTERESIS
+            // (separation at ~15 deg, reattachment lower) to damp the cycle before this returns.
             double lo = Math.Min(0.0, _flowAlpha) - SpreadRad;
             double hi = Math.Max(0.0, _flowAlpha) + SpreadRad;
 
