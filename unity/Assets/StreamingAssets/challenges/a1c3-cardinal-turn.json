@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "a1c3-cardinal-turn",
+  "arena": "arena1-farm-grid",
+  "aircraftId": "glider-2-33-like",
+  "titleKey": "challenge.a1c3.title",
+  "spawn": {
+    "pos": [
+      0,
+      0,
+      -700
+    ],
+    "headingRad": 4.71239,
+    "iasMs": 24,
+    "attitudeTrim": true
+  },
+  "phases": [
+    {
+      "id": "setup",
+      "durationSec": 4,
+      "tolerances": [
+        {
+          "signal": "headingRad",
+          "target": 0,
+          "band": 0.13963,
+          "targetMode": "current",
+          "weight": 1
+        }
+      ],
+      "callouts": [
+        {
+          "atSec": 0,
+          "textKey": "callout.westTurnLeftToNorth"
+        }
+      ]
+    },
+    {
+      "id": "rollout",
+      "durationSec": 20,
+      "tolerances": [
+        {
+          "signal": "headingRad",
+          "target": 0,
+          "band": 0.10472,
+          "targetMode": "absolute",
+          "weight": 1
+        },
+        {
+          "signal": "betaRad",
+          "target": 0,
+          "band": 0.10472,
+          "targetMode": "absolute",
+          "weight": 0.5
+        }
+      ],
+      "callouts": [
+        {
+          "atSec": 0,
+          "textKey": "callout.rollOutNorth"
+        }
+      ]
+    }
+  ],
+  "scoring": {
+    "mode": "accuracyPercent",
+    "passThreshold": 70
+  },
+  "fail": {
+    "onGroundContact": "crash",
+    "onOverstress": "crash",
+    "bailAllowed": true
+  }
+}

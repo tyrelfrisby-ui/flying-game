@@ -102,6 +102,14 @@ namespace FlyingGame.Bridge
             ResetFlight();
         }
 
+        /// <summary>Adopt an externally-built sim (challenge spawns the aircraft at its start state).</summary>
+        public void AdoptSim(SimLoop sim)
+        {
+            Sim = sim;
+            _accumulator = 0;
+            ApplyStateToTransform();
+        }
+
         private void ApplyStateToTransform()
         {
             RigidBodyState s = Sim.Aircraft.State;

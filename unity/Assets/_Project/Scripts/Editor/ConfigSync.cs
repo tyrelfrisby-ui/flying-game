@@ -37,10 +37,27 @@ namespace FlyingGame.EditorTools
                 }
             }
 
+            // Mirror challenge definitions too.
+            string repoChallenges = Path.GetFullPath(Path.Combine(Application.dataPath, "../../configs/challenges"));
+            string destChallenges = Path.Combine(Application.streamingAssetsPath, "challenges");
+            if (Directory.Exists(repoChallenges))
+            {
+                Directory.CreateDirectory(destChallenges);
+                foreach (string src in Directory.GetFiles(repoChallenges, "*.json"))
+                {
+                    string target = Path.Combine(destChallenges, Path.GetFileName(src));
+                    if (!File.Exists(target) || File.ReadAllText(src) != File.ReadAllText(target))
+                    {
+                        File.Copy(src, target, overwrite: true);
+                        changed = true;
+                    }
+                }
+            }
+
             if (changed)
             {
                 AssetDatabase.Refresh();
-                Debug.Log("ConfigSync: aircraft configs mirrored to StreamingAssets.");
+                Debug.Log("ConfigSync: aircraft + challenge configs mirrored to StreamingAssets.");
             }
         }
     }

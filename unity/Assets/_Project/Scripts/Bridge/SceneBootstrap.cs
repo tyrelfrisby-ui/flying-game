@@ -101,6 +101,7 @@ namespace FlyingGame.Bridge
 
             var driver = root.AddComponent<FlightSimDriver>();
             root.AddComponent<KeyboardTestControls>();
+            root.AddComponent<ChallengeController>();
             _ = driver;
             return root;
         }
@@ -139,6 +140,9 @@ namespace FlyingGame.Bridge
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
             bubbles.Follow = aircraft.transform;
+
+            var chHud = cam.gameObject.AddComponent<ChallengeHud>();
+            chHud.Controller = aircraft.GetComponent<ChallengeController>();
         }
     }
 }

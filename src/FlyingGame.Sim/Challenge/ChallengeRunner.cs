@@ -20,6 +20,10 @@ public sealed class ChallengeRunner
     public double Score { get; private set; }
     public bool Passed { get; private set; }
     public string? LastCalloutKey { get; private set; }
+    /// <summary>Live per-tolerance in-band flags for the current phase (HUD). Rebuilt each Tick.</summary>
+    public readonly List<(string Signal, bool InBand, double Error)> LiveBands = new();
+    public double LiveScore => _totalWeightedTime > 0 ? 100.0 * _inBandWeightedTime / _totalWeightedTime : 0.0;
+    public double PhaseTimeLeft => PhaseIndex < Def.Phases.Count ? System.Math.Max(0, Def.Phases[PhaseIndex].DurationSec - PhaseElapsed) : 0;
 
     private readonly Dictionary<string, double> _phaseStartValues = new();
     private double _inBandWeightedTime;
@@ -88,6 +92,7 @@ public sealed class ChallengeRunner
         }
 
         // Grade every tolerance this step.
+        LiveBands.Clear();
         foreach (Tolerance t in phase.Tolerances)
         {
             double value = FlightSignals.Read(t.Signal, aircraft);
@@ -104,6 +109,7 @@ public sealed class ChallengeRunner
             {
                 _inBandWeightedTime += t.Weight * dt;
             }
+            LiveBands.Add((t.Signal, inBand, err));
         }
 
         PhaseElapsed += dt;
