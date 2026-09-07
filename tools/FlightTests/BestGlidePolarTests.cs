@@ -5,7 +5,7 @@ using Xunit;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// Owner requirement (Ty, 2026-09-06): the 2-33-like glider achieves ~25:1 best glide, and drag must
+/// Owner requirement (Ty, 2026-09-06, revised same day): ~20:1 best glide (real 2-33 class), and drag must
 /// follow a real polar — parasite plus induced varying with angle of attack — not a flat number.
 /// Sweeping trim speed exercises exactly that: L/D must peak near 25 and fall away on BOTH sides
 /// (induced-drag-dominated slow side, parasite-dominated fast side).
@@ -33,7 +33,7 @@ public class BestGlidePolarTests
             }
         }
 
-        Assert.InRange(bestLd, 24.0, 27.0); // ~25:1 target
+        Assert.InRange(bestLd, 19.0, 21.5); // ~20:1 target (owner revised from 25)
         Assert.InRange(bestSpeed, 19.0, 27.0);
 
         // Polar shape: performance degrades on both sides of best glide. A flat/crude drag model

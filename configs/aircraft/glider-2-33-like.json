@@ -742,7 +742,7 @@
     }
   },
   "fuselage": {
-    "cd0Area": 0.04,
+    "cd0Area": 0.13,
     "sideForceArea": 1.5,
     "damping": {
       "p": 0,
