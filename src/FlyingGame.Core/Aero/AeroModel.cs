@@ -20,6 +20,16 @@ public static class AeroModel
     /// strip width (area/chord) at each tip, area as the strip sum. Single-strip surfaces get AR from
     /// that strip alone (width²/area).
     /// </summary>
+    /// <summary>1.0 while the local flow is attached (|alpha| &lt; 15°), fading linearly to 0.3 by 30° and holding there.</summary>
+    private static double ControlEffectiveness(double localAlphaRad)
+    {
+        double a = Math.Abs(localAlphaRad);
+        const double attached = 15.0 * Math.PI / 180.0, deep = 30.0 * Math.PI / 180.0;
+        if (a <= attached) return 1.0;
+        if (a >= deep) return 0.3;
+        return 1.0 - 0.7 * (a - attached) / (deep - attached);
+    }
+
     private static double GeometricAspectRatio(SurfaceConfig surface, bool isVertical)
     {
         double area = 0.0, min = double.MaxValue, max = double.MinValue;
@@ -119,7 +129,12 @@ public static class AeroModel
                 }
 
                 double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad;
+                // Hinged surfaces lose grip in separated flow: full effectiveness while attached,
+                // fading to ~30% once the strip is deep-stalled (they keep their drag — adverse yaw
+                // survives — but stop commanding lift). Without this, held aileron overpowers a spin
+                // it could never overpower in the real aircraft.
+                double controlEffectiveness = ControlEffectiveness(alphaBase + strip.IncidenceRad);
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 if (!airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? table))
