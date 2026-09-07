@@ -1,0 +1,1641 @@
+{
+  "schemaVersion": 1,
+  "id": "boeing-737-like",
+  "displayName": "Airliner (737-800)",
+  "mass": {
+    "massKg": 65000,
+    "cg": [
+      -0.5,
+      0,
+      0
+    ],
+    "inertia": {
+      "ixx": 1866711,
+      "iyy": 3394953,
+      "izz": 5097558,
+      "ixz": 149140
+    }
+  },
+  "surfaces": [
+    {
+      "id": "wing",
+      "oswaldE": 0.8,
+      "strips": [
+        {
+          "pos": [
+            0.726,
+            -1.342,
+            -1.5
+          ],
+          "chord": 5.946,
+          "area": 14.361,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            1.962,
+            -3.994,
+            -1.5
+          ],
+          "chord": 5.246,
+          "area": 12.358,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            3.153,
+            -6.547,
+            -1.5
+          ],
+          "chord": 4.572,
+          "area": 10.233,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            4.268,
+            -8.938,
+            -1.5
+          ],
+          "chord": 3.94,
+          "area": 8.14,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            5.281,
+            -11.11,
+            -1.5
+          ],
+          "chord": 3.367,
+          "area": 6.203,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            6.166,
+            -13.008,
+            -1.5
+          ],
+          "chord": 2.149,
+          "area": 3.382,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            6.902,
+            -14.586,
+            -1.5
+          ],
+          "chord": 1.837,
+          "area": 2.326,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            7.47,
+            -15.805,
+            -1.5
+          ],
+          "chord": 1.596,
+          "area": 1.48,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            7.857,
+            -16.634,
+            -1.5
+          ],
+          "chord": 1.432,
+          "area": 0.81,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            8.053,
+            -17.054,
+            -1.5
+          ],
+          "chord": 1.348,
+          "area": 0.256,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            0.726,
+            1.342,
+            -1.5
+          ],
+          "chord": 5.946,
+          "area": 14.361,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            1.962,
+            3.994,
+            -1.5
+          ],
+          "chord": 5.246,
+          "area": 12.358,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            3.153,
+            6.547,
+            -1.5
+          ],
+          "chord": 4.572,
+          "area": 10.233,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            4.268,
+            8.938,
+            -1.5
+          ],
+          "chord": 3.94,
+          "area": 8.14,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            5.281,
+            11.11,
+            -1.5
+          ],
+          "chord": 3.367,
+          "area": 6.203,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": null,
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          },
+          "flap": {
+            "maxDeltaAlphaRad": 0.28,
+            "maxCd": 0.1,
+            "maxClMax": 0.9
+          }
+        },
+        {
+          "pos": [
+            6.166,
+            13.008,
+            -1.5
+          ],
+          "chord": 2.149,
+          "area": 3.382,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            6.902,
+            14.586,
+            -1.5
+          ],
+          "chord": 1.837,
+          "area": 2.326,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            7.47,
+            15.805,
+            -1.5
+          ],
+          "chord": 1.596,
+          "area": 1.48,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            7.857,
+            16.634,
+            -1.5
+          ],
+          "chord": 1.432,
+          "area": 0.81,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        },
+        {
+          "pos": [
+            8.053,
+            17.054,
+            -1.5
+          ],
+          "chord": 1.348,
+          "area": 0.256,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -0.45
+          },
+          "sweepRad": 0.43633,
+          "slat": {
+            "stallExtensionRad": 0.2,
+            "clIncrement": 0.25
+          }
+        }
+      ]
+    },
+    {
+      "id": "wing-aileron",
+      "oswaldE": 0.8,
+      "strips": [
+        {
+          "pos": [
+            3.873,
+            -13.008,
+            -1.5
+          ],
+          "chord": 0.716,
+          "area": 1.127,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            4.942,
+            -14.586,
+            -1.5
+          ],
+          "chord": 0.612,
+          "area": 0.775,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            5.768,
+            -15.805,
+            -1.5
+          ],
+          "chord": 0.532,
+          "area": 0.493,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            6.33,
+            -16.634,
+            -1.5
+          ],
+          "chord": 0.477,
+          "area": 0.27,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            6.614,
+            -17.054,
+            -1.5
+          ],
+          "chord": 0.449,
+          "area": 0.085,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": 1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            3.873,
+            13.008,
+            -1.5
+          ],
+          "chord": 0.716,
+          "area": 1.127,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            4.942,
+            14.586,
+            -1.5
+          ],
+          "chord": 0.612,
+          "area": 0.775,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            5.768,
+            15.805,
+            -1.5
+          ],
+          "chord": 0.532,
+          "area": 0.493,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            6.33,
+            16.634,
+            -1.5
+          ],
+          "chord": 0.477,
+          "area": 0.27,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -1.0
+          },
+          "sweepRad": 0.43633
+        },
+        {
+          "pos": [
+            6.614,
+            17.054,
+            -1.5
+          ],
+          "chord": 0.449,
+          "area": 0.085,
+          "incidenceRad": 0.05585,
+          "dihedralRad": 0.10472,
+          "airfoil": "sc737",
+          "control": {
+            "surface": "aileron",
+            "gain": -1.0
+          },
+          "sweepRad": 0.43633
+        }
+      ]
+    },
+    {
+      "id": "hStab",
+      "oswaldE": 0.85,
+      "strips": [
+        {
+          "pos": [
+            -15.0,
+            -1.2,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            -0.86,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            -0.51,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            -0.17,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            0.17,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            0.51,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            0.86,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            1.2,
+            0.0
+          ],
+          "chord": 0.7,
+          "area": 4.1,
+          "incidenceRad": -0.02618,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        }
+      ]
+    },
+    {
+      "id": "elevator",
+      "oswaldE": 0.85,
+      "strips": [
+        {
+          "pos": [
+            -15.5,
+            -1.2,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            -0.86,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            -0.51,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            -0.17,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            0.17,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            0.51,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            0.86,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.5,
+            1.2,
+            0.0
+          ],
+          "chord": 0.4,
+          "area": 0.8125,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "elevator",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        }
+      ]
+    },
+    {
+      "id": "vStab",
+      "oswaldE": 0.85,
+      "strips": [
+        {
+          "pos": [
+            -15.0,
+            0,
+            -1
+          ],
+          "chord": 0.6,
+          "area": 5.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "rudder",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            0,
+            -2.5
+          ],
+          "chord": 0.6,
+          "area": 5.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "rudder",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.0,
+            0,
+            -4
+          ],
+          "chord": 0.6,
+          "area": 5.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "naca0012-like",
+          "control": {
+            "surface": "rudder",
+            "gain": 0.45
+          },
+          "sweepRad": 0.5236
+        }
+      ]
+    },
+    {
+      "id": "rudder-vstab",
+      "oswaldE": 0.85,
+      "strips": [
+        {
+          "pos": [
+            -15.4,
+            0,
+            -0.5
+          ],
+          "chord": 0.4,
+          "area": 2.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "rudder",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.4,
+            0,
+            -2
+          ],
+          "chord": 0.4,
+          "area": 2.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "rudder",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        },
+        {
+          "pos": [
+            -15.4,
+            0,
+            -3.5
+          ],
+          "chord": 0.4,
+          "area": 2.0,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "fin-lowAR",
+          "control": {
+            "surface": "rudder",
+            "gain": 1.0
+          },
+          "sweepRad": 0.5236
+        }
+      ]
+    }
+  ],
+  "airfoilTables": {
+    "clarkY-like": {
+      "alphaRad": [
+        -3.14159,
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.39626,
+        -1.0472,
+        -0.69813,
+        -0.34907,
+        -0.22689,
+        -0.17453,
+        -0.08727,
+        0.0,
+        0.08727,
+        0.17453,
+        0.22689,
+        0.2618,
+        0.31416,
+        0.38397,
+        0.5236,
+        0.7854,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.0,
+        0.35,
+        0.5,
+        0.42,
+        0.18,
+        0.0,
+        -0.28,
+        -0.52,
+        -0.66,
+        -0.55,
+        -0.82,
+        -0.6,
+        -0.225,
+        0.15,
+        0.525,
+        0.9,
+        1.125,
+        1.275,
+        0.63,
+        0.56,
+        0.62,
+        0.74,
+        0.63,
+        0.32,
+        0.0,
+        -0.25,
+        -0.55,
+        -0.62,
+        -0.4,
+        0.0
+      ],
+      "cd": [
+        0.05,
+        0.35,
+        0.85,
+        1.15,
+        1.28,
+        1.26,
+        1.24,
+        0.95,
+        0.53,
+        0.16,
+        0.045,
+        0.022,
+        0.011,
+        0.0078,
+        0.0085,
+        0.014,
+        0.028,
+        0.1,
+        0.115,
+        0.155,
+        0.29,
+        0.63,
+        0.97,
+        1.16,
+        1.26,
+        1.28,
+        1.15,
+        0.85,
+        0.35,
+        0.05
+      ],
+      "cm": [
+        0.0,
+        0.25,
+        0.3,
+        0.31,
+        0.3,
+        0.315,
+        0.254,
+        0.0844,
+        0.0137,
+        0.0077,
+        0.0,
+        -0.045,
+        -0.05,
+        -0.057,
+        -0.057,
+        -0.057,
+        -0.056,
+        -0.055,
+        -0.05,
+        -0.0135,
+        -0.0341,
+        -0.0969,
+        -0.1733,
+        -0.2407,
+        -0.315,
+        -0.3,
+        -0.28,
+        -0.22,
+        -0.12,
+        0.0
+      ]
+    },
+    "naca0012-like": {
+      "alphaRad": [
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.309,
+        -1.0472,
+        -0.7854,
+        -0.69813,
+        -0.5236,
+        -0.43633,
+        -0.34907,
+        -0.2618,
+        -0.20944,
+        -0.17453,
+        -0.08727,
+        0.0,
+        0.08727,
+        0.17453,
+        0.20944,
+        0.2618,
+        0.34907,
+        0.43633,
+        0.5236,
+        0.69813,
+        0.7854,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.4,
+        0.6,
+        0.55,
+        0.28,
+        -0.0,
+        -0.34,
+        -0.68,
+        -0.77,
+        -0.74,
+        -0.62,
+        -0.56,
+        -0.55,
+        -0.72,
+        -1.05,
+        -1.0,
+        -0.55,
+        0.0,
+        0.55,
+        1.0,
+        1.05,
+        0.72,
+        0.55,
+        0.56,
+        0.62,
+        0.74,
+        0.77,
+        0.68,
+        0.34,
+        0.0,
+        -0.28,
+        -0.55,
+        -0.6,
+        -0.4,
+        0.0
+      ],
+      "cd": [
+        0.3,
+        0.75,
+        1.1,
+        1.3,
+        1.35,
+        1.24,
+        1.03,
+        0.67,
+        0.53,
+        0.31,
+        0.22,
+        0.15,
+        0.09,
+        0.02,
+        0.014,
+        0.009,
+        0.008,
+        0.009,
+        0.014,
+        0.02,
+        0.09,
+        0.15,
+        0.22,
+        0.31,
+        0.53,
+        0.67,
+        1.03,
+        1.24,
+        1.35,
+        1.3,
+        1.1,
+        0.75,
+        0.3,
+        0.02
+      ],
+      "cm": [
+        0.09,
+        0.18,
+        0.26,
+        0.3,
+        0.32,
+        0.3,
+        0.26,
+        0.17,
+        0.14,
+        0.11,
+        0.08,
+        0.06,
+        0.04,
+        -0.0,
+        -0.0,
+        -0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.04,
+        -0.06,
+        -0.08,
+        -0.11,
+        -0.14,
+        -0.17,
+        -0.26,
+        -0.3,
+        -0.32,
+        -0.3,
+        -0.26,
+        -0.18,
+        -0.09,
+        0.0
+      ]
+    },
+    "fin-lowAR": {
+      "alphaRad": [
+        -3.14159,
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.309,
+        -1.0472,
+        -0.87266,
+        -0.69813,
+        -0.57596,
+        -0.43633,
+        -0.2618,
+        -0.13963,
+        0.0,
+        0.13963,
+        0.2618,
+        0.43633,
+        0.57596,
+        0.69813,
+        0.87266,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.0,
+        0.067,
+        0.133,
+        0.15,
+        0.05,
+        -0.0,
+        -0.24,
+        -0.52,
+        -0.82,
+        -1.1,
+        -1.1,
+        -0.95,
+        -0.6,
+        -0.32,
+        0.0,
+        0.32,
+        0.6,
+        0.95,
+        1.1,
+        1.1,
+        0.82,
+        0.52,
+        0.24,
+        0.0,
+        -0.05,
+        -0.15,
+        -0.133,
+        -0.067,
+        -0.0
+      ],
+      "cd": [
+        0.05,
+        0.243,
+        0.732,
+        1.287,
+        1.65,
+        1.658,
+        1.547,
+        1.245,
+        0.976,
+        0.69,
+        0.497,
+        0.303,
+        0.119,
+        0.04,
+        0.008,
+        0.04,
+        0.119,
+        0.303,
+        0.497,
+        0.69,
+        0.976,
+        1.245,
+        1.547,
+        1.658,
+        1.65,
+        1.287,
+        0.732,
+        0.243,
+        0.05
+      ],
+      "cm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "sc737": {
+      "alphaRad": [
+        -3.14159,
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.309,
+        -1.0472,
+        -0.7854,
+        -0.5236,
+        -0.34907,
+        -0.2618,
+        -0.17453,
+        -0.08727,
+        0.0,
+        0.08727,
+        0.17453,
+        0.2618,
+        0.34907,
+        0.5236,
+        0.7854,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.725,
+        0.564,
+        0.403,
+        0.242,
+        0.081,
+        -0.0,
+        -0.203,
+        -0.406,
+        -0.609,
+        -0.812,
+        -0.947,
+        -1.45,
+        -0.967,
+        -0.483,
+        0.0,
+        0.483,
+        0.967,
+        1.45,
+        0.947,
+        0.812,
+        0.609,
+        0.406,
+        0.203,
+        0.0,
+        -0.081,
+        -0.242,
+        -0.403,
+        -0.564,
+        -0.725
+      ],
+      "cd": [
+        1.308,
+        1.308,
+        1.308,
+        1.308,
+        1.308,
+        1.308,
+        1.221,
+        0.983,
+        0.658,
+        0.333,
+        0.16,
+        0.095,
+        0.047,
+        0.018,
+        0.008,
+        0.018,
+        0.047,
+        0.095,
+        0.16,
+        0.333,
+        0.658,
+        0.983,
+        1.221,
+        1.308,
+        1.308,
+        1.308,
+        1.308,
+        1.308,
+        1.308
+      ],
+      "cm": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -0.0127,
+        -0.0254,
+        -0.0254,
+        -0.0169,
+        -0.0066,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0066,
+        -0.0169,
+        -0.0254,
+        -0.0254,
+        -0.0127,
+        -0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "controls": {
+    "aileron": {
+      "maxDeflRad": 0.28,
+      "rateRadPerSec": 3.0,
+      "expo": 0.3,
+      "deadZone": 0.03
+    },
+    "elevator": {
+      "maxDeflRad": 0.35,
+      "rateRadPerSec": 3.0,
+      "expo": 0.3,
+      "deadZone": 0.03
+    },
+    "rudder": {
+      "maxDeflRad": 0.3,
+      "rateRadPerSec": 4.0,
+      "expo": 0.2,
+      "deadZone": 0.03
+    },
+    "spoiler": {
+      "maxDeflRad": 0.0,
+      "dragOnly": true,
+      "axis": "throttleLever",
+      "axisMap": "aftOnly"
+    }
+  },
+  "fuselage": {
+    "cd0Area": 6.5,
+    "sideForceArea": 30,
+    "damping": {
+      "p": 0,
+      "q": 0,
+      "r": 0
+    },
+    "crossflow": {
+      "planArea": 40,
+      "planCenterX": -2,
+      "sideArea": 55,
+      "sideCenterX": -3,
+      "cd": 1.2,
+      "lengthM": 39.5
+    }
+  },
+  "propulsion": {
+    "maxPowerW": 214000,
+    "propDiameterM": 0.0,
+    "idleRpm": 0,
+    "maxRpm": 0,
+    "propInertia": 0,
+    "rotationSign": 1,
+    "efficiency": 1.0,
+    "thrustLineZ": -1.9,
+    "pFactorK": 0,
+    "slipstreamK": 0
+  },
+  "stallDynamics": {
+    "stripSepTau": 0.15,
+    "stripReattachTau": 0.6,
+    "wakeGrowTau": 0.25,
+    "wakeDecayTau": 1.0,
+    "wakeSpreadDeg": 6.0
+  },
+  "wakeBlanketMaxLoss": 0.7,
+  "verticalBlanketFactor": 0.5,
+  "gear": [],
+  "limits": {
+    "vneMs": 180,
+    "gMax": 2.5,
+    "gMin": -1.0
+  }
+}

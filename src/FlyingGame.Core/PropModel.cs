@@ -21,6 +21,15 @@ public static class PropModel
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity)
     {
         double thr = Math.Clamp(throttle01, 0.0, 1.0);
+
+        // JET (propDiameterM <= 0): pure axial thrust, flat with speed to a cap, NO torque/P-factor/
+        // slipstream/gyro (those are propeller-specific). MaxPowerW is reinterpreted as max thrust (N).
+        if (prop.PropDiameterM <= 0.0)
+        {
+            double jetThrust = prop.MaxPowerW * thr;
+            return (new Vec3(jetThrust, 0, jetThrust * prop.ThrustLineZ * 0), new Vec3(0, jetThrust * prop.ThrustLineZ, 0));
+        }
+
         double rpm = prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * thr;
         double omegaProp = rpm * 2.0 * Math.PI / 60.0;
         double powerW = prop.MaxPowerW * thr;
