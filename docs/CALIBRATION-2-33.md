@@ -46,3 +46,15 @@ against these — Ty's eye is the final acceptance test.
 2. **Sideslip magnitude** in developed spin (−30..−50°, should be ~10–20°): fuselage side crossflow
    arm may need tuning; fin stall shape.
 3. Stall-speed check vs 34 mph placard once cockpit IAS (pitot-style, α-corrected) exists.
+
+## Experiments run and closed (don't repeat blind)
+
+- **Stab-stalls-elevator-doesn't** (owner theory, tested 2026-09-06): wing deep-Cm x0.75 + stab
+  post-stall lift cut + elevator exempt from fade → pitch-tumbles (alpha 107, reversals). Tempered
+  (elevator floor 0.6): developed spin unchanged (349 vs 354 ft/turn) but ENTRY slows to 13+ s
+  (real: "a few seconds" per Tom). Reverted. The theory may still be right in a model where the
+  stab's own lift and the elevator's command are separate surfaces (today they share one strip row).
+- Attractor is robust at ~4.1 s/turn / alpha 24 against: inertia (+17%), tail volume (-45%), blanket
+  depth, rudder power, elevator power, deep Cm (x0.49 total), CG (aft tips into reversal).
+  Next principled lever: measured full-range section data (Sheldahl/Critzos type) for the separated
+  branch at 20-30 deg — where the equilibrium actually sits — rather than more factor tuning.
