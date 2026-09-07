@@ -67,3 +67,20 @@ component isolation cannot replicate per-strip memory): WING +2519 J and INERTIA
 +1875 J PUMP the cycle; stab −7295, elevator −5225, ailerons −2538 damp it. The cycle's
 engine is the wing's deep-alpha pitching moment — all remaining spin work converges on
 measured high-AoA CP-walk data for the wing section.
+
+
+## Research base + standing methodology (owner directive 2026-09-06: data, not guesses)
+
+Sources in the model now:
+- NACA TN-1045 / TN-1329 (Neihouse et al.): stab-wake rudder shielding — wake wedge between a
+  60-deg line from the stab LE and a 30-deg line from its TE in spin-vertical flow; fin/rudder area
+  inside is blanked, below-stab area survives. IMPLEMENTED in AeroModel (ramps in for flow angles
+  30->60 deg). TN-1329 also notes premature down-elevator shields the rudder (recovery realism).
+  TDPF/TDR criteria available in TN-1329 (downloaded) for future tail-design checks.
+- Sheldahl/Critzos-character measured full-range section curves (finite-AR scaled) for wing + tail.
+- Documented geometry: manual wing area/span, 3-view tail arm/areas, component-mass inertia.
+
+Standing rule: model changes must cite measured data or documented geometry. Remaining data wanted:
+(1) elevator/rudder effectiveness measurements at high AoA (NASA stall/spin program, Langley
+spin-tunnel reports), (2) wing-section CP walk 30-90 deg measured (drives the pitch limit cycle
+per the energy budget), (3) 2-33 flight-measured spin numbers beyond Tom's Tips.

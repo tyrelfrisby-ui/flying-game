@@ -68,6 +68,19 @@ public static class AeroModel
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
         WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride);
 
+        // NACA TN-1045/1329 stab-wake rudder shielding: in steep/vertical flow the horizontal tail
+        // sheds a wake wedge (60-deg line from its LE, 30-deg from its TE); fin/rudder area inside is
+        // blanked. Precompute stab position/chord for the per-strip test on vertical surfaces.
+        double stabX = 0, stabZ = 0, stabChord = 0; int stabN = 0;
+        foreach (SurfaceConfig sf in config.Surfaces)
+        {
+            if (sf.Id.Contains("hStab", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (StripConfig st in sf.Strips) { stabX += st.PosVec().X; stabZ += st.PosVec().Z; stabChord += st.Chord; stabN++; }
+            }
+        }
+        if (stabN > 0) { stabX /= stabN; stabZ /= stabN; stabChord /= stabN; }
+
         foreach (SurfaceConfig surface in config.Surfaces)
         {
             bool isWing = surface.Id.Contains("wing", StringComparison.OrdinalIgnoreCase);
@@ -196,6 +209,26 @@ public static class AeroModel
                 // separated wake lose dynamic pressure. In a spin this is what stops the tail from
                 // producing near-CLmax upload and lets the nose ride high.
                 double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), config.WakeBlanketMaxLoss);
+
+                // Stab-wake shielding of the fin/rudder (NACA spin-recovery geometry). Ramps in as
+                // the tail-region flow steepens (none below 30-deg flow, full by 60-deg — the NACA
+                // construction assumes near-vertical spin flow). A strip ABOVE the stab plane is
+                // inside the wedge unless it lies aft of the 30-deg trailing-edge line; strips
+                // BELOW the stab (the 2-33's low rudder) are never shielded.
+                if (isVertical && stabN > 0)
+                {
+                    double flowSteep = Math.Clamp((Math.Abs(wake.FlowAlpha) - 30.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
+                    if (flowSteep > 0)
+                    {
+                        double up = stabZ - strip.PosVec().Z;                   // + when strip is above the stab (z down)
+                        double aftOfTe = (stabX - 0.75 * stabChord) - strip.PosVec().X; // + when strip is aft of stab TE
+                        bool inWedge = up > 0 && (aftOfTe < up / Math.Tan(30.0 * Math.PI / 180.0));
+                        if (inWedge)
+                        {
+                            qFactor *= 1.0 - 0.85 * flowSteep;
+                        }
+                    }
+                }
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 double lift = q * strip.Area * coeffs.Cl;
