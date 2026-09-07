@@ -148,7 +148,10 @@ public static class AeroModel
                 // table, and it carries its own separation memory — so "the stab stalls but the
                 // elevator doesn't" is emergent physics, replacing the old effectiveness-fade and
                 // flat-plate approximations that lived here.
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad;
+                // Control response scales with cos(flow angle): full when flow is chordwise, zero at 90,
+                // REVERSED in tail-first flow (a TE-down deflection acts LE-down when the flow comes
+                // from behind). Without this the deep-gyration cycle gets wrong-signed control forces.
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * Math.Clamp(2.0 * Math.Cos(alphaBase), -1.0, 1.0);
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 AeroCoefficients coeffs = table.Sample(alpha);
