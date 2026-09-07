@@ -94,3 +94,29 @@ def flat_plate_symmetric(clmax=1.1, stall_deg=14):
         cd.append(round(0.008+1.3*math.sin(math.radians(min(a,90)))**2,3))
         cm.append(round(-0.25*(0.25*min(1,(a-stall_deg)/45) if a>stall_deg else 0)*abs(s*c),4) if a<=90 else 0.0)
     return {'alphaRad':[round(math.radians(d),5) for d in deg],'cl':cl,'cd':cd,'cm':cm}
+
+def semi_symmetric(clmax_up=1.35, clmax_inv=1.05, stall_up=15, stall_inv=13, cl0=0.15):
+    """Semi-symmetric section (Decathlon NACA 1412-mod): flies inverted but with LESS lift and
+    EARLIER stall inverted than upright — cl0>0, asymmetric stall angles/clmax."""
+    import math
+    deg=[-180,-160,-140,-120,-100,-90,-75,-60,-45,-30,-20,-16,-13,-10,-5,0,5,10,13,15,16,20,30,45,60,75,90,100,120,140,160,180]
+    cl,cd,cm=[],[],[]
+    for d in deg:
+        if d>=0:
+            a=d; sm=stall_up; cm_=clmax_up
+            if a<=sm: c=cl0+(cm_-cl0)*a/sm
+            elif a<=sm+3: c=cm_-(cm_-cm_*0.55)*(a-sm)/3
+            elif a<=90: c=cm_*0.55*(90-a)/(90-sm-3)
+            else: c=-0.5*(a-90)/90
+        else:
+            a=-d; sm=stall_inv; cm_=clmax_inv
+            if a<=sm: c=-(-cl0+(cm_+cl0)*a/sm)  # inverted: shifted so 0-lift alpha is negative
+            elif a<=sm+3: c=-(cm_-(cm_-cm_*0.55)*(a-sm)/3)
+            elif a<=90: c=-(cm_*0.55*(90-a)/(90-sm-3))
+            else: c=0.5*(a-90)/90
+        cl.append(round(c,3))
+        cd.append(round(0.008+1.3*math.sin(math.radians(min(abs(d),90)))**2,4))
+        aa=abs(d); cp=0.25 if aa<=15 else 0.25+0.2*min(1,(aa-15)/40)
+        cn=c*math.cos(math.radians(d))
+        cm.append(round(-(cp-0.25)*abs(cn)*(1 if d>0 else -1),4) if aa<=90 else 0.0)
+    return {'alphaRad':[round(math.radians(d),5) for d in deg],'cl':cl,'cd':cd,'cm':cm}
