@@ -31,6 +31,14 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.Alpha2)) _driver.SwitchAircraft("c172-like");
             if (Input.GetKeyDown(KeyCode.Alpha3)) _driver.SwitchAircraft("pitts-s2b-like");
 
+            if (Input.GetKeyDown(KeyCode.Alpha4)) _driver.SwitchAircraft("stearman-pt17-like");
+            if (Input.GetKeyDown(KeyCode.Alpha5)) _driver.SwitchAircraft("extra-300-like");
+            if (Input.GetKeyDown(KeyCode.Alpha6)) _driver.SwitchAircraft("p51d-like");
+            if (Input.GetKeyDown(KeyCode.Alpha7)) _driver.SwitchAircraft("f86-sabre-like");
+            if (Input.GetKeyDown(KeyCode.Alpha8)) _driver.SwitchAircraft("seminole-like");
+            if (Input.GetKeyDown(KeyCode.Alpha9)) _driver.SwitchAircraft("dc3-like");
+            if (Input.GetKeyDown(KeyCode.Alpha0)) _driver.SwitchAircraft("boeing-737-like");
+
             if (Input.GetKeyDown(KeyCode.R))
             {
                 _aileron = _elevator = _rudder = _lever = 0;
