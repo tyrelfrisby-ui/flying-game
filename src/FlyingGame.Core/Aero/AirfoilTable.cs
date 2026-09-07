@@ -23,6 +23,9 @@ public readonly struct AeroCoefficients
 /// </summary>
 public sealed class AirfoilTable
 {
+    /// <summary>Angle of maximum positive Cl (the stall) — control effectiveness fades past this.</summary>
+    public double AlphaClMaxRad { get; }
+
     private readonly double[] _alphaRad;
     private readonly double[] _cl;
     private readonly double[] _cd;
@@ -38,6 +41,18 @@ public sealed class AirfoilTable
 
         _alphaRad = data.AlphaRad;
         _cl = data.Cl;
+
+        double best = 0, bestAlpha = 15.0 * System.Math.PI / 180.0;
+        for (int i = 0; i < _alphaRad.Length; i++)
+        {
+            if (_alphaRad[i] > 0 && _alphaRad[i] < System.Math.PI / 2 && data.Cl[i] > best)
+            {
+                best = data.Cl[i];
+                bestAlpha = _alphaRad[i];
+            }
+        }
+
+        AlphaClMaxRad = bestAlpha;
         _cd = data.Cd;
         _cm = data.Cm;
     }

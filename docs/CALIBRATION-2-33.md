@@ -28,16 +28,20 @@ against these — Ty's eye is the final acceptance test.
 | Spin sink | ~80–100 ft/s | ~90 ft/s ✓ |
 | Spin direction always commanded | yes | yes ✓ (after control-effectiveness fade) |
 | Inside-tip AoA >90° in developed spin | yes (Ty) | reached 98–117° in fast-rotation states ✓ |
-| ft per turn | 200–300 | ~400 ✗ |
-| s per turn | 2.5–3.0 | ~4.5 ✗ |
+| ft per turn | **200 (owner goal)** | ~470 avg / ~380 at peak rotation ✗ |
+| s per turn | 2.5–3.0 | 4.4 peak / 5.3 avg ✗ |
+| spin stability (no flatten/fall-out) | stable | stable ✓ (stall hysteresis) |
 
 ## Open physics items (in priority order)
 
-1. **Rotation rate** (~4.5 vs ~3 s/turn). Two proven-but-unstable routes hit 2.8 s/turn / 222 ft/turn:
-   deeper stab blanketing and deeper lift valley — both limit-cycle (spin falls out & rebuilds).
-   Leading hypothesis to stabilize them: **stall hysteresis** (separation ~15°, reattachment lower)
-   damping the relaxation oscillation. Second: split control-surface DRAG from lift-effectiveness so
-   adverse yaw survives the post-stall fade (currently one Δα mechanism scaled together).
+1. **Rotation rate** (goal 200 ft/turn). DONE: stall hysteresis (lagged wake state in Aircraft, fast
+   separation ~0.25s / slow washout ~1.0s) — stabilized the thickened-wake config that used to limit-cycle.
+   REMAINING LIMITER (measured): at spin beta ~-30 the rudder's local flow angle exceeds the fin airfoil's
+   stall, so the control-effectiveness fade guts the pro-spin rudder command. Fixes to explore, in order:
+   (a) split control-surface DRAG from lift-effectiveness (deflected rudder/aileron keep their drag and
+   its yaw moment even when separated); (b) re-balance the low-AR fin table (fin-lowAR, in config, currently
+   unassigned — it weathervanes so hard the spin dies even 75% blanketed) together with deeper fin
+   blanketing; (c) beta equilibrium (fuselage side-crossflow arm: -0.5 works, -1.2 tumbles the aircraft).
 2. **Sideslip magnitude** in developed spin (−30..−50°, should be ~10–20°): fuselage side crossflow
    arm may need tuning; fin stall shape.
 3. Stall-speed check vs 34 mph placard once cockpit IAS (pitot-style, α-corrected) exists.

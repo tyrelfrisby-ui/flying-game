@@ -21,6 +21,7 @@ public sealed class Aircraft
     private double _elevatorRad;
     private double _rudderRad;
     private double _spoilerFraction;
+    private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
@@ -87,9 +88,16 @@ public sealed class Aircraft
         Vec3 windBody = Atmosphere.WindAtPosition(State.Position);
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
+        // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
+        // (~1.0 s). Feeding the LAGGED fraction to the aero model stops the wake band flickering
+        // on/off across the stall boundary — the relaxation cycle that made fast spins fall out.
+        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody);
+        double tau = instantFrac > _wakeStalledFrac ? 0.25 : 1.0;
+        _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
+
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             return (aeroForce + gravityBody, aeroMoment);

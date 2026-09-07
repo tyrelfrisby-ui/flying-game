@@ -20,11 +20,16 @@ public static class AeroModel
     /// strip width (area/chord) at each tip, area as the strip sum. Single-strip surfaces get AR from
     /// that strip alone (width²/area).
     /// </summary>
-    /// <summary>1.0 while the local flow is attached (|alpha| &lt; 15°), fading linearly to 0.3 by 30° and holding there.</summary>
-    private static double ControlEffectiveness(double localAlphaRad)
+    /// <summary>
+    /// 1.0 while the local flow is attached (below the airfoil's own Clmax angle), fading linearly to
+    /// 0.3 over the next 15° and holding. Stall-aware per airfoil: a low-AR fin (Clmax ~33°) keeps its
+    /// rudder far longer than the wing keeps its ailerons (Clmax ~15°).
+    /// </summary>
+    private static double ControlEffectiveness(double localAlphaRad, double alphaClMaxRad)
     {
         double a = Math.Abs(localAlphaRad);
-        const double attached = 15.0 * Math.PI / 180.0, deep = 30.0 * Math.PI / 180.0;
+        double attached = alphaClMaxRad;
+        double deep = alphaClMaxRad + 15.0 * Math.PI / 180.0;
         if (a <= attached) return 1.0;
         if (a >= deep) return 0.3;
         return 1.0 - 0.7 * (a - attached) / (deep - attached);
@@ -65,13 +70,16 @@ public static class AeroModel
         Vec3 bodyRates,
         Vec3 windBody,
         double airDensity,
-        ControlDeflections controls)
+        ControlDeflections controls,
+        double wakeStalledFracOverride = -1.0)
     {
         Vec3 cg = config.Mass.CgVec();
         Vec3 totalForce = Vec3.Zero;
         Vec3 totalMoment = Vec3.Zero;
 
-        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg);
+        // wakeStalledFracOverride >= 0 supplies a LAGGED separation state from the caller (stall
+        // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
+        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride);
 
         foreach (SurfaceConfig surface in config.Surfaces)
         {
@@ -133,14 +141,14 @@ public static class AeroModel
                 // fading to ~30% once the strip is deep-stalled (they keep their drag — adverse yaw
                 // survives — but stop commanding lift). Without this, held aileron overpowers a spin
                 // it could never overpower in the real aircraft.
-                double controlEffectiveness = ControlEffectiveness(alphaBase + strip.IncidenceRad);
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
-                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
-
                 if (!airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? table))
                 {
                     throw new KeyNotFoundException($"Strip references unknown airfoil '{strip.Airfoil}'.");
                 }
+
+                double controlEffectiveness = ControlEffectiveness(alphaBase + strip.IncidenceRad, table.AlphaClMaxRad);
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
+                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 AeroCoefficients coeffs = table.Sample(alpha);
 
@@ -205,6 +213,7 @@ public static class AeroModel
         }
 
         public static double StallAlpha => StallAlphaRad;
+        public double StalledFraction => _stalledFrac;
 
         /// <summary>1 = clean air; down to (1 - maxLoss) fully inside a fully-stalled wing's wake.</summary>
         public double DynamicPressureFactor(Vec3 stripPos, double maxLoss)
@@ -223,12 +232,11 @@ public static class AeroModel
             // Elevation of the strip above the wing plane, seen from the wake origin (+z is down,
             // so "up" is -z). The wake band spans elevation [0, flowAlpha] +/- spread.
             double elevation = Math.Atan2(-(stripPos.Z - _origin.Z), aft);
-            // NOTE (2026-09-06 experiment): growing the wake's LOWER boundary with stall depth
-            // (blanketing the stab, which sits just below the wing plane) produced target-beating
-            // rotation peaks (2.8 s/turn, 222 ft/turn) but a relaxation limit cycle — the spin
-            // repeatedly fell out and rebuilt (net turns ~0.1). Likely needs stall HYSTERESIS
-            // (separation at ~15 deg, reattachment lower) to damp the cycle before this returns.
-            double lo = Math.Min(0.0, _flowAlpha) - SpreadRad;
+            // The separated wake thickens with stall depth: the lower boundary grows below the chord
+            // plane, blanketing the stab (which sits just below the wing plane). Stable ONLY with the
+            // hysteretic (lagged) stalled fraction supplied by Aircraft — with the instantaneous
+            // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
+            double lo = Math.Min(0.0, _flowAlpha) - SpreadRad - 0.65 * Math.Abs(_flowAlpha) * _stalledFrac;
             double hi = Math.Max(0.0, _flowAlpha) + SpreadRad;
 
             // Smooth edge falloff over the spread margin.
@@ -247,7 +255,15 @@ public static class AeroModel
         }
     }
 
-    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg)
+    /// <summary>Instantaneous stalled fraction of wing area — callers integrate this with an
+    /// asymmetric lag (fast separation, slow reattachment) to get the hysteretic wake state.</summary>
+    public static double InstantStalledFraction(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, Vec3 windBody)
+    {
+        WingWake w = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, config.Mass.CgVec(), -1.0);
+        return w.StalledFraction;
+    }
+
+    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg, double stalledFracOverride)
     {
         Vec3 freestream = bodyVelocity - windBody;
         double flowAlpha = Math.Abs(freestream.X) > MinSpeedMs || Math.Abs(freestream.Z) > MinSpeedMs
@@ -282,7 +298,8 @@ public static class AeroModel
             return new WingWake(Vec3.Zero, 0.0, 0.0);
         }
 
-        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, stalledArea / totalArea);
+        double frac = stalledFracOverride >= 0.0 ? stalledFracOverride : stalledArea / totalArea;
+        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, frac);
     }
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce)
