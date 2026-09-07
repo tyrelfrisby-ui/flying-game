@@ -212,7 +212,29 @@ public static class AeroModel
                     cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
                 }
 
-                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
+                // FLAP: trailing-edge flap shifts the strip's zero-lift angle (added camber) and,
+                // below, adds profile drag and raises effective Clmax. Deploy fraction from the
+                // "flap" control group. Sweep-scaled like everything else on the strip.
+                double flapDeltaAlpha = 0.0, flapCd = 0.0, flapClMax = 0.0;
+                if (strip.Flap is not null && controls.FlapFraction > 0.0)
+                {
+                    double ff = controls.FlapFraction;
+                    flapDeltaAlpha = strip.Flap.MaxDeltaAlphaRad * ff; // +effective-alpha shift (camber) = +lift at fixed geometric alpha
+                    flapCd = strip.Flap.MaxCd * ff;
+                    flapClMax = strip.Flap.MaxClMax * ff;
+                }
+
+                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha + flapDeltaAlpha;
+
+                // WING SWEEP: only the chord-normal flow component makes lift (independence principle).
+                // A swept strip at geometric alpha behaves like a straight strip at a reduced effective
+                // alpha ~ alpha*cos(sweep); forces then scale by cos²(sweep) via the reduced dynamic
+                // pressure the sampled coefficients ride on. Zero-sweep strips unaffected.
+                double cosSweep = strip.SweepRad != 0.0 ? Math.Cos(strip.SweepRad) : 1.0;
+                if (cosSweep < 0.9999)
+                {
+                    alpha *= cosSweep;
+                }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
 
@@ -224,7 +246,10 @@ public static class AeroModel
                 {
                     flowState.LocalAlphaRad[idx] = alpha;
                     double sep = flowState.Separation[idx];
-                    double aClMax = table.AlphaClMaxRad;
+                    // SLAT: a deployed leading-edge slat delays separation — the stall angle this strip
+                    // can reach before it commits to the separated branch extends by StallExtensionRad.
+                    double slatExt = strip.Slat is not null ? strip.Slat.StallExtensionRad * controls.SlatFraction : 0.0;
+                    double aClMax = table.AlphaClMaxRad + slatExt;
                     if (sep < 1.0 && Math.Abs(alpha) > aClMax && Math.Abs(alpha) < aClMax + 20.0 * Math.PI / 180.0)
                     {
                         double sign = Math.Sign(alpha);
@@ -299,8 +324,14 @@ public static class AeroModel
                 }
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
-                double lift = q * strip.Area * coeffs.Cl;
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdDeflection);
+                // Flap lift boost (slat lift too) added to attached-flow Cl; both fade out post-stall
+                // (they raise Clmax and extend the linear range, they don't add lift once separated).
+                double slatCl = strip.Slat is not null ? strip.Slat.ClIncrement * controls.SlatFraction : 0.0;
+                double highLiftCl = (flapClMax + slatCl) * (flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0);
+                double clTotal = coeffs.Cl + Math.Sign(coeffs.Cl == 0 ? 1 : coeffs.Cl) * highLiftCl;
+
+                double lift = q * strip.Area * clTotal;
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdDeflection + flapCd);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
 
                 Vec3 force = liftDir * lift - dragDir * drag;

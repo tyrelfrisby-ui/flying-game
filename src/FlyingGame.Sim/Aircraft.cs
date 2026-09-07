@@ -23,6 +23,8 @@ public sealed class Aircraft
     private double _spoilerFraction;
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
     private double _throttle01;      // powered aircraft only
+    public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
+    public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
@@ -87,7 +89,7 @@ public sealed class Aircraft
         _rudderRad = SlewTo(_rudderRad, targets.RudderRad, Config.Controls.Rudder.RateRadPerSec, dt);
         _spoilerFraction = Math.Clamp(targets.SpoilerFraction, 0.0, 1.0);
 
-        ControlDeflections controls = CurrentDeflections;
+        ControlDeflections controls = new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction, FlapFraction, SlatFraction);
 
         double altitudeM = -State.Position.Z;
         double airDensity = Atmosphere.DensityAtAltitude(altitudeM);

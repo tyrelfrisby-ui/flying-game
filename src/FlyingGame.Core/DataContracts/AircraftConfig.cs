@@ -76,6 +76,19 @@ public sealed class StripConfig
     public string Airfoil { get; set; } = "";
     public StripControlConfig? Control { get; set; }
 
+    /// <summary>Quarter-chord SWEEP angle (rad). Swept strips see reduced chordwise velocity
+    /// (cos-sweep): lift/stall scale with cos(sweep), and effective AoA uses the normal-flow
+    /// component. Zero for straight wings.</summary>
+    public double SweepRad { get; set; }
+
+    /// <summary>Trailing-edge FLAP on this strip: deflection shifts zero-lift AoA (camber) and adds
+    /// drag; part of the "flap" control group. null = no flap.</summary>
+    public FlapConfig? Flap { get; set; }
+
+    /// <summary>Leading-edge SLAT on this strip: when deployed, extends the stall AoA (delays
+    /// separation) and adds a lift increment. null = no slat.</summary>
+    public SlatConfig? Slat { get; set; }
+
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }
 
@@ -83,6 +96,19 @@ public sealed class StripControlConfig
 {
     public string Surface { get; set; } = "";
     public double Gain { get; set; }
+}
+
+public sealed class FlapConfig
+{
+    public double MaxDeltaAlphaRad { get; set; } = 0.20;  // zero-lift shift at full flap (camber)
+    public double MaxCd { get; set; } = 0.09;             // added drag at full flap
+    public double MaxClMax { get; set; } = 0.5;           // stall-alpha-equivalent lift boost
+}
+
+public sealed class SlatConfig
+{
+    public double StallExtensionRad { get; set; } = 0.17; // ~10 deg extra stall AoA when deployed
+    public double ClIncrement { get; set; } = 0.15;
 }
 
 public sealed class AirfoilTableData
