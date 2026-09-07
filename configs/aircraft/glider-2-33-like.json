@@ -5,15 +5,15 @@
   "mass": {
     "massKg": 350,
     "cg": [
-      0.06,
+      -0.05,
       0,
       0
     ],
     "inertia": {
-      "ixx": 1704,
-      "iyy": 998,
-      "izz": 2646,
-      "ixz": 38
+      "ixx": 1708,
+      "iyy": 1144,
+      "izz": 2806,
+      "ixz": 9
     }
   },
   "surfaces": [
@@ -901,5 +901,5 @@
     "gMax": 4.7,
     "gMin": -2.3
   },
-  "wakeBlanketMaxLoss": 0.5
+  "wakeBlanketMaxLoss": 0.75
 }
