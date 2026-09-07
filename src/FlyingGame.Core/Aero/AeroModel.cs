@@ -146,7 +146,12 @@ public static class AeroModel
                     throw new KeyNotFoundException($"Strip references unknown airfoil '{strip.Airfoil}'.");
                 }
 
-                double controlEffectiveness = ControlEffectiveness(alphaBase + strip.IncidenceRad, table.AlphaClMaxRad);
+                // Owner directive (2026-09-06): the rudder KEEPS its power post-stall. A large-chord
+                // rudder acts nearly all-moving when deflected, and the 2-33's extends below the stab
+                // into clean air — real spins are steered and recovered with it. The fade applies only
+                // to wing/tail hinged surfaces (where full-authority-when-stalled caused real defects:
+                // aileron overpowering the spin, elevator plate-force zoom ejections).
+                double controlEffectiveness = isVertical ? 1.0 : ControlEffectiveness(alphaBase + strip.IncidenceRad, table.AlphaClMaxRad);
                 double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
