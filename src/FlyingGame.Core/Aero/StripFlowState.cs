@@ -15,12 +15,34 @@ public sealed class StripFlowState
     public double[] Separation = System.Array.Empty<double>();
     public double[] LocalAlphaRad = System.Array.Empty<double>();
 
+    // Unsteady-aero lag (proposal 3): instantaneous coefficients recorded by AeroModel,
+    // first-order-lagged copies advanced by Aircraft (tau ~ 3 chords / V).
+    public double[] InstCl = System.Array.Empty<double>();
+    public double[] InstCd = System.Array.Empty<double>();
+    public double[] InstCm = System.Array.Empty<double>();
+    public double[] LagCl = System.Array.Empty<double>();
+    public double[] LagCd = System.Array.Empty<double>();
+    public double[] LagCm = System.Array.Empty<double>();
+    public double[] ChordM = System.Array.Empty<double>();
+    public bool LagPrimed;
+
+    // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
+    public double DownwashEpsLagged;
+
     public void EnsureSize(int stripCount)
     {
         if (Separation.Length != stripCount)
         {
             Separation = new double[stripCount];
             LocalAlphaRad = new double[stripCount];
+            InstCl = new double[stripCount];
+            InstCd = new double[stripCount];
+            InstCm = new double[stripCount];
+            LagCl = new double[stripCount];
+            LagCd = new double[stripCount];
+            LagCm = new double[stripCount];
+            ChordM = new double[stripCount];
+            LagPrimed = false;
         }
     }
 }

@@ -148,6 +148,12 @@ public sealed class StallDynamicsConfig
     public double WakeGrowTau { get; set; } = 0.25;      // s, whole-wing wake development
     public double WakeDecayTau { get; set; } = 1.0;      // s, wake washout
     public double WakeSpreadDeg { get; set; } = 6.0;     // wake band edge softness
+
+    /// <summary>Proposal 1: downwash transport lag (Cm-alphadot). Off = instantaneous downwash.</summary>
+    public bool DownwashLagEnabled { get; set; }
+
+    /// <summary>Proposal 3: per-strip unsteady force lag (~3 chords/V). Off = quasi-steady.</summary>
+    public bool UnsteadyLagEnabled { get; set; }
 }
 
 public sealed class CrossflowConfig
@@ -157,6 +163,10 @@ public sealed class CrossflowConfig
     public double SideArea { get; set; }
     public double SideCenterX { get; set; }
     public double Cd { get; set; } = 1.2; // circular-cylinder crossflow drag coefficient
+
+    /// <summary>Proposal 2: fuselage length for DISTRIBUTED crossflow (5 stations -> real Cm_q/N_r
+    /// damping at spin attitudes). 0 = legacy single-point.</summary>
+    public double LengthM { get; set; }
 }
 
 public sealed class DampingConfig

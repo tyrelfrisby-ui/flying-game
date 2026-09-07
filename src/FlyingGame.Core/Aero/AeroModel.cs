@@ -139,7 +139,9 @@ public static class AeroModel
                     // trim slow flight without tumbling the spin.
                     if (!isWing && strip.PosVec().X < -1.0)
                     {
-                        double eps = 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction);
+                        double eps = config.StallDynamics.DownwashLagEnabled && flowState is not null
+                            ? flowState.DownwashEpsLagged
+                            : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction);
                         alphaBase -= eps;
                     }
 
@@ -223,6 +225,23 @@ public static class AeroModel
                     double cosAlpha = Math.Cos(alpha);
                     double attachedTaper = cosAlpha > 0.0 ? cosAlpha * cosAlpha : 0.0;
                     cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper;
+                }
+
+                // Unsteady-aero lag (proposal 3): forces in separated/attached flow respond over
+                // ~3 chords of travel, not instantly. AeroModel records the quasi-steady coefficients;
+                // Aircraft advances the lagged copies once per step; when enabled we FLY on the lagged
+                // values — the phase lag is real damping and softens reattachment force spikes.
+                if (flowState is not null && idx < flowState.InstCl.Length)
+                {
+                    flowState.InstCl[idx] = coeffs.Cl;
+                    flowState.InstCd[idx] = coeffs.Cd + cdInduced + cdDeflection;
+                    flowState.InstCm[idx] = coeffs.Cm;
+                    flowState.ChordM[idx] = strip.Chord;
+                    if (config.StallDynamics.UnsteadyLagEnabled && flowState.LagPrimed)
+                    {
+                        coeffs = new AeroCoefficients(flowState.LagCl[idx], flowState.LagCd[idx], flowState.LagCm[idx]);
+                        cdInduced = 0; cdDeflection = 0; // lagged Cd already contains them
+                    }
                 }
 
                 // Tail blanketing: strips of non-wing surfaces sitting inside the stalled wing's
@@ -434,20 +453,27 @@ public static class AeroModel
             // plan-view normal force arrests spin flattening; side-view force weathervanes the nose
             // when the fin is stalled/blanketed at big beta.
             CrossflowConfig cf = config.Fuselage.Crossflow;
-            if (cf.PlanArea > 0.0)
+            int nSt = cf.LengthM > 0.1 ? 5 : 1;   // proposal 2: distributed stations give real Cm_q / N_r
+            for (int si = 0; si < nSt; si++)
             {
-                double w = bodyVelocity.Z;
-                double fz = -0.5 * airDensity * cf.PlanArea * cf.Cd * w * Math.Abs(w);
-                totalForce += new Vec3(0, 0, fz);
-                totalMoment += Vec3.Cross(new Vec3(cf.PlanCenterX, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
-            }
-
-            if (cf.SideArea > 0.0)
-            {
-                double v = bodyVelocity.Y;
-                double fy = -0.5 * airDensity * cf.SideArea * cf.Cd * v * Math.Abs(v);
-                totalForce += new Vec3(0, fy, 0);
-                totalMoment += Vec3.Cross(new Vec3(cf.SideCenterX, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));
+                double frac = nSt == 1 ? 0.0 : (si - (nSt - 1) * 0.5) / (nSt - 1); // -0.5..+0.5
+                double dx = frac * cf.LengthM;
+                if (cf.PlanArea > 0.0)
+                {
+                    double xs = cf.PlanCenterX + dx;
+                    double wLoc = bodyVelocity.Z - bodyRates.Y * (xs - config.Mass.CgVec().X); // omega x r: station z-velocity = w - q*x
+                    double fz = -0.5 * airDensity * (cf.PlanArea / nSt) * cf.Cd * wLoc * Math.Abs(wLoc);
+                    totalForce += new Vec3(0, 0, fz);
+                    totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+                }
+                if (cf.SideArea > 0.0)
+                {
+                    double xs = cf.SideCenterX + dx;
+                    double vLoc = bodyVelocity.Y + bodyRates.Z * (xs - config.Mass.CgVec().X); // omega x r: station y-velocity = v + r*x
+                    double fy = -0.5 * airDensity * (cf.SideArea / nSt) * cf.Cd * vLoc * Math.Abs(vLoc);
+                    totalForce += new Vec3(0, fy, 0);
+                    totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));
+                }
             }
         }
 

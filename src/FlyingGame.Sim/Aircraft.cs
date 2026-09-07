@@ -122,6 +122,38 @@ public sealed class Aircraft
 
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
 
+        // Proposal 1: downwash transport lag (Cm-alphadot) — eps arrives at the tail one
+        // transport time (tail-arm / V) late.
+        if (Config.StallDynamics.DownwashLagEnabled)
+        {
+            double vTot = Math.Max(State.Velocity.Length, 6.0);
+            double alphaNow = Math.Atan2(State.Velocity.Z, Math.Max(Math.Abs(State.Velocity.X), 0.5) * Math.Sign(State.Velocity.X == 0 ? 1 : State.Velocity.X));
+            double target = 0.4 * Math.Clamp(alphaNow, -0.5, 0.5) * (1.0 - _wakeStalledFrac);
+            double tauDw = 4.2 / vTot;
+            _flowState.DownwashEpsLagged += (target - _flowState.DownwashEpsLagged) * (1.0 - Math.Exp(-dt / tauDw));
+        }
+
+        // Proposal 3: unsteady force lag (~3 chords / V per strip).
+        if (Config.StallDynamics.UnsteadyLagEnabled)
+        {
+            double vTot = Math.Max(State.Velocity.Length, 6.0);
+            if (!_flowState.LagPrimed)
+            {
+                Array.Copy(_flowState.InstCl, _flowState.LagCl, _flowState.InstCl.Length);
+                Array.Copy(_flowState.InstCd, _flowState.LagCd, _flowState.InstCd.Length);
+                Array.Copy(_flowState.InstCm, _flowState.LagCm, _flowState.InstCm.Length);
+                _flowState.LagPrimed = true;
+            }
+            for (int i = 0; i < _flowState.LagCl.Length; i++)
+            {
+                double tauU = Math.Clamp(3.0 * Math.Max(_flowState.ChordM[i], 0.2) / vTot, 0.02, 0.3);
+                double k = 1.0 - Math.Exp(-dt / tauU);
+                _flowState.LagCl[i] += (_flowState.InstCl[i] - _flowState.LagCl[i]) * k;
+                _flowState.LagCd[i] += (_flowState.InstCd[i] - _flowState.LagCd[i]) * k;
+                _flowState.LagCm[i] += (_flowState.InstCm[i] - _flowState.LagCm[i]) * k;
+            }
+        }
+
         // Advance per-strip separation memory (two-branch stall hysteresis): a strip SEPARATES fast
         // above 16 deg local alpha, REATTACHES slowly below 11 deg, and holds in the band between —
         // so the inner wing stays committed to the separated branch while the outer wing flies the

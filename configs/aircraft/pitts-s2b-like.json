@@ -11,9 +11,9 @@
     ],
     "inertia": {
       "ixx": 660,
-      "iyy": 1080,
+      "iyy": 1147,
       "izz": 1450,
-      "ixz": 60
+      "ixz": 40
     }
   },
   "surfaces": [
