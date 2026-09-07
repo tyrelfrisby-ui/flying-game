@@ -23,7 +23,7 @@
       "strips": [
         {
           "pos": [
-            0.35,
+            0.4,
             -0.395,
             -0.75
           ],
@@ -31,12 +31,12 @@
           "area": 0.8283,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": null
         },
         {
           "pos": [
-            0.35,
+            0.4,
             -1.157,
             -0.75
           ],
@@ -44,12 +44,12 @@
           "area": 0.7718,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": null
         },
         {
           "pos": [
-            0.35,
+            0.4,
             -1.841,
             -0.75
           ],
@@ -57,7 +57,7 @@
           "area": 0.497,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -65,7 +65,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             -2.399,
             -0.75
           ],
@@ -73,7 +73,7 @@
           "area": 0.3814,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -81,7 +81,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             -2.794,
             -0.75
           ],
@@ -89,7 +89,7 @@
           "area": 0.2397,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -97,7 +97,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             -2.998,
             -0.75
           ],
@@ -105,7 +105,7 @@
           "area": 0.0817,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -113,7 +113,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             0.395,
             -0.75
           ],
@@ -121,12 +121,12 @@
           "area": 0.8283,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": null
         },
         {
           "pos": [
-            0.35,
+            0.4,
             1.157,
             -0.75
           ],
@@ -134,12 +134,12 @@
           "area": 0.7718,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": null
         },
         {
           "pos": [
-            0.35,
+            0.4,
             1.841,
             -0.75
           ],
@@ -147,7 +147,7 @@
           "area": 0.497,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -155,7 +155,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             2.399,
             -0.75
           ],
@@ -163,7 +163,7 @@
           "area": 0.3814,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -171,7 +171,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             2.794,
             -0.75
           ],
@@ -179,7 +179,7 @@
           "area": 0.2397,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -187,7 +187,7 @@
         },
         {
           "pos": [
-            0.35,
+            0.4,
             2.998,
             -0.75
           ],
@@ -195,7 +195,7 @@
           "area": 0.0817,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -209,7 +209,7 @@
       "strips": [
         {
           "pos": [
-            -0.49,
+            -0.44,
             -1.841,
             -0.75
           ],
@@ -217,7 +217,7 @@
           "area": 0.1657,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -225,7 +225,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             -2.399,
             -0.75
           ],
@@ -233,7 +233,7 @@
           "area": 0.1271,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -241,7 +241,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             -2.794,
             -0.75
           ],
@@ -249,7 +249,7 @@
           "area": 0.0799,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -257,7 +257,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             -2.998,
             -0.75
           ],
@@ -265,7 +265,7 @@
           "area": 0.0273,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -273,7 +273,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             1.841,
             -0.75
           ],
@@ -281,7 +281,7 @@
           "area": 0.1657,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -289,7 +289,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             2.399,
             -0.75
           ],
@@ -297,7 +297,7 @@
           "area": 0.1271,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -305,7 +305,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             2.794,
             -0.75
           ],
@@ -313,7 +313,7 @@
           "area": 0.0799,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -321,7 +321,7 @@
         },
         {
           "pos": [
-            -0.49,
+            -0.44,
             2.998,
             -0.75
           ],
@@ -329,7 +329,7 @@
           "area": 0.0273,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
-          "airfoil": "pitts-wing",
+          "airfoil": "pitts-wing-upper",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -1676,17 +1676,17 @@
       ],
       "cm": [
         0.09,
-        0.0056,
-        0.1694,
-        0.3079,
+        0.2354,
+        0.3069,
+        0.3322,
         0.3375,
-        0.2839,
-        0.163,
-        0.0106,
-        0.0112,
-        0.0188,
-        0.015,
-        0.0095,
+        0.315,
+        0.283,
+        0.1473,
+        0.1058,
+        0.0447,
+        0.0253,
+        0.0124,
         0.0,
         -0.0,
         -0.0,
@@ -1696,6 +1696,152 @@
         0.0,
         0.0,
         -0.0,
+        -0.0124,
+        -0.0253,
+        -0.0447,
+        -0.1058,
+        -0.1473,
+        -0.283,
+        -0.315,
+        -0.3375,
+        -0.3322,
+        -0.3069,
+        -0.2354,
+        -0.09,
+        0.0
+      ]
+    },
+    "pitts-wing-upper": {
+      "alphaRad": [
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.309,
+        -1.0472,
+        -0.7854,
+        -0.69813,
+        -0.5236,
+        -0.43633,
+        -0.34907,
+        -0.2618,
+        -0.20944,
+        -0.17453,
+        -0.08727,
+        0.0,
+        0.08727,
+        0.17453,
+        0.20944,
+        0.2618,
+        0.34907,
+        0.43633,
+        0.5236,
+        0.69813,
+        0.7854,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.4,
+        0.6,
+        0.55,
+        0.28,
+        -0.0,
+        -0.24,
+        -0.48,
+        -0.58,
+        -0.55,
+        -0.44,
+        -0.4,
+        -0.42,
+        -0.62,
+        -1.22,
+        -1.15,
+        -0.55,
+        0.0,
+        0.55,
+        1.15,
+        1.22,
+        0.62,
+        0.42,
+        0.4,
+        0.44,
+        0.55,
+        0.58,
+        0.48,
+        0.24,
+        0.0,
+        -0.28,
+        -0.55,
+        -0.6,
+        -0.4,
+        0.0
+      ],
+      "cd": [
+        0.3,
+        0.75,
+        1.1,
+        1.3,
+        1.35,
+        1.24,
+        1.03,
+        0.67,
+        0.53,
+        0.31,
+        0.22,
+        0.15,
+        0.09,
+        0.02,
+        0.014,
+        0.009,
+        0.008,
+        0.009,
+        0.014,
+        0.02,
+        0.09,
+        0.15,
+        0.22,
+        0.31,
+        0.53,
+        0.67,
+        1.03,
+        1.24,
+        1.35,
+        1.3,
+        1.1,
+        0.75,
+        0.3,
+        0.02
+      ],
+      "cm": [
+        0.09,
+        0.2354,
+        0.3069,
+        0.3322,
+        0.3375,
+        0.315,
+        0.283,
+        0.1473,
+        0.1058,
+        0.0447,
+        0.0253,
+        0.0124,
+        0.0096,
+        0.0,
+        -0.0,
+        -0.0,
+        0.0,
+        0.0,
+        0.0,
+        -0.0,
+        -0.0104,
         -0.0124,
         -0.0253,
         -0.0447,

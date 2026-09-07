@@ -176,7 +176,14 @@ public static class AeroModel
                 // loses ~half its power (the deflected-down surface works in the stab's separated
                 // wake). Gated by wake stalled fraction: zero effect in normal flight.
                 double deflEff = controlDeflRad;
-                if (strip.Control is not null && strip.Control.Surface == "elevator" && controlDeflRad > 0)
+                // Anti-spin = deflection toward the prevailing flow direction, valid BOTH attitudes:
+                // upright spin (flow alpha +) anti-spin is DOWN(+); inverted (alpha -) anti-spin is UP(-).
+                // Anti-spin elevator stall (owner): deflection TOWARD the flow direction loses half
+                // its power in the stalled tail wake — down(+) in an upright spin (flow alpha +),
+                // up(-) in an inverted spin (flow alpha -). Pro-spin elevator (holding the stall) is
+                // untouched, so the spin itself sustains.
+                if (strip.Control is not null && strip.Control.Surface == "elevator"
+                    && controlDeflRad * (wake.FlowAlpha >= 0 ? 1 : -1) > 0)
                 {
                     // Gate by ROTATION (persists through the anti-spin push; zero in normal flight):
                     // the tail flow of a rotating aircraft stays separated regardless of the
@@ -196,6 +203,11 @@ public static class AeroModel
                 {
                     double sep = flowState is not null && idx < flowState.Separation.Length ? flowState.Separation[idx] : 0.0;
                     controlDeltaAlpha *= 1.0 - 0.85 * sep; // post-stall authority halved again (owner: still too strong; NACA shape kept)
+                    // Spin-rotation cut (yaw-rate gated so pure aerobatic rolls stay untouched):
+                    // in rotating stalled flow the aileron cannot bite even when its strip
+                    // momentarily reattaches — kills the inverted reattachment-grab magnitudes.
+                    double yawGate = Math.Clamp(Math.Abs(bodyRates.Z) / 1.2, 0.0, 1.0);
+                    controlDeltaAlpha *= 1.0 - 0.5 * yawGate * wake.StalledFraction;
                     double deltaGeom = strip.Control!.Gain * controlDeflRad;
                     cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * 1.5 * sep; // separated flow ONLY — attached aileron drag stays the induced-drag asymmetry the polar already gives
                 }

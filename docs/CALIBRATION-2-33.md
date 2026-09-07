@@ -178,3 +178,21 @@ All three sustain genuine inverted spins (negative alpha, rudder-commanded). Hig
   aileron out reverses — MAGNITUDES suspect (same reattachment-grab mechanism as upright).
 - CODE NOTE: the anti-spin elevator stall effect currently gates only DOWN-deflection (upright
   convention); inverted spins' anti-spin direction is UP — symmetric treatment pending owner call.
+
+
+## Inverted-spin corrections + Pitts wing fidelity (2026-09-07)
+
+Both owner corrections applied and retested:
+1. Anti-spin ELEVATOR stall now flow-gated (deflection toward flow direction loses 50%): works
+   BOTH attitudes — down in upright spin, up in inverted; pro-spin elevator untouched so spins
+   sustain. Inverted anti-elevator now correctly crosses Pitts to upright (0.6->3.0), C172 too.
+2. Aileron authority YAW-GATED in stalled rotation (|r|/1.2): inverted into-aileron reduced from
+   8.7 to ~7 (pure aerobatic rolls untouched — gate needs rotation).
+
+Pitts AIRFOIL fidelity (owner): pitts-wing forced perfectly SYMMETRIC (cl/cm odd, cd even —
+true 0012, was inheriting cambered-table asymmetries at deep angles). Upper wing given distinct
+LAMINAR table: earlier/sharper stall onset (break at 12-13 deg vs lower 15), deep post-stall
+MATCHED to lower to preserve the developed-spin equilibrium; +0.05 m forward stagger (same
+incidence). Upper-stalls-first is now real -> asymmetric spin entry. NOTE: developed-spin depth
+tuning (ACCEL litmus) was done on a uniform wing; with the now-correct top/bottom asymmetry the
+Pitts spin develops slower and needs a re-tune pass on the split-wing model — flagged.
