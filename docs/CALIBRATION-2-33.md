@@ -9,7 +9,7 @@ against these — Ty's eye is the final acceptance test.
 
 | Quantity | Value | Source |
 |---|---|---|
-| Stall speed | 34 mph dual / 31 mph solo (indicated; most indicate a few mph higher) | Schweizer manual via Tom's Tips |
+| Stall speed | 34 mph dual / 31 mph solo | Schweizer manual — SIM NOW MATCHES: 33.9 mph with documented wing |
 | Best glide | ~20:1 class (strut-braced trainer) | Ty (revised from 25:1) |
 | Pattern minimum | 55 mph calm, more when gusty | Tom's Tips |
 | Spin altitude loss | **~200 ft per turn** fully developed | Tom's Tips |
@@ -28,8 +28,8 @@ against these — Ty's eye is the final acceptance test.
 | Spin sink | ~80–100 ft/s | ~90 ft/s ✓ |
 | Spin direction always commanded | yes | yes ✓ (after control-effectiveness fade) |
 | Inside-tip AoA >90° in developed spin | yes (Ty) | reached 98–117° in fast-rotation states ✓ |
-| ft per turn | **200 (owner goal)** | ~445 ✗ (rate-limited) |
-| s per turn | 2.5–3.0 | 3.9 peak / 4.2 avg ✗ |
+| ft per turn | **200 (owner goal)** | ~407 ✗ (steady spin, rate-limited) |
+| s per turn | 2.5–3.0 | 4.0 steady ✗ |
 | spin sideslip | ~10–20° | ~19° ✓ (was −33: plate rudder + finite-AR drag) |
 | spin stability (no flatten/fall-out) | stable | very stable ✓ (max α 23, hysteresis) |
 
