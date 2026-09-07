@@ -1347,7 +1347,7 @@
     }
   },
   "propulsion": {
-    "maxPowerW": 268000,
+    "maxPowerW": 134000,
     "propDiameterM": 1.88,
     "idleRpm": 700,
     "maxRpm": 2700,
@@ -1372,5 +1372,25 @@
     "vneMs": 104,
     "gMax": 3.8,
     "gMin": -1.5
-  }
+  },
+  "engines": [
+    {
+      "pos": [
+        1.2,
+        -1.75,
+        0.0
+      ],
+      "rotationSign": 1,
+      "throttleScale": 1.0
+    },
+    {
+      "pos": [
+        1.2,
+        1.75,
+        0.0
+      ],
+      "rotationSign": -1,
+      "throttleScale": 1.0
+    }
+  ]
 }

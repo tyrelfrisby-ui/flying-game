@@ -24,6 +24,7 @@ public sealed class Aircraft
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
     private double _throttle01;      // powered aircraft only
     public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
+    public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
@@ -115,9 +116,34 @@ public sealed class Aircraft
             Vec3 totalM = aeroMoment;
             if (Config.Propulsion is not null)
             {
-                (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _throttle01, s.Velocity, s.Rates, airDensity);
-                totalF += pF;
-                totalM += pM;
+                if (Config.Engines.Count == 0)
+                {
+                    (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _throttle01, s.Velocity, s.Rates, airDensity);
+                    totalF += pF;
+                    totalM += pM;
+                }
+                else
+                {
+                    // Multi-engine: each mount runs the prop model with its own rotation sign and
+                    // throttle, thrust applied AT the mount (r×F gives the asymmetric yaw/roll when
+                    // one is failed). Prop torque/P-factor/slipstream/gyro of counter-rotating pairs
+                    // cancel in symmetric flight and survive in engine-out.
+                    var basePropCfg = Config.Propulsion;
+                    foreach (EngineMount m in Config.Engines)
+                    {
+                        var engCfg = new PropulsionConfig
+                        {
+                            MaxPowerW = basePropCfg.MaxPowerW, PropDiameterM = basePropCfg.PropDiameterM,
+                            IdleRpm = basePropCfg.IdleRpm, MaxRpm = basePropCfg.MaxRpm,
+                            PropInertia = basePropCfg.PropInertia, RotationSign = m.RotationSign,
+                            Efficiency = basePropCfg.Efficiency, ThrustLineZ = basePropCfg.ThrustLineZ,
+                            PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK
+                        };
+                        (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, _throttle01 * m.ThrottleScale, s.Velocity, s.Rates, airDensity);
+                        totalF += eF;
+                        totalM += eM + Vec3.Cross(m.PosVec() - Config.Mass.CgVec(), eF);
+                    }
+                }
             }
             return (totalF, totalM);
         }

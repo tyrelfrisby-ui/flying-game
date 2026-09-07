@@ -18,6 +18,12 @@ public sealed class AircraftConfig
     public FuselageConfig Fuselage { get; set; } = new();
     public PropulsionConfig? Propulsion { get; set; }
 
+    /// <summary>Multi-engine mounts. Empty = single centerline engine using Propulsion as-is. Each
+    /// mount reuses Propulsion for thrust/prop params but overrides position and rotation sign, so a
+    /// twin's counter-rotating props cancel torque/P-factor in symmetric flight and an engine-out
+    /// produces real asymmetric yaw at the mount's spanwise arm.</summary>
+    public List<EngineMount> Engines { get; set; } = new();
+
     /// <summary>Time constants of separation dynamics (optional; defaults = tuned values). The
     /// oscillation damping of the deep spin lives here, not in gains/areas.</summary>
     public StallDynamicsConfig StallDynamics { get; set; } = new();
@@ -156,6 +162,15 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+public sealed class EngineMount
+{
+    public double[] Pos { get; set; } = { 0, 0, 0 };  // engine/prop-plane position vs CG (m)
+    public int RotationSign { get; set; } = 1;        // +1 right-hand, -1 left-hand (counter-rot)
+    public double ThrottleScale { get; set; } = 1.0;  // 1 running, 0 failed/feathered
+
+    public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }
 
 public sealed class PropulsionConfig
