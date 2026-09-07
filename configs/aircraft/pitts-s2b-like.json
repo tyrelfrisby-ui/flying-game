@@ -1365,7 +1365,8 @@
       "planCenterX": -0.4,
       "sideArea": 3.2,
       "sideCenterX": -0.3,
-      "cd": 1.2
+      "cd": 1.2,
+      "lengthM": 0.0
     }
   },
   "propulsion": {
@@ -1393,5 +1394,6 @@
     "vneMs": 90,
     "gMax": 6.0,
     "gMin": -3.0
-  }
+  },
+  "verticalBlanketFactor": 1.0
 }

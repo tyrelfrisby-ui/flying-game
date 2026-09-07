@@ -247,7 +247,11 @@ public static class AeroModel
                 // Tail blanketing: strips of non-wing surfaces sitting inside the stalled wing's
                 // separated wake lose dynamic pressure. In a spin this is what stops the tail from
                 // producing near-CLmax upload and lets the nose ride high.
-                double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), config.WakeBlanketMaxLoss);
+                // Vertical surfaces cross the (horizontal) wake slab edge-on and span beyond it, so they
+                // lose only ~half the dynamic pressure a horizontal surface loses (tunnel-calibrated:
+                // CR-3099 yaw damping stays linear to Om=0.85 — the fin keeps working in the spin).
+                double blanketLoss = isVertical ? config.VerticalBlanketFactor * config.WakeBlanketMaxLoss : config.WakeBlanketMaxLoss;
+                double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), blanketLoss);
 
                 // Stab-wake shielding of the fin/rudder (NACA spin-recovery geometry). Ramps in as
                 // the tail-region flow steepens (none below 30-deg flow, full by 60-deg — the NACA
@@ -264,7 +268,7 @@ public static class AeroModel
                         bool inWedge = up > 0 && (aftOfTe < up / Math.Tan(30.0 * Math.PI / 180.0));
                         if (inWedge)
                         {
-                            qFactor *= 1.0 - 0.85 * flowSteep;
+                            qFactor *= 1.0 - config.VerticalBlanketFactor * config.WakeBlanketMaxLoss * flowSteep;
                         }
                     }
                 }

@@ -1222,7 +1222,8 @@
       "planCenterX": -0.6,
       "sideArea": 4.2,
       "sideCenterX": -0.5,
-      "cd": 1.2
+      "cd": 1.2,
+      "lengthM": 5.5
     }
   },
   "propulsion": null,
@@ -1250,5 +1251,6 @@
     "wakeGrowTau": 0.25,
     "wakeDecayTau": 1.0,
     "wakeSpreadDeg": 6.0
-  }
+  },
+  "verticalBlanketFactor": 1.0
 }
