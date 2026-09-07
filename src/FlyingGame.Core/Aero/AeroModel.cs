@@ -164,7 +164,12 @@ public static class AeroModel
                 // Control response scales with cos(flow angle): full when flow is chordwise, zero at 90,
                 // REVERSED in tail-first flow (a TE-down deflection acts LE-down when the flow comes
                 // from behind). Without this the deep-gyration cycle gets wrong-signed control forces.
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * Math.Clamp(2.0 * Math.Cos(alphaBase), -1.0, 1.0);
+                // Reversal factor uses the CHORDWISE flow component vs total 3D speed: pure vertical
+                // crossflow neutralizes controls (factor ~0) rather than reversing them — the planar
+                // angle misreads flow-from-below as tail-first and commanded the rudder BACKWARD
+                // during deep phases (found via spin direction-reversal hunt).
+                double chordwiseFactor = Math.Clamp(2.0 * vLocal.X / Math.Max(vLocal.Length, MinSpeedMs), -1.0, 1.0);
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * chordwiseFactor;
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 AeroCoefficients coeffs = table.Sample(alpha);
