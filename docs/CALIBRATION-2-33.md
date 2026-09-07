@@ -84,3 +84,24 @@ Standing rule: model changes must cite measured data or documented geometry. Rem
 (1) elevator/rudder effectiveness measurements at high AoA (NASA stall/spin program, Langley
 spin-tunnel reports), (2) wing-section CP walk 30-90 deg measured (drives the pitch limit cycle
 per the energy budget), (3) 2-33 flight-measured spin numbers beyond Tom's Tips.
+
+
+## CP-walk sweep results (branch, 2026-09-06 late)
+
+Five wing CP-walk profiles (Cm = -(Cp-0.25)*CN from the table's own forces), V2 spin, 30 s:
+
+| Profile | Cm@45 | net turns | avg s/t | avg alpha | beta | sink | ft/turn | reversal |
+|---|---|---|---|---|---|---|---|---|
+| P1 extreme (walk done by 45) | -0.242 | 3.4 | 10.9 | 15 | -32 | 60 | 661 | yes |
+| P2 strong (by 60) | -0.161 | 4.05 | 8.1 | 29 | -28 | 69 | 558 | none |
+| P3 classic/Critzos (by 90) | -0.097 | -1.5 | 4.5 | 43 | +22 | 72 | 325 | SUSTAINED LEFT |
+| P4 late | -0.048 | 2.4 | 28 | 8 | -26 | 56 | -- | yes |
+| P5 mild | -0.019 | 0.2 | 9.7 | 47 | +13 | 57 | 554 | yes |
+
+KEY FINDING: with measured-realistic (gentler) Cm, the deep fast spin EXISTS (P3: alpha 43,
+4.5 s/turn, 325 ft/turn — closest to owner targets all campaign) but locks in REVERSED: at
+deep alpha the NACA-shielded rudder cannot referee direction and the beta-dihedral loop picks
+its own. Enlarged below-stab rudder (36% per 3-view) insufficient alone. Direction selection
+at deep alpha = THE open problem. Next: phase-space basin study; candidate real-ship direction
+mechanisms: rotational flow asymmetry at the fin from spin-axis offset, fuselage side-crossflow
+asymmetry, pro-spin aileron-drag differential.
