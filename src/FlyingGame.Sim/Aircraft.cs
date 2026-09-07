@@ -93,7 +93,7 @@ public sealed class Aircraft
         // (~1.0 s). Feeding the LAGGED fraction to the aero model stops the wake band flickering
         // on/off across the stall boundary — the relaxation cycle that made fast spins fall out.
         double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody);
-        double tau = instantFrac > _wakeStalledFrac ? 0.25 : 1.0;
+        double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
         int stripCount = Config.Surfaces.Sum(s => s.Strips.Count);
@@ -119,7 +119,7 @@ public sealed class Aircraft
             double a = Math.Abs(_flowState.LocalAlphaRad[i]);
             double s0 = _flowState.Separation[i];
             double target = a > sepOn ? 1.0 : a < sepOff ? 0.0 : s0;
-            double tauSec = target > s0 ? 0.15 : 0.6;
+            double tauSec = target > s0 ? Config.StallDynamics.StripSepTau : Config.StallDynamics.StripReattachTau;
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }
     }

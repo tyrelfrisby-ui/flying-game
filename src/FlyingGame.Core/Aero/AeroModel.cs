@@ -223,17 +223,18 @@ public static class AeroModel
     private readonly struct WingWake
     {
         private const double StallAlphaRad = 15.0 * Math.PI / 180.0;
-        private const double SpreadRad = 6.0 * Math.PI / 180.0;
+        private readonly double _spreadRad;
 
         private readonly Vec3 _origin;        // area-weighted wing quarter-chord position
         private readonly double _flowAlpha;   // wake convection elevation (freestream alpha)
         private readonly double _stalledFrac; // stalled wing area / total wing area
 
-        public WingWake(Vec3 origin, double flowAlpha, double stalledFrac)
+        public WingWake(Vec3 origin, double flowAlpha, double stalledFrac, double spreadRad)
         {
             _origin = origin;
             _flowAlpha = flowAlpha;
             _stalledFrac = stalledFrac;
+            _spreadRad = spreadRad;
         }
 
         public static double StallAlpha => StallAlphaRad;
@@ -261,8 +262,8 @@ public static class AeroModel
             // plane, blanketing the stab (which sits just below the wing plane). Stable ONLY with the
             // hysteretic (lagged) stalled fraction supplied by Aircraft — with the instantaneous
             // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
-            double lo = Math.Min(0.0, _flowAlpha) - SpreadRad - 0.65 * Math.Abs(_flowAlpha) * _stalledFrac;
-            double hi = Math.Max(0.0, _flowAlpha) + SpreadRad;
+            double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.65 * Math.Abs(_flowAlpha) * _stalledFrac;
+            double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
 
             // Smooth edge falloff over the spread margin.
             double inside;
@@ -273,7 +274,7 @@ public static class AeroModel
             else
             {
                 double edgeDist = Math.Min(elevation - lo, hi - elevation);
-                inside = Math.Clamp(edgeDist / SpreadRad, 0.0, 1.0);
+                inside = Math.Clamp(edgeDist / _spreadRad, 0.0, 1.0);
             }
 
             return 1.0 - maxLoss * _stalledFrac * inside;
@@ -320,11 +321,11 @@ public static class AeroModel
 
         if (totalArea <= 0.0)
         {
-            return new WingWake(Vec3.Zero, 0.0, 0.0);
+            return new WingWake(Vec3.Zero, 0.0, 0.0, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
         }
 
         double frac = stalledFracOverride >= 0.0 ? stalledFracOverride : stalledArea / totalArea;
-        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, frac);
+        return new WingWake(new Vec3(sumX / totalArea, 0, sumZ / totalArea), flowAlpha, frac, config.StallDynamics.WakeSpreadDeg * Math.PI / 180.0);
     }
 
     private static void ApplySpoilerDrag(AircraftConfig config, Vec3 bodyVelocity, double airDensity, ControlDeflections controls, ref Vec3 totalForce)

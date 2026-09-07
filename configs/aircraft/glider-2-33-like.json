@@ -532,7 +532,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.55
           }
         },
         {
@@ -548,7 +548,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.55
           }
         },
         {
@@ -564,7 +564,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.55
           }
         },
         {
@@ -580,7 +580,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.55
           }
         }
       ]
@@ -596,7 +596,7 @@
             0.0
           ],
           "chord": 0.4,
-          "area": 0.2125,
+          "area": 0.175,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "fin-lowAR",
@@ -612,7 +612,7 @@
             0.0
           ],
           "chord": 0.4,
-          "area": 0.2125,
+          "area": 0.175,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "fin-lowAR",
@@ -628,7 +628,7 @@
             0.0
           ],
           "chord": 0.4,
-          "area": 0.2125,
+          "area": 0.175,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "fin-lowAR",
@@ -644,7 +644,7 @@
             0.0
           ],
           "chord": 0.4,
-          "area": 0.2125,
+          "area": 0.175,
           "incidenceRad": 0.0,
           "dihedralRad": 0.0,
           "airfoil": "fin-lowAR",
@@ -1210,7 +1210,7 @@
     }
   },
   "fuselage": {
-    "cd0Area": 0.13,
+    "cd0Area": 0.145,
     "sideForceArea": 1.5,
     "damping": {
       "p": 0,
@@ -1243,5 +1243,12 @@
     "gMax": 4.7,
     "gMin": -2.3
   },
-  "wakeBlanketMaxLoss": 0.75
+  "wakeBlanketMaxLoss": 0.75,
+  "stallDynamics": {
+    "stripSepTau": 0.15,
+    "stripReattachTau": 0.6,
+    "wakeGrowTau": 0.25,
+    "wakeDecayTau": 1.0,
+    "wakeSpreadDeg": 6.0
+  }
 }

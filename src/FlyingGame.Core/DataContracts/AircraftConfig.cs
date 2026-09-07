@@ -18,6 +18,10 @@ public sealed class AircraftConfig
     public FuselageConfig Fuselage { get; set; } = new();
     public object? Propulsion { get; set; }
 
+    /// <summary>Time constants of separation dynamics (optional; defaults = tuned values). The
+    /// oscillation damping of the deep spin lives here, not in gains/areas.</summary>
+    public StallDynamicsConfig StallDynamics { get; set; } = new();
+
     /// <summary>
     /// Max fraction of dynamic pressure the tail loses when fully inside a fully-stalled wing's wake
     /// (tail blanketing — the mechanism that lets a spin's nose ride high). 0 disables. Optional,
@@ -121,6 +125,15 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+public sealed class StallDynamicsConfig
+{
+    public double StripSepTau { get; set; } = 0.15;      // s, per-strip separation growth
+    public double StripReattachTau { get; set; } = 0.6;  // s, per-strip reattachment
+    public double WakeGrowTau { get; set; } = 0.25;      // s, whole-wing wake development
+    public double WakeDecayTau { get; set; } = 1.0;      // s, wake washout
+    public double WakeSpreadDeg { get; set; } = 6.0;     // wake band edge softness
 }
 
 public sealed class CrossflowConfig
