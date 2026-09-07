@@ -102,6 +102,7 @@ namespace FlyingGame.Bridge
             var driver = root.AddComponent<FlightSimDriver>();
             root.AddComponent<KeyboardTestControls>();
             root.AddComponent<ChallengeController>();
+            root.AddComponent<TowController>();
             _ = driver;
             return root;
         }

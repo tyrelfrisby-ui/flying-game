@@ -1492,5 +1492,14 @@
     "wakeDecayTau": 1.0,
     "wakeSpreadDeg": 6.0
   },
-  "verticalBlanketFactor": 0.85
+  "verticalBlanketFactor": 0.85,
+  "towHook": {
+    "pos": [
+      2.0,
+      0,
+      0.1
+    ],
+    "weakLinkN": 2940,
+    "canRelease": true
+  }
 }

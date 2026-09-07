@@ -1372,5 +1372,14 @@
     "vneMs": 68,
     "gMax": 3.8,
     "gMin": -1.5
+  },
+  "towPoint": {
+    "pos": [
+      -3.4,
+      0,
+      0
+    ],
+    "weakLinkN": 3920,
+    "isTug": true
   }
 }

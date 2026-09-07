@@ -28,6 +28,11 @@ public sealed class Aircraft
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     private readonly StripFlowState _flowState = new(); // per-strip two-branch stall memory
 
+    /// <summary>External world-frame force (N) applied at ExternalForcePointBody — the aerotow rope
+    /// tension, winch, etc. Set by the coupling each step; zero by default.</summary>
+    public Vec3 ExternalForceWorld;
+    public Vec3 ExternalForcePointBody;
+
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
         Config = config;
@@ -116,6 +121,12 @@ public sealed class Aircraft
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
             Vec3 totalM = aeroMoment;
+            if (ExternalForceWorld.LengthSquared > 1e-9)
+            {
+                Vec3 fBody = s.Attitude.Conjugate().Rotate(ExternalForceWorld);
+                totalF += fBody;
+                totalM += Vec3.Cross(ExternalForcePointBody - Config.Mass.CgVec(), fBody);
+            }
             if (Config.Propulsion is not null)
             {
                 if (Config.Engines.Count == 0)
