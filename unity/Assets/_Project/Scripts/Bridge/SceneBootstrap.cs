@@ -135,6 +135,10 @@ namespace FlyingGame.Bridge
 
             var hud = cam.gameObject.AddComponent<FlightHud>();
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
+
+            // The air made visible: bubble field following the aircraft.
+            var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
+            bubbles.Follow = aircraft.transform;
         }
     }
 }
