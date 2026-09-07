@@ -20,21 +20,6 @@ public static class AeroModel
     /// strip width (area/chord) at each tip, area as the strip sum. Single-strip surfaces get AR from
     /// that strip alone (width²/area).
     /// </summary>
-    /// <summary>
-    /// 1.0 while the local flow is attached (below the airfoil's own Clmax angle), fading linearly to
-    /// 0.3 over the next 15° and holding. Stall-aware per airfoil: a low-AR fin (Clmax ~33°) keeps its
-    /// rudder far longer than the wing keeps its ailerons (Clmax ~15°).
-    /// </summary>
-    private static double ControlEffectiveness(double localAlphaRad, double alphaClMaxRad)
-    {
-        double a = Math.Abs(localAlphaRad);
-        double attached = alphaClMaxRad;
-        double deep = alphaClMaxRad + 15.0 * Math.PI / 180.0;
-        if (a <= attached) return 1.0;
-        if (a >= deep) return 0.3;
-        return 1.0 - 0.7 * (a - attached) / (deep - attached);
-    }
-
     private static double GeometricAspectRatio(SurfaceConfig surface, bool isVertical)
     {
         double area = 0.0, min = double.MaxValue, max = double.MinValue;
@@ -133,6 +118,18 @@ public static class AeroModel
                     }
 
                     alphaBase = Math.Atan2(ww, uu);
+
+                    // Wing DOWNWASH at the tail: horizontal tail surfaces fly in reduced local alpha
+                    // while the wing is attached (eps ~ 0.4*alpha_wing), and the downwash COLLAPSES
+                    // as the wing separates — so the tail wakes up nose-down exactly when the spin
+                    // pitches deep. This attached/stalled asymmetry is what lets a strong elevator
+                    // trim slow flight without tumbling the spin.
+                    if (!isWing && strip.PosVec().X < -1.0)
+                    {
+                        double eps = 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction);
+                        alphaBase -= eps;
+                    }
+
                     double dx = uu / planeSpeed, dz = ww / planeSpeed;
                     dragDir = new Vec3(dx, 0, dz);
                     liftDir = new Vec3(dz, 0, -dx);
@@ -140,38 +137,19 @@ public static class AeroModel
                 }
 
                 double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
-                // Hinged surfaces lose grip in separated flow: full effectiveness while attached,
-                // fading to ~30% once the strip is deep-stalled (they keep their drag — adverse yaw
-                // survives — but stop commanding lift). Without this, held aileron overpowers a spin
-                // it could never overpower in the real aircraft.
                 if (!airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? table))
                 {
                     throw new KeyNotFoundException($"Strip references unknown airfoil '{strip.Airfoil}'.");
                 }
 
-                // Owner directive (2026-09-06): the rudder KEEPS its power post-stall. A large-chord
-                // rudder acts nearly all-moving when deflected, and the 2-33's extends below the stab
-                // into clean air — real spins are steered and recovered with it. The fade applies only
-                // to wing/tail hinged surfaces (where full-authority-when-stalled caused real defects:
-                // aileron overpowering the spin, elevator plate-force zoom ejections).
-                double controlEffectiveness = isVertical ? 1.0 : ControlEffectiveness(alphaBase + strip.IncidenceRad, table.AlphaClMaxRad);
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * controlEffectiveness;
+                // SPLIT-SURFACE MODEL (owner-directed): fixed surfaces (wing, stab, fin) and their
+                // hinged controls (ailerons, elevator, rudder) are SEPARATE strip rows. A control
+                // strip's incidence follows its deflection (gain ±1), it samples its own low-AR
+                // table, and it carries its own separation memory — so "the stab stalls but the
+                // elevator doesn't" is emergent physics, replacing the old effectiveness-fade and
+                // flat-plate approximations that lived here.
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad;
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
-
-                // The FADED fraction of a deflected control doesn't vanish — in separated flow the
-                // surface works as a deflected flat plate: normal force (how a rudder still yaws a
-                // spinning aircraft) + pressure drag. Flat-plate coefficients scaled by the flap
-                // chord fraction (gain^2 proxy) and the faded fraction, so attached flight is
-                // untouched and the blend is continuous.
-                double clPlate = 0.0, cdPlate = 0.0;
-                if (isVertical && strip.Control is not null && controlEffectiveness < 1.0 && Math.Abs(controlDeflRad) > 1e-9)
-                {
-                    double faded = 1.0 - controlEffectiveness;
-                    double cfOverC = Math.Min(1.0, strip.Control.Gain * strip.Control.Gain);
-                    double deltaGeom = strip.Control.Gain * controlDeflRad;
-                    clPlate = 1.1 * Math.Sin(deltaGeom) * Math.Cos(deltaGeom) * cfOverC * faded;
-                    cdPlate = 1.3 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * cfOverC * faded;
-                }
 
                 AeroCoefficients coeffs = table.Sample(alpha);
 
@@ -217,8 +195,8 @@ public static class AeroModel
                 double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), config.WakeBlanketMaxLoss);
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
-                double lift = q * strip.Area * (coeffs.Cl + clPlate);
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdPlate);
+                double lift = q * strip.Area * coeffs.Cl;
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
 
                 Vec3 force = liftDir * lift - dragDir * drag;
@@ -260,6 +238,7 @@ public static class AeroModel
 
         public static double StallAlpha => StallAlphaRad;
         public double StalledFraction => _stalledFrac;
+        public double FlowAlpha => _flowAlpha;
 
         /// <summary>1 = clean air; down to (1 - maxLoss) fully inside a fully-stalled wing's wake.</summary>
         public double DynamicPressureFactor(Vec3 stripPos, double maxLoss)
