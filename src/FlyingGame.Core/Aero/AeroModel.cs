@@ -170,6 +170,21 @@ public static class AeroModel
                 // during deep phases (found via spin direction-reversal hunt).
                 double chordwiseFactor = Math.Clamp(2.0 * vLocal.X / Math.Max(vLocal.Length, MinSpeedMs), -1.0, 1.0);
                 double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * controlDeflRad * chordwiseFactor;
+
+                // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
+                // section stops commanding lift but KEEPS its pressure drag — so roll authority fades
+                // with this strip's own separation memory while adverse yaw grows. Attached flight
+                // keeps full roll power plus a modest deflection-drag increment (real adverse yaw).
+                bool isAileronStrip = strip.Control is not null && strip.Control.Surface == "aileron";
+                double cdDeflection = 0.0;
+                if (isAileronStrip && Math.Abs(controlDeflRad) > 1e-9)
+                {
+                    double sep = flowState is not null && idx < flowState.Separation.Length ? flowState.Separation[idx] : 0.0;
+                    controlDeltaAlpha *= 1.0 - 0.7 * sep;
+                    double deltaGeom = strip.Control!.Gain * controlDeflRad;
+                    cdDeflection = 1.2 * Math.Sin(deltaGeom) * Math.Sin(deltaGeom) * (1.0 + 2.0 * sep);
+                }
+
                 double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 AeroCoefficients coeffs = table.Sample(alpha);
@@ -237,7 +252,7 @@ public static class AeroModel
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
                 double lift = q * strip.Area * coeffs.Cl;
-                double drag = q * strip.Area * (coeffs.Cd + cdInduced);
+                double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdDeflection);
                 double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
 
                 Vec3 force = liftDir * lift - dragDir * drag;
