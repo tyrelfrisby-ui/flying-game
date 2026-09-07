@@ -155,3 +155,12 @@ even relieving back pressure alone stops our Pitts spin, because it spins at V~2
 too much q) vs real S-2B ~16 m/s where the flyweight couple dominates. ROOT: Pitts spin
 equilibrium too fast/shallow (alpha 27 vs real 35-45) — same disease the glider had. NEXT: deepen
 Pitts spin equilibrium (alpha up, V down); litmus should return naturally.
+
+
+## Pitts wing MOI true analysis (owner assumptions, 2026-09-07)
+
+200 lb structure spread evenly (upper 155 + lower 114 + z-offsets 33) + 50 lb/side I-struts:
+mid-span 101 / 2/3-span 179; non-wing 53. TOTAL Ixx = 458 (mid) / 536 (2/3). Litmus sweep:
+BOTH analyzed values FAIL (458 dies, 536 recovers); only 660 accelerates (1.8->4.6). Gap closed
+by the omitted FOUR AILERONS + SPADES (~22 kg @ ~2.4 m = +127): 536+127 = 663 ~= 660. The
+litmus-validated 660 is now ALSO structurally derived. KEPT.
