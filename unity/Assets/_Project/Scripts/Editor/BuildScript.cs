@@ -101,7 +101,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/BubbleInstanced" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)

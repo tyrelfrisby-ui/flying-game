@@ -30,7 +30,9 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             _mesh = BuildSphere();
-            _material = new Material(Shader.Find("Unlit/Color")) { color = new Color(0.85f, 0.92f, 1f, 1f) };
+            // Instancing-capable shader — the built-in Unlit/Color has no instancing variant, so
+            // DrawMeshInstanced silently drew nothing with it (bubbles never appeared).
+            _material = new Material(Shader.Find("FlyingGame/BubbleInstanced")) { color = new Color(0.85f, 0.92f, 1f, 1f) };
             _material.enableInstancing = true;
             _airMassOrigin = Vector3.zero;
         }
