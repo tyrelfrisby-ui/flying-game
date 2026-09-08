@@ -230,7 +230,7 @@ public static class AeroModel
                     // the tail flow of a rotating aircraft stays separated regardless of the
                     // instantaneous alpha the push produces.
                     double rotGate = Math.Clamp(Math.Sqrt(bodyRates.X * bodyRates.X + bodyRates.Z * bodyRates.Z) / 1.5, 0.0, 1.0);
-                    deflEff *= 1.0 - 0.5 * rotGate;
+                    deflEff *= 1.0 - 0.3 * rotGate;   // was 0.5 (owner 2026-09-08: spins too flat, no elevator authority)
                 }
                 double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor;
 
@@ -366,7 +366,9 @@ public static class AeroModel
                         bool inWedge = up > 0 && (aftOfTe < up / Math.Tan(30.0 * Math.PI / 180.0));
                         if (inWedge)
                         {
-                            qFactor *= 1.0 - config.VerticalBlanketFactor * config.WakeBlanketMaxLoss * flowSteep;
+                            // Half the fin's wake loss again (owner 2026-09-08: the rudder kept ~8 % of its power in
+                            // the Extra's spin — the stab wedge on top of the wing wake over-shielded it).
+                            qFactor *= 1.0 - 0.5 * config.VerticalBlanketFactor * config.WakeBlanketMaxLoss * flowSteep;
                         }
                     }
                 }
@@ -448,7 +450,7 @@ public static class AeroModel
             // plane, blanketing the stab (which sits just below the wing plane). Stable ONLY with the
             // hysteretic (lagged) stalled fraction supplied by Aircraft — with the instantaneous
             // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
-            double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.65 * Math.Abs(_flowAlpha) * _stalledFrac;
+            double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.45 * Math.Abs(_flowAlpha) * _stalledFrac;   // was 0.65 (thinner wake: stab keeps more upload, steeper spin)
             double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
 
             // Smooth edge falloff over the spread margin.

@@ -40,12 +40,12 @@ public sealed class AircraftConfig
     /// (tail blanketing — the mechanism that lets a spin's nose ride high). 0 disables. Optional,
     /// schema-safe default.
     /// </summary>
-    public double WakeBlanketMaxLoss { get; set; } = 0.7;
+    public double WakeBlanketMaxLoss { get; set; } = 0.45;
 
     /// <summary>Fraction of blanket loss applied to VERTICAL surfaces (fin crosses the wake slab
     /// edge-on; tall fins keep ~half their q per CR-3099 yaw-damping linearity; short fins that sit
     /// fully in the wake keep 1.0). Data-scoped per aircraft.</summary>
-    public double VerticalBlanketFactor { get; set; } = 1.0;
+    public double VerticalBlanketFactor { get; set; } = 0.5;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 }

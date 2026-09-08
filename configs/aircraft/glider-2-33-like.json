@@ -19,7 +19,8 @@
   },
   "surfaces": [
     {
-      "id": "wing", "heightAboveBodyAxisM": 0.55,
+      "id": "wing",
+      "heightAboveBodyAxisM": 0.55,
       "strips": [
         {
           "pos": [
@@ -320,7 +321,8 @@
       ]
     },
     {
-      "id": "wing-aileron", "heightAboveBodyAxisM": 0.55,
+      "id": "wing-aileron",
+      "heightAboveBodyAxisM": 0.55,
       "oswaldE": 0.85,
       "strips": [
         {
@@ -373,7 +375,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.508,
             -7.156,
             -0.3
           ],
@@ -389,7 +391,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.461,
             -7.532,
             -0.3
           ],
@@ -405,7 +407,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.438,
             -7.722,
             -0.3
           ],
@@ -469,7 +471,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.508,
             7.156,
             -0.3
           ],
@@ -485,7 +487,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.461,
             7.532,
             -0.3
           ],
@@ -501,7 +503,7 @@
         },
         {
           "pos": [
-            -0.7,
+            -0.438,
             7.722,
             -0.3
           ],
@@ -1458,7 +1460,8 @@
       "q": 0,
       "r": 0
     },
-    "crossflow": { "bodyRadiusM": 0.55,
+    "crossflow": {
+      "bodyRadiusM": 0.55,
       "planArea": 3.5,
       "planCenterX": -0.6,
       "sideArea": 4.2,
@@ -1502,19 +1505,56 @@
       "rollResistN": 30
     },
     {
-      "pos": [-0.1, -7.6, -0.44],
-      "springN": 5000, "dampNs": 120, "brake": false, "isTailwheel": true, "isSteerable": false,
-      "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
+      "pos": [
+        -0.1,
+        -7.6,
+        -0.44
+      ],
+      "springN": 5000,
+      "dampNs": 120,
+      "brake": false,
+      "isTailwheel": true,
+      "isSteerable": false,
+      "maxSteerRad": 0,
+      "tireMu": 0.4,
+      "corneringStiffnessN": 400,
+      "rollResistN": 60,
+      "gearType": "tip-skid"
     },
     {
-      "pos": [-0.1, 7.6, -0.44],
-      "springN": 5000, "dampNs": 120, "brake": false, "isTailwheel": true, "isSteerable": false,
-      "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
+      "pos": [
+        -0.1,
+        7.6,
+        -0.44
+      ],
+      "springN": 5000,
+      "dampNs": 120,
+      "brake": false,
+      "isTailwheel": true,
+      "isSteerable": false,
+      "maxSteerRad": 0,
+      "tireMu": 0.4,
+      "corneringStiffnessN": 400,
+      "rollResistN": 60,
+      "gearType": "tip-skid"
     },
     {
-      "pos": [1.6, 0, 1.05],
-      "springN": 60000, "dampNs": 4000, "brake": false, "isTailwheel": true, "isSteerable": false,
-      "maxSteerRad": 0, "tireMu": 0.5, "corneringStiffnessN": 600, "rollResistN": 250, "gearType": "nose-skid", "tireRadiusM": 0.06
+      "pos": [
+        1.6,
+        0,
+        1.05
+      ],
+      "springN": 60000,
+      "dampNs": 4000,
+      "brake": false,
+      "isTailwheel": true,
+      "isSteerable": false,
+      "maxSteerRad": 0,
+      "tireMu": 0.5,
+      "corneringStiffnessN": 600,
+      "rollResistN": 250,
+      "gearType": "nose-skid",
+      "tireRadiusM": 0.06
     }
   ],
   "limits": {
@@ -1522,7 +1562,7 @@
     "gMax": 4.7,
     "gMin": -2.3
   },
-  "wakeBlanketMaxLoss": 0.75,
+  "wakeBlanketMaxLoss": 0.65,
   "stallDynamics": {
     "stripSepTau": 0.15,
     "stripReattachTau": 0.6,
@@ -1530,7 +1570,7 @@
     "wakeDecayTau": 1.0,
     "wakeSpreadDeg": 6.0
   },
-  "verticalBlanketFactor": 0.85,
+  "verticalBlanketFactor": 0.8,
   "towHook": {
     "pos": [
       2.0,

@@ -8,8 +8,8 @@ using Xunit.Abstractions;
 
 namespace FlyingGame.FlightTests;
 
-/// <summary>Aerotow from the runway: tug at full power pulls the glider from rest; the rope must not break
-/// and both must reach flying speed. Mirrors TowController's ground-launch logic.</summary>
+/// <summary>Aerotow from the runway with the TugPilot: launch, climb, pattern; glider releases; tug returns,
+/// lands with the rope and stops. Plus the rope-angle auto-release when the glider climbs far too high.</summary>
 public class GroundTowTests
 {
     private readonly ITestOutputHelper _out;
@@ -25,36 +25,102 @@ public class GroundTowTests
         return new Aircraft(c, new RigidBodyState(new Vec3(x, 0, -maxWz + 0.01), att, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
     }
 
+    private static (double roll, double pitch, double psi) Euler(RigidBodyState s)
+    {
+        Quat q = s.Attitude;
+        return (Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)),
+                Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1)),
+                Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)));
+    }
+
+    /// <summary>Glider pilot on tow: match the tug's bank; hold station a few metres above the tug's height
+    /// (never kite above it — that lifts the tug's tail), with an optional deliberate height bias.</summary>
+    private static ControlInputs FollowTug(Aircraft glider, Aircraft tug, double heightBiasM)
+    {
+        var (gr, _, _) = Euler(glider.State); var (tr, _, _) = Euler(tug.State);
+        double ail = Math.Clamp((tr - gr) * 2.0 - glider.State.Rates.X * 0.6, -1, 1);
+        double gAlt = -glider.State.Position.Z, tAlt = -tug.State.Position.Z;
+        double target = tAlt + 2.5 + heightBiasM;
+        double vz = glider.State.Attitude.Rotate(glider.State.Velocity).Z; // + down
+        // Altitude hold: climb rate command from height error, elevator from climb-rate error.
+        double vzCmd = Math.Clamp((gAlt - target) * 0.4, -3.0, 3.0);          // + = want to sink
+        double elev = Math.Clamp((vzCmd - vz) * 0.25 + glider.State.Rates.Y * 0.5, -0.6, 0.6);
+        bool ground = LandingGear.AnyMainWheelOnGround(glider.Config, glider.State) && glider.State.Velocity.Length < 18;
+        return new ControlInputs(ground ? 0 : ail, ground ? 0 : elev, 0, 0.0);
+    }
+
+    private static Vec3? RopeDirBody(AeroTow tow)
+    {
+        Vec3 r = tow.GliderHookWorld - tow.TugHookWorld;
+        if (r.Length < 1e-6) return null;
+        return tow.Tug.State.Attitude.Conjugate().Rotate(r / r.Length);
+    }
+
+    [Theory]
+    [InlineData("pa18-cub-like")]
+    [InlineData("pa25-pawnee-like")]
+    public void LaunchPatternReleaseReturnAndLand(string tugId)
+    {
+        var gcfg = TestAircraftConfig.Load();
+        var tcfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", tugId + ".json"));
+        var glider = OnGround(gcfg, 0);
+        var tug = OnGround(tcfg, 61.0 + 2.0 + 3.4 - 0.2);
+        var tow = new AeroTow(tug, glider, 61.0);
+        var pilot = new TugPilot { ThresholdX = -100, RunwayY = 0, RunwayElevM = 0 };
+        double dt = SimLoop.DefaultFixedDtSec, maxTension = 0, nextLog = 0; bool released = false; string lastPhase = "";
+        for (double t = 0; t < 600; t += dt)
+        {
+            if (tow.Connected) tow.Apply(dt);
+            pilot.PowerLimit01 = Math.Min(1.0, t / 2.0);
+            if (!released && t > 90 && pilot.Phase == TugPilot.Phases.Pattern) { tow.Release("glider"); released = true; pilot.GliderReleased = true; }
+            glider.Step(tow.Connected ? FollowTug(glider, tug, 0.0) : new ControlInputs(0, 0, 0, 0.3), dt);
+            ControlInputs ci = pilot.Update(tug, dt, tow.Tension, tow.Connected ? RopeDirBody(tow) : null);
+            tug.Step(ci, dt);
+            maxTension = Math.Max(maxTension, tow.Tension);
+            string ph = pilot.Phase.ToString();
+            if (ph != lastPhase || t >= nextLog || pilot.Phase == TugPilot.Phases.Done)
+            {
+                nextLog = Math.Floor(t / 10) * 10 + 10;
+                var (r, p, psi) = Euler(tug.State);
+                _out.WriteLine($"t={t,5:F1} {ph,-10} tug V={tug.State.Velocity.Length:F1} agl={-tug.State.Position.Z:F0} x={tug.State.Position.X:F0} y={tug.State.Position.Y:F0} ψ={psi * 57.3:F0}° bank={r * 57.3:F0}° | glider V={glider.State.Velocity.Length:F1} agl={-glider.State.Position.Z:F0} | tension={tow.Tension:F0} {tow.SeverReason}");
+                lastPhase = ph;
+            }
+            Assert.False(double.IsNaN(tug.State.Position.Z), "tug NaN");
+            if (pilot.Phase == TugPilot.Phases.Done) break;
+            if (tow.Connected == false && !released) Assert.Fail($"rope severed unexpectedly: {tow.SeverReason} (max {maxTension:F0} N)");
+        }
+        Assert.True(released, "glider never got to release (tug never reached the pattern)");
+        Assert.Equal(TugPilot.Phases.Done, pilot.Phase);
+        Assert.InRange(tug.State.Position.X, -150, 1500);
+        Assert.InRange(Math.Abs(tug.State.Position.Y), 0, 25);   // on the 30 m runway
+        Assert.True(-tug.State.Position.Z < 2.5, "tug should be on the runway");
+        var (rollEnd, pitchEnd, _) = Euler(tug.State);
+        Assert.True(Math.Abs(rollEnd) < 10 * Math.PI / 180 && pitchEnd > -5 * Math.PI / 180, $"tug should be upright (roll {rollEnd * 57.3:F0}°, pitch {pitchEnd * 57.3:F0}°)");
+    }
+
     [Fact]
-    public void TugPullsGliderToFlyingSpeed()
+    public void TugReleasesWhenGliderClimbsTooHigh()
     {
         var gcfg = TestAircraftConfig.Load();
         var tcfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));
         var glider = OnGround(gcfg, 0);
         var tug = OnGround(tcfg, 61.0 + 2.0 + 3.4 - 0.2);
         var tow = new AeroTow(tug, glider, 61.0);
-        double dt = SimLoop.DefaultFixedDtSec, maxTension = 0;
-        for (double t = 0; t < 20; t += dt)
+        var pilot = new TugPilot { ThresholdX = -100, RunwayY = 0, RunwayElevM = 0 };
+        double dt = SimLoop.DefaultFixedDtSec; double tRelease = -1;
+        for (double t = 0; t < 120; t += dt)
         {
-            tow.Apply(dt);
-            // Glider: neutral stick, spoilers closed once rolling (pad above 50 %), no brakes.
-            glider.Step(new ControlInputs(0, 0, 0, 0.0), dt);
-            // Tug autopilot as in TowController: heading hold with rudder, elevator schedule, power ramped to full over 2 s.
-            var s = tug.State; double v = s.Velocity.Length;
-            double psi = System.Math.Atan2(2 * (s.Attitude.W * s.Attitude.Z + s.Attitude.X * s.Attitude.Y), 1 - 2 * (s.Attitude.Y * s.Attitude.Y + s.Attitude.Z * s.Attitude.Z));
-            double rud = System.Math.Clamp(-psi * 2.0 - s.Rates.Z * 0.5, -1, 1);
-            double elev = v < 10 ? 0.0 : v < 24 ? 0.08 : -0.25;
-            double power = System.Math.Min(1.0, t / 2.0);
-            tug.Step(new ControlInputs(0, elev, rud, 1.0 - 2.0 * power), dt);
-            maxTension = System.Math.Max(maxTension, tow.Tension);
-            if (System.Math.Abs(t - System.Math.Round(t)) < dt / 2 || (t > 1.4 && t < 2.6 && System.Math.Abs(t * 10 - System.Math.Round(t * 10)) < dt * 5))
-            {
-                var gq = glider.State.Attitude; double gp = System.Math.Asin(System.Math.Clamp(2 * (gq.W * gq.Y - gq.Z * gq.X), -1, 1)) * 57.3;
-                _out.WriteLine($"t={t:F1} tug V={v:F1} x={tug.State.Position.X:F1} | glider V={glider.State.Velocity.Length:F2} x={glider.State.Position.X:F2} pitch={gp:F1} agl={-glider.State.Position.Z:F2} | hookDist={(tow.TugHookWorld - tow.GliderHookWorld).Length:F2} tension={tow.Tension:F0} ext=({glider.ExternalForceWorld.X:F0},{glider.ExternalForceWorld.Z:F0}) {tow.SeverReason}");
-            }
+            if (tow.Connected) tow.Apply(dt);
+            pilot.PowerLimit01 = Math.Min(1.0, t / 2.0);
+            // After 30 s airborne the glider pilot pulls up hard and stays high above the tug.
+            double bias = (pilot.Phase != TugPilot.Phases.GroundRoll && t > 30) ? 40.0 : 0.0; // climb 40 m above the tug
+            glider.Step(tow.Connected ? FollowTug(glider, tug, bias) : new ControlInputs(0, 0, 0, 0.3), dt);
+            ControlInputs ci = pilot.Update(tug, dt, tow.Tension, tow.Connected ? RopeDirBody(tow) : null);
+            if (pilot.WantsRelease && tow.Connected) { tow.Release("tug"); tRelease = t; }
+            tug.Step(ci, dt);
             if (!tow.Connected) break;
         }
-        Assert.True(tow.Connected, $"rope severed: {tow.SeverReason} (max tension {maxTension:F0} N)");
-        Assert.True(glider.State.Velocity.Length > 18, $"glider only reached {glider.State.Velocity.Length:F1} m/s");
+        _out.WriteLine($"tug released at t={tRelease:F1}");
+        Assert.True(tRelease > 30 && tRelease < 90, $"tug should release once the glider is far above (got {tRelease})");
     }
 }

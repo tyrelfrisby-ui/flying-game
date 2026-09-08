@@ -362,10 +362,19 @@ namespace FlyingGame.Bridge
             }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
             var tow = GetComponent<TowController>();
-            if (tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null && !tow.Towing && _driver.GroundStart)
+            if (tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null)
             {
                 var r = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
-                if (GUI.Button(ToGui(r), "TOW", _btnStyle)) tow.StartTow();
+                if (tow.Towing)
+                {
+                    GUI.color = new Color(1f, 0.85f, 0.3f, 1f);
+                    if (GUI.Button(ToGui(r), "RELEASE", _btnStyle)) tow.ReleaseFromGlider();
+                    GUI.color = Color.white;
+                }
+                else if (_driver.GroundStart && tow.Tow == null)
+                {
+                    if (GUI.Button(ToGui(r), "TOW", _btnStyle)) tow.StartTow();
+                }
             }
         }
 

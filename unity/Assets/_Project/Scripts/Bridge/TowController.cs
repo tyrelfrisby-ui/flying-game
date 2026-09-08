@@ -36,7 +36,7 @@ namespace FlyingGame.Bridge
             }
             if (Input.GetKeyDown(KeyCode.G) && Towing)
             {
-                Tow.Release();
+                ReleaseFromGlider();
             }
 
             if (Tow != null)
@@ -62,7 +62,7 @@ namespace FlyingGame.Bridge
         public void StartTow()
         {
             var gliderState = _gliderDriver.Sim.Aircraft.State;
-            var tugConfig = UnityAircraftConfigLoader.LoadFromStreamingAssets("pa18-cub-like");
+            var tugConfig = UnityAircraftConfigLoader.LoadFromStreamingAssets(SessionSettings.TugId);
             var fwd = gliderState.Attitude.Rotate(new Vec3(1, 0, 0));
             double groundHere = FlyingGame.Core.WorldTerrain.GroundHeightAt(gliderState.Position.X, gliderState.Position.Y);
             _groundTow = (-gliderState.Position.Z - groundHere) < 3.0 && gliderState.Velocity.Length < 3.0;
@@ -86,17 +86,19 @@ namespace FlyingGame.Bridge
             var tug = new Aircraft(tugConfig, tugState, new ControlDeflections(0, 0, 0, 0));
             _tugDriver = null;
 
+            if (_tugGo != null && _tugVisualId != SessionSettings.TugId) { Destroy(_tugGo); _tugGo = null; }
             if (_tugGo == null)
             {
                 _tugGo = BuildTugVisual();
-                _rope = BuildRope();
+                _tugVisualId = SessionSettings.TugId;
+                if (_rope == null) _rope = BuildRope();
             }
             _tugGo.SetActive(true);
             _rope.enabled = true;
 
             _tugAircraft = tug;
+            _pilot = null;
             _powerLatched = !_groundTow; _tugThrottle01 = _groundTow ? 0.0 : 1.0;
-            { var q = gliderState.Attitude; _towHeading = System.Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)); }
             Tow = new AeroTow(tug, _gliderDriver.Sim.Aircraft, RopeLengthM);
             if (_groundTow)
             {
@@ -108,57 +110,49 @@ namespace FlyingGame.Bridge
         }
 
         private Aircraft _tugAircraft;
+        private string _tugVisualId;
 
-        // Simple AI tug: hold tow speed with throttle, hold altitude (or a climb after a ground launch) with
-        // elevator, wings level, runway heading with rudder while rolling.
-        private double _towHeading;
+        private TugPilot _pilot;
+
+        /// <summary>Tow status for the HUD.</summary>
+        public string StatusLine => _tugAircraft == null ? null
+            : Towing ? $"TOW  {_pilot?.Status}   rope {Tow.Tension:F0} N   RELEASE when ready"
+            : _pilot != null ? $"TOW  released ({Tow?.SeverReason})  tug {_pilot.Status}" : null;
+
+        /// <summary>Glider-side release (button / G key).</summary>
+        public void ReleaseFromGlider()
+        {
+            if (Towing) { Tow.Release("glider"); if (_pilot != null) _pilot.GliderReleased = true; }
+        }
+
         private void FlyTugAutopilot(double dt)
         {
-            var s = _tugAircraft.State;
-            double speedErr = s.Velocity.Length - TowSpeedMs;
-            double lever = System.Math.Clamp(speedErr * 0.3, -1.0, 1.0);         // throttle (speed hold, airborne)
-            double agl = -s.Position.Z - FlyingGame.Core.WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
-            double targetSink = _groundTow && agl > 4.0 && s.Velocity.Length > 24.0 ? -2.5 : 0.0; // climb 500 fpm on a ground launch
-            if (_groundTow)
+            if (_pilot == null)
             {
-                // The GLIDER pilot advances the tug's power with the left pad (owner spec). Once full power is
-                // reached it latches: the tug stays at full power and ignores the glider's lever from then on.
-                if (!_powerLatched)
+                var ap = SessionSettings.Airport;
+                _pilot = new TugPilot
                 {
-                    // Tug power = the glider's left pad above its 50 % line (below it the pad is the spoiler lever).
-                    var pad = GetComponent<TouchFlightControls>();
-                    double padThrottle01 = pad != null ? System.Math.Clamp((pad.LeftPadFraction - 0.5) / 0.5, 0.0, 1.0)
-                                                       : System.Math.Clamp((1.0 - _gliderDriver.Inputs.ThrottleLever) * 0.5, 0.0, 1.0);
-                    _tugThrottle01 = padThrottle01;
-                    if (_tugThrottle01 >= 0.98) _powerLatched = true;
-                }
-                if (agl < 4.0 || !_powerLatched) lever = 1.0 - 2.0 * (_powerLatched ? 1.0 : _tugThrottle01); // ground roll: pad-commanded / full
+                    ThresholdX = ap.X - FlyingGame.Core.WorldTerrain.RunwayLengthM * 0.5 + 80.0, RunwayY = ap.Y, RunwayElevM = ap.ElevationM,
+                    TowSpeedMs = TowSpeedMs,
+                };
+                if (!_groundTow) _pilot.GliderReleased = false;
             }
-            double sink = s.Attitude.Rotate(s.Velocity).Z;                        // +down
-            double elev = System.Math.Clamp(-(sink - targetSink) * 0.15 - s.Rates.Y * 0.5, -1, 1); // hold, damp pitch
-            if (_groundTow && agl < 4.0)
+            _pilot.PowerLimit01 = _groundTow ? (_powerLatched ? 1.0 : _tugThrottle01) : 1.0;
+            if (_groundTow && !_powerLatched)
             {
-                // Taildragger ground roll with a glider in tow: stick neutral until rolling, a touch forward to
-                // lift the tail (never enough to nose over in the prop wash), rotate gently past 24 m/s.
-                double v = s.Velocity.Length;
-                elev = v < 10 ? 0.0 : v < 24 ? 0.08 : -0.25;
-                elev += -s.Rates.Y * 0.4;
-                double pitchDeg = System.Math.Asin(System.Math.Clamp(2 * (s.Attitude.W * s.Attitude.Y - s.Attitude.Z * s.Attitude.X), -1, 1)) * 57.3;
-                if (pitchDeg < -4) elev = -0.3; // tail too high: back stick
+                var pad = GetComponent<TouchFlightControls>();
+                _tugThrottle01 = pad != null ? System.Math.Clamp((pad.LeftPadFraction - 0.5) / 0.5, 0.0, 1.0) : 1.0;
+                if (_tugThrottle01 >= 0.98) _powerLatched = true;
             }
-            double rud = 0;
-            if (_groundTow)
+            Vec3? ropeDir = null;
+            if (Tow != null && Tow.Connected)
             {
-                double q0 = s.Attitude.W, q1 = s.Attitude.X, q2 = s.Attitude.Y, q3 = s.Attitude.Z;
-                double psi = System.Math.Atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3));
-                double err = _towHeading - psi; while (err > System.Math.PI) err -= 2 * System.Math.PI; while (err < -System.Math.PI) err += 2 * System.Math.PI;
-                rud = System.Math.Clamp(err * 2.0 - s.Rates.Z * 0.5, -1, 1);
+                Vec3 r = Tow.GliderHookWorld - Tow.TugHookWorld;
+                if (r.Length > 1e-6) ropeDir = _tugAircraft.State.Attitude.Conjugate().Rotate(r / r.Length);
             }
-            double bank = System.Math.Atan2(2 * (s.Attitude.W * s.Attitude.X + s.Attitude.Y * s.Attitude.Z),
-                1 - 2 * (s.Attitude.X * s.Attitude.X + s.Attitude.Y * s.Attitude.Y));
-            double ail = System.Math.Clamp(-bank * 1.5 - s.Rates.X * 0.5, -1, 1); // wings level
-            var sim = new SimLoop(_tugAircraft);
-            sim.RunFor(dt, new ControlInputs(ail, elev, rud, lever));
+            ControlInputs ci = _pilot.Update(_tugAircraft, dt, Tow?.Tension ?? 0, ropeDir);
+            if (_pilot.WantsRelease && Tow != null && Tow.Connected) { Tow.Release("tug"); _pilot.GliderReleased = true; }
+            new SimLoop(_tugAircraft).RunFor(dt, ci);
         }
 
         private void UpdateTugTransform()
@@ -182,6 +176,28 @@ namespace FlyingGame.Bridge
 
             if (!Towing)
             {
+                if (Tow != null && Tow.SeverReason == "tug")
+                {
+                    // Tug let go: the rope stays on the glider's hook and trails behind, drooping under its own weight.
+                    Vector3 hook = CoordinateMap.ToUnity(Tow.GliderHookWorld);
+                    var vs = _gliderDriver.Sim.Aircraft.State;
+                    Vector3 vel = CoordinateMap.ToUnity(vs.Attitude.Rotate(vs.Velocity));
+                    Vector3 back = vel.magnitude > 1f ? -vel.normalized : -_gliderDriver.transform.forward;
+                    float droop = Mathf.Clamp(12f - vel.magnitude * 0.3f, 2f, 12f);
+                    const int n = 12;
+                    _rope.enabled = true;
+                    _rope.positionCount = n + 1;
+                    for (int i = 0; i <= n; i++)
+                    {
+                        float t = i / (float)n;
+                        Vector3 p = hook + back * (RopeLengthM * 0.85f * t) + Vector3.down * (droop * t * t);
+                        var ps = CoordinateMap.ToSim(p);
+                        float g = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(ps.X, ps.Y);
+                        if (p.y < g + 0.05f) p.y = g + 0.05f;   // drags on the ground
+                        _rope.SetPosition(i, p);
+                    }
+                    return;
+                }
                 _rope.enabled = false;
                 return;
             }
@@ -206,8 +222,8 @@ namespace FlyingGame.Bridge
         {
             // The real Super Cub airframe (same builder as the flyable one) — the old primitive placeholder
             // used the stripped Standard shader and rendered magenta on device.
-            var root = new GameObject("Tug-PA18");
-            var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("pa18-cub-like");
+            var root = new GameObject("Tug-" + SessionSettings.TugId);
+            var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(SessionSettings.TugId);
             new AirframeBuilder().Build(root.transform, cfg);
             return root;
         }

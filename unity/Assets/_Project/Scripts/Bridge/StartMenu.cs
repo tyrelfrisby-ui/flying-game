@@ -113,6 +113,15 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(x, y, colW, bh), txt, SessionSettings.AirportIndex == i ? _btnOn : _btn)) SessionSettings.AirportIndex = i;
                 y += bh + gap * 0.4f;
             }
+            if (SessionSettings.AircraftId == "glider-2-33-like")
+            {
+                y += gap;
+                GUI.Label(new Rect(x, y, colW, lh), "TOW PLANE", _head); y += lh;
+                float half = (colW - gap * 0.4f) / 2f;
+                if (GUI.Button(new Rect(x, y, half, bh), "Pawnee", SessionSettings.TugId == "pa25-pawnee-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa25-pawnee-like";
+                if (GUI.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
+                y += bh + gap * 0.4f;
+            }
             y += gap;
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."

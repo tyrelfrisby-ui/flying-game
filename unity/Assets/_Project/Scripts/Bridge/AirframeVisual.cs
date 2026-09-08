@@ -339,6 +339,17 @@ namespace FlyingGame.Bridge
                     Strut(new Vector3(wx - 0.25f, side * r * 0.85f, r * 0.85f + st.BodyAxisZ), new Vector3(wx, y, wz - Mathf.Abs(y) * Mathf.Tan(dih) + 0.04f), 0.07f, strut);
                 }
             }
+            if (st.LowWingStruts)
+            {
+                // Pawnee-style bracing: a strut from the fuselage top (behind the hopper) down to mid-span of the low wing.
+                (float wx, float wz, float dih) = WingRoot(cfg, "wing");
+                float r = BodyRadiusAt(st, wx);
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float y = side * halfSpan * 0.5f;
+                    Strut(new Vector3(wx - 0.3f, side * r * 0.6f, -r * st.BodyHeightScale + st.BodyAxisZ), new Vector3(wx - 0.1f, y, wz - Mathf.Abs(y) * Mathf.Tan(dih) - 0.03f), 0.06f, strut);
+                }
+            }
             if (st.BiplaneStruts)
             {
                 (float ux, float uz, float udih) = WingRoot(cfg, "wing-upper");
@@ -888,7 +899,7 @@ namespace FlyingGame.Bridge
         {
             public (float x, float r)[] Body;               // fuselage stations nose→tail (sim x, radius)
             public float BodyWidthScale = 1f, BodyHeightScale = 1.1f, BodyAxisZ = 0f;
-            public bool BluntNose, RadialEngine, BellyScoop, HighWingStruts, BiplaneStruts, LowWingGear;
+            public bool BluntNose, RadialEngine, BellyScoop, HighWingStruts, BiplaneStruts, LowWingGear, LowWingStruts;
             public (float x, float z, float len, float wid, float hgt)? Canopy;
             public float PropRadius, NacelleRadius = 0.4f, NacelleLength = 2f, NacelleDrop = 0f; // NacelleDrop: visual z offset below the config engine point
             public TailSpec Tail;
@@ -918,6 +929,17 @@ namespace FlyingGame.Bridge
                         BodyAxisZ = -0.25f, Body = new[] { (2.0f, 0.1f), (1.7f, 0.38f), (1.0f, 0.48f), (0.2f, 0.5f), (-0.8f, 0.45f), (-1.8f, 0.32f), (-3.2f, 0.2f), (-4.5f, 0.12f), (-5.0f, 0.08f) },
                         Canopy = (0.1f, -0.4f, 1.4f, 0.9f, 0.45f), PropRadius = 0.9f, HighWingStruts = true,
                         Tail = new TailSpec { StabSpan = 3.0f, StabRoot = 0.95f, StabTip = 0.7f, FinHeight = 1.3f, FinRoot = 1.4f, FinTip = 0.6f, FinSweepDeg = 25 },
+                        Fuselage = yellow, Wing = yellow, TailColor = yellow, Control = dark,
+                    };
+                case "pa25-pawnee-like":
+                    return new Style
+                    {
+                        // Pawnee: deep slab-sided hopper section between the engine and the raised aft cockpit, low wing
+                        // braced from above, tall spring-steel gear, swept fin.
+                        BodyAxisZ = 0.05f, BodyHeightScale = 1.25f, BodyWidthScale = 0.9f,
+                        Body = new[] { (2.6f, 0.15f), (2.3f, 0.42f), (1.6f, 0.55f), (0.6f, 0.62f), (-0.4f, 0.62f), (-1.3f, 0.5f), (-2.3f, 0.34f), (-3.6f, 0.2f), (-4.6f, 0.12f), (-4.9f, 0.08f) },
+                        Canopy = (-1.0f, -0.85f, 1.3f, 0.75f, 0.5f), PropRadius = 1.06f, LowWingGear = true, LowWingStruts = true,
+                        Tail = new TailSpec { StabSpan = 3.3f, StabRoot = 1.0f, StabTip = 0.7f, FinHeight = 1.4f, FinRoot = 1.5f, FinTip = 0.6f, FinSweepDeg = 25 },
                         Fuselage = yellow, Wing = yellow, TailColor = yellow, Control = dark,
                     };
                 case "decathlon-8kcab-like":

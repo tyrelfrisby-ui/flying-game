@@ -150,30 +150,11 @@ namespace FlyingGame.EditorTools
             var preloaded = PlayerSettings.GetPreloadedAssets().Where(a => a != null).ToList();
             bool changed = false;
             if (!preloaded.Contains(font)) { preloaded.Add(font); changed = true; Debug.Log($"EnsureBuiltinFontPreloaded: pinned '{font.name}' into the build."); }
-            // The built-in IMGUI skin itself (GameSkin) can be stripped too — GUIUtility.BeginGUI then NREs in
-            // DoSetSkin before any OnGUI runs (seen again 2026-09-08). Pin it as well.
-            GUISkin skin = Resources.GetBuiltinResource<GUISkin>("GameSkin/GameSkin.guiskin"); // built-in default IMGUI skin (path verified in-editor)
-            if (skin != null && !preloaded.Contains(skin)) { preloaded.Add(skin); changed = true; Debug.Log("EnsureBuiltinFontPreloaded: pinned built-in GUISkin 'GameSkin'."); }
-            else if (skin == null) Debug.LogWarning("EnsureBuiltinFontPreloaded: built-in GameSkin not found.");
-            // GUI.DoSetSkin NREs when the SKIN'S OWN FONT (and its styles' fonts) is stripped — pinning our font
-            // by name is not enough if the skin references a different built-in Font object. Pin exactly those.
-            if (skin != null)
-            {
-                var fonts = new System.Collections.Generic.List<Font>();
-                if (skin.font != null) fonts.Add(skin.font);
-                foreach (GUIStyle st in new[] { skin.label, skin.button, skin.box, skin.textField, skin.textArea, skin.toggle, skin.window,
-                                                skin.horizontalSlider, skin.horizontalSliderThumb, skin.verticalSlider, skin.verticalSliderThumb,
-                                                skin.horizontalScrollbar, skin.verticalScrollbar, skin.scrollView })
-                {
-                    if (st != null && st.font != null) fonts.Add(st.font);
-                }
-                if (skin.customStyles != null) foreach (GUIStyle st in skin.customStyles) if (st != null && st.font != null) fonts.Add(st.font);
-                foreach (Font f in fonts)
-                {
-                    if (!preloaded.Contains(f)) { preloaded.Add(f); changed = true; Debug.Log($"EnsureBuiltinFontPreloaded: pinned skin font '{f.name}'."); }
-                }
-                Debug.Log($"EnsureBuiltinFontPreloaded: GameSkin.font = '{(skin.font != null ? skin.font.name : "null")}' (our font '{font.name}', same object: {ReferenceEquals(skin.font, font)})");
-            }
+            // NOTE: pinning the built-in GUISkin (GameSkin/GameSkin.guiskin) as a preloaded asset does NOT help and
+            // may be the 8488-byte "scripted object with a different serialization layout" seen at startup; only
+            // the font is pinned. Drop any stale skin entry.
+            preloaded.RemoveAll(a => a is GUISkin);
+            changed = true;
             if (changed) PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
         }
 
