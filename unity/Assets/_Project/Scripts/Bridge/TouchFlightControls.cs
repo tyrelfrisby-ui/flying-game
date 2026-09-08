@@ -52,7 +52,7 @@ namespace FlyingGame.Bridge
 
         // Live control state (already shaped, -1..1). Throttle and trim are sticky so they live across frames.
         private float _rudder, _throttle, _aileron, _elevator, _pitchTrim; // _throttle = left-pad Y knob, -1 (bottom)..1 (top)
-        private bool _brakeHeld;                                          // Brakes button (momentary, both sides)
+        private bool _brakeHeld;                                          // B key (editor) — the pad bottom band is the real brake
 
         // Pad geometry recomputed each frame from screen size (screen px, origin bottom-left).
         private Vector2 _leftCenter, _rightCenter;
@@ -107,7 +107,7 @@ namespace FlyingGame.Bridge
             PublishToDriver();
         }
 
-        /// <summary>Everything along the bottom edge: [left pad] [Aircraft/Reset | Brakes] [Trim] [right pad].</summary>
+        /// <summary>Everything along the bottom edge: [left pad] [Aircraft/Reset | Flaps] [Trim] [right pad].</summary>
         private void LayOut()
         {
             float w = Screen.width, h = Screen.height, s = Mathf.Min(w, h);
@@ -122,7 +122,8 @@ namespace FlyingGame.Bridge
             float trimW = _half * 0.22f;
             _trimRect = new Rect(_rightCenter.x - _half - gap - trimW, _rightCenter.y - _half, trimW, 2f * _half);
 
-            // Centre cluster between the left pad and the trim slider: Aircraft over Reset, big Brakes beside.
+            // Centre cluster between the left pad and the trim slider: Aircraft over Reset; Flaps/Tow beside.
+            // (The Brakes button is gone — braking lives on the bottom of the throttle pad.)
             float clusterLeft = _leftCenter.x + _half + gap;
             float clusterRight = _trimRect.x - gap;
             float avail = clusterRight - clusterLeft;
@@ -131,7 +132,7 @@ namespace FlyingGame.Bridge
             float x0 = (clusterLeft + clusterRight) * 0.5f - (2f * bw + gap) * 0.5f;
             _acftRect = new Rect(x0, margin + bh + gap * 0.6f, bw, bh);
             _resetRect = new Rect(x0, margin, bw, bh);
-            _brakeRect = new Rect(x0 + bw + gap, margin, bw, 2f * bh + gap * 0.6f);
+            _brakeRect = new Rect(x0 + bw + gap, margin, bw, bh); // now the FLAPS slot (kept as the layout anchor)
         }
 
         /// <summary>Read touches (device) or the mouse (editor) and update each control's owning pointer.</summary>
@@ -168,15 +169,6 @@ namespace FlyingGame.Bridge
                     if (p.id == _leftFinger) ReleaseLeft();
                     if (p.id == _rightFinger) ReleaseRight();
                     if (p.id == _trimFinger) _trimFinger = int.MinValue; // trim holds where it was left
-                    continue;
-                }
-
-                // Momentary brake: any free pointer inside the brake button holds the brakes (a finger
-                // that already owns a pad/trim keeps driving it even if it strays over the button).
-                bool owned = p.id == _leftFinger || p.id == _rightFinger || p.id == _trimFinger;
-                if (!owned && _brakeRect.Contains(p.pos))
-                {
-                    _brakeHeld = true;
                     continue;
                 }
 
@@ -350,10 +342,10 @@ namespace FlyingGame.Bridge
 
             if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
             if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
-            // Flaps (types that have them): cycle 0 / ½ / full, shown above the Brakes button.
+            // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset.
             if (_driver.HasFlaps)
             {
-                var fr = new Rect(_brakeRect.x, _brakeRect.yMax + _half * 0.12f, _brakeRect.width, _acftRect.height);
+                var fr = _brakeRect;
                 double f = _driver.Sim.Aircraft.FlapFraction;
                 if (GUI.Button(ToGui(fr), $"FLAPS {f * 100:F0}%", _btnStyle))
                 {
@@ -367,11 +359,6 @@ namespace FlyingGame.Bridge
                 var r = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
                 if (GUI.Button(ToGui(r), "TOW", _btnStyle)) tow.StartTow();
             }
-
-            // Brake is momentary (held via touch/key), so just render its lit/idle state.
-            GUI.color = _brakeHeld ? new Color(1f, 0.5f, 0.3f, 0.95f) : new Color(1f, 1f, 1f, 0.55f);
-            GUI.Box(ToGui(_brakeRect), "Brakes", _btnStyle);
-            GUI.color = Color.white;
         }
 
         private Vector2 IdleLeftKnob() =>

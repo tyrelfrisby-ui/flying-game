@@ -145,7 +145,11 @@ public static class FloatHydro
                     // FOREBODY ahead of the CG — the destabilising side force that turns a dug-in bow into a water loop.
                     double sideArea = d * dx;
                     double cdSide = pass == 0 ? 1.2 : 1.0;
-                    double fy = -0.5 * rho * cdSide * sideArea * vSt.Y * System.Math.Abs(vSt.Y) * fade;
+                    // KEEL EFFECT: besides the quadratic crossflow drag, an immersed keel/chine hull resists lateral
+                    // motion LINEARLY at low speed (lift-like keel side force + added mass), which is what makes a
+                    // floatplane track straight and turn slowly at idle instead of spinning on its water rudders.
+                    const double keelLinear = 1800.0; // N per (m/s) per m² of immersed side area
+                    double fy = (-0.5 * rho * cdSide * sideArea * vSt.Y * System.Math.Abs(vSt.Y) - keelLinear * sideArea * vSt.Y) * fade;
                     lateralThisFloat += fy;
                     // Forward drag is applied elsewhere: form drag ONCE per float (deepest section, below) and
                     // skin friction through Savitsky's wetted-area term. Per-station friction here double-counted it.

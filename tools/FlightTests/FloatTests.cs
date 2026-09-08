@@ -84,50 +84,48 @@ public class FloatTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    [Fact(Skip = "Scripted pilot cannot fly a proper flare (touches at 32 m/s); the touchdown physics at 20-24 m/s is sane per static probes. Needs a speed-managed flare pilot — see memory.")]
+    [Fact]
     public void LandsOnTheWaterAndSlowsDown()
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
             AircraftConfig cfg = Load();
-            // Full-flap approach at 1.3 Vs (~27 m/s / 52 kt for this weight); the flare bleeds it to ~23 m/s.
-            const double V = 27.0;
+            // Power-off full-flap glide at 26 m/s (~50 kt): the aircraft holds this hands-off, so the approach is
+            // the trim itself; the flare is a steady elevator ramp from 8 m (real technique: pull steadily, let it
+            // settle on the step as the speed bleeds).
+            const double V = 26.0;
             TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, V, 40, flapFraction: 1.0);
             Assert.True(trim.Converged, "approach trim must converge");
-            _out.WriteLine($"approach {V:F0} m/s full flap: α {trim.AlphaRad * 57.3:F1}° elev {trim.ElevatorRad * 57.3:F1}°");
+            _out.WriteLine($"approach {V:F0} m/s full flap glide: α {trim.AlphaRad * 57.3:F1}° elev {trim.ElevatorRad * 57.3:F1}° γ {(trim.ThetaRad - trim.AlphaRad) * 57.3:F1}°");
             double half = trim.ThetaRad / 2.0;
             var state = new RigidBodyState(new Vec3(0, 0, -40.0), new Quat(0, Math.Sin(half), 0, Math.Cos(half)),
                 new Vec3(V * Math.Cos(trim.AlphaRad), 0, V * Math.Sin(trim.AlphaRad)), Vec3.Zero);
             var ac = new Aircraft(cfg, state, new ControlDeflections(0, trim.ElevatorRad, 0, 0, 1.0)) { FlapFraction = 1.0 };
             var sim = new SimLoop(ac);
             double stick = Aircraft.StickForDeflection(trim.ElevatorRad, cfg.Controls.Elevator);
-            double touchdown = -1, maxG = 0, maxPitch = 0, sinkAtTd = 0;
-            double trimPitch = trim.ThetaRad * 57.3;
-            for (double t = 0; t < 60; t += 0.1)
+            double touchdown = -1, maxG = 0, maxPitch = 0, sinkAtTd = 0, vAtTd = 0, flareStart = -1;
+            for (double t = 0; t < 90; t += 0.1)
             {
                 RigidBodyState before = ac.State;
                 double agl = -ac.State.Position.Z;
-                double sinkRate = ac.State.Attitude.Rotate(ac.State.Velocity).Z; // +down
-                // Flare = level off in ground effect and let the speed bleed: below 4 m, power to idle and hold the
-                // sink to ~0.3 m/s with pitch (the nose rises as it slows); after touchdown hold it there, power off.
-                double lever = agl < 4 || touchdown > 0 ? 1.0 : 0.25;
-                double target = agl < 4 ? trimPitch + Math.Clamp((sinkRate - 0.3) * 4.0, -3.0, 9.0) : trimPitch;
-                if (touchdown > 0) target = trimPitch + 4;
-                double st = Math.Clamp(stick - 0.2 * (target - Pitch(ac.State)) + 0.6 * ac.State.Rates.Y, -0.95, 0.9);
-                sim.RunFor(0.1, new ControlInputs(0, st, 0, lever));
+                double qr = ac.State.Rates.Y;
+                if (flareStart < 0 && agl < 10) flareStart = t;
+                double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.08 * (t - flareStart)); // steady pull: +0.08 stick/s, capped
+                double st = Math.Clamp(stick - pull + 0.4 * qr, -0.85, 0.5);
+                sim.RunFor(0.1, new ControlInputs(0, st, 0, 1.0)); // power off throughout
                 RigidBodyState s = ac.State;
                 Assert.False(double.IsNaN(s.Position.Z), $"NaN at t={t:F1}");
                 Vec3 vw = s.Attitude.Rotate(s.Velocity), vb = before.Attitude.Rotate(before.Velocity);
                 maxG = Math.Max(maxG, (vw - vb).Length / 0.1 / 9.81);
                 maxPitch = Math.Max(maxPitch, Math.Abs(Pitch(s)));
-                if (touchdown < 0 && FloatHydro.LastReport.DraftAtStepM > 0.02) { touchdown = t; sinkAtTd = vb.Z; }
-                if (touchdown > 0 && t < touchdown + 1.6)
+                if (touchdown < 0 && FloatHydro.LastReport.DraftAtStepM > 0.02) { touchdown = t; sinkAtTd = vb.Z; vAtTd = before.Velocity.Length; }
+                if (touchdown > 0 && t < touchdown + 1.0)
                     _out.WriteLine($"  td+{t - touchdown:F1}: V={s.Velocity.Length:F1} pitch={Pitch(s):F1} vz={vw.Z:F2} draft={FloatHydro.LastReport.DraftAtStepM:F2} τ={FloatHydro.LastReport.TrimDeg:F1} λ={FloatHydro.LastReport.WettedLambda:F2} lift={FloatHydro.LastReport.PlaningLiftN:F0} buoy={FloatHydro.LastReport.BuoyancyN:F0} stick={st:F2} q={s.Rates.Y * 57.3:F0}°/s");
                 if (touchdown > 0 && s.Velocity.Length < 3.0)
                 {
-                    _out.WriteLine($"touchdown {touchdown:F1} s at {sinkAtTd:F1} m/s sink, below 3 m/s at {t:F1} s, max {maxG:F1} g, max |pitch| {maxPitch:F0}°");
-                    Assert.True(maxG < 4.5, $"max {maxG:F1} g"); // a 52 kt touchdown on floats is firm; no structural event
+                    _out.WriteLine($"touchdown {touchdown:F1} s at {vAtTd:F1} m/s / {sinkAtTd:F1} m/s sink, below 3 m/s at {t:F1} s, max {maxG:F1} g, max |pitch| {maxPitch:F0}°");
+                    Assert.True(maxG < 4.5, $"max {maxG:F1} g");
                     Assert.True(maxPitch < 30, $"max pitch {maxPitch:F0}");
                     return;
                 }
@@ -136,4 +134,5 @@ public class FloatTests
         }
         finally { FloatHydro.FlatWaterOverride = null; }
     }
+
 }
