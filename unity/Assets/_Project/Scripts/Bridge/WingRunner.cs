@@ -57,7 +57,8 @@ namespace FlyingGame.Bridge
             // Wingtip (sim y = ±half-span, at the wing's z) on the ground beside the aircraft.
             var cfg = Driver.Sim.Aircraft.Config;
             float half = 0f; foreach (var sf in cfg.Surfaces) foreach (var st in sf.Strips) half = Mathf.Max(half, Mathf.Abs((float)st.Pos[1]));
-            Vector3 tip = Driver.transform.TransformPoint(new Vector3(Side * (half - 0.3f), 0f, 0f));
+            // Stand OFF the tip (0.8 m outboard, a step behind the leading edge), not on it.
+            Vector3 tip = Driver.transform.TransformPoint(new Vector3(Side * (half + 0.8f), 0f, -0.4f));
             var sim = CoordinateMap.ToSim(tip);
             float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
             return new Vector3(tip.x, ground, tip.z);
@@ -94,7 +95,8 @@ namespace FlyingGame.Bridge
             // Pose: figure at _pos facing its motion; legs swing with speed; the near arm up on the wing while holding.
             float speedNow = _vel.magnitude;
             _figure.transform.position = _pos;
-            Vector3 face = speedNow > 0.2f ? _vel.normalized : fwd;
+            // Face the way the glider is going while holding; own direction of travel after letting go.
+            Vector3 face = Holding ? fwd : (speedNow > 0.2f ? _vel.normalized : fwd);
             _figure.transform.rotation = Quaternion.LookRotation(face, Vector3.up);
             _phase += speedNow * 2.2f * dt;
             float swing = Mathf.Clamp(speedNow / ReleaseSpeedMs, 0.15f, 1f) * 35f;

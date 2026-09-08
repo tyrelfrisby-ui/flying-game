@@ -93,7 +93,10 @@ public sealed class AeroTow
             + Vec3.Cross(Tug.State.Attitude.Rotate(Tug.State.Rates), Tug.State.Attitude.Rotate(TugHookBody));
         Vec3 gliderHookVel = Glider.State.Attitude.Rotate(Glider.State.Velocity)
             + Vec3.Cross(Glider.State.Attitude.Rotate(Glider.State.Rates), Glider.State.Attitude.Rotate(GliderHookBody));
-        double closingRate = Vec3.Dot(gliderHookVel - tugHookVel, dir); // + = separating (rope loading)
+        // + = hooks SEPARATING along the rope (loading). dir points glider→tug, so it is the TUG hook's
+        // velocity minus the glider hook's. (Was reversed: while the tug pulled away the damping cancelled
+        // the spring, the rope engaged ~2 m late and then snatched the weak link on every ground launch.)
+        double closingRate = Vec3.Dot(tugHookVel - gliderHookVel, dir);
 
         double tension = SpringNPerM * stretch + DampingNsPerM * closingRate;
         tension = System.Math.Max(0.0, tension); // rope can't push
