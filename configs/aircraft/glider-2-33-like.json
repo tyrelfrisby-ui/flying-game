@@ -1510,6 +1510,11 @@
       "pos": [-0.1, 7.6, -0.53],
       "springN": 20000, "dampNs": 1500, "brake": false, "isTailwheel": true, "isSteerable": false,
       "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
+    },
+    {
+      "pos": [1.6, 0, 1.05],
+      "springN": 60000, "dampNs": 4000, "brake": false, "isTailwheel": true, "isSteerable": false,
+      "maxSteerRad": 0, "tireMu": 0.5, "corneringStiffnessN": 600, "rollResistN": 250, "gearType": "nose-skid", "tireRadiusM": 0.06
     }
   ],
   "limits": {

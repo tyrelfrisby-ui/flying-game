@@ -58,3 +58,35 @@ public class TipWheelTests
         return Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
     }
 }
+
+/// <summary>2-33 nose skid: clear of the ground at rest, catches the nose under hard braking so the glider
+/// cannot tip onto its nose.</summary>
+public class NoseSkidTests
+{
+    private static readonly AircraftConfig Config = TestAircraftConfig.Load();
+
+    [Fact]
+    public void HardBrakingRolloutDoesNotTipOver()
+    {
+        // Rolling out on the runway at 15 m/s, full wheel brake, stick neutral.
+        var mains = Config.Gear.FindAll(g => Math.Abs(g.Pos[1]) < 0.1 && g.Pos[2] > 0.9 && g.GearType != "nose-skid");
+        var tail = Config.Gear.Find(g => g.Pos[0] < -3);
+        double pitch0 = Math.Atan((mains[0].Pos[2] - tail!.Pos[2]) / (mains[0].Pos[0] - tail.Pos[0]));
+        var att = new Quat(0, Math.Sin(pitch0 / 2), 0, Math.Cos(pitch0 / 2));
+        double maxWz = -999; foreach (var g in Config.Gear) maxWz = Math.Max(maxWz, att.Rotate(g.PosVec() - Config.Mass.CgVec()).Z);
+        var state = new RigidBodyState(new Vec3(0, 0, -maxWz + 0.01), att, new Vec3(15, 0, 0), Vec3.Zero);
+        var ac = new Aircraft(Config, state, ControlDeflections.Neutral) { BrakeInput = 1.0 };
+        var sim = new SimLoop(ac);
+        double minPitch = 0;
+        for (int i = 0; i < 100; i++)
+        {
+            sim.RunFor(0.1, new ControlInputs(0, 0, 0, 1.0)); // spoilers out too
+            Quat q = ac.State.Attitude;
+            double pitch = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1)) * 57.3;
+            minPitch = Math.Min(minPitch, pitch);
+            Assert.False(double.IsNaN(pitch));
+        }
+        Assert.True(minPitch > -12, $"nosed over to {minPitch:F1} deg under braking");
+        Assert.True(ac.State.Velocity.Length < 1.0, $"should have stopped (V={ac.State.Velocity.Length:F1})");
+    }
+}
