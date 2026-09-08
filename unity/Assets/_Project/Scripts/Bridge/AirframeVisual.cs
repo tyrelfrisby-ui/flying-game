@@ -786,6 +786,7 @@ namespace FlyingGame.Bridge
         private void Attach(GameObject go, string name)
         {
             go.name = name;
+            go.layer = WaterReflection.AircraftLayer;   // reflected in the water
             go.transform.SetParent(_root, false);
             go.transform.localPosition = Vector3.zero;
             go.transform.localRotation = Quaternion.identity;

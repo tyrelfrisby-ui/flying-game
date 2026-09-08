@@ -10,7 +10,7 @@ Shader "FlyingGame/PlanarShadow"
     }
     SubShader
     {
-        Tags { "RenderType" = "Transparent" "Queue" = "Transparent-10" "IgnoreProjector" = "True" }
+        Tags { "RenderType" = "Transparent" "Queue" = "Transparent+2" "IgnoreProjector" = "True" } // after the water surface so it shows on lakes
         Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
         ZTest LEqual

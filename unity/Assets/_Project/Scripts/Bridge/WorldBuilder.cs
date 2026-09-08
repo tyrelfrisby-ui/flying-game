@@ -108,7 +108,7 @@ namespace FlyingGame.Bridge
 
         private static void BuildWater(WorldTerrain t, Transform parent)
         {
-            var water = Mat("FlyingGame/UnlitTransparent", new Color(0.18f, 0.42f, 0.75f, 0.85f));
+            var water = Mat("FlyingGame/Water", new Color(0.08f, 0.28f, 0.5f, 0.92f));
             // Lakes: ellipse fans.
             foreach (WorldTerrain.Lake l in WorldTerrain.Lakes)
             {

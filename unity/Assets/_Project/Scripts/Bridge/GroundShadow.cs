@@ -48,9 +48,14 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            // Local ground under the aircraft (plateau airports): the world height field.
+            // Local ground under the aircraft (plateau airports): the world height field — or the WATER surface
+            // when over a lake/river (owner: shadow on water, but subtler).
             var simPos = CoordinateMap.ToSim(transform.position);
-            GroundY = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(simPos.X, simPos.Y);
+            float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(simPos.X, simPos.Y);
+            double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simPos.X, simPos.Y);
+            bool onWater = water.HasValue && water.Value > ground;
+            GroundY = onWater ? (float)water.Value : ground;
+            _material.color = onWater ? new Color(Shade.r, Shade.g, Shade.b, Shade.a * 0.45f) : Shade;
             float altitude = transform.position.y - GroundY;
             if (altitude < -1f || altitude > MaxAltitudeM)
             {
@@ -68,7 +73,7 @@ namespace FlyingGame.Bridge
             float kx = l.x / l.y, kz = l.z / l.y;
             var proj = new Matrix4x4();
             proj.SetRow(0, new Vector4(1f, -kx, 0f, kx * GroundY));
-            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + 0.03f));
+            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + (onWater ? 0.08f : 0.03f)));
             proj.SetRow(2, new Vector4(0f, -kz, 1f, kz * GroundY));
             proj.SetRow(3, new Vector4(0f, 0f, 0f, 1f));
 

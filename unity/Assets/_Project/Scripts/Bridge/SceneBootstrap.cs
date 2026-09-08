@@ -111,6 +111,8 @@ namespace FlyingGame.Bridge
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
             hud.Race = aircraft.GetComponent<RaceController>();
             hud.Stol = aircraft.GetComponent<StolController>();
+            var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
+            reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
             var hudOverlay = cam.gameObject.AddComponent<HudOverlay>();   // green conformal HUD over the aircraft
             hudOverlay.Driver = aircraft.GetComponent<FlightSimDriver>();
 

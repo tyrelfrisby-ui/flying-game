@@ -25,7 +25,7 @@ namespace FlyingGame.Bridge
         public void FitTo(float spanM)
         {
             // Closer than v1 (owner: "more zoomed in" now that the HUD sits over the aircraft).
-            Distance = Mathf.Clamp(spanM * 1.05f, 9f, 55f);
+            Distance = Mathf.Clamp(spanM * 0.75f, 7f, 45f);   // owner: closer, aircraft bigger on screen
             Height = Distance * 0.22f;
         }
 
