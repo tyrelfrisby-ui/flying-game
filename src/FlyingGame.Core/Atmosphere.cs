@@ -35,7 +35,26 @@ public static class Atmosphere
 
     public static void AdvanceTime(double dt) => SimTimeSec += dt;
 
-    /// <summary>Wind (world frame, m/s) at a position: steady wind + turbulence gust.</summary>
-    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition) =>
-        SteadyWind + (ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero);
+    /// <summary>Thermals (rising columns) active in the world; glider soaring energy.</summary>
+    public static System.Collections.Generic.List<Thermal> Thermals { get; } = new();
+
+    /// <summary>Ridge for slope soaring (null = none).</summary>
+    public static Ridge? ActiveRidge { get; set; }
+
+    /// <summary>Wind (world frame, m/s): steady wind + turbulence + thermals + ridge lift.</summary>
+    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition)
+    {
+        MathTypes.Vec3 w = SteadyWind + (ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero);
+        for (int i = 0; i < Thermals.Count; i++)
+        {
+            w += Thermals[i].WindAt(worldPosition);
+        }
+
+        if (ActiveRidge is not null)
+        {
+            w += ActiveRidge.WindAt(worldPosition, SteadyWind);
+        }
+
+        return w;
+    }
 }

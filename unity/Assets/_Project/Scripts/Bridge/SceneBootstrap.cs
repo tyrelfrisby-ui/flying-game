@@ -18,6 +18,7 @@ namespace FlyingGame.Bridge
         {
             BuildGround();
             BuildRunway();
+            new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();
             BuildSun();
             GameObject aircraft = BuildAircraft();
