@@ -27,6 +27,8 @@ namespace FlyingGame.Bridge
                 (new Vec3(-200, 500, 0), 90, 3.0, 1400),
                 (new Vec3(800, -200, 0), 140, 5.5, 2200),
                 (new Vec3(200, -600, 0), 100, 3.5, 1600),
+                // The ploughed farmer's field north of the Valley runway: dark earth, a strong, wide thermal.
+                (new Vec3((CropField.X0 + CropField.X1) / 2, (CropField.Y0 + CropField.Y1) / 2, -CropField.ElevationM), 160, 5.0, 2200),
             };
             foreach (var (pos, r, core, top) in set)
             {

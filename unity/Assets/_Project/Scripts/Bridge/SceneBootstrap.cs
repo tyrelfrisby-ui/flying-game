@@ -65,9 +65,14 @@ namespace FlyingGame.Bridge
             root.AddComponent<TowController>();
             root.AddComponent<RaceController>().Driver = driver;
             root.AddComponent<StolController>().Driver = driver;
+            root.AddComponent<CropDustController>().Driver = driver;
+            root.AddComponent<Net.NetSession>();
             root.AddComponent<AirframeVisual>();
+            root.AddComponent<PilotEgress>();   // BAIL OUT / EJECT sequencer + pilot/parachute bodies
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
+            root.AddComponent<StructuralDamage>();
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
+            root.AddComponent<FlightAudio>();
             _ = driver;
             return root;
         }
@@ -103,6 +108,7 @@ namespace FlyingGame.Bridge
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
+            cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
             chase.SnapBehind();
@@ -111,6 +117,7 @@ namespace FlyingGame.Bridge
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
             hud.Race = aircraft.GetComponent<RaceController>();
             hud.Stol = aircraft.GetComponent<StolController>();
+            hud.Dust = aircraft.GetComponent<CropDustController>();
             hud.Tow = aircraft.GetComponent<TowController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
@@ -135,6 +142,7 @@ namespace FlyingGame.Bridge
             menu.Tow = aircraft.GetComponent<TowController>();
             menu.Race = aircraft.GetComponent<RaceController>();
             menu.Stol = aircraft.GetComponent<StolController>();
+            menu.Dust = aircraft.GetComponent<CropDustController>();
         }
     }
 }

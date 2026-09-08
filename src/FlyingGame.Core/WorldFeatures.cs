@@ -140,7 +140,7 @@ public sealed class AirRace
     }
 }
 
-/// <summary>STOL contest on a dirt strip: land AT or AFTER the line, stop short. Score = stop distance past the
+/// <summary>STOL contest on a gravel strip: land AT or AFTER the line, stop short. Score = stop distance past the
 /// line (shorter is better); touching down before the line, or leaving the strip, disqualifies.</summary>
 public sealed class StolRun
 {
@@ -159,7 +159,7 @@ public sealed class StolRun
 
     public static StolRun ForAirport(WorldTerrain.Airport a)
     {
-        WorldTerrain.Strip dirt = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "dirt");
+        WorldTerrain.Strip dirt = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "gravel");
         double south = a.X + dirt.Dx - dirt.Length / 2;
         return new StolRun(south + WorldTerrain.StolLineFromThresholdM, a.Y + dirt.Dy, dirt.Width / 2 + 2, south + dirt.Length);
     }
@@ -180,5 +180,102 @@ public sealed class StolRun
             if (groundSpeed < 0.4 && mainWheelsOnGround) { StopPastLineM = pos.X - _lineX; Phase = Phases.Stopped; }
         }
         _prevPos = pos;
+    }
+}
+
+
+/// <summary>The farmer's field north of the Valley runway: a ploughed rectangle along the runway heading with a
+/// power line crossing it 100 yards from the south end. The wires sag to 100 ft AGL at mid-span — a crop
+/// duster crosses the field UNDER them.</summary>
+public static class CropField
+{
+    public static WorldTerrain.Airport Home => WorldTerrain.Airports[0];
+    public static double X0 => Home.X + 1500;                            // 600 m long (along x)
+    public static double X1 => Home.X + 2100;
+    public static double Y0 => Home.Y - 150;                             // 300 m wide
+    public static double Y1 => Home.Y + 150;
+    public static double ElevationM => Home.ElevationM;
+    public const double CellM = 10.0;
+    public static int CellsX => (int)System.Math.Round((X1 - X0) / CellM);
+    public static int CellsY => (int)System.Math.Round((Y1 - Y0) / CellM);
+
+    public static double WireX => X0 + 91.44;                            // 100 yards from the south end
+    public const double PoleOffsetM = 40.0;                              // poles stand this far outside the field edges
+    public static double PoleY0 => Y0 - PoleOffsetM;
+    public static double PoleY1 => Y1 + PoleOffsetM;
+    public const double PoleHeightM = 42.0;                              // wire attachment height AGL at the poles
+    public const double WireLowestAglM = 30.48;                          // 100 ft at mid-span
+    public const double WireSpacingM = 2.5;                              // three conductors on the crossarm (along x)
+
+    public static bool Inside(double x, double y) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
+
+    /// <summary>Conductor height AGL at lateral position y (parabolic sag between the poles).</summary>
+    public static double WireAglAt(double y)
+    {
+        double mid = (PoleY0 + PoleY1) / 2, half = (PoleY1 - PoleY0) / 2;
+        double u = System.Math.Clamp((y - mid) / half, -1.0, 1.0);
+        return WireLowestAglM + (PoleHeightM - WireLowestAglM) * u * u;
+    }
+}
+
+/// <summary>Crop-dusting run: spray covers the field cells under the aircraft while it is low over the field;
+/// every crossing of the power line UNDER the wires is a pass; touching a wire ends the run.</summary>
+public sealed class CropDust
+{
+    public const double SprayMaxAglM = 6.0, SwathHalfWidthM = 8.0, MinSpraySpeedMs = 12.0;
+    public const double WireHitHalfBandM = 1.8;   // vertical tolerance for a strike (airframe height)
+
+    private readonly bool[,] _covered = new bool[CropField.CellsX, CropField.CellsY];
+    private int _coveredCount;
+    private Vec3 _prev; private bool _havePrev;
+
+    public bool Spraying { get; private set; }
+    public int PassesUnder { get; private set; }
+    public int CrossingsOver { get; private set; }
+    public bool WireStrike { get; private set; }
+    public double Coverage => (double)_coveredCount / (CropField.CellsX * CropField.CellsY);
+    public string LastEvent { get; private set; } = "Spray the field — fly UNDER the wires";
+    public bool Covered(int i, int j) => _covered[i, j];
+    /// <summary>Cells newly covered since the last call (for the visual), as (i, j) pairs.</summary>
+    public System.Collections.Generic.List<(int, int)> NewlyCovered { get; } = new();
+
+    public void Update(Vec3 pos, double aglM, double groundSpeedMs)
+    {
+        NewlyCovered.Clear();
+        if (WireStrike) { Spraying = false; return; }
+
+        // Power-line crossing between the previous and this position.
+        if (_havePrev && (_prev.X - CropField.WireX) * (pos.X - CropField.WireX) < 0)
+        {
+            double f = (CropField.WireX - _prev.X) / (pos.X - _prev.X);
+            double yc = _prev.Y + (pos.Y - _prev.Y) * f;
+            double zc = _prev.Z + (pos.Z - _prev.Z) * f;
+            double agl = -zc - CropField.ElevationM;
+            if (yc > CropField.PoleY0 && yc < CropField.PoleY1)
+            {
+                double wire = CropField.WireAglAt(yc);
+                if (System.Math.Abs(agl - wire) < WireHitHalfBandM)
+                {
+                    WireStrike = true; Spraying = false; LastEvent = "HIT THE WIRES";
+                    _prev = pos; return;
+                }
+                if (agl < wire) { PassesUnder++; LastEvent = $"under the wires — pass {PassesUnder}"; }
+                else { CrossingsOver++; LastEvent = "over the wires — no credit, get UNDER them"; }
+            }
+        }
+        _prev = pos; _havePrev = true;
+
+        Spraying = CropField.Inside(pos.X, pos.Y) && aglM > 0.2 && aglM < SprayMaxAglM && groundSpeedMs > MinSpraySpeedMs;
+        if (!Spraying) return;
+        int i0 = (int)System.Math.Floor((pos.X - SwathHalfWidthM - CropField.X0) / CropField.CellM), i1 = (int)System.Math.Floor((pos.X + SwathHalfWidthM - CropField.X0) / CropField.CellM);
+        int j0 = (int)System.Math.Floor((pos.Y - SwathHalfWidthM - CropField.Y0) / CropField.CellM), j1 = (int)System.Math.Floor((pos.Y + SwathHalfWidthM - CropField.Y0) / CropField.CellM);
+        for (int i = System.Math.Max(0, i0); i <= System.Math.Min(CropField.CellsX - 1, i1); i++)
+        for (int j = System.Math.Max(0, j0); j <= System.Math.Min(CropField.CellsY - 1, j1); j++)
+        {
+            double cx = CropField.X0 + (i + 0.5) * CropField.CellM, cy = CropField.Y0 + (j + 0.5) * CropField.CellM;
+            if ((cx - pos.X) * (cx - pos.X) + (cy - pos.Y) * (cy - pos.Y) > SwathHalfWidthM * SwathHalfWidthM) continue;
+            if (_covered[i, j]) continue;
+            _covered[i, j] = true; _coveredCount++; NewlyCovered.Add((i, j));
+        }
     }
 }

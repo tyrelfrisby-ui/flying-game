@@ -10,11 +10,84 @@ namespace FlyingGame.Sim;
 /// positions slew toward their commanded target at the configured rate, so a step input doesn't teleport
 /// a surface). This is the one place airframe + surfaces + gravity come together each step.
 /// </summary>
+/// <summary>
+/// Airframe structural state — REAL g limits (owner request 2026-09-08). Limit loads come from
+/// AircraftConfig.Limits (GMax/GMin, the FAR 23/25 limit load factors); ultimate = limit ×
+/// Limits.UltimateFactor (1.5). Between limit and ultimate the structure yields and groans
+/// (<see cref="OverLimitSeverity"/> 0..1); past ultimate for a short continuous dwell the WINGS SEPARATE
+/// (<see cref="WingsFailed"/>) — the sim then flies the fuselage, tail, gear and engine without them.
+/// Per-instance state only: a fresh Aircraft (ResetFlight) is intact.
+/// </summary>
+public sealed class StructuralState
+{
+    /// <summary>Continuous time past ultimate needed before the wings let go — long enough to reject a
+    /// single 5 ms RK4 spike or a gust tick, short enough that a real overstress snaps them.</summary>
+    public const double FailureDwellSec = 0.05;
+
+    public double LimitPosG { get; }
+    public double LimitNegG { get; }
+    public double UltimatePosG { get; }
+    public double UltimateNegG { get; }
+
+    /// <summary>0 under the limit load; ramps to 1 at the ultimate load (by sign of n). Drives the groan.</summary>
+    public double OverLimitSeverity { get; internal set; }
+
+    /// <summary>Continuous time (s) the load has been beyond ultimate; resets when it comes back inside.</summary>
+    public double OverUltimateDwellSec { get; internal set; }
+
+    /// <summary>True once the wings have separated (latched until a fresh Aircraft is built).</summary>
+    public bool WingsFailed { get; internal set; }
+
+    /// <summary>Sim time (Atmosphere.SimTimeSec) of the failure, for bridges that poll.</summary>
+    public double FailureTimeSec { get; internal set; }
+
+    /// <summary>Raised ONCE, on the step the wings separate.</summary>
+    public event Action? OnWingsFailed;
+
+    internal StructuralState(LimitsConfig limits)
+    {
+        double factor = limits.UltimateFactor > 1.0 ? limits.UltimateFactor : 1.5;
+        LimitPosG = limits.GMax > 0.0 ? limits.GMax : 10.0;
+        LimitNegG = limits.GMin < 0.0 ? limits.GMin : -10.0;
+        UltimatePosG = LimitPosG * factor;
+        UltimateNegG = LimitNegG * factor;
+    }
+
+    /// <summary>Severity of load factor n against the limit/ultimate band on its own sign: 0 inside the
+    /// limit envelope, 1 at (or beyond) ultimate.</summary>
+    public double SeverityFor(double n)
+    {
+        if (n > LimitPosG)
+        {
+            return Math.Clamp((n - LimitPosG) / (UltimatePosG - LimitPosG), 0.0, 1.0);
+        }
+
+        if (n < LimitNegG)
+        {
+            return Math.Clamp((LimitNegG - n) / (LimitNegG - UltimateNegG), 0.0, 1.0);
+        }
+
+        return 0.0;
+    }
+
+    internal void RaiseFailed() => OnWingsFailed?.Invoke();
+}
+
 public sealed class Aircraft
 {
     public AircraftConfig Config { get; }
-    public MassProperties MassProperties { get; }
+    public MassProperties MassProperties { get; private set; }
     public RigidBodyState State { get; set; }
+
+    /// <summary>Structural g-limit state (limit/ultimate loads, groan severity, wing failure).</summary>
+    public StructuralState Structure { get; }
+
+    /// <summary>Per-surface aero mask (indexed like Config.Surfaces): null while intact; after wing failure
+    /// the wing surfaces are false. Config.Surfaces itself is never mutated — other systems index it.</summary>
+    private bool[]? _surfaceMask;
+
+    /// <summary>Mass fraction each wing takes with it (light/utility/transport types: ~12 % of MTOW per wing).</summary>
+    public const double WingMassFractionPerWing = 0.12;
 
     private readonly Dictionary<string, AirfoilTable> _airfoilTables;
     private double _aileronRad;
@@ -48,6 +121,7 @@ public sealed class Aircraft
             config.Mass.Inertia.Ixz);
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
+        Structure = new StructuralState(config.Limits);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
         _aileronRad = initial.AileronRad;
@@ -58,6 +132,24 @@ public sealed class Aircraft
 
     public ControlDeflections CurrentDeflections => new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction);
 
+    // ---- telemetry shared by audio / structure / HUD / net (read-only) ----------------------------
+
+    /// <summary>Commanded power 0..1 (0 for gliders).</summary>
+    public double Throttle01 => _throttle01;
+
+    /// <summary>
+    /// Body-z load factor in g from the NON-gravitational forces (aero + thrust + gear + hydro + rope)
+    /// at the last force evaluation of the step: +1 in level flight, +4 in a 4 g pull, negative
+    /// pushed over. Sign: body z is DOWN, so lift (−z) gives a positive n.
+    /// </summary>
+    public double LoadFactorZ { get; private set; } = 1.0;
+
+    /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
+    /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
+    public double EngineRpm => Config.Propulsion is null
+        ? 0.0
+        : Config.Propulsion.IdleRpm + (Config.Propulsion.MaxRpm - Config.Propulsion.IdleRpm) * _throttle01;
+
     public static Dictionary<string, AirfoilTable> BuildAirfoilTables(AircraftConfig config)
     {
         var tables = new Dictionary<string, AirfoilTable>();
@@ -67,6 +159,131 @@ public sealed class Aircraft
         }
 
         return tables;
+    }
+
+    // ---- structure ---------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Which surfaces are the MAIN WING (the set that leaves on structural failure), indexed like
+    /// config.Surfaces. Rule: every surface whose id contains "wing" — the same tag AeroModel uses for
+    /// wake/downwash/spoiler logic, and it already covers the aileron rows ("wing-aileron") and both
+    /// biplane planes ("wing-upper"/"wing-lower" + their aileron rows). Fallback for a config with no
+    /// "wing" tag at all: the horizontal (non-vertical) surface with the largest strip area, plus any
+    /// surface whose id starts with that surface's id (its control rows). Tail surfaces never qualify.
+    /// </summary>
+    public static bool[] MainWingSurfaces(AircraftConfig config)
+    {
+        var isWing = new bool[config.Surfaces.Count];
+        bool anyTagged = false;
+        for (int i = 0; i < config.Surfaces.Count; i++)
+        {
+            if (config.Surfaces[i].Id.Contains("wing", StringComparison.OrdinalIgnoreCase))
+            {
+                isWing[i] = true;
+                anyTagged = true;
+            }
+        }
+
+        if (anyTagged)
+        {
+            return isWing;
+        }
+
+        int best = -1;
+        double bestArea = 0.0;
+        for (int i = 0; i < config.Surfaces.Count; i++)
+        {
+            SurfaceConfig s = config.Surfaces[i];
+            string id = s.Id;
+            bool vertical = id.Contains("vstab", StringComparison.OrdinalIgnoreCase) || id.Contains("vertical", StringComparison.OrdinalIgnoreCase)
+                            || id.Contains("rudder", StringComparison.OrdinalIgnoreCase) || id.Contains("fin", StringComparison.OrdinalIgnoreCase);
+            bool tail = id.Contains("stab", StringComparison.OrdinalIgnoreCase) || id.Contains("elevator", StringComparison.OrdinalIgnoreCase)
+                        || id.Contains("tail", StringComparison.OrdinalIgnoreCase);
+            if (vertical || tail)
+            {
+                continue;
+            }
+
+            double area = s.Strips.Sum(st => st.Area);
+            if (area > bestArea)
+            {
+                bestArea = area;
+                best = i;
+            }
+        }
+
+        if (best >= 0)
+        {
+            string wingId = config.Surfaces[best].Id;
+            for (int i = 0; i < config.Surfaces.Count; i++)
+            {
+                if (i == best || (wingId.Length > 0 && config.Surfaces[i].Id.StartsWith(wingId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    isWing[i] = true;
+                }
+            }
+        }
+
+        return isWing;
+    }
+
+    /// <summary>True when surface index i (into Config.Surfaces) still contributes aero.</summary>
+    public bool IsSurfaceActive(int surfaceIndex) =>
+        _surfaceMask is null || surfaceIndex < 0 || surfaceIndex >= _surfaceMask.Length || _surfaceMask[surfaceIndex];
+
+    /// <summary>
+    /// Separate the wings NOW (the sim calls this itself when the ultimate load is exceeded; exposed so a
+    /// scenario/test can do it directly). Aero afterwards is fuselage + tail + gear + hydro + propulsion:
+    /// wing surfaces (and their aileron/flap/slat strips and spoiler panels) are masked out of the strip
+    /// loop; mass drops by ~12 % per wing and the inertias shed the wings' share (most of the roll inertia,
+    /// a good part of the yaw inertia, little of the pitch inertia). CG shift is ignored. Idempotent.
+    /// </summary>
+    public void FailWings()
+    {
+        if (Structure.WingsFailed)
+        {
+            return;
+        }
+
+        bool[] wings = MainWingSurfaces(Config);
+        _surfaceMask = new bool[wings.Length];
+        for (int i = 0; i < wings.Length; i++)
+        {
+            _surfaceMask[i] = !wings[i];
+        }
+
+        const double massKeep = 1.0 - 2.0 * WingMassFractionPerWing;   // 0.76
+        MassProperties = new MassProperties(
+            MassProperties.MassKg * massKeep,
+            MassProperties.Ixx * 0.30,   // wings carry ~70 % of roll inertia
+            MassProperties.Iyy * 0.90,   // wing mass sits near the CG in x: pitch inertia barely changes
+            MassProperties.Izz * 0.60,   // wing span contributes ~40 % of yaw inertia
+            MassProperties.Ixz * 0.50);
+
+        Structure.WingsFailed = true;
+        Structure.OverLimitSeverity = 0.0;
+        Structure.OverUltimateDwellSec = 0.0;
+        Structure.FailureTimeSec = Atmosphere.SimTimeSec;
+        Structure.RaiseFailed();
+    }
+
+    /// <summary>Per-step structural bookkeeping from the load factor of the step just integrated.</summary>
+    private void UpdateStructure(double dt)
+    {
+        if (Structure.WingsFailed)
+        {
+            Structure.OverLimitSeverity = 0.0; // nothing left to groan
+            return;
+        }
+
+        double n = LoadFactorZ;
+        Structure.OverLimitSeverity = Structure.SeverityFor(n);
+        bool beyondUltimate = n > Structure.UltimatePosG || n < Structure.UltimateNegG;
+        Structure.OverUltimateDwellSec = beyondUltimate ? Structure.OverUltimateDwellSec + dt : 0.0;
+        if (Structure.OverUltimateDwellSec >= StructuralState.FailureDwellSec)
+        {
+            FailWings();
+        }
     }
 
     /// <summary>Advances the aircraft by one fixed timestep: shapes stick input into deflection targets (dead zone/expo/max travel), slews actuators toward them, then integrates the rigid body via RK4.</summary>
@@ -111,7 +328,7 @@ public sealed class Aircraft
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
         // (~1.0 s). Feeding the LAGGED fraction to the aero model stops the wake band flickering
         // on/off across the stall boundary — the relaxation cycle that made fast spins fall out.
-        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody);
+        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody, _surfaceMask);
         double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
@@ -135,7 +352,7 @@ public sealed class Aircraft
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
@@ -191,11 +408,15 @@ public sealed class Aircraft
                     }
                 }
             }
+            // Load factor from the non-gravitational resultant (RK4 evaluates this 4×; the last is ≈ end state).
+            Vec3 nonGrav = totalF - gravityBody;
+            LoadFactorZ = weightN > 1e-9 ? -nonGrav.Z / weightN : 1.0;
             return (totalF, totalM);
         }
 
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
         Atmosphere.AdvanceTime(dt);
+        UpdateStructure(dt);
 
         // Proposal 1: downwash transport lag (Cm-alphadot) — eps arrives at the tail one
         // transport time (tail-arm / V) late.

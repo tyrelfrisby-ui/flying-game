@@ -39,6 +39,14 @@ namespace FlyingGame.Bridge
         /// <summary>Ground-frame velocity in Unity world axes (the flight path the chase camera follows).</summary>
         public Vector3 WorldVelocityUnity { get; private set; }
 
+        // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
+        public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
+        public double Throttle01 => Sim?.Aircraft?.Throttle01 ?? 0.0;
+        public double EngineRpm => Sim?.Aircraft?.EngineRpm ?? 0.0;
+        public bool Powered => Sim?.Aircraft?.Config?.Propulsion != null;
+        public bool IsJet => Powered && Sim.Aircraft.Config.Propulsion.PropDiameterM <= 0.0;
+        public bool OnGround => Sim != null && AltitudeM - FlyingGame.Core.WorldTerrain.GroundHeightAt(Sim.Aircraft.State.Position.X, Sim.Aircraft.State.Position.Y) < 3.0;
+
         // Spin grading (owner benchmarks: ~100 ft/s descent, ~300 ft and ~3 s per turn in a 2-33).
         public double DescentFtPerSec { get; private set; }
         public double SecPerTurn { get; private set; }      // 0 when not rotating
@@ -101,7 +109,7 @@ namespace FlyingGame.Bridge
             }
 
             // Event starts: the race begins 800 m short of gate 1 at 60 m AGL heading through it; the STOL
-            // contest begins on a 1.2 km final for the dirt strip at 90 m AGL.
+            // contest begins on a 1.2 km final for the gravel strip at 90 m AGL.
             double spawnAlt = ap.ElevationM + SpawnAltitudeM, spawnX = ap.X - 600, spawnY = ap.Y, spawnHdg = 0.0;
             string ch = SessionSettings.ChallengeId;
             if (ch == "event:race")
@@ -110,9 +118,15 @@ namespace FlyingGame.Bridge
                 spawnX = g.X - g.Forward.X * 800; spawnY = g.Y - g.Forward.Y * 800; spawnHdg = g.HeadingDeg * System.Math.PI / 180;
                 spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 60;
             }
+            else if (ch == "event:dust")
+            {
+                // Crop dusting: 1 km south of the field at 40 m AGL heading north — the wires are 100 yards in.
+                spawnX = CropField.X0 - 1000; spawnY = (CropField.Y0 + CropField.Y1) / 2;
+                spawnAlt = CropField.ElevationM + 40;
+            }
             else if (ch == "event:stol")
             {
-                var dirt = System.Array.Find(FlyingGame.Core.WorldTerrain.AirportStrips, st => st.Kind == "dirt");
+                var dirt = System.Array.Find(FlyingGame.Core.WorldTerrain.AirportStrips, st => st.Kind == "gravel");
                 spawnX = ap.X + dirt.Dx - dirt.Length / 2 - 1200; spawnY = ap.Y + dirt.Dy;
                 spawnAlt = ap.ElevationM + 90;
             }

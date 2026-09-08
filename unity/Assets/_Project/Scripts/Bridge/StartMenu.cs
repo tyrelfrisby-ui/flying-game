@@ -16,16 +16,24 @@ namespace FlyingGame.Bridge
         public TowController Tow;
         public RaceController Race;
         public StolController Stol;
+        public CropDustController Dust;
 
         public bool IsOpen { get; private set; } = true;
 
-        private GUIStyle _title, _head, _btn, _btnOn, _label, _small;
+        private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
+        private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
+        private Net.NetSession Net => Driver != null ? Driver.GetComponent<Net.NetSession>() : null;
         private Texture2D _bg, _btnBg, _btnOnBg;
         private int _fs;
         private Vector2 _fleetScroll;
 
         private void Start()
         {
+            // Multiplayer identity persists across launches (name/code/mode).
+            SessionSettings.PilotName = PlayerPrefs.GetString(PrefPilotName, "");
+            if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "Pilot" + Random.Range(100, 1000);
+            SessionSettings.RoomCode = PlayerPrefs.GetString(PrefRoomCode, "");
+            SessionSettings.Multiplayer = (SessionSettings.MultiplayerMode)PlayerPrefs.GetInt(PrefMode, 0);
             Open();
         }
 
@@ -34,6 +42,7 @@ namespace FlyingGame.Bridge
             IsOpen = true;
             SessionSettings.MenuOpen = true;
             Time.timeScale = 0f;
+            Net?.Leave();
         }
 
         private void Fly()
@@ -44,11 +53,20 @@ namespace FlyingGame.Bridge
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)
-            Race?.End(); Stol?.End();
+            Race?.End(); Stol?.End(); Dust?.End();
             string ch = SessionSettings.ChallengeId;
             if (ch == "event:race" && Race != null) Race.Begin();
             else if (ch == "event:stol" && Stol != null) Stol.Begin(SessionSettings.Airport);
+            else if (ch == "event:dust" && Dust != null) Dust.Begin();
             else if (ch != null && !SessionSettings.IsEvent(ch) && Challenges != null) Challenges.StartById(ch);
+
+            // Multiplayer is free play only: a challenge/event flies solo (EffectiveRoom returns null).
+            if (ch != null) SessionSettings.Multiplayer = SessionSettings.MultiplayerMode.Solo;
+            PlayerPrefs.SetString(PrefPilotName, SessionSettings.PilotName);
+            PlayerPrefs.SetString(PrefRoomCode, SessionSettings.RoomCode);
+            PlayerPrefs.SetInt(PrefMode, (int)SessionSettings.Multiplayer);
+            PlayerPrefs.Save();
+            Net?.Join();
         }
 
         private void EnsureStyles()
@@ -66,6 +84,7 @@ namespace FlyingGame.Bridge
             _btnOn = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = _btnOnBg }, active = { textColor = Color.white, background = _btnOnBg } };
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             _small = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 0.8f), alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.8f, 0.85f, 0.9f) } };
+            _field = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white, background = _btnBg }, focused = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(8, 8, 4, 4) };
         }
 
         private void OnGUI()
@@ -150,6 +169,45 @@ namespace FlyingGame.Bridge
             y = Slider(x, y, colW, "Temperature", $"{surfF:F0}°F at sea level", ref SessionSettings.IsaDeviationC, -30f, 30f, 1f);
             y = Slider(x, y, colW, "Thermals", SessionSettings.ThermalScale <= 0.01f ? "Off" : $"{SessionSettings.ThermalScale:F1}×", ref SessionSettings.ThermalScale, 0f, 2f, 0.25f);
 
+            // ---- multiplayer (free play only)
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, colW, lh), "MULTIPLAYER", _head); y += lh;
+            bool freePlay = SessionSettings.ChallengeId == null;
+            if (!freePlay)
+            {
+                SessionSettings.Multiplayer = SessionSettings.MultiplayerMode.Solo;
+                GUI.Label(new Rect(x, y, colW, lh), "Free flight only — challenges fly solo.", _small);
+            }
+            else
+            {
+                float third = (colW - 2 * gap * 0.4f) / 3f;
+                var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"), (SessionSettings.MultiplayerMode.PrivateRoom, "Private room") };
+                for (int i = 0; i < modes.Length; i++)
+                {
+                    bool on = SessionSettings.Multiplayer == modes[i].Item1;
+                    if (GUI.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Multiplayer = modes[i].Item1;
+                }
+                y += bh + gap * 0.4f;
+                if (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo)
+                {
+                    float lw = colW * 0.3f;
+                    GUI.Label(new Rect(x, y, lw, bh), "Pilot", _label);
+                    string name = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.PilotName ?? "", 16, _field);
+                    SessionSettings.PilotName = Ascii(name, false);
+                    y += bh + gap * 0.4f;
+                }
+                if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
+                {
+                    float lw = colW * 0.3f, cw = colW * 0.42f;
+                    GUI.Label(new Rect(x, y, lw, bh), "Code", _label);
+                    string code = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
+                    SessionSettings.RoomCode = Ascii(code, true);
+                    if (GUI.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
+                    y += bh + gap * 0.4f;
+                    GUI.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
+                }
+            }
+
             // ---- FLY
             float fw = s * 0.26f, fh = s * 0.09f;
             if (GUI.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
@@ -166,6 +224,20 @@ namespace FlyingGame.Bridge
             if (GUI.Button(new Rect(x + w - bw, y, bw, lh), "+", _btn)) v = Mathf.Clamp(v + step, min, max);
             if (label == "Wind from" && v >= 359f) v = 0f;
             return y + lh + _fs * 0.5f;
+        }
+
+        /// <summary>Printable ASCII only (the wire format is plain JSON); room codes are upper-case [A-Z0-9].</summary>
+        private static string Ascii(string s, bool codeOnly)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (char ch in s)
+            {
+                char c = codeOnly ? char.ToUpperInvariant(ch) : ch;
+                bool ok = codeOnly ? (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') : c >= ' ' && c <= '~';
+                if (ok) sb.Append(c);
+            }
+            return sb.ToString();
         }
 
         private static Texture2D Solid(Color c)

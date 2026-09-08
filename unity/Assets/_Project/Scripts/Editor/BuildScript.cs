@@ -9,7 +9,7 @@ namespace FlyingGame.EditorTools
 {
     /// <summary>
     /// Reproducible iOS build (build-order step 5: get it onto a device). Configures the iOS player
-    /// settings from code — bundle id, landscape orientation, IL2CPP, device family, min iOS — so the
+    /// settings from code — bundle id, landscape+portrait orientation, IL2CPP, device family, min iOS — so the
     /// build is identical from the editor menu or headless CI, then generates an Xcode project the
     /// user opens/signs in Xcode to install on an iPhone/iPad.
     ///
@@ -33,11 +33,12 @@ namespace FlyingGame.EditorTools
             PlayerSettings.productName = ProductName;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, BundleId);
 
-            // Landscape-only: the HUD and the dual touchpads assume a wide layout.
+            // Landscape + portrait (owner 2026-09-08): in portrait ScreenLayout moves the touchpads into a
+            // bottom tray and the 3D view/HUD sit above them. Upside-down stays off.
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.AutoRotation;
             PlayerSettings.allowedAutorotateToLandscapeLeft = true;
             PlayerSettings.allowedAutorotateToLandscapeRight = true;
-            PlayerSettings.allowedAutorotateToPortrait = false;
+            PlayerSettings.allowedAutorotateToPortrait = true;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
 
             // iOS needs IL2CPP; ship both iPhone and iPad.
@@ -57,7 +58,7 @@ namespace FlyingGame.EditorTools
             EnsureAlwaysIncludedShaders();
             EnsureBuiltinFontPreloaded();
             AssetDatabase.SaveAssets();
-            Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape, IL2CPP, ARM64).");
+            Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape+portrait, IL2CPP, ARM64).");
         }
 
         [MenuItem("FlyingGame/Build iOS (Xcode project)")]

@@ -7,6 +7,7 @@ namespace FlyingGame.Bridge
     /// <summary>
     /// RC-transmitter dual-touchpad controls (build-order step 5), the primary on-device input. All
     /// game controls sit along the BOTTOM edge of the screen (owner request); the HUD owns the top.
+    /// Portrait: the controls become a bottom tray and the view/HUD sit above it (<see cref="ScreenLayout"/>).
     ///
     ///   LEFT pad  : square. X = rudder (spring back to centre),  Y = THROTTLE + WHEEL BRAKES on one
     ///               sticky axis (owner spec, standard for every type): top 75 % of travel is throttle
@@ -39,6 +40,12 @@ namespace FlyingGame.Bridge
         public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
         public float BrakeRudderBias = 0.8f;    // full rudder shifts this much braking to one side
         public float GrabSlop = 0.35f;          // a touch may begin this far outside a pad (x half-size) and still grab it
+        public float EjectHoldSec = 0.4f;       // EJECT must be HELD this long (a thumb slip can't eject)
+
+        /// <summary>Raw aileron stick (-1..1) regardless of egress — after bail out / eject it steers the canopy.</summary>
+        public float StickAileron { get; private set; }
+        /// <summary>Elevator bias from the trim slider alone (stick units) — what the abandoned aircraft keeps.</summary>
+        public float TrimElevator => (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
 
         // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2).
         private static readonly string[] Fleet =
@@ -64,10 +71,14 @@ namespace FlyingGame.Bridge
         private Vector2 _leftKnob, _rightKnob; // screen px; knob = pad centre when idle
 
         // On-screen button rects (screen px, bottom-left origin) — computed in Update, drawn in OnGUI.
-        private Rect _brakeRect, _resetRect, _acftRect;
+        private Rect _brakeRect, _resetRect, _acftRect, _towRect;
+        private Rect _bailRect, _ejectRect;                 // BAIL OUT (tap) / EJECT (hold EjectHoldSec)
+        private int _ejectFinger = int.MinValue;            // pointer holding EJECT
+        private float _ejectHold;                           // seconds held so far
+        private PilotEgress _egress;
 
         private Texture2D _knobTex, _solidTex, _btnBg;
-        private GUIStyle _btnStyle, _labelStyle, _valueStyle;
+        private GUIStyle _btnStyle, _labelStyle, _valueStyle, _ejectStyle;
         private int _styleFs;
 
         private void Awake()
@@ -101,16 +112,23 @@ namespace FlyingGame.Bridge
         private void Update()
         {
             LayOut();
-            if (SessionSettings.MenuOpen) { _leftFinger = _rightFinger = _trimFinger = int.MinValue; return; } // landing page owns the screen
+            _egress ??= GetComponent<PilotEgress>();
+            if (SessionSettings.MenuOpen) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
             ReadPointers();
             MergeKeyboardFallback();
             PublishToDriver();
         }
 
-        /// <summary>Everything along the bottom edge: [left pad] [Aircraft/Reset | Flaps] [Trim] [right pad].</summary>
+        /// <summary>
+        /// Landscape: [left pad] [Aircraft/Reset | Flaps] [Trim] [right pad] at mid-height.
+        /// Portrait (<see cref="ScreenLayout"/>): a bottom TRAY — pads in the two bottom corners with the trim
+        /// slider between them, and one button row (Reset · Aircraft · Flaps · Tow) above the pad labels.
+        /// The 3D view + HUD live above the tray.
+        /// </summary>
         private void LayOut()
         {
             float w = Screen.width, h = Screen.height, s = Mathf.Min(w, h);
+            if (ScreenLayout.Portrait) { LayOutPortrait(w); return; }
             _half = s * PadHalfFraction;
             float margin = s * 0.035f;
             float gap = s * 0.02f;
@@ -133,7 +151,46 @@ namespace FlyingGame.Bridge
             _acftRect = new Rect(x0, margin + bh + gap * 0.6f, bw, bh);
             _resetRect = new Rect(x0, margin, bw, bh);
             _brakeRect = new Rect(x0 + bw + gap, margin, bw, bh); // now the FLAPS slot (kept as the layout anchor)
+            _towRect = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
+            // BAIL OUT | EJECT above the Tow slot, on the cluster's two columns.
+            float ey = _towRect.yMax + _half * 0.12f;
+            _bailRect = new Rect(x0, ey, bw, bh);
+            _ejectRect = new Rect(x0 + bw + gap, ey, bw, bh);
         }
+
+        private void LayOutPortrait(float w)
+        {
+            _half = w * ScreenLayout.PortraitPadHalf;
+            float margin = w * ScreenLayout.Margin;
+            float gap = w * ScreenLayout.Gap;
+
+            // Pads in the bottom corners.
+            _leftCenter = new Vector2(margin + _half, margin + _half);
+            _rightCenter = new Vector2(w - margin - _half, margin + _half);
+
+            // Trim slider centred between the pads, full pad height.
+            float trimW = _half * 0.22f;
+            _trimRect = new Rect(w * 0.5f - trimW * 0.5f, margin, trimW, 2f * _half);
+
+            // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
+            float bh = w * ScreenLayout.ButtonHeight;
+            float rowY = margin + 2f * _half + ScreenLayout.LabelBlockPx + gap;
+            float bw = (w - 2f * margin - 3f * gap) * 0.25f;
+            _resetRect = new Rect(margin, rowY, bw, bh);
+            _acftRect = new Rect(margin + (bw + gap), rowY, bw, bh);
+            _brakeRect = new Rect(margin + 2f * (bw + gap), rowY, bw, bh);
+            _towRect = new Rect(margin + 3f * (bw + gap), rowY, bw, bh);
+
+            // Second, shorter row above it: BAIL OUT · EJECT (ScreenLayout.TrayHeightPx includes it).
+            float eh = w * ScreenLayout.EgressRowHeight;
+            float rowY2 = rowY + bh + gap;
+            float ew = (w - 2f * margin - gap) * 0.5f;
+            _bailRect = new Rect(margin, rowY2, ew, eh);
+            _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
+        }
+
+        private bool BailAvailable => _egress != null && _egress.Current == PilotEgress.Phase.InCockpit;
+        private bool EjectAvailable => _egress != null && !_egress.PilotOut;
 
         /// <summary>Read touches (device) or the mouse (editor) and update each control's owning pointer.</summary>
         private void ReadPointers()
@@ -169,13 +226,17 @@ namespace FlyingGame.Bridge
                     if (p.id == _leftFinger) ReleaseLeft();
                     if (p.id == _rightFinger) ReleaseRight();
                     if (p.id == _trimFinger) _trimFinger = int.MinValue; // trim holds where it was left
+                    if (p.id == _ejectFinger) { _ejectFinger = int.MinValue; _ejectHold = 0f; } // released early: no eject
                     continue;
                 }
 
                 if (p.began)
                 {
+                    // EJECT is a HOLD (not an IMGUI tap): this pointer now owns the hold timer.
+                    if (EjectAvailable && _ejectRect.Contains(p.pos) && _ejectFinger == int.MinValue) { _ejectFinger = p.id; _ejectHold = 0f; }
                     // Buttons are handled by IMGUI; don't let a button tap also grab a pad.
-                    if (_resetRect.Contains(p.pos) || _acftRect.Contains(p.pos)) continue;
+                    if (_resetRect.Contains(p.pos) || _acftRect.Contains(p.pos) || _brakeRect.Contains(p.pos) || _towRect.Contains(p.pos)
+                        || _bailRect.Contains(p.pos) || _ejectRect.Contains(p.pos)) continue;
 
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
                     else if (NearPad(p.pos, _leftCenter) && _leftFinger == int.MinValue) _leftFinger = p.id;
@@ -185,6 +246,18 @@ namespace FlyingGame.Bridge
                 if (p.id == _leftFinger) DriveLeft(p.pos);
                 else if (p.id == _rightFinger) DriveRight(p.pos);
                 else if (p.id == _trimFinger) DriveTrim(p.pos);
+                else if (p.id == _ejectFinger)
+                {
+                    if (_ejectRect.Contains(p.pos)) _ejectHold += Time.deltaTime;
+                    else { _ejectFinger = int.MinValue; _ejectHold = 0f; }   // slid off the button: cancel
+                }
+            }
+
+            if (_ejectFinger != int.MinValue && _ejectHold >= EjectHoldSec)
+            {
+                _ejectFinger = int.MinValue;
+                _ejectHold = 0f;
+                if (EjectAvailable) _egress.Eject();
             }
         }
 
@@ -289,6 +362,11 @@ namespace FlyingGame.Bridge
 
         private void PublishToDriver()
         {
+            StickAileron = _aileron;
+            // After bail out / eject the stick steers the CANOPY (PilotEgress reads StickAileron); the
+            // abandoned aircraft's inputs are frozen by PilotEgress, so nothing is published here.
+            if (_egress != null && _egress.PilotOut) return;
+
             (float throttle01, float padBrake) = SplitLeftAxis();
             float brake = Mathf.Max(padBrake, _brakeHeld ? 1f : 0f);
             _driver.Sim.Aircraft.BrakeInput = brake;
@@ -339,14 +417,40 @@ namespace FlyingGame.Bridge
             if (SessionSettings.MenuOpen) return;
             EnsureStyles();
 
+            // Portrait: opaque tray under the controls. The camera only clears its own (upper) viewport,
+            // so this also guarantees the strip below it never shows stale frame contents.
+            if (ScreenLayout.Portrait)
+            {
+                GUI.color = new Color(0.07f, 0.09f, 0.12f, 1f);
+                GUI.DrawTexture(ToGui(ScreenLayout.TrayRect), _solidTex);
+                GUI.color = Color.white;
+            }
+
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             (float thr01, float padBrake) = SplitLeftAxis();
             string leftValue = padBrake > 0f
                 ? $"BRAKE {Mathf.RoundToInt(padBrake * 100f)}%"
                 : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt(SpoilerFraction * 100f)}%";
             DrawPad(_leftCenter, _leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob, "RUD / THR", leftValue);
-            DrawPad(_rightCenter, _rightFinger == int.MinValue ? _rightCenter : _rightKnob, "AIL / ELE", null);
+            bool pilotOut = _egress != null && _egress.PilotOut;
+            DrawPad(_rightCenter, _rightFinger == int.MinValue ? _rightCenter : _rightKnob, pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
             DrawTrim();
+
+            // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
+            if (BailAvailable && GUI.Button(ToGui(_bailRect), "BAIL OUT", _btnStyle)) _egress.BailOut();
+            if (EjectAvailable)
+            {
+                Rect g = ToGui(_ejectRect);
+                GUI.color = new Color(0.72f, 0.14f, 0.12f, 0.9f);
+                GUI.DrawTexture(g, _solidTex);
+                if (_ejectFinger != int.MinValue)
+                {
+                    GUI.color = new Color(1f, 0.85f, 0.2f, 0.95f);
+                    GUI.DrawTexture(new Rect(g.x, g.y, g.width * Mathf.Clamp01(_ejectHold / EjectHoldSec), g.height), _solidTex);
+                }
+                GUI.color = Color.white;
+                GUI.Label(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
+            }
 
             if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
             if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
@@ -364,7 +468,7 @@ namespace FlyingGame.Bridge
             var tow = GetComponent<TowController>();
             if (tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null)
             {
-                var r = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
+                var r = _towRect;
                 if (tow.Towing)
                 {
                     GUI.color = new Color(1f, 0.85f, 0.3f, 1f);
@@ -489,7 +593,7 @@ namespace FlyingGame.Bridge
 
         private void EnsureStyles()
         {
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.028f);
+            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * ScreenLayout.FontFrac);
             if (_solidTex != null && fs == _styleFs) return;
             _styleFs = fs;
 
@@ -509,6 +613,7 @@ namespace FlyingGame.Bridge
                 active = { textColor = Color.white, background = _btnBg },
                 padding = new RectOffset(8, 8, 8, 8),
             };
+            _ejectStyle = new GUIStyle(_btnStyle) { normal = { textColor = Color.white, background = null } };
             _labelStyle = new GUIStyle
             {
                 fontSize = Mathf.RoundToInt(fs * 0.8f),

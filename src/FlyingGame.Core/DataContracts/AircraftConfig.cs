@@ -299,6 +299,11 @@ public sealed class GearConfig
 public sealed class LimitsConfig
 {
     public double VneMs { get; set; } = 1000;
+    /// <summary>LIMIT load factors (g): the loads the structure must carry without permanent deformation.</summary>
     public double GMax { get; set; } = 10;
     public double GMin { get; set; } = -10;
+
+    /// <summary>ULTIMATE load = limit × this factor (FAR 23.303 / 25.303: 1.5). Between limit and ultimate
+    /// the airframe deforms and groans; beyond ultimate the wings separate. Optional, schema-safe default.</summary>
+    public double UltimateFactor { get; set; } = 1.5;
 }

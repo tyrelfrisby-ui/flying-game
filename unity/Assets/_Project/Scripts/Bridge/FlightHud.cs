@@ -8,8 +8,10 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public RaceController Race;
         public StolController Stol;
+        public CropDustController Dust;
         public TowController Tow;
         private GUIStyle _style;
+        private Net.NetSession _net;
 
         private void OnGUI()
         {
@@ -38,7 +40,10 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(m, m * 0.5f, w, lh),
                 $"{Driver.AircraftName}  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
 
-            string ev = Race != null && Race.Line != null ? Race.Line : Stol != null && Stol.Line != null ? Stol.Line : Tow != null ? Tow.StatusLine : null;
+            string net = (_net ??= Driver.GetComponent<Net.NetSession>())?.StatusLine;
+            if (net != null) GUI.Label(new Rect(m, m * 0.5f + lh * 2f, w, lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
+            string ev = Race != null && Race.Line != null ? Race.Line : Stol != null && Stol.Line != null ? Stol.Line
+                : Dust != null && Dust.Line != null ? Dust.Line : Tow != null ? Tow.StatusLine : null;
             if (ev != null)
             {
                 GUI.Label(new Rect(m, m * 0.5f + lh, w, lh), ev, _style);

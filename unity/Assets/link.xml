@@ -12,4 +12,8 @@
        skin/font path isn't stripped (symptom: GUI.DoSetSkin NRE every frame, no GUI text on device). -->
   <assembly fullname="UnityEngine.IMGUIModule" preserve="all"/>
   <assembly fullname="UnityEngine.TextRenderingModule" preserve="all"/>
+  <!-- Multiplayer: NetMsg/NetPeer/NetState/NetFlags (Bridge/Net) are filled by Newtonsoft via reflection. -->
+  <assembly fullname="FlyingGame.Bridge">
+    <type fullname="FlyingGame.Bridge.Net.*" preserve="all"/>
+  </assembly>
 </linker>

@@ -7,8 +7,8 @@ namespace FlyingGame.Bridge
     /// <summary>
     /// Builds the visible world from <see cref="WorldTerrain"/> (the same height field the wheels use):
     /// the terrain mesh (valley + three canyon-wall steps + plateaus), lakes and the stepping river, and
-    /// the four identical airports — two crossing paved runways, an open hangar, a dirt STOL strip with
-    /// its landing line and distance marks, and a grass strip. Edit-mode safe (used by the editor's
+    /// the four identical airports — three parallel strips (paved, gravel STOL strip with its landing line and
+    /// distance marks, undulating grass), an apron and an open hangar — plus the ploughed field and its power line. Edit-mode safe (used by the editor's
     /// world render tool as well as at play start).
     /// </summary>
     public static class WorldBuilder
@@ -44,6 +44,7 @@ namespace FlyingGame.Bridge
             BuildWater(WorldTerrain.Active, root.transform);
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             BuildBridge(WorldTerrain.Active, root.transform);
+            BuildCropField(WorldTerrain.Active, root.transform);
             BuildAeroBox(WorldTerrain.Active, root.transform);
             BuildRaceCourse(WorldTerrain.Active, root.transform);
             // Slope soaring on the first canyon wall (replaces the old stand-alone hill).
@@ -358,17 +359,21 @@ namespace FlyingGame.Bridge
 
         // ---- airports ----------------------------------------------------------------------------
 
-        private static readonly Color Asphalt = new(0.24f, 0.24f, 0.26f), Dirt = new(0.55f, 0.42f, 0.28f),
+        private static readonly Color Asphalt = new(0.24f, 0.24f, 0.26f), Gravel = new(0.58f, 0.55f, 0.48f), Earth = new(0.36f, 0.25f, 0.15f),
             Grass = new(0.36f, 0.52f, 0.22f), Paint = Color.white, Apron = new(0.62f, 0.62f, 0.60f);
 
         private static void BuildAirport(WorldTerrain.Airport a, Transform parent)
         {
             var root = new GameObject($"Airport-{a.Name}");
             root.transform.SetParent(parent, false);
+            // Paved apron around the hangar (the only other hard surface on the pad — the infield is rough ground).
+            Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
             foreach (WorldTerrain.Strip s in WorldTerrain.AirportStrips)
             {
-                Color c = s.Kind == "paved" ? Asphalt : s.Kind == "dirt" ? Dirt : Grass;
-                GameObject strip = Slab(root.transform, $"Strip-{s.Kind}", a.X + s.Dx, a.Y + s.Dy, a.ElevationM + 0.04, s.Length, s.Width, 0.06, s.HeadingDeg, c);
+                Color c = s.Kind == "paved" ? Asphalt : s.Kind == "gravel" ? Gravel : Grass;
+                GameObject strip = s.Kind == "grass"
+                    ? GrassStrip(root.transform, a, s)   // follows the Snoopy swoops in the height field
+                    : Slab(root.transform, $"Strip-{s.Kind}", a.X + s.Dx, a.Y + s.Dy, a.ElevationM + 0.04, s.Length, s.Width, 0.06, s.HeadingDeg, c);
                 if (s.Kind == "paved")
                 {
                     // Centreline dashes + threshold bars.
@@ -379,7 +384,7 @@ namespace FlyingGame.Bridge
                     Child(strip, "Thresh", -s.Length * 0.5 + 20, 0, 0.05, 12, s.Width * 0.9, 0.03, Paint);
                     Child(strip, "Thresh", s.Length * 0.5 - 20, 0, 0.05, 12, s.Width * 0.9, 0.03, Paint);
                 }
-                if (s.Kind == "dirt")
+                if (s.Kind == "gravel")
                 {
                     // STOL contest: landing line and distance marks (every 10 m, bold every 50 m, numbered).
                     double line = -s.Length * 0.5 + WorldTerrain.StolLineFromThresholdM;
@@ -398,6 +403,100 @@ namespace FlyingGame.Bridge
             BuildHangar(root.transform, a.X + WorldTerrain.HangarDx, a.Y + WorldTerrain.HangarDy, a.ElevationM);
             // Field name on the apron.
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
+        }
+
+        /// <summary>The grass strip as a fine mesh riding the height field, so its smooth undulations show.</summary>
+        private static GameObject GrassStrip(Transform parent, WorldTerrain.Airport a, WorldTerrain.Strip s)
+        {
+            WorldTerrain t = WorldTerrain.Active;
+            const double dx = 3.0; int nAlong = (int)(s.Length / dx) + 1, nAcross = 5;
+            var verts = new Vector3[nAlong * nAcross]; var cols = new Color[verts.Length];
+            for (int i = 0; i < nAlong; i++)
+            for (int j = 0; j < nAcross; j++)
+            {
+                double x = a.X + s.Dx - s.Length / 2 + i * dx, y = a.Y + s.Dy - s.Width / 2 + j * s.Width / (nAcross - 1);
+                verts[i * nAcross + j] = U(x, y, t.HeightAt(x, y) + 0.04);
+                cols[i * nAcross + j] = Grass;
+            }
+            var tris = new int[(nAlong - 1) * (nAcross - 1) * 6]; int k = 0;
+            for (int i = 0; i < nAlong - 1; i++)
+            for (int j = 0; j < nAcross - 1; j++)
+            {
+                int p0 = i * nAcross + j, p1 = p0 + 1, p2 = p0 + nAcross, p3 = p2 + 1;
+                tris[k++] = p0; tris[k++] = p2; tris[k++] = p1; tris[k++] = p1; tris[k++] = p2; tris[k++] = p3;
+            }
+            var mesh = new Mesh { name = "GrassStrip" }; mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris;
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var go = new GameObject("Strip-grass"); go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = Lit(Grass);
+            // Winding check: flip if the normal came out downward.
+            if (mesh.normals.Length > 0 && mesh.normals[0].y < 0) { System.Array.Reverse(tris); mesh.triangles = tris; mesh.RecalculateNormals(); }
+            return go;
+        }
+
+        /// <summary>The ploughed field's cell mesh (recoloured as the crop duster covers it) — null until built.</summary>
+        public static Mesh CropFieldMesh { get; private set; }
+        public static readonly Color Ploughed = new(0.36f, 0.25f, 0.15f), Sprayed = new(0.30f, 0.42f, 0.18f);
+
+        /// <summary>Farmer's field north of the Valley runway: ploughed furrows along the runway heading, and the
+        /// power line crossing it 100 yards from the south end (two poles outside the field, three conductors
+        /// sagging to 100 ft AGL at mid-span).</summary>
+        private static void BuildCropField(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("CropField"); root.transform.SetParent(parent, false);
+            int nx = CropField.CellsX, ny = CropField.CellsY;
+            var verts = new Vector3[nx * ny * 4]; var cols = new Color[verts.Length]; var tris = new int[nx * ny * 6];
+            int v = 0, k = 0; double elev = CropField.ElevationM + 0.05;
+            for (int i = 0; i < nx; i++)
+            for (int j = 0; j < ny; j++)
+            {
+                double x0 = CropField.X0 + i * CropField.CellM, y0 = CropField.Y0 + j * CropField.CellM;
+                // Furrows run along x: alternate cell rows darker.
+                Color c = j % 2 == 0 ? Ploughed : Ploughed * 0.85f; c.a = 1f;
+                int b = v;
+                verts[v] = U(x0, y0, elev); verts[v + 1] = U(x0 + CropField.CellM, y0, elev);
+                verts[v + 2] = U(x0, y0 + CropField.CellM, elev); verts[v + 3] = U(x0 + CropField.CellM, y0 + CropField.CellM, elev);
+                for (int q = 0; q < 4; q++) cols[v + q] = c;
+                v += 4;
+                tris[k++] = b; tris[k++] = b + 2; tris[k++] = b + 1; tris[k++] = b + 1; tris[k++] = b + 2; tris[k++] = b + 3;
+            }
+            var mesh = new Mesh { name = "CropField", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris; mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            if (mesh.normals[0].y < 0) { System.Array.Reverse(tris); mesh.triangles = tris; mesh.RecalculateNormals(); }
+            var go = new GameObject("Field"); go.transform.SetParent(root.transform, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+            CropFieldMesh = mesh;
+
+            // Power line: poles + crossarms, three conductors.
+            var pole = new Color(0.45f, 0.4f, 0.35f); var wire = new Color(0.1f, 0.1f, 0.1f);
+            double ground = t.HeightAt(CropField.WireX, CropField.PoleY0);
+            foreach (double py in new[] { CropField.PoleY0, CropField.PoleY1 })
+            {
+                double g = t.HeightAt(CropField.WireX, py);
+                var p = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(p.GetComponent<Collider>());
+                p.name = "Pole"; p.transform.SetParent(root.transform, false);
+                p.transform.position = U(CropField.WireX, py, g + CropField.PoleHeightM / 2);
+                p.transform.localScale = new Vector3(1.2f, (float)CropField.PoleHeightM / 2, 1.2f);
+                p.GetComponent<MeshRenderer>().sharedMaterial = Lit(pole);
+                WBox(root, "Crossarm", U(CropField.WireX, py, g + CropField.PoleHeightM), new Vector3(0.4f, 0.4f, (float)(CropField.WireSpacingM * 2 + 1.0)), pole);
+            }
+            for (int w = -1; w <= 1; w++)
+            {
+                double wx = CropField.WireX + w * CropField.WireSpacingM;
+                var lr = new GameObject($"Wire{w}").AddComponent<LineRenderer>();
+                lr.transform.SetParent(root.transform, false);
+                const int n = 33; var pts = new Vector3[n];
+                for (int i = 0; i < n; i++)
+                {
+                    double y = CropField.PoleY0 + (CropField.PoleY1 - CropField.PoleY0) * i / (n - 1);
+                    pts[i] = U(wx, y, ground + CropField.WireAglAt(y));
+                }
+                lr.positionCount = n; lr.SetPositions(pts);
+                lr.startWidth = lr.endWidth = 0.35f; lr.useWorldSpace = true; lr.alignment = LineAlignment.View;
+                lr.sharedMaterial = Mat("FlyingGame/Lit", wire); lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
         }
 
         /// <summary>A flat slab: sim centre (x,y), top at `up`, size along its heading (length) × across (width).</summary>

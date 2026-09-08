@@ -152,17 +152,99 @@ public sealed class WorldTerrain
         { Kind = kind; Dx = dx; Dy = dy; Length = length; Width = width; HeadingDeg = headingDeg; }
     }
 
-    /// <summary>Same at every airport: paved main (along x), paved crossing (60°), dirt STOL strip east, grass strip west.</summary>
+    /// <summary>Same at every airport, all PARALLEL (along x): paved main, gravel STOL strip east, grass strip west.
+    /// (The crossing runway is gone — with the wind always onto the ridge every landing is a crosswind.)</summary>
     public static readonly Strip[] AirportStrips =
     {
         new("paved", 0, 0, RunwayLengthM, RunwayWidthM, 0),
-        new("paved", 150, 0, 1200, 30, 60),
-        new("dirt", 100, 420, 600, 15, 0),
+        new("gravel", 100, 420, 600, 15, 0),
         new("grass", -100, -420, 750, 20, 0),
     };
 
     /// <summary>Hangar centre offset from the airport centre (long axis along x, doors open both ends).</summary>
     public const double HangarDx = -450, HangarDy = 200;
+    /// <summary>Paved apron around the hangar (centre offset and size); the rest of the pad is rough ground.</summary>
+    public const double ApronDx = HangarDx + 60, ApronDy = HangarDy - 30, ApronLengthM = 320, ApronWidthM = 260;
+
+    // ---- ground surfaces (what the wheels feel) -------------------------------------------------
+
+    public enum Surface { Paved, Gravel, Grass, Rough }
+
+    /// <summary>Rolling-resistance coefficient (μ_r = rolling force / wheel load) per surface. Values from
+    /// published aircraft ground-roll data (ESDU 71026, Raymer Table 17.1, FAA): dry concrete/asphalt
+    /// 0.02–0.03; firm gravel 0.04–0.06; short firm grass 0.05–0.08; rough pasture / ploughed / soft
+    /// ground 0.10–0.30.</summary>
+    public static double RollingCoefficient(Surface s) => s switch
+    {
+        Surface.Paved => 0.025,
+        Surface.Gravel => 0.05,
+        Surface.Grass => 0.065,
+        _ => 0.15,
+    };
+
+    /// <summary>Which surface lies under (x, y): a strip or the apron inside an airport pad, otherwise ROUGH
+    /// (rolling pasture / ploughed field — off-airport landings are a bumpy, high-drag affair).</summary>
+    public static Surface SurfaceAt(double x, double y)
+    {
+        foreach (Airport a in Airports)
+        {
+            if (System.Math.Abs(x - a.X) > PadHalfX + 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
+            foreach (Strip st in AirportStrips)
+            {
+                if (InStrip(a, st, x, y, 1.0)) return st.Kind switch { "paved" => Surface.Paved, "gravel" => Surface.Gravel, _ => Surface.Grass };
+            }
+            if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
+        }
+        return Surface.Rough;
+    }
+
+    /// <summary>True inside the strip's rectangle (grown by `margin` m on every side).</summary>
+    public static bool InStrip(Airport a, Strip st, double x, double y, double margin)
+    {
+        double h = st.HeadingDeg * System.Math.PI / 180, c = System.Math.Cos(h), sn = System.Math.Sin(h);
+        double dx = x - (a.X + st.Dx), dy = y - (a.Y + st.Dy);
+        double along = dx * c + dy * sn, across = -dx * sn + dy * c;
+        return System.Math.Abs(along) <= st.Length / 2 + margin && System.Math.Abs(across) <= st.Width / 2 + margin;
+    }
+
+    /// <summary>The grass strip's "Snoopy swoop": smooth flowing undulations along the strip (two long sine
+    /// waves, 0..0.5 m, never below the pad), fading out across the strip's edges. Zero elsewhere.</summary>
+    public static double GrassSwoopAt(double x, double y)
+    {
+        foreach (Airport a in Airports)
+        {
+            foreach (Strip st in AirportStrips)
+            {
+                if (st.Kind != "grass" || !InStrip(a, st, x, y, 6.0)) continue;
+                double along = x - (a.X + st.Dx), across = System.Math.Abs(y - (a.Y + st.Dy));
+                double edge = System.Math.Clamp((st.Width / 2 + 6.0 - across) / 6.0, 0.0, 1.0);   // 1 on the strip, 0 six metres outside
+                edge = edge * edge * (3 - 2 * edge);
+                double w = 0.5 * (1 + System.Math.Sin(2 * System.Math.PI * along / 70.0)) * 0.30
+                         + 0.5 * (1 + System.Math.Sin(2 * System.Math.PI * along / 165.0 + 1.0)) * 0.20;
+                return w * edge;
+            }
+        }
+        return 0.0;
+    }
+
+    /// <summary>Small-scale surface roughness the WHEELS feel (not in the terrain mesh): ~0.15 m lumps every
+    /// few metres on rough ground (bounce, and at speed a possible nose-over), a 1–2 cm rattle on gravel.</summary>
+    public static double MicroBumpAt(double x, double y)
+    {
+        Surface s = SurfaceAt(x, y);
+        if (s == Surface.Rough)
+        {
+            return 0.10 * System.Math.Sin(x / 1.3) * System.Math.Sin(y / 1.7) + 0.06 * System.Math.Sin(x / 0.7 + y / 0.9) + 0.06;
+        }
+        if (s == Surface.Gravel)
+        {
+            return 0.012 * System.Math.Sin(x / 0.23) * System.Math.Sin(y / 0.31);
+        }
+        return 0.0;
+    }
+
+    /// <summary>Ground height under a WHEEL: the height field plus the surface micro-roughness.</summary>
+    public static double WheelGroundHeightAt(double x, double y) => GroundHeightAt(x, y) + (Active != null ? MicroBumpAt(x, y) : 0.0);
 
     /// <summary>STOL contest on the dirt strip: landing line this far from the strip's south (−x) end; markers beyond it.</summary>
     public const double StolLineFromThresholdM = 150.0, StolMarkedLengthM = 250.0;
@@ -228,6 +310,9 @@ public sealed class WorldTerrain
                 h = h + (a.ElevationM - h) * w;
             }
         }
+
+        // Grass strip undulations (smooth swoops, on top of the flat pad).
+        h += GrassSwoopAt(x, y);
 
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)

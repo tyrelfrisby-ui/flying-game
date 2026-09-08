@@ -43,7 +43,7 @@ public class EventTests
     {
         WorldTerrain.Airport a = WorldTerrain.Airports[0];
         StolRun run = StolRun.ForAirport(a);
-        WorldTerrain.Strip dirt = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "dirt");
+        WorldTerrain.Strip dirt = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "gravel");
         double line = a.X + dirt.Dx - dirt.Length / 2 + WorldTerrain.StolLineFromThresholdM, y = a.Y + dirt.Dy;
         run.Update(new Vec3(line - 40, y, -5), false, 25);
         run.Update(new Vec3(line + 8, y, 0), true, 22);           // touchdown 8 m past the line

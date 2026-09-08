@@ -37,12 +37,16 @@ namespace FlyingGame.Bridge
 
         // ---- projection helpers -------------------------------------------------------------------
 
-        /// <summary>Screen point (px, bottom-left origin) of a world DIRECTION seen from the camera; null if behind.</summary>
+        /// <summary>
+        /// VIEWPORT point (px, bottom-left origin of the camera's pixel rect) of a world DIRECTION seen from
+        /// the camera; null if behind. Viewport-relative, not screen-relative: in portrait the camera renders
+        /// only the area above the control tray (ScreenLayout) and GL.LoadPixelMatrix is viewport-based.
+        /// </summary>
         private Vector2? Dir(Vector3 worldDir)
         {
-            Vector3 p = _cam.WorldToScreenPoint(_cam.transform.position + worldDir.normalized * 5000f);
+            Vector3 p = _cam.WorldToViewportPoint(_cam.transform.position + worldDir.normalized * 5000f);
             if (p.z <= 0f) return null;
-            return new Vector2(p.x, p.y);
+            return new Vector2(p.x * _cam.pixelWidth, p.y * _cam.pixelHeight);
         }
 
         private static Vector3 DirFrom(float azDeg, float elDeg)
@@ -79,7 +83,8 @@ namespace FlyingGame.Bridge
         {
             if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen) { _labels.Clear(); return; }
             _labels.Clear();
-            float s = Mathf.Min(Screen.width, Screen.height);
+            float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
+            float s = Mathf.Min(vw, vh);
             _w = Mathf.Max(1.5f, s * LineWidthFrac);
             float u = s * 0.01f; // 1 % of the short edge — symbol unit
 
@@ -159,7 +164,7 @@ namespace FlyingGame.Bridge
 
             // --- bank scale at the top: arc ticks, pointer at current bank (world-level reference) ---
             {
-                Vector2 centre = new(Screen.width * 0.5f, Screen.height * 0.5f);
+                Vector2 centre = new(vw * 0.5f, vh * 0.5f);
                 float rad = s * 0.36f;
                 foreach (int t in new[] { -60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60 })
                 {
@@ -178,7 +183,7 @@ namespace FlyingGame.Bridge
 
             // --- data boxes: airspeed left, altitude right (framed) ---
             {
-                Vector2 centre = new(Screen.width * 0.5f, Screen.height * 0.52f);
+                Vector2 centre = new(vw * 0.5f, vh * 0.52f);
                 float bx = s * 0.30f, bw = u * 11f, bh = u * 4.2f;
                 Rect asr = new(centre.x - bx - bw, centre.y - bh * 0.5f, bw, bh);
                 Rect alr = new(centre.x + bx, centre.y - bh * 0.5f, bw, bh);
@@ -192,7 +197,7 @@ namespace FlyingGame.Bridge
                 // AoA / sideslip under the airspeed box; heading above the ladder.
                 _labels.Add(new Sym { Pos = new Vector2(asr.xMax - u, asr.y - u * 2.2f), Text = $"α {Driver.AlphaDeg:F1}°", Anchor = TextAnchor.MiddleRight, Small = true });
                 _labels.Add(new Sym { Pos = new Vector2(asr.xMax - u, asr.y - u * 4.6f), Text = $"β {Driver.BetaDeg:F1}°", Anchor = TextAnchor.MiddleRight, Small = true });
-                _labels.Add(new Sym { Pos = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f + s * 0.40f), Text = $"{noseHeading + (noseHeading < 0 ? 360f : 0f):000}°", Anchor = TextAnchor.MiddleCenter });
+                _labels.Add(new Sym { Pos = new Vector2(vw * 0.5f, vh * 0.5f + s * 0.40f), Text = $"{noseHeading + (noseHeading < 0 ? 360f : 0f):000}°", Anchor = TextAnchor.MiddleCenter });
                 _ = pitch;
             }
 
@@ -211,20 +216,22 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (_labels.Count == 0) return;
-            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.030f);
+            int fs = Mathf.RoundToInt(Mathf.Min(_cam.pixelWidth, _cam.pixelHeight) * 0.030f);
             if (_text == null || fs != _fs)
             {
                 _fs = fs;
                 _text = new GUIStyle { font = UiFont.Get(), fontSize = fs, fontStyle = FontStyle.Bold, normal = { textColor = Green } };
                 _small = new GUIStyle { font = UiFont.Get(), fontSize = Mathf.RoundToInt(fs * 0.7f), normal = { textColor = Green } };
             }
+            Rect vp = _cam.pixelRect; // label positions are viewport-relative; GUI space is whole-screen, top-left origin
             foreach (Sym l in _labels)
             {
                 GUIStyle st = l.Small ? _small : _text;
                 st.alignment = l.Anchor;
                 float w = fs * 8f, h = fs * 1.6f;
-                float x = l.Anchor is TextAnchor.MiddleRight ? l.Pos.x - w : l.Anchor is TextAnchor.MiddleCenter ? l.Pos.x - w * 0.5f : l.Pos.x;
-                GUI.Label(new Rect(x, Screen.height - l.Pos.y - h * 0.5f, w, h), l.Text, st);
+                float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
+                float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
+                GUI.Label(new Rect(x, Screen.height - py - h * 0.5f, w, h), l.Text, st);
             }
         }
     }

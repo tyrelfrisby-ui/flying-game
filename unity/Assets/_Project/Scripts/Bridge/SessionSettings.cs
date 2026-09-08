@@ -15,11 +15,53 @@ namespace FlyingGame.Bridge
         public static Start StartMode = Start.InTheAir;
         public static int AirportIndex = 0;               // WorldTerrain.Airports
         public static string ChallengeId = null;          // null = free flight
-        public static float WindFromDeg = 0f;             // compass: wind blows FROM this heading
-        public static float WindSpeedMs = 0f;
+        public static float WindFromDeg = 90f;            // compass: wind blows FROM this heading — from the east, onto the
+        public static float WindSpeedMs = 5f;             // ridge to the west: always a crosswind on the (north-south) runways
         public static int TurbulenceLevel = 0;            // 0 calm .. 3 severe
         public static float IsaDeviationC = 0f;           // hot/cold day
         public static float ThermalScale = 1f;            // 0 off .. 2 strong
+
+        // ---- multiplayer (free play only: challenges/events force Solo) ----
+        public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom }
+        public static MultiplayerMode Multiplayer = MultiplayerMode.Solo;
+        public static string RoomCode = "";                // 6 × [A-Z0-9] for PrivateRoom; "ffa" is the well-known free-for-all
+        public static string PilotName = "";               // shown on the name tag over your aircraft
+#if UNITY_EDITOR
+        public static string RelayUrl = "ws://localhost:8787";   // `cd server/relay && npm run dev`
+#else
+        public static string RelayUrl = "wss://flyinggame-relay.tyrel-frisby.workers.dev";
+#endif
+        public const string FfaRoom = "ffa";
+
+        /// <summary>Room the session actually joins (null = solo). Challenges/events are always solo.</summary>
+        public static string EffectiveRoom
+        {
+            get
+            {
+                if (ChallengeId != null) return null;
+                return Multiplayer switch
+                {
+                    MultiplayerMode.FreeForAll => FfaRoom,
+                    MultiplayerMode.PrivateRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
+                    _ => null,
+                };
+            }
+        }
+
+        public static bool IsValidRoomCode(string code)
+        {
+            if (code == null || code.Length != 6) return false;
+            foreach (char c in code) if (!(c >= 'A' && c <= 'Z') && !(c >= '0' && c <= '9')) return false;
+            return true;
+        }
+
+        public static string NewRoomCode()
+        {
+            const string alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // no 0/O/1/I ambiguity
+            var sb = new System.Text.StringBuilder(6);
+            for (int i = 0; i < 6; i++) sb.Append(alphabet[Random.Range(0, alphabet.Length)]);
+            return sb.ToString();
+        }
 
         public static bool IsEvent(string id) => id != null && id.StartsWith("event:");
 
@@ -36,7 +78,7 @@ namespace FlyingGame.Bridge
 
         public static readonly (string id, string name)[] Challenges =
         {
-            (null, "Free flight"), ("event:race", "Air Racing"), ("event:stol", "STOL contest"), ("event:aerobox", "Aerobatic box"),
+            (null, "Free flight"), ("event:race", "Air Racing"), ("event:stol", "STOL contest"), ("event:dust", "Crop dusting"), ("event:aerobox", "Aerobatic box"),
             ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
             ("a1c3-cardinal-turn", "Cardinal turn"), ("a1c4-stall-recover", "Stall recovery"),
             ("a1c10-headwind-landing", "Headwind landing"), ("a1c11-crosswind-landing", "Crosswind landing"),

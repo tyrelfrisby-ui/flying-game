@@ -24,6 +24,7 @@ namespace FlyingGame.Bridge
         private FlightSimDriver _driver;
         private readonly AirframeBuilder _builder = new();
         private string _builtId;
+        private bool _wingsDetached;   // wing meshes have left the hierarchy (structural failure)
 
         private void Awake()
         {
@@ -43,12 +44,15 @@ namespace FlyingGame.Bridge
 
         private void OnAircraftChanged()
         {
-            if (_driver.AircraftId != _builtId) Rebuild();
+            // A fresh sim Aircraft is intact: put the wings back even when the type is unchanged.
+            if (_driver.AircraftId != _builtId || _wingsDetached) Rebuild();
         }
 
         private void LateUpdate()
         {
             if (_driver.Sim == null) return;
+            // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
+            if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
         }
@@ -56,11 +60,162 @@ namespace FlyingGame.Bridge
         private void Rebuild()
         {
             _builtId = _driver.AircraftId;
+            _wingsDetached = false;
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
             {
                 chase.FitTo(halfSpan * 2f);
+            }
+        }
+
+        /// <summary>
+        /// STRUCTURAL FAILURE: pull the lofted wing meshes (both wings, their aileron rows, spoiler paddles,
+        /// slats and wing struts) out of the airframe hierarchy into two free debris bodies — left wing and
+        /// right wing — that inherit the aircraft's world velocity plus an outward/upward kick and tumble
+        /// away under gravity. Fuselage, tail and prop keep animating on the airframe. Idempotent; the next
+        /// Rebuild (fresh sim Aircraft) restores the wings.
+        /// </summary>
+        public void DetachWings(Vector3 worldVelocityUnity)
+        {
+            if (_wingsDetached) return;
+            _wingsDetached = true;
+            List<GameObject> parts = _builder.TakeWingParts();
+            if (parts.Count == 0) return;
+
+            Transform root = transform;
+            GameObject left = new GameObject("WingDebris-L");
+            GameObject right = new GameObject("WingDebris-R");
+            left.transform.SetPositionAndRotation(root.position, root.rotation);
+            right.transform.SetPositionAndRotation(root.position, root.rotation);
+
+            var seen = new HashSet<MeshFilter>();
+            foreach (GameObject part in parts)
+            {
+                if (part == null) continue;
+                foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    if (mf == null || mf.sharedMesh == null || !seen.Add(mf)) continue;
+                    MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                    Material mat = mr != null ? mr.sharedMaterial : null;
+                    Vector3 localPos = root.InverseTransformPoint(mf.transform.position);
+                    Quaternion localRot = Quaternion.Inverse(root.rotation) * mf.transform.rotation;
+                    Vector3 scale = mf.transform.lossyScale;
+                    SplitBySpan(mf.sharedMesh, mf.transform, root, out Mesh lMesh, out Mesh rMesh);
+                    if (lMesh != null) AddPiece(left.transform, mf.name, lMesh, mat, localPos, localRot, scale);
+                    if (rMesh != null) AddPiece(right.transform, mf.name, rMesh, mat, localPos, localRot, scale);
+                }
+            }
+            foreach (GameObject part in parts) if (part != null) Object.Destroy(part);
+
+            // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
+            // biased to the span (a freed wing pinwheels), each side its own way.
+            Vector3 outward = root.right, up = root.up;
+            LaunchDebris(left, worldVelocityUnity - outward * 4f + up * 3f, -root.right, 1f);
+            LaunchDebris(right, worldVelocityUnity + outward * 4f + up * 3f, root.right, -1f);
+        }
+
+        private static void LaunchDebris(GameObject go, Vector3 velocity, Vector3 spanAxis, float sign)
+        {
+            if (go.transform.childCount == 0) { Object.Destroy(go); return; }
+            WingDebris d = go.AddComponent<WingDebris>();
+            d.Velocity = velocity;
+            Vector3 tumble = (spanAxis * 2.5f + Random.onUnitSphere).normalized;
+            d.AngularVelocityDeg = tumble * Random.Range(180f, 320f) * sign;
+        }
+
+        private static void AddPiece(Transform parent, string name, Mesh mesh, Material mat, Vector3 localPos, Quaternion localRot, Vector3 scale)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = localRot;
+            go.transform.localScale = scale;
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            if (mat != null) mr.sharedMaterial = mat;
+        }
+
+        /// <summary>
+        /// Split a part's mesh at the aircraft centreline (root-local x = sim y): triangles whose centroid is
+        /// left go to `left`, right to `right`. A part sitting wholly on one side (aileron half, strut, slat)
+        /// is handed over unsplit. Vertices are kept in the part's own local space so the piece reuses the
+        /// part's transform.
+        /// </summary>
+        private static void SplitBySpan(Mesh src, Transform part, Transform root, out Mesh left, out Mesh right)
+        {
+            left = null; right = null;
+            Vector3[] v = src.vertices;
+            int[] t = src.triangles;
+            if (v.Length == 0 || t.Length == 0) return;
+            var x = new float[v.Length];
+            float minX = float.MaxValue, maxX = float.MinValue;
+            for (int i = 0; i < v.Length; i++)
+            {
+                x[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).x;
+                if (x[i] < minX) minX = x[i];
+                if (x[i] > maxX) maxX = x[i];
+            }
+            bool spansCentre = minX < -0.15f && maxX > 0.15f;
+            if (!spansCentre)
+            {
+                Mesh whole = CloneMesh(v, t);
+                if ((minX + maxX) * 0.5f < 0f) left = whole; else right = whole;
+                return;
+            }
+            var lt = new List<int>(t.Length);
+            var rt = new List<int>(t.Length);
+            for (int i = 0; i + 2 < t.Length; i += 3)
+            {
+                float cx = (x[t[i]] + x[t[i + 1]] + x[t[i + 2]]) / 3f;
+                List<int> dst = cx < 0f ? lt : rt;
+                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
+            }
+            if (lt.Count > 0) left = CloneMesh(v, lt.ToArray());
+            if (rt.Count > 0) right = CloneMesh(v, rt.ToArray());
+        }
+
+        private static Mesh CloneMesh(Vector3[] v, int[] t)
+        {
+            var m = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            m.SetVertices(v);
+            m.SetTriangles(t, 0);
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+            return m;
+        }
+    }
+
+    /// <summary>
+    /// A separated wing: simple kinematic ballistics — gravity, a drag-ish velocity damping (a loose panel
+    /// flutters down at ~15 m/s rather than streamlining), a decaying tumble — until it reaches the ground
+    /// (FlyingGame.Core.WorldTerrain via CoordinateMap) or 30 s pass.
+    /// </summary>
+    public sealed class WingDebris : MonoBehaviour
+    {
+        public Vector3 Velocity;
+        public Vector3 AngularVelocityDeg;
+        public float LifeSec = 30f;
+
+        private const float GravityMs2 = 9.80665f;
+        private const float DragPerSec = 0.65f;     // terminal ≈ g/drag ≈ 15 m/s
+        private const float SpinDecayPerSec = 0.25f;
+
+        private void Update()
+        {
+            float dt = Time.deltaTime;
+            Velocity += Vector3.down * (GravityMs2 * dt);
+            Velocity *= Mathf.Max(0f, 1f - DragPerSec * dt);
+            transform.position += Velocity * dt;
+            transform.Rotate(AngularVelocityDeg * dt, Space.World);
+            AngularVelocityDeg *= Mathf.Max(0f, 1f - SpinDecayPerSec * dt);
+
+            LifeSec -= dt;
+            FlyingGame.Core.MathTypes.Vec3 sim = CoordinateMap.ToSim(transform.position);
+            float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
+            if (LifeSec <= 0f || transform.position.y <= ground + 0.3f)
+            {
+                Destroy(gameObject);
             }
         }
     }
@@ -78,6 +233,9 @@ namespace FlyingGame.Bridge
             public Transform T; public string Surface; public float Gain; public Vector3 AxisUnity;
         }
         private readonly List<ControlPart> _controls = new();
+        // Parts that ARE the wing (wing lofts, aileron rows, spoiler paddles, slats, wing/interplane struts):
+        // the set that leaves the airframe on structural failure. Filled during Build.
+        private readonly List<GameObject> _wingParts = new();
         // Sim rotation "TE toward the thickness axis" maps to Unity through the (improper) sim→Unity axis
         // swap, which flips the rotation sense — hence the -1 (verified with the Render Airframes tool).
         private const float HingeSign = -1f;
@@ -107,6 +265,29 @@ namespace FlyingGame.Bridge
             foreach (GameObject p in _parts) if (p != null) Kill(p);
             _parts.Clear();
             _controls.Clear();
+            _wingParts.Clear();
+        }
+
+        /// <summary>
+        /// Hand over the wing parts (structural failure): they are removed from this builder's part and
+        /// hinge lists — the caller owns them from here (reparent/destroy) — and the next Build restores them.
+        /// </summary>
+        public List<GameObject> TakeWingParts()
+        {
+            var taken = new List<GameObject>(_wingParts);
+            var set = new HashSet<GameObject>(_wingParts);
+            _parts.RemoveAll(p => p == null || set.Contains(p));
+            _controls.RemoveAll(c => c.T == null || set.Contains(c.T.gameObject) || (c.T.parent != null && set.Contains(c.T.parent.gameObject)));
+            _wingParts.Clear();
+            return taken;
+        }
+
+        /// <summary>Run one build step and tag everything it spawned as wing structure.</summary>
+        private void BuildAsWing(System.Action build)
+        {
+            int before = _parts.Count;
+            build();
+            for (int i = before; i < _parts.Count; i++) _wingParts.Add(_parts[i]);
         }
 
         /// <summary>Build the airframe for `cfg` under `root`; returns the half-span (m) for camera fitting.</summary>
@@ -126,14 +307,14 @@ namespace FlyingGame.Bridge
             }
 
             BuildFuselage(st);
-            BuildWings(cfg, st);
+            BuildAsWing(() => BuildWings(cfg, st));
             BuildTail(cfg, st);
             BuildCanopy(st);
             BuildPropulsion(cfg, st);
-            BuildStruts(cfg, st, halfSpan);
+            BuildAsWing(() => BuildStruts(cfg, st, halfSpan));   // wing/interplane/cabane struts go with the wings
             BuildGear(cfg, st);
-            BuildSpoilers(cfg, st, halfSpan);
-            BuildSlats(cfg, st);
+            BuildAsWing(() => BuildSpoilers(cfg, st, halfSpan));
+            BuildAsWing(() => BuildSlats(cfg, st));
             BuildFloats(cfg, st);
             return halfSpan;
         }
