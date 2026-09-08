@@ -1701,7 +1701,7 @@
   "gear": [],
   "limits": {
     "vneMs": 117,
-    "gMax": 3.0,
+    "gMax": 2.5,
     "gMin": -1.0
   },
   "engines": [

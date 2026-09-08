@@ -22,9 +22,16 @@ namespace FlyingGame.Bridge
     ///
     /// Pure C#; owns its GameObjects (dome, pilot chute, 8 suspension lines + bridle) and is ticked/placed
     /// by <see cref="PilotBody"/>.
+    ///
+    /// The dome is a GORED canopy (owner request 2026-09-08): <see cref="Gores"/> panels from apex to skirt,
+    /// alternately WHITE and RED — two sub-meshes on one lofted mesh, one Unlit/Color material each (iOS-safe;
+    /// Unlit/Color has no vertex colour). The skirt is pulled in 6 % at every seam so the gores read as
+    /// separate panels in silhouette too. Inflation scales the mesh (r, h, r) and the landing collapse lerps
+    /// the same transform, so both work unchanged on the new mesh.
     /// </summary>
     internal sealed class Parachute
     {
+        public const int Gores = 28;                  // C-9 style; EVEN so the colours alternate all the way round
         public const float NominalDiameterM = 8.5f;
         public const float CanopyCd = 0.75f;
         public static readonly float CdSFull = CanopyCd * Mathf.PI * NominalDiameterM * NominalDiameterM * 0.25f; // ≈ 42.6 m²
@@ -42,6 +49,7 @@ namespace FlyingGame.Bridge
         public const float TurnRateDegPerSec = 30f;
         public const float CollapseSec = 2f;
         private const int Lines = 8;
+        private const float GoreSeamRadius = 0.94f;   // skirt radius at a seam, as a fraction of the gore centre's
 
         public float Fill { get; private set; }         // 0 (streamer) .. 1 (full canopy)
         public float CdS { get; private set; }          // current drag area, m² (includes the shock)
@@ -50,7 +58,7 @@ namespace FlyingGame.Bridge
         public float FillTimeSec => _fillTime;
         public float TimeSec => _t;
 
-        private static Mesh _dome;
+        private static Mesh _dome, _goredDome;         // plain dome for the pilot chute; gored (2 sub-meshes) for the canopy
         private readonly GameObject _root, _canopy, _pilotChute, _bridle;
         private readonly GameObject[] _lines = new GameObject[Lines];
         private float _t, _fillTime, _overshoot = 1f;
@@ -62,9 +70,13 @@ namespace FlyingGame.Bridge
 
         public Parachute()
         {
-            _dome ??= EgressAir.Dome(28, 8);
+            _dome ??= EgressAir.Dome(16, 6);
+            _goredDome ??= GoredDome(Gores, 8);
             _root = new GameObject("Parachute");
-            _canopy = EgressAir.MeshObject("Canopy", _dome, EgressAir.Unlit(new Color(0.98f, 0.55f, 0.15f)), _root.transform);
+            Material white = EgressAir.Unlit(new Color(0.95f, 0.95f, 0.95f));
+            Material red = EgressAir.Unlit(new Color(0.85f, 0.10f, 0.10f));
+            _canopy = EgressAir.MeshObject("Canopy", _goredDome, white, _root.transform);
+            _canopy.GetComponent<MeshRenderer>().sharedMaterials = new[] { white, red };   // sub-mesh 0 = white gores, 1 = red
             _pilotChute = EgressAir.MeshObject("PilotChute", _dome, EgressAir.Unlit(new Color(0.95f, 0.95f, 0.92f)), _root.transform);
             _pilotChute.transform.localScale = new Vector3(0.45f, 0.35f, 0.45f);
             Material line = EgressAir.Unlit(new Color(0.12f, 0.12f, 0.14f));
@@ -130,7 +142,8 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < Lines; i++)
             {
                 float a = i / (float)Lines * Mathf.PI * 2f;
-                Vector3 skirt = basePos + rot * new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
+                float ra = r * GoreRadiusFactor(a);
+                Vector3 skirt = basePos + rot * new Vector3(Mathf.Cos(a) * ra, 0f, Mathf.Sin(a) * ra);
                 SetLine(_lines[i], harness, skirt, 0.03f);
             }
         }
@@ -170,7 +183,8 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < Lines; i++)
             {
                 float a = i / (float)Lines * Mathf.PI * 2f;
-                Vector3 skirt = pos + rot * new Vector3(Mathf.Cos(a) * scale.x, 0f, Mathf.Sin(a) * scale.z);
+                float f = GoreRadiusFactor(a);
+                Vector3 skirt = pos + rot * new Vector3(Mathf.Cos(a) * scale.x * f, 0f, Mathf.Sin(a) * scale.z * f);
                 SetLine(_lines[i], harness, skirt, 0.03f);
             }
         }
@@ -187,6 +201,79 @@ namespace FlyingGame.Bridge
             if (len < 1e-3f) { go.transform.localScale = Vector3.zero; return; }
             go.transform.SetPositionAndRotation((a + b) * 0.5f, Quaternion.FromToRotation(Vector3.up, d / len));
             go.transform.localScale = new Vector3(thickness, len * 0.5f, thickness);   // cylinder primitive is 2 units tall
+        }
+
+        /// <summary>
+        /// Skirt radius at an angle round the canopy as a fraction of the nominal: 1 at a gore's centre,
+        /// <see cref="GoreSeamRadius"/> at the seams, linear between — exactly the lofted mesh's profile, so the
+        /// suspension lines meet the skirt where the mesh actually is.
+        /// </summary>
+        private static float GoreRadiusFactor(float angleRad)
+        {
+            float u = angleRad / (Mathf.PI * 2f) * Gores;
+            u -= Mathf.Floor(u);                                         // 0 = seam, 0.5 = gore centre, 1 = next seam
+            return GoreSeamRadius + (1f - GoreSeamRadius) * (1f - Mathf.Abs(2f * u - 1f));
+        }
+
+        /// <summary>
+        /// Unit gored dome: upper hemisphere (skirt ring at y = 0, apex at y = 1), `gores` panels × `rings`
+        /// latitude rings, two vertex columns per gore (seam pulled in to <see cref="GoreSeamRadius"/>, centre
+        /// at full radius) so each gore is a fluted triangular-to-trapezoid panel from apex to skirt. Gore g's
+        /// triangles go to sub-mesh g % 2 (0 = white, 1 = red). DOUBLE-SIDED like <see cref="EgressAir.Dome"/>
+        /// (the inside is what the chase camera sees from below; Unlit/Color back-face culls).
+        /// </summary>
+        private static Mesh GoredDome(int gores, int rings)
+        {
+            int segments = gores * 2;
+            var verts = new Vector3[(segments + 1) * (rings + 1)];
+            var uvs = new Vector2[verts.Length];
+            for (int j = 0; j <= rings; j++)
+            {
+                float phi = j / (float)rings * Mathf.PI * 0.5f;
+                float r = Mathf.Cos(phi), y = Mathf.Sin(phi);
+                for (int i = 0; i <= segments; i++)
+                {
+                    float a = i / (float)segments * Mathf.PI * 2f;
+                    float f = (i & 1) == 0 ? GoreSeamRadius : 1f;        // even columns are seams, odd are gore centres
+                    int k = j * (segments + 1) + i;
+                    verts[k] = new Vector3(Mathf.Cos(a) * r * f, y, Mathf.Sin(a) * r * f);
+                    uvs[k] = new Vector2(i / (float)segments, j / (float)rings);
+                }
+            }
+            // Per gore: 2 quads × rings × (2 outside + 2 inside triangles) × 3 indices = rings × 24.
+            var white = new int[((gores + 1) / 2) * rings * 24];
+            var red = new int[(gores / 2) * rings * 24];
+            int tw = 0, tr = 0;
+            for (int g = 0; g < gores; g++)
+            {
+                bool isWhite = (g & 1) == 0;
+                int[] tris = isWhite ? white : red;
+                int t = isWhite ? tw : tr;
+                for (int q = 0; q < 2; q++)
+                {
+                    int i = g * 2 + q;
+                    for (int j = 0; j < rings; j++)
+                    {
+                        int a = j * (segments + 1) + i, b = a + 1, c = a + segments + 1, d = c + 1;
+                        // outside
+                        tris[t++] = a; tris[t++] = c; tris[t++] = b;
+                        tris[t++] = b; tris[t++] = c; tris[t++] = d;
+                        // inside (reverse winding)
+                        tris[t++] = a; tris[t++] = b; tris[t++] = c;
+                        tris[t++] = b; tris[t++] = d; tris[t++] = c;
+                    }
+                }
+                if (isWhite) tw = t; else tr = t;
+            }
+            var m = new Mesh { name = "GoredDome" };
+            m.SetVertices(verts);
+            m.SetUVs(0, uvs);
+            m.subMeshCount = 2;
+            m.SetTriangles(white, 0);
+            m.SetTriangles(red, 1);
+            m.RecalculateNormals();
+            m.RecalculateBounds();
+            return m;
         }
     }
 }

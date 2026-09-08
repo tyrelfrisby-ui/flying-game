@@ -22,7 +22,9 @@ namespace FlyingGame.Bridge
         private GUIStyle _big, _num, _label;
         private int _fs;
         private float _w;
-        private Vector2 _asiCentre, _altCentre; private float _r;
+        private Vector2 _asiCentre, _altCentre, _gCentre; private float _r, _gr;
+        private float _gMaxSeen = 1f, _gMinSeen = 1f; private object _gWatched;
+        private static readonly Color Limit = new(1f, 0.85f, 0.2f);
         private float _asiMaxKt = 160f;
 
         private static readonly Color Face = new(0.05f, 0.07f, 0.09f), Ring = new(0.9f, 0.92f, 0.95f), Needle = new(1f, 1f, 1f), Warn = new(1f, 0.3f, 0.2f);
@@ -91,6 +93,8 @@ namespace FlyingGame.Bridge
             _altCentre = ac + new Vector2(SideOffsetFrac * s, UpOffsetFrac * s);
             _asiCentre.x = Mathf.Clamp(_asiCentre.x, _r * 1.1f, vw - _r * 1.1f); _altCentre.x = Mathf.Clamp(_altCentre.x, _r * 1.1f, vw - _r * 1.1f);
             _asiCentre.y = Mathf.Clamp(_asiCentre.y, _r * 1.1f, vh - _r * 1.1f); _altCentre.y = Mathf.Clamp(_altCentre.y, _r * 1.1f, vh - _r * 1.1f);
+            _gr = _r * 0.72f;
+            _gCentre = new Vector2(ac.x, Mathf.Clamp(ac.y + (UpOffsetFrac + RadiusFrac + 0.09f) * s, _gr * 1.1f, vh - _gr * 1.1f));
 
             // Airspeed scale: round the dial to the type (twice its cruise/spawn speed, to the nearest 20 kt).
             float spawnKt = (float)Driver.SpawnIasMs * 1.9438f;
@@ -143,6 +147,46 @@ namespace FlyingGame.Bridge
             NeedleAt(_altCentre, DialAngle(hundreds, true), _r * 0.82f, _w * 2.6f, needle);
             Disc(_altCentre, _w * 3f, ring, 16);
 
+            // ---- accelerometer (g meter): scale from ultimate negative to ultimate positive, limit marks in
+            // yellow, ultimate in red, current-g needle plus max/min tell-tale hands that hold the extremes.
+            var aircraft = Driver.Sim?.Aircraft;
+            if (aircraft != null)
+            {
+                if (!ReferenceEquals(_gWatched, aircraft)) { _gWatched = aircraft; _gMaxSeen = 1f; _gMinSeen = 1f; }
+                var st = aircraft.Structure;
+                float gPos = (float)st.LimitPosG, gNeg = (float)st.LimitNegG, uPos = (float)st.UltimatePosG, uNeg = (float)st.UltimateNegG;
+                float lo = Mathf.Floor(uNeg - 1f), hi = Mathf.Ceil(uPos + 1f);
+                float g = (float)aircraft.LoadFactorZ;
+                _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g);
+                float GAng(float v) => DialAngle(Mathf.Clamp01((v - lo) / (hi - lo)), false);
+                Disc(_gCentre, _gr, face);
+                Circle(_gCentre, _gr, _w * 1.5f, ring);
+                for (float v = lo; v <= hi + 0.01f; v += 1f)
+                {
+                    float a = GAng(v); Vector2 dir = new(Mathf.Cos(a), Mathf.Sin(a));
+                    GL.Color(ring); Line(_gCentre + dir * _gr * 0.80f, _gCentre + dir * _gr * 0.95f, _w * 1.3f);
+                }
+                void Arc(float from, float to, Color col, float rad, float width)
+                {
+                    Color cc = col; cc.a = Alpha + 0.3f; GL.Color(cc);
+                    int n = 24;
+                    for (int i = 0; i < n; i++)
+                    {
+                        float a0 = GAng(from + (to - from) * i / n), a1 = GAng(from + (to - from) * (i + 1) / n);
+                        Line(_gCentre + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * rad, _gCentre + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * rad, width);
+                    }
+                }
+                Arc(gPos, uPos, Limit, _gr * 0.98f, _w * 2.5f); Arc(uPos, hi, Warn, _gr * 0.98f, _w * 2.5f);
+                Arc(uNeg, gNeg, Limit, _gr * 0.98f, _w * 2.5f); Arc(lo, uNeg, Warn, _gr * 0.98f, _w * 2.5f);
+                foreach (float mark in new[] { gPos, gNeg }) { float a = GAng(mark); Vector2 d = new(Mathf.Cos(a), Mathf.Sin(a)); Color cc = Limit; cc.a = 1f; GL.Color(cc); Line(_gCentre + d * _gr * 0.72f, _gCentre + d * _gr * 0.98f, _w * 2.5f); }
+                foreach (float mark in new[] { uPos, uNeg }) { float a = GAng(mark); Vector2 d = new(Mathf.Cos(a), Mathf.Sin(a)); Color cc = Warn; cc.a = 1f; GL.Color(cc); Line(_gCentre + d * _gr * 0.72f, _gCentre + d * _gr * 0.98f, _w * 2.5f); }
+                Color tell = ring; tell.a = Alpha + 0.15f;
+                NeedleAt(_gCentre, GAng(_gMaxSeen), _gr * 0.78f, _w * 1.6f, tell);
+                NeedleAt(_gCentre, GAng(_gMinSeen), _gr * 0.78f, _w * 1.6f, tell);
+                NeedleAt(_gCentre, GAng(g), _gr * 0.82f, _w * 3f, needle);
+                Disc(_gCentre, _w * 3f, ring, 16);
+            }
+
             GL.End();
             GL.PopMatrix();
         }
@@ -185,6 +229,22 @@ namespace FlyingGame.Bridge
             }
             Label(_altCentre + new Vector2(0, -_r * 0.42f), $"{ft:N0}", _big, fs * 6f, fs * 1.8f);
             Label(_altCentre + new Vector2(0, _r * 0.30f), "FEET", _label, fs * 4f, fs);
+            // g meter numerals every g, current g and the limit/ultimate values.
+            var aircraft = Driver.Sim?.Aircraft;
+            if (aircraft != null)
+            {
+                var st = aircraft.Structure;
+                float uPos = (float)st.UltimatePosG, uNeg = (float)st.UltimateNegG;
+                float lo = Mathf.Floor(uNeg - 1f), hi = Mathf.Ceil(uPos + 1f);
+                int step = hi - lo > 14 ? 2 : 1;
+                for (float v = lo; v <= hi + 0.01f; v += step)
+                {
+                    float a = DialAngle(Mathf.Clamp01((v - lo) / (hi - lo)), false);
+                    Label(_gCentre + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * _gr * 0.62f, v.ToString("0"), _num, fs * 2f, fs);
+                }
+                Label(_gCentre + new Vector2(0, -_gr * 0.40f), $"{aircraft.LoadFactorZ:F1} g", _big, fs * 5f, fs * 1.8f);
+                Label(_gCentre + new Vector2(0, _gr * 0.28f), $"LIMIT +{st.LimitPosG:0.#}/{st.LimitNegG:0.#}  ULT +{uPos:0.#}/{uNeg:0.#}", _label, fs * 9f, fs);
+            }
         }
     }
 }

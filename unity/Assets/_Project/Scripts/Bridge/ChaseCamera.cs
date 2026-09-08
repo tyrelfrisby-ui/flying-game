@@ -3,7 +3,7 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Chase cam v2: follows the VELOCITY VECTOR, not the nose (owner request). The camera sits behind the
+    /// Chase cam v2: follows the AIR-RELATIVE velocity vector, not the nose (owner request). The camera sits behind the
     /// aircraft along its flight path and looks along the flight path, so the nose visibly swings in the
     /// frame with sideslip, gyroscopic yaw, AoA and tumbles — instead of the view panning with the nose and
     /// hiding them. Below <see cref="MinTrackSpeed"/> (taxi/rest) it falls back to the nose direction.
@@ -49,7 +49,11 @@ namespace FlyingGame.Bridge
         {
             if (Driver != null)
             {
-                Vector3 v = Driver.WorldVelocityUnity;
+                // Air-relative, not ground: in a crosswind the nose crabs into the wind while the ground
+                // track stays put — following the ground vector made a 5 m/s crosswind look like a
+                // permanent right yaw. Following the air vector centres the nose in steady flight and
+                // still shows genuine sideslip / gyroscopic yaw / tumbles.
+                Vector3 v = Driver.AirVelocityUnity;
                 if (v.magnitude >= MinTrackSpeed) return v.normalized;
             }
             return Target.forward;

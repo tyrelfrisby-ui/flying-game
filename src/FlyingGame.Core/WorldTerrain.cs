@@ -103,6 +103,16 @@ public sealed class WorldTerrain
         // Rim along the meander is not monotone (the wall edge wanders back across the river's x), so the
         // surface uses a RUNNING MINIMUM of the rim downstream, sampled once into a table.
         _riverTable ??= BuildRiverTable();
+        // At a plunge fall the drop is exactly AT the lip, not at the nearest table cell: sample the table
+        // one full cell clear of the lip on whichever side y is.
+        foreach (Waterfall wf in Waterfalls)
+        {
+            if (System.Math.Abs(y - wf.LipY) < RiverTableStep)
+            {
+                y = y < wf.LipY ? wf.LipY - RiverTableStep - 1 : wf.LipY + RiverTableStep + 1;
+                break;
+            }
+        }
         double f = (y - GorgeUpstreamY) / RiverTableStep;
         int i = (int)System.Math.Floor(f);
         if (i < 0) return _riverTable[0];
@@ -114,6 +124,7 @@ public sealed class WorldTerrain
     }
 
     private const double RiverTableStep = 25.0;
+    public const double RiverTableStepPublic = RiverTableStep;   // renderer: sample clear of a lip
     private double[]? _riverTable;
 
     private double[] BuildRiverTable()
@@ -128,7 +139,7 @@ public sealed class WorldTerrain
         for (int i = 0; i < n; i++)
         {
             double y = GorgeUpstreamY + i * RiverTableStep;
-            double rim = BaseHeightAt(RiverCentreX(y), y);
+            double rim = BaseHeightAt(RiverCentreX(y), y, shelfTop: true);
             runningMin = System.Math.Min(runningMin, rim);
             double depth = GorgeDepthUpstreamM;
             for (int k = 0; k < nFalls; k++)
@@ -249,6 +260,83 @@ public sealed class WorldTerrain
     /// <summary>STOL contest on the dirt strip: landing line this far from the strip's south (−x) end; markers beyond it.</summary>
     public const double StolLineFromThresholdM = 150.0, StolMarkedLengthM = 250.0;
 
+    // ---- plunge waterfalls at the canyon walls (owner 2026-09-08) --------------------------------
+    // Where the river crosses each escarpment it used to slide down the 78° face. Now each crossing is a
+    // PLUNGE fall: a straight lip, the water leaving it in free fall, and the cliff behind cut back into a
+    // concave amphitheater (FallRecessM at the river centre, ≥ 150 ft across the river's width) so an
+    // aircraft can fly along the wall BETWEEN the curtain and the rock. The river reaches the lip on an
+    // overhanging rock SHELF (a solid the airframe collides with); the ground under the shelf and the
+    // whole notch downstream of it are at the lower plateau.
+
+    public const double FallRecessM = 60.0;          // back-wall set-back behind the lip at the river centre (≈ 197 ft)
+    public const double FallNotchHalfSpanM = 300.0;  // half-width (x) of the amphitheater notch
+    public const double FallShelfThickM = 12.0;      // rock under the upper river bed
+    public const double FallLipSpeedMs = 4.0;        // water speed leaving the lip (sets the curtain's arc)
+
+    public readonly struct Waterfall
+    {
+        public readonly int Step;          // escarpment index 0..2
+        public readonly double X;          // river centre x at the lip
+        public readonly double LipY;       // y of the (straight) lip; water falls toward +y
+        public readonly double UpperM;     // plateau level above the wall
+        public readonly double LowerM;     // plateau level below the wall
+        public Waterfall(int step, double x, double lipY, double upper, double lower) { Step = step; X = x; LipY = lipY; UpperM = upper; LowerM = lower; }
+    }
+
+    private Waterfall[]? _falls;
+    public Waterfall[] Waterfalls => _falls ??= BuildWaterfalls();
+
+    private static Waterfall[] BuildWaterfalls()
+    {
+        var f = new Waterfall[StepCount];
+        for (int i = 0; i < StepCount; i++)
+        {
+            // The lip is the TOP of the wall (edge - run); the edge wanders with x and the river with y —
+            // iterate to the crossing, then freeze the lip straight across the notch.
+            double y = EdgeMeanY(i) - EscarpmentWidthM, x = RiverCentreX(y);
+            for (int k = 0; k < 40; k++)
+            {
+                x = RiverCentreX(y);
+                double target = EdgeMeanY(i) + EdgeWander(i, x) - EscarpmentWidthM;
+                y += 0.5 * (target - y);
+            }
+            f[i] = new Waterfall(i, x, y, StepHeightM * (i + 1), StepHeightM * i);
+        }
+        return f;
+    }
+
+    /// <summary>Notch weight 0..1 at x for fall f: 1 inside the notch, fading to 0 over a band beyond it.</summary>
+    private static double NotchWeight(in Waterfall f, double x)
+    {
+        double u = System.Math.Abs(x - f.X) / FallNotchHalfSpanM;
+        if (u <= 1) return 1;
+        if (u >= 1.5) return 0;
+        double v = (u - 1) / 0.5;
+        return 1 - v * v * (3 - 2 * v);
+    }
+
+    /// <summary>Back-wall set-back behind the lip at x (m): full at the centre, rounding off at the notch ends —
+    /// a gently concave plan so the flyable slot is ≥ 46 m (150 ft) deep across the whole river and most of the notch.</summary>
+    public static double FallRecessAt(in Waterfall f, double x)
+    {
+        double u = System.Math.Abs(x - f.X) / FallNotchHalfSpanM;
+        if (u >= 1) return 0;
+        return FallRecessM * System.Math.Pow(1 - u * u, 0.25);
+    }
+
+    /// <summary>Under-side of the shelf at fall f (m, up): the upper river bed minus the rock thickness.</summary>
+    public double FallShelfBottomM(in Waterfall f) => RiverSurfaceAt(f.LipY - 1.0) - 4.0 - FallShelfThickM;
+
+    /// <summary>Register the shelf overhangs as collision solids (call after the landmarks reset the list).</summary>
+    public void RegisterWaterfallSolids()
+    {
+        foreach (Waterfall f in Waterfalls)
+        {
+            double backY = f.LipY - FallRecessM;
+            WorldSolids.Boxes.Add(new WorldSolids.Box(f.X, (backY + f.LipY) * 0.5, FallNotchHalfSpanM, (f.LipY - backY) * 0.5, FallShelfBottomM(f), f.UpperM + 1.0));
+        }
+    }
+
     // ---- height field ---------------------------------------------------------------------------
 
     /// <summary>Mean escarpment edge y (before irregularity) for step i (0..2).</summary>
@@ -279,28 +367,60 @@ public sealed class WorldTerrain
     }
 
     /// <summary>Plateau/escarpment height without airport pads or water carving.</summary>
-    public double BaseHeightAt(double x, double y)
+    public double BaseHeightAt(double x, double y) => BaseHeightAt(x, y, false);
+
+    /// <summary>
+    /// Plateau/escarpment height. <paramref name="shelfTop"/> = false: the real terrain, with each waterfall's
+    /// amphitheater notch cut in (vertical concave back wall FallRecessAt behind the lip, lower plateau in front
+    /// of it). true: the surface the rock SHELF carries — the same wall but dropping vertically AT the lip, with
+    /// no recess (used for the river surface table and the shelf mesh).
+    /// </summary>
+    public double BaseHeightAt(double x, double y, bool shelfTop)
     {
         double h = 0;
+        Waterfall[] falls = Waterfalls;
         for (int i = 0; i < StepCount; i++)
         {
             double edge = EdgeMeanY(i) + EdgeWander(i, x);
             double t = (edge - y) / EscarpmentWidthM;   // grows as you go west past the edge
-            h += StepHeightM * WallProfile(t);
-            // Rock texture on the wall face: small ledges.
-            if (t > 0 && t < 1) h += 6.0 * System.Math.Sin(x / 23.0) * System.Math.Sin(y / 17.0);
+            double p = WallProfile(t);
+            double w = NotchWeight(falls[i], x);
+            if (w > 0)
+            {
+                // Straight lip, vertical wall: 1 above (west of) the back wall, 0 in the notch.
+                double backY = falls[i].LipY - (shelfTop ? 0.0 : FallRecessAt(falls[i], x));
+                double step = y <= backY ? 1.0 : 0.0;
+                p += (step - p) * w;
+            }
+            h += StepHeightM * p;
+            // Rock texture on the wall face: small ledges (not inside the notch — the face there is sheer).
+            if (t > 0 && t < 1 && w < 0.5) h += 6.0 * System.Math.Sin(x / 23.0) * System.Math.Sin(y / 17.0);
         }
         return h;
     }
 
     /// <summary>Ground height (m, up) including flat airport pads and the lake / river beds.</summary>
-    public double HeightAt(double x, double y)
+    public double HeightAt(double x, double y) => HeightAt(x, y, false);
+
+    /// <summary>Ground height; <paramref name="shelfTop"/> = true gives the un-recessed surface the waterfall shelf carries.</summary>
+    public double HeightAt(double x, double y, bool shelfTop)
     {
-        double h = BaseHeightAt(x, y);
+        double h = BaseHeightAt(x, y, shelfTop);
 
         // Airport pads: exactly flat at field elevation inside the pad, blended over 300 m outside.
+        // Not inside a waterfall notch (real terrain): the Bench pad's corner overhangs the first fall's
+        // amphitheater — the rock SHELF carries it (shelfTop surface); the ground below is the lower plateau.
+        bool inNotch = false;
+        if (!shelfTop)
+        {
+            foreach (Waterfall wf in Waterfalls)
+            {
+                if (NotchWeight(wf, x) > 0 && y > wf.LipY - FallRecessAt(wf, x)) { inNotch = true; break; }
+            }
+        }
         foreach (Airport a in Airports)
         {
+            if (inNotch) break;
             double dx = System.Math.Max(0, System.Math.Abs(x - a.X) - PadHalfX);
             double dy = System.Math.Max(0, System.Math.Abs(y - a.Y) - PadHalfY);
             double d = System.Math.Sqrt(dx * dx + dy * dy);

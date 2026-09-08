@@ -3,7 +3,8 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// The pilot once out of the aircraft: a point mass (90 kg pilot + 15 kg kit) with a capsule visual,
+    /// The pilot once out of the aircraft: a point mass (90 kg pilot + 15 kg kit) drawn as an articulated
+    /// figure (<see cref="PilotFigure"/> under this body's root transform, posed per phase),
     /// optionally strapped to an ejection seat (rocket along the seat's rail direction, then separation),
     /// free-falling with quadratic drag in ISA air + the sim's wind, then under the <see cref="Parachute"/>:
     /// canopy drag (deploying drag area), 3 m/s forward drive along the canopy heading, aileron steering
@@ -41,6 +42,7 @@ namespace FlyingGame.Bridge
         public float AirspeedMs => (Velocity - EgressAir.Wind(Position)).magnitude;
 
         private readonly GameObject _root, _seat, _flame;
+        private readonly PilotFigure _figure;      // the articulated body under _root (poses per phase, toggle arms)
         private Quaternion _rot;
         private float _rocketT = float.MaxValue;   // < RocketBurn2Sec while the seat rocket burns
         private Vector3 _seatUp = Vector3.up;      // rail direction frozen at ejection
@@ -59,10 +61,8 @@ namespace FlyingGame.Bridge
             _rot = initialRotation;
 
             _root = new GameObject("Pilot");
-            Material suit = EgressAir.Unlit(new Color(0.35f, 0.42f, 0.28f));
-            EgressAir.Prim(PrimitiveType.Capsule, "Body", _root.transform, Vector3.zero, new Vector3(0.45f, HalfHeightM, 0.45f), suit);
-            EgressAir.Prim(PrimitiveType.Sphere, "Helmet", _root.transform, new Vector3(0f, 0.72f, 0f), Vector3.one * 0.3f,
-                EgressAir.Unlit(new Color(0.95f, 0.95f, 0.95f)));
+            _figure = new PilotFigure(_root.transform, withSeat ? PilotFigure.Stance.Seated : PilotFigure.Stance.FreeFall);
+            _figure.SetPackVisible(!withSeat);      // the container rides inside the ejection seat until separation
             if (withSeat)
             {
                 _seatUp = seatUp.sqrMagnitude > 0.5f ? seatUp.normalized : Vector3.up;
@@ -81,6 +81,7 @@ namespace FlyingGame.Bridge
             if (!HasSeat) return;
             HasSeat = false;
             _rocketT = float.MaxValue;
+            _figure.SetPackVisible(true);
             if (_flame != null) Object.Destroy(_flame);
             if (_seat != null)
             {
@@ -125,6 +126,7 @@ namespace FlyingGame.Bridge
             if (Landed)
             {
                 Chute?.TickCollapse(dt, Position + Vector3.up * Parachute.RiserM);
+                TickFigure(dt);
                 return;
             }
 
@@ -203,6 +205,31 @@ namespace FlyingGame.Bridge
 
             _root.transform.SetPositionAndRotation(Position, _rot);
             Chute?.Place(Harness, _hang, HeadingDir, Steer * fill);
+            TickFigure(dt);
+        }
+
+        /// <summary>
+        /// Pose the figure for the phase: seated on the seat, spread in free fall, hanging with both hands on
+        /// the toggles once the canopy is full (the steered side's arm pulls down), standing once landed. The
+        /// toggle lines hang from a point 1.2 m up the risers, 0.42 m either side of the hang axis.
+        /// </summary>
+        private void TickFigure(float dt)
+        {
+            PilotFigure.Stance stance = Landed ? PilotFigure.Stance.Landed
+                : HasSeat ? PilotFigure.Stance.Seated
+                : Chute != null && Chute.Inflated ? PilotFigure.Stance.Hanging
+                : PilotFigure.Stance.FreeFall;
+            bool toggles = stance == PilotFigure.Stance.Hanging;
+            Vector3 anchorL = Vector3.zero, anchorR = Vector3.zero;
+            if (toggles)
+            {
+                Transform t = _root.transform;
+                Vector3 top = Harness + _hang * PilotFigure.ToggleAnchorAboveHarnessM;
+                Vector3 span = _rot * Vector3.right * PilotFigure.ToggleAnchorHalfSpanM;
+                anchorL = t.InverseTransformPoint(top - span);
+                anchorR = t.InverseTransformPoint(top + span);
+            }
+            _figure.Tick(dt, stance, Steer, toggles, anchorL, anchorR);
         }
 
         private void Land(float surf, Vector3 wind)

@@ -1560,8 +1560,8 @@
   ],
   "limits": {
     "vneMs": 60,
-    "gMax": 4.7,
-    "gMin": -2.3
+    "gMax": 4.67,
+    "gMin": -2.33
   },
   "wakeBlanketMaxLoss": 0.65,
   "stallDynamics": {

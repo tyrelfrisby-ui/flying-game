@@ -42,11 +42,13 @@ namespace FlyingGame.Bridge
             var root = new GameObject("World");
             BuildTerrain(WorldTerrain.Active, root.transform);
             BuildWater(WorldTerrain.Active, root.transform);
+            BuildWaterfalls(WorldTerrain.Active, root.transform);
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             BuildBridge(WorldTerrain.Active, root.transform);
             BuildCropField(WorldTerrain.Active, root.transform);
             BuildLandmarks(WorldTerrain.Active, root.transform);
             Landmarks.RegisterSolids(WorldTerrain.Active);
+            WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
             BuildAeroBox(WorldTerrain.Active, root.transform);
             BuildRaceCourse(WorldTerrain.Active, root.transform);
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
@@ -60,51 +62,105 @@ namespace FlyingGame.Bridge
 
         private const double MinX = -7000, MaxX = 9000, MinY = -11500, MaxY = 6500;
 
-        private static void BuildTerrain(WorldTerrain t, Transform parent)
+        private const double CoarseStep = 60.0, FineStep = 6.0;
+
+        /// <summary>Terrain vertex colour by slope and height (shared by the coarse mesh and the fine waterfall patches).</summary>
+        private static Color TerrainColor(WorldTerrain t, double x, double y, double h)
         {
-            const double step = 60.0;
-            int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
-            var verts = new Vector3[nx * ny];
-            var cols = new Color[nx * ny];
             var grass = new Color(0.42f, 0.55f, 0.28f);
             var dry = new Color(0.62f, 0.56f, 0.36f);
             var rock = new Color(0.47f, 0.42f, 0.37f);
             var snow = new Color(0.9f, 0.9f, 0.92f);
+            double dhx = (t.HeightAt(x + 8, y) - t.HeightAt(x - 8, y)) / 16.0;
+            double dhy = (t.HeightAt(x, y + 8) - t.HeightAt(x, y - 8)) / 16.0;
+            float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
+            float hf = Mathf.Clamp01((float)h / 2800f);
+            Color c = Color.Lerp(grass, dry, hf * 0.9f);
+            if (h > 2500) c = Color.Lerp(c, snow, Mathf.Clamp01((float)(h - 2500) / 300f));
+            float rockiness = Mathf.Clamp01((slope - 0.35f) / 0.6f);
+            c = Color.Lerp(c, rock, rockiness);
+            c.a = 1f - Mathf.Clamp01(slope / 0.08f); // flatness → field grid lines
+            return c;
+        }
+
+        /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
+        private static (int i0, int i1, int j0, int j1) FinePatchCells(WorldTerrain.Waterfall f)
+        {
+            double hx = WorldTerrain.FallNotchHalfSpanM + 240;
+            int i0 = (int)System.Math.Floor((f.X - hx - MinX) / CoarseStep), i1 = (int)System.Math.Ceiling((f.X + hx - MinX) / CoarseStep);
+            int j0 = (int)System.Math.Floor((f.LipY - 240 - MinY) / CoarseStep), j1 = (int)System.Math.Ceiling((f.LipY + 460 - MinY) / CoarseStep);
+            return (i0, i1, j0, j1);
+        }
+
+        private static void BuildTerrain(WorldTerrain t, Transform parent)
+        {
+            double step = CoarseStep;
+            int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
+            var verts = new Vector3[nx * ny];
+            var cols = new Color[nx * ny];
             for (int j = 0; j < ny; j++)
             for (int i = 0; i < nx; i++)
             {
                 double x = MinX + i * step, y = MinY + j * step;
                 double h = t.HeightAt(x, y);
                 verts[j * nx + i] = U(x, y, h);
-                // Colour by slope and height.
-                double dhx = (t.HeightAt(x + 8, y) - t.HeightAt(x - 8, y)) / 16.0;
-                double dhy = (t.HeightAt(x, y + 8) - t.HeightAt(x, y - 8)) / 16.0;
-                float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
-                float hf = Mathf.Clamp01((float)h / 2800f);
-                Color c = Color.Lerp(grass, dry, hf * 0.9f);
-                if (h > 2500) c = Color.Lerp(c, snow, Mathf.Clamp01((float)(h - 2500) / 300f));
-                float rockiness = Mathf.Clamp01((slope - 0.35f) / 0.6f);
-                c = Color.Lerp(c, rock, rockiness);
-                c.a = 1f - Mathf.Clamp01(slope / 0.08f); // flatness → field grid lines
-                cols[j * nx + i] = c;
+                cols[j * nx + i] = TerrainColor(t, x, y, h);
             }
-            var tris = new int[(nx - 1) * (ny - 1) * 6];
-            int k = 0;
+            // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
+            var patches = new List<(int i0, int i1, int j0, int j1)>();
+            foreach (WorldTerrain.Waterfall f in t.Waterfalls) patches.Add(FinePatchCells(f));
+            var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)
             for (int i = 0; i < nx - 1; i++)
             {
+                bool skip = false;
+                foreach (var p in patches) if (i >= p.i0 && i < p.i1 && j >= p.j0 && j < p.j1) { skip = true; break; }
+                if (skip) continue;
                 int a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
                 // Unity is left-handed: (east, up, north). Winding for an upward normal.
-                tris[k++] = a; tris[k++] = b; tris[k++] = c;
-                tris[k++] = b; tris[k++] = d; tris[k++] = c;
+                tris.Add(a); tris.Add(b); tris.Add(c);
+                tris.Add(b); tris.Add(d); tris.Add(c);
             }
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "Terrain" };
-            mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris;
+            mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris.ToArray();
             mesh.RecalculateNormals(); mesh.RecalculateBounds();
             var go = new GameObject("Terrain");
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+
+            // Fine patches: same height field at 6 m so the lip, the sheer concave back wall and the notch read.
+            // Their edges land exactly on the coarse grid lines (60 / 6 = 10), so there is no seam.
+            foreach (var p in patches)
+            {
+                double x0 = MinX + p.i0 * step, x1 = MinX + p.i1 * step, y0 = MinY + p.j0 * step, y1 = MinY + p.j1 * step;
+                int fx = (int)System.Math.Round((x1 - x0) / FineStep) + 1, fy = (int)System.Math.Round((y1 - y0) / FineStep) + 1;
+                var fv = new Vector3[fx * fy]; var fc = new Color[fx * fy];
+                for (int j = 0; j < fy; j++)
+                for (int i = 0; i < fx; i++)
+                {
+                    double x = x0 + i * FineStep, y = y0 + j * FineStep;
+                    double h = t.HeightAt(x, y);
+                    fv[j * fx + i] = U(x, y, h);
+                    fc[j * fx + i] = TerrainColor(t, x, y, h);
+                }
+                var ft = new int[(fx - 1) * (fy - 1) * 6];
+                int k = 0;
+                for (int j = 0; j < fy - 1; j++)
+                for (int i = 0; i < fx - 1; i++)
+                {
+                    int a = j * fx + i, b = a + 1, c = a + fx, d = c + 1;
+                    ft[k++] = a; ft[k++] = b; ft[k++] = c;
+                    ft[k++] = b; ft[k++] = d; ft[k++] = c;
+                }
+                var fm = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "TerrainFine" };
+                fm.vertices = fv; fm.colors = fc; fm.triangles = ft;
+                fm.RecalculateNormals(); fm.RecalculateBounds();
+                var fgo = new GameObject("TerrainFine");
+                fgo.transform.SetParent(parent, false);
+                fgo.AddComponent<MeshFilter>().sharedMesh = fm;
+                fgo.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+            }
         }
 
         // ---- water -------------------------------------------------------------------------------
@@ -130,19 +186,148 @@ namespace FlyingGame.Bridge
             var rv = new List<Vector3>(); var rt = new List<int>();
             double halfW = WorldTerrain.RiverHalfWidthM + 4;
             int n = 0;
+            double prevSurf = 0;
             for (double y = MinY + 200; y <= MaxY - 200; y += 25)
             {
                 double cx = WorldTerrain.RiverCentreX(y);
                 double surf = t.WaterSurfaceAt(cx, y) ?? (t.BaseHeightAt(cx, y) - 2.0);
                 rv.Add(U(cx - halfW, y, surf)); rv.Add(U(cx + halfW, y, surf));
-                if (n > 0)
+                // Break the ribbon at a plunge fall (drop ≫ a staircase step): the curtain mesh takes over.
+                if (n > 0 && prevSurf - surf < 100)
                 {
                     int b = rv.Count - 4;
                     rt.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
                 }
+                prevSurf = surf;
                 n++;
             }
             Spawn("River", rv.ToArray(), rt.ToArray(), water, parent, true);
+        }
+
+        // ---- plunge waterfalls -------------------------------------------------------------------
+
+        /// <summary>
+        /// For each canyon-wall crossing (<see cref="WorldTerrain.Waterfalls"/>): the rock SHELF that carries
+        /// the river to the lip (top = the un-recessed terrain, flat underside; the airframe collides with the
+        /// matching WorldSolids box), the free-falling CURTAIN (a parabolic sheet leaving the lip at
+        /// FallLipSpeedMs, widening and whitening as it falls; flowing-water shader), and the MIST at the
+        /// plunge pool. The concave back wall and the notch floor are in the terrain mesh already.
+        /// </summary>
+        private static void BuildWaterfalls(WorldTerrain t, Transform parent)
+        {
+            var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
+            var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
+            var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.55f));
+            mistMat.SetFloat("_Mist", 1f);
+
+            foreach (WorldTerrain.Waterfall f in t.Waterfalls)
+            {
+                var root = new GameObject($"Waterfall-{f.Step}");
+                root.transform.SetParent(parent, false);
+
+                // -- shelf: grid of the shelf-top surface over the recess footprint, skirted down to a flat underside.
+                {
+                    const double step = 10.0;
+                    double x0 = f.X - WorldTerrain.FallNotchHalfSpanM, x1 = f.X + WorldTerrain.FallNotchHalfSpanM;
+                    double y0 = f.LipY - WorldTerrain.FallRecessM - 2, y1 = f.LipY + 0.5;
+                    double bottom = t.FallShelfBottomM(f);
+                    int nx = (int)((x1 - x0) / step) + 1, ny = (int)((y1 - y0) / step) + 1;
+                    var v = new List<Vector3>(); var tr = new List<int>();
+                    for (int j = 0; j < ny; j++)
+                    for (int i = 0; i < nx; i++)
+                    {
+                        double x = x0 + i * step, y = y0 + j * step;
+                        // Only the part of the footprint that is actually undercut (the recess is concave in plan).
+                        double back = f.LipY - WorldTerrain.FallRecessAt(f, x);
+                        double yy = System.Math.Max(y, back - 0.5);
+                        v.Add(U(x, yy, t.HeightAt(x, yy, shelfTop: true)));
+                    }
+                    for (int j = 0; j < ny - 1; j++)
+                    for (int i = 0; i < nx - 1; i++)
+                    {
+                        int a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+                        tr.AddRange(new[] { a, b, c, b, d, c });
+                    }
+                    // Underside (flat) + front face along the lip + two ends: a closed-looking slab.
+                    int baseIdx = v.Count;
+                    v.Add(U(x0, y0, bottom)); v.Add(U(x1, y0, bottom)); v.Add(U(x0, y1, bottom)); v.Add(U(x1, y1, bottom));
+                    tr.AddRange(new[] { baseIdx, baseIdx + 2, baseIdx + 1, baseIdx + 1, baseIdx + 2, baseIdx + 3 });
+                    // Lip face: from the top row down to the underside.
+                    int topRow = (ny - 1) * nx;
+                    for (int i = 0; i < nx - 1; i++)
+                    {
+                        int a = topRow + i, b = a + 1;
+                        int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
+                        int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
+                        tr.AddRange(new[] { a, b, p0, b, p1, p0 });
+                    }
+                    // End faces (x0 and x1 columns).
+                    foreach (int col in new[] { 0, nx - 1 })
+                    {
+                        for (int j = 0; j < ny - 1; j++)
+                        {
+                            int a = j * nx + col, b = a + nx;
+                            int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
+                            int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
+                            tr.AddRange(new[] { a, p0, b, b, p0, p1 });
+                        }
+                    }
+                    Spawn("Shelf", v.ToArray(), tr.ToArray(), rock, root.transform, true);
+                }
+
+                // -- curtain: parabola from the lip; two sheets (front/back) for depth.
+                {
+                    double zTop = t.RiverSurfaceAt(f.LipY - 1.0);
+                    double zPool = t.RiverSurfaceAt(f.LipY + WorldTerrain.RiverTableStepPublic + 2.0);
+                    double drop = System.Math.Max(10.0, zTop - zPool);
+                    double tFall = System.Math.Sqrt(2.0 * drop / 9.81);
+                    const int rows = 48;
+                    foreach (double sheet in new[] { 0.0, -3.0 })
+                    {
+                        var v = new Vector3[(rows + 1) * 2]; var uv = new Vector2[(rows + 1) * 2];
+                        var tr = new int[rows * 6];
+                        for (int k = 0; k <= rows; k++)
+                        {
+                            double s01 = (double)k / rows;
+                            double tk = tFall * s01;
+                            double y = f.LipY + WorldTerrain.FallLipSpeedMs * tk + sheet;
+                            double z = zTop - 0.5 * 9.81 * tk * tk;
+                            double half = (WorldTerrain.RiverHalfWidthM + 2) * (1.0 + 0.25 * s01);   // the sheet spreads as it falls
+                            v[k * 2] = U(f.X - half, y, z); v[k * 2 + 1] = U(f.X + half, y, z);
+                            uv[k * 2] = new Vector2(0, (float)s01); uv[k * 2 + 1] = new Vector2(1, (float)s01);
+                            if (k > 0)
+                            {
+                                int b = (k - 1) * 2, o = (k - 1) * 6;
+                                tr[o] = b; tr[o + 1] = b + 2; tr[o + 2] = b + 1; tr[o + 3] = b + 1; tr[o + 4] = b + 2; tr[o + 5] = b + 3;
+                            }
+                        }
+                        SpawnUv(sheet == 0.0 ? "Curtain" : "CurtainBack", v, uv, tr, curtainMat, root.transform);
+                    }
+
+                    // -- mist at the plunge pool: three crossed vertical quads, 160 m wide, 90 m tall, boiling.
+                    double yHit = f.LipY + WorldTerrain.FallLipSpeedMs * tFall;
+                    for (int q = 0; q < 3; q++)
+                    {
+                        double ang = q * System.Math.PI / 3.0;
+                        double dx = System.Math.Cos(ang) * 80, dy = System.Math.Sin(ang) * 80;
+                        var v = new[] { U(f.X - dx, yHit - dy, zPool - 2), U(f.X + dx, yHit + dy, zPool - 2), U(f.X - dx, yHit - dy, zPool + 90), U(f.X + dx, yHit + dy, zPool + 90) };
+                        var uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) };
+                        SpawnUv("Mist", v, uv, new[] { 0, 2, 1, 1, 2, 3 }, mistMat, root.transform);
+                    }
+                }
+            }
+        }
+
+        private static GameObject SpawnUv(string name, Vector3[] v, Vector2[] uv, int[] tris, Material m, Transform parent)
+        {
+            var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = name };
+            mesh.vertices = v; mesh.uv = uv; mesh.triangles = tris;
+            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.AddComponent<MeshRenderer>().sharedMaterial = m;
+            return go;
         }
 
         private static GameObject Spawn(string name, Vector3[] v, int[] tris, Material m, Transform parent, bool doubleSided)

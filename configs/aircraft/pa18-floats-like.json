@@ -1495,7 +1495,7 @@
   "limits": {
     "vneMs": 68,
     "gMax": 3.8,
-    "gMin": -1.5
+    "gMin": -1.52
   },
   "towPoint": {
     "pos": [

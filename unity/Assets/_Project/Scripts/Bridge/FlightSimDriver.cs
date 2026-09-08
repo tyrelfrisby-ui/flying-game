@@ -36,8 +36,12 @@ namespace FlyingGame.Bridge
         public double AlphaDeg { get; private set; }
         public double BetaDeg { get; private set; }
 
-        /// <summary>Ground-frame velocity in Unity world axes (the flight path the chase camera follows).</summary>
+        /// <summary>Ground-frame velocity in Unity world axes (the inertial flight path: HUD flight-path marker).</summary>
         public Vector3 WorldVelocityUnity { get; private set; }
+
+        /// <summary>AIR-relative velocity in Unity world axes (ground velocity minus the local wind). The chase
+        /// camera follows THIS, so a steady crosswind crab does not read as a yaw — only real sideslip does.</summary>
+        public Vector3 AirVelocityUnity { get; private set; }
 
         // Shared telemetry (audio / structure / HUD / net). Safe before Spawn: null Sim → neutral values.
         public double LoadFactorG => Sim?.Aircraft?.LoadFactorZ ?? 1.0;
@@ -224,7 +228,9 @@ namespace FlyingGame.Bridge
             transform.SetPositionAndRotation(CoordinateMap.ToUnity(s.Position), CoordinateMap.ToUnity(s.Attitude));
 
             Vec3 v = s.Velocity;
-            WorldVelocityUnity = CoordinateMap.ToUnity(s.Attitude.Rotate(v));
+            Vec3 groundVelWorld = s.Attitude.Rotate(v);
+            WorldVelocityUnity = CoordinateMap.ToUnity(groundVelWorld);
+            AirVelocityUnity = CoordinateMap.ToUnity(groundVelWorld - Atmosphere.WindAtPosition(s.Position));
             IasMs = v.Length;
             AltitudeM = -s.Position.Z;
             AlphaDeg = System.Math.Atan2(v.Z, v.X) * 180.0 / System.Math.PI;

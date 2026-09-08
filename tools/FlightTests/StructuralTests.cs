@@ -48,15 +48,16 @@ public class StructuralTests
     public void LimitsComeFromConfigWithUltimateAtOnePointFive()
     {
         var (ac, _) = Spawn(Load("glider-2-33-like"), 30, 0);
-        Assert.Equal(4.7, ac.Structure.LimitPosG, 6);
-        Assert.Equal(-2.3, ac.Structure.LimitNegG, 6);
-        Assert.Equal(4.7 * 1.5, ac.Structure.UltimatePosG, 6);
-        Assert.Equal(-2.3 * 1.5, ac.Structure.UltimateNegG, 6);
+        // SGS 2-33 flight manual: limit load factors +4.67 / -2.33 g (utility category).
+        Assert.Equal(4.67, ac.Structure.LimitPosG, 6);
+        Assert.Equal(-2.33, ac.Structure.LimitNegG, 6);
+        Assert.Equal(4.67 * 1.5, ac.Structure.UltimatePosG, 6);
+        Assert.Equal(-2.33 * 1.5, ac.Structure.UltimateNegG, 6);
         Assert.Equal(0.0, ac.Structure.SeverityFor(1.0));
-        Assert.Equal(0.0, ac.Structure.SeverityFor(4.7));
-        Assert.InRange(ac.Structure.SeverityFor(5.875), 0.49, 0.51);   // halfway limit→ultimate
+        Assert.Equal(0.0, ac.Structure.SeverityFor(4.67));
+        Assert.InRange(ac.Structure.SeverityFor(4.67 * 1.25), 0.49, 0.51);   // halfway limit→ultimate
         Assert.Equal(1.0, ac.Structure.SeverityFor(9.0));
-        Assert.InRange(ac.Structure.SeverityFor(-2.875), 0.49, 0.51);  // negative side, by sign
+        Assert.InRange(ac.Structure.SeverityFor(-2.33 * 1.25), 0.49, 0.51);  // negative side, by sign
     }
 
     [Fact]

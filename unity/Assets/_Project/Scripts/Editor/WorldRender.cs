@@ -45,6 +45,10 @@ namespace FlyingGame.EditorTools
                 ("eiffel", new Vector3(1100f, 120f, -3900f), new Vector3(700f, 120f, -3500f)),
                 ("town", new Vector3(2900f, 400f, -3100f), new Vector3(2900f, 60f, -1600f)),
                 ("town-street", new Vector3(2920f, 40f, -2560f), new Vector3(2920f, 60f, -1300f)),
+                // Plunge waterfall at the first wall (sim x 1849, lip y −2002): front, from inside the slot, and the lip.
+                ("waterfall-front", new Vector3(-1350f, 520f, 2350f), new Vector3(-1985f, 380f, 1849f)),
+                ("waterfall-slot", new Vector3(-2030f, 350f, 1480f), new Vector3(-2030f, 330f, 2200f)),
+                ("waterfall-lip", new Vector3(-1900f, 880f, 1700f), new Vector3(-2010f, 780f, 1849f)),
             };
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {

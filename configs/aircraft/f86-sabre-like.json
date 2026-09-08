@@ -1771,7 +1771,7 @@
   "gear": [],
   "limits": {
     "vneMs": 300,
-    "gMax": 7.3,
+    "gMax": 7.33,
     "gMin": -3.0
   }
 }
