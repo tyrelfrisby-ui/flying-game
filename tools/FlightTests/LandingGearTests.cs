@@ -120,4 +120,51 @@ public class LandingGearTests
         Assert.True(ac.State.Position.X > 20, "Must roll forward down the runway, not swap ends.");
     }
 
+
+    private static Aircraft MainsAboutToTouch(string id, double pitchDeg, double sinkMs, double speed)
+    {
+        var c = Cfg(id);
+        double p = pitchDeg * System.Math.PI / 180;
+        var att = new Quat(0, System.Math.Sin(p / 2), 0, System.Math.Cos(p / 2));
+        var mains = c.Gear.FindAll(g => !g.IsTailwheel);
+        double mz = -999; foreach (var g in mains) mz = System.Math.Max(mz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
+        var pos = new Vec3(0, 0, -mz - 0.10);                       // mains ~10 cm above the runway
+        var vel = att.Conjugate().Rotate(new Vec3(speed, 0, sinkMs)); // forward + sink, world frame
+        return new Aircraft(c, new RigidBodyState(pos, att, vel, Vec3.Zero), new ControlDeflections(0, 0, 0, 0));
+    }
+
+    [Fact]
+    public void TaildraggerMainTouchdownPitchesNoseUp()
+    {
+        // Mains AHEAD of the CG: the touchdown reaction pitches nose-UP -> AoA/lift rise -> bounce
+        // tendency (the classic wheel-landing bounce; the pilot must ease forward).
+        var ac = MainsAboutToTouch("pa18-cub-like", 6, 1.5, 25);
+        var sim = new SimLoop(ac);
+        double aoaBefore = 0, maxQ = -9;
+        for (int i = 0; i < 20; i++)
+        {
+            bool wasAir = !LandingGear.OnGround(ac.Config, ac.State);
+            sim.RunFor(0.02, new ControlInputs(0, 0, 0, 0));
+            if (wasAir && LandingGear.OnGround(ac.Config, ac.State))
+                aoaBefore = System.Math.Atan2(ac.State.Velocity.Z, ac.State.Velocity.X) * 57.3;
+            maxQ = System.Math.Max(maxQ, ac.State.Rates.Y);
+        }
+        Assert.True(maxQ > 0.05, $"Taildragger main touchdown must pitch nose-UP (q>0); maxQ={maxQ:F2}");
+    }
+
+    [Fact]
+    public void TricycleMainTouchdownDerotatesNoseDown()
+    {
+        // Mains BEHIND the CG: touchdown pitches nose-DOWN (derotation) -> AoA/lift fall -> settles.
+        var ac = MainsAboutToTouch("c172-like", 8, 1.5, 28);
+        var sim = new SimLoop(ac);
+        double minQ = 9;
+        for (int i = 0; i < 25; i++)
+        {
+            sim.RunFor(0.02, new ControlInputs(0, 0, 0, 0));
+            minQ = System.Math.Min(minQ, ac.State.Rates.Y);
+        }
+        Assert.True(minQ < -0.05, $"Tricycle main touchdown must derotate nose-DOWN (q<0); minQ={minQ:F2}");
+    }
+
 }
