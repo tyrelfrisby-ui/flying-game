@@ -1449,7 +1449,8 @@
       "maxDeflRad": 0.9,
       "dragOnly": true,
       "axis": "throttleLever",
-      "axisMap": "aftOnly"
+      "axisMap": "aftOnly",
+      "plateAreaM2": 0.45
     }
   },
   "fuselage": {

@@ -543,9 +543,13 @@ public static class AeroModel
             }
         }
 
-        const double deployedPlateCd = 1.6; // flat-plate-like speed brake, fully deployed
+        // Upper-surface spoiler panels: flat-plate drag on the PANEL area (not the whole wing — that made the
+        // 2-33 dive vertically at 27 kt with the brakes out; owner 2026-09-08). Full 2-33 spoilers take L/D
+        // from ~23 to ~7, i.e. ΔCd ≈ 0.03 on wing area, which 0.45 m² of panel at Cd 1.2 gives.
+        const double deployedPlateCd = 1.2;
+        double plateArea = config.Controls.Spoiler.PlateAreaM2 > 0 ? config.Controls.Spoiler.PlateAreaM2 : 0.02 * wingArea;
         double q = 0.5 * airDensity * speed * speed;
-        double extraDrag = q * wingArea * deployedPlateCd * controls.SpoilerFraction;
+        double extraDrag = q * plateArea * deployedPlateCd * controls.SpoilerFraction;
         totalForce -= (bodyVelocity / speed) * extraDrag;
     }
 

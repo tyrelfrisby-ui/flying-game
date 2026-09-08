@@ -163,6 +163,9 @@ public sealed class SpoilerConfig
     public bool DragOnly { get; set; } = true;
     public string Axis { get; set; } = "throttleLever";
     public string AxisMap { get; set; } = "aftOnly";
+    /// <summary>Total frontal area of the deployed panels (m²). 0 = 2 % of wing area (2-33: two ~1.25×0.18 m
+    /// upper-surface panels ≈ 0.45 m²). Drag = q · area · Cd 1.2 · fraction.</summary>
+    public double PlateAreaM2 { get; set; }
 }
 
 public sealed class FuselageConfig
