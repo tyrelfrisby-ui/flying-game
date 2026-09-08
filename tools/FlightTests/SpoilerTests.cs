@@ -24,7 +24,7 @@ public class SpoilerTests
         double S = 0; foreach (var sf in c.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) S += st.Area;
         double q = 0.5 * rho * V * V;
         double dCd = -Vec3.Dot(f1 - f0, vel / V) / (q * S);
-        Assert.InRange(dCd, 0.02, 0.06);
+        Assert.InRange(dCd, 0.05, 0.10);   // owner: 0.45 m² of panel "had virtually no effect"; 1.2 m² effective (panel drag + spoiled-lift induced drag) is the middle
     }
 
     [Fact]

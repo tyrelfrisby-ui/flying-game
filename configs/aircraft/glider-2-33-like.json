@@ -1450,7 +1450,7 @@
       "dragOnly": true,
       "axis": "throttleLever",
       "axisMap": "aftOnly",
-      "plateAreaM2": 0.45
+      "plateAreaM2": 1.2
     }
   },
   "fuselage": {
