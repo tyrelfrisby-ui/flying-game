@@ -14,24 +14,8 @@ namespace FlyingGame.Bridge
     {
         private void Start()
         {
-            BuildRidge();
+            // Ridge lift now lives on the first canyon wall (WorldBuilder); only thermals here.
             BuildThermals();
-        }
-
-        private void BuildRidge()
-        {
-            // A ridge running along sim +x (Unity +z), crest 200 m, off to the west side of the runway.
-            var crestSim = new Vec3(600, -900, -200); // 900 m left of the strip, 200 m tall
-            Atmosphere.ActiveRidge = new Ridge(crestSim, new Vec3(1, 0, 0), 200, 350);
-
-            // Visual: a long triangular-prism hill. Unity: crest at ToUnity(crest), ridge along z.
-            var hill = new GameObject("Ridge");
-            var mf = hill.AddComponent<MeshFilter>();
-            var mr = hill.AddComponent<MeshRenderer>();
-            mr.material = new Material(Shader.Find("Unlit/Color")) { color = new Color(0.30f, 0.42f, 0.24f) };
-            mf.mesh = RidgePrism(length: 2400f, halfBase: 500f, height: 200f);
-            Vector3 crestUnity = CoordinateMap.ToUnity(new Vec3(crestSim.X, crestSim.Y, 0)); // base at ground
-            hill.transform.position = new Vector3(crestUnity.x, 0, crestUnity.z);
         }
 
         private void BuildThermals()
@@ -89,27 +73,5 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Triangular-prism ridge: peaked cross-section swept along its axis (Unity z).</summary>
-        private static Mesh RidgePrism(float length, float halfBase, float height)
-        {
-            var mesh = new Mesh();
-            float hl = length / 2f;
-            // 6 verts: two triangular end caps (base-left, base-right, apex) at ±hl along z.
-            var v = new Vector3[]
-            {
-                new(-halfBase, 0, -hl), new(halfBase, 0, -hl), new(0, height, -hl),
-                new(-halfBase, 0, hl),  new(halfBase, 0, hl),  new(0, height, hl),
-            };
-            var tri = new[]
-            {
-                0,2,1, 3,4,5,                 // end caps
-                0,1,4, 0,4,3,                 // bottom (skip, underground) - keep for closure
-                0,5,2, 0,3,5,                 // windward/leeward face 1
-                1,2,5, 1,5,4,                 // face 2
-            };
-            mesh.vertices = v;
-            mesh.triangles = tri;
-            mesh.RecalculateNormals();
-            return mesh;
-        }
     }
 }

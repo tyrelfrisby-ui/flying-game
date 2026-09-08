@@ -8,10 +8,13 @@ namespace FlyingGame.Bridge
     /// RC-transmitter dual-touchpad controls (build-order step 5), the primary on-device input. All
     /// game controls sit along the BOTTOM edge of the screen (owner request); the HUD owns the top.
     ///
-    ///   LEFT pad  : square. X = rudder (spring back to centre),  Y = THROTTLE (sticky — holds where
-    ///               you leave it, like a real throttle / RC left stick). On the glider this same axis
-    ///               is the speed-brake lever (down = deployed) per DATA-CONTRACTS.md. The throttle
-    ///               position is shown in percent above the pad.
+    ///   LEFT pad  : square. X = rudder (spring back to centre),  Y = THROTTLE + WHEEL BRAKES on one
+    ///               sticky axis (owner spec, standard for every type): top 75 % of travel is throttle
+    ///               (full at the top, idle at 25 %), 20–25 % is a dead band so idle is easy to find
+    ///               without touching the brakes, and 20 % → 0 is progressively stronger braking.
+    ///               Rudder biases the brakes left/right while they are applied (toe-brake feel).
+    ///               On the glider the upper band is the speed-brake lever (top = stowed, 25 % = full
+    ///               out) and the lower band is the wheel brake, same geometry.
     ///   RIGHT pad : square. X = aileron (spring),  Y = elevator (spring). Up = push = nose DOWN
     ///               (realistic stick sense); flip <see cref="InvertElevator"/> for arcade sense.
     ///   TRIM      : a vertical pitch-trim slider beside the right pad, like the trim lever on an RC
@@ -32,6 +35,9 @@ namespace FlyingGame.Bridge
         public float PadHalfFraction = 0.20f;  // pad half-size as a fraction of min(screen w,h)
         public bool InvertElevator = false;     // false = realistic (up = nose down)
         public float TrimAuthority = 0.4f;      // full trim slider = this much elevator (stick units)
+        public float IdleFraction = 0.25f;      // knob height (0 bottom..1 top) where throttle reaches idle
+        public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
+        public float BrakeRudderBias = 0.8f;    // full rudder shifts this much braking to one side
         public float GrabSlop = 0.35f;          // a touch may begin this far outside a pad (x half-size) and still grab it
 
         // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2).
@@ -45,8 +51,8 @@ namespace FlyingGame.Bridge
         private FlightSimDriver _driver;
 
         // Live control state (already shaped, -1..1). Throttle and trim are sticky so they live across frames.
-        private float _rudder, _throttle, _aileron, _elevator, _pitchTrim;
-        private bool _brakeHeld;
+        private float _rudder, _throttle, _aileron, _elevator, _pitchTrim; // _throttle = left-pad Y knob, -1 (bottom)..1 (top)
+        private bool _brakeHeld;                                          // Brakes button (momentary, both sides)
 
         // Pad geometry recomputed each frame from screen size (screen px, origin bottom-left).
         private Vector2 _leftCenter, _rightCenter;
@@ -84,6 +90,9 @@ namespace FlyingGame.Bridge
         /// <summary>Preset the pitch-trim slider to the spawn trim so a neutral stick holds level flight.</summary>
         private void PresetTrim()
         {
+            _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * 0.5f); // spawn at half power (glider: brakes half stowed → top = stowed... see below)
+            if (_driver.Sim?.Aircraft?.Config?.Propulsion == null) _throttle = AxisForFraction(1f); // glider: speed brake stowed
+            _leftKnob = IdleLeftKnob();
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
         }
@@ -268,15 +277,28 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>Left-pad Y knob (-1..1) → throttle lever (0..1 power) and pad braking (0..1).</summary>
+        private (float throttle01, float brake) SplitLeftAxis()
+        {
+            float k = (_throttle + 1f) * 0.5f;                 // 0 bottom .. 1 top
+            float throttle01 = Mathf.Clamp01((k - IdleFraction) / (1f - IdleFraction));
+            float brake = k < BrakeStartFraction ? Mathf.Clamp01((BrakeStartFraction - k) / BrakeStartFraction) : 0f;
+            return (throttle01, brake);
+        }
+
         private void PublishToDriver()
         {
-            _driver.Sim.Aircraft.BrakeInput = _brakeHeld ? 1f : 0f;
+            (float throttle01, float padBrake) = SplitLeftAxis();
+            float brake = Mathf.Max(padBrake, _brakeHeld ? 1f : 0f);
+            _driver.Sim.Aircraft.BrakeInput = brake;
+            _driver.Sim.Aircraft.BrakeBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
             float trim = (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
             float elevator = Mathf.Clamp(_elevator + trim, -1f, 1f);
-            // ThrottleLever: -1 = full forward (power / stowed brake), +1 = full aft (idle / brake out).
-            // Pad up (throttle +1) = full power → lever -1, so lever = -throttle.
-            _driver.Inputs = new ControlInputs(_aileron, elevator, _rudder, -_throttle);
+            // ThrottleLever: -1 = full forward (full power / brake stowed), +1 = full aft (idle / brake out).
+            // Powered: lever = 1 - 2·throttle01. Glider: the same upper band is the speed-brake lever.
+            float lever = 1f - 2f * throttle01;
+            _driver.Inputs = new ControlInputs(_aileron, elevator, _rudder, lever);
         }
 
         // ---- shaping helpers -------------------------------------------------
@@ -295,9 +317,8 @@ namespace FlyingGame.Bridge
 
         private void DoReset()
         {
-            _rudder = _throttle = _aileron = _elevator = 0f;
+            _rudder = _aileron = _elevator = 0f;
             _leftFinger = _rightFinger = _trimFinger = int.MinValue;
-            _leftKnob = _leftCenter;
             _rightKnob = _rightCenter;
             _driver.ResetFlight(); // fires AircraftChanged → PresetTrim
         }
@@ -315,15 +336,23 @@ namespace FlyingGame.Bridge
             EnsureStyles();
 
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
-            string leftValue = powered
-                ? $"THR {Mathf.RoundToInt((1f + _throttle) * 50f)}%"
-                : $"BRAKE {Mathf.RoundToInt(Mathf.Max(0f, -_throttle) * 100f)}%";
+            (float thr01, float padBrake) = SplitLeftAxis();
+            string leftValue = padBrake > 0f
+                ? $"BRAKE {Mathf.RoundToInt(padBrake * 100f)}%"
+                : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt((1f - thr01) * 100f)}%";
             DrawPad(_leftCenter, _leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob, "RUD / THR", leftValue);
             DrawPad(_rightCenter, _rightFinger == int.MinValue ? _rightCenter : _rightKnob, "AIL / ELE", null);
             DrawTrim();
 
             if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
             if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
+            // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
+            var tow = GetComponent<TowController>();
+            if (tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null && !tow.Towing && _driver.GroundStart)
+            {
+                var r = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
+                if (GUI.Button(ToGui(r), "TOW", _btnStyle)) tow.StartTow();
+            }
 
             // Brake is momentary (held via touch/key), so just render its lit/idle state.
             GUI.color = _brakeHeld ? new Color(1f, 0.5f, 0.3f, 0.95f) : new Color(1f, 1f, 1f, 0.55f);
@@ -333,6 +362,9 @@ namespace FlyingGame.Bridge
 
         private Vector2 IdleLeftKnob() =>
             new Vector2(_leftCenter.x, _leftCenter.y + _throttle * _half); // throttle height persists
+
+        /// <summary>Knob axis value (-1..1) for a given knob height fraction (0 bottom..1 top).</summary>
+        private static float AxisForFraction(float f) => f * 2f - 1f;
 
         /// <summary>Square pad with centre cross, X/Y position lines through the knob, and the knob.</summary>
         private void DrawPad(Vector2 c, Vector2 knob, string label, string value)
@@ -344,6 +376,16 @@ namespace FlyingGame.Bridge
             // Background + border.
             GUI.color = new Color(1f, 1f, 1f, 0.16f);
             GUI.DrawTexture(ToGui(pad), _solidTex);
+            if (c == _leftCenter)
+            {
+                // Brake band (bottom 20 %) tinted, dead band 20–25 % darker, idle line at 25 %.
+                GUI.color = new Color(1f, 0.45f, 0.3f, 0.18f);
+                GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y, d, d * BrakeStartFraction)), _solidTex);
+                GUI.color = new Color(0f, 0f, 0f, 0.18f);
+                GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y + d * BrakeStartFraction, d, d * (IdleFraction - BrakeStartFraction))), _solidTex);
+                GUI.color = new Color(1f, 1f, 1f, 0.5f);
+                GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y + d * IdleFraction - t * 0.5f, d, t)), _solidTex);
+            }
             GUI.color = new Color(1f, 1f, 1f, 0.55f);
             DrawFrame(pad, t);
 

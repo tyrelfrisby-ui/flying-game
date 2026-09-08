@@ -48,6 +48,9 @@ namespace FlyingGame.Bridge
                 return;
             }
 
+            // Local ground under the aircraft (plateau airports): the world height field.
+            var simPos = CoordinateMap.ToSim(transform.position);
+            GroundY = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(simPos.X, simPos.Y);
             float altitude = transform.position.y - GroundY;
             if (altitude < -1f || altitude > MaxAltitudeM)
             {

@@ -50,9 +50,20 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>Start a specific challenge (landing page).</summary>
+        public void StartById(string id)
+        {
+            int i = System.Array.IndexOf(Ladder, id);
+            if (i >= 0) _index = i;
+            _overrideId = i >= 0 ? null : id;
+            StartChallenge();
+        }
+
+        private string _overrideId;
+
         private void StartChallenge()
         {
-            ChallengeDefinition def = UnityChallengeLoader.Load(CurrentId);
+            ChallengeDefinition def = UnityChallengeLoader.Load(_overrideId ?? CurrentId);
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(
                 string.IsNullOrEmpty(def.AircraftId) ? _driver.AircraftId : def.AircraftId);
             Runner = new ChallengeRunner(def);

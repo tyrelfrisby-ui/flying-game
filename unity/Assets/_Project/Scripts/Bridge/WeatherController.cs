@@ -26,7 +26,16 @@ namespace FlyingGame.Bridge
         };
         private int _windDir;
         private float _windSpeed = 8f;
-        public string WindLabel => _windDir == 0 ? "Calm" : $"{WindDirs[_windDir].Name} {_windSpeed:F0} m/s";
+        public string WindLabel => _windDir == 0 ? "Calm" : _windDir < 0 ? $"Wind {SessionSettings.WindFromDeg:000}° {_windSpeed:F0} m/s" : $"{WindDirs[_windDir].Name} {_windSpeed:F0} m/s";
+
+        /// <summary>Adopt the landing-page weather (SessionSettings.ApplyWeather already set the atmosphere).</summary>
+        public void SyncFromSession()
+        {
+            _level = Mathf.Clamp(SessionSettings.TurbulenceLevel, 0, Levels.Length - 1);
+            if (Bubbles != null) Bubbles.Turbulence = Atmosphere.ActiveTurbulence;
+            _windSpeed = SessionSettings.WindSpeedMs;
+            _windDir = _windSpeed > 0.01f ? -1 : 0; // -1 = custom direction from the menu
+        }
 
         private void Update()
         {
@@ -46,6 +55,7 @@ namespace FlyingGame.Bridge
 
         private void ApplyWind()
         {
+            if (_windDir < 0) _windDir = 0;
             if (_windDir == 0) { Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero; return; }
             // Runway is along +x (sim north). Wind blows FROM DirDeg toward the aircraft.
             float rad = WindDirs[_windDir].DirDeg * Mathf.Deg2Rad;

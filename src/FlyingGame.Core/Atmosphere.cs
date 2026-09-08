@@ -51,7 +51,7 @@ public static class Atmosphere
         double t = TemperatureAtAltitudeK(altitudeM);
         for (int i = 0; i < Thermals.Count; i++)
         {
-            t += ThermalCoreWarmthK * Thermals[i].CoreFractionAt(worldPosition);
+            t += ThermalCoreWarmthK * ThermalStrengthScale * Thermals[i].CoreFractionAt(worldPosition);
         }
 
         return t;
@@ -81,6 +81,9 @@ public static class Atmosphere
     /// <summary>Thermals (rising columns) active in the world; glider soaring energy.</summary>
     public static System.Collections.Generic.List<Thermal> Thermals { get; } = new();
 
+    /// <summary>Global multiplier on thermal strength (0 = off, 1 = as built, 2 = booming day).</summary>
+    public static double ThermalStrengthScale { get; set; } = 1.0;
+
     /// <summary>Ridge for slope soaring (null = none).</summary>
     public static Ridge? ActiveRidge { get; set; }
 
@@ -90,7 +93,7 @@ public static class Atmosphere
         MathTypes.Vec3 w = SteadyWind + (ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero);
         for (int i = 0; i < Thermals.Count; i++)
         {
-            w += Thermals[i].WindAt(worldPosition);
+            w += Thermals[i].WindAt(worldPosition) * ThermalStrengthScale;
         }
 
         if (ActiveRidge is not null)

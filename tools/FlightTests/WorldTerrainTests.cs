@@ -1,0 +1,114 @@
+using FlyingGame.Core;
+using Xunit;
+
+namespace FlyingGame.FlightTests;
+
+/// <summary>The stepped-plateau world: four airports at rising elevations behind steep irregular walls,
+/// flat runways, lakes at each field, a river that steps down the walls. Flat when no terrain is active.</summary>
+public class WorldTerrainTests
+{
+    [Fact]
+    public void FlatWhenInactive()
+    {
+        WorldTerrain.Active = null;
+        Assert.Equal(0.0, WorldTerrain.GroundHeightAt(0, -5000));
+    }
+
+    [Fact]
+    public void AirportsSitOnFlatPadsAtTheirElevations()
+    {
+        var t = new WorldTerrain();
+        foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
+        {
+            for (double dx = -1100; dx <= 1100; dx += 100)
+            for (double dy = -700; dy <= 700; dy += 100)
+            {
+                Assert.Equal(a.ElevationM, t.HeightAt(a.X + dx, a.Y + dy), 3);
+            }
+        }
+        Assert.Equal(0, WorldTerrain.Airports[0].ElevationM);
+        Assert.Equal(2700, WorldTerrain.Airports[3].ElevationM);
+    }
+
+    [Fact]
+    public void WallsAreSteepAndIrregular()
+    {
+        var t = new WorldTerrain();
+        // Crossing the first wall at x=0: 900 m rise within the escarpment width; the cliff band exceeds 60°.
+        double edge = WorldTerrain.EdgeMeanY(0) + WorldTerrain.EdgeWander(0, 0);
+        double low = t.BaseHeightAt(0, edge + 50), high = t.BaseHeightAt(0, edge - WorldTerrain.EscarpmentWidthM - 50);
+        Assert.InRange(high - low, 850, 950);
+        double maxSlope = 0;
+        for (double y = edge; y > edge - WorldTerrain.EscarpmentWidthM; y -= 5)
+        {
+            maxSlope = Math.Max(maxSlope, Math.Abs(t.BaseHeightAt(0, y - 2.5) - t.BaseHeightAt(0, y + 2.5)) / 5.0);
+        }
+        Assert.True(maxSlope > Math.Tan(60 * Math.PI / 180), $"cliff max grade {maxSlope:F2}");
+        // Irregular: the edge position differs by hundreds of metres along x.
+        double e1 = WorldTerrain.EdgeWander(0, 0), e2 = WorldTerrain.EdgeWander(0, 800), e3 = WorldTerrain.EdgeWander(0, 1900);
+        Assert.True(Math.Abs(e1 - e2) > 100 || Math.Abs(e2 - e3) > 100);
+    }
+
+    [Fact]
+    public void LakesAndRiverHaveWater()
+    {
+        var t = new WorldTerrain();
+        foreach (WorldTerrain.Lake l in WorldTerrain.Lakes)
+        {
+            double? w = t.WaterSurfaceAt(l.Cx, l.Cy);
+            Assert.True(w.HasValue);
+            Assert.True(t.HeightAt(l.Cx, l.Cy) < w!.Value, "lake bed must be under the water");
+        }
+        double y = WorldTerrain.Airports[1].Y;
+        double? river = t.WaterSurfaceAt(WorldTerrain.RiverCentreX(y), y);
+        Assert.True(river.HasValue && river!.Value < 900 - 5 && river.Value > 900 - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
+        Assert.Null(t.WaterSurfaceAt(0, 0)); // runway is dry
+    }
+
+    [Fact]
+    public void GorgeDeepensDownstreamWithFallsAndGentleBends()
+    {
+        var t = new WorldTerrain();
+        double up = WorldTerrain.GorgeUpstreamY + 300, down = WorldTerrain.GorgeDownstreamY - 300;
+        double DepthAt(double y) => t.BaseHeightAt(WorldTerrain.RiverCentreX(y) + WorldTerrain.GorgeHalfWidthAt(y) + 30, y) - t.RiverSurfaceAt(y);
+        Assert.InRange(DepthAt(up), 5, 40);        // ~50 ft
+        Assert.InRange(DepthAt(down), 60, 160);    // ~500 ft
+        // Surface is monotone non-increasing downstream (falls, never uphill) sampled every 50 m.
+        double prev = double.MaxValue; int drops = 0;
+        for (double y = up; y <= down; y += 50)
+        {
+            double s = t.RiverSurfaceAt(y);
+            Assert.True(s <= prev + 1e-6, $"river flows uphill at y={y}");
+            if (prev - s > 5) drops++;
+            prev = s;
+        }
+        Assert.True(drops >= 6, $"expected a staircase of waterfalls, got {drops} drops > 5 m");
+        // Gentle meander: minimum radius of curvature > 1.2 km.
+        double minR = double.MaxValue;
+        for (double y = up; y <= down; y += 20)
+        {
+            double h = 20;
+            double x0 = WorldTerrain.RiverCentreX(y - h), x1 = WorldTerrain.RiverCentreX(y), x2 = WorldTerrain.RiverCentreX(y + h);
+            double d1 = (x2 - x0) / (2 * h), d2 = (x2 - 2 * x1 + x0) / (h * h);
+            if (Math.Abs(d2) > 1e-9) minR = Math.Min(minR, Math.Pow(1 + d1 * d1, 1.5) / Math.Abs(d2));
+        }
+        Assert.True(minR > 1200, $"meander too sharp: min radius {minR:F0} m");
+    }
+
+    [Fact]
+    public void GearUsesTerrainHeight()
+    {
+        // A wheel resting on the Summit runway must see the ground at 2700 m: place the glider there.
+        WorldTerrain.Active = new WorldTerrain();
+        try
+        {
+            var cfg = TestAircraftConfig.Load();
+            WorldTerrain.Airport a = WorldTerrain.Airports[3];
+            var state = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(a.X, a.Y, -(a.ElevationM + 0.9)),
+                new FlyingGame.Core.MathTypes.Quat(0, 0, 0, 1), FlyingGame.Core.MathTypes.Vec3.Zero, FlyingGame.Core.MathTypes.Vec3.Zero);
+            (FlyingGame.Core.MathTypes.Vec3 f, _) = LandingGear.Compute(cfg, state, 0, 0);
+            Assert.True(f.Z < -1000, $"main wheel should push up on the plateau (Fz={f.Z:F0})");
+        }
+        finally { WorldTerrain.Active = null; }
+    }
+}

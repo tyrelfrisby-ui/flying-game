@@ -19,7 +19,7 @@ namespace FlyingGame.Core;
 public static class LandingGear
 {
     public static (Vec3 Force, Vec3 Moment) Compute(
-        AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0)
+        AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
         if (config.Gear.Count == 0)
@@ -32,9 +32,15 @@ public static class LandingGear
 
         foreach (GearConfig g in config.Gear)
         {
+            // Differential braking: wheels left of centre get wheelBrake·(1+bias·-1)... i.e. bias<0 favours LEFT.
+            double wheelBrake = g.Pos[1] < -0.05 ? brakeCmd * System.Math.Clamp(1.0 - brakeBias, 0.0, 1.0)
+                              : g.Pos[1] > 0.05 ? brakeCmd * System.Math.Clamp(1.0 + brakeBias, 0.0, 1.0)
+                              : brakeCmd;
             Vec3 rBody = g.PosVec() - cg;
             Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
-            double penetration = wheelWorld.Z - groundZ; // >0 = wheel below ground surface (compressed)
+            // Ground under THIS wheel: the world height field (plateau airports) — NED z = -height.
+            double localGroundZ = groundZ - WorldTerrain.GroundHeightAt(wheelWorld.X, wheelWorld.Y);
+            double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
             if (penetration <= 0.0)
             {
                 continue; // wheel in the air
@@ -83,7 +89,7 @@ public static class LandingGear
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
-            double brakeN = g.Brake ? brakeCmd * muLimit * 0.9 : 0.0;
+            double brakeN = g.Brake ? wheelBrake * muLimit * 0.9 : 0.0;
             double rollN = g.RollResistN * (normalN / System.Math.Max(1.0, g.SpringN * 0.3));
             double longN = -(rollN + brakeN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);
             double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));

@@ -48,10 +48,44 @@ namespace FlyingGame.Bridge
 
         private void Awake()
         {
+            Spawn();
+        }
+
+        /// <summary>Apply the landing-page choices: aircraft + start position, then rebuild visuals.</summary>
+        public void ApplySession()
+        {
+            AircraftId = SessionSettings.AircraftId;
+            ResetFlight();
+        }
+
+        /// <summary>True when spawned on the ground (runway start) — until the first liftoff.</summary>
+        public bool GroundStart { get; private set; }
+
+        private void Spawn()
+        {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
             SpawnIasMs = config.SpawnIasMs > 0 ? config.SpawnIasMs : 22.0;
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, SpawnAltitudeM);
+            FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;
+            bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway;
+            GroundStart = ground;
+
+            if (ground)
+            {
+                // At rest at the south threshold of the main paved runway, heading north (+x), sitting on
+                // the wheels: lowest main-gear contact 2 cm into the surface so the struts settle.
+                double gearZ = 0.0;
+                foreach (var g in config.Gear) if (!g.IsTailwheel) gearZ = System.Math.Max(gearZ, g.Pos[2]);
+                double x = ap.X - FlyingGame.Core.WorldTerrain.RunwayLengthM * 0.5 + 80.0;
+                var pos = new Vec3(x, ap.Y, -(ap.ElevationM + gearZ - 0.02));
+                var state = new RigidBodyState(pos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+                TrimStick = 0.0;
+                Sim = new SimLoop(new Aircraft(config, state, ControlDeflections.Neutral));
+                ApplyStateToTransform();
+                return;
+            }
+
+            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, ap.ElevationM + SpawnAltitudeM);
             TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
             if (!trim.Converged)
             {
@@ -62,10 +96,10 @@ namespace FlyingGame.Bridge
             var attitude = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
             var velocityBody = new Vec3(
                 SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad));
-            var state = new RigidBodyState(new Vec3(0, 0, -SpawnAltitudeM), attitude, velocityBody, Vec3.Zero);
+            var airState = new RigidBodyState(new Vec3(ap.X - 600, ap.Y, -(ap.ElevationM + SpawnAltitudeM)), attitude, velocityBody, Vec3.Zero);
 
             var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
-            Sim = new SimLoop(new Aircraft(config, state, deflections));
+            Sim = new SimLoop(new Aircraft(config, airState, deflections));
             ApplyStateToTransform();
         }
 
@@ -105,7 +139,7 @@ namespace FlyingGame.Bridge
         public void ResetFlight()
         {
             _accumulator = 0;
-            Awake();
+            Spawn();
             AircraftChanged?.Invoke();
         }
 
