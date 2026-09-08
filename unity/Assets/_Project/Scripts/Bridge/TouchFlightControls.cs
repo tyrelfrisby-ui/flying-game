@@ -272,10 +272,16 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>Left-pad Y knob height, 0 (bottom) .. 1 (top). The tow controller reads it for the tug's power.</summary>
+        public float LeftPadFraction => (_throttle + 1f) * 0.5f;
+
+        /// <summary>Glider speed brakes: stowed above 50 % of the pad, fully out at 25 % (owner spec).</summary>
+        public float SpoilerFraction => Mathf.Clamp01((0.5f - LeftPadFraction) / (0.5f - IdleFraction));
+
         /// <summary>Left-pad Y knob (-1..1) → throttle lever (0..1 power) and pad braking (0..1).</summary>
         private (float throttle01, float brake) SplitLeftAxis()
         {
-            float k = (_throttle + 1f) * 0.5f;                 // 0 bottom .. 1 top
+            float k = LeftPadFraction;                         // 0 bottom .. 1 top
             float throttle01 = Mathf.Clamp01((k - IdleFraction) / (1f - IdleFraction));
             float brake = k < BrakeStartFraction ? Mathf.Clamp01((BrakeStartFraction - k) / BrakeStartFraction) : 0f;
             return (throttle01, brake);
@@ -290,9 +296,11 @@ namespace FlyingGame.Bridge
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
             float trim = (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
             float elevator = Mathf.Clamp(_elevator + trim, -1f, 1f);
-            // ThrottleLever: -1 = full forward (full power / brake stowed), +1 = full aft (idle / brake out).
-            // Powered: lever = 1 - 2·throttle01. Glider: the same upper band is the speed-brake lever.
-            float lever = 1f - 2f * throttle01;
+            // ThrottleLever: -1 = full forward (full power), +1 = full aft (idle). Powered: lever = 1 - 2·throttle01.
+            // Glider: the sim reads max(0, lever) as the speed-brake fraction → lever = SpoilerFraction
+            // (stowed above 50 % of the pad, full out at 25 %; the brake band below is the wheel brake).
+            bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
+            float lever = powered ? 1f - 2f * throttle01 : SpoilerFraction;
             _driver.Inputs = new ControlInputs(_aileron, elevator, _rudder, lever);
         }
 
@@ -335,7 +343,7 @@ namespace FlyingGame.Bridge
             (float thr01, float padBrake) = SplitLeftAxis();
             string leftValue = padBrake > 0f
                 ? $"BRAKE {Mathf.RoundToInt(padBrake * 100f)}%"
-                : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt((1f - thr01) * 100f)}%";
+                : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt(SpoilerFraction * 100f)}%";
             DrawPad(_leftCenter, _leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob, "RUD / THR", leftValue);
             DrawPad(_rightCenter, _rightFinger == int.MinValue ? _rightCenter : _rightKnob, "AIL / ELE", null);
             DrawTrim();
@@ -379,6 +387,15 @@ namespace FlyingGame.Bridge
             GUI.DrawTexture(ToGui(pad), _solidTex);
             if (c == _leftCenter)
             {
+                bool gliderPad = _driver.Sim?.Aircraft?.Config?.Propulsion == null;
+                if (gliderPad)
+                {
+                    // Spoiler band 25–50 %: tinted so the stowed line at 50 % is obvious.
+                    GUI.color = new Color(0.4f, 0.7f, 1f, 0.14f);
+                    GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y + d * IdleFraction, d, d * (0.5f - IdleFraction))), _solidTex);
+                    GUI.color = new Color(1f, 1f, 1f, 0.45f);
+                    GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y + d * 0.5f - t * 0.5f, d, t)), _solidTex);
+                }
                 // Brake band (bottom 20 %) tinted, dead band 20–25 % darker, idle line at 25 %.
                 GUI.color = new Color(1f, 0.45f, 0.3f, 0.18f);
                 GUI.DrawTexture(ToGui(new Rect(pad.x, pad.y, d, d * BrakeStartFraction)), _solidTex);

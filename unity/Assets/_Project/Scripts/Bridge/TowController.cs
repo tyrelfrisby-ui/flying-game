@@ -122,7 +122,10 @@ namespace FlyingGame.Bridge
                 // reached it latches: the tug stays at full power and ignores the glider's lever from then on.
                 if (!_powerLatched)
                 {
-                    double padThrottle01 = System.Math.Clamp((1.0 - _gliderDriver.Inputs.ThrottleLever) * 0.5, 0.0, 1.0);
+                    // Tug power = the glider's left pad above its 50 % line (below it the pad is the spoiler lever).
+                    var pad = GetComponent<TouchFlightControls>();
+                    double padThrottle01 = pad != null ? System.Math.Clamp((pad.LeftPadFraction - 0.5) / 0.5, 0.0, 1.0)
+                                                       : System.Math.Clamp((1.0 - _gliderDriver.Inputs.ThrottleLever) * 0.5, 0.0, 1.0);
                     _tugThrottle01 = padThrottle01;
                     if (_tugThrottle01 >= 0.98) _powerLatched = true;
                 }
@@ -130,7 +133,16 @@ namespace FlyingGame.Bridge
             }
             double sink = s.Attitude.Rotate(s.Velocity).Z;                        // +down
             double elev = System.Math.Clamp(-(sink - targetSink) * 0.15 - s.Rates.Y * 0.5, -1, 1); // hold, damp pitch
-            if (_groundTow && agl < 4.0) elev = 0.25;                                       // hold the tail up on the roll
+            if (_groundTow && agl < 4.0)
+            {
+                // Taildragger ground roll with a glider in tow: stick neutral until rolling, a touch forward to
+                // lift the tail (never enough to nose over in the prop wash), rotate gently past 24 m/s.
+                double v = s.Velocity.Length;
+                elev = v < 10 ? 0.0 : v < 24 ? 0.08 : -0.25;
+                elev += -s.Rates.Y * 0.4;
+                double pitchDeg = System.Math.Asin(System.Math.Clamp(2 * (s.Attitude.W * s.Attitude.Y - s.Attitude.Z * s.Attitude.X), -1, 1)) * 57.3;
+                if (pitchDeg < -4) elev = -0.3; // tail too high: back stick
+            }
             double rud = 0;
             if (_groundTow)
             {
@@ -189,15 +201,11 @@ namespace FlyingGame.Bridge
 
         private static GameObject BuildTugVisual()
         {
+            // The real Super Cub airframe (same builder as the flyable one) — the old primitive placeholder
+            // used the stripped Standard shader and rendered magenta on device.
             var root = new GameObject("Tug-PA18");
-            AddPart(root, "Fuselage", PrimitiveType.Capsule, new Vector3(0, 0, 0.4f),
-                Quaternion.Euler(90, 0, 0), new Vector3(0.9f, 3.4f, 0.9f), new Color(0.95f, 0.85f, 0.2f));
-            AddPart(root, "Wing", PrimitiveType.Cube, new Vector3(0, 0.7f, 0.6f),
-                Quaternion.identity, new Vector3(10.7f, 0.12f, 1.5f), new Color(0.95f, 0.85f, 0.2f));
-            AddPart(root, "HStab", PrimitiveType.Cube, new Vector3(0, 0.2f, -3.0f),
-                Quaternion.identity, new Vector3(3.2f, 0.08f, 0.9f), new Color(0.95f, 0.85f, 0.2f));
-            AddPart(root, "VStab", PrimitiveType.Cube, new Vector3(0, 0.7f, -3.1f),
-                Quaternion.identity, new Vector3(0.08f, 1.2f, 0.9f), new Color(0.9f, 0.2f, 0.2f));
+            var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("pa18-cub-like");
+            new AirframeBuilder().Build(root.transform, cfg);
             return root;
         }
 
@@ -211,16 +219,5 @@ namespace FlyingGame.Bridge
             return lr;
         }
 
-        private static void AddPart(GameObject parent, string name, PrimitiveType type,
-            Vector3 pos, Quaternion rot, Vector3 scale, Color color)
-        {
-            var part = GameObject.CreatePrimitive(type);
-            part.name = name;
-            Object.Destroy(part.GetComponent<Collider>());
-            part.transform.SetParent(parent.transform, false);
-            part.transform.SetLocalPositionAndRotation(pos, rot);
-            part.transform.localScale = scale;
-            part.GetComponent<MeshRenderer>().material.color = color;
-        }
     }
 }
