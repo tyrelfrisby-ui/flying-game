@@ -9,6 +9,7 @@ namespace FlyingGame.Bridge
         public RaceController Race;
         public StolController Stol;
         public CropDustController Dust;
+        private StructuralDamage _damage;
         public TowController Tow;
         private GUIStyle _style;
         private Net.NetSession _net;
@@ -43,7 +44,8 @@ namespace FlyingGame.Bridge
             string net = (_net ??= Driver.GetComponent<Net.NetSession>())?.StatusLine;
             if (net != null) GUI.Label(new Rect(m, m * 0.5f + lh * 2f, w, lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
             string ev = Race != null && Race.Line != null ? Race.Line : Stol != null && Stol.Line != null ? Stol.Line
-                : Dust != null && Dust.Line != null ? Dust.Line : Tow != null ? Tow.StatusLine : null;
+                : Dust != null && Dust.Line != null ? Dust.Line : Tow != null && Tow.StatusLine != null ? Tow.StatusLine
+                : (_damage ??= Driver.GetComponent<StructuralDamage>())?.LostLine;
             if (ev != null)
             {
                 GUI.Label(new Rect(m, m * 0.5f + lh, w, lh), ev, _style);

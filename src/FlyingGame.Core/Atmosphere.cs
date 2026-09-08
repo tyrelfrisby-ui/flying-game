@@ -84,6 +84,9 @@ public static class Atmosphere
     /// <summary>Global multiplier on thermal strength (0 = off, 1 = as built, 2 = booming day).</summary>
     public static double ThermalStrengthScale { get; set; } = 1.0;
 
+    /// <summary>Terrain-following slope lift over the whole height field (needs WorldTerrain.Active).</summary>
+    public static bool SlopeLiftEnabled { get; set; }
+
     /// <summary>Ridge for slope soaring (null = none).</summary>
     public static Ridge? ActiveRidge { get; set; }
 
@@ -99,6 +102,10 @@ public static class Atmosphere
         if (ActiveRidge is not null)
         {
             w += ActiveRidge.WindAt(worldPosition, SteadyWind);
+        }
+        if (SlopeLiftEnabled && WorldTerrain.Active is not null)
+        {
+            w += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, SteadyWind);
         }
 
         return w;

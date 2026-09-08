@@ -42,6 +42,7 @@ namespace FlyingGame.Bridge
 
         public FlyingGame.Core.Turbulence Turbulence;   // set by the scene/weather; null = calm
         public float GustDisplayScale = 0.6f;            // seconds of gust velocity shown as bubble offset
+        public float StreamPeriodS = 4f;                 // seconds a bubble rides the local air (thermal / slope lift) before re-seeding
 
         private Mesh _mesh;
         private Material _material;
@@ -117,6 +118,24 @@ namespace FlyingGame.Bridge
                     FlyingGame.Core.MathTypes.Vec3 gust = Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
                     pos += CoordinateMap.ToUnity(gust) * GustDisplayScale;
                 }
+                // Thermals and slope lift made visible: the LOCAL air motion (everything but the steady wind,
+                // which already carries the whole lattice) moves each bubble along its streamline for a few
+                // seconds, then it re-seeds at its lattice point — with per-bubble phases so the column reads
+                // as a continuous stream: bubbles climbing the windward face and up the thermal core, others
+                // sinking in the ring of sink around it and down the lee slope.
+                float streamTau = 0f;
+                FlyingGame.Core.MathTypes.Vec3 local = FlyingGame.Core.Atmosphere.WindAtPosition(simPos) - steady;
+                if (Turbulence != null) local -= Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
+                float localSpeed = (float)local.Length;
+                if (localSpeed > 0.15f)
+                {
+                    int hx = (int)latticeFromAircraft.x, hy = (int)latticeFromAircraft.y, hz = (int)latticeFromAircraft.z;
+                    uint h = (uint)(hx * 73856093) ^ (uint)(hy * 19349663) ^ (uint)(hz * 83492791);
+                    h ^= h >> 13; h *= 0x85EBCA6Bu; h ^= h >> 16;
+                    float phase = (h & 0xFFFF) / 65535f;
+                    streamTau = Mathf.Repeat(Time.time / StreamPeriodS + phase, 1f);
+                    pos += CoordinateMap.ToUnity(local) * (streamTau * StreamPeriodS);
+                }
 
                 float dist = Vector3.Distance(pos, center);
                 if (dist > blockRadius)
@@ -170,6 +189,9 @@ namespace FlyingGame.Bridge
                     }
                 }
 
+                // Fade the streaming bubble out just before it re-seeds so the jump back is invisible.
+                if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
+                if (alpha < 0.02f) continue;
                 _props.SetColor(ColorId, tint);
                 _props.SetFloat(AlphaId, alpha);
                 Graphics.DrawMesh(_mesh, Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size), _material, 0,

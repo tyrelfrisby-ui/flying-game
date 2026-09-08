@@ -45,12 +45,14 @@ namespace FlyingGame.Bridge
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             BuildBridge(WorldTerrain.Active, root.transform);
             BuildCropField(WorldTerrain.Active, root.transform);
+            BuildLandmarks(WorldTerrain.Active, root.transform);
+            Landmarks.RegisterSolids(WorldTerrain.Active);
             BuildAeroBox(WorldTerrain.Active, root.transform);
             BuildRaceCourse(WorldTerrain.Active, root.transform);
-            // Slope soaring on the first canyon wall (replaces the old stand-alone hill).
-            double crestY = WorldTerrain.EdgeMeanY(0) - WorldTerrain.EscarpmentWidthM;
-            Atmosphere.ActiveRidge = new Ridge(new FlyingGame.Core.MathTypes.Vec3(0, crestY, -WorldTerrain.StepHeightM),
-                new FlyingGame.Core.MathTypes.Vec3(1, 0, 0), WorldTerrain.StepHeightM, 700);
+            // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
+            // lee) — replaces the old single Gaussian lift band.
+            Atmosphere.ActiveRidge = null;
+            Atmosphere.SlopeLiftEnabled = true;
             return root;
         }
 
@@ -497,6 +499,116 @@ namespace FlyingGame.Bridge
                 lr.startWidth = lr.endWidth = 0.35f; lr.useWorldSpace = true; lr.alignment = LineAlignment.View;
                 lr.sharedMaterial = Mat("FlyingGame/Lit", wire); lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
+        }
+
+        // ---- landmarks: arch over the river, tower with a road under it, the town ----------------------
+
+        private static void BuildLandmarks(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("Landmarks"); root.transform.SetParent(parent, false);
+            var steel = new Color(0.72f, 0.74f, 0.78f);
+            // Gateway arch: tapered segments along the parabola, spanning the river in its gorge.
+            double cx = Landmarks.ArchCentreX, baseUp = Landmarks.ArchBaseUp(t);
+            const int n = 40;
+            for (int i = 0; i < n; i++)
+            {
+                double u0 = -1 + 2.0 * i / n, u1 = -1 + 2.0 * (i + 1) / n;
+                double x0 = u0 * Landmarks.ArchHalfSpanM, x1 = u1 * Landmarks.ArchHalfSpanM;
+                double h0 = Landmarks.ArchHeightAt(x0), h1 = Landmarks.ArchHeightAt(x1);
+                double um = (u0 + u1) / 2, w = Landmarks.ArchLegWidthM + (Landmarks.ArchTopWidthM - Landmarks.ArchLegWidthM) * (1 - um * um);
+                Vector3 a = U(cx + x0, Landmarks.ArchY, baseUp + h0), b = U(cx + x1, Landmarks.ArchY, baseUp + h1);
+                Beam(root, "ArchSeg", a, b, (float)w, (float)w, steel);
+            }
+            // Legs reach down to the wall they stand on.
+            foreach (double sgn in new[] { -1.0, 1.0 })
+            {
+                double lx = cx + sgn * Landmarks.ArchHalfSpanM;
+                Beam(root, "ArchLeg", U(lx, Landmarks.ArchY, t.HeightAt(lx, Landmarks.ArchY) - 25), U(lx, Landmarks.ArchY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
+            }
+
+            // Eiffel-style tower: four curving legs meeting in a slim top, three floors; a road runs under it.
+            var iron = new Color(0.45f, 0.33f, 0.25f);
+            double tg = t.HeightAt(Landmarks.TowerX, Landmarks.TowerY);
+            foreach ((double sx, double sy) in new[] { (-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0) })
+            {
+                const int segs = 14; double prevH = 0;
+                for (int i = 1; i <= segs; i++)
+                {
+                    double h = Landmarks.TowerHeightM * i / segs;
+                    double r0 = Landmarks.TowerHalfAt(prevH), r1 = Landmarks.TowerHalfAt(h);
+                    float thick = (float)(6.0 * (1 - h / Landmarks.TowerHeightM) + 1.5);
+                    Beam(root, "TowerLeg", U(Landmarks.TowerX + sx * r0, Landmarks.TowerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, Landmarks.TowerY + sy * r1, tg + h), thick, thick, iron);
+                    // Lattice cross-braces between neighbouring legs at each segment.
+                    if (sx < 0 && i <= segs)
+                    {
+                        Beam(root, "Brace", U(Landmarks.TowerX - r1, Landmarks.TowerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, Landmarks.TowerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        Beam(root, "Brace", U(Landmarks.TowerX + sy * r1, Landmarks.TowerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, Landmarks.TowerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                    }
+                    prevH = h;
+                }
+            }
+            foreach (double fh in new[] { Landmarks.TowerFirstFloorM, Landmarks.TowerSecondFloorM, Landmarks.TowerTopFloorM })
+            {
+                float half = (float)Landmarks.TowerHalfAt(fh) + 4f;
+                WBox(root, "TowerFloor", U(Landmarks.TowerX, Landmarks.TowerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
+            }
+            // First-floor arches (the road passes under them): a low curved beam between the legs on each side.
+            foreach (double sy in new[] { -1.0, 1.0 })
+            {
+                double r = Landmarks.TowerHalfAt(0) * 0.9;
+                for (int i = 0; i < 12; i++)
+                {
+                    double a0 = System.Math.PI * i / 12, a1 = System.Math.PI * (i + 1) / 12;
+                    Beam(root, "TowerArch", U(Landmarks.TowerX - r * System.Math.Cos(a0), Landmarks.TowerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
+                                            U(Landmarks.TowerX - r * System.Math.Cos(a1), Landmarks.TowerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a1)), 2.5f, 2.5f, iron);
+                }
+            }
+            Slab(root.transform, "TowerRoad", Landmarks.TowerX, Landmarks.TowerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
+            for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
+                Slab(root.transform, "RoadDash", Landmarks.TowerX + d, Landmarks.TowerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
+
+            // The town: streets, then buildings (skyscrapers downtown, bungalows at the edge), the sky bridge.
+            double ground = t.HeightAt(Landmarks.TownCentreX, Landmarks.TownCentreY);
+            double pitch = Landmarks.BlockM + Landmarks.StreetM;
+            double lenX = Landmarks.TownBlocksX * pitch, lenY = Landmarks.TownBlocksY * pitch;
+            for (int i = 0; i <= Landmarks.TownBlocksX; i++)
+                Slab(root.transform, "Street", Landmarks.TownX0 + i * pitch, Landmarks.TownY0 + lenY / 2, ground + 0.05, Landmarks.StreetM, lenY, 0.08, 90, Asphalt);
+            for (int j = 0; j <= Landmarks.TownBlocksY; j++)
+                Slab(root.transform, "Avenue", Landmarks.TownX0 + lenX / 2, Landmarks.TownY0 + j * pitch, ground + 0.05, lenX, Landmarks.StreetM, 0.08, 0, Asphalt);
+            Color[] palette = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.5f, 0.42f), new(0.85f, 0.85f, 0.88f) };
+            var glass = new Color(0.45f, 0.62f, 0.8f);
+            foreach (Landmarks.Building b in Landmarks.Buildings())
+            {
+                Color c = b.Style >= 8 ? glass : palette[System.Math.Min(b.Style, palette.Length - 1)];
+                if (b.Style == 9)
+                {
+                    // Gate tower: base, two piers beside the hole, and the block above it.
+                    WBox(root, "GateBase", U(b.Cx, b.Cy, ground + Landmarks.GateHoleBottomM / 2), new Vector3((float)(b.Hy * 2), (float)Landmarks.GateHoleBottomM, (float)(b.Hx * 2)), c);
+                    double hole = Landmarks.GateHoleTopM - Landmarks.GateHoleBottomM;
+                    WBox(root, "GatePierL", U(b.Cx - b.Hx + 5, b.Cy, ground + Landmarks.GateHoleBottomM + hole / 2), new Vector3((float)(b.Hy * 2), (float)hole, 10f), c);
+                    WBox(root, "GatePierR", U(b.Cx + b.Hx - 5, b.Cy, ground + Landmarks.GateHoleBottomM + hole / 2), new Vector3((float)(b.Hy * 2), (float)hole, 10f), c);
+                    WBox(root, "GateTop", U(b.Cx, b.Cy, ground + (Landmarks.GateHoleTopM + b.HeightM) / 2), new Vector3((float)(b.Hy * 2), (float)(b.HeightM - Landmarks.GateHoleTopM), (float)(b.Hx * 2)), c);
+                    continue;
+                }
+                WBox(root, b.Style >= 8 ? "Tower" : "Building", U(b.Cx, b.Cy, ground + b.HeightM / 2), new Vector3((float)(b.Hy * 2), (float)b.HeightM, (float)(b.Hx * 2)), c);
+                if (b.HeightM > 100) WBox(root, "Roof", U(b.Cx, b.Cy, ground + b.HeightM + 3), new Vector3((float)b.Hy, 6f, (float)b.Hx), c * 0.8f);
+            }
+            double bx = Landmarks.TownX0 + Landmarks.StreetM / 2 + 8 * pitch + Landmarks.BlockM / 2 + pitch / 2;
+            double by = Landmarks.TownY0 + Landmarks.StreetM / 2 + 5 * pitch + Landmarks.BlockM / 2;
+            WBox(root, "SkyBridge", U(bx, by, ground + Landmarks.SkyBridgeHeightM + Landmarks.SkyBridgeDepthM / 2), new Vector3(12f, (float)Landmarks.SkyBridgeDepthM, (float)pitch), glass);
+        }
+
+        /// <summary>A box beam from a to b (world Unity points) with the given cross-section.</summary>
+        private static void Beam(GameObject parent, string name, Vector3 a, Vector3 b, float w, float h, Color c)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Kill(go.GetComponent<Collider>());
+            go.name = name; go.transform.SetParent(parent.transform, false);
+            Vector3 d = b - a; float len = d.magnitude;
+            go.transform.position = (a + b) * 0.5f;
+            go.transform.rotation = len > 1e-4f ? Quaternion.LookRotation(d / len, Mathf.Abs(Vector3.Dot(d / len, Vector3.up)) > 0.99f ? Vector3.forward : Vector3.up) : Quaternion.identity;
+            go.transform.localScale = new Vector3(w, h, len + w * 0.5f);
+            go.GetComponent<MeshRenderer>().sharedMaterial = Lit(c);
         }
 
         /// <summary>A flat slab: sim centre (x,y), top at `up`, size along its heading (length) × across (width).</summary>

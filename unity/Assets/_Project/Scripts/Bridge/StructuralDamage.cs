@@ -58,8 +58,32 @@ namespace FlyingGame.Bridge
         {
             WingsGone = false;
             Severity = 0f;
+            if (_watched != null) _watched.ComponentLost -= OnComponentLost;
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
+            if (_watched != null) _watched.ComponentLost += OnComponentLost;
+            LostLine = null;
             ReadLimits();
+        }
+
+        /// <summary>HUD text naming what has broken off, null while intact.</summary>
+        public string LostLine { get; private set; }
+
+        private void OnComponentLost(FlyingGame.Core.AirframeComponent c)
+        {
+            if (_visual == null) _visual = GetComponent<AirframeVisual>();
+            if (_visual != null) _visual.DetachComponent(c, _driver.WorldVelocityUnity);
+            if (_audio == null) _audio = GetComponent<FlightAudio>();
+            if (_audio != null) _audio.WingFailure();
+            string name = c switch
+            {
+                FlyingGame.Core.AirframeComponent.WingLeft => "LEFT WING",
+                FlyingGame.Core.AirframeComponent.WingRight => "RIGHT WING",
+                FlyingGame.Core.AirframeComponent.TailHorizontal => "STABILISER",
+                FlyingGame.Core.AirframeComponent.TailVertical => "FIN",
+                FlyingGame.Core.AirframeComponent.Nose => "PROPELLER",
+                _ => c.ToString().ToUpperInvariant(),
+            };
+            LostLine = LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
         }
 
         private void ReadLimits()

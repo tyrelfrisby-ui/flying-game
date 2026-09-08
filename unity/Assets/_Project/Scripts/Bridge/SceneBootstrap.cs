@@ -121,8 +121,9 @@ namespace FlyingGame.Bridge
             hud.Tow = aircraft.GetComponent<TowController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
-            var hudOverlay = cam.gameObject.AddComponent<HudOverlay>();   // green conformal HUD over the aircraft
-            hudOverlay.Driver = aircraft.GetComponent<FlightSimDriver>();
+            // Round analog airspeed indicator and altimeter either side of the aircraft (replaces the green HUD).
+            var gauges = cam.gameObject.AddComponent<AnalogGauges>();
+            gauges.Driver = aircraft.GetComponent<FlightSimDriver>();
 
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();

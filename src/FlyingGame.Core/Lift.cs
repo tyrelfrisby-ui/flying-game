@@ -37,8 +37,9 @@ public sealed class Thermal
 
         Vec3 core = SurfaceCenter + LeanPerM * altitude;
         double dx = pos.X - core.X, dy = pos.Y - core.Y;
-        double rNorm = System.Math.Sqrt(dx * dx + dy * dy) / CoreRadiusM;
-        double altFactor = System.Math.Sin(System.Math.PI * System.Math.Clamp(altitude / TopAltitudeM, 0, 1));
+        double zf = System.Math.Clamp(altitude / TopAltitudeM, 0, 1);
+        double rNorm = System.Math.Sqrt(dx * dx + dy * dy) / (CoreRadiusM * (1.0 + 0.8 * zf));
+        double altFactor = System.Math.Sin(System.Math.PI * zf);
         return System.Math.Exp(-rNorm * rNorm) * altFactor;
     }
 
@@ -56,14 +57,23 @@ public sealed class Thermal
         double dx = pos.X - core.X, dy = pos.Y - core.Y;
         double r = System.Math.Sqrt(dx * dx + dy * dy);
 
-        // Strength tapers with altitude (builds low, dies near the top).
-        double altFactor = System.Math.Sin(System.Math.PI * System.Math.Clamp(altitude / TopAltitudeM, 0, 1));
+        // Strength tapers with altitude (builds low, dies near the top); the column widens as it rises
+        // (entrainment: convective plumes grow roughly linearly with height).
+        double zf = System.Math.Clamp(altitude / TopAltitudeM, 0, 1);
+        double altFactor = System.Math.Sin(System.Math.PI * zf);
+        double radius = CoreRadiusM * (1.0 + 0.8 * zf);
 
-        // Gaussian core updraft; a gentle sink ring just outside the core (mass continuity).
-        double rNorm = r / CoreRadiusM;
-        double up = CoreUpdraftMs * System.Math.Exp(-rNorm * rNorm) * altFactor;
-        double sink = -0.25 * CoreUpdraftMs * System.Math.Exp(-((rNorm - 2.0) * (rNorm - 2.0))) * altFactor;
-        double w = up + sink; // + = upward
+        // Radial profile after the soaring-literature convective-plume models (Lenschow & Stephens 1980;
+        // Allen 2006 as used in NASA's thermal-soaring work): a bell-shaped updraft core, surrounded by
+        // an ANNULUS OF SINK — the air the plume lifts must come back down, and it does so mostly close
+        // around the column. Glider pilots measure that sink at roughly a third of the core strength
+        // just outside the edge, fading out by three radii. Profile: w/W = e^{-ρ²} − 0.38·e^{-(ρ−1.7)²}
+        // (ρ = r/R): peak sink ≈ 0.36 W at ρ ≈ 1.7, zero crossing at ρ ≈ 1.15, gone by ρ ≈ 3.5.
+        double rho = r / radius;
+        double up = System.Math.Exp(-rho * rho);
+        double sink = -0.38 * System.Math.Exp(-(rho - 1.7) * (rho - 1.7));
+        if (rho > 5.0) return Vec3.Zero;
+        double w = CoreUpdraftMs * (up + sink) * altFactor; // + = upward
 
         return new Vec3(0, 0, -w); // world +z is down, so upward air is -z
     }
@@ -121,5 +131,41 @@ public sealed class Ridge
         double up = System.Math.Abs(windAcross) * 0.7 * heightFactor * acrossFactor; // deflected-up fraction
 
         return new Vec3(0, 0, -up);
+    }
+}
+
+
+/// <summary>
+/// Slope (ridge) lift from the terrain itself: the wind cannot pass through the ground, so at the surface
+/// its vertical component equals the horizontal wind times the terrain slope along the wind
+/// (w = U·∂h/∂s, the kinematic boundary condition) — UP on a windward face, DOWN on a lee slope. Aloft the
+/// deflection is felt along tilted streamlines that carry it up and downwind of the face that made it, and
+/// it decays with height above the surface over roughly a wall height. The strongest lift therefore sits
+/// just in front of and above the crest, exactly where ridge pilots soar; the lee side is sink. Slopes
+/// steeper than ~35° are capped (the flow separates rather than following a cliff face).
+/// </summary>
+public static class SlopeLift
+{
+    public const double MaxSlope = 0.7;            // tan 35°
+    public const double DecayHeightM = 320.0;      // e-fold of the deflection with height above ground
+    public const double StreamlineTilt = 0.8;      // upwind sample distance per metre of height (≈ 39° tilt)
+    public const double SampleStepM = 25.0;
+
+    public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind)
+    {
+        double ux = meanWind.X, uy = meanWind.Y;
+        double u = System.Math.Sqrt(ux * ux + uy * uy);
+        if (u < 0.5) return Vec3.Zero;
+        double alt = -pos.Z;
+        double hHere = t.HeightAt(pos.X, pos.Y);
+        double agl = alt - hHere;
+        if (agl < -5 || agl > DecayHeightM * 4) return Vec3.Zero;
+        agl = System.Math.Max(0, agl);
+        // The air at height AGL was deflected by the ground it crossed UPWIND (tilted streamline).
+        double sx = pos.X - ux / u * agl * StreamlineTilt, sy = pos.Y - uy / u * agl * StreamlineTilt;
+        double dhds = (t.HeightAt(sx + ux / u * SampleStepM, sy + uy / u * SampleStepM) - t.HeightAt(sx - ux / u * SampleStepM, sy - uy / u * SampleStepM)) / (2 * SampleStepM);
+        dhds = System.Math.Clamp(dhds, -MaxSlope, MaxSlope);
+        double w = u * dhds * System.Math.Exp(-agl / DecayHeightM);   // + = upward
+        return new Vec3(0, 0, -w);
     }
 }

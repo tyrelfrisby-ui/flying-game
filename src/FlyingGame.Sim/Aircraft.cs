@@ -84,7 +84,18 @@ public sealed class Aircraft
 
     /// <summary>Per-surface aero mask (indexed like Config.Surfaces): null while intact; after wing failure
     /// the wing surfaces are false. Config.Surfaces itself is never mutated — other systems index it.</summary>
+    private readonly List<AirframeComponent> _pendingBreaks = new();
     private bool[]? _surfaceMask;
+    private bool[]? _stripMask;                 // per-strip aero mask (broken-off components), AeroModel strip order
+    private readonly List<ContactPoint> _contacts;
+    private readonly HashSet<AirframeComponent> _lost = new();
+    /// <summary>Airframe hard points (wing tips, tail, nose, cabin top …) that cannot pass through the ground.</summary>
+    public IReadOnlyList<ContactPoint> ContactPoints => _contacts;
+    /// <summary>Components that have broken off (hard ground/solid impact).</summary>
+    public IReadOnlyCollection<AirframeComponent> LostComponents => _lost;
+    public bool IsLost(AirframeComponent c) => _lost.Contains(c);
+    /// <summary>Raised once per component, on the step it breaks off.</summary>
+    public event Action<AirframeComponent>? ComponentLost;
 
     /// <summary>Mass fraction each wing takes with it (light/utility/transport types: ~12 % of MTOW per wing).</summary>
     public const double WingMassFractionPerWing = 0.12;
@@ -121,6 +132,7 @@ public sealed class Aircraft
             config.Mass.Inertia.Ixz);
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
+        _contacts = AirframeContact.BuildPoints(config);
         Structure = new StructuralState(config.Limits);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
@@ -227,6 +239,50 @@ public sealed class Aircraft
         return isWing;
     }
 
+    /// <summary>
+    /// Break a component off NOW (a hard ground/solid impact does this itself; exposed for scenarios/tests).
+    /// Its strips leave the aero model — a lost wing half flies on as a half-winged aircraft with the
+    /// rolling moment that implies, a lost tail loses its pitch/yaw stability — and its contact points go
+    /// with it. Mass and inertia are deliberately left alone (owner: no dynamic/inertial bookkeeping for
+    /// the lost piece). A lost nose stops the propeller. Idempotent.
+    /// </summary>
+    public void LoseComponent(AirframeComponent comp)
+    {
+        if (!_lost.Add(comp)) return;
+        int total = 0; foreach (SurfaceConfig sf in Config.Surfaces) total += sf.Strips.Count;
+        _stripMask ??= Enumerable.Repeat(true, total).ToArray();
+        int idx = 0;
+        foreach (SurfaceConfig sf in Config.Surfaces)
+        {
+            string id = sf.Id.ToLowerInvariant();
+            bool wing = id.Contains("wing"), hTail = id == "hstab" || id == "elevator", vTail = id.Contains("vstab") || id.StartsWith("rudder") || id.Contains("fin");
+            foreach (StripConfig st in sf.Strips)
+            {
+                bool gone = comp switch
+                {
+                    AirframeComponent.WingLeft => wing && st.Pos[1] < -0.3,
+                    AirframeComponent.WingRight => wing && st.Pos[1] > 0.3,
+                    AirframeComponent.TailHorizontal => hTail,
+                    AirframeComponent.TailVertical => vTail,
+                    _ => false,
+                };
+                if (gone) _stripMask[idx] = false;
+                idx++;
+            }
+        }
+        _contacts.RemoveAll(p => p.Component == comp);
+        if (comp == AirframeComponent.Nose) _noseLost = true;
+        if (comp == AirframeComponent.NacelleLeft || comp == AirframeComponent.NacelleRight)
+        {
+            for (int i = 0; i < Config.Engines.Count; i++)
+                if ((Config.Engines[i].Pos[1] < 0) == (comp == AirframeComponent.NacelleLeft)) SetEngineThrottleScale(i, 0.0);
+        }
+        ComponentLost?.Invoke(comp);
+    }
+    private bool _noseLost;
+    /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
+    public bool[]? StripMask => _stripMask;
+
     /// <summary>True when surface index i (into Config.Surfaces) still contributes aero.</summary>
     public bool IsSurfaceActive(int surfaceIndex) =>
         _surfaceMask is null || surfaceIndex < 0 || surfaceIndex >= _surfaceMask.Length || _surfaceMask[surfaceIndex];
@@ -289,6 +345,7 @@ public sealed class Aircraft
     /// <summary>Advances the aircraft by one fixed timestep: shapes stick input into deflection targets (dead zone/expo/max travel), slews actuators toward them, then integrates the rigid body via RK4.</summary>
     public void Step(ControlInputs inputs, double dt)
     {
+        _pendingBreaks.Clear();
         // One lever, two meanings: powered aircraft read it as THROTTLE (full forward = full power),
         // the glider reads aft-of-neutral as speed brake (axisMap "aftOnly") — same thumb geometry.
         double spoilerTarget = Config.Propulsion is null
@@ -328,7 +385,7 @@ public sealed class Aircraft
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
         // (~1.0 s). Feeding the LAGGED fraction to the aero model stops the wake band flickering
         // on/off across the stall boundary — the relaxation cycle that made fast spins fall out.
-        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody, _surfaceMask);
+        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody, _surfaceMask, _stripMask);
         double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
@@ -352,7 +409,7 @@ public sealed class Aircraft
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
@@ -377,11 +434,17 @@ public sealed class Aircraft
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
+            {
+                // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
+                (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks);
+                totalF += s.Attitude.Conjugate().Rotate(cF);
+                totalM += s.Attitude.Conjugate().Rotate(cM);
+            }
             if (Config.Propulsion is not null)
             {
                 if (Config.Engines.Count == 0)
                 {
-                    (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _throttle01, s.Velocity, s.Rates, airDensity);
+                    (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _noseLost ? 0.0 : _throttle01, s.Velocity, s.Rates, airDensity);
                     totalF += pF;
                     totalM += pM;
                 }
@@ -417,6 +480,7 @@ public sealed class Aircraft
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
+        foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
 
         // Proposal 1: downwash transport lag (Cm-alphadot) — eps arrives at the tail one
         // transport time (tail-arm / V) late.

@@ -67,7 +67,8 @@ public static class AeroModel
         StripFlowState? flowState = null,
         double slipstreamDeltaU = 0.0,
         double slipstreamRadius = 0.0,
-        bool[]? surfaceMask = null)
+        bool[]? surfaceMask = null,
+        bool[]? stripMask = null)
     {
         int stripIndex = 0;
         Vec3 cg = config.Mass.CgVec();
@@ -76,7 +77,7 @@ public static class AeroModel
 
         // wakeStalledFracOverride >= 0 supplies a LAGGED separation state from the caller (stall
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
-        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask);
+        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask, stripMask);
 
         // NACA TN-1045/1329 stab-wake rudder shielding: in steep/vertical flow the horizontal tail
         // sheds a wake wedge (60-deg line from its LE, 30-deg from its TE); fin/rudder area inside is
@@ -127,6 +128,10 @@ public static class AeroModel
             foreach (StripConfig strip in surface.Strips)
             {
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
+                if (stripMask is not null && idx < stripMask.Length && !stripMask[idx])
+                {
+                    continue; // this strip left with a broken-off component (wing half, tail): no aero from it
+                }
                 Vec3 r = strip.PosVec() - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
 
@@ -486,14 +491,15 @@ public static class AeroModel
 
     /// <summary>Instantaneous stalled fraction of wing area — callers integrate this with an
     /// asymmetric lag (fast separation, slow reattachment) to get the hysteretic wake state.</summary>
-    public static double InstantStalledFraction(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, Vec3 windBody, bool[]? surfaceMask = null)
+    public static double InstantStalledFraction(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, Vec3 windBody, bool[]? surfaceMask = null, bool[]? stripMask = null)
     {
-        WingWake w = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, config.Mass.CgVec(), -1.0, surfaceMask);
+        WingWake w = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, config.Mass.CgVec(), -1.0, surfaceMask, stripMask);
         return w.StalledFraction;
     }
 
-    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg, double stalledFracOverride, bool[]? surfaceMask = null)
+    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg, double stalledFracOverride, bool[]? surfaceMask = null, bool[]? stripMask = null)
     {
+        int stripIdx = 0;
         Vec3 freestream = bodyVelocity - windBody;
         double flowAlpha = Math.Abs(freestream.X) > MinSpeedMs || Math.Abs(freestream.Z) > MinSpeedMs
             ? Math.Atan2(freestream.Z, freestream.X)
@@ -505,11 +511,14 @@ public static class AeroModel
             SurfaceConfig surface = config.Surfaces[si];
             if (!surface.Id.Contains("wing", StringComparison.OrdinalIgnoreCase) || !SurfaceActive(surfaceMask, si))
             {
+                stripIdx += surface.Strips.Count;
                 continue; // no wing, no wake (a wingless fuselage sheds none over the tail)
             }
 
             foreach (StripConfig strip in surface.Strips)
             {
+                int sIdx = stripIdx++;
+                if (stripMask is not null && sIdx < stripMask.Length && !stripMask[sIdx]) continue;
                 Vec3 pos = strip.PosVec();
                 Vec3 vLocal = freestream + Vec3.Cross(bodyRates, pos - cg);
                 double localAlpha = Math.Atan2(vLocal.Z, vLocal.X) + strip.IncidenceRad;

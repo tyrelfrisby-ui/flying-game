@@ -48,19 +48,84 @@ namespace FlyingGame.Bridge
             if (_driver.AircraftId != _builtId || _wingsDetached) Rebuild();
         }
 
+        private bool _componentsDetached;
+
         private void LateUpdate()
         {
             if (_driver.Sim == null) return;
             // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
+            if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+        }
+
+        /// <summary>
+        /// A COMPONENT broke off on impact (wing half, stabiliser, fin, nose): its meshes leave as tumbling debris
+        /// and everything else stays. A wing loft spanning both sides is split at the centreline and the kept half
+        /// stays on the aircraft.
+        /// </summary>
+        public void DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        {
+            _componentsDetached = true;
+            Transform root = transform;
+            var debris = new GameObject("Debris-" + comp);
+            debris.transform.SetPositionAndRotation(root.position, root.rotation);
+            bool leftWing = comp == FlyingGame.Core.AirframeComponent.WingLeft, rightWing = comp == FlyingGame.Core.AirframeComponent.WingRight;
+            bool Matches(string n)
+            {
+                string l = n.ToLowerInvariant();
+                return comp switch
+                {
+                    FlyingGame.Core.AirframeComponent.TailHorizontal => l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator"),
+                    FlyingGame.Core.AirframeComponent.TailVertical => l.StartsWith("fin") || l.StartsWith("vstab") || l.StartsWith("rudder"),
+                    FlyingGame.Core.AirframeComponent.Nose => l is "propdisc" or "blade" or "spinner" or "radial",
+                    _ => false,
+                };
+            }
+            var parts = leftWing || rightWing ? new List<GameObject>(_builder.WingParts) : new List<GameObject>(_builder.Parts);
+            var gone = new List<GameObject>();
+            foreach (GameObject part in parts)
+            {
+                if (part == null) continue;
+                if (leftWing || rightWing)
+                {
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        SplitBySpan(mf.sharedMesh, mf.transform, root, out Mesh lMesh, out Mesh rMesh);
+                        Mesh lost = leftWing ? lMesh : rMesh, kept = leftWing ? rMesh : lMesh;
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name, lost, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                    }
+                }
+                else if (Matches(part.name))
+                {
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name, mf.sharedMesh, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                    }
+                    gone.Add(part);
+                }
+            }
+            _builder.Forget(gone);
+            foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
+            Vector3 side = leftWing ? -root.right : root.right;
+            Vector3 kick = leftWing || rightWing ? side * 4f + root.up * 3f : -root.forward * 3f + root.up * 4f;
+            LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing ? side : root.right, leftWing ? 1f : -1f);
         }
 
         private void Rebuild()
         {
             _builtId = _driver.AircraftId;
             _wingsDetached = false;
+            _componentsDetached = false;
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
@@ -272,6 +337,18 @@ namespace FlyingGame.Bridge
         /// Hand over the wing parts (structural failure): they are removed from this builder's part and
         /// hinge lists — the caller owns them from here (reparent/destroy) — and the next Build restores them.
         /// </summary>
+        public IReadOnlyList<GameObject> WingParts => _wingParts;
+        public IReadOnlyList<GameObject> Parts => _parts;
+
+        /// <summary>Drop parts (and their hinges) from the builder's bookkeeping — the caller destroys them.</summary>
+        public void Forget(List<GameObject> gone)
+        {
+            var set = new HashSet<GameObject>(gone);
+            _parts.RemoveAll(p => p == null || set.Contains(p));
+            _wingParts.RemoveAll(p => p == null || set.Contains(p));
+            _controls.RemoveAll(c => c.T == null || set.Contains(c.T.gameObject) || (c.T.parent != null && set.Contains(c.T.parent.gameObject)));
+        }
+
         public List<GameObject> TakeWingParts()
         {
             var taken = new List<GameObject>(_wingParts);
