@@ -122,7 +122,7 @@ namespace FlyingGame.Bridge
                 Quaternion.identity, new Vector3(0.08f, 1.5f, 1.0f), new Color(0.85f, 0.1f, 0.1f));
 
             var driver = root.AddComponent<FlightSimDriver>();
-            root.AddComponent<KeyboardTestControls>();
+            root.AddComponent<TouchFlightControls>(); // RC dual-touchpad (folds in editor keyboard fallback)
             root.AddComponent<ChallengeController>();
             root.AddComponent<TowController>();
             _ = driver;
