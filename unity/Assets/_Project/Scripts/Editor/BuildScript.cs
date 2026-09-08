@@ -42,6 +42,11 @@ namespace FlyingGame.EditorTools
 
             // iOS needs IL2CPP; ship both iPhone and iPad.
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.iOS, ScriptingImplementation.IL2CPP);
+            // Engine code stripping decides native modules from asset usage; with no GUISkin/GUIStyle assets in
+            // the scene it can drop the IMGUI native module, and then GUIUtility.GetDefaultSkin() returns null
+            // (GUI.DoSetSkin NRE every OnGUI, nondeterministic per build). Keep engine code.
+            PlayerSettings.stripEngineCode = false;
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.iOS, ManagedStrippingLevel.Minimal);
             PlayerSettings.iOS.targetDevice = iOSTargetDevice.iPhoneAndiPad; // ARM64 is the only iOS arch
 
             PlayerSettings.iOS.targetOSVersionString = "15.0";
@@ -147,9 +152,28 @@ namespace FlyingGame.EditorTools
             if (!preloaded.Contains(font)) { preloaded.Add(font); changed = true; Debug.Log($"EnsureBuiltinFontPreloaded: pinned '{font.name}' into the build."); }
             // The built-in IMGUI skin itself (GameSkin) can be stripped too — GUIUtility.BeginGUI then NREs in
             // DoSetSkin before any OnGUI runs (seen again 2026-09-08). Pin it as well.
-            GUISkin skin = Resources.GetBuiltinResource<GUISkin>("GameSkin.guiskin");
+            GUISkin skin = Resources.GetBuiltinResource<GUISkin>("GameSkin/GameSkin.guiskin"); // built-in default IMGUI skin (path verified in-editor)
             if (skin != null && !preloaded.Contains(skin)) { preloaded.Add(skin); changed = true; Debug.Log("EnsureBuiltinFontPreloaded: pinned built-in GUISkin 'GameSkin'."); }
             else if (skin == null) Debug.LogWarning("EnsureBuiltinFontPreloaded: built-in GameSkin not found.");
+            // GUI.DoSetSkin NREs when the SKIN'S OWN FONT (and its styles' fonts) is stripped — pinning our font
+            // by name is not enough if the skin references a different built-in Font object. Pin exactly those.
+            if (skin != null)
+            {
+                var fonts = new System.Collections.Generic.List<Font>();
+                if (skin.font != null) fonts.Add(skin.font);
+                foreach (GUIStyle st in new[] { skin.label, skin.button, skin.box, skin.textField, skin.textArea, skin.toggle, skin.window,
+                                                skin.horizontalSlider, skin.horizontalSliderThumb, skin.verticalSlider, skin.verticalSliderThumb,
+                                                skin.horizontalScrollbar, skin.verticalScrollbar, skin.scrollView })
+                {
+                    if (st != null && st.font != null) fonts.Add(st.font);
+                }
+                if (skin.customStyles != null) foreach (GUIStyle st in skin.customStyles) if (st != null && st.font != null) fonts.Add(st.font);
+                foreach (Font f in fonts)
+                {
+                    if (!preloaded.Contains(f)) { preloaded.Add(f); changed = true; Debug.Log($"EnsureBuiltinFontPreloaded: pinned skin font '{f.name}'."); }
+                }
+                Debug.Log($"EnsureBuiltinFontPreloaded: GameSkin.font = '{(skin.font != null ? skin.font.name : "null")}' (our font '{font.name}', same object: {ReferenceEquals(skin.font, font)})");
+            }
             if (changed) PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
         }
 

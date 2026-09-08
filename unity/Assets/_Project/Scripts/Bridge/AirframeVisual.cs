@@ -372,13 +372,27 @@ namespace FlyingGame.Bridge
                 float gx = (float)g.Pos[0], gy = (float)g.Pos[1], gz = (float)g.Pos[2];
                 if (gz < 0f)
                 {
-                    // Above the CG = wing-tip wheel/skid (the glider): a small ball under the tip.
+                    // Above the CG = wing-tip wheel (the 2-33): a small wheel on a looped spring-steel rod — the
+                    // rod leaves the spar, makes two coils, then runs aft and down to the wheel (very springy).
                     var tip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     Kill(tip.GetComponent<Collider>());
                     Attach(tip, "TipWheel");
                     tip.transform.localPosition = U(gx, gy, gz - 0.06f);
-                    tip.transform.localScale = Vector3.one * 0.16f;
+                    tip.transform.localScale = new Vector3(0.05f, 0.16f, 0.16f);
                     tip.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
+                    (float wx, float wz, float dih) = WingRoot(cfg, "wing");
+                    float wingTipZ = wz - Mathf.Abs(gy) * Mathf.Tan(dih);
+                    var rod = new Color(0.5f, 0.5f, 0.52f);
+                    Vector3 spar = new Vector3(gx + 0.35f, gy, wingTipZ + 0.03f);
+                    Vector3 coil = new Vector3(gx + 0.28f, gy, wingTipZ + 0.10f);
+                    Strut(spar, coil, 0.025f, rod);
+                    var loop = new GameObject("TipSpringCoil");
+                    Attach(loop, "TipSpringCoil");
+                    loop.transform.localPosition = U(coil.x, coil.y, coil.z);
+                    loop.transform.localRotation = Quaternion.Euler(0f, 90f, 0f); // coil axis spanwise
+                    loop.AddComponent<MeshFilter>().sharedMesh = WorldBuilder.Torus(0.06f, 0.012f, 20, 8);
+                    loop.AddComponent<MeshRenderer>().sharedMaterial = UnlitMat(rod);
+                    Strut(new Vector3(coil.x, gy, coil.z + 0.05f), new Vector3(gx, gy, gz - 0.06f), 0.025f, rod);
                     continue;
                 }
 

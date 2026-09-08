@@ -44,11 +44,8 @@ namespace FlyingGame.Bridge
                 _accumulator += Time.deltaTime;
                 while (_accumulator >= SimLoop.DefaultFixedDtSec)
                 {
-                    if (Tow.Connected)
-                    {
-                        Tow.Apply(SimLoop.DefaultFixedDtSec);
-                        FlyTugAutopilot(SimLoop.DefaultFixedDtSec);
-                    }
+                    if (Tow.Connected) Tow.Apply(SimLoop.DefaultFixedDtSec);
+                    if (_tugAircraft != null) FlyTugAutopilot(SimLoop.DefaultFixedDtSec);   // keeps flying after release/break
                     _accumulator -= SimLoop.DefaultFixedDtSec;
                 }
                 UpdateTugTransform();
@@ -77,7 +74,7 @@ namespace FlyingGame.Bridge
                 var fwdFlat = new Vec3(fwd.X, fwd.Y, 0); fwdFlat = fwdFlat / fwdFlat.Length;
                 // Rope just taut at hookup (no snatch when the tug moves off): hooks are ~2 m ahead of the
                 // glider CG and ~4.5 m behind the tug CG, so tug CG = glider CG + rope + 2.5 m.
-                double ahead = RopeLengthM + 2.5;
+                double ahead = RopeLengthM + 2.0 + 3.4 - 0.2;   // glider hook +2.0, tug hook -3.4: rope just taut (0.2 m slack)
                 tugPos = new Vec3(gliderState.Position.X + fwdFlat.X * ahead, gliderState.Position.Y + fwdFlat.Y * ahead, -(groundHere + tugGearZ - 0.02));
                 tugState = new RigidBodyState(tugPos, gliderState.Attitude, Vec3.Zero, Vec3.Zero);
             }
@@ -101,6 +98,12 @@ namespace FlyingGame.Bridge
             _powerLatched = !_groundTow; _tugThrottle01 = _groundTow ? 0.0 : 1.0;
             { var q = gliderState.Attitude; _towHeading = System.Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)); }
             Tow = new AeroTow(tug, _gliderDriver.Sim.Aircraft, RopeLengthM);
+            if (_groundTow)
+            {
+                var runner = GetComponent<WingRunner>() ?? gameObject.AddComponent<WingRunner>();
+                runner.Driver = _gliderDriver;
+                runner.Begin(1f);   // right wingtip
+            }
             _accumulator = 0;
         }
 

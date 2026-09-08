@@ -24,6 +24,9 @@ namespace FlyingGame.Bridge
 
         public SimLoop Sim { get; private set; }
 
+        /// <summary>Optional constraint applied after each frame's sim steps (wing runner).</summary>
+        public System.Action<Aircraft> PostStep;
+
         /// <summary>Raised after the sim is rebuilt for a (possibly different) aircraft — visuals rebuild on it.</summary>
         public event System.Action AircraftChanged;
         public ControlInputs Inputs { get; set; } = ControlInputs.Neutral;
@@ -137,6 +140,7 @@ namespace FlyingGame.Bridge
         private void Update()
         {
             Sim.Advance(Time.deltaTime, Inputs, ref _accumulator);
+            PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);
         }

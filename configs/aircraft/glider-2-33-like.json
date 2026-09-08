@@ -1502,13 +1502,13 @@
       "rollResistN": 30
     },
     {
-      "pos": [-0.1, -7.6, -0.53],
-      "springN": 20000, "dampNs": 1500, "brake": false, "isTailwheel": true, "isSteerable": false,
+      "pos": [-0.1, -7.6, -0.44],
+      "springN": 5000, "dampNs": 120, "brake": false, "isTailwheel": true, "isSteerable": false,
       "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
     },
     {
-      "pos": [-0.1, 7.6, -0.53],
-      "springN": 20000, "dampNs": 1500, "brake": false, "isTailwheel": true, "isSteerable": false,
+      "pos": [-0.1, 7.6, -0.44],
+      "springN": 5000, "dampNs": 120, "brake": false, "isTailwheel": true, "isSteerable": false,
       "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
     },
     {

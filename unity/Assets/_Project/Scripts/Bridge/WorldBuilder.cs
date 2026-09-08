@@ -332,7 +332,7 @@ namespace FlyingGame.Bridge
             var m = new Mesh(); m.vertices = v; m.triangles = tr.ToArray(); m.RecalculateNormals(); m.RecalculateBounds(); return m;
         }
 
-        private static Mesh Torus(float R, float r, int segs, int rings)
+        public static Mesh Torus(float R, float r, int segs, int rings)
         {
             var v = new Vector3[segs * rings]; var tr = new int[segs * rings * 6];
             for (int i = 0; i < segs; i++)
