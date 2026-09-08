@@ -50,6 +50,7 @@ namespace FlyingGame.EditorTools
 
             EnsureSceneInBuild();
             EnsureAlwaysIncludedShaders();
+            EnsureBuiltinFontPreloaded();
             AssetDatabase.SaveAssets();
             Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape, IL2CPP, ARM64).");
         }
@@ -101,7 +102,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/BubbleInstanced" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Lit", "FlyingGame/HudLine" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -126,6 +127,28 @@ namespace FlyingGame.EditorTools
                 }
             }
             so.ApplyModifiedProperties();
+        }
+
+        // The built-in IMGUI default skin + its font get stripped from the iOS player (nondeterministically),
+        // and then GUI.DoSetSkin NREs every frame and no GUI text renders. Pinning the built-in font as a
+        // Preloaded Asset forces it into the build so the default skin's styles resolve at runtime.
+        private static void EnsureBuiltinFontPreloaded()
+        {
+            Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")
+                        ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (font == null)
+            {
+                Debug.LogWarning("EnsureBuiltinFontPreloaded: built-in font not found.");
+                return;
+            }
+
+            var preloaded = PlayerSettings.GetPreloadedAssets().Where(a => a != null).ToList();
+            if (!preloaded.Contains(font))
+            {
+                preloaded.Add(font);
+                PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
+                Debug.Log($"EnsureBuiltinFontPreloaded: pinned '{font.name}' into the build.");
+            }
         }
 
         private static void EnsureSceneInBuild()

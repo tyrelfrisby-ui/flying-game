@@ -15,23 +15,30 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            _style ??= new GUIStyle(GUI.skin.label)
+            // Scale text to the device: OnGUI uses native pixels, so a fixed 16 px is invisible on a
+            // ~2600 px Retina phone. Size off the short screen edge (matches the touch buttons).
+            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.024f);
+            // From scratch (no GUI.skin base): the built-in skin is stripped on iOS and NREs.
+            _style ??= new GUIStyle
             {
-                fontSize = 16,
-                normal = { textColor = new Color(1f, 1f, 1f, 0.75f) },
+                font = UiFont.Get(),
+                alignment = TextAnchor.UpperCenter,   // HUD lives top-centre; controls own the bottom edge
+                normal = { textColor = new Color(0.25f, 1f, 0.35f, 0.8f) },
             };
+            _style.fontSize = fs;
 
-            double kt = Driver.IasMs * 1.9438;
-            GUI.Label(new Rect(16, 12, 640, 24),
-                $"IAS {Driver.IasMs:F1} m/s ({kt:F0} kt)   ALT {Driver.AltitudeM:F0} m   " +
-                $"AoA {Driver.AlphaDeg:F1}°   β {Driver.BetaDeg:F1}°", _style);
-            GUI.Label(new Rect(16, 34, 760, 22),
+            float m = fs;                 // left/top margin
+            float lh = fs * 1.5f;         // line height
+            float w = Screen.width - 2 * m;
+
+            // Airspeed/altitude/AoA/sideslip now live in HudOverlay (green HUD over the aircraft).
+            GUI.Label(new Rect(m, m * 0.5f, w, lh),
                 $"{Driver.AircraftName}  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
 
             // Spin grading line — only when the wing is stalled and rotation is established.
             if (Driver.AlphaDeg > 16.0 && Driver.SecPerTurn > 0)
             {
-                GUI.Label(new Rect(16, 58, 760, 22),
+                GUI.Label(new Rect(m, m * 0.5f + lh, w, lh),
                     $"SPIN  {Driver.SecPerTurn:F1} s/turn   {Driver.FtPerTurn:F0} ft/turn   {Driver.DescentFtPerSec:F0} ft/s down", _style);
             }
         }

@@ -16,15 +16,25 @@ namespace FlyingGame.Bridge
         public string AircraftId { get; private set; } = "glider-2-33-like";
         public string AircraftName { get; private set; } = "";
         public const double SpawnAltitudeM = 600.0;
-        public const double SpawnIasMs = 22.0;
+        public double SpawnIasMs { get; private set; } = 22.0;   // per type, from AircraftConfig.SpawnIasMs
+
+        /// <summary>Raw elevator stick fraction (-1..1) that reproduces the spawn trim through the config's
+        /// stick shaping — the pitch-trim slider is preset to this so the aircraft holds level hands-off.</summary>
+        public double TrimStick { get; private set; }
 
         public SimLoop Sim { get; private set; }
+
+        /// <summary>Raised after the sim is rebuilt for a (possibly different) aircraft — visuals rebuild on it.</summary>
+        public event System.Action AircraftChanged;
         public ControlInputs Inputs { get; set; } = ControlInputs.Neutral;
 
         public double IasMs { get; private set; }
         public double AltitudeM { get; private set; }
         public double AlphaDeg { get; private set; }
         public double BetaDeg { get; private set; }
+
+        /// <summary>Ground-frame velocity in Unity world axes (the flight path the chase camera follows).</summary>
+        public Vector3 WorldVelocityUnity { get; private set; }
 
         // Spin grading (owner benchmarks: ~100 ft/s descent, ~300 ft and ~3 s per turn in a 2-33).
         public double DescentFtPerSec { get; private set; }
@@ -40,7 +50,9 @@ namespace FlyingGame.Bridge
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
+            SpawnIasMs = config.SpawnIasMs > 0 ? config.SpawnIasMs : 22.0;
             TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, SpawnAltitudeM);
+            TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
             if (!trim.Converged)
             {
                 Debug.LogError("Spawn trim failed to converge; starting from level attitude.");
@@ -94,6 +106,7 @@ namespace FlyingGame.Bridge
         {
             _accumulator = 0;
             Awake();
+            AircraftChanged?.Invoke();
         }
 
         public void SwitchAircraft(string id)
@@ -116,6 +129,7 @@ namespace FlyingGame.Bridge
             transform.SetPositionAndRotation(CoordinateMap.ToUnity(s.Position), CoordinateMap.ToUnity(s.Attitude));
 
             Vec3 v = s.Velocity;
+            WorldVelocityUnity = CoordinateMap.ToUnity(s.Attitude.Rotate(v));
             IasMs = v.Length;
             AltitudeM = -s.Position.Z;
             AlphaDeg = System.Math.Atan2(v.Z, v.X) * 180.0 / System.Math.PI;

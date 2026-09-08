@@ -1,7 +1,11 @@
 {
     "name": "FlyingGame.EditorTools",
     "rootNamespace": "FlyingGame.EditorTools",
-    "references": [],
+    "references": [
+        "FlyingGame.Bridge",
+        "FlyingGame.Core",
+        "FlyingGame.Sim"
+    ],
     "includePlatforms": [
         "Editor"
     ],

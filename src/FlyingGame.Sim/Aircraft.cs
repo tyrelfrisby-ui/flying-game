@@ -219,6 +219,21 @@ public sealed class Aircraft
         }
     }
 
+    /// <summary>Inverse of the stick shaping: the raw stick fraction (-1..1) that produces `deflRad`
+    /// through this axis's dead zone/expo/travel (bisection; exact enough to hold a trim hands-off).</summary>
+    public static double StickForDeflection(double deflRad, ControlAxisConfig axis)
+    {
+        if (axis.MaxDeflRad <= 1e-9 || Math.Abs(deflRad) < 1e-9) return 0.0;
+        double sign = Math.Sign(deflRad), target = Math.Min(Math.Abs(deflRad), axis.MaxDeflRad);
+        double lo = 0.0, hi = 1.0;
+        for (int i = 0; i < 40; i++)
+        {
+            double mid = 0.5 * (lo + hi);
+            if (ShapeAxis(mid, axis) < target) lo = mid; else hi = mid;
+        }
+        return sign * 0.5 * (lo + hi);
+    }
+
     private static double ShapeAxis(double input, ControlAxisConfig axis)
     {
         double clamped = Math.Clamp(input, -1.0, 1.0);

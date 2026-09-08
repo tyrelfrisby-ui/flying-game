@@ -89,11 +89,42 @@ public static class AeroModel
 
             double aspectRatio = GeometricAspectRatio(surface, isVertical);
 
+            // Wing-body crossflow (dihedral effect of wing position): sideslip flow wraps around the
+            // fuselage like 2D potential flow past a cylinder of radius R. A wing root ABOVE the axis
+            // sees upwash on the windward side / downwash on the leeward side (high wing = extra
+            // dihedral effect); a root BELOW the axis sees the reverse (low wing = anhedral effect).
+            // Vertical perturbation of the AIR at body offset (y, z): w_air = -2·v_air·R²·y·z / (y²+z²)².
+            double bodyR = config.Fuselage.Crossflow.BodyRadiusM;
+            bool wingBody = !isVertical && bodyR > 0.0 && surface.HeightAboveBodyAxisM != 0.0;
+            double rootZ = 0.0;
+            if (wingBody)
+            {
+                double minAbsY = double.MaxValue;
+                foreach (StripConfig st in surface.Strips)
+                {
+                    double ay = Math.Abs(st.PosVec().Y);
+                    if (ay < minAbsY) { minAbsY = ay; rootZ = st.PosVec().Z; }
+                }
+            }
+
             foreach (StripConfig strip in surface.Strips)
             {
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
                 Vec3 r = strip.PosVec() - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
+
+                if (wingBody)
+                {
+                    // Strip offset from the fuselage axis: y from the config, z from the root height
+                    // (NED: above = negative) plus this strip's rise from the root (dihedral).
+                    double y = strip.PosVec().Y;
+                    double z = -surface.HeightAboveBodyAxisM + (strip.PosVec().Z - rootZ);
+                    double r2 = Math.Max(y * y + z * z, bodyR * bodyR); // inside the body: clamp to the surface
+                    // Aircraft-relative-to-air velocity is -air velocity, so Δ(vLocal.Z) = +2·v_air·R²·y·z/r⁴
+                    // with v_air = -vLocal.Y.
+                    double dw = -2.0 * vLocal.Y * bodyR * bodyR * y * z / (r2 * r2);
+                    vLocal = new Vec3(vLocal.X, vLocal.Y, vLocal.Z + dw);
+                }
 
                 double alphaBase;
                 Vec3 dragDir, liftDir, momentAxis;
@@ -535,6 +566,18 @@ public static class AeroModel
                     totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));
                 }
             }
+        }
+
+        // Cross-section camber (see CrossflowConfig.SectionCamberCl): sideslip crossflow over an
+        // asymmetric section makes a body-UP force at the cambered station → nose-down with |β|.
+        CrossflowConfig cfc = config.Fuselage.Crossflow;
+        if (cfc.SectionCamberCl > 0.0 && cfc.SectionCamberArea > 0.0)
+        {
+            double xs = cfc.SectionCamberCenterX;
+            double vLoc = bodyVelocity.Y + bodyRates.Z * (xs - config.Mass.CgVec().X);
+            double fz = -0.5 * airDensity * cfc.SectionCamberArea * cfc.SectionCamberCl * vLoc * vLoc; // body -z = up
+            totalForce += new Vec3(0, 0, fz);
+            totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
         }
 
         totalMoment -= new Vec3(

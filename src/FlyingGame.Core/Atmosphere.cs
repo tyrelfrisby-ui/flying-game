@@ -13,13 +13,56 @@ public static class Atmosphere
     public const double GasConstantAir = 287.05287;
     public const double GravityMs2 = 9.80665;
 
-    /// <summary>Air density (kg/m^3) at a given altitude above sea level (m), ISA troposphere model.</summary>
-    public static double DensityAtAltitude(double altitudeM)
+    /// <summary>Non-standard day: offset from ISA sea-level temperature (K). +15 = a hot day (thinner air),
+    /// -30 = a cold day (denser air). Default 0 = standard day (59 °F at sea level).</summary>
+    public static double IsaDeviationK { get; set; }
+
+    /// <summary>Warmth (K above ambient) at the core of a thermal — the rising air is what heats the bubbles'
+    /// tint. Visual/atmospheric only; the thermal's lift is what the wings feel.</summary>
+    public const double ThermalCoreWarmthK = 4.0;
+
+    /// <summary>ISA pressure (Pa) at altitude (m), standard troposphere.</summary>
+    public static double PressureAtAltitude(double altitudeM)
     {
         double clampedAlt = System.Math.Clamp(altitudeM, 0.0, 11000.0);
-        double temperature = SeaLevelTempK - LapseRateKPerM * clampedAlt;
-        double pressure = SeaLevelPressurePa * System.Math.Pow(temperature / SeaLevelTempK, GravityMs2 / (LapseRateKPerM * GasConstantAir));
-        return pressure / (GasConstantAir * temperature);
+        double isaTemp = SeaLevelTempK - LapseRateKPerM * clampedAlt;
+        return SeaLevelPressurePa * System.Math.Pow(isaTemp / SeaLevelTempK, GravityMs2 / (LapseRateKPerM * GasConstantAir));
+    }
+
+    /// <summary>Ambient air temperature (K) at altitude (m): ISA lapse plus the day's ISA deviation.</summary>
+    public static double TemperatureAtAltitudeK(double altitudeM)
+    {
+        double clampedAlt = System.Math.Clamp(altitudeM, 0.0, 11000.0);
+        return SeaLevelTempK - LapseRateKPerM * clampedAlt + IsaDeviationK;
+    }
+
+    /// <summary>Air density (kg/m^3) at a given altitude above sea level (m), ISA troposphere model
+    /// (with the day's ISA deviation applied to temperature — hot day = thinner air).</summary>
+    public static double DensityAtAltitude(double altitudeM)
+    {
+        return PressureAtAltitude(altitudeM) / (GasConstantAir * TemperatureAtAltitudeK(altitudeM));
+    }
+
+    /// <summary>Local air temperature (K) at a world position: ambient at that altitude, plus the warmth of
+    /// any thermal core the point sits in (same Gaussian profile as the thermal's updraft).</summary>
+    public static double TemperatureAtPosition(MathTypes.Vec3 worldPosition)
+    {
+        double altitudeM = -worldPosition.Z;
+        double t = TemperatureAtAltitudeK(altitudeM);
+        for (int i = 0; i < Thermals.Count; i++)
+        {
+            t += ThermalCoreWarmthK * Thermals[i].CoreFractionAt(worldPosition);
+        }
+
+        return t;
+    }
+
+    /// <summary>Local air density (kg/m^3) at a world position: ISA pressure at that altitude over the LOCAL
+    /// temperature (so a thermal's warm core is slightly thinner than the air around it).</summary>
+    public static double DensityAtPosition(MathTypes.Vec3 worldPosition)
+    {
+        double altitudeM = -worldPosition.Z;
+        return PressureAtAltitude(altitudeM) / (GasConstantAir * TemperatureAtPosition(worldPosition));
     }
 
     /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>

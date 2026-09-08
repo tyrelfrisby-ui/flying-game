@@ -2,6 +2,7 @@
   "schemaVersion": 1,
   "id": "glider-2-33-like",
   "displayName": "Trainer Glider",
+  "spawnIasMs": 22,
   "mass": {
     "massKg": 350,
     "cg": [
@@ -18,7 +19,7 @@
   },
   "surfaces": [
     {
-      "id": "wing",
+      "id": "wing", "heightAboveBodyAxisM": 0.55,
       "strips": [
         {
           "pos": [
@@ -319,7 +320,7 @@
       ]
     },
     {
-      "id": "wing-aileron",
+      "id": "wing-aileron", "heightAboveBodyAxisM": 0.55,
       "oswaldE": 0.85,
       "strips": [
         {
@@ -1457,7 +1458,7 @@
       "q": 0,
       "r": 0
     },
-    "crossflow": {
+    "crossflow": { "bodyRadiusM": 0.55,
       "planArea": 3.5,
       "planCenterX": -0.6,
       "sideArea": 4.2,
@@ -1499,6 +1500,16 @@
       "tireMu": 0.5,
       "corneringStiffnessN": 800,
       "rollResistN": 30
+    },
+    {
+      "pos": [-0.1, -7.6, -0.53],
+      "springN": 20000, "dampNs": 1500, "brake": false, "isTailwheel": true, "isSteerable": false,
+      "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
+    },
+    {
+      "pos": [-0.1, 7.6, -0.53],
+      "springN": 20000, "dampNs": 1500, "brake": false, "isTailwheel": true, "isSteerable": false,
+      "maxSteerRad": 0, "tireMu": 0.4, "corneringStiffnessN": 400, "rollResistN": 60, "gearType": "tip-skid"
     }
   ],
   "limits": {

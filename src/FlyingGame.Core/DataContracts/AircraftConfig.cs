@@ -11,6 +11,10 @@ public sealed class AircraftConfig
     public string Id { get; set; } = "";
     public string DisplayName { get; set; } = "";
 
+    /// <summary>Airspeed (m/s) the aircraft is spawned/reset at — a comfortable cruise for the type,
+    /// well above stall (a P-51 or Sabre dropped in at glider speed stalls instantly). 0 = 22 m/s default.</summary>
+    public double SpawnIasMs { get; set; }
+
     public MassConfig Mass { get; set; } = new();
     public List<SurfaceConfig> Surfaces { get; set; } = new();
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
@@ -70,6 +74,15 @@ public sealed class SurfaceConfig
     /// Airfoil tables carry PROFILE drag only; induced drag is computed per strip from this.
     /// </summary>
     public double OswaldE { get; set; } = 0.85;
+
+    /// <summary>
+    /// Height of this surface's ROOT above the fuselage axis (m): positive = high wing (sits on top of
+    /// the body), negative = low wing (hangs under it), 0 = mid wing / not modeled. Drives the
+    /// wing-body crossflow dihedral effect: in sideslip the flow wraps over/under the fuselage, giving
+    /// upwash at the windward root of a high wing (extra dihedral effect) and downwash for a low wing
+    /// (anhedral effect). Needs <see cref="CrossflowConfig.BodyRadiusM"/> &gt; 0 to act.
+    /// </summary>
+    public double HeightAboveBodyAxisM { get; set; }
 }
 
 public sealed class StripConfig
@@ -213,6 +226,25 @@ public sealed class CrossflowConfig
     /// <summary>Proposal 2: fuselage length for DISTRIBUTED crossflow (5 stations -> real Cm_q/N_r
     /// damping at spin attitudes). 0 = legacy single-point.</summary>
     public double LengthM { get; set; }
+
+    /// <summary>
+    /// Fuselage radius at the wing station (m) for the wing-body crossflow dihedral effect (2D cylinder
+    /// crossflow around the body: upwash on the windward side above the axis, downwash below). 0 = off.
+    /// Pair with <see cref="SurfaceConfig.HeightAboveBodyAxisM"/> on the wing surfaces.
+    /// </summary>
+    public double BodyRadiusM { get; set; }
+
+    /// <summary>
+    /// Fuselage cross-SECTION camber in crossflow (owner/CFI observation on the Extra 300: a rounded
+    /// turtle deck over a flat, angular belly is a cambered "airfoil" to sideslip flow, so ANY sideslip
+    /// lifts the aft fuselage toward the rounded side and pitches the nose DOWN — the sideslip↔pitch
+    /// coupling that lets it tumble). Body-up force = ½ρ·v_local²·SectionCamberArea·SectionCamberCl at
+    /// SectionCamberCenterX (v_local = lateral velocity at that station incl. yaw rate). Even in β, so
+    /// it works either way and in any attitude. 0 = off.
+    /// </summary>
+    public double SectionCamberCl { get; set; }
+    public double SectionCamberArea { get; set; }
+    public double SectionCamberCenterX { get; set; }
 }
 
 public sealed class DampingConfig

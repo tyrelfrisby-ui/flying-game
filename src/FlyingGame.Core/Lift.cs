@@ -25,6 +25,23 @@ public sealed class Thermal
         TopAltitudeM = topAltitudeM;
     }
 
+    /// <summary>How deep inside the warm core a point is, 0 (outside / above top) .. 1 (core centre at peak
+    /// altitude): the same Gaussian-radial × altitude profile that shapes the updraft.</summary>
+    public double CoreFractionAt(Vec3 pos)
+    {
+        double altitude = -pos.Z;
+        if (altitude < 0 || altitude > TopAltitudeM)
+        {
+            return 0.0;
+        }
+
+        Vec3 core = SurfaceCenter + LeanPerM * altitude;
+        double dx = pos.X - core.X, dy = pos.Y - core.Y;
+        double rNorm = System.Math.Sqrt(dx * dx + dy * dy) / CoreRadiusM;
+        double altFactor = System.Math.Sin(System.Math.PI * System.Math.Clamp(altitude / TopAltitudeM, 0, 1));
+        return System.Math.Exp(-rNorm * rNorm) * altFactor;
+    }
+
     /// <summary>Vertical wind (world, +z down so a rising gust is NEGATIVE z) at a position.</summary>
     public Vec3 WindAt(Vec3 pos)
     {

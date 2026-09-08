@@ -18,6 +18,7 @@ namespace FlyingGame.Bridge
         {
             BuildGround();
             BuildRunway();
+            BuildHangar();
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();
             BuildSun();
@@ -65,7 +66,7 @@ namespace FlyingGame.Bridge
             Object.Destroy(rw.GetComponent<Collider>());
             rw.transform.position = new Vector3(0, 0.02f, 400f);   // slightly above ground plane
             rw.transform.localScale = new Vector3(30f, 0.05f, 1500f);
-            rw.GetComponent<MeshRenderer>().material.color = new Color(0.22f, 0.22f, 0.24f);
+            rw.GetComponent<MeshRenderer>().material = UnlitMat(new Color(0.22f, 0.22f, 0.24f));
             // Centerline stripes.
             for (int i = 0; i < 40; i++)
             {
@@ -73,8 +74,71 @@ namespace FlyingGame.Bridge
                 Object.Destroy(stripe.GetComponent<Collider>());
                 stripe.transform.position = new Vector3(0, 0.06f, -300f + i * 36f);
                 stripe.transform.localScale = new Vector3(0.6f, 0.05f, 16f);
-                stripe.GetComponent<MeshRenderer>().material.color = Color.white;
+                stripe.GetComponent<MeshRenderer>().material = UnlitMat(Color.white);
             }
+        }
+
+        /// <summary>
+        /// A hangar beside the runway with its sliding doors pushed open at BOTH ends (owner request), so
+        /// it can be flown straight through. Its long axis is parallel to the runway (Unity +z), on the
+        /// east side, joined to the strip by a concrete apron. Big enough for the glider's 15 m span
+        /// with room to spare: 44 m wide, 16 m clear height, 50 m long.
+        /// </summary>
+        private static void BuildHangar()
+        {
+            const float halfW = 22f, height = 16f, halfL = 25f, wall = 0.6f;
+            var center = new Vector3(78f, 0f, 250f); // 63 m east of the runway edge, abeam its first third
+            var wallCol = new Color(0.80f, 0.78f, 0.72f);
+            var roofCol = new Color(0.42f, 0.44f, 0.48f);
+            var trimCol = new Color(0.55f, 0.57f, 0.60f);
+            var doorCol = new Color(0.22f, 0.34f, 0.56f);
+            var apronCol = new Color(0.62f, 0.62f, 0.60f);
+
+            var root = new GameObject("Hangar");
+            root.transform.position = center;
+
+            // Concrete apron under the hangar, plus a taxiway strip joining it to the runway edge.
+            Slab(root, "Apron", new Vector3(0f, 0.015f, 0f), new Vector3(2f * halfW + 16f, 0.03f, 2f * halfL + 30f), apronCol);
+            Slab(root, "Taxiway", new Vector3(-(halfW + 8f + (center.x - halfW - 8f - 15f) * 0.5f), 0.015f, 0f),
+                new Vector3(center.x - halfW - 8f - 15f, 0.03f, 20f), apronCol);
+
+            // Side walls (long axis along z).
+            Slab(root, "WallWest", new Vector3(-halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
+            Slab(root, "WallEast", new Vector3(halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
+
+            // Flat roof with a small overhang, and a fascia beam across each open end.
+            Slab(root, "Roof", new Vector3(0f, height + wall * 0.5f, 0f), new Vector3(2f * halfW + 2f, wall, 2f * halfL + 2f), roofCol);
+            Slab(root, "FasciaN", new Vector3(0f, height - 0.8f, halfL), new Vector3(2f * halfW + 2f, 1.6f, wall), trimCol);
+            Slab(root, "FasciaS", new Vector3(0f, height - 0.8f, -halfL), new Vector3(2f * halfW + 2f, 1.6f, wall), trimCol);
+
+            // Sliding doors at each end, slid fully OPEN past the side walls (one leaf each side), riding
+            // a rail beam along the end face. The opening between them is the full hangar width.
+            const float doorW = 13f, doorH = height - 1.2f;
+            foreach (float zEnd in new[] { halfL, -halfL })
+            {
+                float zDoor = zEnd + Mathf.Sign(zEnd) * (wall + 0.35f); // just outside the end face
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float xDoor = side * (halfW + wall + doorW * 0.5f + 0.4f);
+                    Slab(root, "Door", new Vector3(xDoor, doorH * 0.5f, zDoor), new Vector3(doorW, doorH, 0.3f), doorCol);
+                    // A lighter stripe so the leaf reads as a panel, not a slab.
+                    Slab(root, "DoorStripe", new Vector3(xDoor, doorH * 0.5f, zDoor + Mathf.Sign(zEnd) * 0.2f),
+                        new Vector3(doorW * 0.12f, doorH * 0.9f, 0.1f), new Color(0.85f, 0.88f, 0.92f));
+                }
+                // Door rail along the whole end face (spans walls + both open leaves).
+                Slab(root, "DoorRail", new Vector3(0f, doorH + 0.5f, zDoor), new Vector3(2f * (halfW + wall + doorW + 0.8f), 0.6f, 0.5f), trimCol);
+            }
+        }
+
+        private static void Slab(GameObject parent, string name, Vector3 localPos, Vector3 size, Color color)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Object.Destroy(go.GetComponent<Collider>());
+            go.transform.SetParent(parent.transform, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = size;
+            go.GetComponent<MeshRenderer>().material = UnlitMat(color);
         }
 
         private static void BuildCardinalLetters()
@@ -109,25 +173,25 @@ namespace FlyingGame.Bridge
 
         private static GameObject BuildAircraft()
         {
-            var root = new GameObject("Glider");
+            var root = new GameObject("Aircraft");
 
-            // Placeholder airframe from primitives, roughly 2-33 proportions. Real model later.
-            AddPart(root, "Fuselage", PrimitiveType.Capsule, new Vector3(0, 0, 0.6f),
-                Quaternion.Euler(90, 0, 0), new Vector3(0.7f, 3.9f, 0.7f), new Color(0.85f, 0.1f, 0.1f));
-            AddPart(root, "Wing", PrimitiveType.Cube, new Vector3(0, 0.35f, 0.6f),
-                Quaternion.identity, new Vector3(15.2f, 0.12f, 1.25f), new Color(0.92f, 0.9f, 0.85f));
-            AddPart(root, "HStab", PrimitiveType.Cube, new Vector3(0, 0.1f, -3.2f),
-                Quaternion.identity, new Vector3(3.6f, 0.08f, 0.9f), new Color(0.92f, 0.9f, 0.85f));
-            AddPart(root, "VStab", PrimitiveType.Cube, new Vector3(0, 0.8f, -3.3f),
-                Quaternion.identity, new Vector3(0.08f, 1.5f, 1.0f), new Color(0.85f, 0.1f, 0.1f));
-
+            // Airframe visuals are built per type by AirframeVisual (wings/tails lofted from the config's
+            // strip geometry + 3-view fuselage/canopy/prop/gear tables) and rebuilt on aircraft switch.
             var driver = root.AddComponent<FlightSimDriver>();
             root.AddComponent<TouchFlightControls>(); // RC dual-touchpad (folds in editor keyboard fallback)
             root.AddComponent<ChallengeController>();
             root.AddComponent<TowController>();
+            root.AddComponent<AirframeVisual>();
+            root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             _ = driver;
             return root;
         }
+
+        // CreatePrimitive's default material uses the built-in Standard shader, which is stripped from the
+        // iOS player build (renders magenta on device). Unlit/Color is force-included, so route flat-color
+        // primitives through it — matches the current untextured look and is cheaper on mobile.
+        private static Material UnlitMat(Color color) =>
+            new Material(Shader.Find("Unlit/Color")) { color = color };
 
         private static void AddPart(GameObject parent, string name, PrimitiveType type,
             Vector3 pos, Quaternion rot, Vector3 scale, Color color)
@@ -138,7 +202,7 @@ namespace FlyingGame.Bridge
             part.transform.SetParent(parent.transform, false);
             part.transform.SetLocalPositionAndRotation(pos, rot);
             part.transform.localScale = scale;
-            part.GetComponent<MeshRenderer>().material.color = color;
+            part.GetComponent<MeshRenderer>().material = UnlitMat(color);
         }
 
         private static void BuildCameraAndHud(GameObject aircraft)
@@ -155,10 +219,13 @@ namespace FlyingGame.Bridge
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
             chase.Target = aircraft.transform;
+            chase.Driver = aircraft.GetComponent<FlightSimDriver>();
             chase.SnapBehind();
 
             var hud = cam.gameObject.AddComponent<FlightHud>();
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
+            var hudOverlay = cam.gameObject.AddComponent<HudOverlay>();   // green conformal HUD over the aircraft
+            hudOverlay.Driver = aircraft.GetComponent<FlightSimDriver>();
 
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
