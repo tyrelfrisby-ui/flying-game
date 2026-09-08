@@ -12,7 +12,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
-            if (Driver == null)
+            if (Driver == null || SessionSettings.MenuOpen)
             {
                 return;
             }

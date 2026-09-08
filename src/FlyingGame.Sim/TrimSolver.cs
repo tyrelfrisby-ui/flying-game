@@ -40,7 +40,8 @@ public static class TrimSolver
         double iasMs,
         double altitudeM = 0.0,
         int maxIterations = 100,
-        double tolerance = 1e-9)
+        double tolerance = 1e-9,
+        double flapFraction = 0.0)
     {
         Dictionary<string, AirfoilTable> tables = Aircraft.BuildAirfoilTables(config);
         double airDensity = Atmosphere.DensityAtAltitude(altitudeM);
@@ -84,7 +85,7 @@ public static class TrimSolver
         {
             double alpha = xv[0], theta = xv[1], elevatorRad = xv[2];
             Vec3 bodyVelocity = new(iasMs * Math.Cos(alpha), 0, iasMs * Math.Sin(alpha));
-            ControlDeflections controls = new(0, elevatorRad, 0, 0);
+            ControlDeflections controls = new(0, elevatorRad, 0, 0, flapFraction);
             (Vec3 force, Vec3 moment) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
 
             double gravityX = -weight * Math.Sin(theta);
@@ -118,7 +119,7 @@ public static class TrimSolver
         double ComputeGlideRatio(double alpha, double elevatorRad)
         {
             Vec3 bodyVelocity = new(iasMs * Math.Cos(alpha), 0, iasMs * Math.Sin(alpha));
-            ControlDeflections controls = new(0, elevatorRad, 0, 0);
+            ControlDeflections controls = new(0, elevatorRad, 0, 0, flapFraction);
             (Vec3 force, _) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
 
             double velDirX = Math.Cos(alpha), velDirZ = Math.Sin(alpha);

@@ -22,6 +22,9 @@ public sealed class AircraftConfig
     public FuselageConfig Fuselage { get; set; } = new();
     public PropulsionConfig? Propulsion { get; set; }
 
+    /// <summary>Seaplane floats (null = landplane). See FloatHydro.</summary>
+    public FloatsConfig? Floats { get; set; }
+
     /// <summary>Multi-engine mounts. Empty = single centerline engine using Propulsion as-is. Each
     /// mount reuses Propulsion for thrust/prop params but overrides position and rotation sign, so a
     /// twin's counter-rotating props cancel torque/P-factor in symmetric flight and an engine-out
@@ -252,6 +255,23 @@ public sealed class DampingConfig
     public double P { get; set; }
     public double Q { get; set; }
     public double R { get; set; }
+}
+
+/// <summary>Twin straight floats (EDO 2000 class). Body frame: x forward, z DOWN from the CG.</summary>
+public sealed class FloatsConfig
+{
+    public double LengthM { get; set; } = 4.95;
+    public double BeamM { get; set; } = 0.66;
+    public double DepthM { get; set; } = 0.55;           // keel to deck at the step
+    public double DeadriseDeg { get; set; } = 20;
+    public double StepFraction { get; set; } = 0.55;     // step position from the bow, fraction of length
+    public double SpreadM { get; set; } = 2.6;           // centre-to-centre
+    public double BowX { get; set; } = 2.6;              // bow tip x vs CG
+    public double KeelZ { get; set; } = 1.55;            // keel at the step, z down vs CG
+    public double ForebodyKeelDeg { get; set; } = 2.5;   // keel rises toward the bow
+    public double AfterbodyKeelDeg { get; set; } = 4.0;  // keel rises toward the stern behind the step
+    public double WaterRudderAreaM2 { get; set; } = 0.05;
+    public double WaterRudderMaxRad { get; set; } = 0.6;
 }
 
 public sealed class GearConfig

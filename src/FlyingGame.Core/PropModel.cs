@@ -39,7 +39,10 @@ public static class PropModel
 
         // Thrust: eta*P/V, capped by momentum-theory static thrust.
         double discArea = Math.PI * radius * radius;
-        double staticThrust = Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
+        // Ideal (momentum-theory) static thrust × a static figure of merit: real fixed-pitch/CS props make
+        // ~55-65 % of the ideal at zero airspeed (a 180 hp 172 ≈ 2.7 kN, not the 5 kN momentum theory gives).
+        const double staticFigureOfMerit = 0.6;
+        double staticThrust = staticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
         double thrust = powerW <= 0 ? 0 : Math.Min(prop.Efficiency * powerW / Math.Max(v, 5.0), staticThrust);
 
         Vec3 force = new(thrust, 0, 0);
@@ -62,8 +65,12 @@ public static class PropModel
             moment += new Vec3(0, thrust * zOffset, -thrust * yOffset);                       // r x F, r=(0,y,z)... N = -y*T? sign: offset right (+y) with thrust +x: Mz = -y*Fx -> yaw LEFT (negative) — correct for RH at +alpha
         }
 
-        // Spiral slipstream: swirl strikes the fin -> yaw LEFT for RH prop; ~ P / V.
-        moment += new Vec3(0, 0, -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(v, 8.0));
+        // Spiral slipstream: swirl strikes the fin -> yaw LEFT for RH prop; ~ P / V_slip where V_slip is the
+        // speed of the air IN the slipstream (momentum theory: V_slip² = V² + 2T/(ρA)). Using freestream V
+        // clamped at 8 m/s over-predicted the static yaw ~4× (a 172 at full power on the brakes needed
+        // more rudder than it has) — at rest the fin sits in ~35-40 m/s of slipstream, not 8.
+        double vSlip = Math.Sqrt(v * v + 2.0 * thrust / Math.Max(airDensity * discArea, 1e-3));
+        moment += new Vec3(0, 0, -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(vSlip, 8.0));
 
         // Gyroscopic: M = -omega x h, h = Ip*OmegaProp along +x*sign.
         double h = prop.RotationSign * prop.PropInertia * omegaProp;

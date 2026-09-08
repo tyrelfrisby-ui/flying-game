@@ -67,6 +67,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<StolController>().Driver = driver;
             root.AddComponent<AirframeVisual>();
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
+            root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             _ = driver;
             return root;
         }

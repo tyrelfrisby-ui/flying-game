@@ -102,7 +102,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/Spray" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -143,12 +143,14 @@ namespace FlyingGame.EditorTools
             }
 
             var preloaded = PlayerSettings.GetPreloadedAssets().Where(a => a != null).ToList();
-            if (!preloaded.Contains(font))
-            {
-                preloaded.Add(font);
-                PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
-                Debug.Log($"EnsureBuiltinFontPreloaded: pinned '{font.name}' into the build.");
-            }
+            bool changed = false;
+            if (!preloaded.Contains(font)) { preloaded.Add(font); changed = true; Debug.Log($"EnsureBuiltinFontPreloaded: pinned '{font.name}' into the build."); }
+            // The built-in IMGUI skin itself (GameSkin) can be stripped too — GUIUtility.BeginGUI then NREs in
+            // DoSetSkin before any OnGUI runs (seen again 2026-09-08). Pin it as well.
+            GUISkin skin = Resources.GetBuiltinResource<GUISkin>("GameSkin.guiskin");
+            if (skin != null && !preloaded.Contains(skin)) { preloaded.Add(skin); changed = true; Debug.Log("EnsureBuiltinFontPreloaded: pinned built-in GUISkin 'GameSkin'."); }
+            else if (skin == null) Debug.LogWarning("EnsureBuiltinFontPreloaded: built-in GameSkin not found.");
+            if (changed) PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
         }
 
         private static void EnsureSceneInBuild()

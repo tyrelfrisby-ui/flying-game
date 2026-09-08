@@ -118,9 +118,24 @@ public sealed class Aircraft
         int stripCount = Config.Surfaces.Sum(s => s.Strips.Count);
         _flowState.EnsureSize(stripCount);
 
+        // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
+        double slipDu = 0.0, slipR = 0.0;
+        if (Config.Propulsion is not null && Config.Propulsion.PropDiameterM > 0.0)
+        {
+            double vNow = State.Velocity.Length;
+            (Vec3 tF, _) = PropModel.Compute(Config.Propulsion, _throttle01, State.Velocity, State.Rates, airDensity);
+            double thrust = System.Math.Max(0.0, tF.X);
+            double radius = Config.Propulsion.PropDiameterM * 0.5;
+            double disc = System.Math.PI * radius * radius;
+            double vSlip = System.Math.Sqrt(vNow * vNow + 2.0 * thrust / (airDensity * disc));
+            // ~90 % developed by the tail (≈2 R aft), in a tube contracted to ~0.7 R.
+            slipDu = 0.9 * System.Math.Max(0.0, vSlip - vNow);
+            slipR = 0.7 * radius;
+        }
+
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
@@ -130,6 +145,13 @@ public sealed class Aircraft
                 Vec3 fBody = s.Attitude.Conjugate().Rotate(ExternalForceWorld);
                 totalF += fBody;
                 totalM += Vec3.Cross(ExternalForcePointBody - Config.Mass.CgVec(), fBody);
+            }
+            if (Config.Floats is not null)
+            {
+                double rudderCmdW = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
+                (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW);
+                totalF += s.Attitude.Conjugate().Rotate(hF);
+                totalM += s.Attitude.Conjugate().Rotate(hM);
             }
             if (Config.Gear.Count > 0)
             {

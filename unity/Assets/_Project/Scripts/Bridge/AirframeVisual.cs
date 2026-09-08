@@ -134,6 +134,7 @@ namespace FlyingGame.Bridge
             BuildGear(cfg, st);
             BuildSpoilers(cfg, st, halfSpan);
             BuildSlats(cfg, st);
+            BuildFloats(cfg, st);
             return halfSpan;
         }
 
@@ -367,6 +368,7 @@ namespace FlyingGame.Bridge
             var leg = new Color(0.4f, 0.4f, 0.42f);
             foreach (GearConfig g in cfg.Gear)
             {
+                if (g.GearType == "float-keel") continue; // the float hull IS the contact
                 float gx = (float)g.Pos[0], gy = (float)g.Pos[1], gz = (float)g.Pos[2];
                 if (gz < 0f)
                 {
@@ -395,6 +397,59 @@ namespace FlyingGame.Bridge
                 float az = Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gz - r - 0.35f : rb * 0.9f * st.BodyHeightScale + st.BodyAxisZ;
                 Strut(new Vector3(gx, gy, gz - r), new Vector3(gx, Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gy : ay, az), g.IsTailwheel ? 0.05f : 0.1f, leg);
             }
+        }
+
+        /// <summary>Twin floats: V-bottom hull lofts with a step, spreader bars, struts to the fuselage, water rudders.</summary>
+        private void BuildFloats(AircraftConfig cfg, Style st)
+        {
+            FloatsConfig f = cfg.Floats;
+            if (f == null) return;
+            var hull = new Color(0.78f, 0.8f, 0.83f);
+            var strut = new Color(0.35f, 0.35f, 0.38f);
+            float b = (float)f.BeamM, depth = (float)f.DepthM, tanB = Mathf.Tan((float)f.DeadriseDeg * Mathf.Deg2Rad);
+            float xStep = (float)(f.BowX - f.StepFraction * f.LengthM), xStern = (float)(f.BowX - f.LengthM), bow = (float)f.BowX;
+            foreach (float side in new[] { -1f, 1f })
+            {
+                float y = side * (float)f.SpreadM * 0.5f;
+                var mb = new MeshBuilder();
+                var rings = new List<Vector3[]>();
+                // Stations bow → stern; keel z from the two keel angles; beam tapers to a point at the bow.
+                int n = 14;
+                for (int i = 0; i <= n; i++)
+                {
+                    float x = bow - (bow - xStern) * i / n;
+                    bool fore = x >= xStep;
+                    float keel = fore ? (float)(f.KeelZ - (x - xStep) * Mathf.Tan((float)f.ForebodyKeelDeg * Mathf.Deg2Rad))
+                                      : (float)(f.KeelZ - (xStep - x) * Mathf.Tan((float)f.AfterbodyKeelDeg * Mathf.Deg2Rad));
+                    if (!fore) keel -= 0.06f; // step notch: afterbody keel sits above the forebody line
+                    float bowTaper = Mathf.Clamp01((bow - x) / (0.9f)); // beam grows from the bow tip over 0.9 m
+                    float halfB = 0.5f * b * Mathf.Lerp(0.15f, 1f, bowTaper);
+                    float chine = keel - halfB * tanB;      // chine is above the keel (z down → smaller)
+                    float deck = keel - depth;
+                    rings.Add(new[] { U(x, y, keel), U(x, y + halfB, chine), U(x, y + halfB, deck), U(x, y, deck - 0.03f), U(x, y - halfB, deck), U(x, y - halfB, chine) });
+                }
+                mb.AddLoft(rings);
+                mb.AddCapRing(rings[0]);
+                mb.AddCapRing(rings[^1]);
+                Spawn("Float", mb.ToMesh(Vector3.zero), hull, Vector3.zero);
+                // Water rudder plate at the stern.
+                var wr = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Kill(wr.GetComponent<Collider>()); Attach(wr, "WaterRudder");
+                wr.transform.localPosition = U(xStern - 0.05f, y, (float)f.KeelZ - 0.15f);
+                wr.transform.localScale = new Vector3(0.03f, 0.25f, 0.2f);
+                wr.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(strut);
+                // Struts from the float deck up to the fuselage belly.
+                float rb = BodyRadiusAt(st, 0.6f);
+                float belly = rb * st.BodyHeightScale + st.BodyAxisZ;
+                float deckZ = (float)f.KeelZ - depth;
+                Strut(new Vector3(0.9f, y, deckZ), new Vector3(0.7f, side * rb * 0.6f, belly), 0.06f, strut);
+                Strut(new Vector3(-0.9f, y, deckZ), new Vector3(-0.7f, side * rb * 0.6f, belly), 0.06f, strut);
+                Strut(new Vector3(0.9f, y, deckZ), new Vector3(-0.7f, side * rb * 0.6f, belly), 0.05f, strut); // diagonal
+            }
+            // Spreader bars between the floats.
+            float dz = (float)f.KeelZ - depth;
+            Strut(new Vector3(0.9f, -(float)f.SpreadM * 0.5f, dz), new Vector3(0.9f, (float)f.SpreadM * 0.5f, dz), 0.07f, strut);
+            Strut(new Vector3(-0.9f, -(float)f.SpreadM * 0.5f, dz), new Vector3(-0.9f, (float)f.SpreadM * 0.5f, dz), 0.07f, strut);
         }
 
         /// <summary>Fixed leading-edge slats: a bar just ahead of and below the LE over the slatted strips.</summary>
@@ -842,6 +897,7 @@ namespace FlyingGame.Bridge
                     };
                 case "pa18-cub-like":
                 case "pa18-bush-like":
+                case "pa18-floats-like":
                     return new Style
                     {
                         BodyAxisZ = -0.25f, Body = new[] { (2.0f, 0.1f), (1.7f, 0.38f), (1.0f, 0.48f), (0.2f, 0.5f), (-0.8f, 0.45f), (-1.8f, 0.32f), (-3.2f, 0.2f), (-4.5f, 0.12f), (-5.0f, 0.08f) },

@@ -57,6 +57,8 @@ namespace FlyingGame.Bridge
         }
 
         private bool _groundTow;
+        private bool _powerLatched;      // ground tow: once the glider pilot has brought the tug to full power it stays there
+        private double _tugThrottle01;   // 0..1 commanded by the glider's left pad until latched
 
         /// <summary>Hook up and go. In the air the tug appears ahead at tow speed; on the ground (runway start)
         /// the tug sits ahead on the runway at rest and takes off with full power, climbing after liftoff.</summary>
@@ -73,7 +75,10 @@ namespace FlyingGame.Bridge
             {
                 double tugGearZ = 0; foreach (var g in tugConfig.Gear) if (!g.IsTailwheel) tugGearZ = System.Math.Max(tugGearZ, g.Pos[2]);
                 var fwdFlat = new Vec3(fwd.X, fwd.Y, 0); fwdFlat = fwdFlat / fwdFlat.Length;
-                tugPos = new Vec3(gliderState.Position.X + fwdFlat.X * (RopeLengthM - 2.0), gliderState.Position.Y + fwdFlat.Y * (RopeLengthM - 2.0), -(groundHere + tugGearZ - 0.02));
+                // Rope just taut at hookup (no snatch when the tug moves off): hooks are ~2 m ahead of the
+                // glider CG and ~4.5 m behind the tug CG, so tug CG = glider CG + rope + 2.5 m.
+                double ahead = RopeLengthM + 2.5;
+                tugPos = new Vec3(gliderState.Position.X + fwdFlat.X * ahead, gliderState.Position.Y + fwdFlat.Y * ahead, -(groundHere + tugGearZ - 0.02));
                 tugState = new RigidBodyState(tugPos, gliderState.Attitude, Vec3.Zero, Vec3.Zero);
             }
             else
@@ -93,6 +98,7 @@ namespace FlyingGame.Bridge
             _rope.enabled = true;
 
             _tugAircraft = tug;
+            _powerLatched = !_groundTow; _tugThrottle01 = _groundTow ? 0.0 : 1.0;
             { var q = gliderState.Attitude; _towHeading = System.Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)); }
             Tow = new AeroTow(tug, _gliderDriver.Sim.Aircraft, RopeLengthM);
             _accumulator = 0;
@@ -107,10 +113,21 @@ namespace FlyingGame.Bridge
         {
             var s = _tugAircraft.State;
             double speedErr = s.Velocity.Length - TowSpeedMs;
-            double lever = System.Math.Clamp(speedErr * 0.3, -1.0, 1.0);         // throttle
+            double lever = System.Math.Clamp(speedErr * 0.3, -1.0, 1.0);         // throttle (speed hold, airborne)
             double agl = -s.Position.Z - FlyingGame.Core.WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
             double targetSink = _groundTow && agl > 4.0 && s.Velocity.Length > 24.0 ? -2.5 : 0.0; // climb 500 fpm on a ground launch
-            if (_groundTow && agl < 4.0) lever = -1.0;                                      // full power for the ground roll
+            if (_groundTow)
+            {
+                // The GLIDER pilot advances the tug's power with the left pad (owner spec). Once full power is
+                // reached it latches: the tug stays at full power and ignores the glider's lever from then on.
+                if (!_powerLatched)
+                {
+                    double padThrottle01 = System.Math.Clamp((1.0 - _gliderDriver.Inputs.ThrottleLever) * 0.5, 0.0, 1.0);
+                    _tugThrottle01 = padThrottle01;
+                    if (_tugThrottle01 >= 0.98) _powerLatched = true;
+                }
+                if (agl < 4.0 || !_powerLatched) lever = 1.0 - 2.0 * (_powerLatched ? 1.0 : _tugThrottle01); // ground roll: pad-commanded / full
+            }
             double sink = s.Attitude.Rotate(s.Velocity).Z;                        // +down
             double elev = System.Math.Clamp(-(sink - targetSink) * 0.15 - s.Rates.Y * 0.5, -1, 1); // hold, damp pitch
             if (_groundTow && agl < 4.0) elev = 0.25;                                       // hold the tail up on the roll

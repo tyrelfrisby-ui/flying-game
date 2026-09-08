@@ -70,6 +70,17 @@ namespace FlyingGame.Bridge
             bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway;
             GroundStart = ground;
 
+            if (ground && config.Floats != null)
+            {
+                // Floatplane: "on the runway" means on the water — at rest on the field's lake, heading north.
+                FlyingGame.Core.WorldTerrain.Lake lake = FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 1)];
+                var wpos = new Vec3(lake.Cx - lake.Rx * 0.5, lake.Cy, -(lake.SurfaceM + 1.3));
+                var wstate = new RigidBodyState(wpos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+                TrimStick = 0.0;
+                Sim = new SimLoop(new Aircraft(config, wstate, ControlDeflections.Neutral));
+                ApplyStateToTransform();
+                return;
+            }
             if (ground)
             {
                 // At rest at the south threshold of the main paved runway, heading north (+x), sitting on

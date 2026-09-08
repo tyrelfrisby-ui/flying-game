@@ -20,7 +20,7 @@ namespace FlyingGame.EditorTools
         {
             "glider-2-33-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like",
+            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like",
         };
 
         [MenuItem("FlyingGame/Render Airframes")]

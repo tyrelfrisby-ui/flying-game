@@ -32,7 +32,7 @@ namespace FlyingGame.Bridge
     public sealed class TouchFlightControls : MonoBehaviour
     {
         [Header("Feel")]  // dead zone + expo are per-aircraft in AircraftConfig, not here
-        public float PadHalfFraction = 0.20f;  // pad half-size as a fraction of min(screen w,h)
+        public float PadHalfFraction = 0.30f;  // pad half-size as a fraction of min(screen w,h) (owner: MUCH bigger)
         public bool InvertElevator = false;     // false = realistic (up = nose down)
         public float TrimAuthority = 0.4f;      // full trim slider = this much elevator (stick units)
         public float IdleFraction = 0.25f;      // knob height (0 bottom..1 top) where throttle reaches idle
@@ -90,8 +90,9 @@ namespace FlyingGame.Bridge
         /// <summary>Preset the pitch-trim slider to the spawn trim so a neutral stick holds level flight.</summary>
         private void PresetTrim()
         {
-            _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * 0.5f); // spawn at half power (glider: brakes half stowed → top = stowed... see below)
-            if (_driver.Sim?.Aircraft?.Config?.Propulsion == null) _throttle = AxisForFraction(1f); // glider: speed brake stowed
+            // Air start: half power. Ground start: IDLE (owner: "power should start at idle on the ground").
+            _throttle = AxisForFraction(_driver.GroundStart ? IdleFraction : IdleFraction + (1f - IdleFraction) * 0.5f);
+            if (_driver.Sim?.Aircraft?.Config?.Propulsion == null) _throttle = AxisForFraction(_driver.GroundStart ? IdleFraction : 1f); // glider: spoilers open on the ground, stowed in the air
             _leftKnob = IdleLeftKnob();
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
@@ -100,6 +101,7 @@ namespace FlyingGame.Bridge
         private void Update()
         {
             LayOut();
+            if (SessionSettings.MenuOpen) { _leftFinger = _rightFinger = _trimFinger = int.MinValue; return; } // landing page owns the screen
             ReadPointers();
             MergeKeyboardFallback();
             PublishToDriver();
@@ -112,19 +114,20 @@ namespace FlyingGame.Bridge
             _half = s * PadHalfFraction;
             float margin = s * 0.035f;
             float gap = s * 0.02f;
-            _leftCenter = new Vector2(margin + _half, margin + _half);
-            _rightCenter = new Vector2(w - margin - _half, margin + _half);
+            // Pads sit at MID-HEIGHT (owner request), not along the bottom.
+            _leftCenter = new Vector2(margin + _half, h * 0.5f);
+            _rightCenter = new Vector2(w - margin - _half, h * 0.5f);
 
             // Pitch-trim slider: full pad height, just inboard of the right (elevator) pad.
-            float trimW = _half * 0.32f;
-            _trimRect = new Rect(_rightCenter.x - _half - gap - trimW, margin, trimW, 2f * _half);
+            float trimW = _half * 0.22f;
+            _trimRect = new Rect(_rightCenter.x - _half - gap - trimW, _rightCenter.y - _half, trimW, 2f * _half);
 
             // Centre cluster between the left pad and the trim slider: Aircraft over Reset, big Brakes beside.
             float clusterLeft = _leftCenter.x + _half + gap;
             float clusterRight = _trimRect.x - gap;
             float avail = clusterRight - clusterLeft;
-            float bh = _half * 0.42f;
-            float bw = Mathf.Min(_half * 1.4f, (avail - gap) * 0.5f);
+            float bh = _half * 0.26f;
+            float bw = Mathf.Min(_half * 0.9f, (avail - gap) * 0.5f);
             float x0 = (clusterLeft + clusterRight) * 0.5f - (2f * bw + gap) * 0.5f;
             _acftRect = new Rect(x0, margin + bh + gap * 0.6f, bw, bh);
             _resetRect = new Rect(x0, margin, bw, bh);
@@ -333,6 +336,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (SessionSettings.MenuOpen) return;
             EnsureStyles();
 
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;

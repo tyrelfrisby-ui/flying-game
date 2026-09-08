@@ -77,7 +77,7 @@ namespace FlyingGame.Bridge
 
         private void OnPostRender()
         {
-            if (Driver == null || Driver.Sim == null || _mat == null) return;
+            if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen) { _labels.Clear(); return; }
             _labels.Clear();
             float s = Mathf.Min(Screen.width, Screen.height);
             _w = Mathf.Max(1.5f, s * LineWidthFrac);

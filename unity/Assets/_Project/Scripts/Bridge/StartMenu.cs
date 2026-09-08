@@ -32,12 +32,14 @@ namespace FlyingGame.Bridge
         public void Open()
         {
             IsOpen = true;
+            SessionSettings.MenuOpen = true;
             Time.timeScale = 0f;
         }
 
         private void Fly()
         {
             IsOpen = false;
+            SessionSettings.MenuOpen = false;
             Time.timeScale = 1f;
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
@@ -114,7 +116,8 @@ namespace FlyingGame.Bridge
             y += gap;
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
-                : (SessionSettings.AircraftId == "glider-2-33-like" ? "At the threshold. Tap TOW for the aerotow." : "At the threshold, engine idling."), _small);
+                : (SessionSettings.AircraftId == "glider-2-33-like" ? "At the threshold. Tap TOW for the aerotow."
+                   : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
 
             // ---- column 3: challenge
             x = m + 2 * (colW + gap); y = top;

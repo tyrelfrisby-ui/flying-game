@@ -57,7 +57,9 @@ public static class AeroModel
         double airDensity,
         ControlDeflections controls,
         double wakeStalledFracOverride = -1.0,
-        StripFlowState? flowState = null)
+        StripFlowState? flowState = null,
+        double slipstreamDeltaU = 0.0,
+        double slipstreamRadius = 0.0)
     {
         int stripIndex = 0;
         Vec3 cg = config.Mass.CgVec();
@@ -112,6 +114,14 @@ public static class AeroModel
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
                 Vec3 r = strip.PosVec() - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
+
+                // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
+                // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
+                // takeoff roll, floats on the hump, STOL). Wing strips are left alone (small span fraction).
+                if (slipstreamDeltaU > 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)
+                {
+                    vLocal = new Vec3(vLocal.X + slipstreamDeltaU, vLocal.Y, vLocal.Z);
+                }
 
                 if (wingBody)
                 {
@@ -246,16 +256,23 @@ public static class AeroModel
                 // FLAP: trailing-edge flap shifts the strip's zero-lift angle (added camber) and,
                 // below, adds profile drag and raises effective Clmax. Deploy fraction from the
                 // "flap" control group. Sweep-scaled like everything else on the strip.
-                double flapDeltaAlpha = 0.0, flapCd = 0.0, flapClMax = 0.0;
+                // FLAP (reworked 2026-09-08): a trailing-edge flap adds camber — a LIFT INCREMENT at the same
+                // geometric alpha (ΔCl ≈ Clα·δα·η, η≈0.55 for large deflections), a nose-down section moment,
+                // profile drag, and a modestly LOWER stall alpha. The previous model shifted the table lookup
+                // by the full camber angle, which stalled a flapped wing near 0° geometric alpha (made slow
+                // flapped approaches impossible — floats/STOL). MaxClMax now raises the attached-branch cap.
+                double flapCl = 0.0, flapCd = 0.0, flapClMax = 0.0, flapCm = 0.0, flapStallShift = 0.0;
                 if (strip.Flap is not null && controls.FlapFraction > 0.0)
                 {
                     double ff = controls.FlapFraction;
-                    flapDeltaAlpha = strip.Flap.MaxDeltaAlphaRad * ff; // +effective-alpha shift (camber) = +lift at fixed geometric alpha
+                    flapCl = 5.7 * strip.Flap.MaxDeltaAlphaRad * ff * 0.55;
                     flapCd = strip.Flap.MaxCd * ff;
                     flapClMax = strip.Flap.MaxClMax * ff;
+                    flapCm = -0.12 * ff;                                   // camber → nose-down pitching moment (section)
+                    flapStallShift = 0.2 * strip.Flap.MaxDeltaAlphaRad * ff; // stalls ~3° earlier at full flap
                 }
 
-                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha + flapDeltaAlpha;
+                double alpha = alphaBase + strip.IncidenceRad + controlDeltaAlpha;
 
                 // WING SWEEP: only the chord-normal flow component makes lift (independence principle).
                 // A swept strip at geometric alpha behaves like a straight strip at a reduced effective
@@ -280,13 +297,13 @@ public static class AeroModel
                     // SLAT: a deployed leading-edge slat delays separation — the stall angle this strip
                     // can reach before it commits to the separated branch extends by StallExtensionRad.
                     double slatExt = strip.Slat is not null ? strip.Slat.StallExtensionRad * controls.SlatFraction : 0.0;
-                    double aClMax = table.AlphaClMaxRad + slatExt;
+                    double aClMax = table.AlphaClMaxRad + slatExt - flapStallShift;
                     if (sep < 1.0 && Math.Abs(alpha) > aClMax && Math.Abs(alpha) < aClMax + 20.0 * Math.PI / 180.0)
                     {
                         double sign = Math.Sign(alpha);
                         AeroCoefficients atStall = table.Sample(sign * aClMax);
                         // Attached branch: hold ~Clmax with a gentle continued rise, capped at 1.15x.
-                        double clAttached = sign * Math.Min(Math.Abs(atStall.Cl) * 1.15,
+                        double clAttached = sign * Math.Min(Math.Abs(atStall.Cl) * 1.15 + flapClMax,
                             Math.Abs(atStall.Cl) + 0.8 * (Math.Abs(alpha) - aClMax));
                         double cl = (1.0 - sep) * clAttached + sep * coeffs.Cl;
                         double cd = (1.0 - sep) * atStall.Cd + sep * coeffs.Cd;
@@ -358,12 +375,15 @@ public static class AeroModel
                 // Flap lift boost (slat lift too) added to attached-flow Cl; both fade out post-stall
                 // (they raise Clmax and extend the linear range, they don't add lift once separated).
                 double slatCl = strip.Slat is not null ? strip.Slat.ClIncrement * controls.SlatFraction : 0.0;
-                double highLiftCl = (flapClMax + slatCl) * (flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0);
-                double clTotal = coeffs.Cl + Math.Sign(coeffs.Cl == 0 ? 1 : coeffs.Cl) * highLiftCl;
+                // Flap lift increment fades with separation (a stalled flapped section loses the camber lift);
+                // slat lift likewise. (flapClMax only extends the attached-branch cap above.)
+                double attached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                double highLiftCl = (flapCl + slatCl) * attached;
+                double clTotal = coeffs.Cl + highLiftCl;
 
                 double lift = q * strip.Area * clTotal;
                 double drag = q * strip.Area * (coeffs.Cd + cdInduced + cdDeflection + flapCd);
-                double momentC4 = q * strip.Area * strip.Chord * coeffs.Cm;
+                double momentC4 = q * strip.Area * strip.Chord * (coeffs.Cm + flapCm);
 
                 Vec3 force = liftDir * lift - dragDir * drag;
                 Vec3 momentFromForce = Vec3.Cross(r, force);
