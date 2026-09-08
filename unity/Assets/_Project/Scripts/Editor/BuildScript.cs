@@ -24,6 +24,7 @@ namespace FlyingGame.EditorTools
         private const string BundleId = "com.flyinggame.dev";
         private const string ProductName = "Flying Game";
         private const string ScenePath = "Assets/Scenes/Main.unity";
+        private const string DevTeamId = "3X7KU2BKP5"; // Apple Development team (automatic signing)
 
         [MenuItem("FlyingGame/Configure iOS Player Settings")]
         public static void ConfigureiOS()
@@ -45,6 +46,7 @@ namespace FlyingGame.EditorTools
 
             PlayerSettings.iOS.targetOSVersionString = "15.0";
             PlayerSettings.iOS.appleEnableAutomaticSigning = true;
+            PlayerSettings.iOS.appleDeveloperTeamID = DevTeamId;
 
             EnsureSceneInBuild();
             AssetDatabase.SaveAssets();

@@ -153,7 +153,7 @@ namespace FlyingGame.Bridge
         {
             _rightKnob = ClampToPad(pos, _rightCenter);
             Vector2 n = (_rightKnob - _rightCenter) / _radius;
-            _aileron = Shape(n.x);
+            _aileron = Shape(-n.x); // pad/stick RIGHT = roll RIGHT
             _elevator = Shape(InvertElevator ? -n.y : n.y);
         }
 
@@ -178,7 +178,7 @@ namespace FlyingGame.Bridge
         {
             if (_rightFinger == int.MinValue)
             {
-                float kx = Key(KeyCode.RightArrow) - Key(KeyCode.LeftArrow);
+                float kx = Key(KeyCode.LeftArrow) - Key(KeyCode.RightArrow); // Right arrow = roll right
                 float ky = Key(KeyCode.UpArrow) - Key(KeyCode.DownArrow); // up = nose down
                 if (kx != 0f) _aileron = kx;
                 if (ky != 0f) _elevator = InvertElevator ? -ky : ky;
