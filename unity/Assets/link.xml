@@ -1,0 +1,11 @@
+<!--
+  IL2CPP managed-stripping guard. AircraftConfig / ChallengeDefinition and their nested config types
+  are populated by Newtonsoft.Json via reflection, so their properties/setters can look "unused" to the
+  stripper and get removed — deserialization then silently drops fields (or throws) on device only.
+  Preserve the data assemblies and Newtonsoft so the same config JSON decodes identically to the editor.
+-->
+<linker>
+  <assembly fullname="FlyingGame.Core" preserve="all"/>
+  <assembly fullname="FlyingGame.Sim" preserve="all"/>
+  <assembly fullname="Newtonsoft.Json" preserve="all"/>
+</linker>

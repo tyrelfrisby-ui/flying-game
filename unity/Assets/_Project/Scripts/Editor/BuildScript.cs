@@ -24,7 +24,7 @@ namespace FlyingGame.EditorTools
         private const string BundleId = "com.flyinggame.dev";
         private const string ProductName = "Flying Game";
         private const string ScenePath = "Assets/Scenes/Main.unity";
-        private const string DevTeamId = "3X7KU2BKP5"; // Apple Development team (automatic signing)
+        private const string DevTeamId = "DH425V439F"; // Apple Development team (automatic signing)
 
         [MenuItem("FlyingGame/Configure iOS Player Settings")]
         public static void ConfigureiOS()
@@ -49,6 +49,7 @@ namespace FlyingGame.EditorTools
             PlayerSettings.iOS.appleDeveloperTeamID = DevTeamId;
 
             EnsureSceneInBuild();
+            EnsureAlwaysIncludedShaders();
             AssetDatabase.SaveAssets();
             Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape, IL2CPP, ARM64).");
         }
@@ -58,8 +59,16 @@ namespace FlyingGame.EditorTools
         {
             ConfigureiOS();
 
-            string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/iOS"));
+            // Default output is repo-relative build/iOS, but on this Mac ~/Documents is synced by Google
+            // Drive, whose File Provider stamps com.apple.FinderInfo on the bundle directories and breaks
+            // codesign. FLYINGGAME_IOS_OUT lets the build target a non-synced path (e.g. /private/tmp).
+            string outDir = System.Environment.GetEnvironmentVariable("FLYINGGAME_IOS_OUT");
+            if (string.IsNullOrEmpty(outDir))
+            {
+                outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/iOS"));
+            }
             Directory.CreateDirectory(outDir);
+            Debug.Log($"iOS Xcode project output dir: {outDir}");
 
             var options = new BuildPlayerOptions
             {
@@ -85,6 +94,38 @@ namespace FlyingGame.EditorTools
                     EditorApplication.Exit(1);
                 }
             }
+        }
+
+        // Shaders referenced only by Shader.Find(name) at runtime are stripped from a player build
+        // (they work in the editor, then return null on device — black screen). Force-include the ones
+        // SceneBootstrap/BubbleField/SoaringScenery look up.
+        private static void EnsureAlwaysIncludedShaders()
+        {
+            string[] names = { "Unlit/Color", "Unlit/Texture" };
+            var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
+            SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
+            foreach (string name in names)
+            {
+                Shader sh = Shader.Find(name);
+                if (sh == null)
+                {
+                    Debug.LogWarning($"EnsureAlwaysIncludedShaders: '{name}' not found in editor — skipped.");
+                    continue;
+                }
+
+                bool present = false;
+                for (int i = 0; i < arr.arraySize; i++)
+                {
+                    if (arr.GetArrayElementAtIndex(i).objectReferenceValue == sh) { present = true; break; }
+                }
+                if (!present)
+                {
+                    arr.InsertArrayElementAtIndex(arr.arraySize);
+                    arr.GetArrayElementAtIndex(arr.arraySize - 1).objectReferenceValue = sh;
+                    Debug.Log($"EnsureAlwaysIncludedShaders: added '{name}'.");
+                }
+            }
+            so.ApplyModifiedProperties();
         }
 
         private static void EnsureSceneInBuild()
