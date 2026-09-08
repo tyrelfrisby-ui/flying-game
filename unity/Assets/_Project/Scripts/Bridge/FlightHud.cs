@@ -6,6 +6,8 @@ namespace FlyingGame.Bridge
     public sealed class FlightHud : MonoBehaviour
     {
         public FlightSimDriver Driver;
+        public RaceController Race;
+        public StolController Stol;
         private GUIStyle _style;
 
         private void OnGUI()
@@ -35,6 +37,11 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(m, m * 0.5f, w, lh),
                 $"{Driver.AircraftName}  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
 
+            string ev = Race != null && Race.Line != null ? Race.Line : Stol != null ? Stol.Line : null;
+            if (ev != null)
+            {
+                GUI.Label(new Rect(m, m * 0.5f + lh, w, lh), ev, _style);
+            }
             // Spin grading line — only when the wing is stalled and rotation is established.
             if (Driver.AlphaDeg > 16.0 && Driver.SecPerTurn > 0)
             {

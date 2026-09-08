@@ -14,6 +14,8 @@ namespace FlyingGame.Bridge
         public WeatherController Weather;
         public ChallengeController Challenges;
         public TowController Tow;
+        public RaceController Race;
+        public StolController Stol;
 
         public bool IsOpen { get; private set; } = true;
 
@@ -40,10 +42,11 @@ namespace FlyingGame.Bridge
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)
-            if (SessionSettings.ChallengeId != null && Challenges != null)
-            {
-                Challenges.StartById(SessionSettings.ChallengeId);
-            }
+            Race?.End(); Stol?.End();
+            string ch = SessionSettings.ChallengeId;
+            if (ch == "event:race" && Race != null) Race.Begin();
+            else if (ch == "event:stol" && Stol != null) Stol.Begin(SessionSettings.Airport);
+            else if (ch != null && !SessionSettings.IsEvent(ch) && Challenges != null) Challenges.StartById(ch);
         }
 
         private void EnsureStyles()

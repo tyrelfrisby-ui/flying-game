@@ -44,6 +44,8 @@ namespace FlyingGame.Bridge
             BuildWater(WorldTerrain.Active, root.transform);
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             BuildBridge(WorldTerrain.Active, root.transform);
+            BuildAeroBox(WorldTerrain.Active, root.transform);
+            BuildRaceCourse(WorldTerrain.Active, root.transform);
             // Slope soaring on the first canyon wall (replaces the old stand-alone hill).
             double crestY = WorldTerrain.EdgeMeanY(0) - WorldTerrain.EscarpmentWidthM;
             Atmosphere.ActiveRidge = new Ridge(new FlyingGame.Core.MathTypes.Vec3(0, crestY, -WorldTerrain.StepHeightM),
@@ -219,6 +221,139 @@ namespace FlyingGame.Bridge
             go.transform.position = worldPos;
             go.transform.localScale = size;
             go.GetComponent<MeshRenderer>().sharedMaterial = Lit(color);
+        }
+
+        // ---- IAC aerobatic box: white ground markers (corner Ls, mid-side bars, centre cross) --------
+
+        private static void BuildAeroBox(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("AeroBox");
+            root.transform.SetParent(parent, false);
+            double cx = AeroBox.CenterX, cy = AeroBox.CenterY, h = AeroBox.SizeM / 2;
+            double z = t.HeightAt(cx, cy) + 0.08;
+            foreach (double sx in new[] { -1.0, 1.0 })
+            foreach (double sy in new[] { -1.0, 1.0 })
+            {
+                // Corner L: two 40 m arms pointing into the box.
+                WBox(root, "CornerL", U(cx + sx * (h - 20), cy + sy * h, z), new Vector3(5f, 0.1f, 40f), Paint);
+                WBox(root, "CornerL", U(cx + sx * h, cy + sy * (h - 20), z), new Vector3(40f, 0.1f, 5f), Paint);
+            }
+            // Mid-side bars and centre cross.
+            WBox(root, "Mid", U(cx + h, cy, z), new Vector3(30f, 0.1f, 5f), Paint);
+            WBox(root, "Mid", U(cx - h, cy, z), new Vector3(30f, 0.1f, 5f), Paint);
+            WBox(root, "Mid", U(cx, cy + h, z), new Vector3(5f, 0.1f, 30f), Paint);
+            WBox(root, "Mid", U(cx, cy - h, z), new Vector3(5f, 0.1f, 30f), Paint);
+            WBox(root, "Centre", U(cx, cy, z), new Vector3(5f, 0.1f, 60f), Paint);
+            WBox(root, "Centre", U(cx, cy, z), new Vector3(60f, 0.1f, 5f), Paint);
+            var lbl = new GameObject("Label"); lbl.transform.SetParent(root.transform, false);
+            lbl.transform.position = U(cx, cy - h - 60, z + 0.1); lbl.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            var tm = lbl.AddComponent<TextMesh>(); tm.text = "AEROBATIC BOX"; tm.fontSize = 48; tm.characterSize = 1.2f; tm.anchor = TextAnchor.MiddleCenter; tm.color = Paint;
+        }
+
+        // ---- Air Racing course: gate cones, turning pylons, numbered cloud hoops --------------------
+
+        private static void BuildRaceCourse(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("RaceCourse");
+            root.transform.SetParent(parent, false);
+            var blue = new Color(0.15f, 0.35f, 0.85f); var red = new Color(0.85f, 0.15f, 0.15f); var white = Color.white;
+            for (int i = 0; i < RaceCourse.Elements.Length; i++)
+            {
+                RaceElement e = RaceCourse.Elements[i];
+                double g = t.HeightAt(e.X, e.Y);
+                if (e.Kind == RaceElement.Kinds.Gate)
+                {
+                    var r = e.Right;
+                    Cone(root, U(e.X + r.X * RaceElement.GateHalfWidthM, e.Y + r.Y * RaceElement.GateHalfWidthM, g), (float)RaceElement.GateHeightM, blue, white);
+                    Cone(root, U(e.X - r.X * RaceElement.GateHalfWidthM, e.Y - r.Y * RaceElement.GateHalfWidthM, g), (float)RaceElement.GateHeightM, blue, white);
+                }
+                else
+                {
+                    Cone(root, U(e.X, e.Y, g), (float)RaceElement.GateHeightM, red, white);
+                }
+                // Element number on the ground.
+                var lbl = new GameObject("Num"); lbl.transform.SetParent(root.transform, false);
+                lbl.transform.position = U(e.X - e.Forward.X * 25, e.Y - e.Forward.Y * 25, g + 0.15);
+                lbl.transform.rotation = Quaternion.Euler(90f, (float)e.HeadingDeg, 0f);
+                var tm = lbl.AddComponent<TextMesh>(); tm.text = (i + 1).ToString(); tm.fontSize = 48; tm.characterSize = 1.0f; tm.anchor = TextAnchor.MiddleCenter; tm.color = white;
+            }
+            // Cloud hoops (optional guides), numbered.
+            var cloud = Mat("FlyingGame/UnlitTransparent", new Color(1f, 1f, 1f, 0.55f));
+            Mesh ring = Torus((float)RaceCourse.HoopRadiusM, 3.5f, 40, 10);
+            foreach ((FlyingGame.Core.MathTypes.Vec3 pos, double hdg, int number) in RaceCourse.Hoops())
+            {
+                var go = new GameObject($"Hoop{number}");
+                go.transform.SetParent(root.transform, false);
+                go.transform.position = U(pos.X, pos.Y, -pos.Z);
+                go.transform.rotation = Quaternion.Euler(0f, (float)hdg, 0f); // ring plane faces the leg direction
+                go.AddComponent<MeshFilter>().sharedMesh = ring;
+                go.AddComponent<MeshRenderer>().sharedMaterial = cloud;
+                var lbl = new GameObject("Num"); lbl.transform.SetParent(go.transform, false);
+                lbl.transform.localPosition = new Vector3(0f, (float)RaceCourse.HoopRadiusM + 8f, 0f);
+                lbl.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // readable from the approach side
+                var tm = lbl.AddComponent<TextMesh>(); tm.text = number.ToString(); tm.fontSize = 64; tm.characterSize = 2.2f; tm.anchor = TextAnchor.MiddleCenter; tm.color = white;
+            }
+        }
+
+        private static void Cone(GameObject parent, Vector3 basePos, float height, Color c, Color band)
+        {
+            var go = new GameObject("Pylon");
+            go.transform.SetParent(parent.transform, false);
+            go.transform.position = basePos;
+            go.AddComponent<MeshFilter>().sharedMesh = ConeMesh(4f, 1.2f, height, 16);
+            go.AddComponent<MeshRenderer>().sharedMaterial = Lit(c);
+            // White bands.
+            for (int i = 1; i <= 3; i++)
+            {
+                float y = height * i / 4f, r = Mathf.Lerp(4f, 1.2f, i / 4f) + 0.1f;
+                var b = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Kill(b.GetComponent<Collider>()); b.transform.SetParent(go.transform, false);
+                b.transform.localPosition = new Vector3(0f, y, 0f); b.transform.localScale = new Vector3(r * 2f, height * 0.03f, r * 2f);
+                b.GetComponent<MeshRenderer>().sharedMaterial = Lit(band);
+            }
+        }
+
+        private static Mesh ConeMesh(float rBase, float rTop, float h, int seg)
+        {
+            var v = new Vector3[seg * 2 + 2]; var tr = new System.Collections.Generic.List<int>();
+            for (int i = 0; i < seg; i++)
+            {
+                float a = i * Mathf.PI * 2f / seg;
+                v[i] = new Vector3(Mathf.Cos(a) * rBase, 0f, Mathf.Sin(a) * rBase);
+                v[seg + i] = new Vector3(Mathf.Cos(a) * rTop, h, Mathf.Sin(a) * rTop);
+            }
+            v[2 * seg] = new Vector3(0f, h, 0f); v[2 * seg + 1] = Vector3.zero;
+            for (int i = 0; i < seg; i++)
+            {
+                int j = (i + 1) % seg;
+                tr.AddRange(new[] { i, seg + i, j, j, seg + i, seg + j });      // side
+                tr.AddRange(new[] { seg + i, 2 * seg, seg + j });               // cap
+            }
+            var m = new Mesh(); m.vertices = v; m.triangles = tr.ToArray(); m.RecalculateNormals(); m.RecalculateBounds(); return m;
+        }
+
+        private static Mesh Torus(float R, float r, int segs, int rings)
+        {
+            var v = new Vector3[segs * rings]; var tr = new int[segs * rings * 6];
+            for (int i = 0; i < segs; i++)
+            {
+                float a = i * Mathf.PI * 2f / segs;
+                var c = new Vector3(Mathf.Cos(a) * R, Mathf.Sin(a) * R, 0f); // ring in the local x-y plane; local z = travel direction
+                for (int j = 0; j < rings; j++)
+                {
+                    float b = j * Mathf.PI * 2f / rings;
+                    Vector3 radial = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
+                    v[i * rings + j] = c + radial * (Mathf.Cos(b) * r) + new Vector3(0f, 0f, Mathf.Sin(b) * r);
+                }
+            }
+            int k = 0;
+            for (int i = 0; i < segs; i++)
+            for (int j = 0; j < rings; j++)
+            {
+                int a = i * rings + j, b = ((i + 1) % segs) * rings + j, c = i * rings + (j + 1) % rings, d = ((i + 1) % segs) * rings + (j + 1) % rings;
+                tr[k++] = a; tr[k++] = b; tr[k++] = c; tr[k++] = b; tr[k++] = d; tr[k++] = c;
+            }
+            var m = new Mesh(); m.vertices = v; m.triangles = tr; m.RecalculateNormals(); m.RecalculateBounds(); return m;
         }
 
         // ---- airports ----------------------------------------------------------------------------

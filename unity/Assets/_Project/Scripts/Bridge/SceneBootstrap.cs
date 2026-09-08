@@ -63,6 +63,8 @@ namespace FlyingGame.Bridge
             root.AddComponent<TouchFlightControls>(); // RC dual-touchpad (folds in editor keyboard fallback)
             root.AddComponent<ChallengeController>();
             root.AddComponent<TowController>();
+            root.AddComponent<RaceController>().Driver = driver;
+            root.AddComponent<StolController>().Driver = driver;
             root.AddComponent<AirframeVisual>();
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             _ = driver;
@@ -106,6 +108,8 @@ namespace FlyingGame.Bridge
 
             var hud = cam.gameObject.AddComponent<FlightHud>();
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();
+            hud.Race = aircraft.GetComponent<RaceController>();
+            hud.Stol = aircraft.GetComponent<StolController>();
             var hudOverlay = cam.gameObject.AddComponent<HudOverlay>();   // green conformal HUD over the aircraft
             hudOverlay.Driver = aircraft.GetComponent<FlightSimDriver>();
 
@@ -125,6 +129,8 @@ namespace FlyingGame.Bridge
             menu.Weather = weather;
             menu.Challenges = aircraft.GetComponent<ChallengeController>();
             menu.Tow = aircraft.GetComponent<TowController>();
+            menu.Race = aircraft.GetComponent<RaceController>();
+            menu.Stol = aircraft.GetComponent<StolController>();
         }
     }
 }

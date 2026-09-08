@@ -346,6 +346,16 @@ namespace FlyingGame.Bridge
 
             if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
             if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
+            // Flaps (types that have them): cycle 0 / ½ / full, shown above the Brakes button.
+            if (_driver.HasFlaps)
+            {
+                var fr = new Rect(_brakeRect.x, _brakeRect.yMax + _half * 0.12f, _brakeRect.width, _acftRect.height);
+                double f = _driver.Sim.Aircraft.FlapFraction;
+                if (GUI.Button(ToGui(fr), $"FLAPS {f * 100:F0}%", _btnStyle))
+                {
+                    _driver.Sim.Aircraft.FlapFraction = f < 0.25 ? 0.5 : f < 0.75 ? 1.0 : 0.0;
+                }
+            }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
             var tow = GetComponent<TowController>();
             if (tow != null && _driver.Sim?.Aircraft?.Config?.Propulsion == null && !tow.Towing && _driver.GroundStart)

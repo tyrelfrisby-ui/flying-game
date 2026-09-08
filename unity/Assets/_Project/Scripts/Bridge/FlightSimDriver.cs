@@ -81,11 +81,28 @@ namespace FlyingGame.Bridge
                 var state = new RigidBodyState(pos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
                 TrimStick = 0.0;
                 Sim = new SimLoop(new Aircraft(config, state, ControlDeflections.Neutral));
+                ApplyFixedSlats(config);
                 ApplyStateToTransform();
                 return;
             }
 
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, ap.ElevationM + SpawnAltitudeM);
+            // Event starts: the race begins 800 m short of gate 1 at 60 m AGL heading through it; the STOL
+            // contest begins on a 1.2 km final for the dirt strip at 90 m AGL.
+            double spawnAlt = ap.ElevationM + SpawnAltitudeM, spawnX = ap.X - 600, spawnY = ap.Y, spawnHdg = 0.0;
+            string ch = SessionSettings.ChallengeId;
+            if (ch == "event:race")
+            {
+                var g = RaceCourse.Elements[0];
+                spawnX = g.X - g.Forward.X * 800; spawnY = g.Y - g.Forward.Y * 800; spawnHdg = g.HeadingDeg * System.Math.PI / 180;
+                spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 60;
+            }
+            else if (ch == "event:stol")
+            {
+                var dirt = System.Array.Find(FlyingGame.Core.WorldTerrain.AirportStrips, st => st.Kind == "dirt");
+                spawnX = ap.X + dirt.Dx - dirt.Length / 2 - 1200; spawnY = ap.Y + dirt.Dy;
+                spawnAlt = ap.ElevationM + 90;
+            }
+            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, spawnAlt);
             TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
             if (!trim.Converged)
             {
@@ -93,13 +110,16 @@ namespace FlyingGame.Bridge
             }
 
             double half = trim.ThetaRad / 2.0;
-            var attitude = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
+            var pitchQ = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
+            var yawQ = new Quat(0, 0, System.Math.Sin(spawnHdg / 2), System.Math.Cos(spawnHdg / 2));
+            var attitude = Quat.Multiply(yawQ, pitchQ);
             var velocityBody = new Vec3(
                 SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad));
-            var airState = new RigidBodyState(new Vec3(ap.X - 600, ap.Y, -(ap.ElevationM + SpawnAltitudeM)), attitude, velocityBody, Vec3.Zero);
+            var airState = new RigidBodyState(new Vec3(spawnX, spawnY, -spawnAlt), attitude, velocityBody, Vec3.Zero);
 
             var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
             Sim = new SimLoop(new Aircraft(config, airState, deflections));
+            ApplyFixedSlats(config);
             ApplyStateToTransform();
         }
 
@@ -134,6 +154,18 @@ namespace FlyingGame.Bridge
             double omega = System.Math.Abs(_headingRateFilt);
             SecPerTurn = omega > 0.15 ? 2 * System.Math.PI / omega : 0;
             FtPerTurn = SecPerTurn > 0 ? DescentFtPerSec * SecPerTurn : 0;
+        }
+
+        /// <summary>Fixed leading-edge slats (bushwheel Cub): any strip with a slat config flies with it fully out.</summary>
+        private void ApplyFixedSlats(FlyingGame.Core.DataContracts.AircraftConfig config)
+        {
+            foreach (var sf in config.Surfaces) foreach (var st in sf.Strips) if (st.Slat != null) { Sim.Aircraft.SlatFraction = 1.0; return; }
+        }
+
+        /// <summary>True when the type has flaps (any strip carries a flap config).</summary>
+        public bool HasFlaps
+        {
+            get { if (Sim == null) return false; foreach (var sf in Sim.Aircraft.Config.Surfaces) foreach (var st in sf.Strips) if (st.Flap != null) return true; return false; }
         }
 
         public void ResetFlight()

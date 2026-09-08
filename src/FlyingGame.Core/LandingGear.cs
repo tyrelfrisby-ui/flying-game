@@ -18,6 +18,19 @@ namespace FlyingGame.Core;
 /// </summary>
 public static class LandingGear
 {
+    /// <summary>True if any main (non-tail) wheel is at or below the local ground.</summary>
+    public static bool AnyMainWheelOnGround(AircraftConfig config, RigidBodyState s)
+    {
+        Vec3 cg = config.Mass.CgVec();
+        foreach (GearConfig g in config.Gear)
+        {
+            if (g.IsTailwheel) continue;
+            Vec3 w = s.Position + s.Attitude.Rotate(g.PosVec() - cg);
+            if (w.Z >= -WorldTerrain.GroundHeightAt(w.X, w.Y) - 0.02) return true;
+        }
+        return false;
+    }
+
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0)
     {

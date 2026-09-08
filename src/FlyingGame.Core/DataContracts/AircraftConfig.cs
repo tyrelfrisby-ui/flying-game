@@ -267,6 +267,7 @@ public sealed class GearConfig
     public double CorneringStiffnessN { get; set; } = 6000; // side force per rad slip (before mu limit)
     public double RollResistN { get; set; } = 40;     // rolling resistance at full load
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
+    public double TireRadiusM { get; set; }           // visual tire size (0 = auto from fuselage length); 0.445 = 35" bushwheel
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }

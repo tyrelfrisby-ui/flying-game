@@ -19,11 +19,14 @@ namespace FlyingGame.Bridge
         public static float IsaDeviationC = 0f;           // hot/cold day
         public static float ThermalScale = 1f;            // 0 off .. 2 strong
 
+        public static bool IsEvent(string id) => id != null && id.StartsWith("event:");
+
         public static WorldTerrain.Airport Airport => WorldTerrain.Airports[Mathf.Clamp(AirportIndex, 0, WorldTerrain.Airports.Length - 1)];
 
         public static readonly (string id, string name)[] Fleet =
         {
             ("glider-2-33-like", "Trainer Glider"), ("c172-like", "Skyhawk"), ("pa18-cub-like", "Super Cub"),
+            ("pa18-bush-like", "Cub Bushwheels"),
             ("decathlon-8kcab-like", "Decathlon"), ("extra-300-like", "Extra 300"), ("pitts-s2b-like", "Pitts S-2"),
             ("stearman-pt17-like", "Stearman"), ("p51d-like", "P-51 Mustang"), ("f86-sabre-like", "F-86 Sabre"),
             ("seminole-like", "Seminole"), ("dc3-like", "DC-3"), ("boeing-737-like", "737"),
@@ -31,7 +34,8 @@ namespace FlyingGame.Bridge
 
         public static readonly (string id, string name)[] Challenges =
         {
-            (null, "Free flight"), ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
+            (null, "Free flight"), ("event:race", "Air Racing"), ("event:stol", "STOL contest"), ("event:aerobox", "Aerobatic box"),
+            ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
             ("a1c3-cardinal-turn", "Cardinal turn"), ("a1c4-stall-recover", "Stall recovery"),
             ("a1c10-headwind-landing", "Headwind landing"), ("a1c11-crosswind-landing", "Crosswind landing"),
         };

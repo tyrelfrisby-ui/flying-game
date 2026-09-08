@@ -34,6 +34,10 @@ namespace FlyingGame.EditorTools
                 ("summit-airport", new Vector3(-7000f, 3500f, -1800f), new Vector3(-8900f, 2700f, 400f)),
                 ("stol-strip", new Vector3(600f, 120f, -50f), new Vector3(420f, 0f, 250f)),
                 ("river-lake", new Vector3(3500f, 1400f, -3200f), new Vector3(2400f, 850f, 1500f)),
+                ("race-course", new Vector3(2800f, 900f, -600f), new Vector3(2800f, 30f, 1500f)),
+                ("race-gate", new Vector3(2000f, 60f, -120f), new Vector3(2000f, 15f, 0f)),
+                ("aero-box", new Vector3(1200f, 900f, -3400f), new Vector3(1200f, 0f, -2200f)),
+                ("bridge", new Vector3(-150f, 120f, 2450f), new Vector3(-150f, 0f, 2150f)),
             };
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {

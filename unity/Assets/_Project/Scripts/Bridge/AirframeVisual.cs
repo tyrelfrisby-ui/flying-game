@@ -133,6 +133,7 @@ namespace FlyingGame.Bridge
             BuildStruts(cfg, st, halfSpan);
             BuildGear(cfg, st);
             BuildSpoilers(cfg, st, halfSpan);
+            BuildSlats(cfg, st);
             return halfSpan;
         }
 
@@ -379,7 +380,7 @@ namespace FlyingGame.Bridge
                     continue;
                 }
 
-                float r = g.IsTailwheel ? wheelR * 0.45f : wheelR;
+                float r = g.TireRadiusM > 0 ? (float)g.TireRadiusM : (g.IsTailwheel ? wheelR * 0.45f : wheelR);
                 var wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 Kill(wheel.GetComponent<Collider>());
                 Attach(wheel, "Wheel");
@@ -393,6 +394,28 @@ namespace FlyingGame.Bridge
                 float ay = Mathf.Sign(gy) * Mathf.Min(Mathf.Abs(gy), rb * 0.8f);
                 float az = Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gz - r - 0.35f : rb * 0.9f * st.BodyHeightScale + st.BodyAxisZ;
                 Strut(new Vector3(gx, gy, gz - r), new Vector3(gx, Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gy : ay, az), g.IsTailwheel ? 0.05f : 0.1f, leg);
+            }
+        }
+
+        /// <summary>Fixed leading-edge slats: a bar just ahead of and below the LE over the slatted strips.</summary>
+        private void BuildSlats(AircraftConfig cfg, Style st)
+        {
+            foreach (SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (!sf.Id.ToLowerInvariant().Contains("wing")) continue;
+                foreach (StripConfig s in sf.Strips)
+                {
+                    if (s.Slat == null) continue;
+                    float x = (float)s.Pos[0], y = (float)s.Pos[1], z = (float)s.Pos[2], c = (float)s.Chord;
+                    float w = s.Chord > 1e-6 ? (float)(s.Area / s.Chord) : 0.3f;
+                    float zz = z - Mathf.Abs(y) * Mathf.Tan((float)s.DihedralRad);
+                    var slat = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Kill(slat.GetComponent<Collider>());
+                    Attach(slat, "Slat");
+                    slat.transform.localPosition = U(x + 0.25f * c + 0.09f, y, zz + 0.05f);
+                    slat.transform.localScale = new Vector3(w * 1.02f, 0.05f, 0.14f);
+                    slat.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(st.Control);
+                }
             }
         }
 
@@ -818,6 +841,7 @@ namespace FlyingGame.Bridge
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.2f, 0.35f, 0.7f),
                     };
                 case "pa18-cub-like":
+                case "pa18-bush-like":
                     return new Style
                     {
                         BodyAxisZ = -0.25f, Body = new[] { (2.0f, 0.1f), (1.7f, 0.38f), (1.0f, 0.48f), (0.2f, 0.5f), (-0.8f, 0.45f), (-1.8f, 0.32f), (-3.2f, 0.2f), (-4.5f, 0.12f), (-5.0f, 0.08f) },
