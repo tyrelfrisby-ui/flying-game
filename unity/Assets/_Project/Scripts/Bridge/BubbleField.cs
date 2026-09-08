@@ -42,6 +42,14 @@ namespace FlyingGame.Bridge
                 return;
             }
 
+            // Steady wind drifts the whole air mass over the ground, so bubbles slide relative to the
+            // runway — you SEE the headwind/crosswind, not just feel it.
+            var steady = FlyingGame.Core.Atmosphere.SteadyWind;
+            if (steady.LengthSquared > 1e-9)
+            {
+                _airMassOrigin += CoordinateMap.ToUnity(steady) * Time.deltaTime;
+            }
+
             Vector3 center = Follow.position;
             float blockRadius = HalfCount * Spacing;
             _matrices.Clear();

@@ -25,12 +25,17 @@ public static class Atmosphere
     /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>
     public static Turbulence? ActiveTurbulence { get; set; }
 
+    /// <summary>Steady mean wind (world frame, m/s) — the air mass drifting over the ground. This is
+    /// what makes headwind/tailwind/crosswind: it adds to every wind sample, so an aircraft in a
+    /// crosswind crabs (heading ≠ ground track) and drifts sideways on landing.</summary>
+    public static MathTypes.Vec3 SteadyWind { get; set; } = MathTypes.Vec3.Zero;
+
     /// <summary>Shared sim clock (s) for the frozen turbulence field; advanced by the sim each step.</summary>
     public static double SimTimeSec { get; set; }
 
     public static void AdvanceTime(double dt) => SimTimeSec += dt;
 
-    /// <summary>Wind (world frame, m/s) at a position: turbulence gust if active, else still air.</summary>
+    /// <summary>Wind (world frame, m/s) at a position: steady wind + turbulence gust.</summary>
     public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition) =>
-        ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero;
+        SteadyWind + (ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero);
 }
