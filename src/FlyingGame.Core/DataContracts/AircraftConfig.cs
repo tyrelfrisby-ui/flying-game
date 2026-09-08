@@ -14,6 +14,8 @@ public sealed class AircraftConfig
     /// <summary>Airspeed (m/s) the aircraft is spawned/reset at — a comfortable cruise for the type,
     /// well above stall (a P-51 or Sabre dropped in at glider speed stalls instantly). 0 = 22 m/s default.</summary>
     public double SpawnIasMs { get; set; }
+    /// <summary>True for types with an ejection seat (the F-86); everyone else can only bail out.</summary>
+    public bool EjectionSeat { get; set; }
 
     public MassConfig Mass { get; set; } = new();
     public List<SurfaceConfig> Surfaces { get; set; } = new();

@@ -154,7 +154,7 @@ namespace FlyingGame.Bridge
             _towRect = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
             // BAIL OUT | EJECT above the Tow slot, on the cluster's two columns.
             float ey = _towRect.yMax + _half * 0.12f;
-            _bailRect = new Rect(x0, ey, bw, bh);
+            _bailRect = HasEjectionSeat ? new Rect(x0, ey, bw, bh) : new Rect(x0, ey, 2f * bw + gap, bh);
             _ejectRect = new Rect(x0 + bw + gap, ey, bw, bh);
         }
 
@@ -185,12 +185,14 @@ namespace FlyingGame.Bridge
             float eh = w * ScreenLayout.EgressRowHeight;
             float rowY2 = rowY + bh + gap;
             float ew = (w - 2f * margin - gap) * 0.5f;
-            _bailRect = new Rect(margin, rowY2, ew, eh);
+            _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
             _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
         }
 
+        private bool HasEjectionSeat => _driver.Sim?.Aircraft?.Config?.EjectionSeat == true;
         private bool BailAvailable => _egress != null && _egress.Current == PilotEgress.Phase.InCockpit;
-        private bool EjectAvailable => _egress != null && !_egress.PilotOut;
+        /// <summary>EJECT exists only on types with an ejection seat (the F-86); everyone else bails out.</summary>
+        private bool EjectAvailable => _egress != null && !_egress.PilotOut && HasEjectionSeat;
 
         /// <summary>Read touches (device) or the mouse (editor) and update each control's owning pointer.</summary>
         private void ReadPointers()

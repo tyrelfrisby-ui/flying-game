@@ -11,7 +11,9 @@ namespace FlyingGame.Bridge
 
         public static bool MenuOpen = true;               // landing page showing: pads/HUD hidden, sim paused
         public static string AircraftId = "glider-2-33-like";
-        public static string TugId = "pa25-pawnee-like";      // aerotow tug for the glider: Pawnee or Super Cub
+        public static string TugId = "pa25-pawnee-like";
+        public enum InstrumentMode { Analog, Hud, None }
+        public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
         public static Start StartMode = Start.InTheAir;
         public static int AirportIndex = 0;               // WorldTerrain.Airports
         public static string ChallengeId = null;          // null = free flight

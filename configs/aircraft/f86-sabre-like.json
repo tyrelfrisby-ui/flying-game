@@ -1773,5 +1773,6 @@
     "vneMs": 300,
     "gMax": 7.33,
     "gMin": -3.0
-  }
+  },
+  "ejectionSeat": true
 }

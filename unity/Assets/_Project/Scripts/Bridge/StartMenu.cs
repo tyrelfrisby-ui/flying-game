@@ -142,6 +142,18 @@ namespace FlyingGame.Bridge
                 y += bh + gap * 0.4f;
             }
             y += gap;
+            GUI.Label(new Rect(x, y, colW, lh), "INSTRUMENTS", _head); y += lh;
+            {
+                float third = (colW - 2 * gap * 0.4f) / 3f;
+                var modes = new[] { (SessionSettings.InstrumentMode.Analog, "Dials"), (SessionSettings.InstrumentMode.Hud, "HUD"), (SessionSettings.InstrumentMode.None, "None") };
+                for (int i = 0; i < modes.Length; i++)
+                {
+                    bool on = SessionSettings.Instruments == modes[i].Item1;
+                    if (GUI.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Instruments = modes[i].Item1;
+                }
+                y += bh + gap * 0.4f;
+            }
+            y += gap;
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
                 : (SessionSettings.AircraftId == "glider-2-33-like" ? "At the threshold. Tap TOW for the aerotow."

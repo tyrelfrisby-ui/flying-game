@@ -81,7 +81,7 @@ namespace FlyingGame.Bridge
 
         private void OnPostRender()
         {
-            if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen) { _labels.Clear(); return; }
+            if (Driver == null || Driver.Sim == null || _mat == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud) { _labels.Clear(); return; }
             _labels.Clear();
             float vw = _cam.pixelWidth, vh = _cam.pixelHeight;   // the flying area (full screen in landscape)
             float s = Mathf.Min(vw, vh);
