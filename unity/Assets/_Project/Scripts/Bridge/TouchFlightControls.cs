@@ -103,7 +103,13 @@ namespace FlyingGame.Bridge
         {
             // Air start: half power. Ground start: IDLE (owner: "power should start at idle on the ground").
             _throttle = AxisForFraction(_driver.GroundStart || _driver.IdleStart ? IdleFraction : IdleFraction + (1f - IdleFraction) * 0.5f);
-            if (_driver.Sim?.Aircraft?.Config?.Propulsion == null) _throttle = AxisForFraction(_driver.GroundStart ? IdleFraction : 1f); // glider: spoilers open on the ground, stowed in the air
+            if (_driver.Sim?.Aircraft?.Config?.Propulsion == null)
+            {
+                // Glider: spoilers open on the ground, stowed in the air; on final the knob starts where the spawn's
+                // spoiler setting is (half) — SpoilerFraction = (0.5 − k) / (0.5 − IdleFraction).
+                float k = _driver.GroundStart ? IdleFraction : _driver.IdleStart ? 0.5f - (float)_driver.StartSpoilerFraction * (0.5f - IdleFraction) : 1f;
+                _throttle = AxisForFraction(k);
+            }
             _leftKnob = IdleLeftKnob();
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);

@@ -38,10 +38,12 @@ public class ApproachSpawnTests
         var t = new WorldTerrain(); WorldTerrain.Active = t; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.SlopeLiftEnabled = false; Atmosphere.Thermals.Clear();
         var a = WorldTerrain.Airports[0];
         var (state, g, aimX) = ApproachSpawn.Compute(c, a);
-        var ac = new Aircraft(c, state, new ControlDeflections(0, g.ElevatorRad, 0, 0));
+        var ac = new Aircraft(c, state, new ControlDeflections(0, g.ElevatorRad, 0, g.SpoilerFraction));
         var sim = new SimLoop(ac);
         double stick = Aircraft.StickForDeflection(g.ElevatorRad, c.Controls.Elevator);
-        double idle = c.Propulsion != null ? 1.0 : 0.0;   // lever +1 = idle power; glider: lever ≤ 0 = spoilers stowed
+        double idle = c.Propulsion != null ? 1.0 : g.SpoilerFraction;   // lever +1 = idle power; glider: lever = spoiler fraction (half out on final)
+        if (c.Propulsion == null) { Assert.Equal(0.5, g.SpoilerFraction); Assert.True(g.GammaRad > 5 * System.Math.PI / 180, $"half spoiler must steepen the 2-33's final (γ {g.GammaRad * 57.3:F1}°)"); }
+        _out.WriteLine($"{id}: approach {g.SpeedMs * 1.944:F0} kt, γ {g.GammaRad * 57.3:F1}°, spoiler {g.SpoilerFraction:P0}, start {-(state.Position.X - aimX):F0} m before the aim point");
         double agl0 = -state.Position.Z - a.ElevationM, x0 = state.Position.X;
         Assert.InRange(agl0, 91, 92);
         double maxDev = 0;

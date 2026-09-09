@@ -77,6 +77,8 @@ namespace FlyingGame.Bridge
         public bool GroundStart { get; private set; }
         /// <summary>Started on final with the power at idle (the left pad knob begins at idle, not mid-throttle).</summary>
         public bool IdleStart { get; private set; }
+        /// <summary>Spoiler setting the on-final start was trimmed with (gliders: half); the left pad knob begins there.</summary>
+        public double StartSpoilerFraction { get; private set; }
 
         private void Spawn()
         {
@@ -93,7 +95,8 @@ namespace FlyingGame.Bridge
                 // On final: 300 ft AGL on the centreline, idle, trimmed at best glide on the best-glide angle.
                 var (fState, glide, _) = ApproachSpawn.Compute(config, ap);
                 TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
-                Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, 0)));
+                Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, glide.SpoilerFraction)));
+                StartSpoilerFraction = glide.SpoilerFraction;
                 ApplyFixedSlats(config);
                 ApplyStateToTransform();
                 return;

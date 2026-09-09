@@ -17,9 +17,23 @@ public static class ApproachSpawn
 
     public readonly struct BestGlide
     {
-        public readonly double SpeedMs, GlideRatio, AlphaRad, ThetaRad, ElevatorRad;
-        public BestGlide(double v, double ld, double a, double th, double e) { SpeedMs = v; GlideRatio = ld; AlphaRad = a; ThetaRad = th; ElevatorRad = e; }
+        public readonly double SpeedMs, GlideRatio, AlphaRad, ThetaRad, ElevatorRad, SpoilerFraction;
+        public BestGlide(double v, double ld, double a, double th, double e, double spoiler = 0.0) { SpeedMs = v; GlideRatio = ld; AlphaRad = a; ThetaRad = th; ElevatorRad = e; SpoilerFraction = spoiler; }
         public double GammaRad => System.Math.Atan(1.0 / GlideRatio);   // descent angle (positive = down)
+    }
+
+    /// <summary>Gliders come down final with HALF SPOILER (owner): approach at 1.15 × best-glide speed, trimmed with
+    /// the brakes half out — a steeper, stable path. Powered types glide clean at idle.</summary>
+    public const double GliderSpoilerFraction = 0.5, GliderApproachSpeedFactor = 1.15;
+
+    public static BestGlide ApproachGlide(AircraftConfig config, double altitudeM)
+    {
+        BestGlide best = FindBestGlide(config, altitudeM);
+        if (config.Propulsion is not null) return best;
+        double v = best.SpeedMs * GliderApproachSpeedFactor;
+        TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM, spoilerFraction: GliderSpoilerFraction);
+        if (!t.Converged || t.GlideRatio <= 0) return best;
+        return new BestGlide(v, t.GlideRatio, t.AlphaRad, t.ThetaRad, t.ElevatorRad, GliderSpoilerFraction);
     }
 
     private static readonly Dictionary<string, BestGlide> Cache = new();
@@ -53,7 +67,7 @@ public static class ApproachSpawn
     public static (RigidBodyState State, BestGlide Glide, double AimX) Compute(AircraftConfig config, WorldTerrain.Airport airport)
     {
         double alt = airport.ElevationM + AglM;
-        BestGlide g = FindBestGlide(config, alt);
+        BestGlide g = ApproachGlide(config, alt);
         double aimX = airport.X - WorldTerrain.RunwayLengthM / 2 + AimPastThresholdM;
         double back = AglM / System.Math.Tan(g.GammaRad);
         var pos = new Vec3(aimX - back, airport.Y, -alt);
