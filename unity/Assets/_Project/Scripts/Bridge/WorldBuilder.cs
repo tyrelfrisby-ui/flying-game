@@ -436,50 +436,124 @@ namespace FlyingGame.Bridge
             var lbl = new GameObject("Label"); lbl.transform.SetParent(root.transform, false);
             lbl.transform.position = U(cx, cy - h - 60, z + 0.1); lbl.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
             var tm = lbl.AddComponent<TextMesh>(); tm.text = "AEROBATIC BOX"; tm.fontSize = 48; tm.characterSize = 1.2f; tm.anchor = TextAnchor.MiddleCenter; tm.color = Paint;
+
+            // The box itself: a glass box in the sky from the 328 ft floor to the 3 500 ft ceiling — six faint
+            // panes with a Fresnel edge and a little sky reflection. No collision: fly through it.
+            var glass = Mat("FlyingGame/Glass", new Color(0.6f, 0.8f, 1.0f, 0.10f));
+            float floor = (float)(t.HeightAt(cx, cy) + AeroBox.FloorAglM), ceil = (float)(t.HeightAt(cx, cy) + AeroBox.CeilingAglM);
+            float mid = (floor + ceil) * 0.5f, hgt = ceil - floor, size = (float)AeroBox.SizeM;
+            void Pane(string name, Vector3 centre, Quaternion rot, Vector2 dims)
+            {
+                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Kill(q.GetComponent<Collider>()); q.name = name; q.transform.SetParent(root.transform, false);
+                q.transform.position = centre; q.transform.rotation = rot; q.transform.localScale = new Vector3(dims.x, dims.y, 1f);
+                q.GetComponent<MeshRenderer>().sharedMaterial = glass;
+            }
+            Vector3 c0 = U(cx, cy, 0);
+            Pane("Floor", new Vector3(c0.x, floor, c0.z), Quaternion.Euler(90f, 0f, 0f), new Vector2(size, size));
+            Pane("Ceiling", new Vector3(c0.x, ceil, c0.z), Quaternion.Euler(90f, 0f, 0f), new Vector2(size, size));
+            Pane("North", new Vector3(c0.x, mid, c0.z + size / 2), Quaternion.identity, new Vector2(size, hgt));
+            Pane("South", new Vector3(c0.x, mid, c0.z - size / 2), Quaternion.identity, new Vector2(size, hgt));
+            Pane("East", new Vector3(c0.x + size / 2, mid, c0.z), Quaternion.Euler(0f, 90f, 0f), new Vector2(size, hgt));
+            Pane("West", new Vector3(c0.x - size / 2, mid, c0.z), Quaternion.Euler(0f, 90f, 0f), new Vector2(size, hgt));
+            // Edge frame lines so the box reads even edge-on.
+            var edge = new Color(0.8f, 0.92f, 1f);
+            foreach (float y in new[] { floor, ceil })
+            {
+                WBox(root, "Edge", new Vector3(c0.x, y, c0.z + size / 2), new Vector3(size, 1.2f, 1.2f), edge);
+                WBox(root, "Edge", new Vector3(c0.x, y, c0.z - size / 2), new Vector3(size, 1.2f, 1.2f), edge);
+                WBox(root, "Edge", new Vector3(c0.x + size / 2, y, c0.z), new Vector3(1.2f, 1.2f, size), edge);
+                WBox(root, "Edge", new Vector3(c0.x - size / 2, y, c0.z), new Vector3(1.2f, 1.2f, size), edge);
+            }
+            foreach (float sx in new[] { -1f, 1f }) foreach (float sz in new[] { -1f, 1f })
+                WBox(root, "Edge", new Vector3(c0.x + sx * size / 2, mid, c0.z + sz * size / 2), new Vector3(1.2f, hgt, 1.2f), edge);
         }
 
-        // ---- Air Racing course: gate cones, turning pylons, numbered cloud hoops --------------------
+        // ---- Air Racing course: pylons (base + burstable inflated top), rotating numbers 300 ft up, flags ----
+
+        /// <summary>Burstable pylon tops by (element, side) — the race controller launches one on a wing strike.</summary>
+        public static readonly Dictionary<(int, int), PylonTopBurst> PylonTops = new();
 
         private static void BuildRaceCourse(WorldTerrain t, Transform parent)
         {
             var root = new GameObject("RaceCourse");
             root.transform.SetParent(parent, false);
+            PylonTops.Clear();
             var blue = new Color(0.15f, 0.35f, 0.85f); var red = new Color(0.85f, 0.15f, 0.15f); var white = Color.white;
-            for (int i = 0; i < RaceCourse.Elements.Length; i++)
+            foreach ((int el, int side, double px, double py) in RaceCourse.Pylons())
+            {
+                double g = t.HeightAt(px, py);
+                bool gate = RaceCourse.Elements[el].Kind == RaceElement.Kinds.Gate;
+                PylonTopBurst top = Pylon(root, U(px, py, g), (float)RaceElement.GateHeightM, gate ? blue : red, white);
+                top.SetGround((float)g);
+                PylonTops[(el, side)] = top;
+            }
+            int n = RaceCourse.Elements.Length;
+            for (int i = 0; i < n; i++)
             {
                 RaceElement e = RaceCourse.Elements[i];
                 double g = t.HeightAt(e.X, e.Y);
-                if (e.Kind == RaceElement.Kinds.Gate)
+                // Big number 300 ft over the element, turning once every 5 s, readable from both sides.
+                var num = new GameObject($"Number{i + 1}"); num.transform.SetParent(root.transform, false);
+                num.transform.position = U(e.X, e.Y, g + RaceElement.NumberAglM);
+                num.AddComponent<Spin>().DegPerSec = 72f;
+                // Two faces either side of an opaque plate, so each side reads correctly and never through the other.
+                Color numCol = i == 0 ? new Color(0.3f, 1f, 0.4f) : i == n - 1 ? white : new Color(1f, 0.9f, 0.3f);
+                WBox(num, "Plate", num.transform.position, new Vector3((i + 1 >= 10 ? 22f : 12f), 16f, 0.6f), new Color(0.12f, 0.12f, 0.15f));
+                foreach (float face in new[] { 0f, 180f })
                 {
-                    var r = e.Right;
-                    Cone(root, U(e.X + r.X * RaceElement.GateHalfWidthM, e.Y + r.Y * RaceElement.GateHalfWidthM, g), (float)RaceElement.GateHeightM, blue, white);
-                    Cone(root, U(e.X - r.X * RaceElement.GateHalfWidthM, e.Y - r.Y * RaceElement.GateHalfWidthM, g), (float)RaceElement.GateHeightM, blue, white);
+                    var lbl = new GameObject("Digits"); lbl.transform.SetParent(num.transform, false);
+                    lbl.transform.localRotation = Quaternion.Euler(0f, face, 0f);
+                    lbl.transform.localPosition = Quaternion.Euler(0f, face, 0f) * new Vector3(0f, 0f, -0.5f);   // just in front of its side of the plate
+                    var tm = lbl.AddComponent<TextMesh>(); tm.text = (i + 1).ToString(); tm.fontSize = 64; tm.characterSize = 6f; tm.anchor = TextAnchor.MiddleCenter; tm.color = numCol;
                 }
-                else
-                {
-                    Cone(root, U(e.X, e.Y, g), (float)RaceElement.GateHeightM, red, white);
-                }
-                // Element number on the ground.
-                var lbl = new GameObject("Num"); lbl.transform.SetParent(root.transform, false);
-                lbl.transform.position = U(e.X - e.Forward.X * 25, e.Y - e.Forward.Y * 25, g + 0.15);
-                lbl.transform.rotation = Quaternion.Euler(90f, (float)e.HeadingDeg, 0f);
-                var tm = lbl.AddComponent<TextMesh>(); tm.text = (i + 1).ToString(); tm.fontSize = 48; tm.characterSize = 1.0f; tm.anchor = TextAnchor.MiddleCenter; tm.color = white;
+                if (i == 0) Flag(root, U(e.X, e.Y, g + RaceElement.NumberAglM + 22), false);      // start: green
+                if (i == n - 1) Flag(root, U(e.X, e.Y, g + RaceElement.NumberAglM + 22), true);   // finish: checkered
             }
-            // Cloud hoops (optional guides), numbered.
-            var cloud = Mat("FlyingGame/UnlitTransparent", new Color(1f, 1f, 1f, 0.55f));
-            Mesh ring = Torus((float)RaceCourse.HoopRadiusM, 3.5f, 40, 10);
-            foreach ((FlyingGame.Core.MathTypes.Vec3 pos, double hdg, int number) in RaceCourse.Hoops())
+        }
+
+        /// <summary>A racing pylon: fixed lower 60 % and an inflated top 40 % that can be launched and collapsed.</summary>
+        private static PylonTopBurst Pylon(GameObject parent, Vector3 basePos, float height, Color c, Color band)
+        {
+            float split = height * 0.6f, rMid = Mathf.Lerp(4f, 1.2f, 0.6f);
+            var go = new GameObject("PylonBase");
+            go.transform.SetParent(parent.transform, false);
+            go.transform.position = basePos;
+            go.AddComponent<MeshFilter>().sharedMesh = ConeMesh(4f, rMid, split, 16);
+            go.AddComponent<MeshRenderer>().sharedMaterial = Lit(c);
+            var top = new GameObject("PylonTop");
+            top.transform.SetParent(parent.transform, false);
+            top.transform.position = basePos + Vector3.up * split;
+            top.AddComponent<MeshFilter>().sharedMesh = ConeMesh(rMid, 1.2f, height - split, 16);
+            top.AddComponent<MeshRenderer>().sharedMaterial = Lit(c);
+            // White bands: two on the base, one on the top.
+            for (int i = 1; i <= 3; i++)
             {
-                var go = new GameObject($"Hoop{number}");
-                go.transform.SetParent(root.transform, false);
-                go.transform.position = U(pos.X, pos.Y, -pos.Z);
-                go.transform.rotation = Quaternion.Euler(0f, (float)hdg, 0f); // ring plane faces the leg direction
-                go.AddComponent<MeshFilter>().sharedMesh = ring;
-                go.AddComponent<MeshRenderer>().sharedMaterial = cloud;
-                var lbl = new GameObject("Num"); lbl.transform.SetParent(go.transform, false);
-                lbl.transform.localPosition = new Vector3(0f, (float)RaceCourse.HoopRadiusM + 8f, 0f);
-                lbl.transform.localRotation = Quaternion.Euler(0f, 180f, 0f); // readable from the approach side
-                var tm = lbl.AddComponent<TextMesh>(); tm.text = number.ToString(); tm.fontSize = 64; tm.characterSize = 2.2f; tm.anchor = TextAnchor.MiddleCenter; tm.color = white;
+                float y = height * i / 4f, r = Mathf.Lerp(4f, 1.2f, i / 4f) + 0.1f;
+                var b = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Kill(b.GetComponent<Collider>());
+                bool onTop = y > split;
+                b.transform.SetParent(onTop ? top.transform : go.transform, false);
+                b.transform.localPosition = new Vector3(0f, onTop ? y - split : y, 0f); b.transform.localScale = new Vector3(r * 2f, height * 0.03f, r * 2f);
+                b.GetComponent<MeshRenderer>().sharedMaterial = Lit(band);
+            }
+            return top.AddComponent<PylonTopBurst>();
+        }
+
+        /// <summary>A flag hanging above a number: a pole and a 20 × 12 m panel of 2.5 m cells — checkered (finish)
+        /// or solid green (start). Built from cubes so no texture is needed.</summary>
+        private static void Flag(GameObject parent, Vector3 pos, bool checkered)
+        {
+            var root = new GameObject(checkered ? "FinishFlag" : "StartFlag"); root.transform.SetParent(parent.transform, false);
+            root.transform.position = pos;
+            root.AddComponent<Spin>().DegPerSec = 72f;
+            WBox(root, "Pole", pos + Vector3.up * 8f, new Vector3(0.6f, 20f, 0.6f), new Color(0.85f, 0.85f, 0.85f));
+            var black = new Color(0.05f, 0.05f, 0.05f); var white = Color.white; var green = new Color(0.15f, 0.8f, 0.25f);
+            for (int i = 0; i < 8; i++)
+            for (int j = 0; j < 5; j++)
+            {
+                Color c = checkered ? ((i + j) % 2 == 0 ? white : black) : green;
+                WBox(root, "Cell", pos + new Vector3(0.6f + 1.25f + i * 2.5f, 16f - j * 2.5f, 0f), new Vector3(2.5f, 2.5f, 0.15f), c);
             }
         }
 

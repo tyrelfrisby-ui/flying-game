@@ -11,16 +11,35 @@ namespace FlyingGame.Bridge
         public AirRace Race { get; private set; }
         public bool Active { get; private set; }
 
-        public void Begin() { Race = new AirRace(); Race.Reset(); Active = true; }
+        public void Begin()
+        {
+            Race = new AirRace(); Race.Reset(); Active = true;
+            foreach (PylonTopBurst top in WorldBuilder.PylonTops.Values) if (top != null) top.ResetTop();
+        }
         public void End() { Active = false; }
+
+        private AirRace _strikeRace;   // pylon strikes are live even outside a race (free flight through the course)
 
         private void Update()
         {
-            if (!Active || Race == null || Driver?.Sim == null) return;
-            var s = Driver.Sim.Aircraft.State;
-            var q = s.Attitude;
-            double bank = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
-            Race.Update(s.Position, bank, Time.deltaTime);
+            if (Driver?.Sim == null) return;
+            var ac = Driver.Sim.Aircraft; var s = ac.State; var q = s.Attitude;
+            if (Active && Race != null)
+            {
+                double bank = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+                Race.Update(s.Position, bank, Time.deltaTime);
+            }
+            // Wing tips against the pylons.
+            AirRace strikes = Active && Race != null ? Race : (_strikeRace ??= new AirRace());
+            double half = 0; foreach (var sf in ac.Config.Surfaces) foreach (var st in sf.Strips) half = System.Math.Max(half, System.Math.Abs(st.Pos[1]));
+            if (ac.IsLost(FlyingGame.Core.AirframeComponent.WingLeft) || ac.IsLost(FlyingGame.Core.AirframeComponent.WingRight)) half *= 0.3;
+            Vec3 left = s.Position + q.Rotate(new Vec3(0, -half, 0)), right = s.Position + q.Rotate(new Vec3(0, half, 0));
+            var hit = strikes.CheckPylonStrike(left, right, Time.deltaTime);
+            if (hit.HasValue)
+            {
+                if (WorldBuilder.PylonTops.TryGetValue(hit.Value, out PylonTopBurst top) && top != null) top.Launch();
+                Driver.GetComponent<FlightAudio>()?.PylonBurst();
+            }
         }
 
         public string Line => !Active || Race == null ? null

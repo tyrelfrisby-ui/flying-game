@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, Count }
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, Count }
 
     /// <summary>
     /// One procedural sound effect: a scripted envelope over noise / resonator / partial components.
@@ -87,6 +87,14 @@ namespace FlyingGame.Bridge
                     _bpA.BandPass(_fs, 900f, 2f);          // after-flutter
                     _burst = 0f;
                     break;
+                case FxKind.PylonBurst:
+                    _len = 2.2f;
+                    _bpA.BandPass(_fs, 90f, 2f);           // the fabric slap / boom
+                    _bpB.BandPass(_fs, 1600f, 1.2f);       // tearing seam
+                    _hp.HighPass(_fs, 700f, 0.7f);         // compressed-air blast (swept down as it empties)
+                    _lp.SetCutoff(3500f, _fs);
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.01f, _fs);
+                    break;
             }
             Active = true;
         }
@@ -124,6 +132,12 @@ namespace FlyingGame.Bridge
                     _gAT = 0.4f * Env(t, 0.001f, 0.004f, 0.006f);
                     _gBT = Env(t, 0.02f, 0f, 0.12f);
                     _gCT = 0.15f * Env(t - 0.05f, 0.02f, 0f, 0.2f);
+                    break;
+                case FxKind.PylonBurst:
+                    _gAT = 4f * Env(t, 0.002f, 0.03f, 0.25f);                 // boom
+                    _gBT = 1.2f * Env(t, 0.003f, 0.02f, 0.15f);               // rip
+                    _gCT = 1.5f * Env(t - 0.02f, 0.03f, 0.5f, 1.2f);          // air rushing out, long tail
+                    _lp.SetCutoff(3500f * (float)Math.Exp(-t / 0.9) + 300f, _fs);
                     break;
             }
         }

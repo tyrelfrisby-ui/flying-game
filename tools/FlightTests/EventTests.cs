@@ -70,4 +70,26 @@ public class EventTests
         // Race elements all on the valley floor, hoops above ground.
         foreach (RaceElement e in RaceCourse.Elements) Assert.InRange(t.HeightAt(e.X, e.Y), -1, 30);
     }
+
+    [Fact]
+    public void WingTipThroughAPylonIsAStrikeOnceAndCostsThreeSeconds()
+    {
+        var race = new AirRace();
+        RaceElement g1 = RaceCourse.Elements[0];
+        race.Update(new Vec3(g1.X - 50, g1.Y, -10), 0, 0.1);
+        race.Update(new Vec3(g1.X + 50, g1.Y, -10), 0, 0.1);   // GO
+        Assert.True(race.Running);
+        // Right wing tip sweeps through the right pylon of gate 2 at 20 m AGL.
+        RaceElement g2 = RaceCourse.Elements[1];
+        double px = g2.X + g2.Right.X * RaceElement.GateHalfWidthM, py = g2.Y + g2.Right.Y * RaceElement.GateHalfWidthM;
+        var hit = race.CheckPylonStrike(new Vec3(px, py - 12, -20), new Vec3(px, py + 0.5, -20), 0.02);
+        Assert.NotNull(hit); Assert.Equal((1, 1), hit.Value);
+        Assert.Equal(3, race.PenaltySec);
+        Assert.Null(race.CheckPylonStrike(new Vec3(px, py - 12, -20), new Vec3(px, py + 0.5, -20), 0.02));   // same pylon: no double count
+        Assert.Null(race.CheckPylonStrike(new Vec3(px, py - 12, -90), new Vec3(px, py + 0.5, -90), 0.02));   // above the pylon top: clear
+        // The course finishes at its LAST element, not by looping back to the start.
+        Assert.Equal(RaceElement.Kinds.Gate, RaceCourse.Elements[^1].Kind);
+        Assert.InRange(RaceElement.GateHalfWidthM * 2, 30.4, 30.6);   // 100 ft between the pylons
+        Assert.Equal(75.0, RaceElement.GateHeightM);
+    }
 }

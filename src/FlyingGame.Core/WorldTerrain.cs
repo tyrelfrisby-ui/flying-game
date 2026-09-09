@@ -67,7 +67,7 @@ public sealed class WorldTerrain
         for (int i = 0; i < Airports.Length; i++)
         {
             Airport a = Airports[i];
-            l[i] = new Lake(a.X + 2700, a.Y + 600, 650, 420, a.ElevationM - 2.0);
+            l[i] = new Lake(a.X + 2600, a.Y + 600, 500, 380, a.ElevationM - 2.0);   // beyond the gorge, closer in
         }
         return l;
     }
@@ -75,7 +75,7 @@ public sealed class WorldTerrain
     // River: runs downhill west→east across the steps in a GORGE, meandering gently in x (minimum turn
     // radius ≈ 2 km so the gorge can be flown at speed), passing the lakes' west shores.
     public const double RiverHalfWidthM = 35.0;
-    public static double RiverCentreX(double y) => 2150.0 + 350.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1);
+    public static double RiverCentreX(double y) => 1900.0 + 200.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1);   // ~500 m past the runway end (owner: closer in)
 
     // Gorge: the river cuts a canyon whose depth grows downstream (west→east) from ~15 m (50 ft) on
     // the Summit plateau to ~150 m (500 ft) in the Valley, with a staircase of waterfalls along the way

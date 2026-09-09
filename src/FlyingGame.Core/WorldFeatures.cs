@@ -2,10 +2,11 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core;
 
-/// <summary>Marked IAC aerobatic box on the Valley plain: 1,000 m square, floor 328 ft, ceiling 3,500 ft.</summary>
+/// <summary>Marked IAC aerobatic box beside the Valley runway (its west edge 500 m east of the centreline):
+/// 1,000 m square, floor 328 ft, ceiling 3,500 ft — drawn as a glass box in the sky.</summary>
 public static class AeroBox
 {
-    public const double CenterX = -2200, CenterY = 1200, SizeM = 1000.0;
+    public const double CenterX = 400, CenterY = 1000, SizeM = 1000.0;
     public const double FloorAglM = 100.0, CeilingAglM = 1067.0;
     public static bool Inside(Vec3 pos)
     {
@@ -22,50 +23,53 @@ public sealed class RaceElement
     public enum Kinds { Gate, PylonOnLeft, PylonOnRight }
     public Kinds Kind;
     public double X, Y, HeadingDeg;      // position; heading = required direction of travel through it
-    public const double GateHalfWidthM = 7.0, GateHeightM = 25.0, PylonRadiusM = 1.5;
+    public const double GateHalfWidthM = 15.24, GateHeightM = 75.0, PylonRadiusM = 1.5;   // pylons 100 ft apart, 75 m tall
+    public const double NumberAglM = 91.44;                                                // the rotating numbers, 300 ft up
 
     public Vec3 Forward => new(System.Math.Cos(HeadingDeg * System.Math.PI / 180), System.Math.Sin(HeadingDeg * System.Math.PI / 180), 0);
     public Vec3 Right => new(-System.Math.Sin(HeadingDeg * System.Math.PI / 180), System.Math.Cos(HeadingDeg * System.Math.PI / 180), 0);
     public Vec3 Centre => new(X, Y, 0);
 }
 
-/// <summary>"Air Racing" (owner request; no brand names): a low-level loop on the Valley plain that crosses
-/// the gorge twice. Elements must be taken IN ORDER; numbered cloud hoops between them are optional guides.</summary>
+/// <summary>"Air Racing" (owner request; no brand names): a COMPACT track east of the Valley runway, laid out the
+/// way the pylon-racing world championship tracks are — start gate, a gate, a three-pylon chicane, a gate, a
+/// vertical turning pylon at the far end, then back through two gates and a chicane to a separate finish gate.
+/// About 750 × 350 m. Elements are taken IN ORDER; the rotating numbers 300 ft above each element show the way.</summary>
 public static class RaceCourse
 {
     public static readonly RaceElement[] Elements =
     {
-        new() { Kind = RaceElement.Kinds.Gate, X = 0, Y = 2000, HeadingDeg = 0 },            // 1 start/finish, northbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 1300, Y = 2000, HeadingDeg = 0 },         // 2
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 2900, Y = 2150, HeadingDeg = 45 }, // 3 turn east around it
-        new() { Kind = RaceElement.Kinds.Gate, X = 3000, Y = 2700, HeadingDeg = 90 },        // 4 eastbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 3000, Y = 3300, HeadingDeg = 90 },        // 5
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 3100, Y = 3750, HeadingDeg = 135 },// 6 turn south
-        new() { Kind = RaceElement.Kinds.Gate, X = 2400, Y = 3650, HeadingDeg = 180 },       // 7 southbound
-        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 1750, Y = 3580, HeadingDeg = 180 }, // 8 chicane
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1450, Y = 3720, HeadingDeg = 180 },// 9 chicane
-        new() { Kind = RaceElement.Kinds.Gate, X = 800, Y = 3650, HeadingDeg = 180 },        // 10
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = -350, Y = 3550, HeadingDeg = 225 },// 11 turn west
-        new() { Kind = RaceElement.Kinds.Gate, X = -450, Y = 3000, HeadingDeg = 270 },       // 12 westbound
-        new() { Kind = RaceElement.Kinds.Gate, X = -450, Y = 2450, HeadingDeg = 270 },       // 13 → back to 1
+        new() { Kind = RaceElement.Kinds.Gate, X = 850, Y = 1800, HeadingDeg = 0 },          // 1 START, northbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 1050, Y = 1800, HeadingDeg = 0 },         // 2
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1180, Y = 1770, HeadingDeg = 0 }, // 3 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 1300, Y = 1830, HeadingDeg = 0 },  // 4
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1420, Y = 1770, HeadingDeg = 0 }, // 5
+        new() { Kind = RaceElement.Kinds.Gate, X = 1520, Y = 1800, HeadingDeg = 0 },         // 6
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1560, Y = 1920, HeadingDeg = 90 },// 7 vertical turning pylon: around it and back south
+        new() { Kind = RaceElement.Kinds.Gate, X = 1500, Y = 2050, HeadingDeg = 180 },       // 8 southbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 1300, Y = 2050, HeadingDeg = 180 },       // 9
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 1180, Y = 2080, HeadingDeg = 180 },// 10 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1060, Y = 2020, HeadingDeg = 180 },// 11
+        new() { Kind = RaceElement.Kinds.Gate, X = 900, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
     };
 
-    public const double HoopAglM = 45.0, HoopRadiusM = 30.0;
-
-    /// <summary>Guide hoops: midpoint of each leg (element k → k+1, wrapping to the start), numbered 1..N.</summary>
-    public static (Vec3 pos, double headingDeg, int number)[] Hoops()
+    /// <summary>Every pylon on the course: element index, side (−1 left / +1 right of a gate, 0 for a single pylon)
+    /// and its base position (x, y).</summary>
+    public static List<(int element, int side, double x, double y)> Pylons()
     {
-        int n = Elements.Length;
-        var hoops = new (Vec3, double, int)[n];
-        for (int i = 0; i < n; i++)
+        var list = new List<(int, int, double, double)>();
+        for (int i = 0; i < Elements.Length; i++)
         {
-            RaceElement a = Elements[i], b = Elements[(i + 1) % n];
-            double mx = (a.X + b.X) / 2, my = (a.Y + b.Y) / 2;
-            double hdg = System.Math.Atan2(b.Y - a.Y, b.X - a.X) * 180 / System.Math.PI;
-            double ground = WorldTerrain.GroundHeightAt(mx, my);
-            hoops[i] = (new Vec3(mx, my, -(ground + HoopAglM)), hdg, i + 1);
+            RaceElement e = Elements[i];
+            if (e.Kind == RaceElement.Kinds.Gate)
+            {
+                Vec3 r = e.Right;
+                list.Add((i, -1, e.X - r.X * RaceElement.GateHalfWidthM, e.Y - r.Y * RaceElement.GateHalfWidthM));
+                list.Add((i, +1, e.X + r.X * RaceElement.GateHalfWidthM, e.Y + r.Y * RaceElement.GateHalfWidthM));
+            }
+            else list.Add((i, 0, e.X, e.Y));
         }
-        return hoops;
+        return list;
     }
 }
 
@@ -82,6 +86,33 @@ public sealed class AirRace
 
     private Vec3 _prev; private bool _havePrev;
     private readonly RaceElement[] _els;
+    private readonly Dictionary<(int, int), double> _strikeCooldown = new();
+    public const double PylonStrikeCooldownSec = 4.0;
+
+    /// <summary>Wing-tip-to-wing-tip line against every pylon (2-D, below the pylon top): the first pylon it cuts
+    /// through is struck. Returns (element, side) once per pylon per few seconds; +3 s while racing.</summary>
+    public (int element, int side)? CheckPylonStrike(Vec3 leftTip, Vec3 rightTip, double dt)
+    {
+        foreach (var k in new List<(int, int)>(_strikeCooldown.Keys)) { _strikeCooldown[k] -= dt; if (_strikeCooldown[k] <= 0) _strikeCooldown.Remove(k); }
+        foreach ((int el, int side, double px, double py) in RaceCourse.Pylons())
+        {
+            // Closest point on the tip-to-tip segment to the pylon axis, in plan.
+            double ax = leftTip.X - px, ay = leftTip.Y - py, bx = rightTip.X - px, by = rightTip.Y - py;
+            double dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+            double u = len2 > 1e-9 ? System.Math.Clamp(-(ax * dx + ay * dy) / len2, 0.0, 1.0) : 0.0;
+            double cx = ax + dx * u, cy = ay + dy * u;
+            if (cx * cx + cy * cy > (RaceElement.PylonRadiusM + 0.6) * (RaceElement.PylonRadiusM + 0.6)) continue;
+            double z = leftTip.Z + (rightTip.Z - leftTip.Z) * u;
+            double agl = -z - WorldTerrain.GroundHeightAt(px, py);
+            if (agl < -1 || agl > RaceElement.GateHeightM + 2) continue;
+            if (_strikeCooldown.ContainsKey((el, side))) continue;
+            _strikeCooldown[(el, side)] = PylonStrikeCooldownSec;
+            if (Running && !Finished) { PenaltySec += 3; LastEvent = $"PYLON HIT at {el + 1} +3 s"; }
+            else LastEvent = $"Pylon {el + 1} hit";
+            return (el, side);
+        }
+        return null;
+    }
 
     public AirRace(RaceElement[]? elements = null) { _els = elements ?? RaceCourse.Elements; }
 
@@ -128,12 +159,9 @@ public sealed class AirRace
                         else LastEvent = $"Pylon {Next + 1} ok";
                         break;
                 }
-                if (Next == 0)
-                {
-                    if (!Running) { Running = true; ElapsedSec = 0; PenaltySec = 0; LastEvent = "GO"; }
-                    else { Finished = true; Running = false; LastEvent = $"FINISH {TotalSec:F1} s"; }
-                }
-                if (!Finished) Next = (Next + 1) % _els.Length;
+                if (Next == 0 && !Running) { Running = true; ElapsedSec = 0; PenaltySec = 0; LastEvent = "GO"; }
+                if (Next == _els.Length - 1) { Finished = true; Running = false; LastEvent = $"FINISH {TotalSec:F1} s"; }
+                if (!Finished) Next++;
             }
         }
         _prev = pos;
@@ -184,16 +212,16 @@ public sealed class StolRun
 }
 
 
-/// <summary>The farmer's field north of the Valley runway: a ploughed rectangle along the runway heading with a
+/// <summary>The farmer's field east of the Valley runway (past the aerobatic box): a ploughed rectangle along the runway heading with a
 /// power line crossing it 100 yards from the south end. The wires sag to 100 ft AGL at mid-span — a crop
 /// duster crosses the field UNDER them.</summary>
 public static class CropField
 {
     public static WorldTerrain.Airport Home => WorldTerrain.Airports[0];
-    public static double X0 => Home.X + 1500;                            // 600 m long (along x)
-    public static double X1 => Home.X + 2100;
-    public static double Y0 => Home.Y - 150;                             // 300 m wide
-    public static double Y1 => Home.Y + 150;
+    public static double X0 => Home.X - 300;                             // 600 m long (along x), east of the aerobatic box
+    public static double X1 => Home.X + 300;
+    public static double Y0 => Home.Y + 1600;                            // 300 m wide
+    public static double Y1 => Home.Y + 1900;
     public static double ElevationM => Home.ElevationM;
     public const double CellM = 10.0;
     public static int CellsX => (int)System.Math.Round((X1 - X0) / CellM);

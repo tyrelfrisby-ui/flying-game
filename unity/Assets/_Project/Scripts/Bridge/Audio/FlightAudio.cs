@@ -60,6 +60,7 @@ namespace FlyingGame.Bridge
         public void EjectionSeat() { _fx?.Trigger(FxKind.EjectionSeat); }
         public void ChuteDeploy() { _fx?.Trigger(FxKind.ChuteDeploy); }
         public void ChuteInflate() { _fx?.Trigger(FxKind.ChuteInflate); }
+        public void PylonBurst() { _fx?.Trigger(FxKind.PylonBurst); }
 
         // ---- lifecycle ------------------------------------------------------------------------------
 
