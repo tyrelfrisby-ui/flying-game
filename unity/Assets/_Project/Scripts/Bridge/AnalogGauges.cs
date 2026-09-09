@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
         public float UpOffsetFrac = 0.14f;      // and upward
 
         private Camera _cam;
-        private Texture2D _asiFace, _altFace, _gFace, _needle, _dot;
+        private Texture2D _asiFace, _altFace, _gFace, _varioFace, _needle, _dot;
         private GUIStyle _big, _num, _label;
         private int _fs, _faceSize;
         private float _asiMaxKt = 160f, _gLo, _gHi, _stallKt;
@@ -34,6 +34,8 @@ namespace FlyingGame.Bridge
         /// <summary>Dial angle (degrees, clockwise from 12 o'clock) for a fraction 0..1 of the sweep: 300° sweep
         /// starting at 7 o'clock for the airspeed / g dials, a full 360° from 12 for the altimeter.</summary>
         private static float DialDeg(float frac, bool fullCircle) => fullCircle ? frac * 360f : -150f + frac * 300f;
+        /// <summary>Variometer: 0 at 9 o'clock, +10 kt at 3 o'clock over the top, −10 kt at 3 o'clock under the bottom.</summary>
+        private static float VarioDeg(float kt) => -90f + Mathf.Clamp(kt, -10f, 10f) * 18f;
 
         // ---- face generation ----------------------------------------------------------------------
 
@@ -124,6 +126,18 @@ namespace FlyingGame.Bridge
             Tick(_gFace, G(uPos), 0.70f, 0.98f, lineW * 2.5f, warnS); Tick(_gFace, G(uNeg), 0.70f, 0.98f, lineW * 2.5f, warnS);
             _gFace.Apply();
 
+            // Variometer (gliders): ±10 kt, zero at 9 o'clock, climb over the top, sink under the bottom.
+            _varioFace = NewFace(size);
+            for (int v = -10; v <= 10; v++)
+            {
+                bool major = v % 5 == 0;
+                Tick(_varioFace, VarioDeg(v), major ? 0.80f : 0.88f, 0.95f, major ? lineW * 1.5f : lineW, ring);
+            }
+            Color climbCol = new Color(0.4f, 1f, 0.5f, Alpha + 0.3f), sinkCol = new Color(1f, 0.5f, 0.3f, Alpha + 0.3f);
+            Arc(_varioFace, VarioDeg(0.3f), VarioDeg(10f), 0.985f, lineW * 2.2f, climbCol);
+            Arc(_varioFace, VarioDeg(-10f), VarioDeg(-0.3f), 0.985f, lineW * 2.2f, sinkCol);
+            _varioFace.Apply();
+
             // Needle: a tapered white bar in a tall texture (pivot at its centre; the bar runs up from the centre).
             if (_needle == null)
             {
@@ -181,7 +195,11 @@ namespace FlyingGame.Bridge
             Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, bottom - rad * 1.05f));
             Vector2 asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
             Vector2 alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
-            Vector2 gc = Clamp(new Vector2(ac.x, ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s), gr);
+            bool glider = aircraft.Config.Propulsion == null;
+            float topY = ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s;
+            // Glider: g meter and variometer side by side, centred high; powered: g meter alone in the centre.
+            Vector2 gc = Clamp(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr);
+            Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
 
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g);
@@ -217,6 +235,19 @@ namespace FlyingGame.Bridge
             DrawNeedle(gc, G(_gMaxSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);   // tell-tales hold the extremes
             DrawNeedle(gc, G(_gMinSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);
             DrawNeedle(gc, G(g), gr * 0.82f, gr * 0.12f, nAlpha);
+
+            // ---- variometer (gliders)
+            if (glider)
+            {
+                var st2 = aircraft.State;
+                float vzKt = (float)(-st2.Attitude.Rotate(st2.Velocity).Z) * 1.9438f;   // up positive
+                GUI.color = Color.white;
+                GUI.DrawTexture(new Rect(vc.x - gr, vc.y - gr, 2f * gr, 2f * gr), _varioFace);
+                for (int v = -10; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : (v > 0 ? "+" : "") + v, _num, fs * 2f, fs);
+                Label(vc + new Vector2(0, gr * 0.40f), $"{vzKt:+0.0;-0.0}", _big, fs * 5f, fs * 1.8f);
+                Label(vc + new Vector2(0, -gr * 0.28f), "KT UP/DN", _label, fs * 5f, fs);
+                DrawNeedle(vc, VarioDeg(vzKt), gr * 0.82f, gr * 0.12f, nAlpha);
+            }
             GUI.color = Color.white;
         }
     }
