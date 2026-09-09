@@ -173,6 +173,7 @@ namespace FlyingGame.Bridge
 
             var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
             Sim = new SimLoop(new Aircraft(config, airState, deflections));
+            if (config.RetractableGear) Sim.Aircraft.SetGear(false, immediate: true);   // airborne start: wheels up
             ApplyFixedSlats(config);
             ApplyStateToTransform();
         }

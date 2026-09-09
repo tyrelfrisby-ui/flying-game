@@ -108,6 +108,17 @@ public sealed class Aircraft
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
     private double _throttle01;      // powered aircraft only
     public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
+    /// <summary>Landing gear command (retractable types): true = down. Fixed gear is always down.</summary>
+    public bool GearDown { get; private set; } = true;
+    /// <summary>0 = up and stowed .. 1 = down and locked; travels over ~4 s.</summary>
+    public double GearExtension { get; private set; } = 1.0;
+    public const double GearTravelSec = 4.0;
+    public void SetGear(bool down, bool immediate = false)
+    {
+        if (!Config.RetractableGear) { GearDown = true; GearExtension = 1.0; return; }
+        GearDown = down;
+        if (immediate) GearExtension = down ? 1.0 : 0.0;
+    }
     public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
     public double BrakeInput { get; set; }     // 0..1 wheel braking (on ground), both sides
@@ -456,12 +467,19 @@ public sealed class Aircraft
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
             }
-            if (Config.Gear.Count > 0)
+            if (Config.Gear.Count > 0 && GearExtension > 0.9)   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
                 (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
+            }
+            if (Config.RetractableGear && GearExtension > 0.01 && Config.GearDragAreaM2 > 0)
+            {
+                // Extended gear: flat-plate drag area along the relative wind (wheels, legs, open doors).
+                Vec3 vAir = s.Velocity - windBody;
+                double vA = vAir.Length;
+                if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * Config.GearDragAreaM2 * GearExtension);
             }
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
@@ -510,6 +528,12 @@ public sealed class Aircraft
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
+        if (Config.RetractableGear)
+        {
+            double target = GearDown ? 1.0 : 0.0;
+            double step = dt / GearTravelSec;
+            GearExtension = GearExtension < target ? Math.Min(target, GearExtension + step) : Math.Max(target, GearExtension - step);
+        }
 
         // Proposal 1: downwash transport lag (Cm-alphadot) — eps arrives at the tail one
         // transport time (tail-arm / V) late.

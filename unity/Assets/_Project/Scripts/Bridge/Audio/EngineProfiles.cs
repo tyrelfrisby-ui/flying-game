@@ -94,6 +94,23 @@ namespace FlyingGame.Bridge
             SuperchargerRatio = 0f,
         };
 
+        /// <summary>P&W R-985 Wasp Junior on the Gee Bee: 9 cylinders (4.5 pulses/rev), 2 300 rpm, big bore — the
+        /// R-670 recipe with more cylinders, a bit more bark and a deeper thump.</summary>
+        public static PistonProfile Radial9() => new PistonProfile
+        {
+            Name = "P&W R-985 9-cyl radial",
+            Cylinders = 9,
+            Harmonics = new[] { 1f, 0.6f, 0.32f, 0.16f, 0.08f },
+            PulseDecayS = 0.018f, Crackle = 0.18f, CylinderSpread = 0.14f,
+            Formant1Hz = 200f, Formant1Q = 0.9f, Formant1Gain = 1.0f,
+            Formant2Hz = 480f, Formant2Q = 1.1f, Formant2Gain = 0.3f,
+            LpIdleHz = 500f, LpFullHz = 2200f,
+            ExhaustGain = 0.62f, ToneGain = 0.38f,
+            Lope = 0.14f, Mechanical = 0.07f, CrankThump = 0.5f,
+            PropBlades = 2f, PropReduction = 1f, PropGain = 0.24f, PropTipNoise = 0.16f,
+            SuperchargerRatio = 0f,
+        };
+
         public static PistonProfile Radial14() => new PistonProfile
         {
             Name = "P&W R-1830 14-cyl twin-row radial",
@@ -161,6 +178,9 @@ namespace FlyingGame.Bridge
             if (id.StartsWith("p51")) prof = MerlinV12();
             else if (id.StartsWith("dc3")) prof = Radial14();
             else if (id.StartsWith("stearman")) prof = Radial7();
+            else if (id.StartsWith("geebee")) prof = Radial9();
+            else if (id.StartsWith("glasair")) prof = LycomingFlat6(3f);
+            else if (id.StartsWith("cassutt")) prof = LycomingFlat4(2f);
             else if (id.StartsWith("pa25") || id.StartsWith("pitts")) prof = LycomingFlat6(2f);
             else if (id.StartsWith("extra")) prof = LycomingFlat6(3f);
             else if (id.StartsWith("c172") || id.StartsWith("pa18") || id.StartsWith("decathlon") || id.StartsWith("seminole")) prof = LycomingFlat4(2f);

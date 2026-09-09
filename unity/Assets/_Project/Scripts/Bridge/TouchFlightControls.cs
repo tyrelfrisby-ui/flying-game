@@ -51,6 +51,7 @@ namespace FlyingGame.Bridge
         private static readonly string[] Fleet =
         {
             "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
+            "cassutt-f1-like", "geebee-r2-like", "glasair3-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like",
         };
@@ -73,6 +74,7 @@ namespace FlyingGame.Bridge
         // On-screen button rects (screen px, bottom-left origin) — computed in Update, drawn in OnGUI.
         private Rect _brakeRect, _resetRect, _acftRect, _towRect;
         private Rect _bailRect, _ejectRect;                 // BAIL OUT (tap) / EJECT (hold EjectHoldSec)
+        private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
         private int _ejectFinger = int.MinValue;            // pointer holding EJECT
         private float _ejectHold;                           // seconds held so far
         private PilotEgress _egress;
@@ -162,6 +164,7 @@ namespace FlyingGame.Bridge
             float ey = _towRect.yMax + _half * 0.12f;
             _bailRect = HasEjectionSeat ? new Rect(x0, ey, bw, bh) : new Rect(x0, ey, 2f * bw + gap, bh);
             _ejectRect = new Rect(x0 + bw + gap, ey, bw, bh);
+            _gearRect = new Rect(x0 + bw + gap, margin + bh + gap * 0.6f, bw, bh);   // right column, beside Aircraft
         }
 
         private void LayOutPortrait(float w)
@@ -181,11 +184,12 @@ namespace FlyingGame.Bridge
             // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
             float bh = w * ScreenLayout.ButtonHeight;
             float rowY = margin + 2f * _half + ScreenLayout.LabelBlockPx + gap;
-            float bw = (w - 2f * margin - 3f * gap) * 0.25f;
+            float bw = (w - 2f * margin - 4f * gap) * 0.2f;
             _resetRect = new Rect(margin, rowY, bw, bh);
             _acftRect = new Rect(margin + (bw + gap), rowY, bw, bh);
             _brakeRect = new Rect(margin + 2f * (bw + gap), rowY, bw, bh);
-            _towRect = new Rect(margin + 3f * (bw + gap), rowY, bw, bh);
+            _gearRect = new Rect(margin + 3f * (bw + gap), rowY, bw, bh);
+            _towRect = new Rect(margin + 4f * (bw + gap), rowY, bw, bh);
 
             // Second, shorter row above it: BAIL OUT · EJECT (ScreenLayout.TrayHeightPx includes it).
             float eh = w * ScreenLayout.EgressRowHeight;
@@ -244,7 +248,7 @@ namespace FlyingGame.Bridge
                     if (EjectAvailable && _ejectRect.Contains(p.pos) && _ejectFinger == int.MinValue) { _ejectFinger = p.id; _ejectHold = 0f; }
                     // Buttons are handled by IMGUI; don't let a button tap also grab a pad.
                     if (_resetRect.Contains(p.pos) || _acftRect.Contains(p.pos) || _brakeRect.Contains(p.pos) || _towRect.Contains(p.pos)
-                        || _bailRect.Contains(p.pos) || _ejectRect.Contains(p.pos)) continue;
+                        || _bailRect.Contains(p.pos) || _ejectRect.Contains(p.pos) || _gearRect.Contains(p.pos)) continue;
 
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
                     else if (NearPad(p.pos, _leftCenter) && _leftFinger == int.MinValue) _leftFinger = p.id;
@@ -462,6 +466,13 @@ namespace FlyingGame.Bridge
 
             if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
             if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
+            // Landing gear (retractable types): one button, labelled with what it will do.
+            if (_driver.Sim?.Aircraft?.Config?.RetractableGear == true)
+            {
+                var acg = _driver.Sim.Aircraft;
+                string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
+                if (GUI.Button(ToGui(_gearRect), lbl, _btnStyle)) acg.SetGear(!acg.GearDown);
+            }
             // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset.
             if (_driver.HasFlaps)
             {

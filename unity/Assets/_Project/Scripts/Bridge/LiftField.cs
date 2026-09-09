@@ -15,7 +15,7 @@ namespace FlyingGame.Bridge
         public float Spacing = 35f;
         public int HalfCount = 20;             // (2·20+1)³ lattice, sphere-culled
         public float ThresholdMs = 0.6f;       // show cells rising/sinking faster than this
-        public float BubbleSize = 4f;
+        public float BubbleSize = 6f;
         public int SamplesPerFrame = 900;
 
         private Mesh _mesh; private Material _material; private MaterialPropertyBlock _props;
@@ -28,6 +28,8 @@ namespace FlyingGame.Bridge
         {
             _mesh = BubbleField.SharedSphere();
             _material = new Material(Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color"));
+            // The soap-bubble shader draws an almost clear body with a bright rim; lift/sink markers must be SOLID.
+            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.95f); _material.SetFloat("_RimAlpha", 1f); }
             _props = new MaterialPropertyBlock();
             int side = 2 * HalfCount + 1; _n = side * side * side;
             _w = new float[_n];
@@ -82,14 +84,17 @@ namespace FlyingGame.Bridge
                 float strength = Mathf.Clamp01((Mathf.Abs(w) - ThresholdMs) / 4f);
                 float hz = 1.5f + 6.5f * strength;
                 float ph = ((i * 2654435761u) & 0xFFFF) / 65535f;
-                // Solid from a distance, thinning to half as you close in, never below 50 % (owner: easy to see far off).
-                float blink = 0.6f + 0.4f * (0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI));
-                Color col = (w > 0 ? BubbleField.LiftTint : BubbleField.SinkTint) * (0.8f + 1.4f * strength);
-                float near = Mathf.Lerp(0.5f, 1f, Mathf.Clamp01((dist - 60f) / 240f));
+                // Fully OPAQUE until very close (owner: hard to find otherwise); only inside 100 m do they thin, to half
+                // at 40 m. The blink is carried by brightness and size, not transparency.
+                float blink = 0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI);
+                Color col = (w > 0 ? BubbleField.LiftTint : BubbleField.SinkTint) * ((0.9f + 1.3f * strength) * (0.75f + 0.5f * blink));
+                float near = Mathf.Lerp(0.5f, 1f, Mathf.Clamp01((dist - 40f) / 60f));
                 float edge = 1f - Mathf.Clamp01((dist / radius - 0.92f) / 0.08f);   // only the last 8 % fades, to avoid popping
+                col.a = 1f;
                 _props.SetColor(ColorId, col);
-                _props.SetFloat(AlphaId, Mathf.Max(0.5f, near * blink) * edge);
-                Graphics.DrawMesh(_mesh, Matrix4x4.TRS(c, Quaternion.identity, Vector3.one * (BubbleSize * (0.7f + 0.6f * strength))), _material, 0, null, 0, _props, false, false);
+                _props.SetFloat(AlphaId, near * edge);
+                float size = BubbleSize * (0.8f + 0.7f * strength) * (0.85f + 0.3f * blink);
+                Graphics.DrawMesh(_mesh, Matrix4x4.TRS(c, Quaternion.identity, Vector3.one * size), _material, 0, null, 0, _props, false, false);
             }
         }
     }

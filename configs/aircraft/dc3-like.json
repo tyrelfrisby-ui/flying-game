@@ -1725,5 +1725,7 @@
       "rotationSign": 1,
       "throttleScale": 1.0
     }
-  ]
+  ],
+  "retractableGear": true,
+  "gearDragAreaM2": 0.7
 }

@@ -16,6 +16,10 @@ public sealed class AircraftConfig
     public double SpawnIasMs { get; set; }
     /// <summary>True for types with an ejection seat (the F-86); everyone else can only bail out.</summary>
     public bool EjectionSeat { get; set; }
+    /// <summary>Retractable landing gear: the wheels only carry the aircraft when extended, and the extended gear
+    /// adds <see cref="GearDragAreaM2"/> of flat-plate drag area (gear up in the air start).</summary>
+    public bool RetractableGear { get; set; }
+    public double GearDragAreaM2 { get; set; }
 
     public MassConfig Mass { get; set; } = new();
     public List<SurfaceConfig> Surfaces { get; set; } = new();

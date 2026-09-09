@@ -1774,5 +1774,7 @@
     "gMax": 7.33,
     "gMin": -3.0
   },
-  "ejectionSeat": true
+  "ejectionSeat": true,
+  "retractableGear": true,
+  "gearDragAreaM2": 0.45
 }

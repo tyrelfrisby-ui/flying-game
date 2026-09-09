@@ -58,6 +58,7 @@ namespace FlyingGame.Bridge
             if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+            if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
         }
 
         /// <summary>
@@ -360,6 +361,7 @@ namespace FlyingGame.Bridge
             _parts.Clear();
             _controls.Clear();
             _wingParts.Clear();
+            _gearParts.Clear();
         }
 
         /// <summary>
@@ -695,6 +697,7 @@ namespace FlyingGame.Bridge
                 }
 
                 float r = g.TireRadiusM > 0 ? (float)g.TireRadiusM : (g.IsTailwheel ? wheelR * 0.45f : wheelR);
+                int firstGearPart = _parts.Count;
                 var wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 Kill(wheel.GetComponent<Collider>());
                 Attach(wheel, "Wheel");
@@ -708,6 +711,25 @@ namespace FlyingGame.Bridge
                 float ay = Mathf.Sign(gy) * Mathf.Min(Mathf.Abs(gy), rb * 0.8f);
                 float az = Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gz - r - 0.35f : rb * 0.9f * st.BodyHeightScale + st.BodyAxisZ;
                 Strut(new Vector3(gx, gy, gz - r), new Vector3(gx, Mathf.Abs(gy) > rb * 1.2f && st.LowWingGear ? gy : ay, az), g.IsTailwheel ? 0.05f : 0.1f, leg);
+                if (cfg.RetractableGear)
+                {
+                    // Remember every part of this leg with its extended position; SetGearExtension slides it up into the body.
+                    float travel = Mathf.Max(0.5f, gz - r + rb * 0.6f);   // enough to hide it inside the belly
+                    for (int i = firstGearPart; i < _parts.Count; i++) _gearParts.Add((_parts[i], _parts[i].transform.localPosition, travel));
+                }
+            }
+        }
+
+        private readonly List<(GameObject go, Vector3 downPos, float travel)> _gearParts = new();
+
+        /// <summary>Retractable gear visual: 1 = down and locked, 0 = up (parts slide into the body and vanish).</summary>
+        public void SetGearExtension(float ext)
+        {
+            foreach ((GameObject go, Vector3 downPos, float travel) in _gearParts)
+            {
+                if (go == null) continue;
+                go.transform.localPosition = downPos + Vector3.up * (travel * (1f - ext));
+                go.SetActive(ext > 0.08f);
             }
         }
 
@@ -1316,6 +1338,34 @@ namespace FlyingGame.Bridge
                         BodyAxisZ = 0.0f, BodyHeightScale = 1.05f, Body = new[] { (2.7f, 0.05f), (2.3f, 0.26f), (1.4f, 0.37f), (0.4f, 0.36f), (-0.8f, 0.28f), (-2.0f, 0.18f), (-3.2f, 0.11f), (-4.1f, 0.07f) },
                         Canopy = (1.4f, -0.3f, 1.5f, 0.6f, 0.4f), Tail = new TailSpec { StabSpan = 2.9f, StabRoot = 0.75f, StabTip = 0.45f, FinHeight = 1.35f, FinRoot = 1.0f, FinTip = 0.55f, FinSweepDeg = 25 },
                         Fuselage = white, Wing = white, TailColor = white, Control = red,
+                    };
+                case "cassutt-f1-like":
+                    return new Style
+                    {
+                        // Formula One racer: tiny, mid wing, close-fitting bubble canopy, spring-steel taildragger gear.
+                        BodyAxisZ = 0.0f, Body = new[] { (2.1f, 0.12f), (1.8f, 0.3f), (1.1f, 0.38f), (0.2f, 0.36f), (-0.8f, 0.27f), (-1.8f, 0.17f), (-2.6f, 0.1f), (-3.0f, 0.06f) },
+                        Canopy = (0.0f, -0.32f, 0.9f, 0.5f, 0.32f), PropRadius = 0.75f,
+                        Tail = new TailSpec { StabSpan = 1.8f, StabRoot = 0.55f, StabTip = 0.35f, FinHeight = 0.8f, FinRoot = 0.7f, FinTip = 0.4f, FinSweepDeg = 20 },
+                        Fuselage = red, Wing = white, TailColor = red, Control = white,
+                    };
+                case "geebee-r2-like":
+                    return new Style
+                    {
+                        // The teardrop: a 550 hp radial in a barrel that tapers straight to a stub tail, canopy just ahead of the fin.
+                        BodyAxisZ = 0.0f, BodyHeightScale = 1.05f, RadialEngine = true, LowWingGear = true,
+                        Body = new[] { (2.7f, 0.55f), (2.4f, 0.8f), (1.6f, 0.92f), (0.6f, 0.9f), (-0.5f, 0.75f), (-1.4f, 0.5f), (-2.1f, 0.28f), (-2.7f, 0.12f) },
+                        Canopy = (-1.6f, -0.45f, 0.8f, 0.5f, 0.35f), PropRadius = 1.3f,
+                        Tail = new TailSpec { StabSpan = 3.0f, StabRoot = 0.9f, StabTip = 0.5f, FinHeight = 0.9f, FinRoot = 1.0f, FinTip = 0.55f, FinSweepDeg = 30 },
+                        Fuselage = red, Wing = white, TailColor = red, Control = white,
+                    };
+                case "glasair3-like":
+                    return new Style
+                    {
+                        // Sleek composite low-wing: long pointed nose, slid-back canopy, swept fin, retractable tricycle gear.
+                        BodyAxisZ = 0.0f, Body = new[] { (3.2f, 0.12f), (2.8f, 0.4f), (1.8f, 0.5f), (0.5f, 0.5f), (-0.7f, 0.42f), (-1.8f, 0.3f), (-2.9f, 0.18f), (-3.9f, 0.09f), (-4.2f, 0.06f) },
+                        Canopy = (0.3f, -0.42f, 1.6f, 0.75f, 0.45f), PropRadius = 0.99f, LowWingGear = true,
+                        Tail = new TailSpec { StabSpan = 2.6f, StabRoot = 0.75f, StabTip = 0.45f, FinHeight = 1.2f, FinRoot = 1.2f, FinTip = 0.5f, FinSweepDeg = 35 },
+                        Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.2f, 0.5f),
                     };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
                     return new Style
