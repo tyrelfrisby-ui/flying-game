@@ -125,4 +125,23 @@ public class AirframeContactTests
         Assert.Empty(ac.LostComponents);
         Assert.True(-ac.State.Position.Z - a.ElevationM < 2.0);
     }
+
+    [Fact]
+    public void PropStrikeStopsTheEngine()
+    {
+        var c = Cub();
+        WorldTerrain.Active = null;
+        // Nose-over: pitched 25° nose-down on the ground rolling at 8 m/s with power on — the prop bites the runway.
+        double pitch = -25 * System.Math.PI / 180;
+        var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -1.2), att, new Vec3(8, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+        var lost = new List<AirframeComponent>(); ac.ComponentLost += lost.Add;
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 2 && !ac.EngineStopped; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, -1.0));
+        Assert.Contains(AirframeComponent.Propeller, lost);
+        Assert.True(ac.EngineStopped);
+        Assert.Equal(0.0, ac.EngineRpm);
+        sim.RunFor(0.5, new ControlInputs(0, 0, 0, -1.0));
+        Assert.True(ac.State.Velocity.Length < 8.5, "no thrust after the strike");
+    }
 }

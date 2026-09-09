@@ -98,8 +98,10 @@ namespace FlyingGame.Bridge
 
             // load-dependent brightness and mix
             _lp.LowPass(_fs, Dsp.Lerp(P.LpIdleHz, P.LpFullHz, Dsp.Pow(thr, 0.7f)), 0.6f);
-            _exhaustGain = P.ExhaustGain * (0.3f + 0.7f * thr);
-            _toneGain = P.ToneGain * (0.35f + 0.65f * thr) * (0.5f + 0.5f * rpmN);
+            // Throttle = manifold pressure = how hard each pulse hits: loudness, not pitch (a governed prop holds
+            // rpm, so this is the whole difference between cruise and full power on a constant-speed type).
+            _exhaustGain = P.ExhaustGain * (0.18f + 0.82f * Dsp.Pow(thr, 0.8f));
+            _toneGain = P.ToneGain * (0.25f + 0.75f * thr) * (0.5f + 0.5f * rpmN);
             _tilt = 0.55f * (1f - thr);
             _jitter = 0.04f + 0.14f * (1f - thr);
             _mechGain = P.Mechanical * (1f - 0.65f * thr);

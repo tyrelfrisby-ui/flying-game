@@ -1399,13 +1399,15 @@
     "maxPowerW": 1100000,
     "propDiameterM": 3.4,
     "idleRpm": 700,
-    "maxRpm": 2700,
+    "maxRpm": 3000,
     "propInertia": 14.0,
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.1,
     "pFactorK": 0.35,
-    "slipstreamK": 0.12
+    "slipstreamK": 0.12,
+    "constantSpeed": true,
+    "governedRpm": 2650
   },
   "stallDynamics": {
     "stripSepTau": 0.15,

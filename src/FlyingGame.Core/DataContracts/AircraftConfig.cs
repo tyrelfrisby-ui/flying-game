@@ -207,6 +207,11 @@ public sealed class PropulsionConfig
     public double ThrustLineZ { get; set; } = 0.0;      // + below CG (z down)
     public double PFactorK { get; set; } = 0.35;        // lateral thrust offset fraction of radius per sin(alpha)
     public double SlipstreamK { get; set; } = 0.12;     // spiral-slipstream yaw moment coefficient
+    /// <summary>Constant-speed propeller: the governor holds <see cref="GovernedRpm"/> whenever there is enough
+    /// power to govern, so the throttle changes manifold pressure (loudness), not rpm (pitch). Fixed-pitch:
+    /// rpm follows throttle and airspeed.</summary>
+    public bool ConstantSpeed { get; set; }
+    public double GovernedRpm { get; set; } = 2400;
 }
 
 public sealed class StallDynamicsConfig

@@ -4,7 +4,7 @@ using FlyingGame.Core.MathTypes;
 namespace FlyingGame.Core;
 
 /// <summary>The airframe parts a contact point belongs to — what breaks off when that point hits hard.</summary>
-public enum AirframeComponent { Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight }
+public enum AirframeComponent { Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight, Propeller }
 
 /// <summary>A hard point on the airframe (body frame, same origin as the config) that must not pass through
 /// the ground or a solid: wing tips, stab tips, fin top, nose, tail cone, cabin top, nacelles.</summary>
@@ -117,6 +117,20 @@ public static class AirframeContact
         double tailZ = 0.0;
         foreach (GearConfig g in c.Gear) if (g.IsTailwheel || g.Pos[0] < tailX + 1.5) tailZ = System.Math.Min(tailZ, g.Pos[2] - 0.45);
         pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, 0), Component = AirframeComponent.Nose, BreakSpeedMs = 6.0, Name = "nose" });
+        // Propeller disc: the lowest blade tip. ANY ground contact is a prop strike (engine stops, blades bend).
+        if (c.Propulsion is not null && c.Propulsion.PropDiameterM > 0)
+        {
+            double r = c.Propulsion.PropDiameterM * 0.5 * 0.85;
+            if (c.Engines.Count == 0)
+            {
+                pts.Add(new ContactPoint { Body = new Vec3(noseX + 0.1, 0, r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
+            }
+            else
+            {
+                foreach (EngineMount e in c.Engines)
+                    pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2] + r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
+            }
+        }
         pts.Add(new ContactPoint { Body = new Vec3(tailX, 0, tailZ), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "tail-cone" });
         pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, -rBody * 1.1), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "cabin-top" });
         pts.Add(new ContactPoint { Body = new Vec3(noseX * 0.6, 0, -rBody * 0.9), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "cowl-top" });

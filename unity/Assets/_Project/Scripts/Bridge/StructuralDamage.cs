@@ -80,10 +80,12 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.AirframeComponent.WingRight => "RIGHT WING",
                 FlyingGame.Core.AirframeComponent.TailHorizontal => "STABILISER",
                 FlyingGame.Core.AirframeComponent.TailVertical => "FIN",
-                FlyingGame.Core.AirframeComponent.Nose => "PROPELLER",
+                FlyingGame.Core.AirframeComponent.Nose => "NOSE",
+                FlyingGame.Core.AirframeComponent.Propeller => "PROP STRIKE — engine stopped",
                 _ => c.ToString().ToUpperInvariant(),
             };
-            LostLine = LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
+            LostLine = c == FlyingGame.Core.AirframeComponent.Propeller ? (LostLine == null ? name : LostLine + ", " + name)
+                : LostLine == null ? "BROKE OFF: " + name : LostLine + ", " + name;
         }
 
         private void ReadLimits()

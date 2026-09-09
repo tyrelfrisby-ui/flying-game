@@ -1419,14 +1419,15 @@
   "propulsion": {
     "maxPowerW": 164000,
     "propDiameterM": 2.55,
-    "idleRpm": 700,
-    "maxRpm": 2700,
+    "idleRpm": 500,
+    "maxRpm": 2075,
     "propInertia": 4.0,
     "rotationSign": 1,
     "efficiency": 0.75,
     "thrustLineZ": 0.0,
     "pFactorK": 0.35,
-    "slipstreamK": 0.12
+    "slipstreamK": 0.12,
+    "constantSpeed": false
   },
   "stallDynamics": {
     "stripSepTau": 0.15,

@@ -75,18 +75,22 @@ namespace FlyingGame.Bridge
             SuperchargerRatio = 0f,
         };
 
+        /// <summary>Continental R-670 on the Stearman: 7 cylinders → 3.5 firing pulses per rev, 2 075 rpm red-line
+        /// (121 Hz firing), ~500 rpm idle with a lumpy lope. Long, soft exhaust pulses through big collector rings
+        /// (formant ~180 Hz), little crackle, top rolled off hard — a slow heavy drone with the master-rod thump,
+        /// nothing like a two-stroke buzz. Prop tip noise kept low (2.55 m two-blade at 2 000 rpm is subsonic).</summary>
         public static PistonProfile Radial7() => new PistonProfile
         {
             Name = "Continental R-670 7-cyl radial",
             Cylinders = 7,
-            Harmonics = new[] { 1f, 0.6f, 0.35f, 0.2f, 0.12f, 0.08f },
-            PulseDecayS = 0.011f, Crackle = 0.35f, CylinderSpread = 0.14f,
-            Formant1Hz = 260f, Formant1Q = 0.8f, Formant1Gain = 0.9f,
-            Formant2Hz = 700f, Formant2Q = 1.2f, Formant2Gain = 0.3f,
-            LpIdleHz = 600f, LpFullHz = 3800f,
-            ExhaustGain = 0.55f, ToneGain = 0.4f,
-            Lope = 0.13f, Mechanical = 0.16f, CrankThump = 0.35f,
-            PropBlades = 2f, PropReduction = 1f, PropGain = 0.26f, PropTipNoise = 0.4f,
+            Harmonics = new[] { 1f, 0.55f, 0.28f, 0.14f, 0.07f },
+            PulseDecayS = 0.022f, Crackle = 0.12f, CylinderSpread = 0.16f,
+            Formant1Hz = 180f, Formant1Q = 0.9f, Formant1Gain = 1.0f,
+            Formant2Hz = 420f, Formant2Q = 1.1f, Formant2Gain = 0.25f,
+            LpIdleHz = 450f, LpFullHz = 1800f,
+            ExhaustGain = 0.6f, ToneGain = 0.35f,
+            Lope = 0.16f, Mechanical = 0.06f, CrankThump = 0.5f,
+            PropBlades = 2f, PropReduction = 1f, PropGain = 0.22f, PropTipNoise = 0.12f,
             SuperchargerRatio = 0f,
         };
 
@@ -98,10 +102,10 @@ namespace FlyingGame.Bridge
             PulseDecayS = 0.008f, Crackle = 0.3f, CylinderSpread = 0.1f,
             Formant1Hz = 300f, Formant1Q = 0.9f, Formant1Gain = 0.9f,
             Formant2Hz = 800f, Formant2Q = 1.3f, Formant2Gain = 0.3f,
-            LpIdleHz = 650f, LpFullHz = 4200f,
-            ExhaustGain = 0.5f, ToneGain = 0.45f,
-            Lope = 0.1f, Mechanical = 0.12f, CrankThump = 0.3f,
-            PropBlades = 3f, PropReduction = 0.5625f, PropGain = 0.28f, PropTipNoise = 0.35f,
+            LpIdleHz = 550f, LpFullHz = 2600f,
+            ExhaustGain = 0.55f, ToneGain = 0.4f,
+            Lope = 0.1f, Mechanical = 0.08f, CrankThump = 0.35f,
+            PropBlades = 3f, PropReduction = 0.5625f, PropGain = 0.28f, PropTipNoise = 0.18f,
             SuperchargerRatio = 0f, TwinDetune = 1.013f,
         };
 

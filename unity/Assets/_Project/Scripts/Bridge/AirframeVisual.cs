@@ -68,6 +68,7 @@ namespace FlyingGame.Bridge
         public void DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
             _componentsDetached = true;
+            if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return; }
             Transform root = transform;
             var debris = new GameObject("Debris-" + comp);
             debris.transform.SetPositionAndRotation(root.position, root.rotation);
@@ -119,6 +120,34 @@ namespace FlyingGame.Bridge
             Vector3 side = leftWing ? -root.right : root.right;
             Vector3 kick = leftWing || rightWing ? side * 4f + root.up * 3f : -root.forward * 3f + root.up * 4f;
             LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing ? side : root.right, leftWing ? 1f : -1f);
+        }
+
+        /// <summary>Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.</summary>
+        private void BendPropeller()
+        {
+            foreach (GameObject part in new List<GameObject>(_builder.Parts))
+            {
+                if (part == null) continue;
+                if (part.name == "PropDisc") { part.SetActive(false); continue; }
+                if (part.name != "Blade") continue;
+                Vector3 sc = part.transform.localScale;
+                // Keep the inner 55 %, add a bent outer tip folded aft (local -z is aft for a blade in the yz plane).
+                part.transform.localScale = new Vector3(sc.x * 0.55f, sc.y, sc.z);
+                foreach (float sign in new[] { -1f, 1f })
+                {
+                    var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.Destroy(tip.GetComponent<Collider>());
+                    tip.name = "BentBladeTip";
+                    tip.transform.SetParent(part.transform, false);
+                    // In the blade's own (scaled) space: x is span. Place the tip piece at the end and fold it back.
+                    float halfSpan = 0.5f;
+                    tip.transform.localPosition = new Vector3(sign * halfSpan, 0f, 0f);
+                    tip.transform.localRotation = Quaternion.Euler(0f, sign * -50f, 0f);
+                    tip.transform.localScale = new Vector3(0.45f / 0.55f, 1f, 1f);
+                    tip.transform.localPosition += tip.transform.localRotation * new Vector3(sign * 0.4f, 0f, 0f);
+                    var mr = tip.GetComponent<MeshRenderer>(); mr.sharedMaterial = part.GetComponent<MeshRenderer>().sharedMaterial;
+                }
+            }
         }
 
         private void Rebuild()

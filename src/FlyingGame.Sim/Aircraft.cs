@@ -158,9 +158,30 @@ public sealed class Aircraft
 
     /// <summary>Engine speed (rpm) for piston/prop types from the prop model's throttle→rpm law; 0 for gliders.
     /// Jets (PropDiameterM == 0) report a pseudo-N1 0..100 as MaxRpm-scaled throttle.</summary>
-    public double EngineRpm => Config.Propulsion is null
-        ? 0.0
-        : Config.Propulsion.IdleRpm + (Config.Propulsion.MaxRpm - Config.Propulsion.IdleRpm) * _throttle01;
+    /// <summary>Engine rpm for the audio/instruments. Constant-speed prop: below ~30 % throttle the prop sits on
+    /// its fine-pitch stop and rpm follows power; above it the governor holds GovernedRpm, rising to MaxRpm only
+    /// with the throttle firewalled (take-off). Fixed pitch: rpm follows throttle and picks up with airspeed
+    /// (a fixed-pitch prop unloads as the aircraft accelerates: ~2300 static, red-line at cruise speed).</summary>
+    public double EngineRpm
+    {
+        get
+        {
+            PropulsionConfig p = Config.Propulsion!;
+            if (p is null || _noseLost) return 0.0;   // engine stopped (prop strike)
+            double idle = p.IdleRpm, max = p.MaxRpm, thr = _throttle01;
+            if (p.ConstantSpeed)
+            {
+                double gov = Math.Clamp(p.GovernedRpm, idle, max);
+                double finePitch = idle + (Math.Min(gov, 1800.0) - idle) * Math.Min(1.0, thr / 0.3);
+                if (thr < 0.3) return finePitch;
+                double t = Math.Clamp((thr - 0.9) / 0.1, 0.0, 1.0);
+                return gov + (max - gov) * t * t * (3 - 2 * t);
+            }
+            double vRef = Config.SpawnIasMs > 1 ? Config.SpawnIasMs : 30.0;
+            double speedFactor = 0.82 + 0.18 * Math.Clamp(State.Velocity.Length / vRef, 0.0, 1.0);
+            return idle + (max - idle) * Math.Pow(thr, 0.8) * speedFactor;
+        }
+    }
 
     public static Dictionary<string, AirfoilTable> BuildAirfoilTables(AircraftConfig config)
     {
@@ -271,7 +292,11 @@ public sealed class Aircraft
             }
         }
         _contacts.RemoveAll(p => p.Component == comp);
-        if (comp == AirframeComponent.Nose) _noseLost = true;
+        if (comp == AirframeComponent.Nose || comp == AirframeComponent.Propeller)
+        {
+            _noseLost = true;   // prop strike / nose gone: the engine stops
+            for (int i = 0; i < Config.Engines.Count; i++) SetEngineThrottleScale(i, 0.0);
+        }
         if (comp == AirframeComponent.NacelleLeft || comp == AirframeComponent.NacelleRight)
         {
             for (int i = 0; i < Config.Engines.Count; i++)
@@ -280,6 +305,8 @@ public sealed class Aircraft
         ComponentLost?.Invoke(comp);
     }
     private bool _noseLost;
+    /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust.</summary>
+    public bool EngineStopped => _noseLost;
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
     public bool[]? StripMask => _stripMask;
 
