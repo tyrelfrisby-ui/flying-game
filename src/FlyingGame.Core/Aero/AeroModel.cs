@@ -68,7 +68,8 @@ public static class AeroModel
         double slipstreamDeltaU = 0.0,
         double slipstreamRadius = 0.0,
         bool[]? surfaceMask = null,
-        bool[]? stripMask = null)
+        bool[]? stripMask = null,
+        Vec3? meanWindBody = null)
     {
         int stripIndex = 0;
         Vec3 cg = config.Mass.CgVec();
@@ -417,8 +418,10 @@ public static class AeroModel
         }
 
         // Fuselage and spoiler terms see the AIR, not the ground: with the ground velocity a steady crosswind read
-        // as a permanent fuselage sideslip and trimmed the aircraft into a real one.
-        Vec3 airVelocity = bodyVelocity - windBody;
+        // as a permanent fuselage sideslip and trimmed the aircraft into a real one. They use the MEAN flow
+        // (no gusts): the bluff-body crossflow terms are for large-angle flow, and feeding them small-scale gusts
+        // pumped the glider's phugoid in moderate turbulence.
+        Vec3 airVelocity = bodyVelocity - (meanWindBody ?? windBody);
         ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
         ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
 

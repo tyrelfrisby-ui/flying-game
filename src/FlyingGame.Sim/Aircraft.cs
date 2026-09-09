@@ -380,6 +380,8 @@ public sealed class Aircraft
         // Turbulence wind is world-frame; the aero model works in body frame, so rotate it in.
         Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
         Vec3 windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
+        Vec3 meanWindWorld = Atmosphere.MeanWindAtPosition(State.Position);
+        Vec3 meanWindBody = meanWindWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(meanWindWorld) : Vec3.Zero;
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
@@ -409,7 +411,7 @@ public sealed class Aircraft
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;

@@ -48,7 +48,7 @@ public class WindTests
     }
 
     [Fact]
-    public void CrosswindCausesSidewaysDrift()
+    public void CrosswindWeathervanesTheNoseAndGroundTrackCarriesTheWind()
     {
         try
         {
@@ -57,15 +57,17 @@ public class WindTests
             Atmosphere.SteadyWind = new Vec3(0, 8, 0);          // air mass moving +y
             var sim = new SimLoop(ac);
             var stick = new ControlDeflections(0, ac.CurrentDeflections.ElevatorRad, 0, 0);
-            double y0 = ac.State.Position.Y;
-            for (int i = 0; i < 60; i++) sim.RunFor(0.05, stick);
-            // Ground track carries the aircraft laterally (crab): significant sideways displacement,
-            // and ground velocity differs from air velocity by ~the crosswind.
-            double drift = System.Math.Abs(ac.State.Position.Y - y0);
+            for (int i = 0; i < 160; i++) sim.RunFor(0.05, stick);
+            // Hands off, the aircraft keeps its inertial velocity (momentum) and weathervanes: the nose swings
+            // INTO the wind until the air-relative sideslip is gone, and ground velocity − air velocity is the wind.
             Vec3 groundWorld = ac.State.Attitude.Rotate(ac.State.Velocity);
-            double lateralGround = System.Math.Abs(groundWorld.Y);
-            Assert.True(drift > 3, $"Crosswind must drift the aircraft laterally; drifted {drift:F0} m");
-            Assert.True(lateralGround > 2, $"Ground track must have a lateral (crab) component; vY={groundWorld.Y:F1}");
+            Vec3 airWorld = groundWorld - Atmosphere.SteadyWind;
+            Vec3 nose = ac.State.Attitude.Rotate(new Vec3(1, 0, 0));
+            double noseHdg = System.Math.Atan2(nose.Y, nose.X), airHdg = System.Math.Atan2(airWorld.Y, airWorld.X);
+            double beta = System.Math.Abs(noseHdg - airHdg) * 180 / System.Math.PI;
+            Assert.True(beta < 3, $"nose must align with the air vector (sideslip {beta:F1}°)");
+            Assert.True(noseHdg < -8 * System.Math.PI / 180, $"nose must point into the wind (heading {noseHdg * 57.3:F1}°)");
+            Assert.InRange((groundWorld - airWorld).Y, 7.9, 8.1);
         }
         finally { Atmosphere.SteadyWind = Vec3.Zero; }
     }

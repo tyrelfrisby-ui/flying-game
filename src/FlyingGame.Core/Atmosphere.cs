@@ -91,9 +91,15 @@ public static class Atmosphere
     public static Ridge? ActiveRidge { get; set; }
 
     /// <summary>Wind (world frame, m/s): steady wind + turbulence + thermals + ridge lift.</summary>
-    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition)
+    public static MathTypes.Vec3 WindAtPosition(MathTypes.Vec3 worldPosition) => WindAt(worldPosition, true);
+
+    /// <summary>The MEAN flow only (steady wind, thermals, slope lift) — no gusts. The fuselage crossflow terms
+    /// use this: they are quadratic bluff-body terms for large-angle flow, not a gust-response model.</summary>
+    public static MathTypes.Vec3 MeanWindAtPosition(MathTypes.Vec3 worldPosition) => WindAt(worldPosition, false);
+
+    private static MathTypes.Vec3 WindAt(MathTypes.Vec3 worldPosition, bool withGusts)
     {
-        MathTypes.Vec3 w = SteadyWind + (ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero);
+        MathTypes.Vec3 w = SteadyWind + (withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero);
         for (int i = 0; i < Thermals.Count; i++)
         {
             w += Thermals[i].WindAt(worldPosition) * ThermalStrengthScale;
