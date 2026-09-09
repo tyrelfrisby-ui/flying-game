@@ -21,7 +21,7 @@ namespace FlyingGame.Bridge
         private float _bfGain, _bfGainT;
         private float _spGain, _spGainT;
         private float _flutPhase, _flutHz = 7f;
-        private int _shudCount; private float _shudEnv, _shudDecay, _drumEnv, _drumDecay, _drumPhase;
+        private int _shudCount; private float _shudEnv, _shudDecay, _drumEnv, _drumDecay, _drumPhase, _bfDepth;
 
         public WindSynth(float fs)
         {
@@ -67,11 +67,13 @@ namespace FlyingGame.Bridge
             _whPanR = 0.7f + 0.3f * pan;
             _flutHz = 5f + 9f * aoaTerm + 4f * slipTerm;
 
-            // stall buffet: positive stall past ~14°, negative past ~-10°
-            float buffet = Dsp.SmoothStep(12f, 17f, alphaDeg);
-            float negBuffet = Dsp.SmoothStep(8f, 13f, -alphaDeg);
+            // Stall buffet: a drumbeat that starts slow and soft as the wing approaches the stall and BUILDS in both
+            // beat rate and intensity up to the stall (owner). Onset ~11° AoA, full at ~16.5° (negative: -7°..-12°).
+            float buffet = Dsp.SmoothStep(11f, 16.5f, alphaDeg);
+            float negBuffet = Dsp.SmoothStep(7f, 12f, -alphaDeg);
             if (negBuffet > buffet) buffet = negBuffet;
-            _bfGainT = buffet * Dsp.SmoothStep(8f, 25f, v) * 0.7f;
+            _bfDepth = buffet;
+            _bfGainT = Dsp.Pow(buffet, 1.6f) * Dsp.SmoothStep(8f, 25f, v) * 0.85f;
 
             // spoiler / airbrake roar
             _spGainT = Dsp.Clamp01(spoiler) * Dsp.SmoothStep(10f, 35f, v) * 0.35f;
@@ -89,7 +91,7 @@ namespace FlyingGame.Bridge
             // short decaying burst; no modulation of the airflow hiss itself (that read as a weird warble).
             if (--_shudCount <= 0)
             {
-                float rate = 5f + 5f * (_nS.Next() * 0.5f + 0.5f);   // 5–10 beats a second, uneven
+                float rate = (3f + 9f * _bfDepth) * (0.8f + 0.4f * (_nS.Next() * 0.5f + 0.5f));   // 3 beats/s at onset → 12/s at the stall, uneven
                 _shudCount = (int)(_fs / rate * (0.7f + 0.6f * (_nS.Next() * 0.5f + 0.5f)));
                 _shudEnv = 0.6f + 0.4f * (_nS.Next() * 0.5f + 0.5f);
                 _drumEnv = _shudEnv;
@@ -97,7 +99,7 @@ namespace FlyingGame.Bridge
             _shudEnv *= _shudDecay;
             // Drum head: each thud rings a damped low sine whose pitch drops as it decays (a bass drum, not a rattle).
             _drumEnv *= _drumDecay;
-            float drumHz = 44f + 26f * _drumEnv;
+            float drumHz = (40f + 12f * _bfDepth) + 26f * _drumEnv;   // the head tightens a little as the stall nears
             _drumPhase += drumHz / _fs;
             if (_drumPhase >= 1f) _drumPhase -= 1f;
 
