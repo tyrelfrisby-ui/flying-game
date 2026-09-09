@@ -81,7 +81,9 @@ namespace FlyingGame.Bridge
             else
             {
                 tugPos = gliderState.Position + fwd * (RopeLengthM + 5.0);
-                tugState = new RigidBodyState(tugPos, gliderState.Attitude, new Vec3(TowSpeedMs, 0, 0), Vec3.Zero);
+                // Tow speed relative to the AIR (ground velocity = air + wind: a coordinated crab, like the glider).
+                tugState = new RigidBodyState(tugPos, gliderState.Attitude,
+                    new Vec3(TowSpeedMs, 0, 0) + gliderState.Attitude.Conjugate().Rotate(FlyingGame.Core.Atmosphere.WindAtPosition(tugPos)), Vec3.Zero);
             }
             var tug = new Aircraft(tugConfig, tugState, new ControlDeflections(0, 0, 0, 0));
             _tugDriver = null;

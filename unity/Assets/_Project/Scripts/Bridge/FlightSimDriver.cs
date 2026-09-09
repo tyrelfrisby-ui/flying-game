@@ -145,9 +145,14 @@ namespace FlyingGame.Bridge
             var pitchQ = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));
             var yawQ = new Quat(0, 0, System.Math.Sin(spawnHdg / 2), System.Math.Cos(spawnHdg / 2));
             var attitude = Quat.Multiply(yawQ, pitchQ);
+            // Spawn with the trimmed speed relative to the AIR: ground velocity = air velocity + local wind, so in
+            // a crosswind the aircraft starts in a coordinated crab (zero sideslip, camera on the tail) instead of
+            // a 12° sideslip that takes seconds to weathervane out.
+            var spawnPos = new Vec3(spawnX, spawnY, -spawnAlt);
             var velocityBody = new Vec3(
-                SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad));
-            var airState = new RigidBodyState(new Vec3(spawnX, spawnY, -spawnAlt), attitude, velocityBody, Vec3.Zero);
+                SpawnIasMs * System.Math.Cos(trim.AlphaRad), 0, SpawnIasMs * System.Math.Sin(trim.AlphaRad))
+                + attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(spawnPos));
+            var airState = new RigidBodyState(spawnPos, attitude, velocityBody, Vec3.Zero);
 
             var deflections = new ControlDeflections(0, trim.ElevatorRad, 0, 0);
             Sim = new SimLoop(new Aircraft(config, airState, deflections));

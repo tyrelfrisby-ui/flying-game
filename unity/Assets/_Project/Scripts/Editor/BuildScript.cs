@@ -65,6 +65,12 @@ namespace FlyingGame.EditorTools
         public static void BuildiOS()
         {
             ConfigureiOS();
+            // Build stamp: version = build date/time (dotted numeric so iOS accepts it); the HUD shows it so a
+            // device build can be told apart at a glance.
+            string stamp = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
+            PlayerSettings.bundleVersion = stamp;
+            PlayerSettings.iOS.buildNumber = System.DateTime.Now.ToString("yyyyMMddHHmm");
+            Debug.Log($"Build stamp {stamp}");
 
             // Default output is repo-relative build/iOS, but on this Mac ~/Documents is synced by Google
             // Drive, whose File Provider stamps com.apple.FinderInfo on the bundle directories and breaks
