@@ -42,9 +42,9 @@ namespace FlyingGame.EditorTools
                 ("crop-wires", new Vector3(1450f, 25f, 100f), new Vector3(1750f, 30f, 191f)),
                 ("grass-strip", new Vector3(-435f, 5f, -180f), new Vector3(-420f, 1f, 350f)),
                 ("arch", new Vector3(-1250f, 120f, 1300f), new Vector3(-900f, 120f, 1740f)),
-                ("eiffel", new Vector3(1700f, 120f, -2500f), new Vector3(1300f, 120f, -1750f)),
-                ("town", new Vector3(0f, 400f, -3700f), new Vector3(0f, 60f, -1750f)),
-                ("town-street", new Vector3(10f, 40f, -3000f), new Vector3(10f, 60f, -1500f)),
+                ("eiffel", new Vector3(-600f, 120f, -2500f), new Vector3(-1000f, 120f, -1750f)),
+                ("town", new Vector3(1160f, 400f, -3700f), new Vector3(1160f, 60f, -1750f)),
+                ("town-street", new Vector3(1170f, 40f, -3000f), new Vector3(1170f, 60f, -1500f)),
                 // Plunge waterfall at the first wall (sim x 1849, lip y −2002): front, from inside the slot, and the lip.
                 ("waterfall-front", new Vector3(-1350f, 520f, 2350f), new Vector3(-1985f, 380f, 1849f)),
                 ("waterfall-slot", new Vector3(-2030f, 350f, 1480f), new Vector3(-2030f, 330f, 2200f)),

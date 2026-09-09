@@ -18,13 +18,13 @@ public static class Landmarks
     public static double ArchBaseUp(WorldTerrain t) => System.Math.Min(t.HeightAt(ArchCentreX - ArchHalfSpanM, ArchY), t.HeightAt(ArchCentreX + ArchHalfSpanM, ArchY));
 
     // ---- Eiffel-style tower on the valley floor, road running under it along x --------------------------
-    public const double TowerX = -1750.0, TowerY = 1300.0, TowerHeightM = 300.0, TowerBaseHalfM = 62.0, TowerFirstFloorM = 57.0, TowerSecondFloorM = 115.0, TowerTopFloorM = 276.0;
+    public const double TowerX = -1750.0, TowerY = -1000.0, TowerHeightM = 300.0, TowerBaseHalfM = 62.0, TowerFirstFloorM = 57.0, TowerSecondFloorM = 115.0, TowerTopFloorM = 276.0;
     public const double RoadHalfLengthM = 1750.0, RoadWidthM = 12.0;
     /// <summary>Half-width of the tower at height h (legs curve inward: quadratic taper to a slim top).</summary>
     public static double TowerHalfAt(double h) { double u = System.Math.Clamp(h / TowerHeightM, 0, 1); return TowerBaseHalfM * (1 - u) * (1 - u) + 4.0 * u; }
 
     // ---- Town grid --------------------------------------------------------------------------------------
-    public const double TownX0 = -2650.0, TownY0 = -660.0, BlockM = 100.0, StreetM = 20.0;   // right off the south end of the pad
+    public const double TownX0 = -2650.0, TownY0 = 500.0, BlockM = 100.0, StreetM = 20.0;   // south-east of the pad, clear of the final approach corridor (y ±300)
     public const int TownBlocksX = 15, TownBlocksY = 11;
     public static double TownCentreX => TownX0 + TownBlocksX * (BlockM + StreetM) / 2;
     public static double TownCentreY => TownY0 + TownBlocksY * (BlockM + StreetM) / 2;

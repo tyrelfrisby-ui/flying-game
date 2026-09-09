@@ -62,4 +62,21 @@ public class ApproachSpawnTests
         WorldTerrain.Active = null;
         Assert.Fail("never reached the runway");
     }
+
+    [Fact]
+    public void FinalApproachCorridorIsClearOfSolids()
+    {
+        var t = new WorldTerrain(); WorldTerrain.Active = t;
+        Landmarks.RegisterSolids(t);
+        var a = WorldTerrain.Airports[0];
+        double thr = a.X - WorldTerrain.RunwayLengthM / 2;
+        // From 3 km out to the threshold, ±300 m either side, up to 400 ft: no building, leg or shelf.
+        foreach (var b in WorldSolids.Boxes)
+        {
+            bool inX = b.Cx + b.Hx > thr - 3000 && b.Cx - b.Hx < thr + 100;
+            bool inY = b.Cy + b.Hy > a.Y - 300 && b.Cy - b.Hy < a.Y + 300;
+            Assert.False(inX && inY && b.Bottom < a.ElevationM + 122, $"solid at ({b.Cx:F0},{b.Cy:F0}) top {b.Top:F0} m sits in the final approach corridor");
+        }
+        WorldTerrain.Active = null; WorldSolids.Boxes.Clear();
+    }
 }
