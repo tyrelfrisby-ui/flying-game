@@ -196,35 +196,40 @@ namespace FlyingGame.Bridge
     }
 
     /// <summary>
-    /// Continuous airframe stress: sparse stick-slip creak bursts through two randomly re-tuned
-    /// resonators (rate, pitch and level rise with severity) over a slowly wandering low groan tone.
-    /// Severity is smoothed so per-frame calls sound continuous and release cleanly.
+    /// Continuous airframe stress (owner: "groans and creaks, not buffet"): LONG stick-slip CREAKS — a friction
+    /// pulse train whose repetition rate glides through each event (that glide is what makes a creak sound like
+    /// a creak), rung through two high-Q resonators re-tuned per event, with a slow attack and release — over
+    /// a slow metallic GROAN: a wavering low-mid tone whose pitch bends over a second or more and whose level
+    /// swells slowly, no fast tremolo and no low rumble (those read as stall buffet). Rate, length, pitch and
+    /// level all rise with severity; severity is smoothed so per-frame calls sound continuous.
     /// </summary>
     internal sealed class GroanVoice
     {
         private readonly float _fs;
         private readonly Noise _n = new Noise(0x6E0A11u);
-        private readonly Biquad _resA = new Biquad(), _resB = new Biquad();
+        private readonly Biquad _resA = new Biquad(), _resB = new Biquad(), _bodyLp = new Biquad();
         private readonly float _sevA;
         private float _sev, _sevT;
+        // creak event
         private int _countdown;
-        private float _burst, _burstDec;
-        private float _lowPhase, _lowHz = 80f, _tremPhase;
+        private float _evLen, _evT, _evAmp, _pulseHz0, _pulseHz1, _pulsePhase, _pulseEnv, _pulseDec;
+        // groan tone
+        private float _gPhase, _gHz = 180f, _gHzT = 180f, _gGlideA, _swellPhase, _swellHz = 0.7f, _gPhase2;
 
         public GroanVoice(float fs)
         {
             _fs = fs;
-            _sevA = Dsp.Tau(0.06f, fs);
-            _resA.BandPass(fs, 400f, 14f);
-            _resB.BandPass(fs, 700f, 18f);
-            _burstDec = Dsp.DecayCoef(0.015f, fs);
+            _sevA = Dsp.Tau(0.08f, fs);
+            _resA.BandPass(fs, 900f, 20f);
+            _resB.BandPass(fs, 1500f, 24f);
+            _bodyLp.LowPass(fs, 3500f, 0.7f);
+            _pulseDec = Dsp.DecayCoef(0.0025f, fs);
+            _gGlideA = Dsp.Tau(0.6f, fs);
         }
 
         public void Prepare(float severity)
         {
             _sevT = Dsp.Clamp01(severity);
-            float target = 70f + 50f * _sevT;
-            _lowHz = Dsp.Clamp(_lowHz + _n.Next() * 6f - (_lowHz - target) * 0.1f, 50f, 150f);
         }
 
         public float Next()
@@ -233,29 +238,47 @@ namespace FlyingGame.Bridge
             float sev = _sev;
             if (sev < 0.002f) return 0f;
 
-            if (--_countdown <= 0)
+            // ---- creaks: sparse long events
+            if (_evT >= _evLen && --_countdown <= 0)
             {
-                float rate = 6f + 50f * sev;
-                _countdown = (int)(_fs / rate * _n.Range(0.3f, 1.7f));
-                if (_countdown < 64) _countdown = 64;
-                _burst = _n.Range(0.5f, 1f);
-                float hz = _n.Range(180f, 1200f) * (1f + 0.5f * sev);
-                _resA.BandPass(_fs, hz, 14f);
-                _resB.BandPass(_fs, hz * 1.6f + _n.Range(0f, 200f), 18f);
-                _burstDec = Dsp.DecayCoef(_n.Range(0.008f, 0.03f), _fs);
+                float rate = 0.8f + 3.5f * sev;                                   // events per second
+                _countdown = (int)(_fs / rate * _n.Range(0.4f, 1.6f));
+                _evLen = _n.Range(0.15f, 0.6f) * (0.7f + 0.6f * sev);             // seconds
+                _evT = 0f;
+                _evAmp = _n.Range(0.5f, 1f);
+                bool rising = _n.Next() > 0f;
+                float f0 = _n.Range(25f, 70f) * (1f + 0.8f * sev), f1 = f0 * _n.Range(1.6f, 3.2f);
+                _pulseHz0 = rising ? f0 : f1; _pulseHz1 = rising ? f1 : f0;      // the glide
+                float hz = _n.Range(500f, 1800f) * (1f + 0.4f * sev);
+                _resA.BandPass(_fs, hz, 22f);
+                _resB.BandPass(_fs, hz * _n.Range(1.3f, 2.1f), 26f);
             }
-            _burst *= _burstDec;
-            float ex = _n.Next() * _burst;
-            float creak = (_resA.Process(ex) + 0.6f * _resB.Process(ex)) * 4f;
+            float creak = 0f;
+            if (_evT < _evLen)
+            {
+                float u = _evT / _evLen;
+                float env = Dsp.SmoothStep(0f, 0.12f, u) * (1f - Dsp.SmoothStep(0.55f, 1f, u));
+                float pulseHz = _pulseHz0 + (_pulseHz1 - _pulseHz0) * u;
+                _pulsePhase += pulseHz / _fs;
+                if (_pulsePhase >= 1f) { _pulsePhase -= 1f; _pulseEnv = 1f; }       // stick-slip release
+                _pulseEnv *= _pulseDec;
+                float ex = (_pulseEnv * 0.8f + _n.Next() * 0.08f * _pulseEnv) * env * _evAmp;
+                creak = (_resA.Process(ex) + 0.7f * _resB.Process(ex)) * 6f;
+                creak = Dsp.SoftClip(creak * 1.5f) * (0.35f + 0.65f * sev);
+                _evT += 1f / _fs;
+            }
 
-            _lowPhase += _lowHz / _fs;
-            if (_lowPhase >= 1f) _lowPhase -= 1f;
-            _tremPhase += 7f / _fs;
-            if (_tremPhase >= 1f) _tremPhase -= 1f;
-            float tone = Dsp.Sin01(_lowPhase) + 0.5f * Dsp.Sin01(_lowPhase * 2f) + 0.3f * Dsp.Sin01(_lowPhase * 3f) + 0.2f * Dsp.Sin01(_lowPhase * 4f);
-            float groan = Dsp.SoftClip(tone * 2f) * (0.7f + 0.3f * Dsp.Sin01(_tremPhase)) * 0.35f * Dsp.Pow(sev, 1.5f);
+            // ---- groan: slow bending metallic tone with a slow swell
+            if (_n.Next() * 0.5f + 0.5f < 0.6f / _fs) { _gHzT = _n.Range(120f, 260f) * (1f + 0.5f * sev); _swellHz = _n.Range(0.35f, 1.2f); }
+            _gHz += _gGlideA * (_gHzT - _gHz);
+            _gPhase += _gHz / _fs; if (_gPhase >= 1f) _gPhase -= 1f;
+            _gPhase2 += _gHz * 1.007f / _fs; if (_gPhase2 >= 1f) _gPhase2 -= 1f;
+            _swellPhase += _swellHz / _fs; if (_swellPhase >= 1f) _swellPhase -= 1f;
+            float swell = 0.45f + 0.55f * (0.5f + 0.5f * Dsp.Sin01(_swellPhase));
+            float tone = Dsp.Sin01(_gPhase) + 0.6f * Dsp.Sin01(_gPhase * 2f) + 0.35f * Dsp.Sin01(_gPhase * 3f) + 0.5f * Dsp.Sin01(_gPhase2);
+            float groan = _bodyLp.Process(Dsp.SoftClip(tone * 1.6f)) * swell * 0.30f * Dsp.Pow(sev, 1.4f);
 
-            return (creak * (0.3f + 0.7f * sev) + groan) * Dsp.SmoothStep(0f, 0.15f, sev);
+            return (creak + groan) * Dsp.SmoothStep(0f, 0.12f, sev);
         }
     }
 
