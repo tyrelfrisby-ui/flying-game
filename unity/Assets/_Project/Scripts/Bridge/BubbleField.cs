@@ -173,7 +173,7 @@ namespace FlyingGame.Bridge
                     float strength = Mathf.Clamp01((Mathf.Abs(w) - LiftShowMs) / 4f);
                     float hz = 1.5f + 6.5f * strength;
                     float ph = (h2 & 0xFFFF) / 65535f;
-                    liftBlink = 0.3f + 0.7f * (0.5f + 0.5f * Mathf.Sin((Time.time * hz + ph) * 2f * Mathf.PI));
+                    liftBlink = 0.5f + 0.5f * (0.5f + 0.5f * Mathf.Sin((Time.time * hz + ph) * 2f * Mathf.PI));   // never below half
                     Color c = w > 0 ? LiftTint : SinkTint;
                     tint = Color.Lerp(tint, c, 0.5f + 0.5f * strength) * (1f + 1.2f * strength);
                 }

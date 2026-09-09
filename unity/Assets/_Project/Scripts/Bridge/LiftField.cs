@@ -82,11 +82,13 @@ namespace FlyingGame.Bridge
                 float strength = Mathf.Clamp01((Mathf.Abs(w) - ThresholdMs) / 4f);
                 float hz = 1.5f + 6.5f * strength;
                 float ph = ((i * 2654435761u) & 0xFFFF) / 65535f;
-                float blink = 0.25f + 0.75f * (0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI));
+                // Solid from a distance, thinning to half as you close in, never below 50 % (owner: easy to see far off).
+                float blink = 0.6f + 0.4f * (0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI));
                 Color col = (w > 0 ? BubbleField.LiftTint : BubbleField.SinkTint) * (0.8f + 1.4f * strength);
-                float edge = 1f - Mathf.Clamp01((dist / radius - 0.7f) / 0.3f);
+                float near = Mathf.Lerp(0.5f, 1f, Mathf.Clamp01((dist - 60f) / 240f));
+                float edge = 1f - Mathf.Clamp01((dist / radius - 0.92f) / 0.08f);   // only the last 8 % fades, to avoid popping
                 _props.SetColor(ColorId, col);
-                _props.SetFloat(AlphaId, 0.55f * blink * edge);
+                _props.SetFloat(AlphaId, Mathf.Max(0.5f, near * blink) * edge);
                 Graphics.DrawMesh(_mesh, Matrix4x4.TRS(c, Quaternion.identity, Vector3.one * (BubbleSize * (0.7f + 0.6f * strength))), _material, 0, null, 0, _props, false, false);
             }
         }
