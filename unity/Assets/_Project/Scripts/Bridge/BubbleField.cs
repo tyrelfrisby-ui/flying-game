@@ -43,6 +43,8 @@ namespace FlyingGame.Bridge
         public FlyingGame.Core.Turbulence Turbulence;   // set by the scene/weather; null = calm
         public float GustDisplayScale = 0.6f;            // seconds of gust velocity shown as bubble offset
         public float StreamPeriodS = 4f;                 // seconds a bubble rides the local air (thermal / slope lift) before re-seeding
+        public float LiftShowMs = 0.4f;                  // vertical air speed (m/s) from which lift/sink colouring starts
+        public static readonly Color LiftTint = new(1f, 0.45f, 0.75f), SinkTint = new(0.35f, 0.55f, 1f);
 
         private Mesh _mesh;
         private Material _material;
@@ -54,9 +56,13 @@ namespace FlyingGame.Bridge
         private static readonly int AlphaId = Shader.PropertyToID("_Alpha");
         private static readonly int SunDirId = Shader.PropertyToID("_BubbleSunDir");
 
+        private static Mesh _shared;
+        /// <summary>The bubble sphere mesh, shared with the wide lift field.</summary>
+        public static Mesh SharedSphere() => _shared ??= BuildSphere();
+
         private void Start()
         {
-            _mesh = BuildSphere();
+            _mesh = SharedSphere();
             // Per-bubble Graphics.DrawMesh + MaterialPropertyBlock (tint/alpha per bubble). DrawMeshInstanced
             // with an instancing shader reported drawing bubbles but nothing appeared on Metal (per-instance
             // transforms weren't applying), so each matrix is submitted directly; the count is kept modest
@@ -124,8 +130,8 @@ namespace FlyingGame.Bridge
                 // as a continuous stream: bubbles climbing the windward face and up the thermal core, others
                 // sinking in the ring of sink around it and down the lee slope.
                 float streamTau = 0f;
-                FlyingGame.Core.MathTypes.Vec3 local = FlyingGame.Core.Atmosphere.WindAtPosition(simPos) - steady;
-                if (Turbulence != null) local -= Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
+                FlyingGame.Core.MathTypes.Vec3 local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(simPos) - steady;
+                uint h2; { int hx2 = (int)latticeFromAircraft.x, hy2 = (int)latticeFromAircraft.y, hz2 = (int)latticeFromAircraft.z; h2 = (uint)(hx2 * 73856093) ^ (uint)(hy2 * 19349663) ^ (uint)(hz2 * 83492791); h2 ^= h2 >> 13; h2 *= 0x85EBCA6Bu; h2 ^= h2 >> 16; }
                 float localSpeed = (float)local.Length;
                 if (localSpeed > 0.15f)
                 {
@@ -158,6 +164,19 @@ namespace FlyingGame.Bridge
 
                 float tempF = KelvinToF((float)FlyingGame.Core.Atmosphere.TemperatureAtPosition(simPos));
                 Color tint = TintFor(tempF);
+                // Lift / sink made obvious (owner): rising air blinks PINK, sinking air blinks BLUE — faster and
+                // brighter the stronger it is. `local` holds the mean air motion at this bubble (no gusts).
+                float w = -(float)local.Z;   // up positive
+                float liftBlink = 1f;
+                if (w > LiftShowMs || w < -LiftShowMs)
+                {
+                    float strength = Mathf.Clamp01((Mathf.Abs(w) - LiftShowMs) / 4f);
+                    float hz = 1.5f + 6.5f * strength;
+                    float ph = (h2 & 0xFFFF) / 65535f;
+                    liftBlink = 0.3f + 0.7f * (0.5f + 0.5f * Mathf.Sin((Time.time * hz + ph) * 2f * Mathf.PI));
+                    Color c = w > 0 ? LiftTint : SinkTint;
+                    tint = Color.Lerp(tint, c, 0.5f + 0.5f * strength) * (1f + 1.2f * strength);
+                }
 
                 // Centre-of-frame fade: bubbles nearer the camera than the aircraft (they've flowed past
                 // it) fade with how far past they are — but only inside the centre circle.
@@ -191,6 +210,7 @@ namespace FlyingGame.Bridge
 
                 // Fade the streaming bubble out just before it re-seeds so the jump back is invisible.
                 if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
+                alpha *= liftBlink;
                 if (alpha < 0.02f) continue;
                 _props.SetColor(ColorId, tint);
                 _props.SetFloat(AlphaId, alpha);

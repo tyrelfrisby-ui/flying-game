@@ -130,6 +130,8 @@ namespace FlyingGame.Bridge
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
             bubbles.Follow = aircraft.transform;
+            var lift = new GameObject("LiftField").AddComponent<LiftField>();   // wide blinking pink/blue lift-sink overlay
+            lift.Follow = aircraft.transform;
 
             var chHud = cam.gameObject.AddComponent<ChallengeHud>();
             chHud.Controller = aircraft.GetComponent<ChallengeController>();
