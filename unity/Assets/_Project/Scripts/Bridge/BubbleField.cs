@@ -44,7 +44,7 @@ namespace FlyingGame.Bridge
         public float GustDisplayScale = 0.6f;            // seconds of gust velocity shown as bubble offset
         public float StreamPeriodS = 4f;                 // seconds a bubble rides the local air (thermal / slope lift) before re-seeding
         public float LiftShowMs = 0.4f;                  // vertical air speed (m/s) from which lift/sink colouring starts
-        public static readonly Color LiftTint = new(1f, 0.45f, 0.75f), SinkTint = new(0.35f, 0.55f, 1f);
+        public static readonly Color LiftTint = new(0.4f, 1f, 0.5f), SinkTint = new(1f, 0.5f, 0.3f);   // match the variometer: green up, orange down
 
         private Mesh _mesh;
         private Material _material;
@@ -164,7 +164,7 @@ namespace FlyingGame.Bridge
 
                 float tempF = KelvinToF((float)FlyingGame.Core.Atmosphere.TemperatureAtPosition(simPos));
                 Color tint = TintFor(tempF);
-                // Lift / sink made obvious (owner): rising air blinks PINK, sinking air blinks BLUE — faster and
+                // Lift / sink made obvious (owner): rising air blinks GREEN, sinking air blinks ORANGE (the variometer colours) — faster and
                 // brighter the stronger it is. `local` holds the mean air motion at this bubble (no gusts).
                 float w = -(float)local.Z;   // up positive
                 float liftBlink = 1f;

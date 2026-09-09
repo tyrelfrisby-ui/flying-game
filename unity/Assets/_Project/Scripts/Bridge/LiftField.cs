@@ -5,8 +5,8 @@ namespace FlyingGame.Bridge
     /// <summary>
     /// The air's lift and sink made visible from a distance (owner): a coarse lattice (35 m) out to ~700 m
     /// around the aircraft; every cell whose MEAN air motion rises or sinks faster than a threshold shows a
-    /// blinking bubble — PINK for lift, BLUE for sink, blinking faster and glowing brighter the stronger the
-    /// air. Thermal columns read as pink towers ringed with blue; the windward wall glows pink, the lee blue.
+    /// blinking bubble — GREEN for lift, ORANGE for sink (the variometer colours), blinking faster and glowing brighter the stronger the
+    /// air. Thermal columns read as green towers ringed with orange; the windward wall glows green, the lee orange.
     /// The lattice is sampled round-robin (a slice per frame) so the phone never evaluates it all at once.
     /// </summary>
     public sealed class LiftField : MonoBehaviour
