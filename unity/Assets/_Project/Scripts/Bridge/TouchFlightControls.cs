@@ -102,7 +102,7 @@ namespace FlyingGame.Bridge
         private void PresetTrim()
         {
             // Air start: half power. Ground start: IDLE (owner: "power should start at idle on the ground").
-            _throttle = AxisForFraction(_driver.GroundStart ? IdleFraction : IdleFraction + (1f - IdleFraction) * 0.5f);
+            _throttle = AxisForFraction(_driver.GroundStart || _driver.IdleStart ? IdleFraction : IdleFraction + (1f - IdleFraction) * 0.5f);
             if (_driver.Sim?.Aircraft?.Config?.Propulsion == null) _throttle = AxisForFraction(_driver.GroundStart ? IdleFraction : 1f); // glider: spoilers open on the ground, stowed in the air
             _leftKnob = IdleLeftKnob();
             float t = (float)_driver.TrimStick / Mathf.Max(0.01f, TrimAuthority);

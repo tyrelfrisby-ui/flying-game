@@ -123,6 +123,8 @@ namespace FlyingGame.Bridge
             if (GUI.Button(new Rect(x, y, colW, bh), "In the air", SessionSettings.StartMode == SessionSettings.Start.InTheAir ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.InTheAir;
             y += bh + gap * 0.4f;
             if (GUI.Button(new Rect(x, y, colW, bh), "On the runway", SessionSettings.StartMode == SessionSettings.Start.OnTheRunway ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnTheRunway;
+            y += bh + gap * 0.4f;
+            if (GUI.Button(new Rect(x, y, colW, bh), "On final, 300 ft", SessionSettings.StartMode == SessionSettings.Start.OnFinal ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnFinal;
             y += bh + gap;
             GUI.Label(new Rect(x, y, colW, lh), "AIRPORT", _head); y += lh;
             for (int i = 0; i < FlyingGame.Core.WorldTerrain.Airports.Length; i++)
@@ -156,6 +158,7 @@ namespace FlyingGame.Bridge
             y += gap;
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
+                : SessionSettings.StartMode == SessionSettings.Start.OnFinal ? "300 ft on final, idle, trimmed at best glide."
                 : (SessionSettings.AircraftId == "glider-2-33-like" ? "At the threshold. Tap TOW for the aerotow."
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
 

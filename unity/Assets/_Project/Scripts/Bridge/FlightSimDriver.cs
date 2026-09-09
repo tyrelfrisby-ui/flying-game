@@ -75,6 +75,8 @@ namespace FlyingGame.Bridge
 
         /// <summary>True when spawned on the ground (runway start) — until the first liftoff.</summary>
         public bool GroundStart { get; private set; }
+        /// <summary>Started on final with the power at idle (the left pad knob begins at idle, not mid-throttle).</summary>
+        public bool IdleStart { get; private set; }
 
         private void Spawn()
         {
@@ -84,6 +86,18 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;
             bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway;
             GroundStart = ground;
+            IdleStart = SessionSettings.StartMode == SessionSettings.Start.OnFinal;
+
+            if (IdleStart && config.Floats == null)
+            {
+                // On final: 300 ft AGL on the centreline, idle, trimmed at best glide on the best-glide angle.
+                var (fState, glide, _) = ApproachSpawn.Compute(config, ap);
+                TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
+                Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, 0)));
+                ApplyFixedSlats(config);
+                ApplyStateToTransform();
+                return;
+            }
 
             if (ground && config.Floats != null)
             {

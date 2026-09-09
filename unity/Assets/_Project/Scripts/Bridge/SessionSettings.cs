@@ -7,7 +7,7 @@ namespace FlyingGame.Bridge
     /// Plain static state so every controller can read it on spawn.</summary>
     public static class SessionSettings
     {
-        public enum Start { InTheAir, OnTheRunway }
+        public enum Start { InTheAir, OnTheRunway, OnFinal }
 
         public static bool MenuOpen = true;               // landing page showing: pads/HUD hidden, sim paused
         public static string AircraftId = "glider-2-33-like";
