@@ -227,10 +227,15 @@ namespace FlyingGame.Bridge
             RigidBodyState s = Sim.Aircraft.State;
             transform.SetPositionAndRotation(CoordinateMap.ToUnity(s.Position), CoordinateMap.ToUnity(s.Attitude));
 
-            Vec3 v = s.Velocity;
-            Vec3 groundVelWorld = s.Attitude.Rotate(v);
+            // State.Velocity is INERTIAL (ground) velocity in body axes. Everything the pilot reads — airspeed,
+            // angle of attack, sideslip — and the chase camera's follow vector are AIR-relative: subtract the
+            // local wind (steady wind + slope lift + thermals + gusts), exactly as the aero model does. With the
+            // ground vector, a crosswind read as a permanent sideslip and put the camera off the tail.
+            Vec3 groundVelWorld = s.Attitude.Rotate(s.Velocity);
+            Vec3 windWorld = Atmosphere.WindAtPosition(s.Position);
+            Vec3 v = s.Velocity - s.Attitude.Conjugate().Rotate(windWorld);   // air-relative, body axes
             WorldVelocityUnity = CoordinateMap.ToUnity(groundVelWorld);
-            AirVelocityUnity = CoordinateMap.ToUnity(groundVelWorld - Atmosphere.WindAtPosition(s.Position));
+            AirVelocityUnity = CoordinateMap.ToUnity(groundVelWorld - windWorld);
             IasMs = v.Length;
             AltitudeM = -s.Position.Z;
             AlphaDeg = System.Math.Atan2(v.Z, v.X) * 180.0 / System.Math.PI;
