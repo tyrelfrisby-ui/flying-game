@@ -19,6 +19,9 @@ namespace FlyingGame.Bridge
     {
         /// <summary>Master volume 0..1 (menu slider, persisted).</summary>
         public static float MasterVolume = 1f;
+#if UNITY_IOS && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")] private static extern void FlyingGame_SetPlaybackAudioSession();
+#endif
 
         private const string PrefKey = "audio.masterVolume";
         private const float EngineMix = 0.55f, WindMix = 1f, FxMix = 0.8f;
@@ -63,6 +66,10 @@ namespace FlyingGame.Bridge
         private void Awake()
         {
             _driver = GetComponent<FlightSimDriver>();
+#if UNITY_IOS && !UNITY_EDITOR
+            // Ignore the ring/silent switch: a flight game with the engine muted by the mute switch reads as "no sound".
+            try { FlyingGame_SetPlaybackAudioSession(); } catch (System.Exception e) { Debug.LogWarning("audio session: " + e.Message); }
+#endif
             if (PlayerPrefs.HasKey(PrefKey)) MasterVolume = Mathf.Clamp01(PlayerPrefs.GetFloat(PrefKey, 1f));
             _savedMaster = MasterVolume;
 
