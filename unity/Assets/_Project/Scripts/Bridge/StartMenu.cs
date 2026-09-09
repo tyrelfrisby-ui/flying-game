@@ -134,7 +134,7 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(x, y, colW, bh), txt, SessionSettings.AirportIndex == i ? _btnOn : _btn)) SessionSettings.AirportIndex = i;
                 y += bh + gap * 0.4f;
             }
-            if (SessionSettings.AircraftId == "glider-2-33-like")
+            if (SessionSettings.AircraftId.StartsWith("glider"))
             {
                 y += gap;
                 GUI.Label(new Rect(x, y, colW, lh), "TOW PLANE", _head); y += lh;
@@ -159,7 +159,7 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
                 : SessionSettings.StartMode == SessionSettings.Start.OnFinal ? "300 ft on final, idle, trimmed at best glide."
-                : (SessionSettings.AircraftId == "glider-2-33-like" ? "At the threshold. Tap TOW for the aerotow."
+                : (SessionSettings.AircraftId.StartsWith("glider") ? "At the threshold. Tap TOW for the aerotow."
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
 
             // ---- column 3: challenge

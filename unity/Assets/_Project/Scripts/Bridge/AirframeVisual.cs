@@ -1301,6 +1301,22 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 14.3f, StabRoot = 3.6f, StabTip = 1.2f, StabSweepDeg = 30, StabDihedralDeg = 7, FinHeight = 7.0f, FinRoot = 5.2f, FinTip = 2.0f, FinSweepDeg = 35 },
                         Fuselage = white, Wing = silver, TailColor = navy, Control = dark,
                     };
+                case "glider-eb29r-like":
+                    return new Style
+                    {
+                        // Open-class sailplane: slim 9 m pod-and-boom fuselage, long low canopy, T-tail, no struts.
+                        BodyAxisZ = 0.05f, BodyHeightScale = 1.0f, Body = new[] { (3.4f, 0.04f), (3.0f, 0.22f), (2.0f, 0.36f), (0.8f, 0.38f), (-0.6f, 0.32f), (-2.0f, 0.2f), (-3.5f, 0.13f), (-5.0f, 0.1f), (-5.9f, 0.08f) },
+                        Canopy = (1.9f, -0.3f, 1.9f, 0.55f, 0.32f), Tail = new TailSpec { StabSpan = 3.6f, StabRoot = 0.7f, StabTip = 0.4f, FinHeight = 1.55f, FinRoot = 1.1f, FinTip = 0.7f, FinSweepDeg = 30, TTail = true },
+                        Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.2f, 0.3f, 0.6f),
+                    };
+                case "glider-swift-s1-like":
+                    return new Style
+                    {
+                        // Aerobatic sailplane: short stubby fuselage, mid wing, bubble canopy, conventional tail.
+                        BodyAxisZ = 0.0f, BodyHeightScale = 1.05f, Body = new[] { (2.7f, 0.05f), (2.3f, 0.26f), (1.4f, 0.37f), (0.4f, 0.36f), (-0.8f, 0.28f), (-2.0f, 0.18f), (-3.2f, 0.11f), (-4.1f, 0.07f) },
+                        Canopy = (1.4f, -0.3f, 1.5f, 0.6f, 0.4f), Tail = new TailSpec { StabSpan = 2.9f, StabRoot = 0.75f, StabTip = 0.45f, FinHeight = 1.35f, FinRoot = 1.0f, FinTip = 0.55f, FinSweepDeg = 25 },
+                        Fuselage = white, Wing = white, TailColor = white, Control = red,
+                    };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
                     return new Style
                     {

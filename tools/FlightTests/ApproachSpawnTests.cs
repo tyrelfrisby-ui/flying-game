@@ -20,6 +20,8 @@ public class ApproachSpawnTests
     [InlineData("pa18-cub-like", 24, 34, 6, 13)]
     [InlineData("c172-like", 28, 40, 7, 13)]
     [InlineData("extra-300-like", 35, 55, 6, 12)]
+    [InlineData("glider-eb29r-like", 22, 34, 40, 70)]
+    [InlineData("glider-swift-s1-like", 22, 34, 20, 38)]
     public void BestGlideIsPlausible(string id, double vMin, double vMax, double ldMin, double ldMax)
     {
         var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));

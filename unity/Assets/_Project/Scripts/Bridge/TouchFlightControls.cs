@@ -50,7 +50,7 @@ namespace FlyingGame.Bridge
         // Fleet the on-screen "Aircraft" button cycles through (matches KeyboardTestControls 1-0/F1-F2).
         private static readonly string[] Fleet =
         {
-            "glider-2-33-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
+            "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
             "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like",
         };
