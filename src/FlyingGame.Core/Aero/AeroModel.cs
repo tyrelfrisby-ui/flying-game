@@ -416,8 +416,11 @@ public static class AeroModel
             }
         }
 
-        ApplySpoilerDrag(config, bodyVelocity, airDensity, controls, ref totalForce, surfaceMask);
-        ApplyFuselage(config, bodyVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
+        // Fuselage and spoiler terms see the AIR, not the ground: with the ground velocity a steady crosswind read
+        // as a permanent fuselage sideslip and trimmed the aircraft into a real one.
+        Vec3 airVelocity = bodyVelocity - windBody;
+        ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
+        ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
 
         return (totalForce, totalMoment);
     }

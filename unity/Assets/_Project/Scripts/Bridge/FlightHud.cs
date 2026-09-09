@@ -39,7 +39,7 @@ namespace FlyingGame.Bridge
 
             // Airspeed/altitude/AoA/sideslip now live in HudOverlay (green HUD over the aircraft).
             GUI.Label(new Rect(m, m * 0.5f, w, lh),
-                $"{Driver.AircraftName}  ·  build {Application.version}  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
+                $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
 
             string net = (_net ??= Driver.GetComponent<Net.NetSession>())?.StatusLine;
             if (net != null) GUI.Label(new Rect(m, m * 0.5f + lh * 2f, w, lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
