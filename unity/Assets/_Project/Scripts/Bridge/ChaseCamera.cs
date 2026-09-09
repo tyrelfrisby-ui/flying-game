@@ -35,6 +35,7 @@ namespace FlyingGame.Bridge
         public float OverrideMaxDownDeg = 40f;  // follow-direction pitch limit in free fall
 
         private Vector3 _dir = Vector3.forward; // smoothed follow direction (world)
+        private Vector3 _offset;                // smoothed camera offset from the target (world)
         private Camera _cam;
 
         /// <summary>Fit the chase distance to the airframe (a 737 needs ~3x the glider's 14 m).</summary>
@@ -100,8 +101,12 @@ namespace FlyingGame.Bridge
 
             float dist = ovr ? OverrideDistance : Distance;
             float hgt = ovr ? OverrideHeight : Height;
-            Vector3 desired = tgt.position - _dir * dist + up * hgt;
-            transform.position = Vector3.Lerp(transform.position, desired, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
+            // Damp the OFFSET from the target, not the world position: a lag on a world position that moves at
+            // 20+ m/s leaves a steady 7 m trail along the GROUND track, which in a crosswind pulled the camera off
+            // the air-vector line and showed the aircraft from the side (owner: "camera follows the ground").
+            Vector3 desiredOffset = -_dir * dist + up * hgt;
+            _offset = Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
+            transform.position = tgt.position + _offset;
             Vector3 lookAt = tgt.position + _dir * 4f + (ovr ? Vector3.up * OverrideLookUp : Vector3.zero);
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
         }
@@ -116,7 +121,8 @@ namespace FlyingGame.Bridge
             }
 
             _dir = ovr ? OverrideDirection() : DesiredDirection();
-            transform.position = tgt.position - _dir * (ovr ? OverrideDistance : Distance) + Vector3.up * (ovr ? OverrideHeight : Height);
+            _offset = -_dir * (ovr ? OverrideDistance : Distance) + Vector3.up * (ovr ? OverrideHeight : Height);
+            transform.position = tgt.position + _offset;
         }
     }
 }
