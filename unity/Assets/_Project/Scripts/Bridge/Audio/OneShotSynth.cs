@@ -3,13 +3,13 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, Count }
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, BulletHit, Explosion, Count }
 
     internal static class FxSource
     {
         /// <summary>Sounds made AT THE AIRCRAFT (attenuated and delayed by distance once the pilot has left it); the
         /// rest happen at the listener (the pilot / seat / canopy).</summary>
-        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp;
+        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp;   // BulletHit/Explosion: at the target, mixed at listener level
     }
 
     /// <summary>
@@ -148,6 +148,23 @@ namespace FlyingGame.Bridge
                     _bpB.BandPass(_fs, 2700f, 12f);        // its upper partial
                     _lp.SetCutoff(140f, _fs);              // a very small thump under it
                     break;
+                case FxKind.BulletHit:
+                    _len = 0.22f;
+                    _bpA.BandPass(_fs, 2400f, 14f);        // metallic ping
+                    _bpB.BandPass(_fs, 640f, 3f);          // skin thump
+                    _hp.HighPass(_fs, 3000f, 0.7f);
+                    _lp.SetCutoff(200f, _fs);
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.004f, _fs);
+                    break;
+                case FxKind.Explosion:
+                    _len = 2.4f;
+                    _lp.SetCutoff(70f, _fs);               // the boom
+                    _bpA.BandPass(_fs, 220f, 1.2f);        // fireball body
+                    _hp.HighPass(_fs, 1800f, 0.7f);        // debris crackle
+                    _bpB.BandPass(_fs, 900f, 2f);
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.06f, _fs);
+                    _gateDec = Dsp.DecayCoef(0.006f, _fs); _gate = 0f; _gateCount = 0; _crunchRate = 50f;
+                    break;
                 case FxKind.Wince:
                     _len = 0.85f;
                     _bpA.BandPass(_fs, 720f, 6f);          // formant F1 ("ah")
@@ -218,6 +235,16 @@ namespace FlyingGame.Bridge
                 case FxKind.TireChirp:
                     _gAT = (0.10f + 0.22f * _level) * Env(t, 0.006f, 0.05f + 0.08f * _level, 0.035f);   // chirp
                     _gBT = (0.15f + 0.35f * _level) * Env(t, 0.002f, 0.01f, 0.03f);                    // thump
+                    break;
+                case FxKind.BulletHit:
+                    _gAT = (0.4f + 0.6f * _level) * Env(t, 0.001f, 0.01f, 0.05f);
+                    _gBT = (0.3f + 0.5f * _level) * Env(t, 0.002f, 0.02f, 0.04f);
+                    break;
+                case FxKind.Explosion:
+                    _gAT = 5f * Env(t, 0.003f, 0.08f, 0.45f);                                   // boom
+                    _gBT = 2.5f * Env(t, 0.01f, 0.4f, 0.6f);                                    // fireball roar
+                    _gCT = 1.2f * Env(t - 0.05f, 0.02f, 0.5f, 0.7f);                            // crackle
+                    _crunchRate = 50f * (float)Math.Exp(-t / 0.9);
                     break;
                 case FxKind.Wince:
                     // Sharp inhale through the teeth (hiss) then a pained "ahh" with a little shake in it.
@@ -331,6 +358,23 @@ namespace FlyingGame.Bridge
                     _phA += hz / _fs;
                     float tone = Dsp.Sin01(_phA) * 0.6f + _bpA.Process(n) * 1.5f + _bpB.Process(n) * 0.8f;
                     outp = tone * _gA + _lp.Process(n) * 2f * _gB;
+                    break;
+                }
+                case FxKind.BulletHit:
+                {
+                    _burst *= _burstDec;
+                    outp = _bpA.Process(n * _burst * 6f) * _gA + _bpB.Process(n * _burst * 3f) * _gB + _hp.Process(n * _burst) * _gA * 0.5f;
+                    break;
+                }
+                case FxKind.Explosion:
+                {
+                    if (--_gateCount <= 0) { float rate = _crunchRate < 3f ? 3f : _crunchRate; _gateCount = (int)(_fs / rate * (0.4f + 1.2f * (_n.Next() * 0.5f + 0.5f))); _gate = 0.5f + 0.5f * (_n.Next() * 0.5f + 0.5f); }
+                    _gate *= _gateDec; _burst *= _burstDec;
+                    _phA += 38f / _fs;
+                    float boom = (_lp.Process(n) * 3f + 0.8f * Dsp.Sin01(_phA) * _burst) * _gA;
+                    float roar = (_bpA.Process(n) * 2f + _bpB.Process(n) * 0.8f) * _gB;
+                    float crackle = _hp.Process(n * _gate * 8f) * _gC;
+                    outp = boom + roar + crackle;
                     break;
                 }
                 case FxKind.Wince:

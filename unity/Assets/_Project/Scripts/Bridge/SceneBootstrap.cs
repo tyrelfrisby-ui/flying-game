@@ -71,6 +71,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<PilotEgress>();   // BAIL OUT / EJECT sequencer + pilot/parachute bodies
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             root.AddComponent<StructuralDamage>();
+            root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<FlightAudio>();
             _ = driver;
@@ -119,6 +120,8 @@ namespace FlyingGame.Bridge
             hud.Stol = aircraft.GetComponent<StolController>();
             hud.Dust = aircraft.GetComponent<CropDustController>();
             hud.Tow = aircraft.GetComponent<TowController>();
+            hud.Combat = aircraft.GetComponent<CombatController>();
+            cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();
             // Instruments: round analog dials (default), the green conformal HUD, or none — SessionSettings.Instruments.

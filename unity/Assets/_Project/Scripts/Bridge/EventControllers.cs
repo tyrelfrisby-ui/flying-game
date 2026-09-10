@@ -41,6 +41,7 @@ namespace FlyingGame.Bridge
             }
             double half = 0; foreach (var sf in ac.Config.Surfaces) foreach (var st in sf.Strips) half = System.Math.Max(half, System.Math.Abs(st.Pos[1]));
             if (ac.IsLost(FlyingGame.Core.AirframeComponent.WingLeft) || ac.IsLost(FlyingGame.Core.AirframeComponent.WingRight)) half *= 0.3;
+            else if (ac.IsLost(FlyingGame.Core.AirframeComponent.WingLeftOuter) || ac.IsLost(FlyingGame.Core.AirframeComponent.WingRightOuter)) half *= (float)FlyingGame.Core.WingPanels.OuterFraction;
             Vec3 left = s.Position + q.Rotate(new Vec3(0, -half, 0)), right = s.Position + q.Rotate(new Vec3(0, half, 0));
             for (int p = 0; p < _strikeRaces.Length; p++)
             {

@@ -8,7 +8,38 @@ namespace FlyingGame.Core;
 /// sections (owner 2026-09-09): Nose (ahead of the cabin, with the engine), the cabin, and the TailBoom (aft of the
 /// cabin, carrying the tail surfaces and tailwheel); Cabin = a mid-fuselage slam that breaks BOTH ends off. Each gear
 /// leg is its own component (GearLeft/GearRight/GearNose/GearTail) and tears off on its own hard touchdown.</summary>
-public enum AirframeComponent { Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight, Propeller, GearLeft, GearRight, GearNose, GearTail, TailBoom, Cabin }
+public enum AirframeComponent
+{
+    Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight, Propeller, GearLeft, GearRight, GearNose, GearTail, TailBoom, Cabin,
+    // Combat damage model (owner 2026-09-10): each wing is two panels — the OUTER panel (tip) and the INNER panel, which
+    // carries the fuel — and every control surface is its own part. WingLeft/WingRight above still mean the whole wing
+    // (the g-limit failure); losing an inner panel takes its outer panel with it.
+    WingLeftOuter, WingRightOuter, WingLeftInner, WingRightInner, AileronLeft, AileronRight, ElevatorLeft, ElevatorRight, Rudder,
+}
+
+/// <summary>Where the wing splits into its two panels: |y| beyond this fraction of the semispan is the outer panel.</summary>
+public static class WingPanels
+{
+    public const double OuterFraction = 0.55;
+    public static double Semispan(AircraftConfig c)
+    {
+        double s = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            string id = sf.Id.ToLowerInvariant();
+            if (!id.Contains("wing")) continue;
+            foreach (StripConfig st in sf.Strips) s = System.Math.Max(s, System.Math.Abs(st.Pos[1]));
+        }
+        return s;
+    }
+    /// <summary>The panel a wing strip at spanwise y belongs to (null for the centre section within ±0.3 m).</summary>
+    public static AirframeComponent? PanelOf(double y, double semispan)
+    {
+        if (System.Math.Abs(y) <= 0.3) return null;
+        bool outer = System.Math.Abs(y) > OuterFraction * semispan;
+        return y < 0 ? (outer ? AirframeComponent.WingLeftOuter : AirframeComponent.WingLeftInner) : (outer ? AirframeComponent.WingRightOuter : AirframeComponent.WingRightInner);
+    }
+}
 
 /// <summary>A hard point on the airframe (body frame, same origin as the config) that must not pass through
 /// the ground or a solid: wing tips, stab tips, fin top, nose, tail cone, cabin top, nacelles.</summary>
@@ -127,12 +158,22 @@ public static class AirframeContact
                 double skin = root.Pos[2] < 0 ? root.Pos[2] - 0.07 * root.Chord : root.Pos[2] + 0.07 * root.Chord;
                 pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], -0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-L" });
                 pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], 0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-R" });
-                foreach ((StripConfig st, AirframeComponent comp, double sign) in new[] { (l, AirframeComponent.WingLeft, -1.0), (r, AirframeComponent.WingRight, 1.0) })
+                // Wing tips: a hard tip strike takes only the OUTER panel; a mid-span strike (0.45 semispan) takes the
+                // inner panel and the outer with it (owner 2026-09-10).
+                foreach ((StripConfig st, AirframeComponent comp, double sign) in new[] { (l, AirframeComponent.WingLeftOuter, -1.0), (r, AirframeComponent.WingRightOuter, 1.0) })
                 {
                     double w = st.Chord > 1e-6 ? st.Area / st.Chord : 0.3;
                     double y = st.Pos[1] + sign * w * 0.5;
                     double z = st.Pos[2] - System.Math.Abs(y) * System.Math.Tan(st.DihedralRad);
                     pts.Add(new ContactPoint { Body = new Vec3(st.Pos[0], y, z), Component = comp, BreakSpeedMs = 4.5, Name = comp + ":" + sf.Id });
+                }
+                double semi = System.Math.Max(System.Math.Abs(l.Pos[1]), System.Math.Abs(r.Pos[1]));
+                foreach ((AirframeComponent comp, double sign) in new[] { (AirframeComponent.WingLeftInner, -1.0), (AirframeComponent.WingRightInner, 1.0) })
+                {
+                    double y = sign * semi * 0.45;
+                    StripConfig near = root; foreach (StripConfig st in sf.Strips) if (System.Math.Abs(st.Pos[1] - y) < System.Math.Abs(near.Pos[1] - y)) near = st;
+                    double z = near.Pos[2] - System.Math.Abs(y) * System.Math.Tan(near.DihedralRad) + (near.Pos[2] < 0 ? -0.06 * near.Chord : 0.06 * near.Chord);
+                    pts.Add(new ContactPoint { Body = new Vec3(near.Pos[0], y, z), Component = comp, BreakSpeedMs = 7.0, Name = comp + ":" + sf.Id });
                 }
             }
             if (isStab)

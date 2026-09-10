@@ -75,6 +75,8 @@ namespace FlyingGame.Bridge
         private Rect _brakeRect, _resetRect, _acftRect, _towRect;
         private Rect _bailRect, _ejectRect;                 // BAIL OUT (tap) / EJECT (hold EjectHoldSec)
         private Rect _ailTrimRect, _rudTrimRect;            // horizontal trim bars under the pads (RC transmitter style)
+        private Rect _fireRect; private int _fireFinger = int.MinValue;   // FIRE (hold) — only shown with the guns hot
+        private CombatController _combat;
         private int _ailTrimFinger = int.MinValue, _rudTrimFinger = int.MinValue;
         private float _aileronTrim, _rudderTrim;            // -1..1 × TrimAuthority
         public float TrimAileron => _aileronTrim * TrimAuthority;
@@ -195,6 +197,8 @@ namespace FlyingGame.Bridge
             float barH = s * 0.045f;
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
             _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
+            // FIRE: above the right pad's label block.
+            _fireRect = new Rect(_rightCenter.x - _half, _rightCenter.y + _half + ScreenLayout.LabelBlockPx + gap, 2f * _half, bh * 1.1f);
         }
 
         private void LayOutPortrait(float w)
@@ -232,9 +236,12 @@ namespace FlyingGame.Bridge
             float ew = (w - 2f * margin - gap) * 0.5f;
             _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
             _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
+            // FIRE: in the view just above the tray, right side (portrait).
+            _fireRect = new Rect(w - margin - 2f * _half, ScreenLayout.TrayHeightPx + gap, 2f * _half, bh * 1.1f);
         }
 
         private bool HasEjectionSeat => _driver.Sim?.Aircraft?.Config?.EjectionSeat == true;
+        private bool FireAvailable { get { _combat ??= GetComponent<CombatController>(); return _combat != null && _combat.GunsHot && !(_egress?.PilotOut ?? false); } }
         private bool BailAvailable => _egress != null && _egress.Current == PilotEgress.Phase.InCockpit;
         /// <summary>EJECT exists only on types with an ejection seat (the F-86); everyone else bails out.</summary>
         private bool EjectAvailable => _egress != null && !_egress.PilotOut && HasEjectionSeat;
@@ -275,6 +282,7 @@ namespace FlyingGame.Bridge
                     if (p.id == _trimFinger) _trimFinger = int.MinValue; // trim holds where it was left
                     if (p.id == _ailTrimFinger) _ailTrimFinger = int.MinValue;
                     if (p.id == _rudTrimFinger) _rudTrimFinger = int.MinValue;
+                    if (p.id == _fireFinger) _fireFinger = int.MinValue;
                     if (p.id == _ejectFinger) { _ejectFinger = int.MinValue; _ejectHold = 0f; } // released early: no eject
                     continue;
                 }
@@ -285,6 +293,7 @@ namespace FlyingGame.Bridge
                     if (EjectAvailable && _ejectRect.Contains(p.pos) && _ejectFinger == int.MinValue) { _ejectFinger = p.id; _ejectHold = 0f; }
                     // Buttons fire on the touch itself (any finger, pads still held) — never through IMGUI's single pointer.
                     if (EjectAvailable && _ejectRect.Contains(p.pos)) continue;
+                    if (FireAvailable && _fireRect.Contains(p.pos) && _fireFinger == int.MinValue) { _fireFinger = p.id; continue; }
                     if (_bailRect.Contains(p.pos) && BailAvailable) { _tapped.Add(Btn.Bail); continue; }
                     if (_resetRect.Contains(p.pos)) { _tapped.Add(Btn.Reset); continue; }
                     if (_acftRect.Contains(p.pos)) { _tapped.Add(Btn.Aircraft); continue; }
@@ -309,7 +318,10 @@ namespace FlyingGame.Bridge
                     if (_ejectRect.Contains(p.pos)) _ejectHold += Time.deltaTime;
                     else { _ejectFinger = int.MinValue; _ejectHold = 0f; }   // slid off the button: cancel
                 }
+                else if (p.id == _fireFinger && !_fireRect.Contains(p.pos)) _fireFinger = int.MinValue;   // slid off: cease fire
             }
+            _combat ??= GetComponent<CombatController>();
+            if (_combat != null) _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space);
 
             if (_ejectFinger != int.MinValue && _ejectHold >= EjectHoldSec)
             {
@@ -533,6 +545,14 @@ namespace FlyingGame.Bridge
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
             if (BailAvailable) Button(_bailRect, "BAIL OUT");
+            if (FireAvailable)
+            {
+                Rect g = ToGui(_fireRect);
+                GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);
+                GUI.DrawTexture(g, _solidTex);
+                GUI.color = Color.white;
+                GUI.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE  (hold)", _ejectStyle);
+            }
             if (EjectAvailable)
             {
                 Rect g = ToGui(_ejectRect);

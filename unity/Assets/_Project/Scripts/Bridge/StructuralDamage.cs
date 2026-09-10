@@ -58,9 +58,9 @@ namespace FlyingGame.Bridge
         {
             WingsGone = false;
             Severity = 0f;
-            if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; }
+            if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
-            if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; }
+            if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; }
             LostLine = null;
             ReadLimits();
         }
@@ -84,6 +84,17 @@ namespace FlyingGame.Bridge
             _audio?.Crash(Mathf.Clamp01((float)((closingMs - 1.2) / 7.0)));
         }
 
+        /// <summary>Bullet damage that is not a part loss: fuel streaming, fire.</summary>
+        private void OnDamage(FlyingGame.Core.AirframeComponent c, FlyingGame.Core.Combat.DamageEvent e)
+        {
+            if (e == FlyingGame.Core.Combat.DamageEvent.PartLost) return;   // ComponentLost handles it
+            if (_audio == null) _audio = GetComponent<FlightAudio>();
+            _audio?.BulletHit(1f);
+            string side = c == FlyingGame.Core.AirframeComponent.WingLeftInner ? "LEFT" : "RIGHT";
+            string name = e == FlyingGame.Core.Combat.DamageEvent.FuelLeak ? $"{side} TANK HOLED — streaming fuel" : $"{side} WING ON FIRE";
+            LostLine = LostLine == null ? name : LostLine + ", " + name;
+        }
+
         private void OnComponentLost(FlyingGame.Core.AirframeComponent c)
         {
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
@@ -99,6 +110,15 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.AirframeComponent.TailVertical => "FIN",
                 FlyingGame.Core.AirframeComponent.Nose => "NOSE",
                 FlyingGame.Core.AirframeComponent.TailBoom => "TAIL",
+                FlyingGame.Core.AirframeComponent.WingLeftOuter => "LEFT OUTER WING",
+                FlyingGame.Core.AirframeComponent.WingRightOuter => "RIGHT OUTER WING",
+                FlyingGame.Core.AirframeComponent.WingLeftInner => "LEFT INNER WING",
+                FlyingGame.Core.AirframeComponent.WingRightInner => "RIGHT INNER WING",
+                FlyingGame.Core.AirframeComponent.AileronLeft => "LEFT AILERON",
+                FlyingGame.Core.AirframeComponent.AileronRight => "RIGHT AILERON",
+                FlyingGame.Core.AirframeComponent.ElevatorLeft => "LEFT ELEVATOR",
+                FlyingGame.Core.AirframeComponent.ElevatorRight => "RIGHT ELEVATOR",
+                FlyingGame.Core.AirframeComponent.Rudder => "RUDDER",
                 FlyingGame.Core.AirframeComponent.Cabin => "FUSELAGE BROKE UP",
                 FlyingGame.Core.AirframeComponent.GearLeft => "LEFT GEAR",
                 FlyingGame.Core.AirframeComponent.GearRight => "RIGHT GEAR",

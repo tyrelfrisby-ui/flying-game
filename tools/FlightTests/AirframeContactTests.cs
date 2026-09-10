@@ -73,9 +73,12 @@ public class AirframeContactTests
         var sim = new SimLoop(ac);
         for (double t = 0; t < 3 && lost.Count == 0; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));
         _out.WriteLine("lost: " + string.Join(", ", lost));
-        Assert.Contains(AirframeComponent.WingRight, lost);
-        Assert.True(ac.IsLost(AirframeComponent.WingRight));
-        Assert.False(ac.IsLost(AirframeComponent.WingLeft));
+        // A tip strike takes the OUTER panel only (owner 2026-09-10: two panels per wing); the whole wing stays.
+        Assert.Contains(AirframeComponent.WingRightOuter, lost);
+        Assert.True(ac.IsLost(AirframeComponent.WingRightOuter));
+        Assert.False(ac.IsLost(AirframeComponent.WingRightInner));
+        Assert.False(ac.IsLost(AirframeComponent.WingRight));
+        Assert.False(ac.IsLost(AirframeComponent.WingLeftOuter));
         // Aero with the mask: level flight at 30 m/s now rolls hard LEFT (only the left wing lifts) — the
         // remaining half still produces lift (the aircraft can be flown on), mass is untouched.
         var vel = new Vec3(30 * System.Math.Cos(0.07), 0, 30 * System.Math.Sin(0.07));
@@ -84,7 +87,7 @@ public class AirframeContactTests
         _out.WriteLine($"lift intact {-fIntact.Z:F0} N, half {-fHalf.Z:F0} N; roll moment intact {mIntact.X:F0}, half {mHalf.X:F0} N·m");
         // Only the LEFT wing lifts → it rises → the aircraft rolls RIGHT, toward the missing wing (+L in NED).
         Assert.True(mHalf.X > 1500, $"losing the right wing must roll it toward the stub (L = {mHalf.X:F0})");
-        Assert.InRange(-fHalf.Z / -fIntact.Z, 0.4, 0.7);
+        Assert.InRange(-fHalf.Z / -fIntact.Z, 0.6, 0.95);   // outer panel only (owner: two panels per wing)
         Assert.Equal(c.Mass.MassKg, ac.MassProperties.MassKg, 3);
     }
 

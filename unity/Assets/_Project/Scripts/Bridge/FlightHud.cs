@@ -7,6 +7,7 @@ namespace FlyingGame.Bridge
     {
         public FlightSimDriver Driver;
         public RaceController Race;
+        public CombatController Combat;
         public StolController Stol;
         public CropDustController Dust;
         private StructuralDamage _damage;
@@ -45,6 +46,7 @@ namespace FlyingGame.Bridge
             if (net != null) GUI.Label(new Rect(m, m * 0.5f + lh * 2f, w, lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
             string ev = Race != null && Race.Line != null ? Race.Line : Stol != null && Stol.Line != null ? Stol.Line
                 : Dust != null && Dust.Line != null ? Dust.Line : Tow != null && Tow.StatusLine != null ? Tow.StatusLine
+                : Combat != null && Combat.InZone && Combat.Line != null ? Combat.Line
                 : (_damage ??= Driver.GetComponent<StructuralDamage>())?.LostLine;
             if (ev != null)
             {

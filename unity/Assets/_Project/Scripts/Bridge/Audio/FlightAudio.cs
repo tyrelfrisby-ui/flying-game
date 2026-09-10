@@ -83,6 +83,16 @@ namespace FlyingGame.Bridge
         }
 
         private static float DistanceGain(float d) => d <= 0f ? 1f : ReferenceDistanceM / (ReferenceDistanceM + d);
+        /// <summary>A bullet landing on something (a drone, a ground target): metallic ping, weight 0..1.</summary>
+        public void BulletHit(float severity) { _fx?.Trigger(FxKind.BulletHit, severity); }
+        /// <summary>A drone going up.</summary>
+        public void Explosion() { _fx?.Trigger(FxKind.Explosion, 1f); }
+        /// <summary>Guns firing (held): a pulse train at the combined rate, rendered continuously.</summary>
+        public void SetGuns(bool firing, float rateHz) { _gunsFiring = firing; _gunRateHz = rateHz; }
+        private volatile bool _gunsFiring; private volatile float _gunRateHz;
+        private float _gunPhase, _gunEnv, _gunSubPhase;
+        private readonly Noise _gunNoise = new Noise(0x6A11u);
+        private Biquad _gunBp;
         /// <summary>The pilot hitting the ground (severity 0..1 from the impact speed).</summary>
         public void PilotThud(float severity) { _fx?.Trigger(FxKind.BodyThud, severity); }
         public void PilotGrunt(float severity) { _fx?.Trigger(FxKind.Grunt, severity); }
@@ -254,10 +264,23 @@ namespace FlyingGame.Bridge
                 return;
             }
 
+            // Guns: each round is a 6 ms noise crack through a 900 Hz body with a sub thump, at the combined rate.
+            bool guns = _gunsFiring; float gunRate = _gunRateHz;
+            if (_gunBp == null) { _gunBp = new Biquad(); _gunBp.BandPass(_fs, 900f, 1.2f); }
             int idx = 0;
             for (int f = 0; f < frames; f++)
             {
                 _gain += _gainA * (masterTarget - _gain);
+                float gun = 0f;
+                if (guns && gunRate > 0f)
+                {
+                    _gunPhase += gunRate / _fs;
+                    if (_gunPhase >= 1f) { _gunPhase -= 1f; _gunEnv = 1f; _gunSubPhase = 0f; }
+                    _gunEnv *= 1f - 1f / (0.006f * _fs);
+                    _gunSubPhase += 60f / _fs;
+                    gun = (_gunBp.Process(_gunNoise.Next() * _gunEnv * 5f) + 0.35f * Dsp.Sin01(_gunSubPhase) * _gunEnv) * 0.7f;
+                }
+                else _gunEnv = 0f;
 
                 _wind.Next(out float wl, out float wr);
                 _surface.Next(out float sl, out float sr);
@@ -265,8 +288,8 @@ namespace FlyingGame.Bridge
                 engine?.Next(out el, out er);
                 float fx = _fx.Next() * FxMix;
 
-                float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx) * _gain);
-                float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx) * _gain);
+                float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx + gun) * _gain);
+                float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx + gun) * _gain);
 
                 data[idx] = l;
                 if (channels > 1) data[idx + 1] = r;

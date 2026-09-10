@@ -144,6 +144,12 @@ namespace FlyingGame.Bridge
                 spawnX = f.X0 - 1000; spawnY = (f.Y0 + f.Y1) / 2;
                 spawnAlt = f.ElevationM + 40;
             }
+            else if (ch == "event:combat")
+            {
+                // Combat zone: 800 m up at its west edge, heading in — the drones are already orbiting.
+                spawnX = FlyingGame.Core.Combat.CombatZone.X0 + 300; spawnY = FlyingGame.Core.Combat.CombatZone.CentreY;
+                spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 800; spawnHdg = 0.0;
+            }
             else if (ch == "event:stol")
             {
                 var dirt = System.Array.Find(FlyingGame.Core.WorldTerrain.AirportStrips, st => st.Kind == "gravel");

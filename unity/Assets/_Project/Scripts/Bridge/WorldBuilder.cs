@@ -58,6 +58,7 @@ namespace FlyingGame.Bridge
             }
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
+            BuildCombatZone(WorldTerrain.Active, root.transform);
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
             // lee) — replaces the old single Gaussian lift band.
             Atmosphere.ActiveRidge = null;
@@ -474,6 +475,113 @@ namespace FlyingGame.Bridge
             }
             foreach (float sx in new[] { -1f, 1f }) foreach (float sz in new[] { -1f, 1f })
                 WBox(root, "Edge", new Vector3(c0.x + sx * size / 2, mid, c0.z + sz * size / 2), new Vector3(1.2f, hgt, 1.2f), edge);
+        }
+
+        // ---- COMBAT ZONE (owner 2026-09-10): a 4 × 4 km glass box from the surface to 3 km, skull-and-crossbones and
+        // dogfight art on the outside, bullseyes on the floor, target drones inside (CombatController) ----
+
+        private static Texture2D _skullTex;
+
+        /// <summary>Skull and crossbones drawn into a texture (no art assets): white on transparent.</summary>
+        private static Texture2D SkullTexture()
+        {
+            if (_skullTex != null) return _skullTex;
+            const int N = 256;
+            var t = new Texture2D(N, N, TextureFormat.RGBA32, false);
+            var px = new Color32[N * N];
+            var clear = new Color32(0, 0, 0, 0); var white = new Color32(255, 255, 255, 255); var black = new Color32(0, 0, 0, 255);
+            for (int i = 0; i < px.Length; i++) px[i] = clear;
+            void Disc(float cx, float cy, float r, Color32 c) { for (int y = 0; y < N; y++) for (int x = 0; x < N; x++) { float dx = x - cx, dy = y - cy; if (dx * dx + dy * dy <= r * r) px[y * N + x] = c; } }
+            void Bar(float x0, float y0, float x1, float y1, float w, Color32 c)
+            {
+                for (int y = 0; y < N; y++) for (int x = 0; x < N; x++)
+                {
+                    float vx = x1 - x0, vy = y1 - y0, len2 = vx * vx + vy * vy;
+                    float u = Mathf.Clamp01(((x - x0) * vx + (y - y0) * vy) / len2);
+                    float px2 = x0 + u * vx - x, py2 = y0 + u * vy - y;
+                    if (px2 * px2 + py2 * py2 <= w * w) px[y * N + x] = c;
+                }
+            }
+            // Crossed bones behind the skull.
+            Bar(40, 40, 216, 216, 9, white); Bar(40, 216, 216, 40, 9, white);
+            foreach ((float x, float y) in new[] { (40f, 40f), (216f, 216f), (40f, 216f), (216f, 40f) }) { Disc(x - 8, y + 8, 12, white); Disc(x + 8, y - 8, 12, white); }
+            // Skull: cranium, jaw, eyes, nose, teeth.
+            Disc(128, 150, 62, white);
+            for (int y = 60; y < 110; y++) for (int x = 86; x < 170; x++) px[y * N + x] = white;
+            Disc(104, 152, 17, black); Disc(152, 152, 17, black);
+            Bar(128, 132, 122, 112, 6, black); Bar(128, 132, 134, 112, 6, black);
+            for (int k = 0; k < 6; k++) Bar(94 + k * 13, 62, 94 + k * 13, 95, 2.2f, black);
+            t.SetPixels32(px); t.Apply();
+            t.wrapMode = TextureWrapMode.Clamp;
+            _skullTex = t;
+            return t;
+        }
+
+        private static void BuildCombatZone(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("CombatZone"); root.transform.SetParent(parent, false);
+            double x0 = FlyingGame.Core.Combat.CombatZone.X0, x1 = FlyingGame.Core.Combat.CombatZone.X1, y0 = FlyingGame.Core.Combat.CombatZone.Y0, y1 = FlyingGame.Core.Combat.CombatZone.Y1;
+            double cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+            float floor = (float)t.HeightAt(cx, cy), hgt = (float)FlyingGame.Core.Combat.CombatZone.HeightM;
+            float sx = (float)(y1 - y0), sz = (float)(x1 - x0);   // Unity x = sim y, Unity z = sim x
+            Vector3 c0 = U(cx, cy, floor);
+            var glass = Mat("FlyingGame/Glass", new Color(1f, 0.25f, 0.2f, 0.08f));
+            void Pane(string name, Vector3 centre, Quaternion rot, Vector2 dims)
+            {
+                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Kill(q.GetComponent<Collider>()); q.name = name; q.transform.SetParent(root.transform, false);
+                q.transform.position = centre; q.transform.rotation = rot; q.transform.localScale = new Vector3(dims.x, dims.y, 1f);
+                q.GetComponent<MeshRenderer>().sharedMaterial = glass;
+            }
+            float mid = floor + hgt / 2;
+            Pane("Ceiling", new Vector3(c0.x, floor + hgt, c0.z), Quaternion.Euler(90f, 0f, 0f), new Vector2(sx, sz));
+            Pane("North", new Vector3(c0.x, mid, c0.z + sz / 2), Quaternion.identity, new Vector2(sx, hgt));
+            Pane("South", new Vector3(c0.x, mid, c0.z - sz / 2), Quaternion.identity, new Vector2(sx, hgt));
+            Pane("East", new Vector3(c0.x + sx / 2, mid, c0.z), Quaternion.Euler(0f, 90f, 0f), new Vector2(sz, hgt));
+            Pane("West", new Vector3(c0.x - sx / 2, mid, c0.z), Quaternion.Euler(0f, 90f, 0f), new Vector2(sz, hgt));
+            var edge = new Color(1f, 0.3f, 0.2f);
+            foreach (float y in new[] { floor + 1f, floor + hgt })
+            {
+                WBox(root, "Edge", new Vector3(c0.x, y, c0.z + sz / 2), new Vector3(sx, 2f, 2f), edge);
+                WBox(root, "Edge", new Vector3(c0.x, y, c0.z - sz / 2), new Vector3(sx, 2f, 2f), edge);
+                WBox(root, "Edge", new Vector3(c0.x + sx / 2, y, c0.z), new Vector3(2f, 2f, sz), edge);
+                WBox(root, "Edge", new Vector3(c0.x - sx / 2, y, c0.z), new Vector3(2f, 2f, sz), edge);
+            }
+            foreach (float ex in new[] { -1f, 1f }) foreach (float ez in new[] { -1f, 1f })
+                WBox(root, "Edge", new Vector3(c0.x + ex * sx / 2, mid, c0.z + ez * sz / 2), new Vector3(2f, hgt, 2f), edge);
+            // Skull-and-crossbones and the name on every outside face, big enough to read from the airfield.
+            var skullMat = new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Transparent")) { mainTexture = SkullTexture(), color = Color.white };
+            void Sign(Vector3 centre, Quaternion facing, float w)
+            {
+                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Kill(q.GetComponent<Collider>()); q.name = "Skull"; q.transform.SetParent(root.transform, false);
+                q.transform.position = centre; q.transform.rotation = facing; q.transform.localScale = new Vector3(w, w, 1f);
+                q.GetComponent<MeshRenderer>().sharedMaterial = skullMat;
+                var lbl = new GameObject("ZoneLabel"); lbl.transform.SetParent(root.transform, false);
+                lbl.transform.position = centre + facing * new Vector3(0f, -w * 0.75f, 0f); lbl.transform.rotation = facing;
+                var tm = lbl.AddComponent<TextMesh>(); tm.text = "COMBAT ZONE\nGUNS HOT · AIR TO AIR · AIR TO GROUND"; tm.fontSize = 64; tm.characterSize = w * 0.012f; tm.anchor = TextAnchor.MiddleCenter; tm.color = new Color(1f, 0.35f, 0.25f);
+                var mr = lbl.GetComponent<MeshRenderer>(); if (mr != null && tm.font != null) mr.sharedMaterial = DepthTestedText(tm.font);
+            }
+            float signW = 600f, signY = floor + 900f, off = 6f;
+            Sign(new Vector3(c0.x, signY, c0.z - sz / 2 - off), Quaternion.Euler(0f, 180f, 0f), signW);   // south face, seen from the airfield side
+            Sign(new Vector3(c0.x, signY, c0.z + sz / 2 + off), Quaternion.identity, signW);
+            Sign(new Vector3(c0.x - sx / 2 - off, signY, c0.z), Quaternion.Euler(0f, -90f, 0f), signW);
+            Sign(new Vector3(c0.x + sx / 2 + off, signY, c0.z), Quaternion.Euler(0f, 90f, 0f), signW);
+            // Ground targets: bullseyes (white / red / white / red discs) flat on the ground.
+            foreach (FlyingGame.Core.Combat.GroundTarget gt in FlyingGame.Core.Combat.CombatZone.BuildGroundTargets())
+            {
+                float g = (float)t.HeightAt(gt.X, gt.Y) + 0.15f;
+                float r = (float)gt.RadiusM;
+                int ring = 0;
+                foreach (float f in new[] { 1f, 0.75f, 0.5f, 0.25f })
+                {
+                    var d = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(d.GetComponent<Collider>());
+                    d.name = "Bullseye"; d.transform.SetParent(root.transform, false);
+                    d.transform.position = U(gt.X, gt.Y, g + ring * 0.05f); d.transform.localScale = new Vector3(2f * r * f, 0.05f, 2f * r * f);
+                    d.GetComponent<MeshRenderer>().sharedMaterial = Lit(ring % 2 == 0 ? Color.white : new Color(0.85f, 0.1f, 0.1f));
+                    ring++;
+                }
+            }
         }
 
         // ---- Air Racing course: pylons (base + burstable inflated top), rotating numbers 300 ft up, flags ----

@@ -96,6 +96,10 @@ public sealed class Aircraft
     public IReadOnlyList<ContactPoint> ContactPoints => _contacts;
     /// <summary>Components that have broken off (hard ground/solid impact).</summary>
     public IReadOnlyCollection<AirframeComponent> LostComponents => _lost;
+    /// <summary>Bullet damage: hits per part, fuel leaks and fires on the inner wing panels (Combat/Damage.cs).</summary>
+    public FlyingGame.Core.Combat.DamageState Damage { get; }
+    /// <summary>Guns and ammunition (Combat/Gunnery.cs); null for types without armament defined.</summary>
+    public FlyingGame.Core.Combat.Armament Guns { get; }
     public bool IsLost(AirframeComponent c) => _lost.Contains(c);
     /// <summary>Raised once per component, on the step it breaks off.</summary>
     public event Action<AirframeComponent>? ComponentLost;
@@ -155,6 +159,8 @@ public sealed class Aircraft
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
         _gearTouching = new bool[config.Gear.Count];
+        Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
+        Guns = FlyingGame.Core.Combat.Armament.For(config);
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
 
@@ -300,12 +306,25 @@ public sealed class Aircraft
         {
             string id = sf.Id.ToLowerInvariant();
             bool wing = id.Contains("wing"), hTail = id == "hstab" || id == "elevator", vTail = id.Contains("vstab") || id.StartsWith("rudder") || id.Contains("fin");
+            bool aileron = id.Contains("aileron"), elevator = id == "elevator", rudder = id.StartsWith("rudder");
+            double semi = WingPanels.Semispan(Config);
             foreach (StripConfig st in sf.Strips)
             {
+                double y = st.Pos[1];
+                AirframeComponent? panel = wing ? WingPanels.PanelOf(y, semi) : null;
                 bool gone = comp switch
                 {
-                    AirframeComponent.WingLeft => wing && st.Pos[1] < -0.3,
-                    AirframeComponent.WingRight => wing && st.Pos[1] > 0.3,
+                    AirframeComponent.WingLeft => wing && y < -0.3,
+                    AirframeComponent.WingRight => wing && y > 0.3,
+                    AirframeComponent.WingLeftOuter => panel == AirframeComponent.WingLeftOuter,
+                    AirframeComponent.WingRightOuter => panel == AirframeComponent.WingRightOuter,
+                    AirframeComponent.WingLeftInner => panel == AirframeComponent.WingLeftInner || panel == AirframeComponent.WingLeftOuter,
+                    AirframeComponent.WingRightInner => panel == AirframeComponent.WingRightInner || panel == AirframeComponent.WingRightOuter,
+                    AirframeComponent.AileronLeft => aileron && y < 0,
+                    AirframeComponent.AileronRight => aileron && y > 0,
+                    AirframeComponent.ElevatorLeft => elevator && y < 0,
+                    AirframeComponent.ElevatorRight => elevator && y > 0,
+                    AirframeComponent.Rudder => rudder,
                     AirframeComponent.TailHorizontal => hTail,
                     AirframeComponent.TailVertical => vTail,
                     AirframeComponent.TailBoom => hTail || vTail,
@@ -316,6 +335,15 @@ public sealed class Aircraft
             }
         }
         if (comp != AirframeComponent.Cabin) _contacts.RemoveAll(p => p.Component == comp);   // the cabin's own points stay: it is what is left
+        // Panels: the inner panel carries the outer one (and its aileron); the whole-wing failure drops both panels.
+        if (comp == AirframeComponent.WingLeftInner) { LoseComponent(AirframeComponent.WingLeftOuter); LoseComponent(AirframeComponent.AileronLeft); }
+        if (comp == AirframeComponent.WingRightInner) { LoseComponent(AirframeComponent.WingRightOuter); LoseComponent(AirframeComponent.AileronRight); }
+        if (comp == AirframeComponent.WingLeftOuter) LoseComponent(AirframeComponent.AileronLeft);
+        if (comp == AirframeComponent.WingRightOuter) LoseComponent(AirframeComponent.AileronRight);
+        if (comp == AirframeComponent.WingLeft) { _lost.Add(AirframeComponent.WingLeftInner); _lost.Add(AirframeComponent.WingLeftOuter); _lost.Add(AirframeComponent.AileronLeft); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingLeftInner or AirframeComponent.WingLeftOuter); }
+        if (comp == AirframeComponent.WingRight) { _lost.Add(AirframeComponent.WingRightInner); _lost.Add(AirframeComponent.WingRightOuter); _lost.Add(AirframeComponent.AileronRight); _contacts.RemoveAll(p => p.Component is AirframeComponent.WingRightInner or AirframeComponent.WingRightOuter); }
+        if (comp == AirframeComponent.TailHorizontal || comp == AirframeComponent.TailBoom) { _lost.Add(AirframeComponent.ElevatorLeft); _lost.Add(AirframeComponent.ElevatorRight); }
+        if (comp == AirframeComponent.TailVertical || comp == AirframeComponent.TailBoom) _lost.Add(AirframeComponent.Rudder);
         if (comp is AirframeComponent.GearLeft or AirframeComponent.GearRight or AirframeComponent.GearNose or AirframeComponent.GearTail)
         {
             // The leg is gone: the wheel no longer carries anything; a stub hard point 45 % up the leg does.
@@ -578,6 +606,7 @@ public sealed class Aircraft
         UpdateStructure(dt);
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
+        Damage.Update(dt);
         if (Config.RetractableGear)
         {
             double target = GearDown ? 1.0 : 0.0;

@@ -50,9 +50,17 @@ namespace FlyingGame.Bridge
 
         private bool _componentsDetached;
 
+        private DamageFx _damageFx;
+
         private void LateUpdate()
         {
             ScreenLayout.UpdateAircraftKeepOut(Camera.main, transform);
+            var acFx = _driver?.Sim?.Aircraft;
+            if (acFx != null)
+            {
+                _damageFx ??= new DamageFx(transform, acFx.Config);
+                _damageFx.Update(acFx.Damage, _driver.WorldVelocityUnity);
+            }
             if (_driver.Sim == null) return;
             // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
@@ -71,19 +79,36 @@ namespace FlyingGame.Bridge
         {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return; }
-            if (comp == FlyingGame.Core.AirframeComponent.Cabin) return;   // the break-up arrives as Nose + TailBoom events
-            Transform root = transform;
+            DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+        }
+
+        /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
+        /// target drones (any AirframeBuilder-built airframe).</summary>
+        public static void DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        {
+            if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return;   // the break-up arrives as Nose + TailBoom events
             var debris = new GameObject("Debris-" + comp);
             debris.transform.SetPositionAndRotation(root.position, root.rotation);
             bool leftWing = comp == FlyingGame.Core.AirframeComponent.WingLeft, rightWing = comp == FlyingGame.Core.AirframeComponent.WingRight;
             bool gearLeg = comp is FlyingGame.Core.AirframeComponent.GearLeft or FlyingGame.Core.AirframeComponent.GearRight
                         or FlyingGame.Core.AirframeComponent.GearNose or FlyingGame.Core.AirframeComponent.GearTail;
             bool nose = comp == FlyingGame.Core.AirframeComponent.Nose, tailBoom = comp == FlyingGame.Core.AirframeComponent.TailBoom;
+            // Wing PANELS and control surfaces (combat damage): side (+1 right / -1 left) and a spanwise cut.
+            bool panel = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
+                      or FlyingGame.Core.AirframeComponent.WingLeftInner or FlyingGame.Core.AirframeComponent.WingRightInner;
+            bool aileron = comp is FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.AileronRight;
+            bool elevator = comp is FlyingGame.Core.AirframeComponent.ElevatorLeft or FlyingGame.Core.AirframeComponent.ElevatorRight;
+            bool rudder = comp == FlyingGame.Core.AirframeComponent.Rudder;
+            float side = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingLeftInner
+                      or FlyingGame.Core.AirframeComponent.AileronLeft or FlyingGame.Core.AirframeComponent.ElevatorLeft ? -1f : 1f;
+            float semi = cfg != null ? (float)FlyingGame.Core.WingPanels.Semispan(cfg) : 5f;
+            float cutAbs = comp is FlyingGame.Core.AirframeComponent.WingLeftOuter or FlyingGame.Core.AirframeComponent.WingRightOuter
+                ? (float)FlyingGame.Core.WingPanels.OuterFraction * semi : 0.3f;
             // Fuselage sections: the body mesh is cut at the nose / tail station (root-local z = sim x).
             float noseCut = 0f, tailCut = 0f;
-            if ((nose || tailBoom) && _driver?.Sim?.Aircraft?.Config != null)
+            if ((nose || tailBoom) && cfg != null)
             {
-                (double n, double t) = FlyingGame.Core.AirframeContact.FuselageStations(_driver.Sim.Aircraft.Config);
+                (double n, double t) = FlyingGame.Core.AirframeContact.FuselageStations(cfg);
                 noseCut = (float)n; tailCut = (float)t;
             }
             bool Matches(string n)
@@ -100,7 +125,7 @@ namespace FlyingGame.Bridge
                 };
             }
             List<GameObject> parts;
-            if (leftWing || rightWing) parts = new List<GameObject>(_builder.WingParts);
+            if (leftWing || rightWing || panel) parts = new List<GameObject>(_builder.WingParts);
             else if (gearLeg) parts = _builder.TakeLegParts(comp);
             else
             {
@@ -142,6 +167,23 @@ namespace FlyingGame.Bridge
                         if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
                     }
                 }
+                else if (panel || ((aileron || elevator) && part.name.ToLowerInvariant().Contains(aileron ? "aileron" : "elevator")) || (rudder && part.name.ToLowerInvariant().Contains("rudder")))
+                {
+                    // Cut at the spanwise station on this side: the piece beyond it leaves (a control surface: its whole side).
+                    float cut = rudder ? -1f : (aileron || elevator) ? 0f : cutAbs;
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        Mesh lost, kept;
+                        if (rudder) { lost = mf.sharedMesh; kept = null; }
+                        else SplitBySide(mf.sharedMesh, mf.transform, root, side, cut, out lost, out kept);
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name + "-" + comp, lost, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                    }
+                }
                 else if (gearLeg || Matches(part.name))
                 {
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
@@ -156,13 +198,33 @@ namespace FlyingGame.Bridge
             }
             _builder.Forget(gone);
             foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
-            Vector3 side = leftWing ? -root.right : root.right;
-            Vector3 kick = leftWing || rightWing ? side * 4f + root.up * 3f
+            Vector3 sideDir = (leftWing || side < 0f) ? -root.right : root.right;
+            Vector3 kick = leftWing || rightWing || panel ? sideDir * 4f + root.up * 3f
                 : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
                 : tailBoom ? -root.forward * 3f + root.up * 2.5f
                 : nose ? root.forward * 2f + root.up * 3f
                 : -root.forward * 3f + root.up * 4f;
-            LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing ? side : root.right, leftWing ? 1f : -1f);
+            LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+        }
+
+        /// <summary>Split a part's mesh on one side of the centreline at a spanwise station (root-local x = sim y):
+        /// triangles with centroid sign·x > cutAbs go to `lost`, the rest to `kept`.</summary>
+        private static void SplitBySide(Mesh src, Transform part, Transform root, float sign, float cutAbs, out Mesh lost, out Mesh kept)
+        {
+            lost = null; kept = null;
+            Vector3[] v = src.vertices; int[] t = src.triangles;
+            if (v.Length == 0 || t.Length == 0) return;
+            var x = new float[v.Length];
+            for (int i = 0; i < v.Length; i++) x[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).x * sign;
+            var lt = new List<int>(t.Length); var kt = new List<int>(t.Length);
+            for (int i = 0; i + 2 < t.Length; i += 3)
+            {
+                float cx = (x[t[i]] + x[t[i + 1]] + x[t[i + 2]]) / 3f;
+                List<int> dst = cx > cutAbs ? lt : kt;
+                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
+            }
+            if (lt.Count > 0) lost = CloneMesh(v, lt.ToArray());
+            if (kt.Count > 0) kept = CloneMesh(v, kt.ToArray());
         }
 
         /// <summary>Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.</summary>
@@ -487,11 +549,15 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Build the airframe for `cfg` under `root`; returns the half-span (m) for camera fitting.</summary>
+        /// <summary>Repaint the whole airframe one colour (target drones: orange); null = the type's own livery.</summary>
+        public Color? Paint;
+
         public float Build(Transform root, AircraftConfig cfg)
         {
             Clear();
             _root = root;
             Style st = StyleFor(cfg.Id);
+            if (Paint.HasValue) { st.Fuselage = Paint.Value; st.Wing = Paint.Value; st.TailColor = Paint.Value; st.Control = Color.Lerp(Paint.Value, Color.black, 0.55f); }
 
             _glass ??= new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color")) { color = new Color(0.25f, 0.4f, 0.55f, 0.55f) };
             _propDisc ??= new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color")) { color = new Color(0.15f, 0.15f, 0.15f, 0.35f) };
@@ -1429,6 +1495,15 @@ namespace FlyingGame.Bridge
                         BodyAxisZ = 0.0f, BodyHeightScale = 1.05f, Body = new[] { (2.7f, 0.05f), (2.3f, 0.26f), (1.4f, 0.37f), (0.4f, 0.36f), (-0.8f, 0.28f), (-2.0f, 0.18f), (-3.2f, 0.11f), (-4.1f, 0.07f) },
                         Canopy = (1.4f, -0.3f, 1.5f, 0.6f, 0.4f), Tail = new TailSpec { StabSpan = 2.9f, StabRoot = 0.75f, StabTip = 0.45f, FinHeight = 1.35f, FinRoot = 1.0f, FinTip = 0.55f, FinSweepDeg = 25 },
                         Fuselage = white, Wing = white, TailColor = white, Control = red,
+                    };
+                case "target-drone-like":
+                    return new Style
+                    {
+                        // Target drone: the Cassutt's shape in international orange with black control surfaces.
+                        BodyAxisZ = 0.0f, Body = new[] { (2.1f, 0.12f), (1.8f, 0.3f), (1.1f, 0.38f), (0.2f, 0.36f), (-0.8f, 0.27f), (-1.8f, 0.17f), (-2.6f, 0.1f), (-3.0f, 0.06f) },
+                        Canopy = (0.0f, -0.32f, 0.9f, 0.5f, 0.32f), PropRadius = 0.75f,
+                        Tail = new TailSpec { StabSpan = 1.8f, StabRoot = 0.55f, StabTip = 0.35f, FinHeight = 0.8f, FinRoot = 0.7f, FinTip = 0.4f, FinSweepDeg = 20 },
+                        Fuselage = new Color(1f, 0.45f, 0.05f), Wing = new Color(1f, 0.45f, 0.05f), TailColor = new Color(1f, 0.45f, 0.05f), Control = new Color(0.1f, 0.1f, 0.1f),
                     };
                 case "cassutt-f1-like":
                     return new Style
