@@ -150,6 +150,11 @@ public static class SlopeLift
     public const double DecayHeightM = 520.0;      // e-fold of the deflection with height above ground (owner: wider band)
     public const double StreamlineTilt = 1.0;      // upwind sample distance per metre of height (45° tilt)
     public const double SampleStepM = 25.0;
+    // Blocking (owner 2026-09-09: "I keep hitting the cliff getting into the lift"): a wall pushes the air up well
+    // before the face — the flow starts rising about a wall height upwind of the toe. The slope the air feels is a
+    // blend of the local slope and the mean slope over a window reaching UpwindReachM behind and DownwindReachM
+    // ahead of the point, so the band of lift extends ~300 m out in front of the wall instead of hugging it.
+    public const double UpwindReachM = 300.0, DownwindReachM = 500.0, WideWeight = 0.55;
 
     public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind)
     {
@@ -163,8 +168,11 @@ public static class SlopeLift
         agl = System.Math.Max(0, agl);
         // The air at height AGL was deflected by the ground it crossed UPWIND (tilted streamline).
         double sx = pos.X - ux / u * agl * StreamlineTilt, sy = pos.Y - uy / u * agl * StreamlineTilt;
-        double dhds = (t.HeightAt(sx + ux / u * SampleStepM, sy + uy / u * SampleStepM) - t.HeightAt(sx - ux / u * SampleStepM, sy - uy / u * SampleStepM)) / (2 * SampleStepM);
-        dhds = System.Math.Clamp(dhds, -MaxSlope, MaxSlope);
+        double dx = ux / u, dy = uy / u;
+        double local = (t.HeightAt(sx + dx * SampleStepM, sy + dy * SampleStepM) - t.HeightAt(sx - dx * SampleStepM, sy - dy * SampleStepM)) / (2 * SampleStepM);
+        local = System.Math.Clamp(local, -MaxSlope, MaxSlope);
+        double wide = (t.HeightAt(sx + dx * DownwindReachM, sy + dy * DownwindReachM) - t.HeightAt(sx - dx * UpwindReachM, sy - dy * UpwindReachM)) / (UpwindReachM + DownwindReachM);
+        double dhds = System.Math.Clamp(WideWeight * wide + (1 - WideWeight) * local, -MaxSlope, MaxSlope);
         double w = u * dhds * System.Math.Exp(-agl / DecayHeightM);   // + = upward
         return new Vec3(0, 0, -w);
     }

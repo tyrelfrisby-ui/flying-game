@@ -23,6 +23,10 @@ public class SlopeAndThermalTests
         double face = Up(edge - WorldTerrain.EscarpmentWidthM * 0.5, 30), crest = Up(crestY, 40), lee = Up(crestY - 400, 40), valley = Up(edge + 2000, 40);
         _out.WriteLine($"up: mid-face {face:F1}  crest {crest:F1}  lee {lee:F1}  valley {valley:F1} m/s");
         Assert.True(face > 2.0, "lift on the windward face");
+        // Blocking: the lift starts well out in front of the wall — 250 m upwind of the toe at 60 m AGL is already soarable.
+        double ahead = Up(edge + 250, 60);
+        _out.WriteLine($"up 250 m in front of the wall: {ahead:F1} m/s");
+        Assert.True(ahead > 1.0, "lift band should reach ~300 m out in front of the wall");
         Assert.True(crest > 1.0, "lift carries over the crest");
         Assert.True(lee <= 0.05, "no lift (sink or nothing) in the lee");
         Assert.True(System.Math.Abs(valley) < 0.05, "flat valley: no slope lift");
