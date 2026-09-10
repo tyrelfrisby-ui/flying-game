@@ -66,13 +66,22 @@ public static class ApproachSpawn
     /// north up the centreline. Ground velocity = best-glide air velocity + local wind (coordinated crab).</summary>
     public static (RigidBodyState State, BestGlide Glide, double AimX) Compute(AircraftConfig config, WorldTerrain.Airport airport)
     {
+        var main = System.Array.Find(WorldTerrain.AirportStrips, st => st.Kind == "paved");
+        var rw = new WorldTerrain.RunwayEnd(main, 0, airport.X + main.Dx, airport.Y + main.Dy);
+        return Compute(config, airport, rw);
+    }
+
+    /// <summary>State on final for a chosen runway end (owner 2026-09-10: headwind or crosswind runway): 300 ft AGL on
+    /// the extended centreline, heading the runway's heading, aimed 200 m past its threshold.</summary>
+    public static (RigidBodyState State, BestGlide Glide, double AimX) Compute(AircraftConfig config, WorldTerrain.Airport airport, WorldTerrain.RunwayEnd rw)
+    {
         double alt = airport.ElevationM + AglM;
         BestGlide g = ApproachGlide(config, alt);
-        double aimX = airport.X - WorldTerrain.RunwayLengthM / 2 + AimPastThresholdM;
+        (double aimX, double aimY) = rw.At(AimPastThresholdM);
         double back = AglM / System.Math.Tan(g.GammaRad);
-        var pos = new Vec3(aimX - back, airport.Y, -alt);
-        double half = g.ThetaRad / 2.0;
-        var att = new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half));   // pitch only, heading north
+        var pos = new Vec3(aimX - rw.AlongX * back, aimY - rw.AlongY * back, -alt);
+        double half = g.ThetaRad / 2.0, hh = rw.HeadingRad / 2.0;
+        var att = Quat.Multiply(new Quat(0, 0, System.Math.Sin(hh), System.Math.Cos(hh)), new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half)));   // yaw then pitch
         var vBody = new Vec3(g.SpeedMs * System.Math.Cos(g.AlphaRad), 0, g.SpeedMs * System.Math.Sin(g.AlphaRad))
                     + att.Conjugate().Rotate(Atmosphere.WindAtPosition(pos));
         return (new RigidBodyState(pos, att, vBody, Vec3.Zero), g, aimX);

@@ -74,6 +74,14 @@ namespace FlyingGame.Bridge
         // On-screen button rects (screen px, bottom-left origin) — computed in Update, drawn in OnGUI.
         private Rect _brakeRect, _resetRect, _acftRect, _towRect;
         private Rect _bailRect, _ejectRect;                 // BAIL OUT (tap) / EJECT (hold EjectHoldSec)
+        private Rect _ailTrimRect, _rudTrimRect;            // horizontal trim bars under the pads (RC transmitter style)
+        private int _ailTrimFinger = int.MinValue, _rudTrimFinger = int.MinValue;
+        private float _aileronTrim, _rudderTrim;            // -1..1 × TrimAuthority
+        public float TrimAileron => _aileronTrim * TrimAuthority;
+        public float TrimRudder => _rudderTrim * TrimAuthority;
+        // Buttons fire on the finger that touches them (not IMGUI), so they work while the pads are held (owner).
+        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail }
+        private readonly HashSet<Btn> _tapped = new();
         private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
         private int _ejectFinger = int.MinValue;            // pointer holding EJECT
         private float _ejectHold;                           // seconds held so far
@@ -156,15 +164,37 @@ namespace FlyingGame.Bridge
             float bh = _half * 0.26f;
             float bw = Mathf.Min(_half * 0.9f, (avail - gap) * 0.5f);
             float x0 = (clusterLeft + clusterRight) * 0.5f - (2f * bw + gap) * 0.5f;
-            _acftRect = new Rect(x0, margin + bh + gap * 0.6f, bw, bh);
-            _resetRect = new Rect(x0, margin, bw, bh);
-            _brakeRect = new Rect(x0 + bw + gap, margin, bw, bh); // now the FLAPS slot (kept as the layout anchor)
-            _towRect = new Rect(_acftRect.x, _acftRect.yMax + _half * 0.12f, _acftRect.width, _acftRect.height);
-            // BAIL OUT | EJECT above the Tow slot, on the cluster's two columns.
-            float ey = _towRect.yMax + _half * 0.12f;
-            _bailRect = HasEjectionSeat ? new Rect(x0, ey, bw, bh) : new Rect(x0, ey, 2f * bw + gap, bh);
-            _ejectRect = new Rect(x0 + bw + gap, ey, bw, bh);
-            _gearRect = new Rect(x0 + bw + gap, margin + bh + gap * 0.6f, bw, bh);   // right column, beside Aircraft
+            // Three rows of two, from the bottom: [Reset | Flaps] [Aircraft | Gear] [Tow | Bail] (or [Bail | Eject]).
+            // RULE: nothing covers the aircraft — if the top row would reach the aircraft's screen rect, the rows shrink.
+            float rowGap = gap * 0.6f;
+            if (ScreenLayout.HasAircraftKeepOut)
+            {
+                float maxTop = ScreenLayout.AircraftKeepOut.yMin - gap;
+                float fit = (maxTop - margin - 2f * rowGap) / 3f;
+                if (fit < bh) bh = Mathf.Max(_half * 0.16f, fit);
+            }
+            float r0 = margin, r1 = margin + bh + rowGap, r2 = margin + 2f * (bh + rowGap);
+            _resetRect = new Rect(x0, r0, bw, bh);
+            _brakeRect = new Rect(x0 + bw + gap, r0, bw, bh);     // the FLAPS slot
+            _acftRect = new Rect(x0, r1, bw, bh);
+            _gearRect = new Rect(x0 + bw + gap, r1, bw, bh);
+            if (HasEjectionSeat)
+            {
+                _towRect = new Rect(x0, r2, bw, bh);               // (powered: never shown)
+                _bailRect = new Rect(x0, r2, bw, bh);
+                _ejectRect = new Rect(x0 + bw + gap, r2, bw, bh);
+            }
+            else
+            {
+                bool towSlot = _driver.Sim?.Aircraft?.Config?.Propulsion == null;
+                _towRect = new Rect(x0, r2, bw, bh);
+                _bailRect = towSlot ? new Rect(x0 + bw + gap, r2, bw, bh) : new Rect(x0, r2, 2f * bw + gap, bh);
+                _ejectRect = new Rect(x0 + bw + gap, r2, bw, bh);
+            }
+            // Trim bars: rudder under the left pad, aileron under the right pad (RC transmitter style).
+            float barH = s * 0.045f;
+            _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
+            _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
         }
 
         private void LayOutPortrait(float w)
@@ -181,9 +211,14 @@ namespace FlyingGame.Bridge
             float trimW = _half * 0.22f;
             _trimRect = new Rect(w * 0.5f - trimW * 0.5f, margin, trimW, 2f * _half);
 
+            // Trim bars right above each pad (rudder left, aileron right), then the labels, then the buttons.
+            float barH = w * ScreenLayout.TrimBarHeight;
+            float barY = margin + 2f * _half + gap * 0.5f;
+            _rudTrimRect = new Rect(_leftCenter.x - _half, barY, 2f * _half, barH);
+            _ailTrimRect = new Rect(_rightCenter.x - _half, barY, 2f * _half, barH);
             // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
             float bh = w * ScreenLayout.ButtonHeight;
-            float rowY = margin + 2f * _half + ScreenLayout.LabelBlockPx + gap;
+            float rowY = barY + barH + ScreenLayout.LabelBlockPx + gap;
             float bw = (w - 2f * margin - 4f * gap) * 0.2f;
             _resetRect = new Rect(margin, rowY, bw, bh);
             _acftRect = new Rect(margin + (bw + gap), rowY, bw, bh);
@@ -238,6 +273,8 @@ namespace FlyingGame.Bridge
                     if (p.id == _leftFinger) ReleaseLeft();
                     if (p.id == _rightFinger) ReleaseRight();
                     if (p.id == _trimFinger) _trimFinger = int.MinValue; // trim holds where it was left
+                    if (p.id == _ailTrimFinger) _ailTrimFinger = int.MinValue;
+                    if (p.id == _rudTrimFinger) _rudTrimFinger = int.MinValue;
                     if (p.id == _ejectFinger) { _ejectFinger = int.MinValue; _ejectHold = 0f; } // released early: no eject
                     continue;
                 }
@@ -246,11 +283,18 @@ namespace FlyingGame.Bridge
                 {
                     // EJECT is a HOLD (not an IMGUI tap): this pointer now owns the hold timer.
                     if (EjectAvailable && _ejectRect.Contains(p.pos) && _ejectFinger == int.MinValue) { _ejectFinger = p.id; _ejectHold = 0f; }
-                    // Buttons are handled by IMGUI; don't let a button tap also grab a pad.
-                    if (_resetRect.Contains(p.pos) || _acftRect.Contains(p.pos) || _brakeRect.Contains(p.pos) || _towRect.Contains(p.pos)
-                        || _bailRect.Contains(p.pos) || _ejectRect.Contains(p.pos) || _gearRect.Contains(p.pos)) continue;
+                    // Buttons fire on the touch itself (any finger, pads still held) — never through IMGUI's single pointer.
+                    if (EjectAvailable && _ejectRect.Contains(p.pos)) continue;
+                    if (_bailRect.Contains(p.pos) && BailAvailable) { _tapped.Add(Btn.Bail); continue; }
+                    if (_resetRect.Contains(p.pos)) { _tapped.Add(Btn.Reset); continue; }
+                    if (_acftRect.Contains(p.pos)) { _tapped.Add(Btn.Aircraft); continue; }
+                    if (_brakeRect.Contains(p.pos)) { _tapped.Add(Btn.Flaps); continue; }
+                    if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
+                    if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
+                    else if (_ailTrimRect.Contains(p.pos) && _ailTrimFinger == int.MinValue) _ailTrimFinger = p.id;
+                    else if (_rudTrimRect.Contains(p.pos) && _rudTrimFinger == int.MinValue) _rudTrimFinger = p.id;
                     else if (NearPad(p.pos, _leftCenter) && _leftFinger == int.MinValue) _leftFinger = p.id;
                     else if (NearPad(p.pos, _rightCenter) && _rightFinger == int.MinValue) _rightFinger = p.id;
                 }
@@ -258,6 +302,8 @@ namespace FlyingGame.Bridge
                 if (p.id == _leftFinger) DriveLeft(p.pos);
                 else if (p.id == _rightFinger) DriveRight(p.pos);
                 else if (p.id == _trimFinger) DriveTrim(p.pos);
+                else if (p.id == _ailTrimFinger) _aileronTrim = Mathf.Clamp((p.pos.x - _ailTrimRect.center.x) / (_ailTrimRect.width * 0.5f), -1f, 1f);
+                else if (p.id == _rudTrimFinger) _rudderTrim = Mathf.Clamp((p.pos.x - _rudTrimRect.center.x) / (_rudTrimRect.width * 0.5f), -1f, 1f);
                 else if (p.id == _ejectFinger)
                 {
                     if (_ejectRect.Contains(p.pos)) _ejectHold += Time.deltaTime;
@@ -271,7 +317,41 @@ namespace FlyingGame.Bridge
                 _ejectHold = 0f;
                 if (EjectAvailable) _egress.Eject();
             }
+            ActOnTaps();
         }
+
+        private void ActOnTaps()
+        {
+            if (_tapped.Count == 0) return;
+            var tow = GetComponent<TowController>();
+            var ac = _driver.Sim?.Aircraft;
+            foreach (Btn b in _tapped)
+            {
+                switch (b)
+                {
+                    case Btn.Reset: DoReset(); break;
+                    case Btn.Aircraft: CycleAircraft(); break;
+                    case Btn.Bail: if (BailAvailable) _egress.BailOut(); break;
+                    case Btn.Flaps:
+                        if (_driver.HasFlaps && ac != null) { double f = ac.FlapFraction; ac.FlapFraction = f < 0.25 ? 0.5 : f < 0.75 ? 1.0 : 0.0; }
+                        break;
+                    case Btn.Gear:
+                        if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
+                        break;
+                    case Btn.Tow:
+                        if (tow != null && ac?.Config?.Propulsion == null)
+                        {
+                            if (tow.Towing) tow.ReleaseFromGlider();
+                            else if (_driver.GroundStart && tow.Tow == null) tow.StartTow();
+                        }
+                        break;
+                }
+            }
+            _tapped.Clear();
+        }
+
+        /// <summary>Draw a button (the tap is read in ReadPointers, so it works with the pads held).</summary>
+        private void Button(Rect r, string label) => GUI.Label(ToGui(r), label, _btnStyle);
 
         private bool NearPad(Vector2 pos, Vector2 center)
         {
@@ -391,7 +471,10 @@ namespace FlyingGame.Bridge
             // (stowed above 50 % of the pad, full out at 25 %; the brake band below is the wheel brake).
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             float lever = powered ? 1f - 2f * throttle01 : SpoilerFraction;
-            _driver.Inputs = new ControlInputs(_aileron, elevator, _rudder, lever);
+            // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
+            float aileron = Mathf.Clamp(_aileron + _aileronTrim * TrimAuthority, -1f, 1f);
+            float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
+            _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever);
         }
 
         // ---- shaping helpers -------------------------------------------------
@@ -449,7 +532,7 @@ namespace FlyingGame.Bridge
             DrawTrim();
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
-            if (BailAvailable && GUI.Button(ToGui(_bailRect), "BAIL OUT", _btnStyle)) _egress.BailOut();
+            if (BailAvailable) Button(_bailRect, "BAIL OUT");
             if (EjectAvailable)
             {
                 Rect g = ToGui(_ejectRect);
@@ -464,24 +547,23 @@ namespace FlyingGame.Bridge
                 GUI.Label(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
             }
 
-            if (GUI.Button(ToGui(_resetRect), "Reset", _btnStyle)) DoReset();
-            if (GUI.Button(ToGui(_acftRect), _driver.AircraftName, _btnStyle)) CycleAircraft();
+            Button(_resetRect, "Reset");
+            Button(_acftRect, _driver.AircraftName);
+            DrawTrimBar(_rudTrimRect, _rudderTrim, "RUD TRIM");
+            DrawTrimBar(_ailTrimRect, _aileronTrim, "AIL TRIM");
             // Landing gear (retractable types): one button, labelled with what it will do.
             if (_driver.Sim?.Aircraft?.Config?.RetractableGear == true)
             {
                 var acg = _driver.Sim.Aircraft;
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
-                if (GUI.Button(ToGui(_gearRect), lbl, _btnStyle)) acg.SetGear(!acg.GearDown);
+                Button(_gearRect, lbl);
             }
             // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset.
             if (_driver.HasFlaps)
             {
                 var fr = _brakeRect;
                 double f = _driver.Sim.Aircraft.FlapFraction;
-                if (GUI.Button(ToGui(fr), $"FLAPS {f * 100:F0}%", _btnStyle))
-                {
-                    _driver.Sim.Aircraft.FlapFraction = f < 0.25 ? 0.5 : f < 0.75 ? 1.0 : 0.0;
-                }
+                Button(fr, $"FLAPS {f * 100:F0}%");
             }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
             var tow = GetComponent<TowController>();
@@ -491,12 +573,12 @@ namespace FlyingGame.Bridge
                 if (tow.Towing)
                 {
                     GUI.color = new Color(1f, 0.85f, 0.3f, 1f);
-                    if (GUI.Button(ToGui(r), "RELEASE", _btnStyle)) tow.ReleaseFromGlider();
+                    Button(r, "RELEASE");
                     GUI.color = Color.white;
                 }
                 else if (_driver.GroundStart && tow.Tow == null)
                 {
-                    if (GUI.Button(ToGui(r), "TOW", _btnStyle)) tow.StartTow();
+                    Button(r, "TOW");
                 }
             }
         }
@@ -564,6 +646,31 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Vertical pitch-trim slider: track, centre + quarter ticks, and a bar knob.</summary>
+        /// <summary>Horizontal trim bar: frame, centre + quarter ticks, knob at the trim position, small label.</summary>
+        private void DrawTrimBar(Rect r, float value, string label)
+        {
+            float t = Mathf.Max(2f, _half * 0.012f);
+            GUI.color = new Color(1f, 1f, 1f, 0.16f);
+            GUI.DrawTexture(ToGui(r), _solidTex);
+            GUI.color = new Color(1f, 1f, 1f, 0.55f);
+            DrawFrame(r, t);
+            for (int i = -4; i <= 4; i++)
+            {
+                float x = r.center.x + i * 0.25f * r.width * 0.5f;
+                bool centre = i == 0;
+                GUI.color = new Color(1f, 1f, 1f, centre ? 0.7f : 0.3f);
+                float th = centre ? r.height : r.height * 0.5f;
+                GUI.DrawTexture(ToGui(new Rect(x - t * 0.5f, r.center.y - th * 0.5f, t, th)), _solidTex);
+            }
+            float kx = r.center.x + value * r.width * 0.5f;
+            float kw = Mathf.Max(6f, r.width * 0.035f);
+            GUI.color = new Color(0.45f, 0.9f, 1f, 0.95f);
+            GUI.DrawTexture(ToGui(new Rect(kx - kw * 0.5f, r.y, kw, r.height)), _solidTex);
+            GUI.color = new Color(1f, 1f, 1f, 0.6f);
+            if (_labelStyle != null) GUI.Label(ToGui(new Rect(r.x, r.y - r.height * 0.05f, r.width, r.height)), label, _labelStyle);
+            GUI.color = Color.white;
+        }
+
         private void DrawTrim()
         {
             float t = Mathf.Max(2f, _half * 0.012f);

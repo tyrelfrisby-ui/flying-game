@@ -187,6 +187,60 @@ public sealed class WorldTerrain
     /// <summary>Crossing point of the into-wind runway along the main (north of the gravel/grass strips' ends).</summary>
     public const double XwindRunwayDx = 450;
     public static bool IsPaved(string kind) => kind.StartsWith("paved");
+    public const double ThresholdSetbackM = 80.0;   // where a runway start / tow hookup sits in from the threshold
+
+    /// <summary>One end of a paved runway to use: heading flown, centre, length, and the start point just in from
+    /// the threshold. Owner 2026-09-10: the user picks HEADWIND (the runway end best aligned into the wind) or
+    /// CROSSWIND (the other runway) at launch, for the runway start, the on-final start and the tow.</summary>
+    public readonly struct RunwayEnd
+    {
+        public readonly Strip Strip; public readonly double HeadingRad, CentreX, CentreY;
+        public RunwayEnd(Strip strip, double headingRad, double cx, double cy) { Strip = strip; HeadingRad = headingRad; CentreX = cx; CentreY = cy; }
+        public double LengthM => Strip.Length;
+        public double AlongX => System.Math.Cos(HeadingRad);
+        public double AlongY => System.Math.Sin(HeadingRad);
+        /// <summary>The threshold being flown toward from the start end (x, y).</summary>
+        public (double x, double y) Threshold => (CentreX - AlongX * LengthM / 2, CentreY - AlongY * LengthM / 2);
+        /// <summary>Runway start point: just in from the threshold, on the centreline.</summary>
+        public (double x, double y) Start => (CentreX - AlongX * (LengthM / 2 - ThresholdSetbackM), CentreY - AlongY * (LengthM / 2 - ThresholdSetbackM));
+        /// <summary>Point along the centreline: d metres past the threshold, s metres right of it.</summary>
+        public (double x, double y) At(double d, double side = 0) => (Threshold.x + AlongX * d - AlongY * side, Threshold.y + AlongY * d + AlongX * side);
+        /// <summary>Headwind component for a wind FROM <paramref name="windFromRad"/> (unit wind).</summary>
+        public double HeadwindFactor(double windFromRad) => System.Math.Cos(HeadingRad - windFromRad);
+    }
+
+    /// <summary>The paved runway end to use: headwind = the end of any paved runway best aligned into the wind;
+    /// crosswind = the other paved runway, its end with the lesser tailwind. Calm wind: main runway, north.</summary>
+    public static RunwayEnd ChooseRunway(Airport a, double windFromRad, bool headwind, double windSpeedMs = 1.0)
+    {
+        var ends = new List<RunwayEnd>();
+        foreach (Strip st in AirportStrips)
+        {
+            if (!IsPaved(st.Kind)) continue;
+            double h = st.HeadingDeg * System.Math.PI / 180;
+            ends.Add(new RunwayEnd(st, h, a.X + st.Dx, a.Y + st.Dy));
+            ends.Add(new RunwayEnd(st, h + System.Math.PI, a.X + st.Dx, a.Y + st.Dy));
+        }
+        if (windSpeedMs < 0.3) { windFromRad = 0; }   // calm: "into the wind" means north on the main
+        RunwayEnd best = ends[0]; double bestF = double.MinValue;
+        foreach (RunwayEnd e in ends) { double f = e.HeadwindFactor(windFromRad); if (f > bestF + 1e-9) { bestF = f; best = e; } }
+        if (headwind || ends.Count <= 2) return headwind ? best : Other(ends, best, windFromRad);
+        return Other(ends, best, windFromRad);
+    }
+
+    private static RunwayEnd Other(List<RunwayEnd> ends, RunwayEnd best, double windFromRad)
+    {
+        RunwayEnd pick = best; double bestF = double.MinValue; bool found = false;
+        foreach (RunwayEnd e in ends)
+        {
+            if (e.Strip.Kind == best.Strip.Kind) continue;
+            double f = e.HeadwindFactor(windFromRad);
+            if (!found || f > bestF + 1e-9) { bestF = f; pick = e; found = true; }
+        }
+        if (!found)   // a single paved runway: the crosswind choice is its downwind end
+            foreach (RunwayEnd e in ends) if (e.Strip.Kind == best.Strip.Kind && System.Math.Abs(e.HeadingRad - best.HeadingRad) > 0.1) pick = e;
+        return pick;
+    }
 
     /// <summary>Hangar centre offset from the airport centre (long axis along x, doors open both ends).</summary>
     public const double HangarDx = -450, HangarDy = 200;

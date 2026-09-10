@@ -93,7 +93,7 @@ namespace FlyingGame.Bridge
             if (IdleStart && config.Floats == null)
             {
                 // On final: 300 ft AGL on the centreline, idle, trimmed at best glide on the best-glide angle.
-                var (fState, glide, _) = ApproachSpawn.Compute(config, ap);
+                var (fState, glide, _) = ApproachSpawn.Compute(config, ap, SessionSettings.ChosenRunway());
                 TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
                 Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, glide.SpoilerFraction)));
                 StartSpoilerFraction = glide.SpoilerFraction;
@@ -117,8 +117,9 @@ namespace FlyingGame.Bridge
             {
                 // At rest at the south threshold of the main paved runway, heading north (+x), sitting on ALL its
                 // wheels (three-point stance for a taildragger — spawned level, the tail dropped and broke off).
-                double x = ap.X - FlyingGame.Core.WorldTerrain.RunwayLengthM * 0.5 + 80.0;
-                RigidBodyState state = FlyingGame.Core.LandingGear.RestingState(config, x, ap.Y, ap.ElevationM);
+                var rw = SessionSettings.ChosenRunway();   // headwind or crosswind runway, lined up on its heading
+                (double sx, double sy) = rw.Start;
+                RigidBodyState state = FlyingGame.Core.LandingGear.RestingState(config, sx, sy, ap.ElevationM, rw.HeadingRad);
                 TrimStick = 0.0;
                 Sim = new SimLoop(new Aircraft(config, state, ControlDeflections.Neutral));
                 ApplyFixedSlats(config);

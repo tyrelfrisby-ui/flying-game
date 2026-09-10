@@ -30,7 +30,7 @@ namespace FlyingGame.Bridge
             _mesh = BubbleField.SharedSphere();
             _material = new Material(Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color"));
             // The soap-bubble shader draws an almost clear body with a bright rim; lift/sink markers must be SOLID.
-            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.25f); _material.SetFloat("_RimAlpha", 0.6f); }   // owner: a quarter
+            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.10f); _material.SetFloat("_RimAlpha", 0.35f); }   // owner 2026-09-10: 10 %
             _props = new MaterialPropertyBlock();
             int side = 2 * HalfCount + 1; _n = side * side * side;
             _w = new float[_n];

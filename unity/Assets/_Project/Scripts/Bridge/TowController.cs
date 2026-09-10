@@ -149,9 +149,12 @@ namespace FlyingGame.Bridge
             if (_pilot == null)
             {
                 var ap = SessionSettings.Airport;
+                var rw = SessionSettings.ChosenRunway();   // the tug flies its pattern in the chosen runway's frame
+                (double tx, double ty) = rw.Start;
                 _pilot = new TugPilot
                 {
-                    ThresholdX = ap.X - FlyingGame.Core.WorldTerrain.RunwayLengthM * 0.5 + 80.0, RunwayY = ap.Y, RunwayElevM = ap.ElevationM,
+                    OriginX = tx, OriginY = ty, RunwayHeadingRad = rw.HeadingRad,
+                    ThresholdX = 0, RunwayY = 0, RunwayElevM = ap.ElevationM, RunwayLengthM = rw.LengthM,
                     TowSpeedMs = TowSpeedMs,
                 };
                 if (!_groundTow) _pilot.GliderReleased = false;

@@ -52,6 +52,7 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
+            ScreenLayout.UpdateAircraftKeepOut(Camera.main, transform);
             if (_driver.Sim == null) return;
             // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();

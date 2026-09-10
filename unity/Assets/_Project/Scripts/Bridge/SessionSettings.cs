@@ -21,6 +21,12 @@ namespace FlyingGame.Bridge
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
         public static Start StartMode = Start.InTheAir;
+        /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
+        /// or the crosswind one.</summary>
+        public enum RunwayPick { Headwind, Crosswind }
+        public static RunwayPick Runway = RunwayPick.Headwind;
+        public static FlyingGame.Core.WorldTerrain.RunwayEnd ChosenRunway() =>
+            FlyingGame.Core.WorldTerrain.ChooseRunway(Airport, WindFromDeg * Mathf.Deg2Rad, Runway == RunwayPick.Headwind, WindSpeedMs);
         public static int AirportIndex = 0;               // WorldTerrain.Airports
         public static string ChallengeId = null;          // null = free flight
         public static float WindFromDeg = 90f;            // compass: wind blows FROM this heading — from the east, onto the

@@ -18,8 +18,25 @@ public sealed class TugPilot
     public string Status { get; private set; } = "rolling";
     public bool WantsRelease { get; private set; }
 
-    // Runway / airport.
+    // Runway / airport. The pilot works in a RUNWAY FRAME: x along the runway heading from Origin, y to its right;
+    // ThresholdX/RunwayY are in that frame (both 0 when Origin is the threshold). Heading 0 / origin 0 = world frame.
     public double ThresholdX, RunwayY, RunwayElevM, RunwayLengthM = 1500;
+    public double OriginX, OriginY, RunwayHeadingRad;
+
+    /// <summary>Test hook for <see cref="Localize"/>.</summary>
+    public RigidBodyState LocalizeForTest(RigidBodyState w) => Localize(w);
+
+    /// <summary>The tug's state seen in the runway frame (position and yaw rotated; body velocity/rates unchanged).</summary>
+    private RigidBodyState Localize(RigidBodyState w)
+    {
+        if (RunwayHeadingRad == 0 && OriginX == 0 && OriginY == 0) return w;
+        double c = Math.Cos(RunwayHeadingRad), sn = Math.Sin(RunwayHeadingRad);
+        double dx = w.Position.X - OriginX, dy = w.Position.Y - OriginY;
+        var pos = new Vec3(dx * c + dy * sn, -dx * sn + dy * c, w.Position.Z);
+        double hh = -RunwayHeadingRad / 2;
+        Quat att = Quat.Multiply(new Quat(0, 0, Math.Sin(hh), Math.Cos(hh)), w.Attitude);
+        return new RigidBodyState(pos, att, w.Velocity, w.Rates);
+    }
     // Tow parameters.
     public double TowSpeedMs = 30.0, ClimbRateMs = 2.5, PatternAglM = 300.0, MaxBankDeg = 20.0;
     /// <summary>Approach speed; 0 = derive 1.3·Vs (flaps down) from the tug's weight and wing area.</summary>
@@ -46,13 +63,13 @@ public sealed class TugPilot
     /// <param name="ropeDirBody">unit vector from the tug's hook toward the glider hook, in the TUG body frame (null if no rope)</param>
     public ControlInputs Update(Aircraft tug, double dt, double ropeTension, Vec3? ropeDirBody)
     {
-        RigidBodyState s = tug.State;
+        RigidBodyState s = Localize(tug.State);
         Quat q = s.Attitude;
         double roll = Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
         double pitch = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
         double psi = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
         double v = s.Velocity.Length;
-        double agl = -s.Position.Z - WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
+        double agl = -s.Position.Z - WorldTerrain.GroundHeightAt(tug.State.Position.X, tug.State.Position.Y);
         Vec3 vWorld = q.Rotate(s.Velocity);
         double sink = vWorld.Z; // + down
         bool onGround = LandingGear.AnyMainWheelOnGround(tug.Config, s);

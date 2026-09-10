@@ -193,13 +193,28 @@ namespace FlyingGame.Bridge
             Vector2 ac = sp.z > 0 ? new Vector2(sp.x, Screen.height - sp.y) : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
             Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, bottom - rad * 1.05f));
-            Vector2 asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
-            Vector2 alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
+            // RULE (owner): no instrument covers the aircraft — each dial is pushed out of the aircraft's screen rect
+            // along its own side (airspeed left, altimeter right, g meter / vario up) before being clamped on screen.
+            Rect ko = ScreenLayout.AircraftKeepOut;   // bottom-left origin
+            Rect koGui = ScreenLayout.HasAircraftKeepOut ? Rect.MinMaxRect(ko.xMin, Screen.height - ko.yMax, ko.xMax, Screen.height - ko.yMin) : new Rect(-1, -1, 0, 0);
+            Vector2 PushOut(Vector2 c, float rad, Vector2 dir)
+            {
+                if (koGui.width <= 0f) return c;
+                for (int i = 0; i < 40; i++)
+                {
+                    var circle = new Rect(c.x - rad, c.y - rad, 2f * rad, 2f * rad);
+                    if (!circle.Overlaps(koGui)) break;
+                    c += dir * (s * 0.02f);
+                }
+                return c;
+            }
+            Vector2 asi = Clamp(PushOut(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r, Vector2.left), r);
+            Vector2 alt = Clamp(PushOut(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r, Vector2.right), r);
             bool glider = aircraft.Config.Propulsion == null;
             float topY = ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s;
             // Glider: g meter and variometer side by side, centred high; powered: g meter alone in the centre.
-            Vector2 gc = Clamp(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr);
-            Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
+            Vector2 gc = Clamp(PushOut(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr, Vector2.up * -1f), gr);
+            Vector2 vc = Clamp(PushOut(new Vector2(ac.x + gr * 1.15f, topY), gr, Vector2.up * -1f), gr);
 
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g);

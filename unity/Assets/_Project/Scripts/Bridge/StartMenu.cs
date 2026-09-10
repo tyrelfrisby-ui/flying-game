@@ -125,7 +125,16 @@ namespace FlyingGame.Bridge
             if (GUI.Button(new Rect(x, y, colW, bh), "On the runway", SessionSettings.StartMode == SessionSettings.Start.OnTheRunway ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnTheRunway;
             y += bh + gap * 0.4f;
             if (GUI.Button(new Rect(x, y, colW, bh), "On final, 300 ft", SessionSettings.StartMode == SessionSettings.Start.OnFinal ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnFinal;
-            y += bh + gap;
+            y += bh + gap * 0.4f;
+            if (SessionSettings.StartMode != SessionSettings.Start.InTheAir)
+            {
+                // Runway choice (owner 2026-09-10): into the wind on the 09/27, or the crosswind main.
+                float half = (colW - gap * 0.3f) / 2f;
+                if (GUI.Button(new Rect(x, y, half, bh), "Headwind", SessionSettings.Runway == SessionSettings.RunwayPick.Headwind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Headwind;
+                if (GUI.Button(new Rect(x + half + gap * 0.3f, y, half, bh), "Crosswind", SessionSettings.Runway == SessionSettings.RunwayPick.Crosswind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Crosswind;
+                y += bh + gap * 0.4f;
+            }
+            y += gap * 0.6f;
             GUI.Label(new Rect(x, y, colW, lh), "AIRPORT", _head); y += lh;
             for (int i = 0; i < FlyingGame.Core.WorldTerrain.Airports.Length; i++)
             {
