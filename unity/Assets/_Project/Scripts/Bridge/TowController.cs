@@ -28,6 +28,22 @@ namespace FlyingGame.Bridge
 
         private void Awake() => _gliderDriver = GetComponent<FlightSimDriver>();
 
+        private void Start() { if (_gliderDriver != null) _gliderDriver.AircraftChanged += EndTow; }
+        private void OnDestroy() { if (_gliderDriver != null) _gliderDriver.AircraftChanged -= EndTow; }
+
+        /// <summary>Reset / aircraft switch: the tow, the tug and the rope all belong to the PREVIOUS aircraft — drop
+        /// them (owner: after a tow the rope kept drawing from the old hook as white lines on the next aircraft).</summary>
+        public void EndTow()
+        {
+            Tow = null;
+            _pilot = null;
+            _tugAircraft = null;
+            _tugDriver = null;
+            _groundTow = false; _powerLatched = false; _tugThrottle01 = 0;
+            if (_tugGo != null) { Destroy(_tugGo); _tugGo = null; }
+            if (_rope != null) { _rope.enabled = false; _rope.positionCount = 0; }
+        }
+
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Y) && !Towing)
