@@ -77,6 +77,7 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
+            if (!SessionSettings.BubblesOn) return;
             if (Follow == null || _mesh == null)
             {
                 return;
@@ -215,7 +216,7 @@ namespace FlyingGame.Bridge
                 if (alpha < 0.02f) continue;
                 _props.SetColor(ColorId, tint);
                 _props.SetFloat(AlphaId, alpha);
-                _props.SetFloat(BodyAlphaId, liftBlink < 1f || w > LiftShowMs || w < -LiftShowMs ? 0.45f : 0.06f);   // lift/sink bubbles half-solid, plain air stays a soap bubble
+                _props.SetFloat(BodyAlphaId, liftBlink < 1f || w > LiftShowMs || w < -LiftShowMs ? 0.25f : 0.06f);   // lift/sink bubbles a quarter solid, plain air stays a soap bubble
                 Graphics.DrawMesh(_mesh, Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size), _material, 0,
                     cam, 0, _props, false, false, false);
             }

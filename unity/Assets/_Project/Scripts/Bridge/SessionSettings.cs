@@ -13,6 +13,11 @@ namespace FlyingGame.Bridge
         public static string AircraftId = "glider-2-33-like";
         public static string TugId = "pa25-pawnee-like";
         public enum InstrumentMode { Analog, Hud, None }
+        /// <summary>Lift/sink markers: Auto = on for gliders, off for powered types; or forced On / Off.</summary>
+        public enum Tri { Auto, On, Off }
+        public static Tri LiftMarkers = Tri.Auto;
+        public static bool BubblesOn = true;
+        public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
         public static Start StartMode = Start.InTheAir;
         public static int AirportIndex = 0;               // WorldTerrain.Airports

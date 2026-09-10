@@ -20,6 +20,7 @@ namespace FlyingGame.Bridge
 
         private Mesh _mesh; private Material _material; private MaterialPropertyBlock _props;
         private Vector3Int _anchor;            // lattice cell the aircraft is in (world lattice, so cells are stable)
+        private FlightSimDriver _driver;
         private float[] _w;                    // sampled vertical air speed per cell (NaN = not yet)
         private int _n, _cursor;
         private static readonly int ColorId = Shader.PropertyToID("_Color"), AlphaId = Shader.PropertyToID("_Alpha");
@@ -29,7 +30,7 @@ namespace FlyingGame.Bridge
             _mesh = BubbleField.SharedSphere();
             _material = new Material(Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color"));
             // The soap-bubble shader draws an almost clear body with a bright rim; lift/sink markers must be SOLID.
-            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.5f); _material.SetFloat("_RimAlpha", 0.9f); }   // owner: half opacity
+            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.25f); _material.SetFloat("_RimAlpha", 0.6f); }   // owner: a quarter
             _props = new MaterialPropertyBlock();
             int side = 2 * HalfCount + 1; _n = side * side * side;
             _w = new float[_n];
@@ -46,6 +47,8 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             if (Follow == null || _w == null || SessionSettings.MenuOpen) return;
+            _driver ??= Follow.GetComponent<FlightSimDriver>();
+            if (!SessionSettings.LiftMarkersVisible(_driver != null ? _driver.AircraftId : SessionSettings.AircraftId)) return;
             Vector3 p = Follow.position;
             var anchor = new Vector3Int(Mathf.RoundToInt(p.x / Spacing), Mathf.RoundToInt(p.y / Spacing), Mathf.RoundToInt(p.z / Spacing));
             if (anchor != _anchor)
