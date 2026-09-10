@@ -21,8 +21,8 @@ namespace FlyingGame.EditorTools
     public static class BuildScript
     {
         // Placeholder reverse-DNS id — NOT branding; the app's real name is still TBD.
-        private const string BundleId = "com.flyinggame.dev";
-        private const string ProductName = "Flying Game";
+        private const string BundleId = "com.tyrelfrisby.aeroplayground";   // App Store Connect app "Aero Playground"
+        private const string ProductName = "Aero Playground";
         private const string ScenePath = "Assets/Scenes/Main.unity";
         private const string DevTeamId = "DH425V439F"; // Apple Development team (automatic signing)
 
