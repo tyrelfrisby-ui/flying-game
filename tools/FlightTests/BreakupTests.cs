@@ -149,6 +149,25 @@ public class BreakupTests
     }
 
     [Fact]
+    public void CrashCrumplesInsteadOfBouncing()
+    {
+        // Owner: a crash bounced 100 ft. A flat 15 m/s slam must not come back up more than a couple of metres.
+        var c = Cub();
+        var ac = Drop(c, new Quat(0, 0, 0, 1), 15.0, 0.05, forwardMs: 25);
+        var sim = new SimLoop(ac);
+        double lowest = 0, reboundPeak = 0; bool hit = false;
+        for (double t = 0; t < 6; t += 0.02)
+        {
+            sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));
+            double up = -ac.State.Position.Z;
+            if (!hit && ac.State.Velocity.Length < 14.5) hit = true;
+            if (hit) { lowest = System.Math.Min(lowest, up); reboundPeak = System.Math.Max(reboundPeak, up); }
+        }
+        _out.WriteLine($"after the slam: lowest CG {lowest:F2} m, highest CG {reboundPeak:F2} m, lost: {string.Join(", ", ac.LostComponents)}");
+        Assert.True(reboundPeak < 2.5, $"bounced to {reboundPeak:F1} m");
+    }
+
+    [Fact]
     public void FuselageStationsBracketTheWingRoot()
     {
         var c = Cub();

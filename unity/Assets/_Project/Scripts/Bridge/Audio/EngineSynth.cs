@@ -331,7 +331,14 @@ namespace FlyingGame.Bridge
             EngineVoice[] voices;
             string name;
             PistonProfile piston = EngineProfiles.PistonFor(id, config);
-            if (piston != null)
+            // Recorded engines: a real Merlin for the P-51 (Resources/Audio/merlin_<rpm>.wav loops); synth fallback.
+            SampleEngineVoice recorded = id.StartsWith("p51") ? SampleEngineVoice.TryBuild("merlin_", fs) : null;
+            if (recorded != null)
+            {
+                voices = new EngineVoice[] { recorded };
+                name = "Merlin V-12 (recorded)";
+            }
+            else if (piston != null)
             {
                 voices = new EngineVoice[count];
                 for (int i = 0; i < count; i++)

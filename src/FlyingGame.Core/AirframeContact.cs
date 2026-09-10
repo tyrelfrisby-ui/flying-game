@@ -69,6 +69,10 @@ public sealed class ImpactRecorder
 public static class AirframeContact
 {
     public const double SpringNPerM = 150000.0, DampNsPerM = 9000.0, FrictionMu = 0.7;
+    /// <summary>A crushed airframe does not spring back: while a point is SEPARATING only this fraction of the stored
+    /// spring force is returned (owner 2026-09-09: "it shouldn't bounce 100 ft in the air"). Restitution ≈ √0.08 ≈ 0.28
+    /// before damping; the rest of the impact energy goes into the structure.</summary>
+    public const double ReboundFraction = 0.08;
     /// <summary>Impact speeds that break the fuselage: tail cone strike → tail boom; mid-fuselage slam → both ends.</summary>
     public const double TailBoomBreakMs = 5.5, CabinBreakMs = 8.0, NoseBreakMs = 6.0;
 
@@ -221,7 +225,9 @@ public static class AirframeContact
                     broken.Add(p.Component);
                 }
             }
-            double n = SpringNPerM * depth + DampNsPerM * System.Math.Max(0.0, closing);
+            double spring = SpringNPerM * depth;
+            if (closing < 0.0) spring *= ReboundFraction;                        // crumpling, not a trampoline
+            double n = spring + DampNsPerM * System.Math.Max(0.0, closing);
             Vec3 f = normal * n;
             // Coulomb friction against the tangential velocity (regularised at low speed).
             Vec3 vt = vel - normal * Vec3.Dot(vel, normal);

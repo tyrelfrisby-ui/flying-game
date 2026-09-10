@@ -513,10 +513,27 @@ namespace FlyingGame.Bridge
                     lbl.transform.localRotation = Quaternion.Euler(0f, face, 0f);
                     lbl.transform.localPosition = Quaternion.Euler(0f, face, 0f) * new Vector3(0f, 0f, -0.5f);   // just in front of its side of the plate
                     var tm = lbl.AddComponent<TextMesh>(); tm.text = (i + 1).ToString(); tm.fontSize = 64; tm.characterSize = 6f; tm.anchor = TextAnchor.MiddleCenter; tm.color = numCol;
+                    // Depth-tested text: the default font material draws through everything (ZTest Always), so the far
+                    // face showed through the plate and doubled the digit (owner). The 3D text shader respects the plate.
+                    var mr = lbl.GetComponent<MeshRenderer>();
+                    if (mr != null && tm.font != null) mr.sharedMaterial = DepthTestedText(tm.font);
                 }
                 if (i == 0) Flag(root, U(e.X, e.Y, g + RaceElement.NumberAglM + 22), false);      // start: green
                 if (i == n - 1) Flag(root, U(e.X, e.Y, g + RaceElement.NumberAglM + 22), true);   // finish: checkered
             }
+        }
+
+        private static readonly Dictionary<Font, Material> _textMats = new();
+
+        /// <summary>Font material that writes/tests depth (GUI/3D Text Shader) so signs occlude their own back face.</summary>
+        private static Material DepthTestedText(Font font)
+        {
+            if (_textMats.TryGetValue(font, out Material m) && m != null) return m;
+            Shader sh = Shader.Find("GUI/3D Text Shader");
+            if (sh == null || font.material == null) return font.material;
+            m = new Material(sh) { mainTexture = font.material.mainTexture };
+            _textMats[font] = m;
+            return m;
         }
 
         /// <summary>A racing pylon: fixed lower 60 % and an inflated top 40 % that can be launched and collapsed.</summary>

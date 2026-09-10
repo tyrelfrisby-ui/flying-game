@@ -60,6 +60,7 @@ namespace FlyingGame.EditorTools
             EnsureAlwaysIncludedShaders();
             EnsureBuiltinFontPreloaded();
             EnsureAppIcon();
+            EnsureEngineLoopsReadable();
             AssetDatabase.SaveAssets();
             Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape+portrait, IL2CPP, ARM64).");
         }
@@ -117,7 +118,7 @@ namespace FlyingGame.EditorTools
         // SceneBootstrap/BubbleField/SoaringScenery look up.
         private static void EnsureAlwaysIncludedShaders()
         {
-            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/Spray", "FlyingGame/Water", "FlyingGame/Waterfall", "FlyingGame/Glass" };
+            string[] names = { "Unlit/Color", "Unlit/Texture", "FlyingGame/Bubble", "FlyingGame/PlanarShadow", "FlyingGame/UnlitTransparent", "FlyingGame/Lit", "FlyingGame/HudLine", "FlyingGame/Terrain", "FlyingGame/Spray", "FlyingGame/Water", "FlyingGame/Waterfall", "FlyingGame/Glass", "GUI/3D Text Shader" };
             var so = new SerializedObject(UnityEngine.Rendering.GraphicsSettings.GetGraphicsSettings());
             SerializedProperty arr = so.FindProperty("m_AlwaysIncludedShaders");
             foreach (string name in names)
@@ -166,6 +167,27 @@ namespace FlyingGame.EditorTools
             preloaded.RemoveAll(a => a is GUISkin);
             changed = true;
             if (changed) PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
+        }
+
+        // The recorded-engine loops are read into float arrays at runtime (AudioClip.GetData), which needs them
+        // decompressed on load; keep them PCM so the loop points stay sample-exact.
+        private static void EnsureEngineLoopsReadable()
+        {
+            foreach (string guid in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/_Project/Resources/Audio" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (AssetImporter.GetAtPath(path) is not AudioImporter imp) continue;
+                AudioImporterSampleSettings st = imp.defaultSampleSettings;
+                if (st.loadType == AudioClipLoadType.DecompressOnLoad && st.compressionFormat == AudioCompressionFormat.PCM && imp.forceToMono) continue;
+                st.loadType = AudioClipLoadType.DecompressOnLoad;
+                st.compressionFormat = AudioCompressionFormat.PCM;
+                st.sampleRateSetting = AudioSampleRateSetting.PreserveSampleRate;
+                imp.defaultSampleSettings = st;
+                imp.forceToMono = true;
+                imp.loadInBackground = false;
+                imp.SaveAndReimport();
+                Debug.Log($"EnsureEngineLoopsReadable: {path} → PCM, decompress on load.");
+            }
         }
 
         // App Store Connect rejects an upload without the 1024×1024 marketing icon; Unity scales one source
