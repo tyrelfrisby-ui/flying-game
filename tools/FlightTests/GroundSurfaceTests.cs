@@ -105,22 +105,22 @@ public class GroundSurfaceTests
     [Fact]
     public void CropDustScoresCoverageAndWireCrossings()
     {
-        double elev = CropField.ElevationM;
-        Assert.InRange(CropField.WireAglAt((CropField.Y0 + CropField.Y1) / 2), 30.4, 30.6);   // 100 ft at mid-span
-        Assert.InRange(CropField.WireAglAt(CropField.PoleY0), 41.9, 42.1);
-        Assert.InRange(CropField.WireX - CropField.X0, 91, 92);                              // 100 yards in
+        double elev = CropField.Valley.ElevationM;
+        Assert.InRange(CropField.Valley.WireAglAt((CropField.Valley.Y0 + CropField.Valley.Y1) / 2), 30.4, 30.6);   // 100 ft at mid-span
+        Assert.InRange(CropField.Valley.WireAglAt(CropField.Valley.PoleY0), 41.9, 42.1);
+        Assert.InRange(CropField.Valley.WireX - CropField.Valley.X0, 91, 92);                              // 100 yards in
         var run = new CropDust();
-        double yc = (CropField.Y0 + CropField.Y1) / 2;
+        double yc = (CropField.Valley.Y0 + CropField.Valley.Y1) / 2;
         // Spray run north across the field at 3 m AGL, straight through under the wires.
-        for (double x = CropField.X0 - 50; x <= CropField.X1 + 50; x += 5) run.Update(new Vec3(x, yc, -(elev + 3)), 3, 40);
+        for (double x = CropField.Valley.X0 - 50; x <= CropField.Valley.X1 + 50; x += 5) run.Update(new Vec3(x, yc, -(elev + 3)), 3, 40);
         Assert.Equal(1, run.PassesUnder); Assert.False(run.WireStrike);
         Assert.InRange(run.Coverage, 0.04, 0.09);   // one 16 m swath over a 300 m wide field
         // Come back south at 200 ft: over the wires, no credit.
-        for (double x = CropField.X1 + 50; x >= CropField.X0 - 50; x -= 5) run.Update(new Vec3(x, yc + 20, -(elev + 60)), 60, 40);
+        for (double x = CropField.Valley.X1 + 50; x >= CropField.Valley.X0 - 50; x -= 5) run.Update(new Vec3(x, yc + 20, -(elev + 60)), 60, 40);
         Assert.Equal(1, run.PassesUnder); Assert.Equal(1, run.CrossingsOver);
         // Third run right at wire height: strike.
-        double wire = CropField.WireAglAt(yc + 40);
-        for (double x = CropField.X0 - 50; x <= CropField.X1; x += 5) run.Update(new Vec3(x, yc + 40, -(elev + wire)), wire, 40);
+        double wire = CropField.Valley.WireAglAt(yc + 40);
+        for (double x = CropField.Valley.X0 - 50; x <= CropField.Valley.X1; x += 5) run.Update(new Vec3(x, yc + 40, -(elev + wire)), wire, 40);
         Assert.True(run.WireStrike);
         Assert.False(run.Spraying);
     }

@@ -34,8 +34,8 @@ public class WaterfallTests
             double above = t.WaterSurfaceAt(f.X, f.LipY - 2) ?? double.NaN;
             double below = t.WaterSurfaceAt(f.X, f.LipY + 2) ?? double.NaN;
             Assert.False(double.IsNaN(above)); Assert.False(double.IsNaN(below));
-            // A ~900 m fall in 4 m of river: a free-fall lip, not a slide.
-            Assert.True(above - below > 700, $"fall {f.Step}: drop {above - below:F0} m");
+            // A full-step fall in 4 m of river: a free-fall lip, not a slide.
+            Assert.True(above - below > WorldTerrain.StepHeightM - 200, $"fall {f.Step}: drop {above - below:F0} m");
             // On the shelf the river is still at the upper level all the way back to the wall.
             double onShelf = t.WaterSurfaceAt(f.X, f.LipY - WorldTerrain.FallRecessM + 2) ?? double.NaN;
             Assert.Equal(above, onShelf, 2.0);

@@ -7,9 +7,11 @@ namespace FlyingGame.Core;
 ///
 /// Layout (owner request): the base airport sits on a plain at sea level. To the WEST the land rises
 /// in three steep, irregular escarpments — canyon-wall steps, not straight lines — each to a plateau
-/// with its own airport, progressively higher for density-altitude work:
-///   A0  0 m (origin)  ·  A1 900 m  ·  A2 1800 m  ·  A3 2700 m (≈ 8,900 ft).
-/// Every airport has a lake and the river winds down the steps past all four (waterfalls at each wall).
+/// with its own airport, progressively higher for density-altitude work (owner 2026-09-09: 1,500 ft a step):
+///   A0  0 ft (origin)  ·  A1 1,500 ft  ·  A2 3,000 ft  ·  A3 4,500 ft.
+/// Every plateau carries the SAME landscape as the Valley — airport, lake, bridge, crop field, aerobatic box,
+/// race course, arch, tower and town — shifted by <see cref="PlateauDy"/> in y and up to the plateau's
+/// elevation. The river winds down the steps past all four airports (waterfalls at each wall).
 /// </summary>
 public sealed class WorldTerrain
 {
@@ -20,11 +22,14 @@ public sealed class WorldTerrain
     public static double GroundHeightAt(double x, double y) => Active?.HeightAt(x, y) ?? 0.0;
 
     // ---- layout ---------------------------------------------------------------------------------
-    public const double StepHeightM = 900.0;
-    public const double StepSpacingM = 3000.0;
+    public const double StepHeightM = 457.2;       // 1,500 ft a step
+    public const double StepSpacingM = 4200.0;     // wall to wall: room for the whole Valley layout on every plateau
     public const double FirstEdgeY = -1400.0;      // mean y of the first escarpment (walls run along x)
-    public const double EscarpmentWidthM = 360.0;  // horizontal run of one wall (talus + cliff)
+    public const double EscarpmentWidthM = 183.0;  // horizontal run of one wall (talus + cliff) — same profile as the old 900 m wall
     public const int StepCount = 3;
+    /// <summary>Each upper airport sits this far west of its plateau's east (lower) edge, so the landscape laid out
+    /// around the Valley airport (tower/arch 1 km west of it, race course 2.1 km east) fits between the walls.</summary>
+    public const double PlateauAirportOffsetM = 2600.0;
 
     public readonly struct Airport
     {
@@ -36,10 +41,16 @@ public sealed class WorldTerrain
     public static readonly Airport[] Airports =
     {
         new("Valley", 400, 0, 0),
-        new("Bench", 400, FirstEdgeY - StepSpacingM * 0.5, StepHeightM),
-        new("Mesa", 400, FirstEdgeY - StepSpacingM * 1.5, StepHeightM * 2),
-        new("Summit", 400, FirstEdgeY - StepSpacingM * 2.5, StepHeightM * 3),
+        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, StepHeightM),
+        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, StepHeightM * 2),
+        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, StepHeightM * 3),
     };
+
+    /// <summary>Number of plateaus (one per airport); the Valley is plateau 0.</summary>
+    public static int PlateauCount => Airports.Length;
+
+    /// <summary>y shift that carries a Valley-plateau feature onto plateau <paramref name="p"/> (airports share x).</summary>
+    public static double PlateauDy(int p) => Airports[System.Math.Clamp(p, 0, Airports.Length - 1)].Y - Airports[0].Y;
 
     public const double RunwayLengthM = 1500.0;   // main paved runway along x, centred on Airport.X
     public const double RunwayWidthM = 30.0;

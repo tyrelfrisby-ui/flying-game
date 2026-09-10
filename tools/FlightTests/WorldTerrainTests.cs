@@ -27,17 +27,18 @@ public class WorldTerrainTests
             }
         }
         Assert.Equal(0, WorldTerrain.Airports[0].ElevationM);
-        Assert.Equal(2700, WorldTerrain.Airports[3].ElevationM);
+        Assert.Equal(WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 4,500 ft
+        Assert.InRange(WorldTerrain.StepHeightM * 3.28084, 1499, 1501);                     // 1,500 ft a step
     }
 
     [Fact]
     public void WallsAreSteepAndIrregular()
     {
         var t = new WorldTerrain();
-        // Crossing the first wall at x=0: 900 m rise within the escarpment width; the cliff band exceeds 60°.
+        // Crossing the first wall at x=0: one full step within the escarpment width; the cliff band exceeds 60°.
         double edge = WorldTerrain.EdgeMeanY(0) + WorldTerrain.EdgeWander(0, 0);
         double low = t.BaseHeightAt(0, edge + 50), high = t.BaseHeightAt(0, edge - WorldTerrain.EscarpmentWidthM - 50);
-        Assert.InRange(high - low, 850, 950);
+        Assert.InRange(high - low, WorldTerrain.StepHeightM - 50, WorldTerrain.StepHeightM + 50);
         double maxSlope = 0;
         for (double y = edge; y > edge - WorldTerrain.EscarpmentWidthM; y -= 5)
         {
@@ -61,7 +62,7 @@ public class WorldTerrainTests
         }
         double y = WorldTerrain.Airports[1].Y;
         double? river = t.WaterSurfaceAt(WorldTerrain.RiverCentreX(y), y);
-        Assert.True(river.HasValue && river!.Value < 900 - 5 && river.Value > 900 - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
+        Assert.True(river.HasValue && river!.Value < WorldTerrain.StepHeightM - 5 && river.Value > WorldTerrain.StepHeightM - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
         Assert.Null(t.WaterSurfaceAt(0, 0)); // runway is dry
     }
 
@@ -98,7 +99,7 @@ public class WorldTerrainTests
     [Fact]
     public void GearUsesTerrainHeight()
     {
-        // A wheel resting on the Summit runway must see the ground at 2700 m: place the glider there.
+        // A wheel resting on the Summit runway must see the ground at the Summit elevation: place the glider there.
         WorldTerrain.Active = new WorldTerrain();
         try
         {

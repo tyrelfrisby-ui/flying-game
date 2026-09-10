@@ -135,15 +135,16 @@ namespace FlyingGame.Bridge
             string ch = SessionSettings.ChallengeId;
             if (ch == "event:race")
             {
-                var g = RaceCourse.Elements[0];
+                var g = RaceCourse.ElementsFor(SessionSettings.AirportIndex)[0];   // this plateau's course
                 spawnX = g.X - g.Forward.X * 800; spawnY = g.Y - g.Forward.Y * 800; spawnHdg = g.HeadingDeg * System.Math.PI / 180;
                 spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 60;
             }
             else if (ch == "event:dust")
             {
                 // Crop dusting: 1 km south of the field at 40 m AGL heading north — the wires are 100 yards in.
-                spawnX = CropField.X0 - 1000; spawnY = (CropField.Y0 + CropField.Y1) / 2;
-                spawnAlt = CropField.ElevationM + 40;
+                CropField f = CropField.For(SessionSettings.AirportIndex);   // this plateau's field
+                spawnX = f.X0 - 1000; spawnY = (f.Y0 + f.Y1) / 2;
+                spawnAlt = f.ElevationM + 40;
             }
             else if (ch == "event:stol")
             {

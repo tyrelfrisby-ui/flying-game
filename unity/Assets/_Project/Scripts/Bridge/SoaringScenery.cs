@@ -20,16 +20,23 @@ namespace FlyingGame.Bridge
 
         private void BuildThermals()
         {
-            // A scattering of thermals over the farm grid, various strengths.
-            (Vec3 pos, double r, double core, double top)[] set =
+            // A scattering of thermals over the farm grid, various strengths — the same set on every plateau
+            // (positions relative to that plateau's airport, tops relative to its elevation).
+            (Vec3 pos, double r, double core, double top)[] valley =
             {
                 (new Vec3(300, 300, 0), 120, 4.5, 1800),
                 (new Vec3(-200, 500, 0), 90, 3.0, 1400),
                 (new Vec3(800, -200, 0), 140, 5.5, 2200),
                 (new Vec3(200, -600, 0), 100, 3.5, 1600),
-                // The ploughed farmer's field north of the Valley runway: dark earth, a strong, wide thermal.
-                (new Vec3((CropField.X0 + CropField.X1) / 2, (CropField.Y0 + CropField.Y1) / 2, -CropField.ElevationM), 160, 5.0, 2200),
+                // The ploughed farmer's field north of the runway: dark earth, a strong, wide thermal.
+                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 160, 5.0, 2200),
             };
+            var set = new System.Collections.Generic.List<(Vec3 pos, double r, double core, double top)>();
+            for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+            {
+                double dy = WorldTerrain.PlateauDy(p), elev = WorldTerrain.Airports[p].ElevationM;
+                foreach (var (pos, r, core, top) in valley) set.Add((new Vec3(pos.X, pos.Y + dy, -elev), r, core, top + elev));
+            }
             foreach (var (pos, r, core, top) in set)
             {
                 var th = new Thermal(pos, r, core, top);

@@ -44,13 +44,20 @@ namespace FlyingGame.Bridge
             BuildWater(WorldTerrain.Active, root.transform);
             BuildWaterfalls(WorldTerrain.Active, root.transform);
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
-            BuildBridge(WorldTerrain.Active, root.transform);
-            BuildCropField(WorldTerrain.Active, root.transform);
-            BuildLandmarks(WorldTerrain.Active, root.transform);
+            // The same landscape on every plateau (owner 2026-09-09): bridge, crop field, landmarks, aerobatic
+            // box and race course are built once per step, shifted by WorldTerrain.PlateauDy.
+            CropFieldMeshes = new Mesh[WorldTerrain.PlateauCount];
+            PylonTops.Clear();
+            for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+            {
+                BuildBridge(WorldTerrain.Active, root.transform, p);
+                BuildCropField(WorldTerrain.Active, root.transform, p);
+                BuildLandmarks(WorldTerrain.Active, root.transform, p);
+                BuildAeroBox(WorldTerrain.Active, root.transform, p);
+                BuildRaceCourse(WorldTerrain.Active, root.transform, p);
+            }
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
-            BuildAeroBox(WorldTerrain.Active, root.transform);
-            BuildRaceCourse(WorldTerrain.Active, root.transform);
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
             // lee) — replaces the old single Gaussian lift band.
             Atmosphere.ActiveRidge = null;
@@ -60,7 +67,7 @@ namespace FlyingGame.Bridge
 
         // ---- terrain mesh ------------------------------------------------------------------------
 
-        private const double MinX = -7000, MaxX = 9000, MinY = -11500, MaxY = 6500;
+        private const double MinX = -7000, MaxX = 9000, MinY = -15000, MaxY = 6500;   // MinY: past the Summit plateau's tower road
 
         private const double CoarseStep = 60.0, FineStep = 6.0;
 
@@ -354,13 +361,13 @@ namespace FlyingGame.Bridge
 
         // ---- bridge over the gorge (a road crossing abeam the Valley airport) ---------------------
 
-        private static void BuildBridge(WorldTerrain t, Transform parent)
+        private static void BuildBridge(WorldTerrain t, Transform parent, int p)
         {
-            double y = WorldTerrain.BridgeY;
+            double y = WorldTerrain.BridgeY + WorldTerrain.PlateauDy(p);
             double cx = WorldTerrain.RiverCentreX(y);
             double halfSpan = WorldTerrain.GorgeHalfWidthAt(y) + 60;
             double deck = t.BaseHeightAt(cx - halfSpan - 40, y) + 1.5;   // rim level
-            var root = new GameObject("Bridge");
+            var root = new GameObject($"Bridge{p}");
             root.transform.SetParent(parent, false);
             var steel = new Color(0.55f, 0.2f, 0.18f);
             var concrete = new Color(0.7f, 0.7f, 0.68f);
@@ -413,11 +420,11 @@ namespace FlyingGame.Bridge
 
         // ---- IAC aerobatic box: white ground markers (corner Ls, mid-side bars, centre cross) --------
 
-        private static void BuildAeroBox(WorldTerrain t, Transform parent)
+        private static void BuildAeroBox(WorldTerrain t, Transform parent, int p)
         {
-            var root = new GameObject("AeroBox");
+            var root = new GameObject($"AeroBox{p}");
             root.transform.SetParent(parent, false);
-            double cx = AeroBox.CenterX, cy = AeroBox.CenterY, h = AeroBox.SizeM / 2;
+            double cx = AeroBox.CenterX, cy = AeroBox.CenterYAt(p), h = AeroBox.SizeM / 2;
             double z = t.HeightAt(cx, cy) + 0.08;
             foreach (double sx in new[] { -1.0, 1.0 })
             foreach (double sy in new[] { -1.0, 1.0 })
@@ -471,27 +478,27 @@ namespace FlyingGame.Bridge
 
         // ---- Air Racing course: pylons (base + burstable inflated top), rotating numbers 300 ft up, flags ----
 
-        /// <summary>Burstable pylon tops by (element, side) — the race controller launches one on a wing strike.</summary>
-        public static readonly Dictionary<(int, int), PylonTopBurst> PylonTops = new();
+        /// <summary>Burstable pylon tops by (plateau, element, side) — the race controller launches one on a wing strike.</summary>
+        public static readonly Dictionary<(int, int, int), PylonTopBurst> PylonTops = new();
 
-        private static void BuildRaceCourse(WorldTerrain t, Transform parent)
+        private static void BuildRaceCourse(WorldTerrain t, Transform parent, int p)
         {
-            var root = new GameObject("RaceCourse");
+            var root = new GameObject($"RaceCourse{p}");
             root.transform.SetParent(parent, false);
-            PylonTops.Clear();
+            RaceElement[] els = RaceCourse.ElementsFor(p);
             var blue = new Color(0.15f, 0.35f, 0.85f); var red = new Color(0.85f, 0.15f, 0.15f); var white = Color.white;
-            foreach ((int el, int side, double px, double py) in RaceCourse.Pylons())
+            foreach ((int el, int side, double px, double py) in RaceCourse.Pylons(p))
             {
                 double g = t.HeightAt(px, py);
-                bool gate = RaceCourse.Elements[el].Kind == RaceElement.Kinds.Gate;
+                bool gate = els[el].Kind == RaceElement.Kinds.Gate;
                 PylonTopBurst top = Pylon(root, U(px, py, g), (float)RaceElement.GateHeightM, gate ? blue : red, white);
                 top.SetGround((float)g);
-                PylonTops[(el, side)] = top;
+                PylonTops[(p, el, side)] = top;
             }
-            int n = RaceCourse.Elements.Length;
+            int n = els.Length;
             for (int i = 0; i < n; i++)
             {
-                RaceElement e = RaceCourse.Elements[i];
+                RaceElement e = els[i];
                 double g = t.HeightAt(e.X, e.Y);
                 // Big number 300 ft over the element, turning once every 5 s, readable from both sides.
                 var num = new GameObject($"Number{i + 1}"); num.transform.SetParent(root.transform, false);
@@ -697,22 +704,25 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>The ploughed field's cell mesh (recoloured as the crop duster covers it) — null until built.</summary>
-        public static Mesh CropFieldMesh { get; private set; }
+        /// <summary>Crop-field meshes by plateau (their vertex colours green up as the field is sprayed).</summary>
+        public static Mesh[] CropFieldMeshes { get; private set; } = new Mesh[0];
+        public static Mesh CropFieldMesh => CropFieldMeshes.Length > 0 ? CropFieldMeshes[0] : null;
         public static readonly Color Ploughed = new(0.36f, 0.25f, 0.15f), Sprayed = new(0.30f, 0.42f, 0.18f);
 
         /// <summary>Farmer's field north of the Valley runway: ploughed furrows along the runway heading, and the
         /// power line crossing it 100 yards from the south end (two poles outside the field, three conductors
         /// sagging to 100 ft AGL at mid-span).</summary>
-        private static void BuildCropField(WorldTerrain t, Transform parent)
+        private static void BuildCropField(WorldTerrain t, Transform parent, int p)
         {
-            var root = new GameObject("CropField"); root.transform.SetParent(parent, false);
+            CropField f = CropField.For(p);
+            var root = new GameObject($"CropField{p}"); root.transform.SetParent(parent, false);
             int nx = CropField.CellsX, ny = CropField.CellsY;
             var verts = new Vector3[nx * ny * 4]; var cols = new Color[verts.Length]; var tris = new int[nx * ny * 6];
-            int v = 0, k = 0; double elev = CropField.ElevationM + 0.05;
+            int v = 0, k = 0; double elev = f.ElevationM + 0.05;
             for (int i = 0; i < nx; i++)
             for (int j = 0; j < ny; j++)
             {
-                double x0 = CropField.X0 + i * CropField.CellM, y0 = CropField.Y0 + j * CropField.CellM;
+                double x0 = f.X0 + i * CropField.CellM, y0 = f.Y0 + j * CropField.CellM;
                 // Furrows run along x: alternate cell rows darker.
                 Color c = j % 2 == 0 ? Ploughed : Ploughed * 0.85f; c.a = 1f;
                 int b = v;
@@ -728,31 +738,31 @@ namespace FlyingGame.Bridge
             var go = new GameObject("Field"); go.transform.SetParent(root.transform, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
-            CropFieldMesh = mesh;
+            CropFieldMeshes[p] = mesh;
 
             // Power line: poles + crossarms, three conductors.
             var pole = new Color(0.45f, 0.4f, 0.35f); var wire = new Color(0.1f, 0.1f, 0.1f);
-            double ground = t.HeightAt(CropField.WireX, CropField.PoleY0);
-            foreach (double py in new[] { CropField.PoleY0, CropField.PoleY1 })
+            double ground = t.HeightAt(f.WireX, f.PoleY0);
+            foreach (double py in new[] { f.PoleY0, f.PoleY1 })
             {
-                double g = t.HeightAt(CropField.WireX, py);
-                var p = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(p.GetComponent<Collider>());
-                p.name = "Pole"; p.transform.SetParent(root.transform, false);
-                p.transform.position = U(CropField.WireX, py, g + CropField.PoleHeightM / 2);
-                p.transform.localScale = new Vector3(1.2f, (float)CropField.PoleHeightM / 2, 1.2f);
-                p.GetComponent<MeshRenderer>().sharedMaterial = Lit(pole);
-                WBox(root, "Crossarm", U(CropField.WireX, py, g + CropField.PoleHeightM), new Vector3(0.4f, 0.4f, (float)(CropField.WireSpacingM * 2 + 1.0)), pole);
+                double g = t.HeightAt(f.WireX, py);
+                var poleGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(poleGo.GetComponent<Collider>());
+                poleGo.name = "Pole"; poleGo.transform.SetParent(root.transform, false);
+                poleGo.transform.position = U(f.WireX, py, g + CropField.PoleHeightM / 2);
+                poleGo.transform.localScale = new Vector3(1.2f, (float)CropField.PoleHeightM / 2, 1.2f);
+                poleGo.GetComponent<MeshRenderer>().sharedMaterial = Lit(pole);
+                WBox(root, "Crossarm", U(f.WireX, py, g + CropField.PoleHeightM), new Vector3(0.4f, 0.4f, (float)(CropField.WireSpacingM * 2 + 1.0)), pole);
             }
             for (int w = -1; w <= 1; w++)
             {
-                double wx = CropField.WireX + w * CropField.WireSpacingM;
+                double wx = f.WireX + w * CropField.WireSpacingM;
                 var lr = new GameObject($"Wire{w}").AddComponent<LineRenderer>();
                 lr.transform.SetParent(root.transform, false);
                 const int n = 33; var pts = new Vector3[n];
                 for (int i = 0; i < n; i++)
                 {
-                    double y = CropField.PoleY0 + (CropField.PoleY1 - CropField.PoleY0) * i / (n - 1);
-                    pts[i] = U(wx, y, ground + CropField.WireAglAt(y));
+                    double y = f.PoleY0 + (f.PoleY1 - f.PoleY0) * i / (n - 1);
+                    pts[i] = U(wx, y, ground + f.WireAglAt(y));
                 }
                 lr.positionCount = n; lr.SetPositions(pts);
                 lr.startWidth = lr.endWidth = 0.35f; lr.useWorldSpace = true; lr.alignment = LineAlignment.View;
@@ -762,12 +772,14 @@ namespace FlyingGame.Bridge
 
         // ---- landmarks: arch over the river, tower with a road under it, the town ----------------------
 
-        private static void BuildLandmarks(WorldTerrain t, Transform parent)
+        private static void BuildLandmarks(WorldTerrain t, Transform parent, int p)
         {
-            var root = new GameObject("Landmarks"); root.transform.SetParent(parent, false);
+            var root = new GameObject($"Landmarks{p}"); root.transform.SetParent(parent, false);
             var steel = new Color(0.72f, 0.74f, 0.78f);
+            // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)).
+            double archY = Landmarks.ArchYAt(p), towerY = Landmarks.TowerYAt(p), townY0 = Landmarks.TownY0At(p);
             // Gateway arch: tapered segments along the parabola, spanning the river in its gorge.
-            double cx = Landmarks.ArchCentreX, baseUp = Landmarks.ArchBaseUp(t);
+            double cx = Landmarks.ArchCentreXAt(p), baseUp = Landmarks.ArchBaseUp(t, p);
             const int n = 40;
             for (int i = 0; i < n; i++)
             {
@@ -775,19 +787,19 @@ namespace FlyingGame.Bridge
                 double x0 = u0 * Landmarks.ArchHalfSpanM, x1 = u1 * Landmarks.ArchHalfSpanM;
                 double h0 = Landmarks.ArchHeightAt(x0), h1 = Landmarks.ArchHeightAt(x1);
                 double um = (u0 + u1) / 2, w = Landmarks.ArchLegWidthM + (Landmarks.ArchTopWidthM - Landmarks.ArchLegWidthM) * (1 - um * um);
-                Vector3 a = U(cx + x0, Landmarks.ArchY, baseUp + h0), b = U(cx + x1, Landmarks.ArchY, baseUp + h1);
+                Vector3 a = U(cx + x0, archY, baseUp + h0), b = U(cx + x1, archY, baseUp + h1);
                 Beam(root, "ArchSeg", a, b, (float)w, (float)w, steel);
             }
             // Legs reach down to the wall they stand on.
             foreach (double sgn in new[] { -1.0, 1.0 })
             {
                 double lx = cx + sgn * Landmarks.ArchHalfSpanM;
-                Beam(root, "ArchLeg", U(lx, Landmarks.ArchY, t.HeightAt(lx, Landmarks.ArchY) - 25), U(lx, Landmarks.ArchY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
+                Beam(root, "ArchLeg", U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
             }
 
             // Eiffel-style tower: four curving legs meeting in a slim top, three floors; a road runs under it.
             var iron = new Color(0.45f, 0.33f, 0.25f);
-            double tg = t.HeightAt(Landmarks.TowerX, Landmarks.TowerY);
+            double tg = t.HeightAt(Landmarks.TowerX, towerY);
             foreach ((double sx, double sy) in new[] { (-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0) })
             {
                 const int segs = 14; double prevH = 0;
@@ -796,12 +808,12 @@ namespace FlyingGame.Bridge
                     double h = Landmarks.TowerHeightM * i / segs;
                     double r0 = Landmarks.TowerHalfAt(prevH), r1 = Landmarks.TowerHalfAt(h);
                     float thick = (float)(6.0 * (1 - h / Landmarks.TowerHeightM) + 1.5);
-                    Beam(root, "TowerLeg", U(Landmarks.TowerX + sx * r0, Landmarks.TowerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, Landmarks.TowerY + sy * r1, tg + h), thick, thick, iron);
+                    Beam(root, "TowerLeg", U(Landmarks.TowerX + sx * r0, towerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, towerY + sy * r1, tg + h), thick, thick, iron);
                     // Lattice cross-braces between neighbouring legs at each segment.
                     if (sx < 0 && i <= segs)
                     {
-                        Beam(root, "Brace", U(Landmarks.TowerX - r1, Landmarks.TowerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, Landmarks.TowerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
-                        Beam(root, "Brace", U(Landmarks.TowerX + sy * r1, Landmarks.TowerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, Landmarks.TowerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        Beam(root, "Brace", U(Landmarks.TowerX - r1, towerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, towerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        Beam(root, "Brace", U(Landmarks.TowerX + sy * r1, towerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, towerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
                     }
                     prevH = h;
                 }
@@ -809,7 +821,7 @@ namespace FlyingGame.Bridge
             foreach (double fh in new[] { Landmarks.TowerFirstFloorM, Landmarks.TowerSecondFloorM, Landmarks.TowerTopFloorM })
             {
                 float half = (float)Landmarks.TowerHalfAt(fh) + 4f;
-                WBox(root, "TowerFloor", U(Landmarks.TowerX, Landmarks.TowerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
+                WBox(root, "TowerFloor", U(Landmarks.TowerX, towerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
             }
             // First-floor arches (the road passes under them): a low curved beam between the legs on each side.
             foreach (double sy in new[] { -1.0, 1.0 })
@@ -818,25 +830,25 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < 12; i++)
                 {
                     double a0 = System.Math.PI * i / 12, a1 = System.Math.PI * (i + 1) / 12;
-                    Beam(root, "TowerArch", U(Landmarks.TowerX - r * System.Math.Cos(a0), Landmarks.TowerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
-                                            U(Landmarks.TowerX - r * System.Math.Cos(a1), Landmarks.TowerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a1)), 2.5f, 2.5f, iron);
+                    Beam(root, "TowerArch", U(Landmarks.TowerX - r * System.Math.Cos(a0), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
+                                            U(Landmarks.TowerX - r * System.Math.Cos(a1), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a1)), 2.5f, 2.5f, iron);
                 }
             }
-            Slab(root.transform, "TowerRoad", Landmarks.TowerX, Landmarks.TowerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
+            Slab(root.transform, "TowerRoad", Landmarks.TowerX, towerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
-                Slab(root.transform, "RoadDash", Landmarks.TowerX + d, Landmarks.TowerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
+                Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
 
             // The town: streets, then buildings (skyscrapers downtown, bungalows at the edge), the sky bridge.
-            double ground = t.HeightAt(Landmarks.TownCentreX, Landmarks.TownCentreY);
+            double ground = t.HeightAt(Landmarks.TownCentreX, Landmarks.TownCentreYAt(p));
             double pitch = Landmarks.BlockM + Landmarks.StreetM;
             double lenX = Landmarks.TownBlocksX * pitch, lenY = Landmarks.TownBlocksY * pitch;
             for (int i = 0; i <= Landmarks.TownBlocksX; i++)
-                Slab(root.transform, "Street", Landmarks.TownX0 + i * pitch, Landmarks.TownY0 + lenY / 2, ground + 0.05, Landmarks.StreetM, lenY, 0.08, 90, Asphalt);
+                Slab(root.transform, "Street", Landmarks.TownX0 + i * pitch, townY0 + lenY / 2, ground + 0.05, Landmarks.StreetM, lenY, 0.08, 90, Asphalt);
             for (int j = 0; j <= Landmarks.TownBlocksY; j++)
-                Slab(root.transform, "Avenue", Landmarks.TownX0 + lenX / 2, Landmarks.TownY0 + j * pitch, ground + 0.05, lenX, Landmarks.StreetM, 0.08, 0, Asphalt);
+                Slab(root.transform, "Avenue", Landmarks.TownX0 + lenX / 2, townY0 + j * pitch, ground + 0.05, lenX, Landmarks.StreetM, 0.08, 0, Asphalt);
             Color[] palette = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.5f, 0.42f), new(0.85f, 0.85f, 0.88f) };
             var glass = new Color(0.45f, 0.62f, 0.8f);
-            foreach (Landmarks.Building b in Landmarks.Buildings())
+            foreach (Landmarks.Building b in Landmarks.Buildings(p))
             {
                 Color c = b.Style >= 8 ? glass : palette[System.Math.Min(b.Style, palette.Length - 1)];
                 if (b.Style == 9)
@@ -853,7 +865,7 @@ namespace FlyingGame.Bridge
                 if (b.HeightM > 100) WBox(root, "Roof", U(b.Cx, b.Cy, ground + b.HeightM + 3), new Vector3((float)b.Hy, 6f, (float)b.Hx), c * 0.8f);
             }
             double bx = Landmarks.TownX0 + Landmarks.StreetM / 2 + 8 * pitch + Landmarks.BlockM / 2 + pitch / 2;
-            double by = Landmarks.TownY0 + Landmarks.StreetM / 2 + 5 * pitch + Landmarks.BlockM / 2;
+            double by = townY0 + Landmarks.StreetM / 2 + 5 * pitch + Landmarks.BlockM / 2;
             WBox(root, "SkyBridge", U(bx, by, ground + Landmarks.SkyBridgeHeightM + Landmarks.SkyBridgeDepthM / 2), new Vector3(12f, (float)Landmarks.SkyBridgeDepthM, (float)pitch), glass);
         }
 

@@ -2,17 +2,21 @@ using FlyingGame.Core.MathTypes;
 
 namespace FlyingGame.Core;
 
-/// <summary>Marked IAC aerobatic box beside the Valley runway (its west edge 500 m east of the centreline):
-/// 1,000 m square, floor 328 ft, ceiling 3,500 ft — drawn as a glass box in the sky.</summary>
+/// <summary>Marked IAC aerobatic box beside every runway (its west edge 500 m east of the centreline):
+/// 1,000 m square, floor 328 ft, ceiling 3,500 ft — drawn as a glass box in the sky. The constants are the
+/// Valley box; <see cref="CenterYAt"/> gives the copy on plateau p.</summary>
 public static class AeroBox
 {
     public const double CenterX = 400, CenterY = 1000, SizeM = 1000.0;
     public const double FloorAglM = 100.0, CeilingAglM = 1067.0;
+    public static double CenterYAt(int p) => CenterY + WorldTerrain.PlateauDy(p);
     public static bool Inside(Vec3 pos)
     {
         double agl = -pos.Z - WorldTerrain.GroundHeightAt(pos.X, pos.Y);
-        return System.Math.Abs(pos.X - CenterX) <= SizeM / 2 && System.Math.Abs(pos.Y - CenterY) <= SizeM / 2
-               && agl >= FloorAglM && agl <= CeilingAglM;
+        if (System.Math.Abs(pos.X - CenterX) > SizeM / 2 || agl < FloorAglM || agl > CeilingAglM) return false;
+        for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+            if (System.Math.Abs(pos.Y - CenterYAt(p)) <= SizeM / 2) return true;
+        return false;
     }
 }
 
@@ -34,7 +38,8 @@ public sealed class RaceElement
 /// <summary>"Air Racing" (owner request; no brand names): a COMPACT track east of the Valley runway, laid out the
 /// way the pylon-racing world championship tracks are — start gate, a gate, a three-pylon chicane, a gate, a
 /// vertical turning pylon at the far end, then back through two gates and a chicane to a separate finish gate.
-/// About 750 × 350 m. Elements are taken IN ORDER; the rotating numbers 300 ft above each element show the way.</summary>
+/// About 750 × 350 m. Elements are taken IN ORDER; the rotating numbers 300 ft above each element show the way.
+/// <see cref="Elements"/> is the Valley course; <see cref="ElementsFor"/> the identical copy on plateau p.</summary>
 public static class RaceCourse
 {
     public static readonly RaceElement[] Elements =
@@ -53,14 +58,36 @@ public static class RaceCourse
         new() { Kind = RaceElement.Kinds.Gate, X = 900, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
     };
 
-    /// <summary>Every pylon on the course: element index, side (−1 left / +1 right of a gate, 0 for a single pylon)
+    private static readonly Dictionary<int, RaceElement[]> _byPlateau = new();
+
+    /// <summary>The course on plateau <paramref name="p"/>: the Valley elements shifted by <see cref="WorldTerrain.PlateauDy"/>.</summary>
+    public static RaceElement[] ElementsFor(int p)
+    {
+        if (p == 0) return Elements;
+        lock (_byPlateau)
+        {
+            if (_byPlateau.TryGetValue(p, out RaceElement[]? cached)) return cached;
+            double dy = WorldTerrain.PlateauDy(p);
+            var arr = new RaceElement[Elements.Length];
+            for (int i = 0; i < arr.Length; i++) arr[i] = new RaceElement { Kind = Elements[i].Kind, X = Elements[i].X, Y = Elements[i].Y + dy, HeadingDeg = Elements[i].HeadingDeg };
+            _byPlateau[p] = arr;
+            return arr;
+        }
+    }
+
+    /// <summary>Every pylon on the Valley course: element index, side (−1 left / +1 right of a gate, 0 for a single pylon)
     /// and its base position (x, y).</summary>
-    public static List<(int element, int side, double x, double y)> Pylons()
+    public static List<(int element, int side, double x, double y)> Pylons() => PylonsOf(Elements);
+
+    /// <summary>Every pylon on the plateau-<paramref name="p"/> course.</summary>
+    public static List<(int element, int side, double x, double y)> Pylons(int p) => PylonsOf(ElementsFor(p));
+
+    public static List<(int element, int side, double x, double y)> PylonsOf(RaceElement[] elements)
     {
         var list = new List<(int, int, double, double)>();
-        for (int i = 0; i < Elements.Length; i++)
+        for (int i = 0; i < elements.Length; i++)
         {
-            RaceElement e = Elements[i];
+            RaceElement e = elements[i];
             if (e.Kind == RaceElement.Kinds.Gate)
             {
                 Vec3 r = e.Right;
@@ -86,6 +113,7 @@ public sealed class AirRace
 
     private Vec3 _prev; private bool _havePrev;
     private readonly RaceElement[] _els;
+    private readonly List<(int element, int side, double x, double y)> _pylons;
     private readonly Dictionary<(int, int), double> _strikeCooldown = new();
     public const double PylonStrikeCooldownSec = 4.0;
 
@@ -94,7 +122,7 @@ public sealed class AirRace
     public (int element, int side)? CheckPylonStrike(Vec3 leftTip, Vec3 rightTip, double dt)
     {
         foreach (var k in new List<(int, int)>(_strikeCooldown.Keys)) { _strikeCooldown[k] -= dt; if (_strikeCooldown[k] <= 0) _strikeCooldown.Remove(k); }
-        foreach ((int el, int side, double px, double py) in RaceCourse.Pylons())
+        foreach ((int el, int side, double px, double py) in _pylons)
         {
             // Closest point on the tip-to-tip segment to the pylon axis, in plan.
             double ax = leftTip.X - px, ay = leftTip.Y - py, bx = rightTip.X - px, by = rightTip.Y - py;
@@ -114,7 +142,10 @@ public sealed class AirRace
         return null;
     }
 
-    public AirRace(RaceElement[]? elements = null) { _els = elements ?? RaceCourse.Elements; }
+    public AirRace() : this(RaceCourse.Elements) { }
+    /// <summary>The course on plateau <paramref name="plateau"/>.</summary>
+    public AirRace(int plateau) : this(RaceCourse.ElementsFor(plateau)) { }
+    public AirRace(RaceElement[] elements) { _els = elements; _pylons = RaceCourse.PylonsOf(elements); }
 
     public void Reset() { Next = 0; Running = false; Finished = false; ElapsedSec = 0; PenaltySec = 0; _havePrev = false; LastEvent = "Cross the start gate"; }
 
@@ -212,33 +243,46 @@ public sealed class StolRun
 }
 
 
-/// <summary>The farmer's field east of the Valley runway (past the aerobatic box): a ploughed rectangle along the runway heading with a
-/// power line crossing it 100 yards from the south end. The wires sag to 100 ft AGL at mid-span — a crop
-/// duster crosses the field UNDER them.</summary>
-public static class CropField
+/// <summary>The farmer's field east of each runway (past the aerobatic box): a ploughed rectangle along the runway
+/// heading with a power line crossing it 100 yards from the south end. The wires sag to 100 ft AGL at mid-span —
+/// a crop duster crosses the field UNDER them. One instance per plateau (<see cref="For"/>); the Valley's is
+/// <see cref="Valley"/>.</summary>
+public sealed class CropField
 {
-    public static WorldTerrain.Airport Home => WorldTerrain.Airports[0];
-    public static double X0 => Home.X - 300;                             // 600 m long (along x), east of the aerobatic box
-    public static double X1 => Home.X + 300;
-    public static double Y0 => Home.Y + 1600;                            // 300 m wide
-    public static double Y1 => Home.Y + 1900;
-    public static double ElevationM => Home.ElevationM;
-    public const double CellM = 10.0;
-    public static int CellsX => (int)System.Math.Round((X1 - X0) / CellM);
-    public static int CellsY => (int)System.Math.Round((Y1 - Y0) / CellM);
+    public static readonly CropField[] All = BuildAll();
+    public static CropField Valley => All[0];
+    public static CropField For(int plateau) => All[System.Math.Clamp(plateau, 0, All.Length - 1)];
+    private static CropField[] BuildAll()
+    {
+        var a = new CropField[WorldTerrain.PlateauCount];
+        for (int p = 0; p < a.Length; p++) a[p] = new CropField(p);
+        return a;
+    }
 
-    public static double WireX => X0 + 91.44;                            // 100 yards from the south end
+    public readonly int Plateau;
+    public WorldTerrain.Airport Home => WorldTerrain.Airports[Plateau];
+    private CropField(int plateau) { Plateau = plateau; }
+
+    public double X0 => Home.X - 300;                                    // 600 m long (along x), east of the aerobatic box
+    public double X1 => Home.X + 300;
+    public double Y0 => Home.Y + 1600;                                   // 300 m wide
+    public double Y1 => Home.Y + 1900;
+    public double ElevationM => Home.ElevationM;
+    public const double CellM = 10.0;
+    public const int CellsX = 60, CellsY = 30;                           // 600 × 300 m of 10 m cells
+
+    public double WireX => X0 + 91.44;                                   // 100 yards from the south end
     public const double PoleOffsetM = 40.0;                              // poles stand this far outside the field edges
-    public static double PoleY0 => Y0 - PoleOffsetM;
-    public static double PoleY1 => Y1 + PoleOffsetM;
+    public double PoleY0 => Y0 - PoleOffsetM;
+    public double PoleY1 => Y1 + PoleOffsetM;
     public const double PoleHeightM = 42.0;                              // wire attachment height AGL at the poles
     public const double WireLowestAglM = 30.48;                          // 100 ft at mid-span
     public const double WireSpacingM = 2.5;                              // three conductors on the crossarm (along x)
 
-    public static bool Inside(double x, double y) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
+    public bool Inside(double x, double y) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
 
     /// <summary>Conductor height AGL at lateral position y (parabolic sag between the poles).</summary>
-    public static double WireAglAt(double y)
+    public double WireAglAt(double y)
     {
         double mid = (PoleY0 + PoleY1) / 2, half = (PoleY1 - PoleY0) / 2;
         double u = System.Math.Clamp((y - mid) / half, -1.0, 1.0);
@@ -256,6 +300,8 @@ public sealed class CropDust
     private readonly bool[,] _covered = new bool[CropField.CellsX, CropField.CellsY];
     private int _coveredCount;
     private Vec3 _prev; private bool _havePrev;
+    public CropField Field { get; }
+    public CropDust(CropField? field = null) { Field = field ?? CropField.Valley; }
 
     public bool Spraying { get; private set; }
     public int PassesUnder { get; private set; }
@@ -273,15 +319,15 @@ public sealed class CropDust
         if (WireStrike) { Spraying = false; return; }
 
         // Power-line crossing between the previous and this position.
-        if (_havePrev && (_prev.X - CropField.WireX) * (pos.X - CropField.WireX) < 0)
+        if (_havePrev && (_prev.X - Field.WireX) * (pos.X - Field.WireX) < 0)
         {
-            double f = (CropField.WireX - _prev.X) / (pos.X - _prev.X);
+            double f = (Field.WireX - _prev.X) / (pos.X - _prev.X);
             double yc = _prev.Y + (pos.Y - _prev.Y) * f;
             double zc = _prev.Z + (pos.Z - _prev.Z) * f;
-            double agl = -zc - CropField.ElevationM;
-            if (yc > CropField.PoleY0 && yc < CropField.PoleY1)
+            double agl = -zc - Field.ElevationM;
+            if (yc > Field.PoleY0 && yc < Field.PoleY1)
             {
-                double wire = CropField.WireAglAt(yc);
+                double wire = Field.WireAglAt(yc);
                 if (System.Math.Abs(agl - wire) < WireHitHalfBandM)
                 {
                     WireStrike = true; Spraying = false; LastEvent = "HIT THE WIRES";
@@ -293,14 +339,14 @@ public sealed class CropDust
         }
         _prev = pos; _havePrev = true;
 
-        Spraying = CropField.Inside(pos.X, pos.Y) && aglM > 0.2 && aglM < SprayMaxAglM && groundSpeedMs > MinSpraySpeedMs;
+        Spraying = Field.Inside(pos.X, pos.Y) && aglM > 0.2 && aglM < SprayMaxAglM && groundSpeedMs > MinSpraySpeedMs;
         if (!Spraying) return;
-        int i0 = (int)System.Math.Floor((pos.X - SwathHalfWidthM - CropField.X0) / CropField.CellM), i1 = (int)System.Math.Floor((pos.X + SwathHalfWidthM - CropField.X0) / CropField.CellM);
-        int j0 = (int)System.Math.Floor((pos.Y - SwathHalfWidthM - CropField.Y0) / CropField.CellM), j1 = (int)System.Math.Floor((pos.Y + SwathHalfWidthM - CropField.Y0) / CropField.CellM);
+        int i0 = (int)System.Math.Floor((pos.X - SwathHalfWidthM - Field.X0) / CropField.CellM), i1 = (int)System.Math.Floor((pos.X + SwathHalfWidthM - Field.X0) / CropField.CellM);
+        int j0 = (int)System.Math.Floor((pos.Y - SwathHalfWidthM - Field.Y0) / CropField.CellM), j1 = (int)System.Math.Floor((pos.Y + SwathHalfWidthM - Field.Y0) / CropField.CellM);
         for (int i = System.Math.Max(0, i0); i <= System.Math.Min(CropField.CellsX - 1, i1); i++)
         for (int j = System.Math.Max(0, j0); j <= System.Math.Min(CropField.CellsY - 1, j1); j++)
         {
-            double cx = CropField.X0 + (i + 0.5) * CropField.CellM, cy = CropField.Y0 + (j + 0.5) * CropField.CellM;
+            double cx = Field.X0 + (i + 0.5) * CropField.CellM, cy = Field.Y0 + (j + 0.5) * CropField.CellM;
             if ((cx - pos.X) * (cx - pos.X) + (cy - pos.Y) * (cy - pos.Y) > SwathHalfWidthM * SwathHalfWidthM) continue;
             if (_covered[i, j]) continue;
             _covered[i, j] = true; _coveredCount++; NewlyCovered.Add((i, j));

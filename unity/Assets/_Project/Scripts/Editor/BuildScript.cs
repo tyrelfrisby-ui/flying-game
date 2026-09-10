@@ -20,9 +20,9 @@ namespace FlyingGame.EditorTools
     /// </summary>
     public static class BuildScript
     {
-        // Placeholder reverse-DNS id — NOT branding; the app's real name is still TBD.
         private const string BundleId = "com.tyrelfrisby.aeroplayground";   // App Store Connect app "Aero Playground"
         private const string ProductName = "Aero Playground";
+        private const string IconPath = "Assets/_Project/Art/AppIcon.png";  // 1024² RGB (no alpha) — App Store Connect requires it
         private const string ScenePath = "Assets/Scenes/Main.unity";
         private const string DevTeamId = "DH425V439F"; // Apple Development team (automatic signing)
 
@@ -57,6 +57,7 @@ namespace FlyingGame.EditorTools
             EnsureSceneInBuild();
             EnsureAlwaysIncludedShaders();
             EnsureBuiltinFontPreloaded();
+            EnsureAppIcon();
             AssetDatabase.SaveAssets();
             Debug.Log($"iOS player settings configured: {BundleId} / \"{ProductName}\" (landscape+portrait, IL2CPP, ARM64).");
         }
@@ -163,6 +164,31 @@ namespace FlyingGame.EditorTools
             preloaded.RemoveAll(a => a is GUISkin);
             changed = true;
             if (changed) PlayerSettings.SetPreloadedAssets(preloaded.ToArray());
+        }
+
+        // App Store Connect rejects an upload without the 1024×1024 marketing icon; Unity scales one source
+        // texture to every iOS icon slot (app, spotlight, settings, notification, marketing).
+        private static void EnsureAppIcon()
+        {
+            var imp = AssetImporter.GetAtPath(IconPath) as TextureImporter;
+            if (imp == null) { AssetDatabase.ImportAsset(IconPath); imp = AssetImporter.GetAtPath(IconPath) as TextureImporter; }
+            if (imp == null) { Debug.LogWarning($"EnsureAppIcon: {IconPath} not found — no app icon."); return; }
+            if (!imp.isReadable || imp.mipmapEnabled || imp.textureCompression != TextureImporterCompression.Uncompressed || imp.alphaSource != TextureImporterAlphaSource.None)
+            {
+                imp.isReadable = true; imp.mipmapEnabled = false; imp.textureCompression = TextureImporterCompression.Uncompressed;
+                imp.alphaSource = TextureImporterAlphaSource.None; imp.npotScale = TextureImporterNPOTScale.None; imp.sRGBTexture = true;
+                imp.SaveAndReimport();
+            }
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+            if (tex == null) { Debug.LogWarning("EnsureAppIcon: icon texture failed to load."); return; }
+            int slots = 0;
+            foreach (PlatformIconKind kind in PlayerSettings.GetSupportedIconKinds(NamedBuildTarget.iOS))
+            {
+                PlatformIcon[] icons = PlayerSettings.GetPlatformIcons(NamedBuildTarget.iOS, kind);
+                foreach (PlatformIcon icon in icons) { icon.SetTexture(tex); slots++; }
+                PlayerSettings.SetPlatformIcons(NamedBuildTarget.iOS, kind, icons);
+            }
+            Debug.Log($"EnsureAppIcon: '{IconPath}' assigned to {slots} iOS icon slots.");
         }
 
         private static void EnsureSceneInBuild()

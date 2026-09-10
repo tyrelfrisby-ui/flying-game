@@ -11,14 +11,18 @@ namespace FlyingGame.Bridge
         public AirRace Race { get; private set; }
         public bool Active { get; private set; }
 
+        /// <summary>Plateau whose course is raced: the one the session started from.</summary>
+        public int Plateau { get; private set; }
+
         public void Begin()
         {
-            Race = new AirRace(); Race.Reset(); Active = true;
+            Plateau = SessionSettings.AirportIndex;
+            Race = new AirRace(Plateau); Race.Reset(); Active = true;
             foreach (PylonTopBurst top in WorldBuilder.PylonTops.Values) if (top != null) top.ResetTop();
         }
         public void End() { Active = false; }
 
-        private AirRace _strikeRace;   // pylon strikes are live even outside a race (free flight through the course)
+        private AirRace[] _strikeRaces;   // pylon strikes are live even outside a race (free flight through any plateau's course)
 
         private void Update()
         {
@@ -29,15 +33,21 @@ namespace FlyingGame.Bridge
                 double bank = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
                 Race.Update(s.Position, bank, Time.deltaTime);
             }
-            // Wing tips against the pylons.
-            AirRace strikes = Active && Race != null ? Race : (_strikeRace ??= new AirRace());
+            // Wing tips against the pylons of every plateau's course (the active race scores its own plateau).
+            if (_strikeRaces == null || _strikeRaces.Length != WorldTerrain.PlateauCount)
+            {
+                _strikeRaces = new AirRace[WorldTerrain.PlateauCount];
+                for (int p = 0; p < _strikeRaces.Length; p++) _strikeRaces[p] = new AirRace(p);
+            }
             double half = 0; foreach (var sf in ac.Config.Surfaces) foreach (var st in sf.Strips) half = System.Math.Max(half, System.Math.Abs(st.Pos[1]));
             if (ac.IsLost(FlyingGame.Core.AirframeComponent.WingLeft) || ac.IsLost(FlyingGame.Core.AirframeComponent.WingRight)) half *= 0.3;
             Vec3 left = s.Position + q.Rotate(new Vec3(0, -half, 0)), right = s.Position + q.Rotate(new Vec3(0, half, 0));
-            var hit = strikes.CheckPylonStrike(left, right, Time.deltaTime);
-            if (hit.HasValue)
+            for (int p = 0; p < _strikeRaces.Length; p++)
             {
-                if (WorldBuilder.PylonTops.TryGetValue(hit.Value, out PylonTopBurst top) && top != null) top.Launch();
+                AirRace strikes = Active && Race != null && p == Plateau ? Race : _strikeRaces[p];
+                var hit = strikes.CheckPylonStrike(left, right, Time.deltaTime);
+                if (!hit.HasValue) continue;
+                if (WorldBuilder.PylonTops.TryGetValue((p, hit.Value.element, hit.Value.side), out PylonTopBurst top) && top != null) top.Launch();
                 Driver.GetComponent<FlightAudio>()?.PylonBurst();
             }
         }
@@ -89,11 +99,16 @@ namespace FlyingGame.Bridge
         private Material _mat;
         private bool _struck;
 
+        /// <summary>The field being dusted: the one on the plateau the session started from.</summary>
+        public CropField Field { get; private set; }
+        private Mesh FieldMesh => Field != null && Field.Plateau < WorldBuilder.CropFieldMeshes.Length ? WorldBuilder.CropFieldMeshes[Field.Plateau] : null;
+
         public void Begin()
         {
-            Run = new CropDust(); Active = true; _struck = false;
+            Field = CropField.For(SessionSettings.AirportIndex);
+            Run = new CropDust(Field); Active = true; _struck = false;
             // Fresh field colours.
-            Mesh m = WorldBuilder.CropFieldMesh;
+            Mesh m = FieldMesh;
             if (m != null)
             {
                 var cols = m.colors; int ny = CropField.CellsY;
@@ -113,9 +128,9 @@ namespace FlyingGame.Bridge
             double gs = System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
             Run.Update(s.Position, agl, gs);
 
-            if (Run.NewlyCovered.Count > 0 && WorldBuilder.CropFieldMesh != null)
+            if (Run.NewlyCovered.Count > 0 && FieldMesh != null)
             {
-                Mesh m = WorldBuilder.CropFieldMesh; var cols = m.colors; int ny = CropField.CellsY;
+                Mesh m = FieldMesh; var cols = m.colors; int ny = CropField.CellsY;
                 foreach ((int i, int j) in Run.NewlyCovered)
                 {
                     int b = (i * ny + j) * 4; Color c = j % 2 == 0 ? WorldBuilder.Sprayed : WorldBuilder.Sprayed * 0.9f; c.a = 1f;
