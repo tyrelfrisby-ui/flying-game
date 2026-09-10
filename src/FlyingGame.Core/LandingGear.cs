@@ -33,8 +33,18 @@ public static class LandingGear
         return false;
     }
 
+    /// <summary>First-contact sink rate (m/s) that tears a leg off when the config gives none: FAR 23 designs the
+    /// gear for 10 ft/s (3 m/s); ~4 m/s is past its ultimate. A tailwheel takes the tail dropping through onto it at
+    /// the end of every wheel landing (5–6 m/s at the wheel from the pitch rate), so it is only lost to a real slam.</summary>
+    public const double DefaultBreakSinkMs = 4.0, DefaultTailwheelBreakSinkMs = 8.0;
+
+    /// <param name="lostLegs">legs already torn off (skipped)</param>
+    /// <param name="broken">receives the leg that just hit harder than its break sink rate</param>
+    /// <param name="touching">per-leg contact state (first-contact detection), config.Gear order</param>
+    /// <param name="impacts">records the hardest first contact (crash sound)</param>
     public static (Vec3 Force, Vec3 Moment) Compute(
-        AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0)
+        AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0,
+        IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
         if (config.Gear.Count == 0)
@@ -45,8 +55,11 @@ public static class LandingGear
         Vec3 cg = config.Mass.CgVec();
         Vec3 worldDown = new(0, 0, 1); // NED: +z is down
 
-        foreach (GearConfig g in config.Gear)
+        for (int gi = 0; gi < config.Gear.Count; gi++)
         {
+            GearConfig g = config.Gear[gi];
+            AirframeComponent leg = AirframeContact.GearComponent(g);
+            if (lostLegs != null && lostLegs.Contains(leg)) continue;   // torn off: the stub/belly hard points carry the load
             // Differential braking: wheels left of centre get wheelBrake·(1+bias·-1)... i.e. bias<0 favours LEFT.
             double wheelBrake = g.Pos[1] < -0.05 ? brakeCmd * System.Math.Clamp(1.0 - brakeBias, 0.0, 1.0)
                               : g.Pos[1] > 0.05 ? brakeCmd * System.Math.Clamp(1.0 + brakeBias, 0.0, 1.0)
@@ -62,12 +75,21 @@ public static class LandingGear
             double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
             if (penetration <= 0.0)
             {
+                if (touching != null && gi < touching.Length) touching[gi] = false;
                 continue; // wheel in the air
             }
 
             // Contact-point velocity (world) = body vel + ω×r, rotated to world.
             Vec3 contactVelWorld = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
             double compressionRate = contactVelWorld.Z; // vertical closing rate (+ = compressing)
+            if (touching != null && gi < touching.Length && !touching[gi])
+            {
+                // Touchdown on this leg: a hard enough one tears it off (individually — the other legs stay).
+                touching[gi] = true;
+                impacts?.Record(compressionRate, leg.ToString());
+                double breakSink = g.BreakSinkMs > 0 ? g.BreakSinkMs : g.IsTailwheel ? DefaultTailwheelBreakSinkMs : DefaultBreakSinkMs;
+                if (broken != null && compressionRate > breakSink && !broken.Contains(leg)) broken.Add(leg);
+            }
 
             // Oleo strut reacts along the WORLD VERTICAL (the ground pushes straight up regardless of
             // aircraft pitch — using the body axis here gives a spurious fore/aft force). Never pulls.

@@ -3,6 +3,8 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
+using UnityEditor.Callbacks;
+using UnityEditor.iOS.Xcode;
 using UnityEngine;
 
 namespace FlyingGame.EditorTools
@@ -189,6 +191,21 @@ namespace FlyingGame.EditorTools
                 PlayerSettings.SetPlatformIcons(NamedBuildTarget.iOS, kind, icons);
             }
             Debug.Log($"EnsureAppIcon: '{IconPath}' assigned to {slots} iOS icon slots.");
+        }
+
+        // Export compliance: the app only uses standard HTTPS/WSS (exempt), so declare it in Info.plist — otherwise
+        // every TestFlight build waits on the "Missing Compliance" question in App Store Connect.
+        [PostProcessBuild(1)]
+        public static void OnPostProcessBuild(BuildTarget target, string path)
+        {
+            if (target != BuildTarget.iOS) return;
+            string plistPath = Path.Combine(path, "Info.plist");
+            if (!File.Exists(plistPath)) return;
+            var plist = new PlistDocument();
+            plist.ReadFromFile(plistPath);
+            plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
+            plist.WriteToFile(plistPath);
+            Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
         }
 
         private static void EnsureSceneInBuild()

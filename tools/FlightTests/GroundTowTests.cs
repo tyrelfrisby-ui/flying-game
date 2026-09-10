@@ -95,7 +95,7 @@ public class GroundTowTests
         Assert.InRange(Math.Abs(tug.State.Position.Y), 0, 25);   // on the 30 m runway
         Assert.True(-tug.State.Position.Z < 2.5, "tug should be on the runway");
         var (rollEnd, pitchEnd, _) = Euler(tug.State);
-        Assert.True(Math.Abs(rollEnd) < 10 * Math.PI / 180 && pitchEnd > -5 * Math.PI / 180, $"tug should be upright (roll {rollEnd * 57.3:F0}°, pitch {pitchEnd * 57.3:F0}°)");
+        Assert.True(Math.Abs(rollEnd) < 10 * Math.PI / 180 && pitchEnd > -5 * Math.PI / 180, $"tug should be upright (roll {rollEnd * 57.3:F0}°, pitch {pitchEnd * 57.3:F0}°, lost: {string.Join(", ", tug.LostComponents)})");
     }
 
     [Fact]

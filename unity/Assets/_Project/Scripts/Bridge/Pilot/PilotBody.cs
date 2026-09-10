@@ -9,7 +9,9 @@ namespace FlyingGame.Bridge
     /// free-falling with quadratic drag in ISA air + the sim's wind, then under the <see cref="Parachute"/>:
     /// canopy drag (deploying drag area), 3 m/s forward drive along the canopy heading, aileron steering
     /// (yaw rate ∝ input, up to 30°/s), a damped pendulum for the pilot swinging under the canopy, and a
-    /// landing on terrain/water. All kinematics are integrated here in Update time (semi-implicit Euler,
+    /// landing on terrain/water. Landing on anything steeper than 45° (owner 2026-09-09) is a TUMBLE: the pilot
+    /// bounces down the slope, a hit every time he strikes it (<see cref="Hit"/>), until he comes to rest on a
+    /// relatively level spot. All kinematics are integrated here in Update time (semi-implicit Euler,
     /// implicit drag) — no Unity physics, nothing in the sim.
     /// </summary>
     internal sealed class PilotBody
@@ -29,9 +31,22 @@ namespace FlyingGame.Bridge
         public float Steer;                        // −1..1 aileron (left/right) — only acts under canopy
         public float HeadingDeg;                   // canopy heading, Unity yaw (0 = north/+z, 90 = east/+x)
         public bool HasSeat { get; private set; }
+        /// <summary>At rest on the ground / in the water (after any tumble).</summary>
         public bool Landed { get; private set; }
         public bool LandedOnWater { get; private set; }
+        /// <summary>Speed of the FIRST ground contact (m/s).</summary>
         public float LandingSpeedMs { get; private set; }
+        /// <summary>Bouncing down a slope steeper than <see cref="TumbleSlopeTan"/>.</summary>
+        public bool Tumbling { get; private set; }
+        public int TumbleHits { get; private set; }
+        /// <summary>Hardest hit taken (first contact or any tumble strike), m/s along the surface normal.</summary>
+        public float MaxImpactMs { get; private set; }
+        /// <summary>Every ground strike: (impact speed along the normal m/s, still tumbling afterwards).</summary>
+        public event System.Action<float, bool> Hit;
+        public const float TumbleSlopeTan = 1.0f;      // steeper than 45°: he tumbles
+        public const float RestSlopeTan = 0.36f;       // flatter than ~20°: a relatively level spot to come to rest
+        public const float TumbleRestitution = 0.32f, TumbleFrictionKeep = 0.72f, TumbleLyingHalfM = 0.45f;
+        private float _tumbleT, _lastHitT = -1f;
         public Parachute Chute { get; private set; }
         public Transform Transform => _root.transform;
         public float AltitudeM => Position.y;
@@ -174,6 +189,13 @@ namespace FlyingGame.Bridge
                 _hang = (_hang + _hangVel * dt).normalized;
             }
 
+            // Tumbling down a slope: ballistic hops between strikes, no canopy, no steering.
+            if (Tumbling)
+            {
+                TickTumble(dt);
+                return;
+            }
+
             // Ground / water.
             float surf = EgressAir.SurfaceHeight(Position);
             if (Position.y - HalfHeightM <= surf)
@@ -216,6 +238,7 @@ namespace FlyingGame.Bridge
         private void TickFigure(float dt)
         {
             PilotFigure.Stance stance = Landed ? PilotFigure.Stance.Landed
+                : Tumbling ? PilotFigure.Stance.FreeFall
                 : HasSeat ? PilotFigure.Stance.Seated
                 : Chute != null && Chute.Inflated ? PilotFigure.Stance.Hanging
                 : PilotFigure.Stance.FreeFall;
@@ -232,23 +255,107 @@ namespace FlyingGame.Bridge
             _figure.Tick(dt, stance, Steer, toggles, anchorL, anchorR);
         }
 
+        /// <summary>Surface normal (unit, up-ish) and slope tangent at a world position, from ±1.5 m height samples.</summary>
+        private static (Vector3 normal, float slopeTan) SurfaceNormal(Vector3 pos)
+        {
+            const float h = 1.5f;
+            float dx = (EgressAir.SurfaceHeight(pos + Vector3.right * h) - EgressAir.SurfaceHeight(pos - Vector3.right * h)) / (2f * h);
+            float dz = (EgressAir.SurfaceHeight(pos + Vector3.forward * h) - EgressAir.SurfaceHeight(pos - Vector3.forward * h)) / (2f * h);
+            var n = new Vector3(-dx, 1f, -dz).normalized;
+            return (n, Mathf.Sqrt(dx * dx + dz * dz));
+        }
+
         private void Land(float surf, Vector3 wind)
         {
-            Landed = true;
             LandingSpeedMs = Velocity.magnitude;
-            LandedOnWater = EgressAir.IsWater(Position);
+            (Vector3 n, float slopeTan) = SurfaceNormal(Position);
+            float impact = Mathf.Max(0f, -Vector3.Dot(Velocity, n));
+            MaxImpactMs = Mathf.Max(MaxImpactMs, impact);
+            bool water = EgressAir.IsWater(Position);
+            if (_flame != null) _flame.SetActive(false);
+            if (Chute != null)
+            {
+                // The canopy stays where he first hit; on a tumble it is left behind on the slope.
+                Vector3 wh = new Vector3(wind.x, 0f, wind.z);
+                Vector3 layDir = wh.magnitude > 0.5f ? wh.normalized : HeadingDir;
+                Chute.BeginCollapse(new Vector3(Position.x, surf, Position.z), layDir);
+            }
+
+            if (!water && slopeTan > TumbleSlopeTan)
+            {
+                // Too steep to stand: he goes over and down. Bounce off the face and start rolling downhill.
+                Tumbling = true;
+                _tumbleT = 0f;
+                Position.y = surf + TumbleLyingHalfM;
+                Bounce(n, impact);
+                AngularVelocityRad = new Vector3(Random.Range(4f, 9f), Random.Range(-2f, 2f), Random.Range(3f, 7f));
+                _figure.SetPackVisible(true);
+                Hit?.Invoke(impact, true);
+                return;
+            }
+            ComeToRest(surf, water);
+            Hit?.Invoke(impact, false);
+        }
+
+        /// <summary>Reflect the velocity off the surface (partly elastic), scrub the tangential part, add the downhill roll.</summary>
+        private void Bounce(Vector3 n, float impact)
+        {
+            Vector3 vn = n * Vector3.Dot(Velocity, n);
+            Vector3 vt = (Velocity - vn) * TumbleFrictionKeep;
+            Vector3 downhill = Vector3.ProjectOnPlane(Vector3.down, n);
+            if (downhill.sqrMagnitude > 1e-4f) vt += downhill.normalized * (0.6f + 0.15f * impact);
+            Velocity = vt + n * (impact * TumbleRestitution + 0.8f);
+        }
+
+        private void TickTumble(float dt)
+        {
+            _tumbleT += dt;
+            Velocity += Vector3.down * (EgressAir.G * dt);
+            Velocity *= Mathf.Exp(-0.05f * dt);     // a little air drag
+            Position += Velocity * dt;
+            _rot *= Quaternion.Euler(AngularVelocityRad * (Mathf.Rad2Deg * dt));
+            float surf = EgressAir.SurfaceHeight(Position);
+            if (Position.y - TumbleLyingHalfM <= surf)
+            {
+                Position.y = surf + TumbleLyingHalfM;
+                (Vector3 n, float slopeTan) = SurfaceNormal(Position);
+                float impact = Mathf.Max(0f, -Vector3.Dot(Velocity, n));
+                bool water = EgressAir.IsWater(Position);
+                Vector3 vt = Vector3.ProjectOnPlane(Velocity, n);
+                bool level = slopeTan < RestSlopeTan;
+                // At rest: on a level-enough spot with the bounce gone, in water, or after a long roll (safety).
+                if (water || (level && impact < 1.5f && vt.magnitude < 2.2f) || _tumbleT > 40f)
+                {
+                    MaxImpactMs = Mathf.Max(MaxImpactMs, impact);
+                    if (impact > 1.0f) { TumbleHits++; Hit?.Invoke(impact, false); }
+                    ComeToRest(surf, water);
+                    return;
+                }
+                Bounce(n, impact);
+                if (level) Velocity *= 0.55f;        // on the flat the roll dies quickly
+                AngularVelocityRad = AngularVelocityRad * 0.8f + new Vector3(Random.Range(-3f, 3f), Random.Range(-2f, 2f), Random.Range(-3f, 3f));
+                if (impact > 1.0f && _tumbleT - _lastHitT > 0.18f)
+                {
+                    _lastHitT = _tumbleT;
+                    TumbleHits++;
+                    MaxImpactMs = Mathf.Max(MaxImpactMs, impact);
+                    Hit?.Invoke(impact, true);
+                }
+            }
+            _root.transform.SetPositionAndRotation(Position, _rot);
+            TickFigure(dt);
+        }
+
+        private void ComeToRest(float surf, bool water)
+        {
+            Landed = true;
+            Tumbling = false;
+            LandedOnWater = water;
             Position.y = surf + HalfHeightM;
             Velocity = Vector3.zero;
             AngularVelocityRad = Vector3.zero;
             _rot = Quaternion.Euler(0f, HeadingDeg, 0f);               // stand the capsule up
             _root.transform.SetPositionAndRotation(Position, _rot);
-            if (_flame != null) _flame.SetActive(false);
-            if (Chute != null)
-            {
-                Vector3 wh = new Vector3(wind.x, 0f, wind.z);
-                Vector3 layDir = wh.magnitude > 0.5f ? wh.normalized : HeadingDir;
-                Chute.BeginCollapse(Position - Vector3.up * HalfHeightM, layDir);
-            }
         }
 
         public void Destroy()

@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge
     [RequireComponent(typeof(FlightSimDriver))]
     public sealed class PilotEgress : MonoBehaviour
     {
-        public enum Phase { InCockpit, BailingOut, CanopyGone, FreeFall, ChuteDeploying, UnderCanopy, Landed }
+        public enum Phase { InCockpit, BailingOut, CanopyGone, FreeFall, ChuteDeploying, UnderCanopy, Tumbling, Landed }
 
         public Phase Current { get; private set; } = Phase.InCockpit;
         public bool PilotOut => Current >= Phase.FreeFall;
@@ -53,6 +53,11 @@ namespace FlyingGame.Bridge
         private float _pilotLeftT;
         private bool _eject, _canopyDone, _pilotDone, _pilotLeftFired, _seatDone, _chuteDone;
         private string _status = "";
+        // Landing outcome (owner 2026-09-09): grunts/winces on every ground strike, a one-liner once he's at rest.
+        public LandingOutcome Outcome { get; private set; }
+        public string LastLine { get; private set; } = "";
+        private float _restT = -1f, _voiceT = -1f, _voiceSeverity;
+        private bool _voiceWince, _spoken;
         private GUIStyle _style;
         private Texture2D _bg;
         private int _fs;
@@ -99,6 +104,7 @@ namespace FlyingGame.Bridge
             Vector3 vel = _driver.WorldVelocityUnity;
             _pilot = new PilotBody(pos, vel, new Vector3(0.6f, 0.2f, 0.4f), ac.eulerAngles.y,
                 withSeat: true, seatUp: ac.up, initialRotation: ac.rotation);
+            _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
             AbandonAircraft();
             Current = Phase.FreeFall;
@@ -118,7 +124,8 @@ namespace FlyingGame.Bridge
             Current = Phase.InCockpit;
             _t = 0f;
             _eject = _canopyDone = _pilotDone = _pilotLeftFired = _seatDone = _chuteDone = false;
-            _status = "";
+            _status = ""; LastLine = ""; _restT = _voiceT = -1f; _spoken = false;
+            PilotVoice.Stop();
             var cam = Cam();
             if (cam != null && cam.OverrideTarget != null)
             {
@@ -193,12 +200,44 @@ namespace FlyingGame.Bridge
                 ChuteInflated?.Invoke();
                 GetComponent<FlightAudio>()?.ChuteInflate();
             }
+            if (_pilot.Tumbling && Current != Phase.Tumbling)
+            {
+                Current = Phase.Tumbling;
+                Log($"pilot hit a slope at {_pilot.LandingSpeedMs:F1} m/s — tumbling");
+            }
             if (_pilot.Landed && Current != Phase.Landed)
             {
                 Current = Phase.Landed;
-                Log($"pilot down {(_pilot.LandedOnWater ? "in the water" : "on the ground")} at {_pilot.LandingSpeedMs:F1} m/s");
+                Outcome = PilotPhrases.Outcome(_pilot.MaxImpactMs, _pilot.LandedOnWater);
+                LastLine = PilotPhrases.Pick(Outcome, _pilot.LandedOnWater, _pilot.TumbleHits);
+                _restT = 0f; _spoken = false;
+                Log($"pilot down {(_pilot.LandedOnWater ? "in the water" : "on the ground")} at {_pilot.LandingSpeedMs:F1} m/s, hardest hit {_pilot.MaxImpactMs:F1} m/s, {_pilot.TumbleHits} tumble hits → {Outcome}");
+            }
+            // Grunt/wince a beat after the thud; the one-liner once he has caught his breath.
+            if (_voiceT >= 0f && (_voiceT -= dt) < 0f)
+            {
+                var au = GetComponent<FlightAudio>();
+                if (_voiceWince) au?.PilotWince(_voiceSeverity); else au?.PilotGrunt(_voiceSeverity);
+            }
+            if (_restT >= 0f && !_spoken && (_restT += dt) > (Outcome == LandingOutcome.Dead ? 1.6f : 1.0f))
+            {
+                _spoken = true;
+                PilotVoice.Say(LastLine, rate: Outcome == LandingOutcome.Dead ? 0.42f : 0.5f, pitch: Outcome == LandingOutcome.Injured ? 0.85f : 0.92f);
             }
             UpdateStatus();
+        }
+
+        /// <summary>Every ground strike (first contact and each tumble hit): a body thud now, a grunt (light) or a
+        /// wince (hard) a tenth of a second later. Severity from the impact speed (a 5 m/s canopy landing is soft).</summary>
+        private void OnPilotHit(float impactMs, bool stillTumbling)
+        {
+            float sev = Mathf.Clamp01((impactMs - 1.5f) / 10f);
+            var au = GetComponent<FlightAudio>();
+            au?.PilotThud(sev);
+            if (impactMs < 2.5f) return;                     // a soft touch: the thud is enough
+            _voiceSeverity = sev;
+            _voiceWince = impactMs >= 7f || (stillTumbling && UnityEngine.Random.value < 0.35f);
+            _voiceT = 0.10f + UnityEngine.Random.Range(0f, 0.06f);
         }
 
         private void JettisonCanopy()
@@ -222,6 +261,7 @@ namespace FlyingGame.Bridge
             Vector3 vel = _driver.WorldVelocityUnity + ac.right * 3f + ac.up * 1.5f;
             _pilot = new PilotBody(pos, vel, new Vector3(1.5f, 2.5f, 1.0f), ac.eulerAngles.y,
                 withSeat: false, seatUp: Vector3.up, initialRotation: ac.rotation * Quaternion.Euler(0f, 0f, -60f));
+            _pilot.Hit += OnPilotHit;
             PilotTransform = _pilot.Transform;
             AbandonAircraft();
             Current = Phase.FreeFall;
@@ -299,9 +339,13 @@ namespace FlyingGame.Bridge
                 case Phase.UnderCanopy:
                     _status = $"CANOPY  {_pilot.HeightAglM:F0} m AGL  sink {_pilot.SinkMs:F1} m/s  steer: right pad";
                     break;
+                case Phase.Tumbling:
+                    _status = $"TUMBLING  {_pilot.TumbleHits} hits  {_pilot.Velocity.magnitude:F0} m/s";
+                    break;
                 case Phase.Landed:
-                    _status = _pilot.LandingSpeedMs > 10f ? $"PILOT DOWN  {_pilot.LandingSpeedMs:F0} m/s — no canopy"
-                        : $"LANDED  {_pilot.LandingSpeedMs:F1} m/s{(_pilot.LandedOnWater ? "  (water)" : "")}";
+                    string how = _pilot.TumbleHits > 0 ? $"  after {_pilot.TumbleHits} hits down the slope" : _pilot.LandedOnWater ? "  (water)" : "";
+                    _status = _spoken ? $"{PilotPhrases.Label(Outcome)}  “{LastLine}”"
+                        : $"{PilotPhrases.Label(Outcome)}  {_pilot.MaxImpactMs:F1} m/s{how}";
                     break;
             }
         }

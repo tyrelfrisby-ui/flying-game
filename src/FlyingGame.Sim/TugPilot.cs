@@ -156,7 +156,10 @@ public sealed class TugPilot
         }
         else if (Phase == Phases.Flare)
         {
-            elev = Math.Clamp(-0.25 - 0.06 * _flareT - s.Rates.Y * 0.4, -0.7, 0.2);
+            // Closed-loop flare: check the sink to ~0.6 m/s and hold it off (an open-loop stick ramp arrived at
+            // 4+ m/s in the heavier Pawnee and broke its legs — a leg tears off past 4 m/s).
+            double sinkErr = sink - 0.6;
+            elev = Math.Clamp(-0.22 - 0.30 * sinkErr - 0.05 * _flareT - s.Rates.Y * 0.5, -0.75, 0.25);
             lever = 1.0;
         }
         else if (Phase is Phases.Rollout or Phases.Done)

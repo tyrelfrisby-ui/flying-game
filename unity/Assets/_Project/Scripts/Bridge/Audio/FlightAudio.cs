@@ -61,6 +61,12 @@ namespace FlyingGame.Bridge
         public void ChuteDeploy() { _fx?.Trigger(FxKind.ChuteDeploy); }
         public void ChuteInflate() { _fx?.Trigger(FxKind.ChuteInflate); }
         public void PylonBurst() { _fx?.Trigger(FxKind.PylonBurst); }
+        /// <summary>The airframe hitting something: crunching / tearing metal, weight 0..1 (a firm arrival .. a break-up).</summary>
+        public void Crash(float severity) { _fx?.Trigger(FxKind.Crash, severity); }
+        /// <summary>The pilot hitting the ground (severity 0..1 from the impact speed).</summary>
+        public void PilotThud(float severity) { _fx?.Trigger(FxKind.BodyThud, severity); }
+        public void PilotGrunt(float severity) { _fx?.Trigger(FxKind.Grunt, severity); }
+        public void PilotWince(float severity) { _fx?.Trigger(FxKind.Wince, severity); }
 
         // ---- lifecycle ------------------------------------------------------------------------------
 

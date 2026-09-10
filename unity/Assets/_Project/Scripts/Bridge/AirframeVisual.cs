@@ -70,10 +70,21 @@ namespace FlyingGame.Bridge
         {
             _componentsDetached = true;
             if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return; }
+            if (comp == FlyingGame.Core.AirframeComponent.Cabin) return;   // the break-up arrives as Nose + TailBoom events
             Transform root = transform;
             var debris = new GameObject("Debris-" + comp);
             debris.transform.SetPositionAndRotation(root.position, root.rotation);
             bool leftWing = comp == FlyingGame.Core.AirframeComponent.WingLeft, rightWing = comp == FlyingGame.Core.AirframeComponent.WingRight;
+            bool gearLeg = comp is FlyingGame.Core.AirframeComponent.GearLeft or FlyingGame.Core.AirframeComponent.GearRight
+                        or FlyingGame.Core.AirframeComponent.GearNose or FlyingGame.Core.AirframeComponent.GearTail;
+            bool nose = comp == FlyingGame.Core.AirframeComponent.Nose, tailBoom = comp == FlyingGame.Core.AirframeComponent.TailBoom;
+            // Fuselage sections: the body mesh is cut at the nose / tail station (root-local z = sim x).
+            float noseCut = 0f, tailCut = 0f;
+            if ((nose || tailBoom) && _driver?.Sim?.Aircraft?.Config != null)
+            {
+                (double n, double t) = FlyingGame.Core.AirframeContact.FuselageStations(_driver.Sim.Aircraft.Config);
+                noseCut = (float)n; tailCut = (float)t;
+            }
             bool Matches(string n)
             {
                 string l = n.ToLowerInvariant();
@@ -81,15 +92,41 @@ namespace FlyingGame.Bridge
                 {
                     FlyingGame.Core.AirframeComponent.TailHorizontal => l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator"),
                     FlyingGame.Core.AirframeComponent.TailVertical => l.StartsWith("fin") || l.StartsWith("vstab") || l.StartsWith("rudder"),
-                    FlyingGame.Core.AirframeComponent.Nose => l is "propdisc" or "blade" or "spinner" or "radial",
+                    FlyingGame.Core.AirframeComponent.TailBoom => l.StartsWith("stab") || l.StartsWith("hstab") || l.StartsWith("elevator")
+                                                                 || l.StartsWith("fin") || l.StartsWith("vstab") || l.StartsWith("rudder"),
+                    FlyingGame.Core.AirframeComponent.Nose => l is "propdisc" or "blade" or "spinner" or "radial" or "bentbladetip",
                     _ => false,
                 };
             }
-            var parts = leftWing || rightWing ? new List<GameObject>(_builder.WingParts) : new List<GameObject>(_builder.Parts);
+            List<GameObject> parts;
+            if (leftWing || rightWing) parts = new List<GameObject>(_builder.WingParts);
+            else if (gearLeg) parts = _builder.TakeLegParts(comp);
+            else
+            {
+                parts = new List<GameObject>(_builder.Parts);
+                if (tailBoom) parts.AddRange(_builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearTail));   // the tailwheel rides the boom
+                if (nose) parts.AddRange(_builder.TakeLegParts(FlyingGame.Core.AirframeComponent.GearNose));
+            }
             var gone = new List<GameObject>();
             foreach (GameObject part in parts)
             {
                 if (part == null) continue;
+                if ((nose || tailBoom) && part.name == "Fuselage")
+                {
+                    // Cut the body at the station: the section beyond it leaves, the rest stays on the airframe.
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        SplitByStation(mf.sharedMesh, mf.transform, root, nose ? noseCut : tailCut, out Mesh fwd, out Mesh aft);
+                        Mesh lost = nose ? fwd : aft, kept = nose ? aft : fwd;
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name + (nose ? "-Nose" : "-TailBoom"), lost, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                    }
+                    continue;
+                }
                 if (leftWing || rightWing)
                 {
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
@@ -104,7 +141,7 @@ namespace FlyingGame.Bridge
                         if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
                     }
                 }
-                else if (Matches(part.name))
+                else if (gearLeg || Matches(part.name))
                 {
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
@@ -119,7 +156,11 @@ namespace FlyingGame.Bridge
             _builder.Forget(gone);
             foreach (GameObject g in gone) if (g != null) Object.Destroy(g);
             Vector3 side = leftWing ? -root.right : root.right;
-            Vector3 kick = leftWing || rightWing ? side * 4f + root.up * 3f : -root.forward * 3f + root.up * 4f;
+            Vector3 kick = leftWing || rightWing ? side * 4f + root.up * 3f
+                : gearLeg ? -root.forward * 2f - root.up * 1f + (comp == FlyingGame.Core.AirframeComponent.GearLeft ? -root.right : root.right) * 1.5f
+                : tailBoom ? -root.forward * 3f + root.up * 2.5f
+                : nose ? root.forward * 2f + root.up * 3f
+                : -root.forward * 3f + root.up * 4f;
             LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing ? side : root.right, leftWing ? 1f : -1f);
         }
 
@@ -270,6 +311,36 @@ namespace FlyingGame.Bridge
             if (rt.Count > 0) right = CloneMesh(v, rt.ToArray());
         }
 
+        /// <summary>Split a part's mesh at a longitudinal station (root-local z = sim x): triangles whose centroid is
+        /// ahead of the cut go to `fwd`, the rest to `aft`. A part wholly on one side is handed over unsplit.</summary>
+        private static void SplitByStation(Mesh src, Transform part, Transform root, float cutZ, out Mesh fwd, out Mesh aft)
+        {
+            fwd = null; aft = null;
+            Vector3[] v = src.vertices;
+            int[] t = src.triangles;
+            if (v.Length == 0 || t.Length == 0) return;
+            var z = new float[v.Length];
+            float minZ = float.MaxValue, maxZ = float.MinValue;
+            for (int i = 0; i < v.Length; i++)
+            {
+                z[i] = root.InverseTransformPoint(part.TransformPoint(v[i])).z;
+                if (z[i] < minZ) minZ = z[i];
+                if (z[i] > maxZ) maxZ = z[i];
+            }
+            if (minZ >= cutZ) { fwd = CloneMesh(v, t); return; }
+            if (maxZ <= cutZ) { aft = CloneMesh(v, t); return; }
+            var ft = new List<int>(t.Length);
+            var at = new List<int>(t.Length);
+            for (int i = 0; i + 2 < t.Length; i += 3)
+            {
+                float cz = (z[t[i]] + z[t[i + 1]] + z[t[i + 2]]) / 3f;
+                List<int> dst = cz > cutZ ? ft : at;
+                dst.Add(t[i]); dst.Add(t[i + 1]); dst.Add(t[i + 2]);
+            }
+            if (ft.Count > 0) fwd = CloneMesh(v, ft.ToArray());
+            if (at.Count > 0) aft = CloneMesh(v, at.ToArray());
+        }
+
         private static Mesh CloneMesh(Vector3[] v, int[] t)
         {
             var m = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
@@ -362,6 +433,22 @@ namespace FlyingGame.Bridge
             _controls.Clear();
             _wingParts.Clear();
             _gearParts.Clear();
+            _legParts.Clear();
+        }
+
+        /// <summary>Visual parts of each landing-gear leg (wheel + strut), by component — a torn-off leg becomes debris.</summary>
+        private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<GameObject>> _legParts = new();
+
+        /// <summary>Hand over one leg's parts (removed from the builder's bookkeeping; the caller owns them).</summary>
+        public List<GameObject> TakeLegParts(FlyingGame.Core.AirframeComponent leg)
+        {
+            if (!_legParts.TryGetValue(leg, out List<GameObject> list)) return new List<GameObject>();
+            var taken = new List<GameObject>(list);
+            var set = new HashSet<GameObject>(list);
+            _parts.RemoveAll(p => p == null || set.Contains(p));
+            _gearParts.RemoveAll(g => g.go == null || set.Contains(g.go));
+            _legParts.Remove(leg);
+            return taken;
         }
 
         /// <summary>
@@ -717,6 +804,9 @@ namespace FlyingGame.Bridge
                     float travel = Mathf.Max(0.5f, gz - r + rb * 0.6f);   // enough to hide it inside the belly
                     for (int i = firstGearPart; i < _parts.Count; i++) _gearParts.Add((_parts[i], _parts[i].transform.localPosition, travel));
                 }
+                FlyingGame.Core.AirframeComponent legComp = FlyingGame.Core.AirframeContact.GearComponent(g);
+                if (!_legParts.TryGetValue(legComp, out List<GameObject> legList)) _legParts[legComp] = legList = new List<GameObject>();
+                for (int i = firstGearPart; i < _parts.Count; i++) legList.Add(_parts[i]);
             }
         }
 

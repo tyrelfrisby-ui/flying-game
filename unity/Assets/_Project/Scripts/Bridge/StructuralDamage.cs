@@ -58,9 +58,9 @@ namespace FlyingGame.Bridge
         {
             WingsGone = false;
             Severity = 0f;
-            if (_watched != null) _watched.ComponentLost -= OnComponentLost;
+            if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
-            if (_watched != null) _watched.ComponentLost += OnComponentLost;
+            if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; }
             LostLine = null;
             ReadLimits();
         }
@@ -68,12 +68,22 @@ namespace FlyingGame.Bridge
         /// <summary>HUD text naming what has broken off, null while intact.</summary>
         public string LostLine { get; private set; }
 
+        /// <summary>A hard point or wheel just hit: crunching metal scaled by the closing speed (a 1.5 m/s arrival is
+        /// a thump, 8 m/s a full crunch). A break in the same step adds its own full-weight crash.</summary>
+        private void OnHardImpact(double closingMs, string point)
+        {
+            if (closingMs < 1.2) return;
+            if (_audio == null) _audio = GetComponent<FlightAudio>();
+            _audio?.Crash(Mathf.Clamp01((float)((closingMs - 1.2) / 7.0)));
+        }
+
         private void OnComponentLost(FlyingGame.Core.AirframeComponent c)
         {
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
             if (_visual != null) _visual.DetachComponent(c, _driver.WorldVelocityUnity);
             if (_audio == null) _audio = GetComponent<FlightAudio>();
-            if (_audio != null) _audio.WingFailure();
+            // Impact break-ups crunch (owner: "crash = crunching, breaking metal"); the g-limit wing failure keeps its own sound.
+            if (_audio != null) _audio.Crash(c == FlyingGame.Core.AirframeComponent.Propeller ? 0.6f : 1f);
             string name = c switch
             {
                 FlyingGame.Core.AirframeComponent.WingLeft => "LEFT WING",
@@ -81,6 +91,12 @@ namespace FlyingGame.Bridge
                 FlyingGame.Core.AirframeComponent.TailHorizontal => "STABILISER",
                 FlyingGame.Core.AirframeComponent.TailVertical => "FIN",
                 FlyingGame.Core.AirframeComponent.Nose => "NOSE",
+                FlyingGame.Core.AirframeComponent.TailBoom => "TAIL",
+                FlyingGame.Core.AirframeComponent.Cabin => "FUSELAGE BROKE UP",
+                FlyingGame.Core.AirframeComponent.GearLeft => "LEFT GEAR",
+                FlyingGame.Core.AirframeComponent.GearRight => "RIGHT GEAR",
+                FlyingGame.Core.AirframeComponent.GearNose => "NOSE GEAR",
+                FlyingGame.Core.AirframeComponent.GearTail => "TAILWHEEL",
                 FlyingGame.Core.AirframeComponent.Propeller => "PROP STRIKE — engine stopped",
                 _ => c.ToString().ToUpperInvariant(),
             };

@@ -4,7 +4,11 @@ using FlyingGame.Core.MathTypes;
 namespace FlyingGame.Core;
 
 /// <summary>The airframe parts a contact point belongs to — what breaks off when that point hits hard.</summary>
-public enum AirframeComponent { Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight, Propeller }
+/// <summary>Things that can break off. Fuselage = the cabin's own hard points (never break). The fuselage is three
+/// sections (owner 2026-09-09): Nose (ahead of the cabin, with the engine), the cabin, and the TailBoom (aft of the
+/// cabin, carrying the tail surfaces and tailwheel); Cabin = a mid-fuselage slam that breaks BOTH ends off. Each gear
+/// leg is its own component (GearLeft/GearRight/GearNose/GearTail) and tears off on its own hard touchdown.</summary>
+public enum AirframeComponent { Fuselage, Nose, WingLeft, WingRight, TailHorizontal, TailVertical, NacelleLeft, NacelleRight, Propeller, GearLeft, GearRight, GearNose, GearTail, TailBoom, Cabin }
 
 /// <summary>A hard point on the airframe (body frame, same origin as the config) that must not pass through
 /// the ground or a solid: wing tips, stab tips, fin top, nose, tail cone, cabin top, nacelles.</summary>
@@ -53,9 +57,41 @@ public static class WorldSolids
 /// hanging from its tyres. A point that ARRIVES fast enough snaps its component off: the caller drops the
 /// component's aero (no mass/inertia bookkeeping — owner's call) and removes its contact points.
 /// </summary>
+/// <summary>Hardest first-contact closing speed seen during a step (any hard point or wheel) — for the crash sound.</summary>
+public sealed class ImpactRecorder
+{
+    public double MaxClosingMs;
+    public string Point = "";
+    public void Reset() { MaxClosingMs = 0; Point = ""; }
+    public void Record(double closing, string point) { if (closing > MaxClosingMs) { MaxClosingMs = closing; Point = point; } }
+}
+
 public static class AirframeContact
 {
     public const double SpringNPerM = 150000.0, DampNsPerM = 9000.0, FrictionMu = 0.7;
+    /// <summary>Impact speeds that break the fuselage: tail cone strike → tail boom; mid-fuselage slam → both ends.</summary>
+    public const double TailBoomBreakMs = 5.5, CabinBreakMs = 8.0, NoseBreakMs = 6.0;
+
+    /// <summary>Which component a landing-gear leg belongs to: tailwheel, nose (centreline), left or right main.</summary>
+    public static AirframeComponent GearComponent(GearConfig g) =>
+        g.IsTailwheel ? AirframeComponent.GearTail : g.Pos[1] < -0.05 ? AirframeComponent.GearLeft : g.Pos[1] > 0.05 ? AirframeComponent.GearRight : AirframeComponent.GearNose;
+
+    /// <summary>Fuselage section cuts (body x): the nose section is ahead of <c>noseCutX</c>, the tail boom aft of
+    /// <c>tailCutX</c>, the cabin between — set off the wing root (0.6 m ahead of the LE, 0.3 m behind the TE).</summary>
+    public static (double noseCutX, double tailCutX) FuselageStations(AircraftConfig c)
+    {
+        double rootX = 0.3, chord = 1.4;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            string id = sf.Id.ToLowerInvariant();
+            if (!id.Contains("wing") || id.Contains("aileron") || sf.Strips.Count == 0) continue;
+            StripConfig root = sf.Strips[0];
+            foreach (StripConfig st in sf.Strips) if (System.Math.Abs(st.Pos[1]) < System.Math.Abs(root.Pos[1])) root = st;
+            rootX = root.Pos[0]; chord = root.Chord;
+            break;
+        }
+        return (rootX + 0.25 * chord + 0.6, rootX - 0.75 * chord - 0.3);
+    }
 
     /// <summary>Derive the hard points from the config geometry.</summary>
     public static List<ContactPoint> BuildPoints(AircraftConfig c)
@@ -85,8 +121,8 @@ public static class AirframeContact
                 StripConfig root = sf.Strips[0];
                 foreach (StripConfig st in sf.Strips) if (System.Math.Abs(st.Pos[1]) < System.Math.Abs(root.Pos[1])) root = st;
                 double skin = root.Pos[2] < 0 ? root.Pos[2] - 0.07 * root.Chord : root.Pos[2] + 0.07 * root.Chord;
-                pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], -0.8, skin), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "wing-root-L" });
-                pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], 0.8, skin), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "wing-root-R" });
+                pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], -0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-L" });
+                pts.Add(new ContactPoint { Body = new Vec3(root.Pos[0], 0.8, skin), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "wing-root-R" });
                 foreach ((StripConfig st, AirframeComponent comp, double sign) in new[] { (l, AirframeComponent.WingLeft, -1.0), (r, AirframeComponent.WingRight, 1.0) })
                 {
                     double w = st.Chord > 1e-6 ? st.Area / st.Chord : 0.3;
@@ -116,7 +152,7 @@ public static class AirframeContact
         // Tail cone bottom sits ABOVE the tailwheel/skid (which hangs below it) — never lower than that.
         double tailZ = 0.0;
         foreach (GearConfig g in c.Gear) if (g.IsTailwheel || g.Pos[0] < tailX + 1.5) tailZ = System.Math.Min(tailZ, g.Pos[2] - 0.45);
-        pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, 0), Component = AirframeComponent.Nose, BreakSpeedMs = 6.0, Name = "nose" });
+        pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, 0), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "nose" });
         // Propeller disc: the lowest blade tip. ANY ground contact is a prop strike (engine stops, blades bend).
         if (c.Propulsion is not null && c.Propulsion.PropDiameterM > 0)
         {
@@ -131,10 +167,13 @@ public static class AirframeContact
                     pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 1.0, e.Pos[1], e.Pos[2] + r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
             }
         }
-        pts.Add(new ContactPoint { Body = new Vec3(tailX, 0, tailZ), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "tail-cone" });
-        pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, -rBody * 1.1), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "cabin-top" });
-        pts.Add(new ContactPoint { Body = new Vec3(noseX * 0.6, 0, -rBody * 0.9), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "cowl-top" });
-        pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, rBody * 1.0), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "belly" });
+        // Fuselage in three sections: a hard tail-cone strike snaps the TAIL BOOM (stab, fin, tailwheel go with it);
+        // a hard cowl strike takes the NOSE; a mid-fuselage slam (belly / cabin top / wing roots) breaks up the
+        // fuselage — both ends off, the cabin survives.
+        pts.Add(new ContactPoint { Body = new Vec3(tailX, 0, tailZ), Component = AirframeComponent.TailBoom, BreakSpeedMs = TailBoomBreakMs, Name = "tail-cone" });
+        pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, -rBody * 1.1), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "cabin-top" });
+        pts.Add(new ContactPoint { Body = new Vec3(noseX * 0.6, 0, -rBody * 0.9), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "cowl-top" });
+        pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, rBody * 1.0), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "belly" });
         foreach (EngineMount e in c.Engines)
         {
             pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 0.8, e.Pos[1], e.Pos[2] + 0.4), Component = e.Pos[1] < 0 ? AirframeComponent.NacelleLeft : AirframeComponent.NacelleRight, BreakSpeedMs = 6.0, Name = "nacelle" });
@@ -143,7 +182,7 @@ public static class AirframeContact
     }
 
     /// <summary>Contact forces (world) and the components whose points just hit hard enough to break.</summary>
-    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0)
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         foreach (ContactPoint p in points)
@@ -169,6 +208,7 @@ public static class AirframeContact
             if (!p.Touching)
             {
                 p.Touching = true;
+                impacts?.Record(closing, p.Name);
                 if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !broken.Contains(p.Component))
                 {
                     broken.Add(p.Component);

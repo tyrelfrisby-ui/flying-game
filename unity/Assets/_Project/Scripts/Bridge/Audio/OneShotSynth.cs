@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, Count }
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, Count }
 
     /// <summary>
     /// One procedural sound effect: a scripted envelope over noise / resonator / partial components.
@@ -25,6 +25,8 @@ namespace FlyingGame.Bridge
         private float _gate = 1f, _gateLevel = 1f;
         private int _gateCount, _sub;
         private float _flutHz = 25f, _len, _ias;
+        private float _level = 1f;           // 0..1 severity for the pilot sounds (thud weight, grunt effort) / crash weight
+        private float _ring, _ringDec, _gateDec, _crunchRate;   // Crash: metallic ring envelope, crunch-event rate
         private bool _snapped;
         private const float Smooth = 1f / 48f;
 
@@ -38,11 +40,14 @@ namespace FlyingGame.Bridge
             return t <= 0f ? 1f : (float)Math.Exp(-t / decayTau);
         }
 
-        public void Start(FxKind kind, float ias)
+        public void Start(FxKind kind, float ias) => Start(kind, ias, 1f);
+
+        public void Start(FxKind kind, float ias, float level)
         {
             Kind = kind;
             T = 0f;
             _ias = ias;
+            _level = Dsp.Clamp01(level);
             _sub = 0;
             _snapped = false;
             _gA = _gB = _gC = 0f;
@@ -98,6 +103,40 @@ namespace FlyingGame.Bridge
                     _lp.SetCutoff(3500f, _fs);
                     _burst = 1f; _burstDec = Dsp.DecayCoef(0.01f, _fs);
                     break;
+                // ---- the pilot hitting the ground: body thud, grunt ("oof"), wince (hiss through the teeth + "ahh") ----
+                case FxKind.BodyThud:
+                    _len = 0.4f;
+                    _lp.SetCutoff(110f, _fs);              // the thump
+                    _hp.HighPass(_fs, 900f, 0.7f);         // dry crunch of kit and gravel
+                    _bpA.BandPass(_fs, 55f, 3f);           // ground boom
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.03f, _fs);
+                    break;
+                case FxKind.Grunt:
+                    _len = 0.5f;
+                    _bpA.BandPass(_fs, 520f, 6f);          // formant F1 ("uh")
+                    _bpB.BandPass(_fs, 1050f, 8f);         // formant F2
+                    _hp.HighPass(_fs, 2200f, 0.7f);        // breath
+                    _lp.SetCutoff(3000f, _fs);
+                    break;
+                // ---- the airframe hitting the ground / a building: crunching, tearing, ringing metal (owner: "not popcorn") ----
+                case FxKind.Crash:
+                    _len = 1.6f + 1.0f * _level;
+                    _lp.SetCutoff(90f, _fs);               // the impact boom
+                    _bpA.BandPass(_fs, 460f, 2.5f);        // sheet metal buckling (each crunch event rings this)
+                    _bpB.BandPass(_fs, 1500f, 5f);         // clang / stressed skin partial
+                    _hp.HighPass(_fs, 2600f, 0.8f);        // tearing and scraping
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.05f, _fs);
+                    _gateDec = Dsp.DecayCoef(0.009f, _fs);
+                    _ringDec = Dsp.DecayCoef(0.22f, _fs);
+                    _ring = 0f; _gate = 0f; _gateCount = 0; _crunchRate = 40f;
+                    break;
+                case FxKind.Wince:
+                    _len = 0.85f;
+                    _bpA.BandPass(_fs, 720f, 6f);          // formant F1 ("ah")
+                    _bpB.BandPass(_fs, 1350f, 8f);         // formant F2
+                    _hp.HighPass(_fs, 3800f, 0.8f);        // the hiss through clenched teeth
+                    _lp.SetCutoff(6500f, _fs);
+                    break;
             }
             Active = true;
         }
@@ -141,6 +180,28 @@ namespace FlyingGame.Bridge
                     _gBT = 1.2f * Env(t, 0.003f, 0.02f, 0.15f);               // rip
                     _gCT = 1.5f * Env(t - 0.02f, 0.03f, 0.5f, 1.2f);          // air rushing out, long tail
                     _lp.SetCutoff(3500f * (float)Math.Exp(-t / 0.9) + 300f, _fs);
+                    break;
+                case FxKind.BodyThud:
+                    _gAT = (1.5f + 3.5f * _level) * Env(t, 0.002f, 0.02f, 0.09f);        // thump
+                    _gBT = (0.3f + 1.2f * _level) * Env(t, 0.001f, 0.01f, 0.05f);        // crunch
+                    _gCT = 2.5f * _level * Env(t, 0.004f, 0.03f, 0.16f);                 // boom (heavy hits only)
+                    break;
+                case FxKind.Grunt:
+                    // "Oof/ugh": voiced pulse train whose pitch drops through the grunt, a puff of breath on top.
+                    _gAT = (0.9f + 0.6f * _level) * Env(t, 0.015f, 0.10f + 0.12f * _level, 0.07f);
+                    _gBT = 0.25f * Env(t, 0.005f, 0.04f, 0.06f);
+                    break;
+                case FxKind.Crash:
+                    _gAT = (2.0f + 4.0f * _level) * Env(t, 0.002f, 0.04f, 0.24f);                     // boom
+                    _gBT = (1.0f + 1.8f * _level) * Env(t, 0.004f, 0.30f + 0.45f * _level, 0.35f);     // crunch
+                    _gCT = (0.35f + 0.9f * _level) * Env(t - 0.04f, 0.02f, 0.25f + 0.35f * _level, 0.45f);   // tear / scrape
+                    _crunchRate = (22f + 50f * _level) * (float)Math.Exp(-t / (0.5f + 0.6f * _level)); // events/s, thinning out
+                    _flutHz = Dsp.Clamp(_flutHz + _n.Next() * 4f, 18f, 45f);
+                    break;
+                case FxKind.Wince:
+                    // Sharp inhale through the teeth (hiss) then a pained "ahh" with a little shake in it.
+                    _gAT = (0.35f + 0.35f * _level) * Env(t, 0.03f, 0.16f, 0.06f);       // hiss
+                    _gBT = (0.7f + 0.5f * _level) * Env(t - 0.24f, 0.03f, 0.22f + 0.2f * _level, 0.12f);   // "ahh"
                     break;
             }
         }
@@ -196,6 +257,65 @@ namespace FlyingGame.Bridge
                     if (_phA >= 1f) _phA -= 1f;
                     float am = 0.55f + 0.45f * Dsp.Sin01(_phA);
                     outp = _hp.Process(n) * _gA + _bpA.Process(n) * 2f * _gB * am + _bpB.Process(n) * 2f * _gC;
+                    break;
+                }
+                case FxKind.BodyThud:
+                {
+                    _burst *= _burstDec;
+                    float hz = 38f + 40f * _gA / (1.5f + 3.5f * _level + 1e-3f);        // pitch sinks with the thump
+                    _phA += hz / _fs;
+                    float thump = (_lp.Process(n) * 3f + 0.6f * Dsp.Sin01(_phA)) * _gA;
+                    float crunch = _hp.Process(n * _burst) * _gB;
+                    float boom = _bpA.Process(_n.Next()) * _gC;
+                    outp = thump + crunch + boom;
+                    break;
+                }
+                case FxKind.Grunt:
+                {
+                    float f0 = (150f + 40f * _level) * (float)Math.Exp(-T / 0.35) + 75f;   // ~190 → 90 Hz
+                    _phA += f0 / _fs;
+                    float glottal = _phA < 0.4f ? (float)Math.Sin(_phA / 0.4f * Math.PI) : 0f;   // one puff per period
+                    float voice = (_bpA.Process(glottal) * 1.6f + _bpB.Process(glottal) * 0.9f) * _gA;
+                    float breath = _lp.Process(_hp.Process(n)) * _gB;
+                    outp = voice + breath;
+                    break;
+                }
+                case FxKind.Crash:
+                {
+                    // Crunch events: an irregular train of buckling snaps, each ringing the 460 Hz panel mode and
+                    // kicking the metallic ring; a boom under it and tearing noise on top.
+                    if (--_gateCount <= 0)
+                    {
+                        float rate = _crunchRate < 3f ? 3f : _crunchRate;
+                        _gateCount = (int)(_fs / rate * (0.4f + 1.2f * (_n.Next() * 0.5f + 0.5f)));
+                        _gate = 0.5f + 0.5f * (_n.Next() * 0.5f + 0.5f);
+                        _ring += _gate * 0.45f;
+                    }
+                    _gate *= _gateDec;
+                    _ring *= _ringDec;
+                    _burst *= _burstDec;
+                    _phA += 42f / _fs;                                   // boom body
+                    _phB += 385f / _fs;                                  // ring partials (inharmonic pair)
+                    _phC += 1130f / _fs;
+                    float boom = (_lp.Process(n) * 3f + 0.6f * Dsp.Sin01(_phA)) * _gA;
+                    float crunch = _bpA.Process(n * _gate * 10f) * _gB;
+                    float clang = _bpB.Process(n * _burst * 3f + n * _gate * 2f) * _gB * 0.6f;
+                    float ring = (Dsp.Sin01(_phB) * 0.7f + Dsp.Sin01(_phC) * 0.3f) * _ring * 0.35f * _gB;
+                    float am = 0.55f + 0.45f * Dsp.Sin01(_flutHz * T);
+                    float tear = _hp.Process(n) * _gC * am;
+                    outp = boom + crunch + clang + ring + tear;
+                    break;
+                }
+                case FxKind.Wince:
+                {
+                    float shake = 1f + 0.06f * Dsp.Sin01(_phB);                         // pained tremor ~9 Hz
+                    _phB += 9f / _fs;
+                    float f0 = (215f - 45f * Dsp.Clamp01((T - 0.24f) / 0.5f)) * shake;   // "ahh" sliding down
+                    _phA += f0 / _fs;
+                    float glottal = _phA < 0.45f ? (float)Math.Sin(_phA / 0.45f * Math.PI) : 0f;
+                    float ah = (_bpA.Process(glottal) * 1.5f + _bpB.Process(glottal) * 1.0f) * _gB;
+                    float hiss = _lp.Process(_hp.Process(n)) * _gA;
+                    outp = ah + hiss;
                     break;
                 }
                 case FxKind.ChuteInflate:
@@ -318,6 +438,7 @@ namespace FlyingGame.Bridge
     internal sealed class OneShotSynth
     {
         private readonly int[] _pending = new int[(int)FxKind.Count];
+        private readonly float[] _pendingLevel = new float[(int)FxKind.Count];
         private readonly FxVoice[] _pool;
         private readonly GroanVoice _groan;
 
@@ -329,7 +450,14 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Main thread: queue a one-shot (coalesces repeats within a block).</summary>
-        public void Trigger(FxKind kind) => Interlocked.Exchange(ref _pending[(int)kind], 1);
+        public void Trigger(FxKind kind) => Trigger(kind, 1f);
+
+        /// <summary>Main thread: queue a one-shot with a 0..1 severity (pilot thud weight / grunt effort).</summary>
+        public void Trigger(FxKind kind, float level)
+        {
+            Interlocked.Exchange(ref _pendingLevel[(int)kind], level);
+            Interlocked.Exchange(ref _pending[(int)kind], 1);
+        }
 
         /// <summary>Audio thread, once per block: start queued voices, retarget the groan.</summary>
         public void Prepare(float ias, float groanSeverity)
@@ -344,7 +472,7 @@ namespace FlyingGame.Bridge
                     v = _pool[0];
                     for (int i = 1; i < _pool.Length; i++) if (_pool[i].T > v.T) v = _pool[i];   // steal the oldest
                 }
-                v.Start((FxKind)k, ias);
+                v.Start((FxKind)k, ias, _pendingLevel[k]);
             }
             _groan.Prepare(groanSeverity);
         }

@@ -85,6 +85,9 @@ public sealed class Aircraft
     /// <summary>Per-surface aero mask (indexed like Config.Surfaces): null while intact; after wing failure
     /// the wing surfaces are false. Config.Surfaces itself is never mutated — other systems index it.</summary>
     private readonly List<AirframeComponent> _pendingBreaks = new();
+    private readonly HashSet<AirframeComponent> _lostGear = new();   // legs torn off (LandingGear skips them)
+    private bool[] _gearTouching = System.Array.Empty<bool>();       // per-leg contact state, Config.Gear order
+    private readonly ImpactRecorder _impacts = new();
     private bool[]? _surfaceMask;
     private bool[]? _stripMask;                 // per-strip aero mask (broken-off components), AeroModel strip order
     private readonly List<ContactPoint> _contacts;
@@ -96,6 +99,8 @@ public sealed class Aircraft
     public bool IsLost(AirframeComponent c) => _lost.Contains(c);
     /// <summary>Raised once per component, on the step it breaks off.</summary>
     public event Action<AirframeComponent>? ComponentLost;
+    /// <summary>Raised after a step in which a hard point or wheel first touched the ground/a solid: (closing speed m/s, point name). Drives the crash sound.</summary>
+    public event Action<double, string>? HardImpact;
 
     /// <summary>Mass fraction each wing takes with it (light/utility/transport types: ~12 % of MTOW per wing).</summary>
     public const double WingMassFractionPerWing = 0.12;
@@ -149,6 +154,7 @@ public sealed class Aircraft
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
+        _gearTouching = new bool[config.Gear.Count];
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
 
@@ -302,17 +308,42 @@ public sealed class Aircraft
                     AirframeComponent.WingRight => wing && st.Pos[1] > 0.3,
                     AirframeComponent.TailHorizontal => hTail,
                     AirframeComponent.TailVertical => vTail,
+                    AirframeComponent.TailBoom => hTail || vTail,
                     _ => false,
                 };
                 if (gone) _stripMask[idx] = false;
                 idx++;
             }
         }
-        _contacts.RemoveAll(p => p.Component == comp);
+        if (comp != AirframeComponent.Cabin) _contacts.RemoveAll(p => p.Component == comp);   // the cabin's own points stay: it is what is left
+        if (comp is AirframeComponent.GearLeft or AirframeComponent.GearRight or AirframeComponent.GearNose or AirframeComponent.GearTail)
+        {
+            // The leg is gone: the wheel no longer carries anything; a stub hard point 45 % up the leg does.
+            _lostGear.Add(comp);
+            Vec3 cgv = Config.Mass.CgVec();
+            foreach (GearConfig g in Config.Gear)
+                if (AirframeContact.GearComponent(g) == comp)
+                    _contacts.Add(new ContactPoint { Body = new Vec3(cgv.X + g.Pos[0], cgv.Y + g.Pos[1], cgv.Z + g.Pos[2] * 0.55), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "gear-stub" });
+        }
+        if (comp == AirframeComponent.TailBoom)
+        {
+            // The aft fuselage with the tail surfaces: no tail aero, no tail hard points, the tailwheel goes with it.
+            _contacts.RemoveAll(p => p.Component is AirframeComponent.TailHorizontal or AirframeComponent.TailVertical);
+            (_, double tailCutX) = AirframeContact.FuselageStations(Config);
+            _contacts.Add(new ContactPoint { Body = new Vec3(tailCutX, 0, 0.35), Component = AirframeComponent.Fuselage, BreakSpeedMs = 0, Name = "boom-stub" });
+            LoseComponent(AirframeComponent.GearTail);
+        }
+        if (comp == AirframeComponent.Cabin)
+        {
+            // Mid-fuselage slam: the fuselage breaks into its three sections — nose and tail boom off, cabin left.
+            LoseComponent(AirframeComponent.Nose);
+            LoseComponent(AirframeComponent.TailBoom);
+        }
         if (comp == AirframeComponent.Nose || comp == AirframeComponent.Propeller)
         {
             _noseLost = true;   // prop strike / nose gone: the engine stops
             for (int i = 0; i < Config.Engines.Count; i++) SetEngineThrottleScale(i, 0.0);
+            if (comp == AirframeComponent.Nose) LoseComponent(AirframeComponent.GearNose);   // the nose leg hangs off the firewall
         }
         if (comp == AirframeComponent.NacelleLeft || comp == AirframeComponent.NacelleRight)
         {
@@ -391,6 +422,7 @@ public sealed class Aircraft
     public void Step(ControlInputs inputs, double dt)
     {
         _pendingBreaks.Clear();
+        _impacts.Reset();
         // One lever, two meanings: powered aircraft read it as THROTTLE (full forward = full power),
         // the glider reads aft-of-neutral as speed brake (axisMap "aftOnly") — same thumb geometry.
         double spoilerTarget = Config.Propulsion is null
@@ -478,7 +510,7 @@ public sealed class Aircraft
             if (Config.Gear.Count > 0 && GearExtension > 0.9)   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias);
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
@@ -491,7 +523,7 @@ public sealed class Aircraft
             }
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
-                (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks);
+                (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
             }
@@ -545,6 +577,7 @@ public sealed class Aircraft
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
+        if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
         if (Config.RetractableGear)
         {
             double target = GearDown ? 1.0 : 0.0;
