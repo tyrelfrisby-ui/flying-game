@@ -1403,7 +1403,7 @@
     "propInertia": 14.0,
     "rotationSign": 1,
     "efficiency": 0.8,
-    "thrustLineZ": 0.1,
+    "thrustLineZ": -0.6,
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
     "constantSpeed": true,
@@ -1423,7 +1423,7 @@
       "pos": [
         0.2,
         -1.9,
-        1.45
+        1.6
       ],
       "springN": 180000,
       "dampNs": 9000,
@@ -1433,13 +1433,14 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "rollResistN": 40
+      "rollResistN": 40,
+      "tireRadiusM": 0.34
     },
     {
       "pos": [
         0.2,
         1.9,
-        1.45
+        1.6
       ],
       "springN": 180000,
       "dampNs": 9000,
@@ -1449,13 +1450,14 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 15000,
-      "rollResistN": 40
+      "rollResistN": 40,
+      "tireRadiusM": 0.34
     },
     {
       "pos": [
         -4.9,
         0,
-        0.55
+        0.6
       ],
       "springN": 60000,
       "dampNs": 9000.0,
@@ -1465,7 +1467,8 @@
       "maxSteerRad": 0.45,
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
-      "rollResistN": 20
+      "rollResistN": 20,
+      "tireRadiusM": 0.16
     }
   ],
   "limits": {

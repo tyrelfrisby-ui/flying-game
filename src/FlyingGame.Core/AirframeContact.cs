@@ -152,14 +152,17 @@ public static class AirframeContact
         // Tail cone bottom sits ABOVE the tailwheel/skid (which hangs below it) — never lower than that.
         double tailZ = 0.0;
         foreach (GearConfig g in c.Gear) if (g.IsTailwheel || g.Pos[0] < tailX + 1.5) tailZ = System.Math.Min(tailZ, g.Pos[2] - 0.45);
-        pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, 0), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "nose" });
+        // The nose and the propeller hub sit on the THRUST LINE (propulsion.thrustLineZ, + below the CG), not on the CG
+        // line: a P-51's fuselage axis is 0.75 m above its CG, and putting the prop on the CG line struck it 0.75 m early.
+        double axisZ = c.Propulsion?.ThrustLineZ ?? 0.0;
+        pts.Add(new ContactPoint { Body = new Vec3(noseX, 0, axisZ), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "nose" });
         // Propeller disc: the lowest blade tip. ANY ground contact is a prop strike (engine stops, blades bend).
         if (c.Propulsion is not null && c.Propulsion.PropDiameterM > 0)
         {
             double r = c.Propulsion.PropDiameterM * 0.5 * 0.85;
             if (c.Engines.Count == 0)
             {
-                pts.Add(new ContactPoint { Body = new Vec3(noseX + 0.1, 0, r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
+                pts.Add(new ContactPoint { Body = new Vec3(noseX + 0.1, 0, axisZ + r), Component = AirframeComponent.Propeller, BreakSpeedMs = 0.15, Name = "prop-tip" });
             }
             else
             {
@@ -172,7 +175,7 @@ public static class AirframeContact
         // fuselage — both ends off, the cabin survives.
         pts.Add(new ContactPoint { Body = new Vec3(tailX, 0, tailZ), Component = AirframeComponent.TailBoom, BreakSpeedMs = TailBoomBreakMs, Name = "tail-cone" });
         pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, -rBody * 1.1), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "cabin-top" });
-        pts.Add(new ContactPoint { Body = new Vec3(noseX * 0.6, 0, -rBody * 0.9), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "cowl-top" });
+        pts.Add(new ContactPoint { Body = new Vec3(noseX * 0.6, 0, axisZ - rBody * 0.9), Component = AirframeComponent.Nose, BreakSpeedMs = NoseBreakMs, Name = "cowl-top" });
         pts.Add(new ContactPoint { Body = new Vec3(0.3, 0, rBody * 1.0), Component = AirframeComponent.Cabin, BreakSpeedMs = CabinBreakMs, Name = "belly" });
         foreach (EngineMount e in c.Engines)
         {
