@@ -1,8 +1,9 @@
 // Soap-bubble look for BubbleField (owner request): a transparent sphere that is nearly clear in the
 // middle and bright/glossy at the silhouette (fresnel rim), with a hard specular glint from the sun and
 // a faint thin-film iridescence on the rim. Drawn per bubble via Graphics.DrawMesh with a
-// MaterialPropertyBlock carrying _Color (temperature tint) and _Alpha (centre-of-frame fade), so
-// nothing here depends on instancing (which failed to place instances on Metal).
+// MaterialPropertyBlock carrying _Color (temperature tint) and _Alpha (centre-of-frame fade) — or, for the
+// dense field (owner 2026-09-10: four times the bubbles out to 500 ft), via Graphics.DrawMeshInstanced with
+// per-instance _Color / _Alpha / _BodyAlpha arrays (UNITY_INSTANCING_BUFFER). Both paths share this shader.
 //
 // Perf notes (ARCHITECTURE.md #1 risk = transparent overdraw): bubbles are ~1 m spheres 12 m apart,
 // so screen coverage stays low; ZWrite off + back-face cull keeps it a single cheap blend per pixel.
@@ -30,12 +31,14 @@ Shader "FlyingGame/Bubble"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_instancing
             #include "UnityCG.cginc"
 
             struct appdata
             {
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct v2f
@@ -43,15 +46,23 @@ Shader "FlyingGame/Bubble"
                 float4 pos : SV_POSITION;
                 float3 worldNormal : TEXCOORD0;
                 float3 viewDir : TEXCOORD1;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            fixed4 _Color;
-            half _Alpha, _BodyAlpha, _RimAlpha, _RimPower, _SpecPower, _SpecStrength, _Iridescence;
+            half _RimAlpha, _RimPower, _SpecPower, _SpecStrength, _Iridescence;
             float4 _BubbleSunDir; // world-space direction TOWARD the sun, set by BubbleField
+
+            UNITY_INSTANCING_BUFFER_START(Props)
+                UNITY_DEFINE_INSTANCED_PROP(fixed4, _Color)
+                UNITY_DEFINE_INSTANCED_PROP(half, _Alpha)
+                UNITY_DEFINE_INSTANCED_PROP(half, _BodyAlpha)
+            UNITY_INSTANCING_BUFFER_END(Props)
 
             v2f vert (appdata v)
             {
                 v2f o;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_TRANSFER_INSTANCE_ID(v, o);
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
@@ -61,6 +72,10 @@ Shader "FlyingGame/Bubble"
 
             fixed4 frag (v2f i) : SV_Target
             {
+                UNITY_SETUP_INSTANCE_ID(i);
+                fixed4 tintCol = UNITY_ACCESS_INSTANCED_PROP(Props, _Color);
+                half tintAlpha = UNITY_ACCESS_INSTANCED_PROP(Props, _Alpha);
+                half bodyAlpha = UNITY_ACCESS_INSTANCED_PROP(Props, _BodyAlpha);
                 float3 n = normalize(i.worldNormal);
                 float3 v = normalize(i.viewDir);
                 float ndv = saturate(dot(n, v));
@@ -78,11 +93,11 @@ Shader "FlyingGame/Bubble"
                 float3 film = 0.5 + 0.5 * float3(sin(phase), sin(phase + 2.094), sin(phase + 4.189));
                 float3 rimColor = lerp(float3(1, 1, 1), film, _Iridescence);
 
-                float3 col = _Color.rgb * (0.85 + 0.15 * rim);
-                col = col * (1.0 - rim) + rimColor * _Color.rgb * rim;
+                float3 col = tintCol.rgb * (0.85 + 0.15 * rim);
+                col = col * (1.0 - rim) + rimColor * tintCol.rgb * rim;
                 col += spec;
 
-                float a = saturate(_BodyAlpha + rim * _RimAlpha + spec * 0.6) * _Alpha * _Color.a;
+                float a = saturate(bodyAlpha + rim * _RimAlpha + spec * 0.6) * tintAlpha * tintCol.a;
                 return fixed4(col, a);
             }
             ENDCG

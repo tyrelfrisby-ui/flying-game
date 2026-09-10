@@ -21,6 +21,9 @@ namespace FlyingGame.Bridge
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
         public static Start StartMode = Start.InTheAir;
+        /// <summary>Dense bubble field drawn with GPU instancing (thousands of bubbles). Off = the old per-bubble draws
+        /// with a sparser field — the escape hatch if instancing fails to place instances on a device.</summary>
+        public static bool BubbleInstancing = true;
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }

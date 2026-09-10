@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -21,10 +22,17 @@ namespace FlyingGame.Bridge
     public sealed class BubbleField : MonoBehaviour
     {
         public Transform Follow;                 // the aircraft
-        public float Spacing = 12f;              // metres between bubbles
-        public int HalfCount = 4;                // (2*half+1)^3 = 9^3; sphere-culled to a few hundred DrawMesh calls
-        public float BubbleSize = 0.9f;          // metres at standard sea-level density
-        public float FadeStartFraction = 0.6f;   // begin shrinking beyond this fraction of the block radius
+        // Owner 2026-09-10: "so the user truly sees the air" — four times the density (spacing 12 → 7.5 m), bubbles a
+        // quarter the size, full strength to 250 ft, fading to nothing by 500 ft. Lift/sink-tinted bubbles keep their
+        // tint at any distance (the wide LiftField carries them beyond 500 ft).
+        public float Spacing = 7.5f;             // metres between bubbles
+        public int HalfCount = 21;               // lattice reach ≈ 157 m: sphere-culled and thinned beyond FullRangeM
+        public float BubbleSize = 0.225f;        // metres at standard sea-level density
+        public float FullRangeM = 76.2f;         // 250 ft: full intensity inside
+        public float FadeRangeM = 152.4f;        // 500 ft: invisible beyond
+        public float FadeStartFraction = 0.6f;   // (sparse fallback field) begin shrinking beyond this fraction of the block radius
+        public float SampleRefreshS = 0.6f;      // how often a lattice cell re-samples the atmosphere
+        public int SamplesPerFrame = 1500;       // atmosphere samples per frame (the rest come from the cell cache)
 
         [Header("Temperature tint / density size")]
         public float HotF = 120f;                // fully red at/above this air temperature
@@ -52,6 +60,17 @@ namespace FlyingGame.Bridge
         private Vector3 _airMassOrigin;          // world point the grid is anchored to (moves with wind)
         private Light _sun;
 
+        // Per-cell atmosphere cache (lattice index in the air-mass frame → local air motion, density, temperature).
+        private struct Cell { public Vector3 Local; public float Rho, TempF, Time; }
+        private readonly Dictionary<Vector3Int, Cell> _cells = new();
+        private readonly List<Vector3Int> _stale = new();
+        // Instanced batches (1023 per DrawMeshInstanced call).
+        private const int Batch = 1023;
+        private readonly Matrix4x4[] _mats = new Matrix4x4[Batch];
+        private readonly Vector4[] _cols = new Vector4[Batch];
+        private readonly float[] _alphas = new float[Batch], _bodies = new float[Batch];
+        private MaterialPropertyBlock _batchProps;
+        private int _batchCount;
         private static readonly int ColorId = Shader.PropertyToID("_Color");
         private static readonly int AlphaId = Shader.PropertyToID("_Alpha");
         private static readonly int BodyAlphaId = Shader.PropertyToID("_BodyAlpha");
@@ -69,8 +88,9 @@ namespace FlyingGame.Bridge
             // transforms weren't applying), so each matrix is submitted directly; the count is kept modest
             // so the draw calls stay mobile-friendly.
             Shader sh = Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color");
-            _material = new Material(sh);
+            _material = new Material(sh) { enableInstancing = true };
             _props = new MaterialPropertyBlock();
+            _batchProps = new MaterialPropertyBlock();
             _airMassOrigin = Vector3.zero;
             _sun = FindSun();
         }
@@ -107,106 +127,116 @@ namespace FlyingGame.Bridge
             // Snap the grid phase to the air-mass origin so bubbles hold station in the air, not on
             // the aircraft: each bubble's world position is the nearest lattice point (in air-mass
             // frame) to the aircraft, then wrapped — the classic infinite-grid modulo trick.
-            for (int ix = -HalfCount; ix <= HalfCount; ix++)
-            for (int iy = -HalfCount; iy <= HalfCount; iy++)
-            for (int iz = -HalfCount; iz <= HalfCount; iz++)
+            bool dense = SessionSettings.BubbleInstancing;
+            int half = dense ? HalfCount : 4;
+            float spacing = dense ? Spacing : 12f;
+            float bubbleSize = dense ? BubbleSize : 0.9f;
+            float reach = dense ? FadeRangeM : half * spacing;
+            int samplesLeft = SamplesPerFrame;
+            float now = Time.time;
+            _batchCount = 0;
+            for (int ix = -half; ix <= half; ix++)
+            for (int iy = -half; iy <= half; iy++)
+            for (int iz = -half; iz <= half; iz++)
             {
-                Vector3 latticeFromAircraft = new(
-                    Mathf.Round((center.x - _airMassOrigin.x) / Spacing) + ix,
-                    Mathf.Round((center.y - _airMassOrigin.y) / Spacing) + iy,
-                    Mathf.Round((center.z - _airMassOrigin.z) / Spacing) + iz);
-                Vector3 pos = _airMassOrigin + latticeFromAircraft * Spacing;
+                var lattice = new Vector3Int(
+                    Mathf.RoundToInt((center.x - _airMassOrigin.x) / spacing) + ix,
+                    Mathf.RoundToInt((center.y - _airMassOrigin.y) / spacing) + iy,
+                    Mathf.RoundToInt((center.z - _airMassOrigin.z) / spacing) + iz);
+                Vector3 pos = _airMassOrigin + new Vector3(lattice.x, lattice.y, lattice.z) * spacing;
+                float dist0 = Vector3.Distance(pos, center);
+                if (dist0 > reach) continue;   // spherical block, not cubic — fewer bubbles, rounder falloff
+
+                // Per-cell hash: phases, and the thinning draw beyond the full-strength range.
+                uint h2 = (uint)(lattice.x * 73856093) ^ (uint)(lattice.y * 19349663) ^ (uint)(lattice.z * 83492791);
+                h2 ^= h2 >> 13; h2 *= 0x85EBCA6Bu; h2 ^= h2 >> 16;
+                float distFade = dense ? Mathf.Clamp01((dist0 - FullRangeM) / Mathf.Max(1f, FadeRangeM - FullRangeM)) : 0f;
+                if (distFade > 0f && ((h2 >> 8) & 0xFF) / 255f < distFade) continue;   // thin out with the fade so the count stays sane
+
+                // Atmosphere at this cell, from the cache (refreshed a slice per frame) — the same field the wings feel.
+                var simPos = CoordinateMap.ToSim(pos);
+                if (!_cells.TryGetValue(lattice, out Cell cell) || (now - cell.Time > SampleRefreshS && samplesLeft > 0))
+                {
+                    if (samplesLeft <= 0 && !_cells.ContainsKey(lattice)) { cell = new Cell { Local = Vector3.zero, Rho = rho0, TempF = StandardF, Time = now - SampleRefreshS }; }
+                    else
+                    {
+                        samplesLeft--;
+                        var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(simPos) - steady;
+                        cell = new Cell
+                        {
+                            Local = new Vector3((float)local.X, (float)local.Y, (float)local.Z),
+                            Rho = (float)FlyingGame.Core.Atmosphere.DensityAtPosition(simPos),
+                            TempF = KelvinToF((float)FlyingGame.Core.Atmosphere.TemperatureAtPosition(simPos)),
+                            Time = now,
+                        };
+                    }
+                    _cells[lattice] = cell;
+                }
 
                 // Turbulence made visible: each bubble is displaced by the LOCAL gust — eddies show as
-                // clusters of bubbles swirling together, and the aircraft visibly flies through moving
-                // air. Same field the wings feel (via Atmosphere), sampled at the bubble's sim position.
-                var simPos = CoordinateMap.ToSim(pos);
-                if (Turbulence != null)
+                // clusters of bubbles swirling together, and the aircraft visibly flies through moving air.
+                if (Turbulence != null && dist0 < FullRangeM)
                 {
                     FlyingGame.Core.MathTypes.Vec3 gust = Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
                     pos += CoordinateMap.ToUnity(gust) * GustDisplayScale;
                 }
-                // Thermals and slope lift made visible: the LOCAL air motion (everything but the steady wind,
-                // which already carries the whole lattice) moves each bubble along its streamline for a few
-                // seconds, then it re-seeds at its lattice point — with per-bubble phases so the column reads
-                // as a continuous stream: bubbles climbing the windward face and up the thermal core, others
-                // sinking in the ring of sink around it and down the lee slope.
+                // Thermals and slope lift made visible: the LOCAL air motion (everything but the steady wind, which
+                // already carries the whole lattice) moves each bubble along its streamline for a few seconds, then it
+                // re-seeds at its lattice point — per-bubble phases make the column read as a continuous stream.
                 float streamTau = 0f;
-                FlyingGame.Core.MathTypes.Vec3 local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(simPos) - steady;
-                uint h2; { int hx2 = (int)latticeFromAircraft.x, hy2 = (int)latticeFromAircraft.y, hz2 = (int)latticeFromAircraft.z; h2 = (uint)(hx2 * 73856093) ^ (uint)(hy2 * 19349663) ^ (uint)(hz2 * 83492791); h2 ^= h2 >> 13; h2 *= 0x85EBCA6Bu; h2 ^= h2 >> 16; }
-                float localSpeed = (float)local.Length;
+                Vector3 localSim = cell.Local;
+                float localSpeed = localSim.magnitude;
                 if (localSpeed > 0.15f)
                 {
-                    int hx = (int)latticeFromAircraft.x, hy = (int)latticeFromAircraft.y, hz = (int)latticeFromAircraft.z;
-                    uint h = (uint)(hx * 73856093) ^ (uint)(hy * 19349663) ^ (uint)(hz * 83492791);
-                    h ^= h >> 13; h *= 0x85EBCA6Bu; h ^= h >> 16;
-                    float phase = (h & 0xFFFF) / 65535f;
-                    streamTau = Mathf.Repeat(Time.time / StreamPeriodS + phase, 1f);
-                    pos += CoordinateMap.ToUnity(local) * (streamTau * StreamPeriodS);
+                    float phase = (h2 & 0xFFFF) / 65535f;
+                    streamTau = Mathf.Repeat(now / StreamPeriodS + phase, 1f);
+                    pos += CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(localSim.x, localSim.y, localSim.z)) * (streamTau * StreamPeriodS);
                 }
 
                 float dist = Vector3.Distance(pos, center);
-                if (dist > blockRadius)
-                {
-                    continue; // spherical block, not cubic — fewer bubbles, rounder falloff
-                }
-
-                // Size fade with distance so the field dissolves at its edge instead of popping.
-                float f = Mathf.Clamp01((dist / blockRadius - FadeStartFraction) / (1f - FadeStartFraction));
-                float edgeScale = 1f - f;
+                float edgeScale = dense ? 1f : 1f - Mathf.Clamp01((dist / reach - FadeStartFraction) / (1f - FadeStartFraction));
 
                 // Density → size, temperature → tint, from the same atmosphere the wings fly in.
-                float rho = (float)FlyingGame.Core.Atmosphere.DensityAtPosition(simPos);
-                float sizeScale = Mathf.Clamp(1f + (rho / rho0 - 1f) * DensitySizeGain, MinSizeScale, MaxSizeScale);
-                float size = BubbleSize * sizeScale * edgeScale;
-                if (size < 0.02f)
-                {
-                    continue;
-                }
+                float sizeScale = Mathf.Clamp(1f + (cell.Rho / rho0 - 1f) * DensitySizeGain, MinSizeScale, MaxSizeScale);
+                float size = bubbleSize * sizeScale * edgeScale;
+                if (size < 0.02f) continue;
 
-                float tempF = KelvinToF((float)FlyingGame.Core.Atmosphere.TemperatureAtPosition(simPos));
-                Color tint = TintFor(tempF);
-                // Lift / sink made obvious (owner): rising air blinks GREEN, sinking air blinks ORANGE (the variometer colours) — faster and
-                // brighter the stronger it is. `local` holds the mean air motion at this bubble (no gusts).
-                float w = -(float)local.Z;   // up positive
+                Color tint = TintFor(cell.TempF);
+                // Lift / sink made obvious (owner): rising air blinks GREEN, sinking air blinks ORANGE (the variometer
+                // colours) — faster and brighter the stronger it is. Tinted bubbles stay visible at any distance.
+                float w = -localSim.z;   // up positive (sim z is down)
                 float liftBlink = 1f;
-                if (w > LiftShowMs || w < -LiftShowMs)
+                bool lifting = w > LiftShowMs || w < -LiftShowMs;
+                if (lifting)
                 {
                     float strength = Mathf.Clamp01((Mathf.Abs(w) - LiftShowMs) / 4f);
                     float hz = 1.5f + 6.5f * strength;
                     float ph = (h2 & 0xFFFF) / 65535f;
-                    liftBlink = 0.5f + 0.5f * (0.5f + 0.5f * Mathf.Sin((Time.time * hz + ph) * 2f * Mathf.PI));   // never below half
+                    liftBlink = 0.5f + 0.5f * (0.5f + 0.5f * Mathf.Sin((now * hz + ph) * 2f * Mathf.PI));   // never below half
                     Color c = w > 0 ? LiftTint : SinkTint;
                     tint = Color.Lerp(tint, c, 0.5f + 0.5f * strength) * (1f + 1.2f * strength);
                 }
 
+                // Distance fade (plain air only): full to 250 ft, gone by 500 ft.
+                float alpha = lifting ? 1f : 1f - distFade;
+
                 // Centre-of-frame fade: bubbles nearer the camera than the aircraft (they've flowed past
                 // it) fade with how far past they are — but only inside the centre circle.
-                float alpha = 1f;
                 if (cam != null)
                 {
                     Vector3 cs = worldToCam.MultiplyPoint3x4(pos);
                     float depth = -cs.z;
-                    if (depth <= 0.05f)
-                    {
-                        continue; // behind the lens
-                    }
-
+                    if (depth <= 0.05f) continue; // behind the lens
                     float past = aircraftDepth - depth;
                     if (past > 0f)
                     {
-                        // Screen offset from centre in units of screen HEIGHT (so the circle is round on any aspect).
                         float ny = cs.y / (depth * tanHalfV) * 0.5f;
                         float nx = cs.x / (depth * tanHalfV) * 0.5f;
                         float r = Mathf.Sqrt(nx * nx + ny * ny);
                         float inCircle = 1f - Mathf.SmoothStep(0f, 1f,
                             Mathf.InverseLerp(CenterCircleFraction - CenterCircleFeather, CenterCircleFraction + CenterCircleFeather, r));
                         float pastFade = Mathf.Clamp01(past / Mathf.Max(0.01f, PastFadeDepthM));
-                        alpha = 1f - inCircle * pastFade;
-                        if (alpha < 0.02f)
-                        {
-                            continue;
-                        }
+                        alpha *= 1f - inCircle * pastFade;
                     }
                 }
 
@@ -214,12 +244,44 @@ namespace FlyingGame.Bridge
                 if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
                 alpha *= liftBlink;
                 if (alpha < 0.02f) continue;
-                _props.SetColor(ColorId, tint);
-                _props.SetFloat(AlphaId, alpha);
-                _props.SetFloat(BodyAlphaId, liftBlink < 1f || w > LiftShowMs || w < -LiftShowMs ? 0.10f : 0.06f);   // lift/sink bubbles 10 % (owner), plain air stays a soap bubble
-                Graphics.DrawMesh(_mesh, Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size), _material, 0,
-                    cam, 0, _props, false, false, false);
+                float body = lifting ? 0.10f : 0.06f;   // lift/sink bubbles 10 % (owner), plain air stays a soap bubble
+
+                if (dense)
+                {
+                    _mats[_batchCount] = Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);
+                    _cols[_batchCount] = tint;
+                    _alphas[_batchCount] = alpha;
+                    _bodies[_batchCount] = body;
+                    if (++_batchCount == Batch) FlushBatch(cam);
+                }
+                else
+                {
+                    _props.SetColor(ColorId, tint);
+                    _props.SetFloat(AlphaId, alpha);
+                    _props.SetFloat(BodyAlphaId, body);
+                    Graphics.DrawMesh(_mesh, Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size), _material, 0,
+                        cam, 0, _props, false, false, false);
+                }
             }
+            if (_batchCount > 0) FlushBatch(cam);
+
+            // Drop cells nobody has touched for a while (the aircraft moved on).
+            if (Time.frameCount % 120 == 0)
+            {
+                _stale.Clear();
+                foreach (var kv in _cells) if (now - kv.Value.Time > 6f) _stale.Add(kv.Key);
+                foreach (var k in _stale) _cells.Remove(k);
+            }
+        }
+
+        private void FlushBatch(Camera cam)
+        {
+            _batchProps.SetVectorArray(ColorId, _cols);
+            _batchProps.SetFloatArray(AlphaId, _alphas);
+            _batchProps.SetFloatArray(BodyAlphaId, _bodies);
+            Graphics.DrawMeshInstanced(_mesh, 0, _material, _mats, _batchCount, _batchProps,
+                UnityEngine.Rendering.ShadowCastingMode.Off, false, 0, cam);
+            _batchCount = 0;
         }
 
         /// <summary>59 °F = no tint (white); warmer blends toward HotTint by 120 °F, colder toward ColdTint by -50 °F.</summary>

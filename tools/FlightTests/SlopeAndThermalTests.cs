@@ -40,11 +40,13 @@ public class SlopeAndThermalTests
     {
         var th = new Thermal(new Vec3(0, 0, 0), 100, 4.0, 2000);
         double W(double r, double alt) => -th.WindAt(new Vec3(r, 0, -alt)).Z;
-        // At 1000 m the column has widened to R = 140 m: edge ≈ R, sink ring ≈ 1.7 R, gone by ~4 R.
-        double core = W(0, 1000), edge = W(140, 1000), ring = W(238, 1000), far = W(620, 1000);
+        // At 1000 m the column has widened to R = 140 m: edge ≈ R, sink ring ≈ 1.5 R, gone by ~3 R.
+        double core = W(0, 1000), edge = W(140, 1000), ring = W(210, 1000), far = W(620, 1000);
         _out.WriteLine($"w: core {core:F2}  edge {edge:F2}  ring {ring:F2}  far {far:F2} m/s");
         Assert.InRange(core, 3.5, 4.0);
-        Assert.True(ring < -1.0 && ring > -2.0, "sink ring about a third of the core, just outside it");
+        // Max-heating day (owner): the sink ring is weak and narrow — a sixth of the core or so, close outside it.
+        Assert.True(ring < -0.1 && ring > -0.9, $"sink ring should be weak ({ring:F2})");
+        Assert.True(W(420, 1000) > -0.08, "sink gone by three radii");
         Assert.True(System.Math.Abs(far) < 0.2, "gone a few radii out");
         Assert.True(W(0, 1500) < core, "weaker near the top");
     }

@@ -69,9 +69,13 @@ public sealed class Thermal
         // around the column. Glider pilots measure that sink at roughly a third of the core strength
         // just outside the edge, fading out by three radii. Profile: w/W = e^{-ρ²} − 0.38·e^{-(ρ−1.7)²}
         // (ρ = r/R): peak sink ≈ 0.36 W at ρ ≈ 1.7, zero crossing at ρ ≈ 1.15, gone by ρ ≈ 3.5.
+        // Owner 2026-09-10: the day is modelled at MAX HEATING, when lift and sink are not equal — the compensating
+        // sink is spread over the whole boundary layer, so the ring is weak (0.15 W), narrow (σ 0.7 R) and close in
+        // (ρ 1.5): w/W = e^{-ρ²} − 0.15·e^{-((ρ−1.5)/0.7)²}.
         double rho = r / radius;
         double up = System.Math.Exp(-rho * rho);
-        double sink = -0.38 * System.Math.Exp(-(rho - 1.7) * (rho - 1.7));
+        double sr = (rho - 1.5) / 0.7;
+        double sink = -0.15 * System.Math.Exp(-sr * sr);
         if (rho > 5.0) return Vec3.Zero;
         double w = CoreUpdraftMs * (up + sink) * altFactor; // + = upward
 

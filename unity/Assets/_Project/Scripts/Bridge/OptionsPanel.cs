@@ -71,6 +71,7 @@ namespace FlyingGame.Bridge
             TriRow("Lift / sink markers", ref SessionSettings.LiftMarkers);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Auto = gliders only", _label); y += lh * 0.8f;
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
+            BoolRow("Dense bubbles (GPU instancing)", ref SessionSettings.BubbleInstancing);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "lift green · drag red · moment yellow · thrust magenta · wheels cyan", _label); y += lh * 0.8f;
             {

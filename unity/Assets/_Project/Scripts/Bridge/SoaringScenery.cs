@@ -25,12 +25,13 @@ namespace FlyingGame.Bridge
             (Vec3 pos, double r, double core, double top)[] valley =
             {
                 // Bigger and stronger (owner 2026-09-09: the 2-33 could not stay up): cores 180–240 m, 4.5–7 m/s.
-                (new Vec3(300, 300, 0), 180, 6.0, 2000),
-                (new Vec3(-200, 500, 0), 140, 4.5, 1600),
-                (new Vec3(800, -200, 0), 210, 7.0, 2400),
-                (new Vec3(200, -600, 0), 150, 5.0, 1800),
+                // ... and again twice as wide and twice as strong (owner 2026-09-10: "for easier thermalling").
+                (new Vec3(300, 300, 0), 360, 12.0, 2000),
+                (new Vec3(-200, 500, 0), 280, 9.0, 1600),
+                (new Vec3(800, -200, 0), 420, 14.0, 2400),
+                (new Vec3(200, -600, 0), 300, 10.0, 1800),
                 // The ploughed farmer's field north of the runway: dark earth, a strong, wide thermal.
-                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 240, 6.5, 2400),
+                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 480, 13.0, 2400),
             };
             var set = new System.Collections.Generic.List<(Vec3 pos, double r, double core, double top)>();
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)

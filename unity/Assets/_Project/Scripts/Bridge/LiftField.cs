@@ -82,14 +82,14 @@ namespace FlyingGame.Bridge
                 if (float.IsNaN(w) || (w < ThresholdMs && w > -ThresholdMs)) continue;
                 Vector3 c = CellWorld(i);
                 float dist = Vector3.Distance(c, p);
-                if (dist > radius || dist < 60f) continue;   // the near field's own bubbles take over close in
+                if (dist > radius || dist < 130f) continue;   // the dense near field (to 500 ft) has its own coloured bubbles close in
                 float strength = Mathf.Clamp01((Mathf.Abs(w) - ThresholdMs) / 4f);
                 float hz = 1.5f + 6.5f * strength;
                 float ph = ((i * 2654435761u) & 0xFFFF) / 65535f;
                 // Half-opaque bodies (owner: solid was too much) that thin a little more inside 100 m. The blink is carried by brightness and size, not transparency.
                 float blink = 0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI);
                 Color col = (w > 0 ? BubbleField.LiftTint : BubbleField.SinkTint) * ((0.9f + 1.3f * strength) * (0.75f + 0.5f * blink));
-                float near = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01((dist - 40f) / 60f));
+                float near = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01((dist - 130f) / 40f));
                 float edge = 1f - Mathf.Clamp01((dist / radius - 0.92f) / 0.08f);   // only the last 8 % fades, to avoid popping
                 col.a = 1f;
                 _props.SetColor(ColorId, col);
