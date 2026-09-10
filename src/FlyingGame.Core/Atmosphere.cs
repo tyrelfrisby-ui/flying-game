@@ -97,9 +97,20 @@ public static class Atmosphere
     /// use this: they are quadratic bluff-body terms for large-angle flow, not a gust-response model.</summary>
     public static MathTypes.Vec3 MeanWindAtPosition(MathTypes.Vec3 worldPosition) => WindAt(worldPosition, false);
 
+    /// <summary>Wind speed grows with height (surface friction slows the low layers): the power-law boundary
+    /// layer U(z) = U10 · (z/10 m)^0.14 over open country, so the wind at 900 m — the first wall's crest — is
+    /// about 1.9× the 10 m wind. Referenced to height above the valley floor (the sea-level datum here) and
+    /// capped at 2.2×, so lift up the ridge is stronger the higher you go.</summary>
+    public static double WindGradientFactor(MathTypes.Vec3 worldPosition)
+    {
+        double z = System.Math.Max(10.0, -worldPosition.Z);
+        return System.Math.Min(2.2, System.Math.Pow(z / 10.0, 0.14));
+    }
+
     private static MathTypes.Vec3 WindAt(MathTypes.Vec3 worldPosition, bool withGusts)
     {
-        MathTypes.Vec3 w = SteadyWind + (withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero);
+        MathTypes.Vec3 steady = SteadyWind * WindGradientFactor(worldPosition);
+        MathTypes.Vec3 w = steady + (withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero);
         for (int i = 0; i < Thermals.Count; i++)
         {
             w += Thermals[i].WindAt(worldPosition) * ThermalStrengthScale;
@@ -111,7 +122,7 @@ public static class Atmosphere
         }
         if (SlopeLiftEnabled && WorldTerrain.Active is not null)
         {
-            w += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, SteadyWind);
+            w += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, steady);
         }
 
         return w;

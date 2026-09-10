@@ -61,14 +61,13 @@ namespace FlyingGame.Bridge
                 _w = shifted; _anchor = anchor;
             }
             // Sample a slice.
-            var steady = FlyingGame.Core.Atmosphere.SteadyWind;
             for (int k = 0; k < SamplesPerFrame; k++)
             {
                 int i = _cursor; _cursor = (_cursor + 1) % _n;
                 Vector3 c = CellWorld(i);
                 if (c.y < 0f) { _w[i] = 0f; continue; }
                 var sim = CoordinateMap.ToSim(c);
-                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - steady;
+                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWind * FlyingGame.Core.Atmosphere.WindGradientFactor(sim);
                 float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
                 _w[i] = c.y < ground ? 0f : -(float)local.Z;
             }

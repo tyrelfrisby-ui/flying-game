@@ -44,4 +44,23 @@ public class SlopeAndThermalTests
         Assert.True(System.Math.Abs(far) < 0.2, "gone a few radii out");
         Assert.True(W(0, 1500) < core, "weaker near the top");
     }
+
+    [Fact]
+    public void WindStrengthensWithHeightAndSoDoesTheRidgeLift()
+    {
+        var t = new WorldTerrain(); WorldTerrain.Active = t;
+        Atmosphere.SteadyWind = new Vec3(0, -5, 0); Atmosphere.SlopeLiftEnabled = true; Atmosphere.Thermals.Clear(); Atmosphere.ActiveTurbulence = null;
+        try
+        {
+            double f10 = Atmosphere.WindGradientFactor(new Vec3(0, 0, -10)), f900 = Atmosphere.WindGradientFactor(new Vec3(0, 0, -900));
+            Assert.InRange(f10, 0.99, 1.01); Assert.InRange(f900, 1.7, 2.0);
+            double edge = WorldTerrain.EdgeMeanY(0) + WorldTerrain.EdgeWander(0, 0);
+            double Up(double y, double agl) => -Atmosphere.WindAtPosition(new Vec3(0, y, -(t.HeightAt(0, y) + agl))).Z;
+            double low = Up(edge - WorldTerrain.EscarpmentWidthM * 0.15, 40), high = Up(edge - WorldTerrain.EscarpmentWidthM * 0.85, 40);
+            _out.WriteLine($"lift low on the face {low:F1} m/s, high on the face {high:F1} m/s; band e-fold {SlopeLift.DecayHeightM} m");
+            Assert.True(high > low, "lift must be stronger higher up the ridge");
+            Assert.True(SlopeLift.DecayHeightM >= 500, "wider lift band");
+        }
+        finally { WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.SlopeLiftEnabled = false; }
+    }
 }

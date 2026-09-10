@@ -146,9 +146,9 @@ public sealed class Ridge
 /// </summary>
 public static class SlopeLift
 {
-    public const double MaxSlope = 0.7;            // tan 35°
-    public const double DecayHeightM = 320.0;      // e-fold of the deflection with height above ground
-    public const double StreamlineTilt = 0.8;      // upwind sample distance per metre of height (≈ 39° tilt)
+    public const double MaxSlope = 0.84;           // tan 40°
+    public const double DecayHeightM = 520.0;      // e-fold of the deflection with height above ground (owner: wider band)
+    public const double StreamlineTilt = 1.0;      // upwind sample distance per metre of height (45° tilt)
     public const double SampleStepM = 25.0;
 
     public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind)

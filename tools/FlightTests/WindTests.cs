@@ -61,13 +61,14 @@ public class WindTests
             // Hands off, the aircraft keeps its inertial velocity (momentum) and weathervanes: the nose swings
             // INTO the wind until the air-relative sideslip is gone, and ground velocity − air velocity is the wind.
             Vec3 groundWorld = ac.State.Attitude.Rotate(ac.State.Velocity);
-            Vec3 airWorld = groundWorld - Atmosphere.SteadyWind;
+            Vec3 airWorld = groundWorld - Atmosphere.WindAtPosition(ac.State.Position);
             Vec3 nose = ac.State.Attitude.Rotate(new Vec3(1, 0, 0));
             double noseHdg = System.Math.Atan2(nose.Y, nose.X), airHdg = System.Math.Atan2(airWorld.Y, airWorld.X);
             double beta = System.Math.Abs(noseHdg - airHdg) * 180 / System.Math.PI;
             Assert.True(beta < 3, $"nose must align with the air vector (sideslip {beta:F1}°)");
             Assert.True(noseHdg < -8 * System.Math.PI / 180, $"nose must point into the wind (heading {noseHdg * 57.3:F1}°)");
-            Assert.InRange((groundWorld - airWorld).Y, 7.9, 8.1);
+            double expected = 8 * Atmosphere.WindGradientFactor(ac.State.Position);   // the wind strengthens with height
+            Assert.InRange((groundWorld - airWorld).Y, expected - 0.1, expected + 0.1);
         }
         finally { Atmosphere.SteadyWind = Vec3.Zero; }
     }
