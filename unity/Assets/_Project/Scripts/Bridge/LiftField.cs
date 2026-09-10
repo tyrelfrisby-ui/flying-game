@@ -29,7 +29,7 @@ namespace FlyingGame.Bridge
             _mesh = BubbleField.SharedSphere();
             _material = new Material(Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color"));
             // The soap-bubble shader draws an almost clear body with a bright rim; lift/sink markers must be SOLID.
-            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.95f); _material.SetFloat("_RimAlpha", 1f); }
+            if (_material.HasProperty("_BodyAlpha")) { _material.SetFloat("_BodyAlpha", 0.5f); _material.SetFloat("_RimAlpha", 0.9f); }   // owner: half opacity
             _props = new MaterialPropertyBlock();
             int side = 2 * HalfCount + 1; _n = side * side * side;
             _w = new float[_n];
@@ -84,11 +84,10 @@ namespace FlyingGame.Bridge
                 float strength = Mathf.Clamp01((Mathf.Abs(w) - ThresholdMs) / 4f);
                 float hz = 1.5f + 6.5f * strength;
                 float ph = ((i * 2654435761u) & 0xFFFF) / 65535f;
-                // Fully OPAQUE until very close (owner: hard to find otherwise); only inside 100 m do they thin, to half
-                // at 40 m. The blink is carried by brightness and size, not transparency.
+                // Half-opaque bodies (owner: solid was too much) that thin a little more inside 100 m. The blink is carried by brightness and size, not transparency.
                 float blink = 0.5f + 0.5f * Mathf.Sin((t * hz + ph) * 2f * Mathf.PI);
                 Color col = (w > 0 ? BubbleField.LiftTint : BubbleField.SinkTint) * ((0.9f + 1.3f * strength) * (0.75f + 0.5f * blink));
-                float near = Mathf.Lerp(0.5f, 1f, Mathf.Clamp01((dist - 40f) / 60f));
+                float near = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01((dist - 40f) / 60f));
                 float edge = 1f - Mathf.Clamp01((dist / radius - 0.92f) / 0.08f);   // only the last 8 % fades, to avoid popping
                 col.a = 1f;
                 _props.SetColor(ColorId, col);
