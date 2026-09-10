@@ -174,14 +174,19 @@ public sealed class WorldTerrain
         { Kind = kind; Dx = dx; Dy = dy; Length = length; Width = width; HeadingDeg = headingDeg; }
     }
 
-    /// <summary>Same at every airport, all PARALLEL (along x): paved main, gravel STOL strip east, grass strip west.
-    /// (The crossing runway is gone — with the wind always onto the ridge every landing is a crosswind.)</summary>
+    /// <summary>Same at every airport: paved main (along x), gravel STOL strip east, grass strip west — and (owner
+    /// 2026-09-10) a shorter paved CROSSWIND runway across the north half of the main, along y = 09/27, straight into
+    /// the default east wind, 75 % of the main's length.</summary>
     public static readonly Strip[] AirportStrips =
     {
         new("paved", 0, 0, RunwayLengthM, RunwayWidthM, 0),
+        new("paved-xwind", XwindRunwayDx, 0, RunwayLengthM * 0.75, 25, 90),
         new("gravel", 100, 420, 600, 15, 0),
         new("grass", -100, -420, 750, 20, 0),
     };
+    /// <summary>Crossing point of the into-wind runway along the main (north of the gravel/grass strips' ends).</summary>
+    public const double XwindRunwayDx = 450;
+    public static bool IsPaved(string kind) => kind.StartsWith("paved");
 
     /// <summary>Hangar centre offset from the airport centre (long axis along x, doors open both ends).</summary>
     public const double HangarDx = -450, HangarDy = 200;
@@ -213,7 +218,7 @@ public sealed class WorldTerrain
             if (System.Math.Abs(x - a.X) > PadHalfX + 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
             foreach (Strip st in AirportStrips)
             {
-                if (InStrip(a, st, x, y, 1.0)) return st.Kind switch { "paved" => Surface.Paved, "gravel" => Surface.Gravel, _ => Surface.Grass };
+                if (InStrip(a, st, x, y, 1.0)) return IsPaved(st.Kind) ? Surface.Paved : st.Kind == "gravel" ? Surface.Gravel : Surface.Grass;
             }
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }

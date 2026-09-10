@@ -21,8 +21,16 @@ public class GroundSurfaceTests
     public void StripsAreParallelAndClassified()
     {
         var a = WorldTerrain.Airports[0];
-        Assert.Equal(3, WorldTerrain.AirportStrips.Length);
-        foreach (var s in WorldTerrain.AirportStrips) Assert.Equal(0, s.HeadingDeg);
+        Assert.Equal(4, WorldTerrain.AirportStrips.Length);
+        foreach (var s in WorldTerrain.AirportStrips) if (s.Kind != "paved-xwind") Assert.Equal(0, s.HeadingDeg);
+        // The into-wind runway: 09/27 across the main, 75 % of its length, paved, crossing clear of the other strips.
+        var xw = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "paved-xwind");
+        Assert.Equal(90, xw.HeadingDeg);
+        Assert.Equal(WorldTerrain.RunwayLengthM * 0.75, xw.Length, 6);
+        Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y + 500));
+        Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y - 500));
+        Assert.Equal(WorldTerrain.Surface.Rough, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y + 620));
+        Assert.Equal(WorldTerrain.Surface.Gravel, WorldTerrain.SurfaceAt(a.X + 100, a.Y + 420));   // still the gravel strip, not the crossing
         Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(a.X, a.Y));
         Assert.Equal(WorldTerrain.Surface.Gravel, WorldTerrain.SurfaceAt(a.X + 100, a.Y + 420));
         Assert.Equal(WorldTerrain.Surface.Grass, WorldTerrain.SurfaceAt(a.X - 100, a.Y - 420));
