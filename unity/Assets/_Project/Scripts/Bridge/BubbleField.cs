@@ -31,6 +31,9 @@ namespace FlyingGame.Bridge
         public float FullRangeM = 76.2f;         // 250 ft: full intensity inside
         public float FadeRangeM = 152.4f;        // 500 ft: invisible beyond
         public float FadeStartFraction = 0.6f;   // (sparse fallback field) begin shrinking beyond this fraction of the block radius
+        public float MinPixels = 9f;             // a bubble never draws smaller than this on a ~2500 px phone screen (else it vanishes)
+        public float JitterFraction = 0.38f;     // per-cell offset of the lattice point (± this × spacing) so the field is not a grid
+        public float PlainBodyAlpha = 0.16f;     // dense field: plain-air body alpha (the soap-bubble 0.06 is invisible at this size)
         public float SampleRefreshS = 0.6f;      // how often a lattice cell re-samples the atmosphere
         public int SamplesPerFrame = 1500;       // atmosphere samples per frame (the rest come from the cell cache)
 
@@ -98,12 +101,25 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             if (!SessionSettings.BubblesOn) return;
-            if (Follow == null || _mesh == null)
-            {
-                return;
-            }
+            Draw(Camera.main);
+        }
 
-            Camera cam = Camera.main;
+        /// <summary>Drawn bubbles last call (diagnostics).</summary>
+        public int DrawnCount { get; private set; }
+
+        /// <summary>Submit this frame's bubbles for <paramref name="cam"/> (also callable from an editor render check).</summary>
+        public void Draw(Camera cam)
+        {
+            if (_mesh == null) { _mesh = SharedSphere(); }
+            if (_material == null)
+            {
+                Shader sh = Shader.Find("FlyingGame/Bubble") ?? Shader.Find("Unlit/Color");
+                _material = new Material(sh) { enableInstancing = true };
+                _props = new MaterialPropertyBlock();
+                _batchProps = new MaterialPropertyBlock();
+            }
+            if (Follow == null) return;
+            DrawnCount = 0;
             Shader.SetGlobalVector(SunDirId, _sun != null ? -_sun.transform.forward : new Vector3(0.4f, 0.8f, -0.4f).normalized);
 
             // Steady wind drifts the whole air mass over the ground, so bubbles slide relative to the
@@ -143,13 +159,18 @@ namespace FlyingGame.Bridge
                     Mathf.RoundToInt((center.x - _airMassOrigin.x) / spacing) + ix,
                     Mathf.RoundToInt((center.y - _airMassOrigin.y) / spacing) + iy,
                     Mathf.RoundToInt((center.z - _airMassOrigin.z) / spacing) + iz);
-                Vector3 pos = _airMassOrigin + new Vector3(lattice.x, lattice.y, lattice.z) * spacing;
-                float dist0 = Vector3.Distance(pos, center);
-                if (dist0 > reach) continue;   // spherical block, not cubic — fewer bubbles, rounder falloff
-
-                // Per-cell hash: phases, and the thinning draw beyond the full-strength range.
+                // Per-cell hash: jitter, phases, and the thinning draw beyond the full-strength range.
                 uint h2 = (uint)(lattice.x * 73856093) ^ (uint)(lattice.y * 19349663) ^ (uint)(lattice.z * 83492791);
                 h2 ^= h2 >> 13; h2 *= 0x85EBCA6Bu; h2 ^= h2 >> 16;
+                Vector3 pos = _airMassOrigin + new Vector3(lattice.x, lattice.y, lattice.z) * spacing;
+                if (dense)
+                {
+                    // Jitter each bubble off its lattice point (fixed per cell) so the air reads as air, not a grid.
+                    uint j = h2 * 2654435761u;
+                    pos += new Vector3(((j & 0x3FF) / 1023f - 0.5f), (((j >> 10) & 0x3FF) / 1023f - 0.5f), (((j >> 20) & 0x3FF) / 1023f - 0.5f)) * (2f * JitterFraction * spacing);
+                }
+                float dist0 = Vector3.Distance(pos, center);
+                if (dist0 > reach) continue;   // spherical block, not cubic — fewer bubbles, rounder falloff
                 float distFade = dense ? Mathf.Clamp01((dist0 - FullRangeM) / Mathf.Max(1f, FadeRangeM - FullRangeM)) : 0f;
                 if (distFade > 0f && ((h2 >> 8) & 0xFF) / 255f < distFade) continue;   // thin out with the fade so the count stays sane
 
@@ -200,6 +221,13 @@ namespace FlyingGame.Bridge
                 float sizeScale = Mathf.Clamp(1f + (cell.Rho / rho0 - 1f) * DensitySizeGain, MinSizeScale, MaxSizeScale);
                 float size = bubbleSize * sizeScale * edgeScale;
                 if (size < 0.02f) continue;
+                if (dense && cam != null)
+                {
+                    // Never below MinPixels on screen: a 0.2 m bubble 100 m out is sub-pixel and simply vanishes.
+                    float camDist = Vector3.Distance(pos, cam.transform.position);
+                    float minSize = camDist * (2f * tanHalfV) * (MinPixels / Mathf.Max(200f, cam.pixelHeight));
+                    if (size < minSize) size = minSize;
+                }
 
                 Color tint = TintFor(cell.TempF);
                 // Lift / sink made obvious (owner): rising air blinks GREEN, sinking air blinks ORANGE (the variometer
@@ -244,8 +272,9 @@ namespace FlyingGame.Bridge
                 if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
                 alpha *= liftBlink;
                 if (alpha < 0.02f) continue;
-                float body = lifting ? 0.10f : 0.06f;   // lift/sink bubbles 10 % (owner), plain air stays a soap bubble
+                float body = lifting ? 0.10f : (dense ? PlainBodyAlpha : 0.06f);   // lift/sink bubbles 10 % (owner); plain air a soft dot in the dense field
 
+                DrawnCount++;
                 if (dense)
                 {
                     _mats[_batchCount] = Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);
