@@ -15,15 +15,7 @@ public class GroundTowTests
     private readonly ITestOutputHelper _out;
     public GroundTowTests(ITestOutputHelper o) { _out = o; }
 
-    private static Aircraft OnGround(AircraftConfig c, double x)
-    {
-        var mains = c.Gear.FindAll(g => !g.IsTailwheel && g.GearType != "nose-skid" && System.Math.Abs(g.Pos[1]) < 2);
-        var tws = c.Gear.FindAll(g => g.IsTailwheel && g.Pos[0] < -2);
-        double pitch = tws.Count > 0 ? System.Math.Atan((mains[0].Pos[2] - tws[0].Pos[2]) / (mains[0].Pos[0] - tws[0].Pos[0])) : 0;
-        var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
-        double maxWz = -999; foreach (var g in c.Gear) if (System.Math.Abs(g.Pos[1]) < 2) maxWz = System.Math.Max(maxWz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
-        return new Aircraft(c, new RigidBodyState(new Vec3(x, 0, -maxWz + 0.01), att, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
-    }
+    private static Aircraft OnGround(AircraftConfig c, double x) => new Aircraft(c, LandingGear.RestingState(c, x, 0, 0), ControlDeflections.Neutral);
 
     private static (double roll, double pitch, double psi) Euler(RigidBodyState s)
     {

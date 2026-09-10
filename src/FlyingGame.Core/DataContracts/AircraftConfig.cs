@@ -20,6 +20,9 @@ public sealed class AircraftConfig
     /// adds <see cref="GearDragAreaM2"/> of flat-plate drag area (gear up in the air start).</summary>
     public bool RetractableGear { get; set; }
     public double GearDragAreaM2 { get; set; }
+    /// <summary>Airframe toughness against impacts: multiplies every break speed (hard points and gear legs).
+    /// 1 = light-aircraft default; a wartime fighter is ~1.6.</summary>
+    public double ImpactStrength { get; set; } = 1.0;
 
     public MassConfig Mass { get; set; } = new();
     public List<SurfaceConfig> Surfaces { get; set; } = new();

@@ -61,8 +61,10 @@ namespace FlyingGame.Bridge
                 // track stays put — following the ground vector made a 5 m/s crosswind look like a
                 // permanent right yaw. Following the air vector centres the nose in steady flight and
                 // still shows genuine sideslip / gyroscopic yaw / tumbles.
+                // ... but only once actually MOVING: parked in a 5 m/s crosswind the air vector is the wind from the
+                // side, and the launch view sat off the wingtip (owner). Ground track speed gates it.
                 Vector3 v = Driver.AirVelocityUnity;
-                if (v.magnitude >= MinTrackSpeed) return v.normalized;
+                if (v.magnitude >= MinTrackSpeed && Driver.WorldVelocityUnity.magnitude >= MinTrackSpeed) return v.normalized;
             }
             return Target.forward;
         }

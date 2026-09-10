@@ -33,10 +33,49 @@ public static class LandingGear
         return false;
     }
 
+    /// <summary>
+    /// The aircraft at rest on ALL its wheels (owner 2026-09-09: a taildragger spawned level dropped its tail from a
+    /// metre up and broke the tail boom): the three-point pitch that puts the mains and the tail/nose wheel on the
+    /// ground together, CG height so the lowest wheel sits 2 cm into the surface (struts settle), heading given.
+    /// </summary>
+    public static RigidBodyState RestingState(AircraftConfig c, double x, double y, double groundElevM, double headingRad = 0.0)
+    {
+        Vec3 cg = c.Mass.CgVec();
+        var mains = c.Gear.FindAll(g => !g.IsTailwheel && g.GearType != "nose-skid" && g.GearType != "float-keel" && System.Math.Abs(g.Pos[1]) < 2.5 && g.Pos[2] > 0);
+        double pitch = 0.0;
+        if (mains.Count > 0)
+        {
+            // Main wheel reference: the lowest-hanging main. Third wheel: the tailwheel (aft) or the nosewheel (ahead).
+            GearConfig m = mains[0]; foreach (GearConfig g in mains) if (g.Pos[2] > m.Pos[2]) m = g;
+            GearConfig? third = null;
+            foreach (GearConfig g in c.Gear)
+            {
+                if (g == m || g.Pos[2] <= 0 || g.GearType == "nose-skid" || g.GearType == "float-keel") continue;
+                if (g.IsTailwheel || (System.Math.Abs(g.Pos[1]) < 0.3 && System.Math.Abs(g.Pos[0] - m.Pos[0]) > 1.0))
+                    if (third == null || System.Math.Abs(g.Pos[0] - m.Pos[0]) > System.Math.Abs(third.Pos[0] - m.Pos[0])) third = g;
+            }
+            if (third != null && System.Math.Abs(m.Pos[0] - third.Pos[0]) > 0.5)
+                pitch = System.Math.Atan((m.Pos[2] - third.Pos[2]) / (m.Pos[0] - third.Pos[0]));   // nose up when the tailwheel hangs higher
+        }
+        var qPitch = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
+        var qYaw = new Quat(0, 0, System.Math.Sin(headingRad / 2), System.Math.Cos(headingRad / 2));
+        Quat att = Quat.Multiply(qYaw, qPitch);
+        double lowest = double.MinValue;   // NED z (down) of the lowest wheel relative to the CG
+        foreach (GearConfig g in c.Gear)
+        {
+            if (g.GearType == "float-keel" || g.Pos[2] <= 0) continue;
+            lowest = System.Math.Max(lowest, att.Rotate(g.PosVec() - cg).Z);
+        }
+        if (lowest == double.MinValue) lowest = 0.0;
+        return new RigidBodyState(new Vec3(x, y, -(groundElevM + lowest - 0.02)), att, Vec3.Zero, Vec3.Zero);
+    }
+
     /// <summary>First-contact sink rate (m/s) that tears a leg off when the config gives none: FAR 23 designs the
     /// gear for 10 ft/s (3 m/s); ~4 m/s is past its ultimate. A tailwheel takes the tail dropping through onto it at
     /// the end of every wheel landing (5–6 m/s at the wheel from the pitch rate), so it is only lost to a real slam.</summary>
     public const double DefaultBreakSinkMs = 4.0, DefaultTailwheelBreakSinkMs = 8.0;
+    /// <summary>Tyre cornering stiffness per newton of wheel load (N per rad per N): ~12 for an aircraft tyre.</summary>
+    public const double CorneringPerLoad = 12.0;
 
     /// <param name="lostLegs">legs already torn off (skipped)</param>
     /// <param name="broken">receives the leg that just hit harder than its break sink rate</param>
@@ -87,7 +126,7 @@ public static class LandingGear
                 // Touchdown on this leg: a hard enough one tears it off (individually — the other legs stay).
                 touching[gi] = true;
                 impacts?.Record(compressionRate, leg.ToString());
-                double breakSink = g.BreakSinkMs > 0 ? g.BreakSinkMs : g.IsTailwheel ? DefaultTailwheelBreakSinkMs : DefaultBreakSinkMs;
+                double breakSink = (g.BreakSinkMs > 0 ? g.BreakSinkMs : g.IsTailwheel ? DefaultTailwheelBreakSinkMs : DefaultBreakSinkMs) * config.ImpactStrength;
                 if (broken != null && compressionRate > breakSink && !broken.Contains(leg)) broken.Add(leg);
             }
 
@@ -123,9 +162,12 @@ public static class LandingGear
             double vSide = Vec3.Dot(velGround, tireRight);
             double speed = velGround.Length;
 
-            // Lateral: cornering force opposes slip, ∝ slip angle, capped by the friction circle.
+            // Lateral: cornering force opposes slip, ∝ slip angle, capped by the friction circle. Cornering stiffness
+            // grows with the wheel load (a tyre's C ≈ 10–15 × its vertical load per radian): a fixed per-type constant
+            // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
-            double lateralN = -g.CorneringStiffnessN * slip;
+            double cornering = System.Math.Max(g.CorneringStiffnessN, CorneringPerLoad * normalN);
+            double lateralN = -cornering * slip;
             double muLimit = g.TireMu * normalN;
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 

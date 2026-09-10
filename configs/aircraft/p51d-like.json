@@ -1423,7 +1423,7 @@
       "pos": [
         0.2,
         -1.9,
-        1.0
+        1.45
       ],
       "springN": 180000,
       "dampNs": 9000,
@@ -1439,7 +1439,7 @@
       "pos": [
         0.2,
         1.9,
-        1.0
+        1.45
       ],
       "springN": 180000,
       "dampNs": 9000,
@@ -1455,7 +1455,7 @@
       "pos": [
         -4.9,
         0,
-        0.15
+        0.55
       ],
       "springN": 60000,
       "dampNs": 9000.0,
@@ -1474,5 +1474,6 @@
     "gMin": -4.0
   },
   "retractableGear": true,
+  "impactStrength": 1.6,
   "gearDragAreaM2": 0.3
 }

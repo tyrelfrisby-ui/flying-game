@@ -70,13 +70,14 @@ namespace FlyingGame.Bridge
             RigidBodyState tugState;
             if (_groundTow)
             {
-                double tugGearZ = 0; foreach (var g in tugConfig.Gear) if (!g.IsTailwheel) tugGearZ = System.Math.Max(tugGearZ, g.Pos[2]);
                 var fwdFlat = new Vec3(fwd.X, fwd.Y, 0); fwdFlat = fwdFlat / fwdFlat.Length;
                 // Rope just taut at hookup (no snatch when the tug moves off): hooks are ~2 m ahead of the
                 // glider CG and ~4.5 m behind the tug CG, so tug CG = glider CG + rope + 2.5 m.
                 double ahead = RopeLengthM + 2.0 + 3.4 - 0.2;   // glider hook +2.0, tug hook -3.4: rope just taut (0.2 m slack)
-                tugPos = new Vec3(gliderState.Position.X + fwdFlat.X * ahead, gliderState.Position.Y + fwdFlat.Y * ahead, -(groundHere + tugGearZ - 0.02));
-                tugState = new RigidBodyState(tugPos, gliderState.Attitude, Vec3.Zero, Vec3.Zero);
+                // The tug rests on all its wheels (three-point stance), heading the glider's way.
+                tugState = FlyingGame.Core.LandingGear.RestingState(tugConfig, gliderState.Position.X + fwdFlat.X * ahead, gliderState.Position.Y + fwdFlat.Y * ahead,
+                    groundHere, System.Math.Atan2(fwdFlat.Y, fwdFlat.X));
+                tugPos = tugState.Position;
             }
             else
             {

@@ -115,13 +115,10 @@ namespace FlyingGame.Bridge
             }
             if (ground)
             {
-                // At rest at the south threshold of the main paved runway, heading north (+x), sitting on
-                // the wheels: lowest main-gear contact 2 cm into the surface so the struts settle.
-                double gearZ = 0.0;
-                foreach (var g in config.Gear) if (!g.IsTailwheel) gearZ = System.Math.Max(gearZ, g.Pos[2]);
+                // At rest at the south threshold of the main paved runway, heading north (+x), sitting on ALL its
+                // wheels (three-point stance for a taildragger — spawned level, the tail dropped and broke off).
                 double x = ap.X - FlyingGame.Core.WorldTerrain.RunwayLengthM * 0.5 + 80.0;
-                var pos = new Vec3(x, ap.Y, -(ap.ElevationM + gearZ - 0.02));
-                var state = new RigidBodyState(pos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+                RigidBodyState state = FlyingGame.Core.LandingGear.RestingState(config, x, ap.Y, ap.ElevationM);
                 TrimStick = 0.0;
                 Sim = new SimLoop(new Aircraft(config, state, ControlDeflections.Neutral));
                 ApplyFixedSlats(config);

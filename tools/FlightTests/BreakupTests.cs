@@ -114,6 +114,40 @@ public class BreakupTests
         Assert.Empty(ac.LostComponents);   // 3 m/s on the mains, the tail dropping through after: nothing breaks
     }
 
+    private static AircraftConfig Load(string file) => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", file));
+
+    [Theory]
+    [InlineData("pa18-cub-like.json")]
+    [InlineData("p51d-like.json")]
+    [InlineData("pa25-pawnee-like.json")]
+    public void SpawnOnTheRunwayRestsOnAllWheelsAndBreaksNothing(string file)
+    {
+        // Owner: the P-51 spawned level dropped its tail and broke it off. Spawn in the resting stance instead.
+        var c = Load(file);
+        WorldTerrain.Active = null;
+        RigidBodyState rest = LandingGear.RestingState(c, 0, 0, 0);
+        var ac = new Aircraft(c, rest, ControlDeflections.Neutral);
+        double pitch0 = System.Math.Asin(System.Math.Clamp(2 * (rest.Attitude.W * rest.Attitude.Y - rest.Attitude.Z * rest.Attitude.X), -1, 1));
+        Run(ac, 3);
+        var q = ac.State.Attitude;
+        double pitch = System.Math.Asin(System.Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
+        _out.WriteLine($"{file}: stance pitch {pitch0 * 57.3:F1}°, settled {pitch * 57.3:F1}°, CG {-ac.State.Position.Z:F2} m, lost: {string.Join(", ", ac.LostComponents)}");
+        Assert.Empty(ac.LostComponents);
+        Assert.InRange(pitch, pitch0 - 3 * System.Math.PI / 180, pitch0 + 3 * System.Math.PI / 180);   // it was already sitting on its wheels
+        Assert.True(ac.State.Velocity.Length < 0.3, "at rest");
+    }
+
+    [Fact]
+    public void TougherAirframeTakesHarderHits()
+    {
+        var p51 = Load("p51d-like.json");
+        Assert.InRange(p51.ImpactStrength, 1.5, 2.0);
+        double cub = 0, fighter = 0;
+        foreach (var p in AirframeContact.BuildPoints(Cub())) if (p.Name == "tail-cone") cub = p.BreakSpeedMs;
+        foreach (var p in AirframeContact.BuildPoints(p51)) if (p.Name == "tail-cone") fighter = p.BreakSpeedMs;
+        Assert.Equal(cub * p51.ImpactStrength, fighter, 6);
+    }
+
     [Fact]
     public void FuselageStationsBracketTheWingRoot()
     {

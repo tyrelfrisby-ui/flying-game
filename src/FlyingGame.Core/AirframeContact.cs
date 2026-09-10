@@ -178,6 +178,10 @@ public static class AirframeContact
         {
             pts.Add(new ContactPoint { Body = new Vec3(e.Pos[0] + 0.8, e.Pos[1], e.Pos[2] + 0.4), Component = e.Pos[1] < 0 ? AirframeComponent.NacelleLeft : AirframeComponent.NacelleRight, BreakSpeedMs = 6.0, Name = "nacelle" });
         }
+        // Tougher airframes (config impactStrength) take proportionally harder hits before anything breaks — except the
+        // prop strike, which is a ground touch at any speed.
+        if (c.ImpactStrength > 0 && System.Math.Abs(c.ImpactStrength - 1.0) > 1e-9)
+            foreach (ContactPoint p in pts) if (p.Component != AirframeComponent.Propeller && p.BreakSpeedMs > 0) p.BreakSpeedMs *= c.ImpactStrength;
         return pts;
     }
 
