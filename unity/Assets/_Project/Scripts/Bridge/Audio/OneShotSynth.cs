@@ -3,7 +3,14 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, Count }
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, Count }
+
+    internal static class FxSource
+    {
+        /// <summary>Sounds made AT THE AIRCRAFT (attenuated and delayed by distance once the pilot has left it); the
+        /// rest happen at the listener (the pilot / seat / canopy).</summary>
+        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp;
+    }
 
     /// <summary>
     /// One procedural sound effect: a scripted envelope over noise / resonator / partial components.
@@ -27,6 +34,7 @@ namespace FlyingGame.Bridge
         private float _flutHz = 25f, _len, _ias;
         private float _level = 1f;           // 0..1 severity for the pilot sounds (thud weight, grunt effort) / crash weight
         private float _ring, _ringDec, _gateDec, _crunchRate;   // Crash: metallic ring envelope, crunch-event rate
+        private float _distGain = 1f;        // distance attenuation fixed at trigger time (aircraft-bound sounds)
         private bool _snapped;
         private const float Smooth = 1f / 48f;
 
@@ -40,14 +48,15 @@ namespace FlyingGame.Bridge
             return t <= 0f ? 1f : (float)Math.Exp(-t / decayTau);
         }
 
-        public void Start(FxKind kind, float ias) => Start(kind, ias, 1f);
+        public void Start(FxKind kind, float ias) => Start(kind, ias, 1f, 1f);
 
-        public void Start(FxKind kind, float ias, float level)
+        public void Start(FxKind kind, float ias, float level, float distGain)
         {
             Kind = kind;
             T = 0f;
             _ias = ias;
             _level = Dsp.Clamp01(level);
+            _distGain = distGain;
             _sub = 0;
             _snapped = false;
             _gA = _gB = _gC = 0f;
@@ -130,6 +139,13 @@ namespace FlyingGame.Bridge
                     _ringDec = Dsp.DecayCoef(0.22f, _fs);
                     _ring = 0f; _gate = 0f; _gateCount = 0; _crunchRate = 40f;
                     break;
+                // ---- tyres meeting the runway: a short, subtle chirp (owner: "not a gong") ----
+                case FxKind.TireChirp:
+                    _len = 0.16f + 0.12f * _level;
+                    _bpA.BandPass(_fs, 1900f, 9f);         // the squeal
+                    _bpB.BandPass(_fs, 2700f, 12f);        // its upper partial
+                    _lp.SetCutoff(140f, _fs);              // a very small thump under it
+                    break;
                 case FxKind.Wince:
                     _len = 0.85f;
                     _bpA.BandPass(_fs, 720f, 6f);          // formant F1 ("ah")
@@ -197,6 +213,10 @@ namespace FlyingGame.Bridge
                     _gCT = (0.35f + 0.9f * _level) * Env(t - 0.04f, 0.02f, 0.25f + 0.35f * _level, 0.45f);   // tear / scrape
                     _crunchRate = (22f + 50f * _level) * (float)Math.Exp(-t / (0.5f + 0.6f * _level)); // events/s, thinning out
                     _flutHz = Dsp.Clamp(_flutHz + _n.Next() * 4f, 18f, 45f);
+                    break;
+                case FxKind.TireChirp:
+                    _gAT = (0.10f + 0.22f * _level) * Env(t, 0.006f, 0.05f + 0.08f * _level, 0.035f);   // chirp
+                    _gBT = (0.15f + 0.35f * _level) * Env(t, 0.002f, 0.01f, 0.03f);                    // thump
                     break;
                 case FxKind.Wince:
                     // Sharp inhale through the teeth (hiss) then a pained "ahh" with a little shake in it.
@@ -306,6 +326,15 @@ namespace FlyingGame.Bridge
                     outp = boom + crunch + clang + ring + tear;
                     break;
                 }
+                case FxKind.TireChirp:
+                {
+                    // Squeal: a pitched tone sliding up as the tyre spins up, lightly noisy, plus a tiny thump.
+                    float hz = 1500f + 900f * Dsp.Clamp01(T / 0.12f);
+                    _phA += hz / _fs;
+                    float tone = Dsp.Sin01(_phA) * 0.6f + _bpA.Process(n) * 1.5f + _bpB.Process(n) * 0.8f;
+                    outp = tone * _gA + _lp.Process(n) * 2f * _gB;
+                    break;
+                }
                 case FxKind.Wince:
                 {
                     float shake = 1f + 0.06f * Dsp.Sin01(_phB);                         // pained tremor ~9 Hz
@@ -335,7 +364,7 @@ namespace FlyingGame.Bridge
             if (_phA >= 1f) _phA -= 1f;
             if (_phB >= 1f) _phB -= 1f;
             if (_phC >= 1f) _phC -= 1f;
-            return outp;
+            return outp * _distGain;
         }
     }
 
@@ -459,9 +488,13 @@ namespace FlyingGame.Bridge
             Interlocked.Exchange(ref _pending[(int)kind], 1);
         }
 
-        /// <summary>Audio thread, once per block: start queued voices, retarget the groan.</summary>
-        public void Prepare(float ias, float groanSeverity)
+        private float _aircraftGain = 1f;
+
+        /// <summary>Audio thread, once per block: start queued voices, retarget the groan. <paramref name="aircraftGain"/>
+        /// = distance attenuation of everything that happens at the aircraft (1 while the pilot is aboard).</summary>
+        public void Prepare(float ias, float groanSeverity, float aircraftGain = 1f)
         {
+            _aircraftGain = aircraftGain;
             for (int k = 0; k < _pending.Length; k++)
             {
                 if (Interlocked.Exchange(ref _pending[k], 0) == 0) continue;
@@ -472,14 +505,14 @@ namespace FlyingGame.Bridge
                     v = _pool[0];
                     for (int i = 1; i < _pool.Length; i++) if (_pool[i].T > v.T) v = _pool[i];   // steal the oldest
                 }
-                v.Start((FxKind)k, ias, _pendingLevel[k]);
+                v.Start((FxKind)k, ias, _pendingLevel[k], FxSource.AtAircraft((FxKind)k) ? aircraftGain : 1f);
             }
             _groan.Prepare(groanSeverity);
         }
 
         public float Next()
         {
-            float s = _groan.Next();
+            float s = _groan.Next() * _aircraftGain;
             for (int i = 0; i < _pool.Length; i++) if (_pool[i].Active) s += _pool[i].Next();
             return s;
         }

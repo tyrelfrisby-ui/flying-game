@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -55,14 +56,33 @@ namespace FlyingGame.Bridge
             _groanHold = GroanHoldS;
         }
 
-        public void WingFailure() { _fx?.Trigger(FxKind.WingFailure); }
+        public void WingFailure() { AtAircraft(FxKind.WingFailure, 1f); }
         public void CanopyJettison() { _fx?.Trigger(FxKind.CanopyJettison); }
         public void EjectionSeat() { _fx?.Trigger(FxKind.EjectionSeat); }
         public void ChuteDeploy() { _fx?.Trigger(FxKind.ChuteDeploy); }
         public void ChuteInflate() { _fx?.Trigger(FxKind.ChuteInflate); }
-        public void PylonBurst() { _fx?.Trigger(FxKind.PylonBurst); }
+        public void PylonBurst() { AtAircraft(FxKind.PylonBurst, 1f); }
         /// <summary>The airframe hitting something: crunching / tearing metal, weight 0..1 (a firm arrival .. a break-up).</summary>
-        public void Crash(float severity) { _fx?.Trigger(FxKind.Crash, severity); }
+        public void Crash(float severity) { AtAircraft(FxKind.Crash, severity); }
+        /// <summary>Tyres meeting the runway: a short chirp, weight 0..1 from the sink rate.</summary>
+        public void TireChirp(float severity) { AtAircraft(FxKind.TireChirp, severity); }
+
+        // ---- sounds made at the aircraft: once the pilot is out they arrive late (speed of sound) and quiet ----
+        public const float SpeedOfSoundMs = 343f, ReferenceDistanceM = 25f;
+        private readonly List<(FxKind kind, float level, float due)> _delayed = new();
+        private PilotEgress _egress;
+
+        /// <summary>Distance from the listener (the pilot once out, else 0) to the aircraft.</summary>
+        public float ListenerDistanceM { get; private set; }
+
+        private void AtAircraft(FxKind kind, float level)
+        {
+            float d = ListenerDistanceM;
+            if (d < 5f) { _fx?.Trigger(kind, level); return; }
+            _delayed.Add((kind, level, Time.unscaledTime + d / SpeedOfSoundMs));
+        }
+
+        private static float DistanceGain(float d) => d <= 0f ? 1f : ReferenceDistanceM / (ReferenceDistanceM + d);
         /// <summary>The pilot hitting the ground (severity 0..1 from the impact speed).</summary>
         public void PilotThud(float severity) { _fx?.Trigger(FxKind.BodyThud, severity); }
         public void PilotGrunt(float severity) { _fx?.Trigger(FxKind.Grunt, severity); }
@@ -159,6 +179,17 @@ namespace FlyingGame.Bridge
             _groanHold -= Time.unscaledDeltaTime;
             if (_groanHold <= 0f) { _groanHold = 0f; _groanSeverity = 0f; }
 
+            // Listener: the pilot once he has left the aircraft.
+            _egress ??= GetComponent<PilotEgress>();
+            bool pilotOut = _egress != null && _egress.PilotOut && _egress.PilotTransform != null;
+            ListenerDistanceM = pilotOut ? Vector3.Distance(_egress.PilotTransform.position, transform.position) : 0f;
+            for (int i = _delayed.Count - 1; i >= 0; i--)
+            {
+                if (Time.unscaledTime < _delayed[i].due) continue;
+                _fx?.Trigger(_delayed[i].kind, _delayed[i].level);
+                _delayed.RemoveAt(i);
+            }
+
             PushTelemetry();
             if (!Mathf.Approximately(_savedMaster, MasterVolume) && Time.frameCount % 120 == 0) SaveMaster();
         }
@@ -188,6 +219,11 @@ namespace FlyingGame.Bridge
             }
             _tele.GravelSpeed = gravel; _tele.RoughSpeed = rough;
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
+            // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
+            bool pilotOut = _egress != null && _egress.PilotOut && _egress.PilotTransform != null;
+            _tele.PilotOut = pilotOut;
+            _tele.AircraftGain = pilotOut ? DistanceGain(ListenerDistanceM) : 1f;
+            if (pilotOut) { _tele.IasMs = _egress.PilotAirspeedMs; _tele.AlphaDeg = 0f; _tele.BetaDeg = 0f; _tele.Spoiler01 = 0f; }
         }
 
         // ---- audio thread ---------------------------------------------------------------------------
@@ -204,8 +240,9 @@ namespace FlyingGame.Bridge
             EngineSynth engine = _engine;
             bool powered = engine != null;
 
-            _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered);
-            _fx.Prepare(ias, t.GroanSeverity);
+            float acGain = t.AircraftGain;
+            _wind.Prepare(ias, t.AlphaDeg, t.BetaDeg, t.TurbulenceLevel, t.WindSpeedMs, t.Spoiler01, powered && !t.PilotOut);
+            _fx.Prepare(ias, t.GroanSeverity, acGain);
             _surface.Prepare(t.GravelSpeed, t.RoughSpeed);
             engine?.Prepare(rpm, thr);
 
@@ -228,8 +265,8 @@ namespace FlyingGame.Bridge
                 engine?.Next(out el, out er);
                 float fx = _fx.Next() * FxMix;
 
-                float l = Dsp.SoftClip((wl * WindMix + el * EngineMix + fx + sl) * _gain);
-                float r = Dsp.SoftClip((wr * WindMix + er * EngineMix + fx + sr) * _gain);
+                float l = Dsp.SoftClip((wl * WindMix + (el * EngineMix + sl) * acGain + fx) * _gain);
+                float r = Dsp.SoftClip((wr * WindMix + (er * EngineMix + sr) * acGain + fx) * _gain);
 
                 data[idx] = l;
                 if (channels > 1) data[idx + 1] = r;

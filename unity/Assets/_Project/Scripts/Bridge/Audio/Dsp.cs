@@ -223,5 +223,7 @@ namespace FlyingGame.Bridge
         public volatile float GroanSeverity;
         public volatile float GravelSpeed, RoughSpeed;   // ground speed while the wheels are on gravel / rough ground
         public volatile bool OnGround;
+        public volatile float AircraftGain = 1f;         // distance attenuation of the aircraft's own sounds (pilot out)
+        public volatile bool PilotOut;                    // listener = the pilot: wind is HIS airspeed, no engine in the ear
     }
 }

@@ -73,7 +73,9 @@ namespace FlyingGame.Bridge
             float kx = l.x / l.y, kz = l.z / l.y;
             var proj = new Matrix4x4();
             proj.SetRow(0, new Vector4(1f, -kx, 0f, kx * GroundY));
-            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + (onWater ? 0.08f : 0.03f)));
+            // Shadow plane 16 cm above the ground height: the runway slabs, aprons, roads and their painted markings
+            // are stacked up to ~13 cm above the terrain, and a 3 cm plane sat UNDER them (no shadow on the runway).
+            proj.SetRow(1, new Vector4(0f, 0f, 0f, GroundY + (onWater ? 0.08f : 0.16f)));
             proj.SetRow(2, new Vector4(0f, -kz, 1f, kz * GroundY));
             proj.SetRow(3, new Vector4(0f, 0f, 0f, 1f));
 

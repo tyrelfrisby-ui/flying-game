@@ -27,6 +27,11 @@ namespace FlyingGame.Bridge
 
         /// <summary>When set, the camera follows this instead of <see cref="Target"/> (the pilot after egress).</summary>
         public Transform OverrideTarget;
+        /// <summary>Pilot follow: what to keep in the BACKGROUND (the abandoned aircraft) — the camera sits on the far side
+        /// of the pilot from it, looking through the pilot at it, offset a little to the side so the canopy never covers it.</summary>
+        public Transform OverrideBackdrop;
+        public float BackdropSideOffsetM = 4.5f;  // camera and look-at slide this far to the pilot's left
+        public float BackdropMaxDownDeg = 55f;
         /// <summary>World velocity (m/s) of the override target — the path the camera follows.</summary>
         public Vector3 OverrideVelocity;
         public float OverrideDistance = 16f;
@@ -65,6 +70,21 @@ namespace FlyingGame.Bridge
         /// <summary>Pilot follow: along the pilot's velocity, pitch-limited; hold the last direction when stopped (landed).</summary>
         private Vector3 OverrideDirection()
         {
+            if (OverrideBackdrop != null && OverrideTarget != null)
+            {
+                // Look from the pilot toward the aircraft (pitch-limited so a crash far below stays watchable).
+                Vector3 to = OverrideBackdrop.position - OverrideTarget.position;
+                if (to.magnitude > 2f)
+                {
+                    Vector3 bh = new Vector3(to.x, 0f, to.z);
+                    if (bh.magnitude < 0.5f) bh = new Vector3(_dir.x, 0f, _dir.z);
+                    if (bh.magnitude < 0.01f) bh = Vector3.forward;
+                    bh.Normalize();
+                    float bp = Mathf.Atan2(to.y, new Vector2(to.x, to.z).magnitude) * Mathf.Rad2Deg;
+                    bp = Mathf.Clamp(bp, -BackdropMaxDownDeg, 35f) * Mathf.Deg2Rad;
+                    return bh * Mathf.Cos(bp) + Vector3.up * Mathf.Sin(bp);
+                }
+            }
             Vector3 v = OverrideVelocity;
             if (v.magnitude < MinTrackSpeed) return _dir;
             Vector3 h = new Vector3(v.x, 0f, v.z);
@@ -106,10 +126,14 @@ namespace FlyingGame.Bridge
             // Damp the OFFSET from the target, not the world position: a lag on a world position that moves at
             // 20+ m/s leaves a steady 7 m trail along the GROUND track, which in a crosswind pulled the camera off
             // the air-vector line and showed the aircraft from the side (owner: "camera follows the ground").
-            Vector3 desiredOffset = -_dir * dist + up * hgt;
+            bool backdrop = ovr && OverrideBackdrop != null;
+            Vector3 side = backdrop ? -Vector3.Cross(up, _dir).normalized * BackdropSideOffsetM : Vector3.zero;   // pilot's left
+            Vector3 desiredOffset = -_dir * dist + up * hgt + side;
             _offset = Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
             transform.position = tgt.position + _offset;
-            Vector3 lookAt = tgt.position + _dir * 4f + (ovr ? Vector3.up * OverrideLookUp : Vector3.zero);
+            // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
+            // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.
+            Vector3 lookAt = tgt.position + _dir * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
         }
 

@@ -72,8 +72,15 @@ namespace FlyingGame.Bridge
         /// a thump, 8 m/s a full crunch). A break in the same step adds its own full-weight crash.</summary>
         private void OnHardImpact(double closingMs, string point)
         {
-            if (closingMs < 1.2) return;
             if (_audio == null) _audio = GetComponent<FlightAudio>();
+            if (point.StartsWith("Gear"))
+            {
+                // A wheel: a subtle tyre chirp (owner: not a gong); a leg that breaks adds its own crash via ComponentLost.
+                if (closingMs < 0.4) return;
+                _audio?.TireChirp(Mathf.Clamp01((float)((closingMs - 0.4) / 3.0)));
+                return;
+            }
+            if (closingMs < 1.2) return;
             _audio?.Crash(Mathf.Clamp01((float)((closingMs - 1.2) / 7.0)));
         }
 

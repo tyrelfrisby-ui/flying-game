@@ -29,6 +29,8 @@ namespace FlyingGame.Bridge
 
         /// <summary>Camera target once the pilot has left the aircraft (null while in the cockpit).</summary>
         public Transform PilotTransform { get; private set; }
+        /// <summary>The pilot's own wind-relative airspeed (m/s) once out — the wind in his ears; 0 in the cockpit.</summary>
+        public float PilotAirspeedMs => _pilot != null && !_pilot.Landed ? _pilot.AirspeedMs : 0f;
 
         public event Action BailOutStarted;    // t = 0 of the 5 s sequence
         public event Action CanopyJettisoned;  // t = 3 s (also on eject, t = 0)
@@ -130,6 +132,7 @@ namespace FlyingGame.Bridge
             if (cam != null && cam.OverrideTarget != null)
             {
                 cam.OverrideTarget = null;
+                cam.OverrideBackdrop = null;
                 cam.OverrideVelocity = Vector3.zero;
                 cam.SnapBehind();
             }
@@ -278,8 +281,9 @@ namespace FlyingGame.Bridge
             {
                 cam.OverrideTarget = PilotTransform;
                 cam.OverrideVelocity = _pilot.Velocity;
+                cam.OverrideBackdrop = _driver.transform;   // keep the abandoned aircraft in frame behind the pilot
             }
-            Log("pilot out — camera on the pilot");
+            Log("pilot out — camera on the pilot, aircraft in the background");
             PilotLeft?.Invoke();
         }
 
