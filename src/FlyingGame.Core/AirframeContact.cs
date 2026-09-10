@@ -186,6 +186,7 @@ public static class AirframeContact
             }
             totalF += f;
             totalM += Vec3.Cross(rWorld, f);
+            Aero.ForceDebug.Add(p.Body, s.Attitude.Conjugate().Rotate(f), Vec3.Zero, "contact");
         }
         return (totalF, totalM);
     }

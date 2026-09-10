@@ -180,6 +180,7 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
+            Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors;
             Sim.Advance(Time.deltaTime, Inputs, ref _accumulator);
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();

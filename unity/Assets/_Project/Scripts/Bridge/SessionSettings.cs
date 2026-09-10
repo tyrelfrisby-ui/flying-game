@@ -17,6 +17,7 @@ namespace FlyingGame.Bridge
         public enum Tri { Auto, On, Off }
         public static Tri LiftMarkers = Tri.Auto;
         public static bool BubblesOn = true;
+        public static bool ShowForceVectors = false;   // draw every force/moment the physics applies, on the airframe
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
         public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
         public static Start StartMode = Start.InTheAir;

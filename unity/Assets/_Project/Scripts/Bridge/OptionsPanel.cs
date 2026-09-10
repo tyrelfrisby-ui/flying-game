@@ -45,7 +45,7 @@ namespace FlyingGame.Bridge
                 return;
             }
             float w = Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * 9.5f;
+            float h = lh * 11.5f;
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = panel.width - 2 * gap;
@@ -71,6 +71,8 @@ namespace FlyingGame.Bridge
             TriRow("Lift / sink markers", ref SessionSettings.LiftMarkers);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Auto = gliders only", _label); y += lh * 0.8f;
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
+            BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
+            GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "lift green · drag red · moment yellow · thrust magenta · wheels cyan", _label); y += lh * 0.8f;
             {
                 GUI.Label(new Rect(x, y, cw * 0.38f, lh), "Instruments", _label);
                 float bw = (cw * 0.6f - 2 * gap * 0.4f) / 3f, bx = x + cw * 0.4f;

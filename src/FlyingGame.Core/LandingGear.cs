@@ -117,6 +117,7 @@ public static class LandingGear
 
             Vec3 tireForce = tireRight * lateralN + tireFwd * longN;
             Vec3 wheelForce = normalForce + tireForce;
+            Aero.ForceDebug.Add(g.PosVec(), s.Attitude.Conjugate().Rotate(wheelForce), Vec3.Zero, "gear");
 
             totalForce += wheelForce;
             totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), wheelForce);

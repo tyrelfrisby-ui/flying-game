@@ -134,6 +134,8 @@ namespace FlyingGame.Bridge
             lift.Follow = aircraft.transform;
             var options = cam.gameObject.AddComponent<OptionsPanel>();          // in-flight OPTIONS: markers, bubbles, instruments, volume
             options.Driver = aircraft.GetComponent<FlightSimDriver>();
+            var forces = cam.gameObject.AddComponent<ForceVectorOverlay>();     // physics forces drawn on the airframe (OPTIONS)
+            forces.Driver = aircraft.GetComponent<FlightSimDriver>();
 
             var chHud = cam.gameObject.AddComponent<ChallengeHud>();
             chHud.Controller = aircraft.GetComponent<ChallengeController>();

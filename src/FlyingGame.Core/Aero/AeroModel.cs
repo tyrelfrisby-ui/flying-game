@@ -414,6 +414,12 @@ public static class AeroModel
 
                 totalForce += force;
                 totalMoment += momentFromForce + momentAero;
+                if (ForceDebug.Samples is not null)
+                {
+                    ForceDebug.Add(strip.PosVec(), liftDir * lift, Vec3.Zero, "lift");
+                    ForceDebug.Add(strip.PosVec(), -dragDir * drag, Vec3.Zero, "drag");
+                    ForceDebug.Add(strip.PosVec(), Vec3.Zero, momentAero, "moment");
+                }
             }
         }
 
@@ -590,6 +596,7 @@ public static class AeroModel
         double q = 0.5 * airDensity * speed * speed;
         double extraDrag = q * plateArea * deployedPlateCd * controls.SpoilerFraction;
         totalForce -= (bodyVelocity / speed) * extraDrag;
+        ForceDebug.Add(new Vec3(-0.3, 0, -0.3), -(bodyVelocity / speed) * extraDrag, Vec3.Zero, "spoiler");
     }
 
     private static void ApplyFuselage(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, ref Vec3 totalForce, ref Vec3 totalMoment)
@@ -604,6 +611,7 @@ public static class AeroModel
             // Crude linear side-force term: damps sideslip velocity, doesn't need to be exact.
             double sideForce = -0.5 * airDensity * speed * bodyVelocity.Y * config.Fuselage.SideForceArea;
             totalForce += new Vec3(0, sideForce, 0);
+            ForceDebug.Add(config.Mass.CgVec(), -(bodyVelocity / speed) * drag + new Vec3(0, sideForce, 0), Vec3.Zero, "fuselage");
 
             // Slender-body crossflow drag (quadratic, acts at area centers so it makes MOMENTS):
             // plan-view normal force arrests spin flattening; side-view force weathervanes the nose
@@ -620,6 +628,7 @@ public static class AeroModel
                     double wLoc = bodyVelocity.Z - bodyRates.Y * (xs - config.Mass.CgVec().X); // omega x r: station z-velocity = w - q*x
                     double fz = -0.5 * airDensity * (cf.PlanArea / nSt) * cf.Cd * wLoc * Math.Abs(wLoc);
                     totalForce += new Vec3(0, 0, fz);
+                    ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
                     totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
                 }
                 if (cf.SideArea > 0.0)
@@ -628,6 +637,7 @@ public static class AeroModel
                     double vLoc = bodyVelocity.Y + bodyRates.Z * (xs - config.Mass.CgVec().X); // omega x r: station y-velocity = v + r*x
                     double fy = -0.5 * airDensity * (cf.SideArea / nSt) * cf.Cd * vLoc * Math.Abs(vLoc);
                     totalForce += new Vec3(0, fy, 0);
+                    ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, fy, 0), Vec3.Zero, "fuselage");
                     totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));
                 }
             }

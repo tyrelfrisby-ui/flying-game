@@ -108,6 +108,11 @@ public sealed class Aircraft
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
     private double _throttle01;      // powered aircraft only
     public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
+    /// <summary>When true, every force the physics applies is recorded per step into <see cref="LastForces"/>
+    /// (body frame) for the force-vector overlay.</summary>
+    public bool CaptureForces { get; set; }
+    public List<ForceSample> LastForces { get; private set; } = new();
+
     /// <summary>Landing gear command (retractable types): true = down. Fixed gear is always down.</summary>
     public bool GearDown { get; private set; } = true;
     /// <summary>0 = up and stowed .. 1 = down and locked; travels over ~4 s.</summary>
@@ -144,6 +149,7 @@ public sealed class Aircraft
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
+        foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
@@ -316,6 +322,7 @@ public sealed class Aircraft
         ComponentLost?.Invoke(comp);
     }
     private bool _noseLost;
+    private Vec3 _noseBody = new(1.5, 0, 0);
     /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust.</summary>
     public bool EngineStopped => _noseLost;
     /// <summary>Strip-level aero mask (AeroModel strip order), null while every component is attached.</summary>
@@ -449,6 +456,7 @@ public sealed class Aircraft
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
         {
+            ForceDebug.Samples = CaptureForces ? new List<ForceSample>(160) : null;
             (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
@@ -492,6 +500,7 @@ public sealed class Aircraft
                 if (Config.Engines.Count == 0)
                 {
                     (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _noseLost ? 0.0 : _throttle01, s.Velocity, s.Rates, airDensity);
+                    ForceDebug.Add(_noseBody, pF, pM, "thrust");
                     totalF += pF;
                     totalM += pM;
                 }
@@ -513,10 +522,18 @@ public sealed class Aircraft
                             PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK
                         };
                         (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, _throttle01 * m.ThrottleScale, s.Velocity, s.Rates, airDensity);
+                        ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");
                         totalF += eF;
                         totalM += eM + Vec3.Cross(m.PosVec() - Config.Mass.CgVec(), eF);
                     }
                 }
+            }
+            if (ForceDebug.Samples is not null)
+            {
+                ForceDebug.Add(Config.Mass.CgVec(), gravityBody, Vec3.Zero, "weight");
+                if (ExternalForceWorld.LengthSquared > 1e-9) ForceDebug.Add(ExternalForcePointBody, s.Attitude.Conjugate().Rotate(ExternalForceWorld), Vec3.Zero, "rope");
+                LastForces = ForceDebug.Samples;
+                ForceDebug.Samples = null;
             }
             // Load factor from the non-gravitational resultant (RK4 evaluates this 4×; the last is ≈ end state).
             Vec3 nonGrav = totalF - gravityBody;
