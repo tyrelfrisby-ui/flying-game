@@ -16,7 +16,7 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public float Alpha = 0.55f;
         public float RadiusFrac = 0.10f;        // dial radius as a fraction of min(viewport w, h)
-        public float SideOffsetFrac = 0.30f;    // dial centre offset from the aircraft, sideways (fraction of min dim)
+        public float SideOffsetFrac = 0.34f;    // dial centre offset from the aircraft, sideways (fraction of min dim)
         public float UpOffsetFrac = 0.14f;      // and upward
 
         private Camera _cam;
@@ -208,13 +208,15 @@ namespace FlyingGame.Bridge
                 }
                 return c;
             }
-            Vector2 asi = Clamp(PushOut(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r, Vector2.left), r);
-            Vector2 alt = Clamp(PushOut(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r, Vector2.right), r);
+            // Owner: the dials must not move with bank — fixed offsets from the aircraft's screen position, wide enough
+            // to clear the span (the keep-out push-out is only used for the buttons, which have room to move).
+            Vector2 asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
+            Vector2 alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
             bool glider = aircraft.Config.Propulsion == null;
             float topY = ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s;
             // Glider: g meter and variometer side by side, centred high; powered: g meter alone in the centre.
-            Vector2 gc = Clamp(PushOut(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr, Vector2.up * -1f), gr);
-            Vector2 vc = Clamp(PushOut(new Vector2(ac.x + gr * 1.15f, topY), gr, Vector2.up * -1f), gr);
+            Vector2 gc = Clamp(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr);
+            Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
 
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g);

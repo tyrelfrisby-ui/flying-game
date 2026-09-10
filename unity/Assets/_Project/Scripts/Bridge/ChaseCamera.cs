@@ -49,7 +49,7 @@ namespace FlyingGame.Bridge
             // Closer than v1 (owner: "more zoomed in" now that the HUD sits over the aircraft).
             // The old world-position lag added ~7 m of trail to this; now that the camera rides exactly at its
             // offset the distance itself carries that (owner: "a little too close" at 0.75 span).
-            Distance = Mathf.Clamp(spanM * 1.15f, 10f, 60f);
+            Distance = Mathf.Clamp(spanM * 1.3f, 11f, 66f);   // owner 2026-09-10: "zoom out just a little" (was 1.15 span)
             Height = Distance * 0.22f;
         }
 

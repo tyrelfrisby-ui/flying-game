@@ -24,6 +24,8 @@ namespace FlyingGame.Bridge
         /// <summary>Dense bubble field drawn with GPU instancing (thousands of bubbles). Off = the old per-bubble draws
         /// with a sparser field — the escape hatch if instancing fails to place instances on a device.</summary>
         public static bool BubbleInstancing = true;
+        /// <summary>Magenta 5-second flight path vector with a cone at its tip (owner 2026-09-10).</summary>
+        public static bool ShowFlightPath = true;
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }

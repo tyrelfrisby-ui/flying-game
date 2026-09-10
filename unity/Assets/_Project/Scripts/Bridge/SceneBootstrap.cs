@@ -72,6 +72,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             root.AddComponent<StructuralDamage>();
             root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
+            root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<FlightAudio>();
             _ = driver;
