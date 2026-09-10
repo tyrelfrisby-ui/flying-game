@@ -21,18 +21,19 @@ namespace FlyingGame.Bridge
         private float _bfGain, _bfGainT;
         private float _spGain, _spGainT;
         private float _flutPhase, _flutHz = 7f;
-        private int _shudCount; private float _shudEnv, _shudDecay, _drumEnv, _drumDecay, _drumPhase, _bfDepth;
+        private int _shudCount; private float _shudEnv, _shudDecay, _drumEnv, _drumDecay, _drumPhase, _bfDepth, _drumTarget, _drumAttack;
 
         public WindSynth(float fs)
         {
             _fs = fs;
             _smoothA = Dsp.Tau(0.03f, fs);
             _shudDecay = 1f - 1f / (0.045f * fs);
-            _drumDecay = 1f - 1f / (0.14f * fs);    // the head rings ~140 ms
+            _drumDecay = 1f - 1f / (0.28f * fs);    // long ~280 ms roll so successive thuds overlap
+            _drumAttack = 1f / (0.025f * fs);
             _lpL.LowPass(fs, 400f, 0.7f);
             _lpR.LowPass(fs, 400f, 0.7f);
             _whistle.BandPass(fs, 900f, 5f);
-            _buffet.LowPass(fs, 70f, 0.9f);        // pre-stall buffet body under the drum thuds
+            _buffet.LowPass(fs, 45f, 0.9f);        // pre-stall buffet body: sub-bass rumble under the roll
             _spoiler.BandPass(fs, 650f, 0.8f);
         }
 
@@ -91,15 +92,16 @@ namespace FlyingGame.Bridge
             // short decaying burst; no modulation of the airflow hiss itself (that read as a weird warble).
             if (--_shudCount <= 0)
             {
-                float rate = (3f + 9f * _bfDepth) * (0.8f + 0.4f * (_nS.Next() * 0.5f + 0.5f));   // 3 beats/s at onset → 12/s at the stall, uneven
+                float rate = (6f + 10f * _bfDepth) * (0.8f + 0.4f * (_nS.Next() * 0.5f + 0.5f));  // 6/s at onset → 16/s at the stall: the thuds overlap into a roll
                 _shudCount = (int)(_fs / rate * (0.7f + 0.6f * (_nS.Next() * 0.5f + 0.5f)));
                 _shudEnv = 0.6f + 0.4f * (_nS.Next() * 0.5f + 0.5f);
-                _drumEnv = _shudEnv;
+                _drumTarget = _shudEnv;   // soft attack: the drum swells to this over ~25 ms instead of hitting
             }
+            _drumEnv += (_drumTarget - _drumEnv) * _drumAttack;
+            _drumTarget *= _drumDecay;
             _shudEnv *= _shudDecay;
             // Drum head: each thud rings a damped low sine whose pitch drops as it decays (a bass drum, not a rattle).
-            _drumEnv *= _drumDecay;
-            float drumHz = (40f + 12f * _bfDepth) + 26f * _drumEnv;   // the head tightens a little as the stall nears
+            float drumHz = (24f + 8f * _bfDepth) + 12f * _drumEnv;    // distant thunder: 24–44 Hz, rolling, no sharp edge
             _drumPhase += drumHz / _fs;
             if (_drumPhase >= 1f) _drumPhase -= 1f;
 
@@ -112,7 +114,7 @@ namespace FlyingGame.Bridge
             if (_flutPhase >= 1f) _flutPhase -= 1f;
             float flut = 0.6f + 0.4f * Dsp.Sin01(_flutPhase);
             float wh = _whistle.Process(ns) * 3f * _whGain * flut;
-            float bf = (Dsp.Sin01(_drumPhase) * _drumEnv * 1.6f + _buffet.Process(ns) * 3f * _shudEnv) * _bfGain;   // drum thuds + a little body
+            float bf = (Dsp.Sin01(_drumPhase) * _drumEnv * 2.2f + _buffet.Process(ns) * 4f * _shudEnv) * _bfGain;   // thunder roll + sub rumble
             float sp = _spoiler.Process(ns) * 2.5f * _spGain;
 
             l = bl * g + wh * _whPanL + bf + sp;
