@@ -3,7 +3,7 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Flight path vector (owner 2026-09-10): a magenta curve from the aircraft to where it will be in
+    /// Flight path vector (owner 2026-09-10): a magenta curve from the aircraft to where it will be, through the AIR, in
     /// <see cref="HorizonSec"/> if it keeps doing what it is doing now — the current velocity carried forward under the
     /// current acceleration, with the acceleration's TURNING part rotating along with the velocity (so a loop or a
     /// turn predicts an arc, not a parabola) and its along-track part changing the speed. A cone arrowhead marks the end.
@@ -11,7 +11,7 @@ namespace FlyingGame.Bridge
     public sealed class FlightPathVector : MonoBehaviour
     {
         public FlightSimDriver Driver;
-        public float HorizonSec = 5f;
+        public float HorizonSec = 3f;   // owner 2026-09-10: three seconds
         public int Segments = 40;
         public Color Colour = new(1f, 0.15f, 1f, 0.95f);
 
@@ -39,8 +39,10 @@ namespace FlyingGame.Bridge
             _line.enabled = show; _cone.SetActive(show);
             if (!show) { _havePrev = false; return; }
 
+            // AIR-relative (owner): the path through the air, not over the ground — the wind is left out, so in a
+            // crosswind the vector points where the nose is going through the air mass.
             Vector3 pos = transform.position;
-            Vector3 vel = Driver.WorldVelocityUnity;
+            Vector3 vel = Driver.AirVelocityUnity;
             float dt = Time.deltaTime;
             if (_havePrev && dt > 1e-4f)
             {
