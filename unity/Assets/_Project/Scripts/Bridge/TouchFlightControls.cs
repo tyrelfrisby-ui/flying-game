@@ -127,9 +127,15 @@ namespace FlyingGame.Bridge
             _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
         }
 
+        private string _layoutKey;
+
         private void Update()
         {
-            LayOut();
+            // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
+            // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
+            Rect ko = ScreenLayout.AircraftKeepOut;
+            string key = $"{Screen.width}x{Screen.height}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
+            if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             if (SessionSettings.MenuOpen) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
             ReadPointers();
@@ -321,7 +327,11 @@ namespace FlyingGame.Bridge
                 else if (p.id == _fireFinger && !_fireRect.Contains(p.pos)) _fireFinger = int.MinValue;   // slid off: cease fire
             }
             _combat ??= GetComponent<CombatController>();
-            if (_combat != null) _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space);
+            // Fire: the on-screen button, the space bar, or a game controller's A / right shoulder (MFi / PlayStation /
+            // Xbox over Bluetooth — the phone's own volume, Action and Camera Control buttons are reserved by iOS for
+            // camera apps and cannot be read here).
+            if (_combat != null) _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space)
+                || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5);
 
             if (_ejectFinger != int.MinValue && _ejectHold >= EjectHoldSec)
             {

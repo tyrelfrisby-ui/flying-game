@@ -74,10 +74,23 @@ namespace FlyingGame.Bridge
                     if (sp.y < minY) minY = sp.y; if (sp.y > maxY) maxY = sp.y;
                 }
             }
-            if (!any) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); return; }
+            if (!any) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); _smoothValid = false; return; }
             float pad = Mathf.Min(Screen.width, Screen.height) * 0.04f;
-            AircraftKeepOut = Rect.MinMaxRect(minX - pad, minY - pad, maxX + pad, maxY + pad);
+            // STABLE, not live (owner: buttons and dials must not jitter): the raw rect breathes with every bank and
+            // camera sway, so smooth it (0.6 s), let it only GROW quickly and shrink slowly, and quantize the edges to
+            // 24 px steps so layouts built from it change rarely.
+            var raw = new Vector4(minX - pad, minY - pad, maxX + pad, maxY + pad);
+            if (!_smoothValid) { _smooth = raw; _smoothValid = true; }
+            float dt = Time.unscaledDeltaTime;
+            float kGrow = 1f - Mathf.Exp(-dt / 0.15f), kShrink = 1f - Mathf.Exp(-dt / 0.9f);
+            _smooth.x += (raw.x - _smooth.x) * (raw.x < _smooth.x ? kGrow : kShrink);
+            _smooth.y += (raw.y - _smooth.y) * (raw.y < _smooth.y ? kGrow : kShrink);
+            _smooth.z += (raw.z - _smooth.z) * (raw.z > _smooth.z ? kGrow : kShrink);
+            _smooth.w += (raw.w - _smooth.w) * (raw.w > _smooth.w ? kGrow : kShrink);
+            const float q = 24f;
+            AircraftKeepOut = Rect.MinMaxRect(Mathf.Floor(_smooth.x / q) * q, Mathf.Floor(_smooth.y / q) * q, Mathf.Ceil(_smooth.z / q) * q, Mathf.Ceil(_smooth.w / q) * q);
         }
+        private static Vector4 _smooth; private static bool _smoothValid;
 
         /// <summary>Normalized camera viewport for <see cref="Camera.rect"/>.</summary>
         public static Rect CameraViewport

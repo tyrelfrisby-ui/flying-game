@@ -16,7 +16,8 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public float Alpha = 0.55f;
         public float RadiusFrac = 0.10f;        // dial radius as a fraction of min(viewport w, h)
-        public float SideOffsetFrac = 0.34f;    // dial centre offset from the aircraft, sideways (fraction of min dim)
+        public float SideOffsetFrac = 0.34f;
+        private Vector2 _anchor; private bool _anchorValid;    // dial centre offset from the aircraft, sideways (fraction of min dim)
         public float UpOffsetFrac = 0.14f;      // and upward
 
         private Camera _cam;
@@ -190,7 +191,12 @@ namespace FlyingGame.Bridge
 
             // Aircraft position on screen (GUI space: top-left origin). Dials either side and above, clamped on screen.
             Vector3 sp = _cam.WorldToScreenPoint(Driver.transform.position);
-            Vector2 ac = sp.z > 0 ? new Vector2(sp.x, Screen.height - sp.y) : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            Vector2 acRaw = sp.z > 0 ? new Vector2(sp.x, Screen.height - sp.y) : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            // Stable anchor (owner: no jitter): the chase camera keeps the aircraft near one spot, so follow it slowly
+            // (0.5 s) and snap the result to whole pixels.
+            if (!_anchorValid) { _anchor = acRaw; _anchorValid = true; }
+            _anchor += (acRaw - _anchor) * (1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.5f));
+            Vector2 ac = new Vector2(Mathf.Round(_anchor.x), Mathf.Round(_anchor.y));
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
             Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, bottom - rad * 1.05f));
             // RULE (owner): no instrument covers the aircraft — each dial is pushed out of the aircraft's screen rect
