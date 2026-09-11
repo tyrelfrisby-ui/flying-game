@@ -142,6 +142,11 @@ namespace FlyingGame.EditorTools
                     Debug.Log($"EnsureAlwaysIncludedShaders: added '{name}'.");
                 }
             }
+            // Keep ALL instancing variants: the bubble field draws with Graphics.DrawMeshInstanced on a material made at
+            // runtime, which the variant stripper cannot see — "Strip Unused" dropped INSTANCING_ON from the phone build
+            // and the dense field rendered nothing (owner: bubbles missing on the phone, fine in the editor).
+            SerializedProperty strip = so.FindProperty("m_InstancingStripping");
+            if (strip != null && strip.intValue != 2) { strip.intValue = 2; Debug.Log("GraphicsSettings: instancing variants = Keep All"); }
             so.ApplyModifiedProperties();
         }
 
