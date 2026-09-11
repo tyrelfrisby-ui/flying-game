@@ -228,6 +228,14 @@ namespace FlyingGame.EditorTools
             plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
+            // MediaPlayer.framework for the volume-button trigger (Plugins/iOS/VolumeFireButton.mm).
+            string projPath = PBXProject.GetPBXProjectPath(path);
+            var proj = new PBXProject();
+            proj.ReadFromFile(projPath);
+            string fw = proj.GetUnityFrameworkTargetGuid();
+            proj.AddFrameworkToProject(fw, "MediaPlayer.framework", false);
+            proj.WriteToFile(projPath);
+            Debug.Log("Xcode: linked MediaPlayer.framework");
         }
 
         private static void EnsureSceneInBuild()

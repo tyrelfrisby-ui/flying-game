@@ -330,8 +330,12 @@ namespace FlyingGame.Bridge
             // Fire: the on-screen button, the space bar, or a game controller's A / right shoulder (MFi / PlayStation /
             // Xbox over Bluetooth — the phone's own volume, Action and Camera Control buttons are reserved by iOS for
             // camera apps and cannot be read here).
-            if (_combat != null) _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space)
-                || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5);
+            if (_combat != null)
+            {
+                VolumeFire.SetArmed(_combat.GunsHot && !SessionSettings.MenuOpen);   // VOLUME UP fires while the guns are hot (owner)
+                _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space) || VolumeFire.Held
+                    || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5);
+            }
 
             if (_ejectFinger != int.MinValue && _ejectHold >= EjectHoldSec)
             {
@@ -561,7 +565,7 @@ namespace FlyingGame.Bridge
                 GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);
                 GUI.DrawTexture(g, _solidTex);
                 GUI.color = Color.white;
-                GUI.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE  (hold)", _ejectStyle);
+                GUI.Label(g, _fireFinger != int.MinValue || VolumeFire.Held ? "FIRING" : "FIRE  (hold · or VOLUME UP)", _ejectStyle);
             }
             if (EjectAvailable)
             {
