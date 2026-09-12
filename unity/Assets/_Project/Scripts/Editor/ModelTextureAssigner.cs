@@ -12,6 +12,14 @@ namespace FlyingGame.EditorTools
     {
         private static string Norm(string s) { var sb = new System.Text.StringBuilder(); foreach (char c in s.ToLowerInvariant()) if (char.IsLetterOrDigit(c)) sb.Append(c); return sb.ToString(); }
 
+        /// <summary>Keep the model meshes readable in the player: debris splitting cuts their vertex arrays at runtime.</summary>
+        private void OnPreprocessModel()
+        {
+            if (!assetPath.Contains("/Resources/Models/") || !assetPath.EndsWith(".obj")) return;
+            var imp = (ModelImporter)assetImporter;
+            imp.isReadable = true;
+        }
+
         private void OnPostprocessModel(GameObject g)
         {
             if (!assetPath.Contains("/Resources/Models/") || !assetPath.EndsWith(".obj")) return;

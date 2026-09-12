@@ -86,15 +86,19 @@ namespace FlyingGame.Bridge
             return (tailX + noseX) / 2;
         }
 
+        /// <summary>Bounds of every mesh in <paramref name="frame"/>, from each mesh's own AABB corners — never from the
+        /// vertex arrays, which are unreadable in a player build (that made the models 700× too big on the phone).</summary>
         public static Bounds LocalBounds(GameObject go, Transform frame)
         {
             bool any = false; var b = new Bounds();
             foreach (MeshFilter mf in go.GetComponentsInChildren<MeshFilter>(true))
             {
                 if (mf.sharedMesh == null) continue;
-                foreach (Vector3 v in mf.sharedMesh.vertices)
+                Bounds mb = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
                 {
-                    Vector3 p = frame.InverseTransformPoint(mf.transform.TransformPoint(v));
+                    var c = new Vector3((i & 1) == 0 ? mb.min.x : mb.max.x, (i & 2) == 0 ? mb.min.y : mb.max.y, (i & 4) == 0 ? mb.min.z : mb.max.z);
+                    Vector3 p = frame.InverseTransformPoint(mf.transform.TransformPoint(c));
                     if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
                 }
             }
