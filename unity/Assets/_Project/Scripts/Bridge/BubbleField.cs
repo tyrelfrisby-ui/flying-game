@@ -50,6 +50,7 @@ namespace FlyingGame.Bridge
         public float CenterCircleFraction = 0.24f; // radius as a fraction of screen height
         public float CenterCircleFeather = 0.06f;  // soft edge width (same units)
         public float PastFadeDepthM = 6f;          // metres past the aircraft (toward the camera) to fully fade
+        public float PastMinAlpha = 0.18f;         // ... to this fraction, never to nothing (flying-through-snow)
 
         public FlyingGame.Core.Turbulence Turbulence;   // set by the scene/weather; null = calm
         public float GustDisplayScale = 0.6f;            // seconds of gust velocity shown as bubble offset
@@ -264,7 +265,9 @@ namespace FlyingGame.Bridge
                         float inCircle = 1f - Mathf.SmoothStep(0f, 1f,
                             Mathf.InverseLerp(CenterCircleFraction - CenterCircleFeather, CenterCircleFraction + CenterCircleFeather, r));
                         float pastFade = Mathf.Clamp01(past / Mathf.Max(0.01f, PastFadeDepthM));
-                        alpha *= 1f - inCircle * pastFade;
+                        // Owner 2026-09-11: bubbles that have flowed past the aircraft dim hard but stay — the snow-through-
+                        // the-headlights feel — instead of vanishing inside the centre circle.
+                        alpha *= 1f - inCircle * pastFade * (1f - PastMinAlpha);
                     }
                 }
 
