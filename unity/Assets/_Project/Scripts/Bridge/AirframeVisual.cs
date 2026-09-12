@@ -137,7 +137,9 @@ namespace FlyingGame.Bridge
             foreach (GameObject part in parts)
             {
                 if (part == null) continue;
-                if ((nose || tailBoom) && part.name == "Fuselage")
+                bool modelPart = part.name.StartsWith("Model:");
+                float bodyHalf = cfg != null ? (float)((cfg.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfg.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
+                if ((nose || tailBoom) && (part.name == "Fuselage" || modelPart))
                 {
                     // Cut the body at the station: the section beyond it leaves, the rest stays on the airframe.
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
@@ -153,7 +155,22 @@ namespace FlyingGame.Bridge
                     }
                     continue;
                 }
-                if (leftWing || rightWing)
+                if ((leftWing || rightWing) && modelPart)
+                {
+                    // A real model is one mesh: the wing is what lies outboard of the body — cut there, keep the fuselage.
+                    foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                    {
+                        if (mf == null || mf.sharedMesh == null) continue;
+                        SplitBySide(mf.sharedMesh, mf.transform, root, leftWing ? -1f : 1f, bodyHalf, out Mesh lost, out Mesh kept);
+                        if (lost == null) continue;
+                        MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                        AddPiece(debris.transform, mf.name, lost, mr != null ? mr.sharedMaterial : null,
+                            root.InverseTransformPoint(mf.transform.position), Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale);
+                        if (kept == null) gone.Add(mf.gameObject); else mf.sharedMesh = kept;
+                    }
+                }
+                else if ((aileron || elevator || rudder) && modelPart) { /* a single-mesh model has no separate control surfaces: aero is lost, nothing to drop */ }
+                else if (leftWing || rightWing)
                 {
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
@@ -170,7 +187,7 @@ namespace FlyingGame.Bridge
                 else if (panel || ((aileron || elevator) && part.name.ToLowerInvariant().Contains(aileron ? "aileron" : "elevator")) || (rudder && part.name.ToLowerInvariant().Contains("rudder")))
                 {
                     // Cut at the spanwise station on this side: the piece beyond it leaves (a control surface: its whole side).
-                    float cut = rudder ? -1f : (aileron || elevator) ? 0f : cutAbs;
+                    float cut = rudder ? -1f : (aileron || elevator) ? 0f : (modelPart ? Mathf.Max(cutAbs, bodyHalf) : cutAbs);
                     foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
                     {
                         if (mf == null || mf.sharedMesh == null) continue;
@@ -300,12 +317,27 @@ namespace FlyingGame.Bridge
                     Vector3 localPos = root.InverseTransformPoint(mf.transform.position);
                     Quaternion localRot = Quaternion.Inverse(root.rotation) * mf.transform.rotation;
                     Vector3 scale = mf.transform.lossyScale;
+                    if (part.name.StartsWith("Model:"))
+                    {
+                        // One-mesh model: both wings leave outboard of the body; the fuselage stays on the airframe.
+                        var cfgM = _driver?.Sim?.Aircraft?.Config;
+                        float bodyHalf = cfgM != null ? (float)((cfgM.Fuselage.Crossflow?.BodyRadiusM > 0 ? cfgM.Fuselage.Crossflow.BodyRadiusM : 0.5) + 0.15) : 0.7f;
+                        SplitBySide(mf.sharedMesh, mf.transform, root, -1f, bodyHalf, out Mesh lost1, out Mesh kept1);
+                        if (lost1 != null) AddPiece(left.transform, mf.name, lost1, mat, localPos, localRot, scale);
+                        if (kept1 != null)
+                        {
+                            SplitBySide(kept1, mf.transform, root, 1f, bodyHalf, out Mesh lost2, out Mesh kept2);
+                            if (lost2 != null) AddPiece(right.transform, mf.name, lost2, mat, localPos, localRot, scale);
+                            mf.sharedMesh = kept2;
+                        }
+                        continue;
+                    }
                     SplitBySpan(mf.sharedMesh, mf.transform, root, out Mesh lMesh, out Mesh rMesh);
                     if (lMesh != null) AddPiece(left.transform, mf.name, lMesh, mat, localPos, localRot, scale);
                     if (rMesh != null) AddPiece(right.transform, mf.name, rMesh, mat, localPos, localRot, scale);
                 }
             }
-            foreach (GameObject part in parts) if (part != null) Object.Destroy(part);
+            foreach (GameObject part in parts) if (part != null && !part.name.StartsWith("Model:")) Object.Destroy(part);
 
             // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
             // biased to the span (a freed wing pinwheels), each side its own way.
@@ -497,6 +529,8 @@ namespace FlyingGame.Bridge
             _wingParts.Clear();
             _gearParts.Clear();
             _legParts.Clear();
+            _modelParts.Clear();
+            UsedModel = false;
         }
 
         /// <summary>Visual parts of each landing-gear leg (wheel + strut), by component — a torn-off leg becomes debris.</summary>
@@ -578,7 +612,32 @@ namespace FlyingGame.Bridge
             BuildAsWing(() => BuildSpoilers(cfg, st, halfSpan));
             BuildAsWing(() => BuildSlats(cfg, st));
             BuildFloats(cfg, st);
+            TryPlaceModel(root, cfg);
             return halfSpan;
+        }
+
+        // ---- real 3-D models (AirframeModels): replace the procedural shell, keep its bookkeeping hidden ---------
+
+        private readonly List<GameObject> _modelParts = new();
+        public bool UsedModel { get; private set; }
+        public bool IsModelPart(GameObject go) => go != null && _modelParts.Contains(go);
+
+        private void TryPlaceModel(Transform root, AircraftConfig cfg)
+        {
+            UsedModel = false;
+            if (!SessionSettings.UseAirframeModels || Paint.HasValue || !AirframeModels.Has(cfg.Id)) return;
+            GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
+            if (inst == null) return;
+            UsedModel = true;
+            // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping).
+            foreach (GameObject p in _parts) foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+            // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
+            foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
+            {
+                GameObject go = mf.gameObject;
+                go.name = "Model:" + go.name;
+                _parts.Add(go); _wingParts.Add(go); _modelParts.Add(go);
+            }
         }
 
         private static void Kill(Object o)

@@ -22,9 +22,16 @@ namespace FlyingGame.EditorTools
             var cam = new GameObject("Cam").AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); cam.fieldOfView = 35f; cam.nearClipPlane = 0.1f; cam.farClipPlane = 1000f;
             var rt = new RenderTexture(1000, 700, 24); cam.targetTexture = rt;
+            foreach (string id in AirframeModels.Ids) AssetDatabase.ImportAsset($"Assets/_Project/Resources/Models/{id}/{id}.obj", ImportAssetOptions.ForceUpdate);
             foreach (string id in AirframeModels.Ids)
             {
                 var prefab = Resources.Load<GameObject>($"Models/{id}/{id}");
+                if (prefab != null)
+                {
+                    int withTex = 0, total = 0;
+                    foreach (Renderer r in prefab.GetComponentsInChildren<Renderer>(true)) foreach (Material mm in r.sharedMaterials) { total++; if (mm != null && mm.mainTexture != null) withTex++; }
+                    Debug.Log($"ModelRender {id}: {withTex}/{total} materials textured");
+                }
                 if (prefab == null) { Debug.LogWarning($"ModelRender: no model for {id}"); continue; }
                 var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 var root = new GameObject(id);

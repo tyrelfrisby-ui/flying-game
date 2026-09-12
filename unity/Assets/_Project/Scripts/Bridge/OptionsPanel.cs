@@ -73,6 +73,7 @@ namespace FlyingGame.Bridge
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
             BoolRow("Dense bubbles (GPU instancing)", ref SessionSettings.BubbleInstancing);
             BoolRow("Flight path vector (3 s, air-relative)", ref SessionSettings.ShowFlightPath);
+            BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "lift green · drag red · moment yellow · thrust magenta · wheels cyan", _label); y += lh * 0.8f;
             {

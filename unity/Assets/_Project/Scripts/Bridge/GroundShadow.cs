@@ -85,6 +85,8 @@ namespace FlyingGame.Bridge
                 {
                     continue;
                 }
+                var rr = mf.GetComponent<Renderer>();
+                if (rr != null && !rr.enabled) continue;   // the hidden procedural shell under a real model casts nothing
                 Matrix4x4 m = proj * mf.transform.localToWorldMatrix;
                 Graphics.DrawMesh(mf.sharedMesh, m, _material, 0, null, 0, null, false, false, false);
             }

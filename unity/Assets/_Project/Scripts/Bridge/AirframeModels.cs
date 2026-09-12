@@ -17,21 +17,25 @@ namespace FlyingGame.Bridge
         /// whether the model's largest horizontal extent is its span (true) or its length (false).</summary>
         public readonly struct Spec
         {
-            public readonly float Yaw, Pitch, Roll; public readonly bool LargestIsSpan; public readonly float ScaleTrim;
-            public Spec(float yaw, float pitch = 0f, float roll = 0f, bool largestIsSpan = true, float scaleTrim = 1f) { Yaw = yaw; Pitch = pitch; Roll = roll; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; }
+            public readonly Vector3 ModelForward, ModelUp;   // which MODEL axes are the nose direction and up
+            public readonly bool LargestIsSpan; public readonly float ScaleTrim;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; }
+            /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y.</summary>
+            public Quaternion Rotation => Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
 
-        // Filled in from ModelRender views (build/models/*.png): every one of these USDZ exports is Y-up; the yaw is
-        // what turns each model's nose to +z.
+        // Confirmed from ModelRender views (build/models/*.png, camera at +x looks at the model's +x side): the Cub,
+        // Gee Bee, Apache and Astir exports have the nose along +x with y up; the C-47 and 737 already point +z; the
+        // Cessna 172 export lies on its side (height along x, length along y, span along z).
         public static readonly Dictionary<string, Spec> Specs = new()
         {
-            { "c172-like", new Spec(0f) },
-            { "pa18-cub-like", new Spec(0f) },
-            { "dc3-like", new Spec(0f) },
-            { "boeing-737-like", new Spec(0f) },
-            { "geebee-r2-like", new Spec(0f) },
-            { "seminole-like", new Spec(0f) },
-            { "glider-2-33-like", new Spec(0f) },
+            { "c172-like", new Spec(new Vector3(0f, 1f, 0f), new Vector3(1f, 0f, 0f)) },
+            { "pa18-cub-like", new Spec(Vector3.right, Vector3.up) },
+            { "dc3-like", new Spec(Vector3.forward, Vector3.up) },
+            { "boeing-737-like", new Spec(Vector3.forward, Vector3.up) },
+            { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
+            { "seminole-like", new Spec(Vector3.right, Vector3.up) },
+            { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
         };
         public static IEnumerable<string> Ids => Specs.Keys;
 
@@ -48,7 +52,7 @@ namespace FlyingGame.Bridge
             inst.name = "Model";
             foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
             inst.transform.localPosition = Vector3.zero;
-            inst.transform.localRotation = Quaternion.Euler(spec.Pitch, spec.Yaw, spec.Roll);
+            inst.transform.localRotation = spec.Rotation;
             inst.transform.localScale = Vector3.one;
             // Bounds in the parent's frame (after rotation, unit scale).
             Bounds b = LocalBounds(inst, parent);

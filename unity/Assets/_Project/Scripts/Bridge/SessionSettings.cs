@@ -26,6 +26,8 @@ namespace FlyingGame.Bridge
         public static bool BubbleInstancing = true;
         /// <summary>Magenta 5-second flight path vector with a cone at its tip (owner 2026-09-10).</summary>
         public static bool ShowFlightPath = true;
+        /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
+        public static bool UseAirframeModels = true;
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }
