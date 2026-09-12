@@ -169,14 +169,16 @@ public class CombatTests
 
 public class DronePilotTests
 {
+    private readonly ITestOutputHelper _out;
+    public DronePilotTests(ITestOutputHelper o) { _out = o; }
+
     [Fact]
-    public void DroneOrbitsInsideTheZoneForAMinute()
+    public void SteadyDroneOrbitsInsideTheZoneForAMinute()
     {
-        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "target-drone-like.json"));
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "dc3-like.json"));
         WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
-        var pilot = new DronePilot(7);
-        var start = new Vec3(CombatZone.CentreX, CombatZone.CentreY, -500);
-        var drone = new Aircraft(c, new RigidBodyState(start, new Quat(0, 0, 0, 1), new Vec3(45, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+        var pilot = new DronePilot(7, aerobatic: false, cruiseMs: 70);
+        var drone = new Aircraft(c, new RigidBodyState(new Vec3(CombatZone.CentreX, CombatZone.CentreY, -500), new Quat(0, 0, 0, 1), new Vec3(70, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
         var sim = new SimLoop(drone);
         double minAgl = double.MaxValue; int outside = 0;
         for (double t = 0; t < 60; t += 0.02)
@@ -188,5 +190,43 @@ public class DronePilotTests
         Assert.True(minAgl > 150, $"drone stayed up (min {minAgl:F0} m)");
         Assert.True(outside < 50, $"drone stayed in the zone (outside {outside} steps)");
         Assert.Empty(drone.LostComponents);
+    }
+
+    [Fact]
+    public void AerobaticDroneFliesVariedManoeuvresAndSurvives()
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "target-drone-like.json"));
+        WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+        var pilot = new DronePilot(11, aerobatic: true, cruiseMs: 65);
+        var drone = new Aircraft(c, new RigidBodyState(new Vec3(CombatZone.CentreX, CombatZone.CentreY, -700), new Quat(0, 0, 0, 1), new Vec3(65, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+        var sim = new SimLoop(drone);
+        double minAgl = double.MaxValue, maxRoll = 0, maxPitch = 0; int outside = 0;
+        for (double t = 0; t < 180; t += 0.02)
+        {
+            sim.RunFor(0.02, pilot.Update(drone, 0.02));
+            var q = drone.State.Attitude;
+            double roll = Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+            double pitch = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
+            maxRoll = Math.Max(maxRoll, Math.Abs(roll)); maxPitch = Math.Max(maxPitch, Math.Abs(pitch));
+            minAgl = Math.Min(minAgl, -drone.State.Position.Z);
+            if (!CombatZone.Inside(drone.State.Position)) outside++;
+        }
+        _out.WriteLine($"manoeuvres flown {pilot.ManoeuvresFlown} distinct {string.Join(",", pilot.Flown)}; max roll {maxRoll * 57.3:F0}° max pitch {maxPitch * 57.3:F0}°; min alt {minAgl:F0} m; outside {outside} steps");
+        Assert.True(minAgl > 120, $"drone never went below 120 m (min {minAgl:F0})");
+        Assert.Empty(drone.LostComponents);
+        Assert.True(pilot.ManoeuvresFlown >= 5, "several manoeuvres in three minutes");
+        Assert.True(pilot.Flown.Count >= 3, "varied manoeuvres");
+        Assert.True(maxRoll > 2.0, "went inverted at some point");
+        Assert.True(maxPitch > 0.9, "went steeply nose-up at some point");
+        Assert.True(outside < 900, "mostly inside the zone");
+    }
+
+    [Fact]
+    public void P51GunsSitAtTheWingLeadingEdge()
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "p51d-like.json"));
+        var a = Armament.For(c);
+        (double le, _) = Armament.WingLeadingEdge(c, 2.3);
+        foreach (GunConfig g in a.Guns) Assert.True(g.Muzzle.X > le, $"muzzle x {g.Muzzle.X:F2} ahead of the leading edge {le:F2}");
     }
 }

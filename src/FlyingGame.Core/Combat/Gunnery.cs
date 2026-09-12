@@ -32,9 +32,14 @@ public sealed class Armament
         double axisZ = c.Propulsion?.ThrustLineZ ?? 0.0;
         if (id.StartsWith("p51"))
         {
+            // Wing guns: muzzles just ahead of the wing leading edge at each station (owner: tracers must start AT
+            // the aircraft — the old fixed x sat well behind the P-51's leading edge).
             foreach (double y in new[] { 1.9, 2.3, 2.7 })
                 foreach (double sgn in new[] { -1.0, 1.0 })
-                    a.Guns.Add(new GunConfig { Muzzle = new Vec3(1.2, sgn * y, 0.15), ConvergenceM = 274, RoundsPerMin = 800, Rounds = y < 2.0 ? 400 : y < 2.5 ? 270 : 270 });
+                {
+                    (double le, double z) = WingLeadingEdge(c, sgn * y);
+                    a.Guns.Add(new GunConfig { Muzzle = new Vec3(le + 0.35, sgn * y, z + 0.08), ConvergenceM = 274, RoundsPerMin = 800, Rounds = y < 2.0 ? 400 : y < 2.5 ? 270 : 270 });
+                }
             a.RoundsTotal = 1880;
         }
         else if (id.StartsWith("f86"))
@@ -51,6 +56,20 @@ public sealed class Armament
         }
         a.RoundsLeft = a.RoundsTotal;
         return a;
+    }
+
+    /// <summary>Leading-edge x and z of the wing at spanwise station y (from the nearest wing strip).</summary>
+    public static (double le, double z) WingLeadingEdge(AircraftConfig c, double y)
+    {
+        StripConfig? best = null; SurfaceConfig? sf0 = null;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            string id = sf.Id.ToLowerInvariant();
+            if (!id.Contains("wing") || id.Contains("aileron")) continue;
+            foreach (StripConfig st in sf.Strips) if (best == null || Math.Abs(st.Pos[1] - y) < Math.Abs(best.Pos[1] - y)) { best = st; sf0 = sf; }
+        }
+        if (best == null) return (0.5, 0.0);
+        return (best.Pos[0] + 0.25 * best.Chord, best.Pos[2] - Math.Abs(y) * Math.Tan(best.DihedralRad));
     }
 
     /// <summary>Rounds to fire this step with the trigger held (rate × dt, carried fractionally), limited by ammunition.</summary>
@@ -70,7 +89,7 @@ public sealed class Armament
 
 public sealed class Bullet
 {
-    public Vec3 Pos, Vel; public double Age; public int Shooter;
+    public Vec3 Pos, Vel, Origin; public double Age; public int Shooter;
     public const double LifeSec = 3.0, DragPerM = 0.00055;   // v/v0 ≈ e^{-0.00055·s}: 880 → ~500 m/s over 1 km
 }
 
@@ -111,7 +130,7 @@ public sealed class Gunnery
             dirBody = dirBody / dirBody.Length;
             Vec3 muzzleWorld = s.Position + s.Attitude.Rotate(g.Muzzle - cg);
             Vec3 velWorld = s.Attitude.Rotate(s.Velocity) + s.Attitude.Rotate(dirBody) * g.MuzzleVelocityMs;
-            Bullets.Add(new Bullet { Pos = muzzleWorld, Vel = velWorld, Shooter = shooterId, Age = _rng.NextDouble() * 0.002 });
+            Bullets.Add(new Bullet { Pos = muzzleWorld, Origin = muzzleWorld, Vel = velWorld, Shooter = shooterId, Age = _rng.NextDouble() * 0.002 });
         }
         Fired += n;
         return n;
