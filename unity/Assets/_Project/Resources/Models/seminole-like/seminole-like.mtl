@@ -1,0 +1,124 @@
+newmtl DefaultWhite_panel_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_panel.png_baseColor.jpg
+
+newmtl Transparent
+Kd 0.120 0.012 0.012
+
+newmtl glass_white
+Kd 0.240 0.240 0.240
+
+newmtl DefaultWhite
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_baseColor.jpg
+
+newmtl DefaultWhite_KNS80_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_KNS80.png_baseColor.jpg
+
+newmtl DefaultWhite_NONE
+Kd 0.800 0.800 0.800
+
+newmtl DefaultWhite_adf_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_adf.png_baseColor.jpg
+
+newmtl DefaultWhite_alt_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_alt.png_baseColor.jpg
+
+newmtl DefaultWhite_ai_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_ai.png_baseColor.jpg
+
+newmtl DefaultWhite_compass_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_compass.png_baseColor.jpg
+
+newmtl DefaultWhite_fuel_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_fuel.png_baseColor.jpg
+
+newmtl DefaultWhite_asi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_asi.png_baseColor.jpg
+
+newmtl DefaultWhite_fuelpress_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_fuelpress.png_baseColor.jpg
+
+newmtl DefaultWhite_fueltemp_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_fueltemp.png_baseColor.jpg
+
+newmtl DefaultWhite_hdg_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_hdg.png_baseColor.jpg
+
+newmtl DefaultWhite_hsi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_hsi.png_baseColor.jpg
+
+newmtl DefaultWhite_interior_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_interior.png_baseColor.jpg
+
+newmtl DefaultWhite_kap140_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_kap140.png_baseColor.jpg
+
+newmtl DefaultWhite_kt70_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_kt70.png_baseColor.jpg
+
+newmtl DefaultWhite_kx165_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_kx165.png_baseColor.jpg
+
+newmtl DefaultWhite_man_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_man.png_baseColor.jpg
+
+newmtl DefaultWhite_oilpress_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_oilpress.png_baseColor.jpg
+
+newmtl DefaultWhite_oiltemp_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_oiltemp.png_baseColor.jpg
+
+newmtl DefaultWhite_pedestal_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_pedestal.png_baseColor.jpg
+
+newmtl DefaultWhite_pedals_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_pedals.png_baseColor.jpg
+
+newmtl DefaultWhite_rpm_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_rpm.png_baseColor.jpg
+
+newmtl DefaultWhite_seat_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_seat.png_baseColor.jpg
+
+newmtl DefaultWhite_turn_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_turn.png_baseColor.jpg
+
+newmtl DefaultWhite_vor_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vor.png_baseColor.jpg
+
+newmtl DefaultWhite_vsi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vsi.png_baseColor.jpg
+
+newmtl DefaultWhite_yoke_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_yoke.png_baseColor.jpg
+
+newmtl transparent
+Kd 0.800 0.800 0.800
+

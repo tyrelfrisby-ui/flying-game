@@ -1,0 +1,52 @@
+newmtl glass_007
+Kd 0.800 0.800 0.800
+map_Kd glass.007_baseColor.jpg
+
+newmtl grill_007
+Kd 0.800 0.800 0.800
+map_Kd grill.007_baseColor.jpg
+
+newmtl grill_bottom_007
+Kd 0.496 0.496 0.496
+
+newmtl exhaust_007
+Kd 0.800 0.800 0.800
+map_Kd exhaust.007_baseColor.jpg
+
+newmtl metal_007
+Kd 0.800 0.800 0.800
+map_Kd metal.007_baseColor.jpg
+
+newmtl wheel_007
+Kd 0.800 0.800 0.800
+map_Kd wheel.007_baseColor.jpg
+
+newmtl red_light_007
+Kd 0.800 0.000 0.001
+
+newmtl green_light_007
+Kd 0.040 1.000 0.089
+
+newmtl fuselage_007
+Kd 0.800 0.800 0.800
+map_Kd fuselage.007_baseColor.jpg
+
+newmtl Material_008
+Kd 0.800 0.800 0.800
+map_Kd Material.008_baseColor.jpg
+
+newmtl flaps_007
+Kd 0.800 0.800 0.800
+map_Kd flaps.007_baseColor.jpg
+
+newmtl aileron_rudder_007
+Kd 0.800 0.800 0.800
+map_Kd aileron-rudder.007_baseColor.jpg
+
+newmtl propeller_007
+Kd 0.800 0.800 0.800
+map_Kd propeller.007_baseColor.jpg
+
+newmtl prop_cone_007
+Kd 0.800 0.800 0.800
+

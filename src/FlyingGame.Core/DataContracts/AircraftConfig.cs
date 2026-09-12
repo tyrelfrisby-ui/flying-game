@@ -307,6 +307,12 @@ public sealed class GearConfig
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
     public double TireRadiusM { get; set; }           // visual tire size (0 = auto from fuselage length); 0.445 = 35" bushwheel
     public double BreakSinkMs { get; set; }           // first-contact sink rate that tears this leg off (0 = LandingGear.DefaultBreakSinkMs)
+    // Tailwheel (owner 2026-09-12): the wheel CASTORS about its pivot; springs to the rudder pull it toward the
+    // commanded angle but always give; past BreakoutRad it swivels free. 0 = LandingGear defaults.
+    public double SteerSpringNmPerRad { get; set; }   // steering-spring stiffness (soft: ~60 N·m/rad on a Cub)
+    public double SteerDampNms { get; set; }          // castor damping (N·m per rad/s)
+    public double CastorTrailM { get; set; }          // contact patch behind the castor pivot (m)
+    public double BreakoutRad { get; set; }           // beyond this angle from the rudder command the wheel swivels free
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }

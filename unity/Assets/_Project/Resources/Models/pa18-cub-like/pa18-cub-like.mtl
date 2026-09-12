@@ -1,0 +1,46 @@
+newmtl DefaultWhite_panel_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_panel.png_baseColor.jpg
+
+newmtl transparentExt
+Kd 0.800 0.800 0.800
+
+newmtl DefaultWhite
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_baseColor.jpg
+
+newmtl DefaultWhite_ai_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_ai.png_baseColor.jpg
+
+newmtl DefaultWhite_alt_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_alt.png_baseColor.jpg
+
+newmtl DefaultWhite_asi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_asi.png_baseColor.jpg
+
+newmtl DefaultWhite_hdg_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_hdg.png_baseColor.jpg
+
+newmtl DefaultWhite_interior_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_interior.png_baseColor.jpg
+
+newmtl DefaultWhite_seat_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_seat.png_baseColor.jpg
+
+newmtl DefaultWhite_turn_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_turn.png_baseColor.jpg
+
+newmtl DefaultWhite_vsi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vsi.png_baseColor.jpg
+
+newmtl transparent
+Kd 0.800 0.800 0.800
+

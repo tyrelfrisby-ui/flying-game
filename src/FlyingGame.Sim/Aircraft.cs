@@ -88,6 +88,8 @@ public sealed class Aircraft
     private readonly HashSet<AirframeComponent> _lostGear = new();   // legs torn off (LandingGear skips them)
     private bool[] _gearTouching = System.Array.Empty<bool>();       // per-leg contact state, Config.Gear order
     private readonly ImpactRecorder _impacts = new();
+    /// <summary>Castoring tailwheel yaw (LandingGear.TailwheelState); null for types without a steerable tailwheel.</summary>
+    public LandingGear.TailwheelState? Tailwheel { get; }
     private bool[]? _surfaceMask;
     private bool[]? _stripMask;                 // per-strip aero mask (broken-off components), AeroModel strip order
     private readonly List<ContactPoint> _contacts;
@@ -160,6 +162,7 @@ public sealed class Aircraft
         _contacts = AirframeContact.BuildPoints(config);
         _gearTouching = new bool[config.Gear.Count];
         Damage = new FlyingGame.Core.Combat.DamageState(LoseComponent, IsLost);
+        foreach (GearConfig g in config.Gear) if (g.IsTailwheel && g.IsSteerable) { Tailwheel = new LandingGear.TailwheelState(); break; }
         Guns = FlyingGame.Core.Combat.Armament.For(config);
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
@@ -538,7 +541,7 @@ public sealed class Aircraft
             if (Config.Gear.Count > 0 && GearExtension > 0.9)   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts);
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, Tailwheel);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
@@ -607,6 +610,11 @@ public sealed class Aircraft
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
         Damage.Update(dt);
+        if (Tailwheel != null && GearExtension > 0.9 && !_lostGear.Contains(AirframeComponent.GearTail))
+        {
+            double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
+            LandingGear.UpdateTailwheel(Config, State, Tailwheel, rudderCmd, dt);
+        }
         if (Config.RetractableGear)
         {
             double target = GearDown ? 1.0 : 0.0;

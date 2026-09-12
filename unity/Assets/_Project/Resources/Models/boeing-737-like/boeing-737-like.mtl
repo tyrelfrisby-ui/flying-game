@@ -1,0 +1,8 @@
+newmtl material00
+Kd 0.800 0.800 0.800
+map_Kd material00_baseColor_scale0.jpg
+
+newmtl material03
+Kd 0.800 0.800 0.800
+map_Kd material00_baseColor_scale0.jpg
+

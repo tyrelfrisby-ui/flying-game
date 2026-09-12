@@ -76,6 +76,82 @@ public static class LandingGear
     public const double DefaultBreakSinkMs = 4.0, DefaultTailwheelBreakSinkMs = 8.0;
     /// <summary>Tyre cornering stiffness per newton of wheel load (N per rad per N): ~12 for an aircraft tyre.</summary>
     public const double CorneringPerLoad = 12.0;
+    /// <summary>A tailwheel's small contact patch: about half the cornering per newton, and a lower friction cap.</summary>
+    public const double TailwheelCorneringPerLoad = 6.0, TailwheelMuScale = 0.85;
+    public const double DefaultSteerSpringNmPerRad = 25.0, DefaultSteerDampNms = 3.0, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°; soft springs (owner: "a lot of give") — tune in testing
+
+    /// <summary>
+    /// The castoring tailwheel's own yaw (owner 2026-09-12): the wheel is not bolted to the rudder — steering springs
+    /// pull it toward the rudder command, the ground force on its contact patch (a trail behind the pivot) swings it
+    /// toward the direction it is actually rolling, and past the breakout angle it swivels free. Its load is whatever
+    /// the tail spring carries — tail weight less the aerodynamic tail load, so a tail-up wheel landing carries none.
+    /// </summary>
+    public sealed class TailwheelState
+    {
+        public double AngleRad;        // wheel yaw relative to the fuselage, + = wheel turned right
+        public double LastLateralN;    // side force on the contact patch last step (diagnostics)
+        public double LastLoadN;       // vertical load last step
+        public bool FreeSwivel;        // past the breakout: springs disengaged
+    }
+
+    /// <summary>Advance the tailwheel castor angle by dt from the current state and rudder command.</summary>
+    public static void UpdateTailwheel(AircraftConfig config, RigidBodyState s, TailwheelState tw, double rudderCmd, double dt)
+    {
+        GearConfig? g = null;
+        foreach (GearConfig c in config.Gear) if (c.IsTailwheel && c.IsSteerable) { g = c; break; }
+        if (g == null || tw == null) return;
+        double k = g.SteerSpringNmPerRad > 0 ? g.SteerSpringNmPerRad : DefaultSteerSpringNmPerRad;
+        double cD = g.SteerDampNms > 0 ? g.SteerDampNms : DefaultSteerDampNms;
+        double trail = g.CastorTrailM > 0 ? g.CastorTrailM : DefaultCastorTrailM;
+        double breakout = g.BreakoutRad > 0 ? g.BreakoutRad : DefaultBreakoutRad;
+        double cmd = rudderCmd * g.MaxSteerRad;
+
+        // Ground force on the patch: from the wheel's own slip at its CURRENT angle (the same tyre model Compute uses).
+        Vec3 cg = config.Mass.CgVec();
+        Vec3 rBody = g.PosVec() - cg;
+        Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
+        double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y);
+        double penetration = wheelWorld.Z + groundH;
+        double lateralN = 0, loadN = 0;
+        if (penetration > 0)
+        {
+            Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
+            loadN = System.Math.Max(0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, vel.Z));
+            Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
+            Vec3 fwdGround = new Vec3(fwdWorld.X, fwdWorld.Y, 0);
+            if (fwdGround.Length > 1e-6)
+            {
+                fwdGround = fwdGround / fwdGround.Length;
+                Vec3 rightGround = new Vec3(-fwdGround.Y, fwdGround.X, 0);
+                Vec3 tireFwd = fwdGround * System.Math.Cos(tw.AngleRad) + rightGround * System.Math.Sin(tw.AngleRad);
+                Vec3 tireRight = new Vec3(-tireFwd.Y, tireFwd.X, 0);
+                double vFwd = Vec3.Dot(vel, tireFwd), vSide = Vec3.Dot(vel, tireRight);
+                double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
+                double cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN);
+                lateralN = System.Math.Clamp(-cornering * slip, -g.TireMu * TailwheelMuScale * loadN, g.TireMu * TailwheelMuScale * loadN);
+            }
+        }
+        tw.LastLateralN = lateralN; tw.LastLoadN = loadN;
+
+        // Castor: a side force on a patch behind the pivot turns the wheel toward its velocity. Springs: toward the
+        // rudder command unless broken out. Overdamped first-order swing (the wheel's own inertia is negligible).
+        double err = tw.AngleRad - cmd;
+        tw.FreeSwivel = System.Math.Abs(err) > breakout;
+        double torque = -lateralN * trail - (tw.FreeSwivel ? 0.0 : k * err);
+        int sub = 4; double h = dt / sub;
+        for (int i = 0; i < sub; i++)
+        {
+            double rate = torque / cD;
+            rate = System.Math.Clamp(rate, -12.0, 12.0);
+            tw.AngleRad += rate * h;
+            err = tw.AngleRad - cmd;
+            tw.FreeSwivel = System.Math.Abs(err) > breakout;
+            torque = -lateralN * trail - (tw.FreeSwivel ? 0.0 : k * err);
+        }
+        // Full swivel: keep the angle wrapped so a 180° spin reads as a wheel rolling backwards, not 540°.
+        while (tw.AngleRad > System.Math.PI) tw.AngleRad -= 2 * System.Math.PI;
+        while (tw.AngleRad < -System.Math.PI) tw.AngleRad += 2 * System.Math.PI;
+    }
 
     /// <param name="lostLegs">legs already torn off (skipped)</param>
     /// <param name="broken">receives the leg that just hit harder than its break sink rate</param>
@@ -83,7 +159,8 @@ public static class LandingGear
     /// <param name="impacts">records the hardest first contact (crash sound)</param>
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0,
-        IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null)
+        IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null,
+        TailwheelState? tailwheel = null)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
         if (config.Gear.Count == 0)
@@ -151,8 +228,10 @@ public static class LandingGear
             fwdGround /= fwdLen;
             Vec3 rightGround = Vec3.Cross(groundUp, fwdGround); // right-hand: up × fwd = right
 
-            // Steered wheels (nose / steerable tailwheel) point the tire by the rudder command.
-            double steer = g.IsSteerable ? rudderCmd * g.MaxSteerRad : 0.0;
+            // Steered wheels: a nosewheel points where the rudder says; a steerable TAILWHEEL points where its castor
+            // state says (springs toward the rudder, ground force toward its velocity — UpdateTailwheel).
+            bool castoring = g.IsTailwheel && g.IsSteerable && tailwheel != null;
+            double steer = castoring ? tailwheel!.AngleRad : g.IsSteerable ? rudderCmd * g.MaxSteerRad : 0.0;
             Vec3 tireFwd = fwdGround * System.Math.Cos(steer) + rightGround * System.Math.Sin(steer);
             Vec3 tireRight = Vec3.Cross(groundUp, tireFwd);
 
@@ -166,9 +245,9 @@ public static class LandingGear
             // grows with the wheel load (a tyre's C ≈ 10–15 × its vertical load per radian): a fixed per-type constant
             // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
-            double cornering = System.Math.Max(g.CorneringStiffnessN, CorneringPerLoad * normalN);
+            double cornering = System.Math.Max(g.CorneringStiffnessN, (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad) * normalN);
             double lateralN = -cornering * slip;
-            double muLimit = g.TireMu * normalN;
+            double muLimit = g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * normalN;
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.

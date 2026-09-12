@@ -1,0 +1,45 @@
+newmtl DefaultWhite_colors_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_colors.png_baseColor.jpg
+
+newmtl transparent2
+Kd 0.490 0.533 0.605
+
+newmtl DefaultWhite
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_baseColor.jpg
+
+newmtl DefaultWhite_NONE
+Kd 0.800 0.800 0.800
+
+newmtl DefaultWhite_alt_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_alt.png_baseColor.jpg
+
+newmtl DefaultWhite_asi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_asi.png_baseColor.jpg
+
+newmtl DefaultWhite_chrono_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_chrono.png_baseColor.jpg
+
+newmtl DefaultWhite_interior_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_interior.png_baseColor.jpg
+
+newmtl DefaultWhite_sc7_top_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_sc7-top.png_baseColor.jpg
+
+newmtl DefaultWhite_vario_5stv5_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vario-5stv5.png_baseColor.jpg
+
+newmtl DefaultWhite_vsi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vsi.png_baseColor.jpg
+
+newmtl transparent
+Kd 0.800 0.800 0.800
+

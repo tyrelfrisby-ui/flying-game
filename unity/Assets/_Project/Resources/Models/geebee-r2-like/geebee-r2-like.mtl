@@ -1,0 +1,69 @@
+newmtl DefaultWhite
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_baseColor.jpg
+
+newmtl DefaultWhite_colors_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_colors.png_baseColor.jpg
+
+newmtl rouge
+Kd 0.800 0.000 0.000
+
+newmtl vert
+Kd 0.201 0.800 0.201
+
+newmtl DefaultWhite_alt_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_alt.png_baseColor.jpg
+
+newmtl DefaultWhite_asi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_asi.png_baseColor.jpg
+
+newmtl DefaultWhite_colors_png_001
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_colors.png.001_baseColor.jpg
+
+newmtl DefaultWhite_colors_png_002
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_colors.png.002_baseColor.jpg
+
+newmtl DefaultWhite_colors_png_003
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_colors.png.003_baseColor.jpg
+
+newmtl DefaultWhite_fuel_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_fuel.png_baseColor.jpg
+
+newmtl DefaultWhite_interior_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_interior.png_baseColor.jpg
+
+newmtl DefaultWhite_magneto_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_magneto.png_baseColor.jpg
+
+newmtl DefaultWhite_oilpressure_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_oilpressure.png_baseColor.jpg
+
+newmtl DefaultWhite_oiltemp_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_oiltemp.png_baseColor.jpg
+
+newmtl DefaultWhite_rpm_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_rpm.png_baseColor.jpg
+
+newmtl DefaultWhite_texture_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_texture.png_baseColor.jpg
+
+newmtl DefaultWhite_vsi_png
+Kd 0.800 0.800 0.800
+map_Kd DefaultWhite_vsi.png_baseColor.jpg
+
+newmtl transparent
+Kd 0.800 0.800 0.800
+
