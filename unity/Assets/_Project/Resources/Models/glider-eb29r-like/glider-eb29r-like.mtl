@@ -1,0 +1,12 @@
+newmtl Vehicle_Elements
+Kd 0.800 0.800 0.800
+map_Kd Vehicle_Elements_baseColor.jpg
+
+newmtl VehiclesGeneric
+Kd 0.800 0.800 0.800
+map_Kd VehiclesGeneric_baseColor.jpg
+
+newmtl VehiclesGlass
+Kd 0.800 0.800 0.800
+map_Kd VehiclesGeneric_baseColor.jpg
+

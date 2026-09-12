@@ -36,6 +36,8 @@ namespace FlyingGame.Bridge
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
+            { "extra-300-like", new Spec(Vector3.forward, Vector3.up) },
+            { "glider-eb29r-like", new Spec(new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, 1f)) },   // export stands on its tail: nose along -y, height along z
         };
         public static IEnumerable<string> Ids => Specs.Keys;
 
