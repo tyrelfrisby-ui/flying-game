@@ -550,7 +550,7 @@ namespace FlyingGame.Bridge
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             (float thr01, float padBrake) = SplitLeftAxis();
             string leftValue = padBrake > 0f
-                ? $"BRAKE {Mathf.RoundToInt(padBrake * 100f)}%"
+                ? $"BRAKES ON  {Mathf.RoundToInt(padBrake * 100f)}%"
                 : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt(SpoilerFraction * 100f)}%";
             DrawPad(_leftCenter, _leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob, "RUD / THR", leftValue);
             bool pilotOut = _egress != null && _egress.PilotOut;
@@ -624,6 +624,7 @@ namespace FlyingGame.Bridge
         private static float AxisForFraction(float f) => f * 2f - 1f;
 
         /// <summary>Square pad with centre cross, X/Y position lines through the knob, and the knob.</summary>
+        private GUIStyle _brakeValueStyle;
         private void DrawPad(Vector2 c, Vector2 knob, string label, string value)
         {
             float d = _half * 2f;
@@ -675,7 +676,10 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(pad.x, Screen.height - (pad.yMax + lh), d, lh), label, _labelStyle);
             if (value != null)
             {
-                GUI.Label(new Rect(pad.x, Screen.height - (pad.yMax + 2f * lh), d, lh), value, _valueStyle);
+                // Brake awareness (owner): the readout goes RED while any brake is applied.
+                bool braking = value.StartsWith("BRAKES");
+                if (braking && _brakeValueStyle == null) _brakeValueStyle = new GUIStyle(_valueStyle) { normal = { textColor = new Color(1f, 0.25f, 0.2f) } };
+                GUI.Label(new Rect(pad.x, Screen.height - (pad.yMax + 2f * lh), d, lh), value, braking ? _brakeValueStyle : _valueStyle);
             }
         }
 

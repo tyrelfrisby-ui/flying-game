@@ -1091,7 +1091,7 @@
     "efficiency": 0.75,
     "thrustLineZ": 0.0,
     "pFactorK": 0.4,
-    "slipstreamK": 0.15,
+    "slipstreamK": 0.1,
     "constantSpeed": false
   },
   "stallDynamics": {
@@ -1151,7 +1151,7 @@
           "tireMu": 0.6,
           "corneringStiffnessN": 2000,
           "rollResistN": 25,
-          "steerSpringNmPerRad": 2
+          "steerSpringNmPerRad": 40
       }
   ],
   "limits": {

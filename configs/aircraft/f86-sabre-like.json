@@ -1768,7 +1768,59 @@
   },
   "wakeBlanketMaxLoss": 0.45,
   "verticalBlanketFactor": 0.5,
-  "gear": [],
+  "gear": [
+      {
+          "pos": [
+              2.8,
+              0,
+              1.5
+          ],
+          "springN": 250000,
+          "dampNs": 20000,
+          "brake": false,
+          "isTailwheel": false,
+          "isSteerable": true,
+          "maxSteerRad": 0.6,
+          "tireMu": 0.8,
+          "corneringStiffnessN": 15000,
+          "rollResistN": 40,
+          "tireRadiusM": 0.3
+      },
+      {
+          "pos": [
+              -0.6,
+              -1.3,
+              1.5
+          ],
+          "springN": 400000,
+          "dampNs": 25000,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.8,
+          "corneringStiffnessN": 25000,
+          "rollResistN": 50,
+          "tireRadiusM": 0.33
+      },
+      {
+          "pos": [
+              -0.6,
+              1.3,
+              1.5
+          ],
+          "springN": 400000,
+          "dampNs": 25000,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.8,
+          "corneringStiffnessN": 25000,
+          "rollResistN": 50,
+          "tireRadiusM": 0.33
+      }
+  ],
   "limits": {
     "vneMs": 300,
     "gMax": 7.33,

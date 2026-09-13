@@ -273,7 +273,10 @@ public static class LandingGear
             // Steered wheels: a nosewheel points where the rudder says; a steerable TAILWHEEL points where its castor
             // state says (springs toward the rudder, ground force toward its velocity — UpdateTailwheel).
             bool castoring = g.IsTailwheel && g.IsSteerable && tailwheel != null;
-            double steer = castoring ? tailwheel!.AngleRad : g.IsSteerable ? rudderCmd * g.MaxSteerRad : 0.0;
+            // Steer frame: + points the tyre LEFT. A trailing TAILWHEEL steered by right rudder points left (pushes the
+            // tail left, nose right); a NOSEWHEEL steered by right rudder must point RIGHT — it was applied mirrored
+            // (right rudder turned the 172 and Seminole left on the ground).
+            double steer = castoring ? tailwheel!.AngleRad : g.IsSteerable ? (g.IsTailwheel ? 1.0 : -1.0) * rudderCmd * g.MaxSteerRad : 0.0;
             Vec3 tireFwd = fwdGround * System.Math.Cos(steer) + rightGround * System.Math.Sin(steer);
             Vec3 tireRight = Vec3.Cross(groundUp, tireFwd);
 
@@ -293,7 +296,7 @@ public static class LandingGear
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
-            double brakeN = g.Brake ? wheelBrake * muLimit * 0.9 : 0.0;
+            double brakeN = g.Brake ? wheelBrake * muLimit * 0.675 : 0.0;   // 0.9 × 0.75: owner 2026-09-13, brakes 25 % weaker
             // Rolling resistance = μ_r · wheel load, μ_r by surface (paved 0.025 … rough ground 0.15).
             double rollN = WorldTerrain.RollingCoefficient(surface) * normalN;
             double longN = -(rollN + brakeN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);

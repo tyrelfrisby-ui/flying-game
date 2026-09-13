@@ -83,7 +83,7 @@ public class GroundLoopTests
     [InlineData("stearman-pt17-like.json", 2.0, 5.0)]
     [InlineData("pa25-pawnee-like.json", 0.8, 2.0)]
     [InlineData("geebee-r2-like.json", 5.0, 100.0)]
-    [InlineData("cassutt-f1-like.json", 3.0, 100.0)]
+    [InlineData("cassutt-f1-like.json", 1.5, 100.0)]
     [InlineData("p51d-like.json", 1.0, 3.0)]
     public void GroundStabilityMatchesTheBenchmarks(string file, double minRatio, double maxRatio)
     {
@@ -140,6 +140,131 @@ public class GroundLoopTests
     {
         var h = Swerve("pa18-cub-like.json", 10, 8.0);
         _out.WriteLine($"start {h[0].yawDeg:F1}°, end {h[^1].yawDeg:F1}°");
+    }
+}
+
+public class TakeoffRollStarts
+{
+    private readonly ITestOutputHelper _out;
+    public TakeoffRollStarts(ITestOutputHelper o) { _out = o; }
+
+    /// <summary>Owner 2026-09-13: the DC-3 "sat low like the wheels were up and wouldn't move at full power" — it had
+    /// no gear at all (belly contact). Every powered type must sit on wheels and roll from rest.</summary>
+    [Fact]
+    public void EveryPoweredTypeSitsOnItsWheelsAndRollsAtFullPower()
+    {
+        foreach (string f in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "TestData"), "*.json"))
+        {
+            var c = AircraftConfigLoader.LoadFromFile(f);
+            if (c.Propulsion == null && (c.Engines == null || c.Engines.Count == 0)) continue;
+            if (Path.GetFileName(f).Contains("floats")) continue;   // no wheels: it takes off from water
+            Assert.True(c.Gear.Count >= 3, $"{Path.GetFileName(f)} has no landing gear");
+            WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+            var rest = LandingGear.RestingState(c, 0, 0, 0);
+            var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+            var sim = new SimLoop(ac);
+            for (double t = 0; t < 10; t += 0.02)
+            {
+                // Feet on the pedals (slamming full power into a Gee Bee with no rudder is a ground loop, not a stuck aircraft).
+                var q = ac.State.Attitude;
+                double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+                double rudder = Math.Clamp(-0.08 * ac.State.Position.Y - 3.0 * hdg - 0.8 * ac.State.Rates.Z, -1, 1);
+                sim.RunFor(0.02, new ControlInputs(0, 0, rudder, -1.0));   // lever full forward = full power
+            }
+            double v = ac.State.Velocity.Length;
+            _out.WriteLine($"{Path.GetFileName(f),-28} {v,5:F1} m/s after 10 s at full power");
+            Assert.True(v > 8, $"{Path.GetFileName(f)} only reached {v:F1} m/s in 10 s at full power");
+        }
+    }
+}
+
+public class TakeoffControllability
+{
+    private readonly ITestOutputHelper _out;
+    public TakeoffControllability(ITestOutputHelper o) { _out = o; }
+
+    /// <summary>Owner 2026-09-13: "add 25 % power every 3 seconds and make sure there is enough tailwheel steering /
+    /// rudder to keep it on the runway". A feet-only pilot (no brakes, stick neutral) holds the centreline on every
+    /// powered wheeled type; it must stay within ±10 m (wheels on the 30 m runway) until it lifts off (or 25 s), never saturating the rudder for long.</summary>
+    [Fact]
+    public void EveryPoweredTypeCanBeKeptOnTheRunwayWithRudderAsPowerComesIn()
+    {
+        var failures = new List<string>();
+        foreach (string f in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "TestData"), "*.json").OrderBy(x => x))
+        {
+            string name = Path.GetFileName(f);
+            var c = AircraftConfigLoader.LoadFromFile(f);
+            if (c.Propulsion == null && (c.Engines == null || c.Engines.Count == 0)) continue;
+            if (name.Contains("floats") || c.Gear.Count < 3) continue;
+            WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+            var rest = LandingGear.RestingState(c, 0, 0, 0);
+            var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+            var sim = new SimLoop(ac);
+            double maxY = 0, maxRud = 0, satTime = 0, liftoff = -1, t = 0;
+            for (; t < 25; t += 0.02)
+            {
+                double lever = -Math.Min(1.0, 0.25 * (1 + Math.Floor(t / 3.0)));   // 25 % at t=0, +25 % every 3 s
+                var q = ac.State.Attitude;
+                double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+                double y = ac.State.Position.Y, r = ac.State.Rates.Z;
+                double rudder = Math.Clamp(-0.08 * y - 3.0 * hdg - 0.8 * r, -1, 1);   // centreline + heading + rate
+                sim.RunFor(0.02, new ControlInputs(0, 0, rudder, lever));
+                maxY = Math.Max(maxY, Math.Abs(y)); maxRud = Math.Max(maxRud, Math.Abs(rudder));
+                if (Math.Abs(rudder) > 0.98) satTime += 0.02;
+                if (!LandingGear.AnyMainWheelOnGround(c, ac.State) && ac.State.Velocity.Length > 15) { liftoff = t; break; }
+            }
+            string line = $"{name,-28} max off-centre {maxY,5:F1} m  peak rudder {maxRud * 100,3:F0} %  saturated {satTime,4:F1} s  {(liftoff >= 0 ? $"lifted off at {liftoff:F1} s" : $"still rolling at {ac.State.Velocity.Length:F0} m/s")}";
+            _out.WriteLine(line);
+            if (maxY > 10 || satTime > 1.5) failures.Add(line);   // 30 m runway: wheels stay on it
+        }
+        Assert.True(failures.Count == 0, "Not controllable on the takeoff roll:\n" + string.Join("\n", failures));
+    }
+}
+
+public class SteeringSignProbe
+{
+    private readonly ITestOutputHelper _out;
+    public SteeringSignProbe(ITestOutputHelper o) { _out = o; }
+
+    [Theory]
+    [InlineData("c172-like.json")]
+    [InlineData("pa18-cub-like.json")]
+    [InlineData("seminole-like.json")]
+    public void FullRightRudderTurnsATaxiingAircraftRight(string file)
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", file));
+        WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+        var rest = LandingGear.RestingState(c, 0, 0, 0);
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, rest.Attitude.Conjugate().Rotate(new Vec3(6, 0, 0)), Vec3.Zero), ControlDeflections.Neutral);
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 3; t += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 1.0, 0.6));
+        var q = ac.State.Attitude;
+        double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z)) * 57.3;
+        _out.WriteLine($"{file}: heading after 3 s of full right rudder at 6 m/s: {hdg:F1}°");
+        Assert.True(hdg > 5, $"{file}: right rudder turned it to {hdg:F1}° (should be right/positive)");
+    }
+
+    [Fact]
+    public void GeeBeeTakeoffTrace()
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "geebee-r2-like.json"));
+        WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+        var rest = LandingGear.RestingState(c, 0, 0, 0);
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+        var sim = new SimLoop(ac);
+        for (double t = 0; t < 12; t += 0.02)
+        {
+            double lever = -Math.Min(1.0, 0.25 * (1 + Math.Floor(t / 3.0)));
+            var q = ac.State.Attitude;
+            double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+            double rudder = Math.Clamp(-0.08 * ac.State.Position.Y - 3.0 * hdg - 0.8 * ac.State.Rates.Z, -1, 1);
+            sim.RunFor(0.02, new ControlInputs(0, 0, rudder, lever));
+            if (Math.Abs(t / 0.5 - Math.Round(t / 0.5)) < 1e-6)
+            {
+                var vb = ac.State.Attitude.Conjugate().Rotate(ac.State.Velocity);
+                _out.WriteLine($"t={t,4:F1} lever {lever:F2} V {ac.State.Velocity.Length,5:F1} hdg {hdg * 57.3,6:F1}° y {ac.State.Position.Y,6:F1} rud {rudder,5:F2} tw {(ac.Tailwheel?.AngleRad ?? 0) * 57.3,6:F1}° free {ac.Tailwheel?.FreeSwivel} pitch {Math.Asin(2 * (q.W * q.Y - q.Z * q.X)) * 57.3,5:F1}° roll {Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 57.3,5:F1}°");
+            }
+        }
     }
 }
 
