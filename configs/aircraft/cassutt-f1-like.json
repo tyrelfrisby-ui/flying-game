@@ -1169,7 +1169,7 @@
     "efficiency": 0.75,
     "thrustLineZ": 0.0,
     "pFactorK": 0.35,
-    "slipstreamK": 0.12,
+    "slipstreamK": 0.06,
     "constantSpeed": false
   },
   "stallDynamics": {
