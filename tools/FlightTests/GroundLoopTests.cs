@@ -69,21 +69,22 @@ public class GroundLoopTests
     private static double Wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 
     /// <summary>
-    /// Owner's real-life benchmarks (2026-09-12): hands-off on the ground the Extra is mildly stable, the Decathlon neutral
-    /// to slightly unstable, the Pitts unstable; and NO taildragger ever swings back against a swerve — the castoring
-    /// tailwheel at best mitigates it. Seed a 5°/s yaw rate at taxi speed (8 m/s) and look at the rate 3 s later.
+    /// Owner's real-life benchmarks (2026-09-12/13): on the ground the Extra is the most heading-stable, the Decathlon
+    /// neutral to slightly unstable, the Pitts unstable; NO taildragger ever swings back against a swerve — the castoring
+    /// tailwheel at best mitigates it. With the 09-13 steering unit (half springs, ±1° slack, 45° unlock) every type
+    /// drifts unstable hands-off; the RANKING is what is asserted. Seed 5°/s at 8 m/s, read the rate 3 s later.
     /// </summary>
     [Theory]
-    [InlineData("extra-300-like.json", 0.2, 0.9)]
-    [InlineData("decathlon-8kcab-like.json", 0.7, 1.6)]
-    [InlineData("pitts-s2b-like.json", 2.5, 100.0)]
-    [InlineData("pa18-cub-like.json", 0.8, 3.0)]
-    [InlineData("pa18-bush-like.json", 0.8, 3.0)]
-    [InlineData("stearman-pt17-like.json", 1.0, 4.0)]
-    [InlineData("pa25-pawnee-like.json", 0.4, 1.6)]
-    [InlineData("geebee-r2-like.json", 2.5, 100.0)]
-    [InlineData("cassutt-f1-like.json", 1.5, 100.0)]
-    [InlineData("p51d-like.json", 0.5, 2.0)]
+    [InlineData("extra-300-like.json", 0.3, 1.6)]
+    [InlineData("decathlon-8kcab-like.json", 1.2, 2.6)]
+    [InlineData("pitts-s2b-like.json", 4.0, 100.0)]
+    [InlineData("pa18-cub-like.json", 1.2, 3.0)]
+    [InlineData("pa18-bush-like.json", 1.4, 3.5)]
+    [InlineData("stearman-pt17-like.json", 2.0, 5.0)]
+    [InlineData("pa25-pawnee-like.json", 0.8, 2.0)]
+    [InlineData("geebee-r2-like.json", 5.0, 100.0)]
+    [InlineData("cassutt-f1-like.json", 3.0, 100.0)]
+    [InlineData("p51d-like.json", 1.0, 3.0)]
     public void GroundStabilityMatchesTheBenchmarks(string file, double minRatio, double maxRatio)
     {
         var c = Load(file);
@@ -96,6 +97,42 @@ public class GroundLoopTests
             Assert.True(r.ratio > -0.05, $"{file} v={v}: the yaw rate reversed (x{r.ratio:F2})");
             if (v == 8.0) Assert.InRange(r.ratio, minRatio, maxRatio);
         }
+    }
+
+    [Fact]
+    public void ExtraIsMoreStableThanDecathlonWhichIsMoreStableThanPitts()
+    {
+        double extra = GroundStabilityProbe.YawRateGrowth(Load("extra-300-like.json"), 8, 5, 3).ratio;
+        double deca = GroundStabilityProbe.YawRateGrowth(Load("decathlon-8kcab-like.json"), 8, 5, 3).ratio;
+        double pitts = GroundStabilityProbe.YawRateGrowth(Load("pitts-s2b-like.json"), 8, 5, 3).ratio;
+        _out.WriteLine($"extra x{extra:F2} < decathlon x{deca:F2} < pitts x{pitts:F2}");
+        Assert.True(extra < deca && deca < pitts);
+    }
+
+    /// <summary>Steering unlocks past 45° in a ground loop and stays free until the rudder is brought to the wheel.</summary>
+    [Fact]
+    public void SteeringUnlocksInAGroundLoopAndReengagesWhenTheRudderMatches()
+    {
+        var c = Load("pitts-s2b-like.json"); WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
+        var rest = LandingGear.RestingState(c, 0, 0, 0);
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, rest.Attitude.Conjugate().Rotate(new Vec3(12, 0, 0)), new Vec3(0, 0, 20 * Math.PI / 180)), ControlDeflections.Neutral);
+        var sim = new SimLoop(ac);
+        bool unlocked = false; double maxAngle = 0;
+        for (double t = 0; t < 8; t += 0.02)
+        {
+            sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));
+            maxAngle = Math.Max(maxAngle, Math.Abs(ac.Tailwheel!.AngleRad));
+            if (ac.Tailwheel.FreeSwivel) { unlocked = true; break; }
+        }
+        _out.WriteLine($"max castor {maxAngle * 57.3:F0}°, unlocked {unlocked} at V {ac.State.Velocity.Length:F1}");
+        Assert.True(unlocked, "a hands-off ground loop swings the tailwheel past 45° and unlocks the steering");
+        // Stopped, wheel parked inside rudder travel but off the rudder: still unlocked. Match the rudder: re-engaged.
+        ac.Tailwheel.AngleRad = 0.2;
+        var stopped = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
+        LandingGear.UpdateTailwheel(c, stopped.State, ac.Tailwheel, 0.0, 0.02);
+        Assert.True(ac.Tailwheel.FreeSwivel);
+        LandingGear.UpdateTailwheel(c, stopped.State, ac.Tailwheel, 0.2 / c.Gear.Find(g => g.IsTailwheel)!.MaxSteerRad, 0.02);
+        Assert.False(ac.Tailwheel.FreeSwivel);
     }
 
     [Fact]

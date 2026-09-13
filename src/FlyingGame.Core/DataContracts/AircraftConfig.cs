@@ -312,7 +312,7 @@ public sealed class GearConfig
     public double SteerSpringNmPerRad { get; set; }   // steering-spring stiffness (soft: ~60 N·m/rad on a Cub)
     public double SteerDampNms { get; set; }          // castor damping (N·m per rad/s)
     public double CastorTrailM { get; set; }          // contact patch behind the castor pivot (m)
-    public double BreakoutRad { get; set; }           // beyond this angle from the rudder command the wheel swivels free
+    public double BreakoutRad { get; set; }           // castor angle at which the steering UNLOCKS (free swivel until re-engaged)
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }

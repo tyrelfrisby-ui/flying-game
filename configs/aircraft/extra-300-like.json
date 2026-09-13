@@ -1593,7 +1593,7 @@
           "tireMu": 0.6,
           "corneringStiffnessN": 2200,
           "rollResistN": 20,
-          "steerSpringNmPerRad": 150
+          "steerSpringNmPerRad": 75
       }
   ],
   "limits": {

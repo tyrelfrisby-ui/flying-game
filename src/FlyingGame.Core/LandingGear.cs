@@ -83,7 +83,14 @@ public static class LandingGear
     // second (damping 0.4), so the skidding-tail moment that was cancelling the mains' swerve moment for the first 0.2 s
     // is gone; the small hard tyre's friction is half a main's.
     public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.5;
-    public const double DefaultSteerSpringNmPerRad = 8.0, DefaultSteerDampNms = 0.5, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°
+    // Steering unit (owner 2026-09-13): springs to the rudder with a ±1° dead zone of free castor and half the earlier
+    // stiffness; swivelling past 45° UNLOCKS the steering (free castor — 45° is beyond rudder travel, so it takes rudder
+    // plus side load or brake stretching the springs); it re-engages only once the wheel is back inside rudder travel
+    // AND the rudder has been brought to match it. Trail 7.5 cm ≈ a Scott 3200's 3 in (positive castor).
+    public const double DefaultSteerSpringNmPerRad = 4.0, DefaultSteerDampNms = 0.5, DefaultCastorTrailM = 0.075;
+    public const double DefaultBreakoutRad = 0.785;      // 45°: steering unlocks
+    public const double SteerDeadZoneRad = 0.01745;      // ±1° of slack in the springs
+    public const double RelockToleranceRad = 0.035;      // rudder within 2° of the wheel re-engages the steering
 
     /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
     /// rough infield less again — a swerve there slides.</summary>
@@ -100,13 +107,21 @@ public static class LandingGear
     /// </summary>
     public sealed class TailwheelState
     {
-        public double AngleRad;        // wheel yaw relative to the fuselage, + = wheel turned right
+        public double AngleRad;        // wheel yaw relative to the fuselage, + = wheel turned LEFT (Compute's steer frame)
         public double LastLateralN;    // side force on the contact patch last step (diagnostics)
         public double LastLoadN;       // vertical load last step
-        public bool FreeSwivel;        // past the breakout: springs disengaged
+        public bool FreeSwivel;        // steering UNLOCKED: swivelled past UnlockRad, springs disengaged until re-engaged
     }
 
     /// <summary>Advance the tailwheel castor angle by dt from the current state and rudder command.</summary>
+    /// <summary>Steering lock: unlock past `unlockRad` of castor; re-engage only inside rudder travel with the rudder matching.</summary>
+    private static void UpdateLock(TailwheelState tw, double cmd, double maxSteerRad, double unlockRad)
+    {
+        double a = System.Math.Abs(tw.AngleRad);
+        if (!tw.FreeSwivel) { if (a > unlockRad) tw.FreeSwivel = true; }
+        else if (a <= maxSteerRad + 1e-9 && System.Math.Abs(tw.AngleRad - cmd) <= RelockToleranceRad) tw.FreeSwivel = false;
+    }
+
     public static void UpdateTailwheel(AircraftConfig config, RigidBodyState s, TailwheelState tw, double rudderCmd, double dt)
     {
         GearConfig? g = null;
@@ -155,24 +170,25 @@ public static class LandingGear
         // (an explicit step with a rate clamp chattered around the balance whenever the tyre was friction-saturated):
         //   cD·δ' = C·trail·(δv − δ) − k·(δ − cmd)  →  δ_eq = (C·trail·δv + k·cmd)/(C·trail + k), τ = cD/(C·trail + k)
         // with the swing rate capped at what the friction-limited patch force can actually deliver.
-        double err = tw.AngleRad - cmd;
-        tw.FreeSwivel = System.Math.Abs(err) > breakout;
         int sub = 4; double h = dt / sub;
         for (int i = 0; i < sub; i++)
         {
-            double kEff = tw.FreeSwivel ? 0.0 : k;
+            UpdateLock(tw, cmd, g.MaxSteerRad, breakout);
+            double err = tw.AngleRad - cmd;
+            // Springs: none while unlocked, none inside the dead zone; outside it they pull toward the edge of the slack.
+            double kEff = tw.FreeSwivel || System.Math.Abs(err) <= SteerDeadZoneRad ? 0.0 : k;
+            double cmdEff = cmd + System.Math.Clamp(err, -SteerDeadZoneRad, SteerDeadZoneRad);
             double ct = onGround ? cornering * trail : 0.0;
             double denom = ct + kEff;
-            if (denom < 1e-9) break;
-            double eq = (ct * velAngle + kEff * cmd) / denom;
+            if (denom < 1e-9) continue;
+            double eq = (ct * velAngle + kEff * cmdEff) / denom;
             double tau = cD / denom;
             double move = (eq - tw.AngleRad) * (1 - System.Math.Exp(-h / tau));
             double maxRate = (grip * trail + kEff * System.Math.Abs(err)) / cD + 1e-6;
             move = System.Math.Clamp(move, -maxRate * h, maxRate * h);
             tw.AngleRad += move;
-            err = tw.AngleRad - cmd;
-            tw.FreeSwivel = System.Math.Abs(err) > breakout;
         }
+        UpdateLock(tw, cmd, g.MaxSteerRad, breakout);
         tw.LastLateralN = onGround ? System.Math.Clamp(-cornering * (velAngle - tw.AngleRad), -grip, grip) : 0.0;
         // Full swivel: keep the angle wrapped so a 180° spin reads as a wheel rolling backwards, not 540°.
         while (tw.AngleRad > System.Math.PI) tw.AngleRad -= 2 * System.Math.PI;

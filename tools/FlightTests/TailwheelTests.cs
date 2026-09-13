@@ -40,7 +40,7 @@ public class TailwheelTests
         for (int i = 0; i < 240; i++) LandingGear.UpdateTailwheel(c, s, tw, 1.0, 1.0 / 120);
         _out.WriteLine($"loaded: angle {tw.AngleRad * 57.3:F1}°, load {tw.LastLoadN:F0} N, side {tw.LastLateralN:F0} N");
         Assert.True(tw.LastLoadN > 300, "the tail spring carries the tail weight");
-        Assert.True(tw.AngleRad < 0.3 && tw.AngleRad > 0.02, $"castor gives against the springs ({tw.AngleRad * 57.3:F1}°)");
+        Assert.True(tw.AngleRad < 0.3 && tw.AngleRad > 0.005, $"castor gives against the springs ({tw.AngleRad * 57.3:F1}°)");
         // Sliding sideways: the wheel swings toward the direction it is being dragged.
         var side = new RigidBodyState(rest.Position, rest.Attitude, new Vec3(1.5, 4, 0), Vec3.Zero);
         var tw2 = new LandingGear.TailwheelState();
@@ -54,16 +54,25 @@ public class TailwheelTests
     {
         var c = Cub(); WorldTerrain.Active = null;
         var rest = LandingGear.RestingState(c, 0, 0, 0);
-        var tw = new LandingGear.TailwheelState { AngleRad = 1.2 };   // 69°: past the 35° breakout
+        var tw = new LandingGear.TailwheelState { AngleRad = 1.2 };   // 69°: past the 45° unlock
         var s = new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero);   // stopped: no ground force
         LandingGear.UpdateTailwheel(c, s, tw, 0.0, 1.0 / 120);
         Assert.True(tw.FreeSwivel);
-        Assert.InRange(tw.AngleRad, 1.19, 1.21);   // nothing pulls it back while stopped and broken out
-        // Inside the breakout the springs act.
+        Assert.InRange(tw.AngleRad, 1.19, 1.21);   // nothing pulls it back while stopped and unlocked
+        // Back inside rudder travel but the rudder does not match: still unlocked, springs do nothing.
         tw.AngleRad = 0.3;
         LandingGear.UpdateTailwheel(c, s, tw, 0.0, 1.0 / 120);
+        Assert.True(tw.FreeSwivel);
+        Assert.InRange(tw.AngleRad, 0.299, 0.301);
+        // The pilot brings the rudder to the wheel: the steering re-engages, and then the springs act on it.
+        LandingGear.UpdateTailwheel(c, s, tw, 0.3 / 0.45, 1.0 / 120);
         Assert.False(tw.FreeSwivel);
+        LandingGear.UpdateTailwheel(c, s, tw, 0.0, 1.0 / 120);
         Assert.True(tw.AngleRad < 0.3);
+        // A wheel sitting 0.5° off the rudder is in the dead zone: nothing pulls it.
+        var tw3 = new LandingGear.TailwheelState { AngleRad = 0.009 };
+        LandingGear.UpdateTailwheel(c, s, tw3, 0.0, 1.0 / 120);
+        Assert.InRange(tw3.AngleRad, 0.0089, 0.0091);
     }
 
     [Fact]
