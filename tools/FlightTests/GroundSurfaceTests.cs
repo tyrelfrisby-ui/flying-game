@@ -100,7 +100,11 @@ public class GroundSurfaceTests
         double peakG = 0, slowX = double.NaN, maxRoll = 0;
         for (double tt = 0; tt < 60; tt += 0.02)
         {
-            sim.RunFor(0.02, new ControlInputs(0, -0.4, 0, 1.0));
+            // Feet on the pedals: a taildragger rolled out hands-off ground-loops (GroundLoopTests), so hold the heading.
+            var qh = ac.State.Attitude;
+            double hdg = System.Math.Atan2(2 * (qh.W * qh.Z + qh.X * qh.Y), 1 - 2 * (qh.Y * qh.Y + qh.Z * qh.Z));
+            double rudder = System.Math.Clamp(-hdg * 3.0 - ac.State.Rates.Z * 0.8, -1, 1);
+            sim.RunFor(0.02, new ControlInputs(0, -0.4, rudder, 1.0));
             if (tt > 3.0) peakG = System.Math.Max(peakG, System.Math.Abs(ac.LoadFactorZ));
             var q = ac.State.Attitude; maxRoll = System.Math.Max(maxRoll, System.Math.Abs(System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y))));
             if (ac.State.Velocity.Length < 4.0) { slowX = ac.State.Position.X; break; }

@@ -46,7 +46,7 @@ public class TailwheelTests
         var tw2 = new LandingGear.TailwheelState();
         for (int i = 0; i < 240; i++) LandingGear.UpdateTailwheel(c, side, tw2, 0.0, 1.0 / 120);
         _out.WriteLine($"sideways drag: angle {tw2.AngleRad * 57.3:F1}° free {tw2.FreeSwivel}");
-        Assert.True(tw2.AngleRad > 0.5, "wheel swings right toward a rightward drag");
+        Assert.True(tw2.AngleRad < -0.5, "wheel swings right toward a rightward drag (steer frame: + = left, as Compute applies it)");
     }
 
     [Fact]

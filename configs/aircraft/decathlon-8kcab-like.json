@@ -1499,54 +1499,55 @@
   "wakeBlanketMaxLoss": 0.45,
   "verticalBlanketFactor": 0.5,
   "gear": [
-    {
-      "pos": [
-        0.142,
-        -1.05,
-        1.35
-      ],
-      "springN": 70000,
-      "dampNs": 3500,
-      "brake": true,
-      "isTailwheel": false,
-      "isSteerable": false,
-      "maxSteerRad": 0.0,
-      "tireMu": 0.8,
-      "corneringStiffnessN": 8000,
-      "rollResistN": 40
-    },
-    {
-      "pos": [
-        0.142,
-        1.05,
-        1.35
-      ],
-      "springN": 70000,
-      "dampNs": 3500,
-      "brake": true,
-      "isTailwheel": false,
-      "isSteerable": false,
-      "maxSteerRad": 0.0,
-      "tireMu": 0.8,
-      "corneringStiffnessN": 8000,
-      "rollResistN": 40
-    },
-    {
-      "pos": [
-        -4.4,
-        0,
-        0.468
-      ],
-      "springN": 28000,
-      "dampNs": 4200.0,
-      "brake": false,
-      "isTailwheel": true,
-      "isSteerable": true,
-      "maxSteerRad": 0.45,
-      "tireMu": 0.6,
-      "corneringStiffnessN": 2200,
-      "rollResistN": 20
-    }
+      {
+          "pos": [
+              0.142,
+              -1.05,
+              1.35
+          ],
+          "springN": 70000,
+          "dampNs": 3500,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.8,
+          "corneringStiffnessN": 8000,
+          "rollResistN": 40
+      },
+      {
+          "pos": [
+              0.142,
+              1.05,
+              1.35
+          ],
+          "springN": 70000,
+          "dampNs": 3500,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.8,
+          "corneringStiffnessN": 8000,
+          "rollResistN": 40
+      },
+      {
+          "pos": [
+              -4.4,
+              0,
+              0.468
+          ],
+          "springN": 28000,
+          "dampNs": 4200.0,
+          "brake": false,
+          "isTailwheel": true,
+          "isSteerable": true,
+          "maxSteerRad": 0.45,
+          "tireMu": 0.6,
+          "corneringStiffnessN": 2200,
+          "rollResistN": 20,
+          "steerSpringNmPerRad": 30
+      }
   ],
   "limits": {
     "vneMs": 78,

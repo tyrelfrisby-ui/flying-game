@@ -1446,59 +1446,60 @@
   "wakeBlanketMaxLoss": 0.45,
   "verticalBlanketFactor": 0.5,
   "gear": [
-    {
-      "pos": [
-        0.139,
-        -0.98,
-        1.32
-      ],
-      "springN": 35000,
-      "dampNs": 2600,
-      "brake": true,
-      "isTailwheel": false,
-      "isSteerable": false,
-      "maxSteerRad": 0.0,
-      "tireMu": 0.9,
-      "corneringStiffnessN": 8000,
-      "rollResistN": 90,
-      "tireRadiusM": 0.445,
-      "gearType": "bushwheel"
-    },
-    {
-      "pos": [
-        0.139,
-        0.98,
-        1.32
-      ],
-      "springN": 35000,
-      "dampNs": 2600,
-      "brake": true,
-      "isTailwheel": false,
-      "isSteerable": false,
-      "maxSteerRad": 0.0,
-      "tireMu": 0.9,
-      "corneringStiffnessN": 8000,
-      "rollResistN": 90,
-      "tireRadiusM": 0.445,
-      "gearType": "bushwheel"
-    },
-    {
-      "pos": [
-        -4.2,
-        0,
-        0.398
-      ],
-      "springN": 25000,
-      "dampNs": 3750.0,
-      "brake": false,
-      "isTailwheel": true,
-      "isSteerable": true,
-      "maxSteerRad": 0.45,
-      "tireMu": 0.6,
-      "corneringStiffnessN": 2200,
-      "rollResistN": 20,
-      "tireRadiusM": 0.2
-    }
+      {
+          "pos": [
+              0.139,
+              -0.98,
+              1.32
+          ],
+          "springN": 35000,
+          "dampNs": 2600,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.9,
+          "corneringStiffnessN": 8000,
+          "rollResistN": 90,
+          "tireRadiusM": 0.445,
+          "gearType": "bushwheel"
+      },
+      {
+          "pos": [
+              0.139,
+              0.98,
+              1.32
+          ],
+          "springN": 35000,
+          "dampNs": 2600,
+          "brake": true,
+          "isTailwheel": false,
+          "isSteerable": false,
+          "maxSteerRad": 0.0,
+          "tireMu": 0.9,
+          "corneringStiffnessN": 8000,
+          "rollResistN": 90,
+          "tireRadiusM": 0.445,
+          "gearType": "bushwheel"
+      },
+      {
+          "pos": [
+              -4.2,
+              0,
+              0.398
+          ],
+          "springN": 25000,
+          "dampNs": 3750.0,
+          "brake": false,
+          "isTailwheel": true,
+          "isSteerable": true,
+          "maxSteerRad": 0.45,
+          "tireMu": 0.6,
+          "corneringStiffnessN": 2200,
+          "rollResistN": 20,
+          "tireRadiusM": 0.2,
+          "steerSpringNmPerRad": 15
+      }
   ],
   "limits": {
     "vneMs": 68,

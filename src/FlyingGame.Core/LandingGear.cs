@@ -79,8 +79,11 @@ public static class LandingGear
     /// <summary>A tailwheel's small contact patch: about half the cornering per newton, and a lower friction cap.</summary>
     // Owner 2026-09-12 (second pass): the tailwheel must SKID in a swerve rather than hold the tail — a small hard tyre:
     // a third of a main's cornering per newton and 0.6 of its friction; and weaker steering springs still.
-    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.6;
-    public const double DefaultSteerSpringNmPerRad = 8.0, DefaultSteerDampNms = 2.0, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°
+    // Third pass (owner: "a tailwheel would never reverse a swerve"): the castor answers within a few hundredths of a
+    // second (damping 0.4), so the skidding-tail moment that was cancelling the mains' swerve moment for the first 0.2 s
+    // is gone; the small hard tyre's friction is half a main's.
+    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.5;
+    public const double DefaultSteerSpringNmPerRad = 8.0, DefaultSteerDampNms = 0.5, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°
 
     /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
     /// rough infield less again — a swerve there slides.</summary>
@@ -115,49 +118,62 @@ public static class LandingGear
         double breakout = g.BreakoutRad > 0 ? g.BreakoutRad : DefaultBreakoutRad;
         double cmd = rudderCmd * g.MaxSteerRad;
 
-        // Ground force on the patch: from the wheel's own slip at its CURRENT angle (the same tyre model Compute uses).
+        // Where the patch is being dragged: the tyre-aligned angle (slip-free) in the same steer frame Compute uses
+        // (up × fwd, so a positive angle points the tyre to the aircraft's LEFT, where right rudder puts a trailing
+        // tailwheel; this used to be mirrored, so the angle Compute applied pointed the tyre AWAY from its velocity,
+        // doubled the slip and made the tailwheel fight every swerve — owner: "tailwheels still too stable").
         Vec3 cg = config.Mass.CgVec();
         Vec3 rBody = g.PosVec() - cg;
         Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
         double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y);
         double penetration = wheelWorld.Z + groundH;
-        double lateralN = 0, loadN = 0;
+        double loadN = 0, cornering = 0, grip = 0, velAngle = 0; bool onGround = false;
         if (penetration > 0)
         {
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
             loadN = System.Math.Max(0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, vel.Z));
             Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
             Vec3 fwdGround = new Vec3(fwdWorld.X, fwdWorld.Y, 0);
-            if (fwdGround.Length > 1e-6)
+            if (fwdGround.Length > 1e-6 && loadN > 0)
             {
                 fwdGround = fwdGround / fwdGround.Length;
-                Vec3 rightGround = new Vec3(-fwdGround.Y, fwdGround.X, 0);
-                Vec3 tireFwd = fwdGround * System.Math.Cos(tw.AngleRad) + rightGround * System.Math.Sin(tw.AngleRad);
-                Vec3 tireRight = new Vec3(-tireFwd.Y, tireFwd.X, 0);
-                double vFwd = Vec3.Dot(vel, tireFwd), vSide = Vec3.Dot(vel, tireRight);
-                double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
-                double cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN);
-                double grip = g.TireMu * TailwheelMuScale * SurfaceGrip(WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y) : WorldTerrain.Surface.Paved) * loadN;
-                lateralN = System.Math.Clamp(-cornering * slip, -grip, grip);
+                Vec3 rightGround = new Vec3(fwdGround.Y, -fwdGround.X, 0);
+                double vFwd = Vec3.Dot(vel, fwdGround), vSide = Vec3.Dot(vel, rightGround);
+                velAngle = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
+                // A patch that is not rolling does not castor (static friction holds it): fade the tyre term in over
+                // the first 0.5 m/s of patch speed.
+                double rolling = System.Math.Clamp(System.Math.Sqrt(vFwd * vFwd + vSide * vSide) / 0.5, 0.0, 1.0);
+                cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN) * rolling;
+                grip = g.TireMu * TailwheelMuScale * SurfaceGrip(WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y) : WorldTerrain.Surface.Paved) * loadN;
+                onGround = true;
             }
         }
-        tw.LastLateralN = lateralN; tw.LastLoadN = loadN;
+        tw.LastLoadN = loadN;
 
-        // Castor: a side force on a patch behind the pivot turns the wheel toward its velocity. Springs: toward the
-        // rudder command unless broken out. Overdamped first-order swing (the wheel's own inertia is negligible).
+        // Castor: the ground force on a patch behind the pivot turns the wheel toward its velocity; the springs pull it
+        // toward the rudder (unless broken out). Overdamped first order, so step it EXACTLY toward the balance point
+        // (an explicit step with a rate clamp chattered around the balance whenever the tyre was friction-saturated):
+        //   cD·δ' = C·trail·(δv − δ) − k·(δ − cmd)  →  δ_eq = (C·trail·δv + k·cmd)/(C·trail + k), τ = cD/(C·trail + k)
+        // with the swing rate capped at what the friction-limited patch force can actually deliver.
         double err = tw.AngleRad - cmd;
         tw.FreeSwivel = System.Math.Abs(err) > breakout;
-        double torque = -lateralN * trail - (tw.FreeSwivel ? 0.0 : k * err);
         int sub = 4; double h = dt / sub;
         for (int i = 0; i < sub; i++)
         {
-            double rate = torque / cD;
-            rate = System.Math.Clamp(rate, -12.0, 12.0);
-            tw.AngleRad += rate * h;
+            double kEff = tw.FreeSwivel ? 0.0 : k;
+            double ct = onGround ? cornering * trail : 0.0;
+            double denom = ct + kEff;
+            if (denom < 1e-9) break;
+            double eq = (ct * velAngle + kEff * cmd) / denom;
+            double tau = cD / denom;
+            double move = (eq - tw.AngleRad) * (1 - System.Math.Exp(-h / tau));
+            double maxRate = (grip * trail + kEff * System.Math.Abs(err)) / cD + 1e-6;
+            move = System.Math.Clamp(move, -maxRate * h, maxRate * h);
+            tw.AngleRad += move;
             err = tw.AngleRad - cmd;
             tw.FreeSwivel = System.Math.Abs(err) > breakout;
-            torque = -lateralN * trail - (tw.FreeSwivel ? 0.0 : k * err);
         }
+        tw.LastLateralN = onGround ? System.Math.Clamp(-cornering * (velAngle - tw.AngleRad), -grip, grip) : 0.0;
         // Full swivel: keep the angle wrapped so a 180° spin reads as a wheel rolling backwards, not 540°.
         while (tw.AngleRad > System.Math.PI) tw.AngleRad -= 2 * System.Math.PI;
         while (tw.AngleRad < -System.Math.PI) tw.AngleRad += 2 * System.Math.PI;
