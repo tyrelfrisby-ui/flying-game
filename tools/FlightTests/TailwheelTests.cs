@@ -69,10 +69,10 @@ public class TailwheelTests
         Assert.False(tw.FreeSwivel);
         LandingGear.UpdateTailwheel(c, s, tw, 0.0, 1.0 / 120);
         Assert.True(tw.AngleRad < 0.3);
-        // A wheel sitting 0.5° off the rudder is in the dead zone: nothing pulls it.
+        // No slack in the springs: a wheel 0.5° off the rudder is pulled toward it.
         var tw3 = new LandingGear.TailwheelState { AngleRad = 0.009 };
         LandingGear.UpdateTailwheel(c, s, tw3, 0.0, 1.0 / 120);
-        Assert.InRange(tw3.AngleRad, 0.0089, 0.0091);
+        Assert.True(tw3.AngleRad < 0.009);
     }
 
     [Fact]

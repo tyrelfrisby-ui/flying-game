@@ -83,13 +83,13 @@ public static class LandingGear
     // second (damping 0.4), so the skidding-tail moment that was cancelling the mains' swerve moment for the first 0.2 s
     // is gone; the small hard tyre's friction is half a main's.
     public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.5;
-    // Steering unit (owner 2026-09-13): springs to the rudder with a ±1° dead zone of free castor and half the earlier
+    // Steering unit (owner 2026-09-13): springs to the rudder (no slack) at half the earlier
     // stiffness; swivelling past 45° UNLOCKS the steering (free castor — 45° is beyond rudder travel, so it takes rudder
     // plus side load or brake stretching the springs); it re-engages only once the wheel is back inside rudder travel
     // AND the rudder has been brought to match it. Trail 7.5 cm ≈ a Scott 3200's 3 in (positive castor).
     public const double DefaultSteerSpringNmPerRad = 4.0, DefaultSteerDampNms = 0.5, DefaultCastorTrailM = 0.075;
     public const double DefaultBreakoutRad = 0.785;      // 45°: steering unlocks
-    public const double SteerDeadZoneRad = 0.01745;      // ±1° of slack in the springs
+    public const double SteerDeadZoneRad = 0.0;          // owner 2026-09-13: no slack (the ±1° dead zone made it too hard)
     public const double RelockToleranceRad = 0.035;      // rudder within 2° of the wheel re-engages the steering
 
     /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
