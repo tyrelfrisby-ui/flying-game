@@ -88,7 +88,11 @@ namespace FlyingGame.Bridge
                 var rr = mf.GetComponent<Renderer>();
                 if (rr != null && !rr.enabled) continue;   // the hidden procedural shell under a real model casts nothing
                 Matrix4x4 m = proj * mf.transform.localToWorldMatrix;
-                Graphics.DrawMesh(mf.sharedMesh, m, _material, 0, null, 0, null, false, false, false);
+                // Every submesh: the real models (USDZ imports) are one mesh with a submesh per material, and drawing
+                // only submesh 0 cast the shadow of a single small piece (owner: "the shadow is tiny").
+                Mesh mesh = mf.sharedMesh;
+                for (int si = 0; si < mesh.subMeshCount; si++)
+                    Graphics.DrawMesh(mesh, m, _material, 0, null, si, null, false, false, false);
             }
         }
     }
