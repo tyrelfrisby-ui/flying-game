@@ -205,6 +205,11 @@ public sealed class TugPilot
 
         // Progressive braking on rollout (full brakes at 30 m/s noses a taildragger over): light until slow.
         tug.BrakeInput = Phase is Phases.Rollout or Phases.Done ? (v > 20 ? 0.25 : v > 10 ? 0.5 : 0.8) : 0.0;
+        // Differential braking on the rollout and the slow part of the ground roll: with a castoring tailwheel the
+        // rudder alone cannot hold the centreline below flying speed (a real tailwheel pilot steers with the brakes).
+        tug.BrakeBias = Phase is Phases.Rollout or Phases.Done ? Math.Clamp(hErr * 2.5, -1.0, 1.0)
+            : Phase == Phases.GroundRoll && v < 12 && v > 0.5 ? Math.Clamp(hErr * 2.0, -0.6, 0.6) : 0.0;
+        if (Phase == Phases.GroundRoll && v < 12 && v > 0.5 && Math.Abs(hErr) > 0.02) tug.BrakeInput = Math.Max(tug.BrakeInput, 0.25);   // a touch of brake to steer with
 
         // ---- rope-angle overpower → tug releases (sustained 0.7 s)
         WantsRelease = false;

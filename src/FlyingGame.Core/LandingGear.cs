@@ -77,8 +77,17 @@ public static class LandingGear
     /// <summary>Tyre cornering stiffness per newton of wheel load (N per rad per N): ~12 for an aircraft tyre.</summary>
     public const double CorneringPerLoad = 12.0;
     /// <summary>A tailwheel's small contact patch: about half the cornering per newton, and a lower friction cap.</summary>
-    public const double TailwheelCorneringPerLoad = 6.0, TailwheelMuScale = 0.85;
-    public const double DefaultSteerSpringNmPerRad = 25.0, DefaultSteerDampNms = 3.0, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°; soft springs (owner: "a lot of give") — tune in testing
+    // Owner 2026-09-12 (second pass): the tailwheel must SKID in a swerve rather than hold the tail — a small hard tyre:
+    // a third of a main's cornering per newton and 0.6 of its friction; and weaker steering springs still.
+    public const double TailwheelCorneringPerLoad = 4.0, TailwheelMuScale = 0.6;
+    public const double DefaultSteerSpringNmPerRad = 8.0, DefaultSteerDampNms = 2.0, DefaultCastorTrailM = 0.06, DefaultBreakoutRad = 0.61;   // 35°
+
+    /// <summary>Tyre grip by surface, relative to the config's TireMu (dry pavement): gravel and grass hold less, the
+    /// rough infield less again — a swerve there slides.</summary>
+    public static double SurfaceGrip(WorldTerrain.Surface s) => s switch
+    {
+        WorldTerrain.Surface.Paved => 1.0, WorldTerrain.Surface.Gravel => 0.75, WorldTerrain.Surface.Grass => 0.65, _ => 0.55,
+    };
 
     /// <summary>
     /// The castoring tailwheel's own yaw (owner 2026-09-12): the wheel is not bolted to the rudder — steering springs
@@ -128,7 +137,8 @@ public static class LandingGear
                 double vFwd = Vec3.Dot(vel, tireFwd), vSide = Vec3.Dot(vel, tireRight);
                 double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
                 double cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN);
-                lateralN = System.Math.Clamp(-cornering * slip, -g.TireMu * TailwheelMuScale * loadN, g.TireMu * TailwheelMuScale * loadN);
+                double grip = g.TireMu * TailwheelMuScale * SurfaceGrip(WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y) : WorldTerrain.Surface.Paved) * loadN;
+                lateralN = System.Math.Clamp(-cornering * slip, -grip, grip);
             }
         }
         tw.LastLateralN = lateralN; tw.LastLoadN = loadN;
@@ -247,7 +257,7 @@ public static class LandingGear
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
             double cornering = System.Math.Max(g.CorneringStiffnessN, (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad) * normalN);
             double lateralN = -cornering * slip;
-            double muLimit = g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * normalN;
+            double muLimit = g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN;
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
