@@ -46,7 +46,7 @@ public sealed class TugPilot
     public bool GliderReleased;
 
     private int _wp;
-    private double _overAngleT, _flareT;
+    private double _overAngleT, _flareT, _touchdownV, _stanceRad;
     private bool _airborne;
 
     // Left-hand rectangle: upwind end, crosswind end, downwind end, base end (pattern side = -y, west).
@@ -59,6 +59,25 @@ public sealed class TugPilot
     };
 
     private static double Wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+
+    /// <summary>Flare profile: begins with the mains 20 ft up; sink target = FlareGainPerSec × (mains height − 6 in).</summary>
+    public const double FlareStartAglM = 6.1, HoldOffAglM = 0.15, FlareGainPerSec = 0.16;
+
+    /// <summary>Height of the lowest main wheel and of the tailwheel above the ground under them (world frame).</summary>
+    private static (double mains, double tail) WheelHeights(Aircraft tug)
+    {
+        RigidBodyState w = tug.State; Vec3 cg = tug.Config.Mass.CgVec();
+        double mains = double.MaxValue, tail = double.MaxValue;
+        foreach (var g in tug.Config.Gear)
+        {
+            Vec3 p = w.Position + w.Attitude.Rotate(g.PosVec() - cg);
+            double h = -p.Z - WorldTerrain.WheelGroundHeightAt(p.X, p.Y);
+            if (g.IsTailwheel) tail = Math.Min(tail, h); else mains = Math.Min(mains, h);
+        }
+        if (mains == double.MaxValue) mains = -w.Position.Z;
+        if (tail == double.MaxValue) tail = mains;
+        return (mains, tail);
+    }
 
     /// <param name="ropeDirBody">unit vector from the tug's hook toward the glider hook, in the TUG body frame (null if no rope)</param>
     public ControlInputs Update(Aircraft tug, double dt, double ropeTension, Vec3? ropeDirBody)
@@ -73,6 +92,14 @@ public sealed class TugPilot
         Vec3 vWorld = q.Rotate(s.Velocity);
         double sink = vWorld.Z; // + down
         bool onGround = LandingGear.AnyMainWheelOnGround(tug.Config, s);
+        (double mainsAgl, double tailAgl) = WheelHeights(tug);
+        if (_stanceRad == 0)
+        {
+            // Three-point attitude from the gear geometry (the pull in the hold-off stops there).
+            var mains = tug.Config.Gear.FindAll(g => !g.IsTailwheel && g.Pos[2] > 0 && Math.Abs(g.Pos[1]) < 3);
+            var tws = tug.Config.Gear.FindAll(g => g.IsTailwheel);
+            _stanceRad = mains.Count > 0 && tws.Count > 0 ? Math.Atan((mains[0].Pos[2] - tws[0].Pos[2]) / (mains[0].Pos[0] - tws[0].Pos[0])) : 0.15;
+        }
         if (ApproachSpeedMs <= 0)
         {
             double area = 0; foreach (var sf in tug.Config.Surfaces) if (sf.Id == "wing") foreach (var st in sf.Strips) area += st.Area;
@@ -104,11 +131,12 @@ public sealed class TugPilot
                 }
                 break;
             case Phases.Final:
-                if (agl < 5) { Phase = Phases.Flare; _flareT = 0; Status = "flare"; }
+                if (mainsAgl < FlareStartAglM) { Phase = Phases.Flare; _flareT = 0; Status = "flare"; }
                 break;
             case Phases.Flare:
                 _flareT += dt;
-                if (onGround && _flareT > 0.5) { Phase = Phases.Rollout; Status = "rollout"; }
+                // Hold off at six inches until the TAIL touches (a three-point arrival); safety exits: slow on the mains, or a long hold.
+                if ((tailAgl < 0.03 && onGround) || (onGround && v < 0.85 * ApproachSpeedMs / 1.3) || _flareT > 30) { Phase = Phases.Rollout; Status = "rollout"; }
                 break;
             case Phases.Rollout:
                 if (v < 0.5) { Phase = Phases.Done; Status = "stopped"; }
@@ -173,15 +201,35 @@ public sealed class TugPilot
         }
         else if (Phase == Phases.Flare)
         {
-            // Closed-loop flare: check the sink to ~0.6 m/s and hold it off (an open-loop stick ramp arrived at
-            // 4+ m/s in the heavier Pawnee and broke its legs — a leg tears off past 4 m/s).
-            double sinkErr = sink - 0.6;
-            elev = Math.Clamp(-0.22 - 0.30 * sinkErr - 0.05 * _flareT - s.Rates.Y * 0.5, -0.75, 0.25);
+            // Owner 2026-09-12: the pilot flies HEIGHT and SINK, not stick position. From 20 ft the target sink shrinks
+            // with the mains' height (an exponential flare) down to six inches, then the mains are held at six inches
+            // — pulling progressively as the speed bleeds — until the tail touches. Power at idle throughout.
+            double holdErr = mainsAgl - HoldOffAglM;
+            double flareSink = Math.Clamp(FlareGainPerSec * holdErr, 0.0, 1.6);
+            // Near the stall the wing cannot hold it off any longer: settle at half a metre a second rather than drop.
+            double vs = ApproachSpeedMs / 1.3;
+            if (v < 1.04 * vs) flareSink = Math.Max(flareSink, 0.5);
+            double sinkErr = sink - flareSink;
+            elev = Math.Clamp(-0.20 - 0.35 * sinkErr - 0.08 * Math.Min(0, holdErr) * 4 - s.Rates.Y * 0.5, -0.8, 0.3);
+            // At the three-point attitude the pull stops INCREASING: hold that attitude closed-loop (the tail is about to
+            // touch) — letting the stick go there pitched the nose-heavy Pawnee down onto its prop. Past the stall
+            // angle, ease off a little.
+            if (pitch > _stanceRad - 0.01) elev = Math.Max(elev, Math.Clamp(-(_stanceRad - pitch) * 4.0 + s.Rates.Y * 0.6, -0.8, 0.3));   // Max = no MORE pull than the attitude hold wants
+            if (alpha > 16 * Math.PI / 180) elev = Math.Max(elev, -0.25);
             lever = 1.0;
         }
         else if (Phase is Phases.Rollout or Phases.Done)
         {
-            elev = -0.35; lever = 1.0;   // taildragger rollout: stick back, tail down
+            // Taildragger rollout: the stick comes back progressively as the speed bleeds — full aft at touchdown speed
+            // ballooned the Pawnee back into the air and it came down on the mains at 6 m/s. Full back once slow: tail
+            // pinned, and the nose stays up under the brakes.
+            // Hold the three-point attitude closed-loop (tail ON the ground): the pull grows by itself as the speed
+            // bleeds; an open schedule let the tail rise at 27 m/s and the Pawnee skipped onto its mains at 4 m/s.
+            if (_touchdownV <= 0) _touchdownV = Math.Max(v, 10);
+            double bled = Math.Clamp((_touchdownV - v) / Math.Max(6.0, _touchdownV - 9.0), 0.0, 1.0);
+            double hold = Math.Clamp(-(_stanceRad + 0.03 - pitch) * 5.0 + s.Rates.Y * 0.6, -0.8, 0.2);
+            elev = Math.Min(hold, -0.15 - 0.55 * bled);   // whichever pulls more: the attitude hold or the slow-speed full-back
+            lever = 1.0;
         }
         else
         {
@@ -204,12 +252,16 @@ public sealed class TugPilot
         if (v > 15 && alpha > 12 * Math.PI / 180) elev = Math.Max(elev, Math.Min(0.6, (alpha - 12 * Math.PI / 180) * 8.0));
 
         // Progressive braking on rollout (full brakes at 30 m/s noses a taildragger over): light until slow.
-        tug.BrakeInput = Phase is Phases.Rollout or Phases.Done ? (v > 20 ? 0.25 : v > 10 ? 0.5 : 0.8) : 0.0;
+        // Gentle braking with the stick back: with the mains at a real 17° ahead of the CG, hard braking noses a
+        // taildragger over (both tugs went on their backs at 0.8).
+        // No brakes while the wing still flies (touchdown is ~1.3 Vs): braking at 28 m/s pitched the tail up, the Pawnee
+        // skipped and came down on the mains at 5.7 m/s and broke both legs. Stick back and let the speed bleed first.
+        tug.BrakeInput = Phase is Phases.Rollout or Phases.Done ? (v > 15 ? 0.0 : v > 9 ? 0.15 : 0.35) : 0.0;
         // Differential braking on the rollout and the slow part of the ground roll: with a castoring tailwheel the
         // rudder alone cannot hold the centreline below flying speed (a real tailwheel pilot steers with the brakes).
         tug.BrakeBias = Phase is Phases.Rollout or Phases.Done ? Math.Clamp(hErr * 2.5, -1.0, 1.0)
             : Phase == Phases.GroundRoll && v < 12 && v > 0.5 ? Math.Clamp(hErr * 2.0, -0.6, 0.6) : 0.0;
-        if (Phase == Phases.GroundRoll && v < 12 && v > 0.5 && Math.Abs(hErr) > 0.02) tug.BrakeInput = Math.Max(tug.BrakeInput, 0.25);   // a touch of brake to steer with
+        if (Phase == Phases.GroundRoll && v < 12 && v > 0.5 && Math.Abs(hErr) > 0.02) tug.BrakeInput = Math.Max(tug.BrakeInput, 0.12);   // a touch of brake to steer with
 
         // ---- rope-angle overpower → tug releases (sustained 0.7 s)
         WantsRelease = false;

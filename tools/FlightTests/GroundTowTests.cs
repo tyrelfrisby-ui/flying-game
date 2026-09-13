@@ -57,6 +57,7 @@ public class GroundTowTests
         var tcfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", tugId + ".json"));
         var glider = OnGround(gcfg, 0);
         var tug = OnGround(tcfg, 61.0 + 2.0 + 3.4 - 0.2);
+        tug.ComponentLost += c => { var vw = tug.State.Attitude.Rotate(tug.State.Velocity); var (rr, pp, _) = Euler(tug.State); _out.WriteLine($"LOST {c}: V={tug.State.Velocity.Length:F1} sink={vw.Z:F2} m/s pitch={pp * 57.3:F1}° roll={rr * 57.3:F1}° x={tug.State.Position.X:F0} agl={-tug.State.Position.Z:F1}"); };
         var tow = new AeroTow(tug, glider, 61.0);
         var pilot = new TugPilot { ThresholdX = -100, RunwayY = 0, RunwayElevM = 0 };
         double dt = SimLoop.DefaultFixedDtSec, maxTension = 0, nextLog = 0; bool released = false; string lastPhase = "";
