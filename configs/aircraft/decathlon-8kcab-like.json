@@ -11,11 +11,12 @@
       0
     ],
     "inertia": {
-      "ixx": 1350,
-      "iyy": 1800,
-      "izz": 2900,
+      "ixx": 1000,
+      "iyy": 1500,
+      "izz": 2500,
       "ixz": 50
-    }
+    },
+    "notes": "Inertia from a component build-up 2026-09-12 (engine/mount 1.45 m fwd, prop 2.0 m, battery 9 kg at -1.8 m aft of the baggage, tail 3.7 m aft); propInertia 6.8 for the Hartzell CS metal prop."
   },
   "surfaces": [
     {
@@ -1480,7 +1481,7 @@
     "propDiameterM": 1.88,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 4.5,
+    "propInertia": 6.8,
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
