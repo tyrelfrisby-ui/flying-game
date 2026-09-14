@@ -45,6 +45,7 @@ namespace FlyingGame.Bridge.Net
         public static RemoteAircraft Create(string id, string name, string ac)
         {
             var go = new GameObject($"Remote-{name}-{id}");
+            go.transform.position = new Vector3(0f, -5000f, 0f);   // out of sight until the first state arrives
             var r = go.AddComponent<RemoteAircraft>();
             r.Id = id;
             r.SetName(name);
@@ -146,10 +147,23 @@ namespace FlyingGame.Bridge.Net
             foreach (GameObject g in _wingParts) if (g != null) g.SetActive(!WingsGone);
         }
 
+        private const float StaleSec = 8f;         // no state for this long: the peer is gone (crashed app, reinstall) — hide it
+        private bool _shown = true;
+        private void Show(bool on)
+        {
+            if (on == _shown) return;
+            _shown = on;
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true)) r.enabled = on;
+        }
+
         private void LateUpdate()
         {
-            if (_buf.Count == 0) return;
+            // A peer that has never sent a state, or has stopped sending, must not stand as a ghost shell at the world
+            // origin / its last position (owner 2026-09-13: "green shells around the Pitts and Decathlon" — a stale copy
+            // of his own earlier session parked on the runway spawn).
             float now = Time.realtimeSinceStartup;
+            if (_buf.Count == 0 || now - _buf[_buf.Count - 1].T > StaleSec) { Show(false); return; }
+            Show(true);
             float rt = now - InterpDelay;
             Snap newest = _buf[_buf.Count - 1];
 

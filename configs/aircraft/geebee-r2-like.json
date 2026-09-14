@@ -11,9 +11,9 @@
       0
     ],
     "inertia": {
-      "ixx": 1470,
+      "ixx": 1200,
       "iyy": 2000,
-      "izz": 3100,
+      "izz": 1800,
       "ixz": 40
     }
   },
@@ -1090,7 +1090,7 @@
     "rotationSign": 1,
     "efficiency": 0.75,
     "thrustLineZ": 0.0,
-    "pFactorK": 0.4,
+    "pFactorK": 0.3,
     "slipstreamK": 0.05,
     "constantSpeed": false
   },
@@ -1106,7 +1106,7 @@
   "gear": [
       {
           "pos": [
-              0.08,
+              0.02,
               -1.0,
               1.25
           ],
@@ -1122,7 +1122,7 @@
       },
       {
           "pos": [
-              0.08,
+              0.02,
               1.0,
               1.25
           ],
@@ -1140,7 +1140,7 @@
           "pos": [
               -2.4,
               0,
-              0.523
+              0.78
           ],
           "springN": 20000,
           "dampNs": 2500,
@@ -1148,10 +1148,10 @@
           "isTailwheel": true,
           "isSteerable": true,
           "maxSteerRad": 0.45,
-          "tireMu": 0.6,
+          "tireMu": 0.8,
           "corneringStiffnessN": 2000,
           "rollResistN": 25,
-          "steerSpringNmPerRad": 40
+          "steerSpringNmPerRad": 120
       }
   ],
   "limits": {

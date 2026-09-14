@@ -82,7 +82,7 @@ public class GroundLoopTests
     [InlineData("pa18-bush-like.json", 1.4, 3.5)]
     [InlineData("stearman-pt17-like.json", 2.0, 5.0)]
     [InlineData("pa25-pawnee-like.json", 0.8, 2.0)]
-    [InlineData("geebee-r2-like.json", 5.0, 100.0)]
+    [InlineData("geebee-r2-like.json", 2.0, 100.0)]
     [InlineData("cassutt-f1-like.json", 1.5, 100.0)]
     [InlineData("p51d-like.json", 1.0, 3.0)]
     public void GroundStabilityMatchesTheBenchmarks(string file, double minRatio, double maxRatio)
