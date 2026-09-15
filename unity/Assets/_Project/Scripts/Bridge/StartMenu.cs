@@ -192,12 +192,12 @@ namespace FlyingGame.Bridge
                         bool xw = SessionSettings.PracticeIsCrosswind(id);
                         bool ok = false;
                         foreach (var c in xw ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices) if (c.w == SessionSettings.PracticeWindChoice) ok = true;
-                        if (!ok) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
+                        if (!ok || SessionSettings.PracticeIsAirwork(id)) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
                     }
                 }
                 y += bh + gap * 0.4f;
             }
-            if (SessionSettings.IsPractice(SessionSettings.ChallengeId))
+            if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && !SessionSettings.PracticeIsAirwork(SessionSettings.ChallengeId))
             {
                 // Practice wind (owner 2026-09-15): steady / gusty / shifting crosswind, or calm / head / tail winds with gusts.
                 GUI.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;

@@ -117,6 +117,8 @@ public sealed class Aircraft
     private double _rudderRad;
     private double _spoilerFraction;
     private double _wakeStalledFrac; // hysteretic separation state (fast to grow, slow to decay)
+    /// <summary>Lagged separated-wake fraction the aero model is flying with (0 attached … 1 fully stalled).</summary>
+    public double StalledFraction => _wakeStalledFrac;
     private double _throttle01;      // powered aircraft only
     public double FlapFraction { get; set; }   // 0..1, set by cockpit/challenge
     /// <summary>When true, every force the physics applies is recorded per step into <see cref="LastForces"/>

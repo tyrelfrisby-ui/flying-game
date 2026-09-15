@@ -25,14 +25,19 @@ namespace FlyingGame.Bridge.Practice
         private LineRenderer _slope;
         private bool _handoverSpoken, _finishSpoken, _beginning;
         private float _sideBlend;   // 0 = frame centred on the glideslope, 1 = on the runway
+        private bool _bubblesWere; private float _stallFocusY;
 
         private void Awake()
         {
             Driver ??= GetComponent<FlightSimDriver>();
             _touch = GetComponent<TouchFlightControls>();
             Driver.AircraftChanged += OnAircraftChanged;
+            Driver.PostStep += AfterStep;
         }
-        private void OnDestroy() { if (Driver != null) Driver.AircraftChanged -= OnAircraftChanged; }
+
+        /// <summary>Side views are longitudinal only: roll, yaw, sideslip and cross-track are zeroed after every step.</summary>
+        private void AfterStep(Aircraft ac) { if (Active && Scenario != null) Scenario.ConstrainLongitudinal(ac); }
+        private void OnDestroy() { if (Driver != null) { Driver.AircraftChanged -= OnAircraftChanged; Driver.PostStep -= AfterStep; } }
 
         /// <summary>RESET (or an aircraft switch) while an exercise is running restarts it.</summary>
         private void OnAircraftChanged() { if (Active && !_beginning) Begin(Kind, Wind); }
@@ -53,6 +58,8 @@ namespace FlyingGame.Bridge.Practice
                 Driver.InputFilter = Filter;
                 Driver.ForceCapture = Scenario.SideView;
                 Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f;
+                if (kind == PracticeKind.StallSideView) { _bubblesWere = SessionSettings.BubblesOn; SessionSettings.BubblesOn = true; }   // the air must be visible
+                _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
                 SetupCamera();
                 SetupSlopeLine();
                 PilotVoice.Say(Scenario.Title + ". " + Scenario.Instructions, 0.52f, 1.0f);
@@ -71,6 +78,7 @@ namespace FlyingGame.Bridge.Practice
             if (_touch != null) { _touch.DisplayOverride = null; _touch.GameAileron = _touch.GameElevator = _touch.GameRudder = _touch.GameThrottle = false; }
             if (_chase != null) _chase.SideView = false;
             if (_slope != null) Destroy(_slope.gameObject);
+            if (Kind == PracticeKind.StallSideView) SessionSettings.BubblesOn = _bubblesWere;
             SessionSettings.ApplyWeather();   // back to the session's own wind
         }
 
@@ -118,6 +126,7 @@ namespace FlyingGame.Bridge.Practice
         private float FocusHeight()
         {
             float ground = (float)Scenario.SurfaceM;
+            if (Scenario.Stall) return _stallFocusY;   // stall side view: the aircraft stays centred, the world moves past
             if (!Scenario.Approach) return ground + 1.5f;
             float slope = ground + (float)(Scenario.GlideslopeHeightAt(Scenario.AlongM) + Scenario.GearDropM);
             float runway = ground + 1.5f;
@@ -129,6 +138,7 @@ namespace FlyingGame.Bridge.Practice
             if (!Active || Scenario == null || _chase == null || !Scenario.SideView) return;
             // Approach: centred on the glideslope until the runway, then (over ~3 s) on the runway like the flare exercise.
             if (Scenario.Approach && Scenario.AlongM > -60) _sideBlend = Mathf.MoveTowards(_sideBlend, 1f, Time.deltaTime / 3f);
+            if (Scenario.Stall) _stallFocusY = Mathf.Lerp(_stallFocusY, transform.position.y, 1f - Mathf.Exp(-3f * Time.deltaTime));
             _chase.SideFocusY = FocusHeight();
         }
 

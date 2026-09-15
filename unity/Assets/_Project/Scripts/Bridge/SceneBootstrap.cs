@@ -147,6 +147,9 @@ namespace FlyingGame.Bridge
             var wheels = cam.gameObject.AddComponent<Practice.WheelForceOverlay>();   // weight-on-wheels arrows (side-view practice)
             wheels.Driver = aircraft.GetComponent<FlightSimDriver>();
             wheels.Practice = aircraft.GetComponent<Practice.PracticeController>();
+            var stallVec = cam.gameObject.AddComponent<Practice.StallVectorOverlay>();   // lift / tail force / relative wind (stall side view)
+            stallVec.Driver = aircraft.GetComponent<FlightSimDriver>();
+            stallVec.Practice = aircraft.GetComponent<Practice.PracticeController>();
             var pHud = cam.gameObject.AddComponent<Practice.PracticeHud>();
             pHud.Controller = aircraft.GetComponent<Practice.PracticeController>();
             pHud.Driver = aircraft.GetComponent<FlightSimDriver>();

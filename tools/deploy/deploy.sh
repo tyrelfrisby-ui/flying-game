@@ -14,7 +14,7 @@ echo "== unity done $(date)"
 cd /private/tmp/flyinggame-ios && xattr -cr .
 echo "== xcodebuild $(date)"
 xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration Release \
-  -destination "id=$UDID" -allowProvisioningUpdates \
+  -destination "generic/platform=iOS" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
   -derivedDataPath /private/tmp/flyinggame-dd DEVELOPMENT_TEAM=DH425V439F build 2>&1 | tail -5
 echo "== install $(date)"
 xcrun devicectl device install app --device $UDID "$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)" 2>&1 | tail -3

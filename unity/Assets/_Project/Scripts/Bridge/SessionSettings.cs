@@ -108,6 +108,9 @@ namespace FlyingGame.Bridge
             ("practice:land-rudder", "Practice: x-wind landing · rudder"), ("practice:land-aileron", "Practice: x-wind landing · aileron"),
             ("practice:flare", "Practice: round-out & flare"), ("practice:flare-side", "Practice: flare · side view"),
             ("practice:approach-side", "Practice: approach · side view"),
+            ("practice:s-turns", "Practice: S-turns 45°"), ("practice:s-turns-test", "Test: S-turns, one speed cycle"),
+            ("practice:stall-side", "Practice: stall · side view"), ("practice:stall-rudder", "Practice: stall, wing drop · rudder"),
+            ("practice:stall-elevator", "Practice: stall, recover · elevator"),
         };
 
         // ---- practice exercises (owner 2026-09-15): the game flies every axis but the one being practised ----
@@ -121,11 +124,17 @@ namespace FlyingGame.Bridge
             "practice:flare" => FlyingGame.Sim.Practice.PracticeKind.Flare,
             "practice:flare-side" => FlyingGame.Sim.Practice.PracticeKind.FlareSideView,
             "practice:approach-side" => FlyingGame.Sim.Practice.PracticeKind.ApproachSideView,
+            "practice:s-turns" => FlyingGame.Sim.Practice.PracticeKind.STurns,
+            "practice:s-turns-test" => FlyingGame.Sim.Practice.PracticeKind.STurnsTest,
+            "practice:stall-side" => FlyingGame.Sim.Practice.PracticeKind.StallSideView,
+            "practice:stall-rudder" => FlyingGame.Sim.Practice.PracticeKind.StallRudder,
+            "practice:stall-elevator" => FlyingGame.Sim.Practice.PracticeKind.StallElevator,
             _ => null,
         };
         /// <summary>Wind choice for the practice: crosswind exercises offer Steady/Gusty/Shifting, approach and flare exercises
         /// Calm/Headwind/Gusty headwind/Tailwind/Gusty tailwind.</summary>
         public static FlyingGame.Sim.Practice.PracticeWind PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Steady;
+        public static bool PracticeIsAirwork(string id) => id is "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
         public static bool PracticeIsCrosswind(string id) => id is "practice:xwind-rudder" or "practice:xwind-aileron" or "practice:land-rudder" or "practice:land-aileron";
         public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices =
         {

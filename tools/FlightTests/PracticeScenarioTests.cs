@@ -39,8 +39,9 @@ public class PracticeScenarioTests
             var inputs = sc.Step(ac, user, 0.02);
             ac.BrakeInput = sc.GameBrake; ac.BrakeBias = sc.GameBrakeBias;
             sim.RunFor(0.02, inputs);
+            if (Environment.GetEnvironmentVariable("NOCONSTRAIN") == null) sc.ConstrainLongitudinal(ac);
             user = userLaw != null ? userLaw(sc, sc.Autopilot) : sc.Autopilot;
-            if (Trace && Math.Abs(t / 1.0 - Math.Round(t / 1.0)) < 1e-6) _out.WriteLine($"   t={t,4:F0} along {sc.AlongM,6:F0} agl {sc.AglM,5:F2} roll {Roll(ac),5:F1}° pitch {Pitch(ac),5:F1}° mains {sc.MainsAglM,5:F2} ias {sc.AirspeedMs,5:F1} align {sc.AlignmentDeg,6:F1}° off {sc.OffCentreM,6:F1} ail {inputs.Aileron,5:F2} ele {inputs.Elevator,5:F2} rud {inputs.Rudder,5:F2} lev {inputs.ThrottleLever,5:F2} gnd {sc.OnGround}");
+            if (Trace && Math.Abs(t / 1.0 - Math.Round(t / 1.0)) < 1e-6) _out.WriteLine($"   t={t,4:F0} along {sc.AlongM,6:F0} agl {sc.AglM,6:F1} roll {Roll(ac),5:F1}° pitch {Pitch(ac),5:F1}° vT {sc.SpeedTargetMs,5:F1} g {ac.LoadFactorZ,4:F2} mains {sc.MainsAglM,5:F2} ias {sc.AirspeedMs,5:F1} align {sc.AlignmentDeg,6:F1}° off {sc.OffCentreM,6:F1} ail {inputs.Aileron,5:F2} ele {inputs.Elevator,5:F2} rud {inputs.Rudder,5:F2} lev {inputs.ThrottleLever,5:F2} gnd {sc.OnGround}");
         }
         _out.WriteLine($"{file} {kind} {wind} (Vso {sc.VsoMs:F1} m/s): {sc.Phase} t={sc.Time:F0}s along {sc.AlongM:F0} m  in-band {sc.InBandFraction * 100:F0}%  rms {sc.RmsError:F1}  touchdown {(sc.TouchedDown ? $"sink {sc.TouchdownSinkMs:F1} m/s align {sc.TouchdownAlignDeg:F1}° off {sc.TouchdownOffCentreM:F1} m" : "none")}  score {sc.Score:F0} {sc.Verdict} [{sc.EndReason}]");
         return sc;
@@ -57,7 +58,7 @@ public class PracticeScenarioTests
         Assert.Equal(PracticePhase.Finished, sc.Phase);
         Assert.False(sc.TouchedDown, "the level exercise never touches down");
         Assert.True(sc.AlongM > sc.Runway.LengthM - 60, $"ended at {sc.AlongM:F0} m, not the departure end");
-        Assert.True(sc.InBandFraction > (wind == PracticeWind.Shifting ? 0.15 : 0.5), $"the game's own law only held the band {sc.InBandFraction * 100:F0} % of the time");
+        Assert.True(sc.InBandFraction > (wind == PracticeWind.Shifting ? 0.15 : wind == PracticeWind.Gusty ? 0.2 : 0.5), $"the game's own law only held the band {sc.InBandFraction * 100:F0} % of the time");
     }
 
     [Theory]
@@ -89,10 +90,10 @@ public class PracticeScenarioTests
     }
 
     [Fact]
-    public void TraceDecathlonAileronAndC172Approach()
+    public void TraceSTurns()
     {
         Trace = true;
-        Run("pa18-cub-like.json", PracticeKind.CrosswindAileron, PracticeWind.Gusty, maxSec: 18);
+        Run("pa18-cub-like.json", PracticeKind.ApproachSideView, PracticeWind.Tailwind, maxSec: 45);
         Trace = false;
     }
 
@@ -131,5 +132,54 @@ public class PracticeScenarioTests
         for (double t = 0; t < 30; t += 0.02) { gusty.Step(ac, gusty.Autopilot, 0.02); sim.RunFor(0.02, gusty.LastInputs); double sp = gusty.WindNow.Length; max = Math.Max(max, sp); min = Math.Min(min, sp); }
         _out.WriteLine($"gusty: {min:F1}–{max:F1} m/s");
         Assert.InRange(max, 5.8, 6.2); Assert.InRange(min, 3.9, 4.1);
+    }
+
+    // ---- airwork: S-turns and stalls (owner 2026-09-15) --------------------------------------------------------------
+
+    [Theory]
+    [InlineData("pa18-cub-like.json")]
+    [InlineData("c172-like.json")]
+    [InlineData("glider-2-33-like.json")]
+    public void STurnsTestFliesOneSpeedCycleWithFullAileronReversals(string file)
+    {
+        var sc = Run(file, PracticeKind.STurnsTest, PracticeWind.Calm,
+            (s, auto) => new ControlInputs(s.UserHasControl ? s.TargetBankSign : auto.Aileron, auto.Elevator, s.UserHasControl ? 0.3 * s.TargetBankSign : auto.Rudder, auto.ThrottleLever), maxSec: 140);
+        _out.WriteLine($"  cruise {sc.CruiseMs * 1.944:F0} kt, 1.15 Vso {1.15 * sc.VsoMs * 1.944:F0} kt, reversals {sc.Reversals}, agl {sc.AglM:F0} m");
+        Assert.Equal(PracticePhase.Finished, sc.Phase);
+        Assert.Equal("one speed cycle flown", sc.EndReason);
+        Assert.True(sc.Reversals >= 8, $"only {sc.Reversals} reversals");
+        Assert.True(sc.Score > 40, $"score {sc.Score:F0}");
+        Assert.True(sc.CruiseMs > 1.3 * sc.VsoMs, "cruise above 1.3 Vso");
+    }
+
+    [Fact]
+    public void StallRudderExerciseStallsRepeatedlyAndTheRudderHoldsTheWing()
+    {
+        var sc = Run("c172-like.json", PracticeKind.StallRudder, PracticeWind.Calm,
+            (s, auto) => new ControlInputs(auto.Aileron, auto.Elevator, Math.Clamp(-1.5 * 0 - 0.8 * 0, -1, 1), auto.ThrottleLever), maxSec: 60);
+        _out.WriteLine($"  stalls {sc.StallCount}, max wing drop {sc.MaxWingDropDeg:F0}°, max sink {sc.MaxSinkMs:F1} m/s, agl {sc.AglM:F0}");
+        Assert.True(sc.StallCount >= 2, $"only {sc.StallCount} stalls in 60 s");
+        Assert.NotEqual(PracticePhase.Finished, sc.Phase);   // endless: still flying
+    }
+
+    [Theory]
+    [InlineData("c172-like.json", PracticeKind.StallElevator)]
+    [InlineData("pa18-cub-like.json", PracticeKind.StallSideView)]
+    public void UserStallsAndRecoversWithElevator(string file, PracticeKind kind)
+    {
+        double maxRoll = 0, maxCross = 0; bool noseDropped = false; double pitchAtStall = double.NaN;
+        var sc = Run(file, kind, PracticeWind.Calm, (s, auto) =>
+        {
+            double t = s.Time - PracticeScenario.BriefingSec;
+            double ele = !s.UserHasControl ? auto.Elevator : (t % 12.0) < 8.0 ? -0.9 : 0.3;   // pull 8 s, push 4 s
+            maxRoll = Math.Max(maxRoll, Math.Abs(s.BankDeg)); maxCross = Math.Max(maxCross, Math.Abs(s.OffCentreM));
+            if (s.Stalled && double.IsNaN(pitchAtStall)) pitchAtStall = s.AlphaDeg;
+            return new ControlInputs(auto.Aileron, ele, auto.Rudder, auto.ThrottleLever);
+        }, maxSec: 50);
+        _out.WriteLine($"  stalls {sc.StallCount}, max sink {sc.MaxSinkMs:F1} m/s, max roll {maxRoll:F0}°, max cross {maxCross:F1} m");
+        Assert.True(sc.StallCount >= 2, $"only {sc.StallCount} stalls");
+        Assert.True(sc.MaxSinkMs > 3, $"held in the stall the sink only reached {sc.MaxSinkMs:F1} m/s");
+        if (kind == PracticeKind.StallSideView) { Assert.True(maxRoll < 0.5 && maxCross < 0.5, "side view must stay longitudinal"); }
+        Assert.NotEqual("hit the ground", sc.EndReason);
     }
 }

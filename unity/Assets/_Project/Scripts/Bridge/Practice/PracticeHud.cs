@@ -64,6 +64,7 @@ namespace FlyingGame.Bridge.Practice
 
         private void DrawLive(PracticeScenario sc, Rect view, float lh)
         {
+            if (sc.Airwork) { DrawAirwork(sc, view, lh); return; }
             // Alignment display: a runway bar across the top of the view with the fuselage line drawn over it, rotated by the
             // alignment error (exaggerated ×2 so a couple of degrees reads clearly). Parallel = the goal.
             float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.7f;
@@ -107,6 +108,48 @@ namespace FlyingGame.Bridge.Practice
             }
         }
 
+        private void DrawAirwork(PracticeScenario sc, Rect view, float lh)
+        {
+            float y = view.y + view.height * 0.06f;
+            var good = new Color(0.45f, 1f, 0.5f); var warn = new Color(1f, 0.6f, 0.3f);
+            if (sc.STurn)
+            {
+                // Bank: a horizon bar tilted to the bank with the 45° targets marked; the cue says which way to roll next.
+                float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.5f;
+                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + view.height * 0.115f, bw, bh);
+                Matrix4x4 m = GUI.matrix;
+                GUIUtility.RotateAroundPivot(-(float)sc.BankDeg, bar.center);
+                GUI.color = Mathf.Abs((float)sc.BankDeg) >= 44f && Mathf.Abs((float)sc.BankDeg) <= 48f ? good : Color.white;
+                GUI.DrawTexture(bar, _line);
+                GUI.matrix = m; GUI.color = Color.white;
+                string cue = sc.Phase != PracticePhase.Live ? "" : sc.TargetBankSign > 0 ? "ROLL RIGHT to 45°" : "ROLL LEFT to 45°";
+                var a = new GUIStyle(_big) { normal = { textColor = Mathf.Abs((float)sc.RollRateDegS) >= 40f ? good : warn } };
+                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"{cue}   bank {sc.BankDeg:F0}°   rate {Mathf.Abs((float)sc.RollRateDegS):F0}°/s", a);
+                string spd = $"speed {sc.AirspeedMs * 1.944:F0} kt → target {sc.SpeedTargetMs * 1.944:F0} kt   ({(sc.CycleFraction < 0.5 ? "slowing to" : "back up toward")} {(sc.CycleFraction < 0.5 ? 1.15 * sc.VsoMs * 1.944 : sc.CruiseMs * 1.944):F0})   reversals {sc.Reversals}";
+                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh, view.width, lh * 0.8f), spd, _small);
+                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), "AILERON + RUDDER: 45° to 45°, at 45°/s or full aileron — reverse the moment you get there", _small);
+                if (sc.Stalled) GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 1.8f, view.width, lh), "STALLED — the slow end of the cycle at 45° is past the stall in the turn", new GUIStyle(_big) { normal = { textColor = warn } });
+            }
+            else
+            {
+                var banner = new GUIStyle(_title) { normal = { textColor = sc.Stalled ? warn : good } };
+                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f, view.width, lh * 1.2f), sc.Stalled ? "STALLED" : "FLYING", banner);
+                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh * 1.2f, view.width, lh * 0.8f),
+                    $"AoA {sc.AlphaDeg:F0}°   {sc.AirspeedMs * 1.944:F0} kt   sink {sc.SinkMs * 196.85:F0} ft/min   bank {sc.BankDeg:F0}°   stalls {sc.StallCount}", _small);
+                string goal = sc.Kind == PracticeKind.StallSideView ? "ELEVATOR: hold the nose up until it stalls — watch the tail's force bring it down"
+                    : sc.Kind == PracticeKind.StallRudder ? "RUDDER: pick up the dropped wing — the game stalls it and breaks it, ≤10 % aileron"
+                    : "ELEVATOR: stall it, then break the angle of attack — the game holds it with ≤10 % rudder and aileron";
+                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), goal, _small);
+                if (sc.Kind == PracticeKind.StallSideView)
+                    GUI.Label(new Rect(view.x, y + lh * 0.8f, view.width, lh * 0.8f), "green = wing lift · yellow = tail force (×3) · white = relative wind at the tail · grey = weight", _small);
+            }
+            if (sc.Endless && sc.Phase == PracticePhase.Live)
+            {
+                float bw2 = _fs * 5f;
+                if (GUI.Button(new Rect(view.xMax - bw2 - _fs, view.y + view.height * 0.16f, bw2, lh * 1.05f), "END", _btn)) { Controller.End(); Menu?.Open(); }
+            }
+        }
+
         private void DrawWeightOnWheels(Rect view, float y, float lh)
         {
             var ac = Driver.Sim.Aircraft;
@@ -135,7 +178,9 @@ namespace FlyingGame.Bridge.Practice
             float x = card.x + _fs, y = card.y + _fs * 0.6f, cw = card.width - 2 * _fs;
             GUI.Label(new Rect(x, y, cw, lh * 1.2f), sc.Title, _title); y += lh * 1.3f;
             GUI.Label(new Rect(x, y, cw, lh * 1.2f), $"{sc.Score:F0} %   {sc.Verdict}", _big); y += lh * 1.3f;
-            string detail = sc.Descending
+            string detail = sc.STurn ? $"reversals {sc.Reversals} · mean roll rate {(sc.RmsError > 0 ? "" : "")}score on rate and bank accuracy"
+                : sc.Stall ? $"stalls {sc.StallCount} · max wing drop {sc.MaxWingDropDeg:F0}° · max sink {sc.MaxSinkMs * 196.85:F0} ft/min"
+                : sc.Descending
                 ? (sc.TouchedDown ? $"touchdown sink {sc.TouchdownSinkMs * 196.85:F0} ft/min · {Mathf.Abs((float)sc.TouchdownAlignDeg):F0}° off parallel · {Mathf.Abs((float)sc.TouchdownOffCentreM):F0} m off centre" : "no touchdown")
                 : $"in band {sc.InBandFraction * 100:F0} % of the run · rms error {sc.RmsError:F1}";
             GUI.Label(new Rect(x, y, cw, lh), detail, _small); y += lh * 1.2f;
