@@ -39,6 +39,14 @@ namespace FlyingGame.Bridge
         public float OverrideLookUp = 3f;       // look-at point this far above the pilot (canopy in frame)
         public float OverrideMaxDownDeg = 40f;  // follow-direction pitch limit in free fall
 
+        /// <summary>Side view (flare / approach practice): the camera sits beside the runway, level, tracking the aircraft
+        /// along the runway so it stays centred left–right; its height follows <see cref="SideFocusY"/> (the glideslope, then
+        /// the runway), so the aircraft moves up and down in the frame.</summary>
+        public bool SideView;
+        public Vector3 SideRight = Vector3.right;   // unit vector to the right of the runway (Unity)
+        public float SideFocusY;                    // world height the frame is centred on
+        public float SideDistance = 30f;
+
         private Vector3 _dir = Vector3.forward; // smoothed follow direction (world)
         private Vector3 _offset;                // smoothed camera offset from the target (world)
         private Camera _cam;
@@ -113,6 +121,14 @@ namespace FlyingGame.Bridge
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
+                return;
+            }
+            if (SideView && !ovr)
+            {
+                Vector3 tp = tgt.position;
+                Vector3 sidePos = new Vector3(tp.x, SideFocusY, tp.z) + SideRight * SideDistance;
+                transform.position = Vector3.Lerp(transform.position, sidePos, 1f - Mathf.Exp(-6f * Time.deltaTime));
+                transform.rotation = Quaternion.LookRotation(-SideRight, Vector3.up);
                 return;
             }
 

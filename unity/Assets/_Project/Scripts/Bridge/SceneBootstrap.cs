@@ -75,6 +75,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<FlightAudio>();
+            root.AddComponent<Practice.PracticeController>().Driver = driver;   // crosswind / flare / approach practice
             _ = driver;
             return root;
         }
@@ -143,6 +144,12 @@ namespace FlyingGame.Bridge
 
             var chHud = cam.gameObject.AddComponent<ChallengeHud>();
             chHud.Controller = aircraft.GetComponent<ChallengeController>();
+            var wheels = cam.gameObject.AddComponent<Practice.WheelForceOverlay>();   // weight-on-wheels arrows (side-view practice)
+            wheels.Driver = aircraft.GetComponent<FlightSimDriver>();
+            wheels.Practice = aircraft.GetComponent<Practice.PracticeController>();
+            var pHud = cam.gameObject.AddComponent<Practice.PracticeHud>();
+            pHud.Controller = aircraft.GetComponent<Practice.PracticeController>();
+            pHud.Driver = aircraft.GetComponent<FlightSimDriver>();
 
             var weather = aircraft.AddComponent<WeatherController>();
             weather.Bubbles = bubbles;
@@ -156,6 +163,8 @@ namespace FlyingGame.Bridge
             menu.Race = aircraft.GetComponent<RaceController>();
             menu.Stol = aircraft.GetComponent<StolController>();
             menu.Dust = aircraft.GetComponent<CropDustController>();
+            menu.Practice = aircraft.GetComponent<Practice.PracticeController>();
+            pHud.Menu = menu;
         }
     }
 }

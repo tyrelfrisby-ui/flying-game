@@ -32,6 +32,22 @@ namespace FlyingGame.Bridge
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.85f, 0.88f, 0.92f) } };
         }
 
+        private void ApplyFeelLive()
+        {
+            var cfg = Driver?.Sim?.Aircraft?.Config;
+            if (cfg == null) return;
+            // Re-load the type's own values first so switching a setting back to "aircraft" restores them.
+            try
+            {
+                var fresh = UnityAircraftConfigLoader.LoadFromStreamingAssets(cfg.Id);
+                cfg.Controls.Aileron.Expo = fresh.Controls.Aileron.Expo; cfg.Controls.Aileron.DeadZone = fresh.Controls.Aileron.DeadZone;
+                cfg.Controls.Elevator.Expo = fresh.Controls.Elevator.Expo; cfg.Controls.Elevator.DeadZone = fresh.Controls.Elevator.DeadZone;
+                cfg.Controls.Rudder.Expo = fresh.Controls.Rudder.Expo; cfg.Controls.Rudder.DeadZone = fresh.Controls.Rudder.DeadZone;
+            }
+            catch (System.Exception) { }
+            SessionSettings.ApplyFeel(cfg);
+        }
+
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen) { _open = false; return; }
@@ -45,7 +61,7 @@ namespace FlyingGame.Bridge
                 return;
             }
             float w = Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * 11.5f;
+            float h = lh * 19f;
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = panel.width - 2 * gap;
@@ -89,6 +105,31 @@ namespace FlyingGame.Bridge
                 float vol = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), FlightAudio.MasterVolume, 0f, 1f);
                 FlightAudio.MasterVolume = vol;
                 y += lh + gap * 0.4f;
+            }
+            // Control feel (owner 2026-09-15): per-axis expo and dead zone, tuned by the user. Applied live to the current
+            // aircraft and to every aircraft loaded from now on; "aircraft" = that type's own value.
+            y += gap * 0.5f;
+            SessionSettings.LoadFeel();
+            GUI.Label(new Rect(x, y, cw, lh), "CONTROL FEEL", _head);
+            if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh * 0.9f), "Aircraft defaults", _btn))
+            {
+                for (int i = 0; i < 3; i++) { SessionSettings.FeelExpo[i] = -1f; SessionSettings.FeelDeadZone[i] = -1f; }
+                SessionSettings.SaveFeel(); ApplyFeelLive();
+            }
+            y += lh;
+            for (int i = 0; i < 3; i++)
+            {
+                var axis = Driver?.Sim?.Aircraft?.Config?.Controls == null ? null : new[] { Driver.Sim.Aircraft.Config.Controls.Aileron, Driver.Sim.Aircraft.Config.Controls.Elevator, Driver.Sim.Aircraft.Config.Controls.Rudder }[i];
+                float expoNow = SessionSettings.FeelExpo[i] >= 0f ? SessionSettings.FeelExpo[i] : (float)(axis?.Expo ?? 0.3);
+                float dzNow = SessionSettings.FeelDeadZone[i] >= 0f ? SessionSettings.FeelDeadZone[i] : (float)(axis?.DeadZone ?? 0.05);
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), $"{SessionSettings.FeelAxisNames[i]} expo  {expoNow * 100f:F0} %{(SessionSettings.FeelExpo[i] < 0f ? " (aircraft)" : "")}", _label);
+                float e = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), expoNow, 0f, 1f);
+                if (Mathf.Abs(e - expoNow) > 0.004f) { SessionSettings.FeelExpo[i] = Mathf.Round(e * 20f) / 20f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
+                y += lh * 0.95f;
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), $"{SessionSettings.FeelAxisNames[i]} dead zone  {dzNow * 100f:F0} %{(SessionSettings.FeelDeadZone[i] < 0f ? " (aircraft)" : "")}", _label);
+                float d = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), dzNow, 0f, 0.3f);
+                if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
+                y += lh * 0.95f;
             }
             y += gap;
             if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh), "Close", _btnOn)) _open = false;

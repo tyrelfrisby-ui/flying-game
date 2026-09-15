@@ -17,6 +17,7 @@ namespace FlyingGame.Bridge
         public RaceController Race;
         public StolController Stol;
         public CropDustController Dust;
+        public Practice.PracticeController Practice;
 
         public bool IsOpen { get; private set; } = true;
 
@@ -53,8 +54,13 @@ namespace FlyingGame.Bridge
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)
-            Race?.End(); Stol?.End(); Dust?.End();
+            Race?.End(); Stol?.End(); Dust?.End(); Practice?.End();
             string ch = SessionSettings.ChallengeId;
+            if (SessionSettings.IsPractice(ch) && Practice != null && SessionSettings.PracticeKindFor(ch) is FlyingGame.Sim.Practice.PracticeKind pk)
+            {
+                Practice.Begin(pk, SessionSettings.PracticeWindChoice);
+                return;
+            }
             if (ch == "event:race" && Race != null) Race.Begin();
             else if (ch == "event:stol" && Stol != null) Stol.Begin(SessionSettings.Airport);
             else if (ch == "event:dust" && Dust != null) Dust.Begin();
@@ -177,8 +183,30 @@ namespace FlyingGame.Bridge
             foreach ((string id, string name) in SessionSettings.Challenges)
             {
                 bool on = SessionSettings.ChallengeId == id;
-                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.ChallengeId = id;
+                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn))
+                {
+                    SessionSettings.ChallengeId = id;
+                    // A practice keeps a wind choice from its own family (crosswind vs along-runway).
+                    if (SessionSettings.IsPractice(id))
+                    {
+                        bool xw = SessionSettings.PracticeIsCrosswind(id);
+                        bool ok = false;
+                        foreach (var c in xw ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices) if (c.w == SessionSettings.PracticeWindChoice) ok = true;
+                        if (!ok) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
+                    }
+                }
                 y += bh + gap * 0.4f;
+            }
+            if (SessionSettings.IsPractice(SessionSettings.ChallengeId))
+            {
+                // Practice wind (owner 2026-09-15): steady / gusty / shifting crosswind, or calm / head / tail winds with gusts.
+                GUI.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;
+                var choices = SessionSettings.PracticeIsCrosswind(SessionSettings.ChallengeId) ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices;
+                foreach (var (wnd, wname) in choices)
+                {
+                    if (GUI.Button(new Rect(x, y, colW, bh), wname, SessionSettings.PracticeWindChoice == wnd ? _btnOn : _btn)) SessionSettings.PracticeWindChoice = wnd;
+                    y += bh + gap * 0.4f;
+                }
             }
 
             // ---- column 4: conditions

@@ -552,9 +552,10 @@ namespace FlyingGame.Bridge
             string leftValue = padBrake > 0f
                 ? $"BRAKES ON  {Mathf.RoundToInt(padBrake * 100f)}%"
                 : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt(SpoilerFraction * 100f)}%";
-            DrawPad(_leftCenter, _leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob, "RUD / THR", leftValue);
+            if (DisplayOverride != null && GameThrottle && padBrake <= 0f) leftValue = "GAME  " + leftValue;
+            DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob), "RUD / THR", leftValue);
             bool pilotOut = _egress != null && _egress.PilotOut;
-            DrawPad(_rightCenter, _rightFinger == int.MinValue ? _rightCenter : _rightKnob, pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
+            DrawPad(_rightCenter, GameRightKnob(_rightFinger == int.MinValue ? _rightCenter : _rightKnob), pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
             DrawTrim();
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
@@ -625,6 +626,34 @@ namespace FlyingGame.Bridge
 
         /// <summary>Square pad with centre cross, X/Y position lines through the knob, and the knob.</summary>
         private GUIStyle _brakeValueStyle;
+        /// <summary>Practice exercises: the merged inputs the sim actually received, so the pads can show what the GAME is doing
+        /// on the axes it flies (owner: "make sure the control positions are shown on the control pads for all controls").</summary>
+        public ControlInputs? DisplayOverride;
+        public bool GameAileron, GameElevator, GameRudder, GameThrottle;
+        private Vector2 GameLeftKnob(Vector2 fallback)
+        {
+            if (DisplayOverride == null) return fallback;
+            ControlInputs o = DisplayOverride.Value;
+            float x = GameRudder ? _leftCenter.x + (float)o.Rudder * _half : fallback.x;
+            float y = fallback.y;
+            if (GameThrottle)
+            {
+                bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
+                float f = powered ? IdleFraction + (1f - (float)o.ThrottleLever) * 0.5f * (1f - IdleFraction)   // lever −1 = full power
+                                  : 0.5f - Mathf.Clamp01((float)o.ThrottleLever) * (0.5f - IdleFraction);        // glider: spoiler fraction
+                y = _leftCenter.y + AxisForFraction(f) * _half;
+            }
+            return new Vector2(x, y);
+        }
+        private Vector2 GameRightKnob(Vector2 fallback)
+        {
+            if (DisplayOverride == null) return fallback;
+            ControlInputs o = DisplayOverride.Value;
+            float x = GameAileron ? _rightCenter.x + (float)o.Aileron * _half : fallback.x;
+            float ny = InvertElevator ? -(float)o.Elevator : (float)o.Elevator;
+            float y = GameElevator ? _rightCenter.y + ny * _half : fallback.y;
+            return new Vector2(x, y);
+        }
         private void DrawPad(Vector2 c, Vector2 knob, string label, string value)
         {
             float d = _half * 2f;

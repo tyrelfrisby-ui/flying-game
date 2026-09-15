@@ -30,6 +30,10 @@ namespace FlyingGame.Bridge
         /// <summary>Raised after the sim is rebuilt for a (possibly different) aircraft — visuals rebuild on it.</summary>
         public event System.Action AircraftChanged;
         public ControlInputs Inputs { get; set; } = ControlInputs.Neutral;
+        /// <summary>Practice exercises: the game replaces every axis but the user's before each step (PracticeController).</summary>
+        public System.Func<ControlInputs, float, ControlInputs> InputFilter;
+        /// <summary>Extra reason to record the per-step force samples (the wheel-force overlay in the side-view exercises).</summary>
+        public bool ForceCapture;
 
         public double IasMs { get; private set; }
         public double AltitudeM { get; private set; }
@@ -83,6 +87,7 @@ namespace FlyingGame.Bridge
         private void Spawn()
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
+            SessionSettings.ApplyFeel(config);   // the user's expo / dead-zone tuning (OPTIONS)
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
             SpawnIasMs = config.SpawnIasMs > 0 ? config.SpawnIasMs : 22.0;
             FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;
@@ -196,8 +201,9 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
-            Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors;
-            Sim.Advance(Time.deltaTime, Inputs, ref _accumulator);
+            Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
+            ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
+            Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);

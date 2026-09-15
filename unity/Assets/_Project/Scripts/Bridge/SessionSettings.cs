@@ -104,7 +104,67 @@ namespace FlyingGame.Bridge
             ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
             ("a1c3-cardinal-turn", "Cardinal turn"), ("a1c4-stall-recover", "Stall recovery"),
             ("a1c10-headwind-landing", "Headwind landing"), ("a1c11-crosswind-landing", "Crosswind landing"),
+            ("practice:xwind-rudder", "Practice: crosswind · rudder"), ("practice:xwind-aileron", "Practice: crosswind · aileron"),
+            ("practice:land-rudder", "Practice: x-wind landing · rudder"), ("practice:land-aileron", "Practice: x-wind landing · aileron"),
+            ("practice:flare", "Practice: round-out & flare"), ("practice:flare-side", "Practice: flare · side view"),
+            ("practice:approach-side", "Practice: approach · side view"),
         };
+
+        // ---- practice exercises (owner 2026-09-15): the game flies every axis but the one being practised ----
+        public static bool IsPractice(string id) => id != null && id.StartsWith("practice:");
+        public static FlyingGame.Sim.Practice.PracticeKind? PracticeKindFor(string id) => id switch
+        {
+            "practice:xwind-rudder" => FlyingGame.Sim.Practice.PracticeKind.CrosswindRudder,
+            "practice:xwind-aileron" => FlyingGame.Sim.Practice.PracticeKind.CrosswindAileron,
+            "practice:land-rudder" => FlyingGame.Sim.Practice.PracticeKind.LandingRudder,
+            "practice:land-aileron" => FlyingGame.Sim.Practice.PracticeKind.LandingAileron,
+            "practice:flare" => FlyingGame.Sim.Practice.PracticeKind.Flare,
+            "practice:flare-side" => FlyingGame.Sim.Practice.PracticeKind.FlareSideView,
+            "practice:approach-side" => FlyingGame.Sim.Practice.PracticeKind.ApproachSideView,
+            _ => null,
+        };
+        /// <summary>Wind choice for the practice: crosswind exercises offer Steady/Gusty/Shifting, approach and flare exercises
+        /// Calm/Headwind/Gusty headwind/Tailwind/Gusty tailwind.</summary>
+        public static FlyingGame.Sim.Practice.PracticeWind PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Steady;
+        public static bool PracticeIsCrosswind(string id) => id is "practice:xwind-rudder" or "practice:xwind-aileron" or "practice:land-rudder" or "practice:land-aileron";
+        public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices =
+        {
+            (FlyingGame.Sim.Practice.PracticeWind.Steady, "Steady"), (FlyingGame.Sim.Practice.PracticeWind.Gusty, "Gusty"), (FlyingGame.Sim.Practice.PracticeWind.Shifting, "Shifting"),
+        };
+        public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] AlongWindChoices =
+        {
+            (FlyingGame.Sim.Practice.PracticeWind.Calm, "Calm"), (FlyingGame.Sim.Practice.PracticeWind.Headwind, "Headwind"), (FlyingGame.Sim.Practice.PracticeWind.HeadwindGusty, "Gusty headwind"),
+            (FlyingGame.Sim.Practice.PracticeWind.Tailwind, "Tailwind"), (FlyingGame.Sim.Practice.PracticeWind.TailwindGusty, "Gusty tailwind"),
+        };
+
+        // ---- control feel (owner 2026-09-15): per-axis expo and dead zone the user can tune; < 0 = the aircraft's own ----
+        public static readonly float[] FeelExpo = { -1f, -1f, -1f };       // aileron, elevator, rudder
+        public static readonly float[] FeelDeadZone = { -1f, -1f, -1f };
+        public static readonly string[] FeelAxisNames = { "Aileron", "Elevator", "Rudder" };
+        private static bool _feelLoaded;
+        public static void LoadFeel()
+        {
+            if (_feelLoaded) return; _feelLoaded = true;
+            for (int i = 0; i < 3; i++) { FeelExpo[i] = PlayerPrefs.GetFloat("feel.expo." + i, -1f); FeelDeadZone[i] = PlayerPrefs.GetFloat("feel.dz." + i, -1f); }
+        }
+        public static void SaveFeel()
+        {
+            for (int i = 0; i < 3; i++) { PlayerPrefs.SetFloat("feel.expo." + i, FeelExpo[i]); PlayerPrefs.SetFloat("feel.dz." + i, FeelDeadZone[i]); }
+            PlayerPrefs.Save();
+        }
+        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is off).</summary>
+        public static void ApplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
+        {
+            LoadFeel();
+            if (cfg?.Controls == null) return;
+            var axes = new[] { cfg.Controls.Aileron, cfg.Controls.Elevator, cfg.Controls.Rudder };
+            for (int i = 0; i < 3; i++)
+            {
+                if (axes[i] == null) continue;
+                if (FeelExpo[i] >= 0f) axes[i].Expo = FeelExpo[i];
+                if (FeelDeadZone[i] >= 0f) axes[i].DeadZone = FeelDeadZone[i];
+            }
+        }
 
         /// <summary>Push the weather choices into the atmosphere the wings and bubbles read.</summary>
         public static void ApplyWeather()
