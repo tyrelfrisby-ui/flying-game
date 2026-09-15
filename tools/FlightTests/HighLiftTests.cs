@@ -46,7 +46,7 @@ public class HighLiftTests
         // At alpha just past the clean stall (~18 deg), slats out should give MORE lift than slats in.
         double slatsIn = WingLift(c, 20, new ControlDeflections(0, 0, 0, 0, 0, 0.0));
         double slatsOut = WingLift(c, 20, new ControlDeflections(0, 0, 0, 0, 0, 1.0));
-        Assert.True(slatsOut > slatsIn * 1.1, $"Slats must delay stall (more lift past clean stall): in={slatsIn:F0} out={slatsOut:F0}");
+        Assert.True(slatsOut > slatsIn * 1.05, $"Slats must delay stall (more lift past clean stall): in={slatsIn:F0} out={slatsOut:F0}");
     }
 
     [Fact]

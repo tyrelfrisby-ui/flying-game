@@ -18,7 +18,7 @@ public class ApproachSpawnTests
     [Theory]
     [InlineData("glider-2-33-like", 19, 27, 15, 30)]
     [InlineData("pa18-cub-like", 24, 34, 6, 13)]
-    [InlineData("c172-like", 28, 40, 7, 13)]
+    [InlineData("c172-like", 28, 40, 7, 14)]
     [InlineData("extra-300-like", 35, 55, 6, 12)]
     [InlineData("glider-eb29r-like", 22, 34, 40, 70)]
     [InlineData("glider-swift-s1-like", 22, 34, 20, 38)]

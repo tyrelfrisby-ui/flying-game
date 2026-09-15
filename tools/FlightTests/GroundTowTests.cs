@@ -15,6 +15,7 @@ public class GroundTowTests
     private readonly ITestOutputHelper _out;
     public GroundTowTests(ITestOutputHelper o) { _out = o; }
 
+    private static double Pitch(Aircraft ac) { var q = ac.State.Attitude; return Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1)) * 57.3; }
     private static Aircraft OnGround(AircraftConfig c, double x) => new Aircraft(c, LandingGear.RestingState(c, x, 0, 0), ControlDeflections.Neutral);
 
     private static (double roll, double pitch, double psi) Euler(RigidBodyState s)
@@ -71,6 +72,8 @@ public class GroundTowTests
             tug.Step(ci, dt);
             maxTension = Math.Max(maxTension, tow.Tension);
             string ph = pilot.Phase.ToString();
+            if (System.Environment.GetEnvironmentVariable("TOWTRACE") != null && t < 120 && Math.Abs(t / 1.0 - Math.Round(t / 1.0)) < dt / 2) { var (rr, pp, yy) = Euler(tug.State); _out.WriteLine($"   START scale {pilot.ElevatorScale:F2} t={t:F1} tension {tow.Tension:F0} tugV {tug.State.Velocity.Length:F1} gliderV {glider.State.Velocity.Length:F1} tug pitch {pp * 57.3:F1} agl {-tug.State.Position.Z:F2} x {tug.State.Position.X:F1} glider x {glider.State.Position.X:F1}"); }
+            if (System.Environment.GetEnvironmentVariable("TOWTRACE") != null && pilot.Phase is TugPilot.Phases.Flare or TugPilot.Phases.Rollout && Math.Abs(t / 0.5 - Math.Round(t / 0.5)) < dt / 2) { var vw = tug.State.Attitude.Rotate(tug.State.Velocity); _out.WriteLine($"   FLARE t={t:F1} agl {-tug.State.Position.Z:F2} V {tug.State.Velocity.Length:F1} sink {vw.Z:F2} pitch {Pitch(tug):F1}"); }
             if (ph != lastPhase || t >= nextLog || pilot.Phase == TugPilot.Phases.Done)
             {
                 nextLog = Math.Floor(t / 10) * 10 + 10;
@@ -109,6 +112,7 @@ public class GroundTowTests
             double bias = (pilot.Phase != TugPilot.Phases.GroundRoll && t > 30) ? 40.0 : 0.0; // climb 40 m above the tug
             glider.Step(tow.Connected ? FollowTug(glider, tug, bias) : new ControlInputs(0, 0, 0, 0.3), dt);
             ControlInputs ci = pilot.Update(tug, dt, tow.Tension, tow.Connected ? RopeDirBody(tow) : null);
+            if (System.Environment.GetEnvironmentVariable("TOWTRACE") != null && Math.Abs(t / 2.0 - Math.Round(t / 2.0)) < dt / 2) _out.WriteLine($"   t={t:F0} phase {pilot.Phase} tug agl {-tug.State.Position.Z:F1} V {tug.State.Velocity.Length:F1} glider agl {-glider.State.Position.Z:F1} tension {tow.Tension:F0} pitch {Pitch(tug):F1} ele {ci.Elevator:F2} thr {ci.ThrottleLever:F2}");
             if (pilot.WantsRelease && tow.Connected) { tow.Release("tug"); tRelease = t; }
             tug.Step(ci, dt);
             if (!tow.Connected) break;

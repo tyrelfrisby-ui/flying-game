@@ -303,7 +303,7 @@ namespace FlyingGame.Bridge
                     if (_bailRect.Contains(p.pos) && BailAvailable) { _tapped.Add(Btn.Bail); continue; }
                     if (_resetRect.Contains(p.pos)) { _tapped.Add(Btn.Reset); continue; }
                     if (_acftRect.Contains(p.pos)) { _tapped.Add(Btn.Aircraft); continue; }
-                    if (_brakeRect.Contains(p.pos)) { _tapped.Add(Btn.Flaps); continue; }
+                    if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp(Mathf.FloorToInt((p.pos.x - _brakeRect.x) / _brakeRect.width * 3f), 0, 2); _tapped.Add(Btn.Flaps); continue; }
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
@@ -359,7 +359,9 @@ namespace FlyingGame.Bridge
                     case Btn.Aircraft: CycleAircraft(); break;
                     case Btn.Bail: if (BailAvailable) _egress.BailOut(); break;
                     case Btn.Flaps:
-                        if (_driver.HasFlaps && ac != null) { double f = ac.FlapFraction; ac.FlapFraction = f < 0.25 ? 0.5 : f < 0.75 ? 1.0 : 0.0; }
+                        // Three positions (owner 2026-09-15): the tap's third of the slot picks 0 / 50 / 100 directly, so 50 → 0
+                        // never has to pass through 100.
+                        if (_driver.HasFlaps && ac != null) ac.FlapFraction = _flapTapThird switch { 0 => 0.0, 1 => 0.5, _ => 1.0 };
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
@@ -596,9 +598,20 @@ namespace FlyingGame.Bridge
             // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset.
             if (_driver.HasFlaps)
             {
+                // FLAPS 0 | 50 | 100: three buttons in the slot, the current setting lit.
                 var fr = _brakeRect;
                 double f = _driver.Sim.Aircraft.FlapFraction;
-                Button(fr, $"FLAPS {f * 100:F0}%");
+                float third = fr.width / 3f;
+                for (int i = 0; i < 3; i++)
+                {
+                    bool on = i == 0 ? f < 0.25 : i == 1 ? (f >= 0.25 && f < 0.75) : f >= 0.75;
+                    var r = new Rect(fr.x + i * third, fr.y, third - 2f, fr.height);
+                    Rect g = ToGui(r);
+                    GUI.color = on ? new Color(0.2f, 0.62f, 0.35f, 0.95f) : new Color(0.18f, 0.24f, 0.32f, 0.95f);
+                    GUI.DrawTexture(g, _solidTex);
+                    GUI.color = Color.white;
+                    GUI.Label(g, i == 0 ? "FLAP 0" : i == 1 ? "50" : "100", _ejectStyle);
+                }
             }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
             var tow = GetComponent<TowController>();
@@ -626,6 +639,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>Square pad with centre cross, X/Y position lines through the knob, and the knob.</summary>
         private GUIStyle _brakeValueStyle;
+        private int _flapTapThird;
         /// <summary>Practice exercises: the merged inputs the sim actually received, so the pads can show what the GAME is doing
         /// on the axes it flies (owner: "make sure the control positions are shown on the control pads for all controls").</summary>
         public ControlInputs? DisplayOverride;

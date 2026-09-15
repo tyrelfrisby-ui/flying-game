@@ -43,7 +43,7 @@ public class LandingGearTests
     {
         // Rolling fast with a yaw-rate seed: a taildragger (CG behind mains) grows the yaw — a ground
         // loop builds with speed (destabilizing moment ~ V^2). No rudder correction = it runs away.
-        var tail = OnRunway("pa18-cub-like", 28, yawRad: 0.03);
+        var tail = OnRunway("pa18-cub-like", 16, yawRad: 0.03);   // a roll-out speed (28 m/s is flying now that the wing lifts properly)
         tail.State = new RigidBodyState(tail.State.Position, tail.State.Attitude, tail.State.Velocity, new Vec3(0, 0, 0.1));
         var sim = new SimLoop(tail);
         double yaw0 = System.Math.Abs(HeadingOf(tail));

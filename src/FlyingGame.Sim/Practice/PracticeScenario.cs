@@ -103,6 +103,8 @@ public sealed class PracticeScenario
     private readonly Random _rng;
     private double _lastAlongForShift, _stillSec, _crab0, _hT = double.NaN, _theta0, _betaF;
     private bool _heightLawOn;
+    /// <summary>Elevator-power scale for the game's pitch laws: 1.8°/° of trim slope = 1.0; a tail with twice the power gets half the gains.</summary>
+    public double ElevatorPower { get; private set; } = 1.0;
 
     public ControlInputs LastInputs { get; private set; } = ControlInputs.Neutral;
     /// <summary>What the game would do on every axis this step (the user's axis included) — the briefing autopilot and the test yardstick.</summary>
@@ -126,6 +128,13 @@ public sealed class PracticeScenario
         double drop = 0; foreach (GearConfig g in config.Gear) if (!g.IsTailwheel) drop = Math.Max(drop, g.Pos[2] - config.Mass.CgVec().Z);
         GearDropM = drop;
         _gustNextT = 2 + 3 * _rng.NextDouble();
+        try
+        {
+            TrimSolver.Result ta = TrimSolver.SolveGliderTrim(config, 1.5 * VsoMs, surfaceM + 300), tb = TrimSolver.SolveGliderTrim(config, 1.8 * VsoMs, surfaceM + 300);
+            if (ta.Converged && tb.Converged && Math.Abs(ta.AlphaRad - tb.AlphaRad) > 1e-3)
+                ElevatorPower = Math.Clamp(Math.Abs((ta.ElevatorRad - tb.ElevatorRad) / (ta.AlphaRad - tb.AlphaRad)) / 1.8, 0.3, 1.0);
+        }
+        catch (Exception) { }
         if (Approach)
         {
             // Glideslope: a little shallower than the idle glide at 1.3 Vso (so it takes a touch of power to stay on it);
@@ -153,13 +162,18 @@ public sealed class PracticeScenario
     /// stall in the first gust).</summary>
     public static double EstimateVso(AircraftConfig config, double altitudeM)
     {
+        // Scan DOWN from a comfortable speed and stop at the first speed the trim solver can no longer hold below 14° of
+        // angle of attack (scanning up found spurious low-speed solutions on some types).
         double vRef = config.SpawnIasMs > 1 ? config.SpawnIasMs : 25.0;
-        for (double v = vRef * 0.4; v <= vRef * 1.6; v += 0.5)
+        double last = vRef;
+        for (double v = vRef * 1.6; v >= vRef * 0.35; v -= 0.5)
         {
             TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM);
-            if (t.Converged && !double.IsNaN(t.AlphaRad) && t.AlphaRad < 12.0 * Math.PI / 180 && t.GlideRatio > 0) return v;
+            bool ok = t.Converged && !double.IsNaN(t.AlphaRad) && t.AlphaRad < 14.0 * Math.PI / 180 && t.GlideRatio > 0;
+            if (!ok) return last;
+            last = v;
         }
-        return vRef * 0.8;
+        return last;
     }
 
     /// <summary>Level-flight speed at 75 % power: the slowest speed whose drag power (weight ÷ glide ratio × V ÷ η) reaches
@@ -305,7 +319,7 @@ public sealed class PracticeScenario
         double maxP = Config.Propulsion?.MaxPowerW > 0 ? Config.Propulsion.MaxPowerW : 100000;
         _thr0 = FlareExercise || Config.Propulsion is null ? 0.0 : Math.Clamp(thrustNeeded * v / (eff * maxP), 0.0, 0.9);
         var ac = new Aircraft(Config, state, new ControlDeflections(0, elevRad, 0, Config.Propulsion is null && Approach ? 0.5 : 0));
-        ac.FlapFraction = 0.5;   // landing configuration (no-op on a type without flaps)
+        ac.FlapFraction = 0.0;   // the user picks the flap setting (owner: practise with and without)
         return ac;
     }
 
@@ -448,7 +462,7 @@ public sealed class PracticeScenario
 
         // Aileron: bank toward the centreline (position + cross-track rate + a slow integral for the steady wing-low slip),
         // wings level on the ground. Modest gains: the loop couples with the rudder through dihedral.
-        _ailInt = Math.Clamp(_ailInt + (ground ? 0 : 0.003 * cross * dt), -0.12, 0.12);
+        _ailInt = Math.Clamp(_ailInt + (ground ? 0 : 0.006 * cross * dt), -0.25, 0.25);   // the steady wing-low slip needs up to ~14° of bank
         double phiCmd = ground ? 0 : Math.Clamp(-0.025 * cross - 0.08 * vCross - _ailInt, -0.28, 0.28);
         double ail = Math.Clamp(1.2 * (phiCmd - roll) - 0.5 * p, -1, 1);
         if (ground && !UserAileron) ail = Math.Clamp(-0.8 * roll, -1, 1);
@@ -515,7 +529,8 @@ public sealed class PracticeScenario
             // Gains scaled down with speed (elevator power grows with V²): the same law that flares a 2-33 at 20 m/s hunted
             // in pitch with a Cub at 34 m/s.
             double kv = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.35, 1.2);
-            ele = Math.Clamp(_elevTrim + kv * (0.45 * hErr + 0.55 * (hdot - hdotTarget)) + 0.6 * q + _elevInt, -0.9, 0.6);
+            // Pitch-rate damping stays at full strength (scaling it away let the Cub porpoise in the hold-off).
+            ele = Math.Clamp(_elevTrim + ElevatorPower * (kv * (0.45 * hErr + 0.55 * (hdot - hdotTarget)) + _elevInt) + 0.6 * q, -0.9, 0.6);
             // Stall guard: slow and still above the hold-off, the answer is power, not more back stick (a gust at 5 ft
             // had the law pull a Cub into a stall and drop a wing).
             if (!ground && mainsAgl > 0.5 && ias < 1.06 * VsoMs) ele = Math.Max(ele, _elevTrim - 0.15);
@@ -620,9 +635,10 @@ public sealed class PracticeScenario
             {
                 // Altitude hold through the S-turns: bank feed-forward (a 45° bank needs 1.41 g of back stick), height and
                 // climb-rate errors, pitch-rate damping, slow integral.
-                double bankFf = -0.5 * (1.0 / Math.Max(0.5, Math.Cos(roll)) - 1.0);
-                _elevInt = Math.Clamp(_elevInt + 0.05 * hErr * dt, -0.4, 0.4);
-                ele = Math.Clamp(_elevTrim + bankFf + 0.2 * hErr + 0.4 * hdot + 0.6 * q + _elevInt, -0.9, 0.6);
+                double kva = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.25, 1.0);   // elevator power grows with V²
+                double bankFf = -0.3 * (1.0 / Math.Max(0.5, Math.Cos(roll)) - 1.0);
+                _elevInt = Math.Clamp(_elevInt + 0.03 * hErr * dt, -0.3, 0.3);
+                ele = Math.Clamp(_elevTrim + ElevatorPower * (kva * (bankFf + 0.08 * hErr + 0.25 * hdot) + _elevInt) + 0.5 * q, -0.6, 0.45);
                 double vErr = SpeedTargetMs - ias;
                 _thrInt = Math.Clamp(_thrInt + 0.04 * vErr * dt, -0.5, 0.5);
                 // Altitude has priority over the speed schedule: sinking away from the block, add power (a 45° bank at
@@ -645,9 +661,9 @@ public sealed class PracticeScenario
             else if (_stallPhase == 3 && _stallPhaseT > 4.0) { _stallPhase = 0; _stallPhaseT = 0; }
             double gameEle = _stallPhase switch
             {
-                0 => Math.Clamp(_elevTrim - 0.12 * _stallPhaseT, -0.85, 0.5),      // ease the nose up
-                1 => -0.85,                                                          // hold it in
-                2 => Math.Clamp(_elevTrim + 0.3, -0.9, 0.6),                        // break: nose down
+                0 => Math.Clamp(_elevTrim - 0.06 * _stallPhaseT, -0.55, 0.5),      // ease the nose up
+                1 => Math.Clamp(_elevTrim - 0.45, -0.6, 0.3),                       // hold it just past the stall
+                2 => Math.Clamp(_elevTrim + 0.25, -0.9, 0.6),                       // break: nose down
                 _ => Math.Clamp(_elevTrim + 0.15 * (1.3 * VsoMs - ias) + 0.6 * q, -0.9, 0.6),   // settle back to 1.3 Vso
             };
             ele = Kind == PracticeKind.StallRudder ? gameEle : user.Elevator;

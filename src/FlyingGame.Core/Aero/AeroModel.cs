@@ -73,6 +73,10 @@ public static class AeroModel
     {
         int stripIndex = 0;
         Vec3 cg = config.Mass.CgVec();
+        double flapDownwashRad = 0.0;
+        if (controls.FlapFraction > 0.0)
+            foreach (SurfaceConfig sfx in config.Surfaces) foreach (StripConfig stx in sfx.Strips)
+                if (stx.Flap is not null) flapDownwashRad = Math.Max(flapDownwashRad, stx.Flap.MaxDeltaAlphaRad * controls.FlapFraction);
         Vec3 totalForce = Vec3.Zero;
         Vec3 totalMoment = Vec3.Zero;
 
@@ -204,6 +208,9 @@ public static class AeroModel
                         double eps = config.StallDynamics.DownwashLagEnabled && flowState is not null
                             ? flowState.DownwashEpsLagged
                             : 0.4 * Math.Clamp(wake.FlowAlpha, -0.5, 0.5) * (1.0 - wake.StalledFraction);
+                        // Flaps add downwash at the tail in proportion to the lift they add (owner 2026-09-15: the
+                        // flap / tail interaction): the flap's effective incidence shift, scaled like the wing's own alpha.
+                        eps += 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction);
                         alphaBase -= eps;
                     }
 

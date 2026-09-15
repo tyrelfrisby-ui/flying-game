@@ -62,6 +62,8 @@ public sealed class TugPilot
 
     /// <summary>Flare profile: begins with the mains 20 ft up; sink target = FlareGainPerSec × (mains height − 6 in).</summary>
     public const double FlareStartAglM = 6.1, HoldOffAglM = 0.15, FlareGainPerSec = 0.16;
+    public double ElevatorScale = 0.55, RudderScale = 0.6;
+    private bool _scaled;
 
     /// <summary>Height of the lowest main wheel and of the tailwheel above the ground under them (world frame).</summary>
     private static (double mains, double tail) WheelHeights(Aircraft tug)
@@ -99,6 +101,22 @@ public sealed class TugPilot
             var mains = tug.Config.Gear.FindAll(g => !g.IsTailwheel && g.Pos[2] > 0 && Math.Abs(g.Pos[1]) < 3);
             var tws = tug.Config.Gear.FindAll(g => g.IsTailwheel);
             _stanceRad = mains.Count > 0 && tws.Count > 0 ? Math.Atan((mains[0].Pos[2] - tws[0].Pos[2]) / (mains[0].Pos[0] - tws[0].Pos[0])) : 0.15;
+        }
+        if (!_scaled)
+        {
+            // Control-power scaling from the type's own trim slope (elevator per degree of angle of attack between 26 and
+            // 30 m/s): the laws were tuned at ~1.8°/°; a tail with twice the power gets half the stick.
+            _scaled = true;
+            try
+            {
+                TrimSolver.Result a = TrimSolver.SolveGliderTrim(tug.Config, 26, 300), b = TrimSolver.SolveGliderTrim(tug.Config, 30, 300);
+                if (a.Converged && b.Converged && Math.Abs(a.AlphaRad - b.AlphaRad) > 1e-3)
+                {
+                    double slope = Math.Abs((a.ElevatorRad - b.ElevatorRad) / (a.AlphaRad - b.AlphaRad));
+                    ElevatorScale = Math.Clamp(slope / 1.8, 0.3, 1.0);
+                }
+            }
+            catch (Exception) { }
         }
         if (ApproachSpeedMs <= 0)
         {
@@ -161,10 +179,13 @@ public sealed class TugPilot
         }
         double hErr = Wrap(headingCmd - psi);
         double maxBank = MaxBankDeg * Math.PI / 180;
-        double bankCmd = _airborne && Phase != Phases.Rollout ? Math.Clamp(hErr * 1.5, -maxBank, maxBank) : 0.0;
+        // Heading → bank, with yaw-rate damping (the Cub tug hunted ±30° of heading on final once its CG sat where a real
+        // Cub's does).
+        double hGain = Phase is Phases.Final or Phases.Flare ? 1.0 : 1.5;   // gentler on final: the Cub tug swung ±20° of bank there
+        double bankCmd = _airborne && Phase != Phases.Rollout ? Math.Clamp(hErr * hGain - s.Rates.Z * 1.2, -maxBank, maxBank) : 0.0;
         if (Phase is Phases.Flare or Phases.Rollout) bankCmd = 0;
         if (Phase == Phases.Final && agl < 15) bankCmd = Math.Clamp(bankCmd, -8 * Math.PI / 180, 8 * Math.PI / 180); // no big banks near the ground
-        double ail = Math.Clamp((bankCmd - roll) * 2.0 - s.Rates.X * 0.6, -1, 1);
+        double ail = Math.Clamp((bankCmd - roll) * 2.0 - s.Rates.X * 1.0, -1, 1);
         double rud = onGround ? Math.Clamp(hErr * 3.0 - s.Rates.Z * 0.6, -1, 1) : Math.Clamp(bankCmd * 0.25 + hErr * 0.3 - s.Rates.Z * 0.2, -1, 1);
 
         // ---- longitudinal: sink target → elevator; speed → throttle
@@ -235,7 +256,9 @@ public sealed class TugPilot
         {
             // Airborne: PITCH holds airspeed, POWER holds the climb/descent rate (tow-pilot technique — the
             // excess power goes into climb, and a heavy glider on the rope can't run the speed away).
-            elev = Math.Clamp(-0.08 * (v - vTarget) - s.Rates.Y * 0.5 - 0.12 * Math.Abs(bankCmd), -0.7, 0.4);
+            // Speed by pitch: a gentler gain with more pitch-rate damping (with the real tail lift curve the old gain set
+            // up a 5 s pitch/speed cycle on the Cub tug that slammed the rope to its weak link).
+            elev = Math.Clamp(-0.04 * (v - vTarget) - s.Rates.Y * 0.9 - 0.12 * Math.Abs(bankCmd), -0.7, 0.4);
             double thr = Math.Clamp((Phase == Phases.Final ? 0.3 : 0.6) + 0.3 * (sink - sinkTarget), 0.0, 1.0);
             if (Phase == Phases.Climb)
             {
@@ -274,6 +297,10 @@ public sealed class TugPilot
         }
         else _overAngleT = 0;
 
+        // Elevator authority scale: the tails gained ~1.9× pitch power (real tail lift curve + 30° travel, 2026-09-15); every
+        // law above was tuned before that, so the stick travel they ask for is scaled back to keep the same response.
+        elev *= ElevatorScale;
+        rud *= RudderScale;   // the fin table gained ~1.6× too
         return new ControlInputs(ail, elev, rud, lever);
     }
 
