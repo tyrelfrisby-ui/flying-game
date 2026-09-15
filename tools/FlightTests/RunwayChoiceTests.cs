@@ -68,4 +68,20 @@ public class RunwayChoiceTests
         double psi = System.Math.Atan2(2 * (lq.W * lq.Z + lq.X * lq.Y), 1 - 2 * (lq.Y * lq.Y + lq.Z * lq.Z));
         Assert.Equal(0.0, psi, 3);
     }
+
+    [Fact]
+    public void FloatplaneOnFinalIsAimedAtTheLake()
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-floats-like.json"));
+        WorldTerrain.Active = null; Atmosphere.SteadyWind = new Vec3(3, 0, 0);   // wind blowing north
+        var lake = WorldTerrain.Lakes[0];
+        var (st, glide, aimX) = ApproachSpawn.ComputeToLake(c, lake);
+        Assert.InRange(-st.Position.Z - lake.SurfaceM, 90, 93);                     // 300 ft over the water
+        Assert.True(lake.Inside(aimX, lake.Cy) < 1, "aim point is on the lake");
+        // Heading south into the northerly wind, so the touchdown zone lies on the lake's near half.
+        var q = st.Attitude; double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
+        Assert.InRange(Math.Abs(hdg), 3.0, 3.3);
+        Assert.True(lake.Inside(aimX, lake.Cy) < 0.6);
+        Atmosphere.SteadyWind = Vec3.Zero;
+    }
 }

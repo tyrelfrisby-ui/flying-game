@@ -102,6 +102,17 @@ namespace FlyingGame.Bridge
                 return;
             }
 
+            if (IdleStart && config.Floats != null)
+            {
+                // Floatplane on final: to the field's lake, 300 ft over the water, idle, best glide (owner 2026-09-14).
+                FlyingGame.Core.WorldTerrain.Lake lake = FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 1)];
+                var (fState, glide, _) = ApproachSpawn.ComputeToLake(config, lake);
+                TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
+                Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, glide.SpoilerFraction)));
+                StartSpoilerFraction = glide.SpoilerFraction;
+                ApplyStateToTransform();
+                return;
+            }
             if (ground && config.Floats != null)
             {
                 // Floatplane: "on the runway" means on the water — at rest on the field's lake, heading north.

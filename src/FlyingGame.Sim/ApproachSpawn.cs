@@ -75,12 +75,29 @@ public static class ApproachSpawn
     /// the extended centreline, heading the runway's heading, aimed 200 m past its threshold.</summary>
     public static (RigidBodyState State, BestGlide Glide, double AimX) Compute(AircraftConfig config, WorldTerrain.Airport airport, WorldTerrain.RunwayEnd rw)
     {
-        double alt = airport.ElevationM + AglM;
-        BestGlide g = ApproachGlide(config, alt);
         (double aimX, double aimY) = rw.At(AimPastThresholdM);
+        return ComputeAt(config, aimX, aimY, airport.ElevationM, rw.HeadingRad);
+    }
+
+    /// <summary>On final to the field's LAKE for a floatplane (owner 2026-09-14): 300 ft above the water on the lake's long
+    /// (north–south) axis, heading into whatever wind blows along it, aimed 200 m short of the centre.</summary>
+    public static (RigidBodyState State, BestGlide Glide, double AimX) ComputeToLake(AircraftConfig config, WorldTerrain.Lake lake)
+    {
+        Vec3 wind = Atmosphere.WindAtPosition(new Vec3(lake.Cx, lake.Cy, -lake.SurfaceM));
+        double heading = wind.X > 0 ? System.Math.PI : 0.0;   // wind blowing north → land heading south, into it
+        double ax = System.Math.Cos(heading), ay = System.Math.Sin(heading);
+        return ComputeAt(config, lake.Cx - ax * AimPastThresholdM, lake.Cy - ay * AimPastThresholdM, lake.SurfaceM, heading);
+    }
+
+    /// <summary>State on final: 300 ft above the surface, on the approach line through the aim point at the given heading.</summary>
+    public static (RigidBodyState State, BestGlide Glide, double AimX) ComputeAt(AircraftConfig config, double aimX, double aimY, double surfaceM, double headingRad)
+    {
+        double alt = surfaceM + AglM;
+        BestGlide g = ApproachGlide(config, alt);
+        double alongX = System.Math.Cos(headingRad), alongY = System.Math.Sin(headingRad);
         double back = AglM / System.Math.Tan(g.GammaRad);
-        var pos = new Vec3(aimX - rw.AlongX * back, aimY - rw.AlongY * back, -alt);
-        double half = g.ThetaRad / 2.0, hh = rw.HeadingRad / 2.0;
+        var pos = new Vec3(aimX - alongX * back, aimY - alongY * back, -alt);
+        double half = g.ThetaRad / 2.0, hh = headingRad / 2.0;
         var att = Quat.Multiply(new Quat(0, 0, System.Math.Sin(hh), System.Math.Cos(hh)), new Quat(0, System.Math.Sin(half), 0, System.Math.Cos(half)));   // yaw then pitch
         var vBody = new Vec3(g.SpeedMs * System.Math.Cos(g.AlphaRad), 0, g.SpeedMs * System.Math.Sin(g.AlphaRad))
                     + att.Conjugate().Rotate(Atmosphere.WindAtPosition(pos));
