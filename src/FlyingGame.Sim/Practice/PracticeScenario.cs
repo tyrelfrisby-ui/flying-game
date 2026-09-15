@@ -239,8 +239,6 @@ public sealed class PracticeScenario
         double bestLd = 0, minSink = 1e9, bestGround = -1e9, bestRoc = -1e9, bestAngle = -1e9;
         double weight = Config.Mass.MassKg * 9.81;
         bool glider = Config.Propulsion is null;
-        double eff = !glider && Config.Propulsion!.Efficiency > 0 ? Config.Propulsion.Efficiency : 0.75;
-        double pmax = !glider ? Config.Propulsion!.MaxPowerW : 0;
         for (double v = Math.Max(8, VsoMs * 1.02); v <= vRef * 2.0; v += 0.5)
         {
             TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, v, altM);
@@ -252,7 +250,8 @@ public sealed class PracticeScenario
             if (ground > bestGround) { bestGround = ground; SpeedToFlyMs = v; }
             if (!glider)
             {
-                double thrust = Math.Min(eff * pmax / v, 0.6 * Math.Pow(pmax * pmax * 2.0 * 1.225 * Math.PI * Math.Pow(Config.Propulsion!.PropDiameterM / 2, 2), 1.0 / 3.0));
+                (Vec3 tf, _) = PropModel.Compute(Config.Propulsion!, 1.0, new Vec3(v, 0, 0), Vec3.Zero, 1.2);   // the sim's own propeller (efficiency falls off at low speed)
+                double thrust = tf.X;
                 double roc = (thrust - weight / t.GlideRatio) * v / weight;
                 if (roc > bestRoc) { bestRoc = roc; VyMs = v; RocAtVyMs = roc; }
                 double angle = roc / (v + windAlong);

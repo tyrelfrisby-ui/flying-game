@@ -150,13 +150,14 @@ namespace FlyingGame.Bridge.Practice
             var cfg = sc.Config; double alt = sc.SurfaceM + FlyingGame.Sim.Practice.PracticeScenario.AirworkAglM;
             if (cfg.Propulsion is null) return t;
             float vMax = (float)(2.2 * sc.VsoMs), rocMax = 0.1f;
-            double weight = cfg.Mass.MassKg * 9.81, eff = cfg.Propulsion.Efficiency > 0 ? cfg.Propulsion.Efficiency : 0.75, pmax = cfg.Propulsion.MaxPowerW;
+            double weight = cfg.Mass.MassKg * 9.81;
             var pts = new System.Collections.Generic.List<(float v, float roc)>();
             for (double v = sc.VsoMs * 1.02; v <= vMax; v += 0.5)
             {
                 var r = FlyingGame.Sim.TrimSolver.SolveGliderTrim(cfg, v, alt);
                 if (!r.Converged || r.GlideRatio <= 0) continue;
-                double thrust = System.Math.Min(eff * pmax / v, 0.6 * System.Math.Pow(pmax * pmax * 2.0 * 1.225 * System.Math.PI * System.Math.Pow(cfg.Propulsion.PropDiameterM / 2, 2), 1.0 / 3.0));
+                var (tf, _) = FlyingGame.Core.PropModel.Compute(cfg.Propulsion, 1.0, new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero, 1.2);
+                double thrust = tf.X;
                 float roc = (float)((thrust - weight / r.GlideRatio) * v / weight);
                 pts.Add(((float)v, roc)); rocMax = Mathf.Max(rocMax, roc);
             }

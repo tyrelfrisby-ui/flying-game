@@ -312,4 +312,40 @@ public class PracticeScenarioTests
         Assert.Equal("back at the start altitude", sc.EndReason);
         Assert.True(sc.InBandFraction > 0.4, $"in band {sc.InBandFraction * 100:F0} %");
     }
+
+    /// <summary>Where the climb performance comes from: thrust vs drag at Vy, with the drag split by source.</summary>
+    [Theory]
+    [InlineData("c172-like.json")]
+    [InlineData("pa18-cub-like.json")]
+    public void ClimbPerformanceBreakdown(string file)
+    {
+        var c = Load(file);
+        var sc = new PracticeScenario(PracticeKind.ClimbVyRear, PracticeWind.Calm, c, Runway(), 0); sc.Spawn();
+        double weight = c.Mass.MassKg * 9.81;
+        var tables = Aircraft.BuildAirfoilTables(c);
+        foreach (double v in new[] { sc.VyMs, 1.3 * sc.VsoMs, sc.CruiseMs })
+        {
+            var tr = TrimSolver.SolveGliderTrim(c, v, 500);
+            var (F, _) = FlyingGame.Core.PropModel.Compute(c.Propulsion!, 1.0, new Vec3(v, 0, 0), Vec3.Zero, 1.2);
+            double thrust = F.X;
+            // drag split at the trimmed alpha
+            var vel = new Vec3(v * Math.Cos(tr.AlphaRad), 0, v * Math.Sin(tr.AlphaRad));
+            var flow = new FlyingGame.Core.Aero.StripFlowState(); flow.EnsureSize(64);
+            FlyingGame.Core.Aero.ForceDebug.Samples = new System.Collections.Generic.List<FlyingGame.Core.Aero.ForceSample>();
+            FlyingGame.Core.Aero.AeroModel.Compute(c, tables, vel, Vec3.Zero, Vec3.Zero, 1.2, new FlyingGame.Core.Aero.ControlDeflections(0, tr.ElevatorRad, 0, 0), -1.0, flow);
+            double dWing = 0, dTail = 0, dFus = 0, lift = 0;
+            Vec3 flowDir = vel / vel.Length;
+            foreach (var s in FlyingGame.Core.Aero.ForceDebug.Samples)
+            {
+                double along = -Vec3.Dot(s.ForceBody, flowDir);   // component against the flow = drag
+                if (s.Kind == "drag") { if (s.PosBody.X < -2.5) dTail += along; else dWing += along; }
+                else if (s.Kind == "lift") { lift += -s.ForceBody.Z; }
+                else if (s.Kind == "fuselage") dFus += along;
+            }
+            FlyingGame.Core.Aero.ForceDebug.Samples = null;
+            double dTot = weight / tr.GlideRatio;
+            double roc = (thrust - dTot) * v / weight;
+            _out.WriteLine($"{file} v {v * 1.944,4:F0} kt: L/D {tr.GlideRatio:F1}  drag {dTot:F0} N (wing {dWing:F0} + tail {dTail:F0} + fuselage {dFus:F0})  thrust {thrust:F0} N (eff·P/V = {c.Propulsion!.Efficiency * c.Propulsion.MaxPowerW / v:F0})  ROC {roc * 196.85:F0} fpm");
+        }
+    }
 }

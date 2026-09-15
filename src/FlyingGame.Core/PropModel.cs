@@ -43,7 +43,13 @@ public static class PropModel
         // ~55-65 % of the ideal at zero airspeed (a 180 hp 172 ≈ 2.7 kN, not the 5 kN momentum theory gives).
         const double staticFigureOfMerit = 0.6;
         double staticThrust = staticFigureOfMerit * Math.Pow(powerW * powerW * 2.0 * airDensity * discArea, 1.0 / 3.0);
-        double thrust = powerW <= 0 ? 0 : Math.Min(prop.Efficiency * powerW / Math.Max(v, 5.0), staticThrust);
+        // Propeller efficiency falls off below the design speed (owner 2026-09-15: the sim climbed at 1.6× the book with a
+        // flat 0.78). A fixed-pitch cruise prop makes ~85 % of its peak efficiency at Vy and ~60 % near the stall; a
+        // constant-speed prop holds its efficiency down to about 60 kt.
+        double effRatio = prop.ConstantSpeed
+            ? Math.Clamp(0.6 + 0.4 * (v / 30.0), 0.6, 1.0)
+            : Math.Clamp(0.35 + 0.65 * (v / 45.0), 0.4, 1.0);
+        double thrust = powerW <= 0 ? 0 : Math.Min(prop.Efficiency * effRatio * powerW / Math.Max(v, 5.0), staticThrust);
 
         Vec3 force = new(thrust, 0, 0);
         Vec3 moment = Vec3.Zero;

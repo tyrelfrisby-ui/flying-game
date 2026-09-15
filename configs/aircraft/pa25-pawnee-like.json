@@ -21,7 +21,7 @@
     {
       "id": "wing",
       "heightAboveBodyAxisM": -0.8,
-      "oswaldE": 0.78,
+      "oswaldE": 0.72,
       "strips": [
         {
           "pos": [
@@ -1426,7 +1426,7 @@
     }
   },
   "fuselage": {
-    "cd0Area": 0.62,
+    "cd0Area": 0.7,
     "sideForceArea": 5.5,
     "damping": {
       "p": 0,

@@ -21,7 +21,7 @@
     {
       "id": "wing",
       "heightAboveBodyAxisM": 0.6,
-      "oswaldE": 0.8,
+      "oswaldE": 0.72,
       "strips": [
         {
           "pos": [
@@ -1426,7 +1426,7 @@
     }
   },
   "fuselage": {
-    "cd0Area": 0.34,
+    "cd0Area": 0.42,
     "sideForceArea": 4.2,
     "damping": {
       "p": 0,
@@ -1450,7 +1450,7 @@
     "maxRpm": 2700,
     "propInertia": 1.7,
     "rotationSign": 1,
-    "efficiency": 0.78,
+    "efficiency": 0.72,
     "thrustLineZ": 0.05,
     "pFactorK": 0.35,
     "slipstreamK": 0.12,

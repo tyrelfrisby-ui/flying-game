@@ -290,8 +290,11 @@ public sealed class TugPilot
         WantsRelease = false;
         if (ropeDirBody.HasValue && ropeTension > 300 && _airborne)
         {
-            double up = -ropeDirBody.Value.Z; // + = glider above the tug's hook line
-            bool over = up > Math.Sin(32 * Math.PI / 180) || up < -Math.Sin(22 * Math.PI / 180);
+            // Rope angle against the HORIZON (a glider climbing high pitches the tug nose-down, which hid the angle in the
+            // body frame), plus a hard case: being pulled nose-down below −8° under load is a kite — release.
+            Vec3 ropeWorld = tug.State.Attitude.Rotate(ropeDirBody.Value);
+            double up = -ropeWorld.Z; // + = glider above the tug
+            bool over = up > Math.Sin(32 * Math.PI / 180) || up < -Math.Sin(22 * Math.PI / 180) || (pitch < -8 * Math.PI / 180 && ropeTension > 1200);
             _overAngleT = over ? _overAngleT + dt : 0;
             if (_overAngleT > 0.7) { WantsRelease = true; Status = "TUG RELEASED (rope angle)"; }
         }
