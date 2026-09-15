@@ -45,9 +45,35 @@ namespace FlyingGame.Bridge.Practice
             Rect view = ScreenLayout.Portrait ? new Rect(0f, 0f, Screen.width, Screen.height - ScreenLayout.TrayHeightPx) : new Rect(0f, 0f, Screen.width, Screen.height);
             float lh = _fs * 1.5f;
 
-            if (sc.Phase == PracticePhase.Briefing) { DrawBriefing(sc, view, lh); return; }
+            if (sc.Phase == PracticePhase.Briefing)
+            {
+                if (sc.LessonPages.Length > 0 && Controller.LessonPage < sc.LessonPages.Length) DrawLessonPage(sc, view, lh);
+                else DrawBriefing(sc, view, lh);
+                return;
+            }
             DrawLive(sc, view, lh);
             if (sc.Phase == PracticePhase.Finished) DrawResult(sc, view, lh);
+        }
+
+        /// <summary>An illustrated page: the picture rendered from the game, the written explanation, NEXT.</summary>
+        private void DrawLessonPage(PracticeScenario sc, Rect view, float lh)
+        {
+            var page = sc.LessonPages[Controller.LessonPage];
+            float w = Mathf.Min(view.width * 0.94f, _fs * 30f);
+            float imgH = w * 0.625f;
+            float h = lh * 1.4f + imgH + lh * 5.2f + lh * 1.4f;
+            var card = new Rect(view.x + (view.width - w) * 0.5f, view.y + Mathf.Max(_fs * 2f, (view.height - h) * 0.35f), w, h);
+            GUI.DrawTexture(card, _card);
+            float x = card.x + _fs * 0.5f, y = card.y + _fs * 0.4f, cw = card.width - _fs;
+            GUI.Label(new Rect(x, y, cw, lh * 1.2f), $"{page.title}   ({Controller.LessonPage + 1}/{sc.LessonPages.Length})", _title); y += lh * 1.3f;
+            Texture2D pic = Controller.LessonPictures.Length > Controller.LessonPage ? Controller.LessonPictures[Controller.LessonPage] : null;
+            var imgRect = new Rect(x, y, cw, imgH);
+            if (pic != null) GUI.DrawTexture(imgRect, pic, ScaleMode.ScaleToFit); else GUI.Label(imgRect, "(picture)", _small);
+            y += imgH + _fs * 0.3f;
+            string legend = Controller.LessonPage == 0 ? "green = lift (tilted with the bank) · orange = its sideways part · grey = weight" : "white = relative wind of the slip · yellow = vertical tail force · orange = the nose swings";
+            GUI.Label(new Rect(x, y, cw, lh * 0.8f), legend, _small); y += lh * 0.9f;
+            GUI.Label(new Rect(x, y, cw, lh * 4.0f), page.text, _text); y += lh * 4.1f;
+            if (GUI.Button(new Rect(card.center.x - _fs * 4f, y, _fs * 8f, lh * 1.1f), "NEXT", _btn)) Controller.NextLessonPage();
         }
 
         private void DrawBriefing(PracticeScenario sc, Rect view, float lh)
@@ -112,6 +138,27 @@ namespace FlyingGame.Bridge.Practice
         {
             float y = view.y + view.height * 0.06f;
             var good = new Color(0.45f, 1f, 0.5f); var warn = new Color(1f, 0.6f, 0.3f);
+            if (sc.Straight)
+            {
+                float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.5f;
+                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + view.height * 0.115f, bw, bh);
+                Matrix4x4 m = GUI.matrix;
+                GUIUtility.RotateAroundPivot(-(float)sc.BankDeg, bar.center);
+                GUI.color = Mathf.Abs((float)sc.BankDeg) < 3f ? good : warn;
+                GUI.DrawTexture(bar, _line);
+                GUI.matrix = m; GUI.color = Color.white;
+                string slip = Mathf.Abs((float)sc.BetaDeg) < 1f ? "no slip" : sc.BetaDeg > 0 ? $"slipping RIGHT {sc.BetaDeg:F0}°" : $"slipping LEFT {-sc.BetaDeg:F0}°";
+                string drift = Mathf.Abs((float)sc.HeadingDriftDeg) < 2f ? "heading held" : sc.HeadingDriftDeg > 0 ? $"nose swung RIGHT {sc.HeadingDriftDeg:F0}°" : $"nose swung LEFT {-sc.HeadingDriftDeg:F0}°";
+                var a = new GUIStyle(_big) { normal = { textColor = Mathf.Abs((float)sc.BankDeg) < 3f ? good : warn } };
+                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"bank {sc.BankDeg:F0}°   ·   {slip}   ·   {drift}", a);
+                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"AILERON: keep the wings level (rudder is neutral)   ·   level {sc.InBandFraction * 100:F0} % of the time", _small);
+                if (sc.Endless && sc.Phase == PracticePhase.Live)
+                {
+                    float bw2 = _fs * 5f;
+                    if (GUI.Button(new Rect(view.xMax - bw2 - _fs, view.y + view.height * 0.16f, bw2, lh * 1.05f), "END", _btn)) { Controller.End(); Menu?.Open(); }
+                }
+                return;
+            }
             if (sc.STurn)
             {
                 // Bank: a horizon bar tilted to the bank with the 45° targets marked; the cue says which way to roll next.

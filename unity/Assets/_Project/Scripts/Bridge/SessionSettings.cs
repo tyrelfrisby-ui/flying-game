@@ -104,17 +104,22 @@ namespace FlyingGame.Bridge
             ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
             ("a1c3-cardinal-turn", "Cardinal turn"), ("a1c4-stall-recover", "Stall recovery"),
             ("a1c10-headwind-landing", "Headwind landing"), ("a1c11-crosswind-landing", "Crosswind landing"),
-            ("practice:xwind-rudder", "Practice: crosswind · rudder"), ("practice:xwind-aileron", "Practice: crosswind · aileron"),
-            ("practice:land-rudder", "Practice: x-wind landing · rudder"), ("practice:land-aileron", "Practice: x-wind landing · aileron"),
-            ("practice:flare", "Practice: round-out & flare"), ("practice:flare-side", "Practice: flare · side view"),
-            ("practice:approach-side", "Practice: approach · side view"),
-            ("practice:s-turns", "Practice: S-turns 45°"), ("practice:s-turns-test", "Test: S-turns, one speed cycle"),
-            ("practice:stall-side", "Practice: stall · side view"), ("practice:stall-rudder", "Practice: stall, wing drop · rudder"),
-            ("practice:stall-elevator", "Practice: stall, recover · elevator"),
         };
 
+        /// <summary>FLYING LESSONS (owner 2026-09-15): the game flies every axis but the one being learned.</summary>
+        public static readonly (string id, string name)[] Lessons =
+        {
+            ("lesson:straight", "Straight: wings level"),
+            ("practice:xwind-rudder", "Crosswind · rudder"), ("practice:xwind-aileron", "Crosswind · aileron"),
+            ("practice:land-rudder", "Crosswind landing · rudder"), ("practice:land-aileron", "Crosswind landing · aileron"),
+            ("practice:flare", "Round-out & flare"), ("practice:flare-side", "Flare · side view"),
+            ("practice:approach-side", "Approach · side view"),
+            ("practice:s-turns", "S-turns 45°"), ("practice:s-turns-test", "Test: S-turns, one speed cycle"),
+            ("practice:stall-side", "Stall · side view"), ("practice:stall-rudder", "Stall, wing drop · rudder"),
+            ("practice:stall-elevator", "Stall, recover · elevator"),
+        };
         // ---- practice exercises (owner 2026-09-15): the game flies every axis but the one being practised ----
-        public static bool IsPractice(string id) => id != null && id.StartsWith("practice:");
+        public static bool IsPractice(string id) => id != null && (id.StartsWith("practice:") || id.StartsWith("lesson:"));
         public static FlyingGame.Sim.Practice.PracticeKind? PracticeKindFor(string id) => id switch
         {
             "practice:xwind-rudder" => FlyingGame.Sim.Practice.PracticeKind.CrosswindRudder,
@@ -129,12 +134,13 @@ namespace FlyingGame.Bridge
             "practice:stall-side" => FlyingGame.Sim.Practice.PracticeKind.StallSideView,
             "practice:stall-rudder" => FlyingGame.Sim.Practice.PracticeKind.StallRudder,
             "practice:stall-elevator" => FlyingGame.Sim.Practice.PracticeKind.StallElevator,
+            "lesson:straight" => FlyingGame.Sim.Practice.PracticeKind.Straight,
             _ => null,
         };
         /// <summary>Wind choice for the practice: crosswind exercises offer Steady/Gusty/Shifting, approach and flare exercises
         /// Calm/Headwind/Gusty headwind/Tailwind/Gusty tailwind.</summary>
         public static FlyingGame.Sim.Practice.PracticeWind PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Steady;
-        public static bool PracticeIsAirwork(string id) => id is "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
+        public static bool PracticeIsAirwork(string id) => id is "lesson:straight" or "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
         public static bool PracticeIsCrosswind(string id) => id is "practice:xwind-rudder" or "practice:xwind-aileron" or "practice:land-rudder" or "practice:land-aileron";
         public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices =
         {

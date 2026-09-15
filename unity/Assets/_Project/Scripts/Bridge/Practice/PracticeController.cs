@@ -26,6 +26,9 @@ namespace FlyingGame.Bridge.Practice
         private bool _handoverSpoken, _finishSpoken, _beginning;
         private float _sideBlend;   // 0 = frame centred on the glideslope, 1 = on the runway
         private bool _bubblesWere; private float _stallFocusY;
+        /// <summary>Lesson pictures rendered from the game at Begin (index = LessonPages index).</summary>
+        public Texture2D[] LessonPictures { get; private set; } = System.Array.Empty<Texture2D>();
+        public int LessonPage { get; set; }
 
         private void Awake()
         {
@@ -62,12 +65,36 @@ namespace FlyingGame.Bridge.Practice
                 _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
                 SetupCamera();
                 SetupSlopeLine();
-                PilotVoice.Say(Scenario.Title + ". " + Scenario.Instructions, 0.52f, 1.0f);
+                RenderLessonPictures();
+                LessonPage = 0;
+                if (Scenario.LessonPages.Length > 0) PilotVoice.Say(Scenario.LessonPages[0].title + ". " + Scenario.LessonPages[0].text, 0.52f, 1.0f);
+                else PilotVoice.Say(Scenario.Title + ". " + Scenario.Instructions, 0.52f, 1.0f);
             }
             finally { _beginning = false; }
         }
 
         public void Restart() { if (Scenario != null) Begin(Kind, Wind); }
+
+        /// <summary>Next briefing page: speaks it; past the last picture the standard card (title + instructions) is read.</summary>
+        public void NextLessonPage()
+        {
+            LessonPage++;
+            if (LessonPage < Scenario.LessonPages.Length) PilotVoice.Say(Scenario.LessonPages[LessonPage].title + ". " + Scenario.LessonPages[LessonPage].text, 0.52f, 1.0f);
+            else PilotVoice.Say(Scenario.Title + ". " + Scenario.Instructions, 0.52f, 1.0f);
+        }
+
+        private void RenderLessonPictures()
+        {
+            foreach (var t in LessonPictures) if (t != null) Destroy(t);
+            LessonPictures = System.Array.Empty<Texture2D>();
+            if (Scenario.Kind != PracticeKind.Straight) return;
+            try
+            {
+                Driver.transform.SetPositionAndRotation(CoordinateMap.ToUnity(Driver.Sim.Aircraft.State.Position), CoordinateMap.ToUnity(Driver.Sim.Aircraft.State.Attitude));
+                LessonPictures = new[] { LessonIllustrator.RearViewBank(Driver.transform), LessonIllustrator.TopViewWeathervane(Driver.transform) };
+            }
+            catch (System.Exception e) { Debug.LogWarning("lesson pictures: " + e.Message); }
+        }
 
         public void End()
         {
@@ -86,6 +113,7 @@ namespace FlyingGame.Bridge.Practice
         {
             if (!Active || Scenario == null || Driver.Sim == null) return user;
             Aircraft ac = Driver.Sim.Aircraft;
+            if (Scenario.LessonPages.Length > 0 && LessonPage < Scenario.LessonPages.Length) Scenario.HoldBriefing();
             ControlInputs merged = Scenario.Step(ac, user, dt);
             if (Scenario.GameBrake > 0)
             {

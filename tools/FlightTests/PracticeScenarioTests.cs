@@ -234,4 +234,29 @@ public class PracticeScenarioTests
             }
         }
     }
+
+    [Theory]
+    [InlineData("c172-like.json")]
+    [InlineData("glider-2-33-like.json")]
+    public void StraightLessonABankSlipsAndWeathervanesIntoATurnWithTheRudderNeutral(string file)
+    {
+        // Hands off the aileron after a 2 s roll input: the game never touches the rudder, so the bank slips and the nose swings.
+        double maxBeta = 0;
+        var sc = Run(file, PracticeKind.Straight, PracticeWind.Calm, (s, auto) =>
+        {
+            double t = s.Time - PracticeScenario.BriefingSec;
+            double ail = !s.UserHasControl ? auto.Aileron : t < 1.5 ? 0.3 : 0.0;   // a modest roll input, then hands off
+            maxBeta = Math.Max(maxBeta, Math.Abs(s.BetaDeg));
+            return new ControlInputs(ail, auto.Elevator, 0, auto.ThrottleLever);
+        }, maxSec: PracticeScenario.BriefingSec + 25);
+        _out.WriteLine($"  bank {sc.BankDeg:F0}°, heading drift {sc.HeadingDriftDeg:F0}°, max slip {maxBeta:F1}°, rudder {sc.LastInputs.Rudder:F2}");
+        Assert.Equal(0.0, sc.LastInputs.Rudder, 3);
+        Assert.True(Math.Abs(sc.HeadingDriftDeg) > 15, $"the bank should have turned it: heading drift {sc.HeadingDriftDeg:F0}°");
+        Assert.True(maxBeta > 0.5, $"a slip should show before the turn: max {maxBeta:F1}°");
+        // Wings held level by the game's own law instead: it goes straight.
+        var sc2 = Run(file, PracticeKind.Straight, PracticeWind.Calm, maxSec: PracticeScenario.BriefingSec + 25);
+        _out.WriteLine($"  wings level: heading drift {sc2.HeadingDriftDeg:F1}°");
+        // Powered types drift a little left with the rudder neutral at cruise (P-factor / slipstream); the lesson shows that too.
+        Assert.True(Math.Abs(sc2.HeadingDriftDeg) < (file.Contains("glider") ? 5 : 20), $"wings level should go (nearly) straight: drift {sc2.HeadingDriftDeg:F1}°");
+    }
 }

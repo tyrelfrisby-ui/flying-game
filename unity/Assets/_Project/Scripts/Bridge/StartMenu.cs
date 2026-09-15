@@ -183,19 +183,25 @@ namespace FlyingGame.Bridge
             foreach ((string id, string name) in SessionSettings.Challenges)
             {
                 bool on = SessionSettings.ChallengeId == id;
-                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn))
+                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.ChallengeId = id;
+                y += bh + gap * 0.4f;
+            }
+            // ---- FLYING LESSONS (owner 2026-09-15): the game flies every axis but the one being learned.
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, colW, lh), "FLYING LESSONS", _head); y += lh;
+            float lbh = bh * 0.9f;
+            foreach ((string id, string name) in SessionSettings.Lessons)
+            {
+                bool on = SessionSettings.ChallengeId == id;
+                if (GUI.Button(new Rect(x, y, colW, lbh), name, on ? _btnOn : _btn))
                 {
                     SessionSettings.ChallengeId = id;
-                    // A practice keeps a wind choice from its own family (crosswind vs along-runway).
-                    if (SessionSettings.IsPractice(id))
-                    {
-                        bool xw = SessionSettings.PracticeIsCrosswind(id);
-                        bool ok = false;
-                        foreach (var c in xw ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices) if (c.w == SessionSettings.PracticeWindChoice) ok = true;
-                        if (!ok || SessionSettings.PracticeIsAirwork(id)) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
-                    }
+                    bool xw = SessionSettings.PracticeIsCrosswind(id);
+                    bool ok = false;
+                    foreach (var c in xw ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices) if (c.w == SessionSettings.PracticeWindChoice) ok = true;
+                    if (!ok || SessionSettings.PracticeIsAirwork(id)) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
                 }
-                y += bh + gap * 0.4f;
+                y += lbh + gap * 0.3f;
             }
             if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && !SessionSettings.PracticeIsAirwork(SessionSettings.ChallengeId))
             {
