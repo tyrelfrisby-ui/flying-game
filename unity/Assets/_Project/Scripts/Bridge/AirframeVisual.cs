@@ -524,6 +524,23 @@ namespace FlyingGame.Bridge
         public void Clear()
         {
             foreach (GameObject p in _parts) if (p != null) Kill(p);
+            // Belt and braces: anything else under the root that draws (a model prefab's container, a split piece that
+            // slipped past the bookkeeping) goes too — owner 2026-09-14: the DC-3's fuselage section rode along on the
+            // next aircraft. Damage FX particle systems stay (DamageFx owns them). The name is logged so the leak is traceable.
+            if (_root != null)
+            {
+                for (int i = _root.childCount - 1; i >= 0; i--)
+                {
+                    Transform c = _root.GetChild(i);
+                    if (c == null) continue;
+                    string n = c.name;
+                    if (n == "FuelLeak" || n == "Fire" || n == "Smoke") continue;
+                    if (_parts.Contains(c.gameObject)) continue;
+                    if (c.GetComponentInChildren<MeshFilter>(true) == null && c.GetComponentInChildren<Renderer>(true) == null && n != "Model") continue;
+                    Debug.LogWarning($"[Airframe] stray child '{n}' cleared on rebuild");
+                    Kill(c.gameObject);
+                }
+            }
             _parts.Clear();
             _controls.Clear();
             _wingParts.Clear();
@@ -629,8 +646,16 @@ namespace FlyingGame.Bridge
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
             if (inst == null) return;
             UsedModel = true;
-            // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping).
-            foreach (GameObject p in _parts) foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+            // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
+            // the wheels and legs under a model that was exported gear-up (DC-3, 737).
+            bool keepGear = AirframeModels.Specs.TryGetValue(cfg.Id, out AirframeModels.Spec spec) && spec.ShowProceduralGear;
+            var gearSet = new HashSet<GameObject>();
+            if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
+            foreach (GameObject p in _parts)
+            {
+                if (gearSet.Contains(p)) continue;
+                foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
+            }
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
             foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
             {

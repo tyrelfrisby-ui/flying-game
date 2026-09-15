@@ -19,7 +19,11 @@ namespace FlyingGame.Bridge
         {
             public readonly Vector3 ModelForward, ModelUp;   // which MODEL axes are the nose direction and up
             public readonly bool LargestIsSpan; public readonly float ScaleTrim;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; }
+            /// <summary>Model exported gear-UP (no wheels): its lowest point (belly / nacelles) sits this far above the
+            /// wheel contact plane, and the procedural gear stays visible under it (owner 2026-09-14: the DC-3 sat on its belly).</summary>
+            public readonly float GroundClearanceM;
+            public bool ShowProceduralGear => GroundClearanceM > 0f;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y.</summary>
             public Quaternion Rotation => Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -31,8 +35,8 @@ namespace FlyingGame.Bridge
         {
             { "c172-like", new Spec(new Vector3(0f, 1f, 0f), new Vector3(1f, 0f, 0f)) },
             { "pa18-cub-like", new Spec(Vector3.right, Vector3.up) },
-            { "dc3-like", new Spec(Vector3.forward, Vector3.up) },
-            { "boeing-737-like", new Spec(Vector3.forward, Vector3.up) },
+            { "dc3-like", new Spec(Vector3.forward, Vector3.up, groundClearanceM: 0.7f) },     // gear-up export
+            { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, groundClearanceM: 1.2f) },   // gear-up export
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
@@ -65,7 +69,7 @@ namespace FlyingGame.Bridge
             b = LocalBounds(inst, parent);
             // Centre laterally and along the length on the config's CG station (x = 0), then sit on the wheels.
             float gearDown = 0f; foreach (GearConfig g in cfg.Gear) gearDown = Mathf.Max(gearDown, (float)g.Pos[2]);
-            Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y, -b.center.z + (float)LengthCentreOffset(cfg));
+            Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y + spec.GroundClearanceM, -b.center.z + (float)LengthCentreOffset(cfg));
             inst.transform.localPosition = shift;
             bounds = LocalBounds(inst, parent);
             return inst;
