@@ -71,7 +71,8 @@ namespace FlyingGame.Bridge
                 // still shows genuine sideslip / gyroscopic yaw / tumbles.
                 // ... but only once actually MOVING: parked in a 5 m/s crosswind the air vector is the wind from the
                 // side, and the launch view sat off the wingtip (owner). Ground track speed gates it.
-                Vector3 v = Driver.AirVelocityUnity;
+                // Ground reference (runway lessons, low altitude): follow the ground track instead — the runway is the reference.
+                Vector3 v = Driver.GroundReference ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
                 if (v.magnitude >= MinTrackSpeed && Driver.WorldVelocityUnity.magnitude >= MinTrackSpeed) return v.normalized;
             }
             return Target.forward;

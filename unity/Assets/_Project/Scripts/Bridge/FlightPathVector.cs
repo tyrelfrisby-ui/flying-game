@@ -42,7 +42,8 @@ namespace FlyingGame.Bridge
             // AIR-relative (owner): the path through the air, not over the ground — the wind is left out, so in a
             // crosswind the vector points where the nose is going through the air mass.
             Vector3 pos = transform.position;
-            Vector3 vel = Driver.AirVelocityUnity;
+            // ... except in ground-reference mode (runway lessons, low altitude), where the path over the GROUND is what counts.
+            Vector3 vel = Driver.GroundReference ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
             float dt = Time.deltaTime;
             if (_havePrev && dt > 1e-4f)
             {

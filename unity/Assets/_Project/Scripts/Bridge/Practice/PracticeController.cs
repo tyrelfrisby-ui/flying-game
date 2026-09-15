@@ -60,6 +60,7 @@ namespace FlyingGame.Bridge.Practice
                 Driver.AdoptSim(new SimLoop(ac));
                 Driver.InputFilter = Filter;
                 Driver.ForceCapture = Scenario.SideView;
+                Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
                 Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f;
                 if (kind == PracticeKind.StallSideView) { _bubblesWere = SessionSettings.BubblesOn; SessionSettings.BubblesOn = true; }   // the air must be visible
                 _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
@@ -102,6 +103,7 @@ namespace FlyingGame.Bridge.Practice
             Active = false;
             Driver.InputFilter = null;
             Driver.ForceCapture = false;
+            Driver.GroundReferenceForced = false;
             if (_touch != null) { _touch.DisplayOverride = null; _touch.GameAileron = _touch.GameElevator = _touch.GameRudder = _touch.GameThrottle = false; }
             if (_chase != null) _chase.SideView = false;
             if (_slope != null) Destroy(_slope.gameObject);

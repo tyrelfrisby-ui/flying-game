@@ -34,6 +34,21 @@ namespace FlyingGame.Bridge
         public System.Func<ControlInputs, float, ControlInputs> InputFilter;
         /// <summary>Extra reason to record the per-step force samples (the wheel-force overlay in the side-view exercises).</summary>
         public bool ForceCapture;
+        /// <summary>Ground-reference mode (owner 2026-09-15): on a runway lesson, or near the ground in free flight, the chase
+        /// camera and the flight path vector follow the GROUND track (wind included), not the air mass — the runway is
+        /// the reference, so a crosswind crab shows as the nose pointing off the track.</summary>
+        public bool GroundReferenceForced;
+        public bool GroundReference
+        {
+            get
+            {
+                if (GroundReferenceForced) return true;
+                if (Sim?.Aircraft == null) return false;
+                var p = Sim.Aircraft.State.Position;
+                double agl = -p.Z - FlyingGame.Core.WorldTerrain.GroundHeightAt(p.X, p.Y);
+                return agl < 100.0;   // the approach / landing / take-off regime
+            }
+        }
 
         public double IasMs { get; private set; }
         public double AltitudeM { get; private set; }
