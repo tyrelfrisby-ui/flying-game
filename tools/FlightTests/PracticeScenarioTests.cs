@@ -41,7 +41,7 @@ public class PracticeScenarioTests
             sim.RunFor(0.02, inputs);
             if (Environment.GetEnvironmentVariable("NOCONSTRAIN") == null) sc.ConstrainLongitudinal(ac);
             user = userLaw != null ? userLaw(sc, sc.Autopilot) : sc.Autopilot;
-            if (Trace && Math.Abs(t / 1.0 - Math.Round(t / 1.0)) < 1e-6) _out.WriteLine($"   t={t,4:F0} along {sc.AlongM,5:F0} mainsAgl {sc.MainsAglM,6:F2} pitch {Pitch(ac),5:F1}° aoa {sc.AlphaDeg,5:F1}° g {ac.LoadFactorZ,4:F2} sink {sc.SinkMs,5:F2} mains {sc.MainsAglM,5:F2} ias {sc.AirspeedMs,5:F1} align {sc.AlignmentDeg,6:F1}° off {sc.OffCentreM,6:F1} ail {inputs.Aileron,5:F2} ele {inputs.Elevator,5:F2} rud {inputs.Rudder,5:F2} lev {inputs.ThrottleLever,5:F2} gnd {sc.OnGround}");
+            if (Trace && Math.Abs(t / 1.0 - Math.Round(t / 1.0)) < 1e-6) _out.WriteLine($"   t={t,4:F0} leg {sc.Leg} agl {sc.AglM,6:F1} ias {sc.AirspeedMs,5:F1} vT {sc.TargetSpeedMs,5:F1} pitch {Pitch(ac),5:F1}° roc {-sc.SinkMs * 196.85,6:F0} mains {sc.MainsAglM,5:F2} ias {sc.AirspeedMs,5:F1} align {sc.AlignmentDeg,6:F1}° off {sc.OffCentreM,6:F1} ail {inputs.Aileron,5:F2} ele {inputs.Elevator,5:F2} rud {inputs.Rudder,5:F2} lev {inputs.ThrottleLever,5:F2} gnd {sc.OnGround}");
         }
         Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null;   // the scenario drives the wind: never leak it into other tests
         _out.WriteLine($"{file} {kind} {wind} (Vso {sc.VsoMs:F1} m/s): {sc.Phase} t={sc.Time:F0}s along {sc.AlongM:F0} m  in-band {sc.InBandFraction * 100:F0}%  rms {sc.RmsError:F1}  touchdown {(sc.TouchedDown ? $"sink {sc.TouchdownSinkMs:F1} m/s align {sc.TouchdownAlignDeg:F1}° off {sc.TouchdownOffCentreM:F1} m" : "none")}  score {sc.Score:F0} {sc.Verdict} [{sc.EndReason}]");
@@ -94,8 +94,7 @@ public class PracticeScenarioTests
     public void TraceSTurns()
     {
         Trace = true;
-        var sc = Run("pa18-cub-like.json", PracticeKind.ApproachSideView, PracticeWind.Tailwind, maxSec: 60);
-        _out.WriteLine($"   elevator power {sc.ElevatorPower:F2}");
+        Run("c172-like.json", PracticeKind.ClimbLevelDescend, PracticeWind.Calm, maxSec: 130);
         Trace = false;
     }
 
@@ -258,5 +257,59 @@ public class PracticeScenarioTests
         _out.WriteLine($"  wings level: heading drift {sc2.HeadingDriftDeg:F1}°");
         // Powered types drift a little left with the rudder neutral at cruise (P-factor / slipstream); the lesson shows that too.
         Assert.True(Math.Abs(sc2.HeadingDriftDeg) < (file.Contains("glider") ? 5 : 20), $"wings level should go (nearly) straight: drift {sc2.HeadingDriftDeg:F1}°");
+    }
+
+    // ---- climb / level / descend, glide speed-to-fly, Vx / Vy (owner 2026-09-15) ----------------------------------
+
+    [Fact]
+    public void PerformanceSpeedsAreOrderedSensibly()
+    {
+        foreach (string f in new[] { "c172-like.json", "pa18-cub-like.json" })
+        {
+            var sc = new PracticeScenario(PracticeKind.ClimbLevelDescend, PracticeWind.Calm, Load(f), Runway(), 0);
+            sc.Spawn();
+            _out.WriteLine($"{f}: Vso {sc.VsoMs * 1.944:F0} kt  min sink {sc.MinSinkMs * 1.944:F0}  best L/D {sc.BestLdMs * 1.944:F0} ({sc.BestGlideRatio:F1}:1)  Vx {sc.VxMs * 1.944:F0}  Vy {sc.VyMs * 1.944:F0} (ROC {sc.RocAtVyMs * 196.85:F0} fpm)  cruise75 {sc.CruiseMs * 1.944:F0}");
+            Assert.True(sc.MinSinkMs < sc.BestLdMs, "min sink slower than best L/D");
+            Assert.True(sc.VxMs < sc.VyMs, "Vx slower than Vy");
+            Assert.True(sc.VyMs < sc.CruiseMs, "Vy slower than cruise");
+            Assert.InRange(sc.RocAtVyMs * 196.85, 300, 1700);   // the sim climbs ~1.6× the book (propeller efficiency + drag polar) — noted for the owner
+        }
+        var g = new PracticeScenario(PracticeKind.GlideRear, PracticeWind.Headwind, Load("glider-2-33-like.json"), Runway(), 0); g.Spawn();
+        var g2 = new PracticeScenario(PracticeKind.GlideRear, PracticeWind.Tailwind, Load("glider-2-33-like.json"), Runway(), 0); g2.Spawn();
+        _out.WriteLine($"2-33: best L/D {g.BestLdMs * 1.944:F0} kt, speed to fly headwind {g.SpeedToFlyMs * 1.944:F0} kt, tailwind {g2.SpeedToFlyMs * 1.944:F0} kt");
+        Assert.True(g.SpeedToFlyMs > g.BestLdMs, "headwind: fly faster than best L/D");
+        Assert.True(g2.SpeedToFlyMs <= g.BestLdMs, "tailwind: fly no faster than best L/D");
+    }
+
+    [Theory]
+    [InlineData("c172-like.json")]
+    [InlineData("glider-2-33-like.json")]
+    public void GlideLessonFlownAtTheSpeedToFlyScoresNearFull(string file)
+    {
+        var sc = Run(file, PracticeKind.GlideSide, PracticeWind.Headwind, maxSec: 400);
+        _out.WriteLine($"  achieved {sc.AchievedRatio:F1}:1 over the ground vs optimum {sc.SpeedToFlyGroundRatio:F1}:1, speed to fly {sc.SpeedToFlyMs * 1.944:F0} kt");
+        Assert.Equal(PracticePhase.Finished, sc.Phase);
+        Assert.True(sc.Score > 80, $"score {sc.Score:F0}");
+    }
+
+    [Fact]
+    public void ClimbLessonsFinishAndScoreWithTheGamesOwnLaw()
+    {
+        var vy = Run("c172-like.json", PracticeKind.ClimbVyRear, PracticeWind.Calm, maxSec: 400);
+        _out.WriteLine($"  Vy: {vy.ClimbTimeSec:F0} s for 1,000 ft, score {vy.Score:F0}");
+        Assert.Equal(PracticePhase.Finished, vy.Phase); Assert.True(vy.Score > 70, $"Vy score {vy.Score:F0}");
+        var vx = Run("c172-like.json", PracticeKind.ClimbVxSide, PracticeWind.Calm, maxSec: 400);
+        _out.WriteLine($"  Vx: {vx.ClimbDistanceM:F0} m of ground for 1,000 ft, score {vx.Score:F0}");
+        Assert.Equal(PracticePhase.Finished, vx.Phase); Assert.True(vx.Score > 70, $"Vx score {vx.Score:F0}");
+    }
+
+    [Fact]
+    public void ClimbLevelDescendRunsAllThreeLegs()
+    {
+        var sc = Run("c172-like.json", PracticeKind.ClimbLevelDescend, PracticeWind.Calm, maxSec: 500);
+        _out.WriteLine($"  legs done {sc.Leg}, score {sc.Score:F0}, in-band {sc.InBandFraction * 100:F0} %");
+        Assert.Equal(PracticePhase.Finished, sc.Phase);
+        Assert.Equal("back at the start altitude", sc.EndReason);
+        Assert.True(sc.InBandFraction > 0.4, $"in band {sc.InBandFraction * 100:F0} %");
     }
 }

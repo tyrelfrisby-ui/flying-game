@@ -43,19 +43,20 @@ namespace FlyingGame.Bridge.Practice
         private void OnDestroy() { if (Driver != null) { Driver.AircraftChanged -= OnAircraftChanged; Driver.PostStep -= AfterStep; } }
 
         /// <summary>RESET (or an aircraft switch) while an exercise is running restarts it.</summary>
-        private void OnAircraftChanged() { if (Active && !_beginning) Begin(Kind, Wind); }
+        private void OnAircraftChanged() { if (Active && !_beginning) Begin(Kind, Wind, _userAxes); }
 
-        public void Begin(PracticeKind kind, PracticeWind wind)
+        private int _userAxes = -1;
+        public void Begin(PracticeKind kind, PracticeWind wind, int userAxes = -1)
         {
             _beginning = true;
             try
             {
-                Kind = kind; Wind = wind;
+                Kind = kind; Wind = wind; _userAxes = userAxes;
                 AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(Driver.AircraftId);
                 SessionSettings.ApplyFeel(cfg);
                 WorldTerrain.RunwayEnd rw = SessionSettings.ChosenRunway();
                 double surface = SessionSettings.Airport.ElevationM;
-                Scenario = new PracticeScenario(kind, wind, cfg, rw, surface, seed: Random.Range(1, 9999));
+                Scenario = new PracticeScenario(kind, wind, cfg, rw, surface, seed: Random.Range(1, 9999), userAxes: _userAxes);
                 Aircraft ac = Scenario.Spawn();
                 Driver.AdoptSim(new SimLoop(ac));
                 Driver.InputFilter = Filter;
@@ -74,7 +75,7 @@ namespace FlyingGame.Bridge.Practice
             finally { _beginning = false; }
         }
 
-        public void Restart() { if (Scenario != null) Begin(Kind, Wind); }
+        public void Restart() { if (Scenario != null) Begin(Kind, Wind, _userAxes); }
 
         /// <summary>Next briefing page: speaks it; past the last picture the standard card (title + instructions) is read.</summary>
         public void NextLessonPage()
@@ -88,11 +89,18 @@ namespace FlyingGame.Bridge.Practice
         {
             foreach (var t in LessonPictures) if (t != null) Destroy(t);
             LessonPictures = System.Array.Empty<Texture2D>();
-            if (Scenario.Kind != PracticeKind.Straight) return;
+            if (Scenario.LessonPages.Length == 0) return;
             try
             {
                 Driver.transform.SetPositionAndRotation(CoordinateMap.ToUnity(Driver.Sim.Aircraft.State.Position), CoordinateMap.ToUnity(Driver.Sim.Aircraft.State.Attitude));
-                LessonPictures = new[] { LessonIllustrator.RearViewBank(Driver.transform), LessonIllustrator.TopViewWeathervane(Driver.transform) };
+                var sc = Scenario;
+                LessonPictures = sc.Kind switch
+                {
+                    PracticeKind.Straight => new[] { LessonIllustrator.RearViewBank(Driver.transform), LessonIllustrator.TopViewWeathervane(Driver.transform) },
+                    PracticeKind.ClimbLevelDescend => new[] { LessonIllustrator.TopViewPropYaw(Driver.transform), LessonIllustrator.RearViewTrim(Driver.transform) },
+                    PracticeKind.GlideRear or PracticeKind.GlideSide => new[] { LessonIllustrator.PolarChart(sc), LessonIllustrator.SideViewGlides(Driver.transform, sc) },
+                    _ => new[] { LessonIllustrator.ClimbChart(sc), LessonIllustrator.SideViewClimbs(Driver.transform, sc) },
+                };
             }
             catch (System.Exception e) { Debug.LogWarning("lesson pictures: " + e.Message); }
         }
@@ -156,7 +164,7 @@ namespace FlyingGame.Bridge.Practice
         private float FocusHeight()
         {
             float ground = (float)Scenario.SurfaceM;
-            if (Scenario.Stall) return _stallFocusY;   // stall side view: the aircraft stays centred, the world moves past
+            if (Scenario.Airwork) return _stallFocusY;   // airwork side views: the aircraft stays centred, the world moves past
             if (!Scenario.Approach) return ground + 1.5f;
             float slope = ground + (float)(Scenario.GlideslopeHeightAt(Scenario.AlongM) + Scenario.GearDropM);
             float runway = ground + 1.5f;
@@ -168,7 +176,7 @@ namespace FlyingGame.Bridge.Practice
             if (!Active || Scenario == null || _chase == null || !Scenario.SideView) return;
             // Approach: centred on the glideslope until the runway, then (over ~3 s) on the runway like the flare exercise.
             if (Scenario.Approach && Scenario.AlongM > -60) _sideBlend = Mathf.MoveTowards(_sideBlend, 1f, Time.deltaTime / 3f);
-            if (Scenario.Stall) _stallFocusY = Mathf.Lerp(_stallFocusY, transform.position.y, 1f - Mathf.Exp(-3f * Time.deltaTime));
+            if (Scenario.Airwork) _stallFocusY = Mathf.Lerp(_stallFocusY, transform.position.y, 1f - Mathf.Exp(-3f * Time.deltaTime));
             _chase.SideFocusY = FocusHeight();
         }
 

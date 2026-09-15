@@ -21,6 +21,11 @@ public enum PracticeKind
     StallRudder,         // rear view: the game stalls and unstalls it repeatedly (≤10 % aileron); the user holds the wing drop with rudder
     StallElevator,       // rear view: the user stalls and recovers with elevator; the game holds it with ≤10 % rudder and aileron
     Straight,            // lesson: keep the wings level with aileron; the game flies elevator and power, rudder held NEUTRAL so a bank slips and weathervanes into a turn
+    ClimbLevelDescend,   // lesson: climb at Vy (full power), level at 75 % power, descend at cruise speed on 50 % power; the user picks the axes
+    GlideRear,           // lesson: max L/D over the ground adjusted for head/tail wind — rear view
+    GlideSide,           // the same, side view (pitch only)
+    ClimbVyRear,         // lesson: best RATE of climb (Vy) — rear view, timed
+    ClimbVxSide,         // lesson: best ANGLE of climb (Vx) — side view, measured over the ground
 }
 
 /// <summary>Crosswind exercises: Steady / Gusty / Shifting (crosswind from the right, swapping sides every 1,000 ft).
@@ -54,16 +59,22 @@ public sealed class PracticeScenario
     public double GameBrake { get; private set; }
     public double GameBrakeBias { get; private set; }
 
-    public bool UserRudder => Kind is PracticeKind.CrosswindRudder or PracticeKind.LandingRudder or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.StallRudder;
-    public bool UserAileron => Kind is PracticeKind.CrosswindAileron or PracticeKind.LandingAileron or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.Straight;
-    public bool UserElevator => Kind is PracticeKind.Flare or PracticeKind.FlareSideView or PracticeKind.ApproachSideView or PracticeKind.StallSideView or PracticeKind.StallElevator;
-    public bool UserThrottle => Kind == PracticeKind.ApproachSideView;
-    public bool SideView => Kind is PracticeKind.FlareSideView or PracticeKind.ApproachSideView or PracticeKind.StallSideView;
+    public bool UserRudder => Selectable ? UserRudOn : Kind is PracticeKind.CrosswindRudder or PracticeKind.LandingRudder or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.StallRudder;
+    public bool Selectable => CLD || Glide || ClimbLesson;
+    public bool UserAileron => Selectable ? UserAilOn : Kind is PracticeKind.CrosswindAileron or PracticeKind.LandingAileron or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.Straight;
+    public bool UserElevator => Selectable ? UserEleOn : Kind is PracticeKind.Flare or PracticeKind.FlareSideView or PracticeKind.ApproachSideView or PracticeKind.StallSideView or PracticeKind.StallElevator;
+    public bool UserThrottle => Selectable ? UserThrOn : Kind == PracticeKind.ApproachSideView;
+    public bool SideView => Kind is PracticeKind.FlareSideView or PracticeKind.ApproachSideView or PracticeKind.StallSideView or PracticeKind.GlideSide or PracticeKind.ClimbVxSide;
     public bool Approach => Kind == PracticeKind.ApproachSideView;
     public bool STurn => Kind is PracticeKind.STurns or PracticeKind.STurnsTest;
     public bool Stall => Kind is PracticeKind.StallSideView or PracticeKind.StallRudder or PracticeKind.StallElevator;
     public bool Straight => Kind == PracticeKind.Straight;
-    public bool Airwork => STurn || Stall || Straight;
+    public bool CLD => Kind == PracticeKind.ClimbLevelDescend;
+    public bool Glide => Kind is PracticeKind.GlideRear or PracticeKind.GlideSide;
+    public bool ClimbLesson => Kind is PracticeKind.ClimbVyRear or PracticeKind.ClimbVxSide;
+    public bool Airwork => STurn || Stall || Straight || CLD || Glide || ClimbLesson;
+    /// <summary>Which axes the USER flies (the game takes the rest). Fixed by the exercise, or chosen in the setup for the lessons.</summary>
+    public bool UserAilOn, UserEleOn, UserRudOn, UserThrOn;
     /// <summary>Side views are longitudinal only: roll, yaw, sideslip and cross-track are held at zero after every step.</summary>
     public bool LongitudinalOnly => SideView;
     public bool Endless => Kind is PracticeKind.STurns or PracticeKind.StallSideView or PracticeKind.StallRudder or PracticeKind.StallElevator or PracticeKind.Straight;
@@ -116,9 +127,11 @@ public sealed class PracticeScenario
     public bool GameAileron { get; private set; } = true; public bool GameElevator { get; private set; } = true;
     public bool GameRudder { get; private set; } = true; public bool GameThrottle { get; private set; } = true;
 
-    public PracticeScenario(PracticeKind kind, PracticeWind wind, AircraftConfig config, WorldTerrain.RunwayEnd runway, double surfaceM, double crosswindMs = 4.0, int seed = 1)
-    // crosswindMs is the CAP; the actual crosswind scales with the type's speed
+    public PracticeScenario(PracticeKind kind, PracticeWind wind, AircraftConfig config, WorldTerrain.RunwayEnd runway, double surfaceM, double crosswindMs = 4.0, int seed = 1, int userAxes = -1)
+    // crosswindMs is the CAP; the actual crosswind scales with the type's speed. userAxes: bit 0 aileron, 1 elevator, 2 rudder, 3 throttle (−1 = the lesson's default)
     {
+        if (userAxes < 0) userAxes = kind switch { PracticeKind.ClimbLevelDescend => 0b1010, PracticeKind.GlideRear or PracticeKind.GlideSide => 0b0010, PracticeKind.ClimbVyRear => 0b0110, PracticeKind.ClimbVxSide => 0b0010, _ => 0 };
+        UserAilOn = (userAxes & 1) != 0; UserEleOn = (userAxes & 2) != 0; UserRudOn = (userAxes & 4) != 0; UserThrOn = (userAxes & 8) != 0;
         Kind = kind; WindPattern = wind; Config = config; Runway = runway; SurfaceM = surfaceM;
         _rng = new Random(seed);
         VsoMs = EstimateVso(config, surfaceM);
@@ -200,6 +213,55 @@ public sealed class PracticeScenario
     }
 
     public double CruiseMs { get; private set; }
+    public double VyMs { get; private set; }
+    public double VxMs { get; private set; }
+    public double RocAtVyMs { get; private set; }
+    public double RocAtVxMs { get; private set; }
+    public double BestLdMs { get; private set; }
+    public double MinSinkMs { get; private set; }
+    public double SpeedToFlyMs { get; private set; }
+    public double BestGlideRatio { get; private set; }
+    public double SpeedToFlyGroundRatio { get; private set; }   // ground distance per height at the speed to fly (in this wind)
+    public int Leg { get; private set; }                        // climb/level/descend: 0/1/2
+    public double LegT { get; private set; }
+    public double StartAglM { get; private set; }
+    public double TargetSpeedMs { get; private set; }
+    public double AchievedRatio { get; private set; }           // glide: ground distance / height lost so far
+    public double ClimbTimeSec { get; private set; }
+    public double ClimbDistanceM { get; private set; }
+    private double _climbStartAlong, _glideStartAlong;
+
+    /// <summary>Power-off polar and full-power climb curve from the trim solver: best L/D, min sink, wind-corrected speed to fly,
+    /// and Vy / Vx (rate = (thrust − drag)·V / W with thrust from power and propeller efficiency).</summary>
+    private void ComputePerformance(double altM, double windAlong)
+    {
+        double vRef = Config.SpawnIasMs > 1 ? Config.SpawnIasMs : 25.0;
+        double bestLd = 0, minSink = 1e9, bestGround = -1e9, bestRoc = -1e9, bestAngle = -1e9;
+        double weight = Config.Mass.MassKg * 9.81;
+        bool glider = Config.Propulsion is null;
+        double eff = !glider && Config.Propulsion!.Efficiency > 0 ? Config.Propulsion.Efficiency : 0.75;
+        double pmax = !glider ? Config.Propulsion!.MaxPowerW : 0;
+        for (double v = Math.Max(8, VsoMs * 1.02); v <= vRef * 2.0; v += 0.5)
+        {
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, v, altM);
+            if (!t.Converged || t.GlideRatio <= 0 || double.IsNaN(t.GlideRatio)) continue;
+            double sink = v / t.GlideRatio;
+            if (t.GlideRatio > bestLd) { bestLd = t.GlideRatio; BestLdMs = v; }
+            if (sink < minSink) { minSink = sink; MinSinkMs = v; }
+            double ground = (v + windAlong) / sink;                    // distance over the ground per unit height
+            if (ground > bestGround) { bestGround = ground; SpeedToFlyMs = v; }
+            if (!glider)
+            {
+                double thrust = Math.Min(eff * pmax / v, 0.6 * Math.Pow(pmax * pmax * 2.0 * 1.225 * Math.PI * Math.Pow(Config.Propulsion!.PropDiameterM / 2, 2), 1.0 / 3.0));
+                double roc = (thrust - weight / t.GlideRatio) * v / weight;
+                if (roc > bestRoc) { bestRoc = roc; VyMs = v; RocAtVyMs = roc; }
+                double angle = roc / (v + windAlong);
+                if (angle > bestAngle && roc > 0) { bestAngle = angle; VxMs = v; RocAtVxMs = roc; }
+            }
+        }
+        BestGlideRatio = bestLd; SpeedToFlyGroundRatio = bestGround;
+        if (VxMs <= 0) VxMs = 0.9 * VyMs;
+    }
     public const double AirworkAglM = 800.0;          // the airwork exercises fly at ~2,600 ft over the field
     public const double SpeedCycleSec = 80.0;         // cruise → 1.15 Vso → cruise
     /// <summary>S-turns: the speed the game is steering to right now, and where in the cycle it is (0..1).</summary>
@@ -234,7 +296,12 @@ public sealed class PracticeScenario
         PracticeKind.StallSideView => "Stall, side view",
         PracticeKind.StallRudder => "Stall: wing drop with rudder",
         PracticeKind.StallElevator => "Stall: recover with elevator",
-        _ => "Straight: wings level",
+        PracticeKind.Straight => "Straight: wings level",
+        PracticeKind.ClimbLevelDescend => "Climb, level, descend",
+        PracticeKind.GlideRear => "Glide: speed to fly",
+        PracticeKind.GlideSide => "Glide: speed to fly, side view",
+        PracticeKind.ClimbVyRear => "Climb: best rate (Vy)",
+        _ => "Climb: best angle (Vx), side view",
     } + WindPattern switch { PracticeWind.Gusty => " · gusty", PracticeWind.Shifting => " · shifting wind", PracticeWind.Headwind => " · headwind", PracticeWind.HeadwindGusty => " · gusty headwind", PracticeWind.Tailwind => " · tailwind", PracticeWind.TailwindGusty => " · gusty tailwind", _ => "" };
 
     public string Instructions => Kind switch
@@ -251,7 +318,11 @@ public sealed class PracticeScenario
         PracticeKind.StallSideView => "Side view, power off, pitch only. You have the elevator. Bring the nose up and hold it until the wing stalls. Watch the bubbles: as it sinks, the relative wind at the tail comes from below, the tail force changes and the nose drops by itself. Hold it in the stall if you like and watch the sink rate build.",
         PracticeKind.StallRudder => "Power off. The game stalls the aircraft and breaks the stall, again and again, using no more than ten percent aileron. You have the rudder. When a wing drops, pick it up with rudder, not aileron.",
         PracticeKind.StallElevator => "Power off. You have the elevator. Stall it, then break the stall by lowering the angle of attack. The game holds it with no more than ten percent rudder and aileron. Recovery is angle of attack first, and the wing drop is a rudder job.",
-        _ => "The game holds the altitude and the speed, and keeps the rudder neutral. You have the aileron. Keep the wings level and the nose will stay put. Let a bank develop and watch: the aircraft slips toward the low wing, then weathervanes into a turn.",
+        PracticeKind.Straight => "The game holds the altitude and the speed, and keeps the rudder neutral. You have the aileron. Keep the wings level and the nose will stay put. Let a bank develop and watch: the aircraft slips toward the low wing, then weathervanes into a turn.",
+        PracticeKind.ClimbLevelDescend => "Three legs. Climb five hundred feet at V Y with full power. Level off and cruise at seventy five percent power. Then descend back down at cruise speed on fifty percent power. Pitch for the speed, power for the leg. Watch the prop yaw the nose left as the power goes in, and trim off the stick force each time the speed settles.",
+        PracticeKind.GlideRear or PracticeKind.GlideSide => "Power off. The goal is the most ground for the height, so the speed to fly is best L over D corrected for the wind: faster into a headwind to penetrate, slower with a tailwind. The readout shows the speed to fly and the glide you are getting over the ground. The run ends after a thousand feet.",
+        PracticeKind.ClimbVyRear => "Full power. V Y is the speed for the best RATE of climb, the most feet per minute. Hold it and the clock stops when you have gained a thousand feet. Faster or slower both cost time.",
+        _ => "Full power, side view. V X is the speed for the best ANGLE of climb, the most height per foot of ground, the speed for clearing the trees at the end of the runway. Hold it and the run ends after a thousand feet; the score is how little ground it took.",
     } + WindPattern switch
     {
         PracticeWind.Gusty => " The crosswind gusts to half again its strength, at random.",
@@ -265,7 +336,29 @@ public sealed class PracticeScenario
     public bool IsGusty => WindPattern is PracticeWind.Gusty or PracticeWind.HeadwindGusty or PracticeWind.TailwindGusty;
 
     /// <summary>Illustrated briefing pages (title, text) shown before the standard card; the host renders the pictures.</summary>
-    public (string title, string text)[] LessonPages => Kind == PracticeKind.Straight ? new[]
+    public string UserAxesText
+    {
+        get
+        {
+            var l = new System.Collections.Generic.List<string>();
+            if (UserAileron) l.Add("the aileron"); if (UserElevator) l.Add("the elevator"); if (UserRudder) l.Add("the rudder"); if (UserThrottle) l.Add(Config.Propulsion is null ? "the spoilers" : "the power");
+            return l.Count == 0 ? "nothing — the game flies it" : string.Join(", ", l);
+        }
+    }
+
+    public (string title, string text)[] LessonPages => CLD ? new[]
+    {
+        ("Prop yaw", "Seen from above at full power: the propeller's slipstream spirals around the fuselage and strikes the fin from the side, and the descending blade makes more thrust than the rising one. Both push the nose LEFT as the power goes in, most of all when slow and nose-high in the climb. It takes right rudder; the more power and the slower you fly, the more."),
+        ("Trim", "Seen from behind: every speed has its own stick position. After you set the pitch for the climb, the cruise or the descent, the speed settles and the stick is still loaded. Trim moves that load to zero so the aircraft holds the speed hands-off. Set the power, pitch for the speed, wait for it to settle, then trim."),
+    } : Glide ? new[]
+    {
+        ("Best glide and minimum sink", "The polar: sink rate against airspeed, power off. The lowest point is MINIMUM SINK, the speed that keeps you up longest. The line from the origin that just touches the curve marks BEST GLIDE, the speed that goes the farthest through the air, always a little faster than minimum sink."),
+        ("Speed to fly in wind", "Seen from the side: the same aircraft from the same height, best glide against minimum sink. The wind moves the origin of that tangent line: into a headwind you must fly FASTER than best glide to penetrate; with a tailwind you fly SLOWER and let the wind carry you. That corrected speed is the speed to fly."),
+    } : ClimbLesson ? new[]
+    {
+        ("Vx and Vy", "Rate of climb against airspeed at full power: the peak is V Y, the best RATE — the most feet per minute. The line from the origin that touches the curve marks V X, the best ANGLE — the most height per foot of ground, always slower than V Y."),
+        ("Angle against rate", "Seen from the side from the same point: the V X climb is steeper and clears the obstacle in less distance; the V Y climb is shallower but reaches the altitude sooner. Obstacle ahead: V X. Nothing ahead: V Y."),
+    } : Kind == PracticeKind.Straight ? new[]
     {
         ("Bank tilts the lift", "Seen from behind: the wing's lift stands straight up when the wings are level and balances the weight. Bank the wings and the lift tilts with them. Part of it now pulls sideways toward the low wing, and the aircraft starts to slide that way. That sideways motion is a slip."),
         ("The slip becomes a turn", "Seen from above: once the aircraft slides toward the low wing, the air comes at it from that side. The vertical tail is an arrow's feathers: it pushes the tail away from the wind, the nose swings toward it, and the aircraft weathervanes into a turn. Hold the wings level with aileron and none of that happens."),
@@ -275,7 +368,7 @@ public sealed class PracticeScenario
     public double BetaDeg { get; private set; }
     private double _heading0 = double.NaN;
 
-    public string HandoverLine => Straight ? "You have the aileron. Keep the wings level." : STurn ? "You have the aileron and rudder." : UserRudder ? "You have the rudder." : UserAileron ? "You have the aileron." : Approach ? "You have the elevator and the power." : "You have the elevator.";
+    public string HandoverLine => Selectable ? "You have " + UserAxesText + "." : Straight ? "You have the aileron. Keep the wings level." : STurn ? "You have the aileron and rudder." : UserRudder ? "You have the rudder." : UserAileron ? "You have the aileron." : Approach ? "You have the elevator and the power." : "You have the elevator.";
 
     // ---- runway frame helpers ------------------------------------------------------------------------------
     private (double along, double cross) Localize(double x, double y)
@@ -344,8 +437,14 @@ public sealed class PracticeScenario
     private Aircraft SpawnAirwork()
     {
         CruiseMs = EstimateCruise75(Config, SurfaceM + AirworkAglM, VsoMs);
-        double v = STurn || (Straight && Config.Propulsion is not null) ? CruiseMs : Straight ? ApproachSpawn.FindBestGlide(Config, SurfaceM + AirworkAglM).SpeedMs : 1.3 * VsoMs;
-        SpeedTargetMs = v;
+        Vec3 w0 = WindVector(0, 0);
+        ComputePerformance(SurfaceM + AirworkAglM, w0.X * Runway.AlongX + w0.Y * Runway.AlongY);
+        double v = STurn || (Straight && Config.Propulsion is not null) ? CruiseMs
+                 : Straight ? ApproachSpawn.FindBestGlide(Config, SurfaceM + AirworkAglM).SpeedMs
+                 : CLD ? (Config.Propulsion is null ? BestLdMs : VyMs)
+                 : Glide ? SpeedToFlyMs
+                 : Kind == PracticeKind.ClimbVyRear ? VyMs : Kind == PracticeKind.ClimbVxSide ? VxMs : 1.3 * VsoMs;
+        SpeedTargetMs = v; TargetSpeedMs = v; StartAglM = AirworkAglM;
         double alt = SurfaceM + AirworkAglM;
         var pos = new Vec3(Runway.CentreX, Runway.CentreY, -alt);
         TrimSolver.Result trim = TrimSolver.SolveGliderTrim(Config, v, alt);
@@ -364,7 +463,7 @@ public sealed class PracticeScenario
         double weight = Config.Mass.MassKg * 9.81;
         double eff = Config.Propulsion?.Efficiency > 0 ? Config.Propulsion.Efficiency : 0.75;
         double maxP = Config.Propulsion?.MaxPowerW > 0 ? Config.Propulsion.MaxPowerW : 100000;
-        _thr0 = glider || Stall ? 0.0 : Math.Clamp(weight / ratio * v / (eff * maxP), 0.0, 1.0);
+        _thr0 = glider || Stall || Glide ? 0.0 : (CLD || ClimbLesson) ? 1.0 : Math.Clamp(weight / ratio * v / (eff * maxP), 0.0, 1.0);
         _hT = AirworkAglM; _heightLawOn = true;
         return new Aircraft(Config, state, new ControlDeflections(0, elevRad, 0, 0));
     }
@@ -627,6 +726,7 @@ public sealed class PracticeScenario
         BetaDeg = beta * 180 / Math.PI;
         if (double.IsNaN(_heading0)) _heading0 = yaw;
         HeadingDriftDeg = Wrap(yaw - _heading0) * 180 / Math.PI;
+        if (CLD || Glide || ClimbLesson) return StepLesson(ac, user, dt, roll, pitch, yaw, agl, hdot, ias, vAirBody, beta, glider, live);
         if (Straight)
         {
             // Wings level is the user's job; the game holds altitude (or best glide) and speed, and the rudder stays neutral
@@ -753,6 +853,113 @@ public sealed class PracticeScenario
             Phase = PracticePhase.Finished;
             Score = ComputeAirworkScore(crashed);
         }
+        LastInputs = new ControlInputs(outAil, outEle, outRud, lever);
+        return LastInputs;
+    }
+
+    /// <summary>Climb/level/descend, glide (speed to fly) and Vx/Vy climb lessons. Game laws: wings level + coordinated, pitch
+    /// for the target speed (or altitude on the level leg), power per leg. Any axis the user has chosen is theirs.</summary>
+    private ControlInputs StepLesson(Aircraft ac, ControlInputs user, double dt, double roll, double pitch, double yaw, double agl, double hdot, double ias, Vec3 vAirBody, double beta, bool glider, bool live)
+    {
+        RigidBodyState s = ac.State;
+        double p = s.Rates.X, q = s.Rates.Y, r = s.Rates.Z;
+        (double along, _) = Localize(s.Position.X, s.Position.Y);
+        const double LegHeightM = 152.4;   // 500 ft
+        const double RunHeightM = 304.8;   // 1,000 ft
+        double thr01 = 0; bool levelLeg = false;
+        if (CLD)
+        {
+            if (live) LegT += dt;
+            if (Leg == 0 && agl >= StartAglM + LegHeightM) { Leg = 1; LegT = 0; }
+            else if (Leg == 1 && LegT > 45) { Leg = 2; LegT = 0; }
+            else if (Leg == 2 && (agl <= StartAglM + 5 || LegT > 150)) { Leg = 3; }   // 150 s cap: a type that will not descend on 50 % power at cruise speed
+            thr01 = glider ? 0 : Leg == 0 ? 1.0 : Leg == 1 ? 0.75 : Leg == 2 ? 0.5 : 0.75;
+            TargetSpeedMs = Leg == 0 ? VyMs : CruiseMs;
+            levelLeg = Leg == 1 || Leg == 3;
+            if (glider) { TargetSpeedMs = BestLdMs; levelLeg = false; }
+        }
+        else if (Glide) { thr01 = 0; TargetSpeedMs = SpeedToFlyMs; }
+        else { thr01 = 1.0; TargetSpeedMs = Kind == PracticeKind.ClimbVyRear ? VyMs : VxMs; }
+        SpeedTargetMs = TargetSpeedMs;
+
+        // Game laws: hold the start heading with bank, coordinated with rudder (which also cancels the prop yaw).
+        if (double.IsNaN(_heading0)) _heading0 = yaw;
+        double hdgErr = Wrap(yaw - _heading0);
+        double phiCmd = Math.Clamp(-1.5 * hdgErr, -0.35, 0.35);
+        double ail = Math.Clamp(1.2 * (phiCmd - roll) - 0.5 * p, -1, 1);
+        double rud = Math.Clamp(-1.5 * beta - 0.6 * r, -1, 1);
+        double ele;
+        if (levelLeg)
+        {
+            double hErr = agl - (StartAglM + LegHeightM);
+            double kva = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.25, 1.0);
+            _elevInt = Math.Clamp(_elevInt + 0.03 * hErr * dt, -0.3, 0.3);
+            ele = Math.Clamp(_elevTrim + ElevatorPower * (kva * (0.08 * hErr + 0.25 * hdot) + _elevInt) + 0.5 * q, -0.6, 0.45);
+        }
+        else
+        {
+            // Pitch for speed: attitude command from the speed error (P + slow I: the trim attitude differs with power), pitch-rate damping.
+            double vErr = TargetSpeedMs - ias;
+            _thrInt = Math.Clamp(_thrInt + 0.006 * vErr * dt, -0.3, 0.3);   // (re-used as the attitude integral in the lessons)
+            double thetaCmd = Math.Clamp(_theta0 - 0.015 * vErr - _thrInt + (thr01 > 0.9 ? 0.05 : thr01 < 0.1 && !glider ? -0.04 : 0), -0.35, 0.45);
+            ele = Math.Clamp(_elevTrim + ElevatorPower * 4.0 * (pitch - thetaCmd) + 0.8 * q, -0.9, 0.6);
+        }
+        double lever = glider ? (Glide ? 0.0 : 0.0) : 1 - 2 * thr01;
+        Autopilot = new ControlInputs(ail, ele, rud, lever);
+        GameAileron = !(live && UserAileron); GameRudder = !(live && UserRudder); GameElevator = !(live && UserElevator); GameThrottle = !(live && UserThrottle);
+        double outAil = GameAileron ? ail : user.Aileron, outRud = GameRudder ? rud : user.Rudder, outEle = GameElevator ? ele : user.Elevator;
+        if (!GameThrottle) lever = user.ThrottleLever;
+
+        // Measurements and scoring.
+        if (Glide)
+        {
+            if (live)
+            {
+                if (_glideStartAlong == 0 && LegT == 0) { _glideStartAlong = along; }
+                LegT += dt;
+                double lost = StartAglM - agl;
+                AchievedRatio = lost > 5 ? (along - _glideStartAlong) / lost : 0;
+                _liveSec += dt; double err = Math.Abs(ias - SpeedToFlyMs); if (err < 0.06 * SpeedToFlyMs) _inBandSec += dt; _rmsAccum += err * err * dt;
+                if (lost >= RunHeightM && Phase != PracticePhase.Finished)
+                {
+                    EndReason = "1,000 ft lost";
+                    Score = Math.Clamp(100 * AchievedRatio / Math.Max(1, SpeedToFlyGroundRatio), 0, 100);
+                    Verdict = Score >= 92 ? "Right on the speed to fly." : Score >= 75 ? "Close — check the readout against your speed." : "Well off the speed to fly.";
+                    Phase = PracticePhase.Finished;
+                }
+            }
+        }
+        else if (ClimbLesson)
+        {
+            if (live)
+            {
+                if (LegT == 0) _climbStartAlong = along;
+                LegT += dt; ClimbTimeSec = LegT; ClimbDistanceM = along - _climbStartAlong;
+                _liveSec += dt; double err = Math.Abs(ias - TargetSpeedMs); if (err < 0.06 * TargetSpeedMs) _inBandSec += dt; _rmsAccum += err * err * dt;
+                if (agl - StartAglM >= RunHeightM && Phase != PracticePhase.Finished)
+                {
+                    EndReason = "1,000 ft gained";
+                    double best = Kind == PracticeKind.ClimbVyRear ? RunHeightM / Math.Max(0.1, RocAtVyMs) : RunHeightM * (VxMs + 0) / Math.Max(0.1, RocAtVxMs);
+                    double got = Kind == PracticeKind.ClimbVyRear ? ClimbTimeSec : Math.Max(1, ClimbDistanceM);
+                    Score = Math.Clamp(100 * best / got, 0, 100);
+                    Verdict = Score >= 92 ? (Kind == PracticeKind.ClimbVyRear ? "That is Vy." : "That is Vx.") : Score >= 75 ? "Close." : "Well off the speed.";
+                    Phase = PracticePhase.Finished;
+                }
+            }
+        }
+        else if (CLD)
+        {
+            if (live)
+            {
+                _liveSec += dt;
+                double err = levelLeg ? Math.Abs(agl - (StartAglM + LegHeightM)) : Math.Abs(ias - TargetSpeedMs);
+                double band = levelLeg ? 15.0 : 0.06 * TargetSpeedMs;
+                if (err < band) _inBandSec += dt; _rmsAccum += err * err * dt;
+                if (Leg == 3 && Phase != PracticePhase.Finished) { EndReason = "back at the start altitude"; Score = InBandFraction * 100; Verdict = Score >= 85 ? "On speed, on altitude." : Score >= 60 ? "Getting there." : "Pitch for the speed, power for the leg."; Phase = PracticePhase.Finished; }
+            }
+        }
+        bool crashed = agl < 2 || ac.Structure.WingsFailed;
+        if (Phase != PracticePhase.Finished && crashed) { EndReason = "hit the ground"; Phase = PracticePhase.Finished; Score = 0; Verdict = "That ended on the ground."; }
         LastInputs = new ControlInputs(outAil, outEle, outRud, lever);
         return LastInputs;
     }

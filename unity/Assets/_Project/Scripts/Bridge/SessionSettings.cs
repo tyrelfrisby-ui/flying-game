@@ -110,6 +110,9 @@ namespace FlyingGame.Bridge
         public static readonly (string id, string name)[] Lessons =
         {
             ("lesson:straight", "Straight: wings level"),
+            ("lesson:climb-level-descend", "Climb, level, descend"),
+            ("lesson:glide-rear", "Glide: speed to fly"), ("lesson:glide-side", "Glide: speed to fly · side view"),
+            ("lesson:climb-vy", "Climb: best rate (Vy)"), ("lesson:climb-vx", "Climb: best angle (Vx) · side view"),
             ("practice:xwind-rudder", "Crosswind · rudder"), ("practice:xwind-aileron", "Crosswind · aileron"),
             ("practice:land-rudder", "Crosswind landing · rudder"), ("practice:land-aileron", "Crosswind landing · aileron"),
             ("practice:flare", "Round-out & flare"), ("practice:flare-side", "Flare · side view"),
@@ -135,12 +138,23 @@ namespace FlyingGame.Bridge
             "practice:stall-rudder" => FlyingGame.Sim.Practice.PracticeKind.StallRudder,
             "practice:stall-elevator" => FlyingGame.Sim.Practice.PracticeKind.StallElevator,
             "lesson:straight" => FlyingGame.Sim.Practice.PracticeKind.Straight,
+            "lesson:climb-level-descend" => FlyingGame.Sim.Practice.PracticeKind.ClimbLevelDescend,
+            "lesson:glide-rear" => FlyingGame.Sim.Practice.PracticeKind.GlideRear,
+            "lesson:glide-side" => FlyingGame.Sim.Practice.PracticeKind.GlideSide,
+            "lesson:climb-vy" => FlyingGame.Sim.Practice.PracticeKind.ClimbVyRear,
+            "lesson:climb-vx" => FlyingGame.Sim.Practice.PracticeKind.ClimbVxSide,
             _ => null,
         };
         /// <summary>Wind choice for the practice: crosswind exercises offer Steady/Gusty/Shifting, approach and flare exercises
         /// Calm/Headwind/Gusty headwind/Tailwind/Gusty tailwind.</summary>
         public static FlyingGame.Sim.Practice.PracticeWind PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Steady;
-        public static bool PracticeIsAirwork(string id) => id is "lesson:straight" or "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
+        /// <summary>Lessons where the user picks the axes (bit 0 aileron, 1 elevator, 2 rudder, 3 throttle); −1 = the lesson's default.</summary>
+        public static bool LessonHasAxisChoice(string id) => id is "lesson:climb-level-descend" or "lesson:glide-rear" or "lesson:glide-side" or "lesson:climb-vy" or "lesson:climb-vx";
+        public static int LessonUserAxes = -1;
+        public static int LessonDefaultAxes(string id) => id switch { "lesson:climb-level-descend" => 0b1010, "lesson:glide-rear" or "lesson:glide-side" => 0b0010, "lesson:climb-vy" => 0b0110, "lesson:climb-vx" => 0b0010, _ => 0 };
+        /// <summary>Glide lessons take the along-runway winds (head / tail); the climb lessons fly calm.</summary>
+        public static bool PracticeHasWindChoice(string id) => !PracticeIsAirwork(id) || id is "lesson:glide-rear" or "lesson:glide-side";
+        public static bool PracticeIsAirwork(string id) => id is "lesson:straight" or "lesson:climb-level-descend" or "lesson:glide-rear" or "lesson:glide-side" or "lesson:climb-vy" or "lesson:climb-vx" or "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
         public static bool PracticeIsCrosswind(string id) => id is "practice:xwind-rudder" or "practice:xwind-aileron" or "practice:land-rudder" or "practice:land-aileron";
         public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices =
         {

@@ -70,7 +70,13 @@ namespace FlyingGame.Bridge.Practice
             var imgRect = new Rect(x, y, cw, imgH);
             if (pic != null) GUI.DrawTexture(imgRect, pic, ScaleMode.ScaleToFit); else GUI.Label(imgRect, "(picture)", _small);
             y += imgH + _fs * 0.3f;
-            string legend = Controller.LessonPage == 0 ? "green = lift (tilted with the bank) · orange = its sideways part · grey = weight" : "white = relative wind of the slip · yellow = vertical tail force · orange = the nose swings";
+            string legend = sc.Kind switch
+            {
+                PracticeKind.Straight => Controller.LessonPage == 0 ? "green = lift (tilted with the bank) · orange = its sideways part · grey = weight" : "white = relative wind of the slip · yellow = vertical tail force · orange = the nose swings",
+                PracticeKind.ClimbLevelDescend => Controller.LessonPage == 0 ? "blue = slipstream spiral · yellow = its push on the fin · green = the descending blade's extra thrust · orange = nose yaws LEFT" : "yellow = the tail load at this speed · orange = the trim tab set to carry it (stick force zero)",
+                PracticeKind.GlideRear or PracticeKind.GlideSide => Controller.LessonPage == 0 ? $"speed → · sink ↓ · yellow = min sink {sc.MinSinkMs * 1.944:F0} kt · green = best glide {sc.BestLdMs * 1.944:F0} kt ({sc.BestGlideRatio:F0}:1) · orange = speed to fly in this wind {sc.SpeedToFlyMs * 1.944:F0} kt" : "green = best glide · yellow = min sink (slower, steeper over the ground) · orange = speed to fly in this wind",
+                _ => Controller.LessonPage == 0 ? $"speed → · climb rate ↑ · green = Vy {sc.VyMs * 1.944:F0} kt ({sc.RocAtVyMs * 196.85:F0} fpm) · orange = Vx {sc.VxMs * 1.944:F0} kt" : "orange = Vx, the steeper path over the obstacle · green = Vy, shallower but quicker to altitude",
+            };
             GUI.Label(new Rect(x, y, cw, lh * 0.8f), legend, _small); y += lh * 0.9f;
             GUI.Label(new Rect(x, y, cw, lh * 4.0f), page.text, _text); y += lh * 4.1f;
             if (GUI.Button(new Rect(card.center.x - _fs * 4f, y, _fs * 8f, lh * 1.1f), "NEXT", _btn)) Controller.NextLessonPage();
@@ -159,6 +165,20 @@ namespace FlyingGame.Bridge.Practice
                 }
                 return;
             }
+            if (sc.CLD || sc.Glide || sc.ClimbLesson)
+            {
+                string leg = sc.CLD ? (sc.Leg == 0 ? "CLIMB at Vy, full power" : sc.Leg == 1 ? "LEVEL, 75 % power" : sc.Leg == 2 ? "DESCEND at cruise speed, 50 % power" : "done")
+                           : sc.Glide ? $"GLIDE — speed to fly {sc.SpeedToFlyMs * 1.944:F0} kt  (best L/D {sc.BestLdMs * 1.944:F0}, min sink {sc.MinSinkMs * 1.944:F0})"
+                           : sc.Kind == PracticeKind.ClimbVyRear ? $"CLIMB at Vy {sc.VyMs * 1.944:F0} kt — best RATE" : $"CLIMB at Vx {sc.VxMs * 1.944:F0} kt — best ANGLE";
+                bool onSpeed = Mathf.Abs((float)(sc.AirspeedMs - sc.TargetSpeedMs)) < 0.06f * (float)sc.TargetSpeedMs;
+                var a = new GUIStyle(_big) { normal = { textColor = onSpeed ? good : warn } };
+                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f, view.width, lh), leg, _big);
+                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh, view.width, lh), $"{sc.AirspeedMs * 1.944:F0} kt → target {sc.TargetSpeedMs * 1.944:F0}   ·   {(-sc.SinkMs * 196.85):+0;-0} fpm   ·   {(sc.AglM - sc.StartAglM) * 3.281:+0;-0} ft from start", a);
+                string extra = sc.Glide ? $"over the ground {sc.AchievedRatio:F1}:1 (optimum {sc.SpeedToFlyGroundRatio:F1}:1)" : sc.ClimbLesson ? (sc.Kind == PracticeKind.ClimbVyRear ? $"{sc.ClimbTimeSec:F0} s" : $"{sc.ClimbDistanceM:F0} m of ground") : $"on target {sc.InBandFraction * 100:F0} % of the time";
+                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh * 2f, view.width, lh * 0.8f), extra, _small);
+                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"YOU FLY {sc.UserAxesText.ToUpperInvariant()}   ·   the game has the rest", _small);
+                return;
+            }
             if (sc.STurn)
             {
                 // Bank: a horizon bar tilted to the bank with the 45° targets marked; the cue says which way to roll next.
@@ -225,7 +245,10 @@ namespace FlyingGame.Bridge.Practice
             float x = card.x + _fs, y = card.y + _fs * 0.6f, cw = card.width - 2 * _fs;
             GUI.Label(new Rect(x, y, cw, lh * 1.2f), sc.Title, _title); y += lh * 1.3f;
             GUI.Label(new Rect(x, y, cw, lh * 1.2f), $"{sc.Score:F0} %   {sc.Verdict}", _big); y += lh * 1.3f;
-            string detail = sc.STurn ? $"reversals {sc.Reversals} · mean roll rate {(sc.RmsError > 0 ? "" : "")}score on rate and bank accuracy"
+            string detail = sc.Glide ? $"{sc.AchievedRatio:F1}:1 over the ground against an optimum {sc.SpeedToFlyGroundRatio:F1}:1"
+                : sc.ClimbLesson ? (sc.Kind == PracticeKind.ClimbVyRear ? $"{sc.ClimbTimeSec:F0} s for 1,000 ft (best possible {304.8 / Mathf.Max(0.1f, (float)sc.RocAtVyMs):F0} s)" : $"{sc.ClimbDistanceM:F0} m of ground for 1,000 ft")
+                : sc.CLD ? $"on speed / on altitude {sc.InBandFraction * 100:F0} % of the run"
+                : sc.STurn ? $"reversals {sc.Reversals} · score on rate and bank accuracy"
                 : sc.Stall ? $"stalls {sc.StallCount} · max wing drop {sc.MaxWingDropDeg:F0}° · max sink {sc.MaxSinkMs * 196.85:F0} ft/min"
                 : sc.Descending
                 ? (sc.TouchedDown ? $"touchdown sink {sc.TouchdownSinkMs * 196.85:F0} ft/min · {Mathf.Abs((float)sc.TouchdownAlignDeg):F0}° off parallel · {Mathf.Abs((float)sc.TouchdownOffCentreM):F0} m off centre" : "no touchdown")

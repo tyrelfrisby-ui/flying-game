@@ -58,7 +58,7 @@ namespace FlyingGame.Bridge
             string ch = SessionSettings.ChallengeId;
             if (SessionSettings.IsPractice(ch) && Practice != null && SessionSettings.PracticeKindFor(ch) is FlyingGame.Sim.Practice.PracticeKind pk)
             {
-                Practice.Begin(pk, SessionSettings.PracticeWindChoice);
+                Practice.Begin(pk, SessionSettings.PracticeWindChoice, SessionSettings.LessonHasAxisChoice(ch) ? SessionSettings.LessonUserAxes : -1);
                 return;
             }
             if (ch == "event:race" && Race != null) Race.Begin();
@@ -199,11 +199,26 @@ namespace FlyingGame.Bridge
                     bool xw = SessionSettings.PracticeIsCrosswind(id);
                     bool ok = false;
                     foreach (var c in xw ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices) if (c.w == SessionSettings.PracticeWindChoice) ok = true;
-                    if (!ok || SessionSettings.PracticeIsAirwork(id)) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
+                    if (!ok || (SessionSettings.PracticeIsAirwork(id) && !SessionSettings.PracticeHasWindChoice(id))) SessionSettings.PracticeWindChoice = xw ? FlyingGame.Sim.Practice.PracticeWind.Steady : FlyingGame.Sim.Practice.PracticeWind.Calm;
+                    SessionSettings.LessonUserAxes = SessionSettings.LessonDefaultAxes(id);
                 }
                 y += lbh + gap * 0.3f;
             }
-            if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && !SessionSettings.PracticeIsAirwork(SessionSettings.ChallengeId))
+            if (SessionSettings.LessonHasAxisChoice(SessionSettings.ChallengeId))
+            {
+                // Which controls YOU fly (the game takes the rest) — owner 2026-09-15.
+                GUI.Label(new Rect(x, y, colW, lh), "YOU FLY", _head); y += lh;
+                if (SessionSettings.LessonUserAxes < 0) SessionSettings.LessonUserAxes = SessionSettings.LessonDefaultAxes(SessionSettings.ChallengeId);
+                string[] names = { "AIL", "ELE", "RUD", SessionSettings.AircraftId.StartsWith("glider") ? "SPOIL" : "THR" };
+                float aw = (colW - 3 * gap * 0.3f) / 4f;
+                for (int i = 0; i < 4; i++)
+                {
+                    bool on = (SessionSettings.LessonUserAxes & (1 << i)) != 0;
+                    if (GUI.Button(new Rect(x + i * (aw + gap * 0.3f), y, aw, bh), names[i], on ? _btnOn : _btn)) SessionSettings.LessonUserAxes ^= (1 << i);
+                }
+                y += bh + gap * 0.4f;
+            }
+            if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && SessionSettings.PracticeHasWindChoice(SessionSettings.ChallengeId))
             {
                 // Practice wind (owner 2026-09-15): steady / gusty / shifting crosswind, or calm / head / tail winds with gusts.
                 GUI.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;
