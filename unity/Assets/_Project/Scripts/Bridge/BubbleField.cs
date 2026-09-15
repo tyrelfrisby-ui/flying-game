@@ -99,6 +99,7 @@ namespace FlyingGame.Bridge
             _sun = FindSun();
         }
 
+        private PilotEgress _egress;
         private void LateUpdate()
         {
             if (!SessionSettings.BubblesOn) return;
@@ -120,6 +121,9 @@ namespace FlyingGame.Bridge
                 _batchProps = new MaterialPropertyBlock();
             }
             if (Follow == null) return;
+            // Bailed out: no bubble cloud around the abandoned aircraft (owner 2026-09-15: it was enshrined in it).
+            _egress ??= Follow.GetComponent<PilotEgress>();
+            if (_egress != null && _egress.PilotOut) return;
             DrawnCount = 0;
             Shader.SetGlobalVector(SunDirId, _sun != null ? -_sun.transform.forward : new Vector3(0.4f, 0.8f, -0.4f).normalized);
 

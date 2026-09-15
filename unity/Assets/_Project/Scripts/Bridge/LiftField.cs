@@ -21,6 +21,7 @@ namespace FlyingGame.Bridge
         private Mesh _mesh; private Material _material; private MaterialPropertyBlock _props;
         private Vector3Int _anchor;            // lattice cell the aircraft is in (world lattice, so cells are stable)
         private FlightSimDriver _driver;
+        private PilotEgress _egress;
         private float[] _w;                    // sampled vertical air speed per cell (NaN = not yet)
         private int _n, _cursor;
         private static readonly int ColorId = Shader.PropertyToID("_Color"), AlphaId = Shader.PropertyToID("_Alpha");
@@ -47,6 +48,8 @@ namespace FlyingGame.Bridge
         private void LateUpdate()
         {
             if (Follow == null || _w == null || SessionSettings.MenuOpen) return;
+            _egress ??= Follow.GetComponent<PilotEgress>();
+            if (_egress != null && _egress.PilotOut) return;   // bailed out: clear view of the aircraft
             _driver ??= Follow.GetComponent<FlightSimDriver>();
             if (!SessionSettings.LiftMarkersVisible(_driver != null ? _driver.AircraftId : SessionSettings.AircraftId)) return;
             Vector3 p = Follow.position;
