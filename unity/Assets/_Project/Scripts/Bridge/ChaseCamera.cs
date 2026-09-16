@@ -23,6 +23,9 @@ namespace FlyingGame.Bridge
         public float Height = 3.5f;
         public float PositionDamp = 3.0f;
         public float DirectionDamp = 4.0f;      // how fast the followed direction tracks the flight path
+        /// <summary>The camera sits EXACTLY on the flight path (air-relative aloft, ground track in ground-reference mode), with no
+        /// follow lag, so any nose offset the pilot sees is real slip, skid or crab (owner 2026-09-16: all phases of flight).</summary>
+        public bool ExactFlightPath = true;   // owner 2026-09-16: the foundation of the app — every phase of flight, not just the drills
         public float MinTrackSpeed = 4f;        // m/s; below this follow the nose
 
         /// <summary>When set, the camera follows this instead of <see cref="Target"/> (the pilot after egress).</summary>
@@ -134,7 +137,7 @@ namespace FlyingGame.Bridge
             }
 
             Vector3 want = ovr ? OverrideDirection() : DesiredDirection();
-            _dir = Vector3.Slerp(_dir, want, 1f - Mathf.Exp(-DirectionDamp * Time.deltaTime)).normalized;
+            _dir = ExactFlightPath && !ovr ? want.normalized : Vector3.Slerp(_dir, want, 1f - Mathf.Exp(-DirectionDamp * Time.deltaTime)).normalized;
 
             // Reference up: world up, unless the path is near-vertical (tumble/loop), then the aircraft's up
             // keeps the horizon from flipping. (The pilot path is pitch-limited, so always world up there.)
@@ -148,7 +151,7 @@ namespace FlyingGame.Bridge
             bool backdrop = ovr && OverrideBackdrop != null;
             Vector3 side = backdrop ? -Vector3.Cross(up, _dir).normalized * BackdropSideOffsetM : Vector3.zero;   // pilot's left
             Vector3 desiredOffset = -_dir * dist + up * hgt + side;
-            _offset = Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
+            _offset = ExactFlightPath && !ovr ? desiredOffset : Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
             transform.position = tgt.position + _offset;
             // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.

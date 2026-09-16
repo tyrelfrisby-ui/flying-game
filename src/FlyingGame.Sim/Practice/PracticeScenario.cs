@@ -116,7 +116,7 @@ public sealed class PracticeScenario
     public string EndReason { get; private set; } = "";
     private double _gustLevel, _gustTarget, _gustNextT, _gustRamp = 1;
     private readonly Random _rng;
-    private double _lastAlongForShift, _stillSec, _crab0, _hT = double.NaN, _theta0, _betaF;
+    private double _lastAlongForShift, _stillSec, _crab0, _hT = double.NaN, _theta0, _betaF, _ailCmd;
     private bool _heightLawOn;
     /// <summary>Elevator-power scale for the game's pitch laws: 1.8°/° of trim slope = 1.0; a tail with twice the power gets half the gains.</summary>
     public double ElevatorPower { get; private set; } = 1.0;
@@ -799,7 +799,11 @@ public sealed class PracticeScenario
             // The game's roll law (owner 2026-09-16): full aileron until the roll rate reaches 45°/s, toward the target bank,
             // reversing the instant 45° is reached — rapid rolling reversals. Before the hand-over: wings level.
             double rateT = TargetBankSign * 45.0 * Math.PI / 180;
-            ail = live ? Math.Clamp(3.0 * (rateT - p), -1, 1) : Math.Clamp(-1.2 * roll - 0.5 * p, -1, 1);
+            double ailWant = live ? Math.Clamp(3.0 * (rateT - p), -1, 1) : Math.Clamp(-1.2 * roll - 0.5 * p, -1, 1);
+            // The game's aileron moves no faster than a hand would: one second stop to stop (owner 2026-09-16), so the
+            // rudder has a chance to go in with it.
+            _ailCmd += Math.Clamp(ailWant - _ailCmd, -2.0 * dt, 2.0 * dt);
+            ail = _ailCmd;
             rud = Math.Clamp(-1.5 * beta - 0.5 * r + (live ? 0.35 * ail : 0), -1, 1);   // coordinated: rudder with the aileron against adverse yaw
         }
         else

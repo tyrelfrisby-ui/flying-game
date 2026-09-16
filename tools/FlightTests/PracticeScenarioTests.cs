@@ -356,7 +356,7 @@ public class PracticeScenarioTests
         var sc = Run("c172-like.json", PracticeKind.STurns, PracticeWind.Calm, (s, auto) => { maxRate = Math.Max(maxRate, Math.Abs(s.RollRateDegS)); maxBank = Math.Max(maxBank, Math.Abs(s.BankDeg)); return new ControlInputs(0, 0, auto.Rudder, 0); }, maxSec: PracticeScenario.BriefingSec + 30);
         _out.WriteLine($"  reversals {sc.Reversals} in 30 s, peak roll rate {maxRate:F0}°/s, peak bank {maxBank:F0}°");
         Assert.True(sc.Reversals >= 6, $"only {sc.Reversals} reversals");
-        Assert.InRange(maxRate, 40, 90);
+        Assert.InRange(maxRate, 35, 90);   // the game's aileron is rate-limited (1 s stop to stop)
         Assert.InRange(maxBank, 44, 62);
     }
 }

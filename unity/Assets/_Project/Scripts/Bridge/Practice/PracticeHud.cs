@@ -202,10 +202,14 @@ namespace FlyingGame.Bridge.Practice
                 string cue = sc.Phase != PracticePhase.Live ? "" : sc.TargetBankSign > 0 ? "ROLL RIGHT to 45°" : "ROLL LEFT to 45°";
                 var a = new GUIStyle(_big) { normal = { textColor = Mathf.Abs((float)sc.RollRateDegS) >= 40f ? good : warn } };
                 GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"{cue}   bank {sc.BankDeg:F0}°   rate {Mathf.Abs((float)sc.RollRateDegS):F0}°/s", a);
+                // Coordination: the ball. Air from the right (+β) = skidding left-to-right … the ball goes the way the tail is being pushed.
+                bool coord = Mathf.Abs((float)sc.BetaDeg) < 2f;
+                string ball = coord ? "BALL CENTRED" : sc.BetaDeg > 0 ? $"BALL RIGHT {sc.BetaDeg:F0}° — more right rudder" : $"BALL LEFT {-sc.BetaDeg:F0}° — more left rudder";
+                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh, view.width, lh * 0.9f), ball, new GUIStyle(_big) { fontSize = Mathf.RoundToInt(_fs * 1.1f), normal = { textColor = coord ? good : warn } });
                 string spd = $"speed {sc.AirspeedMs * 1.944:F0} kt → target {sc.SpeedTargetMs * 1.944:F0} kt   ({(sc.CycleFraction < 0.5 ? "slowing to" : "back up toward")} {(sc.CycleFraction < 0.5 ? 1.15 * sc.VsoMs * 1.944 : sc.CruiseMs * 1.944):F0})   reversals {sc.Reversals}";
-                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh, view.width, lh * 0.8f), spd, _small);
+                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 1.9f, view.width, lh * 0.8f), spd, _small);
                 GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), "AILERON + RUDDER: 45° to 45°, at 45°/s or full aileron — reverse the moment you get there", _small);
-                if (sc.Stalled) GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 1.8f, view.width, lh), "STALLED — the slow end of the cycle at 45° is past the stall in the turn", new GUIStyle(_big) { normal = { textColor = warn } });
+                if (sc.Stalled) GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 2.7f, view.width, lh), "STALLED — the slow end of the cycle at 45° is past the stall in the turn", new GUIStyle(_big) { normal = { textColor = warn } });
             }
             else
             {
