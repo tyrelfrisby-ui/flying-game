@@ -60,7 +60,7 @@ public sealed class PracticeScenario
     public double GameBrakeBias { get; private set; }
 
     public bool UserRudder => Selectable ? UserRudOn : Kind is PracticeKind.CrosswindRudder or PracticeKind.LandingRudder or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.StallRudder;
-    public bool Selectable => CLD || Glide || ClimbLesson;
+    public bool Selectable => CLD || Glide || ClimbLesson || STurn;
     public bool UserAileron => Selectable ? UserAilOn : Kind is PracticeKind.CrosswindAileron or PracticeKind.LandingAileron or PracticeKind.STurns or PracticeKind.STurnsTest or PracticeKind.Straight;
     public bool UserElevator => Selectable ? UserEleOn : Kind is PracticeKind.Flare or PracticeKind.FlareSideView or PracticeKind.ApproachSideView or PracticeKind.StallSideView or PracticeKind.StallElevator;
     public bool UserThrottle => Selectable ? UserThrOn : Kind == PracticeKind.ApproachSideView;
@@ -130,7 +130,7 @@ public sealed class PracticeScenario
     public PracticeScenario(PracticeKind kind, PracticeWind wind, AircraftConfig config, WorldTerrain.RunwayEnd runway, double surfaceM, double crosswindMs = 4.0, int seed = 1, int userAxes = -1)
     // crosswindMs is the CAP; the actual crosswind scales with the type's speed. userAxes: bit 0 aileron, 1 elevator, 2 rudder, 3 throttle (−1 = the lesson's default)
     {
-        if (userAxes < 0) userAxes = kind switch { PracticeKind.ClimbLevelDescend => 0b1010, PracticeKind.GlideRear or PracticeKind.GlideSide => 0b0010, PracticeKind.ClimbVyRear => 0b0110, PracticeKind.ClimbVxSide => 0b0010, _ => 0 };
+        if (userAxes < 0) userAxes = kind switch { PracticeKind.STurns => 0b0100, PracticeKind.STurnsTest => 0b0101, PracticeKind.ClimbLevelDescend => 0b1010, PracticeKind.GlideRear or PracticeKind.GlideSide => 0b0010, PracticeKind.ClimbVyRear => 0b0110, PracticeKind.ClimbVxSide => 0b0010, _ => 0 };
         UserAilOn = (userAxes & 1) != 0; UserEleOn = (userAxes & 2) != 0; UserRudOn = (userAxes & 4) != 0; UserThrOn = (userAxes & 8) != 0;
         Kind = kind; WindPattern = wind; Config = config; Runway = runway; SurfaceM = surfaceM;
         _rng = new Random(seed);
@@ -312,7 +312,7 @@ public sealed class PracticeScenario
         PracticeKind.Flare => "Fifty feet, power off, one point three V S O. The game keeps it straight and on the centreline. You have the elevator. Round out, hold it off, and let it settle.",
         PracticeKind.FlareSideView => "Side view. Fifty feet, power off. You have the elevator and the brakes. Round out, flare, and watch the weight on the wheels: elevator and braking shift it between the wheels.",
         PracticeKind.ApproachSideView => "Side view, on the glideslope at one point three V S O. You have the elevator and the power. Pitch for the glide path, power for the airspeed. The slope is a little shallower than the idle glide, so it takes a touch of power. Fly it down to the runway and land.",
-        PracticeKind.STurns => "The game holds the altitude and cycles the speed from cruise down to one point one five V S O and back, over and over. You have the aileron and rudder. Roll into a forty five degree bank at forty five degrees a second, or full aileron, then reverse immediately all the way to forty five the other way. Keep it going.",
+        PracticeKind.STurns => "The game holds the altitude, cycles the speed from cruise down to one point one five V S O and back, and rolls: full aileron until the roll rate reaches forty five degrees a second, into a forty five degree bank, then straight back the other way, over and over. You have the rudder. Keep it coordinated through every reversal: rudder with the aileron, against the adverse yaw, more of it as the speed comes down.",
         PracticeKind.STurnsTest => "Scored: one speed cycle, cruise to one point one five V S O and back. Forty five degrees of bank to forty five the other way, at forty five degrees a second or full aileron, continuously. Roll rate and bank accuracy count.",
         PracticeKind.StallSideView => "Side view, power off, pitch only. You have the elevator. Bring the nose up and hold it until the wing stalls. Watch the bubbles: as it sinks, the relative wind at the tail comes from below, the tail force changes and the nose drops by itself. Hold it in the stall if you like and watch the sink rate build.",
         PracticeKind.StallRudder => "Power off. The game stalls the aircraft and breaks the stall, again and again, using no more than ten percent aileron. You have the rudder. When a wing drops, pick it up with rudder, not aileron.",
@@ -796,9 +796,11 @@ public sealed class PracticeScenario
                 double altBoost = Math.Clamp(-0.008 * hErr, 0, 0.5);
                 lever = 1 - 2 * Math.Clamp(_thr0 + 0.15 * vErr + _thrInt + altBoost, 0, 1);
             }
-            // Game aileron/rudder only during the briefing: wings level, coordinated.
-            ail = Math.Clamp(-1.2 * roll - 0.5 * p, -1, 1);
-            rud = Math.Clamp(-1.5 * beta - 0.5 * r, -1, 1);
+            // The game's roll law (owner 2026-09-16): full aileron until the roll rate reaches 45°/s, toward the target bank,
+            // reversing the instant 45° is reached — rapid rolling reversals. Before the hand-over: wings level.
+            double rateT = TargetBankSign * 45.0 * Math.PI / 180;
+            ail = live ? Math.Clamp(3.0 * (rateT - p), -1, 1) : Math.Clamp(-1.2 * roll - 0.5 * p, -1, 1);
+            rud = Math.Clamp(-1.5 * beta - 0.5 * r + (live ? 0.35 * ail : 0), -1, 1);   // coordinated: rudder with the aileron against adverse yaw
         }
         else
         {

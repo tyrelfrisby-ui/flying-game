@@ -348,4 +348,15 @@ public class PracticeScenarioTests
             _out.WriteLine($"{file} v {v * 1.944,4:F0} kt: L/D {tr.GlideRatio:F1}  drag {dTot:F0} N (wing {dWing:F0} + tail {dTail:F0} + fuselage {dFus:F0})  thrust {thrust:F0} N (eff·P/V = {c.Propulsion!.Efficiency * c.Propulsion.MaxPowerW / v:F0})  ROC {roc * 196.85:F0} fpm");
         }
     }
+
+    [Fact]
+    public void STurnsPracticeRollsItselfAtFortyFiveDegreesASecondReversingAtFortyFive()
+    {
+        double maxRate = 0, maxBank = 0;
+        var sc = Run("c172-like.json", PracticeKind.STurns, PracticeWind.Calm, (s, auto) => { maxRate = Math.Max(maxRate, Math.Abs(s.RollRateDegS)); maxBank = Math.Max(maxBank, Math.Abs(s.BankDeg)); return new ControlInputs(0, 0, auto.Rudder, 0); }, maxSec: PracticeScenario.BriefingSec + 30);
+        _out.WriteLine($"  reversals {sc.Reversals} in 30 s, peak roll rate {maxRate:F0}°/s, peak bank {maxBank:F0}°");
+        Assert.True(sc.Reversals >= 6, $"only {sc.Reversals} reversals");
+        Assert.InRange(maxRate, 40, 90);
+        Assert.InRange(maxBank, 44, 62);
+    }
 }

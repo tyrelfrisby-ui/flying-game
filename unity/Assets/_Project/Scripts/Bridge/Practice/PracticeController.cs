@@ -29,6 +29,28 @@ namespace FlyingGame.Bridge.Practice
         /// <summary>Lesson pictures rendered from the game at Begin (index = LessonPages index).</summary>
         public Texture2D[] LessonPictures { get; private set; } = System.Array.Empty<Texture2D>();
         public int LessonPage { get; set; }
+        /// <summary>Briefing pacing (owner 2026-09-16): the sim is FROZEN while the pages and the card are up; the dismiss button
+        /// starts a 3-2-1 countdown (real time), and only at zero does the sim run, with the user's axes live at once.</summary>
+        public bool Counting { get; private set; }
+        public float CountdownLeft => Counting ? Mathf.Max(0f, _countEnd - Time.realtimeSinceStartup) : 0f;
+        private float _countEnd;
+        public void StartCountdown() { if (!Active || Counting || Scenario == null || Scenario.Phase != PracticePhase.Briefing) return; Counting = true; _countEnd = Time.realtimeSinceStartup + 3.2f; PilotVoice.Say("Three. Two. One.", 0.5f, 1.0f); }
+
+        private void Update()
+        {
+            if (!Active || Scenario == null) return;
+            if (Scenario.Phase == PracticePhase.Briefing)
+            {
+                Time.timeScale = 0f;   // no live play behind the briefing
+                if (Counting && Time.realtimeSinceStartup >= _countEnd)
+                {
+                    Counting = false;
+                    Scenario.SkipBriefing();
+                    Time.timeScale = 1f;
+                }
+            }
+            else if (!SessionSettings.MenuOpen && Time.timeScale == 0f) Time.timeScale = 1f;
+        }
 
         private void Awake()
         {
@@ -62,7 +84,7 @@ namespace FlyingGame.Bridge.Practice
                 Driver.InputFilter = Filter;
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
-                Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f;
+                Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f; Counting = false;
                 if (kind == PracticeKind.StallSideView) { _bubblesWere = SessionSettings.BubblesOn; SessionSettings.BubblesOn = true; }   // the air must be visible
                 _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
                 SetupCamera();
@@ -108,7 +130,8 @@ namespace FlyingGame.Bridge.Practice
         public void End()
         {
             if (!Active) return;
-            Active = false;
+            Active = false; Counting = false;
+            if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
             Driver.InputFilter = null;
             Driver.ForceCapture = false;
             Driver.GroundReferenceForced = false;

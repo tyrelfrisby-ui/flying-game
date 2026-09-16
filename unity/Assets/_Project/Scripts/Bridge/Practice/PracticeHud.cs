@@ -47,6 +47,7 @@ namespace FlyingGame.Bridge.Practice
 
             if (sc.Phase == PracticePhase.Briefing)
             {
+                if (Controller.Counting) { DrawCountdown(view, lh); return; }
                 if (sc.LessonPages.Length > 0 && Controller.LessonPage < sc.LessonPages.Length) DrawLessonPage(sc, view, lh);
                 else DrawBriefing(sc, view, lh);
                 return;
@@ -82,6 +83,15 @@ namespace FlyingGame.Bridge.Practice
             if (GUI.Button(new Rect(card.center.x - _fs * 4f, y, _fs * 8f, lh * 1.1f), "NEXT", _btn)) Controller.NextLessonPage();
         }
 
+        private void DrawCountdown(Rect view, float lh)
+        {
+            int n = Mathf.CeilToInt(Controller.CountdownLeft - 0.2f);
+            string txt = n >= 1 ? n.ToString() : "GO";
+            var big = new GUIStyle(_title) { fontSize = Mathf.RoundToInt(_fs * 5f), normal = { textColor = n >= 1 ? Color.white : new Color(0.45f, 1f, 0.5f) } };
+            GUI.Label(new Rect(view.x, view.y + view.height * 0.35f, view.width, lh * 5f), txt, big);
+            GUI.Label(new Rect(view.x, view.y + view.height * 0.35f + lh * 5f, view.width, lh), Controller.Scenario.HandoverLine, _big);
+        }
+
         private void DrawBriefing(PracticeScenario sc, Rect view, float lh)
         {
             float w = Mathf.Min(view.width * 0.9f, _fs * 26f), h = lh * 9.5f;
@@ -90,8 +100,8 @@ namespace FlyingGame.Bridge.Practice
             float x = card.x + _fs, y = card.y + _fs * 0.6f, cw = card.width - 2 * _fs;
             GUI.Label(new Rect(x, y, cw, lh * 1.2f), sc.Title, _title); y += lh * 1.3f;
             GUI.Label(new Rect(x, y, cw, lh * 5.6f), sc.Instructions, _text); y += lh * 5.7f;
-            GUI.Label(new Rect(x, y, cw, lh), $"The game is flying it.  {sc.HandoverLine.Replace("You have", "You get")} in {sc.BriefingLeft:F0} s", _small); y += lh;
-            if (GUI.Button(new Rect(card.center.x - _fs * 4f, y, _fs * 8f, lh * 1.1f), "GO NOW", _btn)) Controller.Scenario.SkipBriefing();
+            GUI.Label(new Rect(x, y, cw, lh), $"{sc.HandoverLine}   Press GO for a three-second countdown.", _small); y += lh;
+            if (GUI.Button(new Rect(card.center.x - _fs * 4f, y, _fs * 8f, lh * 1.1f), "GO", _btn)) Controller.StartCountdown();
         }
 
         private void DrawLive(PracticeScenario sc, Rect view, float lh)
