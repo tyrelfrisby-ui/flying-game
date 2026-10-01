@@ -11,6 +11,7 @@ namespace FlyingGame.Bridge
     {
         public FlightSimDriver Driver;
         private bool _open;
+        public bool IsOpen => _open;
         private GUIStyle _btn, _btnOn, _head, _label;
         private Texture2D _bg, _btnBg, _btnOnBg;
         private int _fs;

@@ -49,7 +49,7 @@ namespace FlyingGame.Bridge.Practice
                     Time.timeScale = 1f;
                 }
             }
-            else if (!SessionSettings.MenuOpen && Time.timeScale == 0f) Time.timeScale = 1f;
+            else if (!SessionSettings.MenuOpen && !SessionSettings.ReplayActive && Time.timeScale == 0f) Time.timeScale = 1f;
         }
 
         private void Awake()

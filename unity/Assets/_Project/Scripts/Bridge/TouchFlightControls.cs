@@ -137,7 +137,7 @@ namespace FlyingGame.Bridge
             string key = $"{Screen.width}x{Screen.height}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
-            if (SessionSettings.MenuOpen) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
+            if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
             ReadPointers();
             MergeKeyboardFallback();
             PublishToDriver();
@@ -537,7 +537,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
-            if (SessionSettings.MenuOpen) return;
+            if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) return;   // the replay bar owns the tray
             EnsureStyles();
 
             // Portrait: opaque tray under the controls. The camera only clears its own (upper) viewport,

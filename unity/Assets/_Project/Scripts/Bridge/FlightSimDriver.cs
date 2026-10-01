@@ -214,8 +214,15 @@ namespace FlyingGame.Bridge
             ApplyStateToTransform();
         }
 
+        /// <summary>Flight replay owns the aircraft pose (<see cref="FlightReplay"/>): the sim is not stepped.</summary>
+        public bool Replaying;
+
+        /// <summary>Replay: redraw the aircraft from the pose the replay just put into it, with the wind recorded then.</summary>
+        public void ShowReplayPose(Vec3 windWorld) => ApplyStateToTransform(windWorld);
+
         private void Update()
         {
+            if (Replaying) return;
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
             Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
@@ -283,7 +290,9 @@ namespace FlyingGame.Bridge
             ApplyStateToTransform();
         }
 
-        private void ApplyStateToTransform()
+        private void ApplyStateToTransform() => ApplyStateToTransform(null);
+
+        private void ApplyStateToTransform(Vec3? windOverride)
         {
             RigidBodyState s = Sim.Aircraft.State;
             transform.SetPositionAndRotation(CoordinateMap.ToUnity(s.Position), CoordinateMap.ToUnity(s.Attitude));
@@ -293,7 +302,7 @@ namespace FlyingGame.Bridge
             // local wind (steady wind + slope lift + thermals + gusts), exactly as the aero model does. With the
             // ground vector, a crosswind read as a permanent sideslip and put the camera off the tail.
             Vec3 groundVelWorld = s.Attitude.Rotate(s.Velocity);
-            Vec3 windWorld = Atmosphere.WindAtPosition(s.Position);
+            Vec3 windWorld = windOverride ?? Atmosphere.WindAtPosition(s.Position);
             Vec3 v = s.Velocity - s.Attitude.Conjugate().Rotate(windWorld);   // air-relative, body axes
             WorldVelocityUnity = CoordinateMap.ToUnity(groundVelWorld);
             AirVelocityUnity = CoordinateMap.ToUnity(groundVelWorld - windWorld);

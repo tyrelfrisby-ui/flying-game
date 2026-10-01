@@ -178,6 +178,19 @@ public sealed class Aircraft
 
     public ControlDeflections CurrentDeflections => new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction);
 
+    /// <summary>Replay (display only): put the aircraft in a recorded pose without stepping the physics — state, control
+    /// surfaces, power, flaps, gear and g — so every visual, gauge and sound that reads the aircraft shows the recording.
+    /// The per-strip stall memory, tailwheel and structure are untouched, so restoring the live pose resumes exactly.</summary>
+    public void SetReplayPose(RigidBodyState state, ControlDeflections d, double throttle01, double flapFraction, double gearExtension, double loadFactorZ)
+    {
+        State = state;
+        _aileronRad = d.AileronRad; _elevatorRad = d.ElevatorRad; _rudderRad = d.RudderRad; _spoilerFraction = d.SpoilerFraction;
+        _throttle01 = throttle01;
+        FlapFraction = flapFraction;
+        GearExtension = gearExtension;
+        LoadFactorZ = loadFactorZ;
+    }
+
     // ---- telemetry shared by audio / structure / HUD / net (read-only) ----------------------------
 
     /// <summary>Commanded power 0..1 (0 for gliders).</summary>

@@ -17,6 +17,13 @@ namespace FlyingGame.Bridge
     /// </summary>
     public sealed class ChaseCamera : MonoBehaviour
     {
+        /// <summary>Camera view points (owner 2026-10-01). RelativeWind = the flight-path camera above (downstream on the
+        /// relative wind). The Fixed* views are bolted to the airframe (they roll and pitch with it). Flyby parks the camera
+        /// ahead of the aircraft, up and off to one side of its path, and watches it go by.</summary>
+        public enum View { RelativeWind, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby }
+        public static readonly string[] ViewNames = { "Relative wind", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by" };
+        public View CurrentView = View.RelativeWind;
+
         public Transform Target;
         public FlightSimDriver Driver;
         public float Distance = 14f;
@@ -50,6 +57,13 @@ namespace FlyingGame.Bridge
         public float SideFocusY;                    // world height the frame is centred on
         public float SideDistance = 30f;
 
+        // Fly-by: where the camera is parked, how far away the aircraft was when it was parked there, which side is next.
+        private Vector3 _flyPos;
+        private float _flyStartDist;
+        private bool _flyValid;
+        private int _flySide = 1;
+        private float _baseFov = -1f;
+
         private Vector3 _dir = Vector3.forward; // smoothed follow direction (world)
         private Vector3 _offset;                // smoothed camera offset from the target (world)
         private Camera _cam;
@@ -57,11 +71,101 @@ namespace FlyingGame.Bridge
         /// <summary>Fit the chase distance to the airframe (a 737 needs ~3x the glider's 14 m).</summary>
         public void FitTo(float spanM)
         {
+            SpanM = spanM;
+            _flyValid = false;
             // Closer than v1 (owner: "more zoomed in" now that the HUD sits over the aircraft).
             // The old world-position lag added ~7 m of trail to this; now that the camera rides exactly at its
             // offset the distance itself carries that (owner: "a little too close" at 0.75 span).
             Distance = Mathf.Clamp(spanM * 1.3f, 11f, 66f);   // owner 2026-09-10: "zoom out just a little" (was 1.15 span)
             Height = Distance * 0.22f;
+        }
+
+        public float SpanM { get; private set; } = 15f;
+
+        public void SetView(View v)
+        {
+            CurrentView = v;
+            _flyValid = false;
+        }
+
+        public void NextView() => SetView((View)(((int)CurrentView + 1) % ViewNames.Length));
+
+        /// <summary>Fixed views: the camera is bolted to the airframe — position and "up" both in body axes, so it rolls,
+        /// pitches and yaws with the aircraft and the world moves around it.</summary>
+        private void FixedView(Transform t)
+        {
+            Vector3 p = t.position, f = t.forward, u = t.up, r = t.right;
+            float d = Distance;
+            switch (CurrentView)
+            {
+                case View.Tail:
+                    transform.position = p - f * d + u * Height;
+                    transform.rotation = Quaternion.LookRotation(p + f * 4f - transform.position, u);
+                    break;
+                case View.SideLeft:
+                    transform.position = p - r * d;
+                    transform.rotation = Quaternion.LookRotation(r, u);
+                    break;
+                case View.SideRight:
+                    transform.position = p + r * d;
+                    transform.rotation = Quaternion.LookRotation(-r, u);
+                    break;
+                case View.Top:
+                    transform.position = p + u * d;
+                    transform.rotation = Quaternion.LookRotation(-u, f);
+                    break;
+                case View.Bottom:
+                    transform.position = p - u * d;
+                    transform.rotation = Quaternion.LookRotation(u, f);
+                    break;
+                case View.Front:
+                    transform.position = p + f * d + u * Height * 0.5f;
+                    transform.rotation = Quaternion.LookRotation(p - transform.position, u);
+                    break;
+            }
+        }
+
+        /// <summary>Fly-by: park the camera ahead of the aircraft on its flight path, up and off to one side, fixed in space,
+        /// and keep the aircraft centred (zooming so it stays a sensible size). Once it has gone past and is as far away as
+        /// it was when the camera was parked, re-park ahead of it on the other side.</summary>
+        private void FlybyView(Transform t)
+        {
+            Vector3 p = t.position;
+            Vector3 v = Driver != null ? Driver.WorldVelocityUnity : Vector3.zero;
+            float speed = v.magnitude;
+            Vector3 vhat = speed >= MinTrackSpeed ? v / speed : t.forward;
+            if (_flyValid)
+            {
+                Vector3 rel = p - _flyPos;
+                float dist = rel.magnitude;
+                bool past = Vector3.Dot(rel, vhat) > 0f;
+                if ((past && dist >= _flyStartDist) || dist > _flyStartDist * 2.5f) _flyValid = false;   // gone by, or turned away / scrubbed
+            }
+            if (!_flyValid)
+            {
+                float ahead = Mathf.Clamp(Mathf.Max(speed, 15f) * 5f, Mathf.Max(60f, SpanM * 5f), 450f);
+                Vector3 side = Vector3.Cross(Vector3.up, vhat);
+                if (side.sqrMagnitude < 0.01f) side = t.right;
+                side.Normalize();
+                Vector3 pos = p + vhat * ahead + side * (_flySide * (ahead * 0.15f + SpanM)) + Vector3.up * (ahead * 0.06f + SpanM * 0.3f);
+                // Never under the ground (or the water).
+                var sim = CoordinateMap.ToSim(pos);
+                float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y) + 3f;
+                if (pos.y < ground) pos.y = ground;
+                _flyPos = pos;
+                _flyStartDist = (pos - p).magnitude;
+                _flySide = -_flySide;
+                _flyValid = true;
+            }
+            transform.position = _flyPos;
+            Vector3 look = p - _flyPos;
+            transform.rotation = Quaternion.LookRotation(look, Vector3.up);
+            if (_cam != null)
+            {
+                // Zoom so the aircraft fills about the same share of the frame as in the chase view.
+                float want = 2f * Mathf.Atan(SpanM * 0.9f / Mathf.Max(1f, look.magnitude)) * Mathf.Rad2Deg;
+                _cam.fieldOfView = Mathf.Clamp(want, 6f, _baseFov);
+            }
         }
 
         private Vector3 DesiredDirection()
@@ -121,12 +225,17 @@ namespace FlyingGame.Bridge
                 if (_cam.rect != vp) _cam.rect = vp;
             }
 
-            bool ovr = OverrideTarget != null;
+            if (_cam != null && _baseFov < 0f) _baseFov = _cam.fieldOfView;
+            // In a replay the camera always watches the aircraft (the pilot, if he bailed out, is frozen where he is now).
+            bool ovr = OverrideTarget != null && !SessionSettings.ReplayActive;
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
                 return;
             }
+            if (_cam != null && CurrentView != View.Flyby && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }   // side-view lessons keep their camera
+            if (!ovr && !SideView && CurrentView != View.RelativeWind) { FixedView(tgt); return; }
             if (SideView && !ovr)
             {
                 Vector3 tp = tgt.position;

@@ -10,6 +10,8 @@ namespace FlyingGame.Bridge
         public enum Start { InTheAir, OnTheRunway, OnFinal }
 
         public static bool MenuOpen = true;               // landing page showing: pads/HUD hidden, sim paused
+        /// <summary>Flight replay is playing: the sim and world are frozen, the control pads are hidden, the replay bar owns the tray.</summary>
+        public static bool ReplayActive;
         public static string AircraftId = "glider-2-33-like";
         public static string TugId = "pa25-pawnee-like";
         public enum InstrumentMode { Analog, Hud, None }

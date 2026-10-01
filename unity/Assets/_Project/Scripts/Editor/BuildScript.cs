@@ -231,6 +231,8 @@ namespace FlyingGame.EditorTools
             var plist = new PlistDocument();
             plist.ReadFromFile(plistPath);
             plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
+            // Quick clips save videos to the photo library (add-only access).
+            plist.root.SetString("NSPhotoLibraryAddUsageDescription", "Aero Playground saves the flight clips you capture to your photo library.");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
             // MediaPlayer.framework for the volume-button trigger (Plugins/iOS/VolumeFireButton.mm).
@@ -239,8 +241,11 @@ namespace FlyingGame.EditorTools
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
             proj.AddFrameworkToProject(fw, "MediaPlayer.framework", false);
+            // ReplayKit + Photos for the quick clips (Plugins/iOS/QuickClips.mm).
+            proj.AddFrameworkToProject(fw, "ReplayKit.framework", false);
+            proj.AddFrameworkToProject(fw, "Photos.framework", false);
             proj.WriteToFile(projPath);
-            Debug.Log("Xcode: linked MediaPlayer.framework");
+            Debug.Log("Xcode: linked MediaPlayer, ReplayKit, Photos frameworks");
         }
 
         private static void EnsureSceneInBuild()

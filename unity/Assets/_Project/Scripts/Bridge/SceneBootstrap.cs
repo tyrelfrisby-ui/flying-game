@@ -76,6 +76,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<FlightAudio>();
             root.AddComponent<Practice.PracticeController>().Driver = driver;   // crosswind / flare / approach practice
+            root.AddComponent<FlightReplay>().Driver = driver;   // last 10 min of flight, played back on the real airframe
             _ = driver;
             return root;
         }
@@ -138,6 +139,8 @@ namespace FlyingGame.Bridge
             var lift = new GameObject("LiftField").AddComponent<LiftField>();   // wide blinking green/orange lift-sink overlay
             lift.Follow = aircraft.transform;
             var options = cam.gameObject.AddComponent<OptionsPanel>();          // in-flight OPTIONS: markers, bubbles, instruments, volume
+            var views = cam.gameObject.AddComponent<ViewPanel>();               // VIEW / REPLAY / CLIP / REC + the replay bar
+            views.Chase = chase; views.Replay = aircraft.GetComponent<FlightReplay>(); views.Options = options;
             options.Driver = aircraft.GetComponent<FlightSimDriver>();
             var forces = cam.gameObject.AddComponent<ForceVectorOverlay>();     // physics forces drawn on the airframe (OPTIONS)
             forces.Driver = aircraft.GetComponent<FlightSimDriver>();
