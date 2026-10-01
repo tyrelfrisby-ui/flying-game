@@ -49,14 +49,16 @@ namespace FlyingGame.Bridge
 
         // ---- one-shot API (called by StructuralDamage / PilotEgress) --------------------------------
 
-        /// <summary>Airframe groan/creak while over the limit load; severity 0..1. Called every frame it applies.</summary>
+        /// <summary>Stress hum while over the limit load; severity 0 (limit) .. 1 (ultimate). Called every frame it applies;
+        /// follows the load up and down (the hold only bridges frames without a call).</summary>
         public void StructuralGroan(float severity)
         {
-            if (severity > _groanSeverity || _groanHold <= 0f) _groanSeverity = Mathf.Clamp01(severity);
+            _groanSeverity = Mathf.Clamp01(severity);
             _groanHold = GroanHoldS;
         }
 
-        public void WingFailure() { AtAircraft(FxKind.WingFailure, 1f); }
+        /// <summary>The wings let go: the hum stops dead and one snap.</summary>
+        public void WingFailure() { _groanSeverity = 0f; _groanHold = 0f; AtAircraft(FxKind.WingFailure, 1f); }
         public void CanopyJettison() { _fx?.Trigger(FxKind.CanopyJettison); }
         public void EjectionSeat() { _fx?.Trigger(FxKind.EjectionSeat); }
         public void ChuteDeploy() { _fx?.Trigger(FxKind.ChuteDeploy); }

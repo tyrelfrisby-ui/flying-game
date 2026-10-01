@@ -36,6 +36,7 @@ namespace FlyingGame.Bridge
         private float _ring, _ringDec, _gateDec, _crunchRate;   // Crash: metallic ring envelope, crunch-event rate
         private float _distGain = 1f;        // distance attenuation fixed at trigger time (aircraft-bound sounds)
         private bool _snapped;
+        private int _splinters;              // WingFailure: splinter clicks left after the main crack
         private const float Smooth = 1f / 48f;
 
         public FxVoice(float fs, uint seed) { _fs = fs; _n = new Noise(seed); }
@@ -66,14 +67,15 @@ namespace FlyingGame.Bridge
             switch (kind)
             {
                 case FxKind.WingFailure:
-                    _len = 3.2f;
-                    _lp.SetCutoff(60f, _fs);               // the boom
-                    _bpA.BandPass(_fs, 63f, 14f);          // girder ring
-                    _bpB.BandPass(_fs, 900f, 8f);          // snap resonator (retuned per snap)
-                    _hp.HighPass(_fs, 1200f, 0.7f);        // crack
-                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.02f, _fs);
-                    _gateCount = (int)(_fs * 0.06f); _gateLevel = 0f;
-                    _phA = _phB = _phC = 0f;
+                    // One clean SNAP, like a thick branch breaking (owner 2026-10-01): a 3 ms crack, two or three
+                    // splinter clicks inside the first 25 ms, a short woody knock and a dull thock under it. ~0.35 s.
+                    _len = 0.35f;
+                    _hp.HighPass(_fs, 1800f, 0.7f);        // the crack
+                    _bpA.BandPass(_fs, 620f, 2.2f);        // woody body
+                    _bpB.BandPass(_fs, 1150f, 3.5f);       // second wood mode
+                    _lp.SetCutoff(170f, _fs);              // thock
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.003f, _fs);
+                    _gateCount = (int)(_fs * 0.006f); _gateLevel = 0f; _splinters = 3;
                     break;
                 case FxKind.CanopyJettison:
                     _len = 1.3f;
@@ -182,11 +184,7 @@ namespace FlyingGame.Bridge
             switch (Kind)
             {
                 case FxKind.WingFailure:
-                    // Steel bridge letting go: boom, a cascade of metallic snaps over the first second, the girders
-                    // ringing out for two seconds beneath.
-                    _gAT = 3.5f * Env(t, 0.002f, 0.05f, 0.5f);
-                    _gBT = 1.3f * Env(t - 0.05f, 0.01f, 0.9f, 0.5f);
-                    _gCT = 0.9f * Env(t, 0.005f, 0.4f, 2.2f);
+                    _gAT = _gBT = _gCT = 1f;   // the burst / splinter envelopes shape the snap
                     break;
                 case FxKind.CanopyJettison:
                     _gAT = 3f * Env(t, 0.001f, 0f, 0.03f);
@@ -268,16 +266,18 @@ namespace FlyingGame.Bridge
                 case FxKind.WingFailure:
                 {
                     _burst *= _burstDec;
-                    float boom = _lp.Process(n) * 3f * _gA + _bpA.Process(n * _burst) * 4f * _gA;
-                    // Cascade of snaps: random intervals, each retunes the resonator and fires a bright crack.
-                    if (--_gateCount <= 0) { _gateCount = (int)(_fs * _n.Range(0.04f, 0.22f)); _gateLevel = 1f; _bpB.BandPass(_fs, _n.Range(350f, 1800f), 8f); }
-                    _gateLevel *= 1f - 1f / (0.03f * _fs);
-                    float snap = (_bpB.Process(n * _gateLevel) * 6f + _hp.Process(n * _gateLevel) * 2f) * _gB;
-                    _phA += 41f / _fs; if (_phA >= 1f) _phA -= 1f;
-                    _phB += 66f / _fs; if (_phB >= 1f) _phB -= 1f;
-                    _phC += 103f / _fs; if (_phC >= 1f) _phC -= 1f;
-                    float ring = (Dsp.Sin01(_phA) + 0.7f * Dsp.Sin01(_phB) + 0.4f * Dsp.Sin01(_phC)) * _gC;
-                    outp = Dsp.SoftClip(boom + snap + ring);
+                    if (_splinters > 0 && --_gateCount <= 0)
+                    {
+                        _gateLevel = _n.Range(0.25f, 0.55f);
+                        _gateCount = (int)(_fs * _n.Range(0.004f, 0.011f));
+                        _splinters--;
+                    }
+                    _gateLevel *= 1f - 1f / (0.002f * _fs);
+                    float ex = n * (_burst + _gateLevel);
+                    float crack = _hp.Process(ex) * 2.6f;
+                    float wood = _bpA.Process(ex) * 5f + _bpB.Process(ex) * 3f;
+                    float thock = _lp.Process(n * _burst) * 5f;
+                    outp = Dsp.SoftClip((crack + wood + thock) * 1.3f);
                     break;
                 }
                 case FxKind.CanopyJettison:
@@ -411,113 +411,55 @@ namespace FlyingGame.Bridge
     }
 
     /// <summary>
-    /// Continuous airframe stress, voiced like a STEEL BRIDGE under load (owner): three inharmonic girder modes
-    /// (55 / 82 / 137 Hz — the 1 : 1.5 : 2.5 partials of a struck steel member) rung by slow stick-slip events and
-    /// left to ring for over a second so they beat against each other, a slow sub-bass moan underneath, and
-    /// sparse, long, metallic creaks (gliding friction pulse trains through high-Q resonators) on top. Event
-    /// rate, ring level and creak pitch all rise with severity; severity is smoothed so per-frame calls flow.
+    /// Airframe stress tone (owner 2026-10-01): not a realistic creak — a plain buzzy HUM the pilot reads as stress
+    /// building. Silent inside the limit load; from limit (severity 0) to ultimate (severity 1) it rises from a
+    /// quiet-but-clear hum to loud, and its pitch climbs a little (95 → 150 Hz) so the build-up is unmistakable.
+    /// Five harmonics at 1/k (a soft sawtooth) through a 1.6 kHz low-pass. Severity is smoothed over ~30 ms.
     /// </summary>
-    internal sealed class GroanVoice
+    internal sealed class StressHum
     {
-        private readonly float _fs;
-        private readonly Noise _n = new Noise(0x6E0A11u);
-        private readonly Biquad _resA = new Biquad(), _resB = new Biquad(), _bodyLp = new Biquad();
-        private readonly float _sevA;
-        private float _sev, _sevT;
-        // girder modes
-        private float _pA, _pB, _pC, _eA, _eB, _eC, _ringDecay; private int _ringCount;
-        // sub moan
-        private float _moanPhase, _moanHz = 32f, _moanHzT = 32f, _moanGlide;
-        // creak event
-        private int _countdown;
-        private float _evLen, _evT, _evAmp, _pulseHz0, _pulseHz1, _pulsePhase, _pulseEnv, _pulseDec;
+        private readonly float _fs, _sevA;
+        private readonly OnePole _lp = new OnePole();
+        private float _sev, _sevT, _phase;
 
-        public GroanVoice(float fs)
+        public StressHum(float fs)
         {
             _fs = fs;
-            _sevA = Dsp.Tau(0.08f, fs);
-            _resA.BandPass(fs, 1100f, 30f);
-            _resB.BandPass(fs, 1700f, 34f);
-            _bodyLp.LowPass(fs, 2600f, 0.7f);
-            _pulseDec = Dsp.DecayCoef(0.003f, fs);
-            _ringDecay = 1f - 1f / (1.3f * fs);        // girders ring ~1.3 s
-            _moanGlide = Dsp.Tau(1.2f, fs);
-            _evLen = 0f; _evT = 1f;
+            _sevA = Dsp.Tau(0.03f, fs);
+            _lp.SetCutoff(1600f, fs);
         }
 
         public void Prepare(float severity) { _sevT = Dsp.Clamp01(severity); }
 
         public float Next()
         {
-            _sev += _sevA * (_sevT - _sev);
+            float target = _sevT;
+            _sev += _sevA * (target - _sev);
             float sev = _sev;
-            if (sev < 0.002f) return 0f;
-
-            // ---- girder modes: stick-slip strikes ring three inharmonic partials
-            if (--_ringCount <= 0)
-            {
-                float rate = 0.6f + 2.4f * sev;
-                _ringCount = (int)(_fs / rate * _n.Range(0.5f, 1.5f));
-                float hit = _n.Range(0.4f, 1f) * (0.4f + 0.6f * sev);
-                _eA += hit; _eB += hit * _n.Range(0.4f, 0.9f); _eC += hit * _n.Range(0.2f, 0.6f);
-                if (_eA > 1.6f) _eA = 1.6f; if (_eB > 1.2f) _eB = 1.2f; if (_eC > 0.8f) _eC = 0.8f;
-            }
-            _eA *= _ringDecay; _eB *= _ringDecay; _eC *= _ringDecay * 0.99995f;
-            _pA += 55f / _fs; if (_pA >= 1f) _pA -= 1f;
-            _pB += 82.5f / _fs; if (_pB >= 1f) _pB -= 1f;       // 1.5× → slow beating against A's harmonics
-            _pC += 137f / _fs; if (_pC >= 1f) _pC -= 1f;
-            float girder = (Dsp.Sin01(_pA) * _eA + Dsp.Sin01(_pB) * _eB + Dsp.Sin01(_pC) * _eC) * 0.32f;
-
-            // ---- sub moan: a slow bending 28–38 Hz tone, level with severity
-            if (_n.Next() * 0.5f + 0.5f < 0.5f / _fs) _moanHzT = _n.Range(28f, 38f);
-            _moanHz += _moanGlide * (_moanHzT - _moanHz);
-            _moanPhase += _moanHz / _fs; if (_moanPhase >= 1f) _moanPhase -= 1f;
-            float moan = Dsp.Sin01(_moanPhase) * 0.22f * Dsp.Pow(sev, 1.5f);
-
-            // ---- creaks: sparse, long, metallic
-            if (_evT >= _evLen && --_countdown <= 0)
-            {
-                float rate = 0.5f + 2.0f * sev;
-                _countdown = (int)(_fs / rate * _n.Range(0.4f, 1.6f));
-                _evLen = _n.Range(0.2f, 0.7f); _evT = 0f; _evAmp = _n.Range(0.5f, 1f);
-                bool rising = _n.Next() > 0f;
-                float f0 = _n.Range(18f, 50f) * (1f + 0.6f * sev), f1 = f0 * _n.Range(1.5f, 2.6f);
-                _pulseHz0 = rising ? f0 : f1; _pulseHz1 = rising ? f1 : f0;
-                float hz = _n.Range(700f, 2200f) * (1f + 0.3f * sev);
-                _resA.BandPass(_fs, hz, 30f); _resB.BandPass(_fs, hz * _n.Range(1.3f, 2.0f), 34f);
-            }
-            float creak = 0f;
-            if (_evT < _evLen)
-            {
-                float u = _evT / _evLen;
-                float env = Dsp.SmoothStep(0f, 0.15f, u) * (1f - Dsp.SmoothStep(0.5f, 1f, u));
-                float pulseHz = _pulseHz0 + (_pulseHz1 - _pulseHz0) * u;
-                _pulsePhase += pulseHz / _fs;
-                if (_pulsePhase >= 1f) { _pulsePhase -= 1f; _pulseEnv = 1f; }
-                _pulseEnv *= _pulseDec;
-                float ex = (_pulseEnv * 0.8f + _n.Next() * 0.05f * _pulseEnv) * env * _evAmp;
-                creak = Dsp.SoftClip((_resA.Process(ex) + 0.7f * _resB.Process(ex)) * 7f) * (0.3f + 0.6f * sev);
-                _evT += 1f / _fs;
-            }
-
-            float mix = _bodyLp.Process(Dsp.SoftClip(girder * 1.6f + moan) + creak);
-            return mix * Dsp.SmoothStep(0f, 0.12f, sev);
+            // Fully quiet only when back inside the limit; any overstress is audible at once.
+            float gain = target <= 0f && sev < 0.002f ? 0f : (sev <= 0f ? 0f : 0.07f + 0.5f * sev);
+            if (gain <= 0f) return 0f;
+            _phase += (95f + 55f * sev) / _fs;
+            if (_phase >= 1f) _phase -= 1f;
+            float w = 0f;
+            for (int k = 1; k <= 5; k++) w += Dsp.Sin01(_phase * k) / k;
+            return _lp.Process(w * 0.6f) * gain;
         }
     }
 
-    /// <summary>Trigger mailbox + voice pool for the one-shots, plus the continuous groan.</summary>
+    /// <summary>Trigger mailbox + voice pool for the one-shots, plus the continuous stress hum.</summary>
     internal sealed class OneShotSynth
     {
         private readonly int[] _pending = new int[(int)FxKind.Count];
         private readonly float[] _pendingLevel = new float[(int)FxKind.Count];
         private readonly FxVoice[] _pool;
-        private readonly GroanVoice _groan;
+        private readonly StressHum _groan;
 
         public OneShotSynth(float fs)
         {
             _pool = new FxVoice[4];
             for (int i = 0; i < _pool.Length; i++) _pool[i] = new FxVoice(fs, 0x51A7Eu + (uint)i * 0x9E3779B9u);
-            _groan = new GroanVoice(fs);
+            _groan = new StressHum(fs);
         }
 
         /// <summary>Main thread: queue a one-shot (coalesces repeats within a block).</summary>
@@ -532,7 +474,7 @@ namespace FlyingGame.Bridge
 
         private float _aircraftGain = 1f;
 
-        /// <summary>Audio thread, once per block: start queued voices, retarget the groan. <paramref name="aircraftGain"/>
+        /// <summary>Audio thread, once per block: start queued voices, retarget the stress hum. <paramref name="aircraftGain"/>
         /// = distance attenuation of everything that happens at the aircraft (1 while the pilot is aboard).</summary>
         public void Prepare(float ias, float groanSeverity, float aircraftGain = 1f)
         {
