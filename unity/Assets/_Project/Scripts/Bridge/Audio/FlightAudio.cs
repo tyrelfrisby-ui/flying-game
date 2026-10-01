@@ -193,7 +193,8 @@ namespace FlyingGame.Bridge
 
             // Listener: the pilot once he has left the aircraft.
             _egress ??= GetComponent<PilotEgress>();
-            bool pilotOut = _egress != null && _egress.PilotOut && _egress.PilotTransform != null;
+            // In a replay the listener follows the REPLAYED moment (in the cockpit until the recorded jump), not the live pilot.
+            bool pilotOut = _egress != null && _egress.PilotTransform != null && (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
             ListenerDistanceM = pilotOut ? Vector3.Distance(_egress.PilotTransform.position, transform.position) : 0f;
             for (int i = _delayed.Count - 1; i >= 0; i--)
             {
@@ -232,10 +233,10 @@ namespace FlyingGame.Bridge
             _tele.GravelSpeed = gravel; _tele.RoughSpeed = rough;
             _tele.MasterGain = SessionSettings.MenuOpen ? 0f : Mathf.Clamp01(MasterVolume);
             // Pilot out: his own airspeed is the wind in his ears; the aircraft's engine, tyres and crashes fade with distance.
-            bool pilotOut = _egress != null && _egress.PilotOut && _egress.PilotTransform != null;
+            bool pilotOut = _egress != null && _egress.PilotTransform != null && (SessionSettings.ReplayActive ? FlightReplay.ReplayPilotOut : _egress.PilotOut);
             _tele.PilotOut = pilotOut;
             _tele.AircraftGain = pilotOut ? DistanceGain(ListenerDistanceM) : 1f;
-            if (pilotOut) { _tele.IasMs = _egress.PilotAirspeedMs; _tele.AlphaDeg = 0f; _tele.BetaDeg = 0f; _tele.Spoiler01 = 0f; }
+            if (pilotOut) { _tele.IasMs = SessionSettings.ReplayActive ? FlightReplay.ReplayPilotSpeedMs : _egress.PilotAirspeedMs; _tele.AlphaDeg = 0f; _tele.BetaDeg = 0f; _tele.Spoiler01 = 0f; }
         }
 
         // ---- audio thread ---------------------------------------------------------------------------
@@ -298,6 +299,7 @@ namespace FlyingGame.Bridge
                 for (int c = 2; c < channels; c++) data[idx + c] = 0.5f * (l + r);
                 idx += channels;
             }
+            VoiceComms.RenderRx(data, frames, channels);   // radio from other pilots (in the game mix, so clips hear it)
         }
     }
 }

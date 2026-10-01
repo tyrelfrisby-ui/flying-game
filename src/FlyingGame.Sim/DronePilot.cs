@@ -17,6 +17,8 @@ public sealed class DronePilot
     public enum Manoeuvre { Cruise, Loop, BarrelRoll, Immelmann, SplitS, Scissors, Jink, BreakTurn, Recover }
 
     public double CruiseMs = 45.0, MaxBankDeg = 35.0, FloorAglM = 250.0, CeilingAglM = 1800.0;
+    /// <summary>A waypoint counts as reached inside this radius (formation leaders turn gently: give them more room).</summary>
+    public double CaptureRadiusM = 250.0;
     public bool Aerobatic;
     public readonly List<Vec3> Waypoints = new();
     public int Next { get; private set; }
@@ -158,7 +160,7 @@ public sealed class DronePilot
     {
         Vec3 wp = Waypoints[Next];
         double dx = wp.X - s.Position.X, dy = wp.Y - s.Position.Y;
-        if (Math.Sqrt(dx * dx + dy * dy) < 250) { Next = (Next + 1) % Waypoints.Count; wp = Waypoints[Next]; dx = wp.X - s.Position.X; dy = wp.Y - s.Position.Y; }
+        if (Math.Sqrt(dx * dx + dy * dy) < CaptureRadiusM) { Next = (Next + 1) % Waypoints.Count; wp = Waypoints[Next]; dx = wp.X - s.Position.X; dy = wp.Y - s.Position.Y; }
         double headingCmd = Math.Atan2(dy, dx);
         double hErr = Wrap(headingCmd - psi);
         double maxBank = MaxBankDeg * Math.PI / 180;

@@ -39,7 +39,7 @@ namespace FlyingGame.Bridge.Net
     [Preserve]
     public sealed class NetMsg
     {
-        public string t;        // "hello" | "peer" | "bye" | "s" | "join"
+        public string t;        // "hello" | "peer" | "bye" | "s" | "join" | "tune" | "v"
         public string id;
         public string name;
         public string ac;
@@ -47,6 +47,9 @@ namespace FlyingGame.Bridge.Net
         public float[] p, q, v, d;
         public NetFlags f;
         public NetPeer[] peers;
+        public string fq;       // radio frequency ("tune", and on received voice)
+        public string a;        // voice: base64 8 kHz mu-law
+        public int? e;          // voice: 1 = the sender unkeyed (end of transmission)
 
         public static readonly JsonSerializerSettings Settings = new()
         {

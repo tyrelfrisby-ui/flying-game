@@ -21,8 +21,14 @@ namespace FlyingGame.Bridge
         /// <summary>Camera view points (owner 2026-10-01). RelativeWind = the flight-path camera above (downstream on the
         /// relative wind). The Fixed* views are bolted to the airframe (they roll and pitch with it). Flyby parks the camera
         /// ahead of the aircraft, up and off to one side of its path, and watches it go by.</summary>
-        public enum View { RelativeWind, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby }
-        public static readonly string[] ViewNames = { "Relative wind", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by" };
+        public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby }
+        public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by" };
+        /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
+        public static bool InCockpit { get; private set; }
+        public float CockpitFov = 72f;
+        public float CockpitLookDownDeg = 4f;
+        private Renderer _hidCanopy;
+        private float _baseNear = -1f;
         public View CurrentView = View.RelativeWind;
 
         public Transform Target;
@@ -89,6 +95,26 @@ namespace FlyingGame.Bridge
             _flyValid = false;
         }
 
+        /// <summary>Cockpit: wide view, a near clip plane right at the eye, the canopy hidden (put back on the way out unless
+        /// it has been jettisoned meanwhile).</summary>
+        private void SetCockpitExtras(bool on)
+        {
+            if (_cam == null) return;
+            if (_baseNear < 0f) _baseNear = _cam.nearClipPlane;
+            _cam.nearClipPlane = on ? 0.05f : _baseNear;
+            if (on) _cam.fieldOfView = CockpitFov;
+            Transform canopy = Target != null ? Target.Find("Canopy") : null;
+            Renderer r = canopy != null ? canopy.GetComponent<Renderer>() : null;
+            if (on && r != null && r.enabled) { r.enabled = false; _hidCanopy = r; }
+            if (!on && _hidCanopy != null)
+            {
+                var egress = Target != null ? Target.GetComponent<PilotEgress>() : null;
+                bool jettisoned = egress != null && egress.Current != PilotEgress.Phase.InCockpit && egress.Current != PilotEgress.Phase.BailingOut;
+                if (!jettisoned) _hidCanopy.enabled = true;
+                _hidCanopy = null;
+            }
+        }
+
         public void NextView() => SetView((View)(((int)CurrentView + 1) % ViewNames.Length));
 
         /// <summary>Fixed views: the camera is bolted to the airframe — position and "up" both in body axes, so it rolls,
@@ -99,6 +125,12 @@ namespace FlyingGame.Bridge
             float d = Distance;
             switch (CurrentView)
             {
+                case View.Cockpit:
+                    // Simple cockpit (owner 2026-10-01): the eye at the canopy, looking along the nose a few degrees down,
+                    // rolling with the aircraft — the cowl, wings and prop in view, the instruments as a panel below.
+                    transform.position = t.TransformPoint(PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f);
+                    transform.rotation = t.rotation * Quaternion.Euler(CockpitLookDownDeg, 0f, 0f);
+                    break;
                 case View.Tail:
                     transform.position = p - f * d + u * Height;
                     transform.rotation = Quaternion.LookRotation(p + f * 4f - transform.position, u);
@@ -234,7 +266,10 @@ namespace FlyingGame.Bridge
             {
                 return;
             }
-            if (_cam != null && CurrentView != View.Flyby && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
+            bool cockpit = !ovr && !SideView && CurrentView == View.Cockpit;
+            InCockpit = cockpit;
+            SetCockpitExtras(cockpit);
+            if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
             if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind) { FixedView(tgt); return; }
             if (SideView && !ovr)

@@ -230,6 +230,23 @@ namespace FlyingGame.Bridge
             Vector2 gc = Clamp(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr);
             Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
 
+            // Cockpit view: the dials become an instrument panel along the bottom of the view.
+            if (ChaseCamera.InCockpit)
+            {
+                float panelH = Mathf.Min(view.height * 0.30f, s * 0.36f), pTop = bottom - panelH;
+                r = Mathf.Min(r, panelH * 0.42f); gr = r * 0.85f;
+                GUI.color = new Color(0.10f, 0.11f, 0.12f, 1f);
+                GUI.DrawTexture(new Rect(view.x, pTop, view.width, panelH), Texture2D.whiteTexture);
+                GUI.color = new Color(0.22f, 0.23f, 0.25f, 1f);
+                GUI.DrawTexture(new Rect(view.x, pTop, view.width, Mathf.Max(3f, panelH * 0.05f)), Texture2D.whiteTexture);   // glareshield edge
+                GUI.color = Color.white;
+                int n = glider ? 4 : 3; float step = view.width / (n + 1), cy = pTop + panelH * 0.54f;
+                asi = new Vector2(view.x + step, cy);
+                gc = new Vector2(view.x + step * 2f, cy);
+                vc = new Vector2(view.x + step * 3f, cy);
+                alt = new Vector2(view.x + step * n, cy);
+            }
+
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);

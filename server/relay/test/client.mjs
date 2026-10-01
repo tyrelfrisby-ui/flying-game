@@ -93,6 +93,34 @@ try {
   if (!pa?.s || pa.s.p[0] !== 1 || !pb?.s || pb.s.p[0] !== 2) fail("late-joiner roster missing last states");
   ok("late joiner C got roster with last states");
 
+  // Radio: B and C tune 123.45, A stays on the default 122.80. Voice reaches only the same frequency.
+  b.send({ t: "tune", fq: "123.45" });
+  c.send({ t: "tune", fq: "123.45" });
+  await new Promise((r) => setTimeout(r, 150));
+  const pcm = Buffer.from(Array.from({ length: 800 }, (_, i) => (i * 37) & 255)).toString("base64");
+  b.send({ t: "v", a: pcm, e: 0 });
+  const vC = await c.expect((m) => m.t === "v" && m.id === helloB.id, "voice from B");
+  if (vC.fq !== "123.45" || vC.a !== pcm || vC.e !== 0) fail("voice payload not relayed intact");
+  await a.expectNone((m) => m.t === "v", "voice on another frequency");
+  await b.expectNone((m) => m.t === "v", "voice self-echo");
+  ok("voice B -> C on 123.45; A on 122.80 hears nothing; no self-echo");
+
+  a.send({ t: "tune", fq: "123.45" });
+  await new Promise((r) => setTimeout(r, 150));
+  c.send({ t: "v", a: pcm, e: 1 });
+  const vA = await a.expect((m) => m.t === "v" && m.id === helloC.id, "voice from C after retune");
+  const vB = await b.expect((m) => m.t === "v" && m.id === helloC.id, "voice from C");
+  if (vA.e !== 1 || vB.e !== 1) fail("end-of-transmission flag lost");
+  ok("A retuned to 123.45 hears C; unkey flag relayed");
+
+  // Voice has its own budget: 12 packets/s alongside 10 states/s all get through.
+  for (let i = 0; i < 12; i++) { b.send({ t: "v", a: pcm, e: 0 }); b.send(state(50 + i)); }
+  await new Promise((r) => setTimeout(r, 500));
+  const vn = c.inbox.filter((m) => m.t === "v" && m.id === helloB.id).length;
+  if (vn < 12) fail(`voice packets dropped: ${vn}/12`);
+  ok(`voice budget: ${vn}/12 packets relayed alongside state`);
+  c.inbox.length = 0; a.inbox.length = 0; b.inbox.length = 0;
+
   // Rate limit: 40 msgs in a burst -> B sees fewer than 20 of them.
   for (let i = 0; i < 40; i++) a.send(state(100 + i));
   await new Promise((r) => setTimeout(r, 500));

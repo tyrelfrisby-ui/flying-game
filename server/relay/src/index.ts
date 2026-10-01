@@ -14,11 +14,14 @@
  * Client -> server
  *   { t:"join", name, ac }                                   optional (name/ac also come via the query)
  *   { t:"s", p:[x,y,z], q:[x,y,z,w], v:[x,y,z], d:[ail,ele,rud,spoil,flap], f:{ w:0|1, o:0|1 } }
+ *   { t:"tune", fq:"123.45" }                                radio frequency this pilot listens/talks on
+ *   { t:"v", a:"<base64 8 kHz mu-law>", e:0|1 }              radio voice (~100 ms per packet; e:1 = mic unkeyed)
  * Server -> clients
  *   { t:"hello", id, peers:[{ id, name, ac, s? }] }          s = that peer's last state, if any
  *   { t:"peer", id, name, ac }                               someone joined
  *   { t:"bye", id }                                          someone left
  *   { t:"s", id, p, q, v, d, f }                             fan-out of a peer's state
+ *   { t:"v", id, fq, a, e }                                  voice, only to pilots tuned to the same frequency
  */
 import { DurableObject } from "cloudflare:workers";
 
@@ -32,10 +35,14 @@ const CAP_FFA = 200;
 const CAP_PRIVATE = 16;
 const RATE_LIMIT_PER_SEC = 20; // >= this many messages in a 1 s window -> drop
 const MAX_MSG_BYTES = 1024;
+const MAX_VOICE_BYTES = 2048;      // a 100 ms mu-law packet is ~1.1 kB of base64
+const VOICE_RATE_PER_SEC = 25;     // voice has its own budget (10 packets/s nominal)
+const MAX_FREQ = 8;
+const DEFAULT_FREQ = "122.80";
 const MAX_NAME = 16;
 const MAX_AC = 40;
 
-interface PeerMeta { id: string; name: string; ac: string }
+interface PeerMeta { id: string; name: string; ac: string; fq?: string }
 interface RateWindow { start: number; count: number }
 
 function randomCode(): string {
@@ -56,6 +63,15 @@ export class Room extends DurableObject<Env> {
   /** Last state packet per peer id (in-memory only; rebuilt from traffic after hibernation). */
   private lastState = new Map<string, string>();
   private rate = new WeakMap<WebSocket, RateWindow>();
+  private voiceRate = new WeakMap<WebSocket, RateWindow>();
+
+  /** Per-socket fixed 1 s window: false once this socket has sent `limit` messages in the window. */
+  private allow(map: WeakMap<WebSocket, RateWindow>, ws: WebSocket, limit: number): boolean {
+    const now = Date.now();
+    let win = map.get(ws);
+    if (!win || now - win.start >= 1000) { win = { start: now, count: 0 }; map.set(ws, win); }
+    return ++win.count < limit;
+  }
 
   private meta(ws: WebSocket): PeerMeta | null {
     try { return (ws.deserializeAttachment() as PeerMeta) ?? null; } catch { return null; }
@@ -116,13 +132,12 @@ export class Room extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message !== "string" || message.length > MAX_MSG_BYTES) return;
+    if (typeof message !== "string" || message.length > MAX_VOICE_BYTES) return;
 
-    // Per-socket rate limit: fixed 1 s window.
-    const now = Date.now();
-    let win = this.rate.get(ws);
-    if (!win || now - win.start >= 1000) { win = { start: now, count: 0 }; this.rate.set(ws, win); }
-    if (++win.count >= RATE_LIMIT_PER_SEC) return;
+    // Voice packets ({"t":"v",...}) have their own size and rate budget; everything else the 1 kB / 20 per s one.
+    const voice = message.startsWith('{"t":"v"');
+    if (voice ? !this.allow(this.voiceRate, ws, VOICE_RATE_PER_SEC)
+              : message.length > MAX_MSG_BYTES || !this.allow(this.rate, ws, RATE_LIMIT_PER_SEC)) return;
 
     const meta = this.meta(ws);
     if (!meta) return;
@@ -144,10 +159,26 @@ export class Room extends DurableObject<Env> {
           id: meta.id,
           name: clean(msg.name, MAX_NAME, meta.name),
           ac: clean(msg.ac, MAX_AC, meta.ac),
+          fq: meta.fq,
         };
         if (next.name !== meta.name || next.ac !== meta.ac) {
           ws.serializeAttachment(next);
           this.broadcast(JSON.stringify({ t: "peer", ...next }), ws);
+        }
+        break;
+      }
+      case "tune": {
+        const fq = clean(msg.fq, MAX_FREQ, DEFAULT_FREQ);
+        if (fq !== meta.fq) ws.serializeAttachment({ ...meta, fq });
+        break;
+      }
+      case "v": {
+        // Radio: only pilots on the sender's frequency hear it.
+        if (typeof msg.a !== "string" || !/^[A-Za-z0-9+/=]*$/.test(msg.a)) return;
+        const fq = meta.fq ?? DEFAULT_FREQ;
+        const out = JSON.stringify({ t: "v", id: meta.id, fq, a: msg.a, e: msg.e ? 1 : 0 });
+        for (const p of this.roster()) {
+          if (p.ws !== ws && (p.meta.fq ?? DEFAULT_FREQ) === fq) this.send(p.ws, out);
         }
         break;
       }

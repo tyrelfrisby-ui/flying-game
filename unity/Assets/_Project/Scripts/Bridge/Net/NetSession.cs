@@ -119,7 +119,7 @@ namespace FlyingGame.Bridge.Net
             if (_driver.AircraftId != _joinedAc || SessionSettings.PilotName != _joinedName)
             {
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
-                _client.Send(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
+                _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
             }
             if (SessionSettings.MenuOpen || now < _nextSend) return;
             _nextSend = now + 1f / SendHz;
@@ -144,10 +144,25 @@ namespace FlyingGame.Bridge.Net
             _nextConnect = Time.realtimeSinceStartup + delay;
         }
 
+        /// <summary>Radio voice from a pilot on our frequency (VoiceComms plays it).</summary>
+        public event System.Action<NetMsg> VoiceReceived;
+
+        /// <summary>Send a message that must not be dropped (radio voice / tune): queued behind any send in flight.</summary>
+        public void SendQueued(NetMsg m)
+        {
+            if (_client != null && _client.IsOpen && SelfId != null) _client.SendQueued(m.ToJson());
+        }
+
+        /// <summary>Display name of a peer (radio "who is talking"), or null.</summary>
+        public string PeerName(string id) => id != null && _remotes.TryGetValue(id, out RemoteAircraft r) && r != null ? r.PilotName : null;
+
         private void Handle(NetMsg m)
         {
             switch (m.t)
             {
+                case "v":
+                    if (m.id != null && m.id != SelfId) VoiceReceived?.Invoke(m);
+                    break;
                 case "hello":
                     SelfId = m.id;
                     DestroyRemotes();

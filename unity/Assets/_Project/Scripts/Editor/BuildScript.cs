@@ -232,6 +232,7 @@ namespace FlyingGame.EditorTools
             plist.ReadFromFile(plistPath);
             plist.root.SetBoolean("ITSAppUsesNonExemptEncryption", false);
             // Quick clips save videos to the photo library (add-only access).
+            plist.root.SetString("NSMicrophoneUsageDescription", "Aero Playground uses the microphone for the intercom and the radio, and to put your voice in your clips.");
             plist.root.SetString("NSPhotoLibraryAddUsageDescription", "Aero Playground saves the flight clips you capture to your photo library.");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");

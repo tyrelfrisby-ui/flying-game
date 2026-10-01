@@ -65,6 +65,11 @@ namespace FlyingGame.Bridge
         private Transform _camOvrTarget, _camOvrBackdrop; private Vector3 _camOvrVel;
         private ChaseCamera _cam;
 
+        /// <summary>At the play head the pilot has already left the aircraft (the audio listens from him then).</summary>
+        public static bool ReplayPilotOut { get; private set; }
+        /// <summary>The replayed pilot's speed (m/s): the wind in his ears.</summary>
+        public static float ReplayPilotSpeedMs { get; private set; }
+
         public bool CanReplay => !Active && Recorder.Duration > 2.0 && !SessionSettings.MenuOpen && Time.timeScale > 0f;
 
         private void Awake()
@@ -205,8 +210,10 @@ namespace FlyingGame.Bridge
                 _cam.OverrideTarget = _pilotRoot;
                 _cam.OverrideBackdrop = transform;   // the abandoned aircraft behind him, as live
                 _cam.OverrideVelocity = (PosAt(tr, t) - PosAt(tr, t - dtV)) / (float)dtV;
+                ReplayPilotSpeedMs = _cam.OverrideVelocity.magnitude;
             }
-            else { _cam.OverrideTarget = null; _cam.OverrideBackdrop = null; }
+            else { _cam.OverrideTarget = null; _cam.OverrideBackdrop = null; ReplayPilotSpeedMs = 0f; }
+            ReplayPilotOut = pilotOut;
         }
 
         public void Enter()
@@ -247,6 +254,7 @@ namespace FlyingGame.Bridge
             }
             if (_cam != null) { _cam.OverrideTarget = _camOvrTarget; _cam.OverrideBackdrop = _camOvrBackdrop; _cam.OverrideVelocity = _camOvrVel; }
             Active = false;
+            ReplayPilotOut = false;
             Driver.Replaying = false;
             SessionSettings.ReplayActive = false;
             Time.timeScale = SessionSettings.MenuOpen ? 0f : (_savedTimeScale > 0f ? _savedTimeScale : 1f);

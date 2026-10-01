@@ -12,8 +12,8 @@ namespace FlyingGame.Bridge.Net
     /// Thin ClientWebSocket wrapper (System.Net.WebSockets works on iOS IL2CPP with .NET Standard 2.1).
     /// Reads on a background Task and parses JSON there; parsed messages land in <see cref="Inbox"/>,
     /// which NetSession drains on the main thread in Update. No Unity API is touched off-main.
-    /// Sends are fire-and-forget; if the previous send hasn't finished (backpressure) the packet is dropped —
-    /// the next 10 Hz state supersedes it anyway.
+    /// One send in flight at a time. State packets are latest-wins (a busy line keeps only the newest); radio voice
+    /// goes through <see cref="SendQueued"/> and is never dropped.
     /// </summary>
     public sealed class RelayClient : IDisposable
     {
@@ -50,10 +50,30 @@ namespace FlyingGame.Bridge.Net
             _ = Task.Run(() => ReceiveLoop(ws, ct));
         }
 
+        private readonly ConcurrentQueue<string> _queued = new();
+        private string _pendingState;   // newest state that found the line busy (latest wins; sent as soon as it frees)
+
+        /// <summary>Send in order, never dropped (radio voice): waits behind whatever is in flight.</summary>
+        public void SendQueued(string json)
+        {
+            if (!IsOpen) return;
+            _queued.Enqueue(json);
+            Pump();
+        }
+
+        private void Pump()
+        {
+            if ((_queued.IsEmpty && Volatile.Read(ref _pendingState) == null) || !IsOpen) return;
+            if (Interlocked.CompareExchange(ref _sending, 1, 0) != 0) return;   // the finishing send pumps again
+            if (!_queued.TryDequeue(out string json)) json = Interlocked.Exchange(ref _pendingState, null);
+            if (json == null) { Interlocked.Exchange(ref _sending, 0); return; }
+            _ = SendTask(_ws, _cts.Token, Encoding.UTF8.GetBytes(json));
+        }
+
         public void Send(string json)
         {
             if (!IsOpen) return;
-            if (Interlocked.CompareExchange(ref _sending, 1, 0) != 0) return;   // previous send still in flight: drop
+            if (Interlocked.CompareExchange(ref _sending, 1, 0) != 0) { Volatile.Write(ref _pendingState, json); return; }   // busy: newest state waits
             byte[] bytes = Encoding.UTF8.GetBytes(json);
             _ = SendTask(_ws, _cts.Token, bytes);
         }
@@ -71,6 +91,7 @@ namespace FlyingGame.Bridge.Net
             finally
             {
                 Interlocked.Exchange(ref _sending, 0);
+                Pump();   // queued voice goes next
             }
         }
 

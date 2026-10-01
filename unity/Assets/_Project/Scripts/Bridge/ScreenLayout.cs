@@ -57,7 +57,7 @@ namespace FlyingGame.Bridge
 
         public static void UpdateAircraftKeepOut(Camera cam, Transform aircraft)
         {
-            if (cam == null || aircraft == null) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); return; }
+            if (cam == null || aircraft == null || ChaseCamera.InCockpit) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); _smoothValid = false; return; }   // in the cockpit the aircraft is all around
             float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
             bool any = false;
             foreach (Renderer r in aircraft.GetComponentsInChildren<Renderer>())

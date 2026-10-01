@@ -64,7 +64,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 16.5f : 22.5f);
+            float h = lh * (twoCol ? 16.5f : 26.5f);
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -152,6 +152,24 @@ namespace FlyingGame.Bridge
                 float d = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), dzNow, 0f, 0.3f);
                 if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
                 y += lh * 0.95f;
+            }
+            // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, cw, lh), "INTERCOM & RADIO", _head); y += lh;
+            {
+                bool ic = VoiceComms.IntercomOn;
+                if (GUI.Button(new Rect(x, y, lh, lh), ic ? "X" : "", ic ? _btnOn : _btn)) VoiceComms.IntercomOn = !ic;
+                if (GUI.Button(new Rect(x + lh + gap, y, cw - lh - gap, lh), "Intercom: talk and hear yourself (headphones)", _label)) VoiceComms.IntercomOn = !ic;
+                y += lh + gap * 0.4f;
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), "Radio frequency", _label);
+                int nf = VoiceComms.Frequencies.Length;
+                float bw = (cw * 0.6f - (nf - 1) * gap * 0.4f) / nf, bx = x + cw * 0.4f;
+                for (int i = 0; i < nf; i++)
+                {
+                    string f = VoiceComms.Frequencies[i];
+                    if (GUI.Button(new Rect(bx + i * (bw + gap * 0.4f), y, bw, lh), f, VoiceComms.Frequency == f ? _btnOn : _btn)) VoiceComms.Frequency = f;
+                }
+                y += lh + gap * 0.4f;
             }
             y += gap;
             if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh), "Close", _btnOn)) _open = false;

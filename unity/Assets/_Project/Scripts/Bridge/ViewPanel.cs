@@ -20,6 +20,7 @@ namespace FlyingGame.Bridge
         private Texture2D _bg, _btnBg, _btnOnBg, _recBg, _track, _fill, _knob;
         private int _fs;
         private bool _scrubbing;
+        private Rect _talkRect;   // GUI coords (top-left origin); empty when hidden
         private string _toast;
         private float _toastUntil;
 
@@ -47,6 +48,19 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
+            // TALK is push-to-talk: transmitting while a finger (or the mouse) is held on it.
+            bool held = false;
+            if (_talkRect.width > 0f && !SessionSettings.MenuOpen)
+            {
+                for (int i = 0; i < Input.touchCount; i++)
+                {
+                    Touch t = Input.GetTouch(i);
+                    if (t.phase != TouchPhase.Ended && t.phase != TouchPhase.Canceled && _talkRect.Contains(new Vector2(t.position.x, Screen.height - t.position.y))) held = true;
+                }
+                if (Input.touchCount == 0 && Input.GetMouseButton(0) && _talkRect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y))) held = true;
+            }
+            VoiceComms.PttHeld = held;
+
             string m = ClipRecorder.PollMessage();
             if (!string.IsNullOrEmpty(m)) { _toast = m; _toastUntil = Time.realtimeSinceStartup + 3.5f; Debug.Log("[Clips] " + m); }
         }
@@ -62,6 +76,7 @@ namespace FlyingGame.Bridge
         {
             if (SessionSettings.MenuOpen || Chase == null) return;
             EnsureStyles();
+            _talkRect = default;
             if (Replay != null && Replay.Active) DrawReplayBar();
             else if (Options == null || !Options.IsOpen) DrawLiveColumn();
             DrawToast();
@@ -82,7 +97,7 @@ namespace FlyingGame.Bridge
             float gap = s * 0.012f, bw = s * 0.2f, bh = s * 0.06f, vh = s * 0.085f;
             float x = Screen.width - s * 0.02f - bw;
             float y = s * 0.02f + s * 0.055f + gap;   // under the OPTIONS button
-            float colH = vh + 3 * (bh + gap);
+            float colH = vh + 3 * (bh + gap) + (VoiceComms.RadioAvailable ? bh * 1.6f + gap : 0f);
             // Owner's rule: nothing covers the aircraft — step the column sideways out of its screen box.
             if (ScreenLayout.HasAircraftKeepOut)
             {
@@ -100,6 +115,17 @@ namespace FlyingGame.Bridge
             y += bh + gap;
             bool rec = ClipRecorder.Recording;
             if (GUI.Button(new Rect(x, y, bw, bh), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
+            y += bh + gap;
+            // Radio push-to-talk (multiplayer): hold to transmit on the OPTIONS frequency (held state read in Update).
+            if (VoiceComms.RadioAvailable)
+            {
+                _talkRect = new Rect(x, y, bw, bh * 1.6f);
+                GUI.Box(_talkRect, VoiceComms.PttHeld ? $"TRANSMITTING\n{VoiceComms.Frequency}" : $"HOLD TO TALK\n{VoiceComms.Frequency}", VoiceComms.PttHeld ? _btnRec : _btn);
+                y += bh * 1.6f + gap;
+            }
+            else _talkRect = default;
+            string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
+            if (radio != null) GUI.Label(new Rect(x - bw, y, bw * 2f, bh), radio, _label);
         }
 
         private void DrawReplayBar()

@@ -15,9 +15,11 @@ namespace FlyingGame.Bridge
         public FlightReplay Replay;
         public PilotEgress Egress;
         public ChaseCamera Chase;
+        public CombatController Combat;
 
         private IEnumerator Start()
         {
+            if (System.Environment.GetEnvironmentVariable("AERO_SELFTEST") == "combat") { yield return CombatTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -29,7 +31,10 @@ namespace FlyingGame.Bridge
             yield return new WaitForSecondsRealtime(4f);
             Debug.Log("[SelfTest] bail out");
             Egress.BailOut();
-            yield return new WaitForSecondsRealtime(14f);
+            yield return new WaitForSecondsRealtime(6f);
+            Debug.Log("[SelfTest] radio test transmission");
+            VoiceComms.InjectTestTransmission();   // 2 s warbling 700 Hz tone on a receiver: must be in the live clip
+            yield return new WaitForSecondsRealtime(8f);
             ScreenCapture.CaptureScreenshot("selftest-chute.png");
             ClipRecorder.ClipSeconds = 15;
             Debug.Log("[SelfTest] clip live (instruments)");
@@ -53,6 +58,30 @@ namespace FlyingGame.Bridge
             ClipRecorder.IncludeInstruments = keepInst; ClipRecorder.ClipSeconds = keepSec;
             yield return new WaitForSecondsRealtime(6f);
             Debug.Log($"[SelfTest] DONE fps={1f / Mathf.Max(1e-4f, Time.smoothDeltaTime):F0}");
+        }
+
+        /// <summary>AERO_SELFTEST=combat: a P-51 in the combat zone, cockpit view, the P-51 formation provoked; logs the
+        /// formations, the combat line and frame times; screenshots of the cockpit and of the attack.</summary>
+        private IEnumerator CombatTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "p51d-like";
+            SessionSettings.ChallengeId = "event:combat";
+            Debug.Log("[SelfTest] combat fly");
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(3f);
+            Chase.SetView(ChaseCamera.View.Cockpit);
+            yield return new WaitForSecondsRealtime(3f);
+            ScreenCapture.CaptureScreenshot("selftest-cockpit.png");
+            Chase.SetView(ChaseCamera.View.RelativeWind);
+            Combat.DebugProvoke();
+            for (int i = 0; i < 12; i++)
+            {
+                yield return new WaitForSecondsRealtime(5f);
+                Debug.Log($"[SelfTest] {Combat.DebugFlights()} | {Combat.Line}");
+                if (i == 6) ScreenCapture.CaptureScreenshot("selftest-combat.png");
+            }
+            Debug.Log("[SelfTest] DONE combat");
         }
 
         private float _worst;

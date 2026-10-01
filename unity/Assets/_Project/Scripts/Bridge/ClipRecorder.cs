@@ -149,6 +149,7 @@ namespace FlyingGame.Bridge
         }
 
         private int _channels;
+        private float[] _mix;   // audio thread scratch
         /// <summary>Diagnostics (self-test): loudest sample the listener mix delivered, and how many blocks arrived.</summary>
         public static volatile float AudioPeak;
         public static volatile int AudioBlocks;
@@ -228,7 +229,11 @@ namespace FlyingGame.Bridge
             AudioBlocks++;
             if (!_audioOn || !Native) return;
             int frames = data.Length / channels;
-            CE_AppendAudio(data, frames, channels, CE_Now() - (double)frames / _sampleRate);
+            // The clip also carries the pilot's own voice (intercom / radio) — added to a copy, never to what the game plays.
+            if (_mix == null || _mix.Length != data.Length) _mix = new float[data.Length];
+            System.Array.Copy(data, _mix, data.Length);
+            VoiceComms.ReadClipVoice(_mix, frames, channels);
+            CE_AppendAudio(_mix, frames, channels, CE_Now() - (double)frames / _sampleRate);
         }
     }
 

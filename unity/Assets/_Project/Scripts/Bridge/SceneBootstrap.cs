@@ -67,6 +67,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<StolController>().Driver = driver;
             root.AddComponent<CropDustController>().Driver = driver;
             root.AddComponent<Net.NetSession>();
+            root.AddComponent<VoiceComms>();   // intercom (VOX, headphones) + radio (hold TALK) over the relay
             root.AddComponent<AirframeVisual>();
             root.AddComponent<PilotEgress>();   // BAIL OUT / EJECT sequencer + pilot/parachute bodies
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
@@ -179,6 +180,7 @@ namespace FlyingGame.Bridge
             {
                 var st = cam.gameObject.AddComponent<ClipSelfTest>();
                 st.Menu = menu; st.Replay = aircraft.GetComponent<FlightReplay>(); st.Egress = aircraft.GetComponent<PilotEgress>(); st.Chase = chase;
+                st.Combat = aircraft.GetComponent<CombatController>();
             }
         }
     }
