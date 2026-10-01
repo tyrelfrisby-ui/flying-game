@@ -248,6 +248,7 @@ namespace FlyingGame.Bridge
             _canopyDone = true;
             if (Current == Phase.BailingOut) Current = Phase.CanopyGone;
             Transform part = _driver.transform.Find("Canopy");
+            if (part != null) ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aircraft until the jettison, in the replay too
             CanopyJettison.Spawn(_driver, part);
             if (part != null && part.TryGetComponent(out Renderer r)) { r.enabled = false; _hiddenCanopy = r; }
             Log("canopy jettisoned");
@@ -356,7 +357,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
-            if (SessionSettings.MenuOpen || Current == Phase.InCockpit || string.IsNullOrEmpty(_status)) return;
+            if (SessionSettings.MenuOpen || SessionSettings.ReplayActive || Current == Phase.InCockpit || string.IsNullOrEmpty(_status)) return;
             EnsureStyle();
             Rect view = ScreenLayout.ViewRect;            // screen px, bottom-left origin
             float h = _fs * 1.9f;

@@ -46,7 +46,7 @@ namespace FlyingGame.Bridge
             Net?.Leave();
         }
 
-        private void Fly()
+        public void Fly()
         {
             IsOpen = false;
             SessionSettings.MenuOpen = false;

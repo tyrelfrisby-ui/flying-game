@@ -147,7 +147,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 2026.1001.1303
+  bundleVersion: 2026.1001.1414
   preloadedAssets:
   - {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   metroInputSource: 0
@@ -175,7 +175,7 @@ PlayerSettings:
   buildNumber:
     Standalone: 0
     VisionOS: 0
-    iPhone: 202610011303
+    iPhone: 202610011414
     tvOS: 0
   overrideDefaultApplicationIdentifier: 1
   AndroidBundleVersionCode: 1

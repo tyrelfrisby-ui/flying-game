@@ -88,6 +88,7 @@ namespace FlyingGame.Bridge
                     EgressAir.Unlit(new Color(1f, 0.6f, 0.15f)));
             }
             _root.transform.SetPositionAndRotation(Position, _rot);
+            ReplayActors.Register(_root);   // the bail-out is part of the replay
         }
 
         /// <summary>Drop the seat: it becomes free debris pushed down/aft; the pilot continues alone.</summary>

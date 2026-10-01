@@ -129,7 +129,7 @@ namespace FlyingGame.Bridge
             _source.spatialBlend = 0f;
             _source.dopplerLevel = 0f;
             _source.bypassEffects = true;
-            _source.bypassListenerEffects = true;
+            _source.bypassListenerEffects = false;   // the clip recorder's listener tap must hear it (it only reads)
             _source.bypassReverbZones = true;
             _source.priority = 0;
             _source.volume = 1f;

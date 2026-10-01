@@ -73,6 +73,7 @@ namespace FlyingGame.Bridge
             _dome ??= EgressAir.Dome(16, 6);
             _goredDome ??= GoredDome(Gores, 8);
             _root = new GameObject("Parachute");
+            ReplayActors.Register(_root);   // inflation and steering show in the replay
             Material white = EgressAir.Unlit(new Color(0.95f, 0.95f, 0.95f));
             Material red = EgressAir.Unlit(new Color(0.85f, 0.10f, 0.10f));
             _canopy = EgressAir.MeshObject("Canopy", _goredDome, white, _root.transform);

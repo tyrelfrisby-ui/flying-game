@@ -2,6 +2,7 @@
 # Unity export → xcodebuild → install + launch on the owner's phone (USB). Clean caches every build (stale
 # serialized-object bug). Logs to build/ios.log.
 set -e
+set -o pipefail   # a failed xcodebuild must stop the script (its output is piped through tail)
 cd /Users/tyfrisby/Documents/flying-game
 UDID=00008150-001629A83662401C
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData

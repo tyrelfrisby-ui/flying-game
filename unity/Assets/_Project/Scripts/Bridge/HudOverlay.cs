@@ -26,7 +26,8 @@ namespace FlyingGame.Bridge
         private int _fs;
 
         private struct Sym { public Vector2 Pos; public string Text; public TextAnchor Anchor; public bool Small; }
-        private readonly System.Collections.Generic.List<Sym> _labels = new();
+        private System.Collections.Generic.List<Sym> _labels = new();
+        private System.Collections.Generic.List<Sym> _clipLabels = new();   // the same symbology computed for the clip camera
 
         private void Awake()
         {
@@ -78,6 +79,19 @@ namespace FlyingGame.Bridge
                 Line(prev, p); prev = p;
             }
         }
+
+        /// <summary>Clip recorder: draw the HUD lines into the clip camera's image (called from its OnPostRender) and keep the
+        /// labels, in that camera's pixels, for <see cref="DrawClipLabels"/>.</summary>
+        public void RenderForClip(Camera clipCam)
+        {
+            Camera keepCam = _cam; var keepLabels = _labels;
+            _cam = clipCam; _labels = _clipLabels;
+            try { OnPostRender(); }
+            finally { _cam = keepCam; _labels = keepLabels; }
+        }
+
+        /// <summary>Clip recorder's GUI pass (RenderTexture active, GUI in the clip image's pixels).</summary>
+        public void DrawClipLabels(int clipW, int clipH) => DrawLabels(_clipLabels, new Rect(0, 0, clipW, clipH), clipH);
 
         private void OnPostRender()
         {
@@ -213,25 +227,27 @@ namespace FlyingGame.Bridge
             Line(new Vector2(r.x, r.yMax), new Vector2(r.x, r.y));
         }
 
-        private void OnGUI()
+        private void OnGUI() => DrawLabels(_labels, _cam.pixelRect, Screen.height);
+
+        private void DrawLabels(System.Collections.Generic.List<Sym> labels, Rect vp, float screenH)
         {
-            if (_labels.Count == 0) return;
-            int fs = Mathf.RoundToInt(Mathf.Min(_cam.pixelWidth, _cam.pixelHeight) * 0.030f);
+            if (labels.Count == 0) return;
+            int fs = Mathf.RoundToInt(Mathf.Min(vp.width, vp.height) * 0.030f);
             if (_text == null || fs != _fs)
             {
                 _fs = fs;
                 _text = new GUIStyle { font = UiFont.Get(), fontSize = fs, fontStyle = FontStyle.Bold, normal = { textColor = Green } };
                 _small = new GUIStyle { font = UiFont.Get(), fontSize = Mathf.RoundToInt(fs * 0.7f), normal = { textColor = Green } };
             }
-            Rect vp = _cam.pixelRect; // label positions are viewport-relative; GUI space is whole-screen, top-left origin
-            foreach (Sym l in _labels)
+            // Label positions are viewport-relative; GUI space is whole-screen (or the whole clip image), top-left origin.
+            foreach (Sym l in labels)
             {
                 GUIStyle st = l.Small ? _small : _text;
                 st.alignment = l.Anchor;
                 float w = fs * 8f, h = fs * 1.6f;
                 float px = l.Pos.x + vp.x, py = l.Pos.y + vp.y;
                 float x = l.Anchor is TextAnchor.MiddleRight ? px - w : l.Anchor is TextAnchor.MiddleCenter ? px - w * 0.5f : px;
-                GUI.Label(new Rect(x, Screen.height - py - h * 0.5f, w, h), l.Text, st);
+                GUI.Label(new Rect(x, screenH - py - h * 0.5f, w, h), l.Text, st);
             }
         }
     }

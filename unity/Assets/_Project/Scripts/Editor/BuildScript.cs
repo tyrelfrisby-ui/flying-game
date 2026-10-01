@@ -241,11 +241,16 @@ namespace FlyingGame.EditorTools
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
             proj.AddFrameworkToProject(fw, "MediaPlayer.framework", false);
-            // ReplayKit + Photos for the quick clips (Plugins/iOS/QuickClips.mm).
-            proj.AddFrameworkToProject(fw, "ReplayKit.framework", false);
-            proj.AddFrameworkToProject(fw, "Photos.framework", false);
+            // AVFoundation/CoreMedia/CoreVideo + Photos for the quick clips encoder (Plugins/iOS/ClipEncoder.mm).
+            foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework" })
+                proj.AddFrameworkToProject(fw, f, false);
+            // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
+            // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.
+            string enc = proj.FindFileGuidByProjectPath("Libraries/Plugins/iOS/ClipEncoder.mm");
+            if (enc != null) proj.SetCompileFlagsForFile(fw, enc, new System.Collections.Generic.List<string> { "-fobjc-exceptions" });
+            else Debug.LogWarning("Xcode: ClipEncoder.mm not found — clip encoder will not build");
             proj.WriteToFile(projPath);
-            Debug.Log("Xcode: linked MediaPlayer, ReplayKit, Photos frameworks");
+            Debug.Log("Xcode: linked MediaPlayer, AVFoundation, CoreMedia, CoreVideo, Photos frameworks");
         }
 
         private static void EnsureSceneInBuild()

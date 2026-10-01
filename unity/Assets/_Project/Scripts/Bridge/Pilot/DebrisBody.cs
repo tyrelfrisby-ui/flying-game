@@ -20,6 +20,8 @@ namespace FlyingGame.Bridge
         private float _age;
         private bool _down;
 
+        private void Start() => ReplayActors.Register(gameObject);   // jettisoned canopy / ejection seat show in the replay
+
         private void Update()
         {
             float dt = Time.deltaTime;

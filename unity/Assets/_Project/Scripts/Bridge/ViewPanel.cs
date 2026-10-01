@@ -4,8 +4,9 @@ namespace FlyingGame.Bridge
 {
     /// <summary>
     /// Camera / replay / clips controls (owner 2026-10-01).
-    ///   In flight: a column under OPTIONS (top right) — VIEW (cycles the camera views), REPLAY, CLIP (last 15 s to
-    ///   Photos), REC (open-ended recording). It steps sideways out of the aircraft's on-screen box.
+    ///   In flight: a column under OPTIONS (top right) — VIEW (cycles the camera views), REPLAY, CLIP (the last
+    ///   15 s – 3 min to Photos, length in OPTIONS), REC (everything until the next tap). Clips never show these buttons
+    ///   (<see cref="ClipRecorder"/> films a separate camera). It steps sideways out of the aircraft's on-screen box.
     ///   In a replay: a bar in the control tray (portrait) or along the bottom (landscape) — scrub track, −10 s,
     ///   play/pause, +10 s, speed, VIEW, CLIP, REC, EXIT (back to the live flight where it was paused).
     /// </summary>
@@ -19,7 +20,6 @@ namespace FlyingGame.Bridge
         private Texture2D _bg, _btnBg, _btnOnBg, _recBg, _track, _fill, _knob;
         private int _fs;
         private bool _scrubbing;
-        private bool _bufferStarted;
         private string _toast;
         private float _toastUntil;
 
@@ -47,10 +47,8 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
-            // Start the 15 s rolling clip buffer once the first flight starts (iOS asks for screen-recording consent then).
-            if (!_bufferStarted && !SessionSettings.MenuOpen) { _bufferStarted = true; QuickClips.EnsureBuffering(); }
-            string m = QuickClips.PollMessage();
-            if (!string.IsNullOrEmpty(m)) { _toast = m; _toastUntil = Time.realtimeSinceStartup + 3.5f; }
+            string m = ClipRecorder.PollMessage();
+            if (!string.IsNullOrEmpty(m)) { _toast = m; _toastUntil = Time.realtimeSinceStartup + 3.5f; Debug.Log("[Clips] " + m); }
         }
 
         private static string Clock(double sec)
@@ -98,10 +96,10 @@ namespace FlyingGame.Bridge
             y += vh + gap;
             if (Replay != null && GUI.Button(new Rect(x, y, bw, bh), "REPLAY", _btn)) Replay.Enter();
             y += bh + gap;
-            if (GUI.Button(new Rect(x, y, bw, bh), QuickClips.Busy ? "SAVING..." : "CLIP 15 s", _btn)) QuickClips.SaveClip();
+            if (GUI.Button(new Rect(x, y, bw, bh), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             y += bh + gap;
-            bool rec = QuickClips.Recording;
-            if (GUI.Button(new Rect(x, y, bw, bh), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) QuickClips.ToggleRecording();
+            bool rec = ClipRecorder.Recording;
+            if (GUI.Button(new Rect(x, y, bw, bh), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
         }
 
         private void DrawReplayBar()
@@ -151,9 +149,9 @@ namespace FlyingGame.Bridge
             if (GUI.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
             if (GUI.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
             if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _btn)) Chase.NextView();
-            if (GUI.Button(Next(), QuickClips.Busy ? "SAVING..." : "CLIP 15 s", _btn)) QuickClips.SaveClip();
-            bool recOn = QuickClips.Recording;
-            if (GUI.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) QuickClips.ToggleRecording();
+            if (GUI.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
+            bool recOn = ClipRecorder.Recording;
+            if (GUI.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
             if (GUI.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
         }
     }

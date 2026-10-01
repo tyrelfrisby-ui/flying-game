@@ -15,6 +15,7 @@ namespace FlyingGame.Bridge
     /// a little wider and looking slightly up so pilot + canopy are both in shot. Clearing the override
     /// (reset / aircraft switch) returns to the aircraft.
     /// </summary>
+    [DefaultExecutionOrder(1000)]   // after FlightReplay (900) has posed the replayed aircraft and pilot
     public sealed class ChaseCamera : MonoBehaviour
     {
         /// <summary>Camera view points (owner 2026-10-01). RelativeWind = the flight-path camera above (downstream on the
@@ -226,8 +227,8 @@ namespace FlyingGame.Bridge
             }
 
             if (_cam != null && _baseFov < 0f) _baseFov = _cam.fieldOfView;
-            // In a replay the camera always watches the aircraft (the pilot, if he bailed out, is frozen where he is now).
-            bool ovr = OverrideTarget != null && !SessionSettings.ReplayActive;
+            // In a replay FlightReplay sets the override itself (the replayed pilot after the recorded bail-out).
+            bool ovr = OverrideTarget != null;
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
@@ -240,13 +241,13 @@ namespace FlyingGame.Bridge
             {
                 Vector3 tp = tgt.position;
                 Vector3 sidePos = new Vector3(tp.x, SideFocusY, tp.z) + SideRight * SideDistance;
-                transform.position = Vector3.Lerp(transform.position, sidePos, 1f - Mathf.Exp(-6f * Time.deltaTime));
+                transform.position = Vector3.Lerp(transform.position, sidePos, 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
                 transform.rotation = Quaternion.LookRotation(-SideRight, Vector3.up);
                 return;
             }
 
             Vector3 want = ovr ? OverrideDirection() : DesiredDirection();
-            _dir = ExactFlightPath && !ovr ? want.normalized : Vector3.Slerp(_dir, want, 1f - Mathf.Exp(-DirectionDamp * Time.deltaTime)).normalized;
+            _dir = ExactFlightPath && !ovr ? want.normalized : Vector3.Slerp(_dir, want, 1f - Mathf.Exp(-DirectionDamp * Time.unscaledDeltaTime)).normalized;
 
             // Reference up: world up, unless the path is near-vertical (tumble/loop), then the aircraft's up
             // keeps the horizon from flipping. (The pilot path is pitch-limited, so always world up there.)
@@ -260,7 +261,7 @@ namespace FlyingGame.Bridge
             bool backdrop = ovr && OverrideBackdrop != null;
             Vector3 side = backdrop ? -Vector3.Cross(up, _dir).normalized * BackdropSideOffsetM : Vector3.zero;   // pilot's left
             Vector3 desiredOffset = -_dir * dist + up * hgt + side;
-            _offset = ExactFlightPath && !ovr ? desiredOffset : Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.deltaTime));
+            _offset = ExactFlightPath && !ovr ? desiredOffset : Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.unscaledDeltaTime));
             transform.position = tgt.position + _offset;
             // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.

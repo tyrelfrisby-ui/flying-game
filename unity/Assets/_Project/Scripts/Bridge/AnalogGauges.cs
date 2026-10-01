@@ -164,14 +164,20 @@ namespace FlyingGame.Bridge
         private void DrawNeedle(Vector2 c, float deg, float len, float width, float alpha)
         {
             Matrix4x4 m = GUI.matrix;
-            GUIUtility.RotateAroundPivot(deg, c);
+            GUIUtility.RotateAroundPivot(deg, GUI.matrix.MultiplyPoint3x4(c));   // pivot in output space (the clip pass scales GUI.matrix)
             GUI.color = new Color(1f, 1f, 1f, alpha);
             // The texture's centre sits on the pivot; the bar extends up (screen -y) by len.
             GUI.DrawTexture(new Rect(c.x - width * 0.5f, c.y - len, width, 2f * len), _needle);
             GUI.matrix = m;
         }
 
-        private void OnGUI()
+        private void OnGUI() => Draw(true);
+
+        /// <summary>Clip recorder: draw the dials again into the clip image (GUI.matrix maps the screen view onto it).
+        /// No state is advanced (anchor smoothing, g tell-tales) — the live pass owns that.</summary>
+        public void DrawForClip() => Draw(false);
+
+        private void Draw(bool live)
         {
             if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
             var aircraft = Driver.Sim.Aircraft;
@@ -195,7 +201,7 @@ namespace FlyingGame.Bridge
             // Stable anchor (owner: no jitter): the chase camera keeps the aircraft near one spot, so follow it slowly
             // (0.5 s) and snap the result to whole pixels.
             if (!_anchorValid) { _anchor = acRaw; _anchorValid = true; }
-            _anchor += (acRaw - _anchor) * (1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.5f));
+            if (live) _anchor += (acRaw - _anchor) * (1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.5f));
             Vector2 ac = new Vector2(Mathf.Round(_anchor.x), Mathf.Round(_anchor.y));
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
             Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, bottom - rad * 1.05f));
@@ -225,7 +231,7 @@ namespace FlyingGame.Bridge
             Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
 
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
-            _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g);
+            if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);
             void Label(Vector2 p, string text, GUIStyle st, float w, float h) => GUI.Label(new Rect(p.x - w * 0.5f, p.y - h * 0.5f, w, h), text, st);
             Vector2 OnDial(Vector2 c, float deg, float rad) { float a = deg * Mathf.Deg2Rad; return c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rad; }

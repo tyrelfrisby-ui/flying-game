@@ -132,6 +132,9 @@ namespace FlyingGame.Bridge
             gauges.Driver = aircraft.GetComponent<FlightSimDriver>();
             var hudOverlay = cam.gameObject.AddComponent<HudOverlay>();
             hudOverlay.Driver = aircraft.GetComponent<FlightSimDriver>();
+            // Quick clips: films a hidden copy of this camera (no buttons) + the game sound; instruments optional.
+            var clips = cam.gameObject.AddComponent<ClipRecorder>();
+            clips.Hud = hudOverlay; clips.Gauges = gauges; clips.Combat = aircraft.GetComponent<CombatController>();
 
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
@@ -171,6 +174,12 @@ namespace FlyingGame.Bridge
             menu.Dust = aircraft.GetComponent<CropDustController>();
             menu.Practice = aircraft.GetComponent<Practice.PracticeController>();
             pHud.Menu = menu;
+            // Device self-test of replay + clips, only when launched with AERO_SELFTEST set (devicectl --environment-variables).
+            if (!string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("AERO_SELFTEST")))
+            {
+                var st = cam.gameObject.AddComponent<ClipSelfTest>();
+                st.Menu = menu; st.Replay = aircraft.GetComponent<FlightReplay>(); st.Egress = aircraft.GetComponent<PilotEgress>(); st.Chase = chase;
+            }
         }
     }
 }

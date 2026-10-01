@@ -61,11 +61,14 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(Screen.width - s * 0.02f - mbw, s * 0.02f, mbw, mbh), "OPTIONS", _btn)) _open = true;
                 return;
             }
-            float w = Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * 19f;
+            // Landscape has the width but not the height for one long list: two columns (settings | control feel).
+            bool twoCol = Screen.width > Screen.height * 1.3f;
+            float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
+            float h = lh * (twoCol ? 16.5f : 22.5f);
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
-            float x = panel.x + gap, y = panel.y + gap, cw = panel.width - 2 * gap;
+            float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
+            float colTop = y + lh;
             GUI.Label(new Rect(x, y, cw, lh), "OPTIONS", _head); y += lh;
 
             void TriRow(string name, ref SessionSettings.Tri v)
@@ -107,6 +110,24 @@ namespace FlyingGame.Bridge
                 FlightAudio.MasterVolume = vol;
                 y += lh + gap * 0.4f;
             }
+            // Quick clips (owner 2026-10-01): how much the CLIP button saves, and whether the instruments are in the picture.
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, cw, lh), "QUICK CLIPS", _head); y += lh;
+            {
+                int sec = ClipRecorder.ClipSeconds;
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), $"Clip length  {ClipRecorder.Length(sec)}", _label);
+                float v = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), sec, ClipRecorder.MinSeconds, ClipRecorder.MaxSeconds);
+                if (Mathf.Abs(v - sec) >= ClipRecorder.StepSeconds * 0.5f) ClipRecorder.ClipSeconds = Mathf.RoundToInt(v);
+                y += lh + gap * 0.4f;
+            }
+            {
+                bool inc = ClipRecorder.IncludeInstruments;
+                var box = new Rect(x, y, lh, lh);
+                if (GUI.Button(box, inc ? "X" : "", inc ? _btnOn : _btn)) ClipRecorder.IncludeInstruments = !inc;
+                if (GUI.Button(new Rect(x + lh + gap, y, cw - lh - gap, lh), "Include instruments in clips (dials or HUD) - applies from when you tick it", _label)) ClipRecorder.IncludeInstruments = !inc;
+                y += lh + gap * 0.4f;
+            }
+            if (twoCol) { x += cw + gap; y = colTop; }
             // Control feel (owner 2026-09-15): per-axis expo and dead zone, tuned by the user. Applied live to the current
             // aircraft and to every aircraft loaded from now on; "aircraft" = that type's own value.
             y += gap * 0.5f;
