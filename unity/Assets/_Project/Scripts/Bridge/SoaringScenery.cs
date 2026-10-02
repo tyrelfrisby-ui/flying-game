@@ -42,7 +42,7 @@ namespace FlyingGame.Bridge
             foreach (var (pos, r, core, top) in set)
             {
                 var th = new Thermal(pos, r, core, top);
-                th.LeanPerM = new Vec3(0.05, 0, 0); // slight downwind lean with height
+                // Lean comes from the wind itself now (Thermal.CoreAt), so a circling glider stays in the column.
                 Atmosphere.Thermals.Add(th);
 
                 // Faint translucent marker cylinder so the columns are findable (toggle with H).

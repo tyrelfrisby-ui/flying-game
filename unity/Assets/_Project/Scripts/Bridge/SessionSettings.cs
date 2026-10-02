@@ -7,7 +7,7 @@ namespace FlyingGame.Bridge
     /// Plain static state so every controller can read it on spawn.</summary>
     public static class SessionSettings
     {
-        public enum Start { InTheAir, OnTheRunway, OnFinal }
+        public enum Start { InTheAir, OnTheRunway, OnFinal, InAeroBox, InCombatZone, InThermal }
 
         public static bool MenuOpen = true;               // landing page showing: pads/HUD hidden, sim paused
         /// <summary>Flight replay is playing: the sim and world are frozen, the control pads are hidden, the replay bar owns the tray.</summary>

@@ -132,7 +132,15 @@ namespace FlyingGame.Bridge
             y += bh + gap * 0.4f;
             if (GUI.Button(new Rect(x, y, colW, bh), "On final, 300 ft", SessionSettings.StartMode == SessionSettings.Start.OnFinal ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnFinal;
             y += bh + gap * 0.4f;
-            if (SessionSettings.StartMode != SessionSettings.Start.InTheAir)
+            {
+                // Owner 2026-10-01: start in the aerobatic box, the combat zone, or already circling in a thermal.
+                float third = (colW - 2 * gap * 0.3f) / 3f;
+                var extra = new[] { (SessionSettings.Start.InAeroBox, "Aero box"), (SessionSettings.Start.InCombatZone, "Combat"), (SessionSettings.Start.InThermal, "Thermal") };
+                for (int i = 0; i < extra.Length; i++)
+                    if (GUI.Button(new Rect(x + i * (third + gap * 0.3f), y, third, bh), extra[i].Item2, SessionSettings.StartMode == extra[i].Item1 ? _btnOn : _btn)) SessionSettings.StartMode = extra[i].Item1;
+                y += bh + gap * 0.4f;
+            }
+            if (SessionSettings.StartMode == SessionSettings.Start.OnTheRunway || SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Runway choice (owner 2026-09-10): into the wind on the 09/27, or the crosswind main.
                 float half = (colW - gap * 0.3f) / 2f;
@@ -173,6 +181,9 @@ namespace FlyingGame.Bridge
             y += gap;
             GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
+                : SessionSettings.StartMode == SessionSettings.Start.InAeroBox ? "Running in to the aerobatic box, 2,300 ft above the ground."
+                : SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "Entering the combat zone, guns hot."
+                : SessionSettings.StartMode == SessionSettings.Start.InThermal ? "Circling right in a thermal at min-sink speed, trimmed. Hold the bank and climb."
                 : SessionSettings.StartMode == SessionSettings.Start.OnFinal ? "300 ft on final, idle, trimmed at best glide."
                 : (SessionSettings.AircraftId.StartsWith("glider") ? "At the threshold. Tap TOW for the aerotow."
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);

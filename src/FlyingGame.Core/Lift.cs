@@ -15,7 +15,28 @@ public sealed class Thermal
     public double CoreRadiusM { get; }
     public double CoreUpdraftMs { get; } // peak updraft at the core (m/s, upward)
     public double TopAltitudeM { get; }  // thermal weakens to nothing by here
-    public Vec3 LeanPerM { get; set; }   // horizontal drift of the core per metre of altitude (wind lean)
+    public Vec3 LeanPerM { get; set; }   // extra fixed lean per metre of altitude (0 by default; the wind lean is below)
+
+    /// <summary>
+    /// The core's horizontal position at an altitude. A thermal in a wind is a LEANING plume (owner 2026-10-01, so that a
+    /// glider circling in it stays in it): the rising air drifts with the wind while it climbs, so the axis moves
+    /// downwind by wind × ∫ dz / w(z) — the local steady wind (with its gradient) over the core's own updraft profile,
+    /// w(z) = W·sin(π z / top) (floored at 5 % of the way in so the base is not infinitely bent). Closed form:
+    /// ∫ dz / sin(π z/T) = (T/π)·ln tan(π z / 2T).
+    /// </summary>
+    public Vec3 CoreAt(double altitude)
+    {
+        Vec3 core = SurfaceCenter + LeanPerM * altitude;
+        Vec3 wind = Atmosphere.SteadyWind;
+        double w = CoreUpdraftMs * Atmosphere.ThermalStrengthScale;
+        if ((wind.X == 0 && wind.Y == 0) || w < 0.5) return core;
+        double baseAlt = -SurfaceCenter.Z, T = TopAltitudeM;
+        if (altitude <= baseAlt || T <= 0) return core;
+        static double F(double z, double top) => top / Math.PI * Math.Log(Math.Tan(Math.PI * Math.Clamp(z / top, 0.05, 0.95) / 2));
+        double secondsPerMetre = (F(altitude, T) - F(baseAlt, T)) / w;
+        double gradient = Atmosphere.WindGradientFactor(new Vec3(0, 0, -0.5 * (altitude + baseAlt)));
+        return new Vec3(core.X + wind.X * gradient * secondsPerMetre, core.Y + wind.Y * gradient * secondsPerMetre, core.Z);
+    }
 
     public Thermal(Vec3 surfaceCenter, double coreRadiusM, double coreUpdraftMs, double topAltitudeM)
     {
@@ -35,7 +56,7 @@ public sealed class Thermal
             return 0.0;
         }
 
-        Vec3 core = SurfaceCenter + LeanPerM * altitude;
+        Vec3 core = CoreAt(altitude);
         double dx = pos.X - core.X, dy = pos.Y - core.Y;
         double zf = System.Math.Clamp(altitude / TopAltitudeM, 0, 1);
         double rNorm = System.Math.Sqrt(dx * dx + dy * dy) / (CoreRadiusM * (1.0 + 0.8 * zf));
@@ -52,8 +73,8 @@ public sealed class Thermal
             return Vec3.Zero;
         }
 
-        // Core leans downwind with height.
-        Vec3 core = SurfaceCenter + LeanPerM * altitude;
+        // Core leans downwind with height (CoreAt).
+        Vec3 core = CoreAt(altitude);
         double dx = pos.X - core.X, dy = pos.Y - core.Y;
         double r = System.Math.Sqrt(dx * dx + dy * dy);
 

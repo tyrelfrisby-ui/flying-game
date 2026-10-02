@@ -108,9 +108,25 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;
             bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway;
             GroundStart = ground;
-            IdleStart = SessionSettings.StartMode == SessionSettings.Start.OnFinal;
+            IdleStart = SessionSettings.StartMode == SessionSettings.Start.OnFinal || SessionSettings.StartMode == SessionSettings.Start.InThermal;
+            StartSpoilerFraction = 0;
 
-            if (IdleStart && config.Floats == null)
+            if (SessionSettings.StartMode == SessionSettings.Start.InThermal && FlyingGame.Core.Atmosphere.Thermals.Count > 0)
+            {
+                // Already circling in the field's best thermal: banked at the turning min-sink speed, trimmed, idle.
+                FlyingGame.Core.Thermal th = PickThermal(ap);
+                double baseAlt = -th.SurfaceCenter.Z;
+                double alt = System.Math.Max(baseAlt + 300, baseAlt + 0.3 * (th.TopAltitudeM - baseAlt));
+                ThermalSpawn.Plan plan = ThermalSpawn.Compute(config, th, alt);
+                TrimStick = Aircraft.StickForDeflection(plan.ElevatorRad, config.Controls.Elevator);
+                Sim = new SimLoop(new Aircraft(config, plan.State, new ControlDeflections(0, plan.ElevatorRad, 0, 0)));
+                if (config.RetractableGear) Sim.Aircraft.SetGear(false, immediate: true);
+                ApplyFixedSlats(config);
+                ApplyStateToTransform();
+                return;
+            }
+
+            if (IdleStart && config.Floats == null && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // On final: 300 ft AGL on the centreline, idle, trimmed at best glide on the best-glide angle.
                 var (fState, glide, _) = ApproachSpawn.Compute(config, ap, SessionSettings.ChosenRunway());
@@ -122,7 +138,7 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            if (IdleStart && config.Floats != null)
+            if (IdleStart && config.Floats != null && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Floatplane on final: to the field's lake, 300 ft over the water, idle, best glide (owner 2026-09-14).
                 FlyingGame.Core.WorldTerrain.Lake lake = FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 1)];
@@ -161,8 +177,15 @@ namespace FlyingGame.Bridge
             // Event starts: the race begins 800 m short of gate 1 at 60 m AGL heading through it; the STOL
             // contest begins on a 1.2 km final for the gravel strip at 90 m AGL.
             double spawnAlt = ap.ElevationM + SpawnAltitudeM, spawnX = ap.X - 600, spawnY = ap.Y, spawnHdg = 0.0;
-            string ch = SessionSettings.ChallengeId;
-            if (ch == "event:race")
+            string ch = SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "event:combat" : SessionSettings.ChallengeId;   // same start as the combat event
+            if (SessionSettings.StartMode == SessionSettings.Start.InAeroBox)
+            {
+                // Running in to the aerobatic box: 300 m short of its south edge, heading north through the middle, 700 m
+                // above the ground (box floor 100 m, ceiling 1,067 m).
+                spawnX = AeroBox.CenterX - AeroBox.SizeM / 2 - 300; spawnY = AeroBox.CenterYAt(SessionSettings.AirportIndex); spawnHdg = 0.0;
+                spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 700;
+            }
+            else if (ch == "event:race")
             {
                 var g = RaceCourse.ElementsFor(SessionSettings.AirportIndex)[0];   // this plateau's course
                 spawnX = g.X - g.Forward.X * 800; spawnY = g.Y - g.Forward.Y * 800; spawnHdg = g.HeadingDeg * System.Math.PI / 180;
@@ -219,6 +242,19 @@ namespace FlyingGame.Bridge
 
         /// <summary>Replay: redraw the aircraft from the pose the replay just put into it, with the wind recorded then.</summary>
         public void ShowReplayPose(Vec3 windWorld) => ApplyStateToTransform(windWorld);
+
+        /// <summary>The strongest thermal within 1.5 km of the airport (else the nearest one).</summary>
+        private static FlyingGame.Core.Thermal PickThermal(FlyingGame.Core.WorldTerrain.Airport ap)
+        {
+            FlyingGame.Core.Thermal best = null, nearest = null; double bestW = -1, nearD = double.MaxValue;
+            foreach (FlyingGame.Core.Thermal t in FlyingGame.Core.Atmosphere.Thermals)
+            {
+                double d = System.Math.Sqrt(System.Math.Pow(t.SurfaceCenter.X - ap.X, 2) + System.Math.Pow(t.SurfaceCenter.Y - ap.Y, 2));
+                if (d < nearD) { nearD = d; nearest = t; }
+                if (d < 1500 && t.CoreUpdraftMs > bestW) { bestW = t.CoreUpdraftMs; best = t; }
+            }
+            return best ?? nearest;
+        }
 
         private void Update()
         {

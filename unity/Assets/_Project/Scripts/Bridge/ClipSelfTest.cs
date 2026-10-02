@@ -19,7 +19,9 @@ namespace FlyingGame.Bridge
 
         private IEnumerator Start()
         {
-            if (System.Environment.GetEnvironmentVariable("AERO_SELFTEST") == "combat") { yield return CombatTest(); yield break; }
+            string mode = System.Environment.GetEnvironmentVariable("AERO_SELFTEST");
+            if (mode == "combat") { yield return CombatTest(); yield break; }
+            if (mode == "thermal") { yield return ThermalTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -82,6 +84,25 @@ namespace FlyingGame.Bridge
                 if (i == 6) ScreenCapture.CaptureScreenshot("selftest-combat.png");
             }
             Debug.Log("[SelfTest] DONE combat");
+        }
+
+        /// <summary>AERO_SELFTEST=thermal: the 2-33 started in a thermal, hands off; logs height and bank every 5 s.</summary>
+        private IEnumerator ThermalTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "glider-2-33-like";
+            SessionSettings.StartMode = SessionSettings.Start.InThermal;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            for (int i = 0; i < 8; i++)
+            {
+                yield return new WaitForSecondsRealtime(5f);
+                var q = drv.Sim.Aircraft.State.Attitude;
+                double roll = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 57.3;
+                Debug.Log($"[SelfTest] thermal t={5 * (i + 1)} s alt {drv.AltitudeM:F0} m bank {roll:F0} IAS {drv.IasMs:F1}");
+                if (i == 1) ScreenCapture.CaptureScreenshot("selftest-thermal.png");
+            }
+            Debug.Log("[SelfTest] DONE thermal");
         }
 
         private float _worst;
