@@ -1882,19 +1882,22 @@
       "maxDeflRad": 0.28,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": false
     },
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": false
     },
     "rudder": {
       "maxDeflRad": 0.3,
       "rateRadPerSec": 4.0,
       "expo": 0.2,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": false
     },
     "spoiler": {
       "maxDeflRad": 0.0,

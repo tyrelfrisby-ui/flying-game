@@ -26,6 +26,12 @@ public sealed class StripFlowState
     public double[] ChordM = System.Array.Empty<double>();
     public bool LagPrimed;
 
+    // Reversible controls (owner 2026-10-02): what a FREE hinged surface feels — the flow angle over it (before its own
+    // deflection; reversed in tail-first flow) and its dynamic pressure. Recorded by AeroModel for control strips only;
+    // HingeQ = 0 when the strip was skipped (no airflow / broken off).
+    public double[] HingeAlphaRad = System.Array.Empty<double>();
+    public double[] HingeQ = System.Array.Empty<double>();
+
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
     public double DownwashEpsLagged;
 
@@ -42,6 +48,8 @@ public sealed class StripFlowState
             LagCd = new double[stripCount];
             LagCm = new double[stripCount];
             ChordM = new double[stripCount];
+            HingeAlphaRad = new double[stripCount];
+            HingeQ = new double[stripCount];
             LagPrimed = false;
         }
     }

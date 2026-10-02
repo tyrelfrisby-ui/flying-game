@@ -1396,19 +1396,37 @@
       "maxDeflRad": 0.35,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": true,
+      "hingeChAlpha": -0.2,
+      "hingeChDelta": -0.45,
+      "centeringSpringKt": 0,
+      "trimType": "tab",
+      "freeTauS": 0.12
     },
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": true,
+      "hingeChAlpha": -0.05,
+      "hingeChDelta": -0.45,
+      "centeringSpringKt": 0,
+      "trimType": "tab",
+      "freeTauS": 0.12
     },
     "rudder": {
       "maxDeflRad": 0.28,
       "rateRadPerSec": 4.0,
       "expo": 0.2,
-      "deadZone": 0.03
+      "deadZone": 0.03,
+      "reversible": true,
+      "hingeChAlpha": -0.12,
+      "hingeChDelta": -0.4,
+      "centeringSpringKt": 35,
+      "trimType": "tab",
+      "freeTauS": 0.12
     },
     "spoiler": {
       "maxDeflRad": 0.0,

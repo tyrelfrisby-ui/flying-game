@@ -164,6 +164,26 @@ public sealed class ControlAxisConfig
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
     public double Expo { get; set; }
     public double DeadZone { get; set; }
+
+    /// <summary>REVERSIBLE control (owner 2026-10-02): cables/pushrods, so when the pilot lets go the surface is free and
+    /// trails to where its hinge moment balances — air load vs. centering spring vs. trim. false = irreversible
+    /// (hydraulic / servo): released, it goes to its trim position like before.</summary>
+    public bool Reversible { get; set; }
+    /// <summary>Hinge-moment slope with the flow angle over the surface (per rad, negative: the flow pushes the trailing
+    /// edge to trail with it). Plain unbalanced surface ≈ -0.25; horn/overhang-balanced ≈ -0.10.</summary>
+    public double HingeChAlpha { get; set; } = -0.20;
+    /// <summary>Hinge-moment slope with deflection (per rad, negative = restoring). Plain ≈ -0.55; balanced ≈ -0.30;
+    /// a stabilator's anti-servo tab gives its restoring moment.</summary>
+    public double HingeChDelta { get; set; } = -0.45;
+    /// <summary>CENTERING SPRING strength, as the airspeed (kt) at which the air's own restoring moment equals the
+    /// spring's: 0 = no spring; 30 = light (air dominates in flight); 80 = strong (the surface stays near the spring's
+    /// neutral at normal speeds). Also what centres the surface on the ground and at low speed.</summary>
+    public double CenteringSpringKt { get; set; }
+    /// <summary>How the trim works when this axis is free: "tab" (trim tab — zero air load at the trimmed deflection)
+    /// or "spring" (the trim moves the spring's neutral, e.g. a bungee / spring-cartridge trim).</summary>
+    public string TrimType { get; set; } = "tab";
+    /// <summary>Time constant (s) of the free surface settling (surface + linkage inertia and friction).</summary>
+    public double FreeTauS { get; set; } = 0.12;
 }
 
 public sealed class SpoilerConfig

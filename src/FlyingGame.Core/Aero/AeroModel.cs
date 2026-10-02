@@ -133,6 +133,7 @@ public static class AeroModel
             foreach (StripConfig strip in surface.Strips)
             {
                 int idx = stripIndex++; // counted for EVERY strip, including low-speed skips
+                if (flowState is not null && idx < flowState.HingeQ.Length) flowState.HingeQ[idx] = 0.0;
                 if (stripMask is not null && idx < stripMask.Length && !stripMask[idx])
                 {
                     continue; // this strip left with a broken-off component (wing half, tail): no aero from it
@@ -402,6 +403,13 @@ public static class AeroModel
                 }
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
+                if (strip.Control is not null && flowState is not null && idx < flowState.HingeQ.Length)
+                {
+                    // Reversible controls: the flow a free surface trails in — the fixed surface's local angle (downwash,
+                    // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q.
+                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.35, 0.35) * chordwiseFactor;
+                    flowState.HingeQ[idx] = q;
+                }
                 // Flap lift boost (slat lift too) added to attached-flow Cl; both fade out post-stall
                 // (they raise Clmax and extend the linear range, they don't add lift once separated).
                 double slatCl = strip.Slat is not null ? strip.Slat.ClIncrement * controls.SlatFraction : 0.0;

@@ -12,6 +12,9 @@ public readonly struct ControlInputs
     public readonly double Elevator;
     public readonly double Rudder;
     public readonly double ThrottleLever;
+    /// <summary>Pilot's hand/feet OFF this control (owner 2026-10-02): on a reversible axis the surface is then free and
+    /// trails with the air loads; the axis value is read as the TRIM position only. Default false = held.</summary>
+    public readonly bool AileronFree, ElevatorFree, RudderFree;
 
     public ControlInputs(double aileron, double elevator, double rudder, double throttleLever)
     {
@@ -19,6 +22,15 @@ public readonly struct ControlInputs
         Elevator = elevator;
         Rudder = rudder;
         ThrottleLever = throttleLever;
+        AileronFree = ElevatorFree = RudderFree = false;
+    }
+
+    public ControlInputs(double aileron, double elevator, double rudder, double throttleLever, bool aileronFree, bool elevatorFree, bool rudderFree)
+        : this(aileron, elevator, rudder, throttleLever)
+    {
+        AileronFree = aileronFree;
+        ElevatorFree = elevatorFree;
+        RudderFree = rudderFree;
     }
 
     public static readonly ControlInputs Neutral = new(0, 0, 0, 0);

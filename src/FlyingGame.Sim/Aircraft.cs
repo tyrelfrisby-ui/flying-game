@@ -174,7 +174,10 @@ public sealed class Aircraft
         _elevatorRad = initial.ElevatorRad;
         _rudderRad = initial.RudderRad;
         _spoilerFraction = initial.SpoilerFraction;
+        _spawnTrim = initial;
     }
+
+    private readonly ControlDeflections _spawnTrim;   // the deflections the aircraft spawned trimmed at (tab calibration)
 
     public ControlDeflections CurrentDeflections => new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction);
 
@@ -481,7 +484,118 @@ public sealed class Aircraft
             ShapeAxis(inputs.Rudder, Config.Controls.Rudder),
             spoilerTarget);
 
+        // REVERSIBLE controls, released: the surface floats. Its target is where the hinge moment balances; it settles
+        // there with the linkage's time constant (the slew below then passes it through unchanged).
+        if (inputs.AileronFree || inputs.ElevatorFree || inputs.RudderFree)
+        {
+            double a = inputs.AileronFree && Config.Controls.Aileron.Reversible
+                ? Settle(_aileronRad, FreeFloat("aileron", Config.Controls.Aileron, targets.AileronRad, _aileronRad), Config.Controls.Aileron, dt) : targets.AileronRad;
+            double e = inputs.ElevatorFree && Config.Controls.Elevator.Reversible
+                ? Settle(_elevatorRad, FreeFloat("elevator", Config.Controls.Elevator, targets.ElevatorRad, _elevatorRad), Config.Controls.Elevator, dt) : targets.ElevatorRad;
+            double r = inputs.RudderFree && Config.Controls.Rudder.Reversible
+                ? Settle(_rudderRad, FreeFloat("rudder", Config.Controls.Rudder, targets.RudderRad, _rudderRad), Config.Controls.Rudder, dt) : targets.RudderRad;
+            targets = new ControlDeflections(a, e, r, spoilerTarget);
+        }
+
         StepWithDeflectionTargets(targets, dt);
+        if (!_tabCalibrated)
+        {
+            // First step after spawn: set the tabs from the real flow so a free surface holds the SPAWN trim (the deflections
+            // the aircraft was created with — the trim slider is preset to the same), whatever the stick did this step.
+            _tabCalibrated = true;
+            CalibrateTabs();
+        }
+    }
+
+    /// <summary>First-order settling of a free surface toward its float angle (linkage inertia + friction).</summary>
+    private static double Settle(double current, double target, ControlAxisConfig axis, double dt)
+        => current + (target - current) * (1.0 - Math.Exp(-dt / Math.Max(0.01, axis.FreeTauS)));
+
+    /// <summary>
+    /// Where a FREE reversible surface trails (owner 2026-10-02): the deflection δ at which its hinge moment is zero,
+    ///   H(δ) = Σ g·qSc·Chα·α_flow + Σ qSc·Chδ·(δ − δ_tab) − K·(δ − δ_springNeutral) = 0,
+    /// summed over the surface's HINGED strips (g = the sign of the strip's control gain, so linked ailerons cancel their symmetric float and
+    /// only roll-rate / sideslip differences move them). α_flow is the flow over the fixed surface ahead of the hinge, from
+    /// the last aero evaluation (downwash, slipstream, sideslip, rates included). The trim tab zeroes the air load at δ_tab
+    /// = trim + the calibration offset (set on the first step from the spawn's real flow, so hands-off holds the spawn
+    /// trim); away from the trimmed condition the surface floats with the flow — stick-free stability, lighter than
+    /// stick-fixed. K = the centering spring (CenteringSpringKt: the airspeed where it equals the air's own restoring
+    /// stiffness); its neutral is 0, or the trim for a "spring" (bungee / cartridge) trim. No air and no spring: it stays.
+    /// </summary>
+    public double FreeFloat(string surface, ControlAxisConfig axis, double trimRad, double currentRad)
+    {
+        (double a, double b, double k) = HingeTerms(surface, axis);
+        double den = k - b;
+        if (den < 1e-6) return currentRad;
+        double d;
+        if (axis.TrimType == "spring" && k > 1e-9)
+        {
+            // SPRING trim (bungee / spring cartridge, no tab): the air acts on the bare surface, the trim sets the spring's
+            // neutral — H = a + b·δ − k·(δ − δ_s). Faster, the air wins and the surface trails; slower, the spring wins.
+            double neutral = trimRad + TabOffset(surface);
+            d = (a + k * neutral) / den;
+        }
+        else
+        {
+            // TAB trim: zero air load at δ_tab; any centering spring pulls toward 0.
+            double tab = trimRad + TabOffset(surface);
+            d = (a - b * tab) / den;
+        }
+        return Math.Clamp(d, -axis.MaxDeflRad, axis.MaxDeflRad);
+    }
+
+    /// <summary>The hinge-moment terms of <see cref="FreeFloat"/>: a (flow), b (deflection, negative), k (spring).</summary>
+    private (double a, double b, double k) HingeTerms(string surface, ControlAxisConfig axis)
+    {
+        double a = 0.0, b = 0.0, scRef = 0.0;
+        int idx = 0;
+        foreach (SurfaceConfig sf in Config.Surfaces)
+        {
+            foreach (StripConfig st in sf.Strips)
+            {
+                int i = idx++;
+                // Only the HINGED rows (gain ±1) carry hinge moment; the fixed surface ahead also lists the control (gain ~0.45:
+                // the deflection's camber effect on it) but isn't on the hinge.
+                if (st.Control is null || st.Control.Surface != surface || Math.Abs(st.Control.Gain) < 0.9) continue;
+                double sc = st.Area * st.Chord, g = Math.Sign(st.Control.Gain);
+                scRef += sc;
+                if (i >= _flowState.HingeQ.Length) continue;
+                double qsc = _flowState.HingeQ[i] * sc;
+                a += g * qsc * axis.HingeChAlpha * _flowState.HingeAlphaRad[i];
+                b += qsc * axis.HingeChDelta;
+            }
+        }
+        double vSpring = axis.CenteringSpringKt * 0.514444;
+        return (a, b, 0.5 * 1.225 * vSpring * vSpring * scRef * Math.Abs(axis.HingeChDelta));
+    }
+
+    // Trim-tab calibration: δ_tab − trim, per axis, so the free surface floats exactly at the spawn's trimmed deflection.
+    private double _tabOffsetAil, _tabOffsetEle, _tabOffsetRud;
+    private bool _tabCalibrated;
+    private double TabOffset(string surface) => surface switch { "aileron" => _tabOffsetAil, "elevator" => _tabOffsetEle, _ => _tabOffsetRud };
+
+    /// <summary>Set the tab offsets from the flow just evaluated: with the current trims, a free surface would hold the
+    /// deflection it has now. Called once, on the first step after spawn (needs airflow; on the ground the offset stays 0).</summary>
+    private void CalibrateTabs()
+    {
+        ControlDeflections trims = _spawnTrim;
+        double Offset(string surface, ControlAxisConfig axis, double current, double trim)
+        {
+            (double a, double b, double k) = HingeTerms(surface, axis);
+            if (axis.TrimType == "spring" && k > 1e-9)
+            {
+                // a + b·δ − k·(δ − neutral) = 0 at δ = current  →  neutral
+                double neutral = current - (a + b * current) / k;
+                return Math.Clamp(neutral - trim, -axis.MaxDeflRad, axis.MaxDeflRad);
+            }
+            if (Math.Abs(b) < 1e-6) return 0.0;
+            // a + b·(δ − tab) − k·δ = 0 at δ = current  →  tab
+            double tab = current - (k * current - a) / b;
+            return Math.Clamp(tab - trim, -axis.MaxDeflRad, axis.MaxDeflRad);
+        }
+        _tabOffsetAil = Offset("aileron", Config.Controls.Aileron, trims.AileronRad, trims.AileronRad);
+        _tabOffsetEle = Offset("elevator", Config.Controls.Elevator, trims.ElevatorRad, trims.ElevatorRad);
+        _tabOffsetRud = Offset("rudder", Config.Controls.Rudder, trims.RudderRad, trims.RudderRad);
     }
 
     /// <summary>

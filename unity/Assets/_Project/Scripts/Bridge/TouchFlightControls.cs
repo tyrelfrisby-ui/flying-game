@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using FlyingGame.Core.Aero;
+using FlyingGame.Core.DataContracts;
 using FlyingGame.Sim;
 using UnityEngine;
 
@@ -509,7 +511,11 @@ namespace FlyingGame.Bridge
             // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
             float aileron = Mathf.Clamp(_aileron + _aileronTrim * TrimAuthority, -1f, 1f);
             float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
-            _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever);
+            // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
+            // cable-controlled aircraft those surfaces then trail with the air loads (the values above are just the trims).
+            bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
+            bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
+            _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
         }
 
         // ---- shaping helpers -------------------------------------------------
@@ -562,9 +568,10 @@ namespace FlyingGame.Bridge
                 ? $"BRAKES ON  {Mathf.RoundToInt(padBrake * 100f)}%"
                 : powered ? $"THR {Mathf.RoundToInt(thr01 * 100f)}%" : $"SPOILER {Mathf.RoundToInt(SpoilerFraction * 100f)}%";
             if (DisplayOverride != null && GameThrottle && padBrake <= 0f) leftValue = "GAME  " + leftValue;
-            DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? IdleLeftKnob() : _leftKnob), "RUD / THR", leftValue);
             bool pilotOut = _egress != null && _egress.PilotOut;
-            DrawPad(_rightCenter, GameRightKnob(_rightFinger == int.MinValue ? _rightCenter : _rightKnob), pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
+            (Vector2 freeLeft, Vector2 freeRight) = FreeKnobs(pilotOut);
+            DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? freeLeft : _leftKnob), "RUD / THR", leftValue);
+            DrawPad(_rightCenter, GameRightKnob(_rightFinger == int.MinValue ? freeRight : _rightKnob), pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
             DrawTrim();
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
@@ -636,6 +643,27 @@ namespace FlyingGame.Bridge
                     Button(r, "TOW");
                 }
             }
+        }
+
+        /// <summary>Released pads on a reversible aircraft show where the stick / pedals really are: the surface trails with
+        /// the air (and its centering spring), and the control in the cockpit moves with it.</summary>
+        private (Vector2 left, Vector2 right) FreeKnobs(bool pilotOut)
+        {
+            Vector2 left = IdleLeftKnob(), right = _rightCenter;
+            Aircraft ac = _driver.Sim?.Aircraft;
+            if (ac == null || pilotOut) return (left, right);
+            ControlsConfig c = ac.Config.Controls;
+            ControlDeflections d = ac.CurrentDeflections;
+            float Stick(double defl, ControlAxisConfig axis, float trim) =>
+                Mathf.Clamp((float)Aircraft.StickForDeflection(defl, axis) - trim, -1f, 1f);
+            if (c.Rudder.Reversible) left.x = _leftCenter.x + Stick(d.RudderRad, c.Rudder, _rudderTrim * TrimAuthority) * _half;
+            if (c.Aileron.Reversible) right.x = _rightCenter.x + Stick(d.AileronRad, c.Aileron, _aileronTrim * TrimAuthority) * _half;
+            if (c.Elevator.Reversible)
+            {
+                float e = Stick(d.ElevatorRad, c.Elevator, (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority);
+                right.y = _rightCenter.y + (InvertElevator ? -e : e) * _half;
+            }
+            return (left, right);
         }
 
         private Vector2 IdleLeftKnob() =>
