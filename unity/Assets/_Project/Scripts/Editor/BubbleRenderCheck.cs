@@ -45,6 +45,21 @@ namespace FlyingGame.EditorTools
                 Debug.Log($"BubbleRenderCheck {(dense ? "DENSE/instanced" : "SPARSE")}: drawn {bubbles.DrawnCount}, non-background pixels {changed}");
                 Object.DestroyImmediate(tex);
             }
+            // Speed streaks: flying "into the screen" (+z) at a glider's and a fighter's speed.
+            SessionSettings.BubbleInstancing = true;
+            foreach (float v in new[] { 25f, 100f })
+            {
+                bubbles.StreakVelocityOverride = new Vector3(0f, 0f, v);
+                bubbles.Draw(cam);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, $"streak-{v:F0}.png"), tex.EncodeToPNG());
+                Debug.Log($"BubbleRenderCheck STREAK {v} m/s: drawn {bubbles.DrawnCount}");
+                Object.DestroyImmediate(tex);
+            }
+            bubbles.StreakVelocityOverride = null;
             RenderTexture.active = null;
         }
     }

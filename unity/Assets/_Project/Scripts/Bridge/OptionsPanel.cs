@@ -64,7 +64,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 16.5f : 26.5f);
+            float h = lh * (twoCol ? 17.5f : 27.5f);
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -92,6 +92,7 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Auto = gliders only", _label); y += lh * 0.8f;
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
             BoolRow("Dense bubbles (GPU instancing)", ref SessionSettings.BubbleInstancing);
+            BoolRow("Bubble streaks (longer with speed)", ref SessionSettings.BubbleStreaks);
             BoolRow("Flight path vector (3 s, air-relative)", ref SessionSettings.ShowFlightPath);
             BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);

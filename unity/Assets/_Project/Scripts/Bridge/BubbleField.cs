@@ -4,9 +4,10 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// The air made visible (ARCHITECTURE.md #1 visual + owner request): an evenly-spaced 3D grid of
-    /// bubbles FIXED IN THE AIR MASS around the aircraft. Only a local block exists; as the aircraft
-    /// moves a cell, bubbles wrap modulo the spacing so the field feels infinite. Bubbles translate
+    /// The air made visible (ARCHITECTURE.md #1 visual + owner request): bubbles FIXED IN THE AIR MASS around the
+    /// aircraft. Dense field (owner 2026-10-02: "no planes, no gaps"): a BLUE-NOISE point set — even but irregular,
+    /// like dust in air — in a 64 m cube that tiles seamlessly, tilted at odd angles so no heading or climb looks down a
+    /// row; only the tiles near the aircraft are visited, so the field feels infinite. Bubbles translate
     /// with wind relative to terrain, so relative streaming past the airframe IS the visible
     /// AoA/sideslip cue.
     ///
@@ -32,7 +33,12 @@ namespace FlyingGame.Bridge
         public float FadeRangeM = 152.4f;        // 500 ft: invisible beyond
         public float FadeStartFraction = 0.6f;   // (sparse fallback field) begin shrinking beyond this fraction of the block radius
         public float MinPixels = 9f;             // a bubble never draws smaller than this on a ~2500 px phone screen (else it vanishes)
-        public float JitterFraction = 0.38f;     // per-cell offset of the lattice point (± this × spacing) so the field is not a grid
+        public float TileSizeM = 64f;            // dense field: the repeating blue-noise cube (one bubble per Spacing³ on average)
+        public int TileCandidates = 15;          // best-candidate sampling: tries per point (more = more even)
+        public int TileSeed = 20261002;
+        [Header("Speed streaks (owner 2026-10-02: like snow past a jet)")]
+        public float StreakShutterS = 0.05f;     // streak length = airspeed × this (≈1 m at 20 m/s, 5 m at 100 m/s)
+        public float StreakDim = 0.6f;           // how much a long streak dims (its light is spread along its length)
         public float PlainBodyAlpha = 0.16f;     // dense field: plain-air body alpha (the soap-bubble 0.06 is invisible at this size)
         public float SampleRefreshS = 0.6f;      // how often a lattice cell re-samples the atmosphere
         public int SamplesPerFrame = 1500;       // atmosphere samples per frame (the rest come from the cell cache)
@@ -68,6 +74,110 @@ namespace FlyingGame.Bridge
         private struct Cell { public Vector3 Local; public float Rho, TempF, Time; }
         private readonly Dictionary<Vector3Int, Cell> _cells = new();
         private readonly List<Vector3Int> _stale = new();
+        // Blue-noise tile (dense field) and this frame's candidate bubbles.
+        private Vector3[] _tile; private float _tileSpacing = -1f;
+        private Quaternion _tileRot = Quaternion.identity, _tileRotInv = Quaternion.identity;
+        private readonly List<(Vector3 pos, Vector3Int key, uint hash)> _cand = new();
+        private Vector3 _streak;                 // this frame: world vector from a bubble back along its motion past the aircraft
+        /// <summary>Render check / tools: the airspeed vector (Unity world) to streak with when there is no aircraft driver.</summary>
+        public Vector3? StreakVelocityOverride;
+        private FlightSimDriver _driver;
+
+        /// <summary>A bubble drawn as a streak: the sphere stretched back along the way it is moving past the aircraft
+        /// (snow past a jet) — length ∝ airspeed. Short streaks stay round.</summary>
+        private Matrix4x4 BubbleMatrix(Vector3 pos, float size, ref float alpha)
+        {
+            float L = _streak.magnitude;
+            if (L < size * 0.5f) return Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);
+            alpha *= Mathf.Lerp(1f, size / (size + L), StreakDim);
+            return Matrix4x4.TRS(pos + _streak * 0.5f, Quaternion.LookRotation(_streak / L), new Vector3(size, size, size + L));
+        }
+
+        /// <summary>Mitchell's best-candidate sampling in a periodic cube: each new point is the farthest (toroidally) of a
+        /// handful of random tries from every point so far — even spacing without any lattice. Deterministic.</summary>
+        private void EnsureTile(float spacing)
+        {
+            if (_tile != null && Mathf.Approximately(_tileSpacing, spacing)) return;
+            _tileSpacing = spacing;
+            float T = TileSizeM;
+            int n = Mathf.Max(8, Mathf.RoundToInt(T * T * T / (spacing * spacing * spacing)));
+            var rng = new System.Random(TileSeed);
+            var pts = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 best = default; float bestD = -1f;
+                int k = i == 0 ? 1 : TileCandidates;
+                for (int c = 0; c < k; c++)
+                {
+                    var p = new Vector3((float)rng.NextDouble() * T, (float)rng.NextDouble() * T, (float)rng.NextDouble() * T);
+                    float dmin = float.MaxValue;
+                    for (int j = 0; j < i; j++)
+                    {
+                        float dx = Mathf.Abs(p.x - pts[j].x), dy = Mathf.Abs(p.y - pts[j].y), dz = Mathf.Abs(p.z - pts[j].z);
+                        dx = Mathf.Min(dx, T - dx); dy = Mathf.Min(dy, T - dy); dz = Mathf.Min(dz, T - dz);
+                        float d = dx * dx + dy * dy + dz * dz;
+                        if (d < dmin) { dmin = d; if (dmin < bestD) break; }
+                    }
+                    if (dmin > bestD) { bestD = dmin; best = p; }
+                }
+                pts[i] = best;
+            }
+            _tile = pts;
+            _tileRot = Quaternion.Euler(23.7f, 41.3f, 17.9f);   // odd angles: no row lines up with a runway heading or the vertical
+            _tileRotInv = Quaternion.Inverse(_tileRot);
+        }
+
+        /// <summary>This frame's bubbles: positions (world), the atmosphere-cache cell they belong to, and a per-bubble hash.</summary>
+        private void BuildCandidates(bool dense, Vector3 center, float spacing, int half, float reach)
+        {
+            _cand.Clear();
+            if (!dense)
+            {
+                // Sparse fallback: the plain lattice.
+                for (int ix = -half; ix <= half; ix++)
+                for (int iy = -half; iy <= half; iy++)
+                for (int iz = -half; iz <= half; iz++)
+                {
+                    var lattice = new Vector3Int(
+                        Mathf.RoundToInt((center.x - _airMassOrigin.x) / spacing) + ix,
+                        Mathf.RoundToInt((center.y - _airMassOrigin.y) / spacing) + iy,
+                        Mathf.RoundToInt((center.z - _airMassOrigin.z) / spacing) + iz);
+                    _cand.Add((_airMassOrigin + new Vector3(lattice.x, lattice.y, lattice.z) * spacing, lattice, Hash(lattice.x, lattice.y, lattice.z, 0)));
+                }
+                return;
+            }
+            EnsureTile(spacing);
+            float T = TileSizeM, r2 = reach * reach;
+            Vector3 rel = _tileRotInv * (center - _airMassOrigin);   // the aircraft in the tile frame
+            int x0 = Mathf.FloorToInt((rel.x - reach) / T), x1 = Mathf.FloorToInt((rel.x + reach) / T);
+            int y0 = Mathf.FloorToInt((rel.y - reach) / T), y1 = Mathf.FloorToInt((rel.y + reach) / T);
+            int z0 = Mathf.FloorToInt((rel.z - reach) / T), z1 = Mathf.FloorToInt((rel.z + reach) / T);
+            for (int tx = x0; tx <= x1; tx++)
+            for (int ty = y0; ty <= y1; ty++)
+            for (int tz = z0; tz <= z1; tz++)
+            {
+                Vector3 o = new Vector3(tx, ty, tz) * T;
+                // Skip tiles wholly outside the sphere.
+                float ddx = Mathf.Max(0f, Mathf.Max(o.x - rel.x, rel.x - (o.x + T)));
+                float ddy = Mathf.Max(0f, Mathf.Max(o.y - rel.y, rel.y - (o.y + T)));
+                float ddz = Mathf.Max(0f, Mathf.Max(o.z - rel.z, rel.z - (o.z + T)));
+                if (ddx * ddx + ddy * ddy + ddz * ddz > r2) continue;
+                for (int i = 0; i < _tile.Length; i++)
+                {
+                    Vector3 local = o + _tile[i];
+                    if ((local - rel).sqrMagnitude > r2) continue;
+                    var key = new Vector3Int(Mathf.FloorToInt(local.x / spacing), Mathf.FloorToInt(local.y / spacing), Mathf.FloorToInt(local.z / spacing));
+                    _cand.Add((_airMassOrigin + _tileRot * local, key, Hash(tx, ty, tz, i + 1)));
+                }
+            }
+        }
+
+        private static uint Hash(int a, int b, int c, int d)
+        {
+            uint h = (uint)(a * 73856093) ^ (uint)(b * 19349663) ^ (uint)(c * 83492791) ^ (uint)(d * 2654435761u);
+            h ^= h >> 13; h *= 0x85EBCA6Bu; h ^= h >> 16;
+            return h;
+        }
         // Instanced batches (1023 per DrawMeshInstanced call).
         private const int Batch = 1023;
         private readonly Matrix4x4[] _mats = new Matrix4x4[Batch];
@@ -136,6 +246,11 @@ namespace FlyingGame.Bridge
             }
 
             Vector3 center = Follow.position;
+            // Streaks: relative to the aircraft the air (and every bubble in it) moves at minus its airspeed, so a bubble's
+            // streak trails back toward +airspeed from where it is now.
+            _driver ??= Follow.GetComponent<FlightSimDriver>();
+            Vector3 airVel = StreakVelocityOverride ?? (_driver != null ? _driver.AirVelocityUnity : Vector3.zero);
+            _streak = SessionSettings.BubbleStreaks ? airVel * StreakShutterS : Vector3.zero;
             float blockRadius = HalfCount * Spacing;
 
             // Camera-space setup for the centre-circle fade.
@@ -156,24 +271,11 @@ namespace FlyingGame.Bridge
             int samplesLeft = SamplesPerFrame;
             float now = Time.time;
             _batchCount = 0;
-            for (int ix = -half; ix <= half; ix++)
-            for (int iy = -half; iy <= half; iy++)
-            for (int iz = -half; iz <= half; iz++)
+            BuildCandidates(dense, center, spacing, half, reach);
+            for (int ci = 0; ci < _cand.Count; ci++)
             {
-                var lattice = new Vector3Int(
-                    Mathf.RoundToInt((center.x - _airMassOrigin.x) / spacing) + ix,
-                    Mathf.RoundToInt((center.y - _airMassOrigin.y) / spacing) + iy,
-                    Mathf.RoundToInt((center.z - _airMassOrigin.z) / spacing) + iz);
-                // Per-cell hash: jitter, phases, and the thinning draw beyond the full-strength range.
-                uint h2 = (uint)(lattice.x * 73856093) ^ (uint)(lattice.y * 19349663) ^ (uint)(lattice.z * 83492791);
-                h2 ^= h2 >> 13; h2 *= 0x85EBCA6Bu; h2 ^= h2 >> 16;
-                Vector3 pos = _airMassOrigin + new Vector3(lattice.x, lattice.y, lattice.z) * spacing;
-                if (dense)
-                {
-                    // Jitter each bubble off its lattice point (fixed per cell) so the air reads as air, not a grid.
-                    uint j = h2 * 2654435761u;
-                    pos += new Vector3(((j & 0x3FF) / 1023f - 0.5f), (((j >> 10) & 0x3FF) / 1023f - 0.5f), (((j >> 20) & 0x3FF) / 1023f - 0.5f)) * (2f * JitterFraction * spacing);
-                }
+                // Per-bubble: position, the atmosphere-cache cell, and a hash for phases and the thinning draw.
+                (Vector3 pos, Vector3Int lattice, uint h2) = _cand[ci];
                 float dist0 = Vector3.Distance(pos, center);
                 if (dist0 > reach) continue;   // spherical block, not cubic — fewer bubbles, rounder falloff
                 float distFade = dense ? Mathf.Clamp01((dist0 - FullRangeM) / Mathf.Max(1f, FadeRangeM - FullRangeM)) : 0f;
@@ -284,7 +386,7 @@ namespace FlyingGame.Bridge
                 DrawnCount++;
                 if (dense)
                 {
-                    _mats[_batchCount] = Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);
+                    _mats[_batchCount] = BubbleMatrix(pos, size, ref alpha);
                     _cols[_batchCount] = tint;
                     _alphas[_batchCount] = alpha;
                     _bodies[_batchCount] = body;
@@ -292,10 +394,11 @@ namespace FlyingGame.Bridge
                 }
                 else
                 {
+                    Matrix4x4 m = BubbleMatrix(pos, size, ref alpha);
                     _props.SetColor(ColorId, tint);
                     _props.SetFloat(AlphaId, alpha);
                     _props.SetFloat(BodyAlphaId, body);
-                    Graphics.DrawMesh(_mesh, Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size), _material, 0,
+                    Graphics.DrawMesh(_mesh, m, _material, 0,
                         cam, 0, _props, false, false, false);
                 }
             }
