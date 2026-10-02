@@ -42,7 +42,22 @@ namespace FlyingGame.Bridge
         {
             int side = 2 * HalfCount + 1;
             int iz = idx / (side * side), rem = idx - iz * side * side, iy = rem / side, ix = rem - iy * side;
-            return new Vector3((_anchor.x + ix - HalfCount) * Spacing, (_anchor.y + iy - HalfCount) * Spacing, (_anchor.z + iz - HalfCount) * Spacing);
+            return MarkerPosition(new Vector3Int(_anchor.x + ix - HalfCount, _anchor.y + iy - HalfCount, _anchor.z + iz - HalfCount), Spacing);
+        }
+
+        /// <summary>Where a world cell's marker sits: anywhere in its cell, fixed per cell. Owner 2026-10-02 (glider
+        /// screenshot): markers at the exact lattice points stacked into vertical columns over the ground and dotted rows at
+        /// the horizon — the grid that only gliders (which show these markers) still had. Fully jittered, no two share a
+        /// row or column. The air is sampled at this same point, so the colour is the air where the marker is.</summary>
+        public static Vector3 MarkerPosition(Vector3Int cell, float spacing)
+        {
+            uint h = (uint)(cell.x * 73856093) ^ (uint)(cell.y * 19349663) ^ (uint)(cell.z * 83492791);
+            float J(uint salt)
+            {
+                uint x = h ^ salt; x ^= x >> 16; x *= 0x7FEB352Du; x ^= x >> 15; x *= 0x846CA68Bu; x ^= x >> 16;
+                return (x & 0xFFFF) / 65535f - 0.5f;
+            }
+            return new Vector3(cell.x + J(0x9E3779B9u), cell.y + J(0x85EBCA6Bu), cell.z + J(0xC2B2AE35u)) * spacing;
         }
 
         private void LateUpdate()

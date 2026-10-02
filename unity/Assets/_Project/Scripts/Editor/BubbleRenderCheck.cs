@@ -60,6 +60,40 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(tex);
             }
             bubbles.StreakVelocityOverride = null;
+
+            // Owner 2026-10-02 phone screenshot: dotted rays. Portrait chase view looking north and a little down, with the
+            // cube repeated as-is ("repeat") vs. a different variant per tile ("varied"); logs the exact-copy count.
+            var prt = new RenderTexture(720, 1280, 24);
+            cam.targetTexture = prt; cam.fieldOfView = 90f;
+            cam.transform.position = new Vector3(0f, 303f, -12f);
+            cam.transform.rotation = Quaternion.Euler(12f, 0f, 0f);
+            bubbles.StreakVelocityOverride = new Vector3(0f, 0f, 22f);
+            foreach (bool vary in new[] { false, true })
+            {
+                bubbles.VaryTiles = vary;
+                bubbles.Draw(cam);
+                int repeats = bubbles.CountTileRepeats();
+                cam.Render();
+                RenderTexture.active = prt;
+                var tex = new Texture2D(prt.width, prt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, prt.width, prt.height), 0, 0); tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, vary ? "portrait-varied.png" : "portrait-repeat.png"), tex.EncodeToPNG());
+                Debug.Log($"BubbleRenderCheck PORTRAIT {(vary ? "VARIED" : "REPEAT")}: drawn {bubbles.DrawnCount}, bubbles with an exact copy one tile away {repeats}");
+                Object.DestroyImmediate(tex);
+            }
+            bubbles.VaryTiles = true;
+            bubbles.StreakVelocityOverride = null;
+
+            // Glider lift/sink markers (LiftField): how many share a vertical column (same x,z to 1 cm) with another marker.
+            var cols = new System.Collections.Generic.Dictionary<(int, int), int>(); int stacked = 0;
+            for (int x = -20; x <= 20; x++) for (int y = 0; y <= 20; y++) for (int z = -20; z <= 20; z++)
+            {
+                Vector3 m = LiftField.MarkerPosition(new Vector3Int(x, y, z), 35f);
+                var k = (Mathf.RoundToInt(m.x * 100f), Mathf.RoundToInt(m.z * 100f));
+                cols[k] = cols.TryGetValue(k, out int c0) ? c0 + 1 : 1;
+            }
+            foreach (int c in cols.Values) if (c > 1) stacked += c;
+            Debug.Log($"BubbleRenderCheck LIFT MARKERS: {41 * 21 * 41} markers, {stacked} stacked in a shared column (lattice: all of them)");
             RenderTexture.active = null;
         }
     }

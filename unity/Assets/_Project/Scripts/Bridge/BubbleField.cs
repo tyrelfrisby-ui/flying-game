@@ -36,6 +36,7 @@ namespace FlyingGame.Bridge
         public float TileSizeM = 64f;            // dense field: the repeating blue-noise cube (one bubble per Spacing³ on average)
         public int TileCandidates = 15;          // best-candidate sampling: tries per point (more = more even)
         public int TileSeed = 20261002;
+        public bool VaryTiles = true;            // each tile gets its own rotation/mirror + shift of the cube (no repeats to line up)
         [Header("Speed streaks (owner 2026-10-02: like snow past a jet)")]
         public float StreakShutterS = 0.05f;     // streak length = airspeed × this (≈1 m at 20 m/s, 5 m at 100 m/s)
         public float StreakDim = 0.6f;           // how much a long streak dims (its light is spread along its length)
@@ -162,9 +163,32 @@ namespace FlyingGame.Bridge
                 float ddy = Mathf.Max(0f, Mathf.Max(o.y - rel.y, rel.y - (o.y + T)));
                 float ddz = Mathf.Max(0f, Mathf.Max(o.z - rel.z, rel.z - (o.z + T)));
                 if (ddx * ddx + ddy * ddy + ddz * ddz > r2) continue;
+                // Owner 2026-10-02 (screenshot): one cube repeated every 64 m lines each bubble up with its own copies, and
+                // over the ~150 m in view those copies form dotted rays converging on the cube-edge directions. So every
+                // tile uses its own variant of the cube — one of its 48 rotations/mirrors plus a wrap-around shift (both
+                // keep the blue-noise spacing inside the tile) — and no bubble has a copy 64 m away any more.
+                uint th = Hash(tx, ty, tz, -7);
+                int perm = (int)(th % 6u), flips = (int)((th >> 3) & 7u);
+                Vector3 shift = VaryTiles
+                    ? new Vector3(((th >> 6) & 1023u) / 1024f, ((th >> 16) & 1023u) / 1024f, (Hash(tz, tx, ty, 11) & 1023u) / 1024f) * T
+                    : Vector3.zero;
                 for (int i = 0; i < _tile.Length; i++)
                 {
-                    Vector3 local = o + _tile[i];
+                    Vector3 q = _tile[i];
+                    if (VaryTiles)
+                    {
+                        q = perm switch
+                        {
+                            0 => q, 1 => new Vector3(q.y, q.z, q.x), 2 => new Vector3(q.z, q.x, q.y),
+                            3 => new Vector3(q.y, q.x, q.z), 4 => new Vector3(q.x, q.z, q.y), _ => new Vector3(q.z, q.y, q.x),
+                        };
+                        if ((flips & 1) != 0) q.x = T - q.x;
+                        if ((flips & 2) != 0) q.y = T - q.y;
+                        if ((flips & 4) != 0) q.z = T - q.z;
+                        q += shift;
+                        q.x = Mathf.Repeat(q.x, T); q.y = Mathf.Repeat(q.y, T); q.z = Mathf.Repeat(q.z, T);
+                    }
+                    Vector3 local = o + q;
                     if ((local - rel).sqrMagnitude > r2) continue;
                     var key = new Vector3Int(Mathf.FloorToInt(local.x / spacing), Mathf.FloorToInt(local.y / spacing), Mathf.FloorToInt(local.z / spacing));
                     _cand.Add((_airMassOrigin + _tileRot * local, key, Hash(tx, ty, tz, i + 1)));
@@ -218,6 +242,23 @@ namespace FlyingGame.Bridge
 
         /// <summary>Drawn bubbles last call (diagnostics).</summary>
         public int DrawnCount { get; private set; }
+
+        /// <summary>Diagnostics: how many of this frame's bubbles have an exact copy one tile edge away (the repeats that
+        /// line up into rays). Should be ~0 with <see cref="VaryTiles"/>.</summary>
+        public int CountTileRepeats()
+        {
+            var set = new HashSet<Vector3Int>();
+            foreach (var c in _cand) set.Add(Q(_tileRotInv * (c.pos - _airMassOrigin)));
+            int n = 0;
+            foreach (var c in _cand)
+            {
+                Vector3 r = _tileRotInv * (c.pos - _airMassOrigin);
+                if (set.Contains(Q(r + new Vector3(TileSizeM, 0, 0))) || set.Contains(Q(r + new Vector3(0, TileSizeM, 0)))
+                    || set.Contains(Q(r + new Vector3(0, 0, TileSizeM)))) n++;
+            }
+            return n;
+            static Vector3Int Q(Vector3 v) => new(Mathf.RoundToInt(v.x * 20f), Mathf.RoundToInt(v.y * 20f), Mathf.RoundToInt(v.z * 20f));
+        }
 
         /// <summary>Submit this frame's bubbles for <paramref name="cam"/> (also callable from an editor render check).</summary>
         public void Draw(Camera cam)
