@@ -99,6 +99,8 @@ namespace FlyingGame.Bridge
         /// <summary>Spoiler setting the on-final start was trimmed with (gliders: half); the left pad knob begins there.</summary>
         public double StartSpoilerFraction { get; private set; }
 
+        public const double DogfightHalfSeparationM = 1200, DogfightLateralOffsetM = 60, DogfightAglM = 1500;
+
         private void Spawn()
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
@@ -106,12 +108,14 @@ namespace FlyingGame.Bridge
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
             SpawnIasMs = config.SpawnIasMs > 0 ? config.SpawnIasMs : 22.0;
             FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;
-            bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway;
+            // A dogfight always starts head-on in the middle of the combat zone, whatever START says.
+            bool dogfight = SessionSettings.ChallengeId == "event:dogfight";
+            bool ground = SessionSettings.StartMode == SessionSettings.Start.OnTheRunway && !dogfight;
             GroundStart = ground;
-            IdleStart = SessionSettings.StartMode == SessionSettings.Start.OnFinal || SessionSettings.StartMode == SessionSettings.Start.InThermal;
+            IdleStart = !dogfight && (SessionSettings.StartMode == SessionSettings.Start.OnFinal || SessionSettings.StartMode == SessionSettings.Start.InThermal);
             StartSpoilerFraction = 0;
 
-            if (SessionSettings.StartMode == SessionSettings.Start.InThermal && FlyingGame.Core.Atmosphere.Thermals.Count > 0)
+            if (!dogfight && SessionSettings.StartMode == SessionSettings.Start.InThermal && FlyingGame.Core.Atmosphere.Thermals.Count > 0)
             {
                 // Already circling in the field's best thermal: banked at the turning min-sink speed, trimmed, idle.
                 FlyingGame.Core.Thermal th = PickThermal(ap);
@@ -178,7 +182,14 @@ namespace FlyingGame.Bridge
             // contest begins on a 1.2 km final for the gravel strip at 90 m AGL.
             double spawnAlt = ap.ElevationM + SpawnAltitudeM, spawnX = ap.X - 600, spawnY = ap.Y, spawnHdg = 0.0;
             string ch = SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "event:combat" : SessionSettings.ChallengeId;   // same start as the combat event
-            if (SessionSettings.StartMode == SessionSettings.Start.InAeroBox)
+            if (dogfight)
+            {
+                // Head-on: 1,200 m south of the zone's centre heading north, offset 60 m west so the merge is a pass, not a
+                // collision (the opponent starts the mirror image). 1,500 m above the ground.
+                spawnX = FlyingGame.Core.Combat.CombatZone.CentreX - DogfightHalfSeparationM; spawnY = FlyingGame.Core.Combat.CombatZone.CentreY - DogfightLateralOffsetM;
+                spawnHdg = 0.0; spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(FlyingGame.Core.Combat.CombatZone.CentreX, FlyingGame.Core.Combat.CombatZone.CentreY) + DogfightAglM;
+            }
+            else if (SessionSettings.StartMode == SessionSettings.Start.InAeroBox)
             {
                 // Running in to the aerobatic box: 300 m short of its south edge, heading north through the middle, 700 m
                 // above the ground (box floor 100 m, ceiling 1,067 m).

@@ -136,6 +136,32 @@ public sealed class Gunnery
         return n;
     }
 
+    /// <summary>
+    /// Gunsight (owner 2026-10-01): where a round fired NOW is when it has flown <paramref name="rangeM"/> from the guns —
+    /// the same launch (aircraft velocity + muzzle velocity along the converged gun line), drag and gravity as a real
+    /// round, no dispersion. Returns the world position and the time of flight. Aircraft rotation after the shot is not
+    /// predicted (a fixed, not a lead-computing, sight).
+    /// </summary>
+    public static (Vec3 pos, double tof) PredictRound(Armament arm, AircraftConfig c, RigidBodyState s, double rangeM)
+    {
+        if (arm.Guns.Count == 0) return (s.Position, 0);
+        Vec3 muzzle = Vec3.Zero; double conv = 0, mv = 0;
+        foreach (GunConfig g in arm.Guns) { muzzle = muzzle + g.Muzzle; conv += g.ConvergenceM; mv += g.MuzzleVelocityMs; }
+        int n = arm.Guns.Count; muzzle = muzzle / n; conv /= n; mv /= n;
+        Vec3 aim = new Vec3(conv + muzzle.X, 0, muzzle.Z) - muzzle;
+        Vec3 dirBody = aim / aim.Length;
+        Vec3 p = s.Position + s.Attitude.Rotate(muzzle - c.Mass.CgVec());
+        Vec3 v = s.Attitude.Rotate(s.Velocity) + s.Attitude.Rotate(dirBody) * mv;
+        Vec3 start = p; double t = 0; const double dt = 0.01;
+        while ((p - start).Length < rangeM && t < Bullet.LifeSec)
+        {
+            double sp = v.Length;
+            v = v * Math.Exp(-Bullet.DragPerM * sp * dt) + new Vec3(0, 0, 9.81 * dt);
+            p = p + v * dt; t += dt;
+        }
+        return (p, t);
+    }
+
     /// <summary>Advance every bullet; test each step segment against the targets, ground targets and terrain.</summary>
     public void Step(double dt, IReadOnlyList<GunTarget> targets, IReadOnlyList<GroundTarget>? groundTargets = null)
     {

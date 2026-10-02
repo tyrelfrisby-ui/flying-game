@@ -46,6 +46,21 @@ namespace FlyingGame.Bridge
             Net?.Leave();
         }
 
+        /// <summary>The next powered type after <paramref name="id"/> (gliders can't fight).</summary>
+        private static string NextOpponent(string id)
+        {
+            var fleet = SessionSettings.Fleet;
+            int i = System.Array.FindIndex(fleet, f => f.id == id);
+            for (int k = 1; k <= fleet.Length; k++)
+            {
+                string c = fleet[(i + k + fleet.Length) % fleet.Length].id;
+                if (!c.StartsWith("glider") && c != "pa18-floats-like") return c;
+            }
+            return id;
+        }
+
+        public CombatController Combat;
+
         public void Fly()
         {
             IsOpen = false;
@@ -55,6 +70,8 @@ namespace FlyingGame.Bridge
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)
             Race?.End(); Stol?.End(); Dust?.End(); Practice?.End();
+            if (SessionSettings.ChallengeId == "event:dogfight") Combat?.BeginDogfight(SessionSettings.DogfightOpponentId, SessionSettings.DogfightSkill);
+            else Combat?.EndDogfight();
             string ch = SessionSettings.ChallengeId;
             if (SessionSettings.IsPractice(ch) && Practice != null && SessionSettings.PracticeKindFor(ch) is FlyingGame.Sim.Practice.PracticeKind pk)
             {
@@ -196,6 +213,18 @@ namespace FlyingGame.Bridge
                 bool on = SessionSettings.ChallengeId == id;
                 if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.ChallengeId = id;
                 y += bh + gap * 0.4f;
+                if (on && id == "event:dogfight")
+                {
+                    // Opponent (tap to cycle through the powered fleet) and its skill.
+                    string oppName = SessionSettings.DogfightOpponentId;
+                    foreach (var f in SessionSettings.Fleet) if (f.id == SessionSettings.DogfightOpponentId) oppName = f.name;
+                    if (GUI.Button(new Rect(x, y, colW, bh), $"vs  {oppName}  >", _btn)) SessionSettings.DogfightOpponentId = NextOpponent(SessionSettings.DogfightOpponentId);
+                    y += bh + gap * 0.4f;
+                    float third = (colW - 2 * gap * 0.3f) / 3f;
+                    for (int k = 0; k < 3; k++)
+                        if (GUI.Button(new Rect(x + k * (third + gap * 0.3f), y, third, bh), SessionSettings.SkillNames[k], SessionSettings.DogfightSkill == k ? _btnOn : _btn)) SessionSettings.DogfightSkill = k;
+                    y += bh + gap * 0.4f;
+                }
             }
             // ---- FLYING LESSONS (owner 2026-09-15): the game flies every axis but the one being learned.
             y += gap * 0.5f;

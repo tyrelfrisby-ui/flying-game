@@ -127,4 +127,67 @@ public class FormationTests
         Assert.True(ratio < 0.35, $"too accurate for medium skill: {ratio:P0} of rounds hit");
         Assert.True(minAgl > 150, $"flew down to {minAgl:F0} m");
     }
+
+    [Fact]
+    public void GunsightMarksWhereTheRoundsGo()
+    {
+        AircraftConfig p51 = Load("p51d-like");
+        double half = 0.1;   // a little nose-up, banked: the sight must allow for drop and the aircraft's motion
+        var q = Quat.Multiply(new Quat(0, Math.Sin(half), 0, Math.Cos(half)), new Quat(Math.Sin(0.3), 0, 0, Math.Cos(0.3)));
+        var s = new RigidBodyState(new Vec3(0, 0, -1500), q, new Vec3(110, 2, 4), Vec3.Zero);
+        Armament arm = Armament.For(p51);
+        (Vec3 aim, double tof) = Gunnery.PredictRound(arm, p51, s, 400);
+        var g = new Gunnery();
+        g.Fire(0, arm, p51, s, 0.05);   // a short burst from every gun
+        int n = g.Bullets.Count;
+        double t = 0, h = 0.002;
+        while (t < tof - 1e-9) { g.Step(h, Array.Empty<GunTarget>()); t += h; }
+        Vec3 mean = Vec3.Zero; foreach (Bullet b in g.Bullets) mean = mean + b.Pos; mean = mean / g.Bullets.Count;
+        double miss = (mean - aim).Length;
+        _out.WriteLine($"{n} rounds, tof {tof:F2} s, mean impact {miss:F2} m from the pipper");
+        Assert.True(miss < 2.5, $"pipper {miss:F1} m off the rounds at 400 m");
+    }
+
+    [Fact]
+    public void DifficultOpponentOutshootsEasy()
+    {
+        int Hits(AttackPilot.Skill sk)
+        {
+            AircraftConfig p51 = Load("p51d-like"), tgtCfg = Load("c172-like");
+            var me = new Aircraft(p51, new RigidBodyState(new Vec3(5000 - 1500, 4500, -1000), new Quat(0, 0, 0, 1), new Vec3(95, 0, 0), Vec3.Zero));
+            me.SetGear(false, immediate: true);
+            AttackPilot pilot = AttackPilot.For(sk, 3);
+            // A target in a steady 30°-banked turn (radius ~525 m at 55 m/s): it takes real lead to hit.
+            const double V = 55, R = 525; double ang = 0, w = V / R;
+            Vec3 c0 = new(5000, 4500 + R, -800);
+            Vec3 tPos = new(5000, 4500, -800), tVel = new(V, 0, 0);
+            RigidBodyState TState()
+            {
+                double half = (ang) / 2;   // heading = ang, banked 30° into the turn
+                var q = Quat.Multiply(new Quat(0, 0, Math.Sin(half), Math.Cos(half)), new Quat(Math.Sin(0.26), 0, 0, Math.Cos(0.26)));
+                return new RigidBodyState(tPos, q, q.Conjugate().Rotate(tVel), Vec3.Zero);
+            }
+            var target = new GunTarget { Id = 1, Config = tgtCfg, Volumes = HitVolumes.Build(tgtCfg), State = TState };
+            var gun = new Gunnery(); int hits = 0; double h = SimLoop.DefaultFixedDtSec;
+            for (double t = 0; t < 90; t += h)
+            {
+                me.Step(pilot.Update(me, TState(), h), h);
+                if (pilot.Firing) gun.Fire(200, me.Guns!, p51, me.State, h);
+                gun.Step(h, new[] { target });
+                hits += gun.Hits.Count(x => x.Target == 1);
+                if (sk == AttackPilot.Skill.Moderate && (int)(t / h) % 800 == 0)
+                {
+                    var (r, _, _) = FormationPilot.Euler(me.State.Attitude);
+                    _out.WriteLine($"  t={t:F0} {pilot.LastMode} range {pilot.LastRangeM:F0} off {pilot.LastOffNoseRad * 57.3:F0}° roll {r * 57.3:F0} V {me.State.Velocity.Length:F0} alt {-me.State.Position.Z:F0}");
+                }
+                ang += w * h;
+                tPos = new Vec3(c0.X + R * Math.Sin(ang), c0.Y - R * Math.Cos(ang), c0.Z);
+                tVel = new Vec3(V * Math.Cos(ang), V * Math.Sin(ang), 0);
+            }
+            _out.WriteLine($"{sk}: {hits} hits, {gun.Fired} rounds, {pilot.Bursts} bursts");
+            return hits;
+        }
+        int easy = Hits(AttackPilot.Skill.Easy), mod = Hits(AttackPilot.Skill.Moderate), hard = Hits(AttackPilot.Skill.Difficult);
+        Assert.True(hard > mod && mod >= easy, $"skill should order the hits: easy {easy}, moderate {mod}, difficult {hard}");
+    }
 }

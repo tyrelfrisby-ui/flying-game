@@ -15,7 +15,7 @@ public sealed class AttackPilot
     public double AimWanderRad = 0.007;       // ~7 mrad wandering aim error, ~2 m at 300 m (an ace: ~3)
     public double ReactionSec = 0.35;         // stick lag
     public double MaxPull = 0.55;             // of full aft elevator (an ace: 0.8+)
-    public double FireRangeM = 600, FireConeRad = 0.025;
+    public double FireRangeM = 350, FireConeRad = 0.025;
     public double FloorAglM = 200, BreakOffM = 110;
     public double BulletSpeedMs = 850;
 
@@ -32,6 +32,21 @@ public sealed class AttackPilot
     private double _wanderA, _wanderB, _wanderTa, _wanderTb;
 
     public AttackPilot(int seed) { _rng = new Random(seed); _coolT = 1.0 + _rng.NextDouble(); }
+
+    public enum Skill { Easy, Moderate, Difficult }
+
+    /// <summary>Dogfight opponents (owner 2026-10-01): Easy = slow to react, gentle pulls, poor lead and aim; Moderate = the
+    /// combat-zone P-51s; Difficult = quick hands, hard pulls, nearly the full lead, a steady aim.</summary>
+    public static AttackPilot For(Skill skill, int seed)
+    {
+        var p = new AttackPilot(seed);
+        switch (skill)
+        {
+            case Skill.Easy: p.LeadFactor = 0.5; p.AimWanderRad = 0.014; p.ReactionSec = 0.6; p.MaxPull = 0.4; p.FireConeRad = 0.03; p.FireRangeM = 300; break;
+            case Skill.Difficult: p.LeadFactor = 0.95; p.AimWanderRad = 0.003; p.ReactionSec = 0.2; p.MaxPull = 0.75; p.FireConeRad = 0.025; p.FireRangeM = 450; break;
+        }
+        return p;
+    }
 
     public ControlInputs Update(Aircraft self, RigidBodyState target, double dt)
     {
@@ -92,7 +107,7 @@ public sealed class AttackPilot
                 double lat = Math.Atan2(tb.Y, tb.X);
                 _iPitch = Math.Clamp(_iPitch + pullErr * dt * 2.0, -0.3, 0.3);
                 _iLat = Math.Clamp(_iLat + lat * dt * 1.0, -0.3, 0.3);
-                double bankCmd = Math.Clamp(lat * 4.0 + _iLat, -0.8, 0.8);
+                double bankCmd = Math.Clamp(lat * 4.0 + _iLat, -1.2, 1.2);   // up to 70°: a faster attacker needs more bank for the same turn rate
                 ailCmd = Math.Clamp((bankCmd - roll) * 1.5 - s.Rates.X * 0.25, -1, 1);
                 eleCmd = Math.Clamp(-pullErr * 4.0 - _iPitch - Math.Abs(roll) * 0.35 + s.Rates.Y * 0.4, -MaxPull, 0.4);
             }
@@ -104,7 +119,8 @@ public sealed class AttackPilot
 
         // Trigger: short bursts when in range and close to the aim point; a pause between them.
         // He fires when HE thinks he is on (his own wandering aim), so his bursts miss by that error.
-        bool solution = dist < FireRangeM && offNose < FireConeRad && _breakT <= 0;
+        // ...and only when the aim error is smaller than a fighter at that range (~6 m), up to his skill's cone.
+        bool solution = dist < FireRangeM && offNose < Math.Min(FireConeRad, 6.0 / dist) && _breakT <= 0;
         if (_burstT > 0) { _burstT -= dt; if (_burstT <= 0) _coolT = 1.5 + 1.5 * _rng.NextDouble(); }
         else if (_coolT > 0) _coolT -= dt;
         else if (solution) { _burstT = 0.8 + 0.8 * _rng.NextDouble(); Bursts++; }
@@ -112,8 +128,16 @@ public sealed class AttackPilot
 
         // Power: once settled behind the target (nose within ~15°), close at a steady overtake that shrinks with range
         // (~55 m/s at 2 km, ~15 m/s at 300 m) instead of ramming; anywhere else — turning, re-attacking — full power.
+        // Within 2 km: hold a moderate overtake (a little more while still turning onto him), never slower than 85 % of
+        // his speed (or 40 m/s) — arriving fast in a turning fight means flying a wider circle than he does.
         double thr = 1.0;
-        if (offNose < 0.25 && dist < 2000) thr = Math.Clamp(0.55 + 0.04 * ((8 + 0.025 * dist) - closure), 0.0, 1.0);
+        if (dist < 2500)
+        {
+            double overtake = 5 + 0.015 * dist + (offNose > 0.25 ? 8 : 0);
+            thr = Math.Clamp(0.55 + 0.04 * (overtake - closure), 0.0, 1.0);
+            double vMin = Math.Max(40, 0.85 * tv.Length);
+            if (vw.Length < vMin) thr = 1.0;
+        }
         double rud = Math.Clamp(-s.Velocity.Y * 0.02, -0.4, 0.4);
         return new ControlInputs(Math.Clamp(_ail, -1, 1), Math.Clamp(_ele, -0.8, 0.5), rud, 1.0 - 2.0 * thr);
     }

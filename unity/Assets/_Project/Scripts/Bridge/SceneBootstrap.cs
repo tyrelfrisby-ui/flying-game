@@ -174,6 +174,8 @@ namespace FlyingGame.Bridge
             menu.Stol = aircraft.GetComponent<StolController>();
             menu.Dust = aircraft.GetComponent<CropDustController>();
             menu.Practice = aircraft.GetComponent<Practice.PracticeController>();
+            menu.Combat = aircraft.GetComponent<CombatController>();
+            cam.gameObject.AddComponent<CombatHud>().Combat = aircraft.GetComponent<CombatController>();   // target indicator + gunsight
             pHud.Menu = menu;
             // Device self-test of replay + clips, only when launched with AERO_SELFTEST set (devicectl --environment-variables).
             if (!string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("AERO_SELFTEST")))

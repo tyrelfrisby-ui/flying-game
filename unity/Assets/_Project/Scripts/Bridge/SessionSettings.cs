@@ -100,9 +100,14 @@ namespace FlyingGame.Bridge
             ("cassutt-f1-like", "Cassutt Formula One"), ("geebee-r2-like", "Gee Bee R-2"), ("glasair3-like", "Glasair III 400"),
         };
 
+        /// <summary>Dogfight 1 v 1 (owner 2026-10-01): the opponent's aircraft and skill (0 easy, 1 moderate, 2 difficult).</summary>
+        public static string DogfightOpponentId = "p51d-like";
+        public static int DogfightSkill = 1;
+        public static readonly string[] SkillNames = { "Easy", "Moderate", "Difficult" };
+
         public static readonly (string id, string name)[] Challenges =
         {
-            (null, "Free flight"), ("event:race", "Air Racing"), ("event:stol", "STOL contest"), ("event:dust", "Crop dusting"), ("event:aerobox", "Aerobatic box"), ("event:combat", "Combat zone"),
+            (null, "Free flight"), ("event:race", "Air Racing"), ("event:stol", "STOL contest"), ("event:dust", "Crop dusting"), ("event:aerobox", "Aerobatic box"), ("event:combat", "Combat zone"), ("event:dogfight", "Dogfight 1 v 1"),
             ("a1c1-wings-level", "Wings level"), ("a1c2-best-glide", "Best glide"),
             ("a1c3-cardinal-turn", "Cardinal turn"), ("a1c4-stall-recover", "Stall recovery"),
             ("a1c10-headwind-landing", "Headwind landing"), ("a1c11-crosswind-landing", "Crosswind landing"),

@@ -23,7 +23,79 @@ namespace FlyingGame.Bridge
         public readonly List<GroundTarget> GroundTargets = CombatZone.BuildGroundTargets();
         public bool Firing;                 // set by TouchFlightControls (FIRE held)
         public bool InZone { get; private set; }
-        public bool GunsHot => InZone && Driver?.Sim?.Aircraft?.Guns != null && Driver.Sim.Aircraft.Guns.RoundsLeft > 0;
+        public bool GunsHot => InZone && !(Dogfight && DogfightGunsCold) && Driver?.Sim?.Aircraft?.Guns != null && Driver.Sim.Aircraft.Guns.RoundsLeft > 0;
+
+        // ---- Dogfight 1 v 1 (owner 2026-10-01) ----
+        public bool Dogfight { get; private set; }
+        /// <summary>Guns stay cold until the two aircraft have passed each other.</summary>
+        public bool DogfightGunsCold { get; private set; }
+        public string DogfightResult { get; private set; }
+        public string OpponentName { get; private set; }
+        private Drone _opp;
+        private AttackPilot.Skill _skill;
+        private string _oppId;
+        private double _dfMinRange;
+
+        /// <summary>The aircraft the target indicator points at: the dogfight opponent, else the nearest live drone in or near
+        /// the zone. Null when there is none.</summary>
+        public Aircraft TargetAircraft => TargetDrone()?.Aircraft;
+        public string TargetName => TargetDrone()?.Kind;
+
+        private Drone TargetDrone()
+        {
+            if (Dogfight) return _opp != null && !_opp.Dead ? _opp : null;
+            var ac = Driver?.Sim?.Aircraft;
+            if (ac == null || DistanceToZone(ac.State.Position) > ActiveRangeM) return null;
+            Drone best = null; double bd = double.MaxValue;
+            foreach (Drone d in _drones) { if (d.Dead || d.Aircraft == null) continue; double r = (d.Aircraft.State.Position - ac.State.Position).Length; if (r < bd) { bd = r; best = d; } }
+            return best;
+        }
+
+        /// <summary>Start a dogfight against <paramref name="opponentId"/> at <paramref name="skill"/> (0 easy .. 2 difficult): the
+        /// opponent head-on 2.4 km away (the mirror of the player's spawn), every other drone parked out of sight.</summary>
+        public void BeginDogfight(string opponentId, int skill)
+        {
+            EndDogfight();
+            Dogfight = true; DogfightGunsCold = true; DogfightResult = null; _dfMinRange = double.MaxValue;
+            _oppId = opponentId; _skill = (AttackPilot.Skill)Mathf.Clamp(skill, 0, 2);
+            foreach (Drone d in _drones) if (d.Go != null) d.Go.SetActive(false);
+            AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(opponentId);
+            OpponentName = string.IsNullOrEmpty(cfg.DisplayName) ? opponentId : cfg.DisplayName;
+            double x = CombatZone.CentreX + FlightSimDriver.DogfightHalfSeparationM, y = CombatZone.CentreY + FlightSimDriver.DogfightLateralOffsetM;
+            double alt = WorldTerrain.GroundHeightAt(CombatZone.CentreX, CombatZone.CentreY) + FlightSimDriver.DogfightAglM;
+            double v = cfg.SpawnIasMs > 0 ? cfg.SpawnIasMs : 60;
+            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, v, alt);
+            double hdg = System.Math.PI, th = trim.Converged ? trim.ThetaRad : 0;
+            var att = Quat.Multiply(new Quat(0, 0, System.Math.Sin(hdg / 2), System.Math.Cos(hdg / 2)), new Quat(0, System.Math.Sin(th / 2), 0, System.Math.Cos(th / 2)));
+            _opp = new Drone { Id = 999 };
+            CreateDrone(_opp, cfg, OpponentName, new DronePilot(_seedBase, false, v), new Vec3(x, y, -alt), att, v, aerobatic: false);
+            _opp.Ap = AttackPilot.For(_skill, _seedBase + 17);
+            ResetScore();
+            Gunnery.Clear();
+        }
+
+        public void EndDogfight()
+        {
+            if (!Dogfight) return;
+            Dogfight = false;
+            if (_opp?.Go != null) Destroy(_opp.Go);
+            _opp = null;
+            foreach (Drone d in _drones) if (d.Go != null) d.Go.SetActive(true);
+        }
+
+        /// <summary>Opponent before the merge: wings level, straight at the player's start, holding its height.</summary>
+        private static ControlInputs HoldCourse(Aircraft a, double headingRad)
+        {
+            RigidBodyState s = a.State;
+            (double roll, _, double psi) = FormationPilot.Euler(s.Attitude);
+            double e = headingRad - psi; while (e > System.Math.PI) e -= 2 * System.Math.PI; while (e < -System.Math.PI) e += 2 * System.Math.PI;
+            double bankCmd = System.Math.Clamp(e * 1.5, -0.4, 0.4);
+            Vec3 vw = s.Attitude.Rotate(s.Velocity);
+            double gamma = System.Math.Atan2(-vw.Z, System.Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y));
+            double ail = System.Math.Clamp((bankCmd - roll) * 1.5 - s.Rates.X * 0.25, -1, 1);
+            double ele = System.Math.Clamp(gamma * 3.0 + s.Rates.Y * 0.5, -0.6, 0.4);
+            return new ControlInputs(ail, ele, System.Math.Clamp(-s.Velocity.Y * 0.02, -0.3, 0.3), 1.0 - 2.0 * 0.8);
+        }
         public int DronesDown { get; private set; }
         public int GroundHits { get; private set; }
         public int HitsOnDrones { get; private set; }
@@ -67,12 +139,14 @@ namespace FlyingGame.Bridge
         /// <summary>Live drone positions (Unity world) for the HUD markers.</summary>
         public IEnumerable<(Vector3 pos, string kind, bool dead)> DroneMarkers()
         {
-            foreach (Drone d in _drones) if (d.Go != null) yield return (d.Go.transform.position, d.Kind, d.Dead);
+            if (!Dogfight) foreach (Drone d in _drones) if (d.Go != null) yield return (d.Go.transform.position, d.Kind, d.Dead);
+            if (Dogfight && _opp?.Go != null) yield return (_opp.Go.transform.position, _opp.Kind, _opp.Dead);
         }
 
         private void Start()
         {
             _audio = GetComponent<FlightAudio>();
+            if (Driver != null) Driver.AircraftChanged += () => { if (Dogfight) BeginDogfight(_oppId, (int)_skill); };   // RESET restarts the fight
             _cassuttCfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("target-drone-like");
             _dc3Cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("dc3-like");
             _seedBase = System.Environment.TickCount;   // a different set of patterns every session
@@ -216,9 +290,21 @@ namespace FlyingGame.Bridge
             {
                 double h = SimLoop.DefaultFixedDtSec;
                 if (firing) Gunnery.Fire(0, ac.Guns, ac.Config, ac.State, h);
+                if (Dogfight && _opp?.Aircraft != null)
+                {
+                    ControlInputs oc;
+                    if (_opp.Dead) oc = new ControlInputs(0, 0, 0, 1.0);
+                    else if (DogfightGunsCold) oc = HoldCourse(_opp.Aircraft, System.Math.PI);
+                    else
+                    {
+                        oc = _opp.Ap.Update(_opp.Aircraft, ac.State, h);
+                        if (_opp.Ap.Firing && InZone && _opp.Aircraft.Guns != null && _opp.Aircraft.Guns.RoundsLeft > 0) Gunnery.Fire(_opp.Id, _opp.Aircraft.Guns, _opp.Config, _opp.Aircraft.State, h);
+                    }
+                    new SimLoop(_opp.Aircraft).RunFor(h, oc);
+                }
                 foreach (Drone d in _drones)
                 {
-                    if (d.Aircraft == null || !active) continue;
+                    if (d.Aircraft == null || !active || Dogfight) continue;
                     ControlInputs ci;
                     if (d.Dead) ci = new ControlInputs(0, 0, 0, 1.0);
                     else if (d.Flight != null && d.Flight.Attacker == d)
@@ -230,7 +316,9 @@ namespace FlyingGame.Bridge
                     else ci = d.Pilot.Update(d.Aircraft, h);
                     new SimLoop(d.Aircraft).RunFor(h, ci);
                 }
-                _stepTargets.Clear(); _stepTargets.AddRange(_targets);
+                _stepTargets.Clear();
+                if (Dogfight) { if (_opp != null) _stepTargets.Add(_opp.Target); }
+                else _stepTargets.AddRange(_targets);
                 GunTarget me = PlayerTarget(); if (me != null) _stepTargets.Add(me);
                 Gunnery.Step(h, _stepTargets, GroundTargets);
                 foreach (HitEvent hit in Gunnery.Hits)
@@ -247,9 +335,10 @@ namespace FlyingGame.Bridge
                 }
                 _accum -= h;
             }
+            if (Dogfight) UpdateDogfight(ac, dt);
             foreach (Drone d in _drones)
             {
-                if (d.Aircraft == null || d.Go == null) continue;
+                if (d.Aircraft == null || d.Go == null || Dogfight) continue;
                 d.Go.transform.SetPositionAndRotation(CoordinateMap.ToUnity(d.Aircraft.State.Position), CoordinateMap.ToUnity(d.Aircraft.State.Attitude));
                 d.Fx.Update(d.Aircraft.Damage, WorldVel(d.Aircraft));
                 var st = d.Aircraft.State;
@@ -269,6 +358,31 @@ namespace FlyingGame.Bridge
                 if (allDown) SpawnFlight(f);
             }
             if (_flashT > 0f) _flashT -= dt;
+        }
+
+        private void UpdateDogfight(Aircraft ac, float dt)
+        {
+            if (_opp?.Aircraft == null || _opp.Go == null) return;
+            _opp.Go.transform.SetPositionAndRotation(CoordinateMap.ToUnity(_opp.Aircraft.State.Position), CoordinateMap.ToUnity(_opp.Aircraft.State.Attitude));
+            _opp.Fx.Update(_opp.Aircraft.Damage, WorldVel(_opp.Aircraft));
+            double range = (_opp.Aircraft.State.Position - ac.State.Position).Length;
+            if (DogfightGunsCold)
+            {
+                // The merge: once the range has started to open again after the pass, the fight is on.
+                _dfMinRange = System.Math.Min(_dfMinRange, range);
+                if (_dfMinRange < 1500 && range > _dfMinRange + 25) { DogfightGunsCold = false; Flash("FIGHT'S ON"); }
+            }
+            var st = _opp.Aircraft.State;
+            double agl = -st.Position.Z - WorldTerrain.GroundHeightAt(st.Position.X, st.Position.Y);
+            bool crippled = _opp.Aircraft.IsLost(AirframeComponent.WingLeftInner) || _opp.Aircraft.IsLost(AirframeComponent.WingRightInner) || _opp.Aircraft.IsLost(AirframeComponent.TailBoom);
+            if (!_opp.Dead && (crippled || (agl < 2 && st.Velocity.Length > 5)))
+            {
+                _opp.Dead = true; DronesDown++; _audio?.Explosion();
+                if (DogfightResult == null) DogfightResult = HitsOnDrones > 0 ? "SPLASH ONE - YOU WIN" : "HE FLEW INTO THE GROUND - YOU WIN";
+            }
+            bool meDown = ac.IsLost(AirframeComponent.WingLeftInner) || ac.IsLost(AirframeComponent.WingRightInner) || ac.IsLost(AirframeComponent.TailBoom)
+                          || (GetComponent<PilotEgress>()?.PilotOut ?? false);
+            if (meDown && DogfightResult == null) DogfightResult = HitsTaken > 0 ? "SHOT DOWN - HE WINS" : "YOU'RE OUT OF THE FIGHT";
         }
 
         private void Flash(string s) { _flash = s; _flashT = 1.5f; }
@@ -313,6 +427,14 @@ namespace FlyingGame.Bridge
             {
                 var ac = Driver?.Sim?.Aircraft;
                 if (ac?.Guns == null) return null;
+                if (Dogfight)
+                {
+                    string head = $"DOGFIGHT vs {OpponentName} ({SessionSettings.SkillNames[(int)_skill]})";
+                    if (DogfightResult != null) return $"{head}   {DogfightResult}   (RESET to fight again)";
+                    if (DogfightGunsCold) return $"{head}   GUNS COLD until you pass him";
+                    if (!InZone) return $"{head}   GUNS COLD - you have left the combat zone, turn back";
+                    return $"{head}   GUNS HOT  rounds {ac.Guns.RoundsLeft}   hits {HitsOnDrones}   hits taken {HitsTaken}{(_flashT > 0f ? "   " + _flash : "")}";
+                }
                 if (!InZone) return "GUNS COLD  fly to the COMBAT ZONE (north-east, past the lakes)";
                 string flash = _flashT > 0f ? $"   {_flash}" : "";
                 // Nearest live drone: range and clock position so it can be found.

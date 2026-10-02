@@ -236,12 +236,10 @@ namespace FlyingGame.EditorTools
             plist.root.SetString("NSPhotoLibraryAddUsageDescription", "Aero Playground saves the flight clips you capture to your photo library.");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
-            // MediaPlayer.framework for the volume-button trigger (Plugins/iOS/VolumeFireButton.mm).
             string projPath = PBXProject.GetPBXProjectPath(path);
             var proj = new PBXProject();
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
-            proj.AddFrameworkToProject(fw, "MediaPlayer.framework", false);
             // AVFoundation/CoreMedia/CoreVideo + Photos for the quick clips encoder (Plugins/iOS/ClipEncoder.mm).
             foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework" })
                 proj.AddFrameworkToProject(fw, f, false);
@@ -251,7 +249,7 @@ namespace FlyingGame.EditorTools
             if (enc != null) proj.SetCompileFlagsForFile(fw, enc, new System.Collections.Generic.List<string> { "-fobjc-exceptions" });
             else Debug.LogWarning("Xcode: ClipEncoder.mm not found — clip encoder will not build");
             proj.WriteToFile(projPath);
-            Debug.Log("Xcode: linked MediaPlayer, AVFoundation, CoreMedia, CoreVideo, Photos frameworks");
+            Debug.Log("Xcode: linked AVFoundation, CoreMedia, CoreVideo, Photos frameworks");
         }
 
         private static void EnsureSceneInBuild()

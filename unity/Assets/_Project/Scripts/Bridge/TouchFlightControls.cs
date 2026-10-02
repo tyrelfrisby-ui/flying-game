@@ -203,8 +203,7 @@ namespace FlyingGame.Bridge
             float barH = s * 0.045f;
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
             _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
-            // FIRE: above the right pad's label block.
-            _fireRect = new Rect(_rightCenter.x - _half, _rightCenter.y + _half + ScreenLayout.LabelBlockPx + gap, 2f * _half, bh * 1.1f);
+            _fireRect = FireRectTopLeft();
         }
 
         private void LayOutPortrait(float w)
@@ -242,8 +241,17 @@ namespace FlyingGame.Bridge
             float ew = (w - 2f * margin - gap) * 0.5f;
             _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
             _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
-            // FIRE: in the view just above the tray, right side (portrait).
-            _fireRect = new Rect(w - margin - 2f * _half, ScreenLayout.TrayHeightPx + gap, 2f * _half, bh * 1.1f);
+            _fireRect = FireRectTopLeft();
+        }
+
+        /// <summary>FIRE (owner 2026-10-01): top left under MENU, a big target for a third finger while both thumbs stay on
+        /// the pads (every touch is tracked on its own, so holding FIRE never steals a pad). Screen px, bottom-left origin.</summary>
+        private static Rect FireRectTopLeft()
+        {
+            float s = Mathf.Min(Screen.width, Screen.height);
+            float top = s * 0.02f + s * 0.055f + s * 0.015f;   // below the MENU button
+            float w = s * 0.24f, h = s * 0.13f;
+            return new Rect(s * 0.02f, Screen.height - top - h, w, h);
         }
 
         private bool HasEjectionSeat => _driver.Sim?.Aircraft?.Config?.EjectionSeat == true;
@@ -332,8 +340,7 @@ namespace FlyingGame.Bridge
             // camera apps and cannot be read here).
             if (_combat != null)
             {
-                VolumeFire.SetArmed(_combat.GunsHot && !SessionSettings.MenuOpen);   // VOLUME UP fires while the guns are hot (owner)
-                _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space) || VolumeFire.Held
+                _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space)
                     || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5);
             }
 
@@ -568,7 +575,7 @@ namespace FlyingGame.Bridge
                 GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);
                 GUI.DrawTexture(g, _solidTex);
                 GUI.color = Color.white;
-                GUI.Label(g, _fireFinger != int.MinValue || VolumeFire.Held ? "FIRING" : "FIRE  (hold · or VOLUME UP)", _ejectStyle);
+                GUI.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE", _ejectStyle);
             }
             if (EjectAvailable)
             {

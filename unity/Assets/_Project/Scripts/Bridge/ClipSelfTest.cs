@@ -22,6 +22,7 @@ namespace FlyingGame.Bridge
             string mode = System.Environment.GetEnvironmentVariable("AERO_SELFTEST");
             if (mode == "combat") { yield return CombatTest(); yield break; }
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
+            if (mode == "dogfight") { yield return DogfightTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -75,6 +76,7 @@ namespace FlyingGame.Bridge
             Chase.SetView(ChaseCamera.View.Cockpit);
             yield return new WaitForSecondsRealtime(3f);
             ScreenCapture.CaptureScreenshot("selftest-cockpit.png");
+            yield return null; yield return null;   // the capture happens at the END of the frame: keep the view until then
             Chase.SetView(ChaseCamera.View.RelativeWind);
             Combat.DebugProvoke();
             for (int i = 0; i < 12; i++)
@@ -103,6 +105,25 @@ namespace FlyingGame.Bridge
                 if (i == 1) ScreenCapture.CaptureScreenshot("selftest-thermal.png");
             }
             Debug.Log("[SelfTest] DONE thermal");
+        }
+
+        /// <summary>AERO_SELFTEST=dogfight: P-51 vs P-51 (moderate), the player hands off; logs the status line and takes
+        /// screenshots before the merge (indicator + gunsight, guns cold) and during the fight.</summary>
+        private IEnumerator DogfightTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "p51d-like";
+            SessionSettings.ChallengeId = "event:dogfight";
+            SessionSettings.DogfightOpponentId = "p51d-like"; SessionSettings.DogfightSkill = 1;
+            Menu.Fly();
+            for (int i = 0; i < 14; i++)
+            {
+                yield return new WaitForSecondsRealtime(4f);
+                Debug.Log($"[SelfTest] t={4 * (i + 1)} {Combat.Line}");
+                if (i == 1) ScreenCapture.CaptureScreenshot("selftest-dogfight-1.png");
+                if (i == 7) ScreenCapture.CaptureScreenshot("selftest-dogfight-2.png");
+            }
+            Debug.Log("[SelfTest] DONE dogfight");
         }
 
         private float _worst;
