@@ -20,6 +20,7 @@ public class PracticeScenarioTests
     private static double Roll(Aircraft ac) { var q = ac.State.Attitude; return Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 57.3; }
     private static double Pitch(Aircraft ac) { var q = ac.State.Attitude; return Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1)) * 57.3; }
     private static AircraftConfig Load(string f) => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", f));
+    internal static WorldTerrain.RunwayEnd TestRunway() => Runway();
     private static WorldTerrain.RunwayEnd Runway()
     {
         var main = Array.Find(WorldTerrain.AirportStrips, st => st.Kind == "paved");

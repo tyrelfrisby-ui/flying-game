@@ -1617,6 +1617,24 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 2.6f, StabRoot = 0.75f, StabTip = 0.45f, FinHeight = 1.2f, FinRoot = 1.2f, FinTip = 0.5f, FinSweepDeg = 35 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.2f, 0.5f),
                     };
+                case "pa28-archer-like":
+                    return new Style
+                    {
+                        // Piper Archer: low wing, fixed tricycle gear with wheel fairings, swept fin, all-moving stabilator.
+                        BodyAxisZ = 0.0f, Body = new[] { (2.4f, 0.12f), (2.1f, 0.42f), (1.3f, 0.56f), (0.3f, 0.62f), (-0.8f, 0.58f), (-1.8f, 0.44f), (-3.1f, 0.27f), (-4.4f, 0.15f), (-5.0f, 0.09f) },
+                        Canopy = (0.2f, -0.5f, 1.9f, 1.05f, 0.45f), PropRadius = 0.97f, LowWingGear = true,
+                        Tail = new TailSpec { StabSpan = 3.9f, StabRoot = 0.8f, StabTip = 0.75f, FinHeight = 1.35f, FinRoot = 1.6f, FinTip = 0.7f, FinSweepDeg = 40 },
+                        Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.25f, 0.6f),
+                    };
+                case "cirrus-sr22-like":
+                    return new Style
+                    {
+                        // Cirrus SR22: composite low wing, long tapered fuselage, big canopy, fixed faired gear, tall swept fin.
+                        BodyAxisZ = 0.0f, Body = new[] { (2.7f, 0.12f), (2.4f, 0.42f), (1.5f, 0.6f), (0.4f, 0.66f), (-0.8f, 0.6f), (-2.0f, 0.42f), (-3.3f, 0.26f), (-4.6f, 0.14f), (-5.3f, 0.08f) },
+                        Canopy = (0.3f, -0.55f, 2.1f, 1.1f, 0.5f), PropRadius = 0.99f, LowWingGear = true,
+                        Tail = new TailSpec { StabSpan = 4.0f, StabRoot = 0.85f, StabTip = 0.55f, StabSweepDeg = 8, FinHeight = 1.6f, FinRoot = 1.7f, FinTip = 0.75f, FinSweepDeg = 38 },
+                        Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.55f, 0.57f, 0.6f),
+                    };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
                     return new Style
                     {

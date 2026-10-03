@@ -49,7 +49,23 @@ public static class PropModel
         double effRatio = prop.ConstantSpeed
             ? Math.Clamp(0.6 + 0.4 * (v / 30.0), 0.6, 1.0)
             : Math.Clamp(0.35 + 0.65 * (v / 45.0), 0.4, 1.0);
-        double thrust = powerW <= 0 ? 0 : Math.Min(prop.Efficiency * effRatio * powerW / Math.Max(v, 5.0), staticThrust);
+        double eta = prop.Efficiency * effRatio;
+        if (prop.ConstantSpeed && powerW > 0 && v > 5.0)
+        {
+            // Momentum (actuator-disc) limit (owner 2026-10-02, SR22 Vy read 82 kt vs book ~104): a constant-speed prop keeps
+            // its blades at a good angle, but it still has to accelerate the air through its disc — at low speed and high
+            // power per disc area that ideal efficiency 2/(1+√(1+T/(qA))) falls well below the blade's own, which is why
+            // a 310 hp / 78 in SR22 climbs best near 100 kt, not at the minimum-power speed. × 0.85 for profile/swirl loss.
+            double e = eta;
+            for (int i = 0; i < 6; i++)
+            {
+                double t = e * powerW / v;
+                double ideal = 2.0 / (1.0 + Math.Sqrt(1.0 + t / (0.5 * airDensity * v * v * discArea)));
+                e = Math.Min(eta, 0.85 * ideal);
+            }
+            eta = e;
+        }
+        double thrust = powerW <= 0 ? 0 : Math.Min(eta * powerW / Math.Max(v, 5.0), staticThrust);
 
         Vec3 force = new(thrust, 0, 0);
         Vec3 moment = Vec3.Zero;
