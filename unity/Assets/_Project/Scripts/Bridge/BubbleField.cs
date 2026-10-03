@@ -319,6 +319,8 @@ namespace FlyingGame.Bridge
                 (Vector3 pos, Vector3Int lattice, uint h2) = _cand[ci];
                 float dist0 = Vector3.Distance(pos, center);
                 if (dist0 > reach) continue;   // spherical block, not cubic — fewer bubbles, rounder falloff
+                // 2-D side-view lessons: a thin slice of the air in the aircraft's own plane, not the whole volume.
+                if (Side2DView.Active && Mathf.Abs(Vector3.Dot(pos - center, Side2DView.SideAxis)) > Side2DView.AirSliceHalfM) continue;
                 float distFade = dense ? Mathf.Clamp01((dist0 - FullRangeM) / Mathf.Max(1f, FadeRangeM - FullRangeM)) : 0f;
                 if (distFade > 0f && ((h2 >> 8) & 0xFF) / 255f < distFade) continue;   // thin out with the fade so the count stays sane
 
@@ -373,7 +375,9 @@ namespace FlyingGame.Bridge
                 {
                     // Never below MinPixels on screen: a 0.2 m bubble 100 m out is sub-pixel and simply vanishes.
                     float camDist = Vector3.Distance(pos, cam.transform.position);
-                    float minSize = camDist * (2f * tanHalfV) * (MinPixels / Mathf.Max(200f, cam.pixelHeight));
+                    // Orthographic (2-D side-view lessons): the on-screen size doesn't shrink with distance.
+                    float viewH = cam.orthographic ? 2f * cam.orthographicSize : camDist * (2f * tanHalfV);
+                    float minSize = viewH * (MinPixels / Mathf.Max(200f, cam.pixelHeight));
                     if (size < minSize) size = minSize;
                 }
 

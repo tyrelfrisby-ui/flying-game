@@ -137,6 +137,7 @@ namespace FlyingGame.Bridge.Practice
             Driver.GroundReferenceForced = false;
             if (_touch != null) { _touch.DisplayOverride = null; _touch.GameAileron = _touch.GameElevator = _touch.GameRudder = _touch.GameThrottle = false; }
             if (_chase != null) _chase.SideView = false;
+            Side2DView.Exit(Camera.main);
             if (_slope != null) Destroy(_slope.gameObject);
             if (Kind == PracticeKind.StallSideView) SessionSettings.BubblesOn = _bubblesWere;
             SessionSettings.ApplyWeather();   // back to the session's own wind
@@ -175,13 +176,18 @@ namespace FlyingGame.Bridge.Practice
             if (Camera.main == null) return;
             _chase = Camera.main.GetComponent<ChaseCamera>();
             if (_chase == null) return;
-            if (!Scenario.SideView) { _chase.SideView = false; return; }
+            if (!Scenario.SideView) { _chase.SideView = false; Side2DView.Exit(Camera.main); return; }
             var rw = Scenario.Runway;
             // Sim (x north, y east) → Unity (x = east, z = north): along = (AlongY, 0, AlongX); right of the runway = (AlongX, 0, -AlongY).
             _chase.SideRight = new Vector3((float)rw.AlongX, 0f, -(float)rw.AlongY).normalized;
             _chase.SideDistance = Mathf.Clamp(_chase.Distance * 1.9f, 16f, 90f);
             _chase.SideFocusY = FocusHeight();
             _chase.SideView = true;
+            // Owner 2026-10-03: side-view lessons are 2-D — flat side-on picture, no 3-D world.
+            (double tx, double ty) = rw.Threshold;
+            Vector3 thr = CoordinateMap.ToUnity(new Vec3(tx, ty, -Scenario.SurfaceM));
+            Side2DView.Enter(Camera.main, _chase.SideRight, new Vector3((float)rw.AlongY, 0f, (float)rw.AlongX), (float)Scenario.SurfaceM, thr, (float)rw.LengthM);
+            Side2DView.Frame(Camera.main, _chase.SideDistance);
         }
 
         private float FocusHeight()
@@ -201,6 +207,7 @@ namespace FlyingGame.Bridge.Practice
             if (Scenario.Approach && Scenario.AlongM > -60) _sideBlend = Mathf.MoveTowards(_sideBlend, 1f, Time.deltaTime / 3f);
             if (Scenario.Airwork) _stallFocusY = Mathf.Lerp(_stallFocusY, transform.position.y, 1f - Mathf.Exp(-3f * Time.deltaTime));
             _chase.SideFocusY = FocusHeight();
+            Side2DView.Frame(Camera.main, _chase.SideDistance);
         }
 
         private void SetupSlopeLine()

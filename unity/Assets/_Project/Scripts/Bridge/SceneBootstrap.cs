@@ -180,6 +180,7 @@ namespace FlyingGame.Bridge
             // Device self-test of replay + clips, only when launched with AERO_SELFTEST set (devicectl --environment-variables).
             if (!string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("AERO_SELFTEST")))
             {
+                Application.runInBackground = true;   // Mac: a test launched from the terminal isn't focused — don't pause
                 var st = cam.gameObject.AddComponent<ClipSelfTest>();
                 st.Menu = menu; st.Replay = aircraft.GetComponent<FlightReplay>(); st.Egress = aircraft.GetComponent<PilotEgress>(); st.Chase = chase;
                 st.Combat = aircraft.GetComponent<CombatController>();

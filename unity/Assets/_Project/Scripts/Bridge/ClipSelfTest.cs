@@ -23,6 +23,7 @@ namespace FlyingGame.Bridge
             if (mode == "combat") { yield return CombatTest(); yield break; }
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
             if (mode == "dogfight") { yield return DogfightTest(); yield break; }
+            if (mode == "side2d") { yield return Side2DTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -61,6 +62,30 @@ namespace FlyingGame.Bridge
             ClipRecorder.IncludeInstruments = keepInst; ClipRecorder.ClipSeconds = keepSec;
             yield return new WaitForSecondsRealtime(6f);
             Debug.Log($"[SelfTest] DONE fps={1f / Mathf.Max(1e-4f, Time.smoothDeltaTime):F0}");
+        }
+
+        /// <summary>AERO_SELFTEST=side2d (owner 2026-10-03): each side-view lesson in turn, in the Cub, a screenshot a few
+        /// seconds in — the 2-D side view (no 3-D world, orthographic, flat backdrop).</summary>
+        private IEnumerator Side2DTest()
+        {
+            SessionSettings.AircraftId = "pa18-cub-like";
+            foreach (string id in new[] { "practice:approach-side", "practice:flare-side", "practice:stall-side", "lesson:glide-side", "lesson:climb-vx" })
+            {
+                SessionSettings.ChallengeId = id;
+                yield return new WaitForSecondsRealtime(2f);
+                Debug.Log($"[SelfTest] side2d {id}");
+                Menu.Fly();
+                yield return new WaitForSecondsRealtime(3f);
+                var pc = Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
+                if (pc != null) pc.StartCountdown();   // press GO
+                yield return new WaitForSecondsRealtime(8f);
+                ScreenCapture.CaptureScreenshot($"selftest-{id.Replace(':', '-')}.png");
+                yield return new WaitForSecondsRealtime(1f);
+                Debug.Log($"[SelfTest] side2d {id}: 2-D active {Side2DView.Active}, camera ortho {Camera.main.orthographic}");
+                Menu.Open();
+                yield return new WaitForSecondsRealtime(2f);
+            }
+            Debug.Log("[SelfTest] DONE side2d");
         }
 
         /// <summary>AERO_SELFTEST=combat: a P-51 in the combat zone, cockpit view, the P-51 formation provoked; logs the
