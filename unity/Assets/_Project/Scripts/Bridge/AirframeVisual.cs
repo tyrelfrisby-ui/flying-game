@@ -1626,6 +1626,17 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 3.9f, StabRoot = 0.8f, StabTip = 0.75f, FinHeight = 1.35f, FinRoot = 1.6f, FinTip = 0.7f, FinSweepDeg = 40 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.25f, 0.6f),
                     };
+                case "dhc2-beaver-floats-like":
+                    return new Style
+                    {
+                        // DHC-2 Beaver: deep slab-sided cabin, R-985 radial in a round cowl, strut-braced high wing, tall
+                        // fin; EDO floats are drawn from the floats config.
+                        BodyAxisZ = -0.2f, BodyHeightScale = 1.25f, BodyWidthScale = 0.9f,
+                        Body = new[] { (2.6f, 0.45f), (2.3f, 0.62f), (1.6f, 0.68f), (0.4f, 0.74f), (-0.9f, 0.68f), (-2.2f, 0.5f), (-3.8f, 0.3f), (-5.4f, 0.17f), (-6.4f, 0.1f) },
+                        Canopy = (0.9f, -0.62f, 1.6f, 1.2f, 0.45f), PropRadius = 1.3f, RadialEngine = true, BluntNose = true, HighWingStruts = true,
+                        Tail = new TailSpec { StabSpan = 4.6f, StabRoot = 1.3f, StabTip = 0.9f, FinHeight = 1.8f, FinRoot = 1.8f, FinTip = 0.8f, FinSweepDeg = 25 },
+                        Fuselage = yellow, Wing = yellow, TailColor = yellow, Control = navy,
+                    };
                 case "hughes-h4-like":
                     return new Style
                     {

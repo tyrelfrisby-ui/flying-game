@@ -55,7 +55,7 @@ namespace FlyingGame.Bridge
             "glider-2-33-like", "glider-eb29r-like", "glider-swift-s1-like", "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pitts-s2b-like", "stearman-pt17-like",
             "cassutt-f1-like", "geebee-r2-like", "glasair3-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "hughes-h4-like", "pa18-cub-like", "decathlon-8kcab-like",
+            "dc3-like", "boeing-737-like", "hughes-h4-like", "pa18-cub-like", "dhc2-beaver-floats-like", "decathlon-8kcab-like",
         };
 
         private FlightSimDriver _driver;

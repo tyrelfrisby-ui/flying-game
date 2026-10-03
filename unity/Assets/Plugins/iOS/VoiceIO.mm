@@ -10,6 +10,10 @@
 // Lock-free single-producer/single-consumer rings between the threads.
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#include <TargetConditionals.h>
+#if !TARGET_OS_IPHONE
+#import <CoreAudio/CoreAudio.h>   // Mac app (owner 2026-10-02: Mac/iPad/iPhone parity): output-device query instead of AVAudioSession
+#endif
 #include <atomic>
 #include <cmath>
 #include <cstdlib>
@@ -110,24 +114,45 @@ void ProcessMic(const float *x, uint32_t n) {
 
 void UpdateRoute() {
     bool hp = false;
+#if TARGET_OS_IPHONE
     for (AVAudioSessionPortDescription *p in AVAudioSession.sharedInstance.currentRoute.outputs) {
         NSString *t = p.portType;
         if ([t isEqualToString:AVAudioSessionPortHeadphones] || [t isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
             [t isEqualToString:AVAudioSessionPortBluetoothLE] || [t isEqualToString:AVAudioSessionPortBluetoothHFP] ||
             [t isEqualToString:AVAudioSessionPortUSBAudio]) hp = true;
     }
+#else
+    // Mac: the default output device — anything but the built-in speakers (headphone jack, USB, Bluetooth) counts as
+    // headphones, so the sidetone only plays where it can't feed back into the mic.
+    AudioObjectID dev = 0; UInt32 sz = sizeof(dev);
+    AudioObjectPropertyAddress a = { kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &sz, &dev) == noErr && dev != 0) {
+        UInt32 transport = 0; sz = sizeof(transport);
+        AudioObjectPropertyAddress t = { kAudioDevicePropertyTransportType, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain };
+        if (AudioObjectGetPropertyData(dev, &t, 0, NULL, &sz, &transport) == noErr) {
+            if (transport != kAudioDeviceTransportTypeBuiltIn) hp = true;
+            else {
+                UInt32 src = 0; sz = sizeof(src);
+                AudioObjectPropertyAddress d = { kAudioDevicePropertyDataSource, kAudioDevicePropertyScopeOutput, kAudioObjectPropertyElementMain };
+                if (AudioObjectGetPropertyData(dev, &d, 0, NULL, &sz, &src) == noErr && src == 'hdpn') hp = true;
+            }
+        }
+    }
+#endif
     gHeadphones.store(hp);
     if (!hp) gSideRing.clear();
 }
 
 void StartEngine() {
     NSError *err = nil;
+#if TARGET_OS_IPHONE
     AVAudioSession *s = AVAudioSession.sharedInstance;
     [s setCategory:AVAudioSessionCategoryPlayAndRecord
        withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker | AVAudioSessionCategoryOptionAllowBluetoothA2DP | AVAudioSessionCategoryOptionMixWithOthers
              error:&err];
     [s setPreferredIOBufferDuration:0.005 error:nil];
     [s setActive:YES error:nil];
+#endif
     gEngine = [AVAudioEngine new];
     AVAudioInputNode *in = gEngine.inputNode;
     AVAudioFormat *inF = [in inputFormatForBus:0];
@@ -157,10 +182,13 @@ void StartEngine() {
     [gEngine connect:gSide to:gEngine.mainMixerNode format:mono];
     [gEngine prepare];
     if (![gEngine startAndReturnError:&err]) { gState = -2; NSLog(@"[VoiceIO] engine start failed: %@", err); return; }
+#if TARGET_OS_IPHONE
     [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioSessionRouteChangeNotification object:nil queue:nil
                                                   usingBlock:^(NSNotification *n) { UpdateRoute(); }];
+#endif
+    // A device change (Mac: headphones plugged in / output switched) reconfigures the engine: restart it and re-check.
     [[NSNotificationCenter defaultCenter] addObserverForName:AVAudioEngineConfigurationChangeNotification object:gEngine queue:NSOperationQueue.mainQueue
-                                                  usingBlock:^(NSNotification *n) { NSError *e = nil; if (!gEngine.isRunning) [gEngine startAndReturnError:&e]; }];
+                                                  usingBlock:^(NSNotification *n) { NSError *e = nil; if (!gEngine.isRunning) [gEngine startAndReturnError:&e]; UpdateRoute(); }];
     UpdateRoute();
     gState = 2;
     NSLog(@"[VoiceIO] mic running at %.0f Hz, headphones %d", gR, (int)gHeadphones.load());
@@ -208,9 +236,15 @@ int VO_EnsureMic(void)
     int st = gState.load();
     if (st != 0) return st;
     gState = 1;
+#if TARGET_OS_IPHONE
     [AVAudioSession.sharedInstance requestRecordPermission:^(BOOL granted) {
         dispatch_async(dispatch_get_main_queue(), ^{ if (granted) StartEngine(); else gState = -1; });
     }];
+#else
+    [AVCaptureDevice requestAccessForMediaType:AVMediaTypeAudio completionHandler:^(BOOL granted) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (granted) StartEngine(); else gState = -1; });
+    }];
+#endif
     return 1;
 }
 

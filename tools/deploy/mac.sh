@@ -11,6 +11,10 @@ FLYINGGAME_MAC_OUT=$OUT "$UNITY" -batchmode -quit -projectPath "$REPO/unity" -bu
   -executeMethod FlyingGame.EditorTools.BuildScript.BuildMac -logFile "$REPO/build/mac.log"
 grep -q "macOS build SUCCEEDED" "$REPO/build/mac.log" || { echo "MAC BUILD FAILED — see build/mac.log"; exit 1; }
 APP="$OUT/Aero Playground.app"
+# Permission prompts the Mac needs for parity features (radio/intercom mic, saving clips to Photos).
+PL="$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Aero Playground uses the microphone for the intercom and the radio.'" "$PL" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Aero Playground saves your clips and recordings to Photos.'" "$PL" 2>/dev/null || true
 xattr -rc "$APP"; codesign --force --deep -s - "$APP"
 pkill -f "Aero Playground.app/Contents/MacOS" || true
 rm -rf "/Applications/Aero Playground.app"; cp -R "$APP" /Applications/

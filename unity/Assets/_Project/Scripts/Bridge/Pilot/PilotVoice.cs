@@ -12,22 +12,27 @@ namespace FlyingGame.Bridge
     internal static class PilotVoice
     {
 #if UNITY_IOS && !UNITY_EDITOR
-        [DllImport("__Internal")] private static extern void FlyingGame_Speak(string text, float rate, float pitch);
-        [DllImport("__Internal")] private static extern void FlyingGame_StopSpeech();
+        private const string NativeLib = "__Internal";       // linked into the iOS app by Xcode
+#elif UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        private const string NativeLib = "AeroNative";       // Mac app: Plugins/macOS/AeroNative.bundle (tools/native-mac/build.sh)
+#endif
+#if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
+        [DllImport(NativeLib)] private static extern void FlyingGame_Speak(string text, float rate, float pitch);
+        [DllImport(NativeLib)] private static extern void FlyingGame_StopSpeech();
 #endif
 
         public static void Say(string text, float rate = 0.5f, float pitch = 0.92f)
         {
             if (string.IsNullOrEmpty(text)) return;
             Debug.Log($"[Pilot] \"{text}\"");
-#if UNITY_IOS && !UNITY_EDITOR
+#if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
             try { FlyingGame_Speak(text, rate, pitch); } catch (System.Exception e) { Debug.LogWarning("speech: " + e.Message); }
 #endif
         }
 
         public static void Stop()
         {
-#if UNITY_IOS && !UNITY_EDITOR
+#if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
             try { FlyingGame_StopSpeech(); } catch (System.Exception) { }
 #endif
         }

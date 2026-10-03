@@ -40,19 +40,24 @@ namespace FlyingGame.Bridge
         public static string Length(int sec) => sec < 60 ? $"{sec} s" : $"{sec / 60}:{sec % 60:00}";
 
 #if UNITY_IOS && !UNITY_EDITOR
-        [DllImport("__Internal")] private static extern double CE_Now();
-        [DllImport("__Internal")] private static extern void CE_SetPaused(int paused);
-        [DllImport("__Internal")] private static extern void CE_Configure(int w, int h, int fps, int sampleRate, int channels, int bitrate, double keepSec);
-        [DllImport("__Internal")] private static extern void CE_SetKeepCopy(int keep);
-        [DllImport("__Internal")] private static extern unsafe void CE_AppendVideo(void* bgra, int w, int h, double pts);
-        [DllImport("__Internal")] private static extern void CE_AppendAudio(float[] pcm, int frames, int channels, double pts);
-        [DllImport("__Internal")] private static extern void CE_SaveClip(double seconds);
-        [DllImport("__Internal")] private static extern void CE_StartRecording();
-        [DllImport("__Internal")] private static extern void CE_StopRecording();
-        [DllImport("__Internal")] private static extern int CE_IsRecording();
-        [DllImport("__Internal")] private static extern int CE_IsBusy();
-        [DllImport("__Internal")] private static extern int CE_MessageSeq();
-        [DllImport("__Internal")] private static extern string CE_Message();
+        private const string NativeLib = "__Internal";       // linked into the iOS app by Xcode
+#elif UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        private const string NativeLib = "AeroNative";       // Mac app: Plugins/macOS/AeroNative.bundle (tools/native-mac/build.sh)
+#endif
+#if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
+        [DllImport(NativeLib)] private static extern double CE_Now();
+        [DllImport(NativeLib)] private static extern void CE_SetPaused(int paused);
+        [DllImport(NativeLib)] private static extern void CE_Configure(int w, int h, int fps, int sampleRate, int channels, int bitrate, double keepSec);
+        [DllImport(NativeLib)] private static extern void CE_SetKeepCopy(int keep);
+        [DllImport(NativeLib)] private static extern unsafe void CE_AppendVideo(void* bgra, int w, int h, double pts);
+        [DllImport(NativeLib)] private static extern void CE_AppendAudio(float[] pcm, int frames, int channels, double pts);
+        [DllImport(NativeLib)] private static extern void CE_SaveClip(double seconds);
+        [DllImport(NativeLib)] private static extern void CE_StartRecording();
+        [DllImport(NativeLib)] private static extern void CE_StopRecording();
+        [DllImport(NativeLib)] private static extern int CE_IsRecording();
+        [DllImport(NativeLib)] private static extern int CE_IsBusy();
+        [DllImport(NativeLib)] private static extern int CE_MessageSeq();
+        [DllImport(NativeLib)] private static extern string CE_Message();
         private const bool Native = true;
 #else
         private static double CE_Now() => Time.realtimeSinceStartupAsDouble;

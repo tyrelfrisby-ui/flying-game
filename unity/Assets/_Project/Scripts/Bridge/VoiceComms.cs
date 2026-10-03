@@ -43,16 +43,21 @@ namespace FlyingGame.Bridge
         public static string MicProblem { get; private set; }
 
 #if UNITY_IOS && !UNITY_EDITOR
-        [DllImport("__Internal")] private static extern void VO_Init(int unityRate);
-        [DllImport("__Internal")] private static extern int VO_EnsureMic();
-        [DllImport("__Internal")] private static extern void VO_SetIntercom(int on);
-        [DllImport("__Internal")] private static extern void VO_SetPtt(int on);
-        [DllImport("__Internal")] private static extern int VO_ReadTx(byte[] dst, int max, out int ended);
-        [DllImport("__Internal")] private static extern int VO_TxAvailable();
-        [DllImport("__Internal")] private static extern void VO_PushRx(int slot, byte[] data, int len, int end);
-        [DllImport("__Internal")] private static extern void VO_SetRxVolume(float v);
-        [DllImport("__Internal")] private static extern unsafe void VO_RenderRx(float* data, int frames, int channels);
-        [DllImport("__Internal")] private static extern unsafe void VO_ReadClipVoice(float* data, int frames, int channels);
+        private const string NativeLib = "__Internal";       // linked into the iOS app by Xcode
+#elif UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        private const string NativeLib = "AeroNative";       // Mac app: Plugins/macOS/AeroNative.bundle (tools/native-mac/build.sh)
+#endif
+#if (UNITY_IOS || UNITY_STANDALONE_OSX) && !UNITY_EDITOR
+        [DllImport(NativeLib)] private static extern void VO_Init(int unityRate);
+        [DllImport(NativeLib)] private static extern int VO_EnsureMic();
+        [DllImport(NativeLib)] private static extern void VO_SetIntercom(int on);
+        [DllImport(NativeLib)] private static extern void VO_SetPtt(int on);
+        [DllImport(NativeLib)] private static extern int VO_ReadTx(byte[] dst, int max, out int ended);
+        [DllImport(NativeLib)] private static extern int VO_TxAvailable();
+        [DllImport(NativeLib)] private static extern void VO_PushRx(int slot, byte[] data, int len, int end);
+        [DllImport(NativeLib)] private static extern void VO_SetRxVolume(float v);
+        [DllImport(NativeLib)] private static extern unsafe void VO_RenderRx(float* data, int frames, int channels);
+        [DllImport(NativeLib)] private static extern unsafe void VO_ReadClipVoice(float* data, int frames, int channels);
         private const bool Native = true;
 #else
         private static void VO_Init(int unityRate) { }

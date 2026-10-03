@@ -8,28 +8,30 @@ using Xunit.Abstractions;
 
 namespace FlyingGame.FlightTests;
 
-/// <summary>Super Cub on EDO 2000-class floats: floats at rest at a sane draft, takes off from the water
+/// <summary>Super Cub on EDO 2000 floats and the DHC-2 Beaver on EDO 4930s: floats at rest at a sane draft, takes off from the water
 /// under full power, and lands on the water without drama.</summary>
 public class FloatTests
 {
     private readonly ITestOutputHelper _out;
     public FloatTests(ITestOutputHelper o) { _out = o; }
 
-    private static AircraftConfig Load() =>
-        AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-floats-like.json"));
+    private static AircraftConfig Load(string id) =>
+        AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
     private static double Pitch(RigidBodyState s) { Quat q = s.Attitude; return Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1)) * 57.3; }
     private static double Roll(RigidBodyState s) { Quat q = s.Attitude; return Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 57.3; }
 
-    [Fact]
-    public void FloatsAtRestAtASaneDraft()
+    [Theory]
+    [InlineData("pa18-floats-like")]
+    [InlineData("dhc2-beaver-floats-like")]
+    public void FloatsAtRestAtASaneDraft(string id)
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
-            AircraftConfig cfg = Load();
+            AircraftConfig cfg = Load(id);
             // Drop it in: CG 1.3 m above the water, level, at rest.
-            var state = new RigidBodyState(new Vec3(0, 0, -1.3), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+            var state = new RigidBodyState(new Vec3(0, 0, -(cfg.Floats!.KeelZ - 0.25)), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
             var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
             var sim = new SimLoop(ac);
             for (int i = 0; i < 100; i++)
@@ -49,14 +51,16 @@ public class FloatTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    [Fact]
-    public void TakesOffFromTheWaterUnderFullPower()
+    [Theory]
+    [InlineData("pa18-floats-like")]
+    [InlineData("dhc2-beaver-floats-like")]
+    public void TakesOffFromTheWaterUnderFullPower(string id)
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
-            AircraftConfig cfg = Load();
-            var state = new RigidBodyState(new Vec3(0, 0, -1.3), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
+            AircraftConfig cfg = Load(id);
+            var state = new RigidBodyState(new Vec3(0, 0, -(cfg.Floats!.KeelZ - 0.25)), new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
             var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
             var sim = new SimLoop(ac);
             sim.RunFor(4.0, new ControlInputs(0, 0, 0, 1.0)); // settle at idle
@@ -84,17 +88,19 @@ public class FloatTests
         finally { FloatHydro.FlatWaterOverride = null; }
     }
 
-    [Fact]
-    public void LandsOnTheWaterAndSlowsDown()
+    [Theory]
+    [InlineData("pa18-floats-like", 26.0)]          // ~50 kt full-flap glide
+    [InlineData("dhc2-beaver-floats-like", 31.0)]   // ~60 kt (Beaver float approach ~65 mph)
+    public void LandsOnTheWaterAndSlowsDown(string id, double approachMs)
     {
         FloatHydro.FlatWaterOverride = 0.0;
         try
         {
-            AircraftConfig cfg = Load();
+            AircraftConfig cfg = Load(id);
             // Power-off full-flap glide at 26 m/s (~50 kt): the aircraft holds this hands-off, so the approach is
             // the trim itself; the flare is a steady elevator ramp from 8 m (real technique: pull steadily, let it
             // settle on the step as the speed bleeds).
-            const double V = 26.0;
+            double V = approachMs;
             TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, V, 40, flapFraction: 1.0);
             Assert.True(trim.Converged, "approach trim must converge");
             _out.WriteLine($"approach {V:F0} m/s full flap glide: α {trim.AlphaRad * 57.3:F1}° elev {trim.ElevatorRad * 57.3:F1}° γ {(trim.ThetaRad - trim.AlphaRad) * 57.3:F1}°");

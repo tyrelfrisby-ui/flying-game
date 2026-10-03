@@ -40,6 +40,7 @@ public class DisplacementTests
 
     [Theory]
     [InlineData("pa18-floats-like", 1.8, 2.6)]   // EDO 2000 pair ≈ 4,000 lb on a ~1,800-2,000 lb Cub ≈ 2.0-2.2 W
+    [InlineData("dhc2-beaver-floats-like", 1.8, 2.3)]   // EDO 4930 pair ≈ 9,860 lb on a 4,850-5,090 lb Beaver ≈ 1.9-2.0 W
     [InlineData("hughes-h4-like", 1.8, 25.0)]    // hull: 25 x 30 x 218 ft — enormous reserve; its rest DRAFT is the real check (FlyingBoatTests)
     public void ReserveBuoyancyMeetsTheRule(string id, double minRatio, double maxRatio)
     {

@@ -95,7 +95,7 @@ namespace FlyingGame.Bridge
         public static readonly (string id, string name)[] Fleet =
         {
             ("glider-2-33-like", "Trainer Glider"), ("glider-eb29r-like", "EB29R Open Class"), ("glider-swift-s1-like", "Swift Aerobatic"), ("c172-like", "Skyhawk"), ("pa28-archer-like", "Archer"), ("cirrus-sr22-like", "Cirrus SR22"), ("pa18-cub-like", "Super Cub"),
-            ("pa18-bush-like", "Cub Bushwheels"), ("pa18-floats-like", "Cub on Floats"), ("pa25-pawnee-like", "Pawnee"),
+            ("pa18-bush-like", "Cub Bushwheels"), ("pa18-floats-like", "Cub on Floats"), ("dhc2-beaver-floats-like", "Beaver on Floats"), ("pa25-pawnee-like", "Pawnee"),
             ("decathlon-8kcab-like", "Decathlon"), ("extra-300-like", "Extra 300"), ("pitts-s2b-like", "Pitts S-2"),
             ("stearman-pt17-like", "Stearman"), ("p51d-like", "P-51 Mustang"), ("f86-sabre-like", "F-86 Sabre"),
             ("seminole-like", "Seminole"), ("dc3-like", "DC-3"), ("boeing-737-like", "737"), ("hughes-h4-like", "Hughes H-4"),

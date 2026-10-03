@@ -147,7 +147,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 2026.1002.2035
+  bundleVersion: 2026.1002.2102
   preloadedAssets:
   - {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   metroInputSource: 0
@@ -174,9 +174,9 @@ PlayerSettings:
     Standalone: com.tyrelfrisby.aeroplayground.mac
     iPhone: com.tyrelfrisby.aeroplayground
   buildNumber:
-    Standalone: 202610022035
+    Standalone: 202610022102
     VisionOS: 0
-    iPhone: 202610022025
+    iPhone: 202610022047
     tvOS: 0
   overrideDefaultApplicationIdentifier: 1
   AndroidBundleVersionCode: 1
