@@ -113,6 +113,53 @@ namespace FlyingGame.EditorTools
             }
         }
 
+        /// <summary>
+        /// Mac app (owner 2026-10-02: Aero Playground ships on Mac + iPad + iPhone, kept in parity). Universal (Apple
+        /// silicon + Intel), Mono, resizable window; same scene, configs and build stamp as iOS. Output:
+        /// $FLYINGGAME_MAC_OUT or build/macOS/Aero Playground.app. Headless:
+        ///   Unity -batchmode -quit -projectPath unity -buildTarget OSXUniversal -executeMethod FlyingGame.EditorTools.BuildScript.BuildMac
+        /// </summary>
+        [MenuItem("FlyingGame/Build macOS app")]
+        public static void BuildMac()
+        {
+            PlayerSettings.companyName = "FlyingGame";
+            PlayerSettings.productName = ProductName;
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, BundleId + ".mac");
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
+            PlayerSettings.stripEngineCode = false;
+            PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+            PlayerSettings.defaultScreenWidth = 1600;
+            PlayerSettings.defaultScreenHeight = 1000;
+            PlayerSettings.resizableWindow = true;
+            PlayerSettings.runInBackground = false;
+            PlayerSettings.macOS.buildNumber = System.DateTime.Now.ToString("yyyyMMddHHmm");
+            PlayerSettings.bundleVersion = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
+            UnityEditor.OSXStandalone.UserBuildSettings.architecture = UnityEditor.Build.OSArchitecture.x64ARM64;
+            EnsureSceneInBuild();
+            EnsureAlwaysIncludedShaders();
+            EnsureBuiltinFontPreloaded();
+            EnsureAppIcon();
+            EnsureEngineLoopsReadable();
+            AssetDatabase.SaveAssets();
+
+            string outDir = System.Environment.GetEnvironmentVariable("FLYINGGAME_MAC_OUT");
+            if (string.IsNullOrEmpty(outDir)) outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/macOS"));
+            Directory.CreateDirectory(outDir);
+            string app = Path.Combine(outDir, ProductName + ".app");
+            BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath }, locationPathName = app,
+                target = BuildTarget.StandaloneOSX, targetGroup = BuildTargetGroup.Standalone, options = BuildOptions.None,
+            });
+            if (report.summary.result == BuildResult.Succeeded)
+                Debug.Log($"macOS build SUCCEEDED → {app} ({report.summary.totalSize / (1024 * 1024)} MB, {report.summary.totalTime.TotalSeconds:F0}s)");
+            else
+            {
+                Debug.LogError($"macOS build FAILED: {report.summary.result}, {report.summary.totalErrors} error(s).");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+            }
+        }
+
         // Shaders referenced only by Shader.Find(name) at runtime are stripped from a player build
         // (they work in the editor, then return null on device — black screen). Force-include the ones
         // SceneBootstrap/BubbleField/SoaringScenery look up.
