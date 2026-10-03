@@ -35,7 +35,7 @@ namespace FlyingGame.Bridge
             if (_active || cam == null) return;
             _active = true;
             SideAxis = new Vector3(sideRight.x, 0f, sideRight.z).normalized;
-            foreach (string n in new[] { "World", "Soaring", "LiftBubbles" })
+            foreach (string n in new[] { "World", "Soaring", "LiftBubbles", "Clouds" })
             {
                 GameObject g = GameObject.Find(n);
                 if (g != null && g.activeSelf) { g.SetActive(false); _hidden.Add(g); }

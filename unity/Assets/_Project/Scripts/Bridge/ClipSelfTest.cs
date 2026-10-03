@@ -27,6 +27,7 @@ namespace FlyingGame.Bridge
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
+            if (mode == "clouds") { yield return CloudTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -212,6 +213,32 @@ namespace FlyingGame.Bridge
                 if (i == 6) ScreenCapture.CaptureScreenshot("selftest-combat.png");
             }
             Debug.Log("[SelfTest] DONE combat");
+        }
+
+        /// <summary>AERO_SELFTEST=clouds: the Skyhawk put at three spots round the first Valley thermal's cumulus — 3.5 km
+        /// off at 1,500 m (the cloud on the horizon), under its base, and inside it (whiteout).</summary>
+        private IEnumerator CloudTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "c172-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            var th = FlyingGame.Core.Atmosphere.Thermals[0];
+            var core = th.CoreAt(th.TopAltitudeM);
+            (string name, double dx, double alt)[] shots = { ("clouds-far", -3500, 1500), ("clouds-under", -900, th.TopAltitudeM - 250), ("clouds-inside", -50, th.TopAltitudeM + 250) };
+            foreach (var (name, dx, alt) in shots)
+            {
+                var pos = new FlyingGame.Core.MathTypes.Vec3(core.X + dx, core.Y, -alt);
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(pos, FlyingGame.Core.MathTypes.Quat.Identity,
+                    new FlyingGame.Core.MathTypes.Vec3(50, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                yield return new WaitForSecondsRealtime(1.2f);
+                Debug.Log($"[SelfTest] {name} whiteout {Cumulus.Whiteout:F2}");
+                ScreenCapture.CaptureScreenshot(name + ".png");
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
+            Debug.Log("[SelfTest] DONE clouds");
         }
 
         /// <summary>AERO_SELFTEST=thermal: the 2-33 started in a thermal, hands off; logs height and bank every 5 s.</summary>
