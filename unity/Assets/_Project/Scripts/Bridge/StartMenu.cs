@@ -23,6 +23,21 @@ namespace FlyingGame.Bridge
 
         private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
         private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
+        private string _flapsFor; private bool _flapsHas;
+        /// <summary>Does the aircraft picked on this page have flaps? (its config, cached per id)</summary>
+        private bool SelectedHasFlaps()
+        {
+            if (_flapsFor == SessionSettings.AircraftId) return _flapsHas;
+            _flapsFor = SessionSettings.AircraftId; _flapsHas = false;
+            try
+            {
+                var cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(SessionSettings.AircraftId);
+                foreach (var sf in cfg.Surfaces) foreach (var st in sf.Strips) if (st.Flap != null) _flapsHas = true;
+            }
+            catch (System.Exception) { }
+            return _flapsHas;
+        }
+
         private Net.NetSession Net => Driver != null ? Driver.GetComponent<Net.NetSession>() : null;
         private Texture2D _bg, _btnBg, _btnOnBg;
         private int _fs;
@@ -269,6 +284,16 @@ namespace FlyingGame.Bridge
                     bool on = (SessionSettings.LessonUserAxes & (1 << i)) != 0;
                     if (UiLayout.Button(new Rect(x + i * (aw + gap * 0.3f), y, aw, bh), names[i], on ? _btnOn : _btn)) SessionSettings.LessonUserAxes ^= (1 << i);
                 }
+                y += bh + gap * 0.4f;
+            }
+            if (SessionSettings.LessonHasFlapChoice(SessionSettings.ChallengeId) && SelectedHasFlaps())
+            {
+                // Flaps for the landing lessons (owner 2026-10-03): the lesson starts on the power-off glide for this setting.
+                UiLayout.Label(new Rect(x, y, colW, lh), "FLAPS", _head); y += lh;
+                (float f, string n)[] fl = { (0f, "UP"), (0.5f, "HALF"), (1f, "FULL") };
+                float flw = (colW - 2 * gap * 0.3f) / 3f;
+                for (int i = 0; i < 3; i++)
+                    if (UiLayout.Button(new Rect(x + i * (flw + gap * 0.3f), y, flw, bh), fl[i].n, Mathf.Approximately(SessionSettings.LessonFlaps, fl[i].f) ? _btnOn : _btn)) SessionSettings.LessonFlaps = fl[i].f;
                 y += bh + gap * 0.4f;
             }
             if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && SessionSettings.PracticeHasWindChoice(SessionSettings.ChallengeId))

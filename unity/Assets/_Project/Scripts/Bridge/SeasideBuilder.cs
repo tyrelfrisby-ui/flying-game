@@ -17,7 +17,7 @@ namespace FlyingGame.Bridge
         private static Vector3 U(double x, double y, double up) => WorldBuilder.U(x, y, up);
 
         /// <summary>Vertex-coloured triangle batch → one or more meshes.</summary>
-        private sealed class Batch
+        internal sealed class Batch
         {
             private readonly List<Vector3> _v = new(); private readonly List<Vector3> _n = new(); private readonly List<Color> _c = new(); private readonly List<int> _t = new();
             public int Count => _v.Count;
@@ -79,6 +79,42 @@ namespace FlyingGame.Bridge
                 }
             }
 
+            /// <summary>A torus in the plane whose normal is <paramref name="normal"/> (centre c, major R, tube r);
+            /// colour per segment from <paramref name="segColour"/>.</summary>
+            public void Torus(Vector3 c, Vector3 normal, float R, float r, int segs, int sides, System.Func<int, Color> segColour)
+            {
+                normal = normal.normalized;
+                Vector3 a = Vector3.Cross(normal, Mathf.Abs(normal.y) < 0.9f ? Vector3.up : Vector3.right).normalized, b = Vector3.Cross(normal, a);
+                for (int i = 0; i < segs; i++)
+                {
+                    float t0 = i * Mathf.PI * 2 / segs, t1 = (i + 1) * Mathf.PI * 2 / segs;
+                    Vector3 c0 = a * Mathf.Cos(t0) + b * Mathf.Sin(t0), c1 = a * Mathf.Cos(t1) + b * Mathf.Sin(t1);
+                    for (int k = 0; k < sides; k++)
+                    {
+                        float p0 = k * Mathf.PI * 2 / sides, p1 = (k + 1) * Mathf.PI * 2 / sides;
+                        Vector3 P(Vector3 cc, float p) => c + cc * R + (cc * Mathf.Cos(p) + normal * Mathf.Sin(p)) * r;
+                        Quad(P(c0, p0), P(c1, p0), P(c1, p1), P(c0, p1), segColour(i));
+                    }
+                }
+            }
+
+            /// <summary>A tube along a polyline (n-sided).</summary>
+            public void Tube(IList<Vector3> pts, float r, int sides, Color col)
+            {
+                for (int i = 0; i < pts.Count - 1; i++)
+                {
+                    Vector3 d = (pts[i + 1] - pts[i]).normalized;
+                    Vector3 a = Vector3.Cross(d, Vector3.up); if (a.sqrMagnitude < 1e-4f) a = Vector3.right; a.Normalize();
+                    Vector3 b = Vector3.Cross(d, a);
+                    for (int k = 0; k < sides; k++)
+                    {
+                        float p0 = k * Mathf.PI * 2 / sides, p1 = (k + 1) * Mathf.PI * 2 / sides;
+                        Vector3 o0 = (a * Mathf.Cos(p0) + b * Mathf.Sin(p0)) * r, o1 = (a * Mathf.Cos(p1) + b * Mathf.Sin(p1)) * r;
+                        Quad(pts[i] + o0, pts[i + 1] + o0, pts[i + 1] + o1, pts[i] + o1, col);
+                    }
+                }
+            }
+
             public GameObject Build(string name, Transform parent, Material m)
             {
                 var mesh = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
@@ -94,7 +130,7 @@ namespace FlyingGame.Bridge
         }
 
         private static Material _vc;
-        private static Material VC => _vc ??= WorldBuilder.Mat("FlyingGame/LitVC", Color.white);
+        internal static Material VC => _vc ??= WorldBuilder.Mat("FlyingGame/LitVC", Color.white);
 
         public static readonly Color Orange = new(0.75f, 0.22f, 0.16f);   // International Orange
         private static readonly Color Concrete = new(0.68f, 0.67f, 0.64f), Asphalt = new(0.2f, 0.2f, 0.22f), Rock = new(0.52f, 0.45f, 0.37f),
@@ -106,7 +142,6 @@ namespace FlyingGame.Bridge
             var root = new GameObject("Seaside"); root.transform.SetParent(parent, false);
             BuildOcean(root.transform);
             BuildGoldenGate(t, root.transform);
-            BuildCity(t, root.transform);
             BuildIslandRunway(t, root.transform);
             BuildArch(root.transform);
             BuildAvalon(t, root.transform);
@@ -178,31 +213,6 @@ namespace FlyingGame.Bridge
                 b.Box(U(ax, y, t.HeightAt(ax, y) + 10), new Vector3(2 * dw + 14, 22f, 40f), Concrete);
             }
             b.Build("GoldenGate", parent, VC);
-        }
-
-        // ---- the waterfront city --------------------------------------------------------------------------------
-        private static void BuildCity(WorldTerrain t, Transform parent)
-        {
-            var b = new Batch();
-            double g = t.HeightAt(SeaCity.CentreX, SeaCity.CentreY);
-            // Paved ground and the street grid.
-            b.Box(U(0.5 * (SeaCity.X0 + SeaCity.X1), 0.5 * (SeaCity.Y0 + SeaCity.Y1), g + 0.05), new Vector3((float)(SeaCity.Y1 - SeaCity.Y0), 0.1f, (float)(SeaCity.X1 - SeaCity.X0)), Concrete * 0.85f);
-            Color[] walls = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.52f, 0.44f), new(0.86f, 0.86f, 0.88f) };
-            var glass = new Color(0.42f, 0.6f, 0.78f);
-            foreach (Landmarks.Building bd in SeaCity.Buildings())
-            {
-                double gg = t.HeightAt(bd.Cx, bd.Cy);
-                bool tower = bd.HeightM > 140;
-                Color c = tower ? (bd.Style % 2 == 0 ? glass : walls[bd.Style]) : walls[System.Math.Min(bd.Style, 3)];
-                b.Box(U(bd.Cx, bd.Cy, gg + bd.HeightM / 2), new Vector3((float)(bd.Hy * 2), (float)bd.HeightM, (float)(bd.Hx * 2)), c, c * 0.8f);
-                if (tower)
-                {
-                    // Setback crown + a mast: the skyline reads as a skyline.
-                    b.Box(U(bd.Cx, bd.Cy, gg + bd.HeightM + 8), new Vector3((float)bd.Hy * 1.2f, 16f, (float)bd.Hx * 1.2f), c * 0.85f);
-                    if (bd.Style == 0) b.Box(U(bd.Cx, bd.Cy, gg + bd.HeightM + 30), new Vector3(1.2f, 28f, 1.2f), new Color(0.8f, 0.8f, 0.82f));
-                }
-            }
-            b.Build("SeaCity", parent, VC);
         }
 
         // ---- island: Airport in the Sky --------------------------------------------------------------------------

@@ -239,6 +239,13 @@ public sealed class PropulsionConfig
     /// rpm follows throttle and airspeed.</summary>
     public bool ConstantSpeed { get; set; }
     public double GovernedRpm { get; set; } = 2400;
+    /// <summary>Drag of the idling / windmilling propeller as a coefficient on its DISC area (owner 2026-10-03: the 172
+    /// glided 14:1 at idle — the POH says 9:1 — and floated forever). A fine-pitch prop at idle is driven by the air and
+    /// is a big drag: C_D ≈ 0.15–0.25 on disc area. Fades out as the throttle comes up (gone by 20 %).
+    /// Calibrated at 0.15 (172 → 8.9:1, book 9:1; Cub 8:1; SR22 ≈ 10:1, book 8.8:1). Fast types with big props set their own
+    /// (the drag of a windmilling blade falls off at high advance ratio): Extra 0.08 (7:1); P-51 0.05 (8:1 at 120 kt).</summary>
+    public double IdleDragCd { get => _idleDragCd ?? 0.15; set => _idleDragCd = value; }
+    private double? _idleDragCd;
 }
 
 public sealed class StallDynamicsConfig

@@ -41,7 +41,7 @@ namespace FlyingGame.Bridge
         /// no touch pads / trim slider; keyboard (ramped) + joystick drive the controls and a small read-only indicator
         /// shows where they are. The on-screen buttons stay (mouse).</summary>
         public static bool DeskMode => !Application.isMobilePlatform;
-        public float TrimAuthority = 0.4f;      // full trim slider = this much elevator (stick units)
+        public float TrimAuthority = 0.6f;      // full trim slider = this much elevator (stick units) — enough to trim flaps-down approaches (owner 2026-10-03)
         public float IdleFraction = 0.25f;      // knob height (0 bottom..1 top) where throttle reaches idle
         public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
         public float BrakeRudderBias = 0.8f;    // full rudder shifts this much braking to one side
@@ -117,6 +117,13 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Preset the pitch-trim slider to the spawn trim so a neutral stick holds level flight.</summary>
+        /// <summary>Set the pilot's pitch trim to a stick position (lessons start in trim).</summary>
+        public void PresetPitchTrim(double stick)
+        {
+            float t = (float)stick / Mathf.Max(0.01f, TrimAuthority);
+            _pitchTrim = Mathf.Clamp(InvertElevator ? -t : t, -1f, 1f);
+        }
+
         private void PresetTrim()
         {
             // Air start: half power. Ground start: IDLE (owner: "power should start at idle on the ground").
@@ -595,6 +602,8 @@ namespace FlyingGame.Bridge
                 GUI.DrawTexture(ToGui(ScreenLayout.TrayRect), _solidTex);
                 GUI.color = Color.white;
             }
+            // A lesson card (briefing / debrief) is up: the pads and buttons step aside where they would sit under it.
+            if (UiLayout.Modal && (!ScreenLayout.Portrait || DeskMode)) return;
 
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             (float thr01, float padBrake) = SplitLeftAxis();

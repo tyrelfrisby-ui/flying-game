@@ -29,7 +29,7 @@ public static class ThermalSpawn
         double vRef = cfg.SpawnIasMs > 1 ? cfg.SpawnIasMs : 25.0, best = double.MaxValue, vBest = vRef;
         for (double v = 8; v <= vRef * 1.6; v += 0.5)
         {
-            TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, v, altitudeM);
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, v, altitudeM, idleProp: true);   // soaring power-off: the idling prop drags
             if (!t.Converged || t.GlideRatio <= 0 || double.IsNaN(t.GlideRatio) || t.AlphaRad > 13 * Math.PI / 180) continue;
             double sink = v / t.GlideRatio;
             if (sink < best) { best = sink; vBest = v; }
@@ -51,7 +51,7 @@ public static class ThermalSpawn
         }
         bank = Math.Min(bank, 60 * Math.PI / 180);
         double n = 1 / Math.Cos(bank);
-        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, v / Math.Sqrt(n), altitudeM);
+        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, v / Math.Sqrt(n), altitudeM, idleProp: true);
         double alpha = trim.AlphaRad, gamma = -Math.Atan(n / Math.Max(1.0, trim.GlideRatio));   // descending turn (still air)
 
         // A RIGHT-hand circle around the core at this height: heading north, the core 90° to the right (east).

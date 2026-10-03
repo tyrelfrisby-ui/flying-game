@@ -25,7 +25,7 @@ public class ReversibleControlTests
     private static (Aircraft ac, double trimStick, double v) Spawn(AircraftConfig cfg, double alt = 1000)
     {
         double v = cfg.SpawnIasMs > 1 ? cfg.SpawnIasMs : 25;
-        TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, v, alt);
+        TrimSolver.Result t = TrimSolver.SolveGliderTrim(cfg, v, alt, idleProp: true);   // flown at idle: the idling prop's drag is in the trim
         Assert.True(t.Converged);
         double h = t.ThetaRad / 2;
         var q = new Quat(0, Math.Sin(h), 0, Math.Cos(h));

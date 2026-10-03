@@ -34,7 +34,12 @@
           "incidenceRad": 0.02163,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [
@@ -47,7 +52,12 @@
           "incidenceRad": 0.01268,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [
@@ -60,7 +70,12 @@
           "incidenceRad": 0.00414,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [
@@ -169,7 +184,12 @@
           "incidenceRad": 0.02163,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [
@@ -182,7 +202,12 @@
           "incidenceRad": 0.01268,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [
@@ -195,7 +220,12 @@
           "incidenceRad": 0.00414,
           "dihedralRad": 0.07854,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.13,
+            "maxClMax": 0.95
+          }
         },
         {
           "pos": [

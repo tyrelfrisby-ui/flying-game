@@ -59,7 +59,8 @@ namespace FlyingGame.Bridge
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
             BuildCombatZone(WorldTerrain.Active, root.transform);
-            SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, city, the island
+            SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
+            PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
             // lee) — replaces the old single Gaussian lift band.
             Atmosphere.ActiveRidge = null;
@@ -97,6 +98,13 @@ namespace FlyingGame.Bridge
                 return c;
             }
             if (SeaCave.IsSand(x, y)) { c = new Color(0.86f, 0.79f, 0.6f, 0f); return c; }
+            // The canyon lake's walls: banded Navajo sandstone.
+            if (y > CanyonLake.Y0 - 60 && y < CanyonLake.DamY + 80 && slope > 0.5f && System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < CanyonLake.HalfWidthAt(y) + 40)
+            {
+                int band = (int)(h / 9) % 3;
+                Color sandstone = band == 0 ? new Color(0.78f, 0.43f, 0.27f) : band == 1 ? new Color(0.86f, 0.58f, 0.38f) : new Color(0.66f, 0.34f, 0.22f);
+                c = Color.Lerp(c, sandstone, Mathf.Clamp01((slope - 0.35f) / 0.4f));
+            }
             c.a = 1f - Mathf.Clamp01(slope / 0.08f); // flatness → field grid lines
             return c;
         }
@@ -124,6 +132,11 @@ namespace FlyingGame.Bridge
                                System.Math.Min(Island.AvalonY - R - 120, SeaCave.Cy - SeaCave.RadiusM - 90), System.Math.Max(Island.AvalonY + R + 450, SeaCave.Cy + SeaCave.RadiusM + 90), 5);
             yield return Cells(SeaArch.X0 - 200, SeaArch.X1 + 200, SeaArch.Cy - 350, SeaArch.Cy + 350, 10);
             yield return Cells(Island.RunwayX - Island.RunwayPadHalfX - 200, Island.RunwayX + Island.RunwayPadHalfX + 200, Island.RunwayY - 350, Island.RunwayY + 350, 10);
+            // The canyon lake (sandstone walls, buttes): from just past the Valley waterfall's own patch to the dam.
+            double fallsEnd = 0; foreach (WorldTerrain.Waterfall f in WorldTerrain.Active.Waterfalls) if (f.Step == 0) fallsEnd = f.LipY + 460;
+            double lx0 = double.MaxValue, lx1 = double.MinValue;
+            for (double y = CanyonLake.Y0; y < CanyonLake.DamY + 100; y += 50) { lx0 = System.Math.Min(lx0, CanyonLake.CentreX(y) - 420); lx1 = System.Math.Max(lx1, CanyonLake.CentreX(y) + 420); }
+            yield return Cells(lx0, lx1, fallsEnd + 61, CanyonLake.DamY + 120, 10);
             yield return Cells(GoldenGate.CentreX - GoldenGate.HalfMainSpanM - 500, GoldenGate.CentreX + GoldenGate.HalfMainSpanM + 500, GoldenGate.Y - 900, GoldenGate.Y + 400, 10);
         }
 
@@ -396,7 +409,7 @@ namespace FlyingGame.Bridge
         {
             double y = WorldTerrain.BridgeY + WorldTerrain.PlateauDy(p);
             double cx = WorldTerrain.RiverCentreX(y);
-            double halfSpan = WorldTerrain.GorgeHalfWidthAt(y) + 60;
+            double halfSpan = System.Math.Max(WorldTerrain.GorgeHalfWidthAt(y) + 60, CanyonLake.HalfWidthAt(y) + 45);   // the Valley copy spans the canyon lake
             double deck = t.BaseHeightAt(cx - halfSpan - 40, y) + 1.5;   // rim level
             var root = new GameObject($"Bridge{p}");
             root.transform.SetParent(parent, false);
@@ -664,7 +677,7 @@ namespace FlyingGame.Bridge
         private static readonly Dictionary<Font, Material> _textMats = new();
 
         /// <summary>Font material that writes/tests depth (GUI/3D Text Shader) so signs occlude their own back face.</summary>
-        private static Material DepthTestedText(Font font)
+        internal static Material DepthTestedText(Font font)
         {
             if (_textMats.TryGetValue(font, out Material m) && m != null) return m;
             Shader sh = Shader.Find("GUI/3D Text Shader");

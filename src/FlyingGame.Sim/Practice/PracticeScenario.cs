@@ -127,14 +127,18 @@ public sealed class PracticeScenario
     public bool GameAileron { get; private set; } = true; public bool GameElevator { get; private set; } = true;
     public bool GameRudder { get; private set; } = true; public bool GameThrottle { get; private set; } = true;
 
-    public PracticeScenario(PracticeKind kind, PracticeWind wind, AircraftConfig config, WorldTerrain.RunwayEnd runway, double surfaceM, double crosswindMs = 4.0, int seed = 1, int userAxes = -1)
+    public PracticeScenario(PracticeKind kind, PracticeWind wind, AircraftConfig config, WorldTerrain.RunwayEnd runway, double surfaceM, double crosswindMs = 4.0, int seed = 1, int userAxes = -1, double flapFraction = 0.0)
     // crosswindMs is the CAP; the actual crosswind scales with the type's speed. userAxes: bit 0 aileron, 1 elevator, 2 rudder, 3 throttle (−1 = the lesson's default)
     {
         if (userAxes < 0) userAxes = kind switch { PracticeKind.STurns => 0b0100, PracticeKind.STurnsTest => 0b0101, PracticeKind.ClimbLevelDescend => 0b1010, PracticeKind.GlideRear or PracticeKind.GlideSide => 0b0010, PracticeKind.ClimbVyRear => 0b0110, PracticeKind.ClimbVxSide => 0b0010, _ => 0 };
         UserAilOn = (userAxes & 1) != 0; UserEleOn = (userAxes & 2) != 0; UserRudOn = (userAxes & 4) != 0; UserThrOn = (userAxes & 8) != 0;
         Kind = kind; WindPattern = wind; Config = config; Runway = runway; SurfaceM = surfaceM;
         _rng = new Random(seed);
-        VsoMs = EstimateVso(config, surfaceM);
+        // Flaps (owner 2026-10-03: pick the setting for the landing lessons): every speed and angle below is for THIS configuration.
+        Flaps = Descending ? Math.Clamp(flapFraction, 0, 1) : 0.0;
+        // The idle-glide TABLE (owner: start every landing lesson from it) at the Valley; computed live elsewhere.
+        Table = Math.Abs(surfaceM - WorldTerrain.DatumM) < 60 ? GlideTable.Lookup(config.Id, Flaps) : null;
+        VsoMs = Table != null ? Table.VsoKt / 1.943844 : EstimateVso(config, surfaceM, Flaps);
         // Crosswind scaled to the type: ~20 % of the exercise speed (a Cub at 28 kt gets 5 kt, a 172 at 50 kt gets 8 kt) —
         // a fixed 8 kt asked a Cub for 16° of slip, beyond its rudder.
         CrosswindMs = crosswindMs > 0 ? Math.Clamp(0.16 * 1.15 * VsoMs, 2.0, crosswindMs) : 0;   // ≈0.18 Vso steady, 0.28 Vso in the gusts
@@ -158,13 +162,34 @@ public sealed class PracticeScenario
             // for a glider, the glide with half spoiler at 1.3 Vso (room to play either side).
             double v = 1.3 * VsoMs;
             bool glider = config.Propulsion is null;
-            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, surfaceM + 50, spoilerFraction: glider ? 0.5 : 0.0);
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, surfaceM + 50, flapFraction: Flaps, spoilerFraction: glider ? 0.5 : 0.0);
             double ratio = t.Converged && t.GlideRatio > 0 ? t.GlideRatio : ApproachSpawn.FindBestGlide(config, surfaceM + 50).GlideRatio;
             double gammaIdle = Math.Atan(1.0 / Math.Max(3.0, ratio));
             GlideslopeRad = glider ? gammaIdle : gammaIdle * 0.8;
             GlideslopeRad = Math.Clamp(GlideslopeRad, 2.5 * Math.PI / 180, 8.0 * Math.PI / 180);
         }
     }
+
+    /// <summary>Flap setting for the landing lessons (0 up … 1 full).</summary>
+    public double Flaps { get; }
+
+    /// <summary>The flare lesson's starting path: the POWER-OFF glide at 1.3 Vso in this configuration (idle prop drag
+    /// included) — the airplane starts on it, on speed and in trim, so all that is left is the round-out and flare.</summary>
+    public double FlareGlideRad => _flareGlide ??= ComputeFlareGlide();
+    private double? _flareGlide;
+    /// <summary>This lesson's row of the idle-glide table (null: not in the table / not at the Valley — computed live).</summary>
+    public GlideEntry? Table { get; }
+
+    private double ComputeFlareGlide()
+    {
+        if (Table != null) return Table.GlideDeg * Math.PI / 180;
+        TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, 1.3 * VsoMs, SurfaceM + 15, flapFraction: Flaps, spoilerFraction: Config.Propulsion is null ? 0.5 : 0.0, idleProp: true);
+        double ratio = t.Converged && t.GlideRatio > 1 ? t.GlideRatio : 8.0;
+        return Math.Clamp(Math.Atan(1.0 / ratio), 2.0 * Math.PI / 180, 14.0 * Math.PI / 180);
+    }
+
+    /// <summary>Stick position that holds the spawn trim — preset on the pilot's pitch trim so hands-off flies the path.</summary>
+    public double TrimStick => _elevTrim;
 
     /// <summary>Approach: glideslope angle (positive = down) and where it meets the runway (150 m past the threshold).</summary>
     public double GlideslopeRad { get; }
@@ -177,18 +202,20 @@ public sealed class PracticeScenario
     /// <summary>The SIM's stall speed for this type: the slowest speed the trim solver can hold below 12° of angle of attack
     /// (a CLmax guess from the wing area put a Cub's "1.15 Vso" below its real stall, and the height law pulled it into a
     /// stall in the first gust).</summary>
-    public static double EstimateVso(AircraftConfig config, double altitudeM)
+    public static double EstimateVso(AircraftConfig config, double altitudeM, double flapFraction = 0.0)
     {
         // Scan DOWN from a comfortable speed and stop at the first speed the trim solver can no longer hold below 14° of
         // angle of attack (scanning up found spurious low-speed solutions on some types).
         double vRef = config.SpawnIasMs > 1 ? config.SpawnIasMs : 25.0;
-        double last = vRef;
+        // (With flaps the fast end may not trim at all — the elevator runs out nose-down — so failures before the first
+        // trimmable speed are skipped; the stall is the first failure AFTER one.)
+        double last = vRef; bool found = false;
         for (double v = vRef * 1.6; v >= vRef * 0.35; v -= 0.5)
         {
-            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM);
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM, flapFraction: flapFraction);
             bool ok = t.Converged && !double.IsNaN(t.AlphaRad) && t.AlphaRad < 14.0 * Math.PI / 180 && t.GlideRatio > 0;
-            if (!ok) return last;
-            last = v;
+            if (!ok) { if (found) return last; continue; }
+            found = true; last = v;
         }
         return last;
     }
@@ -243,8 +270,12 @@ public sealed class PracticeScenario
         {
             TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, v, altM);
             if (!t.Converged || t.GlideRatio <= 0 || double.IsNaN(t.GlideRatio)) continue;
-            double sink = v / t.GlideRatio;
-            if (t.GlideRatio > bestLd) { bestLd = t.GlideRatio; BestLdMs = v; }
+            // The power-OFF numbers (best glide, min sink, speed to fly) are with the prop idling; the climb numbers below
+            // use the airframe's own drag (t) against full-power thrust.
+            TrimSolver.Result ti = glider ? t : TrimSolver.SolveGliderTrim(Config, v, altM, idleProp: true);
+            if (!ti.Converged || ti.GlideRatio <= 0 || double.IsNaN(ti.GlideRatio)) continue;
+            double sink = v / ti.GlideRatio;
+            if (ti.GlideRatio > bestLd) { bestLd = ti.GlideRatio; BestLdMs = v; }
             if (sink < minSink) { minSink = sink; MinSinkMs = v; }
             double ground = (v + windAlong) / sink;                    // distance over the ground per unit height
             if (ground > bestGround) { bestGround = ground; SpeedToFlyMs = v; }
@@ -395,7 +426,7 @@ public sealed class PracticeScenario
         double wheels = Approach ? 91.44 : FlareExercise ? FiftyFtM : FiveFtM;   // WHEEL height (owner: "5 ft")
         double agl = wheels + GearDropM;
         double v = (FlareExercise || Approach) ? 1.3 * VsoMs : 1.15 * VsoMs;
-        double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(4.0 * Math.PI / 180) - 150 : 0;   // aimed 150 m past the threshold
+        double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(FlareGlideRad) - 150 : 0;   // aimed 150 m past the threshold
         (double tx, double ty) = Runway.Threshold;
         var pos = new Vec3(tx - Runway.AlongX * back, ty - Runway.AlongY * back, -(SurfaceM + agl));
         // Crab into the wind so the ground track runs along the runway from the first frame.
@@ -407,10 +438,12 @@ public sealed class PracticeScenario
         // Trim for THIS speed (the best-glide trim is faster and flatter: spawning with it sank the aircraft off 5 ft, the
         // law hauled back and the wing stalled and dropped). The glide trim at v gives the angle of attack and elevator;
         // the power to hold level flight follows from the glide ratio.
-        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(Config, v, SurfaceM + agl, spoilerFraction: Config.Propulsion is null && Approach ? 0.5 : 0.0);
+        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(Config, v, SurfaceM + agl, flapFraction: Flaps, spoilerFraction: Config.Propulsion is null && (Approach || FlareExercise) ? 0.5 : 0.0, idleProp: FlareExercise);   // the flare starts power-off
         _theta0 = trim.Converged ? trim.ThetaRad : 0.0;
-        double gamma = Approach ? -GlideslopeRad : FlareExercise ? -4.0 * Math.PI / 180 : 0;
+        double gamma = Approach ? -GlideslopeRad : FlareExercise ? -FlareGlideRad : 0;
         double alpha = trim.Converged ? trim.AlphaRad : 0.08;
+        bool fromTable = FlareExercise && Table != null;     // start exactly on the table's row: idle, on speed, trimmed
+        if (fromTable) alpha = Table!.AlphaDeg * Math.PI / 180;
         double pitch = alpha + gamma;
         double hh = heading / 2, hp = pitch / 2;
         var att = Quat.Multiply(new Quat(0, 0, Math.Sin(hh), Math.Cos(hh)), new Quat(0, Math.Sin(hp), 0, Math.Cos(hp)));
@@ -418,7 +451,7 @@ public sealed class PracticeScenario
         double vAlong = Math.Sqrt(Math.Max(0, v * v - wCross * wCross)) + (w.X * Runway.AlongX + w.Y * Runway.AlongY);
         var vWorld = new Vec3(Runway.AlongX * vAlong * Math.Cos(gamma), Runway.AlongY * vAlong * Math.Cos(gamma), -vAlong * Math.Sin(gamma));
         var state = new RigidBodyState(pos, att, att.Conjugate().Rotate(vWorld), Vec3.Zero);
-        double elevRad = trim.Converged ? trim.ElevatorRad : ApproachSpawn.ApproachGlide(Config, SurfaceM + agl).ElevatorRad;
+        double elevRad = fromTable ? Table!.ElevatorDeg * Math.PI / 180 : trim.Converged ? trim.ElevatorRad : ApproachSpawn.ApproachGlide(Config, SurfaceM + agl).ElevatorRad;
         _elevTrim = Aircraft.StickForDeflection(elevRad, Config.Controls.Elevator);
         // Power for the exercise: thrust = drag (weight / glide ratio) less the gravity component along the path.
         double ratio = trim.Converged && trim.GlideRatio > 0 ? trim.GlideRatio : 8.0;
@@ -427,8 +460,8 @@ public sealed class PracticeScenario
         double eff = Config.Propulsion?.Efficiency > 0 ? Config.Propulsion.Efficiency : 0.75;
         double maxP = Config.Propulsion?.MaxPowerW > 0 ? Config.Propulsion.MaxPowerW : 100000;
         _thr0 = FlareExercise || Config.Propulsion is null ? 0.0 : Math.Clamp(thrustNeeded * v / (eff * maxP), 0.0, 0.9);
-        var ac = new Aircraft(Config, state, new ControlDeflections(0, elevRad, 0, Config.Propulsion is null && Approach ? 0.5 : 0));
-        ac.FlapFraction = 0.0;   // the user picks the flap setting (owner: practise with and without)
+        var ac = new Aircraft(Config, state, new ControlDeflections(0, elevRad, 0, Config.Propulsion is null && (Approach || FlareExercise) ? 0.5 : 0, Flaps));
+        ac.FlapFraction = Flaps;   // the setting chosen on the lesson page
         return ac;
     }
 
@@ -446,7 +479,7 @@ public sealed class PracticeScenario
         SpeedTargetMs = v; TargetSpeedMs = v; StartAglM = AirworkAglM;
         double alt = SurfaceM + AirworkAglM;
         var pos = new Vec3(Runway.CentreX, Runway.CentreY, -alt);
-        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(Config, v, alt);
+        TrimSolver.Result trim = TrimSolver.SolveGliderTrim(Config, v, alt, idleProp: Glide);   // the glide lessons are power-off
         _theta0 = trim.Converged ? trim.ThetaRad : 0.05;
         double alpha = trim.Converged ? trim.AlphaRad : 0.05;
         bool glider = Config.Propulsion is null;
@@ -528,8 +561,153 @@ public sealed class PracticeScenario
     }
 
     // ---- the step ----------------------------------------------------------------------------------------------
-    /// <summary>Merge the user's axis into the autopilot's inputs for this step; drive the wind and the score.</summary>
+    /// <summary>Merge the user's axis into the autopilot's inputs for this step; drive the wind and the score; judge it.</summary>
     public ControlInputs Step(Aircraft ac, ControlInputs user, double dt)
+    {
+        ControlInputs c = StepCore(ac, user, dt);
+        JudgeStep(ac, dt);
+        return c;
+    }
+
+    // ---- points (owner 2026-10-03): the orb + the judged moments ------------------------------------------------------
+    /// <summary>The lesson's judge: live grade (the orb), points, judged moments.</summary>
+    public LessonJudge Judge => _judge ??= new LessonJudge(LessonJudge.For(Kind, Taildragger));
+    private LessonJudge? _judge;
+    private bool _judgedTouchdown, _judgedEnd, _flareStarted, _onGroundPrev, _damageNoted;
+    private int _touches; private double _hardestSinkMs, _maxBounceM, _groundedT, _touchSinkWindow;
+    private double _flarePitchRef = double.NaN, _flareSinkRef, _roundOutFt = -1, _stalledT, _stallOnsetAgl = double.NaN, _stallMinAgl, _sinceUnstallT;
+    public double RoundOutFt => _roundOutFt;
+    public const double TouchdownBeyondAimM = 100.0;
+
+    private void JudgeStep(Aircraft ac, double dt)
+    {
+        LessonJudge j = Judge;
+        (_, double pitch, _) = Euler(ac.State.Attitude);
+        double pitchDeg = pitch * 180 / Math.PI;
+        var live = j.Rules.Live;
+
+        // The end of a run: the result moment, or the crash.
+        if (Phase == PracticePhase.Finished)
+        {
+            if (_judgedEnd) return;
+            j.Now = Time;
+            _judgedEnd = true;
+            if (EndReason is "hit the ground" or "airframe failed") { j.Crash(EndReason == "airframe failed" ? "Airframe failed" : "Hit the ground"); return; }
+            foreach (Criterion m in j.Rules.Moments)
+                if (m.Name == LessonJudge.Std.Result.Name) j.Moment(m, Math.Max(0, 100 - Score), $"{Score:F0} % of the best");
+            return;
+        }
+        if (Phase != PracticePhase.Live) return;
+
+        j.Now = Time;
+        Grade g = Grade.Green; string lim = "";
+        double[] errs = new double[live.Count];
+        void W(Criterion c, double err)
+        {
+            Grade gg = c.Rate(err);
+            int i = live.IndexOf(c); if (i >= 0) errs[i] = err;
+            if (gg == Grade.Red && j.Current != Grade.Red) j.NoteRed(c, err);
+            if (gg > g) { g = gg; lim = c.Name; }
+        }
+        double kt = 1.943844, ft = 3.28084;
+        switch (Kind)
+        {
+            case PracticeKind.CrosswindRudder: case PracticeKind.LandingRudder: W(live[0], AlignmentDeg); break;
+            case PracticeKind.CrosswindAileron: case PracticeKind.LandingAileron: W(live[0], OffCentreM * ft); break;
+            case PracticeKind.Flare: case PracticeKind.FlareSideView: case PracticeKind.ApproachSideView:
+                if (!TouchedDown)
+                {
+                    // Round-out: the first nose-up of more than 2° below 60 ft, measured against the attitude at 60 ft.
+                    // (or the sink falling below 70 % of the approach sink measured there — the path flattening).
+                    if (MainsAglM < 18.3 && double.IsNaN(_flarePitchRef)) { _flarePitchRef = pitchDeg; _flareSinkRef = Math.Max(1.0, SinkMs); }
+                    if (!_flareStarted && !double.IsNaN(_flarePitchRef) && (pitchDeg - _flarePitchRef > 2.0 || SinkMs < 0.7 * _flareSinkRef)) { _flareStarted = true; _roundOutFt = MainsAglM * ft; }
+                    if (MainsAglM > 6.1)
+                    {
+                        if (Approach) { W(live[0], GlideslopeDeviationDeg); W(live[1], (AirspeedMs - 1.3 * VsoMs) * kt); }
+                    }
+                    else
+                    {
+                        Criterion fs = live[live.Count - 1].Name == LessonJudge.Std.FlareSink.Name ? live[live.Count - 1] : LessonJudge.Std.FlareSink;
+                        double ideal = MainsAglM / 5.0 + 0.1;                         // m/s: sink shrinking with the height
+                        double err = SinkMs < -0.3 ? 999 : Math.Abs(SinkMs - ideal) * 196.85;   // ballooning = red
+                        W(fs, err);
+                    }
+                }
+                break;
+            case PracticeKind.STurns: W(live[0], BetaDeg); break;
+            case PracticeKind.STurnsTest: W(live[0], BetaDeg); if (Math.Abs(BankDeg) > 40) W(live[1], Math.Max(0, Math.Abs(BankDeg) - 45)); break;
+            case PracticeKind.Straight: W(live[0], BankDeg); break;
+            case PracticeKind.StallRudder: W(live[0], BankDeg); break;
+            case PracticeKind.StallSideView: case PracticeKind.StallElevator:
+                if (Stalled) { _stalledT += dt; W(live[0], _stalledT); } else _stalledT = 0;
+                break;
+            case PracticeKind.ClimbLevelDescend:
+                if (Leg == 1 || Leg == 3) W(live[1], (AglM - (StartAglM + 152.4)) * ft); else W(live[0], (AirspeedMs - TargetSpeedMs) * kt);
+                break;
+            case PracticeKind.GlideRear: case PracticeKind.GlideSide: case PracticeKind.ClimbVyRear: case PracticeKind.ClimbVxSide:
+                W(live[0], (AirspeedMs - TargetSpeedMs) * kt); break;
+        }
+        j.Tick(g, dt, lim);
+        j.AddSample(g, errs, AlongM, OffCentreM, Airwork ? AglM : MainsAglM, AirspeedMs, SinkMs, BankDeg, pitchDeg);
+
+        // The whole ARRIVAL, not the first touch (owner 2026-10-03: "I bounced, then hit so hard it broke apart, and it said
+        // firm but fine"): every touch is followed; the hardest one counts, the highest bounce is graded, and the landing is
+        // judged once it has stayed down 1.5 s (or the run ends). Damage on the way is a crash.
+        if (TouchedDown)
+        {
+            if (OnGround && !_onGroundPrev) { _touches++; _hardestSinkMs = Math.Max(_hardestSinkMs, Math.Max(SinkMs, TouchdownSinkMs)); }
+            if (OnGround && _touches > 0) _groundedT += dt; else _groundedT = 0;
+            if (!OnGround && _touches > 0) _maxBounceM = Math.Max(_maxBounceM, MainsAglM);
+            if (OnGround) _hardestSinkMs = Math.Max(_hardestSinkMs, _touchSinkWindow > 0 ? SinkMs : 0);
+            _touchSinkWindow = OnGround && !_onGroundPrev ? 0.15 : Math.Max(0, _touchSinkWindow - dt);
+            _onGroundPrev = OnGround;
+            if (!_damageNoted && ac.LostComponents.Count > 0) { _damageNoted = true; j.Crash("Airframe damaged on landing"); }
+        }
+        if (TouchedDown && !_judgedTouchdown && (_groundedT >= 1.5 || Phase == PracticePhase.Finished))
+        {
+            _judgedTouchdown = true;
+            // The judged touchdown point: 100 m (330 ft) past where the path meets the runway — the flare carries you that
+            // far (the "1,000 ft markers" for a path aimed ~500 ft in).
+            double aim = (FlareExercise ? 150.0 : AimPastThresholdM) + TouchdownBeyondAimM;
+            foreach (Criterion m in j.Rules.Moments)
+            {
+                string n = m.Name;
+                if (n == LessonJudge.Std.TdSink.Name) j.Moment(m, _hardestSinkMs * 196.85, _touches > 1 ? $"{_hardestSinkMs * 196.85:F0} fpm (hardest of {_touches} touches)" : $"{_hardestSinkMs * 196.85:F0} fpm");
+                else if (n == LessonJudge.Std.Bounce.Name) j.Moment(m, _maxBounceM * 3.28084, _touches <= 1 && _maxBounceM < 0.15 ? "none" : $"{_touches - 1} bounce{(_touches == 2 ? "" : "s")}, up to {_maxBounceM * 3.28084:F1} ft");
+                else if (n == LessonJudge.Std.TdSpeed.Name) { double r = AirspeedMs / Math.Max(1, VsoMs); j.Moment(m, Math.Max(0, (r - 1) * 100), $"{AirspeedMs * kt:F0} kt ({r:F2} Vso)"); }
+                else if (n == LessonJudge.Std.TdPoint.Name) { double d = (AlongM - aim) * ft; j.Moment(m, d < -100 ? 500 : Math.Max(0, d), d < 0 ? $"{-d:F0} ft short" : $"{d:F0} ft past"); }
+                else if (n == LessonJudge.Std.TdAlign.Name) j.Moment(m, TouchdownAlignDeg, $"{Math.Abs(TouchdownAlignDeg):F1}°");
+                else if (n == LessonJudge.Std.TdCentre.Name) j.Moment(m, TouchdownOffCentreM * ft, $"{Math.Abs(TouchdownOffCentreM) * ft:F0} ft off");
+                else if (n.StartsWith("Three-point")) j.Moment(m, pitchDeg - StanceRad * 180 / Math.PI, $"{pitchDeg:F1}° (stance {StanceRad * 180 / Math.PI:F1}°)");
+                else if (n.StartsWith("Nose-high")) j.Moment(m, Math.Max(0, 3 - pitchDeg), $"{pitchDeg:F1}° nose up");
+                else if (n == LessonJudge.Std.RoundOut.Name)
+                {
+                    double ro = _roundOutFt;
+                    double err = ro < 0 ? 99 : ro < 10 ? 10 - ro : ro > 20 ? ro - 20 : 0;
+                    j.Moment(m, err, ro < 0 ? "no round-out" : $"{ro:F0} ft");
+                }
+            }
+        }
+
+        // Stall recoveries: height lost from the break to the bottom of the recovery.
+        if (Kind is PracticeKind.StallSideView or PracticeKind.StallElevator)
+        {
+            if (Stalled && double.IsNaN(_stallOnsetAgl)) { _stallOnsetAgl = AglM; _stallMinAgl = AglM; _sinceUnstallT = 0; }
+            if (!double.IsNaN(_stallOnsetAgl))
+            {
+                _stallMinAgl = Math.Min(_stallMinAgl, AglM);
+                if (!Stalled) _sinceUnstallT += dt; else _sinceUnstallT = 0;
+                if (_sinceUnstallT > 0.5 && (SinkMs <= 0 || _sinceUnstallT > 10))
+                {
+                    double loss = (_stallOnsetAgl - _stallMinAgl) * ft;
+                    foreach (Criterion m in j.Rules.Moments) if (m.Name == LessonJudge.Std.StallLoss.Name) j.Moment(m, loss, $"{loss:F0} ft");
+                    _stallOnsetAgl = double.NaN;
+                }
+            }
+        }
+    }
+
+    private ControlInputs StepCore(Aircraft ac, ControlInputs user, double dt)
     {
         Time += dt;
         RigidBodyState s = ac.State;
@@ -601,7 +779,7 @@ public sealed class PracticeScenario
             if (FlareExercise || Approach)
             {
                 double aimAlong = FlareExercise ? 150.0 : AimPastThresholdM;
-                double pathH = FlareExercise ? Math.Max(0, (aimAlong - a) * Math.Tan(4.0 * Math.PI / 180)) : GlideslopeHeightAt(a);
+                double pathH = FlareExercise ? Math.Max(0, (aimAlong - a) * Math.Tan(FlareGlideRad)) : GlideslopeHeightAt(a);
                 // Round-out: below 3 m the target eases in as the square of the path height, so the sink bleeds off progressively.
                 return pathH > 3.0 ? pathH : HoldOffM + (3.0 - HoldOffM) * (pathH / 3.0) * (pathH / 3.0);
             }
@@ -990,13 +1168,16 @@ public sealed class PracticeScenario
         double td = 100;
         if (TouchedDown)
         {
-            td -= Math.Max(0, TouchdownSinkMs - 0.6) * 25;                     // firm arrivals cost
+            td -= Math.Max(0, Math.Max(TouchdownSinkMs, _hardestSinkMs) - 0.6) * 25;   // firm arrivals cost (the HARDEST touch)
+            if (_touches > 1) td -= Math.Min(40, _maxBounceM * 3.28084 * 6);       // bounces cost
+            if (_damageNoted) td = 0;
             td -= Math.Max(0, Math.Abs(TouchdownAlignDeg) - 2) * 6;           // crabbed touchdowns cost
             td -= Math.Max(0, Math.Abs(TouchdownOffCentreM) - 3) * 3;
         }
         else td = 0;
         double s = Math.Clamp(FlareExercise ? td : 0.5 * band + 0.5 * td, 0, 100);   // approach: half path-keeping, half touchdown
-        Verdict = !TouchedDown ? "No touchdown." : TouchdownSinkMs < 0.8 ? "Greaser." : TouchdownSinkMs < 1.6 ? "Firm but fine." : "That one hurt.";
+        double hard = Math.Max(TouchdownSinkMs, _hardestSinkMs);
+        Verdict = !TouchedDown ? "No touchdown." : _damageNoted ? "It broke on landing." : _touches > 1 && _maxBounceM > 0.6 ? "Bounced." : hard < 0.8 ? "Greaser." : hard < 1.6 ? "Firm but fine." : "That one hurt.";
         return s;
     }
 }

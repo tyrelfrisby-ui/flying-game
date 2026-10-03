@@ -251,7 +251,7 @@ public static class AirframeContact
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));   // world velocity of the point
 
             // Ground (with the wheel-scale bumps) — normal is world up.
-            double groundH = WorldTerrain.WheelGroundHeightAt(w.X, w.Y);
+            double groundH = WorldTerrain.WheelGroundHeightAt(w.X, w.Y, -w.Z);
             double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y);
             bool onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             Vec3 normal = new(0, 0, -1);   // outward (NED up)

@@ -702,7 +702,7 @@ public sealed class Aircraft
             }
             if (Config.Propulsion is not null)
             {
-                if (Config.Engines.Count == 0)
+                if (Config.Engines.Count == 0 && !_noseLost)   // a prop torn off with the nose makes neither thrust nor drag
                 {
                     (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _noseLost ? 0.0 : _throttle01, s.Velocity, s.Rates, airDensity);
                     ForceDebug.Add(_noseBody, pF, pM, "thrust");

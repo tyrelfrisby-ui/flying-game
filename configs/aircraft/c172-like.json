@@ -34,7 +34,12 @@
           "incidenceRad": 0.02163,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -47,7 +52,12 @@
           "incidenceRad": 0.01268,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -60,7 +70,12 @@
           "incidenceRad": 0.00414,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -169,7 +184,12 @@
           "incidenceRad": 0.02163,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -182,7 +202,12 @@
           "incidenceRad": 0.01268,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -195,7 +220,12 @@
           "incidenceRad": 0.00414,
           "dihedralRad": 0.03,
           "airfoil": "clarkY-like",
-          "control": null
+          "control": null,
+          "flap": {
+            "maxDeltaAlphaRad": 0.16,
+            "maxCd": 0.17,
+            "maxClMax": 1.4
+          }
         },
         {
           "pos": [
@@ -1483,54 +1513,54 @@
   },
   "wakeBlanketMaxLoss": 0.45,
   "gear": [
-      {
-          "pos": [
-              0.83,
-              0,
-              1.15
-          ],
-          "springN": 50000,
-          "dampNs": 7500.0,
-          "brake": false,
-          "isTailwheel": false,
-          "isSteerable": true,
-          "maxSteerRad": 0.5,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 5000,
-          "rollResistN": 30
-      },
-      {
-          "pos": [
-              -0.77,
-              -1.3,
-              1.15
-          ],
-          "springN": 90000,
-          "dampNs": 4500,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 12000,
-          "rollResistN": 40
-      },
-      {
-          "pos": [
-              -0.77,
-              1.3,
-              1.15
-          ],
-          "springN": 90000,
-          "dampNs": 4500,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 12000,
-          "rollResistN": 40
-      }
+    {
+      "pos": [
+        0.83,
+        0,
+        1.15
+      ],
+      "springN": 50000,
+      "dampNs": 7500.0,
+      "brake": false,
+      "isTailwheel": false,
+      "isSteerable": true,
+      "maxSteerRad": 0.5,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 5000,
+      "rollResistN": 30
+    },
+    {
+      "pos": [
+        -0.77,
+        -1.3,
+        1.15
+      ],
+      "springN": 90000,
+      "dampNs": 4500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 12000,
+      "rollResistN": 40
+    },
+    {
+      "pos": [
+        -0.77,
+        1.3,
+        1.15
+      ],
+      "springN": 90000,
+      "dampNs": 4500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 12000,
+      "rollResistN": 40
+    }
   ],
   "limits": {
     "vneMs": 84,

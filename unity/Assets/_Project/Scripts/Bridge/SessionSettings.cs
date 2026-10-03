@@ -160,6 +160,9 @@ namespace FlyingGame.Bridge
         /// <summary>Lessons where the user picks the axes (bit 0 aileron, 1 elevator, 2 rudder, 3 throttle); −1 = the lesson's default.</summary>
         public static bool LessonHasAxisChoice(string id) => id is "practice:s-turns" or "practice:s-turns-test" or "lesson:climb-level-descend" or "lesson:glide-rear" or "lesson:glide-side" or "lesson:climb-vy" or "lesson:climb-vx";
         public static int LessonUserAxes = -1;
+        /// <summary>Flap setting for the landing lessons (owner 2026-10-03): 0 up, 0.5 half, 1 full.</summary>
+        public static float LessonFlaps = 0f;
+        public static bool LessonHasFlapChoice(string id) => id is "practice:land-rudder" or "practice:land-aileron" or "practice:flare" or "practice:flare-side" or "practice:approach-side";
         public static int LessonDefaultAxes(string id) => id switch { "practice:s-turns" => 0b0100, "practice:s-turns-test" => 0b0101, "lesson:climb-level-descend" => 0b1010, "lesson:glide-rear" or "lesson:glide-side" => 0b0010, "lesson:climb-vy" => 0b0110, "lesson:climb-vx" => 0b0010, _ => 0 };
         /// <summary>Glide lessons take the along-runway winds (head / tail); the climb lessons fly calm.</summary>
         public static bool PracticeHasWindChoice(string id) => !PracticeIsAirwork(id) || id is "lesson:glide-rear" or "lesson:glide-side";

@@ -29,6 +29,8 @@ namespace FlyingGame.Bridge
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "clouds") { yield return CloudTest(); yield break; }
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
+            if (mode == "playground") { yield return PlaygroundTest(); yield break; }
+            if (mode == "lesson") { yield return LessonTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -216,6 +218,83 @@ namespace FlyingGame.Bridge
             Debug.Log("[SelfTest] DONE combat");
         }
 
+        /// <summary>AERO_SELFTEST=lesson: the 172's round-out & flare lesson with full flaps, the game flying as the student —
+        /// screenshots of the briefing, the live orb, the debrief (top and scrolled) and the replay with commentary.</summary>
+        private IEnumerator LessonTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "c172-like";
+            SessionSettings.ChallengeId = "practice:flare";
+            SessionSettings.PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Calm;
+            SessionSettings.LessonFlaps = 1f;
+            Practice.PracticeController.SelfTestStudent = true;
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(2.5f);
+            var pc = Object.FindFirstObjectByType<Practice.PracticeController>();
+            while (pc.Scenario != null && pc.Scenario.LessonPages.Length > 0 && pc.LessonPage < pc.Scenario.LessonPages.Length) { pc.NextLessonPage(); yield return null; }
+            yield return new WaitForSecondsRealtime(0.5f);
+            ScreenCapture.CaptureScreenshot("lesson-briefing.png");
+            yield return new WaitForSecondsRealtime(0.7f);
+            pc.StartCountdown();
+            yield return new WaitForSecondsRealtime(4.5f);
+            ScreenCapture.CaptureScreenshot("lesson-live.png");
+            for (int i = 0; i < 60 && pc.Scenario.Phase != FlyingGame.Sim.Practice.PracticePhase.Finished; i++) yield return new WaitForSecondsRealtime(0.5f);
+            yield return new WaitForSecondsRealtime(1.5f);
+            Debug.Log($"[SelfTest] lesson points {pc.Scenario.Judge.Points:F0} events {pc.Scenario.Judge.Events.Count}");
+            ScreenCapture.CaptureScreenshot("lesson-debrief.png");
+            yield return new WaitForSecondsRealtime(0.7f);
+            var deb = Object.FindFirstObjectByType<Practice.LessonDebrief>();
+            deb.WatchReplay();
+            yield return new WaitForSecondsRealtime(6f);
+            ScreenCapture.CaptureScreenshot("lesson-replay.png");
+            yield return new WaitForSecondsRealtime(0.7f);
+            Practice.PracticeController.SelfTestStudent = false;
+            Debug.Log("[SelfTest] DONE lesson");
+        }
+
+        /// <summary>AERO_SELFTEST=playground: the canyon lake (slalom, Rainbow Bridge, the dam), the city (an avenue, the
+        /// pad, the spinning ring, the fountains, a rooftop ring) and the Mall.</summary>
+        private IEnumerator PlaygroundTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "c172-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            FlyingGame.Core.MathTypes.Quat Hdg(double deg) { double h = deg * System.Math.PI / 360; return new FlyingGame.Core.MathTypes.Quat(0, 0, System.Math.Sin(h), System.Math.Cos(h)); }
+            IEnumerator Shot(string name, double x, double y, double up, double hdg, double v)
+            {
+                Menu.Fly();
+                drv = Menu.Driver;
+                yield return new WaitForSecondsRealtime(0.8f);
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(x, y, -up), Hdg(hdg), new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                yield return new WaitForSecondsRealtime(1.0f);
+                Debug.Log($"[SelfTest] {name}");
+                ScreenCapture.CaptureScreenshot(name + ".png");
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            double d = FlyingGame.Core.WorldTerrain.DatumM, lake = FlyingGame.Core.CanyonLake.SurfaceM;
+            double ly = -1050; double lx = FlyingGame.Core.CanyonLake.CentreX(ly);
+            yield return Shot("pg-lake", lx, ly, lake + 25, 90, 40);
+            yield return Shot("pg-lake-high", lx - 900, -300, d + 250, 60, 45);
+            var a = FlyingGame.Core.CanyonLake.Arches[0];
+            yield return Shot("pg-rainbow", 0.5 * (a.Ax + a.Bx), 0.5 * (a.Ay + a.By) - 400, lake + 40, 90, 40);
+            double dy = FlyingGame.Core.CanyonLake.DamY;
+            yield return Shot("pg-dam", FlyingGame.Core.WorldTerrain.RiverCentreX(dy + 600), dy + 600, d + 40, -90, 40);
+            yield return Shot("pg-city", FlyingGame.Core.FlyCity.X0 + 85, FlyingGame.Core.FlyCity.Y0 - 900, d + 120, 90, 45);
+            var (px, py) = FlyingGame.Core.FlyCity.PadCentre;
+            yield return Shot("pg-pad", px, py + 1100, d + 260, -90, 40);
+            var (sx, sy, sz) = FlyingGame.Core.FlyCity.SpinRingCentre;
+            yield return Shot("pg-spinring", sx - 700, sy, d + sz, 0, 40);
+            yield return Shot("pg-fountains", FlyingGame.Core.FlyCity.PlazaX0 - 500, 0.5 * (FlyingGame.Core.FlyCity.PlazaY0 + FlyingGame.Core.FlyCity.PlazaY1), d + 60, 0, 40);
+            yield return Shot("pg-mall", FlyingGame.Core.Mall.CentreX, FlyingGame.Core.Mall.MonumentY - 700, d + 60, 90, 40);
+            var r1 = FlyingGame.Core.FlyCity.RooftopRings()[0];
+            double rh = r1.headingDeg * System.Math.PI / 180;
+            yield return Shot("pg-ring1", r1.t.Cx - 500 * System.Math.Cos(rh), r1.t.Cy - 500 * System.Math.Sin(rh), d + r1.t.HeightM + FlyingGame.Core.FlyCity.RingAboveRoofM, r1.headingDeg, 40);
+            Debug.Log("[SelfTest] DONE playground");
+        }
+
         /// <summary>AERO_SELFTEST=seaside: a screenshot tour — the Golden Gate up the strait, the city, the island from the
         /// channel, Avalon, the sea arch, the zone's clouds; then the Beaver on floats outside and inside the sea cave.</summary>
         private IEnumerator SeasideTest()
@@ -240,7 +319,7 @@ namespace FlyingGame.Bridge
             }
             double d = FlyingGame.Core.WorldTerrain.DatumM;
             yield return Shot("sea-gate", FlyingGame.Core.WorldTerrain.RiverCentreX(FlyingGame.Core.GoldenGate.Y - 700), FlyingGame.Core.GoldenGate.Y - 700, 90, 90, 45);
-            yield return Shot("sea-city", FlyingGame.Core.SeaCity.CentreX - 1800, FlyingGame.Core.SeaCity.CentreY - 300, d + 260, 10, 50);
+            yield return Shot("sea-city", FlyingGame.Core.FlyCity.CentreX - 1800, FlyingGame.Core.FlyCity.CentreY - 300, d + 260, 10, 50);
             yield return Shot("sea-zone", FlyingGame.Core.Combat.CombatZone.X0 - 1800, FlyingGame.Core.Combat.CombatZone.CentreY, d + 900, 0, 50);
             yield return Shot("sea-island", FlyingGame.Core.Island.Main.Cx, FlyingGame.Core.Coast.MeanShoreY + 400, 700, 90, 50);
             yield return Shot("sea-avalon", FlyingGame.Core.Island.AvalonX, FlyingGame.Core.Island.AvalonY - 900, 120, 90, 45);

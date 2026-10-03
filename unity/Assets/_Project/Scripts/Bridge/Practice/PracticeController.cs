@@ -32,6 +32,7 @@ namespace FlyingGame.Bridge.Practice
         /// <summary>Briefing pacing (owner 2026-09-16): the sim is FROZEN while the pages and the card are up; the dismiss button
         /// starts a 3-2-1 countdown (real time), and only at zero does the sim run, with the user's axes live at once.</summary>
         public bool Counting { get; private set; }
+        public static bool SelfTestStudent;
         public float CountdownLeft => Counting ? Mathf.Max(0f, _countEnd - Time.realtimeSinceStartup) : 0f;
         private float _countEnd;
         public void StartCountdown() { if (!Active || Counting || Scenario == null || Scenario.Phase != PracticePhase.Briefing) return; Counting = true; _countEnd = Time.realtimeSinceStartup + 3.2f; PilotVoice.Say("Three. Two. One.", 0.5f, 1.0f); }
@@ -78,9 +79,10 @@ namespace FlyingGame.Bridge.Practice
                 SessionSettings.ApplyFeel(cfg);
                 WorldTerrain.RunwayEnd rw = SessionSettings.ChosenRunway();
                 double surface = SessionSettings.Airport.ElevationM;
-                Scenario = new PracticeScenario(kind, wind, cfg, rw, surface, seed: Random.Range(1, 9999), userAxes: _userAxes);
+                Scenario = new PracticeScenario(kind, wind, cfg, rw, surface, seed: Random.Range(1, 9999), userAxes: _userAxes, flapFraction: SessionSettings.LessonFlaps);
                 Aircraft ac = Scenario.Spawn();
                 Driver.AdoptSim(new SimLoop(ac));
+                _touch?.PresetPitchTrim(Scenario.TrimStick);   // on speed AND in trim: hands-off flies the starting path
                 Driver.InputFilter = Filter;
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
@@ -148,6 +150,7 @@ namespace FlyingGame.Bridge.Practice
             if (!Active || Scenario == null || Driver.Sim == null) return user;
             Aircraft ac = Driver.Sim.Aircraft;
             if (Scenario.LessonPages.Length > 0 && LessonPage < Scenario.LessonPages.Length) Scenario.HoldBriefing();
+            if (SelfTestStudent && Scenario.Phase == PracticePhase.Live) user = Scenario.Autopilot;   // AERO_SELFTEST=lesson: the game flies as the student
             ControlInputs merged = Scenario.Step(ac, user, dt);
             if (Scenario.GameBrake > 0)
             {

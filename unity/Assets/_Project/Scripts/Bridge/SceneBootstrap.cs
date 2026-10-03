@@ -76,7 +76,9 @@ namespace FlyingGame.Bridge
             root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<FlightAudio>();
+            UnityGlideTableLoader.Load();
             root.AddComponent<Practice.PracticeController>().Driver = driver;   // crosswind / flare / approach practice
+            root.AddComponent<Practice.LessonDebrief>().Controller = root.GetComponent<Practice.PracticeController>();   // screenshots + replay commentary for the debrief
             root.AddComponent<FlightReplay>().Driver = driver;   // last 10 min of flight, played back on the real airframe
             _ = driver;
             return root;
@@ -162,6 +164,7 @@ namespace FlyingGame.Bridge
             var pHud = cam.gameObject.AddComponent<Practice.PracticeHud>();
             pHud.Controller = aircraft.GetComponent<Practice.PracticeController>();
             pHud.Driver = aircraft.GetComponent<FlightSimDriver>();
+            pHud.Debrief = aircraft.GetComponent<Practice.LessonDebrief>();
 
             var weather = aircraft.AddComponent<WeatherController>();
             weather.Bubbles = bubbles;

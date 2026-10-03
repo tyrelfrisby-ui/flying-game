@@ -101,7 +101,7 @@ public class FloatTests
             // the trim itself; the flare is a steady elevator ramp from 8 m (real technique: pull steadily, let it
             // settle on the step as the speed bleeds).
             double V = approachMs;
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, V, 40, flapFraction: 1.0);
+            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(cfg, V, 40, flapFraction: 1.0, idleProp: true);   // power off: idling prop drag
             Assert.True(trim.Converged, "approach trim must converge");
             _out.WriteLine($"approach {V:F0} m/s full flap glide: α {trim.AlphaRad * 57.3:F1}° elev {trim.ElevatorRad * 57.3:F1}° γ {(trim.ThetaRad - trim.AlphaRad) * 57.3:F1}°");
             double half = trim.ThetaRad / 2.0;
@@ -116,8 +116,8 @@ public class FloatTests
                 RigidBodyState before = ac.State;
                 double agl = -ac.State.Position.Z;
                 double qr = ac.State.Rates.Y;
-                if (flareStart < 0 && agl < 10) flareStart = t;
-                double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.08 * (t - flareStart)); // steady pull: +0.08 stick/s, capped
+                if (flareStart < 0 && agl < 13) flareStart = t;   // the idle (windmilling-prop) glide is ~8°: begin the flare a little higher
+                double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.11 * (t - flareStart)); // steady pull: +0.11 stick/s, capped
                 double st = Math.Clamp(stick - pull + 0.4 * qr, -0.85, 0.5);
                 sim.RunFor(0.1, new ControlInputs(0, st, 0, 1.0)); // power off throughout
                 RigidBodyState s = ac.State;

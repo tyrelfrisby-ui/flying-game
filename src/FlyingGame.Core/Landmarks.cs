@@ -87,10 +87,13 @@ public static class Landmarks
         RegisterSeasideSolids(t);
     }
 
-    /// <summary>The seaside (one copy, east of the Valley): the city, the Golden Gate, the sea arch, the sea cave's roof.</summary>
+    /// <summary>The one-off features (not copied per plateau): the city (+ the Mall, rings, pad deck), the canyon lake's spires,
+    /// arches and dam, the Golden Gate, the sea arch, the sea cave's roof.</summary>
     public static void RegisterSeasideSolids(WorldTerrain t)
     {
-        SeaCity.RegisterSolids(t);
+        WorldDecks.All.Clear();
+        FlyCity.RegisterSolids(t);
+        CanyonLake.RegisterSolids();
         GoldenGate.RegisterSolids();
         SeaArch.RegisterSolids();
         WorldSolids.Shapes.Add(new SeaCave.RoofSolid());

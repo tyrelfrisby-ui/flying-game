@@ -68,7 +68,7 @@ public class SeasideTests
     [Fact]
     public void CityStandsOnFlatDryGroundInsideTheCombatZone()
     {
-        var b = SeaCity.Buildings();
+        var b = FlyCity.Towers();
         double maxH = 0;
         foreach (var bd in b)
         {
@@ -77,9 +77,10 @@ public class SeasideTests
             Assert.True(bd.Cx > CombatZone.X0 && bd.Cx < CombatZone.X1 && bd.Cy > CombatZone.Y0 && bd.Cy < CombatZone.Y1);
             maxH = System.Math.Max(maxH, bd.HeightM);
         }
-        _o.WriteLine($"{b.Count} buildings, tallest {maxH:F0} m");
-        Assert.True(b.Count > 80);
+        _o.WriteLine($"{b.Count} towers, tallest {maxH:F0} m");
+        Assert.True(b.Count > 60);
         Assert.True(CombatZone.Inside(new Vec3(GoldenGate.CentreX, GoldenGate.Y, -(WorldTerrain.DatumM + 200))), "bridge inside the zone");
+        Landmarks.RegisterSolids(T);
         foreach (var gt in CombatZone.BuildGroundTargets())
             Assert.Null(WorldSolids.Penetration(gt.X, gt.Y, T.HeightAt(gt.X, gt.Y) + 1));
     }

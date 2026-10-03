@@ -66,6 +66,9 @@ public static class PropModel
             eta = e;
         }
         double thrust = powerW <= 0 ? 0 : Math.Min(eta * powerW / Math.Max(v, 5.0), staticThrust);
+        // The idling prop windmills: drag on the disc, fading out by 20 % throttle (above that it is pulling).
+        if (thr < 0.2 && v > 5.0 && prop.IdleDragCd > 0)
+            thrust -= prop.IdleDragCd * (1 - thr / 0.2) * 0.5 * airDensity * Math.Max(0, bodyVelocity.X) * Math.Max(0, bodyVelocity.X) * discArea;
 
         Vec3 force = new(thrust, 0, 0);
         Vec3 moment = Vec3.Zero;

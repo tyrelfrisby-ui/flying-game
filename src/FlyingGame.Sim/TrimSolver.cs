@@ -42,7 +42,8 @@ public static class TrimSolver
         int maxIterations = 100,
         double tolerance = 1e-9,
         double flapFraction = 0.0,
-        double spoilerFraction = 0.0)
+        double spoilerFraction = 0.0,
+        bool idleProp = false)
     {
         Dictionary<string, AirfoilTable> tables = Aircraft.BuildAirfoilTables(config);
         double airDensity = Atmosphere.DensityAtAltitude(altitudeM);
@@ -88,6 +89,12 @@ public static class TrimSolver
             Vec3 bodyVelocity = new(iasMs * Math.Cos(alpha), 0, iasMs * Math.Sin(alpha));
             ControlDeflections controls = new(0, elevatorRad, 0, spoilerFraction, flapFraction);
             (Vec3 force, Vec3 moment) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
+            if (idleProp && config.Propulsion != null)
+            {
+                // The power-off glide is with the engine IDLING: the windmilling prop's drag belongs in it.
+                (Vec3 pf, Vec3 pm) = PropModel.Compute(config.Propulsion, 0.0, bodyVelocity, Vec3.Zero, airDensity);
+                force += pf * PropCount(config); moment += new Vec3(0, pm.Y * PropCount(config), 0);
+            }
 
             double gravityX = -weight * Math.Sin(theta);
             double gravityZ = weight * Math.Cos(theta);
@@ -122,6 +129,7 @@ public static class TrimSolver
             Vec3 bodyVelocity = new(iasMs * Math.Cos(alpha), 0, iasMs * Math.Sin(alpha));
             ControlDeflections controls = new(0, elevatorRad, 0, spoilerFraction, flapFraction);
             (Vec3 force, _) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
+            if (idleProp && config.Propulsion != null) force += PropModel.Compute(config.Propulsion, 0.0, bodyVelocity, Vec3.Zero, airDensity).Force * PropCount(config);
 
             double velDirX = Math.Cos(alpha), velDirZ = Math.Sin(alpha);
             double drag = -(force.X * velDirX + force.Z * velDirZ);
@@ -129,6 +137,9 @@ public static class TrimSolver
             return drag > 1e-9 ? lift / drag : double.NaN;
         }
     }
+
+    /// <summary>Engines on the type (twins carry one PropulsionConfig used per engine).</summary>
+    private static int PropCount(AircraftConfig c) => c.Engines != null && c.Engines.Count > 0 ? c.Engines.Count : 1;
 
     private static double Norm(double[] v)
     {

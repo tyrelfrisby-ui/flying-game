@@ -48,14 +48,14 @@ public static class ApproachSpawn
         BestGlide best = default; bool any = false;
         for (double v = vRef * 0.55; v <= vRef * 1.6; v += 0.5)
         {
-            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM);
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM, idleProp: true);   // power-off: the idling prop's drag counts
             if (!t.Converged || t.GlideRatio <= 0 || double.IsNaN(t.GlideRatio)) continue;
             if (t.AlphaRad > 14 * System.Math.PI / 180) continue;   // past the usable range: near/over the stall
             if (!any || t.GlideRatio > best.GlideRatio) { best = new BestGlide(v, t.GlideRatio, t.AlphaRad, t.ThetaRad, t.ElevatorRad); any = true; }
         }
         if (!any)
         {
-            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, vRef, altitudeM);
+            TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, vRef, altitudeM, idleProp: true);
             best = new BestGlide(vRef, System.Math.Max(4.0, t.GlideRatio), t.AlphaRad, t.ThetaRad, t.ElevatorRad);
         }
         lock (Cache) { Cache[key] = best; }

@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.IO;
 using FlyingGame.Core;
@@ -108,6 +109,88 @@ public class PracticeScenarioTests
         Assert.InRange(c172.GlideslopeRad * 57.3, 2.5, 8.0);
         Assert.InRange(glider.GlideslopeRad * 57.3, 2.5, 8.0);
         Assert.True(glider.GlideslopeRad > c172.GlideslopeRad * 0.5);
+    }
+
+    // ---- points (owner 2026-10-03): the orb's grades, the points, the judged moments ----
+
+    [Fact]
+    public void EveryLessonHasAGoalAndJudgedCriteria()
+    {
+        foreach (PracticeKind k in Enum.GetValues<PracticeKind>())
+        {
+            var r = LessonJudge.For(k, false);
+            Assert.False(string.IsNullOrEmpty(r.Goal), $"{k} has no goal");
+            Assert.NotEmpty(r.Live);
+            foreach (var c in r.Live) Assert.True(c.Green <= c.Yellow && c.Yellow <= c.Orange, $"{k}: {c.Name} bands out of order");
+        }
+    }
+
+    [Fact]
+    public void HeldCrosswindEarnsPointsHandsOffLosesThem()
+    {
+        var good = Run("pa18-cub-like.json", PracticeKind.CrosswindRudder, PracticeWind.Steady);
+        var bad = Run("pa18-cub-like.json", PracticeKind.CrosswindRudder, PracticeWind.Steady, (s, auto) => new ControlInputs(auto.Aileron, auto.Elevator, 0, auto.ThrottleLever));
+        _out.WriteLine($"held: {good.Judge.Points:F0} pts (green {good.Judge.Seconds[0]:F0}s yellow {good.Judge.Seconds[1]:F0}s orange {good.Judge.Seconds[2]:F0}s red {good.Judge.Seconds[3]:F0}s); hands-off: {bad.Judge.Points:F0} pts (red {bad.Judge.Seconds[3]:F0}s)");
+        Assert.True(good.Judge.Seconds[0] > 0.7 * (good.Judge.Seconds.Sum()), "the game's own rudder is mostly green");
+        Assert.True(good.Judge.Points > bad.Judge.Points + 100);
+        Assert.True(bad.Judge.Seconds[2] + bad.Judge.Seconds[3] > 3, "hands off spends time orange/red");
+    }
+
+    [Theory]
+    [InlineData(PracticeKind.Flare)]
+    [InlineData(PracticeKind.ApproachSideView)]
+    public void LandingsJudgeTheirMoments(PracticeKind kind)
+    {
+        var sc = Run("c172-like.json", kind, PracticeWind.Calm);
+        foreach (var m in sc.Judge.Moments) _out.WriteLine($"  {m.name}: {m.grade} {m.detail} ({m.points:+0;-0} pts)");
+        _out.WriteLine($"points {sc.Judge.Points:F0}; round-out {sc.RoundOutFt:F0} ft");
+        Assert.True(sc.TouchedDown);
+        Assert.Equal(sc.Judge.Rules.Moments.Count, sc.Judge.Moments.Count);
+
+        Assert.True(sc.Judge.Points > 0);
+    }
+
+    [Theory]
+    [InlineData("c172-like.json", 0.0)]
+    [InlineData("c172-like.json", 0.5)]
+    [InlineData("c172-like.json", 1.0)]
+    [InlineData("pa28-archer-like.json", 1.0)]
+    [InlineData("cirrus-sr22-like.json", 0.0)]
+    [InlineData("cirrus-sr22-like.json", 1.0)]
+    public void FlareLessonStartsOnSpeedInTrimOnThePowerOffGlide(string file, double flaps)
+    {
+        // Owner 2026-10-03: idle, on speed, in trim — hands off (stick on the preset trim) it stays on its glide.
+        var c = Load(file); WorldTerrain.Active = null;
+        var sc = new PracticeScenario(PracticeKind.Flare, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
+        var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+        double v0 = -1, maxDv = 0, sink0 = 0;
+        var hands = new ControlInputs(0, sc.TrimStick, 0, 1.0);
+        for (double t = 0; t < 3.0; t += 0.02)
+        {
+            var inp = sc.Step(ac, hands, 0.02);
+            sim.RunFor(0.02, inp); sc.ConstrainLongitudinal(ac);
+            if (v0 < 0) v0 = sc.AirspeedMs;
+            if (sc.MainsAglM > 4.6) maxDv = Math.Max(maxDv, Math.Abs(sc.AirspeedMs - v0));   // until the round-out height
+            if (t < 0.03) sink0 = sc.SinkMs;
+        }
+        Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null;
+        _out.WriteLine($"{file} flaps {flaps}: Vso {sc.VsoMs * 1.944:F0} kt, start {v0 * 1.944:F0} kt, glide {sc.FlareGlideRad * 57.3:F1}° ({1 / Math.Tan(sc.FlareGlideRad):F1}:1), sink {sink0 * 196.85:F0} fpm, speed wander {maxDv * 1.944:F1} kt in 3 s, throttle lever {sc.LastInputs.ThrottleLever:F1}");
+        Assert.Equal(flaps, ac.FlapFraction, 3);
+        Assert.Equal(1.0, sc.LastInputs.ThrottleLever, 3);                  // idle
+        Assert.True(maxDv * 1.944 < 3.0, "starts on speed and in trim");
+    }
+
+    [Fact]
+    public void ABouncedOrBrokenLandingIsNotFirmButFine()
+    {
+        // Owner 2026-10-03: "I bounced my first landing then hit so hard the plane broke apart and it gave me 82 % firm but fine".
+        // Shove the nose down from 10 ft: the whole arrival must be judged, not the first touch.
+        var sc = Run("c172-like.json", PracticeKind.Flare, PracticeWind.Calm, (s, auto) => s.MainsAglM < 3.0 || s.TouchedDown ? new ControlInputs(auto.Aileron, 0.6, auto.Rudder, auto.ThrottleLever) : auto);
+        foreach (var m in sc.Judge.Moments) _out.WriteLine($"  {m.name}: {m.grade} {m.detail} ({m.points:+0;-0})");
+        _out.WriteLine($"verdict '{sc.Verdict}', score {sc.Score:F0}, points {sc.Judge.Points:F0}");
+        Assert.NotEqual("Firm but fine.", sc.Verdict);
+        Assert.NotEqual("Greaser.", sc.Verdict);
+        Assert.Contains(sc.Judge.Moments, m => m.grade == Grade.Red);
     }
 
     [Fact]

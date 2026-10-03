@@ -325,8 +325,13 @@ public sealed class WorldTerrain
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
+        if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
         return Surface.Rough;
     }
+
+    /// <summary>Surface under a wheel at height <paramref name="up"/>: a raised deck (the pad) is paved.</summary>
+    public static Surface SurfaceAt(double x, double y, double up) =>
+        WorldDecks.DeckUnder(x, y, up, out double top) && top > GroundHeightAt(x, y) + 1 ? Surface.Paved : SurfaceAt(x, y);
 
     /// <summary>True inside the strip's rectangle (grown by `margin` m on every side).</summary>
     public static bool InStrip(Airport a, Strip st, double x, double y, double margin)
@@ -375,6 +380,12 @@ public sealed class WorldTerrain
 
     /// <summary>Ground height under a WHEEL: the height field plus the surface micro-roughness.</summary>
     public static double WheelGroundHeightAt(double x, double y) => GroundHeightAt(x, y) + (Active != null ? MicroBumpAt(x, y) : 0.0);
+    /// <summary>Ground under a wheel / hard point at height <paramref name="up"/>: the terrain, or a raised deck it is on.</summary>
+    public static double WheelGroundHeightAt(double x, double y, double up)
+    {
+        double g = WheelGroundHeightAt(x, y);
+        return WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(x, y, up, out double top) && top > g ? top : g;
+    }
 
     /// <summary>STOL contest on the dirt strip: landing line this far from the strip's south (−x) end; markers beyond it.</summary>
     public const double StolLineFromThresholdM = 150.0, StolMarkedLengthM = 250.0;
@@ -586,6 +597,10 @@ public sealed class WorldTerrain
                 h = System.Math.Min(h, floor + (h - floor) * wall);
             }
         }
+        // The canyon lake behind the dam: the gorge widened and flooded (walls into the water, a deep floor).
+        if (y > CanyonLake.Y0 && y < CanyonLake.DamY + 60) h = CanyonLake.CarveAt(x, y, h);
+        // The Mall: dead flat, the reflecting pond's bed.
+        { double? m = Mall.HeightAt(x, y); if (m.HasValue) h = m.Value; }
         h = System.Math.Min(h, coastCap);
 
         // The island rises out of the sea.
@@ -605,6 +620,9 @@ public sealed class WorldTerrain
         {
             if (l.Inside(x, y) < 1.0) return l.SurfaceM;
         }
+        // The canyon lake (over the drowned river), the Mall's reflecting pond.
+        if (CanyonLake.OnWater(x, y) && HeightAt(x, y) < CanyonLake.SurfaceM) return CanyonLake.SurfaceM;
+        if (Mall.InPond(x, y)) return Mall.PondSurfaceM;
         double ddx = System.Math.Abs(x - RiverCentreX(y));
         if (ddx < RiverHalfWidthM + 12 && !PastRiverMouth(y))
         {

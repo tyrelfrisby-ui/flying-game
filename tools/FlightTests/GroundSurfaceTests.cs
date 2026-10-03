@@ -86,6 +86,7 @@ public class GroundSurfaceTests
     private static (double roll, double peakG, double maxRollDeg) Rollout(WorldTerrain.Surface surface)
     {
         var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));
+        if (System.Environment.GetEnvironmentVariable("NOIDLEDRAG") != null) c.Propulsion!.IdleDragCd = 0;
         var t = new WorldTerrain(); WorldTerrain.Active = t;
         var a = WorldTerrain.Airports[0];
         double y = surface == WorldTerrain.Surface.Paved ? a.Y : a.Y + 200;
@@ -95,7 +96,12 @@ public class GroundSurfaceTests
         var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
         double maxWz = -999; foreach (var g in c.Gear) maxWz = System.Math.Max(maxWz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
         // Rolling at 15 m/s (below flying speed, so the wheels carry the weight), idle power, stick back.
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(x0, y, -(a.ElevationM + maxWz + 0.01)), att, new Vec3(15, 0, 0), Vec3.Zero), ControlDeflections.Neutral);
+        // Start ON the surface: the rough lumps under the wheels are up to 0.2 m proud of the pad — starting at the pad height
+        // buried the tyres and spring-launched the Cub into a bounce and a nose-over (test artefact).
+        double groundHere = a.ElevationM;
+        foreach (var g in c.Gear) { Vec3 p = att.Rotate(g.PosVec() - c.Mass.CgVec()); groundHere = System.Math.Max(groundHere, WorldTerrain.WheelGroundHeightAt(x0 + p.X, y + p.Y) + p.Z - maxWz); }
+        // Rolling HORIZONTALLY at 15 m/s (the body-x velocity of the tail-down attitude climbed at 2.9 m/s: a hop, then a hard landing).
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(x0, y, -(groundHere + maxWz + 0.01)), att, att.Conjugate().Rotate(new Vec3(15, 0, 0)), Vec3.Zero), ControlDeflections.Neutral);
         var sim = new SimLoop(ac);
         double peakG = 0, slowX = double.NaN, maxRoll = 0;
         for (double tt = 0; tt < 60; tt += 0.02)
@@ -105,8 +111,9 @@ public class GroundSurfaceTests
             double hdg = System.Math.Atan2(2 * (qh.W * qh.Z + qh.X * qh.Y), 1 - 2 * (qh.Y * qh.Y + qh.Z * qh.Z));
             double rudder = System.Math.Clamp(-hdg * 3.0 - ac.State.Rates.Z * 0.8, -1, 1);
             sim.RunFor(0.02, new ControlInputs(0, -0.4, rudder, 1.0));
-            if (tt > 3.0) peakG = System.Math.Max(peakG, System.Math.Abs(ac.LoadFactorZ));
+            if (tt > 0.9) peakG = System.Math.Max(peakG, System.Math.Abs(ac.LoadFactorZ));   // from the first lumps (a short, violent run can be over in 3 s)
             var q = ac.State.Attitude; maxRoll = System.Math.Max(maxRoll, System.Math.Abs(System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y))));
+            if (System.Environment.GetEnvironmentVariable("ROLLTRACE") != null && System.Math.Abs(tt * 10 - System.Math.Round(tt * 10)) < 1e-6) System.Console.WriteLine($"TR {surface} t={tt:F1} x={ac.State.Position.X:F1} v={ac.State.Velocity.Length:F1} roll={maxRoll * 57.3:F0} z={ac.State.Position.Z:F2} g={ac.LoadFactorZ:F2} lost={string.Join(',', ac.LostComponents)}");
             if (ac.State.Velocity.Length < 4.0) { slowX = ac.State.Position.X; break; }
         }
         WorldTerrain.Active = null;

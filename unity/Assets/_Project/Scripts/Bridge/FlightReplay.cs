@@ -37,6 +37,8 @@ namespace FlyingGame.Bridge
         public static readonly float[] Speeds = { 0.25f, 0.5f, 1f, 2f, 4f };
         /// <summary>Play head (recorder clock seconds).</summary>
         public double Head { get; private set; }
+        /// <summary>The recorder's clock now (lesson debrief: where each judged moment sits in the replay).</summary>
+        public double Clock => _clock;
 
         private double _clock;
         private ReplayFrame _live;
