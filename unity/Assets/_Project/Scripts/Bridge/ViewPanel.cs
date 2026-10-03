@@ -15,6 +15,8 @@ namespace FlyingGame.Bridge
         public ChaseCamera Chase;
         public FlightReplay Replay;
         public OptionsPanel Options;
+        private FlyingGame.Bridge.Practice.PracticeController _practice;
+        private StartMenu _menu;
 
         private GUIStyle _btn, _btnOn, _btnRec, _label, _small;
         private Texture2D _bg, _btnBg, _btnOnBg, _recBg, _track, _fill, _knob;
@@ -86,46 +88,37 @@ namespace FlyingGame.Bridge
         {
             if (string.IsNullOrEmpty(_toast) || Time.realtimeSinceStartup > _toastUntil) return;
             float s = Mathf.Min(Screen.width, Screen.height);
-            var r = new Rect(Screen.width * 0.5f - s * 0.35f, s * 0.11f, s * 0.7f, _fs * 1.9f);
+            Rect line = UiLayout.NextLine(_fs * 1.9f);
+            var r = new Rect(line.center.x - Mathf.Min(line.width, s * 0.7f) * 0.5f, line.y, Mathf.Min(line.width, s * 0.7f), line.height);
             GUI.DrawTexture(r, _bg);
-            GUI.Label(r, _toast, _label);
+            UiLayout.Label(r, _toast, _label);
         }
 
         private void DrawLiveColumn()
         {
-            float s = Mathf.Min(Screen.width, Screen.height);
-            float gap = s * 0.012f, bw = s * 0.2f, bh = s * 0.06f, vh = s * 0.085f;
-            float x = Screen.width - s * 0.02f - bw;
-            float y = s * 0.02f + s * 0.055f + gap;   // under the OPTIONS button
-            float colH = vh + 3 * (bh + gap) + (VoiceComms.RadioAvailable ? bh * 1.6f + gap : 0f);
-            // Owner's rule: nothing covers the aircraft — step the column sideways out of its screen box.
-            if (ScreenLayout.HasAircraftKeepOut)
-            {
-                Rect ko = ScreenLayout.AircraftKeepOut;   // bottom-left origin
-                Rect koGui = Rect.MinMaxRect(ko.xMin, Screen.height - ko.yMax, ko.xMax, Screen.height - ko.yMin);
-                if (new Rect(x, y, bw, colH).Overlaps(koGui))
-                    x = koGui.xMax + gap + bw <= Screen.width ? koGui.xMax + gap : Mathf.Max(0f, koGui.xMin - gap - bw);
-            }
+            // The shared toolbar row (owner rule 2026-10-03: no overlap): VIEW · REPLAY · CLIP · REC between MENU and
+            // OPTIONS; a lesson's END takes a fifth slot. The current view's name shows on the VIEW button when it isn't the
+            // default.
+            _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
+            bool lesson = _practice != null && _practice.Active;
+            int n = lesson ? 5 : 4;
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
-            if (GUI.Button(new Rect(x, y, bw, vh), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], other ? _btnOn : _btn)) Chase.NextView();
-            y += vh + gap;
-            if (Replay != null && GUI.Button(new Rect(x, y, bw, bh), "REPLAY", _btn)) Replay.Enter();
-            y += bh + gap;
-            if (GUI.Button(new Rect(x, y, bw, bh), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
-            y += bh + gap;
+            if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other ? _btnOn : _btn)) Chase.NextView();
+            if (Replay != null && UiLayout.Button(UiLayout.ToolbarSlot(1, n), "REPLAY", _btn)) Replay.Enter();
+            if (UiLayout.Button(UiLayout.ToolbarSlot(2, n), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool rec = ClipRecorder.Recording;
-            if (GUI.Button(new Rect(x, y, bw, bh), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
-            y += bh + gap;
-            // Radio push-to-talk (multiplayer): hold to transmit on the OPTIONS frequency (held state read in Update).
+            if (UiLayout.Button(UiLayout.ToolbarSlot(3, n), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
+            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(4, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
+            // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
             if (VoiceComms.RadioAvailable)
             {
-                _talkRect = new Rect(x, y, bw, bh * 1.6f);
+                Rect blk = UiLayout.NextBlock(UiLayout.ButtonH * 1.4f);
+                _talkRect = new Rect(blk.center.x - UiLayout.S * 0.14f, blk.y, UiLayout.S * 0.28f, blk.height);
                 GUI.Box(_talkRect, VoiceComms.PttHeld ? $"TRANSMITTING\n{VoiceComms.Frequency}" : $"HOLD TO TALK\n{VoiceComms.Frequency}", VoiceComms.PttHeld ? _btnRec : _btn);
-                y += bh * 1.6f + gap;
             }
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
-            if (radio != null) GUI.Label(new Rect(x - bw, y, bw * 2f, bh), radio, _label);
+            if (radio != null) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), radio, _label);
         }
 
         private void DrawReplayBar()

@@ -117,17 +117,18 @@ namespace FlyingGame.Bridge
             if (!IsOpen)
             {
                 // Small MENU button top-left.
-                float mbw = s * 0.11f, mbh = s * 0.055f;
-                if (GUI.Button(new Rect(s * 0.02f, s * 0.02f, mbw, mbh), "MENU", _btn)) Open();
+                if (UiLayout.Button(UiLayout.MenuRect, "MENU", _btn)) Open();   // the shared toolbar row (no-overlap rule)
                 return;
             }
 
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
             float m = s * 0.03f, w = Screen.width - 2 * m;
             float lh = _fs * 1.7f, gap = _fs * 0.5f;
-            GUI.Label(new Rect(m, m * 0.6f, w, lh * 1.3f), "FLIGHT SETUP", _title);
+            UiLayout.Label(new Rect(m, m * 0.6f, w, lh * 1.3f), "FLIGHT SETUP", _title);
             float pageTop = m * 0.6f + lh * 1.5f;
-            float colW = (w - 3 * gap) / 4f;
+            // Portrait (no-overlap rule): two wide columns, two rows of sections; landscape: four columns.
+            bool port = Screen.height > Screen.width;
+            float colW = port ? (w - gap) / 2f : (w - 3 * gap) / 4f;
 
             // SCROLLING (owner 2026-10-03: "so big now with all of the options i cannot see them all"): the four columns live
             // in a scroll area between the title and the FLY button — drag (touch / mouse) or scroll wheel / trackpad.
@@ -140,73 +141,73 @@ namespace FlyingGame.Bridge
 
             // ---- column 1: aircraft
             float x = m, y = top;
-            GUI.Label(new Rect(x, y, colW, lh), "AIRCRAFT", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh), "AIRCRAFT", _head); y += lh;
             float bh = lh * 1.05f;
             foreach ((string id, string name) in SessionSettings.Fleet)
             {
                 bool on = SessionSettings.AircraftId == id;
-                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.AircraftId = id;
+                if (UiLayout.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.AircraftId = id;
                 y += bh + gap * 0.4f;
             }
 
             // ---- column 2: start
             maxY = Mathf.Max(maxY, y);
             x = m + colW + gap; y = top;
-            GUI.Label(new Rect(x, y, colW, lh), "START", _head); y += lh;
-            if (GUI.Button(new Rect(x, y, colW, bh), "In the air", SessionSettings.StartMode == SessionSettings.Start.InTheAir ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            UiLayout.Label(new Rect(x, y, colW, lh), "START", _head); y += lh;
+            if (UiLayout.Button(new Rect(x, y, colW, bh), "In the air", SessionSettings.StartMode == SessionSettings.Start.InTheAir ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.InTheAir;
             y += bh + gap * 0.4f;
-            if (GUI.Button(new Rect(x, y, colW, bh), "On the runway", SessionSettings.StartMode == SessionSettings.Start.OnTheRunway ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnTheRunway;
+            if (UiLayout.Button(new Rect(x, y, colW, bh), "On the runway", SessionSettings.StartMode == SessionSettings.Start.OnTheRunway ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnTheRunway;
             y += bh + gap * 0.4f;
-            if (GUI.Button(new Rect(x, y, colW, bh), "On final, 300 ft", SessionSettings.StartMode == SessionSettings.Start.OnFinal ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnFinal;
+            if (UiLayout.Button(new Rect(x, y, colW, bh), "On final, 300 ft", SessionSettings.StartMode == SessionSettings.Start.OnFinal ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.OnFinal;
             y += bh + gap * 0.4f;
             {
                 // Owner 2026-10-01: start in the aerobatic box, the combat zone, or already circling in a thermal.
                 float third = (colW - 2 * gap * 0.3f) / 3f;
                 var extra = new[] { (SessionSettings.Start.InAeroBox, "Aero box"), (SessionSettings.Start.InCombatZone, "Combat"), (SessionSettings.Start.InThermal, "Thermal") };
                 for (int i = 0; i < extra.Length; i++)
-                    if (GUI.Button(new Rect(x + i * (third + gap * 0.3f), y, third, bh), extra[i].Item2, SessionSettings.StartMode == extra[i].Item1 ? _btnOn : _btn)) SessionSettings.StartMode = extra[i].Item1;
+                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.3f), y, third, bh), extra[i].Item2, SessionSettings.StartMode == extra[i].Item1 ? _btnOn : _btn)) SessionSettings.StartMode = extra[i].Item1;
                 y += bh + gap * 0.4f;
             }
             if (SessionSettings.StartMode == SessionSettings.Start.OnTheRunway || SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Runway choice (owner 2026-09-10): into the wind on the 09/27, or the crosswind main.
                 float half = (colW - gap * 0.3f) / 2f;
-                if (GUI.Button(new Rect(x, y, half, bh), "Headwind", SessionSettings.Runway == SessionSettings.RunwayPick.Headwind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Headwind;
-                if (GUI.Button(new Rect(x + half + gap * 0.3f, y, half, bh), "Crosswind", SessionSettings.Runway == SessionSettings.RunwayPick.Crosswind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Crosswind;
+                if (UiLayout.Button(new Rect(x, y, half, bh), "Headwind", SessionSettings.Runway == SessionSettings.RunwayPick.Headwind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Headwind;
+                if (UiLayout.Button(new Rect(x + half + gap * 0.3f, y, half, bh), "Crosswind", SessionSettings.Runway == SessionSettings.RunwayPick.Crosswind ? _btnOn : _btn)) SessionSettings.Runway = SessionSettings.RunwayPick.Crosswind;
                 y += bh + gap * 0.4f;
             }
             y += gap * 0.6f;
-            GUI.Label(new Rect(x, y, colW, lh), "AIRPORT", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh), "AIRPORT", _head); y += lh;
             for (int i = 0; i < FlyingGame.Core.WorldTerrain.Airports.Length; i++)
             {
                 var a = FlyingGame.Core.WorldTerrain.Airports[i];
                 string txt = $"{a.Name}  {a.ElevationM * 3.28084:N0} ft";
-                if (GUI.Button(new Rect(x, y, colW, bh), txt, SessionSettings.AirportIndex == i ? _btnOn : _btn)) SessionSettings.AirportIndex = i;
+                if (UiLayout.Button(new Rect(x, y, colW, bh), txt, SessionSettings.AirportIndex == i ? _btnOn : _btn)) SessionSettings.AirportIndex = i;
                 y += bh + gap * 0.4f;
             }
             if (SessionSettings.AircraftId.StartsWith("glider"))
             {
                 y += gap;
-                GUI.Label(new Rect(x, y, colW, lh), "TOW PLANE", _head); y += lh;
+                UiLayout.Label(new Rect(x, y, colW, lh), "TOW PLANE", _head); y += lh;
                 float half = (colW - gap * 0.4f) / 2f;
-                if (GUI.Button(new Rect(x, y, half, bh), "Pawnee", SessionSettings.TugId == "pa25-pawnee-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa25-pawnee-like";
-                if (GUI.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
+                if (UiLayout.Button(new Rect(x, y, half, bh), "Pawnee", SessionSettings.TugId == "pa25-pawnee-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa25-pawnee-like";
+                if (UiLayout.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
                 y += bh + gap * 0.4f;
             }
             y += gap;
-            GUI.Label(new Rect(x, y, colW, lh), "INSTRUMENTS", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh), "INSTRUMENTS", _head); y += lh;
             {
                 float third = (colW - 2 * gap * 0.4f) / 3f;
                 var modes = new[] { (SessionSettings.InstrumentMode.Analog, "Dials"), (SessionSettings.InstrumentMode.Hud, "HUD"), (SessionSettings.InstrumentMode.None, "None") };
                 for (int i = 0; i < modes.Length; i++)
                 {
                     bool on = SessionSettings.Instruments == modes[i].Item1;
-                    if (GUI.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Instruments = modes[i].Item1;
+                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Instruments = modes[i].Item1;
                 }
                 y += bh + gap * 0.4f;
             }
             y += gap;
-            GUI.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
+            UiLayout.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
                 ? "Airborne 2,000 ft over the field, trimmed."
                 : SessionSettings.StartMode == SessionSettings.Start.InAeroBox ? "Running in to the aerobatic box, 2,300 ft above the ground."
                 : SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "Entering the combat zone, guns hot."
@@ -217,34 +218,35 @@ namespace FlyingGame.Bridge
 
             // ---- column 3: challenge
             maxY = Mathf.Max(maxY, y);
-            x = m + 2 * (colW + gap); y = top;
-            GUI.Label(new Rect(x, y, colW, lh), "CHALLENGE", _head); y += lh;
+            float row2Top = maxY + gap * 1.5f;
+            if (port) { x = m; y = row2Top; } else { x = m + 2 * (colW + gap); y = top; }
+            UiLayout.Label(new Rect(x, y, colW, lh), "CHALLENGE", _head); y += lh;
             foreach ((string id, string name) in SessionSettings.Challenges)
             {
                 bool on = SessionSettings.ChallengeId == id;
-                if (GUI.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.ChallengeId = id;
+                if (UiLayout.Button(new Rect(x, y, colW, bh), name, on ? _btnOn : _btn)) SessionSettings.ChallengeId = id;
                 y += bh + gap * 0.4f;
                 if (on && id == "event:dogfight")
                 {
                     // Opponent (tap to cycle through the powered fleet) and its skill.
                     string oppName = SessionSettings.DogfightOpponentId;
                     foreach (var f in SessionSettings.Fleet) if (f.id == SessionSettings.DogfightOpponentId) oppName = f.name;
-                    if (GUI.Button(new Rect(x, y, colW, bh), $"vs  {oppName}  >", _btn)) SessionSettings.DogfightOpponentId = NextOpponent(SessionSettings.DogfightOpponentId);
+                    if (UiLayout.Button(new Rect(x, y, colW, bh), $"vs  {oppName}  >", _btn)) SessionSettings.DogfightOpponentId = NextOpponent(SessionSettings.DogfightOpponentId);
                     y += bh + gap * 0.4f;
                     float third = (colW - 2 * gap * 0.3f) / 3f;
                     for (int k = 0; k < 3; k++)
-                        if (GUI.Button(new Rect(x + k * (third + gap * 0.3f), y, third, bh), SessionSettings.SkillNames[k], SessionSettings.DogfightSkill == k ? _btnOn : _btn)) SessionSettings.DogfightSkill = k;
+                        if (UiLayout.Button(new Rect(x + k * (third + gap * 0.3f), y, third, bh), SessionSettings.SkillNames[k], SessionSettings.DogfightSkill == k ? _btnOn : _btn)) SessionSettings.DogfightSkill = k;
                     y += bh + gap * 0.4f;
                 }
             }
             // ---- FLYING LESSONS (owner 2026-09-15): the game flies every axis but the one being learned.
             y += gap * 0.5f;
-            GUI.Label(new Rect(x, y, colW, lh), "FLYING LESSONS", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh), "FLYING LESSONS", _head); y += lh;
             float lbh = bh * 0.9f;
             foreach ((string id, string name) in SessionSettings.Lessons)
             {
                 bool on = SessionSettings.ChallengeId == id;
-                if (GUI.Button(new Rect(x, y, colW, lbh), name, on ? _btnOn : _btn))
+                if (UiLayout.Button(new Rect(x, y, colW, lbh), name, on ? _btnOn : _btn))
                 {
                     SessionSettings.ChallengeId = id;
                     bool xw = SessionSettings.PracticeIsCrosswind(id);
@@ -258,33 +260,33 @@ namespace FlyingGame.Bridge
             if (SessionSettings.LessonHasAxisChoice(SessionSettings.ChallengeId))
             {
                 // Which controls YOU fly (the game takes the rest) — owner 2026-09-15.
-                GUI.Label(new Rect(x, y, colW, lh), "YOU FLY", _head); y += lh;
+                UiLayout.Label(new Rect(x, y, colW, lh), "YOU FLY", _head); y += lh;
                 if (SessionSettings.LessonUserAxes < 0) SessionSettings.LessonUserAxes = SessionSettings.LessonDefaultAxes(SessionSettings.ChallengeId);
                 string[] names = { "AIL", "ELE", "RUD", SessionSettings.AircraftId.StartsWith("glider") ? "SPOIL" : "THR" };
                 float aw = (colW - 3 * gap * 0.3f) / 4f;
                 for (int i = 0; i < 4; i++)
                 {
                     bool on = (SessionSettings.LessonUserAxes & (1 << i)) != 0;
-                    if (GUI.Button(new Rect(x + i * (aw + gap * 0.3f), y, aw, bh), names[i], on ? _btnOn : _btn)) SessionSettings.LessonUserAxes ^= (1 << i);
+                    if (UiLayout.Button(new Rect(x + i * (aw + gap * 0.3f), y, aw, bh), names[i], on ? _btnOn : _btn)) SessionSettings.LessonUserAxes ^= (1 << i);
                 }
                 y += bh + gap * 0.4f;
             }
             if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && SessionSettings.PracticeHasWindChoice(SessionSettings.ChallengeId))
             {
                 // Practice wind (owner 2026-09-15): steady / gusty / shifting crosswind, or calm / head / tail winds with gusts.
-                GUI.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;
+                UiLayout.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;
                 var choices = SessionSettings.PracticeIsCrosswind(SessionSettings.ChallengeId) ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices;
                 foreach (var (wnd, wname) in choices)
                 {
-                    if (GUI.Button(new Rect(x, y, colW, bh), wname, SessionSettings.PracticeWindChoice == wnd ? _btnOn : _btn)) SessionSettings.PracticeWindChoice = wnd;
+                    if (UiLayout.Button(new Rect(x, y, colW, bh), wname, SessionSettings.PracticeWindChoice == wnd ? _btnOn : _btn)) SessionSettings.PracticeWindChoice = wnd;
                     y += bh + gap * 0.4f;
                 }
             }
 
             // ---- column 4: conditions
             maxY = Mathf.Max(maxY, y);
-            x = m + 3 * (colW + gap); y = top;
-            GUI.Label(new Rect(x, y, colW, lh), "CONDITIONS", _head); y += lh;
+            if (port) { x = m + colW + gap; y = row2Top; } else { x = m + 3 * (colW + gap); y = top; }
+            UiLayout.Label(new Rect(x, y, colW, lh), "CONDITIONS", _head); y += lh;
             y = Slider(x, y, colW, "Wind from", $"{SessionSettings.WindFromDeg:000}°", ref SessionSettings.WindFromDeg, 0f, 359f, 15f);
             y = Slider(x, y, colW, "Wind speed", $"{SessionSettings.WindSpeedMs * 1.944f:F0} kt", ref SessionSettings.WindSpeedMs, 0f, 20f, 1f);
             float turb = SessionSettings.TurbulenceLevel;
@@ -296,12 +298,12 @@ namespace FlyingGame.Bridge
 
             // ---- multiplayer (free play only)
             y += gap * 0.5f;
-            GUI.Label(new Rect(x, y, colW, lh), "MULTIPLAYER", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh), "MULTIPLAYER", _head); y += lh;
             bool freePlay = SessionSettings.ChallengeId == null;
             if (!freePlay)
             {
                 SessionSettings.Multiplayer = SessionSettings.MultiplayerMode.Solo;
-                GUI.Label(new Rect(x, y, colW, lh), "Free flight only — challenges fly solo.", _small);
+                UiLayout.Label(new Rect(x, y, colW, lh), "Free flight only — challenges fly solo.", _small);
             }
             else
             {
@@ -310,13 +312,13 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < modes.Length; i++)
                 {
                     bool on = SessionSettings.Multiplayer == modes[i].Item1;
-                    if (GUI.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Multiplayer = modes[i].Item1;
+                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, on ? _btnOn : _btn)) SessionSettings.Multiplayer = modes[i].Item1;
                 }
                 y += bh + gap * 0.4f;
                 if (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo)
                 {
                     float lw = colW * 0.3f;
-                    GUI.Label(new Rect(x, y, lw, bh), "Pilot", _label);
+                    UiLayout.Label(new Rect(x, y, lw, bh), "Pilot", _label);
                     string name = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.PilotName ?? "", 16, _field);
                     SessionSettings.PilotName = Ascii(name, false);
                     y += bh + gap * 0.4f;
@@ -324,12 +326,12 @@ namespace FlyingGame.Bridge
                 if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
                 {
                     float lw = colW * 0.3f, cw = colW * 0.42f;
-                    GUI.Label(new Rect(x, y, lw, bh), "Code", _label);
+                    UiLayout.Label(new Rect(x, y, lw, bh), "Code", _label);
                     string code = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
                     SessionSettings.RoomCode = Ascii(code, true);
-                    if (GUI.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
+                    if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
                     y += bh + gap * 0.4f;
-                    GUI.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
+                    UiLayout.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
                 }
             }
 
@@ -344,12 +346,12 @@ namespace FlyingGame.Bridge
                 GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, viewport.y, m * 0.18f, viewport.height), _btnBg);
                 GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
                 if (_scrollY < _contentH - viewport.height - 1f)
-                    GUI.Label(new Rect(m, viewport.yMax - lh * 0.1f, w * 0.5f, lh * 0.9f), "▼ more below — drag or scroll", _small);
+                    UiLayout.Label(new Rect(m, viewport.yMax - lh * 0.1f, w * 0.5f, lh * 0.9f), "▼ more below — drag or scroll", _small);
             }
 
             // ---- FLY
             float fw = s * 0.26f, fh = s * 0.09f;
-            if (GUI.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
+            if (UiLayout.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
         }
 
         private float _scrollY, _contentH, _dragStartY, _dragStartScroll;
@@ -389,11 +391,11 @@ namespace FlyingGame.Bridge
         private float Slider(float x, float y, float w, string label, string value, ref float v, float min, float max, float step)
         {
             float lh = _fs * 1.7f, bw = lh * 1.2f;
-            GUI.Label(new Rect(x, y, w, lh), label, _label);
+            UiLayout.Label(new Rect(x, y, w, lh), label, _label);
             y += lh;
-            if (GUI.Button(new Rect(x, y, bw, lh), "−", _btn)) v = Mathf.Clamp(v - step, min, max);
-            GUI.Label(new Rect(x + bw + _fs * 0.4f, y, w - 2 * bw - _fs * 0.8f, lh), value, new GUIStyle(_label) { alignment = TextAnchor.MiddleCenter });
-            if (GUI.Button(new Rect(x + w - bw, y, bw, lh), "+", _btn)) v = Mathf.Clamp(v + step, min, max);
+            if (UiLayout.Button(new Rect(x, y, bw, lh), "−", _btn)) v = Mathf.Clamp(v - step, min, max);
+            UiLayout.Label(new Rect(x + bw + _fs * 0.4f, y, w - 2 * bw - _fs * 0.8f, lh), value, new GUIStyle(_label) { alignment = TextAnchor.MiddleCenter });
+            if (UiLayout.Button(new Rect(x + w - bw, y, bw, lh), "+", _btn)) v = Mathf.Clamp(v + step, min, max);
             if (label == "Wind from" && v >= 359f) v = 0f;
             return y + lh + _fs * 0.5f;
         }

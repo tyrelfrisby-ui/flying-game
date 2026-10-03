@@ -159,9 +159,12 @@ namespace FlyingGame.Bridge
         {
             float w = Screen.width, h = Screen.height, s = Mathf.Min(w, h);
             if (ScreenLayout.Portrait) { LayOutPortrait(w); return; }
-            _half = s * PadHalfFraction;
             float margin = s * 0.035f;
             float gap = s * 0.02f;
+            // No-overlap rule: on squarer screens (iPad, 4:3) full-size pads would squeeze the centre band until the dials
+            // pile on each other — the pads shrink so the band keeps at least MinBandFrac of the short edge.
+            const float MinBandFrac = 0.85f;
+            _half = Mathf.Min(s * PadHalfFraction, (w - 2f * margin - 3f * gap - MinBandFrac * s) / 2.22f);
             // Pads sit at MID-HEIGHT (owner request), not along the bottom.
             _leftCenter = new Vector2(margin + _half, h * 0.5f);
             _rightCenter = new Vector2(w - margin - _half, h * 0.5f);
@@ -210,6 +213,31 @@ namespace FlyingGame.Bridge
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
             _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
             _fireRect = FireRectTopLeft();
+            PublishBand();
+        }
+
+        /// <summary>Tell the shared layout (UiLayout) where the controls are, so text and dials keep clear of them.</summary>
+        private void PublishBand()
+        {
+            float w = Screen.width, h = Screen.height;
+            if (DeskMode)
+            {
+                // Mac: no pads; only the small control indicator bottom-left and the centre buttons at the bottom.
+                UiLayout.BandMin = 0f; UiLayout.BandMax = w;
+                UiLayout.BottomLimit = h - (_bailRect.yMax + Mathf.Min(w, h) * 0.02f);
+                return;
+            }
+            if (ScreenLayout.Portrait)
+            {
+                UiLayout.BandMin = 0f; UiLayout.BandMax = w;
+                UiLayout.BottomLimit = h - ScreenLayout.TrayHeightPx;
+                return;
+            }
+            float gap = Mathf.Min(w, h) * 0.02f;
+            UiLayout.BandMin = _leftCenter.x + _half + gap;
+            UiLayout.BandMax = Mathf.Min(_trimRect.x, _rightCenter.x - _half) - gap;
+            float clusterTop = Mathf.Max(_bailRect.yMax, Mathf.Max(_acftRect.yMax, _towRect.yMax));   // screen px, bottom-left origin
+            UiLayout.BottomLimit = h - clusterTop - gap;
         }
 
         private void LayOutPortrait(float w)
@@ -248,6 +276,7 @@ namespace FlyingGame.Bridge
             _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
             _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
             _fireRect = FireRectTopLeft();
+            PublishBand();
         }
 
         /// <summary>FIRE (owner 2026-10-01): top left under MENU, a big target for a third finger while both thumbs stay on
@@ -393,7 +422,7 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Draw a button (the tap is read in ReadPointers, so it works with the pads held).</summary>
-        private void Button(Rect r, string label) => GUI.Label(ToGui(r), label, _btnStyle);
+        private void Button(Rect r, string label) { Rect g = ToGui(r); UiLayout.Label(g, label, _btnStyle); }   // shrinks to fit (no-overlap rule)
 
         private bool NearPad(Vector2 pos, Vector2 center)
         {
@@ -591,7 +620,7 @@ namespace FlyingGame.Bridge
                 GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);
                 GUI.DrawTexture(g, _solidTex);
                 GUI.color = Color.white;
-                GUI.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE", _ejectStyle);
+                UiLayout.Label(g, _fireFinger != int.MinValue ? "FIRING" : "FIRE", _ejectStyle);
             }
             if (EjectAvailable)
             {
@@ -604,13 +633,18 @@ namespace FlyingGame.Bridge
                     GUI.DrawTexture(new Rect(g.x, g.y, g.width * Mathf.Clamp01(_ejectHold / EjectHoldSec), g.height), _solidTex);
                 }
                 GUI.color = Color.white;
-                GUI.Label(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
+                UiLayout.Label(g, _ejectFinger != int.MinValue ? "EJECT" : "HOLD: EJECT", _ejectStyle);
             }
 
             Button(_resetRect, "Reset");
-            Button(_acftRect, _driver.AircraftName);
-            DrawTrimBar(_rudTrimRect, _rudderTrim, "RUD TRIM");
-            DrawTrimBar(_ailTrimRect, _aileronTrim, "AIL TRIM");
+            string an = _driver.AircraftName ?? "";
+            int paren = an.IndexOf(" (");
+            Button(_acftRect, paren > 0 ? an.Substring(0, paren) : an);   // "Bush Taildragger (PA-18)" → fits the button
+            if (!DeskMode)   // Mac: no touch trim bars — the desk indicator shows trim (=/- keys)
+            {
+                DrawTrimBar(_rudTrimRect, _rudderTrim, "RUD TRIM");
+                DrawTrimBar(_ailTrimRect, _aileronTrim, "AIL TRIM");
+            }
             // Landing gear (retractable types): one button, labelled with what it will do.
             if (_driver.Sim?.Aircraft?.Config?.RetractableGear == true)
             {
@@ -633,7 +667,7 @@ namespace FlyingGame.Bridge
                     GUI.color = on ? new Color(0.2f, 0.62f, 0.35f, 0.95f) : new Color(0.18f, 0.24f, 0.32f, 0.95f);
                     GUI.DrawTexture(g, _solidTex);
                     GUI.color = Color.white;
-                    GUI.Label(g, i == 0 ? "FLAP 0" : i == 1 ? "50" : "100", _ejectStyle);
+                    UiLayout.Label(g, i == 0 ? "FLAP 0" : i == 1 ? "50" : "100", _ejectStyle);
                 }
             }
             // Glider on the ground: TOW button (aerotow from the runway) above the Aircraft button.
@@ -831,18 +865,24 @@ namespace FlyingGame.Bridge
 
             // Knob.
             GUI.color = new Color(1f, 1f, 1f, 0.9f);
-            GUI.DrawTexture(GuiRectCentered(knob, _half * 0.45f), _knobTex);
+            // The knob disc stays INSIDE the pad (no-overlap rule: at full travel it used to cover the pad's label and the
+            // trim bar); the position lines above still mark the exact stick position.
+            float kr = _half * 0.225f;
+            var kd = new Vector2(Mathf.Clamp(knob.x, pad.x + kr, pad.xMax - kr), Mathf.Clamp(knob.y, pad.y + kr, pad.yMax - kr));
+            GUI.DrawTexture(GuiRectCentered(kd, _half * 0.45f), _knobTex);
 
             // Label (and value) just above the pad.
             GUI.color = Color.white;
             float lh = _styleFs * 1.5f;
-            GUI.Label(new Rect(pad.x, Screen.height - (pad.yMax + lh), d, lh), label, _labelStyle);
+            // Portrait: the trim bars sit right above the pads — the labels go above the bars (no-overlap rule).
+            float lift = ScreenLayout.Portrait ? _rudTrimRect.height + Mathf.Min(Screen.width, Screen.height) * 0.012f + _styleFs * 1.5f : 0f;
+            UiLayout.Label(new Rect(pad.x, Screen.height - (pad.yMax + lift + lh), d, lh), label, _labelStyle);
             if (value != null)
             {
                 // Brake awareness (owner): the readout goes RED while any brake is applied.
                 bool braking = value.StartsWith("BRAKES");
                 if (braking && _brakeValueStyle == null) _brakeValueStyle = new GUIStyle(_valueStyle) { normal = { textColor = new Color(1f, 0.25f, 0.2f) } };
-                GUI.Label(new Rect(pad.x, Screen.height - (pad.yMax + 2f * lh), d, lh), value, braking ? _brakeValueStyle : _valueStyle);
+                UiLayout.Label(new Rect(pad.x, Screen.height - (pad.yMax + lift + 2f * lh), d, lh), value, braking ? _brakeValueStyle : _valueStyle);
             }
         }
 
@@ -868,7 +908,14 @@ namespace FlyingGame.Bridge
             GUI.color = new Color(0.45f, 0.9f, 1f, 0.95f);
             GUI.DrawTexture(ToGui(new Rect(kx - kw * 0.5f, r.y, kw, r.height)), _solidTex);
             GUI.color = new Color(1f, 1f, 1f, 0.6f);
-            if (_labelStyle != null) GUI.Label(ToGui(new Rect(r.x, r.y - r.height * 0.05f, r.width, r.height)), label, _labelStyle);
+            // The label sits OUTSIDE the bar (no-overlap rule: the marker used to slide over it) — above the bar in
+            // portrait (the pad is right below it; the tray reserves the line), below it in landscape.
+            if (_labelStyle != null)
+            {
+                float lh = _styleFs * 1.5f;
+                float ly = ScreenLayout.Portrait ? r.yMax + 2f : r.y - lh - 2f;
+                UiLayout.Label(ToGui(new Rect(r.x, ly, r.width, lh)), label, _labelStyle);
+            }
             GUI.color = Color.white;
         }
 

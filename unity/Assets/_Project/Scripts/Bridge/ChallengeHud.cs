@@ -13,6 +13,8 @@ namespace FlyingGame.Bridge
         public ChallengeController Controller;
         private GUIStyle _label, _big, _band;
 
+        private Practice.PracticeController _practice;
+
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen) return;   // owner 2026-10-03: no HUD text over the landing page
@@ -20,13 +22,15 @@ namespace FlyingGame.Bridge
             // Top-centre, below FlightHud's lines; sized off the short screen edge like the rest of the GUI.
             float lh = _fs * 1.5f;
             float w = Screen.width - 2f * _fs;
-            float y = _fs * 0.5f + 3f * lh;
-            Rect Line(float extra = 1f) { var r = new Rect(_fs, y, w, lh * extra); y += lh * extra; return r; }
+            if (UiLayout.Modal) return;
+            Rect Line(float extra = 1f) => UiLayout.NextLine(lh * extra);   // the shared text stack (no-overlap rule)
 
             if (Controller == null || Controller.Runner == null)
             {
                 // Keyboard hint — only where there IS a keyboard (Mac / editor); on a touchscreen it's noise over the HUD.
-                if (!Input.touchSupported) GUI.Label(Line(), "Press C to start a graded challenge · N for next", _label);
+                _practice ??= Object.FindFirstObjectByType<Practice.PracticeController>();
+                bool inLesson = _practice != null && _practice.Active;   // a lesson has its own instructions
+                if (!Input.touchSupported && !inLesson) UiLayout.Label(Line(), "Press C to start a graded challenge · N for next", _label);
                 return;
             }
 
@@ -35,21 +39,21 @@ namespace FlyingGame.Bridge
             if (r.Complete)
             {
                 var card = new GUIStyle(_big) { normal = { textColor = r.Passed ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.5f, 0.5f) } };
-                GUI.Label(Line(1.4f), $"{(r.Passed ? "PASS" : "TRY AGAIN")}   {r.Score:F0}%", card);
-                GUI.Label(Line(), $"{Controller.CurrentId}  ·  C to retry  ·  N for next", _label);
+                UiLayout.Label(Line(1.4f), $"{(r.Passed ? "PASS" : "TRY AGAIN")}   {r.Score:F0}%", card);
+                UiLayout.Label(Line(), $"{Controller.CurrentId}  ·  C to retry  ·  N for next", _label);
                 return;
             }
 
             // Callout + timer + live score.
             string callout = r.LastCalloutKey != null ? Prettify(r.LastCalloutKey) : Controller.CurrentId;
-            GUI.Label(Line(1.4f), callout, _big);
-            GUI.Label(Line(), $"phase {r.PhaseIndex + 1}/{r.Def.Phases.Count}   {r.PhaseTimeLeft:F0}s   score {r.LiveScore:F0}%", _label);
+            UiLayout.Label(Line(1.4f), callout, _big);
+            UiLayout.Label(Line(), $"phase {r.PhaseIndex + 1}/{r.Def.Phases.Count}   {r.PhaseTimeLeft:F0}s   score {r.LiveScore:F0}%", _label);
 
             // Live tolerance strip.
             foreach (var b in r.LiveBands)
             {
                 var s = new GUIStyle(_band) { normal = { textColor = b.InBand ? new Color(0.5f, 1f, 0.5f) : new Color(1f, 0.55f, 0.4f) } };
-                GUI.Label(Line(), $"{(b.InBand ? "●" : "○")} {Prettify(b.Signal)}", s);
+                UiLayout.Label(Line(), $"{(b.InBand ? "●" : "○")} {Prettify(b.Signal)}", s);
             }
         }
 

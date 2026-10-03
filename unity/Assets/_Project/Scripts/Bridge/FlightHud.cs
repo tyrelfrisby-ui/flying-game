@@ -38,24 +38,25 @@ namespace FlyingGame.Bridge
             float lh = fs * 1.5f;         // line height
             float w = Screen.width - 2 * m;
 
-            // Airspeed/altitude/AoA/sideslip now live in HudOverlay (green HUD over the aircraft).
-            GUI.Label(new Rect(m, m * 0.5f, w, lh),
-                $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°  ·  1-0 aircraft · arrows/A-D/S-W · T turb · C challenge · Y tow / G release · R reset", _style);
+            if (UiLayout.Modal) return;
+            // Status line: its own row in the shared text stack, shrunk to fit (no-overlap rule). The keyboard hints only
+            // where there is a keyboard (the Mac app).
+            UiLayout.Label(UiLayout.NextLine(lh), $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°", _style);
+            // Mac: the key list gets its own line (sharing the status line shrank both to unreadable).
+            if (TouchFlightControls.DeskMode)
+                UiLayout.Label(UiLayout.NextLine(lh), "arrows stick · A/D rudder · W/S power · =/- trim · F flaps · L gear · T turb · C challenge · Y tow / G release · R reset", _style);
 
             string net = (_net ??= Driver.GetComponent<Net.NetSession>())?.StatusLine;
-            if (net != null) GUI.Label(new Rect(m, m * 0.5f + lh * 2f, w, lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
+            if (net != null) UiLayout.Label(UiLayout.NextLine(lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"
             string ev = Race != null && Race.Line != null ? Race.Line : Stol != null && Stol.Line != null ? Stol.Line
                 : Dust != null && Dust.Line != null ? Dust.Line : Tow != null && Tow.StatusLine != null ? Tow.StatusLine
                 : Combat != null && Combat.InZone && Combat.Line != null ? Combat.Line
                 : (_damage ??= Driver.GetComponent<StructuralDamage>())?.LostLine;
-            if (ev != null)
-            {
-                GUI.Label(new Rect(m, m * 0.5f + lh, w, lh), ev, _style);
-            }
+            if (ev != null) UiLayout.Label(UiLayout.NextLine(lh), ev, _style);
             // Spin grading line — only when the wing is stalled and rotation is established.
             if (Driver.AlphaDeg > 16.0 && Driver.SecPerTurn > 0)
             {
-                GUI.Label(new Rect(m, m * 0.5f + lh, w, lh),
+                UiLayout.Label(UiLayout.NextLine(lh),
                     $"SPIN  {Driver.SecPerTurn:F1} s/turn   {Driver.FtPerTurn:F0} ft/turn   {Driver.DescentFtPerSec:F0} ft/s down", _style);
             }
         }

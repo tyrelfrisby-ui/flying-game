@@ -22,6 +22,7 @@ namespace FlyingGame.Bridge
 
         private Camera _cam;
         private Texture2D _asiFace, _altFace, _gFace, _varioFace, _needle, _dot;
+        private GUIStyle _dialCap;
         private GUIStyle _big, _num, _label;
         private int _fs, _faceSize;
         private float _asiMaxKt = 160f, _gLo, _gHi, _stallKt;
@@ -180,6 +181,7 @@ namespace FlyingGame.Bridge
         private void Draw(bool live)
         {
             if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
+            if (live && UiLayout.Modal) return;   // a lesson card is up
             var aircraft = Driver.Sim.Aircraft;
             float s = Mathf.Min(_cam.pixelWidth, _cam.pixelHeight);
             float r = s * RadiusFrac, gr = r * 0.72f;
@@ -204,7 +206,19 @@ namespace FlyingGame.Bridge
             if (live) _anchor += (acRaw - _anchor) * (1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.5f));
             Vector2 ac = new Vector2(Mathf.Round(_anchor.x), Mathf.Round(_anchor.y));
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
-            Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, bottom - rad * 1.05f));
+            // NO-OVERLAP RULE (owner 2026-10-03): the dials live in the free region — the centre band between the pads,
+            // under the toolbar + text stack, above the bottom buttons — with each readout UNDER its dial. They shrink to fit.
+            float readH = fs * 1.9f;
+            float regL = Mathf.Max(view.x, UiLayout.BandLeft), regR = Mathf.Min(view.xMax, UiLayout.BandRight);
+            float regT = Mathf.Max(top, UiLayout.StackBottomLastFrame + UiLayout.Gap), regB = Mathf.Min(bottom, UiLayout.BottomLimit) - readH;
+            if (!ChaseCamera.InCockpit)
+            {
+                bool gl = aircraft.Config.Propulsion == null;
+                float maxR = Mathf.Min((regR - regL) / (gl ? 4.8f : 4.6f), (regB - regT) / 3.4f);
+                if (maxR > 8f && r > maxR) { float k = maxR / r; r *= k; gr *= k; }
+                top = regT; bottom = regB; view = new Rect(regL, Screen.height - regB, regR - regL, regB - regT);
+            }
+            Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, Mathf.Max(top + rad * 1.05f, bottom - rad * 1.05f)));
             // RULE (owner): no instrument covers the aircraft — each dial is pushed out of the aircraft's screen rect
             // along its own side (airspeed left, altimeter right, g meter / vario up) before being clamped on screen.
             Rect ko = ScreenLayout.AircraftKeepOut;   // bottom-left origin
@@ -227,8 +241,23 @@ namespace FlyingGame.Bridge
             bool glider = aircraft.Config.Propulsion == null;
             float topY = ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s;
             // Glider: g meter and variometer side by side, centred high; powered: g meter alone in the centre.
-            Vector2 gc = Clamp(new Vector2(glider ? ac.x - gr * 1.15f : ac.x, topY), gr);
-            Vector2 vc = Clamp(new Vector2(ac.x + gr * 1.15f, topY), gr);
+            // The two readouts under them ("1.0 g", "+1.7") must not run into each other: space the dials by the text too.
+            float topSep = Mathf.Max(gr * 1.15f, _big.CalcSize(new GUIContent("-8.8 g")).x * 0.55f + fs * 0.3f);
+            Vector2 gc = Clamp(new Vector2(glider ? ac.x - topSep : ac.x, topY), gr);
+            Vector2 vc = Clamp(new Vector2(ac.x + topSep, topY), gr);
+            // The top dials' readout + limits line must clear the side dials: lift them, and if the region is too short,
+            // shrink everything a little (no-overlap rule).
+            for (int it = 0; it < 4 && !ChaseCamera.InCockpit; it++)
+            {
+                float below = gr + fs * 2.7f, clear = Mathf.Min(asi.y, alt.y) - r - below;
+                if (gc.y <= clear) break;
+                float lifted = Mathf.Max(top + gr * 1.05f, clear);
+                gc.y = vc.y = lifted;
+                if (lifted <= clear) break;
+                r *= 0.88f; gr *= 0.88f;
+                asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
+                alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
+            }
 
             // Cockpit view: the dials become an instrument panel along the bottom of the view.
             if (ChaseCamera.InCockpit)
@@ -250,6 +279,13 @@ namespace FlyingGame.Bridge
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);
+            // On-dial numbers and captions scale WITH the dial: a dial shrunk to fit its region keeps its scale legible
+            // instead of crowding full-size digits into a smaller face (no-overlap rule).
+            float dk = Mathf.Clamp01(r / Mathf.Max(1f, s * RadiusFrac));
+            _num.fontSize = Mathf.Max(6, Mathf.RoundToInt(fs * 0.62f * dk));
+            _dialCap ??= new GUIStyle(_label);
+            _dialCap.font = _label.font; _dialCap.normal.textColor = _label.normal.textColor;
+            _dialCap.fontSize = Mathf.Max(6, Mathf.RoundToInt(fs * 0.5f * dk));
             void Label(Vector2 p, string text, GUIStyle st, float w, float h) => GUI.Label(new Rect(p.x - w * 0.5f, p.y - h * 0.5f, w, h), text, st);
             Vector2 OnDial(Vector2 c, float deg, float rad) { float a = deg * Mathf.Deg2Rad; return c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rad; }
 
@@ -258,15 +294,15 @@ namespace FlyingGame.Bridge
             GUI.DrawTexture(new Rect(asi.x - r, asi.y - r, 2f * r, 2f * r), _asiFace);
             int ktStep = _asiMaxKt <= 200 ? 20 : _asiMaxKt <= 400 ? 40 : 100;
             for (int v = 0; v <= _asiMaxKt; v += ktStep) Label(OnDial(asi, DialDeg(v / _asiMaxKt, false), r * 0.66f), v.ToString(), _num, fs * 3f, fs);
-            Label(asi + new Vector2(0, r * 0.42f), $"{kt:F0}", _big, fs * 5f, fs * 1.8f);
-            Label(asi + new Vector2(0, -r * 0.30f), "KNOTS", _label, fs * 4f, fs);
+            Label(asi + new Vector2(0, r + fs * 0.95f), $"{kt:F0}", _big, fs * 5f, fs * 1.8f);   // under the dial, clear of the scale
+            Label(asi + new Vector2(0, -r * 0.30f), "KNOTS", _dialCap, fs * 4f, fs);
             DrawNeedle(asi, DialDeg(Mathf.Clamp01(kt / _asiMaxKt), false), r * 0.82f, r * 0.11f, nAlpha);
 
             // ---- altimeter
             GUI.DrawTexture(new Rect(alt.x - r, alt.y - r, 2f * r, 2f * r), _altFace);
             for (int i = 0; i < 10; i++) Label(OnDial(alt, DialDeg(i / 10f, true), r * 0.66f), i.ToString(), _num, fs * 2f, fs);
-            Label(alt + new Vector2(0, r * 0.42f), $"{ft:N0}", _big, fs * 6f, fs * 1.8f);
-            Label(alt + new Vector2(0, -r * 0.30f), "FEET", _label, fs * 4f, fs);
+            Label(alt + new Vector2(0, r + fs * 0.95f), $"{ft:N0}", _big, fs * 6f, fs * 1.8f);
+            Label(alt + new Vector2(0, -r * 0.30f), "FEET", _dialCap, fs * 4f, fs);
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 10000f, 1f), true), r * 0.50f, r * 0.16f, nAlpha);   // thousands (short, fat)
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 1000f, 1f), true), r * 0.82f, r * 0.10f, nAlpha);    // hundreds
 
@@ -276,8 +312,8 @@ namespace FlyingGame.Bridge
             float G(float v) => DialDeg(Mathf.Clamp01((v - _gLo) / (_gHi - _gLo)), false);
             int gStep = _gHi - _gLo > 14 ? 2 : 1;
             for (float v = _gLo; v <= _gHi + 0.01f; v += gStep) Label(OnDial(gc, G(v), gr * 0.62f), v.ToString("0"), _num, fs * 2f, fs);
-            Label(gc + new Vector2(0, gr * 0.40f), $"{g:F1} g", _big, fs * 5f, fs * 1.8f);
-            Label(gc + new Vector2(0, -gr * 0.28f), $"LIMIT +{st.LimitPosG:0.#}/{st.LimitNegG:0.#}  ULT +{st.UltimatePosG:0.#}/{st.UltimateNegG:0.#}", _label, fs * 9f, fs);
+            Label(gc + new Vector2(0, gr + fs * 0.95f), $"{g:F1} g", _big, fs * 5f, fs * 1.8f);
+            Label(gc + new Vector2(0, gr + fs * 2.05f), $"LIMIT +{st.LimitPosG:0.#}/{st.LimitNegG:0.#}  ULT +{st.UltimatePosG:0.#}/{st.UltimateNegG:0.#}", _label, fs * 9f, fs);
             DrawNeedle(gc, G(_gMaxSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);   // tell-tales hold the extremes
             DrawNeedle(gc, G(_gMinSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);
             DrawNeedle(gc, G(g), gr * 0.82f, gr * 0.12f, nAlpha);
@@ -289,9 +325,9 @@ namespace FlyingGame.Bridge
                 float vzKt = (float)(-st2.Attitude.Rotate(st2.Velocity).Z) * 1.9438f;   // up positive
                 GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(vc.x - gr, vc.y - gr, 2f * gr, 2f * gr), _varioFace);
-                for (int v = -10; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : (v > 0 ? "+" : "") + v, _num, fs * 2f, fs);
-                Label(vc + new Vector2(0, gr * 0.40f), $"{vzKt:+0.0;-0.0}", _big, fs * 5f, fs * 1.8f);
-                Label(vc + new Vector2(0, -gr * 0.28f), "KT UP/DN", _label, fs * 5f, fs);
+                for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : v == 10 ? "10" : (v > 0 ? "+" : "") + v, _num, fs * 2f, fs);   // ±10 share 3 o'clock: one "10"
+                Label(vc + new Vector2(0, gr + fs * 0.95f), $"{vzKt:+0.0;-0.0}", _big, fs * 5f, fs * 1.8f);
+                Label(vc + new Vector2(0, -gr * 0.28f), "KT", _dialCap, fs * 5f, fs);
                 DrawNeedle(vc, VarioDeg(vzKt), gr * 0.82f, gr * 0.12f, nAlpha);
             }
             GUI.color = Color.white;

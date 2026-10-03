@@ -45,6 +45,7 @@ namespace FlyingGame.Bridge.Practice
             Rect view = ScreenLayout.Portrait ? new Rect(0f, 0f, Screen.width, Screen.height - ScreenLayout.TrayHeightPx) : new Rect(0f, 0f, Screen.width, Screen.height);
             float lh = _fs * 1.5f;
 
+            if (sc.Phase == PracticePhase.Briefing || sc.Phase == PracticePhase.Finished) UiLayout.ModalShown();   // cards: the HUD steps aside
             if (sc.Phase == PracticePhase.Briefing)
             {
                 if (Controller.Counting) { DrawCountdown(view, lh); return; }
@@ -52,7 +53,9 @@ namespace FlyingGame.Bridge.Practice
                 else DrawBriefing(sc, view, lh);
                 return;
             }
-            DrawLive(sc, view, lh);
+            // Live read-out: its own block in the shared text stack (no-overlap rule), lines laid out one after another.
+            Rect block = UiLayout.NextBlock(lh * 6.2f);
+            DrawLive(sc, block, lh);
             if (sc.Phase == PracticePhase.Finished) DrawResult(sc, view, lh);
         }
 
@@ -88,8 +91,8 @@ namespace FlyingGame.Bridge.Practice
             int n = Mathf.CeilToInt(Controller.CountdownLeft - 0.2f);
             string txt = n >= 1 ? n.ToString() : "GO";
             var big = new GUIStyle(_title) { fontSize = Mathf.RoundToInt(_fs * 5f), normal = { textColor = n >= 1 ? Color.white : new Color(0.45f, 1f, 0.5f) } };
-            GUI.Label(new Rect(view.x, view.y + view.height * 0.35f, view.width, lh * 5f), txt, big);
-            GUI.Label(new Rect(view.x, view.y + view.height * 0.35f + lh * 5f, view.width, lh), Controller.Scenario.HandoverLine, _big);
+            UiLayout.Label(new Rect(view.x, view.y + view.height * 0.35f, view.width, lh * 5f), txt, big);
+            UiLayout.Label(new Rect(view.x, view.y + view.height * 0.35f + lh * 5f, view.width, lh), Controller.Scenario.HandoverLine, _big);
         }
 
         private void DrawBriefing(PracticeScenario sc, Rect view, float lh)
@@ -110,7 +113,7 @@ namespace FlyingGame.Bridge.Practice
             // Alignment display: a runway bar across the top of the view with the fuselage line drawn over it, rotated by the
             // alignment error (exaggerated ×2 so a couple of degrees reads clearly). Parallel = the goal.
             float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.7f;
-            var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + view.height * 0.115f, bw, bh);
+            var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + lh * 0.9f, bw, bh);
             bool alignGood = Mathf.Abs((float)sc.AlignmentDeg) <= 3f, centreGood = Mathf.Abs((float)sc.OffCentreM) <= 3f;
             GUI.color = new Color(0.32f, 0.32f, 0.35f, 0.95f); GUI.DrawTexture(bar, _line);
             GUI.color = Color.white; GUI.DrawTexture(new Rect(bar.x, bar.center.y - 1f, bar.width, 2f), _line);   // centreline
@@ -130,8 +133,8 @@ namespace FlyingGame.Bridge.Practice
             var a = new GUIStyle(_big) { normal = { textColor = alignGood ? new Color(0.45f, 1f, 0.5f) : new Color(1f, 0.6f, 0.3f) } };
             var c = new GUIStyle(_small) { normal = { textColor = centreGood ? new Color(0.45f, 1f, 0.5f) : new Color(1f, 0.6f, 0.3f) } };
             bool primaryAlign = sc.UserRudder || sc.FlareExercise || sc.Approach;
-            GUI.Label(new Rect(view.x, y, view.width, lh), primaryAlign ? align : centre, a); y += lh * 0.95f;
-            GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), primaryAlign ? centre : align, c); y += lh * 0.8f;
+            UiLayout.Label(new Rect(view.x, y, view.width, lh), primaryAlign ? align : centre, a); y += lh * 0.95f;
+            UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), primaryAlign ? centre : align, c); y += lh * 0.8f;
 
             if (sc.Approach)
             {
@@ -139,25 +142,25 @@ namespace FlyingGame.Bridge.Practice
                 float vT = (float)(1.3 * sc.VsoMs), vNow = (float)sc.AirspeedMs;
                 string spd = $"{vNow * 1.944f:F0} kt   (1.3 Vso = {vT * 1.944f:F0})";
                 var g = new GUIStyle(_small) { normal = { textColor = Mathf.Abs((float)sc.GlideslopeDeviationDeg) < 0.3f ? new Color(0.45f, 1f, 0.5f) : new Color(1f, 0.8f, 0.3f) } };
-                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), dev + "   ·   " + spd, g); y += lh * 0.8f;
+                UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), dev + "   ·   " + spd, g); y += lh * 0.8f;
             }
             if (sc.SideView && Driver?.Sim != null) DrawWeightOnWheels(view, y, lh);
 
             if (sc.Phase == PracticePhase.Live)
             {
                 string goal = sc.UserRudder ? "RUDDER: keep the fuselage parallel to the runway" : sc.UserAileron ? "AILERON: stay over the centreline" : sc.Approach ? "PITCH for the path, POWER for the speed" : "ELEVATOR: round out, hold it off";
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.06f, view.width, lh * 0.8f), goal + $"   ·   in band {sc.InBandFraction * 100:F0} %", _small);
+                UiLayout.Label(new Rect(view.x, view.y, view.width, lh * 0.8f), goal + $"   ·   in band {sc.InBandFraction * 100:F0} %", _small);
             }
         }
 
         private void DrawAirwork(PracticeScenario sc, Rect view, float lh)
         {
-            float y = view.y + view.height * 0.06f;
+            float y = view.y;
             var good = new Color(0.45f, 1f, 0.5f); var warn = new Color(1f, 0.6f, 0.3f);
             if (sc.Straight)
             {
                 float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.5f;
-                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + view.height * 0.115f, bw, bh);
+                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + lh * 0.9f, bw, bh);
                 Matrix4x4 m = GUI.matrix;
                 GUIUtility.RotateAroundPivot(-(float)sc.BankDeg, bar.center);
                 GUI.color = Mathf.Abs((float)sc.BankDeg) < 3f ? good : warn;
@@ -166,12 +169,12 @@ namespace FlyingGame.Bridge.Practice
                 string slip = Mathf.Abs((float)sc.BetaDeg) < 1f ? "no slip" : sc.BetaDeg > 0 ? $"slipping RIGHT {sc.BetaDeg:F0}°" : $"slipping LEFT {-sc.BetaDeg:F0}°";
                 string drift = Mathf.Abs((float)sc.HeadingDriftDeg) < 2f ? "heading held" : sc.HeadingDriftDeg > 0 ? $"nose swung RIGHT {sc.HeadingDriftDeg:F0}°" : $"nose swung LEFT {-sc.HeadingDriftDeg:F0}°";
                 var a = new GUIStyle(_big) { normal = { textColor = Mathf.Abs((float)sc.BankDeg) < 3f ? good : warn } };
-                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"bank {sc.BankDeg:F0}°   ·   {slip}   ·   {drift}", a);
-                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"AILERON: keep the wings level (rudder is neutral)   ·   level {sc.InBandFraction * 100:F0} % of the time", _small);
+                UiLayout.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"bank {sc.BankDeg:F0}°   ·   {slip}   ·   {drift}", a);
+                UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"AILERON: keep the wings level (rudder is neutral)   ·   level {sc.InBandFraction * 100:F0} % of the time", _small);
                 if (sc.Endless && sc.Phase == PracticePhase.Live)
                 {
                     float bw2 = _fs * 5f;
-                    if (GUI.Button(new Rect(view.xMax - bw2 - _fs, view.y + view.height * 0.16f, bw2, lh * 1.05f), "END", _btn)) { Controller.End(); Menu?.Open(); }
+                    // END lives in the shared toolbar (ViewPanel) — no-overlap rule.
                 }
                 return;
             }
@@ -182,18 +185,18 @@ namespace FlyingGame.Bridge.Practice
                            : sc.Kind == PracticeKind.ClimbVyRear ? $"CLIMB at Vy {sc.VyMs * 1.944:F0} kt — best RATE" : $"CLIMB at Vx {sc.VxMs * 1.944:F0} kt — best ANGLE";
                 bool onSpeed = Mathf.Abs((float)(sc.AirspeedMs - sc.TargetSpeedMs)) < 0.06f * (float)sc.TargetSpeedMs;
                 var a = new GUIStyle(_big) { normal = { textColor = onSpeed ? good : warn } };
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f, view.width, lh), leg, _big);
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh, view.width, lh), $"{sc.AirspeedMs * 1.944:F0} kt → target {sc.TargetSpeedMs * 1.944:F0}   ·   {(-sc.SinkMs * 196.85):+0;-0} fpm   ·   {(sc.AglM - sc.StartAglM) * 3.281:+0;-0} ft from start", a);
+                UiLayout.Label(new Rect(view.x, view.y + lh * 0.9f, view.width, lh), leg, _big);
+                UiLayout.Label(new Rect(view.x, view.y + lh * 0.9f + lh, view.width, lh), $"{sc.AirspeedMs * 1.944:F0} kt → target {sc.TargetSpeedMs * 1.944:F0}   ·   {(-sc.SinkMs * 196.85):+0;-0} fpm   ·   {(sc.AglM - sc.StartAglM) * 3.281:+0;-0} ft from start", a);
                 string extra = sc.Glide ? $"over the ground {sc.AchievedRatio:F1}:1 (optimum {sc.SpeedToFlyGroundRatio:F1}:1)" : sc.ClimbLesson ? (sc.Kind == PracticeKind.ClimbVyRear ? $"{sc.ClimbTimeSec:F0} s" : $"{sc.ClimbDistanceM:F0} m of ground") : $"on target {sc.InBandFraction * 100:F0} % of the time";
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh * 2f, view.width, lh * 0.8f), extra, _small);
-                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"YOU FLY {sc.UserAxesText.ToUpperInvariant()}   ·   the game has the rest", _small);
+                UiLayout.Label(new Rect(view.x, view.y + lh * 0.9f + lh * 2f, view.width, lh * 0.8f), extra, _small);
+                UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), $"YOU FLY {sc.UserAxesText.ToUpperInvariant()}   ·   the game has the rest", _small);
                 return;
             }
             if (sc.STurn)
             {
                 // Bank: a horizon bar tilted to the bank with the 45° targets marked; the cue says which way to roll next.
                 float bw = Mathf.Min(view.width * 0.42f, _fs * 16f), bh = _fs * 0.5f;
-                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + view.height * 0.115f, bw, bh);
+                var bar = new Rect(view.x + (view.width - bw) * 0.5f, view.y + lh * 0.9f, bw, bh);
                 Matrix4x4 m = GUI.matrix;
                 GUIUtility.RotateAroundPivot(-(float)sc.BankDeg, bar.center);
                 GUI.color = Mathf.Abs((float)sc.BankDeg) >= 44f && Mathf.Abs((float)sc.BankDeg) <= 48f ? good : Color.white;
@@ -201,33 +204,33 @@ namespace FlyingGame.Bridge.Practice
                 GUI.matrix = m; GUI.color = Color.white;
                 string cue = sc.Phase != PracticePhase.Live ? "" : sc.TargetBankSign > 0 ? "ROLL RIGHT to 45°" : "ROLL LEFT to 45°";
                 var a = new GUIStyle(_big) { normal = { textColor = Mathf.Abs((float)sc.RollRateDegS) >= 40f ? good : warn } };
-                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"{cue}   bank {sc.BankDeg:F0}°   rate {Mathf.Abs((float)sc.RollRateDegS):F0}°/s", a);
+                UiLayout.Label(new Rect(view.x, bar.yMax + _fs * 0.3f, view.width, lh), $"{cue}   bank {sc.BankDeg:F0}°   rate {Mathf.Abs((float)sc.RollRateDegS):F0}°/s", a);
                 // Coordination: the ball. Air from the right (+β) = skidding left-to-right … the ball goes the way the tail is being pushed.
                 bool coord = Mathf.Abs((float)sc.BetaDeg) < 2f;
                 string ball = coord ? "BALL CENTRED" : sc.BetaDeg > 0 ? $"BALL RIGHT {sc.BetaDeg:F0}° — more right rudder" : $"BALL LEFT {-sc.BetaDeg:F0}° — more left rudder";
-                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh, view.width, lh * 0.9f), ball, new GUIStyle(_big) { fontSize = Mathf.RoundToInt(_fs * 1.1f), normal = { textColor = coord ? good : warn } });
+                UiLayout.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh, view.width, lh * 0.9f), ball, new GUIStyle(_big) { fontSize = Mathf.RoundToInt(_fs * 1.1f), normal = { textColor = coord ? good : warn } });
                 string spd = $"speed {sc.AirspeedMs * 1.944:F0} kt → target {sc.SpeedTargetMs * 1.944:F0} kt   ({(sc.CycleFraction < 0.5 ? "slowing to" : "back up toward")} {(sc.CycleFraction < 0.5 ? 1.15 * sc.VsoMs * 1.944 : sc.CruiseMs * 1.944):F0})   reversals {sc.Reversals}";
-                GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 1.9f, view.width, lh * 0.8f), spd, _small);
-                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), "AILERON + RUDDER: 45° to 45°, at 45°/s or full aileron — reverse the moment you get there", _small);
-                if (sc.Stalled) GUI.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 2.7f, view.width, lh), "STALLED — the slow end of the cycle at 45° is past the stall in the turn", new GUIStyle(_big) { normal = { textColor = warn } });
+                UiLayout.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 1.9f, view.width, lh * 0.8f), spd, _small);
+                UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), "AILERON + RUDDER: 45° to 45°, at 45°/s or full aileron — reverse the moment you get there", _small);
+                if (sc.Stalled) UiLayout.Label(new Rect(view.x, bar.yMax + _fs * 0.3f + lh * 2.7f, view.width, lh), "STALLED — the slow end of the cycle at 45° is past the stall in the turn", new GUIStyle(_big) { normal = { textColor = warn } });
             }
             else
             {
                 var banner = new GUIStyle(_title) { normal = { textColor = sc.Stalled ? warn : good } };
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f, view.width, lh * 1.2f), sc.Stalled ? "STALLED" : "FLYING", banner);
-                GUI.Label(new Rect(view.x, view.y + view.height * 0.11f + lh * 1.2f, view.width, lh * 0.8f),
+                UiLayout.Label(new Rect(view.x, view.y + lh * 0.9f, view.width, lh * 1.2f), sc.Stalled ? "STALLED" : "FLYING", banner);
+                UiLayout.Label(new Rect(view.x, view.y + lh * 0.9f + lh * 1.2f, view.width, lh * 0.8f),
                     $"AoA {sc.AlphaDeg:F0}°   {sc.AirspeedMs * 1.944:F0} kt   sink {sc.SinkMs * 196.85:F0} ft/min   bank {sc.BankDeg:F0}°   stalls {sc.StallCount}", _small);
                 string goal = sc.Kind == PracticeKind.StallSideView ? "ELEVATOR: hold the nose up until it stalls — watch the tail's force bring it down"
                     : sc.Kind == PracticeKind.StallRudder ? "RUDDER: pick up the dropped wing — the game stalls it and breaks it, ≤10 % aileron"
                     : "ELEVATOR: stall it, then break the angle of attack — the game holds it with ≤10 % rudder and aileron";
-                GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), goal, _small);
+                UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), goal, _small);
                 if (sc.Kind == PracticeKind.StallSideView)
-                    GUI.Label(new Rect(view.x, y + lh * 0.8f, view.width, lh * 0.8f), "green = wing lift · yellow = tail force (×3) · white = relative wind at the tail · grey = weight", _small);
+                    UiLayout.Label(new Rect(view.x, y + lh * 0.8f, view.width, lh * 0.8f), "green = wing lift · yellow = tail force (×3) · white = relative wind at the tail · grey = weight", _small);
             }
             if (sc.Endless && sc.Phase == PracticePhase.Live)
             {
                 float bw2 = _fs * 5f;
-                if (GUI.Button(new Rect(view.xMax - bw2 - _fs, view.y + view.height * 0.16f, bw2, lh * 1.05f), "END", _btn)) { Controller.End(); Menu?.Open(); }
+                    // END lives in the shared toolbar (ViewPanel) — no-overlap rule.
             }
         }
 
@@ -248,7 +251,7 @@ namespace FlyingGame.Bridge.Practice
             }
             if (left + right + tail < 1f) return;
             string s = $"WEIGHT ON WHEELS   L {left / weight * 100:F0} %   R {right / weight * 100:F0} %   {(tail > 0.5f ? $"TAIL/NOSE {tail / weight * 100:F0} %" : "")}   {(brake > 5f ? $"BRAKING {brake / weight * 100:F0} % of weight" : "")}";
-            GUI.Label(new Rect(view.x, y, view.width, lh * 0.8f), s, _small);
+            UiLayout.Label(new Rect(view.x, y, view.width, lh * 0.8f), s, _small);
         }
 
         private void DrawResult(PracticeScenario sc, Rect view, float lh)
