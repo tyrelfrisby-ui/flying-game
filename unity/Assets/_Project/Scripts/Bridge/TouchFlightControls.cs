@@ -37,6 +37,10 @@ namespace FlyingGame.Bridge
         [Header("Feel")]  // dead zone + expo are per-aircraft in AircraftConfig, not here
         public float PadHalfFraction = 0.30f;  // pad half-size as a fraction of min(screen w,h) (owner: MUCH bigger)
         public bool InvertElevator = false;     // false = realistic (up = nose down)
+        /// <summary>Mac app (owner 2026-10-03: "should not have the same touch screen controls — keyboard or joystick"):
+        /// no touch pads / trim slider; keyboard (ramped) + joystick drive the controls and a small read-only indicator
+        /// shows where they are. The on-screen buttons stay (mouse).</summary>
+        public static bool DeskMode => !Application.isMobilePlatform;
         public float TrimAuthority = 0.4f;      // full trim slider = this much elevator (stick units)
         public float IdleFraction = 0.25f;      // knob height (0 bottom..1 top) where throttle reaches idle
         public float BrakeStartFraction = 0.20f;// braking begins below this (20–25 % is the dead band)
@@ -141,7 +145,7 @@ namespace FlyingGame.Bridge
             _egress ??= GetComponent<PilotEgress>();
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
             ReadPointers();
-            MergeKeyboardFallback();
+            if (DeskMode) DeskInput(); else MergeKeyboardFallback();
             PublishToDriver();
         }
 
@@ -317,6 +321,7 @@ namespace FlyingGame.Bridge
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
+                    if (DeskMode) continue;   // Mac: no touch pads / trim sliders to grab
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
                     else if (_ailTrimRect.Contains(p.pos) && _ailTrimFinger == int.MinValue) _ailTrimFinger = p.id;
                     else if (_rudTrimRect.Contains(p.pos) && _rudTrimFinger == int.MinValue) _rudTrimFinger = p.id;
@@ -570,9 +575,13 @@ namespace FlyingGame.Bridge
             if (DisplayOverride != null && GameThrottle && padBrake <= 0f) leftValue = "GAME  " + leftValue;
             bool pilotOut = _egress != null && _egress.PilotOut;
             (Vector2 freeLeft, Vector2 freeRight) = FreeKnobs(pilotOut);
-            DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? freeLeft : _leftKnob), "RUD / THR", leftValue);
-            DrawPad(_rightCenter, GameRightKnob(_rightFinger == int.MinValue ? freeRight : _rightKnob), pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
-            DrawTrim();
+            if (DeskMode) DrawDeskIndicator(GameLeftKnob(freeLeft), GameRightKnob(freeRight), leftValue);
+            else
+            {
+                DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? freeLeft : _leftKnob), "RUD / THR", leftValue);
+                DrawPad(_rightCenter, GameRightKnob(_rightFinger == int.MinValue ? freeRight : _rightKnob), pilotOut ? "CHUTE  L / R" : "AIL / ELE", null);
+                DrawTrim();
+            }
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
             if (BailAvailable) Button(_bailRect, "BAIL OUT");
@@ -644,6 +653,82 @@ namespace FlyingGame.Bridge
                 }
             }
         }
+
+        // ---- Mac desk controls ------------------------------------------------------------------------------------
+        private const float DeskRamp = 2.2f;   // keyboard stick travel per second (keys aren't square waves)
+        private int _deskFlapStep;
+        private bool _joySeen;
+
+        /// <summary>Keyboard: arrows = stick (Up = nose down, realistic), A/D = rudder, W/S = throttle, =/- pitch trim,
+        /// F flaps, L gear, B brakes, Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
+        /// = throttle. Released keys ramp the stick home — and on a reversible aircraft the controls then go free.</summary>
+        private void DeskInput()
+        {
+            float dt = Time.unscaledDeltaTime;
+            float Ramp(float cur, float target) => Mathf.MoveTowards(cur, target, DeskRamp * dt * (Mathf.Approximately(target, 0f) ? 1.6f : 1f));
+            float kx = Key(KeyCode.RightArrow) - Key(KeyCode.LeftArrow);
+            float ky = Key(KeyCode.UpArrow) - Key(KeyCode.DownArrow);
+            float kr = Key(KeyCode.D) - Key(KeyCode.A);
+            _aileron = Ramp(_aileron, kx);
+            _elevator = Ramp(_elevator, InvertElevator ? -ky : ky);
+            _rudder = Ramp(_rudder, kr);
+            float tv = Key(KeyCode.W) - Key(KeyCode.S);
+            if (tv != 0f) _throttle = Mathf.Clamp(_throttle + tv * 0.6f * dt, -1f, 1f);
+
+            // Joystick: once one is seen moving it takes over the stick and rudder (a sprung stick centred = held neutral).
+            float jx = SafeAxis("AeroJoyX"), jy = SafeAxis("AeroJoyY"), jr = SafeAxis("AeroJoyTwist"), jt = SafeAxis("AeroJoyThrottle");
+            if (Mathf.Abs(jx) > 0.15f || Mathf.Abs(jy) > 0.15f) _joySeen = true;
+            if (_joySeen && kx == 0f && ky == 0f)
+            {
+                _aileron = Mathf.Abs(jx) < 0.03f ? 0f : jx;
+                _elevator = Mathf.Abs(jy) < 0.03f ? 0f : (InvertElevator ? jy : -jy);   // stick back (axis +) = pull
+                if (kr == 0f) _rudder = Mathf.Abs(jr) < 0.05f ? 0f : jr;
+                if (Mathf.Abs(jt) > 0.02f && tv == 0f) _throttle = -jt;                   // lever forward (axis -) = power
+            }
+
+            float tt = Key(KeyCode.Equals) - Key(KeyCode.Minus);
+            if (tt != 0f) _pitchTrim = Mathf.Clamp(_pitchTrim + tt * 0.5f * dt, -1f, 1f);
+            if (Input.GetKey(KeyCode.B)) _brakeHeld = true;
+            if (Input.GetKeyDown(KeyCode.F)) { _deskFlapStep = (_deskFlapStep + 1) % 3; _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+            if (Input.GetKeyDown(KeyCode.L)) _tapped.Add(Btn.Gear);
+            if (Input.GetKeyDown(KeyCode.R)) DoReset();
+            _leftKnob = IdleLeftKnob();
+        }
+
+        private static float SafeAxis(string name)
+        {
+            try { return Input.GetAxisRaw(name); } catch (System.ArgumentException) { return 0f; }   // axis not defined
+        }
+
+        /// <summary>Mac: a compact read-only display of the controls (bottom-left) — stick dot, rudder and throttle bars,
+        /// pitch trim — sized off the short screen edge and kept clear of the gauges.</summary>
+        private void DrawDeskIndicator(Vector2 leftKnob, Vector2 rightKnob, string leftValue)
+        {
+            float s = Mathf.Min(Screen.width, Screen.height), box = s * 0.16f, pad = s * 0.02f;
+            var r = new Rect(pad, Screen.height - pad - box - s * 0.05f, box, box);
+            GUI.color = new Color(0f, 0f, 0f, 0.35f); GUI.DrawTexture(r, _solidTex);
+            GUI.color = new Color(1f, 1f, 1f, 0.5f);
+            GUI.DrawTexture(new Rect(r.center.x - 1f, r.y, 2f, r.height), _solidTex);
+            GUI.DrawTexture(new Rect(r.x, r.center.y - 1f, r.width, 2f), _solidTex);
+            // Stick dot: the right pad's knob mapped from pad space into the box (GUI y down).
+            Vector2 n = (rightKnob - _rightCenter) / Mathf.Max(1f, _half);
+            Vector2 dot = new Vector2(r.center.x + n.x * box * 0.5f, r.center.y - n.y * box * 0.5f);
+            GUI.color = new Color(0.5f, 0.95f, 1f, 0.95f); GUI.DrawTexture(new Rect(dot.x - s * 0.012f, dot.y - s * 0.012f, s * 0.024f, s * 0.024f), _solidTex);
+            // Rudder bar under the box, throttle bar to its right.
+            float rn = (leftKnob.x - _leftCenter.x) / Mathf.Max(1f, _half);
+            var rb = new Rect(r.x, r.yMax + s * 0.012f, box, s * 0.018f);
+            GUI.color = new Color(0f, 0f, 0f, 0.35f); GUI.DrawTexture(rb, _solidTex);
+            GUI.color = new Color(0.5f, 0.95f, 1f, 0.95f); GUI.DrawTexture(new Rect(rb.center.x + rn * box * 0.5f - 2f, rb.y, 4f, rb.height), _solidTex);
+            var tb = new Rect(r.xMax + s * 0.012f, r.y, s * 0.022f, box);
+            GUI.color = new Color(0f, 0f, 0f, 0.35f); GUI.DrawTexture(tb, _solidTex);
+            float tf = LeftPadFraction;
+            GUI.color = new Color(0.4f, 0.9f, 0.5f, 0.9f); GUI.DrawTexture(new Rect(tb.x, tb.yMax - tb.height * tf, tb.width, tb.height * tf), _solidTex);
+            GUI.color = Color.white;
+            _deskLabel ??= new GUIStyle { font = UiFont.Get(), alignment = TextAnchor.UpperLeft, normal = { textColor = new Color(1f, 1f, 1f, 0.85f) } };
+            _deskLabel.fontSize = Mathf.RoundToInt(s * 0.022f);
+            GUI.Label(new Rect(r.x, r.y - s * 0.034f, box * 2f, s * 0.03f), leftValue + $"   trim {(_pitchTrim >= 0 ? "+" : "")}{_pitchTrim * 100f:F0}", _deskLabel);
+        }
+        private GUIStyle _deskLabel;
 
         /// <summary>Released pads on a reversible aircraft show where the stick / pedals really are: the surface trails with
         /// the air (and its centering spring), and the control in the cockpit moves with it.</summary>

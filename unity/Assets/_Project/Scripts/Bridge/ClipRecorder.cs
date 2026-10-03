@@ -78,6 +78,8 @@ namespace FlyingGame.Bridge
 #endif
 
         public static bool Recording => CE_IsRecording() != 0;
+        /// <summary>Stop the rolling clip capture (self-test / performance comparison).</summary>
+        public static bool Suspended;
         public static bool Busy => CE_IsBusy() != 0;
         public static void SaveClip() => CE_SaveClip(ClipSeconds);
         public static void ToggleRecording() { if (Recording) CE_StopRecording(); else CE_StartRecording(); }
@@ -123,7 +125,7 @@ namespace FlyingGame.Bridge
 
         private void LateUpdate()
         {
-            bool live = Native && !SessionSettings.MenuOpen && _main != null;
+            bool live = Native && !Suspended && !SessionSettings.MenuOpen && _main != null;
             _audioOn = live;
             CE_SetPaused(live ? 0 : 1);
             if (!live) return;

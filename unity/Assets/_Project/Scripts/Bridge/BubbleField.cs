@@ -41,8 +41,8 @@ namespace FlyingGame.Bridge
         public float StreakShutterS = 0.05f;     // streak length = airspeed × this (≈1 m at 20 m/s, 5 m at 100 m/s)
         public float StreakDim = 0.6f;           // how much a long streak dims (its light is spread along its length)
         public float PlainBodyAlpha = 0.16f;     // dense field: plain-air body alpha (the soap-bubble 0.06 is invisible at this size)
-        public float SampleRefreshS = 0.6f;      // how often a lattice cell re-samples the atmosphere
-        public int SamplesPerFrame = 1500;       // atmosphere samples per frame (the rest come from the cell cache)
+        public float SampleRefreshS = 3f;        // how often a lattice cell re-samples the atmosphere (the air changes slowly; owner 2026-10-03 Mac perf: was 0.6 s)
+        public int SamplesPerFrame = 300;        // atmosphere samples per frame (the rest come from the cell cache; was 1,500 ≈ 19 ms on the Mac)
 
         [Header("Temperature tint / density size")]
         public float HotF = 120f;                // fully red at/above this air temperature
@@ -163,37 +163,58 @@ namespace FlyingGame.Bridge
                 float ddy = Mathf.Max(0f, Mathf.Max(o.y - rel.y, rel.y - (o.y + T)));
                 float ddz = Mathf.Max(0f, Mathf.Max(o.z - rel.z, rel.z - (o.z + T)));
                 if (ddx * ddx + ddy * ddy + ddz * ddz > r2) continue;
-                // Owner 2026-10-02 (screenshot): one cube repeated every 64 m lines each bubble up with its own copies, and
+                // Owner 2026-10-02 (screenshot): one cube repeated every 64 m lined each bubble up with its own copies, and
                 // over the ~150 m in view those copies form dotted rays converging on the cube-edge directions. So every
                 // tile uses its own variant of the cube — one of its 48 rotations/mirrors plus a wrap-around shift (both
                 // keep the blue-noise spacing inside the tile) — and no bubble has a copy 64 m away any more.
-                uint th = Hash(tx, ty, tz, -7);
-                int perm = (int)(th % 6u), flips = (int)((th >> 3) & 7u);
-                Vector3 shift = VaryTiles
-                    ? new Vector3(((th >> 6) & 1023u) / 1024f, ((th >> 16) & 1023u) / 1024f, (Hash(tz, tx, ty, 11) & 1023u) / 1024f) * T
-                    : Vector3.zero;
-                for (int i = 0; i < _tile.Length; i++)
+                // Owner 2026-10-03 (Mac slow): the variant never changes, so it's computed once per tile and cached.
+                (Vector3[] pts, uint[] hashes) = TileVariant(tx, ty, tz, T);
+                for (int i = 0; i < pts.Length; i++)
                 {
-                    Vector3 q = _tile[i];
-                    if (VaryTiles)
-                    {
-                        q = perm switch
-                        {
-                            0 => q, 1 => new Vector3(q.y, q.z, q.x), 2 => new Vector3(q.z, q.x, q.y),
-                            3 => new Vector3(q.y, q.x, q.z), 4 => new Vector3(q.x, q.z, q.y), _ => new Vector3(q.z, q.y, q.x),
-                        };
-                        if ((flips & 1) != 0) q.x = T - q.x;
-                        if ((flips & 2) != 0) q.y = T - q.y;
-                        if ((flips & 4) != 0) q.z = T - q.z;
-                        q += shift;
-                        q.x = Mathf.Repeat(q.x, T); q.y = Mathf.Repeat(q.y, T); q.z = Mathf.Repeat(q.z, T);
-                    }
-                    Vector3 local = o + q;
+                    Vector3 local = o + pts[i];
                     if ((local - rel).sqrMagnitude > r2) continue;
                     var key = new Vector3Int(Mathf.FloorToInt(local.x / spacing), Mathf.FloorToInt(local.y / spacing), Mathf.FloorToInt(local.z / spacing));
-                    _cand.Add((_airMassOrigin + _tileRot * local, key, Hash(tx, ty, tz, i + 1)));
+                    _cand.Add((_airMassOrigin + _tileRot * local, key, hashes[i]));
                 }
             }
+        }
+
+        // Per-tile variant cache: (points in the tile, per-bubble hash) for tile (tx, ty, tz).
+        private readonly Dictionary<Vector3Int, (Vector3[], uint[])> _tileCache = new();
+        private bool _cacheVary = true;
+
+        private (Vector3[] pts, uint[] hashes) TileVariant(int tx, int ty, int tz, float T)
+        {
+            if (_cacheVary != VaryTiles) { _tileCache.Clear(); _cacheVary = VaryTiles; }
+            var k = new Vector3Int(tx, ty, tz);
+            if (_tileCache.TryGetValue(k, out var hit)) return hit;
+            if (_tileCache.Count > 600) _tileCache.Clear();   // the aircraft moved far: start over
+            uint th = Hash(tx, ty, tz, -7);
+            int perm = (int)(th % 6u), flips = (int)((th >> 3) & 7u);
+            Vector3 shift = VaryTiles
+                ? new Vector3(((th >> 6) & 1023u) / 1024f, ((th >> 16) & 1023u) / 1024f, (Hash(tz, tx, ty, 11) & 1023u) / 1024f) * T
+                : Vector3.zero;
+            var pts = new Vector3[_tile.Length]; var hs = new uint[_tile.Length];
+            for (int i = 0; i < _tile.Length; i++)
+            {
+                Vector3 q = _tile[i];
+                if (VaryTiles)
+                {
+                    q = perm switch
+                    {
+                        0 => q, 1 => new Vector3(q.y, q.z, q.x), 2 => new Vector3(q.z, q.x, q.y),
+                        3 => new Vector3(q.y, q.x, q.z), 4 => new Vector3(q.x, q.z, q.y), _ => new Vector3(q.z, q.y, q.x),
+                    };
+                    if ((flips & 1) != 0) q.x = T - q.x;
+                    if ((flips & 2) != 0) q.y = T - q.y;
+                    if ((flips & 4) != 0) q.z = T - q.z;
+                    q += shift;
+                    q.x = Mathf.Repeat(q.x, T); q.y = Mathf.Repeat(q.y, T); q.z = Mathf.Repeat(q.z, T);
+                }
+                pts[i] = q; hs[i] = Hash(tx, ty, tz, i + 1);
+            }
+            _tileCache[k] = (pts, hs);
+            return (pts, hs);
         }
 
         private static uint Hash(int a, int b, int c, int d)
@@ -242,6 +263,9 @@ namespace FlyingGame.Bridge
 
         /// <summary>Drawn bubbles last call (diagnostics).</summary>
         public int DrawnCount { get; private set; }
+        /// <summary>Diagnostics (perf self-test): accumulated milliseconds per stage and frames timed.</summary>
+        public static double MsCandidates, MsAtmosphere, MsLoop, MsFlush; public static int TimedFrames, AtmosphereCalls;
+        private static readonly System.Diagnostics.Stopwatch _sw = new(), _swAtm = new(), _swFlush = new();
 
         /// <summary>Diagnostics: how many of this frame's bubbles have an exact copy one tile edge away (the repeats that
         /// line up into rays). Should be ~0 with <see cref="VaryTiles"/>.</summary>
@@ -312,7 +336,9 @@ namespace FlyingGame.Bridge
             int samplesLeft = SamplesPerFrame;
             float now = Time.time;
             _batchCount = 0;
+            _sw.Restart();
             BuildCandidates(dense, center, spacing, half, reach);
+            MsCandidates += _sw.Elapsed.TotalMilliseconds; _sw.Restart(); _swAtm.Reset(); _swFlush.Reset(); TimedFrames++;
             for (int ci = 0; ci < _cand.Count; ci++)
             {
                 // Per-bubble: position, the atmosphere-cache cell, and a hash for phases and the thinning draw.
@@ -331,7 +357,7 @@ namespace FlyingGame.Bridge
                     if (samplesLeft <= 0 && !_cells.ContainsKey(lattice)) { cell = new Cell { Local = Vector3.zero, Rho = rho0, TempF = StandardF, Time = now - SampleRefreshS }; }
                     else
                     {
-                        samplesLeft--;
+                        samplesLeft--; AtmosphereCalls++; _swAtm.Start();
                         var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(simPos) - steady;
                         cell = new Cell
                         {
@@ -340,6 +366,7 @@ namespace FlyingGame.Bridge
                             TempF = KelvinToF((float)FlyingGame.Core.Atmosphere.TemperatureAtPosition(simPos)),
                             Time = now,
                         };
+                        _swAtm.Stop();
                     }
                     _cells[lattice] = cell;
                 }
@@ -351,13 +378,13 @@ namespace FlyingGame.Bridge
                     FlyingGame.Core.MathTypes.Vec3 gust = Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
                     pos += CoordinateMap.ToUnity(gust) * GustDisplayScale;
                 }
-                // Thermals and slope lift made visible: the LOCAL air motion (everything but the steady wind, which
-                // already carries the whole lattice) moves each bubble along its streamline for a few seconds, then it
-                // re-seeds at its lattice point — per-bubble phases make the column read as a continuous stream.
+                // Thermals and slope lift: the LOCAL air motion (everything but the steady wind, which already carries the
+                // whole lattice) moves each bubble along its streamline for a few seconds, then it re-seeds at its lattice
+                // point — per-bubble phases make the column read as a continuous stream (owner 2026-10-03: keep the
+                // streaming; no lift/sink tint — "Show lift" adds LiftBubbles on top).
                 float streamTau = 0f;
                 Vector3 localSim = cell.Local;
-                float localSpeed = localSim.magnitude;
-                if (localSpeed > 0.15f)
+                if (localSim.magnitude > 0.15f)
                 {
                     float phase = (h2 & 0xFFFF) / 65535f;
                     streamTau = Mathf.Repeat(now / StreamPeriodS + phase, 1f);
@@ -382,23 +409,8 @@ namespace FlyingGame.Bridge
                 }
 
                 Color tint = TintFor(cell.TempF);
-                // Lift / sink made obvious (owner): rising air blinks GREEN, sinking air blinks ORANGE (the variometer
-                // colours) — faster and brighter the stronger it is. Tinted bubbles stay visible at any distance.
-                float w = -localSim.z;   // up positive (sim z is down)
-                float liftBlink = 1f;
-                bool lifting = w > LiftShowMs || w < -LiftShowMs;
-                if (lifting)
-                {
-                    float strength = Mathf.Clamp01((Mathf.Abs(w) - LiftShowMs) / 4f);
-                    float hz = 1.5f + 6.5f * strength;
-                    float ph = (h2 & 0xFFFF) / 65535f;
-                    liftBlink = 0.5f + 0.5f * (0.5f + 0.5f * Mathf.Sin((now * hz + ph) * 2f * Mathf.PI));   // never below half
-                    Color c = w > 0 ? LiftTint : SinkTint;
-                    tint = Color.Lerp(tint, c, 0.5f + 0.5f * strength) * (1f + 1.2f * strength);
-                }
-
-                // Distance fade (plain air only): full to 250 ft, gone by 500 ft.
-                float alpha = lifting ? 1f : 1f - distFade;
+                // Distance fade: full to 250 ft, gone by 500 ft.
+                float alpha = 1f - distFade;
 
                 // Centre-of-frame fade: bubbles nearer the camera than the aircraft (they've flowed past
                 // it) fade with how far past they are — but only inside the centre circle.
@@ -424,7 +436,6 @@ namespace FlyingGame.Bridge
 
                 // Fade the streaming bubble out just before it re-seeds so the jump back is invisible.
                 if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
-                alpha *= liftBlink;
                 if (alpha < 0.02f) continue;
                 // Owner 2026-10-03: lift/sink air looks like the rest of the snow (same soft dot), just tinted and blinking.
                 float body = dense ? PlainBodyAlpha : 0.06f;
@@ -449,6 +460,8 @@ namespace FlyingGame.Bridge
                 }
             }
             if (_batchCount > 0) FlushBatch(cam);
+            MsLoop += _sw.Elapsed.TotalMilliseconds - _swAtm.Elapsed.TotalMilliseconds - _swFlush.Elapsed.TotalMilliseconds;
+            MsAtmosphere += _swAtm.Elapsed.TotalMilliseconds; MsFlush += _swFlush.Elapsed.TotalMilliseconds;
 
             // Drop cells nobody has touched for a while (the aircraft moved on).
             if (Time.frameCount % 120 == 0)
@@ -461,12 +474,14 @@ namespace FlyingGame.Bridge
 
         private void FlushBatch(Camera cam)
         {
+            _swFlush.Start();
             _batchProps.SetVectorArray(ColorId, _cols);
             _batchProps.SetFloatArray(AlphaId, _alphas);
             _batchProps.SetFloatArray(BodyAlphaId, _bodies);
             Graphics.DrawMeshInstanced(_mesh, 0, _material, _mats, _batchCount, _batchProps,
                 UnityEngine.Rendering.ShadowCastingMode.Off, false, 0, cam);
             _batchCount = 0;
+            _swFlush.Stop();
         }
 
         /// <summary>59 °F = no tint (white); warmer blends toward HotTint by 120 °F, colder toward ColdTint by -50 °F.</summary>

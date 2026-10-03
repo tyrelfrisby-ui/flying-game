@@ -24,6 +24,9 @@ namespace FlyingGame.Bridge
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
             if (mode == "dogfight") { yield return DogfightTest(); yield break; }
             if (mode == "side2d") { yield return Side2DTest(); yield break; }
+            if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
+            if (mode == "ui") { yield return UiLayoutTest(); yield break; }
+            if (mode == "perf") { yield return PerfTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -62,6 +65,104 @@ namespace FlyingGame.Bridge
             ClipRecorder.IncludeInstruments = keepInst; ClipRecorder.ClipSeconds = keepSec;
             yield return new WaitForSecondsRealtime(6f);
             Debug.Log($"[SelfTest] DONE fps={1f / Mathf.Max(1e-4f, Time.smoothDeltaTime):F0}");
+        }
+
+        /// <summary>AERO_SELFTEST=perf (owner 2026-10-03: "the mac version is very slow"): fly the 172 and measure the frame
+        /// time in phases — everything on; rolling clip capture off; air bubbles off; both off — 12 s each.</summary>
+        private IEnumerator PerfTest()
+        {
+            SessionSettings.ChallengeId = null; SessionSettings.AircraftId = "c172-like";
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(5f);
+            Debug.Log($"[Perf] screen {Screen.width}x{Screen.height} dpi {Screen.dpi:F0} quality {QualitySettings.GetQualityLevel()} ({QualitySettings.names[QualitySettings.GetQualityLevel()]}) vSync {QualitySettings.vSyncCount} targetFps {Application.targetFrameRate} AA {QualitySettings.antiAliasing} shadows {QualitySettings.shadows}");
+            foreach ((string tag, bool clip, bool bubbles) in new[] { ("all on", true, true), ("clip capture OFF", false, true), ("bubbles OFF", true, false), ("both OFF", false, false), ("all on again", true, true) })
+            {
+                ClipRecorder.Suspended = !clip; SessionSettings.BubblesOn = bubbles;
+                yield return new WaitForSecondsRealtime(2f);
+                BubbleField.MsCandidates = BubbleField.MsAtmosphere = BubbleField.MsLoop = BubbleField.MsFlush = 0; BubbleField.TimedFrames = BubbleField.AtmosphereCalls = 0;
+                int frames = 0; float worst = 0f; float t0 = Time.realtimeSinceStartup;
+                while (Time.realtimeSinceStartup - t0 < 10f) { yield return null; frames++; worst = Mathf.Max(worst, Time.unscaledDeltaTime); }
+                float dur = Time.realtimeSinceStartup - t0;
+                int tf = Mathf.Max(1, BubbleField.TimedFrames);
+                if (bubbles) Debug.Log($"[Perf]   bubbles per frame: candidates {BubbleField.MsCandidates / tf:F1} ms, atmosphere {BubbleField.MsAtmosphere / tf:F1} ms ({BubbleField.AtmosphereCalls / tf} samples), per-bubble loop {BubbleField.MsLoop / tf:F1} ms, draw submit {BubbleField.MsFlush / tf:F1} ms");
+                Debug.Log($"[Perf] {tag,-18} {frames / dur,5:F1} fps  mean {dur / frames * 1000f,5:F1} ms  worst {worst * 1000f,5:F0} ms  managed heap {System.GC.GetTotalMemory(false) / 1048576,4} MB");
+            }
+            ClipRecorder.Suspended = false; SessionSettings.BubblesOn = true;
+            Debug.Log("[Perf] DONE");
+        }
+
+        /// <summary>AERO_SELFTEST=ui (owner 2026-10-03: no text or UI may overlap — landing page AND flying, landscape AND
+        /// portrait): on a device the screen is rotated by the app itself; screenshots of the landing page (top/bottom) and
+        /// in flight (powered with dials, with HUD, glider, a lesson live) in each orientation.</summary>
+        private IEnumerator UiLayoutTest()
+        {
+            var orients = Application.isMobilePlatform
+                ? new[] { ("land", ScreenOrientation.LandscapeLeft), ("port", ScreenOrientation.Portrait) }
+                : new[] { ("land", ScreenOrientation.LandscapeLeft) };
+            foreach ((string on, ScreenOrientation o) in orients)
+            {
+                if (Application.isMobilePlatform) Screen.orientation = o;
+                yield return new WaitForSecondsRealtime(2.5f);
+                SessionSettings.ChallengeId = null;
+                SessionSettings.Instruments = SessionSettings.InstrumentMode.Analog;
+                SessionSettings.AircraftId = "c172-like";
+                Menu.Open(); Menu.ScrollTo(false);
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot($"ui-{on}-menu-top.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                Menu.ScrollTo(true);
+                yield return new WaitForSecondsRealtime(1f);
+                ScreenCapture.CaptureScreenshot($"ui-{on}-menu-end.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                foreach ((string tag, string ac, SessionSettings.InstrumentMode inst, string chal) in new[]
+                {
+                    ("c172-dials", "c172-like", SessionSettings.InstrumentMode.Analog, (string)null),
+                    ("c172-hud", "c172-like", SessionSettings.InstrumentMode.Hud, null),
+                    ("glider", "glider-2-33-like", SessionSettings.InstrumentMode.Analog, null),
+                    ("lesson", "pa18-cub-like", SessionSettings.InstrumentMode.Analog, "lesson:straight"),
+                })
+                {
+                    SessionSettings.AircraftId = ac; SessionSettings.Instruments = inst; SessionSettings.ChallengeId = chal;
+                    Menu.Fly();
+                    yield return new WaitForSecondsRealtime(3f);
+                    var pc = Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
+                    if (pc != null) pc.StartCountdown();
+                    yield return new WaitForSecondsRealtime(chal != null ? 5f : 2f);
+                    ScreenCapture.CaptureScreenshot($"ui-{on}-fly-{tag}.png");
+                    yield return new WaitForSecondsRealtime(0.7f);
+                    Menu.Open();
+                    yield return new WaitForSecondsRealtime(1f);
+                }
+                Debug.Log($"[SelfTest] ui {on} {Screen.width}x{Screen.height}");
+            }
+            if (Application.isMobilePlatform) Screen.orientation = ScreenOrientation.AutoRotation;
+            SessionSettings.ChallengeId = null;
+            Debug.Log("[SelfTest] DONE ui");
+        }
+
+        /// <summary>AERO_SELFTEST=menu (owner 2026-10-03: "doubled up text ... check it in both landscape and vertical"): the
+        /// landing page at iPhone and iPad shapes, landscape and portrait, scrolled to the top and to the bottom.</summary>
+        private IEnumerator MenuLayoutTest()
+        {
+            var shapes = new (string name, int w, int h)[] { ("iphone-land", 1311, 603), ("iphone-port", 603, 1311), ("ipad-land", 1180, 820), ("ipad-port", 820, 1180) };
+            Menu.Open();
+            SessionSettings.ChallengeId = "practice:approach-side";   // shows the lesson rows (YOU FLY / PRACTICE WIND) too
+            foreach (var sh in shapes)
+            {
+                Screen.SetResolution(sh.w, sh.h, FullScreenMode.Windowed);
+                yield return new WaitForSecondsRealtime(1.5f);
+                Menu.ScrollTo(false);
+                yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-top.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                Menu.ScrollTo(true);
+                yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-end.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
+            }
+            Debug.Log("[SelfTest] DONE menu");
         }
 
         /// <summary>AERO_SELFTEST=side2d (owner 2026-10-03): each side-view lesson in turn, in the Cub, a screenshot a few
@@ -128,6 +229,9 @@ namespace FlyingGame.Bridge
                 double roll = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 57.3;
                 Debug.Log($"[SelfTest] thermal t={5 * (i + 1)} s alt {drv.AltitudeM:F0} m bank {roll:F0} IAS {drv.IasMs:F1}");
                 if (i == 1) ScreenCapture.CaptureScreenshot("selftest-thermal.png");
+                if (i == 2) { Chase?.SetView(ChaseCamera.View.SideLeft); }
+                if (i == 3) { SessionSettings.BubblesOn = false; }
+                if (i == 4) { ScreenCapture.CaptureScreenshot("selftest-thermal-liftonly.png"); SessionSettings.BubblesOn = true; }
             }
             Debug.Log("[SelfTest] DONE thermal");
         }

@@ -15,6 +15,7 @@ namespace FlyingGame.Bridge
 
         private void OnGUI()
         {
+            if (SessionSettings.MenuOpen) return;   // owner 2026-10-03: no HUD text over the landing page
             Init();
             // Top-centre, below FlightHud's lines; sized off the short screen edge like the rest of the GUI.
             float lh = _fs * 1.5f;
@@ -24,7 +25,8 @@ namespace FlyingGame.Bridge
 
             if (Controller == null || Controller.Runner == null)
             {
-                GUI.Label(Line(), "Press C to start a graded challenge · N for next", _label);
+                // Keyboard hint — only where there IS a keyboard (Mac / editor); on a touchscreen it's noise over the HUD.
+                if (!Input.touchSupported) GUI.Label(Line(), "Press C to start a graded challenge · N for next", _label);
                 return;
             }
 

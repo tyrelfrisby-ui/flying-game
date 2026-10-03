@@ -140,7 +140,9 @@ namespace FlyingGame.Bridge
             // The air made visible: bubble field following the aircraft.
             var bubbles = new GameObject("BubbleField").AddComponent<BubbleField>();
             bubbles.Follow = aircraft.transform;
-            var lift = new GameObject("LiftField").AddComponent<LiftField>();   // wide blinking green/orange lift-sink overlay
+            // "Show lift" (owner 2026-10-03): rising bubbles at 10x the air's vertical speed, bigger in stronger lift — on top
+            // of the snow (or alone in a clear sky when the snow is off). Replaces the old green/orange lift-sink markers.
+            var lift = new GameObject("LiftBubbles").AddComponent<LiftBubbles>();
             lift.Follow = aircraft.transform;
             var options = cam.gameObject.AddComponent<OptionsPanel>();          // in-flight OPTIONS: markers, bubbles, instruments, volume
             var views = cam.gameObject.AddComponent<ViewPanel>();               // VIEW / REPLAY / CLIP / REC + the replay bar

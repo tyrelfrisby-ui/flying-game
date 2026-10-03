@@ -88,7 +88,7 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(bx + bw + gap * 0.4f, y, bw, lh), "Off", !v ? _btnOn : _btn)) v = false;
                 y += lh + gap * 0.4f;
             }
-            TriRow("Lift / sink markers", ref SessionSettings.LiftMarkers);
+            TriRow("Show lift", ref SessionSettings.LiftMarkers);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Auto = gliders only", _label); y += lh * 0.8f;
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
             BoolRow("Dense bubbles (GPU instancing)", ref SessionSettings.BubbleInstancing);

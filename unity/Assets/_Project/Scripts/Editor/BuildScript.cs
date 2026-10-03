@@ -115,7 +115,7 @@ namespace FlyingGame.EditorTools
 
         /// <summary>
         /// Mac app (owner 2026-10-02: Aero Playground ships on Mac + iPad + iPhone, kept in parity). Universal (Apple
-        /// silicon + Intel), Mono, resizable window; same scene, configs and build stamp as iOS. Output:
+        /// silicon + Intel), IL2CPP, resizable window; same scene, configs and build stamp as iOS. Output:
         /// $FLYINGGAME_MAC_OUT or build/macOS/Aero Playground.app. Headless:
         ///   Unity -batchmode -quit -projectPath unity -buildTarget OSXUniversal -executeMethod FlyingGame.EditorTools.BuildScript.BuildMac
         /// </summary>
@@ -125,7 +125,10 @@ namespace FlyingGame.EditorTools
             PlayerSettings.companyName = "FlyingGame";
             PlayerSettings.productName = ProductName;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, BundleId + ".mac");
-            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.Mono2x);
+            // IL2CPP (owner 2026-10-03, "the mac version is very slow"): ahead-of-time compiled like the iOS build — Mono's JIT
+            // ran the per-frame C# (bubble field, flight model) several times slower.
+            PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.IL2CPP);
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Minimal);
             PlayerSettings.stripEngineCode = false;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.defaultScreenWidth = 1600;

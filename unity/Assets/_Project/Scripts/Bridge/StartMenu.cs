@@ -126,8 +126,17 @@ namespace FlyingGame.Bridge
             float m = s * 0.03f, w = Screen.width - 2 * m;
             float lh = _fs * 1.7f, gap = _fs * 0.5f;
             GUI.Label(new Rect(m, m * 0.6f, w, lh * 1.3f), "FLIGHT SETUP", _title);
-            float top = m * 0.6f + lh * 1.5f;
+            float pageTop = m * 0.6f + lh * 1.5f;
             float colW = (w - 3 * gap) / 4f;
+
+            // SCROLLING (owner 2026-10-03: "so big now with all of the options i cannot see them all"): the four columns live
+            // in a scroll area between the title and the FLY button — drag (touch / mouse) or scroll wheel / trackpad.
+            float fw0 = s * 0.26f, fh0 = s * 0.09f;
+            var viewport = new Rect(0f, pageTop, Screen.width, Screen.height - pageTop - fh0 - m * 1.5f);
+            ScrollInput(viewport, lh);
+            _scrollY = Mathf.Clamp(_scrollY, 0f, Mathf.Max(0f, _contentH - viewport.height));
+            GUI.BeginGroup(viewport);
+            float top = -_scrollY, maxY = 0f;
 
             // ---- column 1: aircraft
             float x = m, y = top;
@@ -141,6 +150,7 @@ namespace FlyingGame.Bridge
             }
 
             // ---- column 2: start
+            maxY = Mathf.Max(maxY, y);
             x = m + colW + gap; y = top;
             GUI.Label(new Rect(x, y, colW, lh), "START", _head); y += lh;
             if (GUI.Button(new Rect(x, y, colW, bh), "In the air", SessionSettings.StartMode == SessionSettings.Start.InTheAir ? _btnOn : _btn)) SessionSettings.StartMode = SessionSettings.Start.InTheAir;
@@ -206,6 +216,7 @@ namespace FlyingGame.Bridge
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
 
             // ---- column 3: challenge
+            maxY = Mathf.Max(maxY, y);
             x = m + 2 * (colW + gap); y = top;
             GUI.Label(new Rect(x, y, colW, lh), "CHALLENGE", _head); y += lh;
             foreach ((string id, string name) in SessionSettings.Challenges)
@@ -271,6 +282,7 @@ namespace FlyingGame.Bridge
             }
 
             // ---- column 4: conditions
+            maxY = Mathf.Max(maxY, y);
             x = m + 3 * (colW + gap); y = top;
             GUI.Label(new Rect(x, y, colW, lh), "CONDITIONS", _head); y += lh;
             y = Slider(x, y, colW, "Wind from", $"{SessionSettings.WindFromDeg:000}°", ref SessionSettings.WindFromDeg, 0f, 359f, 15f);
@@ -321,9 +333,56 @@ namespace FlyingGame.Bridge
                 }
             }
 
+            maxY = Mathf.Max(maxY, y);
+            GUI.EndGroup();
+            _contentH = maxY - top + gap;
+            if (_contentH > viewport.height + 1f)
+            {
+                // Scroll bar: a thin thumb on the right edge showing where the view is.
+                float frac = viewport.height / _contentH, thumbH = Mathf.Max(lh, viewport.height * frac);
+                float thumbY = viewport.y + (viewport.height - thumbH) * (_scrollY / Mathf.Max(1f, _contentH - viewport.height));
+                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, viewport.y, m * 0.18f, viewport.height), _btnBg);
+                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
+                if (_scrollY < _contentH - viewport.height - 1f)
+                    GUI.Label(new Rect(m, viewport.yMax - lh * 0.1f, w * 0.5f, lh * 0.9f), "▼ more below — drag or scroll", _small);
+            }
+
             // ---- FLY
             float fw = s * 0.26f, fh = s * 0.09f;
             if (GUI.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
+        }
+
+        private float _scrollY, _contentH, _dragStartY, _dragStartScroll;
+        /// <summary>Self-test / tools: jump the setup page to its top or bottom.</summary>
+        public void ScrollTo(bool end) => _scrollY = end ? 1e6f : 0f;
+        private bool _dragPossible, _dragging;
+
+        /// <summary>Drag / wheel scrolling for the setup page. A drag past a few pixels scrolls and swallows the release, so
+        /// the button under the finger doesn't fire; a tap still presses buttons normally.</summary>
+        private void ScrollInput(Rect viewport, float lh)
+        {
+            Event e = Event.current;
+            switch (e.type)
+            {
+                case EventType.ScrollWheel:
+                    if (viewport.Contains(e.mousePosition)) { _scrollY += e.delta.y * lh * 0.6f; e.Use(); }
+                    break;
+                case EventType.MouseDown:
+                    if (viewport.Contains(e.mousePosition)) { _dragPossible = true; _dragging = false; _dragStartY = e.mousePosition.y; _dragStartScroll = _scrollY; }
+                    break;
+                case EventType.MouseDrag:
+                    if (_dragPossible)
+                    {
+                        float dy = e.mousePosition.y - _dragStartY;
+                        if (!_dragging && Mathf.Abs(dy) > lh * 0.35f) _dragging = true;
+                        if (_dragging) { _scrollY = _dragStartScroll - dy; e.Use(); }
+                    }
+                    break;
+                case EventType.MouseUp:
+                    if (_dragging) { e.Use(); GUIUtility.hotControl = 0; }
+                    _dragPossible = false; _dragging = false;
+                    break;
+            }
         }
 
         /// <summary>A labelled -/+ stepper (touch-friendly; IMGUI sliders are fiddly on a phone).</summary>
