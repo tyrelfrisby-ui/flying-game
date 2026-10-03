@@ -157,7 +157,7 @@ public class TakeoffRollStarts
         {
             var c = AircraftConfigLoader.LoadFromFile(f);
             if (c.Propulsion == null && (c.Engines == null || c.Engines.Count == 0)) continue;
-            if (Path.GetFileName(f).Contains("floats")) continue;   // no wheels: it takes off from water
+            if (c.Floats != null) continue;   // no wheels: floatplanes and flying boats take off from water
             Assert.True(c.Gear.Count >= 3, $"{Path.GetFileName(f)} has no landing gear");
             WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
             var rest = LandingGear.RestingState(c, 0, 0, 0);
@@ -195,7 +195,7 @@ public class TakeoffControllability
             string name = Path.GetFileName(f);
             var c = AircraftConfigLoader.LoadFromFile(f);
             if (c.Propulsion == null && (c.Engines == null || c.Engines.Count == 0)) continue;
-            if (name.Contains("floats") || c.Gear.Count < 3) continue;
+            if (c.Floats != null || c.Gear.Count < 3) continue;
             WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
             var rest = LandingGear.RestingState(c, 0, 0, 0);
             var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);

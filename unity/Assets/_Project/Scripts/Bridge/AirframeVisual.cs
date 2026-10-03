@@ -1626,6 +1626,17 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 3.9f, StabRoot = 0.8f, StabTip = 0.75f, FinHeight = 1.35f, FinRoot = 1.6f, FinTip = 0.7f, FinSweepDeg = 40 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.25f, 0.6f),
                     };
+                case "hughes-h4-like":
+                    return new Style
+                    {
+                        // Hughes H-4 Hercules: deep boat hull, shoulder wing, eight radials, huge single fin (fallback look —
+                        // helijah's model is used when present).
+                        BodyAxisZ = 1.5f, BodyHeightScale = 1.6f, BodyWidthScale = 0.85f,
+                        Body = new[] { (31f, 0.8f), (28f, 3.0f), (20f, 4.2f), (8f, 4.4f), (-6f, 4.1f), (-16f, 3.2f), (-26f, 2.0f), (-33f, 1.0f), (-35.5f, 0.4f) },
+                        Canopy = (24f, -3.6f, 4.0f, 3.0f, 1.2f), PropRadius = 2.13f, RadialEngine = true, NacelleRadius = 1.0f, NacelleLength = 6.0f,
+                        Tail = new TailSpec { StabSpan = 34.4f, StabRoot = 8.0f, StabTip = 4.0f, FinHeight = 15f, FinRoot = 14f, FinTip = 6f, FinSweepDeg = 30 },
+                        Fuselage = silver, Wing = silver, TailColor = silver, Control = new Color(0.6f, 0.62f, 0.65f),
+                    };
                 case "cirrus-sr22-like":
                     return new Style
                     {

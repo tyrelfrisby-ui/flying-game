@@ -126,7 +126,9 @@ public class FloatTests
                 {
                     _out.WriteLine($"touchdown {touchdown:F1} s at {vAtTd:F1} m/s / {sinkAtTd:F1} m/s sink, below 3 m/s at {t:F1} s, max {maxG:F1} g, max |pitch| {maxPitch:F0}°");
                     Assert.True(maxG < 4.5, $"max {maxG:F1} g");
-                    Assert.True(maxPitch < 30, $"max pitch {maxPitch:F0}");
+                    // 32 deg: the test holds full back stick through the slow-down, so the Cub skips nose-high near 30 kt
+                    // (29.6 deg with the old box floats; the realistic tapered floats, 2026-10-02, add ~0.6 deg).
+                    Assert.True(maxPitch < 32, $"max pitch {maxPitch:F0}");
                     return;
                 }
             }

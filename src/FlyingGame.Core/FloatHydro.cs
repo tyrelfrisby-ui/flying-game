@@ -54,28 +54,44 @@ public static class FloatHydro
         public Vec3 StepWorld, BowWorld, SternWorld;        // NED world positions of the keel points
         public double LateralForceN;     // crossflow side force (water-loop driver)
     }
-    public static readonly FloatState[] Floats = new FloatState[2];   // 0 = left, 1 = right
+    public static readonly FloatState[] Floats = new FloatState[4];   // 0 = left, 1 = right (hull: both), 2/3 = wingtip floats
+
+    /// <summary>Beam and depth fractions at a station: <paramref name="u"/> = 0 at the step .. 1 at the bow (forebody) or the
+    /// stern (afterbody). Full through the first part of each run, then linear to the configured end fractions.</summary>
+    public static (double beam, double depth) Taper(FloatsConfig f, bool fore, double u)
+    {
+        double full = fore ? f.ForebodyFullFraction : 0.0;
+        double t = System.Math.Clamp((u - full) / System.Math.Max(1e-6, 1.0 - full), 0.0, 1.0);
+        double be = fore ? f.BowBeamFraction : f.SternBeamFraction, de = fore ? f.BowDepthFraction : f.SternDepthFraction;
+        return (1.0 - (1.0 - be) * t, 1.0 - (1.0 - de) * t);
+    }
 
     /// <summary>Total world-frame force and moment (about the CG) from all floats. Zero when clear of water.</summary>
     public static (Vec3 Force, Vec3 Moment) Compute(AircraftConfig config, RigidBodyState s, double rudderCmd)
     {
-        FloatsConfig f = config.Floats!;
+        FloatsConfig main = config.Floats!;
         Vec3 cg = config.Mass.CgVec();
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         double g = Atmosphere.GravityMs2, rho = WaterDensity;
-        double beta = f.DeadriseDeg, tanB = System.Math.Tan(beta * System.Math.PI / 180);
-        double b = f.BeamM;
-        double chineH = 0.5 * b * tanB;                 // keel-to-chine height
-        double xStep = f.BowX - f.StepFraction * f.LengthM;
-        double xStern = f.BowX - f.LengthM;
         const int nFore = 8, nAft = 6;
 
         Vec3 vWorldCg = s.Attitude.Rotate(s.Velocity);
         double draftReport = 0, lamReport = 0, trimReport = 0, cvReport = 0, liftReport = 0, buoyReport = 0;
 
-        for (int side = -1; side <= 1; side += 2)
+        // Twin floats (Count 2), or a FLYING-BOAT HULL on the centreline (Count 1) — plus optional wingtip floats that
+        // only touch the water when the boat heels (owner 2026-10-02: Hughes H-4). Same hydrodynamics for every one.
+        var set = new System.Collections.Generic.List<(FloatsConfig f, double yF, int slot, bool rudder)>(4);
+        if (main.Count == 1) set.Add((main, 0.0, 0, true));
+        else { set.Add((main, -main.SpreadM * 0.5, 0, true)); set.Add((main, main.SpreadM * 0.5, 1, true)); }
+        if (main.TipFloats is { } tip) { set.Add((tip, -tip.SpreadM * 0.5, 2, false)); set.Add((tip, tip.SpreadM * 0.5, 3, false)); }
+
+        foreach ((FloatsConfig f, double yF, int slot, bool hasRudder) in set)
         {
-            double yF = side * f.SpreadM * 0.5;
+            double beta = f.DeadriseDeg, tanB = System.Math.Tan(beta * System.Math.PI / 180);
+            double b = f.BeamM;
+            double chineH = 0.5 * b * tanB;                 // keel-to-chine height
+            double xStep = f.BowX - f.StepFraction * f.LengthM;
+            double xStern = f.BowX - f.LengthM;
             var fs = new FloatState();
             double dragThisFloat = 0, lateralThisFloat = 0;
 
@@ -128,9 +144,13 @@ public static class FloatHydro
                     if (pass == 1 && i == n - 1) fs.SternDraftM = draft;
                     fs.Wet = true;
 
-                    // V-section immersed area, capped at the deck.
-                    double d = System.Math.Min(draft, f.DepthM);
-                    double area = d <= chineH ? d * d / tanB : 0.5 * b * chineH + b * (d - chineH);
+                    // V-section immersed area, capped at the deck. The float TAPERS (owner 2026-10-02: displacement must be
+                    // right — a full-beam, full-depth box from bow to stern displaced ~1.8x a real EDO float): beam and
+                    // depth stay full through the middle and narrow toward the bow and the stern.
+                    (double bF, double dF) = Taper(f, pass == 0, pass == 0 ? (xs - xStep) / System.Math.Max(foreLen, 1e-6) : (xStep - xs) / System.Math.Max(aftLen, 1e-6));
+                    double bL = b * bF, chineL = 0.5 * bL * tanB;
+                    double d = System.Math.Min(draft, f.DepthM * dF);
+                    double area = d <= chineL ? d * d / tanB : 0.5 * bL * chineL + bL * (d - chineL);
                     double fade = 1.0; // ventilation handled geometrically above
                     double buoy = rho * g * area * dx * fade;
                     buoyThisFloat += buoy;
@@ -226,7 +246,7 @@ public static class FloatHydro
                 Vec3 rRWorld = s.Attitude.Rotate(rR);
                 Vec3 pR = s.Position + rRWorld;
                 double? water = WaterSurfaceAt(pR.X, pR.Y);
-                if (water is not null && pR.Z - (-water.Value) > 0)
+                if (hasRudder && water is not null && pR.Z - (-water.Value) > 0)
                 {
                     Vec3 vR = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rR));
                     double vxy = System.Math.Sqrt(vR.X * vR.X + vR.Y * vR.Y);
@@ -245,7 +265,8 @@ public static class FloatHydro
             fs.StepWorld = s.Position + s.Attitude.Rotate(new Vec3(xStep, yF, f.KeelZ) - cg);
             fs.BowWorld = s.Position + s.Attitude.Rotate(new Vec3(f.BowX, yF, f.KeelZ - foreLen * System.Math.Tan(f.ForebodyKeelDeg * System.Math.PI / 180)) - cg);
             fs.SternWorld = s.Position + s.Attitude.Rotate(new Vec3(xStern, yF, f.KeelZ - aftLen * System.Math.Tan(f.AfterbodyKeelDeg * System.Math.PI / 180)) - cg);
-            Floats[side < 0 ? 0 : 1] = fs;
+            Floats[slot] = fs;
+            if (main.Count == 1 && slot == 0) Floats[1] = fs;   // a hull: both "float" slots read the same state
         }
 
         LastReport = new Report(draftReport, lamReport, trimReport, cvReport, liftReport, buoyReport);

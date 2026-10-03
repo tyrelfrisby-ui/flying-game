@@ -310,6 +310,17 @@ public sealed class FloatsConfig
     public double AfterbodyKeelDeg { get; set; } = 4.0;  // keel rises toward the stern behind the step
     public double WaterRudderAreaM2 { get; set; } = 0.05;
     public double WaterRudderMaxRad { get; set; } = 0.6;
+    /// <summary>Shape taper (owner 2026-10-02: displacement must be right). The forebody keeps full beam/depth for this
+    /// fraction of its length from the step, then narrows to the bow; the afterbody narrows from the step to the stern.</summary>
+    public double ForebodyFullFraction { get; set; } = 0.4;
+    public double BowBeamFraction { get; set; } = 0.3;
+    public double BowDepthFraction { get; set; } = 0.55;
+    public double SternBeamFraction { get; set; } = 0.85;  // afterbody keeps most of its beam (reserve buoyancy aft for the hump)
+    public double SternDepthFraction { get; set; } = 0.75;
+    /// <summary>2 = twin floats (SpreadM apart); 1 = a flying-boat HULL on the centreline (owner 2026-10-02: H-4).</summary>
+    public int Count { get; set; } = 2;
+    /// <summary>Flying boats: the small wingtip floats (SpreadM = tip-to-tip spacing). They touch only when the hull heels.</summary>
+    public FloatsConfig? TipFloats { get; set; }
 }
 
 public sealed class GearConfig

@@ -46,8 +46,9 @@ namespace FlyingGame.Bridge
             { "cirrus-sr22-like", new Spec(Vector3.right, Vector3.forward) },
             { "stearman-pt17-like", new Spec(Vector3.right, Vector3.forward) },
             { "p51d-like", new Spec(Vector3.down, Vector3.forward) },             // nose -y, top +z
-            // f86-sabre-like: the GLB is a posed display scene (Sabre + MiG-15, banked) — needs the Sabre isolated first.
+            { "f86-sabre-like", new Spec(Vector3.up, Vector3.forward) },        // nose +y, top +z. Aidan6604 (the Spark_Customs file is a posed Sabre+MiG scene, one merged mesh)
             { "target-drone-like", new Spec(Vector3.right, Vector3.forward) },
+            { "hughes-h4-like", new Spec(Vector3.right, Vector3.forward) },      // helijah export (same convention as his others)
             { "glider-eb29r-like", new Spec(new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, 1f)) },   // export stands on its tail: nose along -y, height along z
         };
         public static IEnumerable<string> Ids => Specs.Keys;
@@ -76,6 +77,8 @@ namespace FlyingGame.Bridge
             b = LocalBounds(inst, parent);
             // Centre laterally and along the length on the config's CG station (x = 0), then sit on the wheels.
             float gearDown = 0f; foreach (GearConfig g in cfg.Gear) gearDown = Mathf.Max(gearDown, (float)g.Pos[2]);
+            // Flying boat (hull, no wheels): the hull keel is the "contact" — its depth below the CG, as the physics floats it.
+            if (cfg.Floats != null && cfg.Floats.Count == 1 && cfg.Gear.Count == 0) gearDown = (float)cfg.Floats.KeelZ;
             Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y + spec.GroundClearanceM, -b.center.z + (float)LengthCentreOffset(cfg));
             inst.transform.localPosition = shift;
             bounds = LocalBounds(inst, parent);

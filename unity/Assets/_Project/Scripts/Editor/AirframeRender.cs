@@ -20,7 +20,7 @@ namespace FlyingGame.EditorTools
         {
             "glider-2-33-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like",
+            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like", "hughes-h4-like",
         };
 
         [MenuItem("FlyingGame/Render Airframes")]

@@ -74,14 +74,21 @@ public sealed class WorldTerrain
 
     private static Lake[] BuildLakes()
     {
-        var l = new Lake[Airports.Length];
+        var l = new Lake[Airports.Length + 1];
         for (int i = 0; i < Airports.Length; i++)
         {
             Airport a = Airports[i];
             l[i] = new Lake(a.X + 2600, a.Y + 600, 500, 380, a.ElevationM - 2.0);   // beyond the gorge, closer in
         }
+        // The HARBOR (owner 2026-10-02: Hughes H-4): a 3.2 km x 1 km bay on the Valley plain east of the river, north of
+        // the Valley lake — a 300,000 lb flying boat needs ~2.2 km of water. Always the last lake.
+        Airport v = Airports[0];
+        l[Airports.Length] = new Lake(v.X + 4900, v.Y + 2400, 1600, 500, v.ElevationM - 2.0);
         return l;
     }
+
+    /// <summary>The big bay flying boats operate from (the last entry of <see cref="Lakes"/>).</summary>
+    public static Lake Harbor => Lakes[Lakes.Length - 1];
 
     // River: runs downhill west→east across the steps in a GORGE, meandering gently in x (minimum turn
     // radius ≈ 2 km so the gorge can be flown at speed), passing the lakes' west shores.

@@ -145,7 +145,9 @@ namespace FlyingGame.Bridge
             if (IdleStart && config.Floats != null && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Floatplane on final: to the field's lake, 300 ft over the water, idle, best glide (owner 2026-09-14).
-                FlyingGame.Core.WorldTerrain.Lake lake = FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 1)];
+                // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.
+                FlyingGame.Core.WorldTerrain.Lake lake = config.Floats.Count == 1 ? FlyingGame.Core.WorldTerrain.Harbor
+                    : FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 2)];
                 var (fState, glide, _) = ApproachSpawn.ComputeToLake(config, lake);
                 TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
                 Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, glide.SpoilerFraction)));
@@ -156,8 +158,11 @@ namespace FlyingGame.Bridge
             if (ground && config.Floats != null)
             {
                 // Floatplane: "on the runway" means on the water — at rest on the field's lake, heading north.
-                FlyingGame.Core.WorldTerrain.Lake lake = FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 1)];
-                var wpos = new Vec3(lake.Cx - lake.Rx * 0.5, lake.Cy, -(lake.SurfaceM + 1.3));
+                // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.
+                FlyingGame.Core.WorldTerrain.Lake lake = config.Floats.Count == 1 ? FlyingGame.Core.WorldTerrain.Harbor
+                    : FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 2)];
+                // CG above the water: keel depth below the CG less a resting draft (Cub floats 1.55 → 1.3 m; the H-4 hull ~5.8 m).
+                var wpos = new Vec3(lake.Cx - lake.Rx * (config.Floats.Count == 1 ? 0.85 : 0.5), lake.Cy, -(lake.SurfaceM + config.Floats.KeelZ - 0.25));
                 var wstate = new RigidBodyState(wpos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
                 TrimStick = 0.0;
                 Sim = new SimLoop(new Aircraft(config, wstate, ControlDeflections.Neutral));
