@@ -84,6 +84,12 @@ namespace FlyingGame.Bridge.Practice
                 Driver.AdoptSim(new SimLoop(ac));
                 _touch?.PresetPitchTrim(Scenario.TrimStick);   // on speed AND in trim: hands-off flies the starting path
                 Driver.InputFilter = Filter;
+                // Only the controls this lesson gives you (owner 2026-10-03): elevator (and throttle) lessons get tall strips.
+                if (_touch != null)
+                {
+                    _touch.StripElevator = Scenario.UserElevator && !Scenario.UserAileron && !Scenario.UserRudder;
+                    _touch.StripThrottle = _touch.StripElevator && Scenario.UserThrottle;
+                }
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
                 Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f; Counting = false;
@@ -133,6 +139,7 @@ namespace FlyingGame.Bridge.Practice
         {
             if (!Active) return;
             Active = false; Counting = false;
+            if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; }
             if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
             Driver.InputFilter = null;
             Driver.ForceCapture = false;

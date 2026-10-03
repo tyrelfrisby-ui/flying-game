@@ -212,7 +212,7 @@ namespace FlyingGame.Bridge.Practice
             UiLayout.Label(new Rect(r.x, r.y, r.width * 0.42f, r.height * 0.3f), "idle, on speed, in trim", st);
             UiLayout.Label(new Rect(ro.x + 4f, ro.y - r.height * 0.05f, r.width * 0.3f, r.height * 0.25f), "round out 10–20 ft", st);
             UiLayout.Label(new Rect(r.x + r.width * 0.5f, gy - r.height * 0.3f, r.width * 0.3f, r.height * 0.2f), "hold off — speed bleeds", st);
-            UiLayout.Label(new Rect(r.x + r.width * 0.6f, gy + 4f, r.width * 0.4f, r.height * 0.2f), "touch down at the 1,000 ft markers", st);
+            UiLayout.Label(new Rect(r.x + r.width * 0.6f, gy + 4f, r.width * 0.4f, r.height * 0.2f), "aim: the numbers · touch down ~330 ft past", st);
         }
 
         private void DrawLive(PracticeScenario sc, Rect view, float lh)
@@ -449,7 +449,7 @@ namespace FlyingGame.Bridge.Practice
                 float X(double a) => r.x + (float)((a - a0) / System.Math.Max(1, a1 - a0)) * r.width;
                 float Y(double h) => r.yMax - 6f - (float)(System.Math.Max(0, h) / (hmax * 1.1)) * (r.height - 12f);
                 GUI.color = new Color(0.45f, 0.45f, 0.5f); GUI.DrawTexture(new Rect(r.x, Y(0), r.width, 3f), _line);
-                double tdz = (sc.FlareExercise ? 150.0 : PracticeScenario.AimPastThresholdM) + PracticeScenario.TouchdownBeyondAimM;
+                double tdz = (sc.FlareExercise ? PracticeScenario.NumbersPastThresholdM : PracticeScenario.AimPastThresholdM) + PracticeScenario.TouchdownBeyondAimM;
                 GUI.color = new Color(0.25f, 0.92f, 0.35f, 0.5f); GUI.DrawTexture(new Rect(X(tdz - 30), Y(0) - 4f, X(tdz + 61) - X(tdz - 30), 8f), _line);
                 // Ideal: the glide down to 15 ft, then the height shrinking ~exponentially to the touchdown zone.
                 GUI.color = new Color(0.5f, 0.85f, 1f, 0.9f);

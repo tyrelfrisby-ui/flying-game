@@ -194,6 +194,10 @@ public sealed class PracticeScenario
     /// <summary>Approach: glideslope angle (positive = down) and where it meets the runway (150 m past the threshold).</summary>
     public double GlideslopeRad { get; }
     public const double AimPastThresholdM = 150.0;
+    /// <summary>The flare lesson's aim point: the runway NUMBERS (their middle, ~220 ft past the threshold — owner 2026-10-03:
+    /// "start it before the runway … the flight path right on the numbers at 100 ft").</summary>
+    public const double NumbersPastThresholdM = 67.0, FlareStartFt = 100.0;
+    public double FlareAimM => NumbersPastThresholdM;
     public double GlideslopeHeightAt(double along) => Math.Max(0, (AimPastThresholdM - along) * Math.Tan(GlideslopeRad));
     /// <summary>+ = above the glideslope (m).</summary>
     public double GlideslopeDeviationM { get; private set; }
@@ -423,10 +427,10 @@ public sealed class PracticeScenario
         Atmosphere.ActiveTurbulence = null;
         Atmosphere.SteadyWind = WindVector(0, 0);
         if (Airwork) return SpawnAirwork();
-        double wheels = Approach ? 91.44 : FlareExercise ? FiftyFtM : FiveFtM;   // WHEEL height (owner: "5 ft")
+        double wheels = Approach ? 91.44 : FlareExercise ? FlareStartFt * 0.3048 : FiveFtM;   // WHEEL height (owner: "5 ft"; the flare: 100 ft on the idle glide)
         double agl = wheels + GearDropM;
         double v = (FlareExercise || Approach) ? 1.3 * VsoMs : 1.15 * VsoMs;
-        double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(FlareGlideRad) - 150 : 0;   // aimed 150 m past the threshold
+        double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(FlareGlideRad) - NumbersPastThresholdM : 0;   // the idle glide path runs onto the NUMBERS — the start distance varies with the glide angle
         (double tx, double ty) = Runway.Threshold;
         var pos = new Vec3(tx - Runway.AlongX * back, ty - Runway.AlongY * back, -(SurfaceM + agl));
         // Crab into the wind so the ground track runs along the runway from the first frame.
@@ -668,7 +672,7 @@ public sealed class PracticeScenario
             _judgedTouchdown = true;
             // The judged touchdown point: 100 m (330 ft) past where the path meets the runway — the flare carries you that
             // far (the "1,000 ft markers" for a path aimed ~500 ft in).
-            double aim = (FlareExercise ? 150.0 : AimPastThresholdM) + TouchdownBeyondAimM;
+            double aim = (FlareExercise ? NumbersPastThresholdM : AimPastThresholdM) + TouchdownBeyondAimM;
             foreach (Criterion m in j.Rules.Moments)
             {
                 string n = m.Name;
@@ -778,7 +782,7 @@ public sealed class PracticeScenario
             if (!Descending) return FiveFtM;
             if (FlareExercise || Approach)
             {
-                double aimAlong = FlareExercise ? 150.0 : AimPastThresholdM;
+                double aimAlong = FlareExercise ? NumbersPastThresholdM : AimPastThresholdM;
                 double pathH = FlareExercise ? Math.Max(0, (aimAlong - a) * Math.Tan(FlareGlideRad)) : GlideslopeHeightAt(a);
                 // Round-out: below 3 m the target eases in as the square of the path height, so the sink bleeds off progressively.
                 return pathH > 3.0 ? pathH : HoldOffM + (3.0 - HoldOffM) * (pathH / 3.0) * (pathH / 3.0);

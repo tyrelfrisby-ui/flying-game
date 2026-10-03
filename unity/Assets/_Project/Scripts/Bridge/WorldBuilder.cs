@@ -811,16 +811,7 @@ namespace FlyingGame.Bridge
                 GameObject strip = s.Kind == "grass"
                     ? GrassStrip(root.transform, a, s)   // follows the Snoopy swoops in the height field
                     : Slab(root.transform, $"Strip-{s.Kind}", a.X + s.Dx, a.Y + s.Dy, a.ElevationM + (s.Kind == "paved-xwind" ? 0.045 : 0.04), s.Length, s.Width, 0.06, s.HeadingDeg, c);
-                if (paved)
-                {
-                    // Centreline dashes + threshold bars.
-                    for (double d = -s.Length * 0.5 + 60; d < s.Length * 0.5 - 60; d += 36)
-                    {
-                        Child(strip, "Dash", d, 0, 0.05, 16, 0.6, 0.03, Paint);
-                    }
-                    Child(strip, "Thresh", -s.Length * 0.5 + 20, 0, 0.05, 12, s.Width * 0.9, 0.03, Paint);
-                    Child(strip, "Thresh", s.Length * 0.5 - 20, 0, 0.05, 12, s.Width * 0.9, 0.03, Paint);
-                }
+                if (paved) RunwayMarkings(strip, s);
                 if (s.Kind == "gravel")
                 {
                     // STOL contest: landing line and distance marks (every 10 m, bold every 50 m, numbered).
@@ -841,6 +832,78 @@ namespace FlyingGame.Bridge
             BuildWindsocks(root.transform, a);
             // Field name on the apron.
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
+        }
+
+        /// <summary>
+        /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (8 stripes, 150 ft), the
+        /// runway NUMBERS (60 ft tall, magnetic heading / 10, read upright from each approach end), touchdown-zone bars at
+        /// 500 / 1,500 / 2,000 ft, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
+        /// edge stripes. Main runway along x (north) = 36 / 18; the crosswind runway along y = 09 / 27.
+        /// </summary>
+        private static void RunwayMarkings(GameObject strip, WorldTerrain.Strip s)
+        {
+            double L = s.Length, W = s.Width, ft = 0.3048;
+            int hdg = (int)System.Math.Round(s.HeadingDeg / 10.0) % 36; if (hdg == 0) hdg = 36;   // flying along +along
+            int recip = (hdg + 18 - 1) % 36 + 1;
+            foreach (int end in new[] { -1, 1 })                       // -1: the +along approach end; +1: the far end
+            {
+                // "along" measured from THIS threshold, inward; across mirrored so each end reads correctly.
+                double A(double d) => end < 0 ? -L / 2 + d : L / 2 - d;
+                double X(double c) => end < 0 ? c : -c;
+                // Threshold stripes: 8, 150 ft long, starting 20 ft in.
+                double sw = 5.75 * ft, gap = (W - 2 * 3 * ft - 8 * sw) / 7.0;
+                for (int k = 0; k < 8; k++)
+                {
+                    double c = -W / 2 + 3 * ft + sw / 2 + k * (sw + gap);
+                    if (k >= 4) c += 0; // (a centreline gap is implicit in the even spacing)
+                    Child(strip, "Thresh", A(20 * ft + 75 * ft), X(c), 0.05, 150 * ft, sw, 0.03, Paint);
+                }
+                // Numbers, 60 ft tall, 20 ft beyond the stripes.
+                Numerals(strip, (end < 0 ? hdg : recip).ToString("00"), A(190 * ft + 30 * ft), end > 0);
+                // Touchdown zone (3 bars at 500 ft, 2 at 1,500, 2 at 2,000), aiming point at 1,000 ft.
+                foreach ((double d, int n) in new[] { (500.0, 3), (1500.0, 2), (2000.0, 2) })
+                    for (int side = -1; side <= 1; side += 2)
+                        for (int k = 0; k < n; k++)
+                            Child(strip, "TDZ", A(d * ft + 37.5 * ft), X(side * (W / 2 - 4 * ft - k * 5 * ft - 1.5 * ft)), 0.05, 75 * ft, 3 * ft, 0.03, Paint);
+                for (int side = -1; side <= 1; side += 2)
+                    Child(strip, "Aim", A(1020 * ft + 75 * ft), X(side * (W / 2 - 4 * ft - 7.5 * ft)), 0.05, 150 * ft, 15 * ft, 0.03, Paint);
+            }
+            // Centreline: 120 ft stripes, 80 ft gaps, between the numbers.
+            for (double d = -L / 2 + 280 * ft; d < L / 2 - 280 * ft - 120 * ft; d += 200 * ft)
+                Child(strip, "Dash", d + 60 * ft, 0, 0.05, 120 * ft, 3 * ft, 0.03, Paint);
+            // Edge stripes.
+            foreach (int side in new[] { -1, 1 })
+                Child(strip, "Edge", 0, side * (W / 2 - 1.5 * ft), 0.05, L - 6 * ft, 3 * ft, 0.03, Paint);
+        }
+
+        /// <summary>Runway designation numerals as paint blocks (seven-segment construction, 60 ft x 20 ft per digit).
+        /// <paramref name="flip"/>: rotated 180° (the far end's numbers read from that end).</summary>
+        private static void Numerals(GameObject strip, string text, double centreAlong, bool flip)
+        {
+            double ft = 0.3048, H = 60 * ft, Wd = 20 * ft, t = 5 * ft, pitch = Wd + 15 * ft;
+            // segment: (centre across, centre along, across size, along size) in digit units; along + = "up" the digit.
+            (double cx, double ca, double sx, double sa)[] Seg(char ch)
+            {
+                double hx = Wd / 2 - t / 2, ha = H / 2 - t / 2;
+                var a = (0.0, ha, Wd, t); var d = (0.0, -ha, Wd, t); var gm = (0.0, 0.0, Wd, t);
+                var f = (-hx, H / 4, t, H / 2); var b = (hx, H / 4, t, H / 2); var e = (-hx, -H / 4, t, H / 2); var c = (hx, -H / 4, t, H / 2);
+                return ch switch
+                {
+                    '0' => new[] { a, b, c, d, e, f }, '1' => new[] { b, c }, '2' => new[] { a, b, gm, e, d }, '3' => new[] { a, b, gm, c, d },
+                    '4' => new[] { f, gm, b, c }, '5' => new[] { a, f, gm, c, d }, '6' => new[] { a, f, gm, e, c, d }, '7' => new[] { a, b, c },
+                    '8' => new[] { a, b, c, d, e, f, gm }, _ => new[] { a, b, c, d, f, gm },
+                };
+            }
+            for (int i = 0; i < text.Length; i++)
+            {
+                double dx = (i - (text.Length - 1) / 2.0) * pitch;
+                foreach (var (cx, ca, sx, sa) in Seg(text[i]))
+                {
+                    double across = dx + cx, along = ca;
+                    if (flip) { across = -across; along = -along; }
+                    Child(strip, "Num", centreAlong + along, across, 0.05, sa, sx, 0.03, Paint);
+                }
+            }
         }
 
         /// <summary>The grass strip as a fine mesh riding the height field, so its smooth undulations show.</summary>

@@ -145,7 +145,7 @@ public sealed class LessonJudge
         public static Criterion FlareSink => new("Flare: sink easing off with height", "sink ≈ height ÷ 5 s", "fpm off", 60, 120, 200, "Round out 10–20 ft up, then hold it off: the sink should shrink with the height, never balloon.");
         public static Criterion TdSink => new("Touchdown sink rate", "≤ 150 fpm", "fpm", 150, 250, 400, "A smooth arrival is under ~150 fpm; ~400 fpm and over is a hard landing.");
         public static Criterion TdSpeed => new("Touchdown speed", "≈ Vso (stall)", "% over Vso", 10, 20, 30, "AFH: touch down at minimum controllable airspeed — at or just above the stall.");
-        public static Criterion TdPoint => new("Touchdown point", "the 1,000 ft markers", "ft past", 200, 400, 600, "ACS: within 200 ft (commercial) / 400 ft (private) beyond the chosen point (330 ft past where the path meets the runway); short is orange.");
+        public static Criterion TdPoint => new("Touchdown point", "330 ft past the aim point", "ft past", 200, 400, 600, "ACS: within 200 ft (commercial) / 400 ft (private) beyond the chosen point — 330 ft past where the glide path meets the runway (the numbers for the flare lesson); short is orange.");
         public static Criterion TdAlign => new("Aligned at touchdown", "0°", "°", 2, 4, 7, "No crab: the wheels must be rolling the way the airplane is going.");
         public static Criterion TdCentre => new("On the centreline at touchdown", "0 ft", "ft", 5, 10, 20, "ACS: on the centreline, no drift.");
         public static Criterion TdAttitude(bool taildragger) => taildragger
@@ -176,7 +176,7 @@ public sealed class LessonJudge
                 r.Live.Add(Std.Centreline); r.Moments.Add(Std.TdCentre); r.Moments.Add(Std.Bounce); break;
             case PracticeKind.Flare:
             case PracticeKind.FlareSideView:
-                r.Goal = "Power off from 50 ft. You have the ELEVATOR: round out 10–20 ft up, then hold it off until it settles onto the runway at minimum speed.";
+                r.Goal = "At idle on the power-off glide, aimed at the runway numbers from 100 ft. You have the ELEVATOR: round out 10–20 ft up, then hold it off until it settles at minimum speed.";
                 r.Live.Add(Std.FlareSink);
                 r.Moments.AddRange(new[] { Std.RoundOut, Std.TdSink, Std.Bounce, Std.TdSpeed, Std.TdPoint, Std.TdAttitude(taildragger) }); break;
             case PracticeKind.ApproachSideView:

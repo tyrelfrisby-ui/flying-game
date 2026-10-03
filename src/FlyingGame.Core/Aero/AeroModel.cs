@@ -20,6 +20,21 @@ public static class AeroModel
     /// strip width (area/chord) at each tip, area as the strip sum. Single-strip surfaces get AR from
     /// that strip alone (width²/area).
     /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _span = new();
+    /// <summary>Wing span (m) and the wing's mean height offset from the CG (body z, + down), cached per config.</summary>
+    public static double WingSpan(AircraftConfig c) => WingGeom(c)[0];
+    public static double WingZ(AircraftConfig c) => WingGeom(c)[1];
+    private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, cfg =>
+    {
+        double maxY = 0, zSum = 0, aSum = 0;
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+        {
+            if (!sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) continue;
+            foreach (StripConfig st in sf.Strips) { Vec3 p = st.PosVec(); maxY = Math.Max(maxY, Math.Abs(p.Y) + 0.5 * st.Area / Math.Max(0.1, st.Chord)); zSum += p.Z * st.Area; aSum += st.Area; }
+        }
+        return new[] { 2 * maxY, aSum > 0 ? zSum / aSum - cfg.Mass.CgVec().Z : 0 };
+    });
+
     private static double GeometricAspectRatio(SurfaceConfig surface, bool isVertical)
     {
         double area = 0.0, min = double.MaxValue, max = double.MinValue;
@@ -69,9 +84,21 @@ public static class AeroModel
         double slipstreamRadius = 0.0,
         bool[]? surfaceMask = null,
         bool[]? stripMask = null,
-        Vec3? meanWindBody = null)
+        Vec3? meanWindBody = null,
+        double wingHeightAglM = double.PositiveInfinity)
     {
         int stripIndex = 0;
+        // GROUND EFFECT (owner 2026-10-03: "is it even modeled?" — it was not). Within about a span of the surface the
+        // ground blocks the wing's downwash: McCormick's φ = (16h/b)² / (1 + (16h/b)²) scales the induced drag (φ = 0.5 at
+        // h ≈ b/16 ... ~0.88 at b/6), the wing's lift slope rises as if its aspect ratio were AR/φ, and the tail sees φ
+        // of the downwash (the nose-down trim change in the flare).
+        double span = WingSpan(config);
+        double gePhi = 1.0;
+        if (span > 0 && wingHeightAglM < span * 1.5)
+        {
+            double k = 16.0 * Math.Max(0.05, wingHeightAglM) / span;
+            gePhi = k * k / (1.0 + k * k);
+        }
         Vec3 cg = config.Mass.CgVec();
         double flapDownwashRad = 0.0;
         if (controls.FlapFraction > 0.0)
@@ -212,7 +239,7 @@ public static class AeroModel
                         // Flaps add downwash at the tail in proportion to the lift they add (owner 2026-09-15: the
                         // flap / tail interaction): the flap's effective incidence shift, scaled like the wing's own alpha.
                         eps += 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction);
-                        alphaBase -= eps;
+                        alphaBase -= eps * gePhi;   // ground effect: the ground blocks part of the downwash
                     }
 
                     double dx = uu / planeSpeed, dz = ww / planeSpeed;
@@ -346,12 +373,18 @@ public static class AeroModel
                 // control deflection — this is where adverse yaw's drag asymmetry comes from).
                 // The cos² taper retires the lifting-line term post-stall, where it is invalid
                 // and the table's flat-plate drag takes over.
+                if (isWing && gePhi < 0.999 && aspectRatio > MinInducedAspectRatio)
+                {
+                    // Lift slope with the ground's help: a = 2πA/(A+2) at A → A/φ (attached flow; the table carries the stall).
+                    double a0 = aspectRatio / (aspectRatio + 2.0), aG = (aspectRatio / gePhi) / (aspectRatio / gePhi + 2.0);
+                    coeffs = new AeroCoefficients(coeffs.Cl * (1.0 + (aG / a0 - 1.0) * Math.Max(0, Math.Cos(alpha))), coeffs.Cd, coeffs.Cm);
+                }
                 double cdInduced = 0.0;
                 if (aspectRatio > MinInducedAspectRatio)
                 {
                     double cosAlpha = Math.Cos(alpha);
                     double attachedTaper = cosAlpha > 0.0 ? cosAlpha * cosAlpha : 0.0;
-                    cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper;
+                    cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper * (isWing ? gePhi : 1.0);
                 }
 
                 // Unsteady-aero lag (proposal 3): forces in separated/attached flow respond over

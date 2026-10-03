@@ -76,6 +76,11 @@ namespace FlyingGame.Bridge
         // Which finger (or mouse, id = -1) currently owns each control, and its current position.
         private int _leftFinger = int.MinValue, _rightFinger = int.MinValue, _trimFinger = int.MinValue;
         private Vector2 _leftKnob, _rightKnob; // screen px; knob = pad centre when idle
+        /// <summary>Lesson strip mode (owner 2026-10-03): only the controls the lesson gives you — a tall ELEVATOR strip on the
+        /// right (+ the pitch trim beside it) and, when the lesson gives you power, a THROTTLE strip on the left. No pads.</summary>
+        public bool StripElevator, StripThrottle;
+        public bool StripMode => StripElevator && !DeskMode;
+        private Rect _eleStrip, _thrStrip; private float _stripY;
 
         // On-screen button rects (screen px, bottom-left origin) — computed in Update, drawn in OnGUI.
         private Rect _brakeRect, _resetRect, _acftRect, _towRect;
@@ -147,7 +152,7 @@ namespace FlyingGame.Bridge
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
+            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
@@ -220,6 +225,7 @@ namespace FlyingGame.Bridge
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
             _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
             _fireRect = FireRectTopLeft();
+            if (StripMode) LayOutStrips(w);
             PublishBand();
         }
 
@@ -241,6 +247,14 @@ namespace FlyingGame.Bridge
                 return;
             }
             float gap = Mathf.Min(w, h) * 0.02f;
+            if (StripMode)
+            {
+                UiLayout.BandMin = (StripThrottle ? _thrStrip.xMax : 0f) + gap;
+                UiLayout.BandMax = _trimRect.x - gap;
+                float top = Mathf.Max(_bailRect.yMax, Mathf.Max(_acftRect.yMax, _towRect.yMax));
+                UiLayout.BottomLimit = h - top - gap;
+                return;
+            }
             UiLayout.BandMin = _leftCenter.x + _half + gap;
             UiLayout.BandMax = Mathf.Min(_trimRect.x, _rightCenter.x - _half) - gap;
             float clusterTop = Mathf.Max(_bailRect.yMax, Mathf.Max(_acftRect.yMax, _towRect.yMax));   // screen px, bottom-left origin
@@ -283,7 +297,44 @@ namespace FlyingGame.Bridge
             _bailRect = HasEjectionSeat ? new Rect(margin, rowY2, ew, eh) : new Rect(margin, rowY2, w - 2f * margin, eh);
             _ejectRect = new Rect(margin + ew + gap, rowY2, ew, eh);
             _fireRect = FireRectTopLeft();
+            if (StripMode) LayOutStrips(w);
             PublishBand();
+        }
+
+        /// <summary>Strip layout. Landscape: full height under the toolbar, right edge (elevator) / left edge (throttle).
+        /// Portrait: in the tray, ~1.3 pad heights tall.</summary>
+        private void LayOutStrips(float w)
+        {
+            float h = Screen.height, s = Mathf.Min(w, h), margin = s * 0.035f, gap = s * 0.02f;
+            float sw = s * 0.2f;
+            float bottom, top;
+            if (ScreenLayout.Portrait) { bottom = margin; top = margin + 2f * _half * 1.3f; }
+            else { bottom = margin; top = h - UiLayout.ToolbarBottom - margin - (FireAvailable ? s * 0.15f : 0f); }
+            _eleStrip = new Rect(w - margin - sw, bottom, sw, top - bottom);
+            _thrStrip = new Rect(margin, bottom, sw, top - bottom);
+            float trimW = sw * 0.3f;
+            _trimRect = new Rect(_eleStrip.x - gap - trimW, bottom, trimW, top - bottom);
+        }
+
+        /// <summary>A tall control strip: track, centre detent line, quarter ticks, the knob at its position.</summary>
+        private void DrawStrip(Rect r, float pos, string label, string value)
+        {
+            float t = Mathf.Max(2f, r.width * 0.02f);
+            GUI.color = new Color(1f, 1f, 1f, 0.16f); GUI.DrawTexture(ToGui(r), _solidTex);
+            GUI.color = new Color(1f, 1f, 1f, 0.55f); DrawFrame(r, t);
+            for (int i = -4; i <= 4; i++)
+            {
+                float y = r.center.y + i * 0.25f * r.height * 0.5f;
+                GUI.color = new Color(1f, 1f, 1f, i == 0 ? 0.7f : 0.3f);
+                float tw = i == 0 ? r.width : r.width * 0.4f;
+                GUI.DrawTexture(ToGui(new Rect(r.center.x - tw * 0.5f, y - t * 0.5f, tw, t)), _solidTex);
+            }
+            float ky = r.center.y + Mathf.Clamp(pos, -1f, 1f) * r.height * 0.5f;
+            GUI.color = new Color(1f, 1f, 1f, 0.9f);
+            GUI.DrawTexture(GuiRectCentered(new Vector2(r.center.x, ky), r.width * 0.7f), _knobTex);
+            GUI.color = Color.white;
+            float lh = _styleFs * 1.5f;
+            UiLayout.Label(new Rect(r.x - r.width * 0.25f, Screen.height - (r.yMax + lh), r.width * 1.5f, lh), label, _labelStyle);
         }
 
         /// <summary>FIRE (owner 2026-10-01): top left under MENU, a big target for a third finger while both thumbs stay on
@@ -361,6 +412,11 @@ namespace FlyingGame.Bridge
                     if (_trimRect.Contains(p.pos) && _trimFinger == int.MinValue) _trimFinger = p.id;
                     else if (_ailTrimRect.Contains(p.pos) && _ailTrimFinger == int.MinValue) _ailTrimFinger = p.id;
                     else if (_rudTrimRect.Contains(p.pos) && _rudTrimFinger == int.MinValue) _rudTrimFinger = p.id;
+                    else if (StripMode)
+                    {
+                        if (_eleStrip.Contains(p.pos) && _rightFinger == int.MinValue) _rightFinger = p.id;
+                        else if (StripThrottle && _thrStrip.Contains(p.pos) && _leftFinger == int.MinValue) _leftFinger = p.id;
+                    }
                     else if (NearPad(p.pos, _leftCenter) && _leftFinger == int.MinValue) _leftFinger = p.id;
                     else if (NearPad(p.pos, _rightCenter) && _rightFinger == int.MinValue) _rightFinger = p.id;
                 }
@@ -439,6 +495,14 @@ namespace FlyingGame.Bridge
 
         private void DriveLeft(Vector2 pos)
         {
+            if (StripMode)
+            {
+                // Throttle strip: bottom = idle, top = full (lever travel the whole strip height).
+                float t01 = Mathf.Clamp01((pos.y - _thrStrip.y) / Mathf.Max(1f, _thrStrip.height));
+                _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * t01);
+                _rudder = 0f;
+                return;
+            }
             _leftKnob = ClampToPad(pos, _leftCenter);
             Vector2 n = (_leftKnob - _leftCenter) / _half;
             _rudder = Shape(n.x);
@@ -447,6 +511,15 @@ namespace FlyingGame.Bridge
 
         private void DriveRight(Vector2 pos)
         {
+            if (StripMode)
+            {
+                // Elevator strip: the full strip height is the full elevator travel (far less twitchy than the pad).
+                float ny = Mathf.Clamp((pos.y - _eleStrip.center.y) / (_eleStrip.height * 0.5f), -1f, 1f);
+                _stripY = ny;
+                _aileron = 0f;
+                _elevator = Shape(InvertElevator ? -ny : ny);
+                return;
+            }
             _rightKnob = ClampToPad(pos, _rightCenter);
             Vector2 n = (_rightKnob - _rightCenter) / _half;
             _aileron = Shape(n.x); // pad/stick RIGHT (n.x>0) = positive aileron = roll RIGHT (sim convention)
@@ -471,6 +544,7 @@ namespace FlyingGame.Bridge
         private void ReleaseRight()
         {
             _rightFinger = int.MinValue;
+            _stripY = 0f;
             _aileron = 0f;
             _elevator = 0f;
             _rightKnob = _rightCenter;   // both spring back
@@ -614,6 +688,12 @@ namespace FlyingGame.Bridge
             bool pilotOut = _egress != null && _egress.PilotOut;
             (Vector2 freeLeft, Vector2 freeRight) = FreeKnobs(pilotOut);
             if (DeskMode) DrawDeskIndicator(GameLeftKnob(freeLeft), GameRightKnob(freeRight), leftValue);
+            else if (StripMode)
+            {
+                DrawStrip(_eleStrip, _stripY, "ELEVATOR", "push = nose down");
+                if (StripThrottle) DrawStrip(_thrStrip, (float)(2 * thr01 - 1), "THROTTLE", leftValue);
+                DrawTrim();
+            }
             else
             {
                 DrawPad(_leftCenter, GameLeftKnob(_leftFinger == int.MinValue ? freeLeft : _leftKnob), "RUD / THR", leftValue);
@@ -649,7 +729,7 @@ namespace FlyingGame.Bridge
             string an = _driver.AircraftName ?? "";
             int paren = an.IndexOf(" (");
             Button(_acftRect, paren > 0 ? an.Substring(0, paren) : an);   // "Bush Taildragger (PA-18)" → fits the button
-            if (!DeskMode)   // Mac: no touch trim bars — the desk indicator shows trim (=/- keys)
+            if (!DeskMode && !StripMode)   // Mac: no touch trim bars — the desk indicator shows trim (=/- keys); strips: elevator / throttle only
             {
                 DrawTrimBar(_rudTrimRect, _rudderTrim, "RUD TRIM");
                 DrawTrimBar(_ailTrimRect, _aileronTrim, "AIL TRIM");
