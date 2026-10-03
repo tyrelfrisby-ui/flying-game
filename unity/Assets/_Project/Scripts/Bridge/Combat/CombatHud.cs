@@ -79,14 +79,15 @@ namespace FlyingGame.Bridge
                 GUI.color = lined ? Hot : Amber;
                 GUI.DrawTexture(new Rect(p.x - dot * 0.5f, p.y - dot * 0.5f, dot, dot), _disc);
                 string rng = range < 1000 ? $"{range:F0} m" : $"{range / 1000:F1} km";
-                Vector2 lp = centre + new Vector2(Mathf.Sin(theta), -Mathf.Cos(theta)) * (R + s * 0.09f);
-                string txt = $"{off:F0}°  {clock} o'clock\n{rng}  {Combat.TargetName}";
-                var box = new Rect(lp.x - s * 0.2f, lp.y - fs * 1.6f, s * 0.4f, fs * 3.2f);
-                GUI.color = new Color(0f, 0f, 0f, 0.55f);   // dark backing: readable over dials and terrain
-                GUI.DrawTexture(box, Texture2D.whiteTexture);
+                // The numbers go in the shared text stack (no-overlap rule: a box orbiting the ring landed on the status
+                // lines, the dials and the buttons); the dot on the ring still shows WHERE he is.
+                string txt = $"TARGET  {Combat.TargetName}   {off:F0}° off the nose   {clock} o'clock   {rng}";
+                Rect line = UiLayout.NextLine(fs * 1.5f);
+                GUI.color = new Color(0f, 0f, 0f, 0.45f);
+                GUI.DrawTexture(line, Texture2D.whiteTexture);
                 GUI.color = Color.white;
                 _label.normal.textColor = lined ? Hot : Color.white;
-                GUI.Label(box, txt, _label);
+                UiLayout.Label(line, txt, _label);
             }
 
             // ---- gunsight pipper + flight-path marker

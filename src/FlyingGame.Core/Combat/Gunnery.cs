@@ -216,11 +216,13 @@ public sealed class GroundTarget
     public bool Contains(double x, double y) => (x - X) * (x - X) + (y - Y) * (y - Y) <= RadiusM * RadiusM;
 }
 
-/// <summary>The COMBAT ZONE (owner): a big box east of the Valley, from the surface to 3 km AGL — guns only work
-/// inside it. Ground targets sit on its floor; target drones orbit inside it.</summary>
+/// <summary>The COMBAT ZONE (owner): a box from the surface to 3 km AGL — guns only work inside it. Owner 2026-10-03: moved
+/// in close and OVER THE GORGE — it now spans the twisting lower gorge, the waterfront city on its north bank and the
+/// Golden Gate at its mouth, with puffy clouds to duck into: a playground for hiding and evading. Ground targets sit on
+/// its floor (one on the gorge floor); target drones orbit inside it.</summary>
 public static class CombatZone
 {
-    public const double X0 = 3500, X1 = 7500, Y0 = 2500, Y1 = 6500, HeightM = 3000;
+    public const double X0 = -100, X1 = 4400, Y0 = 2100, Y1 = 6100, HeightM = 3000;
     public static double CentreX => (X0 + X1) / 2;
     public static double CentreY => (Y0 + Y1) / 2;
     public static bool Inside(Vec3 pos)
@@ -232,8 +234,22 @@ public static class CombatZone
     public static List<GroundTarget> BuildGroundTargets()
     {
         var t = new List<GroundTarget>();
-        foreach ((double x, double y) in new[] { (4200.0, 3200.0), (4800.0, 4600.0), (5500.0, 3000.0), (6100.0, 5400.0), (6800.0, 3800.0), (5200.0, 5900.0) })
+        // South-bank open ground, the city's edge, and one down on the gorge floor beside the river.
+        foreach ((double x, double y) in new[] { (700.0, 2700.0), (900.0, 3700.0), (600.0, 4600.0), (4150.0, 3200.0), (2650.0, 4900.0) })
             t.Add(new GroundTarget(x, y, 30));
+        double gy = 3420;
+        t.Add(new GroundTarget(WorldTerrain.RiverCentreX(gy) + WorldTerrain.RiverHalfWidthM + 12, gy, 14));
         return t;
     }
+
+    /// <summary>Puffy cumulus over the zone to hide in: (x, y, base height above sea level, radius, height).</summary>
+    public static readonly (double x, double y, double baseM, double radiusM, double heightM)[] Clouds =
+    {
+        (1000, 3000, WorldTerrain.DatumM + 650, 320, 480),
+        (2400, 4100, WorldTerrain.DatumM + 900, 380, 600),
+        (3600, 2700, WorldTerrain.DatumM + 750, 300, 420),
+        (1500, 4800, WorldTerrain.DatumM + 1100, 420, 650),
+        (3300, 5100, WorldTerrain.DatumM + 550, 260, 380),
+        (600, 3900, WorldTerrain.DatumM + 1300, 350, 520),
+    };
 }

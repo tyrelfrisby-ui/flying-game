@@ -63,6 +63,10 @@ public static class WorldSolids
     }
     public static readonly System.Collections.Generic.List<Box> Boxes = new();
 
+    /// <summary>A solid that is not a box (the sea cave's rock roof): reports penetration at a point.</summary>
+    public interface IShape { bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth); }
+    public static readonly System.Collections.Generic.List<IShape> Shapes = new();
+
     /// <summary>If (x, y, up) is inside a box, the outward push (world, z DOWN) along the least-penetration axis and
     /// its depth; null outside every box.</summary>
     public static (Vec3 normalNed, double depth)? Penetration(double x, double y, double up)
@@ -78,6 +82,8 @@ public static class WorldSolids
             if (m == py) return (new Vec3(0, System.Math.Sign(dy), 0), py);
             return (new Vec3(0, 0, 1), pBot);
         }
+        foreach (IShape sh in Shapes)
+            if (sh.Penetrate(x, y, up, out Vec3 n, out double d)) return (n, d);
         return null;
     }
 }

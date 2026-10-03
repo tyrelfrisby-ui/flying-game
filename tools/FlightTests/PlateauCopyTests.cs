@@ -11,7 +11,7 @@ public class PlateauCopyTests
     public void StepsAre1500Feet()
     {
         for (int i = 0; i < WorldTerrain.Airports.Length; i++)
-            Assert.InRange(WorldTerrain.Airports[i].ElevationM * 3.28084, 1500 * i - 1, 1500 * i + 1);
+            Assert.InRange((WorldTerrain.Airports[i].ElevationM - WorldTerrain.DatumM) * 3.28084, 1500 * i - 1, 1500 * i + 1);
     }
 
     [Fact]
@@ -45,10 +45,14 @@ public class PlateauCopyTests
         WorldTerrain.Active = t;
         try
         {
+            WorldSolids.Boxes.Clear();
+            Landmarks.RegisterSeasideSolids(t);
+            int seaside = WorldSolids.Boxes.Count;
+            WorldSolids.Boxes.Clear();
             Landmarks.RegisterSolids(t, 0);
             int valley = WorldSolids.Boxes.Count;
             Landmarks.RegisterSolids(t);
-            Assert.Equal(valley * WorldTerrain.PlateauCount, WorldSolids.Boxes.Count);
+            Assert.Equal(valley * WorldTerrain.PlateauCount + seaside, WorldSolids.Boxes.Count);   // every plateau's copy + the one seaside
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)
             {
                 double elev = WorldTerrain.Airports[p].ElevationM;

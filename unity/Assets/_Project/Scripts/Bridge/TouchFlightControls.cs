@@ -614,7 +614,7 @@ namespace FlyingGame.Bridge
 
             // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
             if (BailAvailable) Button(_bailRect, "BAIL OUT");
-            if (FireAvailable)
+            if (FireAvailable && !DeskMode)   // Mac: Space fires — no on-screen button over the HUD lines
             {
                 Rect g = ToGui(_fireRect);
                 GUI.color = _fireFinger != int.MinValue ? new Color(1f, 0.55f, 0.1f, 0.95f) : new Color(0.55f, 0.12f, 0.1f, 0.85f);

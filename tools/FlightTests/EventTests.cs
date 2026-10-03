@@ -68,7 +68,7 @@ public class EventTests
         for (double dy = -500; dy <= 500; dy += 250)
             Assert.InRange(t.HeightAt(AeroBox.CenterX + dx, AeroBox.CenterY + dy), h0 - 5, h0 + 5);
         // Race elements all on the valley floor, hoops above ground.
-        foreach (RaceElement e in RaceCourse.Elements) Assert.InRange(t.HeightAt(e.X, e.Y), -1, 30);
+        foreach (RaceElement e in RaceCourse.Elements) Assert.InRange(t.HeightAt(e.X, e.Y) - WorldTerrain.DatumM, -1, 30);
     }
 
     [Fact]

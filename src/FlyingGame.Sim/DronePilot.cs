@@ -80,7 +80,12 @@ public sealed class DronePilot
         if (Current == Manoeuvre.Cruise)
         {
             _legT += dt;
-            if (Aerobatic && inside && _legT > _cruiseFor && agl > FloorAglM + 120 && v > CruiseMs * 0.85) StartRandomManoeuvre(pitch);
+            // Only start a manoeuvre with room AHEAD: ~700 m along the track must still be inside (a loop or a break turn
+            // carries the drone on; started at the edge heading out, it would end up outside).
+            Vec3 vw = q.Rotate(s.Velocity); double vh = Math.Max(1, Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y));
+            double ax = s.Position.X + vw.X / vh * 700, ay = s.Position.Y + vw.Y / vh * 700;
+            bool roomAhead = ax > CombatZone.X0 + 150 && ax < CombatZone.X1 - 150 && ay > CombatZone.Y0 + 150 && ay < CombatZone.Y1 - 150;
+            if (Aerobatic && inside && roomAhead && _legT > _cruiseFor && agl > FloorAglM + 120 && v > CruiseMs * 0.85) StartRandomManoeuvre(pitch);
             else return Cruise(s, q, roll, pitch, psi, v, agl);
         }
 

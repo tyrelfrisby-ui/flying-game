@@ -26,8 +26,8 @@ public class WorldTerrainTests
                 Assert.Equal(a.ElevationM, t.HeightAt(a.X + dx, a.Y + dy), 3);
             }
         }
-        Assert.Equal(0, WorldTerrain.Airports[0].ElevationM);
-        Assert.Equal(WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 4,500 ft
+        Assert.Equal(WorldTerrain.DatumM, WorldTerrain.Airports[0].ElevationM);   // the Valley: 500 ft coastal tableland
+        Assert.Equal(WorldTerrain.DatumM + WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 5,000 ft
         Assert.InRange(WorldTerrain.StepHeightM * 3.28084, 1499, 1501);                     // 1,500 ft a step
     }
 
@@ -62,7 +62,7 @@ public class WorldTerrainTests
         }
         double y = WorldTerrain.Airports[1].Y;
         double? river = t.WaterSurfaceAt(WorldTerrain.RiverCentreX(y), y);
-        Assert.True(river.HasValue && river!.Value < WorldTerrain.StepHeightM - 5 && river.Value > WorldTerrain.StepHeightM - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
+        Assert.True(river.HasValue && river!.Value < WorldTerrain.DatumM + WorldTerrain.StepHeightM - 5 && river.Value > WorldTerrain.DatumM + WorldTerrain.StepHeightM - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
         Assert.Null(t.WaterSurfaceAt(0, 0)); // runway is dry
     }
 
@@ -84,9 +84,10 @@ public class WorldTerrainTests
             prev = s;
         }
         Assert.True(drops >= 6, $"expected a staircase of waterfalls, got {drops} drops > 5 m");
-        // Gentle meander: minimum radius of curvature > 1.2 km.
+        // Gentle meander upstream: minimum radius of curvature > 1.2 km (past TwistStartY the gorge snakes on purpose —
+        // SeasideTests.GorgeTwistsButIsFlyable covers that stretch).
         double minR = double.MaxValue;
-        for (double y = up; y <= down; y += 20)
+        for (double y = up; y <= System.Math.Min(down, WorldTerrain.TwistStartY - 40); y += 20)
         {
             double h = 20;
             double x0 = WorldTerrain.RiverCentreX(y - h), x1 = WorldTerrain.RiverCentreX(y), x2 = WorldTerrain.RiverCentreX(y + h);

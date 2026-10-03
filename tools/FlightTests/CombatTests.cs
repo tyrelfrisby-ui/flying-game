@@ -158,10 +158,10 @@ public class CombatTests
     public void CombatZoneIsABoxFromTheSurfaceUp()
     {
         WorldTerrain.Active = null;
-        Assert.True(CombatZone.Inside(new Vec3(5000, 4000, -500)));
-        Assert.True(CombatZone.Inside(new Vec3(5000, 4000, -1)));
-        Assert.False(CombatZone.Inside(new Vec3(5000, 4000, -3200)));
-        Assert.False(CombatZone.Inside(new Vec3(3000, 4000, -500)));
+        Assert.True(CombatZone.Inside(new Vec3(CombatZone.CentreX, CombatZone.CentreY, -500)));
+        Assert.True(CombatZone.Inside(new Vec3(CombatZone.CentreX, CombatZone.CentreY, -1)));
+        Assert.False(CombatZone.Inside(new Vec3(CombatZone.CentreX, CombatZone.CentreY, -3200)));
+        Assert.False(CombatZone.Inside(new Vec3(CombatZone.X1 + 300, CombatZone.CentreY, -500)));   // beyond its north edge
         Assert.True(CombatZone.BuildGroundTargets().Count >= 4);
         foreach (GroundTarget t in CombatZone.BuildGroundTargets()) Assert.True(CombatZone.Inside(new Vec3(t.X, t.Y, -1)));
     }

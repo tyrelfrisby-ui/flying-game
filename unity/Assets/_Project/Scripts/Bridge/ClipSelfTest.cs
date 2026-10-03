@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "clouds") { yield return CloudTest(); yield break; }
+            if (mode == "seaside") { yield return SeasideTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
             ClipRecorder.IncludeInstruments = true;   // the setting applies to footage recorded from now on
@@ -213,6 +214,49 @@ namespace FlyingGame.Bridge
                 if (i == 6) ScreenCapture.CaptureScreenshot("selftest-combat.png");
             }
             Debug.Log("[SelfTest] DONE combat");
+        }
+
+        /// <summary>AERO_SELFTEST=seaside: a screenshot tour — the Golden Gate up the strait, the city, the island from the
+        /// channel, Avalon, the sea arch, the zone's clouds; then the Beaver on floats outside and inside the sea cave.</summary>
+        private IEnumerator SeasideTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "c172-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            FlyingGame.Core.MathTypes.Quat Hdg(double deg) { double h = deg * System.Math.PI / 360; return new FlyingGame.Core.MathTypes.Quat(0, 0, System.Math.Sin(h), System.Math.Cos(h)); }
+            IEnumerator Shot(string name, double x, double y, double up, double hdg, double v)
+            {
+                Menu.Fly();                       // a fresh, unbroken aircraft for every shot
+                drv = Menu.Driver;
+                yield return new WaitForSecondsRealtime(0.8f);
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(x, y, -up), Hdg(hdg), new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                yield return new WaitForSecondsRealtime(1.3f);
+                Debug.Log($"[SelfTest] {name}");
+                ScreenCapture.CaptureScreenshot(name + ".png");
+                yield return new WaitForSecondsRealtime(0.7f);
+            }
+            double d = FlyingGame.Core.WorldTerrain.DatumM;
+            yield return Shot("sea-gate", FlyingGame.Core.WorldTerrain.RiverCentreX(FlyingGame.Core.GoldenGate.Y - 700), FlyingGame.Core.GoldenGate.Y - 700, 90, 90, 45);
+            yield return Shot("sea-city", FlyingGame.Core.SeaCity.CentreX - 1800, FlyingGame.Core.SeaCity.CentreY - 300, d + 260, 10, 50);
+            yield return Shot("sea-zone", FlyingGame.Core.Combat.CombatZone.X0 - 1800, FlyingGame.Core.Combat.CombatZone.CentreY, d + 900, 0, 50);
+            yield return Shot("sea-island", FlyingGame.Core.Island.Main.Cx, FlyingGame.Core.Coast.MeanShoreY + 400, 700, 90, 50);
+            yield return Shot("sea-avalon", FlyingGame.Core.Island.AvalonX, FlyingGame.Core.Island.AvalonY - 900, 120, 90, 45);
+            yield return Shot("sea-arch", FlyingGame.Core.SeaArch.Cx, FlyingGame.Core.SeaArch.Cy - 900, 80, 90, 45);
+            yield return Shot("sea-runway", FlyingGame.Core.Island.RunwayX - 2200, FlyingGame.Core.Island.RunwayY, FlyingGame.Core.Island.RunwayElevM + 120, 0, 45);
+            // The Beaver on floats: outside the cave mouth, then inside on the water.
+            SessionSettings.AircraftId = "dhc2-beaver-floats-like";
+            Menu.Fly();
+            drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            double keel = drv.Sim.Aircraft.Config.Floats != null ? drv.Sim.Aircraft.Config.Floats.KeelZ - 0.25 : 1.5;
+            yield return Shot("sea-cave-mouth", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 230, keel, 90, 0);
+            yield return Shot("sea-cave-inside", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 45, keel, 90, 0);
+            Chase?.SetView(ChaseCamera.View.SideLeft);
+            yield return Shot("sea-cave-side", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 30, keel, 90, 0);
+            Debug.Log("[SelfTest] DONE seaside");
         }
 
         /// <summary>AERO_SELFTEST=clouds: the Skyhawk put at three spots round the first Valley thermal's cumulus — 3.5 km

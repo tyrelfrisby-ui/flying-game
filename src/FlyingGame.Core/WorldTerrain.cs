@@ -23,6 +23,11 @@ public sealed class WorldTerrain
 
     // ---- layout ---------------------------------------------------------------------------------
     public const double StepHeightM = 457.2;       // 1,500 ft a step
+    /// <summary>The Valley plain's height above SEA LEVEL (owner 2026-10-03: a coast and an ocean). The gorge is ~150 m
+    /// deep in the Valley, so with the plain at sea level its river ran 150 m BELOW the sea; the whole landscape sits on
+    /// a 500 ft (152.4 m) coastal tableland instead, and the river reaches the ocean at sea level through a cleft in
+    /// the sea cliffs — the Golden Gate's own geography.</summary>
+    public const double DatumM = 152.4;
     public const double StepSpacingM = 4200.0;     // wall to wall: room for the whole Valley layout on every plateau
     public const double FirstEdgeY = -1400.0;      // mean y of the first escarpment (walls run along x)
     public const double EscarpmentWidthM = 183.0;  // horizontal run of one wall (talus + cliff) — same profile as the old 900 m wall
@@ -40,10 +45,10 @@ public sealed class WorldTerrain
     /// <summary>Runway centre (x,y) and field elevation for the four airports; runways run along +x.</summary>
     public static readonly Airport[] Airports =
     {
-        new("Valley", 400, 0, 0),
-        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, StepHeightM),
-        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, StepHeightM * 2),
-        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, StepHeightM * 3),
+        new("Valley", 400, 0, DatumM),
+        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, DatumM + StepHeightM),
+        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, DatumM + StepHeightM * 2),
+        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, DatumM + StepHeightM * 3),
     };
 
     /// <summary>Number of plateaus (one per airport); the Valley is plateau 0.</summary>
@@ -80,10 +85,10 @@ public sealed class WorldTerrain
             Airport a = Airports[i];
             l[i] = new Lake(a.X + 2600, a.Y + 600, 500, 380, a.ElevationM - 2.0);   // beyond the gorge, closer in
         }
-        // The HARBOR (owner 2026-10-02: Hughes H-4): a 3.2 km x 1 km bay on the Valley plain east of the river, north of
-        // the Valley lake — a 300,000 lb flying boat needs ~2.2 km of water. Always the last lake.
-        Airport v = Airports[0];
-        l[Airports.Length] = new Lake(v.X + 4900, v.Y + 2400, 1600, 500, v.ElevationM - 2.0);
+        // The HARBOR (owner 2026-10-02: Hughes H-4) — a 300,000 lb flying boat needs ~2.2 km of water. Always the last lake.
+        // Moved OUT TO SEA (owner 2026-10-03, the coast): the sheltered channel between the coast and the island, a
+        // 3.2 km x 0.9 km stretch of open water running north–south.
+        l[Airports.Length] = new Lake(600, Coast.MeanShoreY + 1850, 1600, 450, Coast.SeaLevelM);
         return l;
     }
 
@@ -93,7 +98,19 @@ public sealed class WorldTerrain
     // River: runs downhill west→east across the steps in a GORGE, meandering gently in x (minimum turn
     // radius ≈ 2 km so the gorge can be flown at speed), passing the lakes' west shores.
     public const double RiverHalfWidthM = 35.0;
-    public static double RiverCentreX(double y) => 1900.0 + 200.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1);   // ~500 m past the runway end (owner: closer in)
+    public static double RiverCentreX(double y) => 1900.0 + 200.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1)   // ~500 m past the runway end (owner: closer in)
+                                                  + TwistAt(y);
+    /// <summary>Owner 2026-10-03: "make the canyon have more twists and turns" — past the race course the gorge snakes
+    /// through the combat zone to the sea: S-bends every ~850 m, centreline turn radius ≥ ~190 m (a 45° bank turn at
+    /// 100 kt is 265 m, and the gorge is ~300 m wide — fly the inside line).</summary>
+    public static double TwistAt(double y)
+    {
+        const double y0 = TwistStartY;
+        if (y <= y0) return 0;
+        double ramp = System.Math.Clamp((y - y0) / 700.0, 0, 1); ramp = ramp * ramp * (3 - 2 * ramp);
+        return ramp * (300.0 * System.Math.Sin((y - y0) / 270.0) + 40.0 * System.Math.Sin((y - y0) / 180.0 + 0.8));
+    }
+    public const double TwistStartY = 2150.0;
 
     // Gorge: the river cuts a canyon whose depth grows downstream (west→east) from ~15 m (50 ft) on
     // the Summit plateau to ~150 m (500 ft) in the Valley, with a staircase of waterfalls along the way
@@ -110,7 +127,18 @@ public sealed class WorldTerrain
     }
 
     /// <summary>Half-width of the gorge at the rim (m): walls near-vertical, floor a little wider than the river.</summary>
-    public static double GorgeHalfWidthAt(double y) => RiverHalfWidthM + 25 + 0.9 * GorgeDepthAt(y);
+    public static double GorgeHalfWidthAt(double y) => RiverHalfWidthM + 25 + 0.9 * GorgeDepthAt(y) + EstuaryWidening(y);
+
+    /// <summary>The gorge opens out over its last kilometre into the strait the bridge spans (up to +230 m a side).</summary>
+    public static double EstuaryWidening(double y)
+    {
+        double mouth = Coast.ShoreY(RiverCentreX(y));
+        double t = System.Math.Clamp((y - (mouth - 1100)) / 1100, 0, 1);
+        return 230 * t * t * (3 - 2 * t);
+    }
+
+    /// <summary>The river (and its gorge) ends at the coast — beyond is the sea floor.</summary>
+    public static bool PastRiverMouth(double y) => y > Coast.ShoreY(RiverCentreX(y)) + 60;
     // NOTE: GorgeDepthAt is the smooth design depth (sets the rim width); the cut depth is the staircase.
 
     /// <summary>Waterfall staircase: between the giant drops at the canyon walls the river surface is a
@@ -296,6 +324,7 @@ public sealed class WorldTerrain
             }
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }
+        if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
         return Surface.Rough;
     }
 
@@ -390,7 +419,7 @@ public sealed class WorldTerrain
                 double target = EdgeMeanY(i) + EdgeWander(i, x) - EscarpmentWidthM;
                 y += 0.5 * (target - y);
             }
-            f[i] = new Waterfall(i, x, y, StepHeightM * (i + 1), StepHeightM * i);
+            f[i] = new Waterfall(i, x, y, DatumM + StepHeightM * (i + 1), DatumM + StepHeightM * i);
         }
         return f;
     }
@@ -467,7 +496,7 @@ public sealed class WorldTerrain
     /// </summary>
     public double BaseHeightAt(double x, double y, bool shelfTop)
     {
-        double h = 0;
+        double h = DatumM;
         Waterfall[] falls = Waterfalls;
         for (int i = 0; i < StepCount; i++)
         {
@@ -535,10 +564,13 @@ public sealed class WorldTerrain
             }
         }
 
+        // The coast: the tableland ends in sea cliffs (cap taken off the uncut ground, applied after the gorge).
+        double coastCap = Coast.ProfileAt(x, y, h);
+
         // Gorge: steep-walled canyon around the river; floor = river surface - 4 m.
         double ddx = System.Math.Abs(x - RiverCentreX(y));
         double gw = GorgeHalfWidthAt(y);
-        if (ddx < gw)
+        if (ddx < gw && !PastRiverMouth(y))
         {
             double floorW = RiverHalfWidthM + 20;
             double floor = RiverSurfaceAt(y) - 4.0;
@@ -554,6 +586,14 @@ public sealed class WorldTerrain
                 h = System.Math.Min(h, floor + (h - floor) * wall);
             }
         }
+        h = System.Math.Min(h, coastCap);
+
+        // The island rises out of the sea.
+        if (y > Coast.MeanShoreY + 1000)
+        {
+            double? isl = Island.HeightAt(x, y);
+            if (isl.HasValue) h = SeaCave.InFootprint(x, y) ? isl.Value : System.Math.Max(h, isl.Value);
+        }
         return h;
     }
 
@@ -566,10 +606,12 @@ public sealed class WorldTerrain
             if (l.Inside(x, y) < 1.0) return l.SurfaceM;
         }
         double ddx = System.Math.Abs(x - RiverCentreX(y));
-        if (ddx < RiverHalfWidthM + 12)
+        if (ddx < RiverHalfWidthM + 12 && !PastRiverMouth(y))
         {
-            return RiverSurfaceAt(y);
+            return System.Math.Max(RiverSurfaceAt(y), Coast.SeaLevelM);
         }
+        // The sea (and the sea cave): wherever the ground east of the cliff foot is below sea level.
+        if (Coast.IsSea(x, y) && HeightAt(x, y) < Coast.SeaLevelM + 0.5) return Coast.SeaLevelM;
         return null;
     }
 

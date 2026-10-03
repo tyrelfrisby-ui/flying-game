@@ -82,7 +82,18 @@ public static class Landmarks
     public static void RegisterSolids(WorldTerrain t)
     {
         WorldSolids.Boxes.Clear();
+        WorldSolids.Shapes.Clear();
         for (int p = 0; p < WorldTerrain.PlateauCount; p++) RegisterSolids(t, p);
+        RegisterSeasideSolids(t);
+    }
+
+    /// <summary>The seaside (one copy, east of the Valley): the city, the Golden Gate, the sea arch, the sea cave's roof.</summary>
+    public static void RegisterSeasideSolids(WorldTerrain t)
+    {
+        SeaCity.RegisterSolids(t);
+        GoldenGate.RegisterSolids();
+        SeaArch.RegisterSolids();
+        WorldSolids.Shapes.Add(new SeaCave.RoofSolid());
     }
 
     /// <summary>Solids of the copy on plateau <paramref name="p"/> (appends; does not clear).</summary>

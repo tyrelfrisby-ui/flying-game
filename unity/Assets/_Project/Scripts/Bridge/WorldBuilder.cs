@@ -59,6 +59,7 @@ namespace FlyingGame.Bridge
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
             BuildCombatZone(WorldTerrain.Active, root.transform);
+            SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, city, the island
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
             // lee) — replaces the old single Gaussian lift band.
             Atmosphere.ActiveRidge = null;
@@ -68,7 +69,7 @@ namespace FlyingGame.Bridge
 
         // ---- terrain mesh ------------------------------------------------------------------------
 
-        private const double MinX = -7000, MaxX = 9000, MinY = -15000, MaxY = 6500;   // MinY: past the Summit plateau's tower road
+        private const double MinX = -7000, MaxX = 9000, MinY = -15000, MaxY = 12500;   // MinY: past the Summit plateau's tower road; MaxY: past the island
 
         private const double CoarseStep = 60.0, FineStep = 6.0;
 
@@ -87,17 +88,43 @@ namespace FlyingGame.Bridge
             if (h > 2500) c = Color.Lerp(c, snow, Mathf.Clamp01((float)(h - 2500) / 300f));
             float rockiness = Mathf.Clamp01((slope - 0.35f) / 0.6f);
             c = Color.Lerp(c, rock, rockiness);
+            // Sand: the beaches under the sea cliffs, Avalon's cove, the cave's beach; the sea floor below.
+            if (h < 3.0 && Coast.IsSea(x, y))
+            {
+                var sand = new Color(0.86f, 0.79f, 0.6f);
+                c = h > -0.6 ? Color.Lerp(c, sand, 0.9f) : Color.Lerp(sand, new Color(0.35f, 0.4f, 0.42f), Mathf.Clamp01((float)(-h) / 20f));
+                c.a = 0f;
+                return c;
+            }
+            if (SeaCave.IsSand(x, y)) { c = new Color(0.86f, 0.79f, 0.6f, 0f); return c; }
             c.a = 1f - Mathf.Clamp01(slope / 0.08f); // flatness → field grid lines
             return c;
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
-        private static (int i0, int i1, int j0, int j1) FinePatchCells(WorldTerrain.Waterfall f)
+        private static (int i0, int i1, int j0, int j1, double step) FinePatchCells(WorldTerrain.Waterfall f)
         {
             double hx = WorldTerrain.FallNotchHalfSpanM + 240;
-            int i0 = (int)System.Math.Floor((f.X - hx - MinX) / CoarseStep), i1 = (int)System.Math.Ceiling((f.X + hx - MinX) / CoarseStep);
-            int j0 = (int)System.Math.Floor((f.LipY - 240 - MinY) / CoarseStep), j1 = (int)System.Math.Ceiling((f.LipY + 460 - MinY) / CoarseStep);
-            return (i0, i1, j0, j1);
+            return Cells(f.X - hx, f.X + hx, f.LipY - 240, f.LipY + 460, FineStep);
+        }
+
+        private static (int i0, int i1, int j0, int j1, double step) Cells(double x0, double x1, double y0, double y1, double step)
+        {
+            int i0 = (int)System.Math.Floor((x0 - MinX) / CoarseStep), i1 = (int)System.Math.Ceiling((x1 - MinX) / CoarseStep);
+            int j0 = (int)System.Math.Floor((y0 - MinY) / CoarseStep), j1 = (int)System.Math.Ceiling((y1 - MinY) / CoarseStep);
+            return (i0, i1, j0, j1, step);
+        }
+
+        /// <summary>Seaside detail (step must divide the 60 m coarse grid): Avalon + the sea cave, the sea arch, Airport
+        /// in the Sky, the Golden Gate's strait.</summary>
+        private static IEnumerable<(int i0, int i1, int j0, int j1, double step)> SeasidePatches()
+        {
+            double R = Island.AvalonCoveR;
+            yield return Cells(System.Math.Min(Island.AvalonX - R - 450, SeaCave.Cx - SeaCave.RadiusM - 90), Island.AvalonX + R + 450,
+                               System.Math.Min(Island.AvalonY - R - 120, SeaCave.Cy - SeaCave.RadiusM - 90), System.Math.Max(Island.AvalonY + R + 450, SeaCave.Cy + SeaCave.RadiusM + 90), 5);
+            yield return Cells(SeaArch.X0 - 200, SeaArch.X1 + 200, SeaArch.Cy - 350, SeaArch.Cy + 350, 10);
+            yield return Cells(Island.RunwayX - Island.RunwayPadHalfX - 200, Island.RunwayX + Island.RunwayPadHalfX + 200, Island.RunwayY - 350, Island.RunwayY + 350, 10);
+            yield return Cells(GoldenGate.CentreX - GoldenGate.HalfMainSpanM - 500, GoldenGate.CentreX + GoldenGate.HalfMainSpanM + 500, GoldenGate.Y - 900, GoldenGate.Y + 400, 10);
         }
 
         private static void BuildTerrain(WorldTerrain t, Transform parent)
@@ -115,8 +142,9 @@ namespace FlyingGame.Bridge
                 cols[j * nx + i] = TerrainColor(t, x, y, h);
             }
             // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
-            var patches = new List<(int i0, int i1, int j0, int j1)>();
+            var patches = new List<(int i0, int i1, int j0, int j1, double step)>();
             foreach (WorldTerrain.Waterfall f in t.Waterfalls) patches.Add(FinePatchCells(f));
+            patches.AddRange(SeasidePatches());
             var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)
             for (int i = 0; i < nx - 1; i++)
@@ -142,12 +170,13 @@ namespace FlyingGame.Bridge
             foreach (var p in patches)
             {
                 double x0 = MinX + p.i0 * step, x1 = MinX + p.i1 * step, y0 = MinY + p.j0 * step, y1 = MinY + p.j1 * step;
-                int fx = (int)System.Math.Round((x1 - x0) / FineStep) + 1, fy = (int)System.Math.Round((y1 - y0) / FineStep) + 1;
+                double fs = p.step;
+                int fx = (int)System.Math.Round((x1 - x0) / fs) + 1, fy = (int)System.Math.Round((y1 - y0) / fs) + 1;
                 var fv = new Vector3[fx * fy]; var fc = new Color[fx * fy];
                 for (int j = 0; j < fy; j++)
                 for (int i = 0; i < fx; i++)
                 {
-                    double x = x0 + i * FineStep, y = y0 + j * FineStep;
+                    double x = x0 + i * fs, y = y0 + j * fs;
                     double h = t.HeightAt(x, y);
                     fv[j * fx + i] = U(x, y, h);
                     fc[j * fx + i] = TerrainColor(t, x, y, h);
@@ -197,6 +226,7 @@ namespace FlyingGame.Bridge
             double prevSurf = 0;
             for (double y = MinY + 200; y <= MaxY - 200; y += 25)
             {
+                if (WorldTerrain.PastRiverMouth(y)) break;   // the river ends in the sea
                 double cx = WorldTerrain.RiverCentreX(y);
                 double surf = t.WaterSurfaceAt(cx, y) ?? (t.BaseHeightAt(cx, y) - 2.0);
                 rv.Add(U(cx - halfW, y, surf)); rv.Add(U(cx + halfW, y, surf));
