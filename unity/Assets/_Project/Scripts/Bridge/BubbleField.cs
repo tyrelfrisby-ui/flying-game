@@ -422,7 +422,8 @@ namespace FlyingGame.Bridge
                 if (streamTau > 0.75f) alpha *= 1f - (streamTau - 0.75f) / 0.25f;
                 alpha *= liftBlink;
                 if (alpha < 0.02f) continue;
-                float body = lifting ? 0.10f : (dense ? PlainBodyAlpha : 0.06f);   // lift/sink bubbles 10 % (owner); plain air a soft dot in the dense field
+                // Owner 2026-10-03: lift/sink air looks like the rest of the snow (same soft dot), just tinted and blinking.
+                float body = dense ? PlainBodyAlpha : 0.06f;
 
                 DrawnCount++;
                 if (dense)

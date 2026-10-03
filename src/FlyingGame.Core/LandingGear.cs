@@ -255,6 +255,22 @@ public static class LandingGear
             normalN = System.Math.Max(0.0, normalN);
             Vec3 normalForce = worldDown * (-normalN); // straight up
 
+            if (g.GearType == "float-keel")
+            {
+                // FLOAT ON LAND (owner 2026-10-03: the Beaver landed on land never slowed down): a float keel doesn't roll —
+                // its skid strip SLIDES. Kinetic (Coulomb) friction μ_k·N against the contact's ground-plane velocity, in
+                // whatever direction it moves (no tyre cornering), μ_k by surface (KeelSlidingCoefficient). Smoothed below
+                // ~0.1 m/s so it holds still at idle instead of chattering.
+                Vec3 up = new(0, 0, -1);
+                Vec3 vG = contactVelWorld - up * Vec3.Dot(contactVelWorld, up);
+                double vMag = vG.Length;
+                Vec3 slideF = vMag > 1e-6 ? vG * (-WorldTerrain.KeelSlidingCoefficient(surface) * normalN / (vMag + 0.1)) : Vec3.Zero;
+                Vec3 keelForce = normalForce + slideF;
+                totalForce += keelForce;
+                totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), keelForce);
+                continue;
+            }
+
             // Ground-plane tire frame: forward = aircraft heading projected on ground, right = ×down.
             Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
             Vec3 groundUp = new(0, 0, -1);

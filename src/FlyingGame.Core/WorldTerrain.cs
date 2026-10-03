@@ -270,6 +270,19 @@ public sealed class WorldTerrain
         _ => 0.15,
     };
 
+    /// <summary>KINETIC friction of a float keel (aluminium float bottom with a steel/aluminium keel skid strip) SLIDING on
+    /// the surface (owner 2026-10-03). Published sliding coefficients: metal on dry asphalt/concrete 0.5-0.6 (Engineering
+    /// ToolBox: metal-concrete 0.3-0.6; aluminium-asphalt ~0.5-0.6) -> 0.55; gravel ~0.5; grass 0.3-0.4 dry, ~0.2 wet
+    /// (why floatplanes use wet grass) -> 0.35; ploughed/rough ground ~0.5. A Beaver sliding on at 50 kt stops in ~60 m on
+    /// pavement, ~90 m on grass.</summary>
+    public static double KeelSlidingCoefficient(Surface s) => s switch
+    {
+        Surface.Paved => 0.55,
+        Surface.Gravel => 0.50,
+        Surface.Grass => 0.35,
+        _ => 0.50,
+    };
+
     /// <summary>Which surface lies under (x, y): a strip or the apron inside an airport pad, otherwise ROUGH
     /// (rolling pasture / ploughed field — off-airport landings are a bumpy, high-drag affair).</summary>
     public static Surface SurfaceAt(double x, double y)
