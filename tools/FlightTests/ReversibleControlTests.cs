@@ -131,4 +131,42 @@ public class ReversibleControlTests
         }
         Assert.Equal(a1.State.Position.X, a2.State.Position.X, 6);
     }
+    /// <summary>Owner (CFI) 2026-10-02: in a TAILSLIDE the relative wind comes from behind, so a free surface is pushed AWAY
+    /// from neutral (its hinge is now downstream) and slams to the stop; the rudder may be held back a little by its
+    /// centering springs but still deflects a lot.</summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("pa18-cub-like")]
+    [InlineData("extra-300-like")]
+    public void TailslideSlamsFreeControlsToTheStops(string id)
+    {
+        AircraftConfig cfg = Load(id);
+        double h = Math.PI / 4;   // straight up: pitch +90 deg
+        var q = new Quat(0, Math.Sin(h), 0, Math.Cos(h));
+        // A touch of sideslip / pitch off the vertical (no real tailslide is perfectly clean) and a hair of deflection.
+        var ac = new Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -1500), q, new Vec3(12, 0.3, 0.4), Vec3.Zero),
+            new ControlDeflections(0.01, 0.01, 0.01, 0));
+        double lever = cfg.Propulsion == null ? -1.0 : 1.0, step = SimLoop.DefaultFixedDtSec;
+        double ail = 0, ele = 0, rud = 0, maxBack = 0;
+        for (double t = 0; t < 5; t += step)
+        {
+            ac.Step(new ControlInputs(0, 0, 0, lever, true, true, true), step);
+            double u = ac.State.Velocity.X;   // body-axis: negative = flying backwards
+            maxBack = Math.Max(maxBack, -u);
+            if (u < -6)
+            {
+                ControlDeflections d = ac.CurrentDeflections;
+                ail = Math.Max(ail, Math.Abs(d.AileronRad) / cfg.Controls.Aileron.MaxDeflRad);
+                ele = Math.Max(ele, Math.Abs(d.ElevatorRad) / cfg.Controls.Elevator.MaxDeflRad);
+                rud = Math.Max(rud, Math.Abs(d.RudderRad) / cfg.Controls.Rudder.MaxDeflRad);
+            }
+            if ((int)(t / step) % 60 == 0)
+                _out.WriteLine($"t={t:F1}s u {u,6:F1} m/s  ail {ac.CurrentDeflections.AileronRad * 57.3,6:F1}°  ele {ac.CurrentDeflections.ElevatorRad * 57.3,6:F1}°  rud {ac.CurrentDeflections.RudderRad * 57.3,6:F1}°");
+        }
+        _out.WriteLine($"{id}: slid back to {maxBack:F1} m/s; free surfaces reached aileron {ail:P0}, elevator {ele:P0}, rudder {rud:P0} of travel");
+        Assert.True(maxBack > 6, "the tailslide should actually slide back");
+        Assert.True(ele > 0.9, "free elevator should slam to the stop");
+        Assert.True(ail > 0.9, "free ailerons should slam to the stop");
+        Assert.True(rud > 0.5, "free rudder should deflect a lot (springs may hold it back a little)");
+    }
 }

@@ -526,6 +526,15 @@ public sealed class Aircraft
     {
         (double a, double b, double k) = HingeTerms(surface, axis);
         double den = k - b;
+        if (den <= 0.0 && b > 0.0)
+        {
+            // Net DESTABILIZING (reversed flow beats the spring): no balance point holds — the surface runs away from
+            // the unstable one and slams against the stop on whichever side it is already displaced (control slam).
+            double unstable = Math.Abs(den) > 1e-9 ? -a / -den : 0.0;
+            double side = currentRad - unstable;
+            if (Math.Abs(side) < 1e-6) side = a != 0.0 ? a : 1.0;
+            return Math.Sign(side) * axis.MaxDeflRad;
+        }
         if (den < 1e-6) return currentRad;
         double d;
         if (axis.TrimType == "spring" && k > 1e-9)
@@ -562,7 +571,11 @@ public sealed class Aircraft
                 if (i >= _flowState.HingeQ.Length) continue;
                 double qsc = _flowState.HingeQ[i] * sc;
                 a += g * qsc * axis.HingeChAlpha * _flowState.HingeAlphaRad[i];
-                b += qsc * axis.HingeChDelta;
+                // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
+                // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now
+                // downstream and the load acts near the leading free edge) — the free surface is pushed to its stop.
+                double dir = i < _flowState.HingeFlowDir.Length ? _flowState.HingeFlowDir[i] : 1.0;
+                b += qsc * axis.HingeChDelta * (dir >= 0 ? dir : 2.0 * dir);
             }
         }
         double vSpring = axis.CenteringSpringKt * 0.514444;

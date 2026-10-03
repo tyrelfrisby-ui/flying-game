@@ -40,7 +40,14 @@ namespace FlyingGame.Bridge
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
-            // "extra-300-like": model dropped (owner 2026-09-13: the shell is bad) — procedural render
+            // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
+            { "extra-300-like", new Spec(Vector3.left, Vector3.forward) },        // nose -x, top +z (ModelRender)
+            { "pa28-archer-like", new Spec(Vector3.right, Vector3.forward) },     // helijah exports: nose +x, top +z
+            { "cirrus-sr22-like", new Spec(Vector3.right, Vector3.forward) },
+            { "stearman-pt17-like", new Spec(Vector3.right, Vector3.forward) },
+            { "p51d-like", new Spec(Vector3.down, Vector3.forward) },             // nose -y, top +z
+            // f86-sabre-like: the GLB is a posed display scene (Sabre + MiG-15, banked) — needs the Sabre isolated first.
+            { "target-drone-like", new Spec(Vector3.right, Vector3.forward) },
             { "glider-eb29r-like", new Spec(new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, 1f)) },   // export stands on its tail: nose along -y, height along z
         };
         public static IEnumerable<string> Ids => Specs.Keys;

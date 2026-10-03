@@ -31,6 +31,8 @@ public sealed class StripFlowState
     // HingeQ = 0 when the strip was skipped (no airflow / broken off).
     public double[] HingeAlphaRad = System.Array.Empty<double>();
     public double[] HingeQ = System.Array.Empty<double>();
+    /// <summary>Chordwise flow direction over the hinged strip: +1 normal, 0 crossflow, −1 flow from the trailing edge (tailslide).</summary>
+    public double[] HingeFlowDir = System.Array.Empty<double>();
 
     // Downwash transport lag (proposal 1): eps lagged by tail-arm/V (the Cm-alphadot term).
     public double DownwashEpsLagged;
@@ -50,6 +52,7 @@ public sealed class StripFlowState
             ChordM = new double[stripCount];
             HingeAlphaRad = new double[stripCount];
             HingeQ = new double[stripCount];
+            HingeFlowDir = new double[stripCount];
             LagPrimed = false;
         }
     }

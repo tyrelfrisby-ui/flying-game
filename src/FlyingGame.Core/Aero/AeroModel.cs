@@ -409,6 +409,7 @@ public static class AeroModel
                     // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q.
                     flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.35, 0.35) * chordwiseFactor;
                     flowState.HingeQ[idx] = q;
+                    flowState.HingeFlowDir[idx] = chordwiseFactor;
                 }
                 // Flap lift boost (slat lift too) added to attached-flow Cl; both fade out post-stall
                 // (they raise Clmax and extend the linear range, they don't add lift once separated).

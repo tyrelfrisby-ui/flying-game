@@ -22,7 +22,10 @@ namespace FlyingGame.EditorTools
             var cam = new GameObject("Cam").AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); cam.fieldOfView = 35f; cam.nearClipPlane = 0.1f; cam.farClipPlane = 1000f;
             var rt = new RenderTexture(1000, 700, 24); cam.targetTexture = rt;
-            foreach (string id in AirframeModels.Ids) AssetDatabase.ImportAsset($"Assets/_Project/Resources/Models/{id}/{id}.obj", ImportAssetOptions.ForceUpdate);
+            foreach (string id in AirframeModels.Ids)
+                foreach (string ext in new[] { "obj", "glb" })
+                    if (File.Exists(Path.Combine(Application.dataPath, $"_Project/Resources/Models/{id}/{id}.{ext}")))
+                        AssetDatabase.ImportAsset($"Assets/_Project/Resources/Models/{id}/{id}.{ext}", ImportAssetOptions.ForceUpdate);
             foreach (string id in AirframeModels.Ids)
             {
                 var prefab = Resources.Load<GameObject>($"Models/{id}/{id}");

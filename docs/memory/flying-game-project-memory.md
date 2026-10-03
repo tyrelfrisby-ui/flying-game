@@ -262,3 +262,5 @@ Owner request: sound (wind+engine, correct Merlin), multiplayer (private rooms +
 - **Session scope (owner 2026-10-02):** this project's sessions are Aero Playground only. If asked for Glass Overlay or VersAIt work, remind the owner it belongs in that project's dedicated session instead of doing it.
 
 - **PLATFORM PARITY (owner rule 2026-10-02):** Aero Playground is Mac app + iPad + iPhone. Every change must build, work and ship on all three, kept in parity at all times.
+
+- **ASSET BUDGET (owner 2026-10-02):** free models only (CC0/CC BY/Sketchfab Free Standard) until the app makes money — no paid TurboSquid/CGTrader purchases yet. Pitts: no free commercial model exists; owner may email Animium/HydroDoes3D/Bytefactory3D for permission. Paid shortlist for later: TurboSquid Pitts S-2A $75 (1134230), S1 Special $57 (1126679), Pitts Special Biplane $79 (412669).
