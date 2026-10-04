@@ -1712,7 +1712,7 @@
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 0.8,
-      "expo": 0.3,
+      "expo": 0.1,
       "deadZone": 0.03,
       "reversible": false
     },

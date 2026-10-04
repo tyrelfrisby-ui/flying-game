@@ -1435,7 +1435,7 @@
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
-      "expo": 0.3,
+      "expo": 0.1,
       "deadZone": 0.03,
       "reversible": true,
       "hingeChAlpha": -0.2,

@@ -723,13 +723,15 @@ public sealed class Aircraft
                     var basePropCfg = Config.Propulsion;
                     foreach (EngineMount m in Config.Engines)
                     {
+                        if (m.Feathered) continue;   // edge-on blades: no thrust, no windmill drag
                         var engCfg = new PropulsionConfig
                         {
                             MaxPowerW = basePropCfg.MaxPowerW, PropDiameterM = basePropCfg.PropDiameterM,
                             IdleRpm = basePropCfg.IdleRpm, MaxRpm = basePropCfg.MaxRpm,
                             PropInertia = basePropCfg.PropInertia, RotationSign = m.RotationSign,
                             Efficiency = basePropCfg.Efficiency, ThrustLineZ = basePropCfg.ThrustLineZ,
-                            PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK
+                            PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK,
+                            IdleDragCd = basePropCfg.IdleDragCd
                         };
                         (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, _throttle01 * m.ThrottleScale, s.Velocity, s.Rates, airDensity);
                         ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");

@@ -160,6 +160,11 @@ public sealed class ControlsConfig
 
 public sealed class ControlAxisConfig
 {
+    /// <summary>Plain-flap saturation of this control's deflection (deg): effective = s·tanh(δ/s). Hinged elevators separate
+    /// past ~15–20° (default 18); aerobatic types with big balanced elevators keep authority (larger); an all-moving
+    /// stabilator is tuned so full aft holds the wing just past its stall.</summary>
+    public double SaturationDeg { get; set; } = 120.0;   // ≈ none unless the stall calibration sets it (StallAuthorityTests)
+
     public double MaxDeflRad { get; set; }
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
     public double Expo { get; set; }
@@ -218,6 +223,9 @@ public sealed class EngineMount
     public double[] Pos { get; set; } = { 0, 0, 0 };  // engine/prop-plane position vs CG (m)
     public int RotationSign { get; set; } = 1;        // +1 right-hand, -1 left-hand (counter-rot)
     public double ThrottleScale { get; set; } = 1.0;  // 1 running, 0 failed/feathered
+    /// <summary>Failed AND feathered: the blades edge-on — no thrust and none of the windmilling drag (a failed engine
+    /// that isn't feathered windmills, and that drag is the multi-engine pilot's enemy).</summary>
+    public bool Feathered { get; set; }
 
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }

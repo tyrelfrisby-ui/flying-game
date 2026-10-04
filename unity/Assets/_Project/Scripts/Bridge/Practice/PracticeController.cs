@@ -22,6 +22,7 @@ namespace FlyingGame.Bridge.Practice
 
         private TouchFlightControls _touch;
         private ChaseCamera _chase;
+        private ChaseCamera.View? _viewBefore;
         private LineRenderer _slope;
         private bool _handoverSpoken, _finishSpoken, _beginning;
         private float _sideBlend;   // 0 = frame centred on the glideslope, 1 = on the runway
@@ -140,6 +141,7 @@ namespace FlyingGame.Bridge.Practice
             if (!Active) return;
             Active = false; Counting = false;
             if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; }
+            if (_chase != null && _viewBefore != null) { _chase.SetView(_viewBefore.Value); _viewBefore = null; }
             if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
             Driver.InputFilter = null;
             Driver.ForceCapture = false;
@@ -186,7 +188,19 @@ namespace FlyingGame.Bridge.Practice
             if (Camera.main == null) return;
             _chase = Camera.main.GetComponent<ChaseCamera>();
             if (_chase == null) return;
-            if (!Scenario.SideView) { _chase.SideView = false; Side2DView.Exit(Camera.main); return; }
+            if (!Scenario.SideView)
+            {
+                _chase.SideView = false; Side2DView.Exit(Camera.main);
+                // Runway lessons from behind (owner 2026-10-03: "major lag … can't flare"): the relative-wind view follows the
+                // flight PATH, which bends ~1 s after the nose — the flare cue (the nose against the horizon) was hidden. These
+                // lessons open in the attitude-locked TAIL view; VIEW still switches.
+                if (Scenario.Descending)
+                {
+                    if (_viewBefore == null) _viewBefore = _chase.CurrentView;
+                    _chase.SetView(ChaseCamera.View.Tail);
+                }
+                return;
+            }
             var rw = Scenario.Runway;
             // Sim (x north, y east) → Unity (x = east, z = north): along = (AlongY, 0, AlongX); right of the runway = (AlongX, 0, -AlongY).
             _chase.SideRight = new Vector3((float)rw.AlongX, 0f, -(float)rw.AlongY).normalized;

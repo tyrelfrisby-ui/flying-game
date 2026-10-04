@@ -1782,9 +1782,10 @@
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
-      "expo": 0.3,
+      "expo": 0.1,
       "deadZone": 0.03,
-      "reversible": false
+      "reversible": false,
+      "saturationDeg": 9
     },
     "rudder": {
       "maxDeflRad": 0.3,
@@ -1845,57 +1846,57 @@
   "wakeBlanketMaxLoss": 0.45,
   "verticalBlanketFactor": 0.5,
   "gear": [
-      {
-          "pos": [
-              2.8,
-              0,
-              1.5
-          ],
-          "springN": 250000,
-          "dampNs": 20000,
-          "brake": false,
-          "isTailwheel": false,
-          "isSteerable": true,
-          "maxSteerRad": 0.6,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 15000,
-          "rollResistN": 40,
-          "tireRadiusM": 0.3
-      },
-      {
-          "pos": [
-              -0.6,
-              -1.3,
-              1.5
-          ],
-          "springN": 400000,
-          "dampNs": 25000,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 25000,
-          "rollResistN": 50,
-          "tireRadiusM": 0.33
-      },
-      {
-          "pos": [
-              -0.6,
-              1.3,
-              1.5
-          ],
-          "springN": 400000,
-          "dampNs": 25000,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 25000,
-          "rollResistN": 50,
-          "tireRadiusM": 0.33
-      }
+    {
+      "pos": [
+        2.8,
+        0,
+        1.5
+      ],
+      "springN": 250000,
+      "dampNs": 20000,
+      "brake": false,
+      "isTailwheel": false,
+      "isSteerable": true,
+      "maxSteerRad": 0.6,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 15000,
+      "rollResistN": 40,
+      "tireRadiusM": 0.3
+    },
+    {
+      "pos": [
+        -0.6,
+        -1.3,
+        1.5
+      ],
+      "springN": 400000,
+      "dampNs": 25000,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 25000,
+      "rollResistN": 50,
+      "tireRadiusM": 0.33
+    },
+    {
+      "pos": [
+        -0.6,
+        1.3,
+        1.5
+      ],
+      "springN": 400000,
+      "dampNs": 25000,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 25000,
+      "rollResistN": 50,
+      "tireRadiusM": 0.33
+    }
   ],
   "limits": {
     "vneMs": 300,

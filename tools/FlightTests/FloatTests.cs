@@ -67,13 +67,13 @@ public class FloatTests
             double airborneAt = -1, maxPitch = 0;
             for (double t = 0; t < 50; t += 0.1)
             {
-                // Full power; a little back stick to get on the step, then relax as it accelerates.
+                // Full power; a little back stick (≈ 0.34 of the elevator travel) to get on the step, then relax as it accelerates.
                 double v = ac.State.Velocity.Length;
                 // Float technique: full back through the hump, then HOLD ~5° nose-up on the step (attitude
                 // hold, as a pilot does — a fixed stick lets it porpoise off the step), fly it off.
                 double pitchDeg = Pitch(ac.State), qRate = ac.State.Rates.Y;
                 double target = v < 26 ? 5.0 : 9.0;   // hold ~5° on the step, rotate to ~9° to fly it off
-                double stick = v < 7 ? -0.45 : Math.Clamp(-0.1 - 0.2 * (target - pitchDeg) + 0.5 * qRate, -0.9, 0.7);
+                double stick = v < 7 ? -0.38 : Math.Clamp(-0.08 - 0.155 * (target - pitchDeg) + 0.39 * qRate, -0.9, 0.7);
                 sim.RunFor(0.1, new ControlInputs(0, stick, 0, -1.0));
                 RigidBodyState s = ac.State;
                 Assert.False(double.IsNaN(s.Position.Z), $"NaN at t={t:F1}");

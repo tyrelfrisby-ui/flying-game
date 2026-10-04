@@ -19,7 +19,8 @@ def wing_area(c):
 
 
 def make(idname, name, span, area, taper_tip, dihedral_deg, wing_z, mass, cg_x, inertia, tail_scale, fin_scale,
-         stabilator, prop, cd0, limits, spawn, ctl, flap_delta_rad, gear_main_x, gear_nose_x, gear_z, crossflow_len):
+         stabilator, prop, cd0, limits, spawn, ctl, flap_delta_rad, gear_main_x, gear_nose_x, gear_z, crossflow_len,
+         flap=(0.16, 0.20, 0.8), elevator_saturation_deg=120.0):
     c = copy.deepcopy(C172)
     c['id'], c['displayName'], c['spawnIasMs'] = idname, name, spawn
     ky = span / C172_SPAN
@@ -43,8 +44,10 @@ def make(idname, name, span, area, taper_tip, dihedral_deg, wing_z, mass, cg_x, 
             st['area'] = round(st['area'] * ky * t * k, 4)
             st['chord'] = round(st['chord'] * t * k, 3)
             st['pos'][0] = round(st['pos'][0] * t * k, 3)    # x offsets (aileron rows behind the TE) follow the chord
-            if 'flap' in st:
-                st['flap'] = dict(st['flap'], maxDeltaAlphaRad=flap_delta_rad)
+            if 'flap' in st or abs(st['pos'][1]) < 2.8 and sid == 'wing':
+                # Flaps on the inboard wing (owner 2026-10-03): (Δα shift, ΔCd, ΔClmax) calibrated to the book Vso and the
+                # full-flap idle glide (docs/GLIDE-TABLE.md).
+                st['flap'] = {'maxDeltaAlphaRad': flap[0], 'maxCd': flap[1], 'maxClMax': flap[2]}
     # ---- tail: same arm as the C172 (both ~15 ft), areas scaled
     for sid, sc in (('hStab', tail_scale), ('elevator', tail_scale), ('vStab', fin_scale), ('rudder-vstab', fin_scale)):
         for st in surf(c, sid)['strips']:
@@ -65,6 +68,8 @@ def make(idname, name, span, area, taper_tip, dihedral_deg, wing_z, mass, cg_x, 
     c['limits'] = limits
     for axis, vals in ctl.items():
         c['controls'][axis].update(vals)
+    # Full-aft authority (StallAuthorityTests): the elevator's plain-flap saturation, explicit per type.
+    c['controls']['elevator']['saturationDeg'] = elevator_saturation_deg
     # ---- gear: tricycle, mains under the low wing, steerable nosewheel linked to the pedals
     for g in c['gear']:
         if g['isSteerable']:
@@ -86,13 +91,13 @@ def axis(rev=True, ch=(-0.12, -0.40), kt=0, trim='tab', **extra):
 # rudder spring-trim device in the pedal torque tube + nosewheel linked to the pedals; flaps 10/25/40.
 make('pa28-archer-like', 'Archer (PA-28-181)', span=10.67, area=15.8, taper_tip=0.62, dihedral_deg=7, wing_z=0.45,
      mass=1090, cg_x=-0.42, inertia={'ixx': 1300, 'iyy': 1500, 'izz': 2620, 'ixz': 70},
-     tail_scale=0.72, fin_scale=0.95, stabilator=True,
+     tail_scale=1.2, fin_scale=0.95, stabilator=True,   # tail 1.2 (2026-10-03 stall check: 0.72 left it nearly neutrally stable)
      prop={'maxPowerW': 134000, 'propDiameterM': 1.93, 'maxRpm': 2700, 'efficiency': 0.72, 'constantSpeed': False},
      cd0=0.40, limits={"vneMs": 79, 'gMax': 3.8, 'gMin': -1.52}, spawn=55,
      ctl={'aileron': axis(ch=(-0.20, -0.45), maxDeflRad=0.35),
-          'elevator': axis(ch=(-0.05, -0.45), maxDeflRad=0.24),              # stabilator + anti-servo tab
+          'elevator': axis(ch=(-0.05, -0.45), maxDeflRad=0.14),   # stabilator + anti-servo tab: EFFECTIVE travel (whole tail rotates) — full aft holds 18° AoA, just past the stall
           'rudder': axis(kt=45, trim='spring', maxDeflRad=0.49)},             # pedal spring device + nosewheel link
-     flap_delta_rad=0.24, gear_main_x=-0.55, gear_nose_x=1.55, gear_z=1.05, crossflow_len=7.3)
+     flap_delta_rad=0.24, gear_main_x=-0.55, gear_nose_x=1.55, gear_z=1.05, crossflow_len=7.3, flap=(0.16, 0.22, 0.75))
 
 # Cirrus SR22: 38.3 ft / 144.9 ft2, AR 10, ~4.5 deg dihedral, 3600 lb gross (flown ~3300 lb), IO-550-N 310 hp, 78 in
 # 3-blade CONSTANT-SPEED prop, fixed gear with fairings, conventional elevator. EVERY axis spring-loaded: electric trim
@@ -107,4 +112,4 @@ make('cirrus-sr22-like', 'Cirrus SR22', span=11.67, area=13.46, taper_tip=0.55, 
      ctl={'aileron': axis(ch=(-0.20, -0.45), kt=45, trim='spring', maxDeflRad=0.30),
           'elevator': axis(ch=(-0.15, -0.45), kt=50, trim='spring', maxDeflRad=0.40),
           'rudder': axis(ch=(-0.15, -0.45), kt=45, trim='spring', maxDeflRad=0.40)},
-     flap_delta_rad=0.26, gear_main_x=-0.45, gear_nose_x=1.7, gear_z=1.0, crossflow_len=7.9)
+     flap_delta_rad=0.26, gear_main_x=-0.45, gear_nose_x=1.7, gear_z=1.0, crossflow_len=7.9, flap=(0.16, 0.13, 0.95), elevator_saturation_deg=11.1)

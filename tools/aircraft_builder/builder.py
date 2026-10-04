@@ -59,7 +59,7 @@ def tail(x, stab_area, elev_area, fin_area, rud_area, stab_z=0.0, decalage_deg=-
 
 def controls(ail, elev, rud):
     return {'aileron':{'maxDeflRad':ail,'rateRadPerSec':3.0,'expo':0.3,'deadZone':0.03},
-        'elevator':{'maxDeflRad':elev,'rateRadPerSec':3.0,'expo':0.3,'deadZone':0.03},
+        'elevator':{'maxDeflRad':elev,'rateRadPerSec':3.0,'expo':0.1,'deadZone':0.03},   # owner 2026-10-03: 0.3 felt laggy in the flare
         'rudder':{'maxDeflRad':rud,'rateRadPerSec':4.0,'expo':0.2,'deadZone':0.03},
         'spoiler':{'maxDeflRad':0.0,'dragOnly':True,'axis':'throttleLever','axisMap':'aftOnly'}}
 

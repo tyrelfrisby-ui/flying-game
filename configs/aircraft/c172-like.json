@@ -1445,14 +1445,15 @@
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
-      "expo": 0.3,
+      "expo": 0.1,
       "deadZone": 0.03,
       "reversible": true,
       "hingeChAlpha": -0.12,
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12
+      "freeTauS": 0.12,
+      "saturationDeg": 16.5
     },
     "rudder": {
       "maxDeflRad": 0.28,

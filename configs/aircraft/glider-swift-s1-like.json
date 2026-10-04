@@ -1659,14 +1659,15 @@
     "elevator": {
       "maxDeflRad": 0.52,
       "rateRadPerSec": 3.0,
-      "expo": 0.3,
+      "expo": 0.1,
       "deadZone": 0.03,
       "reversible": true,
       "hingeChAlpha": -0.2,
       "hingeChDelta": -0.45,
       "centeringSpringKt": 25,
       "trimType": "spring",
-      "freeTauS": 0.12
+      "freeTauS": 0.12,
+      "saturationDeg": 9.7
     },
     "rudder": {
       "maxDeflRad": 0.5,

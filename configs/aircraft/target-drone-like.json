@@ -1253,57 +1253,57 @@
   "wakeBlanketMaxLoss": 0.45,
   "verticalBlanketFactor": 0.5,
   "gear": [
-      {
-          "pos": [
-              0.108,
-              -0.75,
-              0.75
-          ],
-          "springN": 45000,
-          "dampNs": 2500,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 6000,
-          "rollResistN": 40,
-          "gearType": "spring-steel"
-      },
-      {
-          "pos": [
-              0.108,
-              0.75,
-              0.75
-          ],
-          "springN": 45000,
-          "dampNs": 2500,
-          "brake": true,
-          "isTailwheel": false,
-          "isSteerable": false,
-          "maxSteerRad": 0.0,
-          "tireMu": 0.8,
-          "corneringStiffnessN": 6000,
-          "rollResistN": 40,
-          "gearType": "spring-steel"
-      },
-      {
-          "pos": [
-              -2.6,
-              0,
-              0.33
-          ],
-          "springN": 12000,
-          "dampNs": 1500,
-          "brake": false,
-          "isTailwheel": true,
-          "isSteerable": true,
-          "maxSteerRad": 0.45,
-          "tireMu": 0.6,
-          "corneringStiffnessN": 1500,
-          "rollResistN": 20,
-          "steerSpringNmPerRad": 20
-      }
+    {
+      "pos": [
+        0.108,
+        -0.75,
+        0.75
+      ],
+      "springN": 45000,
+      "dampNs": 2500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 6000,
+      "rollResistN": 40,
+      "gearType": "spring-steel"
+    },
+    {
+      "pos": [
+        0.108,
+        0.75,
+        0.75
+      ],
+      "springN": 45000,
+      "dampNs": 2500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.8,
+      "corneringStiffnessN": 6000,
+      "rollResistN": 40,
+      "gearType": "spring-steel"
+    },
+    {
+      "pos": [
+        -2.6,
+        0,
+        0.33
+      ],
+      "springN": 12000,
+      "dampNs": 1500,
+      "brake": false,
+      "isTailwheel": true,
+      "isSteerable": true,
+      "maxSteerRad": 0.45,
+      "tireMu": 0.6,
+      "corneringStiffnessN": 1500,
+      "rollResistN": 20,
+      "steerSpringNmPerRad": 20
+    }
   ],
   "limits": {
     "vneMs": 115,
