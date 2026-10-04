@@ -130,6 +130,7 @@ namespace FlyingGame.Bridge
         private readonly List<Drone> _drones = new();
         private readonly List<GunTarget> _targets = new();
         private AircraftConfig _cassuttCfg, _dc3Cfg;
+        private double _aiAccum;
         private double _accum;
         private FlightAudio _audio;
         private string _flash; private float _flashT;
@@ -280,12 +281,34 @@ namespace FlyingGame.Bridge
             var ac = Driver.Sim.Aircraft;
             InZone = CombatZone.Inside(ac.State.Position);
             float dt = Time.deltaTime;
-            _accum += dt;
+            // Capped catch-up (a slow frame must not ask for more steps next frame — SimLoop.MaxCatchUpSec).
+            _accum = System.Math.Min(_accum + dt, SimLoop.MaxCatchUpSec);
+            _aiAccum = System.Math.Min(_aiAccum + dt, SimLoop.MaxCatchUpSec);
             bool firing = Firing && GunsHot && !SessionSettings.MenuOpen && !(GetComponent<PilotEgress>()?.PilotOut ?? false);
             _audio?.SetGuns(firing, ac.Guns != null ? (float)ac.Guns.RateHz : 0f);
             bool pilotOut = GetComponent<PilotEgress>()?.PilotOut ?? false;
             bool active = DistanceToZone(ac.State.Position) < ActiveRangeM;   // far away: the drones wait (CPU)
             AssignFlights(InZone && !pilotOut);
+            // The AI traffic flies at 50 Hz (SimLoop.AiFixedDtSec — fifteen aircraft at 200 Hz outran the iPad mini's CPU).
+            while (_aiAccum >= SimLoop.AiFixedDtSec)
+            {
+                double ha = SimLoop.AiFixedDtSec;
+                foreach (Drone d in _drones)
+                {
+                    if (d.Aircraft == null || !active || Dogfight) continue;
+                    ControlInputs ci;
+                    if (d.Dead) ci = new ControlInputs(0, 0, 0, 1.0);
+                    else if (d.Flight != null && d.Flight.Attacker == d)
+                    {
+                        ci = d.Ap.Update(d.Aircraft, ac.State, ha);
+                        if (d.Ap.Firing && d.Aircraft.Guns != null && d.Aircraft.Guns.RoundsLeft > 0) Gunnery.Fire(d.Id, d.Aircraft.Guns, d.Config, d.Aircraft.State, ha);
+                    }
+                    else if (d.Flight != null && d.Flight.Lead != null && d.Flight.Lead != d) ci = d.Fp.Update(d.Aircraft, d.Flight.Lead.Aircraft, ha);
+                    else ci = d.Pilot.Update(d.Aircraft, ha);
+                    new SimLoop(d.Aircraft, ha).RunFor(ha, ci);
+                }
+                _aiAccum -= ha;
+            }
             while (_accum >= SimLoop.DefaultFixedDtSec)
             {
                 double h = SimLoop.DefaultFixedDtSec;
@@ -301,20 +324,6 @@ namespace FlyingGame.Bridge
                         if (_opp.Ap.Firing && InZone && _opp.Aircraft.Guns != null && _opp.Aircraft.Guns.RoundsLeft > 0) Gunnery.Fire(_opp.Id, _opp.Aircraft.Guns, _opp.Config, _opp.Aircraft.State, h);
                     }
                     new SimLoop(_opp.Aircraft).RunFor(h, oc);
-                }
-                foreach (Drone d in _drones)
-                {
-                    if (d.Aircraft == null || !active || Dogfight) continue;
-                    ControlInputs ci;
-                    if (d.Dead) ci = new ControlInputs(0, 0, 0, 1.0);
-                    else if (d.Flight != null && d.Flight.Attacker == d)
-                    {
-                        ci = d.Ap.Update(d.Aircraft, ac.State, h);
-                        if (d.Ap.Firing && d.Aircraft.Guns != null && d.Aircraft.Guns.RoundsLeft > 0) Gunnery.Fire(d.Id, d.Aircraft.Guns, d.Config, d.Aircraft.State, h);
-                    }
-                    else if (d.Flight != null && d.Flight.Lead != null && d.Flight.Lead != d) ci = d.Fp.Update(d.Aircraft, d.Flight.Lead.Aircraft, h);
-                    else ci = d.Pilot.Update(d.Aircraft, h);
-                    new SimLoop(d.Aircraft).RunFor(h, ci);
                 }
                 _stepTargets.Clear();
                 if (Dogfight) { if (_opp != null) _stepTargets.Add(_opp.Target); }

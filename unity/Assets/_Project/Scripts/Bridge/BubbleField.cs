@@ -511,11 +511,45 @@ namespace FlyingGame.Bridge
         /// <summary>Advance the air mass by a wind displacement (m) so bubbles drift vs terrain.</summary>
         public void ApplyWind(Vector3 windMetres) => _airMassOrigin += windMetres;
 
+        /// <summary>An 80-triangle icosphere (one subdivision), smooth normals. The built-in sphere is 768 triangles: tens of
+        /// thousands of them a frame took the iPad mini to 2.4 fps (owner 2026-10-04: "the refresh rate on the iPad is really
+        /// slow"); a 0.2 m bubble a few pixels across looks the same with 80.</summary>
         private static Mesh BuildSphere()
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Mesh m = go.GetComponent<MeshFilter>().sharedMesh;
-            Object.Destroy(go);
+            float t = (1f + Mathf.Sqrt(5f)) / 2f;
+            var v = new List<Vector3>
+            {
+                new(-1, t, 0), new(1, t, 0), new(-1, -t, 0), new(1, -t, 0), new(0, -1, t), new(0, 1, t),
+                new(0, -1, -t), new(0, 1, -t), new(t, 0, -1), new(t, 0, 1), new(-t, 0, -1), new(-t, 0, 1),
+            };
+            int[] f =
+            {
+                0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11, 1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
+                3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9, 4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1,
+            };
+            var mid = new Dictionary<long, int>();
+            int Mid(int a, int b)
+            {
+                long k = a < b ? ((long)a << 32) | (uint)b : ((long)b << 32) | (uint)a;
+                if (mid.TryGetValue(k, out int i)) return i;
+                v.Add((v[a] + v[b]) * 0.5f); mid[k] = v.Count - 1; return v.Count - 1;
+            }
+            var tris = new List<int>(240);
+            for (int i = 0; i < f.Length; i += 3)
+            {
+                int a = f[i], b = f[i + 1], c = f[i + 2], ab = Mid(a, b), bc = Mid(b, c), ca = Mid(c, a);
+                tris.AddRange(new[] { a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca });
+            }
+            var verts = new Vector3[v.Count]; var normals = new Vector3[v.Count];
+            for (int i = 0; i < v.Count; i++) { normals[i] = v[i].normalized; verts[i] = normals[i] * 0.5f; }   // radius 0.5 = Unity's sphere
+            // Unity's front face: Cross(b − a, c − a) toward the viewer — make every triangle face outward.
+            for (int i = 0; i < tris.Count; i += 3)
+            {
+                Vector3 a = verts[tris[i]], b = verts[tris[i + 1]], c = verts[tris[i + 2]];
+                if (Vector3.Dot(Vector3.Cross(b - a, c - a), a + b + c) < 0f) (tris[i + 1], tris[i + 2]) = (tris[i + 2], tris[i + 1]);
+            }
+            var m = new Mesh { name = "BubbleIcosphere", vertices = verts, normals = normals, triangles = tris.ToArray() };
+            m.RecalculateBounds();
             return m;
         }
     }

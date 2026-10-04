@@ -79,10 +79,64 @@ namespace FlyingGame.Bridge
             float gearDown = 0f; foreach (GearConfig g in cfg.Gear) gearDown = Mathf.Max(gearDown, (float)g.Pos[2]);
             // Flying boat (hull, no wheels): the hull keel is the "contact" — its depth below the CG, as the physics floats it.
             if (cfg.Floats != null && cfg.Floats.Count == 1 && cfg.Gear.Count == 0) gearDown = (float)cfg.Floats.KeelZ;
-            Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y + spec.GroundClearanceM, -b.center.z + (float)LengthCentreOffset(cfg));
+            // Along the length: line the model's OUTER WING up with the config's (owner 2026-10-04 — the length-centre
+            // estimate put the 172's model 2 m behind its physics: it pivoted about the wrong point, and its hinges and prop
+            // were nowhere near the sim's). The length centre is the fallback when the model's vertices can't be read.
+            float zShift = -b.center.z + (float)LengthCentreOffset(cfg);
+            if (OuterWingMid(inst, parent, HalfSpan(cfg), out float modelMid) && ConfigOuterWingMid(cfg, out float cfgMid))
+            {
+                Debug.Log($"[Airframe] {id}: aligned by the outer wing (shift {cfgMid - modelMid:F2} m; the length-centre estimate said {zShift:F2} m)");
+                zShift = cfgMid - modelMid;
+            }
+            else Debug.Log($"[Airframe] {id}: outer wing not found in the model — placed by the length-centre estimate");
+            Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y + spec.GroundClearanceM, zShift);
             inst.transform.localPosition = shift;
             bounds = LocalBounds(inst, parent);
             return inst;
+        }
+
+        /// <summary>The model's outer-wing chord midpoint along its length (parent frame, before the shift): the extent along z
+        /// of the geometry between 65 % and 92 % of the half-span (wing only — the tailplane and struts don't reach out there).</summary>
+        private static bool OuterWingMid(GameObject inst, Transform parent, float halfSpan, out float mid)
+        {
+            mid = 0f; float lo = float.MaxValue, hi = float.MinValue; int n = 0;
+            float cx = LocalBounds(inst, parent).center.x;
+            foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable) continue;
+                Matrix4x4 to = parent.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in m.vertices)
+                {
+                    Vector3 p = to.MultiplyPoint3x4(v);
+                    float ax = Mathf.Abs(p.x - cx);
+                    if (ax < 0.65f * halfSpan || ax > 0.92f * halfSpan) continue;
+                    lo = Mathf.Min(lo, p.z); hi = Mathf.Max(hi, p.z); n++;
+                }
+            }
+            if (n < 8 || hi - lo > 0.5f * halfSpan) return false;   // nothing out there, or not a wing
+            mid = 0.5f * (lo + hi);
+            return true;
+        }
+
+        /// <summary>The config's outer-wing chord midpoint (sim x → Unity z): strips between 65 % and 92 % of the half-span.</summary>
+        private static bool ConfigOuterWingMid(AircraftConfig cfg, out float mid)
+        {
+            mid = 0f; float half = HalfSpan(cfg); double lo = double.MaxValue, hi = double.MinValue;
+            foreach (SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (!sf.Id.ToLowerInvariant().Contains("wing")) continue;
+                foreach (StripConfig st in sf.Strips)
+                {
+                    double ay = System.Math.Abs(st.Pos[1]);
+                    if (ay < 0.65 * half || ay > 0.92 * half) continue;
+                    double le = st.Pos[0] + 0.25 * st.Chord, te = st.Pos[0] - 0.75 * st.Chord;   // Pos = quarter chord
+                    lo = System.Math.Min(lo, te); hi = System.Math.Max(hi, le);
+                }
+            }
+            if (lo > hi) return false;
+            mid = (float)(0.5 * (lo + hi));
+            return true;
         }
 
         private static float HalfSpan(AircraftConfig cfg)

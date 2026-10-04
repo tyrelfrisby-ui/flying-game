@@ -102,7 +102,7 @@ PlayerSettings:
   resizableWindow: 1
   useMacAppStoreValidation: 0
   macAppStoreCategory: public.app-category.games
-  gpuSkinning: 0
+  gpuSkinning: 1
   meshDeformation: 0
   xboxPIXTextureCapture: 0
   xboxEnableAvatar: 0
@@ -147,7 +147,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 2026.1003.1346
+  bundleVersion: 2026.1004.0719
   preloadedAssets:
   - {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   metroInputSource: 0
@@ -158,7 +158,7 @@ PlayerSettings:
   vrSettings:
     enable360StereoCapture: 0
   isWsaHolographicRemotingEnabled: 0
-  enableFrameTimingStats: 0
+  enableFrameTimingStats: 1
   enableOpenGLProfilerGPURecorders: 1
   allowHDRDisplaySupport: 0
   useHDRDisplay: 0
@@ -174,9 +174,9 @@ PlayerSettings:
     Standalone: com.tyrelfrisby.aeroplayground.mac
     iPhone: com.tyrelfrisby.aeroplayground
   buildNumber:
-    Standalone: 202610031328
+    Standalone: 202610032049
     VisionOS: 0
-    iPhone: 202610031346
+    iPhone: 202610040719
     tvOS: 0
   overrideDefaultApplicationIdentifier: 1
   AndroidBundleVersionCode: 1

@@ -15,6 +15,10 @@ namespace FlyingGame.Bridge
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Build()
         {
+            // iOS defaults to 30 fps when no target is set (owner 2026-10-04: "the refresh rate on the iPad is really slow").
+            // 60 everywhere — the sim steps at its own fixed rate, so this is smoothness only.
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = 60;
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();

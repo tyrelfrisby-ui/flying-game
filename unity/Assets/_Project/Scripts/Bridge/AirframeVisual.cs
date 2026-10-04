@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using FlyingGame.Core.DataContracts;
 using UnityEngine;
 
@@ -49,6 +50,8 @@ namespace FlyingGame.Bridge
         }
 
         private bool _componentsDetached;
+        /// <summary>Self-test (AERO_SELFTEST=skins): hold these deflections (aileron, elevator, rudder rad) and this prop rpm.</summary>
+        public static Vector3? DebugDeflect; public static float? DebugRpm;
 
         private DamageFx _damageFx;
 
@@ -66,7 +69,16 @@ namespace FlyingGame.Bridge
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
             if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
-            _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+            if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
+            else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+            var acp = _driver.Sim.Aircraft;
+            float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
+            _builder.SpinProps(i =>
+            {
+                var eng = acp.Config.Engines;
+                if (eng == null || i >= eng.Count) return rpm;
+                return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
+            }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
         }
 
@@ -87,6 +99,7 @@ namespace FlyingGame.Bridge
         public static void DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
             if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return;   // the break-up arrives as Nose + TailBoom events
+            _builder?.FreezeRig();   // the break-up cuts the rigid model meshes
             var debris = new GameObject("Debris-" + comp);
             debris.transform.SetPositionAndRotation(root.position, root.rotation);
             bool leftWing = comp == FlyingGame.Core.AirframeComponent.WingLeft, rightWing = comp == FlyingGame.Core.AirframeComponent.WingRight;
@@ -247,6 +260,7 @@ namespace FlyingGame.Bridge
         /// <summary>Prop strike: each blade is shortened and its outer half folded back ~50°, the disc goes away.</summary>
         private void BendPropeller()
         {
+            _builder.FreezeRig();
             foreach (GameObject part in new List<GameObject>(_builder.Parts))
             {
                 if (part == null) continue;
@@ -295,6 +309,7 @@ namespace FlyingGame.Bridge
         public void DetachWings(Vector3 worldVelocityUnity)
         {
             if (_wingsDetached) return;
+            _builder.FreezeRig();
             _wingsDetached = true;
             List<GameObject> parts = _builder.TakeWingParts();
             if (parts.Count == 0) return;
@@ -520,6 +535,538 @@ namespace FlyingGame.Bridge
             }
         }
 
+        // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
+        private sealed class PropHub
+        {
+            public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine;
+            public GameObject Disc; public Material DiscMat; public Transform BladeBone; public bool ModelBound;
+            public readonly List<GameObject> Blades = new();     // shown while slow; the blur disc takes over above ~400 rpm
+        }
+        private readonly List<PropHub> _props = new();
+        private static Shader _propBlurShader;
+        private static Texture2D _blurTex;
+        private const float BladesGoneRpm = 900f, BlurStartsRpm = 350f;
+
+        /// <summary>Turn the propellers: the hubs at the engine's rpm (the eye sees the blades up to a few hundred rpm),
+        /// the blur disc fading in above that and turning at an apparent rate that reads as spin rather than strobe.
+        /// <paramref name="rpmFor"/> gives each engine's rpm (index = engine; 0 for a single).</summary>
+        public void SpinProps(System.Func<int, float> rpmFor, float dt)
+        {
+            foreach (PropHub h in _props)
+            {
+                if (h.Hub == null) continue;
+                float rpm = Mathf.Max(0f, rpmFor(h.Engine));
+                h.Angle = (h.Angle + rpm / 60f * 360f * dt) % 360f;
+                float blur = Mathf.InverseLerp(BlurStartsRpm, BladesGoneRpm, rpm);
+                bool bladesOn = blur < 1f;
+                // Above the blur rpm the real angle would strobe (40 rev/s at 60 fps): the hub keeps a slow apparent turn.
+                float shown = bladesOn ? h.Angle : (h.DiscAngle = (h.DiscAngle + 2.2f * 360f * dt) % 360f);
+                h.Hub.localRotation = Quaternion.AngleAxis(-shown, Vector3.forward);
+                foreach (GameObject b in h.Blades) if (b != null) foreach (Renderer r in b.GetComponentsInChildren<Renderer>(true)) r.enabled = bladesOn && !UsedModel;
+                if (h.BladeBone != null) h.BladeBone.localScale = bladesOn ? Vector3.one : new Vector3(1e-4f, 1e-4f, 1f);   // onto the axis, each at its own depth   // the model's blades give way to the blur
+                if (h.DiscMat != null) h.DiscMat.color = new Color(1f, 1f, 1f, 0.85f * blur);
+                // A model whose propeller couldn't be separated keeps its own (static) blades and gets no blur disc.
+                if (h.Disc != null) { var dr = h.Disc.GetComponent<Renderer>(); if (dr != null) dr.enabled = blur > 0.01f && (!UsedModel || h.ModelBound); }
+            }
+        }
+
+        private static Mesh DiscQuad(float r)
+        {
+            var m = new Mesh { name = "PropBlurDisc" };
+            m.vertices = new[] { new Vector3(-r, -r, 0f), new Vector3(r, -r, 0f), new Vector3(r, r, 0f), new Vector3(-r, r, 0f) };
+            m.uv = new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1) };
+            m.triangles = new[] { 0, 2, 1, 0, 3, 2 };
+            m.RecalculateBounds();
+            return m;
+        }
+
+        /// <summary>The blur: a dark translucent disc with two soft blade smears and painted tips — what a turning
+        /// propeller looks like to the eye.</summary>
+        private static Texture2D BlurTexture()
+        {
+            if (_blurTex != null) return _blurTex;
+            const int N = 128;
+            var t = new Texture2D(N, N, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Clamp, name = "PropBlur" };
+            var px = new Color[N * N];
+            for (int j = 0; j < N; j++)
+                for (int i = 0; i < N; i++)
+                {
+                    float x = (i + 0.5f) / N * 2f - 1f, y = (j + 0.5f) / N * 2f - 1f;
+                    float r = Mathf.Sqrt(x * x + y * y), th = Mathf.Atan2(y, x);
+                    if (r > 1f || r < 0.12f) { px[j * N + i] = new Color(0, 0, 0, 0); continue; }
+                    float smear = Mathf.Pow(0.5f + 0.5f * Mathf.Cos(2f * th), 4f);                // two blades, smeared round
+                    float body = Mathf.Lerp(0.10f, 0.32f, smear) * Mathf.SmoothStep(1f, 0.6f, r) + 0.06f;
+                    bool tip = r > 0.9f;
+                    Color c = tip ? new Color(0.95f, 0.8f, 0.2f, Mathf.Lerp(0.12f, 0.35f, smear)) : new Color(0.08f, 0.08f, 0.09f, body);
+                    c.a *= Mathf.SmoothStep(0f, 1f, (1f - r) / 0.03f);                            // soft rim
+                    px[j * N + i] = c;
+                }
+            t.SetPixels(px); t.Apply(true, true);
+            return _blurTex = t;
+        }
+
+        // ---- the model's own moving parts (owner 2026-10-04: "make the control surfaces move again with these new skins") --
+        /// <summary>
+        /// Downloaded models are one or a few rigid meshes. Cut out of them, at load, the triangles that lie in each
+        /// control surface's region (the procedural surface's own hinge line, span and chord, a little thickness either side)
+        /// and hang them on that surface's hinge, so they deflect with the sim; and the propeller (connected pieces in the
+        /// prop disc ahead of the cowl: blades reaching out past half the radius, or a spinner on the axis) onto its hub.
+        /// A mesh the importer left unreadable is left whole.
+        /// </summary>
+        private static bool MatSays(Material m, params string[] words)
+        {
+            if (m == null) return false;
+            string n = m.name.ToLowerInvariant();
+            foreach (string w in words) if (n.Contains(w)) return true;
+            return false;
+        }
+        private static readonly string[] PropWords = { "prop", "blade", "spinner", "helic", "hélic", "rotor" };
+        private static readonly string[] SurfaceWords = { "aileron", "elevator", "rudder", "control", "trim", "stabilator" };
+
+        /// <summary>
+        /// Rig the downloaded model (owner 2026-10-04: "make the props look like they are actually spinning … and make the
+        /// control surfaces move again with these new skins"). The model is one or a few rigid meshes, so each vertex is
+        /// bound — as in a skinned character — to a bone: the airframe (static), a control surface's hinge (the procedural
+        /// surface's own transform: same hinge line, same deflection), or a propeller hub (spinner) / its blades. Vertices
+        /// behind a hinge line, inside that surface's span and a little thickness either side, move with the surface;
+        /// triangles straddling the hinge stretch, so there are no gaps or ragged edges. Propellers: connected pieces in the
+        /// prop disc ahead of the cowl (blades reaching past half the radius, or a spinner on the axis), or anything on a
+        /// material named for a propeller. A mesh the importer left unreadable stays rigid.
+        /// </summary>
+        private void CarveModel(Transform root, List<MeshFilter> filters)
+        {
+            // Control-surface regions in root space, from the hidden procedural surfaces.
+            var regions = new List<(ControlPart c, Vector3 pivot, Vector3 a, Vector3 cd, Vector3 n, Vector2 sa, Vector2 sc, Vector2 sn)>();
+            foreach (ControlPart c in _controls)
+            {
+                if (c.T == null || c.Surface is not ("aileron" or "elevator" or "rudder")) continue;
+                var pmf = c.T.GetComponent<MeshFilter>();
+                if (pmf == null || pmf.sharedMesh == null) continue;
+                Vector3[] pv = pmf.sharedMesh.vertices;
+                if (pv.Length == 0) continue;
+                Vector3 a = c.AxisUnity.normalized, mean = Vector3.zero;
+                foreach (Vector3 v in pv) mean += v;
+                mean /= pv.Length;
+                Vector3 cd = mean - a * Vector3.Dot(mean, a);
+                if (cd.sqrMagnitude < 1e-6f) continue;
+                cd.Normalize();
+                Vector3 n = Vector3.Cross(a, cd);
+                var sa = new Vector2(float.MaxValue, float.MinValue); var sc = sa; var sn = sa;
+                foreach (Vector3 v in pv)
+                {
+                    float qa = Vector3.Dot(v, a), qc = Vector3.Dot(v, cd), qn = Vector3.Dot(v, n);
+                    sa = new Vector2(Mathf.Min(sa.x, qa), Mathf.Max(sa.y, qa));
+                    sc = new Vector2(Mathf.Min(sc.x, qc), Mathf.Max(sc.y, qc));
+                    sn = new Vector2(Mathf.Min(sn.x, qn), Mathf.Max(sn.y, qn));
+                }
+                float chord = sc.y;
+                sa = new Vector2(sa.x - 0.03f, sa.y + 0.03f);
+                sc = new Vector2(Mathf.Min(sc.x, 0f) - 0.02f, sc.y + 0.15f * chord + 0.08f);
+                sn = new Vector2(sn.x - 0.07f, sn.y + 0.07f);
+                regions.Add((c, c.T.localPosition, a, cd, n, sa, sc, sn));
+            }
+
+            // Fit each surface to the MODEL (owner 2026-10-04): the config's hinge lines don't always match a downloaded model
+            // (the P-51's sat behind the model's trailing edges). Over the surface's span, find the model's own surface layer
+            // (the one nearest the config's), its leading and trailing edges, and put the hinge at the config's chord
+            // fraction of that chord — on a new hinge bone that deflects with the surface.
+            {
+                var raw = new List<Vector3[]>();
+                foreach (MeshFilter mf in filters)
+                {
+                    Mesh src = mf.sharedMesh;
+                    if (src == null || !src.isReadable) continue;
+                    Matrix4x4 tm = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                    Vector3[] v = src.vertices; var r = new Vector3[v.Length];
+                    for (int i = 0; i < v.Length; i++) r[i] = tm.MultiplyPoint3x4(v[i]);
+                    raw.Add(r);
+                }
+                // The procedural (config) wing/tail ahead of each hinge: its leading edge gives the config's chord fraction.
+                var procPts = new List<Vector3>();
+                foreach (GameObject part in _parts)
+                {
+                    if (part == null || part.name.StartsWith("Model") || part.name.StartsWith("Fuselage") || _controls.Any(c => c.T != null && c.T.gameObject == part)) continue;
+                    var pf = part.GetComponent<MeshFilter>();
+                    if (pf == null || pf.sharedMesh == null || !pf.sharedMesh.isReadable) continue;
+                    Matrix4x4 tm = root.worldToLocalMatrix * pf.transform.localToWorldMatrix;
+                    foreach (Vector3 v in pf.sharedMesh.vertices) procPts.Add(tm.MultiplyPoint3x4(v));
+                }
+                for (int g = 0; g < regions.Count; g++)
+                {
+                    var rg = regions[g];
+                    float procChord = rg.sc.y;   // (already widened a little — close enough for the fraction)
+                    float procLe = 0f;
+                    foreach (Vector3 p in procPts)
+                    {
+                        Vector3 q = p - rg.pivot;
+                        float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                        if (qa < rg.sa.x || qa > rg.sa.y || Mathf.Abs(qn) > 0.3f || qc > 0f || qc < -Mathf.Max(1.5f, 4f * procChord)) continue;
+                        if (rg.c.Surface == "elevator" && Mathf.Abs(p.x) < 0.3f) continue;   // not the fuselage
+                        procLe = Mathf.Min(procLe, qc);
+                    }
+                    float cf = Mathf.Clamp(procChord / Mathf.Max(0.05f, procChord - procLe), 0.15f, 1f);
+                    float qcLo = procLe < -0.05f ? procLe - 0.4f : -Mathf.Max(1.2f, 3f * procChord);   // no further forward than just ahead of the config's own LE
+                    var qns = new List<float>();
+                    foreach (Vector3[] r in raw) foreach (Vector3 p in r)
+                    {
+                        Vector3 q = p - rg.pivot;
+                        float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                        if (qa < rg.sa.x || qa > rg.sa.y || qc < qcLo || qc > 3f || Mathf.Abs(qn) > 1.5f) continue;
+                        if (rg.c.Surface == "elevator" && Mathf.Abs(p.x) < 0.25f) continue;
+                        qns.Add(qn);
+                    }
+                    if (qns.Count < 6) continue;
+                    float nearest = qns[0]; foreach (float q in qns) if (Mathf.Abs(q) < Mathf.Abs(nearest)) nearest = q;
+                    var lay = new List<float>(); foreach (float q in qns) if (Mathf.Abs(q - nearest) < 0.25f) lay.Add(q);
+                    lay.Sort(); float mid = lay[lay.Count / 2];
+                    var qcs = new List<float>();
+                    foreach (Vector3[] r in raw) foreach (Vector3 p in r)
+                    {
+                        Vector3 q = p - rg.pivot;
+                        float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                        if (qa < rg.sa.x || qa > rg.sa.y || qc < qcLo || qc > 3f || Mathf.Abs(qn - mid) > 0.3f) continue;
+                        if (rg.c.Surface == "elevator" && Mathf.Abs(p.x) < 0.25f) continue;
+                        qcs.Add(qc);
+                    }
+                    if (qcs.Count < 6) continue;
+                    qcs.Sort();
+                    float le = qcs[(int)(qcs.Count * 0.02f)], te = qcs[(int)(qcs.Count * 0.98f)];
+                    float chordM = te - le;
+                    if (chordM < 0.2f) continue;
+                    float qh = te - cf * chordM;
+                    Vector3 pivot = rg.pivot + rg.cd * qh + rg.n * mid;
+                    var bone = new GameObject("ModelHinge:" + rg.c.Surface);
+                    bone.transform.SetParent(root, false);
+                    bone.transform.localPosition = pivot;
+                    _parts.Add(bone);
+                    var cp = new ControlPart { T = bone.transform, Surface = rg.c.Surface, Gain = rg.c.Gain, AxisUnity = rg.c.AxisUnity };
+                    _controls.Add(cp);
+                    float half = 0.5f * (rg.sn.y - rg.sn.x);
+                    regions[g] = (cp, pivot, rg.a, rg.cd, rg.n, rg.sa, new Vector2(-0.02f, cf * chordM + 0.06f), new Vector2(-half, half));
+                    if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                        Debug.Log($"[Airframe] DIAG fit {rg.c.Surface}: model chord {chordM:F2} m (LE {le:F2}, TE {te:F2} from the config hinge), layer {mid:F2} m off, config chord fraction {cf:F2} → hinge moved {qh:F2} m aft");
+                }
+            }
+
+            // Pass A: every readable mesh in root space; the front of the model on each hub's axis.
+            var meshes = new List<(MeshFilter mf, Vector3[] rp, int[][] tris, Material[] mats, MeshSlicer sl)>();
+            // Each hub's axis from the MODEL: its spinner tip — the front-most point near the hub (a model can sit tens of
+            // centimetres higher or lower than its config, and the search for the propeller is made around the axis).
+            {
+                var tip = new Vector3[_props.Count]; var found = new bool[_props.Count];
+                foreach (MeshFilter mf in filters)
+                {
+                    Mesh src = mf.sharedMesh;
+                    if (src == null || !src.isReadable) continue;
+                    Matrix4x4 tm = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                    foreach (Vector3 v in src.vertices)
+                    {
+                        Vector3 q = tm.MultiplyPoint3x4(v);
+                        for (int h = 0; h < _props.Count; h++)
+                        {
+                            Vector3 hc = _props[h].Hub.localPosition; float R = _props[h].Radius;
+                            if (Mathf.Abs(q.x - hc.x) > 0.35f * R || Mathf.Abs(q.y - hc.y) > 1.0f * R || Mathf.Abs(q.z - hc.z) > 2.5f) continue;
+                            if (!found[h] || q.z > tip[h].z) { tip[h] = q; found[h] = true; }
+                        }
+                    }
+                }
+                for (int h = 0; h < _props.Count; h++)
+                {
+                    if (!found[h]) continue;
+                    Vector3 hp = _props[h].Hub.localPosition, d = new Vector3(tip[h].x - hp.x, tip[h].y - hp.y, 0f);
+                    _props[h].Hub.localPosition = hp + d;
+                    foreach (Transform ch in _props[h].Hub) ch.localPosition -= d;
+                }
+            }
+            var front = new float[_props.Count];
+            for (int h = 0; h < _props.Count; h++) front[h] = float.NegativeInfinity;
+            foreach (MeshFilter mf in filters)
+            {
+                Mesh src = mf.sharedMesh;
+                if (src == null) continue;
+                if (!src.isReadable) { Debug.LogWarning($"[Airframe] model mesh '{src.name}' is not readable — it stays rigid"); continue; }
+                Matrix4x4 m = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                // Give coarse models real panel edges: cut along each surface's hinge line and span ends (and, under a
+                // full-span elevator, the tail-cone sides) — only the triangles in the neighbourhood of that surface.
+                var sl = new MeshSlicer(src, m);
+                foreach (var rg in regions)
+                {
+                    var r = rg; float chord = r.sc.y;
+                    bool Near(Vector3 p)
+                    {
+                        Vector3 q = p - r.pivot;
+                        float qc = Vector3.Dot(q, r.cd), qn = Vector3.Dot(q, r.n);
+                        return qc > -3f && qc < chord + 2f && Mathf.Abs(qn) < 1.5f;   // big root-to-tip triangles too; the model's surface may sit a metre off the config's
+                    }
+                    int nCut = sl.Slice(r.pivot, r.cd, Near);                       // the hinge line
+                    if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                    {
+                        int inNear = 0; foreach (Vector3 p in sl.Root) if (Near(p)) inNear++;
+                        Debug.Log($"[Airframe] DIAG slice {mf.name} {r.c.Surface}: {nCut} triangles cut at the hinge; {inNear}/{sl.Root.Count} vertices near; tris {sl.Tris.Sum(t => t.Count) / 3}");
+                    }
+                    sl.Slice(r.pivot + r.a * (r.sa.x + 0.03f), r.a, Near);          // inboard / lower end
+                    sl.Slice(r.pivot + r.a * (r.sa.y - 0.03f), r.a, Near);          // outboard / upper end
+                    if (r.c.Surface == "elevator" && r.sa.x < -0.2f && r.sa.y > 0.2f)
+                    {
+                        sl.Slice(new Vector3(-0.18f, 0f, 0f), Vector3.right, Near);
+                        sl.Slice(new Vector3(0.18f, 0f, 0f), Vector3.right, Near);
+                    }
+                }
+                Vector3[] rp = sl.Root.ToArray();
+                var tris = new int[sl.Tris.Count][];
+                for (int s = 0; s < tris.Length; s++) tris[s] = sl.Tris[s].ToArray();
+                meshes.Add((mf, rp, tris, mf.GetComponent<MeshRenderer>()?.sharedMaterials ?? System.Array.Empty<Material>(), sl));
+                for (int h = 0; h < _props.Count; h++)
+                {
+                    Vector3 hc = _props[h].Hub.localPosition; float R = _props[h].Radius;
+                    foreach (Vector3 q in rp)
+                    {
+                        float dx = q.x - hc.x, dy = q.y - hc.y;
+                        if (dx * dx + dy * dy < 0.16f * R * R && Mathf.Abs(q.z - hc.z) < 2.5f && q.z > front[h]) front[h] = q.z;
+                    }
+                }
+            }
+
+            // Vertex owners: −1 airframe; 0..R−1 a control region; R + 2h a hub (spinner); R + 2h + 1 that hub's blades.
+            int nR = regions.Count;
+            var owners = new List<int[]>();
+            var comps = new List<int[]>();   // welded connected-piece id per vertex (null when there are no props)
+            var propLo = new Vector3[_props.Count]; var propHi = new Vector3[_props.Count]; var propAny = new bool[_props.Count];
+            foreach (var (mf, rp, tris, mats, _) in meshes)
+            {
+                int nv = rp.Length;
+                var own = new int[nv];
+                for (int i = 0; i < nv; i++) own[i] = -1;
+                int[] compOf = null;
+
+                // Propellers: welded connected pieces wholly in the prop slab, or a propeller-named material near the axis.
+                if (_props.Count > 0)
+                {
+                    var parent = new int[nv];
+                    for (int i = 0; i < nv; i++) parent[i] = i;
+                    int Find(int i) { while (parent[i] != i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+                    void Union(int i, int j) { i = Find(i); j = Find(j); if (i != j) parent[i] = j; }
+                    var weld = new Dictionary<Vector3Int, int>();
+                    for (int i = 0; i < nv; i++)
+                    {
+                        var key = new Vector3Int(Mathf.RoundToInt(rp[i].x * 1000f), Mathf.RoundToInt(rp[i].y * 1000f), Mathf.RoundToInt(rp[i].z * 1000f));
+                        if (weld.TryGetValue(key, out int w)) Union(i, w); else weld[key] = i;
+                    }
+                    foreach (int[] t in tris) for (int k = 0; k + 2 < t.Length; k += 3) { Union(t[k], t[k + 1]); Union(t[k], t[k + 2]); }
+                    compOf = new int[nv];
+                    for (int i = 0; i < nv; i++) compOf[i] = Find(i);
+                    for (int h = 0; h < _props.Count; h++)
+                    {
+                        Vector3 hc = _props[h].Hub.localPosition; float R = _props[h].Radius;
+                        var isProp = new HashSet<int>();
+                        if (!float.IsNegativeInfinity(front[h]))
+                        {
+                            var stats = new Dictionary<int, (float maxR, float minZ, float maxZ)>();
+                            for (int i = 0; i < nv; i++)
+                            {
+                                int c = Find(i);
+                                float dx = rp[i].x - hc.x, dy = rp[i].y - hc.y, r = Mathf.Sqrt(dx * dx + dy * dy);
+                                stats[c] = stats.TryGetValue(c, out var st) ? (Mathf.Max(st.maxR, r), Mathf.Min(st.minZ, rp[i].z), Mathf.Max(st.maxZ, rp[i].z)) : (r, rp[i].z, rp[i].z);
+                            }
+                            foreach (var kv in stats)
+                            {
+                                (float maxR, float minZ, float maxZ) = kv.Value;
+                                bool inSlab = minZ > front[h] - 0.55f && maxZ < front[h] + 0.05f;
+                                if (inSlab && ((maxR > 0.5f * R && maxR < 1.6f * R) || (maxR < 0.32f * R && minZ > front[h] - 0.4f))) isProp.Add(kv.Key);
+                            }
+                        }
+                        for (int i = 0; i < nv; i++) if (own[i] < 0 && isProp.Contains(Find(i))) own[i] = nR + 2 * h;
+                        for (int s = 0; s < tris.Length && s < mats.Length; s++)
+                        {
+                            if (!MatSays(mats[s], PropWords)) continue;
+                            foreach (int i in tris[s])
+                            {
+                                if (own[i] >= 0) continue;
+                                float dx = rp[i].x - hc.x, dy = rp[i].y - hc.y;
+                                bool nearAxis = dx * dx + dy * dy < 1.3f * 1.3f * R * R;
+                                bool nearPlane = float.IsNegativeInfinity(front[h]) ? Mathf.Abs(rp[i].z - hc.z) < Mathf.Max(1.2f, 0.8f * R) : rp[i].z > front[h] - 0.8f && rp[i].z < front[h] + 0.1f;
+                                if (nearAxis && nearPlane) own[i] = nR + 2 * h;
+                            }
+                        }
+                        for (int i = 0; i < nv; i++)
+                        {
+                            if (own[i] != nR + 2 * h) continue;
+                            if (!propAny[h]) { propLo[h] = propHi[h] = rp[i]; propAny[h] = true; }
+                            else { propLo[h] = Vector3.Min(propLo[h], rp[i]); propHi[h] = Vector3.Max(propHi[h], rp[i]); }
+                        }
+                    }
+                }
+
+                // Control surfaces. The model's surface rarely sits at exactly the config's height or thickness, so each
+                // region finds the model's own surface: the median offset (normal to the surface) of the geometry inside the
+                // span × chord window, and takes the vertices within a slab around it. A material NAMED for a control
+                // surface gets a looser window. The tail cone under a full-span elevator stays put (|x| < 0.18 m).
+                var named = new bool[nv];
+                for (int s = 0; s < tris.Length && s < mats.Length; s++) if (MatSays(mats[s], SurfaceWords)) foreach (int i in tris[s]) named[i] = true;
+                for (int g = 0; g < nR; g++)
+                {
+                    var rg = regions[g];
+                    float half = 0.5f * (rg.sn.y - rg.sn.x);
+                    var qns = new List<float>();
+                    var cand = new List<int>();
+                    for (int i = 0; i < nv; i++)
+                    {
+                        if (own[i] >= 0) continue;
+                        if (rg.c.Surface == "elevator" && Mathf.Abs(rp[i].x) < 0.18f) continue;
+                        Vector3 q = rp[i] - rg.pivot;
+                        float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                        float slack = named[i] ? 0.12f : 0f, chordMax = named[i] ? rg.sc.y * 1.3f + 0.15f : rg.sc.y;
+                        if (qa < rg.sa.x - slack || qa > rg.sa.y + slack || qc < rg.sc.x || qc > chordMax || Mathf.Abs(qn) > 1.2f) continue;
+                        qns.Add(qn); cand.Add(i);
+                    }
+                    if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                    {
+                        int nWin = 0; float lo = 1e9f, hi = -1e9f;
+                        for (int i = 0; i < nv; i++)
+                        {
+                            Vector3 q = rp[i] - rg.pivot;
+                            float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                            if (qa < rg.sa.x || qa > rg.sa.y || qc < rg.sc.x || qc > rg.sc.y) continue;
+                            nWin++; lo = Mathf.Min(lo, qn); hi = Mathf.Max(hi, qn);
+                        }
+                        Debug.Log($"[Airframe] DIAG {mf.name} {rg.c.Surface} pivot {rg.pivot}: {nWin} vertices in span×chord (normal offset {lo:F2}..{hi:F2}), {cand.Count} candidates within 0.6 m");
+                    }
+                    if (cand.Count == 0) continue;
+                    // The model's surface: the layer of geometry NEAREST the config's surface (a T-tail's stabiliser, not the tail
+                    // cone under it), centred on the median of what lies within 25 cm of that.
+                    float nearest = qns[0];
+                    foreach (float q in qns) if (Mathf.Abs(q) < Mathf.Abs(nearest)) nearest = q;
+                    var layer = new List<float>();
+                    foreach (float q in qns) if (Mathf.Abs(q - nearest) < 0.25f) layer.Add(q);
+                    layer.Sort();
+                    float mid = layer[layer.Count / 2];
+                    float slab = Mathf.Max(0.1f, half + 0.06f);
+                    foreach (int i in cand)
+                    {
+                        float qn = Vector3.Dot(rp[i] - rg.pivot, rg.n);
+                        if (Mathf.Abs(qn - mid) <= slab + (named[i] ? 0.15f : 0f)) own[i] = g;
+                    }
+                }
+                owners.Add(own); comps.Add(compOf);
+            }
+
+            // Centre each hub on the model's own propeller before binding (the config's hub can sit a few cm off it — the
+            // blades would wobble), and split blades from spinner by radius.
+            for (int h = 0; h < _props.Count; h++)
+            {
+                if (!propAny[h]) continue;
+                PropHub hub = _props[h];
+                Vector3 c = 0.5f * (propLo[h] + propHi[h]), hp = hub.Hub.localPosition;
+                Vector3 delta = new Vector3(c.x - hp.x, c.y - hp.y, 0f);
+                if (delta.magnitude > 0.5f * hub.Radius)
+                {
+                    // Not this hub's propeller after all (a wheel pant, a cowl piece): leave the model's prop as it is.
+                    propAny[h] = false;
+                    foreach (int[] own in owners) for (int i = 0; i < own.Length; i++) if (own[i] == nR + 2 * h) own[i] = -1;
+                    continue;
+                }
+                hub.Hub.localPosition = hp + delta;
+                foreach (Transform ch in hub.Hub) ch.localPosition -= delta;
+                if (hub.Disc != null) hub.Disc.transform.localPosition = new Vector3(0f, 0f, propHi[h].z - hub.Hub.localPosition.z + 0.02f);
+                hub.ModelBound = true;
+                hub.BladeBone = new GameObject("PropBlades").transform;
+                hub.BladeBone.SetParent(hub.Hub, false);
+            }
+            // The blades' plane (for the blur disc): the vertices out past the spinner.
+            var bladeZ = new double[_props.Count]; var bladeN = new int[_props.Count];
+            for (int mi = 0; mi < meshes.Count; mi++)
+            {
+                int[] own = owners[mi]; Vector3[] rp = meshes[mi].rp;
+                for (int i = 0; i < own.Length; i++)
+                {
+                    if (own[i] < nR) continue;
+                    int h = (own[i] - nR) / 2; Vector3 hc = _props[h].Hub.localPosition;
+                    float dx = rp[i].x - hc.x, dy = rp[i].y - hc.y;
+                    if (dx * dx + dy * dy > 0.16f * _props[h].Radius * _props[h].Radius) { bladeZ[h] += rp[i].z; bladeN[h]++; }
+                }
+            }
+            // The blur disc sits in the plane the blades sweep.
+            for (int h = 0; h < _props.Count; h++)
+                if (bladeN[h] > 0 && _props[h].Disc != null) _props[h].Disc.transform.localPosition = new Vector3(0f, 0f, (float)(bladeZ[h] / bladeN[h]) - _props[h].Hub.localPosition.z);
+
+            // Pass B: bind. Bones: 0 = the mesh's own transform (static), then every region's hinge, every hub and its blades.
+            int cutSurfaces = 0, cutProps = 0;
+            var surfaceSeen = new HashSet<int>(); var propSeen = new HashSet<int>();
+            for (int mi = 0; mi < meshes.Count; mi++)
+            {
+                var (mf, rp, tris, mats, sl) = meshes[mi];
+                int[] own = owners[mi];
+                if (own.All(o => o < 0)) continue;
+                var bones = new List<Transform> { mf.transform };
+                var boneOf = new Dictionary<int, int>();
+                int BoneFor(int o)
+                {
+                    if (boneOf.TryGetValue(o, out int b)) return b;
+                    Transform t = o < nR ? regions[o].c.T : (((o - nR) & 1) == 1 ? _props[(o - nR) / 2].BladeBone : _props[(o - nR) / 2].Hub);
+                    bones.Add(t); boneOf[o] = bones.Count - 1; return bones.Count - 1;
+                }
+                var weights = new BoneWeight[own.Length];
+                for (int i = 0; i < own.Length; i++)
+                {
+                    if (own[i] >= nR && _props[(own[i] - nR) / 2].BladeBone != null)
+                    {
+                        // Propeller: spinner by the hub, blades by the blade bone, blended from 0.2 to 0.4 of the radius so
+                        // the blade roots taper into the spinner when the blades give way to the blur (no stretched spikes).
+                        int h = (own[i] - nR) / 2; PropHub hub = _props[h];
+                        Vector3 hc = hub.Hub.localPosition;
+                        float r = Mathf.Sqrt((rp[i].x - hc.x) * (rp[i].x - hc.x) + (rp[i].y - hc.y) * (rp[i].y - hc.y)) / hub.Radius;
+                        float wb = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.2f, 0.4f, r));
+                        int bh = BoneFor(nR + 2 * h), bb = BoneFor(nR + 2 * h + 1);
+                        weights[i] = wb <= 0f ? new BoneWeight { boneIndex0 = bh, weight0 = 1f }
+                                   : wb >= 1f ? new BoneWeight { boneIndex0 = bb, weight0 = 1f }
+                                   : new BoneWeight { boneIndex0 = bb, weight0 = wb, boneIndex1 = bh, weight1 = 1f - wb };
+                        propSeen.Add(h);
+                        continue;
+                    }
+                    int b = own[i] < 0 ? 0 : BoneFor(own[i]);
+                    weights[i] = new BoneWeight { boneIndex0 = b, weight0 = 1f };
+                    if (own[i] >= 0) { if (own[i] < nR) surfaceSeen.Add(own[i]); else propSeen.Add((own[i] - nR) / 2); }
+                }
+                Mesh skin = sl.ToMesh(mf.sharedMesh.name + "-rigged");
+                skin.boneWeights = weights;
+                var skinGo = new GameObject("Skin:" + mf.name) { layer = mf.gameObject.layer };
+                skinGo.transform.SetParent(mf.transform, false);
+                var bind = new Matrix4x4[bones.Count];
+                for (int b = 0; b < bones.Count; b++) bind[b] = bones[b].worldToLocalMatrix * skinGo.transform.localToWorldMatrix;
+                skin.bindposes = bind;
+                var smr = skinGo.AddComponent<SkinnedMeshRenderer>();
+                smr.sharedMesh = skin;
+                smr.bones = bones.ToArray();
+                smr.rootBone = mf.transform;
+                Bounds lb = skin.bounds; lb.Expand(2f); smr.localBounds = lb;
+                smr.sharedMaterials = mf.GetComponent<MeshRenderer>().sharedMaterials;
+                mf.GetComponent<MeshRenderer>().enabled = false;   // the rigid copy stays for the damage code (FreezeRig)
+                _rigged.Add(skinGo);
+            }
+            cutSurfaces = surfaceSeen.Count; cutProps = propSeen.Count;
+            {
+                var cnt = new int[nR + 2 * _props.Count];
+                foreach (int[] own in owners) foreach (int o in own) if (o >= 0) cnt[o]++;
+                Debug.Log("[Airframe] rig vertices: " + string.Join(" ", Enumerable.Range(0, nR).Select(g => $"{regions[g].c.Surface}{(regions[g].pivot.x < -0.5f ? "L" : regions[g].pivot.x > 0.5f ? "R" : "")}={cnt[g]}"))
+                    + " " + string.Join(" ", Enumerable.Range(0, _props.Count).Select(h => $"prop{h}={cnt[nR + 2 * h]}")));
+            }
+            Debug.Log($"[Airframe] model rig: {cutSurfaces}/{nR} control surfaces, {cutProps}/{_props.Count} propellers bound");
+        }
+
+        private readonly List<GameObject> _rigged = new();
+        /// <summary>Damage: back to the rigid meshes (the break-up code cuts those) — the surfaces stop moving.</summary>
+        public void FreezeRig()
+        {
+            foreach (GameObject g in _rigged)
+            {
+                if (g == null) continue;
+                var mr = g.transform.parent != null ? g.transform.parent.GetComponent<MeshRenderer>() : null;
+                if (mr != null) mr.enabled = true;
+                Kill(g);
+            }
+            _rigged.Clear();
+        }
+
         /// <summary>Destroy previously built parts.</summary>
         public void Clear()
         {
@@ -543,6 +1090,8 @@ namespace FlyingGame.Bridge
             }
             _parts.Clear();
             _controls.Clear();
+            _props.Clear();
+            _rigged.Clear();
             _wingParts.Clear();
             _gearParts.Clear();
             _legParts.Clear();
@@ -651,18 +1200,24 @@ namespace FlyingGame.Bridge
             bool keepGear = AirframeModels.Specs.TryGetValue(cfg.Id, out AirframeModels.Spec spec) && spec.ShowProceduralGear;
             var gearSet = new HashSet<GameObject>();
             if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
+            bool overlay = System.Environment.GetEnvironmentVariable("SKIN_OVERLAY") != null;   // diagnostics: config surfaces over the model
             foreach (GameObject p in _parts)
             {
                 if (gearSet.Contains(p)) continue;
+                if (overlay && _controls.Any(c => c.T != null && c.T.gameObject == p)) continue;
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
+            var filters = new List<MeshFilter>();
             foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
             {
                 GameObject go = mf.gameObject;
                 go.name = "Model:" + go.name;
                 _parts.Add(go); _wingParts.Add(go); _modelParts.Add(go);
+                filters.Add(mf);
             }
+            try { CarveModel(root, filters); }
+            catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
         }
 
         private static void Kill(Object o)
@@ -816,29 +1371,40 @@ namespace FlyingGame.Bridge
 
         private void Prop(float x, float y, float z, float radius, bool radial)
         {
-            var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Kill(disc.GetComponent<Collider>());
-            Attach(disc, "PropDisc");
-            disc.transform.localPosition = U(x, y, z);
-            disc.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // cylinder axis y → forward
-            disc.transform.localScale = new Vector3(radius * 2f, 0.015f, radius * 2f);
-            disc.GetComponent<MeshRenderer>().sharedMaterial = _propDisc;
+            // The hub turns (owner 2026-10-04: "make the props look like they are actually spinning"): blades and spinner
+            // ride on it; past a few hundred rpm the blades give way to a blur disc, as a real propeller does to the eye.
+            var hubGo = new GameObject("PropHub");
+            Attach(hubGo, "PropHub");
+            hubGo.transform.localPosition = U(x, y, z);
+            var hub = new PropHub { Hub = hubGo.transform, Radius = radius, Engine = _props.Count };
+            _props.Add(hub);
 
-            // Two blades (static) so the disc reads as a propeller, plus a spinner.
+            hub.Disc = new GameObject("PropDisc");
+            Attach(hub.Disc, "PropDisc");
+            hub.Disc.transform.SetParent(hub.Hub, false);
+            hub.Disc.transform.localPosition = new Vector3(0f, 0f, 0.02f);
+            hub.Disc.AddComponent<MeshFilter>().sharedMesh = DiscQuad(radius);
+            hub.DiscMat = new Material(_propBlurShader ??= Shader.Find("FlyingGame/PropBlur") ?? Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color"))
+                { mainTexture = BlurTexture(), color = new Color(1f, 1f, 1f, 0f) };
+            hub.Disc.AddComponent<MeshRenderer>().sharedMaterial = hub.DiscMat;
+
+            // Two blades so the stopped prop reads as a propeller, plus a spinner.
             for (int i = 0; i < 2; i++)
             {
                 var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 Kill(blade.GetComponent<Collider>());
                 Attach(blade, "Blade");
-                blade.transform.localPosition = U(x, y, z);
+                blade.transform.SetParent(hub.Hub, false);
                 blade.transform.localRotation = Quaternion.Euler(0f, 0f, 35f + i * 90f);
                 blade.transform.localScale = new Vector3(radius * 2f * 0.98f, radius * 0.12f, 0.04f);
                 blade.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(new Color(0.12f, 0.12f, 0.12f));
+                hub.Blades.Add(blade);
             }
             var spinner = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Kill(spinner.GetComponent<Collider>());
             Attach(spinner, "Spinner");
-            spinner.transform.localPosition = U(x + radius * 0.08f, y, z);
+            spinner.transform.SetParent(hub.Hub, false);
+            spinner.transform.localPosition = new Vector3(0f, 0f, radius * 0.08f);
             spinner.transform.localScale = new Vector3(radius * 0.28f, radius * 0.28f, radius * 0.5f);
             spinner.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(radial ? new Color(0.25f, 0.25f, 0.27f) : Color.white);
             if (radial)

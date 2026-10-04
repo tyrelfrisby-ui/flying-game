@@ -45,7 +45,7 @@ public class FormationTests
             if (cfg.RetractableGear) ac.SetGear(false, immediate: true);
             wings.Add((ac, fp));
         }
-        double h = SimLoop.DefaultFixedDtSec, t = 0;
+        double h = SimLoop.AiFixedDtSec, t = 0;   // the rate the game flies its AI traffic at
         var errSq = new double[wingmen]; var maxErr = new double[wingmen]; int n = 0;
         double minSep = double.MaxValue, minAlt = double.MaxValue, maxBank = 0;
         while (t < 150)
@@ -102,7 +102,7 @@ public class FormationTests
         RigidBodyState TState() => new(tPos, new Quat(0, 0, 0, 1), tVel, Vec3.Zero);
         var target = new GunTarget { Id = 1, Config = tgtCfg, Volumes = HitVolumes.Build(tgtCfg), State = TState };
         var gun = new Gunnery();
-        double h = SimLoop.DefaultFixedDtSec, minRange = double.MaxValue, minAgl = double.MaxValue;
+        double h = SimLoop.AiFixedDtSec, minRange = double.MaxValue, minAgl = double.MaxValue;
         int hits = 0;
         for (double t = 0; t < 90; t += h)
         {

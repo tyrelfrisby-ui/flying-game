@@ -27,6 +27,7 @@ namespace FlyingGame.Bridge
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
+            if (mode == "skins") { yield return SkinsTest(); yield break; }
             if (mode == "clouds") { yield return CloudTest(); yield break; }
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
@@ -80,9 +81,28 @@ namespace FlyingGame.Bridge
             Menu.Fly();
             yield return new WaitForSecondsRealtime(5f);
             Debug.Log($"[Perf] screen {Screen.width}x{Screen.height} dpi {Screen.dpi:F0} quality {QualitySettings.GetQualityLevel()} ({QualitySettings.names[QualitySettings.GetQualityLevel()]}) vSync {QualitySettings.vSyncCount} targetFps {Application.targetFrameRate} AA {QualitySettings.antiAliasing} shadows {QualitySettings.shadows}");
-            foreach ((string tag, bool clip, bool bubbles) in new[] { ("all on", true, true), ("clip capture OFF", false, true), ("bubbles OFF", true, false), ("both OFF", false, false), ("all on again", true, true) })
+            // A minute second-by-second (owner 2026-10-04: "choppy at the beginning, smooth for about 30 s, then choppy
+            // again"): fps, and the CPU main-thread and GPU frame times from FrameTimingManager.
+            var ft = new UnityEngine.FrameTiming[1];
+            for (int sec = 0; sec < 60; sec++)
             {
-                ClipRecorder.Suspended = !clip; SessionSettings.BubblesOn = bubbles;
+                int fr = 0; float t1 = Time.realtimeSinceStartup; double cpu = 0, gpu = 0; int nt = 0;
+                while (Time.realtimeSinceStartup - t1 < 1f)
+                {
+                    yield return null; fr++;
+                    UnityEngine.FrameTimingManager.CaptureFrameTimings();
+                    if (UnityEngine.FrameTimingManager.GetLatestTimings(1, ft) > 0) { cpu += ft[0].cpuMainThreadFrameTime; gpu += ft[0].gpuFrameTime; nt++; }
+                }
+                string power = "";
+#if UNITY_IOS && !UNITY_EDITOR
+                power = UnityEngine.iOS.Device.lowPowerModeEnabled ? "  LOW POWER MODE" : "";
+#endif
+                Debug.Log($"[Perf] t={sec,2}s {fr,3} fps  cpu {(nt > 0 ? cpu / nt : -1),6:F1} ms  gpu {(nt > 0 ? gpu / nt : -1),6:F1} ms  bubbles {Object.FindAnyObjectByType<BubbleField>()?.DrawnCount}  display {Screen.currentResolution.refreshRateRatio.value:F0} Hz{power}");
+            }
+            var bf = Object.FindAnyObjectByType<BubbleField>();
+            foreach ((string tag, bool clip, bool bubbles, bool inst) in new[] { ("all on", true, true, true), ("bubbles OFF", true, false, true), ("bubbles NOT instanced", true, true, false), ("all on again", true, true, true) })
+            {
+                ClipRecorder.Suspended = !clip; SessionSettings.BubblesOn = bubbles; SessionSettings.BubbleInstancing = inst;
                 yield return new WaitForSecondsRealtime(2f);
                 BubbleField.MsCandidates = BubbleField.MsAtmosphere = BubbleField.MsLoop = BubbleField.MsFlush = 0; BubbleField.TimedFrames = BubbleField.AtmosphereCalls = 0;
                 int frames = 0; float worst = 0f; float t0 = Time.realtimeSinceStartup;
@@ -90,10 +110,44 @@ namespace FlyingGame.Bridge
                 float dur = Time.realtimeSinceStartup - t0;
                 int tf = Mathf.Max(1, BubbleField.TimedFrames);
                 if (bubbles) Debug.Log($"[Perf]   bubbles per frame: candidates {BubbleField.MsCandidates / tf:F1} ms, atmosphere {BubbleField.MsAtmosphere / tf:F1} ms ({BubbleField.AtmosphereCalls / tf} samples), per-bubble loop {BubbleField.MsLoop / tf:F1} ms, draw submit {BubbleField.MsFlush / tf:F1} ms");
+                Debug.Log($"[Perf]   bubbles drawn last frame: {(bf != null ? bf.DrawnCount : -1)}");
                 Debug.Log($"[Perf] {tag,-18} {frames / dur,5:F1} fps  mean {dur / frames * 1000f,5:F1} ms  worst {worst * 1000f,5:F0} ms  managed heap {System.GC.GetTotalMemory(false) / 1048576,4} MB");
             }
-            ClipRecorder.Suspended = false; SessionSettings.BubblesOn = true;
+            ClipRecorder.Suspended = false; SessionSettings.BubblesOn = true; SessionSettings.BubbleInstancing = true;
             Debug.Log("[Perf] DONE");
+        }
+
+        /// <summary>AERO_SELFTEST=skins (owner 2026-10-04: "make the props look like they are actually spinning … and make the
+        /// control surfaces move again with these new skins"): every modelled type in the air, full aileron, up elevator
+        /// and rudder held; screenshots from behind (surfaces), and from the front at idle-ish and full rpm (blades / blur).</summary>
+        private IEnumerator SkinsTest()
+        {
+            string[] ids = { "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "extra-300-like", "p51d-like", "stearman-pt17-like", "seminole-like", "dc3-like", "geebee-r2-like", "glider-2-33-like" };
+            var cam = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
+            foreach (string id in ids)
+            {
+                SessionSettings.ChallengeId = null; SessionSettings.AircraftId = id; SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+                yield return new WaitForSecondsRealtime(0.5f);
+                Menu.Fly();
+                yield return new WaitForSecondsRealtime(2.5f);
+                AirframeVisual.DebugDeflect = new Vector3(0.35f, -0.35f, 0.35f);
+                AirframeVisual.DebugRpm = 120f;
+                cam?.SetView(ChaseCamera.View.Tail);
+                yield return new WaitForSecondsRealtime(1.0f);
+                ScreenCapture.CaptureScreenshot($"skins-{id}-tail.png");
+                yield return null;
+                cam?.SetView(ChaseCamera.View.Front);
+                yield return new WaitForSecondsRealtime(1.0f);
+                ScreenCapture.CaptureScreenshot($"skins-{id}-front-slow.png");
+                yield return null;
+                AirframeVisual.DebugRpm = 2400f;
+                yield return new WaitForSecondsRealtime(1.0f);
+                ScreenCapture.CaptureScreenshot($"skins-{id}-front-fast.png");
+                yield return null;
+                AirframeVisual.DebugDeflect = null; AirframeVisual.DebugRpm = null;
+                cam?.SetView(ChaseCamera.View.RelativeWind);
+            }
+            Debug.Log("[SelfTest] skins DONE");
         }
 
         /// <summary>AERO_SELFTEST=ui (owner 2026-10-03: no text or UI may overlap — landing page AND flying, landscape AND
