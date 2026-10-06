@@ -35,6 +35,8 @@ namespace FlyingGame.Bridge
                 yield return new WaitForSecondsRealtime(2f); Menu.Fly(); yield return new WaitForSecondsRealtime(3f);
                 ViewPanel.OpenViewMenuRequest = true; yield return new WaitForSecondsRealtime(0.5f);
                 ScreenCapture.CaptureScreenshot("viewmenu.png"); yield return null;
+                ViewPanel.OpenViewMenuRequest = false; Chase.SetView(ChaseCamera.View.RelativeWindAhead); yield return new WaitForSecondsRealtime(2.5f);
+                ScreenCapture.CaptureScreenshot("view-ahead.png"); yield return new WaitForSecondsRealtime(0.5f);
                 Debug.Log("[SelfTest] viewmenu DONE"); yield break;
             }
             if (mode == "clouds") { yield return CloudTest(); yield break; }

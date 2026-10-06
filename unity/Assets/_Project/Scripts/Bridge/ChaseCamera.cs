@@ -21,8 +21,8 @@ namespace FlyingGame.Bridge
         /// <summary>Camera view points (owner 2026-10-01). RelativeWind = the flight-path camera above (downstream on the
         /// relative wind). The Fixed* views are bolted to the airframe (they roll and pitch with it). Flyby parks the camera
         /// ahead of the aircraft, up and off to one side of its path, and watches it go by.</summary>
-        public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby }
-        public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by" };
+        public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead }
+        public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead" };
         /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
         public static bool InCockpit { get; private set; }
         public float CockpitFov = 72f;
@@ -271,7 +271,7 @@ namespace FlyingGame.Bridge
             SetCockpitExtras(cockpit);
             if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
             if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }   // side-view lessons keep their camera
-            if (!ovr && !SideView && CurrentView != View.RelativeWind) { FixedView(tgt); return; }
+            if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
             if (SideView && !ovr)
             {
                 Vector3 tp = tgt.position;
@@ -299,12 +299,15 @@ namespace FlyingGame.Bridge
             // the air-vector line and showed the aircraft from the side (owner: "camera follows the ground").
             bool backdrop = ovr && OverrideBackdrop != null;
             Vector3 side = backdrop ? -Vector3.Cross(up, _dir).normalized * BackdropSideOffsetM : Vector3.zero;   // pilot's left
-            Vector3 desiredOffset = -_dir * dist + up * hgt + side;
+            // "Relative wind, ahead" (owner 2026-10-06: "opposite to the standard flight path vector view … in front looking back"):
+            // the same flight-path line, the camera out AHEAD of the aircraft on it, looking back at it.
+            bool ahead = !ovr && CurrentView == View.RelativeWindAhead;
+            Vector3 desiredOffset = (ahead ? _dir : -_dir) * dist + up * hgt + side;
             _offset = ExactFlightPath && !ovr ? desiredOffset : Vector3.Lerp(_offset, desiredOffset, 1f - Mathf.Exp(-PositionDamp * Time.unscaledDeltaTime));
             transform.position = tgt.position + _offset;
             // With a backdrop the look-at sits between the pilot and the aircraft's direction, nudged the same way, so the
             // pilot hangs left of centre with the canopy above him and the aircraft shows clear to the right.
-            Vector3 lookAt = tgt.position + _dir * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
+            Vector3 lookAt = tgt.position + (ahead ? -_dir : _dir) * (backdrop ? 12f : 4f) + (ovr ? Vector3.up * OverrideLookUp * (backdrop ? 0.5f : 1f) : Vector3.zero) + side * 0.35f;
             transform.rotation = Quaternion.LookRotation(lookAt - transform.position, up);
         }
 
