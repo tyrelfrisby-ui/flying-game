@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-09: a hard touchdown tears off the gear leg that took it (individually), and the fuselage
 /// is three sections — a tail-cone strike snaps the tail boom, a mid-fuselage slam breaks both ends off.</summary>
+[Collection("WorldTerrainActive")]
 public class BreakupTests
 {
     private readonly ITestOutputHelper _out;

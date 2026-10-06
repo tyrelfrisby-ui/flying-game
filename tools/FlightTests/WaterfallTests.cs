@@ -54,7 +54,7 @@ public class WaterfallTests
                 Assert.True(under < f.LowerM + 5, $"fall {f.Step}: ground under the shelf at {under:F0} m, lower plateau {f.LowerM:F0}");
                 // ... and the shelf-top surface above it still carries the upper river.
                 double shelfTop = t.HeightAt(f.X + dx, f.LipY - 20, shelfTop: true);
-                Assert.True(shelfTop > f.UpperM - 200, $"fall {f.Step}: shelf top {shelfTop:F0}");
+                Assert.True(shelfTop > f.LowerM + 50, $"fall {f.Step}: shelf top {shelfTop:F0}");   // still carries the upper river (in its gorge), well above the lower plateau
             }
         }
     }
@@ -73,7 +73,7 @@ public class WaterfallTests
                 // The back wall really is there: just behind the recess the ground is the upper plateau.
                 double rock = t.HeightAt(f.X + dx, f.LipY - recess - 3);
                 double air = t.HeightAt(f.X + dx, f.LipY - recess + 3);
-                Assert.True(rock > f.UpperM - 200, $"fall {f.Step}: back wall {rock:F0}");
+                Assert.True(rock > f.LowerM + 50, $"fall {f.Step}: back wall {rock:F0}");
                 Assert.True(air < f.LowerM + 5, $"fall {f.Step}: slot floor {air:F0}");
             }
         }

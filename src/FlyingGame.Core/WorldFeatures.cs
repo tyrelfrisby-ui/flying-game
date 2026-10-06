@@ -7,7 +7,7 @@ namespace FlyingGame.Core;
 /// Valley box; <see cref="CenterYAt"/> gives the copy on plateau p.</summary>
 public static class AeroBox
 {
-    public const double CenterX = 400, CenterY = 1000, SizeM = 1000.0;
+    public const double CenterX = 400, CenterY = 650, SizeM = 1000.0;   // owner 2026-10-05: right next to the runway
     public const double FloorAglM = 100.0, CeilingAglM = 1067.0;
     public static double CenterYAt(int p) => CenterY + WorldTerrain.PlateauDy(p);
     public static bool Inside(Vec3 pos)
@@ -44,18 +44,18 @@ public static class RaceCourse
 {
     public static readonly RaceElement[] Elements =
     {
-        new() { Kind = RaceElement.Kinds.Gate, X = 850, Y = 1800, HeadingDeg = 0 },          // 1 START, northbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 1050, Y = 1800, HeadingDeg = 0 },         // 2
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1180, Y = 1770, HeadingDeg = 0 }, // 3 chicane
-        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 1300, Y = 1830, HeadingDeg = 0 },  // 4
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1420, Y = 1770, HeadingDeg = 0 }, // 5
-        new() { Kind = RaceElement.Kinds.Gate, X = 1520, Y = 1800, HeadingDeg = 0 },         // 6
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1560, Y = 1920, HeadingDeg = 90 },// 7 vertical turning pylon: around it and back south
-        new() { Kind = RaceElement.Kinds.Gate, X = 1500, Y = 2050, HeadingDeg = 180 },       // 8 southbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 1300, Y = 2050, HeadingDeg = 180 },       // 9
-        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 1180, Y = 2080, HeadingDeg = 180 },// 10 chicane
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1060, Y = 2020, HeadingDeg = 180 },// 11
-        new() { Kind = RaceElement.Kinds.Gate, X = 900, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
+        new() { Kind = RaceElement.Kinds.Gate, X = 400, Y = 1800, HeadingDeg = 0 },          // 1 START, northbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 600, Y = 1800, HeadingDeg = 0 },         // 2
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 730, Y = 1770, HeadingDeg = 0 }, // 3 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 850, Y = 1830, HeadingDeg = 0 },  // 4
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 970, Y = 1770, HeadingDeg = 0 }, // 5
+        new() { Kind = RaceElement.Kinds.Gate, X = 1070, Y = 1800, HeadingDeg = 0 },         // 6
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1110, Y = 1920, HeadingDeg = 90 },// 7 vertical turning pylon: around it and back south
+        new() { Kind = RaceElement.Kinds.Gate, X = 1050, Y = 2050, HeadingDeg = 180 },       // 8 southbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 850, Y = 2050, HeadingDeg = 180 },       // 9
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 730, Y = 2080, HeadingDeg = 180 },// 10 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 610, Y = 2020, HeadingDeg = 180 },// 11
+        new() { Kind = RaceElement.Kinds.Gate, X = 450, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
     };
 
     private static readonly Dictionary<int, RaceElement[]> _byPlateau = new();
@@ -265,8 +265,8 @@ public sealed class CropField
 
     public double X0 => Home.X - 300;                                    // 600 m long (along x), east of the aerobatic box
     public double X1 => Home.X + 300;
-    public double Y0 => Home.Y + 1600;                                   // 300 m wide
-    public double Y1 => Home.Y + 1900;
+    public double Y0 => Home.Y + 1250;                                   // 300 m wide (2026-10-05: in by 350 m)
+    public double Y1 => Home.Y + 1550;
     public double ElevationM => Home.ElevationM;
     public const double CellM = 10.0;
     public const int CellsX = 60, CellsY = 30;                           // 600 × 300 m of 10 m cells

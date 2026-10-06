@@ -13,7 +13,7 @@ namespace FlyingGame.Core;
 public static class Landmarks
 {
     // ---- Gateway arch over the river (legs stand on the lower gorge walls, the arch rises past the rim) ----
-    public const double ArchY = -900.0, ArchHalfSpanM = 75.0, ArchHeightM = 175.0, ArchLegWidthM = 14.0, ArchTopWidthM = 5.0;
+    public const double ArchY = -600.0, ArchHalfSpanM = 75.0, ArchHeightM = 175.0, ArchLegWidthM = 14.0, ArchTopWidthM = 5.0;
     public static double ArchCentreX => WorldTerrain.RiverCentreX(ArchY);
     /// <summary>Centreline of the arch (x offset from centre, height above the leg base) — a catenary-like parabola.</summary>
     public static double ArchHeightAt(double dx) { double u = dx / ArchHalfSpanM; return ArchHeightM * (1 - u * u); }
@@ -27,8 +27,8 @@ public static class Landmarks
     }
 
     // ---- Eiffel-style tower on the valley floor, road running under it along x --------------------------
-    public const double TowerX = -1750.0, TowerY = -1000.0, TowerHeightM = 300.0, TowerBaseHalfM = 62.0, TowerFirstFloorM = 57.0, TowerSecondFloorM = 115.0, TowerTopFloorM = 276.0;
-    public const double RoadHalfLengthM = 1750.0, RoadWidthM = 12.0;
+    public const double TowerX = -900.0, TowerY = -500.0, TowerHeightM = 300.0, TowerBaseHalfM = 62.0, TowerFirstFloorM = 57.0, TowerSecondFloorM = 115.0, TowerTopFloorM = 276.0;
+    public const double RoadHalfLengthM = 900.0, RoadWidthM = 12.0;
     /// <summary>Half-width of the tower at height h (legs curve inward: quadratic taper to a slim top).</summary>
     public static double TowerHalfAt(double h) { double u = System.Math.Clamp(h / TowerHeightM, 0, 1); return TowerBaseHalfM * (1 - u) * (1 - u) + 4.0 * u; }
     public static double TowerYAt(int p) => TowerY + WorldTerrain.PlateauDy(p);

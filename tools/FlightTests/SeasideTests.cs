@@ -20,12 +20,13 @@ public class SeasideTests
         double yb = GoldenGate.Y, xb = GoldenGate.CentreX;
         double surface = T.RiverSurfaceAt(yb);
         _o.WriteLine($"bridge line y {yb:F0}, river x {xb:F0}, river surface {surface:F1} m, gorge half-width {WorldTerrain.GorgeHalfWidthAt(yb):F0}");
-        Assert.InRange(surface, -0.5, 6);
-        // A kilometre inland of the cliffs the coast is the 500 ft tableland; past the beach it is sea.
+        Assert.InRange(surface, -2.0, 6);   // (its last reach meets the sea: the water shown is max(river, sea level))
+        // Inland of the cliffs the coast is the 1,000 ft tableland; past the beach it is sea.
         for (double x = -3000; x <= 6000; x += 1000)
         {
             double shore = Coast.ShoreY(x);
             if (System.Math.Abs(x - WorldTerrain.RiverCentreX(shore)) < 700) continue;   // the gorge mouth
+            if (Hills.IsGrass(x, shore - 400)) continue;                                   // the rolling hills (2026-10-05)
             Assert.InRange(T.HeightAt(x, shore - 400), WorldTerrain.DatumM - 3, WorldTerrain.DatumM + 30);
             Assert.True(T.HeightAt(x, shore + 200) < -5, $"sea floor at x={x}");
             Assert.Equal(Coast.SeaLevelM, T.WaterSurfaceAt(x, shore + 200));

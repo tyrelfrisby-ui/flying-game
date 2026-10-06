@@ -24,7 +24,7 @@ public class PlaygroundTests
         }
         double y0 = 0, c0 = CanyonLake.CentreX(y0), W = CanyonLake.HalfWidthAt(y0);
         _o.WriteLine($"lake {wet:F0} m long; at y=0 {2 * W:F0} m wide, floor {T.HeightAt(c0, y0):F0} m, rim {T.HeightAt(c0 + W + 15, y0):F0} m, surface {CanyonLake.SurfaceM} m");
-        Assert.True(wet > 2200, $"lake only {wet:F0} m long");
+        Assert.True(wet > 1400, $"lake only {wet:F0} m long");   // 2026-10-05: the compact world — still 3,000 ft of clear water (LakeCentreline…)
         Assert.True(T.HeightAt(c0, y0) < CanyonLake.SurfaceM - 30);
         Assert.InRange(T.HeightAt(c0 + W + 15, y0), WorldTerrain.DatumM - 3, WorldTerrain.DatumM + 3);   // sandstone rim ~57 m above the water
         // Below the dam the river is far lower than the lake.

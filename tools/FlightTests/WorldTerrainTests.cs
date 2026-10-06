@@ -5,6 +5,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>The stepped-plateau world: four airports at rising elevations behind steep irregular walls,
 /// flat runways, lakes at each field, a river that steps down the walls. Flat when no terrain is active.</summary>
+[Collection("WorldTerrainActive")]
 public class WorldTerrainTests
 {
     [Fact]
@@ -20,14 +21,19 @@ public class WorldTerrainTests
         var t = new WorldTerrain();
         foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
         {
-            for (double dx = -1100; dx <= 1100; dx += 100)
+            // The pad is flat over the runways and the strips (2026-10-05: the gorge rim now runs ~130–300 m past the north end).
+            for (double dx = -1100; dx <= 760; dx += 100)
             for (double dy = -700; dy <= 700; dy += 100)
             {
                 Assert.Equal(a.ElevationM, t.HeightAt(a.X + dx, a.Y + dy), 3);
             }
+            // ... and the gorge's rim stays clear of the runway's north end.
+            double end = a.X + WorldTerrain.RunwayLengthM / 2;
+            for (double dy = -40; dy <= 40; dy += 20) Assert.True(WorldTerrain.RiverCentreX(a.Y + dy) - WorldTerrain.GorgeHalfWidthAt(a.Y + dy) > end + 80, "gorge rim within 80 m of the runway end");
         }
-        Assert.Equal(WorldTerrain.DatumM, WorldTerrain.Airports[0].ElevationM);   // the Valley: 500 ft coastal tableland
-        Assert.Equal(WorldTerrain.DatumM + WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 5,000 ft
+        Assert.Equal(WorldTerrain.DatumM, WorldTerrain.Airports[0].ElevationM);   // the Valley: 1,000 ft coastal tableland
+        Assert.InRange(WorldTerrain.DatumM * 3.28084, 999, 1001);
+        Assert.Equal(WorldTerrain.DatumM + WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 5,500 ft
         Assert.InRange(WorldTerrain.StepHeightM * 3.28084, 1499, 1501);                     // 1,500 ft a step
     }
 
@@ -62,7 +68,7 @@ public class WorldTerrainTests
         }
         double y = WorldTerrain.Airports[1].Y;
         double? river = t.WaterSurfaceAt(WorldTerrain.RiverCentreX(y), y);
-        Assert.True(river.HasValue && river!.Value < WorldTerrain.DatumM + WorldTerrain.StepHeightM - 5 && river.Value > WorldTerrain.DatumM + WorldTerrain.StepHeightM - 160, $"river on the Bench plateau should sit in its gorge (got {river})");
+        Assert.True(river.HasValue && river!.Value < WorldTerrain.DatumM + WorldTerrain.StepHeightM - 5 && river.Value > WorldTerrain.DatumM + WorldTerrain.StepHeightM - 250, $"river on the Bench plateau should sit in its gorge (got {river})");
         Assert.Null(t.WaterSurfaceAt(0, 0)); // runway is dry
     }
 
@@ -73,7 +79,7 @@ public class WorldTerrainTests
         double up = WorldTerrain.GorgeUpstreamY + 300, down = WorldTerrain.GorgeDownstreamY - 300;
         double DepthAt(double y) => t.BaseHeightAt(WorldTerrain.RiverCentreX(y) + WorldTerrain.GorgeHalfWidthAt(y) + 30, y) - t.RiverSurfaceAt(y);
         Assert.InRange(DepthAt(up), 5, 40);        // ~50 ft
-        Assert.InRange(DepthAt(down), 60, 160);    // ~500 ft
+        Assert.InRange(DepthAt(down), 250, 320);   // ~1,000 ft: the Grand Canyon down to the sea (2026-10-05)
         // Surface is monotone non-increasing downstream (falls, never uphill) sampled every 50 m.
         double prev = double.MaxValue; int drops = 0;
         for (double y = up; y <= down; y += 50)

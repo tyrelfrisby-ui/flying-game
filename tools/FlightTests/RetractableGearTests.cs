@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Retractable gear: it travels over ~4 s, carries nothing while up, and hangs the type's flat-plate drag
 /// area in the wind while down.</summary>
+[Collection("WorldTerrainActive")]
 public class RetractableGearTests
 {
     private readonly ITestOutputHelper _out;

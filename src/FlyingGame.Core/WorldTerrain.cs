@@ -27,14 +27,18 @@ public sealed class WorldTerrain
     /// deep in the Valley, so with the plain at sea level its river ran 150 m BELOW the sea; the whole landscape sits on
     /// a 500 ft (152.4 m) coastal tableland instead, and the river reaches the ocean at sea level through a cleft in
     /// the sea cliffs — the Golden Gate's own geography.</summary>
-    public const double DatumM = 152.4;
-    public const double StepSpacingM = 4200.0;     // wall to wall: room for the whole Valley layout on every plateau
-    public const double FirstEdgeY = -1400.0;      // mean y of the first escarpment (walls run along x)
+    /// <summary>Owner 2026-10-05: "the elevation of the first airport will have to be about 1,000 ft in order to build the
+    /// gorge" — the tableland at 1,000 ft (304.8 m) over the sea: a Grand-Canyon-deep gorge down to the sea, 1,000 ft sea cliffs.</summary>
+    public const double DatumM = 304.8;
+    // Owner 2026-10-05: "tighten it up even more, bring everything closer together … it takes a long time to get from
+    // feature to feature". The bluff 1.05 km west of the field (was 1.4), plateaus 3.3 km apart (were 4.2).
+    public const double StepSpacingM = 3300.0;     // wall to wall: room for the whole Valley layout on every plateau
+    public const double FirstEdgeY = -1050.0;      // mean y of the first escarpment (walls run along x)
     public const double EscarpmentWidthM = 183.0;  // horizontal run of one wall (talus + cliff) — same profile as the old 900 m wall
     public const int StepCount = 3;
     /// <summary>Each upper airport sits this far west of its plateau's east (lower) edge, so the landscape laid out
     /// around the Valley airport (tower/arch 1 km west of it, race course 2.1 km east) fits between the walls.</summary>
-    public const double PlateauAirportOffsetM = 2600.0;
+    public const double PlateauAirportOffsetM = 2400.0;
 
     public readonly struct Airport
     {
@@ -83,7 +87,7 @@ public sealed class WorldTerrain
         for (int i = 0; i < Airports.Length; i++)
         {
             Airport a = Airports[i];
-            l[i] = new Lake(a.X + 2600, a.Y + 600, 500, 380, a.ElevationM - 2.0);   // beyond the gorge, closer in
+            l[i] = new Lake(a.X - 3000, a.Y - 450, 450, 300, a.ElevationM - 2.0);   // south-west of the field, past the tower (2026-10-05)
         }
         // The HARBOR (owner 2026-10-02: Hughes H-4) — a 300,000 lb flying boat needs ~2.2 km of water. Always the last lake.
         // Moved OUT TO SEA (owner 2026-10-03, the coast): the sheltered channel between the coast and the island, a
@@ -98,25 +102,28 @@ public sealed class WorldTerrain
     // River: runs downhill west→east across the steps in a GORGE, meandering gently in x (minimum turn
     // radius ≈ 2 km so the gorge can be flown at speed), passing the lakes' west shores.
     public const double RiverHalfWidthM = 35.0;
-    public static double RiverCentreX(double y) => 1900.0 + 200.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1)   // ~500 m past the runway end (owner: closer in)
+    public static double RiverCentreX(double y) => 1600.0 + 120.0 * System.Math.Sin(y / 900.0) + 60.0 * System.Math.Sin(y / 520.0 + 1.1)   // owner 2026-10-05: the runway closer to the river (rim ~300 m past its end)
                                                   + TwistAt(y);
     /// <summary>Owner 2026-10-03: "make the canyon have more twists and turns" — past the race course the gorge snakes
     /// through the combat zone to the sea: S-bends every ~850 m, centreline turn radius ≥ ~190 m (a 45° bank turn at
     /// 100 kt is 265 m, and the gorge is ~300 m wide — fly the inside line).</summary>
+    /// Owner 2026-10-05: "make the river gorge more like the Grand Canyon, deep with sharp turns" — horseshoe bends every
+    /// ~1.35 km swinging NORTH only (away from the field, the race course and the crop field), centreline radius ~185 m.
     public static double TwistAt(double y)
     {
         const double y0 = TwistStartY;
         if (y <= y0) return 0;
-        double ramp = System.Math.Clamp((y - y0) / 700.0, 0, 1); ramp = ramp * ramp * (3 - 2 * ramp);
-        return ramp * (300.0 * System.Math.Sin((y - y0) / 270.0) + 40.0 * System.Math.Sin((y - y0) / 180.0 + 0.8));
+        double ramp = System.Math.Clamp((y - y0) / 500.0, 0, 1); ramp = ramp * ramp * (3 - 2 * ramp);
+        double k = 2 * System.Math.PI / 1350.0;
+        return ramp * (450.0 * (0.5 - 0.5 * System.Math.Cos(k * (y - y0))) + 15.0 * System.Math.Sin((y - y0) / 300.0 + 0.8));
     }
-    public const double TwistStartY = 2150.0;
+    public const double TwistStartY = 600.0;
 
     // Gorge: the river cuts a canyon whose depth grows downstream (west→east) from ~15 m (50 ft) on
     // the Summit plateau to ~150 m (500 ft) in the Valley, with a staircase of waterfalls along the way
     // (on top of the big drops at the canyon walls).
-    public const double GorgeDepthUpstreamM = 15.0, GorgeDepthDownstreamM = 150.0;
-    public const double GorgeUpstreamY = -10500.0, GorgeDownstreamY = 2500.0;
+    public const double GorgeDepthUpstreamM = 15.0, GorgeDepthDownstreamM = 306.0;   // down to (just under) the sea from the 1,000 ft tableland
+    public const double GorgeUpstreamY = -11500.0, GorgeDownstreamY = 3400.0;
     public const double BridgeY = -150.0;   // road bridge abeam the Valley airport
 
     /// <summary>Gorge depth (m) below the surrounding ground at along-flow position y.</summary>
@@ -127,18 +134,29 @@ public sealed class WorldTerrain
     }
 
     /// <summary>Half-width of the gorge at the rim (m): walls near-vertical, floor a little wider than the river.</summary>
-    public static double GorgeHalfWidthAt(double y) => RiverHalfWidthM + 25 + 0.9 * GorgeDepthAt(y) + EstuaryWidening(y);
+    public static double GorgeHalfWidthAt(double y) => RiverHalfWidthM + 25 + 0.5 * GorgeDepthAt(y) + EstuaryWidening(y);   // steep: Grand Canyon, not a valley
 
     /// <summary>The gorge opens out over its last kilometre into the strait the bridge spans (up to +230 m a side).</summary>
     public static double EstuaryWidening(double y)
     {
-        double mouth = Coast.ShoreY(RiverCentreX(y));
+        double mouth = MouthY;
         double t = System.Math.Clamp((y - (mouth - 1100)) / 1100, 0, 1);
         return 230 * t * t * (3 - 2 * t);
     }
 
     /// <summary>The river (and its gorge) ends at the coast — beyond is the sea floor.</summary>
-    public static bool PastRiverMouth(double y) => y > Coast.ShoreY(RiverCentreX(y)) + 60;
+    public static bool PastRiverMouth(double y) => y > MouthY + 60;
+
+    /// <summary>Where the river meets the coast: the FIRST y downstream at which its centreline reaches the shore (a scan —
+    /// with sharp bends near the coast the old fixed-point iteration didn't converge).</summary>
+    public static double MouthY => _mouthY ??= FindMouth();
+    private static double? _mouthY;
+    private static double FindMouth()
+    {
+        for (double y = 0; y < Coast.MeanShoreY + 3000; y += 5)
+            if (y >= Coast.ShoreY(RiverCentreX(y))) return y;
+        return Coast.MeanShoreY;
+    }
     // NOTE: GorgeDepthAt is the smooth design depth (sets the rim width); the cut depth is the staircase.
 
     /// <summary>Waterfall staircase: between the giant drops at the canyon walls the river surface is a
@@ -326,6 +344,7 @@ public sealed class WorldTerrain
         }
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
         if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
+        if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
         return Surface.Rough;
     }
 
@@ -476,8 +495,9 @@ public sealed class WorldTerrain
     public static double EdgeWander(int i, double x)
     {
         double p = i * 1.7;
-        return 210.0 * System.Math.Sin(x / 530.0 + 1.3 + p) + 120.0 * System.Math.Sin(x / 205.0 + 0.4 + 2 * p)
-             + 60.0 * System.Math.Sin(x / 91.0 + 2.1 + p) + 30.0 * System.Math.Sin(x / 37.0 + 3 * p);
+        // Half the old wander (±~210 m): the bluff is now 1 km from the field and must not reach its pad.
+        return 0.5 * (210.0 * System.Math.Sin(x / 530.0 + 1.3 + p) + 120.0 * System.Math.Sin(x / 205.0 + 0.4 + 2 * p)
+             + 60.0 * System.Math.Sin(x / 91.0 + 2.1 + p) + 30.0 * System.Math.Sin(x / 37.0 + 3 * p));
     }
 
     /// <summary>Wall profile 0..1 over t = 0..1 across the escarpment: a talus apron then a near-vertical cliff.</summary>
@@ -564,6 +584,9 @@ public sealed class WorldTerrain
         // Grass strip undulations (smooth swoops, on top of the flat pad).
         h += GrassSwoopAt(x, y);
 
+        // Rolling grass hills (owner 2026-10-05): smooth, landable.
+        h += Hills.HeightAt(x, y);
+
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)
         {
@@ -643,4 +666,53 @@ public sealed class WorldTerrain
         var n = new MathTypes.Vec3(-dhdx, -dhdy, -1.0);
         return n / n.Length;
     }
+}
+
+/// <summary>
+/// Rolling hills of smooth grass (owner 2026-10-05: "put some rolling hills in that are smooth grass that can be landed
+/// on"): broad mounds 20–45 m high, 180–300 m across, between the Valley city and the coast. Gentle — the steepest slope
+/// is about 6°, so the wheels can land up or down them — and turf, not rough ground.
+/// </summary>
+public static class Hills
+{
+    public const double X0 = -3100, X1 = -400, Y0 = 1650, Y1 = 2480, EdgeM = 150;
+    private static readonly (double x, double y, double a, double s)[] Mounds = Build();
+    private static (double, double, double, double)[] Build()
+    {
+        var l = new List<(double, double, double, double)>();
+        int k = 0;
+        for (double x = X0 + 250; x < X1 - 150; x += 430)
+            for (double y = Y0 + 200; y < Y1 - 100; y += 380)
+            {
+                double jx = 90 * System.Math.Sin(k * 2.3), jy = 70 * System.Math.Cos(k * 1.7);
+                double a = 22 + 23 * (0.5 + 0.5 * System.Math.Sin(k * 1.31 + 0.4));
+                double sg = 180 + 120 * (0.5 + 0.5 * System.Math.Cos(k * 0.93));
+                l.Add((x + jx, y + jy, a, sg));
+                k++;
+            }
+        return l.ToArray();
+    }
+
+    private static double Fade(double x, double y)
+    {
+        double d = System.Math.Min(System.Math.Min(x - X0, X1 - x), System.Math.Min(y - Y0, Y1 - y));
+        if (d <= 0) return 0;
+        double t = System.Math.Clamp(d / EdgeM, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    public static double HeightAt(double x, double y)
+    {
+        if (x < X0 || x > X1 || y < Y0 || y > Y1) return 0;
+        double h = 0;
+        foreach (var (mx, my, a, sg) in Mounds)
+        {
+            double dx = x - mx, dy = y - my;
+            double d2 = (dx * dx + dy * dy) / (2 * sg * sg);
+            if (d2 < 9) h += a * System.Math.Exp(-d2);
+        }
+        return h * Fade(x, y);
+    }
+
+    public static bool IsGrass(double x, double y) => x > X0 && x < X1 && y > Y0 && y < Y1;
 }

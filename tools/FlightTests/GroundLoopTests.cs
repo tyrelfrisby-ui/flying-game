@@ -11,6 +11,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-12: a taildragger yawed on the ground must not reverse the swerve on its own — the mains ahead of
 /// the CG feed it; the castoring tailwheel and the fin can only slow it. Hands off, a started swerve grows.</summary>
+[Collection("WorldTerrainActive")]
 public class GroundLoopTests
 {
     private readonly ITestOutputHelper _out;
@@ -143,6 +144,7 @@ public class GroundLoopTests
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class TakeoffRollStarts
 {
     private readonly ITestOutputHelper _out;
@@ -178,6 +180,7 @@ public class TakeoffRollStarts
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class TakeoffControllability
 {
     private readonly ITestOutputHelper _out;
@@ -221,6 +224,7 @@ public class TakeoffControllability
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class SteeringSignProbe
 {
     private readonly ITestOutputHelper _out;
@@ -268,6 +272,7 @@ public class SteeringSignProbe
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class GroundStabilityProbe
 {
     private readonly ITestOutputHelper _out;
@@ -311,6 +316,7 @@ public class GroundStabilityProbe
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class GroundLoopMomentProbe
 {
     private readonly ITestOutputHelper _out;

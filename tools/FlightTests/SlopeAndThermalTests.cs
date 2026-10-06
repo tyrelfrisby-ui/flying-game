@@ -7,6 +7,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Air over terrain: wind onto a wall rises up the windward face (strongest just in front of and above
 /// the crest), sinks on the lee side, and a thermal is a rising core ringed by sink.</summary>
+[Collection("WorldTerrainActive")]
 public class SlopeAndThermalTests
 {
     private readonly ITestOutputHelper _out;

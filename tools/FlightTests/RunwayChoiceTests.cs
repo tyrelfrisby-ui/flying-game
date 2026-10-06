@@ -7,6 +7,7 @@ using Xunit;
 namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-10: choose the headwind (into-wind 09/27) or crosswind (main) runway at launch.</summary>
+[Collection("WorldTerrainActive")]
 public class RunwayChoiceTests
 {
     private static AircraftConfig Cub() => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));

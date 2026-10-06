@@ -6,6 +6,7 @@ using Xunit;
 namespace FlightTests;
 
 /// <summary>Owner 2026-09-09: 1,500 ft plateau steps, and the SAME landscape repeated on every step.</summary>
+[Collection("WorldTerrainActive")]
 public class PlateauCopyTests
 {
     [Fact]
@@ -97,7 +98,7 @@ public class PlateauCopyTests
                     Assert.InRange(t.HeightAt(x, y), elev - 1, elev + 1);
                     Assert.False(FloatHydro.WaterSurfaceAt(x, y).HasValue, $"water under the city at {x:F0},{y:F0} (plateau {p})");
                 }
-            Assert.True(y0 > ay + 450, $"plateau {p}: the city reaches within {y0 - ay:F0} m of the runway centreline");
+            Assert.True(y0 > ay + 300, $"plateau {p}: the city reaches within {y0 - ay:F0} m of the runway centreline");   // close by request (2026-10-05)
             bool Near(double x, double y, double m) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
             foreach (RaceElement e in RaceCourse.ElementsFor(p)) Assert.False(Near(e.X, e.Y, 60), $"race element at {e.X:F0},{e.Y:F0} in the city (plateau {p})");
             Assert.False(Near(AeroBox.CenterX, AeroBox.CenterYAt(p), AeroBox.SizeM / 2), "aerobatic box over the city");

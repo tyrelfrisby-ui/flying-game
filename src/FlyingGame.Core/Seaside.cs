@@ -15,7 +15,7 @@ namespace FlyingGame.Core;
 public static class Coast
 {
     public const double SeaLevelM = 0.0;
-    public const double MeanShoreY = 5200.0;
+    public const double MeanShoreY = 3000.0;   // owner 2026-10-05: the coast closer (was 5.2 km east of the field)
     public const double CliffRunM = 90.0, BeachM = 28.0, BeachTopM = 2.2;
 
     /// <summary>The waterline's y (east) at x: a wandering coast of headlands and coves.</summary>
@@ -60,7 +60,7 @@ public static class Island
     }
 
     /// <summary>Main body (south) and the West End (north) — the gap between their tips is the arch's channel.</summary>
-    public static readonly Lobe Main = new(600, 9450, 2700, 850, 600, 2.6), WestEnd = new(4520, 9520, 960, 520, 380, 2.4);
+    public static readonly Lobe Main = new(600, 7250, 2700, 850, 600, 2.6), WestEnd = new(4520, 7320, 960, 520, 380, 2.4);   // moved in with the coast (−2.2 km)
     public const double SeaFloorM = -30.0;
     public static double MinX => Main.Cx - Main.Hx - 300;
     public static double MaxX => WestEnd.Cx + WestEnd.Hx + 300;
@@ -69,7 +69,7 @@ public static class Island
     public static bool InBounds(double x, double y) => x > MinX && x < MaxX && y > MinY && y < MaxY;
 
     // ---- Airport in the Sky (real: 1,602 ft, runway 4/22 3,000 ft x 100 ft on a ridge) ----
-    public const double RunwayX = 1350, RunwayY = 9470, RunwayElevM = 488.3, RunwayLengthM = 914.4, RunwayWidthM = 30.5;
+    public const double RunwayX = 1350, RunwayY = 7270, RunwayElevM = 488.3, RunwayLengthM = 914.4, RunwayWidthM = 30.5;
     public const double RunwayPadHalfX = RunwayLengthM / 2 + 60, RunwayPadHalfY = 75, RunwayBlendM = 140;
     public static bool OnRunway(double x, double y) => System.Math.Abs(x - RunwayX) <= RunwayLengthM / 2 && System.Math.Abs(y - RunwayY) <= RunwayWidthM / 2;
 
@@ -281,10 +281,8 @@ public static class GoldenGate
     private static void Init()
     {
         if (!double.IsNaN(_y)) return;
-        // Where the river crosses the coastline: iterate y = ShoreY(RiverCentreX(y)).
-        double y = Coast.MeanShoreY;
-        for (int i = 0; i < 40; i++) y = Coast.ShoreY(WorldTerrain.RiverCentreX(y));
-        _y = y - 300;
+        // Where the river crosses the coastline (the first crossing downstream).
+        _y = WorldTerrain.MouthY - 300;
         _cx = WorldTerrain.RiverCentreX(_y);
         _half = WorldTerrain.GorgeHalfWidthAt(_y) - 70;   // towers in the water just off each wall
     }

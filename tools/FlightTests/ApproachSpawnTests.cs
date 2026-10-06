@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>"On final" start: 300 ft on the centreline at best glide, idle, trimmed — hands off it should ride
 /// its own glide path down to the aim point.</summary>
+[Collection("WorldTerrainActive")]
 public class ApproachSpawnTests
 {
     private readonly ITestOutputHelper _out;

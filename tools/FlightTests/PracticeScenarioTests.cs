@@ -12,6 +12,7 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>Crosswind / flare / approach practice (owner 2026-09-15): the game flies every axis but the user's.</summary>
+[Collection("WorldTerrainActive")]
 public class PracticeScenarioTests
 {
     private readonly ITestOutputHelper _out;

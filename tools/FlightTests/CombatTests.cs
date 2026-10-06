@@ -10,6 +10,7 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-10: combat damage (wing panels, control surfaces, fuel and fire) and gunnery.</summary>
+[Collection("WorldTerrainActive")]
 public class CombatTests
 {
     private readonly ITestOutputHelper _out;
@@ -167,6 +168,7 @@ public class CombatTests
     }
 }
 
+[Collection("WorldTerrainActive")]
 public class DronePilotTests
 {
     private readonly ITestOutputHelper _out;

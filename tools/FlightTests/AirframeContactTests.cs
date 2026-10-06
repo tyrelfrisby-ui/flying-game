@@ -11,6 +11,7 @@ namespace FlyingGame.FlightTests;
 /// <summary>The airframe itself (not just the wheels) contacts the ground: an inverted aircraft rests on its
 /// fin and wing tips; a hard wing-tip or tail strike snaps that component off, its aero disappears, the rest
 /// keeps flying with unchanged mass/inertia.</summary>
+[Collection("WorldTerrainActive")]
 public class AirframeContactTests
 {
     private readonly ITestOutputHelper _out;

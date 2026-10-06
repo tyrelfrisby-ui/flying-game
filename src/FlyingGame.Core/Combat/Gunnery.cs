@@ -222,7 +222,7 @@ public sealed class GroundTarget
 /// its floor (one on the gorge floor); target drones orbit inside it.</summary>
 public static class CombatZone
 {
-    public const double X0 = -100, X1 = 4400, Y0 = 2100, Y1 = 6100, HeightM = 3000;
+    public const double X0 = 1300, X1 = 4400, Y0 = -100, Y1 = 3900, HeightM = 3000;   // 2026-10-05: north of the field over the gorge, the city and the coast
     public static double CentreX => (X0 + X1) / 2;
     public static double CentreY => (Y0 + Y1) / 2;
     public static bool Inside(Vec3 pos)
@@ -234,10 +234,10 @@ public static class CombatZone
     public static List<GroundTarget> BuildGroundTargets()
     {
         var t = new List<GroundTarget>();
-        // South-bank open ground, the city's edge, and one down on the gorge floor beside the river.
-        foreach ((double x, double y) in new[] { (700.0, 2700.0), (900.0, 3700.0), (600.0, 4600.0), (4150.0, 3200.0), (2650.0, 4900.0) })
+        // North-bank open ground (between the gorge and the Mall), the city's edge, and one down on the gorge floor.
+        foreach ((double x, double y) in new[] { (2550.0, 500.0), (2600.0, 1500.0), (2450.0, 2400.0), (4150.0, 1000.0), (2650.0, 2700.0) })
             t.Add(new GroundTarget(x, y, 30));
-        double gy = 3420;
+        double gy = 1220;
         t.Add(new GroundTarget(WorldTerrain.RiverCentreX(gy) + WorldTerrain.RiverHalfWidthM + 12, gy, 14));
         return t;
     }
@@ -245,11 +245,11 @@ public static class CombatZone
     /// <summary>Puffy cumulus over the zone to hide in: (x, y, base height above sea level, radius, height).</summary>
     public static readonly (double x, double y, double baseM, double radiusM, double heightM)[] Clouds =
     {
-        (1000, 3000, WorldTerrain.DatumM + 650, 320, 480),
-        (2400, 4100, WorldTerrain.DatumM + 900, 380, 600),
-        (3600, 2700, WorldTerrain.DatumM + 750, 300, 420),
-        (1500, 4800, WorldTerrain.DatumM + 1100, 420, 650),
-        (3300, 5100, WorldTerrain.DatumM + 550, 260, 380),
-        (600, 3900, WorldTerrain.DatumM + 1300, 350, 520),
+        (1700, 800, WorldTerrain.DatumM + 650, 320, 480),      // 2026-10-05: the zone moved in with the coast
+        (2400, 1900, WorldTerrain.DatumM + 900, 380, 600),
+        (3600, 500, WorldTerrain.DatumM + 750, 300, 420),
+        (1800, 2600, WorldTerrain.DatumM + 1100, 420, 650),
+        (3300, 2900, WorldTerrain.DatumM + 550, 260, 380),
+        (1500, 1700, WorldTerrain.DatumM + 1300, 350, 520),
     };
 }

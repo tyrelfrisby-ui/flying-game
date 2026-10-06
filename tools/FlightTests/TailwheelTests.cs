@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-12: a real castoring tailwheel — soft steering springs, ground force through a trail, breakout
 /// to free swivel, small contact patch, load = whatever the tail spring carries.</summary>
+[Collection("WorldTerrainActive")]
 public class TailwheelTests
 {
     private readonly ITestOutputHelper _out;

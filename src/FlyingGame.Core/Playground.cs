@@ -68,8 +68,9 @@ public readonly struct NaturalArch
 /// arches. Landable water ~2.4 km long.</summary>
 public static class CanyonLake
 {
-    public const double Y0 = -1250, DamY = 1350, SurfaceM = 95.0, WallM = 12.0;
-    public const double TwinArchY = 520;
+    public const double Y0 = -950, DamY = 600, WallM = 12.0;   // 2026-10-05: from the foot of the bluff's fall to where the bends begin — 1.55 km (3,000 ft of clear water)
+    public const double SurfaceM = WorldTerrain.DatumM - 57.0;  // 57 m under the rim, as before — the deeper gorge makes it ~190 m deep
+    public const double TwinArchY = -100;
     public const double DamBowM = 45, DamCrestM = SurfaceM + 3, DamCrestThickM = 8, DamBaseThickM = 45;
 
     private static double S(double t) { t = System.Math.Clamp(t, 0, 1); return t * t * (3 - 2 * t); }
@@ -336,7 +337,7 @@ public sealed class CityGrid
 /// east of the final-approach line — one on every plateau, like the other Valley landmarks.</summary>
 public static class ValleyCity
 {
-    public const double X0 = -3330, Y0 = 600;
+    public const double X0 = -2800, Y0 = 380;   // right off the runway's south end (2026-10-05: "the city closer to the runway")
     private static readonly Dictionary<int, CityGrid> _at = new();
     public static CityGrid At(int p)
     {
@@ -349,13 +350,13 @@ public static class ValleyCity
 /// neighbours, the fountain plaza, the Mall, the rooftop ring course, the spinning ring, the cantilevered pad.</summary>
 public static class FlyCity
 {
-    public const double X0 = 3330, Y0 = 2350, Pitch = 170;
+    public const double X0 = 3330, Y0 = 150, Pitch = 170;   // moved in with the coast (−2.2 km)
     public const int Cols = 7, Rows = 16;
     public static double CentreX => X0 + Pitch * (Cols - 1) / 2.0;
     public static double CentreY => Y0 + Pitch * (Rows - 1) / 2.0;
 
     // ---- the fountain plaza (two water cannons whose arcs cross ~110 m up) ----
-    public const double PlazaX0 = 3500, PlazaX1 = 3840, PlazaY0 = 4100, PlazaY1 = 4440, FountainCrossM = 110;
+    public const double PlazaX0 = 3500, PlazaX1 = 3840, PlazaY0 = 1900, PlazaY1 = 2240, FountainCrossM = 110;
     public static bool InPlaza(double x, double y) => x > PlazaX0 - 60 && x < PlazaX1 + 60 && y > PlazaY0 - 60 && y < PlazaY1 + 60;
     /// <summary>The two jets: from one corner nozzle to the diagonally opposite basin.</summary>
     public static ((double x, double y) from, (double x, double y) to)[] Jets =>
@@ -473,11 +474,11 @@ public static class FlyCity
 /// landable water and grass — the Capitol at the east end, the Washington Monument at the west.</summary>
 public static class Mall
 {
-    public const double CentreX = 3050, PondY0 = 2500, PondLengthM = 914.4, PondHalfWidthM = 32, GrassWidthM = 100, PondDepthM = 2.6;
+    public const double CentreX = 3050, PondY0 = 300, PondLengthM = 914.4, PondHalfWidthM = 32, GrassWidthM = 100, PondDepthM = 2.6;
     public static double PondY1 => PondY0 + PondLengthM;
     public static double PondSurfaceM => WorldTerrain.DatumM - 0.3;
-    public const double MonumentY = 2290, MonumentHeightM = 169.3, MonumentBaseHalfM = 8.4, MonumentShaftTopHalfM = 5.25, MonumentShaftM = 152.4;
-    public const double CapitolY = 3560, CapitolHalfLengthM = 115, CapitolHalfDepthM = 35, CapitolWingM = 30, CapitolDomeR = 30, CapitolDomeTopM = 88;
+    public const double MonumentY = 90, MonumentHeightM = 169.3, MonumentBaseHalfM = 8.4, MonumentShaftTopHalfM = 5.25, MonumentShaftM = 152.4;
+    public const double CapitolY = 1360, CapitolHalfLengthM = 115, CapitolHalfDepthM = 35, CapitolWingM = 30, CapitolDomeR = 30, CapitolDomeTopM = 88;
 
     public static bool InPond(double x, double y) => System.Math.Abs(x - CentreX) < PondHalfWidthM && y > PondY0 && y < PondY1;
     public static bool OnGrass(double x, double y)

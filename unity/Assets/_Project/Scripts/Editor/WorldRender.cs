@@ -30,7 +30,10 @@ namespace FlyingGame.EditorTools
             {
                 ("overview", new Vector3(9000f, 9000f, -9000f), new Vector3(-3500f, 800f, 1500f)),
                 ("valley-city", new Vector3(2700f, 650f, -300f), new Vector3(1100f, 250f, -2100f)),
-                ("topdown", new Vector3(2500f, 17000f, -1500f), new Vector3(2500f, 0f, -1490f)),
+                ("topdown", new Vector3(-1500f, 17000f, 900f), new Vector3(-1500f, 0f, 910f)),
+                ("topdown-valley", new Vector3(900f, 7500f, 600f), new Vector3(900f, 0f, 610f)),
+                ("gorge-flight", new Vector3(-400f, 420f, 1650f), new Vector3(900f, 200f, 1700f)),
+                ("hills", new Vector3(2900f, 500f, -1200f), new Vector3(2000f, 300f, -1700f)),
                 ("valley-city-street", new Vector3(1900f, 280f, -1200f), new Vector3(1000f, 200f, -2200f)),
                 ("valley-airport", new Vector3(1200f, 700f, -1600f), new Vector3(0f, 0f, 400f)),
                 ("first-wall", new Vector3(2500f, 1500f, -2500f), new Vector3(-1800f, 450f, 1000f)),
