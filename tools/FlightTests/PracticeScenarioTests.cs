@@ -231,6 +231,7 @@ public class PracticeScenarioTests
     [Theory]
     [InlineData("c172-like.json", 1.0)]
     [InlineData("c172-like.json", 0.0)]
+    [InlineData("cirrus-sr22-like.json", 1.0)]
     public void FlareFromFiftyFeetMeasuredAgainstThePoh(string file, double flaps)
     {
         // Owner 2026-10-05: "the airplanes just don't slow down, it is like the power is above idle". Benchmark: C172S POH

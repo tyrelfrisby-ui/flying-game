@@ -25,6 +25,7 @@ namespace FlyingGame.Bridge.Practice
         public PracticeWind Wind { get; private set; }
 
         private TouchFlightControls _touch;
+        private bool _slopeLiftWas = true;
         private ChaseCamera _chase;
         private ChaseCamera.View? _viewBefore;
         private LineRenderer _slope;
@@ -98,6 +99,10 @@ namespace FlyingGame.Bridge.Practice
                 }
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
+                // Still air for lessons (owner 2026-10-06, a thermal over the runway floated every landing): no thermals, no slope
+                // lift — the lesson sets its own practice wind. Restored when the lesson ends.
+                FlyingGame.Core.Atmosphere.ThermalStrengthScale = 0.0;
+                _slopeLiftWas = FlyingGame.Core.Atmosphere.SlopeLiftEnabled; FlyingGame.Core.Atmosphere.SlopeLiftEnabled = false;
                 Active = true; AnyActive = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f; _sideHalf = 0f; Counting = false;
                 if (kind == PracticeKind.StallSideView) { _bubblesWere = SessionSettings.BubblesOn; SessionSettings.BubblesOn = true; }   // the air must be visible
                 _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
@@ -167,7 +172,8 @@ namespace FlyingGame.Bridge.Practice
             Side2DView.Exit(Camera.main);
             if (_slope != null) Destroy(_slope.gameObject);
             if (Kind == PracticeKind.StallSideView) SessionSettings.BubblesOn = _bubblesWere;
-            SessionSettings.ApplyWeather();   // back to the session's own wind
+            SessionSettings.ApplyWeather();   // back to the session's own wind (and thermal strength)
+            FlyingGame.Core.Atmosphere.SlopeLiftEnabled = _slopeLiftWas;
         }
 
         private ControlInputs Filter(ControlInputs user, float dt)

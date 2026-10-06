@@ -31,12 +31,17 @@ namespace FlyingGame.Bridge
                 // ... and again twice as wide and twice as strong (owner 2026-09-10: "for easier thermalling").
                 // All tops at ONE height (owner 2026-10-03, cumulus): every thermal of the day stops at the same
                 // condensation level, so the cloud bases line up — strengths and widths still vary.
-                (new Vec3(300, 300, 0), 360, 12.0, CloudBaseAglM),
-                (new Vec3(-200, 500, 0), 280, 9.0, CloudBaseAglM),
-                (new Vec3(800, -200, 0), 420, 14.0, CloudBaseAglM),
-                (new Vec3(200, -600, 0), 300, 10.0, CloudBaseAglM),
-                // The ploughed farmer's field north of the runway: dark earth, a strong, wide thermal.
-                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 480, 13.0, CloudBaseAglM),
+                // CLEAR of the runways and their approach paths (owner 2026-10-06: "they still float farther than i think they should
+                // … the training glider hit a thermal right over the runway and climbed way up"): two of these sat ON the main
+                // runway (12 and 14 m/s cores), so every landing flew through rising air. Now each edge stays ≥ 700 m off the
+                // main runway's line (x along, y = 0) and ≥ 600 m off the cross runway's (x = 450): still close by for a glider.
+                (new Vec3(-1000, 1300, 0), 360, 12.0, CloudBaseAglM),
+                (new Vec3(-1100, -1250, 0), 280, 9.0, CloudBaseAglM),
+                (new Vec3(1900, -1500, 0), 420, 14.0, CloudBaseAglM),
+                (new Vec3(2000, 1500, 0), 300, 10.0, CloudBaseAglM),
+                // The ploughed farmer's field east of the runway: dark earth, a strong thermal — narrowed and set to the field's
+                // south side so the cross runway's eastern approach stays in still air.
+                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2 - 150, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 300, 13.0, CloudBaseAglM),
             };
             var set = new System.Collections.Generic.List<(Vec3 pos, double r, double core, double top)>();
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)
