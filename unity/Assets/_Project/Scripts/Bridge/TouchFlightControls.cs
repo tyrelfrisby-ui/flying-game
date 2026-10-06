@@ -396,6 +396,7 @@ namespace FlyingGame.Bridge
 
                 if (p.began)
                 {
+                    if (ViewPanel.BlocksTouch(p.pos)) continue;   // a tap on the open view menu is for the menu, not the stick
                     // EJECT is a HOLD (not an IMGUI tap): this pointer now owns the hold timer.
                     if (EjectAvailable && _ejectRect.Contains(p.pos) && _ejectFinger == int.MinValue) { _ejectFinger = p.id; _ejectHold = 0f; }
                     // Buttons fire on the touch itself (any finger, pads still held) — never through IMGUI's single pointer.

@@ -829,6 +829,41 @@ namespace FlyingGame.Bridge
 
             // Vertex owners: −1 airframe; 0..R−1 a control region; R + 2h a hub (spinner); R + 2h + 1 that hub's blades.
             int nR = regions.Count;
+            // Retractable gear (owner 2026-10-05: "when I select gear up get rid of the gear on the airplanes that have retractable
+            // gear … like the P-51 and F-86"): each leg's space — the hidden procedural leg and wheel, grown a little — binds the
+            // model's own wheel and leg to a gear bone at the top of the leg, which shrinks into the well as the gear comes up.
+            int nG0 = nR + 2 * _props.Count;
+            var gearBoxes = new List<(Vector3 lo, Vector3 hi, Vector3 pivot)>();
+            if (_retractable)
+                foreach (var kv in _legParts)
+                {
+                    bool any = false; Vector3 lo = Vector3.zero, hi = Vector3.zero;
+                    float wheelTop = float.NegativeInfinity;
+                    foreach (GameObject g in kv.Value)
+                    {
+                        if (g == null) continue;
+                        var gmf = g.GetComponent<MeshFilter>();
+                        if (gmf == null || gmf.sharedMesh == null) continue;
+                        Bounds mb = gmf.sharedMesh.bounds;
+                        for (int c = 0; c < 8; c++)
+                        {
+                            var corner = new Vector3((c & 1) == 0 ? mb.min.x : mb.max.x, (c & 2) == 0 ? mb.min.y : mb.max.y, (c & 4) == 0 ? mb.min.z : mb.max.z);
+                            Vector3 q = root.InverseTransformPoint(g.transform.TransformPoint(corner));
+                            if (!any) { lo = hi = q; any = true; } else { lo = Vector3.Min(lo, q); hi = Vector3.Max(hi, q); }
+                            if (g.name.StartsWith("Wheel")) wheelTop = Mathf.Max(wheelTop, q.y);
+                        }
+                    }
+                    if (!any) continue;
+                    // Wider and deeper than the config's leg (the model's gear seldom sits exactly there), never up into the wing;
+                    // a tail or nose leg only up to a little above its wheel (its strut runs up into the fuselage, which stays).
+                    bool tailOrNose = kv.Key is FlyingGame.Core.AirframeComponent.GearTail or FlyingGame.Core.AirframeComponent.GearNose;
+                    float grow = tailOrNose ? 0.55f : 0.9f;   // main legs carry big doors (the P-51's hang well aft of the leg)
+                    lo -= new Vector3(grow, 0.25f, grow); hi += new Vector3(grow, -0.08f, grow);
+                    // ... and in to the centreline: inner gear doors hang there (the P-51's), closing when the gear comes up.
+                    if (!tailOrNose) { if (lo.x > 0f) lo.x = 0f; if (hi.x < 0f) hi.x = 0f; }
+                    if (tailOrNose && !float.IsNegativeInfinity(wheelTop)) hi.y = Mathf.Min(hi.y, wheelTop + 0.35f);
+                    gearBoxes.Add((lo, hi, new Vector3(0.5f * (lo.x + hi.x), hi.y, 0.5f * (lo.z + hi.z))));
+                }
             var owners = new List<int[]>();
             var comps = new List<int[]>();   // welded connected-piece id per vertex (null when there are no props)
             var propLo = new Vector3[_props.Count]; var propHi = new Vector3[_props.Count]; var propAny = new bool[_props.Count];
@@ -840,7 +875,7 @@ namespace FlyingGame.Bridge
                 int[] compOf = null;
 
                 // Propellers: welded connected pieces wholly in the prop slab, or a propeller-named material near the axis.
-                if (_props.Count > 0)
+                if (_props.Count > 0 || gearBoxes.Count > 0)
                 {
                     var parent = new int[nv];
                     for (int i = 0; i < nv; i++) parent[i] = i;
@@ -894,6 +929,42 @@ namespace FlyingGame.Bridge
                             if (!propAny[h]) { propLo[h] = propHi[h] = rp[i]; propAny[h] = true; }
                             else { propLo[h] = Vector3.Min(propLo[h], rp[i]); propHi[h] = Vector3.Max(propHi[h], rp[i]); }
                         }
+                    }
+                }
+
+                // The model's own gear by WHOLE PIECE: a compact separate piece (a wheel, a leg, a door) whose centre lies in a
+                // leg's neighbourhood retracts with it — the model's gear rarely sits exactly where the config's legs are.
+                if (gearBoxes.Count > 0 && compOf != null)
+                {
+                    var bl = new Dictionary<int, Vector3>(); var bh = new Dictionary<int, Vector3>();
+                    for (int i = 0; i < nv; i++)
+                    {
+                        int c = compOf[i];
+                        if (bl.TryGetValue(c, out Vector3 l)) { bl[c] = Vector3.Min(l, rp[i]); bh[c] = Vector3.Max(bh[c], rp[i]); }
+                        else { bl[c] = rp[i]; bh[c] = rp[i]; }
+                    }
+                    var pieceGear = new Dictionary<int, int>();
+                    foreach (var kv in bl)
+                    {
+                        Vector3 lo = kv.Value, hi = bh[kv.Key], size = hi - lo, cen = 0.5f * (lo + hi);
+                        if (Mathf.Max(size.x, size.z) > 2.5f || size.y > 2.2f) continue;   // not a wing, not the fuselage
+                        for (int gk = 0; gk < gearBoxes.Count; gk++)
+                        {
+                            var (glo, ghi, _) = gearBoxes[gk];
+                            if (cen.x > glo.x - 0.65f && cen.x < ghi.x + 0.65f && cen.z > glo.z - 0.65f && cen.z < ghi.z + 0.65f && cen.y > glo.y - 0.3f && cen.y < ghi.y + 0.35f)
+                            { pieceGear[kv.Key] = gk; break; }
+                        }
+                    }
+                    for (int i = 0; i < nv; i++) if (own[i] < 0 && pieceGear.TryGetValue(compOf[i], out int g)) own[i] = nG0 + g;
+                }
+                for (int i = 0; i < nv && gearBoxes.Count > 0; i++)
+                {
+                    if (own[i] >= 0) continue;
+                    for (int gk = 0; gk < gearBoxes.Count; gk++)
+                    {
+                        var (lo, hi, _) = gearBoxes[gk];
+                        Vector3 q = rp[i];
+                        if (q.x >= lo.x && q.x <= hi.x && q.y >= lo.y && q.y <= hi.y && q.z >= lo.z && q.z <= hi.z) { own[i] = nG0 + gk; break; }
                     }
                 }
 
@@ -979,7 +1050,7 @@ namespace FlyingGame.Bridge
                 int[] own = owners[mi]; Vector3[] rp = meshes[mi].rp;
                 for (int i = 0; i < own.Length; i++)
                 {
-                    if (own[i] < nR) continue;
+                    if (own[i] < nR || own[i] >= nG0) continue;
                     int h = (own[i] - nR) / 2; Vector3 hc = _props[h].Hub.localPosition;
                     float dx = rp[i].x - hc.x, dy = rp[i].y - hc.y;
                     if (dx * dx + dy * dy > 0.16f * _props[h].Radius * _props[h].Radius) { bladeZ[h] += rp[i].z; bladeN[h]++; }
@@ -989,6 +1060,23 @@ namespace FlyingGame.Bridge
             for (int h = 0; h < _props.Count; h++)
                 if (bladeN[h] > 0 && _props[h].Disc != null) _props[h].Disc.transform.localPosition = new Vector3(0f, 0f, (float)(bladeZ[h] / bladeN[h]) - _props[h].Hub.localPosition.z);
 
+            if (System.Environment.GetEnvironmentVariable("GEAR_DIAG") != null)
+            {
+                foreach (var (lo, hi, pv) in gearBoxes) Debug.Log($"[Airframe] GEAR box {lo} .. {hi}");
+                var cells = new Dictionary<(int, int, int), int>();
+                foreach (var m in meshes) foreach (Vector3 q in m.rp)
+                    if (q.y < -0.4f) { var k = (Mathf.FloorToInt(q.x / 0.4f), Mathf.FloorToInt(q.y / 0.3f), Mathf.FloorToInt(q.z / 0.4f)); cells[k] = cells.TryGetValue(k, out int c) ? c + 1 : 1; }
+                foreach (var kv in cells.OrderBy(k => k.Key.Item2).Take(40)) Debug.Log($"[Airframe] GEAR low cell x {kv.Key.Item1 * 0.4f:F1} y {kv.Key.Item2 * 0.3f:F1} z {kv.Key.Item3 * 0.4f:F1}: {kv.Value}");
+            }
+            _gearBones.Clear();
+            foreach (var (_, _, pivot) in gearBoxes)
+            {
+                var gb = new GameObject("ModelGear");
+                gb.transform.SetParent(root, false);
+                gb.transform.localPosition = pivot;
+                _parts.Add(gb);
+                _gearBones.Add(gb.transform);
+            }
             // Pass B: bind. Bones: 0 = the mesh's own transform (static), then every region's hinge, every hub and its blades.
             int cutSurfaces = 0, cutProps = 0;
             var surfaceSeen = new HashSet<int>(); var propSeen = new HashSet<int>();
@@ -1002,13 +1090,13 @@ namespace FlyingGame.Bridge
                 int BoneFor(int o)
                 {
                     if (boneOf.TryGetValue(o, out int b)) return b;
-                    Transform t = o < nR ? regions[o].c.T : (((o - nR) & 1) == 1 ? _props[(o - nR) / 2].BladeBone : _props[(o - nR) / 2].Hub);
+                    Transform t = o >= nG0 ? _gearBones[o - nG0] : o < nR ? regions[o].c.T : (((o - nR) & 1) == 1 ? _props[(o - nR) / 2].BladeBone : _props[(o - nR) / 2].Hub);
                     bones.Add(t); boneOf[o] = bones.Count - 1; return bones.Count - 1;
                 }
                 var weights = new BoneWeight[own.Length];
                 for (int i = 0; i < own.Length; i++)
                 {
-                    if (own[i] >= nR && _props[(own[i] - nR) / 2].BladeBone != null)
+                    if (own[i] >= nR && own[i] < nG0 && _props[(own[i] - nR) / 2].BladeBone != null)
                     {
                         // Propeller: spinner by the hub, blades by the blade bone, blended from 0.2 to 0.4 of the radius so
                         // the blade roots taper into the spinner when the blades give way to the blur (no stretched spikes).
@@ -1025,7 +1113,7 @@ namespace FlyingGame.Bridge
                     }
                     int b = own[i] < 0 ? 0 : BoneFor(own[i]);
                     weights[i] = new BoneWeight { boneIndex0 = b, weight0 = 1f };
-                    if (own[i] >= 0) { if (own[i] < nR) surfaceSeen.Add(own[i]); else propSeen.Add((own[i] - nR) / 2); }
+                    if (own[i] >= 0 && own[i] < nG0) { if (own[i] < nR) surfaceSeen.Add(own[i]); else propSeen.Add((own[i] - nR) / 2); }
                 }
                 Mesh skin = sl.ToMesh(mf.sharedMesh.name + "-rigged");
                 skin.boneWeights = weights;
@@ -1044,9 +1132,14 @@ namespace FlyingGame.Bridge
                 _rigged.Add(skinGo);
             }
             cutSurfaces = surfaceSeen.Count; cutProps = propSeen.Count;
+            if (gearBoxes.Count > 0)
+            {
+                int gv = 0; foreach (int[] own in owners) foreach (int o in own) if (o >= nG0) gv++;
+                Debug.Log($"[Airframe] model rig: {gearBoxes.Count} retractable legs, {gv} vertices on them");
+            }
             {
                 var cnt = new int[nR + 2 * _props.Count];
-                foreach (int[] own in owners) foreach (int o in own) if (o >= 0) cnt[o]++;
+                foreach (int[] own in owners) foreach (int o in own) if (o >= 0 && o < cnt.Length) cnt[o]++;
                 Debug.Log("[Airframe] rig vertices: " + string.Join(" ", Enumerable.Range(0, nR).Select(g => $"{regions[g].c.Surface}{(regions[g].pivot.x < -0.5f ? "L" : regions[g].pivot.x > 0.5f ? "R" : "")}={cnt[g]}"))
                     + " " + string.Join(" ", Enumerable.Range(0, _props.Count).Select(h => $"prop{h}={cnt[nR + 2 * h]}")));
             }
@@ -1251,6 +1344,7 @@ namespace FlyingGame.Bridge
                 _parts.Add(go); _wingParts.Add(go); _modelParts.Add(go);
                 filters.Add(mf);
             }
+            _retractable = cfg.RetractableGear;
             try { CarveModel(root, filters); }
             catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
         }
@@ -1589,8 +1683,13 @@ namespace FlyingGame.Bridge
         private readonly List<(GameObject go, Vector3 downPos, float travel)> _gearParts = new();
 
         /// <summary>Retractable gear visual: 1 = down and locked, 0 = up (parts slide into the body and vanish).</summary>
+        private readonly List<Transform> _gearBones = new();
+        private bool _retractable;
+
         public void SetGearExtension(float ext)
         {
+            // The model's own legs and wheels (rigged): shrink up into the wells as the gear retracts, gone when it's up.
+            foreach (Transform gb in _gearBones) if (gb != null) gb.localScale = Vector3.one * Mathf.Max(1e-3f, ext < 0.04f ? 0f : ext);
             foreach ((GameObject go, Vector3 downPos, float travel) in _gearParts)
             {
                 if (go == null) continue;

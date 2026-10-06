@@ -63,6 +63,12 @@ namespace FlyingGame.EditorTools
                 builder.SetDeflections(0f, 0f, 0f, 0f); builder.SpinProps(_ => 0f, 0.02f);
                 Shot("neutral", rearQ, 1.6f);
                 Shot("side", new Vector3(1f, 0.05f, 0f), 1.1f);
+                if (cfg.RetractableGear)
+                {
+                    builder.SetGearExtension(0f);
+                    Shot("side-gearup", new Vector3(1f, -0.15f, 0f), 1.1f);
+                    builder.SetGearExtension(1f);
+                }
                 Shot("top", new Vector3(0f, 1f, -0.01f), 1.4f);
                 Vector3 tail = new Vector3(0f, whole.center.y + 0.4f, whole.min.z + 1.2f), wing = new Vector3(whole.max.x * 0.7f, whole.center.y + 0.6f, whole.center.z);
                 Shot("tail-neutral", new Vector3(0.7f, 0.5f, -1f), 0.35f, tail);

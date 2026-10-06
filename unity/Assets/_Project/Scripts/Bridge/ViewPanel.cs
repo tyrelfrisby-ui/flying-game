@@ -77,6 +77,7 @@ namespace FlyingGame.Bridge
         private void OnGUI()
         {
             if (SessionSettings.MenuOpen || Chase == null) return;
+            if (OpenViewMenuRequest) { _viewMenu = true; OpenViewMenuRequest = false; }
             EnsureStyles();
             _talkRect = default;
             if (Replay != null && Replay.Active) DrawReplayBar();
@@ -103,7 +104,8 @@ namespace FlyingGame.Bridge
             bool lesson = _practice != null && _practice.Active;
             int n = lesson ? 5 : 4;
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
-            if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other ? _btnOn : _btn)) Chase.NextView();
+            if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other || _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
+            if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, Screen.height);
             if (Replay != null && UiLayout.Button(UiLayout.ToolbarSlot(1, n), "REPLAY", _btn)) Replay.Enter();
             if (UiLayout.Button(UiLayout.ToolbarSlot(2, n), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool rec = ClipRecorder.Recording;
@@ -119,6 +121,45 @@ namespace FlyingGame.Bridge
             else _talkRect = default;
             string radio = VoiceComms.MicProblem ?? (VoiceComms.Receiving != null ? $"RADIO: {VoiceComms.Receiving}" : null);
             if (radio != null) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), radio, _label);
+        }
+
+        /// <summary>The view picker (owner 2026-10-05: "tapping the view button should bring up a menu of the views to choose
+        /// from, not a list that cycles through with each press"): every view as a button, the current one lit; tap one to fly
+        /// it (the panel closes), or VIEW / CLOSE to dismiss. Laid out between <paramref name="top"/> and <paramref name="bottom"/>
+        /// (under the toolbar; above the replay bar), the HUD stepping aside while it is up.</summary>
+        private void DrawViewMenu(float top, float bottom)
+        {
+            UiLayout.ModalShown();
+            float s = UiLayout.S, gap = s * 0.015f;
+            int count = ChaseCamera.ViewNames.Length + 1;   // + CLOSE
+            int cols = ScreenLayout.Portrait ? 2 : 3, rows = (count + cols - 1) / cols;
+            float bw = Mathf.Min(s * 0.42f, (Screen.width * 0.92f - (cols - 1) * gap) / cols);
+            float avail = bottom - top - 4 * gap;
+            float bh = Mathf.Min(UiLayout.ButtonH * 1.1f, (avail - (rows - 1) * gap - _fs * 2f) / rows);
+            float w = cols * bw + (cols - 1) * gap, h = _fs * 2f + rows * bh + (rows - 1) * gap;
+            var panel = new Rect((Screen.width - w) * 0.5f - gap, top + gap, w + 2 * gap, h + 2 * gap);
+            BlockRect = panel; _blockFrame = Time.frameCount;
+            GUI.DrawTexture(panel, _bg);
+            UiLayout.Label(new Rect(panel.x, panel.y + gap * 0.5f, panel.width, _fs * 1.8f), "CHOOSE A VIEW", _label);
+            float y0 = panel.y + gap + _fs * 2f;
+            for (int k = 0; k < count; k++)
+            {
+                int r = k / cols, c = k % cols;
+                var b = new Rect(panel.x + gap + c * (bw + gap), y0 + r * (bh + gap), bw, bh);
+                if (k == count - 1) { if (UiLayout.Button(b, "CLOSE", _btn)) _viewMenu = false; continue; }
+                bool cur = (int)Chase.CurrentView == k;
+                if (UiLayout.Button(b, ChaseCamera.ViewNames[k], cur ? _btnOn : _btn)) { Chase.SetView((ChaseCamera.View)k); _viewMenu = false; }
+            }
+        }
+        private bool _viewMenu;
+        /// <summary>Self-test: open the view menu.</summary>
+        public static bool OpenViewMenuRequest;
+        private static Rect BlockRect; private static int _blockFrame = -10;
+        /// <summary>The open view menu (SCREEN coordinates, bottom-left origin) — the flight pads ignore touches that start on it.</summary>
+        public static bool BlocksTouch(Vector2 screenPos)
+        {
+            if (Time.frameCount - _blockFrame > 2) return false;
+            return BlockRect.Contains(new Vector2(screenPos.x, Screen.height - screenPos.y));
         }
 
         private void DrawReplayBar()
@@ -167,11 +208,12 @@ namespace FlyingGame.Bridge
             if (GUI.Button(Next(), Replay.Playing ? "PAUSE" : "PLAY", _btnOn)) Replay.TogglePlay();
             if (GUI.Button(Next(), "+10 s", _btn)) Replay.Seek(Replay.Head + 10.0);
             if (GUI.Button(Next(), $"SPEED ×{Replay.Speed:0.##}", _btn)) Replay.CycleSpeed();
-            if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _btn)) Chase.NextView();
+            if (GUI.Button(Next(), "VIEW\n" + ChaseCamera.ViewNames[(int)Chase.CurrentView], _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (GUI.Button(Next(), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool recOn = ClipRecorder.Recording;
             if (GUI.Button(Next(), recOn ? "STOP REC" : "REC", recOn ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
             if (GUI.Button(Next(), "EXIT\nREPLAY", _btnOn)) Replay.Exit();
+            if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, bar.y);
         }
     }
 }

@@ -29,6 +29,14 @@ namespace FlyingGame.Bridge
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "skins") { yield return SkinsTest(); yield break; }
             if (mode == "flarecmp") { yield return FlareCompareTest(); yield break; }
+            if (mode == "viewmenu")
+            {
+                SessionSettings.ChallengeId = null; SessionSettings.AircraftId = "p51d-like";
+                yield return new WaitForSecondsRealtime(2f); Menu.Fly(); yield return new WaitForSecondsRealtime(3f);
+                ViewPanel.OpenViewMenuRequest = true; yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot("viewmenu.png"); yield return null;
+                Debug.Log("[SelfTest] viewmenu DONE"); yield break;
+            }
             if (mode == "clouds") { yield return CloudTest(); yield break; }
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
