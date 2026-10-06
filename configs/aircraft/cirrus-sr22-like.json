@@ -6,7 +6,7 @@
   "mass": {
     "massKg": 1500,
     "cg": [
-      -0.38,
+      -0.033,
       0,
       0
     ],
@@ -542,7 +542,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -559,7 +559,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -576,7 +576,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -593,7 +593,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -610,7 +610,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -627,7 +627,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -644,7 +644,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -661,7 +661,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         }
       ]
@@ -1453,7 +1453,7 @@
       "centeringSpringKt": 50,
       "trimType": "spring",
       "freeTauS": 0.12,
-      "saturationDeg": 11.1
+      "saturationDeg": 7.9
     },
     "rudder": {
       "maxDeflRad": 0.4,
@@ -1517,7 +1517,7 @@
   "gear": [
     {
       "pos": [
-        1.7,
+        2.047,
         0,
         1.0
       ],
@@ -1533,7 +1533,7 @@
     },
     {
       "pos": [
-        -0.45,
+        -0.103,
         -1.55,
         1.0
       ],
@@ -1549,7 +1549,7 @@
     },
     {
       "pos": [
-        -0.45,
+        -0.103,
         1.55,
         1.0
       ],

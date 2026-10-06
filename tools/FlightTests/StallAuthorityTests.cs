@@ -24,6 +24,11 @@ public class StallAuthorityTests
     /// as PENDING (their elevators were too weak to stall, or the CG/tail is off) — see docs/NEW-AIRPLANE-PROTOCOL.md.</summary>
     public static readonly HashSet<string> Verified = new() { "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "pa18-bush-like", "glasair3-like", "glider-swift-s1-like", "f86-sabre-like" };
 
+    /// <summary>Types whose elevator is set by hand, not by the calibration (2026-10-06): it wanted the Pitts' elevator chord ×3.6
+    /// and the Cub-on-floats' ×1.4 (geometry problems — too much stability — to fix with data), gave the Cassutt and drone a
+    /// non-physical 7.8° saturation, and the 2-33 is set from its spin (20°).</summary>
+    public static readonly HashSet<string> ManualElevator = new() { "pitts-s2b-like", "pa18-floats-like", "cassutt-f1-like", "target-drone-like", "glider-2-33-like", "stearman-pt17-like" };
+
     /// <summary>Margin past the wing stall that full aft should hold (deg).</summary>
     public static double TargetMarginDeg(string id) => id switch
     {
@@ -63,7 +68,20 @@ public class StallAuthorityTests
         {
             AircraftConfig c = AircraftConfigLoader.LoadFromFile(file);
             double stall = StallDeg(c), target = stall + TargetMarginDeg(c.Id);
-            if (calibrate && Verified.Contains(c.Id) && c.Id is not ("pa28-archer-like" or "cirrus-sr22-like"))   // (the Archer and SR22 are set by their builder: the Archer by stabilator travel; the SR22 auto-calibrates to a non-physical 4.7°, so its tail is due a protocol rework)
+            if (calibrate && c.Id == "pa28-archer-like")
+            {
+                // All-moving stabilator: no flap saturation — its TRAVEL sets full-aft authority (bisection on the up-travel).
+                double lo = 2, hi = 20;
+                for (int i = 0; i < 30; i++) { double mid = 0.5 * (lo + hi); c.Controls.Elevator.MaxDeflRad = mid * Math.PI / 180; if (FullAftBalanceDeg(c) >= target) hi = mid; else lo = mid; }
+                double travel = Math.Round(hi, 2);
+                var node = JsonNode.Parse(File.ReadAllText(file))!;
+                node["controls"]!["elevator"]!["maxDeflRad"] = Math.Round(travel * Math.PI / 180, 4);
+                File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                File.Copy(file, Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "aircraft", Path.GetFileName(file)), true);
+                c.Controls.Elevator.MaxDeflRad = travel * Math.PI / 180;
+                _o.WriteLine($"CALIBRATED {c.Id}: stabilator travel {travel:F1}°");
+            }
+            else if (calibrate && c.Id != "pa28-archer-like" && !ManualElevator.Contains(c.Id))   // every type (2026-10-06: with real pitch stability the unverified types pulled far past the stall)   // (the Archer and SR22 are set by their builder: the Archer by stabilator travel; the SR22 auto-calibrates to a non-physical 4.7°, so its tail is due a protocol rework)
             {
                 // Bisection on the saturation (balance rises with it); 120° ≈ no saturation.
                 double lo = 3, hi = 120;

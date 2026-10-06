@@ -195,20 +195,26 @@ public class PracticeScenarioTests
             var sc = new PracticeScenario(kind, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
             var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
             var kts = new List<double>();
-            double stick = sc.TrimStick, h0 = double.NaN;
+            double stick = sc.TrimStick, h0 = double.NaN, s0 = 0, hInt = 0;
             int n = 0;
             for (double t = 0; t < 10.0; t += 0.02, n++)
             {
                 if (t > 2.0)
                 {
                     // The pilot holds the height: back stick (−) against a sink or a loss of height, damped by the pitch rate.
-                    if (double.IsNaN(h0)) h0 = sc.AglM;
+                    if (double.IsNaN(h0)) { h0 = sc.AglM; s0 = stick; }
                     double q = ac.State.Rates.Y;
-                    stick = Math.Clamp(stick + (-0.8 * sc.SinkMs + 0.15 * (sc.AglM - h0) + 0.8 * q) * 0.02, -1, 1);
+                    // (gentler on the sink, more pitch damping, 2026-10-06: with the real pitch stability the old gains zoomed in the
+                    // round-out and the "bleed" measured the zoom, not the drag)
+                    // A progressive flare: the old gains slammed the stick full aft in 0.25 s and pulled 23° of α (the airplane is no
+                    // longer twice as stable as a real 172, 2026-10-06) — the "bleed" then measured a zoom and a stall.
+                    hInt = Math.Clamp(hInt + 0.01 * (sc.AglM - h0) * 0.02, -0.5, 0.5);
+                    stick = Math.Clamp(s0 + hInt - 0.06 * sc.SinkMs + 0.03 * (sc.AglM - h0) + 0.6 * q, -1, 1);
                 }
                 var inp = sc.Step(ac, new ControlInputs(0, stick, 0, 1.0), 0.02);
                 sim.RunFor(0.02, inp); sc.ConstrainLongitudinal(ac);
                 if (n % 50 == 0) kts.Add(sc.AirspeedMs * 1.943844);
+                if (n % 50 == 0 && Environment.GetEnvironmentVariable("BLEEDTRACE") != null) _out.WriteLine($"   {kind} t={t:F0} agl {sc.AglM:F1} sink {sc.SinkMs:F2} α {Math.Atan2(ac.State.Velocity.Z, ac.State.Velocity.X) * 57.3:F1} stick {stick:F2} kt {sc.AirspeedMs * 1.943844:F1}");
             }
             Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null;
             return kts.ToArray();

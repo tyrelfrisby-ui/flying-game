@@ -63,6 +63,143 @@ public static class AeroModel
             return ar;
         })[surfaceIndex];
 
+    /// <summary>
+    /// HINGED-SECTION tails (owner 2026-10-06: "research both control power and stick free control position now that the
+    /// hinged surface model has been adopted"). A stabiliser and its elevator — a fin and its rudder — are ONE section:
+    /// the hinged strips fly the fixed surface's airfoil (they used a separate low-AR table with a different lift slope
+    /// and stall, so the elevator's share of the section lift was wrong), and when that airfoil is a 2-D section table
+    /// (slope ≥ 5.5/rad: every hStab and most fins were sampling naca0012 at 6.3/rad) it is rescaled to the system's
+    /// finite-span slope — DATCOM/Helmbold a = 2πA / (2 + √(A²/κ² + 4)), κ = a₀/2π; fins take A × 1.55 (end-plate effect
+    /// of the stab and fuselage). The 2-D slope made every type's tail ~1.7× too strong: stick-fixed static margins of
+    /// 25–70 % MAC (real light aircraft 5–20 %), over-damped pitch, and elevator power riding on the stab's inflated slope.
+    /// Wing tables are already finite-span polars (clarkY-like 4.4/rad) and are left alone.
+    /// Returns the table key for a tail surface's strips, or null (use the strip's own airfoil).
+    /// </summary>
+    public static string? SectionTableKey(AircraftConfig config, int surfaceIndex) => TailSections(config).Keys[surfaceIndex];
+
+    /// <summary>The derived finite-span section tables, keyed as <see cref="SectionTableKey"/> returns them.</summary>
+    public static IReadOnlyDictionary<string, AirfoilTableData> DerivedSectionTables(AircraftConfig config) => TailSections(config).Derived;
+
+    /// <summary>
+    /// Where a strip's loads act. A fixed strip and the hinged strip behind it (wing + aileron, stab + elevator, fin +
+    /// rudder) are ONE section: its lift acts at the section's quarter-chord, LE − ¼·(c_fixed + c_hinged). Each piece used
+    /// to load at its OWN quarter-chord, which put the section's α-lift at ~37 % chord (the aileron row 0.9 m behind the
+    /// 172's CG carried 11 % of the wing's lift slope there) — a spurious ~0.3 of Cmα stability. Unpaired strips (plain
+    /// wing, all-moving stabilator) load at their own position.
+    /// </summary>
+    public static Vec3 LoadPoint(AircraftConfig config, int stripIndex, StripConfig strip)
+    {
+        double[] xs = _loadX.GetValue(config, BuildLoadX);
+        return stripIndex < xs.Length && !double.IsNaN(xs[stripIndex]) ? new Vec3(xs[stripIndex], strip.Pos[1], strip.Pos[2]) : strip.PosVec();
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _loadX = new();
+    private static double[] BuildLoadX(AircraftConfig cfg)
+    {
+        var all = new List<(StripConfig st, string key, bool vertical, bool hinged)>();
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+        {
+            bool vert = sf.Id.Contains("vstab", StringComparison.OrdinalIgnoreCase) || sf.Id.Contains("vertical", StringComparison.OrdinalIgnoreCase) || sf.Id.StartsWith("rudder", StringComparison.OrdinalIgnoreCase);
+            foreach (StripConfig st in sf.Strips)
+                all.Add((st, SystemKey(sf.Id), vert, st.Control is not null && Math.Abs(st.Control.Gain) >= 0.9));
+        }
+        var x = new double[all.Count];
+        for (int i = 0; i < x.Length; i++) x[i] = double.NaN;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var (st, key, vert, hinged) = all[i];
+            if (st.Control is null || vert) continue;   // (vertical tail staged: loads at its own strips for now)
+            double span = vert ? st.Pos[2] : st.Pos[1];
+            double width = st.Chord > 1e-9 ? st.Area / st.Chord : 0;
+            int best = -1; double bestD = double.MaxValue;
+            for (int j = 0; j < all.Count; j++)
+            {
+                var o = all[j];
+                if (j == i || o.key != key || o.hinged == hinged || o.st.Control is null || o.st.Control.Surface != st.Control.Surface) continue;
+                double os = vert ? o.st.Pos[2] : o.st.Pos[1];
+                double ow = o.st.Chord > 1e-9 ? o.st.Area / o.st.Chord : 0;
+                double d = Math.Abs(os - span);
+                if (d < 0.6 * Math.Max(width, ow) && d < bestD) { bestD = d; best = j; }
+            }
+            if (best < 0) continue;
+            StripConfig fixedSt = hinged ? all[best].st : st, hingedSt = hinged ? st : all[best].st;
+            double le = fixedSt.Pos[0] + 0.25 * fixedSt.Chord;
+            x[i] = le - 0.25 * (fixedSt.Chord + hingedSt.Chord);
+        }
+        return x;
+    }
+
+    public const double FinEndPlateFactor = 1.55;
+    /// <summary>Tail dynamic-pressure ratio η_t = q_tail / q∞ (DATCOM: 0.85–0.95 for a conventional tail in the wing and
+    /// fuselage wake; the propeller slipstream raises it separately under power).</summary>
+    public const double TailDynamicPressureRatio = 0.9;
+
+    /// <summary>Gilruth & White fuselage pitch factor, 57.3·K_f·w²·L (m³): M_y = this · q · ½ sin 2α. K_f against the wing
+    /// root quarter-chord's distance from the nose as a fraction of body length (NACA TR 711, fig. 13).</summary>
+    public static double FuselageMunkM3(AircraftConfig config) => _munk.GetValue(config, cfg =>
+    {
+        CrossflowConfig cf = cfg.Fuselage.Crossflow;
+        if (cf.BodyRadiusM <= 0 || cf.LengthM <= 0.1) return new[] { 0.0 };
+        double ax = 0, aa = 0;
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            if (sf.Id.StartsWith("wing", StringComparison.OrdinalIgnoreCase))
+                foreach (StripConfig st in sf.Strips) { ax += st.PosVec().X * st.Area; aa += st.Area; }
+        if (aa <= 0) return new[] { 0.0 };
+        double noseX = cf.PlanCenterX + 0.5 * cf.LengthM;
+        double frac = Math.Clamp((noseX - ax / aa) / cf.LengthM, 0.05, 0.65);
+        double[] fx = { 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7 }, kf = { 0.005, 0.007, 0.010, 0.016, 0.024, 0.035, 0.047 };
+        double k = kf[0];
+        for (int i = 0; i < fx.Length - 1; i++) if (frac >= fx[i] && frac <= fx[i + 1]) { k = kf[i] + (kf[i + 1] - kf[i]) * (frac - fx[i]) / (fx[i + 1] - fx[i]); break; }
+        if (frac < fx[0]) k = kf[0];
+        double w = 2 * cf.BodyRadiusM;
+        return new[] { 57.2958 * k * w * w * cf.LengthM * cfg.Fuselage.MunkScale };
+    })[0];
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _munk = new();
+
+    private sealed class TailSectionMap { public string?[] Keys = System.Array.Empty<string?>(); public Dictionary<string, AirfoilTableData> Derived = new(); }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, TailSectionMap> _tailSections = new();
+    private static TailSectionMap TailSections(AircraftConfig config) => _tailSections.GetValue(config, cfg =>
+    {
+        var map = new TailSectionMap { Keys = new string?[cfg.Surfaces.Count] };
+        for (int i = 0; i < cfg.Surfaces.Count; i++)
+        {
+            string key = SystemKey(cfg.Surfaces[i].Id);
+            if (key != "hStab") continue;   // (fins + rudders: staged — the vertical tail keeps its own tables until its own validation, 2026-10-06)
+            int fixedIdx = cfg.Surfaces.FindIndex(sf => sf.Id == key);
+            if (fixedIdx < 0) fixedIdx = i;   // all-moving (stabilator): the surface is its own section
+            if (cfg.Surfaces[fixedIdx].Strips.Count == 0) continue;
+            string baseAf = cfg.Surfaces[fixedIdx].Strips[0].Airfoil;
+            if (!cfg.AirfoilTables.TryGetValue(baseAf, out AirfoilTableData? data)) continue;
+            double a0 = SectionSlope(data);
+            if (a0 < 5.5) { map.Keys[i] = baseAf; continue; }   // already a finite-span table: share it as-is
+            bool vertical = key == "vStab";
+            double ar = SystemAspectRatio(cfg, fixedIdx, vertical) * (vertical ? FinEndPlateFactor : 1.0);
+            double kappa = a0 / (2 * Math.PI);
+            double a = 2 * Math.PI * ar / (2 + Math.Sqrt(ar * ar / (kappa * kappa) + 4));
+            double scale = a / a0;
+            string dKey = $"{baseAf}@{key}-3d";
+            if (!map.Derived.ContainsKey(dKey))
+            {
+                var t = new double[data.AlphaRad.Length];
+                for (int k = 0; k < t.Length; k++) t[k] = data.AlphaRad[k] / scale;   // Cl(α) of the finite surface = Cl₂D(α·a/a₀)
+                map.Derived[dKey] = new AirfoilTableData { AlphaRad = t, Cl = data.Cl, Cd = data.Cd, Cm = data.Cm };
+            }
+            map.Keys[i] = dKey;
+        }
+        return map;
+    });
+
+    /// <summary>Lift slope of a table about zero alpha (per rad).</summary>
+    public static double SectionSlope(AirfoilTableData t)
+    {
+        double Cl(double a)
+        {
+            for (int i = 0; i < t.AlphaRad.Length - 1; i++)
+                if (t.AlphaRad[i] <= a && a <= t.AlphaRad[i + 1]) { double f = (a - t.AlphaRad[i]) / (t.AlphaRad[i + 1] - t.AlphaRad[i]); return t.Cl[i] + f * (t.Cl[i + 1] - t.Cl[i]); }
+            return 0;
+        }
+        return (Cl(0.06) - Cl(-0.06)) / 0.12;
+    }
+
     internal static string SystemKey(string id)
     {
         if (id.EndsWith("-aileron", StringComparison.OrdinalIgnoreCase)) return id[..^"-aileron".Length];
@@ -201,7 +338,8 @@ public static class AeroModel
                 {
                     continue; // this strip left with a broken-off component (wing half, tail): no aero from it
                 }
-                Vec3 r = strip.PosVec() - cg;
+                Vec3 stripAt = LoadPoint(config, idx, strip);   // a hinged section's loads act at the SECTION quarter-chord
+                Vec3 r = stripAt - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
 
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
@@ -285,9 +423,10 @@ public static class AeroModel
                 }
 
                 double controlDeflRad = strip.Control is null ? 0.0 : controls.GetDeflection(strip.Control.Surface);
-                if (!airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? table))
+                string sectionKey = SectionTableKey(config, surfaceIndex) ?? strip.Airfoil;
+                if (!airfoilTables.TryGetValue(sectionKey, out AirfoilTable? table))
                 {
-                    throw new KeyNotFoundException($"Strip references unknown airfoil '{strip.Airfoil}'.");
+                    throw new KeyNotFoundException($"Strip references unknown airfoil '{sectionKey}'.");
                 }
 
                 // SPLIT-SURFACE MODEL (owner-directed): fixed surfaces (wing, stab, fin) and their
@@ -456,7 +595,7 @@ public static class AeroModel
                 // lose only ~half the dynamic pressure a horizontal surface loses (tunnel-calibrated:
                 // CR-3099 yaw damping stays linear to Om=0.85 — the fin keeps working in the spin).
                 double blanketLoss = isVertical ? config.VerticalBlanketFactor * config.WakeBlanketMaxLoss : config.WakeBlanketMaxLoss;
-                double qFactor = isWing ? 1.0 : wake.DynamicPressureFactor(strip.PosVec(), blanketLoss);
+                double qFactor = isWing ? 1.0 : (isVertical ? 1.0 : TailDynamicPressureRatio) * wake.DynamicPressureFactor(strip.PosVec(), blanketLoss);
 
                 // Stab-wake shielding of the fin/rudder (NACA spin-recovery geometry). Ramps in as
                 // the tail-region flow steepens (none below 30-deg flow, full by 60-deg — the NACA
@@ -510,9 +649,9 @@ public static class AeroModel
                 totalMoment += momentFromForce + momentAero;
                 if (ForceDebug.Samples is not null)
                 {
-                    ForceDebug.Add(strip.PosVec(), liftDir * lift, Vec3.Zero, "lift");
-                    ForceDebug.Add(strip.PosVec(), -dragDir * drag, Vec3.Zero, "drag");
-                    ForceDebug.Add(strip.PosVec(), Vec3.Zero, momentAero, "moment");
+                    ForceDebug.Add(stripAt, liftDir * lift, Vec3.Zero, "lift");
+                    ForceDebug.Add(stripAt, -dragDir * drag, Vec3.Zero, "drag");
+                    ForceDebug.Add(stripAt, Vec3.Zero, momentAero, "moment");
                 }
             }
         }
@@ -699,6 +838,20 @@ public static class AeroModel
         if (speed >= MinSpeedMs)
         {
             double q = 0.5 * airDensity * speed * speed;
+
+            // FUSELAGE PITCH (owner 2026-10-06, the stability research): a body in a flow at an angle makes a nose-UP,
+            // destabilising moment (Munk; the fuselage, cowl and nacelles move the neutral point forward ~5–10 % MAC on a
+            // light aircraft). Gilruth & White (NACA TR 711): Cmα_f = K_f·w²·L/(S·c̄) per degree, K_f from where the wing
+            // root quarter-chord sits along the body. Here as a moment, M = 57.3·K_f·q·w²·L·½·sin 2α (linear at small α,
+            // bounded at large α where the crossflow terms below take over). Without it every type with an honest CG and
+            // tail came out 25–45 % MAC stable.
+            double kMunk = FuselageMunkM3(config);
+            if (kMunk > 0)
+            {
+                double aBody = Math.Atan2(bodyVelocity.Z, bodyVelocity.X);
+                double my = kMunk * q * 0.5 * Math.Sin(2 * aBody);
+                totalMoment += new Vec3(0, my, 0);
+            }
             double drag = q * config.Fuselage.Cd0Area;
             totalForce -= (bodyVelocity / speed) * drag;
 

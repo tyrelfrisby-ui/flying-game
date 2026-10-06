@@ -512,7 +512,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -529,7 +529,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -546,7 +546,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -563,7 +563,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -580,7 +580,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -597,7 +597,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -614,7 +614,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -631,7 +631,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         }
       ]
@@ -1422,7 +1422,8 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12
+      "freeTauS": 0.12,
+      "saturationDeg": 20.4
     },
     "rudder": {
       "maxDeflRad": 0.44,
@@ -1459,7 +1460,8 @@
       "sideCenterX": -0.6,
       "cd": 1.2,
       "lengthM": 7.5
-    }
+    },
+    "munkScale": 0.3
   },
   "propulsion": {
     "maxPowerW": 175000,

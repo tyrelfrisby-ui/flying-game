@@ -15,11 +15,11 @@ public class NewAircraftPerformanceTests
     private readonly ITestOutputHelper _out;
     public NewAircraftPerformanceTests(ITestOutputHelper o) { _out = o; }
 
-    // id, book Vs0 kt, book Vy kt, book cruise75 KTAS
+    // id, book CLEAN stall Vs1 kt (the lesson spawns flaps up; 2026-10-06: the Archer and SR22 rows held their flap-down Vs0), book Vy kt, book cruise75 KTAS
     [Theory]
     [InlineData("c172-like", 48, 74, 122)]
-    [InlineData("pa28-archer-like", 45, 76, 125)]
-    [InlineData("cirrus-sr22-like", 61, 104, 175)]
+    [InlineData("pa28-archer-like", 50, 76, 125)]   // PA-28-181 POH: Vs1 50 KIAS (Vs0 45)
+    [InlineData("cirrus-sr22-like", 70, 104, 175)]   // SR22 POH: Vs1 ~70 KIAS (Vs0 ~60)
     public void PerformanceNearTheBook(string id, double vs0, double vy, double cruise)
     {
         AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));

@@ -203,15 +203,23 @@ public class TakeoffControllability
             var rest = LandingGear.RestingState(c, 0, 0, 0);
             var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, Vec3.Zero, Vec3.Zero), ControlDeflections.Neutral);
             var sim = new SimLoop(ac);
-            double maxY = 0, maxRud = 0, satTime = 0, liftoff = -1, t = 0;
+            double maxY = 0, maxRud = 0, satTime = 0, liftoff = -1, t = 0, rudInt = 0;
+            bool taildragger = c.Gear.Exists(g => g.IsTailwheel);
             for (; t < 25; t += 0.02)
             {
                 double lever = -Math.Min(1.0, 0.25 * (1 + Math.Floor(t / 3.0)));   // 25 % at t=0, +25 % every 3 s
                 var q = ac.State.Attitude;
                 double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
                 double y = ac.State.Position.Y, r = ac.State.Rates.Z;
-                double rudder = Math.Clamp(-0.08 * y - 3.0 * hdg - 0.8 * r, -1, 1);   // centreline + heading + rate
-                sim.RunFor(0.02, new ControlInputs(0, 0, rudder, lever));
+                // ... plus the steady rudder a pilot holds (an integral on heading and centreline): proportional-only, the law
+                // needed a standing heading error to make its steady rudder, and crabbed off the centreline doing it.
+                rudInt = Math.Clamp(rudInt + (-0.4 * hdg - 0.01 * y) * 0.02, -0.8, 0.8);
+                double rudder = Math.Clamp(rudInt - 0.08 * y - 3.0 * hdg - 0.8 * r, -1, 1);   // centreline + heading + rate
+                // Tailwheel technique: above ~12 m/s, forward stick lifts the tail to a level fuselage (a tail-down roll keeps the
+                // P-factor and the long roll; a real Cassutt pilot gets the tail up early).
+                double pitchNow = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
+                double elev = taildragger && ac.State.Velocity.Length > 12 ? Math.Clamp(3.0 * pitchNow + 0.5 * ac.State.Rates.Y, -0.3, 0.8) : 0.0;
+                sim.RunFor(0.02, new ControlInputs(0, elev, rudder, lever));
                 maxY = Math.Max(maxY, Math.Abs(y)); maxRud = Math.Max(maxRud, Math.Abs(rudder));
                 if (Math.Abs(rudder) > 0.98) satTime += 0.02;
                 if (!LandingGear.AnyMainWheelOnGround(c, ac.State) && ac.State.Velocity.Length > 15) { liftoff = t; break; }

@@ -74,7 +74,7 @@ public sealed class DronePilot
             double ele = Math.Abs(roll) < 0.5 ? Math.Clamp(-(pitchCmd - pitch) * 3.0 + s.Rates.Y * 0.5, -0.7, 0.5) : 0.1;
             bool safe = agl > FloorAglM + 80 && agl < CeilingAglM - 50 && v > vMin * 1.2 && Math.Abs(roll) < 0.3;
             if (safe || _legT > 12) { Current = Manoeuvre.Cruise; _legT = 0; _cruiseFor = 4 + 8 * _rng.NextDouble(); }
-            return new ControlInputs(ail, ele, Math.Clamp(-s.Velocity.Y * 0.02, -0.3, 0.3), -1.0);
+            return new ControlInputs(ail, AoaLimit(ele, s, v), Math.Clamp(-s.Velocity.Y * 0.02, -0.3, 0.3), -1.0);
         }
 
         if (Current == Manoeuvre.Cruise)
@@ -135,8 +135,10 @@ public sealed class DronePilot
                 if (_legT > _param) Finish();
                 break;
         }
-        double rud = Math.Clamp(-s.Velocity.Y * 0.02, -0.4, 0.4);
-        return new ControlInputs(Math.Clamp(a2, -1, 1), Math.Clamp(e2, -0.8, 0.6), rud, -1.0);
+        double rud = Math.Clamp(Math.Clamp(a2, -1, 1) * 0.5 - s.Velocity.Y * 0.02, -0.6, 0.6);
+        // Angle-of-attack limiter (like the tug's): the open-loop pulls (scissors, break turns) held a fixed aft stick; with the
+        // real pitch stability (2026-10-06) that stick reached past the stall and spun the drone in. Ease off past ~12°.
+        return new ControlInputs(Math.Clamp(a2, -1, 1), AoaLimit(Math.Clamp(e2, -0.8, 0.6), s, v), rud, -1.0);
     }
 
     private void Finish() { Current = Manoeuvre.Cruise; _legT = 0; _cruiseFor = 3 + 9 * _rng.NextDouble(); }
@@ -175,7 +177,17 @@ public sealed class DronePilot
         double pitchCmd = Math.Clamp(hErrM * 0.0025, -8 * Math.PI / 180, 10 * Math.PI / 180) + Math.Abs(bankCmd) * 0.15;
         double ele = Math.Clamp(-(pitchCmd - pitch) * 3.0 + s.Rates.Y * 0.5, -0.7, 0.5);
         double thr = Math.Clamp(0.6 + (CruiseMs - v) * 0.05 - hErrM * -0.0005, 0.15, 1.0);
-        double rud = Math.Clamp(-s.Velocity.Y * 0.02, -0.3, 0.3);
-        return new ControlInputs(ail, ele, rud, 1.0 - 2.0 * thr);
+        // Rudder WITH the aileron (the ailerons carry their real induced drag since 2026-10-06 — uncoordinated, the turns
+        // were wide and slow and the drone spent a third of its time outside the zone) + the ball.
+        double rud = Math.Clamp(ail * 0.5 - s.Velocity.Y * 0.02, -0.6, 0.6);
+        return new ControlInputs(ail, AoaLimit(ele, s, v), rud, 1.0 - 2.0 * thr);
+    }
+
+    /// <summary>Never hold the wing past ~12° (a maximum-performance pull, not a stall): every law here, the recovery's dive
+    /// pull-out most of all, asked for more aft stick than the real pitch stability (2026-10-06) needs to stall the drone.</summary>
+    private static double AoaLimit(double ele, RigidBodyState s, double v)
+    {
+        double alpha = v > 5 ? Math.Atan2(s.Velocity.Z, s.Velocity.X) : 0.0;
+        return alpha > 12 * Math.PI / 180 ? Math.Max(ele, Math.Min(0.6, (alpha - 12 * Math.PI / 180) * 8.0)) : ele;
     }
 }

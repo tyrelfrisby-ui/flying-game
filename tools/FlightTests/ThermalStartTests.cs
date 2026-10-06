@@ -53,7 +53,7 @@ public class ThermalStartTests
                 // gusts at the core's edge kicked off a phugoid that carried the Cub out of the core).
                 Vec3 air = s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));   // AIRspeed, not groundspeed
                 double vErr = air.Length - plan.SpeedMs;
-                double pitchStick = Math.Clamp(stick - 0.02 * vErr - 0.3 * s.Rates.Y, -1, 1);
+                double pitchStick = Math.Clamp(stick - 0.03 * vErr - 0.45 * s.Rates.Y, -1, 1);
                 ac.Step(new ControlInputs(ail, pitchStick, rud, lever), h);
                 double alt = -ac.State.Position.Z;
                 Vec3 core = th.CoreAt(alt);
@@ -68,7 +68,10 @@ public class ThermalStartTests
             double frac = inCore / total, climb = -ac.State.Position.Z - alt0;
             _out.WriteLine($"in the core {frac:P0} of the time, climbed {climb:F0} m in 120 s, max α {maxAlpha * 57.3:F1}°");
             Assert.True(frac > 0.9, $"only {frac:P0} of the time inside the core");
-            Assert.True(climb > 300, $"climbed only {climb:F0} m");
+            // An idling powered type sinks 2–3× a glider's rate in a 35° bank (and more since the induced drag was corrected,
+            // 2026-10-06): the Cub circling downwind of the core still climbs, but not a glider's 300 m.
+            double minClimb = cfg.Propulsion == null ? 300 : 200;
+            Assert.True(climb > minClimb, $"climbed only {climb:F0} m");
         }
         finally
         {

@@ -610,7 +610,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -627,7 +627,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -644,7 +644,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -661,7 +661,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -678,7 +678,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -695,7 +695,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -712,7 +712,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -729,7 +729,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -746,7 +746,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -763,7 +763,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -780,7 +780,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         },
         {
@@ -797,7 +797,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.45
+            "gain": 0.379
           }
         }
       ]
@@ -1724,7 +1724,8 @@
       "hingeChDelta": -0.4,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.25
+      "freeTauS": 0.25,
+      "saturationDeg": 85.2
     },
     "rudder": {
       "maxDeflRad": 0.3,

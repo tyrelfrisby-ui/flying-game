@@ -473,7 +473,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -490,7 +490,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -507,7 +507,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -524,7 +524,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -541,7 +541,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -558,7 +558,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -575,7 +575,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -592,7 +592,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         }
       ]
@@ -1667,7 +1667,7 @@
       "centeringSpringKt": 25,
       "trimType": "spring",
       "freeTauS": 0.12,
-      "saturationDeg": 9.7
+      "saturationDeg": 5.2
     },
     "rudder": {
       "maxDeflRad": 0.5,

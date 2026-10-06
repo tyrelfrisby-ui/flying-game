@@ -63,6 +63,7 @@ public sealed class TugPilot
     /// <summary>Flare profile: begins with the mains 20 ft up; sink target = FlareGainPerSec × (mains height − 6 in).</summary>
     public const double FlareStartAglM = 6.1, HoldOffAglM = 0.15, FlareGainPerSec = 0.16;
     public double ElevatorScale = 0.55, RudderScale = 0.6;
+    private double _pitchTrim;
     private bool _scaled;
 
     /// <summary>Height of the lowest main wheel and of the tailwheel above the ground under them (world frame).</summary>
@@ -115,6 +116,7 @@ public sealed class TugPilot
                     double slope = Math.Abs((a.ElevatorRad - b.ElevatorRad) / (a.AlphaRad - b.AlphaRad));
                     ElevatorScale = Math.Clamp(slope / 1.8, 0.3, 1.0);
                 }
+
             }
             catch (Exception) { }
         }
@@ -186,7 +188,11 @@ public sealed class TugPilot
         if (Phase is Phases.Flare or Phases.Rollout) bankCmd = 0;
         if (Phase == Phases.Final && agl < 15) bankCmd = Math.Clamp(bankCmd, -8 * Math.PI / 180, 8 * Math.PI / 180); // no big banks near the ground
         double ail = Math.Clamp((bankCmd - roll) * 2.0 - s.Rates.X * 1.0, -1, 1);
-        double rud = onGround ? Math.Clamp(hErr * 3.0 - s.Rates.Z * 0.6, -1, 1) : Math.Clamp(bankCmd * 0.25 + hErr * 0.3 - s.Rates.Z * 0.2, -1, 1);
+        // Airborne: rudder WITH the aileron (owner technique; 2026-10-06: the ailerons now carry their real induced drag —
+        // the per-piece aspect ratio had left them almost none — so a banked tug with a quarter-measure of rudder yawed
+        // against the turn, banked 32° without turning, drifted 270 m off the centreline and crashed) + the ball (sideslip).
+        double beta = v > 5 ? Math.Asin(Math.Clamp(s.Velocity.Y / v, -1, 1)) : 0.0;
+        double rud = onGround ? Math.Clamp(hErr * 3.0 - s.Rates.Z * 0.6, -1, 1) : Math.Clamp(ail * 0.5 + bankCmd * 0.25 + hErr * 0.3 - s.Rates.Z * 0.2 + beta * 3.0, -1, 1);
 
         // ---- longitudinal: sink target → elevator; speed → throttle
         double sinkTarget = 0, vTarget = TowSpeedMs, lever;
@@ -258,7 +264,11 @@ public sealed class TugPilot
             // excess power goes into climb, and a heavy glider on the rope can't run the speed away).
             // Speed by pitch: a gentler gain with more pitch-rate damping (with the real tail lift curve the old gain set
             // up a 5 s pitch/speed cycle on the Cub tug that slammed the rope to its weak link).
-            elev = Math.Clamp(-0.04 * (v - vTarget) - s.Rates.Y * 0.9 - 0.12 * Math.Abs(bankCmd), -0.7, 0.4);
+            // ... and TRIMS (a slow integral on the speed error, the pilot's trim wheel, 2026-10-06): proportional-only, the
+            // law settled wherever the type's neutral-elevator speed sat — with real pitch stability and full flap on final the
+            // Pawnee came down the approach 10 m/s fast and landed a kilometre short.
+            _pitchTrim = Math.Clamp(_pitchTrim - 0.006 * (v - vTarget) * dt, -0.4, 0.4);
+            elev = Math.Clamp(_pitchTrim - 0.04 * (v - vTarget) - s.Rates.Y * 0.9 - 0.12 * Math.Abs(bankCmd), -0.7, 0.4);
             double thr = Math.Clamp((Phase == Phases.Final ? 0.3 : 0.6) + 0.3 * (sink - sinkTarget), 0.0, 1.0);
             if (Phase == Phases.Climb)
             {
@@ -305,6 +315,19 @@ public sealed class TugPilot
         elev *= ElevatorScale;
         rud *= RudderScale;   // the fin table gained ~1.6× too
         return new ControlInputs(ail, elev, rud, lever);
+    }
+
+    /// <summary>|Cmδ| (per rad, on the wing's area and mean chord): pitching moment from ±2° of elevator at α 3°, 40 m/s.</summary>
+    public static double ElevatorPowerCmDelta(FlyingGame.Core.DataContracts.AircraftConfig c)
+    {
+        var tables = Aircraft.BuildAirfoilTables(c);
+        double v = 40, rho = 1.225, S = 0, cS = 0;
+        foreach (var sf in c.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) { S += st.Area; cS += st.Area * st.Chord; }
+        if (S <= 0) return 0;
+        double mac = cS / S, q = 0.5 * rho * v * v, a = 3 * Math.PI / 180;
+        double M(double eDeg) => FlyingGame.Core.Aero.AeroModel.Compute(c, tables, new Vec3(v * Math.Cos(a), 0, v * Math.Sin(a)), Vec3.Zero, Vec3.Zero, rho,
+            new FlyingGame.Core.Aero.ControlDeflections(0, eDeg * Math.PI / 180, 0, 0)).Moment.Y;
+        return Math.Abs((M(2) - M(-2)) / (4 * Math.PI / 180) / (q * S * mac));
     }
 
     private static double Dist2D(Vec3 a, Vec3 b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));

@@ -69,6 +69,7 @@ public class ReversibleControlTests
         double lever = cfg.Propulsion == null ? -1.0 : 1.0, h = SimLoop.DefaultFixedDtSec;
         double pull = 0.3 * Math.Min(1.0, Math.Pow(25.0 / v0, 2));   // about the same pitch impulse at any trim speed (∝ 1/q)
         double vMin = 1e9, vMax = 0, late = 0, early = 0;
+        double v0e = v0 * Math.Sqrt(Atmosphere.DensityAtAltitude(3000) / Atmosphere.DensityAtAltitude(0));
         for (double t = 0; t < 90; t += h)
         {
             bool pulling = t >= 30 && t < 31;
@@ -77,10 +78,12 @@ public class ReversibleControlTests
             double ail = Math.Clamp(-roll * 2.0 - ac.State.Rates.X * 0.3, -1, 1);
             ac.Step(pulling ? new ControlInputs(ail, trim - pull, 0, lever, false, false, true)
                             : new ControlInputs(ail, trim, 0, lever, false, true, true), h);
-            double vv = ac.State.Velocity.Length;
+            // EQUIVALENT airspeed: trim holds dynamic pressure, not true airspeed — a steep idle glide (the P-51 at −17°)
+            // descends into denser air and its TAS falls ~4 % over the window at constant trim.
+            double vv = ac.State.Velocity.Length * Math.Sqrt(Atmosphere.DensityAtAltitude(-ac.State.Position.Z) / Atmosphere.DensityAtAltitude(0));
             if (t > 5 && t < 30) { vMin = Math.Min(vMin, vv); vMax = Math.Max(vMax, vv); }
-            if (t > 32 && t < 50) early = Math.Max(early, Math.Abs(vv - v0));
-            if (t > 75) late = Math.Max(late, Math.Abs(vv - v0));
+            if (t > 32 && t < 50) early = Math.Max(early, Math.Abs(vv - v0e));
+            if (t > 75) late = Math.Max(late, Math.Abs(vv - v0e));
             if (reversible && (int)(t / h) % 1200 == 0)
                 _out.WriteLine($"  t={t,4:F0}s V {vv,5:F1} m/s  elevator {ac.CurrentDeflections.ElevatorRad * 57.3,6:F2}°  pitch {FormationPilot.Euler(ac.State.Attitude).pitch * 57.3,6:F1}°{(pulling ? "  (pulling)" : "")}");
         }

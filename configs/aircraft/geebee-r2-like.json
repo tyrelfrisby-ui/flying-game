@@ -320,7 +320,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -337,7 +337,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -354,7 +354,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -371,7 +371,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -388,7 +388,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         },
         {
@@ -405,7 +405,7 @@
           "airfoil": "naca0012-like",
           "control": {
             "surface": "elevator",
-            "gain": 0.5
+            "gain": 0.395
           }
         }
       ]
@@ -1128,7 +1128,8 @@
       "hingeChDelta": -0.45,
       "centeringSpringKt": 0,
       "trimType": "tab",
-      "freeTauS": 0.12
+      "freeTauS": 0.12,
+      "saturationDeg": 4.9
     },
     "rudder": {
       "maxDeflRad": 0.44,
@@ -1165,7 +1166,8 @@
       "sideCenterX": 0.0,
       "cd": 1.2,
       "lengthM": 5.4
-    }
+    },
+    "munkScale": 0.55
   },
   "propulsion": {
     "maxPowerW": 410000,

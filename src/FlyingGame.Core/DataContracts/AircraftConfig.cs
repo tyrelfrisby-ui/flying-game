@@ -207,6 +207,10 @@ public sealed class FuselageConfig
 {
     public double Cd0Area { get; set; }
     public double SideForceArea { get; set; }
+    /// <summary>Scale on the fuselage's destabilising pitch moment (AeroModel.FuselageMunkM3; 1 = Gilruth & White). For bodies
+    /// the estimate doesn't fit (owner 2026-10-06: the Gee Bee R-2's barrel was "just barely stable"; no good fuselage
+    /// data), set to land the known stability.</summary>
+    public double MunkScale { get; set; } = 1.0;
     public DampingConfig Damping { get; set; } = new();
 
     /// <summary>

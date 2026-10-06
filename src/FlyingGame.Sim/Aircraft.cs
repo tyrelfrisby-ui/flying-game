@@ -240,6 +240,9 @@ public sealed class Aircraft
         {
             tables[kv.Key] = new AirfoilTable(kv.Value);
         }
+        // The tails' finite-span section tables (AeroModel.SectionTableKey: stab + elevator, fin + rudder as one section).
+        foreach (KeyValuePair<string, AirfoilTableData> kv in AeroModel.DerivedSectionTables(config))
+            tables[kv.Key] = new AirfoilTable(kv.Value);
 
         return tables;
     }
