@@ -276,6 +276,39 @@ namespace FlyingGame.Bridge
                 alt = new Vector2(view.x + step * n, cy);
             }
 
+            // RULE (owner 2026-10-05: "make sure the instruments do not cover the airplane on either view"): each dial AND its
+            // readout is pushed out of the aircraft's screen rect along its own side (airspeed left, altimeter right, g meter
+            // and vario up), then clamped into the free region; a dial that still can't clear the aircraft isn't drawn.
+            bool showAsi = true, showAlt = true, showG = true, showV = glider;
+            if (!ChaseCamera.InCockpit && koGui.width > 0f)
+            {
+                Rect Box(Vector2 c, float rad, float below, float halfW) { float w = Mathf.Max(rad, halfW); return new Rect(c.x - w, c.y - rad, 2f * w, 2f * rad + below); }
+                Vector2 Away(Vector2 c, float rad, float below, float halfW, Vector2 dir)
+                {
+                    for (int i = 0; i < 80 && Box(c, rad, below, halfW).Overlaps(koGui); i++) c += dir * (s * 0.015f);
+                    return c;
+                }
+                float sideBelow = fs * 1.9f, sideHalf = fs * 2.6f, gBelow = fs * 2.6f, gHalf = fs * 4.6f;
+                // Its own side first, then up, then down; the first that clears the aircraft wins.
+                Vector2 Place(Vector2 c0, float rad, float below, float halfW, Vector2 first, out bool ok)
+                {
+                    foreach (Vector2 d in new[] { first, Vector2.down, Vector2.up })
+                    {
+                        Vector2 c = Clamp(Away(c0, rad, below, halfW, d), rad);
+                        if (!Box(c, rad, below, halfW).Overlaps(koGui)) { ok = true; return c; }
+                    }
+                    ok = false; return c0;
+                }
+                asi = Place(asi, r, sideBelow, sideHalf, Vector2.left, out showAsi);
+                alt = Place(alt, r, sideBelow, sideHalf, Vector2.right, out showAlt);
+                gc = Place(gc, gr, gBelow, gHalf, Vector2.down, out showG);
+                vc = Place(vc, gr, sideBelow, sideHalf, Vector2.down, out bool okV); showV = glider && okV;
+                // Two dials pushed to the same spot must not land on each other either.
+                if (showAsi && showAlt && Box(asi, r, sideBelow, sideHalf).Overlaps(Box(alt, r, sideBelow, sideHalf))) showAlt = false;
+                if (showG && showAsi && Box(gc, gr, gBelow, gHalf).Overlaps(Box(asi, r, sideBelow, sideHalf))) showG = false;
+                if (showG && showAlt && Box(gc, gr, gBelow, gHalf).Overlaps(Box(alt, r, sideBelow, sideHalf))) showG = false;
+            }
+
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
             float nAlpha = Mathf.Min(1f, Alpha + 0.4f);
@@ -291,23 +324,28 @@ namespace FlyingGame.Bridge
 
             // ---- airspeed
             GUI.color = Color.white;
+            if (showAsi) {
             GUI.DrawTexture(new Rect(asi.x - r, asi.y - r, 2f * r, 2f * r), _asiFace);
             int ktStep = _asiMaxKt <= 200 ? 20 : _asiMaxKt <= 400 ? 40 : 100;
             for (int v = 0; v <= _asiMaxKt; v += ktStep) Label(OnDial(asi, DialDeg(v / _asiMaxKt, false), r * 0.66f), v.ToString(), _num, fs * 3f, fs);
             Label(asi + new Vector2(0, r + fs * 0.95f), $"{kt:F0}", _big, fs * 5f, fs * 1.8f);   // under the dial, clear of the scale
             Label(asi + new Vector2(0, -r * 0.30f), "KNOTS", _dialCap, fs * 4f, fs);
             DrawNeedle(asi, DialDeg(Mathf.Clamp01(kt / _asiMaxKt), false), r * 0.82f, r * 0.11f, nAlpha);
+            }
 
             // ---- altimeter
+            if (showAlt) {
             GUI.DrawTexture(new Rect(alt.x - r, alt.y - r, 2f * r, 2f * r), _altFace);
             for (int i = 0; i < 10; i++) Label(OnDial(alt, DialDeg(i / 10f, true), r * 0.66f), i.ToString(), _num, fs * 2f, fs);
             Label(alt + new Vector2(0, r + fs * 0.95f), $"{ft:N0}", _big, fs * 6f, fs * 1.8f);
             Label(alt + new Vector2(0, -r * 0.30f), "FEET", _dialCap, fs * 4f, fs);
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 10000f, 1f), true), r * 0.50f, r * 0.16f, nAlpha);   // thousands (short, fat)
             DrawNeedle(alt, DialDeg(Mathf.Repeat(ft / 1000f, 1f), true), r * 0.82f, r * 0.10f, nAlpha);    // hundreds
+            }
 
             // ---- g meter
             var st = aircraft.Structure;
+            if (showG) {
             GUI.DrawTexture(new Rect(gc.x - gr, gc.y - gr, 2f * gr, 2f * gr), _gFace);
             float G(float v) => DialDeg(Mathf.Clamp01((v - _gLo) / (_gHi - _gLo)), false);
             int gStep = _gHi - _gLo > 14 ? 2 : 1;
@@ -317,9 +355,10 @@ namespace FlyingGame.Bridge
             DrawNeedle(gc, G(_gMaxSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);   // tell-tales hold the extremes
             DrawNeedle(gc, G(_gMinSeen), gr * 0.78f, gr * 0.06f, Alpha + 0.15f);
             DrawNeedle(gc, G(g), gr * 0.82f, gr * 0.12f, nAlpha);
+            }
 
             // ---- variometer (gliders)
-            if (glider)
+            if (showV)
             {
                 var st2 = aircraft.State;
                 float vzKt = (float)(-st2.Attitude.Rotate(st2.Velocity).Z) * 1.9438f;   // up positive

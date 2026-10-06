@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
             if (mode == "skins") { yield return SkinsTest(); yield break; }
+            if (mode == "flarecmp") { yield return FlareCompareTest(); yield break; }
             if (mode == "clouds") { yield return CloudTest(); yield break; }
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
@@ -115,6 +116,44 @@ namespace FlyingGame.Bridge
             }
             ClipRecorder.Suspended = false; SessionSettings.BubblesOn = true; SessionSettings.BubbleInstancing = true;
             Debug.Log("[Perf] DONE");
+        }
+
+        /// <summary>AERO_SELFTEST=flarecmp (owner 2026-10-05: "the side view feels like it has a lot of lag … compare the physics"):
+        /// the 172's flare lesson in the rear view, then the side view, the game flying as the student; each second logs fps,
+        /// CPU/GPU ms and SIM seconds per real second (below 1 = the sim can't keep up and runs slow).</summary>
+        private IEnumerator FlareCompareTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            var ft = new UnityEngine.FrameTiming[1];
+            foreach (string id in new[] { "practice:flare", "practice:flare-side" })
+            {
+                SessionSettings.AircraftId = "c172-like"; SessionSettings.ChallengeId = id;
+                SessionSettings.PracticeWindChoice = FlyingGame.Sim.Practice.PracticeWind.Calm; SessionSettings.LessonFlaps = 0f;
+                Practice.PracticeController.SelfTestStudent = true;
+                Menu.Fly();
+                yield return new WaitForSecondsRealtime(2.5f);
+                var pc = Object.FindFirstObjectByType<Practice.PracticeController>();
+                while (pc.Scenario != null && pc.Scenario.LessonPages.Length > 0 && pc.LessonPage < pc.Scenario.LessonPages.Length) { pc.NextLessonPage(); yield return null; }
+                pc.StartCountdown();
+                yield return new WaitForSecondsRealtime(3.5f);
+                for (int sec = 0; sec < 12 && pc.Scenario.Phase != FlyingGame.Sim.Practice.PracticePhase.Finished; sec++)
+                {
+                    int fr = 0; float t1 = Time.realtimeSinceStartup; double cpu = 0, gpu = 0; int nt = 0; double sim0 = pc.Scenario.Time;
+                    while (Time.realtimeSinceStartup - t1 < 1f)
+                    {
+                        yield return null; fr++;
+                        UnityEngine.FrameTimingManager.CaptureFrameTimings();
+                        if (UnityEngine.FrameTimingManager.GetLatestTimings(1, ft) > 0) { cpu += ft[0].cpuMainThreadFrameTime; gpu += ft[0].gpuFrameTime; nt++; }
+                    }
+                    float real = Time.realtimeSinceStartup - t1;
+                    if (sec is 0 or 4 or 7) { ScreenCapture.CaptureScreenshot($"flarecmp-{id.Replace(':', '-')}-{sec}s.png"); yield return null; }
+                    Debug.Log($"[Flare] {id} t={sec,2}s {fr,3} fps  cpu {(nt > 0 ? cpu / nt : -1),6:F1}  gpu {(nt > 0 ? gpu / nt : -1),6:F1} ms  sim/real {(pc.Scenario.Time - sim0) / real:F2}  ias {pc.Scenario.AirspeedMs * 1.944:F0} kt  agl {pc.Scenario.MainsAglM * 3.28:F0} ft");
+                }
+                Practice.PracticeController.SelfTestStudent = false;
+                pc.End();
+                yield return new WaitForSecondsRealtime(1f);
+            }
+            Debug.Log("[Flare] DONE");
         }
 
         /// <summary>AERO_SELFTEST=skins (owner 2026-10-04: "make the props look like they are actually spinning … and make the
@@ -292,6 +331,11 @@ namespace FlyingGame.Bridge
             pc.StartCountdown();
             yield return new WaitForSecondsRealtime(4.5f);
             ScreenCapture.CaptureScreenshot("lesson-live.png");
+            var drv = Object.FindFirstObjectByType<FlightSimDriver>();
+            if (drv != null)
+                foreach (Renderer rr in drv.GetComponentsInChildren<Renderer>())
+                    if (rr.enabled && rr.bounds.size.magnitude > 2f) Debug.Log($"[SelfTest]   renderer {rr.name} ({rr.GetType().Name}) bounds {rr.bounds.size} at {rr.bounds.center - drv.transform.position}");
+            Debug.Log($"[SelfTest] keep-out {ScreenLayout.AircraftKeepOut} screen {Screen.width}x{Screen.height} band {UiLayout.BandLeft:F0}..{UiLayout.BandRight:F0} stack bottom {UiLayout.StackBottomLastFrame:F0} bottom limit {UiLayout.BottomLimit:F0}");
             for (int i = 0; i < 60 && pc.Scenario.Phase != FlyingGame.Sim.Practice.PracticePhase.Finished; i++) yield return new WaitForSecondsRealtime(0.5f);
             yield return new WaitForSecondsRealtime(1.5f);
             Debug.Log($"[SelfTest] lesson points {pc.Scenario.Judge.Points:F0} events {pc.Scenario.Judge.Events.Count}");

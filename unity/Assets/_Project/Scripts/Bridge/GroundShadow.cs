@@ -38,6 +38,12 @@ namespace FlyingGame.Bridge
             Refresh();
         }
 
+        private static bool HasSkin(Transform t)
+        {
+            foreach (Transform c in t) if (c.name.StartsWith("Skin:")) { var smr = c.GetComponent<SkinnedMeshRenderer>(); if (smr != null && smr.enabled) return true; }
+            return false;
+        }
+
         /// <summary>Re-collect the airframe meshes (AirframeVisual calls this after a rebuild).</summary>
         public void Refresh() => GetComponentsInChildren(true, _parts);
 
@@ -86,7 +92,9 @@ namespace FlyingGame.Bridge
                     continue;
                 }
                 var rr = mf.GetComponent<Renderer>();
-                if (rr != null && !rr.enabled) continue;   // the hidden procedural shell under a real model casts nothing
+                // The hidden procedural shell under a real model casts nothing — but a RIGGED model mesh (its renderer handed
+                // over to a skinned copy, owner 2026-10-05: "the shadow was wrong") still casts, from its rigid mesh.
+                if (rr != null && !rr.enabled && !HasSkin(mf.transform)) continue;
                 Matrix4x4 m = proj * mf.transform.localToWorldMatrix;
                 // Every submesh: the real models (USDZ imports) are one mesh with a submesh per material, and drawing
                 // only submesh 0 cast the shadow of a single small piece (owner: "the shadow is tiny").

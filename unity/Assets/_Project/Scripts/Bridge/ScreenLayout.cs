@@ -60,9 +60,18 @@ namespace FlyingGame.Bridge
             if (cam == null || aircraft == null || ChaseCamera.InCockpit) { AircraftKeepOut = new Rect(-1f, -1f, 0f, 0f); _smoothValid = false; return; }   // in the cockpit the aircraft is all around
             float minX = float.MaxValue, minY = float.MaxValue, maxX = float.MinValue, maxY = float.MinValue;
             bool any = false;
-            foreach (Renderer r in aircraft.GetComponentsInChildren<Renderer>())
+            // The airframe's PARTS (wing, tail, fuselage …), each its own box — including the procedural parts hidden under a
+            // downloaded model: they have the model's dimensions, and the model itself is one rigged mesh whose single box,
+            // seen from behind, projected its near corners across most of the screen (owner 2026-10-05: no dials in the rear view).
+            bool modelShown = false;
+            foreach (Renderer r in aircraft.GetComponentsInChildren<Renderer>(true))
+                if (r.enabled && (r.name.StartsWith("Model:") || r.name.StartsWith("Skin:"))) { modelShown = true; break; }
+            foreach (Renderer r in aircraft.GetComponentsInChildren<Renderer>(true))
             {
-                if (r == null || !r.enabled) continue;
+                if (r == null || r is not MeshRenderer) continue;   // not particle effects, lines, or the model's one big skin
+                if (r.name.StartsWith("Model:") || r.name.StartsWith("Skin:")) continue;
+                if (!r.enabled && !modelShown) continue;            // hidden for another reason (a lost part)
+                if (!r.gameObject.activeInHierarchy) continue;
                 Bounds b = r.bounds;
                 for (int i = 0; i < 8; i++)
                 {

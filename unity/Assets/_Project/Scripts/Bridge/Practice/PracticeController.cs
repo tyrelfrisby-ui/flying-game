@@ -17,6 +17,8 @@ namespace FlyingGame.Bridge.Practice
         public FlightSimDriver Driver;
         public PracticeScenario Scenario { get; private set; }
         public bool Active { get; private set; }
+        /// <summary>A lesson is running (the free-flight HUD lines and the flap buttons step aside).</summary>
+        public static bool AnyActive { get; private set; }
         public PracticeKind Kind { get; private set; }
         public PracticeWind Wind { get; private set; }
 
@@ -26,6 +28,7 @@ namespace FlyingGame.Bridge.Practice
         private LineRenderer _slope;
         private bool _handoverSpoken, _finishSpoken, _beginning;
         private float _sideBlend;   // 0 = frame centred on the glideslope, 1 = on the runway
+        private float _sideHalf;    // the side-view flare's frame half-height (m), eased
         private bool _bubblesWere; private float _stallFocusY;
         /// <summary>Lesson pictures rendered from the game at Begin (index = LessonPages index).</summary>
         public Texture2D[] LessonPictures { get; private set; } = System.Array.Empty<Texture2D>();
@@ -93,20 +96,31 @@ namespace FlyingGame.Bridge.Practice
                 }
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
-                Active = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f; Counting = false;
+                Active = true; AnyActive = true; _handoverSpoken = false; _finishSpoken = false; _sideBlend = 0f; _sideHalf = 0f; Counting = false;
                 if (kind == PracticeKind.StallSideView) { _bubblesWere = SessionSettings.BubblesOn; SessionSettings.BubblesOn = true; }   // the air must be visible
                 _stallFocusY = CoordinateMap.ToUnity(ac.State.Position).y;
                 SetupCamera();
                 SetupSlopeLine();
                 RenderLessonPictures();
                 LessonPage = 0;
-                if (Scenario.LessonPages.Length > 0) PilotVoice.Say(Scenario.LessonPages[0].title + ". " + Scenario.LessonPages[0].text, 0.52f, 1.0f);
+                if (_quietBegin) { }
+                else if (Scenario.LessonPages.Length > 0) PilotVoice.Say(Scenario.LessonPages[0].title + ". " + Scenario.LessonPages[0].text, 0.52f, 1.0f);
                 else PilotVoice.Say(Scenario.Title + ". " + Scenario.Instructions, 0.52f, 1.0f);
             }
             finally { _beginning = false; }
         }
 
         public void Restart() { if (Scenario != null) Begin(Kind, Wind, _userAxes); }
+
+        /// <summary>The setup card changed (flaps): place the aircraft again for it and stay on the card — no pages, no voice.</summary>
+        public void RestartAtCard()
+        {
+            if (Scenario == null) return;
+            _quietBegin = true;
+            try { Begin(Kind, Wind, _userAxes); } finally { _quietBegin = false; }
+            LessonPage = Scenario.LessonPages.Length;
+        }
+        private bool _quietBegin;
 
         /// <summary>Next briefing page: speaks it; past the last picture the standard card (title + instructions) is read.</summary>
         public void NextLessonPage()
@@ -139,7 +153,7 @@ namespace FlyingGame.Bridge.Practice
         public void End()
         {
             if (!Active) return;
-            Active = false; Counting = false;
+            Active = false; AnyActive = false; Counting = false;
             if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; }
             if (_chase != null && _viewBefore != null) { _chase.SetView(_viewBefore.Value); _viewBefore = null; }
             if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
@@ -232,6 +246,20 @@ namespace FlyingGame.Bridge.Practice
             if (Scenario.Airwork) _stallFocusY = Mathf.Lerp(_stallFocusY, transform.position.y, 1f - Mathf.Exp(-3f * Time.deltaTime));
             _chase.SideFocusY = FocusHeight();
             Side2DView.Frame(Camera.main, _chase.SideDistance);
+            if (Scenario.Kind == PracticeKind.FlareSideView && Camera.main != null && Camera.main.orthographic)
+            {
+                // Owner 2026-10-05: "the side view … has a lot of lag". Pinned on the runway the 172 sat small at the top of the
+                // frame (or above it from 100 ft): a 2° pitch change didn't show until the PATH changed a second later. Frame
+                // the aircraft AND the runway, zooming in as it descends — in the round-out it fills the picture and the nose
+                // moves the moment the stick does.
+                float ground = (float)Scenario.SurfaceM, acY = transform.position.y;
+                float h = Mathf.Max(0f, acY - ground);
+                // The aircraft at about two-thirds of the height (under the score orb), the runway always in the bottom part.
+                float half = Mathf.Max(5.5f, 1.0f * h + 4f);
+                _chase.SideFocusY = ground + 0.7f * h + 0.5f;
+                _sideHalf = _sideHalf <= 0f ? half : Mathf.Lerp(_sideHalf, half, 1f - Mathf.Exp(-4f * Time.deltaTime));
+                Camera.main.orthographicSize = _sideHalf;
+            }
         }
 
         private void SetupSlopeLine()

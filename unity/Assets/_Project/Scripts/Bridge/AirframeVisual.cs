@@ -1038,7 +1038,7 @@ namespace FlyingGame.Bridge
                 smr.sharedMesh = skin;
                 smr.bones = bones.ToArray();
                 smr.rootBone = mf.transform;
-                Bounds lb = skin.bounds; lb.Expand(2f); smr.localBounds = lb;
+                Bounds lb = skin.bounds; lb.Expand(0.6f); smr.localBounds = lb;   // room for the deflections — not more: the HUD keep-out is built from these bounds
                 smr.sharedMaterials = mf.GetComponent<MeshRenderer>().sharedMaterials;
                 mf.GetComponent<MeshRenderer>().enabled = false;   // the rigid copy stays for the damage code (FreezeRig)
                 _rigged.Add(skinGo);

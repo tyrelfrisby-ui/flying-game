@@ -276,7 +276,11 @@ namespace FlyingGame.Bridge
             {
                 Vector3 tp = tgt.position;
                 Vector3 sidePos = new Vector3(tp.x, SideFocusY, tp.z) + SideRight * SideDistance;
-                transform.position = Vector3.Lerp(transform.position, sidePos, 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
+                // Along the runway the camera keeps up with the aircraft exactly (a 6/s lag left it swimming 6 m ahead of centre
+                // and drifting back as it slowed); the height eases.
+                Vector3 cur = transform.position;
+                float hy = Mathf.Lerp(cur.y, sidePos.y, 1f - Mathf.Exp(-6f * Time.unscaledDeltaTime));
+                transform.position = new Vector3(sidePos.x, hy, sidePos.z);
                 transform.rotation = Quaternion.LookRotation(-SideRight, Vector3.up);
                 return;
             }

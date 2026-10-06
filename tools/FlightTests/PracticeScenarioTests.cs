@@ -180,6 +180,47 @@ public class PracticeScenarioTests
         Assert.True(maxDv * 1.944 < 3.0, "starts on speed and in trim");
     }
 
+    [Theory]
+    [InlineData("c172-like.json", 0.0)]
+    [InlineData("c172-like.json", 1.0)]
+    public void RoundOutBleedsTheSpeedTheSameInBothViews(string file, double flaps)
+    {
+        // Owner 2026-10-05: "the physics feel different between the rear and side views … they don't slow down". The same
+        // pilot (hold the height from 2 s on, like a long hold-off at idle) in the rear-view and side-view flare lessons:
+        // the speed must bleed (≈1.5–3 kt/s, the 172's idle L/D) and identically in both.
+        double[] Fly(PracticeKind kind)
+        {
+            var c = Load(file); WorldTerrain.Active = null;
+            var sc = new PracticeScenario(kind, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
+            var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+            var kts = new List<double>();
+            double stick = sc.TrimStick, h0 = double.NaN;
+            int n = 0;
+            for (double t = 0; t < 10.0; t += 0.02, n++)
+            {
+                if (t > 2.0)
+                {
+                    // The pilot holds the height: back stick (−) against a sink or a loss of height, damped by the pitch rate.
+                    if (double.IsNaN(h0)) h0 = sc.AglM;
+                    double q = ac.State.Rates.Y;
+                    stick = Math.Clamp(stick + (-0.8 * sc.SinkMs + 0.15 * (sc.AglM - h0) + 0.8 * q) * 0.02, -1, 1);
+                }
+                var inp = sc.Step(ac, new ControlInputs(0, stick, 0, 1.0), 0.02);
+                sim.RunFor(0.02, inp); sc.ConstrainLongitudinal(ac);
+                if (n % 50 == 0) kts.Add(sc.AirspeedMs * 1.943844);
+            }
+            Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null;
+            return kts.ToArray();
+        }
+        double[] rear = Fly(PracticeKind.Flare), side = Fly(PracticeKind.FlareSideView);
+        _out.WriteLine($"{file} flaps {flaps}: rear {string.Join(" ", rear.Select(k => k.ToString("F1")))}");
+        _out.WriteLine($"{file} flaps {flaps}: side {string.Join(" ", side.Select(k => k.ToString("F1")))}");
+        double bleed = (rear[3] - rear[5]) / 2.0;   // the first two seconds of the hold, before it nears the stall
+        _out.WriteLine($"bleed in the hold-off {bleed:F2} kt/s (rear), {(side[3] - side[5]) / 2.0:F2} kt/s (side)");
+        for (int i = 0; i < Math.Min(6, Math.Min(rear.Length, side.Length)); i++) Assert.True(Math.Abs(rear[i] - side[i]) < 0.5, $"t={i}s rear {rear[i]:F1} side {side[i]:F1}");   // (past the stall the side view's lateral lock differs)
+        Assert.InRange(bleed, 1.0, 4.0);
+    }
+
     [Fact]
     public void ABouncedOrBrokenLandingIsNotFirmButFine()
     {

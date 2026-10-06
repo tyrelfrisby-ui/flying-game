@@ -41,7 +41,8 @@ namespace FlyingGame.Bridge
             if (UiLayout.Modal) return;
             // Status line: its own row in the shared text stack, shrunk to fit (no-overlap rule). The keyboard hints only
             // where there is a keyboard (the Mac app).
-            UiLayout.Label(UiLayout.NextLine(lh), $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°", _style);
+            if (!Practice.PracticeController.AnyActive)   // in a lesson the lesson's own lines take the stack (it ran down onto the aircraft)
+                UiLayout.Label(UiLayout.NextLine(lh), $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°", _style);
             // Mac: the key list gets its own line (sharing the status line shrank both to unreadable).
             if (TouchFlightControls.DeskMode)
                 UiLayout.Label(UiLayout.NextLine(lh), "arrows stick · A/D rudder · W/S power · =/- trim · F flaps · L gear · T turb · C challenge · Y tow / G release · R reset", _style);

@@ -467,7 +467,7 @@ namespace FlyingGame.Bridge
                     case Btn.Flaps:
                         // Three positions (owner 2026-09-15): the tap's third of the slot picks 0 / 50 / 100 directly, so 50 → 0
                         // never has to pass through 100.
-                        if (_driver.HasFlaps && ac != null) ac.FlapFraction = _flapTapThird switch { 0 => 0.0, 1 => 0.5, _ => 1.0 };
+                        if (_driver.HasFlaps && ac != null && !Practice.PracticeController.AnyActive) ac.FlapFraction = _flapTapThird switch { 0 => 0.0, 1 => 0.5, _ => 1.0 };
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
@@ -741,8 +741,9 @@ namespace FlyingGame.Bridge
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
                 Button(_gearRect, lbl);
             }
-            // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset.
-            if (_driver.HasFlaps)
+            // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset. In a lesson the flaps are part of
+            // the lesson's SETUP (owner 2026-10-05: changing them in flight "balloons wildly") — no buttons there.
+            if (_driver.HasFlaps && !Practice.PracticeController.AnyActive)
             {
                 // FLAPS 0 | 50 | 100: three buttons in the slot, the current setting lit.
                 var fr = _brakeRect;

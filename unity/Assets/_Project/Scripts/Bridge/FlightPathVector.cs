@@ -17,6 +17,7 @@ namespace FlyingGame.Bridge
 
         private LineRenderer _line;
         private GameObject _cone;
+        private GameObject _target;
         private Vector3 _prevVel, _accel;
         private bool _havePrev;
 
@@ -31,13 +32,80 @@ namespace FlyingGame.Bridge
             _cone = new GameObject("FlightPathArrow");
             _cone.AddComponent<MeshFilter>().sharedMesh = Cone(1f, 2.2f, 16);
             _cone.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("FlyingGame/Lit") ?? Shader.Find("Unlit/Color")) { color = Colour };
+            _target = new GameObject("ImpactPoint");
+            _target.AddComponent<MeshFilter>().sharedMesh = TargetMesh();
+            _target.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = Colour };
+            _target.SetActive(false);
+        }
+
+        /// <summary>
+        /// Point of impact (owner 2026-10-05: "have it also show a point of impact on the surface … a little target type
+        /// symbol"): the straight-line projection of the current path OVER THE GROUND to where it meets the terrain, a deck
+        /// or the water — the aim point of the descent, as the flight-path marker on a HUD shows it. Only while descending.
+        /// </summary>
+        private void UpdateImpact(Vector3 pos, Vector3 groundVel)
+        {
+            if (groundVel.y > -0.2f) { _target.SetActive(false); return; }
+            float Surface(Vector3 p)
+            {
+                var sp = CoordinateMap.ToSim(p);
+                double g = FlyingGame.Core.WorldTerrain.GroundHeightAt(sp.X, sp.Y);
+                double? w = FlyingGame.Core.FloatHydro.WaterSurfaceAt(sp.X, sp.Y);
+                return (float)(w.HasValue && w.Value > g ? w.Value : g);
+            }
+            Vector3 dir = groundVel.normalized;
+            float step = 4f, maxDist = 6000f, prev = 0f;
+            float t = 0f; bool hit = false;
+            for (t = step; t <= maxDist; t += step)
+            {
+                Vector3 p = pos + dir * t;
+                if (p.y <= Surface(p)) { hit = true; break; }
+                prev = t;
+                step = Mathf.Min(40f, step * 1.15f);
+            }
+            if (!hit) { _target.SetActive(false); return; }
+            float lo = prev, hi = t;
+            for (int i = 0; i < 12; i++) { float m = 0.5f * (lo + hi); Vector3 p = pos + dir * m; if (p.y <= Surface(p)) hi = m; else lo = m; }
+            Vector3 at = pos + dir * hi;
+            at.y = Surface(at) + 0.25f;   // just above the surface (and the runway slabs)
+            _target.SetActive(true);
+            _target.transform.position = at;
+            Vector3 flat = new Vector3(dir.x, 0f, dir.z);
+            _target.transform.rotation = flat.sqrMagnitude > 1e-6f ? Quaternion.LookRotation(flat.normalized, Vector3.up) : Quaternion.identity;
+            Camera cam = Camera.main;
+            float camDist = cam != null ? Vector3.Distance(cam.transform.position, at) : 50f;
+            _target.transform.localScale = Vector3.one * Mathf.Clamp(camDist * 0.04f, 2f, 40f);   // a few % of the view: visible near and far
+        }
+
+        /// <summary>A flat target lying on the surface (local xz, radius 1): a ring and a cross with a gap at the centre.</summary>
+        private static Mesh TargetMesh()
+        {
+            var v = new System.Collections.Generic.List<Vector3>(); var t = new System.Collections.Generic.List<int>();
+            void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+            {
+                int i = v.Count; v.Add(a); v.Add(b); v.Add(c); v.Add(d);
+                t.AddRange(new[] { i, i + 1, i + 2, i, i + 2, i + 3, i, i + 2, i + 1, i, i + 3, i + 2 });   // both faces
+            }
+            const int seg = 32; const float r0 = 0.82f, r1 = 1f, w = 0.07f;
+            for (int k = 0; k < seg; k++)
+            {
+                float a0 = k * Mathf.PI * 2f / seg, a1 = (k + 1) * Mathf.PI * 2f / seg;
+                Quad(new Vector3(Mathf.Cos(a0) * r0, 0f, Mathf.Sin(a0) * r0), new Vector3(Mathf.Cos(a0) * r1, 0f, Mathf.Sin(a0) * r1),
+                     new Vector3(Mathf.Cos(a1) * r1, 0f, Mathf.Sin(a1) * r1), new Vector3(Mathf.Cos(a1) * r0, 0f, Mathf.Sin(a1) * r0));
+            }
+            foreach (var (dx, dz) in new[] { (1f, 0f), (-1f, 0f), (0f, 1f), (0f, -1f) })
+            {
+                Vector3 along = new Vector3(dx, 0f, dz), side = new Vector3(-dz, 0f, dx) * w;
+                Quad(along * 0.25f - side, along * 1.25f - side, along * 1.25f + side, along * 0.25f + side);   // ticks through the ring
+            }
+            var m = new Mesh { name = "ImpactTarget" }; m.SetVertices(v); m.SetTriangles(t, 0); m.RecalculateNormals(); m.RecalculateBounds(); return m;
         }
 
         private void LateUpdate()
         {
             bool show = SessionSettings.ShowFlightPath && Driver != null && Driver.Sim != null && !SessionSettings.MenuOpen && !(GetComponent<PilotEgress>()?.PilotOut ?? false);
             _line.enabled = show; _cone.SetActive(false);   // no arrowhead (owner)
-            if (!show) { _havePrev = false; return; }
+            if (!show) { _havePrev = false; _target.SetActive(false); return; }
 
             // AIR-relative (owner): the path through the air, not over the ground — the wind is left out, so in a
             // crosswind the vector points where the nose is going through the air mass.
@@ -81,6 +149,7 @@ namespace FlyingGame.Bridge
             _cone.transform.position = pts[n];
             _cone.transform.rotation = Quaternion.LookRotation(tipDir, Vector3.up);
             _cone.transform.localScale = Vector3.one * (width * 3.2f);
+            UpdateImpact(pos, Driver.WorldVelocityUnity);   // the impact point is where the GROUND track meets the surface
         }
 
         /// <summary>Cone along local +z, base radius r, length l.</summary>

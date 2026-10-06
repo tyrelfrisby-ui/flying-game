@@ -58,10 +58,15 @@ public sealed class SimLoop
     public void Advance(double realDtSec, ControlInputs inputs, ref double accumulatorSec)
     {
         accumulatorSec = Math.Min(accumulatorSec + realDtSec, MaxCatchUpSec);
+        bool capture = Aircraft.CaptureForces;
         while (accumulatorSec >= FixedDtSec)
         {
+            // Force vectors are drawn once a frame: capture them on the frame's LAST step only (capturing every strip on
+            // every step was ~4× the allocation for nothing — the side-view lessons had it on).
+            Aircraft.CaptureForces = capture && accumulatorSec < 2 * FixedDtSec;
             Aircraft.Step(inputs, FixedDtSec);
             accumulatorSec -= FixedDtSec;
         }
+        Aircraft.CaptureForces = capture;
     }
 }

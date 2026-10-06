@@ -15,8 +15,8 @@ namespace FlyingGame.Bridge.Practice
         public FlightSimDriver Driver;
         public LessonDebrief Debrief;
 
-        private GUIStyle _title, _text, _big, _small, _btn;
-        private Texture2D _card, _bar, _line, _btnBg;
+        private GUIStyle _title, _text, _big, _small, _btn, _btnOff;
+        private Texture2D _card, _bar, _line, _btnBg, _btnOffBg;
         private int _fs;
 
         private static Texture2D Solid(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -36,6 +36,8 @@ namespace FlyingGame.Bridge.Practice
             _line ??= Solid(Color.white);
             _btnBg ??= Solid(new Color(0.2f, 0.62f, 0.35f, 0.95f));
             _btn = new GUIStyle { font = f, fontSize = fs, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white, background = _btnBg }, active = { textColor = Color.white, background = _btnBg } };
+            _btnOffBg ??= Solid(new Color(0.18f, 0.24f, 0.32f, 0.95f));
+            _btnOff = new GUIStyle(_btn) { normal = { textColor = new Color(0.8f, 0.85f, 0.9f), background = _btnOffBg }, active = { textColor = Color.white, background = _btnBg } };
         }
 
         private void OnGUI()
@@ -50,6 +52,11 @@ namespace FlyingGame.Bridge.Practice
             if (sc.Phase == PracticePhase.Briefing)
             {
                 if (Controller.Counting) { DrawCountdown(view, lh); return; }
+                // Owner 2026-10-05: the setup page comes first and the world isn't shown until the aircraft has been placed
+                // for the chosen setup — an opaque page under the toolbar.
+                _backdrop ??= Solid(new Color(0.05f, 0.08f, 0.12f, 1f));
+                float tb = Mathf.Max(view.y, UiLayout.ToolbarBottom);
+                GUI.DrawTexture(new Rect(view.x, tb, view.width, view.yMax - tb), _backdrop);
                 if (sc.LessonPages.Length > 0 && Controller.LessonPage < sc.LessonPages.Length) DrawLessonPage(sc, view, lh);
                 else DrawBriefing(sc, view, lh);
                 return;
@@ -62,6 +69,8 @@ namespace FlyingGame.Bridge.Practice
         }
 
         /// <summary>An illustrated page: the picture rendered from the game, the written explanation, NEXT.</summary>
+        private Texture2D _backdrop;
+
         private void DrawLessonPage(PracticeScenario sc, Rect view, float lh)
         {
             var page = sc.LessonPages[Controller.LessonPage];
@@ -140,7 +149,11 @@ namespace FlyingGame.Bridge.Practice
             LessonRules rules = sc.Judge.Rules;
             bool landing = rules.Moments.Exists(m => m.Name == LessonJudge.Std.TdSink.Name);
             int rows = rules.Live.Count + rules.Moments.Count;
-            float need = lh * (1.3f + 2.4f + 1.5f + 0.8f + rows * 0.95f + (rules.Moments.Count > 0 ? 0.8f : 0f) + (landing ? 4.2f : 0f) + 1.0f + 1.3f) + _fs;
+            // SETUP (owner 2026-10-05): the flap setting is chosen HERE, before the aircraft is placed — each setting has its own
+            // row of the idle-glide table (1.3 Vso, the power-off glide, the trim), and picking one re-places the aircraft on it.
+            bool flapSetup = sc.FlareExercise && !sc.Airwork && GlideTable.HasFlaps(sc.Config);
+            float setupRows = flapSetup ? 0.8f + 3f * 0.95f + 0.4f : 0f;
+            float need = lh * (1.3f + 2.4f + setupRows + 1.5f + 0.8f + rows * 0.95f + (rules.Moments.Count > 0 ? 0.8f : 0f) + (landing ? 4.2f : 0f) + 1.0f + 1.3f) + _fs;
             float top0 = Mathf.Max(view.y, UiLayout.ToolbarBottom) + _fs * 0.4f, avail = view.yMax - top0 - _fs * 0.4f;
             float s = Mathf.Min(1f, avail / need);                                     // shrink to fit under the toolbar (no-overlap rule)
             float L = lh * s;
@@ -152,6 +165,22 @@ namespace FlyingGame.Bridge.Practice
             var sml = new GUIStyle(_small) { fontSize = Mathf.RoundToInt(_fs * 0.85f * s), alignment = TextAnchor.MiddleLeft };
             UiLayout.Label(new Rect(x, y, cw, L * 1.2f), sc.Title, _title); y += L * 1.3f;
             GUI.Label(new Rect(x, y, cw, L * 2.3f), rules.Goal, txt); y += L * 2.4f;
+            if (flapSetup)
+            {
+                UiLayout.Label(new Rect(x, y, cw, L * 0.8f), "SETUP — FLAPS  (the lesson starts at idle on the power-off glide for this setting, in trim, aimed at the numbers from 100 ft)", sml); y += L * 0.8f;
+                (double f, string n)[] set = { (0.0, "UP"), (0.5, "HALF"), (1.0, "FULL") };
+                foreach (var (f, n) in set)
+                {
+                    bool on = System.Math.Abs(sc.Flaps - f) < 0.01;
+                    var row = new Rect(x, y, cw, L * 0.9f);
+                    if (GUI.Button(new Rect(x, y, _fs * 5f, L * 0.88f), n, on ? _btn : _btnOff)) { SessionSettings.LessonFlaps = (float)f; Controller.RestartAtCard(); }
+                    GlideEntry e = GlideTable.Lookup(sc.Config.Id, f);
+                    string info = e != null ? $"Vso {e.VsoKt:F0} kt · 1.3 Vso {e.SpeedKt:F0} kt · idle glide {e.GlideDeg:F1}° ({e.GlideRatio:F1}:1, {e.SinkFpm:F0} fpm) · trim {e.TrimStick:+0.00;-0.00}" : "computed for this airfield";
+                    UiLayout.Label(new Rect(x + _fs * 5.6f, y, cw - _fs * 5.6f, L * 0.9f), info, sml);
+                    y += L * 0.95f;
+                }
+                y += L * 0.4f;
+            }
             // The orb legend: what each colour earns.
             float od = L * 0.9f, col = cw / 4f;
             for (int g = 0; g < 4; g++)
@@ -209,9 +238,11 @@ namespace FlyingGame.Bridge.Practice
             GUI.color = Color.white;
             Vector2 ro = P(0.55f);
             GUI.DrawTexture(new Rect(ro.x - 1f, ro.y, 2f, gy - ro.y), _line);
-            UiLayout.Label(new Rect(r.x, r.y, r.width * 0.42f, r.height * 0.3f), "idle, on speed, in trim", st);
-            UiLayout.Label(new Rect(ro.x + 4f, ro.y - r.height * 0.05f, r.width * 0.3f, r.height * 0.25f), "round out 10–20 ft", st);
-            UiLayout.Label(new Rect(r.x + r.width * 0.5f, gy - r.height * 0.3f, r.width * 0.3f, r.height * 0.2f), "hold off — speed bleeds", st);
+            // Labels in the clear space around the path (no-overlap rule): the path runs top-left → bottom-right.
+            var right = new GUIStyle(st) { alignment = TextAnchor.MiddleRight };
+            UiLayout.Label(new Rect(r.x + r.width * 0.34f, r.y + r.height * 0.02f, r.width * 0.4f, r.height * 0.22f), "idle, on speed, in trim", st);
+            UiLayout.Label(new Rect(r.x + r.width * 0.04f, gy - r.height * 0.34f, ro.x - r.x - r.width * 0.06f, r.height * 0.22f), "round out 10–20 ft", right);
+            UiLayout.Label(new Rect(r.x + r.width * 0.72f, gy - r.height * 0.34f, r.width * 0.28f, r.height * 0.22f), "hold off — speed bleeds", st);
             UiLayout.Label(new Rect(r.x + r.width * 0.6f, gy + 4f, r.width * 0.4f, r.height * 0.2f), "aim: the numbers · touch down ~330 ft past", st);
         }
 
