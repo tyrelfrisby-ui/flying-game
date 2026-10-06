@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 /// <summary>Steady wind (owner-directed head/tail/crosswind for landing): the air mass drifts, so
 /// airspeed and ground track separate — headwind cuts groundspeed, tailwind raises it, crosswind
 /// makes the aircraft crab and drift. Crosswind touchdown drift loads the gear sideways.</summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class WindTests
 {
     private static AircraftConfig Cub() =>

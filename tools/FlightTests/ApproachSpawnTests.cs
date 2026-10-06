@@ -20,7 +20,7 @@ public class ApproachSpawnTests
     [InlineData("glider-2-33-like", 19, 27, 15, 30)]
     [InlineData("pa18-cub-like", 24, 34, 6, 13)]
     [InlineData("c172-like", 28, 40, 7, 14)]
-    [InlineData("extra-300-like", 35, 55, 6, 12)]
+    [InlineData("extra-300-like", 35, 55, 5, 12)]   // 5.7:1 with the full windmilling-prop drag (owner 2026-10-05: no type overrides it lower)
     [InlineData("glider-eb29r-like", 22, 34, 40, 70)]
     [InlineData("glider-swift-s1-like", 22, 34, 20, 38)]
     public void BestGlideIsPlausible(string id, double vMin, double vMax, double ldMin, double ldMax)

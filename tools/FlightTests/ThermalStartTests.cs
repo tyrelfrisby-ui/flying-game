@@ -12,6 +12,7 @@ namespace FlyingGame.FlightTests;
 /// core — holding the bank (and nothing else: elevator left at the start trim) keeps the aircraft in the thermal and
 /// climbing, in still air AND in the default 5 m/s easterly (the plume leans with the wind, Thermal.CoreAt).
 /// </summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class ThermalStartTests
 {
     private readonly ITestOutputHelper _out;

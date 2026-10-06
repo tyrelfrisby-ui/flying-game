@@ -146,6 +146,7 @@ public static class LandingGear
         if (penetration > 0)
         {
             Vec3 vel = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
+            if (WorldDecks.All.Count > 0) vel -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             loadN = System.Math.Max(0, g.SpringN * penetration + g.DampNs * System.Math.Max(0, vel.Z));
             Vec3 fwdWorld = s.Attitude.Rotate(new Vec3(1, 0, 0));
             Vec3 fwdGround = new Vec3(fwdWorld.X, fwdWorld.Y, 0);
@@ -239,6 +240,8 @@ public static class LandingGear
 
             // Contact-point velocity (world) = body vel + ω×r, rotated to world.
             Vec3 contactVelWorld = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
+            // ... relative to the surface: a moving deck (the carrier) carries the wheels with it.
+            if (WorldDecks.All.Count > 0) contactVelWorld -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             double compressionRate = contactVelWorld.Z; // vertical closing rate (+ = compressing)
             if (touching != null && gi < touching.Length && !touching[gi])
             {

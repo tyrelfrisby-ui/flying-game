@@ -9,6 +9,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Turbulence realism pins: correct RMS intensity, zero mean, divergence-free, bounded
 /// aircraft response (buffets but doesn't blow up in moderate turbulence).</summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class TurbulenceTests
 {
     [Fact]

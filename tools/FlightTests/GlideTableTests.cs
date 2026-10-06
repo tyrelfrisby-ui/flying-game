@@ -54,6 +54,27 @@ public class GlideTableTests
 
     /// <summary>The new-airplane protocol's automated gate: every aircraft in configs/ must pass.</summary>
     [Fact]
+    public void EveryPropellerAircraftWindmillsADragAtIdle()
+    {
+        // Owner 2026-10-05: "all propeller aircraft have windmilling drag at idle — there should not be a single prop plane
+        // without it", none overriding it lower. Net force along the prop axis at idle, at 60 and 120 kt: a drag, every one.
+        int n = 0;
+        foreach (AircraftConfig c in All())
+        {
+            if (c.Propulsion is null || c.Propulsion.PropDiameterM <= 0) continue;   // gliders, jets
+            Assert.True(c.Propulsion.IdleDragCd >= 0.15, $"{c.Id}: idleDragCd {c.Propulsion.IdleDragCd}");
+            foreach (double v in new[] { 31.0, 62.0 })
+            {
+                var (f, _) = FlyingGame.Core.PropModel.Compute(c.Propulsion, 0.0, new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero, 1.225);
+                Assert.True(f.X < 0, $"{c.Id} at {v * 1.943844:F0} kt idle: {f.X:F0} N (must be a drag)");
+            }
+            n++;
+        }
+        _o.WriteLine($"{n} propeller aircraft, all windmilling at idle");
+        Assert.True(n > 10);
+    }
+
+    [Fact]
     public void EveryAircraftPassesTheNewAirplaneProtocol()
     {
         string sa = Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "aircraft");

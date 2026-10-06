@@ -320,3 +320,107 @@ public static class GoldenGate
             }
     }
 }
+
+/// <summary>
+/// The aircraft carrier (owner 2026-10-03: "an aircraft carrier just off shore … at 18 kt"): a Nimitz-class flight deck —
+/// 330 m long, ~58 m wide (the angled landing area painted on it), 18.3 m above the water, the island on the starboard side —
+/// steaming at 18 kt round a racetrack offshore between the coast and the island (two 5.2 km straights, north- and
+/// southbound, tight turns at the ends), clear of the flying-boat harbour. Its pose comes from the world clock; the deck
+/// is a MOVING deck (the wheels are carried with it), the hull, deck and island are solid.
+/// </summary>
+public static class Carrier
+{
+    public const double SpeedKt = 18.0, SpeedMs = SpeedKt * 0.514444;
+    public const double HalfLengthM = 165, DeckPortM = 34, DeckStarboardM = 24, DeckTopM = 18.3, DeckThickM = 3, DraftM = 11;
+    public const double HullHalfBeamM = 20, IslandU0 = 10, IslandU1 = 70, IslandV0 = 16, IslandV1 = 26, IslandTopM = DeckTopM + 42;
+    public const double TrackX0 = -2600, TrackX1 = 2600, TurnRadiusM = 300;
+    public static double TrackY => Coast.MeanShoreY + 700;   // the northbound straight, 0.7 km off the mean shore
+    public const double AngledDeckDeg = 9;
+    private static double Straight => TrackX1 - TrackX0;
+    public static double LapM => 2 * Straight + 2 * System.Math.PI * TurnRadiusM;
+
+    /// <summary>Centre (x, y), heading (rad, 0 = north, + = clockwise) and turn rate (rad/s) at time t.</summary>
+    public static (double x, double y, double heading, double turnRate) PoseAt(double t)
+    {
+        double s = (SpeedMs * t) % LapM; if (s < 0) s += LapM;
+        double y1 = TrackY, r = TurnRadiusM, w = SpeedMs / r, a = System.Math.PI * r;
+        if (s < Straight) return (TrackX0 + s, y1, 0, 0);                                                 // northbound
+        s -= Straight;
+        if (s < a) { double h = s / r; return (TrackX1 + r * System.Math.Sin(h), y1 + r - r * System.Math.Cos(h), h, w); }   // turning east, then south
+        s -= a;
+        if (s < Straight) return (TrackX1 - s, y1 + 2 * r, System.Math.PI, 0);                           // southbound
+        s -= Straight;
+        { double h = System.Math.PI + s / r; return (TrackX0 + r * System.Math.Sin(h), y1 + r - r * System.Math.Cos(h), h, w); }
+    }
+
+    /// <summary>World (x, y) → the carrier's frame at time t: u forward (bow +), v to starboard.</summary>
+    public static (double u, double v) ToLocal(double x, double y, double t)
+    {
+        var (cx, cy, h, _) = PoseAt(t);
+        double dx = x - cx, dy = y - cy, c = System.Math.Cos(h), sn = System.Math.Sin(h);
+        return (dx * c + dy * sn, -dx * sn + dy * c);
+    }
+
+    public static bool OnDeck(double u, double v) => System.Math.Abs(u) <= HalfLengthM && v >= -DeckPortM && v <= DeckStarboardM && !(u > IslandU0 && u < IslandU1 && v > IslandV0);
+
+    /// <summary>Velocity of the deck at (x, y): the ship's speed along its heading plus its turn (ω × r).</summary>
+    public static Vec3 DeckVelocityAt(double x, double y, double t)
+    {
+        var (cx, cy, h, w) = PoseAt(t);
+        double vx = SpeedMs * System.Math.Cos(h) - w * (y - cy), vy = SpeedMs * System.Math.Sin(h) + w * (x - cx);
+        return new Vec3(vx, vy, 0);
+    }
+
+    public sealed class Deck : WorldDecks.IMovingDeck
+    {
+        public bool TopAt(double x, double y, out double topM)
+        {
+            topM = DeckTopM;
+            var (u, v) = ToLocal(x, y, WorldClock.TimeS);
+            return OnDeck(u, v);
+        }
+        public Vec3 VelocityAt(double x, double y) => DeckVelocityAt(x, y, WorldClock.TimeS);
+    }
+
+    /// <summary>The ship as a solid: the deck slab, the hull under it (to the waterline and below), the island.</summary>
+    public sealed class Solid : WorldSolids.IShape
+    {
+        public bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth)
+        {
+            normalNed = Vec3.Zero; depth = 0;
+            double t = WorldClock.TimeS;
+            var (cx, cy, h, _) = PoseAt(t);
+            double dx = x - cx, dy = y - cy;
+            if (dx * dx + dy * dy > 200.0 * 200.0) return false;
+            var (u, v) = ToLocal(x, y, t);
+            // The three blocks, each as (u0,u1, v0,v1, z0,z1).
+            (double u0, double u1, double v0, double v1, double z0, double z1)[] blocks =
+            {
+                (-HalfLengthM, HalfLengthM, -DeckPortM, DeckStarboardM, DeckTopM - DeckThickM, DeckTopM),
+                (-HalfLengthM + 8, HalfLengthM - 20, -HullHalfBeamM, HullHalfBeamM, -DraftM, DeckTopM - DeckThickM),
+                (IslandU0, IslandU1, IslandV0, IslandV1, DeckTopM, IslandTopM),
+            };
+            foreach (var b in blocks)
+            {
+                if (u < b.u0 || u > b.u1 || v < b.v0 || v > b.v1 || up < b.z0 || up > b.z1) continue;
+                // Least-penetration face.
+                double[] d = { u - b.u0, b.u1 - u, v - b.v0, b.v1 - v, up - b.z0, b.z1 - up };
+                int k = 0; for (int i = 1; i < 6; i++) if (d[i] < d[k]) k = i;
+                depth = d[k];
+                double c = System.Math.Cos(h), sn = System.Math.Sin(h);
+                // Local outward normal → world (x north, y east, z DOWN).
+                (double nu, double nv, double nz) = k switch { 0 => (-1, 0, 0), 1 => (1, 0, 0), 2 => (0, -1, 0), 3 => (0, 1, 0), 4 => (0, 0, 1), _ => (0, 0, -1) };
+                normalNed = new Vec3(nu * c - nv * sn, nu * sn + nv * c, nz);
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public static void Register()
+    {
+        WorldDecks.All.Add(new Deck());
+        WorldSolids.Shapes.Add(new Solid());
+    }
+}
+

@@ -55,8 +55,20 @@ namespace FlyingGame.EditorTools
                 // Plunge waterfall at the first wall (sim x 1849, lip y −2002): front, from inside the slot, and the lip.
                 ("waterfall-front", new Vector3(-1350f, 520f, 2350f), new Vector3(-1985f, 380f, 1849f)),
                 ("waterfall-slot", new Vector3(-2030f, 350f, 1480f), new Vector3(-2030f, 330f, 2200f)),
+                // The carrier, posed at t = 20 s (northbound, sim (−2415, 3700)): the approach from astern, its port side, from the shore.
+                ("carrier-approach", new Vector3(3712f, 75f, -3150f), new Vector3(3695f, 18f, -2440f)),
+                ("carrier-side", new Vector3(3330f, 70f, -2330f), new Vector3(3705f, 25f, -2415f)),
+                ("carrier-deck", new Vector3(3712f, 40f, -2560f), new Vector3(3690f, 18f, -2350f)),
+                ("carrier-shore", new Vector3(2700f, 450f, -3600f), new Vector3(3700f, 0f, -2415f)),
                 ("waterfall-lip", new Vector3(-1900f, 880f, 1700f), new Vector3(-2010f, 780f, 1849f)),
             };
+            // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
+            var carrier = Object.FindFirstObjectByType<CarrierRuntime>();
+            if (carrier != null)
+            {
+                var (cx, cy, ch, _) = FlyingGame.Core.Carrier.PoseAt(20);
+                carrier.transform.SetPositionAndRotation(WorldBuilder.U(cx, cy, 0), Quaternion.Euler(0f, (float)(ch * Mathf.Rad2Deg), 0f));
+            }
             string onlyViews = System.Environment.GetEnvironmentVariable("WORLD_VIEWS");
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {

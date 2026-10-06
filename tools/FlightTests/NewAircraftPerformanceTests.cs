@@ -9,6 +9,7 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>PA-28-181 Archer and Cirrus SR22 (owner 2026-10-02) against their POH numbers, next to the C172 the sim is
 /// calibrated on (its 75 % cruise reads ~0.9 of book; ROC reads high — see PerformanceSpeedsAreOrderedSensibly).</summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class NewAircraftPerformanceTests
 {
     private readonly ITestOutputHelper _out;

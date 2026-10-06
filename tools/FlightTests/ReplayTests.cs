@@ -12,6 +12,7 @@ namespace FlyingGame.FlightTests;
 /// In-game replay (owner 2026-10-01): the recorder must reproduce the flight it saw, interpolate smoothly between
 /// samples, keep only the newest window, and leaving a replay must resume the live flight exactly where it was.
 /// </summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class ReplayTests
 {
     private static (Aircraft ac, SimLoop sim, ControlInputs hold) Cub()

@@ -1620,8 +1620,7 @@
     "pFactorK": 0.35,
     "slipstreamK": 0.12,
     "constantSpeed": true,
-    "governedRpm": 2500,
-    "idleDragCd": 0.08
+    "governedRpm": 2500
   },
   "stallDynamics": {
     "stripSepTau": 0.15,

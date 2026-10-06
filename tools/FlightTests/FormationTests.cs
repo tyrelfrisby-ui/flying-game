@@ -14,6 +14,7 @@ namespace FlyingGame.FlightTests;
 /// leader flying the zone's waypoints (turns included) without hitting each other or the ground; a P-51 that fights back
 /// at MEDIUM skill must get into range, fire, and land some hits on a straight-flying target — but nowhere near all.
 /// </summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class FormationTests
 {
     private readonly ITestOutputHelper _out;

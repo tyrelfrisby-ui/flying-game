@@ -146,8 +146,91 @@ namespace FlyingGame.Bridge
             BuildArch(root.transform);
             BuildAvalon(t, root.transform);
             BuildCave(t, root.transform);
+            BuildCarrier(root.transform);
             foreach (var c in CombatZone.Clouds)
                 Cumulus.Puffy(U(c.x, c.y, c.baseM), (float)c.radiusM, (float)c.heightM, (int)(c.x * 7 + c.y));
+        }
+
+        // ---- the aircraft carrier (Core: Carrier) ---------------------------------------------------------------------
+        // Built in the ship's own frame (Unity z = forward/bow, x = starboard, y = up from the waterline); CarrierRuntime
+        // moves the whole thing each frame to the pose the physics uses.
+        private static void BuildCarrier(Transform parent)
+        {
+            var b = new Batch();
+            Color hull = new(0.42f, 0.44f, 0.46f), deck = new(0.26f, 0.27f, 0.28f), white = new(0.92f, 0.92f, 0.9f),
+                  yellow = new(0.9f, 0.75f, 0.15f), red = new(0.55f, 0.12f, 0.1f), wake = new(0.92f, 0.96f, 0.97f);
+            float L = (float)Carrier.HalfLengthM, top = (float)Carrier.DeckTopM, th = (float)Carrier.DeckThickM;
+            float vp = (float)-Carrier.DeckPortM, vs = (float)Carrier.DeckStarboardM, hb = (float)Carrier.HullHalfBeamM;
+            // Hull: the waterline band (red boot-topping), the grey sides, a pointed bow, under the flight deck.
+            float hu0 = -L + 8, hu1 = L - 20;
+            b.Box(new Vector3(0, -1.5f, (hu0 + hu1) / 2), new Vector3(hb * 2, 3f, hu1 - hu0), red);
+            b.Box(new Vector3(0, (top - th) / 2 + 0.5f, (hu0 + hu1) / 2), new Vector3(hb * 2, top - th - 1, hu1 - hu0), hull);
+            Vector3 bowTip = new(0, top - th, L - 2), bowLow = new(0, -1, hu1 + 6);
+            Vector3 pL = new(-hb, top - th, hu1), pR = new(hb, top - th, hu1), lL = new(-hb, -1, hu1), lR = new(hb, -1, hu1);
+            b.Quad(pL, bowTip, bowLow, lL, hull); b.Quad(lR, bowLow, bowTip, pR, hull);
+            // The flight deck slab (overhanging the hull to port for the angled deck).
+            b.Box(new Vector3((vp + vs) / 2, top - th / 2, 0), new Vector3(vs - vp, th, 2 * L), hull, deck);
+            float y = top + 0.03f;
+            void Stripe(float u0, float v0, float u1, float v1, float w, Color c)
+            {
+                Vector3 a = new(v0, y, u0), e = new(v1, y, u1), d = (e - a).normalized, n = new Vector3(d.z, 0, -d.x) * (w / 2);
+                b.Quad(a - n, a + n, e + n, e - n, c);   // facing up
+            }
+            // Deck edges, the bow (straight) centreline, the angled landing area: edges, dashed centreline, the wires.
+            Stripe(-L + 2, vs - 1, L - 2, vs - 1, 0.6f, white);
+            Stripe(-L + 2, vp + 1, L - 2, vp + 1, 0.6f, white);
+            for (float u = -20; u < L - 10; u += 12) Stripe(u, 2, u + 6, 2, 0.5f, yellow);
+            double tan = System.Math.Tan(Carrier.AngledDeckDeg * System.Math.PI / 180);
+            float La = 210, u0a = -L + 2;
+            float V(float u, float off) => (float)(-3 - (u - u0a) * tan) + off;
+            Stripe(u0a, V(u0a, 0), u0a + La, V(u0a + La, 0), 0.5f, white);
+            Stripe(u0a, V(u0a, 11), u0a + La, V(u0a + La, 11), 0.6f, white);
+            Stripe(u0a, V(u0a, -11), u0a + La, V(u0a + La, -11), 0.6f, white);
+            for (float u = u0a + 6; u < u0a + La; u += 14) Stripe(u, V(u, 0), u + 7, V(u + 7, 0), 0.9f, white);
+            for (int i = 0; i < 4; i++)
+            {
+                float u = -L + 45 + i * 12;
+                Vector3 a = new(V(u, -12), y + 0.05f, u), e = new(V(u, 12), y + 0.05f, u);
+                b.Beam(a, e, 0.25f, 0.12f, new Color(0.1f, 0.1f, 0.1f));
+            }
+            // Bow catapults (two pairs of tracks).
+            foreach (float v in new[] { -6f, 8f }) Stripe(L - 100, v, L - 6, v, 0.3f, new Color(0.15f, 0.15f, 0.15f));
+            // The island: superstructure, bridge windows, mast with radar, hull number in white blocks on its side.
+            float iu0 = (float)Carrier.IslandU0, iu1 = (float)Carrier.IslandU1, iv0 = (float)Carrier.IslandV0, iv1 = (float)Carrier.IslandV1, ih = (float)(Carrier.IslandTopM - Carrier.DeckTopM);
+            b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 0.3f, (iu0 + iu1) / 2), new Vector3(iv1 - iv0, ih * 0.6f, iu1 - iu0), hull);
+            b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 0.7f, (iu0 + iu1) / 2 + 8), new Vector3(iv1 - iv0 - 1.5f, ih * 0.2f, (iu1 - iu0) * 0.55f), hull);
+            b.Box(new Vector3(iv0 - 0.05f, top + ih * 0.74f, (iu0 + iu1) / 2 + 8), new Vector3(0.1f, 1.6f, (iu1 - iu0) * 0.5f), new Color(0.08f, 0.1f, 0.13f));
+            b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 0.95f, (iu0 + iu1) / 2 + 6), new Vector3(1.2f, ih * 0.3f, 1.2f), hull);
+            b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 1.02f, (iu0 + iu1) / 2 + 6), new Vector3(9f, 0.6f, 2.5f), hull);
+            // "68" on the island's port face, in white strokes (seven-segment style).
+            void Digit(int d, float cu)
+            {
+                int[] seg = { 0b1111101, 0b0000101, 0b1110110, 0b1010111, 0b0001111, 0b1011011, 0b1111011, 0b0000111, 0b1111111, 0b1011111 };
+                int m = seg[d]; float w = 4f, h = 3.2f, z0 = top + ih * 0.32f, x = iv0 - 0.06f, t = 0.7f;
+                void S(float u0, float z0b, float u1, float z1b) => b.Box(new Vector3(x, 2 * z0 + 2 * h - (z0b + z1b) / 2, cu - (u0 + u1) / 2), new Vector3(0.1f, Mathf.Max(t, z1b - z0b), Mathf.Max(t, u1 - u0)), white);
+                if ((m & 1) != 0) S(-w / 2, z0 + 2 * h, w / 2, z0 + 2 * h);      // top
+                if ((m & 2) != 0) S(w / 2, z0 + h, w / 2, z0 + 2 * h);           // upper fwd
+                if ((m & 4) != 0) S(w / 2, z0, w / 2, z0 + h);                   // lower fwd
+                if ((m & 8) != 0) S(-w / 2, z0 + h, w / 2, z0 + h);              // middle
+                if ((m & 16) != 0) S(-w / 2, z0, -w / 2, z0 + h);                // lower aft
+                if ((m & 32) != 0) S(-w / 2, z0 + h, -w / 2, z0 + 2 * h);        // upper aft
+                if ((m & 64) != 0) S(-w / 2, z0, w / 2, z0);                     // bottom
+            }
+            // Read from the port side the bow is on the LEFT: "6" forward (+u); S() mirrors each digit so it reads upright from port.
+            Digit(6, (iu0 + iu1) / 2 + 4); Digit(8, (iu0 + iu1) / 2 - 4);
+            // The wake: churned water right astern fading out, and two thin foam lines spreading behind.
+            Color churn = new(0.55f, 0.72f, 0.78f), foam = new(0.62f, 0.78f, 0.84f);
+            b.Quad(new Vector3(-hb * 0.8f, 0.12f, -L + 8), new Vector3(hb * 0.8f, 0.12f, -L + 8), new Vector3(hb * 0.5f, 0.12f, -L - 180), new Vector3(-hb * 0.5f, 0.12f, -L - 180), churn);
+            foreach (float side in new[] { -1f, 1f })
+            {
+                Vector3 a0 = new(side * hb, 0.1f, hu1 - 30), a1 = new(side * (hb + 95f), 0.1f, -L - 300);
+                Vector3 n = new Vector3(side, 0, 0) * 1.5f;
+                b.Quad(a0 - n, a1 - n, a1 + n, a0 + n, foam);
+                b.Quad(a0 + n, a1 + n, a1 - n, a0 - n, foam);
+            }
+            var root = new GameObject("Carrier"); root.transform.SetParent(parent, false);
+            b.Build("CarrierShip", root.transform, VC);
+            root.AddComponent<CarrierRuntime>();
         }
 
         // ---- the ocean ----------------------------------------------------------------------------------------
@@ -358,6 +441,16 @@ namespace FlyingGame.Bridge
             shaft.transform.localScale = new Vector3((float)SeaCave.SkylightRadiusM * 1.6f, (float)(topH - botH) / 2f, (float)SeaCave.SkylightRadiusM * 1.6f);
             var sm = new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Transparent")) { color = new Color(1f, 0.95f, 0.75f, 0.16f) };
             shaft.GetComponent<MeshRenderer>().sharedMaterial = sm;
+        }
+    }
+
+    /// <summary>Moves the carrier to its pose at the world clock (the same pose the physics' deck and hull use).</summary>
+    public sealed class CarrierRuntime : MonoBehaviour
+    {
+        private void LateUpdate()
+        {
+            var (x, y, h, _) = Carrier.PoseAt(WorldClock.TimeS);
+            transform.SetPositionAndRotation(WorldBuilder.U(x, y, Coast.SeaLevelM), Quaternion.Euler(0f, (float)(h * Mathf.Rad2Deg), 0f));
         }
     }
 }

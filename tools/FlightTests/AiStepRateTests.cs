@@ -10,6 +10,7 @@ namespace FlyingGame.FlightTests;
 /// <summary>The game flies its AI traffic at <see cref="SimLoop.AiFixedDtSec"/> (50 Hz) to stay inside an iPad's CPU
 /// (owner 2026-10-04: 3 fps for 20 s at a time with fifteen drones at 200 Hz). Each drone type must fly the same at 50 Hz as
 /// at 200 Hz: the same height band and speed after three minutes of its route, and nothing diverging.</summary>
+[Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
 public class AiStepRateTests
 {
     private readonly ITestOutputHelper _o; public AiStepRateTests(ITestOutputHelper o) { _o = o; }

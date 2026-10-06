@@ -54,6 +54,7 @@ public static class Landmarks
         GoldenGate.RegisterSolids();
         SeaArch.RegisterSolids();
         WorldSolids.Shapes.Add(new SeaCave.RoofSolid());
+        Carrier.Register();   // the moving deck + the ship as a solid
     }
 
     /// <summary>Solids of the copy on plateau <paramref name="p"/> (appends; does not clear).</summary>

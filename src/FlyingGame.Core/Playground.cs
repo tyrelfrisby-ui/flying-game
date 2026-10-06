@@ -16,7 +16,19 @@ public static class WorldClock { public static double TimeS; }
 public static class WorldDecks
 {
     public interface IDeck { bool TopAt(double x, double y, out double topM); }
+    /// <summary>A deck that MOVES (the carrier): its surface velocity at (x, y), world NED (m/s).</summary>
+    public interface IMovingDeck : IDeck { Vec3 VelocityAt(double x, double y); }
     public static readonly List<IDeck> All = new();
+
+    /// <summary>Velocity of the surface a wheel at height <paramref name="up"/> stands on — zero for the ground and fixed decks.
+    /// The gear works with the wheel's motion RELATIVE to it, so an aircraft lands on, rolls on and is carried by a moving deck.</summary>
+    public static Vec3 SurfaceVelocity(double x, double y, double up)
+    {
+        double best = double.NegativeInfinity; Vec3 v = Vec3.Zero;
+        foreach (IDeck d in All)
+            if (d.TopAt(x, y, out double t) && up >= t - 2.5 && t > best) { best = t; v = d is IMovingDeck m ? m.VelocityAt(x, y) : Vec3.Zero; }
+        return v;
+    }
 
     /// <summary>The highest deck top under (x, y) that a point at height <paramref name="up"/> is standing on or above.</summary>
     public static bool DeckUnder(double x, double y, double up, out double topM)

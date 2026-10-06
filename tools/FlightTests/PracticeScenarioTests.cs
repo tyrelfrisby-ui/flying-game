@@ -222,6 +222,38 @@ public class PracticeScenarioTests
         Assert.InRange(bleed, 1.0, 4.0);
     }
 
+    [Theory]
+    [InlineData("c172-like.json", 1.0)]
+    [InlineData("c172-like.json", 0.0)]
+    public void FlareFromFiftyFeetMeasuredAgainstThePoh(string file, double flaps)
+    {
+        // Owner 2026-10-05: "the airplanes just don't slow down, it is like the power is above idle". Benchmark: C172S POH
+        // landing, flaps 30, power off, 61 KIAS at 50 ft: 1,335 ft over 50 ft − 575 ft ground roll = ~760 ft (232 m) in the air.
+        var c = Load(file); WorldTerrain.Active = null;
+        var sc = new PracticeScenario(PracticeKind.Flare, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
+        var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+        ControlInputs user = ControlInputs.Neutral;
+        double x50 = double.NaN, v50 = 0, xTd = double.NaN, vTd = 0, maxLever = -9, holdV0 = double.NaN, holdT0 = 0, holdV1 = 0, holdT1 = 0;
+        var log = new System.Text.StringBuilder();
+        for (double t = 0; t < 90 && !sc.TouchedDown; t += 0.02)
+        {
+            var inputs = sc.Step(ac, user, 0.02);
+            sim.RunFor(0.02, inputs); sc.ConstrainLongitudinal(ac);
+            user = sc.Autopilot;
+            maxLever = Math.Max(maxLever, -inputs.ThrottleLever);
+            if (double.IsNaN(x50) && sc.MainsAglM <= 15.24) { x50 = sc.AlongM; v50 = sc.AirspeedMs; }
+            if (!double.IsNaN(x50) && sc.MainsAglM < 0.6) { if (double.IsNaN(holdV0)) { holdV0 = sc.AirspeedMs; holdT0 = t; } holdV1 = sc.AirspeedMs; holdT1 = t; }
+            if (!double.IsNaN(x50) && Math.Abs(t * 2 - Math.Round(t * 2)) < 1e-6) log.Append($" [{t:F1}s {sc.MainsAglM:F1}m {sc.AirspeedMs * 1.943844:F0}kt]");
+            if (sc.TouchedDown) { xTd = sc.AlongM; vTd = sc.AirspeedMs; }
+        }
+        _out.WriteLine(log.ToString());
+        double air = xTd - x50, kts = 1.943844;
+        double holdBleed = holdT1 > holdT0 ? (holdV0 - holdV1) * kts / (holdT1 - holdT0) : 0;
+        _out.WriteLine($"{file} flaps {flaps}: 50 ft at {v50 * kts:F0} kt → touchdown at {vTd * kts:F0} kt after {air:F0} m ({air / 0.3048:F0} ft) in the air; hold-off (< 2 ft) {holdT1 - holdT0:F1} s bleeding {holdBleed:F2} kt/s; max lever forward {maxLever:F2} (−1 = idle)");
+        Assert.True(sc.TouchedDown);
+        Assert.Equal(-1.0, maxLever, 6);   // power off throughout
+    }
+
     [Fact]
     public void ABouncedOrBrokenLandingIsNotFirmButFine()
     {
