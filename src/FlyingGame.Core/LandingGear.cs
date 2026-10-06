@@ -203,7 +203,7 @@ public static class LandingGear
     public static (Vec3 Force, Vec3 Moment) Compute(
         AircraftConfig config, RigidBodyState s, double rudderCmd, double brakeCmd, double groundZ = 0.0, double brakeBias = 0.0,
         IReadOnlyCollection<AirframeComponent>? lostLegs = null, List<AirframeComponent>? broken = null, bool[]? touching = null, ImpactRecorder? impacts = null,
-        TailwheelState? tailwheel = null)
+        TailwheelState? tailwheel = null, bool wheelsUp = false)
     {
         Vec3 totalForce = Vec3.Zero, totalMoment = Vec3.Zero;
         if (config.Gear.Count == 0)
@@ -217,6 +217,8 @@ public static class LandingGear
         for (int gi = 0; gi < config.Gear.Count; gi++)
         {
             GearConfig g = config.Gear[gi];
+            // An amphibian with its wheels up (2026-10-06, AirCam on amphib floats): the float keels still meet the ground.
+            if (wheelsUp && g.GearType != "float-keel") continue;
             AirframeComponent leg = AirframeContact.GearComponent(g);
             if (lostLegs != null && lostLegs.Contains(leg)) continue;   // torn off: the stub/belly hard points carry the load
             // Differential braking: wheels left of centre get wheelBrake·(1+bias·-1)... i.e. bias<0 favours LEFT.

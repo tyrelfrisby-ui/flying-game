@@ -1482,13 +1482,13 @@ namespace FlyingGame.Bridge
                     Kill(nac.GetComponent<Collider>());
                     Attach(nac, "Nacelle");
                     ez += st.NacelleDrop;
-                    nac.transform.localPosition = U(ex - st.NacelleLength * 0.25f, ey, ez);
+                    nac.transform.localPosition = U(st.Pusher ? ex + st.NacelleLength * 0.45f : ex - st.NacelleLength * 0.25f, ey, ez);
                     nac.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // capsule axis y → z (forward)
                     nac.transform.localScale = new Vector3(st.NacelleRadius * 2f, st.NacelleLength * 0.5f, st.NacelleRadius * 2f);
                     nac.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(st.Fuselage);
                     if (st.PropRadius > 0f)
                     {
-                        Prop(ex + st.NacelleLength * 0.3f, ey, ez, st.PropRadius, st.RadialEngine);
+                        Prop(st.Pusher ? ex - 0.05f : ex + st.NacelleLength * 0.3f, ey, ez, st.PropRadius, st.RadialEngine);
                     }
                 }
             }
@@ -2174,6 +2174,7 @@ namespace FlyingGame.Bridge
             public (float x, float r)[] Body;               // fuselage stations nose→tail (sim x, radius)
             public float BodyWidthScale = 1f, BodyHeightScale = 1.1f, BodyAxisZ = 0f;
             public bool BluntNose, RadialEngine, BellyScoop, HighWingStruts, BiplaneStruts, LowWingGear, LowWingStruts;
+            public bool Pusher;   // the engine point is the PROP plane, the nacelle ahead of it (AirCam)
             public (float x, float z, float len, float wid, float hgt)? Canopy;
             public float PropRadius, NacelleRadius = 0.4f, NacelleLength = 2f, NacelleDrop = 0f; // NacelleDrop: visual z offset below the config engine point
             public TailSpec Tail;
@@ -2380,6 +2381,19 @@ namespace FlyingGame.Bridge
                         Canopy = (0.3f, -0.55f, 2.1f, 1.1f, 0.5f), PropRadius = 0.99f, LowWingGear = true,
                         Tail = new TailSpec { StabSpan = 4.0f, StabRoot = 0.85f, StabTip = 0.55f, StabSweepDeg = 8, FinHeight = 1.6f, FinRoot = 1.7f, FinTip = 0.75f, FinSweepDeg = 38 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.55f, 0.57f, 0.6f),
+                    };
+                case "aircam-like":
+                case "aircam-amphib-like":
+                    return new Style
+                    {
+                        // Lockwood AirCam (owner 2026-10-06; no free model exists): open-cockpit tandem pod, long slim tailcone
+                        // between the props, strut-braced high wing, two Rotax 912 PUSHER nacelles on the wing, conventional tail.
+                        BodyAxisZ = 0.0f, BodyWidthScale = 0.85f, BodyHeightScale = 1.2f,
+                        Body = new[] { (2.6f, 0.08f), (2.25f, 0.3f), (1.4f, 0.37f), (0.2f, 0.37f), (-0.9f, 0.3f), (-1.9f, 0.17f), (-3.2f, 0.12f), (-4.7f, 0.1f), (-5.6f, 0.07f) },
+                        Canopy = (1.55f, -0.38f, 0.55f, 0.55f, 0.32f),   // just the windscreens: open cockpit
+                        PropRadius = 0.865f, NacelleRadius = 0.27f, NacelleLength = 1.5f, Pusher = true, HighWingStruts = true,
+                        Tail = new TailSpec { StabSpan = 3.6f, StabRoot = 0.85f, StabTip = 0.6f, StabSweepDeg = 5, FinHeight = 1.35f, FinRoot = 1.45f, FinTip = 0.8f, FinSweepDeg = 30 },
+                        Fuselage = white, Wing = white, TailColor = white, Control = red,
                     };
                 default: // glider-2-33-like (and anything unknown): high-wing strut-braced tandem trainer
                     return new Style

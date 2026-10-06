@@ -288,7 +288,8 @@ public sealed class PracticeScenario
             if (!glider)
             {
                 (Vec3 tf, _) = PropModel.Compute(Config.Propulsion!, 1.0, new Vec3(v, 0, 0), Vec3.Zero, 1.2);   // the sim's own propeller (efficiency falls off at low speed)
-                double thrust = tf.X;
+                // Every engine (2026-10-06: the twins — Seminole, DC-3, AirCam — were climbing on one).
+                double thrust = tf.X * Math.Max(1, Config.Engines?.Count ?? 1);
                 double roc = (thrust - weight / t.GlideRatio) * v / weight;
                 if (roc > bestRoc) { bestRoc = roc; VyMs = v; RocAtVyMs = roc; }
                 double angle = roc / (v + windAlong);

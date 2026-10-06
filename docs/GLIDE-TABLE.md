@@ -6,6 +6,12 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 
 | Aircraft | Flaps | Vso kt | 1.3 Vso kt | Glide ° | Ratio | Sink fpm | Pitch ° | AoA ° | Elevator ° | Trim (stick) |
 |---|---|---|---|---|---|---|---|---|---|---|
+| aircam-amphib-like | up | 46 | 60 | 8.7 | 6.5:1 | 914 | -3.6 | 5.1 | -2.4 | -0.12 |
+| aircam-amphib-like | half | 44 | 57 | 10.0 | 5.7:1 | 1006 | -5.5 | 4.5 | 0.2 | +0.04 |
+| aircam-amphib-like | full | 43 | 56 | 11.3 | 5.0:1 | 1110 | -8.0 | 3.3 | 3.3 | +0.15 |
+| aircam-like | up | 42 | 55 | 8.7 | 6.5:1 | 839 | -3.7 | 5.0 | -2.3 | -0.11 |
+| aircam-like | half | 40 | 52 | 10.0 | 5.7:1 | 917 | -5.6 | 4.5 | 0.2 | +0.04 |
+| aircam-like | full | 39 | 51 | 11.3 | 5.0:1 | 1008 | -7.9 | 3.4 | 3.3 | +0.15 |
 | boeing-737-like | up | 145 | 188 | 8.1 | 7.0:1 | 2681 | -1.4 | 6.7 | -1.3 | -0.08 |
 | boeing-737-like | half | 131 | 171 | 7.8 | 7.3:1 | 2331 | -2.8 | 4.9 | 6.3 | +0.26 |
 | boeing-737-like | full | 120 | 155 | 7.1 | 8.0:1 | 1952 | -3.7 | 3.4 | 29.8 | +1.00 |

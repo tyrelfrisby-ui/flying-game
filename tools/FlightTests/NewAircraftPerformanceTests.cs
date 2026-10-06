@@ -20,6 +20,7 @@ public class NewAircraftPerformanceTests
     [InlineData("c172-like", 48, 74, 122)]
     [InlineData("pa28-archer-like", 50, 76, 125)]   // PA-28-181 POH: Vs1 50 KIAS (Vs0 45)
     [InlineData("cirrus-sr22-like", 70, 104, 175)]   // SR22 POH: Vs1 ~70 KIAS (Vs0 ~60)
+    [InlineData("aircam-like", 38, 52, 80)]           // Lockwood AirCam: stall 39 mph (~34 kt with flaps; ~38 clean), Vy 60 mph (AOPA 2012), 75 % cruise ~80 kt (max level 87)
     public void PerformanceNearTheBook(string id, double vs0, double vy, double cruise)
     {
         AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));

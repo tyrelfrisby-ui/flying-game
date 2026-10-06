@@ -133,7 +133,10 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            if (IdleStart && config.Floats == null && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
+            // An AMPHIBIAN (floats + retractable wheels, the AirCam Amphib) starts like a landplane, wheels down: on the runway
+            // or on final to it — the water is somewhere it flies to (2026-10-06).
+            bool amphib = config.Floats != null && config.RetractableGear;
+            if (IdleStart && (config.Floats == null || amphib) && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // On final: 300 ft AGL on the centreline, idle, trimmed at best glide on the best-glide angle.
                 var (fState, glide, _) = ApproachSpawn.Compute(config, ap, SessionSettings.ChosenRunway());
@@ -145,7 +148,7 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            if (IdleStart && config.Floats != null && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
+            if (IdleStart && config.Floats != null && !amphib && SessionSettings.StartMode == SessionSettings.Start.OnFinal)
             {
                 // Floatplane on final: to the field's lake, 300 ft over the water, idle, best glide (owner 2026-09-14).
                 // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.
@@ -158,7 +161,7 @@ namespace FlyingGame.Bridge
                 ApplyStateToTransform();
                 return;
             }
-            if (ground && config.Floats != null)
+            if (ground && config.Floats != null && !amphib)
             {
                 // Floatplane: "on the runway" means on the water — at rest on the field's lake, heading north.
                 // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.

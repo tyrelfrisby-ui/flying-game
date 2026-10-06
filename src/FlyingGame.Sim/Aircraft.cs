@@ -688,10 +688,11 @@ public sealed class Aircraft
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
             }
-            if (Config.Gear.Count > 0 && GearExtension > 0.9)   // retracted gear carries nothing (belly contact does)
+            bool amphibUp = Config.Floats != null && GearExtension <= 0.9;   // amphibian, wheels up: the float keels still carry it
+            if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, Tailwheel);
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, wheelsUp: amphibUp);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }
@@ -734,7 +735,7 @@ public sealed class Aircraft
                             PropInertia = basePropCfg.PropInertia, RotationSign = m.RotationSign,
                             Efficiency = basePropCfg.Efficiency, ThrustLineZ = basePropCfg.ThrustLineZ,
                             PFactorK = basePropCfg.PFactorK, SlipstreamK = basePropCfg.SlipstreamK,
-                            IdleDragCd = basePropCfg.IdleDragCd
+                            IdleDragCd = basePropCfg.IdleDragCd, DesignSpeedMs = basePropCfg.DesignSpeedMs
                         };
                         (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, _throttle01 * m.ThrottleScale, s.Velocity, s.Rates, airDensity);
                         ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");

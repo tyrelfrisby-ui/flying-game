@@ -1,5 +1,83 @@
 [
   {
+    "Id": "aircam-amphib-like",
+    "Flaps": 0,
+    "VsoKt": 45.87,
+    "SpeedKt": 59.64,
+    "GlideDeg": 8.71,
+    "GlideRatio": 6.528,
+    "SinkFpm": 914.5,
+    "AlphaDeg": 5.148,
+    "PitchDeg": -3.562,
+    "ElevatorDeg": -2.377,
+    "TrimStick": -0.1159
+  },
+  {
+    "Id": "aircam-amphib-like",
+    "Flaps": 0.5,
+    "VsoKt": 43.93,
+    "SpeedKt": 57.11,
+    "GlideDeg": 10.015,
+    "GlideRatio": 5.663,
+    "SinkFpm": 1005.7,
+    "AlphaDeg": 4.48,
+    "PitchDeg": -5.535,
+    "ElevatorDeg": 0.208,
+    "TrimStick": 0.0375
+  },
+  {
+    "Id": "aircam-amphib-like",
+    "Flaps": 1,
+    "VsoKt": 42.96,
+    "SpeedKt": 55.85,
+    "GlideDeg": 11.321,
+    "GlideRatio": 4.995,
+    "SinkFpm": 1110.2,
+    "AlphaDeg": 3.339,
+    "PitchDeg": -7.982,
+    "ElevatorDeg": 3.285,
+    "TrimStick": 0.1486
+  },
+  {
+    "Id": "aircam-like",
+    "Flaps": 0,
+    "VsoKt": 41.99,
+    "SpeedKt": 54.58,
+    "GlideDeg": 8.728,
+    "GlideRatio": 6.514,
+    "SinkFpm": 838.7,
+    "AlphaDeg": 5.038,
+    "PitchDeg": -3.69,
+    "ElevatorDeg": -2.275,
+    "TrimStick": -0.1122
+  },
+  {
+    "Id": "aircam-like",
+    "Flaps": 0.5,
+    "VsoKt": 40.04,
+    "SpeedKt": 52.06,
+    "GlideDeg": 10.02,
+    "GlideRatio": 5.66,
+    "SinkFpm": 917.2,
+    "AlphaDeg": 4.46,
+    "PitchDeg": -5.56,
+    "ElevatorDeg": 0.227,
+    "TrimStick": 0.0382
+  },
+  {
+    "Id": "aircam-like",
+    "Flaps": 1,
+    "VsoKt": 39.07,
+    "SpeedKt": 50.79,
+    "GlideDeg": 11.306,
+    "GlideRatio": 5.002,
+    "SinkFpm": 1008.4,
+    "AlphaDeg": 3.376,
+    "PitchDeg": -7.93,
+    "ElevatorDeg": 3.251,
+    "TrimStick": 0.1474
+  },
+  {
     "Id": "boeing-737-like",
     "Flaps": 0,
     "VsoKt": 144.82,
@@ -608,7 +686,7 @@
     "AlphaDeg": 6.506,
     "PitchDeg": -1.002,
     "ElevatorDeg": -1.404,
-    "TrimStick": -0.2184
+    "TrimStick": -0.2175
   },
   {
     "Id": "pa28-archer-like",
@@ -621,7 +699,7 @@
     "AlphaDeg": 5.511,
     "PitchDeg": -5.233,
     "ElevatorDeg": -0.319,
-    "TrimStick": -0.073
+    "TrimStick": -0.0728
   },
   {
     "Id": "pa28-archer-like",
@@ -634,7 +712,7 @@
     "AlphaDeg": 5.04,
     "PitchDeg": -8.221,
     "ElevatorDeg": 0.58,
-    "TrimStick": 0.1081
+    "TrimStick": 0.1077
   },
   {
     "Id": "pitts-s2b-like",

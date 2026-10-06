@@ -18,7 +18,7 @@ namespace FlyingGame.EditorTools
         private static readonly string[] Ids =
         {
             "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "extra-300-like", "p51d-like",
-            "stearman-pt17-like", "seminole-like", "pa18-floats-like", "pa18-bush-like", "dc3-like", "geebee-r2-like", "glider-2-33-like", "boeing-737-like", "f86-sabre-like",
+            "stearman-pt17-like", "seminole-like", "pa18-floats-like", "pa18-bush-like", "dc3-like", "geebee-r2-like", "glider-2-33-like", "boeing-737-like", "f86-sabre-like", "aircam-like", "aircam-amphib-like",
         };
 
         public static void Render()

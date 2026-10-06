@@ -48,7 +48,7 @@ public static class PropModel
         // constant-speed prop holds its efficiency down to about 60 kt.
         double effRatio = prop.ConstantSpeed
             ? Math.Clamp(0.6 + 0.4 * (v / 30.0), 0.6, 1.0)
-            : Math.Clamp(0.35 + 0.65 * (v / 45.0), 0.4, 1.0);
+            : Math.Clamp(0.35 + 0.65 * (v / Math.Max(10.0, prop.DesignSpeedMs)), 0.4, 1.0);
         double eta = prop.Efficiency * effRatio;
         if (prop.ConstantSpeed && powerW > 0 && v > 5.0)
         {

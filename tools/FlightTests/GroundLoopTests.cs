@@ -171,7 +171,11 @@ public class TakeoffRollStarts
                 var q = ac.State.Attitude;
                 double hdg = Math.Atan2(2 * (q.W * q.Z + q.X * q.Y), 1 - 2 * (q.Y * q.Y + q.Z * q.Z));
                 double rudder = Math.Clamp(-0.08 * ac.State.Position.Y - 3.0 * hdg - 0.8 * ac.State.Rates.Z, -1, 1);
-                sim.RunFor(0.02, new ControlInputs(0, 0, rudder, -1.0));   // lever full forward = full power
+                // ... and back stick as needed so the nose never goes below level (the pilot's job on any roll; on a high-thrust-
+                // line pusher like the AirCam the book technique is FULL aft stick on the takeoff roll, 2026-10-06).
+                double pitchNow = Math.Asin(Math.Clamp(2 * (q.W * q.Y - q.Z * q.X), -1, 1));
+                double ele = Math.Clamp(-6.0 * (0.02 - pitchNow), -1.0, 0.0);   // pull (−) only as the nose comes down to level
+                sim.RunFor(0.02, new ControlInputs(0, ele, rudder, -1.0));   // lever full forward = full power
             }
             double v = ac.State.Velocity.Length;
             _out.WriteLine($"{Path.GetFileName(f),-28} {v,5:F1} m/s after 10 s at full power");

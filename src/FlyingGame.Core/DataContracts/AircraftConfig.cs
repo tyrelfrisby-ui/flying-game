@@ -258,6 +258,9 @@ public sealed class PropulsionConfig
     /// full value (owner 2026-10-05: "there should not be a single prop plane without it", and the Extra and P-51 must not
     /// override it lower — their constant-speed props go to fine pitch at idle, the most drag of all).</summary>
     public double IdleDragCd { get => _idleDragCd ?? 0.15; set => _idleDragCd = value; }
+    /// <summary>Fixed-pitch prop: the speed its efficiency peaks at (m/s; default 45 ≈ 87 kt, a cruise prop). A slow type with
+    /// a fine-pitched prop (the AirCam's ground-adjustable Warp Drives) peaks far lower — and so does its best climb speed.</summary>
+    public double DesignSpeedMs { get; set; } = 45.0;
     private double? _idleDragCd;
 }
 
