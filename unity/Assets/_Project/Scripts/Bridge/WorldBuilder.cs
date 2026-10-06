@@ -1010,7 +1010,7 @@ namespace FlyingGame.Bridge
             var root = new GameObject($"Landmarks{p}"); root.transform.SetParent(parent, false);
             var steel = new Color(0.72f, 0.74f, 0.78f);
             // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)).
-            double archY = Landmarks.ArchYAt(p), towerY = Landmarks.TowerYAt(p), townY0 = Landmarks.TownY0At(p);
+            double archY = Landmarks.ArchYAt(p), towerY = Landmarks.TowerYAt(p);
             // Gateway arch: tapered segments along the parabola, spanning the river in its gorge.
             double cx = Landmarks.ArchCentreXAt(p), baseUp = Landmarks.ArchBaseUp(t, p);
             const int n = 40;
@@ -1071,35 +1071,11 @@ namespace FlyingGame.Bridge
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
                 Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
 
-            // The town: streets, then buildings (skyscrapers downtown, bungalows at the edge), the sky bridge.
-            double ground = t.HeightAt(Landmarks.TownCentreX, Landmarks.TownCentreYAt(p));
-            double pitch = Landmarks.BlockM + Landmarks.StreetM;
-            double lenX = Landmarks.TownBlocksX * pitch, lenY = Landmarks.TownBlocksY * pitch;
-            for (int i = 0; i <= Landmarks.TownBlocksX; i++)
-                Slab(root.transform, "Street", Landmarks.TownX0 + i * pitch, townY0 + lenY / 2, ground + 0.05, Landmarks.StreetM, lenY, 0.08, 90, Asphalt);
-            for (int j = 0; j <= Landmarks.TownBlocksY; j++)
-                Slab(root.transform, "Avenue", Landmarks.TownX0 + lenX / 2, townY0 + j * pitch, ground + 0.05, lenX, Landmarks.StreetM, 0.08, 0, Asphalt);
-            Color[] palette = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.5f, 0.42f), new(0.85f, 0.85f, 0.88f) };
-            var glass = new Color(0.45f, 0.62f, 0.8f);
-            foreach (Landmarks.Building b in Landmarks.Buildings(p))
-            {
-                Color c = b.Style >= 8 ? glass : palette[System.Math.Min(b.Style, palette.Length - 1)];
-                if (b.Style == 9)
-                {
-                    // Gate tower: base, two piers beside the hole, and the block above it.
-                    WBox(root, "GateBase", U(b.Cx, b.Cy, ground + Landmarks.GateHoleBottomM / 2), new Vector3((float)(b.Hy * 2), (float)Landmarks.GateHoleBottomM, (float)(b.Hx * 2)), c);
-                    double hole = Landmarks.GateHoleTopM - Landmarks.GateHoleBottomM;
-                    WBox(root, "GatePierL", U(b.Cx - b.Hx + 5, b.Cy, ground + Landmarks.GateHoleBottomM + hole / 2), new Vector3((float)(b.Hy * 2), (float)hole, 10f), c);
-                    WBox(root, "GatePierR", U(b.Cx + b.Hx - 5, b.Cy, ground + Landmarks.GateHoleBottomM + hole / 2), new Vector3((float)(b.Hy * 2), (float)hole, 10f), c);
-                    WBox(root, "GateTop", U(b.Cx, b.Cy, ground + (Landmarks.GateHoleTopM + b.HeightM) / 2), new Vector3((float)(b.Hy * 2), (float)(b.HeightM - Landmarks.GateHoleTopM), (float)(b.Hx * 2)), c);
-                    continue;
-                }
-                WBox(root, b.Style >= 8 ? "Tower" : "Building", U(b.Cx, b.Cy, ground + b.HeightM / 2), new Vector3((float)(b.Hy * 2), (float)b.HeightM, (float)(b.Hx * 2)), c);
-                if (b.HeightM > 100) WBox(root, "Roof", U(b.Cx, b.Cy, ground + b.HeightM + 3), new Vector3((float)b.Hy, 6f, (float)b.Hx), c * 0.8f);
-            }
-            double bx = Landmarks.TownX0 + Landmarks.StreetM / 2 + 8 * pitch + Landmarks.BlockM / 2 + pitch / 2;
-            double by = townY0 + Landmarks.StreetM / 2 + 5 * pitch + Landmarks.BlockM / 2;
-            WBox(root, "SkyBridge", U(bx, by, ground + Landmarks.SkyBridgeHeightM + Landmarks.SkyBridgeDepthM / 2), new Vector3(12f, (float)Landmarks.SkyBridgeDepthM, (float)pitch), glass);
+            // The city (owner 2026-10-05: "identical to the one you built in the combat zone"): the combat city's grid —
+            // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site, on every plateau.
+            var cityBatch = new SeasideBuilder.Batch();
+            PlaygroundBuilder.BuildCityGrid(ValleyCity.At(p), t, cityBatch, root.transform);
+            cityBatch.Build("ValleyCity", root.transform, SeasideBuilder.VC);
         }
 
         /// <summary>A box beam from a to b (world Unity points) with the given cross-section.</summary>

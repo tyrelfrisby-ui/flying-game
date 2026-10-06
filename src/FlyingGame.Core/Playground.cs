@@ -226,6 +226,125 @@ public static class CanyonLake
     }
 }
 
+/// <summary>
+/// The city built for flying, as a GRID that can be placed anywhere (owner 2026-10-05: "make the city near the initial
+/// airport identical to the one you built in the combat zone"): 7 × 16 towers on a 170 m pitch, the same heights, sizes and
+/// sky-bridges, the fountain plaza with its two crossing water cannons. Laid out in grid space (u along the 7 columns, v
+/// along the 16 rows) and mapped onto the world — straight (the combat city) or turned 90° (the Valley's).
+/// </summary>
+public sealed class CityGrid
+{
+    public const double Pitch = 170;
+    public const int Cols = 7, Rows = 16;
+    public const double PlazaU0 = 170, PlazaU1 = 510, PlazaV0 = 1750, PlazaV1 = 2090, FountainCrossM = 110;
+    public readonly double X0, Y0;
+    public readonly bool Rotated;
+    public readonly (int i, int j)? PadLot;
+    public CityGrid(double x0, double y0, bool rotated, (int i, int j)? padLot) { X0 = x0; Y0 = y0; Rotated = rotated; PadLot = padLot; }
+
+    public (double x, double y) Map(double u, double v) => Rotated ? (X0 + v, Y0 + u) : (X0 + u, Y0 + v);
+    public (double u, double v) Unmap(double x, double y) => Rotated ? (y - Y0, x - X0) : (x - X0, y - Y0);
+    public static double CentreU => Pitch * (Cols - 1) / 2.0;
+    public static double CentreV => Pitch * (Rows - 1) / 2.0;
+    public (double x, double y) Centre => Map(CentreU, CentreV);
+    /// <summary>World rectangle the grid covers (tower centres ± margin).</summary>
+    public (double x0, double y0, double x1, double y1) Extent(double margin)
+    {
+        var (ax, ay) = Map(-margin, -margin); var (bx, by) = Map(Pitch * (Cols - 1) + margin, Pitch * (Rows - 1) + margin);
+        return (Math.Min(ax, bx), Math.Min(ay, by), Math.Max(ax, bx), Math.Max(ay, by));
+    }
+    public bool InPlaza(double x, double y) { var (u, v) = Unmap(x, y); return u > PlazaU0 - 60 && u < PlazaU1 + 60 && v > PlazaV0 - 60 && v < PlazaV1 + 60; }
+    public (double x0, double y0, double x1, double y1) PlazaRect
+    {
+        get { var (ax, ay) = Map(PlazaU0, PlazaV0); var (bx, by) = Map(PlazaU1, PlazaV1); return (Math.Min(ax, bx), Math.Min(ay, by), Math.Max(ax, bx), Math.Max(ay, by)); }
+    }
+    /// <summary>The two jets: from one corner nozzle to the diagonally opposite basin.</summary>
+    public ((double x, double y) from, (double x, double y) to)[] Jets => new[]
+    {
+        (Map(PlazaU0 + 20, PlazaV0 + 20), Map(PlazaU1 - 20, PlazaV1 - 20)),
+        (Map(PlazaU0 + 20, PlazaV1 - 20), Map(PlazaU1 - 20, PlazaV0 + 20)),
+    };
+
+    private List<FlyCity.Tower>? _towers;
+    public List<FlyCity.Tower> Towers() => _towers ??= BuildTowers();
+    private List<FlyCity.Tower> BuildTowers()
+    {
+        var list = new List<FlyCity.Tower>();
+        for (int i = 0; i < Cols; i++)
+            for (int j = 0; j < Rows; j++)
+            {
+                double u = i * Pitch, v = j * Pitch;
+                var (cx, cy) = Map(u, v);
+                uint h = (uint)(i * 2654435761u) ^ (uint)(j * 40503u) ^ 0x9e3779b9u; h ^= h >> 15; h *= 0x2c1b3c6du; h ^= h >> 12;
+                double R(int k) => ((h >> (k * 5)) & 31) / 31.0;
+                bool pad = PadLot.HasValue && (i, j) == PadLot.Value;
+                if (!pad && (InPlaza(cx, cy) || R(4) < 0.16)) continue;                                                 // the plaza + open lots
+                if (!pad && PadLot.HasValue && j == Rows - 1 && Math.Abs(i - PadLot.Value.i) <= 1) continue;          // the pad's approach
+                double r = Math.Sqrt((u - CentreU) * (u - CentreU) + 0.45 * (v - CentreV) * (v - CentreV));
+                double height = r < 300 ? 190 + 110 * R(0) : r < 600 ? 110 + 90 * R(0) : 60 + 60 * R(0);
+                double hu = 18 + 12 * R(1), hv = 18 + 12 * R(2);
+                if (pad) { height = FlyCity.PadTowerHeightM; hu = 28; hv = 28; }
+                double hx = Rotated ? hv : hu, hy = Rotated ? hu : hv;
+                list.Add(new FlyCity.Tower(i, j, cx, cy, hx, hy, height, (int)(R(3) * 4)));
+            }
+        // The tallest stands out (in the combat city it carries the spinning ring).
+        int best = 0;
+        for (int k = 1; k < list.Count; k++) if (list[k].HeightM > list[best].HeightM && !(PadLot.HasValue && (list[k].I, list[k].J) == PadLot.Value)) best = k;
+        var t = list[best];
+        list[best] = new FlyCity.Tower(t.I, t.J, t.Cx, t.Cy, 30, 30, 340, t.Style);
+        return list;
+    }
+
+    /// <summary>Sky-bridges: between column neighbours both ≥ 130 m (every other pair), at 55 % of the lower one.</summary>
+    public List<(FlyCity.Tower a, FlyCity.Tower b, double heightM)> SkyBridges()
+    {
+        var res = new List<(FlyCity.Tower, FlyCity.Tower, double)>();
+        var map = new Dictionary<(int, int), FlyCity.Tower>();
+        foreach (FlyCity.Tower t in Towers()) map[(t.I, t.J)] = t;
+        foreach (FlyCity.Tower t in Towers())
+            if (map.TryGetValue((t.I + 1, t.J), out FlyCity.Tower n) && t.HeightM >= 130 && n.HeightM >= 130 && ((t.I * 7 + t.J * 3) % 2 == 0))
+                res.Add((t, n, 0.55 * Math.Min(t.HeightM, n.HeightM)));
+        return res;
+    }
+
+    /// <summary>A sky-bridge's box: centre, half extents in x and y (8 m deep).</summary>
+    public static (double cx, double cy, double hx, double hy) BridgeBox(FlyCity.Tower a, FlyCity.Tower b)
+    {
+        double cx = 0.5 * (a.Cx + b.Cx), cy = 0.5 * (a.Cy + b.Cy);
+        bool alongX = Math.Abs(b.Cx - a.Cx) > Math.Abs(b.Cy - a.Cy);
+        return alongX ? (cx, cy, 0.5 * Math.Abs(b.Cx - a.Cx), 6) : (cx, cy, 6, 0.5 * Math.Abs(b.Cy - a.Cy));
+    }
+
+    /// <summary>The towers and sky-bridges as solids (airframe contact).</summary>
+    public void RegisterSolids(WorldTerrain t)
+    {
+        foreach (FlyCity.Tower tw in Towers())
+        {
+            double g = t.HeightAt(tw.Cx, tw.Cy);
+            WorldSolids.Boxes.Add(new WorldSolids.Box(tw.Cx, tw.Cy, tw.Hx, tw.Hy, g - 2, g + tw.HeightM));
+        }
+        foreach (var (a, b, h) in SkyBridges())
+        {
+            double g = t.HeightAt(a.Cx, a.Cy);
+            var (cx, cy, hx, hy) = BridgeBox(a, b);
+            WorldSolids.Boxes.Add(new WorldSolids.Box(cx, cy, hx, hy, g + h, g + h + 8));
+        }
+    }
+}
+
+/// <summary>The Valley's city (owner 2026-10-05): the combat city's grid turned 90° on the town's old site south of the field,
+/// east of the final-approach line — one on every plateau, like the other Valley landmarks.</summary>
+public static class ValleyCity
+{
+    public const double X0 = -3330, Y0 = 600;
+    private static readonly Dictionary<int, CityGrid> _at = new();
+    public static CityGrid At(int p)
+    {
+        if (!_at.TryGetValue(p, out CityGrid? g)) _at[p] = g = new CityGrid(X0, Y0 + WorldTerrain.PlateauDy(p), true, null);
+        return g;
+    }
+}
+
 /// <summary>The city, rebuilt for flying (owner): towers on a generous 170 m grid (100+ m avenues), sky-bridges between
 /// neighbours, the fountain plaza, the Mall, the rooftop ring course, the spinning ring, the cantilevered pad.</summary>
 public static class FlyCity
@@ -252,49 +371,15 @@ public static class FlyCity
         public Tower(int i, int j, double cx, double cy, double hx, double hy, double h, int style) { I = i; J = j; Cx = cx; Cy = cy; Hx = hx; Hy = hy; HeightM = h; Style = style; }
     }
 
-    private static List<Tower>? _towers;
-    public static List<Tower> Towers() => _towers ??= BuildTowers();
-    private static List<Tower> BuildTowers()
-    {
-        var list = new List<Tower>();
-        for (int i = 0; i < Cols; i++)
-            for (int j = 0; j < Rows; j++)
-            {
-                double cx = X0 + i * Pitch, cy = Y0 + j * Pitch;
-                uint h = (uint)(i * 2654435761u) ^ (uint)(j * 40503u) ^ 0x9e3779b9u; h ^= h >> 15; h *= 0x2c1b3c6du; h ^= h >> 12;
-                double R(int k) => ((h >> (k * 5)) & 31) / 31.0;
-                bool pad = (i, j) == PadLot;
-                if (!pad && (InPlaza(cx, cy) || R(4) < 0.16)) continue;                  // the plaza + open lots
-                if (!pad && j == Rows - 1 && System.Math.Abs(i - PadLot.i) <= 1) continue;   // the pad's approach
-                double r = System.Math.Sqrt((cx - CentreX) * (cx - CentreX) + 0.45 * (cy - CentreY) * (cy - CentreY));
-                double height = r < 300 ? 190 + 110 * R(0) : r < 600 ? 110 + 90 * R(0) : 60 + 60 * R(0);
-                double hx = 18 + 12 * R(1), hy = 18 + 12 * R(2);
-                if (pad) { height = PadTowerHeightM; hx = 28; hy = 28; }
-                list.Add(new Tower(i, j, cx, cy, hx, hy, height, (int)(R(3) * 4)));
-            }
-        // The tallest stands out: the spinning ring's tower.
-        int best = 0;
-        for (int k = 1; k < list.Count; k++) if (list[k].HeightM > list[best].HeightM && (list[k].I, list[k].J) != PadLot) best = k;
-        var t = list[best];
-        list[best] = new Tower(t.I, t.J, t.Cx, t.Cy, 30, 30, 340, t.Style);
-        return list;
-    }
+    /// <summary>The grid itself (shared with the Valley's copy): straight, with the pad lot.</summary>
+    public static readonly CityGrid Grid = new(X0, Y0, false, PadLot);
+    public static List<Tower> Towers() => Grid.Towers();
 
     public static Tower Tallest { get { Tower b = Towers()[0]; foreach (Tower t in Towers()) if (t.HeightM > b.HeightM) b = t; return b; } }
     public static Tower PadTower { get { foreach (Tower t in Towers()) if ((t.I, t.J) == PadLot) return t; return Towers()[0]; } }
     public static (double x, double y) PadCentre { get { Tower t = PadTower; return (t.Cx, t.Cy + t.Hy + PadRadiusM - 8); } }   // the disc's inner edge keyed 8 m into the tower
 
-    /// <summary>Sky-bridges: between north–south neighbours both ≥ 130 m (every other pair), at 55 % of the lower one.</summary>
-    public static List<(Tower a, Tower b, double heightM)> SkyBridges()
-    {
-        var res = new List<(Tower, Tower, double)>();
-        var map = new Dictionary<(int, int), Tower>();
-        foreach (Tower t in Towers()) map[(t.I, t.J)] = t;
-        foreach (Tower t in Towers())
-            if (map.TryGetValue((t.I + 1, t.J), out Tower n) && t.HeightM >= 130 && n.HeightM >= 130 && ((t.I * 7 + t.J * 3) % 2 == 0))
-                res.Add((t, n, 0.55 * System.Math.Min(t.HeightM, n.HeightM)));
-        return res;
-    }
+    public static List<(Tower a, Tower b, double heightM)> SkyBridges() => Grid.SkyBridges();
 
     // ---- the rooftop ring course: five numbered rings on five towers, a loop ----
     public const double RingRadiusM = 22, RingTubeM = 1.6, RingAboveRoofM = 32;
@@ -360,16 +445,7 @@ public static class FlyCity
 
     public static void RegisterSolids(WorldTerrain t)
     {
-        foreach (Tower tw in Towers())
-        {
-            double g = t.HeightAt(tw.Cx, tw.Cy);
-            WorldSolids.Boxes.Add(new WorldSolids.Box(tw.Cx, tw.Cy, tw.Hx, tw.Hy, g - 2, g + tw.HeightM));
-        }
-        foreach (var (a, b, h) in SkyBridges())
-        {
-            double g = t.HeightAt(a.Cx, a.Cy);
-            WorldSolids.Boxes.Add(new WorldSolids.Box(0.5 * (a.Cx + b.Cx), a.Cy, 0.5 * (b.Cx - a.Cx), 6, g + h, g + h + 8));
-        }
+        Grid.RegisterSolids(t);
         double gp = t.HeightAt(PadTower.Cx, PadTower.Cy);
         var (px, py) = PadCentre;
         double top = gp + PadDeckM;

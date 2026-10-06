@@ -29,6 +29,9 @@ namespace FlyingGame.EditorTools
             (string name, Vector3 pos, Vector3 look)[] views =
             {
                 ("overview", new Vector3(9000f, 9000f, -9000f), new Vector3(-3500f, 800f, 1500f)),
+                ("valley-city", new Vector3(2700f, 650f, -300f), new Vector3(1100f, 250f, -2100f)),
+                ("topdown", new Vector3(2500f, 17000f, -1500f), new Vector3(2500f, 0f, -1490f)),
+                ("valley-city-street", new Vector3(1900f, 280f, -1200f), new Vector3(1000f, 200f, -2200f)),
                 ("valley-airport", new Vector3(1200f, 700f, -1600f), new Vector3(0f, 0f, 400f)),
                 ("first-wall", new Vector3(2500f, 1500f, -2500f), new Vector3(-1800f, 450f, 1000f)),
                 ("summit-airport", new Vector3(-7000f, 3500f, -1800f), new Vector3(-8900f, 2700f, 400f)),
@@ -50,8 +53,10 @@ namespace FlyingGame.EditorTools
                 ("waterfall-slot", new Vector3(-2030f, 350f, 1480f), new Vector3(-2030f, 330f, 2200f)),
                 ("waterfall-lip", new Vector3(-1900f, 880f, 1700f), new Vector3(-2010f, 780f, 1849f)),
             };
+            string onlyViews = System.Environment.GetEnvironmentVariable("WORLD_VIEWS");
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {
+                if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
                 cam.Render();
                 RenderTexture.active = rt;

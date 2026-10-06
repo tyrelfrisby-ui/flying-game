@@ -128,30 +128,7 @@ namespace FlyingGame.Bridge
         private static void BuildCity(WorldTerrain t, Transform parent)
         {
             var b = new SeasideBuilder.Batch();
-            Color[] walls = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.52f, 0.44f), new(0.86f, 0.86f, 0.88f) };
-            double g0 = WorldTerrain.DatumM;
-            // Plaza-paved city ground (the avenues), outside the Mall.
-            double cx0 = FlyCity.X0 - 100, cx1 = FlyCity.X0 + FlyCity.Pitch * (FlyCity.Cols - 1) + 100, cy0 = FlyCity.Y0 - 100, cy1 = FlyCity.Y0 + FlyCity.Pitch * (FlyCity.Rows - 1) + 80;
-            b.Box(U(0.5 * (cx0 + cx1), 0.5 * (cy0 + cy1), g0 + 0.04), new Vector3((float)(cy1 - cy0), 0.08f, (float)(cx1 - cx0)), new Color(0.6f, 0.6f, 0.58f));
-            foreach (FlyCity.Tower tw in FlyCity.Towers())
-            {
-                double g = t.HeightAt(tw.Cx, tw.Cy);
-                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? Glass : walls[System.Math.Min(tw.Style, 3)];
-                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM / 2), new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2)), c, c * 0.8f);
-                // Floor bands every 4 floors so height reads.
-                for (double z = 14; z < tw.HeightM - 4; z += 16)
-                    b.Box(U(tw.Cx, tw.Cy, g + z), new Vector3((float)(tw.Hy * 2) + 0.6f, 0.8f, (float)(tw.Hx * 2) + 0.6f), c * 0.7f);
-            }
-            foreach (var (a, n, h) in FlyCity.SkyBridges())
-            {
-                double g = t.HeightAt(a.Cx, a.Cy);
-                b.Box(U(0.5 * (a.Cx + n.Cx), a.Cy, g + h + 4), new Vector3(12f, 8f, (float)(n.Cx - a.Cx)), Glass * 0.9f, new Color(0.8f, 0.8f, 0.82f));
-            }
-            // The fountain plaza: paving, two basins, the nozzles.
-            b.Box(U(0.5 * (FlyCity.PlazaX0 + FlyCity.PlazaX1), 0.5 * (FlyCity.PlazaY0 + FlyCity.PlazaY1), g0 + 0.1), new Vector3((float)(FlyCity.PlazaY1 - FlyCity.PlazaY0 + 80), 0.12f, (float)(FlyCity.PlazaX1 - FlyCity.PlazaX0 + 80)), new Color(0.82f, 0.78f, 0.7f));
-            foreach (var (from, to) in FlyCity.Jets)
-                foreach (var p in new[] { from, to })
-                    b.Cylinder(U(p.x, p.y, g0), 16f, 1.2f, 24, Marble);
+            BuildCityGrid(FlyCity.Grid, t, b, parent);
             // The cantilevered pad: disc, red-and-white edge, white ring + centreline, the steel brackets to the tower.
             {
                 var tw = FlyCity.PadTower; double g = t.HeightAt(tw.Cx, tw.Cy), top = g + FlyCity.PadDeckM;
@@ -216,16 +193,52 @@ namespace FlyingGame.Bridge
                 PlaygroundRuntime.SpinRing = ring.transform;
             }
 
+        }
+
+        /// <summary>
+        /// The city built for flying on any grid (owner 2026-10-05: the Valley's city "identical to the one in the combat zone"):
+        /// avenue paving, the towers with floor bands, the sky-bridges, the fountain plaza with its two basins and the
+        /// crossing water cannons. The pad, the rooftop rings and the spinning ring are the combat city's own.
+        /// </summary>
+        internal static void BuildCityGrid(CityGrid grid, WorldTerrain t, SeasideBuilder.Batch b, Transform parent)
+        {
+            Color[] walls = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.52f, 0.44f), new(0.86f, 0.86f, 0.88f) };
+            var (ex0, ey0, ex1, ey1) = grid.Extent(100);
+            var (cgx, cgy) = grid.Centre;
+            double g0 = t.HeightAt(cgx, cgy);
+            // Plaza-paved city ground (the avenues).
+            b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.6f, 0.6f, 0.58f));
+            foreach (FlyCity.Tower tw in grid.Towers())
+            {
+                double g = t.HeightAt(tw.Cx, tw.Cy);
+                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? Glass : walls[System.Math.Min(tw.Style, 3)];
+                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM / 2), new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2)), c, c * 0.8f);
+                // Floor bands every 4 floors so height reads.
+                for (double z = 14; z < tw.HeightM - 4; z += 16)
+                    b.Box(U(tw.Cx, tw.Cy, g + z), new Vector3((float)(tw.Hy * 2) + 0.6f, 0.8f, (float)(tw.Hx * 2) + 0.6f), c * 0.7f);
+            }
+            foreach (var (a, n, h) in grid.SkyBridges())
+            {
+                double g = t.HeightAt(a.Cx, a.Cy);
+                var (bx, by, hx, hy) = CityGrid.BridgeBox(a, n);
+                b.Box(U(bx, by, g + h + 4), new Vector3((float)(2 * hy), 8f, (float)(2 * hx)), Glass * 0.9f, new Color(0.8f, 0.8f, 0.82f));
+            }
+            // The fountain plaza: paving, two basins.
+            var (px0, py0, px1, py1) = grid.PlazaRect;
+            b.Box(U(0.5 * (px0 + px1), 0.5 * (py0 + py1), g0 + 0.1), new Vector3((float)(py1 - py0 + 80), 0.12f, (float)(px1 - px0 + 80)), new Color(0.82f, 0.78f, 0.7f));
+            foreach (var (from, to) in grid.Jets)
+                foreach (var p in new[] { from, to })
+                    b.Cylinder(U(p.x, p.y, g0), 16f, 1.2f, 24, Marble);
             // Fountain jets: flowing-water tubes along parabolas whose apexes cross ~110 m up, and mist where they land.
             var water = WorldBuilder.Mat("FlyingGame/Waterfall", new Color(0.82f, 0.92f, 1f, 0.8f));
             var mist = WorldBuilder.Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.45f));
-            foreach (var (from, to) in FlyCity.Jets)
+            foreach (var (from, to) in grid.Jets)
             {
                 var pts = new List<Vector3>();
                 for (int i = 0; i <= 40; i++)
                 {
                     double u = i / 40.0;
-                    double h = g0 + 3 + 4 * FlyCity.FountainCrossM * u * (1 - u);
+                    double h = g0 + 3 + 4 * CityGrid.FountainCrossM * u * (1 - u);
                     pts.Add(U(from.x + (to.x - from.x) * u, from.y + (to.y - from.y) * u, h));
                 }
                 var jb = new SeasideBuilder.Batch();

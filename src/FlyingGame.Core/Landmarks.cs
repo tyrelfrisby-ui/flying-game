@@ -33,52 +33,9 @@ public static class Landmarks
     public static double TowerHalfAt(double h) { double u = System.Math.Clamp(h / TowerHeightM, 0, 1); return TowerBaseHalfM * (1 - u) * (1 - u) + 4.0 * u; }
     public static double TowerYAt(int p) => TowerY + WorldTerrain.PlateauDy(p);
 
-    // ---- Town grid --------------------------------------------------------------------------------------
-    public const double TownX0 = -2650.0, TownY0 = 500.0, BlockM = 100.0, StreetM = 20.0;   // south-east of the pad, clear of the final approach corridor (y ±300)
-    public const int TownBlocksX = 15, TownBlocksY = 11;
-    public static double TownCentreX => TownX0 + TownBlocksX * (BlockM + StreetM) / 2;
-    public static double TownCentreY => TownY0 + TownBlocksY * (BlockM + StreetM) / 2;
-    public static double TownY0At(int p) => TownY0 + WorldTerrain.PlateauDy(p);
-    public static double TownCentreYAt(int p) => TownCentreY + WorldTerrain.PlateauDy(p);
-    public const double SkyBridgeHeightM = 120.0, SkyBridgeDepthM = 8.0, GateHoleBottomM = 80.0, GateHoleTopM = 120.0;
+    // ---- The Valley's city: the combat city's grid on the old town site (ValleyCity, Playground.cs) ----
 
-    public readonly struct Building
-    {
-        public readonly double Cx, Cy, Hx, Hy, HeightM; public readonly int Style;
-        public Building(double cx, double cy, double hx, double hy, double h, int style) { Cx = cx; Cy = cy; Hx = hx; Hy = hy; HeightM = h; Style = style; }
-    }
-
-    private static uint Hash(int i, int j) { uint h = (uint)(i * 73856093) ^ (uint)(j * 19349663) ^ 0x9E3779B9u; h ^= h >> 13; h *= 0x85EBCA6Bu; h ^= h >> 16; return h; }
-    private static double Rnd(uint h, int k) => ((h >> (k * 5)) & 31) / 31.0;
-
-    /// <summary>Deterministic building list: heights by distance from downtown; block (7,5) is the gate tower and
-    /// blocks (8,5)/(9,5) the twin towers joined by the sky bridge.</summary>
-    public static List<Building> Buildings() => Buildings(0);
-
-    /// <summary>The town on plateau <paramref name="p"/>: the Valley town shifted by <see cref="WorldTerrain.PlateauDy"/>.</summary>
-    public static List<Building> Buildings(int p)
-    {
-        double dy = WorldTerrain.PlateauDy(p);
-        var list = new List<Building>();
-        for (int i = 0; i < TownBlocksX; i++)
-        for (int j = 0; j < TownBlocksY; j++)
-        {
-            double cx = TownX0 + StreetM / 2 + i * (BlockM + StreetM) + BlockM / 2;
-            double cy = TownY0 + StreetM / 2 + j * (BlockM + StreetM) + BlockM / 2;
-            uint h = Hash(i, j);
-            double r = System.Math.Sqrt((cx - TownCentreX) * (cx - TownCentreX) + (cy - TownCentreY) * (cy - TownCentreY));
-            cy += dy;
-            double height = r < 300 ? 120 + 140 * Rnd(h, 0) : r < 600 ? 30 + 60 * Rnd(h, 0) : 8 + 14 * Rnd(h, 0);
-            double hx = r < 300 ? 22 + 12 * Rnd(h, 1) : 28 + 14 * Rnd(h, 1), hy = r < 300 ? 22 + 12 * Rnd(h, 2) : 28 + 14 * Rnd(h, 2);
-            int style = (int)(Rnd(h, 3) * 4);
-            if (i == 7 && j == 5) { height = 160; hx = 34; hy = 34; style = 9; }             // gate tower (hole through it)
-            if ((i == 8 || i == 9) && j == 5) { height = 200; hx = 26; hy = 26; style = 8; }  // twin towers + sky bridge
-            list.Add(new Building(cx, cy, hx, hy, height, style));
-        }
-        return list;
-    }
-
-    /// <summary>Register every solid (buildings, arch legs, tower legs, sky bridge) on EVERY plateau for airframe contact.</summary>
+    /// <summary>Register every solid (the city's towers and sky-bridges, arch legs, tower legs) on EVERY plateau for airframe contact.</summary>
     public static void RegisterSolids(WorldTerrain t)
     {
         WorldSolids.Boxes.Clear();
@@ -102,25 +59,7 @@ public static class Landmarks
     /// <summary>Solids of the copy on plateau <paramref name="p"/> (appends; does not clear).</summary>
     public static void RegisterSolids(WorldTerrain t, int p)
     {
-        double dy = WorldTerrain.PlateauDy(p);
-        double ground = t.HeightAt(TownCentreX, TownCentreYAt(p));
-        foreach (Building b in Buildings(p))
-        {
-            if (b.Style == 9)
-            {
-                // Gate tower: solid below the hole, two side walls beside it, solid above.
-                WorldSolids.Boxes.Add(new WorldSolids.Box(b.Cx, b.Cy, b.Hx, b.Hy, ground, ground + GateHoleBottomM));
-                WorldSolids.Boxes.Add(new WorldSolids.Box(b.Cx, b.Cy, b.Hx, b.Hy, ground + GateHoleTopM, ground + b.HeightM));
-                WorldSolids.Boxes.Add(new WorldSolids.Box(b.Cx - b.Hx + 5, b.Cy, 5, b.Hy, ground + GateHoleBottomM, ground + GateHoleTopM));
-                WorldSolids.Boxes.Add(new WorldSolids.Box(b.Cx + b.Hx - 5, b.Cy, 5, b.Hy, ground + GateHoleBottomM, ground + GateHoleTopM));
-                continue;
-            }
-            WorldSolids.Boxes.Add(new WorldSolids.Box(b.Cx, b.Cy, b.Hx, b.Hy, ground, ground + b.HeightM));
-        }
-        // Sky bridge between the twin towers (blocks 8 and 9, row 5).
-        double bx = TownX0 + StreetM / 2 + 8 * (BlockM + StreetM) + BlockM / 2 + (BlockM + StreetM) / 2;
-        double by = TownY0 + dy + StreetM / 2 + 5 * (BlockM + StreetM) + BlockM / 2;
-        WorldSolids.Boxes.Add(new WorldSolids.Box(bx, by, (BlockM + StreetM) / 2, 6, ground + SkyBridgeHeightM, ground + SkyBridgeHeightM + SkyBridgeDepthM));
+        ValleyCity.At(p).RegisterSolids(t);   // the city built for flying (towers + sky-bridges), owner 2026-10-05
         // Arch legs and tower legs.
         double archBase = ArchBaseUp(t, p), archY = ArchYAt(p), archCx = ArchCentreXAt(p);
         foreach (double sgn in new[] { -1.0, 1.0 })
