@@ -14,6 +14,8 @@ namespace FlyingGame.Bridge
         public float HorizonSec = 3f;   // owner 2026-09-10: three seconds
         public int Segments = 40;
         public Color Colour = new(0.25f, 1f, 0.35f, 0.95f);   // owner 2026-09-14: green, no arrowhead
+        public Color GroundColour = new(1f, 0.2f, 0.95f, 0.95f);   // magenta: the ground track, below 500 ft AGL
+        private Material _targetMat;
 
         private LineRenderer _line;
         private GameObject _cone;
@@ -34,7 +36,7 @@ namespace FlyingGame.Bridge
             _cone.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("FlyingGame/Lit") ?? Shader.Find("Unlit/Color")) { color = Colour };
             _target = new GameObject("ImpactPoint");
             _target.AddComponent<MeshFilter>().sharedMesh = TargetMesh();
-            _target.AddComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = Colour };
+            _target.AddComponent<MeshRenderer>().sharedMaterial = _targetMat = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = GroundColour };
             _target.SetActive(false);
         }
 
@@ -111,7 +113,12 @@ namespace FlyingGame.Bridge
             // crosswind the vector points where the nose is going through the air mass.
             Vector3 pos = transform.position;
             // ... except in ground-reference mode (runway lessons, low altitude), where the path over the GROUND is what counts.
-            Vector3 vel = Driver.GroundReference ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
+            bool ground = Driver.GroundReference;
+            Vector3 vel = ground ? Driver.WorldVelocityUnity : Driver.AirVelocityUnity;
+            // Owner 2026-10-05: green through the air; MAGENTA once it switches to the ground track below 500 ft AGL (the point-of-impact
+            // target shows only then) — so the change is unmistakable.
+            Color col = ground ? GroundColour : Colour;
+            if (_line.startColor != col) { _line.startColor = _line.endColor = col; _line.sharedMaterial.color = col; _targetMat.color = col; }
             float dt = Time.deltaTime;
             if (_havePrev && dt > 1e-4f)
             {
@@ -149,7 +156,8 @@ namespace FlyingGame.Bridge
             _cone.transform.position = pts[n];
             _cone.transform.rotation = Quaternion.LookRotation(tipDir, Vector3.up);
             _cone.transform.localScale = Vector3.one * (width * 3.2f);
-            UpdateImpact(pos, Driver.WorldVelocityUnity);   // the impact point is where the GROUND track meets the surface
+            if (ground) UpdateImpact(pos, Driver.WorldVelocityUnity);   // the impact point is where the GROUND track meets the surface — below 500 ft only
+            else _target.SetActive(false);
         }
 
         /// <summary>Cone along local +z, base radius r, length l.</summary>

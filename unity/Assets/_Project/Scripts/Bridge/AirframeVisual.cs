@@ -1177,7 +1177,10 @@ namespace FlyingGame.Bridge
             BuildGear(cfg, st);
             BuildAsWing(() => BuildSpoilers(cfg, st, halfSpan));
             BuildAsWing(() => BuildSlats(cfg, st));
+            int floatsFrom = _parts.Count;
             BuildFloats(cfg, st);
+            _floatParts.Clear();
+            for (int i = floatsFrom; i < _parts.Count; i++) _floatParts.Add(_parts[i]);
             TryPlaceModel(root, cfg);
             return halfSpan;
         }
@@ -1188,6 +1191,34 @@ namespace FlyingGame.Bridge
         public bool UsedModel { get; private set; }
         public bool IsModelPart(GameObject go) => go != null && _modelParts.Contains(go);
 
+        private readonly List<GameObject> _floatParts = new();
+
+        /// <summary>Take the model's own wheels and legs off (triangles wholly inside the box, in the mesh's coordinates) — the
+        /// type flies on its own gear or floats.</summary>
+        private static void RemoveModelGear(GameObject inst, Vector3 min, Vector3 max)
+        {
+            foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh src = mf.sharedMesh;
+                if (src == null || !src.isReadable) continue;
+                Vector3[] v = src.vertices;
+                bool In(int i) { Vector3 p = v[i]; return p.x >= min.x && p.x <= max.x && p.y >= min.y && p.y <= max.y && p.z >= min.z && p.z <= max.z; }
+                Mesh m = Object.Instantiate(src); m.name = src.name + "-nogear";
+                int removed = 0;
+                for (int sm = 0; sm < src.subMeshCount; sm++)
+                {
+                    int[] t = src.GetTriangles(sm); var keep = new List<int>(t.Length);
+                    for (int k = 0; k + 2 < t.Length; k += 3)
+                    {
+                        if (In(t[k]) && In(t[k + 1]) && In(t[k + 2])) { removed++; continue; }
+                        keep.Add(t[k]); keep.Add(t[k + 1]); keep.Add(t[k + 2]);
+                    }
+                    m.SetTriangles(keep, sm);
+                }
+                if (removed > 0) { mf.sharedMesh = m; Debug.Log($"[Airframe] model gear removed: {removed} triangles from {src.name}"); }
+            }
+        }
+
         private void TryPlaceModel(Transform root, AircraftConfig cfg)
         {
             UsedModel = false;
@@ -1197,9 +1228,13 @@ namespace FlyingGame.Bridge
             UsedModel = true;
             // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
             // the wheels and legs under a model that was exported gear-up (DC-3, 737).
-            bool keepGear = AirframeModels.Specs.TryGetValue(cfg.Id, out AirframeModels.Spec spec) && spec.ShowProceduralGear;
+            // ... and a type wearing another type's model (the Cub on floats / on bush wheels) keeps its own gear AND floats.
+            bool ownGear = AirframeModels.UsesOwnGear(cfg.Id);
+            bool keepGear = ownGear || (AirframeModels.Specs.TryGetValue(AirframeModels.ModelId(cfg.Id), out AirframeModels.Spec spec) && spec.ShowProceduralGear);
             var gearSet = new HashSet<GameObject>();
             if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
+            if (ownGear) foreach (GameObject g in _floatParts) if (g != null) gearSet.Add(g);
+            if (ownGear && AirframeModels.GearBoxMesh.TryGetValue(AirframeModels.ModelId(cfg.Id), out var boxes)) foreach (var box in boxes) RemoveModelGear(inst, box.min, box.max);
             bool overlay = System.Environment.GetEnvironmentVariable("SKIN_OVERLAY") != null;   // diagnostics: config surfaces over the model
             foreach (GameObject p in _parts)
             {
@@ -1502,13 +1537,37 @@ namespace FlyingGame.Bridge
 
                 float r = g.TireRadiusM > 0 ? (float)g.TireRadiusM : (g.IsTailwheel ? wheelR * 0.45f : wheelR);
                 int firstGearPart = _parts.Count;
-                var wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Kill(wheel.GetComponent<Collider>());
-                Attach(wheel, "Wheel");
-                wheel.transform.localPosition = U(gx, gy, gz - r);
-                wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // cylinder axis y → x (sideways)
-                wheel.transform.localScale = new Vector3(r * 2f, r * 0.3f, r * 2f);
-                wheel.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
+                GameObject wheel;
+                if (g.GearType == "bushwheel")
+                {
+                    // Low-pressure balloon tyre for sand (owner 2026-10-05: "rounded … fat, round sidewalls, not flat-sided"): a
+                    // torus — 35 in tall and ~15 in wide (a 35×15 tundra tyre), the tread one round curve from rim to rim — on a
+                    // small 6 in hub.
+                    float tube = Mathf.Min(r * 0.43f, 0.19f);
+                    wheel = new GameObject("Wheel");
+                    Attach(wheel, "Wheel");
+                    wheel.transform.localPosition = U(gx, gy, gz - r);
+                    wheel.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);   // torus axis (local z) → sideways (x)
+                    wheel.AddComponent<MeshFilter>().sharedMesh = WorldBuilder.Torus(r - tube, tube, 28, 14);
+                    wheel.AddComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
+                    var hub = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    Kill(hub.GetComponent<Collider>());
+                    Attach(hub, "WheelHub");
+                    hub.transform.localPosition = U(gx, gy, gz - r);
+                    hub.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+                    hub.transform.localScale = new Vector3((r - tube) * 2f + 0.02f, tube * 0.9f, (r - tube) * 2f + 0.02f);
+                    hub.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(new Color(0.75f, 0.75f, 0.78f));
+                }
+                else
+                {
+                    wheel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    Kill(wheel.GetComponent<Collider>());
+                    Attach(wheel, "Wheel");
+                    wheel.transform.localPosition = U(gx, gy, gz - r);
+                    wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // cylinder axis y → x (sideways)
+                    wheel.transform.localScale = new Vector3(r * 2f, r * 0.3f, r * 2f);
+                    wheel.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
+                }
 
                 // Leg from the wheel hub up to the body/wing.
                 float rb = BodyRadiusAt(st, gx);

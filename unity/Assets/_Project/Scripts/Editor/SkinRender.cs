@@ -18,7 +18,7 @@ namespace FlyingGame.EditorTools
         private static readonly string[] Ids =
         {
             "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "extra-300-like", "p51d-like",
-            "stearman-pt17-like", "seminole-like", "dc3-like", "geebee-r2-like", "glider-2-33-like", "boeing-737-like", "f86-sabre-like",
+            "stearman-pt17-like", "seminole-like", "pa18-floats-like", "pa18-bush-like", "dc3-like", "geebee-r2-like", "glider-2-33-like", "boeing-737-like", "f86-sabre-like",
         };
 
         public static void Render()
@@ -62,6 +62,7 @@ namespace FlyingGame.EditorTools
                 Vector3 rearQ = new Vector3(0.9f, 0.8f, -1.2f), front = new Vector3(0.35f, 0.15f, 1f);
                 builder.SetDeflections(0f, 0f, 0f, 0f); builder.SpinProps(_ => 0f, 0.02f);
                 Shot("neutral", rearQ, 1.6f);
+                Shot("side", new Vector3(1f, 0.05f, 0f), 1.1f);
                 Shot("top", new Vector3(0f, 1f, -0.01f), 1.4f);
                 Vector3 tail = new Vector3(0f, whole.center.y + 0.4f, whole.min.z + 1.2f), wing = new Vector3(whole.max.x * 0.7f, whole.center.y + 0.6f, whole.center.z);
                 Shot("tail-neutral", new Vector3(0.7f, 0.5f, -1f), 0.35f, tail);

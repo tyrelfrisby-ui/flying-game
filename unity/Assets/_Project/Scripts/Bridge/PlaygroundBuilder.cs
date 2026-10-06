@@ -129,10 +129,22 @@ namespace FlyingGame.Bridge
         {
             var b = new SeasideBuilder.Batch();
             BuildCityGrid(FlyCity.Grid, t, b, parent);
+            BuildCityExtras(FlyCity.Grid, t, b, parent);
+            b.Build("FlyCity", parent, SeasideBuilder.VC);
+
+
+        }
+
+        /// <summary>A city's extras (owner 2026-10-05: the Valley city gets "the same race course and spinning circle and
+        /// landable platform on the buildings as the combat city has"): the cantilevered pad, the rooftop rings 1–5, the spinning
+        /// ring's post into the batch; the spinning ring itself as its own object (turned every frame by PlaygroundRuntime).</summary>
+        internal static void BuildCityExtras(CityGrid grid, WorldTerrain t, SeasideBuilder.Batch b, Transform parent)
+        {
+            if (grid.PadLot.HasValue)
             // The cantilevered pad: disc, red-and-white edge, white ring + centreline, the steel brackets to the tower.
             {
-                var tw = FlyCity.PadTower; double g = t.HeightAt(tw.Cx, tw.Cy), top = g + FlyCity.PadDeckM;
-                var (px, py) = FlyCity.PadCentre; float R = (float)FlyCity.PadRadiusM;
+                var tw = grid.PadTower; double g = t.HeightAt(tw.Cx, tw.Cy), top = g + FlyCity.PadDeckM;
+                var (px, py) = grid.PadCentre; float R = (float)FlyCity.PadRadiusM;
                 const int n = 64;
                 for (int k = 0; k < n; k++)
                 {
@@ -149,11 +161,15 @@ namespace FlyingGame.Bridge
                 }
                 for (double d = -R + 14; d < R - 14; d += 18) b.Box(U(px + d, py, top + 0.06), new Vector3(1.2f, 0.04f, 9f), Color.white);
                 // Brackets: raking struts from the tower face down to the pad's underside.
+                // (along whichever way the pad hangs: d out from the tower, q across)
+                double dx = px - tw.Cx, dy = py - tw.Cy, dl = System.Math.Sqrt(dx * dx + dy * dy); dx /= dl; dy /= dl;
+                double qx = -dy, qy = dx, face = System.Math.Abs(dx) > 0.5 ? tw.Hx : tw.Hy;
                 foreach (double ox in new[] { -40.0, -14.0, 14.0, 40.0 })
-                    b.Beam(U(tw.Cx + ox * 0.5, tw.Cy + tw.Hy, top - 70), U(px + ox, py + 30, top - 4), 2.5f, 2.5f, new Color(0.5f, 0.52f, 0.55f));
+                    b.Beam(U(tw.Cx + dx * face + qx * ox * 0.5, tw.Cy + dy * face + qy * ox * 0.5, top - 70),
+                           U(px + dx * 30 + qx * ox, py + dy * 30 + qy * ox, top - 4), 2.5f, 2.5f, new Color(0.5f, 0.52f, 0.55f));
             }
             // Rooftop rings 1–5: red/white tori on two posts, big numerals.
-            var rings = FlyCity.RooftopRings();
+            var rings = grid.RooftopRings();
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             for (int k = 0; k < rings.Count; k++)
             {
@@ -178,21 +194,18 @@ namespace FlyingGame.Bridge
             }
             // The spinning ring's bearing post (the ring itself spins: PlaygroundRuntime).
             {
-                var (sx, sy, _) = FlyCity.SpinRingCentre; double g = t.HeightAt(sx, sy);
-                b.Box(U(sx, sy, g + FlyCity.Tallest.HeightM + FlyCity.SpinPostM / 2), new Vector3(4f, (float)FlyCity.SpinPostM, 4f), new Color(0.3f, 0.3f, 0.32f));
+                var (sx, sy, _) = grid.SpinRingCentre; double g = t.HeightAt(sx, sy);
+                b.Box(U(sx, sy, g + grid.Tallest.HeightM + FlyCity.SpinPostM / 2), new Vector3(4f, (float)FlyCity.SpinPostM, 4f), new Color(0.3f, 0.3f, 0.32f));
             }
-            b.Build("FlyCity", parent, SeasideBuilder.VC);
-
             // Spinning ring (its own object; rotated every frame).
             {
-                var (sx, sy, cz) = FlyCity.SpinRingCentre; double g = t.HeightAt(sx, sy);
+                var (sx, sy, cz) = grid.SpinRingCentre; double g = t.HeightAt(sx, sy);
                 var rb = new SeasideBuilder.Batch();
                 rb.Torus(Vector3.zero, Vector3.forward, (float)FlyCity.SpinRingRadiusM, (float)FlyCity.SpinRingTubeM, 48, 10, i => i % 2 == 0 ? new Color(1f, 0.8f, 0.1f) : new Color(0.1f, 0.1f, 0.1f));
                 var ring = rb.Build("SpinRing", parent, SeasideBuilder.VC);
                 ring.transform.position = U(sx, sy, g + cz);
-                PlaygroundRuntime.SpinRing = ring.transform;
+                PlaygroundRuntime.SpinRings.Add(ring.transform);
             }
-
         }
 
         /// <summary>
@@ -352,8 +365,10 @@ namespace FlyingGame.Bridge
     /// ring's rotation, and the rooftop ring race (HUD line in the shared text stack).</summary>
     public sealed class PlaygroundRuntime : MonoBehaviour
     {
-        public static Transform SpinRing;
-        private RooftopRace _race;
+        /// <summary>Every city's spinning ring (the combat city's and each Valley city's).</summary>
+        public static readonly List<Transform> SpinRings = new();
+        private readonly List<RooftopRace> _races = new();
+        private RooftopRace _race;   // the one the HUD shows: the race being flown (or the last to report)
         private FlightSimDriver _drv;
         private GUIStyle _style; private int _fs;
         private float _eventUntil; private string _lastEvent = "";
@@ -361,13 +376,23 @@ namespace FlyingGame.Bridge
         private void Update()
         {
             if (!SessionSettings.ReplayActive) WorldClock.TimeS = Time.timeSinceLevelLoad;
-            if (SpinRing != null)
-                SpinRing.rotation = Quaternion.Euler(0f, (float)(FlyCity.SpinYawRad(WorldClock.TimeS) * Mathf.Rad2Deg), 0f);
+            var yaw = Quaternion.Euler(0f, (float)(FlyCity.SpinYawRad(WorldClock.TimeS) * Mathf.Rad2Deg), 0f);
+            SpinRings.RemoveAll(r => r == null);
+            foreach (Transform r in SpinRings) r.rotation = yaw;
             _drv ??= FindFirstObjectByType<FlightSimDriver>();
             if (_drv?.Sim?.Aircraft == null || WorldTerrain.Active == null) return;
-            _race ??= new RooftopRace(WorldTerrain.Active);
-            _race.Update(_drv.Sim.Aircraft.State.Position, WorldClock.TimeS);
-            if (_race.LastEvent != _lastEvent) { _lastEvent = _race.LastEvent; _eventUntil = Time.time + 6f; }
+            if (_races.Count == 0)
+            {
+                _races.Add(new RooftopRace(WorldTerrain.Active, FlyCity.Grid));
+                for (int p = 0; p < WorldTerrain.PlateauCount; p++) _races.Add(new RooftopRace(WorldTerrain.Active, ValleyCity.At(p)));
+            }
+            foreach (RooftopRace race in _races)
+            {
+                string before = race.LastEvent;
+                race.Update(_drv.Sim.Aircraft.State.Position, WorldClock.TimeS);
+                if (race.LastEvent != before || (race.StartS >= 0 && (_race == null || _race.StartS < 0))) _race = race;
+            }
+            if (_race != null && _race.LastEvent != _lastEvent) { _lastEvent = _race.LastEvent; _eventUntil = Time.time + 6f; }
         }
 
         private void OnGUI()

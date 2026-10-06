@@ -53,13 +53,36 @@ namespace FlyingGame.Bridge
         };
         public static IEnumerable<string> Ids => Specs.Keys;
 
-        public static bool Has(string id) => id != null && Specs.ContainsKey(id) && Resources.Load<GameObject>($"Models/{id}/{id}") != null;
+        /// <summary>Types that wear another type's model (owner 2026-10-05: "the cub on floats and cub on bushwheels should
+        /// both use the good skin from the PA-18 Super Cub"). They keep their OWN gear — the floats, the tundra tyres — so the
+        /// model's wheels are taken off (<see cref="GearBoxMesh"/>) and the model is set by its wing, not its wheels.</summary>
+        public static readonly Dictionary<string, string> Alias = new()
+        {
+            { "pa18-floats-like", "pa18-cub-like" },
+            { "pa18-bush-like", "pa18-cub-like" },
+        };
+        public static string ModelId(string id) => id != null && Alias.TryGetValue(id, out string m) ? m : id;
+        public static bool UsesOwnGear(string id) => id != null && Alias.ContainsKey(id);
+        /// <summary>The model's own gear as boxes in the MESH's coordinates (the OBJ's units, its x mirrored by the importer): the
+        /// Super Cub's main gear (Object_7: x −212…−125, y −135…−56, z ±96 in the file) and its tailwheel.</summary>
+        public static readonly Dictionary<string, (Vector3 min, Vector3 max)[]> GearBoxMesh = new()
+        {
+            { "pa18-cub-like", new[]
+                {
+                    (new Vector3(118f, -137f, -100f), new Vector3(219f, -54f, 100f)),   // main gear: legs, axle, wheels
+                    (new Vector3(-331f, -33f, -7f), new Vector3(-277f, 0.5f, 7f)),      // tailwheel and its spring (file x 278…330)
+                } },
+        };
+
+        public static bool Has(string id) { string m = ModelId(id); return m != null && Specs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}") != null; }
 
         /// <summary>Instantiate the model under <paramref name="parent"/>, oriented, scaled to the config span and grounded
         /// on the wheels. Returns the instance (null if none) and its local bounds after placement.</summary>
         public static GameObject Place(Transform parent, string id, AircraftConfig cfg, out Bounds bounds)
         {
             bounds = new Bounds();
+            bool ownGear = UsesOwnGear(id);
+            id = ModelId(id);
             var prefab = Resources.Load<GameObject>($"Models/{id}/{id}");
             if (prefab == null || !Specs.TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
@@ -89,7 +112,11 @@ namespace FlyingGame.Bridge
                 zShift = cfgMid - modelMid;
             }
             else Debug.Log($"[Airframe] {id}: outer wing not found in the model — placed by the length-centre estimate");
-            Vector3 shift = new Vector3(-b.center.x, -gearDown - b.min.y + spec.GroundClearanceM, zShift);
+            float yShift = -gearDown - b.min.y + spec.GroundClearanceM;
+            // A type wearing another's model sits by its WING (the model's wheels aren't its gear): the model's outer-wing
+            // height on the config's.
+            if (ownGear && OuterWingHeight(inst, parent, HalfSpan(cfg), out float mh) && ConfigOuterWingHeight(cfg, out float ch)) yShift = ch - mh;
+            Vector3 shift = new Vector3(-b.center.x, yShift, zShift);
             inst.transform.localPosition = shift;
             bounds = LocalBounds(inst, parent);
             return inst;
@@ -116,6 +143,49 @@ namespace FlyingGame.Bridge
             }
             if (n < 8 || hi - lo > 0.5f * halfSpan) return false;   // nothing out there, or not a wing
             mid = 0.5f * (lo + hi);
+            return true;
+        }
+
+        /// <summary>The model's outer-wing mean height (parent frame, before the shift).</summary>
+        private static bool OuterWingHeight(GameObject inst, Transform parent, float halfSpan, out float h)
+        {
+            h = 0f; double sum = 0; int n = 0;
+            float cx = LocalBounds(inst, parent).center.x;
+            foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh m = mf.sharedMesh;
+                if (m == null || !m.isReadable) continue;
+                Matrix4x4 to = parent.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                foreach (Vector3 v in m.vertices)
+                {
+                    Vector3 p = to.MultiplyPoint3x4(v);
+                    float ax = Mathf.Abs(p.x - cx);
+                    if (ax < 0.65f * halfSpan || ax > 0.92f * halfSpan) continue;
+                    sum += p.y; n++;
+                }
+            }
+            if (n < 8) return false;
+            h = (float)(sum / n);
+            return true;
+        }
+
+        /// <summary>The config's outer-wing mean height relative to the CG (Unity up = −sim z).</summary>
+        private static bool ConfigOuterWingHeight(AircraftConfig cfg, out float h)
+        {
+            h = 0f; float half = HalfSpan(cfg); double sum = 0; int n = 0;
+            double cgZ = cfg.Mass.CgVec().Z;
+            foreach (SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (!sf.Id.ToLowerInvariant().Contains("wing")) continue;
+                foreach (StripConfig st in sf.Strips)
+                {
+                    double ay = System.Math.Abs(st.Pos[1]);
+                    if (ay < 0.65 * half || ay > 0.92 * half) continue;
+                    sum += -(st.Pos[2] - cgZ); n++;
+                }
+            }
+            if (n == 0) return false;
+            h = (float)(sum / n);
             return true;
         }
 

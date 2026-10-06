@@ -87,7 +87,7 @@ public class PlateauCopyTests
             int same = 0;
             foreach (FlyCity.Tower c in combat.Towers())
                 if (byCell.TryGetValue((c.I, c.J), out FlyCity.Tower v) && Math.Abs(v.HeightM - c.HeightM) < 1e-9 && Math.Abs(v.Hx - c.Hy) < 1e-9 && Math.Abs(v.Hy - c.Hx) < 1e-9) same++;
-            Assert.True(same >= combat.Towers().Count - 3, $"plateau {p}: {same} of {combat.Towers().Count} towers identical");
+            Assert.True(same >= combat.Towers().Count - 8, $"plateau {p}: {same} of {combat.Towers().Count} towers identical");   // (the pads and their approach lots sit at opposite ends)
             Assert.True(city.SkyBridges().Count >= combat.SkyBridges().Count - 2);
             // On flat, dry ground at the field elevation, clear of the runway corridor and the plateau's other features.
             double elev = WorldTerrain.Airports[p].ElevationM, ay = WorldTerrain.Airports[p].Y;
@@ -106,5 +106,34 @@ public class PlateauCopyTests
             Assert.False(Near(f.X0, f.Y0, 60) || Near(f.X1, f.Y1, 60), "crop field in the city");
             Assert.False(Near(Landmarks.TowerX, Landmarks.TowerYAt(p), 100), "the Eiffel-style tower in the city");
         }
+    }
+
+    [Fact]
+    public void TheValleyCityHasTheRooftopRaceTheSpinningRingAndALandablePad()
+    {
+        // Owner 2026-10-05: "the same race course and spinning circle and landable platform on the buildings as the combat city".
+        var t = new WorldTerrain();
+        WorldTerrain.Active = t;
+        try
+        {
+            Landmarks.RegisterSolids(t);
+            for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+            {
+                CityGrid city = ValleyCity.At(p);
+                Assert.Equal(5, city.RooftopRings().Count);
+                Assert.Equal(5, new RooftopRace(t, city).Rings.Count);
+                // The spinning ring stands on the tallest tower (340 m), clear of the sky.
+                Assert.Equal(340, city.Tallest.HeightM, 6);
+                var (sx, sy, sz) = city.SpinRingCentre;
+                Assert.True(sz > 340);
+                // The pad: a 500 ft deck 230 m up off the south end, where a wheel finds it.
+                var (px, py) = city.PadCentre;
+                double deck = t.HeightAt(city.PadTower.Cx, city.PadTower.Cy) + FlyCity.PadDeckM;
+                Assert.Equal(deck, WorldTerrain.WheelGroundHeightAt(px, py, deck + 1), 1);
+                Assert.True(px < city.PadTower.Cx, "the pad hangs off the south end");
+                Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(px, py, deck + 1));
+            }
+        }
+        finally { WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); WorldDecks.All.Clear(); }
     }
 }

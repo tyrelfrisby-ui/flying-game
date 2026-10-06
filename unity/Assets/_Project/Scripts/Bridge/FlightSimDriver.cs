@@ -38,6 +38,9 @@ namespace FlyingGame.Bridge
         /// camera and the flight path vector follow the GROUND track (wind included), not the air mass — the runway is
         /// the reference, so a crosswind crab shows as the nose pointing off the track.</summary>
         public bool GroundReferenceForced;
+        /// <summary>Below this height above the surface the flight path vector switches to the GROUND track (and turns magenta,
+        /// with the point-of-impact target) — owner 2026-10-05: 500 ft.</summary>
+        public const double GroundReferenceAglM = 152.4;
         public bool GroundReference
         {
             get
@@ -46,7 +49,7 @@ namespace FlyingGame.Bridge
                 if (Sim?.Aircraft == null) return false;
                 var p = Sim.Aircraft.State.Position;
                 double agl = -p.Z - FlyingGame.Core.WorldTerrain.GroundHeightAt(p.X, p.Y);
-                return agl < 100.0;   // the approach / landing / take-off regime
+                return agl < GroundReferenceAglM;   // the approach / landing / take-off regime
             }
         }
 

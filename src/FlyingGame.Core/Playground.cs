@@ -241,7 +241,9 @@ public sealed class CityGrid
     public readonly double X0, Y0;
     public readonly bool Rotated;
     public readonly (int i, int j)? PadLot;
-    public CityGrid(double x0, double y0, bool rotated, (int i, int j)? padLot) { X0 = x0; Y0 = y0; Rotated = rotated; PadLot = padLot; }
+    /// <summary>Which way the pad hangs off its tower along the rows: +1 (the combat city: toward the sea cliff) or −1.</summary>
+    public readonly int PadDir;
+    public CityGrid(double x0, double y0, bool rotated, (int i, int j)? padLot, int padDir = 1) { X0 = x0; Y0 = y0; Rotated = rotated; PadLot = padLot; PadDir = padDir; }
 
     public (double x, double y) Map(double u, double v) => Rotated ? (X0 + v, Y0 + u) : (X0 + u, Y0 + v);
     public (double u, double v) Unmap(double x, double y) => Rotated ? (y - Y0, x - X0) : (x - X0, y - Y0);
@@ -280,7 +282,7 @@ public sealed class CityGrid
                 double R(int k) => ((h >> (k * 5)) & 31) / 31.0;
                 bool pad = PadLot.HasValue && (i, j) == PadLot.Value;
                 if (!pad && (InPlaza(cx, cy) || R(4) < 0.16)) continue;                                                 // the plaza + open lots
-                if (!pad && PadLot.HasValue && j == Rows - 1 && Math.Abs(i - PadLot.Value.i) <= 1) continue;          // the pad's approach
+                if (!pad && PadLot.HasValue && j == PadLot.Value.j && Math.Abs(i - PadLot.Value.i) <= 1) continue;   // the pad's approach
                 double r = Math.Sqrt((u - CentreU) * (u - CentreU) + 0.45 * (v - CentreV) * (v - CentreV));
                 double height = r < 300 ? 190 + 110 * R(0) : r < 600 ? 110 + 90 * R(0) : 60 + 60 * R(0);
                 double hu = 18 + 12 * R(1), hv = 18 + 12 * R(2);
@@ -316,6 +318,73 @@ public sealed class CityGrid
         return alongX ? (cx, cy, 0.5 * Math.Abs(b.Cx - a.Cx), 6) : (cx, cy, 6, 0.5 * Math.Abs(b.Cy - a.Cy));
     }
 
+    // ---- the extras (owner 2026-10-05, the Valley city: "the same race course and spinning circle and landable platform
+    //      on the buildings as the combat city has") ----
+    public FlyCity.Tower Tallest { get { FlyCity.Tower b = Towers()[0]; foreach (FlyCity.Tower t in Towers()) if (t.HeightM > b.HeightM) b = t; return b; } }
+    public FlyCity.Tower PadTower { get { foreach (FlyCity.Tower t in Towers()) if (PadLot.HasValue && (t.I, t.J) == PadLot.Value) return t; return Towers()[0]; } }
+    /// <summary>The 500 ft disc: its inner edge keyed 8 m into the pad tower, hanging out along the rows (PadDir).</summary>
+    public (double x, double y) PadCentre
+    {
+        get
+        {
+            FlyCity.Tower t = PadTower;
+            double hv = Rotated ? t.Hx : t.Hy, off = PadDir * (hv + FlyCity.PadRadiusM - 8);
+            return Rotated ? (t.Cx + off, t.Cy) : (t.Cx, t.Cy + off);
+        }
+    }
+
+    /// <summary>Five towers 190–300 m tall in a ring round downtown, flown in order 1..5; each ring faces the next.</summary>
+    public List<(FlyCity.Tower t, double headingDeg)> RooftopRings()
+    {
+        var picks = new List<FlyCity.Tower>();
+        foreach (double a in new double[] { 0, 72, 144, 216, 288 })
+        {
+            var (tx, ty) = Map(CentreU + 420 * Math.Cos(a * Math.PI / 180), CentreV + 700 * Math.Sin(a * Math.PI / 180));
+            FlyCity.Tower best = default; double bd = double.MaxValue;
+            foreach (FlyCity.Tower t in Towers())
+            {
+                if (t.HeightM < 150 || (PadLot.HasValue && (t.I, t.J) == PadLot.Value) || t.HeightM >= 330) continue;
+                double d = (t.Cx - tx) * (t.Cx - tx) + (t.Cy - ty) * (t.Cy - ty);
+                if (d < bd) { bd = d; best = t; }
+            }
+            picks.Add(best);
+        }
+        var res = new List<(FlyCity.Tower, double)>();
+        for (int k = 0; k < picks.Count; k++)
+        {
+            FlyCity.Tower a = picks[k], b = picks[(k + 1) % picks.Count];
+            res.Add((a, Math.Atan2(b.Cy - a.Cy, b.Cx - a.Cx) * 180 / Math.PI));
+        }
+        return res;
+    }
+
+    public (double x, double y, double centreUp) SpinRingCentre { get { FlyCity.Tower t = Tallest; return (t.Cx, t.Cy, t.HeightM + FlyCity.SpinPostM + FlyCity.SpinRingRadiusM); } }
+
+    /// <summary>The pad (disc slabs + a deck the wheels use), the rooftop rings and the spinning ring (+ its post) as solids.</summary>
+    public void RegisterExtras(WorldTerrain t)
+    {
+        if (PadLot.HasValue)
+        {
+            double gp = t.HeightAt(PadTower.Cx, PadTower.Cy);
+            var (px, py) = PadCentre;
+            double top = gp + FlyCity.PadDeckM, R = FlyCity.PadRadiusM;
+            for (double ox = -R; ox < R; ox += 12)
+                for (double oy = -R; oy < R; oy += 12)
+                    if ((ox + 6) * (ox + 6) + (oy + 6) * (oy + 6) < R * R)
+                        WorldSolids.Boxes.Add(new WorldSolids.Box(px + ox + 6, py + oy + 6, 6, 6, top - 4, top));
+            WorldDecks.All.Add(new WorldDecks.Circle(px, py, R, top));
+        }
+        foreach (var (tw, hdg) in RooftopRings())
+        {
+            double g = t.HeightAt(tw.Cx, tw.Cy);
+            WorldSolids.Shapes.Add(new FlyCity.TorusSolid(tw.Cx, tw.Cy, g + tw.HeightM + FlyCity.RingAboveRoofM, FlyCity.RingRadiusM, FlyCity.RingTubeM, hdg * Math.PI / 180));
+        }
+        var (sx, sy, sz) = SpinRingCentre;
+        double sg = t.HeightAt(sx, sy);
+        WorldSolids.Shapes.Add(new FlyCity.TorusSolid(sx, sy, sg + sz, FlyCity.SpinRingRadiusM, FlyCity.SpinRingTubeM, null));
+        WorldSolids.Boxes.Add(new WorldSolids.Box(sx, sy, 2, 2, sg + Tallest.HeightM, sg + Tallest.HeightM + FlyCity.SpinPostM - 1));   // the bearing post
+    }
+
     /// <summary>The towers and sky-bridges as solids (airframe contact).</summary>
     public void RegisterSolids(WorldTerrain t)
     {
@@ -334,14 +403,15 @@ public sealed class CityGrid
 }
 
 /// <summary>The Valley's city (owner 2026-10-05): the combat city's grid turned 90° on the town's old site south of the field,
-/// east of the final-approach line — one on every plateau, like the other Valley landmarks.</summary>
+/// east of the final-approach line — with the same rooftop ring race, spinning ring and landable pad; one on every plateau.</summary>
 public static class ValleyCity
 {
     public const double X0 = -2800, Y0 = 380;   // right off the runway's south end (2026-10-05: "the city closer to the runway")
     private static readonly Dictionary<int, CityGrid> _at = new();
     public static CityGrid At(int p)
     {
-        if (!_at.TryGetValue(p, out CityGrid? g)) _at[p] = g = new CityGrid(X0, Y0 + WorldTerrain.PlateauDy(p), true, null);
+        // The pad off the south end (the north end faces the runway and the aerobatic box).
+        if (!_at.TryGetValue(p, out CityGrid? g)) _at[p] = g = new CityGrid(X0, Y0 + WorldTerrain.PlateauDy(p), true, (3, 0), -1);
         return g;
     }
 }
@@ -376,43 +446,19 @@ public static class FlyCity
     public static readonly CityGrid Grid = new(X0, Y0, false, PadLot);
     public static List<Tower> Towers() => Grid.Towers();
 
-    public static Tower Tallest { get { Tower b = Towers()[0]; foreach (Tower t in Towers()) if (t.HeightM > b.HeightM) b = t; return b; } }
-    public static Tower PadTower { get { foreach (Tower t in Towers()) if ((t.I, t.J) == PadLot) return t; return Towers()[0]; } }
-    public static (double x, double y) PadCentre { get { Tower t = PadTower; return (t.Cx, t.Cy + t.Hy + PadRadiusM - 8); } }   // the disc's inner edge keyed 8 m into the tower
+    public static Tower Tallest => Grid.Tallest;
+    public static Tower PadTower => Grid.PadTower;
+    public static (double x, double y) PadCentre => Grid.PadCentre;   // the disc's inner edge keyed 8 m into the tower
 
     public static List<(Tower a, Tower b, double heightM)> SkyBridges() => Grid.SkyBridges();
 
     // ---- the rooftop ring course: five numbered rings on five towers, a loop ----
     public const double RingRadiusM = 22, RingTubeM = 1.6, RingAboveRoofM = 32;
-    public static List<(Tower t, double headingDeg)> RooftopRings()
-    {
-        // Five towers 190–300 m tall in a ring round downtown, flown in order 1..5; each ring faces the next.
-        var picks = new List<Tower>();
-        double[] angles = { 0, 72, 144, 216, 288 };
-        foreach (double a in angles)
-        {
-            double tx = CentreX + 420 * System.Math.Cos(a * System.Math.PI / 180), ty = CentreY + 700 * System.Math.Sin(a * System.Math.PI / 180);
-            Tower best = default; double bd = double.MaxValue;
-            foreach (Tower t in Towers())
-            {
-                if (t.HeightM < 150 || (t.I, t.J) == PadLot || t.HeightM >= 330) continue;
-                double d = (t.Cx - tx) * (t.Cx - tx) + (t.Cy - ty) * (t.Cy - ty);
-                if (d < bd) { bd = d; best = t; }
-            }
-            picks.Add(best);
-        }
-        var res = new List<(Tower, double)>();
-        for (int k = 0; k < picks.Count; k++)
-        {
-            Tower a = picks[k], b = picks[(k + 1) % picks.Count];
-            res.Add((a, System.Math.Atan2(b.Cy - a.Cy, b.Cx - a.Cx) * 180 / System.Math.PI));
-        }
-        return res;
-    }
+    public static List<(Tower t, double headingDeg)> RooftopRings() => Grid.RooftopRings();
 
     // ---- the giant spinning ring on the tallest tower: spins about its vertical diameter ----
     public const double SpinRingRadiusM = 45, SpinRingTubeM = 3.5, SpinPeriodS = 10, SpinPostM = 14;
-    public static (double x, double y, double centreUp) SpinRingCentre { get { Tower t = Tallest; return (t.Cx, t.Cy, t.HeightM + SpinPostM + SpinRingRadiusM); } }
+    public static (double x, double y, double centreUp) SpinRingCentre => Grid.SpinRingCentre;
     /// <summary>The ring's yaw (its normal's heading) at time t.</summary>
     public static double SpinYawRad(double t) => 2 * System.Math.PI * (t / SpinPeriodS);
 
@@ -447,25 +493,7 @@ public static class FlyCity
     public static void RegisterSolids(WorldTerrain t)
     {
         Grid.RegisterSolids(t);
-        double gp = t.HeightAt(PadTower.Cx, PadTower.Cy);
-        var (px, py) = PadCentre;
-        double top = gp + PadDeckM;
-        // The pad: a disc slab (squares approximating the circle) + its deck for wheels.
-        for (double ox = -PadRadiusM; ox < PadRadiusM; ox += 12)
-            for (double oy = -PadRadiusM; oy < PadRadiusM; oy += 12)
-                if ((ox + 6) * (ox + 6) + (oy + 6) * (oy + 6) < PadRadiusM * PadRadiusM)
-                    WorldSolids.Boxes.Add(new WorldSolids.Box(px + ox + 6, py + oy + 6, 6, 6, top - 4, top));
-        WorldDecks.All.Add(new WorldDecks.Circle(px, py, PadRadiusM, top));
-        // Rooftop rings (static) and the spinning ring.
-        foreach (var (tw, hdg) in RooftopRings())
-        {
-            double g = t.HeightAt(tw.Cx, tw.Cy);
-            WorldSolids.Shapes.Add(new TorusSolid(tw.Cx, tw.Cy, g + tw.HeightM + RingAboveRoofM, RingRadiusM, RingTubeM, hdg * System.Math.PI / 180));
-        }
-        var (sx, sy, sz) = SpinRingCentre;
-        double sg = t.HeightAt(sx, sy);
-        WorldSolids.Shapes.Add(new TorusSolid(sx, sy, sg + sz, SpinRingRadiusM, SpinRingTubeM, null));
-        WorldSolids.Boxes.Add(new WorldSolids.Box(sx, sy, 2, 2, sg + Tallest.HeightM, sg + Tallest.HeightM + SpinPostM - 1));   // the bearing post
+        Grid.RegisterExtras(t);
         Mall.RegisterSolids(t);
     }
 }
@@ -525,9 +553,10 @@ public sealed class RooftopRace
     public string LastEvent { get; private set; } = "";
     private Vec3 _prev; private bool _hasPrev;
 
-    public RooftopRace(WorldTerrain t)
+    public RooftopRace(WorldTerrain t) : this(t, FlyCity.Grid) { }
+    public RooftopRace(WorldTerrain t, CityGrid city)
     {
-        foreach (var (tw, hdg) in FlyCity.RooftopRings())
+        foreach (var (tw, hdg) in city.RooftopRings())
             Rings.Add((tw.Cx, tw.Cy, t.HeightAt(tw.Cx, tw.Cy) + tw.HeightM + FlyCity.RingAboveRoofM, hdg * System.Math.PI / 180));
     }
 

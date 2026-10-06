@@ -40,8 +40,8 @@ public static class Landmarks
     {
         WorldSolids.Boxes.Clear();
         WorldSolids.Shapes.Clear();
+        RegisterSeasideSolids(t);   // first: it resets the wheel decks, and every city adds its pad's
         for (int p = 0; p < WorldTerrain.PlateauCount; p++) RegisterSolids(t, p);
-        RegisterSeasideSolids(t);
     }
 
     /// <summary>The one-off features (not copied per plateau): the city (+ the Mall, rings, pad deck), the canyon lake's spires,
@@ -60,6 +60,7 @@ public static class Landmarks
     public static void RegisterSolids(WorldTerrain t, int p)
     {
         ValleyCity.At(p).RegisterSolids(t);   // the city built for flying (towers + sky-bridges), owner 2026-10-05
+        ValleyCity.At(p).RegisterExtras(t);   // ... with its pad, rooftop rings and spinning ring
         // Arch legs and tower legs.
         double archBase = ArchBaseUp(t, p), archY = ArchYAt(p), archCx = ArchCentreXAt(p);
         foreach (double sgn in new[] { -1.0, 1.0 })

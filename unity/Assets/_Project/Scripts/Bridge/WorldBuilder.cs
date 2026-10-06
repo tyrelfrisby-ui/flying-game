@@ -1075,6 +1075,7 @@ namespace FlyingGame.Bridge
             // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site, on every plateau.
             var cityBatch = new SeasideBuilder.Batch();
             PlaygroundBuilder.BuildCityGrid(ValleyCity.At(p), t, cityBatch, root.transform);
+            PlaygroundBuilder.BuildCityExtras(ValleyCity.At(p), t, cityBatch, root.transform);   // pad, rooftop rings, spinning ring
             cityBatch.Build("ValleyCity", root.transform, SeasideBuilder.VC);
         }
 
