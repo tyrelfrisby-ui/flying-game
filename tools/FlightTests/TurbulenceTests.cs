@@ -63,7 +63,7 @@ public class TurbulenceTests
             double maxRate = 0;
             for (int i = 0; i < 400; i++)
             {
-                sim.RunFor(0.1, new ControlInputs(0, trim.ElevatorRad/c.Controls.Elevator.MaxDeflRad, 0, 0));
+                sim.RunFor(0.1, new ControlInputs(0, Aircraft.StickForDeflection(trim.ElevatorRad, c.Controls.Elevator), 0, 0));   // the stick that HOLDS the trim (through dead zone/expo)
                 maxRate = System.Math.Max(maxRate, ac.State.Rates.Length);
                 Assert.False(double.IsNaN(ac.State.Velocity.X), "Turbulence must not NaN the sim.");
             }

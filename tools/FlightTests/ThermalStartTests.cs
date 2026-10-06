@@ -49,7 +49,12 @@ public class ThermalStartTests
                 iRoll = Math.Clamp(iRoll + err * h * 0.5, -0.3, 0.3);
                 double ail = Math.Clamp(err * 2.0 + iRoll - s.Rates.X * 0.3, -1, 1);   // the pilot holds the bank
                 double rud = Math.Clamp(-s.Velocity.Y * 0.05, -0.5, 0.5);                  // and keeps the ball centred
-                ac.Step(new ControlInputs(ail, stick, rud, lever), h);
+                // ... and holds the planned speed with gentle elevator, as a pilot circling in a thermal does (stick fixed, the
+                // gusts at the core's edge kicked off a phugoid that carried the Cub out of the core).
+                Vec3 air = s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));   // AIRspeed, not groundspeed
+                double vErr = air.Length - plan.SpeedMs;
+                double pitchStick = Math.Clamp(stick - 0.02 * vErr - 0.3 * s.Rates.Y, -1, 1);
+                ac.Step(new ControlInputs(ail, pitchStick, rud, lever), h);
                 double alt = -ac.State.Position.Z;
                 Vec3 core = th.CoreAt(alt);
                 double zf = Math.Clamp(alt / th.TopAltitudeM, 0, 1);

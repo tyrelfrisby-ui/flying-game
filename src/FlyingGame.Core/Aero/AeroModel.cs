@@ -36,6 +36,41 @@ public static class AeroModel
         return new[] { 2 * maxY, aSum > 0 ? zSum / aSum - cfg.Mass.CgVec().Z : 0 };
     });
 
+    /// <summary>
+    /// Aspect ratio of the LIFTING SYSTEM a surface belongs to (owner 2026-10-06: "I think your induced drag curve is off"):
+    /// a wing and its aileron panels, a stabiliser and its elevator, a fin and its rudder are one lifting surface with one
+    /// trailing-vortex system, so induced drag uses b² / (total area of the group). Each config splits them into separate
+    /// surfaces; computing AR per piece gave the main wing AR ≈ 8.4 instead of the 172's 7.5 and the aileron strips
+    /// (tip-to-tip span over 1.9 m²) an AR over 50 — almost no induced drag outboard — which put the 172's best glide at
+    /// 60 kt instead of the POH's 65 and flattened the drag rise below it (the long float).
+    /// Groups: "X-aileron" → "X" (wing, wing-upper, wing-lower kept apart: each biplane wing is its own system),
+    /// "elevator" → "hStab", "rudder…" → "vStab".
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _systemAr = new();
+    public static double SystemAspectRatio(AircraftConfig config, int surfaceIndex, bool isVertical) =>
+        _systemAr.GetValue(config, cfg =>
+        {
+            var ar = new double[cfg.Surfaces.Count];
+            for (int i = 0; i < cfg.Surfaces.Count; i++)
+            {
+                string key = SystemKey(cfg.Surfaces[i].Id);
+                bool vert = cfg.Surfaces[i].Id.Contains("vstab", StringComparison.OrdinalIgnoreCase) || cfg.Surfaces[i].Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
+                var group = new SurfaceConfig { Id = key, Strips = new List<StripConfig>() };
+                foreach (SurfaceConfig other in cfg.Surfaces)
+                    if (SystemKey(other.Id) == key) group.Strips.AddRange(other.Strips);
+                ar[i] = GeometricAspectRatio(group, vert);
+            }
+            return ar;
+        })[surfaceIndex];
+
+    internal static string SystemKey(string id)
+    {
+        if (id.EndsWith("-aileron", StringComparison.OrdinalIgnoreCase)) return id[..^"-aileron".Length];
+        if (id.Equals("elevator", StringComparison.OrdinalIgnoreCase)) return "hStab";
+        if (id.StartsWith("rudder", StringComparison.OrdinalIgnoreCase)) return "vStab";
+        return id;
+    }
+
     private static double GeometricAspectRatio(SurfaceConfig surface, bool isVertical)
     {
         double area = 0.0, min = double.MaxValue, max = double.MinValue;
@@ -138,7 +173,7 @@ public static class AeroModel
             bool isVertical = surface.Id.Contains("vstab", StringComparison.OrdinalIgnoreCase)
                                || surface.Id.Contains("vertical", StringComparison.OrdinalIgnoreCase);
 
-            double aspectRatio = GeometricAspectRatio(surface, isVertical);
+            double aspectRatio = SystemAspectRatio(config, surfaceIndex, isVertical);
 
             // Wing-body crossflow (dihedral effect of wing position): sideslip flow wraps around the
             // fuselage like 2D potential flow past a cylinder of radius R. A wing root ABOVE the axis

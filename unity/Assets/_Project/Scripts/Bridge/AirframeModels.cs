@@ -39,7 +39,8 @@ namespace FlyingGame.Bridge
             { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, groundClearanceM: 1.2f) },   // gear-up export
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
-            { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
+            // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial
+            // drawing until we find a good skin"); the procedural trainer is drawn. Re-add { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) }.
             // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
             { "extra-300-like", new Spec(Vector3.left, Vector3.forward) },        // nose -x, top +z (ModelRender)
             { "pa28-archer-like", new Spec(Vector3.right, Vector3.forward) },     // helijah exports: nose +x, top +z
