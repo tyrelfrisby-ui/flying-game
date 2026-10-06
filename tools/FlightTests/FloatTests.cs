@@ -116,8 +116,10 @@ public class FloatTests
                 RigidBodyState before = ac.State;
                 double agl = -ac.State.Position.Z;
                 double qr = ac.State.Rates.Y;
-                if (flareStart < 0 && agl < 13) flareStart = t;   // the idle (windmilling-prop) glide is ~8°: begin the flare a little higher
-                double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.11 * (t - flareStart)); // steady pull: +0.11 stick/s, capped
+                if (flareStart < 0 && agl < 19) flareStart = t;   // the idle full-flap glide is ~11° (2026-10-06): begin the flare higher
+                // Steady pull, capped (the steeper full-flap glide since 2026-10-06 — the flap's lift carries its induced drag — starts
+                // the flare a little higher).
+                double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.11 * (t - flareStart));
                 double st = Math.Clamp(stick - pull + 0.4 * qr, -0.85, 0.5);
                 sim.RunFor(0.1, new ControlInputs(0, st, 0, 1.0)); // power off throughout
                 RigidBodyState s = ac.State;
@@ -126,7 +128,7 @@ public class FloatTests
                 maxG = Math.Max(maxG, (vw - vb).Length / 0.1 / 9.81);
                 maxPitch = Math.Max(maxPitch, Math.Abs(Pitch(s)));
                 if (touchdown < 0 && FloatHydro.LastReport.DraftAtStepM > 0.02) { touchdown = t; sinkAtTd = vb.Z; vAtTd = before.Velocity.Length; }
-                if (touchdown > 0 && t < touchdown + 1.0)
+                if (touchdown > 0 && (t < touchdown + 1.0 || (System.Environment.GetEnvironmentVariable("FLOATTRACE") != null && Math.Abs(t * 2 - Math.Round(t * 2)) < 1e-6)))
                     _out.WriteLine($"  td+{t - touchdown:F1}: V={s.Velocity.Length:F1} pitch={Pitch(s):F1} vz={vw.Z:F2} draft={FloatHydro.LastReport.DraftAtStepM:F2} τ={FloatHydro.LastReport.TrimDeg:F1} λ={FloatHydro.LastReport.WettedLambda:F2} lift={FloatHydro.LastReport.PlaningLiftN:F0} buoy={FloatHydro.LastReport.BuoyancyN:F0} stick={st:F2} q={s.Rates.Y * 57.3:F0}°/s");
                 if (touchdown > 0 && s.Velocity.Length < 3.0)
                 {

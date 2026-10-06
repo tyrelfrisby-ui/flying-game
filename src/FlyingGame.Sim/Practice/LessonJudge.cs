@@ -152,6 +152,7 @@ public sealed class LessonJudge
             ? new("Three-point attitude at touchdown", "tail on the stance", "°", 2, 4, 7, "Mains and tailwheel together at minimum speed.")
             : new("Nose-high at touchdown", "mains first", "° low", 0, 2, 4, "Mains first, nose wheel held off (pitch at least a few degrees up).");
         public static Criterion Bounce => new("Bounces", "none", "ft", 0.5, 2, 5, "One arrival: a bounce means it touched with too much sink or too fast — hold it off longer.");
+        public static Criterion NoseWheelFirst => new("Nose wheel first", "mains first", "", 0, 0, 0.5, "The nose wheel took the first touch: flat and fast, it bounces the nose and porpoises. Hold the nose up — mains first.");
         public static Criterion RoundOut => new("Round-out height", "10–20 ft", "ft off", 0, 5, 12, "AFH: begin the round-out about 10–20 ft up (no round-out = red).");
         public static Criterion StallLoss => new("Altitude lost in the recovery", "≤ 100 ft", "ft", 100, 150, 250, "ACS: recover with the minimum loss of altitude.");
         public static Criterion Result => new("Result against the best possible", "100 %", "% short", 5, 12, 25, "How close your speed control came to the book number.");

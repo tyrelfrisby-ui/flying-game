@@ -677,8 +677,18 @@ namespace FlyingGame.Bridge
                 GUI.DrawTexture(ToGui(ScreenLayout.TrayRect), _solidTex);
                 GUI.color = Color.white;
             }
-            // A lesson card (briefing / debrief) is up: the pads and buttons step aside where they would sit under it.
-            if (UiLayout.Modal && (!ScreenLayout.Portrait || DeskMode)) return;
+            // A lesson card (briefing / debrief) is up: the pads and buttons step aside where they would sit under it — except a
+            // lesson's tall STRIPS (owner 2026-10-06: "the elevator control needs to appear before the game launches so the user
+            // knows where to put their thumb"): they stay, drawn over the card's backdrop, with a pointer.
+            bool stripBriefing = UiLayout.Modal && StripMode && Practice.PracticeController.AnyActive;
+            if (UiLayout.Modal && (!ScreenLayout.Portrait || DeskMode) && !stripBriefing) return;
+            if (stripBriefing)
+            {
+                GUI.depth = -50;   // over the lesson card's backdrop
+                DrawStrip(_eleStrip, _stripY, "ELEVATOR", "your thumb here");
+                if (StripThrottle) { (float th01, _) = SplitLeftAxis(); DrawStrip(_thrStrip, (float)(2 * th01 - 1), "THROTTLE", "your thumb here"); }
+                return;
+            }
 
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             (float thr01, float padBrake) = SplitLeftAxis();
@@ -881,6 +891,16 @@ namespace FlyingGame.Bridge
 
         /// <summary>Knob axis value (-1..1) for a given knob height fraction (0 bottom..1 top).</summary>
         private static float AxisForFraction(float f) => f * 2f - 1f;
+
+        /// <summary>Put the throttle knob where a lever value is (lever −1 full power … +1 idle) — the lesson hands the power over
+        /// at the setting the game was flying (owner 2026-10-06: hands-off, the approach lesson's knob sat at the half-power air
+        /// start, floated the whole way down and porpoised).</summary>
+        public void SetThrottleFromLever(double lever)
+        {
+            if (_driver?.Sim?.Aircraft?.Config?.Propulsion == null) return;   // glider: the lever is the spoiler
+            float thr01 = Mathf.Clamp01((float)(1.0 - lever) * 0.5f);
+            _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * thr01);
+        }
 
         /// <summary>Square pad with centre cross, X/Y position lines through the knob, and the knob.</summary>
         private GUIStyle _brakeValueStyle;

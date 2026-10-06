@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
@@ -115,6 +116,13 @@ public sealed class PracticeScenario
 
     // Autopilot state
     private double _elevTrim, _elevInt, _thrInt, _thr0 = 0.45, _rudInt, _ailInt, _gndRudInt;
+    private double _curBounceM;
+    private readonly List<double> _bounceHeightsM = new(), _touchPitchDeg = new();
+    /// <summary>A nose-wheel type touching with the nose this low (deg) arrived nose wheel first.</summary>
+    private const double NoseFirstPitchDeg = 0.5;
+    /// <summary>Touches that arrived nose wheel first (tricycle types; a taildragger can't).</summary>
+    public int NoseFirstTouches => Taildragger ? 0 : _touchPitchDeg.Count(p => p < NoseFirstPitchDeg);
+    public IReadOnlyList<double> BounceHeightsM => _bounceHeightsM;
     public string EndReason { get; private set; } = "";
     private double _gustLevel, _gustTarget, _gustNextT, _gustRamp = 1;
     private readonly Random _rng;
@@ -662,7 +670,16 @@ public sealed class PracticeScenario
         // judged once it has stayed down 1.5 s (or the run ends). Damage on the way is a crash.
         if (TouchedDown)
         {
-            if (OnGround && !_onGroundPrev) { _touches++; _hardestSinkMs = Math.Max(_hardestSinkMs, Math.Max(SinkMs, TouchdownSinkMs)); }
+            if (OnGround && !_onGroundPrev)
+            {
+                _touches++; _hardestSinkMs = Math.Max(_hardestSinkMs, Math.Max(SinkMs, TouchdownSinkMs));
+                // Every arrival is kept (owner 2026-10-06: "it porpoised down the runway with every contact nose wheel first …
+                // a score of 423 with one simple comment 'bounced'"): the height of the bounce that led to it, and its pitch.
+                if (_touches > 1) _bounceHeightsM.Add(_curBounceM);
+                _touchPitchDeg.Add(pitchDeg);
+                _curBounceM = 0;
+            }
+            if (!OnGround && _touches > 0) _curBounceM = Math.Max(_curBounceM, MainsAglM);
             if (OnGround && _touches > 0) _groundedT += dt; else _groundedT = 0;
             if (!OnGround && _touches > 0) _maxBounceM = Math.Max(_maxBounceM, MainsAglM);
             if (TouchedDown && OnGround && ac.State.Velocity.Length > 2) MaxRolloutSwingDeg = Math.Max(MaxRolloutSwingDeg, Math.Abs(AlignmentDeg));   // the rollout counts too (a ground loop was scoring "Greaser.")
@@ -681,13 +698,24 @@ public sealed class PracticeScenario
             {
                 string n = m.Name;
                 if (n == LessonJudge.Std.TdSink.Name) j.Moment(m, _hardestSinkMs * 196.85, _touches > 1 ? $"{_hardestSinkMs * 196.85:F0} fpm (hardest of {_touches} touches)" : $"{_hardestSinkMs * 196.85:F0} fpm");
-                else if (n == LessonJudge.Std.Bounce.Name) j.Moment(m, _maxBounceM * 3.28084, _touches <= 1 && _maxBounceM < 0.15 ? "none" : $"{_touches - 1} bounce{(_touches == 2 ? "" : "s")}, up to {_maxBounceM * 3.28084:F1} ft");
+                else if (n == LessonJudge.Std.Bounce.Name)
+                {
+                    // EACH bounce is judged (and costs points), not just the highest; a nose-wheel-first arrival costs again.
+                    if (_bounceHeightsM.Count == 0) j.Moment(m, _maxBounceM * 3.28084, "none");
+                    for (int b = 0; b < _bounceHeightsM.Count; b++)
+                    {
+                        bool nose = !Taildragger && b + 1 < _touchPitchDeg.Count && _touchPitchDeg[b + 1] < NoseFirstPitchDeg;
+                        j.Moment(m, _bounceHeightsM[b] * 3.28084, $"bounce {b + 1}: {_bounceHeightsM[b] * 3.28084:F1} ft{(nose ? ", back down nose wheel first" : "")}");
+                        if (nose) j.Moment(LessonJudge.Std.NoseWheelFirst, 1, $"touch {b + 2}: nose wheel first");
+                    }
+                    if (!Taildragger && _touchPitchDeg.Count > 0 && _touchPitchDeg[0] < NoseFirstPitchDeg) j.Moment(LessonJudge.Std.NoseWheelFirst, 1, "first touch: nose wheel first");
+                }
                 else if (n == LessonJudge.Std.TdSpeed.Name) { double r = AirspeedMs / Math.Max(1, VsoMs); j.Moment(m, Math.Max(0, (r - 1) * 100), $"{AirspeedMs * kt:F0} kt ({r:F2} Vso)"); }
                 else if (n == LessonJudge.Std.TdPoint.Name) { double d = (AlongM - aim) * ft; j.Moment(m, d < -100 ? 500 : Math.Max(0, d), d < 0 ? $"{-d:F0} ft short" : $"{d:F0} ft past"); }
                 else if (n == LessonJudge.Std.TdAlign.Name) j.Moment(m, TouchdownAlignDeg, $"{Math.Abs(TouchdownAlignDeg):F1}°");
                 else if (n == LessonJudge.Std.TdCentre.Name) j.Moment(m, TouchdownOffCentreM * ft, $"{Math.Abs(TouchdownOffCentreM) * ft:F0} ft off");
-                else if (n.StartsWith("Three-point")) j.Moment(m, pitchDeg - StanceRad * 180 / Math.PI, $"{pitchDeg:F1}° (stance {StanceRad * 180 / Math.PI:F1}°)");
-                else if (n.StartsWith("Nose-high")) j.Moment(m, Math.Max(0, 3 - pitchDeg), $"{pitchDeg:F1}° nose up");
+                else if (n.StartsWith("Three-point")) { double p0 = _touchPitchDeg.Count > 0 ? _touchPitchDeg[0] : pitchDeg; j.Moment(m, p0 - StanceRad * 180 / Math.PI, $"{p0:F1}° at the first touch (stance {StanceRad * 180 / Math.PI:F1}°)"); }
+                else if (n.StartsWith("Nose-high")) { double p0 = _touchPitchDeg.Count > 0 ? _touchPitchDeg[0] : pitchDeg; j.Moment(m, Math.Max(0, 3 - p0), $"{p0:F1}° nose up at the first touch"); }   // (was the pitch 1.5 s later, settled)
                 else if (n == LessonJudge.Std.RoundOut.Name)
                 {
                     double ro = _roundOutFt;
@@ -1197,6 +1225,8 @@ public sealed class PracticeScenario
         {
             td -= Math.Max(0, Math.Max(TouchdownSinkMs, _hardestSinkMs) - 0.6) * 25;   // firm arrivals cost (the HARDEST touch)
             if (_touches > 1) td -= Math.Min(40, _maxBounceM * 3.28084 * 6);       // bounces cost
+            td -= 15 * Math.Max(0, _bounceHeightsM.Count(h => h > 0.15) - 1);       // … and every bounce after the first
+            td -= 10 * NoseFirstTouches;                                            // nose wheel first: a porpoise in the making
             if (_damageNoted) td = 0;
             td -= Math.Max(0, Math.Abs(TouchdownAlignDeg) - 2) * 6;           // crabbed touchdowns cost
             td -= Math.Max(0, Math.Abs(TouchdownOffCentreM) - 3) * 3;
@@ -1206,7 +1236,9 @@ public sealed class PracticeScenario
         else td = 0;
         double s = Math.Clamp(FlareExercise ? td : 0.5 * band + 0.5 * td, 0, 100);   // approach: half path-keeping, half touchdown
         double hard = Math.Max(TouchdownSinkMs, _hardestSinkMs);
-        Verdict = !TouchedDown ? "No touchdown." : _damageNoted ? "It broke on landing." : MaxRolloutSwingDeg > 45 ? "Ground loop." : _touches > 1 && _maxBounceM > 0.6 ? "Bounced." : hard < 0.8 ? "Greaser." : hard < 1.6 ? "Firm but fine." : "That one hurt.";
+        int bounces = _bounceHeightsM.Count(h => h > 0.15);
+        string bounced = bounces <= 0 ? "" : string.Join(" ", System.Linq.Enumerable.Repeat("Bounced.", Math.Min(bounces, 8))) + (bounces > 8 ? $" ({bounces} bounces)" : "") + (NoseFirstTouches >= 2 ? " Porpoised, nose wheel first." : "");
+        Verdict = !TouchedDown ? "No touchdown." : _damageNoted ? "It broke on landing." : MaxRolloutSwingDeg > 45 ? "Ground loop." : bounces > 0 && (_maxBounceM > 0.6 || bounces > 1) ? bounced : hard < 0.8 ? "Greaser." : hard < 1.6 ? "Firm but fine." : "That one hurt.";
         return s;
     }
 }

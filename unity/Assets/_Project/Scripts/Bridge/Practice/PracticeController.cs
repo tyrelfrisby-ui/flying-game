@@ -18,6 +18,8 @@ namespace FlyingGame.Bridge.Practice
         public PracticeScenario Scenario { get; private set; }
         public bool Active { get; private set; }
         /// <summary>A lesson is running (the free-flight HUD lines and the flap buttons step aside).</summary>
+        /// <summary>The lesson's tall strips are on screen (touch, not desk mode).</summary>
+        public bool StripsShown => _touch != null && _touch.StripMode;
         public static bool AnyActive { get; private set; }
         public PracticeKind Kind { get; private set; }
         public PracticeWind Wind { get; private set; }
@@ -186,7 +188,12 @@ namespace FlyingGame.Bridge.Practice
                 _touch.GameAileron = Scenario.GameAileron; _touch.GameElevator = Scenario.GameElevator;
                 _touch.GameRudder = Scenario.GameRudder; _touch.GameThrottle = Scenario.GameThrottle;
             }
-            if (Scenario.Phase == PracticePhase.Live && !_handoverSpoken) { _handoverSpoken = true; PilotVoice.Say(Scenario.HandoverLine, 0.55f, 1.0f); }
+            if (Scenario.Phase == PracticePhase.Live && !_handoverSpoken)
+            {
+                _handoverSpoken = true; PilotVoice.Say(Scenario.HandoverLine, 0.55f, 1.0f);
+                // The power is handed over where the game had it, not wherever the knob was left.
+                if (_touch != null && Scenario.UserThrottle) _touch.SetThrottleFromLever(Scenario.Autopilot.ThrottleLever);
+            }
             if (Scenario.Phase == PracticePhase.Finished && !_finishSpoken)
             {
                 _finishSpoken = true;

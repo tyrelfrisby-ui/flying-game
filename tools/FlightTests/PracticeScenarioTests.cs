@@ -165,7 +165,7 @@ public class PracticeScenarioTests
         var sc = new PracticeScenario(PracticeKind.Flare, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
         var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
         double v0 = -1, maxDv = 0, sink0 = 0;
-        var hands = new ControlInputs(0, sc.TrimStick, 0, 1.0);
+        var hands = new ControlInputs(0, sc.TrimStick, 0, 1.0, true, true, true);   // no finger on the pads: controls RELEASED (they float on their trim)
         for (double t = 0; t < 3.0; t += 0.02)
         {
             var inp = sc.Step(ac, hands, 0.02);
@@ -225,7 +225,7 @@ public class PracticeScenarioTests
         double bleed = (rear[3] - rear[5]) / 2.0;   // the first two seconds of the hold, before it nears the stall
         _out.WriteLine($"bleed in the hold-off {bleed:F2} kt/s (rear), {(side[3] - side[5]) / 2.0:F2} kt/s (side)");
         for (int i = 0; i < Math.Min(6, Math.Min(rear.Length, side.Length)); i++) Assert.True(Math.Abs(rear[i] - side[i]) < 0.5, $"t={i}s rear {rear[i]:F1} side {side[i]:F1}");   // (past the stall the side view's lateral lock differs)
-        Assert.InRange(bleed, 1.0, 4.0);
+        Assert.InRange(bleed, 1.0, flaps > 0.5 ? 5.0 : 4.0);   // full flap: the flap's lift carries its induced drag (2026-10-06), L/D ~4.6 → ~4 kt/s
     }
 
     [Theory]
@@ -258,6 +258,34 @@ public class PracticeScenarioTests
         _out.WriteLine($"{file} flaps {flaps}: 50 ft at {v50 * kts:F0} kt → touchdown at {vTd * kts:F0} kt after {air:F0} m ({air / 0.3048:F0} ft) in the air; hold-off (< 2 ft) {holdT1 - holdT0:F1} s bleeding {holdBleed:F2} kt/s; max lever forward {maxLever:F2} (−1 = idle)");
         Assert.True(sc.TouchedDown);
         Assert.Equal(-1.0, maxLever, 6);   // power off throughout
+    }
+
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(0.0)]
+    public void HandsOffNoFlarePorpoisesAndIsJudgedForEveryBounce(double flaps)
+    {
+        // Owner 2026-10-06: "i didn't touch a thing and let the 172 land and it porpoised down the runway with every contact
+        // nose wheel first then it got a score of 423 with one simple comment 'bounced'". Hands off at the trim: no flare.
+        var c = Load("c172-like.json"); WorldTerrain.Active = null;
+        var sc = new PracticeScenario(PracticeKind.Flare, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: flaps);
+        var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+        var hands = new ControlInputs(0, sc.TrimStick, 0, 1.0, true, true, true);   // no finger on the pads: controls RELEASED (they float on their trim)
+        for (double t = 0; t < 120 && sc.Phase != PracticePhase.Finished; t += 0.02)
+        {
+            var inputs = sc.Step(ac, hands, 0.02);
+            ac.BrakeInput = sc.GameBrake; ac.BrakeBias = sc.GameBrakeBias;
+            sim.RunFor(0.02, inputs);
+        }
+        foreach (var m in sc.Judge.Moments) _out.WriteLine($"  {m.name}: {m.grade} {m.detail} ({m.points:+0;-0})");
+        _out.WriteLine($"flaps {flaps}: {sc.BounceHeightsM.Count} bounces [{string.Join(", ", sc.BounceHeightsM.Select(h => $"{h * 3.28:F1} ft"))}], nose-first touches {sc.NoseFirstTouches}; verdict '{sc.Verdict}', score {sc.Score:F0}, points {sc.Judge.Points:F0}");
+        Assert.True(sc.TouchedDown);
+        if (sc.BounceHeightsM.Count(h => h > 0.15) >= 2)
+        {
+            Assert.StartsWith("Bounced. Bounced.", sc.Verdict);                         // every bounce named
+            Assert.True(sc.Judge.Moments.Count(m => m.name == LessonJudge.Std.Bounce.Name) >= 2);
+            Assert.True(sc.Score < 50, $"a porpoise scored {sc.Score:F0}");
+        }
     }
 
     [Fact]

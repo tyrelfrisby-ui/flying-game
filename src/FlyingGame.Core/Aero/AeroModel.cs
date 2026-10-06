@@ -568,7 +568,13 @@ public static class AeroModel
                 {
                     double cosAlpha = Math.Cos(alpha);
                     double attachedTaper = cosAlpha > 0.0 ? cosAlpha * cosAlpha : 0.0;
-                    cdInduced = coeffs.Cl * coeffs.Cl / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper * (isWing ? gePhi : 1.0);
+                    // Induced drag comes from ALL the lift the section makes — the flap's (and slat's) increment too (owner
+                    // 2026-10-06: "the c-172 with full flaps just floats and floats and if i pull up it will balloon 20–30 ft").
+                    // The flap lift (up to +0.5 Cl per strip at full flap) used to be added after this, drag-free.
+                    double attachedHl = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                    double hlCl = (flapCl + (strip.Slat is not null ? strip.Slat.ClIncrement * controls.SlatFraction : 0.0)) * attachedHl;
+                    double clAll = coeffs.Cl + hlCl;
+                    cdInduced = clAll * clAll / (Math.PI * aspectRatio * surface.OswaldE) * attachedTaper * (isWing ? gePhi : 1.0);
                 }
 
                 // Unsteady-aero lag (proposal 3): forces in separated/attached flow respond over

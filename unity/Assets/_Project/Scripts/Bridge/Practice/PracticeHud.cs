@@ -46,6 +46,13 @@ namespace FlyingGame.Bridge.Practice
             Init();
             PracticeScenario sc = Controller.Scenario;
             Rect view = ScreenLayout.Portrait ? new Rect(0f, 0f, Screen.width, Screen.height - ScreenLayout.TrayHeightPx) : new Rect(0f, 0f, Screen.width, Screen.height);
+            // A strips lesson in landscape: the cards and their backdrop keep clear of the elevator / throttle strips, which stay
+            // up through the briefing so the thumb knows where to go (owner 2026-10-06).
+            if (!ScreenLayout.Portrait && Controller.StripsShown)
+            {
+                float l = Mathf.Max(0f, UiLayout.BandMin), r = Mathf.Min(Screen.width, UiLayout.BandMax);
+                if (r - l > Screen.width * 0.4f) view = new Rect(l, view.y, r - l, view.height);
+            }
             float lh = _fs * 1.5f;
 
             if (sc.Phase == PracticePhase.Briefing || sc.Phase == PracticePhase.Finished) UiLayout.ModalShown();   // cards: the HUD steps aside
