@@ -89,7 +89,7 @@ public class EventTests
         Assert.Null(race.CheckPylonStrike(new Vec3(px, py - 12, -90), new Vec3(px, py + 0.5, -90), 0.02));   // above the pylon top: clear
         // The course finishes at its LAST element, not by looping back to the start.
         Assert.Equal(RaceElement.Kinds.Gate, RaceCourse.Elements[^1].Kind);
-        Assert.InRange(RaceElement.GateHalfWidthM * 2, 30.4, 30.6);   // 100 ft between the pylons
+        Assert.InRange(RaceElement.GateHalfWidthM * 2, 45.6, 45.8);   // 150 ft between the pylons (owner 2026-10-06: farther apart; was 100 ft)
         Assert.Equal(75.0, RaceElement.GateHeightM);
     }
 }

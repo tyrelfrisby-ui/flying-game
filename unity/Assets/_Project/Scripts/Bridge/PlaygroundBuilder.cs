@@ -183,6 +183,9 @@ namespace FlyingGame.Bridge
                     Vector3 top = U(tw.Cx, tw.Cy, cz) + side * sg + Vector3.down * (float)(FlyCity.RingRadiusM * 0.8);
                     b.Beam(new Vector3(top.x, (float)(g + tw.HeightM), top.z), top, 1.4f, 1.4f, new Color(0.4f, 0.4f, 0.42f));
                 }
+                // An opaque plate between the two faces (owner 2026-10-06: "the numbers are double sided … a 4 becomes a weird
+                // looking house on two posts … a non transparent layer between them"): each side then reads correctly.
+                b.Box(U(tw.Cx, tw.Cy, cz + FlyCity.RingRadiusM + 16), new Vector3((k + 1 >= 10 ? 11f : 7f), 7f, 2.0f), Quaternion.LookRotation(normal, Vector3.up), new Color(0.12f, 0.12f, 0.15f));
                 foreach (float face in new[] { 1f, -1f })
                 {
                     var lbl = new GameObject($"RoofRing{k + 1}"); lbl.transform.SetParent(parent, false);

@@ -27,7 +27,7 @@ public sealed class RaceElement
     public enum Kinds { Gate, PylonOnLeft, PylonOnRight }
     public Kinds Kind;
     public double X, Y, HeadingDeg;      // position; heading = required direction of travel through it
-    public const double GateHalfWidthM = 15.24, GateHeightM = 75.0, PylonRadiusM = 1.5;   // pylons 100 ft apart, 75 m tall
+    public const double GateHalfWidthM = 22.86, GateHeightM = 75.0, PylonRadiusM = 1.5;   // pylons 150 ft apart (owner 2026-10-06: "farther apart"; was 100 ft), 75 m tall
     public const double NumberAglM = 91.44;                                                // the rotating numbers, 300 ft up
 
     public Vec3 Forward => new(System.Math.Cos(HeadingDeg * System.Math.PI / 180), System.Math.Sin(HeadingDeg * System.Math.PI / 180), 0);
@@ -38,24 +38,24 @@ public sealed class RaceElement
 /// <summary>"Air Racing" (owner request; no brand names): a COMPACT track east of the Valley runway, laid out the
 /// way the pylon-racing world championship tracks are — start gate, a gate, a three-pylon chicane, a gate, a
 /// vertical turning pylon at the far end, then back through two gates and a chicane to a separate finish gate.
-/// About 750 × 350 m. Elements are taken IN ORDER; the rotating numbers 300 ft above each element show the way.
+/// About 1,100 × 350 m (owner 2026-10-06: stretched 1.5× from the turning pylon, the chicane weave too). Elements are taken IN ORDER; the rotating numbers 300 ft above each element show the way.
 /// <see cref="Elements"/> is the Valley course; <see cref="ElementsFor"/> the identical copy on plateau p.</summary>
 public static class RaceCourse
 {
     public static readonly RaceElement[] Elements =
     {
-        new() { Kind = RaceElement.Kinds.Gate, X = 400, Y = 1800, HeadingDeg = 0 },          // 1 START, northbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 600, Y = 1800, HeadingDeg = 0 },         // 2
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 730, Y = 1770, HeadingDeg = 0 }, // 3 chicane
-        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 850, Y = 1830, HeadingDeg = 0 },  // 4
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 970, Y = 1770, HeadingDeg = 0 }, // 5
-        new() { Kind = RaceElement.Kinds.Gate, X = 1070, Y = 1800, HeadingDeg = 0 },         // 6
+        new() { Kind = RaceElement.Kinds.Gate, X = 45, Y = 1800, HeadingDeg = 0 },          // 1 START, northbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 345, Y = 1800, HeadingDeg = 0 },         // 2
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 540, Y = 1755, HeadingDeg = 0 }, // 3 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 720, Y = 1845, HeadingDeg = 0 },  // 4
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 900, Y = 1755, HeadingDeg = 0 }, // 5
+        new() { Kind = RaceElement.Kinds.Gate, X = 1050, Y = 1800, HeadingDeg = 0 },         // 6
         new() { Kind = RaceElement.Kinds.PylonOnRight, X = 1110, Y = 1920, HeadingDeg = 90 },// 7 vertical turning pylon: around it and back south
-        new() { Kind = RaceElement.Kinds.Gate, X = 1050, Y = 2050, HeadingDeg = 180 },       // 8 southbound
-        new() { Kind = RaceElement.Kinds.Gate, X = 850, Y = 2050, HeadingDeg = 180 },       // 9
-        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 730, Y = 2080, HeadingDeg = 180 },// 10 chicane
-        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 610, Y = 2020, HeadingDeg = 180 },// 11
-        new() { Kind = RaceElement.Kinds.Gate, X = 450, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
+        new() { Kind = RaceElement.Kinds.Gate, X = 1020, Y = 2050, HeadingDeg = 180 },       // 8 southbound
+        new() { Kind = RaceElement.Kinds.Gate, X = 720, Y = 2050, HeadingDeg = 180 },       // 9
+        new() { Kind = RaceElement.Kinds.PylonOnLeft, X = 540, Y = 2095, HeadingDeg = 180 },// 10 chicane
+        new() { Kind = RaceElement.Kinds.PylonOnRight, X = 360, Y = 2005, HeadingDeg = 180 },// 11
+        new() { Kind = RaceElement.Kinds.Gate, X = 120, Y = 2050, HeadingDeg = 180 },        // 12 FINISH
     };
 
     private static readonly Dictionary<int, RaceElement[]> _byPlateau = new();

@@ -657,7 +657,7 @@ namespace FlyingGame.Bridge
                 num.AddComponent<Spin>().DegPerSec = 72f;
                 // Two faces either side of an opaque plate, so each side reads correctly and never through the other.
                 Color numCol = i == 0 ? new Color(0.3f, 1f, 0.4f) : i == n - 1 ? white : new Color(1f, 0.9f, 0.3f);
-                WBox(num, "Plate", num.transform.position, new Vector3((i + 1 >= 10 ? 22f : 12f), 16f, 0.6f), new Color(0.12f, 0.12f, 0.15f));
+                WBox(num, "Plate", num.transform.position, new Vector3((i + 1 >= 10 ? 40f : 24f), 30f, 0.6f), new Color(0.12f, 0.12f, 0.15f));
                 foreach (float face in new[] { 0f, 180f })
                 {
                     var lbl = new GameObject("Digits"); lbl.transform.SetParent(num.transform, false);
@@ -676,11 +676,12 @@ namespace FlyingGame.Bridge
 
         private static readonly Dictionary<Font, Material> _textMats = new();
 
-        /// <summary>Font material that writes/tests depth (GUI/3D Text Shader) so signs occlude their own back face.</summary>
+        /// <summary>Font material for world signs: depth-tested and back-face culled (FlyingGame/WorldText) so a sign never shows its
+        /// own mirror image through itself.</summary>
         internal static Material DepthTestedText(Font font)
         {
             if (_textMats.TryGetValue(font, out Material m) && m != null) return m;
-            Shader sh = Shader.Find("GUI/3D Text Shader");
+            Shader sh = Shader.Find("FlyingGame/WorldText") ?? Shader.Find("GUI/3D Text Shader");   // depth-tested AND back-face culled (2026-10-06)
             if (sh == null || font.material == null) return font.material;
             m = new Material(sh) { mainTexture = font.material.mainTexture };
             _textMats[font] = m;

@@ -265,6 +265,11 @@ namespace FlyingGame.Bridge
                 yield return new WaitForSecondsRealtime(0.5f);
                 ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-end.png");
                 yield return new WaitForSecondsRealtime(0.5f);
+                Menu.ScrollTo(false); Menu.OpenListForTest("aircraft");   // a drop-down open over the page
+                yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-list.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                Menu.CloseListForTest();
                 Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
             }
             Debug.Log("[SelfTest] DONE menu");

@@ -43,6 +43,10 @@ namespace FlyingGame.EditorTools
                 ("river-lake", new Vector3(3500f, 1400f, -3200f), new Vector3(2400f, 850f, 1500f)),
                 ("race-course", new Vector3(1950f, 520f, 250f), new Vector3(1950f, 40f, 1200f)),
                 ("race-gate", new Vector3(1800f, 45f, 650f), new Vector3(1800f, 40f, 860f)),
+                // The stretched course (2026-10-06): from the south, and a gate number up close (sim gate 1 at (45, 1800)).
+                ("race-course2", new Vector3(1925f, 750f, -500f), new Vector3(1925f, 300f, 650f)),
+                ("race-number", new Vector3(1850f, 400f, -20f), new Vector3(1800f, 396f, 45f)),
+                ("race-number2", new Vector3(1760f, 395f, 100f), new Vector3(1800f, 396f, 45f)),
                 ("aero-box", new Vector3(1000f, 700f, -900f), new Vector3(1000f, 300f, 400f)),
                 ("bridge", new Vector3(-150f, 120f, 2200f), new Vector3(-150f, 0f, 1900f)),
                 ("crop-field", new Vector3(2050f, 90f, -300f), new Vector3(1750f, 25f, 400f)),

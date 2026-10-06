@@ -92,6 +92,8 @@ public class TailwheelTests
     public void TaxiTurnWorksThroughTheSprungWheel()
     {
         var c = Cub(); WorldTerrain.Active = null;
+        // (and every other global a test before this one may have left: wind, turbulence, decks, solids)
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero; Atmosphere.ActiveTurbulence = null; WorldDecks.All.Clear(); WorldSolids.Shapes.Clear(); WorldSolids.Boxes.Clear();
         var ac = new Aircraft(c, LandingGear.RestingState(c, 0, 0, 0), ControlDeflections.Neutral);
         Assert.NotNull(ac.Tailwheel);
         var sim = new SimLoop(ac);

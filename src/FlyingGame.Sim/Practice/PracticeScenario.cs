@@ -90,6 +90,8 @@ public sealed class PracticeScenario
 
     // Live readouts (runway frame): + = right of the centreline / nose right of the runway heading.
     public double AlignmentDeg { get; private set; }
+    /// <summary>Largest heading swing off the runway on the rollout (deg).</summary>
+    public double MaxRolloutSwingDeg { get; private set; }
     public double OffCentreM { get; private set; }
     public double AlongM { get; private set; }
     public double AglM { get; private set; }
@@ -112,7 +114,7 @@ public sealed class PracticeScenario
     public string Verdict { get; private set; } = "";
 
     // Autopilot state
-    private double _elevTrim, _elevInt, _thrInt, _thr0 = 0.45, _rudInt, _ailInt;
+    private double _elevTrim, _elevInt, _thrInt, _thr0 = 0.45, _rudInt, _ailInt, _gndRudInt;
     public string EndReason { get; private set; } = "";
     private double _gustLevel, _gustTarget, _gustNextT, _gustRamp = 1;
     private readonly Random _rng;
@@ -662,6 +664,7 @@ public sealed class PracticeScenario
             if (OnGround && !_onGroundPrev) { _touches++; _hardestSinkMs = Math.Max(_hardestSinkMs, Math.Max(SinkMs, TouchdownSinkMs)); }
             if (OnGround && _touches > 0) _groundedT += dt; else _groundedT = 0;
             if (!OnGround && _touches > 0) _maxBounceM = Math.Max(_maxBounceM, MainsAglM);
+            if (TouchedDown && OnGround && ac.State.Velocity.Length > 2) MaxRolloutSwingDeg = Math.Max(MaxRolloutSwingDeg, Math.Abs(AlignmentDeg));   // the rollout counts too (a ground loop was scoring "Greaser.")
             if (OnGround) _hardestSinkMs = Math.Max(_hardestSinkMs, _touchSinkWindow > 0 ? SinkMs : 0);
             _touchSinkWindow = OnGround && !_onGroundPrev ? 0.15 : Math.Max(0, _touchSinkWindow - dt);
             _onGroundPrev = OnGround;
@@ -771,9 +774,28 @@ public sealed class PracticeScenario
         _betaF += (beta - _betaF) * Math.Min(1, dt / 1.0);   // 1 s low-pass: gusts must not slam the rudder
         _rudInt = Math.Clamp(_rudInt + (ground ? 0 : 0.3 * psiE * dt), -0.5, 0.5);
         double rud = Math.Clamp(-2.0 * psiE - 1.0 * r - 1.5 * _betaF - _rudInt, -1, 1);
-        if (ground) rud = Math.Clamp(-3.0 * psiErr - 0.8 * r - 0.08 * cross, -1, 1);
-        GameBrake = ground && Descending ? 0.35 : 0.0;   // roll-out braking; the host biases it with the rudder (differential braking steers)
+        // On the ground: a tailwheel pilot answers the YAW RATE, fast and hard, before the heading error builds (owner
+        // 2026-10-06: "the pilot moves the rudder rather slowly on the stearman landing — it ground looped … move the rudder
+        // very quickly so as not to get behind the divergence"). Rate gain 0.8 → 3.0: the Stearman went round 180° in gusts.
+        // Once down it STAYS on the ground law (a skipping main flipped it back to the flying law every half second and slammed
+        // the rudder −1/+0.85 — that started the Stearman's swing). The heading and centreline terms are capped so the RATE
+        // term always wins: uncapped, a 70° heading error held full rudder while the swing reversed at 60°/s and it looped
+        // the other way.
+        if (ground || TouchedDown)
+        {
+            // Cascade, the way a tailwheel pilot flies the rollout: the heading (and centreline) ask for a yaw RATE back
+            // toward the runway, ≤ ~20°/s; the rudder chases that rate hard and fast (the reflex that catches a swing before
+            // it diverges); a slow integral holds the steady crosswind rudder (a cap on the outer terms alone left too little
+            // rudder to stop the weathervane).
+            double rCmd = Math.Clamp(-1.2 * psiErr - 0.03 * cross, -0.35, 0.35);
+            _gndRudInt = Math.Clamp(_gndRudInt - 0.8 * psiErr * dt, -0.6, 0.6);
+            rud = Math.Clamp(-4.0 * (r - rCmd) + _gndRudInt, -1, 1);
+        }
+        GameBrake = (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // roll-out braking; the host biases it with the rudder (differential braking steers)
         GameBrakeBias = GameBrake > 0 ? Math.Clamp(rud * 0.8, -1, 1) : 0;
+        // Rudder out of authority (full, slowing down, the swing still growing): stand on the inside brake, hard — a tailwheel
+        // pilot's last tool before the loop (the Stearman went round in the gusty crosswind with full rudder and 0.35 brake).
+        if (GameBrake > 0 && Math.Abs(rud) > 0.95) { GameBrake = 0.6; GameBrakeBias = Math.Sign(rud); }
 
         // Height target for the MAINS along the runway (a function, so its slope gives the target descent rate).
         double L = Runway.LengthM;
@@ -1177,11 +1199,13 @@ public sealed class PracticeScenario
             if (_damageNoted) td = 0;
             td -= Math.Max(0, Math.Abs(TouchdownAlignDeg) - 2) * 6;           // crabbed touchdowns cost
             td -= Math.Max(0, Math.Abs(TouchdownOffCentreM) - 3) * 3;
+            td -= Math.Max(0, MaxRolloutSwingDeg - 10) * 1.5;                 // the rollout: swings cost, a ground loop fails
+            if (MaxRolloutSwingDeg > 45) td = Math.Min(td, 10);
         }
         else td = 0;
         double s = Math.Clamp(FlareExercise ? td : 0.5 * band + 0.5 * td, 0, 100);   // approach: half path-keeping, half touchdown
         double hard = Math.Max(TouchdownSinkMs, _hardestSinkMs);
-        Verdict = !TouchedDown ? "No touchdown." : _damageNoted ? "It broke on landing." : _touches > 1 && _maxBounceM > 0.6 ? "Bounced." : hard < 0.8 ? "Greaser." : hard < 1.6 ? "Firm but fine." : "That one hurt.";
+        Verdict = !TouchedDown ? "No touchdown." : _damageNoted ? "It broke on landing." : MaxRolloutSwingDeg > 45 ? "Ground loop." : _touches > 1 && _maxBounceM > 0.6 ? "Bounced." : hard < 0.8 ? "Greaser." : hard < 1.6 ? "Firm but fine." : "That one hurt.";
         return s;
     }
 }
