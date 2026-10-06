@@ -50,6 +50,7 @@ public class HoldOffPhysicsTests
     [Theory]
     [InlineData("c172-like.json", 0.0, 68, 48)]   // POH 172S: Vs1 48 KIAS
     [InlineData("c172-like.json", 1.0, 62, 40)]   // POH 172S: Vso 40 KIAS (flaps 30)
+    [InlineData("pa28-archer-like.json", 1.0, 66, 45)]   // Archer III POH: Vso 45 KIAS, short-field approach 66 KIAS
     [InlineData("pa18-cub-like.json", 0.0, 57, 43)]
     [InlineData("pa18-cub-like.json", 1.0, 52, 38)]
     public void PerfectHoldOff(string file, double flaps, double fromKt, double bookStallKt)
