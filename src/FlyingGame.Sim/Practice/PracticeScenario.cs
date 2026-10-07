@@ -209,6 +209,7 @@ public sealed class PracticeScenario
     /// <summary>Stick position that holds the spawn trim — preset on the pilot's pitch trim so hands-off flies the path.</summary>
     public double TrimStick => _elevTrim;
     public double ElevIntDbg, HErrDbg, HdotTDbg;
+    private const double HErrCap = 1.0;   // m: 0.5 left the Archer too little pull, 1.5+ ballooned the Cub and the SR22 (regimen sweep)
 
     /// <summary>Approach: glideslope angle (positive = down) and where it meets the runway (150 m past the threshold).</summary>
     public double GlideslopeRad { get; }
@@ -590,6 +591,10 @@ public sealed class PracticeScenario
     {
         ControlInputs c = StepCore(ac, user, dt);
         JudgeStep(ac, dt);
+        // Never hand the sim a NaN (it throws): a lesson law that can't compute (a glider in a climb lesson) flies neutral.
+        static double Ok(double v) => double.IsFinite(v) ? v : 0.0;
+        if (!double.IsFinite(c.Aileron) || !double.IsFinite(c.Elevator) || !double.IsFinite(c.Rudder) || !double.IsFinite(c.ThrottleLever))
+            c = new ControlInputs(Ok(c.Aileron), Ok(c.Elevator), Ok(c.Rudder), double.IsFinite(c.ThrottleLever) ? c.ThrottleLever : 1.0, c.AileronFree, c.ElevatorFree, c.RudderFree);
         return c;
     }
 
@@ -908,11 +913,11 @@ public sealed class PracticeScenario
             bool gliderPathLaw = glider && Approach && mainsAgl > 3.0;
             if (!gliderPathLaw && !_heightLawOn) { _heightLawOn = true; _hT = mainsAgl; hTarget = _hT; hdotTarget = hdot; }   // take over from where it is
             double hErr = mainsAgl - hTarget;
-            // Through the round-out the height error is capped at half a metre either way (regimen 2026-10-06): a fast type
+            // Through the round-out the height error is capped at a metre either way (regimen 2026-10-06): a fast type
             // sinking 5 m/s fell 2.6 m behind the rate-limited target, the error (and its integral) wound in back stick, it
             // ballooned 3 m and the law then pushed it into the ground — every faster type broke its gear in the flare
             // lesson. The descent-rate term asks for the round-out; the height term only fine-tunes it.
-            if ((FlareExercise || Approach) && mainsAgl < 15 && !ground) hErr = Math.Clamp(hErr, -0.5, 0.5);
+            if ((FlareExercise || Approach) && mainsAgl < 15 && !ground) hErr = Math.Clamp(hErr, -HErrCap, HErrCap);
             bool roundOut = (FlareExercise || Approach) && mainsAgl < 10 && !ground;   // no integration through the round-out (windup → balloon)
             if (!gliderPathLaw && !roundOut) _elevInt = Math.Clamp(_elevInt + 0.08 * hErr * dt, -0.5, 0.5);
             ElevIntDbg = _elevInt; HErrDbg = hErr; HdotTDbg = hdotTarget;

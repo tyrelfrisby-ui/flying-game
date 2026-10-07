@@ -315,9 +315,12 @@ namespace FlyingGame.Bridge
             y += gap * 0.4f;
             UiLayout.Label(new Rect(x, y, colW, lh), "FLYING LESSON", _head); y += lh;
             {
+                bool gliderPicked = SessionSettings.AircraftId.StartsWith("glider");
+                if (gliderPicked && SessionSettings.LessonNeedsEngine(SessionSettings.ChallengeId)) SessionSettings.ChallengeId = null;
                 string lName = "—  none";
                 foreach (var l in SessionSettings.Lessons) if (l.id == SessionSettings.ChallengeId) lName = l.name;
-                Dropdown("lesson", new Rect(x, y, colW, bh), lName, System.Linq.Enumerable.Select(SessionSettings.Lessons, l => (l.name, l.id == SessionSettings.ChallengeId, (System.Action)(() => PickLesson(l.id)))));
+                var offered = System.Linq.Enumerable.Where(SessionSettings.Lessons, l => !(gliderPicked && SessionSettings.LessonNeedsEngine(l.id)));
+                Dropdown("lesson", new Rect(x, y, colW, bh), lName, System.Linq.Enumerable.Select(offered, l => (l.name, l.id == SessionSettings.ChallengeId, (System.Action)(() => PickLesson(l.id)))));
                 y += row;
             }
             if (SessionSettings.LessonHasAxisChoice(SessionSettings.ChallengeId))

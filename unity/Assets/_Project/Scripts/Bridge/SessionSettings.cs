@@ -168,6 +168,9 @@ namespace FlyingGame.Bridge
         /// <summary>Glide lessons take the along-runway winds (head / tail); the climb lessons fly calm.</summary>
         public static bool PracticeHasWindChoice(string id) => !PracticeIsAirwork(id) || id is "lesson:glide-rear" or "lesson:glide-side";
         public static bool PracticeIsAirwork(string id) => id is "lesson:straight" or "lesson:climb-level-descend" or "lesson:glide-rear" or "lesson:glide-side" or "lesson:climb-vy" or "lesson:climb-vx" or "practice:s-turns" or "practice:s-turns-test" or "practice:stall-side" or "practice:stall-rudder" or "practice:stall-elevator";
+        /// <summary>Lessons that need an engine (a glider can't climb or hold level) — hidden for the gliders (regimen 2026-10-06:
+        /// the climb lessons fed NaN controls to a glider).</summary>
+        public static bool LessonNeedsEngine(string id) => id is "lesson:climb-level-descend" or "lesson:climb-vy" or "lesson:climb-vx";
         public static bool PracticeIsCrosswind(string id) => id is "practice:xwind-rudder" or "practice:xwind-aileron" or "practice:land-rudder" or "practice:land-aileron";
         public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices =
         {
