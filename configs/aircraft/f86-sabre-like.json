@@ -42,7 +42,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -65,7 +65,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -88,7 +88,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -111,7 +111,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -260,7 +260,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -283,7 +283,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -306,7 +306,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },
@@ -329,7 +329,7 @@
           },
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.09,
+            "maxCd": 0.027,
             "maxClMax": 0.5
           }
         },

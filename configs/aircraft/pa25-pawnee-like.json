@@ -106,7 +106,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -125,7 +125,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -144,7 +144,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -163,7 +163,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -182,7 +182,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -201,7 +201,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -220,7 +220,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -239,7 +239,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -258,7 +258,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },
@@ -277,7 +277,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.22,
-            "maxCd": 0.08,
+            "maxCd": 0.024,
             "maxClMax": 0.45
           }
         },

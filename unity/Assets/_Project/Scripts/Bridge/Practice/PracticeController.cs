@@ -96,6 +96,9 @@ namespace FlyingGame.Bridge.Practice
                 {
                     _touch.StripElevator = Scenario.UserElevator && !Scenario.UserAileron && !Scenario.UserRudder;
                     _touch.StripThrottle = _touch.StripElevator && Scenario.UserThrottle;
+                    // Idle-power landing lessons: the left strip is the wheel brakes (a glider: its spoiler handle) — owner 2026-10-06.
+                    _touch.StripBrakes = _touch.StripElevator && !Scenario.UserThrottle && Scenario.UserBrakes;
+                    _touch.PresetStripBrake(cfg.Propulsion == null ? 0.5f : 0f);
                 }
                 Driver.ForceCapture = Scenario.SideView;
                 Driver.GroundReferenceForced = !Scenario.Airwork;   // runway lessons: camera + path vector relative to the runway
@@ -161,7 +164,7 @@ namespace FlyingGame.Bridge.Practice
         {
             if (!Active) return;
             Active = false; AnyActive = false; Counting = false;
-            if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; }
+            if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; _touch.StripBrakes = false; }
             if (_chase != null && _viewBefore != null) { _chase.SetView(_viewBefore.Value); _viewBefore = null; }
             if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
             Driver.InputFilter = null;

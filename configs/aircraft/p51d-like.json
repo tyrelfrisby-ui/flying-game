@@ -38,7 +38,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },
@@ -57,7 +57,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },
@@ -76,7 +76,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },
@@ -194,7 +194,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },
@@ -213,7 +213,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },
@@ -232,7 +232,7 @@
           "sweepRad": 0.0,
           "flap": {
             "maxDeltaAlphaRad": 0.3,
-            "maxCd": 0.11,
+            "maxCd": 0.033,
             "maxClMax": 0.7
           }
         },

@@ -152,6 +152,7 @@ public sealed class LessonJudge
             ? new("Three-point attitude at touchdown", "tail on the stance", "°", 2, 4, 7, "Mains and tailwheel together at minimum speed.")
             : new("Nose-high at touchdown", "mains first", "° low", 0, 2, 4, "Mains first, nose wheel held off (pitch at least a few degrees up).");
         public static Criterion Bounce => new("Bounces", "none", "ft", 0.5, 2, 5, "One arrival: a bounce means it touched with too much sink or too fast — hold it off longer.");
+        public static Criterion Braking => new("Braking", "firm: 0.12–0.55 g, stopped on the runway", "g off", 0.01, 0.06, 0.15, "Brake firmly once the weight is on the wheels — enough to stop well inside the runway, not so hard the tyres skid or the tail comes up.");
         public static Criterion NoseWheelFirst => new("Nose wheel first", "mains first", "", 0, 0, 0.5, "The nose wheel took the first touch: flat and fast, it bounces the nose and porpoises. Hold the nose up — mains first.");
         public static Criterion RoundOut => new("Round-out height", "10–20 ft", "ft off", 0, 5, 12, "AFH: begin the round-out about 10–20 ft up (no round-out = red).");
         public static Criterion StallLoss => new("Altitude lost in the recovery", "≤ 100 ft", "ft", 100, 150, 250, "ACS: recover with the minimum loss of altitude.");
@@ -179,7 +180,7 @@ public sealed class LessonJudge
             case PracticeKind.FlareSideView:
                 r.Goal = "At idle on the power-off glide, aimed at the runway numbers from 100 ft. You have the ELEVATOR: round out 10–20 ft up, then hold it off until it settles at minimum speed.";
                 r.Live.Add(Std.FlareSink);
-                r.Moments.AddRange(new[] { Std.RoundOut, Std.TdSink, Std.Bounce, Std.TdSpeed, Std.TdPoint, Std.TdAttitude(taildragger) }); break;
+                r.Moments.AddRange(new[] { Std.RoundOut, Std.TdSink, Std.Bounce, Std.TdSpeed, Std.TdPoint, Std.TdAttitude(taildragger), Std.Braking }); break;
             case PracticeKind.ApproachSideView:
                 r.Goal = "Fly the glide path to the aim point: PITCH for the path, POWER for the speed (1.3 Vso), then round out and land.";
                 r.Live.Add(Std.Glideslope); r.Live.Add(Std.Speed("1.3 Vso"));

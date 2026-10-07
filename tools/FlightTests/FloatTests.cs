@@ -116,7 +116,7 @@ public class FloatTests
                 RigidBodyState before = ac.State;
                 double agl = -ac.State.Position.Z;
                 double qr = ac.State.Rates.Y;
-                if (flareStart < 0 && agl < 19) flareStart = t;   // the idle full-flap glide is ~11° (2026-10-06): begin the flare higher
+                if (flareStart < 0 && agl < 16) flareStart = t;   // begin the flare at ~16 m on the full-flap idle glide
                 // Steady pull, capped (the steeper full-flap glide since 2026-10-06 — the flap's lift carries its induced drag — starts
                 // the flare a little higher).
                 double pull = flareStart < 0 ? 0.0 : Math.Min(0.4, 0.11 * (t - flareStart));

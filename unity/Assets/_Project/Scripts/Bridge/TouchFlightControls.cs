@@ -79,6 +79,12 @@ namespace FlyingGame.Bridge
         /// <summary>Lesson strip mode (owner 2026-10-03): only the controls the lesson gives you — a tall ELEVATOR strip on the
         /// right (+ the pitch trim beside it) and, when the lesson gives you power, a THROTTLE strip on the left. No pads.</summary>
         public bool StripElevator, StripThrottle;
+        /// <summary>Idle-power landing lessons (owner 2026-10-06): the left strip is the WHEEL BRAKES (powered: pull down = more,
+        /// spring off when released) or a glider's SPOILER handle (stays put; its last 15 % is the wheel brake).</summary>
+        public bool StripBrakes;
+        private float _stripBrake01;
+        /// <summary>The brake/spoiler strip's starting point (a glider's spoiler opens half way on the approach).</summary>
+        public void PresetStripBrake(float v) => _stripBrake01 = Mathf.Clamp01(v);
         public bool StripMode => StripElevator && !DeskMode;
         private Rect _eleStrip, _thrStrip; private float _stripY;
 
@@ -152,7 +158,7 @@ namespace FlyingGame.Bridge
             // Re-lay out only when something the layout depends on changes (screen, aircraft type, keep-out step) —
             // a per-frame layout from the live aircraft rect made the buttons creep (owner: "jitter").
             Rect ko = ScreenLayout.AircraftKeepOut;
-            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
+            string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
@@ -249,7 +255,7 @@ namespace FlyingGame.Bridge
             float gap = Mathf.Min(w, h) * 0.02f;
             if (StripMode)
             {
-                UiLayout.BandMin = (StripThrottle ? _thrStrip.xMax : 0f) + gap;
+                UiLayout.BandMin = (StripThrottle || StripBrakes ? _thrStrip.xMax : 0f) + gap;
                 UiLayout.BandMax = _trimRect.x - gap;
                 float top = Mathf.Max(_bailRect.yMax, Mathf.Max(_acftRect.yMax, _towRect.yMax));
                 UiLayout.BottomLimit = h - top - gap;
@@ -416,7 +422,7 @@ namespace FlyingGame.Bridge
                     else if (StripMode)
                     {
                         if (_eleStrip.Contains(p.pos) && _rightFinger == int.MinValue) _rightFinger = p.id;
-                        else if (StripThrottle && _thrStrip.Contains(p.pos) && _leftFinger == int.MinValue) _leftFinger = p.id;
+                        else if ((StripThrottle || StripBrakes) && _thrStrip.Contains(p.pos) && _leftFinger == int.MinValue) _leftFinger = p.id;
                     }
                     else if (NearPad(p.pos, _leftCenter) && _leftFinger == int.MinValue) _leftFinger = p.id;
                     else if (NearPad(p.pos, _rightCenter) && _rightFinger == int.MinValue) _rightFinger = p.id;
@@ -500,6 +506,7 @@ namespace FlyingGame.Bridge
             {
                 // Throttle strip: bottom = idle, top = full (lever travel the whole strip height).
                 float t01 = Mathf.Clamp01((pos.y - _thrStrip.y) / Mathf.Max(1f, _thrStrip.height));
+                if (StripBrakes) { _stripBrake01 = 1f - t01; _rudder = 0f; return; }   // brakes / spoiler: top = off, pull DOWN = more
                 _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * t01);
                 _rudder = 0f;
                 return;
@@ -537,6 +544,7 @@ namespace FlyingGame.Bridge
         private void ReleaseLeft()
         {
             _leftFinger = int.MinValue;
+            if (StripBrakes && _driver?.Sim?.Aircraft?.Config?.Propulsion != null) _stripBrake01 = 0f;   // toe brakes spring off (a glider's spoiler stays)
             _rudder = 0f;                 // rudder springs back
             // throttle holds — knob stays at its vertical height, recentre horizontally.
             _leftKnob = IdleLeftKnob();
@@ -614,6 +622,8 @@ namespace FlyingGame.Bridge
 
             (float throttle01, float padBrake) = SplitLeftAxis();
             float brake = Mathf.Max(padBrake, _brakeHeld ? 1f : 0f);
+            bool poweredNow = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
+            if (StripMode && StripBrakes) brake = poweredNow ? _stripBrake01 : Mathf.Clamp01((_stripBrake01 - 0.85f) / 0.15f);
             _driver.Sim.Aircraft.BrakeInput = brake;
             _driver.Sim.Aircraft.BrakeBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
@@ -624,6 +634,7 @@ namespace FlyingGame.Bridge
             // (stowed above 50 % of the pad, full out at 25 %; the brake band below is the wheel brake).
             bool powered = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             float lever = powered ? 1f - 2f * throttle01 : SpoilerFraction;
+            if (StripMode && StripBrakes) lever = powered ? 1f : _stripBrake01;   // powered: idle (the game holds it); glider: the spoiler handle
             // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
             float aileron = Mathf.Clamp(_aileron + _aileronTrim * TrimAuthority, -1f, 1f);
             float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
@@ -687,6 +698,7 @@ namespace FlyingGame.Bridge
                 GUI.depth = -50;   // over the lesson card's backdrop
                 DrawStrip(_eleStrip, _stripY, "ELEVATOR", "your thumb here");
                 if (StripThrottle) { (float th01, _) = SplitLeftAxis(); DrawStrip(_thrStrip, (float)(2 * th01 - 1), "THROTTLE", "your thumb here"); }
+                if (StripBrakes) DrawStrip(_thrStrip, 1f - 2f * _stripBrake01, _driver.Sim?.Aircraft?.Config?.Propulsion != null ? "BRAKES" : "SPOILERS", "pull down = more");
                 return;
             }
 
@@ -703,6 +715,8 @@ namespace FlyingGame.Bridge
             {
                 DrawStrip(_eleStrip, _stripY, "ELEVATOR", "push = nose down");
                 if (StripThrottle) DrawStrip(_thrStrip, (float)(2 * thr01 - 1), "THROTTLE", leftValue);
+                if (StripBrakes) DrawStrip(_thrStrip, 1f - 2f * _stripBrake01, powered ? "BRAKES" : "SPOILERS",
+                    powered ? $"BRAKE {Mathf.RoundToInt(_stripBrake01 * 100f)}%" : _stripBrake01 > 0.85f ? $"WHEEL BRAKE {Mathf.RoundToInt((_stripBrake01 - 0.85f) / 0.15f * 100f)}%" : $"SPOILER {Mathf.RoundToInt(_stripBrake01 * 100f)}%");
                 DrawTrim();
             }
             else

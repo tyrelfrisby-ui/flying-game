@@ -146,7 +146,7 @@ public class PracticeScenarioTests
         foreach (var m in sc.Judge.Moments) _out.WriteLine($"  {m.name}: {m.grade} {m.detail} ({m.points:+0;-0} pts)");
         _out.WriteLine($"points {sc.Judge.Points:F0}; round-out {sc.RoundOutFt:F0} ft");
         Assert.True(sc.TouchedDown);
-        Assert.Equal(sc.Judge.Rules.Moments.Count, sc.Judge.Moments.Count);
+        foreach (var rule in sc.Judge.Rules.Moments) Assert.Contains(sc.Judge.Moments, m => m.name == rule.Name);   // every rule judged (a bounce each, braking at the stop)
 
         Assert.True(sc.Judge.Points > 0);
     }
@@ -287,6 +287,37 @@ public class PracticeScenarioTests
             Assert.True(sc.Judge.Moments.Count(m => m.name == LessonJudge.Std.Bounce.Name) >= 2);
             Assert.True(sc.Score < 50, $"a porpoise scored {sc.Score:F0}");
         }
+    }
+
+    [Theory]
+    [InlineData("c172-like.json", 0.0)]
+    [InlineData("c172-like.json", 0.4)]
+    [InlineData("c172-like.json", 1.0)]
+    [InlineData("pa18-cub-like.json", 0.2)]
+    [InlineData("pa18-cub-like.json", 1.0)]
+    public void TheRolloutBrakingIsJudged(string file, double brake)
+    {
+        // Owner 2026-10-06: the idle-power landing lessons give the user the wheel brakes, and the roll-out is judged on them.
+        var c = Load(file); WorldTerrain.Active = null;
+        var sc = new PracticeScenario(PracticeKind.Flare, PracticeWind.Calm, c, Runway(), 0.0, flapFraction: 0.0);
+        var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+        Assert.True(sc.UserBrakes);
+        ControlInputs user = ControlInputs.Neutral; double tTd = -1;
+        for (double t = 0; t < 150 && sc.Phase != PracticePhase.Finished; t += 0.02)
+        {
+            var inputs = sc.Step(ac, user, 0.02);
+            if (sc.TouchedDown && tTd < 0) tTd = t;
+            ac.BrakeInput = sc.TouchedDown && t > tTd + 1.0 ? brake : 0.0;   // the user's brakes once the weight is on the wheels
+            ac.BrakeBias = 0;
+            sim.RunFor(0.02, inputs);
+            user = sc.Autopilot;
+        }
+        var bm = sc.Judge.Moments.FirstOrDefault(m => m.name == LessonJudge.Std.Braking.Name);
+        _out.WriteLine($"{file} brake {brake}: {sc.EndReason}; braking {bm.grade} '{bm.detail}' avg {sc.RolloutAvgDecelG:F2} g peak {sc.RolloutPeakDecelG:F2} g tail {sc.RolloutTailLifted}");
+        Assert.NotNull(bm.name);
+        if (brake == 0.0) Assert.NotEqual(Grade.Green, bm.grade);              // no brakes: not a good roll-out
+        if (brake == 0.4 || (brake == 0.2 && file.StartsWith("pa18"))) Assert.Equal(Grade.Green, bm.grade);   // firm, controlled (a Cub: lightly)
+        if (brake == 1.0 && file.StartsWith("pa18")) Assert.Equal(Grade.Red, bm.grade);                        // a Cub on full brakes goes over
     }
 
     [Fact]

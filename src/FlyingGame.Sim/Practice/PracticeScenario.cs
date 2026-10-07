@@ -123,6 +123,14 @@ public sealed class PracticeScenario
     /// <summary>Touches that arrived nose wheel first (tricycle types; a taildragger can't).</summary>
     public int NoseFirstTouches => Taildragger ? 0 : _touchPitchDeg.Count(p => p < NoseFirstPitchDeg);
     public IReadOnlyList<double> BounceHeightsM => _bounceHeightsM;
+    /// <summary>The idle-power landing lessons hand the user the WHEEL BRAKES (a glider: the spoiler handle, its last travel
+    /// the wheel brake) — owner 2026-10-06 — and judge the braking on the roll-out.</summary>
+    public bool UserBrakes => FlareExercise;
+    private double _rollV0 = -1, _rollX0, _rollPrevGs = -1, _rollDecelF, _peakDecelG, _maxBrake; private bool _tailLifted, _brakingJudged;
+    /// <summary>Roll-out: average deceleration from touchdown to stop (g), peak (g), and whether a taildragger's tail came up.</summary>
+    public double RolloutAvgDecelG { get; private set; }
+    public double RolloutPeakDecelG => _peakDecelG;
+    public bool RolloutTailLifted => _tailLifted;
     public string EndReason { get; private set; } = "";
     private double _gustLevel, _gustTarget, _gustNextT, _gustRamp = 1;
     private readonly Random _rng;
@@ -680,6 +688,22 @@ public sealed class PracticeScenario
                 _curBounceM = 0;
             }
             if (!OnGround && _touches > 0) _curBounceM = Math.Max(_curBounceM, MainsAglM);
+            if (UserBrakes && TouchedDown) _maxBrake = Math.Max(_maxBrake, ac.BrakeInput);
+            if (UserBrakes && OnGround && _groundedT >= 1.0)   // from the moment it has settled (not the touchdown's own bump)
+            {
+                Vec3 vg = ac.State.Attitude.Rotate(ac.State.Velocity);
+                double gs = Math.Sqrt(vg.X * vg.X + vg.Y * vg.Y);
+                if (_rollV0 < 0) { _rollV0 = gs; _rollX0 = AlongM; }
+                if (_rollPrevGs >= 0 && dt > 0)
+                {
+                    double d = (_rollPrevGs - gs) / dt / 9.81;
+                    _rollDecelF += (d - _rollDecelF) * Math.Min(1.0, dt / 0.3);   // 0.3 s smoothing: the tyre's bite, not the bumps
+                    if (gs > 2 && ac.BrakeInput > 0.05) _peakDecelG = Math.Max(_peakDecelG, _rollDecelF);   // the BRAKING's peak
+                }
+                _rollPrevGs = gs;
+                _maxBrake = Math.Max(_maxBrake, ac.BrakeInput);
+                if (Taildragger && gs > 3 && ac.BrakeInput > 0.05 && pitchDeg < StanceRad * 180 / Math.PI - 4) _tailLifted = true;   // braked so hard the tail came up
+            }
             if (OnGround && _touches > 0) _groundedT += dt; else _groundedT = 0;
             if (!OnGround && _touches > 0) _maxBounceM = Math.Max(_maxBounceM, MainsAglM);
             if (TouchedDown && OnGround && ac.State.Velocity.Length > 2) MaxRolloutSwingDeg = Math.Max(MaxRolloutSwingDeg, Math.Abs(AlignmentDeg));   // the rollout counts too (a ground loop was scoring "Greaser.")
@@ -710,6 +734,7 @@ public sealed class PracticeScenario
                     }
                     if (!Taildragger && _touchPitchDeg.Count > 0 && _touchPitchDeg[0] < NoseFirstPitchDeg) j.Moment(LessonJudge.Std.NoseWheelFirst, 1, "first touch: nose wheel first");
                 }
+                else if (n == LessonJudge.Std.Braking.Name) { }   // judged when the roll-out ends
                 else if (n == LessonJudge.Std.TdSpeed.Name) { double r = AirspeedMs / Math.Max(1, VsoMs); j.Moment(m, Math.Max(0, (r - 1) * 100), $"{AirspeedMs * kt:F0} kt ({r:F2} Vso)"); }
                 else if (n == LessonJudge.Std.TdPoint.Name) { double d = (AlongM - aim) * ft; j.Moment(m, d < -100 ? 500 : Math.Max(0, d), d < 0 ? $"{-d:F0} ft short" : $"{d:F0} ft past"); }
                 else if (n == LessonJudge.Std.TdAlign.Name) j.Moment(m, TouchdownAlignDeg, $"{Math.Abs(TouchdownAlignDeg):F1}°");
@@ -820,7 +845,7 @@ public sealed class PracticeScenario
             _gndRudInt = Math.Clamp(_gndRudInt - 0.8 * psiErr * dt, -0.6, 0.6);
             rud = Math.Clamp(-4.0 * (r - rCmd) + _gndRudInt, -1, 1);
         }
-        GameBrake = (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // roll-out braking; the host biases it with the rudder (differential braking steers)
+        GameBrake = !UserBrakes && (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // (the brakes lessons: the user's)   // roll-out braking; the host biases it with the rudder (differential braking steers)
         GameBrakeBias = GameBrake > 0 ? Math.Clamp(rud * 0.8, -1, 1) : 0;
         // Rudder out of authority (full, slowing down, the swing still growing): stand on the inside brake, hard — a tailwheel
         // pilot's last tool before the loop (the Stearman went round in the gusty crosswind with full rudder and 0.35 brake).
@@ -917,6 +942,7 @@ public sealed class PracticeScenario
         double outRud = GameRudder ? rud : user.Rudder;
         double outEle = GameElevator ? ele : user.Elevator;
         if (!GameThrottle) lever = user.ThrottleLever;
+        if (live && UserBrakes && glider) lever = user.ThrottleLever;   // a glider's spoiler handle is the user's (its last travel the wheel brake)
 
         // Score while live.
         if (live && Phase != PracticePhase.Finished)
@@ -931,6 +957,23 @@ public sealed class PracticeScenario
         if (Time > BriefingSec + 3 && s.Velocity.Length < 1.0 && agl < 3) _stillSec += dt; else _stillSec = 0;
         bool stopped = _stillSec > 2.0;
         bool offSide = Math.Abs(cross) > 60;
+        if (Phase != PracticePhase.Finished && (pastEnd || stopped || offSide || ac.Structure.WingsFailed) && UserBrakes && TouchedDown && !_brakingJudged && (_rollV0 > 0 || _maxBrake > 0.05 || ac.LostComponents.Count > 0))
+        {
+            // BRAKING (owner 2026-10-06: "after landing the user is judged on wheel brake usage — too much, too little"):
+            // the average from touchdown to the stop, the peak, a tail that came up, an overrun.
+            _brakingJudged = true;
+            if (_rollV0 < 0) { _rollV0 = 0; _rollX0 = AlongM; }   // went over (or stopped) before it had even settled
+            double dist = Math.Max(1, AlongM - _rollX0);
+            double gsEnd = Math.Max(0, _rollPrevGs);
+            RolloutAvgDecelG = (_rollV0 * _rollV0 - gsEnd * gsEnd) / (2 * dist * 9.81);
+            string detail; double err;
+            if (pastEnd) { err = 1; detail = $"off the far end at {gsEnd * 1.944:F0} kt — not enough brake"; }
+            else if (_tailLifted || ac.LostComponents.Count > 0) { err = 0.2; detail = $"{(_peakDecelG > 0.05 ? $"peak {_peakDecelG:F2} g — " : "")}too much: {(ac.LostComponents.Count > 0 ? "it went over on the brakes" : "the tail came up")}"; }
+            else if (_peakDecelG > 0.55) { err = _peakDecelG - 0.55; detail = $"peak {_peakDecelG:F2} g — too much, ease the brakes on"; }
+            else if (RolloutAvgDecelG < 0.12) { err = 0.12 - RolloutAvgDecelG; detail = $"average {RolloutAvgDecelG:F2} g over {dist * 3.28084:F0} ft — {(_maxBrake < 0.05 ? "no brakes used" : "too little")}"; }
+            else { err = 0; detail = $"average {RolloutAvgDecelG:F2} g, peak {_peakDecelG:F2} g, stopped in {dist * 3.28084:F0} ft — firm and controlled"; }
+            Judge.Moment(LessonJudge.Std.Braking, err, detail);
+        }
         if (Phase != PracticePhase.Finished && (pastEnd || stopped || offSide || ac.Structure.WingsFailed))
         {
             EndReason = pastEnd ? "departure end" : stopped ? "stopped" : offSide ? "off the side" : "airframe failed";
