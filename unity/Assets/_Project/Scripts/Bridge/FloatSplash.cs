@@ -16,7 +16,7 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public float DragForFullSpray = 2500f;   // N of float drag that gives the biggest spray
 
-        private ParticleSystem[] _step = new ParticleSystem[2], _stern = new ParticleSystem[2], _bow = new ParticleSystem[2];
+        private ParticleSystem[] _step = new ParticleSystem[2], _stern = new ParticleSystem[2], _bow = new ParticleSystem[2], _trail = new ParticleSystem[2];
         private Material _mat;
         private bool _built;
 
@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge
                 _step[i] = Make($"Spray{i}", 0.45f, 0.9f, 160);
                 _stern[i] = Make($"SternSplash{i}", 0.5f, 0.8f, 60);
                 _bow[i] = Make($"BowWave{i}", 0.7f, 1.0f, 60);
+                _trail[i] = Make($"SprayTrail{i}", 0.9f, 1.6f, 220);
             }
             _built = true;
         }
@@ -66,7 +67,7 @@ namespace FlyingGame.Bridge
         {
             if (Driver?.Sim == null || Driver.Sim.Aircraft.Config.Floats == null)
             {
-                if (_built) foreach (var p in _step) { if (p) SetRate(p, 0); }
+                if (_built) foreach (var arr in new[] { _step, _stern, _bow, _trail }) foreach (var p in arr) { if (p) SetRate(p, 0); }
                 return;
             }
             if (!_built) Build();
@@ -86,11 +87,20 @@ namespace FlyingGame.Bridge
                 double? water = FloatHydro.WaterSurfaceAt(f.StepWorld.X, f.StepWorld.Y);
                 float waterY = water.HasValue ? (float)water.Value : step.y;
 
+                // Spray only while PLANING (owner 2026-10-07: "an area of spray behind the actual body but only while it is
+                // planing — once it goes to displacement the spray should go away"): planing lift carrying more than buoyancy.
+                bool planing = f.Wet && f.PlaningLiftN > f.BuoyancyN && speed > 4f;
+                if (!planing) { SetRate(_step[i], 0); SetRate(_stern[i], 0); SetRate(_bow[i], 0); SetRate(_trail[i], 0); continue; }
                 // Main spray: driven by this float's drag (owner: more drag = bigger splash).
-                float k = f.Wet ? Mathf.Clamp01((float)f.DragN / DragForFullSpray) : 0f;
+                float k = Mathf.Clamp01((float)f.DragN / DragForFullSpray);
                 float sizeK = 0.25f + 1.6f * k;                    // planing sheet → deep plunge
                 float rate = k * (40f + 120f * Mathf.Clamp01(speed / 15f));
                 Emit(_step[i], rate, sizeK, step, waterY, fwd, right, i == 0 ? -1f : 1f, speed, (float)f.StepDraftM);
+                // The spray area behind the body: thrown up from just aft of the step with little forward speed, so the
+                // aircraft runs away from it and it hangs behind as a field of mist over the wake.
+                Vector3 aft = step - fwd * (float)(0.25 * cfg.LengthM);
+                float trailRate = (30f + 140f * Mathf.Clamp01(speed / 20f)) * Mathf.Clamp(0.3f + k, 0.3f, 1f) * Mathf.Clamp((float)cfg.BeamM, 0.6f, 4f);
+                EmitTrail(_trail[i], trailRate, 0.8f + 0.25f * (float)cfg.BeamM, aft, waterY, right, i == 0 ? -1f : 1f, speed, (float)cfg.BeamM);
 
                 // Stern (tail) splash when the afterbody wets.
                 float sternK = f.SternDraftM > 0.01 ? Mathf.Clamp01((float)f.SternDraftM / 0.25f) : 0f;
@@ -103,6 +113,21 @@ namespace FlyingGame.Bridge
         }
 
         private static void SetRate(ParticleSystem ps, float rate) { var em = ps.emission; em.rateOverTime = rate; }
+
+        /// <summary>The hanging spray area: a wide, low emitter behind the step; mostly up and outboard, barely moving forward.</summary>
+        private static void EmitTrail(ParticleSystem ps, float rate, float size, Vector3 at, float waterY, Vector3 right, float side, float speed, float beam)
+        {
+            var em = ps.emission; em.rateOverTime = rate;
+            var main = ps.main; main.startSize = size; main.gravityModifier = 0.35f;
+            ps.transform.position = new Vector3(at.x, waterY + 0.1f, at.z);
+            var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+            float up = Mathf.Clamp(speed * 0.12f, 1f, 4f), out_ = Mathf.Clamp(speed * 0.08f, 0.5f, 3f);
+            Vector3 o = right * side * out_;
+            vel.x = new ParticleSystem.MinMaxCurve(o.x * 0.3f, o.x * 1.2f);
+            vel.y = new ParticleSystem.MinMaxCurve(up * 0.5f, up);
+            vel.z = new ParticleSystem.MinMaxCurve(o.z * 0.3f, o.z * 1.2f);
+            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.4f + 0.5f * beam;
+        }
 
         /// <summary>Position the emitter on the water at the keel point and throw spray outboard/up with the boat speed.</summary>
         private static void Emit(ParticleSystem ps, float rate, float size, Vector3 keelPoint, float waterY, Vector3 fwd, Vector3 right, float side, float speed, float draft)

@@ -295,7 +295,12 @@ namespace FlyingGame.Bridge
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
             {
-                chase.FitTo(halfSpan * 2f);
+                // Length too (owner 2026-10-07: "the zoom … needs to take into account the size of the airplane — the H-4 is huge").
+                var cfg = _driver.Sim.Aircraft.Config;
+                double xmin = double.MaxValue, xmax = double.MinValue;
+                foreach (var sf in cfg.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
+                if (cfg.Floats != null) { xmax = System.Math.Max(xmax, cfg.Floats.BowX); xmin = System.Math.Min(xmin, cfg.Floats.BowX - cfg.Floats.LengthM); }
+                chase.FitTo(halfSpan * 2f, xmax > xmin ? (float)(xmax - xmin) : 0f);
             }
         }
 
@@ -1721,8 +1726,12 @@ namespace FlyingGame.Bridge
                 float y = side * (float)f.SpreadM * 0.5f;
                 var mb = new MeshBuilder();
                 var rings = new List<Vector3[]>();
-                // Stations bow → stern; keel z from the two keel angles; beam tapers to a point at the bow.
-                int n = 14;
+                // A real float's lines (owner 2026-10-07: "taper the floats like a real float"): the beam grows from a rounded
+                // entry to full width ~60 % of the way back to the step, then narrows steadily aft to ~40 % at the stern; the
+                // keel turns up sharply over the front 15 % (the bow rides over the water); the deck is crowned and its depth
+                // follows the beam (low at the bow and the stern).
+                int n = 28;
+                float L = (float)f.LengthM, foreLen = bow - xStep, aftLen = xStep - xStern;
                 for (int i = 0; i <= n; i++)
                 {
                     float x = bow - (bow - xStern) * i / n;
@@ -1730,22 +1739,41 @@ namespace FlyingGame.Bridge
                     float keel = fore ? (float)(f.KeelZ - (x - xStep) * Mathf.Tan((float)f.ForebodyKeelDeg * Mathf.Deg2Rad))
                                       : (float)(f.KeelZ - (xStep - x) * Mathf.Tan((float)f.AfterbodyKeelDeg * Mathf.Deg2Rad));
                     if (!fore) keel -= 0.06f; // step notch: afterbody keel sits above the forebody line
-                    float bowTaper = Mathf.Clamp01((bow - x) / (0.9f)); // beam grows from the bow tip over 0.9 m
-                    float halfB = 0.5f * b * Mathf.Lerp(0.15f, 1f, bowTaper);
+                    float bowRegion = Mathf.Clamp01((x - (bow - 0.15f * L)) / (0.15f * L));
+                    keel -= bowRegion * bowRegion * depth * 0.55f;   // the bow turns up
+                    float w = fore ? Mathf.Lerp(0.16f, 1f, Mathf.Sin(Mathf.Clamp01((bow - x) / (0.6f * foreLen)) * Mathf.PI * 0.5f))
+                                   : 1f - 0.6f * Mathf.Pow(Mathf.Clamp01((xStep - x) / aftLen), 1.3f);
+                    float halfB = 0.5f * b * w;
+                    float dep = depth * Mathf.Lerp(0.45f, 1f, Mathf.Clamp01(w * 1.15f)) * (fore ? 1f : Mathf.Lerp(1f, 0.7f, (xStep - x) / aftLen));
                     float chine = keel - halfB * tanB;      // chine is above the keel (z down → smaller)
-                    float deck = keel - depth;
-                    rings.Add(new[] { U(x, y, keel), U(x, y + halfB, chine), U(x, y + halfB, deck), U(x, y, deck - 0.03f), U(x, y - halfB, deck), U(x, y - halfB, chine) });
+                    float deck = keel - dep;
+                    float crown = 0.18f * halfB;
+                    rings.Add(new[] { U(x, y, keel), U(x, y + halfB, chine), U(x, y + halfB * 0.97f, deck + 0.15f * dep), U(x, y + halfB * 0.6f, deck - crown * 0.6f),
+                                      U(x, y, deck - crown), U(x, y - halfB * 0.6f, deck - crown * 0.6f), U(x, y - halfB * 0.97f, deck + 0.15f * dep), U(x, y - halfB, chine) });
                 }
                 mb.AddLoft(rings);
                 mb.AddCapRing(rings[0]);
                 mb.AddCapRing(rings[^1]);
                 Spawn("Float", mb.ToMesh(Vector3.zero), hull, Vector3.zero);
-                // Water rudder plate at the stern.
-                var wr = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Kill(wr.GetComponent<Collider>()); Attach(wr, "WaterRudder");
-                wr.transform.localPosition = U(xStern - 0.05f, y, (float)f.KeelZ - 0.15f);
-                wr.transform.localScale = new Vector3(0.03f, 0.25f, 0.2f);
-                wr.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(strut);
+                // Water rudder (owner 2026-10-07: "add visible water rudders"): a blade hung on a post at each float's stern,
+                // reaching below the keel, hinged on a vertical axis and turned by the rudder pedals (it swings further than the
+                // air rudder, as the cable linkage does).
+                float sternKeel = (float)(f.KeelZ - aftLen * Mathf.Tan((float)f.AfterbodyKeelDeg * Mathf.Deg2Rad)) - 0.06f;
+                float bladeH = Mathf.Max(0.22f, 0.45f * b), bladeC = Mathf.Max(0.16f, 0.3f * b);
+                var pivot = new GameObject("WaterRudderHinge"); Attach(pivot, "WaterRudderHinge");
+                pivot.transform.localPosition = U(xStern + 0.02f, y, sternKeel - 0.05f);
+                var post = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(post.GetComponent<Collider>());
+                post.name = "WaterRudderPost"; post.transform.SetParent(pivot.transform, false);
+                post.transform.localPosition = new Vector3(0f, 0.02f, 0f); post.transform.localScale = new Vector3(0.035f, bladeH * 0.5f + 0.04f, 0.035f);
+                post.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(strut);
+                var blade = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(blade.GetComponent<Collider>());
+                blade.name = "WaterRudderBlade"; blade.transform.SetParent(pivot.transform, false);
+                blade.transform.localPosition = new Vector3(0f, -bladeH * 0.5f, -bladeC * 0.5f);   // below the keel, trailing aft (Unity −z = sim aft)
+                blade.transform.localScale = new Vector3(0.025f, bladeH, bladeC);
+                blade.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(new Color(0.85f, 0.2f, 0.15f));
+                post.layer = blade.layer = WaterReflection.AircraftLayer;   // they show in the water reflection too
+                float rudMax = (float)(cfg.Controls?.Rudder?.MaxDeflRad ?? 0.44);
+                _controls.Add(new ControlPart { T = pivot.transform, Surface = "rudder", Gain = Mathf.Clamp((float)f.WaterRudderMaxRad / Mathf.Max(0.1f, rudMax), 0.5f, 2f), AxisUnity = Vector3.up });
                 // Struts from the float deck up to the fuselage belly.
                 float rb = BodyRadiusAt(st, 0.6f);
                 float belly = rb * st.BodyHeightScale + st.BodyAxisZ;

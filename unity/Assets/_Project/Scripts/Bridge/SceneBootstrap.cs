@@ -79,6 +79,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
             root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
+            root.AddComponent<WakeWaves>().Driver = driver;     // the wake on the water: V from each float/hull, 5 min, reflects off the shore
             root.AddComponent<FlightAudio>();
             UnityGlideTableLoader.Load();
             root.AddComponent<Practice.PracticeController>().Driver = driver;   // crosswind / flare / approach practice

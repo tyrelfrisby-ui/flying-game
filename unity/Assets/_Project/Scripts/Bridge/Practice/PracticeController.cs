@@ -251,13 +251,13 @@ namespace FlyingGame.Bridge.Practice
             var rw = Scenario.Runway;
             // Sim (x north, y east) → Unity (x = east, z = north): along = (AlongY, 0, AlongX); right of the runway = (AlongX, 0, -AlongY).
             _chase.SideRight = new Vector3((float)rw.AlongX, 0f, -(float)rw.AlongY).normalized;
-            _chase.SideDistance = Mathf.Clamp(_chase.Distance * 1.9f, 16f, 90f);
+            _chase.SideDistance = Mathf.Clamp(_chase.Distance * 1.9f, 16f, 260f);   // 260: the H-4 (was 90)
             _chase.SideFocusY = FocusHeight();
             _chase.SideView = true;
             // Owner 2026-10-03: side-view lessons are 2-D — flat side-on picture, no 3-D world.
             (double tx, double ty) = rw.Threshold;
             Vector3 thr = CoordinateMap.ToUnity(new Vec3(tx, ty, -Scenario.SurfaceM));
-            Side2DView.Enter(Camera.main, _chase.SideRight, new Vector3((float)rw.AlongY, 0f, (float)rw.AlongX), (float)Scenario.SurfaceM, thr, (float)rw.LengthM);
+            Side2DView.Enter(Camera.main, _chase.SideRight, new Vector3((float)rw.AlongY, 0f, (float)rw.AlongX), (float)Scenario.SurfaceM, thr, (float)rw.LengthM, Scenario.WaterLane);
             Side2DView.Frame(Camera.main, _chase.SideDistance);
         }
 
@@ -288,7 +288,8 @@ namespace FlyingGame.Bridge.Practice
                 float ground = (float)Scenario.SurfaceM, acY = transform.position.y;
                 float h = Mathf.Max(0f, acY - ground);
                 // The aircraft at about two-thirds of the height (under the score orb), the runway always in the bottom part.
-                float half = Mathf.Max(5.5f, 1.0f * h + 4f);
+                // Never tighter than the airframe itself (owner 2026-10-07: the H-4 overflowed the frame on the water).
+                float half = Mathf.Max(Mathf.Max(5.5f, 0.55f * _chase.LengthM), 1.0f * h + 4f);
                 _chase.SideFocusY = ground + 0.7f * h + 0.5f;
                 _sideHalf = _sideHalf <= 0f ? half : Mathf.Lerp(_sideHalf, half, 1f - Mathf.Exp(-4f * Time.deltaTime));
                 Camera.main.orthographicSize = _sideHalf;

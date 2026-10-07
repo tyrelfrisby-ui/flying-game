@@ -76,16 +76,23 @@ namespace FlyingGame.Bridge
         private Camera _cam;
 
         /// <summary>Fit the chase distance to the airframe (a 737 needs ~3x the glider's 14 m).</summary>
-        public void FitTo(float spanM)
+        public void FitTo(float spanM, float lengthM = 0f)
         {
-            SpanM = spanM;
+            SpanM = spanM; LengthM = lengthM > 0f ? lengthM : spanM * 0.8f;
             _flyValid = false;
             // Closer than v1 (owner: "more zoomed in" now that the HUD sits over the aircraft).
             // The old world-position lag added ~7 m of trail to this; now that the camera rides exactly at its
             // offset the distance itself carries that (owner: "a little too close" at 0.75 span).
-            Distance = Mathf.Clamp(spanM * 1.3f, 11f, 66f);   // owner 2026-09-10: "zoom out just a little" (was 1.15 span)
+            // Sized by the larger of span and length (owner 2026-10-07: "the H-4 is huge and needs a wider zoom" — the old
+            // 66 m cap framed its 98 m span from inside the wing). Small types are unchanged (span governs, ≥ 11 m).
+            float size = Mathf.Max(spanM, LengthM * 1.15f);
+            Distance = Mathf.Clamp(size * 1.3f, 11f, 200f);   // owner 2026-09-10: "zoom out just a little" (was 1.15 span)
             Height = Distance * 0.22f;
+            OverrideDistance = Mathf.Max(16f, Distance * 1.15f);
+            OverrideHeight = OverrideDistance * 0.19f;   // 16 m / 3 m before
         }
+        /// <summary>Airframe length (m), nose to tail.</summary>
+        public float LengthM { get; private set; } = 12f;
 
         public float SpanM { get; private set; } = 15f;
 

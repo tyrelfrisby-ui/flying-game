@@ -26,11 +26,12 @@ namespace FlyingGame.Bridge
         public const float AirSliceHalfM = 4f;
 
         public static readonly Color Sky = new(0.62f, 0.78f, 0.95f), Ground = new(0.42f, 0.55f, 0.32f), GroundStripe = new(0.37f, 0.5f, 0.28f),
-                                     Runway = new(0.32f, 0.33f, 0.36f), RunwayEdge = new(0.92f, 0.92f, 0.9f);
+                                     Runway = new(0.32f, 0.33f, 0.36f), RunwayEdge = new(0.92f, 0.92f, 0.9f),
+                                     Water = new(0.16f, 0.38f, 0.62f), WaterStripe = new(0.20f, 0.44f, 0.68f), BuoyOrange = new(0.98f, 0.45f, 0.08f), BuoyWhite = new(0.95f, 0.95f, 0.93f);
 
         /// <summary>Enter 2-D: <paramref name="sideRight"/> = the camera's side (Unity, horizontal), <paramref name="along"/> =
         /// the runway direction (Unity, horizontal), <paramref name="groundY"/> = ground height, threshold/length = the runway.</summary>
-        public static void Enter(Camera cam, Vector3 sideRight, Vector3 along, float groundY, Vector3 threshold, float runwayLength)
+        public static void Enter(Camera cam, Vector3 sideRight, Vector3 along, float groundY, Vector3 threshold, float runwayLength, bool water = false)
         {
             if (_active || cam == null) return;
             _active = true;
@@ -54,8 +55,23 @@ namespace FlyingGame.Bridge
             Vector3 a = new Vector3(along.x, 0f, along.z).normalized, r = new Vector3(sideRight.x, 0f, sideRight.z).normalized;
             Vector3 basePt = new Vector3(threshold.x, groundY, threshold.z) - r * 200f;
             const float halfLen = 12000f;
+            if (water)
+            {
+                // A seaplane's lane (owner 2026-10-07: "the side view landing also needs to be on water"): the water band to the
+                // horizon, striped every 25 m so speed reads, and the lane's buoy line (every 50 m, orange / white) on the surface.
+                Quad(_backdrop.transform, basePt + Vector3.down * 1500f, a, halfLen, 1500f, r, StripeTexture(Water, WaterStripe), halfLen * 2f / 50f);
+                int k = 0;
+                for (float d = 0f; d <= runwayLength + 0.1f; d += (float)FlyingGame.Core.WorldTerrain.SeaplaneBuoySpacingM, k++)
+                {
+                    Vector3 bp = basePt + a * d + r * 1f;
+                    Quad(_backdrop.transform, bp + Vector3.up * 0.35f, a, 0.65f, 0.65f, r, Solid(k % 2 == 0 ? BuoyOrange : BuoyWhite), 1f);   // the ball
+                    Quad(_backdrop.transform, bp + Vector3.up * 1.6f, a, 0.07f, 0.7f, r, Solid(new Color(0.2f, 0.2f, 0.22f)), 1f);           // the mast
+                    Quad(_backdrop.transform, bp + Vector3.up * 2.4f, a, 0.25f, 0.25f, r, Solid(k % 2 == 0 ? BuoyOrange : BuoyWhite), 1f);   // the top mark
+                }
+                return;
+            }
             // Ground band: 3 km deep below the ground line, striped every 25 m along the track.
-            Quad(_backdrop.transform, basePt + Vector3.down * 1500f, a, halfLen, 1500f, r, StripeTexture(), halfLen * 2f / 50f);
+            Quad(_backdrop.transform, basePt + Vector3.down * 1500f, a, halfLen, 1500f, r, StripeTexture(Ground, GroundStripe), halfLen * 2f / 50f);
             // Runway: a strip just in front of the ground band, along the ground line, edge lines on top.
             Vector3 mid = basePt + a * (runwayLength * 0.5f) + r * 1f;
             Quad(_backdrop.transform, mid + Vector3.down * 1.2f, a, runwayLength * 0.5f, 1.2f, r, Solid(Runway), 1f);
@@ -98,10 +114,10 @@ namespace FlyingGame.Bridge
             go.AddComponent<MeshRenderer>().sharedMaterial = mat;
         }
 
-        private static Texture2D StripeTexture()
+        private static Texture2D StripeTexture(Color a, Color b)
         {
             var t = new Texture2D(2, 1, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Repeat };
-            t.SetPixels(new[] { Ground, GroundStripe }); t.Apply();
+            t.SetPixels(new[] { a, b }); t.Apply();
             return t;
         }
 

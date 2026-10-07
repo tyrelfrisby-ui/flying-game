@@ -24,6 +24,8 @@ namespace FlyingGame.Bridge
             if (mode == "thermal") { yield return ThermalTest(); yield break; }
             if (mode == "dogfight") { yield return DogfightTest(); yield break; }
             if (mode == "side2d") { yield return Side2DTest(); yield break; }
+            if (mode == "seazoom") { yield return SeaZoomTest(); yield break; }
+            if (mode == "wake") { yield return WakeTest(); yield break; }
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
@@ -275,6 +277,76 @@ namespace FlyingGame.Bridge
                 Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
             }
             Debug.Log("[SelfTest] DONE menu");
+        }
+
+        /// <summary>AERO_SELFTEST=wake (owner 2026-10-07): the Cub on floats lands on the Valley lake's lane (the game flying);
+        /// a screenshot every 4 s through the touchdown, the planing run (spray), coming off the step (spray gone) and the wake
+        /// spreading and reflecting afterwards; logs each float's planing state.</summary>
+        private IEnumerator WakeTest()
+        {
+            SessionSettings.BubblesOn = false;
+            SessionSettings.AircraftId = "pa18-floats-like"; SessionSettings.ChallengeId = null; SessionSettings.AirportIndex = 0;
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(3f);
+            var drv = Object.FindFirstObjectByType<FlightSimDriver>();
+            var cfg = drv.Sim.Aircraft.Config;
+            var lake = FlyingGame.Core.WorldTerrain.Lakes[0];
+            // On the Valley lake, heading north at 24 m/s, keels just in the water: full power 9 s (on the step), then idle.
+            double hp = 3.0 * System.Math.PI / 180 / 2;
+            var att = new FlyingGame.Core.MathTypes.Quat(0, System.Math.Sin(hp), 0, System.Math.Cos(hp));
+            var pos = new FlyingGame.Core.MathTypes.Vec3(lake.Cx - 330, lake.Cy + 60, -(lake.SurfaceM + cfg.Floats.KeelZ - 0.08));
+            var ac = new FlyingGame.Sim.Aircraft(cfg, new FlyingGame.Core.RigidBodyState(pos, att, new FlyingGame.Core.MathTypes.Vec3(24, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero));
+            drv.AdoptSim(new FlyingGame.Sim.SimLoop(ac));
+            float t0 = Time.realtimeSinceStartup;
+            drv.InputFilter = (u, dt) => new FlyingGame.Sim.ControlInputs(0, -0.05, 0, Time.realtimeSinceStartup - t0 < 9f ? -1.0 : 1.0);
+            var cc = Camera.main.GetComponent<ChaseCamera>(); cc?.SetView(ChaseCamera.View.Top);
+            foreach (int at in new[] { 3, 6, 9, 12, 16, 20, 30, 45, 60, 90, 150, 240 })
+            {
+                while (Time.realtimeSinceStartup - t0 < at) yield return null;
+                var f = FlyingGame.Core.FloatHydro.Floats[0];
+                Debug.Log($"[SelfTest] wake t {at}s: wet {f.Wet} speed {f.SpeedMs:F1} planing {(f.PlaningLiftN > f.BuoyancyN)} wakeOn {Shader.GetGlobalFloat("_WakeOn")}");
+                ScreenCapture.CaptureScreenshot($"selftest-wake-{at:000}.png");
+                yield return null;
+                // …and from high overhead (250 m, straight down over the lake) to see the V and its reflections off the shore.
+                if (cc != null) cc.enabled = false;
+                var cam = Camera.main; var pu = drv.transform.position;
+                Vector3 lc = CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(lake.Cx, lake.Cy, -lake.SurfaceM));
+                cam.transform.position = new Vector3((pu.x + lc.x) * 0.5f, lc.y + 420f, (pu.z + lc.z) * 0.5f);
+                cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+                yield return null; yield return null;
+                ScreenCapture.CaptureScreenshot($"selftest-wake-high-{at:000}.png");
+                yield return null;
+                if (cc != null) cc.enabled = true;
+            }
+            drv.InputFilter = null;
+            Debug.Log("[SelfTest] DONE wake");
+        }
+
+        /// <summary>AERO_SELFTEST=seazoom (owner 2026-10-07: seaplanes land on water in the side view too; the zoom fits the
+        /// airframe — "the H-4 is huge"): the H-4, the Cub on floats and the 172 in the side-view flare, the rear-view flare and
+        /// free flight, a screenshot each.</summary>
+        private IEnumerator SeaZoomTest()
+        {
+            foreach (string ac in new[] { "hughes-h4-like", "pa18-floats-like", "c172-like" })
+                foreach (string id in new[] { "practice:flare-side", "practice:flare", null })
+                {
+                    SessionSettings.AircraftId = ac; SessionSettings.ChallengeId = id;
+                    yield return new WaitForSecondsRealtime(2f);
+                    Menu.Fly();
+                    yield return new WaitForSecondsRealtime(3f);
+                    var pc = Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
+                    if (id != null && pc != null) pc.StartCountdown();
+                    yield return new WaitForSecondsRealtime(id == null ? 4f : 7f);
+                    string tag = $"{ac}-{(id ?? "free").Replace(':', '-')}";
+                    ScreenCapture.CaptureScreenshot($"selftest-seazoom-{tag}.png");
+                    yield return new WaitForSecondsRealtime(1f);
+                    var cc = Camera.main != null ? Camera.main.GetComponent<ChaseCamera>() : null;
+                    Debug.Log($"[SelfTest] seazoom {tag}: water lane {(pc != null && pc.Scenario != null ? pc.Scenario.WaterLane : false)}, chase {cc?.Distance:F0} m, span {cc?.SpanM:F0} length {cc?.LengthM:F0}, ortho {Camera.main.orthographic} size {Camera.main.orthographicSize:F1}");
+                    Menu.Open();
+                    yield return new WaitForSecondsRealtime(2f);
+                }
+            Debug.Log("[SelfTest] DONE seazoom");
         }
 
         /// <summary>AERO_SELFTEST=side2d (owner 2026-10-03): each side-view lesson in turn, in the Cub, a screenshot a few
