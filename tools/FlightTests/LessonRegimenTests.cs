@@ -99,7 +99,7 @@ public class LessonRegimenTests
             const double dt = 0.02, delay = 0.34;
             var lag = new Queue<ControlInputs>();
             ControlInputs user = ControlInputs.Neutral; double? heldLever = null; double tTd = -1;
-            double kts = 1.943844, prevVz = 0; double maxSwing = 0, maxDrop = 0;
+            double kts = 1.943844, prevVz = 0; double maxSwing = 0, maxDrop = 0, stallT = 0; int stallPhase = 0;
             double t = 0;
             for (; t < maxSec && sc.Phase != PracticePhase.Finished; t += dt)
             {
@@ -116,11 +116,31 @@ public class LessonRegimenTests
                 // pull past the stall, hold, push to recover, again; the rudder lesson holds the wing drop with rudder.
                 if (sc.Stall && sc.UserHasControl && pilot != "handsoff")
                 {
-                    double tl = sc.Time, g = pilot == "ace" ? 1.0 : 0.6;
-                    double ele = kind == PracticeKind.StallRudder ? auto.Elevator : (tl % 12.0) < 8.0 ? -0.55 : 0.3;
+                    double g = pilot == "ace" ? 1.0 : 0.6;
+                    // State machine, the way it's taught: pull to the break, hold a second, release and lower the nose until it
+                    // flies again (1.25 Vso), level off for a few seconds, again. (A blind 8 s pull / 4 s push spun them.)
+                    stallT += dt;
+                    switch (stallPhase)
+                    {
+                        case 0: if (sc.Stalled) { stallPhase = 1; stallT = 0; } break;                                  // pulling
+                        case 1: if (stallT > (pilot == "ace" ? 1.0 : 2.0)) { stallPhase = 2; stallT = 0; } break;       // at the break
+                        case 2: if (!sc.Stalled && sc.AirspeedMs > 1.25 * sc.VsoMs) { stallPhase = 3; stallT = 0; } break; // recovering
+                        case 3: if (stallT > 4.0) { stallPhase = 0; stallT = 0; } break;                                 // level off
+                    }
+                    // Fly attitudes (stick + = nose down): raise the nose to 12° and hold it while the speed bleeds into the stall,
+                    // more back stick at the break, release to lower the nose (no steeper than −10°), level off at +3°.
+                    var aq = ac.State.Attitude; double pitchDeg = Math.Asin(Math.Clamp(2 * (aq.W * aq.Y - aq.Z * aq.X), -1, 1)) * 57.3, qd = ac.State.Rates.Y;
+                    double Hold(double thetaDeg) => Math.Clamp(sc.TrimStick - 0.08 * (thetaDeg - pitchDeg) + 0.6 * qd, -0.8, 0.5);
+                    double ele = kind == PracticeKind.StallRudder ? auto.Elevator : stallPhase switch
+                    {
+                        0 => Hold(12), 1 => Math.Min(Hold(14), -0.5),
+                        2 => Math.Max(sc.TrimStick + 0.15, Hold(-10)),
+                        _ => Hold(3),
+                    };
                     double rud = kind == PracticeKind.StallRudder ? Math.Clamp(g * (-0.8 * sc.BankDeg / 57.3 - 0.3 * sc.RollRateDegS / 57.3), -1, 1) : auto.Rudder;
                     user = new ControlInputs(auto.Aileron, ele, rud, auto.ThrottleLever);
                     maxDrop = Math.Max(maxDrop, Math.Abs(sc.BankDeg));
+                    if (Environment.GetEnvironmentVariable("REGIMEN_TRACE") != null && Math.Abs(t * 2 - Math.Round(t * 2)) < dt) Console.WriteLine($"TR t {t,5:F1} ph {stallPhase} agl {sc.AglM,5:F0} ias {sc.AirspeedMs * 1.944,4:F0} stalled {sc.Stalled} alpha {sc.AlphaDeg,5:F1} bank {sc.BankDeg,5:F0} ele {ele,5:F2} g {ac.LoadFactorZ,5:F1}");
                 }
                 else switch (pilot)
                 {

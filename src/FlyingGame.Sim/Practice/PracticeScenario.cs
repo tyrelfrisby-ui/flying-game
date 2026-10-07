@@ -501,6 +501,7 @@ public sealed class PracticeScenario
                  : CLD ? (Config.Propulsion is null ? BestLdMs : VyMs)
                  : Glide ? SpeedToFlyMs
                  : Kind == PracticeKind.ClimbVyRear ? VyMs : Kind == PracticeKind.ClimbVxSide ? VxMs : 1.3 * VsoMs;
+        if (!double.IsFinite(v) || v <= 0) v = double.IsFinite(BestLdMs) && BestLdMs > 0 ? BestLdMs : 1.5 * VsoMs;   // a glider has no Vy/Vx (NaN spawn)
         SpeedTargetMs = v; TargetSpeedMs = v; StartAglM = AirworkAglM;
         double alt = SurfaceM + AirworkAglM;
         var pos = new Vec3(Runway.CentreX, Runway.CentreY, -alt);
