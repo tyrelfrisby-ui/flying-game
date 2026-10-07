@@ -197,71 +197,33 @@ namespace FlyingGame.Bridge
                 _label = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 0.5f), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = c } };
             }
 
-            // Aircraft position on screen (GUI space: top-left origin). Dials either side and above, clamped on screen.
-            Vector3 sp = _cam.WorldToScreenPoint(Driver.transform.position);
-            Vector2 acRaw = sp.z > 0 ? new Vector2(sp.x, Screen.height - sp.y) : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            // Stable anchor (owner: no jitter): the chase camera keeps the aircraft near one spot, so follow it slowly
-            // (0.5 s) and snap the result to whole pixels.
-            if (!_anchorValid) { _anchor = acRaw; _anchorValid = true; }
-            if (live) _anchor += (acRaw - _anchor) * (1f - Mathf.Exp(-Time.unscaledDeltaTime / 0.5f));
-            Vector2 ac = new Vector2(Mathf.Round(_anchor.x), Mathf.Round(_anchor.y));
+            // FIXED LAYOUT (owner 2026-10-07: "the analog instruments are not reliably displayed — they come and go"; they
+            // used to chase the aircraft's screen spot and hide whenever they touched it, so they blinked with every bank,
+            // zoom and text line). Four dials — airspeed over vertical speed on the left, altimeter over the g meter on
+            // the right — pinned to the sides of the free band (between the pads, under the toolbar's text, above the bottom
+            // buttons). They shrink to fit; they are never hidden.
             Rect view = _cam.pixelRect; float top = Screen.height - view.yMax, bottom = Screen.height - view.y;
-            // NO-OVERLAP RULE (owner 2026-10-03): the dials live in the free region — the centre band between the pads,
-            // under the toolbar + text stack, above the bottom buttons — with each readout UNDER its dial. They shrink to fit.
             float readH = fs * 1.9f;
-            float regL = Mathf.Max(view.x, UiLayout.BandLeft), regR = Mathf.Min(view.xMax, UiLayout.BandRight);
-            float regT = Mathf.Max(top, UiLayout.StackBottomLastFrame + UiLayout.Gap), regB = Mathf.Min(bottom, UiLayout.BottomLimit) - readH;
+            bool glider = aircraft.Config.Propulsion == null;
+            Vector2 asi, alt, gc, vc;
             if (!ChaseCamera.InCockpit)
             {
-                bool gl = aircraft.Config.Propulsion == null;
-                float maxR = Mathf.Min((regR - regL) / (gl ? 4.8f : 4.6f), (regB - regT) / 3.4f);
-                if (maxR > 8f && r > maxR) { float k = maxR / r; r *= k; gr *= k; }
-                top = regT; bottom = regB; view = new Rect(regL, Screen.height - regB, regR - regL, regB - regT);
+                float regL = Mathf.Max(view.x, UiLayout.BandLeft), regR = Mathf.Min(view.xMax, UiLayout.BandRight);
+                // A fixed top (the toolbar plus room for three text lines), not last frame's text stack (that moved the dials).
+                float regT = Mathf.Max(top, UiLayout.ToolbarBottom + fs * 4.2f), regB = Mathf.Min(bottom, UiLayout.BottomLimit);
+                // Each column: dial, readout, dial, readout (the g meter's limits line too).
+                float colH = (Mathf.Min(regB, UiLayout.LeftBottomLimit) - regT), maxR = Mathf.Min((regR - regL) * 0.11f, (colH - 2f * readH - fs * 1.2f) / 4.2f);
+                if (maxR > 8f && r > maxR) { float k = maxR / r; r *= k; }
+                gr = r;
+                // The right column also clears the g meter's limits line (≈ 9 fs wide, centred under it).
+                float xL = regL + r * 1.15f + fs * 1.2f, xR = Mathf.Min(regR - r * 1.15f - fs * 1.2f, regR - fs * 4.8f);
+                float y1 = regT + r * 1.05f, y2 = y1 + r * 2.1f + readH + fs * 0.6f;
+                asi = new Vector2(xL, y1); vc = new Vector2(xL, y2);
+                alt = new Vector2(xR, y1); gc = new Vector2(xR, y2);
             }
-            Vector2 Clamp(Vector2 p, float rad) => new(Mathf.Clamp(p.x, view.x + rad * 1.05f, view.xMax - rad * 1.05f), Mathf.Clamp(p.y, top + rad * 1.05f, Mathf.Max(top + rad * 1.05f, bottom - rad * 1.05f)));
-            // RULE (owner): no instrument covers the aircraft — each dial is pushed out of the aircraft's screen rect
-            // along its own side (airspeed left, altimeter right, g meter / vario up) before being clamped on screen.
-            Rect ko = ScreenLayout.AircraftKeepOut;   // bottom-left origin
-            Rect koGui = ScreenLayout.HasAircraftKeepOut ? Rect.MinMaxRect(ko.xMin, Screen.height - ko.yMax, ko.xMax, Screen.height - ko.yMin) : new Rect(-1, -1, 0, 0);
-            Vector2 PushOut(Vector2 c, float rad, Vector2 dir)
+            else
             {
-                if (koGui.width <= 0f) return c;
-                for (int i = 0; i < 40; i++)
-                {
-                    var circle = new Rect(c.x - rad, c.y - rad, 2f * rad, 2f * rad);
-                    if (!circle.Overlaps(koGui)) break;
-                    c += dir * (s * 0.02f);
-                }
-                return c;
-            }
-            // Owner: the dials must not move with bank — fixed offsets from the aircraft's screen position, wide enough
-            // to clear the span (the keep-out push-out is only used for the buttons, which have room to move).
-            Vector2 asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
-            Vector2 alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
-            bool glider = aircraft.Config.Propulsion == null;
-            float topY = ac.y - (UpOffsetFrac + RadiusFrac + 0.09f) * s;
-            // Glider: g meter and variometer side by side, centred high; powered: g meter alone in the centre.
-            // The two readouts under them ("1.0 g", "+1.7") must not run into each other: space the dials by the text too.
-            float topSep = Mathf.Max(gr * 1.15f, _big.CalcSize(new GUIContent("-8.8 g")).x * 0.55f + fs * 0.3f);
-            Vector2 gc = Clamp(new Vector2(glider ? ac.x - topSep : ac.x, topY), gr);
-            Vector2 vc = Clamp(new Vector2(ac.x + topSep, topY), gr);
-            // The top dials' readout + limits line must clear the side dials: lift them, and if the region is too short,
-            // shrink everything a little (no-overlap rule).
-            for (int it = 0; it < 4 && !ChaseCamera.InCockpit; it++)
-            {
-                float below = gr + fs * 2.7f, clear = Mathf.Min(asi.y, alt.y) - r - below;
-                if (gc.y <= clear) break;
-                float lifted = Mathf.Max(top + gr * 1.05f, clear);
-                gc.y = vc.y = lifted;
-                if (lifted <= clear) break;
-                r *= 0.88f; gr *= 0.88f;
-                asi = Clamp(ac + new Vector2(-SideOffsetFrac * s, -UpOffsetFrac * s), r);
-                alt = Clamp(ac + new Vector2(SideOffsetFrac * s, -UpOffsetFrac * s), r);
-            }
-
-            // Cockpit view: the dials become an instrument panel along the bottom of the view.
-            if (ChaseCamera.InCockpit)
-            {
+                // Cockpit view: the dials become an instrument panel along the bottom of the view.
                 float panelH = Mathf.Min(view.height * 0.30f, s * 0.36f), pTop = bottom - panelH;
                 r = Mathf.Min(r, panelH * 0.42f); gr = r * 0.85f;
                 GUI.color = new Color(0.10f, 0.11f, 0.12f, 1f);
@@ -269,45 +231,12 @@ namespace FlyingGame.Bridge
                 GUI.color = new Color(0.22f, 0.23f, 0.25f, 1f);
                 GUI.DrawTexture(new Rect(view.x, pTop, view.width, Mathf.Max(3f, panelH * 0.05f)), Texture2D.whiteTexture);   // glareshield edge
                 GUI.color = Color.white;
-                int n = glider ? 4 : 3; float step = view.width / (n + 1), cy = pTop + panelH * 0.54f;
-                asi = new Vector2(view.x + step, cy);
-                gc = new Vector2(view.x + step * 2f, cy);
-                vc = new Vector2(view.x + step * 3f, cy);
-                alt = new Vector2(view.x + step * n, cy);
+                float step = view.width / 5f, cy = pTop + panelH * 0.54f;
+                asi = new Vector2(view.x + step, cy); alt = new Vector2(view.x + step * 2f, cy);
+                vc = new Vector2(view.x + step * 3f, cy); gc = new Vector2(view.x + step * 4f, cy);
             }
-
-            // RULE (owner 2026-10-05: "make sure the instruments do not cover the airplane on either view"): each dial AND its
-            // readout is pushed out of the aircraft's screen rect along its own side (airspeed left, altimeter right, g meter
-            // and vario up), then clamped into the free region; a dial that still can't clear the aircraft isn't drawn.
-            bool showAsi = true, showAlt = true, showG = true, showV = glider;
-            if (!ChaseCamera.InCockpit && koGui.width > 0f)
-            {
-                Rect Box(Vector2 c, float rad, float below, float halfW) { float w = Mathf.Max(rad, halfW); return new Rect(c.x - w, c.y - rad, 2f * w, 2f * rad + below); }
-                Vector2 Away(Vector2 c, float rad, float below, float halfW, Vector2 dir)
-                {
-                    for (int i = 0; i < 80 && Box(c, rad, below, halfW).Overlaps(koGui); i++) c += dir * (s * 0.015f);
-                    return c;
-                }
-                float sideBelow = fs * 1.9f, sideHalf = fs * 2.6f, gBelow = fs * 2.6f, gHalf = fs * 4.6f;
-                // Its own side first, then up, then down; the first that clears the aircraft wins.
-                Vector2 Place(Vector2 c0, float rad, float below, float halfW, Vector2 first, out bool ok)
-                {
-                    foreach (Vector2 d in new[] { first, Vector2.down, Vector2.up })
-                    {
-                        Vector2 c = Clamp(Away(c0, rad, below, halfW, d), rad);
-                        if (!Box(c, rad, below, halfW).Overlaps(koGui)) { ok = true; return c; }
-                    }
-                    ok = false; return c0;
-                }
-                asi = Place(asi, r, sideBelow, sideHalf, Vector2.left, out showAsi);
-                alt = Place(alt, r, sideBelow, sideHalf, Vector2.right, out showAlt);
-                gc = Place(gc, gr, gBelow, gHalf, Vector2.down, out showG);
-                vc = Place(vc, gr, sideBelow, sideHalf, Vector2.down, out bool okV); showV = glider && okV;
-                // Two dials pushed to the same spot must not land on each other either.
-                if (showAsi && showAlt && Box(asi, r, sideBelow, sideHalf).Overlaps(Box(alt, r, sideBelow, sideHalf))) showAlt = false;
-                if (showG && showAsi && Box(gc, gr, gBelow, gHalf).Overlaps(Box(asi, r, sideBelow, sideHalf))) showG = false;
-                if (showG && showAlt && Box(gc, gr, gBelow, gHalf).Overlaps(Box(alt, r, sideBelow, sideHalf))) showG = false;
-            }
+            bool showAsi = true, showAlt = true, showG = true, showV = true;
+            if (SessionSettings.FlightTestData && live) DrawTestData(aircraft, asi, alt, r, fs, ChaseCamera.InCockpit);
 
             float kt = (float)Driver.IasMs * 1.9438f, ft = (float)Driver.AltitudeM * 3.28084f, g = (float)aircraft.LoadFactorZ;
             if (live) { _gMaxSeen = Mathf.Max(_gMaxSeen, g); _gMinSeen = Mathf.Min(_gMinSeen, g); }
@@ -357,19 +286,79 @@ namespace FlyingGame.Bridge
             DrawNeedle(gc, G(g), gr * 0.82f, gr * 0.12f, nAlpha);
             }
 
-            // ---- variometer (gliders)
+            // ---- vertical speed: a glider's variometer (knots) or a VSI (fpm, ±2,000)
             if (showV)
             {
                 var st2 = aircraft.State;
-                float vzKt = (float)(-st2.Attitude.Rotate(st2.Velocity).Z) * 1.9438f;   // up positive
+                float vzMs = (float)(-st2.Attitude.Rotate(st2.Velocity).Z);   // up positive
                 GUI.color = Color.white;
                 GUI.DrawTexture(new Rect(vc.x - gr, vc.y - gr, 2f * gr, 2f * gr), _varioFace);
-                for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : v == 10 ? "10" : (v > 0 ? "+" : "") + v, _num, fs * 2f, fs);   // ±10 share 3 o'clock: one "10"
-                Label(vc + new Vector2(0, gr + fs * 0.95f), $"{vzKt:+0.0;-0.0}", _big, fs * 5f, fs * 1.8f);
-                Label(vc + new Vector2(0, -gr * 0.28f), "KT", _dialCap, fs * 5f, fs);
-                DrawNeedle(vc, VarioDeg(vzKt), gr * 0.82f, gr * 0.12f, nAlpha);
+                if (glider)
+                {
+                    float vzKt = vzMs * 1.9438f;
+                    for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : v == 10 ? "10" : (v > 0 ? "+" : "") + v, _num, fs * 2f, fs);   // ±10 share 3 o'clock: one "10"
+                    Label(vc + new Vector2(0, gr + fs * 0.95f), $"{vzKt:+0.0;-0.0}", _big, fs * 5f, fs * 1.8f);
+                    Label(vc + new Vector2(0, -gr * 0.28f), "KT", _dialCap, fs * 5f, fs);
+                    DrawNeedle(vc, VarioDeg(vzKt), gr * 0.82f, gr * 0.12f, nAlpha);
+                }
+                else
+                {
+                    float fpm = vzMs * 196.85f;   // the same face: ±10 ↔ ±2,000 fpm, figures in thousands
+                    for (int v = -5; v <= 10; v += 5) Label(OnDial(vc, VarioDeg(v), gr * 0.62f), v == 0 ? "0" : v == 10 ? "2" : "1", _num, fs * 2f, fs);
+                    Label(vc + new Vector2(0, gr + fs * 0.95f), $"{fpm:+0;-0}", _big, fs * 5f, fs * 1.8f);
+                    Label(vc + new Vector2(0, -gr * 0.28f), "FPM ×1000", _dialCap, fs * 5f, fs);
+                    DrawNeedle(vc, VarioDeg(Mathf.Clamp(fpm / 200f, -10f, 10f)), gr * 0.82f, gr * 0.12f, nAlpha);
+                }
             }
             GUI.color = Color.white;
+        }
+
+        private GUIStyle _mono;
+        /// <summary>The flight-test data block (owner 2026-10-07: "alpha, beta and dynamic pressure q … look into other
+        /// parameters commonly used in flight test"): the usual flight-test parameter set — air data (IAS/CAS, TAS, EAS,
+        /// Mach, q, α, β), atmosphere (pressure and density altitude, OAT, static pressure, σ), attitude and rates, path
+        /// angle and climb, load factors on all three axes, controls and power — in a compact block between the dials.</summary>
+        private void DrawTestData(FlyingGame.Sim.Aircraft ac, Vector2 asi, Vector2 alt, float r, int fs, bool cockpit)
+        {
+            var st = ac.State;
+            var vAir = st.Velocity - st.Attitude.Conjugate().Rotate(FlyingGame.Core.Atmosphere.WindAtPosition(st.Position));
+            double tas = vAir.Length, alphaD = tas > 1 ? System.Math.Atan2(vAir.Z, vAir.X) * 57.2958 : 0, betaD = tas > 1 ? System.Math.Asin(System.Math.Clamp(vAir.Y / tas, -1, 1)) * 57.2958 : 0;
+            double h = -st.Position.Z, rho = FlyingGame.Core.Atmosphere.DensityAtPosition(st.Position), sigma = rho / 1.225;
+            double tK = FlyingGame.Core.Atmosphere.TemperatureAtPosition(st.Position), pPa = FlyingGame.Core.Atmosphere.PressureAtAltitude(h);
+            double q = 0.5 * rho * tas * tas, eas = tas * System.Math.Sqrt(sigma), mach = tas / System.Math.Sqrt(1.4 * 287.05 * tK);
+            // Pressure altitude from the static pressure (ISA); density altitude from σ (ISA troposphere).
+            double pAltFt = (1 - System.Math.Pow(pPa / 101325.0, 0.190263)) * 145366.45;
+            double dAltFt = (1 - System.Math.Pow(sigma, 0.234969)) * 145442.16;
+            var q0 = st.Attitude;
+            double roll = System.Math.Atan2(2 * (q0.W * q0.X + q0.Y * q0.Z), 1 - 2 * (q0.X * q0.X + q0.Y * q0.Y)) * 57.2958;
+            double pitch = System.Math.Asin(System.Math.Clamp(2 * (q0.W * q0.Y - q0.Z * q0.X), -1, 1)) * 57.2958;
+            double hdg = System.Math.Atan2(2 * (q0.W * q0.Z + q0.X * q0.Y), 1 - 2 * (q0.Y * q0.Y + q0.Z * q0.Z)) * 57.2958; if (hdg < 0) hdg += 360;
+            var vW = q0.Rotate(st.Velocity); double gsMs = System.Math.Sqrt(vW.X * vW.X + vW.Y * vW.Y);
+            double gamma = System.Math.Atan2(-vW.Z, System.Math.Max(0.1, gsMs)) * 57.2958;
+            var d = ac.CurrentDeflections;
+            double agl = h - FlyingGame.Core.WorldTerrain.GroundHeightAt(st.Position.X, st.Position.Y);
+            string L(string k, string v) => $"{k,-5}{v,9}";
+            (string k, string v)[] cells =
+            {
+                ("KIAS", $"{Driver.IasMs * 1.943844:F1}"), ("KTAS", $"{tas * 1.943844:F1}"), ("KEAS", $"{eas * 1.943844:F1}"), ("MACH", $"{mach:F3}"),
+                ("ALPHA", $"{alphaD:F1}°"), ("BETA", $"{betaD:+0.0;-0.0}°"), ("q", $"{q:F0} Pa"), ("q", $"{q * 0.020885:F1} psf"),
+                ("Hp", $"{pAltFt:F0} ft"), ("Hd", $"{dAltFt:F0} ft"), ("OAT", $"{tK - 273.15:F1}°C"), ("Ps", $"{pPa / 100:F1}hPa"),
+                ("SIGMA", $"{sigma:F3}"), ("AGL", $"{agl * 3.28084:F0} ft"), ("GS", $"{gsMs * 1.943844:F0} kt"), ("NZ", $"{ac.LoadFactorZ:F2} g"),
+                ("GAMMA", $"{gamma:+0.0;-0.0}°"), ("ROC", $"{-vW.Z * 196.85:+0;-0}fpm"), ("PITCH", $"{pitch:+0.0;-0.0}°"), ("ROLL", $"{roll:+0.0;-0.0}°"),
+                ("HDG", $"{hdg:000}°"), ("P", $"{st.Rates.X * 57.3:+0;-0}°/s"), ("Q", $"{st.Rates.Y * 57.3:+0;-0}°/s"), ("R", $"{st.Rates.Z * 57.3:+0;-0}°/s"),
+                ("ELEV", $"{d.ElevatorRad * 57.3:+0.0;-0.0}°"), ("AIL", $"{d.AileronRad * 57.3:+0.0;-0.0}°"), ("RUD", $"{d.RudderRad * 57.3:+0.0;-0.0}°"), ("FLAP", $"{ac.FlapFraction * 100:F0}%"),
+            };
+            var rowsL = new System.Collections.Generic.List<string>();
+            for (int i = 0; i < cells.Length; i += 4) rowsL.Add(string.Join("  ", System.Linq.Enumerable.Select(System.Linq.Enumerable.Take(System.Linq.Enumerable.Skip(cells, i), 4), c => L(c.k, c.v))));
+            string[] rows = rowsL.ToArray();
+            _mono ??= new GUIStyle { font = Font.CreateDynamicFontFromOSFont(new[] { "Menlo", "Courier New", "Courier" }, 12), fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.55f, 1f, 0.6f) } };
+            _mono.fontSize = Mathf.Max(8, Mathf.RoundToInt(fs * 0.48f));
+            float lh = _mono.fontSize * 1.2f, w = _mono.CalcSize(new GUIContent(rows[0])).x + fs * 0.6f, hh = lh * rows.Length + fs * 0.4f;
+            // Between the dial columns, at the top of the band (cockpit: above the panel, top-left of the view).
+            float x = cockpit ? UiLayout.BandLeft + fs : Mathf.Clamp((asi.x + alt.x) / 2 - w / 2, asi.x + r + fs * 0.4f, alt.x - r - w - fs * 0.4f);
+            float y = cockpit ? UiLayout.ToolbarBottom + fs * 4f : asi.y - r;
+            GUI.color = new Color(0f, 0f, 0f, 0.45f); GUI.DrawTexture(new Rect(x, y, w, hh), Texture2D.whiteTexture); GUI.color = Color.white;
+            for (int i = 0; i < rows.Length; i++) GUI.Label(new Rect(x + fs * 0.3f, y + fs * 0.2f + i * lh, w, lh), rows[i], _mono);
         }
     }
 }

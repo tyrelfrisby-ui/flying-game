@@ -267,3 +267,90 @@ public class WaterLaneLessonTests
         finally { FloatHydro.FlatWaterOverride = null; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; }
     }
 }
+
+public class EventSiteProbeTests
+{
+    private readonly ITestOutputHelper _out;
+    public EventSiteProbeTests(ITestOutputHelper o) { _out = o; }
+
+    /// <summary>Highest thing (terrain or solid) above <paramref name="elev"/> at (x, y), metres.</summary>
+    public static double ObstacleAbove(WorldTerrain t, double x, double y, double elev)
+    {
+        double g = t.HeightAt(x, y), top = g;
+        for (double up = g; up < g + 420; up += 4) if (WorldSolids.Penetration(x, y, up).HasValue) top = up;
+        return top - elev;
+    }
+
+    /// <summary>SITE_PROBE=1: obstacles along candidate event corridors (3 km of final ± 60 m), as the max height above the
+    /// field and where it is.</summary>
+    [Fact]
+    public void Probe()
+    {
+        if (Environment.GetEnvironmentVariable("SITE_PROBE") == null) return;
+        var t = new WorldTerrain(); WorldTerrain.Active = t;
+        try
+        {
+            WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); Landmarks.RegisterSolids(t);
+            var a = WorldTerrain.Airports[0];
+            void Corridor(string name, double tx, double ty, double hdgDeg, double len = 3000)
+            {
+                double h = hdgDeg * Math.PI / 180, ax = Math.Cos(h), ay = Math.Sin(h);
+                double worst = -1e9, wd = 0, wl = 0;
+                for (double d = 0; d <= len; d += 20)
+                    for (double l = -60; l <= 60; l += 30)
+                    {
+                        double x = tx - ax * d - ay * l, y = ty - ay * d + ax * l;
+                        double o = ObstacleAbove(t, x, y, a.ElevationM);
+                        // A 3:1 … the slope a final can clear: obstacle height vs distance from the threshold (a 6° path).
+                        double margin = o - d * Math.Tan(6 * Math.PI / 180);
+                        if (margin > worst) { worst = margin; wd = d; wl = l; }
+                    }
+                _out.WriteLine($"{name,-40} worst {worst,7:F0} m over a 6° path at {wd:F0} m out ({wl:F0} m off)  {(worst > 0 ? "BLOCKED" : "clear")}");
+            }
+            var grass = Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "grass");
+            var gravel = Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "gravel");
+            double gx = a.X + grass.Dx, gy = a.Y + grass.Dy, vx = a.X + gravel.Dx, vy = a.Y + gravel.Dy;
+            Corridor("grass strip, final northbound", gx - grass.Length / 2, gy, 0);
+            Corridor("grass strip, final southbound", gx + grass.Length / 2, gy, 180);
+            Corridor("gravel strip, final northbound", vx - gravel.Length / 2, vy, 0);
+            Corridor("gravel strip, final southbound", vx + gravel.Length / 2, vy, 180);
+            var f = CropField.Valley;
+            Corridor("crop field from the south (current)", f.X0, (f.Y0 + f.Y1) / 2, 0, 1500);
+            Corridor("crop field from the north", f.X1, (f.Y0 + f.Y1) / 2, 180, 1500);
+            Corridor("crop field from the east", (f.X0 + f.X1) / 2, f.Y1, 270, 1500);
+            // Event starts: the first 1.2 km of flight from each spawn, at its spawn height above the ground.
+            void Start(string name, double x, double y, double hdg, double agl)
+            {
+                double worst = -1e9, wd = 0;
+                for (double d = 0; d <= 1200; d += 20)
+                    for (double l = -40; l <= 40; l += 20)
+                    {
+                        double px = x + Math.Cos(hdg) * d - Math.Sin(hdg) * l, py = y + Math.Sin(hdg) * d + Math.Cos(hdg) * l;
+                        double g0 = t.HeightAt(x, y), o = ObstacleAbove(t, px, py, g0) - agl;
+                        if (o > worst) { worst = o; wd = d; }
+                    }
+                _out.WriteLine($"{name,-40} {(worst > -15 ? "OBSTRUCTED" : "clear")} (closest {-worst:F0} m below the start height, {wd:F0} m ahead)");
+            }
+            var g1 = RaceCourse.ElementsFor(0)[0];
+            Start("race start", g1.X - g1.Forward.X * 800, g1.Y - g1.Forward.Y * 800, g1.HeadingDeg * Math.PI / 180, 60);
+            Start("combat zone start", FlyingGame.Core.Combat.CombatZone.X0 + 300, FlyingGame.Core.Combat.CombatZone.CentreY, 0, 800);
+            Start("aerobatic box run-in", AeroBox.CenterX - AeroBox.SizeM / 2 - 300, AeroBox.CenterYAt(0), 0, 700);
+            var cf = CropField.Valley;
+            Start("crop dust start (north, 30 m)", cf.X1 + 500, cf.Y0 + 17.5 * CropDust.SwathM, Math.PI, 30);
+            var mainS = Array.Find(WorldTerrain.AirportStrips, st => st.Kind == "paved");
+            double thrX = a.X + mainS.Dx - mainS.Length / 2;
+            Start("a1c10/11 landing challenge (400 m out, 120 m)", thrX - 400, a.Y, 0, 120);
+            Start("a1c1-4 airwork challenges (600 m up)", thrX, a.Y, 0, 600);
+            var city = ValleyCity.At(0).Extent(60);
+            _out.WriteLine($"Valley city x {city.x0:F0}..{city.x1:F0} y {city.y0:F0}..{city.y1:F0}; crop field x {f.X0:F0}..{f.X1:F0} y {f.Y0:F0}..{f.Y1:F0}; grass ({gx:F0},{gy:F0}) gravel ({vx:F0},{vy:F0}); aero box x {AeroBox.CenterX - 500}..{AeroBox.CenterX + 500} y {AeroBox.CenterY - 500}..{AeroBox.CenterY + 500}");
+            // A coarse map of open ground around the field: '.' flat & clear, '#' anything ≥ 15 m up.
+            for (double x = 2400; x >= -3600; x -= 200)
+            {
+                var sb = new System.Text.StringBuilder($"{x,6:F0} ");
+                for (double y = -3000; y <= 3600; y += 150) sb.Append(ObstacleAbove(t, x, y, a.ElevationM) is double o && o > 15 ? '#' : o < -8 ? '~' : '.');
+                _out.WriteLine(sb.ToString());
+            }
+        }
+        finally { WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); WorldSolids.Shapes.Clear(); }
+    }
+}

@@ -243,6 +243,111 @@ public sealed class StolRun
 }
 
 
+/// <summary>
+/// STOL contest (owner 2026-10-07): three landings and three takeoffs on the GRASS strip, alternating, each measured from a
+/// white line painted across it (flags either side, judges standing at it, thinner white lines every 10 ft down the
+/// distance after it). Landing: on final at 1.1 Vs with full flaps, touch down at or past the line and stop — the distance
+/// line → stop point (main wheels). Takeoff: start at rest with the mains on the line — the distance line → lift-off point
+/// (the last touch before a full second airborne). Score = average takeoff + average landing (ft); shortest wins. Touching
+/// down short of the line or leaving the strip is a foul: that attempt is flown again. Both run southbound (the northern
+/// final is clear; the 300 m tower stands off the south end).
+/// </summary>
+public sealed class StolContest
+{
+    public const double LineFromThresholdM = 150.0, MarkSpacingM = 3.048, MarkedLengthM = 3.048 * 60;   // marks every 10 ft for 600 ft
+    public const int Rounds = 3;
+    public const double HeadingRad = System.Math.PI;   // southbound
+    public enum Kinds { Landing, Takeoff }
+    public enum Phases { Approach, Rolling, Stopped, TakeoffRoll, Airborne, Foul, Finished }
+
+    public readonly double LineX, StripY, StripHalfW, FarEndX, NorthThresholdX;
+    public int Attempt { get; private set; }               // 0..5: L, T, L, T, L, T
+    public Kinds Kind => Attempt % 2 == 0 ? Kinds.Landing : Kinds.Takeoff;
+    public Phases Phase { get; private set; }
+    public double TouchdownPastLineM { get; private set; }
+    /// <summary>Where the judge's flagger stands for the last finished attempt (metres past the line), null before.</summary>
+    public double? FlagPastLineM { get; private set; }
+    public string Message { get; private set; } = "";
+    public readonly System.Collections.Generic.List<double> Landings = new(), Takeoffs = new();
+    private double _stillSec, _airSec, _lastContact;
+
+    public StolContest(double northThresholdX, double stripY, double stripHalfWidth, double farEndX)
+    {
+        NorthThresholdX = northThresholdX; LineX = northThresholdX - LineFromThresholdM;
+        StripY = stripY; StripHalfW = stripHalfWidth; FarEndX = farEndX;
+        BeginAttempt();
+    }
+
+    public static StolContest ForAirport(WorldTerrain.Airport a)
+    {
+        WorldTerrain.Strip g = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "grass");
+        double cx = a.X + g.Dx;
+        return new StolContest(cx + g.Length / 2, a.Y + g.Dy, g.Width / 2 + 2, cx - g.Length / 2);
+    }
+
+    /// <summary>Metres past the line (southbound) of a point.</summary>
+    public double PastLine(double x) => LineX - x;
+    /// <summary>World x of a point <paramref name="pastLineM"/> past the line.</summary>
+    public double XAt(double pastLineM) => LineX - pastLineM;
+
+    public void BeginAttempt()
+    {
+        Phase = Kind == Kinds.Landing ? Phases.Approach : Phases.TakeoffRoll;
+        _stillSec = 0; _airSec = 0; _lastContact = 0; TouchdownPastLineM = 0;
+        Message = Kind == Kinds.Landing ? $"Landing {Attempt / 2 + 1} of {Rounds}: touch down at or past the line, stop short"
+                                        : $"Takeoff {Attempt / 2 + 1} of {Rounds}: from the line — lift off as short as you can";
+    }
+
+    /// <param name="mains">the main wheels' mean position (NED)</param>
+    public void Update(Vec3 mains, bool mainsOnGround, double groundSpeedMs, double dt)
+    {
+        if (Phase is Phases.Stopped or Phases.Airborne or Phases.Foul or Phases.Finished) return;
+        double past = PastLine(mains.X);
+        bool offStrip = System.Math.Abs(mains.Y - StripY) > StripHalfW;
+        switch (Phase)
+        {
+            case Phases.Approach:
+                if (!mainsOnGround) break;
+                TouchdownPastLineM = past;
+                if (offStrip) { Foul("touched down off the strip"); break; }
+                if (past < 0) { Foul($"touched down {-past * 3.28084:F0} ft SHORT of the line"); break; }
+                Phase = Phases.Rolling; Message = $"Touchdown +{past * 3.28084:F0} ft — stop!";
+                break;
+            case Phases.Rolling:
+                if (offStrip || mains.X < FarEndX) { Foul("ran off the strip"); break; }
+                _stillSec = groundSpeedMs < 0.3 && mainsOnGround ? _stillSec + dt : 0;
+                if (_stillSec > 1.0) { Phase = Phases.Stopped; FlagPastLineM = past; Landings.Add(past); Message = $"Landing {Landings.Count}: {past * 3.28084:F0} ft"; }
+                break;
+            case Phases.TakeoffRoll:
+                if (offStrip || mains.X < FarEndX) { Foul("ran off the strip"); break; }
+                if (mainsOnGround) { _airSec = 0; _lastContact = past; }
+                else if ((_airSec += dt) >= 1.0 && _lastContact > 0)
+                {
+                    Phase = Phases.Airborne; FlagPastLineM = _lastContact; Takeoffs.Add(_lastContact);
+                    Message = $"Takeoff {Takeoffs.Count}: {_lastContact * 3.28084:F0} ft";
+                }
+                break;
+        }
+    }
+
+    private void Foul(string why) { Phase = Phases.Foul; Message = $"FOUL — {why}. Fly it again."; }
+
+    public bool AttemptDone => Phase is Phases.Stopped or Phases.Airborne or Phases.Foul;
+
+    /// <summary>On to the next attempt (a foul repeats this one). Returns false when the contest is over.</summary>
+    public bool Next()
+    {
+        if (Phase != Phases.Foul) Attempt++;
+        if (Attempt >= 2 * Rounds) { Phase = Phases.Finished; Message = $"FINAL {TotalFt:F0} ft  (takeoff {AvgTakeoffM * 3.28084:F0} + landing {AvgLandingM * 3.28084:F0})"; return false; }
+        BeginAttempt();
+        return true;
+    }
+
+    public double AvgLandingM => Landings.Count > 0 ? System.Linq.Enumerable.Average(Landings) : 0;
+    public double AvgTakeoffM => Takeoffs.Count > 0 ? System.Linq.Enumerable.Average(Takeoffs) : 0;
+    public double TotalFt => (AvgLandingM + AvgTakeoffM) * 3.28084;
+}
+
 /// <summary>The farmer's field east of each runway (past the aerobatic box): a ploughed rectangle along the runway
 /// heading with a power line crossing it 100 yards from the south end. The wires sag to 100 ft AGL at mid-span —
 /// a crop duster crosses the field UNDER them. One instance per plateau (<see cref="For"/>); the Valley's is
@@ -268,10 +373,10 @@ public sealed class CropField
     public double Y0 => Home.Y + 1250;                                   // 300 m wide (2026-10-05: in by 350 m)
     public double Y1 => Home.Y + 1550;
     public double ElevationM => Home.ElevationM;
-    public const double CellM = 10.0;
-    public const int CellsX = 60, CellsY = 30;                           // 600 × 300 m of 10 m cells
+    public const double CellM = 5.0;
+    public const int CellsX = 120, CellsY = 60;                          // 600 × 300 m of 5 m cells (3 across a swath)
 
-    public double WireX => X0 + 91.44;                                   // 100 yards from the south end
+    public double WireX => X1 - 91.44;                                   // 100 yards in from the NORTH end (2026-10-07: the runs come in from the north — the city fills the south)
     public const double PoleOffsetM = 40.0;                              // poles stand this far outside the field edges
     public double PoleY0 => Y0 - PoleOffsetM;
     public double PoleY1 => Y1 + PoleOffsetM;
@@ -290,66 +395,123 @@ public sealed class CropField
     }
 }
 
-/// <summary>Crop-dusting run: spray covers the field cells under the aircraft while it is low over the field;
-/// every crossing of the power line UNDER the wires is a pass; touching a wire ends the run.</summary>
+/// <summary>
+/// Crop dusting (owner 2026-10-07): the field is already part-sprayed in a RACETRACK pattern (the ag-nav pattern that
+/// trades adjacent swaths for wide 180° turns: swath 1, then 11, then 2, 12 …), so five passes are left — 18, 9, 19, 10, 20.
+/// The spray comes on by itself over the field; a stretch of a swath is CREDITED (painted neon orange) only when it is
+/// flown on its line (≤ 6 m off), 5–20 ft above the crop and 80–110 kt (a Pawnee works ~96 kt with a 50 ft swath, release
+/// about 10 ft up — a little generous). Outside the speed / height window time is added at a rate that grows with the
+/// deviation; off the line nothing is painted and the pilot comes back for it. Score = time to finish + penalties.
+/// Touching the wires (100 yards in from the north end) ends the run.
+/// </summary>
 public sealed class CropDust
 {
-    public const double SprayMaxAglM = 6.0, SwathHalfWidthM = 8.0, MinSpraySpeedMs = 12.0;
-    public const double WireHitHalfBandM = 1.8;   // vertical tolerance for a strike (airframe height)
+    public const int Swaths = 20, PreSprayed = 15;
+    public const double SwathM = 15.0;                                   // 300 m / 20 ≈ 49 ft (a Pawnee's 50 ft swath)
+    public const double LineTolM = 6.0, HeightMinM = 1.524, HeightMaxM = 6.096, SpeedMinMs = 80 / 1.943844, SpeedMaxMs = 110 / 1.943844;
+    public const double SprayAglM = 25.0;                                // the boom opens below this over the field
+    public const double WireHitHalfBandM = 1.8;
+    /// <summary>The racetrack order (0-based swaths): 0, 10, 1, 11, … 9, 19.</summary>
+    public static readonly int[] Order = BuildOrder();
+    private static int[] BuildOrder() { var o = new int[Swaths]; for (int k = 0; k < Swaths / 2; k++) { o[2 * k] = k; o[2 * k + 1] = k + Swaths / 2; } return o; }
 
-    private readonly bool[,] _covered = new bool[CropField.CellsX, CropField.CellsY];
-    private int _coveredCount;
+    private readonly bool[,] _credited = new bool[CropField.CellsX, CropField.CellsY];
     private Vec3 _prev; private bool _havePrev;
     public CropField Field { get; }
-    public CropDust(CropField? field = null) { Field = field ?? CropField.Valley; }
+    public CropDust(CropField? field = null)
+    {
+        Field = field ?? CropField.Valley;
+        for (int k = 0; k < PreSprayed; k++) CreditSwath(Order[k]);
+    }
 
     public bool Spraying { get; private set; }
+    public bool InWindow { get; private set; }
+    public bool WireStrike { get; private set; }
+    public bool Finished { get; private set; }
     public int PassesUnder { get; private set; }
     public int CrossingsOver { get; private set; }
-    public bool WireStrike { get; private set; }
-    public double Coverage => (double)_coveredCount / (CropField.CellsX * CropField.CellsY);
-    public string LastEvent { get; private set; } = "Spray the field — fly UNDER the wires";
-    public bool Covered(int i, int j) => _covered[i, j];
-    /// <summary>Cells newly covered since the last call (for the visual), as (i, j) pairs.</summary>
+    public double ElapsedSec { get; private set; }
+    public double PenaltySec { get; private set; }
+    public double ScoreSec => ElapsedSec + PenaltySec;
+    /// <summary>Signed distance from the target swath's line (m, + = east of it) and the target swath (0-based, −1 done).</summary>
+    public double CrossTrackM { get; private set; }
+    public int TargetSwath { get; private set; } = -1;
+    public string LastEvent { get; private set; } = "Fly the swath the arrow shows — 5–20 ft, 80–110 kt";
+    public bool Credited(int i, int j) => _credited[i, j];
     public System.Collections.Generic.List<(int, int)> NewlyCovered { get; } = new();
+    public double Coverage { get { int n = 0; foreach (bool b in _credited) if (b) n++; return (double)n / (CropField.CellsX * CropField.CellsY); } }
 
-    public void Update(Vec3 pos, double aglM, double groundSpeedMs)
+    public double SwathCentreY(int k) => Field.Y0 + (k + 0.5) * SwathM;
+    private int CellsPerSwath => (int)System.Math.Round(SwathM / CropField.CellM);
+    public double SwathDone(int k)
+    {
+        int j0 = k * CellsPerSwath, n = 0, of = 0;
+        for (int i = 0; i < CropField.CellsX; i++) for (int j = j0; j < j0 + CellsPerSwath; j++) { of++; if (_credited[i, j]) n++; }
+        return (double)n / of;
+    }
+    public bool SwathComplete(int k) => SwathDone(k) >= 0.97;
+    private void CreditSwath(int k) { for (int i = 0; i < CropField.CellsX; i++) for (int j = k * CellsPerSwath; j < (k + 1) * CellsPerSwath; j++) _credited[i, j] = true; }
+
+    /// <summary>The next swath to fly: the first incomplete one in racetrack order.</summary>
+    public int NextSwath() { foreach (int k in Order) if (!SwathComplete(k)) return k; return -1; }
+    /// <summary>Remaining passes in the planned order, from the next one.</summary>
+    public int PassesLeft { get { int n = 0; foreach (int k in Order) if (!SwathComplete(k)) n++; return n; } }
+    /// <summary>Southbound first (the runs come in from the north), alternating along the racetrack.</summary>
+    public bool Southbound(int k) => System.Array.IndexOf(Order, k) % 2 == PreSprayed % 2;
+    /// <summary>Where the next pass starts (the field edge it enters at) and its heading — the arrow.</summary>
+    public (double x, double y, double headingRad) NextPassStart()
+    {
+        int k = NextSwath(); if (k < 0) return (Field.X1, Field.Y0, System.Math.PI);
+        bool south = Southbound(k);
+        return (south ? Field.X1 : Field.X0, SwathCentreY(k), south ? System.Math.PI : 0.0);
+    }
+
+    public void Update(Vec3 pos, double aglM, double groundSpeedMs, double dt)
     {
         NewlyCovered.Clear();
-        if (WireStrike) { Spraying = false; return; }
+        if (WireStrike || Finished) { Spraying = false; return; }
+        ElapsedSec += dt;
 
         // Power-line crossing between the previous and this position.
         if (_havePrev && (_prev.X - Field.WireX) * (pos.X - Field.WireX) < 0)
         {
             double f = (Field.WireX - _prev.X) / (pos.X - _prev.X);
-            double yc = _prev.Y + (pos.Y - _prev.Y) * f;
-            double zc = _prev.Z + (pos.Z - _prev.Z) * f;
+            double yc = _prev.Y + (pos.Y - _prev.Y) * f, zc = _prev.Z + (pos.Z - _prev.Z) * f;
             double agl = -zc - Field.ElevationM;
             if (yc > Field.PoleY0 && yc < Field.PoleY1)
             {
                 double wire = Field.WireAglAt(yc);
-                if (System.Math.Abs(agl - wire) < WireHitHalfBandM)
-                {
-                    WireStrike = true; Spraying = false; LastEvent = "HIT THE WIRES";
-                    _prev = pos; return;
-                }
-                if (agl < wire) { PassesUnder++; LastEvent = $"under the wires — pass {PassesUnder}"; }
-                else { CrossingsOver++; LastEvent = "over the wires — no credit, get UNDER them"; }
+                if (System.Math.Abs(agl - wire) < WireHitHalfBandM) { WireStrike = true; LastEvent = "WIRE STRIKE"; _prev = pos; return; }
+                if (agl < wire) PassesUnder++; else CrossingsOver++;
             }
         }
         _prev = pos; _havePrev = true;
 
-        Spraying = Field.Inside(pos.X, pos.Y) && aglM > 0.2 && aglM < SprayMaxAglM && groundSpeedMs > MinSpraySpeedMs;
-        if (!Spraying) return;
-        int i0 = (int)System.Math.Floor((pos.X - SwathHalfWidthM - Field.X0) / CropField.CellM), i1 = (int)System.Math.Floor((pos.X + SwathHalfWidthM - Field.X0) / CropField.CellM);
-        int j0 = (int)System.Math.Floor((pos.Y - SwathHalfWidthM - Field.Y0) / CropField.CellM), j1 = (int)System.Math.Floor((pos.Y + SwathHalfWidthM - Field.Y0) / CropField.CellM);
+        TargetSwath = NextSwath();
+        if (TargetSwath < 0) { Finished = true; Spraying = false; LastEvent = $"FIELD DONE  {ScoreSec:F0} s"; return; }
+        CrossTrackM = pos.Y - SwathCentreY(TargetSwath);
+
+        // The boom opens by itself whenever the aircraft is low over the field.
+        Spraying = Field.Inside(pos.X, pos.Y) && aglM < SprayAglM;
+        if (!Spraying) { InWindow = false; return; }
+        bool heightOk = aglM >= HeightMinM && aglM <= HeightMaxM, speedOk = groundSpeedMs >= SpeedMinMs && groundSpeedMs <= SpeedMaxMs;
+        InWindow = heightOk && speedOk;
+        // Time docked outside the window, faster the further out (linear + quadratic in the normalised deviation).
+        double dh = aglM < HeightMinM ? (HeightMinM - aglM) / 1.5 : aglM > HeightMaxM ? (aglM - HeightMaxM) / 1.5 : 0;
+        double dv = groundSpeedMs < SpeedMinMs ? (SpeedMinMs - groundSpeedMs) / 2.5 : groundSpeedMs > SpeedMaxMs ? (groundSpeedMs - SpeedMaxMs) / 2.5 : 0;
+        double e = dh + dv;
+        PenaltySec += (e + e * e) * dt;
+
+        // Credit: on a swath's line (whichever is nearest), in the window — the whole swath width at this point.
+        int k = (int)System.Math.Floor((pos.Y - Field.Y0) / SwathM);
+        if (k < 0 || k >= Swaths) return;
+        double off = pos.Y - SwathCentreY(k);
+        if (!InWindow) { LastEvent = !heightOk ? (aglM > HeightMaxM ? "too HIGH — no credit" : "too LOW") : (groundSpeedMs > SpeedMaxMs ? "too FAST — no credit" : "too SLOW — no credit"); return; }
+        if (System.Math.Abs(off) > LineTolM) { LastEvent = $"{System.Math.Abs(off):F0} m off the line — no credit"; return; }
+        LastEvent = "spraying — on the line";
+        int i0 = (int)System.Math.Floor((pos.X - CropField.CellM - Field.X0) / CropField.CellM), i1 = (int)System.Math.Floor((pos.X + CropField.CellM - Field.X0) / CropField.CellM);
         for (int i = System.Math.Max(0, i0); i <= System.Math.Min(CropField.CellsX - 1, i1); i++)
-        for (int j = System.Math.Max(0, j0); j <= System.Math.Min(CropField.CellsY - 1, j1); j++)
-        {
-            double cx = Field.X0 + (i + 0.5) * CropField.CellM, cy = Field.Y0 + (j + 0.5) * CropField.CellM;
-            if ((cx - pos.X) * (cx - pos.X) + (cy - pos.Y) * (cy - pos.Y) > SwathHalfWidthM * SwathHalfWidthM) continue;
-            if (_covered[i, j]) continue;
-            _covered[i, j] = true; _coveredCount++; NewlyCovered.Add((i, j));
-        }
+            for (int j = k * CellsPerSwath; j < (k + 1) * CellsPerSwath; j++)
+                if (!_credited[i, j]) { _credited[i, j] = true; NewlyCovered.Add((i, j)); }
     }
 }

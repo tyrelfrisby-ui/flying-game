@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>Raw elevator stick fraction (-1..1) that reproduces the spawn trim through the config's
         /// stick shaping — the pitch-trim slider is preset to this so the aircraft holds level hands-off.</summary>
-        public double TrimStick { get; private set; }
+        public double TrimStick { get; set; }
 
         public SimLoop Sim { get; private set; }
 
@@ -215,10 +215,11 @@ namespace FlyingGame.Bridge
             }
             else if (ch == "event:dust")
             {
-                // Crop dusting: 1 km south of the field at 40 m AGL heading north — the wires are 100 yards in.
+                // Crop dusting (2026-10-07: the south approach now runs through the city): 500 m NORTH of the field (short of the gorge rim) at 30 m AGL,
+                // heading south, lined up on the first pass left (swath 18) — the wires are 100 yards in from this end.
                 CropField f = CropField.For(SessionSettings.AirportIndex);   // this plateau's field
-                spawnX = f.X0 - 1000; spawnY = (f.Y0 + f.Y1) / 2;
-                spawnAlt = f.ElevationM + 40;
+                spawnX = f.X1 + 500; spawnY = f.Y0 + (17 + 0.5) * CropDust.SwathM; spawnHdg = System.Math.PI;   // 500 m: short of the gorge rim
+                spawnAlt = f.ElevationM + 30;
             }
             else if (ch == "event:combat")
             {

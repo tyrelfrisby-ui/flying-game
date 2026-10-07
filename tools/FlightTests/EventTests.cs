@@ -1,3 +1,7 @@
+using System;
+using FlyingGame.Core.DataContracts;
+using FlyingGame.Sim;
+using FlyingGame.Core.Aero;
 using FlyingGame.Core;
 using FlyingGame.Core.MathTypes;
 using Xunit;
@@ -91,5 +95,64 @@ public class EventTests
         Assert.Equal(RaceElement.Kinds.Gate, RaceCourse.Elements[^1].Kind);
         Assert.InRange(RaceElement.GateHalfWidthM * 2, 45.6, 45.8);   // 150 ft between the pylons (owner 2026-10-06: farther apart; was 100 ft)
         Assert.Equal(75.0, RaceElement.GateHeightM);
+    }
+}
+
+[Collection("WorldTerrainActive")]
+public class StolContestTests
+{
+    private readonly Xunit.Abstractions.ITestOutputHelper _out;
+    public StolContestTests(Xunit.Abstractions.ITestOutputHelper o) { _out = o; }
+
+    /// <summary>Owner 2026-10-07: three landings and three takeoffs from the white line, scored as average takeoff + average
+    /// landing; a touchdown short of the line is a foul and is flown again.</summary>
+    [Fact]
+    public void ThreeLandingsAndThreeTakeoffsAveraged()
+    {
+        var k = new StolContest(1000, 0, 12, 200);
+        double L(double past) => k.XAt(past);
+        void Land(double td, double stop)
+        {
+            Assert.Equal(StolContest.Kinds.Landing, k.Kind);
+            k.Update(new Vec3(L(td - 30), 0, -5), false, 25, 0.02);
+            k.Update(new Vec3(L(td), 0, 0), true, 20, 0.02);
+            for (int i = 0; i < 80; i++) k.Update(new Vec3(L(stop), 0, 0), true, 0, 0.02);
+            k.Next();
+        }
+        void TakeOff(double lift)
+        {
+            Assert.Equal(StolContest.Kinds.Takeoff, k.Kind);
+            k.Update(new Vec3(L(0), 0, 0), true, 0, 0.02);
+            k.Update(new Vec3(L(lift), 0, 0), true, 15, 0.02);
+            for (int i = 0; i < 80; i++) k.Update(new Vec3(L(lift + 10), 0, -2), false, 18, 0.02);
+            k.Next();
+        }
+        // a foul: touched 20 m short — the same landing again
+        k.Update(new Vec3(L(-20), 0, 0), true, 20, 0.02); Assert.Equal(StolContest.Phases.Foul, k.Phase); k.Next();
+        Assert.Equal(0, k.Attempt);
+        Land(5, 40); TakeOff(30); Land(2, 50); TakeOff(36); Land(8, 45); TakeOff(33);
+        Assert.Equal(StolContest.Phases.Finished, k.Phase);
+        Assert.Equal(45.0, k.AvgLandingM, 6); Assert.Equal(33.0, k.AvgTakeoffM, 6);
+        Assert.Equal(78 * 3.28084, k.TotalFt, 3);
+    }
+
+    /// <summary>The starts: on final 600 m out on a 4° path at 1.1 Vs, full flaps; at rest with the mains on the line.</summary>
+    [Theory]
+    [InlineData("pa18-cub-like.json")]
+    [InlineData("c172-like.json")]
+    public void StartsOnFinalAndOnTheLine(string file)
+    {
+        var c = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(System.AppContext.BaseDirectory, "TestData", file));
+        WorldTerrain.Active = null;
+        var k = new StolContest(1000, 0, 12, 200);
+        var (st, elev, thr, v) = StolSpawn.Final(c, k, 0);
+        var ac = new Aircraft(c, st, new ControlDeflections(0, elev, 0, 0, 1.0)) { FlapFraction = 1.0 };
+        var sim = new SimLoop(ac);
+        sim.RunFor(3.0, new ControlInputs(0, Aircraft.StickForDeflection(elev, c.Controls.Elevator), 0, 1 - 2 * thr));
+        double sink = ac.State.Attitude.Rotate(ac.State.Velocity).Z;
+        _out.WriteLine($"{file}: 1.1 Vs = {v * 1.944:F0} kt, throttle {thr:F2}; after 3 s sink {sink:F1} m/s (4° path = {v * Math.Sin(4 * Math.PI / 180):F1})");
+        Assert.InRange(sink, 0.0, 2 * v * Math.Sin(4 * Math.PI / 180) + 1.0);
+        var rest = StolSpawn.OnTheLine(c, k, 0);
+        Assert.InRange(k.PastLine(StolSpawn.Mains(c, rest).X), -0.3, 0.3);
     }
 }

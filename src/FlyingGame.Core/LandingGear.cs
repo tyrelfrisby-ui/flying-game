@@ -213,6 +213,13 @@ public static class LandingGear
 
         Vec3 cg = config.Mass.CgVec();
         Vec3 worldDown = new(0, 0, 1); // NED: +z is down
+        // Brake capacity per braked wheel (owner 2026-10-07: "make sure brakes are accurately modeled and traction is
+        // accurately modeled"): the pedal sets a brake TORQUE — a force the wheel asks of the tyre — sized so full pedal at
+        // the static load on dry pavement uses 0.675 of the grip (the owner's 2026-09-13 tune). The tyre gives at most μ·N
+        // of its ACTUAL load: lightly loaded (three-point with the wing still lifting) or on grass, the same pedal locks the
+        // wheel and it skids at μ_k ≈ 0.8 μ — braking falls off and the locked tyre can no longer corner.
+        int braked = 0; foreach (GearConfig gb in config.Gear) if (gb.Brake) braked++;
+        double staticLoadN = config.Mass.MassKg * 9.81 * 0.88 / System.Math.Max(1, braked);
 
         for (int gi = 0; gi < config.Gear.Count; gi++)
         {
@@ -317,14 +324,23 @@ public static class LandingGear
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
-            double brakeN = g.Brake ? wheelBrake * muLimit * 0.675 : 0.0;   // 0.9 × 0.75: owner 2026-09-13, brakes 25 % weaker
+            double brakeDemandN = g.Brake ? wheelBrake * g.TireMu * staticLoadN * 0.675 : 0.0;   // torque-limited, not load-limited
             // Rolling resistance = μ_r · wheel load, μ_r by surface (paved 0.025 … rough ground 0.15).
             double rollN = WorldTerrain.RollingCoefficient(surface) * normalN;
-            double longN = -(rollN + brakeN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);
-            double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
-            longN = System.Math.Clamp(longN, -longBudget, longBudget);
-
-            Vec3 tireForce = tireRight * lateralN + tireFwd * longN;
+            Vec3 tireForce;
+            if (g.Brake && brakeDemandN > muLimit && speed > 0.3)
+            {
+                // LOCKED: the brake holds the wheel and the tyre slides — kinetic friction against the whole sliding
+                // velocity (no separate cornering force: a skidding tyre goes where it is going).
+                tireForce = velGround * (-0.8 * muLimit / speed);
+            }
+            else
+            {
+                double longN = -(rollN + brakeDemandN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);
+                double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
+                longN = System.Math.Clamp(longN, -longBudget, longBudget);
+                tireForce = tireRight * lateralN + tireFwd * longN;
+            }
             Vec3 wheelForce = normalForce + tireForce;
             Aero.ForceDebug.Add(g.PosVec(), s.Attitude.Conjugate().Rotate(wheelForce), Vec3.Zero, "gear");
 

@@ -26,6 +26,9 @@ namespace FlyingGame.Bridge
             if (mode == "side2d") { yield return Side2DTest(); yield break; }
             if (mode == "seazoom") { yield return SeaZoomTest(); yield break; }
             if (mode == "wake") { yield return WakeTest(); yield break; }
+            if (mode == "stol") { yield return StolTest(); yield break; }
+            if (mode == "dust") { yield return DustTest(); yield break; }
+            if (mode == "instr") { yield return InstrTest(); yield break; }
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
@@ -277,6 +280,94 @@ namespace FlyingGame.Bridge
                 Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
             }
             Debug.Log("[SelfTest] DONE menu");
+        }
+
+        /// <summary>AERO_SELFTEST=instr (owner 2026-10-07): the four fixed dials (airspeed, altimeter, g, vertical speed) in
+        /// free flight, then with the flight-test data block, in the 172 and the 2-33; a frame every second for 6 s to catch
+        /// any dial that blinks.</summary>
+        private IEnumerator InstrTest()
+        {
+            SessionSettings.BubblesOn = false;
+            foreach (string ac in new[] { "c172-like", "glider-2-33-like" })
+                foreach (bool data in new[] { false, true })
+                {
+                    SessionSettings.AircraftId = ac; SessionSettings.ChallengeId = null; SessionSettings.FlightTestData = data;
+                    yield return new WaitForSecondsRealtime(2f);
+                    Menu.Fly();
+                    yield return new WaitForSecondsRealtime(3f);
+                    ScreenCapture.CaptureScreenshot($"selftest-instr-{ac}-{(data ? "data" : "dials")}.png");
+                    yield return new WaitForSecondsRealtime(1f);
+                    Menu.Open();
+                    yield return new WaitForSecondsRealtime(1f);
+                }
+            SessionSettings.FlightTestData = false;
+            Debug.Log("[SelfTest] DONE instr");
+        }
+
+        /// <summary>AERO_SELFTEST=dust (owner 2026-10-07): crop dusting in the Pawnee — the start (light bar, radio altimeter,
+        /// the arrow), then the aircraft put on swath 18 at 10 ft and 96 kt for a pass, then the field from overhead.</summary>
+        private IEnumerator DustTest()
+        {
+            SessionSettings.BubblesOn = false;
+            SessionSettings.AircraftId = "pa25-pawnee-like"; SessionSettings.ChallengeId = "event:dust"; SessionSettings.AirportIndex = 0;
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(3f);
+            ScreenCapture.CaptureScreenshot("selftest-dust-start.png");
+            yield return new WaitForSecondsRealtime(1f);
+            var dust = Object.FindFirstObjectByType<CropDustController>();
+            var drv = Object.FindFirstObjectByType<FlightSimDriver>();
+            var f = dust.Field; var run = dust.Run;
+            // Put it on the pass: just north of the field on swath 18's line, 3 m up, 49 m/s, heading south; hold it there.
+            double y = run.SwathCentreY(17), z = -(f.ElevationM + 3.0);
+            var cfg = drv.Sim.Aircraft.Config;
+            var att = new FlyingGame.Core.MathTypes.Quat(0, 0, 1, 0);   // heading 180°
+            drv.AdoptSim(new FlyingGame.Sim.SimLoop(new FlyingGame.Sim.Aircraft(cfg, new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(f.X1 + 40, y, z), att, new FlyingGame.Core.MathTypes.Vec3(49, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero))));
+            float t0 = Time.realtimeSinceStartup;
+            while (Time.realtimeSinceStartup - t0 < 14f)
+            {
+                var s0 = drv.Sim.Aircraft.State;   // pinned to the line: a scripted pass (the HUD and the paint are under test, not the flying)
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(s0.Position.X, y, z), att, new FlyingGame.Core.MathTypes.Vec3(49, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                if (Time.realtimeSinceStartup - t0 > 5f && Time.realtimeSinceStartup - t0 < 5.05f) ScreenCapture.CaptureScreenshot("selftest-dust-pass.png");
+                yield return null;
+            }
+            Debug.Log($"[SelfTest] dust: {dust.Line}  coverage {run.Coverage:P0} swath18 {run.SwathDone(17):P0}");
+            var cc = Camera.main.GetComponent<ChaseCamera>(); if (cc != null) cc.enabled = false;
+            Vector3 c = CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3((f.X0 + f.X1) / 2, (f.Y0 + f.Y1) / 2, -(f.ElevationM + 650)));
+            Camera.main.transform.position = c; Camera.main.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            yield return null; yield return null;
+            ScreenCapture.CaptureScreenshot("selftest-dust-field.png");
+            yield return new WaitForSecondsRealtime(1f);
+            if (cc != null) cc.enabled = true;
+            Debug.Log("[SelfTest] DONE dust");
+        }
+
+        /// <summary>AERO_SELFTEST=stol (owner 2026-10-07): the STOL contest in the Cub — the start on final, then a look at the
+        /// line (flags, judges, the 10 ft marks) from beside the strip, then the takeoff start on the line.</summary>
+        private IEnumerator StolTest()
+        {
+            SessionSettings.BubblesOn = false;
+            SessionSettings.AircraftId = "pa18-cub-like"; SessionSettings.ChallengeId = "event:stol"; SessionSettings.AirportIndex = 0;
+            yield return new WaitForSecondsRealtime(2f);
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(3f);
+            var stol = Object.FindFirstObjectByType<StolController>();
+            var drv = Object.FindFirstObjectByType<FlightSimDriver>();
+            Debug.Log($"[SelfTest] stol: active {stol?.Active} kind {stol?.Contest?.Kind} line x {stol?.Contest?.LineX:F0} ias {drv.Sim.Aircraft.State.Velocity.Length * 1.944:F0} kt flaps {drv.Sim.Aircraft.FlapFraction}");
+            ScreenCapture.CaptureScreenshot("selftest-stol-final.png");
+            yield return new WaitForSecondsRealtime(1f);
+            var cc = Camera.main.GetComponent<ChaseCamera>(); if (cc != null) cc.enabled = false;
+            var k = stol.Contest;
+            Vector3 line = CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(k.XAt(20), k.StripY - 30, -(FlyingGame.Core.WorldTerrain.Airports[0].ElevationM + 6)));
+            Vector3 look = CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(k.XAt(25), k.StripY, -FlyingGame.Core.WorldTerrain.Airports[0].ElevationM));
+            Camera.main.transform.position = line; Camera.main.transform.LookAt(look);
+            yield return null; yield return null;
+            ScreenCapture.CaptureScreenshot("selftest-stol-line.png");
+            yield return new WaitForSecondsRealtime(1f);
+            // Pretend the landing finished: a flagger at +120 ft, then the takeoff start.
+            Debug.Log($"[SelfTest] stol line: {stol.Line}");
+            if (cc != null) cc.enabled = true;
+            Debug.Log("[SelfTest] DONE stol");
         }
 
         /// <summary>AERO_SELFTEST=wake (owner 2026-10-07): the Cub on floats lands on the Valley lake's lane (the game flying);

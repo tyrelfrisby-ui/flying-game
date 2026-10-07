@@ -36,13 +36,19 @@ public sealed class ChallengeRunner
     }
 
     /// <summary>Spawns the aircraft into the challenge's start state. Returns the ready-to-fly Aircraft.</summary>
-    public Aircraft Spawn(AircraftConfig config)
+    /// <summary>Spawn at the challenge's start. The JSON positions were written for a flat world at sea level with the
+    /// runway threshold at the origin; the world now has plateaus (the Valley sits at 1,000 ft) and a moved runway
+    /// (2026-10-07: the landing challenges started 120 m underground). <paramref name="originX"/>/<paramref name="originY"/>
+    /// = the main runway's south threshold, <paramref name="groundElevM"/> = the field: the start is measured from them
+    /// (height above the field). The grading signals don't use position, so nothing else moves.</summary>
+    public Aircraft Spawn(AircraftConfig config, double originX = 0, double originY = 0, double groundElevM = 0)
     {
         SpawnState sp = Def.Spawn;
+        var pos0 = new Vec3(originX + sp.Pos[0], originY + sp.Pos[1], sp.Pos[2] - groundElevM);
         double alpha = 0, elevatorTrim = 0;
         if (sp.AttitudeTrim)
         {
-            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, sp.IasMs, -sp.Pos[2]);
+            TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, sp.IasMs, -pos0.Z);
             alpha = trim.AlphaRad;
             elevatorTrim = trim.ElevatorRad;
             double thetaHalf = trim.ThetaRad / 2.0;
@@ -51,13 +57,13 @@ public sealed class ChallengeRunner
             var yawQ = new Quat(0, 0, System.Math.Sin(sp.HeadingRad / 2), System.Math.Cos(sp.HeadingRad / 2));
             var att = Quat.Multiply(yawQ, pitchQ).Normalized();
             var velBody = new Vec3(sp.IasMs * System.Math.Cos(alpha), 0, sp.IasMs * System.Math.Sin(alpha));
-            var state = new RigidBodyState(new Vec3(sp.Pos[0], sp.Pos[1], sp.Pos[2]), att, velBody, Vec3.Zero);
+            var state = new RigidBodyState(pos0, att, velBody, Vec3.Zero);
             return new Aircraft(config, state, new ControlDeflections(0, elevatorTrim, 0, 0));
         }
 
         var q = new Quat(0, 0, System.Math.Sin(sp.HeadingRad / 2), System.Math.Cos(sp.HeadingRad / 2));
         var v = new Vec3(sp.IasMs, 0, 0);
-        var st = new RigidBodyState(new Vec3(sp.Pos[0], sp.Pos[1], sp.Pos[2]), q, v, Vec3.Zero);
+        var st = new RigidBodyState(pos0, q, v, Vec3.Zero);
         return new Aircraft(config, st, ControlDeflections.Neutral);
     }
 

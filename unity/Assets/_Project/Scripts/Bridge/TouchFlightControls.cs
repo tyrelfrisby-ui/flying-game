@@ -239,6 +239,7 @@ namespace FlyingGame.Bridge
         private void PublishBand()
         {
             float w = Screen.width, h = Screen.height;
+            if (!DeskMode) UiLayout.LeftBottomLimit = 99999f;
             if (DeskMode)
             {
                 // Mac: no pads; only the small control indicator bottom-left and the centre buttons at the bottom.
@@ -876,6 +877,7 @@ namespace FlyingGame.Bridge
             _deskLabel ??= new GUIStyle { font = UiFont.Get(), alignment = TextAnchor.UpperLeft, normal = { textColor = new Color(1f, 1f, 1f, 0.85f) } };
             _deskLabel.fontSize = Mathf.RoundToInt(s * 0.022f);
             GUI.Label(new Rect(r.x, r.y - s * 0.034f, box * 2f, s * 0.03f), leftValue + $"   trim {(_pitchTrim >= 0 ? "+" : "")}{_pitchTrim * 100f:F0}", _deskLabel);
+            UiLayout.LeftBottomLimit = r.y - s * 0.045f;   // the left dial column stays above the indicator's label
         }
         private GUIStyle _deskLabel;
 

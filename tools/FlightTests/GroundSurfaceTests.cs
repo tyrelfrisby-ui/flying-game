@@ -125,23 +125,42 @@ public class GroundSurfaceTests
     [Fact]
     public void CropDustScoresCoverageAndWireCrossings()
     {
-        double elev = CropField.Valley.ElevationM;
-        Assert.InRange(CropField.Valley.WireAglAt((CropField.Valley.Y0 + CropField.Valley.Y1) / 2), 30.4, 30.6);   // 100 ft at mid-span
-        Assert.InRange(CropField.Valley.WireAglAt(CropField.Valley.PoleY0), 41.9, 42.1);
-        Assert.InRange(CropField.Valley.WireX - CropField.Valley.X0, 91, 92);                              // 100 yards in
+        // Owner 2026-10-07: the field is part-sprayed in a racetrack; five passes are left (18, 9, 19, 10, 20); a pass on its
+        // line, 5–20 ft, 80–110 kt paints the swath; outside the window there's no credit and time is docked; the wires are
+        // 100 yards in from the north end.
+        var f = CropField.Valley; double elev = f.ElevationM;
+        Assert.InRange(f.WireAglAt((f.Y0 + f.Y1) / 2), 30.4, 30.6);   // 100 ft at mid-span
+        Assert.InRange(f.WireAglAt(f.PoleY0), 41.9, 42.1);
+        Assert.InRange(f.X1 - f.WireX, 91, 92);
         var run = new CropDust();
-        double yc = (CropField.Valley.Y0 + CropField.Valley.Y1) / 2;
-        // Spray run north across the field at 3 m AGL, straight through under the wires.
-        for (double x = CropField.Valley.X0 - 50; x <= CropField.Valley.X1 + 50; x += 5) run.Update(new Vec3(x, yc, -(elev + 3)), 3, 40);
-        Assert.Equal(1, run.PassesUnder); Assert.False(run.WireStrike);
-        Assert.InRange(run.Coverage, 0.04, 0.09);   // one 16 m swath over a 300 m wide field
-        // Come back south at 200 ft: over the wires, no credit.
-        for (double x = CropField.Valley.X1 + 50; x >= CropField.Valley.X0 - 50; x -= 5) run.Update(new Vec3(x, yc + 20, -(elev + 60)), 60, 40);
-        Assert.Equal(1, run.PassesUnder); Assert.Equal(1, run.CrossingsOver);
-        // Third run right at wire height: strike.
-        double wire = CropField.Valley.WireAglAt(yc + 40);
-        for (double x = CropField.Valley.X0 - 50; x <= CropField.Valley.X1; x += 5) run.Update(new Vec3(x, yc + 40, -(elev + wire)), wire, 40);
-        Assert.True(run.WireStrike);
-        Assert.False(run.Spraying);
+        Assert.Equal(5, run.PassesLeft);
+        Assert.Equal(new[] { 17, 8, 18, 9, 19 }, new[] { run.NextSwath(), 8, 18, 9, 19 });
+        Assert.InRange(run.Coverage, 0.749, 0.751);
+        void Pass(int k, double agl, double kt, double off = 0, bool south = true)
+        {
+            double y = run.SwathCentreY(k) + off, v = kt / 1.943844;
+            for (double d = -60; d <= 660; d += 2)
+            {
+                double x = south ? f.X1 + 30 - d : f.X0 - 30 + d;
+                run.Update(new Vec3(x, y, -(elev + agl)), agl, v, 2 / v);
+            }
+        }
+        // Pass 1 (swath 18) flown 30 ft up, too high: under the wires, no credit, docked time.
+        Pass(17, 9.1, 96);
+        Assert.Equal(1, run.PassesUnder); Assert.False(run.SwathComplete(17)); Assert.True(run.PenaltySec > 5);
+        double pen = run.PenaltySec;
+        // Flown properly: credited, no more penalty; the next target is swath 9 (index 8), northbound.
+        Pass(17, 3, 96);
+        Assert.True(run.SwathComplete(17)); Assert.Equal(pen, run.PenaltySec, 6); Assert.Equal(8, run.NextSwath()); Assert.False(run.Southbound(8));
+        // Flown 10 m off its line: nothing painted.
+        Pass(8, 3, 96, off: 10, south: false);
+        Assert.False(run.SwathComplete(8));
+        foreach (int k in new[] { 8, 18, 9, 19 }) Pass(k, 3, 96, south: run.Southbound(k));
+        Assert.True(run.Finished || run.NextSwath() < 0); run.Update(new Vec3(f.X0 - 100, f.Y0, -(elev + 30)), 30, 40, 0.1);
+        Assert.True(run.Finished);
+        // A run at wire height strikes them.
+        var r2 = new CropDust(); double yc = r2.SwathCentreY(17), wire = f.WireAglAt(yc);
+        for (double x = f.X1 + 50; x >= f.WireX - 20; x -= 2) r2.Update(new Vec3(x, yc, -(elev + wire)), wire, 45, 0.04);
+        Assert.True(r2.WireStrike); Assert.False(r2.Spraying);
     }
 }

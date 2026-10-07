@@ -38,6 +38,8 @@ namespace FlyingGame.Bridge
         // ---- centre band (set by the controls layout each time it changes) ----
         public static float BandMin = 0f, BandMax = 99999f;      // GUI x range clear of the pads (landscape)
         public static float BottomLimit = 99999f;               // GUI y above which the dials must stay (buttons / tray below)
+        /// <summary>GUI y the LEFT dial column must stay above (the Mac's control indicator and its THR/trim label).</summary>
+        public static float LeftBottomLimit = 99999f;
         public static float BandLeft => Mathf.Max(Margin, BandMin);
         public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 

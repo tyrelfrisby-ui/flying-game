@@ -67,7 +67,10 @@ namespace FlyingGame.Bridge
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(
                 string.IsNullOrEmpty(def.AircraftId) ? _driver.AircraftId : def.AircraftId);
             Runner = new ChallengeRunner(def);
-            var aircraft = Runner.Spawn(config);
+            // Measured from the chosen airport's main runway south threshold, height above the field (2026-10-07).
+            var ap = SessionSettings.Airport;
+            var mainStrip = System.Array.Find(FlyingGame.Core.WorldTerrain.AirportStrips, st => st.Kind == "paved");
+            var aircraft = Runner.Spawn(config, ap.X + mainStrip.Dx - mainStrip.Length / 2, ap.Y + mainStrip.Dy, ap.ElevationM);
             _driver.AdoptSim(new SimLoop(aircraft));
             _accumulator = 0;
             Active = true;
