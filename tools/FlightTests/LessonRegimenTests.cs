@@ -204,6 +204,66 @@ public class LessonTraceTests
                 _out.WriteLine($"t {t,6:F2} int {sc.ElevIntDbg,5:F2} herr {sc.HErrDbg,5:F2} hdT {sc.HdotTDbg,5:F2} mains {sc.MainsAglM,6:F2} sink {sc.SinkMs,5:F2} pitch {Math.Asin(Math.Clamp(2 * (ac.State.Attitude.W * ac.State.Attitude.Y - ac.State.Attitude.Z * ac.State.Attitude.X), -1, 1)) * 57.3,5:F1} agl {sc.AglM,6:F0} stalled {(sc.Stalled ? 1 : 0)} ele {inputs.Elevator,5:F2} lev {inputs.ThrottleLever,5:F2} phase {sc.Phase} gnd {(sc.OnGround ? 1 : 0)} ias {sc.AirspeedMs * 1.944,4:F0} align {sc.AlignmentDeg,6:F1} off {sc.OffCentreM,5:F1} r {ac.State.Rates.Z * 57.3,6:F1}°/s rudCmd {inputs.Rudder,5:F2} rudSurf {ac.CurrentDeflections.RudderRad * 57.3,6:F1}° brake {ac.BrakeInput:F2}/{ac.BrakeBias:F2}");
         }
         Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.ThermalStrengthScale = 1;
-        _out.WriteLine($"{sc.EndReason} swing {sc.MaxRolloutSwingDeg:F0}° verdict {sc.Verdict}");
+        _out.WriteLine($"{sc.EndReason} swing {sc.MaxRolloutSwingDeg:F0}° verdict {sc.Verdict} lost [{string.Join(",", ac.LostComponents)}] moments: {string.Join("; ", sc.Judge.Moments.Select(m => m.name + " " + m.grade + " " + m.detail))}");
+    }
+}
+
+public class TrimProbeTests
+{
+    private readonly ITestOutputHelper _out;
+    public TrimProbeTests(ITestOutputHelper o) { _out = o; }
+    /// <summary>TRIM_PROBE=aircraft,flaps — the glide trim across speeds (converged? alpha, elevator, L/D).</summary>
+    [Fact]
+    public void Probe()
+    {
+        string? spec = Environment.GetEnvironmentVariable("TRIM_PROBE"); if (spec == null) return;
+        var p = spec.Split(',');
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", p[0] + ".json"));
+        for (double v = 40; v <= 120; v += 10)
+        {
+            var t = TrimSolver.SolveGliderTrim(c, v, 300, flapFraction: double.Parse(p[1]));
+            _out.WriteLine($"v {v * 1.944,4:F0} kt conv {t.Converged} alpha {t.AlphaRad * 57.3,6:F1} elev {t.ElevatorRad * 57.3,6:F1} (max {c.Controls.Elevator.MaxDeflRad * 57.3:F0}) L/D {t.GlideRatio:F1}");
+        }
+    }
+}
+
+[Collection("WorldTerrainActive")]
+public class WaterLaneLessonTests
+{
+    private readonly ITestOutputHelper _out;
+    public WaterLaneLessonTests(ITestOutputHelper o) { _out = o; }
+
+    /// <summary>Owner 2026-10-07: the seaplanes' landing lessons fly onto a buoyed water lane. Flat water at 0 (the test
+    /// world has no lakes): the game's own law lands it on the water, no wheel brakes, and the run ends off the step.</summary>
+    [Theory]
+    [InlineData("pa18-floats-like", PracticeKind.Flare)]
+    [InlineData("dhc2-beaver-floats-like", PracticeKind.FlareSideView)]
+    [InlineData("pa18-floats-like", PracticeKind.LandingAileron)]
+    [InlineData("hughes-h4-like", PracticeKind.Flare)]
+    public void SeaplanesLandOnTheWaterLane(string id, PracticeKind kind)
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
+        WorldTerrain.Active = null; FloatHydro.FlatWaterOverride = 0.0;
+        try
+        {
+            var lane = new WorldTerrain.RunwayEnd(new WorldTerrain.Strip("water", 0, 0, 2400, 60, 0), 0, 0, 0);
+            var sc = new PracticeScenario(kind, kind == PracticeKind.LandingAileron ? PracticeWind.Steady : PracticeWind.Calm, c, lane, 0.0, flapFraction: 1.0);
+            Assert.True(sc.WaterLane); Assert.False(sc.UserBrakes);
+            var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
+            ControlInputs user = ControlInputs.Neutral;
+            for (double t = 0; t < 200 && sc.Phase != PracticePhase.Finished; t += 0.02)
+            {
+                var inputs = sc.Step(ac, user, 0.02);
+                ac.BrakeInput = sc.GameBrake; ac.BrakeBias = sc.GameBrakeBias;
+                sim.RunFor(0.02, inputs); sc.ConstrainLongitudinal(ac);
+                user = sc.Autopilot;
+            }
+            _out.WriteLine($"{id} {kind}: {sc.EndReason}, touchdown sink {sc.TouchdownSinkMs:F1} m/s at {sc.AlongM:F0} m, lost [{string.Join(",", ac.LostComponents)}] — {sc.Verdict} {sc.Score:F0}");
+            Assert.True(sc.TouchedDown, "never reached the water");
+            Assert.Equal(PracticePhase.Finished, sc.Phase);
+            Assert.Equal(0.0, sc.GameBrake);
+            Assert.Empty(ac.LostComponents);
+        }
+        finally { FloatHydro.FlatWaterOverride = null; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; }
     }
 }

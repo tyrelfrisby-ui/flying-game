@@ -81,6 +81,23 @@ public sealed class PracticeScenario
     public bool Endless => Kind is PracticeKind.STurns or PracticeKind.StallSideView or PracticeKind.StallRudder or PracticeKind.StallElevator or PracticeKind.Straight;
     public bool Descending => !Airwork && Kind is not (PracticeKind.CrosswindRudder or PracticeKind.CrosswindAileron);
     public bool FlareExercise => UserElevator && !Approach;
+    /// <summary>A jet (no propeller): the flare lessons fly it the way a jet lands (owner 2026-10-07) — on a 3° path at the
+    /// approach speed with the power set for it, the game easing the thrust to idle from 50 ft to 5 ft.</summary>
+    public bool Jet => Config.Propulsion is { PropDiameterM: <= 0.0 };
+    public bool JetFlare => Jet && FlareExercise;
+    public const double JetPathDeg = 3.0, JetStartFt = 200.0, ThrustOffStartFt = 50.0, ThrustOffEndFt = 5.0;
+    /// <summary>Approach speed as a multiple of the stall speed in this configuration: the 737's Vref = 1.23 Vs; the
+    /// F-86 a little more (tuned in the regimen for a stable, flareable final).</summary>
+    public double JetApproachFactor => Config.Id.StartsWith("boeing-737") ? 1.23 : Config.Id.StartsWith("f86") ? F86ApproachFactor : 1.25;
+    private const double F86ApproachFactor = 1.25;
+    private double _thrHeld = -1;
+    private const double LawGain = 1.0, LawDamp = 1.0;
+    private double _jetPitchInt, _trimIdleStick, _thrLast;
+    /// <summary>The jet landing law's tuning, per type (regimen 2026-10-07, swept against the game's own models): the
+    /// 737 flares best on the path law about the idle-glide attitude (its approach attitude leaves no room before a tail
+    /// strike: 4° of flare struck it), the F-86 about its approach attitude with a 4° flare from 40 ft.</summary>
+    private (bool glideTheta, double ki, double flareDeg, double flareFt) JetTune => Config.Id.StartsWith("boeing-737") ? (true, 0.0, 3.0, 30.0) : (false, 0.5, 4.0, 40.0);
+    private const double JetKTheta = 4.0, JetKq = 4.0, JetIntCap = 0.05;
 
     public PracticePhase Phase { get; private set; } = PracticePhase.Briefing;
     public double Time { get; private set; }
@@ -125,7 +142,12 @@ public sealed class PracticeScenario
     public IReadOnlyList<double> BounceHeightsM => _bounceHeightsM;
     /// <summary>The idle-power landing lessons hand the user the WHEEL BRAKES (a glider: the spoiler handle, its last travel
     /// the wheel brake) — owner 2026-10-06 — and judge the braking on the roll-out.</summary>
-    public bool UserBrakes => FlareExercise;
+    public bool UserBrakes => FlareExercise && !WaterLane;
+    /// <summary>A seaplane lesson on a water lane (owner 2026-10-07): heights from the float keels / hull step, "touchdown" =
+    /// the keel in the water, no wheel brakes, and the run ends once it is off the step (taxi speed).</summary>
+    public bool WaterLane => Runway.Strip.Kind == "water";
+    /// <summary>Lessons flown onto a runway (or a water lane) rather than airwork over the field.</summary>
+    public static bool IsRunwayLesson(PracticeKind k) => k is PracticeKind.CrosswindRudder or PracticeKind.CrosswindAileron or PracticeKind.LandingRudder or PracticeKind.LandingAileron or PracticeKind.Flare or PracticeKind.FlareSideView or PracticeKind.ApproachSideView;
     private double _rollV0 = -1, _rollX0, _rollPrevGs = -1, _rollDecelF, _peakDecelG, _maxBrake; private bool _tailLifted, _tailWasDown, _brakingJudged;
     /// <summary>Roll-out: average deceleration from touchdown to stop (g), peak (g), and whether a taildragger's tail came up.</summary>
     public double RolloutAvgDecelG { get; private set; }
@@ -154,6 +176,11 @@ public sealed class PracticeScenario
         _rng = new Random(seed);
         // Flaps (owner 2026-10-03: pick the setting for the landing lessons): every speed and angle below is for THIS configuration.
         Flaps = Descending ? Math.Clamp(flapFraction, 0, 1) : 0.0;
+        // The jets' flare lessons fly the landing flap the model can trim (owner 2026-10-07: 737 / F-86 on a 3° path): the
+        // 737 full flaps; the F-86 clean — with its flaps down the nose-up pitch outruns the elevator (the real one trims
+        // with an all-moving tail, not modelled yet).
+        if ((kind is PracticeKind.Flare or PracticeKind.FlareSideView) && config.Propulsion is { PropDiameterM: <= 0.0 })
+            Flaps = config.Id.StartsWith("f86") ? 0.0 : 1.0;
         // The idle-glide TABLE (owner: start every landing lesson from it) at the Valley; computed live elsewhere.
         Table = Math.Abs(surfaceM - WorldTerrain.DatumM) < 60 ? GlideTable.Lookup(config.Id, Flaps) : null;
         VsoMs = Table != null ? Table.VsoKt / 1.943844 : EstimateVso(config, surfaceM, Flaps);
@@ -165,6 +192,7 @@ public sealed class PracticeScenario
         Taildragger = mains.Count > 0 && tws.Count > 0;
         StanceRad = Taildragger ? Math.Atan((mains[0].Pos[2] - tws[0].Pos[2]) / (mains[0].Pos[0] - tws[0].Pos[0])) : 0.0;
         double drop = 0; foreach (GearConfig g in config.Gear) if (!g.IsTailwheel) drop = Math.Max(drop, g.Pos[2] - config.Mass.CgVec().Z);
+        if (config.Floats is FloatsConfig fk) drop = Math.Max(drop, fk.KeelZ);   // floats / hull: the keel at the step (the H-4 has no gear)
         GearDropM = drop;
         _gustNextT = 2 + 3 * _rng.NextDouble();
         try
@@ -200,6 +228,7 @@ public sealed class PracticeScenario
 
     private double ComputeFlareGlide()
     {
+        if (JetFlare) return JetPathDeg * Math.PI / 180;
         if (Table != null) return Table.GlideDeg * Math.PI / 180;
         TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, 1.3 * VsoMs, SurfaceM + 15, flapFraction: Flaps, spoilerFraction: Config.Propulsion is null ? 0.5 : 0.0, idleProp: true);
         double ratio = t.Converged && t.GlideRatio > 1 ? t.GlideRatio : 8.0;
@@ -365,6 +394,8 @@ public sealed class PracticeScenario
         PracticeKind.CrosswindAileron => "The game flies the rudder, the elevator and the power. You have the aileron. Stay over the centreline. Bank into the wind as much as it takes.",
         PracticeKind.LandingRudder => "The game flies the stick and the power down to a touchdown. You have the rudder all the way. Keep the fuselage parallel to the runway, through the touchdown and the roll-out.",
         PracticeKind.LandingAileron => "The game flies the rudder, the elevator and the power down to a touchdown. You have the aileron. Stay over the centreline; on the ground the rudder takes the direction, keep the aileron into the wind.",
+        PracticeKind.Flare when JetFlare => "Two hundred feet on a three degree path at the approach speed, power set. From fifty feet the game eases the thrust to idle by five feet. The game keeps it straight and on the centreline. You have the elevator. Round out, hold it off, and let it settle.",
+        PracticeKind.FlareSideView when JetFlare => "Side view. Two hundred feet on a three degree path, power set; the thrust comes back to idle between fifty and five feet. You have the elevator and the brakes. Round out, flare, and watch the weight on the wheels.",
         PracticeKind.Flare => "Fifty feet, power off, one point three V S O. The game keeps it straight and on the centreline. You have the elevator. Round out, hold it off, and let it settle.",
         PracticeKind.FlareSideView => "Side view. Fifty feet, power off. You have the elevator and the brakes. Round out, flare, and watch the weight on the wheels: elevator and braking shift it between the wheels.",
         PracticeKind.ApproachSideView => "Side view, on the glideslope at one point three V S O. You have the elevator and the power. Pitch for the glide path, power for the airspeed. The slope is a little shallower than the idle glide, so it takes a touch of power. Fly it down to the runway and land.",
@@ -448,9 +479,9 @@ public sealed class PracticeScenario
         Atmosphere.ActiveTurbulence = null;
         Atmosphere.SteadyWind = WindVector(0, 0);
         if (Airwork) return SpawnAirwork();
-        double wheels = Approach ? 91.44 : FlareExercise ? FlareStartFt * 0.3048 : FiveFtM;   // WHEEL height (owner: "5 ft"; the flare: 100 ft on the idle glide)
+        double wheels = Approach ? 91.44 : JetFlare ? JetStartFt * 0.3048 : FlareExercise ? FlareStartFt * 0.3048 : FiveFtM;   // WHEEL height (owner: "5 ft"; the flare: 100 ft on the idle glide)
         double agl = wheels + GearDropM;
-        double v = (FlareExercise || Approach) ? 1.3 * VsoMs : 1.15 * VsoMs;
+        double v = JetFlare ? JetApproachFactor * VsoMs : (FlareExercise || Approach) ? 1.3 * VsoMs : 1.15 * VsoMs;
         double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(FlareGlideRad) - NumbersPastThresholdM : 0;   // the idle glide path runs onto the NUMBERS — the start distance varies with the glide angle
         (double tx, double ty) = Runway.Threshold;
         var pos = new Vec3(tx - Runway.AlongX * back, ty - Runway.AlongY * back, -(SurfaceM + agl));
@@ -467,9 +498,10 @@ public sealed class PracticeScenario
         _theta0 = trim.Converged ? trim.ThetaRad : 0.0;
         double gamma = Approach ? -GlideslopeRad : FlareExercise ? -FlareGlideRad : 0;
         double alpha = trim.Converged ? trim.AlphaRad : 0.08;
-        bool fromTable = FlareExercise && Table != null;     // start exactly on the table's row: idle, on speed, trimmed
+        bool fromTable = FlareExercise && Table != null && !JetFlare;   // the idle-glide table is not a jet's 3° powered path     // start exactly on the table's row: idle, on speed, trimmed
         if (fromTable) alpha = Table!.AlphaDeg * Math.PI / 180;
         double pitch = alpha + gamma;
+        if (JetFlare && !JetTune.glideTheta) _theta0 = pitch;   // the approach attitude on the 3° powered path (the glide trim's pitch is the idle glide's)
         double hh = heading / 2, hp = pitch / 2;
         var att = Quat.Multiply(new Quat(0, 0, Math.Sin(hh), Math.Cos(hh)), new Quat(0, Math.Sin(hp), 0, Math.Cos(hp)));
         // Ground velocity along the runway: air velocity along the heading plus the wind.
@@ -485,6 +517,28 @@ public sealed class PracticeScenario
         double eff = Config.Propulsion?.Efficiency > 0 ? Config.Propulsion.Efficiency : 0.75;
         double maxP = Config.Propulsion?.MaxPowerW > 0 ? Config.Propulsion.MaxPowerW : 100000;
         _thr0 = FlareExercise || Config.Propulsion is null ? 0.0 : Math.Clamp(thrustNeeded * v / (eff * maxP), 0.0, 0.9);
+        if (JetFlare) _thr0 = Math.Clamp(thrustNeeded / (maxP * Math.Max(1, Config.Engines.Count)), 0.0, 0.9);   // jet: thrust = max × throttle per engine
+        _thrHeld = -1; _thrLast = _thr0;
+        if (JetFlare)
+        {
+            // Powered trim: the glide trim ignores the thrust's pitching moment (the 737's engines hang 1.9 m below the CG
+            // — set for the 3° path it pitched up 11° in two seconds and stalled). Find the elevator that holds the
+            // attitude with this thrust: a few short trial steps, secant on the pitch rate they build.
+            double QAfter(double e)
+            {
+                var t = new Aircraft(Config, state, new ControlDeflections(0, e, 0, 0, Flaps)) { FlapFraction = Flaps };
+                new SimLoop(t).RunFor(0.2, new ControlInputs(0, Aircraft.StickForDeflection(e, Config.Controls.Elevator), 0, 1 - 2 * _thr0));
+                return t.State.Rates.Y;
+            }
+            double e0 = elevRad, e1 = elevRad - 0.02, q0 = QAfter(e0), q1 = QAfter(e1);
+            for (int i = 0; i < 12 && Math.Abs(q1) > 1e-4 && Math.Abs(q1 - q0) > 1e-9; i++)
+            {
+                double e2 = Math.Clamp(e1 - q1 * (e1 - e0) / (q1 - q0), -Config.Controls.Elevator.MaxDeflRad, Config.Controls.Elevator.MaxDeflRad);
+                e0 = e1; q0 = q1; e1 = e2; q1 = QAfter(e1);
+            }
+            _trimIdleStick = _elevTrim;   // the power-off glide trim at this speed
+            if (double.IsFinite(e1)) { elevRad = e1; _elevTrim = Aircraft.StickForDeflection(elevRad, Config.Controls.Elevator); }
+        }
         var ac = new Aircraft(Config, state, new ControlDeflections(0, elevRad, 0, Config.Propulsion is null && (Approach || FlareExercise) ? 0.5 : 0, Flaps));
         ac.FlapFraction = Flaps;   // the setting chosen on the lesson page
         return ac;
@@ -800,7 +854,17 @@ public sealed class PracticeScenario
             Vec3 w = s.Attitude.Rotate(g.PosVec() - Config.Mass.CgVec());
             mainsAgl = Math.Min(mainsAgl, agl - w.Z);
         }
-        bool ground = LandingGear.AnyMainWheelOnGround(Config, s);
+        if (Config.Floats is FloatsConfig fl)
+        {
+            // The step of the float keel (or the hull) — the H-4 has no gear entries at all.
+            double stepX = fl.BowX - fl.StepFraction * fl.LengthM;
+            foreach (double side in fl.SpreadM > 0.1 ? new[] { -fl.SpreadM / 2, fl.SpreadM / 2 } : new[] { 0.0 })
+            {
+                Vec3 w = s.Attitude.Rotate(new Vec3(stepX, side, fl.KeelZ));
+                mainsAgl = Math.Min(mainsAgl, agl - w.Z);
+            }
+        }
+        bool ground = LandingGear.AnyMainWheelOnGround(Config, s) || (WaterLane && mainsAgl <= 0.03);
 
         AlignmentDeg = psiErr * 180 / Math.PI; OffCentreM = cross; AlongM = along; AglM = agl; MainsAglM = mainsAgl;
         AirspeedMs = ias; SinkMs = -hdot; OnGround = ground;
@@ -859,7 +923,7 @@ public sealed class PracticeScenario
             _gndRudInt = Math.Clamp(_gndRudInt - 0.8 * psiErr * dt, -0.6, 0.6);
             rud = Math.Clamp(-kR * (r - rCmd) + _gndRudInt, -1, 1);
         }
-        GameBrake = !UserBrakes && (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // (the brakes lessons: the user's)   // roll-out braking; the host biases it with the rudder (differential braking steers)
+        GameBrake = !UserBrakes && !WaterLane && (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // (the brakes lessons: the user's)   // roll-out braking; the host biases it with the rudder (differential braking steers)
         GameBrakeBias = GameBrake > 0 ? Math.Clamp(rud * 0.8, -1, 1) : 0;
         // Rudder out of authority (full, slowing down, the swing still growing): stand on the inside brake, hard — a tailwheel
         // pilot's last tool before the loop (the Stearman went round in the gusty crosswind with full rudder and 0.35 brake).
@@ -898,7 +962,7 @@ public sealed class PracticeScenario
         double hdotTarget = (hTarget - hPrev) / Math.Max(dt, 1e-3);
         if ((FlareExercise || Approach) && _heightLawOn) hdotTarget = Math.Min(hdotTarget, 0.0);   // a flare never asks for a climb
         double vTarget = 1.15 * VsoMs;
-        if (FlareExercise || Approach) vTarget = hTarget < 0.4 ? 0.85 * VsoMs : 1.3 * VsoMs;   // bleed the speed only once in the hold-off
+        if (FlareExercise || Approach) vTarget = hTarget < 0.4 ? 0.85 * VsoMs : (JetFlare ? JetApproachFactor : 1.3) * VsoMs;   // bleed the speed only once in the hold-off
         else if (Descending)
         {
             double f = Math.Clamp((along - 0.25 * L) / (0.30 * L), 0, 1);
@@ -929,7 +993,7 @@ public sealed class PracticeScenario
             // in pitch with a Cub at 34 m/s.
             double kv = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.35, 1.2);
             // Pitch-rate damping stays at full strength (scaling it away let the Cub porpoise in the hold-off).
-            ele = Math.Clamp(_elevTrim + ElevatorPower * (kv * (0.45 * hErr + 0.55 * (hdot - hdotTarget)) + _elevInt) + 0.6 * q, -0.9, 0.6);
+            ele = Math.Clamp(_elevTrim + ElevatorPower * (LawGain * kv * (0.45 * hErr + 0.55 * (hdot - hdotTarget)) + _elevInt) + LawDamp * 0.6 * q, -0.9, 0.6);
             // Near the ground a pilot never shoves the nose down: after a bounce the DC-3's law pushed full forward to chase
             // the target, pitched −10° and drove it in (regimen 2026-10-06). Through the round-out the stick goes no further
             // forward than just past trim, and below 5 m the nose is held at or above level.
@@ -937,6 +1001,21 @@ public sealed class PracticeScenario
             {
                 ele = Math.Min(ele, _elevTrim + 0.1);
                 if (mainsAgl < 5) ele = Math.Min(ele, Math.Clamp(-(0.0 - pitch) * 2.0 + 0.6 * q, -0.6, 0.6));
+            }
+            if (JetFlare && !ground)
+            {
+                // A jet lands by ATTITUDE (owner 2026-10-07: 737 / F-86 on a 3° path): fly the path with small pitch changes
+                // about the approach attitude, then from ~30 ft raise the nose a few degrees and hold it — the height-chasing
+                // law built for the light types over-flared the 737 to 9.6° at 138 kt and ballooned it 20 ft.
+                double pathH = Math.Max(0, (NumbersPastThresholdM - along) * Math.Tan(FlareGlideRad));
+                double flareFt = JetTune.flareFt, h = mainsAgl / 0.3048;
+                double thetaCmd = _theta0 - 0.03 * Math.Clamp(mainsAgl - pathH, -10, 10) - 0.04 * (hdot + ias * Math.Sin(FlareGlideRad));
+                if (h < flareFt) thetaCmd = Math.Max(thetaCmd, _theta0 + JetTune.flareDeg * Math.PI / 180 * Math.Clamp((flareFt - h) / (flareFt * 0.66), 0, 1));
+                _jetPitchInt = Math.Clamp(_jetPitchInt + JetTune.ki * (thetaCmd - pitch) * dt, -JetIntCap, JetIntCap);   // small and capped (±3°): an uncapped one wound to 17° and ballooned it
+                // Trim follows the thrust (the engines hang below the CG: thrust pitches it up) — interpolated between the
+                // power-off trim and the powered trim found at the spawn, so the power coming off doesn't drop the nose.
+                double trimNow = _thr0 > 0.01 ? _trimIdleStick + (_elevTrim - _trimIdleStick) * Math.Clamp(_thrLast / _thr0, 0, 1.5) : _elevTrim;
+                ele = Math.Clamp(trimNow - JetKTheta * ((thetaCmd - pitch) + _jetPitchInt) + JetKq * q, -0.9, 0.6);
             }
             // Stall guard: slow and still above the hold-off, the answer is power, not more back stick (a gust at 5 ft
             // had the law pull a Cub into a stall and drop a wing).
@@ -972,7 +1051,26 @@ public sealed class PracticeScenario
                 // its spoiler: half out in the flare, full once it is down.
                 _thrInt = Math.Clamp(_thrInt + 0.05 * vErr * dt, -0.4, 0.4);
                 double thr01 = ground || FlareExercise ? 0 : Math.Clamp(_thr0 + 0.20 * vErr + _thrInt, 0, 1);
+                if (JetFlare && !ground && !TouchedDown)
+                {
+                    // Above 50 ft: hold the approach speed on the 3° path (PI on the thrust). From 50 ft to 5 ft: ease from
+                    // that setting to idle, linearly with the height (owner 2026-10-07). Below 5 ft: idle.
+                    double h = mainsAgl, h50 = ThrustOffStartFt * 0.3048, h5 = ThrustOffEndFt * 0.3048;
+                    if (h > h50)
+                    {
+                        double ve = JetApproachFactor * VsoMs - ias;
+                        _thrInt = Math.Clamp(_thrInt + 0.01 * ve * dt, -0.3, 0.3);
+                        thr01 = Math.Clamp(_thr0 + 0.05 * ve + _thrInt, 0, 1);
+                        _thrHeld = thr01;
+                    }
+                    else
+                    {
+                        if (_thrHeld < 0) _thrHeld = _thr0;
+                        thr01 = _thrHeld * Math.Clamp((h - h5) / (h50 - h5), 0, 1);
+                    }
+                }
                 // A glider's lever is its spoiler: half on the slope, more when fast, full once it is down.
+                _thrLast = thr01;
                 lever = glider ? (ground ? 1.0 : 0.4) : 1 - 2 * thr01;   // glider round-out: spoiler eased to 40 %, full once down
             }
         }
@@ -997,7 +1095,7 @@ public sealed class PracticeScenario
 
         // End: the departure end (level exercises), or stopped / off the far end (landings and flares).
         bool pastEnd = along > L - 40;
-        if (Time > BriefingSec + 3 && s.Velocity.Length < 1.0 && agl < 3) _stillSec += dt; else _stillSec = 0;
+        if (Time > BriefingSec + 3 && s.Velocity.Length < (WaterLane ? 4.0 : 1.0) && mainsAgl < 1.0) _stillSec += dt; else _stillSec = 0;   // on water: off the step, taxiing   // wheel height: the 737 sits with its CG 3 m up
         bool stopped = _stillSec > 2.0;
         bool offSide = Math.Abs(cross) > 60;
         if (Phase != PracticePhase.Finished && (pastEnd || stopped || offSide || ac.Structure.WingsFailed) && UserBrakes && TouchedDown && !_brakingJudged && (_rollV0 > 0 || _maxBrake > 0.05 || ac.LostComponents.Count > 0))

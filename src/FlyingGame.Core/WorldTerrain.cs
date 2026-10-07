@@ -61,11 +61,23 @@ public sealed class WorldTerrain
     /// <summary>y shift that carries a Valley-plateau feature onto plateau <paramref name="p"/> (airports share x).</summary>
     public static double PlateauDy(int p) => Airports[System.Math.Clamp(p, 0, Airports.Length - 1)].Y - Airports[0].Y;
 
-    public const double RunwayLengthM = 1500.0;   // main paved runway along x, centred on Airport.X
+    /// <summary>Main paved runway along x, centred on Airport.X: 2,400 m / 7,874 ft (owner 2026-10-07: "make the landing runway
+    /// longer — I have gone off the end in light airplanes and a 737 would certainly go off the end"; was 1,500 m). Fits the
+    /// pad (±1,250 m).</summary>
+    public const double RunwayLengthM = 2400.0;
+    public const double XwindRunwayLengthM = 1125.0;
+    /// <summary>Main runway centre along x from the airport: the north end stays where the 1,500 m runway's was (a.X + 750 m,
+    /// 130–300 m short of the gorge rim); the extra length runs south.</summary>
+    public const double MainRunwayDx = 750.0 - RunwayLengthM / 2;   // the crosswind runway keeps its length (75 % of the old main; it spans the pad's y)
     public const double RunwayWidthM = 30.0;
     // Every airport has the same layout inside a flat pad: two crossing paved runways, an open hangar,
     // a dirt strip (STOL contest) and a grass strip. Local offsets are in AirportLayout.
     public const double PadHalfX = 1250.0, PadHalfY = 850.0;
+    /// <summary>The pad reaches further SOUTH than north (2026-10-07): the 2,400 m main runway grew southward — its north end
+    /// stays clear of the gorge rim.</summary>
+    public const double PadSouthX = 1700.0;
+    /// <summary>Distance outside the pad along x (0 inside).</summary>
+    public static double PadOutsideX(Airport a, double x) { double rx = x - a.X; return rx >= 0 ? System.Math.Max(0, rx - PadHalfX) : System.Math.Max(0, -rx - PadSouthX); }
 
     // Lakes: one per airport, off the runway's east side. Ellipse (cx, cy, rx, ry).
     public readonly struct Lake
@@ -98,6 +110,67 @@ public sealed class WorldTerrain
 
     /// <summary>The big bay flying boats operate from (the last entry of <see cref="Lakes"/>).</summary>
     public static Lake Harbor => Lakes[Lakes.Length - 1];
+
+    // ---- Seaplane water lanes (owner 2026-10-07: "make the seaplanes land on water but put two rows of buoys on the water
+    // like runway edges so the user can better judge height"): one on the Valley lake, one in the harbor (the H-4 needs
+    // its 2.4 km). Each is a "water" strip along x through the lake centre; the buoy rows mark its edges.
+    public const double SeaplaneLaneWidthM = 60.0, SeaplaneBuoySpacingM = 50.0;
+    public readonly struct SeaplaneLane
+    {
+        public readonly Lake Lake; public readonly double CentreX, CentreY, LengthM;
+        public SeaplaneLane(Lake lake, double lengthM) { Lake = lake; CentreX = lake.Cx; CentreY = lake.Cy; LengthM = lengthM; }
+        public Strip Strip => new("water", 0, 0, LengthM, SeaplaneLaneWidthM, 0);
+        public double SurfaceM => Lake.SurfaceM;
+    }
+    /// <summary>[0] the Valley lake (~765 m), [1] the harbor (2.4 km).</summary>
+    public static readonly SeaplaneLane[] SeaplaneLanes =
+    {
+        new(Lakes[0], 0.85 * 2 * Lakes[0].Rx),
+        new(Lakes[Lakes.Length - 1], 2400.0),
+    };
+    /// <summary>The lane end into the wind (or the other end for a downwind practice): heading 0 = north (+x).</summary>
+    public static RunwayEnd ChooseSeaplaneLane(SeaplaneLane lane, double windFromRad, bool headwind, double windSpeedMs = 1.0)
+    {
+        if (windSpeedMs < 0.3) windFromRad = 0;
+        var n = new RunwayEnd(lane.Strip, 0, lane.CentreX, lane.CentreY);
+        var sth = new RunwayEnd(lane.Strip, System.Math.PI, lane.CentreX, lane.CentreY);
+        bool northBetter = n.HeadwindFactor(windFromRad) >= sth.HeadwindFactor(windFromRad);
+        return northBetter == headwind ? n : sth;
+    }
+
+    // ---- Seaplane base on the Valley lake's east shore (owner 2026-10-07: "a seaplane base with docks that do not have
+    // pilings and a ramp for the seaplanes to go up/down with a large parking area and a hangar"). A concrete ramp runs
+    // from 1.5 m under the water up to a flat parking pad; floating docks lie beside it; the hangar sits at the back.
+    public static Lake SeaplaneBaseLake => Lakes[0];
+    public const double BaseRampHalfWidthM = 12.0, BaseRampWaterEndM = 55.0, BasePadHalfXM = 130.0, BasePadDepthM = 170.0, BasePadAboveWaterM = 1.0;
+    /// <summary>The base is on the lake's WEST shore (inland = −y): the east shore lies under the extended centreline of the
+    /// main runway (the hangar sat in the final approach corridor).</summary>
+    public const double BaseInland = -1.0;
+    /// <summary>Where the shoreline meets the ramp (lake centre x, the west shore y).</summary>
+    public static (double x, double y) BaseShore => (SeaplaneBaseLake.Cx, SeaplaneBaseLake.Cy + BaseInland * SeaplaneBaseLake.Ry);
+    public static double BasePadHeightM => SeaplaneBaseLake.SurfaceM + BasePadAboveWaterM;
+    public const double BaseHangarDy = 120.0, BaseHangarHalfX = 22.0, BaseHangarHalfY = 18.0, BaseHangarHeightM = 11.0;
+
+    /// <summary>The base's ground override (ramp + pad), or null outside it.</summary>
+    public static double? SeaplaneBaseHeightAt(double x, double y, double terrainH)
+    {
+        var (sx, sy) = BaseShore;
+        double dx = x - sx, dy = (y - sy) * BaseInland;   // dy > 0: ashore
+        // Ramp: a straight slope from 1.5 m under the water (BaseRampWaterEndM out) to the pad edge (8 m ashore).
+        if (System.Math.Abs(dx) <= BaseRampHalfWidthM && dy >= -BaseRampWaterEndM && dy <= 8.0)
+        {
+            double f = (dy + BaseRampWaterEndM) / (BaseRampWaterEndM + 8.0);
+            return SeaplaneBaseLake.SurfaceM - 1.5 + f * (BasePadAboveWaterM + 1.5);
+        }
+        // Pad: flat, from 8 m ashore back BasePadDepthM, blended to the terrain over 60 m (never into the lake).
+        if (dy < 0) return null;
+        double ex = System.Math.Max(0, System.Math.Abs(dx) - BasePadHalfXM);
+        double ey = System.Math.Max(0, System.Math.Max(8.0 - dy, dy - (8.0 + BasePadDepthM)));
+        double d = System.Math.Sqrt(ex * ex + ey * ey);
+        if (d >= 60) return null;
+        double w = 1 - d / 60; w = w * w * (3 - 2 * w);
+        return terrainH + (BasePadHeightM - terrainH) * w;
+    }
 
     // River: runs downhill west→east across the steps in a GORGE, meandering gently in x (minimum turn
     // radius ≈ 2 km so the gorge can be flown at speed), passing the lakes' west shores.
@@ -232,8 +305,8 @@ public sealed class WorldTerrain
     /// the default east wind, 75 % of the main's length.</summary>
     public static readonly Strip[] AirportStrips =
     {
-        new("paved", 0, 0, RunwayLengthM, RunwayWidthM, 0),
-        new("paved-xwind", XwindRunwayDx, 0, RunwayLengthM * 0.75, 25, 90),
+        new("paved", MainRunwayDx, 0, RunwayLengthM, RunwayWidthM, 0),
+        new("paved-xwind", XwindRunwayDx, 0, XwindRunwayLengthM, 25, 90),
         new("gravel", 100, 420, 600, 15, 0),
         new("grass", -100, -420, 750, 20, 0),
     };
@@ -335,7 +408,7 @@ public sealed class WorldTerrain
     {
         foreach (Airport a in Airports)
         {
-            if (System.Math.Abs(x - a.X) > PadHalfX + 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
+            if (PadOutsideX(a, x) > 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
             foreach (Strip st in AirportStrips)
             {
                 if (InStrip(a, st, x, y, 1.0)) return IsPaved(st.Kind) ? Surface.Paved : st.Kind == "gravel" ? Surface.Gravel : Surface.Grass;
@@ -571,7 +644,7 @@ public sealed class WorldTerrain
         foreach (Airport a in Airports)
         {
             if (inNotch) break;
-            double dx = System.Math.Max(0, System.Math.Abs(x - a.X) - PadHalfX);
+            double dx = PadOutsideX(a, x);
             double dy = System.Math.Max(0, System.Math.Abs(y - a.Y) - PadHalfY);
             double d = System.Math.Sqrt(dx * dx + dy * dy);
             if (d < 300)
@@ -597,6 +670,9 @@ public sealed class WorldTerrain
                 h = System.Math.Min(h, l.SurfaceM + 2.0 - depth);
             }
         }
+
+        // The seaplane base: ramp into the Valley lake and its parking pad.
+        { double? b = SeaplaneBaseHeightAt(x, y, h); if (b.HasValue) h = b.Value; }
 
         // The coast: the tableland ends in sea cliffs (cap taken off the uncut ground, applied after the gorge).
         double coastCap = Coast.ProfileAt(x, y, h);

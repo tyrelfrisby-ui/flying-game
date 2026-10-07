@@ -12,6 +12,8 @@ namespace FlyingGame.Bridge
     public sealed class WaterReflection : MonoBehaviour
     {
         public const int AircraftLayer = 8;
+        /// <summary>Water-side props drawn into the reflection too: lane buoys, docks, the seaplane hangar (owner 2026-10-07).</summary>
+        public const int PropsLayer = 9;
         public FlightSimDriver Driver;
         public int TextureSize = 512;
 
@@ -30,7 +32,7 @@ namespace FlyingGame.Bridge
             _refl.enabled = false;
             _refl.clearFlags = CameraClearFlags.SolidColor;
             _refl.backgroundColor = new Color(0, 0, 0, 0);      // alpha 0 = "no aircraft here" → sky
-            _refl.cullingMask = 1 << AircraftLayer;
+            _refl.cullingMask = (1 << AircraftLayer) | (1 << PropsLayer);
             _rt = new RenderTexture(TextureSize, TextureSize, 16, RenderTextureFormat.ARGB32);
             _refl.targetTexture = _rt;
             Shader.SetGlobalFloat(ReflOnId, 0f);
@@ -62,7 +64,7 @@ namespace FlyingGame.Bridge
             reflection.m11 = -1f; reflection.m13 = 2f * planeY;   // y' = -y + 2*planeY
             _refl.CopyFrom(_main);
             _refl.clearFlags = CameraClearFlags.SolidColor; _refl.backgroundColor = new Color(0, 0, 0, 0);
-            _refl.cullingMask = 1 << AircraftLayer;
+            _refl.cullingMask = (1 << AircraftLayer) | (1 << PropsLayer);
             _refl.targetTexture = _rt;
             _refl.worldToCameraMatrix = _main.worldToCameraMatrix * reflection;
             // Oblique near plane at the water so nothing under the surface reflects.

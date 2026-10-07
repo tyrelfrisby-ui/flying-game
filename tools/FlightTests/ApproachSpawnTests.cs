@@ -74,7 +74,7 @@ public class ApproachSpawnTests
         var t = new WorldTerrain(); WorldTerrain.Active = t;
         Landmarks.RegisterSolids(t);
         var a = WorldTerrain.Airports[0];
-        double thr = a.X - WorldTerrain.RunwayLengthM / 2;
+        double thr = a.X + WorldTerrain.MainRunwayDx - WorldTerrain.RunwayLengthM / 2;
         // From 3 km out to the threshold, ±300 m either side, up to 400 ft: no building, leg or shelf.
         foreach (var b in WorldSolids.Boxes)
         {

@@ -86,6 +86,15 @@ namespace FlyingGame.Bridge.Practice
                 SessionSettings.ApplyFeel(cfg);
                 WorldTerrain.RunwayEnd rw = SessionSettings.ChosenRunway();
                 double surface = SessionSettings.Airport.ElevationM;
+                // Seaplanes (floats or a hull, no wheels) fly the runway lessons onto a buoyed WATER lane (owner 2026-10-07):
+                // the Valley lake's (~765 m) at the Valley, else — and always for the H-4 — the harbor's 2.4 km.
+                if (PracticeScenario.IsRunwayLesson(kind) && IsSeaplane(cfg))
+                {
+                    bool big = cfg.Id.StartsWith("hughes-h4") || SessionSettings.AirportIndex != 0;
+                    var lane = WorldTerrain.SeaplaneLanes[big ? 1 : 0];
+                    rw = WorldTerrain.ChooseSeaplaneLane(lane, SessionSettings.WindFromDeg * Mathf.Deg2Rad, SessionSettings.Runway == SessionSettings.RunwayPick.Headwind, SessionSettings.WindSpeedMs);
+                    surface = lane.SurfaceM;
+                }
                 Scenario = new PracticeScenario(kind, wind, cfg, rw, surface, seed: Random.Range(1, 9999), userAxes: _userAxes, flapFraction: SessionSettings.LessonFlaps);
                 Aircraft ac = Scenario.Spawn();
                 Driver.AdoptSim(new SimLoop(ac));
@@ -121,6 +130,14 @@ namespace FlyingGame.Bridge.Practice
         }
 
         public void Restart() { if (Scenario != null) Begin(Kind, Wind, _userAxes); }
+
+        /// <summary>Floats or a hull and no wheels (the amphibians land on the runway).</summary>
+        public static bool IsSeaplane(AircraftConfig cfg)
+        {
+            if (cfg.Floats == null) return false;
+            foreach (var g in cfg.Gear) if (g.GearType != "float-keel") return false;
+            return true;
+        }
 
         /// <summary>The setup card changed (flaps): place the aircraft again for it and stay on the card — no pages, no voice.</summary>
         public void RestartAtCard()

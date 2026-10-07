@@ -27,7 +27,7 @@ public class GroundSurfaceTests
         // The into-wind runway: 09/27 across the main, 75 % of its length, paved, crossing clear of the other strips.
         var xw = System.Array.Find(WorldTerrain.AirportStrips, s => s.Kind == "paved-xwind");
         Assert.Equal(90, xw.HeadingDeg);
-        Assert.Equal(WorldTerrain.RunwayLengthM * 0.75, xw.Length, 6);
+        Assert.Equal(WorldTerrain.XwindRunwayLengthM, xw.Length, 6);
         Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y + 500));
         Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y - 500));
         Assert.Equal(WorldTerrain.Surface.Rough, WorldTerrain.SurfaceAt(a.X + xw.Dx, a.Y + 620));

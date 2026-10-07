@@ -65,6 +65,11 @@ namespace FlyingGame.EditorTools
                 ("carrier-deck", new Vector3(3712f, 40f, -2560f), new Vector3(3690f, 18f, -2350f)),
                 ("carrier-shore", new Vector3(2700f, 450f, -3600f), new Vector3(3700f, 0f, -2415f)),
                 ("waterfall-lip", new Vector3(-1900f, 880f, 1700f), new Vector3(-2010f, 780f, 1849f)),
+                // The Valley lake's seaplane lane and base (owner 2026-10-07): Unity (x = sim y, z = sim x), lake surface 302.8 m.
+                ("runway-south-final", new Vector3(0f, 420f, -3400f), new Vector3(0f, 305f, -600f)),
+                ("seaplane-base", new Vector3(-980f, 345f, -2700f), new Vector3(-720f, 303f, -2600f)),
+                ("seaplane-ramp", new Vector3(-685f, 309f, -2545f), new Vector3(-770f, 305f, -2600f)),
+                ("seaplane-lane", new Vector3(-450f, 318f, -3120f), new Vector3(-450f, 302f, -2300f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
             var carrier = Object.FindFirstObjectByType<CarrierRuntime>();

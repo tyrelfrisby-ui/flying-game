@@ -20,7 +20,7 @@ public sealed class TugPilot
 
     // Runway / airport. The pilot works in a RUNWAY FRAME: x along the runway heading from Origin, y to its right;
     // ThresholdX/RunwayY are in that frame (both 0 when Origin is the threshold). Heading 0 / origin 0 = world frame.
-    public double ThresholdX, RunwayY, RunwayElevM, RunwayLengthM = 1500;
+    public double ThresholdX, RunwayY, RunwayElevM, RunwayLengthM = FlyingGame.Core.WorldTerrain.RunwayLengthM;
     public double OriginX, OriginY, RunwayHeadingRad;
 
     /// <summary>Test hook for <see cref="Localize"/>.</summary>

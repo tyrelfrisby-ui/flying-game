@@ -49,6 +49,9 @@ public static class Landmarks
     public static void RegisterSeasideSolids(WorldTerrain t)
     {
         WorldDecks.All.Clear();
+        // The seaplane base hangar on the Valley lake (one-off, like the seaside's own solids).
+        var (bx, by) = WorldTerrain.BaseShore;
+        WorldSolids.Boxes.Add(new WorldSolids.Box(bx, by + WorldTerrain.BaseInland * WorldTerrain.BaseHangarDy, WorldTerrain.BaseHangarHalfX, WorldTerrain.BaseHangarHalfY, WorldTerrain.BasePadHeightM, WorldTerrain.BasePadHeightM + WorldTerrain.BaseHangarHeightM));
         FlyCity.RegisterSolids(t);
         CanyonLake.RegisterSolids();
         GoldenGate.RegisterSolids();

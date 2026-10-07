@@ -22,13 +22,13 @@ public class WorldTerrainTests
         foreach (WorldTerrain.Airport a in WorldTerrain.Airports)
         {
             // The pad is flat over the runways and the strips (2026-10-05: the gorge rim now runs ~130–300 m past the north end).
-            for (double dx = -1100; dx <= 760; dx += 100)
+            for (double dx = -1600; dx <= 760; dx += 100)
             for (double dy = -700; dy <= 700; dy += 100)
             {
                 Assert.Equal(a.ElevationM, t.HeightAt(a.X + dx, a.Y + dy), 3);
             }
             // ... and the gorge's rim stays clear of the runway's north end.
-            double end = a.X + WorldTerrain.RunwayLengthM / 2;
+            double end = a.X + WorldTerrain.MainRunwayDx + WorldTerrain.RunwayLengthM / 2;
             for (double dy = -40; dy <= 40; dy += 20) Assert.True(WorldTerrain.RiverCentreX(a.Y + dy) - WorldTerrain.GorgeHalfWidthAt(a.Y + dy) > end + 80, "gorge rim within 80 m of the runway end");
         }
         Assert.Equal(WorldTerrain.DatumM, WorldTerrain.Airports[0].ElevationM);   // the Valley: 1,000 ft coastal tableland

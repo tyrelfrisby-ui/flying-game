@@ -42,6 +42,8 @@ namespace FlyingGame.Bridge
             var root = new GameObject("World");
             BuildTerrain(WorldTerrain.Active, root.transform);
             BuildWater(WorldTerrain.Active, root.transform);
+            BuildSeaplaneLanes(root.transform);
+            BuildSeaplaneBase(WorldTerrain.Active, root.transform);
             BuildWaterfalls(WorldTerrain.Active, root.transform);
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             // The same landscape on every plateau (owner 2026-09-09): bridge, crop field, landmarks, aerobatic
@@ -138,6 +140,10 @@ namespace FlyingGame.Bridge
             for (double y = CanyonLake.Y0; y < CanyonLake.DamY + 100; y += 50) { lx0 = System.Math.Min(lx0, CanyonLake.CentreX(y) - 420); lx1 = System.Math.Max(lx1, CanyonLake.CentreX(y) + 420); }
             yield return Cells(lx0, lx1, fallsEnd + 61, CanyonLake.DamY + 120, 10);
             yield return Cells(GoldenGate.CentreX - GoldenGate.HalfMainSpanM - 500, GoldenGate.CentreX + GoldenGate.HalfMainSpanM + 500, GoldenGate.Y - 900, GoldenGate.Y + 400, 10);
+            // The seaplane base's ramp and parking pad (a 60 m grid can't show a 24 m ramp).
+            var (bsx, bsy) = WorldTerrain.BaseShore;
+            double by0 = bsy + WorldTerrain.BaseInland * -120, by1 = bsy + WorldTerrain.BaseInland * (WorldTerrain.BasePadDepthM + 120);
+            yield return Cells(bsx - WorldTerrain.BasePadHalfXM - 120, bsx + WorldTerrain.BasePadHalfXM + 120, System.Math.Min(by0, by1), System.Math.Max(by0, by1), 6);
         }
 
         private static void BuildTerrain(WorldTerrain t, Transform parent)
@@ -253,6 +259,122 @@ namespace FlyingGame.Bridge
                 n++;
             }
             Spawn("River", rv.ToArray(), rt.ToArray(), water, parent, true);
+        }
+
+        // ---- seaplane lanes and base (owner 2026-10-07) --------------------------------------------
+
+        /// <summary>Buoys, docks and the hangar are drawn into the water reflection too (they sit on the reflected layer).</summary>
+        private static void Reflected(GameObject go) { foreach (Transform t in go.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = WaterReflection.PropsLayer; }
+
+        /// <summary>Two rows of buoys down each water lane's edges (owner: "like runway edges so the user can better judge
+        /// height"), orange and white alternating every 50 m; a row of three green ones across each end.</summary>
+        private static void BuildSeaplaneLanes(Transform parent)
+        {
+            var root = new GameObject("SeaplaneLanes"); root.transform.SetParent(parent, false);
+            Color orange = new(0.98f, 0.45f, 0.08f), white = new(0.95f, 0.95f, 0.93f), green = new(0.15f, 0.65f, 0.25f);
+            foreach (WorldTerrain.SeaplaneLane lane in WorldTerrain.SeaplaneLanes)
+            {
+                double half = lane.LengthM / 2, w = WorldTerrain.SeaplaneLaneWidthM / 2, surf = lane.SurfaceM;
+                int k = 0;
+                for (double d = -half; d <= half + 0.1; d += WorldTerrain.SeaplaneBuoySpacingM, k++)
+                    foreach (int side in new[] { -1, 1 })
+                        Buoy(root, lane.CentreX + d, lane.CentreY + side * w, surf, k % 2 == 0 ? orange : white, 1.0f);
+                foreach (int end in new[] { -1, 1 })
+                    foreach (double c in new[] { -w / 2, 0.0, w / 2 })
+                        Buoy(root, lane.CentreX + end * (half + 15), lane.CentreY + c, surf, green, 1.2f);
+            }
+            Reflected(root);
+        }
+
+        /// <summary>A mooring buoy: a float ball riding the surface with a short mast and a top mark (most of it above the
+        /// water, so its reflection and its distance from the aircraft's own reflection read as a height cue).</summary>
+        private static void Buoy(GameObject root, double x, double y, double surf, Color c, float scale)
+        {
+            var ball = GameObject.CreatePrimitive(PrimitiveType.Sphere); Kill(ball.GetComponent<Collider>());
+            ball.name = "Buoy"; ball.transform.SetParent(root.transform, false);
+            ball.transform.position = U(x, y, surf + 0.25 * scale); ball.transform.localScale = Vector3.one * 1.3f * scale;
+            ball.GetComponent<MeshRenderer>().sharedMaterial = Lit(c);
+            var mast = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(mast.GetComponent<Collider>());
+            mast.name = "BuoyMast"; mast.transform.SetParent(ball.transform, true);
+            mast.transform.position = U(x, y, surf + 1.4 * scale); mast.transform.localScale = new Vector3(0.12f, 0.75f, 0.12f) / (1.3f * scale) * scale;
+            mast.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.2f, 0.2f, 0.22f));
+            var top = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(top.GetComponent<Collider>());
+            top.name = "BuoyTop"; top.transform.SetParent(ball.transform, true);
+            top.transform.position = U(x, y, surf + 2.2 * scale); top.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f) / (1.3f * scale) * scale;
+            top.GetComponent<MeshRenderer>().sharedMaterial = Lit(c);
+        }
+
+        /// <summary>The seaplane base on the Valley lake (owner 2026-10-07): a concrete ramp from under the water to a big
+        /// parking pad, FLOATING docks (pontoon decks, no pilings) beside the ramp with finger piers, a gangway, and a hangar
+        /// at the back of the pad facing the water.</summary>
+        private static void BuildSeaplaneBase(WorldTerrain t, Transform parent)
+        {
+            var root = new GameObject("SeaplaneBase"); root.transform.SetParent(parent, false);
+            var (sx, sy) = WorldTerrain.BaseShore;
+            double inl = WorldTerrain.BaseInland;
+            double Y(double d) => sy + inl * d;   // d metres inland from the shoreline (negative: out over the water)
+            double surf = WorldTerrain.SeaplaneBaseLake.SurfaceM, pad = WorldTerrain.BasePadHeightM;
+            Color concrete = new(0.72f, 0.71f, 0.68f), wood = new(0.55f, 0.40f, 0.26f), drum = new(0.25f, 0.26f, 0.28f), paint = new(0.95f, 0.82f, 0.15f);
+            // Ramp: a tilted slab on the height field's own ramp (1.5 m under at the water end → the pad).
+            {
+                Vector3 a = U(sx, Y(-WorldTerrain.BaseRampWaterEndM), surf - 1.5), b = U(sx, Y(8.0), pad);
+                var ramp = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(ramp.GetComponent<Collider>());
+                ramp.name = "SeaplaneRamp"; ramp.transform.SetParent(root.transform, false);
+                Vector3 dir = (b - a).normalized;
+                ramp.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                ramp.transform.position = (a + b) * 0.5f + ramp.transform.up * 0.04f - ramp.transform.up * 0.4f;
+                ramp.transform.localScale = new Vector3((float)(2 * WorldTerrain.BaseRampHalfWidthM), 0.8f, (b - a).magnitude);
+                ramp.GetComponent<MeshRenderer>().sharedMaterial = Lit(concrete);
+            }
+            // Parking pad (sim x along the lake, y inland), with a yellow lead-in line ramp → hangar and tie-down rows.
+            double padCy = Y(8.0 + WorldTerrain.BasePadDepthM / 2);
+            Slab(root.transform, "SeaplanePad", sx, padCy, pad + 0.06, 2 * WorldTerrain.BasePadHalfXM, WorldTerrain.BasePadDepthM, 1.2, 0, concrete);
+            Slab(root.transform, "LeadIn", sx, Y(8.0 + (WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0) / 2), pad + 0.09, 0.6, WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0, 0.03, 0, paint);
+            for (int row = 0; row < 2; row++)
+                for (double dx = -110; dx <= 110; dx += 22)
+                {
+                    if (System.Math.Abs(dx) < 30) continue;
+                    Slab(root.transform, "TieDown", sx + dx, Y(30 + row * 40), pad + 0.09, 10, 0.4, 0.03, 0, paint);
+                }
+            // Hangar: closed (it is a solid), big doors facing the water, a shallow gable roof.
+            double hy = Y(WorldTerrain.BaseHangarDy), hx = WorldTerrain.BaseHangarHalfX, hh = WorldTerrain.BaseHangarHeightM, hd = WorldTerrain.BaseHangarHalfY;
+            WBox(root, "SeaplaneHangar", U(sx, hy, pad + hh / 2), new Vector3((float)(2 * hd), (float)hh, (float)(2 * hx)), new Color(0.80f, 0.82f, 0.84f));
+            WBox(root, "HangarDoor", U(sx, hy - inl * (hd + 0.05), pad + hh * 0.42), new Vector3(0.1f, (float)(hh * 0.84), (float)(2 * hx * 0.85)), new Color(0.35f, 0.42f, 0.50f));
+            foreach (int side in new[] { -1, 1 })
+            {
+                var roof = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(roof.GetComponent<Collider>());
+                roof.name = "HangarRoof"; roof.transform.SetParent(root.transform, false);
+                roof.transform.position = U(sx, hy + side * hd / 2, pad + hh + 1.0);
+                roof.transform.rotation = Quaternion.Euler(0f, 0f, -side * 12f);   // ridge along the hangar's length (sim x)
+                roof.transform.localScale = new Vector3((float)(hd * 1.05), 0.4f, (float)(2 * hx + 1));
+                roof.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.45f, 0.20f, 0.18f));
+            }
+            // Floating docks either side of the ramp: pontoon decks (no pilings) riding the water, finger piers, gangways.
+            foreach (int side in new[] { -1, 1 })
+            {
+                double dxDock = side * 40, len = 60;
+                Slab(root.transform, "DockDeck", sx + dxDock, Y(-2 - len / 2), surf + 0.40, 3.0, len, 0.25, 0, wood);
+                for (double d = 4; d < len; d += 8)
+                    foreach (int s2 in new[] { -1, 1 })
+                    {
+                        var p = GameObject.CreatePrimitive(PrimitiveType.Cylinder); Kill(p.GetComponent<Collider>());
+                        p.name = "Pontoon"; p.transform.SetParent(root.transform, false);
+                        p.transform.position = U(sx + dxDock + s2 * 1.0, Y(-2 - d), surf + 0.05);
+                        p.transform.rotation = Quaternion.Euler(0f, 0f, 90f);   // drum axis along the dock (sim y)
+                        p.transform.localScale = new Vector3(0.7f, 2.5f, 0.7f);
+                        p.GetComponent<MeshRenderer>().sharedMaterial = Lit(drum);
+                    }
+                for (double d = 12; d < len; d += 16)
+                    Slab(root.transform, "FingerPier", sx + dxDock + side * 6.5, Y(-2 - d), surf + 0.40, 10.0, 1.6, 0.2, 0, wood);
+                // Gangway from the pad edge down to the floating deck.
+                Vector3 g0 = U(sx + dxDock, Y(6), pad + 0.1), g1 = U(sx + dxDock, Y(-3), surf + 0.42);
+                var gw = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(gw.GetComponent<Collider>());
+                gw.name = "Gangway"; gw.transform.SetParent(root.transform, false);
+                gw.transform.rotation = Quaternion.LookRotation((g1 - g0).normalized, Vector3.up);
+                gw.transform.position = (g0 + g1) * 0.5f; gw.transform.localScale = new Vector3(1.6f, 0.15f, (g1 - g0).magnitude);
+                gw.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.5f, 0.5f, 0.52f));
+            }
+            Reflected(root);
         }
 
         // ---- plunge waterfalls -------------------------------------------------------------------
