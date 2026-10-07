@@ -46,7 +46,8 @@ namespace FlyingGame.EditorTools
 
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             var builder = new AirframeBuilder();
-            foreach (string id in Ids)
+            string only = System.Environment.GetEnvironmentVariable("AIRFRAME_IDS");
+            foreach (string id in only != null ? only.Split(',') : Ids)
             {
                 AircraftConfig cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets(id);
                 var root = new GameObject(id);
@@ -54,9 +55,14 @@ namespace FlyingGame.EditorTools
                 float size = Mathf.Max(half * 2f, 8f);
                 // Sit the aircraft on its wheels: lowest gear point (sim +z down) → ground.
                 float lowest = 0f;
-                foreach (GearConfig g in cfg.Gear) lowest = Mathf.Max(lowest, (float)g.Pos[2]);
+                float cgz = (float)cfg.Mass.CgVec().Z;   // the built parts sit on the CG, as in the game
+                foreach (GearConfig g in cfg.Gear) lowest = Mathf.Max(lowest, (float)g.Pos[2] - cgz);
                 root.transform.position = new Vector3(0f, lowest + 0.02f, 0f);
                 ground.transform.localScale = Vector3.one * size;
+                // Numeric check: the tyres' lowest point vs the ground (should be ~0.02 m, the placement lift).
+                float tyreLow = float.MaxValue;
+                foreach (Transform t in root.transform) if (t.name == "Wheel") tyreLow = Mathf.Min(tyreLow, t.GetComponent<Renderer>().bounds.min.y);
+                Debug.Log($"[AirframeRender] {id}: tyre bottom {tyreLow:F3} m above the ground");
 
                 (string name, Vector3 dir, bool ortho)[] views =
                 {

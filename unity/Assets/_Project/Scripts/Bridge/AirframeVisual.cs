@@ -1274,6 +1274,15 @@ namespace FlyingGame.Bridge
             BuildFloats(cfg, st);
             _floatParts.Clear();
             for (int i = floatsFrom; i < _parts.Count; i++) _floatParts.Add(_parts[i]);
+            // The parts are drawn in the config's reference frame, but the root sits at the CG (the physics puts every
+            // wheel at pos − cg). Shift them onto the CG — owner 2026-10-06: the AirCam (CG 0.3 m above its datum) rode with
+            // its tyres "above ground".
+            var cgv = cfg.Mass.CgVec(); Vector3 cgU = U((float)cgv.X, (float)cgv.Y, (float)cgv.Z);
+            if (cgU.sqrMagnitude > 1e-8f)
+            {
+                foreach (GameObject p in _parts) if (p != null && p.transform.parent == _root) p.transform.localPosition -= cgU;
+                for (int i = 0; i < _gearParts.Count; i++) { var gp = _gearParts[i]; _gearParts[i] = (gp.go, gp.downPos - cgU, gp.travel); }
+            }
             TryPlaceModel(root, cfg);
             return halfSpan;
         }

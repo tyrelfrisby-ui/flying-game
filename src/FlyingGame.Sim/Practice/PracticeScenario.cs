@@ -841,9 +841,13 @@ public sealed class PracticeScenario
             // toward the runway, ≤ ~20°/s; the rudder chases that rate hard and fast (the reflex that catches a swing before
             // it diverges); a slow integral holds the steady crosswind rudder (a cap on the outer terms alone left too little
             // rudder to stop the weathervane).
-            double rCmd = Math.Clamp(-1.2 * psiErr - 0.03 * cross, -0.35, 0.35);
+            // Gains (owner 2026-10-06, AirCam: "the rudder moves way too slowly, it almost ground looped — 10x faster"): the
+            // old rate gain (4 per rad/s) put in a tenth of the rudder for a 5°/s swing and let a slow oscillation grow on the
+            // roll-out. Now a few °/s of swing or of heading error is a big boot of rudder, as a tailwheel pilot's feet do.
+            const double kR = 30.0, kPsi = 2.5;   // 4 and 1.2 before; 60 chattered on the Pitts at 30 fps
+            double rCmd = Math.Clamp(-kPsi * psiErr - 0.03 * cross, -0.35, 0.35);
             _gndRudInt = Math.Clamp(_gndRudInt - 0.8 * psiErr * dt, -0.6, 0.6);
-            rud = Math.Clamp(-4.0 * (r - rCmd) + _gndRudInt, -1, 1);
+            rud = Math.Clamp(-kR * (r - rCmd) + _gndRudInt, -1, 1);
         }
         GameBrake = !UserBrakes && (ground || TouchedDown) && Descending ? 0.35 : 0.0;   // (the brakes lessons: the user's)   // roll-out braking; the host biases it with the rudder (differential braking steers)
         GameBrakeBias = GameBrake > 0 ? Math.Clamp(rud * 0.8, -1, 1) : 0;
