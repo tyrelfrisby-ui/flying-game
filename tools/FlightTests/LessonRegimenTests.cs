@@ -172,11 +172,12 @@ public class LessonTraceTests
         WorldTerrain.Active = null; Atmosphere.ThermalStrengthScale = 0;
         var sc = new PracticeScenario(Enum.Parse<PracticeKind>(p[1]), Enum.Parse<PracticeWind>(p[2]), c, PracticeScenarioTests.TestRunway(), 0.0, seed: 7, flapFraction: double.Parse(p[3]));
         var ac = sc.Spawn(); var sim = new SimLoop(ac); sc.SkipBriefing();
-        ControlInputs user = ControlInputs.Neutral; double fdt = p.Length > 4 ? double.Parse(p[4]) : 0.02;
+        ControlInputs user = ControlInputs.Neutral; double fdt = p.Length > 4 ? double.Parse(p[4]) : 0.02; double? tTd = null;
         for (double t = 0; t < 200 && sc.Phase != PracticePhase.Finished; t += fdt)
         {
             var inputs = sc.Step(ac, user, fdt);
             ac.BrakeInput = sc.GameBrake; ac.BrakeBias = sc.GameBrakeBias;
+            if (Environment.GetEnvironmentVariable("TRACE_BRAKE") is string tb && sc.TouchedDown) { tTd ??= t; if (t > tTd + 1.0) { ac.BrakeInput = double.Parse(tb); ac.BrakeBias = 0; } }
             sim.RunFor(fdt, inputs); sc.ConstrainLongitudinal(ac);
             user = sc.Autopilot;
             if (Environment.GetEnvironmentVariable("TRACE_ALL") != null ? Math.Abs(t * 4 - Math.Round(t * 4)) < fdt * 2 : (sc.MainsAglM < 1.0 || sc.TouchedDown) && Math.Abs(t * 10 - Math.Round(t * 10)) < fdt * 5)

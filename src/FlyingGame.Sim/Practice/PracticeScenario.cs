@@ -116,7 +116,7 @@ public sealed class PracticeScenario
 
     // Autopilot state
     private double _elevTrim, _elevInt, _thrInt, _thr0 = 0.45, _rudInt, _ailInt, _gndRudInt;
-    private double _curBounceM;
+    private double _curBounceM, _gndSec;
     private readonly List<double> _bounceHeightsM = new(), _touchPitchDeg = new();
     /// <summary>A nose-wheel type touching with the nose this low (deg) arrived nose wheel first.</summary>
     private const double NoseFirstPitchDeg = 0.5;
@@ -126,7 +126,7 @@ public sealed class PracticeScenario
     /// <summary>The idle-power landing lessons hand the user the WHEEL BRAKES (a glider: the spoiler handle, its last travel
     /// the wheel brake) — owner 2026-10-06 — and judge the braking on the roll-out.</summary>
     public bool UserBrakes => FlareExercise;
-    private double _rollV0 = -1, _rollX0, _rollPrevGs = -1, _rollDecelF, _peakDecelG, _maxBrake; private bool _tailLifted, _brakingJudged;
+    private double _rollV0 = -1, _rollX0, _rollPrevGs = -1, _rollDecelF, _peakDecelG, _maxBrake; private bool _tailLifted, _tailWasDown, _brakingJudged;
     /// <summary>Roll-out: average deceleration from touchdown to stop (g), peak (g), and whether a taildragger's tail came up.</summary>
     public double RolloutAvgDecelG { get; private set; }
     public double RolloutPeakDecelG => _peakDecelG;
@@ -708,7 +708,10 @@ public sealed class PracticeScenario
                 }
                 _rollPrevGs = gs;
                 _maxBrake = Math.Max(_maxBrake, ac.BrakeInput);
-                if (Taildragger && gs > 3 && ac.BrakeInput > 0.05 && pitchDeg < StanceRad * 180 / Math.PI - 4) _tailLifted = true;   // braked so hard the tail came up
+                if (Taildragger && pitchDeg > StanceRad * 180 / Math.PI - 1.5) _tailWasDown = true;
+                // Braked so hard the tail came UP (it had been down): a wheel landing still rolling tail-high when the brakes
+                // came on is not a nose-over (regimen 2026-10-06: the Cub's light braking was judged red).
+                if (Taildragger && _tailWasDown && gs > 3 && ac.BrakeInput > 0.05 && pitchDeg < StanceRad * 180 / Math.PI - 4) _tailLifted = true;
             }
             if (OnGround && _touches > 0) _groundedT += dt; else _groundedT = 0;
             if (!OnGround && _touches > 0) _maxBounceM = Math.Max(_maxBounceM, MainsAglM);
@@ -926,6 +929,14 @@ public sealed class PracticeScenario
             double kv = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.35, 1.2);
             // Pitch-rate damping stays at full strength (scaling it away let the Cub porpoise in the hold-off).
             ele = Math.Clamp(_elevTrim + ElevatorPower * (kv * (0.45 * hErr + 0.55 * (hdot - hdotTarget)) + _elevInt) + 0.6 * q, -0.9, 0.6);
+            // Near the ground a pilot never shoves the nose down: after a bounce the DC-3's law pushed full forward to chase
+            // the target, pitched −10° and drove it in (regimen 2026-10-06). Through the round-out the stick goes no further
+            // forward than just past trim, and below 5 m the nose is held at or above level.
+            if (roundOut)
+            {
+                ele = Math.Min(ele, _elevTrim + 0.1);
+                if (mainsAgl < 5) ele = Math.Min(ele, Math.Clamp(-(0.0 - pitch) * 2.0 + 0.6 * q, -0.6, 0.6));
+            }
             // Stall guard: slow and still above the hold-off, the answer is power, not more back stick (a gust at 5 ft
             // had the law pull a Cub into a stall and drop a wing).
             if (!ground && mainsAgl > 0.5 && ias < 1.06 * VsoMs) ele = Math.Max(ele, _elevTrim - 0.15);
@@ -950,6 +961,12 @@ public sealed class PracticeScenario
                     ele = Math.Min(ele, attHold);
                 }
                 if (ground) ele = Taildragger ? -0.6 : 0.0;   // tail down on the roll-out; neutral for a nosewheel type
+                // …but a taildragger still above the stall holds the three-point attitude, stick coming back as it slows:
+                // full back stick the instant the mains touched at 49 kt flew the Cub off again — bounced, bounced (regimen
+                // 2026-10-06).
+                _gndSec = ground ? _gndSec + dt : 0.0;
+                if (ground && Taildragger && Descending && ias > 0.95 * VsoMs && _gndSec < 1.0)   // then full back: the brakes come next
+                    ele = Math.Clamp(-(StanceRad - pitch) * 2.0 + q * 0.6, -0.6, 0.2);
                 // Power: hold the target airspeed (PI); idle on the ground and in the power-off exercises. A glider's lever is
                 // its spoiler: half out in the flare, full once it is down.
                 _thrInt = Math.Clamp(_thrInt + 0.05 * vErr * dt, -0.4, 0.4);
