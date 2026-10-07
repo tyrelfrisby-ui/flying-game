@@ -179,8 +179,8 @@ public class LessonTraceTests
             ac.BrakeInput = sc.GameBrake; ac.BrakeBias = sc.GameBrakeBias;
             sim.RunFor(fdt, inputs); sc.ConstrainLongitudinal(ac);
             user = sc.Autopilot;
-            if (Environment.GetEnvironmentVariable("TRACE_ALL") != null ? Math.Abs(t - Math.Round(t)) < fdt * 0.5 : (sc.MainsAglM < 1.0 || sc.TouchedDown) && Math.Abs(t * 10 - Math.Round(t * 10)) < fdt * 5)
-                _out.WriteLine($"t {t,6:F2} agl {sc.AglM,6:F0} stalled {(sc.Stalled ? 1 : 0)} ele {inputs.Elevator,5:F2} lev {inputs.ThrottleLever,5:F2} phase {sc.Phase} gnd {(sc.OnGround ? 1 : 0)} ias {sc.AirspeedMs * 1.944,4:F0} align {sc.AlignmentDeg,6:F1} off {sc.OffCentreM,5:F1} r {ac.State.Rates.Z * 57.3,6:F1}°/s rudCmd {inputs.Rudder,5:F2} rudSurf {ac.CurrentDeflections.RudderRad * 57.3,6:F1}° brake {ac.BrakeInput:F2}/{ac.BrakeBias:F2}");
+            if (Environment.GetEnvironmentVariable("TRACE_ALL") != null ? Math.Abs(t * 4 - Math.Round(t * 4)) < fdt * 2 : (sc.MainsAglM < 1.0 || sc.TouchedDown) && Math.Abs(t * 10 - Math.Round(t * 10)) < fdt * 5)
+                _out.WriteLine($"t {t,6:F2} int {sc.ElevIntDbg,5:F2} herr {sc.HErrDbg,5:F2} hdT {sc.HdotTDbg,5:F2} mains {sc.MainsAglM,6:F2} sink {sc.SinkMs,5:F2} pitch {Math.Asin(Math.Clamp(2 * (ac.State.Attitude.W * ac.State.Attitude.Y - ac.State.Attitude.Z * ac.State.Attitude.X), -1, 1)) * 57.3,5:F1} agl {sc.AglM,6:F0} stalled {(sc.Stalled ? 1 : 0)} ele {inputs.Elevator,5:F2} lev {inputs.ThrottleLever,5:F2} phase {sc.Phase} gnd {(sc.OnGround ? 1 : 0)} ias {sc.AirspeedMs * 1.944,4:F0} align {sc.AlignmentDeg,6:F1} off {sc.OffCentreM,5:F1} r {ac.State.Rates.Z * 57.3,6:F1}°/s rudCmd {inputs.Rudder,5:F2} rudSurf {ac.CurrentDeflections.RudderRad * 57.3,6:F1}° brake {ac.BrakeInput:F2}/{ac.BrakeBias:F2}");
         }
         Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.ThermalStrengthScale = 1;
         _out.WriteLine($"{sc.EndReason} swing {sc.MaxRolloutSwingDeg:F0}° verdict {sc.Verdict}");

@@ -208,6 +208,7 @@ public sealed class PracticeScenario
 
     /// <summary>Stick position that holds the spawn trim — preset on the pilot's pitch trim so hands-off flies the path.</summary>
     public double TrimStick => _elevTrim;
+    public double ElevIntDbg, HErrDbg, HdotTDbg;
 
     /// <summary>Approach: glideslope angle (positive = down) and where it meets the runway (150 m past the threshold).</summary>
     public double GlideslopeRad { get; }
@@ -877,11 +878,16 @@ public sealed class PracticeScenario
         // 0.3 m/s at the hold-off rising to ~1.35 m/s at 3 m (an exponential flare, not a chase).
         if (double.IsNaN(_hT)) _hT = mainsAgl;
         double maxSink = 0.25 + 0.5 * Math.Max(0, mainsAgl);   // 0.3 m/s at the hold-off, ~1.75 m/s at 3 m
+        // The hold-off: in the last 2 ft it only settles as the speed goes — still fast (≥ 1.15 Vso) it holds it off, near
+        // the stall it lets it down. Settling at 0.3 m/s regardless put the Pitts on at 64 kt and 8° and it skipped down
+        // the runway (regimen 2026-10-06).
+        if ((FlareExercise || Approach) && mainsAgl < 0.6) maxSink *= Math.Clamp((1.15 * VsoMs - ias) / (0.15 * VsoMs), 0.15, 1.0);
         double hPrev = _hT;
         if ((FlareExercise || Approach) && _heightLawOn) hProfile = Math.Min(hProfile, _hT);   // a flare never climbs back to the path
         _hT += Math.Clamp(hProfile - _hT, -maxSink * dt, 2.0 * dt);
         double hTarget = _hT;
         double hdotTarget = (hTarget - hPrev) / Math.Max(dt, 1e-3);
+        if ((FlareExercise || Approach) && _heightLawOn) hdotTarget = Math.Min(hdotTarget, 0.0);   // a flare never asks for a climb
         double vTarget = 1.15 * VsoMs;
         if (FlareExercise || Approach) vTarget = hTarget < 0.4 ? 0.85 * VsoMs : 1.3 * VsoMs;   // bleed the speed only once in the hold-off
         else if (Descending)
@@ -902,7 +908,14 @@ public sealed class PracticeScenario
             bool gliderPathLaw = glider && Approach && mainsAgl > 3.0;
             if (!gliderPathLaw && !_heightLawOn) { _heightLawOn = true; _hT = mainsAgl; hTarget = _hT; hdotTarget = hdot; }   // take over from where it is
             double hErr = mainsAgl - hTarget;
-            if (!gliderPathLaw) _elevInt = Math.Clamp(_elevInt + 0.08 * hErr * dt, -0.5, 0.5);
+            // Through the round-out the height error is capped at half a metre either way (regimen 2026-10-06): a fast type
+            // sinking 5 m/s fell 2.6 m behind the rate-limited target, the error (and its integral) wound in back stick, it
+            // ballooned 3 m and the law then pushed it into the ground — every faster type broke its gear in the flare
+            // lesson. The descent-rate term asks for the round-out; the height term only fine-tunes it.
+            if ((FlareExercise || Approach) && mainsAgl < 15 && !ground) hErr = Math.Clamp(hErr, -0.5, 0.5);
+            bool roundOut = (FlareExercise || Approach) && mainsAgl < 10 && !ground;   // no integration through the round-out (windup → balloon)
+            if (!gliderPathLaw && !roundOut) _elevInt = Math.Clamp(_elevInt + 0.08 * hErr * dt, -0.5, 0.5);
+            ElevIntDbg = _elevInt; HErrDbg = hErr; HdotTDbg = hdotTarget;
             // Gains scaled down with speed (elevator power grows with V²): the same law that flares a 2-33 at 20 m/s hunted
             // in pitch with a Cub at 34 m/s.
             double kv = Math.Clamp(Math.Pow(22.0 / Math.Max(ias, 8.0), 1.5), 0.35, 1.2);
@@ -922,10 +935,13 @@ public sealed class PracticeScenario
             }
             else
             {
-                if (Descending && Taildragger && mainsAgl < 0.6)
+                if (Descending && Taildragger && mainsAgl < 1.5)
                 {
-                    // Three-point: bring the attitude to the stance as it settles (never let the nose drop through it).
-                    double attHold = Math.Clamp(-(StanceRad - pitch) * 3.0 + q * 0.6, -0.8, 0.3);
+                    // Three-point: bring the attitude to the stance as it settles (never let the nose drop through it) —
+                    // blended in from 5 ft (stance − 6° there, the stance itself by 1 ft). Switched on at 2 ft it snapped the
+                    // Cub's nose up to 14° at the touch and it bounced (regimen 2026-10-06).
+                    double thetaCmd = StanceRad - Math.Clamp((mainsAgl - 0.3) / 1.2, 0, 1) * 6.0 * Math.PI / 180;
+                    double attHold = Math.Clamp(-(thetaCmd - pitch) * 2.0 + q * 0.6, -0.8, 0.3);
                     ele = Math.Min(ele, attHold);
                 }
                 if (ground) ele = Taildragger ? -0.6 : 0.0;   // tail down on the roll-out; neutral for a nosewheel type
