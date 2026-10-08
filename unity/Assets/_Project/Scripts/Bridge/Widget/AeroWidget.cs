@@ -75,7 +75,7 @@ namespace FlyingGame.Bridge.Widget
         public readonly Dictionary<string, bool> Show = new()
         {
             ["lift"] = true, ["drag"] = true, ["weight"] = true, ["thrust"] = true, ["wind"] = true, ["total"] = true,
-            ["axis"] = true, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false,
+            ["axis"] = true, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false, ["review"] = true,
         };
 
         public AircraftConfig Config { get; private set; }
@@ -122,6 +122,7 @@ namespace FlyingGame.Bridge.Widget
             _vectors = camGo.AddComponent<WidgetVectors>(); _vectors.Widget = this;
             Controls = gameObject.AddComponent<WidgetControls>(); Controls.Widget = this;
             Presets = gameObject.AddComponent<WidgetPresets>(); Presets.Widget = this;
+            Review = new WidgetReview(this);
             _outputs = gameObject.AddComponent<WidgetOutputs>(); _outputs.Widget = this;
             _server = gameObject.AddComponent<WidgetServer>(); _server.Widget = this;
             Load(Scenario.Flare, AircraftId, Flaps);
@@ -164,6 +165,7 @@ namespace FlyingGame.Bridge.Widget
             Ac.FlapFraction = sc == Scenario.Flare ? Flaps : 0;
             Ac.CaptureForces = true;
             _sim = new SimLoop(Ac);
+            Review?.Clear(); Shown = null;
             if (_surface != null) _surface.SetActive(sc == Scenario.Flare);
             else if (sc == Scenario.Flare) BuildSurface();
             Paused = false;
@@ -197,37 +199,90 @@ namespace FlyingGame.Bridge.Widget
         private void Update()
         {
             if (_sim == null) return;
-            float dt = Mathf.Min(Time.unscaledDeltaTime, 0.05f) * TimeScale;
+            float rdt = Mathf.Min(Time.unscaledDeltaTime, 0.05f);
             Controls.Poll();
-            Presets.Tick(dt);
-            if (!Paused && dt > 0f)
+            if (Paused)
             {
-                ControlInputs inputs = Controls.Inputs;
-                if (_flare != null)
-                {
-                    // The flare: the pilot's elevator and power (the lesson keeps it straight and on the centreline — the
-                    // side view is longitudinal only); the demo preset flies the lesson's own law.
-                    ControlInputs merged = _flare.Step(Ac, inputs, dt);
-                    var auto = _flare.Autopilot;
-                    inputs = Presets.FlareDemo ? auto : new ControlInputs(merged.Aileron, inputs.Elevator, merged.Rudder, inputs.ThrottleLever, false, inputs.ElevatorFree, false);
-                    Ac.BrakeInput = Controls.Brake01;
-                }
-                _sim.RunFor(dt, inputs);
-                if (_flare != null) _flare.ConstrainLongitudinal(Ac);
-                else WrapAltitude();
+                // REVIEW (protocol 3): the picture is a frame from the history; nothing flies (controls don't move it).
+                Review.Tick(rdt);
+                ShowFrame(Review.Shown);
+                return;
             }
-            // Pose the aircraft; surfaces follow the sim's deflections; props spin.
+            float dt = rdt * TimeScale;
+            Presets.Tick(dt);
+            if (dt > 0f) StepSim(dt);
+            ShowLive(dt);
+            Review.Record(dt);
+        }
+
+        /// <summary>One step of the physics with the current controls (the flare merges in the lesson's lateral law).</summary>
+        public void StepSim(float dt)
+        {
+            ControlInputs inputs = Controls.Inputs;
+            if (_flare != null)
+            {
+                // The flare: the pilot's elevator and power (the lesson keeps it straight and on the centreline — the
+                // side view is longitudinal only); the demo preset flies the lesson's own law.
+                ControlInputs merged = _flare.Step(Ac, inputs, dt);
+                var auto = _flare.Autopilot;
+                inputs = Presets.FlareDemo ? auto : new ControlInputs(merged.Aileron, inputs.Elevator, merged.Rudder, inputs.ThrottleLever, false, inputs.ElevatorFree, false);
+                Ac.BrakeInput = Controls.Brake01;
+            }
+            _sim.RunFor(dt, inputs);
+            if (_flare != null) _flare.ConstrainLongitudinal(Ac);
+            else WrapAltitude();
+        }
+
+        /// <summary>Pose the live aircraft (surfaces follow the sim's deflections, props spin) and place the camera.</summary>
+        public void ShowLive(float dt)
+        {
+            Shown = null;
             var s = Ac.State;
             _visualRoot.position = CoordinateMap.ToUnity(s.Position);
             _visualRoot.rotation = CoordinateMap.ToUnity(s.Attitude);
             var d = Ac.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
-            _builder.SpinProps(_ => (float)Ac.EngineRpm, Paused ? 0f : dt);
+            _builder.SpinProps(_ => (float)Ac.EngineRpm, dt);
             PlaceCamera();
         }
 
+        /// <summary>The frame being reviewed (null = live).</summary>
+        public WidgetHistory.Snap Shown { get; private set; }
+
+        /// <summary>Draw a past frame exactly as it was: pose, surfaces, camera — the vectors and labels read it too.</summary>
+        public void ShowFrame(WidgetHistory.Snap f)
+        {
+            if (f == null) { ShowLive(0f); return; }
+            Shown = f;
+            _visualRoot.position = CoordinateMap.ToUnity(f.State.Position);
+            _visualRoot.rotation = CoordinateMap.ToUnity(f.State.Attitude);
+            _builder.SetDeflections((float)f.Defl.AileronRad, (float)f.Defl.ElevatorRad, (float)f.Defl.RudderRad, (float)f.Defl.SpoilerFraction);
+            Cam.orthographic = f.Ortho; Cam.orthographicSize = f.OrthoSize; Cam.fieldOfView = f.Fov;
+            Cam.transform.SetPositionAndRotation(f.CamPos, f.CamRot);
+        }
+
+        /// <summary>What the picture shows right now: the reviewed frame's, or the live aircraft's.</summary>
+        public RigidBodyState ShownState => Shown != null ? Shown.State : Ac.State;
+        public System.Collections.Generic.IReadOnlyList<FlyingGame.Core.Aero.ForceSample> ShownForces => Shown != null ? Shown.Forces : Ac.LastForces;
+        public double ShownNz => Shown != null ? Shown.Nz : Ac.LoadFactorZ;
+
+        /// <summary>Resume from the frame being shown (protocol 3): the aircraft is put back in that state with the controls it
+        /// had, the history after it is discarded (a branch).</summary>
+        public void ResumeFrom(WidgetHistory.Snap f)
+        {
+            if (f != null)
+            {
+                Ac.SetReplayPose(f.State, f.Defl, f.AcThrottle, f.Flaps, f.GearExt, f.Nz);   // pose + actuator positions exactly as shown
+                Presets.Stop();
+                Controls.Aileron = f.Ail; Controls.Elevator = f.Ele; Controls.Rudder = f.Rud; Controls.Throttle01 = f.Thr; Controls.Brake01 = f.Brake; Controls.ElevatorFree = f.HandsOff;
+            }
+            Paused = false; Shown = null;
+        }
+
+        public WidgetReview Review { get; private set; }
+
         /// <summary>Step the sim without drawing (the developed-spin preset fast-forwards the entry).</summary>
-        public void StepOffscreen(float dt) { _sim.RunFor(dt, Controls.Inputs); if (_flare == null) WrapAltitude(); }
+        public void StepOffscreen(float dt) => StepSim(dt);
 
         /// <summary>The spin never runs out of sky: below 600 m it is lifted 1,800 m, nothing else changes.</summary>
         private void WrapAltitude()
@@ -276,9 +331,11 @@ namespace FlyingGame.Bridge.Widget
             public double LeftAlphaDeg, RightAlphaDeg; public bool LeftStalled, RightStalled, OnGround;
         }
 
-        public Readout Read()
+        public Readout Read() => Read(ShownState, ShownNz);
+
+        public Readout Read(RigidBodyState s, double nz)
         {
-            var s = Ac.State; var r = new Readout();
+            var r = new Readout();
             Vec3 vAir = s.Velocity - s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));
             double tas = vAir.Length, rho = Atmosphere.DensityAtAltitude(-s.Position.Z);
             r.Ktas = tas * 1.943844; r.Kias = tas * System.Math.Sqrt(rho / 1.225) * 1.943844; r.Q = 0.5 * rho * tas * tas;
@@ -291,7 +348,7 @@ namespace FlyingGame.Bridge.Widget
             Vec3 vW = q.Rotate(s.Velocity);
             r.SinkFpm = vW.Z * 196.85; r.HeightFt = -s.Position.Z * 3.28084;
             r.RollRateDps = s.Rates.X * 57.2958; r.PitchRateDps = s.Rates.Y * 57.2958; r.YawRateDps = s.Rates.Z * 57.2958;
-            r.LoadFactor = Ac.LoadFactorZ;
+            r.LoadFactor = nz;
             // Each wing's local α at mid-semispan: the airflow there includes the rotation (ω × r) — the heart of the spin.
             double half = SpanM * 0.5;
             Vec3 Local(double y) { Vec3 rr = new(0, y, 0); return vAir + Vec3.Cross(s.Rates, rr); }

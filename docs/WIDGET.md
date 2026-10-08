@@ -40,12 +40,17 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `scenario` | `name`: `flare` \| `spin`; `aircraft`: fleet id (optional); `flaps`: 0…1 (optional, flare only) | Load or restart the scenario. |
 | `controls` | `aileron`, `elevator`, `rudder`: −1…1; `throttle`, `brake`: 0…1; `handsOff`: bool; `source`: label | Set the controls (any subset). **Elevator + = stick FORWARD (nose down); − = pull.** Aileron + = right, rudder + = right. `handsOff` frees the elevator to float on its trim. |
 | `preset` | `name`: `spin-entry` \| `spin-developed` \| `spin-recovery` \| `flare-demo` \| `flare-hands-off` | Run a scripted moment. Any control input from anywhere cancels it. |
-| `pause` / `resume` | | Freeze or continue the physics. |
+| `pause` | | Freeze on the current frame and enter **review** (below). |
+| `resume` | `from`: `live` (optional) | Fly on **from the frame shown**: the history after it is discarded (a branch), and the aircraft continues with that frame's pose, rates, actuator positions and controls. `from:"live"` snaps back to where it was paused instead. |
+| `step` | `frames`: ±N (default −1) | While paused: N frames back (−) or forward (+) through the history, clamped at the oldest. Forward past the live edge flies the sim on N frames (1/30 s each) and stays paused. |
+| `rewind` | `seconds`: S | Jump back S seconds (clamped to the history). |
+| `seek` | `offsetMs`: ≤ 0 | Jump to an absolute offset from the live edge (0 = live). |
+| `play` | `rate`: 0.25 \| 0.5 \| 1; `direction`: `forward` \| `reverse` | Play through the history while paused (reverse = rewind in motion); stops at either end. Any step/seek/rewind stops it. |
 | `timescale` | `value`: 0.05…1 | Slow motion. |
 | `reset` | | Restart the current scenario. |
 | `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). |
-| `hello` | | Reply with app, version, `protocol: 2`, `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports. |
-| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips`: bool | Toggle vectors and text. `strips` = every strip's lift and drag. |
+| `hello` | | Reply with app, version, `protocol: 3`, `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout. |
 | `fleet` | | Reply `fleet: [{id, name}]`. |
 | `state` | | Reply with the state (below). |
 | `subscribe` | `hz`: 1…60 | Stream state lines on this connection at that rate. |
@@ -60,12 +65,28 @@ State (reply to `state`, and the `subscribe` stream):
  "heading":212,"sinkFpm":5400,"heightFt":7948,"rollRate":-95,"pitchRate":4,"yawRate":-140,"nz":1.1,
  "leftWingAlpha":34.9,"rightWingAlpha":23.9,"leftStalled":true,"rightStalled":true,"onGround":false,
  "controls":{"aileron":0,"elevator":-1,"rudder":-1,"throttle":0,"brake":0,"handsOff":false},
- "syphon":"Aero Widget","ndi":"Aero Widget","frame":1080}
+ "syphon":"Aero Widget","ndi":"Aero Widget","frame":1080,
+ "review":{"active":false,"offsetMs":0,"historyMs":60000,"playing":false,"rate":0.25,"direction":"reverse"}}
+```
+
+### Review mode (protocol 3)
+
+For teaching: pause at the moment that matters (the stall break, the flare, the recovery) and step back and forth through it.
+
+- **History:** a ring buffer of the last **60 s of simulation time at 30 frames/s** (1,800 frames, the oldest dropped). Each frame holds the aircraft state (pose, velocities, rates), the actuator positions, flaps, gear, power, Nz, the controls, every force sample the vectors are drawn from, and the camera. A past frame is redrawn **exactly** as it looked: arrows, labels, readout, per-wing α and STALLED flags.
+- **Offsets:** one frame = 33.3 ms of sim time (slow motion records fewer frames per real second; 60 s is always 60 s of flight).
+- **Picture:** Syphon and NDI show the reviewed frame. The readout gets a `REVIEW -2.4 s` tag (plus ◀/▶ ×rate while playing); hide it with `show {"review":false}`.
+- **Read-only:** controls touched while paused (port, remote, keyboard, gamepad) are ignored. Nothing moves the airplane until `resume`.
+- **Replies:** every review command (and `pause` / `resume`) replies with the shown frame:
+
+```json
+{"ok":true,"cmd":"step","offsetMs":-33,"frame":{"index":-1,"offsetMs":-33,"simTime":15.78,"kias":61.9,"alpha":15.6,
+ "pitch":8.8,"roll":-0.1,"yawRate":-17,"leftWingAlpha":16.4,"rightWingAlpha":15.1,"leftStalled":true,"rightStalled":true}}
 ```
 
 ### HTTP 47831 (phone / iPad remote)
 
-- **`http://<mac-ip>:47831/` in Safari:** a touch stick, rudder, power and brake sliders, the scenario, aircraft and view pickers, the presets, pause and slow-motion. No app to install.
+- **`http://<mac-ip>:47831/` in Safari:** a touch stick, rudder, power and brake sliders, the scenario, aircraft and view pickers, the presets, pause and slow-motion, and the review transport (◀︎◀︎ 1 s / ◀︎ frame / frame ▶︎ / ▶︎▶︎ 1 s, play ¼ either way, Fly from here, Back to live) with a history scrub bar. No app to install.
 - **`POST /cmd`:** takes the same JSON as TCP and replies the same way.
 - **`GET /state`:** returns the state.
 
@@ -82,7 +103,9 @@ State (reply to `state`, and the `subscribe` stream):
   | W / S | Power |
   | B | Brakes |
   | H | Hands-off |
-  | Space | Pause |
+  | Space | Pause (review) / resume from the shown frame |
+  | , / . | One frame back / forward (review) |
+  | Shift + , / . | One second back / forward |
   | R | Reset |
   | P | Next preset |
   | [ / ] | Slower / faster |

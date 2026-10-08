@@ -74,7 +74,7 @@ namespace FlyingGame.Bridge.Widget
         {
             if (Widget == null || Widget.Ac == null) return;
             BeginLabels();
-            var s = Widget.Ac.State; Vector3 cgU = CoordinateMap.ToUnity(s.Position);
+            var s = Widget.ShownState; Vector3 cgU = CoordinateMap.ToUnity(s.Position);
             float px = PixelM(cgU), txt = px * 9f;
             var rd = Widget.Read();
             if (Widget.Show["readout"])
@@ -84,7 +84,8 @@ namespace FlyingGame.Bridge.Widget
                 string spin = Widget.Current == AeroWidget.Scenario.Spin
                     ? $"\nYAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s\nL WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}\nR WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}"
                     : $"\nSINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
-                Label(corner, $"{Widget.AircraftId.Replace("-like", "")}   {rd.Kias:F0} KIAS   α {rd.AlphaDeg:F1}°   PITCH {rd.PitchDeg:+0;-0}°{spin}", Color.white, txt * 0.42f, TextAnchor.UpperLeft);
+                string rev = Widget.Paused && Widget.Show["review"] ? $"REVIEW {(Widget.Review.OffsetMs / 1000.0):+0.0;-0.0;0.0} s{(Widget.Review.Playing ? (Widget.Review.Direction == "reverse" ? "  ◀ " : "  ▶ ") + "×" + Widget.Review.Rate : "")}\n" : "";
+                Label(corner, rev + $"{Widget.AircraftId.Replace("-like", "")}   {rd.Kias:F0} KIAS   α {rd.AlphaDeg:F1}°   PITCH {rd.PitchDeg:+0;-0}°{spin}", Color.white, txt * 0.42f, TextAnchor.UpperLeft);
             }
             EndLabels();
         }
@@ -93,7 +94,7 @@ namespace FlyingGame.Bridge.Widget
         private void OnPostRender()
         {
             if (Widget == null || Widget.Ac == null || _mat == null) return;
-            var ac = Widget.Ac; var s = ac.State; var cfg = ac.Config; Vec3 cg = cfg.Mass.CgVec();
+            var ac = Widget.Ac; var s = Widget.ShownState; var cfg = ac.Config; Vec3 cg = cfg.Mass.CgVec();
             Vector3 cgU = CoordinateMap.ToUnity(s.Position);
             float px = PixelM(cgU);
             double weightN = ac.MassProperties.MassKg * 9.81;
@@ -105,7 +106,7 @@ namespace FlyingGame.Bridge.Widget
             _mat.SetPass(0);
             GL.PushMatrix();
             GL.Begin(GL.LINES);
-            var samples = ac.LastForces;
+            var samples = Widget.ShownForces;   // review mode: the shown frame's forces
             Vec3 lift = Vec3.Zero, drag = Vec3.Zero, thrust = Vec3.Zero, total = Vec3.Zero, wL = Vec3.Zero, wR = Vec3.Zero, dL = Vec3.Zero, dR = Vec3.Zero;
             foreach (var f in samples)
             {
@@ -180,7 +181,7 @@ namespace FlyingGame.Bridge.Widget
                 if (Widget.Show["lift"]) _pending.Add((cgU + W(lift) * perN * 1.08f, "LIFT", Lift));
                 if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight));
                 if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f, "DRAG ×3", Drag));
-                if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.Ac.State.Velocity).normalized * 200f * px * 1.5f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind));
+                if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.ShownState.Velocity).normalized * 200f * px * 1.5f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind));
             }
             else
             {

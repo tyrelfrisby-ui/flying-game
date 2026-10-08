@@ -36,6 +36,13 @@ namespace FlyingGame.Bridge.Widget
  <button onclick=""cmd({cmd:'timescale',value:1})"">×1</button><button onclick=""cmd({cmd:'timescale',value:0.5})"">×½</button><button onclick=""cmd({cmd:'timescale',value:0.25})"">×¼</button>
  <button onclick=""cmd({cmd:'reset'})"">Reset</button>
 </div>
+<div class='row'>
+ <button onclick=""cmd({cmd:'rewind',seconds:1})"">◀︎◀︎</button><button onclick=""cmd({cmd:'step',frames:-1})"">◀︎ frame</button>
+ <button onclick=""cmd({cmd:'step',frames:1})"">frame ▶︎</button><button onclick=""cmd({cmd:'seek',offsetMs:Math.min(0,rvOff+1000)})"">▶︎▶︎</button>
+ <button onclick=""cmd({cmd:'play',rate:0.25,direction:'reverse'})"">◀ ¼</button><button onclick=""cmd({cmd:'play',rate:0.25,direction:'forward'})"">▶ ¼</button>
+ <button onclick=""cmd({cmd:'resume'})"">Fly from here</button><button onclick=""cmd({cmd:'resume',from:'live'})"">Back to live</button>
+</div>
+<div class='row'><span class='lbl'>History</span><input id='scrub' type='range' min='-60000' max='0' step='33' value='0'><span id='rv' class='lbl'></span></div>
 <div id='stick'><div id='dot'></div></div>
 <div class='row'><span class='lbl'>Rudder</span><input id='rud' type='range' min='-1' max='1' step='0.01' value='0'></div>
 <div class='row'><span class='lbl'>Power&nbsp;</span><input id='thr' type='range' min='0' max='1' step='0.01' value='0'></div>
@@ -49,11 +56,16 @@ function setFrom(t){const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.mi
 stick.addEventListener('pointerdown',e=>{live=true;stick.setPointerCapture(e.pointerId);setFrom(e);});
 stick.addEventListener('pointermove',e=>{if(live)setFrom(e);});
 stick.addEventListener('pointerup',e=>{live=false;sx=0;sy=0;dot.style.left='50%';dot.style.top='50%';send();});
+let rvOff=0,scrubbing=false;const scrub=document.getElementById('scrub');
+scrub.addEventListener('input',()=>{scrubbing=true;cmd({cmd:'seek',offsetMs:+scrub.value});});
+scrub.addEventListener('change',()=>{scrubbing=false;});
 let touched=0;['rud','thr','brk'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{touched=Date.now();}));
 document.getElementById('rud').addEventListener('change',e=>{e.target.value=0;send();});
 function send(){cmd({cmd:'controls',source:'remote',aileron:sx,elevator:-sy,rudder:+document.getElementById('rud').value,throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value});}
 setInterval(()=>{if(live||Date.now()-touched<300)send();},50);
 setInterval(()=>{fetch('/state').then(r=>r.json()).then(s=>{document.getElementById('st').textContent=
+ (()=>{const r=s.review||{};rvOff=r.offsetMs||0;scrub.min=-(r.historyMs||60000);if(!scrubbing)scrub.value=rvOff;
+ document.getElementById('rv').textContent=r.active?`REVIEW ${(rvOff/1000).toFixed(1)} s${r.playing?' '+(r.direction=='reverse'?'◀':'▶')+'×'+r.rate:''}`:'live';return '';})()+
  `${s.scenario} ${s.aircraft} ${s.paused?'PAUSED':''} ×${(+s.timescale).toFixed(2)} [${s.source}] ${s.preset||''}\n`+
  `KIAS ${s.kias.toFixed(0)}  α ${s.alpha.toFixed(1)}°  β ${s.beta.toFixed(1)}°  pitch ${s.pitch.toFixed(0)}°  roll ${s.roll.toFixed(0)}°\n`+
  `yaw ${s.yawRate.toFixed(0)}°/s  L α ${s.leftWingAlpha.toFixed(0)}°${s.leftStalled?' STALL':''}  R α ${s.rightWingAlpha.toFixed(0)}°${s.rightStalled?' STALL':''}  ht ${s.heightFt.toFixed(0)} ft`;}).catch(()=>{});},300);

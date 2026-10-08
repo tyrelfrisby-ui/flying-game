@@ -193,8 +193,14 @@ namespace FlyingGame.Bridge.Widget
                 case "preset":
                     if (!w.Presets.Run((string)j["name"] ?? "")) { ok["ok"] = false; ok["error"] = "unknown preset"; }
                     break;
-                case "pause": w.Paused = true; break;
-                case "resume": w.Paused = false; break;
+                case "pause": w.Review.Pause(); return Reviewed(ok);
+                case "resume":
+                    w.Review.Resume(((string)j["from"])?.ToLowerInvariant() == "live");
+                    ok["offsetMs"] = 0; ok["frame"] = w.Review.FrameJson(); break;
+                case "step": w.Review.Step(j["frames"]?.Value<int>() ?? -1); return Reviewed(ok);
+                case "rewind": w.Review.Rewind(j["seconds"]?.Value<double>() ?? 1); return Reviewed(ok);
+                case "seek": w.Review.Seek(j["offsetMs"]?.Value<double>() ?? 0); return Reviewed(ok);
+                case "play": w.Review.Play((float)(j["rate"]?.Value<double>() ?? 0.25), (string)j["direction"] ?? "reverse"); return Reviewed(ok);
                 case "reset": w.Load(w.Current, w.AircraftId, w.Flaps); break;
                 case "timescale": w.TimeScale = Mathf.Clamp((float)(j["value"]?.Value<double>() ?? 1), 0.05f, 1f); break;
                 case "view":
@@ -205,14 +211,15 @@ namespace FlyingGame.Bridge.Widget
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
-                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 2;
-                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 3;
+                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
                     ok["show"] = new JArray(w.Show.Keys);
                     ok["frame"] = AeroWidget.FrameSize; ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
                     ok["tcpPort"] = TcpPort; ok["httpPort"] = HttpPort;
+                    ok["review"] = new JObject { ["historySeconds"] = WidgetHistory.Seconds, ["fps"] = WidgetHistory.Hz, ["commands"] = new JArray("step", "rewind", "seek", "play") };
                     break;
                 case "show":
                     foreach (var p in j.Properties()) if (p.Name != "cmd" && w.Show.ContainsKey(p.Name)) w.Show[p.Name] = p.Value.Value<bool>();
@@ -247,6 +254,14 @@ namespace FlyingGame.Bridge.Widget
             return ok.ToString(Newtonsoft.Json.Formatting.None);
         }
 
+        /// <summary>Review replies carry the shown frame: {"ok":true,"cmd":"step","offsetMs":-33,"frame":{…}}.</summary>
+        private string Reviewed(JObject ok)
+        {
+            var rv = Widget.Review;
+            ok["offsetMs"] = System.Math.Round(rv.OffsetMs); ok["frame"] = rv.FrameJson();
+            return ok.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
         private JObject StateJson()
         {
             var w = Widget; var r = w.Read(); var c = w.Controls;
@@ -260,6 +275,8 @@ namespace FlyingGame.Bridge.Widget
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = new JObject { ["aileron"] = c.Aileron, ["elevator"] = c.Elevator, ["rudder"] = c.Rudder, ["throttle"] = c.Throttle01, ["brake"] = c.Brake01, ["handsOff"] = c.ElevatorFree },
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
+                ["review"] = new JObject { ["active"] = w.Review.Active, ["offsetMs"] = System.Math.Round(w.Review.OffsetMs), ["historyMs"] = System.Math.Round(w.Review.HistoryMs),
+                    ["playing"] = w.Review.Playing, ["rate"] = w.Review.Rate, ["direction"] = w.Review.Direction },
             };
         }
     }

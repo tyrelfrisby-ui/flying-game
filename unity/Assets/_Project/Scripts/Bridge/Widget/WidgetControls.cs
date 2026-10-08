@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>From the TCP port / web remote (any field may be absent).</summary>
         public void FromNetwork(double? ail, double? ele, double? rud, double? thr, double? brake, bool? handsOff, string source)
         {
+            if (Widget.Paused) return;   // review is read-only: nothing moves the airplane until resume
             if (ail.HasValue) Aileron = Mathf.Clamp((float)ail.Value, -1f, 1f);
             if (ele.HasValue) Elevator = Mathf.Clamp((float)ele.Value, -1f, 1f);
             if (rud.HasValue) Rudder = Mathf.Clamp((float)rud.Value, -1f, 1f);
@@ -38,6 +39,9 @@ namespace FlyingGame.Bridge.Widget
             Widget.Presets.Stop();
         }
 
+        /// <summary>The control inputs into a history snapshot (protocol 4 adds its levers here).</summary>
+        public void FillSnap(WidgetHistory.Snap s) { }
+
         private static float Axis(int i) { try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; } }
 
         public void Poll()
@@ -46,7 +50,12 @@ namespace FlyingGame.Bridge.Widget
             // R reset, P next preset, [ ] slow-motion.
             if (Input.GetKeyDown(KeyCode.Alpha1)) Widget.Load(AeroWidget.Scenario.Flare, Widget.AircraftId, Widget.Flaps);
             if (Input.GetKeyDown(KeyCode.Alpha2)) Widget.Load(AeroWidget.Scenario.Spin, Widget.AircraftId, Widget.Flaps);
-            if (Input.GetKeyDown(KeyCode.Space)) Widget.Paused = !Widget.Paused;
+            if (Input.GetKeyDown(KeyCode.Space)) { if (Widget.Paused) Widget.Review.Resume(false); else Widget.Review.Pause(); }
+            // Review (protocol 3): , / . a frame back / forward; with Shift, a second.
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (Input.GetKeyDown(KeyCode.Comma)) Widget.Review.Step(shift ? -WidgetHistory.Hz : -1);
+            if (Input.GetKeyDown(KeyCode.Period)) Widget.Review.Step(shift ? WidgetHistory.Hz : 1);
+            if (Widget.Paused) return;   // review is read-only: the keys and the gamepad don't move the airplane
             if (Input.GetKeyDown(KeyCode.R)) Widget.Load(Widget.Current, Widget.AircraftId, Widget.Flaps);
             if (Input.GetKeyDown(KeyCode.P)) Widget.Presets.Next();
             if (Input.GetKeyDown(KeyCode.LeftBracket)) Widget.TimeScale = Mathf.Max(0.1f, Widget.TimeScale * 0.5f);
