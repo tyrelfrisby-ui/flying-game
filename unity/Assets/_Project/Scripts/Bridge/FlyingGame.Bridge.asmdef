@@ -3,7 +3,10 @@
     "rootNamespace": "FlyingGame.Bridge",
     "references": [
         "FlyingGame.Core",
-        "FlyingGame.Sim"
+        "FlyingGame.Sim",
+        "Klak.Syphon.Runtime",
+        "Klak.Ndi.Runtime",
+        "Unity.Newtonsoft.Json"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -12,6 +15,17 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "jp.keijiro.klak.syphon",
+            "expression": "0.0.0",
+            "define": "KLAK_SYPHON"
+        },
+        {
+            "name": "jp.keijiro.klak.ndi",
+            "expression": "0.0.0",
+            "define": "KLAK_NDI"
+        }
+    ],
     "noEngineReferences": false
 }

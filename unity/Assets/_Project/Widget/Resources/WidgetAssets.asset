@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1b77a4cf89534411bad241d8c1444fc, type: 3}
+  m_Name: WidgetAssets
+  m_EditorClassIdentifier: FlyingGame.Bridge::FlyingGame.Bridge.Widget.WidgetAssets
+  Syphon: {fileID: 11400000, guid: 4f35cf6570beb4605a26cd2d71c4f8fc, type: 2}
+  Ndi: {fileID: 11400000, guid: 69304b86950074db7ba8caba75214004, type: 2}

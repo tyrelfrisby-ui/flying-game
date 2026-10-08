@@ -19,6 +19,8 @@ namespace FlyingGame.Bridge
             // 60 everywhere — the sim steps at its own fixed rate, so this is smoothness only.
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 60;
+            // The Aero Widget build (owner 2026-10-07): no world, no game — two transparent scenarios for Glass Overlay.
+            if (FlyingGame.Bridge.Widget.AeroWidget.IsWidget) { FlyingGame.Bridge.Widget.AeroWidget.Create(); return; }
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
             new GameObject("Soaring").AddComponent<SoaringScenery>();
             BuildCardinalLetters();

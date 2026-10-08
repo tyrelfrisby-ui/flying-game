@@ -13,6 +13,17 @@
     "com.unity.modules.ui": "1.0.0",
     "com.unity.modules.uielements": "1.0.0",
     "com.unity.modules.unitywebrequest": "1.0.0",
-    "com.unity.cloud.gltfast": "6.9.1"
-  }
+    "com.unity.cloud.gltfast": "6.9.1",
+    "jp.keijiro.klak.syphon": "1.0.4",
+    "jp.keijiro.klak.ndi": "2.1.6"
+  },
+  "scopedRegistries": [
+    {
+      "name": "Keijiro",
+      "url": "https://registry.npmjs.com",
+      "scopes": [
+        "jp.keijiro"
+      ]
+    }
+  ]
 }

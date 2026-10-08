@@ -163,6 +163,93 @@ namespace FlyingGame.EditorTools
             }
         }
 
+        /// <summary>
+        /// The AERO WIDGET (owner 2026-10-07): the same project as a separate Mac app, "Aero Widget.app"
+        /// (com.tyrelfrisby.aerowidget) — SceneBootstrap sees the bundle id and builds the widget instead of the game.
+        ///   Unity -batchmode -quit -projectPath unity -buildTarget OSXUniversal -executeMethod FlyingGame.EditorTools.BuildScript.BuildWidget
+        /// </summary>
+        [MenuItem("FlyingGame/Build Aero Widget (macOS)")]
+        public static void BuildWidget()
+        {
+            string productWas = PlayerSettings.productName, idWas = PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.Standalone);
+            int wWas = PlayerSettings.defaultScreenWidth, hWas = PlayerSettings.defaultScreenHeight;
+            try
+            {
+                PlayerSettings.companyName = "FlyingGame";
+                PlayerSettings.productName = "Aero Widget";
+                PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, "com.tyrelfrisby.aerowidget");
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.IL2CPP);
+                PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Minimal);
+                PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+                PlayerSettings.defaultScreenWidth = 720; PlayerSettings.defaultScreenHeight = 720;
+                PlayerSettings.resizableWindow = true;
+                PlayerSettings.runInBackground = true;   // it keeps streaming while Glass Overlay has the focus
+                PlayerSettings.macOS.buildNumber = System.DateTime.Now.ToString("yyyyMMddHHmm");
+                PlayerSettings.bundleVersion = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
+                UnityEditor.OSXStandalone.UserBuildSettings.architecture = UnityEditor.Build.OSArchitecture.x64ARM64;
+                EnsureSceneInBuild();
+                EnsureAlwaysIncludedShaders();
+                EnsureBuiltinFontPreloaded();
+                EnsureWidgetAssets();
+                EnsureJoystickAxes();
+                AssetDatabase.SaveAssets();
+                string outDir = System.Environment.GetEnvironmentVariable("FLYINGGAME_WIDGET_OUT");
+                if (string.IsNullOrEmpty(outDir)) outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/widget"));
+                Directory.CreateDirectory(outDir);
+                string app = Path.Combine(outDir, "Aero Widget.app");
+                BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+                {
+                    scenes = new[] { ScenePath }, locationPathName = app,
+                    target = BuildTarget.StandaloneOSX, targetGroup = BuildTargetGroup.Standalone, options = BuildOptions.None,
+                });
+                if (report.summary.result == BuildResult.Succeeded) Debug.Log($"widget build SUCCEEDED → {app}");
+                else { Debug.LogError($"widget build FAILED: {report.summary.result}"); if (Application.isBatchMode) EditorApplication.Exit(1); }
+            }
+            finally
+            {
+                PlayerSettings.productName = productWas; PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, idWas);
+                PlayerSettings.defaultScreenWidth = wWas; PlayerSettings.defaultScreenHeight = hWas;
+            }
+        }
+
+        /// <summary>A Resources asset referencing the Syphon / NDI shader resources (else a player build strips them).</summary>
+        private static void EnsureWidgetAssets()
+        {
+            const string dir = "Assets/_Project/Widget/Resources", path = dir + "/WidgetAssets.asset";
+            if (!AssetDatabase.IsValidFolder("Assets/_Project/Widget")) AssetDatabase.CreateFolder("Assets/_Project", "Widget");
+            if (!AssetDatabase.IsValidFolder(dir)) AssetDatabase.CreateFolder("Assets/_Project/Widget", "Resources");
+            var a = AssetDatabase.LoadAssetAtPath<FlyingGame.Bridge.Widget.WidgetAssets>(path);
+            if (a == null) { a = ScriptableObject.CreateInstance<FlyingGame.Bridge.Widget.WidgetAssets>(); AssetDatabase.CreateAsset(a, path); }
+            a.Syphon = AssetDatabase.LoadAssetAtPath<Object>("Packages/jp.keijiro.klak.syphon/Internal/SyphonResources.asset");
+            a.Ndi = AssetDatabase.LoadAssetAtPath<Object>("Packages/jp.keijiro.klak.ndi/Runtime/Resource/NdiResources.asset");
+            EditorUtility.SetDirty(a);
+        }
+
+        /// <summary>Joystick axes 1–8 as WJoy1…WJoy8 in the (old) Input Manager, for the widget's gamepad.</summary>
+        private static void EnsureJoystickAxes()
+        {
+            var im = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/InputManager.asset")[0];
+            var so = new SerializedObject(im); var axes = so.FindProperty("m_Axes");
+            for (int n = 1; n <= 8; n++)
+            {
+                string name = "WJoy" + n; bool have = false;
+                for (int i = 0; i < axes.arraySize; i++) if (axes.GetArrayElementAtIndex(i).FindPropertyRelative("m_Name").stringValue == name) have = true;
+                if (have) continue;
+                axes.InsertArrayElementAtIndex(axes.arraySize);
+                var e = axes.GetArrayElementAtIndex(axes.arraySize - 1);
+                e.FindPropertyRelative("m_Name").stringValue = name;
+                e.FindPropertyRelative("descriptiveName").stringValue = ""; e.FindPropertyRelative("descriptiveNegativeName").stringValue = "";
+                e.FindPropertyRelative("negativeButton").stringValue = ""; e.FindPropertyRelative("positiveButton").stringValue = "";
+                e.FindPropertyRelative("altNegativeButton").stringValue = ""; e.FindPropertyRelative("altPositiveButton").stringValue = "";
+                e.FindPropertyRelative("gravity").floatValue = 0; e.FindPropertyRelative("dead").floatValue = 0.05f; e.FindPropertyRelative("sensitivity").floatValue = 1;
+                e.FindPropertyRelative("snap").boolValue = false; e.FindPropertyRelative("invert").boolValue = false;
+                e.FindPropertyRelative("type").intValue = 2;          // joystick axis
+                e.FindPropertyRelative("axis").intValue = n - 1;      // 0-based
+                e.FindPropertyRelative("joyNum").intValue = 0;        // any joystick
+            }
+            so.ApplyModifiedProperties();
+        }
+
         // Shaders referenced only by Shader.Find(name) at runtime are stripped from a player build
         // (they work in the editor, then return null on device — black screen). Force-include the ones
         // SceneBootstrap/BubbleField/SoaringScenery look up.
