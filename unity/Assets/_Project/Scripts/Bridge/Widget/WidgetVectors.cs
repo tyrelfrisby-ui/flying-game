@@ -65,9 +65,10 @@ namespace FlyingGame.Bridge.Widget
         private float PixelM(Vector3 at)
         {
             var cam = Widget.Cam;
-            if (cam.orthographic) return cam.orthographicSize * 2f / AeroWidget.FrameSize;
+            float ph = Mathf.Max(1f, cam.pixelHeight);   // the viewport shrinks when the control display takes a strip
+            if (cam.orthographic) return cam.orthographicSize * 2f / ph;
             float d = Vector3.Distance(cam.transform.position, at);
-            return 2f * d * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / AeroWidget.FrameSize;
+            return 2f * d * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / ph;
         }
 
         private void LateUpdate()
@@ -180,7 +181,7 @@ namespace FlyingGame.Bridge.Widget
             {
                 if (Widget.Show["lift"]) _pending.Add((cgU + W(lift) * perN * 1.08f, "LIFT", Lift));
                 if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight));
-                if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f, "DRAG ×3", Drag));
+                if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f - Widget.Cam.transform.up * t * 1.4f, "DRAG ×3", Drag));   // just below the wind's label
                 if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.ShownState.Velocity).normalized * 200f * px * 1.5f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind));
             }
             else

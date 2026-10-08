@@ -131,6 +131,11 @@ public sealed class Aircraft
     /// <summary>0 = up and stowed .. 1 = down and locked; travels over ~4 s.</summary>
     public double GearExtension { get; private set; } = 1.0;
     public const double GearTravelSec = 4.0;
+    /// <summary>Full gear travel time (s) for this airframe; the game's default, the widget's 6 s.</summary>
+    public double GearTravelTime { get; set; } = GearTravelSec;
+    /// <summary>Speed-brake / spoiler lever 0 (retracted) .. 1 (extended), separate from the throttle; used only on types
+    /// whose config has spoiler panels (Controls.Spoiler.MaxDeflRad &gt; 0).</summary>
+    public double SpoilerCommand { get; set; }
     public void SetGear(bool down, bool immediate = false)
     {
         if (!Config.RetractableGear) { GearDown = true; GearExtension = 1.0; return; }
@@ -480,6 +485,8 @@ public sealed class Aircraft
         double spoilerTarget = Config.Propulsion is null
             ? Math.Clamp(Math.Max(0.0, inputs.ThrottleLever), 0.0, 1.0)
             : 0.0;
+        // A separate speed-brake lever (the Aero Widget's, 2026-10-08) on types that have the panels.
+        if (Config.Controls.Spoiler.MaxDeflRad > 0.0) spoilerTarget = Math.Max(spoilerTarget, Math.Clamp(SpoilerCommand, 0.0, 1.0));
         _throttle01 = Config.Propulsion is null ? 0.0 : Math.Clamp((1.0 - inputs.ThrottleLever) * 0.5, 0.0, 1.0);
         ControlDeflections targets = new(
             ShapeAxis(inputs.Aileron, Config.Controls.Aileron),
@@ -771,7 +778,7 @@ public sealed class Aircraft
         if (Config.RetractableGear)
         {
             double target = GearDown ? 1.0 : 0.0;
-            double step = dt / GearTravelSec;
+            double step = dt / GearTravelTime;
             GearExtension = GearExtension < target ? Math.Min(target, GearExtension + step) : Math.Max(target, GearExtension - step);
         }
 

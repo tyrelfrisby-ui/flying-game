@@ -1901,10 +1901,11 @@
       "reversible": false
     },
     "spoiler": {
-      "maxDeflRad": 0.0,
+      "maxDeflRad": 0.87,
       "dragOnly": true,
-      "axis": "throttleLever",
-      "axisMap": "aftOnly"
+      "axis": "speedBrakeLever",
+      "axisMap": "aftOnly",
+      "plateAreaM2": 3.0
     }
   },
   "fuselage": {

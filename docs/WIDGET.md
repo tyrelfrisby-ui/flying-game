@@ -38,7 +38,7 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | Command | Fields | Effect |
 |---|---|---|
 | `scenario` | `name`: `flare` \| `spin`; `aircraft`: fleet id (optional); `flaps`: 0…1 (optional, flare only) | Load or restart the scenario. |
-| `controls` | `aileron`, `elevator`, `rudder`: −1…1; `throttle`, `brake`: 0…1; `handsOff`: bool; `source`: label | Set the controls (any subset). **Elevator + = stick FORWARD (nose down); − = pull.** Aileron + = right, rudder + = right. `handsOff` frees the elevator to float on its trim. |
+| `controls` | `aileron`, `elevator`, `rudder`: −1…1; `throttle`, `brake`, `brakeL`, `brakeR`: 0…1; `handsOff`: bool; `flaps`: 0…1; `spoilers`: 0…1; `spoilersArmed`: bool; `gear`: `up` \| `down`; `source`: label | Set the controls (any subset). **Elevator + = stick FORWARD (nose down); − = pull.** Aileron + = right, rudder + = right. `handsOff` frees the elevator to float on its trim. `brake` sets both toe brakes. The levers (protocol 4) are described below. Reply `accepted: false` (+ `reason`) when the sender isn't the pilot flying or review is paused. |
 | `preset` | `name`: `spin-entry` \| `spin-developed` \| `spin-recovery` \| `flare-demo` \| `flare-hands-off` | Run a scripted moment. Any control input from anywhere cancels it. |
 | `pause` | | Freeze on the current frame and enter **review** (below). |
 | `resume` | `from`: `live` (optional) | Fly on **from the frame shown**: the history after it is discarded (a branch), and the aircraft continues with that frame's pose, rates, actuator positions and controls. `from:"live"` snaps back to where it was paused instead. |
@@ -49,9 +49,12 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `timescale` | `value`: 0.05…1 | Slow motion. |
 | `reset` | | Restart the current scenario. |
 | `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). |
-| `hello` | | Reply with app, version, `protocol: 3`, `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
-| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout. |
-| `fleet` | | Reply `fleet: [{id, name}]`. |
+| `hello` | | Reply with app, version, `protocol: 4`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips. |
+| `controlsDisplay` | `place`: `bottom` \| `left` \| `right`; `size`: 0.2…0.5; `show`: bool (optional) | Where the control panel goes and how much of the picture its strip takes. Default: off, bottom, 0.28. |
+| `pilot` | `id` (null clears), `name`, `color` (`#RRGGBB`), `managed`: bool (default true) | Name the pilot flying (below). |
+| `requestControls` | `from`: `web-…`, `name` | Sent by the web remote's **Request controls** button; the widget pushes `{"event":"controlRequest",…}` to subscribers. |
+| `fleet` | | Reply `fleet: [{id, name, controls}]`; `controls` = `{flaps: [detent °…], spoilers: bool, gear: fixed\|retractable, engines: n}`. |
 | `state` | | Reply with the state (below). |
 | `subscribe` | `hz`: 1…60 | Stream state lines on this connection at that rate. |
 | `snapshot` | `path` (optional) | Write the current frame (RGBA PNG) and reply with `path`. |
@@ -64,7 +67,10 @@ State (reply to `state`, and the `subscribe` stream):
  "viewFrom":"","preset":"spin-entry","source":"network","kias":58.8,"ktas":62,"alpha":29.4,"beta":-3,"q":540,"pitch":-52,"roll":-20,
  "heading":212,"sinkFpm":5400,"heightFt":7948,"rollRate":-95,"pitchRate":4,"yawRate":-140,"nz":1.1,
  "leftWingAlpha":34.9,"rightWingAlpha":23.9,"leftStalled":true,"rightStalled":true,"onGround":false,
- "controls":{"aileron":0,"elevator":-1,"rudder":-1,"throttle":0,"brake":0,"handsOff":false},
+ "controls":{"aileron":0,"elevator":-1,"rudder":-1,"throttle":0,"brake":0,"brakeL":0,"brakeR":0,"handsOff":false,
+   "flaps":0,"flapsDeg":0,"flapsActual":0,"flapsActualDeg":0,"spoilers":0,"spoilersArmed":false,"gear":"fixed","gearLights":"down"},
+ "pilot":{"id":"sam","name":"Sam","color":"#4FC3F7","managed":true},"remotes":[{"id":"web-k3j9x2","name":"Rae"}],
+ "controlsDisplay":{"shown":true,"place":"bottom","size":0.28,"traces":false},
  "syphon":"Aero Widget","ndi":"Aero Widget","frame":1080,
  "review":{"active":false,"offsetMs":0,"historyMs":60000,"playing":false,"rate":0.25,"direction":"reverse"}}
 ```
@@ -83,6 +89,51 @@ For teaching: pause at the moment that matters (the stall break, the flare, the 
 {"ok":true,"cmd":"step","offsetMs":-33,"frame":{"index":-1,"offsetMs":-33,"simTime":15.78,"kias":61.9,"alpha":15.6,
  "pitch":8.8,"roll":-0.1,"yawRate":-17,"leftWingAlpha":16.4,"rightWingAlpha":15.1,"leftStalled":true,"rightStalled":true}}
 ```
+
+In review, `controls` (and everything else in the state) is the frame being shown.
+
+### Control display (protocol 4)
+
+An NTSB-animation-style schematic drawn **into the frame**, so it's on Syphon and NDI: a dark translucent panel with white line art, small caps labels and a value under each control.
+
+| Control | Shows |
+|---|---|
+| **Control wheel** | The wheel rotates with aileron (90° at full deflection). The column is a bar marked PUSH / PULL with %. |
+| **Rudder pedals** | The pressed pedal slides forward, the other back; L/R %. The toe brakes light red with braking (L/R). |
+| **Throttle** | IDLE…FULL, %. One lever per engine (2 on the twins and the 737, 8 on the H-4). |
+| **Flaps** | The handle on a gate with the type's own detents, evenly spaced like the real quadrant (737: UP·1·2·5·10·15·25·30·40). An amber pointer shows the actual position while it lags. |
+| **Spoilers / speed brake** | RET · ARM · EXT. |
+| **Gear** | Handle UP / DN and three lights: green = down and locked, red = in transit, off = up. |
+
+- **Missing controls:** a type that lacks a control shows it dimmed, `FIXED` or `N/A` (Pitts: gear FIXED, spoilers N/A, flaps N/A). The layout never changes.
+- **Header:** `PF: <name>` with the pilot's colour chip, and `HANDS OFF` when hands-off. For 2.5 s after a handover it reads `YOU HAVE THE FLIGHT CONTROLS — <name>` on the pilot's colour.
+- **Traces** (`show {"controlTraces":true}`): the last 10 s of elevator (▲ pull), aileron, rudder and throttle, read from the review history. In review they end at the frame shown.
+- **Layout:** the panel gets its own strip (`place`, `size`). The scene is rendered to the rest of the picture and composed with the panel, so the panel never covers the airplane, the vectors or the readout. Values are large enough to read when the Glass shows the widget at ¼ size; at ¼, use `size` 0.4–0.5 and traces off.
+- **What it shows:** the pilot's inputs. In the flare demo it shows the lesson's law, which is what's flying.
+
+**The levers:**
+
+- **Flaps:** the `flaps` handle snaps to the nearest detent. The flaps follow at the type's rate: C172 electric ~9 s full travel, the 737 ~40 s, manual handles (Cub, PA-28, Seminole, Pawnee) ~1.5 s. They change the flight in both scenarios.
+- **Spoilers:**
+  - **737:** speed brake on a separate lever (`Aircraft.SpoilerCommand`). The aero model is drag-only: flat-plate drag on 3 m² of panel. Lift dump is not modelled.
+  - **Gliders:** the spoilers / dive brakes.
+  - **ARMED:** the spoilers deploy at touchdown (weight on the mains) and the lever goes to EXT.
+- **Gear:** retractable types transit in 6 s, with the gear drag and wheel contact following the actual extension. Ignored on fixed gear.
+- **Brakes:** `brakeL` / `brakeR` are differential (`brake` = both). They act on the wheels in the flare.
+
+### Pilot flying (protocol 4)
+
+Glass Overlay holds the arbitration: who asks, who approves. The widget shows the pilot and enforces the choice.
+
+- **`pilot {"id","name","color","managed":true}`** sets the PF label.
+  - **Managed:** only `controls` from the pilot's source move the airplane. For a Glass Overlay user that's the TCP connection that sent `pilot`; for `id: "web-…"` it's that web remote. Everything else is view-only: other connections and remotes get `accepted:false, reason:"<name> is flying"`, and the keyboard and gamepad stop flying (the preview window says "<name> is flying").
+  - **Clearing:** `{"cmd":"pilot","id":null}` clears it, and everything flies again.
+- **Handover:** the previous pilot's last inputs are held until the new pilot's first input, then eased to it over 0.3 s (smoothstep). If nothing arrives within 2 s, the stick and rudder centre and the power stays.
+  - Measured mid-spin: α moved ≤ 0.3° per frame through the ease, and the rates stayed continuous.
+- **Web remotes:** each remote has a stable id (`web-…`) and the user's name, both kept in its localStorage.
+  - It reports them on every poll, and the state lists `remotes`. `{"event":"remotes","remotes":[…]}` is pushed when the list changes; a remote drops off after 6 s of silence.
+  - When another pilot is managed, the remote shows "<name> is flying — view only" and a **Request controls** button. The button asks for a name once, then pushes `{"event":"controlRequest","from":"web-…","name":"…"}` to every `subscribe` stream.
+- **Events:** `{"event":…}` lines arrive on `subscribe` connections between the state lines.
 
 ### HTTP 47831 (phone / iPad remote)
 

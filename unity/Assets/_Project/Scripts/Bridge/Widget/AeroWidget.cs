@@ -72,10 +72,14 @@ namespace FlyingGame.Bridge.Widget
             else ViewFrom = "";
             View = name;
         }
+        /// <summary>Control display (protocol 4): where, and how big (fraction of the picture).</summary>
+        public string ControlsPlace = "bottom";
+        public float ControlsSize = 0.28f;
         public readonly Dictionary<string, bool> Show = new()
         {
             ["lift"] = true, ["drag"] = true, ["weight"] = true, ["thrust"] = true, ["wind"] = true, ["total"] = true,
             ["axis"] = true, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false, ["review"] = true,
+            ["controlsDisplay"] = false, ["controlTraces"] = false,
         };
 
         public AircraftConfig Config { get; private set; }
@@ -92,6 +96,7 @@ namespace FlyingGame.Bridge.Widget
         public RenderTexture Frame { get; private set; }
         private GameObject _surface;
         private WidgetVectors _vectors;
+        private WidgetControlsDisplay _display;
         private WidgetOutputs _outputs;
         private WidgetServer _server;
         public WidgetControls Controls { get; private set; }
@@ -120,6 +125,7 @@ namespace FlyingGame.Bridge.Widget
             sun.transform.SetParent(transform, false);
 
             _vectors = camGo.AddComponent<WidgetVectors>(); _vectors.Widget = this;
+            _display = gameObject.AddComponent<WidgetControlsDisplay>(); _display.Widget = this;
             Controls = gameObject.AddComponent<WidgetControls>(); Controls.Widget = this;
             Presets = gameObject.AddComponent<WidgetPresets>(); Presets.Widget = this;
             Review = new WidgetReview(this);
@@ -140,6 +146,9 @@ namespace FlyingGame.Bridge.Widget
             }
             Presets.Stop();
             Controls.ResetToTrim();
+            // The type's levers (protocol 4); the flare's flap setting goes on a detent of its own handle.
+            Controls.Configure(Config, AircraftId, sc == Scenario.Flare ? Flaps : 0, 0);
+            if (sc == Scenario.Flare && Controls.Spec.Flaps.Length > 1) Flaps = Controls.FlapsHandle;
             Atmosphere.SteadyWind = Vec3.Zero;
             if (sc == Scenario.Flare)
             {
@@ -164,6 +173,8 @@ namespace FlyingGame.Bridge.Widget
             }
             Ac.FlapFraction = sc == Scenario.Flare ? Flaps : 0;
             Ac.CaptureForces = true;
+            if (Controls.Spec.Engines == 0) Controls.Spoilers = Ac.CurrentDeflections.SpoilerFraction;   // a glider's approach spoilers
+            Ac.SetGear(true, immediate: true);
             _sim = new SimLoop(Ac);
             Review?.Clear(); Shown = null;
             if (_surface != null) _surface.SetActive(sc == Scenario.Flare);
@@ -226,8 +237,14 @@ namespace FlyingGame.Bridge.Widget
                 ControlInputs merged = _flare.Step(Ac, inputs, dt);
                 var auto = _flare.Autopilot;
                 inputs = Presets.FlareDemo ? auto : new ControlInputs(merged.Aileron, inputs.Elevator, merged.Rudder, inputs.ThrottleLever, false, inputs.ElevatorFree, false);
-                Ac.BrakeInput = Controls.Brake01;
+                if (Presets.FlareDemo)
+                {
+                    // The lesson's law is flying: the control display (and the history) show ITS inputs.
+                    Controls.Aileron = auto.Aileron; Controls.Elevator = auto.Elevator; Controls.Rudder = auto.Rudder;
+                    if (Controls.Spec.Engines > 0) Controls.Throttle01 = System.Math.Clamp((1.0 - auto.ThrottleLever) * 0.5, 0, 1);
+                }
             }
+            Controls.ApplyLevers(Ac, dt);
             _sim.RunFor(dt, inputs);
             if (_flare != null) _flare.ConstrainLongitudinal(Ac);
             else WrapAltitude();
@@ -274,7 +291,7 @@ namespace FlyingGame.Bridge.Widget
             {
                 Ac.SetReplayPose(f.State, f.Defl, f.AcThrottle, f.Flaps, f.GearExt, f.Nz);   // pose + actuator positions exactly as shown
                 Presets.Stop();
-                Controls.Aileron = f.Ail; Controls.Elevator = f.Ele; Controls.Rudder = f.Rud; Controls.Throttle01 = f.Thr; Controls.Brake01 = f.Brake; Controls.ElevatorFree = f.HandsOff;
+                Controls.FromSnap(f);
             }
             Paused = false; Shown = null;
         }
@@ -372,7 +389,7 @@ namespace FlyingGame.Bridge.Widget
             var st = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(side * 0.018f) };
             st.normal.textColor = new Color(1f, 1f, 1f, 0.8f);
             GUI.Label(new Rect(rect.x + 8, rect.yMax - side * 0.09f, side - 16, side * 0.09f),
-                $"{Current} · {AircraftId} · {(Paused ? "PAUSED" : TimeScale < 0.99f ? $"×{TimeScale:0.##}" : "live")} · {Controls.SourceLabel}\n" +
+                $"{Current} · {AircraftId} · {(Paused ? "PAUSED (review)" : TimeScale < 0.99f ? $"×{TimeScale:0.##}" : "live")} · {(Controls.Managed ? $"{Controls.PilotName} is flying — keyboard / gamepad view-only" : Controls.SourceLabel)}\n" +
                 $"Syphon/NDI \"{StreamName}\" · control tcp {WidgetServer.TcpPort} · remote http://{WidgetServer.LocalIp}:{WidgetServer.HttpPort}/   [1] flare [2] spin  arrows/A-D/W-S  Space pause  R reset  P preset", st);
         }
 

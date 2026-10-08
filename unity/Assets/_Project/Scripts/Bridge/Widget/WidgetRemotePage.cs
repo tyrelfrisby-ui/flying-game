@@ -18,6 +18,9 @@ namespace FlyingGame.Bridge.Widget
  .lbl{color:#aaa;font-size:13px} input[type=range]{width:60vw}
  #st{font:12px Menlo,monospace;color:#9f9;white-space:pre;padding:6px 10px}
 </style></head><body>
+<div id='pf' class='row' style='display:none;background:#2a2410;color:#ffcf5a'><span id='pft'></span>
+ <button id='req' onclick=""requestControls()"">Request controls</button></div>
+<div id='banner' class='row' style='display:none;background:#14532d;color:#fff;font-weight:600'></div>
 <div class='row'>
  <button onclick=""cmd({cmd:'scenario',name:'flare'})"">Flare</button>
  <button onclick=""cmd({cmd:'scenario',name:'spin'})"">Spin</button>
@@ -49,7 +52,13 @@ namespace FlyingGame.Bridge.Widget
 <div class='row'><span class='lbl'>Brake&nbsp;</span><input id='brk' type='range' min='0' max='1' step='0.01' value='0'></div>
 <div id='st'></div>
 <script>
-function cmd(o){return fetch('/cmd',{method:'POST',body:JSON.stringify(o)}).then(r=>r.json()).catch(()=>{});}
+// This remote's identity (protocol 4): a stable id and the pilot's name, kept on this device.
+let myId=null,myName='';try{myId=localStorage.getItem('aeroRemoteId');myName=localStorage.getItem('aeroRemoteName')||'';}catch(e){}
+if(!myId){myId='web-'+Math.random().toString(36).slice(2,10);try{localStorage.setItem('aeroRemoteId',myId);}catch(e){}}
+function cmd(o){o.from=myId;o.name=myName;return fetch('/cmd',{method:'POST',body:JSON.stringify(o)}).then(r=>r.json()).catch(()=>{});}
+function requestControls(){if(!myName){myName=(prompt('Your name (shown as the pilot flying)')||'').trim();if(!myName)return;try{localStorage.setItem('aeroRemoteName',myName);}catch(e){}}
+ cmd({cmd:'requestControls'});document.getElementById('req').textContent='Requested…';}
+let viewOnly=false,lastPilot=null,bannerUntil=0;
 fetch('/cmd',{method:'POST',body:JSON.stringify({cmd:'fleet'})}).then(r=>r.json()).then(j=>{const s=document.getElementById('ac');(j.fleet||[]).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.name;s.appendChild(o);});});
 const stick=document.getElementById('stick'),dot=document.getElementById('dot');let sx=0,sy=0,live=false;
 function setFrom(t){const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.min(1,((t.clientX-r.left)/r.width)*2-1));sy=Math.max(-1,Math.min(1,((t.clientY-r.top)/r.height)*2-1));dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';}
@@ -62,8 +71,15 @@ scrub.addEventListener('change',()=>{scrubbing=false;});
 let touched=0;['rud','thr','brk'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{touched=Date.now();}));
 document.getElementById('rud').addEventListener('change',e=>{e.target.value=0;send();});
 function send(){cmd({cmd:'controls',source:'remote',aileron:sx,elevator:-sy,rudder:+document.getElementById('rud').value,throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value});}
-setInterval(()=>{if(live||Date.now()-touched<300)send();},50);
-setInterval(()=>{fetch('/state').then(r=>r.json()).then(s=>{document.getElementById('st').textContent=
+setInterval(()=>{if(!viewOnly&&(live||Date.now()-touched<300))send();},50);
+setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)).then(r=>r.json()).then(s=>{
+ const p=s.pilot||{};viewOnly=!!(p.managed&&p.id!==myId);
+ document.getElementById('pf').style.display=viewOnly?'flex':'none';
+ document.getElementById('pft').textContent=viewOnly?`${p.name} is flying — view only`:'';
+ if(!viewOnly)document.getElementById('req').textContent='Request controls';
+ if(p.id!==lastPilot){if(p.id&&p.id===myId)bannerUntil=Date.now()+2500;lastPilot=p.id;}
+ const b=document.getElementById('banner');b.style.display=Date.now()<bannerUntil?'flex':'none';b.textContent=`YOU HAVE THE FLIGHT CONTROLS — ${p.name||''}`;
+ document.getElementById('st').textContent=
  (()=>{const r=s.review||{};rvOff=r.offsetMs||0;scrub.min=-(r.historyMs||60000);if(!scrubbing)scrub.value=rvOff;
  document.getElementById('rv').textContent=r.active?`REVIEW ${(rvOff/1000).toFixed(1)} s${r.playing?' '+(r.direction=='reverse'?'◀':'▶')+'×'+r.rate:''}`:'live';return '';})()+
  `${s.scenario} ${s.aircraft} ${s.paused?'PAUSED':''} ×${(+s.timescale).toFixed(2)} [${s.source}] ${s.preset||''}\n`+

@@ -27,7 +27,10 @@ namespace FlyingGame.Bridge.Widget
         private HttpListener _http;
         private Thread _tcpThread, _httpThread;
         private volatile bool _run = true;
-        private readonly ConcurrentQueue<(string json, System.Action<string> reply)> _inbox = new();
+        private readonly ConcurrentQueue<(string json, System.Action<string> reply, string src)> _inbox = new();
+        private int _connSeq;
+        /// <summary>The widget's own web remotes (protocol 4): id → (name, last seen). Main thread only.</summary>
+        private readonly Dictionary<string, (string name, float seen)> _remotes = new();
         private readonly List<(StreamWriter w, float hz, float next)> _subs = new();
         private readonly object _subLock = new();
 
@@ -84,6 +87,7 @@ namespace FlyingGame.Bridge.Widget
             using var stream = c.GetStream();
             var reader = new StreamReader(stream, Encoding.UTF8);
             var writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true, NewLine = "\n" };
+            string src = "tcp-" + Interlocked.Increment(ref _connSeq);   // this connection's identity (the pilot's source)
             try
             {
                 string line;
@@ -91,7 +95,7 @@ namespace FlyingGame.Bridge.Widget
                 {
                     if (string.IsNullOrWhiteSpace(line)) continue;
                     string l = line;
-                    _inbox.Enqueue((l, reply => { lock (writer) { try { writer.WriteLine(reply); } catch { } } }));
+                    _inbox.Enqueue((l, reply => { lock (writer) { try { writer.WriteLine(reply); } catch { } } }, src));
                     if (l.Contains("\"subscribe\""))
                     {
                         float hz = 10f; try { hz = (float)(JObject.Parse(l)["hz"]?.Value<double>() ?? 10); } catch { }
@@ -126,7 +130,13 @@ namespace FlyingGame.Bridge.Widget
                     string body = new StreamReader(ctx.Request.InputStream, Encoding.UTF8).ReadToEnd();
                     Respond(ctx, Ask(body), "application/json");
                 }
-                else if (path == "/state") Respond(ctx, Ask("{\"cmd\":\"state\"}"), "application/json");
+                else if (path == "/state")
+                {
+                    // The remote polls this with its id and name (?from=web-…&name=…): that's how it shows up in "remotes".
+                    var qs = ctx.Request.QueryString; var o = new JObject { ["cmd"] = "state" };
+                    if (qs["from"] != null) { o["from"] = qs["from"]; o["name"] = qs["name"] ?? ""; }
+                    Respond(ctx, Ask(o.ToString(Newtonsoft.Json.Formatting.None)), "application/json");
+                }
                 else Respond(ctx, WidgetRemotePage.Html, "text/html; charset=utf-8");
             }
             catch { try { ctx.Response.StatusCode = 500; ctx.Response.Close(); } catch { } }
@@ -136,7 +146,7 @@ namespace FlyingGame.Bridge.Widget
         private string Ask(string json)
         {
             var done = new ManualResetEventSlim(false); string result = "{\"ok\":false,\"error\":\"timeout\"}";
-            _inbox.Enqueue((json, r => { result = r; done.Set(); }));
+            _inbox.Enqueue((json, r => { result = r; done.Set(); }, null));
             done.Wait(1000);
             return result;
         }
@@ -154,10 +164,11 @@ namespace FlyingGame.Bridge.Widget
             while (_inbox.TryDequeue(out var m))
             {
                 string reply;
-                try { reply = Handle(JObject.Parse(m.json)); }
+                try { reply = Handle(JObject.Parse(m.json), m.src); }
                 catch (System.Exception e) { reply = new JObject { ["ok"] = false, ["error"] = e.Message }.ToString(Newtonsoft.Json.Formatting.None); }
                 m.reply?.Invoke(reply);
             }
+            PruneRemotes();
             lock (_subLock)
             {
                 if (_subs.Count == 0) return;
@@ -173,10 +184,61 @@ namespace FlyingGame.Bridge.Widget
             }
         }
 
-        private string Handle(JObject j)
+        /// <summary>Push an event line to every subscribed connection (Glass Overlay listens on its subscribe stream).</summary>
+        public void PushEvent(JObject e)
+        {
+            string line = e.ToString(Newtonsoft.Json.Formatting.None);
+            lock (_subLock) foreach (var s in _subs) { try { lock (s.w) s.w.WriteLine(line); } catch { } }
+        }
+
+        private JArray RemotesJson()
+        {
+            var a = new JArray();
+            foreach (var kv in _remotes) a.Add(new JObject { ["id"] = kv.Key, ["name"] = kv.Value.name });
+            return a;
+        }
+
+        private void SeeRemote(string id, string name)
+        {
+            if (string.IsNullOrEmpty(id) || !id.StartsWith("web-")) return;
+            bool changed = !_remotes.TryGetValue(id, out var r) || r.name != (name ?? "");
+            _remotes[id] = (name ?? "", Time.unscaledTime);
+            if (changed) PushEvent(new JObject { ["event"] = "remotes", ["remotes"] = RemotesJson() });
+        }
+
+        private void PruneRemotes()
+        {
+            List<string> gone = null;
+            foreach (var kv in _remotes) if (Time.unscaledTime - kv.Value.seen > 6f) (gone ??= new()).Add(kv.Key);
+            if (gone == null) return;
+            foreach (var id in gone) _remotes.Remove(id);
+            PushEvent(new JObject { ["event"] = "remotes", ["remotes"] = RemotesJson() });
+        }
+
+        private static JObject ControlsFit(string id)
+        {
+            if (!_fits.TryGetValue(id, out var fit))
+            {
+                try
+                {
+                    var spec = WidgetAircraftControls.For(id, UnityAircraftConfigLoader.LoadFromStreamingAssets(id));
+                    fit = new JObject { ["flaps"] = new JArray(spec.Flaps), ["spoilers"] = spec.Spoilers, ["gear"] = spec.Retractable ? "retractable" : "fixed", ["engines"] = spec.Engines };
+                }
+                catch { fit = new JObject(); }
+                _fits[id] = fit;
+            }
+            return (JObject)fit.DeepClone();
+        }
+        private static readonly Dictionary<string, JObject> _fits = new();
+
+        private string Handle(JObject j, string src)
         {
             string cmd = (string)j["cmd"] ?? "";
             var w = Widget; var ok = new JObject { ["ok"] = true, ["cmd"] = cmd };
+            // A web remote names itself on every request ("from":"web-…").
+            string from = (string)j["from"];
+            if (from != null && from.StartsWith("web-")) { SeeRemote(from, (string)j["name"]); src = from; }
+            src ??= "http";
             switch (cmd)
             {
                 case "scenario":
@@ -187,9 +249,37 @@ namespace FlyingGame.Bridge.Widget
                     break;
                 }
                 case "controls":
-                    w.Controls.FromNetwork(j["aileron"]?.Value<double>(), j["elevator"]?.Value<double>(), j["rudder"]?.Value<double>(),
-                        j["throttle"]?.Value<double>(), j["brake"]?.Value<double>(), j["handsOff"]?.Value<bool>(), (string)j["source"] ?? "network");
+                {
+                    var n = new WidgetControls.JInputs
+                    {
+                        Aileron = j["aileron"]?.Value<double>(), Elevator = j["elevator"]?.Value<double>(), Rudder = j["rudder"]?.Value<double>(),
+                        Throttle = j["throttle"]?.Value<double>(), Brake = j["brake"]?.Value<double>(), BrakeL = j["brakeL"]?.Value<double>(), BrakeR = j["brakeR"]?.Value<double>(),
+                        HandsOff = j["handsOff"]?.Value<bool>(), Flaps = j["flaps"]?.Value<double>(), Spoilers = j["spoilers"]?.Value<double>(),
+                        SpoilersArmed = j["spoilersArmed"]?.Value<bool>(), Gear = ((string)j["gear"])?.ToLowerInvariant(),
+                    };
+                    bool took = w.Controls.FromNetwork(n, (string)j["source"] ?? (src.StartsWith("web-") ? "remote" : "network"), src);
+                    ok["accepted"] = took;
+                    if (!took) ok["reason"] = w.Paused ? "review (paused): read-only until resume" : $"{w.Controls.PilotName} is flying";
                     break;
+                }
+                case "pilot":
+                {
+                    string id = j["id"]?.Type == JTokenType.Null ? null : (string)j["id"];
+                    w.Controls.SetPilot(id, (string)j["name"], (string)j["color"], j["managed"]?.Value<bool>() ?? true, src);
+                    ok["pilot"] = PilotJson(); break;
+                }
+                case "requestControls":
+                    // The web remote's "Request controls": tell Glass Overlay (it holds the arbitration).
+                    PushEvent(new JObject { ["event"] = "controlRequest", ["from"] = from ?? src, ["name"] = (string)j["name"] ?? "" });
+                    break;
+                case "controlsDisplay":
+                {
+                    string place = ((string)j["place"])?.ToLowerInvariant();
+                    if (place == "bottom" || place == "left" || place == "right") w.ControlsPlace = place;
+                    if (j["size"] != null) w.ControlsSize = Mathf.Clamp((float)j["size"].Value<double>(), 0.2f, 0.5f);
+                    if (j["show"] != null) w.Show["controlsDisplay"] = j["show"].Value<bool>();
+                    ok["place"] = w.ControlsPlace; ok["size"] = w.ControlsSize; ok["shown"] = w.Show["controlsDisplay"]; break;
+                }
                 case "preset":
                     if (!w.Presets.Run((string)j["name"] ?? "")) { ok["ok"] = false; ok["error"] = "unknown preset"; }
                     break;
@@ -211,14 +301,18 @@ namespace FlyingGame.Bridge.Widget
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
-                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 3;
-                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 4;
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes");
+                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
                     ok["show"] = new JArray(w.Show.Keys);
                     ok["frame"] = AeroWidget.FrameSize; ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
                     ok["tcpPort"] = TcpPort; ok["httpPort"] = HttpPort;
+                    ok["controlsDisplay"] = new JObject { ["places"] = new JArray("bottom", "left", "right"), ["size"] = new JArray(0.2, 0.5), ["default"] = new JObject { ["shown"] = false, ["place"] = "bottom", ["size"] = 0.28 } };
+                    ok["controlInputs"] = new JArray("aileron", "elevator", "rudder", "throttle", "brake", "brakeL", "brakeR", "handsOff", "flaps", "spoilers", "spoilersArmed", "gear");
+                    { var fl = new JArray(); foreach (var fa in SessionSettings.Fleet) fl.Add(new JObject { ["id"] = fa.id, ["name"] = fa.name, ["controls"] = ControlsFit(fa.id) }); ok["fleet"] = fl; }
                     ok["review"] = new JObject { ["historySeconds"] = WidgetHistory.Seconds, ["fps"] = WidgetHistory.Hz, ["commands"] = new JArray("step", "rewind", "seek", "play") };
                     break;
                 case "show":
@@ -233,7 +327,7 @@ namespace FlyingGame.Bridge.Widget
                 case "fleet":
                 {
                     var arr = new JArray();
-                    foreach (var f in SessionSettings.Fleet) arr.Add(new JObject { ["id"] = f.id, ["name"] = f.name });
+                    foreach (var f in SessionSettings.Fleet) arr.Add(new JObject { ["id"] = f.id, ["name"] = f.name, ["controls"] = ControlsFit(f.id) });
                     ok["fleet"] = arr; break;
                 }
                 case "snapshot":
@@ -262,6 +356,27 @@ namespace FlyingGame.Bridge.Widget
             return ok.ToString(Newtonsoft.Json.Formatting.None);
         }
 
+        private JObject PilotJson()
+        {
+            var c = Widget.Controls;
+            return new JObject { ["id"] = c.PilotId, ["name"] = c.PilotName, ["color"] = c.PilotId == null ? null : c.PilotColor, ["managed"] = c.Managed };
+        }
+
+        /// <summary>The controls as shown (in review, the frame's): every input plus flapsActual and the gear lights.</summary>
+        private static JObject ControlsJson(AeroWidget w)
+        {
+            var f = w.Shown ?? w.Review.Capture();
+            var spec = w.Controls.Spec;
+            return new JObject
+            {
+                ["aileron"] = f.Ail, ["elevator"] = f.Ele, ["rudder"] = f.Rud, ["throttle"] = f.Thr, ["brake"] = System.Math.Max(f.BrakeL, f.BrakeR),
+                ["brakeL"] = f.BrakeL, ["brakeR"] = f.BrakeR, ["handsOff"] = f.HandsOff,
+                ["flaps"] = f.FlapsCmd, ["flapsDeg"] = System.Math.Round(f.FlapsCmd * spec.Flaps[^1], 1), ["flapsActual"] = System.Math.Round(f.FlapsActual, 4),
+                ["flapsActualDeg"] = System.Math.Round(f.FlapsActual * spec.Flaps[^1], 1),
+                ["spoilers"] = f.Spoilers, ["spoilersArmed"] = f.SpoilersArmed, ["gear"] = f.Gear, ["gearLights"] = f.GearLights,
+            };
+        }
+
         private JObject StateJson()
         {
             var w = Widget; var r = w.Read(); var c = w.Controls;
@@ -273,8 +388,9 @@ namespace FlyingGame.Bridge.Widget
                 ["pitch"] = r.PitchDeg, ["roll"] = r.RollDeg, ["heading"] = r.HeadingDeg, ["sinkFpm"] = r.SinkFpm, ["heightFt"] = r.HeightFt,
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
-                ["controls"] = new JObject { ["aileron"] = c.Aileron, ["elevator"] = c.Elevator, ["rudder"] = c.Rudder, ["throttle"] = c.Throttle01, ["brake"] = c.Brake01, ["handsOff"] = c.ElevatorFree },
+                ["controls"] = ControlsJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
+                ["pilot"] = PilotJson(), ["remotes"] = RemotesJson(), ["controlsDisplay"] = new JObject { ["shown"] = w.Show["controlsDisplay"], ["place"] = w.ControlsPlace, ["size"] = w.ControlsSize, ["traces"] = w.Show["controlTraces"] },
                 ["review"] = new JObject { ["active"] = w.Review.Active, ["offsetMs"] = System.Math.Round(w.Review.OffsetMs), ["historyMs"] = System.Math.Round(w.Review.HistoryMs),
                     ["playing"] = w.Review.Playing, ["rate"] = w.Review.Rate, ["direction"] = w.Review.Direction },
             };
