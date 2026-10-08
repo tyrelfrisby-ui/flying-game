@@ -45,7 +45,7 @@ namespace FlyingGame.Bridge
                 UiLayout.Label(UiLayout.NextLine(lh), $"{Driver.AircraftName}  ·  build {Application.version}  ·  β {Driver.BetaDeg:+0.0;-0.0}°", _style);
             // Mac: the key list gets its own line (sharing the status line shrank both to unreadable).
             if (TouchFlightControls.DeskMode)
-                UiLayout.Label(UiLayout.NextLine(lh), "arrows stick · A/D rudder · W/S power · =/- trim · F flaps · L gear · T turb · C challenge · Y tow / G release · R reset", _style);
+                UiLayout.Label(UiLayout.NextLine(lh), "arrows stick · A/D rudder · W/S power · =/- trim · F flaps · L gear · T turb · C challenge · Y tow / G release · V view lock · R reset", _style);
 
             string net = (_net ??= Driver.GetComponent<Net.NetSession>())?.StatusLine;
             if (net != null) UiLayout.Label(UiLayout.NextLine(lh), net, _style);   // "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots"

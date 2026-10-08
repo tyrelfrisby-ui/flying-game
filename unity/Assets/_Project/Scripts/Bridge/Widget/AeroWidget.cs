@@ -43,7 +43,35 @@ namespace FlyingGame.Bridge.Widget
         public double Flaps { get; private set; } = 1.0;
         public bool Paused;
         public float TimeScale = 1f;
-        public string View = "side";          // spin camera: side | behind | front | top | chase
+        public string View = "side";          // spin camera: side | behind | front | top | chase | locked
+        /// <summary>Direction lock: what it was locked from (current | side | behind | front | top).</summary>
+        public string ViewFrom = "";
+        private Vector3 _lockDir = new(1f, 0.18f, -0.25f);
+        public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked" };
+        public static readonly string[] LockFrom = { "current", "side", "behind", "front", "top" };
+
+        /// <summary>World-fixed direction (from the aircraft to the camera) of each named view.</summary>
+        private static Vector3 Dir(string name) => name switch
+        {
+            "behind" => new Vector3(0f, 0.25f, -1f), "front" => new Vector3(0f, 0.2f, 1f), "top" => new Vector3(0.001f, 1f, 0f),
+            _ => new Vector3(1f, 0.18f, -0.25f),   // side, a touch behind
+        };
+
+        /// <summary>Set the view (owner 2026-10-08: "locked" = the camera keeps the aircraft centred but its DIRECTION is fixed in
+        /// the world — from the current camera direction, or a named one). Unknown names fall back to "side".</summary>
+        public void SetView(string name, string from = null)
+        {
+            name = System.Array.IndexOf(Views, name) >= 0 ? name : "side";
+            if (name == "locked")
+            {
+                from = System.Array.IndexOf(LockFrom, from ?? "current") >= 0 ? (from ?? "current") : "current";
+                Vector3 d = Cam != null && Ac != null ? Cam.transform.position - CoordinateMap.ToUnity(Ac.State.Position) : Dir("side");
+                _lockDir = from == "current" ? (d.sqrMagnitude > 1e-4f ? d.normalized : Dir("side").normalized) : Dir(from).normalized;
+                ViewFrom = from;
+            }
+            else ViewFrom = "";
+            View = name;
+        }
         public readonly Dictionary<string, bool> Show = new()
         {
             ["lift"] = true, ["drag"] = true, ["weight"] = true, ["thrust"] = true, ["wind"] = true, ["total"] = true,
@@ -227,14 +255,17 @@ namespace FlyingGame.Bridge.Widget
             {
                 Cam.orthographic = false; Cam.fieldOfView = 34f;
                 float dist = Mathf.Max(SpanM, LengthM) * 2.6f + 6f;
+                // Every view but "chase" is fixed in the world (the camera moves WITH the aircraft — the altitude wrap too —
+                // but never turns with it); "locked" is the direction captured when it was engaged.
                 Vector3 dir = View switch
                 {
-                    "behind" => new Vector3(0f, 0.25f, -1f), "front" => new Vector3(0f, 0.2f, 1f), "top" => new Vector3(0.001f, 1f, 0f),
                     "chase" => -CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(1, 0, 0))) + Vector3.up * 0.3f,
-                    _ => new Vector3(1f, 0.18f, -0.25f),   // side, a touch behind
+                    "locked" => _lockDir,
+                    _ => Dir(View),
                 };
                 Cam.transform.position = ac + dir.normalized * dist;
-                Cam.transform.LookAt(ac, View == "top" ? Vector3.forward : Vector3.up);
+                bool vertical = Mathf.Abs(Vector3.Dot(dir.normalized, Vector3.up)) > 0.98f;
+                Cam.transform.LookAt(ac, vertical ? Vector3.forward : Vector3.up);
             }
         }
 

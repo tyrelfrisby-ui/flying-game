@@ -43,7 +43,8 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `pause` / `resume` | | Freeze or continue the physics. |
 | `timescale` | `value`: 0.05…1 | Slow motion. |
 | `reset` | | Restart the current scenario. |
-| `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` | Spin camera (the flare is always side-on). |
+| `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). |
+| `hello` | | Reply with app, version, `protocol: 2`, `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports. |
 | `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips`: bool | Toggle vectors and text. `strips` = every strip's lift and drag. |
 | `fleet` | | Reply `fleet: [{id, name}]`. |
 | `state` | | Reply with the state (below). |
@@ -55,7 +56,7 @@ State (reply to `state`, and the `subscribe` stream):
 
 ```json
 {"ok":true,"type":"state","scenario":"spin","aircraft":"c172-like","flaps":0,"paused":false,"timescale":1,"view":"side",
- "preset":"spin-entry","source":"network","kias":58.8,"ktas":62,"alpha":29.4,"beta":-3,"q":540,"pitch":-52,"roll":-20,
+ "viewFrom":"","preset":"spin-entry","source":"network","kias":58.8,"ktas":62,"alpha":29.4,"beta":-3,"q":540,"pitch":-52,"roll":-20,
  "heading":212,"sinkFpm":5400,"heightFt":7948,"rollRate":-95,"pitchRate":4,"yawRate":-140,"nz":1.1,
  "leftWingAlpha":34.9,"rightWingAlpha":23.9,"leftStalled":true,"rightStalled":true,"onGround":false,
  "controls":{"aileron":0,"elevator":-1,"rudder":-1,"throttle":0,"brake":0,"handsOff":false},

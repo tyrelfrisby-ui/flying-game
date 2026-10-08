@@ -197,7 +197,23 @@ namespace FlyingGame.Bridge.Widget
                 case "resume": w.Paused = false; break;
                 case "reset": w.Load(w.Current, w.AircraftId, w.Flaps); break;
                 case "timescale": w.TimeScale = Mathf.Clamp((float)(j["value"]?.Value<double>() ?? 1), 0.05f, 1f); break;
-                case "view": w.View = ((string)j["name"] ?? "side").ToLowerInvariant(); break;
+                case "view":
+                {
+                    string vn = ((string)j["name"] ?? "side").ToLowerInvariant();
+                    if (System.Array.IndexOf(AeroWidget.Views, vn) < 0) { ok["ok"] = false; ok["error"] = "unknown view"; break; }
+                    w.SetView(vn, ((string)j["from"])?.ToLowerInvariant());   // the flare is always side-on: accepted, no change there
+                    ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
+                }
+                case "hello":
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 2;
+                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["scenarios"] = new JArray("flare", "spin");
+                    ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
+                    ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
+                    ok["show"] = new JArray(w.Show.Keys);
+                    ok["frame"] = AeroWidget.FrameSize; ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
+                    ok["tcpPort"] = TcpPort; ok["httpPort"] = HttpPort;
+                    break;
                 case "show":
                     foreach (var p in j.Properties()) if (p.Name != "cmd" && w.Show.ContainsKey(p.Name)) w.Show[p.Name] = p.Value.Value<bool>();
                     break;
@@ -237,7 +253,7 @@ namespace FlyingGame.Bridge.Widget
             return new JObject
             {
                 ["ok"] = true, ["type"] = "state", ["scenario"] = w.Current.ToString().ToLowerInvariant(), ["aircraft"] = w.AircraftId, ["flaps"] = w.Flaps,
-                ["paused"] = w.Paused, ["timescale"] = w.TimeScale, ["view"] = w.View, ["preset"] = w.Presets.Running, ["source"] = c.SourceLabel,
+                ["paused"] = w.Paused, ["timescale"] = w.TimeScale, ["view"] = w.View, ["viewFrom"] = w.ViewFrom, ["preset"] = w.Presets.Running, ["source"] = c.SourceLabel,
                 ["kias"] = r.Kias, ["ktas"] = r.Ktas, ["alpha"] = r.AlphaDeg, ["beta"] = r.BetaDeg, ["q"] = r.Q,
                 ["pitch"] = r.PitchDeg, ["roll"] = r.RollDeg, ["heading"] = r.HeadingDeg, ["sinkFpm"] = r.SinkFpm, ["heightFt"] = r.HeightFt,
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,

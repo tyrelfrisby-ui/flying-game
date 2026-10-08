@@ -42,6 +42,7 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.F1)) _driver.SwitchAircraft("pa18-cub-like");
             if (Input.GetKeyDown(KeyCode.F2)) _driver.SwitchAircraft("decathlon-8kcab-like");
 
+            if (Input.GetKeyDown(KeyCode.V)) Camera.main?.GetComponent<ChaseCamera>()?.ToggleLock();   // direction lock (owner 2026-10-08)
             if (Input.GetKeyDown(KeyCode.R))
             {
                 _aileron = _elevator = _rudder = _lever = 0;

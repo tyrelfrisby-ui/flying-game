@@ -21,8 +21,8 @@ namespace FlyingGame.Bridge
         /// <summary>Camera view points (owner 2026-10-01). RelativeWind = the flight-path camera above (downstream on the
         /// relative wind). The Fixed* views are bolted to the airframe (they roll and pitch with it). Flyby parks the camera
         /// ahead of the aircraft, up and off to one side of its path, and watches it go by.</summary>
-        public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead }
-        public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead" };
+        public enum View { RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead, Locked }
+        public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead", "Direction lock" };
         /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
         public static bool InCockpit { get; private set; }
         public float CockpitFov = 72f;
@@ -98,8 +98,31 @@ namespace FlyingGame.Bridge
 
         public void SetView(View v)
         {
+            // Direction lock (owner 2026-10-08): freeze the direction the camera is looking at the moment it's engaged.
+            if (v == View.Locked && CurrentView != View.Locked)
+            {
+                Vector3 d = Target != null ? transform.position - Target.position : -transform.forward;
+                _lockDir = d.sqrMagnitude > 1e-4f ? d.normalized : -transform.forward;
+                _beforeLock = CurrentView;
+            }
             CurrentView = v;
             _flyValid = false;
+        }
+        private Vector3 _lockDir = new(0f, 0.25f, -1f);
+        private View _beforeLock = View.RelativeWind;
+
+        /// <summary>V: direction lock on / back to the view before it.</summary>
+        public void ToggleLock() => SetView(CurrentView == View.Locked ? _beforeLock : View.Locked);
+
+        /// <summary>Direction lock (owner 2026-10-08): the camera keeps the aircraft centred at the chase distance, but its
+        /// DIRECTION is fixed in the world — it does not turn with heading, pitch or roll, and the horizon stays level — so a
+        /// spin, a roll or a loop is seen as the aircraft really moves, not as the world spinning round it.</summary>
+        private void LockedView(Transform t)
+        {
+            Vector3 dir = _lockDir.normalized;
+            transform.position = t.position + dir * Distance;
+            Vector3 up = Mathf.Abs(Vector3.Dot(dir, Vector3.up)) > 0.98f ? Vector3.forward : Vector3.up;
+            transform.rotation = Quaternion.LookRotation(-dir, up);
         }
 
         /// <summary>Cockpit: wide view, a near clip plane right at the eye, the canopy hidden (put back on the way out unless
@@ -277,7 +300,8 @@ namespace FlyingGame.Bridge
             InCockpit = cockpit;
             SetCockpitExtras(cockpit);
             if (_cam != null && CurrentView != View.Flyby && !cockpit && _baseFov > 0f && _cam.fieldOfView != _baseFov) _cam.fieldOfView = _baseFov;
-            if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }   // side-view lessons keep their camera
+            if (!ovr && !SideView && CurrentView == View.Flyby) { FlybyView(tgt); return; }
+            if (!ovr && !SideView && CurrentView == View.Locked) { LockedView(tgt); return; }   // side-view lessons keep their camera
             if (!ovr && !SideView && CurrentView != View.RelativeWind && CurrentView != View.RelativeWindAhead) { FixedView(tgt); return; }
             if (SideView && !ovr)
             {

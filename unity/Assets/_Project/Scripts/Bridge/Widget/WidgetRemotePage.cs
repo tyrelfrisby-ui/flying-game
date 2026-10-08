@@ -22,7 +22,7 @@ namespace FlyingGame.Bridge.Widget
  <button onclick=""cmd({cmd:'scenario',name:'flare'})"">Flare</button>
  <button onclick=""cmd({cmd:'scenario',name:'spin'})"">Spin</button>
  <select id='ac' onchange=""cmd({cmd:'scenario',aircraft:this.value})""></select>
- <select id='view' onchange=""cmd({cmd:'view',name:this.value})""><option>side</option><option>behind</option><option>front</option><option>top</option><option>chase</option></select>
+ <select id='view' onchange=""cmd({cmd:'view',name:this.value})""><option>side</option><option>behind</option><option>front</option><option>top</option><option>chase</option><option value='locked'>locked (direction)</option></select>
 </div>
 <div class='row'>
  <button onclick=""cmd({cmd:'preset',name:'spin-entry'})"">Spin entry</button>
