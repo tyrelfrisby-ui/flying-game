@@ -33,6 +33,11 @@ namespace FlyingGame.Bridge.Widget
         public bool GearDown = true;
         public double BrakeL, BrakeR;
         public WidgetAircraftControls.Spec Spec { get; private set; } = WidgetAircraftControls.None;
+        /// <summary>HOLD (protocol 5, the spin condition): every source's stick stays where it was put — no spring, no
+        /// auto-centre; a gamepad stick nudges the held position instead of setting it.</summary>
+        public bool Hold;
+        /// <summary>Has anyone moved the power since the start? (FINAL flies the lesson's power until then.)</summary>
+        public bool ThrottleTouched { get; private set; }
 
         // ---- protocol 4: the pilot flying ----
         public string PilotId, PilotName, PilotColor = "#FFFFFF";
@@ -47,12 +52,18 @@ namespace FlyingGame.Bridge.Widget
         public const float HandoverEase = 0.3f, HandoverWait = 2f, BannerSeconds = 2.5f;
 
         public void SetTrimStick(double stick) { _trimStick = stick; Elevator = stick; }
-        public void ResetToTrim() { Aileron = 0; Rudder = 0; Elevator = _trimStick; Brake01 = 0; BrakeL = BrakeR = 0; ElevatorFree = false; }
+        /// <summary>Cruise (protocol 5): the aileron and rudder that hold it straight at 75 % power (torque, P-factor) — where
+        /// the stick and pedals go back to when let go, like a rudder trim tab.</summary>
+        public void SetLateralTrim(double ail, double rud) { _trimAil = ail; _trimRud = rud; Aileron = ail; Rudder = rud; }
+        private double _trimAil, _trimRud;
+        public void ResetToTrim() { _trimAil = _trimRud = 0; Aileron = 0; Rudder = 0; Elevator = _trimStick; Brake01 = 0; BrakeL = BrakeR = 0; ElevatorFree = false; }
 
         /// <summary>A new aircraft / scenario: its control fit, and the levers where the scenario starts.</summary>
         public void Configure(AircraftConfig cfg, string id, double flaps, double spoilers)
         {
             Spec = WidgetAircraftControls.For(id, cfg);
+            Hold = false; ThrottleTouched = false;
+            _handing = false;   // a (re)start sets every input: a handover still waiting must not put the old ones back
             FlapsHandle = FlapsActual = Spec.Flaps.Length > 1 ? Spec.Snap(flaps) : 0;
             Spoilers = Spec.Spoilers ? spoilers : 0; SpoilersArmed = false;
             GearDown = true;
@@ -90,7 +101,7 @@ namespace FlyingGame.Bridge.Widget
             if (n.Aileron.HasValue) ail = Mathf.Clamp((float)n.Aileron.Value, -1f, 1f);
             if (n.Elevator.HasValue) ele = Mathf.Clamp((float)n.Elevator.Value, -1f, 1f);
             if (n.Rudder.HasValue) rud = Mathf.Clamp((float)n.Rudder.Value, -1f, 1f);
-            if (n.Throttle.HasValue) thr = Mathf.Clamp01((float)n.Throttle.Value);
+            if (n.Throttle.HasValue) { thr = Mathf.Clamp01((float)n.Throttle.Value); if (System.Math.Abs(thr - Throttle01) > 0.005) ThrottleTouched = true; }
             if (n.HandsOff.HasValue) { ElevatorFree = n.HandsOff.Value; if (n.HandsOff.Value) ele = _trimStick; }
             if (_handing) { _tA = ail; _tE = ele; _tR = rud; _tT = thr; if (!_handGot) { _handGot = true; _handGotAt = Time.unscaledTime; } }
             else { Aileron = ail; Elevator = ele; Rudder = rud; Throttle01 = thr; }
@@ -135,10 +146,11 @@ namespace FlyingGame.Bridge.Widget
         {
             if (!_handing) return;
             float now = Time.unscaledTime;
+            if (!_handGot && Hold) { Aileron = _hA; Elevator = _hE; Rudder = _hR; Throttle01 = _hT; return; }   // HOLD: nothing centres — the held inputs stay until the new pilot moves them
             if (!_handGot && now - _handAt > HandoverWait)
             {
                 // Nobody took it: centre the stick and rudder, keep the power.
-                _tA = 0; _tE = _trimStick; _tR = 0; _tT = _hT; _handGot = true; _handGotAt = now;
+                _tA = _trimAil; _tE = _trimStick; _tR = _trimRud; _tT = _hT; _handGot = true; _handGotAt = now;
             }
             if (!_handGot) { Aileron = _hA; Elevator = _hE; Rudder = _hR; Throttle01 = _hT; return; }
             float k = Mathf.Clamp01((now - _handGotAt) / HandoverEase);
@@ -190,11 +202,19 @@ namespace FlyingGame.Bridge.Widget
             float kr = (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0);
             bool keyStick = kx != 0 || ky != 0 || kr != 0;
             float dt = Time.unscaledDeltaTime;
-            if (Input.GetKey(KeyCode.W)) { Throttle01 = Mathf.Clamp01((float)Throttle01 + dt * 0.6f); SourceLabel = "keyboard"; }
-            if (Input.GetKey(KeyCode.S)) { Throttle01 = Mathf.Clamp01((float)Throttle01 - dt * 0.6f); SourceLabel = "keyboard"; }
+            if (Input.GetKey(KeyCode.W)) { Throttle01 = Mathf.Clamp01((float)Throttle01 + dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
+            if (Input.GetKey(KeyCode.S)) { Throttle01 = Mathf.Clamp01((float)Throttle01 - dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
             if (Input.GetKey(KeyCode.B)) { Brake01 = BrakeL = BrakeR = 1.0; }
             else if (SourceLabel == "keyboard") { Brake01 = BrakeL = BrakeR = 0.0; }
-            if (keyStick)
+            if (keyStick && Hold)
+            {
+                // HOLD: a held key moves that control; let go and it stays (the other axes stay where they are).
+                Widget.Presets.Stop(); SourceLabel = "keyboard"; ElevatorFree = false;
+                if (kx != 0) Aileron = Mathf.Clamp((float)Aileron + kx * dt * 1.5f, -1f, 1f);
+                if (ky != 0) Elevator = Mathf.Clamp((float)Elevator + ky * dt * 1.5f, -1f, 1f);
+                if (kr != 0) Rudder = Mathf.Clamp((float)Rudder + kr * dt * 1.5f, -1f, 1f);
+            }
+            else if (keyStick)
             {
                 Widget.Presets.Stop(); SourceLabel = "keyboard"; ElevatorFree = false;
                 Aileron = Mathf.MoveTowards((float)Aileron, kx, dt * 3f);
@@ -205,17 +225,29 @@ namespace FlyingGame.Bridge.Widget
             float ga = Axis(AxAileron), ge = Axis(AxElevator) * (InvertElevator ? -1f : 1f), gr = Axis(AxRudder), gt = Axis(AxThrottle);
             bool padMoved = Mathf.Abs(ga) > 0.08f || Mathf.Abs(ge) > 0.08f || Mathf.Abs(gr) > 0.08f;
             if (padMoved) _padAt = Time.unscaledTime;
-            if (Time.unscaledTime - _padAt < 1.5f && Time.unscaledTime - _netAt > 0.5f && !keyStick)
+            if (Hold)
+            {
+                // HOLD: the pad's sticks spring back, so they NUDGE the held position (deflection = rate); released, it stays.
+                if (padMoved && Time.unscaledTime - _netAt > 0.5f && !keyStick)
+                {
+                    Widget.Presets.Stop(); SourceLabel = "gamepad"; ElevatorFree = false;
+                    if (Mathf.Abs(ga) > 0.08f) Aileron = Mathf.Clamp((float)Aileron + ga * dt * 1.5f, -1f, 1f);
+                    if (Mathf.Abs(ge) > 0.08f) Elevator = Mathf.Clamp((float)Elevator - ge * dt * 1.5f, -1f, 1f);
+                    if (Mathf.Abs(gr) > 0.08f) Rudder = Mathf.Clamp((float)Rudder + gr * dt * 1.5f, -1f, 1f);
+                }
+                if (ThrottleFromAxis && padMoved) { Throttle01 = (gt + 1f) * 0.5f; ThrottleTouched = true; }
+            }
+            else if (Time.unscaledTime - _padAt < 1.5f && Time.unscaledTime - _netAt > 0.5f && !keyStick)
             {
                 Widget.Presets.Stop(); SourceLabel = "gamepad"; ElevatorFree = false;
                 Aileron = ga; Elevator = Mathf.Abs(ge) > 0.05f ? -ge : _trimStick; Rudder = gr;   // stick back (−y on most pads… mapped) = pull
-                if (ThrottleFromAxis) Throttle01 = (gt + 1f) * 0.5f;
+                if (ThrottleFromAxis) { Throttle01 = (gt + 1f) * 0.5f; ThrottleTouched = true; }
             }
-            else if (!keyStick && Time.unscaledTime - _netAt > 2f && SourceLabel == "keyboard" && Widget.Presets.Running == null)
+            else if (!Hold && !keyStick && Time.unscaledTime - _netAt > 2f && SourceLabel == "keyboard" && Widget.Presets.Running == null)
             {
                 // Released keys: back to trim (the stick centres).
-                Aileron = Mathf.MoveTowards((float)Aileron, 0f, dt * 3f);
-                Rudder = Mathf.MoveTowards((float)Rudder, 0f, dt * 4f);
+                Aileron = Mathf.MoveTowards((float)Aileron, (float)_trimAil, dt * 3f);
+                Rudder = Mathf.MoveTowards((float)Rudder, (float)_trimRud, dt * 4f);
                 if (!ElevatorFree) Elevator = Mathf.MoveTowards((float)Elevator, (float)_trimStick, dt * 3f);
             }
         }

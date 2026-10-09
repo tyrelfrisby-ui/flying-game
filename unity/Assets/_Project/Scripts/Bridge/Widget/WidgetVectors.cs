@@ -36,6 +36,13 @@ namespace FlyingGame.Bridge.Widget
         private void Label(Vector3 at, string text, Color c, float scale, TextAnchor anchor = TextAnchor.MiddleCenter)
         {
             if (!Widget.Show["labels"]) return;
+            if (anchor == TextAnchor.MiddleCenter)
+            {
+                // Keep a label inside the picture and below the readout (an arrow running off the frame left it half out).
+                var cm = Widget.Cam; Vector3 vp = cm.WorldToViewportPoint(at);
+                if (vp.z > 0 && (vp.x < 0.12f || vp.x > 0.88f || vp.y < 0.05f || vp.y > 0.84f))
+                { vp.x = Mathf.Clamp(vp.x, 0.12f, 0.88f); vp.y = Mathf.Clamp(vp.y, 0.05f, 0.84f); at = cm.ViewportToWorldPoint(vp); }
+            }
             // A dark drop shadow first, so the text reads over bright video too.
             float px = PixelM(at) * 2f; var cam = Widget.Cam.transform;
             Text(at + (cam.right - cam.up) * px + cam.forward * px, text, new Color(0f, 0f, 0f, 0.8f), scale, anchor);
@@ -82,7 +89,9 @@ namespace FlyingGame.Bridge.Widget
             {
                 // A corner readout, in the frame's top-left.
                 var cam = Widget.Cam; Vector3 corner = cam.ViewportToWorldPoint(new Vector3(0.03f, 0.97f, cam.orthographic ? 50f : Vector3.Distance(cam.transform.position, cgU)));
-                string spin = Widget.Current == AeroWidget.Scenario.Spin
+                string spin = Widget.Current == AeroWidget.Scenario.Cruise
+                    ? $"\nALT {rd.HeightFt:F0} ft  VS {-rd.SinkFpm:+0;-0} fpm  PWR {Widget.Controls.Throttle01 * 100:F0}%"
+                    : Widget.Current == AeroWidget.Scenario.Spin
                     ? $"\nYAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s\nL WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}\nR WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}"
                     : $"\nSINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
                 string rev = Widget.Paused && Widget.Show["review"] ? $"REVIEW {(Widget.Review.OffsetMs / 1000.0):+0.0;-0.0;0.0} s{(Widget.Review.Playing ? (Widget.Review.Direction == "reverse" ? "  ◀ " : "  ▶ ") + "×" + Widget.Review.Rate : "")}\n" : "";
@@ -124,7 +133,7 @@ namespace FlyingGame.Bridge.Widget
                 if (Widget.Show["strips"] && (f.Kind == "lift" || f.Kind == "drag")) Arrow(P(f.PosBody), W(f.ForceBody) * perN * 4f, f.Kind == "lift" ? Lift * 0.7f : Drag * 0.7f, px * 0.6f);
             }
             Vector3 weightU = Vector3.down * (float)weightN * perN;
-            if (Widget.Current == AeroWidget.Scenario.Flare)
+            if (Widget.Current != AeroWidget.Scenario.Spin)   // flare and cruise: the forces at the CG
             {
                 if (Widget.Show["lift"]) Arrow(cgU, W(lift) * perN, Lift, px);
                 if (Widget.Show["drag"]) Arrow(cgU, W(drag) * perN * 3f, Drag, px);   // drag ×3 so it reads
@@ -164,6 +173,7 @@ namespace FlyingGame.Bridge.Widget
                     Line(cgU - ax, cgU + ax, Axis);
                 }
             }
+            DrawWorld(px);
             GL.End();
             GL.PopMatrix();
 
@@ -177,25 +187,30 @@ namespace FlyingGame.Bridge.Widget
             // Done in LateUpdate's pool next frame: stash the positions.
             _pending.Clear();
             var rd = Widget.Read(); float t = px * 9f;
-            if (Widget.Current == AeroWidget.Scenario.Flare)
+            if (Widget.Current != AeroWidget.Scenario.Spin)
             {
-                if (Widget.Show["lift"]) _pending.Add((cgU + W(lift) * perN * 1.08f, "LIFT", Lift));
-                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight));
-                if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f - Widget.Cam.transform.up * t * 1.4f, "DRAG ×3", Drag));   // just below the wind's label
-                if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.ShownState.Velocity).normalized * 200f * px * 1.5f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind));
+                if (Widget.Show["lift"]) _pending.Add((cgU + W(lift) * perN * 1.08f, "LIFT", Lift, cgU));
+                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight, null));
+                if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f - Widget.Cam.transform.up * t * 1.4f, "DRAG ×3", Drag, cgU));   // just below the wind's label
+                if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.ShownState.Velocity).normalized * 150f * px + Widget.Cam.transform.up * t * 1.4f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind, cgU));   // mid-arrow, just above it
             }
             else
             {
                 double half = Widget.SpanM * 0.5;
-                // Out past each wingtip (clear of the airframe): the left / right wing's α at mid-semispan.
-                _pending.Add((P(cg + new Vec3(0, -half * 1.35, 0)), $"L WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}", rd.LeftStalled ? Drag : Lift));
-                _pending.Add((P(cg + new Vec3(0, half * 1.35, 0)), $"R WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}", rd.RightStalled ? Drag : Lift));
-                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight));
-                if (Widget.Show["total"]) _pending.Add((cgU + W(total) * perN * 1.08f, "TOTAL AERO", Total));
+                string lt = $"L WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}", rt = $"R WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}";
+                if (Widget.View == "body") { }   // airplane-fixed, looking along the span: the tips line up — the readout carries each wing's α
+                else
+                {
+                    // Out past each wingtip (clear of the airframe): the left / right wing's α at mid-semispan.
+                    _pending.Add((P(cg + new Vec3(0, -half * 1.35, 0)), lt, rd.LeftStalled ? Drag : Lift, null));
+                    _pending.Add((P(cg + new Vec3(0, half * 1.35, 0)), rt, rd.RightStalled ? Drag : Lift, null));
+                }
+                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight, null));
+                if (Widget.Show["total"]) _pending.Add((cgU + W(total) * perN * 1.08f, "TOTAL AERO", Total, cgU));
             }
             _pendingScale = t;
         }
-        private readonly List<(Vector3 at, string text, Color c)> _pending = new();
+        private readonly List<(Vector3 at, string text, Color c, Vector3? cg)> _pending = new();
         private float _pendingScale;
 
         private void Update()
@@ -208,9 +223,52 @@ namespace FlyingGame.Bridge.Widget
             if (Widget == null) return;
             // Re-place the force labels for this frame's render (the readout was placed in LateUpdate).
             int keep = _used;
-            foreach (var p in _pending) Label(p.at, p.text, p.c, _pendingScale * 0.45f);   // small labels (owner's pick)
+            foreach (var p in _pending)
+            {
+                // An arrow seen nearly end-on (drag and the relative wind from behind) puts its label on the airplane: skip it.
+                if (p.cg.HasValue)
+                {
+                    var cam = Widget.Cam; Vector3 a = cam.WorldToScreenPoint(p.at), b = cam.WorldToScreenPoint(p.cg.Value);
+                    if (a.z <= 0 || new Vector2(a.x - b.x, a.y - b.y).magnitude < 75f * cam.pixelHeight / AeroWidget.FrameSize) continue;
+                }
+                Label(p.at, p.text, p.c, _pendingScale * 0.45f);   // small labels (owner's pick)
+            }
             EndLabels();
             _used = keep;
+        }
+
+        /// <summary>World references (protocol 5): FINAL — the ground line, the runway as a thick white line from its threshold,
+        /// the threshold mark and the aim point; spin and cruise — the horizon and a ground grid, so the airplane-fixed view
+        /// shows the world turning around the airplane. Pixel-thick at any zoom.</summary>
+        private void DrawWorld(float px)
+        {
+            var w = Widget;
+            if (w.Current == AeroWidget.Scenario.Flare)
+            {
+                if (w.Condition != "final") return;
+                float L = (float)w.Runway.LengthM, z0 = -L / 2f, z1 = L / 2f, aim = z0 + (float)FlyingGame.Sim.Practice.PracticeScenario.NumbersPastThresholdM;
+                Vector3 up = Vector3.up;
+                Line(new Vector3(0, 0, -20000), new Vector3(0, 0, 20000), new Color(1, 1, 1, 0.45f));                  // the ground
+                for (int k = 0; k <= 4; k++) Line(new Vector3(0, -k * px, z0), new Vector3(0, -k * px, z1), Color.white);   // the runway: 5 px thick
+                for (int k = -1; k <= 1; k++) Line(new Vector3(0, 0, z0 + k * px), new Vector3(0, 14 * px, z0 + k * px), Color.white);   // the threshold
+                for (int k = 0; k <= 8; k++) Line(new Vector3(0, k * px * 0.5f, aim), new Vector3(0, k * px * 0.5f, aim + 45f), Color.white);   // the aim point (a 45 m bar)
+                return;
+            }
+            if (!w.Show["horizon"]) return;
+            var cam = w.Cam.transform.position;
+            // The horizon: a circle at eye height far out (on a flat world it sits on the eye's level).
+            const float R = 15000f; Color hz = new(0.85f, 0.92f, 1f, 0.75f);
+            Vector3 prev = cam + new Vector3(R, 0, 0);
+            for (int i = 1; i <= 96; i++) { float a = i * Mathf.PI * 2f / 96f; var p = cam + new Vector3(Mathf.Cos(a) * R, 0, Mathf.Sin(a) * R); Line(prev, p, hz); prev = p; }
+            // The ground: a 250 m grid fixed to the earth, around the aircraft.
+            Vector3 ac = CoordinateMap.ToUnity(w.ShownState.Position);
+            const float G = 250f, E = 4000f; Color gc = new(0.95f, 0.8f, 0.55f, 0.4f);
+            float cx = Mathf.Round(ac.x / G) * G, cz = Mathf.Round(ac.z / G) * G;
+            for (float d = -E; d <= E; d += G)
+            {
+                Line(new Vector3(cx + d, 0, cz - E), new Vector3(cx + d, 0, cz + E), gc);
+                Line(new Vector3(cx - E, 0, cz + d), new Vector3(cx + E, 0, cz + d), gc);
+            }
         }
 
         // ---- GL helpers ----

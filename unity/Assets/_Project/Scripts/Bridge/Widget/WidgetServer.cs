@@ -244,7 +244,7 @@ namespace FlyingGame.Bridge.Widget
                 case "scenario":
                 {
                     string n = ((string)j["name"] ?? w.Current.ToString()).ToLowerInvariant();
-                    var sc = n == "spin" ? AeroWidget.Scenario.Spin : AeroWidget.Scenario.Flare;
+                    var sc = n == "spin" ? AeroWidget.Scenario.Spin : n == "cruise" ? AeroWidget.Scenario.Cruise : AeroWidget.Scenario.Flare;
                     w.Load(sc, (string)j["aircraft"] ?? w.AircraftId, j["flaps"]?.Value<double>() ?? w.Flaps);
                     break;
                 }
@@ -293,18 +293,37 @@ namespace FlyingGame.Bridge.Widget
                 case "play": w.Review.Play((float)(j["rate"]?.Value<double>() ?? 0.25), (string)j["direction"] ?? "reverse"); return Reviewed(ok);
                 case "reset": w.Load(w.Current, w.AircraftId, w.Flaps); break;
                 case "timescale": w.TimeScale = Mathf.Clamp((float)(j["value"]?.Value<double>() ?? 1), 0.05f, 1f); break;
+                case "start":
+                {
+                    // Protocol 5: one of three known states with one tap (cruise | final | spin).
+                    string cond = ((string)j["condition"] ?? "").ToLowerInvariant();
+                    if (System.Array.IndexOf(AeroWidget.Conditions, cond) < 0) { ok["ok"] = false; ok["error"] = "condition: cruise, final or spin"; break; }
+                    string acId = (string)j["aircraft"];
+                    if (acId != null && System.Array.FindIndex(SessionSettings.Fleet, f => f.id == acId) < 0) { ok["ok"] = false; ok["error"] = "unknown aircraft"; break; }
+                    string err = w.StartCondition(cond, acId, ((string)j["view"])?.ToLowerInvariant(), ((string)j["from"])?.ToLowerInvariant());
+                    if (err != null) { ok["ok"] = false; ok["error"] = err; }   // started anyway, in the condition's default view
+                    ok["condition"] = w.Condition; ok["aircraft"] = w.AircraftId; ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; ok["viewFixed"] = w.ViewFixed; ok["hold"] = w.Controls.Hold;
+                    break;
+                }
                 case "view":
                 {
                     string vn = ((string)j["name"] ?? "side").ToLowerInvariant();
                     if (System.Array.IndexOf(AeroWidget.Views, vn) < 0) { ok["ok"] = false; ok["error"] = "unknown view"; break; }
+                    string verr = w.CheckView(vn, ((string)j["from"])?.ToLowerInvariant());
+                    if (verr != null) { ok["ok"] = false; ok["error"] = verr; ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break; }
+                    if (w.Condition == "spin" && vn == "locked") { w.SetView("locked", "side"); ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break; }
                     w.SetView(vn, ((string)j["from"])?.ToLowerInvariant());   // the flare is always side-on: accepted, no change there
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
-                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 4;
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes");
-                    ok["commands"] = new JArray("hello", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
-                    ok["scenarios"] = new JArray("flare", "spin");
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 5;
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions");
+                    ok["conditions"] = JArray.Parse(@"[{""id"":""cruise"",""name"":""Cruise"",""views"":""any"",""default"":""chase""},
+                        {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
+                        {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
+                    ok["bodyFrom"] = new JArray("left");
+                    ok["commands"] = new JArray("hello", "start", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
                     ok["show"] = new JArray(w.Show.Keys);
@@ -390,6 +409,7 @@ namespace FlyingGame.Bridge.Widget
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
+                ["condition"] = w.Condition, ["viewFixed"] = w.ViewFixed, ["hold"] = w.Controls.Hold,
                 ["pilot"] = PilotJson(), ["remotes"] = RemotesJson(), ["controlsDisplay"] = new JObject { ["shown"] = w.Show["controlsDisplay"], ["place"] = w.ControlsPlace, ["size"] = w.ControlsSize, ["traces"] = w.Show["controlTraces"] },
                 ["review"] = new JObject { ["active"] = w.Review.Active, ["offsetMs"] = System.Math.Round(w.Review.OffsetMs), ["historyMs"] = System.Math.Round(w.Review.HistoryMs),
                     ["playing"] = w.Review.Playing, ["rate"] = w.Review.Rate, ["direction"] = w.Review.Direction },

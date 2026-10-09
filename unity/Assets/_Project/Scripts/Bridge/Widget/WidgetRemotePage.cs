@@ -17,15 +17,25 @@ namespace FlyingGame.Bridge.Widget
  #dot{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:22px;background:#4fd1ff;left:50%;top:50%}
  .lbl{color:#aaa;font-size:13px} input[type=range]{width:60vw}
  #st{font:12px Menlo,monospace;color:#9f9;white-space:pre;padding:6px 10px}
+ .cond{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+ .cond button{font-size:19px;font-weight:600;padding:16px 4px}
+ .cond button.on{background:#1f6fd1;border-color:#5aa2ff}
+ select:disabled{opacity:.4}
+ #hold{position:absolute;top:8px;left:10px;font:600 13px -apple-system,sans-serif;color:#ffcf5a;display:none}
 </style></head><body>
 <div id='pf' class='row' style='display:none;background:#2a2410;color:#ffcf5a'><span id='pft'></span>
  <button id='req' onclick=""requestControls()"">Request controls</button></div>
 <div id='banner' class='row' style='display:none;background:#14532d;color:#fff;font-weight:600'></div>
+<div class='cond'>
+ <button id='c-cruise' onclick=""cmd({cmd:'start',condition:'cruise',aircraft:document.getElementById('ac').value})"">Cruise</button>
+ <button id='c-final' onclick=""cmd({cmd:'start',condition:'final',aircraft:document.getElementById('ac').value})"">Final</button>
+ <button id='c-spin' onclick=""cmd({cmd:'start',condition:'spin',aircraft:document.getElementById('ac').value})"">Spin</button>
+</div>
 <div class='row'>
  <button onclick=""cmd({cmd:'scenario',name:'flare'})"">Flare</button>
  <button onclick=""cmd({cmd:'scenario',name:'spin'})"">Spin</button>
  <select id='ac' onchange=""cmd({cmd:'scenario',aircraft:this.value})""></select>
- <select id='view' onchange=""cmd({cmd:'view',name:this.value})""><option>side</option><option>behind</option><option>front</option><option>top</option><option>chase</option><option value='locked'>locked (direction)</option></select>
+ <select id='view' onchange=""cmd({cmd:'view',name:this.value})""><option>side</option><option>behind</option><option>front</option><option>top</option><option>chase</option><option value='locked'>locked (direction)</option><option value='body'>body (airplane-fixed, left)</option></select>
 </div>
 <div class='row'>
  <button onclick=""cmd({cmd:'preset',name:'spin-entry'})"">Spin entry</button>
@@ -46,7 +56,7 @@ namespace FlyingGame.Bridge.Widget
  <button onclick=""cmd({cmd:'resume'})"">Fly from here</button><button onclick=""cmd({cmd:'resume',from:'live'})"">Back to live</button>
 </div>
 <div class='row'><span class='lbl'>History</span><input id='scrub' type='range' min='-60000' max='0' step='33' value='0'><span id='rv' class='lbl'></span></div>
-<div id='stick'><div id='dot'></div></div>
+<div id='stick'><div id='hold'>HOLD</div><div id='dot'></div></div>
 <div class='row'><span class='lbl'>Rudder</span><input id='rud' type='range' min='-1' max='1' step='0.01' value='0'></div>
 <div class='row'><span class='lbl'>Power&nbsp;</span><input id='thr' type='range' min='0' max='1' step='0.01' value='0'></div>
 <div class='row'><span class='lbl'>Brake&nbsp;</span><input id='brk' type='range' min='0' max='1' step='0.01' value='0'></div>
@@ -64,16 +74,24 @@ const stick=document.getElementById('stick'),dot=document.getElementById('dot');
 function setFrom(t){const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.min(1,((t.clientX-r.left)/r.width)*2-1));sy=Math.max(-1,Math.min(1,((t.clientY-r.top)/r.height)*2-1));dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';}
 stick.addEventListener('pointerdown',e=>{live=true;stick.setPointerCapture(e.pointerId);setFrom(e);});
 stick.addEventListener('pointermove',e=>{if(live)setFrom(e);});
-stick.addEventListener('pointerup',e=>{live=false;sx=0;sy=0;dot.style.left='50%';dot.style.top='50%';send();});
+let hold=false;
+stick.addEventListener('pointerup',e=>{live=false;if(!hold){sx=0;sy=0;dot.style.left='50%';dot.style.top='50%';}send();});
 let rvOff=0,scrubbing=false;const scrub=document.getElementById('scrub');
 scrub.addEventListener('input',()=>{scrubbing=true;cmd({cmd:'seek',offsetMs:+scrub.value});});
 scrub.addEventListener('change',()=>{scrubbing=false;});
 let touched=0;['rud','thr','brk'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{touched=Date.now();}));
-document.getElementById('rud').addEventListener('change',e=>{e.target.value=0;send();});
+document.getElementById('rud').addEventListener('change',e=>{if(!hold)e.target.value=0;send();});
 function send(){cmd({cmd:'controls',source:'remote',aileron:sx,elevator:-sy,rudder:+document.getElementById('rud').value,throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value});}
 setInterval(()=>{if(!viewOnly&&(live||Date.now()-touched<300))send();},50);
 setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)).then(r=>r.json()).then(s=>{
  const p=s.pilot||{};viewOnly=!!(p.managed&&p.id!==myId);
+ // Protocol 5: the condition buttons, HOLD (the stick stays where it's put; it shows the held position), the view picker.
+ hold=!!s.hold;document.getElementById('hold').style.display=hold?'block':'none';
+ ['cruise','final','spin'].forEach(c=>document.getElementById('c-'+c).classList.toggle('on',s.condition===c));
+ const vs=document.getElementById('view');vs.disabled=!!s.viewFixed;
+ [...vs.options].forEach(o=>o.disabled=s.condition==='spin'&&o.value!=='locked'&&o.value!=='body');
+ if(document.activeElement!==vs)vs.value=s.view;
+ if(hold&&!live&&Date.now()-touched>600){const c=s.controls||{};sx=c.aileron||0;sy=-(c.elevator||0);dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';document.getElementById('rud').value=c.rudder||0;}
  document.getElementById('pf').style.display=viewOnly?'flex':'none';
  document.getElementById('pft').textContent=viewOnly?`${p.name} is flying — view only`:'';
  if(!viewOnly)document.getElementById('req').textContent='Request controls';

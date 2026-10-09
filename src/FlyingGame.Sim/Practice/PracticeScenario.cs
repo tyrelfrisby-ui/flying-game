@@ -246,6 +246,9 @@ public sealed class PracticeScenario
     /// <summary>The flare lesson's aim point: the runway NUMBERS (their middle, ~220 ft past the threshold — owner 2026-10-03:
     /// "start it before the runway … the flight path right on the numbers at 100 ft").</summary>
     public const double NumbersPastThresholdM = 67.0, FlareStartFt = 100.0;
+    /// <summary>Start the flare exercise higher (wheel height, ft), on the same path: the Aero Widget's "final" condition starts
+    /// at 300 ft. Null = the lesson's own (100 ft idle glide; jets 200 ft on 3°).</summary>
+    public double? StartWheelsFt { get; set; }
     public double FlareAimM => NumbersPastThresholdM;
     public double GlideslopeHeightAt(double along) => Math.Max(0, (AimPastThresholdM - along) * Math.Tan(GlideslopeRad));
     /// <summary>+ = above the glideslope (m).</summary>
@@ -479,7 +482,7 @@ public sealed class PracticeScenario
         Atmosphere.ActiveTurbulence = null;
         Atmosphere.SteadyWind = WindVector(0, 0);
         if (Airwork) return SpawnAirwork();
-        double wheels = Approach ? 91.44 : JetFlare ? JetStartFt * 0.3048 : FlareExercise ? FlareStartFt * 0.3048 : FiveFtM;   // WHEEL height (owner: "5 ft"; the flare: 100 ft on the idle glide)
+        double wheels = Approach ? 91.44 : JetFlare ? (StartWheelsFt ?? JetStartFt) * 0.3048 : FlareExercise ? (StartWheelsFt ?? FlareStartFt) * 0.3048 : FiveFtM;   // WHEEL height (owner: "5 ft"; the flare: 100 ft on the idle glide)
         double agl = wheels + GearDropM;
         double v = JetFlare ? JetApproachFactor * VsoMs : (FlareExercise || Approach) ? 1.3 * VsoMs : 1.15 * VsoMs;
         double back = Approach ? wheels / Math.Tan(GlideslopeRad) - AimPastThresholdM : FlareExercise ? wheels / Math.Tan(FlareGlideRad) - NumbersPastThresholdM : 0;   // the idle glide path runs onto the NUMBERS — the start distance varies with the glide angle

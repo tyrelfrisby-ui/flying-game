@@ -37,7 +37,8 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 
 | Command | Fields | Effect |
 |---|---|---|
-| `scenario` | `name`: `flare` \| `spin`; `aircraft`: fleet id (optional); `flaps`: 0…1 (optional, flare only) | Load or restart the scenario. |
+| `start` | `condition`: `cruise` \| `final` \| `spin`; `aircraft` (optional); `view` (+ `from`) (optional) | **Protocol 5:** start from one of three known states with one tap (below). Replies with `condition`, `view`, `viewFrom`, `viewFixed`, `hold`. A view the condition doesn't allow gets `ok:false` with the reason; the start still happens, in the default view. |
+| `scenario` | `name`: `flare` \| `spin` \| `cruise`; `aircraft`: fleet id (optional); `flaps`: 0…1 (optional, flare only) | Load or restart the scenario. |
 | `controls` | `aileron`, `elevator`, `rudder`: −1…1; `throttle`, `brake`, `brakeL`, `brakeR`: 0…1; `handsOff`: bool; `flaps`: 0…1; `spoilers`: 0…1; `spoilersArmed`: bool; `gear`: `up` \| `down`; `source`: label | Set the controls (any subset). **Elevator + = stick FORWARD (nose down); − = pull.** Aileron + = right, rudder + = right. `handsOff` frees the elevator to float on its trim. `brake` sets both toe brakes. The levers (protocol 4) are described below. Reply `accepted: false` (+ `reason`) when the sender isn't the pilot flying or review is paused. |
 | `preset` | `name`: `spin-entry` \| `spin-developed` \| `spin-recovery` \| `flare-demo` \| `flare-hands-off` | Run a scripted moment. Any control input from anywhere cancels it. |
 | `pause` | | Freeze on the current frame and enter **review** (below). |
@@ -48,9 +49,9 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `play` | `rate`: 0.25 \| 0.5 \| 1; `direction`: `forward` \| `reverse` | Play through the history while paused (reverse = rewind in motion); stops at either end. Any step/seek/rewind stops it. |
 | `timescale` | `value`: 0.05…1 | Slow motion. |
 | `reset` | | Restart the current scenario. |
-| `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). |
-| `hello` | | Reply with app, version, `protocol: 4`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
-| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips. |
+| `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked` \| `body`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). **`body` = airplane-fixed** (from `left`): the camera is rigidly attached to the airframe and looks at its left side, so the airplane holds still while the horizon, the ground grid, the relative wind and the weight vector turn around it (vectors keep their true world directions). In FINAL every view is refused (`"view is fixed in final"`); in the SPIN condition only `locked` (from side) and `body` (from left) are accepted. |
+| `hello` | | Reply with app, version, `protocol: 5`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces horizon`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips; `horizon` = the horizon line and the ground grid (cruise and spin). |
 | `controlsDisplay` | `place`: `bottom` \| `left` \| `right`; `size`: 0.2…0.5; `show`: bool (optional) | Where the control panel goes and how much of the picture its strip takes. Default: off, bottom, 0.28. |
 | `pilot` | `id` (null clears), `name`, `color` (`#RRGGBB`), `managed`: bool (default true) | Name the pilot flying (below). |
 | `requestControls` | `from`: `web-…`, `name` | Sent by the web remote's **Request controls** button; the widget pushes `{"event":"controlRequest",…}` to subscribers. |
@@ -69,6 +70,7 @@ State (reply to `state`, and the `subscribe` stream):
  "leftWingAlpha":34.9,"rightWingAlpha":23.9,"leftStalled":true,"rightStalled":true,"onGround":false,
  "controls":{"aileron":0,"elevator":-1,"rudder":-1,"throttle":0,"brake":0,"brakeL":0,"brakeR":0,"handsOff":false,
    "flaps":0,"flapsDeg":0,"flapsActual":0,"flapsActualDeg":0,"spoilers":0,"spoilersArmed":false,"gear":"fixed","gearLights":"down"},
+ "condition":"spin","viewFixed":false,"hold":true,
  "pilot":{"id":"sam","name":"Sam","color":"#4FC3F7","managed":true},"remotes":[{"id":"web-k3j9x2","name":"Rae"}],
  "controlsDisplay":{"shown":true,"place":"bottom","size":0.28,"traces":false},
  "syphon":"Aero Widget","ndi":"Aero Widget","frame":1080,
@@ -91,6 +93,51 @@ For teaching: pause at the moment that matters (the stall break, the flare, the 
 ```
 
 In review, `controls` (and everything else in the state) is the frame being shown.
+
+### Start conditions (protocol 5)
+
+The instructor starts every lesson from one of three known states with one tap. `{"cmd":"start","condition":…}`. The web remote has three big buttons for them at the top (Cruise · Final · Spin).
+
+| Condition | State | View |
+|---|---|---|
+| **cruise** | ~3,000 ft over the flat world, 75 % power, gear up, flaps up, straight and level and **trimmed** (below). Free flight: every control and view works. | Any; default `chase`. `view` + `from` pick the start view. |
+| **final** | 300 ft, on final, lined up, wings level, with the type's approach speed and flaps: 1.3 Vso, full flaps on the light types (C172 30°), 30 on the 737. It flies on into the flare and touchdown, and replaces "start the flare from the air". | Side-on (the flare view), **fixed**. |
+| **spin** | A developed spin (the spin-entry inputs, then held about 14 s, settled), with **full pro-spin controls held**: stick full aft, rudder full with the rotation, ailerons neutral, idle. **HOLD mode** (below). PARE (preset `spin-recovery`) or any inputs still recover it. | `locked` from the side (default), or `body` from the left. `{"cmd":"start","condition":"spin","view":"body"}` starts in the body view. |
+
+**Cruise trim.** Solved on the sim itself, in two stages:
+1. Newton on short trial runs for speed, α and elevator.
+2. The widget flies it offscreen for 60 s with a gentle wings-level, ball-centred, zero-VSI hold, the way a pilot trims. The engine, slipstream and torque settle too.
+
+- **Result:** the settled control positions become the trim. Hands-off, the stick and pedals return to them (a C172 needs a touch of right rudder at 75 %), and the start is that settled airplane.
+- **C172:** 119 KIAS. Hands-off for 30 s it held altitude within 1 ft, with no bank drift.
+- **Gliders:** they have no power, so they glide trimmed at best L/D.
+- **Start time:** about 1–2 s.
+
+**Final — what "idle" means.** A light airplane at idle with full flaps glides much steeper than 3°. The widget doesn't fake it.
+- **Props and gliders** start at 300 ft at idle on their **own idle glide path**, aimed at the runway numbers. Hands-off they fly it to the runway. Measured paths:
+
+  | Type | Speed | Flaps / spoilers | Path |
+  |---|---|---|---|
+  | C172 | 64 KIAS | 30° | 8.4° (~0.3 nm out) |
+  | Super Cub | 52 KIAS | 50° | 9.3° |
+  | 2-33 | 36 KIAS | half spoilers | 5.4° |
+
+- **Jets** (the 737) fly the **3° powered path** of the jet flare lesson, trimmed so hands-off it stays on the path. Power comes off to idle from 50 ft to 5 ft.
+  - **737:** 144 KIAS on 31 % power, 3.0° steady, about 1 nm out.
+  - **F-86:** no trim exists at its approach flaps. The model's flap pitching moment beats full nose-down elevator, so it pitches up. Open issue in the aircraft model.
+- **Picture:** the runway is drawn as a thick white line on the ground plane, with a threshold mark and a 45 m aim-point bar. While the aircraft is still well out, the frame widens so the threshold and the aim point plus 150 m are in view: the aircraft sits at 28 % from the left, the far point at 92 %, the ground 35 % up. It narrows into the flare's own framing over the last ~80 m.
+  - At 300 ft the airplane is only a few pixels long (the frame is about 1 km wide). The vectors and labels mark it.
+- **Power:** follows the lesson (idle; the jet's schedule) until anyone moves it.
+
+**HOLD** (spin condition, `"hold":true` in the state). Every input source keeps the stick where it was put: no spring, no auto-centre. Inputs only change when someone moves them, so the instructor can hold pro-spin elevator and rudder while working aileron and power.
+- **Network / Glass Overlay:** values stay until the next `controls`.
+- **Web remote:** shows HOLD on its stick. The dot stays where released and shows the held position; the rudder slider doesn't spring back.
+- **Keyboard:** a held key moves that control; let go and it stays.
+- **Gamepad:** its sticks spring back, so in HOLD they **nudge** the held position (deflection = rate).
+- **Handover:** a handover never centres the stick in HOLD.
+- **Tested** (Pitts): one input of aileron +0.6 and power 50 %, then nothing. Elevator −1 and rudder −1 stayed held, and the spin flattened (α 77°, yaw 152°/s). PARE recovered in about 8 s.
+
+**Review and the control display** work the same in every condition. The display shows the held inputs (PULL 100 %, L 100 %).
 
 ### Control display (protocol 4)
 
