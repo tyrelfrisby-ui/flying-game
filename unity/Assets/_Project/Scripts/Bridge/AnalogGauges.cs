@@ -181,6 +181,7 @@ namespace FlyingGame.Bridge
         private void Draw(bool live)
         {
             if (Driver == null || Driver.Sim == null || SessionSettings.MenuOpen || SessionSettings.Instruments != SessionSettings.InstrumentMode.Analog) return;
+            if (UiLayout.AeroInsetsShown && !ChaseCamera.InCockpit) return;   // the AERO insets take the dials' place while the pilot has them on
             if (live && UiLayout.Modal) return;   // a lesson card is up
             var aircraft = Driver.Sim.Aircraft;
             float s = Mathf.Min(_cam.pixelWidth, _cam.pixelHeight);
@@ -220,6 +221,9 @@ namespace FlyingGame.Bridge
                 float y1 = regT + r * 1.05f, y2 = y1 + r * 2.1f + readH + fs * 0.6f;
                 asi = new Vector2(xL, y1); vc = new Vector2(xL, y2);
                 alt = new Vector2(xR, y1); gc = new Vector2(xR, y2);
+                // The free middle between the two dial columns (the AERO insets go there, never on a dial).
+                float clear = Mathf.Max(r * 1.15f, fs * 4.6f) + fs * 0.4f;
+                if (live) { UiLayout.DialsLeft = xL + clear; UiLayout.DialsRight = xR - clear; UiLayout.DialsFrame = Time.frameCount; }
             }
             else
             {

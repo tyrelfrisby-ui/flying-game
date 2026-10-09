@@ -40,6 +40,11 @@ namespace FlyingGame.Bridge
         public static float BottomLimit = 99999f;               // GUI y above which the dials must stay (buttons / tray below)
         /// <summary>GUI y the LEFT dial column must stay above (the Mac's control indicator and its THR/trim label).</summary>
         public static float LeftBottomLimit = 99999f;
+        /// <summary>GUI x range between the analog dial columns (valid while <see cref="DialsShown"/>).</summary>
+        public static float DialsLeft, DialsRight; public static int DialsFrame = -10;
+        /// <summary>The AERO panel's insets are on (outside views): they use the dials' space.</summary>
+        public static bool AeroInsetsShown;
+        public static bool DialsShown => Time.frameCount - DialsFrame <= 2;
         public static float BandLeft => Mathf.Max(Margin, BandMin);
         public static float BandRight => Mathf.Min(Screen.width - Margin, BandMax);
 

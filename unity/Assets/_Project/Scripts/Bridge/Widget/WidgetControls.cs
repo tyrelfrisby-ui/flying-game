@@ -13,11 +13,16 @@ namespace FlyingGame.Bridge.Widget
     /// gear with its lights, split toe brakes) and the PILOT FLYING — when Glass Overlay manages it, only that pilot's inputs
     /// move the airplane, and a change of pilot is eased (no jerk).
     /// </summary>
-    public sealed class WidgetControls : MonoBehaviour
+    public sealed class WidgetControls : MonoBehaviour, IAeroControls
     {
         public AeroWidget Widget;
         public double Aileron, Elevator, Rudder, Throttle01, Brake01;
         public bool ElevatorFree;   // "hands off": the elevator floats on its trim (a reversible control)
+        double IAeroControls.Aileron { get => Aileron; set => Aileron = value; }
+        double IAeroControls.Elevator { get => Elevator; set => Elevator = value; }
+        double IAeroControls.Rudder { get => Rudder; set => Rudder = value; }
+        double IAeroControls.Throttle01 { get => Throttle01; set => Throttle01 = value; }
+        bool IAeroControls.ElevatorFree { get => ElevatorFree; set => ElevatorFree = value; }
         private double _trimStick;
         public string SourceLabel { get; private set; } = "keyboard";
         private float _netAt = -10f, _padAt = -10f;

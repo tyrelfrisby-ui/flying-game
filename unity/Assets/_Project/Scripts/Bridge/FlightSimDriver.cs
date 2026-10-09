@@ -32,6 +32,8 @@ namespace FlyingGame.Bridge
         public ControlInputs Inputs { get; set; } = ControlInputs.Neutral;
         /// <summary>Practice exercises: the game replaces every axis but the user's before each step (PracticeController).</summary>
         public System.Func<ControlInputs, float, ControlInputs> InputFilter;
+        /// <summary>The autopilot / yaw damper (AERO panel), applied after <see cref="InputFilter"/>: it replaces only the channels it flies.</summary>
+        public System.Func<ControlInputs, float, ControlInputs> AutoFilter;
         /// <summary>Extra reason to record the per-step force samples (the wheel-force overlay in the side-view exercises).</summary>
         public bool ForceCapture;
         /// <summary>Ground-reference mode (owner 2026-09-15): on a runway lesson, or near the ground in free flight, the chase
@@ -284,6 +286,7 @@ namespace FlyingGame.Bridge
             if (Replaying) return;
             Sim.Aircraft.CaptureForces = SessionSettings.ShowForceVectors || ForceCapture;
             ControlInputs inputs = InputFilter != null ? InputFilter(Inputs, Time.deltaTime) : Inputs;
+            if (AutoFilter != null) inputs = AutoFilter(inputs, Time.deltaTime);
             Sim.Advance(Time.deltaTime, inputs, ref _accumulator);
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();

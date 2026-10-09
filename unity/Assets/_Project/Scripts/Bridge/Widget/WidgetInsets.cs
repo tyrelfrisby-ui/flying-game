@@ -16,30 +16,77 @@ namespace FlyingGame.Bridge.Widget
     {
         public static readonly string[] InsetNames = { "clAlpha", "liftDrag", "powerRequired", "ball", "aoa", "wb" };
 
-        private void Insets(AeroWidget w, Rect scene)
+        private void Insets(AeroHost w, Rect scene)
         {
             var on = new List<string>();
             foreach (var n in InsetNames) if (w.Insets.Contains(n)) on.Add(n);
             if (on.Count == 0) return;
-            float iw = 300f, ih = 176f, gap = 10f;
-            float x = scene.xMax - iw - 14f, y = scene.yMax - 54f;   // top-right, below the frame's top edge (pixels, y up)
+            float u = TextScale;
+            if (!w.IsWidgetHost) { GameInsets(w, scene, on); return; }
+            float iw = 300f * u, ih = 176f * u, gap = 10f * u;
+            float x = scene.xMax - iw - 14f * u, y = scene.yMax - InsetTopMargin * u;   // the widget: a stack from the top-right
             foreach (var n in on)
             {
-                if (y - ih < scene.yMin + 10) { y = scene.yMax - 54f; x -= iw + gap; }
+                if (y - ih < scene.yMin + 10) { y = scene.yMax - InsetTopMargin * u; x -= iw + gap; }
                 var r = new Rect(x, y - ih, iw, ih);
-                PxPlate(r);
-                switch (n)
-                {
-                    case "clAlpha": CurveInset(r, "LIFT COEFFICIENT vs α", w.Curves.ClAlpha(w), w.Curves.NowAlpha, w.Curves.NowCl, "α°", "CL", w.CriticalAlphaDeg(w.Ac.FlapFraction)); break;
-                    case "liftDrag": CurveInset(r, "LIFT / DRAG vs α", w.Curves.LdAlpha(w), w.Curves.NowAlpha, w.Curves.NowLd, "α°", "L/D", double.NaN); break;
-                    case "powerRequired": CurveInset(r, "POWER REQUIRED (level)", w.Curves.PowerReq(w), w.Read().Kias, w.Curves.NowPowerReqHp(w), "KIAS", "HP", double.NaN, w.Curves.PowerAvailHp(w)); break;
-                    case "ball": Ball(r, w); break;
-                    case "aoa": AoaInset(r, w); break;
-                    case "wb": WbInset(r, w); break;
-                }
+                DrawInset(w, n, r);
                 y -= ih + gap;
             }
         }
+
+        /// <summary>How many of the game's insets found no room this frame (the AERO panel says so; nothing is overlapped).</summary>
+        public int InsetsDropped { get; private set; }
+
+        /// <summary>The game: ROWS from the top-right of the free area, stepping around the aircraft; the plates shrink (to 65 %)
+        /// before any is left out.</summary>
+        private void GameInsets(AeroHost w, Rect scene, List<string> on)
+        {
+            float u = TextScale;
+            List<Rect> best = null; float bestK = 0.65f;
+            foreach (float k in new[] { 0.85f, 0.75f, 0.65f })
+            {
+                var rs = LayoutRows(scene, on.Count, 300f * u * k, 176f * u * k, 10f * u);
+                if (best == null || rs.Count > best.Count) { best = rs; bestK = k; }
+                if (rs.Count == on.Count) break;
+            }
+            InsetsDropped = on.Count - best.Count;
+            float keep = TextScale; TextScale = u * bestK / 0.85f;   // the plate's own text and paddings shrink with it
+            for (int i = 0; i < best.Count; i++) DrawInset(w, on[i], best[i]);
+            TextScale = keep;
+        }
+
+        private List<Rect> LayoutRows(Rect scene, int count, float iw, float ih, float gap)
+        {
+            var res = new List<Rect>();
+            float x = scene.xMax - iw, y = scene.yMax;
+            while (res.Count < count)
+            {
+                var r = new Rect(x, y - ih, iw, ih);
+                if (r.yMin < scene.yMin) break;
+                if (r.xMin < scene.xMin) { x = scene.xMax - iw; y -= ih * 0.25f; continue; }   // next band down (fine steps: fit beside the aircraft)
+                bool hit = GameKeepOut.width > 0 && r.Overlaps(GameKeepOut);
+                foreach (var p in res) if (p.Overlaps(new Rect(r.x - gap, r.y - gap, r.width + 2 * gap, r.height + 2 * gap))) hit = true;
+                if (hit) { x -= gap * 2; continue; }
+                res.Add(r); x -= iw + gap;
+            }
+            return res;
+        }
+
+        private void DrawInset(AeroHost w, string n, Rect r)
+        {
+            PxPlate(r); LabelKeepOut.Add(r);
+            switch (n)
+            {
+                case "clAlpha": CurveInset(r, "LIFT COEFFICIENT vs α", w.Curves.ClAlpha(w), w.Curves.NowAlpha, w.Curves.NowCl, "α°", "CL", w.CriticalAlphaDeg(w.Ac.FlapFraction)); break;
+                case "liftDrag": CurveInset(r, "LIFT / DRAG vs α", w.Curves.LdAlpha(w), w.Curves.NowAlpha, w.Curves.NowLd, "α°", "L/D", double.NaN); break;
+                case "powerRequired": CurveInset(r, "POWER REQUIRED (level)", w.Curves.PowerReq(w), w.Read().Kias, w.Curves.NowPowerReqHp(w), "KIAS", "HP", double.NaN, w.Curves.PowerAvailHp(w)); break;
+                case "ball": Ball(r, w); break;
+                case "aoa": AoaInset(r, w); break;
+                case "wb": WbInset(r, w); break;
+            }
+        }
+        /// <summary>Clear space above the insets (the widget's header; the game's menu buttons).</summary>
+        public float InsetTopMargin = 54f;
 
         private void PxPlate(Rect r)
         {
@@ -52,9 +99,9 @@ namespace FlyingGame.Bridge.Widget
 
         private void CurveInset(Rect r, string title, List<(double x, double y)> pts, double nowX, double nowY, string xl, string yl, double redX, double hLine = double.NaN)
         {
-            PxText(new Vector2(r.xMin + 10, r.yMax - 14), title, 15f, Color.white, TextAnchor.MiddleLeft);
+            PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), title, 15f, Color.white, TextAnchor.MiddleLeft);
             if (pts == null || pts.Count < 2) return;
-            var plot = new Rect(r.xMin + 40, r.yMin + 26, r.width - 52, r.height - 54);
+            float u = TextScale; var plot = new Rect(r.xMin + 40 * u, r.yMin + 26 * u, r.width - 52 * u, r.height - 54 * u);
             double x0 = double.MaxValue, x1 = double.MinValue, y0 = double.MaxValue, y1 = double.MinValue;
             foreach (var p in pts) { x0 = System.Math.Min(x0, p.x); x1 = System.Math.Max(x1, p.x); y0 = System.Math.Min(y0, p.y); y1 = System.Math.Max(y1, p.y); }
             if (!double.IsNaN(hLine)) y1 = System.Math.Max(y1, hLine);
@@ -77,27 +124,27 @@ namespace FlyingGame.Bridge.Widget
             }
         }
 
-        private void Ball(Rect r, AeroWidget w)
+        private void Ball(Rect r, AeroHost w)
         {
-            PxText(new Vector2(r.xMin + 10, r.yMax - 14), "SLIP / SKID", 15f, Color.white, TextAnchor.MiddleLeft);
+            PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), "SLIP / SKID", 15f, Color.white, TextAnchor.MiddleLeft);
             Vector2 c = new(r.center.x, r.center.y - 4);
-            float R = 120f, sweep = 22f * Mathf.Deg2Rad;
+            float R = 120f * TextScale, sweep = 22f * Mathf.Deg2Rad, u = TextScale;
             var tube = new Color(1, 1, 1, 0.5f);
-            Vector2 Arc(float a, float rr) => c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rr + new Vector2(0, R - 30);
-            for (int i = 0; i < 20; i++) { float a0 = -sweep + 2 * sweep * i / 20f, a1 = -sweep + 2 * sweep * (i + 1) / 20f; PxSeg(Arc(a0, R + 13), Arc(a1, R + 13), 1.5f, tube); PxSeg(Arc(a0, R - 13), Arc(a1, R - 13), 1.5f, tube); }
+            Vector2 Arc(float a, float rr) => c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rr + new Vector2(0, R - 30 * u);
+            for (int i = 0; i < 20; i++) { float a0 = -sweep + 2 * sweep * i / 20f, a1 = -sweep + 2 * sweep * (i + 1) / 20f; PxSeg(Arc(a0, R + 13 * u), Arc(a1, R + 13 * u), 1.5f, tube); PxSeg(Arc(a0, R - 13 * u), Arc(a1, R - 13 * u), 1.5f, tube); }
             PxSeg(Arc(-0.06f, R - 14), Arc(-0.06f, R + 14), 1.5f, tube); PxSeg(Arc(0.06f, R - 14), Arc(0.06f, R + 14), 1.5f, tube);
             float ballA = Mathf.Clamp((float)w.BallDeg * Mathf.Deg2Rad, -sweep, sweep);
             var b = Arc(ballA, R);
-            for (int i = 0; i < 16; i++) { float a0 = i * Mathf.PI / 8f, a1 = (i + 1) * Mathf.PI / 8f; Quad(b, b + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * 11f, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f, Color.white); }
+            for (int i = 0; i < 16; i++) { float a0 = i * Mathf.PI / 8f, a1 = (i + 1) * Mathf.PI / 8f; Quad(b, b + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * 11f * u, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f * u, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f * u, Color.white); }
             var rd = w.Read();
             PxText(new Vector2(r.center.x, r.yMin + 16), $"β {rd.BetaDeg:+0.0;-0.0;0.0}°   BALL {(System.Math.Abs(w.BallDeg) < 0.5 ? "CENTRED" : w.BallDeg > 0 ? "RIGHT" : "LEFT")}", 14f, Color.white, TextAnchor.MiddleCenter);
         }
 
-        private void AoaInset(Rect r, AeroWidget w)
+        private void AoaInset(Rect r, AeroHost w)
         {
             var rd = w.Read(); double crit = w.CriticalAlphaDeg(w.Ac.FlapFraction), warn = crit - 3;
-            PxText(new Vector2(r.xMin + 10, r.yMax - 14), "ANGLE OF ATTACK", 15f, Color.white, TextAnchor.MiddleLeft);
-            var bar = new Rect(r.xMin + 20, r.center.y - 14, r.width - 40, 28);
+            PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), "ANGLE OF ATTACK", 15f, Color.white, TextAnchor.MiddleLeft);
+            var bar = new Rect(r.xMin + 20 * TextScale, r.center.y - 14 * TextScale, r.width - 40 * TextScale, 28 * TextScale);
             float X(double a) => bar.xMin + (float)((System.Math.Clamp(a, -5, 35) + 5) / 40.0) * bar.width;
             PxSeg(new Vector2(bar.xMin, bar.center.y), new Vector2(bar.xMax, bar.center.y), 2f, new Color(1, 1, 1, 0.5f));
             Quad(new Vector2(X(warn), bar.yMin), new Vector2(X(crit), bar.yMin), new Vector2(X(crit), bar.yMax), new Vector2(X(warn), bar.yMax), new Color(0.95f, 0.65f, 0.1f, 0.9f));
@@ -107,11 +154,11 @@ namespace FlyingGame.Bridge.Widget
             PxText(new Vector2(r.center.x, r.yMin + 18), $"α {rd.AlphaDeg:0.0}°   CRITICAL {crit:0}°", 15f, rd.AlphaDeg >= crit ? new Color(1, 0.3f, 0.3f) : Color.white, TextAnchor.MiddleCenter);
         }
 
-        private void WbInset(Rect r, AeroWidget w)
+        private void WbInset(Rect r, AeroHost w)
         {
             var L = w.Loading;
-            PxText(new Vector2(r.xMin + 10, r.yMax - 14), "WEIGHT & BALANCE", 15f, Color.white, TextAnchor.MiddleLeft);
-            var plot = new Rect(r.xMin + 44, r.yMin + 30, r.width - 60, r.height - 60);
+            PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), "WEIGHT & BALANCE", 15f, Color.white, TextAnchor.MiddleLeft);
+            float uu = TextScale; var plot = new Rect(r.xMin + 44 * uu, r.yMin + 30 * uu, r.width - 60 * uu, r.height - 60 * uu);
             double c0 = L.FwdLimitMac - 12, c1 = L.NpMac + 6, w0 = L.EmptyKg * 0.9, w1 = L.MaxGrossKg * 1.35;
             Vector2 M(double cg, double kg) => new(plot.xMin + (float)((cg - c0) / (c1 - c0)) * plot.width, plot.yMin + (float)((kg - w0) / (w1 - w0)) * plot.height);
             var box = new Color(0.3f, 0.8f, 0.4f, 0.9f);
@@ -137,7 +184,7 @@ namespace FlyingGame.Bridge.Widget
             double s = 0; foreach (var sf in cfg.Surfaces) if (sf.Id.ToLowerInvariant().Contains("wing")) foreach (var st in sf.Strips) s += st.Area; return s;
         }
 
-        private List<(double, double)> Sweep(AeroWidget w, bool ld)
+        private List<(double, double)> Sweep(AeroHost w, bool ld)
         {
             string key = $"{(ld ? "ld" : "cl")}|{w.AircraftId}|{System.Math.Round(w.Ac.FlapFraction, 2)}";
             if (_cache.TryGetValue(key, out var v)) return v;
@@ -153,11 +200,11 @@ namespace FlyingGame.Bridge.Widget
             }
             _cache[key] = v; return v;
         }
-        public List<(double, double)> ClAlpha(AeroWidget w) => Sweep(w, false);
-        public List<(double, double)> LdAlpha(AeroWidget w) => Sweep(w, true);
+        public List<(double, double)> ClAlpha(AeroHost w) => Sweep(w, false);
+        public List<(double, double)> LdAlpha(AeroHost w) => Sweep(w, true);
 
         /// <summary>Thrust power (hp) needed for level flight vs KIAS: D·V from the glide trim's L/D at each speed.</summary>
-        public List<(double, double)> PowerReq(AeroWidget w)
+        public List<(double, double)> PowerReq(AeroHost w)
         {
             string key = $"pr|{w.AircraftId}|{System.Math.Round(w.Ac.FlapFraction, 2)}|{w.Config.Mass.MassKg:0}";
             if (_cache.TryGetValue(key, out var v)) return v;
@@ -172,13 +219,13 @@ namespace FlyingGame.Bridge.Widget
             }
             _cache[key] = v; return v;
         }
-        public double NowPowerReqHp(AeroWidget w)
+        public double NowPowerReqHp(AeroHost w)
         {
             var pr = PowerReq(w); double k = w.Read().Kias;
             for (int i = 1; i < pr.Count; i++) if (pr[i].Item1 >= k) { double t = (k - pr[i - 1].Item1) / System.Math.Max(1e-6, pr[i].Item1 - pr[i - 1].Item1); return pr[i - 1].Item2 + (pr[i].Item2 - pr[i - 1].Item2) * t; }
             return double.NaN;
         }
-        public double PowerAvailHp(AeroWidget w)
+        public double PowerAvailHp(AeroHost w)
         {
             var p = w.Config.Propulsion; if (p == null || p.MaxPowerW <= 0) return double.NaN;
             double eff = p.Efficiency > 0 ? p.Efficiency : 0.75;
@@ -186,7 +233,7 @@ namespace FlyingGame.Bridge.Widget
         }
 
         /// <summary>The live point: CL and L/D now, from the aero forces of the frame shown.</summary>
-        public void Update(AeroWidget w, WidgetVectors.Picture pic)
+        public void Update(AeroHost w, WidgetVectors.Picture pic)
         {
             var rd = w.Read(); NowAlpha = rd.AlphaDeg;
             if (pic == null || rd.Q < 1) { NowCl = double.NaN; NowLd = double.NaN; return; }

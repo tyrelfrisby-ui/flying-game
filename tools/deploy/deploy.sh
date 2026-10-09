@@ -6,6 +6,7 @@ set -o pipefail   # a failed xcodebuild must stop the script (its output is pipe
 cd /Users/tyfrisby/Documents/flying-game
 UDID=00008150-001629A83662401C
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
+find unity/Assets unity/Library unity/Packages src -name "* 2.*" -delete 2>/dev/null || true   # iCloud conflict copies break the build ("already registered")
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
   /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \

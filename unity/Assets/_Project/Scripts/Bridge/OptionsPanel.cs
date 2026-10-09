@@ -12,6 +12,7 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         private bool _open;
         public bool IsOpen => _open;
+        public void Close() => _open = false;
         private GUIStyle _btn, _btnOn, _head, _label;
         private Texture2D _bg, _btnBg, _btnOnBg;
         private int _fs;
@@ -58,7 +59,7 @@ namespace FlyingGame.Bridge
             // OPTIONS button top right, mirroring the MENU button top left.
             if (!_open)
             {
-                if (UiLayout.Button(UiLayout.OptionsRect, "OPTIONS", _btn)) _open = true;   // the shared toolbar row
+                if (UiLayout.Button(UiLayout.OptionsRect, "OPTIONS", _btn)) { _open = true; Widget.GameAeroPanel.Close(); }   // the shared toolbar row
                 return;
             }
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).

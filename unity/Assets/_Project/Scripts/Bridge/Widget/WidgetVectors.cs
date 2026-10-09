@@ -27,7 +27,7 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetVectors : MonoBehaviour
     {
-        public AeroWidget Widget;
+        public AeroHost Widget;
         private Material _mat;
         public float WidthScale = 1f;
         public float SmoothingMs = 130f;
@@ -187,27 +187,33 @@ namespace FlyingGame.Bridge.Widget
         private bool On(string k) => Widget.Show.TryGetValue(k, out bool b) && b;
 
         /// <summary>Called by the compositor each frame after the camera is placed: arrows, arcs and labels for the frame shown.</summary>
-        public void Build(WidgetControlsDisplay ui, Rect scene)
+        /// <summary>Screen → frame offset of the projection: the widget's scene texture starts at the picture rect; the game's
+        /// camera already projects in screen pixels (zero).</summary>
+        private Vector2 _off;
+        public float Ui = 1f;   // text / line scale (the game's screens are bigger than the 1080 frame)
+        public void Build(WidgetControlsDisplay ui, Rect scene) => Build(ui, scene, scene.position);
+        public void Build(WidgetControlsDisplay ui, Rect scene, Vector2 projectionOffset)
         {
+            _off = projectionOffset;
             Advance();
             var w = Widget; if (Current == null) return;
             bool vec = w.DisplayMode == "classic" || On("vectors");
             var s = w.ShownState; var cam = w.Cam; Vec3 cg = w.Config.Mass.CgVec();
             Vector3 World(Vec3 bodyPos) => CoordinateMap.ToUnity(s.Position + s.Attitude.Rotate(bodyPos - cg));
             Vector3 Dir(Vec3 body) => CoordinateMap.ToUnity(s.Attitude.Rotate(body));
-            bool Scr(Vector3 wp, out Vector2 px) { var p = cam.WorldToScreenPoint(wp); px = new Vector2(scene.x + p.x, scene.y + p.y); return p.z > 0.05f; }
+            bool Scr(Vector3 wp, out Vector2 px) { var p = cam.WorldToScreenPoint(wp); px = new Vector2(_off.x + p.x, _off.y + p.y); return p.z > 0.05f; }
             Vector3 cgU = World(cg);
             float pxM = PixelM(cgU);
             Scr(cgU, out var cgScr);
-            float gPx = 190f;   // one g (one weight) on the screen
-            float lw = 6f * WidthScale * (scene.height / AeroWidget.FrameSize + 0.25f) / 1.25f;
+            float gPx = 190f * (w.IsWidgetHost ? 1f : Ui);   // one g (one weight) on the screen
+            float lw = 6f * WidthScale * (scene.height / AeroWidget.FrameSize + 0.25f) / 1.25f * (Widget.IsWidgetHost ? 1f : Ui * 0.8f);
 
             // Readout (classic) and the airplane-scale tag.
             var rd = w.Read();
-            if (w.DisplayMode == "classic" && On("readout"))
+            if (w is AeroWidget aw && w.DisplayMode == "classic" && On("readout"))
             {
-                string extra = w.Current == AeroWidget.Scenario.Cruise ? $"ALT {rd.HeightFt:F0} ft  VS {-rd.SinkFpm:+0;-0} fpm  PWR {w.Controls.Throttle01 * 100:F0}%"
-                    : w.Current == AeroWidget.Scenario.Spin ? $"YAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s"
+                string extra = aw.Current == AeroWidget.Scenario.Cruise ? $"ALT {rd.HeightFt:F0} ft  VS {-rd.SinkFpm:+0;-0} fpm  PWR {aw.Controls.Throttle01 * 100:F0}%"
+                    : aw.Current == AeroWidget.Scenario.Spin ? $"YAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s"
                     : $"SINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
                 string rev = w.Paused && On("review") ? $"REVIEW {w.Review.OffsetMs / 1000.0:+0.0;-0.0;0.0} s\n" : "";
                 float ty = scene.yMax - 24;
@@ -234,7 +240,7 @@ namespace FlyingGame.Bridge.Widget
             Vector2 Origin(string key) { Scr(World(F[key].from), out var o); return o; }
 
             // Wing winds (arriving at each mid-span point).
-            float windPx = 150f;
+            float windPx = 150f * (w.IsWidgetHost ? 1f : Ui);
             foreach (var (k, a, st, nm) in new[] { ("wingL", P.WingAlphaL, P.StallL, "L WING"), ("wingR", P.WingAlphaR, P.StallR, "R WING") })
             {
                 if (!On("wingWind") || !F.ContainsKey(k)) continue;
@@ -318,7 +324,7 @@ namespace FlyingGame.Bridge.Widget
                 if (Scr(World(cg), out var cgp)) { ui.PxDisc(cgp, 9f, Color.black); ui.PxDisc(cgp, 6f, Inertial); _labels.Request("cgMark", cgp, Vector2.down, $"CG {w.Loading.CgMac:0} % MAC", Inertial, 6); }
                 if (Scr(World(w.NeutralPointBody()), out var npp)) { ui.PxRing(npp, 8f, 3f, new Color(1f, 0.25f, 0.2f)); _labels.Request("npMark", npp, Vector2.up, $"NP {w.Loading.NpMac:0} % · SM {w.Loading.StaticMarginMac:0.0} %", new Color(1f, 0.35f, 0.3f), 6); }
             }
-            if (w.Lesson != null) w.Lessons.DrawExtras(ui, this, World, Dir, (Vector3 p, out Vector2 o) => Scr(p, out o), pxM, gPx, lw);
+            if (w.Lesson != null && w.Lessons != null) w.Lessons.DrawExtras(ui, this, World, Dir, (Vector3 p, out Vector2 o) => Scr(p, out o), pxM, gPx, lw);
             // Moments: AERO ahead of the nose, INERTIA behind the tail, one shared scale.
             if (On("moments"))
             {
@@ -363,7 +369,7 @@ namespace FlyingGame.Bridge.Widget
                 float th = th0 + sgn * sweep * i / 28f;   // increasing θ = nose-up rotation at every point of the circle
                 Vector3 p = cgU + (X * Mathf.Cos(th) + Up * Mathf.Sin(th)) * R;
                 var sp = cam.WorldToScreenPoint(p); if (sp.z <= 0) return;
-                var q = new Vector2(scene.x + sp.x, scene.y + sp.y);
+                var q = new Vector2(_off.x + sp.x, _off.y + sp.y);
                 if (!scene.Contains(q)) { if (pts.Count > 2) break; else { pts.Clear(); continue; } }
                 pts.Add(q);
             }
@@ -430,8 +436,8 @@ namespace FlyingGame.Bridge.Widget
                     return p;
                 }
                 var taken = new HashSet<int>();
-                var placed = new List<Rect>(); _placedRef = placed;
-                Rect RectAt(Vector2 p, float tw) => new Rect(p.x - tw * 0.5f - 4, p.y - 13, tw + 8, 26);
+                var placed = new List<Rect>(ui.LabelKeepOut); _placedRef = placed;
+                Rect RectAt(Vector2 p, float tw) => new Rect(p.x - tw * 0.5f - 4, p.y - 13 * ui.TextScale, tw + 8, 26 * ui.TextScale);
                 foreach (var r in _req)
                 {
                     if (!_st.TryGetValue(r.id, out var st)) { st = new St(); _st[r.id] = st; }
@@ -439,7 +445,7 @@ namespace FlyingGame.Bridge.Widget
                     if (!changed) for (int i = 0; i < r.vals.Length; i++) if (System.Math.Abs(r.vals[i] - st.Shown[i]) >= r.step * 0.75) changed = true;
                     if (changed && (paused || now - st.LastText >= 0.25f)) { st.Shown = (double[])r.vals.Clone(); st.LastText = now; st.Text = r.fmt(st.Shown); }
                     st.Text ??= r.fmt(r.vals);
-                    float twid = st.Text.Length * 17f * 0.53f;
+                    float twid = st.Text.Length * 17f * ui.TextScale * 0.53f;
                     // The arrow's direction from the airplane picks the preferred slot.
                     Vector2 rel = r.anchor - _centre; float ang = Mathf.Atan2(rel.y / ry, rel.x / rx);
                     int pref = ((Mathf.RoundToInt(ang / (Mathf.PI / 4f)) % 8) + 8) % 8;
@@ -471,7 +477,7 @@ namespace FlyingGame.Bridge.Widget
                     var c = r.c; c.a *= st.Alpha;
                     var drawn = new Vector2(Mathf.Round(st.Pos.x), Mathf.Round(st.Pos.y));
                     // Leader: from the label's near edge to the arrow's tip.
-                    float tw = st.Text.Length * 17f * 0.53f;
+                    float tw = st.Text.Length * 17f * ui.TextScale * 0.53f;
                     Vector2 edge = drawn + new Vector2(Mathf.Clamp(r.anchor.x - drawn.x, -tw * 0.5f, tw * 0.5f), Mathf.Clamp(r.anchor.y - drawn.y, -11f, 11f));
                     if ((r.anchor - edge).magnitude > 14f) ui.PxLeader(edge, r.anchor, new Color(c.r, c.g, c.b, 0.5f * c.a));
                     ui.PxText(drawn, st.Text, 17f, c, TextAnchor.MiddleCenter);
@@ -499,7 +505,7 @@ namespace FlyingGame.Bridge.Widget
         /// shows the world turning around the airplane. Pixel-thick at any zoom.</summary>
         private void DrawWorld(float px)
         {
-            var w = Widget;
+            if (!(Widget is AeroWidget w)) return;   // the game draws its real world; these are the widget's references
             if (w.Current == AeroWidget.Scenario.Flare)
             {
                 if (w.Condition != "final") return;

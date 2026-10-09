@@ -21,8 +21,8 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetAutopilot
     {
-        private readonly AeroWidget _w;
-        public WidgetAutopilot(AeroWidget w) { _w = w; }
+        private readonly AeroHost _w;
+        public WidgetAutopilot(AeroHost w) { _w = w; }
 
         public bool On { get; private set; }               // AP engaged (pitch + roll)
         public bool YawDamper;                              // independent of On
@@ -56,7 +56,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Engage / change modes (any field omitted keeps its value; targets default to the current values).</summary>
         public void Engage(double? altFt, double? kias, string pitchMode = null, double? vsFpm = null, string rollMode = null, double? hdg = null, bool? yd = null, bool? at = null)
         {
-            var r = _w.Read(); var c = _w.Controls;
+            var r = _w.Read(); var c = _w.AeroControls;
             if (!On) { Trim = c.Elevator; Elevator = 0; Power = c.Throttle01; _thrI = c.Throttle01; _rudI = c.Rudder; AltFt = r.HeightFt; Kias = r.Kias; HdgDeg = r.HeadingDeg; VsFpm = 0; PitchMode = "alt"; RollMode = "rol"; HasAltTarget = true; YawDamper = true; }
             if (altFt.HasValue) { AltFt = altFt.Value; HasAltTarget = true; }
             if (kias.HasValue) Kias = kias.Value;
@@ -79,7 +79,7 @@ namespace FlyingGame.Bridge.Widget
         public void Tick(float dt)
         {
             if (dt <= 0) return;
-            var r = _w.Read(); var s = _w.Ac.State; var c = _w.Controls;
+            var r = _w.Read(); var s = _w.Ac.State; var c = _w.AeroControls;
             // YAW DAMPER / auto-coordination (also without the AP): rudder centres the ball and damps the yaw rate.
             if (YawDamper && !(On && PitchOnly))
             {

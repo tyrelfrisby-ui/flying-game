@@ -159,6 +159,11 @@ namespace FlyingGame.Bridge
             options.Driver = aircraft.GetComponent<FlightSimDriver>();
             var forces = cam.gameObject.AddComponent<ForceVectorOverlay>();     // physics forces drawn on the airframe (OPTIONS)
             forces.Driver = aircraft.GetComponent<FlightSimDriver>();
+            // The Aero Widget's teaching layers in the game (owner rule 2026-10-09: game and widget in parity): protocol-7
+            // vectors and moments, the insets, the autopilot and weight & balance — the AERO toolbar button.
+            var aero = cam.gameObject.AddComponent<Widget.GameAeroHost>();
+            aero.Driver = aircraft.GetComponent<FlightSimDriver>();
+            cam.gameObject.AddComponent<Widget.GameAeroPanel>().Host = aero;
 
             var chHud = cam.gameObject.AddComponent<ChallengeHud>();
             chHud.Controller = aircraft.GetComponent<ChallengeController>();

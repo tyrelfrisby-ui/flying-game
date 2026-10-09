@@ -21,7 +21,9 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed partial class WidgetControlsDisplay : MonoBehaviour
     {
-        public AeroWidget Widget;
+        /// <summary>Who this draws for: the Aero Widget (into its frame) or the game (onto the screen, <see cref="DrawScreen"/>).</summary>
+        public AeroHost Host;
+        public AeroWidget Widget { get => Host as AeroWidget; set => Host = value; }
         private Material _mat, _copy;
         private RenderTexture _scene;
         private Rect _sceneRect;   // pixels in the frame (origin bottom-left)
@@ -97,6 +99,7 @@ namespace FlyingGame.Bridge.Widget
 
         private void LateUpdate()
         {
+            if (Host != null && !(Host is AeroWidget)) return;   // the game builds and draws in its camera's OnPostRender
             _quads.Clear(); _texts.Clear();
             var w = Widget;
             bool ntsb = w != null && w.DisplayMode == "ntsb";
@@ -167,8 +170,10 @@ namespace FlyingGame.Bridge.Widget
         }
 
         // ---- pixel-space drawing for the vectors (frame pixels, origin bottom-left) ----
-        public bool Paused => Widget != null && Widget.Paused;
-        public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px, c, a, true));
+        public bool Paused => Host != null && Host.Paused;
+        /// <summary>Text and line scale for the host's screen (the widget's frame = 1; a phone or iPad screen is bigger).</summary>
+        public float TextScale = 1f;
+        public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px * TextScale, c, a, true));
         private void PxSeg(Vector2 a, Vector2 b, float w, Color c)
         {
             Vector2 d = b - a; if (d.sqrMagnitude < 1e-4f) return;
@@ -446,6 +451,51 @@ namespace FlyingGame.Bridge.Widget
             GL.TexCoord2(1, 1); GL.Vertex3(_sceneRect.xMax, _sceneRect.yMax, 0);
             GL.TexCoord2(0, 1); GL.Vertex3(_sceneRect.xMin, _sceneRect.yMax, 0);
             GL.End();
+            DrawGeometry();
+            GL.PopMatrix();
+            RenderTexture.active = was;
+        }
+
+        // ---- the GAME (owner rule 2026-10-09: game and widget in parity) ----
+        /// <summary>The game's flying picture (screen px, origin bottom-left): vectors and labels stay inside it.</summary>
+        public Rect GameView;
+        /// <summary>Where the game's insets may go (screen px, origin bottom-left): clear of the buttons, the text lines and the pads.</summary>
+        public Rect GameInsetArea;
+        /// <summary>Screen rects (origin bottom-left) the insets must not cover — the aircraft.</summary>
+        public Rect GameKeepOut;
+        /// <summary>Rects (frame/screen px, origin bottom-left) no vector label may be placed on — the game's insets.</summary>
+        public readonly List<Rect> LabelKeepOut = new();
+
+        /// <summary>The game's pass, from its camera's OnPostRender (the camera has its final pose): build the vectors, labels and
+        /// insets for this frame and draw them straight onto the screen.</summary>
+        public void DrawScreen()
+        {
+            _quads.Clear(); _texts.Clear(); Layout.Clear();
+            var h = Host;
+            if (h == null || h.Ac == null || h.Cam == null || _mat == null || _font == null) return;
+            // The insets are laid out first (the labels must keep off them), but drawn last (over any arrow that reaches them).
+            LabelKeepOut.Clear();
+            h.Curves.Update(h, h.Vectors.Current);
+            Insets(h, GameInsetArea);
+            var insetQuads = new List<(Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color col)>(_quads);
+            var insetTexts = new List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline)>(_texts);
+            _quads.Clear(); _texts.Clear();
+            ArrowClip = GameView;
+            h.Vectors.Ui = TextScale;
+            h.Vectors.Build(this, GameView, Vector2.zero);
+            ArrowClip = null;
+            _quads.AddRange(insetQuads); _texts.AddRange(insetTexts);
+            if (_quads.Count == 0 && _texts.Count == 0) return;
+            GL.PushMatrix();
+            GL.Viewport(new Rect(0, 0, Screen.width, Screen.height));
+            GL.LoadPixelMatrix(0, Screen.width, 0, Screen.height);
+            DrawGeometry();
+            GL.PopMatrix();
+        }
+
+        /// <summary>The queued line art, then the text as the font's own glyph quads (in the current pixel matrix).</summary>
+        private void DrawGeometry()
+        {
             _mat.SetPass(0);
             GL.Begin(GL.QUADS);
             foreach (var q in _quads) { GL.Color(q.col); GL.Vertex3(q.a.x, q.a.y, 0); GL.Vertex3(q.b.x, q.b.y, 0); GL.Vertex3(q.c.x, q.c.y, 0); GL.Vertex3(q.d.x, q.d.y, 0); }
@@ -466,7 +516,7 @@ namespace FlyingGame.Bridge.Widget
                 for (int pass = 0; pass < passes; pass++)
                 {
                     float ox = 0, oy = 0;
-                    if (pass < passes - 1) { float a = pass * Mathf.PI / 4f; ox = Mathf.Cos(a) * 1.6f; oy = Mathf.Sin(a) * 1.6f; GL.Color(new Color(0, 0, 0, 0.85f * t.c.a)); }
+                    if (pass < passes - 1) { float a = pass * Mathf.PI / 4f, ow = Host is AeroWidget ? 1.6f : 1.6f * Mathf.Max(1f, TextScale * 0.7f); ox = Mathf.Cos(a) * ow; oy = Mathf.Sin(a) * ow; GL.Color(new Color(0, 0, 0, 0.85f * t.c.a)); }
                     else GL.Color(t.c);
                     float xx = x;
                     foreach (char ch in t.s)
@@ -482,8 +532,6 @@ namespace FlyingGame.Bridge.Widget
                 }
             }
             GL.End();
-            GL.PopMatrix();
-            RenderTexture.active = was;
         }
     }
 }

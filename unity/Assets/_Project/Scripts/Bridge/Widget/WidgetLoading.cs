@@ -17,8 +17,8 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetLoading
     {
-        private readonly AeroWidget _w;
-        public WidgetLoading(AeroWidget w) { _w = w; }
+        private readonly AeroHost _w;
+        public WidgetLoading(AeroHost w) { _w = w; }
 
         public double MacM, LemacX;                // MAC length and its leading edge (body x, config coords; + forward)
         public double DefaultKg, EmptyKg, MaxGrossKg, DefaultCgMac, NpMac, FwdLimitMac, AftLimitMac;

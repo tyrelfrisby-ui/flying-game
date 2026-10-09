@@ -81,7 +81,7 @@ namespace FlyingGame.Bridge
             EnsureStyles();
             _talkRect = default;
             if (Replay != null && Replay.Active) DrawReplayBar();
-            else if (Options == null || !Options.IsOpen) DrawLiveColumn();
+            else if ((Options == null || !Options.IsOpen) && !Widget.GameAeroPanel.IsOpen) DrawLiveColumn();
             DrawToast();
         }
 
@@ -102,7 +102,7 @@ namespace FlyingGame.Bridge
             // default.
             _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
             bool lesson = _practice != null && _practice.Active;
-            int n = lesson ? 5 : 4;
+            int n = lesson ? 6 : 5;
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
             if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other || _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, Screen.height);
@@ -110,7 +110,9 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(UiLayout.ToolbarSlot(2, n), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool rec = ClipRecorder.Recording;
             if (UiLayout.Button(UiLayout.ToolbarSlot(3, n), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
-            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(4, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
+            // AERO (owner 2026-10-09, parity with the Aero Widget): forces, insets, autopilot, weight & balance.
+            if (UiLayout.Button(UiLayout.ToolbarSlot(4, n), "AERO", _btn)) { Widget.GameAeroPanel.Toggle(); Options?.Close(); }
+            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(5, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
             // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
             if (VoiceComms.RadioAvailable)
             {
@@ -158,6 +160,7 @@ namespace FlyingGame.Bridge
         /// <summary>The open view menu (SCREEN coordinates, bottom-left origin) — the flight pads ignore touches that start on it.</summary>
         public static bool BlocksTouch(Vector2 screenPos)
         {
+            if (Widget.GameAeroPanel.Blocks(screenPos)) return true;   // the AERO panel's switches are not the stick
             if (Time.frameCount - _blockFrame > 2) return false;
             return BlockRect.Contains(new Vector2(screenPos.x, Screen.height - screenPos.y));
         }
