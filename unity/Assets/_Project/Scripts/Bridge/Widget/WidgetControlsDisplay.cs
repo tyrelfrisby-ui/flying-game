@@ -25,6 +25,7 @@ namespace FlyingGame.Bridge.Widget
         private Material _mat, _copy;
         private RenderTexture _scene;
         private Rect _sceneRect;   // pixels in the frame (origin bottom-left)
+        public Rect SceneRect => _sceneRect;
         private Font _font;
         private const int GlyphPx = 48;
         private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline)> _texts = new();
@@ -120,6 +121,9 @@ namespace FlyingGame.Bridge.Widget
             if (w.Cam.targetTexture != _scene) w.Cam.targetTexture = _scene;
             if (_mat == null) return;
             w.Vectors.Build(this, _sceneRect);
+            w.Curves.Update(w, w.Vectors.Current);
+            Insets(w, _sceneRect);
+            w.Lessons.DrawCaption(this, w.DisplayMode == "classic" ? new Rect(_sceneRect.x, _sceneRect.y, _sceneRect.width, _sceneRect.height - 60) : _sceneRect);
             if (!panel) return;
             if (ntsb)
             {
@@ -169,6 +173,9 @@ namespace FlyingGame.Bridge.Widget
             Vector2 n = new Vector2(-d.y, d.x).normalized * (w * 0.5f);
             Quad(a + n, b + n, b - n, a - n, c);
         }
+        public void PxDisc(Vector2 c, float r, Color col) { for (int i = 0; i < 16; i++) { float a0 = i * Mathf.PI / 8f, a1 = (i + 1) * Mathf.PI / 8f; Quad(c, c + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * r, c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * r, c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * r, col); } }
+        public void PxRing(Vector2 c, float r, float w, Color col) { for (int i = 0; i < 20; i++) { float a0 = i * Mathf.PI / 10f, a1 = (i + 1) * Mathf.PI / 10f; PxSeg(c + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * r, c + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * r, w, col); } }
+        public void PxLine(Vector2 a, Vector2 b, float w, Color c) => PxSeg(a, b, w, c);
         /// <summary>A thin leader line from a label to its arrow.</summary>
         public void PxLeader(Vector2 a, Vector2 b, Color c) => PxSeg(a, b, 1.6f, c);
         /// <summary>A bold arrow with a thin dark outline (protocol 7: ≈ 6 px, bigger heads, readable over any picture).</summary>

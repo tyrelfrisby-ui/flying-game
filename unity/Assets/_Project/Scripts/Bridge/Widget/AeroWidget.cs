@@ -100,25 +100,20 @@ namespace FlyingGame.Bridge.Widget
         {
             double flaps = Ac.FlapFraction; string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}";
             Vec3 cg = Config.Mass.CgVec();
-            if (_np.TryGetValue(key, out var v)) return new Vec3(v.X, 0, cg.Z);
+            if (_np.TryGetValue(key, out var v)) return new Vec3(v.X, 0, cg.Z);   // (an absolute position: independent of the loaded CG)
             var tables = Aircraft.BuildAirfoilTables(Config);
+            // The aero model's own totals (moment about the CG): x_np = x_cg + ΔM / ΔL. (Summing the overlay's samples missed
+            // the fuselage's destabilising moment and put the C172's NP ~20 % MAC too far aft.)
             (double L, double M) At(double aDeg)
             {
                 double ar = aDeg * System.Math.PI / 180, V = 40;
-                var keep = FlyingGame.Core.Aero.ForceDebug.Samples; var list = new List<FlyingGame.Core.Aero.ForceSample>();
-                FlyingGame.Core.Aero.ForceDebug.Samples = list;
-                FlyingGame.Core.Aero.AeroModel.Compute(Config, tables, new Vec3(V * System.Math.Cos(ar), 0, V * System.Math.Sin(ar)), Vec3.Zero, Vec3.Zero, 1.225, new FlyingGame.Core.Aero.ControlDeflections(0, 0, 0, 0, flaps));
+                var keep = FlyingGame.Core.Aero.ForceDebug.Samples; FlyingGame.Core.Aero.ForceDebug.Samples = null;
+                var (F, Mo) = FlyingGame.Core.Aero.AeroModel.Compute(Config, tables, new Vec3(V * System.Math.Cos(ar), 0, V * System.Math.Sin(ar)), Vec3.Zero, Vec3.Zero, 1.225, new FlyingGame.Core.Aero.ControlDeflections(0, 0, 0, 0, flaps));
                 FlyingGame.Core.Aero.ForceDebug.Samples = keep;
-                double fz = 0, my = 0;
-                foreach (var f in list)
-                {
-                    if (f.Kind == "tailflow") continue;
-                    fz += f.ForceBody.Z; my += f.PosBody.Z * f.ForceBody.X - f.PosBody.X * f.ForceBody.Z + f.MomentBody.Y;
-                }
-                return (-fz, my);
+                return (F.X * System.Math.Sin(ar) - F.Z * System.Math.Cos(ar), Mo.Y);
             }
             var (l1, m1) = At(2); var (l2, m2) = At(6);
-            double x = System.Math.Abs(l2 - l1) > 1 ? (m2 - m1) / (l2 - l1) : cg.X;
+            double x = System.Math.Abs(l2 - l1) > 1 ? cg.X + (m2 - m1) / (l2 - l1) : cg.X;
             _np[key] = new Vec3(x, 0, cg.Z);
             return new Vec3(x, 0, cg.Z);
         }
@@ -239,6 +234,7 @@ namespace FlyingGame.Bridge.Widget
             Controls = gameObject.AddComponent<WidgetControls>(); Controls.Widget = this;
             Presets = gameObject.AddComponent<WidgetPresets>(); Presets.Widget = this;
             Review = new WidgetReview(this);
+            Loading = new WidgetLoading(this); Autopilot = new WidgetAutopilot(this); Curves = new WidgetCurves(); Lessons = new WidgetLessons(this);
             _outputs = gameObject.AddComponent<WidgetOutputs>(); _outputs.Widget = this;
             _server = gameObject.AddComponent<WidgetServer>(); _server.Widget = this;
             Load(Scenario.Flare, AircraftId, Flaps);
@@ -248,7 +244,9 @@ namespace FlyingGame.Bridge.Widget
         public void Load(Scenario sc, string aircraftId, double flaps)
         {
             Current = sc; Condition = null; _jetFinalThr = -1; bool approachFlaps = flaps < 0; Flaps = System.Math.Clamp(flaps, 0, 1);
-            if (aircraftId != AircraftId || Config == null)
+            bool newConfig = aircraftId != AircraftId || Config == null;
+            Autopilot?.Off();
+            if (newConfig)
             {
                 AircraftId = aircraftId;
                 Config = UnityAircraftConfigLoader.LoadFromStreamingAssets(aircraftId);
@@ -260,7 +258,7 @@ namespace FlyingGame.Bridge.Widget
             Controls.Configure(Config, AircraftId, sc == Scenario.Flare ? Flaps : 0, 0);
             if (approachFlaps && sc == Scenario.Flare) { Flaps = Controls.Spec.ApproachFlaps; Controls.Configure(Config, AircraftId, Flaps, 0); }
             if (sc == Scenario.Flare && Controls.Spec.Flaps.Length > 1) Flaps = Controls.FlapsHandle;
-            Atmosphere.SteadyWind = Vec3.Zero;
+            SetWind(WindFromDeg, WindKt);   // the air mass stays as set (a lesson or the wind command changes it)
             if (sc == Scenario.Flare)
             {
                 var main = System.Array.Find(WorldTerrain.AirportStrips, st => st.Kind == "paved");
@@ -295,6 +293,7 @@ namespace FlyingGame.Bridge.Widget
             bool gearUp = sc == Scenario.Cruise && Controls.Spec.Retractable;   // cruise: gear up
             Ac.SetGear(!gearUp, immediate: true); Controls.GearDown = !gearUp;
             _snapCam = true;
+            if (newConfig || Loading.MacM <= 0) Loading.Configure(Config, false, 0, 0);   // a new type: its own default loading (the same type keeps the current one)
             _sim = new SimLoop(Ac);
             Review?.Clear(); Shown = null;
             if (_surface != null) _surface.SetActive(sc == Scenario.Flare);
@@ -557,6 +556,9 @@ namespace FlyingGame.Bridge.Widget
             }
             float dt = rdt * TimeScale;
             Presets.Tick(dt);
+            Loading.Tick(dt);
+            Lessons.Tick(dt);
+            Autopilot.Tick(dt);
             if (dt > 0f) StepSim(dt);
             ShowLive(dt);
             Review.Record(dt);
@@ -604,7 +606,7 @@ namespace FlyingGame.Bridge.Widget
         {
             Shown = null;
             var s = Ac.State;
-            _visualRoot.position = CoordinateMap.ToUnity(s.Position);
+            _visualRoot.position = CoordinateMap.ToUnity(s.Position + s.Attitude.Rotate(VisualOffset));
             _visualRoot.rotation = CoordinateMap.ToUnity(s.Attitude);
             var d = Ac.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
@@ -621,7 +623,7 @@ namespace FlyingGame.Bridge.Widget
         {
             if (f == null) { ShowLive(0f); return; }
             Shown = f;
-            _visualRoot.position = CoordinateMap.ToUnity(f.State.Position);
+            _visualRoot.position = CoordinateMap.ToUnity(f.State.Position + f.State.Attitude.Rotate(VisualOffset));
             _visualRoot.rotation = CoordinateMap.ToUnity(f.State.Attitude);
             _builder.SetDeflections((float)f.Defl.AileronRad, (float)f.Defl.ElevatorRad, (float)f.Defl.RudderRad, (float)f.Defl.SpoilerFraction);
             Cam.orthographic = f.Ortho; Cam.orthographicSize = f.OrthoSize; Cam.fieldOfView = f.Fov;
@@ -648,6 +650,25 @@ namespace FlyingGame.Bridge.Widget
         }
 
         public WidgetReview Review { get; private set; }
+
+        // ---- protocol 8 ----
+        public WidgetLoading Loading { get; private set; }
+        public WidgetAutopilot Autopilot { get; private set; }
+        public WidgetCurves Curves { get; private set; }
+        public WidgetLessons Lessons { get; private set; }
+        public readonly HashSet<string> Insets = new();
+        public string Lesson;
+        public double WindFromDeg, WindKt;
+        /// <summary>Steady wind (from, kt) — the air mass moves; the lessons' "air-mass" scene uses it.</summary>
+        public void SetWind(double fromDeg, double kt)
+        {
+            WindFromDeg = fromDeg; WindKt = kt;
+            double toRad = (fromDeg + 180) * System.Math.PI / 180, ms = kt / 1.943844;
+            Atmosphere.SteadyWind = new Vec3(System.Math.Cos(toRad) * ms, System.Math.Sin(toRad) * ms, 0);
+        }
+        public double BallDeg => Vectors?.Current?.BallDeg ?? 0;
+        /// <summary>The drawn airframe is built about the type's original CG; the physics now turns about the loaded CG.</summary>
+        private Vec3 VisualOffset => Loading != null && Loading.MacM > 0 ? new Vec3(Loading.Cg0X - Config.Mass.Cg[0], 0, 0) : Vec3.Zero;
 
         /// <summary>Step the sim without drawing (the developed-spin preset fast-forwards the entry).</summary>
         public void StepOffscreen(float dt) => StepSim(dt);

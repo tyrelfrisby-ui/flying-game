@@ -32,6 +32,7 @@ namespace FlyingGame.Bridge.Widget
         public float WidthScale = 1f;
         public float SmoothingMs = 130f;
 
+        public delegate bool ScrFn(Vector3 world, out Vector2 px);
         public static readonly Color Lift = new(0.25f, 1f, 0.35f), Drag = new(1f, 0.3f, 0.25f), Weight = new(1f, 0.9f, 0.2f),
             Thrust = new(0.35f, 0.6f, 1f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
             Inertial = new(1f, 0.82f, 0.2f), TailC = new(0.75f, 0.55f, 1f), TailWindC = new(0.55f, 0.85f, 1f);
@@ -42,6 +43,7 @@ namespace FlyingGame.Bridge.Widget
         public sealed class Picture
         {
             public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
+            public double LiftN, DragN, BallDeg;
             public double AeroG, InertialG, TailN, MomAero, MomInertia, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
         }
@@ -83,11 +85,20 @@ namespace FlyingGame.Bridge.Widget
                 }
             // INERTIAL = m(g − a) = −(every non-gravity force); TOTAL AERO from the neutral point.
             Vec3 inertial = -1.0 * nonGrav;
+            // Lift and drag along the airflow; the slip ball (it sits opposite the lateral specific force).
+            if (pic.VInf > 1)
+            {
+                Vec3 vh = vAir * (1.0 / pic.VInf), liftDir = -1.0 * Vec3.Cross(vh, new Vec3(0, 1, 0));
+                double ld = liftDir.Length; if (ld > 1e-6) liftDir = liftDir * (1.0 / ld);
+                pic.DragN = -(aero.X * vh.X + aero.Y * vh.Y + aero.Z * vh.Z); pic.LiftN = aero.X * liftDir.X + aero.Y * liftDir.Y + aero.Z * liftDir.Z;
+            }
+            Vec3 sf = nonGrav * (1.0 / mp.MassKg);
+            pic.BallDeg = -System.Math.Atan2(sf.Y, System.Math.Max(0.5, -sf.Z)) * 57.2958;
             pic.InertialG = inertial.Length / W; pic.AeroG = aero.Length / W;
             pic.V["inertial"] = (cg, inertial * (1.0 / W));
             pic.V["total"] = (w.NeutralPointBody(), aero * (1.0 / W));
             pic.V["weight"] = (cg, s.Attitude.Conjugate().Rotate(new Vec3(0, 0, 1)));
-            pic.V["wind"] = (cg, vAir * (1.0 / System.Math.Max(1, pic.VInf)));
+            pic.V["wind"] = (cg, vAir * (-1.0 / System.Math.Max(1, pic.VInf)));   // RELATIVE wind: the air coming at the airplane (−velocity)
             pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (3.0 / W));
             if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (3.0 / W));
             if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
@@ -101,7 +112,7 @@ namespace FlyingGame.Bridge.Widget
                 Vec3 p = w.WingMidSpan(side);
                 Vec3 v = vAir + Vec3.Cross(s.Rates, p - cg);
                 double a = System.Math.Atan2(v.Z, System.Math.Max(0.1, v.X)) * 57.2958;
-                pic.V[side < 0 ? "wingL" : "wingR"] = (p, v * (1.0 / System.Math.Max(1, pic.VInf)));
+                pic.V[side < 0 ? "wingL" : "wingR"] = (p, v * (-1.0 / System.Math.Max(1, pic.VInf)));   // the local relative wind: −(the station's velocity through the air)
                 if (side < 0) { pic.WingAlphaL = a; pic.StallL = a > critAlphaDeg; } else { pic.WingAlphaR = a; pic.StallR = a > critAlphaDeg; }
             }
             // Tail winds: the stab strip nearest each half's mid-span.
@@ -114,7 +125,7 @@ namespace FlyingGame.Bridge.Widget
                 // Effective local speed √η·V: the slipstream lengthens it, blanketing / the wake shortens it.
                 double spd = System.Math.Sqrt(System.Math.Max(0, best.MomentBody.Z)) * pic.VInf, at = best.MomentBody.X * 57.2958;
                 Vec3 dirB = best.ForceBody * (1.0 / System.Math.Max(1e-6, best.ForceBody.Length));
-                pic.V[side < 0 ? "tailWindL" : "tailWindR"] = (best.PosBody, dirB * (spd / System.Math.Max(1, pic.VInf)));
+                pic.V[side < 0 ? "tailWindL" : "tailWindR"] = (best.PosBody, dirB * (-spd / System.Math.Max(1, pic.VInf)));   // the air arriving at the stab (−its flow velocity)
                 if (side < 0) { pic.TailAlphaL = at; pic.EtaL = best.MomentBody.Z; pic.TailSpdL = spd; } else { pic.TailAlphaR = at; pic.EtaR = best.MomentBody.Z; pic.TailSpdR = spd; }
                 pic.Eps = best.MomentBody.Y * 57.2958;
             }
@@ -246,6 +257,13 @@ namespace FlyingGame.Bridge.Widget
                 foreach (var f in w.Ac.LastForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
                     { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
 
+            // CG and neutral-point marks (weight & balance; lessons): the CG a black-and-yellow disc, the NP a red ring.
+            if (On("cgnp"))
+            {
+                if (Scr(World(cg), out var cgp)) { ui.PxDisc(cgp, 9f, Color.black); ui.PxDisc(cgp, 6f, Inertial); _labels.Request("cgMark", cgp, Vector2.down, $"CG {w.Loading.CgMac:0} % MAC", Inertial, 6); }
+                if (Scr(World(w.NeutralPointBody()), out var npp)) { ui.PxRing(npp, 8f, 3f, new Color(1f, 0.25f, 0.2f)); _labels.Request("npMark", npp, Vector2.up, $"NP {w.Loading.NpMac:0} % · SM {w.Loading.StaticMarginMac:0.0} %", new Color(1f, 0.35f, 0.3f), 6); }
+            }
+            if (w.Lesson != null) w.Lessons.DrawExtras(ui, this, World, Dir, (Vector3 p, out Vector2 o) => Scr(p, out o), pxM, gPx, lw);
             // Moments: AERO ahead of the nose, INERTIA behind the tail, one shared scale.
             if (On("moments"))
             {

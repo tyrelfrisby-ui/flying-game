@@ -157,6 +157,11 @@ public sealed class Aircraft
     public Vec3 ExternalForceWorld;
     public Vec3 ExternalForcePointBody;
 
+    /// <summary>New mass and inertia (live weight &amp; balance — the Aero Widget's loading command). The CG itself is
+    /// Config.Mass.Cg, which every force and moment is taken about.</summary>
+    public void SetMassProperties(double massKg, double ixx, double iyy, double izz, double ixz) =>
+        MassProperties = new MassProperties(massKg, ixx, iyy, izz, ixz);
+
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
         Config = config;

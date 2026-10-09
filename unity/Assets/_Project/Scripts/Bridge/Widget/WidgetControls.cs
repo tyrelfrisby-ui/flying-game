@@ -97,6 +97,10 @@ namespace FlyingGame.Bridge.Widget
         {
             if (Widget.Paused) return false;   // review is read-only: nothing moves the airplane until resume
             if (!Accepts(sourceId)) return false;
+            // Pilot stick or rudder input disconnects the autopilot (protocol 8: "AP DISC"); power alone doesn't.
+            if (Widget.Autopilot.On && (n.Aileron.HasValue || n.Elevator.HasValue || n.Rudder.HasValue)) Widget.Autopilot.Off(disconnect: true);
+            if (n.Rudder.HasValue) Widget.Autopilot.YawDamper = false;   // the pilot's feet take the rudder back from the yaw damper
+            if (n.Aileron.HasValue || n.Elevator.HasValue || n.Rudder.HasValue) Widget.Lessons.Interrupt();
             double ail = Aileron, ele = Elevator, rud = Rudder, thr = Throttle01;
             if (n.Aileron.HasValue) ail = Mathf.Clamp((float)n.Aileron.Value, -1f, 1f);
             if (n.Elevator.HasValue) ele = Mathf.Clamp((float)n.Elevator.Value, -1f, 1f);
@@ -201,6 +205,7 @@ namespace FlyingGame.Bridge.Widget
             float ky = (Input.GetKey(KeyCode.UpArrow) ? 1 : 0) - (Input.GetKey(KeyCode.DownArrow) ? 1 : 0);   // up = push (nose down)
             float kr = (Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0);
             bool keyStick = kx != 0 || ky != 0 || kr != 0;
+            if (keyStick && Widget.Autopilot.On) Widget.Autopilot.Off(disconnect: true);
             float dt = Time.unscaledDeltaTime;
             if (Input.GetKey(KeyCode.W)) { Throttle01 = Mathf.Clamp01((float)Throttle01 + dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
             if (Input.GetKey(KeyCode.S)) { Throttle01 = Mathf.Clamp01((float)Throttle01 - dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
@@ -224,7 +229,7 @@ namespace FlyingGame.Bridge.Widget
             // Gamepad / joystick: takes the airplane when its sticks move.
             float ga = Axis(AxAileron), ge = Axis(AxElevator) * (InvertElevator ? -1f : 1f), gr = Axis(AxRudder), gt = Axis(AxThrottle);
             bool padMoved = Mathf.Abs(ga) > 0.08f || Mathf.Abs(ge) > 0.08f || Mathf.Abs(gr) > 0.08f;
-            if (padMoved) _padAt = Time.unscaledTime;
+            if (padMoved) { _padAt = Time.unscaledTime; if (Widget.Autopilot.On) Widget.Autopilot.Off(disconnect: true); }
             if (Hold)
             {
                 // HOLD: the pad's sticks spring back, so they NUDGE the held position (deflection = rate); released, it stays.
@@ -243,7 +248,7 @@ namespace FlyingGame.Bridge.Widget
                 Aileron = ga; Elevator = Mathf.Abs(ge) > 0.05f ? -ge : _trimStick; Rudder = gr;   // stick back (−y on most pads… mapped) = pull
                 if (ThrottleFromAxis) { Throttle01 = (gt + 1f) * 0.5f; ThrottleTouched = true; }
             }
-            else if (!Hold && !keyStick && Time.unscaledTime - _netAt > 2f && SourceLabel == "keyboard" && Widget.Presets.Running == null)
+            else if (!Hold && !keyStick && Time.unscaledTime - _netAt > 2f && SourceLabel == "keyboard" && Widget.Presets.Running == null && !Widget.Autopilot.On && !Widget.Lessons.Driving)
             {
                 // Released keys: back to trim (the stick centres).
                 Aileron = Mathf.MoveTowards((float)Aileron, (float)_trimAil, dt * 3f);

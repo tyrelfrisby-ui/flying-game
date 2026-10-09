@@ -877,6 +877,7 @@ public static class AeroModel
                 double aBody = Math.Atan2(bodyVelocity.Z, bodyVelocity.X);
                 double my = kMunk * q * 0.5 * Math.Sin(2 * aBody);
                 totalMoment += new Vec3(0, my, 0);
+                ForceDebug.Add(config.Mass.CgVec(), Vec3.Zero, new Vec3(0, my, 0), "moment");   // the overlay sees the fuselage's (Munk) moment too
             }
             double drag = q * config.Fuselage.Cd0Area;
             totalForce -= (bodyVelocity / speed) * drag;
@@ -926,8 +927,11 @@ public static class AeroModel
             double fz = -0.5 * airDensity * cfc.SectionCamberArea * cfc.SectionCamberCl * vLoc * vLoc; // body -z = up
             totalForce += new Vec3(0, 0, fz);
             totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+            ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
         }
 
+        if (ForceDebug.Samples is not null)
+            ForceDebug.Add(config.Mass.CgVec(), Vec3.Zero, -1.0 * new Vec3(config.Fuselage.Damping.P * bodyRates.X, config.Fuselage.Damping.Q * bodyRates.Y, config.Fuselage.Damping.R * bodyRates.Z), "moment");
         totalMoment -= new Vec3(
             config.Fuselage.Damping.P * bodyRates.X,
             config.Fuselage.Damping.Q * bodyRates.Y,
