@@ -22,6 +22,8 @@ namespace FlyingGame.Bridge.Widget
             /// <summary>The normal approach flap setting (fraction of full travel): full flaps on the light types (C172 30°),
             /// 30 on the 737 (40 is the short-field setting). 0 = no flaps.</summary>
             public double ApproachFlaps;
+            /// <summary>A stick shaker rather than a stall horn (the jets).</summary>
+            public bool StickShaker;
 
             /// <summary>Snap a handle fraction 0…1 to the nearest detent (returned as a fraction of full travel).</summary>
             public double Snap(double frac)
@@ -72,6 +74,7 @@ namespace FlyingGame.Bridge.Widget
                 Engines = cfg.Propulsion == null ? 0 : System.Math.Max(1, cfg.Engines.Count),
             };
             if (HasFlaps(cfg)) (s.Flaps, s.FlapTravelSec) = Flaps(id);
+            s.StickShaker = id == "boeing-737-like";
             if (s.Flaps.Length > 1) s.ApproachFlaps = id == "boeing-737-like" ? 30.0 / 40.0 : 1.0;
             return s;
         }

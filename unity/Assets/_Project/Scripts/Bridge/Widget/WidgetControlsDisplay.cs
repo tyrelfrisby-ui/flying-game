@@ -19,7 +19,7 @@ namespace FlyingGame.Bridge.Widget
     /// Drawn at the end of each frame straight into the frame texture with GL (line art and the font's glyph quads) — extra
     /// cameras on the same multisampled target blanked the whole frame on Metal.
     /// </summary>
-    public sealed class WidgetControlsDisplay : MonoBehaviour
+    public sealed partial class WidgetControlsDisplay : MonoBehaviour
     {
         public AeroWidget Widget;
         private Material _mat, _copy;
@@ -27,7 +27,7 @@ namespace FlyingGame.Bridge.Widget
         private Rect _sceneRect;   // pixels in the frame (origin bottom-left)
         private Font _font;
         private const int GlyphPx = 48;
-        private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor)> _texts = new();
+        private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline)> _texts = new();
         private bool _on;
         private const float N = AeroWidget.FrameSize;
 
@@ -92,20 +92,24 @@ namespace FlyingGame.Bridge.Widget
         }
 
         private void Text(float dx, float dy, string str, float size, Color c, TextAnchor anchor = TextAnchor.MiddleCenter) =>
-            _texts.Add((P(dx, dy), str, size * _s, c, anchor));
+            _texts.Add((P(dx, dy), str, size * _s, c, anchor, false));
 
         private void LateUpdate()
         {
             _quads.Clear(); _texts.Clear();
             var w = Widget;
-            bool on = w != null && w.Ac != null && w.Show["controlsDisplay"] && _copy != null;
+            bool ntsb = w != null && w.DisplayMode == "ntsb";
+            bool panel = ntsb || (w != null && w.Show["controlsDisplay"]);
+            // The compositor runs every frame (protocol 7: the vectors and labels are drawn here too, bold and outlined).
+            bool on = w != null && w.Ac != null && _copy != null;
             _on = on;
-            float size = Mathf.Clamp(w != null ? w.ControlsSize : 0.28f, 0.2f, 0.5f);
-            string place = w != null ? w.ControlsPlace : "bottom";
+            Layout.Clear();
+            float size = ntsb ? Mathf.Clamp(w.Split, 0.35f, 0.6f) : Mathf.Clamp(w != null ? w.ControlsSize : 0.28f, 0.2f, 0.5f);
+            string place = ntsb ? "bottom" : w != null ? w.ControlsPlace : "bottom";
             if (w == null || w.Cam == null) return;
             if (!on) { if (w.Cam.targetTexture != w.Frame) w.Cam.targetTexture = w.Frame; return; }
-            // The scene's own texture, sized to the picture outside the panel's strip.
-            _sceneRect = place == "left" ? new Rect(size * N, 0, (1 - size) * N, N) : place == "right" ? new Rect(0, 0, (1 - size) * N, N) : new Rect(0, size * N, N, (1 - size) * N);
+            // The scene's own texture, sized to the picture outside the panel's strip (the whole frame with no panel).
+            _sceneRect = !panel ? new Rect(0, 0, N, N) : place == "left" ? new Rect(size * N, 0, (1 - size) * N, N) : place == "right" ? new Rect(0, 0, (1 - size) * N, N) : new Rect(0, size * N, N, (1 - size) * N);
             int sw = Mathf.RoundToInt(_sceneRect.width), sh = Mathf.RoundToInt(_sceneRect.height);
             if (_scene == null || _scene.width != sw || _scene.height != sh)
             {
@@ -115,6 +119,15 @@ namespace FlyingGame.Bridge.Widget
             }
             if (w.Cam.targetTexture != _scene) w.Cam.targetTexture = _scene;
             if (_mat == null) return;
+            w.Vectors.Build(this, _sceneRect);
+            if (!panel) return;
+            if (ntsb)
+            {
+                // Header: the aircraft's name, top-left of the picture (no clock).
+                _texts.Add((new Vector2(22, N - 28), w.AircraftName, 26f, Color.white, TextAnchor.MiddleLeft, true));
+                NtsbLayout(w, size);
+                return;
+            }
 
             bool traces = w.Show["controlTraces"];
             bool side = place == "left" || place == "right";
@@ -145,6 +158,48 @@ namespace FlyingGame.Bridge.Widget
                 }
             }
             if (traces) Traces(PAD, HDR + rows * CH, W - 2 * PAD, TRC - 8);
+        }
+
+        // ---- pixel-space drawing for the vectors (frame pixels, origin bottom-left) ----
+        public bool Paused => Widget != null && Widget.Paused;
+        public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px, c, a, true));
+        private void PxSeg(Vector2 a, Vector2 b, float w, Color c)
+        {
+            Vector2 d = b - a; if (d.sqrMagnitude < 1e-4f) return;
+            Vector2 n = new Vector2(-d.y, d.x).normalized * (w * 0.5f);
+            Quad(a + n, b + n, b - n, a - n, c);
+        }
+        /// <summary>A thin leader line from a label to its arrow.</summary>
+        public void PxLeader(Vector2 a, Vector2 b, Color c) => PxSeg(a, b, 1.6f, c);
+        /// <summary>A bold arrow with a thin dark outline (protocol 7: ≈ 6 px, bigger heads, readable over any picture).</summary>
+        public void PxArrow(Vector2 a, Vector2 b, float w, Color c)
+        {
+            Vector2 d = b - a; float len = d.magnitude; if (len < 2f) return;
+            Vector2 u = d / len, n = new(-u.y, u.x);
+            float head = Mathf.Min(len * 0.45f, 3.6f * w + 6f), hw = head * 0.55f;
+            Vector2 shaftEnd = b - u * head * 0.8f;
+            var dark = new Color(0, 0, 0, 0.75f * c.a);
+            PxSeg(a - u * 1.5f, shaftEnd, w + 3f, dark);
+            Quad(b + u * 2f, shaftEnd - u * 2f + n * (hw + 2f), shaftEnd - u * 2f - n * (hw + 2f), shaftEnd - u * 2f - n * (hw + 2f), dark);
+            PxSeg(a, shaftEnd, w, c);
+            Quad(b, shaftEnd + n * hw, shaftEnd - n * hw, shaftEnd - n * hw, c);
+        }
+        /// <summary>A bold curved arrow (a moment): the polyline with an arrowhead at its end.</summary>
+        public void PxPolyArrow(List<Vector2> pts, float w, Color c)
+        {
+            if (pts.Count < 2) return;
+            var dark = new Color(0, 0, 0, 0.75f * c.a);
+            for (int i = 0; i + 1 < pts.Count - 1; i++) PxSeg(pts[i], pts[i + 1], w + 3f, dark);
+            for (int i = 0; i + 1 < pts.Count - 1; i++) PxSeg(pts[i], pts[i + 1], w, c);
+            PxArrow(pts[pts.Count - 2] - (pts[pts.Count - 1] - pts[pts.Count - 2]) * 3f, pts[pts.Count - 1], w, c);
+        }
+
+        // ---- the touch layout (protocol 6 addendum): where each control instrument is drawn, 0…1 of the frame, top-left origin ----
+        public readonly Dictionary<string, (float x, float y, float w, float h)> Layout = new();
+        private void LayoutRect(string key, float x, float y, float w, float h)
+        {
+            Vector2 tl = P(x, y);
+            Layout[key] = (tl.x / N, 1f - tl.y / N, w * _s / N, h * _s / N);
         }
 
         private static Color Hex(string h) => !string.IsNullOrEmpty(h) && ColorUtility.TryParseHtmlString(h, out var c) ? c : Color.white;
@@ -394,16 +449,24 @@ namespace FlyingGame.Bridge.Widget
                 float x = t.anchor is TextAnchor.MiddleLeft or TextAnchor.UpperLeft or TextAnchor.LowerLeft ? t.at.x
                         : t.anchor is TextAnchor.MiddleRight or TextAnchor.UpperRight or TextAnchor.LowerRight ? t.at.x - width : t.at.x - width * 0.5f;
                 float baseline = t.at.y - t.px * 0.36f;   // vertically centred on the point (cap height ≈ 0.72 em)
-                GL.Color(t.c);
-                foreach (char ch in t.s)
+                // An outline (the text drawn dark at eight 1.5 px offsets first) so it reads over any picture without a box.
+                int passes = t.outline ? 9 : 1;
+                for (int pass = 0; pass < passes; pass++)
                 {
-                    if (!_font.GetCharacterInfo(ch, out var ci, GlyphPx)) continue;
-                    float x0 = x + ci.minX * k, x1 = x + ci.maxX * k, y0 = baseline + ci.minY * k, y1 = baseline + ci.maxY * k;
-                    GL.TexCoord(ci.uvBottomLeft); GL.Vertex3(x0, y0, 0);
-                    GL.TexCoord(ci.uvBottomRight); GL.Vertex3(x1, y0, 0);
-                    GL.TexCoord(ci.uvTopRight); GL.Vertex3(x1, y1, 0);
-                    GL.TexCoord(ci.uvTopLeft); GL.Vertex3(x0, y1, 0);
-                    x += ci.advance * k;
+                    float ox = 0, oy = 0;
+                    if (pass < passes - 1) { float a = pass * Mathf.PI / 4f; ox = Mathf.Cos(a) * 1.6f; oy = Mathf.Sin(a) * 1.6f; GL.Color(new Color(0, 0, 0, 0.85f * t.c.a)); }
+                    else GL.Color(t.c);
+                    float xx = x;
+                    foreach (char ch in t.s)
+                    {
+                        if (!_font.GetCharacterInfo(ch, out var ci, GlyphPx)) continue;
+                        float x0 = xx + ci.minX * k + ox, x1 = xx + ci.maxX * k + ox, y0 = baseline + ci.minY * k + oy, y1 = baseline + ci.maxY * k + oy;
+                        GL.TexCoord(ci.uvBottomLeft); GL.Vertex3(x0, y0, 0);
+                        GL.TexCoord(ci.uvBottomRight); GL.Vertex3(x1, y0, 0);
+                        GL.TexCoord(ci.uvTopRight); GL.Vertex3(x1, y1, 0);
+                        GL.TexCoord(ci.uvTopLeft); GL.Vertex3(x0, y1, 0);
+                        xx += ci.advance * k;
+                    }
                 }
             }
             GL.End();

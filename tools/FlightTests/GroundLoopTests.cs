@@ -355,6 +355,7 @@ public class GroundLoopMomentProbe
                 double m = r.X * f.ForceBody.Y - r.Y * f.ForceBody.X + f.MomentBody.Z;
                 if (f.Kind == "gear") { if (f.PosBody.X < -2) { mzTail += m; fyTail += f.ForceBody.Y; if (i < 2) _out.WriteLine($"    tail sample pos {f.PosBody} F {f.ForceBody} M {f.MomentBody}"); } else { mz += m; fy += f.ForceBody.Y; mzMainsLong += -r.Y * f.ForceBody.X; } }
                 else if (f.Kind == "contact") mzOther += m;
+                else if (f.Kind == "tailflow") continue;   // flow diagnostic, not a force
                 else { mzAero += m; kinds[f.Kind] = kinds.GetValueOrDefault(f.Kind) + m; }
             }
             var vb = ac.State.Attitude.Conjugate().Rotate(ac.State.Velocity);

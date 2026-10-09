@@ -32,6 +32,9 @@ namespace FlyingGame.Bridge.Widget
  <button id='c-spin' onclick=""cmd({cmd:'start',condition:'spin',aircraft:document.getElementById('ac').value})"">Spin</button>
 </div>
 <div class='row'>
+ <button id='d-ntsb' onclick=""cmd({cmd:'display',mode:'ntsb'})"">NTSB</button><button id='d-classic' onclick=""cmd({cmd:'display',mode:'classic'})"">Classic</button>
+</div>
+<div class='row'>
  <button onclick=""cmd({cmd:'scenario',name:'flare'})"">Flare</button>
  <button onclick=""cmd({cmd:'scenario',name:'spin'})"">Spin</button>
  <select id='ac' onchange=""cmd({cmd:'scenario',aircraft:this.value})""></select>
@@ -86,7 +89,7 @@ setInterval(()=>{if(!viewOnly&&(live||Date.now()-touched<300))send();},50);
 setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)).then(r=>r.json()).then(s=>{
  const p=s.pilot||{};viewOnly=!!(p.managed&&p.id!==myId);
  // Protocol 5: the condition buttons, HOLD (the stick stays where it's put; it shows the held position), the view picker.
- hold=!!s.hold;document.getElementById('hold').style.display=hold?'block':'none';
+ hold=!!s.hold;const dm=(s.display||{}).mode;document.getElementById('d-ntsb').classList.toggle('on',dm==='ntsb');document.getElementById('d-classic').classList.toggle('on',dm==='classic');document.getElementById('hold').style.display=hold?'block':'none';
  ['cruise','final','spin'].forEach(c=>document.getElementById('c-'+c).classList.toggle('on',s.condition===c));
  const vs=document.getElementById('view');vs.disabled=!!s.viewFixed;
  [...vs.options].forEach(o=>o.disabled=s.condition==='spin'&&o.value!=='locked'&&o.value!=='body');

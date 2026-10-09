@@ -50,8 +50,10 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `timescale` | `value`: 0.05…1 | Slow motion. |
 | `reset` | | Restart the current scenario. |
 | `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked` \| `body`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). **`body` = airplane-fixed** (from `left`): the camera is rigidly attached to the airframe and looks at its left side, so the airplane holds still while the horizon, the ground grid, the relative wind and the weight vector turn around it (vectors keep their true world directions). In FINAL every view is refused (`"view is fixed in final"`); in the SPIN condition only `locked` (from side) and `body` (from left) are accepted. |
-| `hello` | | Reply with app, version, `protocol: 5`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
-| `show` | any of `lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces horizon`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips; `horizon` = the horizon line and the ground grid (cruise and spin). |
+| `display` | `mode`: `ntsb` (default) \| `classic`; `split`: 0.35…0.6 | **Protocol 6:** the NTSB layout (airplane above, instrument plates below) or the classic picture. |
+| `vectorStyle` | `width`: 1…3 (×); `smoothingMs`: 0…400 | **Protocol 7:** line width and the vector filter's time constant (default 130 ms). |
+| `hello` | | Reply with app, version, `protocol: 7`, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `show` | any of `vectors lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces horizon wingWind tailWind inertial tail moments`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips; `horizon` = the horizon line and the ground grid (cruise and spin). |
 | `controlsDisplay` | `place`: `bottom` \| `left` \| `right`; `size`: 0.2…0.5; `show`: bool (optional) | Where the control panel goes and how much of the picture its strip takes. Default: off, bottom, 0.28. |
 | `pilot` | `id` (null clears), `name`, `color` (`#RRGGBB`), `managed`: bool (default true) | Name the pilot flying (below). |
 | `requestControls` | `from`: `web-…`, `name` | Sent by the web remote's **Request controls** button; the widget pushes `{"event":"controlRequest",…}` to subscribers. |
@@ -93,6 +95,115 @@ For teaching: pause at the moment that matters (the stall break, the flare, the 
 ```
 
 In review, `controls` (and everything else in the state) is the frame being shown.
+
+### NTSB display (protocol 6) — the default
+
+A live reconstruction in the style of the NTSB's accident animations (Colgan 3407), keyed over the show on a **transparent** background. There's no clock and no CVR box.
+
+**Layout:**
+- **Top (55 %):** the airplane in the current view, with the ground references. The vectors are off unless `show {"vectors":true}`.
+- **Header (top-left):** the aircraft's name.
+- **Bottom (45 %, `split`):** a row of instrument **plates**:
+  - **PFD:**
+    - attitude with pitch ladder and bank scale, its sky and ground only inside the face;
+    - airspeed tape, with the stall speed for the current flaps as a red band and the speed boxed;
+    - altitude tape with a ±2,000 fpm VS pointer;
+    - heading, pitch / bank and G.
+  - **AoA gauge:** the type's critical α in red, the warning α in amber.
+  - **Controls:** the column from the side (PUSH / PULL %), the wheel from the front, the rudder pedals.
+  - **Power:** a lever per engine, %, RPM.
+  - **Flaps · gear · spoilers:** dimmed N/A / FIXED where the type lacks them.
+  - **Annunciators:**
+    - STALL, or STICK SHAKER on the 737, when α ≥ the warning α;
+    - SPIN when autorotating (|yaw| > 40°/s past the critical α);
+    - HOLD, REVIEW −x.x s, and PF <name>.
+
+**Transparency:**
+- Nothing fills the frame. Each plate is black at 55 % with a thin grey rule, and the show shows through the gaps.
+- All text has a dark outline.
+- The line shader's alpha blend is "over", so a 55 % plate stays 55 %: before, a 55 % plate was stored at 30 %.
+- Checked over a bright colour-bar test card: the card shows everywhere except the airplane, the lines, the plates and the text.
+
+**Values per type:**
+- **Critical α:** the angle of peak lift, swept on the aero model for the current flaps.
+- **Stall speed:** the sim's own estimate (EstimateVso) for those flaps.
+
+**Review:** every value on the panel shows the frame being reviewed.
+
+**Final, wide view:** when the side view is so wide the airplane would be a few pixels (FINAL far out), it is drawn larger than life and labelled `AIRPLANE ×N`. Physics, vectors and the camera are unchanged, and it returns to true scale as the frame tightens.
+
+#### The display is also the controller (protocol 6 addendum)
+
+In ntsb mode, `hello` and `state` carry `controlsLayout`: each control instrument's hit area, as 0…1 of the frame with a top-left origin. Glass Overlay lays its own invisible touch controls exactly there and sends normal `controls`.
+
+```json
+"controlsLayout":{
+ "yoke":{"rect":[0.5111,0.5833,0.1741,0.1333],"axes":"elevator+aileron","elevatorUp":"push","aileronRight":"right"},
+ "pedals":{"rect":[0.5111,0.7593,0.1741,0.0926],"axis":"rudder","orientation":"horizontal","right":"right"},
+ "throttle":{"rect":[0.7333,0.6074,0.0481,0.2593],"axis":"throttle","orientation":"vertical","top":"full","engines":1},
+ "flaps":{"rect":[…],"axis":"flaps","orientation":"vertical","top":"up","detents":[0,0.333,0.667,1],"detentValues":[0,0.333,0.667,1]},
+ "spoilers":{"rect":[…],"axis":"spoilers","orientation":"vertical","top":"retracted"}}
+```
+
+- **Yoke:** the box spans ±1 aileron (left → right) and ±1 elevator (top = push).
+- **Pedals:** ±1 rudder.
+- **Levers:** each rect is exactly the lever's travel. The flaps' `detents` are the detent positions along it (top = 0); `detentValues` are the handle values to send for each.
+- **Visible feedback:**
+  - The yoke and pedals have a faint dashed box with a thumb at the current input.
+  - The levers have their handles.
+  - All of them track the current input, including HOLD, the autopilot and review frames.
+- **When it's reported:** classic mode has no `controlsLayout`, and a `split` change moves the rects.
+
+### Forces and moments (protocol 7)
+
+Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `thrust`, `wheels`, `labels`. Defaults off: `weight`, `wind` (single), `lift`, `drag`, `strips`, `axis`. In ntsb mode all of them also need `vectors:true`.
+
+| Key | What |
+|---|---|
+| `wingWind` | The local relative wind at **mid-span of each wing**, including ω × r, so in a spin the wings differ. Labelled `L WING α 31°`, turning red with `STALLED` past the critical α. |
+| `tailWind` | The flow at mid-span of **each stab half**, as the aero model computes it: downwash ε, slipstream, swirl, rotation. Its **length is the effective local speed √η·V**. Labelled `L STAB α 6° · ε 3°`. |
+| `inertial` | **m(g − a) = −(every non-gravity force)** from the CG, labelled `INERTIAL 2.3 g`. Replaces `weight`: in 1-g flight it equals weight; in a turn it tilts out and grows. |
+| `total` | The sum of **all aerodynamic forces**, from the **neutral point** (dM/dL of the aero model), labelled `TOTAL AERO 2.3 g`. In a steady power-off state it equals INERTIAL and points the opposite way. With power, aero + thrust does. |
+| `tail` | The horizontal tail's force at the tail, `TAIL ↓ 85 lb` / `TAIL ↑ …`. |
+| `moments` | Two arcs in the pitch plane on one scale. **AERO** (ahead of the nose) is the aerodynamic pitching moment about the CG. **INERTIA** (behind the tail) is the inertia-coupling term −(ω × Iω), which pitches a spin nose-up. The sum of the two is I·q̇: they balance in a steady spin, and the aero arc wins when forward stick breaks it. |
+
+**Tail physics (the sim):**
+- **Downwash:** ε = 0.4·α_wing while the wing is attached, collapsing as it stalls, with the flaps' extra.
+- **Slipstream:** V_slip = √(V² + 2T/(ρA)), over the stab inside a 0.7 R tube.
+- **Swirl** (new, 2026-10-09): tangential speed 0.2 × the axial increase, solid-body across the tube. A right-hand prop carries the air **up** past the left stab half and **down** past the right, so with power the two halves' α split. It's applied to the tail force and moment too.
+- **Baseline:** η_t = 0.9 (the fuselage / wing wake) when there's no prop blast. Gliders have no blast, and jets no prop.
+
+**Measured:**
+
+| Condition | Result |
+|---|---|
+| C172 at 64 KIAS, flaps 30, idle | tail 61 kt vs freestream 64 (η 0.90) |
+| Same, full power | tail 97 kt vs freestream 68 (η 1.78); stab α L −0.5°, R −6.9° (swirl) |
+| Glider at full throttle | no change |
+| C172 cruise | INERTIAL 1.00 g, AERO 1.01 g, tail ↓ 99 lb, η 1.04 |
+| 60° level turn | INERTIAL 1.90 g = AERO 1.90 g = nz |
+
+**Drawing:**
+- **Arrows:** ≈ 6 px (`vectorStyle width`) with a dark outline and bigger heads, drawn in the end-of-frame compositor.
+- **Smoothing:** every vector is low-pass filtered in the **airplane's axes** (a steady spin is steady there, so nothing lags the airframe), τ = `smoothingMs`. Review replays the filter over the frames leading up to the reviewed one.
+
+**Labels:**
+- **Fixed slots:** 8 directions × 2 rows on an ellipse around the airplane, each joined to its arrow by a thin leader line.
+- **Changing slot:** a label keeps its slot until its arrow swings > 45° past it (and at most once every 1.5 s), then fades in at the new slot without sliding. A slot whose label would collide with one already placed is skipped.
+- **Numbers:** update at most 4×/s, with hysteresis. Positions are pixel-snapped.
+- **Measured** (Pitts spin, 20 s): median 0 px per frame, 95th percentile ≈ 1.5 px per frame, 14 slot changes.
+
+**State:**
+
+```json
+"forces":{"inertialG","aeroG","tailLb" (+ = UP),"momentAero","momentInertia" (ft·lb, nose-up +),"tailAlphaL","tailAlphaR","downwashDeg",
+ "tailEta","tailEtaL","tailEtaR","tailSpeedL","tailSpeedR","freestreamKt" (kt),"wingAlphaL","wingAlphaR"}
+```
+
+**Known model issue: spins with held pro-spin controls.**
+- **The problem:** the spins aren't sustained or aren't in the rudder's direction. C172: about 1 turn, then it stops. Pitts: settles into the OPPOSITE direction (+55°/s right with left rudder). Extra: pulses on and off. Decathlon: a slow spiral.
+- **Consequence:** the spin condition's first seconds are a real spin, but it doesn't stay developed.
+- **Plan:** taken up in protocol 8 (advanced spin physics).
 
 ### Start conditions (protocol 5)
 

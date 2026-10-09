@@ -272,6 +272,26 @@ namespace FlyingGame.Bridge.Widget
                     // The web remote's "Request controls": tell Glass Overlay (it holds the arbitration).
                     PushEvent(new JObject { ["event"] = "controlRequest", ["from"] = from ?? src, ["name"] = (string)j["name"] ?? "" });
                     break;
+                case "debugLabels":
+                {
+                    var o = new JObject();
+                    foreach (var kv in w.Vectors.LabelDebug) o[kv.Key] = new JArray(kv.Value.pos.x, kv.Value.pos.y, kv.Value.slot, System.Math.Round(kv.Value.alpha, 2));
+                    ok["labels"] = o; ok["t"] = Time.unscaledTime; break;
+                }
+                case "vectorStyle":
+                    // Protocol 7: line width (×) and the drawing filter's time constant.
+                    if (j["width"] != null) w.Vectors.WidthScale = Mathf.Clamp((float)j["width"].Value<double>(), 1f, 3f);
+                    if (j["smoothingMs"] != null) w.Vectors.SmoothingMs = Mathf.Clamp((float)j["smoothingMs"].Value<double>(), 0f, 400f);
+                    ok["width"] = w.Vectors.WidthScale; ok["smoothingMs"] = w.Vectors.SmoothingMs; break;
+                case "display":
+                {
+                    // Protocol 6: "ntsb" (instrument plates below the airplane, all on transparency) or "classic".
+                    string mode = ((string)j["mode"])?.ToLowerInvariant();
+                    if (mode != null && mode != "ntsb" && mode != "classic") { ok["ok"] = false; ok["error"] = "mode: ntsb or classic"; break; }
+                    if (mode != null) w.DisplayMode = mode;
+                    if (j["split"] != null) w.Split = Mathf.Clamp((float)j["split"].Value<double>(), 0.35f, 0.6f);
+                    ok["mode"] = w.DisplayMode; ok["split"] = w.Split; break;
+                }
                 case "controlsDisplay":
                 {
                     string place = ((string)j["place"])?.ToLowerInvariant();
@@ -316,13 +336,15 @@ namespace FlyingGame.Bridge.Widget
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
-                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 5;
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions");
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 7;
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors");
+                    if (LayoutJson() is JObject lay) ok["controlsLayout"] = lay;
+                    ok["display"] = new JObject { ["modes"] = new JArray("classic", "ntsb"), ["default"] = "ntsb", ["split"] = new JArray(0.35, 0.6) };
                     ok["conditions"] = JArray.Parse(@"[{""id"":""cruise"",""name"":""Cruise"",""views"":""any"",""default"":""chase""},
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "vectorStyle", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
@@ -375,6 +397,48 @@ namespace FlyingGame.Bridge.Widget
             return ok.ToString(Newtonsoft.Json.Formatting.None);
         }
 
+        /// <summary>Protocol 6 addendum: the control instruments' hit areas, 0…1 of the frame, top-left origin (ntsb only).</summary>
+        private JObject LayoutJson()
+        {
+            var w = Widget; var d = w.Display;
+            if (w.DisplayMode != "ntsb" || d == null || d.Layout.Count == 0) return null;
+            JArray R((float x, float y, float w, float h) r) => new JArray(System.Math.Round(r.x, 4), System.Math.Round(r.y, 4), System.Math.Round(r.w, 4), System.Math.Round(r.h, 4));
+            var o = new JObject();
+            foreach (var kv in d.Layout)
+            {
+                var e = new JObject { ["rect"] = R(kv.Value) };
+                switch (kv.Key)
+                {
+                    case "yoke": e["axes"] = "elevator+aileron"; e["elevatorUp"] = "push"; e["aileronRight"] = "right"; break;
+                    case "pedals": e["axis"] = "rudder"; e["orientation"] = "horizontal"; e["right"] = "right"; break;
+                    case "throttle": e["axis"] = "throttle"; e["orientation"] = "vertical"; e["top"] = "full"; e["engines"] = w.Controls.Spec.Engines; break;
+                    case "flaps":
+                        e["axis"] = "flaps"; e["orientation"] = "vertical"; e["top"] = "up";
+                        e["detents"] = new JArray(d.FlapDetentPositions ?? new double[0]);
+                        { var dv = new JArray(); var fl = w.Controls.Spec.Flaps; foreach (var x in fl) dv.Add(System.Math.Round(x / fl[^1], 4)); e["detentValues"] = dv; }
+                        break;
+                    case "spoilers": e["axis"] = "spoilers"; e["orientation"] = "vertical"; e["top"] = "retracted"; break;
+                }
+                o[kv.Key] = e;
+            }
+            return o;
+        }
+
+        /// <summary>Protocol 7: the frame's forces and moments (signed; moments nose-up +; tail force + = UP).</summary>
+        private JObject ForcesJson()
+        {
+            var p = Widget.Vectors?.Current; if (p == null) return null;
+            return new JObject
+            {
+                ["inertialG"] = System.Math.Round(p.InertialG, 3), ["aeroG"] = System.Math.Round(p.AeroG, 3), ["tailLb"] = System.Math.Round(-p.TailN * 0.2248, 1),
+                ["momentAero"] = System.Math.Round(p.MomAero * 0.7376), ["momentInertia"] = System.Math.Round(p.MomInertia * 0.7376),
+                ["tailAlphaL"] = System.Math.Round(p.TailAlphaL, 2), ["tailAlphaR"] = System.Math.Round(p.TailAlphaR, 2), ["downwashDeg"] = System.Math.Round(p.Eps, 2),
+                ["tailEta"] = System.Math.Round((p.EtaL + p.EtaR) * 0.5, 3), ["tailEtaL"] = System.Math.Round(p.EtaL, 3), ["tailEtaR"] = System.Math.Round(p.EtaR, 3),
+                ["tailSpeedL"] = System.Math.Round(p.TailSpdL * 1.943844, 1), ["tailSpeedR"] = System.Math.Round(p.TailSpdR * 1.943844, 1), ["freestreamKt"] = System.Math.Round(p.VInf * 1.943844, 1),
+                ["wingAlphaL"] = System.Math.Round(p.WingAlphaL, 2), ["wingAlphaR"] = System.Math.Round(p.WingAlphaR, 2),
+            };
+        }
+
         private JObject PilotJson()
         {
             var c = Widget.Controls;
@@ -409,6 +473,9 @@ namespace FlyingGame.Bridge.Widget
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
+                ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split },
+                ["controlsLayout"] = LayoutJson(),
+                ["forces"] = ForcesJson(),
                 ["condition"] = w.Condition, ["viewFixed"] = w.ViewFixed, ["hold"] = w.Controls.Hold,
                 ["pilot"] = PilotJson(), ["remotes"] = RemotesJson(), ["controlsDisplay"] = new JObject { ["shown"] = w.Show["controlsDisplay"], ["place"] = w.ControlsPlace, ["size"] = w.ControlsSize, ["traces"] = w.Show["controlTraces"] },
                 ["review"] = new JObject { ["active"] = w.Review.Active, ["offsetMs"] = System.Math.Round(w.Review.OffsetMs), ["historyMs"] = System.Math.Round(w.Review.HistoryMs),

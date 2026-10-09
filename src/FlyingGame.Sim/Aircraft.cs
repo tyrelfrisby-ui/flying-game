@@ -136,6 +136,8 @@ public sealed class Aircraft
     /// <summary>Speed-brake / spoiler lever 0 (retracted) .. 1 (extended), separate from the throttle; used only on types
     /// whose config has spoiler panels (Controls.Spoiler.MaxDeflRad &gt; 0).</summary>
     public double SpoilerCommand { get; set; }
+    /// <summary>Slipstream swirl at the tail as a fraction of the axial speed-up (0.2; 0 = no swirl — diagnostics).</summary>
+    public static double SwirlFactor = 0.2;
     public void SetGear(bool down, bool immediate = false)
     {
         if (!Config.RetractableGear) { GearDown = true; GearExtension = 1.0; return; }
@@ -655,7 +657,7 @@ public sealed class Aircraft
         _flowState.EnsureSize(stripCount);
 
         // Slipstream over the tail (momentum theory): V_slip = √(V² + 2T/(ρA)), contracted to ~0.8 R.
-        double slipDu = 0.0, slipR = 0.0;
+        double slipDu = 0.0, slipR = 0.0, slipSwirl = 0.0;
         if (Config.Propulsion is not null && Config.Propulsion.PropDiameterM > 0.0)
         {
             double vNow = State.Velocity.Length;
@@ -667,6 +669,9 @@ public sealed class Aircraft
             // ~90 % developed by the tail (≈2 R aft), in a tube contracted to ~0.7 R.
             slipDu = 0.9 * System.Math.Max(0.0, vSlip - vNow);
             slipR = 0.7 * radius;
+            // Swirl at the tail: tangential speed ~0.2 × the axial increase (a few degrees at cruise, more at full power
+            // and low speed), clockwise from behind for a right-hand prop.
+            slipSwirl = SwirlFactor * slipDu * Config.Propulsion.RotationSign;
         }
 
         (Vec3 Force, Vec3 Moment) ForceMoment(RigidBodyState s)
@@ -677,7 +682,7 @@ public sealed class Aircraft
             double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y);
             if (water.HasValue && water.Value > under) under = water.Value;
             double wingAgl = -s.Position.Z - under - AeroModel.WingZ(Config);
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;

@@ -5,7 +5,7 @@ Shader "FlyingGame/HudLine"
     SubShader
     {
         Tags { "Queue" = "Overlay" "IgnoreProjector" = "True" }
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha   // alpha: plain "over" (a 55 % plate stays 55 % on a transparent frame — the widget)
         ZWrite Off
         ZTest Always
         Cull Off

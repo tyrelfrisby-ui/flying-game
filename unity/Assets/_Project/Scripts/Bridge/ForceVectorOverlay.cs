@@ -48,6 +48,7 @@ namespace FlyingGame.Bridge
             foreach (var f in samples)
             {
                 Vector3 p0 = CoordinateMap.ToUnity(st.Position + st.Attitude.Rotate(f.PosBody - cg));
+                if (f.Kind == "tailflow") continue;   // a flow diagnostic (the widget's tail winds), not a force
                 Color c = ColourFor(f.Kind);
                 if (f.Kind == "moment")
                 {

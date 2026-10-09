@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.MathTypes;
 using UnityEngine;
@@ -6,235 +7,398 @@ using UnityEngine;
 namespace FlyingGame.Bridge.Widget
 {
     /// <summary>
-    /// The widget's force and airflow vectors, drawn into its frame (owner 2026-10-07):
-    ///   FLARE — total lift (green), drag (red), weight (yellow) and thrust (blue) at the CG, the relative wind (cyan) with α,
-    ///           each wheel's load (orange) once it touches;
-    ///   SPIN  — for EACH wing at mid-semispan: the local relative wind (the rotation adds ω × r — the outer, rising wing
-    ///           meets the air at a lower α than the inner, descending one, which is stalled deeper: autorotation) with its α,
-    ///           that wing's lift and drag; weight, the total aerodynamic force, and the rotation axis (magenta).
-    /// Labels are 3-D text facing the camera (so they're in the Syphon/NDI frame), sized to the view.
+    /// The widget's forces, flows and moments (protocol 7, owner 2026-10-09: "forces and moments that teach"):
+    ///   WING WIND ×2 — the local relative wind at mid-span of each wing (the rotation's ω × r included, so in a spin the two
+    ///     wings differ), labelled with that wing's α, red + STALLED past the type's critical α;
+    ///   TAIL WIND ×2 — the flow at mid-span of each stab half, as the aero model sees it: the wing's downwash ε (collapsing
+    ///     when the wing stalls), the prop's slipstream and swirl, the rotation; LENGTH = the local speed, so power visibly
+    ///     lengthens them (η_t > 1) and idle shortens them (blanketing);
+    ///   INERTIAL — m(g − a) from the CG = −(every non-gravity force): weight and the acceleration together;
+    ///   TOTAL AERO — the sum of all aerodynamic forces, from the neutral point (equal and opposite to INERTIAL in any steady,
+    ///     power-off state; with power, aero + thrust is);
+    ///   TAIL — the horizontal tail's up/down force at the tail;
+    ///   MOMENTS — two arcs in the pitch plane: the AERODYNAMIC pitching moment about the CG (ahead of the nose) and the
+    ///     INERTIA-COUPLING moment −(ω × Iω) (behind the tail) on one scale. Their sum is I·q̇: equal and opposite in a steady
+    ///     spin, and the aero one wins when forward stick recovers it.
+    /// Drawing (protocol 7): bold (≈ 6 px) with a dark outline, every vector low-pass filtered in the AIRPLANE's axes (a steady
+    /// spin is steady there, so nothing lags the airframe), labels anchored in screen space, filtered, pixel-snapped, numbers
+    /// at most 4×/s with hysteresis, fixed slots with an alternate slot and a fade. Review replays the filtered picture.
+    /// The flat world references (runway, horizon, ground grid) stay thin GL lines drawn with the camera.
     /// </summary>
     public sealed class WidgetVectors : MonoBehaviour
     {
         public AeroWidget Widget;
         private Material _mat;
-        private readonly List<TextMesh> _labels = new();
-        private int _used;
-        private Font _font;
+        public float WidthScale = 1f;
+        public float SmoothingMs = 130f;
+
         public static readonly Color Lift = new(0.25f, 1f, 0.35f), Drag = new(1f, 0.3f, 0.25f), Weight = new(1f, 0.9f, 0.2f),
-            Thrust = new(0.35f, 0.6f, 1f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f);
+            Thrust = new(0.35f, 0.6f, 1f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
+            Inertial = new(1f, 0.82f, 0.2f), TailC = new(0.75f, 0.55f, 1f), TailWindC = new(0.55f, 0.85f, 1f);
 
-        private void Start()
+        private void Start() => _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
+
+        // ================= the physics picture of one frame (body axes) =================
+        public sealed class Picture
         {
-            // The game's HUD line shader: vertex-coloured, always on top (it is in the build's always-included shaders).
-            _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
+            public double AeroG, InertialG, TailN, MomAero, MomInertia, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
+            public bool StallL, StallR, HasTail;
         }
 
-        // ---- labels (pooled TextMesh, billboarded) ----
-        private void BeginLabels() { _used = 0; }
-        private void Label(Vector3 at, string text, Color c, float scale, TextAnchor anchor = TextAnchor.MiddleCenter)
+        /// <summary>Everything the frame's arrows say, from a state + its force samples (live or a history frame).</summary>
+        public Picture Compute(RigidBodyState s, IReadOnlyList<ForceSample> forces, double critAlphaDeg)
         {
-            if (!Widget.Show["labels"]) return;
-            if (anchor == TextAnchor.MiddleCenter)
+            var w = Widget; var cfg = w.Config; var mp = w.Ac.MassProperties;
+            Vec3 cg = cfg.Mass.CgVec();
+            double W = mp.MassKg * 9.81;
+            var pic = new Picture();
+            Vec3 windB = s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));
+            Vec3 vAir = s.Velocity - windB; pic.VInf = vAir.Length;
+
+            Vec3 aero = Vec3.Zero, nonGrav = Vec3.Zero, thrust = Vec3.Zero, lift = Vec3.Zero, drag = Vec3.Zero, tailF = Vec3.Zero, tailPos = Vec3.Zero, thrustPos = Vec3.Zero;
+            double mAero = 0, tailW = 0;
+            var tailL = new List<ForceSample>(); var tailR = new List<ForceSample>();
+            if (forces != null)
+                foreach (var f in forces)
+                {
+                    switch (f.Kind)
+                    {
+                        case "tailflow": (f.PosBody.Y < 0 ? tailL : tailR).Add(f); continue;
+                        case "weight": continue;
+                        case "lift": case "drag": case "fuselage": case "spoiler": case "moment":
+                        {
+                            aero += f.ForceBody;
+                            Vec3 r = f.PosBody - cg;
+                            mAero += (r.Z * f.ForceBody.X - r.X * f.ForceBody.Z) + f.MomentBody.Y;
+                            if (f.Kind == "lift") lift += f.ForceBody; else if (f.Kind == "drag") drag += f.ForceBody;
+                            // The horizontal tail: aft, and its force mostly vertical (the fin's is sideways).
+                            if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X < cg.X - 0.35 * w.LengthM && System.Math.Abs(f.ForceBody.Z) >= System.Math.Abs(f.ForceBody.Y))
+                            { tailF += f.ForceBody; double a = System.Math.Abs(f.ForceBody.Z) + 1e-6; tailPos += f.PosBody * a; tailW += a; }
+                            break;
+                        }
+                        case "thrust": thrust += f.ForceBody; thrustPos = f.PosBody; break;
+                    }
+                    if (f.Kind != "moment") nonGrav += f.ForceBody;
+                }
+            // INERTIAL = m(g − a) = −(every non-gravity force); TOTAL AERO from the neutral point.
+            Vec3 inertial = -1.0 * nonGrav;
+            pic.InertialG = inertial.Length / W; pic.AeroG = aero.Length / W;
+            pic.V["inertial"] = (cg, inertial * (1.0 / W));
+            pic.V["total"] = (w.NeutralPointBody(), aero * (1.0 / W));
+            pic.V["weight"] = (cg, s.Attitude.Conjugate().Rotate(new Vec3(0, 0, 1)));
+            pic.V["wind"] = (cg, vAir * (1.0 / System.Math.Max(1, pic.VInf)));
+            pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (3.0 / W));
+            if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (3.0 / W));
+            if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
+            // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.
+            Vec3 om = s.Rates;
+            double hx = mp.Ixx * om.X - mp.Ixz * om.Z, hz = mp.Izz * om.Z - mp.Ixz * om.X;
+            pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz);
+            // Wing winds at mid-semispan (ω × r).
+            foreach (int side in new[] { -1, 1 })
             {
-                // Keep a label inside the picture and below the readout (an arrow running off the frame left it half out).
-                var cm = Widget.Cam; Vector3 vp = cm.WorldToViewportPoint(at);
-                if (vp.z > 0 && (vp.x < 0.12f || vp.x > 0.88f || vp.y < 0.05f || vp.y > 0.84f))
-                { vp.x = Mathf.Clamp(vp.x, 0.12f, 0.88f); vp.y = Mathf.Clamp(vp.y, 0.05f, 0.84f); at = cm.ViewportToWorldPoint(vp); }
+                Vec3 p = w.WingMidSpan(side);
+                Vec3 v = vAir + Vec3.Cross(s.Rates, p - cg);
+                double a = System.Math.Atan2(v.Z, System.Math.Max(0.1, v.X)) * 57.2958;
+                pic.V[side < 0 ? "wingL" : "wingR"] = (p, v * (1.0 / System.Math.Max(1, pic.VInf)));
+                if (side < 0) { pic.WingAlphaL = a; pic.StallL = a > critAlphaDeg; } else { pic.WingAlphaR = a; pic.StallR = a > critAlphaDeg; }
             }
-            // A dark drop shadow first, so the text reads over bright video too.
-            float px = PixelM(at) * 2f; var cam = Widget.Cam.transform;
-            Text(at + (cam.right - cam.up) * px + cam.forward * px, text, new Color(0f, 0f, 0f, 0.8f), scale, anchor);
-            Text(at, text, c, scale, anchor);
-        }
-
-        private void Text(Vector3 at, string text, Color c, float scale, TextAnchor anchor)
-        {
-            TextMesh tm;
-            if (_used < _labels.Count) tm = _labels[_used];
-            else
+            // Tail winds: the stab strip nearest each half's mid-span.
+            foreach (var (list, side) in new[] { (tailL, -1), (tailR, 1) })
             {
-                var go = new GameObject("WidgetLabel"); go.transform.SetParent(Widget.transform, false);
-                tm = go.AddComponent<TextMesh>(); tm.font = _font; tm.fontSize = 64; tm.anchor = TextAnchor.MiddleCenter;
-                // The font's own material follows its dynamic atlas (a copy made at creation went blank when the atlas grew).
-                var mr = go.GetComponent<MeshRenderer>(); mr.sharedMaterial = _font.material;
-                _labels.Add(tm);
+                if (list.Count == 0) continue;
+                double maxY = 0; foreach (var f in list) maxY = System.Math.Max(maxY, System.Math.Abs(f.PosBody.Y));
+                ForceSample best = list[0];
+                foreach (var f in list) if (System.Math.Abs(System.Math.Abs(f.PosBody.Y) - maxY * 0.5) < System.Math.Abs(System.Math.Abs(best.PosBody.Y) - maxY * 0.5)) best = f;
+                // Effective local speed √η·V: the slipstream lengthens it, blanketing / the wake shortens it.
+                double spd = System.Math.Sqrt(System.Math.Max(0, best.MomentBody.Z)) * pic.VInf, at = best.MomentBody.X * 57.2958;
+                Vec3 dirB = best.ForceBody * (1.0 / System.Math.Max(1e-6, best.ForceBody.Length));
+                pic.V[side < 0 ? "tailWindL" : "tailWindR"] = (best.PosBody, dirB * (spd / System.Math.Max(1, pic.VInf)));
+                if (side < 0) { pic.TailAlphaL = at; pic.EtaL = best.MomentBody.Z; pic.TailSpdL = spd; } else { pic.TailAlphaR = at; pic.EtaR = best.MomentBody.Z; pic.TailSpdR = spd; }
+                pic.Eps = best.MomentBody.Y * 57.2958;
             }
-            _used++;
-            tm.gameObject.SetActive(true);
-            tm.text = text; tm.color = c; tm.characterSize = scale; tm.anchor = anchor;
-            tm.transform.position = at; tm.transform.rotation = Widget.Cam.transform.rotation;
+            return pic;
         }
-        private void EndLabels() { for (int i = _used; i < _labels.Count; i++) _labels[i].gameObject.SetActive(false); }
 
-        /// <summary>World size of one screen pixel of the 1080 frame at a point (to size arrows and text to the view).</summary>
+        // ================= filtering =================
+        private readonly Dictionary<string, (Vec3 from, Vec3 vec)> _filt = new();
+        private int _reviewIdx = -1;
+        private static Vec3 Lerp(Vec3 a, Vec3 b, double k) => a + (b - a) * k;
+        private void Filter(Picture raw, double dt, Dictionary<string, (Vec3 from, Vec3 vec)> into)
+        {
+            double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-dt * 1000.0 / SmoothingMs);
+            foreach (var kv in raw.V)
+                into[kv.Key] = into.TryGetValue(kv.Key, out var o) ? (Lerp(o.from, kv.Value.from, k), Lerp(o.vec, kv.Value.vec, k)) : kv.Value;
+        }
+
+        /// <summary>The picture being shown, filtered (live: one filter step; review: the filter replayed over the frames
+        /// leading up to the reviewed one, so it draws what was on screen then).</summary>
+        public Picture Current { get; private set; }
+        public Dictionary<string, (Vec3 from, Vec3 vec)> Filtered => _filt;
+
+        private void Advance()
+        {
+            var w = Widget; if (w == null || w.Ac == null) return;
+            double crit = w.CriticalAlphaDeg(w.Shown != null ? w.Shown.FlapsActual : w.Ac.FlapFraction);
+            if (w.Shown == null)
+            {
+                _reviewIdx = -1;
+                Current = Compute(w.Ac.State, w.Ac.LastForces, crit);
+                Filter(Current, Mathf.Min(Time.unscaledDeltaTime, 0.1f), _filt);
+                return;
+            }
+            int idx = w.Review.Index;
+            if (idx == _reviewIdx && Current != null) return;
+            _reviewIdx = idx;
+            var hist = w.Review.History;
+            int start = Mathf.Min(idx + 12, hist.Count - 1);
+            _filt.Clear();
+            for (int i = start; i >= idx; i--)
+            {
+                var f = hist.Get(i);
+                var p = Compute(f.State, f.Forces, crit);
+                Filter(p, 1.0 / WidgetHistory.Hz, _filt);
+                if (i == idx) Current = p;
+            }
+        }
+
+        // ================= drawing (into the compositor, frame pixels) =================
+        private bool On(string k) => Widget.Show.TryGetValue(k, out bool b) && b;
+
+        /// <summary>Called by the compositor each frame after the camera is placed: arrows, arcs and labels for the frame shown.</summary>
+        public void Build(WidgetControlsDisplay ui, Rect scene)
+        {
+            Advance();
+            var w = Widget; if (Current == null) return;
+            bool vec = w.DisplayMode == "classic" || On("vectors");
+            var s = w.ShownState; var cam = w.Cam; Vec3 cg = w.Config.Mass.CgVec();
+            Vector3 World(Vec3 bodyPos) => CoordinateMap.ToUnity(s.Position + s.Attitude.Rotate(bodyPos - cg));
+            Vector3 Dir(Vec3 body) => CoordinateMap.ToUnity(s.Attitude.Rotate(body));
+            bool Scr(Vector3 wp, out Vector2 px) { var p = cam.WorldToScreenPoint(wp); px = new Vector2(scene.x + p.x, scene.y + p.y); return p.z > 0.05f; }
+            Vector3 cgU = World(cg);
+            float pxM = PixelM(cgU);
+            Scr(cgU, out var cgScr);
+            float gPx = 190f;   // one g (one weight) on the screen
+            float lw = 6f * WidthScale * (scene.height / AeroWidget.FrameSize + 0.25f) / 1.25f;
+
+            // Readout (classic) and the airplane-scale tag.
+            var rd = w.Read();
+            if (w.DisplayMode == "classic" && On("readout"))
+            {
+                string extra = w.Current == AeroWidget.Scenario.Cruise ? $"ALT {rd.HeightFt:F0} ft  VS {-rd.SinkFpm:+0;-0} fpm  PWR {w.Controls.Throttle01 * 100:F0}%"
+                    : w.Current == AeroWidget.Scenario.Spin ? $"YAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s"
+                    : $"SINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
+                string rev = w.Paused && On("review") ? $"REVIEW {w.Review.OffsetMs / 1000.0:+0.0;-0.0;0.0} s\n" : "";
+                float ty = scene.yMax - 24;
+                foreach (var line in (rev + $"{w.AircraftName}   {rd.Kias:F0} KIAS   α {rd.AlphaDeg:F1}°   PITCH {rd.PitchDeg:+0;-0}°\n" + extra).Split('\n'))
+                { ui.PxText(new Vector2(scene.x + 22, ty), line, 19, Color.white, TextAnchor.MiddleLeft); ty -= 24; }
+            }
+            if (w.VisualScale > 1.01f && Scr(cgU - cam.transform.up * pxM * 40f, out var sp)) _labels.Request("scale", sp, Vector2.zero, $"AIRPLANE ×{w.VisualScale:0}", new Color(1, 1, 1, 0.85f), 0);
+            if (!vec) { _labels.Place(ui, scene, cgScr); return; }
+
+            var F = _filt; var P = Current;
+            void Arrow(string key, Color c, float scalePx, bool arriving = false)
+            {
+                if (!F.TryGetValue(key, out var v)) return;
+                Vector3 o = World(v.from), d = Dir(v.vec) * (scalePx * pxM);
+                if (d.sqrMagnitude < 1e-10f) return;
+                Vector3 a3 = arriving ? o - d : o, b3 = arriving ? o : o + d;
+                if (Scr(a3, out var a) && Scr(b3, out var b)) ui.PxArrow(a, b, lw, c);
+            }
+            Vector2 Tip(string key, float scalePx, bool arriving = false)
+            {
+                var v = F[key]; Vector3 o = World(v.from), d = Dir(v.vec) * (scalePx * pxM);
+                Scr(arriving ? o - d : o + d, out var t); return t;
+            }
+            Vector2 Origin(string key) { Scr(World(F[key].from), out var o); return o; }
+
+            // Wing winds (arriving at each mid-span point).
+            float windPx = 150f;
+            foreach (var (k, a, st, nm) in new[] { ("wingL", P.WingAlphaL, P.StallL, "L WING"), ("wingR", P.WingAlphaR, P.StallR, "R WING") })
+            {
+                if (!On("wingWind") || !F.ContainsKey(k)) continue;
+                Color c = st ? Drag : Wind;
+                Arrow(k, c, windPx, true);
+                _labels.Request(k, Tip(k, windPx, true), Away(Origin(k), Tip(k, windPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
+            }
+            if (On("wind") && F.ContainsKey("wind")) { Arrow("wind", Wind, windPx, true); _labels.Request("wind", Tip("wind", windPx, true), Away(Origin("wind"), Tip("wind", windPx, true)), new[] { rd.AlphaDeg }, v => $"RELATIVE WIND α {v[0]:0.0}°", Wind, 3, 0.1); }
+            // Tail winds (length = the local speed: prop blast lengthens, blanketing shortens).
+            foreach (var (k, a, eta, nm) in new[] { ("tailWindL", P.TailAlphaL, P.EtaL, "L STAB"), ("tailWindR", P.TailAlphaR, P.EtaR, "R STAB") })
+            {
+                if (!On("tailWind") || !F.ContainsKey(k)) continue;
+                Arrow(k, TailWindC, windPx * 0.8f, true);
+                _labels.Request(k, Tip(k, windPx * 0.8f, true), Away(Origin(k), Tip(k, windPx * 0.8f, true)), new[] { a, P.Eps }, v => $"{nm} α {v[0]:0}° · ε {v[1]:0}°", TailWindC, 4);
+            }
+            if (On("inertial") && F.ContainsKey("inertial")) { Arrow("inertial", Inertial, gPx); _labels.Request("inertial", Tip("inertial", gPx), Away(Origin("inertial"), Tip("inertial", gPx)), new[] { P.InertialG }, v => $"INERTIAL {v[0]:0.0} g", Inertial, 1, 0.1); }
+            if (On("total") && F.ContainsKey("total")) { Arrow("total", Total, gPx); _labels.Request("total", Tip("total", gPx), Away(Origin("total"), Tip("total", gPx)), new[] { P.AeroG }, v => $"TOTAL AERO {v[0]:0.0} g", Total, 1, 0.1); }
+            if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new double[0], v => "WEIGHT", Weight, 3); }
+            if (On("lift")) { Arrow("lift", Lift, gPx); _labels.Request("lift", Tip("lift", gPx), Away(Origin("lift"), Tip("lift", gPx)), new double[0], v => "LIFT", Lift, 5); }
+            if (On("drag")) { Arrow("drag", Drag, gPx); _labels.Request("drag", Tip("drag", gPx), Away(Origin("drag"), Tip("drag", gPx)), new double[0], v => "DRAG ×3", Drag, 5); }
+            if (On("thrust") && F.ContainsKey("thrust")) Arrow("thrust", Thrust, gPx);
+            if (On("tail") && P.HasTail && F.ContainsKey("tail"))
+            {
+                Arrow("tail", TailC, gPx);
+                double lb = P.TailN * 0.2248;   // body z down: + = DOWN force
+                _labels.Request("tail", Tip("tail", gPx), Away(Origin("tail"), Tip("tail", gPx)), new[] { System.Math.Abs(lb) }, v => $"TAIL {(lb >= 0 ? "↓" : "↑")} {v[0]:0} lb", TailC, 3, 5);
+            }
+            if (On("wheels") && w.Ac.LastForces != null && w.Shown == null)
+                foreach (var f in w.Ac.LastForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
+                    { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
+
+            // Moments: AERO ahead of the nose, INERTIA behind the tail, one shared scale.
+            if (On("moments"))
+            {
+                double mRef = w.Ac.MassProperties.MassKg * 9.81 * 0.06 * System.Math.Max(2, w.LengthM);
+                Arc(ui, World, Dir, cgU, new Vec3(cg.X + w.LengthM * 0.75, 0, cg.Z), P.MomAero, mRef, Total, "aeroM", "AERO", pxM, scene, lw);
+                Arc(ui, World, Dir, cgU, new Vec3(cg.X - w.LengthM * 0.85, 0, cg.Z), P.MomInertia, mRef, Inertial, "inertiaM", "INERTIA", pxM, scene, lw);
+            }
+            _labels.Place(ui, scene, cgScr);
+        }
+
+        private static Vector2 Away(Vector2 from, Vector2 tip) { Vector2 d = tip - from; return d.sqrMagnitude < 1 ? Vector2.up : d.normalized; }
+
+        private void Arc(WidgetControlsDisplay ui, System.Func<Vec3, Vector3> world, System.Func<Vec3, Vector3> dir, Vector3 cgU, Vec3 centreBody, double m, double mRef,
+                         Color c, string id, string name, float pxM, Rect scene, float lw)
+        {
+            // Smooth the moment itself (it's a number, not a vector in the dictionary).
+            double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-Mathf.Min(Time.unscaledDeltaTime, 0.1f) * 1000.0 / SmoothingMs);
+            if (!_mFilt.TryGetValue(id, out double mf) || Widget.Shown != null) mf = m;
+            mf += (m - mf) * k; _mFilt[id] = mf;
+            float sweep = Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 90f, 35f, 320f) * Mathf.Deg2Rad;
+            float sgn = mf >= 0 ? 1f : -1f;   // + = nose-up
+            float R = 58f * pxM;
+            Vector3 C = world(centreBody), X = dir(new Vec3(1, 0, 0)), Zu = -dir(new Vec3(0, 0, 1));   // body x, body "up"
+            var cam = Widget.Cam; var pts = new List<Vector2>();
+            float th0 = Mathf.PI * 0.5f - sgn * sweep * 0.5f;
+            for (int i = 0; i <= 24; i++)
+            {
+                float th = th0 + sgn * sweep * i / 24f;   // nose-up: from +x toward up
+                Vector3 p = C + (X * Mathf.Cos(th) + Zu * Mathf.Sin(th)) * R;
+                var sp = cam.WorldToScreenPoint(p); if (sp.z <= 0) return;
+                pts.Add(new Vector2(scene.x + sp.x, scene.y + sp.y));
+            }
+            float thick = lw * Mathf.Lerp(0.6f, 1.4f, Mathf.Clamp01((float)(System.Math.Abs(mf) / (2 * mRef))));
+            ui.PxPolyArrow(pts, thick, c);
+            double ftlb = System.Math.Abs(m) * 0.7376;
+            var cs = cam.WorldToScreenPoint(C);
+            _labels.Request(id, new Vector2(scene.x + cs.x, scene.y + cs.y), Vector2.down, new[] { ftlb, m }, v => $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);
+        }
+        private readonly Dictionary<string, double> _mFilt = new();
+
         private float PixelM(Vector3 at)
         {
             var cam = Widget.Cam;
-            float ph = Mathf.Max(1f, cam.pixelHeight);   // the viewport shrinks when the control display takes a strip
+            float ph = Mathf.Max(1f, cam.pixelHeight);
             if (cam.orthographic) return cam.orthographicSize * 2f / ph;
             float d = Vector3.Distance(cam.transform.position, at);
             return 2f * d * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) / ph;
         }
 
-        private void LateUpdate()
+        // ================= stable labels =================
+        private readonly LabelStabilizer _labels = new();
+        /// <summary>Where each label was drawn last frame (frame pixels) and its slot — for the stability test.</summary>
+        public IReadOnlyDictionary<string, (Vector2 pos, int slot, float alpha)> LabelDebug => _labels.Last;
+
+        private sealed class LabelStabilizer
         {
-            if (Widget == null || Widget.Ac == null) return;
-            BeginLabels();
-            var s = Widget.ShownState; Vector3 cgU = CoordinateMap.ToUnity(s.Position);
-            float px = PixelM(cgU), txt = px * 9f;
-            var rd = Widget.Read();
-            if (Widget.Show["readout"])
+            // Labels live in FIXED SLOTS on an ellipse around the airplane (8 directions × 2 rows), joined to their arrow by a
+            // thin leader line: the text stays still while the arrow swings (a spin in the locked view turns the airplane in
+            // the frame). A label keeps its slot until its arrow has swung > 35° past it (at most once a second), then fades
+            // into the new one. Numbers: ≤ 4×/s with hysteresis. Pixel-snapped.
+            private sealed class St { public int Slot = -1; public float Alpha; public double[] Shown; public float LastText, LastMove; public string Text; public Vector2 Pos; public bool Has; }
+            private readonly Dictionary<string, St> _st = new();
+            public readonly Dictionary<string, (Vector2 pos, int slot, float alpha)> Last = new();
+            private readonly List<(string id, Vector2 anchor, Vector2 dir, double[] vals, System.Func<double[], string> fmt, Color c, int prio, double step)> _req = new();
+            private Vector2 _centre; private bool _hasCentre;
+
+            public void Request(string id, Vector2 anchor, Vector2 dir, string text, Color c, int prio) => _req.Add((id, anchor, dir, new double[0], _ => text, c, prio, 1));
+            public void Request(string id, Vector2 anchor, Vector2 dir, double[] vals, System.Func<double[], string> fmt, Color c, int prio, double step = 1) => _req.Add((id, anchor, dir, vals, fmt, c, prio, step));
+
+            private List<Rect> _placedRef;
+            private bool Hits(Rect r) { if (_placedRef != null) foreach (var p in _placedRef) if (p.Overlaps(r)) return true; return false; }
+
+            public void Place(WidgetControlsDisplay ui, Rect scene, Vector2 airplane)
             {
-                // A corner readout, in the frame's top-left.
-                var cam = Widget.Cam; Vector3 corner = cam.ViewportToWorldPoint(new Vector3(0.03f, 0.97f, cam.orthographic ? 50f : Vector3.Distance(cam.transform.position, cgU)));
-                string spin = Widget.Current == AeroWidget.Scenario.Cruise
-                    ? $"\nALT {rd.HeightFt:F0} ft  VS {-rd.SinkFpm:+0;-0} fpm  PWR {Widget.Controls.Throttle01 * 100:F0}%"
-                    : Widget.Current == AeroWidget.Scenario.Spin
-                    ? $"\nYAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s\nL WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}\nR WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}"
-                    : $"\nSINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
-                string rev = Widget.Paused && Widget.Show["review"] ? $"REVIEW {(Widget.Review.OffsetMs / 1000.0):+0.0;-0.0;0.0} s{(Widget.Review.Playing ? (Widget.Review.Direction == "reverse" ? "  ◀ " : "  ▶ ") + "×" + Widget.Review.Rate : "")}\n" : "";
-                Label(corner, rev + $"{Widget.AircraftId.Replace("-like", "")}   {rd.Kias:F0} KIAS   α {rd.AlphaDeg:F1}°   PITCH {rd.PitchDeg:+0;-0}°{spin}", Color.white, txt * 0.42f, TextAnchor.UpperLeft);
+                float now = Time.unscaledTime, dt = Mathf.Min(Time.unscaledDeltaTime, 0.1f);
+                bool paused = ui.Paused;
+                // The ring's centre follows the airplane on the screen, heavily filtered (≈ 600 ms).
+                if (!_hasCentre || paused) { _centre = airplane; _hasCentre = true; } else _centre = Vector2.Lerp(_centre, airplane, 1f - Mathf.Exp(-dt / 0.6f));
+                _req.Sort((a, b) => a.prio.CompareTo(b.prio));
+                Last.Clear();
+                float rx = scene.width * 0.36f, ry = scene.height * 0.36f;
+                Vector2 SlotPos(int slot)
+                {
+                    int dirIdx = slot % 8, row = slot / 8;
+                    float ang = dirIdx * Mathf.PI / 4f;   // 0 = right, counter-clockwise
+                    float k = 1f + row * 0.17f;
+                    var p = _centre + new Vector2(Mathf.Cos(ang) * rx * k, Mathf.Sin(ang) * ry * k);
+                    p.x = Mathf.Clamp(p.x, scene.xMin + 110, scene.xMax - 110); p.y = Mathf.Clamp(p.y, scene.yMin + 20, scene.yMax - 46);
+                    return p;
+                }
+                var taken = new HashSet<int>();
+                var placed = new List<Rect>(); _placedRef = placed;
+                Rect RectAt(Vector2 p, float tw) => new Rect(p.x - tw * 0.5f - 4, p.y - 13, tw + 8, 26);
+                foreach (var r in _req)
+                {
+                    if (!_st.TryGetValue(r.id, out var st)) { st = new St(); _st[r.id] = st; }
+                    bool changed = st.Shown == null || st.Shown.Length != r.vals.Length;
+                    if (!changed) for (int i = 0; i < r.vals.Length; i++) if (System.Math.Abs(r.vals[i] - st.Shown[i]) >= r.step * 0.75) changed = true;
+                    if (changed && (paused || now - st.LastText >= 0.25f)) { st.Shown = (double[])r.vals.Clone(); st.LastText = now; st.Text = r.fmt(st.Shown); }
+                    st.Text ??= r.fmt(r.vals);
+                    float twid = st.Text.Length * 17f * 0.53f;
+                    // The arrow's direction from the airplane picks the preferred slot.
+                    Vector2 rel = r.anchor - _centre; float ang = Mathf.Atan2(rel.y / ry, rel.x / rx);
+                    int pref = ((Mathf.RoundToInt(ang / (Mathf.PI / 4f)) % 8) + 8) % 8;
+                    int slot = st.Slot;
+                    if (slot >= 0)
+                    {
+                        float slotAng = (slot % 8) * Mathf.PI / 4f;
+                        float off = Mathf.Abs(Mathf.DeltaAngle(slotAng * Mathf.Rad2Deg, ang * Mathf.Rad2Deg));
+                        bool keep = (off < 22.5f + 45f || now - st.LastMove < 1.5f) && !taken.Contains(slot) && !Hits(RectAt(SlotPos(slot), twid));
+                        if (!keep) slot = -1;
+                    }
+                    if (slot < 0)
+                    {
+                        // nearest free direction (row 0 first, then row 1)
+                        for (int t = 0; t < 16 && slot < 0; t++)
+                        {
+                            int cand = ((pref + (t == 0 ? 0 : ((t + 1) / 2) * (t % 2 == 1 ? 1 : -1))) % 8 + 8) % 8;
+                            if (!taken.Contains(cand) && !Hits(RectAt(SlotPos(cand), twid))) slot = cand;
+                            else if (!taken.Contains(cand + 8) && !Hits(RectAt(SlotPos(cand + 8), twid))) slot = cand + 8;
+                        }
+                        if (slot < 0) slot = pref;
+                    }
+                    taken.Add(slot); placed.Add(RectAt(SlotPos(slot), twid));
+                    if (slot != st.Slot) { if (st.Slot >= 0) st.Alpha = 0f; st.Slot = slot; st.LastMove = now; st.Has = false; }   // fade in AT the new slot — no slide
+                    Vector2 target = SlotPos(slot);
+                    st.Pos = !st.Has || paused ? target : Vector2.Lerp(st.Pos, target, 1f - Mathf.Exp(-dt / 0.3f));
+                    st.Has = true;
+                    st.Alpha = paused ? 1f : Mathf.MoveTowards(st.Alpha, 1f, dt / 0.25f);
+                    var c = r.c; c.a *= st.Alpha;
+                    var drawn = new Vector2(Mathf.Round(st.Pos.x), Mathf.Round(st.Pos.y));
+                    // Leader: from the label's near edge to the arrow's tip.
+                    float tw = st.Text.Length * 17f * 0.53f;
+                    Vector2 edge = drawn + new Vector2(Mathf.Clamp(r.anchor.x - drawn.x, -tw * 0.5f, tw * 0.5f), Mathf.Clamp(r.anchor.y - drawn.y, -11f, 11f));
+                    if ((r.anchor - edge).magnitude > 14f) ui.PxLeader(edge, r.anchor, new Color(c.r, c.g, c.b, 0.5f * c.a));
+                    ui.PxText(drawn, st.Text, 17f, c, TextAnchor.MiddleCenter);
+                    Last[r.id] = (drawn, st.Slot, st.Alpha);
+                }
+                _req.Clear();
             }
-            EndLabels();
         }
 
-        // Lines are drawn after the camera renders the airframe (into the same frame).
+        // ================= world references (thin lines, with the camera) =================
         private void OnPostRender()
         {
             if (Widget == null || Widget.Ac == null || _mat == null) return;
-            var ac = Widget.Ac; var s = Widget.ShownState; var cfg = ac.Config; Vec3 cg = cfg.Mass.CgVec();
-            Vector3 cgU = CoordinateMap.ToUnity(s.Position);
-            float px = PixelM(cgU);
-            double weightN = ac.MassProperties.MassKg * 9.81;
-            // One weight's worth = ~260 px: every force reads against the weight.
-            float perN = 260f * px / (float)weightN;
-            Vector3 W(Vec3 body) => CoordinateMap.ToUnity(s.Attitude.Rotate(body));
-            Vector3 P(Vec3 bodyPos) => CoordinateMap.ToUnity(s.Position + s.Attitude.Rotate(bodyPos - cg));
-
+            float px = PixelM(CoordinateMap.ToUnity(Widget.ShownState.Position));
             _mat.SetPass(0);
             GL.PushMatrix();
             GL.Begin(GL.LINES);
-            var samples = Widget.ShownForces;   // review mode: the shown frame's forces
-            Vec3 lift = Vec3.Zero, drag = Vec3.Zero, thrust = Vec3.Zero, total = Vec3.Zero, wL = Vec3.Zero, wR = Vec3.Zero, dL = Vec3.Zero, dR = Vec3.Zero;
-            foreach (var f in samples)
-            {
-                switch (f.Kind)
-                {
-                    case "lift": lift += f.ForceBody; total += f.ForceBody; if (f.PosBody.Y < -0.3) wL += f.ForceBody; else if (f.PosBody.Y > 0.3) wR += f.ForceBody; break;
-                    case "drag": drag += f.ForceBody; total += f.ForceBody; if (f.PosBody.Y < -0.3) dL += f.ForceBody; else if (f.PosBody.Y > 0.3) dR += f.ForceBody; break;
-                    case "fuselage": case "spoiler": total += f.ForceBody; break;
-                    case "thrust": thrust += f.ForceBody; break;
-                    case "gear":
-                        if (Widget.Show["wheels"] && f.ForceBody.Length > weightN * 0.02) Arrow(P(f.PosBody), W(f.ForceBody) * perN, Wheel, px);
-                        break;
-                }
-                if (Widget.Show["strips"] && (f.Kind == "lift" || f.Kind == "drag")) Arrow(P(f.PosBody), W(f.ForceBody) * perN * 4f, f.Kind == "lift" ? Lift * 0.7f : Drag * 0.7f, px * 0.6f);
-            }
-            Vector3 weightU = Vector3.down * (float)weightN * perN;
-            if (Widget.Current != AeroWidget.Scenario.Spin)   // flare and cruise: the forces at the CG
-            {
-                if (Widget.Show["lift"]) Arrow(cgU, W(lift) * perN, Lift, px);
-                if (Widget.Show["drag"]) Arrow(cgU, W(drag) * perN * 3f, Drag, px);   // drag ×3 so it reads
-                if (Widget.Show["weight"]) Arrow(cgU, weightU, Weight, px);
-                if (Widget.Show["thrust"] && thrust.Length > 1) Arrow(cgU, W(thrust) * perN * 3f, Thrust, px);
-                if (Widget.Show["wind"])
-                {
-                    // Relative wind: arriving at the CG from ahead along the flight path (an arrow pointing INTO the aircraft).
-                    Vector3 v = CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity)); float len = 200f * px;
-                    Arrow(cgU - v.normalized * len * 1.3f, v.normalized * len, Wind, px);
-                    // The chord line through the CG (for α against the wind).
-                    Vector3 fwd = W(new Vec3(1, 0, 0)); Line(cgU - fwd * len * 0.6f, cgU + fwd * len * 0.8f, new Color(1f, 1f, 1f, 0.55f));
-                }
-            }
-            else
-            {
-                double half = Widget.SpanM * 0.5;
-                Vec3 vAir = s.Velocity - s.Attitude.Conjugate().Rotate(FlyingGame.Core.Atmosphere.WindAtPosition(s.Position));
-                foreach (double y in new[] { -half * 0.5, half * 0.5 })
-                {
-                    Vec3 at = cg + new Vec3(0, y, 0);
-                    Vector3 pU = P(at);
-                    if (Widget.Show["wind"])
-                    {
-                        Vec3 local = vAir + Vec3.Cross(s.Rates, new Vec3(0, y, 0));   // the airflow there: the rotation adds ω × r
-                        Vector3 v = W(local).normalized; float len = 170f * px;
-                        Arrow(pU - v * len * 1.25f, v * len, Wind, px);
-                    }
-                    if (Widget.Show["lift"]) Arrow(pU, W(y < 0 ? wL : wR) * perN * 1.6f, Lift, px);
-                    if (Widget.Show["drag"]) Arrow(pU, W(y < 0 ? dL : dR) * perN * 1.6f, Drag, px);
-                }
-                if (Widget.Show["weight"]) Arrow(cgU, weightU, Weight, px);
-                if (Widget.Show["total"]) Arrow(cgU, W(total) * perN, Total, px);
-                if (Widget.Show["axis"] && s.Rates.Length > 0.2)
-                {
-                    Vector3 ax = W(s.Rates).normalized * Mathf.Max(Widget.SpanM, Widget.LengthM) * 0.9f;
-                    Line(cgU - ax, cgU + ax, Axis);
-                }
-            }
             DrawWorld(px);
             GL.End();
             GL.PopMatrix();
-
-            // Labels at the arrow tips (placed here, drawn by the camera next frame — a frame's lag is invisible).
-            PlaceForceLabels(cgU, lift, drag, thrust, total, weightU, perN, px, W, P, cg, wL, wR);
-        }
-
-        private void PlaceForceLabels(Vector3 cgU, Vec3 lift, Vec3 drag, Vec3 thrust, Vec3 total, Vector3 weightU, float perN, float px,
-                                      System.Func<Vec3, Vector3> W, System.Func<Vec3, Vector3> P, Vec3 cg, Vec3 wL, Vec3 wR)
-        {
-            // Done in LateUpdate's pool next frame: stash the positions.
-            _pending.Clear();
-            var rd = Widget.Read(); float t = px * 9f;
-            if (Widget.Current != AeroWidget.Scenario.Spin)
-            {
-                if (Widget.Show["lift"]) _pending.Add((cgU + W(lift) * perN * 1.08f, "LIFT", Lift, cgU));
-                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight, null));
-                if (Widget.Show["drag"]) _pending.Add((cgU + W(drag) * perN * 3.3f - Widget.Cam.transform.up * t * 1.4f, "DRAG ×3", Drag, cgU));   // just below the wind's label
-                if (Widget.Show["wind"]) _pending.Add((cgU - W(Widget.ShownState.Velocity).normalized * 150f * px + Widget.Cam.transform.up * t * 1.4f, $"RELATIVE WIND  α {rd.AlphaDeg:F1}°", Wind, cgU));   // mid-arrow, just above it
-            }
-            else
-            {
-                double half = Widget.SpanM * 0.5;
-                string lt = $"L WING α {rd.LeftAlphaDeg:F0}°{(rd.LeftStalled ? " STALLED" : "")}", rt = $"R WING α {rd.RightAlphaDeg:F0}°{(rd.RightStalled ? " STALLED" : "")}";
-                if (Widget.View == "body") { }   // airplane-fixed, looking along the span: the tips line up — the readout carries each wing's α
-                else
-                {
-                    // Out past each wingtip (clear of the airframe): the left / right wing's α at mid-semispan.
-                    _pending.Add((P(cg + new Vec3(0, -half * 1.35, 0)), lt, rd.LeftStalled ? Drag : Lift, null));
-                    _pending.Add((P(cg + new Vec3(0, half * 1.35, 0)), rt, rd.RightStalled ? Drag : Lift, null));
-                }
-                if (Widget.Show["weight"]) _pending.Add((cgU + weightU * 1.08f, "WEIGHT", Weight, null));
-                if (Widget.Show["total"]) _pending.Add((cgU + W(total) * perN * 1.08f, "TOTAL AERO", Total, cgU));
-            }
-            _pendingScale = t;
-        }
-        private readonly List<(Vector3 at, string text, Color c, Vector3? cg)> _pending = new();
-        private float _pendingScale;
-
-        private void Update()
-        {
-            // Draw last frame's force labels through the pool (LateUpdate adds the readout after these).
-        }
-
-        private void OnPreCull()
-        {
-            if (Widget == null) return;
-            // Re-place the force labels for this frame's render (the readout was placed in LateUpdate).
-            int keep = _used;
-            foreach (var p in _pending)
-            {
-                // An arrow seen nearly end-on (drag and the relative wind from behind) puts its label on the airplane: skip it.
-                if (p.cg.HasValue)
-                {
-                    var cam = Widget.Cam; Vector3 a = cam.WorldToScreenPoint(p.at), b = cam.WorldToScreenPoint(p.cg.Value);
-                    if (a.z <= 0 || new Vector2(a.x - b.x, a.y - b.y).magnitude < 75f * cam.pixelHeight / AeroWidget.FrameSize) continue;
-                }
-                Label(p.at, p.text, p.c, _pendingScale * 0.45f);   // small labels (owner's pick)
-            }
-            EndLabels();
-            _used = keep;
         }
 
         /// <summary>World references (protocol 5): FINAL — the ground line, the runway as a thick white line from its threshold,
@@ -247,7 +411,6 @@ namespace FlyingGame.Bridge.Widget
             {
                 if (w.Condition != "final") return;
                 float L = (float)w.Runway.LengthM, z0 = -L / 2f, z1 = L / 2f, aim = z0 + (float)FlyingGame.Sim.Practice.PracticeScenario.NumbersPastThresholdM;
-                Vector3 up = Vector3.up;
                 Line(new Vector3(0, 0, -20000), new Vector3(0, 0, 20000), new Color(1, 1, 1, 0.45f));                  // the ground
                 for (int k = 0; k <= 4; k++) Line(new Vector3(0, -k * px, z0), new Vector3(0, -k * px, z1), Color.white);   // the runway: 5 px thick
                 for (int k = -1; k <= 1; k++) Line(new Vector3(0, 0, z0 + k * px), new Vector3(0, 14 * px, z0 + k * px), Color.white);   // the threshold
@@ -256,11 +419,9 @@ namespace FlyingGame.Bridge.Widget
             }
             if (!w.Show["horizon"]) return;
             var cam = w.Cam.transform.position;
-            // The horizon: a circle at eye height far out (on a flat world it sits on the eye's level).
             const float R = 15000f; Color hz = new(0.85f, 0.92f, 1f, 0.75f);
             Vector3 prev = cam + new Vector3(R, 0, 0);
             for (int i = 1; i <= 96; i++) { float a = i * Mathf.PI * 2f / 96f; var p = cam + new Vector3(Mathf.Cos(a) * R, 0, Mathf.Sin(a) * R); Line(prev, p, hz); prev = p; }
-            // The ground: a 250 m grid fixed to the earth, around the aircraft.
             Vector3 ac = CoordinateMap.ToUnity(w.ShownState.Position);
             const float G = 250f, E = 4000f; Color gc = new(0.95f, 0.8f, 0.55f, 0.4f);
             float cx = Mathf.Round(ac.x / G) * G, cz = Mathf.Round(ac.z / G) * G;
@@ -270,21 +431,6 @@ namespace FlyingGame.Bridge.Widget
                 Line(new Vector3(cx - E, 0, cz + d), new Vector3(cx + E, 0, cz + d), gc);
             }
         }
-
-        // ---- GL helpers ----
         private static void Line(Vector3 a, Vector3 b, Color c) { GL.Color(c); GL.Vertex(a); GL.Vertex(b); }
-        private void Arrow(Vector3 from, Vector3 vec, Color c, float px)
-        {
-            if (vec.sqrMagnitude < 1e-8f) return;
-            Vector3 to = from + vec;
-            // A thicker shaft: three parallel lines a pixel apart (GL lines are 1 px).
-            Vector3 camUp = Widget.Cam.transform.up, camRight = Widget.Cam.transform.right;
-            Vector3 side = Vector3.Cross(vec.normalized, Widget.Cam.transform.forward).normalized;
-            if (side.sqrMagnitude < 1e-6f) side = camRight;
-            for (int k = -1; k <= 1; k++) Line(from + side * k * px, to + side * k * px, c);
-            float head = Mathf.Min(vec.magnitude * 0.3f, 22f * px);
-            Vector3 back = -vec.normalized * head;
-            for (int k = -1; k <= 1; k++) { Line(to + side * k * px * 0.5f, to + back + side * head * 0.45f, c); Line(to + side * k * px * 0.5f, to + back - side * head * 0.45f, c); }
-        }
     }
 }

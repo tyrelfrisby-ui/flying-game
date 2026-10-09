@@ -258,7 +258,8 @@ public static class AeroModel
         bool[]? surfaceMask = null,
         bool[]? stripMask = null,
         Vec3? meanWindBody = null,
-        double wingHeightAglM = double.PositiveInfinity)
+        double wingHeightAglM = double.PositiveInfinity,
+        double slipstreamSwirlMs = 0.0)
     {
         int stripIndex = 0;
         // GROUND EFFECT (owner 2026-10-03: "is it even modeled?" — it was not). Within about a span of the surface the
@@ -348,6 +349,15 @@ public static class AeroModel
                 if (slipstreamDeltaU > 0.0 && !isWing && System.Math.Abs(strip.PosVec().Y) < slipstreamRadius)
                 {
                     vLocal = new Vec3(vLocal.X + slipstreamDeltaU, vLocal.Y, vLocal.Z);
+                    // Swirl (owner 2026-10-09): the slipstream rotates with the prop, so the two stab halves see the
+                    // flow angle change in opposite senses — a RH prop (clockwise from behind) carries the air UP past the
+                    // left half and DOWN past the right. Solid-body rotation across the tube.
+                    if (!isVertical && slipstreamSwirlMs != 0.0 && slipstreamRadius > 0.0)
+                    {
+                        double yy = strip.PosVec().Y;
+                        double airDown = slipstreamSwirlMs * (yy / slipstreamRadius);   // + = air moving down (z) at this strip
+                        vLocal = new Vec3(vLocal.X, vLocal.Y, vLocal.Z - airDown);
+                    }
                 }
 
                 if (wingBody)
@@ -366,6 +376,7 @@ public static class AeroModel
                 double alphaBase;
                 Vec3 dragDir, liftDir, momentAxis;
                 double planeSpeed;
+                double tailEps = 0.0;
 
                 if (isVertical)
                 {
@@ -414,6 +425,7 @@ public static class AeroModel
                         // flap / tail interaction): the flap's effective incidence shift, scaled like the wing's own alpha.
                         eps += 0.4 * flapDownwashRad * (1.0 - wake.StalledFraction);
                         alphaBase -= eps * gePhi;   // ground effect: the ground blocks part of the downwash
+                        tailEps = eps * gePhi;
                     }
 
                     double dx = uu / planeSpeed, dz = ww / planeSpeed;
@@ -626,6 +638,14 @@ public static class AeroModel
                 }
 
                 double q = 0.5 * airDensity * planeSpeed * planeSpeed * qFactor;
+                if (!isWing && !isVertical && strip.PosVec().X < -1.0 && ForceDebug.Samples is not null)
+                {
+                    // Tail flow for the overlay (protocol 7): the local airflow this stab strip flies in (downwash, slipstream,
+                    // swirl, rotation included) as a body vector, and (α_t, ε, η_t = q_local / q_freestream).
+                    Vec3 vInf = bodyVelocity - windBody; double v2 = Math.Max(1e-6, vInf.X * vInf.X + vInf.Y * vInf.Y + vInf.Z * vInf.Z);
+                    ForceDebug.Add(stripAt, new Vec3(planeSpeed * Math.Cos(alphaBase), vLocal.Y, planeSpeed * Math.Sin(alphaBase)),
+                        new Vec3(alphaBase + strip.IncidenceRad, tailEps, qFactor * planeSpeed * planeSpeed / v2), "tailflow");
+                }
                 if (strip.Control is not null && flowState is not null && idx < flowState.HingeQ.Length)
                 {
                     // Reversible controls: the flow a free surface trails in — the fixed surface's local angle (downwash,

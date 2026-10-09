@@ -82,14 +82,112 @@ namespace FlyingGame.Bridge.Widget
             else ViewFrom = "";
             View = name;
         }
+        /// <summary>PROTOCOL 6: "ntsb" (default — the airplane above, the instrument plates below, on transparency) or
+        /// "classic" (the picture + the protocol-4 control panel). Split = the panel's fraction of the frame's height.</summary>
+        public string DisplayMode = "ntsb";
+        public float Split = 0.45f;
+        /// <summary>The fleet's name for the type, in capitals ("PITTS S-2").</summary>
+        public string AircraftName
+        {
+            get { foreach (var f in SessionSettings.Fleet) if (f.id == AircraftId) return f.name.ToUpperInvariant(); return AircraftId.Replace("-like", "").ToUpperInvariant(); }
+        }
+
+        private readonly Dictionary<string, double> _critAlpha = new(), _stallKias = new();
+        private readonly Dictionary<string, Vec3> _np = new();
+        /// <summary>The neutral point (body, config coords): where an increment of lift acts — dM/dL from two angles of attack
+        /// on the aero model. TOTAL AERO is drawn from here.</summary>
+        public Vec3 NeutralPointBody()
+        {
+            double flaps = Ac.FlapFraction; string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}";
+            Vec3 cg = Config.Mass.CgVec();
+            if (_np.TryGetValue(key, out var v)) return new Vec3(v.X, 0, cg.Z);
+            var tables = Aircraft.BuildAirfoilTables(Config);
+            (double L, double M) At(double aDeg)
+            {
+                double ar = aDeg * System.Math.PI / 180, V = 40;
+                var keep = FlyingGame.Core.Aero.ForceDebug.Samples; var list = new List<FlyingGame.Core.Aero.ForceSample>();
+                FlyingGame.Core.Aero.ForceDebug.Samples = list;
+                FlyingGame.Core.Aero.AeroModel.Compute(Config, tables, new Vec3(V * System.Math.Cos(ar), 0, V * System.Math.Sin(ar)), Vec3.Zero, Vec3.Zero, 1.225, new FlyingGame.Core.Aero.ControlDeflections(0, 0, 0, 0, flaps));
+                FlyingGame.Core.Aero.ForceDebug.Samples = keep;
+                double fz = 0, my = 0;
+                foreach (var f in list)
+                {
+                    if (f.Kind == "tailflow") continue;
+                    fz += f.ForceBody.Z; my += f.PosBody.Z * f.ForceBody.X - f.PosBody.X * f.ForceBody.Z + f.MomentBody.Y;
+                }
+                return (-fz, my);
+            }
+            var (l1, m1) = At(2); var (l2, m2) = At(6);
+            double x = System.Math.Abs(l2 - l1) > 1 ? (m2 - m1) / (l2 - l1) : cg.X;
+            _np[key] = new Vec3(x, 0, cg.Z);
+            return new Vec3(x, 0, cg.Z);
+        }
+        private readonly Dictionary<string, Vec3> _midSpan = new();
+        /// <summary>Mid-semispan point of the left (−1) or right (+1) wing (body, config coords).</summary>
+        public Vec3 WingMidSpan(int side)
+        {
+            string key = AircraftId + side;
+            if (_midSpan.TryGetValue(key, out var v)) return v;
+            double maxY = 0;
+            foreach (var sf in Config.Surfaces) if (sf.Id.ToLowerInvariant().Contains("wing")) foreach (var st in sf.Strips) maxY = System.Math.Max(maxY, side * st.PosVec().Y);
+            Vec3 best = new(Config.Mass.CgVec().X, side * SpanM * 0.25, Config.Mass.CgVec().Z); double bd = double.MaxValue;
+            foreach (var sf in Config.Surfaces) if (sf.Id.ToLowerInvariant().Contains("wing")) foreach (var st in sf.Strips)
+            { var p = st.PosVec(); if (side * p.Y <= 0) continue; double d = System.Math.Abs(side * p.Y - maxY * 0.5); if (d < bd) { bd = d; best = p; } }
+            _midSpan[key] = best;
+            return best;
+        }
+        /// <summary>The type's critical (stall) angle of attack with these flaps: the α of peak lift, swept on the aero model.</summary>
+        public double CriticalAlphaDeg(double flaps)
+        {
+            string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}";
+            if (_critAlpha.TryGetValue(key, out double v)) return v;
+            var tables = Aircraft.BuildAirfoilTables(Config);
+            double best = double.MinValue, bestA = 15;
+            for (double a = 0; a <= 35; a += 0.25)
+            {
+                double ar = a * System.Math.PI / 180, V = 40;
+                var (F, _) = FlyingGame.Core.Aero.AeroModel.Compute(Config, tables, new Vec3(V * System.Math.Cos(ar), 0, V * System.Math.Sin(ar)), Vec3.Zero, Vec3.Zero, 1.225,
+                    new FlyingGame.Core.Aero.ControlDeflections(0, 0, 0, 0, flaps));
+                double lift = F.X * System.Math.Sin(ar) - F.Z * System.Math.Cos(ar);
+                if (lift > best) { best = lift; bestA = a; }
+            }
+            _critAlpha[key] = bestA;
+            return bestA;
+        }
+        /// <summary>The 1-g stall speed (KIAS) with these flaps — the red band on the airspeed tape.</summary>
+        public double StallKias(double flaps)
+        {
+            string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}|{Config.Mass.MassKg:0}";
+            if (_stallKias.TryGetValue(key, out double v)) return v;
+            v = PracticeScenario.EstimateVso(Config, 0, flaps) * 1.943844;
+            _stallKias[key] = v;
+            return v;
+        }
+
+        /// <summary>The airplane drawn larger than life when the side view is so wide it would be a few pixels (FINAL's
+        /// framing): labelled "AIRPLANE ×N"; 1 = true scale. Physics, vectors and the camera are unchanged.</summary>
+        public float VisualScale { get; private set; } = 1f;
+        private void ApplyVisualScale()
+        {
+            float k = 1f;
+            if (Cam.orthographic && Cam.orthographicSize > 0)
+            {
+                float lenPx = LengthM * Cam.pixelHeight / (2f * Cam.orthographicSize);
+                if (lenPx < 110f) k = Mathf.Max(1f, Mathf.Round(110f / Mathf.Max(1f, lenPx)));
+            }
+            VisualScale = k;
+            _visualRoot.localScale = Vector3.one * k;
+        }
+
         /// <summary>Control display (protocol 4): where, and how big (fraction of the picture).</summary>
         public string ControlsPlace = "bottom";
         public float ControlsSize = 0.28f;
         public readonly Dictionary<string, bool> Show = new()
         {
-            ["lift"] = true, ["drag"] = true, ["weight"] = true, ["thrust"] = true, ["wind"] = true, ["total"] = true,
-            ["axis"] = true, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false, ["review"] = true,
-            ["controlsDisplay"] = false, ["controlTraces"] = false, ["horizon"] = true,
+            ["lift"] = false, ["drag"] = false, ["weight"] = false, ["thrust"] = true, ["wind"] = false, ["total"] = true,
+            ["axis"] = false, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false, ["review"] = true,
+            ["controlsDisplay"] = false, ["controlTraces"] = false, ["horizon"] = true, ["vectors"] = false,
+            ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
         };
 
         public AircraftConfig Config { get; private set; }
@@ -106,7 +204,9 @@ namespace FlyingGame.Bridge.Widget
         public RenderTexture Frame { get; private set; }
         private GameObject _surface;
         private WidgetVectors _vectors;
+        public WidgetVectors Vectors => _vectors;
         private WidgetControlsDisplay _display;
+        public WidgetControlsDisplay Display => _display;
         private WidgetOutputs _outputs;
         private WidgetServer _server;
         public WidgetControls Controls { get; private set; }
@@ -510,6 +610,7 @@ namespace FlyingGame.Bridge.Widget
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
             _builder.SpinProps(_ => (float)Ac.EngineRpm, dt);
             PlaceCamera();
+            ApplyVisualScale();
         }
 
         /// <summary>The frame being reviewed (null = live).</summary>
@@ -525,6 +626,7 @@ namespace FlyingGame.Bridge.Widget
             _builder.SetDeflections((float)f.Defl.AileronRad, (float)f.Defl.ElevatorRad, (float)f.Defl.RudderRad, (float)f.Defl.SpoilerFraction);
             Cam.orthographic = f.Ortho; Cam.orthographicSize = f.OrthoSize; Cam.fieldOfView = f.Fov;
             Cam.transform.SetPositionAndRotation(f.CamPos, f.CamRot);
+            ApplyVisualScale();
         }
 
         /// <summary>What the picture shows right now: the reviewed frame's, or the live aircraft's.</summary>
