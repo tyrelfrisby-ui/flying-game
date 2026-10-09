@@ -115,9 +115,9 @@ let S={},FIT=null;
 const NAMES={vectors:'All vectors',wingWind:'Wing relative winds',tailWind:'Tail relative winds (downwash)',inertial:'Inertial force',total:'Total aero force',tail:'Tail force',moments:'Pitch moments',
  lift:'Lift',drag:'Drag',weight:'Weight',thrust:'Thrust',wind:'Relative wind (CG)',strips:'Per-strip lift/drag',axis:'Rotation axis',wheels:'Wheel loads',labels:'Labels',
  readout:'Readout (classic)',review:'REVIEW tag',controlsDisplay:'Control panel (classic)',controlTraces:'Control traces',horizon:'Horizon + ground grid',cgnp:'CG / NP marks',
- liftComponents:'Lift components',wingDrag:'Each wing\'s drag',groundTrack:'Ground track + wind',aimPoint:'Aim point',propEffects:'Prop effects'};
+ liftComponents:'Lift components',wingDrag:'Each wing\'s drag',groundTrack:'Ground track + wind',aimPoint:'Aim point',propEffects:'Prop effects',yawMoment:'Yaw moment',finForce:'Fin side force',bodyAxes:'Body axes'};
 const INSETS={clAlpha:'CL–α curve',liftDrag:'L/D curve',powerRequired:'Power required',ball:'Slip/skid ball',aoa:'AoA gauge',wb:'Weight & balance'};
-const GROUPS=[['Forces & flow',['vectors','wingWind','tailWind','inertial','total','tail','moments','lift','drag','weight','thrust','wind','strips','wheels','axis','liftComponents','wingDrag','propEffects']],
+const GROUPS=[['Forces & flow',['vectors','wingWind','tailWind','inertial','total','tail','moments','yawMoment','finForce','bodyAxes','lift','drag','weight','thrust','wind','strips','wheels','axis','liftComponents','wingDrag','propEffects']],
  ['Picture',['labels','horizon','cgnp','groundTrack','aimPoint','readout','review','controlsDisplay','controlTraces']]];
 function buildChips(){const c=document.getElementById('chips');c.innerHTML='';
  GROUPS.forEach(([g,keys])=>{const d=document.createElement('div');d.className='grp';d.textContent=g;c.appendChild(d);

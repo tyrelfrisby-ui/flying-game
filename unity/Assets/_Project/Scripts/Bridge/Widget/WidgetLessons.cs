@@ -139,12 +139,12 @@ namespace FlyingGame.Bridge.Widget
             // 5 — glide
             Add("stretch-the-glide", "You can't stretch a glide", "The glide angle is set by L/D; best glide is the α of max L/D. Pulling back past it steepens the glide.",
                 L => { Cruise(L); L.C.Throttle01 = 0; Show(L, "vectors", "wind"); Inset(L, "liftDrag", "aoa"); L.Results.Clear(); },
-                P("BEST GLIDE α — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha(), dt); L.HoldBank(0, dt); }),
-                P("BEST GLIDE α — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha(), dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("BEST GLIDE")),
-                P("TOO SLOW (α +5°) — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() + 5, dt); L.HoldBank(0, dt); }),
-                P("TOO SLOW — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() + 5, dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("TOO SLOW")),
-                P("TOO FAST (α −2.5°) — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() - 2.5, dt); L.HoldBank(0, dt); }),
-                P("TOO FAST — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() - 2.5, dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("TOO FAST")));
+                P("BEST GLIDE SPEED — settling", 14, (L, dt) => L.GlideAt(L.BestGlideKias(), dt)),
+                P("BEST GLIDE SPEED — measuring", 18, (L, dt) => L.GlideAt(L.BestGlideKias(), dt), null, L => L.GlideStart(), L => L.GlideEnd("BEST GLIDE")),
+                P("TOO SLOW (−15 kt) — settling", 14, (L, dt) => L.GlideAt(L.BestGlideKias() - 15, dt)),
+                P("TOO SLOW — measuring", 18, (L, dt) => L.GlideAt(L.BestGlideKias() - 15, dt), null, L => L.GlideStart(), L => L.GlideEnd("TOO SLOW")),
+                P("TOO FAST (+20 kt) — settling", 14, (L, dt) => L.GlideAt(L.BestGlideKias() + 20, dt)),
+                P("TOO FAST — measuring", 18, (L, dt) => L.GlideAt(L.BestGlideKias() + 20, dt), null, L => L.GlideStart(), L => L.GlideEnd("TOO FAST")));
             // 6 — back side
             Add("back-side", "The back side of the power curve", "Below the minimum-power speed it takes MORE power to fly slower. The autopilot holds altitude while the speed comes down.",
                 L => { Cruise(L); Inset(L, "powerRequired", "aoa"); L.W.Autopilot.Engage(null, 100, at: true, yd: true); L.Results.Clear(); },
@@ -306,6 +306,24 @@ namespace FlyingGame.Bridge.Widget
             Results.Add($"{tag}: {(drop > 1 ? dist / drop : 0):0.0}:1 at {R.Kias:0} KIAS");
         }
         private double _bestA = double.NaN; private string _bestKey;
+        /// <summary>Glide at an airspeed, power idle: the autopilot's level-change pitch holds the speed (wings level by the lesson).</summary>
+        public void GlideAt(double kias, float dt)
+        {
+            var ap = _w.Autopilot;
+            if (!ap.On || !ap.PitchOnly || ap.PitchMode != "flc") { ap.Engage(0, kias, "flc", null, null, null, false, false); ap.PitchOnly = true; ap.PitchMode = "flc"; }
+            ap.Kias = kias; ap.AltFt = -1000; ap.AutoThrottle = false; ap.AllowStall = true; ap.YawDamper = false;
+            C.Throttle01 = 0; HoldBank(0, dt); _levelUsed = true;
+        }
+        private double _bgKias = double.NaN; private string _bgKey;
+        /// <summary>The trimmed best-glide speed (max L/D over a glide-trim sweep), KIAS.</summary>
+        public double BestGlideKias()
+        {
+            string key = _w.AircraftId + _w.Config.Mass.MassKg.ToString("0");
+            if (_bgKey == key) return _bgKias;
+            var cfg = _w.Config; double alt = System.Math.Max(300, -_w.Ac.State.Position.Z), vso = FlyingGame.Sim.Practice.PracticeScenario.EstimateVso(cfg, alt, 0), best = 0, bv = vso * 1.4;
+            for (double v = vso * 1.1; v <= vso * 2.6; v += 0.25) { var t = FlyingGame.Sim.TrimSolver.SolveGliderTrim(cfg, v, alt); if (t.Converged && t.GlideRatio > best) { best = t.GlideRatio; bv = v; } }
+            _bgKey = key; _bgKias = bv * System.Math.Sqrt(Atmosphere.DensityAtAltitude(alt) / 1.225) * 1.943844; return _bgKias;
+        }
         public double BestGlideAlpha()
         {
             string key = _w.AircraftId + _w.Ac.FlapFraction.ToString("0.00");

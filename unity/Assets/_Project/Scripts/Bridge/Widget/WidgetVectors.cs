@@ -44,6 +44,7 @@ namespace FlyingGame.Bridge.Widget
         {
             public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
             public double LiftN, DragN, BallDeg;
+            public double MomYaw, FinN, FinYaw; public bool HasFin;
             public double AeroG, InertialG, TailN, MomAero, MomInertia, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
         }
@@ -58,6 +59,7 @@ namespace FlyingGame.Bridge.Widget
             Vec3 windB = s.Attitude.Conjugate().Rotate(Atmosphere.WindAtPosition(s.Position));
             Vec3 vAir = s.Velocity - windB; pic.VInf = vAir.Length;
 
+            Vec3 finF = Vec3.Zero, finPos = Vec3.Zero; double finW = 0, nAero = 0, nFin = 0;
             Vec3 aero = Vec3.Zero, nonGrav = Vec3.Zero, thrust = Vec3.Zero, lift = Vec3.Zero, drag = Vec3.Zero, tailF = Vec3.Zero, tailPos = Vec3.Zero, thrustPos = Vec3.Zero;
             double mAero = 0, tailW = 0;
             var tailL = new List<ForceSample>(); var tailR = new List<ForceSample>();
@@ -73,6 +75,11 @@ namespace FlyingGame.Bridge.Widget
                             aero += f.ForceBody;
                             Vec3 r = f.PosBody - cg;
                             mAero += (r.Z * f.ForceBody.X - r.X * f.ForceBody.Z) + f.MomentBody.Y;
+                            double nz = r.X * f.ForceBody.Y - r.Y * f.ForceBody.X + f.MomentBody.Z;   // yaw moment about the CG (nose-right +)
+                            nAero += nz;
+                            // The vertical tail (fin + rudder): aft, force mostly sideways.
+                            if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X < cg.X - 0.35 * w.LengthM && System.Math.Abs(f.ForceBody.Y) > System.Math.Abs(f.ForceBody.Z))
+                            { finF += f.ForceBody; double a2 = System.Math.Abs(f.ForceBody.Y) + 1e-6; finPos += f.PosBody * a2; finW += a2; nFin += nz; }
                             if (f.Kind == "lift") lift += f.ForceBody; else if (f.Kind == "drag") drag += f.ForceBody;
                             // The horizontal tail: aft, and its force mostly vertical (the fin's is sideways).
                             if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X < cg.X - 0.35 * w.LengthM && System.Math.Abs(f.ForceBody.Z) >= System.Math.Abs(f.ForceBody.Y))
@@ -105,6 +112,8 @@ namespace FlyingGame.Bridge.Widget
             // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.
             Vec3 om = s.Rates;
             double hx = mp.Ixx * om.X - mp.Ixz * om.Z, hz = mp.Izz * om.Z - mp.Ixz * om.X;
+            pic.MomYaw = nAero; pic.FinYaw = nFin;
+            if (finW > 0) { pic.HasFin = true; pic.FinN = finF.Y; pic.V["fin"] = (finPos * (1.0 / finW), new Vec3(0, finF.Y * 12.0 / W, 0)); }   // ×12: a fin force is small against the weight
             pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz);
             // Wing winds at mid-semispan (ω × r).
             foreach (int side in new[] { -1, 1 })
@@ -257,6 +266,52 @@ namespace FlyingGame.Bridge.Widget
                 foreach (var f in w.Ac.LastForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
                     { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b) && ClipToScene(ref a, ref b, scene)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
 
+            // The vertical tail's side force (directional stability: it pushes the tail back into line; or the rudder's yaw force).
+            if (On("finForce") && P.HasFin && F.ContainsKey("fin"))
+            {
+                Arrow("fin", Wind * 0.9f + Color.white * 0.1f, gPx);
+                double lb = P.FinN * 0.2248;   // body y: + = force to the right
+                _labels.Request("fin", Tip("fin", gPx), Away(Origin("fin"), Tip("fin", gPx)), new[] { System.Math.Abs(lb), w.Read().BetaDeg },
+                    v => $"FIN SIDE FORCE {(lb >= 0 ? "→ R" : "← L")} {v[0]:0} lb (×12) · β {v[1]:+0;-0}°", new Color(0.55f, 0.95f, 1f), 3, 3);
+            }
+            // The body axes through the CG: longitudinal (x), lateral (y), vertical (z).
+            if (On("bodyAxes"))
+            {
+                float L = (float)w.LengthM * 0.75f + 1f;
+                foreach (var (ax, col, nm) in new[] { (new Vec3(1, 0, 0), new Color(1f, 0.45f, 0.85f), "LONGITUDINAL"), (new Vec3(0, 1, 0), new Color(0.45f, 1f, 0.55f), "LATERAL"), (new Vec3(0, 0, 1), new Color(0.5f, 0.7f, 1f), "VERTICAL") })
+                {
+                    Vector3 d = Dir(ax) * (ax.Y != 0 ? (float)w.SpanM * 0.65f + 1f : L);
+                    if (Scr(cgU - d, out var a) && Scr(cgU + d, out var b))
+                    {
+                        // dashed, so it reads as a reference line, not a force
+                        for (int k = 0; k < 20; k += 2) { Vector2 p0 = Vector2.Lerp(a, b, k / 20f), p1 = Vector2.Lerp(a, b, (k + 1) / 20f); if (ClipToScene(ref p0, ref p1, scene)) ui.PxLine(p0, p1, 2.2f, col); }
+                        var tipEnd = ax.Z != 0 ? a : b;   // label the vertical axis at its top (−z), the others at their + end
+                        _labels.Request("axis" + nm, tipEnd, (tipEnd - (a + b) * 0.5f).normalized, nm + " AXIS", col, 7);
+                    }
+                }
+            }
+            // The YAW moment about the vertical axis: a tight circular arrow above AND below the airplane (seen from either side).
+            if (On("yawMoment"))
+            {
+                double nRef = w.Ac.MassProperties.MassKg * 9.81 * 0.015 * System.Math.Max(2, w.LengthM);
+                float h = (float)System.Math.Max(1.2, w.LengthM * 0.28), r0 = (float)System.Math.Max(0.8, w.LengthM * 0.22);
+                Vector3 X = Dir(new Vec3(1, 0, 0)), Y = Dir(new Vec3(0, 1, 0)), Up = -Dir(new Vec3(0, 0, 1));
+                double nf = P.MomYaw; float sweep = Mathf.Clamp((float)(System.Math.Abs(nf) / nRef) * 120f, 40f, 300f) * Mathf.Deg2Rad, sgn = nf >= 0 ? 1f : -1f;   // + = nose RIGHT
+                foreach (float side in new[] { 1f, -1f })
+                {
+                    Vector3 C = cgU + Up * h * side; var pts = new List<Vector2>();
+                    for (int i = 0; i <= 26; i++)
+                    {
+                        float th = -sgn * sweep * 0.5f + sgn * sweep * i / 26f;   // increasing θ: from +x toward +y = nose right
+                        Vector3 pw = C + (X * Mathf.Cos(th) + Y * Mathf.Sin(th)) * r0;
+                        if (!Scr(pw, out var q) || !scene.Contains(q)) { pts.Clear(); break; }
+                        pts.Add(q);
+                    }
+                    if (pts.Count > 3) ui.PxPolyArrow(pts, lw * 0.85f, new Color(0.45f, 1f, 0.85f));
+                    if (side > 0 && pts.Count > 3) _labels.Request("yawM", pts[pts.Count / 2], Vector2.up, new[] { System.Math.Abs(nf) * 0.7376, nf, System.Math.Abs(P.FinYaw) * 0.7376 },
+                        v => $"YAW {(v[1] >= 0 ? "nose-right" : "nose-left")} {v[0]:#,0} ft·lb (fin {v[2]:#,0})", new Color(0.45f, 1f, 0.85f), 2, 10);
+                }
+            }
             // CG and neutral-point marks (weight & balance; lessons): the CG a black-and-yellow disc, the NP a red ring.
             if (On("cgnp"))
             {

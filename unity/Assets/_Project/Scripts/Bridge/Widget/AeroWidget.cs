@@ -183,6 +183,8 @@ namespace FlyingGame.Bridge.Widget
             ["axis"] = false, ["wheels"] = true, ["labels"] = true, ["readout"] = true, ["strips"] = false, ["review"] = true,
             ["controlsDisplay"] = false, ["controlTraces"] = false, ["horizon"] = true, ["vectors"] = false,
             ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
+            ["yawMoment"] = false, ["finForce"] = false, ["bodyAxes"] = false, ["cgnp"] = false,
+            ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["aimPoint"] = false, ["propEffects"] = false,
         };
 
         public AircraftConfig Config { get; private set; }
