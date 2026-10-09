@@ -75,8 +75,10 @@ namespace FlyingGame.Bridge.Widget
         public void Seed() { _eI = C.Elevator; _aI = C.Aileron; _rI = C.Rudder; }
         public double Alt0;
 
-        private static Phase P(string label, float s, System.Action<WidgetLessons, float> tick, System.Func<WidgetLessons, bool> done = null, System.Action<WidgetLessons> enter = null)
-            => new() { Label = label, Seconds = s, Tick = tick, Done = done, Enter = enter };
+        private static Phase P(string label, float s, System.Action<WidgetLessons, float> tick, System.Func<WidgetLessons, bool> done = null, System.Action<WidgetLessons> enter = null, System.Action<WidgetLessons> exit = null)
+            => new() { Label = label, Seconds = s, Tick = tick, Done = done, Enter = enter, Exit = exit };
+        /// <summary>A note at the END of a phase with its averages (yaw, roll, pitch, α) — e.g. the spin with/against aileron.</summary>
+        private static System.Action<WidgetLessons> Avg(string tag) => L => L.Results.Add($"{tag}: yaw {L._yawAvg:0}°/s, roll {L._rollAvg:0}°/s, pitch {L._pitchAvg:0}°, α {L._aAvg:0}°");
 
         private static void Add(string id, string name, string concept, System.Action<WidgetLessons> setup, params Phase[] phases)
             => _all.Add(new Lesson { Id = id, Name = name, Concept = concept, Setup = setup, Phases = new List<Phase>(phases) });
@@ -137,10 +139,12 @@ namespace FlyingGame.Bridge.Widget
             // 5 — glide
             Add("stretch-the-glide", "You can't stretch a glide", "The glide angle is set by L/D; best glide is the α of max L/D. Pulling back past it steepens the glide.",
                 L => { Cruise(L); L.C.Throttle01 = 0; Show(L, "vectors", "wind"); Inset(L, "liftDrag", "aoa"); L.Results.Clear(); },
-                P("BEST GLIDE α", 25, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha(), dt); L.HoldBank(0, dt); }, null, L => L.GlideStart()),
-                P("TOO SLOW (α +5°)", 25, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() + 5, dt); L.HoldBank(0, dt); }, null, L => { L.GlideEnd("BEST"); L.GlideStart(); }),
-                P("TOO FAST (α −2.5°)", 25, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() - 2.5, dt); L.HoldBank(0, dt); }, null, L => { L.GlideEnd("SLOW"); L.GlideStart(); }),
-                P("RESULTS", 3, (L, dt) => { }, null, L => L.GlideEnd("FAST")));
+                P("BEST GLIDE α — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha(), dt); L.HoldBank(0, dt); }),
+                P("BEST GLIDE α — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha(), dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("BEST GLIDE")),
+                P("TOO SLOW (α +5°) — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() + 5, dt); L.HoldBank(0, dt); }),
+                P("TOO SLOW — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() + 5, dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("TOO SLOW")),
+                P("TOO FAST (α −2.5°) — settling", 12, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() - 2.5, dt); L.HoldBank(0, dt); }),
+                P("TOO FAST — measuring", 18, (L, dt) => { L.C.Throttle01 = 0; L.HoldAlpha(L.BestGlideAlpha() - 2.5, dt); L.HoldBank(0, dt); }, null, L => L.GlideStart(), L => L.GlideEnd("TOO FAST")));
             // 6 — back side
             Add("back-side", "The back side of the power curve", "Below the minimum-power speed it takes MORE power to fly slower. The autopilot holds altitude while the speed comes down.",
                 L => { Cruise(L); Inset(L, "powerRequired", "aoa"); L.W.Autopilot.Engage(null, 100, at: true, yd: true); L.Results.Clear(); },
@@ -161,7 +165,7 @@ namespace FlyingGame.Bridge.Widget
                 P("SLOWING TO 70 KT", 40, (L, dt) => { }, L => L.R.Kias < 73),
                 P("AILERON ONLY — roll left, feet still", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = 0; L.HoldLevel(L.Alt0, dt); L.YawSample(); }, null, L => { L.W.Autopilot.Off(); L.YawStart(); }),
                 P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); }, null, L => L.YawEnd("AILERON ONLY")),
-                P("AILERON + RUDDER — coordinated", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = -0.25; L.HoldLevel(L.Alt0, dt); L.YawSample(); }, null, L => L.YawStart()),
+                P("AILERON + RUDDER — coordinated", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = -0.5; L.HoldLevel(L.Alt0, dt); L.YawSample(); }, null, L => L.YawStart()),
                 P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); }, null, L => L.YawEnd("COORDINATED")));
             // 10 — slips and skids
             Add("forward-slip", "The forward slip", "Crossed controls: wing down one way, opposite rudder. The airplane flies sideways to the air (β), drag soars, the descent steepens at the same speed.",
@@ -185,21 +189,23 @@ namespace FlyingGame.Bridge.Widget
             // 12 — stability
             Add("longitudinal-stability", "Longitudinal stability", "With the CG ahead of the neutral point the airplane returns to its trimmed angle of attack after a disturbance; the tail's down-force is the lever.",
                 L => { Cruise(L); Show(L, "vectors", "cgnp"); Inset(L, "aoa", "wb"); },
-                P("TRIMMED, hands off", 6, (L, dt) => { }),
-                P("A GUST: nose up for a second", 1.2f, (L, dt) => { L.C.Elevator = L.TrimStick - 0.4; }),
-                P("HANDS OFF — it returns to its trimmed α", 25, (L, dt) => { L.C.Elevator = L.TrimStick; }));
+                P("TRIMMED, hands off", 6, (L, dt) => { }, null, null, L => L._mark = L.R.AlphaDeg),
+                P("A GUST: nose up for a second", 1.0f, (L, dt) => { L.C.Elevator = L.TrimStick - 0.12; }, null, null, L => L._mark2 = L.R.AlphaDeg),
+                P("HANDS OFF — it returns to its trimmed α", 25, (L, dt) => { L.C.Elevator = L.TrimStick; }, null, null,
+                    L => L.Results.Add($"trimmed α {L._mark:0.0}° → disturbed {L._mark2:0.0}° → after 25 s hands-off {L.R.AlphaDeg:0.0}° (CG {L.W.Loading.CgMac:0} %, NP {L.W.Loading.NpMac:0} % MAC)")));
             Add("weathervane", "Directional stability", "The fin weathervanes the airplane back into the relative wind after a yaw.",
                 L => { Cruise(L, "c172-like", "top"); Show(L, "vectors", "wind"); Inset(L, "ball"); },
-                P("A YAW KICK", 1.5f, (L, dt) => { L.C.Rudder = 0.7; }),
-                P("FEET OFF — it swings back", 15, (L, dt) => { L.C.Rudder = L.TrimRud; }));
+                P("A YAW KICK", 1.5f, (L, dt) => { L.C.Rudder = L.TrimRud + 0.5; }, null, null, L => L._mark = L.R.BetaDeg),
+                P("FEET OFF — it swings back", 15, (L, dt) => { L.C.Rudder = L.TrimRud; }, null, null, L => L.Results.Add($"sideslip {L._mark:+0.0;-0.0}° after the kick → {L.R.BetaDeg:+0.0;-0.0}° 15 s later")));
             Add("dihedral", "Lateral stability (dihedral)", "Sideslip makes the low wing meet the air at a higher angle and roll the wings back toward level.",
                 L => { Cruise(L, "c172-like", "front"); Show(L, "vectors"); Inset(L, "ball"); },
-                P("ROLL TO 15°, then let go", 2, (L, dt) => { L.HoldBank(15, dt, false); }),
-                P("HANDS OFF — the slip rolls it back (or not)", 20, (L, dt) => { L.C.Aileron = L.TrimAil; L.C.Rudder = L.TrimRud; }));
+                P("ROLL TO 15°, then let go", 4, (L, dt) => { L.HoldBank(15, dt, false); }, null, null, L => L._mark = L.R.RollDeg),
+                P("HANDS OFF — the slip rolls it back (or not)", 20, (L, dt) => { L.C.Aileron = L.TrimAil; L.C.Rudder = L.TrimRud; }, null, null, L => L.Results.Add($"bank {L._mark:0}° when released → {L.R.RollDeg:0}° after 20 s")));
             Add("spiral", "The spiral tendency", "Left alone in a bank, most airplanes slowly tighten into a descending spiral.",
                 L => { Cruise(L, "c172-like", "behind"); Show(L, "vectors"); Inset(L, "ball", "aoa"); },
-                P("BANK 20° AND LET GO", 3, (L, dt) => { L.HoldBank(20, dt); }),
-                P("HANDS OFF", 40, (L, dt) => { L.C.Aileron = L.TrimAil; L.C.Rudder = L.TrimRud; L.C.Elevator = L.TrimStick; }));
+                P("BANK 20° AND LET GO", 4, (L, dt) => { L.HoldBank(20, dt); }, null, null, L => { L._mark = L.R.RollDeg; L._mark2 = L.R.HeightFt; }),
+                P("HANDS OFF", 40, (L, dt) => { L.C.Aileron = L.TrimAil; L.C.Rudder = L.TrimRud; L.C.Elevator = L.TrimStick; }, null, null,
+                    L => L.Results.Add($"bank {L._mark:0}° → {L.R.RollDeg:0}° in 40 s, altitude {L.R.HeightFt - L._mark2:+0;-0} ft — {(System.Math.Abs(L.R.RollDeg) > System.Math.Abs(L._mark) + 5 ? "spirally divergent" : "spirally stable / neutral")}")));
             // 13 — trim
             Add("trim-is-speed", "Trim sets the speed", "Trim holds an angle of attack: re-trimmed nose-up, the hands-off airplane settles at a higher α and a lower speed.",
                 L => { Cruise(L); Show(L, "vectors"); Inset(L, "aoa"); },
@@ -224,44 +230,45 @@ namespace FlyingGame.Bridge.Widget
                 P("THE BREAK — release back pressure", 6, (L, dt) => { L.C.Throttle01 = 1; L.HoldAlpha(4, dt); L.HoldBank(0, dt); }));
             Add("power-on-stall", "The power-on stall", "Full power: the slipstream keeps the tail working; the stall comes at a steep attitude and breaks harder, with a left yaw.",
                 L => { Cruise(L); Show(L, "vectors"); Inset(L, "aoa", "ball"); L.Results.Clear(); },
-                P("FULL POWER, raising α", 35, (L, dt) => { L.C.Throttle01 = 1; L._mark = System.Math.Min(L._mark + dt * 0.8, 22); L.HoldAlpha(5 + L._mark, dt); L.HoldBank(0, dt, false); }, L => L.StallCheck("POWER-ON"), L => L._mark = 0),
+                P("SLOWING, level, idle", 60, (L, dt) => { L.C.Throttle01 = 0; L.HoldLevel(L.Alt0, dt); L.HoldBank(0, dt); }, L => L.R.Kias < 66),
+                P("FULL POWER, raising α", 35, (L, dt) => { L.C.Throttle01 = 1; L._mark += dt * 0.6; L.HoldAlpha(L._a0 + L._mark, dt); L.HoldBank(0, dt, false); }, L => L.StallCheck("POWER-ON"), L => { L._mark = 0; L._a0 = L.R.AlphaDeg; }),
                 P("RECOVER", 6, (L, dt) => { L.HoldAlpha(4, dt); L.HoldBank(0, dt); }));
             Add("slow-flight", "Slow flight", "Just above the stall: high α, high power, sluggish controls — the airplane on the back side, held level.",
                 L => { Cruise(L); Show(L, "vectors"); Inset(L, "aoa", "powerRequired"); L.W.Autopilot.Engage(null, 52, at: true, yd: true); }, P("SLOW FLIGHT at 52 KIAS", 60, (L, dt) => { }));
             // 18 — spin basics + advanced
             Add("spin-basics", "Spin basics", "Stall + yaw = autorotation; the inside wing is deeper in the stall. Recovery: power idle, ailerons neutral, opposite rudder, stick forward.",
                 L => { L.W.StartCondition("spin", "c172-like", null, null); Show(L, "vectors"); Inset(L, "aoa"); },
-                P("DEVELOPED SPIN, pro-spin controls held", 8, (L, dt) => { }),
+                P("DEVELOPED SPIN, pro-spin controls held", 8, (L, dt) => { }, null, null, Avg("SPIN")),
                 P("RECOVERY — PARE", 10, (L, dt) => { }, null, L => { L.C.Hold = false; L.W.Presets.Run("spin-recovery"); }));
             Add("autorotation", "Autorotation", "Past the stall the roll damping reverses: the descending wing's extra α LOSES lift, so the roll drives itself.",
                 L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "strips"); Inset(L, "aoa"); }, P("AUTOROTATING", 20, (L, dt) => { }));
             Add("inertia-coupling", "Inertia coupling in the spin", "The spinning mass pitches the nose UP (−ω × Iω); the aerodynamic nose-down moment balances it in a steady spin.",
-                L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments"); Inset(L, "aoa"); }, P("THE MOMENTS IN THE SPIN", 20, (L, dt) => { }));
+                L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments"); Inset(L, "aoa"); }, P("THE MOMENTS IN THE SPIN", 20, (L, dt) => { L.MomentSample(); }, null, null, L => L.MomentNote()));
             Add("spin-modes", "Spin modes and the CG", "Moving the CG aft flattens the spin and slows the recovery; forward steepens it.",
                 L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments", "cgnp"); Inset(L, "wb", "aoa"); },
-                P("CG FORWARD LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.FwdLimitMac, false)),
-                P("CG AFT LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.AftLimitMac, false)),
-                P("CG BEHIND THE LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.AftLimitMac + 6, false)));
+                P("CG FORWARD LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.FwdLimitMac, false), Avg("CG FWD")),
+                P("CG AFT LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.AftLimitMac, false), Avg("CG AFT")),
+                P("CG BEHIND THE LIMIT", 12, (L, dt) => { }, null, L => L.W.Loading.Set(null, L.W.Loading.AftLimitMac + 6, false), Avg("CG BEHIND")));
             Add("recovery-factors", "Recovery factors", "The horizontal tail's wake can blanket the rudder; forward stick unshields it; aileron helps or hurts depending on the mass distribution.",
                 L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments"); Inset(L, "aoa"); },
-                P("DEVELOPED", 6, (L, dt) => { }),
-                P("RUDDER ONLY (stick held aft)", 6, (L, dt) => { L.C.Hold = false; L.C.Rudder = L.R.YawRateDps < 0 ? 1 : -1; L.C.Elevator = -1; }),
-                P("+ STICK FORWARD", 8, (L, dt) => { L.C.Elevator = 0.4; }));
+                P("DEVELOPED", 6, (L, dt) => { }, null, null, Avg("DEVELOPED")),
+                P("RUDDER ONLY (stick held aft)", 6, (L, dt) => { L.C.Hold = false; L.C.Rudder = L._spinDir > 0 ? -1 : 1; L.C.Elevator = -1; }, null, L => L.SpinNoteStart(), Avg("RUDDER ONLY")),
+                P("+ STICK FORWARD", 8, (L, dt) => { L.C.Elevator = 0.4; }, null, null, Avg("+ STICK FWD")));
             Add("incipient", "The incipient spin", "The first turn or two: the airplane is still deciding — rates and α oscillate before the spin settles.",
                 L => { L.W.Load(AeroWidget.Scenario.Spin, "c172-like", 0); L.W.Presets.Run("spin-entry"); Show(L, "vectors"); Inset(L, "aoa"); }, P("ENTRY", 25, (L, dt) => { }));
             Add("power-in-spin", "Power in the spin", "Power in a spin usually flattens it (slipstream and gyroscopic moments) and makes the recovery harder.",
                 L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments"); Inset(L, "aoa"); },
-                P("IDLE", 8, (L, dt) => { }), P("FULL POWER", 10, (L, dt) => { L.C.Throttle01 = 1; }), P("IDLE AGAIN", 8, (L, dt) => { L.C.Throttle01 = 0; }));
+                P("IDLE", 8, (L, dt) => { }, null, null, Avg("IDLE")), P("FULL POWER", 10, (L, dt) => { L.C.Throttle01 = 1; }, null, null, Avg("FULL POWER")), P("IDLE AGAIN", 8, (L, dt) => { L.C.Throttle01 = 0; }, null, null, Avg("IDLE")));
             Add("accelerated-spin", "The accelerated spin", "Entered from a steep turn or with aileron, the spin starts faster and steeper.",
                 L => { Cruise(L, "pitts-s2b-like", "locked"); Show(L, "vectors"); Inset(L, "aoa"); },
                 P("STEEP TURN, pull and full rudder", 8, (L, dt) => { L.C.Throttle01 = 0; L.HoldBank(-50, dt, false); L.C.Elevator = -1; L.C.Rudder = -1; }),
                 P("SPINNING", 12, (L, dt) => { L.C.Elevator = -1; L.C.Rudder = -1; L.C.Aileron = 0; }));
             Add("spin-ailerons", "Ailerons in the spin", "With pro-spin elevator and rudder held, aileron WITH or AGAINST the rotation changes each wing's α and the spin's rate and attitude — which way depends on the mass distribution.",
                 L => { L.W.StartCondition("spin", "pitts-s2b-like", null, null); Show(L, "vectors", "moments"); Inset(L, "aoa"); L.Results.Clear(); },
-                P("NEUTRAL AILERON", 5, (L, dt) => { L.C.Aileron = 0; }, null, L => L.SpinNoteStart()),
-                P("FULL AILERON WITH THE ROTATION", 5, (L, dt) => { L.C.Aileron = L._spinDir; }, null, L => L.SpinNote("NEUTRAL")),
-                P("FULL AILERON AGAINST THE ROTATION", 5, (L, dt) => { L.C.Aileron = -L._spinDir; }, null, L => L.SpinNote("WITH")),
-                P("NEUTRAL AGAIN", 4, (L, dt) => { L.C.Aileron = 0; }, null, L => L.SpinNote("AGAINST")));
+                P("NEUTRAL AILERON", 5, (L, dt) => { L.C.Aileron = 0; }, null, L => L.SpinNoteStart(), Avg("NEUTRAL")),
+                P("FULL AILERON WITH THE ROTATION", 5, (L, dt) => { L.C.Aileron = L._spinDir; }, null, null, Avg("WITH")),
+                P("FULL AILERON AGAINST THE ROTATION", 5, (L, dt) => { L.C.Aileron = -L._spinDir; }, null, null, Avg("AGAINST")),
+                P("NEUTRAL AGAIN", 4, (L, dt) => { L.C.Aileron = 0; }, null, null, Avg("NEUTRAL")));
         }
 
         // ---- measurements written to the caption ----
@@ -323,6 +330,9 @@ namespace FlyingGame.Bridge.Widget
             Results.Add($"{tag}: yaw {_yawAvg:0}°/s, roll {_rollAvg:0}°/s, pitch {_pitchAvg:0}°, α {_aAvg:0}°");
         }
         private double _yawAvg, _rollAvg, _pitchAvg, _aAvg; private int _avgN;
+        private double _maSum, _miSum; private int _mN;
+        private void MomentSample() { var p = _w.Vectors.Current; if (p == null) return; _maSum += p.MomAero; _miSum += p.MomInertia; _mN++; }
+        private void MomentNote() { if (_mN == 0) return; double a = _maSum / _mN * 0.7376, i = _miSum / _mN * 0.7376; Results.Add($"average pitch moments: AERO {a:+#,0;-#,0} ft·lb, INERTIA {i:+#,0;-#,0} ft·lb (balance {(System.Math.Abs(a) > 1 ? 100 * System.Math.Abs(a + i) / System.Math.Abs(a) : 0):0} % apart)"); _maSum = _miSum = 0; _mN = 0; }
 
         // ---- running it ----
         public bool Start(string id)

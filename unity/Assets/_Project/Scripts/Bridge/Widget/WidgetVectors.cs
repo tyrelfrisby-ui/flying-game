@@ -215,7 +215,7 @@ namespace FlyingGame.Bridge.Widget
                 Vector3 o = World(v.from), d = Dir(v.vec) * (scalePx * pxM);
                 if (d.sqrMagnitude < 1e-10f) return;
                 Vector3 a3 = arriving ? o - d : o, b3 = arriving ? o : o + d;
-                if (Scr(a3, out var a) && Scr(b3, out var b)) ui.PxArrow(a, b, lw, c);
+                if (Scr(a3, out var a) && Scr(b3, out var b) && ClipToScene(ref a, ref b, scene)) ui.PxArrow(a, b, lw, c);
             }
             Vector2 Tip(string key, float scalePx, bool arriving = false)
             {
@@ -255,7 +255,7 @@ namespace FlyingGame.Bridge.Widget
             }
             if (On("wheels") && w.Ac.LastForces != null && w.Shown == null)
                 foreach (var f in w.Ac.LastForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
-                    { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
+                    { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b) && ClipToScene(ref a, ref b, scene)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
 
             // CG and neutral-point marks (weight & balance; lessons): the CG a black-and-yellow disc, the NP a red ring.
             if (On("cgnp"))
@@ -268,39 +268,56 @@ namespace FlyingGame.Bridge.Widget
             if (On("moments"))
             {
                 double mRef = w.Ac.MassProperties.MassKg * 9.81 * 0.06 * System.Math.Max(2, w.LengthM);
-                Arc(ui, World, Dir, cgU, new Vec3(cg.X + w.LengthM * 0.75, 0, cg.Z), P.MomAero, mRef, Total, "aeroM", "AERO", pxM, scene, lw);
-                Arc(ui, World, Dir, cgU, new Vec3(cg.X - w.LengthM * 0.85, 0, cg.Z), P.MomInertia, mRef, Inertial, "inertiaM", "INERTIA", pxM, scene, lw);
+                // Both arcs are drawn ABOUT THE CG, in the pitch plane, on a radius that clears the airframe: AERO's arc in front of
+                // the nose, INERTIA's behind the tail (owner 2026-10-09).
+                float R = (float)w.LengthM * 0.62f + 1.5f;
+                Arc(ui, Dir, cgU, R, 0f, P.MomAero, mRef, Total, "aeroM", "AERO", scene, lw);
+                Arc(ui, Dir, cgU, R, Mathf.PI, P.MomInertia, mRef, Inertial, "inertiaM", "INERTIA", scene, lw);
             }
             _labels.Place(ui, scene, cgScr);
         }
 
+        /// <summary>Keep a vector inside the picture (it must never run into the instrument panel).</summary>
+        public static bool ClipToScene(ref Vector2 a, ref Vector2 b, Rect r)
+        {
+            r = new Rect(r.x + 2, r.y + 2, r.width - 4, r.height - 4);
+            float t0 = 0, t1 = 1; Vector2 d = b - a;
+            bool Edge(float p, float q) { if (Mathf.Abs(p) < 1e-6f) return q >= 0; float t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } return true; }
+            if (!(Edge(-d.x, a.x - r.xMin) && Edge(d.x, r.xMax - a.x) && Edge(-d.y, a.y - r.yMin) && Edge(d.y, r.yMax - a.y))) return false;
+            Vector2 a0 = a; a = a0 + d * t0; b = a0 + d * t1; return true;
+        }
+
         private static Vector2 Away(Vector2 from, Vector2 tip) { Vector2 d = tip - from; return d.sqrMagnitude < 1 ? Vector2.up : d.normalized; }
 
-        private void Arc(WidgetControlsDisplay ui, System.Func<Vec3, Vector3> world, System.Func<Vec3, Vector3> dir, Vector3 cgU, Vec3 centreBody, double m, double mRef,
-                         Color c, string id, string name, float pxM, Rect scene, float lw)
+        /// <summary>A pitching-moment arc about the CG (centre = the CG, in the airplane's pitch plane), centred on the direction
+        /// <paramref name="centreAngle"/> (0 = ahead along the body x axis, π = behind), radius <paramref name="R"/> (m). Sweep
+        /// and thickness ∝ |M| on one shared scale; the arrowhead shows the sense — nose-up turns body x toward body "up".</summary>
+        private void Arc(WidgetControlsDisplay ui, System.Func<Vec3, Vector3> dir, Vector3 cgU, float R, float centreAngle, double m, double mRef,
+                         Color c, string id, string name, Rect scene, float lw)
         {
-            // Smooth the moment itself (it's a number, not a vector in the dictionary).
             double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-Mathf.Min(Time.unscaledDeltaTime, 0.1f) * 1000.0 / SmoothingMs);
             if (!_mFilt.TryGetValue(id, out double mf) || Widget.Shown != null) mf = m;
             mf += (m - mf) * k; _mFilt[id] = mf;
-            float sweep = Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 90f, 35f, 320f) * Mathf.Deg2Rad;
+            float sweep = Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 70f, 25f, 160f) * Mathf.Deg2Rad;
             float sgn = mf >= 0 ? 1f : -1f;   // + = nose-up
-            float R = 58f * pxM;
-            Vector3 C = world(centreBody), X = dir(new Vec3(1, 0, 0)), Zu = -dir(new Vec3(0, 0, 1));   // body x, body "up"
+            Vector3 X = dir(new Vec3(1, 0, 0)), Up = -dir(new Vec3(0, 0, 1));   // body x and body "up" (−z)
             var cam = Widget.Cam; var pts = new List<Vector2>();
-            float th0 = Mathf.PI * 0.5f - sgn * sweep * 0.5f;
-            for (int i = 0; i <= 24; i++)
+            float th0 = centreAngle - sgn * sweep * 0.5f;
+            for (int i = 0; i <= 28; i++)
             {
-                float th = th0 + sgn * sweep * i / 24f;   // nose-up: from +x toward up
-                Vector3 p = C + (X * Mathf.Cos(th) + Zu * Mathf.Sin(th)) * R;
+                float th = th0 + sgn * sweep * i / 28f;   // increasing θ = nose-up rotation at every point of the circle
+                Vector3 p = cgU + (X * Mathf.Cos(th) + Up * Mathf.Sin(th)) * R;
                 var sp = cam.WorldToScreenPoint(p); if (sp.z <= 0) return;
-                pts.Add(new Vector2(scene.x + sp.x, scene.y + sp.y));
+                var q = new Vector2(scene.x + sp.x, scene.y + sp.y);
+                if (!scene.Contains(q)) { if (pts.Count > 2) break; else { pts.Clear(); continue; } }
+                pts.Add(q);
             }
+            if (pts.Count < 3) return;
             float thick = lw * Mathf.Lerp(0.6f, 1.4f, Mathf.Clamp01((float)(System.Math.Abs(mf) / (2 * mRef))));
             ui.PxPolyArrow(pts, thick, c);
             double ftlb = System.Math.Abs(m) * 0.7376;
-            var cs = cam.WorldToScreenPoint(C);
-            _labels.Request(id, new Vector2(scene.x + cs.x, scene.y + cs.y), Vector2.down, new[] { ftlb, m }, v => $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);
+            Vector2 mid = pts[pts.Count / 2];
+            _labels.Request(id, mid, Vector2.down, new[] { ftlb, m }, v => $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);
         }
         private readonly Dictionary<string, double> _mFilt = new();
 
@@ -344,7 +361,10 @@ namespace FlyingGame.Bridge.Widget
                 if (!_hasCentre || paused) { _centre = airplane; _hasCentre = true; } else _centre = Vector2.Lerp(_centre, airplane, 1f - Mathf.Exp(-dt / 0.6f));
                 _req.Sort((a, b) => a.prio.CompareTo(b.prio));
                 Last.Clear();
-                float rx = scene.width * 0.36f, ry = scene.height * 0.36f;
+                // The ring fits the picture around the airplane (the outer row included), so slots don't pile up on an edge.
+                float rx = Mathf.Min(scene.width * 0.36f, Mathf.Min(_centre.x - scene.xMin - 110, scene.xMax - 110 - _centre.x) / 1.17f);
+                float ry = Mathf.Min(scene.height * 0.36f, Mathf.Min(_centre.y - scene.yMin - 20, scene.yMax - 46 - _centre.y) / 1.17f);
+                rx = Mathf.Max(rx, scene.width * 0.18f); ry = Mathf.Max(ry, scene.height * 0.16f);
                 Vector2 SlotPos(int slot)
                 {
                     int dirIdx = slot % 8, row = slot / 8;
@@ -385,7 +405,7 @@ namespace FlyingGame.Bridge.Widget
                             if (!taken.Contains(cand) && !Hits(RectAt(SlotPos(cand), twid))) slot = cand;
                             else if (!taken.Contains(cand + 8) && !Hits(RectAt(SlotPos(cand + 8), twid))) slot = cand + 8;
                         }
-                        if (slot < 0) slot = pref;
+                        if (slot < 0) { Last.Remove(r.id); continue; }   // no room: leave this (lower-priority) label out rather than overlap
                     }
                     taken.Add(slot); placed.Add(RectAt(SlotPos(slot), twid));
                     if (slot != st.Slot) { if (st.Slot >= 0) st.Alpha = 0f; st.Slot = slot; st.LastMove = now; st.Has = false; }   // fade in AT the new slot — no slide

@@ -51,23 +51,76 @@ namespace FlyingGame.Bridge.Widget
                     found:;
                 }
                 catch { }
-                try { _tcp = new TcpListener(IPAddress.Any, TcpPort); _tcp.Start(); _tcpThread = new Thread(AcceptLoop) { IsBackground = true }; _tcpThread.Start(); }
-                catch (System.Exception e) { Debug.LogWarning("[Widget] TCP: " + e.Message); }
+                // Dual-stack (2026-10-09): IPv6 with DualMode also accepts IPv4, so a device that only reaches the Mac by an IPv6
+                // (link-local) address can connect directly. IPv4-only if the stack refuses.
                 try
                 {
-                    _http = new HttpListener(); _http.Prefixes.Add($"http://*:{HttpPort}/"); _http.Start();
-                    _httpThread = new Thread(HttpLoop) { IsBackground = true }; _httpThread.Start();
+                    _tcp = new TcpListener(IPAddress.IPv6Any, TcpPort); _tcp.Server.DualMode = true; _tcp.Start(); TcpDualStack = true;
+                }
+                catch (System.Exception e6)
+                {
+                    Debug.LogWarning("[Widget] TCP IPv6 dual-stack unavailable (" + e6.Message + "): IPv4 only");
+                    try { _tcp?.Stop(); } catch { }
+                    try { _tcp = new TcpListener(IPAddress.Any, TcpPort); _tcp.Start(); } catch (System.Exception e) { Debug.LogWarning("[Widget] TCP: " + e.Message); _tcp = null; }
+                }
+                if (_tcp != null) { _tcpThread = new Thread(AcceptLoop) { IsBackground = true }; _tcpThread.Start(); }
+                // HTTP: a small HTTP/1.1 server on its own dual-stack socket (Mono's HttpListener answered 400 to IPv6 Host headers).
+                try
+                {
+                    try { _httpTcp = new TcpListener(IPAddress.IPv6Any, HttpPort); _httpTcp.Server.DualMode = true; _httpTcp.Start(); HttpIPv6 = true; }
+                    catch { try { _httpTcp?.Stop(); } catch { } _httpTcp = new TcpListener(IPAddress.Any, HttpPort); _httpTcp.Start(); }
+                    _httpThread = new Thread(HttpAcceptLoop) { IsBackground = true }; _httpThread.Start();
                 }
                 catch (System.Exception e) { Debug.LogWarning("[Widget] HTTP: " + e.Message); }
+                Advertise();
                 Debug.Log($"[Widget] control tcp {TcpPort}, remote http://{LocalIp}:{HttpPort}/");
             }) { IsBackground = true }.Start();
         }
 
+        public static bool TcpDualStack { get; private set; }
+        public static bool HttpIPv6 { get; private set; }
+        // Bonjour through the system's mDNS responder (dns_sd.h; Process.Start isn't available in the IL2CPP player).
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")]
+        private static extern int DNSServiceRegister(out System.IntPtr sdRef, uint flags, uint interfaceIndex, string name, string regtype, string domain, string host,
+                                                     ushort portNetworkOrder, ushort txtLen, byte[] txtRecord, System.IntPtr callBack, System.IntPtr context);
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")]
+        private static extern void DNSServiceRefDeallocate(System.IntPtr sdRef);
+        private readonly List<System.IntPtr> _bonjour = new();
+        public static bool BonjourOk { get; private set; }
+
+        /// <summary>Bonjour (2026-10-09): _aerowidget._tcp on 47830 with TXT control/http/protocol, and the remote as _http._tcp on
+        /// 47831 — clients find the widget without typing an IP. Registered while the widget runs.</summary>
+        private void Advertise()
+        {
+            byte[] Txt(params string[] kv)
+            {
+                var ms = new System.IO.MemoryStream();
+                foreach (var e in kv) { var b = Encoding.UTF8.GetBytes(e); ms.WriteByte((byte)b.Length); ms.Write(b, 0, b.Length); }
+                return ms.ToArray();
+            }
+            ushort Net(int port) => (ushort)(((port & 0xff) << 8) | ((port >> 8) & 0xff));
+            void Reg(string name, string type, int port, byte[] txt)
+            {
+                try
+                {
+                    int err = DNSServiceRegister(out var sd, 0, 0, name, type, null, null, Net(port), (ushort)txt.Length, txt, System.IntPtr.Zero, System.IntPtr.Zero);
+                    if (err == 0) { lock (_bonjour) _bonjour.Add(sd); BonjourOk = true; }
+                    else Debug.LogWarning($"[Widget] Bonjour {type}: error {err}");
+                }
+                catch (System.Exception e) { Debug.LogWarning("[Widget] Bonjour: " + e.Message); }
+            }
+            Reg("Aero Widget", "_aerowidget._tcp", TcpPort, Txt($"control={TcpPort}", $"http={HttpPort}", $"protocol={Protocol}"));
+            Reg("Aero Widget remote", "_http._tcp", HttpPort, Txt("path=/"));
+        }
+        public const int Protocol = 8;
+
         private void OnDestroy()
         {
             _run = false;
+            lock (_bonjour) foreach (var sd in _bonjour) { try { DNSServiceRefDeallocate(sd); } catch { } }
             try { _tcp?.Stop(); } catch { }
             try { _http?.Stop(); } catch { }
+            try { _httpTcp?.Stop(); } catch { }
         }
 
         // ---- TCP ----
@@ -108,7 +161,73 @@ namespace FlyingGame.Bridge.Widget
             c.Close();
         }
 
-        // ---- HTTP (phone / iPad remote) ----
+        // ---- HTTP (phone / iPad remote): GET / (the page), GET /state[?from=…&name=…], POST /cmd ----
+        private TcpListener _httpTcp;
+        private void HttpAcceptLoop()
+        {
+            while (_run)
+            {
+                TcpClient c;
+                try { c = _httpTcp.AcceptTcpClient(); } catch { return; }
+                ThreadPool.QueueUserWorkItem(_ => ServeRaw(c));
+            }
+        }
+
+        private void ServeRaw(TcpClient c)
+        {
+            try
+            {
+                c.NoDelay = true; c.ReceiveTimeout = 5000;
+                using var ns = c.GetStream();
+                // Request line + headers (ASCII), then the body by Content-Length.
+                var head = new StringBuilder(); int b; int crlf = 0;
+                while ((b = ns.ReadByte()) >= 0)
+                {
+                    head.Append((char)b);
+                    crlf = (b == '\r' || b == '\n') ? crlf + 1 : 0;
+                    if (crlf == 4 || head.Length > 16384) break;
+                }
+                string[] lines = head.ToString().Split(new[] { "\r\n" }, System.StringSplitOptions.None);
+                string[] rl = lines[0].Split(' ');
+                if (rl.Length < 2) return;
+                string method = rl[0], target = rl[1];
+                int len = 0;
+                foreach (var l in lines) if (l.StartsWith("Content-Length:", System.StringComparison.OrdinalIgnoreCase)) int.TryParse(l.Substring(15).Trim(), out len);
+                string body = "";
+                if (len > 0)
+                {
+                    var buf = new byte[len]; int got = 0;
+                    while (got < len) { int n = ns.Read(buf, got, len - got); if (n <= 0) break; got += n; }
+                    body = Encoding.UTF8.GetString(buf, 0, got);
+                }
+                string path = target, query = "";
+                int qi = target.IndexOf('?'); if (qi >= 0) { path = target.Substring(0, qi); query = target.Substring(qi + 1); }
+                string text, type = "application/json";
+                if (method == "OPTIONS") text = "";
+                else if (path == "/cmd" && method == "POST") text = Ask(body);
+                else if (path == "/state")
+                {
+                    var o = new JObject { ["cmd"] = "state" };
+                    foreach (var kv in query.Split('&'))
+                    {
+                        int eq = kv.IndexOf('='); if (eq <= 0) continue;
+                        string k = System.Uri.UnescapeDataString(kv.Substring(0, eq)), v = System.Uri.UnescapeDataString(kv.Substring(eq + 1).Replace('+', ' '));
+                        if (k == "from" || k == "name") o[k] = v;
+                    }
+                    if (o["from"] != null && o["name"] == null) o["name"] = "";
+                    text = Ask(o.ToString(Newtonsoft.Json.Formatting.None));
+                }
+                else { text = WidgetRemotePage.Html; type = "text/html; charset=utf-8"; }
+                byte[] payload = Encoding.UTF8.GetBytes(text);
+                string hdr = $"HTTP/1.1 200 OK\r\nContent-Type: {type}\r\nContent-Length: {payload.Length}\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n";
+                byte[] hb = Encoding.ASCII.GetBytes(hdr);
+                ns.Write(hb, 0, hb.Length); ns.Write(payload, 0, payload.Length); ns.Flush();
+            }
+            catch { }
+            finally { try { c.Close(); } catch { } }
+        }
+
+        // ---- (legacy HttpListener path, unused) ----
         private void HttpLoop()
         {
             while (_run)
@@ -390,7 +509,8 @@ namespace FlyingGame.Bridge.Widget
                     ok["view"] = w.View; ok["viewFrom"] = w.ViewFrom; break;
                 }
                 case "hello":
-                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = 8;
+                    ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
+                    ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
                     ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);

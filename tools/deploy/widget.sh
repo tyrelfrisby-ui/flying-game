@@ -5,6 +5,8 @@ REPO=${0:A:h:h:h}
 UNITY=/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity
 OUT=/private/tmp/aero-widget
 rm -rf "$OUT"; rm -f "$REPO/unity/Temp/UnityLockfile"
+# iCloud conflict copies ("Foo 2.dll", "Bar 2.cs") in the project or Unity's caches break IL2CPP ("already registered") — clear them.
+find "$REPO/unity/Assets" "$REPO/unity/Library" "$REPO/unity/Packages" "$REPO/src" -name "* 2.*" -not -path "*/node_modules/*" -delete 2>/dev/null || true
 FLYINGGAME_WIDGET_OUT=$OUT "$UNITY" -batchmode -quit -projectPath "$REPO/unity" -buildTarget OSXUniversal \
   -executeMethod FlyingGame.EditorTools.BuildScript.BuildWidget -logFile "$REPO/build/widget.log"
 grep -q "widget build SUCCEEDED" "$REPO/build/widget.log" || { echo "WIDGET BUILD FAILED — see build/widget.log"; exit 1; }

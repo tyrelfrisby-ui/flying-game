@@ -38,10 +38,9 @@ namespace FlyingGame.Bridge.Widget
             Aoa(436, 8, 100, 424, r.AlphaDeg, critA, warnA);
             Column(544, 8, 204, 424, f);
             // Touch layout (addendum): the yoke trackpad over the column + wheel, the pedal slider, the levers.
-            TouchBox(552, 36, 188, 144); LayoutRect("yoke", 552, 36, 188, 144);
+            TouchBox(552, 36, 188, 162); LayoutRect("yoke", 552, 36, 188, 162);
             TouchBox(552, 226, 188, 100); LayoutRect("pedals", 552, 226, 188, 100);
             // Thumbs at the current inputs: the yoke (aileron →, push ↑) and the pedals.
-            { float cx = 552 + 94, cy = 36 + 72; float tx = cx + (float)f.Ail * 94f, ty = cy - (float)f.Ele * 72f; Ring(tx, ty, 9, 2.5f, new Color(1, 1, 1, 0.8f)); Disc(tx, ty, 3, Color.white); }
             { float cx = 552 + 94, ty = 226 + 92; float tx = cx + (float)f.Rud * 94f; Rect(tx - 10, ty - 5, 20, 10, new Color(1, 1, 1, 0.8f)); SegD(560, ty, 732, ty, 1f, new Color(1, 1, 1, 0.25f)); }
             Power(756, 8, 96, 424, f, spec, w.Ac);
             if (spec.Engines > 0) LayoutRect("throttle", 756 + 36, 8 + 54, 52, 424 - 90 - 54);   // exactly the lever's travel: top = full
@@ -271,23 +270,37 @@ namespace FlyingGame.Bridge.Widget
         {
             Plate(x, y, w, h);
             OText(x + w * 0.5f, y + 18, "CONTROLS", 15, Grey);
-            // Side view: the column pivots at the floor; the yoke moves fore (PUSH, left = forward) / aft (PULL).
-            float px = x + 70, py = y + 150, len = 96f;
-            float ang = (float)f.Ele * 18f * Mathf.Deg2Rad;   // + = forward
-            Vector2 top = new(px - Mathf.Sin(ang) * len, py - Mathf.Cos(ang) * len);
-            SegD(x + 22, py, x + 118, py, 1.5f, Rule);                       // the floor
-            SegD(px, py, top.x, top.y, 5f, Color.white);
-            SegD(top.x, top.y, top.x + 18, top.y - 4, 5f, Color.white);     // the yoke horn, toward the pilot (right = aft)
-            OText(x + 22, y + 44, "FWD", 14, Grey, TextAnchor.MiddleLeft); OText(x + 118, y + 44, "AFT", 14, Grey, TextAnchor.MiddleRight);
+            // THE YOKE (owner 2026-10-09): one wheel showing BOTH axes, in front of a fixed black shadow of itself at neutral.
+            // Aileron rotates it (90° at full). The column pivots at the floor, so the yoke drops either way from neutral:
+            // pulled AFT it comes toward the pilot — lower and BIGGER; pushed FORWARD it goes away — lower and SMALLER.
+            // A thin elevator gauge on the right, a thin aileron gauge underneath; the whole box is the touch control.
+            float cx = x + 92, cy = y + 104;
+            void Wheel(float ox, float oy, float scale, float rot, Color c, float lw)
+            {
+                float co = Mathf.Cos(rot), si = Mathf.Sin(rot);
+                Vector2 Rr(float a, float b) => new(ox + (a * co - b * si) * scale, oy + (a * si + b * co) * scale);
+                void Ln(float a0, float b0, float a1, float b1) { var p = Rr(a0, b0); var q = Rr(a1, b1); SegD(p.x, p.y, q.x, q.y, lw * scale, c); }
+                Ln(-46, 6, 46, 6); Ln(-46, 6, -46, -26); Ln(46, 6, 46, -26); Ln(-46, -26, -38, -34); Ln(46, -26, 38, -34); Ln(0, 6, 0, 26);
+                var hub = Rr(0, 6); Ring(hub.x, hub.y, 9 * scale, lw * 0.8f * scale, c);
+            }
+            float ele = (float)f.Ele;                        // + = push (forward)
+            float sc = 1f - 0.24f * ele;                     // aft (−) bigger, forward (+) smaller
+            float drop = 30f * ele * ele;                    // lower either way (the column's arc)
+            Wheel(cx, cy, 1f, 0f, new Color(0, 0, 0, 0.8f), 9f);                          // the neutral shadow
+            Wheel(cx, cy + drop, sc, -(float)f.Ail * 90f * Mathf.Deg2Rad, Color.white, 5f);   // the yoke
+            // Elevator gauge (thin, beside the box): up = PUSH, down = PULL.
+            float ex0 = x + 186, ey0 = y + 40, ey1 = y + 176, eym = (ey0 + ey1) * 0.5f;
+            SegD(ex0, ey0, ex0, ey1, 1.5f, Rule); SegD(ex0 - 4, eym, ex0 + 4, eym, 1.2f, Rule);
+            float emk = eym - ele * (ey1 - ey0) * 0.5f;
+            Rect(ex0 - 5, emk - 2.5f, 10, 5, ele < -0.02f ? TElev : Color.white);
+            // Aileron gauge (thin, under the yoke): right = right aileron.
+            float ax0 = x + 20, ax1 = x + 166, ay = y + 186, axm = (ax0 + ax1) * 0.5f;
+            SegD(ax0, ay, ax1, ay, 1.5f, Rule); SegD(axm, ay - 4, axm, ay + 4, 1.2f, Rule);
+            float amk = axm + (float)f.Ail * (ax1 - ax0) * 0.5f;
+            Rect(amk - 2.5f, ay - 5, 5, 10, Color.white);
             string col = System.Math.Abs(f.Ele) < 0.01 ? "NEUTRAL" : (f.Ele < 0 ? "PULL " : "PUSH ") + Pct(f.Ele);
-            OText(x + 54, y + 200, col, 17, f.Ele < -0.02 ? TElev : Color.white);
-            // Front view: the wheel rotates with aileron (90° at full).
-            float wx = x + 162, wy = y + 100, th = -(float)f.Ail * 90f * Mathf.Deg2Rad;
-            Vector2 R(float a, float b) { float c = Mathf.Cos(th), s = Mathf.Sin(th); return new Vector2(wx + a * c - b * s, wy + a * s + b * c); }
-            void L(float a0, float b0, float a1, float b1) { var p = R(a0, b0); var q = R(a1, b1); SegD(p.x, p.y, q.x, q.y, 3.5f, Color.white); }
-            L(-30, 4, 30, 4); L(-30, 4, -30, -16); L(30, 4, 30, -16); L(0, 4, 0, 16);
-            Ring(wx, wy, 6, 2.5f, Color.white);
-            OText(x + 152, y + 200, System.Math.Abs(f.Ail) < 0.01 ? "WHEEL LEVEL" : $"WHEEL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
+            OText(x + 54, y + 208, col, 16, f.Ele < -0.02 ? TElev : Color.white);
+            OText(x + 150, y + 208, System.Math.Abs(f.Ail) < 0.01 ? "AIL NEUTRAL" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
             // Pedals: the pressed one slides forward (up).
             float my = y + 270, travel = 26f;
             for (int k = 0; k < 2; k++)

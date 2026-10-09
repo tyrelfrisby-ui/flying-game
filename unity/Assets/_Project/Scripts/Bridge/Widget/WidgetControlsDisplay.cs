@@ -120,7 +120,9 @@ namespace FlyingGame.Bridge.Widget
             }
             if (w.Cam.targetTexture != _scene) w.Cam.targetTexture = _scene;
             if (_mat == null) return;
+            ArrowClip = _sceneRect;
             w.Vectors.Build(this, _sceneRect);
+            ArrowClip = null;
             w.Curves.Update(w, w.Vectors.Current);
             Insets(w, _sceneRect);
             w.Lessons.DrawCaption(this, w.DisplayMode == "classic" ? new Rect(_sceneRect.x, _sceneRect.y, _sceneRect.width, _sceneRect.height - 60) : _sceneRect);
@@ -179,8 +181,11 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>A thin leader line from a label to its arrow.</summary>
         public void PxLeader(Vector2 a, Vector2 b, Color c) => PxSeg(a, b, 1.6f, c);
         /// <summary>A bold arrow with a thin dark outline (protocol 7: ≈ 6 px, bigger heads, readable over any picture).</summary>
+        /// <summary>While the picture's vectors are drawn, every arrow is clipped to the picture (never into the panel).</summary>
+        public Rect? ArrowClip;
         public void PxArrow(Vector2 a, Vector2 b, float w, Color c)
         {
+            if (ArrowClip.HasValue && !WidgetVectors.ClipToScene(ref a, ref b, ArrowClip.Value)) return;
             Vector2 d = b - a; float len = d.magnitude; if (len < 2f) return;
             Vector2 u = d / len, n = new(-u.y, u.x);
             float head = Mathf.Min(len * 0.45f, 3.6f * w + 6f), hw = head * 0.55f;

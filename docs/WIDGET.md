@@ -52,7 +52,12 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `view` | `name`: `side` \| `behind` \| `front` \| `top` \| `chase` \| `locked` \| `body`; `from` (locked only): `current` (default) \| `side` \| `behind` \| `front` \| `top` | Spin camera (the flare is always side-on and accepts any view). **`locked` = direction lock:** the aircraft stays centred at the same distance, but the camera's direction is fixed in the world, so the viewer sees the airplane rotate, pitch and roll in place. `current` freezes the direction the camera has when engaged; the others lock to that world-fixed direction. `side`, `behind`, `front` and `top` are world-fixed too; only `chase` turns with the aircraft. The altitude wrap moves the camera with the aircraft (no jump). **`body` = airplane-fixed** (from `left`): the camera is rigidly attached to the airframe and looks at its left side, so the airplane holds still while the horizon, the ground grid, the relative wind and the weight vector turn around it (vectors keep their true world directions). In FINAL every view is refused (`"view is fixed in final"`); in the SPIN condition only `locked` (from side) and `body` (from left) are accepted. |
 | `display` | `mode`: `ntsb` (default) \| `classic`; `split`: 0.35…0.6 | **Protocol 6:** the NTSB layout (airplane above, instrument plates below) or the classic picture. |
 | `vectorStyle` | `width`: 1…3 (×); `smoothingMs`: 0…400 | **Protocol 7:** line width and the vector filter's time constant (default 130 ms). |
-| `hello` | | Reply with app, version, `protocol: 7`, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
+| `lesson` | `id` (or `"stop"`) | **Protocol 8:** start a Stick-and-Rudder scene with its scripted demonstration (docs/STICK-AND-RUDDER.md). |
+| `loading` | `grossWeightLb`, `cgPercentMac` (either), or `reset:true` | **Protocol 8:** live weight and balance, in any condition, the spin included. Changes are slewed so a dragged slider never jolts the airplane. Out of limits is allowed. |
+| `autopilot` | `on`, `mode` (`alt` \| `vs` \| `flc` \| `hdg` \| `rol`), `altitudeFt`, `vsFpm`, `kias`, `heading` / `headingBump` / `headingSync`, `yawDamper`, `autothrottle` | **Protocol 8:** the autopilot (below). `mode` `lnav` / `loc` / `app` replies `"not available yet"`. |
+| `wind` | `fromDeg`, `kt` | Steady wind (the air mass moves). |
+| `inset` | `name`: `clAlpha` \| `liftDrag` \| `powerRequired` \| `ball` \| `aoa` \| `wb`; `show` | Small plates in the picture's top-right, each a curve from the sim's own aero model with a live dot. |
+| `hello` | | Reply with app, version, `protocol: 8`, `lessons`, `insets`, `autopilotModes`, the fleet's `loading` fits, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
 | `show` | any of `vectors lift drag weight thrust wind total axis wheels labels readout strips review controlsDisplay controlTraces horizon wingWind tailWind inertial tail moments`: bool | Toggle vectors and text. `strips` = every strip's lift and drag; `review` = the "REVIEW -2.4 s" tag in the readout; `controlsDisplay` = the NTSB-style control panel; `controlTraces` = its 10 s time-history strips; `horizon` = the horizon line and the ground grid (cruise and spin). |
 | `controlsDisplay` | `place`: `bottom` \| `left` \| `right`; `size`: 0.2…0.5; `show`: bool (optional) | Where the control panel goes and how much of the picture its strip takes. Default: off, bottom, 0.28. |
 | `pilot` | `id` (null clears), `name`, `color` (`#RRGGBB`), `managed`: bool (default true) | Name the pilot flying (below). |
@@ -145,7 +150,11 @@ In ntsb mode, `hello` and `state` carry `controlsLayout`: each control instrumen
  "spoilers":{"rect":[…],"axis":"spoilers","orientation":"vertical","top":"retracted"}}
 ```
 
-- **Yoke:** the box spans ±1 aileron (left → right) and ±1 elevator (top = push).
+- **Yoke** (owner 2026-10-09):
+  - **The wheel:** one wheel shows both axes, over a fixed black shadow of itself at neutral. Aileron rotates it (90° at full).
+  - **The column:** it pivots at the floor, so the wheel drops either way from neutral. Pulled aft it comes toward the pilot, lower and bigger; pushed forward it goes away, lower and smaller.
+  - **Gauges:** a thin elevator gauge beside the box (up = push) and a thin aileron gauge under the wheel give direct readings.
+  - **Touch:** the whole box is the touch control. It spans ±1 aileron (left → right) and ±1 elevator (top = push).
 - **Pedals:** ±1 rudder.
 - **Levers:** each rect is exactly the lever's travel. The flaps' `detents` are the detent positions along it (top = 0); `detentValues` are the handle values to send for each.
 - **Visible feedback:**
@@ -165,7 +174,7 @@ Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `th
 | `inertial` | **m(g − a) = −(every non-gravity force)** from the CG, labelled `INERTIAL 2.3 g`. Replaces `weight`: in 1-g flight it equals weight; in a turn it tilts out and grows. |
 | `total` | The sum of **all aerodynamic forces**, from the **neutral point** (dM/dL of the aero model), labelled `TOTAL AERO 2.3 g`. In a steady power-off state it equals INERTIAL and points the opposite way. With power, aero + thrust does. |
 | `tail` | The horizontal tail's force at the tail, `TAIL ↓ 85 lb` / `TAIL ↑ …`. |
-| `moments` | Two arcs in the pitch plane on one scale. **AERO** (ahead of the nose) is the aerodynamic pitching moment about the CG. **INERTIA** (behind the tail) is the inertia-coupling term −(ω × Iω), which pitches a spin nose-up. The sum of the two is I·q̇: they balance in a steady spin, and the aero arc wins when forward stick breaks it. |
+| `moments` | Two arcs in the pitch plane, **centred on the CG** (owner 2026-10-09), on a radius that clears the airframe, on one scale. **AERO** (ahead of the nose) is the aerodynamic pitching moment about the CG. **INERTIA** (behind the tail) is the inertia-coupling term −(ω × Iω), which pitches a spin nose-up. The sum of the two is I·q̇: they balance in a steady spin, and the aero arc wins when forward stick breaks it. |
 
 **Tail physics (the sim):**
 - **Downwash:** ε = 0.4·α_wing while the wing is attached, collapsing as it stalls, with the flaps' extra.
@@ -204,6 +213,65 @@ Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `th
 - **The problem:** the spins aren't sustained or aren't in the rudder's direction. C172: about 1 turn, then it stops. Pitts: settles into the OPPOSITE direction (+55°/s right with left rudder). Extra: pulses on and off. Decathlon: a slow spiral.
 - **Consequence:** the spin condition's first seconds are a real spin, but it doesn't stay developed.
 - **Plan:** taken up in protocol 8 (advanced spin physics).
+
+### Protocol 8 — weight & balance, autopilot, insets, lessons
+
+**Weight & balance.**
+- **CG:** given in % of the wing's mean aerodynamic chord (MAC). The MAC comes from the wing strips; the neutral point from the aero model's own totals, x_np = x_cg + dM/dL. (Summing the overlay's samples missed the fuselage's destabilising moment, which is now sampled too.)
+- **Weight:** scales the mass and the inertia. A CG shift moves Config.Mass.Cg, which every force and moment is taken about, and adds the parallel-axis term. The drawn airplane is offset by the shift so it stays on the physics.
+- **Limits:** the configs carry no POH envelope, so these are approximations: gross = the config's weight, empty ≈ 62 %, CG ±9 % MAC around the default, with the aft limit kept 5 % MAC ahead of the NP.
+- **Per type in hello's fleet:** `loading: {emptyLb, maxGrossLb, defaultLb, cgLimitsMac:[fwd,aft], defaultCgMac, neutralPointMac, macM}`.
+- **State:** `loading: {grossWeightLb, cgPercentMac, staticMarginMac, withinLimits, overweight, cgOut, targetLb, targetCgMac}`. The display shows OUT OF LIMITS in amber.
+- **Kept across starts:** start conditions keep the current loading unless `loading` is passed with the start. A new type takes its own default.
+- **Sim-level checks** (tools/FlightTests/StickAndRudderTests):
+
+  | Check | Result |
+  |---|---|
+  | +20 % weight | stall speed ×1.086 (√1.2 = 1.095); best glide 12.66:1 → 12.66:1 at 82 → 90 kt |
+  | Forward vs aft CG (C172, ±0.12 m) | elevator −1.7° vs +1.6°; tail 446 N down vs 83 N up |
+  | Static stability | every type stable at its default CG; the Gee Bee nearly neutral |
+  | C172 neutral point | 48 % MAC (static margin 27 % at the default CG) |
+
+**Autopilot** (owner: like a real one).
+- **Modes:**
+  - PITCH: ALT, VS (it captures a target altitude: VS → ALT* → ALT), or FLC (level change: pitch for the airspeed, with climb power toward a higher altitude and idle toward a lower one).
+  - ROLL: ROL (wings level) or HDG (the heading selector: set, ±1/±10, SYNC; ≤ 20° bank).
+  - YD: yaw damper / auto-coordination, which can be on without the AP.
+  - A/T: autothrottle for the airspeed.
+- **Not yet active:** LNAV, LOC and APP exist as buttons and modes but are not active (a later build).
+- **Servos and trim:** an elevator servo of about half the stick travel per second, and a pitch-trim servo that offloads it. The AP flies through the ordinary controls, so the panel shows its inputs.
+- **Annunciation:** a flight-mode annunciator, e.g. `AP · ALT 3000 · HDG 270 · YD · A/T 100`.
+- **When it can't hold:** it says why — `CAN'T HOLD — FULL POWER` / `ELEVATOR/TRIM LIMIT` / `STALL`, or `OSCILLATING` — and keeps flying speed over altitude.
+- **Disconnects:** pilot stick input disconnects it (AP DISC for 2 s); pilot rudder input turns off the YD. Loading changes never disconnect it.
+- **State:** `autopilot: {on, pitchMode, rollMode, altitudeFt, vsFpm, kias, headingBug, yawDamper, autothrottle, elevator, trim, power, status, disc, fma, lnav/loc/app: "unavailable"}`.
+- **Acceptance** (C172, 3,000 ft, 100 KIAS):
+
+  | Case | Altitude | Speed | Power | Trim | α | Tail | Status |
+  |---|---|---|---|---|---|---|---|
+  | baseline | −8…−3 ft | 98.7–101.2 | 0.58 | +0.06 | 1.1° | −53 lb | holding |
+  | +20 % weight | −8…−3 | 97.5–101.6 | 0.70 | +0.04 | 2.1° | −42 lb | holding |
+  | CG forward limit | −8…−3 | 98.5–101.1 | 0.59 | −0.05 | 1.3° | −109 lb | holding |
+  | CG aft limit | −8…−3 | 98.7–101.2 | 0.58 | +0.11 | 1.0° | +5 lb | holding |
+  | CG 4 % behind the NP | −98…−45 | 89–96 | 1.00 | | | | can't hold (fails) |
+  | double weight | −27…−13 | 92 | 1.00 | | 7.8° | | can't hold — full power |
+
+**Insets:**
+- **CL–α:** a sweep of the aero model, with the critical α in red.
+- **L/D–α:** a sweep of the aero model.
+- **Power required vs KIAS:** from the glide trim's L/D at each speed, with the available power line. Cached per type, flaps and weight.
+- **Slip ball:** from the lateral specific force.
+- **AoA:** a bar gauge.
+- **W&B envelope:** weight vs CG, with the limits box, the NP line and a live dot.
+
+**State adds:** `lesson`, `lessonPhase`, `lessonResults`, `beta`, `ball`, `loadFactor`, `flightPathDeg`, `cgPercentMac`, `wind`, `insets`, `show` (every switch).
+
+**Remote:**
+- An autopilot panel with ALT, VS ▲▼, FLC, SPD ±, ALT ±, HDG with the bug selector, YD and A/T. LNAV / LOC / APP are greyed out.
+- A lesson picker.
+- Weight and CG sliders.
+- A labelled on/off **chip for every vector, display element and inset** (owner: "radio buttons for all the vectors and displays").
+
+**Relative wind (fixed 2026-10-09):** the wing, tail and single relative-wind arrows show the air arriving from ahead, −(the station's velocity through the air). Before, they showed the flight path.
 
 ### Start conditions (protocol 5)
 
@@ -292,6 +360,14 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - It reports them on every poll, and the state lists `remotes`. `{"event":"remotes","remotes":[…]}` is pushed when the list changes; a remote drops off after 6 s of silence.
   - When another pilot is managed, the remote shows "<name> is flying — view only" and a **Request controls** button. The button asks for a name once, then pushes `{"event":"controlRequest","from":"web-…","name":"…"}` to every `subscribe` stream.
 - **Events:** `{"event":…}` lines arrive on `subscribe` connections between the state lines.
+
+### Network: IPv4 + IPv6, Bonjour (2026-10-09)
+
+- **Dual-stack:** both ports (TCP 47830, HTTP 47831) listen on IPv6 in dual-stack mode and accept IPv4 too. A device that reaches the Mac only by an IPv6 (link-local) address connects directly. HTTP is a small built-in HTTP/1.1 server (Mono's HttpListener rejected IPv6 Host headers).
+- **Bonjour** (registered through the system's mDNS responder while the widget runs):
+  - `_aerowidget._tcp` "Aero Widget" on 47830, TXT `control=47830 http=47831 protocol=<n>`;
+  - `_http._tcp` "Aero Widget remote" on 47831, `path=/`.
+- **hello** carries `network: {tcpDualStack, httpIPv6, bonjour: [...]}`.
 
 ### HTTP 47831 (phone / iPad remote)
 
