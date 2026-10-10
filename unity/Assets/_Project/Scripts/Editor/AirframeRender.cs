@@ -58,6 +58,14 @@ namespace FlyingGame.EditorTools
                 float cgz = (float)cfg.Mass.CgVec().Z;   // the built parts sit on the CG, as in the game
                 foreach (GearConfig g in cfg.Gear) lowest = Mathf.Max(lowest, (float)g.Pos[2] - cgz);
                 root.transform.position = new Vector3(0f, lowest + 0.02f, 0f);
+                if (System.Environment.GetEnvironmentVariable("CG_MARK") != null)
+                {
+                    // The CG (the root) as a red ball, drawn through the skin, for the vertical-CG check.
+                    var mark = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                    mark.transform.SetParent(root.transform, false); mark.transform.localScale = Vector3.one * 0.18f;
+                    var mm = new Material(Shader.Find("Unlit/Color")) { color = Color.red }; mm.renderQueue = 4000;
+                    mark.GetComponent<MeshRenderer>().sharedMaterial = mm;
+                }
                 ground.transform.localScale = Vector3.one * size;
                 // Numeric check: the tyres' lowest point vs the ground (should be ~0.02 m, the placement lift).
                 float tyreLow = float.MaxValue;

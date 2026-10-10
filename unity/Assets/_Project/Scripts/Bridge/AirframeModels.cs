@@ -23,9 +23,12 @@ namespace FlyingGame.Bridge
             /// wheel contact plane, and the procedural gear stays visible under it (owner 2026-09-14: the DC-3 sat on its belly).</summary>
             public readonly float GroundClearanceM;
             public bool ShowProceduralGear => GroundClearanceM > 0f;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; }
-            /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y.</summary>
-            public Quaternion Rotation => Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
+            /// <summary>Model exported sitting on its tail (three-point attitude): pitch it nose-DOWN by this much so its fuselage
+            /// datum lies along the sim's body x axis (owner 2026-10-10: the Extra was drawn ~11° nose-high).</summary>
+            public readonly float PitchDownDeg;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; }
+            /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
+            public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
 
         // Confirmed from ModelRender views (build/models/*.png, camera at +x looks at the model's +x side): the Cub,
@@ -42,7 +45,9 @@ namespace FlyingGame.Bridge
             // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial
             // drawing until we find a good skin"); the procedural trainer is drawn. Re-add { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) }.
             // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
-            { "extra-300-like", new Spec(Vector3.left, Vector3.forward) },        // nose -x, top +z (ModelRender)
+            // Extra: exported in the three-point attitude (its tailwheel 0.11 m below its mains) — levelled 11° nose-down
+            // (build/cg-check.csv: drawn wing, prop hub and gear then line up with the sim's).
+            { "extra-300-like", new Spec(Vector3.left, Vector3.forward, pitchDownDeg: 11f) },        // nose -x, top +z (ModelRender)
             { "pa28-archer-like", new Spec(Vector3.right, Vector3.forward) },     // helijah exports: nose +x, top +z
             { "cirrus-sr22-like", new Spec(Vector3.right, Vector3.forward) },
             { "stearman-pt17-like", new Spec(Vector3.right, Vector3.forward) },
@@ -231,17 +236,25 @@ namespace FlyingGame.Bridge
         /// vertex arrays, which are unreadable in a player build (that made the models 700× too big on the phone).</summary>
         public static Bounds LocalBounds(GameObject go, Transform frame)
         {
+            // The real vertices when the mesh can be read (owner 2026-10-10: the Extra "rolls about a point below the
+            // aircraft"): the eight corners of each mesh's own box, carried through a TILTED node (glTF exports keep parts
+            // under rotated nodes), made a box up to 0.7 m too deep — the model was lifted off its wheels by that much and the
+            // CG ended up under the belly. The corners stay as the fallback for an unreadable mesh.
             bool any = false; var b = new Bounds();
+            void Add(Vector3 p) { if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p); }
             foreach (MeshFilter mf in go.GetComponentsInChildren<MeshFilter>(true))
             {
-                if (mf.sharedMesh == null) continue;
-                Bounds mb = mf.sharedMesh.bounds;
-                for (int i = 0; i < 8; i++)
+                Mesh m = mf.sharedMesh;
+                if (m == null) continue;
+                Matrix4x4 to = frame.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                if (m.isReadable)
                 {
-                    var c = new Vector3((i & 1) == 0 ? mb.min.x : mb.max.x, (i & 2) == 0 ? mb.min.y : mb.max.y, (i & 4) == 0 ? mb.min.z : mb.max.z);
-                    Vector3 p = frame.InverseTransformPoint(mf.transform.TransformPoint(c));
-                    if (!any) { b = new Bounds(p, Vector3.zero); any = true; } else b.Encapsulate(p);
+                    foreach (Vector3 v in m.vertices) Add(to.MultiplyPoint3x4(v));
+                    continue;
                 }
+                Bounds mb = m.bounds;
+                for (int i = 0; i < 8; i++)
+                    Add(to.MultiplyPoint3x4(new Vector3((i & 1) == 0 ? mb.min.x : mb.max.x, (i & 2) == 0 ? mb.min.y : mb.max.y, (i & 4) == 0 ? mb.min.z : mb.max.z)));
             }
             return b;
         }
