@@ -491,7 +491,7 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - Shrinking is immediate.
   - Growing back needs 6 % more room than the next step, held for 0.75 s, so a module on the edge never twitches.
   - The row is centred and bottom-aligned in the box.
-- **TOOLS module** (always present; its title row carries a blue MENU button = `controlsLayout.glassMenu` {action "glassMenu"}, where Glass opens its full options pop-up — the floating toolbar is gone): START cruise/final/spin/reset · LESSON 4 forces/stop/4F mode/grid · FORCES lift/drag/weight/thrust · rel wind/total/vectors/clear · VIEW chase/side/behind/top · TIME 100/50/25/10 % · PLAY pause-live/fly on/−1 s/+1 s.
+- **TOOLS module** (always present; the blue MENU button is the panel's lower-right corner (under the annunciators) = `controlsLayout.glassMenu` {action "glassMenu"}: the go-to for everything not on the display; Glass opens its full options there — the floating toolbar is gone): START cruise/final/spin/reset · LESSON 4 forces/stop/4F mode/grid · FORCES lift/drag/weight/thrust · rel wind/total/vectors/clear · VIEW chase/side/behind/top · TIME 100/50/25/10 % · PLAY pause-live/fly on/−1 s/+1 s.
   - Each button is a `controlsLayout` entry `tap:<id>` with `action:"tap"` and `send:{…}`, the exact command to send on a tap.
   - Lit = that state is on now.
 - **New `show` forms:** `{"toggle":"lift"}` (or an array) flips keys, and turning a force on also turns `vectors` on. `{"clear":true}` turns every vector off (and four-forces mode).

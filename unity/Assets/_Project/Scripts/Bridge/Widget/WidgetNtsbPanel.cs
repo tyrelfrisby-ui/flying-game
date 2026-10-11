@@ -70,7 +70,7 @@ namespace FlyingGame.Bridge.Widget
             float boxS = box.width / NW;
             _s = boxS; _o = new Vector2(box.x, box.yMax);            // the box's own frame (its handles)
             // The box itself: the presenter drags it (within the lower third) and pulls its corner grip to resize.
-            float gw = Mathf.Clamp(0.045f * FW / _s, 44f, AnnW), gh = 40f;
+            float gw = 40f, gh = 40f;   // the corner grip (Glass also draws its own on hover)
             LayoutRect("panel", 0, 0, NW, NH);
             LayoutRect("panelResize", NW - gw, NH - gh, gw, gh);
             { var gc = new Color(1, 1, 1, 0.75f); float gk = Mathf.Min(gw, gh) - 8; for (int i = 1; i <= 4; i++) { float d = gk * i / 4f; SegD(NW - 4 - d, NH - 4, NW - 4, NH - 4 - d, 3f, gc); } }
@@ -115,7 +115,13 @@ namespace FlyingGame.Bridge.Widget
             {
                 // The type's name heads the annunciator column (nothing above the band).
                 OText(x + AnnW * 0.5f, Y0 + 12, w.AircraftName, 16, Color.white);
-                Annunciators(x, Y0 + 28, AnnW, IH - 28 - gh - 4, stall, spec.StickShaker, spin, w);
+                Annunciators(x, Y0 + 28, AnnW, IH - 28 - 52, stall, spec.StickShaker, spin, w);
+                // MENU, the lower-right corner (owner 2026-10-11: "the go-to for everything that is not on the display" —
+                // aircraft, scenario, lesson, every vector and graph …): Glass opens its full options there.
+                float my = Y0 + IH - 46, mbw = AnnW - 34;
+                RoundRect(x, my, mbw, 44, 7, new Color(0.2f, 0.4f, 0.75f, 0.95f));
+                _texts.Add((P(x + mbw * 0.5f, my + 22), "MENU", 22f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
+                LayoutRect("glassMenu", x, my, mbw, 44);
             }));
 
             // Fit: one scale for the whole row (stepped, with hysteresis), the row centred and bottom-aligned in the box.
@@ -135,12 +141,7 @@ namespace FlyingGame.Bridge.Widget
         private void Tools(AeroWidget w, float x, float y, float mw, float mh)
         {
             Plate(x, y, mw, mh);
-            OText(x + 10, y + 14, "TOOLS", 14, Grey, TextAnchor.MiddleLeft);
-            // MENU (owner 2026-10-11 via Glass: the floating toolbar is gone): Glass opens its full options pop-up here.
-            { float mbw = 92f, mbx = x + mw - 8 - mbw, mby = y + 3;
-              RoundRect(mbx, mby, mbw, 22, 5, new Color(0.2f, 0.4f, 0.75f, 0.95f));
-              _texts.Add((P(mbx + mbw * 0.5f, mby + 11), "MENU ▾", 14f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
-              LayoutRect("glassMenu", mbx, mby, mbw, 22); }
+            OText(x + mw * 0.5f, y + 14, "TOOLS", 14, Grey);
             const float lw = 62f, ch = 26f, rh = 32f;
             float ry = y + 30, cx0 = x + 8 + lw, cw = (mw - 16 - lw - 3 * 4f) / 4f;
             bool On(string k) => w.Show.TryGetValue(k, out bool b) && b;
