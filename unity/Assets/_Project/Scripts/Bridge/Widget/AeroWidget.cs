@@ -136,7 +136,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Keep the presenter's panel box across launches.</summary>
         public void SavePanel()
         {
-            PlayerPrefs.SetFloat("panel.x", PanelX); PlayerPrefs.SetFloat("panel.y", PanelY); PlayerPrefs.SetFloat("panel.w", PanelW); PlayerPrefs.Save();
+            PlayerPrefs.SetInt("panel.v", 2); PlayerPrefs.SetFloat("panel.x", PanelX); PlayerPrefs.SetFloat("panel.y", PanelY); PlayerPrefs.SetFloat("panel.w", PanelW); PlayerPrefs.Save();
         }
 
         private void Awake()
@@ -147,7 +147,7 @@ namespace FlyingGame.Bridge.Widget
             Screen.SetResolution(720, 720, FullScreenMode.Windowed);
             WorldTerrain.Active = null;   // a flat world at 0 — no scenery, no thermals
             Zoom = Mathf.Clamp(PlayerPrefs.GetFloat("view.zoom", 1.6f), 0.6f, 3f);
-            if (PlayerPrefs.GetFloat("panel.w", -1f) > 0) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspectN);
+            if (PlayerPrefs.GetInt("panel.v", 0) == 2 && PlayerPrefs.GetFloat("panel.w", -1f) > 0)   // (v2 = the one-row panel; older boxes reset) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspectN);
             Atmosphere.ThermalStrengthScale = 0; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.SlopeLiftEnabled = false;
 
             if (PlayerPrefs.GetString("frame.mode", "square") == "16:9") FrameW = 1920;

@@ -491,7 +491,7 @@ namespace FlyingGame.Bridge.Widget
                     if (j["reset"]?.Value<bool>() ?? false) w.PanelW = -1f;
                     else
                     {
-                        float cw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / aspect);
+                        float cw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, AeroHost.UiBand / aspect);
                         float cx = w.PanelW > 0 ? w.PanelX : (1f - cw) * 0.5f, cy = w.PanelW > 0 ? w.PanelY : 1f - cw * aspect;
                         float nx = j["x"] != null ? (float)j["x"].Value<double>() : cx + (float)(j["dx"]?.Value<double>() ?? 0);
                         float ny = j["y"] != null ? (float)j["y"].Value<double>() : cy + (float)(j["dy"]?.Value<double>() ?? 0);
@@ -564,7 +564,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9", "tools");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -592,6 +592,20 @@ namespace FlyingGame.Bridge.Widget
                     foreach (var p in j.Properties()) if (p.Name != "cmd" && w.Show.ContainsKey(p.Name)) w.Show[p.Name] = p.Value.Value<bool>();
                     // "horizon" is the earth grid's old name (an alias for one protocol version): either sets both.
                     if (j["earthGrid"] != null) w.SetEarthGrid(j["earthGrid"].Value<bool>()); else if (j["horizon"] != null) w.SetEarthGrid(j["horizon"].Value<bool>());
+                    // {"clear": true}: every vector off (a clean picture), the four-forces mode too.
+                    if (j["clear"]?.Value<bool>() ?? false) { if (w.Show["fourForces"]) w.SetFourForces(false); foreach (var vk in AeroHost.VectorKeys) if (w.Show.ContainsKey(vk)) w.Show[vk] = false; w.Show["vectors"] = false; }
+                    // {"toggle": "lift"} (or an array): flip those keys — what the TOOLS buttons send (2026-10-11).
+                    if (j["toggle"] != null)
+                        foreach (var t in j["toggle"] is JArray ta ? ta.Values<string>() : new[] { (string)j["toggle"] })
+                        {
+                            if (t == "earthGrid" || t == "horizon") w.SetEarthGrid(!w.Show["earthGrid"]);
+                            else if (t != null && w.Show.ContainsKey(t))
+                            {
+                                w.Show[t] = !w.Show[t];
+                                if (w.Show[t] && System.Array.IndexOf(AeroHost.VectorKeys, t) >= 0) w.Show["vectors"] = true;   // (as the game: a force on = vectors on)
+                            }
+                        }
+                    ok["show"] = JObject.FromObject(w.Show);
                     break;
                 case "gamepad":
                     var c = w.Controls;
@@ -634,7 +648,7 @@ namespace FlyingGame.Bridge.Widget
         private JObject PanelJson()
         {
             var w = Widget; float a = WidgetControlsDisplay.PanelAspectN;
-            float pw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / a);
+            float pw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, AeroHost.UiBand / a);
             float px = w.PanelW > 0 ? w.PanelX : (1f - pw) * 0.5f, py = w.PanelW > 0 ? w.PanelY : 1f - pw * a;
             return new JObject { ["x"] = System.Math.Round(px, 4), ["y"] = System.Math.Round(py, 4), ["w"] = System.Math.Round(pw, 4), ["h"] = System.Math.Round(pw * a, 4),
                                  ["aspect"] = System.Math.Round(a, 4), ["minW"] = AeroHost.PanelMinW, ["custom"] = w.PanelW > 0 };
@@ -663,6 +677,8 @@ namespace FlyingGame.Bridge.Widget
                     case "spoilers": e["axis"] = "spoilers"; e["orientation"] = "vertical"; e["top"] = "retracted"; break;
                     case "gear": e["action"] = "toggle"; e["cmd"] = "controls.gear"; break;
                     case "panel": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "drag the box (outside the controls) to move it"; break;
+                    case var tk when tk.StartsWith("tap:") && d.TapCmds.TryGetValue(tk, out var tj):
+                        e["action"] = "tap"; e["send"] = JObject.Parse(tj); break;
                     case "panelMove": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "the MCP strip across the top: a grab bar (display only, no controls)"; break;
                     case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspectN; break;
                 }

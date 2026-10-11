@@ -16,9 +16,28 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed partial class WidgetControlsDisplay
     {
-        // Design space: the panel is 1080 × 550 units (the autopilot's MCP strip on top, then the instruments), scaled to its strip.
-        // Owner 2026-10-11: "more wide, less tall" — 1080 × 380 (≈ 2.85 : 1).
-        private const float NW = 1080f, NH = 380f, MY = 52f, IH = 282f;   // MY: the instruments sit below the MCP; IH: their height
+        // Design space (owner 2026-10-11: "wider but shorter … 2/3 of the area for the airplane, the lower 1/3 for the UI"):
+        // ONE ROW, 1528 × 290 (≈ 5.3 : 1) — at full width on the 16:9 frame the panel is the bottom third. Left to right: the
+        // autopilot (MCP) block, the instruments (PFD with the FMA, AoA, controls, power, levers), the annunciators column.
+        private const float NW = 1528f, NH = 286.5f, IH = 282f, Y0 = 2f;   // IH: the plates' height; Y0: their top (1920/NW·NH = 360 = a third of 1080)
+        private const float McpW = 268f, AnnW = 170f, Gap = 8f, InsetColW = 236f, LessonW = 300f, ToolsW = 352f;
+        // MODULES (owner 2026-10-11): every part of the band is a module with its own width at full height; when they don't fit,
+        // they ALL shrink together, in steps, with hysteresis — shrinking happens at once (never overlap), growing back needs 6 %
+        // more room than the next step for 0.75 s, so a module on the edge never twitches between two sizes.
+        private static readonly float[] BandSteps = { 1f, 0.9f, 0.8f, 0.7f, 0.6f, 0.5f, 0.42f, 0.35f };
+        private int _bandStep; private float _growSince = -1f;
+        private float BandScale(float need)
+        {
+            float req = need <= NW ? 1f : NW / need;
+            while (_bandStep < BandSteps.Length - 1 && BandSteps[_bandStep] > req + 1e-4f) { _bandStep++; _growSince = -1f; }
+            if (_bandStep > 0 && req >= BandSteps[_bandStep - 1] * 1.06f)
+            {
+                if (_growSince < 0) _growSince = Time.unscaledTime;
+                else if (Time.unscaledTime - _growSince >= 0.75f) { _bandStep--; _growSince = -1f; }
+            }
+            else _growSince = -1f;
+            return Mathf.Min(BandSteps[_bandStep], req);   // (below the last step: exactly what fits)
+        }
         /// <summary>The panel box's height over its width.</summary>
         public const float PanelAspect = NH / NW;
         /// <summary>The box's height over its width in FRAME FRACTIONS (what x, y, w, h of the frame use): equal to PanelAspect
@@ -31,7 +50,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The panel's box in frame pixels: where the presenter put it, or the default (bottom, full width).</summary>
         private Rect NtsbPanelRect(AeroWidget w)
         {
-            float wf = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / PanelAspectN), hf = wf * PanelAspectN;
+            float wf = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, AeroHost.UiBand / PanelAspectN), hf = wf * PanelAspectN;
             float x = w.PanelW > 0 ? w.PanelX : (1f - wf) * 0.5f, y = w.PanelW > 0 ? w.PanelY : 1f - hf;
             return new Rect(x * FW, FH - (y + hf) * FH, wf * FW, hf * FH);
         }
@@ -48,48 +67,150 @@ namespace FlyingGame.Bridge.Widget
 
         private void NtsbLayout(AeroWidget w, Rect box)
         {
-            _s = box.width / NW;
-            _o = new Vector2(box.x, box.yMax);                      // top-left of the box
+            float boxS = box.width / NW;
+            _s = boxS; _o = new Vector2(box.x, box.yMax);            // the box's own frame (its handles)
+            // The box itself: the presenter drags it (within the lower third) and pulls its corner grip to resize.
+            float gw = Mathf.Clamp(0.045f * FW / _s, 44f, AnnW), gh = 40f;
+            LayoutRect("panel", 0, 0, NW, NH);
+            LayoutRect("panelResize", NW - gw, NH - gh, gw, gh);
+            { var gc = new Color(1, 1, 1, 0.75f); float gk = Mathf.Min(gw, gh) - 8; for (int i = 1; i <= 4; i++) { float d = gk * i / 4f; SegD(NW - 4 - d, NH - 4, NW - 4, NH - 4 - d, 3f, gc); } }
+
             var f = w.Shown ?? w.Review.Capture();
             var r = w.Read();
             var spec = w.Controls.Spec;
             double critA = w.CriticalAlphaDeg(f.FlapsActual), warnA = critA - (spec.StickShaker ? 2.0 : 3.0);
             bool stall = r.AlphaDeg >= warnA && !r.OnGround;
             bool spin = !r.OnGround && System.Math.Abs(r.YawRateDps) > 40 && r.AlphaDeg > critA;
-
-            Mcp(8, 6, NW - 16, 46, w.Autopilot);
-            // The instrument row: only the controls this airplane has (owner 2026-10-11) — no power plate on a glider, no gear
-            // lever on fixed gear, no flaps or spoilers it doesn't have. The row is centred under the MCP.
             bool power = spec.Engines > 0, flaps = spec.Flaps.Length > 1, gear = spec.Retractable, splr = spec.Spoilers;
             float leversW = LeversWidth(flaps, gear, splr);
-            float rowW = 420 + 8 + 90 + 8 + 204 + (power ? 8 + 92 : 0) + (leversW > 0 ? 8 + leversW : 0);
-            float x = (NW - rowW) * 0.5f, y = 6 + MY;
-            Pfd(x, y, 420, IH, w.Autopilot, r, f, w.StallKias(f.FlapsActual)); x += 428;
-            Aoa(x, y, 90, IH, r.AlphaDeg, critA, warnA); x += 98;
-            Column(x, y, 204, IH, f);
-            // Touch layout (addendum): the yoke trackpad over the column + wheel, the pedal slider, the levers.
-            TouchBox(x + 8, y + 24, 188, 128); LayoutRect("yoke", x + 8, y + 24, 188, 128);
-            TouchBox(x + 8, y + 168, 188, 92); LayoutRect("pedals", x + 8, y + 168, 188, 92);
-            // Thumbs at the current inputs: the pedals.
-            { float cx = x + 102, ty = y + 254; float tx = cx + (float)f.Rud * 94f; Rect(tx - 10, ty - 5, 20, 10, new Color(1, 1, 1, 0.8f)); SegD(x + 16, ty, x + 188, ty, 1f, new Color(1, 1, 1, 0.25f)); }
-            x += 212;
-            if (power)
+            var insets = new List<string>(); foreach (var n in InsetNames) if (w.Insets.Contains(n)) insets.Add(n);
+            bool lessonOn = w.Lessons.Current != null || w.FourForcesLesson.Active;
+
+            // The modules, left to right (only the ones that apply).
+            var mods = new List<(float w, System.Action<float> draw)>();
+            // TOOLS (owner 2026-10-11: "always present … what vectors to show, scenarios like the spin or 4 forces lesson"): first.
+            mods.Add((ToolsW, x => Tools(w, x, Y0, ToolsW, IH)));
+            mods.Add((McpW, x => { Mcp(x, Y0, McpW, IH, w.Autopilot); LayoutRect("panelMove", x, Y0, McpW, 26); }));
+            mods.Add((420, x => Pfd(x, Y0, 420, IH, w.Autopilot, r, f, w.StallKias(f.FlapsActual))));
+            mods.Add((90, x => Aoa(x, Y0, 90, IH, r.AlphaDeg, critA, warnA)));
+            mods.Add((204, x =>
             {
-                Power(x, y, 92, IH, f, spec, w.Ac);
-                LayoutRect("throttle", x + 34, y + 54, 52, IH - 90 - 54);   // exactly the lever's travel: top = full
-                x += 100;
-            }
+                Column(x, Y0, 204, IH, f);
+                // Touch layout (addendum): the yoke trackpad over the column + wheel, the pedal slider.
+                TouchBox(x + 8, Y0 + 24, 188, 128); LayoutRect("yoke", x + 8, Y0 + 24, 188, 128);
+                TouchBox(x + 8, Y0 + 168, 188, 92); LayoutRect("pedals", x + 8, Y0 + 168, 188, 92);
+                float cx = x + 102, ty = Y0 + 254, tx = cx + (float)f.Rud * 94f; Rect(tx - 10, ty - 5, 20, 10, new Color(1, 1, 1, 0.8f)); SegD(x + 16, ty, x + 188, ty, 1f, new Color(1, 1, 1, 0.25f));
+            }));
+            if (power) mods.Add((92, x => { Power(x, Y0, 92, IH, f, spec, w.Ac); LayoutRect("throttle", x + 44, Y0 + 54, 48, IH - 90 - 54); }));
             FlapDetentPositions = null;
-            if (leversW > 0) Levers(x, y, leversW, IH, f, spec, flaps, gear, splr);
-            float gw = Mathf.Max(44f, 0.045f * FW / _s), gh = NH - (6 + MY + IH + 2);   // the resize grip: ≥ 4.5 % of the frame wide at any size (Glass)
-            Annunciators(8, 6 + MY + IH + 6, NW - 16 - gw, 28, stall, spec.StickShaker, spin, w);
-            // The box itself: the presenter drags it anywhere and pulls its corner grip to resize (Glass lays its handles here).
-            LayoutRect("panel", 0, 0, NW, NH);
-            LayoutRect("panelMove", 8, 6, NW - 16, 46);   // the MCP strip (display only): the obvious place to grab the box
-            LayoutRect("panelResize", NW - gw, NH - gh, gw, gh);
-            var gc = new Color(1, 1, 1, 0.75f);
-            float gk = Mathf.Min(gw, gh) - 8;   // the corner grip: diagonal ridges filling the corner
-            for (int i = 1; i <= 4; i++) { float d = gk * i / 4f; SegD(NW - 4 - d, NH - 4, NW - 4, NH - 4 - d, 3f, gc); }
+            if (leversW > 0) mods.Add((leversW, x => Levers(x, Y0, leversW, IH, f, spec, flaps, gear, splr)));
+            // Insets: two to a column (each at its own 300 × 176 shape).
+            for (int i = 0; i < insets.Count; i += 2)
+            {
+                string a1 = insets[i], a2 = i + 1 < insets.Count ? insets[i + 1] : null;
+                mods.Add((InsetColW, x => { InsetModule(w, a1, x, Y0, InsetColW, (IH - 6) * 0.5f); if (a2 != null) InsetModule(w, a2, x, Y0 + (IH + 6) * 0.5f, InsetColW, (IH - 6) * 0.5f); }));
+            }
+            if (lessonOn) mods.Add((LessonW, x => LessonModule(w, x, Y0, LessonW, IH)));
+            mods.Add((AnnW, x =>
+            {
+                // The type's name heads the annunciator column (nothing above the band).
+                OText(x + AnnW * 0.5f, Y0 + 12, w.AircraftName, 16, Color.white);
+                Annunciators(x, Y0 + 28, AnnW, IH - 28 - gh - 4, stall, spec.StickShaker, spin, w);
+            }));
+
+            // Fit: one scale for the whole row (stepped, with hysteresis), the row centred and bottom-aligned in the box.
+            float need = -Gap; foreach (var m in mods) need += m.w + Gap;
+            need += 2 * Gap;
+            float k = BandScale(need);
+            float vw = NW / k;                                            // the row's design width at this scale
+            _s = boxS * k;
+            _o = new Vector2(box.x, box.y + NH * _s);                     // bottom-aligned: the row's top-left
+            float xx = (vw - (need - 2 * Gap)) * 0.5f;
+            foreach (var m in mods) { m.draw(xx); xx += m.w + Gap; }
+            _s = boxS; _o = new Vector2(box.x, box.yMax);
+        }
+
+        /// <summary>TOOLS: the widget's own controls as tap buttons — scenario, lesson, vectors, view, time. Each is a layout rect
+        /// "tap:…" whose command Glass sends as is (controlsLayout: action "tap", send {…}). Lit = that state is on now.</summary>
+        private void Tools(AeroWidget w, float x, float y, float mw, float mh)
+        {
+            Plate(x, y, mw, mh);
+            OText(x + mw * 0.5f, y + 14, "TOOLS", 14, Grey);
+            const float lw = 62f, ch = 26f, rh = 32f;
+            float ry = y + 30, cx0 = x + 8 + lw, cw = (mw - 16 - lw - 3 * 4f) / 4f;
+            bool On(string k) => w.Show.TryGetValue(k, out bool b) && b;
+            void Row(string label, params (string text, bool lit, string key, string json)[] chips)
+            {
+                if (label.Length > 0) _texts.Add((P(x + 8, ry + ch * 0.5f), label, Mathf.Min(14f, (lw - 6f) / Mathf.Max(1, label.Length * 0.62f)) * _s, Lbl, TextAnchor.MiddleLeft, true, true));
+                for (int i = 0; i < chips.Length && i < 4; i++)
+                {
+                    var c = chips[i]; float bx = cx0 + i * (cw + 4f);
+                    if (c.lit) RoundRect(bx, ry, cw, ch, 5, new Color(0.15f, 0.55f, 0.3f, 0.95f));
+                    else { Rect(bx, ry, cw, ch, new Color(0.08f, 0.08f, 0.09f, 0.9f)); Box(bx, ry, cw, ch, 1.2f, Rule); }
+                    _texts.Add((P(bx + cw * 0.5f, ry + ch * 0.5f), c.text, Mathf.Min(15f, (cw - 6f) / Mathf.Max(1, c.text.Length * 0.62f)) * _s, c.lit ? Color.white : Lbl, TextAnchor.MiddleCenter, true, true));
+                    string k = "tap:" + c.key; LayoutRect(k, bx, ry, cw, ch); TapCmds[k] = c.json;
+                }
+                ry += rh;
+            }
+            string cond = w.Condition ?? "";
+            bool ff = w.FourForcesLesson.Active, lesson = w.Lessons.Current != null;
+            Row("START", ("CRUISE", cond == "cruise", "start.cruise", "{\"cmd\":\"start\",\"condition\":\"cruise\"}"),
+                         ("FINAL", cond == "final", "start.final", "{\"cmd\":\"start\",\"condition\":\"final\"}"),
+                         ("SPIN", cond == "spin", "start.spin", "{\"cmd\":\"start\",\"condition\":\"spin\"}"),
+                         ("RESET", false, "reset", "{\"cmd\":\"reset\"}"));
+            Row("LESSON", ("4 FORCES", ff, "lesson.ff", "{\"cmd\":\"lesson\",\"id\":\"four-forces\"}"),
+                          ("STOP", false, "lesson.stop", "{\"cmd\":\"lesson\",\"id\":\"stop\"}"),
+                          ("4F MODE", On("fourForces"), "fourForces", "{\"cmd\":\"fourForces\"}"),
+                          ("GRID", On("earthGrid"), "show.earthGrid", "{\"cmd\":\"show\",\"toggle\":\"earthGrid\"}"));
+            Row("FORCES", ("LIFT", On("lift"), "show.lift", "{\"cmd\":\"show\",\"toggle\":\"lift\"}"),
+                           ("DRAG", On("drag"), "show.drag", "{\"cmd\":\"show\",\"toggle\":\"drag\"}"),
+                           ("WEIGHT", On("weight"), "show.weight", "{\"cmd\":\"show\",\"toggle\":\"weight\"}"),
+                           ("THRUST", On("thrust"), "show.thrust", "{\"cmd\":\"show\",\"toggle\":\"thrust\"}"));
+            Row("", ("REL WIND", On("wind"), "show.wind", "{\"cmd\":\"show\",\"toggle\":\"wind\"}"),
+                    ("TOTAL", On("total"), "show.total", "{\"cmd\":\"show\",\"toggle\":\"total\"}"),
+                    ("VECTORS", On("vectors"), "show.vectors", "{\"cmd\":\"show\",\"toggle\":\"vectors\"}"),
+                    ("CLEAR", false, "show.clear", "{\"cmd\":\"show\",\"clear\":true}"));
+            Row("VIEW", ("CHASE", w.View == "chase", "view.chase", "{\"cmd\":\"view\",\"name\":\"chase\"}"),
+                        ("SIDE", w.View == "side", "view.side", "{\"cmd\":\"view\",\"name\":\"side\"}"),
+                        ("BEHIND", w.View == "behind", "view.behind", "{\"cmd\":\"view\",\"name\":\"behind\"}"),
+                        ("TOP", w.View == "top", "view.top", "{\"cmd\":\"view\",\"name\":\"top\"}"));
+            float ts = w.TimeScale;
+            Row("TIME", ("100%", ts > 0.99f, "time.1", "{\"cmd\":\"timescale\",\"value\":1}"),
+                        ("50%", Mathf.Abs(ts - 0.5f) < 0.01f, "time.50", "{\"cmd\":\"timescale\",\"value\":0.5}"),
+                        ("25%", Mathf.Abs(ts - 0.25f) < 0.01f, "time.25", "{\"cmd\":\"timescale\",\"value\":0.25}"),
+                        ("10%", Mathf.Abs(ts - 0.1f) < 0.01f, "time.10", "{\"cmd\":\"timescale\",\"value\":0.1}"));
+            Row("PLAY", (w.Paused ? "LIVE" : "PAUSE", w.Paused, "review", w.Paused ? "{\"cmd\":\"resume\",\"from\":\"live\"}" : "{\"cmd\":\"pause\"}"),
+                          ("FLY ON", false, "review.flyon", "{\"cmd\":\"resume\"}"),
+                          ("−1 s", false, "review.back", "{\"cmd\":\"rewind\",\"seconds\":1}"),
+                          ("+1 s", false, "review.fwd", "{\"cmd\":\"rewind\",\"seconds\":-1}"));
+        }
+
+        /// <summary>An inset as a band module: its plate drawn at the module's pixel rect, its text scaled to fit.</summary>
+        private void InsetModule(AeroWidget w, string name, float x, float y, float mw, float mh)
+        {
+            Vector2 tl = P(x, y), br = P(x + mw, y + mh);
+            var rect = new Rect(tl.x, br.y, br.x - tl.x, tl.y - br.y);
+            float keep = TextScale; TextScale = rect.height / 176f;
+            DrawInset(w, name, rect);
+            TextScale = keep;
+        }
+
+        /// <summary>The lesson as a band module: its title, the coaching or caption, the results (wrapped).</summary>
+        private void LessonModule(AeroWidget w, float x, float y, float mw, float mh)
+        {
+            Plate(x, y, mw, mh);
+            var L = w.Lessons; var coach = w.FourForcesLesson;
+            float ty = y + 16, lx = x + 10;
+            string title = coach.Active ? "LESSON · THE FOUR FORCES" : $"LESSON · {L.Current?.Name.ToUpperInvariant()}";
+            OText(lx, ty, title, 14, new Color(0.55f, 0.85f, 1f), TextAnchor.MiddleLeft); ty += 22;
+            void Para(string t, Color c)
+            {
+                if (string.IsNullOrEmpty(t)) return;
+                foreach (var line in Wrap(t, (mw - 20) * 1f, 17.25f)) { if (ty > y + mh - 10) return; OText(lx, ty, line, 15, c, TextAnchor.MiddleLeft); ty += 20; }
+                ty += 4;
+            }
+            if (coach.Active) { Para(coach.Instruction, Color.white); Para(coach.Live, new Color(0.55f, 0.95f, 0.6f)); if (coach.Results.Count > 0) Para(coach.Results[0], new Color(1f, 0.85f, 0.4f)); }
+            else { Para(L.Caption, Color.white); for (int i = 0; i < L.Results.Count && i < 3; i++) Para(L.Results[i], new Color(1f, 0.85f, 0.4f)); }
         }
 
         /// <summary>The flap detents' positions along the flaps rect (0 = top … 1 = bottom), evenly spaced like the gate.</summary>
@@ -293,35 +414,26 @@ namespace FlyingGame.Bridge.Widget
         // (LNAV / LOC / APP aren't built yet, so they aren't on the panel.)
         private void Mcp(float x, float y, float w, float h, WidgetAutopilot ap)
         {
+            // The autopilot as a compact block (one row per axis): a label, its target window, its mode button(s). A button's
+            // light bar is lit while its mode is ENGAGED; a window shows its target only while it's being flown ("- - -" else).
             Plate(x, y, w, h);
+            OText(x + w * 0.5f, y + 14, "AUTOPILOT", 14, Grey);
             bool on = ap.On, aoa = ap.PitchMode == "aoa", roll = on && !ap.PitchOnly;
             bool flc = on && ap.PitchMode == "flc", atSpd = ap.AutoThrottle && !flc;
             bool altTgt = on && !aoa && (ap.PitchMode == "alt" || ap.PitchMode == "alt*" || flc || ap.PitchMode == "vs" && ap.HasAltTarget);
-            const float bw = 52f, ww = 72f, g = 4f;
-            float top = y + 18;
-            var groups = new List<(string title, List<(float w, System.Action<float> draw)> items)>
-            {
-                ("SPEED", new() { (bw, bx => Btn(bx, "A/T", ap.AutoThrottle, !ap.HasEngine, ap.AtDisc)), (ww, bx => Win(bx, atSpd || flc ? $"{ap.Kias:0}" : null)), (bw, bx => Btn(bx, "FLC", flc)) }),
-                ("HEADING", new() { (ww, bx => Win(bx, roll && ap.RollMode == "hdg" ? $"{ap.HdgDeg:000}°" : null)), (bw, bx => Btn(bx, "HDG", roll && ap.RollMode == "hdg")) }),
-                ("ALTITUDE", new() { (ww, bx => Win(bx, altTgt ? $"{ap.AltFt:0}" : null)), (bw, bx => Btn(bx, "ALT", on && (ap.PitchMode == "alt" || ap.PitchMode == "alt*"))) }),
-                ("VERT SPEED", new() { (ww, bx => Win(bx, on && ap.PitchMode == "vs" ? $"{ap.VsFpm:+0;-0;0}" : null)), (bw, bx => Btn(bx, "V/S", on && ap.PitchMode == "vs")) }),
-                ("CWS  PITCH · BANK", new() { (ww, bx => Win(bx, on && ap.PitchMode == "pit" ? $"{ap.PitchDeg:+0.0;-0.0;0.0}°" : null)), (bw, bx => Btn(bx, "PIT", on && ap.PitchMode == "pit")),
-                                    (ww, bx => Win(bx, roll && ap.RollMode == "bank" ? BankText(ap.BankDeg) : null)), (bw, bx => Btn(bx, "BANK", roll && ap.RollMode == "bank")) }),
-                ("", new() { (bw, bx => Btn(bx, "AP", on, false, !on && ap.Disc)), (bw, bx => Btn(bx, "YD", ap.YawDamper)) }),
-            };
-            float total = 0; foreach (var gr in groups) { foreach (var it in gr.items) total += it.w; total += (gr.items.Count - 1) * g; }
-            float gap = (w - 16 - total) / (groups.Count - 1), cx = x + 8;
-            for (int i = 0; i < groups.Count; i++)
-            {
-                var gr = groups[i]; float gx0 = cx;
-                foreach (var it in gr.items) { it.draw(cx); cx += it.w + g; }
-                float gx1 = cx - g;
-                if (gr.title.Length > 0) OText((gx0 + gx1) * 0.5f, y + 9, gr.title, 13, Grey);
-                if (i + 1 < groups.Count) { float sx = gx1 + (gap - g) * 0.5f + g * 0.5f; SegD(sx, y + 8, sx, y + h - 6, 1f, Rule); }
-                cx += gap - g;
-            }
+            const float bw = 52f, ww = 72f, rh = 36f;
+            float c1 = x + 70, c2 = x + 126, c3 = x + 202, ry = y + 30;
+            void Row(string label, System.Action draw) { if (label.Length > 0) OText(x + 10, ry + 12, label, 13, Grey, TextAnchor.MiddleLeft); draw(); ry += rh; }
+            Row("SPD", () => { Btn(c1, "A/T", ap.AutoThrottle, !ap.HasEngine, ap.AtDisc); Win(c2, atSpd || flc ? $"{ap.Kias:0}" : null); Btn(c3, "FLC", flc); });
+            Row("HDG", () => { Win(c2, roll && ap.RollMode == "hdg" ? $"{ap.HdgDeg:000}°" : null); Btn(c3, "HDG", roll && ap.RollMode == "hdg"); });
+            Row("ALT", () => { Win(c2, altTgt ? $"{ap.AltFt:0}" : null); Btn(c3, "ALT", on && (ap.PitchMode == "alt" || ap.PitchMode == "alt*")); });
+            Row("V/S", () => { Win(c2, on && ap.PitchMode == "vs" ? $"{ap.VsFpm:+0;-0;0}" : null); Btn(c3, "V/S", on && ap.PitchMode == "vs"); });
+            Row("CWS P", () => { Win(c2, on && ap.PitchMode == "pit" ? $"{ap.PitchDeg:+0.0;-0.0;0.0}°" : null); Btn(c3, "PIT", on && ap.PitchMode == "pit"); });
+            Row("CWS B", () => { Win(c2, roll && ap.RollMode == "bank" ? BankText(ap.BankDeg) : null); Btn(c3, "BANK", roll && ap.RollMode == "bank"); });
+            Row("", () => { Btn(c2 + 10, "AP", on, false, !on && ap.Disc); Btn(c3, "YD", ap.YawDamper); });
             void Btn(float bx, string label, bool lit, bool dark = false, bool warn = false)
             {
+                float top = ry;
                 Rect(bx, top, bw, 24, new Color(0.08f, 0.08f, 0.09f, 0.9f));
                 Box(bx, top, bw, 24, 1.2f, Rule);
                 bool flash = warn && Mathf.Repeat(Time.unscaledTime, 0.6f) < 0.35f;
@@ -330,6 +442,7 @@ namespace FlyingGame.Bridge.Widget
             }
             void Win(float bx, string value)
             {
+                float top = ry;
                 Rect(bx, top, ww, 24, Color.black);
                 Box(bx, top, ww, 24, 1.2f, Rule);
                 OText(bx + ww * 0.5f, top + 12, value ?? "- - -", value != null ? 17 : 14, value != null ? LitAmber : OffText);
@@ -460,7 +573,7 @@ namespace FlyingGame.Bridge.Widget
             int n = Mathf.Clamp(spec.Engines, 1, 4);
             for (int i = 0; i < n; i++)
             {
-                float lx = x + 62 + (n > 1 ? (i - (n - 1) * 0.5f) * 14f : 0f);
+                float lx = x + 70 + (n > 1 ? (i - (n - 1) * 0.5f) * 14f : 0f);   // (right of the MAX / IDLE labels)
                 SegD(lx, y0, lx, y1, 2f, na ? OffText : Rule);
                 float ly = y1 - (na ? 0f : (float)f.Thr) * (y1 - y0);
                 Rect(lx - 9, ly - 6, 18, 12, na ? OffText : Color.white);
@@ -559,13 +672,15 @@ namespace FlyingGame.Bridge.Widget
             if (wd.AltLockAnnunciation is string al) items.Add((al, true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
             if (!wd.Loading.WithinLimits) items.Add(("OUT OF LIMITS", true, LitAmber));
             if (wd.Controls.Managed && wd.Controls.PilotName != null) items.Add(($"PF {wd.Controls.PilotName.ToUpperInvariant()}", true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
-            float bw = (w - (items.Count - 1) * 8f) / items.Count;
+            // A column (the one-row panel): equal boxes top to bottom, at most 40 tall.
+            float bh = Mathf.Min(40f, (h - (items.Count - 1) * 6f) / items.Count);
             for (int i = 0; i < items.Count; i++)
             {
-                float bx = x + i * (bw + 8f);
+                float by = y + i * (bh + 6f);
                 var it = items[i];
-                if (it.on) RoundRect(bx, y, bw, h, 6, it.lit); else Plate(bx, y, bw, h);
-                OText(bx + bw * 0.5f, y + h * 0.5f, it.text, Mathf.Min(18f, (bw - 14f) / Mathf.Max(1, it.text.Length * 0.6f)), it.on ? Color.white : OffText);   // long mode lines shrink to fit
+                if (it.on) RoundRect(x, by, w, bh, 6, it.lit); else Plate(x, by, w, bh);
+                float fit = Mathf.Min(19f, (w - 14f) / Mathf.Max(1, it.text.Length * 0.62f));   // long lines shrink to fit (no floor)
+                _texts.Add((P(x + w * 0.5f, by + bh * 0.5f), it.text, fit * _s, it.on ? Color.white : Lbl, TextAnchor.MiddleCenter, true, true));
             }
         }
     }

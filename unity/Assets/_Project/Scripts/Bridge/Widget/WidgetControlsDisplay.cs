@@ -108,7 +108,7 @@ namespace FlyingGame.Bridge.Widget
             // The compositor runs every frame (protocol 7: the vectors and labels are drawn here too, bold and outlined).
             bool on = w != null && w.Ac != null && _copy != null;
             _on = on;
-            Layout.Clear();
+            Layout.Clear(); TapCmds.Clear();
             float size = ntsb ? Mathf.Clamp(w.Split, 0.35f, 0.6f) : Mathf.Clamp(w != null ? w.ControlsSize : 0.28f, 0.2f, 0.5f);
             string place = ntsb ? "bottom" : w != null ? w.ControlsPlace : "bottom";
             if (w == null || w.Cam == null) return;
@@ -130,19 +130,18 @@ namespace FlyingGame.Bridge.Widget
             if (w.Lessons.Current != null && !w.FourForcesLesson.Active) LabelKeepOut.Add(new Rect(_sceneRect.x, _sceneRect.yMax - 58 - 26 - 22 * 5, _sceneRect.width * 0.62f, 26 + 22 * 5 + 14));
             int q0 = _quads.Count, t0 = _texts.Count;
             w.Curves.Update(w, w.Vectors.Current);
-            Insets(w, _sceneRect);
+            if (!ntsb) Insets(w, _sceneRect);   // (ntsb: the insets are modules in the UI band — nothing above it)
             var insetQuads = _quads.GetRange(q0, _quads.Count - q0); var insetTexts = _texts.GetRange(t0, _texts.Count - t0);
             _quads.RemoveRange(q0, _quads.Count - q0); _texts.RemoveRange(t0, _texts.Count - t0);
             ArrowClip = _sceneRect;
             w.Vectors.Build(this, _sceneRect);
             ArrowClip = null;
             _quads.AddRange(insetQuads); _texts.AddRange(insetTexts);
-            w.Lessons.DrawCaption(this, w.DisplayMode == "classic" ? new Rect(_sceneRect.x, _sceneRect.y, _sceneRect.width, _sceneRect.height - 60) : _sceneRect);
+            if (!ntsb) w.Lessons.DrawCaption(this, w.DisplayMode == "classic" ? new Rect(_sceneRect.x, _sceneRect.y, _sceneRect.width, _sceneRect.height - 60) : _sceneRect);
             if (!panel) return;
             if (ntsb)
             {
                 // Header: the aircraft's name, top-left of the picture (no clock).
-                _texts.Add((new Vector2(_sceneRect.x + 22, _sceneRect.yMax - 28), w.AircraftName, 26f, Color.white, TextAnchor.MiddleLeft, true, true));
                 NtsbLayout(w, _panelPx);
                 return;
             }
@@ -222,6 +221,8 @@ namespace FlyingGame.Bridge.Widget
 
         // ---- the touch layout (protocol 6 addendum): where each control instrument is drawn, 0…1 of the frame, top-left origin ----
         public readonly Dictionary<string, (float x, float y, float w, float h)> Layout = new();
+        /// <summary>The TOOLS module's buttons: layout key → the JSON command a tap sends (Glass forwards it as is).</summary>
+        public readonly Dictionary<string, string> TapCmds = new();
         private void LayoutRect(string key, float x, float y, float w, float h)
         {
             Vector2 tl = P(x, y);

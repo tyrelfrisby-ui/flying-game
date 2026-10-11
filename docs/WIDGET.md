@@ -480,3 +480,18 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - A reviewed frame is the recorded flight drawn with the CURRENT display. While paused, `view`/`viewFrom`, `zoom`, `show` keys, insets, `fourForces`, `earthGrid` and `display` all apply live. Vectors, the balance plate and wheel loads are recomputed from the frame's stored force samples, so a flight flown clean can be replayed with any forces shown.
   - The camera follows the current view instead of the recorded one. The forceTrend plate stays the live minute.
   - FOUR FORCES balance: in the two-colour bar, red is ALL the drag (parasite + induced together); yellow is weight's part along the path (W·sinγ), on the drag side when climbing and the thrust side when descending. It has a legend.
+
+## The UI band (2026-10-11, owner)
+
+- **Hard rule: no UI in the top two-thirds.** Only the airplane, its vectors and their labels, and the earth grid are drawn there. Everything else lives in the band across the bottom third: the panel modules, insets, the lesson text, the annunciators and the type's name.
+  - The box can be moved and resized only within the lower third (`panel` y is clamped to ≥ 2/3; height ≤ 1/3).
+  - The default is full width, bottom (exactly a third on 16:9). Saved boxes from older layouts are reset (`panel.v` 2).
+- **Modules**, left to right: TOOLS, AUTOPILOT, PFD (with FMA), AOA, CONTROLS, POWER (powered types), LEVERS (only what the type has), INSETS (two per column), LESSON (while one runs), then the annunciators headed by the type's name.
+- **Fitting:** when they don't fit, all modules shrink together in steps (100, 90, 80, 70, 60, 50, 42, 35 %).
+  - Shrinking is immediate.
+  - Growing back needs 6 % more room than the next step, held for 0.75 s, so a module on the edge never twitches.
+  - The row is centred and bottom-aligned in the box.
+- **TOOLS module** (always present): START cruise/final/spin/reset · LESSON 4 forces/stop/4F mode/grid · FORCES lift/drag/weight/thrust · rel wind/total/vectors/clear · VIEW chase/side/behind/top · TIME 100/50/25/10 % · PLAY pause-live/fly on/−1 s/+1 s.
+  - Each button is a `controlsLayout` entry `tap:<id>` with `action:"tap"` and `send:{…}`, the exact command to send on a tap.
+  - Lit = that state is on now.
+- **New `show` forms:** `{"toggle":"lift"}` (or an array) flips keys, and turning a force on also turns `vectors` on. `{"clear":true}` turns every vector off (and four-forces mode).

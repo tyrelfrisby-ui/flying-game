@@ -67,11 +67,14 @@ namespace FlyingGame.Bridge.Widget
         /// width as fractions of the frame (y down); the height follows the panel's aspect. PanelW &lt; 0 = the default (bottom, full width).</summary>
         public float PanelX, PanelY, PanelW = -1f;
         public const float PanelMinW = 0.3f;
+        /// <summary>The UI band: the lower third of the frame (owner 2026-10-11: "2/3 for the airplane, the lower 1/3 for the UI").</summary>
+        public const float UiBand = 1f / 3f;
         public void PlacePanel(float x, float y, float wFrac, float aspectHW)
         {
-            PanelW = Mathf.Clamp(wFrac, PanelMinW, 1f);
+            // HARD RULE (owner 2026-10-11): no UI in the top two-thirds — the box stays in the lower third (and at most a third tall).
+            PanelW = Mathf.Clamp(wFrac, PanelMinW, Mathf.Min(1f, UiBand / Mathf.Max(1e-3f, aspectHW)));
             float h = PanelW * aspectHW;
-            PanelX = Mathf.Clamp(x, 0f, 1f - PanelW); PanelY = Mathf.Clamp(y, 0f, Mathf.Max(0f, 1f - h));
+            PanelX = Mathf.Clamp(x, 0f, 1f - PanelW); PanelY = Mathf.Clamp(y, 1f - UiBand, Mathf.Max(1f - UiBand, 1f - h));
         }
         /// <summary>The fleet's name for the type, in capitals ("PITTS S-2").</summary>
         public virtual string AircraftName => AircraftId.Replace("-like", "").ToUpperInvariant();
