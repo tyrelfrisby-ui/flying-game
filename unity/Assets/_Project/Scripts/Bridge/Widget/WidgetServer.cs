@@ -482,6 +482,21 @@ namespace FlyingGame.Bridge.Widget
                     if (j["split"] != null) { w.Split = Mathf.Clamp((float)j["split"].Value<double>(), 0.35f, 0.6f); w.PanelW = -1f; w.SavePanel(); }   // a split puts the panel back at the bottom
                     ok["mode"] = w.DisplayMode; ok["split"] = w.Split; break;
                 }
+                case "joystick":
+                {
+                    // JOYSTICK SETUP (2026-10-11): {"setup":"start"|"skip"|"back"|"cancel"|"finish"} · {"forget":true}.
+                    var jw = w.JoyWizard;
+                    switch (((string)j["setup"])?.ToLowerInvariant())
+                    {
+                        case "start": if (!jw.Start()) { ok["ok"] = false; ok["error"] = "no joystick connected"; } break;
+                        case "skip": jw.Skip(); break;
+                        case "back": jw.Back(); break;
+                        case "cancel": jw.Cancel(); break;
+                        case "finish": jw.Finish(); break;
+                    }
+                    if (j["forget"]?.Value<bool>() ?? false) { string n = FlyingGame.Bridge.JoystickInput.ConnectedName; if (n != null) FlyingGame.Bridge.JoystickInput.Forget(n); }
+                    ok["joystick"] = JoystickJson(w); break;
+                }
                 case "panel":
                 {
                     // The NTSB panel box (owner 2026-10-11: draggable + resizable). Absolute {x, y, w} (0…1 of the frame, top-left,
@@ -564,7 +579,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9", "tools");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9", "tools", "joystickSetup");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -576,7 +591,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
@@ -643,6 +658,27 @@ namespace FlyingGame.Bridge.Widget
             var rv = Widget.Review;
             ok["offsetMs"] = System.Math.Round(rv.OffsetMs); ok["frame"] = rv.FrameJson();
             return ok.ToString(Newtonsoft.Json.Formatting.None);
+        }
+
+        /// <summary>The connected joysticks and the raw value of axes 1–8 (for mapping a stick / an RC radio dongle).</summary>
+        private static JObject JoystickJson(AeroWidget w)
+        {
+            var names = new JArray(); foreach (var n in Input.GetJoystickNames()) if (!string.IsNullOrEmpty(n)) names.Add(n);
+            var ax = new JArray();
+            for (int i = 1; i <= 8; i++) { float v = 0; try { v = Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { } ax.Add(System.Math.Round(v, 3)); }
+            var c = w.Controls;
+            var jw = w.JoyWizard; var prof = FlyingGame.Bridge.JoystickInput.Profile;
+            var setup = new JObject { ["active"] = jw.Active, ["step"] = jw.StepNumber, ["of"] = jw.StepCount, ["text"] = jw.Instruction, ["status"] = jw.Status, ["progress"] = System.Math.Round(jw.Progress, 2), ["focusAxis"] = jw.Focus, ["learnt"] = jw.Summary() };
+            JObject pj = null;
+            if (prof != null)
+            {
+                JObject A(FlyingGame.Bridge.JoyAxis a) => a.Set ? new JObject { ["axis"] = a.Index, ["center"] = System.Math.Round(a.Center, 3), ["pos"] = System.Math.Round(a.PosEnd, 3), ["neg"] = System.Math.Round(a.NegEnd, 3), ["dead"] = System.Math.Round(a.Dead, 3) } : null;
+                var r = prof.Read();
+                pj = new JObject { ["name"] = prof.Name, ["aileron"] = A(prof.Aileron), ["elevator"] = A(prof.Elevator), ["rudder"] = A(prof.Rudder), ["throttle"] = A(prof.Throttle), ["buttons"] = JObject.FromObject(prof.Buttons),
+                                   ["now"] = new JObject { ["aileron"] = System.Math.Round(r.ail, 3), ["elevator"] = System.Math.Round(r.ele, 3), ["rudder"] = System.Math.Round(r.rud, 3), ["throttle"] = r.hasThr ? System.Math.Round(r.thr01, 3) : null } };
+            }
+            return new JObject { ["names"] = names, ["axes"] = ax, ["setup"] = setup, ["profile"] = pj, ["actions"] = new JArray(FlyingGame.Bridge.JoystickInput.Actions),
+                ["map"] = new JObject { ["aileron"] = c.AxAileron, ["elevator"] = c.AxElevator, ["rudder"] = c.AxRudder, ["throttle"] = c.AxThrottle, ["invertElevator"] = c.InvertElevator, ["throttleFromAxis"] = c.ThrottleFromAxis } };
         }
 
         private JObject PanelJson()
@@ -797,6 +833,7 @@ namespace FlyingGame.Bridge.Widget
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
+                ["joystick"] = JoystickJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameH, ["frameW"] = AeroWidget.FrameW, ["frameH"] = AeroWidget.FrameH, ["frameMode"] = w.FrameMode,
                 ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split, ["panel"] = PanelJson(), ["zoom"] = w.Zoom },
                 ["controlsLayout"] = LayoutJson(),

@@ -186,6 +186,37 @@ namespace FlyingGame.Bridge.Widget
             BrakeL = s.BrakeL; BrakeR = s.BrakeR; _handing = false;
         }
 
+        private float _joyThr = -1f; private bool _joyBrake;
+        /// <summary>The joystick's assigned buttons (JOYSTICK SETUP).</summary>
+        private void JoyButtons(float dt)
+        {
+            bool brk = FlyingGame.Bridge.JoystickInput.Held("brakes");
+            if (brk) { Brake01 = BrakeL = BrakeR = 1.0; _joyBrake = true; } else if (_joyBrake) { Brake01 = BrakeL = BrakeR = 0.0; _joyBrake = false; }
+            if (Spec.Flaps.Length > 1)
+            {
+                var d = Spec.Flaps; int cur = 0;
+                for (int i = 0; i < d.Length; i++) if (System.Math.Abs(d[i] / d[^1] - FlapsHandle) < System.Math.Abs(d[cur] / d[^1] - FlapsHandle)) cur = i;
+                if (FlyingGame.Bridge.JoystickInput.Pressed("flapsDown")) FlapsHandle = d[System.Math.Min(d.Length - 1, cur + 1)] / d[^1];
+                if (FlyingGame.Bridge.JoystickInput.Pressed("flapsUp")) FlapsHandle = d[System.Math.Max(0, cur - 1)] / d[^1];
+            }
+            if (FlyingGame.Bridge.JoystickInput.Pressed("gear") && Spec.Retractable) GearDown = !GearDown;
+            if (FlyingGame.Bridge.JoystickInput.Held("trimUp")) { _trimStick = System.Math.Clamp(_trimStick - 0.3 * dt, -1, 1); if (ElevatorFree) Elevator = _trimStick; }
+            if (FlyingGame.Bridge.JoystickInput.Held("trimDown")) { _trimStick = System.Math.Clamp(_trimStick + 0.3 * dt, -1, 1); if (ElevatorFree) Elevator = _trimStick; }
+            if (FlyingGame.Bridge.JoystickInput.Pressed("apDisconnect")) Widget.Autopilot.Off(disconnect: true);
+            if (FlyingGame.Bridge.JoystickInput.Pressed("pause")) { if (Widget.Paused) Widget.Review.Resume(false); else Widget.Review.Pause(); }
+            if (FlyingGame.Bridge.JoystickInput.Pressed("reset")) Widget.Load(Widget.Current, Widget.AircraftId, Widget.Flaps);
+            if (FlyingGame.Bridge.JoystickInput.Pressed("view"))
+            {
+                // The next view this condition allows.
+                int k = System.Array.IndexOf(AeroWidget.Views, Widget.View);
+                for (int n = 1; n <= AeroWidget.Views.Length; n++)
+                {
+                    string v = AeroWidget.Views[(k + n) % AeroWidget.Views.Length];
+                    if (Widget.CheckView(v, null) == null) { Widget.SetView(v); break; }
+                }
+            }
+        }
+
         private static float Axis(int i) { try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; } }
 
         public void Poll()
@@ -233,8 +264,23 @@ namespace FlyingGame.Bridge.Widget
                 Elevator = Mathf.MoveTowards((float)Elevator, ky != 0 ? ky : (float)_trimStick, dt * 3f);
                 Rudder = Mathf.MoveTowards((float)Rudder, kr, dt * 4f);
             }
-            // Gamepad / joystick: takes the airplane when its sticks move.
-            float ga = Axis(AxAileron), ge = Axis(AxElevator) * (InvertElevator ? -1f : 1f), gr = Axis(AxRudder), gt = Axis(AxThrottle);
+            // Gamepad / joystick: takes the airplane when its sticks move. A CALIBRATED joystick (JOYSTICK SETUP, 2026-10-11)
+            // uses its profile — its axes, centres, endpoints, dead zones and buttons; nothing flies from it while the setup runs.
+            var jp = FlyingGame.Bridge.JoystickInput.Profile;
+            float ga, ge, gr, gt;
+            if (FlyingGame.Bridge.JoystickInput.SetupActive) { ga = ge = gr = gt = 0f; }
+            else if (jp != null)
+            {
+                var jr = jp.Read();
+                ga = jr.ail; ge = -jr.ele; gr = jp.Rudder.Set ? jr.rud : 0f; gt = jr.thr01 * 2f - 1f;   // (ge: the pad convention, − = push)
+                if (jr.hasThr && System.Math.Abs(jr.thr01 - _joyThr) > 0.01f && Time.unscaledTime - _netAt > 0.5f)
+                {
+                    // The throttle lever is the power lever: it moves the power on its own (and takes it from the A/T).
+                    _joyThr = jr.thr01; Throttle01 = jr.thr01; ThrottleTouched = true; Widget.Autopilot.PilotThrottle();
+                }
+                JoyButtons(dt);
+            }
+            else { ga = Axis(AxAileron); ge = Axis(AxElevator) * (InvertElevator ? -1f : 1f); gr = Axis(AxRudder); gt = Axis(AxThrottle); }
             bool padMoved = Mathf.Abs(ga) > 0.08f || Mathf.Abs(ge) > 0.08f || Mathf.Abs(gr) > 0.08f;
             if (padMoved) { _padAt = Time.unscaledTime; if (Widget.Autopilot.On) Widget.Autopilot.PilotInput(); }
             if (Hold)

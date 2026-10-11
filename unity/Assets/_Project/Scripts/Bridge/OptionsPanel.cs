@@ -17,6 +17,7 @@ namespace FlyingGame.Bridge
         private Texture2D _bg, _btnBg, _btnOnBg;
         private int _fs;
 
+        private static bool FlightControlsDesk => TouchFlightControls.DeskMode;
         private static Texture2D Solid(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
 
         private void EnsureStyles()
@@ -136,6 +137,9 @@ namespace FlyingGame.Bridge
             y += gap * 0.5f;
             SessionSettings.LoadFeel();
             GUI.Label(new Rect(x, y, cw, lh), "CONTROL FEEL", _head);
+            // JOYSTICK SETUP (owner 2026-10-11): the guided calibration + button assignment, any joystick (Mac).
+            if (FlightControlsDesk && GUI.Button(new Rect(panel.xMax - gap - cw * 0.62f - gap, y, cw * 0.3f, lh * 0.9f), JoystickInput.ConnectedName == null ? "No joystick" : JoystickInput.Profile == null ? "Joystick setup" : "Joystick (redo)", _btn))
+            { if (JoystickInput.ConnectedName != null) { _open = false; JoystickSetupPanel.Open(); } }
             if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh * 0.9f), "Aircraft defaults", _btn))
             {
                 for (int i = 0; i < 3; i++) { SessionSettings.FeelExpo[i] = -1f; SessionSettings.FeelDeadZone[i] = -1f; }

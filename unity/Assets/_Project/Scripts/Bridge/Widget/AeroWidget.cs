@@ -129,6 +129,9 @@ namespace FlyingGame.Bridge.Widget
         public WidgetControls Controls { get; private set; }
         public WidgetPresets Presets { get; private set; }
 
+        /// <summary>JOYSTICK SETUP (owner 2026-10-11): the guided calibration, run from the panel's module / the "joystick" command.</summary>
+        public readonly FlyingGame.Bridge.JoystickWizard JoyWizard = new();
+
         /// <summary>Camera zoom (owner 2026-10-11: "the airplane is too small"): 1 = the old framing, default 1.6× closer.</summary>
         public float Zoom = 1.6f;
         public void SetZoom(float z) { Zoom = Mathf.Clamp(z, 0.6f, 3f); PlayerPrefs.SetFloat("view.zoom", Zoom); PlayerPrefs.Save(); }
@@ -495,6 +498,7 @@ namespace FlyingGame.Bridge.Widget
                 return;
             }
             float dt = rdt * TimeScale;
+            if (JoyWizard.Active) JoyWizard.Tick(Time.unscaledDeltaTime);
             Presets.Tick(dt);
             Loading.Tick(dt);
             Lessons.Tick(dt);

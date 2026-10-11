@@ -495,3 +495,19 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - Each button is a `controlsLayout` entry `tap:<id>` with `action:"tap"` and `send:{…}`, the exact command to send on a tap.
   - Lit = that state is on now.
 - **New `show` forms:** `{"toggle":"lift"}` (or an array) flips keys, and turning a force on also turns `vectors` on. `{"clear":true}` turns every vector off (and four-forces mode).
+
+## Joystick setup (2026-10-11, owner: "a guided joystick calibration and learning session plus button assignment that will work with any joystick")
+
+- **Shared code** (`Bridge/JoystickSetup.cs`), used by the game (Mac: OPTIONS › Joystick setup, a window; the world pauses while it runs) and the widget (TOOLS › STICK SETUP, a band module, or the `joystick` command).
+- **Steps:**
+  1. Centre: the rest values and their noise.
+  2. Stick right/left, back/forward; rudder right/left; throttle idle/full. The axis that moves is the one, so the axis, direction and both endpoints are learnt. Rudder and throttle can be skipped.
+  3. Learning: stir everything for 6 s of movement, for the true endpoints and dead zones (2.5 × the rest noise, 2–12 %).
+  4. A button for each action: brakes (held), flaps down/up, gear, trim nose up/down, AP disconnect, pause/review, reset, view. Any can be skipped; a button belongs to one action.
+  5. Check, then FINISH to save.
+- **Navigation:** BACK redoes the last step (a pair together); SKIP; CANCEL.
+- **Profiles:** one per joystick name (PlayerPrefs `joy.profile.<name>`). With a profile, the calibrated axes and buttons replace the fixed axis mapping. The throttle lever is the power lever on its own and takes the power from the A/T. Nothing flies from the stick while the setup runs.
+- **Widget command:** `{"cmd":"joystick","setup":"start"|"skip"|"back"|"cancel"|"finish"}` · `{"forget":true}`.
+  - `state.joystick` gives: `names`, raw `axes[8]`, `setup {active, step, of, text, status, progress, focusAxis, learnt}`, `profile {name, aileron/elevator/rudder/throttle {axis, center, pos, neg, dead}, buttons, now}`, `actions`.
+  - The module's BACK/SKIP/FINISH/CANCEL and TOOLS' STICK SETUP are `tap:` rects.
+- **Platforms:** iPhone/iPad can't read generic joysticks (Apple's GameController accepts known controllers only).

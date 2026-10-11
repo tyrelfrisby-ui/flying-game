@@ -808,6 +808,7 @@ namespace FlyingGame.Bridge
         private const float DeskRamp = 2.2f;   // keyboard stick travel per second (keys aren't square waves)
         private int _deskFlapStep;
         private bool _joySeen;
+        private ChaseCamera _joyChase;
 
         /// <summary>Keyboard: arrows = stick (Up = nose down, realistic), A/D = rudder, W/S = throttle, =/- pitch trim,
         /// F flaps, L gear, B brakes, Space fire. Joystick (any connected): X/Y = stick, twist/4th axis = rudder, 3rd axis
@@ -826,14 +827,42 @@ namespace FlyingGame.Bridge
             if (tv != 0f) _throttle = Mathf.Clamp(_throttle + tv * 0.6f * dt, -1f, 1f);
 
             // Joystick: once one is seen moving it takes over the stick and rudder (a sprung stick centred = held neutral).
-            float jx = SafeAxis("AeroJoyX"), jy = SafeAxis("AeroJoyY"), jr = SafeAxis("AeroJoyTwist"), jt = SafeAxis("AeroJoyThrottle");
-            if (Mathf.Abs(jx) > 0.15f || Mathf.Abs(jy) > 0.15f) _joySeen = true;
-            if (_joySeen && kx == 0f && ky == 0f)
+            // A CALIBRATED joystick (OPTIONS › JOYSTICK SETUP, owner 2026-10-11) uses its profile: the axes it learnt, their
+            // centres, endpoints and dead zones, and its button assignments. Nothing flies from it while the setup runs.
+            var jp = JoystickInput.Profile;
+            if (JoystickInput.SetupActive) { }
+            else if (jp != null)
             {
-                _aileron = Mathf.Abs(jx) < 0.03f ? 0f : jx;
-                _elevator = Mathf.Abs(jy) < 0.03f ? 0f : (InvertElevator ? jy : -jy);   // stick back (axis +) = pull
-                if (kr == 0f) _rudder = Mathf.Abs(jr) < 0.05f ? 0f : jr;
-                if (Mathf.Abs(jt) > 0.02f && tv == 0f) _throttle = -jt;                   // lever forward (axis -) = power
+                var r = jp.Read();
+                if (Mathf.Abs(r.ail) > 0.1f || Mathf.Abs(r.ele) > 0.1f || Mathf.Abs(r.rud) > 0.1f) _joySeen = true;
+                if (_joySeen && kx == 0f && ky == 0f)
+                {
+                    _aileron = r.ail; _elevator = r.ele;                                     // (+ = push: nose down, as the keys)
+                    if (kr == 0f && jp.Rudder.Set) _rudder = r.rud;
+                }
+                if (r.hasThr && tv == 0f) _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * r.thr01);
+                if (JoystickInput.Held("brakes")) _brakeHeld = true;
+                if (JoystickInput.Pressed("flapsDown")) { _deskFlapStep = Mathf.Min(2, _deskFlapStep + 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+                if (JoystickInput.Pressed("flapsUp")) { _deskFlapStep = Mathf.Max(0, _deskFlapStep - 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+                if (JoystickInput.Pressed("gear")) _tapped.Add(Btn.Gear);
+                if (JoystickInput.Held("trimUp")) _pitchTrim = Mathf.Clamp(_pitchTrim - 0.5f * dt, -1f, 1f);       // nose up = less push
+                if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
+                if (JoystickInput.Pressed("reset")) DoReset();
+                if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+                if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
+                if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
+            }
+            else
+            {
+                float jx = SafeAxis("AeroJoyX"), jy = SafeAxis("AeroJoyY"), jr = SafeAxis("AeroJoyTwist"), jt = SafeAxis("AeroJoyThrottle");
+                if (Mathf.Abs(jx) > 0.15f || Mathf.Abs(jy) > 0.15f) _joySeen = true;
+                if (_joySeen && kx == 0f && ky == 0f)
+                {
+                    _aileron = Mathf.Abs(jx) < 0.03f ? 0f : jx;
+                    _elevator = Mathf.Abs(jy) < 0.03f ? 0f : (InvertElevator ? jy : -jy);   // stick back (axis +) = pull
+                    if (kr == 0f) _rudder = Mathf.Abs(jr) < 0.05f ? 0f : jr;
+                    if (Mathf.Abs(jt) > 0.02f && tv == 0f) _throttle = -jt;                   // lever forward (axis -) = power
+                }
             }
 
             float tt = Key(KeyCode.Equals) - Key(KeyCode.Minus);

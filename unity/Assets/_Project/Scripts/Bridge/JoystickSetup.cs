@@ -1,0 +1,330 @@
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using UnityEngine;
+
+namespace FlyingGame.Bridge
+{
+    /// <summary>
+    /// JOYSTICK — any stick, HOTAS, pedals or RC-radio dongle (owner 2026-10-11: "a guided joystick calibration and learning
+    /// session plus button assignment that will work with any joystick"). Shared by the game (Mac) and the Aero Widget.
+    /// The raw axes are the project's WJoy1…8 (all joysticks); buttons are JoystickButton0…19. A PROFILE per joystick name
+    /// (PlayerPrefs) says which axis is which control, its centre and both endpoints, its dead zone, and which button does what.
+    /// </summary>
+    public static class JoystickInput
+    {
+        public const int AxisCount = 8, ButtonCount = 20;
+        /// <summary>The assignable actions, in the order the setup asks for them.</summary>
+        public static readonly string[] Actions = { "brakes", "flapsDown", "flapsUp", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
+        public static readonly string[] ActionNames = { "BRAKES (held)", "FLAPS DOWN", "FLAPS UP", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
+
+        /// <summary>Raw axis i (1…8), −1…1.</summary>
+        public static float Raw(int i) { try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; } }
+        public static string ConnectedName { get { foreach (var n in Input.GetJoystickNames()) if (!string.IsNullOrEmpty(n)) return n; return null; } }
+        public static bool ButtonHeld(int b) => b >= 0 && b < ButtonCount && Input.GetKey(KeyCode.JoystickButton0 + b);
+        public static bool ButtonDown(int b) => b >= 0 && b < ButtonCount && Input.GetKeyDown(KeyCode.JoystickButton0 + b);
+        public static int AnyButtonDown() { for (int b = 0; b < ButtonCount; b++) if (Input.GetKeyDown(KeyCode.JoystickButton0 + b)) return b; return -1; }
+        public static bool AnyButtonHeld() { for (int b = 0; b < ButtonCount; b++) if (Input.GetKey(KeyCode.JoystickButton0 + b)) return true; return false; }
+
+        /// <summary>The setup running now (it owns the stick while it runs: nothing flies the airplane).</summary>
+        public static JoystickWizard Wizard;
+        public static bool SetupActive => Wizard != null && Wizard.Active;
+
+        private static JoystickProfile _profile; private static string _profileName; private static float _checkedAt = -10f;
+        /// <summary>The profile of the joystick connected now (null: none connected, or not set up yet).</summary>
+        public static JoystickProfile Profile
+        {
+            get
+            {
+                if (Time.unscaledTime - _checkedAt > 1f)
+                {
+                    _checkedAt = Time.unscaledTime;
+                    string n = ConnectedName;
+                    if (n != _profileName) { _profileName = n; _profile = n == null ? null : Load(n); }
+                }
+                return _profile;
+            }
+        }
+        private static string Key(string name) => "joy.profile." + name;
+        public static JoystickProfile Load(string name)
+        {
+            string j = PlayerPrefs.GetString(Key(name), "");
+            if (string.IsNullOrEmpty(j)) return null;
+            try { return JsonConvert.DeserializeObject<JoystickProfile>(j); } catch { return null; }
+        }
+        public static void Save(JoystickProfile p)
+        {
+            PlayerPrefs.SetString(Key(p.Name), JsonConvert.SerializeObject(p)); PlayerPrefs.Save();
+            _profileName = null; _checkedAt = -10f;
+        }
+        public static void Forget(string name) { PlayerPrefs.DeleteKey(Key(name)); PlayerPrefs.Save(); _profileName = null; _checkedAt = -10f; }
+
+        /// <summary>The action's button is held now / was pressed this frame.</summary>
+        public static bool Held(string action) { var p = Profile; return p != null && p.Buttons.TryGetValue(action, out int b) && ButtonHeld(b) && !SetupActive; }
+        public static bool Pressed(string action) { var p = Profile; return p != null && p.Buttons.TryGetValue(action, out int b) && ButtonDown(b) && !SetupActive; }
+    }
+
+    /// <summary>One calibrated axis: which raw axis, its centre and the raw values at both ends.</summary>
+    public sealed class JoyAxis
+    {
+        public int Index;                  // 1…8 (0 = not assigned)
+        public float Center, PosEnd, NegEnd, Dead = 0.03f;
+        public bool Centering = true;      // false = a throttle (no centre; NegEnd = idle, PosEnd = full)
+        [JsonIgnore] public bool Set => Index > 0;
+        /// <summary>A centring axis: −1…1 (+ = right / push / right rudder), with the dead zone taken out.</summary>
+        public float Value()
+        {
+            if (!Set) return 0f;
+            float raw = JoystickInput.Raw(Index), d = raw - Center, pos = PosEnd - Center, neg = NegEnd - Center;
+            float n = d * pos > 0 ? d / pos : d * neg > 0 ? -d / neg : 0f;
+            n = Mathf.Clamp(n, -1f, 1f);
+            float a = Mathf.Abs(n);
+            return a < Dead ? 0f : Mathf.Sign(n) * (a - Dead) / (1f - Dead);
+        }
+        /// <summary>A throttle: 0 (idle) … 1 (full).</summary>
+        public float Value01() => !Set ? 0f : Mathf.Clamp01(Mathf.InverseLerp(NegEnd, PosEnd, JoystickInput.Raw(Index)));
+    }
+
+    public sealed class JoystickProfile
+    {
+        public string Name;
+        public JoyAxis Aileron = new(), Elevator = new(), Rudder = new(), Throttle = new() { Centering = false };
+        public Dictionary<string, int> Buttons = new();
+        /// <summary>Calibrated controls: aileron + right, elevator + PUSH (nose down), rudder + right; throttle 0…1 when it has one.</summary>
+        public (float ail, float ele, float rud, float thr01, bool hasThr) Read() =>
+            (Aileron.Value(), Elevator.Value(), Rudder.Value(), Throttle.Value01(), Throttle.Set);
+    }
+
+    /// <summary>
+    /// The guided setup: centre → each control by moving it (the axis that moves is the one) → a learning sweep (true
+    /// endpoints, dead zone from the measured noise) → each button by pressing it → saved. Every step can be skipped
+    /// (no rudder, no throttle, no button for that); BACK redoes the last step.
+    /// </summary>
+    public sealed class JoystickWizard
+    {
+        private enum Kind { Center, AxisFirst, AxisSecond, ThrIdle, ThrFull, Learn, Button, Done }
+        private readonly List<(Kind kind, string ctl, bool positive, string text)> _steps = new();
+        private JoystickProfile _p;
+        private int _i;
+        private readonly float[] _rest = new float[JoystickInput.AxisCount + 1], _noise = new float[JoystickInput.AxisCount + 1], _snap = new float[JoystickInput.AxisCount + 1];
+        private readonly float[] _last = new float[JoystickInput.AxisCount + 1], _min = new float[JoystickInput.AxisCount + 1], _max = new float[JoystickInput.AxisCount + 1];
+        private float _stillFor, _stepTime, _learnMoving, _cooldown;
+        private bool _movedSinceStep, _buttonsClear;
+        private int _candidate;
+
+        public bool Active { get; private set; }
+        public string DeviceName => _p?.Name;
+        public int StepNumber => _i + 1;
+        public int StepCount => _steps.Count;
+        public string Instruction => Active ? _steps[_i].text : "";
+        public string Status { get; private set; } = "";
+        public float Progress { get; private set; }
+        /// <summary>The raw axis this step is looking at (for the meters' highlight); 0 = none.</summary>
+        public int Focus { get; private set; }
+        public bool Finished { get; private set; }
+        public JoystickProfile Result => _p;
+
+        public bool Start()
+        {
+            string name = JoystickInput.ConnectedName;
+            if (name == null) { Status = "NO JOYSTICK CONNECTED"; Active = false; return false; }
+            _p = new JoystickProfile { Name = name };
+            _steps.Clear();
+            _steps.Add((Kind.Center, null, false, "Let go of everything — stick and rudder centred. (Leave the throttle anywhere.)"));
+            _steps.Add((Kind.AxisFirst, "aileron", true, "Hold the stick fully RIGHT."));
+            _steps.Add((Kind.AxisSecond, "aileron", false, "Now hold it fully LEFT."));
+            _steps.Add((Kind.AxisFirst, "elevator", false, "PULL the stick fully BACK (nose up) and hold."));
+            _steps.Add((Kind.AxisSecond, "elevator", true, "Now PUSH it fully FORWARD and hold."));
+            _steps.Add((Kind.AxisFirst, "rudder", true, "Full RIGHT rudder (pedal, twist or rudder stick) and hold — or SKIP if there's none."));
+            _steps.Add((Kind.AxisSecond, "rudder", false, "Now full LEFT rudder."));
+            _steps.Add((Kind.ThrIdle, "throttle", false, "Throttle to IDLE (all the way back) and hold — or SKIP if there's none."));
+            _steps.Add((Kind.ThrFull, "throttle", true, "Now throttle FULL (all the way forward) and hold."));
+            _steps.Add((Kind.Learn, null, false, "Learning: stir everything — every control through its full travel, several times."));
+            for (int k = 0; k < JoystickInput.Actions.Length; k++)
+                _steps.Add((Kind.Button, JoystickInput.Actions[k], false, $"Press the button for {JoystickInput.ActionNames[k]} — or SKIP."));
+            _steps.Add((Kind.Done, null, false, "Done. Move the controls to check them, then FINISH to save."));
+            Active = true; Finished = false; Enter(0);
+            JoystickInput.Wizard = this;
+            return true;
+        }
+        public void Cancel() { Active = false; Status = "CANCELLED"; }
+        public void Skip()
+        {
+            if (!Active) return;
+            var s = _steps[_i];
+            if (s.kind == Kind.AxisFirst || s.kind == Kind.ThrIdle)
+            {
+                Axis(s.ctl).Index = 0;
+                Enter(_i + 2);   // the pair goes together
+                return;
+            }
+            if (s.kind == Kind.Done) { Finish(); return; }
+            Enter(_i + 1);
+        }
+        public void Back()
+        {
+            if (!Active || _i == 0) return;
+            int to = _i - 1;
+            var prev = _steps[to];
+            if (prev.kind == Kind.AxisSecond || prev.kind == Kind.ThrFull) { to--; Axis(prev.ctl).Index = 0; }   // redo the pair
+            if (prev.kind == Kind.AxisFirst || prev.kind == Kind.ThrIdle) Axis(prev.ctl).Index = 0;
+            if (prev.kind == Kind.Button) _p.Buttons.Remove(prev.ctl);
+            Enter(Mathf.Max(0, to));
+        }
+        public void Finish()
+        {
+            if (!Active) return;
+            JoystickInput.Save(_p);
+            Active = false; Finished = true; Status = "SAVED";
+        }
+
+        private JoyAxis Axis(string ctl) => ctl switch { "aileron" => _p.Aileron, "elevator" => _p.Elevator, "rudder" => _p.Rudder, _ => _p.Throttle };
+        private bool Used(int ax) => _p.Aileron.Index == ax || _p.Elevator.Index == ax || _p.Rudder.Index == ax || _p.Throttle.Index == ax;
+
+        private void Enter(int i)
+        {
+            _i = Mathf.Clamp(i, 0, _steps.Count - 1);
+            _stillFor = 0; _stepTime = 0; _learnMoving = 0; _movedSinceStep = false; _candidate = 0; _cooldown = 0.35f;
+            _buttonsClear = !JoystickInput.AnyButtonHeld();
+            Progress = 0; Focus = 0; Status = "";
+            for (int a = 1; a <= JoystickInput.AxisCount; a++) { _last[a] = JoystickInput.Raw(a); _snap[a] = _last[a]; _min[a] = _max[a] = _last[a]; }
+            var s = _steps[_i];
+            if (s.kind == Kind.AxisSecond || s.kind == Kind.ThrFull) Focus = Axis(s.ctl).Index;
+            if (s.kind == Kind.AxisSecond && !Axis(s.ctl).Set) Enter(_i + 1);   // its first half was skipped
+        }
+
+        /// <summary>One frame (real time).</summary>
+        public void Tick(float dt)
+        {
+            if (!Active) return;
+            if (JoystickInput.ConnectedName == null) { Status = "JOYSTICK DISCONNECTED"; return; }
+            _stepTime += dt;
+            if (_cooldown > 0) { _cooldown -= dt; for (int a = 1; a <= JoystickInput.AxisCount; a++) _last[a] = JoystickInput.Raw(a); return; }
+            float maxStep = 0;
+            for (int a = 1; a <= JoystickInput.AxisCount; a++) { float v = JoystickInput.Raw(a); maxStep = Mathf.Max(maxStep, Mathf.Abs(v - _last[a])); _last[a] = v; }
+            bool still = maxStep < 0.012f;
+            _stillFor = still ? _stillFor + dt : 0f;
+            var s = _steps[_i];
+            switch (s.kind)
+            {
+                case Kind.Center:
+                {
+                    // 1.5 s of stillness: the rest values and their noise.
+                    if (_stillFor < 0.05f) { for (int a = 1; a <= JoystickInput.AxisCount; a++) { _rest[a] = _last[a]; _noise[a] = 0; } }
+                    for (int a = 1; a <= JoystickInput.AxisCount; a++) { _rest[a] = Mathf.Lerp(_rest[a], _last[a], 0.1f); _noise[a] = Mathf.Max(_noise[a], Mathf.Abs(_last[a] - _rest[a])); }
+                    Progress = Mathf.Clamp01(_stillFor / 1.5f);
+                    Status = still ? "HOLD STILL…" : "WAITING FOR STILLNESS";
+                    if (_stillFor >= 1.5f) Enter(_i + 1);
+                    break;
+                }
+                case Kind.AxisFirst:
+                {
+                    // The unassigned axis that moved furthest from rest, held there.
+                    int best = 0; float bestD = 0.45f;
+                    for (int a = 1; a <= JoystickInput.AxisCount; a++) { if (Used(a)) continue; float d = Mathf.Abs(_last[a] - _rest[a]); if (d > bestD) { bestD = d; best = a; } }
+                    if (best != _candidate) { _candidate = best; _stillFor = 0; }
+                    Focus = best;
+                    Progress = best == 0 ? 0 : Mathf.Clamp01(_stillFor / 0.6f);
+                    Status = best == 0 ? "MOVE IT ALL THE WAY" : $"AXIS {best} — HOLD…";
+                    if (best != 0 && _stillFor >= 0.6f)
+                    {
+                        var ax = Axis(s.ctl); ax.Index = best; ax.Center = _rest[best]; ax.Centering = true;
+                        if (s.positive) ax.PosEnd = _last[best]; else ax.NegEnd = _last[best];
+                        Enter(_i + 1);
+                    }
+                    break;
+                }
+                case Kind.AxisSecond:
+                {
+                    var ax = Axis(s.ctl); int a = ax.Index; Focus = a;
+                    float first = s.positive ? ax.NegEnd : ax.PosEnd, span = Mathf.Abs(first - ax.Center);
+                    float d = _last[a] - ax.Center;
+                    bool other = d * (first - ax.Center) < 0 && Mathf.Abs(d) > Mathf.Max(0.3f, 0.45f * span);
+                    if (!other) _stillFor = 0;
+                    Progress = other ? Mathf.Clamp01(_stillFor / 0.6f) : 0;
+                    Status = other ? $"AXIS {a} — HOLD…" : "THE OTHER WAY, ALL THE WAY";
+                    if (other && _stillFor >= 0.6f) { if (s.positive) ax.PosEnd = _last[a]; else ax.NegEnd = _last[a]; Enter(_i + 1); }
+                    break;
+                }
+                case Kind.ThrIdle:
+                {
+                    // Idle: still after some movement, or 3 s still if it was already there.
+                    if (!still) _movedSinceStep = true;
+                    float need = _movedSinceStep ? 0.8f : 3f;
+                    Progress = Mathf.Clamp01(_stillFor / need);
+                    Status = still ? "HOLD…" : "MOVING";
+                    if (_stillFor >= need) { for (int a = 1; a <= JoystickInput.AxisCount; a++) _snap[a] = _last[a]; Enter(_i + 1); for (int a = 1; a <= JoystickInput.AxisCount; a++) _snap[a] = _last[a]; }
+                    break;
+                }
+                case Kind.ThrFull:
+                {
+                    int best = 0; float bestD = 0.5f;
+                    for (int a = 1; a <= JoystickInput.AxisCount; a++) { if (Used(a)) continue; float d = Mathf.Abs(_last[a] - _snap[a]); if (d > bestD) { bestD = d; best = a; } }
+                    if (best != _candidate) { _candidate = best; _stillFor = 0; }
+                    Focus = best;
+                    Progress = best == 0 ? 0 : Mathf.Clamp01(_stillFor / 0.6f);
+                    Status = best == 0 ? "ALL THE WAY FORWARD" : $"AXIS {best} — HOLD…";
+                    if (best != 0 && _stillFor >= 0.6f)
+                    {
+                        var ax = _p.Throttle; ax.Index = best; ax.Centering = false; ax.NegEnd = _snap[best]; ax.PosEnd = _last[best]; ax.Center = _snap[best];
+                        Enter(_i + 1);
+                    }
+                    break;
+                }
+                case Kind.Learn:
+                {
+                    // The true endpoints: the extremes seen on each assigned axis while it's stirred (6 s of movement).
+                    foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder, _p.Throttle })
+                    {
+                        if (!ax.Set) continue;
+                        float v = _last[ax.Index];
+                        if (ax.PosEnd > ax.NegEnd) { ax.PosEnd = Mathf.Max(ax.PosEnd, v); ax.NegEnd = Mathf.Min(ax.NegEnd, v); }
+                        else { ax.PosEnd = Mathf.Min(ax.PosEnd, v); ax.NegEnd = Mathf.Max(ax.NegEnd, v); }
+                    }
+                    if (!still) _learnMoving += dt;
+                    Progress = Mathf.Clamp01(_learnMoving / 6f);
+                    Status = still ? "KEEP MOVING EVERYTHING" : "LEARNING…";
+                    if (_learnMoving >= 6f)
+                    {
+                        // Dead zones from the rest noise (2.5×, as a fraction of each half-travel), 2 … 12 %.
+                        foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder })
+                            if (ax.Set) ax.Dead = Mathf.Clamp(2.5f * _noise[ax.Index] / Mathf.Max(0.05f, Mathf.Min(Mathf.Abs(ax.PosEnd - ax.Center), Mathf.Abs(ax.NegEnd - ax.Center))), 0.02f, 0.12f);
+                        Enter(_i + 1);
+                    }
+                    break;
+                }
+                case Kind.Button:
+                {
+                    if (!_buttonsClear) { _buttonsClear = !JoystickInput.AnyButtonHeld(); Status = "LET GO OF THE BUTTONS"; break; }
+                    int b = JoystickInput.AnyButtonDown();
+                    Status = "WAITING FOR A BUTTON";
+                    if (b >= 0)
+                    {
+                        // One button, one action: taking a button from another action frees it there.
+                        foreach (var kv in new List<KeyValuePair<string, int>>(_p.Buttons)) if (kv.Value == b) _p.Buttons.Remove(kv.Key);
+                        _p.Buttons[s.ctl] = b;
+                        Status = $"BUTTON {b + 1}";
+                        Enter(_i + 1);
+                    }
+                    break;
+                }
+                case Kind.Done:
+                {
+                    var r = _p.Read();
+                    Status = $"AIL {r.ail * 100:+0;-0;0}  ELE {r.ele * 100:+0;-0;0}  RUD {r.rud * 100:+0;-0;0}" + (r.hasThr ? $"  THR {r.thr01 * 100:0}" : "");
+                    Progress = 1;
+                    break;
+                }
+            }
+        }
+
+        /// <summary>What's been learnt so far, one line per control (for the panels).</summary>
+        public string Summary()
+        {
+            if (_p == null) return "";
+            string A(string n, JoyAxis a) => a.Set ? $"{n} AXIS {a.Index}" : $"{n} —";
+            string s = $"{A("AIL", _p.Aileron)} · {A("ELE", _p.Elevator)} · {A("RUD", _p.Rudder)} · {A("THR", _p.Throttle)}";
+            if (_p.Buttons.Count > 0) s += $" · {_p.Buttons.Count} BUTTONS";
+            return s;
+        }
+    }
+}
