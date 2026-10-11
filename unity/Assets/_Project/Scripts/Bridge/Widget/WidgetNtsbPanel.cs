@@ -287,7 +287,7 @@ namespace FlyingGame.Bridge.Widget
             float sc = 1f - 0.24f * ele;                     // aft (−) bigger, forward (+) smaller
             float drop = 30f * ele * ele;                    // lower either way (the column's arc)
             Wheel(cx, cy, 1f, 0f, new Color(0, 0, 0, 0.8f), 9f);                          // the neutral shadow
-            Wheel(cx, cy + drop, sc, -(float)f.Ail * 90f * Mathf.Deg2Rad, Color.white, 5f);   // the yoke
+            Wheel(cx, cy + drop, sc, (float)f.Ail * 90f * Mathf.Deg2Rad, Color.white, 5f);    // the yoke (+ = right = clockwise; screen y is down)
             // Elevator gauge (thin, beside the box): up = PUSH, down = PULL.
             float ex0 = x + 186, ey0 = y + 40, ey1 = y + 176, eym = (ey0 + ey1) * 0.5f;
             SegD(ex0, ey0, ex0, ey1, 1.5f, Rule); SegD(ex0 - 4, eym, ex0 + 4, eym, 1.2f, Rule);
@@ -301,17 +301,18 @@ namespace FlyingGame.Bridge.Widget
             string col = System.Math.Abs(f.Ele) < 0.01 ? "NEUTRAL" : (f.Ele < 0 ? "PULL " : "PUSH ") + Pct(f.Ele);
             OText(x + 54, y + 208, col, 16, f.Ele < -0.02 ? TElev : Color.white);
             OText(x + 150, y + 208, System.Math.Abs(f.Ail) < 0.01 ? "AIL NEUTRAL" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
-            // Pedals: the pressed one slides forward (up).
-            float my = y + 270, travel = 26f;
+            // Pedals: the pressed one slides forward — up a little and smaller (away from the pilot); the other comes back, bigger.
+            float my = y + 270, travel = 13f;
             for (int k = 0; k < 2; k++)
             {
                 float side = k == 0 ? -1f : 1f, ex = x + w * 0.5f + side * 40f;
-                float yy = my - (float)f.Rud * side * travel;
+                float push = (float)f.Rud * side;
+                float yy = my - push * travel, s = 1f - 0.2f * push;
                 bool pressed = side * f.Rud > 0.02;
-                Box(ex - 20, yy - 30, 40, 60, 3f, pressed ? Color.white : Grey);
+                Box(ex - 20 * s, yy - 30 * s, 40 * s, 60 * s, 3f, pressed ? Color.white : Grey);
                 double brk = k == 0 ? f.BrakeL : f.BrakeR;
-                if (brk > 0.03) Rect(ex - 18, yy - 28, 36, 14, new Color(LitRed.r, LitRed.g, LitRed.b, 0.35f + 0.6f * (float)brk));
-                OText(ex, yy + 12, k == 0 ? "L" : "R", 15, pressed ? Color.white : Grey);
+                if (brk > 0.03) Rect(ex - 18 * s, yy - 28 * s, 36 * s, 14 * s, new Color(LitRed.r, LitRed.g, LitRed.b, 0.35f + 0.6f * (float)brk));
+                OText(ex, yy + 12 * s, k == 0 ? "L" : "R", Mathf.RoundToInt(15 * s), pressed ? Color.white : Grey);
             }
             OText(x + w * 0.5f, y + 340, System.Math.Abs(f.Rud) < 0.01 ? "PEDALS NEUTRAL" : $"{(f.Rud < 0 ? "LEFT" : "RIGHT")} PEDAL {Pct(f.Rud)}", 16, Color.white);
             OText(x + w * 0.5f, y + 366, f.BrakeL > 0.03 || f.BrakeR > 0.03 ? $"BRAKES L {f.BrakeL * 100:0} R {f.BrakeR * 100:0}" : "RUDDER PEDALS", 14, Grey);

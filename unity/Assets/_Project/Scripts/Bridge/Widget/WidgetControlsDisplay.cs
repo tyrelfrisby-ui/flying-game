@@ -266,7 +266,7 @@ namespace FlyingGame.Bridge.Widget
         {
             Title(cx, top, "CONTROL WHEEL", false);
             float wx = cx - 14, wy = top + 118;
-            float th = -(float)f.Ail * 90f * Mathf.Deg2Rad;   // + aileron = right = clockwise as the pilot sees it
+            float th = (float)f.Ail * 90f * Mathf.Deg2Rad;    // + aileron = right = clockwise (screen y is down, so + angle = clockwise)
             Vector2 R(float x, float y) { float c = Mathf.Cos(th), s = Mathf.Sin(th); return new Vector2(wx + x * c - y * s, wy + x * s + y * c); }
             void L(float x0, float y0, float x1, float y1) { var a = R(x0, y0); var b = R(x1, y1); SegD(a.x, a.y, b.x, b.y, 3.5f, Ink); }
             L(-56, 6, 56, 6); L(-56, 6, -56, -30); L(56, 6, 56, -30);   // ram's-horn wheel: a bar and two grips
@@ -288,20 +288,21 @@ namespace FlyingGame.Bridge.Widget
         private void Pedals(float cx, float top, WidgetHistory.Snap f)
         {
             Title(cx, top, "RUDDER PEDALS", false);
-            float mid = top + 122, travel = 34f;
+            float mid = top + 122, travel = 17f;
             SegD(cx - 70, mid + 58, cx + 70, mid + 58, 1.5f, Grey);   // the floor line
             for (int k = 0; k < 2; k++)
             {
                 float side = k == 0 ? -1f : 1f, px = cx + side * 38f;
-                float fwd = (float)f.Rud * side * travel;                // + rudder: right pedal forward (up), left back
-                float y = mid - fwd;
+                float push = (float)f.Rud * side;                        // + rudder: right pedal forward, left back
+                float y = mid - push * travel;                           // forward = up a little…
+                float s = 1f - 0.2f * push;                              // …and smaller (away from the pilot); back = bigger
                 bool pressed = side * f.Rud > 0.02;
-                Box(px - 22, y - 34, 44, 68, 3f, pressed ? Ink : Grey);
+                Box(px - 22 * s, y - 34 * s, 44 * s, 68 * s, 3f, pressed ? Ink : Grey);
                 double br = k == 0 ? f.BrakeL : f.BrakeR;
                 // Toe brake: the pedal's upper strip.
-                if (br > 0.03) Rect(px - 20, y - 32, 40, 18, new Color(Red.r, Red.g, Red.b, 0.35f + 0.65f * (float)br));
-                else Box(px - 18, y - 30, 36, 14, 1.2f, Grey);
-                Text(px, y + 14, k == 0 ? "L" : "R", 17, pressed ? Ink : Grey);
+                if (br > 0.03) Rect(px - 20 * s, y - 32 * s, 40 * s, 18 * s, new Color(Red.r, Red.g, Red.b, 0.35f + 0.65f * (float)br));
+                else Box(px - 18 * s, y - 30 * s, 36 * s, 14 * s, 1.2f, Grey);
+                Text(px, y + 14 * s, k == 0 ? "L" : "R", Mathf.RoundToInt(17 * s), pressed ? Ink : Grey);
             }
             string v = System.Math.Abs(f.Rud) < 0.01 ? "NEUTRAL" : $"{(f.Rud < 0 ? "L" : "R")} {Pct(f.Rud)}";
             string b = f.BrakeL > 0.03 || f.BrakeR > 0.03 ? $"BRAKES L {f.BrakeL * 100:0} · R {f.BrakeR * 100:0}" : "BRAKES OFF";
