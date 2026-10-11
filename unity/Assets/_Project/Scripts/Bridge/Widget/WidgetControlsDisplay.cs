@@ -522,12 +522,24 @@ namespace FlyingGame.Bridge.Widget
                         : t.anchor is TextAnchor.MiddleRight or TextAnchor.UpperRight or TextAnchor.LowerRight ? t.at.x - width : t.at.x - width * 0.5f;
                 float baseline = t.at.y - t.px * 0.36f;   // vertically centred on the point (cap height ≈ 0.72 em)
                 // An outline (the text drawn dark at eight 1.5 px offsets first) so it reads over any picture without a box.
-                int passes = t.outline ? 9 : 1;
+                // Bold panel text (owner 2026-10-11, "on a tiny teleprompter"): a heavier outline (≈ 11 % of the size) and the fill
+                // drawn five times a hair apart (faux-bold strokes on top of the font's bold).
+                int outl = t.outline ? 8 : 0, fills = t.bold ? 5 : 1, passes = outl + fills;
+                float fw = t.px * 0.035f;
                 for (int pass = 0; pass < passes; pass++)
                 {
                     float ox = 0, oy = 0;
-                    if (pass < passes - 1) { float a = pass * Mathf.PI / 4f, ow = Host is AeroWidget ? 1.6f : 1.6f * Mathf.Max(1f, TextScale * 0.7f); ox = Mathf.Cos(a) * ow; oy = Mathf.Sin(a) * ow; GL.Color(new Color(0, 0, 0, 0.85f * t.c.a)); }
-                    else GL.Color(t.c);
+                    if (pass < outl)
+                    {
+                        float a = pass * Mathf.PI / 4f, ow = t.bold ? Mathf.Max(1.6f, t.px * 0.11f) : Host is AeroWidget ? 1.6f : 1.6f * Mathf.Max(1f, TextScale * 0.7f);
+                        ox = Mathf.Cos(a) * ow; oy = Mathf.Sin(a) * ow; GL.Color(new Color(0, 0, 0, 0.9f * t.c.a));
+                    }
+                    else
+                    {
+                        int k2 = pass - outl;   // 0 = centre, then ±x, ±y
+                        ox = k2 == 1 ? fw : k2 == 2 ? -fw : 0; oy = k2 == 3 ? fw : k2 == 4 ? -fw : 0;
+                        GL.Color(t.c);
+                    }
                     float xx = x;
                     foreach (char ch in t.s)
                     {

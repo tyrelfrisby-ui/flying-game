@@ -538,6 +538,12 @@ namespace FlyingGame.Bridge.Widget
                 }
                 case "view":
                 {
+                    // Zoom alone (2026-10-11): {"cmd":"view","zoom":1.6} (0.6…3; 1 = the old framing) or "zoomBy": 1.2.
+                    if (j["zoom"] != null || j["zoomBy"] != null)
+                    {
+                        w.SetZoom(j["zoom"] != null ? (float)j["zoom"].Value<double>() : w.Zoom * (float)j["zoomBy"].Value<double>());
+                        if (j["name"] == null) { ok["zoom"] = w.Zoom; ok["view"] = w.View; break; }
+                    }
                     string vn = ((string)j["name"] ?? "side").ToLowerInvariant();
                     if (System.Array.IndexOf(AeroWidget.Views, vn) < 0) { ok["ok"] = false; ok["error"] = "unknown view"; break; }
                     string verr = w.CheckView(vn, ((string)j["from"])?.ToLowerInvariant());
@@ -549,7 +555,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -648,6 +654,7 @@ namespace FlyingGame.Bridge.Widget
                     case "spoilers": e["axis"] = "spoilers"; e["orientation"] = "vertical"; e["top"] = "retracted"; break;
                     case "gear": e["action"] = "toggle"; e["cmd"] = "controls.gear"; break;
                     case "panel": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "drag the box (outside the controls) to move it"; break;
+                    case "panelMove": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "the MCP strip across the top: a grab bar (display only, no controls)"; break;
                     case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspect; break;
                 }
                 o[kv.Key] = e;
@@ -765,7 +772,7 @@ namespace FlyingGame.Bridge.Widget
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
-                ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split, ["panel"] = PanelJson() },
+                ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split, ["panel"] = PanelJson(), ["zoom"] = w.Zoom },
                 ["controlsLayout"] = LayoutJson(),
                 ["lesson"] = w.Lesson, ["lessonPhase"] = w.Lessons.Caption, ["lessonResults"] = new JArray(w.Lessons.Results.ToArray()),
                 ["beta"] = System.Math.Round(r.BetaDeg, 2), ["ball"] = System.Math.Round(w.BallDeg, 2), ["loadFactor"] = System.Math.Round(r.LoadFactor, 3),

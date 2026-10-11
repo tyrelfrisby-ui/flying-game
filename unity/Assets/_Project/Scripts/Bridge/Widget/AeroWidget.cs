@@ -111,6 +111,10 @@ namespace FlyingGame.Bridge.Widget
         public WidgetControls Controls { get; private set; }
         public WidgetPresets Presets { get; private set; }
 
+        /// <summary>Camera zoom (owner 2026-10-11: "the airplane is too small"): 1 = the old framing, default 1.6× closer.</summary>
+        public float Zoom = 1.6f;
+        public void SetZoom(float z) { Zoom = Mathf.Clamp(z, 0.6f, 3f); PlayerPrefs.SetFloat("view.zoom", Zoom); PlayerPrefs.Save(); }
+
         /// <summary>Keep the presenter's panel box across launches.</summary>
         public void SavePanel()
         {
@@ -124,6 +128,7 @@ namespace FlyingGame.Bridge.Widget
             Application.runInBackground = true;
             Screen.SetResolution(720, 720, FullScreenMode.Windowed);
             WorldTerrain.Active = null;   // a flat world at 0 — no scenery, no thermals
+            Zoom = Mathf.Clamp(PlayerPrefs.GetFloat("view.zoom", 1.6f), 0.6f, 3f);
             if (PlayerPrefs.GetFloat("panel.w", -1f) > 0) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspect);
             Atmosphere.ThermalStrengthScale = 0; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.SlopeLiftEnabled = false;
 
@@ -631,7 +636,7 @@ namespace FlyingGame.Bridge.Widget
             else
             {
                 Cam.orthographic = false; Cam.fieldOfView = 34f;
-                float dist = Mathf.Max(SpanM, LengthM) * 2.6f + 6f;
+                float dist = (Mathf.Max(SpanM, LengthM) * 2.6f + 6f) / Zoom;
                 _snapCam = false;
                 if (View == "body")
                 {
