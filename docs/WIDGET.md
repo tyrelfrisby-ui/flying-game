@@ -450,3 +450,21 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - **Altitude wrap:** below 600 m the aircraft is lifted 1,800 m and nothing else changes, so the spin never runs out of sky.
   - **Stall flag:** a wing reads STALLED at α > 15°.
 - **World:** flat at 0, with no thermals, wind or turbulence.
+
+## NTSB panel: MCP, FMA, movable box, A/T (2026-10-11)
+
+- **MCP strip** across the top of the panel, in glareshield order: SPEED (A/T, IAS window, FLC) · HEADING (window, HDG, LNAV/LOC/APP dark — not built) · ALTITUDE · VERT SPEED · CWS (PITCH and BANK windows with PIT and BANK) · AP / YD.
+  - A button's light bar is lit while its mode is engaged.
+  - A window shows its target only while that target is being flown; otherwise it shows `- - -`.
+- **FMA** on top of the attitude indicator. Columns: THRUST · ROLL · PITCH · AFDS.
+  - Row 1 is the engaged mode and its target (green); row 2 is the armed mode (white, e.g. `ALT 4000` under FLC/VS) or, when the AP can't hold, why (amber).
+  - A mode that has just changed is boxed for 10 s. AP DISC and A/T DISC flash.
+- **Thinner box:** the panel is 1080 × 464 design units (≈ 2.3 : 1). Labels are bold.
+- **Only the controls the type has:** no power plate on a glider; no gear, flaps or spoilers column unless the type has them. Retractable types get a gear lever: UP/DN slot, wheel knob, three lights.
+- **Movable, resizable box:** `{"cmd":"panel","x","y","w"}` (0…1 of the frame, top-left, y down; the height follows `aspect`), `{"dx","dy"}` / `{"dw"}` relative, or `{"reset":true}`.
+  - `controlsLayout` reports `panel` (move: drag anywhere outside the controls), `panelResize` (the bottom-right grip) and `gear` (tap to toggle).
+  - The airplane's picture takes the biggest clear band beside the box (or the whole frame). The placement survives relaunches; `display.split` puts the box back at the bottom.
+- **A/T on every powered type, with or without the AP:**
+  - `{"cmd":"autopilot","autothrottle":true,"kias":100}` holds the speed with the power. Engaging the AP from off brings the A/T in.
+  - Moving the throttle (remote, Glass, keys) disconnects it (`autothrottleDisc`, "A/T DISC").
+  - A glider refuses it. Every start turns it off.

@@ -31,7 +31,25 @@ namespace FlyingGame.Bridge.Widget
 
         public bool On { get; private set; }               // AP engaged (pitch + roll)
         public bool YawDamper;                              // independent of On
-        public bool AutoThrottle = true;
+        /// <summary>A/T ENGAGED: holds Kias with the power — with or without the AP (owner 2026-10-11: on every airplane with an
+        /// engine, for the examples, whether the type has one or not). Moving the throttle disconnects it ("A/T DISC").</summary>
+        public bool AutoThrottle;
+        /// <summary>Engaging the AP from off brings the A/T in with it (the widget: yes; the game: no).</summary>
+        public bool AtWithAp = true;
+        public float AtDiscUntil = -10f;
+        public bool AtDisc => Time.unscaledTime < AtDiscUntil;
+        public bool HasEngine => _w.Config?.Propulsion != null;
+        /// <summary>Engage / disengage the A/T (target: the given speed, else the current one when the AP isn't already holding one).</summary>
+        public void SetAutoThrottle(bool on, double? kias = null)
+        {
+            var c = _w.AeroControls;
+            if (on && !HasEngine) on = false;
+            if (on && !AutoThrottle) { _thrI = c.Throttle01; Power = c.Throttle01; if (!On) Kias = _w.Read().Kias; }
+            if (kias.HasValue) Kias = System.Math.Clamp(kias.Value, 30, 400);
+            AutoThrottle = on;
+        }
+        /// <summary>The pilot moved the throttle: the A/T lets go.</summary>
+        public void PilotThrottle() { if (AutoThrottle) { AutoThrottle = false; AtDiscUntil = Time.unscaledTime + 2f; } }
         /// <summary>Lesson use: pitch channel only (the lesson flies the ailerons/rudder), and allowed to fly into the stall.</summary>
         public bool PitchOnly, AllowStall;
         public string PitchMode = "alt";                    // "alt" | "vs" | "flc" | "alt*" (capturing)
@@ -87,7 +105,8 @@ namespace FlyingGame.Bridge.Widget
         public void Engage(double? altFt, double? kias, string pitchMode = null, double? vsFpm = null, string rollMode = null, double? hdg = null, bool? yd = null, bool? at = null)
         {
             var r = _w.Read(); var c = _w.AeroControls;
-            if (!On) { Trim = c.Elevator; Elevator = 0; Power = c.Throttle01; _thrI = c.Throttle01; _rudI = c.Rudder; AltFt = r.HeightFt; Kias = r.Kias; HdgDeg = r.HeadingDeg; VsFpm = 0; PitchMode = "alt"; RollMode = "rol"; HasAltTarget = true; YawDamper = true;
+            if (!On) { Trim = c.Elevator; Elevator = 0; if (!AutoThrottle) { Power = c.Throttle01; _thrI = c.Throttle01; Kias = r.Kias; } _rudI = c.Rudder; AltFt = r.HeightFt; HdgDeg = r.HeadingDeg;
+                       if (AtWithAp && at == null && HasEngine) AutoThrottle = true; VsFpm = 0; PitchMode = "alt"; RollMode = "rol"; HasAltTarget = true; YawDamper = true;
                        PitchDeg = PitchCmd = System.Math.Round(r.PitchDeg); BankDeg = BankCmd = 0; }
             if (altFt.HasValue) { AltFt = altFt.Value; HasAltTarget = true; }
             if (kias.HasValue) Kias = kias.Value;
@@ -98,7 +117,7 @@ namespace FlyingGame.Bridge.Widget
             if (hdg.HasValue) { HdgDeg = hdg.Value; if (rollMode == null) rollMode = "hdg"; }
             if (rollMode != null) RollMode = rollMode == "hdg" ? "hdg" : rollMode == "bank" ? "bank" : "rol";
             if (yd.HasValue) YawDamper = yd.Value;
-            if (at.HasValue) AutoThrottle = at.Value;
+            if (at.HasValue) SetAutoThrottle(at.Value);
             On = true; Status = "holding"; _errs.Clear(); _powerSat = _eleSat = _stallT = 0;
         }
 
@@ -121,7 +140,7 @@ namespace FlyingGame.Bridge.Widget
                 c.Rudder = System.Math.Clamp(_rudI + 2.0 * beta - 0.35 * s.Rates.Z * System.Math.Cos(r.RollDeg / 57.3) * (On ? 1 : 0.6), -0.8, 0.8);
             }
             else _rudI = c.Rudder;
-            if (!On) return;
+            if (!On) { if (AutoThrottle) SpeedHold(dt, r.Kias); return; }   // the A/T on its own
             _clock += dt;
             // CWS: while the pilot flies, the AP lets go and follows (on release it holds the attitude it was left at).
             bool pilotFlying = CwsOverride;
@@ -130,7 +149,7 @@ namespace FlyingGame.Bridge.Widget
                 if (PitchMode == "pit") PitchDeg = PitchCmd = System.Math.Clamp(r.PitchDeg, -PitchLimit, PitchLimit);
                 if (RollMode == "bank") BankDeg = BankCmd = System.Math.Clamp(r.RollDeg, -BankLimit, BankLimit);
                 Trim = c.Elevator; Elevator = 0; Status = "holding";
-                if (AutoThrottle && PitchMode != "flc") { _thrI = System.Math.Clamp(_thrI + 0.006 * (Kias - r.Kias) * dt, 0, 1); Power = Mathf.MoveTowards((float)Power, (float)System.Math.Clamp(_thrI + 0.03 * (Kias - r.Kias), 0, 1), dt * 0.25f); c.Throttle01 = Power; }
+                if (AutoThrottle && PitchMode != "flc") SpeedHold(dt, r.Kias);
                 return;
             }
             double vs = -r.SinkFpm, altErr = AltFt - r.HeightFt, spdErr = Kias - r.Kias;
@@ -187,12 +206,7 @@ namespace FlyingGame.Bridge.Widget
                 Power = Mathf.MoveTowards((float)Power, altErr > 0 ? 1f : 0f, dt * 0.25f);
                 c.Throttle01 = Power;
             }
-            else if (AutoThrottle)
-            {
-                _thrI = System.Math.Clamp(_thrI + 0.006 * spdErr * dt, 0, 1);
-                Power = Mathf.MoveTowards((float)Power, (float)System.Math.Clamp(_thrI + 0.03 * spdErr, 0, 1), dt * 0.25f);
-                c.Throttle01 = Power;
-            }
+            else if (AutoThrottle) SpeedHold(dt, r.Kias);
             else Power = c.Throttle01;
             // ROLL: wings level, or a heading (bank ≤ 20°, 1:1 with the heading error up to that).
             if (RollMode == "bank") BankCmd = Mathf.MoveTowards((float)BankCmd, (float)BankDeg, 6f * dt);
@@ -213,12 +227,21 @@ namespace FlyingGame.Bridge.Widget
                    : crossings >= 4 && amp > (PitchMode == "vs" ? 300 : 60) ? "oscillating" : "holding";
         }
 
+        /// <summary>A/T speed mode: PI on the airspeed error, rate-limited (≤ 25 % of the lever per second).</summary>
+        private void SpeedHold(float dt, double kias)
+        {
+            double spdErr = Kias - kias;
+            _thrI = System.Math.Clamp(_thrI + 0.006 * spdErr * dt, 0, 1);
+            Power = Mathf.MoveTowards((float)Power, (float)System.Math.Clamp(_thrI + 0.03 * spdErr, 0, 1), dt * 0.25f);
+            _w.AeroControls.Throttle01 = Power;
+        }
+
         /// <summary>The flight-mode annunciation: "AP · ALT 3000 · HDG 270 · YD · A/T 100".</summary>
         public string Annunciation
         {
             get
             {
-                if (!On) return YawDamper ? "YD" : null;
+                if (!On) { string at = AutoThrottle ? $"A/T {Kias:0}" : null; return YawDamper ? (at != null ? $"YD · {at}" : "YD") : at; }
                 string why = Status switch { "cantHold:power" => "CAN'T HOLD — FULL POWER", "cantHold:elevator" => "CAN'T HOLD — ELEVATOR/TRIM LIMIT", "cantHold:stall" => "CAN'T HOLD — STALL", "oscillating" => "OSCILLATING", _ => null };
                 string pm = PitchMode == "pit" ? $"PIT {PitchDeg:+0.0;-0.0;0.0}°" : PitchMode == "vs" ? $"VS {VsFpm:+0;-0}" : PitchMode == "flc" ? $"FLC {Kias:0} → {AltFt:0}" : PitchMode == "alt*" ? $"ALT* {AltFt:0}" : $"ALT {AltFt:0}";
                 string rm = RollMode == "hdg" ? $"HDG {HdgDeg:000}" : RollMode == "bank" ? (System.Math.Abs(BankDeg) < 0.5 ? "BANK 0°" : $"BANK {System.Math.Abs(BankDeg):0}° {(BankDeg < 0 ? "L" : "R")}") : "ROL";

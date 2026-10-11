@@ -21,6 +21,7 @@ namespace FlyingGame.Bridge.Widget
         private Aircraft _seen;
         private bool _loadingChanged;
         private ControlInputs _pilotAtEngage; private bool _wasOn;
+        private bool _atWas; private double _pilotThrAtAt;
         private const string Prefs = "aero.parity.";
 
         /// <summary>The adapter the autopilot writes: the channels it doesn't fly read back the pilot's.</summary>
@@ -35,7 +36,7 @@ namespace FlyingGame.Bridge.Widget
 
         private void Awake()
         {
-            Loading = new WidgetLoading(this); Autopilot = new WidgetAutopilot(this) { AutoThrottle = false }; Curves = new WidgetCurves();
+            Loading = new WidgetLoading(this); Autopilot = new WidgetAutopilot(this) { AtWithAp = false }; Curves = new WidgetCurves();
             Show["earthGrid"] = Show["horizon"] = false;   // the game has its real world: the earth grid is an option
             Load();
         }
@@ -121,7 +122,7 @@ namespace FlyingGame.Bridge.Widget
                 AircraftId = Driver.AircraftId; Config = ac.Config; Ac = ac; _seen = ac;
                 Measure();
                 Loading.Configure(Config, sameType && _loadingChanged, kg, cg);
-                Autopilot.Off(); Autopilot.YawDamper = false;
+                Autopilot.Off(); Autopilot.YawDamper = false; Autopilot.AutoThrottle = false;
                 AltLock = false;   // a new flight starts free (it may be on a runway)
             }
             Driver.ForceCapture = Active;
@@ -151,7 +152,11 @@ namespace FlyingGame.Bridge.Widget
             if (AltLock && !Driver.Replaying) ApplyAltitudeLock();   // (before each step: the airplane always starts it at the lock height)
             double thr = (1.0 - pilot.ThrottleLever) * 0.5;
             if (!ap.On) { _controls.Elevator = pilot.Elevator; _controls.Aileron = pilot.Aileron; _controls.Rudder = pilot.Rudder; _controls.Throttle01 = thr; }
-            if (Ac == null || (!ap.On && !ap.YawDamper)) { _wasOn = false; return pilot; }
+            // The pilot's throttle lever moving disconnects the A/T (it runs with or without the AP).
+            if (ap.AutoThrottle && !_atWas) _pilotThrAtAt = pilot.ThrottleLever;
+            _atWas = ap.AutoThrottle;
+            if (ap.AutoThrottle && System.Math.Abs(pilot.ThrottleLever - _pilotThrAtAt) > 0.06) { ap.PilotThrottle(); _atWas = false; }
+            if (Ac == null || (!ap.On && !ap.YawDamper && !ap.AutoThrottle)) { _wasOn = false; return pilot; }
             if (ap.On && !_wasOn) _pilotAtEngage = pilot;
             _wasOn = ap.On;
             // The pilot's hand on the stick disconnects the AP (as in the widget); a push on a pedal turns the YD off.
@@ -165,7 +170,7 @@ namespace FlyingGame.Bridge.Widget
             _controls.Aileron = pilot.Aileron; _controls.Rudder = pilot.Rudder; _controls.Throttle01 = thr; _controls.ElevatorFree = pilot.ElevatorFree;
             if (!ap.On) _controls.Elevator = pilot.Elevator;
             ap.Tick(dt);
-            bool roll = ap.On && !ap.PitchOnly, power = ap.On && (ap.AutoThrottle || ap.PitchMode == "flc"), yaw = ap.YawDamper;
+            bool roll = ap.On && !ap.PitchOnly, power = ap.AutoThrottle || ap.On && ap.PitchMode == "flc", yaw = ap.YawDamper;
             return new ControlInputs(roll ? _controls.Aileron : pilot.Aileron, ap.On ? _controls.Elevator : pilot.Elevator, yaw ? _controls.Rudder : pilot.Rudder,
                 power ? 1.0 - 2.0 * _controls.Throttle01 : pilot.ThrottleLever, pilot.AileronFree, ap.On ? false : pilot.ElevatorFree, pilot.RudderFree);
         }

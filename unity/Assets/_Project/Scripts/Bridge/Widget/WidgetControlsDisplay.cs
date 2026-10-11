@@ -30,7 +30,7 @@ namespace FlyingGame.Bridge.Widget
         public Rect SceneRect => _sceneRect;
         private Font _font;
         private const int GlyphPx = 48;
-        private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline)> _texts = new();
+        private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline, bool bold)> _texts = new();
         private bool _on;
         private const float N = AeroWidget.FrameSize;
 
@@ -95,7 +95,7 @@ namespace FlyingGame.Bridge.Widget
         }
 
         private void Text(float dx, float dy, string str, float size, Color c, TextAnchor anchor = TextAnchor.MiddleCenter) =>
-            _texts.Add((P(dx, dy), str, size * _s, c, anchor, false));
+            _texts.Add((P(dx, dy), str, size * _s, c, anchor, false, false));
 
         private void LateUpdate()
         {
@@ -113,7 +113,8 @@ namespace FlyingGame.Bridge.Widget
             if (w == null || w.Cam == null) return;
             if (!on) { if (w.Cam.targetTexture != w.Frame) w.Cam.targetTexture = w.Frame; return; }
             // The scene's own texture, sized to the picture outside the panel's strip (the whole frame with no panel).
-            _sceneRect = !panel ? new Rect(0, 0, N, N) : place == "left" ? new Rect(size * N, 0, (1 - size) * N, N) : place == "right" ? new Rect(0, 0, (1 - size) * N, N) : new Rect(0, size * N, N, (1 - size) * N);
+            if (ntsb) { _panelPx = NtsbPanelRect(w); _sceneRect = FreeBand(_panelPx); }
+            else _sceneRect = !panel ? new Rect(0, 0, N, N) : place == "left" ? new Rect(size * N, 0, (1 - size) * N, N) : place == "right" ? new Rect(0, 0, (1 - size) * N, N) : new Rect(0, size * N, N, (1 - size) * N);
             int sw = Mathf.RoundToInt(_sceneRect.width), sh = Mathf.RoundToInt(_sceneRect.height);
             if (_scene == null || _scene.width != sw || _scene.height != sh)
             {
@@ -140,8 +141,8 @@ namespace FlyingGame.Bridge.Widget
             if (ntsb)
             {
                 // Header: the aircraft's name, top-left of the picture (no clock).
-                _texts.Add((new Vector2(22, N - 28), w.AircraftName, 26f, Color.white, TextAnchor.MiddleLeft, true));
-                NtsbLayout(w, size);
+                _texts.Add((new Vector2(_sceneRect.x + 22, _sceneRect.yMax - 28), w.AircraftName, 26f, Color.white, TextAnchor.MiddleLeft, true, true));
+                NtsbLayout(w, _panelPx);
                 return;
             }
 
@@ -180,7 +181,7 @@ namespace FlyingGame.Bridge.Widget
         public bool Paused => Host != null && Host.Paused;
         /// <summary>Text and line scale for the host's screen (the widget's frame = 1; a phone or iPad screen is bigger).</summary>
         public float TextScale = 1f;
-        public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px * TextScale, c, a, true));
+        public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px * TextScale, c, a, true, false));
         private void PxSeg(Vector2 a, Vector2 b, float w, Color c)
         {
             Vector2 d = b - a; if (d.sqrMagnitude < 1e-4f) return;
@@ -486,7 +487,7 @@ namespace FlyingGame.Bridge.Widget
             h.Curves.Update(h, h.Vectors.Current);
             Insets(h, GameInsetArea);
             var insetQuads = new List<(Vector2 a, Vector2 b, Vector2 c, Vector2 d, Color col)>(_quads);
-            var insetTexts = new List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline)>(_texts);
+            var insetTexts = new List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline, bool bold)>(_texts);
             _quads.Clear(); _texts.Clear();
             ArrowClip = GameView;
             h.Vectors.Ui = TextScale;
@@ -509,13 +510,14 @@ namespace FlyingGame.Bridge.Widget
             foreach (var q in _quads) { GL.Color(q.col); GL.Vertex3(q.a.x, q.a.y, 0); GL.Vertex3(q.b.x, q.b.y, 0); GL.Vertex3(q.c.x, q.c.y, 0); GL.Vertex3(q.d.x, q.d.y, 0); }
             GL.End();
             // Glyphs: request every string first (the atlas may rebuild), then read the UVs.
-            foreach (var t in _texts) _font.RequestCharactersInTexture(t.s, GlyphPx, FontStyle.Normal);
+            foreach (var t in _texts) _font.RequestCharactersInTexture(t.s, GlyphPx, t.bold ? FontStyle.Bold : FontStyle.Normal);
             _font.material.SetPass(0);
             GL.Begin(GL.QUADS);
             foreach (var t in _texts)
             {
                 float k = t.px / GlyphPx, width = 0f;
-                foreach (char ch in t.s) if (_font.GetCharacterInfo(ch, out var ci, GlyphPx)) width += ci.advance * k;
+                var style = t.bold ? FontStyle.Bold : FontStyle.Normal;
+                foreach (char ch in t.s) if (_font.GetCharacterInfo(ch, out var ci, GlyphPx, style)) width += ci.advance * k;
                 float x = t.anchor is TextAnchor.MiddleLeft or TextAnchor.UpperLeft or TextAnchor.LowerLeft ? t.at.x
                         : t.anchor is TextAnchor.MiddleRight or TextAnchor.UpperRight or TextAnchor.LowerRight ? t.at.x - width : t.at.x - width * 0.5f;
                 float baseline = t.at.y - t.px * 0.36f;   // vertically centred on the point (cap height ≈ 0.72 em)
@@ -529,7 +531,7 @@ namespace FlyingGame.Bridge.Widget
                     float xx = x;
                     foreach (char ch in t.s)
                     {
-                        if (!_font.GetCharacterInfo(ch, out var ci, GlyphPx)) continue;
+                        if (!_font.GetCharacterInfo(ch, out var ci, GlyphPx, style)) continue;
                         float x0 = xx + ci.minX * k + ox, x1 = xx + ci.maxX * k + ox, y0 = baseline + ci.minY * k + oy, y1 = baseline + ci.maxY * k + oy;
                         GL.TexCoord(ci.uvBottomLeft); GL.Vertex3(x0, y0, 0);
                         GL.TexCoord(ci.uvBottomRight); GL.Vertex3(x1, y0, 0);

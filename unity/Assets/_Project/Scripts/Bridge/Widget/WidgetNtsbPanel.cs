@@ -16,17 +16,37 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed partial class WidgetControlsDisplay
     {
-        // Design space: the panel is 1080 × 486 units (the 0.45 split at 1080²), scaled to its strip.
-        private const float NW = 1080f, NH = 486f;
+        // Design space: the panel is 1080 × 550 units (the autopilot's MCP strip on top, then the instruments), scaled to its strip.
+        // Owner 2026-10-11: "a little thinner in height" — 1080 × 464 (≈ 2.3 : 1).
+        private const float NW = 1080f, NH = 464f, MY = 58f, IH = 350f;   // MY: the instruments sit below the MCP; IH: their height
+        /// <summary>The panel box's height over its width.</summary>
+        public const float PanelAspect = NH / NW;
+        private Rect _panelPx;   // the panel box in frame pixels (origin bottom-left)
+        /// <summary>Panel labels: bold and brighter than the old grey (owner: "it is on a tiny teleprompter").</summary>
+        private static readonly Color Lbl = new(1f, 1f, 1f, 0.82f);
+
+        /// <summary>The panel's box in frame pixels: where the presenter put it, or the default (bottom, full width).</summary>
+        private Rect NtsbPanelRect(AeroWidget w)
+        {
+            float wf = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / PanelAspect), hf = wf * PanelAspect;
+            float x = w.PanelW > 0 ? w.PanelX : (1f - wf) * 0.5f, y = w.PanelW > 0 ? w.PanelY : 1f - hf;
+            return new Rect(x * N, N - (y + hf) * N, wf * N, hf * N);
+        }
+        /// <summary>The airplane's picture: the biggest clear band beside the panel (the whole frame if none is big enough).</summary>
+        private static Rect FreeBand(Rect p)
+        {
+            var c = new[] { new Rect(0, p.yMax, N, N - p.yMax), new Rect(0, 0, N, p.y), new Rect(0, 0, p.x, N), new Rect(p.xMax, 0, N - p.xMax, N) };
+            Rect best = c[0]; foreach (var r in c) if (r.width * r.height > best.width * best.height) best = r;
+            return best.width * best.height >= 0.3f * N * N && best.width >= 0.3f * N && best.height >= 0.3f * N ? best : new Rect(0, 0, N, N);
+        }
         private static readonly Color PlateBg = new(0f, 0f, 0f, 0.55f), Rule = new(0.85f, 0.87f, 0.9f, 0.55f),
             Sky = new(0.20f, 0.45f, 0.78f, 0.95f), Ground = new(0.50f, 0.33f, 0.18f, 0.95f), LitRed = new(0.85f, 0.1f, 0.08f, 0.95f),
             LitAmber = new(0.95f, 0.65f, 0.1f, 0.95f), LitGreen = new(0.15f, 0.7f, 0.3f, 0.95f), OffText = new(1f, 1f, 1f, 0.32f);
 
-        private void NtsbLayout(AeroWidget w, float split)
+        private void NtsbLayout(AeroWidget w, Rect box)
         {
-            float ph = split * N;                                   // the panel strip's height in pixels
-            _s = Mathf.Min(N / NW, ph / NH);
-            _o = new Vector2((N - NW * _s) * 0.5f, ph - (ph - NH * _s) * 0.5f);   // centred in the strip (top-left)
+            _s = box.width / NW;
+            _o = new Vector2(box.x, box.yMax);                      // top-left of the box
             var f = w.Shown ?? w.Review.Capture();
             var r = w.Read();
             var spec = w.Controls.Spec;
@@ -34,21 +54,36 @@ namespace FlyingGame.Bridge.Widget
             bool stall = r.AlphaDeg >= warnA && !r.OnGround;
             bool spin = !r.OnGround && System.Math.Abs(r.YawRateDps) > 40 && r.AlphaDeg > critA;
 
-            Pfd(8, 8, 420, 424, r, f, w.StallKias(f.FlapsActual));
-            Aoa(436, 8, 100, 424, r.AlphaDeg, critA, warnA);
-            Column(544, 8, 204, 424, f);
+            Mcp(8, 8, NW - 16, 50, w.Autopilot);
+            // The instrument row: only the controls this airplane has (owner 2026-10-11) — no power plate on a glider, no gear
+            // lever on fixed gear, no flaps or spoilers it doesn't have. The row is centred under the MCP.
+            bool power = spec.Engines > 0, flaps = spec.Flaps.Length > 1, gear = spec.Retractable, splr = spec.Spoilers;
+            float leversW = LeversWidth(flaps, gear, splr);
+            float rowW = 420 + 8 + 100 + 8 + 204 + (power ? 8 + 96 : 0) + (leversW > 0 ? 8 + leversW : 0);
+            float x = (NW - rowW) * 0.5f, y = 8 + MY;
+            Pfd(x, y, 420, IH, w.Autopilot, r, f, w.StallKias(f.FlapsActual)); x += 428;
+            Aoa(x, y, 100, IH, r.AlphaDeg, critA, warnA); x += 108;
+            Column(x, y, 204, IH, f);
             // Touch layout (addendum): the yoke trackpad over the column + wheel, the pedal slider, the levers.
-            TouchBox(552, 36, 188, 162); LayoutRect("yoke", 552, 36, 188, 162);
-            TouchBox(552, 226, 188, 100); LayoutRect("pedals", 552, 226, 188, 100);
-            // Thumbs at the current inputs: the yoke (aileron →, push ↑) and the pedals.
-            { float cx = 552 + 94, ty = 226 + 92; float tx = cx + (float)f.Rud * 94f; Rect(tx - 10, ty - 5, 20, 10, new Color(1, 1, 1, 0.8f)); SegD(560, ty, 732, ty, 1f, new Color(1, 1, 1, 0.25f)); }
-            Power(756, 8, 96, 424, f, spec, w.Ac);
-            if (spec.Engines > 0) LayoutRect("throttle", 756 + 36, 8 + 54, 52, 424 - 90 - 54);   // exactly the lever's travel: top = full
-            Levers(860, 8, 212, 424, f, spec);
-            if (spec.Flaps.Length > 1) LayoutRect("flaps", 860 + 46 - 26, 8 + 54, 52, 196);      // the gate: top = up
-            if (spec.Spoilers) LayoutRect("spoilers", 860 + 178 - 26, 8 + 70, 52, 160);      // top = retracted
-            FlapDetentPositions = spec.Flaps.Length > 1 ? FlapDetents(spec) : null;
-            Annunciators(8, 440, 1064, 38, stall, spec.StickShaker, spin, w);
+            TouchBox(x + 8, y + 26, 188, 150); LayoutRect("yoke", x + 8, y + 26, 188, 150);
+            TouchBox(x + 8, y + 196, 188, 108); LayoutRect("pedals", x + 8, y + 196, 188, 108);
+            // Thumbs at the current inputs: the pedals.
+            { float cx = x + 102, ty = y + 298; float tx = cx + (float)f.Rud * 94f; Rect(tx - 10, ty - 5, 20, 10, new Color(1, 1, 1, 0.8f)); SegD(x + 16, ty, x + 188, ty, 1f, new Color(1, 1, 1, 0.25f)); }
+            x += 212;
+            if (power)
+            {
+                Power(x, y, 96, IH, f, spec, w.Ac);
+                LayoutRect("throttle", x + 36, y + 54, 52, IH - 90 - 54);   // exactly the lever's travel: top = full
+                x += 104;
+            }
+            FlapDetentPositions = null;
+            if (leversW > 0) Levers(x, y, leversW, IH, f, spec, flaps, gear, splr);
+            Annunciators(8, 8 + MY + IH + 8, NW - 16 - 34, 32, stall, spec.StickShaker, spin, w);
+            // The box itself: the presenter drags it anywhere and pulls its corner grip to resize (Glass lays its handles here).
+            LayoutRect("panel", 0, 0, NW, NH);
+            float gs = 30f; LayoutRect("panelResize", NW - gs, NH - gs, gs, gs);
+            var gc = new Color(1, 1, 1, 0.6f);
+            for (int i = 1; i <= 3; i++) SegD(NW - 4 - i * 8, NH - 4, NW - 4, NH - 4 - i * 8, 2f, gc);   // the corner grip
         }
 
         /// <summary>The flap detents' positions along the flaps rect (0 = top … 1 = bottom), evenly spaced like the gate.</summary>
@@ -105,7 +140,7 @@ namespace FlyingGame.Bridge.Widget
             Arc(x + r, y + r, 180); Arc(x + w - r, y + r, 270); Arc(x + w - r, y + h - r, 0); Arc(x + r, y + h - r, 90);
         }
         private void OText(float x, float y, string s, float size, Color c, TextAnchor a = TextAnchor.MiddleCenter) =>
-            _texts.Add((P(x, y), s, Mathf.Max(size, 14f) * _s, c, a, true));
+            _texts.Add((P(x, y), s, Mathf.Max(size, 15f) * _s, c == Grey ? Lbl : c, a, true, true));
 
         /// <summary>Fill a convex polygon (design coordinates) clipped to a design rect.</summary>
         private void FillClipped(List<Vector2> poly, Rect clip, Color c)
@@ -147,11 +182,12 @@ namespace FlyingGame.Bridge.Widget
         }
 
         // ---- a. PRIMARY FLIGHT DISPLAY ----
-        private void Pfd(float x, float y, float w, float h, AeroWidget.Readout r, WidgetHistory.Snap f, double vsKias)
+        private void Pfd(float x, float y, float w, float h, WidgetAutopilot ap, AeroWidget.Readout r, WidgetHistory.Snap f, double vsKias)
         {
             Plate(x, y, w, h);
-            // Attitude indicator, centred.
-            var face = new Rect(x + 92, y + 30, 236, 286);
+            Fma(x + 12, y + 5, 396, 44, ap, r);
+            // Attitude indicator, centred (below the FMA).
+            var face = new Rect(x + 92, y + 70, 236, 218);
             float cx = face.center.x, cy = face.center.y, ppd = 5.2f;   // pixels per degree of pitch
             float roll = (float)r.RollDeg * Mathf.Deg2Rad, pitch = (float)r.PitchDeg;
             // The horizon: a line through the centre offset by pitch, rotated by -roll (the world tilts the other way).
@@ -173,7 +209,7 @@ namespace FlyingGame.Bridge.Widget
                 if (deg % 10 == 0)
                 {
                     Vector2 lp = c0 + dir * (half + 14);
-                    if (face.Contains(lp)) OText(lp.x, lp.y, $"{System.Math.Abs(deg)}", 14, Color.white);
+                    if (face.Contains(lp) && Vector2.Distance(lp, new Vector2(cx, cy)) < 90f - 16f) OText(lp.x, lp.y, $"{System.Math.Abs(deg)}", 14, Color.white);   // (never under the bank scale)
                 }
             }
             // The fixed airplane symbol.
@@ -181,7 +217,7 @@ namespace FlyingGame.Bridge.Widget
             SegD(cx - 22, cy, cx - 22, cy + 10, 4f, LitAmber); SegD(cx + 22, cy, cx + 22, cy + 10, 4f, LitAmber);
             Rect(cx - 3, cy - 3, 6, 6, LitAmber);
             // Bank scale (an arc above the face centre) with a pointer.
-            float br = 110f;
+            float br = 90f;
             foreach (int b in new[] { -60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60 })
             {
                 float a = (-90f + b) * Mathf.Deg2Rad, len = b % 30 == 0 ? 12f : 7f;
@@ -198,7 +234,7 @@ namespace FlyingGame.Bridge.Widget
             RoundRule(face.x, face.y, face.width, face.height, 4, 1.2f, Rule);
 
             // Airspeed tape (left): ±30 kt, the red low-speed band below the stall speed for these flaps.
-            var tape = new Rect(x + 12, y + 30, 70, 286);
+            var tape = new Rect(x + 12, y + 70, 70, 218);
             Box(tape.x, tape.y, tape.width, tape.height, 1.2f, Rule);
             float kias = (float)r.Kias, kpp = tape.height / 70f;   // 70 kt over the tape
             float Ys(float v) => tape.center.y - (v - kias) * kpp;
@@ -218,7 +254,7 @@ namespace FlyingGame.Bridge.Widget
             OText(tape.center.x, tape.yMax + 14, $"STALL {vsKias:0}", 14, LitRed);
 
             // Altitude tape (right): ±300 ft, plus a vertical-speed pointer beside it.
-            var at = new Rect(x + 334, y + 30, 64, 286);
+            var at = new Rect(x + 334, y + 70, 64, 218);
             Box(at.x, at.y, at.width, at.height, 1.2f, Rule);
             float alt = (float)r.HeightFt, fpp = at.height / 700f;
             float Ya(float v) => at.center.y - (v - alt) * fpp;
@@ -241,10 +277,101 @@ namespace FlyingGame.Bridge.Widget
             OText(at.center.x, at.yMax + 14, $"VS {vs:+0;-0;0}", 14, Color.white);
 
             // Heading below.
-            OText(cx, y + 352, $"HDG {r.HeadingDeg:000}°", 18, Color.white);
-            OText(cx, y + 378, $"PITCH {r.PitchDeg:+0;-0;0}°  BANK {System.Math.Abs(r.RollDeg):0}° {(r.RollDeg < -0.5 ? "L" : r.RollDeg > 0.5 ? "R" : "")}", 15, Grey);
-            OText(cx, y + 402, $"G {r.LoadFactor:0.0}", 15, Grey);
+            OText(cx, y + 306, $"HDG {r.HeadingDeg:000}°", 18, Color.white);
+            OText(cx, y + 332, $"PITCH {r.PitchDeg:+0;-0;0}°   BANK {System.Math.Abs(r.RollDeg):0}° {(r.RollDeg < -0.5 ? "L" : r.RollDeg > 0.5 ? "R" : "")}   G {r.LoadFactor:0.0}", 15, Grey);
         }
+
+        // ---- MCP: the autopilot mode control panel, across the top (owner 2026-10-11: "a traditional layout") ----
+        // Glareshield order: SPEED · HEADING · ALTITUDE · VERT SPEED · CWS · AP/YD. A button's light bar is lit while its
+        // mode is ENGAGED; a window shows its target only while that target is being flown ("---" otherwise).
+        // LNAV / LOC / APP exist but aren't built yet: always dark.
+        private void Mcp(float x, float y, float w, float h, WidgetAutopilot ap)
+        {
+            Plate(x, y, w, h);
+            bool on = ap.On, aoa = ap.PitchMode == "aoa", roll = on && !ap.PitchOnly;
+            bool flc = on && ap.PitchMode == "flc", atSpd = ap.AutoThrottle && !flc;
+            bool altTgt = on && !aoa && (ap.PitchMode == "alt" || ap.PitchMode == "alt*" || flc || ap.PitchMode == "vs" && ap.HasAltTarget);
+            const float bw = 44f, ww = 70f, g = 4f;
+            float top = y + 20;
+            var groups = new List<(string title, List<(float w, System.Action<float> draw)> items)>
+            {
+                ("SPEED", new() { (bw, bx => Btn(bx, "A/T", ap.AutoThrottle, !ap.HasEngine, ap.AtDisc)), (ww, bx => Win(bx, atSpd || flc ? $"{ap.Kias:0}" : null)), (bw, bx => Btn(bx, "FLC", flc)) }),
+                ("HEADING", new() { (ww, bx => Win(bx, roll && ap.RollMode == "hdg" ? $"{ap.HdgDeg:000}°" : null)), (bw, bx => Btn(bx, "HDG", roll && ap.RollMode == "hdg")),
+                                    (bw, bx => Btn(bx, "LNAV", false, true)), (bw, bx => Btn(bx, "LOC", false, true)), (bw, bx => Btn(bx, "APP", false, true)) }),
+                ("ALTITUDE", new() { (ww, bx => Win(bx, altTgt ? $"{ap.AltFt:0}" : null)), (bw, bx => Btn(bx, "ALT", on && (ap.PitchMode == "alt" || ap.PitchMode == "alt*"))) }),
+                ("VERT SPEED", new() { (ww, bx => Win(bx, on && ap.PitchMode == "vs" ? $"{ap.VsFpm:+0;-0;0}" : null)), (bw, bx => Btn(bx, "V/S", on && ap.PitchMode == "vs")) }),
+                ("CWS  PITCH · BANK", new() { (ww, bx => Win(bx, on && ap.PitchMode == "pit" ? $"{ap.PitchDeg:+0.0;-0.0;0.0}°" : null)), (bw, bx => Btn(bx, "PIT", on && ap.PitchMode == "pit")),
+                                    (ww, bx => Win(bx, roll && ap.RollMode == "bank" ? BankText(ap.BankDeg) : null)), (bw, bx => Btn(bx, "BANK", roll && ap.RollMode == "bank")) }),
+                ("", new() { (bw, bx => Btn(bx, "AP", on, false, !on && ap.Disc)), (bw, bx => Btn(bx, "YD", ap.YawDamper)) }),
+            };
+            float total = 0; foreach (var gr in groups) { foreach (var it in gr.items) total += it.w; total += (gr.items.Count - 1) * g; }
+            float gap = (w - 16 - total) / (groups.Count - 1), cx = x + 8;
+            for (int i = 0; i < groups.Count; i++)
+            {
+                var gr = groups[i]; float gx0 = cx;
+                foreach (var it in gr.items) { it.draw(cx); cx += it.w + g; }
+                float gx1 = cx - g;
+                if (gr.title.Length > 0) OText((gx0 + gx1) * 0.5f, y + 11, gr.title, 14, Grey);
+                if (i + 1 < groups.Count) { float sx = gx1 + (gap - g) * 0.5f + g * 0.5f; SegD(sx, y + 8, sx, y + h - 6, 1f, Rule); }
+                cx += gap - g;
+            }
+            void Btn(float bx, string label, bool lit, bool dark = false, bool warn = false)
+            {
+                Rect(bx, top, bw, 24, new Color(0.08f, 0.08f, 0.09f, 0.9f));
+                Box(bx, top, bw, 24, 1.2f, Rule);
+                bool flash = warn && Mathf.Repeat(Time.unscaledTime, 0.6f) < 0.35f;
+                Rect(bx + 8, top + 3, bw - 16, 3, lit ? LitGreen : flash ? LitAmber : new Color(1, 1, 1, 0.12f));   // the light bar
+                OText(bx + bw * 0.5f, top + 15, label, 14, dark ? OffText : lit ? Color.white : Grey);
+            }
+            void Win(float bx, string value)
+            {
+                Rect(bx, top, ww, 24, Color.black);
+                Box(bx, top, ww, 24, 1.2f, Rule);
+                OText(bx + ww * 0.5f, top + 12, value ?? "- - -", value != null ? 17 : 14, value != null ? LitAmber : OffText);
+            }
+        }
+        private static string BankText(double b) => System.Math.Abs(b) < 0.5 ? "0°" : $"{System.Math.Abs(b):0}° {(b < 0 ? "L" : "R")}";
+
+        // ---- FMA: the flight mode annunciator, on top of the attitude indicator ----
+        // Columns, as on a transport PFD: THRUST · ROLL · PITCH · AFDS status. Row 1 = the ENGAGED mode and its target (green),
+        // row 2 = the ARMED mode (white) — or, when the AP can't hold, why (amber). A mode that just changed is boxed for 10 s.
+        private readonly string[] _fmaLast = new string[4];
+        private readonly float[] _fmaAt = { -99f, -99f, -99f, -99f };
+        private void Fma(float x, float y, float w, float h, WidgetAutopilot ap, AeroWidget.Readout r)
+        {
+            Rect(x, y, w, h, new Color(0, 0, 0, 0.75f));
+            float[] cw = { 92, 104, 116, 84 };
+            bool on = ap.On, roll = on && !ap.PitchOnly;
+            string thr = on && ap.PitchMode == "flc" ? (ap.AltFt > r.HeightFt ? "THR CLB" : "THR IDLE") : ap.AutoThrottle ? $"SPD {ap.Kias:0}" : ap.AtDisc ? "A/T DISC" : null;
+            string lat = !roll ? null : ap.RollMode == "hdg" ? $"HDG {ap.HdgDeg:000}" : ap.RollMode == "bank" ? $"BANK {BankText(ap.BankDeg)}" : "ROL";
+            string vert = !on ? null : ap.PitchMode switch
+            {
+                "pit" => $"PIT {ap.PitchDeg:+0.0;-0.0;0.0}°", "vs" => $"VS {ap.VsFpm:+0;-0;0}", "flc" => $"FLC {ap.Kias:0}",
+                "alt*" => $"ALT* {ap.AltFt:0}", "aoa" => $"AOA {ap.AoaCmd:0.0}°", _ => $"ALT {ap.AltFt:0}",
+            };
+            string vertArm = on && (ap.PitchMode == "flc" || ap.PitchMode == "vs" && ap.HasAltTarget) ? $"ALT {ap.AltFt:0}" : null;
+            string why = !on ? null : ap.Status switch { "cantHold:power" => "FULL POWER", "cantHold:elevator" => "ELEV LIMIT", "cantHold:stall" => "STALL", "oscillating" => "OSCILLATING", _ => null };
+            string afds = on ? (ap.CwsOverride ? "CWS" : "AP") : ap.Disc ? "AP" : null;
+            string[] act = { thr, lat, vert, afds };
+            string[] arm = { null, null, why == null ? vertArm : why, ap.YawDamper ? "YD" : null };
+            float cx = x;
+            for (int i = 0; i < 4; i++)
+            {
+                if (i > 0) SegD(cx, y + 4, cx, y + h - 4, 1.2f, Rule);
+                float mx = cx + cw[i] * 0.5f;
+                if (act[i] != _fmaLast[i]) { _fmaLast[i] = act[i]; _fmaAt[i] = act[i] != null ? Time.unscaledTime : -99f; }
+                if (act[i] != null)
+                {
+                    bool discFlash = i == 3 && !on || i == 0 && ap.AtDisc && !ap.AutoThrottle;
+                    Color ac = discFlash ? (Mathf.Repeat(Time.unscaledTime, 0.6f) < 0.35f ? LitAmber : OffText) : i == 3 && ap.CwsOverride ? LitAmber : FmaGreen;
+                    OText(mx, y + 13, act[i], 16, ac);
+                    if (Time.unscaledTime - _fmaAt[i] < 10f && !discFlash) Box(cx + 4, y + 2, cw[i] - 8, 22, 1.4f, Color.white);   // the mode-change box
+                }
+                if (arm[i] != null) OText(mx, y + 33, arm[i], 14, i == 2 && why != null ? LitAmber : Color.white);
+                cx += cw[i];
+            }
+        }
+        private static readonly Color FmaGreen = new(0.3f, 0.95f, 0.4f, 1f);
 
         // ---- b. ANGLE OF ATTACK ----
         private void Aoa(float x, float y, float w, float h, double alpha, double crit, double warn)
@@ -274,7 +401,7 @@ namespace FlyingGame.Bridge.Widget
             // Aileron rotates it (90° at full). The column pivots at the floor, so the yoke drops either way from neutral:
             // pulled AFT it comes toward the pilot — lower and BIGGER; pushed FORWARD it goes away — lower and SMALLER.
             // A thin elevator gauge on the right, a thin aileron gauge underneath; the whole box is the touch control.
-            float cx = x + 92, cy = y + 104;
+            float cx = x + 92, cy = y + 96;
             void Wheel(float ox, float oy, float scale, float rot, Color c, float lw)
             {
                 float co = Mathf.Cos(rot), si = Mathf.Sin(rot);
@@ -289,34 +416,34 @@ namespace FlyingGame.Bridge.Widget
             Wheel(cx, cy, 1f, 0f, new Color(0, 0, 0, 0.8f), 9f);                          // the neutral shadow
             Wheel(cx, cy + drop, sc, (float)f.Ail * 90f * Mathf.Deg2Rad, Color.white, 5f);    // the yoke (+ = right = clockwise; screen y is down)
             // Elevator gauge (thin, beside the box): up = PUSH, down = PULL.
-            float ex0 = x + 186, ey0 = y + 40, ey1 = y + 176, eym = (ey0 + ey1) * 0.5f;
+            float ex0 = x + 186, ey0 = y + 38, ey1 = y + 164, eym = (ey0 + ey1) * 0.5f;
             SegD(ex0, ey0, ex0, ey1, 1.5f, Rule); SegD(ex0 - 4, eym, ex0 + 4, eym, 1.2f, Rule);
             float emk = eym - ele * (ey1 - ey0) * 0.5f;
             Rect(ex0 - 5, emk - 2.5f, 10, 5, ele < -0.02f ? TElev : Color.white);
             // Aileron gauge (thin, under the yoke): right = right aileron.
-            float ax0 = x + 20, ax1 = x + 166, ay = y + 186, axm = (ax0 + ax1) * 0.5f;
+            float ax0 = x + 20, ax1 = x + 166, ay = y + 172, axm = (ax0 + ax1) * 0.5f;
             SegD(ax0, ay, ax1, ay, 1.5f, Rule); SegD(axm, ay - 4, axm, ay + 4, 1.2f, Rule);
             float amk = axm + (float)f.Ail * (ax1 - ax0) * 0.5f;
             Rect(amk - 2.5f, ay - 5, 5, 10, Color.white);
             string col = System.Math.Abs(f.Ele) < 0.01 ? "NEUTRAL" : (f.Ele < 0 ? "PULL " : "PUSH ") + Pct(f.Ele);
-            OText(x + 54, y + 208, col, 16, f.Ele < -0.02 ? TElev : Color.white);
-            OText(x + 150, y + 208, System.Math.Abs(f.Ail) < 0.01 ? "AIL NEUTRAL" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
+            OText(x + 54, y + 189, col, 16, f.Ele < -0.02 ? TElev : Color.white);
+            OText(x + 150, y + 189, System.Math.Abs(f.Ail) < 0.01 ? "AIL NEUTRAL" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
             // Pedals: the pressed one slides forward — up a little and smaller (away from the pilot); the other comes back, bigger.
-            float my = y + 270, travel = 13f;
+            float my = y + 244, travel = 13f;
             for (int k = 0; k < 2; k++)
             {
                 float side = k == 0 ? -1f : 1f, ex = x + w * 0.5f + side * 40f;
                 float push = (float)f.Rud * side;
                 float yy = my - push * travel, s = 1f - 0.2f * push;
                 bool pressed = side * f.Rud > 0.02;
-                Box(ex - 20 * s, yy - 30 * s, 40 * s, 60 * s, 3f, pressed ? Color.white : Grey);
+                Box(ex - 18 * s, yy - 26 * s, 36 * s, 52 * s, 3f, pressed ? Color.white : Grey);
                 double brk = k == 0 ? f.BrakeL : f.BrakeR;
-                if (brk > 0.03) Rect(ex - 18 * s, yy - 28 * s, 36 * s, 14 * s, new Color(LitRed.r, LitRed.g, LitRed.b, 0.35f + 0.6f * (float)brk));
-                OText(ex, yy + 12 * s, k == 0 ? "L" : "R", Mathf.RoundToInt(15 * s), pressed ? Color.white : Grey);
+                if (brk > 0.03) Rect(ex - 16 * s, yy - 24 * s, 32 * s, 12 * s, new Color(LitRed.r, LitRed.g, LitRed.b, 0.35f + 0.6f * (float)brk));
+                OText(ex, yy + 10 * s, k == 0 ? "L" : "R", Mathf.RoundToInt(15 * s), pressed ? Color.white : Grey);
             }
-            OText(x + w * 0.5f, y + 340, System.Math.Abs(f.Rud) < 0.01 ? "PEDALS NEUTRAL" : $"{(f.Rud < 0 ? "LEFT" : "RIGHT")} PEDAL {Pct(f.Rud)}", 16, Color.white);
-            OText(x + w * 0.5f, y + 366, f.BrakeL > 0.03 || f.BrakeR > 0.03 ? $"BRAKES L {f.BrakeL * 100:0} R {f.BrakeR * 100:0}" : "RUDDER PEDALS", 14, Grey);
-            if (f.HandsOff) OText(x + w * 0.5f, y + 398, "HANDS OFF", 16, LitAmber);
+            OText(x + w * 0.5f, y + 318, System.Math.Abs(f.Rud) < 0.01 ? "PEDALS NEUTRAL" : $"{(f.Rud < 0 ? "LEFT" : "RIGHT")} PEDAL {Pct(f.Rud)}", 16, Color.white);
+            if (f.HandsOff) OText(x + w * 0.5f, y + 338, "HANDS OFF", 16, LitAmber);
+            else OText(x + w * 0.5f, y + 338, f.BrakeL > 0.03 || f.BrakeR > 0.03 ? $"BRAKES L {f.BrakeL * 100:0} R {f.BrakeR * 100:0}" : "RUDDER PEDALS", 14, Grey);
         }
 
         // ---- d. POWER ----
@@ -339,17 +466,22 @@ namespace FlyingGame.Bridge.Widget
             if (!na && ac != null && ac.EngineRpm > 1) OText(x + w * 0.5f, y + h - 30, $"{ac.EngineRpm:0} RPM", 14, Grey);
         }
 
-        // ---- e. FLAPS · GEAR · SPOILERS ----
-        private void Levers(float x, float y, float w, float h, WidgetHistory.Snap f, WidgetAircraftControls.Spec spec)
+        // ---- e. FLAPS · GEAR · SPOILERS — only the ones the airplane has ----
+        private const float FlapColW = 88f, GearColW = 74f, SplrColW = 66f;
+        private static float LeversWidth(bool flaps, bool gear, bool splr)
+        {
+            float w = (flaps ? FlapColW : 0) + (gear ? GearColW : 0) + (splr ? SplrColW : 0);
+            return w > 0 ? w + 8 : 0;
+        }
+        private void Levers(float x, float y, float w, float h, WidgetHistory.Snap f, WidgetAircraftControls.Spec spec, bool flaps, bool gear, bool splr)
         {
             Plate(x, y, w, h);
-            // FLAPS
-            bool nf = spec.Flaps.Length < 2;
-            float fx = x + 46, g0 = y + 54, g1 = y + 250;
-            OText(fx, y + 18, "FLAPS", 15, nf ? OffText : Grey);
-            SegD(fx, g0, fx, g1, 2.5f, nf ? OffText : Rule);
-            if (!nf)
+            float cx = x + 4;
+            if (flaps)
             {
+                float fx = cx + 50, g0 = y + 54, g1 = y + 250;
+                OText(fx - 4, y + 18, "FLAPS", 15, Grey);
+                SegD(fx, g0, fx, g1, 2.5f, Rule);
                 double full = spec.Flaps[^1]; var d = spec.Flaps;
                 double G(double frac) { double deg = frac * full; for (int i = 1; i < d.Length; i++) if (deg <= d[i] + 1e-9) return (i - 1 + (deg - d[i - 1]) / System.Math.Max(1e-9, d[i] - d[i - 1])) / (d.Length - 1); return 1; }
                 float lastY = -999f;
@@ -360,45 +492,53 @@ namespace FlyingGame.Bridge.Widget
                     SegD(fx - 7, yy, fx + 7, yy, 1.2f, Rule);
                     // Label a detent only when it has room (UP and full flap always; the 737's close ones skip).
                     bool must = i == 0 || i == d.Length - 1;
-                    float nextRoom = i + 1 < d.Length ? (g0 + (float)G(d[i + 1] / full) * (g1 - g0)) - yy : 99f;
-                    if ((must || (yy - lastY >= 18f && (nextRoom >= 18f || i + 1 == d.Length - 1 && nextRoom >= 18f))) && (must || yy - lastY >= 18f))
-                    {
-                        if (i == d.Length - 1 && yy - lastY < 18f) continue;
-                        OText(fx - 16, yy, dd < 1e-3 ? "UP" : $"{dd:0}", 14, Grey, TextAnchor.MiddleRight); lastY = yy;
-                    }
+                    if (i == d.Length - 1 && yy - lastY < 18f) continue;
+                    if (must || yy - lastY >= 18f) { OText(fx - 14, yy, dd < 1e-3 ? "UP" : $"{dd:0}", 15, Grey, TextAnchor.MiddleRight); lastY = yy; }
                 }
                 float hy = g0 + (float)G(f.FlapsCmd) * (g1 - g0), ay = g0 + (float)G(f.FlapsActual) * (g1 - g0);
-                Rect(fx - 9, hy - 5, 18, 10, Color.white);
+                Rect(fx - 10, hy - 6, 20, 12, Color.white);
                 bool lag = System.Math.Abs(f.FlapsActual - f.FlapsCmd) > 0.004;
                 SegD(fx + 16, ay, fx + 26, ay - 6, 2.5f, lag ? LitAmber : Grey); SegD(fx + 16, ay, fx + 26, ay + 6, 2.5f, lag ? LitAmber : Grey);
-                OText(fx, y + 280, $"{f.FlapsActual * full:0}°", 18, Color.white);
+                OText(fx - 4, y + 280, $"{f.FlapsActual * full:0}°", 18, Color.white);
+                LayoutRect("flaps", fx - 26, g0, 52, g1 - g0);       // the gate: top = up
+                FlapDetentPositions = FlapDetents(spec);
+                cx += FlapColW;
             }
-            else { Rect(fx - 13, g0 - 5, 26, 10, OffText); OText(fx, y + 280, "N/A", 18, OffText); }
-            // GEAR
-            bool fixedGear = !spec.Retractable;
-            float gx = x + 112, u = y + 70, dn = y + 170;
-            OText(gx, y + 18, "GEAR", 15, fixedGear ? OffText : Grey);
-            SegD(gx, u, gx, dn, 2.5f, fixedGear ? OffText : Rule);
-            float ky = fixedGear || f.Gear == "down" ? dn : u;
-            Ring(gx, ky, 11, 3.5f, fixedGear ? OffText : Color.white);
-            string lights = fixedGear ? "down" : f.GearLights;
-            for (int i = -1; i <= 1; i++)
+            if (gear)
             {
-                float lx = gx + i * 22, ly = y + 214;
-                if (fixedGear) Ring(lx, ly, 8, 1.4f, OffText);
-                else if (lights == "down") Disc(lx, ly, 8, LitGreen);
-                else if (lights == "transit") Disc(lx, ly, 8, LitRed);
-                else Ring(lx, ly, 8, 1.4f, Grey);
+                // THE GEAR LEVER: a slot with UP at the top and DN at the bottom, the handle's wheel-shaped knob in it; the three
+                // gear lights above the state (green = down and locked, red = in transit).
+                float gx = cx + GearColW * 0.5f, u = y + 66, dn = y + 176;
+                OText(gx, y + 18, "GEAR", 15, Grey);
+                Box(gx - 6, u - 12, 12, dn - u + 24, 1.5f, Rule);
+                OText(gx - 20, u, "UP", 14, Grey, TextAnchor.MiddleRight); OText(gx - 20, dn, "DN", 14, Grey, TextAnchor.MiddleRight);
+                float ky = f.Gear == "down" ? dn : u;
+                SegD(gx, (u + dn) * 0.5f, gx, ky, 4f, Color.white);   // the handle's arm from the pivot
+                Disc(gx, ky, 15, Color.white);                        // the knob: a little wheel
+                Disc(gx, ky, 9, new Color(0.15f, 0.15f, 0.15f, 1f));
+                Disc(gx, ky, 4, Color.white);
+                string lights = f.GearLights;
+                for (int i = -1; i <= 1; i++)
+                {
+                    float lx = gx + i * 22, ly = y + 222;
+                    if (lights == "down") Disc(lx, ly, 8, LitGreen);
+                    else if (lights == "transit") Disc(lx, ly, 8, LitRed);
+                    else Ring(lx, ly, 8, 1.4f, Grey);
+                }
+                OText(gx, y + 252, lights == "transit" ? "TRANSIT" : lights == "down" ? "DOWN" : "UP", 16, Color.white);
+                LayoutRect("gear", gx - 26, u - 20, 52, dn - u + 40);   // tap: toggle
+                cx += GearColW;
             }
-            OText(gx, y + 250, fixedGear ? "FIXED" : lights == "transit" ? "TRANSIT" : lights == "down" ? "DOWN" : "UP", 16, fixedGear ? OffText : Color.white);
-            // SPOILERS
-            bool ns = !spec.Spoilers;
-            float sx = x + 178, s0 = y + 70, s1 = y + 230;
-            OText(sx, y + 18, spec.Engines > 0 && !ns ? "SPD BRK" : "SPLR", 15, ns ? OffText : Grey);
-            SegD(sx, s0, sx, s1, 2.5f, ns ? OffText : Rule);
-            float sy = ns ? s0 : s0 + (float)f.Spoilers * (s1 - s0);
-            Rect(sx - 11, sy - 5, 22, 10, ns ? OffText : f.Spoilers > 0.01 ? LitAmber : f.SpoilersArmed ? LitGreen : Color.white);
-            OText(sx, y + 250, ns ? "N/A" : f.Spoilers > 0.01 ? $"EXT" : f.SpoilersArmed ? "ARM" : "RET", 16, ns ? OffText : Color.white);
+            if (splr)
+            {
+                float sx = cx + SplrColW * 0.5f, s0 = y + 70, s1 = y + 230;
+                OText(sx, y + 18, spec.Engines > 0 ? "SPD BRK" : "SPLR", 15, Grey);
+                SegD(sx, s0, sx, s1, 2.5f, Rule);
+                float sy = s0 + (float)f.Spoilers * (s1 - s0);
+                Rect(sx - 11, sy - 5, 22, 10, f.Spoilers > 0.01 ? LitAmber : f.SpoilersArmed ? LitGreen : Color.white);
+                OText(sx, y + 252, f.Spoilers > 0.01 ? "EXT" : f.SpoilersArmed ? "ARM" : "RET", 16, Color.white);
+                LayoutRect("spoilers", sx - 26, s0, 52, s1 - s0);     // top = retracted
+            }
         }
 
         // ---- f. ANNUNCIATORS ----
@@ -411,9 +551,7 @@ namespace FlyingGame.Bridge.Widget
                 ("HOLD", wd.Controls.Hold, LitAmber),
                 (wd.Paused ? $"REVIEW {wd.Review.OffsetMs / 1000.0:+0.0;-0.0;0.0} s" : "REVIEW", wd.Paused, LitAmber),
             };
-            var ap = wd.Autopilot;
-            if (ap.Disc && !ap.On) items.Add(("AP DISC", true, LitAmber));
-            else if (ap.On || ap.YawDamper) items.Add((ap.Annunciation, true, !ap.On || ap.Status == "holding" ? LitGreen : LitAmber));
+            // The autopilot's modes are on the FMA (top of the PFD) and the MCP, not here.
             if (wd.AltLockAnnunciation is string al) items.Add((al, true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
             if (!wd.Loading.WithinLimits) items.Add(("OUT OF LIMITS", true, LitAmber));
             if (wd.Controls.Managed && wd.Controls.PilotName != null) items.Add(($"PF {wd.Controls.PilotName.ToUpperInvariant()}", true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));

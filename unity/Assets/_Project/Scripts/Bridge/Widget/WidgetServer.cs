@@ -407,7 +407,10 @@ namespace FlyingGame.Bridge.Widget
                     if (j["heading"] != null || j["headingBump"] != null || (j["headingSync"]?.Value<bool>() ?? false))
                         ap.Heading(j["heading"]?.Value<double>(), j["headingBump"]?.Value<double>(), j["headingSync"]?.Value<bool>() ?? false);
                     if (j["yawDamper"] != null) ap.YawDamper = j["yawDamper"].Value<bool>();
-                    if (j["autothrottle"] != null) ap.AutoThrottle = j["autothrottle"].Value<bool>();
+                    // A/T (2026-10-11): engages on its own (AP on or off), on any type with an engine; "kias" sets its speed.
+                    if (j["autothrottle"] != null) ap.SetAutoThrottle(j["autothrottle"].Value<bool>(), j["kias"]?.Value<double>());
+                    else if (j["kias"] != null && !ap.On && ap.AutoThrottle) ap.SetAutoThrottle(true, j["kias"].Value<double>());
+                    if (j["autothrottle"] != null && j["on"] == null && j["mode"] == null && j["altitudeFt"] == null && j["vsFpm"] == null) { ok["autopilot"] = ApJson(); break; }
                     bool? on = j["on"]?.Value<bool>();
                     // CWS (2026-10-11): a pitch attitude and/or a bank angle to hold ("pitchDeg" −30…30, "bankDeg" −45…45, + = right).
                     if (on != false && (j["pitchDeg"] != null || j["bankDeg"] != null))
@@ -476,8 +479,27 @@ namespace FlyingGame.Bridge.Widget
                     string mode = ((string)j["mode"])?.ToLowerInvariant();
                     if (mode != null && mode != "ntsb" && mode != "classic") { ok["ok"] = false; ok["error"] = "mode: ntsb or classic"; break; }
                     if (mode != null) w.DisplayMode = mode;
-                    if (j["split"] != null) w.Split = Mathf.Clamp((float)j["split"].Value<double>(), 0.35f, 0.6f);
+                    if (j["split"] != null) { w.Split = Mathf.Clamp((float)j["split"].Value<double>(), 0.35f, 0.6f); w.PanelW = -1f; w.SavePanel(); }   // a split puts the panel back at the bottom
                     ok["mode"] = w.DisplayMode; ok["split"] = w.Split; break;
+                }
+                case "panel":
+                {
+                    // The NTSB panel box (owner 2026-10-11: draggable + resizable). Absolute {x, y, w} (0…1 of the frame, top-left,
+                    // y down; the height follows the aspect), or relative {dx, dy} (move) / {dw} (resize about the top-left),
+                    // or {"reset": true} (the default: bottom, full width).
+                    float aspect = WidgetControlsDisplay.PanelAspect;
+                    if (j["reset"]?.Value<bool>() ?? false) w.PanelW = -1f;
+                    else
+                    {
+                        float cw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / aspect);
+                        float cx = w.PanelW > 0 ? w.PanelX : (1f - cw) * 0.5f, cy = w.PanelW > 0 ? w.PanelY : 1f - cw * aspect;
+                        float nx = j["x"] != null ? (float)j["x"].Value<double>() : cx + (float)(j["dx"]?.Value<double>() ?? 0);
+                        float ny = j["y"] != null ? (float)j["y"].Value<double>() : cy + (float)(j["dy"]?.Value<double>() ?? 0);
+                        float nw = j["w"] != null ? (float)j["w"].Value<double>() : cw + (float)(j["dw"]?.Value<double>() ?? 0);
+                        w.PlacePanel(nx, ny, nw, aspect);
+                    }
+                    w.SavePanel();
+                    ok["panel"] = PanelJson(); break;
                 }
                 case "controlsDisplay":
                 {
@@ -527,7 +549,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -539,7 +561,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
@@ -594,6 +616,15 @@ namespace FlyingGame.Bridge.Widget
             return ok.ToString(Newtonsoft.Json.Formatting.None);
         }
 
+        private JObject PanelJson()
+        {
+            var w = Widget; float a = WidgetControlsDisplay.PanelAspect;
+            float pw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / a);
+            float px = w.PanelW > 0 ? w.PanelX : (1f - pw) * 0.5f, py = w.PanelW > 0 ? w.PanelY : 1f - pw * a;
+            return new JObject { ["x"] = System.Math.Round(px, 4), ["y"] = System.Math.Round(py, 4), ["w"] = System.Math.Round(pw, 4), ["h"] = System.Math.Round(pw * a, 4),
+                                 ["aspect"] = System.Math.Round(a, 4), ["minW"] = AeroHost.PanelMinW, ["custom"] = w.PanelW > 0 };
+        }
+
         /// <summary>Protocol 6 addendum: the control instruments' hit areas, 0…1 of the frame, top-left origin (ntsb only).</summary>
         private JObject LayoutJson()
         {
@@ -615,6 +646,9 @@ namespace FlyingGame.Bridge.Widget
                         { var dv = new JArray(); var fl = w.Controls.Spec.Flaps; foreach (var x in fl) dv.Add(System.Math.Round(x / fl[^1], 4)); e["detentValues"] = dv; }
                         break;
                     case "spoilers": e["axis"] = "spoilers"; e["orientation"] = "vertical"; e["top"] = "retracted"; break;
+                    case "gear": e["action"] = "toggle"; e["cmd"] = "controls.gear"; break;
+                    case "panel": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "drag the box (outside the controls) to move it"; break;
+                    case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspect; break;
                 }
                 o[kv.Key] = e;
             }
@@ -657,7 +691,7 @@ namespace FlyingGame.Bridge.Widget
                 ["on"] = a.On, ["pitchMode"] = a.PitchMode, ["rollMode"] = a.RollMode, ["altitudeFt"] = System.Math.Round(a.AltFt), ["vsFpm"] = System.Math.Round(a.VsFpm),
                 ["kias"] = System.Math.Round(a.Kias, 1), ["headingBug"] = System.Math.Round(a.HdgDeg), ["yawDamper"] = a.YawDamper, ["autothrottle"] = a.AutoThrottle,
                 ["elevator"] = System.Math.Round(a.Elevator, 3), ["trim"] = System.Math.Round(a.Trim, 3), ["power"] = System.Math.Round(a.Power, 3),
-                ["status"] = a.Status, ["disc"] = a.Disc, ["fma"] = a.Annunciation,
+                ["status"] = a.Status, ["disc"] = a.Disc, ["autothrottleDisc"] = a.AtDisc, ["fma"] = a.Annunciation,
                 ["pitchDeg"] = System.Math.Round(a.PitchDeg, 1), ["bankDeg"] = System.Math.Round(a.BankDeg, 1), ["cws"] = a.Cws, ["cwsPilotFlying"] = a.CwsOverride,
                 ["lnav"] = "unavailable", ["loc"] = "unavailable", ["app"] = "unavailable",
             };
@@ -731,7 +765,7 @@ namespace FlyingGame.Bridge.Widget
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
-                ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split },
+                ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split, ["panel"] = PanelJson() },
                 ["controlsLayout"] = LayoutJson(),
                 ["lesson"] = w.Lesson, ["lessonPhase"] = w.Lessons.Caption, ["lessonResults"] = new JArray(w.Lessons.Results.ToArray()),
                 ["beta"] = System.Math.Round(r.BetaDeg, 2), ["ball"] = System.Math.Round(w.BallDeg, 2), ["loadFactor"] = System.Math.Round(r.LoadFactor, 3),

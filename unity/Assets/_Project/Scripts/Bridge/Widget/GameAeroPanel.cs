@@ -150,7 +150,7 @@ namespace FlyingGame.Bridge.Widget
             }
             if (Btn(Cell(0, 4), "AP", ap.On)) { if (ap.On) ap.Off(); else ap.Engage(R100(rd.HeightFt), null, "alt"); }
             if (Btn(Cell(1, 4), "YD", ap.YawDamper)) ap.YawDamper = !ap.YawDamper;
-            if (Btn(Cell(2, 4), "A/T", ap.AutoThrottle)) ap.AutoThrottle = !ap.AutoThrottle;
+            if (Btn(Cell(2, 4), "A/T", ap.AutoThrottle)) ap.SetAutoThrottle(!ap.AutoThrottle);
             if (Btn(Cell(3, 4), "ROL", ap.On && ap.RollMode == "rol")) ap.Engage(null, null, null, null, "rol");
             y += lh + gap * 0.5f;
             if (Btn(Cell(0, 4), "ALT", ap.On && (ap.PitchMode == "alt" || ap.PitchMode == "alt*"))) ap.Engage(R100(rd.HeightFt), null, "alt");

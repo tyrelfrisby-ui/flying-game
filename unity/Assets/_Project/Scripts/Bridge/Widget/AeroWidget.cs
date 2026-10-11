@@ -111,6 +111,12 @@ namespace FlyingGame.Bridge.Widget
         public WidgetControls Controls { get; private set; }
         public WidgetPresets Presets { get; private set; }
 
+        /// <summary>Keep the presenter's panel box across launches.</summary>
+        public void SavePanel()
+        {
+            PlayerPrefs.SetFloat("panel.x", PanelX); PlayerPrefs.SetFloat("panel.y", PanelY); PlayerPrefs.SetFloat("panel.w", PanelW); PlayerPrefs.Save();
+        }
+
         private void Awake()
         {
             Application.targetFrameRate = 60;
@@ -118,6 +124,7 @@ namespace FlyingGame.Bridge.Widget
             Application.runInBackground = true;
             Screen.SetResolution(720, 720, FullScreenMode.Windowed);
             WorldTerrain.Active = null;   // a flat world at 0 — no scenery, no thermals
+            if (PlayerPrefs.GetFloat("panel.w", -1f) > 0) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspect);
             Atmosphere.ThermalStrengthScale = 0; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.SlopeLiftEnabled = false;
 
             Frame = new RenderTexture(FrameSize, FrameSize, 24, RenderTextureFormat.ARGB32) { name = "AeroWidgetFrame", antiAliasing = 4 };
@@ -153,7 +160,7 @@ namespace FlyingGame.Bridge.Widget
             bool newConfig = aircraftId != AircraftId || Config == null;
             Autopilot?.Off();
             // A start is clean: the yaw damper (independent of the AP) goes off too — left on, it fought the spin's held rudder.
-            if (Autopilot != null) Autopilot.YawDamper = false;
+            if (Autopilot != null) { Autopilot.YawDamper = false; Autopilot.AutoThrottle = false; }   // (and the A/T, independent too)
             if (newConfig)
             {
                 AircraftId = aircraftId;

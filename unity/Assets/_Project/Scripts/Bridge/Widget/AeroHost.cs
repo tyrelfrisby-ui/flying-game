@@ -63,6 +63,16 @@ namespace FlyingGame.Bridge.Widget
         /// "classic" (the picture + the protocol-4 control panel). Split = the panel's fraction of the frame's height.</summary>
         public string DisplayMode = "ntsb";
         public float Split = 0.45f;
+        /// <summary>The NTSB panel as a box the presenter places (owner 2026-10-11: "draggable and resizable"): top-left x, y and
+        /// width as fractions of the frame (y down); the height follows the panel's aspect. PanelW &lt; 0 = the default (bottom, full width).</summary>
+        public float PanelX, PanelY, PanelW = -1f;
+        public const float PanelMinW = 0.3f;
+        public void PlacePanel(float x, float y, float wFrac, float aspectHW)
+        {
+            PanelW = Mathf.Clamp(wFrac, PanelMinW, 1f);
+            float h = PanelW * aspectHW;
+            PanelX = Mathf.Clamp(x, 0f, 1f - PanelW); PanelY = Mathf.Clamp(y, 0f, Mathf.Max(0f, 1f - h));
+        }
         /// <summary>The fleet's name for the type, in capitals ("PITTS S-2").</summary>
         public virtual string AircraftName => AircraftId.Replace("-like", "").ToUpperInvariant();
 

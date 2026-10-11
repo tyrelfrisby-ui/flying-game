@@ -111,7 +111,7 @@ namespace FlyingGame.Bridge.Widget
             if (n.Aileron.HasValue) ail = Mathf.Clamp((float)n.Aileron.Value, -1f, 1f);
             if (n.Elevator.HasValue) ele = Mathf.Clamp((float)n.Elevator.Value, -1f, 1f);
             if (n.Rudder.HasValue) rud = Mathf.Clamp((float)n.Rudder.Value, -1f, 1f);
-            if (n.Throttle.HasValue) { thr = Mathf.Clamp01((float)n.Throttle.Value); if (System.Math.Abs(thr - Throttle01) > 0.005) ThrottleTouched = true; }
+            if (n.Throttle.HasValue) { thr = Mathf.Clamp01((float)n.Throttle.Value); if (System.Math.Abs(thr - Throttle01) > 0.005) { ThrottleTouched = true; Widget.Autopilot.PilotThrottle(); } }
             if (n.HandsOff.HasValue) { ElevatorFree = n.HandsOff.Value; if (n.HandsOff.Value) ele = _trimStick; }
             if (_handing) { _tA = ail; _tE = ele; _tR = rud; _tT = thr; if (!_handGot) { _handGot = true; _handGotAt = Time.unscaledTime; } }
             else { Aileron = ail; Elevator = ele; Rudder = rud; Throttle01 = thr; }
@@ -213,6 +213,7 @@ namespace FlyingGame.Bridge.Widget
             bool keyStick = kx != 0 || ky != 0 || kr != 0;
             if (keyStick && Widget.Autopilot.On) Widget.Autopilot.PilotInput();
             float dt = Time.unscaledDeltaTime;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.S)) Widget.Autopilot.PilotThrottle();
             if (Input.GetKey(KeyCode.W)) { Throttle01 = Mathf.Clamp01((float)Throttle01 + dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
             if (Input.GetKey(KeyCode.S)) { Throttle01 = Mathf.Clamp01((float)Throttle01 - dt * 0.6f); SourceLabel = "keyboard"; ThrottleTouched = true; }
             if (Input.GetKey(KeyCode.B)) { Brake01 = BrakeL = BrakeR = 1.0; }
