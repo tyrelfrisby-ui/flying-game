@@ -214,6 +214,18 @@ Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `th
 - **Consequence:** the spin condition's first seconds are a real spin, but it doesn't stay developed.
 - **Plan:** taken up in protocol 8 (advanced spin physics).
 
+### Earth grid and altitude lock (2026-10-11, protocol 8 additions)
+
+Hello `features` adds `"earthGrid"` and `"altitudeLock"`; `commands` adds `altitudeLock`.
+
+- **`earthGrid`** (show key; default ON in the widget, in every view; replays in review): a thin white horizon at eye level (the true horizontal, so attitude reads against it) and a thin white ground grid (250 m squares), transparent between the lines. `horizon` is its old name, kept as an alias for one protocol version — `{"cmd":"show","horizon":false}` sets both. In the game it is an AERO-panel chip, off by default, outside views only.
+- **`{"cmd":"altitudeLock","on":true,"aglFt":2500}`** (either field alone is fine; aglFt 200–40,000). Not an autopilot: the aerodynamics run normally, and after every step the airplane is put back at aglFt above the ground. The air (pressure, density, temperature) stays that of the reference altitude, and the ground never comes up. Velocity, vertical speed and sink are untouched and still shown.
+  - Defaults: ON in the spin at 5,000 ft AGL, OFF elsewhere (each start sets its default). It doesn't apply in final.
+  - Start heights: cruise 2,500 ft AGL; final keeps its approach height; spin 5,000 ft AGL.
+  - State: `altitudeLock: {on, aglFt, active}`. The annunciator row shows `ALT LOCK 5000 AGL`.
+  - The game has ALT LOCK in the AERO panel (it engages at the present height, AGL ±500). Each new flight starts with it off.
+- **Fix:** a new start also turns the yaw damper off. Left on after any autopilot use, it fought the spin's held pro-spin rudder, so the spin didn't develop.
+
 ### Four forces and CWS (2026-10-11, protocol 8 additions)
 
 Hello `features` adds `"fourForces"` and `"cws"`. Both are additive: nothing existing changed meaning.

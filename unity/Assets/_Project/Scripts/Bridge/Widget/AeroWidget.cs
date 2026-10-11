@@ -147,9 +147,13 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Start (or restart) a scenario with an aircraft from the fleet.</summary>
         public void Load(Scenario sc, string aircraftId, double flaps)
         {
+            // Altitude lock: ON in the spin at 5,000 ft AGL, OFF elsewhere (each start sets its default).
+            AltLock = sc == Scenario.Spin; if (sc == Scenario.Spin) AltLockFt = SpinLockFt;
             Current = sc; Condition = null; _jetFinalThr = -1; bool approachFlaps = flaps < 0; Flaps = System.Math.Clamp(flaps, 0, 1);
             bool newConfig = aircraftId != AircraftId || Config == null;
             Autopilot?.Off();
+            // A start is clean: the yaw damper (independent of the AP) goes off too — left on, it fought the spin's held rudder.
+            if (Autopilot != null) Autopilot.YawDamper = false;
             if (newConfig)
             {
                 AircraftId = aircraftId;
@@ -182,12 +186,13 @@ namespace FlyingGame.Bridge.Widget
             {
                 _flare = null;
                 // High and slow, wings level, power off, trimmed just above the stall (clean): the spin is the pilot's to start.
-                double vs = PracticeScenario.EstimateVso(Config, 2500, 0.0), v = 1.15 * vs;
-                TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, v, 2500);
+                double spinM = SpinLockFt * 0.3048;   // 5,000 ft AGL (owner via Glass 2026-10-09)
+                double vs = PracticeScenario.EstimateVso(Config, spinM, 0.0), v = 1.15 * vs;
+                TrimSolver.Result t = TrimSolver.SolveGliderTrim(Config, v, spinM);
                 double pitch = t.Converged ? t.ThetaRad : 0.1, alpha = t.Converged ? t.AlphaRad : 0.1;
                 var att = new Quat(0, System.Math.Sin(pitch / 2), 0, System.Math.Cos(pitch / 2));
                 var vb = new Vec3(v * System.Math.Cos(alpha), 0, v * System.Math.Sin(alpha));
-                Ac = new Aircraft(Config, new RigidBodyState(new Vec3(0, 0, -2500), att, vb, Vec3.Zero), new FlyingGame.Core.Aero.ControlDeflections(0, t.Converged ? t.ElevatorRad : 0, 0, 0, 0));
+                Ac = new Aircraft(Config, new RigidBodyState(new Vec3(0, 0, -spinM), att, vb, Vec3.Zero), new FlyingGame.Core.Aero.ControlDeflections(0, t.Converged ? t.ElevatorRad : 0, 0, 0, 0));
                 Controls.SetTrimStick(t.Converged ? Aircraft.StickForDeflection(t.ElevatorRad, Config.Controls.Elevator) : 0);
                 Controls.Throttle01 = 0;
             }
@@ -304,7 +309,7 @@ namespace FlyingGame.Bridge.Widget
         }
         private double _jetFinalThr = -1;
 
-        public const double CruiseAltM = 900;   // ~3,000 ft over the flat world
+        public const double CruiseAltM = 762;   // 2,500 ft AGL over the flat world (owner via Glass 2026-10-09: the default start height)
 
         /// <summary>Straight and level at 75 % power: the speed, angle of attack and elevator at which, with that power, the
         /// aircraft neither speeds up, climbs nor pitches — solved on the sim itself (Newton on short trial runs), so
@@ -503,8 +508,10 @@ namespace FlyingGame.Bridge.Widget
             Controls.ApplyLevers(Ac, dt);
             _sim.RunFor(dt, inputs);
             if (_flare != null) _flare.ConstrainLongitudinal(Ac);
+            else if (AltLock) ApplyAltitudeLock();
             else if (Current == Scenario.Spin) WrapAltitude();
         }
+        public override bool AltLockApplies => _flare == null;
 
         /// <summary>Pose the live aircraft (surfaces follow the sim's deflections, props spin) and place the camera.</summary>
         public void ShowLive(float dt)

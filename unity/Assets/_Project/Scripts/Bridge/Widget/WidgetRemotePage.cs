@@ -94,6 +94,9 @@ namespace FlyingGame.Bridge.Widget
 <div class='row'><span class='lbl'>CWS pitch</span><input id='cwsP' type='range' min='-30' max='30' step='0.5' value='0'><span id='cwsPv' class='lbl'></span></div>
 <div class='row'><span class='lbl'>CWS bank&nbsp;</span><input id='cwsB' type='range' min='-45' max='45' step='1' value='0'><span id='cwsBv' class='lbl'></span>
  <button onclick=""cmd({cmd:'autopilot',bankDeg:0})"">Wings level</button></div>
+<div class='row'><button id='alk' onclick=""cmd({cmd:'altitudeLock',on:!((S.altitudeLock||{}).on)})"">ALT LOCK</button>
+ <button onclick=""cmd({cmd:'altitudeLock',aglFt:Math.max(500,((S.altitudeLock||{}).aglFt||2500)-500)})"">AGL −500</button><span id='alkv' class='lbl'></span>
+ <button onclick=""cmd({cmd:'altitudeLock',aglFt:((S.altitudeLock||{}).aglFt||2500)+500})"">AGL +500</button></div>
 <div class='row'><button id='ff' onclick=""cmd({cmd:'fourForces',on:!((S.show||{}).fourForces)})"">4 FORCES</button>
  <button onclick=""cmd({cmd:'lesson',id:'four-forces'})"">4 forces lesson</button></div>
 <div class='row'><select id='lesson' onchange=""if(this.value)cmd({cmd:'lesson',id:this.value})""><option value=''>Lesson…</option></select>
@@ -119,11 +122,11 @@ let S={},FIT=null;
 // Every vector, display element and inset as a switch (owner 2026-10-09: radio buttons for all the vectors and displays).
 const NAMES={vectors:'All vectors',wingWind:'Wing relative winds',tailWind:'Tail relative winds (downwash)',inertial:'Inertial force',total:'Total aero force',tail:'Tail force',moments:'Pitch moments',
  lift:'Lift',drag:'Drag',weight:'Weight',thrust:'Thrust',wind:'Relative wind (CG)',strips:'Per-strip lift/drag',axis:'Rotation axis',wheels:'Wheel loads',labels:'Labels',
- readout:'Readout (classic)',review:'REVIEW tag',controlsDisplay:'Control panel (classic)',controlTraces:'Control traces',horizon:'Horizon + ground grid',cgnp:'CG / NP marks',
+ readout:'Readout (classic)',review:'REVIEW tag',controlsDisplay:'Control panel (classic)',controlTraces:'Control traces',earthGrid:'Earth grid (horizon + ground)',cgnp:'CG / NP marks',
  liftComponents:'Lift components',wingDrag:'Each wing\'s drag',groundTrack:'Ground track + wind',aimPoint:'Aim point',propEffects:'Prop effects',yawMoment:'Yaw moment',finForce:'Fin side force',bodyAxes:'Body axes'};
 const INSETS={clAlpha:'CL–α curve',liftDrag:'L/D curve',powerRequired:'Power required',ball:'Slip/skid ball',aoa:'AoA gauge',wb:'Weight & balance',forceBalance:'Four forces balance',forceTrend:'Four forces trend'};
 const GROUPS=[['Forces & flow',['vectors','wingWind','tailWind','inertial','total','tail','moments','yawMoment','finForce','bodyAxes','lift','drag','weight','thrust','wind','strips','wheels','axis','liftComponents','wingDrag','propEffects']],
- ['Picture',['labels','horizon','cgnp','groundTrack','aimPoint','readout','review','controlsDisplay','controlTraces']]];
+ ['Picture',['labels','earthGrid','cgnp','groundTrack','aimPoint','readout','review','controlsDisplay','controlTraces']]];
 function buildChips(){const c=document.getElementById('chips');c.innerHTML='';
  GROUPS.forEach(([g,keys])=>{const d=document.createElement('div');d.className='grp';d.textContent=g;c.appendChild(d);
   keys.forEach(k=>{const b=document.createElement('button');b.id='sh-'+k;b.textContent=NAMES[k]||k;b.onclick=()=>{const o={cmd:'show'};o[k]=!((S.show||{})[k]);cmd(o);};c.appendChild(b);});});
@@ -160,6 +163,7 @@ setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeUR
  document.getElementById('ap-on').classList.toggle('on',!!a.on);document.getElementById('ap-alt').classList.toggle('on',a.on&&a.pitchMode==='alt');
  document.getElementById('ap-vs').classList.toggle('on',a.on&&a.pitchMode==='vs');document.getElementById('ap-flc').classList.toggle('on',a.on&&a.pitchMode==='flc');
  document.getElementById('ap-hdg').classList.toggle('on',a.on&&a.rollMode==='hdg');document.getElementById('ap-yd').classList.toggle('on',!!a.yawDamper);document.getElementById('ap-at').classList.toggle('on',!!a.autothrottle);
+ {const k=s.altitudeLock||{};document.getElementById('alk').classList.toggle('on',!!k.on);document.getElementById('alkv').textContent=(k.aglFt||0)+' ft AGL'+(k.on&&!k.active?' (not in final)':'');}
  document.getElementById('ff').classList.toggle('on',!!(s.show||{}).fourForces);
  if(Date.now()-cwsT>800){document.getElementById('cwsP').value=a.pitchDeg||0;document.getElementById('cwsB').value=a.bankDeg||0;}
  document.getElementById('cwsPv').textContent=(a.on&&a.pitchMode==='pit'?'HOLD ':'')+((a.pitchDeg||0)>=0?'+':'')+(+(a.pitchDeg||0)).toFixed(1)+'°';

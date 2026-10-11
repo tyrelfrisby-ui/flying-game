@@ -535,7 +535,13 @@ namespace FlyingGame.Bridge.Widget
         /// shows the world turning around the airplane. Pixel-thick at any zoom.</summary>
         private void DrawWorld(float px)
         {
-            if (!(Widget is AeroWidget w)) return;   // the game draws its real world; these are the widget's references
+            var h = Widget;
+            if (!(h is AeroWidget w))
+            {
+                // The game: the earth grid is an option over its real world (off by default) — outside views only.
+                if (h.Show["earthGrid"] && !ChaseCamera.InCockpit && !SessionSettings.MenuOpen) EarthGrid(h, (float)h.GroundM(h.ShownState.Position.X, h.ShownState.Position.Y));
+                return;
+            }
             if (w.Current == AeroWidget.Scenario.Flare)
             {
                 if (w.Condition != "final") return;
@@ -546,18 +552,25 @@ namespace FlyingGame.Bridge.Widget
                 for (int k = 0; k <= 8; k++) Line(new Vector3(0, k * px * 0.5f, aim), new Vector3(0, k * px * 0.5f, aim + 45f), Color.white);   // the aim point (a 45 m bar)
                 return;
             }
-            if (!w.Show["horizon"]) return;
+            if (!w.Show["earthGrid"]) return;
+            EarthGrid(w, 0f);
+        }
+
+        /// <summary>EARTH GRID: a thin white horizon at eye level (the true horizontal, 15 km round the camera) and a thin white
+        /// ground grid (250 m squares, 8 km across) at the ground's height under the airplane. Transparent between the lines.</summary>
+        private void EarthGrid(AeroHost w, float groundY)
+        {
             var cam = w.Cam.transform.position;
-            const float R = 15000f; Color hz = new(0.85f, 0.92f, 1f, 0.75f);
+            const float R = 15000f; Color hz = new(1f, 1f, 1f, 0.8f);
             Vector3 prev = cam + new Vector3(R, 0, 0);
             for (int i = 1; i <= 96; i++) { float a = i * Mathf.PI * 2f / 96f; var p = cam + new Vector3(Mathf.Cos(a) * R, 0, Mathf.Sin(a) * R); Line(prev, p, hz); prev = p; }
             Vector3 ac = CoordinateMap.ToUnity(w.ShownState.Position);
-            const float G = 250f, E = 4000f; Color gc = new(0.95f, 0.8f, 0.55f, 0.4f);
+            const float G = 250f, E = 4000f; Color gc = new(1f, 1f, 1f, 0.35f);
             float cx = Mathf.Round(ac.x / G) * G, cz = Mathf.Round(ac.z / G) * G;
             for (float d = -E; d <= E; d += G)
             {
-                Line(new Vector3(cx + d, 0, cz - E), new Vector3(cx + d, 0, cz + E), gc);
-                Line(new Vector3(cx - E, 0, cz + d), new Vector3(cx + E, 0, cz + d), gc);
+                Line(new Vector3(cx + d, groundY, cz - E), new Vector3(cx + d, groundY, cz + E), gc);
+                Line(new Vector3(cx - E, groundY, cz + d), new Vector3(cx + E, groundY, cz + d), gc);
             }
         }
         private static void Line(Vector3 a, Vector3 b, Color c) { GL.Color(c); GL.Vertex(a); GL.Vertex(b); }

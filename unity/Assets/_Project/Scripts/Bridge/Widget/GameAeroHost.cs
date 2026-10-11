@@ -36,6 +36,7 @@ namespace FlyingGame.Bridge.Widget
         private void Awake()
         {
             Loading = new WidgetLoading(this); Autopilot = new WidgetAutopilot(this) { AutoThrottle = false }; Curves = new WidgetCurves();
+            Show["earthGrid"] = Show["horizon"] = false;   // the game has its real world: the earth grid is an option
             Load();
         }
 
@@ -106,6 +107,7 @@ namespace FlyingGame.Bridge.Widget
 
         /// <summary>Anything to draw (or to capture the forces for)?</summary>
         public bool Active => Show["vectors"] || Insets.Count > 0;
+        public override double GroundM(double x, double y) => FlyingGame.Core.WorldTerrain.GroundHeightAt(x, y);
 
         private void Update()
         {
@@ -119,7 +121,8 @@ namespace FlyingGame.Bridge.Widget
                 AircraftId = Driver.AircraftId; Config = ac.Config; Ac = ac; _seen = ac;
                 Measure();
                 Loading.Configure(Config, sameType && _loadingChanged, kg, cg);
-                Autopilot.Off();
+                Autopilot.Off(); Autopilot.YawDamper = false;
+                AltLock = false;   // a new flight starts free (it may be on a runway)
             }
             Driver.ForceCapture = Active;
             UiLayout.AeroInsetsShown = Insets.Count > 0 && !SessionSettings.MenuOpen && !Driver.Replaying;
@@ -145,6 +148,7 @@ namespace FlyingGame.Bridge.Widget
         private ControlInputs Filter(ControlInputs pilot, float dt)
         {
             var ap = Autopilot;
+            if (AltLock && !Driver.Replaying) ApplyAltitudeLock();   // (before each step: the airplane always starts it at the lock height)
             double thr = (1.0 - pilot.ThrottleLever) * 0.5;
             if (!ap.On) { _controls.Elevator = pilot.Elevator; _controls.Aileron = pilot.Aileron; _controls.Rudder = pilot.Rudder; _controls.Throttle01 = thr; }
             if (Ac == null || (!ap.On && !ap.YawDamper)) { _wasOn = false; return pilot; }

@@ -431,6 +431,13 @@ namespace FlyingGame.Bridge.Widget
                     }
                     ok["autopilot"] = ApJson(); break;
                 }
+                case "altitudeLock":
+                {
+                    // 2026-10-11: the air and the ground's distance frozen at aglFt (not an autopilot); not in final.
+                    if (j["aglFt"] != null) w.AltLockFt = System.Math.Clamp(j["aglFt"].Value<double>(), 200, 40000);
+                    if (j["on"] != null) { w.AltLock = j["on"].Value<bool>(); w.ApplyAltitudeLock(); }
+                    ok["altitudeLock"] = AltLockJson(); break;
+                }
                 case "fourForces":
                     // 2026-10-11: only thrust, lift, weight, drag (+ the balance and trend insets); off restores the previous picture.
                     w.SetFourForces(j["on"]?.Value<bool>() ?? !w.Show["fourForces"]);
@@ -520,7 +527,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -532,7 +539,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
@@ -546,6 +553,8 @@ namespace FlyingGame.Bridge.Widget
                     break;
                 case "show":
                     foreach (var p in j.Properties()) if (p.Name != "cmd" && w.Show.ContainsKey(p.Name)) w.Show[p.Name] = p.Value.Value<bool>();
+                    // "horizon" is the earth grid's old name (an alias for one protocol version): either sets both.
+                    if (j["earthGrid"] != null) w.SetEarthGrid(j["earthGrid"].Value<bool>()); else if (j["horizon"] != null) w.SetEarthGrid(j["horizon"].Value<bool>());
                     break;
                 case "gamepad":
                     var c = w.Controls;
@@ -639,6 +648,7 @@ namespace FlyingGame.Bridge.Widget
                 ["targetLb"] = System.Math.Round(L.TargetKg * 2.20462), ["targetCgMac"] = System.Math.Round(L.TargetCgMac, 2),
             };
         }
+        private JObject AltLockJson() => new() { ["on"] = Widget.AltLock, ["aglFt"] = System.Math.Round(Widget.AltLockFt), ["active"] = Widget.AltLock && Widget.AltLockApplies };
         private JObject ApJson()
         {
             var a = Widget.Autopilot;
@@ -726,7 +736,7 @@ namespace FlyingGame.Bridge.Widget
                 ["lesson"] = w.Lesson, ["lessonPhase"] = w.Lessons.Caption, ["lessonResults"] = new JArray(w.Lessons.Results.ToArray()),
                 ["beta"] = System.Math.Round(r.BetaDeg, 2), ["ball"] = System.Math.Round(w.BallDeg, 2), ["loadFactor"] = System.Math.Round(r.LoadFactor, 3),
                 ["flightPathDeg"] = System.Math.Round(System.Math.Atan2(-r.SinkFpm / 196.85, System.Math.Max(0.1, r.Ktas / 1.943844)) * 57.2958, 2),
-                ["cgPercentMac"] = System.Math.Round(w.Loading.CgMac, 2), ["loading"] = LoadingJson(), ["autopilot"] = ApJson(),
+                ["cgPercentMac"] = System.Math.Round(w.Loading.CgMac, 2), ["loading"] = LoadingJson(), ["autopilot"] = ApJson(), ["altitudeLock"] = AltLockJson(),
                 ["wind"] = new JObject { ["fromDeg"] = w.WindFromDeg, ["kt"] = w.WindKt }, ["insets"] = new JArray(w.Insets),
                 ["show"] = ShowJson(),
                 ["forces"] = ForcesJson(),

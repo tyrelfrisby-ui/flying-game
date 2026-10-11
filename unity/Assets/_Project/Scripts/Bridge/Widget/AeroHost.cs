@@ -142,8 +142,31 @@ namespace FlyingGame.Bridge.Widget
             ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
             ["yawMoment"] = false, ["finForce"] = false, ["bodyAxes"] = false, ["cgnp"] = false,
             ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["aimPoint"] = false, ["propEffects"] = false,
-            ["fourForces"] = false,
+            ["fourForces"] = false, ["earthGrid"] = true,
         };
+        /// <summary>EARTH GRID (2026-10-11; owner via Glass): a white-line horizon at eye level and a white ground grid, so the
+        /// attitude reads in the airplane-fixed views. "horizon" is its old name, kept as an alias for one protocol version.</summary>
+        public void SetEarthGrid(bool on) { Show["earthGrid"] = on; Show["horizon"] = on; }
+
+        /// <summary>ALTITUDE LOCK (2026-10-11; owner via Glass): not an autopilot. The aerodynamics run normally, but after every
+        /// step the airplane is put back at the set height above the ground — so the air (pressure, density, temperature) stays
+        /// that of the reference altitude and the ground never comes up. Vertical speed and sink are still real and shown.
+        /// Default ON in the spin (5000 ft AGL), OFF elsewhere.</summary>
+        public bool AltLock;
+        public double AltLockFt = 2500;
+        public const double SpinLockFt = 5000;
+        /// <summary>The ground's height (m) under a point — the widget's world is flat at 0; the game's is its terrain.</summary>
+        public virtual double GroundM(double x, double y) => 0;
+        /// <summary>Whether the lock applies now (not on a final approach: the ground is the point there).</summary>
+        public virtual bool AltLockApplies => true;
+        /// <summary>Put the airplane back at the lock height (after a step). Velocity, attitude and rates are untouched.</summary>
+        public void ApplyAltitudeLock()
+        {
+            if (!AltLock || !AltLockApplies || Ac == null) return;
+            var s = Ac.State; double z = -(GroundM(s.Position.X, s.Position.Y) + AltLockFt * 0.3048);
+            if (System.Math.Abs(s.Position.Z - z) > 1e-6) Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, z), s.Attitude, s.Velocity, s.Rates);
+        }
+        public string AltLockAnnunciation => AltLock && AltLockApplies ? $"ALT LOCK {AltLockFt:0} AGL" : null;
 
         /// <summary>Every switch that draws something on the airframe (FOUR FORCES turns all but its four off).</summary>
         public static readonly string[] VectorKeys = { "lift", "drag", "weight", "thrust", "wind", "total", "axis", "wheels", "strips", "wingWind", "tailWind",

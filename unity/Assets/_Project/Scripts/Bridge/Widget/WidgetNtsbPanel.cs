@@ -413,6 +413,7 @@ namespace FlyingGame.Bridge.Widget
             var ap = wd.Autopilot;
             if (ap.Disc && !ap.On) items.Add(("AP DISC", true, LitAmber));
             else if (ap.On || ap.YawDamper) items.Add((ap.Annunciation, true, !ap.On || ap.Status == "holding" ? LitGreen : LitAmber));
+            if (wd.AltLockAnnunciation is string al) items.Add((al, true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
             if (!wd.Loading.WithinLimits) items.Add(("OUT OF LIMITS", true, LitAmber));
             if (wd.Controls.Managed && wd.Controls.PilotName != null) items.Add(($"PF {wd.Controls.PilotName.ToUpperInvariant()}", true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
             float bw = (w - (items.Count - 1) * 8f) / items.Count;

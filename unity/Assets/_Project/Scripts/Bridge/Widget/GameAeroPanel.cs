@@ -36,6 +36,7 @@ namespace FlyingGame.Bridge.Widget
             ("yawMoment", "Yaw moment"), ("finForce", "Fin side force"), ("bodyAxes", "Body axes"),
             ("cgnp", "CG & neutral point"), ("lift", "Lift"), ("drag", "Drag"),
             ("weight", "Weight"), ("thrust", "Thrust"), ("wind", "Relative wind"), ("wheels", "Wheel loads"),
+            ("earthGrid", "Earth grid (horizon)"),
         };
         private static readonly (string key, string name)[] InsetChips =
         {
@@ -83,6 +84,7 @@ namespace FlyingGame.Bridge.Widget
                 int dropped = Host.Display != null ? Host.Display.InsetsDropped : 0;
                 if (dropped > 0 && Host.Insets.Count > 0) { Rect l2 = UiLayout.NextLine(_fs * 1.4f); UiLayout.Label(l2, $"{dropped} inset{(dropped > 1 ? "s" : "")} hidden: no room beside the airplane (fewer insets, a wider window or portrait)", _amber); }
                 if (fma != null) { Rect line = UiLayout.NextLine(_fs * 1.6f); UiLayout.Label(line, fma, ap.Disc || ap.Status != "holding" && ap.On ? _amber : _label); }
+                if (Host.AltLockAnnunciation is string al) UiLayout.Label(UiLayout.NextLine(_fs * 1.5f), al, _amber);
                 var coach = Host.FourForcesLesson;
                 if (coach.Active)
                 {
@@ -96,7 +98,7 @@ namespace FlyingGame.Bridge.Widget
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float lh = _fs * 1.8f, gap = _fs * 0.45f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.94f, s * 0.94f);
-            float rows = twoCol ? 16f : 30f;
+            float rows = twoCol ? 17f : 31.5f;
             float h = Mathf.Min(rows * (lh + gap * 0.5f) + gap * 2, Screen.height - UiLayout.ToolbarBottom - gap * 2);
             var panel = new Rect((Screen.width - w) * 0.5f, UiLayout.ToolbarBottom + gap, w, h);
             GUI.DrawTexture(panel, _bg);
@@ -125,7 +127,7 @@ namespace FlyingGame.Bridge.Widget
             if (Btn(Cell(1, 3), "4 FORCES", Host.Show["fourForces"])) { Host.SetFourForces(!Host.Show["fourForces"]); Host.Save(); }
             if (ChaseCamera.InCockpit) GUI.Label(Cell(2, 3), "  (outside views)", _label);
             y += lh + gap * 0.5f;
-            Chips(Forces, 3, k => Host.Show[k], k => { Host.Show[k] = !Host.Show[k]; if (Host.Show[k]) Host.Show["vectors"] = true; Host.Save(); });
+            Chips(Forces, 3, k => Host.Show[k], k => { if (k == "earthGrid") { Host.SetEarthGrid(!Host.Show[k]); Host.Save(); return; } Host.Show[k] = !Host.Show[k]; if (Host.Show[k]) Host.Show["vectors"] = true; Host.Save(); });
             y += gap * 0.5f;
             Head("INSETS");
             Chips(InsetChips, 3, k => Host.Insets.Contains(k), k => { if (!Host.Insets.Remove(k)) Host.Insets.Add(k); Host.Save(); });
@@ -182,6 +184,14 @@ namespace FlyingGame.Bridge.Widget
             if (Time.unscaledTime < _noteUntil) { GUI.Label(new Rect(x, y, cw, lh), _note, _amber); }
             y += lh * 0.6f;
 
+            // ---- ALTITUDE LOCK (not the autopilot: the air and the ground's distance stay fixed) ----
+            {
+                if (Btn(Cell(0, 4), "ALT LOCK", Host.AltLock)) { Host.AltLock = !Host.AltLock; if (Host.AltLock) Host.AltLockFt = System.Math.Max(500, R100(rd.HeightFt - Host.GroundM(Host.Ac.State.Position.X, Host.Ac.State.Position.Y) * 3.28084)); }
+                if (Btn(Cell(1, 4), "AGL −500", false)) Host.AltLockFt = System.Math.Max(500, Host.AltLockFt - 500);
+                GUI.Label(Cell(2, 4), $"  {Host.AltLockFt:0} FT AGL", Host.AltLock ? _green : _label);
+                if (Btn(Cell(3, 4), "AGL +500", false)) Host.AltLockFt += 500;
+                y += lh + gap * 0.5f;
+            }
             // ---- CWS: attitude hold (the AP holds the selected pitch / bank only; the stick doesn't disconnect it) ----
             {
                 bool pit = ap.On && ap.PitchMode == "pit", bank = ap.On && ap.RollMode == "bank";
