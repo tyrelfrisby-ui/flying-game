@@ -21,6 +21,9 @@ namespace FlyingGame.Bridge.Widget
         private const float NW = 1080f, NH = 380f, MY = 52f, IH = 282f;   // MY: the instruments sit below the MCP; IH: their height
         /// <summary>The panel box's height over its width.</summary>
         public const float PanelAspect = NH / NW;
+        /// <summary>The box's height over its width in FRAME FRACTIONS (what x, y, w, h of the frame use): equal to PanelAspect
+        /// on the square frame, × 16/9 on the 16:9 one.</summary>
+        public static float PanelAspectN => PanelAspect * FW / FH;
         private Rect _panelPx;   // the panel box in frame pixels (origin bottom-left)
         /// <summary>Panel labels: bold and brighter than the old grey (owner: "it is on a tiny teleprompter").</summary>
         private static readonly Color Lbl = new(1f, 1f, 1f, 0.95f);
@@ -28,16 +31,16 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The panel's box in frame pixels: where the presenter put it, or the default (bottom, full width).</summary>
         private Rect NtsbPanelRect(AeroWidget w)
         {
-            float wf = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / PanelAspect), hf = wf * PanelAspect;
+            float wf = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / PanelAspectN), hf = wf * PanelAspectN;
             float x = w.PanelW > 0 ? w.PanelX : (1f - wf) * 0.5f, y = w.PanelW > 0 ? w.PanelY : 1f - hf;
-            return new Rect(x * N, N - (y + hf) * N, wf * N, hf * N);
+            return new Rect(x * FW, FH - (y + hf) * FH, wf * FW, hf * FH);
         }
         /// <summary>The airplane's picture: the biggest clear band beside the panel (the whole frame if none is big enough).</summary>
         private static Rect FreeBand(Rect p)
         {
-            var c = new[] { new Rect(0, p.yMax, N, N - p.yMax), new Rect(0, 0, N, p.y), new Rect(0, 0, p.x, N), new Rect(p.xMax, 0, N - p.xMax, N) };
+            var c = new[] { new Rect(0, p.yMax, FW, FH - p.yMax), new Rect(0, 0, FW, p.y), new Rect(0, 0, p.x, FH), new Rect(p.xMax, 0, FW - p.xMax, FH) };
             Rect best = c[0]; foreach (var r in c) if (r.width * r.height > best.width * best.height) best = r;
-            return best.width * best.height >= 0.3f * N * N && best.width >= 0.3f * N && best.height >= 0.3f * N ? best : new Rect(0, 0, N, N);
+            return best.width * best.height >= 0.3f * FW * FH && best.width >= 0.3f * FW && best.height >= 0.3f * FH ? best : new Rect(0, 0, FW, FH);
         }
         private static readonly Color PlateBg = new(0f, 0f, 0f, 0.55f), Rule = new(0.85f, 0.87f, 0.9f, 0.55f),
             Sky = new(0.20f, 0.45f, 0.78f, 0.95f), Ground = new(0.50f, 0.33f, 0.18f, 0.95f), LitRed = new(0.85f, 0.1f, 0.08f, 0.95f),
@@ -78,7 +81,7 @@ namespace FlyingGame.Bridge.Widget
             }
             FlapDetentPositions = null;
             if (leversW > 0) Levers(x, y, leversW, IH, f, spec, flaps, gear, splr);
-            float gw = Mathf.Max(44f, 0.045f * N / _s), gh = NH - (6 + MY + IH + 2);   // the resize grip: ≥ 4.5 % of the frame wide at any size (Glass)
+            float gw = Mathf.Max(44f, 0.045f * FW / _s), gh = NH - (6 + MY + IH + 2);   // the resize grip: ≥ 4.5 % of the frame wide at any size (Glass)
             Annunciators(8, 6 + MY + IH + 6, NW - 16 - gw, 28, stall, spec.StickShaker, spin, w);
             // The box itself: the presenter drags it anywhere and pulls its corner grip to resize (Glass lays its handles here).
             LayoutRect("panel", 0, 0, NW, NH);

@@ -7,6 +7,8 @@ REPO=${0:A:h:h:h}
 UNITY=/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity
 # iCloud conflict copies ("Foo 2.dll") in the project or Unity's caches break the build ("already registered") — clear them.
 find "$REPO/unity/Assets" "$REPO/unity/Library" "$REPO/unity/Packages" "$REPO/src" -name "* 2.*" -not -path "*/node_modules/*" -delete 2>/dev/null || true
+# …and any numbered copy ("FlyingGame.Bridge 4.dll") in Unity's build cache (2026-10-11: IL2CPP "same key … System.Xml").
+find "$REPO/unity/Library" -name "* [0-9].*" -delete 2>/dev/null || true
 OUT=/private/tmp/aero-mac
 rm -rf "$OUT"
 FLYINGGAME_MAC_OUT=$OUT "$UNITY" -batchmode -quit -projectPath "$REPO/unity" -buildTarget OSXUniversal \

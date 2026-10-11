@@ -473,3 +473,6 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
 - **Slow motion, everywhere** (owner 2026-10-11): 100 / 50 / 25 / 10 %. The world slows; the pilot's controls stay real time.
   - Widget: `{"cmd":"timescale","value":0.25}` (steps 1, 0.5, 0.25, 0.1; any value 0.05…1), the remote's ×1 ×½ ×¼ ×0.1, and the [ ] keys. A blue "SLOW 25%" annunciator shows.
   - Game: the toolbar's TIME button cycles 100 → 50 → 25 → 10 % (`SessionSettings.SimSpeed`, applied as Time.timeScale whenever the game isn't paused). The touch and keyboard throttle and trim ramps run on unscaled time. It is off in multiplayer.
+- **16:9 frame** (2026-10-11, for Glass to fill the program): `{"cmd":"view","frame":"16:9"}` → 1920 × 1080 with alpha; `"square"` → 1080 × 1080 (the default). The choice persists across relaunches, and Syphon and NDI rebind to the new size.
+  - `hello` gives `frameW`, `frameH` and `frameModes`; `state` gives `frameW`, `frameH` and `frameMode`.
+  - `controlsLayout` and `panel` are fractions of the frame (x of the width, y of the height). `aspect` is h/w in those fractions (PanelAspect × W/H).

@@ -21,7 +21,25 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class AeroWidget : AeroHost
     {
-        public const int FrameSize = 1080;
+        public const int FrameSize = 1080;   // the frame's HEIGHT (and the width when square)
+        /// <summary>The frame (2026-10-11, Glass: a 16:9 option so the widget fills the program): 1080 × 1080 ("square") or
+        /// 1920 × 1080 ("16:9"), with alpha either way.</summary>
+        public static int FrameW = FrameSize, FrameH = FrameSize;
+        public string FrameMode => FrameW == FrameH ? "square" : "16:9";
+        public void SetFrame(string mode)
+        {
+            int fw = mode == "16:9" ? 1920 : FrameSize;
+            PlayerPrefs.SetString("frame.mode", fw == FrameSize ? "square" : "16:9"); PlayerPrefs.Save();
+            if (fw == FrameW && Frame != null) return;
+            FrameW = fw; FrameH = FrameSize;
+            var old = Frame;
+            Frame = new RenderTexture(FrameW, FrameH, 24, RenderTextureFormat.ARGB32) { name = "AeroWidgetFrame", antiAliasing = 4 };
+            Frame.Create();
+            if (Cam != null && (Cam.targetTexture == old || Cam.targetTexture == null)) Cam.targetTexture = Frame;
+            if (old != null) { old.Release(); Destroy(old); }
+            if (PanelW > 0) PlacePanel(PanelX, PanelY, PanelW, WidgetControlsDisplay.PanelAspectN);
+            if (_outputs != null) _outputs.Rebind();
+        }
         public const string StreamName = "Aero Widget";
 
         /// <summary>The widget build (bundle id …aerowidget), or AERO_WIDGET=1 / -aerowidget for testing the game binary.</summary>
@@ -129,10 +147,11 @@ namespace FlyingGame.Bridge.Widget
             Screen.SetResolution(720, 720, FullScreenMode.Windowed);
             WorldTerrain.Active = null;   // a flat world at 0 — no scenery, no thermals
             Zoom = Mathf.Clamp(PlayerPrefs.GetFloat("view.zoom", 1.6f), 0.6f, 3f);
-            if (PlayerPrefs.GetFloat("panel.w", -1f) > 0) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspect);
+            if (PlayerPrefs.GetFloat("panel.w", -1f) > 0) PlacePanel(PlayerPrefs.GetFloat("panel.x"), PlayerPrefs.GetFloat("panel.y"), PlayerPrefs.GetFloat("panel.w"), WidgetControlsDisplay.PanelAspectN);
             Atmosphere.ThermalStrengthScale = 0; Atmosphere.SteadyWind = Vec3.Zero; Atmosphere.ActiveTurbulence = null; Atmosphere.SlopeLiftEnabled = false;
 
-            Frame = new RenderTexture(FrameSize, FrameSize, 24, RenderTextureFormat.ARGB32) { name = "AeroWidgetFrame", antiAliasing = 4 };
+            if (PlayerPrefs.GetString("frame.mode", "square") == "16:9") FrameW = 1920;
+            Frame = new RenderTexture(FrameW, FrameH, 24, RenderTextureFormat.ARGB32) { name = "AeroWidgetFrame", antiAliasing = 4 };
             Frame.Create();
             var camGo = new GameObject("WidgetCamera");
             camGo.transform.SetParent(transform, false);

@@ -487,7 +487,7 @@ namespace FlyingGame.Bridge.Widget
                     // The NTSB panel box (owner 2026-10-11: draggable + resizable). Absolute {x, y, w} (0…1 of the frame, top-left,
                     // y down; the height follows the aspect), or relative {dx, dy} (move) / {dw} (resize about the top-left),
                     // or {"reset": true} (the default: bottom, full width).
-                    float aspect = WidgetControlsDisplay.PanelAspect;
+                    float aspect = WidgetControlsDisplay.PanelAspectN;
                     if (j["reset"]?.Value<bool>() ?? false) w.PanelW = -1f;
                     else
                     {
@@ -539,6 +539,14 @@ namespace FlyingGame.Bridge.Widget
                 }
                 case "view":
                 {
+                    // Frame (2026-10-11, Glass): {"cmd":"view","frame":"16:9"} → 1920 × 1080, "square" → 1080 × 1080 (persisted).
+                    if (j["frame"] != null)
+                    {
+                        string fm = (string)j["frame"];
+                        if (fm != "16:9" && fm != "square") { ok["ok"] = false; ok["error"] = "frame: square or 16:9"; break; }
+                        w.SetFrame(fm);
+                        if (j["name"] == null && j["zoom"] == null && j["zoomBy"] == null) { ok["frame"] = w.FrameMode; ok["frameW"] = AeroWidget.FrameW; ok["frameH"] = AeroWidget.FrameH; break; }
+                    }
                     // Zoom alone (2026-10-11): {"cmd":"view","zoom":1.6} (0.6…3; 1 = the old framing) or "zoomBy": 1.2.
                     if (j["zoom"] != null || j["zoomBy"] != null)
                     {
@@ -556,7 +564,7 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws", "earthGrid", "altitudeLock", "panelBox", "fma", "mcp", "zoom", "frame16x9");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
                     ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
@@ -573,7 +581,7 @@ namespace FlyingGame.Bridge.Widget
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
                     ok["show"] = new JArray(w.Show.Keys);
-                    ok["frame"] = AeroWidget.FrameSize; ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
+                    ok["frame"] = AeroWidget.FrameH; ok["frameW"] = AeroWidget.FrameW; ok["frameH"] = AeroWidget.FrameH; ok["frameModes"] = new JArray("square", "16:9"); ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
                     ok["tcpPort"] = TcpPort; ok["httpPort"] = HttpPort;
                     ok["controlsDisplay"] = new JObject { ["places"] = new JArray("bottom", "left", "right"), ["size"] = new JArray(0.2, 0.5), ["default"] = new JObject { ["shown"] = false, ["place"] = "bottom", ["size"] = 0.28 } };
                     ok["controlInputs"] = new JArray("aileron", "elevator", "rudder", "throttle", "brake", "brakeL", "brakeR", "handsOff", "flaps", "spoilers", "spoilersArmed", "gear");
@@ -625,7 +633,7 @@ namespace FlyingGame.Bridge.Widget
 
         private JObject PanelJson()
         {
-            var w = Widget; float a = WidgetControlsDisplay.PanelAspect;
+            var w = Widget; float a = WidgetControlsDisplay.PanelAspectN;
             float pw = w.PanelW > 0 ? w.PanelW : Mathf.Min(1f, w.Split / a);
             float px = w.PanelW > 0 ? w.PanelX : (1f - pw) * 0.5f, py = w.PanelW > 0 ? w.PanelY : 1f - pw * a;
             return new JObject { ["x"] = System.Math.Round(px, 4), ["y"] = System.Math.Round(py, 4), ["w"] = System.Math.Round(pw, 4), ["h"] = System.Math.Round(pw * a, 4),
@@ -656,7 +664,7 @@ namespace FlyingGame.Bridge.Widget
                     case "gear": e["action"] = "toggle"; e["cmd"] = "controls.gear"; break;
                     case "panel": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "drag the box (outside the controls) to move it"; break;
                     case "panelMove": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "the MCP strip across the top: a grab bar (display only, no controls)"; break;
-                    case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspect; break;
+                    case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspectN; break;
                 }
                 o[kv.Key] = e;
             }
@@ -772,7 +780,7 @@ namespace FlyingGame.Bridge.Widget
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,
                 ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
                 ["controls"] = ControlsJson(w),
-                ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameSize,
+                ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameH, ["frameW"] = AeroWidget.FrameW, ["frameH"] = AeroWidget.FrameH, ["frameMode"] = w.FrameMode,
                 ["display"] = new JObject { ["mode"] = w.DisplayMode, ["split"] = w.Split, ["panel"] = PanelJson(), ["zoom"] = w.Zoom },
                 ["controlsLayout"] = LayoutJson(),
                 ["lesson"] = w.Lesson, ["lessonPhase"] = w.Lessons.Caption, ["lessonResults"] = new JArray(w.Lessons.Results.ToArray()),

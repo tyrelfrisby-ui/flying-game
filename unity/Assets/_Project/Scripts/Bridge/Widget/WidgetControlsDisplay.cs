@@ -32,7 +32,8 @@ namespace FlyingGame.Bridge.Widget
         private const int GlyphPx = 48;
         private readonly List<(Vector2 at, string s, float px, Color c, TextAnchor anchor, bool outline, bool bold)> _texts = new();
         private bool _on;
-        private const float N = AeroWidget.FrameSize;
+        private static float FW => AeroWidget.FrameW;   // the frame in pixels (square or 16:9)
+        private static float FH => AeroWidget.FrameH;
 
         // Design units: a cell is CW × CH; the panel scales to fit its strip of the picture.
         private const float CW = 180f, CH = 262f, HDR = 48f, TRC = 152f, PAD = 10f;
@@ -114,7 +115,7 @@ namespace FlyingGame.Bridge.Widget
             if (!on) { if (w.Cam.targetTexture != w.Frame) w.Cam.targetTexture = w.Frame; return; }
             // The scene's own texture, sized to the picture outside the panel's strip (the whole frame with no panel).
             if (ntsb) { _panelPx = NtsbPanelRect(w); _sceneRect = FreeBand(_panelPx); }
-            else _sceneRect = !panel ? new Rect(0, 0, N, N) : place == "left" ? new Rect(size * N, 0, (1 - size) * N, N) : place == "right" ? new Rect(0, 0, (1 - size) * N, N) : new Rect(0, size * N, N, (1 - size) * N);
+            else _sceneRect = !panel ? new Rect(0, 0, FW, FH) : place == "left" ? new Rect(size * FW, 0, (1 - size) * FW, FH) : place == "right" ? new Rect(0, 0, (1 - size) * FW, FH) : new Rect(0, size * FH, FW, (1 - size) * FH);
             int sw = Mathf.RoundToInt(_sceneRect.width), sh = Mathf.RoundToInt(_sceneRect.height);
             if (_scene == null || _scene.width != sw || _scene.height != sh)
             {
@@ -150,11 +151,11 @@ namespace FlyingGame.Bridge.Widget
             bool side = place == "left" || place == "right";
             int cols = side ? 2 : 6, rows = side ? 3 : 1;
             float W = cols * CW + 2 * PAD, H = HDR + rows * CH + (traces ? TRC : 0) + PAD;
-            float rw = side ? size * N : N, rh = side ? N : size * N;
+            float rw = side ? size * FW : FW, rh = side ? FH : size * FH;
             _s = Mathf.Min(rw / W, rh / H);
             float cw = W * _s, ch = H * _s;
-            float rx = place == "right" ? N - rw : 0f;
-            _o = new Vector2(rx + (rw - cw) * 0.5f, side ? (N + ch) * 0.5f : ch + (rh - ch) * 0.5f);
+            float rx = place == "right" ? FW - rw : 0f;
+            _o = new Vector2(rx + (rw - cw) * 0.5f, side ? (FH + ch) * 0.5f : ch + (rh - ch) * 0.5f);
 
             var f = w.Shown ?? w.Review.Capture();
             var spec = w.Controls.Spec;
@@ -224,7 +225,7 @@ namespace FlyingGame.Bridge.Widget
         private void LayoutRect(string key, float x, float y, float w, float h)
         {
             Vector2 tl = P(x, y);
-            Layout[key] = (tl.x / N, 1f - tl.y / N, w * _s / N, h * _s / N);
+            Layout[key] = (tl.x / FW, 1f - tl.y / FH, w * _s / FW, h * _s / FH);
         }
 
         private static Color Hex(string h) => !string.IsNullOrEmpty(h) && ColorUtility.TryParseHtmlString(h, out var c) ? c : Color.white;
@@ -451,7 +452,7 @@ namespace FlyingGame.Bridge.Widget
             RenderTexture.active = rt;
             GL.Clear(true, true, new Color(0, 0, 0, 0));
             GL.PushMatrix();
-            GL.LoadPixelMatrix(0, N, 0, N);
+            GL.LoadPixelMatrix(0, FW, 0, FH);
             // The scene, exactly, in its area.
             _copy.mainTexture = _scene; _copy.SetPass(0);
             GL.Begin(GL.QUADS);
