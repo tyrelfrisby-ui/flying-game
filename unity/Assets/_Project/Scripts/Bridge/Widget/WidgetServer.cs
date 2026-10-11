@@ -679,6 +679,7 @@ namespace FlyingGame.Bridge.Widget
                     case "panel": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "drag the box (outside the controls) to move it"; break;
                     case var tk when tk.StartsWith("tap:") && d.TapCmds.TryGetValue(tk, out var tj):
                         e["action"] = "tap"; e["send"] = JObject.Parse(tj); break;
+                    case "glassMenu": e["action"] = "glassMenu"; e["label"] = "MENU"; break;
                     case "panelMove": e["action"] = "move"; e["cmd"] = "panel"; e["note"] = "the MCP strip across the top: a grab bar (display only, no controls)"; break;
                     case "panelResize": e["action"] = "resize"; e["cmd"] = "panel"; e["corner"] = "bottomRight"; e["aspect"] = WidgetControlsDisplay.PanelAspectN; break;
                 }

@@ -135,7 +135,12 @@ namespace FlyingGame.Bridge.Widget
         private void Tools(AeroWidget w, float x, float y, float mw, float mh)
         {
             Plate(x, y, mw, mh);
-            OText(x + mw * 0.5f, y + 14, "TOOLS", 14, Grey);
+            OText(x + 10, y + 14, "TOOLS", 14, Grey, TextAnchor.MiddleLeft);
+            // MENU (owner 2026-10-11 via Glass: the floating toolbar is gone): Glass opens its full options pop-up here.
+            { float mbw = 92f, mbx = x + mw - 8 - mbw, mby = y + 3;
+              RoundRect(mbx, mby, mbw, 22, 5, new Color(0.2f, 0.4f, 0.75f, 0.95f));
+              _texts.Add((P(mbx + mbw * 0.5f, mby + 11), "MENU ▾", 14f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
+              LayoutRect("glassMenu", mbx, mby, mbw, 22); }
             const float lw = 62f, ch = 26f, rh = 32f;
             float ry = y + 30, cx0 = x + 8 + lw, cw = (mw - 16 - lw - 3 * 4f) / 4f;
             bool On(string k) => w.Show.TryGetValue(k, out bool b) && b;
