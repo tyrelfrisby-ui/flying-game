@@ -298,8 +298,8 @@ namespace FlyingGame.Bridge.Widget
                 double lb = P.TailN * 0.2248;   // body z down: + = DOWN force
                 _labels.Request("tail", Tip("tail", gPx), Away(Origin("tail"), Tip("tail", gPx)), new[] { System.Math.Abs(lb) }, v => $"TAIL {(lb >= 0 ? "↓" : "↑")} {v[0]:0} lb", TailC, 3, 5);
             }
-            if (On("wheels") && w.Ac.LastForces != null && w.Shown == null)
-                foreach (var f in w.Ac.LastForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
+            if (On("wheels") && w.ShownForces != null)
+                foreach (var f in w.ShownForces) if (f.Kind == "gear" && f.ForceBody.Length > w.Ac.MassProperties.MassKg * 9.81 * 0.02)
                     { Vector3 o = World(f.PosBody), d = Dir(f.ForceBody * (1.0 / (w.Ac.MassProperties.MassKg * 9.81))) * (gPx * pxM); if (Scr(o, out var a) && Scr(o + d, out var b) && ClipToScene(ref a, ref b, scene)) ui.PxArrow(a, b, lw * 0.7f, Wheel); }
 
             // The vertical tail's side force (directional stability: it pushes the tail back into line; or the rudder's yaw force).

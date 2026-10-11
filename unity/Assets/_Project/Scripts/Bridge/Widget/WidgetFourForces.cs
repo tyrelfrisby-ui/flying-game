@@ -151,8 +151,14 @@ namespace FlyingGame.Bridge.Widget
         {
             float u = TextScale;
             PxText(new Vector2(r.xMin + 10 * u, r.yMax - 12 * u), "FOUR FORCES", 14f, Color.white, TextAnchor.MiddleLeft);
-            var tr = w.ForceTrend; if (!tr.HasData) return;
-            var s = tr.Smooth; const double lb = 0.2248;
+            var tr = w.ForceTrend;
+            // Review: the frame being shown (its recorded forces); live: the smoothed trend.
+            var p = w.Vectors?.Current;
+            if (w.Shown == null && !tr.HasData) return;
+            if (w.Shown != null && (p == null || p.WeightN <= 0)) return;
+            var s = w.Shown != null ? new WidgetForceTrend.Sample { Thrust = p.ThrustAlongN, Drag = p.DragN, WSin = p.WSinGammaN, Lift = p.LiftN, WPerp = p.WPerpN, W = p.WeightN,
+                                                                     Gamma = p.GammaDeg, Accel = p.AccelAlong, PathRate = p.PathRate } : tr.Smooth;
+            const double lb = 0.2248;
             float lx = r.xMin + 10 * u, bx = r.xMin + 64 * u, bw = r.width - 64 * u - 70 * u, vx = r.xMax - 8 * u, bh = 9f * u;
             float y = r.yMax - 30 * u;
             void Bar(string name, Color c, double v, double scale, double extra = 0, Color? ec = null, string val = null)
@@ -171,7 +177,11 @@ namespace FlyingGame.Bridge.Widget
             void Result(string text, bool steady) { PxText(new Vector2(lx, y), text, Mathf.Min(12f, (r.width - 20 * u) / u / (text.Length * 0.6f)), steady ? FfSteady : FfChange, TextAnchor.MiddleLeft); y -= 18f * u; }
 
             // ALONG THE PATH — thrust vs drag (+ W·sinγ on the side it acts: against thrust climbing, with it descending).
-            PxText(new Vector2(lx, y), "ALONG THE PATH", 11f, FfDim, TextAnchor.MiddleLeft); y -= 14f * u;
+            PxText(new Vector2(lx, y), "ALONG THE PATH", 11f, FfDim, TextAnchor.MiddleLeft);
+            // The two-colour bar's legend (owner asked if it was induced vs parasite): red = ALL the drag; yellow = weight's
+            // part along the path (W·sinγ), on the drag side climbing, on the thrust side descending.
+            if (System.Math.Abs(s.WSin) > s.W * 0.005) PxText(new Vector2(vx, y), "YELLOW = W·sinγ (WEIGHT)", 10f, FfWeight, TextAnchor.MiddleRight);
+            y -= 14f * u;
             double tSide = s.Thrust + System.Math.Max(0, -s.WSin), dSide = s.Drag + System.Math.Max(0, s.WSin);
             double want = System.Math.Max(tSide, dSide) / 0.8;
             // The scale moves slowly (a change in power shows as a change in LENGTH, not a re-scale); it grows at once if needed.

@@ -554,7 +554,7 @@ namespace FlyingGame.Bridge.Widget
             var d = Ac.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
             _builder.SpinProps(_ => (float)Ac.EngineRpm, dt);
-            PlaceCamera();
+            PlaceCamera(Ac.State);
             ApplyVisualScale();
         }
 
@@ -570,8 +570,9 @@ namespace FlyingGame.Bridge.Widget
             _visualRoot.position = CoordinateMap.ToUnity(f.State.Position + f.State.Attitude.Rotate(VisualOffset));
             _visualRoot.rotation = CoordinateMap.ToUnity(f.State.Attitude);
             _builder.SetDeflections((float)f.Defl.AileronRad, (float)f.Defl.ElevatorRad, (float)f.Defl.RudderRad, (float)f.Defl.SpoilerFraction);
-            Cam.orthographic = f.Ortho; Cam.orthographicSize = f.OrthoSize; Cam.fieldOfView = f.Fov;
-            Cam.transform.SetPositionAndRotation(f.CamPos, f.CamRot);
+            // The recorded flight drawn with the CURRENT display (owner 2026-10-11: fly it clean, then play it back with other
+            // views, forces and graphs): the camera follows the current view and zoom, not the one recorded.
+            PlaceCamera(f.State);
             ApplyVisualScale();
         }
 
@@ -617,9 +618,8 @@ namespace FlyingGame.Bridge.Widget
             if (-s.Position.Z < 600) Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, s.Position.Z - 1800), s.Attitude, s.Velocity, s.Rates);
         }
 
-        private void PlaceCamera()
+        private void PlaceCamera(RigidBodyState s)
         {
-            var s = Ac.State;
             Vector3 ac = CoordinateMap.ToUnity(s.Position);
             if (Current == Scenario.Flare)
             {

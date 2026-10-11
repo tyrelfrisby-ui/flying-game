@@ -15,7 +15,7 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetHistory
     {
-        public const int Hz = 30, Seconds = 60, Capacity = Hz * Seconds;
+        public const int Hz = 30, Seconds = 180, Capacity = Hz * Seconds;   // 3 minutes (owner 2026-10-11 via Glass)
         public const double FrameMs = 1000.0 / Hz;
 
         public sealed class Snap
