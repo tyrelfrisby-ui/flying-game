@@ -6,6 +6,10 @@
  * pilot's 10 Hz state packet out to everyone else in the room and remembers the last packet per
  * peer for late joiners. Uses the WebSocket Hibernation API so an idle room costs nothing.
  *
+ * PRIVACY: the published policy (glassoverlay.com/legal/aero-playground-privacy) promises the relay
+ * stores and logs nothing. Keep wrangler observability off and never log names, IPs or voice
+ * without updating that policy first.
+ *
  * HTTP
  *   POST /rooms                      -> { code }            fresh 6-char private room code
  *   GET  /rooms/{code}/ws?name=&ac=  -> WebSocket upgrade   (code = ffa | [A-Z0-9]{6})
