@@ -34,7 +34,10 @@ namespace FlyingGame.Bridge.Widget
         public int PhaseIdx { get; private set; } = -1;
         public float PhaseT { get; private set; }
         public bool Driving => Current != null && PhaseIdx >= 0 && PhaseIdx < Current.Phases.Count;
-        public string Caption => Driving ? Current.Phases[PhaseIdx].Label : Current != null ? "DEMO COMPLETE" : null;
+        public string Caption => IsFourForces ? _w.FourForcesLesson.Instruction ?? "LESSON ENDED (AUTOPILOT MODE CHANGED)" : Driving ? Current.Phases[PhaseIdx].Label : Current != null ? "DEMO COMPLETE" : null;
+        /// <summary>The interactive FOUR FORCES lesson (shared with the game: FourForcesCoach).</summary>
+        private bool IsFourForces => Current != null && Current.Id == FourForcesId;
+        public const string FourForcesId = "four-forces";
         public readonly List<string> Results = new();
 
         // ---- the scenes ----
@@ -104,6 +107,10 @@ namespace FlyingGame.Bridge.Widget
 
         private static void Build()
         {
+            // 0 — the four forces (interactive: the pilot moves the throttle and the CWS pitch; the coach notes each equilibrium)
+            Add(FourForcesId, FourForcesCoach.Name, FourForcesCoach.Concept,
+                L => { Cruise(L, "c172-like", "side"); L.W.FourForcesLesson.Start(); },
+                P("FOUR FORCES", float.MaxValue, (L, dt) => L.W.FourForcesLesson.Tick(dt)));
             // 1 — AoA is the key
             Add("aoa-attitude", "Angle of attack, not attitude", "The wing answers to its angle of attack — the same α gives the same lift coefficient climbing, level or diving.",
                 L => { Cruise(L); Show(L, "vectors"); Inset(L, "clAlpha", "aoa"); },
@@ -357,7 +364,7 @@ namespace FlyingGame.Bridge.Widget
         {
             Lesson l = null; foreach (var x in All) if (x.Id == id) l = x;
             if (l == null) return false;
-            Current = l; PhaseIdx = -1; Results.Clear(); _stalls.Clear(); _pmIdx = 0;
+            Current = l; PhaseIdx = -1; Results.Clear(); _stalls.Clear(); _pmIdx = 0; _w.FourForcesLesson.Stop();
             _w.Autopilot.Off(); _w.Presets.Stop();
             foreach (var k in new[] { "vectors", "lift", "drag", "wind", "strips", "cgnp", "liftComponents", "wingDrag", "groundTrack", "aimPoint", "propEffects" }) _w.Show[k] = false;
             _w.Show["vectors"] = true;
@@ -369,9 +376,9 @@ namespace FlyingGame.Bridge.Widget
             Next();
             return true;
         }
-        public void Stop() { Current = null; PhaseIdx = -1; _w.Lesson = null; }
+        public void Stop() { Current = null; PhaseIdx = -1; _w.Lesson = null; _w.FourForcesLesson.Stop(); }
         /// <summary>Pilot input ends the script (the scene stays).</summary>
-        public void Interrupt() { if (Driving) PhaseIdx = Current.Phases.Count; }
+        public void Interrupt() { if (Driving && !IsFourForces) PhaseIdx = Current.Phases.Count; }   // (four forces: the stick is CWS, part of the lesson)
 
         private void Next()
         {
@@ -435,6 +442,7 @@ namespace FlyingGame.Bridge.Widget
             if (Current == null) return;
             float y = scene.yMax - 58;
             ui.PxText(new Vector2(22, y), $"LESSON · {Current.Name.ToUpperInvariant()}", 17f, new Color(0.55f, 0.85f, 1f), TextAnchor.MiddleLeft);
+            if (IsFourForces && _w.FourForcesLesson.Active) return;   // its coaching is a plate under the readouts (WidgetInsets)
             if (Caption != null) ui.PxText(new Vector2(22, y - 22), Caption, 16f, Color.white, TextAnchor.MiddleLeft);
             for (int i = 0; i < Results.Count && i < 4; i++) ui.PxText(new Vector2(22, y - 44 - i * 20), Results[i], 15f, new Color(1f, 0.85f, 0.4f), TextAnchor.MiddleLeft);
         }

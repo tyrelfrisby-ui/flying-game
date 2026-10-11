@@ -54,7 +54,7 @@ Newline-delimited JSON, one command per line, one JSON reply line per command (`
 | `vectorStyle` | `width`: 1…3 (×); `smoothingMs`: 0…400 | **Protocol 7:** line width and the vector filter's time constant (default 130 ms). |
 | `lesson` | `id` (or `"stop"`) | **Protocol 8:** start a Stick-and-Rudder scene with its scripted demonstration (docs/STICK-AND-RUDDER.md). |
 | `loading` | `grossWeightLb`, `cgPercentMac` (either), or `reset:true` | **Protocol 8:** live weight and balance, in any condition, the spin included. Changes are slewed so a dragged slider never jolts the airplane. Out of limits is allowed. |
-| `autopilot` | `on`, `mode` (`alt` \| `vs` \| `flc` \| `hdg` \| `rol`), `altitudeFt`, `vsFpm`, `kias`, `heading` / `headingBump` / `headingSync`, `yawDamper`, `autothrottle` | **Protocol 8:** the autopilot (below). `mode` `lnav` / `loc` / `app` replies `"not available yet"`. |
+| `autopilot` | `on`, `mode` (`alt` \| `vs` \| `flc` \| `pit` \| `hdg` \| `rol` \| `bank`), `pitchDeg` (−30…30), `bankDeg` (−45…45, + = right), `altitudeFt`, `vsFpm`, `kias`, `heading` / `headingBump` / `headingSync`, `yawDamper`, `autothrottle` | **Protocol 8:** the autopilot (below). `mode` `lnav` / `loc` / `app` replies `"not available yet"`. |
 | `wind` | `fromDeg`, `kt` | Steady wind (the air mass moves). |
 | `inset` | `name`: `clAlpha` \| `liftDrag` \| `powerRequired` \| `ball` \| `aoa` \| `wb`; `show` | Small plates in the picture's top-right, each a curve from the sim's own aero model with a live dot. |
 | `hello` | | Reply with app, version, `protocol: 8`, `lessons`, `insets`, `autopilotModes`, the fleet's `loading` fits, `display`, `controlsLayout`, `conditions`, `features`, `controlInputs`, `controlsDisplay`, `fleet` (each with its `controls` fit), `commands`, `scenarios`, `views`, `viewFrom`, `presets`, `show` keys, frame size, stream names, ports, and `review: {historySeconds: 60, fps: 30, commands: [step, rewind, seek, play]}`. |
@@ -214,6 +214,39 @@ Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `th
 - **Consequence:** the spin condition's first seconds are a real spin, but it doesn't stay developed.
 - **Plan:** taken up in protocol 8 (advanced spin physics).
 
+### Four forces and CWS (2026-10-11, protocol 8 additions)
+
+Hello `features` adds `"fourForces"` and `"cws"`. Both are additive: nothing existing changed meaning.
+
+- **`{"cmd":"fourForces","on":true}`** (omit `on` to toggle). Only thrust, lift, weight and drag are drawn, and every other vector is turned off:
+  - lift is drawn ⟂ and drag ∥ the relative wind, both from the CG and both from the TOTAL aero force (tail and fuselage included);
+  - weight is drawn straight down, and thrust on its own line;
+  - each is labelled in pounds: lift and weight at one scale, thrust and drag at another (×3), so each pair compares directly.
+  - The other insets give way to the two readouts below. `on:false` puts back the vectors and insets that were showing before. State: `show.fourForces`.
+- **Insets `forceBalance` and `forceTrend`** (also usable alone):
+  - **forceBalance:** ALONG THE PATH — thrust vs drag, with weight's component W·sinγ stacked on the side it acts (with drag when climbing, with thrust when descending); ACROSS THE PATH — lift vs weight (the weight bar is fixed). Each pair ends in its result, e.g. "SPEEDING UP +1.2 KT/S" or "BALANCED → STEADY PATH · CLIMB 3.3°". The results are the exact sums of every force, not the bar differences.
+  - **forceTrend:** the last 60 s of sim time in lanes: T · D (plus D + W·sinγ when on a slope), L · W, α, path γ and KIAS.
+- **CWS (control wheel steering): attitude hold.**
+  - `{"cmd":"autopilot","pitchDeg":5}` and/or `"bankDeg":-20`, or `mode:"pit"` / `"bank"` to hold the present attitude.
+  - The AP holds only that attitude: pitch −30…+30°, bank 45° L…45° R. There is no speed, altitude or path target.
+  - Selecting PIT turns A/T off, so the throttle is the pilot's. The target ramps at ≤ 3°/s in pitch and ≤ 6°/s in bank. Stall protection stays on.
+  - Stick input does **not** disconnect it: the AP lets go while the pilot flies and holds the attitude it is left at. State `cwsPilotFlying` shows when the pilot is flying.
+  - From AP-off, CWS engages both axes at the present attitude.
+  - State adds `autopilot.pitchDeg`, `bankDeg`, `cws` and `cwsPilotFlying`. The FMA reads e.g. `AP · PIT +3.5° · BANK 0° · YD`, prefixed with `CWS (PILOT FLYING) ·` while the pilot is flying.
+  - Hello's `autopilotModes` adds `pit`, `bank` and the `cws` ranges.
+- **Lesson `four-forces`** (interactive):
+  - Setup: cruise with FOUR FORCES on, CWS holding the pitch attitude with wings level, and A/T off.
+  - The pilot moves the throttle and the pitch, and watches each imbalance die away into a new equilibrium. Each settled state is noted (pitch, power, KIAS, α, climb/descent).
+  - Stick input doesn't end this lesson (the stick is CWS).
+  - In the game it is the "4 FORCES LESSON" button in the AERO panel; it switches to the side view.
+- **Slip/skid inset:** above the ball, a top-down airplane with the relative wind arriving at the nose at β (drawn ×3; the true β is in the text: "β 4.6° WIND FROM R · BALL RIGHT"). It teaches the ball ↔ β association.
+- **Remote:** the CWS pitch/bank sliders, Wings level, 4 FORCES, and the 4 forces lesson. The remote now sends only the controls being moved, so the power slider alone never takes the stick from the AP.
+- **Measured (C172, widget):**
+  - PIT −0.5°, full power: 119 → 130 KIAS over 45 s, nearly level.
+  - +4° pitch: an immediate climb of ≈ 700 fpm while the speed bleeds 128 → 112 KIAS toward a steady climb.
+  - Idle at +3.5°: 60 KIAS, α 9.7°, descending about 600 fpm.
+  - BANK 45° L at cruise: held within 1–2°; at a fixed pitch the airplane descends (more lift is needed in the bank).
+
 ### Protocol 8 — weight & balance, autopilot, insets, lessons
 
 **Weight & balance.**
@@ -242,7 +275,7 @@ Defaults on: `wingWind`, `tailWind`, `inertial`, `total`, `tail`, `moments`, `th
 - **Servos and trim:** an elevator servo of about half the stick travel per second, and a pitch-trim servo that offloads it. The AP flies through the ordinary controls, so the panel shows its inputs.
 - **Annunciation:** a flight-mode annunciator, e.g. `AP · ALT 3000 · HDG 270 · YD · A/T 100`.
 - **When it can't hold:** it says why — `CAN'T HOLD — FULL POWER` / `ELEVATOR/TRIM LIMIT` / `STALL`, or `OSCILLATING` — and keeps flying speed over altitude.
-- **Disconnects:** pilot stick input disconnects it (AP DISC for 2 s); pilot rudder input turns off the YD. Loading changes never disconnect it.
+- **Disconnects:** pilot stick input disconnects it (AP DISC for 2 s) — except in CWS (PIT / BANK, above); pilot rudder input turns off the YD. Loading changes never disconnect it.
 - **State:** `autopilot: {on, pitchMode, rollMode, altitudeFt, vsFpm, kias, headingBug, yawDamper, autothrottle, elevator, trim, power, status, disc, fma, lnav/loc/app: "unavailable"}`.
 - **Acceptance** (C172, 3,000 ft, 100 KIAS):
 

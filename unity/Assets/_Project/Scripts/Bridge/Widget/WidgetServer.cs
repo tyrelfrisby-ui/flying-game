@@ -409,6 +409,11 @@ namespace FlyingGame.Bridge.Widget
                     if (j["yawDamper"] != null) ap.YawDamper = j["yawDamper"].Value<bool>();
                     if (j["autothrottle"] != null) ap.AutoThrottle = j["autothrottle"].Value<bool>();
                     bool? on = j["on"]?.Value<bool>();
+                    // CWS (2026-10-11): a pitch attitude and/or a bank angle to hold ("pitchDeg" −30…30, "bankDeg" −45…45, + = right).
+                    if (on != false && (j["pitchDeg"] != null || j["bankDeg"] != null))
+                    { ap.Attitude(j["pitchDeg"]?.Value<double>(), j["bankDeg"]?.Value<double>()); ok["autopilot"] = ApJson(); break; }
+                    if (on != false && (mode == "pit" || mode == "bank"))
+                    { if (mode == "pit") ap.Attitude(ap.On && ap.PitchMode == "pit" ? ap.PitchDeg : w.Read().PitchDeg, null); else ap.Attitude(null, ap.On && ap.RollMode == "bank" ? ap.BankDeg : w.Read().RollDeg); ok["autopilot"] = ApJson(); break; }
                     if (on == false) ap.Off();
                     else if (on == true || mode != null || j["altitudeFt"] != null || j["vsFpm"] != null || j["kias"] != null)
                     {
@@ -426,6 +431,10 @@ namespace FlyingGame.Bridge.Widget
                     }
                     ok["autopilot"] = ApJson(); break;
                 }
+                case "fourForces":
+                    // 2026-10-11: only thrust, lift, weight, drag (+ the balance and trend insets); off restores the previous picture.
+                    w.SetFourForces(j["on"]?.Value<bool>() ?? !w.Show["fourForces"]);
+                    ok["fourForces"] = w.Show["fourForces"]; ok["insets"] = new JArray(w.Insets); break;
                 case "wind":
                     w.SetWind(j["fromDeg"]?.Value<double>() ?? w.WindFromDeg, j["kt"]?.Value<double>() ?? w.WindKt);
                     ok["fromDeg"] = w.WindFromDeg; ok["kt"] = w.WindKt; break;
@@ -511,10 +520,11 @@ namespace FlyingGame.Bridge.Widget
                 case "hello":
                     ok["app"] = "Aero Widget"; ok["version"] = Application.version; ok["protocol"] = Protocol;
                     ok["network"] = new JObject { ["tcpDualStack"] = TcpDualStack, ["httpIPv6"] = HttpIPv6, ["bonjour"] = BonjourOk ? new JArray("_aerowidget._tcp", "_http._tcp") : new JArray() };
-                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot");
+                    ok["features"] = new JArray("review", "controlsDisplay", "controlTraces", "pilot", "remotes", "conditions", "ntsbDisplay", "controlsLayout", "inertialForces", "moments", "smoothVectors", "lessons", "insets", "loading", "wind", "autopilot", "fourForces", "cws");
                     { var la = new JArray(); foreach (var l in WidgetLessons.All) la.Add(new JObject { ["id"] = l.Id, ["name"] = l.Name, ["concept"] = l.Concept }); ok["lessons"] = la; }
                     ok["insets"] = new JArray(WidgetControlsDisplay.InsetNames);
-                    ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc"), ["roll"] = new JArray("rol", "hdg"), ["other"] = new JArray("yawDamper", "autothrottle", "headingSelector"),
+                    ok["autopilotModes"] = new JObject { ["pitch"] = new JArray("alt", "vs", "flc", "pit"), ["roll"] = new JArray("rol", "hdg", "bank"),
+                        ["cws"] = new JObject { ["pitchDeg"] = new JArray(-WidgetAutopilot.PitchLimit, WidgetAutopilot.PitchLimit), ["bankDeg"] = new JArray(-WidgetAutopilot.BankLimit, WidgetAutopilot.BankLimit), ["note"] = "attitude hold; stick input doesn't disconnect — the AP holds the attitude it is left at" }, ["other"] = new JArray("yawDamper", "autothrottle", "headingSelector"),
                         ["future"] = new JArray("lnav", "loc", "app"), ["futureNote"] = "buttons present, not active yet" };
                     if (LayoutJson() is JObject lay) ok["controlsLayout"] = lay;
                     ok["display"] = new JObject { ["modes"] = new JArray("classic", "ntsb"), ["default"] = "ntsb", ["split"] = new JArray(0.35, 0.6) };
@@ -522,7 +532,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "fourForces", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
@@ -638,6 +648,7 @@ namespace FlyingGame.Bridge.Widget
                 ["kias"] = System.Math.Round(a.Kias, 1), ["headingBug"] = System.Math.Round(a.HdgDeg), ["yawDamper"] = a.YawDamper, ["autothrottle"] = a.AutoThrottle,
                 ["elevator"] = System.Math.Round(a.Elevator, 3), ["trim"] = System.Math.Round(a.Trim, 3), ["power"] = System.Math.Round(a.Power, 3),
                 ["status"] = a.Status, ["disc"] = a.Disc, ["fma"] = a.Annunciation,
+                ["pitchDeg"] = System.Math.Round(a.PitchDeg, 1), ["bankDeg"] = System.Math.Round(a.BankDeg, 1), ["cws"] = a.Cws, ["cwsPilotFlying"] = a.CwsOverride,
                 ["lnav"] = "unavailable", ["loc"] = "unavailable", ["app"] = "unavailable",
             };
         }

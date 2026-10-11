@@ -123,11 +123,18 @@ namespace FlyingGame.Bridge.Widget
             }
             if (w.Cam.targetTexture != _scene) w.Cam.targetTexture = _scene;
             if (_mat == null) return;
+            // The insets are laid out first (the vector labels keep off them, and off the lesson's title lines), drawn on top.
+            LabelKeepOut.Clear();
+            if (w.Lessons.Current != null && !w.FourForcesLesson.Active) LabelKeepOut.Add(new Rect(_sceneRect.x, _sceneRect.yMax - 58 - 26 - 22 * 5, _sceneRect.width * 0.62f, 26 + 22 * 5 + 14));
+            int q0 = _quads.Count, t0 = _texts.Count;
+            w.Curves.Update(w, w.Vectors.Current);
+            Insets(w, _sceneRect);
+            var insetQuads = _quads.GetRange(q0, _quads.Count - q0); var insetTexts = _texts.GetRange(t0, _texts.Count - t0);
+            _quads.RemoveRange(q0, _quads.Count - q0); _texts.RemoveRange(t0, _texts.Count - t0);
             ArrowClip = _sceneRect;
             w.Vectors.Build(this, _sceneRect);
             ArrowClip = null;
-            w.Curves.Update(w, w.Vectors.Current);
-            Insets(w, _sceneRect);
+            _quads.AddRange(insetQuads); _texts.AddRange(insetTexts);
             w.Lessons.DrawCaption(this, w.DisplayMode == "classic" ? new Rect(_sceneRect.x, _sceneRect.y, _sceneRect.width, _sceneRect.height - 60) : _sceneRect);
             if (!panel) return;
             if (ntsb)

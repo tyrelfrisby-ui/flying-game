@@ -9,6 +9,8 @@ namespace FlyingGame.Bridge.Widget
     ///   INSETS   — CL–α lift curve, L/D, power required, slip/skid ball, AoA gauge, W&amp;B envelope;
     ///   AUTOPILOT — AP · YD · A/T · ALT · VS ▲▼ · FLC · SPD ± · ALT SEL ± · HDG ± · SYNC · ROL; LNAV / LOC / APP present but
     ///              not active yet (a later build), as in the widget;
+    ///   4 FORCES (2026-10-11) — only thrust, lift, weight and drag + the balance and trend readouts; the 4 FORCES LESSON;
+    ///   CWS — pitch attitude (30° down … 30° up) and bank (45° L … 45° R) sliders: the autopilot holds that attitude only;
     ///   WEIGHT &amp; BALANCE — weight and CG sliders (slewed, live in any condition), RESET, the limits.
     /// The sim keeps running underneath. While the panel is shut, the autopilot's mode line sits in the text stack.
     /// </summary>
@@ -21,7 +23,7 @@ namespace FlyingGame.Bridge.Widget
         private static Rect _panel; private static int _panelFrame = -10;
         /// <summary>A touch on the open panel is for its switches, never the stick (screen px, origin bottom-left).</summary>
         public static bool Blocks(Vector2 screenPos) => IsOpen && Time.frameCount - _panelFrame <= 2 && _panel.Contains(new Vector2(screenPos.x, Screen.height - screenPos.y));
-        private GUIStyle _btn, _btnOn, _btnDim, _head, _label, _amber;
+        private GUIStyle _btn, _btnOn, _btnDim, _head, _label, _amber, _green;
         private Texture2D _bg, _btnBg, _btnOnBg, _btnDimBg;
         private int _fs;
         private string _note; private float _noteUntil;
@@ -39,6 +41,7 @@ namespace FlyingGame.Bridge.Widget
         {
             ("clAlpha", "Lift curve CL–α"), ("liftDrag", "Lift / drag"), ("powerRequired", "Power required"),
             ("ball", "Slip / skid ball"), ("aoa", "AoA gauge"), ("wb", "Weight & balance"),
+            ("forceBalance", "4 forces balance"), ("forceTrend", "4 forces trend"),
         };
 
         private static Texture2D Solid(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
@@ -59,6 +62,7 @@ namespace FlyingGame.Bridge.Widget
             _head = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 1.05f), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.55f, 0.95f, 1f) } };
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.85f, 0.88f, 0.92f) } };
             _amber = new GUIStyle(_label) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.75f, 0.2f) } };
+            _green = new GUIStyle(_label) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.55f, 0.95f, 0.6f) } };
         }
 
         private static double R100(double v) => System.Math.Round(v / 100.0) * 100.0;
@@ -79,13 +83,20 @@ namespace FlyingGame.Bridge.Widget
                 int dropped = Host.Display != null ? Host.Display.InsetsDropped : 0;
                 if (dropped > 0 && Host.Insets.Count > 0) { Rect l2 = UiLayout.NextLine(_fs * 1.4f); UiLayout.Label(l2, $"{dropped} inset{(dropped > 1 ? "s" : "")} hidden: no room beside the airplane (fewer insets, a wider window or portrait)", _amber); }
                 if (fma != null) { Rect line = UiLayout.NextLine(_fs * 1.6f); UiLayout.Label(line, fma, ap.Disc || ap.Status != "holding" && ap.On ? _amber : _label); }
+                var coach = Host.FourForcesLesson;
+                if (coach.Active)
+                {
+                    UiLayout.Label(UiLayout.NextLine(_fs * 1.5f), "LESSON · " + coach.Instruction, _head);
+                    if (!Host.Insets.Contains("forceBalance")) UiLayout.Label(UiLayout.NextLine(_fs * 1.5f), coach.Live, _green);   // (else the balance plate says it)
+                    if (coach.Results.Count > 0) UiLayout.Label(UiLayout.NextLine(_fs * 1.4f), coach.Results[0], _amber);
+                }
                 return;
             }
             float s = Mathf.Min(Screen.width, Screen.height);
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float lh = _fs * 1.8f, gap = _fs * 0.45f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.94f, s * 0.94f);
-            float rows = twoCol ? 13.6f : 25.5f;
+            float rows = twoCol ? 16f : 30f;
             float h = Mathf.Min(rows * (lh + gap * 0.5f) + gap * 2, Screen.height - UiLayout.ToolbarBottom - gap * 2);
             var panel = new Rect((Screen.width - w) * 0.5f, UiLayout.ToolbarBottom + gap, w, h);
             GUI.DrawTexture(panel, _bg);
@@ -110,13 +121,22 @@ namespace FlyingGame.Bridge.Widget
 
             // ---- FORCES ----
             Head("FORCES ON THE AIRPLANE");
-            if (Btn(Cell(0, 2), Host.Show["vectors"] ? "VECTORS ON" : "VECTORS OFF", Host.Show["vectors"])) { Host.Show["vectors"] = !Host.Show["vectors"]; Host.Save(); }
-            GUI.Label(Cell(1, 2), ChaseCamera.InCockpit ? "  (outside views only)" : "  from the sim's own forces", _label);
+            if (Btn(Cell(0, 3), Host.Show["vectors"] ? "VECTORS ON" : "VECTORS OFF", Host.Show["vectors"])) { Host.Show["vectors"] = !Host.Show["vectors"]; Host.Save(); }
+            if (Btn(Cell(1, 3), "4 FORCES", Host.Show["fourForces"])) { Host.SetFourForces(!Host.Show["fourForces"]); Host.Save(); }
+            if (ChaseCamera.InCockpit) GUI.Label(Cell(2, 3), "  (outside views)", _label);
             y += lh + gap * 0.5f;
             Chips(Forces, 3, k => Host.Show[k], k => { Host.Show[k] = !Host.Show[k]; if (Host.Show[k]) Host.Show["vectors"] = true; Host.Save(); });
             y += gap * 0.5f;
             Head("INSETS");
             Chips(InsetChips, 3, k => Host.Insets.Contains(k), k => { if (!Host.Insets.Remove(k)) Host.Insets.Add(k); Host.Save(); });
+            {
+                var coach = Host.FourForcesLesson;
+                if (Btn(new Rect(x, y, cw, lh), coach.Active ? "STOP THE 4 FORCES LESSON" : "4 FORCES LESSON — throttle & pitch, watch the balance", coach.Active))
+                {
+                    if (coach.Active) coach.Stop(); else { coach.Start(); Host.Save(); IsOpen = false; }
+                }
+                y += lh + gap * 0.5f;
+            }
 
             if (twoCol) { x += cw + gap; y = top; } else y += gap * 0.5f;
 
@@ -161,6 +181,22 @@ namespace FlyingGame.Bridge.Widget
             y += lh + gap * 0.5f;
             if (Time.unscaledTime < _noteUntil) { GUI.Label(new Rect(x, y, cw, lh), _note, _amber); }
             y += lh * 0.6f;
+
+            // ---- CWS: attitude hold (the AP holds the selected pitch / bank only; the stick doesn't disconnect it) ----
+            {
+                bool pit = ap.On && ap.PitchMode == "pit", bank = ap.On && ap.RollMode == "bank";
+                double pv = pit ? ap.PitchDeg : rd.PitchDeg, bv = bank ? ap.BankDeg : rd.RollDeg;
+                UiLayout.Label(new Rect(x, y, cw * 0.38f, lh), $"CWS PITCH {pv:+0.0;-0.0;0.0}°", pit ? _green : _label);
+                float np = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.6f, lh * 0.4f), (float)System.Math.Clamp(pv, -30, 30), -30f, 30f);
+                if (Mathf.Abs(np - (float)System.Math.Clamp(pv, -30, 30)) > 0.25f) ap.Attitude(Mathf.Round(np * 2f) / 2f, null);
+                y += lh + gap * 0.4f;
+                string bl = System.Math.Abs(bv) < 0.5 ? "0°" : $"{System.Math.Abs(bv):0}° {(bv < 0 ? "L" : "R")}";
+                UiLayout.Label(new Rect(x, y, cw * 0.38f, lh), $"CWS BANK {bl}", bank ? _green : _label);
+                float nb = GUI.HorizontalSlider(new Rect(x + cw * 0.4f, y + lh * 0.35f, cw * 0.42f, lh * 0.4f), (float)System.Math.Clamp(bv, -45, 45), -45f, 45f);
+                if (Mathf.Abs(nb - (float)System.Math.Clamp(bv, -45, 45)) > 0.5f) ap.Attitude(null, Mathf.Round(nb));
+                if (Btn(new Rect(x + cw * 0.84f, y, cw * 0.16f, lh), "LVL", false)) ap.Attitude(null, 0);
+                y += lh + gap * 0.4f;
+            }
 
             // ---- WEIGHT & BALANCE ----
             var L = Host.Loading;

@@ -14,13 +14,14 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed partial class WidgetControlsDisplay
     {
-        public static readonly string[] InsetNames = { "clAlpha", "liftDrag", "powerRequired", "ball", "aoa", "wb" };
+        public static readonly string[] InsetNames = { "clAlpha", "liftDrag", "powerRequired", "ball", "aoa", "wb", "forceBalance", "forceTrend" };
 
         private void Insets(AeroHost w, Rect scene)
         {
             var on = new List<string>();
             foreach (var n in InsetNames) if (w.Insets.Contains(n)) on.Add(n);
-            if (on.Count == 0) return;
+            bool lesson = w.IsWidgetHost && w.FourForcesLesson.Active;   // (the game puts the lesson's lines in its text stack)
+            if (on.Count == 0 && !lesson) return;
             float u = TextScale;
             if (!w.IsWidgetHost) { GameInsets(w, scene, on); return; }
             float iw = 300f * u, ih = 176f * u, gap = 10f * u;
@@ -32,6 +33,45 @@ namespace FlyingGame.Bridge.Widget
                 DrawInset(w, n, r);
                 y -= ih + gap;
             }
+            if (lesson)
+            {
+                // The FOUR FORCES lesson's coaching, wrapped, under the readouts (shorter than a plate if that's what's left).
+                float lh = Mathf.Min(ih, y - (scene.yMin + 10));
+                if (lh < 124f * u) { y = scene.yMax - InsetTopMargin * u; x -= iw + gap; lh = ih; }
+                var r = new Rect(x, y - lh, iw, lh);
+                PxPlate(r); LabelKeepOut.Add(r);
+                LessonPlate(r, w.FourForcesLesson);
+            }
+        }
+
+        /// <summary>Text wrapped to a width (an estimate of the glyph width: the plates' font is ≈ 0.56 em per capital).</summary>
+        private static List<string> Wrap(string text, float widthPx, float px)
+        {
+            var lines = new List<string>(); if (string.IsNullOrEmpty(text)) return lines;
+            int max = Mathf.Max(8, Mathf.FloorToInt(widthPx / (px * 0.6f)));
+            var line = new System.Text.StringBuilder();
+            foreach (var word in text.Split(' '))
+            {
+                if (line.Length > 0 && line.Length + 1 + word.Length > max) { lines.Add(line.ToString()); line.Clear(); }
+                if (line.Length > 0) line.Append(' ');
+                line.Append(word);
+            }
+            if (line.Length > 0) lines.Add(line.ToString());
+            return lines;
+        }
+
+        private void LessonPlate(Rect r, FourForcesCoach coach)
+        {
+            float u = TextScale, x = r.xMin + 10 * u, y = r.yMax - 12 * u, wpx = (r.width - 20 * u) / u;
+            PxText(new Vector2(x, y), "LESSON · THE FOUR FORCES", 13f, new Color(0.55f, 0.85f, 1f), TextAnchor.MiddleLeft); y -= 17 * u;
+            void Para(string t, Color c)
+            {
+                foreach (var l in Wrap(t, wpx, 11.5f)) { if (y < r.yMin + 6 * u) return; PxText(new Vector2(x, y), l, 11.5f, c, TextAnchor.MiddleLeft); y -= 14 * u; }
+                y -= 3 * u;
+            }
+            Para(coach.Instruction, Color.white);
+            Para(coach.Live, new Color(0.55f, 0.95f, 0.6f));
+            if (coach.Results.Count > 0) Para(coach.Results[0], new Color(1f, 0.85f, 0.4f));
         }
 
         /// <summary>How many of the game's insets found no room this frame (the AERO panel says so; nothing is overlapped).</summary>
@@ -83,6 +123,8 @@ namespace FlyingGame.Bridge.Widget
                 case "ball": Ball(r, w); break;
                 case "aoa": AoaInset(r, w); break;
                 case "wb": WbInset(r, w); break;
+                case "forceBalance": ForceBalanceInset(r, w); break;
+                case "forceTrend": ForceTrendInset(r, w); break;
             }
         }
         /// <summary>Clear space above the insets (the widget's header; the game's menu buttons).</summary>
@@ -127,7 +169,7 @@ namespace FlyingGame.Bridge.Widget
         private void Ball(Rect r, AeroHost w)
         {
             PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), "SLIP / SKID", 15f, Color.white, TextAnchor.MiddleLeft);
-            Vector2 c = new(r.center.x, r.center.y - 4);
+            Vector2 c = new(r.center.x, r.center.y - 16 * TextScale);   // (low in the plate: the sideslip picture is above it)
             float R = 120f * TextScale, sweep = 22f * Mathf.Deg2Rad, u = TextScale;
             var tube = new Color(1, 1, 1, 0.5f);
             Vector2 Arc(float a, float rr) => c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rr + new Vector2(0, R - 30 * u);
@@ -137,7 +179,37 @@ namespace FlyingGame.Bridge.Widget
             var b = Arc(ballA, R);
             for (int i = 0; i < 16; i++) { float a0 = i * Mathf.PI / 8f, a1 = (i + 1) * Mathf.PI / 8f; Quad(b, b + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * 11f * u, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f * u, b + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * 11f * u, Color.white); }
             var rd = w.Read();
-            PxText(new Vector2(r.center.x, r.yMin + 16), $"β {rd.BetaDeg:+0.0;-0.0;0.0}°   BALL {(System.Math.Abs(w.BallDeg) < 0.5 ? "CENTRED" : w.BallDeg > 0 ? "RIGHT" : "LEFT")}", 14f, Color.white, TextAnchor.MiddleCenter);
+            SideslipPicture(new Rect(r.xMin, c.y + 10 * u, r.width, r.yMax - 6 * u - (c.y + 10 * u)), rd.BetaDeg);
+            PxText(new Vector2(r.center.x, r.yMin + 16), $"β {System.Math.Abs(rd.BetaDeg):0.0}°{(System.Math.Abs(rd.BetaDeg) < 0.25 ? "" : rd.BetaDeg > 0 ? " WIND FROM R" : " WIND FROM L")}   BALL {(System.Math.Abs(w.BallDeg) < 0.5 ? "CENTRED" : w.BallDeg > 0 ? "RIGHT" : "LEFT")}", 14f, Color.white, TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>SIDESLIP (owner 2026-10-11: "a beta sideslip indicator above the inclinometer with the nose of an airplane
+        /// and the relative wind vector from left/right, so the user can learn to associate the ball with the beta angle"):
+        /// the airplane from above, nose up the plate, and the relative wind arriving at the nose at β (drawn ×3 so a few
+        /// degrees can be seen; the number is the true angle). β + = the wind from the right.</summary>
+        private void SideslipPicture(Rect area, double betaDeg)
+        {
+            float u = TextScale, k = Mathf.Min(1.4f, area.height / (62f * u));
+            Vector2 nose = new(area.center.x, area.yMax - 30f * k * u);
+            float len = 30f * k * u, span = 27f * k * u;
+            var body = new Color(1, 1, 1, 0.9f);
+            // the fuselage (pointed nose), the wings, the stabiliser
+            Vector2 tail = nose - new Vector2(0, len), wingY = nose - new Vector2(0, len * 0.38f);
+            PxSeg(nose, nose + new Vector2(-3.2f * u, -len * 0.18f), 2f * u, body); PxSeg(nose, nose + new Vector2(3.2f * u, -len * 0.18f), 2f * u, body);
+            PxSeg(nose + new Vector2(-3.2f * u, -len * 0.18f), tail + new Vector2(-1.5f * u, 0), 2f * u, body);
+            PxSeg(nose + new Vector2(3.2f * u, -len * 0.18f), tail + new Vector2(1.5f * u, 0), 2f * u, body);
+            PxSeg(wingY + new Vector2(-span, -2f * u), wingY + new Vector2(span, -2f * u), 3.2f * u, body);
+            PxSeg(tail + new Vector2(-span * 0.38f, 2f * u), tail + new Vector2(span * 0.38f, 2f * u), 2.4f * u, body);
+            // the longitudinal axis ahead of the nose (dashed): the wind lines up with it when β = 0
+            var axis = new Color(1, 1, 1, 0.4f);
+            for (int i = 0; i < 4; i++) PxSeg(nose + new Vector2(0, (4 + i * 7) * k * u), nose + new Vector2(0, (8 + i * 7) * k * u), 1.2f * u, axis);
+            // the relative wind: arriving at the nose from ahead, from the side the β says
+            float drawn = Mathf.Clamp((float)betaDeg * 3f, -75f, 75f) * Mathf.Deg2Rad;
+            Vector2 from = nose + new Vector2(Mathf.Sin(drawn), Mathf.Cos(drawn)) * (28f * k * u);
+            PxArrow(from, nose + new Vector2(Mathf.Sin(drawn), Mathf.Cos(drawn)) * (3f * u), 3f * u, WidgetVectors.Wind);
+            PxText(new Vector2(area.xMax - 8 * u, nose.y + 4 * u), "RELATIVE", 11f, WidgetVectors.Wind, TextAnchor.MiddleRight);
+            PxText(new Vector2(area.xMax - 8 * u, nose.y - 10 * u), "WIND", 11f, WidgetVectors.Wind, TextAnchor.MiddleRight);
+            PxText(new Vector2(area.xMin + 10 * u, nose.y - 10 * u), "β ×3", 11f, new Color(1, 1, 1, 0.6f), TextAnchor.MiddleLeft);
         }
 
         private void AoaInset(Rect r, AeroHost w)

@@ -72,6 +72,17 @@ namespace FlyingGame.Bridge.Widget
             Loading.Set(Loading.DefaultKg * 1.2, Loading.DefaultCgMac + 6, false); LoadingTouched();
             yield return new WaitForSecondsRealtime(6f);
             Debug.Log($"[Parity] loaded: {Loading.Kg * 2.2046:0} lb CG {Loading.CgMac:0.0}% AP {Autopilot.Status} alt {Read().HeightFt:0}");
+            // FOUR FORCES + CWS: the lesson on, then +3° of pitch through the CWS selector.
+            Loading.Set(null, null, true);
+            FourForcesLesson.Start();
+            yield return new WaitForSecondsRealtime(6f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "parity-ff-0.png"));
+            Debug.Log($"[Parity] ff0: {Autopilot.Annunciation} | {FourForcesLesson.Instruction} | {FourForcesLesson.Live} | pitch {Read().PitchDeg:0.0} roll {Read().RollDeg:0.0}");
+            Autopilot.Attitude(Autopilot.PitchDeg + 3, null);
+            yield return new WaitForSecondsRealtime(12f);
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "parity-ff-1.png"));
+            Debug.Log($"[Parity] ff1: {Autopilot.Annunciation} | {FourForcesLesson.Instruction} | {FourForcesLesson.Live} | pitch {Read().PitchDeg:0.0} kias {Read().Kias:0} vs {-Read().SinkFpm:0}");
+            yield return new WaitForSecondsRealtime(1f);
             GameAeroPanel.Toggle();
             yield return new WaitForSecondsRealtime(1.5f);
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(dir, "parity-panel.png"));
@@ -112,7 +123,7 @@ namespace FlyingGame.Bridge.Widget
             }
             Driver.ForceCapture = Active;
             UiLayout.AeroInsetsShown = Insets.Count > 0 && !SessionSettings.MenuOpen && !Driver.Replaying;
-            if (!Driver.Replaying) Loading.Tick(Time.deltaTime);
+            if (!Driver.Replaying) { Loading.Tick(Time.deltaTime); ForceTrend.Tick(this, Time.deltaTime); FourForcesLesson.Tick(Time.deltaTime); }
         }
 
         /// <summary>Called by the AERO panel whenever the pilot moves a loading slider.</summary>
@@ -140,8 +151,11 @@ namespace FlyingGame.Bridge.Widget
             if (ap.On && !_wasOn) _pilotAtEngage = pilot;
             _wasOn = ap.On;
             // The pilot's hand on the stick disconnects the AP (as in the widget); a push on a pedal turns the YD off.
-            if (ap.On && (System.Math.Abs(pilot.Aileron - _pilotAtEngage.Aileron) > 0.2 || System.Math.Abs(pilot.Elevator - _pilotAtEngage.Elevator) > 0.2))
-            { ap.Off(disconnect: true); _wasOn = false; }
+            // CWS (PIT / BANK): the stick doesn't disconnect — the pilot flies while it's out of its rest position (the AP lets go),
+            // and the AP holds the attitude it is left at.
+            bool pilotStick = System.Math.Abs(pilot.Aileron - _pilotAtEngage.Aileron) > (ap.Cws ? 0.06 : 0.2) || System.Math.Abs(pilot.Elevator - _pilotAtEngage.Elevator) > (ap.Cws ? 0.06 : 0.2);
+            if (ap.On && pilotStick && !ap.Cws) { ap.Off(disconnect: true); _wasOn = false; }
+            else if (ap.On && pilotStick) { ap.PilotInput(); _controls.Elevator = pilot.Elevator; }
             if (ap.YawDamper && System.Math.Abs(pilot.Rudder) > 0.25) ap.YawDamper = false;
             // The channels the AP doesn't fly read the pilot's; then it flies one step.
             _controls.Aileron = pilot.Aileron; _controls.Rudder = pilot.Rudder; _controls.Throttle01 = thr; _controls.ElevatorFree = pilot.ElevatorFree;

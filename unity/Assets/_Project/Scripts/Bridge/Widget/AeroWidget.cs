@@ -464,6 +464,7 @@ namespace FlyingGame.Bridge.Widget
             Lessons.Tick(dt);
             Autopilot.Tick(dt);
             if (dt > 0f) StepSim(dt);
+            ForceTrend.Tick(this, dt);
             ShowLive(dt);
             Review.Record(dt);
         }

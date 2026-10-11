@@ -421,7 +421,7 @@ namespace FlyingGame.Bridge.Widget
                 float bx = x + i * (bw + 8f);
                 var it = items[i];
                 if (it.on) RoundRect(bx, y, bw, h, 6, it.lit); else Plate(bx, y, bw, h);
-                OText(bx + bw * 0.5f, y + h * 0.5f, it.text, 18, it.on ? Color.white : OffText);
+                OText(bx + bw * 0.5f, y + h * 0.5f, it.text, Mathf.Min(18f, (bw - 14f) / Mathf.Max(1, it.text.Length * 0.6f)), it.on ? Color.white : OffText);   // long mode lines shrink to fit
             }
         }
     }

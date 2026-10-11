@@ -91,6 +91,11 @@ namespace FlyingGame.Bridge.Widget
  <button id='ap-at' onclick=""cmd({cmd:'autopilot',autothrottle:!(S.autopilot||{}).autothrottle})"">A/T</button>
  <button class='off' disabled title='a later build'>LNAV</button><button class='off' disabled title='a later build'>LOC</button><button class='off' disabled title='a later build'>APP</button>
 </div>
+<div class='row'><span class='lbl'>CWS pitch</span><input id='cwsP' type='range' min='-30' max='30' step='0.5' value='0'><span id='cwsPv' class='lbl'></span></div>
+<div class='row'><span class='lbl'>CWS bank&nbsp;</span><input id='cwsB' type='range' min='-45' max='45' step='1' value='0'><span id='cwsBv' class='lbl'></span>
+ <button onclick=""cmd({cmd:'autopilot',bankDeg:0})"">Wings level</button></div>
+<div class='row'><button id='ff' onclick=""cmd({cmd:'fourForces',on:!((S.show||{}).fourForces)})"">4 FORCES</button>
+ <button onclick=""cmd({cmd:'lesson',id:'four-forces'})"">4 forces lesson</button></div>
 <div class='row'><select id='lesson' onchange=""if(this.value)cmd({cmd:'lesson',id:this.value})""><option value=''>Lesson…</option></select>
  <button onclick=""cmd({cmd:'lesson',id:'stop'})"">Stop lesson</button></div>
 <div class='row'><span class='lbl'>Weight</span><input id='wt' type='range' min='0.6' max='1.4' step='0.01' value='1'><span id='wtv' class='lbl'></span></div>
@@ -116,7 +121,7 @@ const NAMES={vectors:'All vectors',wingWind:'Wing relative winds',tailWind:'Tail
  lift:'Lift',drag:'Drag',weight:'Weight',thrust:'Thrust',wind:'Relative wind (CG)',strips:'Per-strip lift/drag',axis:'Rotation axis',wheels:'Wheel loads',labels:'Labels',
  readout:'Readout (classic)',review:'REVIEW tag',controlsDisplay:'Control panel (classic)',controlTraces:'Control traces',horizon:'Horizon + ground grid',cgnp:'CG / NP marks',
  liftComponents:'Lift components',wingDrag:'Each wing\'s drag',groundTrack:'Ground track + wind',aimPoint:'Aim point',propEffects:'Prop effects',yawMoment:'Yaw moment',finForce:'Fin side force',bodyAxes:'Body axes'};
-const INSETS={clAlpha:'CL–α curve',liftDrag:'L/D curve',powerRequired:'Power required',ball:'Slip/skid ball',aoa:'AoA gauge',wb:'Weight & balance'};
+const INSETS={clAlpha:'CL–α curve',liftDrag:'L/D curve',powerRequired:'Power required',ball:'Slip/skid ball',aoa:'AoA gauge',wb:'Weight & balance',forceBalance:'Four forces balance',forceTrend:'Four forces trend'};
 const GROUPS=[['Forces & flow',['vectors','wingWind','tailWind','inertial','total','tail','moments','yawMoment','finForce','bodyAxes','lift','drag','weight','thrust','wind','strips','wheels','axis','liftComponents','wingDrag','propEffects']],
  ['Picture',['labels','horizon','cgnp','groundTrack','aimPoint','readout','review','controlsDisplay','controlTraces']]];
 function buildChips(){const c=document.getElementById('chips');c.innerHTML='';
@@ -128,20 +133,25 @@ buildChips();
 fetch('/cmd',{method:'POST',body:JSON.stringify({cmd:'hello'})}).then(r=>r.json()).then(h=>{const sel=document.getElementById('lesson');(h.lessons||[]).forEach(l=>{const o=document.createElement('option');o.value=l.id;o.textContent=l.name;sel.appendChild(o);});window.HELLO=h;});
 document.getElementById('wt').addEventListener('input',e=>{const f=(HELLO.fleet||[]).find(x=>x.id===S.aircraft);if(f&&f.loading)cmd({cmd:'loading',grossWeightLb:Math.round(f.loading.defaultLb*e.target.value)});});
 document.getElementById('cg').addEventListener('input',e=>{const f=(HELLO.fleet||[]).find(x=>x.id===S.aircraft);if(f&&f.loading)cmd({cmd:'loading',cgPercentMac:f.loading.defaultCgMac+ +e.target.value});});
-let viewOnly=false,lastPilot=null,bannerUntil=0;
+let viewOnly=false,lastPilot=null,bannerUntil=0,cwsT=0;
+['cwsP','cwsB'].forEach(id=>document.getElementById(id).addEventListener('input',e=>{cwsT=Date.now();const o={cmd:'autopilot'};o[id==='cwsP'?'pitchDeg':'bankDeg']=+e.target.value;cmd(o);}));
 fetch('/cmd',{method:'POST',body:JSON.stringify({cmd:'fleet'})}).then(r=>r.json()).then(j=>{const s=document.getElementById('ac');(j.fleet||[]).forEach(f=>{const o=document.createElement('option');o.value=f.id;o.textContent=f.name;s.appendChild(o);});});
 const stick=document.getElementById('stick'),dot=document.getElementById('dot');let sx=0,sy=0,live=false;
-function setFrom(t){const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.min(1,((t.clientX-r.left)/r.width)*2-1));sy=Math.max(-1,Math.min(1,((t.clientY-r.top)/r.height)*2-1));dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';}
+let stickT=0,rudT=0;
+function setFrom(t){stickT=Date.now();const r=stick.getBoundingClientRect();sx=Math.max(-1,Math.min(1,((t.clientX-r.left)/r.width)*2-1));sy=Math.max(-1,Math.min(1,((t.clientY-r.top)/r.height)*2-1));dot.style.left=((sx+1)*50)+'%';dot.style.top=((sy+1)*50)+'%';}
 stick.addEventListener('pointerdown',e=>{live=true;stick.setPointerCapture(e.pointerId);setFrom(e);});
 stick.addEventListener('pointermove',e=>{if(live)setFrom(e);});
 let hold=false;
-stick.addEventListener('pointerup',e=>{live=false;if(!hold){sx=0;sy=0;dot.style.left='50%';dot.style.top='50%';}send();});
+// CWS (2026-10-11): letting go leaves the autopilot holding the new attitude, so the centred stick isn't sent then.
+stick.addEventListener('pointerup',e=>{live=false;if(!hold){sx=0;sy=0;dot.style.left='50%';dot.style.top='50%';}if(!(S.autopilot||{}).cws){stickT=Date.now();send();}});
 let rvOff=0,scrubbing=false;const scrub=document.getElementById('scrub');
 scrub.addEventListener('input',()=>{scrubbing=true;cmd({cmd:'seek',offsetMs:+scrub.value});});
 scrub.addEventListener('change',()=>{scrubbing=false;});
-let touched=0;['rud','thr','brk'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{touched=Date.now();}));
-document.getElementById('rud').addEventListener('change',e=>{if(!hold)e.target.value=0;send();});
-function send(){cmd({cmd:'controls',source:'remote',aileron:sx,elevator:-sy,rudder:+document.getElementById('rud').value,throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value});}
+let touched=0;['rud','thr','brk'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{touched=Date.now();if(id==='rud')rudT=touched;}));
+document.getElementById('rud').addEventListener('change',e=>{if(!hold)e.target.value=0;rudT=Date.now();send();});
+// Only the controls actually being moved are sent: the power lever alone never takes the stick from the autopilot.
+function send(){const o={cmd:'controls',source:'remote',throttle:+document.getElementById('thr').value,brake:+document.getElementById('brk').value};
+ if(live||Date.now()-stickT<300){o.aileron=sx;o.elevator=-sy;}if(Date.now()-rudT<300)o.rudder=+document.getElementById('rud').value;cmd(o);}
 setInterval(()=>{if(!viewOnly&&(live||Date.now()-touched<300))send();},50);
 setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeURIComponent(myName)).then(r=>r.json()).then(s=>{
  S=s;Object.keys(s.show||{}).forEach(k=>{const b=document.getElementById('sh-'+k);if(b)b.classList.toggle('on',!!s.show[k]);});
@@ -150,6 +160,10 @@ setInterval(()=>{fetch('/state?from='+encodeURIComponent(myId)+'&name='+encodeUR
  document.getElementById('ap-on').classList.toggle('on',!!a.on);document.getElementById('ap-alt').classList.toggle('on',a.on&&a.pitchMode==='alt');
  document.getElementById('ap-vs').classList.toggle('on',a.on&&a.pitchMode==='vs');document.getElementById('ap-flc').classList.toggle('on',a.on&&a.pitchMode==='flc');
  document.getElementById('ap-hdg').classList.toggle('on',a.on&&a.rollMode==='hdg');document.getElementById('ap-yd').classList.toggle('on',!!a.yawDamper);document.getElementById('ap-at').classList.toggle('on',!!a.autothrottle);
+ document.getElementById('ff').classList.toggle('on',!!(s.show||{}).fourForces);
+ if(Date.now()-cwsT>800){document.getElementById('cwsP').value=a.pitchDeg||0;document.getElementById('cwsB').value=a.bankDeg||0;}
+ document.getElementById('cwsPv').textContent=(a.on&&a.pitchMode==='pit'?'HOLD ':'')+((a.pitchDeg||0)>=0?'+':'')+(+(a.pitchDeg||0)).toFixed(1)+'°';
+ document.getElementById('cwsBv').textContent=(a.on&&a.rollMode==='bank'?'HOLD ':'')+Math.abs(Math.round(a.bankDeg||0))+'° '+((a.bankDeg||0)<-0.5?'L':(a.bankDeg||0)>0.5?'R':'');
  document.getElementById('bug').textContent=(''+Math.round(a.headingBug||0)).padStart(3,'0')+'°';
  const L=s.loading||{};document.getElementById('wtv').textContent=(L.grossWeightLb||0)+' lb';document.getElementById('cgv').textContent=(L.cgPercentMac||0).toFixed(1)+'%'+(L.withinLimits===false?' OUT':'');
  const p=s.pilot||{};viewOnly=!!(p.managed&&p.id!==myId);

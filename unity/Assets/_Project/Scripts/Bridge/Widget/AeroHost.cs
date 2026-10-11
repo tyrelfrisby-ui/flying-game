@@ -142,7 +142,43 @@ namespace FlyingGame.Bridge.Widget
             ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
             ["yawMoment"] = false, ["finForce"] = false, ["bodyAxes"] = false, ["cgnp"] = false,
             ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["aimPoint"] = false, ["propEffects"] = false,
+            ["fourForces"] = false,
         };
+
+        /// <summary>Every switch that draws something on the airframe (FOUR FORCES turns all but its four off).</summary>
+        public static readonly string[] VectorKeys = { "lift", "drag", "weight", "thrust", "wind", "total", "axis", "wheels", "strips", "wingWind", "tailWind",
+            "inertial", "tail", "moments", "yawMoment", "finForce", "bodyAxes", "cgnp", "liftComponents", "wingDrag", "groundTrack", "aimPoint", "propEffects" };
+        public static readonly string[] FourForcesInsets = { "forceBalance", "forceTrend" };
+        private Dictionary<string, bool> _beforeFour; private HashSet<string> _insetsBeforeFour;
+        /// <summary>FOUR FORCES (owner 2026-10-11): only thrust, lift, weight and drag on the airplane — lift ⟂ and drag ∥ the
+        /// relative wind, from the CG, labelled in pounds — every other vector off, and the balance + trend readouts on. Off
+        /// puts back what was showing before.</summary>
+        public void SetFourForces(bool on)
+        {
+            if (on == Show["fourForces"]) return;
+            if (on)
+            {
+                _beforeFour = new Dictionary<string, bool>(Show); _insetsBeforeFour = new HashSet<string>(Insets);
+                foreach (var k in VectorKeys) Show[k] = false;
+                Show["lift"] = Show["drag"] = Show["weight"] = Show["thrust"] = true;
+                Show["vectors"] = true; Show["labels"] = true;
+                Insets.Clear(); foreach (var n in FourForcesInsets) Insets.Add(n);   // its readouts only (the others come back with OFF)
+                Show["fourForces"] = true;
+            }
+            else
+            {
+                Show["fourForces"] = false;
+                if (_beforeFour != null) foreach (var kv in _beforeFour) if (kv.Key != "fourForces") Show[kv.Key] = kv.Value;
+                foreach (var n in FourForcesInsets) Insets.Remove(n);
+                if (_insetsBeforeFour != null) foreach (var n in _insetsBeforeFour) Insets.Add(n);
+                _beforeFour = null; _insetsBeforeFour = null;
+            }
+        }
+        /// <summary>The four forces' running record (the trend inset).</summary>
+        public readonly WidgetForceTrend ForceTrend = new();
+        private FourForcesCoach _coach;
+        /// <summary>The interactive FOUR FORCES lesson (shared: the widget runs it as lesson "four-forces", the game from its panel).</summary>
+        public FourForcesCoach FourForcesLesson => _coach ??= new FourForcesCoach(this);
 
 
         // ---- readouts for the labels and the state stream ----

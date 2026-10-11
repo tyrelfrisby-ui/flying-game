@@ -47,6 +47,11 @@ namespace FlyingGame.Bridge.Widget
             public double MomYaw, FinN, FinYaw; public bool HasFin;
             public double AeroG, InertialG, TailN, MomAero, MomInertia, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
+            /// <summary>FOUR FORCES (2026-10-11): the balance along and across the flight path, from the same forces. Along: thrust's
+            /// part along the path, drag, and weight's part along it (W·sinγ: + = pulling back, a climb). Across: lift (+ thrust's
+            /// small part), weight's part opposing it (W·cosγ·cosφ). AccelAlong (m/s²) and PathRate (rad/s, + = curving toward
+            /// the lift) are the EXACT net results (every force summed), not the bars' differences.</summary>
+            public double ThrustAlongN, ThrustPerpN, WeightN, WSinGammaN, WPerpN, GammaDeg, AccelAlong, PathRate;
         }
 
         /// <summary>Everything the frame's arrows say, from a state + its force samples (live or a history frame).</summary>
@@ -98,6 +103,16 @@ namespace FlyingGame.Bridge.Widget
                 Vec3 vh = vAir * (1.0 / pic.VInf), liftDir = -1.0 * Vec3.Cross(vh, new Vec3(0, 1, 0));
                 double ld = liftDir.Length; if (ld > 1e-6) liftDir = liftDir * (1.0 / ld);
                 pic.DragN = -(aero.X * vh.X + aero.Y * vh.Y + aero.Z * vh.Z); pic.LiftN = aero.X * liftDir.X + aero.Y * liftDir.Y + aero.Z * liftDir.Z;
+                // The four forces: lift ⟂ and drag ∥ the relative wind (the TOTAL aero, tail and fuselage included), thrust, weight.
+                Vec3 wB = s.Attitude.Conjugate().Rotate(new Vec3(0, 0, W));
+                static double Dot(Vec3 a, Vec3 b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+                pic.WeightN = W; pic.ThrustAlongN = Dot(thrust, vh); pic.ThrustPerpN = Dot(thrust, liftDir);
+                pic.WSinGammaN = -Dot(wB, vh); pic.WPerpN = -Dot(wB, liftDir);
+                Vec3 vW = s.Attitude.Rotate(vAir);
+                pic.GammaDeg = System.Math.Asin(System.Math.Clamp(-vW.Z / pic.VInf, -1, 1)) * 57.2958;
+                Vec3 net = nonGrav + wB;
+                pic.AccelAlong = Dot(net, vh) / mp.MassKg; pic.PathRate = Dot(net, liftDir) / (mp.MassKg * pic.VInf);
+                pic.V["lift4"] = (cg, liftDir * (pic.LiftN / W)); pic.V["drag4"] = (cg, vh * (-3.0 * pic.DragN / W));
             }
             Vec3 sf = nonGrav * (1.0 / mp.MassKg);
             pic.BallDeg = -System.Math.Atan2(sf.Y, System.Math.Max(0.5, -sf.Z)) * 57.2958;
@@ -206,6 +221,8 @@ namespace FlyingGame.Bridge.Widget
             float pxM = PixelM(cgU);
             Scr(cgU, out var cgScr);
             float gPx = 190f * (w.IsWidgetHost ? 1f : Ui);   // one g (one weight) on the screen
+            // FOUR FORCES: lift and weight must both fit, whole, above and below the CG (the game's free area is often short).
+            if (On("fourForces")) gPx = Mathf.Max(50f * Ui, Mathf.Min(gPx, 0.82f * Mathf.Min(scene.yMax - cgScr.y, cgScr.y - scene.yMin)));
             float lw = 6f * WidthScale * (scene.height / AeroWidget.FrameSize + 0.25f) / 1.25f * (Widget.IsWidgetHost ? 1f : Ui * 0.8f);
 
             // Readout (classic) and the airplane-scale tag.
@@ -258,10 +275,23 @@ namespace FlyingGame.Bridge.Widget
             }
             if (On("inertial") && F.ContainsKey("inertial")) { Arrow("inertial", Inertial, gPx); _labels.Request("inertial", Tip("inertial", gPx), Away(Origin("inertial"), Tip("inertial", gPx)), new[] { P.InertialG }, v => $"INERTIAL {v[0]:0.0} g", Inertial, 1, 0.1); }
             if (On("total") && F.ContainsKey("total")) { Arrow("total", Total, gPx); _labels.Request("total", Tip("total", gPx), Away(Origin("total"), Tip("total", gPx)), new[] { P.AeroG }, v => $"TOTAL AERO {v[0]:0.0} g", Total, 1, 0.1); }
+            if (On("fourForces"))
+            {
+                // FOUR FORCES: lift ⟂ and drag ∥ the relative wind from the CG (total aero), weight, thrust on its line; each
+                // labelled in pounds. Lift/weight at one scale, thrust/drag at another (×3) — the pairs compare directly.
+                double lb = 0.2248;
+                if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new[] { P.WeightN * lb }, v => $"WEIGHT {v[0]:#,0} lb", Weight, 3, 10); }
+                if (On("lift") && F.ContainsKey("lift4")) { Arrow("lift4", Lift, gPx); _labels.Request("lift4", Tip("lift4", gPx), Away(Origin("lift4"), Tip("lift4", gPx)), new[] { P.LiftN * lb }, v => $"LIFT {v[0]:#,0} lb", Lift, 5, 10); }
+                if (On("drag") && F.ContainsKey("drag4")) { Arrow("drag4", Drag, gPx); _labels.Request("drag4", Tip("drag4", gPx), Away(Origin("drag4"), Tip("drag4", gPx)), new[] { P.DragN * lb }, v => $"DRAG {v[0]:#,0} lb ×3", Drag, 5, 3); }
+                if (On("thrust") && F.ContainsKey("thrust")) { Arrow("thrust", Thrust, gPx); _labels.Request("thrust", Tip("thrust", gPx), Away(Origin("thrust"), Tip("thrust", gPx)), new[] { P.ThrustAlongN * lb }, v => $"THRUST {v[0]:#,0} lb ×3", Thrust, 5, 3); }
+            }
+            else
+            {
             if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new double[0], v => "WEIGHT", Weight, 3); }
             if (On("lift")) { Arrow("lift", Lift, gPx); _labels.Request("lift", Tip("lift", gPx), Away(Origin("lift"), Tip("lift", gPx)), new double[0], v => "LIFT", Lift, 5); }
             if (On("drag")) { Arrow("drag", Drag, gPx); _labels.Request("drag", Tip("drag", gPx), Away(Origin("drag"), Tip("drag", gPx)), new double[0], v => "DRAG ×3", Drag, 5); }
             if (On("thrust") && F.ContainsKey("thrust")) Arrow("thrust", Thrust, gPx);
+            }
             if (On("tail") && P.HasTail && F.ContainsKey("tail"))
             {
                 Arrow("tail", TailC, gPx);
