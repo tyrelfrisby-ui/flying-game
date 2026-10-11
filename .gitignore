@@ -51,3 +51,8 @@ unity/*.sln
 # or its prompt file, a repo write would become code execution on the Mac.
 scripts/claude-run.sh
 scripts/NEXT-PROMPT.md
+
+# Unity performance-test run info (generated)
+unity/Assets/Resources/PerformanceTest*
+unity/Assets/Resources.meta
+unity/Assets/Resources/
