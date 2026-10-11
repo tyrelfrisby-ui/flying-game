@@ -54,10 +54,10 @@ namespace FlyingGame.Bridge.Practice
                 {
                     Counting = false;
                     Scenario.SkipBriefing();
-                    Time.timeScale = 1f;
+                    Time.timeScale = SessionSettings.SimSpeed;
                 }
             }
-            else if (!SessionSettings.MenuOpen && !SessionSettings.ReplayActive && Time.timeScale == 0f) Time.timeScale = 1f;
+            else if (!SessionSettings.MenuOpen && !SessionSettings.ReplayActive && Time.timeScale == 0f) Time.timeScale = SessionSettings.SimSpeed;
         }
 
         private void Awake()
@@ -183,7 +183,7 @@ namespace FlyingGame.Bridge.Practice
             Active = false; AnyActive = false; Counting = false;
             if (_touch != null) { _touch.StripElevator = false; _touch.StripThrottle = false; _touch.StripBrakes = false; }
             if (_chase != null && _viewBefore != null) { _chase.SetView(_viewBefore.Value); _viewBefore = null; }
-            if (!SessionSettings.MenuOpen) Time.timeScale = 1f;
+            if (!SessionSettings.MenuOpen) Time.timeScale = SessionSettings.SimSpeed;
             Driver.InputFilter = null;
             Driver.ForceCapture = false;
             Driver.GroundReferenceForced = false;

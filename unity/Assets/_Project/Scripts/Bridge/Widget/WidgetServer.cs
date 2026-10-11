@@ -521,7 +521,8 @@ namespace FlyingGame.Bridge.Widget
                 case "seek": w.Review.Seek(j["offsetMs"]?.Value<double>() ?? 0); return Reviewed(ok);
                 case "play": w.Review.Play((float)(j["rate"]?.Value<double>() ?? 0.25), (string)j["direction"] ?? "reverse"); return Reviewed(ok);
                 case "reset": w.Load(w.Current, w.AircraftId, w.Flaps); break;
-                case "timescale": w.TimeScale = Mathf.Clamp((float)(j["value"]?.Value<double>() ?? 1), 0.05f, 1f); break;
+                // Slow motion (2026-10-11: 1, 0.5, 0.25, 0.1 — any 0.05…1): the sim slows, the controls stay real time.
+                case "timescale": w.TimeScale = Mathf.Clamp((float)(j["value"]?.Value<double>() ?? 1), 0.05f, 1f); ok["timescale"] = w.TimeScale; ok["steps"] = new JArray(1, 0.5, 0.25, 0.1); break;
                 case "start":
                 {
                     // Protocol 5: one of three known states with one tap (cruise | final | spin).

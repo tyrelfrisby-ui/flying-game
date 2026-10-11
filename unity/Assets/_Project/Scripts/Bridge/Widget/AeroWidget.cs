@@ -55,7 +55,7 @@ namespace FlyingGame.Bridge.Widget
         private double? _finalStartFt;
         public WorldTerrain.RunwayEnd Runway { get; private set; }
         private bool _snapCam;
-        private float _lead, _wide;
+        private float _lead;
         public static readonly string[] LockFrom = { "current", "side", "behind", "front", "top" };
 
         /// <summary>World-fixed direction (from the aircraft to the camera) of each named view.</summary>
@@ -606,30 +606,16 @@ namespace FlyingGame.Bridge.Widget
             {
                 // Side-on, orthographic, the camera on the aircraft's right (+east): runway left → right on screen = south → north.
                 Cam.orthographic = true;
+                // CONSTANT ZOOM (owner 2026-10-11: "I do not like the changing zoom"): one scale per airplane for the whole final
+                // and flare — the camera follows the aircraft instead. Low, the ground sits a quarter of the way up; higher, the
+                // aircraft stays centred and the ground drops out of the bottom. The aircraft sits left of centre, the runway ahead.
                 float h = Mathf.Max(0f, ac.y);
-                float half = Mathf.Max(Mathf.Max(5.5f, 0.6f * LengthM), 0.65f * h + 4f);
-                // FINAL: keep the runway ahead in frame — the threshold and the aim point plus 150 m beyond — with the
-                // aircraft near the left edge; as it closes on the aim point this narrows into the flare's own framing.
-                float lead = 0f, wide = 0f;
-                if (Condition == "final")
-                {
-                    float aimZ = (float)(-Runway.LengthM / 2 + PracticeScenario.NumbersPastThresholdM);   // the runway runs north (Unity +z) from its threshold
-                    float span = aimZ + 150f - ac.z;
-                    float aspect = Mathf.Max(0.3f, Cam.aspect);
-                    float spanHalf = span / 0.64f / (2f * aspect);   // frame width = span / 0.64: aircraft at 28 % (room for its labels), the far point at 92 %
-                    if (spanHalf > half)
-                    {
-                        float blend = Mathf.Clamp01((spanHalf - half) / 40f);   // eases into the flare framing over the last ~80 m
-                        lead = 0.22f * (span / 0.64f) * blend; wide = blend;
-                        half = spanHalf;
-                    }
-                }
-                float k = _snapCam || Cam.orthographicSize <= 0 ? 1f : 1f - Mathf.Exp(-3f * Time.unscaledDeltaTime);
-                Cam.orthographicSize = Mathf.Lerp(Cam.orthographicSize, half, k);
-                _lead = Mathf.Lerp(_lead, lead, k); _wide = Mathf.Lerp(_wide, wide, k);
+                float half = Mathf.Max(12f, 1.4f * LengthM) * 1.6f / Mathf.Max(0.3f, Zoom);   // the ground in view from ~40 ft down (C172)
+                Cam.orthographicSize = half;
                 _snapCam = false;
-                float focusY = Mathf.Min(ac.y, 0.55f * h + 0.35f * Cam.orthographicSize);
-                focusY = Mathf.Lerp(focusY, 0.3f * Cam.orthographicSize, _wide);   // wide final framing: the ground 35 % up (room below for the weight)
+                float aspect = Mathf.Max(0.3f, Cam.aspect);
+                _lead = 0.3f * half * aspect;                              // the aircraft at ~35 % from the left edge
+                float focusY = Mathf.Max(h, 0.5f * half);
                 Cam.transform.position = new Vector3(ac.x + 400f, focusY, ac.z + _lead);
                 Cam.transform.rotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
             }

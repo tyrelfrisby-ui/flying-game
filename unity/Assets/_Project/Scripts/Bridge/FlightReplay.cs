@@ -259,7 +259,7 @@ namespace FlyingGame.Bridge
             ReplayPilotOut = false;
             Driver.Replaying = false;
             SessionSettings.ReplayActive = false;
-            Time.timeScale = SessionSettings.MenuOpen ? 0f : (_savedTimeScale > 0f ? _savedTimeScale : 1f);
+            Time.timeScale = SessionSettings.MenuOpen ? 0f : (_savedTimeScale > 0f ? _savedTimeScale : SessionSettings.SimSpeed);
         }
 
         public void Seek(double t)

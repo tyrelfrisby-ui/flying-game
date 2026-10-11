@@ -80,7 +80,7 @@ namespace FlyingGame.Bridge
         {
             IsOpen = false;
             SessionSettings.MenuOpen = false;
-            Time.timeScale = 1f;
+            Time.timeScale = SessionSettings.SimSpeed;
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)

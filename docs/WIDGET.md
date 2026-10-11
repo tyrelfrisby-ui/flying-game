@@ -459,7 +459,8 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
 - **FMA** on top of the attitude indicator. Columns: THRUST · ROLL · PITCH · AFDS.
   - Row 1 is the engaged mode and its target (green); row 2 is the armed mode (white, e.g. `ALT 4000` under FLC/VS) or, when the AP can't hold, why (amber).
   - A mode that has just changed is boxed for 10 s. AP DISC and A/T DISC flash.
-- **Thinner box:** the panel is 1080 × 464 design units (≈ 2.3 : 1). Labels are bold.
+- **Wide box:** the panel is 1080 × 380 design units (≈ 2.85 : 1). Labels are bold and heavily outlined for small teleprompter displays. The MCP strip doubles as the `panelMove` grab bar. LNAV/LOC/APP are left off the MCP until they exist.
+- **Zoom:** `{"cmd":"view","zoom":1.6}` (0.6…3; 1 = the old framing; default 1.6) or `"zoomBy"`. It survives relaunches; `state.display.zoom` reports it.
 - **Only the controls the type has:** no power plate on a glider; no gear, flaps or spoilers column unless the type has them. Retractable types get a gear lever: UP/DN slot, wheel knob, three lights.
 - **Movable, resizable box:** `{"cmd":"panel","x","y","w"}` (0…1 of the frame, top-left, y down; the height follows `aspect`), `{"dx","dy"}` / `{"dw"}` relative, or `{"reset":true}`.
   - `controlsLayout` reports `panel` (move: drag anywhere outside the controls), `panelResize` (the bottom-right grip) and `gear` (tap to toggle).
@@ -468,3 +469,7 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - `{"cmd":"autopilot","autothrottle":true,"kias":100}` holds the speed with the power. Engaging the AP from off brings the A/T in.
   - Moving the throttle (remote, Glass, keys) disconnects it (`autothrottleDisc`, "A/T DISC").
   - A glider refuses it. Every start turns it off.
+- **Landing side view: constant zoom** (owner 2026-10-11). Each airplane gets one fixed scale for the whole final and flare (half-height max(12 m, 1.4 × length), scaled by `zoom`). The camera follows the airplane: below about 40 ft (C172) the ground is in view a quarter of the way up; higher, the airplane stays centred.
+- **Slow motion, everywhere** (owner 2026-10-11): 100 / 50 / 25 / 10 %. The world slows; the pilot's controls stay real time.
+  - Widget: `{"cmd":"timescale","value":0.25}` (steps 1, 0.5, 0.25, 0.1; any value 0.05…1), the remote's ×1 ×½ ×¼ ×0.1, and the [ ] keys. A blue "SLOW 25%" annunciator shows.
+  - Game: the toolbar's TIME button cycles 100 → 50 → 25 → 10 % (`SessionSettings.SimSpeed`, applied as Time.timeScale whenever the game isn't paused). The touch and keyboard throttle and trim ramps run on unscaled time. It is off in multiplayer.

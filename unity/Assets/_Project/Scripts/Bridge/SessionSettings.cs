@@ -12,6 +12,12 @@ namespace FlyingGame.Bridge
         public static bool MenuOpen = true;               // landing page showing: pads/HUD hidden, sim paused
         /// <summary>Flight replay is playing: the sim and world are frozen, the control pads are hidden, the replay bar owns the tray.</summary>
         public static bool ReplayActive;
+        /// <summary>SLOW MOTION (owner 2026-10-11): the whole world — the simulation, the AI, the tug, the effects — runs at this
+        /// fraction of real time while the pilot's controls stay real time, to practise slow and work up to full speed.
+        /// Applied through Time.timeScale whenever the game isn't paused; off (1) in multiplayer.</summary>
+        public static float SimSpeed = 1f;
+        public static readonly float[] SimSpeeds = { 1f, 0.5f, 0.25f, 0.1f };
+        public static string SimSpeedLabel => SimSpeed >= 0.999f ? "TIME 100%" : $"SLOW {SimSpeed * 100:0}%";
         /// <summary>Bubbles streak with airspeed (OPTIONS).</summary>
         public static bool BubbleStreaks = true;
         public static string AircraftId = "glider-2-33-like";

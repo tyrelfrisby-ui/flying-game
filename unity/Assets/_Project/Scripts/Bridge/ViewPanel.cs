@@ -16,6 +16,7 @@ namespace FlyingGame.Bridge
         public FlightReplay Replay;
         public OptionsPanel Options;
         private FlyingGame.Bridge.Practice.PracticeController _practice;
+        private FlyingGame.Bridge.Net.NetSession _net;
         private StartMenu _menu;
 
         private GUIStyle _btn, _btnOn, _btnRec, _label, _small;
@@ -102,7 +103,7 @@ namespace FlyingGame.Bridge
             // default.
             _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
             bool lesson = _practice != null && _practice.Active;
-            int n = lesson ? 6 : 5;
+            int n = lesson ? 7 : 6;
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
             if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other || _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, Screen.height);
@@ -112,7 +113,17 @@ namespace FlyingGame.Bridge
             if (UiLayout.Button(UiLayout.ToolbarSlot(3, n), rec ? "STOP REC" : "REC", rec ? _btnRec : _btn)) ClipRecorder.ToggleRecording();
             // AERO (owner 2026-10-09, parity with the Aero Widget): forces, insets, autopilot, weight & balance.
             if (UiLayout.Button(UiLayout.ToolbarSlot(4, n), "AERO", _btn)) { Widget.GameAeroPanel.Toggle(); Options?.Close(); }
-            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(5, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
+            // SLOW MOTION (owner 2026-10-11): 100 → 50 → 25 → 10 %; the controls stay real time. Not in multiplayer.
+            _net ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Net.NetSession>();
+            bool mp = _net != null && _net.Active;
+            if (mp && SessionSettings.SimSpeed < 1f) { SessionSettings.SimSpeed = 1f; if (Time.timeScale > 0f) Time.timeScale = 1f; }
+            if (UiLayout.Button(UiLayout.ToolbarSlot(5, n), mp ? "TIME 100%" : SessionSettings.SimSpeedLabel, SessionSettings.SimSpeed < 1f ? _btnOn : _btn) && !mp)
+            {
+                int i = System.Array.IndexOf(SessionSettings.SimSpeeds, SessionSettings.SimSpeed);
+                SessionSettings.SimSpeed = SessionSettings.SimSpeeds[(i + 1) % SessionSettings.SimSpeeds.Length];
+                if (Time.timeScale > 0f) Time.timeScale = SessionSettings.SimSpeed;
+            }
+            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(6, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
             // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
             if (VoiceComms.RadioAvailable)
             {

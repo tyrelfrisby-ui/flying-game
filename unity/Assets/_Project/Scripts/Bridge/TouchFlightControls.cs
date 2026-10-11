@@ -436,7 +436,7 @@ namespace FlyingGame.Bridge
                 else if (p.id == _rudTrimFinger) _rudderTrim = Mathf.Clamp((p.pos.x - _rudTrimRect.center.x) / (_rudTrimRect.width * 0.5f), -1f, 1f);
                 else if (p.id == _ejectFinger)
                 {
-                    if (_ejectRect.Contains(p.pos)) _ejectHold += Time.deltaTime;
+                    if (_ejectRect.Contains(p.pos)) _ejectHold += Time.unscaledDeltaTime;
                     else { _ejectFinger = int.MinValue; _ejectHold = 0f; }   // slid off the button: cancel
                 }
                 else if (p.id == _fireFinger && !_fireRect.Contains(p.pos)) _fireFinger = int.MinValue;   // slid off: cease fire
@@ -579,7 +579,7 @@ namespace FlyingGame.Bridge
                 float tv = Key(KeyCode.W) - Key(KeyCode.S);
                 if (tv != 0f)
                 {
-                    _throttle = Mathf.Clamp(_throttle + tv * Time.deltaTime, -1f, 1f);
+                    _throttle = Mathf.Clamp(_throttle + tv * Time.unscaledDeltaTime, -1f, 1f);   // (real time, in slow motion too)
                     _leftKnob = IdleLeftKnob();
                 }
             }
@@ -588,7 +588,7 @@ namespace FlyingGame.Bridge
             {
                 // = / - nudge pitch trim (same sense as the slider: = is up).
                 float tt = Key(KeyCode.Equals) - Key(KeyCode.Minus);
-                if (tt != 0f) _pitchTrim = Mathf.Clamp(_pitchTrim + tt * 0.5f * Time.deltaTime, -1f, 1f);
+                if (tt != 0f) _pitchTrim = Mathf.Clamp(_pitchTrim + tt * 0.5f * Time.unscaledDeltaTime, -1f, 1f);
             }
 
             if (Input.GetKey(KeyCode.B)) _brakeHeld = true;

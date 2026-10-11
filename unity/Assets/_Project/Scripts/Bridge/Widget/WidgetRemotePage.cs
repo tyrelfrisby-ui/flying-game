@@ -58,7 +58,7 @@ namespace FlyingGame.Bridge.Widget
 </div>
 <div class='row'>
  <button onclick=""cmd({cmd:'pause'})"">Pause</button><button onclick=""cmd({cmd:'resume'})"">Run</button>
- <button onclick=""cmd({cmd:'timescale',value:1})"">×1</button><button onclick=""cmd({cmd:'timescale',value:0.5})"">×½</button><button onclick=""cmd({cmd:'timescale',value:0.25})"">×¼</button>
+ <button onclick=""cmd({cmd:'timescale',value:1})"">×1</button><button onclick=""cmd({cmd:'timescale',value:0.5})"">×½</button><button onclick=""cmd({cmd:'timescale',value:0.25})"">×¼</button><button onclick=""cmd({cmd:'timescale',value:0.1})"">×0.1</button>
  <button onclick=""cmd({cmd:'reset'})"">Reset</button>
 </div>
 <div class='row'>

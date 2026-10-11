@@ -429,7 +429,7 @@ namespace FlyingGame.Bridge.Widget
             Rect(amk - 2.5f, ay - 5, 5, 10, Color.white);
             string col = System.Math.Abs(f.Ele) < 0.01 ? "NEUTRAL" : (f.Ele < 0 ? "PULL " : "PUSH ") + Pct(f.Ele);
             OText(x + 54, y + 156, col, 16, f.Ele < -0.02 ? TElev : Color.white);
-            OText(x + 150, y + 156, System.Math.Abs(f.Ail) < 0.01 ? "AIL NEUTRAL" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
+            OText(x + 150, y + 156, System.Math.Abs(f.Ail) < 0.01 ? "AIL 0%" : $"AIL {(f.Ail < 0 ? "L" : "R")} {Pct(f.Ail)}", 15, Color.white);
             // Pedals: the pressed one slides forward — up a little and smaller (away from the pilot); the other comes back, bigger.
             float my = y + 210, travel = 10f;
             for (int k = 0; k < 2; k++)
@@ -552,6 +552,7 @@ namespace FlyingGame.Bridge.Widget
                 (wd.Paused ? $"REVIEW {wd.Review.OffsetMs / 1000.0:+0.0;-0.0;0.0} s" : "REVIEW", wd.Paused, LitAmber),
             };
             // The autopilot's modes are on the FMA (top of the PFD) and the MCP, not here.
+            if (wd.TimeScale < 0.999f) items.Add(($"SLOW {wd.TimeScale * 100:0}%", true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));   // slow motion
             if (wd.AltLockAnnunciation is string al) items.Add((al, true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
             if (!wd.Loading.WithinLimits) items.Add(("OUT OF LIMITS", true, LitAmber));
             if (wd.Controls.Managed && wd.Controls.PilotName != null) items.Add(($"PF {wd.Controls.PilotName.ToUpperInvariant()}", true, new Color(0.25f, 0.45f, 0.75f, 0.9f)));
