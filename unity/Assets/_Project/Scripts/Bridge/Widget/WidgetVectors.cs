@@ -241,7 +241,7 @@ namespace FlyingGame.Bridge.Widget
             if (w is AeroWidget aw2 && aw2.DisplayMode == "classic" && !string.IsNullOrEmpty(aw2.Caption))
                 ui.PxText(new Vector2(scene.center.x, scene.yMin + 40 * ui.TextScale), aw2.Caption, 28, new Color(1f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
             if (w.VisualScale > 1.01f && Scr(cgU - cam.transform.up * pxM * 40f, out var sp)) _labels.Request("scale", sp, Vector2.zero, $"AIRPLANE ×{w.VisualScale:0}", new Color(1, 1, 1, 0.85f), 0);
-            if (!vec) { _labels.Place(ui, scene, cgScr); return; }
+            if (!vec) { _labels.Place(ui, LabelScene(w, scene, ui), cgScr); return; }
 
             var F = _filt; var P = Current;
             void Arrow(string key, Color c, float scalePx, bool arriving = false)
@@ -378,7 +378,7 @@ namespace FlyingGame.Bridge.Widget
                 Arc(ui, Dir, cgU, R, 0f, P.MomAero, mRef, Total, "aeroM", "AERO", scene, lw);
                 Arc(ui, Dir, cgU, R, Mathf.PI, P.MomInertia, mRef, Inertial, "inertiaM", "INERTIA", scene, lw);
             }
-            _labels.Place(ui, scene, cgScr);
+            _labels.Place(ui, LabelScene(w, scene, ui), cgScr);
         }
 
         /// <summary>Keep a vector inside the picture (it must never run into the instrument panel).</summary>
@@ -438,6 +438,14 @@ namespace FlyingGame.Bridge.Widget
         private readonly LabelStabilizer _labels = new();
         /// <summary>Where each label was drawn last frame (frame pixels) and its slot — for the stability test.</summary>
         public IReadOnlyDictionary<string, (Vector2 pos, int slot, float alpha)> LabelDebug => _labels.Last;
+
+        /// <summary>The labels' room: the scene less the caption's band at the bottom, so no label lands on the caption.</summary>
+        private static Rect LabelScene(object w, Rect scene, WidgetControlsDisplay ui)
+        {
+            if (!(w is AeroWidget aw) || aw.DisplayMode != "classic" || string.IsNullOrEmpty(aw.Caption)) return scene;
+            float band = 64f * ui.TextScale;
+            return new Rect(scene.x, scene.y + band, scene.width, Mathf.Max(0f, scene.height - band));
+        }
 
         private sealed class LabelStabilizer
         {
