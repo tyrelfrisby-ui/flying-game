@@ -44,6 +44,8 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>CAPTURE instance (AERO_WIDGET_CAPTURE=1; 2026-10-11, the Talk Flying shot renders): a second widget that
         /// leaves the presenter's alone — its own ports (AERO_WIDGET_PORT, the HTTP port; control = port − 1), no Syphon/NDI, no
         /// Bonjour, no joystick. Its own prefs come from its own bundle id (a copy of the app).</summary>
+        /// <summary>A phase tag drawn big in the classic display ({"cmd":"caption","text":…}); null = none.</summary>
+        public string Caption;
         public static readonly bool Capture = System.Environment.GetEnvironmentVariable("AERO_WIDGET_CAPTURE") == "1";
 
         /// <summary>The widget build (bundle id …aerowidget), or AERO_WIDGET=1 / -aerowidget for testing the game binary.</summary>

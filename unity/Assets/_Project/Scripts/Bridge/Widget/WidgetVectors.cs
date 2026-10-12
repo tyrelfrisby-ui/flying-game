@@ -34,7 +34,7 @@ namespace FlyingGame.Bridge.Widget
 
         public delegate bool ScrFn(Vector3 world, out Vector2 px);
         public static readonly Color Lift = new(0.25f, 1f, 0.35f), Drag = new(1f, 0.3f, 0.25f), Weight = new(1f, 0.9f, 0.2f),
-            Thrust = new(0.35f, 0.6f, 1f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
+            Thrust = new(0.35f, 0.6f, 1f), PathColor = new(1f, 0.85f, 0.2f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
             Inertial = new(1f, 0.82f, 0.2f), TailC = new(0.75f, 0.55f, 1f), TailWindC = new(0.55f, 0.85f, 1f);
 
         private void Start() => _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
@@ -233,10 +233,13 @@ namespace FlyingGame.Bridge.Widget
                     : aw.Current == AeroWidget.Scenario.Spin ? $"YAW {rd.YawRateDps:+0;-0}°/s  ROLL {rd.RollRateDps:+0;-0}°/s"
                     : $"SINK {rd.SinkFpm:F0} fpm  HT {rd.HeightFt:F0} ft{(rd.OnGround ? "  ON THE WHEELS" : "")}";
                 string rev = w.Paused && On("review") ? $"REVIEW {w.Review.OffsetMs / 1000.0:+0.0;-0.0;0.0} s\n" : "";
-                float ty = scene.yMax - 24;
+                float ty = scene.yMax - 24 * ui.TextScale;
                 foreach (var line in (rev + $"{w.AircraftName}   {rd.Kias:F0} KIAS   α {rd.AlphaDeg:F1}°   PITCH {rd.PitchDeg:+0;-0}°\n" + extra).Split('\n'))
-                { ui.PxText(new Vector2(scene.x + 22, ty), line, 19, Color.white, TextAnchor.MiddleLeft); ty -= 24; }
+                { ui.PxText(new Vector2(scene.x + 22, ty), line, 19, Color.white, TextAnchor.MiddleLeft); ty -= 24 * ui.TextScale; }
             }
+            // CAPTION (2026-10-11, the Talk Flying renders): a big phase tag ("CLIMB +700 FPM"), top centre — classic display only.
+            if (w is AeroWidget aw2 && aw2.DisplayMode == "classic" && !string.IsNullOrEmpty(aw2.Caption))
+                ui.PxText(new Vector2(scene.center.x, scene.yMin + 40 * ui.TextScale), aw2.Caption, 28, new Color(1f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
             if (w.VisualScale > 1.01f && Scr(cgU - cam.transform.up * pxM * 40f, out var sp)) _labels.Request("scale", sp, Vector2.zero, $"AIRPLANE ×{w.VisualScale:0}", new Color(1, 1, 1, 0.85f), 0);
             if (!vec) { _labels.Place(ui, scene, cgScr); return; }
 
@@ -266,6 +269,16 @@ namespace FlyingGame.Bridge.Widget
                 _labels.Request(k, Tip(k, windPx, true), Away(Origin(k), Tip(k, windPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
             }
             if (On("wind") && F.ContainsKey("wind")) { Arrow("wind", Wind, windPx, true); _labels.Request("wind", Tip("wind", windPx, true), Away(Origin("wind"), Tip("wind", windPx, true)), new[] { rd.AlphaDeg }, v => $"RELATIVE WIND α {v[0]:0.0}°", Wind, 3, 0.1); }
+            // FLIGHT PATH (2026-10-11, Talk Flying W12): the velocity through the air — exactly opposite the relative wind — from the CG,
+            // labelled with its climb angle γ, so climb / level / descent reads next to the nose.
+            if (On("flightPath") && F.ContainsKey("wind"))
+            {
+                var fw = F["wind"]; F["path"] = (fw.from + new Vec3(0, 0, 1.0), fw.vec * -1.0);   // (a metre below the CG: clear of the wind arrow)
+                Arrow("path", PathColor, windPx * 1.6f);
+                Vector3 pd = Dir(fw.vec * -1.0); float gamma = pd.sqrMagnitude > 1e-8f ? Mathf.Asin(Mathf.Clamp(pd.normalized.y, -1f, 1f)) * Mathf.Rad2Deg : 0f;
+                _labels.Request("path", Tip("path", windPx * 1.6f), Away(Origin("path"), Tip("path", windPx * 1.6f)), new double[] { gamma },
+                    v => v[0] > 0.5 ? $"FLIGHT PATH ↑ {v[0]:0.0}° CLIMB" : v[0] < -0.5 ? $"FLIGHT PATH ↓ {-v[0]:0.0}° DESCENT" : "FLIGHT PATH — LEVEL", PathColor, 2);
+            }
             // Tail winds (length = the local speed: prop blast lengthens, blanketing shortens).
             foreach (var (k, a, eta, nm) in new[] { ("tailWindL", P.TailAlphaL, P.EtaL, "L STAB"), ("tailWindR", P.TailAlphaR, P.EtaR, "R STAB") })
             {

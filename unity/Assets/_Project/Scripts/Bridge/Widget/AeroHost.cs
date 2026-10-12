@@ -154,7 +154,7 @@ namespace FlyingGame.Bridge.Widget
             ["controlsDisplay"] = false, ["controlTraces"] = false, ["horizon"] = true, ["vectors"] = false,
             ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
             ["yawMoment"] = false, ["finForce"] = false, ["bodyAxes"] = false, ["cgnp"] = false,
-            ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["aimPoint"] = false, ["propEffects"] = false,
+            ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["flightPath"] = false, ["aimPoint"] = false, ["propEffects"] = false,
             ["fourForces"] = false, ["earthGrid"] = true,
         };
         /// <summary>EARTH GRID (2026-10-11; owner via Glass): a white-line horizon at eye level and a white ground grid, so the
@@ -183,7 +183,7 @@ namespace FlyingGame.Bridge.Widget
 
         /// <summary>Every switch that draws something on the airframe (FOUR FORCES turns all but its four off).</summary>
         public static readonly string[] VectorKeys = { "lift", "drag", "weight", "thrust", "wind", "total", "axis", "wheels", "strips", "wingWind", "tailWind",
-            "inertial", "tail", "moments", "yawMoment", "finForce", "bodyAxes", "cgnp", "liftComponents", "wingDrag", "groundTrack", "aimPoint", "propEffects" };
+            "inertial", "tail", "moments", "yawMoment", "finForce", "bodyAxes", "cgnp", "liftComponents", "wingDrag", "groundTrack", "flightPath", "aimPoint", "propEffects" };
         public static readonly string[] FourForcesInsets = { "forceBalance", "forceTrend" };
         private Dictionary<string, bool> _beforeFour; private HashSet<string> _insetsBeforeFour;
         /// <summary>FOUR FORCES (owner 2026-10-11): only thrust, lift, weight and drag on the airplane — lift ⟂ and drag ∥ the

@@ -172,7 +172,9 @@ namespace FlyingGame.Bridge.Widget
             if (PitchMode == "alt*" && System.Math.Abs(altErr) < 20 && System.Math.Abs(vs) < 150) PitchMode = "alt";
             // Speed over altitude: too slow (or near the stall) → less climb, even a descent.
             if (PitchMode == "aoa") vsCmd = vs;
-            if (!AllowStall && AutoThrottle && spdErr > 8) vsCmd = System.Math.Min(vsCmd, -(spdErr - 8) * 40);
+            // (Only once the A/T is at full power: before that, power is the speed's job — giving up the climb at 8 kt slow while
+            // the A/T still had throttle in hand made VS + A/T porpoise ±600 fpm; 2026-10-11, the Talk Flying W12 capture.)
+            if (!AllowStall && AutoThrottle && spdErr > 8 && Power > 0.97) vsCmd = System.Math.Min(vsCmd, -(spdErr - 8) * 40);
             if (!AllowStall && r.AlphaDeg > warn) vsCmd = System.Math.Min(vsCmd, -300);
             double q = s.Rates.Y;
             double eCmd = -0.0002 * (vsCmd - vs) + 0.28 * q;   // stick − = pull (nose up); q + = nose-up → damp with push
@@ -231,8 +233,9 @@ namespace FlyingGame.Bridge.Widget
         private void SpeedHold(float dt, double kias)
         {
             double spdErr = Kias - kias;
-            _thrI = System.Math.Clamp(_thrI + 0.006 * spdErr * dt, 0, 1);
-            Power = Mathf.MoveTowards((float)Power, (float)System.Math.Clamp(_thrI + 0.03 * spdErr, 0, 1), dt * 0.25f);
+            // 8 %/kt with a 2 %/kt·s integral (3 %/kt and 0.6 % were too soft: 8 kt slow drew only a quarter of the throttle).
+            _thrI = System.Math.Clamp(_thrI + 0.02 * spdErr * dt, 0, 1);
+            Power = Mathf.MoveTowards((float)Power, (float)System.Math.Clamp(_thrI + 0.08 * spdErr, 0, 1), dt * 0.25f);
             _w.AeroControls.Throttle01 = Power;
         }
 
