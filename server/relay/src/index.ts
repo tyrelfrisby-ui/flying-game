@@ -1,10 +1,15 @@
 /**
  * flyinggame-relay — WebSocket state relay for multiplayer free play.
  *
- * One Durable Object per room, keyed by room code. `ffa` is the giant free-for-all (cap 200);
- * private rooms are 6-char [A-Z0-9] codes (cap 16). No auth, no persistence: the DO fans each
- * pilot's 10 Hz state packet out to everyone else in the room and remembers the last packet per
- * peer for late joiners. Uses the WebSocket Hibernation API so an idle room costs nothing.
+ * One Durable Object per room, keyed by room code. Free-for-all is SHARDED (2026-10-11, the aeroplayground.app
+ * platform): `ffa`, `ffa2` … `ffa10`, CAP_FFA (100) pilots each — GET /rooms/ffa/assign picks the first with room;
+ * private rooms are 6-char [A-Z0-9] codes (cap 16). No auth, no persistence.
+ *
+ * PROTOCOL 2 (?v=2 on the socket): the room keeps each pilot's newest state and, on a 10 Hz TICK, sends each
+ * v2 pilot ONE packet { t:"S", b:[state…] } with the states that changed since the last tick — in a free-for-all
+ * only those within INTEREST_M of that pilot. N pilots cost N sends a tick instead of N² (v1 clients still get
+ * every state as it arrives). "ping" is answered "pong" by the runtime without waking the room.
+ * Uses the WebSocket Hibernation API so an idle room costs nothing.
  *
  * PRIVACY: the published policy (glassoverlay.com/legal/aero-playground-privacy) promises the relay
  * stores and logs nothing. Keep wrangler observability off and never log names, IPs or voice
@@ -14,6 +19,7 @@
  *   POST /rooms                      -> { code }            fresh 6-char private room code
  *   GET  /rooms/{code}/ws?name=&ac=  -> WebSocket upgrade   (code = ffa | [A-Z0-9]{6})
  *   GET  /rooms/{code}               -> { code, pilots }    roster size
+ *   GET  /rooms/ffa/assign           -> { code }            the free-for-all shard to join (503 when all are full)
  *
  * Client -> server
  *   { t:"join", name, ac }                                   optional (name/ac also come via the query)
@@ -24,7 +30,8 @@
  *   { t:"hello", id, peers:[{ id, name, ac, s? }] }          s = that peer's last state, if any
  *   { t:"peer", id, name, ac }                               someone joined
  *   { t:"bye", id }                                          someone left
- *   { t:"s", id, p, q, v, d, f }                             fan-out of a peer's state
+ *   { t:"s", id, p, q, v, d, f }                             fan-out of a peer's state (v1)
+ *   { t:"S", b:[{ id, p, q, v, d, f }…] }                    the tick's states (v2)
  *   { t:"v", id, fq, a, e }                                  voice, only to pilots tuned to the same frequency
  */
 import { DurableObject } from "cloudflare:workers";
@@ -35,7 +42,12 @@ export interface Env {
 
 const FFA = "ffa";
 const CODE_RE = /^[A-Z0-9]{6}$/;
-const CAP_FFA = 200;
+// Measured 2026-10-11 (test/load.mjs, live): one shard holds a 10 Hz tick with 100 pilots all in one 20 km area
+// (p50 ≈ 150 ms). 10 shards × 100 = the 1,000-pilot target; pilots in different shards don't see each other.
+const FFA_SHARDS = ["ffa", "ffa2", "ffa3", "ffa4", "ffa5", "ffa6", "ffa7", "ffa8", "ffa9", "ffa10"];
+const CAP_FFA = 100;
+const TICK_MS = 100;
+const INTEREST_M = 40000;          // free-for-all: states of pilots within 40 km (positions are metres)
 const CAP_PRIVATE = 16;
 const RATE_LIMIT_PER_SEC = 20; // >= this many messages in a 1 s window -> drop
 const MAX_MSG_BYTES = 1024;
@@ -46,7 +58,8 @@ const DEFAULT_FREQ = "122.80";
 const MAX_NAME = 16;
 const MAX_AC = 40;
 
-interface PeerMeta { id: string; name: string; ac: string; fq?: string }
+interface PeerMeta { id: string; name: string; ac: string; fq?: string; v?: number; r?: string }
+interface StateRec { json: string; p: number[]; seq: number }
 interface RateWindow { start: number; count: number }
 
 function randomCode(): string {
@@ -65,21 +78,73 @@ function clean(v: unknown, max: number, fallback: string): string {
 
 export class Room extends DurableObject<Env> {
   /** Last state packet per peer id (in-memory only; rebuilt from traffic after hibernation). */
-  private lastState = new Map<string, string>();
+  private lastState = new Map<string, StateRec>();
+  private dirty = new Set<string>();
+  private ticker: ReturnType<typeof setInterval> | null = null;
+  private tickNo = 0;
+  /** Socket metadata, cached (the attachment is the source of truth across hibernation). */
+  private metas = new Map<WebSocket, PeerMeta>();
+  /** v2: per recipient, the seq of each peer's state last sent to it. */
+  private sentSeq = new Map<string, Map<string, number>>();
+
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+  }
+
+  /** v2: one packet per pilot per tick with the peers' new states — and, in a free-for-all, at a rate by distance
+   *  (LEVEL OF DETAIL, as MMOs do): within 3 km every tick (10 Hz), within 10 km every 3rd, within 40 km every 10th,
+   *  beyond that none. A tick sends only states newer than the last one this pilot was sent. */
+  private tick(): void {
+    const socks = this.roster();
+    if (socks.length === 0) { if (this.ticker) { clearInterval(this.ticker); this.ticker = null; } return; }
+    if (this.dirty.size === 0 && this.tickNo % 10 !== 0) { this.tickNo++; return; }
+    this.dirty.clear();
+    const n = this.tickNo++;
+    const ffa = (socks[0].meta.r ?? "").startsWith("ffa");
+    const all = [...this.lastState];
+    for (const { ws, meta } of socks) {
+      if (meta.v !== 2) continue;
+      let sent = this.sentSeq.get(meta.id);
+      if (!sent) { sent = new Map(); this.sentSeq.set(meta.id, sent); }
+      const me = this.lastState.get(meta.id)?.p;
+      const parts: string[] = [];
+      let k = 0;
+      for (const [id, r] of all) {
+        k++;
+        if (id === meta.id || sent.get(id) === r.seq) continue;
+        if (ffa && me && me.length === 3 && r.p.length === 3) {
+          const dx = r.p[0] - me[0], dy = r.p[1] - me[1], dz = r.p[2] - me[2], d2 = dx * dx + dy * dy + dz * dz;
+          const period = d2 < 3000 * 3000 ? 1 : d2 < 10000 * 10000 ? 3 : d2 < INTEREST_M * INTEREST_M ? 10 : 0;
+          if (period === 0 || (n + k) % period !== 0) continue;
+        }
+        sent.set(id, r.seq);
+        parts.push(r.json);
+      }
+      if (parts.length) this.send(ws, `{"t":"S","b":[${parts.join(",")}]}`);
+    }
+  }
+  private ensureTicker(): void { if (!this.ticker) this.ticker = setInterval(() => this.tick(), TICK_MS); }
   private rate = new WeakMap<WebSocket, RateWindow>();
   private voiceRate = new WeakMap<WebSocket, RateWindow>();
 
-  /** Per-socket fixed 1 s window: false once this socket has sent `limit` messages in the window. */
+  /** Per-socket TOKEN BUCKET: `limit` messages of burst, refilled at `limit` per second (a fixed window let a burst
+   *  straddling its edge through at twice the rate). */
   private allow(map: WeakMap<WebSocket, RateWindow>, ws: WebSocket, limit: number): boolean {
     const now = Date.now();
-    let win = map.get(ws);
-    if (!win || now - win.start >= 1000) { win = { start: now, count: 0 }; map.set(ws, win); }
-    return ++win.count < limit;
+    let b = map.get(ws);
+    if (!b) { b = { start: now, count: limit }; map.set(ws, b); }   // (start = last refill, count = tokens)
+    b.count = Math.min(limit, b.count + ((now - b.start) * limit) / 1000); b.start = now;
+    if (b.count < 1) return false;
+    b.count -= 1; return true;
   }
 
   private meta(ws: WebSocket): PeerMeta | null {
-    try { return (ws.deserializeAttachment() as PeerMeta) ?? null; } catch { return null; }
+    const c = this.metas.get(ws);
+    if (c) return c;
+    try { const m = (ws.deserializeAttachment() as PeerMeta) ?? null; if (m) this.metas.set(ws, m); return m; } catch { return null; }
   }
+  private setMeta(ws: WebSocket, m: PeerMeta): void { ws.serializeAttachment(m); this.metas.set(ws, m); }
 
   private roster(): { ws: WebSocket; meta: PeerMeta }[] {
     const out: { ws: WebSocket; meta: PeerMeta }[] = [];
@@ -103,7 +168,7 @@ export class Room extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const code = url.searchParams.get("code") ?? "";
-    const cap = code === FFA ? CAP_FFA : CAP_PRIVATE;
+    const cap = FFA_SHARDS.includes(code) ? CAP_FFA : CAP_PRIVATE;
 
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return Response.json({ code, pilots: this.ctx.getWebSockets().length, cap });
@@ -116,21 +181,25 @@ export class Room extends DurableObject<Env> {
       id: crypto.randomUUID().slice(0, 8),
       name: clean(url.searchParams.get("name"), MAX_NAME, "Pilot"),
       ac: clean(url.searchParams.get("ac"), MAX_AC, "glider-2-33-like"),
+      v: url.searchParams.get("v") === "2" ? 2 : 1,
+      r: code,
     };
 
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    server.serializeAttachment(meta);
+    this.setMeta(server, meta);
     this.ctx.acceptWebSocket(server, [meta.id]);
 
     const peers = this.roster()
       .filter((p) => p.ws !== server)
       .map((p) => {
         const s = this.lastState.get(p.meta.id);
-        return s ? { ...p.meta, s: JSON.parse(s) } : p.meta;
+        const { v, r, ...pub } = p.meta;
+        return s ? { ...pub, s: JSON.parse(s.json) } : pub;
       });
-    this.send(server, JSON.stringify({ t: "hello", id: meta.id, room: code, peers }));
-    this.broadcast(JSON.stringify({ t: "peer", ...meta }), server);
+    this.send(server, JSON.stringify({ t: "hello", id: meta.id, room: code, peers, tick: TICK_MS }));
+    this.broadcast(JSON.stringify({ t: "peer", id: meta.id, name: meta.name, ac: meta.ac }), server);
+    if (meta.v === 2) this.ensureTicker();
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -152,9 +221,13 @@ export class Room extends DurableObject<Env> {
 
     switch (msg.t) {
       case "s": {
+        const p = Array.isArray(msg.p) ? msg.p.slice(0, 3).map(Number) : [];
         const out = JSON.stringify({ t: "s", id: meta.id, p: msg.p, q: msg.q, v: msg.v, d: msg.d, f: msg.f });
-        this.lastState.set(meta.id, out);
-        this.broadcast(out, ws);
+        this.lastState.set(meta.id, { json: out, p, seq: (this.lastState.get(meta.id)?.seq ?? 0) + 1 });
+        this.dirty.add(meta.id);
+        // v1 pilots get it now; v2 pilots on the tick.
+        for (const o of this.roster()) if (o.ws !== ws && o.meta.v !== 2) this.send(o.ws, out);
+        this.ensureTicker();
         break;
       }
       case "join": {
@@ -164,16 +237,18 @@ export class Room extends DurableObject<Env> {
           name: clean(msg.name, MAX_NAME, meta.name),
           ac: clean(msg.ac, MAX_AC, meta.ac),
           fq: meta.fq,
+          v: meta.v,
+          r: meta.r,
         };
         if (next.name !== meta.name || next.ac !== meta.ac) {
-          ws.serializeAttachment(next);
-          this.broadcast(JSON.stringify({ t: "peer", ...next }), ws);
+          this.setMeta(ws, next);
+          this.broadcast(JSON.stringify({ t: "peer", id: next.id, name: next.name, ac: next.ac }), ws);
         }
         break;
       }
       case "tune": {
         const fq = clean(msg.fq, MAX_FREQ, DEFAULT_FREQ);
-        if (fq !== meta.fq) ws.serializeAttachment({ ...meta, fq });
+        if (fq !== meta.fq) this.setMeta(ws, { ...meta, fq });
         break;
       }
       case "v": {
@@ -204,6 +279,10 @@ export class Room extends DurableObject<Env> {
     const meta = this.meta(ws);
     if (!meta) return;
     this.lastState.delete(meta.id);
+    this.dirty.delete(meta.id);
+    this.sentSeq.delete(meta.id);
+    for (const m of this.sentSeq.values()) m.delete(meta.id);
+    this.metas.delete(ws);
     this.broadcast(JSON.stringify({ t: "bye", id: meta.id }), ws);
   }
 }
@@ -230,8 +309,19 @@ export default {
       return json({ code: randomCode() });
     }
 
-    const code = parts[1].toUpperCase() === FFA.toUpperCase() ? FFA : parts[1].toUpperCase();
-    if (code !== FFA && !CODE_RE.test(code)) return json({ error: "bad room code" }, 400);
+    const lower = parts[1].toLowerCase();
+    // GET /rooms/ffa/assign -> the first free-for-all shard with room.
+    if (lower === FFA && parts.length === 3 && parts[2] === "assign") {
+      for (const shard of FFA_SHARDS) {
+        const u = new URL(request.url); u.pathname = `/rooms/${shard}`; u.searchParams.set("code", shard);
+        const r = await env.ROOM.getByName(shard).fetch(new Request(u));
+        const j = (await r.json()) as { pilots: number };
+        if (j.pilots < CAP_FFA - 2) return json({ code: shard, pilots: j.pilots, cap: CAP_FFA });
+      }
+      return json({ error: "all free-for-all shards are full" }, 503);
+    }
+    const code = FFA_SHARDS.includes(lower) ? lower : parts[1].toUpperCase();
+    if (!FFA_SHARDS.includes(code) && !CODE_RE.test(code)) return json({ error: "bad room code" }, 400);
 
     const stub = env.ROOM.getByName(code);
     const forward = new URL(request.url);

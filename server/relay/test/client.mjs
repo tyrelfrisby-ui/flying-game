@@ -9,13 +9,13 @@ const http = base.replace(/^ws/, "http");
 function fail(msg) { console.error("FAIL:", msg); process.exit(1); }
 function ok(msg) { console.log("ok  -", msg); }
 
-function connect(code, name, ac) {
+function connect(code, name, ac, extra = "") {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${base}/rooms/${code}/ws?name=${encodeURIComponent(name)}&ac=${encodeURIComponent(ac)}`);
+    const ws = new WebSocket(`${base}/rooms/${code}/ws?name=${encodeURIComponent(name)}&ac=${encodeURIComponent(ac)}${extra}`);
     const inbox = [];
     const waiters = [];
     ws.onmessage = (e) => {
-      const m = JSON.parse(e.data);
+      let m; try { m = JSON.parse(e.data); } catch { m = { t: "raw", data: e.data }; }
       const i = waiters.findIndex((w) => w.pred(m));
       if (i >= 0) waiters.splice(i, 1)[0].resolve(m); else inbox.push(m);
     };
@@ -121,12 +121,14 @@ try {
   ok(`voice budget: ${vn}/12 packets relayed alongside state`);
   c.inbox.length = 0; a.inbox.length = 0; b.inbox.length = 0;
 
-  // Rate limit: 40 msgs in a burst -> B sees fewer than 20 of them.
-  for (let i = 0; i < 40; i++) a.send(state(100 + i));
+  // Rate limit (token bucket, 20/s): 2 s of 40 msgs/s -> about 20/s get through (20 of burst + 20/s refill ≈ 60 of 80).
+  const tb = Date.now();
+  for (let i = 0; i < 80; i++) { a.send(state(100 + i)); await new Promise((r) => setTimeout(r, 25)); }
+  const sendS = (Date.now() - tb) / 1000, expect = Math.min(80, 20 + 20 * sendS);
   await new Promise((r) => setTimeout(r, 500));
   const burst = b.inbox.filter((m) => m.t === "s" && m.id === helloA.id && m.p[0] >= 100).length;
-  if (burst >= 20) fail(`rate limit not applied: ${burst} relayed`);
-  ok(`rate limit: ${burst}/40 burst messages relayed`);
+  if (burst > expect + 8 || burst < 20) fail(`rate limit wrong: ${burst}/80 relayed over ${sendS.toFixed(2)} s (expect ~${expect.toFixed(0)})`);
+  ok(`rate limit: ${burst}/80 relayed over ${sendS.toFixed(2)} s (bucket expects ~${expect.toFixed(0)})`);
 
   // Leave: A closes, B and C get bye.
   a.ws.close();
@@ -135,6 +137,34 @@ try {
   ok("A left; B and C got bye");
 
   b.ws.close(); c.ws.close();
+
+  // ---- PROTOCOL 2: free-for-all shard assignment, tick batches, interest radius, keepalive.
+  const as = await (await fetch(`${http}/rooms/ffa/assign`)).json();
+  if (!/^ffa\d*$/.test(as.code ?? "")) fail(`assign gave ${JSON.stringify(as)}`);
+  ok(`GET /rooms/ffa/assign -> ${as.code} (${as.pilots}/${as.cap})`);
+  const shard = as.code;
+  const x = await connect(shard, "X2", "extra-300-like", "&v=2");
+  const hx = await x.expect((m) => m.t === "hello", "hello(X)");
+  if (hx.tick !== 100) fail("v2 hello lacks tick");
+  const y = await connect(shard, "Y2", "c172-like", "&v=2");
+  const hy = await y.expect((m) => m.t === "hello", "hello(Y)");
+  const far = await connect(shard, "Far", "c172-like", "&v=2");
+  const hf = await far.expect((m) => m.t === "hello", "hello(Far)");
+  const st = (px) => ({ t: "s", p: [px, 600, 0], q: [0, 0, 0, 1], v: [30, 0, 0], d: [0, 0, 0, 0, 0], f: { w: 0, o: 0 } });
+  far.send(st(100000)); x.send(st(0)); y.send(st(500));
+  await new Promise((r) => setTimeout(r, 150));
+  for (let i = 0; i < 5; i++) { x.send(st(10 * i)); y.send(st(500 + 10 * i)); far.send(st(100000 + i)); await new Promise((r) => setTimeout(r, 50)); }
+  const batch = await y.expect((m) => m.t === "S" && m.b.some((s) => s.id === hx.id), "S batch with X (Y)");
+  if (batch.b.some((s) => s.id === hy.id)) fail("batch echoed Y's own state");
+  await new Promise((r) => setTimeout(r, 400));
+  const ys = [batch, ...y.inbox.filter((m) => m.t === "S")];
+  if (ys.some((m) => m.b.some((s) => s.id === hf.id))) fail("interest: Y (near 0) got Far (100 km) states");
+  if (y.inbox.some((m) => m.t === "s")) fail("v2 pilot got v1 per-message states");
+  ok(`v2: ${ys.length} tick batches to Y in ~0.6 s; X in, Far (100 km) out, no self-echo`);
+  x.ws.send("ping");
+  await x.expect((m) => m.t === "raw" && m.data === "pong", "pong");
+  ok("ping -> pong (keepalive)");
+  x.ws.close(); y.ws.close(); far.ws.close();
   console.log("PASS");
   process.exit(0);
 } catch (e) {
