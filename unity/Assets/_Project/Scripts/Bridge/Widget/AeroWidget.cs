@@ -205,6 +205,7 @@ namespace FlyingGame.Bridge.Widget
             AltLock = sc == Scenario.Spin; if (sc == Scenario.Spin) AltLockFt = SpinLockFt;
             Atmosphere.Thermals.Clear(); Atmosphere.ThermalStrengthScale = 0;
             Flight++; AltShiftM = 0;
+            Tow?.Stop();
             Current = sc; Condition = null; _jetFinalThr = -1; bool approachFlaps = flaps < 0; Flaps = System.Math.Clamp(flaps, 0, 1);
             bool newConfig = aircraftId != AircraftId || Config == null;
             Autopilot?.Off();
@@ -501,6 +502,11 @@ namespace FlyingGame.Bridge.Widget
             _smoke.SetExhausts(ex);
         }
 
+        /// <summary>The aerotow (WidgetTow): the game's rope and tug pilot, hooked up in the air.</summary>
+        private WidgetTow _tow;
+        public WidgetTow Tow => _tow ??= new WidgetTow(this);
+        public int VisualLayer => _visualRoot != null ? _visualRoot.gameObject.layer : 0;
+
         // ---- SMOKE (owner 2026-10-11, the Talk Flying outro) ----
         private SmokeTrail _smoke;
         /// <summary>Which start this is (the smoke never joins one flight's path to the next).</summary>
@@ -616,6 +622,7 @@ namespace FlyingGame.Bridge.Widget
                 }
             }
             Controls.ApplyLevers(Ac, dt);
+            Tow.Step(dt);   // the rope's pull and the tug, before the glider's step
             _sim.RunFor(dt, inputs);
             if (_flare != null) _flare.ConstrainLongitudinal(Ac);
             else if (AltLock) ApplyAltitudeLock();
@@ -637,6 +644,7 @@ namespace FlyingGame.Bridge.Widget
             PlaceCamera(Ac.State);
             ApplyVisualScale();
             ShowSmoke(-1);
+            Tow.Show(Tow.Active ? Tow.Tug.State : (RigidBodyState?)null, Tow.Connected, Ac.State, Vec3.Zero);
         }
 
         /// <summary>Parts the physics has broken off (a hard landing folds a gear leg, a ground strike takes a wing): the game's
@@ -677,6 +685,7 @@ namespace FlyingGame.Bridge.Widget
             PlaceCamera(f.State);
             ApplyVisualScale();
             ShowSmoke(Review.Index);
+            Tow.Show(f.TugState, f.RopeOn, f.State, Vec3.Zero);
         }
 
 

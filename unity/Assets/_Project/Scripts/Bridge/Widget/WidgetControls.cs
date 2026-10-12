@@ -57,6 +57,7 @@ namespace FlyingGame.Bridge.Widget
         public const float HandoverEase = 0.3f, HandoverWait = 2f, BannerSeconds = 2.5f;
 
         public void SetTrimStick(double stick) { _trimStick = stick; Elevator = stick; }
+        public double TrimStick => _trimStick;
         /// <summary>Cruise (protocol 5): the aileron and rudder that hold it straight at 75 % power (torque, P-factor) — where
         /// the stick and pedals go back to when let go, like a rudder trim tab.</summary>
         public void SetLateralTrim(double ail, double rud) { _trimAil = ail; _trimRud = rud; Aileron = ail; Rudder = rud; }

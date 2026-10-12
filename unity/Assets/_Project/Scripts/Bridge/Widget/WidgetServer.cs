@@ -449,6 +449,11 @@ namespace FlyingGame.Bridge.Widget
                 case "wind":
                     w.SetWind(j["fromDeg"]?.Value<double>() ?? w.WindFromDeg, j["kt"]?.Value<double>() ?? w.WindKt);
                     ok["fromDeg"] = w.WindFromDeg; ok["kt"] = w.WindKt; break;
+                case "tow":
+                    // The aerotow (2026-10-11): {"cmd":"tow","on":true} hooks the tug up ahead; "release":true pulls the knob.
+                    if (j["release"]?.Value<bool>() ?? false) w.Tow.Release();
+                    else if (j["on"]?.Value<bool>() ?? true) w.Tow.Start(); else w.Tow.Stop();
+                    ok["tow"] = w.Tow.Active; ok["rope"] = w.Tow.Connected; break;
                 case "smoke":
                     w.Show["smoke"] = j["on"]?.Value<bool>() ?? true; ok["smoke"] = w.Show["smoke"]; break;
                 case "thermal":
@@ -534,6 +539,9 @@ namespace FlyingGame.Bridge.Widget
                     ok["place"] = w.ControlsPlace; ok["size"] = w.ControlsSize; ok["shown"] = w.Show["controlsDisplay"]; break;
                 }
                 case "preset":
+                    if (j["towHeightGain"] != null) w.Presets.TowHeightGain = Mathf.Clamp(j["towHeightGain"].Value<float>(), 0f, 2f);
+                    if (j["towPathGain"] != null) w.Presets.TowPathGain = Mathf.Clamp(j["towPathGain"].Value<float>(), 0.05f, 4f);
+                    if (j["releaseAfterS"] != null) w.Presets.ReleaseAfterS = Mathf.Clamp(j["releaseAfterS"].Value<float>(), 2f, 120f);
                     if (j["pivotKias"] != null) w.Presets.PivotKias = Mathf.Clamp(j["pivotKias"].Value<float>(), 30f, 120f);   // (hammerhead)
                     if (!w.Presets.Run((string)j["name"] ?? "")) { ok["ok"] = false; ok["error"] = "unknown preset"; }
                     break;
@@ -601,7 +609,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""views"":[""side"",""chase"",""behind"",""front"",""top"",""crowd""],""default"":""side""},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "smoke", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "smoke", "tow", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets), WidgetPresets.AeroPresets));
@@ -838,6 +846,8 @@ namespace FlyingGame.Bridge.Widget
             {
                 ["ok"] = true, ["type"] = "state", ["scenario"] = w.Current.ToString().ToLowerInvariant(), ["aircraft"] = w.AircraftId, ["flaps"] = w.Flaps,
                 ["paused"] = w.Paused, ["timescale"] = w.TimeScale, ["view"] = w.View, ["viewFrom"] = w.ViewFrom, ["preset"] = w.Presets.Running, ["source"] = c.SourceLabel,
+                ["tow"] = w.Tow.Active ? new JObject { ["rope"] = w.Tow.Connected, ["tensionN"] = w.Tow.Rope.Tension, ["sever"] = w.Tow.Rope.SeverReason, ["tugPhase"] = w.Tow.Pilot.Status,
+                    ["tugKts"] = w.Tow.Tug.State.Velocity.Length * 1.94384, ["ropeM"] = (w.Tow.Rope.TugHookWorld - w.Tow.Rope.GliderHookWorld).Length, ["tugAboveM"] = -w.Tow.Tug.State.Position.Z + w.Ac.State.Position.Z } : null,
                 ["kias"] = r.Kias, ["ktas"] = r.Ktas, ["alpha"] = r.AlphaDeg, ["beta"] = r.BetaDeg, ["q"] = r.Q,
                 ["pitch"] = r.PitchDeg, ["roll"] = r.RollDeg, ["heading"] = r.HeadingDeg, ["sinkFpm"] = r.SinkFpm, ["heightFt"] = r.HeightFt,
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,

@@ -20,7 +20,11 @@ namespace FlyingGame.Bridge.Widget
         public AeroWidget Widget;
         public static readonly string[] SpinPresets = { "spin-entry", "spin-developed", "spin-recovery" };
         public static readonly string[] FlarePresets = { "flare-demo", "flare-hands-off" };
-        public static readonly string[] AeroPresets = { "hammerhead" };
+        public static readonly string[] AeroPresets = { "hammerhead", "tow-release" };
+        /// <summary>The tow-release preset: seconds on tow before the glider pulls the release.</summary>
+        public float ReleaseAfterS = 12f;
+        /// <summary>High-tow law: height error → climb-rate correction (1/s), and flight-path error → pitch rate (1/s).</summary>
+        public float TowHeightGain = 0.15f, TowPathGain = 0.4f;   // soft: the tug's own speed cycle bows the rope a metre or two, no snatch
         public string Running { get; private set; }
         public bool FlareDemo => Running == "flare-demo";
         private float _t; private int _stage; private int _next;
@@ -43,12 +47,14 @@ namespace FlyingGame.Bridge.Widget
             bool aero = System.Array.IndexOf(AeroPresets, name) >= 0;
             if (!spin && !flare && !aero) return false;
             if (aero && Widget.Current != AeroWidget.Scenario.Cruise) Widget.Load(AeroWidget.Scenario.Cruise, Widget.AircraftId, 0);
+            if (name == "tow-release" && !Widget.Tow.Active) Widget.Tow.Start();
             if (spin && Widget.Current != AeroWidget.Scenario.Spin) Widget.Load(AeroWidget.Scenario.Spin, Widget.AircraftId, Widget.Flaps);
             if (flare && Widget.Current != AeroWidget.Scenario.Flare) Widget.Load(AeroWidget.Scenario.Flare, Widget.AircraftId, Widget.Flaps);
             // A flare preset restarts the approach — on FINAL it restarts FINAL (its 300 ft start, its runway, the view in use).
             if (flare && Widget.Condition == "final") Widget.StartCondition("final", Widget.AircraftId, Widget.View, null);
             else if (name == "spin-entry" || name == "spin-developed" || name.StartsWith("flare")) Widget.Load(Widget.Current, Widget.AircraftId, Widget.Flaps);
             Running = name; _stage = 0; _t = 0; _nzI = 0; _ailI = 0;
+            if (name == "tow-release") _nzI = (float)Widget.Controls.TrimStick;   // on tow from the trimmed stick (WidgetTow.Start)
             var c = Widget.Controls;
             if (name == "flare-hands-off") { c.ElevatorFree = true; c.Elevator = 0; }
             if (name == "spin-developed")
@@ -89,7 +95,58 @@ namespace FlyingGame.Bridge.Widget
                 case "flare-hands-off":
                     c.ElevatorFree = true; break;
                 case "hammerhead": Hammerhead(c, rd, dt); break;
+                case "tow-release": TowRelease(c, rd, dt); break;
             }
+        }
+
+        /// <summary>TOW, THEN RELEASE (the outro): the glider flown in HIGH TOW — a few metres above the tug, on its track — then
+        /// the yellow knob and the classic clearing turn: a climbing turn to the RIGHT (the tug goes left), held at 50 kt.
+        /// Stick and rudder only; the rope and the tug are the game's own physics.</summary>
+        private void TowRelease(WidgetControls c, AeroHost.Readout rd, float dt)
+        {
+            var tow = Widget.Tow; var s = Widget.Ac.State;
+            var wing = s.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(0, 1, 0));
+            float tilt = Mathf.Asin(Mathf.Clamp((float)wing.Z, -1f, 1f));
+            float p = (float)s.Rates.X, q = (float)s.Rates.Y, r = (float)s.Rates.Z, alpha = (float)rd.AlphaDeg;
+            // Firmer than the hammerhead's: the 2-33's long span overbanks in a turn (the outer wing faster) and must be held off.
+            float Bank(float deg) { _ailI = Mathf.Clamp(_ailI - dt * 0.6f * (tilt - deg * Mathf.Deg2Rad), -0.3f, 0.3f); return Mathf.Clamp(_ailI + 0.15f * (-14f * (tilt - deg * Mathf.Deg2Rad) - 2f * p), -0.7f, 0.7f); }
+            float Rate(float qCmd)
+            {
+                if (alpha > 12f) qCmd = Mathf.Min(qCmd, -(alpha - 12f) * 2f * Mathf.Deg2Rad);
+                float e = q - qCmd;
+                _nzI = Mathf.Clamp(_nzI + dt * 0.8f * e, -0.9f, 0.5f);
+                return Mathf.Clamp(_nzI + 0.25f * e, -1f, 1f);
+            }
+            var vW = s.Attitude.Rotate(s.Velocity);
+            float v = Mathf.Max(15f, (float)vW.Length), vs = (float)-vW.Z;
+            c.Throttle01 = 0;
+            if (_stage == 0)
+            {
+                if (!tow.Active) { Running = null; return; }
+                var t = tow.Tug.State; var tv = t.Attitude.Rotate(t.Velocity);
+                var tf = new FlyingGame.Core.MathTypes.Vec3(tv.X, tv.Y, 0); tf = tf * (1.0 / System.Math.Max(1e-3, tf.Length));
+                var right = new FlyingGame.Core.MathTypes.Vec3(-tf.Y, tf.X, 0);
+                var rel = s.Position - t.Position;
+                float lat = (float)(rel.X * right.X + rel.Y * right.Y), latV = (float)((vW.X - tv.X) * right.X + (vW.Y - tv.Y) * right.Y);
+                float hErr = (float)((-t.Position.Z + 3.0) - -s.Position.Z);        // high tow: 3 m above the tug
+                // Fly the tug's flight path, plus a gentle correction toward the slot (a hard height loop porpoised the glider:
+                // slack, snatch, weak link).
+                float vsWant = Mathf.Clamp(TowHeightGain * hErr, -1.5f, 1.5f) + (float)-tv.Z;
+                c.Elevator = Rate(TowPathGain * (vsWant - vs) / v);
+                c.Aileron = Bank(Mathf.Clamp(-1.2f * lat - 3f * latV, -20f, 20f));
+                c.Rudder = Mathf.Clamp(-0.3f * r, -0.3f, 0.3f);
+                if (_t > ReleaseAfterS) { tow.Release(); _stage = 1; _t = 0; }
+            }
+            else if (_stage == 1)
+            {
+                // The clearing turn: 30° right, climbing on the energy of the tow, settling at 50 kt.
+                // Rolled in at 10°/s (a step to 30° overbanked to 42°), and the pull for the bank it actually has.
+                c.Aileron = Bank(Mathf.Min(30f, 10f * _t)); c.Rudder = Mathf.Clamp(-0.3f * r + 0.05f, -0.3f, 0.3f);
+                float phi = Mathf.Clamp(tilt, -0.8f, 0.8f);
+                c.Elevator = Rate(Mathf.Clamp(0.004f * ((float)rd.Kias - 50f), -0.15f, 0.3f) + 9.81f * Mathf.Tan(phi) * Mathf.Sin(phi) / v);
+                if (_t > 10f) { _stage = 2; _t = 0; }
+            }
+            else { c.Aileron = Bank(0f); c.Elevator = Rate(Mathf.Clamp(0.004f * ((float)rd.Kias - 50f), -0.15f, 0.3f)); c.Rudder = 0; if (_t > 3f) Running = null; }
         }
 
         /// <summary>The hammerhead, flown on the airplane's true attitude (no Euler angles — they fold at the vertical): the nose's

@@ -26,6 +26,7 @@ namespace FlyingGame.Bridge.Widget
             public Vector3 CamPos; public Quaternion CamRot; public bool Ortho; public float OrthoSize, Fov;
             public double SimTime;
             public double AltShift; public float SmokeFlow; public int Flight;   // (the smoke: the lock's shift, the oil flow, which start)
+            public RigidBodyState? TugState; public bool RopeOn;                 // (the aerotow: the tug, and whether the rope is on)
             // Protocol 4 inputs (filled when present).
             public double FlapsCmd, FlapsActual, Spoilers, BrakeL, BrakeR; public bool SpoilersArmed; public string Gear = "fixed", GearLights = "down";
             public double[] EngineThr;
@@ -107,6 +108,7 @@ namespace FlyingGame.Bridge.Widget
                 CamPos = cam.transform.position, CamRot = cam.transform.rotation, Ortho = cam.orthographic, OrthoSize = cam.orthographicSize, Fov = cam.fieldOfView,
                 SimTime = _simTime,
                 AltShift = _w.AltShiftM, SmokeFlow = _w.SmokeFlow, Flight = _w.Flight,
+                TugState = _w.Tow.Active ? _w.Tow.Tug.State : (RigidBodyState?)null, RopeOn = _w.Tow.Connected,
             };
             c.FillSnap(s);
             return s;
