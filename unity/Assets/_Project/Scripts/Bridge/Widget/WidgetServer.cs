@@ -473,7 +473,9 @@ namespace FlyingGame.Bridge.Widget
                     // Protocol 7: line width (×) and the drawing filter's time constant.
                     if (j["width"] != null) w.Vectors.WidthScale = Mathf.Clamp((float)j["width"].Value<double>(), 1f, 3f);
                     if (j["smoothingMs"] != null) w.Vectors.SmoothingMs = Mathf.Clamp((float)j["smoothingMs"].Value<double>(), 0f, 400f);
-                    ok["width"] = w.Vectors.WidthScale; ok["smoothingMs"] = w.Vectors.SmoothingMs; break;
+                    // labelScale (2026-10-11, the Talk Flying renders): the vector labels' text size (×, 1…3) so they read keyed over a show.
+                    if (j["labelScale"] != null && w.Display != null) w.Display.TextScale = Mathf.Clamp((float)j["labelScale"].Value<double>(), 1f, 3f);
+                    ok["width"] = w.Vectors.WidthScale; ok["smoothingMs"] = w.Vectors.SmoothingMs; ok["labelScale"] = w.Display != null ? w.Display.TextScale : 1f; break;
                 case "display":
                 {
                     // Protocol 6: "ntsb" (instrument plates below the airplane, all on transparency) or "classic".

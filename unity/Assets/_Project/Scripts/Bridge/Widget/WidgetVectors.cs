@@ -505,9 +505,12 @@ namespace FlyingGame.Bridge.Widget
                     st.Has = true;
                     st.Alpha = paused ? 1f : Mathf.MoveTowards(st.Alpha, 1f, dt / 0.25f);
                     var c = r.c; c.a *= st.Alpha;
-                    var drawn = new Vector2(Mathf.Round(st.Pos.x), Mathf.Round(st.Pos.y));
                     // Leader: from the label's near edge to the arrow's tip.
-                    float tw = st.Text.Length * 17f * ui.TextScale * 0.53f;
+                    float tw = st.Text.Length * 17f * ui.TextScale * 0.53f, th = 17f * ui.TextScale;
+                    // Whole text inside the picture (a scaled label at an edge slot ran off the frame).
+                    float px = Mathf.Clamp(st.Pos.x, scene.xMin + tw * 0.5f + 6f, Mathf.Max(scene.xMin + tw * 0.5f + 6f, scene.xMax - tw * 0.5f - 6f));
+                    float py = Mathf.Clamp(st.Pos.y, scene.yMin + th * 0.6f + 4f, Mathf.Max(scene.yMin + th * 0.6f + 4f, scene.yMax - th * 0.6f - 4f));
+                    var drawn = new Vector2(Mathf.Round(px), Mathf.Round(py));
                     Vector2 edge = drawn + new Vector2(Mathf.Clamp(r.anchor.x - drawn.x, -tw * 0.5f, tw * 0.5f), Mathf.Clamp(r.anchor.y - drawn.y, -11f, 11f));
                     if ((r.anchor - edge).magnitude > 14f) ui.PxLeader(edge, r.anchor, new Color(c.r, c.g, c.b, 0.5f * c.a));
                     ui.PxText(drawn, st.Text, 17f, c, TextAnchor.MiddleCenter);
