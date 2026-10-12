@@ -449,6 +449,9 @@ namespace FlyingGame.Bridge.Widget
                 case "wind":
                     w.SetWind(j["fromDeg"]?.Value<double>() ?? w.WindFromDeg, j["kt"]?.Value<double>() ?? w.WindKt);
                     ok["fromDeg"] = w.WindFromDeg; ok["kt"] = w.WindKt; break;
+                case "thermal":
+                    w.SetThermal(j["on"]?.Value<bool>() ?? true, (j["climbKt"]?.Value<double>() ?? 6) / 1.943844, j["radiusM"]?.Value<double>() ?? 150);
+                    ok["thermal"] = w.ThermalOn; break;
                 case "inset":
                 {
                     string n = (string)j["name"];
@@ -595,7 +598,7 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
                     ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));

@@ -189,6 +189,7 @@ namespace FlyingGame.Bridge.Widget
         {
             // Altitude lock: ON in the spin at 5,000 ft AGL, OFF elsewhere (each start sets its default).
             AltLock = sc == Scenario.Spin; if (sc == Scenario.Spin) AltLockFt = SpinLockFt;
+            Atmosphere.Thermals.Clear(); Atmosphere.ThermalStrengthScale = 0;
             Current = sc; Condition = null; _jetFinalThr = -1; bool approachFlaps = flaps < 0; Flaps = System.Math.Clamp(flaps, 0, 1);
             bool newConfig = aircraftId != AircraftId || Config == null;
             Autopilot?.Off();
@@ -637,6 +638,22 @@ namespace FlyingGame.Bridge.Widget
             double toRad = (fromDeg + 180) * System.Math.PI / 180, ms = kt / 1.943844;
             Atmosphere.SteadyWind = new Vec3(System.Math.Cos(toRad) * ms, System.Math.Sin(toRad) * ms, 0);
         }
+        /// <summary>A THERMAL (owner 2026-10-11, the soaring shots): the sim core's own thermal — a Gaussian core with its ring of
+        /// compensating sink, the model the game's soaring uses — centred on the circle the aircraft is turning now (straight
+        /// flight: under the aircraft). Off on every start.</summary>
+        public bool ThermalOn => Atmosphere.Thermals.Count > 0;
+        public void SetThermal(bool on, double coreMs = 3.0, double radiusM = 150)
+        {
+            Atmosphere.Thermals.Clear(); Atmosphere.ThermalStrengthScale = 0;
+            if (!on || Ac == null) return;
+            var r = Read(); var p = Ac.State.Position;
+            double bank = r.RollDeg * System.Math.PI / 180, v = r.Ktas / 1.943844, hdg = r.HeadingDeg * System.Math.PI / 180;
+            double turnR = System.Math.Abs(bank) > 0.09 ? v * v / (9.80665 * System.Math.Tan(System.Math.Abs(bank))) : 0;
+            double side = hdg + System.Math.Sign(bank) * System.Math.PI / 2;   // the turn's centre: right of the track in a right bank
+            var c = new Vec3(p.X + System.Math.Cos(side) * turnR, p.Y + System.Math.Sin(side) * turnR, 0);
+            Atmosphere.Thermals.Add(new Thermal(c, radiusM, coreMs, -p.Z + 1500));
+            Atmosphere.ThermalStrengthScale = 1;
+        }
         /// <summary>The drawn airframe is built about the type's original CG; the physics now turns about the loaded CG.</summary>
         private Vec3 VisualOffset => Loading != null && Loading.MacM > 0 ? new Vec3(Loading.Cg0X - Config.Mass.Cg[0], 0, 0) : Vec3.Zero;
 
@@ -659,13 +676,13 @@ namespace FlyingGame.Bridge.Widget
                 Cam.orthographic = true;
                 // CONSTANT ZOOM (owner 2026-10-11: "I do not like the changing zoom"): one scale per airplane for the whole final
                 // and flare — the camera follows the aircraft instead. Low, the ground sits a quarter of the way up; higher, the
-                // aircraft stays centred and the ground drops out of the bottom. The aircraft sits left of centre, the runway ahead.
+                // aircraft stays centred and the ground drops out of the bottom. The aircraft is centred left-right (owner 2026-10-11: "the
+                // airplane on the widget is not centered" — it used to sit at ~35 % from the left, the runway ahead).
                 float h = Mathf.Max(0f, ac.y);
                 float half = Mathf.Max(12f, 1.4f * LengthM) * 1.6f / Mathf.Max(0.3f, Zoom);   // the ground in view from ~40 ft down (C172)
                 Cam.orthographicSize = half;
                 _snapCam = false;
-                float aspect = Mathf.Max(0.3f, Cam.aspect);
-                _lead = 0.3f * half * aspect;                              // the aircraft at ~35 % from the left edge
+                _lead = 0f;                                                // centred left-right
                 float focusY = Mathf.Max(h, 0.5f * half);
                 Cam.transform.position = new Vector3(ac.x + 400f, focusY, ac.z + _lead);
                 Cam.transform.rotation = Quaternion.LookRotation(Vector3.left, Vector3.up);
