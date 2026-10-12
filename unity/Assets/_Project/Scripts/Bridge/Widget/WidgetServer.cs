@@ -19,7 +19,8 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetServer : MonoBehaviour
     {
-        public const int TcpPort = 47830, HttpPort = 47831;
+        public static readonly int HttpPort = int.TryParse(System.Environment.GetEnvironmentVariable("AERO_WIDGET_PORT"), out int hp) && hp > 1024 ? hp : 47831;
+        public static readonly int TcpPort = HttpPort - 1;   // 47830 / 47831 (a capture instance: its own pair)
         public AeroWidget Widget;
         public static string LocalIp { get; private set; } = "127.0.0.1";
 
@@ -72,7 +73,7 @@ namespace FlyingGame.Bridge.Widget
                     _httpThread = new Thread(HttpAcceptLoop) { IsBackground = true }; _httpThread.Start();
                 }
                 catch (System.Exception e) { Debug.LogWarning("[Widget] HTTP: " + e.Message); }
-                Advertise();
+                if (!AeroWidget.Capture) Advertise();
                 Debug.Log($"[Widget] control tcp {TcpPort}, remote http://{LocalIp}:{HttpPort}/");
             }) { IsBackground = true }.Start();
         }

@@ -36,6 +36,8 @@ namespace FlyingGame.Bridge
         private static int HJ_Button(int dev, int b) => 0;
 #endif
         private static bool _started;
+        /// <summary>No joystick at all (the widget's capture instance: the presenter's stick must not fly the render).</summary>
+        private static readonly bool Off = System.Environment.GetEnvironmentVariable("AERO_NO_JOYSTICK") == "1" || System.Environment.GetEnvironmentVariable("AERO_WIDGET_CAPTURE") == "1";
         private static int _frame = -1;
         private static readonly bool[] _held = new bool[ButtonCount], _was = new bool[ButtonCount];
         private static string _nameCache; private static float _nameAt = -10f;
@@ -54,6 +56,7 @@ namespace FlyingGame.Bridge
         /// <summary>Raw axis i (1…8), −1…1.</summary>
         public static float Raw(int i)
         {
+            if (Off) return 0f;
             if (Native) { Poll(); return HJ_Count() > 0 ? HJ_Axis(0, i - 1) : 0f; }
             try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; }
         }
@@ -61,6 +64,7 @@ namespace FlyingGame.Bridge
         {
             get
             {
+                if (Off) return null;
                 if (Native)
                 {
                     Poll();
@@ -78,12 +82,14 @@ namespace FlyingGame.Bridge
         }
         public static bool ButtonHeld(int b)
         {
+            if (Off) return false;
             if (b < 0 || b >= ButtonCount) return false;
             if (Native) { Poll(); return _held[b]; }
             return b < 20 && Input.GetKey(KeyCode.JoystickButton0 + b);   // (Unity names 20 buttons)
         }
         public static bool ButtonDown(int b)
         {
+            if (Off) return false;
             if (b < 0 || b >= ButtonCount) return false;
             if (Native) { Poll(); return _held[b] && !_was[b]; }
             return b < 20 && Input.GetKeyDown(KeyCode.JoystickButton0 + b);

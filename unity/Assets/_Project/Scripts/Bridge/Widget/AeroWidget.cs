@@ -41,6 +41,10 @@ namespace FlyingGame.Bridge.Widget
             if (_outputs != null) _outputs.Rebind();
         }
         public const string StreamName = "Aero Widget";
+        /// <summary>CAPTURE instance (AERO_WIDGET_CAPTURE=1; 2026-10-11, the Talk Flying shot renders): a second widget that
+        /// leaves the presenter's alone — its own ports (AERO_WIDGET_PORT, the HTTP port; control = port − 1), no Syphon/NDI, no
+        /// Bonjour, no joystick. Its own prefs come from its own bundle id (a copy of the app).</summary>
+        public static readonly bool Capture = System.Environment.GetEnvironmentVariable("AERO_WIDGET_CAPTURE") == "1";
 
         /// <summary>The widget build (bundle id …aerowidget), or AERO_WIDGET=1 / -aerowidget for testing the game binary.</summary>
         public static bool IsWidget =>
@@ -173,7 +177,7 @@ namespace FlyingGame.Bridge.Widget
             Presets = gameObject.AddComponent<WidgetPresets>(); Presets.Widget = this;
             _review = new WidgetReview(this);
             Loading = new WidgetLoading(this); Autopilot = new WidgetAutopilot(this); Curves = new WidgetCurves(); _lessons = new WidgetLessons(this);
-            _outputs = gameObject.AddComponent<WidgetOutputs>(); _outputs.Widget = this;
+            if (!Capture) { _outputs = gameObject.AddComponent<WidgetOutputs>(); _outputs.Widget = this; }
             _server = gameObject.AddComponent<WidgetServer>(); _server.Widget = this;
             Load(Scenario.Flare, AircraftId, Flaps);
         }
