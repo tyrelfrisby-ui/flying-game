@@ -77,7 +77,13 @@ namespace FlyingGame.Bridge.Widget
 
         /// <summary>The stick, rudder and power into the sim. A glider's throttle lever is its spoiler lever: stowed here,
         /// the spoilers come from <see cref="Spoilers"/> (Aircraft.SpoilerCommand).</summary>
-        public ControlInputs Inputs => new(Aileron, Elevator, Rudder, Spec.Engines == 0 ? -1.0 : 1.0 - 2.0 * Throttle01, false, ElevatorFree, false);
+        // Hands off = LET GO of all three (owner 2026-10-12): each reversible surface trails with its air loads against its own
+        // springs (a Pitts in a spin: elevator blown nearly full aft, rudder pro-spin). Released keys are the other thing — the
+        // pilot centring the controls — and recover differently.
+        // Released, a surface floats about its TRIM (the tab), not about wherever the stick last was.
+        public ControlInputs Inputs => ElevatorFree
+            ? new(_trimAil, _trimStick, _trimRud, Spec.Engines == 0 ? -1.0 : 1.0 - 2.0 * Throttle01, true, true, true)
+            : new(Aileron, Elevator, Rudder, Spec.Engines == 0 ? -1.0 : 1.0 - 2.0 * Throttle01, false, false, false);
 
         /// <summary>The levers into the aircraft each step (flaps move toward the handle at the type's rate).</summary>
         public void ApplyLevers(Aircraft ac, double dt)

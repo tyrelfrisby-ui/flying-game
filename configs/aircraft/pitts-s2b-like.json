@@ -1893,7 +1893,7 @@
       "reversible": true,
       "hingeChAlpha": -0.12,
       "hingeChDelta": -0.4,
-      "centeringSpringKt": 20,
+      "centeringSpringKt": 0,
       "trimType": "tab",
       "freeTauS": 0.12
     },

@@ -649,8 +649,9 @@ public static class AeroModel
                 if (strip.Control is not null && flowState is not null && idx < flowState.HingeQ.Length)
                 {
                     // Reversible controls: the flow a free surface trails in — the fixed surface's local angle (downwash,
-                    // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q.
-                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.35, 0.35) * chordwiseFactor;
+                    // slipstream, sideslip, rates all included), sign-reversed in tail-first flow, and its own q. Not capped at the
+                    // stall any more (owner 2026-10-12): past it the free surface weathervanes (Aircraft.HingeTerms).
+                    flowState.HingeAlphaRad[idx] = Math.Clamp(alphaBase + strip.IncidenceRad, -0.5 * Math.PI, 0.5 * Math.PI) * chordwiseFactor;
                     flowState.HingeQ[idx] = q;
                     flowState.HingeFlowDir[idx] = chordwiseFactor;
                 }

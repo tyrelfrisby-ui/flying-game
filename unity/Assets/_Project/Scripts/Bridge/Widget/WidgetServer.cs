@@ -833,6 +833,7 @@ namespace FlyingGame.Bridge.Widget
             {
                 ["aileron"] = f.Ail, ["elevator"] = f.Ele, ["rudder"] = f.Rud, ["throttle"] = f.Thr, ["brake"] = System.Math.Max(f.BrakeL, f.BrakeR),
                 ["brakeL"] = f.BrakeL, ["brakeR"] = f.BrakeR, ["handsOff"] = f.HandsOff,
+                ["surfDeg"] = new JObject { ["aileron"] = w.Ac.CurrentDeflections.AileronRad * 57.2958, ["elevator"] = w.Ac.CurrentDeflections.ElevatorRad * 57.2958, ["rudder"] = w.Ac.CurrentDeflections.RudderRad * 57.2958 },
                 ["flaps"] = f.FlapsCmd, ["flapsDeg"] = System.Math.Round(f.FlapsCmd * spec.Flaps[^1], 1), ["flapsActual"] = System.Math.Round(f.FlapsActual, 4),
                 ["flapsActualDeg"] = System.Math.Round(f.FlapsActual * spec.Flaps[^1], 1),
                 ["spoilers"] = f.Spoilers, ["spoilersArmed"] = f.SpoilersArmed, ["gear"] = f.Gear, ["gearLights"] = f.GearLights,

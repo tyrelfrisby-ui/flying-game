@@ -587,7 +587,13 @@ public sealed class Aircraft
                 scRef += sc;
                 if (i >= _flowState.HingeQ.Length) continue;
                 double qsc = _flowState.HingeQ[i] * sc;
-                a += g * qsc * axis.HingeChAlpha * _flowState.HingeAlphaRad[i];
+                // Attached flow (to 20°): the linear Chα. Separated (owner 2026-10-12, CFI/Pitts: in a developed spin the air from
+                // below holds the free elevator nearly full aft and the rudder pro-spin): a surface hinged at its leading edge in
+                // separated crossflow trails WITH the local flow, like a vane — its flow term grows to Chδ·α, so the float
+                // goes to −α (against no spring: the stop). Blended from 20° to 40° of local flow.
+                double al = _flowState.HingeAlphaRad[i], att = Math.Clamp(al, -0.35, 0.35);
+                double sep = Math.Clamp((Math.Abs(al) - 0.35) / 0.35, 0.0, 1.0); sep = sep * sep * (3 - 2 * sep);
+                a += g * qsc * ((1 - sep) * axis.HingeChAlpha * att + sep * axis.HingeChDelta * al);
                 // Deflection stiffness follows the flow direction: centering in normal flow, gone in crossflow, and
                 // REVERSED and ~2x stronger when the air comes from the trailing edge (tailslide: the hinge is now
                 // downstream and the load acts near the leading free edge) — the free surface is pushed to its stop.
