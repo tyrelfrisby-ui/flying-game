@@ -449,6 +449,8 @@ namespace FlyingGame.Bridge.Widget
                 case "wind":
                     w.SetWind(j["fromDeg"]?.Value<double>() ?? w.WindFromDeg, j["kt"]?.Value<double>() ?? w.WindKt);
                     ok["fromDeg"] = w.WindFromDeg; ok["kt"] = w.WindKt; break;
+                case "smoke":
+                    w.Show["smoke"] = j["on"]?.Value<bool>() ?? true; ok["smoke"] = w.Show["smoke"]; break;
                 case "thermal":
                     w.SetThermal(j["on"]?.Value<bool>() ?? true, (j["climbKt"]?.Value<double>() ?? 6) / 1.943844, j["radiusM"]?.Value<double>() ?? 150);
                     ok["thermal"] = w.ThermalOn; break;
@@ -532,6 +534,7 @@ namespace FlyingGame.Bridge.Widget
                     ok["place"] = w.ControlsPlace; ok["size"] = w.ControlsSize; ok["shown"] = w.Show["controlsDisplay"]; break;
                 }
                 case "preset":
+                    if (j["pivotKias"] != null) w.Presets.PivotKias = Mathf.Clamp(j["pivotKias"].Value<float>(), 30f, 120f);   // (hammerhead)
                     if (!w.Presets.Run((string)j["name"] ?? "")) { ok["ok"] = false; ok["error"] = "unknown preset"; }
                     break;
                 case "pause": w.Review.Pause(); return Reviewed(ok);
@@ -598,10 +601,10 @@ namespace FlyingGame.Bridge.Widget
                         {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
-                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
+                    ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "smoke", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");
                     ok["scenarios"] = new JArray("flare", "spin", "cruise");
                     ok["views"] = new JArray(AeroWidget.Views); ok["viewFrom"] = new JArray(AeroWidget.LockFrom);
-                    ok["presets"] = new JArray(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets));
+                    ok["presets"] = new JArray(System.Linq.Enumerable.Concat(System.Linq.Enumerable.Concat(WidgetPresets.SpinPresets, WidgetPresets.FlarePresets), WidgetPresets.AeroPresets));
                     ok["show"] = new JArray(w.Show.Keys);
                     ok["frame"] = AeroWidget.FrameH; ok["frameW"] = AeroWidget.FrameW; ok["frameH"] = AeroWidget.FrameH; ok["frameModes"] = new JArray("square", "16:9"); ok["syphon"] = AeroWidget.StreamName; ok["ndi"] = AeroWidget.StreamName;
                     ok["tcpPort"] = TcpPort; ok["httpPort"] = HttpPort;

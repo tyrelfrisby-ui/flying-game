@@ -155,7 +155,7 @@ namespace FlyingGame.Bridge.Widget
             ["wingWind"] = true, ["tailWind"] = true, ["inertial"] = true, ["tail"] = true, ["moments"] = true,
             ["yawMoment"] = false, ["finForce"] = false, ["bodyAxes"] = false, ["cgnp"] = false,
             ["liftComponents"] = false, ["wingDrag"] = false, ["groundTrack"] = false, ["flightPath"] = false, ["aimPoint"] = false, ["propEffects"] = false,
-            ["fourForces"] = false, ["earthGrid"] = true,
+            ["fourForces"] = false, ["earthGrid"] = true, ["smoke"] = false,
         };
         /// <summary>EARTH GRID (2026-10-11; owner via Glass): a white-line horizon at eye level and a white ground grid, so the
         /// attitude reads in the airplane-fixed views. "horizon" is its old name, kept as an alias for one protocol version.</summary>
@@ -177,8 +177,11 @@ namespace FlyingGame.Bridge.Widget
         {
             if (!AltLock || !AltLockApplies || Ac == null) return;
             var s = Ac.State; double z = -(GroundM(s.Position.X, s.Position.Y) + AltLockFt * 0.3048);
-            if (System.Math.Abs(s.Position.Z - z) > 1e-6) Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, z), s.Attitude, s.Velocity, s.Rates);
+            if (System.Math.Abs(s.Position.Z - z) > 1e-6) { AltShiftM += z - s.Position.Z; Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, z), s.Attitude, s.Velocity, s.Rates); }
         }
+        /// <summary>How far the altitude lock (and the spin's wrap) has moved the aircraft up or down (sim z, m) — the smoke
+        /// is drawn on the TRUE path, so a held altitude still shows the airplane leaving its smoke above.</summary>
+        public double AltShiftM;
         public string AltLockAnnunciation => AltLock && AltLockApplies ? $"ALT LOCK {AltLockFt:0} AGL" : null;
 
         /// <summary>Every switch that draws something on the airframe (FOUR FORCES turns all but its four off).</summary>

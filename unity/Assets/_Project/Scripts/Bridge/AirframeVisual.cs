@@ -549,11 +549,13 @@ namespace FlyingGame.Bridge
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
         private sealed class PropHub
         {
-            public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine;
+            public Transform Hub; public float Radius, Angle, DiscAngle; public int Engine; public Vector3 Body;   // (Body: the hub, body axes m)
             public GameObject Disc; public Material DiscMat; public Transform BladeBone; public bool ModelBound;
             public readonly List<GameObject> Blades = new();     // shown while slow; the blur disc takes over above ~400 rpm
         }
         private readonly List<PropHub> _props = new();
+        /// <summary>Each propeller hub's position (body axes, m from the CG) — where the smoke's exhausts are placed from.</summary>
+        public List<Vector3> PropHubsBody() { var l = new List<Vector3>(); foreach (var h in _props) l.Add(h.Body); return l; }
         private static Shader _propBlurShader;
         private static Texture2D _blurTex;
         private const float BladesGoneRpm = 900f, BlurStartsRpm = 350f;
@@ -1587,7 +1589,7 @@ namespace FlyingGame.Bridge
             var hubGo = new GameObject("PropHub");
             Attach(hubGo, "PropHub");
             hubGo.transform.localPosition = U(x, y, z);
-            var hub = new PropHub { Hub = hubGo.transform, Radius = radius, Engine = _props.Count };
+            var hub = new PropHub { Hub = hubGo.transform, Radius = radius, Engine = _props.Count, Body = new Vector3(x, y, z) };
             _props.Add(hub);
 
             hub.Disc = new GameObject("PropDisc");

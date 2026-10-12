@@ -25,6 +25,7 @@ namespace FlyingGame.Bridge.Widget
             public double Ail, Ele, Rud, Thr, Brake; public bool HandsOff;
             public Vector3 CamPos; public Quaternion CamRot; public bool Ortho; public float OrthoSize, Fov;
             public double SimTime;
+            public double AltShift; public float SmokeFlow; public int Flight;   // (the smoke: the lock's shift, the oil flow, which start)
             // Protocol 4 inputs (filled when present).
             public double FlapsCmd, FlapsActual, Spoilers, BrakeL, BrakeR; public bool SpoilersArmed; public string Gear = "fixed", GearLights = "down";
             public double[] EngineThr;
@@ -81,6 +82,7 @@ namespace FlyingGame.Bridge.Widget
         public double OffsetMs => -Index * WidgetHistory.FrameMs;
         public double HistoryMs => History.Count * WidgetHistory.FrameMs;
         public WidgetHistory.Snap Shown => History.Get(Index);
+        public double SimTimeNow => _simTime;
 
         public void Clear() { History.Clear(); Index = 0; Playing = false; _recAcc = 0; }
 
@@ -104,6 +106,7 @@ namespace FlyingGame.Bridge.Widget
                 Ail = c.Aileron, Ele = c.Elevator, Rud = c.Rudder, Thr = c.Throttle01, Brake = c.Brake01, HandsOff = c.ElevatorFree,
                 CamPos = cam.transform.position, CamRot = cam.transform.rotation, Ortho = cam.orthographic, OrthoSize = cam.orthographicSize, Fov = cam.fieldOfView,
                 SimTime = _simTime,
+                AltShift = _w.AltShiftM, SmokeFlow = _w.SmokeFlow, Flight = _w.Flight,
             };
             c.FillSnap(s);
             return s;

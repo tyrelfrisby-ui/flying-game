@@ -70,7 +70,8 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Direction lock: what it was locked from (current | side | behind | front | top).</summary>
         public string ViewFrom = "";
         private Vector3 _lockDir = new(1f, 0.18f, -0.25f);
-        public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked", "body" };
+        private Vector3 _crowd;   // the crowd view's spectator (Unity world)
+        public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked", "body", "crowd" };
         /// <summary>The start condition (protocol 5): "cruise" | "final" | "spin", or null for an old-style scenario start.</summary>
         public string Condition { get; private set; }
         /// <summary>FINAL's view is the flare's side view and can't be changed.</summary>
@@ -102,6 +103,18 @@ namespace FlyingGame.Bridge.Widget
                 ViewFrom = from;
             }
             else if (name == "body") ViewFrom = "left";   // the camera rigidly on the airframe, looking at its left side
+            else if (name == "crowd" && Ac != null)
+            {
+                // CROWD (owner 2026-10-11, the outro's smoke shots): a spectator on the ground's side of the box — fixed in the
+                // world, abeam the airplane where it is now (the frame shown, in review), 450 m to its left and 250 m below,
+                // turning to follow it. The whole smoke figure fits.
+                var st = Shown?.State ?? Ac.State;
+                Vector3 ac = CoordinateMap.ToUnity(st.Position), fwd = CoordinateMap.ToUnity(st.Attitude.Rotate(st.Velocity));
+                fwd.y = 0; if (fwd.sqrMagnitude < 1e-4f) fwd = Vector3.forward; fwd.Normalize();
+                Vector3 left = Vector3.Cross(fwd, Vector3.up).normalized;
+                _crowd = ac + left * (450f / Mathf.Max(0.3f, Zoom)) + Vector3.down * 250f;
+                ViewFrom = "";
+            }
             else ViewFrom = "";
             View = name;
         }
@@ -190,6 +203,7 @@ namespace FlyingGame.Bridge.Widget
             // Altitude lock: ON in the spin at 5,000 ft AGL, OFF elsewhere (each start sets its default).
             AltLock = sc == Scenario.Spin; if (sc == Scenario.Spin) AltLockFt = SpinLockFt;
             Atmosphere.Thermals.Clear(); Atmosphere.ThermalStrengthScale = 0;
+            Flight++; AltShiftM = 0;
             Current = sc; Condition = null; _jetFinalThr = -1; bool approachFlaps = flaps < 0; Flaps = System.Math.Clamp(flaps, 0, 1);
             bool newConfig = aircraftId != AircraftId || Config == null;
             Autopilot?.Off();
@@ -478,6 +492,39 @@ namespace FlyingGame.Bridge.Widget
             double xmin = double.MaxValue, xmax = double.MinValue;
             foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
+            _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
+            var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5));
+            for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
+            _smoke.SetExhausts(ex);
+        }
+
+        // ---- SMOKE (owner 2026-10-11, the Talk Flying outro) ----
+        private SmokeTrail _smoke;
+        /// <summary>Which start this is (the smoke never joins one flight's path to the next).</summary>
+        public int Flight;
+        /// <summary>The smoke oil's flow now: none with no engine turning; more with power (the exhaust carries it).</summary>
+        public float SmokeFlow => Ac == null || Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
+        private static SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
+            { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Flow = f.SmokeFlow };
+        /// <summary>The smoke as it was at the frame shown (index frames back; -1 = live, the aircraft as it is now).</summary>
+        private void ShowSmoke(int index)
+        {
+            if (_smoke == null) return;
+            if (!Show.TryGetValue("smoke", out bool on) || !on) { _smoke.Hide(); return; }
+            var H = Review.History;
+            WidgetHistory.Snap at = index < 0 ? null : H.Get(index);
+            int flight = at?.Flight ?? Flight;
+            double shift = at?.AltShift ?? AltShiftM, now = at?.SimTime ?? Review.SimTimeNow;
+            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Flow = SmokeFlow } : (SmokeTrail.Sample?)null;
+            int first = index < 0 ? 0 : index;
+            _smoke.Build(k =>
+            {
+                if (live.HasValue) { if (k == 0) return live; k--; }
+                int b = first + k;
+                if (b >= H.Count) return null;
+                var f = H.Get(b);
+                return f == null || f.Flight != flight ? null : SmokeSample(f);
+            }, now, p => CoordinateMap.ToUnity(p + new Vec3(0, 0, shift)), Cam);
         }
 
         private void BuildSurface()
@@ -568,6 +615,7 @@ namespace FlyingGame.Bridge.Widget
             ShowLostParts();
             PlaceCamera(Ac.State);
             ApplyVisualScale();
+            ShowSmoke(-1);
         }
 
         /// <summary>Parts the physics has broken off (a hard landing folds a gear leg, a ground strike takes a wing): the game's
@@ -607,6 +655,7 @@ namespace FlyingGame.Bridge.Widget
             // views, forces and graphs): the camera follows the current view and zoom, not the one recorded.
             PlaceCamera(f.State);
             ApplyVisualScale();
+            ShowSmoke(Review.Index);
         }
 
 
@@ -664,7 +713,7 @@ namespace FlyingGame.Bridge.Widget
         private void WrapAltitude()
         {
             var s = Ac.State;
-            if (-s.Position.Z < 600) Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, s.Position.Z - 1800), s.Attitude, s.Velocity, s.Rates);
+            if (-s.Position.Z < 600) { AltShiftM -= 1800; Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, s.Position.Z - 1800), s.Attitude, s.Velocity, s.Rates); }
         }
 
         private void PlaceCamera(RigidBodyState s)
@@ -692,6 +741,13 @@ namespace FlyingGame.Bridge.Widget
                 Cam.orthographic = false; Cam.fieldOfView = 34f;
                 float dist = (Mathf.Max(SpanM, LengthM) * 2.6f + 6f) / Zoom;
                 _snapCam = false;
+                if (View == "crowd")
+                {
+                    Cam.fieldOfView = 50f;
+                    Cam.transform.position = _crowd;
+                    Cam.transform.LookAt(ac, Vector3.up);
+                    return;
+                }
                 if (View == "body")
                 {
                     // AIRPLANE-FIXED (protocol 5): rigidly on the airframe, looking at its LEFT side (a touch above). The aircraft
