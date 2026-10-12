@@ -480,6 +480,10 @@ namespace FlyingGame.Bridge.Widget
                     ok["labels"] = o; ok["t"] = Time.unscaledTime; break;
                 }
                 case "caption": w.Caption = (string)j["text"]; ok["caption"] = w.Caption; break;
+                case "tag":
+                    w.Tag = (string)j["text"];
+                    if (j["color"] != null && ColorUtility.TryParseHtmlString((string)j["color"], out var tc)) w.TagColor = tc;
+                    ok["tag"] = w.Tag; break;
                 case "vectorStyle":
                     // Protocol 7: line width (×) and the drawing filter's time constant.
                     if (j["width"] != null) w.Vectors.WidthScale = Mathf.Clamp((float)j["width"].Value<double>(), 1f, 3f);

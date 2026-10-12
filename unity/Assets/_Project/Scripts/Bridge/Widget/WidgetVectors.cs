@@ -37,7 +37,7 @@ namespace FlyingGame.Bridge.Widget
             Thrust = new(0.35f, 0.6f, 1f), PathColor = new(1f, 0.85f, 0.2f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
             Inertial = new(1f, 0.82f, 0.2f), TailC = new(0.75f, 0.55f, 1f), TailWindC = new(0.55f, 0.85f, 1f);
 
-        // World lines (grid, horizon, runway) are depth-tested (owner 2026-10-12: the grid showed over the airplane).
+        // World lines (grid, runway) are depth-tested (owner 2026-10-12: the grid showed over the airplane).
         private void Start()
         {
             _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
@@ -246,6 +246,13 @@ namespace FlyingGame.Bridge.Widget
             // CAPTION (2026-10-11, the Talk Flying renders): a big phase tag ("CLIMB +700 FPM"), top centre — classic display only.
             if (w is AeroWidget aw2 && aw2.DisplayMode == "classic" && !string.IsNullOrEmpty(aw2.Caption))
                 ui.PxText(new Vector2(scene.center.x, scene.yMin + 40 * ui.TextScale), aw2.Caption, 28, new Color(1f, 0.85f, 0.2f), TextAnchor.MiddleCenter);
+            // TAG (2026-10-12): a word above the airplane — a wingspan-and-a-bit above the CG, straight up on screen.
+            if (w is AeroWidget aw3 && !string.IsNullOrEmpty(aw3.Tag) && Scr(cgU + Vector3.up * (0.25f * aw3.SpanM + 1.5f), out var tagAt))
+            {
+                float m = 40f * ui.TextScale;   // kept inside the picture
+                tagAt = new Vector2(Mathf.Clamp(tagAt.x, scene.xMin + 3 * m, scene.xMax - 3 * m), Mathf.Clamp(tagAt.y, scene.yMin + m, scene.yMax - m));
+                ui.PxText(tagAt, aw3.Tag, 34f, aw3.TagColor, TextAnchor.MiddleCenter);
+            }
             if (w.VisualScale > 1.01f && Scr(cgU - cam.transform.up * pxM * 40f, out var sp)) _labels.Request("scale", sp, Vector2.zero, $"AIRPLANE ×{w.VisualScale:0}", new Color(1, 1, 1, 0.85f), 0);
             if (!vec) { _labels.Place(ui, LabelScene(w, scene, ui), cgScr); return; }
 
@@ -603,7 +610,7 @@ namespace FlyingGame.Bridge.Widget
         }
 
         /// <summary>World references (protocol 5): FINAL — the ground line, the runway as a thick white line from its threshold,
-        /// the threshold mark and the aim point; spin and cruise — the horizon and a ground grid, so the airplane-fixed view
+        /// the threshold mark and the aim point; spin and cruise — a ground grid, so the airplane-fixed view
         /// shows the world turning around the airplane. Pixel-thick at any zoom.</summary>
         private void DrawWorld(float px)
         {
@@ -611,13 +618,13 @@ namespace FlyingGame.Bridge.Widget
             if (!(h is AeroWidget w))
             {
                 // The game: the earth grid is an option over its real world (off by default) — outside views only.
-                if (h.Show["earthGrid"] && !ChaseCamera.InCockpit && !SessionSettings.MenuOpen) EarthGrid(h, (float)h.GroundM(h.ShownState.Position.X, h.ShownState.Position.Y));
+                if (h.Show["earthGrid"] && !ChaseCamera.InCockpit && !SessionSettings.MenuOpen) EarthGrid(h, (float)h.GroundM(h.ShownState.Position.X, h.ShownState.Position.Y), px);
                 return;
             }
             if (w.Current == AeroWidget.Scenario.Flare)
             {
                 if (w.Condition != "final") return;
-                if (w.View != "side") { Runway3D(w); if (w.Show["earthGrid"]) EarthGrid(w, 0f); return; }
+                if (w.View != "side") { Runway3D(w); if (w.Show["earthGrid"]) EarthGrid(w, 0f, px); return; }
                 float L = (float)w.Runway.LengthM, z0 = -L / 2f, z1 = L / 2f, aim = z0 + (float)FlyingGame.Sim.Practice.PracticeScenario.NumbersPastThresholdM;
                 Line(new Vector3(0, 0, -20000), new Vector3(0, 0, 20000), new Color(1, 1, 1, 0.45f));                  // the ground
                 for (int k = 0; k <= 4; k++) Line(new Vector3(0, -k * px, z0), new Vector3(0, -k * px, z1), Color.white);   // the runway: 5 px thick
@@ -626,24 +633,25 @@ namespace FlyingGame.Bridge.Widget
                 return;
             }
             if (!w.Show["earthGrid"]) return;
-            EarthGrid(w, 0f);
+            EarthGrid(w, 0f, px);
         }
 
-        /// <summary>EARTH GRID: a thin white horizon at eye level (the true horizontal, 15 km round the camera) and a thin white
-        /// ground grid (250 m squares, 8 km across) at the ground's height under the airplane. Transparent between the lines.</summary>
-        private void EarthGrid(AeroHost w, float groundY)
+        /// <summary>EARTH GRID: a white ground grid (250 m squares, 8 km across) at the ground's height under the airplane. Transparent between the lines.</summary>
+        private void EarthGrid(AeroHost w, float groundY, float px)
         {
-            var cam = w.Cam.transform.position;
-            const float R = 15000f; Color hz = new(1f, 1f, 1f, 0.8f);
-            Vector3 prev = cam + new Vector3(R, 0, 0);
-            for (int i = 1; i <= 96; i++) { float a = i * Mathf.PI * 2f / 96f; var p = cam + new Vector3(Mathf.Cos(a) * R, 0, Mathf.Sin(a) * R); Line(prev, p, hz); prev = p; }
+            // No horizon circle (owner 2026-10-12: drawn at eye level it floated apart from the grid and confused). The grid
+            // bolder: more opaque, and doubled a pixel (at the airplane's distance) higher.
             Vector3 ac = CoordinateMap.ToUnity(w.ShownState.Position);
-            const float G = 250f, E = 4000f; Color gc = new(1f, 1f, 1f, 0.35f);
+            const float G = 250f, E = 4000f; Color gc = new(1f, 1f, 1f, 0.6f);
             float cx = Mathf.Round(ac.x / G) * G, cz = Mathf.Round(ac.z / G) * G;
-            for (float d = -E; d <= E; d += G)
+            for (int k = 0; k < 2; k++)
             {
-                Line(new Vector3(cx + d, groundY, cz - E), new Vector3(cx + d, groundY, cz + E), gc);
-                Line(new Vector3(cx - E, groundY, cz + d), new Vector3(cx + E, groundY, cz + d), gc);
+                float y = groundY + k * px;
+                for (float d = -E; d <= E; d += G)
+                {
+                    Line(new Vector3(cx + d, y, cz - E), new Vector3(cx + d, y, cz + E), gc);
+                    Line(new Vector3(cx - E, y, cz + d), new Vector3(cx + E, y, cz + d), gc);
+                }
             }
         }
         private static void Line(Vector3 a, Vector3 b, Color c) { GL.Color(c); GL.Vertex(a); GL.Vertex(b); }

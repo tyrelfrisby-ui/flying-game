@@ -46,6 +46,8 @@ namespace FlyingGame.Bridge.Widget
         /// Bonjour, no joystick. Its own prefs come from its own bundle id (a copy of the app).</summary>
         /// <summary>A phase tag drawn big in the classic display ({"cmd":"caption","text":…}); null = none.</summary>
         public string Caption;
+        /// <summary>A word above the airplane (owner 2026-10-12: "STALL" in red once the wing stalls), following it on screen.</summary>
+        public string Tag; public Color TagColor = new(1f, 0.2f, 0.15f);
         public static readonly bool Capture = System.Environment.GetEnvironmentVariable("AERO_WIDGET_CAPTURE") == "1";
 
         /// <summary>The widget build (bundle id …aerowidget), or AERO_WIDGET=1 / -aerowidget for testing the game binary.</summary>
