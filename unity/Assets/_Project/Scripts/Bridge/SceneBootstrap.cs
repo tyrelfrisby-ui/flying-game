@@ -194,6 +194,10 @@ namespace FlyingGame.Bridge
             menu.Combat = aircraft.GetComponent<CombatController>();
             cam.gameObject.AddComponent<CombatHud>().Combat = aircraft.GetComponent<CombatController>();   // target indicator + gunsight
             pHud.Menu = menu;
+            // Multiplayer test (2026-10-11): AERO_MP_TEST=ffa (or a 6-char room code) picks that room and flies — for a
+            // terminal-launched end-to-end check against the platform (mp.aeroplayground.app).
+            string mpTest = System.Environment.GetEnvironmentVariable("AERO_MP_TEST");
+            if (!string.IsNullOrEmpty(mpTest)) menu.StartCoroutine(MpTest(menu, mpTest));
             // Device self-test of replay + clips, only when launched with AERO_SELFTEST set (devicectl --environment-variables).
             if (!string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("AERO_SELFTEST")))
             {
@@ -202,6 +206,17 @@ namespace FlyingGame.Bridge
                 st.Menu = menu; st.Replay = aircraft.GetComponent<FlightReplay>(); st.Egress = aircraft.GetComponent<PilotEgress>(); st.Chase = chase;
                 st.Combat = aircraft.GetComponent<CombatController>();
             }
+        }
+
+        private static System.Collections.IEnumerator MpTest(StartMenu menu, string room)
+        {
+            Application.runInBackground = true;
+            yield return new WaitForSecondsRealtime(2f);
+            SessionSettings.Multiplayer = room == SessionSettings.FfaRoom ? SessionSettings.MultiplayerMode.FreeForAll : SessionSettings.MultiplayerMode.PrivateRoom;
+            if (room != SessionSettings.FfaRoom) SessionSettings.RoomCode = room.ToUpperInvariant();
+            if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "MacTest";
+            Debug.Log($"[MpTest] flying in {SessionSettings.EffectiveRoom}");
+            menu.Fly();
         }
     }
 }

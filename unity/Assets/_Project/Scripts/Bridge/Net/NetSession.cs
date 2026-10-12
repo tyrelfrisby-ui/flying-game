@@ -27,7 +27,8 @@ namespace FlyingGame.Bridge.Net
         private PilotEgress _egress;
         private RelayClient _client;
         private Task _connectTask;
-        private float _nextSend, _nextConnect;
+        private float _nextSend, _nextConnect, _nextPing;
+        private string _shard;   // the free-for-all shard joined (ffa, ffa2 …)
         private int _attempt;
         private string _joinedAc, _joinedName;
         private readonly Dictionary<string, RemoteAircraft> _remotes = new();
@@ -39,7 +40,7 @@ namespace FlyingGame.Bridge.Net
             get
             {
                 if (!Active) return null;
-                string room = Room == SessionSettings.FfaRoom ? "FFA" : $"Room {Room}";
+                string room = Room == SessionSettings.FfaRoom ? (_shard != null && _shard.Length > 3 ? $"FFA {_shard.Substring(3)}" : "FFA") : $"Room {Room}";
                 if (Connected) { int n = PeerCount + 1; return $"{room} · {n} pilot{(n == 1 ? "" : "s")}"; }
                 if (_client != null && !_client.IsClosed) return $"{room} · connecting…";
                 float wait = _nextConnect - Time.realtimeSinceStartup;
@@ -121,6 +122,7 @@ namespace FlyingGame.Bridge.Net
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
                 _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
             }
+            if (now >= _nextPing) { _nextPing = now + 15f; _client.SendQueued("ping"); }   // keepalive (the server answers without waking the room)
             if (SessionSettings.MenuOpen || now < _nextSend) return;
             _nextSend = now + 1f / SendHz;
             SendState();
@@ -130,12 +132,40 @@ namespace FlyingGame.Bridge.Net
         {
             string name = string.IsNullOrEmpty(SessionSettings.PilotName) ? "Pilot" : SessionSettings.PilotName;
             string ac = _driver != null ? _driver.AircraftId : SessionSettings.AircraftId;
-            string url = $"{SessionSettings.RelayUrl.TrimEnd('/')}/rooms/{Room}/ws?name={System.Uri.EscapeDataString(name)}&ac={System.Uri.EscapeDataString(ac)}";
             _joinedAc = ac; _joinedName = SessionSettings.PilotName;
             SelfId = null;
             _client = new RelayClient();
-            _connectTask = _client.ConnectAsync(url);
+            _connectTask = ConnectRoom(_client, Room, name, ac);
             _attempt++;
+        }
+
+        /// <summary>The free-for-all is sharded (10 × 100 pilots): ask the platform which shard has room, then open the
+        /// socket — protocol 2 (the room's 10 Hz tick batches). A relay without shards (404) means plain "ffa".</summary>
+        private async Task ConnectRoom(RelayClient client, string room, string name, string ac)
+        {
+            string target = room;
+            if (room == SessionSettings.FfaRoom)
+            {
+                // (UnityWebRequest on the main thread — started from Update — so iOS/IL2CPP TLS is Unity's own.)
+                string http = SessionSettings.RelayUrl.TrimEnd('/').Replace("wss://", "https://").Replace("ws://", "http://");
+                using var req = UnityEngine.Networking.UnityWebRequest.Get($"{http}/rooms/ffa/assign");
+                req.timeout = 6;
+                var op = req.SendWebRequest();
+                while (!op.isDone) await Task.Yield();
+                try
+                {
+                    if (req.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+                    {
+                        string code = (string)Newtonsoft.Json.Linq.JObject.Parse(req.downloadHandler.text)["code"];
+                        if (!string.IsNullOrEmpty(code)) target = code;
+                    }
+                    else Debug.Log($"[Net] shard assign: {req.error} — joining ffa");
+                }
+                catch (System.Exception e) { Debug.Log($"[Net] shard assign failed ({e.Message}) — joining ffa"); }
+            }
+            _shard = target;
+            string url = $"{SessionSettings.RelayUrl.TrimEnd('/')}/rooms/{target}/ws?v=2&name={System.Uri.EscapeDataString(name)}&ac={System.Uri.EscapeDataString(ac)}";
+            await client.ConnectAsync(url);
         }
 
         private void ScheduleReconnect()
@@ -186,6 +216,9 @@ namespace FlyingGame.Bridge.Net
                         _remotes.Remove(m.id);
                         if (gone != null) Destroy(gone.gameObject);
                     }
+                    break;
+                case "S":   // protocol 2: the tick's batch
+                    if (m.b != null) foreach (NetMsg x in m.b) if (x != null) { x.t = "s"; Handle(x); }
                     break;
                 case "s":
                     if (m.id != null && m.id != SelfId && _remotes.TryGetValue(m.id, out RemoteAircraft r2) && r2 != null) r2.Push(m.AsState());

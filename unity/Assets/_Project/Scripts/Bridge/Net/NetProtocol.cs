@@ -39,7 +39,7 @@ namespace FlyingGame.Bridge.Net
     [Preserve]
     public sealed class NetMsg
     {
-        public string t;        // "hello" | "peer" | "bye" | "s" | "join" | "tune" | "v"
+        public string t;        // "hello" | "peer" | "bye" | "s" | "S" | "join" | "tune" | "v"
         public string id;
         public string name;
         public string ac;
@@ -50,6 +50,8 @@ namespace FlyingGame.Bridge.Net
         public string fq;       // radio frequency ("tune", and on received voice)
         public string a;        // voice: base64 8 kHz mu-law
         public int? e;          // voice: 1 = the sender unkeyed (end of transmission)
+        public NetMsg[] b;      // protocol 2 "S": the tick's batch of peer states (each like an "s")
+        public int? tick;       // protocol 2 "hello": the room's tick, ms
 
         public static readonly JsonSerializerSettings Settings = new()
         {

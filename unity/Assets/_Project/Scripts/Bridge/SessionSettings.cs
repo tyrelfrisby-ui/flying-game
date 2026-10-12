@@ -63,7 +63,7 @@ namespace FlyingGame.Bridge
 #if UNITY_EDITOR
         public static string RelayUrl = "ws://localhost:8787";   // `cd server/relay && npm run dev`
 #else
-        public static string RelayUrl = "wss://flyinggame-relay.tyrel-frisby.workers.dev";
+        public static string RelayUrl = "wss://mp.aeroplayground.app";   // the multiplayer platform (owner 2026-10-11; same relay as workers.dev)
 #endif
         public const string FfaRoom = "ffa";
 
