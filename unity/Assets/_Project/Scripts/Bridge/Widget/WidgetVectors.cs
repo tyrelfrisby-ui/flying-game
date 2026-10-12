@@ -268,16 +268,30 @@ namespace FlyingGame.Bridge.Widget
                 Arrow(k, c, windPx, true);
                 _labels.Request(k, Tip(k, windPx, true), Away(Origin(k), Tip(k, windPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
             }
-            if (On("wind") && F.ContainsKey("wind")) { Arrow("wind", Wind, windPx, true); _labels.Request("wind", Tip("wind", windPx, true), Away(Origin("wind"), Tip("wind", windPx, true)), new[] { rd.AlphaDeg }, v => $"RELATIVE WIND α {v[0]:0.0}°", Wind, 3, 0.1); }
-            // FLIGHT PATH (2026-10-11, Talk Flying W12): the velocity through the air — exactly opposite the relative wind — from the CG,
-            // labelled with its climb angle γ, so climb / level / descent reads next to the nose.
-            if (On("flightPath") && F.ContainsKey("wind"))
+            // FLIGHT PATH (2026-10-11, Talk Flying W12) with the RELATIVE WIND, equal and opposite (owner 2026-10-12): one line through
+            // the CG, the same length, head on — the flight path out from the CG along the velocity, the relative wind coming back
+            // down the same line to meet it. Labels only. Without the flight path the relative wind arrives at the CG as before.
+            bool pathOn = On("flightPath") && F.ContainsKey("wind");
+            if (On("wind") && F.ContainsKey("wind") && !pathOn) { Arrow("wind", Wind, windPx, true); _labels.Request("wind", Tip("wind", windPx, true), Away(Origin("wind"), Tip("wind", windPx, true)), new[] { rd.AlphaDeg }, v => $"RELATIVE WIND α {v[0]:0.0}°", Wind, 3, 0.1); }
+            if (pathOn)
             {
-                var fw = F["wind"]; F["path"] = (fw.from + new Vec3(0, 0, 1.0), fw.vec * -1.0);   // (a metre below the CG: clear of the wind arrow)
-                Arrow("path", PathColor, windPx * 1.6f);
-                Vector3 pd = Dir(fw.vec * -1.0); float gamma = pd.sqrMagnitude > 1e-8f ? Mathf.Asin(Mathf.Clamp(pd.normalized.y, -1f, 1f)) * Mathf.Rad2Deg : 0f;
-                _labels.Request("path", Tip("path", windPx * 1.6f), Away(Origin("path"), Tip("path", windPx * 1.6f)), new double[] { gamma },
-                    v => v[0] > 0.5 ? $"FLIGHT PATH ↑ {v[0]:0.0}° CLIMB" : v[0] < -0.5 ? $"FLIGHT PATH ↓ {-v[0]:0.0}° DESCENT" : "FLIGHT PATH — LEVEL", PathColor, 2);
+                var fw = F["wind"]; float len = windPx * 1.3f;
+                Vec3 fwd = fw.vec * -1.0;                                     // unit, body axes: the way the airplane is going
+                // Still on the CG's line, but starting just ahead of the nose (the most forward wheel + 1.5 m), clear of the cowling.
+                double noseX = 0; foreach (var g in w.Config.Gear) noseX = System.Math.Max(noseX, g.PosVec().X - cg.X);
+                Vec3 start = fw.from + fwd * (noseX + 1.5);
+                F["path"] = (start, fwd);
+                F["windHead"] = (start + fwd * (len * pxM), fw.vec);          // arrives at the path's tip from a path-length beyond it
+                Arrow("path", PathColor, len);
+                if (On("wind")) Arrow("windHead", Wind, len, true);
+                Vector2 c0 = Origin("path"), mid = (c0 + Tip("path", len)) * 0.5f, far = Origin("windHead");
+                // Each label right beside its own arrow (the placer parked both high on long leaders, and swapped them in the
+                // descent): the relative wind's above the line, the flight path's below. Screen y runs down.
+                Vector2 along = Away(c0, Tip("path", len)), up = new Vector2(-along.y, along.x);
+                if (up.y > 0) up = -up;
+                float gap = 26f * ui.TextScale;
+                ui.PxText(mid - up * gap, "FLIGHT PATH", 17f, PathColor, TextAnchor.MiddleCenter);
+                if (On("wind")) ui.PxText((far + Tip("windHead", len, true)) * 0.5f + up * gap, "RELATIVE WIND", 17f, Wind, TextAnchor.MiddleCenter);
             }
             // Tail winds (length = the local speed: prop blast lengthens, blanketing shortens).
             foreach (var (k, a, eta, nm) in new[] { ("tailWindL", P.TailAlphaL, P.EtaL, "L STAB"), ("tailWindR", P.TailAlphaR, P.EtaR, "R STAB") })
