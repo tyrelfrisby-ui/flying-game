@@ -139,7 +139,13 @@ namespace FlyingGame.Bridge
             }
             List<GameObject> parts;
             if (leftWing || rightWing || panel) parts = new List<GameObject>(_builder.WingParts);
-            else if (gearLeg) parts = _builder.TakeLegParts(comp);
+            else if (gearLeg)
+            {
+                parts = _builder.TakeLegParts(comp);
+                // A 3-D model's own wheel, fairing and leg go too (owner 2026-10-11: the 172's wheels stayed on, drawn through the
+                // runway, after a hard landing broke its gear).
+                foreach (var (pn, pm, pmat, pp, pr, ps) in _builder.CutModelLeg(parts, root)) AddPiece(debris.transform, pn, pm, pmat, pp, pr, ps);
+            }
             else
             {
                 parts = new List<GameObject>(_builder.Parts);
@@ -1199,6 +1205,68 @@ namespace FlyingGame.Bridge
 
         /// <summary>Visual parts of each landing-gear leg (wheel + strut), by component — a torn-off leg becomes debris.</summary>
         private readonly Dictionary<FlyingGame.Core.AirframeComponent, List<GameObject>> _legParts = new();
+
+        /// <summary>A broken-off leg's share of the 3-D model: the triangles wholly inside the leg's space (its procedural parts'
+        /// bounds, grown a little — the model's gear seldom sits exactly on the config's leg) leave the model; returned as debris
+        /// pieces (name, mesh, material, root-local position/rotation, scale). The body's triangles straddle the box and stay.</summary>
+        public List<(string, Mesh, Material, Vector3, Quaternion, Vector3)> CutModelLeg(List<GameObject> legParts, Transform root)
+        {
+            var outp = new List<(string, Mesh, Material, Vector3, Quaternion, Vector3)>();
+            if (_modelParts.Count == 0 || legParts == null) return outp;
+            bool any = false; Vector3 lo = Vector3.zero, hi = Vector3.zero;
+            foreach (GameObject g in legParts)
+            {
+                var gmf = g != null ? g.GetComponent<MeshFilter>() : null;
+                if (gmf == null || gmf.sharedMesh == null) continue;
+                Bounds mb = gmf.sharedMesh.bounds;
+                for (int c = 0; c < 8; c++)
+                {
+                    var corner = new Vector3((c & 1) == 0 ? mb.min.x : mb.max.x, (c & 2) == 0 ? mb.min.y : mb.max.y, (c & 4) == 0 ? mb.min.z : mb.max.z);
+                    Vector3 q = root.InverseTransformPoint(g.transform.TransformPoint(corner));
+                    if (!any) { lo = hi = q; any = true; } else { lo = Vector3.Min(lo, q); hi = Vector3.Max(hi, q); }
+                }
+            }
+            if (!any) return outp;
+            lo -= new Vector3(0.35f, 0.3f, 0.35f); hi += new Vector3(0.35f, 0f, 0.35f);   // never up into the body
+            foreach (GameObject part in _modelParts)
+            {
+                if (part == null) continue;
+                foreach (MeshFilter mf in part.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    Mesh src = mf != null ? mf.sharedMesh : null;
+                    if (src == null || !src.isReadable) continue;
+                    Vector3[] v = src.vertices;
+                    var inside = new bool[v.Length];
+                    for (int i = 0; i < v.Length; i++)
+                    {
+                        Vector3 q = root.InverseTransformPoint(mf.transform.TransformPoint(v[i]));
+                        inside[i] = q.x >= lo.x && q.x <= hi.x && q.y >= lo.y && q.y <= hi.y && q.z >= lo.z && q.z <= hi.z;
+                    }
+                    Mesh kept = Object.Instantiate(src); kept.name = src.name + "-legcut";
+                    var lostT = new List<int>();
+                    for (int sm = 0; sm < src.subMeshCount; sm++)
+                    {
+                        int[] t = src.GetTriangles(sm); var keep = new List<int>(t.Length);
+                        for (int k = 0; k + 2 < t.Length; k += 3)
+                        {
+                            if (inside[t[k]] && inside[t[k + 1]] && inside[t[k + 2]]) { lostT.Add(t[k]); lostT.Add(t[k + 1]); lostT.Add(t[k + 2]); continue; }
+                            keep.Add(t[k]); keep.Add(t[k + 1]); keep.Add(t[k + 2]);
+                        }
+                        kept.SetTriangles(keep, sm);
+                    }
+                    if (lostT.Count == 0) { Object.Destroy(kept); continue; }
+                    var lost = new Mesh { name = src.name + "-leg", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+                    lost.vertices = v; var n = src.normals; if (n != null && n.Length == v.Length) lost.normals = n;
+                    var uv = src.uv; if (uv != null && uv.Length == v.Length) lost.uv = uv;
+                    lost.SetTriangles(lostT, 0); lost.RecalculateBounds();
+                    mf.sharedMesh = kept;
+                    var mr = mf.GetComponent<MeshRenderer>();
+                    outp.Add((mf.name + "-leg", lost, mr != null ? mr.sharedMaterial : null, root.InverseTransformPoint(mf.transform.position),
+                        Quaternion.Inverse(root.rotation) * mf.transform.rotation, mf.transform.lossyScale));
+                }
+            }
+            return outp;
+        }
 
         /// <summary>Hand over one leg's parts (removed from the builder's bookkeeping; the caller owns them).</summary>
         public List<GameObject> TakeLegParts(FlyingGame.Core.AirframeComponent leg)

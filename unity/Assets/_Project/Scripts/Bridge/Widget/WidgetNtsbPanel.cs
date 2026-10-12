@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge.Widget
         // ONE ROW, 1528 × 290 (≈ 5.3 : 1) — at full width on the 16:9 frame the panel is the bottom third. Left to right: the
         // autopilot (MCP) block, the instruments (PFD with the FMA, AoA, controls, power, levers), the annunciators column.
         private const float NW = 1528f, NH = 286.5f, IH = 282f, Y0 = 2f;   // IH: the plates' height; Y0: their top (1920/NW·NH = 360 = a third of 1080)
-        private const float McpW = 268f, AnnW = 170f, Gap = 8f, InsetColW = 236f, LessonW = 300f, ToolsW = 352f, JoyW = 440f;
+        private const float McpW = 268f, AnnW = 170f, Gap = 8f, InsetColW = 236f, LessonW = 300f, ToolsW = 352f;
         // MODULES (owner 2026-10-11): every part of the band is a module with its own width at full height; when they don't fit,
         // they ALL shrink together, in steps, with hysteresis — shrinking happens at once (never overlap), growing back needs 6 %
         // more room than the next step for 0.75 s, so a module on the edge never twitches between two sizes.
@@ -88,8 +88,6 @@ namespace FlyingGame.Bridge.Widget
 
             // The modules, left to right (only the ones that apply).
             var mods = new List<(float w, System.Action<float> draw)>();
-            // JOYSTICK SETUP (2026-10-11): the guided calibration, first in the band while it runs.
-            if (w.JoyWizard.Active) mods.Add((JoyW, x => JoySetupModule(w, x, Y0, JoyW, IH)));
             // TOOLS (owner 2026-10-11: "always present … what vectors to show, scenarios like the spin or 4 forces lesson"): first.
             mods.Add((ToolsW, x => Tools(w, x, Y0, ToolsW, IH)));
             mods.Add((McpW, x => { Mcp(x, Y0, McpW, IH, w.Autopilot); LayoutRect("panelMove", x, Y0, McpW, 26); }));
@@ -125,6 +123,10 @@ namespace FlyingGame.Bridge.Widget
                 _texts.Add((P(x + mbw * 0.5f, my + 22), "MENU", 22f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
                 LayoutRect("glassMenu", x, my, mbw, 44);
             }));
+
+            // JOYSTICK SETUP (owner 2026-10-11: "I'm not seeing this calibration page"): while it runs it IS the band — the whole
+            // row, big type, readable on the teleprompter (nothing flies while the stick is being learnt).
+            if (w.JoyWizard.Active) { mods.Clear(); mods.Add((NW, x => JoySetupModule(w, x, Y0, NW, IH))); }
 
             // Fit: one scale for the whole row (stepped, with hysteresis), the row centred and bottom-aligned in the box.
             float need = -Gap; foreach (var m in mods) need += m.w + Gap;
@@ -201,36 +203,35 @@ namespace FlyingGame.Bridge.Widget
         {
             var jw = w.JoyWizard;
             Plate(x, y, mw, mh);
-            float lx = x + 10, ty = y + 14;
-            _texts.Add((P(lx, ty), $"JOYSTICK SETUP · {jw.StepNumber}/{jw.StepCount}", 14f * _s, new Color(0.55f, 0.85f, 1f), TextAnchor.MiddleLeft, true, true)); ty += 20;
-            _texts.Add((P(lx, ty), jw.DeviceName ?? "", 12f * _s, Lbl, TextAnchor.MiddleLeft, true, true)); ty += 22;
-            foreach (var line in Wrap(jw.Instruction, mw - 20, 17f)) { if (ty > y + 120) break; OText(lx, ty, line, 15, Color.white, TextAnchor.MiddleLeft); ty += 20; }
-            ty = y + 132;
-            _texts.Add((P(lx, ty), jw.Status, 13f * _s, new Color(0.55f, 0.95f, 0.6f), TextAnchor.MiddleLeft, true, true)); ty += 14;
-            Rect(lx, ty, mw - 20, 6, new Color(1, 1, 1, 0.12f)); Rect(lx, ty, (mw - 20) * jw.Progress, 6, LitGreen); ty += 14;
-            // The raw axes.
-            float bw = (mw - 20 - 7 * 6f) / 8f, bh = 54f;
+            // Left: what to do now (big). Right: the live axes. Bottom: BACK · SKIP/FINISH · CANCEL.
+            float lw = mw * 0.56f, lx = x + 18, ty = y + 22;
+            _texts.Add((P(lx, ty), $"JOYSTICK SETUP  ·  STEP {jw.StepNumber} OF {jw.StepCount}", 24f * _s, new Color(0.55f, 0.85f, 1f), TextAnchor.MiddleLeft, true, true)); ty += 30;
+            _texts.Add((P(lx, ty), jw.DeviceName ?? "", 17f * _s, Lbl, TextAnchor.MiddleLeft, true, true)); ty += 36;
+            foreach (var line in Wrap(jw.Instruction, lw - 20, 34.5f)) { if (ty > y + 160) break; OText(lx, ty, line, 30, Color.white, TextAnchor.MiddleLeft); ty += 38; }
+            ty = y + 178;
+            _texts.Add((P(lx, ty), jw.Status, 22f * _s, new Color(0.55f, 0.95f, 0.6f), TextAnchor.MiddleLeft, true, true)); ty += 20;
+            Rect(lx, ty, lw - 20, 10, new Color(1, 1, 1, 0.12f)); Rect(lx, ty, (lw - 20) * jw.Progress, 10, LitGreen);
+            // The raw axes (the one being looked at lit) and what's been learnt.
+            float ax0 = x + lw + 10, aw = mw - lw - 28, bw = (aw - 7 * 8f) / 8f, bh = 130f, ay = y + 16;
             for (int a = 1; a <= FlyingGame.Bridge.JoystickInput.AxisCount; a++)
             {
-                float bx = lx + (a - 1) * (bw + 6f), v = FlyingGame.Bridge.JoystickInput.Raw(a), mid = ty + bh * 0.5f, fh = bh * 0.5f * Mathf.Abs(v);
-                Rect(bx, ty, bw, bh, new Color(1, 1, 1, 0.08f));
-                Rect(bx, v >= 0 ? mid - fh : mid, bw, Mathf.Max(1f, fh), a == jw.Focus ? LitGreen : new Color(1, 1, 1, 0.45f));
-                _texts.Add((P(bx + bw * 0.5f, ty + bh + 8), $"{a}", 11f * _s, Lbl, TextAnchor.MiddleCenter, true, false));
+                float bx = ax0 + (a - 1) * (bw + 8f), v = FlyingGame.Bridge.JoystickInput.Raw(a), mid = ay + bh * 0.5f, fh = bh * 0.5f * Mathf.Abs(v);
+                Rect(bx, ay, bw, bh, new Color(1, 1, 1, 0.08f));
+                Rect(bx, v >= 0 ? mid - fh : mid, bw, Mathf.Max(2f, fh), a == jw.Focus ? LitGreen : new Color(1, 1, 1, 0.5f));
+                _texts.Add((P(bx + bw * 0.5f, ay + bh + 14), $"{a}", 18f * _s, Lbl, TextAnchor.MiddleCenter, true, true));
             }
-            ty += bh + 20;
-            // BACK · SKIP/FINISH · CANCEL
+            _texts.Add((P(ax0, ay + bh + 44), jw.Summary(), 17f * _s, Color.white, TextAnchor.MiddleLeft, true, true));
             bool done = jw.StepNumber == jw.StepCount;
-            float cw = (mw - 20 - 2 * 8f) / 3f, cy = y + mh - 34;
+            float cw = (aw - 2 * 12f) / 3f, cy = y + mh - 64;
             void Chip(float cx, string label, string key, string json, Color c)
             {
-                RoundRect(cx, cy, cw, 28, 5, c);
-                _texts.Add((P(cx + cw * 0.5f, cy + 14), label, 14f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
-                LayoutRect("tap:" + key, cx, cy, cw, 28); TapCmds["tap:" + key] = json;
+                RoundRect(cx, cy, cw, 52, 7, c);
+                _texts.Add((P(cx + cw * 0.5f, cy + 26), label, 24f * _s, Color.white, TextAnchor.MiddleCenter, true, true));
+                LayoutRect("tap:" + key, cx, cy, cw, 52); TapCmds["tap:" + key] = json;
             }
-            Chip(lx, "BACK", "joy.back", "{\"cmd\":\"joystick\",\"setup\":\"back\"}", new Color(0.25f, 0.25f, 0.28f, 0.95f));
-            Chip(lx + cw + 8, done ? "FINISH" : "SKIP", done ? "joy.finish" : "joy.skip", done ? "{\"cmd\":\"joystick\",\"setup\":\"finish\"}" : "{\"cmd\":\"joystick\",\"setup\":\"skip\"}", done ? new Color(0.15f, 0.55f, 0.3f, 0.95f) : new Color(0.2f, 0.4f, 0.75f, 0.95f));
-            Chip(lx + 2 * (cw + 8), "CANCEL", "joy.cancel", "{\"cmd\":\"joystick\",\"setup\":\"cancel\"}", new Color(0.55f, 0.18f, 0.15f, 0.95f));
-            _texts.Add((P(lx, cy - 12), jw.Summary(), 10f * _s, Lbl, TextAnchor.MiddleLeft, true, false));
+            Chip(ax0, "BACK", "joy.back", "{\"cmd\":\"joystick\",\"setup\":\"back\"}", new Color(0.25f, 0.25f, 0.28f, 0.95f));
+            Chip(ax0 + cw + 12, done ? "FINISH" : "SKIP", done ? "joy.finish" : "joy.skip", done ? "{\"cmd\":\"joystick\",\"setup\":\"finish\"}" : "{\"cmd\":\"joystick\",\"setup\":\"skip\"}", done ? new Color(0.15f, 0.55f, 0.3f, 0.95f) : new Color(0.2f, 0.4f, 0.75f, 0.95f));
+            Chip(ax0 + 2 * (cw + 12), "CANCEL", "joy.cancel", "{\"cmd\":\"joystick\",\"setup\":\"cancel\"}", new Color(0.55f, 0.18f, 0.15f, 0.95f));
         }
 
         /// <summary>An inset as a band module: its plate drawn at the module's pixel rect, its text scaled to fit.</summary>
