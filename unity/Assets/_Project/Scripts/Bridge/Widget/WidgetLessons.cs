@@ -75,7 +75,17 @@ namespace FlyingGame.Bridge.Widget
             _levelUsed = true;
         }
         private bool _levelUsed;
-        public void Seed() { _eI = C.Elevator; _aI = C.Aileron; _rI = C.Rudder; }
+        /// <summary>Airspeed with the POWER (a pilot's hand on the throttle; HoldLevel leaves power to the script): PI from where the
+        /// throttle is (2026-10-11: adverse yaw bled from 73 to 51 kt with the power left alone).</summary>
+        public void HoldSpeed(double kias, float dt)
+        {
+            if (!_pSeeded) { _pI = C.Throttle01; _pSeeded = true; }
+            double e = kias - R.Kias;
+            _pI = System.Math.Clamp(_pI + 0.02 * e * dt, 0, 1);
+            C.Throttle01 = System.Math.Clamp(_pI + 0.05 * e, 0, 1);
+        }
+        private double _pI; private bool _pSeeded;
+        public void Seed() { _eI = C.Elevator; _aI = C.Aileron; _rI = C.Rudder; _pSeeded = false; }
         public double Alt0;
 
         private static Phase P(string label, float s, System.Action<WidgetLessons, float> tick, System.Func<WidgetLessons, bool> done = null, System.Action<WidgetLessons> enter = null, System.Action<WidgetLessons> exit = null)
@@ -170,10 +180,10 @@ namespace FlyingGame.Bridge.Widget
             Add("adverse-yaw", "Adverse yaw — what the rudder is for", "Aileron drag yaws the nose AWAY from the turn; the rudder coordinates it. Watch the ball and each wing's drag.",
                 L => { Cruise(L, "c172-like", "behind"); L.W.Autopilot.Engage(null, 70, at: true, yd: false); Show(L, "vectors"); L.W.Show["wingDrag"] = true; Inset(L, "ball"); },
                 P("SLOWING TO 70 KT", 40, (L, dt) => { }, L => L.R.Kias < 73),
-                P("AILERON ONLY — roll left, feet still", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = 0; L.HoldLevel(L.Alt0, dt); L.YawSample(); }, null, L => { L.W.Autopilot.Off(); L.YawStart(); }),
-                P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); }, null, L => L.YawEnd("AILERON ONLY")),
-                P("AILERON + RUDDER — coordinated", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = -0.5; L.HoldLevel(L.Alt0, dt); L.YawSample(); }, null, L => L.YawStart()),
-                P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); }, null, L => L.YawEnd("COORDINATED")));
+                P("AILERON ONLY — roll left, feet still", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.C.Rudder = 0; L.HoldLevel(L.Alt0, dt); L.HoldSpeed(70, dt); L.YawSample(); }, null, L => { L.W.Autopilot.Off(); L.YawStart(); }),
+                P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); L.HoldSpeed(70, dt); }, null, L => L.YawEnd("AILERON ONLY")),
+                P("AILERON + RUDDER — coordinated", 2.0f, (L, dt) => { L.C.Aileron = -0.3; L.BallCentre(dt); L.HoldLevel(L.Alt0, dt); L.HoldSpeed(70, dt); L.YawSample(); }, null, L => { L.YawStart(); L.C.Rudder = -0.1; L._ballI = -0.1; }),
+                P("WINGS LEVEL", 6, (L, dt) => { L.HoldBank(0, dt); L.HoldLevel(L.Alt0, dt); L.HoldSpeed(70, dt); }, null, L => L.YawEnd("COORDINATED")));
             // 10 — slips and skids
             Add("forward-slip", "The forward slip", "Crossed controls: wing down one way, opposite rudder. The airplane flies sideways to the air (β), drag soars, the descent steepens at the same speed.",
                 L => { Cruise(L, "c172-like", "front"); L.C.Throttle01 = 0; Show(L, "vectors", "wind"); Inset(L, "ball"); },
@@ -280,6 +290,10 @@ namespace FlyingGame.Bridge.Widget
 
         // ---- measurements written to the caption ----
         public double TrimStick, TrimAil, TrimRud;
+        /// <summary>Feet on the ball (the coordinated half of adverse yaw; owner's shot list 2026-10-11): rudder that keeps the
+        /// sideslip at zero — a fixed 50 % boot over-yawed it into a 6° skid. Left rudder makes β positive (wind from the right).</summary>
+        public double _ballI;
+        public void BallCentre(float dt) { _ballI = System.Math.Clamp(_ballI + 0.6 * R.BetaDeg * dt, -1, 1); C.Rudder = System.Math.Clamp(_ballI + 0.05 * R.BetaDeg, -1, 1); }
         private bool StallCheck(string tag)
         {
             var r = R; double crit = _w.CriticalAlphaDeg(_w.Ac.FlapFraction);

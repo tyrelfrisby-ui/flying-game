@@ -117,7 +117,7 @@ namespace FlyingGame.Bridge.Widget
             if (hdg.HasValue) { HdgDeg = hdg.Value; if (rollMode == null) rollMode = "hdg"; }
             if (rollMode != null) RollMode = rollMode == "hdg" ? "hdg" : rollMode == "bank" ? "bank" : "rol";
             if (yd.HasValue) YawDamper = yd.Value;
-            if (at.HasValue) SetAutoThrottle(at.Value);
+            if (at.HasValue) SetAutoThrottle(at.Value, kias.HasValue ? Kias : null);   // (the target set above — engaging from off reset it to the present speed)
             On = true; Status = "holding"; _errs.Clear(); _powerSat = _eleSat = _stallT = 0;
         }
 
