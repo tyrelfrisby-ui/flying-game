@@ -75,7 +75,8 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The start condition (protocol 5): "cruise" | "final" | "spin", or null for an old-style scenario start.</summary>
         public string Condition { get; private set; }
         /// <summary>FINAL's view is the flare's side view and can't be changed.</summary>
-        public bool ViewFixed => Condition == "final";
+        public bool ViewFixed => false;   // (final had only the side view until 2026-10-11; now its 3D views fly over a real runway)
+        public static readonly string[] FinalViews = { "side", "chase", "behind", "front", "top", "crowd" };
         public static readonly string[] Conditions = { "cruise", "final", "spin" };
         private double? _finalStartFt;
         public WorldTerrain.RunwayEnd Runway { get; private set; }
@@ -262,6 +263,7 @@ namespace FlyingGame.Bridge.Widget
             Review?.Clear(); _shown = null;
             if (_surface != null) _surface.SetActive(sc == Scenario.Flare);
             else if (sc == Scenario.Flare) BuildSurface();
+            if (sc == Scenario.Flare) BuildRunway3D(); else if (_runway3D != null) _runway3D.SetActive(false);
             Paused = false;
         }
 
@@ -288,7 +290,8 @@ namespace FlyingGame.Bridge.Widget
                     Condition = "final"; View = "side"; ViewFrom = "";
                     if (_flare.JetFlare) TrimFinalJet();
                     if (_surface != null) _surface.SetActive(false);   // the runway is drawn instead (WidgetVectors.DrawWorld)
-                    return view != null && view != "side" ? "view is fixed in final" : null;
+                    if (view != null && System.Array.IndexOf(FinalViews, view) >= 0) SetView(view);
+                    return view != null && System.Array.IndexOf(FinalViews, view) < 0 ? "final views: " + string.Join(", ", FinalViews) : null;
                 case "spin":
                 {
                     string err = view == null || view == "locked" || view == "body" ? null : "spin views: locked (from side) or body (from left)";
@@ -312,7 +315,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The views a condition allows: null = any.</summary>
         public string CheckView(string name, string from)
         {
-            if (Condition == "final") return "view is fixed in final";
+            if (Condition == "final" && System.Array.IndexOf(FinalViews, name) < 0) return "final views: " + string.Join(", ", FinalViews);
             if (Condition == "spin" && !((name == "locked" && (from == null || from == "side")) || (name == "body" && (from == null || from == "left"))))
                 return "spin views: locked (from side) or body (from left)";
             return null;
@@ -527,6 +530,24 @@ namespace FlyingGame.Bridge.Widget
             }, now, p => CoordinateMap.ToUnity(p + new Vec3(0, 0, shift)), Cam);
         }
 
+        /// <summary>FINAL in 3D (owner 2026-10-11: a chase-view landing): the runway as a slab of asphalt under the 3D views;
+        /// its markings and the ground grid are drawn with the vectors (WidgetVectors.DrawWorld). The side view keeps its line.</summary>
+        private GameObject _runway3D;
+        private void BuildRunway3D()
+        {
+            if (_runway3D != null || Runway.Strip.Length <= 0) return;
+            _runway3D = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(_runway3D.GetComponent<Collider>());
+            _runway3D.name = "WidgetRunway"; _runway3D.transform.SetParent(transform, false);
+            _runway3D.transform.localScale = new Vector3((float)Runway.Strip.Width, 0.05f, (float)Runway.LengthM);   // Unity z = sim north = the runway
+            _runway3D.transform.position = new Vector3(0f, -0.03f, 0f);
+            var mr = _runway3D.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = new Material(Shader.Find("Unlit/Color") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = new Color(0.32f, 0.33f, 0.35f, 1f) };
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _runway3D.layer = _visualRoot != null ? _visualRoot.gameObject.layer : 0;
+            _runway3D.SetActive(false);
+        }
+
         private void BuildSurface()
         {
             // The surface: one white line, edge-on to the side camera (a long thin bar along the runway).
@@ -719,7 +740,8 @@ namespace FlyingGame.Bridge.Widget
         private void PlaceCamera(RigidBodyState s)
         {
             Vector3 ac = CoordinateMap.ToUnity(s.Position);
-            if (Current == Scenario.Flare)
+            if (_runway3D != null) _runway3D.SetActive(Current == Scenario.Flare && View != "side");
+            if (Current == Scenario.Flare && View == "side")
             {
                 // Side-on, orthographic, the camera on the aircraft's right (+east): runway left → right on screen = south → north.
                 Cam.orthographic = true;

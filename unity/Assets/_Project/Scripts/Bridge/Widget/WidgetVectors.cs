@@ -569,6 +569,7 @@ namespace FlyingGame.Bridge.Widget
             if (w.Current == AeroWidget.Scenario.Flare)
             {
                 if (w.Condition != "final") return;
+                if (w.View != "side") { Runway3D(w); if (w.Show["earthGrid"]) EarthGrid(w, 0f); return; }
                 float L = (float)w.Runway.LengthM, z0 = -L / 2f, z1 = L / 2f, aim = z0 + (float)FlyingGame.Sim.Practice.PracticeScenario.NumbersPastThresholdM;
                 Line(new Vector3(0, 0, -20000), new Vector3(0, 0, 20000), new Color(1, 1, 1, 0.45f));                  // the ground
                 for (int k = 0; k <= 4; k++) Line(new Vector3(0, -k * px, z0), new Vector3(0, -k * px, z1), Color.white);   // the runway: 5 px thick
@@ -598,5 +599,24 @@ namespace FlyingGame.Bridge.Widget
             }
         }
         private static void Line(Vector3 a, Vector3 b, Color c) { GL.Color(c); GL.Vertex(a); GL.Vertex(b); }
+
+        /// <summary>FINAL's runway in the 3D views (the asphalt is AeroWidget's slab): white edges, the threshold bars, the
+        /// centreline dashes and the aim-point bars, a hair above the surface.</summary>
+        private void Runway3D(AeroWidget w)
+        {
+            float L = (float)w.Runway.LengthM, W = (float)w.Runway.Strip.Width, z0 = -L / 2f, z1 = L / 2f, h = 0.03f, hw = W / 2f;
+            float aim = z0 + (float)FlyingGame.Sim.Practice.PracticeScenario.NumbersPastThresholdM;
+            Color c = Color.white;
+            Line(new Vector3(-hw, h, z0), new Vector3(-hw, h, z1), c); Line(new Vector3(hw, h, z0), new Vector3(hw, h, z1), c);
+            Line(new Vector3(-hw, h, z0), new Vector3(hw, h, z0), c); Line(new Vector3(-hw, h, z1), new Vector3(hw, h, z1), c);
+            for (int k = 0; k < 8; k++)   // the threshold "piano keys"
+            {
+                float x = -hw + W * (k + 0.5f) / 8f, bw = W / 24f;
+                for (float dx = -bw; dx <= bw; dx += bw / 2f) Line(new Vector3(x + dx, h, z0 + 6f), new Vector3(x + dx, h, z0 + 36f), c);
+            }
+            for (float z = z0 + 60f; z < z1 - 30f; z += 60f) Line(new Vector3(0, h, z), new Vector3(0, h, z + 36f), c);   // the centreline
+            foreach (float sx in new[] { -1f, 1f })   // the aim-point markings, each side of the centreline
+                for (float dx = 0; dx <= 9f; dx += 1.5f) Line(new Vector3(sx * (W * 0.18f + dx), h, aim), new Vector3(sx * (W * 0.18f + dx), h, aim + 45f), c);
+        }
     }
 }

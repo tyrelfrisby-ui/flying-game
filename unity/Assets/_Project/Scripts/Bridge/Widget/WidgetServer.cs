@@ -598,7 +598,7 @@ namespace FlyingGame.Bridge.Widget
                     if (LayoutJson() is JObject lay) ok["controlsLayout"] = lay;
                     ok["display"] = new JObject { ["modes"] = new JArray("classic", "ntsb"), ["default"] = "ntsb", ["split"] = new JArray(0.35, 0.6) };
                     ok["conditions"] = JArray.Parse(@"[{""id"":""cruise"",""name"":""Cruise"",""views"":""any"",""default"":""chase""},
-                        {""id"":""final"",""name"":""On final"",""view"":""side"",""fixed"":true},
+                        {""id"":""final"",""name"":""On final"",""views"":[""side"",""chase"",""behind"",""front"",""top"",""crowd""],""default"":""side""},
                         {""id"":""spin"",""name"":""Developed spin"",""views"":[{""name"":""locked"",""from"":""side""},{""name"":""body"",""from"":""left""}],""default"":""locked"",""hold"":true}]");
                     ok["bodyFrom"] = new JArray("left");
                     ok["commands"] = new JArray("hello", "start", "display", "caption", "fourForces", "altitudeLock", "vectorStyle", "lesson", "loading", "autopilot", "wind", "thermal", "smoke", "inset", "scenario", "controls", "preset", "pause", "resume", "step", "rewind", "seek", "play", "pilot", "controlsDisplay", "panel", "joystick", "requestControls", "reset", "timescale", "view", "show", "fleet", "state", "subscribe", "snapshot", "gamepad");

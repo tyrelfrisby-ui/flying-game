@@ -45,7 +45,9 @@ namespace FlyingGame.Bridge.Widget
             if (aero && Widget.Current != AeroWidget.Scenario.Cruise) Widget.Load(AeroWidget.Scenario.Cruise, Widget.AircraftId, 0);
             if (spin && Widget.Current != AeroWidget.Scenario.Spin) Widget.Load(AeroWidget.Scenario.Spin, Widget.AircraftId, Widget.Flaps);
             if (flare && Widget.Current != AeroWidget.Scenario.Flare) Widget.Load(AeroWidget.Scenario.Flare, Widget.AircraftId, Widget.Flaps);
-            if (name == "spin-entry" || name == "spin-developed" || name.StartsWith("flare")) Widget.Load(Widget.Current, Widget.AircraftId, Widget.Flaps);
+            // A flare preset restarts the approach — on FINAL it restarts FINAL (its 300 ft start, its runway, the view in use).
+            if (flare && Widget.Condition == "final") Widget.StartCondition("final", Widget.AircraftId, Widget.View, null);
+            else if (name == "spin-entry" || name == "spin-developed" || name.StartsWith("flare")) Widget.Load(Widget.Current, Widget.AircraftId, Widget.Flaps);
             Running = name; _stage = 0; _t = 0; _nzI = 0; _ailI = 0;
             var c = Widget.Controls;
             if (name == "flare-hands-off") { c.ElevatorFree = true; c.Elevator = 0; }
