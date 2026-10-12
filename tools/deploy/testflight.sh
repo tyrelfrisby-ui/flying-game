@@ -3,6 +3,12 @@
 set -u
 D=/Users/tyfrisby/Documents/flying-game/tools/deploy
 ARCH=/tmp/flyinggame-asc/AeroPlayground.xcarchive
+# Refuse a stale iOS export (2026-10-11: four uploads re-sent the 07:25 export, each a "new build" email, none with
+# the day's changes). The export must be newer than the last commit to the game's code; run deploy.sh first.
+PL=/private/tmp/flyinggame-ios/Info.plist
+[ -f $PL ] || { echo "NO iOS EXPORT — run tools/deploy/deploy.sh first"; exit 1; }
+LAST=$(git -C ${D:h:h} log -1 --format=%ct -- unity/Assets src)
+[ $(stat -f %m $PL) -gt $LAST ] || { echo "STALE iOS EXPORT ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' $PL)) — older than the last code commit; run tools/deploy/deploy.sh first"; exit 1; }
 rm -rf /tmp/flyinggame-asc; mkdir -p /tmp/flyinggame-asc
 echo "== archive $(date)"
 xcodebuild -project /private/tmp/flyinggame-ios/Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration Release \
