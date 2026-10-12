@@ -205,6 +205,7 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Screen → frame offset of the projection: the widget's scene texture starts at the picture rect; the game's
         /// camera already projects in screen pixels (zero).</summary>
         private Vector2 _off;
+        private WidgetArrow3D _path3D, _wind3D;
         public float Ui = 1f;   // text / line scale (the game's screens are bigger than the 1080 frame)
         public void Build(WidgetControlsDisplay ui, Rect scene) => Build(ui, scene, scene.position);
         public void Build(WidgetControlsDisplay ui, Rect scene, Vector2 projectionOffset)
@@ -275,13 +276,39 @@ namespace FlyingGame.Bridge.Widget
             if (On("wind") && F.ContainsKey("wind") && !pathOn) { Arrow("wind", Wind, windPx, true); _labels.Request("wind", Tip("wind", windPx, true), Away(Origin("wind"), Tip("wind", windPx, true)), new[] { rd.AlphaDeg }, v => $"RELATIVE WIND α {v[0]:0.0}°", Wind, 3, 0.1); }
             if (pathOn)
             {
-                var fw = F["wind"]; float len = windPx * 1.3f;
+                // The RAW velocity through the air for this frame, not the display-smoothed one (owner 2026-10-12): through a
+                // pull-up the angle between these arrows and the fuselage is the sim's true α at that instant.
+                var fw = P.V.TryGetValue("wind", out var rawW) ? rawW : F["wind"]; float len = windPx * 1.3f;
                 Vec3 fwd = fw.vec * -1.0;                                     // unit, body axes: the way the airplane is going
                 // Still on the CG's line, but starting just ahead of the nose (the most forward wheel + 1.5 m), clear of the cowling.
                 double noseX = 0; foreach (var g in w.Config.Gear) noseX = System.Math.Max(noseX, g.PosVec().X - cg.X);
                 Vec3 start = fw.from + fwd * (noseX + 1.5);
                 F["path"] = (start, fwd);
                 F["windHead"] = (start + fwd * (len * pxM), fw.vec);          // arrives at the path's tip from a path-length beyond it
+                if (w is AeroWidget ow && ow.View == "orbit")
+                {
+                    // ORBIT: solid arrows fixed to the airplane's flight path, labels facing the camera (beside each arrow on
+                    // screen: the flight path's below, the relative wind's above — apart even nose-on).
+                    float lenM = 0.55f * ow.LengthM, rM = 0.035f * lenM;   // sized to the airplane: the camera circles at a fixed distance
+                    Vector3 pT = World(start), pH = World(start + fwd * lenM), wT = World(start + fwd * (2.0 * lenM));
+                    _path3D ??= new WidgetArrow3D("FlightPath3D", transform, ow.VisualLayer, PathColor);
+                    _wind3D ??= new WidgetArrow3D("RelWind3D", transform, ow.VisualLayer, Wind);
+                    _path3D.Place(pT, pH, rM);
+                    if (On("wind")) _wind3D.Place(wT, pH, rM); else _wind3D.Hide();
+                    // Beside each arrow, at right angles to it on screen (on opposite sides), so neither label lies on an arrow
+                    // whichever way the line points; nose-on (the line a dot) they sit below and above.
+                    if (Scr(pT, out var sT) && Scr(wT, out var sW) && Scr((pT + pH) * 0.5f, out var pm) && Scr((wT + pH) * 0.5f, out var wm))
+                    {
+                        Vector2 ln = sW - sT; float lnL = ln.magnitude;
+                        Vector2 perp = lnL > 20f ? new Vector2(-ln.y, ln.x) / lnL : Vector2.up;
+                        if (perp.y < 0) perp = -perp;                                  // + = the upper side
+                        float g3 = (lnL > 20f ? 22f : 30f) * ui.TextScale + Mathf.Abs(perp.x) * 60f * ui.TextScale;   // wider when the line is steep (the text is wide)
+                        ui.PxText(pm - perp * g3, "FLIGHT PATH", 17f, PathColor, TextAnchor.MiddleCenter);
+                        if (On("wind")) ui.PxText(wm + perp * g3, "RELATIVE WIND", 17f, Wind, TextAnchor.MiddleCenter);
+                    }
+                    goto pathDone;
+                }
+                _path3D?.Hide(); _wind3D?.Hide();
                 Arrow("path", PathColor, len);
                 if (On("wind")) Arrow("windHead", Wind, len, true);
                 Vector2 c0 = Origin("path"), mid = (c0 + Tip("path", len)) * 0.5f, far = Origin("windHead");
@@ -292,7 +319,9 @@ namespace FlyingGame.Bridge.Widget
                 float gap = 26f * ui.TextScale;
                 ui.PxText(mid - up * gap, "FLIGHT PATH", 17f, PathColor, TextAnchor.MiddleCenter);
                 if (On("wind")) ui.PxText((far + Tip("windHead", len, true)) * 0.5f + up * gap, "RELATIVE WIND", 17f, Wind, TextAnchor.MiddleCenter);
+                pathDone:;
             }
+            else { _path3D?.Hide(); _wind3D?.Hide(); }
             // Tail winds (length = the local speed: prop blast lengthens, blanketing shortens).
             foreach (var (k, a, eta, nm) in new[] { ("tailWindL", P.TailAlphaL, P.EtaL, "L STAB"), ("tailWindR", P.TailAlphaR, P.EtaR, "R STAB") })
             {

@@ -71,7 +71,7 @@ namespace FlyingGame.Bridge.Widget
         public string ViewFrom = "";
         private Vector3 _lockDir = new(1f, 0.18f, -0.25f);
         private Vector3 _crowd;   // the crowd view's spectator (Unity world)
-        public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked", "body", "crowd" };
+        public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked", "body", "crowd", "orbit" };
         /// <summary>The start condition (protocol 5): "cruise" | "final" | "spin", or null for an old-style scenario start.</summary>
         public string Condition { get; private set; }
         /// <summary>FINAL's view is the flare's side view and can't be changed.</summary>
@@ -746,6 +746,8 @@ namespace FlyingGame.Bridge.Widget
             if (-s.Position.Z < 600) { AltShiftM -= 1800; Ac.State = new RigidBodyState(new Vec3(s.Position.X, s.Position.Y, s.Position.Z - 1800), s.Attitude, s.Velocity, s.Rates); }
         }
 
+        /// <summary>The orbit view's camera bearing from the nose (clockwise from above) and height above the horizontal.</summary>
+        public float OrbitAzDeg = 270f, OrbitElevDeg = 12f;
         private void PlaceCamera(RigidBodyState s)
         {
             Vector3 ac = CoordinateMap.ToUnity(s.Position);
@@ -777,6 +779,24 @@ namespace FlyingGame.Bridge.Widget
                     Cam.fieldOfView = 50f;
                     Cam.transform.position = _crowd;
                     Cam.transform.LookAt(ac, Vector3.up);
+                    return;
+                }
+                if (View == "orbit")
+                {
+                    // ORBIT (owner 2026-10-12, W12): circling the airplane, level, at OrbitElevDeg above it. OrbitAzDeg is measured
+                    // from the nose, clockwise seen from above (0 ahead, 90 right, 180 behind, 270 left), relative to the
+                    // airplane's heading — the capture script turns it frame by frame.
+                    Vector3 nose = CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(1, 0, 0))); nose.y = 0;
+                    if (nose.sqrMagnitude < 1e-4f) nose = Vector3.forward; nose.Normalize();
+                    Vector3 rightH = Vector3.Cross(Vector3.up, nose).normalized;
+                    float az = OrbitAzDeg * Mathf.Deg2Rad, el = OrbitElevDeg * Mathf.Deg2Rad;
+                    Vector3 od = Mathf.Cos(el) * (Mathf.Cos(az) * nose + Mathf.Sin(az) * rightH) + Mathf.Sin(el) * Vector3.up;
+                    // Aimed at the middle of the picture — the airplane plus the arrow pair out ahead of it (WidgetVectors: each
+                    // arrow 0.55 of the airplane's length) — 0.4 of a length ahead of the CG along the flight path.
+                    Vector3 vel = CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity));
+                    Vector3 aim = ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
+                    Cam.transform.position = aim + od * dist;
+                    Cam.transform.LookAt(aim, Vector3.up);
                     return;
                 }
                 if (View == "body")

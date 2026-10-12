@@ -549,6 +549,7 @@ namespace FlyingGame.Bridge.Widget
                 case "resume":
                     w.Review.Resume(((string)j["from"])?.ToLowerInvariant() == "live");
                     ok["offsetMs"] = 0; ok["frame"] = w.Review.FrameJson(); break;
+                case "recordRate": w.Review.RecordRate = Mathf.Clamp(j["rate"]?.Value<int>() ?? 1, 1, 8); ok["rate"] = w.Review.RecordRate; break;
                 case "step": w.Review.Step(j["frames"]?.Value<int>() ?? -1); return Reviewed(ok);
                 case "rewind": w.Review.Rewind(j["seconds"]?.Value<double>() ?? 1); return Reviewed(ok);
                 case "seek": w.Review.Seek(j["offsetMs"]?.Value<double>() ?? 0); return Reviewed(ok);
@@ -580,6 +581,10 @@ namespace FlyingGame.Bridge.Widget
                         w.SetFrame(fm);
                         if (j["name"] == null && j["zoom"] == null && j["zoomBy"] == null) { ok["frame"] = w.FrameMode; ok["frameW"] = AeroWidget.FrameW; ok["frameH"] = AeroWidget.FrameH; break; }
                     }
+                    // Orbit bearing (2026-10-12): {"cmd":"view","orbitDeg":270,"orbitElev":12} — alone it just turns the orbit camera.
+                    if (j["orbitDeg"] != null) w.OrbitAzDeg = (float)j["orbitDeg"].Value<double>();
+                    if (j["orbitElev"] != null) w.OrbitElevDeg = Mathf.Clamp((float)j["orbitElev"].Value<double>(), -60f, 80f);
+                    if ((j["orbitDeg"] != null || j["orbitElev"] != null) && j["name"] == null && j["zoom"] == null) { ok["orbitDeg"] = w.OrbitAzDeg; ok["orbitElev"] = w.OrbitElevDeg; break; }
                     // Zoom alone (2026-10-11): {"cmd":"view","zoom":1.6} (0.6…3; 1 = the old framing) or "zoomBy": 1.2.
                     if (j["zoom"] != null || j["zoomBy"] != null)
                     {

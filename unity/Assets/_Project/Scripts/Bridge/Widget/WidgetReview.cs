@@ -84,6 +84,9 @@ namespace FlyingGame.Bridge.Widget
         public double HistoryMs => History.Count * WidgetHistory.FrameMs;
         public WidgetHistory.Snap Shown => History.Get(Index);
         public double SimTimeNow => _simTime;
+        /// <summary>Snapshots per 1/30 s of sim time (capture only, 2026-10-12): 4 records 120 Hz, so stepping a frame at a
+        /// time renders true 25 % slow motion. 1 everywhere else.</summary>
+        public int RecordRate = 1;
 
         public void Clear() { History.Clear(); Index = 0; Playing = false; _recAcc = 0; }
 
@@ -92,8 +95,9 @@ namespace FlyingGame.Bridge.Widget
         {
             _simTime += simDt;
             _recAcc += simDt;
-            if (History.Count > 0 && _recAcc < 1f / WidgetHistory.Hz) return;
-            _recAcc = Mathf.Repeat(_recAcc, 1f / WidgetHistory.Hz);
+            float every = 1f / (WidgetHistory.Hz * RecordRate);
+            if (History.Count > 0 && _recAcc < every) return;
+            _recAcc = Mathf.Repeat(_recAcc, every);
             History.Add(Capture());
         }
 
