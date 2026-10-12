@@ -36,7 +36,7 @@ namespace FlyingGame.Bridge
             _mesh = new Mesh { name = "Smoke" }; _mesh.MarkDynamic();
             _go.AddComponent<MeshFilter>().sharedMesh = _mesh;
             var r = _go.AddComponent<MeshRenderer>();
-            r.sharedMaterial = new Material(Shader.Find("FlyingGame/Smoke") ?? Shader.Find("FlyingGame/Spray")) { color = new Color(0.95f, 0.95f, 0.97f, 1f) };
+            r.sharedMaterial = new Material(Shader.Find("FlyingGame/Smoke") ?? Shader.Find("FlyingGame/Spray")) { color = new Color(0.96f, 0.96f, 0.97f, 1f) };
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; r.receiveShadows = false;
         }
 
@@ -95,7 +95,7 @@ namespace FlyingGame.Bridge
                 float grow = d0 + 2.2f * Mathf.Sqrt((float)age) * (0.8f + 0.4f * rnd2);
                 float stretch = Mathf.Max(grow, v / Hz * 1.3f + (grow - d0));   // one frame's travel, so a fast trail stays joined
                 float fade = Mathf.Pow(1f - (float)age / life, 1.3f) * Mathf.Clamp01(d0 / grow * 1.6f);
-                float a = 0.3f * Mathf.Lerp(0.45f, 1f, s.Flow) * fade;
+                float a = 0.65f * Mathf.Lerp(0.45f, 1f, s.Flow) * fade;   // denser (owner 2026-10-12: the smoke must show in the transparent captures)
                 if (a < 0.004f) continue;
                 Vec3 drift = wind * (Atmosphere.WindGradientFactor(s.Pos) * age) + new Vec3(0, 0, -System.Math.Min(2.0, 0.12 * age));   // + a little warm rise
                 Vector3 axis = CoordinateMap.ToUnity(velW * (1.0 / v));
@@ -127,7 +127,15 @@ namespace FlyingGame.Bridge
                 int i0 = _v.Count;
                 _v.Add(pf.p - along * hl - side * hw); _v.Add(pf.p + along * hl - side * hw); _v.Add(pf.p + along * hl + side * hw); _v.Add(pf.p - along * hl + side * hw);
                 _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(1, 0)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(0, 1));
-                var col = new Color(1, 1, 1, pf.a); _c.Add(col); _c.Add(col); _c.Add(col); _c.Add(col);
+                // Lit from above, shaded underneath (owner 2026-10-12: the smoke must read over a light page as well as a dark one):
+                // each corner's brightness from its height in the puff — white on top, a soft grey below.
+                float span = Mathf.Max(1e-3f, hl + hw);
+                for (int q = i0; q < i0 + 4; q++)
+                {
+                    float up = Mathf.Clamp((_v[q].y - pf.p.y) / span, -1f, 1f);
+                    float b = Mathf.Lerp(0.42f, 1f, 0.5f + 0.5f * up);
+                    _c.Add(new Color(b, b, b * 1.02f, pf.a));
+                }
                 _tri.Add(i0); _tri.Add(i0 + 1); _tri.Add(i0 + 2); _tri.Add(i0); _tri.Add(i0 + 2); _tri.Add(i0 + 3);
             }
             _mesh.Clear();
