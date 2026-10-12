@@ -198,6 +198,12 @@ namespace FlyingGame.Bridge.Widget
                 for (int i = 0; i < d.Length; i++) if (System.Math.Abs(d[i] / d[^1] - FlapsHandle) < System.Math.Abs(d[cur] / d[^1] - FlapsHandle)) cur = i;
                 if (FlyingGame.Bridge.JoystickInput.Pressed("flapsDown")) FlapsHandle = d[System.Math.Min(d.Length - 1, cur + 1)] / d[^1];
                 if (FlyingGame.Bridge.JoystickInput.Pressed("flapsUp")) FlapsHandle = d[System.Math.Max(0, cur - 1)] / d[^1];
+                if (FlyingGame.Bridge.JoystickInput.Pressed("flapsHalf"))
+                {
+                    // FLAPS 50 %: the detent nearest half travel (a tie goes to the deeper one — the 172's 20°).
+                    int h = 0; for (int i = 0; i < d.Length; i++) if (System.Math.Abs(d[i] / d[^1] - 0.5) <= System.Math.Abs(d[h] / d[^1] - 0.5)) h = i;
+                    FlapsHandle = d[h] / d[^1];
+                }
             }
             if (FlyingGame.Bridge.JoystickInput.Pressed("gear") && Spec.Retractable) GearDown = !GearDown;
             if (FlyingGame.Bridge.JoystickInput.Held("trimUp")) { _trimStick = System.Math.Clamp(_trimStick - 0.3 * dt, -1, 1); if (ElevatorFree) Elevator = _trimStick; }

@@ -12,13 +12,14 @@
 #include <string>
 
 namespace {
-const int kAxes = 8, kButtons = 32;
+const int kAxes = 8, kButtons = 32, kHat0 = 28;   // buttons 28…31 = the hat's up / right / down / left
 struct Elem { IOHIDElementRef e; int page, usage; CFIndex min, max; uint32_t cookie; };
 struct Dev
 {
     IOHIDDeviceRef ref;
     std::string name;
     std::vector<Elem> axes, buttons;
+    bool hasHat = false; Elem hat {};
     float axis[kAxes] = {};
     unsigned char button[kButtons] = {};
 };
@@ -57,6 +58,7 @@ void Added(void *, IOReturn, void *, IOHIDDeviceRef d)
             if (t != kIOHIDElementTypeInput_Misc && t != kIOHIDElementTypeInput_Axis && t != kIOHIDElementTypeInput_Button) continue;
             Elem x { e, (int)IOHIDElementGetUsagePage(e), (int)IOHIDElementGetUsage(e), IOHIDElementGetLogicalMin(e), IOHIDElementGetLogicalMax(e), (uint32_t)IOHIDElementGetCookie(e) };
             if (x.page == kHIDPage_Button) dev->buttons.push_back(x);
+            else if (x.page == kHIDPage_GenericDesktop && x.usage == kHIDUsage_GD_Hatswitch && !dev->hasHat) { dev->hat = x; dev->hasHat = true; }
             else if ((x.page == kHIDPage_GenericDesktop && x.usage >= kHIDUsage_GD_X && x.usage <= kHIDUsage_GD_Wheel) || x.page == kHIDPage_Simulation)
                 if (x.max > x.min) dev->axes.push_back(x);
         }
@@ -65,7 +67,7 @@ void Added(void *, IOReturn, void *, IOHIDDeviceRef d)
     std::stable_sort(dev->axes.begin(), dev->axes.end(), [](const Elem &a, const Elem &b) { return AxisRank(a) < AxisRank(b); });
     std::stable_sort(dev->buttons.begin(), dev->buttons.end(), [](const Elem &a, const Elem &b) { return a.usage < b.usage; });
     if (dev->axes.size() > kAxes) dev->axes.resize(kAxes);
-    if (dev->buttons.size() > kButtons) dev->buttons.resize(kButtons);
+    if (dev->buttons.size() > kHat0) dev->buttons.resize(kHat0);
     // Start from the current positions (a throttle lever at rest is not at centre).
     for (size_t i = 0; i < dev->axes.size(); i++)
     {
@@ -105,6 +107,18 @@ void Value(void *, IOReturn, void *, IOHIDValueRef v)
             }
         for (size_t i = 0; i < dev->buttons.size(); i++)
             if (dev->buttons[i].cookie == cookie) { dev->button[i] = x != 0; return; }
+        if (dev->hasHat && dev->hat.cookie == cookie)
+        {
+            // An 8-way hat: 0 = up, clockwise; outside the range = centred. Diagonals press both neighbours.
+            long n = dev->hat.max - dev->hat.min + 1, dir = x - dev->hat.min;
+            bool c = dir < 0 || dir >= n;
+            long d8 = c ? -1 : n == 4 ? dir * 2 : dir;
+            dev->button[kHat0 + 0] = !c && (d8 == 7 || d8 == 0 || d8 == 1);
+            dev->button[kHat0 + 1] = !c && (d8 >= 1 && d8 <= 3);
+            dev->button[kHat0 + 2] = !c && (d8 >= 3 && d8 <= 5);
+            dev->button[kHat0 + 3] = !c && (d8 >= 5 && d8 <= 7);
+            return;
+        }
         return;
     }
 }

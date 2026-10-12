@@ -12,10 +12,10 @@ namespace FlyingGame.Bridge
     /// </summary>
     public static class JoystickInput
     {
-        public const int AxisCount = 8, ButtonCount = 20;
+        public const int AxisCount = 8, ButtonCount = 32, HatButton0 = 28;   // (the Mac: 28…31 = the hat's up / right / down / left)
         /// <summary>The assignable actions, in the order the setup asks for them.</summary>
-        public static readonly string[] Actions = { "brakes", "flapsDown", "flapsUp", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
-        public static readonly string[] ActionNames = { "BRAKES (held)", "FLAPS DOWN", "FLAPS UP", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
+        public static readonly string[] Actions = { "brakes", "flapsDown", "flapsUp", "flapsHalf", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
+        public static readonly string[] ActionNames = { "BRAKES (held)", "FLAPS DOWN", "FLAPS UP", "FLAPS 50 %", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
 
         // The Mac reads joysticks straight from macOS's HID manager (AeroNative HJ_*): Unity's Input Manager only reads them
         // while its app is in front, and the widget runs behind Glass Overlay (owner 2026-10-11: the Hotas X did nothing in
@@ -80,14 +80,16 @@ namespace FlyingGame.Bridge
         {
             if (b < 0 || b >= ButtonCount) return false;
             if (Native) { Poll(); return _held[b]; }
-            return Input.GetKey(KeyCode.JoystickButton0 + b);
+            return b < 20 && Input.GetKey(KeyCode.JoystickButton0 + b);   // (Unity names 20 buttons)
         }
         public static bool ButtonDown(int b)
         {
             if (b < 0 || b >= ButtonCount) return false;
             if (Native) { Poll(); return _held[b] && !_was[b]; }
-            return Input.GetKeyDown(KeyCode.JoystickButton0 + b);
+            return b < 20 && Input.GetKeyDown(KeyCode.JoystickButton0 + b);
         }
+        /// <summary>A button's name for the setup: "BUTTON 3", or the hat's "HAT UP" etc.</summary>
+        public static string ButtonName(int b) => Native && b >= HatButton0 && b < HatButton0 + 4 ? "HAT " + new[] { "UP", "RIGHT", "DOWN", "LEFT" }[b - HatButton0] : $"BUTTON {b + 1}";
         public static int AnyButtonDown() { for (int b = 0; b < ButtonCount; b++) if (ButtonDown(b)) return b; return -1; }
         public static bool AnyButtonHeld() { for (int b = 0; b < ButtonCount; b++) if (ButtonHeld(b)) return true; return false; }
 
@@ -368,7 +370,7 @@ namespace FlyingGame.Bridge
                         // One button, one action: taking a button from another action frees it there.
                         foreach (var kv in new List<KeyValuePair<string, int>>(_p.Buttons)) if (kv.Value == b) _p.Buttons.Remove(kv.Key);
                         _p.Buttons[s.ctl] = b;
-                        Status = $"BUTTON {b + 1}";
+                        Status = JoystickInput.ButtonName(b);
                         Enter(_i + 1);
                     }
                     break;

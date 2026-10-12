@@ -844,6 +844,7 @@ namespace FlyingGame.Bridge
                 if (JoystickInput.Held("brakes")) _brakeHeld = true;
                 if (JoystickInput.Pressed("flapsDown")) { _deskFlapStep = Mathf.Min(2, _deskFlapStep + 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
                 if (JoystickInput.Pressed("flapsUp")) { _deskFlapStep = Mathf.Max(0, _deskFlapStep - 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+                if (JoystickInput.Pressed("flapsHalf")) { _deskFlapStep = 1; _flapTapThird = 1; _tapped.Add(Btn.Flaps); }   // the middle position
                 if (JoystickInput.Pressed("gear")) _tapped.Add(Btn.Gear);
                 if (JoystickInput.Held("trimUp")) _pitchTrim = Mathf.Clamp(_pitchTrim - 0.5f * dt, -1f, 1f);       // nose up = less push
                 if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
