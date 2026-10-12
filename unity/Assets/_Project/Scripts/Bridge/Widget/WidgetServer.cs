@@ -831,7 +831,7 @@ namespace FlyingGame.Bridge.Widget
                 ["kias"] = r.Kias, ["ktas"] = r.Ktas, ["alpha"] = r.AlphaDeg, ["beta"] = r.BetaDeg, ["q"] = r.Q,
                 ["pitch"] = r.PitchDeg, ["roll"] = r.RollDeg, ["heading"] = r.HeadingDeg, ["sinkFpm"] = r.SinkFpm, ["heightFt"] = r.HeightFt,
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,
-                ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround,
+                ["leftWingAlpha"] = r.LeftAlphaDeg, ["rightWingAlpha"] = r.RightAlphaDeg, ["leftStalled"] = r.LeftStalled, ["rightStalled"] = r.RightStalled, ["onGround"] = r.OnGround, ["lost"] = new JArray(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Select(w.Ac.LostComponents, lc => (object)lc.ToString()))),
                 ["controls"] = ControlsJson(w),
                 ["joystick"] = JoystickJson(w),
                 ["syphon"] = AeroWidget.StreamName, ["ndi"] = AeroWidget.StreamName, ["frame"] = AeroWidget.FrameH, ["frameW"] = AeroWidget.FrameW, ["frameH"] = AeroWidget.FrameH, ["frameMode"] = w.FrameMode,

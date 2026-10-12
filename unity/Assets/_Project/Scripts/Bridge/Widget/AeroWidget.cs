@@ -558,9 +558,31 @@ namespace FlyingGame.Bridge.Widget
             var d = Ac.CurrentDeflections;
             _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
             _builder.SpinProps(_ => (float)Ac.EngineRpm, dt);
+            ShowLostParts();
             PlaceCamera(Ac.State);
             ApplyVisualScale();
         }
+
+        /// <summary>Parts the physics has broken off (a hard landing folds a gear leg, a ground strike takes a wing): the game's
+        /// debris, the same as the game (StructuralDamage) — the drawing never keeps a wheel the sim has lost (owner
+        /// 2026-10-11: the wheels drew below the ground line after a hard landing, the airplane on its belly). A new
+        /// start (a new Aircraft) rebuilds the airframe whole.</summary>
+        private void ShowLostParts()
+        {
+            if (!ReferenceEquals(_lostFor, Ac))
+            {
+                if (_shownLost.Count > 0) BuildVisual();
+                _shownLost.Clear(); _lostFor = Ac;
+            }
+            foreach (var c in Ac.LostComponents)
+            {
+                if (!_shownLost.Add(c)) continue;
+                var s = Ac.State;
+                AirframeVisual.DetachStatic(_builder, _visualRoot, Config, c, CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity)));
+            }
+        }
+        private readonly HashSet<FlyingGame.Core.AirframeComponent> _shownLost = new();
+        private Aircraft _lostFor;
 
         /// <summary>The frame being reviewed (null = live).</summary>
         private WidgetHistory.Snap _shown;
