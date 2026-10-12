@@ -37,7 +37,12 @@ namespace FlyingGame.Bridge.Widget
             Thrust = new(0.35f, 0.6f, 1f), PathColor = new(1f, 0.85f, 0.2f), Wind = new(0.3f, 0.95f, 1f), Total = new(1f, 1f, 1f), Axis = new(1f, 0.3f, 1f), Wheel = new(1f, 0.6f, 0.15f),
             Inertial = new(1f, 0.82f, 0.2f), TailC = new(0.75f, 0.55f, 1f), TailWindC = new(0.55f, 0.85f, 1f);
 
-        private void Start() => _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
+        // World lines (grid, horizon, runway) are depth-tested (owner 2026-10-12: the grid showed over the airplane).
+        private void Start()
+        {
+            _mat = new Material(Shader.Find("FlyingGame/HudLine")) { hideFlags = HideFlags.HideAndDontSave, color = Color.white };
+            _mat.SetFloat("_ZTest", (float)UnityEngine.Rendering.CompareFunction.LessEqual);
+        }
 
         // ================= the physics picture of one frame (body axes) =================
         public sealed class Picture

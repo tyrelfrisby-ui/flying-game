@@ -1,13 +1,13 @@
 // HUD symbology: vertex-coloured overlay lines/quads drawn with GL after the scene (always on top).
 Shader "FlyingGame/HudLine"
 {
-    Properties { _Color ("Color", Color) = (0.2, 1, 0.3, 0.9) }
+    Properties { _Color ("Color", Color) = (0.2, 1, 0.3, 0.9) [Enum(UnityEngine.Rendering.CompareFunction)] _ZTest ("ZTest", Float) = 8 }
     SubShader
     {
         Tags { "Queue" = "Overlay" "IgnoreProjector" = "True" }
         Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha   // alpha: plain "over" (a 55 % plate stays 55 % on a transparent frame — the widget)
         ZWrite Off
-        ZTest Always
+        ZTest [_ZTest]   // Always for the HUD; LessEqual for world lines the airplane must hide (the widget's ground grid)
         Cull Off
         Pass
         {
