@@ -285,6 +285,11 @@ namespace FlyingGame.Bridge.Widget
                     _joyThr = jr.thr01; Throttle01 = jr.thr01; ThrottleTouched = true; Widget.Autopilot.PilotThrottle();
                 }
                 JoyButtons(dt);
+                // RUDDER TRIM (a spring-centred rocker): held, it runs the trim; released, the trim stays (±0.6 of the rudder, as the game);
+                // progressive and slow (owner 2026-10-11: "err on the side of slow not fast").
+                float rt = jp.RudderTrim.Set ? jp.RudderTrim.Value() : 0f;
+                if (rt != 0f) { _trimRud = System.Math.Clamp(_trimRud + rt * System.Math.Abs(rt) * 0.05 * dt, -0.6, 0.6);   // PROGRESSIVE and slow (owner): rate ∝ deflection², centre → full ~12 s
+                     Rudder = System.Math.Clamp(jr.rud + _trimRud, -1, 1); }
             }
             else { ga = Axis(AxAileron); ge = Axis(AxElevator) * (InvertElevator ? -1f : 1f); gr = Axis(AxRudder); gt = Axis(AxThrottle); }
             bool padMoved = Mathf.Abs(ga) > 0.08f || Mathf.Abs(ge) > 0.08f || Mathf.Abs(gr) > 0.08f;
@@ -304,7 +309,7 @@ namespace FlyingGame.Bridge.Widget
             else if (Time.unscaledTime - _padAt < 1.5f && Time.unscaledTime - _netAt > 0.5f && !keyStick)
             {
                 Widget.Presets.Stop(); SourceLabel = "gamepad"; ElevatorFree = false;
-                Aileron = ga; Elevator = Mathf.Abs(ge) > 0.05f ? -ge : _trimStick; Rudder = gr;   // stick back (−y on most pads… mapped) = pull
+                Aileron = ga; Elevator = Mathf.Abs(ge) > 0.05f ? -ge : _trimStick; Rudder = jp != null ? System.Math.Clamp(gr + _trimRud, -1, 1) : gr;   // stick back (−y on most pads… mapped) = pull
                 if (ThrottleFromAxis) { Throttle01 = (gt + 1f) * 0.5f; ThrottleTouched = true; }
             }
             else if (!Hold && !keyStick && Time.unscaledTime - _netAt > 2f && SourceLabel == "keyboard" && Widget.Presets.Running == null && !Widget.Autopilot.On && !Widget.Lessons.Driving)

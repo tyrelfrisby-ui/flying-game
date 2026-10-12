@@ -156,6 +156,9 @@ namespace FlyingGame.Bridge
     {
         public string Name;
         public JoyAxis Aileron = new(), Elevator = new(), Rudder = new(), Throttle = new() { Centering = false };
+        /// <summary>RUDDER TRIM (owner 2026-10-11: "change one to rudder trim … the one on the throttle"): a spring-centred rocker
+        /// RUNS the trim (−1…1 = rate, left / right) and the trim stays where it's left — like a trim switch.</summary>
+        public JoyAxis RudderTrim = new();
         public Dictionary<string, int> Buttons = new();
         /// <summary>Calibrated controls: aileron + right, elevator + PUSH (nose down), rudder + right; throttle 0…1 when it has one.</summary>
         public (float ail, float ele, float rud, float thr01, bool hasThr) Read() =>
@@ -206,6 +209,8 @@ namespace FlyingGame.Bridge
             _steps.Add((Kind.AxisSecond, "rudder", false, "Now full LEFT rudder."));
             _steps.Add((Kind.ThrIdle, "throttle", false, "Throttle to IDLE (all the way back) and hold — or SKIP if there's none."));
             _steps.Add((Kind.ThrFull, "throttle", true, "Now throttle FULL (all the way forward) and hold."));
+            _steps.Add((Kind.AxisFirst, "rudderTrim", true, "RUDDER TRIM: hold its control (e.g. the rocker on the throttle) fully RIGHT — or SKIP if you don't want one."));
+            _steps.Add((Kind.AxisSecond, "rudderTrim", false, "Now rudder trim fully LEFT."));
             _steps.Add((Kind.Learn, null, false, "Learning: stir everything — every control through its full travel, several times."));
             for (int k = 0; k < JoystickInput.Actions.Length; k++)
                 _steps.Add((Kind.Button, JoystickInput.Actions[k], false, $"Press the button for {JoystickInput.ActionNames[k]} — or SKIP."));
@@ -245,8 +250,8 @@ namespace FlyingGame.Bridge
             Active = false; Finished = true; Status = "SAVED";
         }
 
-        private JoyAxis Axis(string ctl) => ctl switch { "aileron" => _p.Aileron, "elevator" => _p.Elevator, "rudder" => _p.Rudder, _ => _p.Throttle };
-        private bool Used(int ax) => _p.Aileron.Index == ax || _p.Elevator.Index == ax || _p.Rudder.Index == ax || _p.Throttle.Index == ax;
+        private JoyAxis Axis(string ctl) => ctl switch { "aileron" => _p.Aileron, "elevator" => _p.Elevator, "rudder" => _p.Rudder, "rudderTrim" => _p.RudderTrim, _ => _p.Throttle };
+        private bool Used(int ax) => _p.Aileron.Index == ax || _p.Elevator.Index == ax || _p.Rudder.Index == ax || _p.Throttle.Index == ax || _p.RudderTrim.Index == ax;
 
         private void Enter(int i)
         {
@@ -341,7 +346,7 @@ namespace FlyingGame.Bridge
                 case Kind.Learn:
                 {
                     // The true endpoints: the extremes seen on each assigned axis while it's stirred (6 s of movement).
-                    foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder, _p.Throttle })
+                    foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder, _p.Throttle, _p.RudderTrim })
                     {
                         if (!ax.Set) continue;
                         float v = _last[ax.Index];
@@ -354,7 +359,7 @@ namespace FlyingGame.Bridge
                     if (_learnMoving >= 6f)
                     {
                         // Dead zones from the rest noise (2.5×, as a fraction of each half-travel), 2 … 12 %.
-                        foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder })
+                        foreach (var ax in new[] { _p.Aileron, _p.Elevator, _p.Rudder, _p.RudderTrim })
                             if (ax.Set) ax.Dead = Mathf.Clamp(2.5f * _noise[ax.Index] / Mathf.Max(0.05f, Mathf.Min(Mathf.Abs(ax.PosEnd - ax.Center), Mathf.Abs(ax.NegEnd - ax.Center))), 0.02f, 0.12f);
                         Enter(_i + 1);
                     }
@@ -390,7 +395,7 @@ namespace FlyingGame.Bridge
         {
             if (_p == null) return "";
             string A(string n, JoyAxis a) => a.Set ? $"{n} AXIS {a.Index}" : $"{n} —";
-            string s = $"{A("AIL", _p.Aileron)} · {A("ELE", _p.Elevator)} · {A("RUD", _p.Rudder)} · {A("THR", _p.Throttle)}";
+            string s = $"{A("AIL", _p.Aileron)} · {A("ELE", _p.Elevator)} · {A("RUD", _p.Rudder)} · {A("THR", _p.Throttle)}" + (_p.RudderTrim.Set ? $" · {A("R TRIM", _p.RudderTrim)}" : "");
             if (_p.Buttons.Count > 0) s += $" · {_p.Buttons.Count} BUTTONS";
             return s;
         }
