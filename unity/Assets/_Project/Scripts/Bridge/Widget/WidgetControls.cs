@@ -217,7 +217,7 @@ namespace FlyingGame.Bridge.Widget
             }
         }
 
-        private static float Axis(int i) { try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; } }
+        private static float Axis(int i) => FlyingGame.Bridge.JoystickInput.Raw(i);   // (the Mac: macOS HID, live behind Glass)
 
         public void Poll()
         {

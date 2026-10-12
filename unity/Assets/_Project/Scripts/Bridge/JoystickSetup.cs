@@ -17,13 +17,79 @@ namespace FlyingGame.Bridge
         public static readonly string[] Actions = { "brakes", "flapsDown", "flapsUp", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
         public static readonly string[] ActionNames = { "BRAKES (held)", "FLAPS DOWN", "FLAPS UP", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
 
+        // The Mac reads joysticks straight from macOS's HID manager (AeroNative HJ_*): Unity's Input Manager only reads them
+        // while its app is in front, and the widget runs behind Glass Overlay (owner 2026-10-11: the Hotas X did nothing in
+        // Glass). Elsewhere (the editor, iOS) Unity's axes WJoy1…8 and JoystickButton0…19.
+#if UNITY_STANDALONE_OSX && !UNITY_EDITOR
+        private const bool Native = true;
+        [System.Runtime.InteropServices.DllImport("AeroNative")] private static extern void HJ_Start();
+        [System.Runtime.InteropServices.DllImport("AeroNative")] private static extern int HJ_Count();
+        [System.Runtime.InteropServices.DllImport("AeroNative")] private static extern int HJ_Name(int dev, byte[] buf, int max);
+        [System.Runtime.InteropServices.DllImport("AeroNative")] private static extern float HJ_Axis(int dev, int i);
+        [System.Runtime.InteropServices.DllImport("AeroNative")] private static extern int HJ_Button(int dev, int b);
+#else
+        private const bool Native = false;
+        private static void HJ_Start() { }
+        private static int HJ_Count() => 0;
+        private static int HJ_Name(int dev, byte[] buf, int max) => -1;
+        private static float HJ_Axis(int dev, int i) => 0f;
+        private static int HJ_Button(int dev, int b) => 0;
+#endif
+        private static bool _started;
+        private static int _frame = -1;
+        private static readonly bool[] _held = new bool[ButtonCount], _was = new bool[ButtonCount];
+        private static string _nameCache; private static float _nameAt = -10f;
+        private static readonly byte[] _nameBuf = new byte[256];
+
+        /// <summary>The first connected joystick's buttons this frame (and last frame's, for presses).</summary>
+        private static void Poll()
+        {
+            if (!Native || _frame == Time.frameCount) return;
+            if (!_started) { _started = true; HJ_Start(); }
+            _frame = Time.frameCount;
+            bool any = HJ_Count() > 0;
+            for (int b = 0; b < ButtonCount; b++) { _was[b] = _held[b]; _held[b] = any && HJ_Button(0, b) != 0; }
+        }
+
         /// <summary>Raw axis i (1…8), −1…1.</summary>
-        public static float Raw(int i) { try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; } }
-        public static string ConnectedName { get { foreach (var n in Input.GetJoystickNames()) if (!string.IsNullOrEmpty(n)) return n; return null; } }
-        public static bool ButtonHeld(int b) => b >= 0 && b < ButtonCount && Input.GetKey(KeyCode.JoystickButton0 + b);
-        public static bool ButtonDown(int b) => b >= 0 && b < ButtonCount && Input.GetKeyDown(KeyCode.JoystickButton0 + b);
-        public static int AnyButtonDown() { for (int b = 0; b < ButtonCount; b++) if (Input.GetKeyDown(KeyCode.JoystickButton0 + b)) return b; return -1; }
-        public static bool AnyButtonHeld() { for (int b = 0; b < ButtonCount; b++) if (Input.GetKey(KeyCode.JoystickButton0 + b)) return true; return false; }
+        public static float Raw(int i)
+        {
+            if (Native) { Poll(); return HJ_Count() > 0 ? HJ_Axis(0, i - 1) : 0f; }
+            try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; }
+        }
+        public static string ConnectedName
+        {
+            get
+            {
+                if (Native)
+                {
+                    Poll();
+                    if (Time.unscaledTime - _nameAt > 0.5f)
+                    {
+                        _nameAt = Time.unscaledTime;
+                        int n = HJ_Count() > 0 ? HJ_Name(0, _nameBuf, _nameBuf.Length) : -1;
+                        _nameCache = n > 0 ? System.Text.Encoding.UTF8.GetString(_nameBuf, 0, n) : null;
+                    }
+                    return _nameCache;
+                }
+                foreach (var nm in Input.GetJoystickNames()) if (!string.IsNullOrEmpty(nm)) return nm;
+                return null;
+            }
+        }
+        public static bool ButtonHeld(int b)
+        {
+            if (b < 0 || b >= ButtonCount) return false;
+            if (Native) { Poll(); return _held[b]; }
+            return Input.GetKey(KeyCode.JoystickButton0 + b);
+        }
+        public static bool ButtonDown(int b)
+        {
+            if (b < 0 || b >= ButtonCount) return false;
+            if (Native) { Poll(); return _held[b] && !_was[b]; }
+            return Input.GetKeyDown(KeyCode.JoystickButton0 + b);
+        }
+        public static int AnyButtonDown() { for (int b = 0; b < ButtonCount; b++) if (ButtonDown(b)) return b; return -1; }
+        public static bool AnyButtonHeld() { for (int b = 0; b < ButtonCount; b++) if (ButtonHeld(b)) return true; return false; }
 
         /// <summary>The setup running now (it owns the stick while it runs: nothing flies the airplane).</summary>
         public static JoystickWizard Wizard;

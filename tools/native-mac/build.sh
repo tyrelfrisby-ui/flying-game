@@ -12,10 +12,14 @@ for f in VoiceIO ClipEncoder PilotSpeech; do
     clang++ -c -std=c++17 -fobjc-arc -O2 -arch $arch -mmacosx-version-min=11.0 -x objective-c++ "$SRC/$f.mm" -o "$TMP/$f-$arch.o"
   done
 done
+# Mac only: joysticks straight from the HID manager (they read in the background, behind Glass Overlay).
+for arch in arm64 x86_64; do
+  clang++ -c -std=c++17 -fobjc-arc -O2 -arch $arch -mmacosx-version-min=11.0 -x objective-c++ "${0:A:h}/HidJoystick.mm" -o "$TMP/HidJoystick-$arch.o"
+done
 for arch in arm64 x86_64; do
   clang++ -bundle -arch $arch -mmacosx-version-min=11.0 -fobjc-arc "$TMP"/*-$arch.o -o "$TMP/AeroNative-$arch" \
     -framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework QuartzCore \
-    -framework Photos -framework CoreAudio -framework AudioToolbox
+    -framework Photos -framework CoreAudio -framework AudioToolbox -framework IOKit
 done
 mkdir -p "$OUT/Contents/MacOS"
 lipo -create "$TMP/AeroNative-arm64" "$TMP/AeroNative-x86_64" -output "$OUT/Contents/MacOS/AeroNative"

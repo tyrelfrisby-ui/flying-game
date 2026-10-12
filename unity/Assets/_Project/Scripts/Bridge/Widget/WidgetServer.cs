@@ -663,9 +663,9 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The connected joysticks and the raw value of axes 1–8 (for mapping a stick / an RC radio dongle).</summary>
         private static JObject JoystickJson(AeroWidget w)
         {
-            var names = new JArray(); foreach (var n in Input.GetJoystickNames()) if (!string.IsNullOrEmpty(n)) names.Add(n);
+            var names = new JArray(); { string jn = FlyingGame.Bridge.JoystickInput.ConnectedName; if (jn != null) names.Add(jn); }
             var ax = new JArray();
-            for (int i = 1; i <= 8; i++) { float v = 0; try { v = Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { } ax.Add(System.Math.Round(v, 3)); }
+            for (int i = 1; i <= 8; i++) ax.Add(System.Math.Round(FlyingGame.Bridge.JoystickInput.Raw(i), 3));
             var c = w.Controls;
             var jw = w.JoyWizard; var prof = FlyingGame.Bridge.JoystickInput.Profile;
             var setup = new JObject { ["active"] = jw.Active, ["step"] = jw.StepNumber, ["of"] = jw.StepCount, ["text"] = jw.Instruction, ["status"] = jw.Status, ["progress"] = System.Math.Round(jw.Progress, 2), ["focusAxis"] = jw.Focus, ["learnt"] = jw.Summary() };
