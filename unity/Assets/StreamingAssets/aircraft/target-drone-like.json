@@ -33,7 +33,7 @@
           "area": 0.364,
           "incidenceRad": 0.011,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -49,7 +49,7 @@
           "area": 0.4019,
           "incidenceRad": 0.013,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": 0.45
@@ -65,7 +65,7 @@
           "area": 0.5865,
           "incidenceRad": 0.015,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -78,7 +78,7 @@
           "area": 0.6371,
           "incidenceRad": 0.017,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -91,7 +91,7 @@
           "area": 0.6877,
           "incidenceRad": 0.019,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -104,7 +104,7 @@
           "area": 0.6877,
           "incidenceRad": 0.019,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -117,7 +117,7 @@
           "area": 0.6371,
           "incidenceRad": 0.017,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -130,7 +130,7 @@
           "area": 0.5865,
           "incidenceRad": 0.015,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": null
         },
         {
@@ -143,7 +143,7 @@
           "area": 0.4019,
           "incidenceRad": 0.013,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -159,7 +159,7 @@
           "area": 0.364,
           "incidenceRad": 0.011,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": -0.45
@@ -182,7 +182,7 @@
           "area": 0.1213,
           "incidenceRad": 0.011,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -198,7 +198,7 @@
           "area": 0.134,
           "incidenceRad": 0.013,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -214,7 +214,7 @@
           "area": 0.134,
           "incidenceRad": 0.013,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -230,7 +230,7 @@
           "area": 0.1213,
           "incidenceRad": 0.011,
           "dihedralRad": 0.03,
-          "airfoil": "swift-sym",
+          "airfoil": "drone-sym",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -1040,7 +1040,7 @@
         0.0
       ]
     },
-    "swift-sym": {
+    "drone-sym": {
       "alphaRad": [
         -3.14159,
         -2.79253,

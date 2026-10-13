@@ -834,6 +834,12 @@ public sealed class Aircraft
         // above 16 deg local alpha, REATTACHES slowly below 11 deg, and holds in the band between —
         // so the inner wing stays committed to the separated branch while the outer wing flies the
         // attached one at the same |alpha| history. LocalAlphaRad was recorded during the last stage.
+        // (Spin research 2026-10-13: in a DEVELOPED spin at α 30–60° every wing strip, up-going wing included, sits above
+        // sepOn and never dips below sepOff, so both wings ride the separated branch and this memory does not act; nor can
+        // it in a steady rotary balance, where each strip's α is fixed. Wing roll damping there is the static post-stall
+        // normal-force slope plus the drag tilt of the rotated local wind — as in NASA rotary-balance data for GA wings,
+        // where wing roll is propelling only from the stall to ~35° α. Spin rate is then set by the pitch balance (α) and
+        // the fuselage/tail yaw; final calibration awaits the owner's measured spin numbers.)
         const double sepOn = 16.0 * Math.PI / 180.0, sepOff = 11.0 * Math.PI / 180.0;
         for (int i = 0; i < stripCount; i++)
         {

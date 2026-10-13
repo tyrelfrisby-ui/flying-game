@@ -748,6 +748,20 @@ public static class AeroModel
             // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
             double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.45 * Math.Abs(_flowAlpha) * _stalledFrac;   // was 0.65 (thinner wake: stab keeps more upload, steeper spin)
             double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
+            // HIGH α (flat spin, 2026-10-13, owner: the Extra's flat spin settled nose-HIGH): the band from the chord plane up
+            // to the freestream holds while the separated region still reaches the chord plane behind the trailing edge. With the
+            // flow more and more normal to the chord, both shear layers leave the plate along the freestream (the normal-plate
+            // wake: Hoerner, Fluid-Dynamic Drag ch. 3; Roshko 1954) — the wake rises away along the flow and a tail sitting aft
+            // in the chord plane is in clean air, which is why spin research credits the stab with full nose-down in a flat
+            // spin. So between 45° and 75° the chord-plane edge turns up to the freestream line (same spread and thickening).
+            double aAbs = Math.Abs(_flowAlpha), fPlate = Math.Clamp((aAbs - 45.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
+            fPlate = fPlate * fPlate * (3.0 - 2.0 * fPlate);
+            if (fPlate > 0.0)
+            {
+                double thick = 0.45 * aAbs * _stalledFrac;
+                if (_flowAlpha > 0) lo = (1.0 - fPlate) * lo + fPlate * (_flowAlpha - _spreadRad - thick);
+                else hi = (1.0 - fPlate) * hi + fPlate * (_flowAlpha + _spreadRad + thick);
+            }
 
             // Smooth edge falloff over the spread margin.
             double inside;

@@ -22,7 +22,7 @@ public class LetGoProbe
         string id = System.Environment.GetEnvironmentVariable("LETGO_ID") ?? "pitts-s2b-like";
         foreach (string mode in new[] { "pro", "free", "neutral" })
         {
-            var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../..")), "configs", "aircraft", id + ".json"));
+            var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(System.Environment.GetEnvironmentVariable("LETGO_REPO") ?? System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../..")), "configs", "aircraft", id + ".json"));
             double vs = PracticeScenario.EstimateVso(cfg, 2500, 0.0), v = 1.15 * vs;
             var t = TrimSolver.SolveGliderTrim(cfg, v, 2500);
             var att = new Quat(0, System.Math.Sin(t.ThetaRad / 2), 0, System.Math.Cos(t.ThetaRad / 2));

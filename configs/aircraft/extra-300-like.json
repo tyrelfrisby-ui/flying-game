@@ -1702,7 +1702,7 @@
     "propDiameterM": 2.0,
     "idleRpm": 700,
     "maxRpm": 2700,
-    "propInertia": 5.0,
+    "propInertia": 2.5,
     "rotationSign": 1,
     "efficiency": 0.8,
     "thrustLineZ": 0.0,
