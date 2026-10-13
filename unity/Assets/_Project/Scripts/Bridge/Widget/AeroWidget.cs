@@ -196,6 +196,48 @@ namespace FlyingGame.Bridge.Widget
             var sun = new GameObject("WidgetSun").AddComponent<Light>();
             sun.type = LightType.Directional; sun.intensity = 1.15f; sun.transform.rotation = Quaternion.Euler(50f, -35f, 0f);
             sun.transform.SetParent(transform, false);
+            // MORE LIGHT, from every side (Ty 2026-10-13: "the airplane was very dark while it was spinning down toward the camera
+            // … more light overall actually from all directions"): a fill from below (the ground's bounce), a fill from behind
+            // and the far side, and a brighter, even ambient — the airplane reads from any angle a spin turns it to.
+            foreach (var (rot, inten) in new[] { (Quaternion.Euler(-55f, 150f, 0f), 1.0f), (Quaternion.Euler(15f, 140f, 0f), 0.7f), (Quaternion.Euler(10f, -150f, 0f), 0.6f), (Quaternion.Euler(-30f, 30f, 0f), 0.6f) })
+            {
+                var fill = new GameObject("WidgetFill").AddComponent<Light>();
+                fill.type = LightType.Directional; fill.intensity = inten; fill.shadows = LightShadows.None;
+                fill.transform.rotation = rot; fill.transform.SetParent(transform, false);
+            }
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.85f, 0.87f, 0.9f);
+            // A light on the camera (a photographer's on-axis fill): whatever face of the airplane the camera sees is lit — the
+            // dark navy paint read black wherever the sun missed it.
+            var camFill = new GameObject("WidgetCameraFill").AddComponent<Light>();
+            camFill.type = LightType.Directional; camFill.intensity = 0.8f; camFill.shadows = LightShadows.None;
+            camFill.transform.SetParent(Cam.transform, false);
+            // Something to REFLECT: the model's glossy paint (roughness 0) mirrors the environment, and a transparent frame has
+            // none — those panels went black. A soft sky above, a grey-green ground below (a 16-px cube).
+            {
+                var cube = new Cubemap(16, TextureFormat.RGBA32, false);
+                foreach (CubemapFace face in new[] { CubemapFace.PositiveX, CubemapFace.NegativeX, CubemapFace.PositiveY, CubemapFace.NegativeY, CubemapFace.PositiveZ, CubemapFace.NegativeZ })
+                {
+                    var px = new Color[16 * 16];
+                    for (int yy = 0; yy < 16; yy++)
+                        for (int xx = 0; xx < 16; xx++)
+                        {
+                            // the texel's direction's height (−1 below … +1 above); cube faces' y runs top → bottom
+                            float u = (xx + 0.5f) / 8f - 1f, v = (yy + 0.5f) / 8f - 1f;
+                            Vector3 d = face switch { CubemapFace.PositiveX => new Vector3(1, -v, -u), CubemapFace.NegativeX => new Vector3(-1, -v, u),
+                                CubemapFace.PositiveY => new Vector3(u, 1, v), CubemapFace.NegativeY => new Vector3(u, -1, -v),
+                                CubemapFace.PositiveZ => new Vector3(u, -v, 1), _ => new Vector3(-u, -v, -1) };
+                            float h = d.normalized.y;
+                            px[yy * 16 + xx] = h >= 0 ? Color.Lerp(new Color(0.75f, 0.82f, 0.9f), new Color(0.45f, 0.62f, 0.9f), h) : Color.Lerp(new Color(0.6f, 0.62f, 0.58f), new Color(0.35f, 0.4f, 0.32f), -h);
+                        }
+                    cube.SetPixels(px, face);
+                }
+                cube.Apply();
+                RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Custom;
+                RenderSettings.customReflectionTexture = cube;
+                RenderSettings.reflectionIntensity = 1f;
+            }
+            { var sh = new UnityEngine.Rendering.SphericalHarmonicsL2(); sh.AddAmbientLight(RenderSettings.ambientLight); RenderSettings.ambientProbe = sh; }   // (the shaders read the probe, not the colour)
 
             _vectors = camGo.AddComponent<WidgetVectors>(); _vectors.Widget = this;
             _display = gameObject.AddComponent<WidgetControlsDisplay>(); _display.Widget = this;
@@ -516,6 +558,7 @@ namespace FlyingGame.Bridge.Widget
             else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
             _smoke.SetExhausts(ex, jet);
             _smoke.Flow = BuildAirframeFlow();
+            _smoke.PipeDiameterM = (Config.Smoke?.PipeDiameterIn ?? 4) * 0.0254;
             SmokeExhausts = ex;
             _smoke.Stream = Config.Propulsion == null;   // a glider's wingtip canisters
         }
@@ -609,13 +652,27 @@ namespace FlyingGame.Bridge.Widget
 
         // ---- SMOKE (owner 2026-10-11, the Talk Flying outro) ----
         private SmokeTrail _smoke;
+        /// <summary>The exhaust's exit velocity (m/s) at this rpm and throttle (Ty 2026-10-13: "a 540 ci engine turning 2700 rpm
+        /// and the exhaust pipe is a 4 inch diameter — calculate the velocity"): <see cref="FlyingGame.Core.Aero.ExhaustJet"/> from
+        /// the config's displacement (else ≈ 0.56 hp/in³ of the rated power) and pipe. A turbine's exhaust isn't modelled
+        /// this way: 25 m/s (the old figure) at its tailpipe.</summary>
+        private double JetU0(double rpm, double throttle, double altM)
+        {
+            var pr = Config?.Propulsion; if (pr == null) return 0;
+            if (pr.PropDiameterM <= 0) return 25.0 * System.Math.Clamp(throttle, 0, 1);
+            var sm = Config.Smoke;
+            double cuIn = sm != null && sm.DisplacementCuIn > 0 ? sm.DisplacementCuIn : pr.MaxPowerW / 745.7 / 0.556;
+            return FlyingGame.Core.Aero.ExhaustJet.ExitVelocity(cuIn * 16.387e-6, rpm, throttle, Atmosphere.DensityAtAltitude(altM),
+                (sm?.PipeDiameterIn ?? 4) * 0.0254, sm?.ExhaustTempK ?? 900);
+        }
         /// <summary>Which start this is (the smoke never joins one flight's path to the next).</summary>
         public int Flight;
         /// <summary>The smoke oil's flow now: none with no engine turning; more with power (the exhaust carries it).</summary>
         public float SmokeFlow => Ac == null ? 0f : Config.Propulsion == null ? 1f   // a glider's wingtip canisters: always full
             : Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
-        private static SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
-            { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Rates = f.State.Rates, Flow = f.SmokeFlow };
+        private SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
+            { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Rates = f.State.Rates, Flow = f.SmokeFlow,
+              JetU0 = JetU0(f.Rpm, f.AcThrottle, -(f.State.Position.Z - f.AltShift)), AirDensity = Atmosphere.DensityAtAltitude(-(f.State.Position.Z - f.AltShift)) };
         /// <summary>The smoke as it was at the frame shown (index frames back; -1 = live, the aircraft as it is now).</summary>
         private void ShowSmoke(int index)
         {
@@ -625,7 +682,7 @@ namespace FlyingGame.Bridge.Widget
             WidgetHistory.Snap at = index < 0 ? null : H.Get(index);
             int flight = at?.Flight ?? Flight;
             double shift = at?.AltShift ?? AltShiftM, now = at?.SimTime ?? Review.SimTimeNow;
-            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow } : (SmokeTrail.Sample?)null;
+            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow, JetU0 = JetU0(Ac.EngineRpm, Ac.Throttle01, -(Ac.State.Position.Z - AltShiftM)), AirDensity = Atmosphere.DensityAtAltitude(-(Ac.State.Position.Z - AltShiftM)) } : (SmokeTrail.Sample?)null;
             int first = index < 0 ? 0 : index;
             _smoke.Build(k =>
             {

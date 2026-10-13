@@ -248,6 +248,12 @@ public sealed class SmokeConfig
     public double AftOfNoseM { get; set; }
     /// <summary>The exhaust's line below the longitudinal axis, pointing aft (°).</summary>
     public double DownDeg { get; set; } = 30;
+    /// <summary>The engine's displacement (in³) and the exhaust pipe's diameter (in): the jet's exit velocity comes from
+    /// the engine's mass flow (<see cref="Aero.ExhaustJet"/>). 0 = estimated from the power (≈ 0.56 hp/in³).</summary>
+    public double DisplacementCuIn { get; set; }
+    public double PipeDiameterIn { get; set; } = 4;
+    /// <summary>The exhaust gas temperature at the pipe's exit (K).</summary>
+    public double ExhaustTempK { get; set; } = 900;
 }
 
 public sealed class EngineMount

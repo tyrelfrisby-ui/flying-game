@@ -1698,7 +1698,10 @@
   },
   "smoke": {
     "aftOfNoseM": 1.22,
-    "downDeg": 30
+    "downDeg": 30,
+    "displacementCuIn": 540,
+    "pipeDiameterIn": 4,
+    "exhaustTempK": 900
   },
   "propulsion": {
     "maxPowerW": 224000,

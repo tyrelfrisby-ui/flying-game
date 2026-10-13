@@ -22,12 +22,14 @@ namespace FlyingGame.Bridge
     {
         /// <summary>One recorded moment: when, where (the TRUE path — altitude lock / wrap shifts already removed), the pose,
         /// the body velocity (m/s) and the smoke flow (0 = none … 1 = full power).</summary>
-        public struct Sample { public double T; public Vec3 Pos; public Quat Att; public Vec3 VelBody; public Vec3 Rates; public float Flow; }
+        public struct Sample { public double T; public Vec3 Pos; public Quat Att; public Vec3 VelBody; public Vec3 Rates; public float Flow; public double JetU0, AirDensity; }
 
         /// <summary>The air round the airframe (Ty 2026-10-13: the smoke "needs to go around it"): each puff is carried round the
         /// fuselage and the surfaces as it leaves (<see cref="FlyingGame.Core.Aero.AirframeFlow"/>), then sits in the air with
         /// that displacement. null = the old straight-through smoke.</summary>
         public FlyingGame.Core.Aero.AirframeFlow Flow;
+        /// <summary>The exhaust pipe's diameter (m): the jet's starting width (<see cref="FlyingGame.Core.Aero.ExhaustJet"/>).</summary>
+        public double PipeDiameterM = 0.1016;
         private const double FlowDt = 0.004;
         private readonly Dictionary<(long, int), (Vec3 pos, List<Vec3> d)> _defl = new();
         /// <summary>A puff's push by the airframe, world axes, <paramref name="age"/> s after release.</summary>
@@ -37,7 +39,7 @@ namespace FlyingGame.Bridge
             var key = ((long)System.Math.Round(s.T * 1e4), ei);
             if (!_defl.TryGetValue(key, out var c) || (c.pos - s.Pos).Length > 1e-6)
             {
-                c = (s.Pos, Flow.Deflection(e, s.VelBody, s.Rates, jd, FlowDt, seed: (uint)key.Item1 * 2654435761u + (uint)ei * 40503u + 1u));
+                c = (s.Pos, Flow.Deflection(e, s.VelBody, s.Rates, jd, s.JetU0, PipeDiameterM, s.AirDensity > 0 ? s.AirDensity : 1.225, FlowDt, seed: (uint)key.Item1 * 2654435761u + (uint)ei * 40503u + 1u));
                 _defl[key] = c;
             }
             int i = System.Math.Min(c.d.Count - 1, (int)(age / FlowDt));
@@ -161,7 +163,7 @@ namespace FlyingGame.Bridge
                 Vector3 axis = CoordinateMap.ToUnity(velW * (1.0 / v));
                 // The exhaust jet carries the smoke out along its line for the first moments (≈25 m/s, decaying in ~0.12 s:
                 // about 3 m), then it sits in the air.
-                double jetM = FlyingGame.Core.Aero.AirframeFlow.JetSpeed * FlyingGame.Core.Aero.AirframeFlow.JetTau * (1 - System.Math.Exp(-age / FlyingGame.Core.Aero.AirframeFlow.JetTau));
+                double jetM = Flow != null ? 0.0 : 25.0 * 0.02 * (1 - System.Math.Exp(-age / 0.02));   // (with the airflow model, the jet is in Pushed: ExhaustJet)
                 // A puff covers the path from its release back to one frame earlier — it is drawn BEHIND the release point,
                 // never ahead of the airplane (owner 2026-10-12: "the smoke appears to come from in front of the engine").
                 Vec3 back = velW * (-0.5 * (stretch - grow) / v);

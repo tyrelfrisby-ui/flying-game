@@ -505,6 +505,9 @@ namespace FlyingGame.Bridge.Widget
                     if (j["momentArcNoseSense"] != null) WidgetVectors.MomentArcNoseSense = j["momentArcNoseSense"].Value<bool>();
                     if (j["momentArcValues"] != null) WidgetVectors.MomentArcValues = j["momentArcValues"].Value<bool>();
                     if (j["inertiaSplit"] != null) WidgetVectors.InertiaSplit = j["inertiaSplit"].Value<bool>();
+                    if (j["legend"] != null) WidgetVectors.Legend = j["legend"].Value<bool>();
+                    if (j["wingForces"] != null) WidgetVectors.WingForces = j["wingForces"].Value<bool>();
+                    if (j["legendTitle"] != null) WidgetVectors.LegendTitle = (string)j["legendTitle"] ?? "";
                     if (j["momentArcsEqual"] != null) WidgetVectors.MomentArcsEqual = j["momentArcsEqual"].Value<bool>();
                     if (j["momentArcsSwap"] != null) WidgetVectors.MomentArcsSwap = j["momentArcsSwap"].Value<bool>();
                     if (j["momentArcHead"] != null) WidgetVectors.MomentArcHead = Mathf.Clamp((float)j["momentArcHead"].Value<double>(), 1f, 4f);
@@ -790,6 +793,8 @@ namespace FlyingGame.Bridge.Widget
                 ["tailEta"] = System.Math.Round((p.EtaL + p.EtaR) * 0.5, 3), ["tailEtaL"] = System.Math.Round(p.EtaL, 3), ["tailEtaR"] = System.Math.Round(p.EtaR, 3),
                 ["tailSpeedL"] = System.Math.Round(p.TailSpdL * 1.943844, 1), ["tailSpeedR"] = System.Math.Round(p.TailSpdR * 1.943844, 1), ["freestreamKt"] = System.Math.Round(p.VInf * 1.943844, 1),
                 ["wingAlphaL"] = System.Math.Round(p.WingAlphaL, 2), ["wingAlphaR"] = System.Math.Round(p.WingAlphaR, 2),
+                ["wingLiftLbL"] = System.Math.Round(p.WLiftL.Length * 0.2248), ["wingLiftLbR"] = System.Math.Round(p.WLiftR.Length * 0.2248),
+                ["wingDragLbL"] = System.Math.Round(p.WDragL.Length * 0.2248), ["wingDragLbR"] = System.Math.Round(p.WDragR.Length * 0.2248),
             };
         }
 

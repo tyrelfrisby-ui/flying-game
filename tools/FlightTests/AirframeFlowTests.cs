@@ -32,7 +32,7 @@ public class AirframeFlowTests
         {
             Vec3 r = r0, rFree = r0;
             var jet = r0.Equals(exhaust) ? new Vec3(0, 0, 1) : Vec3.Zero;
-            var d = flow.Deflection(r0, V, w, jet, seed: (uint)checkedPts + 7);
+            var d = flow.Deflection(r0, V, w, jet, r0.Equals(exhaust) ? 70 : 0, 0.1016, 1.0, seed: (uint)checkedPts + 7);
             double maxD = 0;
             // Re-walk the same path to check every point (Deflection returns the push; the path itself is free + push).
             for (int i = 0; i < d.Count; i++) maxD = System.Math.Max(maxD, d[i].Length);
@@ -43,8 +43,7 @@ public class AirframeFlowTests
                 // the undisturbed path in the rotating frame (same midpoint stepping as Deflection)
                 Assert.False(flow.Inside(pos + di, 0.02), $"marker from {r0} inside the airframe at t {t:0.000}: {pos + di}");
                 Vec3 Onset(Vec3 q) => -1.0 * (V + Vec3.Cross(w, q));
-                Vec3 jv = jet * (AirframeFlow.JetSpeed * System.Math.Exp(-t / AirframeFlow.JetTau));
-                Vec3 f1 = Onset(pos) + jv, fm = pos + f1 * 0.002; pos += (Onset(fm) + jv) * 0.004; t += 0.004;
+                Vec3 fm = pos + Onset(pos) * 0.002; pos += Onset(fm) * 0.004; t += 0.004;   // (the free air: no jet)
                 checkedPts++;
             }
         }
@@ -63,11 +62,11 @@ public class AirframeFlowTests
         var flow = new AirframeFlow(cfg, 2.3, 0.5);
         double v = 30, a = -50 * System.Math.PI / 180;   // InvSpinProbe: α ≈ −50°, ~2.9 s/turn
         Vec3 V = new(v * System.Math.Cos(a), 2, v * System.Math.Sin(a)), w = new(1.0, 0.5, 1.9);
-        Vec3 exhaust = new(2.3 - 1.22, 0, 0.5), jd = new(0, 0, 1);
+        Vec3 exhaust = new(2.3 - 1.22, 0, 0.5), jd = new(-0.866, 0, 0.5);   // (the Extra's pipe: 30° down, aft)
         int n = 40; double stay = 0, stayFree = 0, spread = 0;
         for (int i = 0; i < n; i++)
         {
-            var d = flow.Deflection(exhaust, V, w, jd, seed: (uint)i + 1);
+            var d = flow.Deflection(exhaust, V, w, jd, 70, 0.1016, 1.0, seed: (uint)i + 1);
             Vec3 pos = exhaust; double t = 0, maxY = 0; bool freeOut = false, out_ = false;
             for (int j = 0; j < d.Count; j++)
             {
@@ -76,13 +75,13 @@ public class AirframeFlowTests
                 if (!out_ && at.Length > 2.5) { out_ = true; stay += t; }
                 if (!freeOut && pos.Length > 2.5) { freeOut = true; stayFree += t; }
                 if (!out_) maxY = System.Math.Max(maxY, System.Math.Abs(at.Y));
-                Vec3 On(Vec3 q) => -1.0 * (V + Vec3.Cross(w, q)); Vec3 jv = jd * (AirframeFlow.JetSpeed * System.Math.Exp(-t / AirframeFlow.JetTau));
-                Vec3 fm = pos + (On(pos) + jv) * 0.002; pos += (On(fm) + jv) * 0.004; t += 0.004;
+                Vec3 On(Vec3 q) => -1.0 * (V + Vec3.Cross(w, q));
+                Vec3 fm = pos + On(pos) * 0.002; pos += On(fm) * 0.004; t += 0.004;   // (the free air: no jet)
             }
             spread += maxY;
         }
         _out.WriteLine($"inverted: mean time by the airframe {stay / n:0.00} s (free air {stayFree / n:0.00} s), mean span reached {spread / n:0.00} m");
-        Assert.True(stay > 2.5 * stayFree, "the lee-side pocket should hold the inverted spin's exhaust");
+        Assert.True(stay > 1.5 * stayFree, "the lee-side pocket should hold the inverted spin's exhaust");   // (≈ 1.9× with the real 70 m/s jet, 2026-10-13)
         Assert.True(spread / n > 0.3, "the pocket's eddies should spread it along the span");
     }
 
@@ -98,9 +97,31 @@ public class AirframeFlowTests
         Vec3 jd = new(-0.87, 0, 0.5);
         for (uint i = 1; i <= 12; i++)
         {
-            var d = flow.Deflection(new Vec3(1.08, 0, 0.5), V, w, jd, seed: i);
+            var d = flow.Deflection(new Vec3(1.08, 0, 0.5), V, w, jd, 70, 0.1016, 1.0, seed: i);
             double mx = 0; foreach (var q in d) mx = System.Math.Max(mx, q.Length);
             _out.WriteLine($"puff {i}: steps {d.Count} (t_end {d.Count * 0.004:0.00} s)  final |Δ| {d[d.Count - 1].Length:0.0} m  max {mx:0.0}");
+        }
+    }
+
+    /// <summary>The exhaust's exit velocity from the engine (Ty 2026-10-13): the Extra's 540 in³ at 2,700 rpm, full power, sea
+    /// level, through a 4 in pipe at 900 K → ≈ 70 m/s; and the jet in still air slows like a free round jet (centreline ∝ 1/x
+    /// past the core), while in the spin's 28 m/s crossflow it is spent within a couple of metres.</summary>
+    [Fact]
+    public void ExhaustJetVelocityAndDecay()
+    {
+        double u0 = ExhaustJet.ExitVelocity(540 * 16.387e-6, 2700, 1.0, 1.225, 4 * 0.0254);
+        _out.WriteLine($"exit velocity {u0:0.0} m/s");
+        Assert.InRange(u0, 65, 75);
+        Assert.InRange(ExhaustJet.ExitVelocity(540 * 16.387e-6, 700, 0.0, 1.225, 4 * 0.0254), 2, 10);   // idle: a tenth or so
+        foreach (var (name, air) in new[] { ("still air", Vec3.Zero), ("crossflow 28 m/s", new Vec3(0, 0, -28)) })
+        {
+            var e = ExhaustJet.Start(new Vec3(1, 0, 0), u0, 0.1016, 1.0);
+            double x = 0, t = 0; var sb = new System.Text.StringBuilder();
+            double next = 0.5;
+            while (!e.Spent && t < 5) { x += e.W.X * 0.001; ExhaustJet.Step(ref e, air, 1.0, 0.001, Vec3.Zero); t += 0.001; if (x >= next) { sb.Append($" x {x:0.0} m: {e.W.Length:0} m/s;"); next *= 2; } }
+            _out.WriteLine($"{name}: penetration {x:0.00} m in {t:0.00} s —{sb}");
+            if (air.Length == 0) Assert.True(x > 5, "a free jet carries metres");
+            else Assert.True(x < 2.5, "the crossflow swamps it within a couple of metres");
         }
     }
 }

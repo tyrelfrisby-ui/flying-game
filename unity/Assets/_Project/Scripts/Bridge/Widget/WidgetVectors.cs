@@ -48,6 +48,19 @@ namespace FlyingGame.Bridge.Widget
         /// inertia arc drawn as two arcs end to end on its circle — STRUCTURE (the airframe's own inertia coupling) and GYROSCOPIC
         /// (the prop) — each swept in proportion to its share, labelled with its share in %. vectorStyle {"inertiaSplit"}.</summary>
         public static bool InertiaSplit;
+        /// <summary>LEGEND (Ty 2026-10-13: "the labels jitter … just use color coded stationary labels with no connecting lines
+        /// since the colors match the vectors … add a header to the labels and readouts that says flat spin dynamics"): the
+        /// 3-D view's labels are a fixed block in the lower-left (inside the lower third), each in its vector's colour, under
+        /// a header and the flight readouts; their numbers change at most 4× per simulated second. vectorStyle {"legend",
+        /// "legendTitle"}.</summary>
+        public static bool Legend;
+        /// <summary>WING FORCES (Ty 2026-10-13: "add wing lift and drag forces on the spin dynamics shots to show the asymmetric
+        /// lift/drag forces that drive the autorotation"): each wing half's own lift (⟂ its local wind) and drag (along it) —
+        /// the sum of its strips' forces from the model — drawn from that wing, on one shared scale, so the difference
+        /// between the wings reads at a glance. vectorStyle {"wingForces"}.</summary>
+        public static bool WingForces;
+        public static string LegendTitle = "FLAT SPIN DYNAMICS";
+        private readonly Dictionary<string, (string text, double t)> _legendHold = new();
         /// <summary>Where along each semispan the wing winds are taken (0.5 = mid; the rotation's ω × r grows toward the tips,
         /// owner 2026-10-12: "two relative wind vectors for each wing that are clearly different") and their length (×).
         /// vectorStyle {"wingWindSpan", "wingWindScale"}.</summary>
@@ -94,6 +107,7 @@ namespace FlyingGame.Bridge.Widget
         private readonly List<Vector2> _soloBody = new();   // the airplane's outline on screen (nose, wingtip, tail, wingtip): labels keep off it
         private void SoloLabels(WidgetControlsDisplay ui, Rect scene)
         {
+            if (Legend) { DrawLegend(ui, scene); return; }
             var placed = new List<Rect>();
             const float ts = 17f;
             foreach (var L in _soloLabels)
@@ -123,6 +137,73 @@ namespace FlyingGame.Bridge.Widget
                 ui.PxText(best.center, L.text, ts, L.c, TextAnchor.MiddleCenter);
             }
         }
+        /// <summary>The legend block: header, readouts, then the labels in their colours; texts held ≥ 0.25 s of sim time.</summary>
+        private void DrawLegend(WidgetControlsDisplay ui, Rect scene)
+        {
+            var w = Widget; if (w == null || w.Ac == null) return;
+            double simT = w.Shown?.SimTime ?? w.Review?.SimTimeNow ?? Time.time;
+            string Hold(string key, string text)
+            {
+                if (_legendHold.TryGetValue(key, out var h) && System.Math.Abs(simT - h.t) < 0.25) return h.text;
+                _legendHold[key] = (text, simT); return text;
+            }
+            static string Key(string t) { int i = 0; while (i < t.Length && !char.IsDigit(t[i])) i++; return t.Substring(0, i).Trim(); }
+            var r = w.Read(); double om = w.ShownState.Rates.Length * 57.2958;
+            var lines = new List<(string text, Color c, float size)>
+            {
+                (LegendTitle, Color.white, 17f),
+                (Hold("r1", $"α {r.AlphaDeg:0}°   NOSE {System.Math.Abs(r.PitchDeg):0}° {(r.PitchDeg < 0 ? "LOW" : "HIGH")}"), new Color(0.9f, 0.9f, 0.9f), 14f),
+                (Hold("r2", $"ROTATION {om:0}°/s   {(om > 1 ? 360 / om : 0):0.0} s/TURN"), new Color(0.9f, 0.9f, 0.9f), 14f),
+                (Hold("r3", $"{r.Kias:0} KIAS   SINK {r.SinkFpm:#,0} fpm"), new Color(0.9f, 0.9f, 0.9f), 14f),
+            };
+            // Column 2: the labels; column 3 (WingForces): the YAW BALANCE — every yaw moment in the sense of the rotation
+            // (+ drives it, − resists it); they sum to ≈ 0 at the steady rotation rate.
+            var col2 = new List<(string text, Color c, float size)>(); var col2b = new List<(string text, Color c, float size)>();
+            foreach (var L in _soloLabels) (L.text.Contains("WING") ? col2 : col2b).Add((Hold("l:" + Key(L.text), L.text), L.c, 14f));
+            var col3 = new List<(string text, Color c, float size)>();
+            var P = Current;
+            if (WingForces && P != null)
+            {
+                double rs = w.ShownState.Rates.Z >= 0 ? 1 : -1, k = 0.7376 * rs;
+                double other = P.MomYaw - P.WingYaw - P.FinYaw - P.FusYaw;
+                Color grey = new(0.9f, 0.9f, 0.9f);
+                col3.Add(("YAW BALANCE (ft·lb)", Color.white, 15f));
+                col3.Add(("+ drives the rotation · − resists it", grey, 12f));
+                foreach (var (nm, v, c) in new[] { ("WINGS", P.WingYaw, Lift), ("FIN", P.FinYaw, TailC), ("FUSELAGE", P.FusYaw, grey), ("STAB + DAMPING", other, grey), ("PROP (torque, P-factor, gyro)", P.PropYaw, Thrust), ("INERTIA COUPLING", P.InertiaYaw, Inertial) })
+                    col3.Add((Hold("y:" + nm, $"{nm} {v * k:+#,0;-#,0}"), c, 14f));
+                double sum = P.MomYaw + P.PropYaw + P.InertiaYaw;
+                col3.Add((Hold("y:sum", $"NET {sum * k:+#,0;-#,0}"), Color.white, 14f));
+            }
+            float Hgt(List<(string text, Color c, float size)> col) { float t = 0; foreach (var l in col) t += l.size * ui.TextScale * 1.25f + 5f * ui.TextScale; return t; }
+            float Wid(List<(string text, Color c, float size)> col) { float m = 0; foreach (var l in col) m = Mathf.Max(m, ui.PxTextWidth(l.text, l.size)); return m; }
+            float bottom = scene.yMin + scene.height * 0.04f, x0 = scene.xMin + scene.width * 0.025f, colGap = 28f * ui.TextScale;
+            float hMax = Mathf.Max(Mathf.Max(Hgt(lines), Hgt(col2b)), Mathf.Max(Hgt(col2), Hgt(col3)));
+            void Col(List<(string text, Color c, float size)> col, float x)
+            {
+                float y = bottom + hMax;   // (y up: all three columns share the top line, the block ends 4 % above the bottom)
+                foreach (var l in col)
+                {
+                    float lh = l.size * ui.TextScale * 1.25f;
+                    y -= lh * 0.5f; ui.PxText(new Vector2(x, y), l.text, l.size, l.c, TextAnchor.MiddleLeft); y -= lh * 0.5f + 5f * ui.TextScale;
+                }
+            }
+            // Two bottom corners, the middle left to the airplane: LEFT the header, readouts and the wings; RIGHT the moments
+            // and the yaw balance (right-aligned to the frame's edge).
+            var left = new List<(string text, Color c, float size)>(lines); left.AddRange(col2);
+            var right = new List<(string text, Color c, float size)>(col2b); right.AddRange(col3);
+            void Stack(List<(string text, Color c, float size)> col, float x, bool alignRight)
+            {
+                float y = bottom + Hgt(col);
+                foreach (var l in col)
+                {
+                    float lh = l.size * ui.TextScale * 1.25f;
+                    y -= lh * 0.5f; ui.PxText(new Vector2(x, y), l.text, l.size, l.c, alignRight ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft); y -= lh * 0.5f + 5f * ui.TextScale;
+                }
+            }
+            Stack(left, x0, false);
+            Stack(right, scene.xMax - scene.width * 0.025f, true);
+        }
+
         private bool InHull(Vector2 p)
         {
             // Inside the (convex, counter-clockwise) outline of the airplane on screen.
@@ -181,6 +262,7 @@ namespace FlyingGame.Bridge.Widget
             public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
             public double LiftN, DragN, BallDeg;
             public double MomYaw, FinN, FinYaw; public bool HasFin;
+            public Vec3 WLiftL, WLiftR, WDragL, WDragR, WPosL, WPosR, FinF, FinPos; public double WingYaw, FusYaw, InertiaYaw, PropYaw;
             public double AeroG, InertialG, TailN, MomAero, MomInertia, MomGyro, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
             /// <summary>FOUR FORCES (2026-10-11): the balance along and across the flight path, from the same forces. Along: thrust's
@@ -202,7 +284,8 @@ namespace FlyingGame.Bridge.Widget
 
             Vec3 finF = Vec3.Zero, finPos = Vec3.Zero; double finW = 0, nAero = 0, nFin = 0;
             Vec3 aero = Vec3.Zero, nonGrav = Vec3.Zero, thrust = Vec3.Zero, lift = Vec3.Zero, drag = Vec3.Zero, tailF = Vec3.Zero, tailPos = Vec3.Zero, thrustPos = Vec3.Zero;
-            double mAero = 0, tailW = 0, mGyro = 0;
+            double mAero = 0, tailW = 0, mGyro = 0, wwL = 0, wwR = 0;
+            Vec3 wpL = Vec3.Zero, wpR = Vec3.Zero;
             var tailL = new List<ForceSample>(); var tailR = new List<ForceSample>();
             if (forces != null)
                 foreach (var f in forces)
@@ -219,19 +302,30 @@ namespace FlyingGame.Bridge.Widget
                             mAero += (r.Z * f.ForceBody.X - r.X * f.ForceBody.Z) + f.MomentBody.Y;
                             double nz = r.X * f.ForceBody.Y - r.Y * f.ForceBody.X + f.MomentBody.Z;   // yaw moment about the CG (nose-right +)
                             nAero += nz;
+                            if (f.Kind == "fuselage") pic.FusYaw += nz;
                             // The vertical tail (fin + rudder): aft, force mostly sideways.
                             if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X < cg.X - 0.35 * w.LengthM && System.Math.Abs(f.ForceBody.Y) > System.Math.Abs(f.ForceBody.Z))
                             { finF += f.ForceBody; double a2 = System.Math.Abs(f.ForceBody.Y) + 1e-6; finPos += f.PosBody * a2; finW += a2; nFin += nz; }
                             if (f.Kind == "lift") lift += f.ForceBody; else if (f.Kind == "drag") drag += f.ForceBody;
+                            // Each wing half (ahead of the tail, out past the fuselage): its own lift and drag.
+                            if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X > cg.X - 0.35 * w.LengthM && System.Math.Abs(f.PosBody.Y) > 0.3 && System.Math.Abs(f.PosBody.Z - cg.Z) < 0.6)
+                            {
+                                bool left = f.PosBody.Y < 0; double fm = f.ForceBody.Length + 1e-6;
+                                if (f.Kind == "lift") { if (left) pic.WLiftL += f.ForceBody; else pic.WLiftR += f.ForceBody; }
+                                else { if (left) pic.WDragL += f.ForceBody; else pic.WDragR += f.ForceBody; }
+                                if (left) { wpL += f.PosBody * fm; wwL += fm; } else { wpR += f.PosBody * fm; wwR += fm; }
+                                pic.WingYaw += nz;
+                            }
                             // The horizontal tail: aft, and its force mostly vertical (the fin's is sideways).
                             if ((f.Kind == "lift" || f.Kind == "drag") && f.PosBody.X < cg.X - 0.35 * w.LengthM && System.Math.Abs(f.ForceBody.Z) >= System.Math.Abs(f.ForceBody.Y))
                             { tailF += f.ForceBody; double a = System.Math.Abs(f.ForceBody.Z) + 1e-6; tailPos += f.PosBody * a; tailW += a; }
                             break;
                         }
-                        case "thrust": thrust += f.ForceBody; thrustPos = f.PosBody; break;
+                        case "thrust": thrust += f.ForceBody; thrustPos = f.PosBody; pic.PropYaw += (f.PosBody - cg).X * f.ForceBody.Y - (f.PosBody - cg).Y * f.ForceBody.X + f.MomentBody.Z; break;
                     }
                     if (f.Kind != "moment") nonGrav += f.ForceBody;
                 }
+            if (wwL > 0) pic.WPosL = wpL * (1.0 / wwL); if (wwR > 0) pic.WPosR = wpR * (1.0 / wwR);
             // INERTIAL = m(g − a) = −(every non-gravity force); TOTAL AERO from the neutral point.
             Vec3 inertial = -1.0 * nonGrav;
             // Lift and drag along the airflow; the slip ball (it sits opposite the lateral specific force).
@@ -273,8 +367,10 @@ namespace FlyingGame.Bridge.Widget
             Vec3 om = s.Rates;
             double hx = mp.Ixx * om.X - mp.Ixz * om.Z, hz = mp.Izz * om.Z - mp.Ixz * om.X;
             pic.MomYaw = nAero; pic.FinYaw = nFin;
+            if (finW > 0) { pic.FinF = finF; pic.FinPos = finPos * (1.0 / finW); }
             if (finW > 0) { pic.HasFin = true; pic.FinN = finF.Y; pic.V["fin"] = (finPos * (1.0 / finW), new Vec3(0, finF.Y * 12.0 / W, 0)); }   // ×12: a fin force is small against the weight
             pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz); pic.MomGyro = mGyro;
+            { double hy = mp.Iyy * om.Y; pic.InertiaYaw = -(om.X * hy - om.Y * hx); }   // −(ω × Iω)_z: the inertia coupling in yaw
             // Wing winds at mid-semispan (ω × r).
             foreach (int side in new[] { -1, 1 })
             {
@@ -436,6 +532,42 @@ namespace FlyingGame.Bridge.Widget
                 }
                 else Arrow(k, c, wingWindPx, true);
                 _labels.Request(k, Tip(k, wingWindPx, true), Away(Origin(k), Tip(k, wingWindPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
+            }
+            // Each wing's lift and drag (WingForces), solid, from the wing's centre of force; one g = 1.4 airplane lengths.
+            foreach (var (side, lf, dg, pos, nm) in new[] { ("L", P.WLiftL, P.WDragL, P.WPosL, "L WING"), ("R", P.WLiftR, P.WDragR, P.WPosR, "R WING") })
+            {
+                foreach (var (kind, f, c) in new[] { ("LIFT", lf, Lift), ("DRAG", dg, Drag) })
+                {
+                    string id = "wf" + side + kind;
+                    if (!WingForces || !Solid3D || f.Length < 1) { if (_solidArrows.TryGetValue(id, out var hh)) hh.Hide(); continue; }
+                    double W0 = w.Ac.MassProperties.MassKg * 9.81;
+                    Vector3 o3 = World(pos), d3 = Dir(f * (1.0 / f.Length)) * (float)(f.Length / W0 * 1.4 * w.LengthM);
+                    SolidArrow(id, c).Place(o3, o3 + d3, Mathf.Max(0.05f, 0.014f * (float)w.LengthM));
+                    if (Scr(o3 + d3, out var tipS) && Scr(o3, out var rootS))
+                    {
+                        _soloSegs.Add((rootS, tipS));
+                        _soloLabels.Add((tipS, tipS - rootS, $"{nm} {kind} {f.Length * 0.2248:#,0} lb", c));
+                    }
+                }
+            }
+            // The fin's side force (Ty 2026-10-13: "the vertical tail damping force … the driving force and the resistive force
+            // that lead to equilibrium in rotation rate"): its own arrow; the label says whether its yaw moment resists the
+            // rotation or drives it (the sign of N_fin · r).
+            {
+                var ff = P.FinF;
+                if (!WingForces || !Solid3D || ff.Length < 1 || !P.HasFin) { if (_solidArrows.TryGetValue("wfFin", out var hh)) hh.Hide(); }
+                else
+                {
+                    double W0 = w.Ac.MassProperties.MassKg * 9.81;
+                    Vector3 o3 = World(P.FinPos), d3 = Dir(ff * (1.0 / ff.Length)) * (float)(ff.Length / W0 * 1.4 * w.LengthM);
+                    SolidArrow("wfFin", TailC).Place(o3, o3 + d3, Mathf.Max(0.05f, 0.014f * (float)w.LengthM));
+                    bool resists = P.FinYaw * s.Rates.Z < 0;
+                    if (Scr(o3 + d3, out var tipS) && Scr(o3, out var rootS))
+                    {
+                        _soloSegs.Add((rootS, tipS));
+                        _soloLabels.Add((tipS, tipS - rootS, $"FIN {ff.Length * 0.2248:#,0} lb — {(resists ? "RESISTS" : "DRIVES")} ROTATION", TailC));
+                    }
+                }
             }
             // FLIGHT PATH (2026-10-11, Talk Flying W12) with the RELATIVE WIND, equal and opposite (owner 2026-10-12): one line through
             // the CG, the same length, head on — the flight path out from the CG along the velocity, the relative wind coming back

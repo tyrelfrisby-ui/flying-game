@@ -219,9 +219,6 @@ public sealed class AirframeFlow
     }
     private static Vec3 Slower(Vec3? a, Vec3 b) => a.HasValue && a.Value.Length < b.Length ? a.Value : b;
 
-    /// <summary>The exhaust jet: its exit speed and how fast it decays into the air (≈ 0.5 m of travel — a turbulent jet
-    /// is spent within ~10–20 stack diameters).</summary>
-    public const double JetSpeed = 25.0, JetTau = 0.02;
 
     /// <summary>Hold a point outside every body: inside the fuselage → out to its surface; across a plate during the step
     /// from <paramref name="from"/> → back to the side it came from.</summary>
@@ -270,12 +267,15 @@ public sealed class AirframeFlow
     }
 
     /// <summary>A smoke marker released at body point <paramref name="r0"/> with the airplane flying at body velocity V,
-    /// body rates ω (held for the pass — a few seconds at most), and an exhaust jet blowing along <paramref name="jetDir"/>
-    /// (JetSpeed, decaying in JetTau). Returns, every <paramref name="dt"/>, how far the marker has been pushed (body axes at
-    /// that moment) from where the undisturbed air would have carried it; it stops once the marker is a body length clear.
-    /// In a separated wake the marker also random-walks with the eddy diffusivity (√(2D·dt) a step) — a turbulent eddy's
-    /// share of the smoke; <paramref name="seed"/> picks which (the same puff, the same path, every redraw).</summary>
-    public List<Vec3> Deflection(Vec3 r0, Vec3 V, Vec3 omega, Vec3 jetDir, double dt = 0.004, double maxT = 4.0, uint seed = 1)
+    /// body rates ω (held for the pass — a few seconds at most), in the exhaust jet leaving along <paramref name="jetDir"/> at
+    /// <paramref name="jetU0"/> from a pipe of <paramref name="pipeD"/> (<see cref="ExhaustJet"/>: it entrains the air and
+    /// bends into the crossflow). Returns, every <paramref name="dt"/>, how far the marker is from where the undisturbed air
+    /// released at r0 would be (body axes at that moment) — the jet and the airframe's push together; it stops once the jet
+    /// is spent and the marker is a body length clear. In a separated wake the marker also random-walks with the eddy
+    /// diffusivity (√(2D·dt) a step) — a turbulent eddy's share of the smoke; <paramref name="seed"/> picks which (the same
+    /// puff, the same path, every redraw).</summary>
+    public List<Vec3> Deflection(Vec3 r0, Vec3 V, Vec3 omega, Vec3 jetDir, double jetU0, double pipeD, double airDensity,
+                                 double dt = 0.004, double maxT = 4.0, uint seed = 1)
     {
         var outp = new List<Vec3> { Vec3.Zero };
         Vec3 r = r0, rFree = r0;
@@ -289,19 +289,23 @@ public sealed class AirframeFlow
             st = st * 747796405u + 2891336453u; double u2 = (st >> 8) / 16777216.0;
             return System.Math.Sqrt(-2 * System.Math.Log(u1)) * System.Math.Cos(2 * System.Math.PI * u2);
         }
+        bool jetOn = jetU0 > 0.5 && pipeD > 0 && jetDir.LengthSquared > 1e-9;
+        var jet = jetOn ? ExhaustJet.Start(jetDir * (1.0 / jetDir.Length), jetU0, pipeD, airDensity) : default;
         for (double t = 0; t < maxT; t += dt)
         {
-            Vec3 jet = jetDir * (JetSpeed * System.Math.Exp(-t / JetTau));
             // (midpoint steps: the rotating frame turns the free path through a circle)
             Vec3 Onset(Vec3 q) => -1.0 * (V + Vec3.Cross(omega, q));
-            Vec3 k1 = Velocity(r, Onset(r), out double D) + jet, rm = r + k1 * (0.5 * dt);
-            Vec3 rn = r + (Velocity(rm, Onset(rm)) + jet) * dt;
+            Vec3 u1 = Velocity(r, Onset(r), out double D);
+            Vec3 w = jetOn ? jet.W : Vec3.Zero;
+            Vec3 rm = r + (u1 + w) * (0.5 * dt);
+            Vec3 rn = r + (Velocity(rm, Onset(rm)) + w) * dt;
+            if (jetOn) { ExhaustJet.Step(ref jet, u1, airDensity, dt, omega); if (jet.Spent) jetOn = false; }
             if (D > 0) { double sd = System.Math.Sqrt(2 * D * dt); rn += new Vec3(Gauss() * sd, Gauss() * sd, Gauss() * sd); }
             r = KeepOut(r, rn);
-            Vec3 f1 = Onset(rFree) + jet, fm = rFree + f1 * (0.5 * dt);
-            rFree += (Onset(fm) + jet) * dt;
+            Vec3 fm = rFree + Onset(rFree) * (0.5 * dt);
+            rFree += Onset(fm) * dt;
             outp.Add(r - rFree);
-            if (r.Length > 1.3 * L && rFree.Length > 1.3 * L) break;
+            if (!jetOn && r.Length > 1.3 * L && rFree.Length > 1.3 * L) break;
         }
         return outp;
     }
