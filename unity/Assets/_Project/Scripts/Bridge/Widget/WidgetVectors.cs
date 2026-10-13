@@ -418,7 +418,7 @@ namespace FlyingGame.Bridge.Widget
             float wingWindPx = windPx * WingWindScale;
             foreach (var (k, a, st, nm) in new[] { ("wingL", P.WingAlphaL, P.StallL, "L WING"), ("wingR", P.WingAlphaR, P.StallR, "R WING") })
             {
-                if (!On("wingWind") || !F.ContainsKey(k)) { if (_solidArrows.TryGetValue(k + (st ? "S" : ""), out var hh)) hh.Hide(); continue; }
+                if (!On("wingWind") || !F.ContainsKey(k)) { foreach (var key in new[] { k, k + "S" }) if (_solidArrows.TryGetValue(key, out var hh)) hh.Hide(); continue; }   // (both colours: a cyan wing arrow was left standing)
                 Color c = st && !WingWindCyan ? Drag : Wind;
                 if (Solid3D)
                 {
