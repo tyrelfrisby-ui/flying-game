@@ -2035,6 +2035,9 @@
       "sharpSectionFraction": 0.5
     }
   },
+  "spinAero": {
+    "rollDueToSideslip": "biplane"
+  },
   "propulsion": {
     "maxPowerW": 194000,
     "propDiameterM": 1.98,

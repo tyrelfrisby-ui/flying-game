@@ -40,7 +40,7 @@ public class FlatSpinProbe
                 if (i == 100 && name == "full AFT" && System.Environment.GetEnvironmentVariable("FLATSPIN_IP_AFTER") is string ipa) cfg.Propulsion!.PropInertia = double.Parse(ipa, System.Globalization.CultureInfo.InvariantCulture);
                 sim.RunFor(0.1, ci); Wrap(ac);
             }
-            int n = 0; double pitch = 0, a = 0, aL = 0, aR = 0, w = 0, kt = 0;
+            int n = 0; double pitch = 0, a = 0, aL = 0, aR = 0, w = 0, kt = 0, bet = 0;
             double mWing = 0, mTail = 0, mFus = 0, mPure = 0, mThr = 0, mIn = 0, mOther = 0;
             ac.CaptureForces = true;
             var I = ac.MassProperties; var cg = cfg.Mass.CgVec();
@@ -57,7 +57,7 @@ public class FlatSpinProbe
                     double al = System.Math.Atan2(vl.Z, vl.X) * 57.3;
                     if (side < 0) aL += al; else aR += al;
                 }
-                w += om.Length * 57.3; kt += vb.Length * 1.943844; n++;
+                w += om.Length * 57.3; kt += vb.Length * 1.943844; bet += System.Math.Asin(vb.Y / vb.Length) * 57.3; n++;
                 foreach (var f in ac.LastForces)
                 {
                     double my = Vec3.Cross(f.PosBody - cg, f.ForceBody).Y + f.MomentBody.Y;
@@ -76,7 +76,7 @@ public class FlatSpinProbe
             }
             ac.CaptureForces = false;
             double k = 0.7376 / n;   // N·m → ft·lb, mean
-            _out.WriteLine($"{cfg.Id} UPRIGHT flat, left rudder, full power, aileron {ci.Aileron:0.0}, {name}: pitch {pitch / n:0.0}  α {a / n:0.0}  α85 L {aL / n:0} R {aR / n:0}  {360 / (w / n):0.00} s/turn  {kt / n:0} kt TAS"
+            _out.WriteLine($"{cfg.Id} UPRIGHT flat, left rudder, full power, aileron {ci.Aileron:0.0}, {name}: pitch {pitch / n:0.0}  α {a / n:0.0}  α85 L {aL / n:0} R {aR / n:0}  {360 / (w / n):0.00} s/turn  {kt / n:0} kt TAS  β {bet / n:0}"
                 + $"\n   pitch moments (ft·lb, + nose-up): wing {mWing * k:+0;-0}  tail {mTail * k:+0;-0}  fuselage {mFus * k:+0;-0}  pure(Cm/damping) {mPure * k:+0;-0}  thrust {mThr * k:+0;-0}  other {mOther * k:+0;-0}  | inertial {mIn * k:+0;-0}");
         }
     }

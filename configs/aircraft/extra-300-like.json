@@ -1693,6 +1693,9 @@
       "sharpSectionFraction": 0.5
     }
   },
+  "spinAero": {
+    "rollDueToSideslip": "monoplane"
+  },
   "smoke": {
     "aftOfNoseM": 1.22,
     "downDeg": 30
