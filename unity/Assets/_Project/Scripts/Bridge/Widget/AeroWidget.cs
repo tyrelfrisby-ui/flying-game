@@ -192,6 +192,10 @@ namespace FlyingGame.Bridge.Widget
             Cam.clearFlags = CameraClearFlags.SolidColor;
             Cam.backgroundColor = new Color(0, 0, 0, 0);   // TRANSPARENT: only the aircraft, the line, the vectors show
             Cam.targetTexture = Frame;
+            // LDR all the way (2026-10-13, Ty: the smoke "rendering as black"): with HDR on, the camera drew into a float buffer where
+            // the glossy model's ALPHA came out above 1; the smoke's fill pass (weight 1 − destination alpha) then went negative and
+            // subtracted the airframe under the smoke to exactly (0,0,0). An 8-bit target keeps alpha in 0…1.
+            Cam.allowHDR = false;
             Cam.nearClipPlane = 0.1f; Cam.farClipPlane = 20000f;
             var sun = new GameObject("WidgetSun").AddComponent<Light>();
             sun.type = LightType.Directional; sun.intensity = 1.15f; sun.transform.rotation = Quaternion.Euler(50f, -35f, 0f);

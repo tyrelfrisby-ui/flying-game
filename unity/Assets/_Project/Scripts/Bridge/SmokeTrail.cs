@@ -49,6 +49,8 @@ namespace FlyingGame.Bridge
             return Quat.Multiply(s.Att, turn).Rotate(c.d[i]);
         }
         private double _deflPruned;
+        private int _nanLogged;
+        private long _lastSlot;
 
         public const double LifeMaxS = 30.0;
         private const float Hz = 30f;
@@ -133,13 +135,22 @@ namespace FlyingGame.Bridge
             Vector3 camPos = cam.transform.position, camFwd = cam.transform.forward;
             Vec3 wind = Atmosphere.SteadyWind;
             double newerT = double.NaN;
+            _lastSlot = long.MinValue;
             for (int k = 0; ; k++)
             {
                 var sq = sample(k); if (sq == null) break;
                 var s = sq.Value; double age = nowT - s.T;
-                // This puff's share of the oil: the time to the next newer sample (the history records 30–600 a second).
+                // This puff's share of the oil: the time to the next newer sample (the history records 30–600 a second). Past
+                // 0.2 s old, one puff per 1/30 s carries its whole slot (2026-10-13: a 600 Hz recording drew ~20× the puffs at
+                // 1/20 the opacity, and 8-bit blending of thousands of near-clear layers ground the airframe behind them BLACK).
                 double span = double.IsNaN(newerT) ? 1.0 / Hz : System.Math.Clamp(newerT - s.T, 1e-4, 1.0 / Hz); newerT = s.T;
                 float share = (float)(span * Hz);
+                if (age > 0.2)
+                {
+                    long slot = (long)System.Math.Floor(s.T * Hz);
+                    if (slot == _lastSlot) continue;
+                    _lastSlot = slot; share = 1f; span = 1.0 / Hz;   // (and its length: a slot's worth of path, so the column stays joined)
+                }
                 if (age > LifeMaxS) break;
                 if (age < 0 || s.Flow <= 0.001f) continue;
                 // Each puff's own life (10–30 s) and a little spread, from a hash of its time — the same puff every redraw.
@@ -171,6 +182,10 @@ namespace FlyingGame.Bridge
                 {
                     Vec3 e = _exhaust[ei], jd = ei < _jet.Length ? _jet[ei] : Vec3.Zero;
                     Vector3 p = shown(s.Pos + s.Att.Rotate(e + jd * jetM) + back + drift + Pushed(s, ei, e, jd, age));
+                    // A non-finite puff (a NaN anywhere in its push) would poison every blend it touches: its colour came out
+                    // NaN and the airframe under the smoke column rendered (0,0,0) (Ty 2026-10-13: "rendering as black").
+                    if (!(float.IsFinite(p.x) && float.IsFinite(p.y) && float.IsFinite(p.z) && float.IsFinite(a) && float.IsFinite(grow) && float.IsFinite(stretch)) || a < 0 || grow <= 0)
+                    { if (_nanLogged++ < 5) Debug.LogWarning($"[Smoke] non-finite puff dropped: age {age:0.000} p {p} a {a} grow {grow} stretch {stretch} jet {s.JetU0:0.0} ρ {s.AirDensity:0.000}"); continue; }
                     float d2 = Vector3.Dot(p - camPos, camFwd);
                     if (d2 < 0.3f) continue;
                     // A puff the camera is inside (a chase camera flies through the up-line's smoke) would wash the whole

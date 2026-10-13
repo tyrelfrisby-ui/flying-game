@@ -18,9 +18,12 @@ Shader "FlyingGame/Smoke"
         struct v2f { float4 pos : SV_POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; };
         fixed4 _Color;
         v2f vert (appdata v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.color = v.color * _Color; o.uv = v.uv; return o; }
-        float Cover (v2f i) { float r = length(i.uv - 0.5) * 2.0; float a = saturate(1.0 - r * r); return i.color.a * a * a; }
-        fixed4 fragOver (v2f i) : SV_Target { return fixed4(i.color.rgb, Cover(i)); }
-        fixed4 fragFill (v2f i) : SV_Target { return fixed4(i.color.rgb * step(0.002, Cover(i)), 0); }
+        // (coverage clamped to 0…1 and a non-finite fragment discarded: one bad puff blended a column of the airframe to black,
+        //  Ty 2026-10-13 — a NaN or negative alpha poisons "over" even where its weight should be zero)
+        float Cover (v2f i) { float r = length(i.uv - 0.5) * 2.0; float a = saturate(1.0 - r * r); return saturate(i.color.a) * a * a; }
+        void Guard (v2f i) { if (any(isnan(i.color)) || any(isinf(i.color)) || any(isnan(i.uv))) discard; }
+        fixed4 fragOver (v2f i) : SV_Target { Guard(i); return fixed4(saturate(i.color.rgb), Cover(i)); }
+        fixed4 fragFill (v2f i) : SV_Target { Guard(i); return fixed4(saturate(i.color.rgb) * step(0.002, Cover(i)), 0); }
         ENDCG
         Pass { ColorMask RGB  Blend SrcAlpha OneMinusSrcAlpha
             CGPROGRAM

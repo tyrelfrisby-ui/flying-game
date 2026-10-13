@@ -169,7 +169,7 @@ namespace FlyingGame.Bridge.Widget
                 Color grey = new(0.9f, 0.9f, 0.9f);
                 col3.Add(("YAW BALANCE (ft·lb)", Color.white, 15f));
                 col3.Add(("+ drives the rotation · − resists it", grey, 12f));
-                foreach (var (nm, v, c) in new[] { ("WINGS", P.WingYaw, Lift), ("FIN", P.FinYaw, TailC), ("FUSELAGE", P.FusYaw, grey), ("STAB + DAMPING", other, grey), ("PROP (torque, P-factor, gyro)", P.PropYaw, Thrust), ("INERTIA COUPLING", P.InertiaYaw, Inertial) })
+                foreach (var (nm, v, c) in new[] { ("WINGS", P.WingYaw, Lift), ("FIN", P.FinYaw, TailC), ("FUSELAGE", P.FusYaw, grey), ("STAB + DAMPING", other, grey), ("PROP P-FACTOR", P.HasProp ? -P.Prop.Thrust * P.Prop.PFactorY : 0, Thrust), ("PROP SLIPSTREAM", P.HasProp ? P.Prop.SlipYaw : 0, Thrust), ("PROP GYROSCOPIC", P.HasProp ? P.Prop.Gyro.Z : 0, Thrust), ("INERTIA COUPLING", P.InertiaYaw, Inertial) })
                     col3.Add((Hold("y:" + nm, $"{nm} {v * k:+#,0;-#,0}"), c, 14f));
                 double sum = P.MomYaw + P.PropYaw + P.InertiaYaw;
                 col3.Add((Hold("y:sum", $"NET {sum * k:+#,0;-#,0}"), Color.white, 14f));
@@ -262,7 +262,7 @@ namespace FlyingGame.Bridge.Widget
             public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
             public double LiftN, DragN, BallDeg;
             public double MomYaw, FinN, FinYaw; public bool HasFin;
-            public Vec3 WLiftL, WLiftR, WDragL, WDragR, WPosL, WPosR, FinF, FinPos; public double WingYaw, FusYaw, InertiaYaw, PropYaw;
+            public Vec3 WLiftL, WLiftR, WDragL, WDragR, WPosL, WPosR, FinF, FinPos, ThrustAt; public double WingYaw, FusYaw, InertiaYaw, PropYaw; public FlyingGame.Core.PropModel.Parts Prop; public bool HasProp;
             public double AeroG, InertialG, TailN, MomAero, MomInertia, MomGyro, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
             /// <summary>FOUR FORCES (2026-10-11): the balance along and across the flight path, from the same forces. Along: thrust's
@@ -371,6 +371,13 @@ namespace FlyingGame.Bridge.Widget
             if (finW > 0) { pic.HasFin = true; pic.FinN = finF.Y; pic.V["fin"] = (finPos * (1.0 / finW), new Vec3(0, finF.Y * 12.0 / W, 0)); }   // ×12: a fin force is small against the weight
             pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz); pic.MomGyro = mGyro;
             { double hy = mp.Iyy * om.Y; pic.InertiaYaw = -(om.X * hy - om.Y * hx); }   // −(ω × Iω)_z: the inertia coupling in yaw
+            // The prop's parts, from the same model the sim flew (PropModel), at this frame's state and throttle.
+            if (cfg.Propulsion != null && cfg.Propulsion.PropDiameterM > 0 && cfg.Engines.Count == 0)
+            {
+                double thr01 = w.Shown?.AcThrottle ?? w.Ac.Throttle01, alt = -(s.Position.Z - (w.Shown?.AltShift ?? 0));
+                FlyingGame.Core.PropModel.Compute(cfg.Propulsion, thr01, s.Velocity, s.Rates, Atmosphere.DensityAtAltitude(alt), out pic.Prop);
+                pic.HasProp = true; pic.ThrustAt = thrustPos;
+            }
             // Wing winds at mid-semispan (ω × r).
             foreach (int side in new[] { -1, 1 })
             {
@@ -566,6 +573,34 @@ namespace FlyingGame.Bridge.Widget
                     {
                         _soloSegs.Add((rootS, tipS));
                         _soloLabels.Add((tipS, tipS - rootS, $"FIN {ff.Length * 0.2248:#,0} lb — {(resists ? "RESISTS" : "DRIVES")} ROTATION", TailC));
+                    }
+                }
+            }
+            // The PROP's forces (Ty 2026-10-13): the THRUST from where it acts — off the hub toward the descending blade (P-factor) —
+            // and the spiral SLIPSTREAM's push on the fin (its yaw moment ÷ the fin's arm). Torque and gyroscopics are moments: the
+            // yaw balance lists them.
+            {
+                bool showP = WingForces && Solid3D && P.HasProp && P.Prop.Thrust > 1;
+                if (!showP) { foreach (var id in new[] { "pfThrust", "pfSlip" }) if (_solidArrows.TryGetValue(id, out var hh)) hh.Hide(); }
+                else
+                {
+                    double W0 = w.Ac.MassProperties.MassKg * 9.81;
+                    Vec3 at = P.ThrustAt + new Vec3(0, P.Prop.PFactorY, P.Prop.PFactorZ);
+                    Vector3 o3 = World(at), d3 = Dir(new Vec3(1, 0, 0)) * (float)(P.Prop.Thrust / W0 * 1.4 * w.LengthM);
+                    SolidArrow("pfThrust", Thrust).Place(o3, o3 + d3, Mathf.Max(0.05f, 0.014f * (float)w.LengthM));
+                    double off = System.Math.Sqrt(P.Prop.PFactorY * P.Prop.PFactorY + P.Prop.PFactorZ * P.Prop.PFactorZ);
+                    if (Scr(o3 + d3, out var tS) && Scr(o3, out var rS)) { _soloSegs.Add((rS, tS)); _soloLabels.Add((tS, tS - rS, $"PROP THRUST {P.Prop.Thrust * 0.2248:#,0} lb — {off * 100:0} cm {(P.Prop.PFactorY >= 0 ? "RIGHT" : "LEFT")} OF THE HUB (P-FACTOR)", Thrust)); }
+                    if (P.HasFin)
+                    {
+                        double arm = P.FinPos.X - cg.X; double fy = System.Math.Abs(arm) > 0.3 ? P.Prop.SlipYaw / arm : 0;
+                        Vec3 f = new(0, fy, 0);
+                        if (System.Math.Abs(fy) > 1)
+                        {
+                            Vector3 f3 = World(P.FinPos + new Vec3(0, 0, -0.25)), fd = Dir(new Vec3(0, System.Math.Sign(fy), 0)) * (float)(System.Math.Abs(fy) / W0 * 1.4 * w.LengthM);
+                            SolidArrow("pfSlip", Thrust).Place(f3, f3 + fd, Mathf.Max(0.05f, 0.014f * (float)w.LengthM));
+                            if (Scr(f3 + fd, out var sS) && Scr(f3, out var sR)) { _soloSegs.Add((sR, sS)); _soloLabels.Add((sS, sS - sR, $"PROP SLIPSTREAM ON THE FIN {System.Math.Abs(fy) * 0.2248:#,0} lb", Thrust)); }
+                        }
+                        else if (_solidArrows.TryGetValue("pfSlip", out var hh)) hh.Hide();
                     }
                 }
             }

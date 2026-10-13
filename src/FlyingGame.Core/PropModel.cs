@@ -17,9 +17,20 @@ namespace FlyingGame.Core;
 /// </summary>
 public static class PropModel
 {
+    /// <summary>The prop's effects one by one (Ty 2026-10-13: "since the propeller is the dominant driving force for the
+    /// rotation show the vectors of the propeller's forces and label them"): the thrust and where it acts (the P-factor's
+    /// offset of its centre from the hub, m), the torque reaction (roll, N·m), the spiral slipstream's yaw on the fin (N·m)
+    /// and the gyroscopic moment. <see cref="Compute(PropulsionConfig, double, Vec3, Vec3, double)"/> is their sum.</summary>
+    public struct Parts { public double Thrust, PFactorY, PFactorZ, TorqueRoll, SlipYaw; public Vec3 Gyro; }
+
     public static (Vec3 Force, Vec3 Moment) Compute(
         PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity)
+        => Compute(prop, throttle01, bodyVelocity, bodyRates, airDensity, out _);
+
+    public static (Vec3 Force, Vec3 Moment) Compute(
+        PropulsionConfig prop, double throttle01, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, out Parts parts)
     {
+        parts = default;
         double thr = Math.Clamp(throttle01, 0.0, 1.0);
 
         // JET (propDiameterM <= 0): pure axial thrust, flat with speed to a cap, NO torque/P-factor/
@@ -27,6 +38,7 @@ public static class PropModel
         if (prop.PropDiameterM <= 0.0)
         {
             double jetThrust = prop.MaxPowerW * thr;
+            parts.Thrust = jetThrust;
             return (new Vec3(jetThrust, 0, jetThrust * prop.ThrustLineZ * 0), new Vec3(0, jetThrust * prop.ThrustLineZ, 0));
         }
 
@@ -79,6 +91,7 @@ public static class PropModel
         // Torque reaction (RH prop rolls the aircraft LEFT).
         double torque = omegaProp > 1 ? powerW / omegaProp : 0;
         moment += new Vec3(-prop.RotationSign * torque, 0, 0);
+        parts.Thrust = thrust; parts.TorqueRoll = -prop.RotationSign * torque;
 
         // P-factor: thrust center offset toward the down-going blade.
         if (v > 1)
@@ -87,7 +100,8 @@ public static class PropModel
             double beta = Math.Asin(Math.Clamp(bodyVelocity.Y / v, -1, 1));
             double yOffset = prop.RotationSign * prop.PFactorK * radius * Math.Sin(alpha);   // + = right
             double zOffset = -prop.RotationSign * prop.PFactorK * radius * Math.Sin(beta);
-            moment += new Vec3(0, thrust * zOffset, -thrust * yOffset);                       // r x F, r=(0,y,z)... N = -y*T? sign: offset right (+y) with thrust +x: Mz = -y*Fx -> yaw LEFT (negative) — correct for RH at +alpha
+            moment += new Vec3(0, thrust * zOffset, -thrust * yOffset);
+            parts.PFactorY = yOffset; parts.PFactorZ = zOffset;                       // r x F, r=(0,y,z)... N = -y*T? sign: offset right (+y) with thrust +x: Mz = -y*Fx -> yaw LEFT (negative) — correct for RH at +alpha
         }
 
         // Spiral slipstream: swirl strikes the fin -> yaw LEFT for RH prop; ~ P / V_slip where V_slip is the
@@ -95,9 +109,11 @@ public static class PropModel
         // clamped at 8 m/s over-predicted the static yaw ~4× (a 172 at full power on the brakes needed
         // more rudder than it has) — at rest the fin sits in ~35-40 m/s of slipstream, not 8.
         double vSlip = Math.Sqrt(v * v + 2.0 * thrust / Math.Max(airDensity * discArea, 1e-3));
-        moment += new Vec3(0, 0, -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(vSlip, 8.0));
+        parts.SlipYaw = -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(vSlip, 8.0);
+        moment += new Vec3(0, 0, parts.SlipYaw);
 
-        moment += GyroMoment(prop, thr, bodyRates);
+        parts.Gyro = GyroMoment(prop, thr, bodyRates);
+        moment += parts.Gyro;
 
         return (force, moment);
     }

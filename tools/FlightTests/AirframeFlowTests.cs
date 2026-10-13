@@ -124,4 +124,25 @@ public class AirframeFlowTests
             else Assert.True(x < 2.5, "the crossflow swamps it within a couple of metres");
         }
     }
+
+    /// <summary>Every smoke marker's push stays finite (2026-10-13: a NaN puff turned the airframe under the smoke black):
+    /// thousands of releases in the upright flat spin with the 70 m/s jet at 7,800 ft.</summary>
+    [Fact]
+    public void DeflectionsStayFinite()
+    {
+        string repo = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../.."));
+        var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(repo, "configs", "aircraft", "extra-300-like.json"));
+        var flow = new AirframeFlow(cfg, 2.3, 0.5);
+        double v = 28, a = 78 * System.Math.PI / 180;
+        Vec3 V = new(v * System.Math.Cos(a), 1.5, v * System.Math.Sin(a)), w = new(0.6, -0.4, -3.8), jd = new(-0.866, 0, 0.5);
+        int bad = 0; string first = null;
+        for (uint i = 1; i <= 3000; i++)
+        {
+            var d = flow.Deflection(new Vec3(1.08, 0, 0.42), V, w, jd, 70, 0.1016, 0.96, seed: i);
+            for (int j = 0; j < d.Count; j++)
+                if (!double.IsFinite(d[j].X) || !double.IsFinite(d[j].Y) || !double.IsFinite(d[j].Z)) { bad++; first ??= $"seed {i} step {j}: {d[j]} (prev {d[System.Math.Max(0, j - 1)]})"; break; }
+        }
+        _out.WriteLine($"non-finite: {bad} / 3000 {first}");
+        Assert.True(bad == 0, first);
+    }
 }
