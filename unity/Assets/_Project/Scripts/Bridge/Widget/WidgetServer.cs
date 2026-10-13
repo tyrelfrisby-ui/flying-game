@@ -492,6 +492,7 @@ namespace FlyingGame.Bridge.Widget
                     if (j["labelScale"] != null && w.Display != null) w.Display.TextScale = Mathf.Clamp((float)j["labelScale"].Value<double>(), 1f, 3f);
                     if (j["dragScale"] != null) WidgetVectors.DragScale = System.Math.Clamp(j["dragScale"].Value<double>(), 1.0, 3.0);
                     ok["dragScale"] = WidgetVectors.DragScale;
+                    if (j["wingWindCyan"] != null) WidgetVectors.WingWindCyan = j["wingWindCyan"].Value<bool>();
                     if (j["solid3D"] != null) WidgetVectors.Solid3D = j["solid3D"].Value<bool>();
                     if (j["momentArcSweep"] != null) WidgetVectors.MomentArcSweepDeg = Mathf.Clamp((float)j["momentArcSweep"].Value<double>(), 20f, 160f);
                     if (j["momentArcRadius"] != null) WidgetVectors.MomentArcRadius = Mathf.Clamp((float)j["momentArcRadius"].Value<double>(), 0.6f, 2f);

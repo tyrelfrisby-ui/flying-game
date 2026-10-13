@@ -54,6 +54,8 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>SOLID 3D (owner 2026-10-12: "the airplane should obscure an arrow that is behind it"): the wing winds and the
         /// moment arcs as depth-tested meshes in the scene instead of lines painted over it. vectorStyle {"solid3D": true}.</summary>
         public static bool Solid3D;
+        /// <summary>Wing winds always in the relative-wind cyan (owner 2026-10-12), "STALLED" in words only. vectorStyle {"wingWindCyan"}.</summary>
+        public static bool WingWindCyan;
         private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
         private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
         private WidgetArrow3D SolidArrow(string id, Color c) { if (!_solidArrows.TryGetValue(id, out var a)) _solidArrows[id] = a = new WidgetArrow3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
@@ -307,12 +309,28 @@ namespace FlyingGame.Bridge.Widget
             foreach (var (k, a, st, nm) in new[] { ("wingL", P.WingAlphaL, P.StallL, "L WING"), ("wingR", P.WingAlphaR, P.StallR, "R WING") })
             {
                 if (!On("wingWind") || !F.ContainsKey(k)) { if (_solidArrows.TryGetValue(k + (st ? "S" : ""), out var hh)) hh.Hide(); continue; }
-                Color c = st ? Drag : Wind;
+                Color c = st && !WingWindCyan ? Drag : Wind;
                 if (Solid3D)
                 {
                     var fv = F[k]; Vector3 o3 = World(fv.from), d3 = Dir(fv.vec) * (wingWindPx * pxM);
+                    string sk = k + (c == Drag ? "S" : "");
                     SolidArrow(k + "S", Drag).Hide(); SolidArrow(k, Wind).Hide();
-                    SolidArrow(k + (st ? "S" : ""), c).Place(o3 - d3, o3, Mathf.Max(0.04f, 0.012f * (float)w.LengthM));
+                    SolidArrow(sk, c).Place(o3 - d3, o3, Mathf.Max(0.04f, 0.012f * (float)w.LengthM));
+                    // Its label beside it, out on its own wing's side (owner 2026-10-12: which arrow is which).
+                    if (Scr(o3 - d3 * 0.5f, out var midS) && Scr(o3, out var rootS) && Scr(o3 + Dir(new Vec3(0, k == "wingL" ? -1 : 1, 0)) * 2f, out var outS))
+                    {
+                        // Drawn right beside it (not through the label placer, which pulls labels out to its ring): out on its own wing's side.
+                        Vector2 od = (outS - rootS).normalized; if (od.sqrMagnitude < 0.5f) od = k == "wingL" ? Vector2.left : Vector2.right;
+                        float ts = 17f;   // (PxText applies the text scale)
+                        string txt = $"{nm} α {a:0}°{(st ? " STALLED" : "")}";
+                        float tw = txt.Length * ts * ui.TextScale * 0.55f, mg = 10f;
+                        Vector2 at = midS + od * (14f * ui.TextScale);
+                        bool leftSide = od.x < 0;
+                        // Kept inside the picture: a label that would run off an edge slides back in.
+                        if (leftSide) at.x = Mathf.Max(at.x, scene.xMin + mg + tw); else at.x = Mathf.Min(at.x, scene.xMax - mg - tw);
+                        ui.PxText(at, txt, ts, c, leftSide ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft);
+                    }
+                    continue;
                 }
                 else Arrow(k, c, wingWindPx, true);
                 _labels.Request(k, Tip(k, wingWindPx, true), Away(Origin(k), Tip(k, wingWindPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
