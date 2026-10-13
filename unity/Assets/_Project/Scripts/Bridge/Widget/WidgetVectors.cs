@@ -607,7 +607,17 @@ namespace FlyingGame.Bridge.Widget
             float sgn = mf >= 0 ? 1f : -1f;   // + = nose-up
             if (MomentArcNoseSense && Mathf.Abs(centreAngle - Mathf.PI) < 0.1f) sgn = -sgn;   // at the tail: the head shows where the NOSE goes
             Vector3 X = dir(new Vec3(1, 0, 0)), Up = -dir(new Vec3(0, 0, 1));   // body x and body "up" (−z)
-            var cam = Widget.Cam; var pts = new List<Vector2>(); var wpts = new List<Vector3>();
+            var cam = Widget.Cam;
+            // Equal arcs READ equal (owner 2026-10-12): an arc further from the camera is drawn proportionally bigger, so the
+            // nose's and the tail's look the same size on screen whichever end is nearer.
+            float persp = 1f;
+            if (MomentArcsEqual && cam != null)
+            {
+                Vector3 cen = cgU + (X * Mathf.Cos(centreAngle) + Up * Mathf.Sin(centreAngle)) * R;
+                float dc = Vector3.Distance(cam.transform.position, cgU), da = Vector3.Distance(cam.transform.position, cen);
+                if (dc > 0.1f) persp = Mathf.Clamp(da / dc, 0.6f, 1.6f);
+                sweep *= persp;
+            } var pts = new List<Vector2>(); var wpts = new List<Vector3>();
             float th0 = centreAngle - sgn * sweep * 0.5f;
             for (int i = 0; i <= 28; i++)
             {
@@ -622,8 +632,8 @@ namespace FlyingGame.Bridge.Widget
             if (Solid3D)
             {
                 // In the scene, depth-tested: the airplane hides what's behind it. Sized from the arc's radius.
-                float tr = 0.022f * R;
-                SolidArc(id, c).Place(wpts, tr, 0.16f * R * MomentArcHead, tr * 2.8f * Mathf.Max(1f, MomentArcHead * 0.8f));
+                float tr = 0.022f * R * persp;
+                SolidArc(id, c).Place(wpts, tr, 0.16f * R * MomentArcHead * persp, tr * 2.8f * Mathf.Max(1f, MomentArcHead * 0.8f));
                 for (int i = 0; i + 1 < pts.Count; i++) _soloSegs.Add((pts[i], pts[i + 1]));
                 if (pts.Count >= 1)
                 {
@@ -807,14 +817,23 @@ namespace FlyingGame.Bridge.Widget
             Vector3 ac = CoordinateMap.ToUnity(w.ShownState.Position);
             const float G = 250f, E = 4000f; Color gc = new(1f, 1f, 1f, 0.6f);
             float cx = Mathf.Round(ac.x / G) * G, cz = Mathf.Round(ac.z / G) * G;
+            // Faded with distance (owner 2026-10-12: far off, thin lines at a grazing angle broke up into dashes — moiré): each
+            // line in grid-cell pieces, its opacity falling to nothing at the edge; the doubled line only near the airplane.
             for (int k = 0; k < 2; k++)
             {
-                float y = groundY + k * px;
+                float y = groundY + k * px, reach = k == 0 ? E : 0.35f * E;
                 for (float d = -E; d <= E; d += G)
-                {
-                    Line(new Vector3(cx + d, y, cz - E), new Vector3(cx + d, y, cz + E), gc);
-                    Line(new Vector3(cx - E, y, cz + d), new Vector3(cx + E, y, cz + d), gc);
-                }
+                    for (float e = -E; e < E; e += G)
+                    {
+                        foreach (bool alongZ in new[] { true, false })
+                        {
+                            Vector3 a = alongZ ? new Vector3(cx + d, y, cz + e) : new Vector3(cx + e, y, cz + d);
+                            Vector3 b = alongZ ? new Vector3(cx + d, y, cz + e + G) : new Vector3(cx + e + G, y, cz + d);
+                            Vector3 m = 0.5f * (a + b); float dist = new Vector2(m.x - ac.x, m.z - ac.z).magnitude;
+                            float f = Mathf.Clamp01(1f - dist / reach); if (f <= 0f) continue;
+                            Line(a, b, new Color(gc.r, gc.g, gc.b, gc.a * f * f));
+                        }
+                    }
             }
         }
         private static void Line(Vector3 a, Vector3 b, Color c) { GL.Color(c); GL.Vertex(a); GL.Vertex(b); }
