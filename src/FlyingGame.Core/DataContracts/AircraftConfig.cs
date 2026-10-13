@@ -328,6 +328,17 @@ public sealed class CrossflowConfig
     /// Body-down force = ½ρ·v_local²·CowlCamberArea·CowlCamberCl at CowlCamberCenterX. 0 = off.
     /// </summary>
     public double CowlCamberCl { get; set; }
+    /// <summary>
+    /// SHARP-CORNERED SECTION (2026-10-12, the spin autorotation work): the fraction (0…1) of the side crossflow area whose
+    /// cross-section is flat-sided / flat-bottomed with sharp corners rather than round. In a spin the fuselage meets the air
+    /// broadside from below (crossflow w) while yaw rotation moves each station sideways (v). A round section only DRAGS
+    /// against that sideways motion (damping); a sharp-cornered one "gallops": its transverse force acts ALONG the motion for
+    /// small v/w — the quasi-steady galloping of a square prism, Cfy(ψ = v/U) = A1ψ − A3ψ³ + A5ψ⁵ − A7ψ⁷ with A1 2.69, A3 168,
+    /// A5 6270, A7 59 900 (Parkinson &amp; Smith 1964, QJMAM 17; Blevins, Flow-Induced Vibration ch. 4), valid to |ψ| ≈ 0.25
+    /// and faded back to plain crossflow drag by |ψ| 0.45. NASA spin research (e.g. TM-84377, TN-4176 Polhamus) names the
+    /// fuselage cross-section as a pro-spin yaw driver. 0 = all round (the previous model).
+    /// </summary>
+    public double SharpSectionFraction { get; set; }
     public double CowlCamberArea { get; set; }
     public double CowlCamberCenterX { get; set; }
 }

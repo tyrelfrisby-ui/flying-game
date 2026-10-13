@@ -1919,7 +1919,8 @@
       "sideArea": 3.2,
       "sideCenterX": -0.3,
       "cd": 1.2,
-      "lengthM": 4.0
+      "lengthM": 4.0,
+      "sharpSectionFraction": 0.5
     }
   },
   "propulsion": {

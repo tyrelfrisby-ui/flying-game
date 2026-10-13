@@ -863,6 +863,13 @@ public static class AeroModel
         ForceDebug.Add(new Vec3(-0.3, 0, -0.3), -(bodyVelocity / speed) * extraDrag, Vec3.Zero, "spoiler");
     }
 
+    /// <summary>Square-prism quasi-steady transverse force (Parkinson &amp; Smith 1964), along the motion; |ψ| clamped at 0.25.</summary>
+    private static double GallopCfy(double psi)
+    {
+        double p = Math.Clamp(psi, -0.25, 0.25), p2 = p * p;
+        return p * (2.69 - p2 * (168.0 - p2 * (6270.0 - p2 * 59900.0)));
+    }
+
     private static void ApplyFuselage(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, ref Vec3 totalForce, ref Vec3 totalMoment)
     {
         double speed = bodyVelocity.Length;
@@ -915,6 +922,18 @@ public static class AeroModel
                     double xs = cf.SideCenterX + dx;
                     double vLoc = bodyVelocity.Y + bodyRates.Z * (xs - config.Mass.CgVec().X); // omega x r: station y-velocity = v + r*x
                     double fy = -0.5 * airDensity * (cf.SideArea / nSt) * cf.Cd * vLoc * Math.Abs(vLoc);
+                    if (cf.SharpSectionFraction > 0)
+                    {
+                        // The sharp-cornered part of the section in the spin's broadside flow gallops (see SharpSectionFraction).
+                        double wLoc = bodyVelocity.Z - bodyRates.Y * (xs - config.Mass.CgVec().X), U = Math.Abs(wLoc);
+                        if (U > 1.0)
+                        {
+                            double psi = vLoc / U, ap = Math.Abs(psi);
+                            double fSharp = 0.5 * airDensity * (cf.SideArea / nSt) * U * U * GallopCfy(psi);
+                            double fade = Math.Clamp((0.45 - ap) / 0.20, 0.0, 1.0);          // 1 to |ψ| 0.25, 0 by 0.45
+                            fy = (1 - cf.SharpSectionFraction * fade) * fy + cf.SharpSectionFraction * fade * fSharp;
+                        }
+                    }
                     totalForce += new Vec3(0, fy, 0);
                     ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, fy, 0), Vec3.Zero, "fuselage");
                     totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, fy, 0));

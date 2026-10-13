@@ -1609,7 +1609,8 @@
       "sideArea": 2.5,
       "sideCenterX": -0.3,
       "cd": 1.2,
-      "lengthM": 6.65
+      "lengthM": 6.65,
+      "sharpSectionFraction": 0.5
     }
   },
   "smoke": {
