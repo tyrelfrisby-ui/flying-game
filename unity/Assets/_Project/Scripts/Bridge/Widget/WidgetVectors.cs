@@ -60,6 +60,10 @@ namespace FlyingGame.Bridge.Widget
         /// between the wings reads at a glance. vectorStyle {"wingForces"}.</summary>
         public static bool WingForces;
         public static string LegendTitle = "FLAT SPIN DYNAMICS";
+        /// <summary>Where the legend's two blocks sit: "bottom" (the corners, default) or "top" (the top corners — a square frame
+        /// whose bottom carries charts); LegendScale shrinks the text. vectorStyle {"legendAnchor", "legendScale"}.</summary>
+        public static string LegendAnchor = "bottom";
+        public static float LegendScale = 1f;
         private readonly Dictionary<string, (string text, double t)> _legendHold = new();
         /// <summary>Where along each semispan the wing winds are taken (0.5 = mid; the rotation's ω × r grows toward the tips,
         /// owner 2026-10-12: "two relative wind vectors for each wing that are clearly different") and their length (×).
@@ -174,8 +178,8 @@ namespace FlyingGame.Bridge.Widget
                 double sum = P.MomYaw + P.PropYaw + P.InertiaYaw;
                 col3.Add((Hold("y:sum", $"NET {sum * k:+#,0;-#,0}"), Color.white, 14f));
             }
-            float Hgt(List<(string text, Color c, float size)> col) { float t = 0; foreach (var l in col) t += l.size * ui.TextScale * 1.25f + 5f * ui.TextScale; return t; }
-            float Wid(List<(string text, Color c, float size)> col) { float m = 0; foreach (var l in col) m = Mathf.Max(m, ui.PxTextWidth(l.text, l.size)); return m; }
+            float Hgt(List<(string text, Color c, float size)> col) { float t = 0; foreach (var l in col) t += l.size * LegendScale * ui.TextScale * 1.25f + 5f * LegendScale * ui.TextScale; return t; }
+            float Wid(List<(string text, Color c, float size)> col) { float m = 0; foreach (var l in col) m = Mathf.Max(m, ui.PxTextWidth(l.text, l.size * LegendScale)); return m; }
             float bottom = scene.yMin + scene.height * 0.04f, x0 = scene.xMin + scene.width * 0.025f, colGap = 28f * ui.TextScale;
             float hMax = Mathf.Max(Mathf.Max(Hgt(lines), Hgt(col2b)), Mathf.Max(Hgt(col2), Hgt(col3)));
             void Col(List<(string text, Color c, float size)> col, float x)
@@ -193,11 +197,11 @@ namespace FlyingGame.Bridge.Widget
             var right = new List<(string text, Color c, float size)>(col2b); right.AddRange(col3);
             void Stack(List<(string text, Color c, float size)> col, float x, bool alignRight)
             {
-                float y = bottom + Hgt(col);
+                float y = LegendAnchor == "top" ? scene.yMax - scene.height * 0.03f : bottom + Hgt(col);
                 foreach (var l in col)
                 {
-                    float lh = l.size * ui.TextScale * 1.25f;
-                    y -= lh * 0.5f; ui.PxText(new Vector2(x, y), l.text, l.size, l.c, alignRight ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft); y -= lh * 0.5f + 5f * ui.TextScale;
+                    float sz = l.size * LegendScale, lh = sz * ui.TextScale * 1.25f;
+                    y -= lh * 0.5f; ui.PxText(new Vector2(x, y), l.text, sz, l.c, alignRight ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft); y -= lh * 0.5f + 5f * LegendScale * ui.TextScale;
                 }
             }
             Stack(left, x0, false);
@@ -589,7 +593,7 @@ namespace FlyingGame.Bridge.Widget
                     Vector3 o3 = World(at), d3 = Dir(new Vec3(1, 0, 0)) * (float)(P.Prop.Thrust / W0 * 1.4 * w.LengthM);
                     SolidArrow("pfThrust", Thrust).Place(o3, o3 + d3, Mathf.Max(0.05f, 0.014f * (float)w.LengthM));
                     double off = System.Math.Sqrt(P.Prop.PFactorY * P.Prop.PFactorY + P.Prop.PFactorZ * P.Prop.PFactorZ);
-                    if (Scr(o3 + d3, out var tS) && Scr(o3, out var rS)) { _soloSegs.Add((rS, tS)); _soloLabels.Add((tS, tS - rS, $"PROP THRUST {P.Prop.Thrust * 0.2248:#,0} lb — {off * 100:0} cm {(P.Prop.PFactorY >= 0 ? "RIGHT" : "LEFT")} OF THE HUB (P-FACTOR)", Thrust)); }
+                    if (Scr(o3 + d3, out var tS) && Scr(o3, out var rS)) { _soloSegs.Add((rS, tS)); _soloLabels.Add((tS, tS - rS, $"PROP THRUST {P.Prop.Thrust * 0.2248:#,0} lb · {off * 100:0} cm {(P.Prop.PFactorY >= 0 ? "R" : "L")} OF HUB (P-FACTOR)", Thrust)); }
                     if (P.HasFin)
                     {
                         double arm = P.FinPos.X - cg.X; double fy = System.Math.Abs(arm) > 0.3 ? P.Prop.SlipYaw / arm : 0;
