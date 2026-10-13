@@ -500,9 +500,42 @@ namespace FlyingGame.Bridge.Widget
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
             _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
             var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
-            for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
+            // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
+            // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
+            if (Config.Smoke != null && Config.Smoke.AftOfNoseM > 0 && ex.Length == 1 && ModelNoseAndBelly(Config.Smoke.AftOfNoseM, out var exM)) ex[0] = exM;
+            else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
             _smoke.SetExhausts(ex, jet);
+            SmokeExhausts = ex;
             _smoke.Stream = Config.Propulsion == null;   // a glider's wingtip canisters
+        }
+
+        /// <summary>The smoke exhausts as placed (body axes from the CG, m) — for the debug dot and /state.</summary>
+        public Vec3[] SmokeExhausts = System.Array.Empty<Vec3>();
+
+        /// <summary>The visual model's spinner tip (its most forward point) and, <paramref name="aft"/> metres behind it, the belly
+        /// surface on the centreline — in body axes from the CG (the visual root sits at CG + VisualOffset).</summary>
+        private bool ModelNoseAndBelly(double aft, out Vec3 at)
+        {
+            at = Vec3.Zero;
+            var pts = new List<Vector3>();
+            foreach (var mf in _visualRoot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var m = mf.sharedMesh; if (m == null || !m.isReadable || mf.GetComponent<MeshRenderer>() == null || !mf.GetComponent<MeshRenderer>().enabled) continue;
+                var vs = m.vertices; var tf = mf.transform;
+                for (int i = 0; i < vs.Length; i += System.Math.Max(1, vs.Length / 20000))
+                {
+                    Vector3 u = _visualRoot.InverseTransformPoint(tf.TransformPoint(vs[i]));
+                    pts.Add(new Vector3(u.z, u.x, -u.y));   // Unity local (y, −z, x) → body (x fwd, y right, z down)
+                }
+            }
+            if (pts.Count < 100) return false;
+            float nose = float.MinValue; foreach (var p in pts) nose = Mathf.Max(nose, p.x);
+            float x = nose - (float)aft, belly = float.MinValue;
+            foreach (var p in pts) if (Mathf.Abs(p.x - x) < 0.12f && Mathf.Abs(p.y) < 0.12f) belly = Mathf.Max(belly, p.z);
+            if (belly == float.MinValue) return false;
+            at = new Vec3(x, 0, belly) + VisualOffset;
+            Debug.Log($"[Smoke] model nose x {nose:0.00} m · exhaust {aft:0.00} m aft at x {x:0.00}, belly z {belly:0.00} (body, from the visual origin)");
+            return true;
         }
 
         /// <summary>The aerotow (WidgetTow): the game's rope and tug pilot, hooked up in the air.</summary>

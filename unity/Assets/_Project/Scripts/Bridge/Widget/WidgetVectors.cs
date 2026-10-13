@@ -56,6 +56,8 @@ namespace FlyingGame.Bridge.Widget
         public static bool Solid3D;
         /// <summary>Wing winds always in the relative-wind cyan (owner 2026-10-12), "STALLED" in words only. vectorStyle {"wingWindCyan"}.</summary>
         public static bool WingWindCyan;
+        /// <summary>A dot on each smoke exhaust (checking where the smoke leaves). vectorStyle {"smokeDebug": true}.</summary>
+        public static bool SmokeDebug;
         private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
         private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
         private WidgetArrow3D SolidArrow(string id, Color c) { if (!_solidArrows.TryGetValue(id, out var a)) _solidArrows[id] = a = new WidgetArrow3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
@@ -470,6 +472,9 @@ namespace FlyingGame.Bridge.Widget
                         v => $"YAW {(v[1] >= 0 ? "nose-right" : "nose-left")} {v[0]:#,0} ft·lb (fin {v[2]:#,0})", new Color(0.45f, 1f, 0.85f), 2, 10);
                 }
             }
+            if (SmokeDebug && w is AeroWidget sw)
+                foreach (var e in sw.SmokeExhausts)
+                    if (Scr(World(cg + e), out var ep)) { ui.PxDisc(ep, 9f, Color.black); ui.PxDisc(ep, 6f, new Color(1f, 0.2f, 0.9f)); }
             // CG and neutral-point marks (weight & balance; lessons): the CG a black-and-yellow disc, the NP a red ring.
             if (On("cgnp"))
             {
