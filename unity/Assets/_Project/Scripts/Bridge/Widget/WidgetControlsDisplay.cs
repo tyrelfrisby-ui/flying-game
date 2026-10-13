@@ -196,12 +196,13 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>A bold arrow with a thin dark outline (protocol 7: ≈ 6 px, bigger heads, readable over any picture).</summary>
         /// <summary>While the picture's vectors are drawn, every arrow is clipped to the picture (never into the panel).</summary>
         public Rect? ArrowClip;
-        public void PxArrow(Vector2 a, Vector2 b, float w, Color c)
+        public void PxArrow(Vector2 a, Vector2 b, float w, Color c) => PxArrow(a, b, w, c, 1f);
+        public void PxArrow(Vector2 a, Vector2 b, float w, Color c, float headScale)
         {
             if (ArrowClip.HasValue && !WidgetVectors.ClipToScene(ref a, ref b, ArrowClip.Value)) return;
             Vector2 d = b - a; float len = d.magnitude; if (len < 2f) return;
             Vector2 u = d / len, n = new(-u.y, u.x);
-            float head = Mathf.Min(len * 0.45f, 3.6f * w + 6f), hw = head * 0.55f;
+            float head = Mathf.Min(len * 0.45f, (3.6f * w + 6f) * headScale), hw = head * 0.55f;
             Vector2 shaftEnd = b - u * head * 0.8f;
             var dark = new Color(0, 0, 0, 0.75f * c.a);
             PxSeg(a - u * 1.5f, shaftEnd, w + 3f, dark);
@@ -210,13 +211,21 @@ namespace FlyingGame.Bridge.Widget
             Quad(b, shaftEnd + n * hw, shaftEnd - n * hw, shaftEnd - n * hw, c);
         }
         /// <summary>A bold curved arrow (a moment): the polyline with an arrowhead at its end.</summary>
-        public void PxPolyArrow(List<Vector2> pts, float w, Color c)
+        public void PxPolyArrow(List<Vector2> pts, float w, Color c) => PxPolyArrow(pts, w, c, 1f);
+        public void PxPolyArrow(List<Vector2> pts, float w, Color c, float headScale)
         {
             if (pts.Count < 2) return;
             var dark = new Color(0, 0, 0, 0.75f * c.a);
             for (int i = 0; i + 1 < pts.Count - 1; i++) PxSeg(pts[i], pts[i + 1], w + 3f, dark);
             for (int i = 0; i + 1 < pts.Count - 1; i++) PxSeg(pts[i], pts[i + 1], w, c);
-            PxArrow(pts[pts.Count - 2] - (pts[pts.Count - 1] - pts[pts.Count - 2]) * 3f, pts[pts.Count - 1], w, c);
+            if (headScale <= 1f) { PxArrow(pts[pts.Count - 2] - (pts[pts.Count - 1] - pts[pts.Count - 2]) * 3f, pts[pts.Count - 1], w, c); return; }
+            // A bigger head, head only (no straight shaft past the curve): along the arc's last few points' direction.
+            Vector2 tip = pts[pts.Count - 1], u = (tip - pts[System.Math.Max(0, pts.Count - 4)]).normalized, n = new(-u.y, u.x);
+            float head = (3.6f * w + 6f) * headScale, hw = head * 0.55f;
+            Vector2 baseC = tip - u * head;
+            var dk = new Color(0, 0, 0, 0.75f * c.a);
+            Quad(tip + u * 2f, baseC - u * 2f + n * (hw + 2f), baseC - u * 2f - n * (hw + 2f), baseC - u * 2f - n * (hw + 2f), dk);
+            Quad(tip, baseC + n * hw, baseC - n * hw, baseC - n * hw, c);
         }
 
         // ---- the touch layout (protocol 6 addendum): where each control instrument is drawn, 0…1 of the frame, top-left origin ----

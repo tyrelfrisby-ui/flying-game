@@ -33,6 +33,31 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>The drag arrow's scale against lift (default ×3 so a small drag shows; owner 2026-10-12, the tailslide
         /// renders: "make the drag vector x1 not x3"). vectorStyle {"dragScale": 1…3}.</summary>
         public static double DragScale = 3.0;
+        /// <summary>The pitching-moment arcs' names (owner 2026-10-12, the autorotation shot: "STABILITY → nose to the earth",
+        /// "INERTIA → nose to the horizon"). vectorStyle {"aeroMomentLabel", "inertiaMomentLabel"}; null = AERO / INERTIA.</summary>
+        public static string AeroMomentLabel, InertiaMomentLabel;
+        /// <summary>The autorotation shot (owner 2026-10-12): both arcs the SAME size ("should be equal in size"), bigger heads,
+        /// and STABILITY at the tail, INERTIA at the nose ("stability should be at the back near the stabilizers").
+        /// vectorStyle {"momentArcsEqual", "momentArcHead", "momentArcsSwap"}.</summary>
+        public static bool MomentArcsEqual, MomentArcsSwap; public static float MomentArcHead = 1f;
+        /// <summary>Owner 2026-10-12 (the autorotation shot): every arc's head shows where the NOSE goes — an arc drawn at the tail
+        /// then points the opposite way to the tail's own motion (a depiction choice, not a rotation arrow) — and no ft·lb values.
+        /// vectorStyle {"momentArcNoseSense", "momentArcValues"}.</summary>
+        public static bool MomentArcNoseSense, MomentArcValues = true;
+        /// <summary>Where along each semispan the wing winds are taken (0.5 = mid; the rotation's ω × r grows toward the tips,
+        /// owner 2026-10-12: "two relative wind vectors for each wing that are clearly different") and their length (×).
+        /// vectorStyle {"wingWindSpan", "wingWindScale"}.</summary>
+        public static double WingWindSpan = 0.5; public static float WingWindScale = 1f;
+        /// <summary>Equal arcs' sweep (°) and their radius (× the default, out past the nose and tail so they don't cross the
+        /// airframe; owner 2026-10-12: "smaller … should not overlap the airplane"). vectorStyle {"momentArcSweep", "momentArcRadius"}.</summary>
+        public static float MomentArcSweepDeg = 110f, MomentArcRadius = 1f;
+        /// <summary>SOLID 3D (owner 2026-10-12: "the airplane should obscure an arrow that is behind it"): the wing winds and the
+        /// moment arcs as depth-tested meshes in the scene instead of lines painted over it. vectorStyle {"solid3D": true}.</summary>
+        public static bool Solid3D;
+        private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
+        private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
+        private WidgetArrow3D SolidArrow(string id, Color c) { if (!_solidArrows.TryGetValue(id, out var a)) _solidArrows[id] = a = new WidgetArrow3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
+        private WidgetArc3D SolidArc(string id, Color c) { if (!_solidArcs.TryGetValue(id, out var a)) _solidArcs[id] = a = new WidgetArc3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
         public float SmoothingMs = 130f;
 
         public delegate bool ScrFn(Vector3 world, out Vector2 px);
@@ -141,11 +166,12 @@ namespace FlyingGame.Bridge.Widget
             // Wing winds at mid-semispan (ω × r).
             foreach (int side in new[] { -1, 1 })
             {
-                Vec3 p = w.WingMidSpan(side);
+                Vec3 p = w.WingMidSpan(side); p = new Vec3(p.X, p.Y * WingWindSpan / 0.5, p.Z);
                 Vec3 v = vAir + Vec3.Cross(s.Rates, p - cg);
                 double a = System.Math.Atan2(v.Z, System.Math.Max(0.1, v.X)) * 57.2958;
                 pic.V[side < 0 ? "wingL" : "wingR"] = (p, v * (-1.0 / System.Math.Max(1, pic.VInf)));   // the local relative wind: −(the station's velocity through the air)
-                if (side < 0) { pic.WingAlphaL = a; pic.StallL = a > critAlphaDeg; } else { pic.WingAlphaR = a; pic.StallR = a > critAlphaDeg; }
+                bool st = System.Math.Abs(a) > critAlphaDeg;   // (either way: an inverted wing stalls at negative α)
+                if (side < 0) { pic.WingAlphaL = a; pic.StallL = st; } else { pic.WingAlphaR = a; pic.StallR = st; }
             }
             // Tail winds: the stab strip nearest each half's mid-span.
             foreach (var (list, side) in new[] { (tailL, -1), (tailR, 1) })
@@ -277,12 +303,19 @@ namespace FlyingGame.Bridge.Widget
 
             // Wing winds (arriving at each mid-span point).
             float windPx = 150f * (w.IsWidgetHost ? 1f : Ui);
+            float wingWindPx = windPx * WingWindScale;
             foreach (var (k, a, st, nm) in new[] { ("wingL", P.WingAlphaL, P.StallL, "L WING"), ("wingR", P.WingAlphaR, P.StallR, "R WING") })
             {
-                if (!On("wingWind") || !F.ContainsKey(k)) continue;
+                if (!On("wingWind") || !F.ContainsKey(k)) { if (_solidArrows.TryGetValue(k + (st ? "S" : ""), out var hh)) hh.Hide(); continue; }
                 Color c = st ? Drag : Wind;
-                Arrow(k, c, windPx, true);
-                _labels.Request(k, Tip(k, windPx, true), Away(Origin(k), Tip(k, windPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
+                if (Solid3D)
+                {
+                    var fv = F[k]; Vector3 o3 = World(fv.from), d3 = Dir(fv.vec) * (wingWindPx * pxM);
+                    SolidArrow(k + "S", Drag).Hide(); SolidArrow(k, Wind).Hide();
+                    SolidArrow(k + (st ? "S" : ""), c).Place(o3 - d3, o3, Mathf.Max(0.04f, 0.012f * (float)w.LengthM));
+                }
+                else Arrow(k, c, wingWindPx, true);
+                _labels.Request(k, Tip(k, wingWindPx, true), Away(Origin(k), Tip(k, wingWindPx, true)), new[] { a }, v => $"{nm} α {v[0]:0}°{(st ? " STALLED" : "")}", c, 2);
             }
             // FLIGHT PATH (2026-10-11, Talk Flying W12) with the RELATIVE WIND, equal and opposite (owner 2026-10-12): one line through
             // the CG, the same length, head on — the flight path out from the CG along the velocity, the relative wind coming back
@@ -432,10 +465,12 @@ namespace FlyingGame.Bridge.Widget
                 double mRef = w.Ac.MassProperties.MassKg * 9.81 * 0.06 * System.Math.Max(2, w.LengthM);
                 // Both arcs are drawn ABOUT THE CG, in the pitch plane, on a radius that clears the airframe: AERO's arc in front of
                 // the nose, INERTIA's behind the tail (owner 2026-10-09).
-                float R = (float)w.LengthM * 0.62f + 1.5f;
-                Arc(ui, Dir, cgU, R, 0f, P.MomAero, mRef, Total, "aeroM", "AERO", scene, lw);
-                Arc(ui, Dir, cgU, R, Mathf.PI, P.MomInertia, mRef, Inertial, "inertiaM", "INERTIA", scene, lw);
+                float R = ((float)w.LengthM * 0.62f + 1.5f) * MomentArcRadius;
+                Arc(ui, Dir, cgU, R, MomentArcsSwap ? Mathf.PI : 0f, P.MomAero, mRef, Total, "aeroM", AeroMomentLabel ?? "AERO", scene, lw);
+                Arc(ui, Dir, cgU, R, MomentArcsSwap ? 0f : Mathf.PI, P.MomInertia, mRef, Inertial, "inertiaM", InertiaMomentLabel ?? "INERTIA", scene, lw);
             }
+            else foreach (var a in _solidArcs.Values) a.Hide();
+            if (!Solid3D) { foreach (var a in _solidArcs.Values) a.Hide(); foreach (var a in _solidArrows.Values) a.Hide(); }
             _labels.Place(ui, LabelScene(w, scene, ui), cgScr);
         }
 
@@ -460,26 +495,36 @@ namespace FlyingGame.Bridge.Widget
             double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-Mathf.Min(Time.unscaledDeltaTime, 0.1f) * 1000.0 / SmoothingMs);
             if (!_mFilt.TryGetValue(id, out double mf) || Widget.Shown != null) mf = m;
             mf += (m - mf) * k; _mFilt[id] = mf;
-            float sweep = Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 70f, 25f, 160f) * Mathf.Deg2Rad;
+            float sweep = (MomentArcsEqual ? MomentArcSweepDeg : Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 70f, 25f, 160f)) * Mathf.Deg2Rad;
             float sgn = mf >= 0 ? 1f : -1f;   // + = nose-up
+            if (MomentArcNoseSense && Mathf.Abs(centreAngle - Mathf.PI) < 0.1f) sgn = -sgn;   // at the tail: the head shows where the NOSE goes
             Vector3 X = dir(new Vec3(1, 0, 0)), Up = -dir(new Vec3(0, 0, 1));   // body x and body "up" (−z)
-            var cam = Widget.Cam; var pts = new List<Vector2>();
+            var cam = Widget.Cam; var pts = new List<Vector2>(); var wpts = new List<Vector3>();
             float th0 = centreAngle - sgn * sweep * 0.5f;
             for (int i = 0; i <= 28; i++)
             {
                 float th = th0 + sgn * sweep * i / 28f;   // increasing θ = nose-up rotation at every point of the circle
                 Vector3 p = cgU + (X * Mathf.Cos(th) + Up * Mathf.Sin(th)) * R;
-                var sp = cam.WorldToScreenPoint(p); if (sp.z <= 0) return;
+                wpts.Add(p);
+                var sp = cam.WorldToScreenPoint(p); if (sp.z <= 0) { if (Solid3D) continue; return; }
                 var q = new Vector2(_off.x + sp.x, _off.y + sp.y);
                 if (!scene.Contains(q)) { if (pts.Count > 2) break; else { pts.Clear(); continue; } }
                 pts.Add(q);
             }
+            if (Solid3D)
+            {
+                // In the scene, depth-tested: the airplane hides what's behind it. Sized from the arc's radius.
+                float tr = 0.022f * R;
+                SolidArc(id, c).Place(wpts, tr, 0.16f * R * MomentArcHead, tr * 2.8f * Mathf.Max(1f, MomentArcHead * 0.8f));
+                if (pts.Count >= 1) _labels.Request(id, pts[pts.Count / 2], Vector2.down, new[] { System.Math.Abs(m) * 0.7376, m }, v => !MomentArcValues ? name : $"{name}  {v[0]:#,0} ft·lb", c, 2, 10);
+                return;
+            }
             if (pts.Count < 3) return;
-            float thick = lw * Mathf.Lerp(0.6f, 1.4f, Mathf.Clamp01((float)(System.Math.Abs(mf) / (2 * mRef))));
-            ui.PxPolyArrow(pts, thick, c);
+            float thick = MomentArcsEqual ? lw * 1.2f : lw * Mathf.Lerp(0.6f, 1.4f, Mathf.Clamp01((float)(System.Math.Abs(mf) / (2 * mRef))));
+            ui.PxPolyArrow(pts, thick, c, MomentArcHead);
             double ftlb = System.Math.Abs(m) * 0.7376;
             Vector2 mid = pts[pts.Count / 2];
-            _labels.Request(id, mid, Vector2.down, new[] { ftlb, m }, v => $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);
+            _labels.Request(id, mid, Vector2.down, new[] { ftlb, m }, v => !MomentArcValues ? name : name.Contains("→") ? $"{name}  {v[0]:#,0} ft·lb" : $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);   // (a named direction says it in words)
         }
         private readonly Dictionary<string, double> _mFilt = new();
 
