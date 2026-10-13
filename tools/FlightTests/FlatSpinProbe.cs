@@ -81,6 +81,56 @@ public class FlatSpinProbe
         }
     }
 
+    /// <summary>FLATENTRY_PROBE=1: real flat-spin ENTRY techniques (2026-10-13) from a developed idle upright left spin (~2 turns),
+    /// each a timed input sequence; then forward stick held 40 s, then aft held 40 s. Reports the last 30 s of each hold: pitch
+    /// mean (min…max), α, per-wing α at 85 % semispan, s/turn, KIAS (TAS × 0.885 at this probe's 2500 m).</summary>
+    [Fact]
+    public void ProbeFlatEntries()
+    {
+        if (System.Environment.GetEnvironmentVariable("FLATENTRY_PROBE") == null) return;
+        string repo = System.Environment.GetEnvironmentVariable("FLATSPIN_REPO") ?? System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../.."));
+        // Sequence time t (s) → inputs (aileron +right, elevator +push, rudder −left, throttle lever +1 idle … −1 full).
+        var techniques = new (string name, System.Func<double, ControlInputs> seq, double len)[]
+        {
+            ("1 power over 2 s, out-spin aileron at 3 s, forward at 5 s", t => new ControlInputs(t < 3 ? 0 : 1, t < 5 ? -1 : 1, -1, t < 2 ? 1 - t : -1), 6),
+            ("2 out-spin aileron, power over 2 s from 1 s, forward at 5 s", t => new ControlInputs(1, t < 5 ? -1 : 1, -1, t < 1 ? 1 : t < 3 ? 1 - (t - 1) : -1), 6),
+            ("3 power + aileron together, aft held 10 s, ease forward over 3 s", t => new ControlInputs(1, t < 10 ? -1 : System.Math.Min(1, -1 + 2 * (t - 10) / 3), -1, -1), 13),
+            ("4 aileron first, power at 4 s, forward at 8 s", t => new ControlInputs(1, t < 8 ? -1 : 1, -1, t < 4 ? 1 : -1), 9),
+            ("5 power first, aileron at 4 s, forward at 6 s", t => new ControlInputs(t < 4 ? 0 : 1, t < 6 ? -1 : 1, -1, -1), 7),
+            ("6 power + aileron + forward together", t => new ControlInputs(1, 1, -1, -1), 1),
+            ("7 aileron + forward at idle, power at 3 s", t => new ControlInputs(1, 1, -1, t < 3 ? 1 : -1), 4),
+        };
+        foreach (var (name, seq, len) in techniques)
+        {
+            var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(repo, "configs", "aircraft", "extra-300-like.json"));
+            var ac = new Aircraft(cfg, new RigidBodyState(new Vec3(0, 0, -2500), new Quat(0, 0, 0, 1), new Vec3(60, 0, 0), Vec3.Zero), new ControlDeflections(0, 0, 0, 0, 0));
+            var sim = new SimLoop(ac);
+            for (int i = 0; i < 100 && ac.State.Velocity.Length > 33; i++) sim.RunFor(0.1, new ControlInputs(0, -System.Math.Min(1, 0.2 + 0.02 * i), 0, 1.0));
+            for (int i = 0; i < 150; i++) { sim.RunFor(0.1, new ControlInputs(0, -1, -1, 1.0)); Wrap(ac); }   // the idle spin, ~2 turns
+            for (double t = 0; t < len; t += 0.05) { sim.RunFor(0.05, seq(t)); Wrap(ac); }
+            var line = new System.Text.StringBuilder($"{name}:");
+            double halfSpan = 0.5 * AeroModel.WingSpan(cfg);
+            foreach (var (hold, ele) in new[] { ("FORWARD", 1.0), ("AFT", -1.0) })
+            {
+                var ci = new ControlInputs(1, ele, -1, -1);
+                for (int i = 0; i < 100; i++) { sim.RunFor(0.1, ci); Wrap(ac); }
+                int n = 0; double p = 0, pmin = 999, pmax = -999, a = 0, aL = 0, aR = 0, w = 0, kt = 0;
+                for (int i = 0; i < 300; i++)
+                {
+                    sim.RunFor(0.1, ci); Wrap(ac);
+                    var st = ac.State; var vb = st.Velocity; var x = st.Attitude.Rotate(new Vec3(1, 0, 0));
+                    double pp = System.Math.Asin(-x.Z) * 57.3; p += pp; pmin = System.Math.Min(pmin, pp); pmax = System.Math.Max(pmax, pp);
+                    a += System.Math.Atan2(vb.Z, vb.X) * 57.3;
+                    var vl = vb + Vec3.Cross(st.Rates, new Vec3(0, -0.85 * halfSpan, 0)); aL += System.Math.Atan2(vl.Z, vl.X) * 57.3;
+                    var vr = vb + Vec3.Cross(st.Rates, new Vec3(0, 0.85 * halfSpan, 0)); aR += System.Math.Atan2(vr.Z, vr.X) * 57.3;
+                    w += st.Rates.Length * 57.3; kt += vb.Length * 1.943844 * 0.885; n++;
+                }
+                line.Append($"\n   held {hold} 30 s: pitch {p / n:0} ({pmin:0}…{pmax:0})  α {a / n:0}  α85 L {aL / n:0} R {aR / n:0}  {360 / (w / n):0.00} s/turn  {kt / n:0} KIAS");
+            }
+            _out.WriteLine(line.ToString());
+        }
+    }
+
     private static void Wrap(Aircraft ac)
     {
         if (-ac.State.Position.Z < 600) ac.State = new RigidBodyState(new Vec3(ac.State.Position.X, ac.State.Position.Y, ac.State.Position.Z - 1800), ac.State.Attitude, ac.State.Velocity, ac.State.Rates);
