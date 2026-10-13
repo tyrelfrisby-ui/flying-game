@@ -60,6 +60,57 @@ namespace FlyingGame.Bridge.Widget
         public static bool SmokeDebug;
         private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
         private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
+        // The solid-3D shot's own labels (owner 2026-10-12, the autorotation intro: "each label should avoid the other labels
+        // AND every arrow/arc, staying near its own arrow"): laid out together each frame, clear of every drawn arrow.
+        private readonly List<(Vector2 a, Vector2 b)> _soloSegs = new();
+        private readonly List<(Vector2 anchor, Vector2 pref, string text, Color c)> _soloLabels = new();
+        private readonly List<Vector2> _soloBody = new();   // the airplane's outline on screen (nose, wingtip, tail, wingtip): labels keep off it
+        private void SoloLabels(WidgetControlsDisplay ui, Rect scene)
+        {
+            var placed = new List<Rect>();
+            const float ts = 17f;
+            foreach (var L in _soloLabels)
+            {
+                float w = L.text.Length * ts * ui.TextScale * 0.55f + 8f, h = ts * ui.TextScale * 1.35f;
+                Rect best = default; float bestScore = float.MaxValue;
+                Vector2 pref = L.pref.sqrMagnitude > 1e-4f ? L.pref.normalized : Vector2.down;
+                for (int ri = 0; ri < 6; ri++)
+                {
+                    float rad = 18f * ui.TextScale + ri * 22f * ui.TextScale;
+                    for (int k = 0; k < 24; k++)
+                    {
+                        float ang = k * Mathf.PI * 2f / 24f; Vector2 d = new(Mathf.Cos(ang), Mathf.Sin(ang));
+                        // The rect's near edge sits rad from the anchor along d.
+                        Vector2 c = L.anchor + d * rad + new Vector2(d.x * w * 0.5f, d.y * h * 0.5f);
+                        var r = new Rect(c.x - w * 0.5f, c.y - h * 0.5f, w, h);
+                        if (r.xMin < scene.xMin + 6 || r.xMax > scene.xMax - 6 || r.yMin < scene.yMin + 6 || r.yMax > scene.yMax - 6) continue;
+                        float score = rad + 40f * (1f - Vector2.Dot(d, pref));
+                        foreach (var p in placed) if (p.Overlaps(r)) score += 5000f;
+                        foreach (var sg in _soloSegs) if (SegHitsRect(sg.a, sg.b, r)) score += 3000f;
+                        if (_soloBody.Count == 4 && (InQuad(r.center) || InQuad(new Vector2(r.xMin, r.yMin)) || InQuad(new Vector2(r.xMax, r.yMin)) || InQuad(new Vector2(r.xMin, r.yMax)) || InQuad(new Vector2(r.xMax, r.yMax)))) score += 4000f;
+                        if (score < bestScore) { bestScore = score; best = r; }
+                    }
+                }
+                if (bestScore == float.MaxValue) continue;
+                placed.Add(best);
+                ui.PxText(best.center, L.text, ts, L.c, TextAnchor.MiddleCenter);
+            }
+        }
+        private bool InQuad(Vector2 p)
+        {
+            // Inside the (convex) quad nose → right tip → tail → left tip.
+            int pos = 0, neg = 0;
+            for (int i = 0; i < 4; i++) { Vector2 a = _soloBody[i], b = _soloBody[(i + 1) % 4]; float cr = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); if (cr > 0) pos++; else if (cr < 0) neg++; }
+            return pos == 0 || neg == 0;
+        }
+        private static bool SegHitsRect(Vector2 a, Vector2 b, Rect r)
+        {
+            r = new Rect(r.xMin - 4, r.yMin - 4, r.width + 8, r.height + 8);
+            if (r.Contains(a) || r.Contains(b)) return true;
+            for (int i = 0; i <= 8; i++) if (r.Contains(Vector2.Lerp(a, b, i / 8f))) return true;
+            return false;
+        }
+
         private WidgetArrow3D SolidArrow(string id, Color c) { if (!_solidArrows.TryGetValue(id, out var a)) _solidArrows[id] = a = new WidgetArrow3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
         private WidgetArc3D SolidArc(string id, Color c) { if (!_solidArcs.TryGetValue(id, out var a)) _solidArcs[id] = a = new WidgetArc3D(id + "3D", transform, (Widget as AeroWidget)?.VisualLayer ?? 0, c); return a; }
         public float SmoothingMs = 130f;
@@ -321,16 +372,8 @@ namespace FlyingGame.Bridge.Widget
                     // Its label beside it, out on its own wing's side (owner 2026-10-12: which arrow is which).
                     if (Scr(o3 - d3 * 0.5f, out var midS) && Scr(o3, out var rootS) && Scr(o3 + Dir(new Vec3(0, k == "wingL" ? -1 : 1, 0)) * 2f, out var outS))
                     {
-                        // Drawn right beside it (not through the label placer, which pulls labels out to its ring): out on its own wing's side.
-                        Vector2 od = (outS - rootS).normalized; if (od.sqrMagnitude < 0.5f) od = k == "wingL" ? Vector2.left : Vector2.right;
-                        float ts = 17f;   // (PxText applies the text scale)
-                        string txt = $"{nm} α {a:0}°{(st ? " STALLED" : "")}";
-                        float tw = txt.Length * ts * ui.TextScale * 0.55f, mg = 10f;
-                        Vector2 at = midS + od * (14f * ui.TextScale);
-                        bool leftSide = od.x < 0;
-                        // Kept inside the picture: a label that would run off an edge slides back in.
-                        if (leftSide) at.x = Mathf.Max(at.x, scene.xMin + mg + tw); else at.x = Mathf.Min(at.x, scene.xMax - mg - tw);
-                        ui.PxText(at, txt, ts, c, leftSide ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft);
+                        _soloSegs.Add((rootS, Scr(o3 - d3, out var tailS) ? tailS : midS));
+                        _soloLabels.Add((midS, (outS - rootS), $"{nm} α {a:0}°{(st ? " STALLED" : "")}", c));
                     }
                     continue;
                 }
@@ -494,6 +537,15 @@ namespace FlyingGame.Bridge.Widget
             }
             else foreach (var a in _solidArcs.Values) a.Hide();
             if (!Solid3D) { foreach (var a in _solidArcs.Values) a.Hide(); foreach (var a in _solidArrows.Values) a.Hide(); }
+            if (Solid3D)
+            {
+                _soloBody.Clear();
+                float L = (float)w.LengthM, S = w.SpanM;
+                foreach (var bp in new[] { new Vec3(0.45 * L, 0, 0), new Vec3(0, 0.5 * S, 0), new Vec3(-0.55 * L, 0, 0), new Vec3(0, -0.5 * S, 0) })
+                    if (Scr(World(cg + bp), out var q)) _soloBody.Add(q);
+                SoloLabels(ui, scene);
+            }
+            _soloSegs.Clear(); _soloLabels.Clear();
             _labels.Place(ui, LabelScene(w, scene, ui), cgScr);
         }
 
@@ -539,7 +591,13 @@ namespace FlyingGame.Bridge.Widget
                 // In the scene, depth-tested: the airplane hides what's behind it. Sized from the arc's radius.
                 float tr = 0.022f * R;
                 SolidArc(id, c).Place(wpts, tr, 0.16f * R * MomentArcHead, tr * 2.8f * Mathf.Max(1f, MomentArcHead * 0.8f));
-                if (pts.Count >= 1) _labels.Request(id, pts[pts.Count / 2], Vector2.down, new[] { System.Math.Abs(m) * 0.7376, m }, v => !MomentArcValues ? name : $"{name}  {v[0]:#,0} ft·lb", c, 2, 10);
+                for (int i = 0; i + 1 < pts.Count; i++) _soloSegs.Add((pts[i], pts[i + 1]));
+                if (pts.Count >= 1)
+                {
+                    var cgS = cam.WorldToScreenPoint(cgU); Vector2 cg2 = new(_off.x + cgS.x, _off.y + cgS.y);
+                    string txt = !MomentArcValues ? name : $"{name}  {System.Math.Abs(m) * 0.7376:#,0} ft·lb";
+                    _soloLabels.Add((pts[pts.Count / 2], pts[pts.Count / 2] - cg2, txt, c));
+                }
                 return;
             }
             if (pts.Count < 3) return;
