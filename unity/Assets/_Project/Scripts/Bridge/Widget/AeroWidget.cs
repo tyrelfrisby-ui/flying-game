@@ -203,11 +203,13 @@ namespace FlyingGame.Bridge.Widget
             // MORE LIGHT, from every side (Ty 2026-10-13: "the airplane was very dark while it was spinning down toward the camera
             // … more light overall actually from all directions"): a fill from below (the ground's bounce), a fill from behind
             // and the far side, and a brighter, even ambient — the airplane reads from any angle a spin turns it to.
+            _origAmbMode = RenderSettings.ambientMode; _origAmbProbe = RenderSettings.ambientProbe; _origReflMode = RenderSettings.defaultReflectionMode; _origReflInt = RenderSettings.reflectionIntensity;
             foreach (var (rot, inten) in new[] { (Quaternion.Euler(-55f, 150f, 0f), 1.0f), (Quaternion.Euler(15f, 140f, 0f), 0.7f), (Quaternion.Euler(10f, -150f, 0f), 0.6f), (Quaternion.Euler(-30f, 30f, 0f), 0.6f) })
             {
                 var fill = new GameObject("WidgetFill").AddComponent<Light>();
                 fill.type = LightType.Directional; fill.intensity = inten; fill.shadows = LightShadows.None;
                 fill.transform.rotation = rot; fill.transform.SetParent(transform, false);
+                _fills.Add((fill, inten));
             }
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.85f, 0.87f, 0.9f);
@@ -216,6 +218,7 @@ namespace FlyingGame.Bridge.Widget
             var camFill = new GameObject("WidgetCameraFill").AddComponent<Light>();
             camFill.type = LightType.Directional; camFill.intensity = 0.8f; camFill.shadows = LightShadows.None;
             camFill.transform.SetParent(Cam.transform, false);
+            _fills.Add((camFill, 0.8f));
             // Something to REFLECT: the model's glossy paint (roughness 0) mirrors the environment, and a transparent frame has
             // none — those panels went black. A soft sky above, a grey-green ground below (a 16-px cube).
             {
@@ -241,7 +244,7 @@ namespace FlyingGame.Bridge.Widget
                 RenderSettings.customReflectionTexture = cube;
                 RenderSettings.reflectionIntensity = 1f;
             }
-            { var sh = new UnityEngine.Rendering.SphericalHarmonicsL2(); sh.AddAmbientLight(RenderSettings.ambientLight); RenderSettings.ambientProbe = sh; }   // (the shaders read the probe, not the colour)
+            { var sh = new UnityEngine.Rendering.SphericalHarmonicsL2(); sh.AddAmbientLight(RenderSettings.ambientLight); _brightProbe = sh; RenderSettings.ambientProbe = sh; }   // (the shaders read the probe, not the colour)
 
             _vectors = camGo.AddComponent<WidgetVectors>(); _vectors.Widget = this;
             _display = gameObject.AddComponent<WidgetControlsDisplay>(); _display.Widget = this;
@@ -656,6 +659,23 @@ namespace FlyingGame.Bridge.Widget
 
         // ---- SMOKE (owner 2026-10-11, the Talk Flying outro) ----
         private SmokeTrail _smoke;
+        // ---- the light rig's strength (2026-10-13: the bright spin rig washed the white C-172 out) ----
+        private readonly List<(Light l, float full)> _fills = new();
+        private UnityEngine.Rendering.AmbientMode _origAmbMode; private UnityEngine.Rendering.SphericalHarmonicsL2 _origAmbProbe, _brightProbe;
+        private UnityEngine.Rendering.DefaultReflectionMode _origReflMode; private float _origReflInt;
+        /// <summary>The fill rig, 0 … 1 (Ty 2026-10-13: the white C-172 "really washed out" under the rig the dark Extra needed):
+        /// 0 = the sun and the scene's own ambient (the original look); 1 = all the fills, the bright ambient and the sky
+        /// reflection. vectorStyle {"lightFill"}.</summary>
+        public float LightFill { get; private set; } = 1f;
+        public void SetLightFill(float f)
+        {
+            LightFill = Mathf.Clamp01(f);
+            foreach (var (l, full) in _fills) l.intensity = full * LightFill;
+            RenderSettings.ambientMode = LightFill > 0 ? UnityEngine.Rendering.AmbientMode.Flat : _origAmbMode;
+            RenderSettings.ambientProbe = _origAmbProbe * (1 - LightFill) + _brightProbe * LightFill;
+            RenderSettings.defaultReflectionMode = LightFill > 0 ? UnityEngine.Rendering.DefaultReflectionMode.Custom : _origReflMode;
+            RenderSettings.reflectionIntensity = LightFill > 0 ? LightFill : _origReflInt;
+        }
         /// <summary>The exhaust's exit velocity (m/s) at this rpm and throttle (Ty 2026-10-13: "a 540 ci engine turning 2700 rpm
         /// and the exhaust pipe is a 4 inch diameter — calculate the velocity"): <see cref="FlyingGame.Core.Aero.ExhaustJet"/> from
         /// the config's displacement (else ≈ 0.56 hp/in³ of the rated power) and pipe. A turbine's exhaust isn't modelled

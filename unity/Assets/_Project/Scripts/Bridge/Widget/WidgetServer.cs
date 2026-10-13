@@ -507,6 +507,7 @@ namespace FlyingGame.Bridge.Widget
                     if (j["inertiaSplit"] != null) WidgetVectors.InertiaSplit = j["inertiaSplit"].Value<bool>();
                     if (j["legend"] != null) WidgetVectors.Legend = j["legend"].Value<bool>();
                     if (j["wingForces"] != null) WidgetVectors.WingForces = j["wingForces"].Value<bool>();
+                    if (j["lightFill"] != null && w is AeroWidget lw2) lw2.SetLightFill((float)j["lightFill"].Value<double>());
                     if (j["legendAnchor"] != null) WidgetVectors.LegendAnchor = (string)j["legendAnchor"] ?? "bottom";
                     if (j["legendScale"] != null) WidgetVectors.LegendScale = Mathf.Clamp((float)j["legendScale"].Value<double>(), 0.4f, 2f);
                     if (j["legendTitle"] != null) WidgetVectors.LegendTitle = (string)j["legendTitle"] ?? "";
