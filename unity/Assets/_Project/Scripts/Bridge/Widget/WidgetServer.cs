@@ -602,9 +602,10 @@ namespace FlyingGame.Bridge.Widget
                         if (j["name"] == null && j["zoom"] == null && j["zoomBy"] == null) { ok["frame"] = w.FrameMode; ok["frameW"] = AeroWidget.FrameW; ok["frameH"] = AeroWidget.FrameH; break; }
                     }
                     // Orbit bearing (2026-10-12): {"cmd":"view","orbitDeg":270,"orbitElev":12} — alone it just turns the orbit camera.
+                    if (j["orbitWorld"] != null) w.OrbitWorld = j["orbitWorld"].Value<bool>();
                     if (j["orbitDeg"] != null) w.OrbitAzDeg = (float)j["orbitDeg"].Value<double>();
                     if (j["orbitElev"] != null) w.OrbitElevDeg = Mathf.Clamp((float)j["orbitElev"].Value<double>(), -60f, 80f);
-                    if ((j["orbitDeg"] != null || j["orbitElev"] != null) && j["name"] == null && j["zoom"] == null) { ok["orbitDeg"] = w.OrbitAzDeg; ok["orbitElev"] = w.OrbitElevDeg; break; }
+                    if ((j["orbitDeg"] != null || j["orbitElev"] != null || j["orbitWorld"] != null) && j["name"] == null && j["zoom"] == null) { ok["orbitDeg"] = w.OrbitAzDeg; ok["orbitElev"] = w.OrbitElevDeg; break; }
                     // Zoom alone (2026-10-11): {"cmd":"view","zoom":1.6} (0.6…3; 1 = the old framing) or "zoomBy": 1.2.
                     if (j["zoom"] != null || j["zoomBy"] != null)
                     {

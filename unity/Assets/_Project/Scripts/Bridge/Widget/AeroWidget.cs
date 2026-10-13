@@ -785,6 +785,10 @@ namespace FlyingGame.Bridge.Widget
 
         /// <summary>The orbit view's camera bearing from the nose (clockwise from above) and height above the horizontal.</summary>
         public float OrbitAzDeg = 270f, OrbitElevDeg = 12f;
+        /// <summary>World-fixed orbit (owner 2026-10-12, the autorotation intro: "fixed camera orientation with the airplane
+        /// spinning"): OrbitAzDeg from north instead of from the nose, aimed at the CG — the camera follows the airplane's
+        /// position but not its rotation. view {"orbitWorld": true}.</summary>
+        public bool OrbitWorld;
         private void PlaceCamera(RigidBodyState s)
         {
             Vector3 ac = CoordinateMap.ToUnity(s.Position);
@@ -823,7 +827,7 @@ namespace FlyingGame.Bridge.Widget
                     // ORBIT (owner 2026-10-12, W12): circling the airplane, level, at OrbitElevDeg above it. OrbitAzDeg is measured
                     // from the nose, clockwise seen from above (0 ahead, 90 right, 180 behind, 270 left), relative to the
                     // airplane's heading — the capture script turns it frame by frame.
-                    Vector3 nose = CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(1, 0, 0))); nose.y = 0;
+                    Vector3 nose = OrbitWorld ? CoordinateMap.ToUnity(new Vec3(1, 0, 0)) : CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(1, 0, 0))); nose.y = 0;
                     if (nose.sqrMagnitude < 1e-4f) nose = Vector3.forward; nose.Normalize();
                     Vector3 rightH = Vector3.Cross(Vector3.up, nose).normalized;
                     float az = OrbitAzDeg * Mathf.Deg2Rad, el = OrbitElevDeg * Mathf.Deg2Rad;
@@ -831,7 +835,7 @@ namespace FlyingGame.Bridge.Widget
                     // Aimed at the middle of the picture — the airplane plus the arrow pair out ahead of it (WidgetVectors: each
                     // arrow 0.55 of the airplane's length) — 0.4 of a length ahead of the CG along the flight path.
                     Vector3 vel = CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity));
-                    Vector3 aim = ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
+                    Vector3 aim = OrbitWorld ? ac : ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
                     Cam.transform.position = aim + od * dist;
                     Cam.transform.LookAt(aim, Vector3.up);
                     return;
