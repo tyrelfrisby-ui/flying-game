@@ -64,7 +64,7 @@ def build_extra():
          {'id':'vStab','oswaldE':0.85,'strips':fn},{'id':'rudder-vstab','oswaldE':0.85,'strips':rd}],
         {'cd0Area':0.28,'sideForceArea':2.5,'damping':{'p':0,'q':0,'r':0},
          'crossflow':{'planArea':2.2,'planCenterX':-0.3,'sideArea':2.5,'sideCenterX':-0.3,'cd':1.2,'lengthM':6.65}},
-        B.prop(224000, 2.00, sign=1, inertia=5.0, eff=0.80, tlz=0.0),
+        B.prop(224000, 2.00, sign=1, inertia=2.5, eff=0.80, tlz=0.0),   # MT 3-blade composite ≈1.8 + AEIO-540 crank/flywheel ≈0.7 kg·m² (2026-10-13; was 5.0, the gyro held the power-on flat spin nose-high)
         {'vneMs':130,'gMax':10.0,'gMin':-10.0}, B.controls(0.52,0.44,0.52),
         extra_tables={'extra-sym':sym})
 

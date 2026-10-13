@@ -35,6 +35,9 @@ public sealed class AircraftConfig
     /// the belly pointing on a 30 degree line downward angle from the longitudinal axis"). Null = the generic stack rule.</summary>
     public SmokeConfig? Smoke { get; set; }
 
+    /// <summary>Separated-flow wing terms the strip model can't produce (spin research 2026-10-13). Null/empty = none.</summary>
+    public SpinAeroConfig? SpinAero { get; set; }
+
     /// <summary>Seaplane floats (null = landplane). See FloatHydro.</summary>
     public FloatsConfig? Floats { get; set; }
 
@@ -224,6 +227,19 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+public sealed class SpinAeroConfig
+{
+    /// <summary>
+    /// ROLLING MOMENT DUE TO SIDESLIP ABOVE THE STALL (NACA TR-379, Knight &amp; Wenzinger 1932, Figs. 27–30): past maximum
+    /// lift the yawed wing's LEADING half carries more load (most at its tip) and the trailing half less — the sweep-forward /
+    /// sweep-back effect of yaw on the separated flow — "of the same order of magnitude as those due to rolling", and it is
+    /// what extends the monoplane's stable autorotation to α 40° (pb/2V 0.64 at 20° yaw, TR-379 Table V). A straight strip
+    /// wing has none of it (each strip sees only its own section α). "monoplane" (Clark Y monoplane, Fig. 28) or
+    /// "biplane" (Clark Y unstaggered biplane, Fig. 27); empty = off.
+    /// </summary>
+    public string RollDueToSideslip { get; set; } = "";
 }
 
 public sealed class SmokeConfig

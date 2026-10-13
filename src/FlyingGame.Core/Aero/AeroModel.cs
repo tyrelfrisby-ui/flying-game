@@ -694,6 +694,7 @@ public static class AeroModel
         Vec3 airVelocity = bodyVelocity - (meanWindBody ?? windBody);
         ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
         ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
+        ApplyWingSideslipRoll(config, airVelocity, airDensity, surfaceMask, ref totalMoment);
 
         return (totalForce, totalMoment);
     }
@@ -748,6 +749,20 @@ public static class AeroModel
             // fraction this band flickers and drives a relaxation limit cycle (owner goal: 200 ft/turn).
             double lo = Math.Min(0.0, _flowAlpha) - _spreadRad - 0.45 * Math.Abs(_flowAlpha) * _stalledFrac;   // was 0.65 (thinner wake: stab keeps more upload, steeper spin)
             double hi = Math.Max(0.0, _flowAlpha) + _spreadRad;
+            // HIGH α (flat spin, 2026-10-13, owner: the Extra's flat spin settled nose-HIGH): the band from the chord plane up
+            // to the freestream holds while the separated region still reaches the chord plane behind the trailing edge. With the
+            // flow more and more normal to the chord, both shear layers leave the plate along the freestream (the normal-plate
+            // wake: Hoerner, Fluid-Dynamic Drag ch. 3; Roshko 1954) — the wake rises away along the flow and a tail sitting aft
+            // in the chord plane is in clean air, which is why spin research credits the stab with full nose-down in a flat
+            // spin. So between 45° and 75° the chord-plane edge turns up to the freestream line (same spread and thickening).
+            double aAbs = Math.Abs(_flowAlpha), fPlate = Math.Clamp((aAbs - 45.0 * Math.PI / 180.0) / (30.0 * Math.PI / 180.0), 0.0, 1.0);
+            fPlate = fPlate * fPlate * (3.0 - 2.0 * fPlate);
+            if (fPlate > 0.0)
+            {
+                double thick = 0.45 * aAbs * _stalledFrac;
+                if (_flowAlpha > 0) lo = (1.0 - fPlate) * lo + fPlate * (_flowAlpha - _spreadRad - thick);
+                else hi = (1.0 - fPlate) * hi + fPlate * (_flowAlpha + _spreadRad + thick);
+            }
 
             // Smooth edge falloff over the spread margin.
             double inside;
@@ -868,6 +883,48 @@ public static class AeroModel
     {
         double p = Math.Clamp(psi, -0.25, 0.25), p2 = p * p;
         return p * (2.69 - p2 * (168.0 - p2 * (6270.0 - p2 * 59900.0)));
+    }
+
+    // NACA TR-379 (Knight & Wenzinger, 1932), "Rolling Moments Due to Rolling and Yaw for Four Wing Models in Rotation":
+    // rolling-moment coefficient C_l = L / (q*S*b) at pb/2V = 0 vs alpha at 20 deg yaw: Fig. 28 (Clark Y monoplane, rectangular,
+    // AR 6) and Fig. 27 (Clark Y unstaggered biplane), read off the published curves every 4 deg (the 5/10/20 deg curves are
+    // close to linear in yaw above alpha ~28 deg). The tests stop at alpha 60; to 90 it falls to 0 (at 90 the wing is
+    // broadside and yaw only turns it in its own plane: no leading/trailing half; an assumption, linear). See docs/SPIN-ROTARY-DATA.md.
+    private static readonly double[] SlipRollAlpha = { 0, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 90 };
+    private static readonly double[] SlipRollMono = { 0, 0.003, 0.015, 0.045, 0.078, 0.056, 0.038, 0.034, 0.031, 0.028, 0.026, 0.024, 0.022, 0.020, 0.018, 0 };
+    private static readonly double[] SlipRollBi = { 0, 0.003, 0.010, 0.023, 0.038, 0.050, 0.050, 0.043, 0.036, 0.031, 0.027, 0.025, 0.023, 0.021, 0.019, 0 };
+
+    /// <summary>The separated wing's rolling moment due to sideslip (see SpinAeroConfig.RollDueToSideslip): the leading half
+    /// (the wing the relative wind meets first) loaded up, the trailing half unloaded. Upright (alpha &gt; 0) a wind from the
+    /// right (beta &gt; 0) loads the right wing: a roll LEFT; inverted the loads are negative lift and it reverses. Beta is held
+    /// at the tests' +/-20 deg beyond (no data past it).</summary>
+    private static void ApplyWingSideslipRoll(AircraftConfig config, Vec3 v, double rho, bool[]? surfaceMask, ref Vec3 totalMoment)
+    {
+        string kind = config.SpinAero?.RollDueToSideslip ?? "";
+        if (kind.Length == 0) return;
+        if (surfaceMask != null)
+        {
+            bool anyWing = false;
+            for (int i = 0; i < config.Surfaces.Count && i < surfaceMask.Length; i++)
+                if (surfaceMask[i] && config.Surfaces[i].Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) anyWing = true;
+            if (!anyWing) return;
+        }
+        double V = v.Length; if (V < MinSpeedMs) return;
+        double alpha = Math.Atan2(v.Z, v.X) * 180.0 / Math.PI;           // body alpha, -180..180
+        double a = Math.Abs(alpha); if (a > 90) a = 180 - a;            // (reversed flow: the same broadside geometry)
+        double beta = Math.Asin(Math.Clamp(v.Y / V, -1, 1));
+        double b20 = 20.0 * Math.PI / 180.0, bc = Math.Clamp(beta, -b20, b20);
+        double[] tab = kind == "biplane" ? SlipRollBi : SlipRollMono;
+        int i0 = 0; while (i0 < SlipRollAlpha.Length - 2 && a > SlipRollAlpha[i0 + 1]) i0++;
+        double t = (a - SlipRollAlpha[i0]) / (SlipRollAlpha[i0 + 1] - SlipRollAlpha[i0]);
+        double cl20 = tab[i0] + Math.Clamp(t, 0, 1) * (tab[i0 + 1] - tab[i0]);     // C_l at 20 deg yaw
+        double S = 0; foreach (var sf in config.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) S += st.Area;
+        double span = WingSpan(config);
+        double q = 0.5 * rho * V * V;
+        double sense = alpha >= 0 ? 1.0 : -1.0;                         // inverted: negative lift, the moment reverses
+        double L = -sense * cl20 * (bc / b20) * q * S * span;           // wind from the right (beta > 0) loads the right wing: roll left
+        totalMoment += new Vec3(L, 0, 0);
+        ForceDebug.Add(config.Mass.CgVec(), Vec3.Zero, new Vec3(L, 0, 0), "moment");
     }
 
     private static void ApplyFuselage(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, double airDensity, ref Vec3 totalForce, ref Vec3 totalMoment)
