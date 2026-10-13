@@ -502,6 +502,8 @@ namespace FlyingGame.Bridge.Widget
             var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
             // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
             // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
+            ModelNoseFromCg = ModelNoseAndBelly(0, out var noseAt) ? noseAt.X : double.NaN;
+            if (double.IsNaN(ModelNoseFromCg)) { var hubs = _builder.PropHubsBody(); if (hubs.Count == 1) ModelNoseFromCg = hubs[0].x + 0.25 + VisualOffset.X; }   // (a model we can't read: the spinner ≈ the prop hub + 0.25 m)   // (the model's spinner tip: the four-forces thrust starts there)
             if (Config.Smoke != null && Config.Smoke.AftOfNoseM > 0 && ex.Length == 1 && ModelNoseAndBelly(Config.Smoke.AftOfNoseM, out var exM)) ex[0] = exM;
             else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
             _smoke.SetExhausts(ex, jet);
@@ -511,6 +513,18 @@ namespace FlyingGame.Bridge.Widget
 
         /// <summary>The smoke exhausts as placed (body axes from the CG, m) — for the debug dot and /state.</summary>
         public Vec3[] SmokeExhausts = System.Array.Empty<Vec3>();
+        /// <summary>The visual model's most forward point (the spinner tip), body x from the CG (m); NaN = unknown.</summary>
+        public double ModelNoseFromCg = double.NaN;
+        /// <summary>The middle of the airframe, spinner to tail, body x from the CG (m).</summary>
+        public double AirframeMidFromCg
+        {
+            get
+            {
+                if (double.IsNaN(ModelNoseFromCg) || Config == null) return 0;
+                double tail = double.MaxValue; foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) tail = System.Math.Min(tail, st.Pos[0] - 0.75 * st.Chord);
+                return 0.5 * (ModelNoseFromCg + (tail - Config.Mass.Cg[0]));
+            }
+        }
 
         /// <summary>The visual model's spinner tip (its most forward point) and, <paramref name="aft"/> metres behind it, the belly
         /// surface on the centreline — in body axes from the CG (the visual root sits at CG + VisualOffset).</summary>
@@ -835,7 +849,8 @@ namespace FlyingGame.Bridge.Widget
                     // Aimed at the middle of the picture — the airplane plus the arrow pair out ahead of it (WidgetVectors: each
                     // arrow 0.55 of the airplane's length) — 0.4 of a length ahead of the CG along the flight path.
                     Vector3 vel = CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity));
-                    Vector3 aim = OrbitWorld ? ac : ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
+                    // World-fixed: aimed at the middle of the airframe (spinner to tail), not the CG, so the airplane is centred.
+                    Vector3 aim = OrbitWorld ? ac + CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(AirframeMidFromCg, 0, 0))) : ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
                     Cam.transform.position = aim + od * dist;
                     Cam.transform.LookAt(aim, Vector3.up);
                     return;

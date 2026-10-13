@@ -492,6 +492,8 @@ namespace FlyingGame.Bridge.Widget
                     if (j["labelScale"] != null && w.Display != null) w.Display.TextScale = Mathf.Clamp((float)j["labelScale"].Value<double>(), 1f, 3f);
                     if (j["dragScale"] != null) WidgetVectors.DragScale = System.Math.Clamp(j["dragScale"].Value<double>(), 1.0, 3.0);
                     ok["dragScale"] = WidgetVectors.DragScale;
+                    if (j["forceValues"] != null) WidgetVectors.ForceValues = j["forceValues"].Value<bool>();
+                    if (j["forceEnds"] != null) WidgetVectors.ForceEnds = j["forceEnds"].Value<bool>();
                     if (j["forceScale"] != null) WidgetVectors.ForceScale = Mathf.Clamp((float)j["forceScale"].Value<double>(), 0.5f, 3f);
                     if (j["smokeDebug"] != null) WidgetVectors.SmokeDebug = j["smokeDebug"].Value<bool>();
                     if (j["wingWindCyan"] != null) WidgetVectors.WingWindCyan = j["wingWindCyan"].Value<bool>();

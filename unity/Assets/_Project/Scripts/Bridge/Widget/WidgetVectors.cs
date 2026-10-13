@@ -60,6 +60,27 @@ namespace FlyingGame.Bridge.Widget
         public static bool SmokeDebug;
         /// <summary>All force arrows' length (×, one shared scale so their proportions hold). vectorStyle {"forceScale"}.</summary>
         public static float ForceScale = 1f;
+        /// <summary>Thrust and drag drawn from the airplane's ends, true length, on its axis line (owner 2026-10-12: "if the
+        /// thrust/drag vectors are too small and obscured by the aircraft put them in front of and behind the aircraft"):
+        /// THRUST from just ahead of the spinner, DRAG from just behind the tail. vectorStyle {"forceEnds": true}.</summary>
+        public static bool ForceEnds;
+        /// <summary>The four forces' labels with their pounds (default) or words only (Glass's panel shows the numbers).
+        /// vectorStyle {"forceValues": false}.</summary>
+        public static bool ForceValues = true;
+        /// <summary>A label just past an arrow's head, along it (it can't lie along its own short arrow).</summary>
+        private void HeadLabel(WidgetControlsDisplay ui, Vector2 o, Vector2 t, string text, Color c)
+        {
+            Vector2 d = t - o; if (d.sqrMagnitude < 1f) d = Vector2.right; d.Normalize();
+            Vector2 at = t + d * (10f * ui.TextScale);
+            float tw = text.Length * 17f * ui.TextScale * 0.55f; Rect sc = Widget is AeroWidget aw2 && aw2.Display != null ? aw2.Display.SceneRect : new Rect(0, 0, 1e5f, 1e5f);
+            tw *= 1.25f;   // (capitals run wide)
+            bool room = d.x < 0 ? at.x - tw > sc.xMin + 8 : at.x + tw < sc.xMax - 8;
+            if (room) { ui.PxText(at, text, 17f, c, d.x < 0 ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft); return; }
+            // No room past the head: centred just above the arrow, kept inside the picture.
+            Vector2 mid = 0.5f * (o + t) + new Vector2(0f, -24f * ui.TextScale);
+            mid.x = Mathf.Clamp(mid.x, sc.xMin + 8 + tw * 0.5f, sc.xMax - 8 - tw * 0.5f);
+            ui.PxText(mid, text, 17f, c, TextAnchor.MiddleCenter);
+        }
         private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
         private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
         // The solid-3D shot's own labels (owner 2026-10-12, the autorotation intro: "each label should avoid the other labels
@@ -213,6 +234,14 @@ namespace FlyingGame.Bridge.Widget
             pic.V["wind"] = (cg, vAir * (-1.0 / System.Math.Max(1, pic.VInf)));   // RELATIVE wind: the air coming at the airplane (−velocity)
             pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (DragScale / W));
             if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (DragScale / W));   // (thrust and drag share a scale)
+            if (ForceEnds)
+            {
+                double tailX = double.MaxValue; foreach (var sf2 in cfg.Surfaces) foreach (var st2 in sf2.Strips) tailX = System.Math.Min(tailX, st2.Pos[0] - 0.75 * st2.Chord);
+                double noseX = (w is AeroWidget mw && !double.IsNaN(mw.ModelNoseFromCg) ? cg.X + mw.ModelNoseFromCg : thrustPos.X) + 0.3;   // (just ahead of the spinner)
+                if (thrust.Length > 1) pic.V["thrust"] = (new Vec3(noseX, 0, cg.Z), thrust * (DragScale / W));
+                if (pic.V.TryGetValue("drag4", out var d4)) pic.V["drag4"] = (new Vec3(tailX - 0.3, 0, cg.Z), d4.vec);
+                pic.V["drag"] = (new Vec3(tailX - 0.3, 0, cg.Z), pic.V["drag"].vec);
+            }
             if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
             // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.
             Vec3 om = s.Rates;
@@ -449,10 +478,12 @@ namespace FlyingGame.Bridge.Widget
                 // FOUR FORCES: lift ⟂ and drag ∥ the relative wind from the CG (total aero), weight, thrust on its line; each
                 // labelled in pounds. Lift/weight at one scale, thrust/drag at another (×3) — the pairs compare directly.
                 double lb = 0.2248;
-                if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new[] { P.WeightN * lb }, v => $"WEIGHT {v[0]:#,0} lb", Weight, 3, 10); }
-                if (On("lift") && F.ContainsKey("lift4")) { Arrow("lift4", Lift, gPx); _labels.Request("lift4", Tip("lift4", gPx), Away(Origin("lift4"), Tip("lift4", gPx)), new[] { P.LiftN * lb }, v => $"LIFT {v[0]:#,0} lb", Lift, 5, 10); }
-                if (On("drag") && F.ContainsKey("drag4")) { Arrow("drag4", Drag, gPx); _labels.Request("drag4", Tip("drag4", gPx), Away(Origin("drag4"), Tip("drag4", gPx)), new[] { P.DragN * lb }, v => DragScale == 1.0 ? $"DRAG {v[0]:#,0} lb" : $"DRAG {v[0]:#,0} lb ×{DragScale:0.#}", Drag, 5, 3); }
-                if (On("thrust") && F.ContainsKey("thrust")) { Arrow("thrust", Thrust, gPx); _labels.Request("thrust", Tip("thrust", gPx), Away(Origin("thrust"), Tip("thrust", gPx)), new[] { P.ThrustAlongN * lb }, v => DragScale == 1.0 ? $"THRUST {v[0]:#,0} lb" : $"THRUST {v[0]:#,0} lb ×{DragScale:0.#}", Thrust, 5, 3); }
+                if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new[] { P.WeightN * lb }, v => ForceValues ? $"WEIGHT {v[0]:#,0} lb" : "WEIGHT", Weight, 3, 10); }
+                if (On("lift") && F.ContainsKey("lift4")) { Arrow("lift4", Lift, gPx); _labels.Request("lift4", Tip("lift4", gPx), Away(Origin("lift4"), Tip("lift4", gPx)), new[] { P.LiftN * lb }, v => ForceValues ? $"LIFT {v[0]:#,0} lb" : "LIFT", Lift, 5, 10); }
+                if (On("drag") && F.ContainsKey("drag4") && ForceEnds) { Arrow("drag4", Drag, gPx); HeadLabel(ui, Origin("drag4"), Tip("drag4", gPx), ForceValues ? $"DRAG {P.DragN * lb:#,0} lb" : "DRAG", Drag); }
+                else if (On("drag") && F.ContainsKey("drag4")) { Arrow("drag4", Drag, gPx); _labels.Request("drag4", Tip("drag4", gPx), Away(Origin("drag4"), Tip("drag4", gPx)), new[] { P.DragN * lb }, v => DragScale == 1.0 ? $"DRAG {v[0]:#,0} lb" : $"DRAG {v[0]:#,0} lb ×{DragScale:0.#}", Drag, 5, 3); }
+                if (On("thrust") && F.ContainsKey("thrust") && ForceEnds) { Arrow("thrust", Thrust, gPx); HeadLabel(ui, Origin("thrust"), Tip("thrust", gPx), ForceValues ? $"THRUST {P.ThrustAlongN * lb:#,0} lb" : "THRUST", Thrust); }
+                else if (On("thrust") && F.ContainsKey("thrust")) { Arrow("thrust", Thrust, gPx); _labels.Request("thrust", Tip("thrust", gPx), Away(Origin("thrust"), Tip("thrust", gPx)), new[] { P.ThrustAlongN * lb }, v => DragScale == 1.0 ? $"THRUST {v[0]:#,0} lb" : $"THRUST {v[0]:#,0} lb ×{DragScale:0.#}", Thrust, 5, 3); }
             }
             else
             {
