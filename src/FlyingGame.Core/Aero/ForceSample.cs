@@ -7,7 +7,7 @@ namespace FlyingGame.Core.Aero;
 public readonly struct ForceSample
 {
     public readonly Vec3 PosBody, ForceBody, MomentBody;
-    public readonly string Kind;   // lift | drag | moment | fuselage | spoiler | thrust | gear | contact | rope | weight
+    public readonly string Kind;   // lift | drag | moment | fuselage | spoiler | thrust | gear | contact | rope | weight | gyro (the prop's gyroscopic moment, already inside thrust's: a breakdown, not a force)
     public ForceSample(Vec3 pos, Vec3 force, Vec3 moment, string kind) { PosBody = pos; ForceBody = force; MomentBody = moment; Kind = kind; }
 }
 

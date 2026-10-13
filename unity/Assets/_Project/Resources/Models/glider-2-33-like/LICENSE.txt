@@ -1,0 +1,8 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Grob Astir
+Author: helijah
+URL: https://sketchfab.com/3d-models/grob-astir-0b2bfc642c3d4368b1115003827f34fd
+License: CC Attribution http://creativecommons.org/licenses/by/4.0/
+Commercial use: allowed
+CREDIT LINE: "Grob Astir" by helijah, https://sketchfab.com/3d-models/grob-astir-0b2bfc642c3d4368b1115003827f34fd, licensed under CC Attribution
+Note: the model is a Grob Astir; the 2-33 is drawn procedurally (AirframeModels.cs), so this model is not shown.

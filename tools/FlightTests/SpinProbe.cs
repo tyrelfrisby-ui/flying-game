@@ -80,7 +80,7 @@ public class SpinMomentProbe
                 double fin = 0, wingL = 0, wingR = 0, htail = 0, fus = 0, mom = 0, rollW = 0;
                 foreach (var f in ac.LastForces)
                 {
-                    if (f.Kind == "tailflow") continue;
+                    if (f.Kind == "tailflow" || f.Kind == "gyro") continue;
                     Vec3 r = f.PosBody - cg;
                     double nz = r.X * f.ForceBody.Y - r.Y * f.ForceBody.X + f.MomentBody.Z;
                     double nx = r.Y * f.ForceBody.Z - r.Z * f.ForceBody.Y + f.MomentBody.X;

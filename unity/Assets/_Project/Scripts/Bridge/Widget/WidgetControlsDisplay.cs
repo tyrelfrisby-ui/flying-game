@@ -182,6 +182,15 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Text and line scale for the host's screen (the widget's frame = 1; a phone or iPad screen is bigger).</summary>
         public float TextScale = 1f;
         public void PxText(Vector2 at, string text, float px, Color c, TextAnchor a) => _texts.Add((at, text, px * TextScale, c, a, true, false));
+        /// <summary>How wide <see cref="PxText"/> draws <paramref name="text"/> at <paramref name="px"/> (frame pixels), from the font's own advances.</summary>
+        public float PxTextWidth(string text, float px)
+        {
+            if (_font == null || string.IsNullOrEmpty(text)) return (text?.Length ?? 0) * px * TextScale * 0.55f;
+            _font.RequestCharactersInTexture(text, GlyphPx, FontStyle.Normal);
+            float k = px * TextScale / GlyphPx, w = 0f;
+            foreach (char ch in text) if (_font.GetCharacterInfo(ch, out var ci, GlyphPx, FontStyle.Normal)) w += ci.advance * k;
+            return w;
+        }
         private void PxSeg(Vector2 a, Vector2 b, float w, Color c)
         {
             Vector2 d = b - a; if (d.sqrMagnitude < 1e-4f) return;

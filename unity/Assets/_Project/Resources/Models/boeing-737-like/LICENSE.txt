@@ -1,0 +1,7 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Boeing 737-800
+Author: OUTPISTON
+URL: https://sketchfab.com/3d-models/boeing-737-800-fa2d273dba0e45348284a6d6cd711218
+License: CC Attribution-NonCommercial-ShareAlike http://creativecommons.org/licenses/by-nc-sa/4.0/
+Commercial use: NOT allowed (NonCommercial) — replace before any commercial release
+CREDIT LINE: "Boeing 737-800" by OUTPISTON, https://sketchfab.com/3d-models/boeing-737-800-fa2d273dba0e45348284a6d6cd711218, licensed under CC Attribution-NonCommercial-ShareAlike

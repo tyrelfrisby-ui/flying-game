@@ -738,6 +738,7 @@ public sealed class Aircraft
                 {
                     (Vec3 pF, Vec3 pM) = PropModel.Compute(Config.Propulsion, _noseLost ? 0.0 : _throttle01, s.Velocity, s.Rates, airDensity);
                     ForceDebug.Add(_noseBody, pF, pM, "thrust");
+                    if (ForceDebug.Samples != null) ForceDebug.Add(_noseBody, Vec3.Zero, PropModel.GyroMoment(Config.Propulsion, _throttle01, s.Rates), "gyro");   // (already in "thrust"'s moment: a breakdown only)
                     totalF += pF;
                     totalM += pM;
                 }
@@ -762,6 +763,7 @@ public sealed class Aircraft
                         };
                         (Vec3 eF, Vec3 eM) = PropModel.Compute(engCfg, _throttle01 * m.ThrottleScale, s.Velocity, s.Rates, airDensity);
                         ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), eF, eM, "thrust");
+                        if (ForceDebug.Samples != null) ForceDebug.Add(m.PosVec() + new Vec3(0.8, 0, 0), Vec3.Zero, PropModel.GyroMoment(engCfg, _throttle01 * m.ThrottleScale, s.Rates), "gyro");
                         totalF += eF;
                         totalM += eM + Vec3.Cross(m.PosVec() - Config.Mass.CgVec(), eF);
                     }

@@ -1,0 +1,8 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Gee Bee R-1
+Author: helijah
+URL: https://sketchfab.com/3d-models/gee-bee-r-1-xgTLDRqv1tJyWDKl7ePtOwcWo0O
+License: CC Attribution http://creativecommons.org/licenses/by/4.0/
+Commercial use: allowed
+CREDIT LINE: "Gee Bee R-1" by helijah, https://sketchfab.com/3d-models/gee-bee-r-1-xgTLDRqv1tJyWDKl7ePtOwcWo0O, licensed under CC Attribution
+Note: the model is the Gee Bee R-1 (used for the R-2 type).

@@ -1,0 +1,7 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Cessna 172
+Author: Viva_1
+URL: https://sketchfab.com/3d-models/cessna-172-c2a410d914f746c684a63674485c5cbf
+License: CC Attribution http://creativecommons.org/licenses/by/4.0/
+Commercial use: allowed
+CREDIT LINE: "Cessna 172" by Viva_1, https://sketchfab.com/3d-models/cessna-172-c2a410d914f746c684a63674485c5cbf, licensed under CC Attribution

@@ -44,6 +44,10 @@ namespace FlyingGame.Bridge.Widget
         /// then points the opposite way to the tail's own motion (a depiction choice, not a rotation arrow) — and no ft·lb values.
         /// vectorStyle {"momentArcNoseSense", "momentArcValues"}.</summary>
         public static bool MomentArcNoseSense, MomentArcValues = true;
+        /// <summary>INERTIA SPLIT (Ty 2026-10-13: "how much of that nose up moment comes from gyroscopics vs structure weight"): the
+        /// inertia arc drawn as two arcs end to end on its circle — STRUCTURE (the airframe's own inertia coupling) and GYROSCOPIC
+        /// (the prop) — each swept in proportion to its share, labelled with its share in %. vectorStyle {"inertiaSplit"}.</summary>
+        public static bool InertiaSplit;
         /// <summary>Where along each semispan the wing winds are taken (0.5 = mid; the rotation's ω × r grows toward the tips,
         /// owner 2026-10-12: "two relative wind vectors for each wing that are clearly different") and their length (×).
         /// vectorStyle {"wingWindSpan", "wingWindScale"}.</summary>
@@ -94,10 +98,10 @@ namespace FlyingGame.Bridge.Widget
             const float ts = 17f;
             foreach (var L in _soloLabels)
             {
-                float w = L.text.Length * ts * ui.TextScale * 0.55f + 8f, h = ts * ui.TextScale * 1.35f;
+                float w = ui.PxTextWidth(L.text, ts) + 14f, h = ts * ui.TextScale * 1.35f + 6f;   // (the drawn width, outline included)
                 Rect best = default; float bestScore = float.MaxValue;
                 Vector2 pref = L.pref.sqrMagnitude > 1e-4f ? L.pref.normalized : Vector2.down;
-                for (int ri = 0; ri < 6; ri++)
+                for (int ri = 0; ri < 16; ri++)
                 {
                     float rad = 18f * ui.TextScale + ri * 22f * ui.TextScale;
                     for (int k = 0; k < 24; k++)
@@ -110,7 +114,7 @@ namespace FlyingGame.Bridge.Widget
                         float score = rad + 40f * (1f - Vector2.Dot(d, pref));
                         foreach (var p in placed) if (p.Overlaps(r)) score += 5000f;
                         foreach (var sg in _soloSegs) if (SegHitsRect(sg.a, sg.b, r)) score += 3000f;
-                        if (_soloBody.Count == 4 && (InQuad(r.center) || InQuad(new Vector2(r.xMin, r.yMin)) || InQuad(new Vector2(r.xMax, r.yMin)) || InQuad(new Vector2(r.xMin, r.yMax)) || InQuad(new Vector2(r.xMax, r.yMax)))) score += 4000f;
+                        if (HitsBody(r)) score += 6000f;   // (worst: a label on the airplane)
                         if (score < bestScore) { bestScore = score; best = r; }
                     }
                 }
@@ -119,12 +123,33 @@ namespace FlyingGame.Bridge.Widget
                 ui.PxText(best.center, L.text, ts, L.c, TextAnchor.MiddleCenter);
             }
         }
-        private bool InQuad(Vector2 p)
+        private bool InHull(Vector2 p)
         {
-            // Inside the (convex) quad nose → right tip → tail → left tip.
-            int pos = 0, neg = 0;
-            for (int i = 0; i < 4; i++) { Vector2 a = _soloBody[i], b = _soloBody[(i + 1) % 4]; float cr = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x); if (cr > 0) pos++; else if (cr < 0) neg++; }
-            return pos == 0 || neg == 0;
+            // Inside the (convex, counter-clockwise) outline of the airplane on screen.
+            int n = _soloBody.Count; if (n < 3) return false;
+            for (int i = 0; i < n; i++) { Vector2 a = _soloBody[i], b = _soloBody[(i + 1) % n]; if ((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x) < 0) return false; }
+            return true;
+        }
+        /// <summary>A label's box touches the airplane: any of its 9 sample points inside the outline, or an outline corner inside it.</summary>
+        private bool HitsBody(Rect r)
+        {
+            if (_soloBody.Count < 3) return false;
+            for (int i = 0; i <= 2; i++) for (int j = 0; j <= 2; j++) if (InHull(new Vector2(r.xMin + r.width * i * 0.5f, r.yMin + r.height * j * 0.5f))) return true;
+            foreach (var q in _soloBody) if (r.Contains(q)) return true;
+            return false;
+        }
+        /// <summary>The convex hull (Andrew's monotone chain), counter-clockwise.</summary>
+        private static void Hull(List<Vector2> pts)
+        {
+            if (pts.Count < 3) return;
+            pts.Sort((a, b) => a.x != b.x ? a.x.CompareTo(b.x) : a.y.CompareTo(b.y));
+            var h = new List<Vector2>();
+            static float Cr(Vector2 o, Vector2 a, Vector2 b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+            foreach (var p in pts) { while (h.Count >= 2 && Cr(h[h.Count - 2], h[h.Count - 1], p) <= 0) h.RemoveAt(h.Count - 1); h.Add(p); }
+            int lo = h.Count + 1;
+            for (int i = pts.Count - 2; i >= 0; i--) { var p = pts[i]; while (h.Count >= lo && Cr(h[h.Count - 2], h[h.Count - 1], p) <= 0) h.RemoveAt(h.Count - 1); h.Add(p); }
+            h.RemoveAt(h.Count - 1);
+            pts.Clear(); pts.AddRange(h);
         }
         private static bool SegHitsRect(Vector2 a, Vector2 b, Rect r)
         {
@@ -156,7 +181,7 @@ namespace FlyingGame.Bridge.Widget
             public readonly Dictionary<string, (Vec3 from, Vec3 vec)> V = new();   // body-frame origin (config coords) and vector
             public double LiftN, DragN, BallDeg;
             public double MomYaw, FinN, FinYaw; public bool HasFin;
-            public double AeroG, InertialG, TailN, MomAero, MomInertia, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
+            public double AeroG, InertialG, TailN, MomAero, MomInertia, MomGyro, WingAlphaL, WingAlphaR, TailAlphaL, TailAlphaR, Eps, EtaL, EtaR, TailSpdL, TailSpdR, VInf;
             public bool StallL, StallR, HasTail;
             /// <summary>FOUR FORCES (2026-10-11): the balance along and across the flight path, from the same forces. Along: thrust's
             /// part along the path, drag, and weight's part along it (W·sinγ: + = pulling back, a climb). Across: lift (+ thrust's
@@ -177,7 +202,7 @@ namespace FlyingGame.Bridge.Widget
 
             Vec3 finF = Vec3.Zero, finPos = Vec3.Zero; double finW = 0, nAero = 0, nFin = 0;
             Vec3 aero = Vec3.Zero, nonGrav = Vec3.Zero, thrust = Vec3.Zero, lift = Vec3.Zero, drag = Vec3.Zero, tailF = Vec3.Zero, tailPos = Vec3.Zero, thrustPos = Vec3.Zero;
-            double mAero = 0, tailW = 0;
+            double mAero = 0, tailW = 0, mGyro = 0;
             var tailL = new List<ForceSample>(); var tailR = new List<ForceSample>();
             if (forces != null)
                 foreach (var f in forces)
@@ -186,6 +211,7 @@ namespace FlyingGame.Bridge.Widget
                     {
                         case "tailflow": (f.PosBody.Y < 0 ? tailL : tailR).Add(f); continue;
                         case "weight": continue;
+                        case "gyro": mGyro += f.MomentBody.Y; continue;   // the prop's gyroscopic pitch (already inside the thrust sample: a breakdown)
                         case "lift": case "drag": case "fuselage": case "spoiler": case "moment":
                         {
                             aero += f.ForceBody;
@@ -248,7 +274,7 @@ namespace FlyingGame.Bridge.Widget
             double hx = mp.Ixx * om.X - mp.Ixz * om.Z, hz = mp.Izz * om.Z - mp.Ixz * om.X;
             pic.MomYaw = nAero; pic.FinYaw = nFin;
             if (finW > 0) { pic.HasFin = true; pic.FinN = finF.Y; pic.V["fin"] = (finPos * (1.0 / finW), new Vec3(0, finF.Y * 12.0 / W, 0)); }   // ×12: a fin force is small against the weight
-            pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz);
+            pic.MomAero = mAero; pic.MomInertia = -(om.Z * hx - om.X * hz); pic.MomGyro = mGyro;
             // Wing winds at mid-semispan (ω × r).
             foreach (int side in new[] { -1, 1 })
             {
@@ -566,16 +592,39 @@ namespace FlyingGame.Bridge.Widget
                 // the nose, INERTIA's behind the tail (owner 2026-10-09).
                 float R = ((float)w.LengthM * 0.62f + 1.5f) * MomentArcRadius;
                 Arc(ui, Dir, cgU, R, MomentArcsSwap ? Mathf.PI : 0f, P.MomAero, mRef, Total, "aeroM", AeroMomentLabel ?? "AERO", scene, lw);
-                Arc(ui, Dir, cgU, R, MomentArcsSwap ? 0f : Mathf.PI, P.MomInertia, mRef, Inertial, "inertiaM", InertiaMomentLabel ?? "INERTIA", scene, lw);
+                float ic = MomentArcsSwap ? 0f : Mathf.PI;
+                if (!InertiaSplit) { Arc(ui, Dir, cgU, R, ic, P.MomInertia, mRef, Inertial, "inertiaM", InertiaMomentLabel ?? "INERTIA", scene, lw); HideArc("structM"); HideArc("gyroM"); }
+                else
+                {
+                    // End to end along the nose-up sense, the two together as long as one whole arc (the stability arc balances
+                    // their sum): structure first, then the prop's gyroscopic part. A part that is nose-DOWN points back.
+                    HideArc("inertiaM");
+                    double ms = SmoothM("structSh", P.MomInertia), mg = SmoothM("gyroSh", P.MomGyro), sum = ms + mg, mag = System.Math.Abs(ms) + System.Math.Abs(mg);
+                    float fs = mag > 1e-6 ? (float)(System.Math.Abs(ms) / mag) : 0.5f, gap = 0.04f;
+                    string Pct(double m) => System.Math.Abs(sum) > 1e-6 ? $"{System.Math.Round(100 * m / sum):0}%" : "";
+                    string Sense(double m) => m >= 0 ? "nose up" : "nose down";
+                    Arc(ui, Dir, cgU, R, ic, P.MomInertia, mRef, Inertial, "structM", $"STRUCTURE INERTIA → {Sense(ms)}  {Pct(ms)}", scene, lw, sum, fs * (1 - gap), -0.5f + fs * (1 - gap) * 0.5f);
+                    Arc(ui, Dir, cgU, R, ic, P.MomGyro, mRef, Thrust, "gyroM", $"GYROSCOPIC (prop) → {Sense(mg)}  {Pct(mg)}", scene, lw, sum, (1 - fs) * (1 - gap), 0.5f - (1 - fs) * (1 - gap) * 0.5f);
+                }
             }
             else foreach (var a in _solidArcs.Values) a.Hide();
             if (!Solid3D) { foreach (var a in _solidArcs.Values) a.Hide(); foreach (var a in _solidArrows.Values) a.Hide(); }
             if (Solid3D)
             {
                 _soloBody.Clear();
-                float L = (float)w.LengthM, S = w.SpanM;
-                foreach (var bp in new[] { new Vec3(0.45 * L, 0, 0), new Vec3(0, 0.5 * S, 0), new Vec3(-0.55 * L, 0, 0), new Vec3(0, -0.5 * S, 0) })
-                    if (Scr(World(cg + bp), out var q)) _soloBody.Add(q);
+                // The airplane's real outline (2026-10-13: a label sat on the fin outside the old nose–tips–tail quad): every
+                // surface strip's leading and trailing edge, the spinner, and the canopy and gear above and below the wing root.
+                float L = (float)w.LengthM;
+                double noseX = w is AeroWidget nw && !double.IsNaN(nw.ModelNoseFromCg) ? nw.ModelNoseFromCg : 0.4 * L;
+                void Add(Vec3 bp) { if (Scr(World(cg + bp), out var q)) _soloBody.Add(q); }
+                foreach (var sf in w.Config.Surfaces) foreach (var st in sf.Strips)
+                {
+                    Vec3 p = st.PosVec() - cg;
+                    Add(new Vec3(p.X + 0.25 * st.Chord, p.Y, p.Z)); Add(new Vec3(p.X - 0.75 * st.Chord, p.Y, p.Z));
+                }
+                Add(new Vec3(noseX, 0, 0)); Add(new Vec3(0.1 * noseX, 0, -0.75)); Add(new Vec3(0.3 * noseX, 0, 0.9));
+                Hull(_soloBody);
+                if (SmokeDebug) for (int i = 0; i < _soloBody.Count; i++) ui.PxLine(_soloBody[i], _soloBody[(i + 1) % _soloBody.Count], 3f, Color.red);   // (the labels' no-go outline)
                 SoloLabels(ui, scene);
             }
             _soloSegs.Clear(); _soloLabels.Clear();
@@ -598,12 +647,14 @@ namespace FlyingGame.Bridge.Widget
         /// <paramref name="centreAngle"/> (0 = ahead along the body x axis, π = behind), radius <paramref name="R"/> (m). Sweep
         /// and thickness ∝ |M| on one shared scale; the arrowhead shows the sense — nose-up turns body x toward body "up".</summary>
         private void Arc(WidgetControlsDisplay ui, System.Func<Vec3, Vector3> dir, Vector3 cgU, float R, float centreAngle, double m, double mRef,
-                         Color c, string id, string name, Rect scene, float lw)
+                         Color c, string id, string name, Rect scene, float lw, double? sweepM = null, float sweepFrac = 1f, float offsetFrac = 0f)
         {
             double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-Mathf.Min(Time.unscaledDeltaTime, 0.1f) * 1000.0 / SmoothingMs);
             if (!_mFilt.TryGetValue(id, out double mf) || Widget.Shown != null) mf = m;
             mf += (m - mf) * k; _mFilt[id] = mf;
-            float sweep = (MomentArcsEqual ? MomentArcSweepDeg : Mathf.Clamp((float)(System.Math.Abs(mf) / mRef) * 70f, 25f, 160f)) * Mathf.Deg2Rad;
+            // (a part of a split arc: sized as its whole, sweepM, then the fraction sweepFrac of it, offsetFrac of the whole along it)
+            double ms = sweepM.HasValue ? SmoothM(id + "Whole", sweepM.Value) : mf;
+            float sweep = (MomentArcsEqual ? MomentArcSweepDeg : Mathf.Clamp((float)(System.Math.Abs(ms) / mRef) * 70f, 25f, 160f)) * Mathf.Deg2Rad;
             float sgn = mf >= 0 ? 1f : -1f;   // + = nose-up
             if (MomentArcNoseSense && Mathf.Abs(centreAngle - Mathf.PI) < 0.1f) sgn = -sgn;   // at the tail: the head shows where the NOSE goes
             Vector3 X = dir(new Vec3(1, 0, 0)), Up = -dir(new Vec3(0, 0, 1));   // body x and body "up" (−z)
@@ -617,7 +668,9 @@ namespace FlyingGame.Bridge.Widget
                 float dc = Vector3.Distance(cam.transform.position, cgU), da = Vector3.Distance(cam.transform.position, cen);
                 if (dc > 0.1f) persp = Mathf.Clamp(da / dc, 0.6f, 1.6f);
                 sweep *= persp;
-            } var pts = new List<Vector2>(); var wpts = new List<Vector3>();
+            }
+            centreAngle += offsetFrac * sweep; sweep *= sweepFrac;
+            var pts = new List<Vector2>(); var wpts = new List<Vector3>();
             float th0 = centreAngle - sgn * sweep * 0.5f;
             for (int i = 0; i <= 28; i++)
             {
@@ -651,6 +704,14 @@ namespace FlyingGame.Bridge.Widget
             _labels.Request(id, mid, Vector2.down, new[] { ftlb, m }, v => !MomentArcValues ? name : name.Contains("→") ? $"{name}  {v[0]:#,0} ft·lb" : $"{name} {(v[1] >= 0 ? "nose-up" : "nose-down")} {v[0]:#,0} ft·lb", c, 2, 10);   // (a named direction says it in words)
         }
         private readonly Dictionary<string, double> _mFilt = new();
+        /// <summary>The arcs' smoothing (SmoothingMs) for a value that isn't itself an arc (a split's whole, its shares).</summary>
+        private double SmoothM(string id, double m)
+        {
+            double k = SmoothingMs <= 1 ? 1 : 1 - System.Math.Exp(-Mathf.Min(Time.unscaledDeltaTime, 0.1f) * 1000.0 / SmoothingMs);
+            if (!_mFilt.TryGetValue(id, out double mf) || Widget.Shown != null) mf = m;
+            mf += (m - mf) * k; _mFilt[id] = mf; return mf;
+        }
+        private void HideArc(string id) { if (_solidArcs.TryGetValue(id, out var a)) a.Hide(); }
 
         private float PixelM(Vector3 at)
         {

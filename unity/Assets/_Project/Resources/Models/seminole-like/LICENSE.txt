@@ -1,0 +1,8 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Piper Pa 23 Apache/Aztec
+Author: helijah
+URL: https://sketchfab.com/3d-models/piper-pa-23-apacheaztec-0645db1d6e404cbca2800b5c82ad83e0
+License: Free Standard https://sketchfab.com/licenses
+Commercial use: allowed
+CREDIT LINE: "Piper Pa 23 Apache/Aztec" by helijah, https://sketchfab.com/3d-models/piper-pa-23-apacheaztec-0645db1d6e404cbca2800b5c82ad83e0, licensed under Free Standard
+Note: the model is a Piper Apache/Aztec (used for the Seminole type).

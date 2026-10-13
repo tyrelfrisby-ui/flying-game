@@ -504,6 +504,7 @@ namespace FlyingGame.Bridge.Widget
                     if (j["wingWindScale"] != null) WidgetVectors.WingWindScale = Mathf.Clamp((float)j["wingWindScale"].Value<double>(), 0.5f, 3f);
                     if (j["momentArcNoseSense"] != null) WidgetVectors.MomentArcNoseSense = j["momentArcNoseSense"].Value<bool>();
                     if (j["momentArcValues"] != null) WidgetVectors.MomentArcValues = j["momentArcValues"].Value<bool>();
+                    if (j["inertiaSplit"] != null) WidgetVectors.InertiaSplit = j["inertiaSplit"].Value<bool>();
                     if (j["momentArcsEqual"] != null) WidgetVectors.MomentArcsEqual = j["momentArcsEqual"].Value<bool>();
                     if (j["momentArcsSwap"] != null) WidgetVectors.MomentArcsSwap = j["momentArcsSwap"].Value<bool>();
                     if (j["momentArcHead"] != null) WidgetVectors.MomentArcHead = Mathf.Clamp((float)j["momentArcHead"].Value<double>(), 1f, 4f);
@@ -572,7 +573,7 @@ namespace FlyingGame.Bridge.Widget
                 case "resume":
                     w.Review.Resume(((string)j["from"])?.ToLowerInvariant() == "live");
                     ok["offsetMs"] = 0; ok["frame"] = w.Review.FrameJson(); break;
-                case "recordRate": w.Review.RecordRate = Mathf.Clamp(j["rate"]?.Value<int>() ?? 1, 1, 8); ok["rate"] = w.Review.RecordRate; break;
+                case "recordRate": w.SetRecordRate(Mathf.Clamp(j["rate"]?.Value<int>() ?? 1, 1, 20)); ok["rate"] = w.Review.RecordRate; break;
                 case "step": w.Review.Step(j["frames"]?.Value<int>() ?? -1); return Reviewed(ok);
                 case "rewind": w.Review.Rewind(j["seconds"]?.Value<double>() ?? 1); return Reviewed(ok);
                 case "seek": w.Review.Seek(j["offsetMs"]?.Value<double>() ?? 0); return Reviewed(ok);
@@ -606,9 +607,12 @@ namespace FlyingGame.Bridge.Widget
                     }
                     // Orbit bearing (2026-10-12): {"cmd":"view","orbitDeg":270,"orbitElev":12} — alone it just turns the orbit camera.
                     if (j["orbitWorld"] != null) w.OrbitWorld = j["orbitWorld"].Value<bool>();
+                    if (j["orbitSpinAxis"] != null) w.OrbitSpinAxis = j["orbitSpinAxis"].Value<bool>();
+                    // A spectator fixed at a world point (north, east, down, m — the TRUE path's frame): the fly-by.
+                    if (j["crowdNed"] is JArray cn && cn.Count == 3) w.SetCrowd(new FlyingGame.Core.MathTypes.Vec3(cn[0].Value<double>(), cn[1].Value<double>(), cn[2].Value<double>()));
                     if (j["orbitDeg"] != null) w.OrbitAzDeg = (float)j["orbitDeg"].Value<double>();
                     if (j["orbitElev"] != null) w.OrbitElevDeg = Mathf.Clamp((float)j["orbitElev"].Value<double>(), -60f, 80f);
-                    if ((j["orbitDeg"] != null || j["orbitElev"] != null || j["orbitWorld"] != null) && j["name"] == null && j["zoom"] == null) { ok["orbitDeg"] = w.OrbitAzDeg; ok["orbitElev"] = w.OrbitElevDeg; break; }
+                    if ((j["orbitDeg"] != null || j["orbitElev"] != null || j["orbitWorld"] != null || j["orbitSpinAxis"] != null || j["crowdNed"] != null) && j["name"] == null && j["zoom"] == null) { ok["orbitDeg"] = w.OrbitAzDeg; ok["orbitElev"] = w.OrbitElevDeg; break; }
                     // Zoom alone (2026-10-11): {"cmd":"view","zoom":1.6} (0.6…3; 1 = the old framing) or "zoomBy": 1.2.
                     if (j["zoom"] != null || j["zoomBy"] != null)
                     {
@@ -780,6 +784,8 @@ namespace FlyingGame.Bridge.Widget
                 ["inertialG"] = System.Math.Round(p.InertialG, 3), ["aeroG"] = System.Math.Round(p.AeroG, 3), ["tailLb"] = System.Math.Round(-p.TailN * 0.2248, 1),
                 ["liftLb"] = System.Math.Round(p.LiftN * 0.224809, 1), ["dragLb"] = System.Math.Round(p.DragN * 0.224809, 1), ["thrustLb"] = System.Math.Round(p.ThrustAlongN * 0.224809, 1), ["weightLb"] = System.Math.Round(p.WeightN * 0.224809, 1),
                 ["momentAero"] = System.Math.Round(p.MomAero * 0.7376), ["momentInertia"] = System.Math.Round(p.MomInertia * 0.7376),
+                // (momentInertia is the airframe's own coupling = momentStructure; the prop's gyroscopic part is separate)
+                ["momentStructure"] = System.Math.Round(p.MomInertia * 0.7376), ["momentGyro"] = System.Math.Round(p.MomGyro * 0.7376), ["momentInertiaTotal"] = System.Math.Round((p.MomInertia + p.MomGyro) * 0.7376),
                 ["tailAlphaL"] = System.Math.Round(p.TailAlphaL, 2), ["tailAlphaR"] = System.Math.Round(p.TailAlphaR, 2), ["downwashDeg"] = System.Math.Round(p.Eps, 2),
                 ["tailEta"] = System.Math.Round((p.EtaL + p.EtaR) * 0.5, 3), ["tailEtaL"] = System.Math.Round(p.EtaL, 3), ["tailEtaR"] = System.Math.Round(p.EtaR, 3),
                 ["tailSpeedL"] = System.Math.Round(p.TailSpdL * 1.943844, 1), ["tailSpeedR"] = System.Math.Round(p.TailSpdR * 1.943844, 1), ["freestreamKt"] = System.Math.Round(p.VInf * 1.943844, 1),
@@ -879,6 +885,8 @@ namespace FlyingGame.Bridge.Widget
                 ["paused"] = w.Paused, ["timescale"] = w.TimeScale, ["view"] = w.View, ["viewFrom"] = w.ViewFrom, ["preset"] = w.Presets.Running, ["source"] = c.SourceLabel,
                 ["tow"] = w.Tow.Active ? new JObject { ["rope"] = w.Tow.Connected, ["tensionN"] = w.Tow.Rope.Tension, ["sever"] = w.Tow.Rope.SeverReason, ["tugPhase"] = w.Tow.Pilot.Status,
                     ["tugKts"] = w.Tow.Tug.State.Velocity.Length * 1.94384, ["ropeM"] = (w.Tow.Rope.TugHookWorld - w.Tow.Rope.GliderHookWorld).Length, ["tugAboveM"] = -w.Tow.Tug.State.Position.Z + w.Ac.State.Position.Z } : null,
+                // The shown frame's position on the TRUE path (north, east, down, m — the altitude lock's shift removed): fly-by placement.
+                ["posNed"] = new JArray(System.Math.Round(w.ShownState.Position.X, 2), System.Math.Round(w.ShownState.Position.Y, 2), System.Math.Round(w.ShownState.Position.Z - (w.Shown?.AltShift ?? w.AltShiftM), 2)),
                 ["kias"] = r.Kias, ["ktas"] = r.Ktas, ["alpha"] = r.AlphaDeg, ["beta"] = r.BetaDeg, ["q"] = r.Q,
                 ["pitch"] = r.PitchDeg, ["roll"] = r.RollDeg, ["heading"] = r.HeadingDeg, ["sinkFpm"] = r.SinkFpm, ["heightFt"] = r.HeightFt,
                 ["rollRate"] = r.RollRateDps, ["pitchRate"] = r.PitchRateDps, ["yawRate"] = r.YawRateDps, ["nz"] = r.LoadFactor,

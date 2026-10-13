@@ -73,6 +73,13 @@ namespace FlyingGame.Bridge.Widget
         public string ViewFrom = "";
         private Vector3 _lockDir = new(1f, 0.18f, -0.25f);
         private Vector3 _crowd;   // the crowd view's spectator (Unity world)
+        private Vec3? _crowdNed;   // a spectator placed at a world point (true path frame), zoom = lens: the FLY-BY (Ty 2026-10-13)
+        /// <summary>FLY-BY (Ty 2026-10-13: "the camera is fixed in space below and slightly off to the side of the airplane's
+        /// trajectory in the spin … looking up at the aircraft then … horizontally … then pans down"): the crowd view's spectator
+        /// at a given world point (north, east, down; the true path, the altitude lock's shift added when drawn), turning to
+        /// follow the airplane; the zoom narrows the lens. view {"name":"crowd","crowdNed":[n,e,d]}.</summary>
+        private double _propT = double.NaN;
+        public void SetCrowd(Vec3 ned) { _crowdNed = ned; View = "crowd"; }
         public static readonly string[] Views = { "side", "behind", "front", "top", "chase", "locked", "body", "crowd", "orbit" };
         /// <summary>The start condition (protocol 5): "cruise" | "final" | "spin", or null for an old-style scenario start.</summary>
         public string Condition { get; private set; }
@@ -108,6 +115,7 @@ namespace FlyingGame.Bridge.Widget
             else if (name == "body") ViewFrom = "left";   // the camera rigidly on the airframe, looking at its left side
             else if (name == "crowd" && Ac != null)
             {
+                _crowdNed = null;
                 // CROWD (owner 2026-10-11, the outro's smoke shots): a spectator on the ground's side of the box — fixed in the
                 // world, abeam the airplane where it is now (the frame shown, in review), 450 m to its left and 250 m below,
                 // turning to follow it. The whole smoke figure fits.
@@ -262,7 +270,7 @@ namespace FlyingGame.Bridge.Widget
             Ac.SetGear(!gearUp, immediate: true); Controls.GearDown = !gearUp;
             _snapCam = true;
             if (newConfig || Loading.MacM <= 0) Loading.Configure(Config, false, 0, 0);   // a new type: its own default loading (the same type keeps the current one)
-            _sim = new SimLoop(Ac);
+            _sim = NewSim();
             Review?.Clear(); _shown = null;
             if (_surface != null) _surface.SetActive(sc == Scenario.Flare);
             else if (sc == Scenario.Flare) BuildSurface();
@@ -364,7 +372,7 @@ namespace FlyingGame.Bridge.Widget
             { var rr = Res(X); Debug.Log($"[Widget] final jet trim {AircraftId}: α {X[0] * 57.3:F2}° elev {X[1] * 57.3:F2}° stick {Aircraft.StickForDeflection(X[1], Config.Controls.Elevator):F3} thr {X[2]:F3} res {rr[0]:F4} {rr[1]:F5} {rr[2]:F5}"); }
             Ac = new Aircraft(Config, Make(X[0]), new FlyingGame.Core.Aero.ControlDeflections(0, X[1], 0, 0, flaps)) { FlapFraction = flaps, CaptureForces = true };
             Ac.SetGear(true, immediate: true);
-            _sim = new SimLoop(Ac);
+            _sim = NewSim();
             Controls.SetTrimStick(Aircraft.StickForDeflection(X[1], Config.Controls.Elevator));
             _jetFinalThr = X[2];
         }
@@ -507,8 +515,50 @@ namespace FlyingGame.Bridge.Widget
             if (Config.Smoke != null && Config.Smoke.AftOfNoseM > 0 && ex.Length == 1 && ModelNoseAndBelly(Config.Smoke.AftOfNoseM, out var exM)) ex[0] = exM;
             else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
             _smoke.SetExhausts(ex, jet);
+            _smoke.Flow = BuildAirframeFlow();
             SmokeExhausts = ex;
             _smoke.Stream = Config.Propulsion == null;   // a glider's wingtip canisters
+        }
+
+        /// <summary>The air round this airframe for the smoke: the surfaces from the config, the fuselage measured on the model
+        /// (its depth on the centreline, station by station; the fin's root caps it aft), else a rounded analytic body.</summary>
+        private FlyingGame.Core.Aero.AirframeFlow BuildAirframeFlow()
+        {
+            double nose = double.IsNaN(ModelNoseFromCg) ? 0.4 * LengthM : ModelNoseFromCg;
+            var flow = new FlyingGame.Core.Aero.AirframeFlow(Config, nose, Config.Fuselage?.Crossflow?.BodyRadiusM is double br && br > 0 ? br : 0.5);
+            var pts = new List<Vector3>();
+            foreach (var mf in _visualRoot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var m = mf.sharedMesh; if (m == null || !m.isReadable || mf.GetComponent<MeshRenderer>() == null || !mf.GetComponent<MeshRenderer>().enabled) continue;
+                var vs = m.vertices; var tf = mf.transform;
+                for (int i = 0; i < vs.Length; i += System.Math.Max(1, vs.Length / 40000))
+                {
+                    Vector3 u = _visualRoot.InverseTransformPoint(tf.TransformPoint(vs[i]));
+                    pts.Add(new Vector3(u.z + (float)VisualOffset.X, u.x + (float)VisualOffset.Y, -u.y + (float)VisualOffset.Z));
+                }
+            }
+            if (pts.Count < 100) return flow;
+            // The fin's root (body z), and its chord range, so the fin isn't taken for fuselage.
+            double finRoot = double.NaN, finLe = double.MinValue, finTe = double.MaxValue; var cg = Config.Mass.CgVec();
+            foreach (var sf in Config.Surfaces)
+            {
+                bool vert = false; foreach (var st in sf.Strips) if (System.Math.Abs(st.Pos[2] - sf.Strips[0].Pos[2]) > 0.2) vert = true;
+                if (!vert) continue;
+                foreach (var st in sf.Strips) { double z = st.Pos[2] - cg.Z; if (double.IsNaN(finRoot) || z > finRoot) finRoot = z; finLe = System.Math.Max(finLe, st.Pos[0] - cg.X + 0.25 * st.Chord); finTe = System.Math.Min(finTe, st.Pos[0] - cg.X - 0.75 * st.Chord); }
+            }
+            var xs = new List<double>(); var rs = new List<double>(); var zs = new List<double>();
+            float noseM = float.MinValue, tailM = float.MaxValue; foreach (var p in pts) { noseM = Mathf.Max(noseM, p.x); tailM = Mathf.Min(tailM, p.x); }
+            for (float x = noseM - 0.05f; x > tailM; x -= 0.1f)
+            {
+                float lo = float.MaxValue, hi = float.MinValue;
+                foreach (var p in pts) if (Mathf.Abs(p.x - x) < 0.05f && Mathf.Abs(p.y) < 0.1f) { lo = Mathf.Min(lo, p.z); hi = Mathf.Max(hi, p.z); }
+                if (hi < lo) continue;
+                if (!double.IsNaN(finRoot) && x <= finLe + 0.1 && x >= finTe - 0.1) lo = Mathf.Max(lo, (float)finRoot - 0.05f);
+                if (hi - lo < 0.02f) continue;
+                xs.Add(x); rs.Add(0.5 * (hi - lo)); zs.Add(0.5 * (hi + lo));
+            }
+            if (xs.Count >= 4) { flow.SetFuselage(xs.ToArray(), rs.ToArray(), zs.ToArray()); Debug.Log($"[Smoke] airframe flow: fuselage measured, {xs.Count} stations, max radius {System.Linq.Enumerable.Max(rs):0.00} m"); }
+            return flow;
         }
 
         /// <summary>The smoke exhausts as placed (body axes from the CG, m) — for the debug dot and /state.</summary>
@@ -565,7 +615,7 @@ namespace FlyingGame.Bridge.Widget
         public float SmokeFlow => Ac == null ? 0f : Config.Propulsion == null ? 1f   // a glider's wingtip canisters: always full
             : Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
         private static SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
-            { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Flow = f.SmokeFlow };
+            { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Rates = f.State.Rates, Flow = f.SmokeFlow };
         /// <summary>The smoke as it was at the frame shown (index frames back; -1 = live, the aircraft as it is now).</summary>
         private void ShowSmoke(int index)
         {
@@ -575,7 +625,7 @@ namespace FlyingGame.Bridge.Widget
             WidgetHistory.Snap at = index < 0 ? null : H.Get(index);
             int flight = at?.Flight ?? Flight;
             double shift = at?.AltShift ?? AltShiftM, now = at?.SimTime ?? Review.SimTimeNow;
-            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Flow = SmokeFlow } : (SmokeTrail.Sample?)null;
+            var live = index < 0 ? new SmokeTrail.Sample { T = now, Pos = Ac.State.Position - new Vec3(0, 0, AltShiftM), Att = Ac.State.Attitude, VelBody = Ac.State.Velocity, Rates = Ac.State.Rates, Flow = SmokeFlow } : (SmokeTrail.Sample?)null;
             int first = index < 0 ? 0 : index;
             _smoke.Build(k =>
             {
@@ -635,14 +685,30 @@ namespace FlyingGame.Bridge.Widget
             Loading.Tick(dt);
             Lessons.Tick(dt);
             Autopilot.Tick(dt);
-            if (dt > 0f) StepSim(dt);
+            float stepped = dt > 0f ? StepSim(dt) : 0f;
             ForceTrend.Tick(this, dt);
             ShowLive(dt);
-            Review.Record(dt);
+            Review.Record(stepped);   // (the time actually simulated, so the history's clock is the airplane's)
         }
 
         /// <summary>One step of the physics with the current controls (the flare merges in the lesson's lateral law).</summary>
-        public void StepSim(float dt)
+        /// <summary>The physics clock (2026-10-13). The widget used to ask for `RunFor(dt)`, which ROUNDS each frame's time to
+        /// whole fixed steps: at 60 fps 16.7 ms → 3 × 5 ms, so the airplane ran ~10 % slow against the history's clock (every
+        /// render's motion, a spin's rotation too); at a 0.1 timescale nearly every frame rounded to none. Now the remainder
+        /// carries over (the game's accumulator) and the step divides the history's frame exactly — 1/210 s at 30 snapshots a
+        /// second, 1/240 at 120, 1/600 at 600 — so every snapshot is a real physics state, evenly spaced.</summary>
+        private double _simAcc;
+        private SimLoop NewSim()
+        {
+            int perFrame = Mathf.Max(1, Mathf.CeilToInt((float)(1.0 / SimLoop.DefaultFixedDtSec / (WidgetHistory.Hz * Review.RecordRate))));
+            _simAcc = 0;
+            return new SimLoop(Ac, 1.0 / (WidgetHistory.Hz * Review.RecordRate * perFrame));
+        }
+        /// <summary>The capture's snapshots per 1/30 s (WidgetReview.RecordRate), with the physics step to match.</summary>
+        public void SetRecordRate(int rate) { Review.RecordRate = rate; if (Ac != null) _sim = NewSim(); }
+
+        /// <summary>Step the physics by <paramref name="dt"/> (carrying the remainder); returns the time actually simulated.</summary>
+        public float StepSim(float dt)
         {
             ControlInputs inputs = Controls.Inputs;
             if (_flare != null)
@@ -674,10 +740,13 @@ namespace FlyingGame.Bridge.Widget
             }
             Controls.ApplyLevers(Ac, dt);
             Tow.Step(dt);   // the rope's pull and the tug, before the glider's step
-            _sim.RunFor(dt, inputs);
+            double before = System.Math.Min(_simAcc + dt, SimLoop.MaxCatchUpSec);
+            _sim.Advance(dt, inputs, ref _simAcc);
+            float stepped = (float)(before - _simAcc);
             if (_flare != null) _flare.ConstrainLongitudinal(Ac);
             else if (AltLock) ApplyAltitudeLock();
             else if (Current == Scenario.Spin) WrapAltitude();
+            return stepped;
         }
         public override bool AltLockApplies => _flare == null;
 
@@ -733,7 +802,11 @@ namespace FlyingGame.Bridge.Widget
             _builder.SetDeflections((float)f.Defl.AileronRad, (float)f.Defl.ElevatorRad, (float)f.Defl.RudderRad, (float)f.Defl.SpoilerFraction);
             // The recorded flight drawn with the CURRENT display (owner 2026-10-11: fly it clean, then play it back with other
             // views, forces and graphs): the camera follows the current view and zoom, not the one recorded.
-            PlaceCamera(f.State);
+            // The prop turns in review too (Ty 2026-10-13: "make sure the prop is spinning not fixed"), by the SIM time between
+            // the frames shown — a slow-motion render turns it in proportion; a jump (seek) doesn't spin it on.
+            double pdt = double.IsNaN(_propT) ? 0 : f.SimTime - _propT; _propT = f.SimTime;
+            _builder.SpinProps(_ => f.Rpm, (float)System.Math.Clamp(System.Math.Abs(pdt), 0, 0.1));
+            PlaceCamera(f.State, Review.Index);
             ApplyVisualScale();
             ShowSmoke(Review.Index);
             Tow.Show(f.TugState, f.RopeOn, f.State, Vec3.Zero);
@@ -803,7 +876,32 @@ namespace FlyingGame.Bridge.Widget
         /// spinning"): OrbitAzDeg from north instead of from the nose, aimed at the CG — the camera follows the airplane's
         /// position but not its rotation. view {"orbitWorld": true}.</summary>
         public bool OrbitWorld;
-        private void PlaceCamera(RigidBodyState s)
+        /// <summary>SPIN-AXIS orbit (Ty 2026-10-13: "centering the camera on the axis at the center of the corkscrew rather than
+        /// the center of gravity … then the corkscrew nature of the smoke would also be revealed"): with OrbitWorld, the camera
+        /// aims at the spin's axis instead of the airframe — the airplane circles the middle of the picture. The axis is the
+        /// motion's own screw axis, p = CG + (Ω × v) / |Ω|² (world Ω and v: the points whose velocity lies along Ω),
+        /// averaged over the last turn so it holds still; at the airplane's height. view {"orbitSpinAxis": true}.</summary>
+        public bool OrbitSpinAxis;
+        private bool SpinAxisAt(int index, RigidBodyState s, out Vec3 axis)
+        {
+            axis = s.Position;
+            double sx = 0, sy = 0, wsum = 0, t0 = double.NaN, turn = 3.0;
+            for (int k = System.Math.Max(0, index); k < Review.History.Count; k++)
+            {
+                var f = Review.History.Get(k); if (f == null) break;
+                if (double.IsNaN(t0)) t0 = f.SimTime;
+                if (t0 - f.SimTime > turn) break;
+                Vec3 om = f.State.Attitude.Rotate(f.State.Rates), v = f.State.Attitude.Rotate(f.State.Velocity);
+                double o2 = om.LengthSquared; if (o2 < 0.25) return false;   // (no spin: < ≈ 30°/s)
+                turn = System.Math.Min(3.0, 2 * System.Math.PI / System.Math.Sqrt(o2));
+                Vec3 p = f.State.Position + Vec3.Cross(om, v) * (1.0 / o2);
+                sx += p.X; sy += p.Y; wsum++;
+            }
+            if (wsum < 3) return false;
+            axis = new Vec3(sx / wsum, sy / wsum, s.Position.Z);
+            return true;
+        }
+        private void PlaceCamera(RigidBodyState s, int histIndex = 0)
         {
             Vector3 ac = CoordinateMap.ToUnity(s.Position);
             if (_runway3D != null) _runway3D.SetActive(Current == Scenario.Flare && View != "side");
@@ -832,6 +930,7 @@ namespace FlyingGame.Bridge.Widget
                 if (View == "crowd")
                 {
                     Cam.fieldOfView = 50f;
+                    if (_crowdNed.HasValue) { Cam.fieldOfView = Mathf.Clamp(50f / Mathf.Max(0.2f, Zoom), 4f, 70f); _crowd = CoordinateMap.ToUnity(_crowdNed.Value + new Vec3(0, 0, Shown?.AltShift ?? AltShiftM)); }
                     Cam.transform.position = _crowd;
                     Cam.transform.LookAt(ac, Vector3.up);
                     return;
@@ -851,6 +950,7 @@ namespace FlyingGame.Bridge.Widget
                     Vector3 vel = CoordinateMap.ToUnity(s.Attitude.Rotate(s.Velocity));
                     // World-fixed: aimed at the middle of the airframe (spinner to tail), not the CG, so the airplane is centred.
                     Vector3 aim = OrbitWorld ? ac + CoordinateMap.ToUnity(s.Attitude.Rotate(new Vec3(AirframeMidFromCg, 0, 0))) : ac + (vel.sqrMagnitude > 1f ? vel.normalized : nose) * (0.4f * LengthM);
+                    if (OrbitWorld && OrbitSpinAxis && SpinAxisAt(histIndex, s, out var axis)) aim = CoordinateMap.ToUnity(axis);
                     Cam.transform.position = aim + od * dist;
                     Cam.transform.LookAt(aim, Vector3.up);
                     return;

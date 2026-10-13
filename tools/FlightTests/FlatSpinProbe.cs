@@ -41,7 +41,7 @@ public class FlatSpinProbe
                 sim.RunFor(0.1, ci); Wrap(ac);
             }
             int n = 0; double pitch = 0, a = 0, aL = 0, aR = 0, w = 0, kt = 0, bet = 0;
-            double mWing = 0, mTail = 0, mFus = 0, mPure = 0, mThr = 0, mIn = 0, mOther = 0;
+            double mWing = 0, mTail = 0, mFus = 0, mPure = 0, mThr = 0, mGyro = 0, mIn = 0, mOther = 0;
             ac.CaptureForces = true;
             var I = ac.MassProperties; var cg = cfg.Mass.CgVec();
             for (int i = 0; i < 100; i++)
@@ -67,6 +67,7 @@ public class FlatSpinProbe
                         case "fuselage": mFus += my; break;
                         case "moment": mPure += my; break;
                         case "thrust": mThr += my; break;
+                        case "gyro": mGyro += f.MomentBody.Y; break;
                         case "weight": break;
                         default: mOther += my; break;
                     }
@@ -77,7 +78,7 @@ public class FlatSpinProbe
             ac.CaptureForces = false;
             double k = 0.7376 / n;   // N·m → ft·lb, mean
             _out.WriteLine($"{cfg.Id} UPRIGHT flat, left rudder, full power, aileron {ci.Aileron:0.0}, {name}: pitch {pitch / n:0.0}  α {a / n:0.0}  α85 L {aL / n:0} R {aR / n:0}  {360 / (w / n):0.00} s/turn  {kt / n:0} kt TAS  β {bet / n:0}"
-                + $"\n   pitch moments (ft·lb, + nose-up): wing {mWing * k:+0;-0}  tail {mTail * k:+0;-0}  fuselage {mFus * k:+0;-0}  pure(Cm/damping) {mPure * k:+0;-0}  thrust {mThr * k:+0;-0}  other {mOther * k:+0;-0}  | inertial {mIn * k:+0;-0}");
+                + $"\n   pitch moments (ft·lb, + nose-up): wing {mWing * k:+0;-0}  tail {mTail * k:+0;-0}  fuselage {mFus * k:+0;-0}  pure(Cm/damping) {mPure * k:+0;-0}  thrust {mThr * k:+0;-0} (of it gyro {mGyro * k:+0;-0})  other {mOther * k:+0;-0}  | inertial {mIn * k:+0;-0}");
         }
     }
 

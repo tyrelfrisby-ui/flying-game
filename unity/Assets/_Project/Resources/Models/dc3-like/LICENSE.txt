@@ -1,0 +1,7 @@
+Source: Sketchfab (USDZ downloaded by the owner, April 2026; converted to OBJ in commit fdbbee3/c0f2ad5/95d21e8)
+Model: Douglas C-47 Skytrain
+Author: Spark_Customs
+URL: https://sketchfab.com/3d-models/douglas-c-47-skytrain-bd01ee417416492f919a4b988f03bc8b
+License: CC Attribution http://creativecommons.org/licenses/by/4.0/
+Commercial use: allowed
+CREDIT LINE: "Douglas C-47 Skytrain" by Spark_Customs, https://sketchfab.com/3d-models/douglas-c-47-skytrain-bd01ee417416492f919a4b988f03bc8b, licensed under CC Attribution

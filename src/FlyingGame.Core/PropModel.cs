@@ -97,10 +97,18 @@ public static class PropModel
         double vSlip = Math.Sqrt(v * v + 2.0 * thrust / Math.Max(airDensity * discArea, 1e-3));
         moment += new Vec3(0, 0, -prop.RotationSign * prop.SlipstreamK * powerW / Math.Max(vSlip, 8.0));
 
-        // Gyroscopic: M = -omega x h, h = Ip*OmegaProp along +x*sign.
-        double h = prop.RotationSign * prop.PropInertia * omegaProp;
-        moment += new Vec3(0, -bodyRates.Z * h, bodyRates.Y * h);
+        moment += GyroMoment(prop, thr, bodyRates);
 
         return (force, moment);
+    }
+
+    /// <summary>Gyroscopic: M = -omega x h, h = Ip*OmegaProp along +x*sign (part of Compute's moment; on its own for the
+    /// widget, which shows the prop's share of a spin's nose-up moment — Ty 2026-10-13).</summary>
+    public static Vec3 GyroMoment(PropulsionConfig prop, double throttle01, Vec3 bodyRates)
+    {
+        if (prop.PropDiameterM <= 0.0) return Vec3.Zero;
+        double rpm = prop.IdleRpm + (prop.MaxRpm - prop.IdleRpm) * Math.Clamp(throttle01, 0.0, 1.0);
+        double h = prop.RotationSign * prop.PropInertia * rpm * 2.0 * Math.PI / 60.0;
+        return new Vec3(0, -bodyRates.Z * h, bodyRates.Y * h);
     }
 }

@@ -15,7 +15,9 @@ namespace FlyingGame.Bridge.Widget
     /// </summary>
     public sealed class WidgetHistory
     {
-        public const int Hz = 30, Seconds = 180, Capacity = Hz * Seconds;   // 3 minutes (owner 2026-10-11 via Glass)
+        // 3 minutes at 30 Hz (owner 2026-10-11 via Glass) — and room for the slow-motion captures (2026-10-13: 25 s at 600 Hz, so a
+        // fly-by keeps its whole smoke column).
+        public const int Hz = 30, Seconds = 180, Capacity = 15000;
         public const double FrameMs = 1000.0 / Hz;
 
         public sealed class Snap
@@ -25,7 +27,7 @@ namespace FlyingGame.Bridge.Widget
             public double Ail, Ele, Rud, Thr, Brake; public bool HandsOff;
             public Vector3 CamPos; public Quaternion CamRot; public bool Ortho; public float OrthoSize, Fov;
             public double SimTime;
-            public double AltShift; public float SmokeFlow; public int Flight;   // (the smoke: the lock's shift, the oil flow, which start)
+            public double AltShift; public float SmokeFlow, Rpm; public int Flight;   // (the smoke: the lock's shift, the oil flow, which start)
             public RigidBodyState? TugState; public bool RopeOn;                 // (the aerotow: the tug, and whether the rope is on)
             // Protocol 4 inputs (filled when present).
             public double FlapsCmd, FlapsActual, Spoilers, BrakeL, BrakeR; public bool SpoilersArmed; public string Gear = "fixed", GearLights = "down";
@@ -96,7 +98,7 @@ namespace FlyingGame.Bridge.Widget
             _simTime += simDt;
             _recAcc += simDt;
             float every = 1f / (WidgetHistory.Hz * RecordRate);
-            if (History.Count > 0 && _recAcc < every) return;
+            if (History.Count > 0 && _recAcc < every - 1e-5f) return;   // (n whole physics steps make a frame: allow their rounding)
             _recAcc = Mathf.Repeat(_recAcc, every);
             History.Add(Capture());
         }
@@ -111,7 +113,7 @@ namespace FlyingGame.Bridge.Widget
                 Ail = c.Aileron, Ele = c.Elevator, Rud = c.Rudder, Thr = c.Throttle01, Brake = c.Brake01, HandsOff = c.ElevatorFree,
                 CamPos = cam.transform.position, CamRot = cam.transform.rotation, Ortho = cam.orthographic, OrthoSize = cam.orthographicSize, Fov = cam.fieldOfView,
                 SimTime = _simTime,
-                AltShift = _w.AltShiftM, SmokeFlow = _w.SmokeFlow, Flight = _w.Flight,
+                AltShift = _w.AltShiftM, SmokeFlow = _w.SmokeFlow, Rpm = _w.Ac == null ? 0f : (float)_w.Ac.EngineRpm, Flight = _w.Flight,
                 TugState = _w.Tow.Active ? _w.Tow.Tug.State : (RigidBodyState?)null, RopeOn = _w.Tow.Connected,
             };
             c.FillSnap(s);
@@ -139,9 +141,9 @@ namespace FlyingGame.Bridge.Widget
             for (int i = 0; i < more; i++)
             {
                 _w.Presets.Tick(dt);
-                _w.StepSim(dt);
+                float stepped = _w.StepSim(dt);
                 _w.ShowLive(dt);
-                _simTime += dt;
+                _simTime += stepped;
                 History.Add(Capture());
             }
         }
