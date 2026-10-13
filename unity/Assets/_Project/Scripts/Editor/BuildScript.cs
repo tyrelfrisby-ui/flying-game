@@ -371,6 +371,9 @@ namespace FlyingGame.EditorTools
             // Quick clips save videos to the photo library (add-only access).
             plist.root.SetString("NSMicrophoneUsageDescription", "Aero Playground uses the microphone for the intercom and the radio, and to put your voice in your clips.");
             plist.root.SetString("NSPhotoLibraryAddUsageDescription", "Aero Playground saves the flight clips you capture to your photo library.");
+            // JOYSTICK LINK (owner 2026-10-12): the Mac's RC radio / joystick over the local network (Plugins/iOS/JoyLink.mm).
+            plist.root.SetString("NSLocalNetworkUsageDescription", "Aero Playground looks for your Mac on your local network so you can fly with the joystick or RC radio connected to it.");
+            var bonjour = plist.root.CreateArray("NSBonjourServices"); bonjour.AddString("_aerojoy._udp");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
             string projPath = PBXProject.GetPBXProjectPath(path);
@@ -378,7 +381,7 @@ namespace FlyingGame.EditorTools
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
             // AVFoundation/CoreMedia/CoreVideo + Photos for the quick clips encoder (Plugins/iOS/ClipEncoder.mm).
-            foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework" })
+            foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework" })
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.

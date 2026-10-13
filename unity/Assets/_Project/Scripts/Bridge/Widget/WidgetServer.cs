@@ -490,6 +490,8 @@ namespace FlyingGame.Bridge.Widget
                     if (j["smoothingMs"] != null) w.Vectors.SmoothingMs = Mathf.Clamp((float)j["smoothingMs"].Value<double>(), 0f, 400f);
                     // labelScale (2026-10-11, the Talk Flying renders): the vector labels' text size (×, 1…3) so they read keyed over a show.
                     if (j["labelScale"] != null && w.Display != null) w.Display.TextScale = Mathf.Clamp((float)j["labelScale"].Value<double>(), 1f, 3f);
+                    if (j["dragScale"] != null) WidgetVectors.DragScale = System.Math.Clamp(j["dragScale"].Value<double>(), 1.0, 3.0);
+                    ok["dragScale"] = WidgetVectors.DragScale;
                     ok["width"] = w.Vectors.WidthScale; ok["smoothingMs"] = w.Vectors.SmoothingMs; ok["labelScale"] = w.Display != null ? w.Display.TextScale : 1f; break;
                 case "display":
                 {
@@ -701,7 +703,7 @@ namespace FlyingGame.Bridge.Widget
             {
                 JObject A(FlyingGame.Bridge.JoyAxis a) => a.Set ? new JObject { ["axis"] = a.Index, ["center"] = System.Math.Round(a.Center, 3), ["pos"] = System.Math.Round(a.PosEnd, 3), ["neg"] = System.Math.Round(a.NegEnd, 3), ["dead"] = System.Math.Round(a.Dead, 3) } : null;
                 var r = prof.Read();
-                pj = new JObject { ["name"] = prof.Name, ["aileron"] = A(prof.Aileron), ["elevator"] = A(prof.Elevator), ["rudder"] = A(prof.Rudder), ["throttle"] = A(prof.Throttle), ["buttons"] = JObject.FromObject(prof.Buttons),
+                pj = new JObject { ["name"] = prof.Name, ["aileron"] = A(prof.Aileron), ["elevator"] = A(prof.Elevator), ["rudder"] = A(prof.Rudder), ["throttle"] = A(prof.Throttle), ["buttons"] = JObject.FromObject(prof.Buttons), ["axisButtons"] = JObject.FromObject(prof.AxisButtons), ["flapSwitch"] = A(prof.FlapSwitch), ["flapSwitchPos"] = prof.FlapSwitchPos(),
                                    ["now"] = new JObject { ["aileron"] = System.Math.Round(r.ail, 3), ["elevator"] = System.Math.Round(r.ele, 3), ["rudder"] = System.Math.Round(r.rud, 3), ["throttle"] = r.hasThr ? System.Math.Round(r.thr01, 3) : null } };
             }
             return new JObject { ["names"] = names, ["axes"] = ax, ["setup"] = setup, ["profile"] = pj, ["actions"] = new JArray(FlyingGame.Bridge.JoystickInput.Actions),

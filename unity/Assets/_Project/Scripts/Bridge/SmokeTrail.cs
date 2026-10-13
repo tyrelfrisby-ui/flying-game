@@ -10,7 +10,9 @@ namespace FlyingGame.Bridge
     /// AIRSHOW SMOKE (owner 2026-10-11, the Talk Flying outro): oil in the exhaust, a puff every 1/30 s from each exhaust.
     /// Each puff stays where the air put it — fixed in the air mass, drifting with the wind — and grows and fades over 10–30 s.
     /// Slow, it piles up into big round puffs; fast, the same oil is spread over more air (smaller, stretched along the path).
-    /// More power, more exhaust, denser smoke; engine off, none. Gliders and the target drone have none.
+    /// More power, more exhaust, denser smoke; engine off, none. The target drone has none.
+    /// GLIDERS (owner 2026-10-12: "add wingtip smoke to the gliders … instead of puffs it is a steady stream"): a canister on
+    /// each wingtip, a thin steady stream (<see cref="Stream"/>) that doesn't depend on power.
     ///
     /// It is drawn FROM THE RECORDED PATH, not kept as live particles: give it the samples (newest first) and the time being
     /// shown, and it builds every puff still alive at that moment — so review, stepping, seeking and replay show exactly the
@@ -28,7 +30,7 @@ namespace FlyingGame.Bridge
         private readonly Mesh _mesh;
         private readonly List<Vector3> _v = new(); private readonly List<Vector2> _uv = new(); private readonly List<Color> _c = new(); private readonly List<int> _tri = new();
         private readonly List<(float d2, Vector3 p, Vector3 axis, float w, float l, float a)> _puffs = new();
-        private Vec3[] _exhaust = System.Array.Empty<Vec3>();
+        private Vec3[] _exhaust = System.Array.Empty<Vec3>(), _jet = System.Array.Empty<Vec3>();
 
         public SmokeTrail(Transform parent, int layer)
         {
@@ -44,27 +46,53 @@ namespace FlyingGame.Bridge
         /// sit under the cowling, about a sixth of the fuselage aft of the spinner and below the thrust line; a pusher's just
         /// ahead of its propeller; a jet's at the tailpipe.</summary>
         public static Vec3[] ExhaustsFor(AircraftConfig cfg, string id, IReadOnlyList<Vector3> propHubsBody, float lengthM, float bodyRadiusM)
+            => ExhaustsFor(cfg, id, propHubsBody, lengthM, bodyRadiusM, out _);
+
+        /// <summary>The exhausts and the way each one blows (body axes, unit; zero = no jet — a wingtip canister). A tractor's
+        /// stacks blow aft and DOWN (owner 2026-10-12, the Extra: 30° below the longitudinal axis); a type's config can place
+        /// its exhaust exactly (<see cref="SmokeConfig"/>: so far aft of the nose, on the belly). Pushers and jets blow aft.</summary>
+        public static Vec3[] ExhaustsFor(AircraftConfig cfg, string id, IReadOnlyList<Vector3> propHubsBody, float lengthM, float bodyRadiusM, out Vec3[] jet)
         {
-            if (cfg?.Propulsion == null || (id ?? "").Contains("drone")) return System.Array.Empty<Vec3>();
-            var list = new List<Vec3>();
+            jet = System.Array.Empty<Vec3>();
+            if (cfg == null || (id ?? "").Contains("drone")) return System.Array.Empty<Vec3>();
+            if (cfg.Propulsion == null) { var tips = WingtipsFor(cfg); jet = new Vec3[tips.Length]; return tips; }
+            var list = new List<Vec3>(); var dirs = new List<Vec3>();
+            double down = (cfg.Smoke?.DownDeg ?? 30) * System.Math.PI / 180;
+            var aftDown = new Vec3(-System.Math.Cos(down), 0, System.Math.Sin(down));   // body z is DOWN
             if (propHubsBody != null && propHubsBody.Count > 0)
             {
                 foreach (var h in propHubsBody)
                 {
                     bool pusher = h.x < -0.5f, wing = Mathf.Abs(h.y) > 1f;
                     float aft = Mathf.Clamp(0.16f * lengthM, 0.5f, wing ? 1.6f : 1.2f);
+                    // A config'd exhaust: so far aft of the nose (the spinner tip, ~0.25 m ahead of the prop plane), on the belly.
+                    if (!pusher && !wing && cfg.Smoke != null && cfg.Smoke.AftOfNoseM > 0) aft = (float)cfg.Smoke.AftOfNoseM - 0.25f;
                     float x = pusher ? h.x + 0.35f : h.x - aft;
-                    float z = h.z + (wing ? 0.35f : Mathf.Max(0.25f, 0.8f * bodyRadiusM));   // body z is DOWN
-                    list.Add(new Vec3(x, h.y, z));
+                    float z = h.z + (wing ? 0.35f : !pusher && cfg.Smoke != null ? Mathf.Max(0.25f, bodyRadiusM) : Mathf.Max(0.25f, 0.8f * bodyRadiusM));   // body z is DOWN
+                    list.Add(new Vec3(x, h.y, z)); dirs.Add(pusher ? new Vec3(-1, 0, 0) : aftDown);
                 }
             }
             else if (cfg.Engines != null && cfg.Engines.Count > 0)
-                foreach (var m in cfg.Engines) list.Add(m.PosVec() + new Vec3(-1.5, 0, 0));   // podded jets: behind each nozzle plane
-            else list.Add(new Vec3(-0.5 * lengthM, 0, 0));   // a jet in the fuselage: the tailpipe
+                foreach (var m in cfg.Engines) { list.Add(m.PosVec() + new Vec3(-1.5, 0, 0)); dirs.Add(new Vec3(-1, 0, 0)); }   // podded jets: behind each nozzle plane
+            else { list.Add(new Vec3(-0.5 * lengthM, 0, 0)); dirs.Add(new Vec3(-1, 0, 0)); }   // a jet in the fuselage: the tailpipe
+            jet = dirs.ToArray();
             return list.ToArray();
         }
 
-        public void SetExhausts(Vec3[] body) => _exhaust = body ?? System.Array.Empty<Vec3>();
+        /// <summary>A glider's smoke: both wingtips, at the outermost wing strip's trailing edge.</summary>
+        public static Vec3[] WingtipsFor(AircraftConfig cfg)
+        {
+            FlyingGame.Core.DataContracts.StripConfig tip = null;
+            foreach (var sf in cfg.Surfaces) foreach (var st in sf.Strips) if (System.Math.Abs(st.Pos[2]) < 1.0 && (tip == null || System.Math.Abs(st.Pos[1]) > System.Math.Abs(tip.Pos[1]))) tip = st;
+            if (tip == null || System.Math.Abs(tip.Pos[1]) < 1.0) return System.Array.Empty<Vec3>();
+            double y = System.Math.Abs(tip.Pos[1]) * 1.03, x = tip.Pos[0] - 0.75 * tip.Chord;
+            return new[] { new Vec3(x, y, tip.Pos[2]), new Vec3(x, -y, tip.Pos[2]) };
+        }
+
+        /// <summary>A steady stream (wingtip canisters) instead of exhaust puffs: thin, even, joined.</summary>
+        public bool Stream;
+
+        public void SetExhausts(Vec3[] body, Vec3[] jet = null) { _exhaust = body ?? System.Array.Empty<Vec3>(); _jet = jet ?? new Vec3[_exhaust.Length]; }
         public void Hide() { if (_go.activeSelf) _go.SetActive(false); }
 
         /// <summary>Build the smoke as it was at <paramref name="nowT"/>: <paramref name="sample"/>(k) is the k-th sample back
@@ -86,22 +114,29 @@ namespace FlyingGame.Bridge
                 // Each puff's own life (10–30 s) and a little spread, from a hash of its time — the same puff every redraw.
                 uint hsh = (uint)(s.T * 30.0 + 0.5) * 2654435761u;
                 float rnd = (hsh >> 8 & 0xFFFF) / 65535f, rnd2 = (hsh >> 4 & 0xFF) / 255f;
-                float life = 10f + 20f * rnd;
+                float life = Stream ? 14f + 4f * rnd : 10f + 20f * rnd;
                 if (age > life) continue;
                 Vec3 velW = s.Att.Rotate(s.VelBody);
                 float v = Mathf.Max(6f, (float)velW.Length);
                 // Smoke per metre of path ∝ flow / speed: the puff's starting diameter (≈1.6 m at 60 kt, ≈1 m at 150 kt, full power).
-                float d0 = Mathf.Clamp(9f * Mathf.Sqrt(s.Flow / v), 0.5f, 3.2f);
-                float grow = d0 + 2.2f * Mathf.Sqrt((float)age) * (0.8f + 0.4f * rnd2);
-                float stretch = Mathf.Max(grow, v / Hz * 1.3f + (grow - d0));   // one frame's travel, so a fast trail stays joined
+                float d0 = Stream ? 0.5f : Mathf.Clamp(9f * Mathf.Sqrt(s.Flow / v), 0.5f, 3.2f);
+                float grow = Stream ? d0 + 0.9f * Mathf.Sqrt((float)age) : d0 + 2.2f * Mathf.Sqrt((float)age) * (0.8f + 0.4f * rnd2);
+                float stretch = Mathf.Max(grow, v / Hz * (Stream ? 1.8f : 1.3f) + (grow - d0));   // one frame's travel, so a fast trail stays joined
                 float fade = Mathf.Pow(1f - (float)age / life, 1.3f) * Mathf.Clamp01(d0 / grow * 1.6f);
                 float a = 0.65f * Mathf.Lerp(0.45f, 1f, s.Flow) * fade;   // denser (owner 2026-10-12: the smoke must show in the transparent captures)
                 if (a < 0.004f) continue;
                 Vec3 drift = wind * (Atmosphere.WindGradientFactor(s.Pos) * age) + new Vec3(0, 0, -System.Math.Min(2.0, 0.12 * age));   // + a little warm rise
                 Vector3 axis = CoordinateMap.ToUnity(velW * (1.0 / v));
-                foreach (var e in _exhaust)
+                // The exhaust jet carries the smoke out along its line for the first moments (≈25 m/s, decaying in ~0.12 s:
+                // about 3 m), then it sits in the air.
+                double jetM = 25.0 * 0.12 * (1 - System.Math.Exp(-age / 0.12));
+                // A puff covers the path from its release back to one frame earlier — it is drawn BEHIND the release point,
+                // never ahead of the airplane (owner 2026-10-12: "the smoke appears to come from in front of the engine").
+                Vec3 back = velW * (-0.5 * (stretch - grow) / v);
+                for (int ei = 0; ei < _exhaust.Length; ei++)
                 {
-                    Vector3 p = shown(s.Pos + s.Att.Rotate(e) + drift);
+                    Vec3 e = _exhaust[ei], jd = ei < _jet.Length ? _jet[ei] : Vec3.Zero;
+                    Vector3 p = shown(s.Pos + s.Att.Rotate(e + jd * jetM) + back + drift);
                     float d2 = Vector3.Dot(p - camPos, camFwd);
                     if (d2 < 0.3f) continue;
                     // A puff the camera is inside (a chase camera flies through the up-line's smoke) would wash the whole

@@ -19,6 +19,8 @@ APP="$OUT/Aero Playground.app"
 PL="$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Aero Playground uses the microphone for the intercom and the radio.'" "$PL" 2>/dev/null || true
 /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryAddUsageDescription string 'Aero Playground saves your clips and recordings to Photos.'" "$PL" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :NSLocalNetworkUsageDescription string 'Aero Playground shares your joystick or RC radio with Aero Playground on your iPad or iPhone over your local network.'" "$PL" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :NSBonjourServices array" -c "Add :NSBonjourServices:0 string _aerojoy._udp" "$PL" 2>/dev/null || true
 xattr -rc "$APP"; codesign --force --deep -s - "$APP"
 pkill -f "Aero Playground.app/Contents/MacOS" || true
 rm -rf "/Applications/Aero Playground.app"; cp -R "$APP" /Applications/

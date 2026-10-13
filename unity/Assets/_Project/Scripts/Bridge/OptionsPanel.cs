@@ -66,7 +66,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 17.5f : 27.5f);
+            float h = lh * (twoCol ? 17.5f : 28.7f);
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -138,7 +138,7 @@ namespace FlyingGame.Bridge
             SessionSettings.LoadFeel();
             GUI.Label(new Rect(x, y, cw, lh), "CONTROL FEEL", _head);
             // JOYSTICK SETUP (owner 2026-10-11): the guided calibration + button assignment, any joystick (Mac).
-            if (FlightControlsDesk && GUI.Button(new Rect(panel.xMax - gap - cw * 0.62f - gap, y, cw * 0.3f, lh * 0.9f), JoystickInput.ConnectedName == null ? "No joystick" : JoystickInput.Profile == null ? "Joystick setup" : "Joystick (redo)", _btn))
+            if ((FlightControlsDesk || JoystickInput.ConnectedName != null) && GUI.Button(new Rect(panel.xMax - gap - cw * 0.62f - gap, y, cw * 0.3f, lh * 0.9f), JoystickInput.ConnectedName == null ? "No joystick" : JoystickInput.Profile == null ? "Joystick setup" : "Joystick (redo)", _btn))
             { if (JoystickInput.ConnectedName != null) { _open = false; JoystickSetupPanel.Open(); } }
             if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh * 0.9f), "Aircraft defaults", _btn))
             {
@@ -176,6 +176,15 @@ namespace FlyingGame.Bridge
                     string f = VoiceComms.Frequencies[i];
                     if (GUI.Button(new Rect(bx + i * (bw + gap * 0.4f), y, bw, lh), f, VoiceComms.Frequency == f ? _btnOn : _btn)) VoiceComms.Frequency = f;
                 }
+                y += lh + gap * 0.4f;
+            }
+            // JOYSTICK LINK (owner 2026-10-12): the Mac's joystick / RC radio flies the iPad and iPhone over the local network.
+            {
+                bool on = JoyLink.On;
+                string what = JoyLink.IsSender ? "Share this joystick with iPad / iPhone" : "Fly with the Mac's joystick";
+                string st = JoyLink.StatusText;
+                if (GUI.Button(new Rect(x, y, lh, lh), on ? "X" : "", on ? _btnOn : _btn)) JoyLink.On = !on;
+                if (GUI.Button(new Rect(x + lh + gap, y, cw - lh - gap, lh), st.Length > 0 ? $"{what}: {st}" : $"{what} (same Wi-Fi)", _label)) JoyLink.On = !on;
                 y += lh + gap * 0.4f;
             }
             y += gap;

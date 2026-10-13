@@ -30,6 +30,9 @@ namespace FlyingGame.Bridge.Widget
         public AeroHost Widget;
         private Material _mat;
         public float WidthScale = 1f;
+        /// <summary>The drag arrow's scale against lift (default ×3 so a small drag shows; owner 2026-10-12, the tailslide
+        /// renders: "make the drag vector x1 not x3"). vectorStyle {"dragScale": 1…3}.</summary>
+        public static double DragScale = 3.0;
         public float SmoothingMs = 130f;
 
         public delegate bool ScrFn(Vector3 world, out Vector2 px);
@@ -126,7 +129,7 @@ namespace FlyingGame.Bridge.Widget
             pic.V["total"] = (w.NeutralPointBody(), aero * (1.0 / W));
             pic.V["weight"] = (cg, s.Attitude.Conjugate().Rotate(new Vec3(0, 0, 1)));
             pic.V["wind"] = (cg, vAir * (-1.0 / System.Math.Max(1, pic.VInf)));   // RELATIVE wind: the air coming at the airplane (−velocity)
-            pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (3.0 / W));
+            pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (DragScale / W));
             if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (3.0 / W));
             if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
             // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.
@@ -357,7 +360,7 @@ namespace FlyingGame.Bridge.Widget
             {
             if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new double[0], v => "WEIGHT", Weight, 3); }
             if (On("lift")) { Arrow("lift", Lift, gPx); _labels.Request("lift", Tip("lift", gPx), Away(Origin("lift"), Tip("lift", gPx)), new double[0], v => "LIFT", Lift, 5); }
-            if (On("drag")) { Arrow("drag", Drag, gPx); _labels.Request("drag", Tip("drag", gPx), Away(Origin("drag"), Tip("drag", gPx)), new double[0], v => "DRAG ×3", Drag, 5); }
+            if (On("drag")) { Arrow("drag", Drag, gPx); _labels.Request("drag", Tip("drag", gPx), Away(Origin("drag"), Tip("drag", gPx)), new double[0], v => DragScale == 1.0 ? "DRAG" : $"DRAG ×{DragScale:0.#}", Drag, 5); }
             if (On("thrust") && F.ContainsKey("thrust")) Arrow("thrust", Thrust, gPx);
             }
             if (On("tail") && P.HasTail && F.ContainsKey("tail"))
@@ -550,7 +553,8 @@ namespace FlyingGame.Bridge.Widget
                     bool changed = st.Shown == null || st.Shown.Length != r.vals.Length;
                     if (!changed) for (int i = 0; i < r.vals.Length; i++) if (System.Math.Abs(r.vals[i] - st.Shown[i]) >= r.step * 0.75) changed = true;
                     if (changed && (paused || now - st.LastText >= 0.25f)) { st.Shown = (double[])r.vals.Clone(); st.LastText = now; st.Text = r.fmt(st.Shown); }
-                    st.Text ??= r.fmt(r.vals);
+                    if (r.vals.Length == 0) st.Text = r.fmt(r.vals);   // (a label with no number can still change: "DRAG ×3" → "DRAG")
+                    else st.Text ??= r.fmt(r.vals);
                     float twid = st.Text.Length * 17f * ui.TextScale * 0.53f;
                     // The arrow's direction from the airplane picks the preferred slot.
                     Vector2 rel = r.anchor - _centre; float ang = Mathf.Atan2(rel.y / ry, rel.x / rx);

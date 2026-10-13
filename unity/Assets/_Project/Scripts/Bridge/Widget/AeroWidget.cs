@@ -499,9 +499,10 @@ namespace FlyingGame.Bridge.Widget
             foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { xmin = System.Math.Min(xmin, st.Pos[0] - st.Chord * 0.75); xmax = System.Math.Max(xmax, st.Pos[0] + st.Chord * 0.25); }
             LengthM = xmax > xmin ? (float)(xmax - xmin) : SpanM * 0.8f;
             _smoke ??= new SmokeTrail(transform, _visualRoot.gameObject.layer);
-            var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5));
+            var ex = SmokeTrail.ExhaustsFor(Config, AircraftId, _builder.PropHubsBody(), LengthM, (float)(Config.Fuselage?.Crossflow?.BodyRadiusM ?? 0.5), out var jet);
             for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
-            _smoke.SetExhausts(ex);
+            _smoke.SetExhausts(ex, jet);
+            _smoke.Stream = Config.Propulsion == null;   // a glider's wingtip canisters
         }
 
         /// <summary>The aerotow (WidgetTow): the game's rope and tug pilot, hooked up in the air.</summary>
@@ -514,7 +515,8 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>Which start this is (the smoke never joins one flight's path to the next).</summary>
         public int Flight;
         /// <summary>The smoke oil's flow now: none with no engine turning; more with power (the exhaust carries it).</summary>
-        public float SmokeFlow => Ac == null || Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
+        public float SmokeFlow => Ac == null ? 0f : Config.Propulsion == null ? 1f   // a glider's wingtip canisters: always full
+            : Controls.Spec.Engines <= 0 || Ac.EngineRpm < 100 ? 0f : (float)(0.25 + 0.75 * System.Math.Clamp(Ac.Throttle01, 0, 1));
         private static SmokeTrail.Sample? SmokeSample(WidgetHistory.Snap f) => f == null ? null : new SmokeTrail.Sample
             { T = f.SimTime, Pos = f.State.Position - new Vec3(0, 0, f.AltShift), Att = f.State.Attitude, VelBody = f.State.Velocity, Flow = f.SmokeFlow };
         /// <summary>The smoke as it was at the frame shown (index frames back; -1 = live, the aircraft as it is now).</summary>

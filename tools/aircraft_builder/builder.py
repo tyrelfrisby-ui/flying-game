@@ -71,6 +71,9 @@ def write(idname, disp, mass_kg, cg, inertia, surfaces, fuselage, propulsion, li
           extra_tables=None, vbf=1.0):
     tabs = dict(TABLES)
     if extra_tables: tabs.update(extra_tables)
+    from reversed_flow import fix_table, needs_fix   # (2026-10-12) a wing sliding backwards isn't a barn door
+    for t in tabs.values():
+        if needs_fix(t): fix_table(t)
     c = {'schemaVersion':1,'id':idname,'displayName':disp,
         'mass':{'massKg':mass_kg,'cg':cg,'inertia':inertia},
         'surfaces':surfaces,'airfoilTables':tabs,'controls':ctl,'fuselage':fuselage,

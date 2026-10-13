@@ -930,6 +930,16 @@ public static class AeroModel
             totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
             ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
         }
+        // The cowl's section, cambered the other way (flat top, round belly): a body-DOWN force ahead of the CG with |β|.
+        if (cfc.CowlCamberCl > 0.0 && cfc.CowlCamberArea > 0.0)
+        {
+            double xs = cfc.CowlCamberCenterX;
+            double vLoc = bodyVelocity.Y + bodyRates.Z * (xs - config.Mass.CgVec().X);
+            double fz = 0.5 * airDensity * cfc.CowlCamberArea * cfc.CowlCamberCl * vLoc * vLoc;   // body +z = down
+            totalForce += new Vec3(0, 0, fz);
+            totalMoment += Vec3.Cross(new Vec3(xs, 0, 0) - config.Mass.CgVec(), new Vec3(0, 0, fz));
+            ForceDebug.Add(new Vec3(xs, 0, 0), new Vec3(0, 0, fz), Vec3.Zero, "fuselage");
+        }
 
         if (ForceDebug.Samples is not null)
             ForceDebug.Add(config.Mass.CgVec(), Vec3.Zero, -1.0 * new Vec3(config.Fuselage.Damping.P * bodyRates.X, config.Fuselage.Damping.Q * bodyRates.Y, config.Fuselage.Damping.R * bodyRates.Z), "moment");

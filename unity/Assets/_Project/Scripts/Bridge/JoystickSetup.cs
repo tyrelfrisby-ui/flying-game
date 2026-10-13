@@ -14,8 +14,8 @@ namespace FlyingGame.Bridge
     {
         public const int AxisCount = 8, ButtonCount = 32, HatButton0 = 28;   // (the Mac: 28…31 = the hat's up / right / down / left)
         /// <summary>The assignable actions, in the order the setup asks for them.</summary>
-        public static readonly string[] Actions = { "brakes", "flapsDown", "flapsUp", "flapsHalf", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
-        public static readonly string[] ActionNames = { "BRAKES (held)", "FLAPS DOWN", "FLAPS UP", "FLAPS 50 %", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
+        public static readonly string[] Actions = { "brakes", "guns", "flapsDown", "flapsUp", "flapsHalf", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
+        public static readonly string[] ActionNames = { "BRAKES (held)", "GUNS (held)", "FLAPS DOWN", "FLAPS UP", "FLAPS 50 %", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
 
         // The Mac reads joysticks straight from macOS's HID manager (AeroNative HJ_*): Unity's Input Manager only reads them
         // while its app is in front, and the widget runs behind Glass Overlay (owner 2026-10-11: the Hotas X did nothing in
@@ -46,28 +46,38 @@ namespace FlyingGame.Bridge
         /// <summary>The first connected joystick's buttons this frame (and last frame's, for presses).</summary>
         private static void Poll()
         {
-            if (!Native || _frame == Time.frameCount) return;
-            if (!_started) { _started = true; HJ_Start(); }
+            if (_frame == Time.frameCount) return;
+            bool link = UseLink;
+            if (!Native && !link) { System.Array.Clear(_held, 0, ButtonCount); System.Array.Clear(_was, 0, ButtonCount); return; }   // (the link dropped: nothing stays held)
+            if (Native && !_started) { _started = true; HJ_Start(); }
             _frame = Time.frameCount;
-            bool any = HJ_Count() > 0;
-            for (int b = 0; b < ButtonCount; b++) { _was[b] = _held[b]; _held[b] = any && HJ_Button(0, b) != 0; }
+            bool any = Native && HJ_Count() > 0;
+            for (int b = 0; b < ButtonCount; b++) { _was[b] = _held[b]; _held[b] = link ? JoyLink.Button(b) : any && HJ_Button(0, b) != 0; }
         }
 
-        /// <summary>Raw axis i (1…8), −1…1.</summary>
-        public static float Raw(int i)
+        /// <summary>JOYSTICK LINK (2026-10-12): no joystick of this device's own, and the Mac's arriving over the network.</summary>
+        private static bool UseLink { get { if (Off) return false; JoyLink.Tick(); return JoyLink.Connected && LocalName == null; } }
+
+        /// <summary>Raw axis i (1…8), −1…1 — this device's joystick, or the Mac's over the link.</summary>
+        public static float Raw(int i) => UseLink ? JoyLink.Axis(i) : LocalRaw(i);
+        public static string ConnectedName => Off ? null : LocalName ?? (UseLink ? JoyLink.JoystickName : null);
+
+        /// <summary>This device's own joystick (what the Mac shares over the link).</summary>
+        public static float LocalRaw(int i)
         {
             if (Off) return 0f;
-            if (Native) { Poll(); return HJ_Count() > 0 ? HJ_Axis(0, i - 1) : 0f; }
+            if (Native) { if (!_started) { _started = true; HJ_Start(); } return HJ_Count() > 0 ? HJ_Axis(0, i - 1) : 0f; }
             try { return Input.GetAxisRaw("WJoy" + i); } catch (System.ArgumentException) { return 0f; }
         }
-        public static string ConnectedName
+        public static bool LocalButton(int b) => !Off && Native && b >= 0 && b < ButtonCount && HJ_Count() > 0 && HJ_Button(0, b) != 0;
+        public static string LocalName
         {
             get
             {
                 if (Off) return null;
                 if (Native)
                 {
-                    Poll();
+                    if (!_started) { _started = true; HJ_Start(); }
                     if (Time.unscaledTime - _nameAt > 0.5f)
                     {
                         _nameAt = Time.unscaledTime;
@@ -84,14 +94,14 @@ namespace FlyingGame.Bridge
         {
             if (Off) return false;
             if (b < 0 || b >= ButtonCount) return false;
-            if (Native) { Poll(); return _held[b]; }
+            if (Native || UseLink) { Poll(); return _held[b]; }
             return b < 20 && Input.GetKey(KeyCode.JoystickButton0 + b);   // (Unity names 20 buttons)
         }
         public static bool ButtonDown(int b)
         {
             if (Off) return false;
             if (b < 0 || b >= ButtonCount) return false;
-            if (Native) { Poll(); return _held[b] && !_was[b]; }
+            if (Native || UseLink) { Poll(); return _held[b] && !_was[b]; }
             return b < 20 && Input.GetKeyDown(KeyCode.JoystickButton0 + b);
         }
         /// <summary>A button's name for the setup: "BUTTON 3", or the hat's "HAT UP" etc.</summary>
@@ -132,9 +142,31 @@ namespace FlyingGame.Bridge
         }
         public static void Forget(string name) { PlayerPrefs.DeleteKey(Key(name)); PlayerPrefs.Save(); _profileName = null; _checkedAt = -10f; }
 
-        /// <summary>The action's button is held now / was pressed this frame.</summary>
-        public static bool Held(string action) { var p = Profile; return p != null && p.Buttons.TryGetValue(action, out int b) && ButtonHeld(b) && !SetupActive; }
-        public static bool Pressed(string action) { var p = Profile; return p != null && p.Buttons.TryGetValue(action, out int b) && ButtonDown(b) && !SetupActive; }
+        /// <summary>The action's button (or switch channel) is held now / was pressed this frame.</summary>
+        public static bool Held(string action)
+        {
+            var p = Profile; if (p == null || SetupActive) return false;
+            if (p.Buttons.TryGetValue(action, out int b)) return ButtonHeld(b);
+            return p.AxisButtons.TryGetValue(action, out var sw) && AxisSw(action, sw).now;
+        }
+        public static bool Pressed(string action)
+        {
+            var p = Profile; if (p == null || SetupActive) return false;
+            if (p.Buttons.TryGetValue(action, out int b)) return ButtonDown(b);
+            if (!p.AxisButtons.TryGetValue(action, out var sw)) return false;
+            var e = AxisSw(action, sw); return e.now && !e.prev;
+        }
+        // A switch channel's state this frame and last (its edge = a press); a frame it wasn't asked about has no edge.
+        private static readonly Dictionary<string, (int frame, bool now, bool prev)> _axSw = new();
+        private static (bool now, bool prev) AxisSw(string action, AxisSwitch sw)
+        {
+            int f = Time.frameCount;
+            if (!_axSw.TryGetValue(action, out var e) || e.frame != f)
+            {
+                bool h = sw.On(); e = (f, h, _axSw.TryGetValue(action, out var o) && o.frame == f - 1 ? o.now : h); _axSw[action] = e;
+            }
+            return (e.now, e.prev);
+        }
     }
 
     /// <summary>One calibrated axis: which raw axis, its centre and the raw values at both ends.</summary>
@@ -158,6 +190,14 @@ namespace FlyingGame.Bridge
         public float Value01() => !Set ? 0f : Mathf.Clamp01(Mathf.InverseLerp(NegEnd, PosEnd, JoystickInput.Raw(Index)));
     }
 
+    /// <summary>A button that arrives as a channel (an RC radio's dongle sends its buttons and switches as axes, owner
+    /// 2026-10-12): on when the raw value is nearer the pressed value than the released one.</summary>
+    public sealed class AxisSwitch
+    {
+        public int Axis; public float OnValue, OffValue;
+        public bool On() { float v = JoystickInput.Raw(Axis); return Mathf.Abs(v - OnValue) < Mathf.Abs(v - OffValue); }
+    }
+
     public sealed class JoystickProfile
     {
         public string Name;
@@ -166,6 +206,13 @@ namespace FlyingGame.Bridge
         /// RUNS the trim (−1…1 = rate, left / right) and the trim stays where it's left — like a trim switch.</summary>
         public JoyAxis RudderTrim = new();
         public Dictionary<string, int> Buttons = new();
+        /// <summary>Actions on a switch CHANNEL instead of a button (an RC radio's buttons).</summary>
+        public Dictionary<string, AxisSwitch> AxisButtons = new();
+        /// <summary>FLAP SWITCH (owner 2026-10-12: "the 3 position switch to be flaps"): a 2- or 3-position switch channel,
+        /// NegEnd = flaps UP, PosEnd = FULL; the middle = half.</summary>
+        public JoyAxis FlapSwitch = new() { Centering = false };
+        /// <summary>The flap switch's position: 0 up, 1 half, 2 full; −1 = none.</summary>
+        public int FlapSwitchPos() { if (!FlapSwitch.Set) return -1; float t = FlapSwitch.Value01(); return t < 0.25f ? 0 : t < 0.75f ? 1 : 2; }
         /// <summary>Calibrated controls: aileron + right, elevator + PUSH (nose down), rudder + right; throttle 0…1 when it has one.</summary>
         public (float ail, float ele, float rud, float thr01, bool hasThr) Read() =>
             (Aileron.Value(), Elevator.Value(), Rudder.Value(), Throttle.Value01(), Throttle.Set);
@@ -215,6 +262,8 @@ namespace FlyingGame.Bridge
             _steps.Add((Kind.AxisSecond, "rudder", false, "Now full LEFT rudder."));
             _steps.Add((Kind.ThrIdle, "throttle", false, "Throttle to IDLE (all the way back) and hold — or SKIP if there's none."));
             _steps.Add((Kind.ThrFull, "throttle", true, "Now throttle FULL (all the way forward) and hold."));
+            _steps.Add((Kind.ThrIdle, "flapSwitch", false, "FLAP SWITCH (a 2- or 3-position switch): set it to FLAPS UP and leave it — or SKIP to use buttons."));
+            _steps.Add((Kind.ThrFull, "flapSwitch", true, "Now flip it all the way to FULL FLAPS."));
             _steps.Add((Kind.AxisFirst, "rudderTrim", true, "RUDDER TRIM: hold its control (e.g. the rocker on the throttle) fully RIGHT — or SKIP if you don't want one."));
             _steps.Add((Kind.AxisSecond, "rudderTrim", false, "Now rudder trim fully LEFT."));
             _steps.Add((Kind.Learn, null, false, "Learning: stir everything — every control through its full travel, several times."));
@@ -246,7 +295,7 @@ namespace FlyingGame.Bridge
             var prev = _steps[to];
             if (prev.kind == Kind.AxisSecond || prev.kind == Kind.ThrFull) { to--; Axis(prev.ctl).Index = 0; }   // redo the pair
             if (prev.kind == Kind.AxisFirst || prev.kind == Kind.ThrIdle) Axis(prev.ctl).Index = 0;
-            if (prev.kind == Kind.Button) _p.Buttons.Remove(prev.ctl);
+            if (prev.kind == Kind.Button) { _p.Buttons.Remove(prev.ctl); _p.AxisButtons.Remove(prev.ctl); }
             Enter(Mathf.Max(0, to));
         }
         public void Finish()
@@ -256,8 +305,9 @@ namespace FlyingGame.Bridge
             Active = false; Finished = true; Status = "SAVED";
         }
 
-        private JoyAxis Axis(string ctl) => ctl switch { "aileron" => _p.Aileron, "elevator" => _p.Elevator, "rudder" => _p.Rudder, "rudderTrim" => _p.RudderTrim, _ => _p.Throttle };
-        private bool Used(int ax) => _p.Aileron.Index == ax || _p.Elevator.Index == ax || _p.Rudder.Index == ax || _p.Throttle.Index == ax || _p.RudderTrim.Index == ax;
+        private JoyAxis Axis(string ctl) => ctl switch { "aileron" => _p.Aileron, "elevator" => _p.Elevator, "rudder" => _p.Rudder, "rudderTrim" => _p.RudderTrim, "flapSwitch" => _p.FlapSwitch, _ => _p.Throttle };
+        private bool SwitchTaken(int ax) { foreach (var sw in _p.AxisButtons.Values) if (sw.Axis == ax) return true; return false; }
+        private bool Used(int ax) => _p.Aileron.Index == ax || _p.Elevator.Index == ax || _p.Rudder.Index == ax || _p.Throttle.Index == ax || _p.RudderTrim.Index == ax || _p.FlapSwitch.Index == ax;
 
         private void Enter(int i)
         {
@@ -341,10 +391,10 @@ namespace FlyingGame.Bridge
                     if (best != _candidate) { _candidate = best; _stillFor = 0; }
                     Focus = best;
                     Progress = best == 0 ? 0 : Mathf.Clamp01(_stillFor / 0.6f);
-                    Status = best == 0 ? "ALL THE WAY FORWARD" : $"AXIS {best} — HOLD…";
+                    Status = best == 0 ? (s.ctl == "throttle" ? "ALL THE WAY FORWARD" : "ALL THE WAY") : $"AXIS {best} — HOLD…";
                     if (best != 0 && _stillFor >= 0.6f)
                     {
-                        var ax = _p.Throttle; ax.Index = best; ax.Centering = false; ax.NegEnd = _snap[best]; ax.PosEnd = _last[best]; ax.Center = _snap[best];
+                        var ax = Axis(s.ctl); ax.Index = best; ax.Centering = false; ax.NegEnd = _snap[best]; ax.PosEnd = _last[best]; ax.Center = _snap[best];
                         Enter(_i + 1);
                     }
                     break;
@@ -380,9 +430,22 @@ namespace FlyingGame.Bridge
                     {
                         // One button, one action: taking a button from another action frees it there.
                         foreach (var kv in new List<KeyValuePair<string, int>>(_p.Buttons)) if (kv.Value == b) _p.Buttons.Remove(kv.Key);
-                        _p.Buttons[s.ctl] = b;
+                        _p.Buttons[s.ctl] = b; _p.AxisButtons.Remove(s.ctl);
                         Status = JoystickInput.ButtonName(b);
                         Enter(_i + 1);
+                        break;
+                    }
+                    // An RC radio's button or switch: a free channel that jumps (one channel, one action).
+                    for (int a = 1; a <= JoystickInput.AxisCount; a++)
+                    {
+                        if (Used(a) || SwitchTaken(a)) continue;
+                        if (Mathf.Abs(_last[a] - _snap[a]) > 0.5f)
+                        {
+                            _p.Buttons.Remove(s.ctl); _p.AxisButtons[s.ctl] = new AxisSwitch { Axis = a, OnValue = _last[a], OffValue = _snap[a] };
+                            Status = $"CHANNEL {a}";
+                            Enter(_i + 1);
+                            break;
+                        }
                     }
                     break;
                 }
@@ -401,8 +464,9 @@ namespace FlyingGame.Bridge
         {
             if (_p == null) return "";
             string A(string n, JoyAxis a) => a.Set ? $"{n} AXIS {a.Index}" : $"{n} —";
-            string s = $"{A("AIL", _p.Aileron)} · {A("ELE", _p.Elevator)} · {A("RUD", _p.Rudder)} · {A("THR", _p.Throttle)}" + (_p.RudderTrim.Set ? $" · {A("R TRIM", _p.RudderTrim)}" : "");
-            if (_p.Buttons.Count > 0) s += $" · {_p.Buttons.Count} BUTTONS";
+            string s = $"{A("AIL", _p.Aileron)} · {A("ELE", _p.Elevator)} · {A("RUD", _p.Rudder)} · {A("THR", _p.Throttle)}" + (_p.RudderTrim.Set ? $" · {A("R TRIM", _p.RudderTrim)}" : "") + (_p.FlapSwitch.Set ? $" · {A("FLAP SW", _p.FlapSwitch)}" : "");
+            int nb = _p.Buttons.Count + _p.AxisButtons.Count;
+            if (nb > 0) s += $" · {nb} BUTTONS";
             return s;
         }
     }

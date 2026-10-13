@@ -161,9 +161,10 @@ namespace FlyingGame.Bridge
             string key = $"{Screen.width}x{Screen.height}|{StripElevator}{StripThrottle}{StripBrakes}{FireAvailable}|{HasEjectionSeat}|{_driver.Sim?.Aircraft?.Config?.Propulsion == null}|{ko.yMin}|{ko.xMin}|{ko.xMax}";
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
+            JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
             ReadPointers();
-            if (DeskMode) DeskInput(); else MergeKeyboardFallback();
+            if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             PublishToDriver();
         }
 
@@ -448,7 +449,8 @@ namespace FlyingGame.Bridge
             if (_combat != null)
             {
                 _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space)
-                    || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5);
+                    || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5)
+                    || JoystickInput.Held("guns");   // a calibrated joystick's GUNS button (or an RC radio's button channel)
             }
 
             if (_ejectFinger != int.MinValue && _ejectHold >= EjectHoldSec)
@@ -841,18 +843,7 @@ namespace FlyingGame.Bridge
                     if (kr == 0f && jp.Rudder.Set) _rudder = r.rud;
                 }
                 if (r.hasThr && tv == 0f) _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * r.thr01);
-                if (JoystickInput.Held("brakes")) _brakeHeld = true;
-                if (JoystickInput.Pressed("flapsDown")) { _deskFlapStep = Mathf.Min(2, _deskFlapStep + 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
-                if (JoystickInput.Pressed("flapsUp")) { _deskFlapStep = Mathf.Max(0, _deskFlapStep - 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
-                if (JoystickInput.Pressed("flapsHalf")) { _deskFlapStep = 1; _flapTapThird = 1; _tapped.Add(Btn.Flaps); }   // the middle position
-                if (JoystickInput.Pressed("gear")) _tapped.Add(Btn.Gear);
-                if (JoystickInput.Held("trimUp")) _pitchTrim = Mathf.Clamp(_pitchTrim - 0.5f * dt, -1f, 1f);       // nose up = less push
-                if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
-                if (jp.RudderTrim.Set) { float rt = jp.RudderTrim.Value(); _rudderTrim = Mathf.Clamp(_rudderTrim + rt * Mathf.Abs(rt) * 0.083f * dt, -1f, 1f); }   // the rocker runs the rudder trim, progressive and slow (∝ deflection², centre → full ~12 s); it stays
-                if (JoystickInput.Pressed("reset")) DoReset();
-                if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
-                if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
-                if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
+                JoyActions(jp, dt);
             }
             else
             {
@@ -874,6 +865,43 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.L)) _tapped.Add(Btn.Gear);
             if (Input.GetKeyDown(KeyCode.R)) DoReset();
             _leftKnob = IdleLeftKnob();
+        }
+
+        private int _joyFlapSw = -1;
+
+        /// <summary>A calibrated joystick's buttons and switches (brakes, flaps, gear, trim, reset, view, AP, pause).</summary>
+        private void JoyActions(JoystickProfile jp, float dt)
+        {
+            if (JoystickInput.Held("brakes")) _brakeHeld = true;
+            if (JoystickInput.Pressed("flapsDown")) { _deskFlapStep = Mathf.Min(2, _deskFlapStep + 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+            if (JoystickInput.Pressed("flapsUp")) { _deskFlapStep = Mathf.Max(0, _deskFlapStep - 1); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps); }
+            if (JoystickInput.Pressed("flapsHalf")) { _deskFlapStep = 1; _flapTapThird = 1; _tapped.Add(Btn.Flaps); }   // the middle position
+            // FLAP SWITCH: the switch's position is the flap handle (up · half · full), set when it moves.
+            int fs = jp.FlapSwitchPos();
+            if (fs >= 0 && fs != _joyFlapSw) { if (_joyFlapSw >= 0) { _deskFlapStep = fs; _flapTapThird = fs; _tapped.Add(Btn.Flaps); } _joyFlapSw = fs; }   // (only when it MOVES: a scenario's flaps stand until then)
+            if (JoystickInput.Pressed("gear")) _tapped.Add(Btn.Gear);
+            if (JoystickInput.Held("trimUp")) _pitchTrim = Mathf.Clamp(_pitchTrim - 0.5f * dt, -1f, 1f);       // nose up = less push
+            if (JoystickInput.Held("trimDown")) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);
+            if (jp.RudderTrim.Set) { float rt = jp.RudderTrim.Value(); _rudderTrim = Mathf.Clamp(_rudderTrim + rt * Mathf.Abs(rt) * 0.083f * dt, -1f, 1f); }   // the rocker runs the rudder trim, progressive and slow (∝ deflection², centre → full ~12 s); it stays
+            if (JoystickInput.Pressed("reset")) DoReset();
+            if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
+            if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
+        }
+
+        /// <summary>iPad / iPhone: a calibrated joystick — the Mac's over the JOYSTICK LINK (2026-10-12) — flies the airplane
+        /// when it moves, as on the Mac; a finger on a pad still wins for that pad's controls.</summary>
+        private void MobileJoystick()
+        {
+            var jp = JoystickInput.Profile;
+            if (jp == null || JoystickInput.SetupActive) return;
+            float dt = Time.unscaledDeltaTime;
+            var r = jp.Read();
+            if (Mathf.Abs(r.ail) > 0.1f || Mathf.Abs(r.ele) > 0.1f || Mathf.Abs(r.rud) > 0.1f) _joySeen = true;
+            if (_joySeen && _rightFinger == int.MinValue) { _aileron = r.ail; _elevator = r.ele; }
+            if (_joySeen && _leftFinger == int.MinValue && jp.Rudder.Set) _rudder = r.rud;
+            if (r.hasThr && _leftFinger == int.MinValue) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * r.thr01); _leftKnob = IdleLeftKnob(); }
+            JoyActions(jp, dt);
         }
 
         private static float SafeAxis(string name)

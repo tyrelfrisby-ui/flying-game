@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge.Widget
         public AeroWidget Widget;
         public static readonly string[] SpinPresets = { "spin-entry", "spin-developed", "spin-recovery" };
         public static readonly string[] FlarePresets = { "flare-demo", "flare-hands-off" };
-        public static readonly string[] AeroPresets = { "hammerhead", "torque-roll", "tow-release" };
+        public static readonly string[] AeroPresets = { "hammerhead", "torque-roll", "tow-release", "tailslide" };
         /// <summary>The tow-release preset: seconds on tow before the glider pulls the release.</summary>
         public float ReleaseAfterS = 12f;
         /// <summary>High-tow law: height error → climb-rate correction (1/s), and flight-path error → pitch rate (1/s).</summary>
@@ -96,6 +96,7 @@ namespace FlyingGame.Bridge.Widget
                     c.ElevatorFree = true; break;
                 case "hammerhead": Hammerhead(c, rd, dt); break;
                 case "torque-roll": Hammerhead(c, rd, dt, torque: true); break;
+                case "tailslide": Hammerhead(c, rd, dt, slide: true); break;
                 case "tow-release": TowRelease(c, rd, dt); break;
             }
         }
@@ -156,7 +157,13 @@ namespace FlyingGame.Bridge.Widget
         /// up-line held with elevator and rudder only — ailerons neutral, nothing damping the roll — so whatever roll there is
         /// comes from the engine (its torque, the slipstream's swirl, the prop's gyroscopics) as the speed dies. Slow, the controls
         /// are held still at neutral (full power) while it stops, slides back and falls through; then the down-line and pull-out.</param>
-        private void Hammerhead(WidgetControls c, AeroHost.Readout rd, float dt, bool torque = false)
+        /// <summary>TAILSLIDE (owner 2026-10-12, via Glass: "a tailslide with smoke on with the extra … and with the swift glider"):
+        /// the hammerhead's up-line, power to idle on it, and at the top the controls held firmly neutral — the airplane stops,
+        /// slides backwards down its own smoke and the nose falls through; then the hammerhead's down-line and pull-out. A
+        /// glider dives for its entry speed first.</summary>
+        public float SlideEntryKias = 160f, GliderSlideEntryKias = 115f;
+
+        private void Hammerhead(WidgetControls c, AeroHost.Readout rd, float dt, bool torque = false, bool slide = false)
         {
             var s = Widget.Ac.State;
             var nose = s.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0));
@@ -165,6 +172,7 @@ namespace FlyingGame.Bridge.Widget
             float tilt = Mathf.Asin(Mathf.Clamp((float)wing.Z, -1f, 1f));                     // right wing down, rad
             float p = (float)s.Rates.X, q = (float)s.Rates.Y, r = (float)s.Rates.Z;           // rad/s
             float alpha = (float)rd.AlphaDeg, kias = (float)rd.Kias;
+            bool glider = Widget.Config.Propulsion == null;
             float WingsLevel() { _ailI = Mathf.Clamp(_ailI - dt * 0.4f * tilt, -0.3f, 0.3f); return Mathf.Clamp(_ailI + 0.15f * (-6f * tilt - p), -0.6f, 0.6f); }
             float Damp() => Mathf.Clamp(-0.15f * p, -0.6f, 0.6f);
             // Pitch flown as a RATE (the short period is quick; a rate loop on it is steady): elevator from the pitch-rate error,
@@ -188,15 +196,21 @@ namespace FlyingGame.Bridge.Widget
             }
             switch (_stage)
             {
-                case 0: c.Throttle01 = 1; c.Aileron = WingsLevel(); c.Rudder = Mathf.Clamp(-0.3f * r, -0.3f, 0.3f); c.Elevator = Hold(1f);   // build the speed
-                        if (_t > 4f) { _stage = 1; _t = 0; } break;
+                case 0: c.Throttle01 = 1; c.Aileron = WingsLevel(); c.Rudder = Mathf.Clamp(-0.3f * r, -0.3f, 0.3f);              // build the speed
+                        if (slide && glider) { c.Elevator = Hold(-35f); if (kias > GliderSlideEntryKias) { _stage = 1; _t = 0; } }      // (a glider dives for it)
+                        else if (slide) { c.Elevator = Hold(kias < SlideEntryKias - 20f ? -20f : 1f); if (kias > SlideEntryKias || _t > 25f) { _stage = 1; _t = 0; } }
+                        else { c.Elevator = Hold(1f); if (_t > 4f) { _stage = 1; _t = 0; } }
+                        break;
                 case 1: c.Elevator = Pull(4f); c.Aileron = WingsLevel(); c.Rudder = Mathf.Clamp(-0.3f * r, -0.3f, 0.3f);             // up to the vertical
                         if (elev > 72f) { _stage = 2; _t = 0; } break;
                 case 2: { var (e, ru) = Line(-1); c.Elevator = e; c.Rudder = ru; c.Aileron = torque ? 0 : Damp();                // the up-line
-                        if (torque) { if (kias < 25f) { _stage = 7; _t = 0; } }
+                        if (slide) { if (_t > 0.6f) c.Throttle01 = 0; if (kias < 20f) { _stage = 8; _t = 0; } }                            // (tailslide: power off on the line)
+                        else if (torque) { if (kias < 25f) { _stage = 7; _t = 0; } }
                         else if (kias < PivotKias) { _stage = 3; _t = 0; } break; }
                 case 7: c.Throttle01 = 1; c.Elevator = 0; c.Rudder = 0; c.Aileron = 0;                                              // (torque roll) hold still
                         if (elev < -45f || _t > 10f) { _stage = 4; _t = 0; } break;
+                case 8: c.Throttle01 = 0; c.Elevator = 0; c.Rudder = 0; c.Aileron = 0;                                              // (tailslide) controls held neutral: stop, slide back, fall through
+                        if (elev < -45f || _t > 12f) { _stage = 4; _t = 0; } break;
                 case 3: c.Rudder = -1; c.Aileron = Damp(); c.Elevator = Rate(0f);                       // the pivot
                         if (elev < -55f) { _stage = 4; _t = 0; } break;
                 case 4: { c.Throttle01 = 0; var (e, ru) = Line(1); c.Elevator = e; c.Rudder = _t < 0.5f ? Mathf.Clamp(-0.8f * r, -1f, 1f) : ru; c.Aileron = Damp(); // stop the yaw: the down-line

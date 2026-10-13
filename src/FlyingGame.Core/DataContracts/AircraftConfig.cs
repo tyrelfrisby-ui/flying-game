@@ -31,6 +31,10 @@ public sealed class AircraftConfig
     public FuselageConfig Fuselage { get; set; } = new();
     public PropulsionConfig? Propulsion { get; set; }
 
+    /// <summary>Airshow smoke exhaust (optional; owner 2026-10-12, the Extra: "the exhaust location … 4 ft from the nose on
+    /// the belly pointing on a 30 degree line downward angle from the longitudinal axis"). Null = the generic stack rule.</summary>
+    public SmokeConfig? Smoke { get; set; }
+
     /// <summary>Seaplane floats (null = landplane). See FloatHydro.</summary>
     public FloatsConfig? Floats { get; set; }
 
@@ -222,6 +226,14 @@ public sealed class FuselageConfig
     public CrossflowConfig Crossflow { get; set; } = new();
 }
 
+public sealed class SmokeConfig
+{
+    /// <summary>The exhaust's distance aft of the nose (spinner tip), m.</summary>
+    public double AftOfNoseM { get; set; }
+    /// <summary>The exhaust's line below the longitudinal axis, pointing aft (°).</summary>
+    public double DownDeg { get; set; } = 30;
+}
+
 public sealed class EngineMount
 {
     public double[] Pos { get; set; } = { 0, 0, 0 };  // engine/prop-plane position vs CG (m)
@@ -309,6 +321,15 @@ public sealed class CrossflowConfig
     public double SectionCamberCl { get; set; }
     public double SectionCamberArea { get; set; }
     public double SectionCamberCenterX { get; set; }
+    /// <summary>
+    /// COWL camber (owner 2026-10-12, the Extra 300: "the flat, sharp-cornered top of the cowling vs the round, smooth lower
+    /// cowling"): the forward body's section is cambered the OTHER way from the turtle deck, so sideslip crossflow pushes the
+    /// nose station toward the belly (body-DOWN force ahead of the CG) — also nose-down with |β|, adding to the deck's.
+    /// Body-down force = ½ρ·v_local²·CowlCamberArea·CowlCamberCl at CowlCamberCenterX. 0 = off.
+    /// </summary>
+    public double CowlCamberCl { get; set; }
+    public double CowlCamberArea { get; set; }
+    public double CowlCamberCenterX { get; set; }
 }
 
 public sealed class DampingConfig

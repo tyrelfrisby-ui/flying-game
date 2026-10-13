@@ -195,6 +195,8 @@ namespace FlyingGame.Bridge.Widget
 
         private float _joyThr = -1f; private bool _joyBrake;
         /// <summary>The joystick's assigned buttons (JOYSTICK SETUP).</summary>
+        private int _joyFlapSw = -1;
+
         private void JoyButtons(float dt)
         {
             bool brk = FlyingGame.Bridge.JoystickInput.Held("brakes");
@@ -212,6 +214,15 @@ namespace FlyingGame.Bridge.Widget
                     FlapsHandle = d[h] / d[^1];
                 }
             }
+            // FLAP SWITCH (an RC radio's 3-position switch): up · the detent nearest half · full.
+            int fs = FlyingGame.Bridge.JoystickInput.SetupActive ? -1 : FlyingGame.Bridge.JoystickInput.Profile?.FlapSwitchPos() ?? -1;
+            if (fs >= 0 && _joyFlapSw >= 0 && fs != _joyFlapSw && Spec.Flaps.Length > 1)   // only when it MOVES: a condition's flaps stand until then
+            {
+                var d = Spec.Flaps; int h = 0;
+                for (int i = 0; i < d.Length; i++) if (System.Math.Abs(d[i] / d[^1] - 0.5) <= System.Math.Abs(d[h] / d[^1] - 0.5)) h = i;
+                FlapsHandle = fs == 0 ? 0 : fs == 1 ? d[h] / d[^1] : 1;
+            }
+            _joyFlapSw = fs;
             if (FlyingGame.Bridge.JoystickInput.Pressed("gear") && Spec.Retractable) GearDown = !GearDown;
             if (FlyingGame.Bridge.JoystickInput.Held("trimUp")) { _trimStick = System.Math.Clamp(_trimStick - 0.3 * dt, -1, 1); if (ElevatorFree) Elevator = _trimStick; }
             if (FlyingGame.Bridge.JoystickInput.Held("trimDown")) { _trimStick = System.Math.Clamp(_trimStick + 0.3 * dt, -1, 1); if (ElevatorFree) Elevator = _trimStick; }
