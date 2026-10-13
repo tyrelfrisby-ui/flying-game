@@ -58,6 +58,8 @@ namespace FlyingGame.Bridge.Widget
         public static bool WingWindCyan;
         /// <summary>A dot on each smoke exhaust (checking where the smoke leaves). vectorStyle {"smokeDebug": true}.</summary>
         public static bool SmokeDebug;
+        /// <summary>All force arrows' length (×, one shared scale so their proportions hold). vectorStyle {"forceScale"}.</summary>
+        public static float ForceScale = 1f;
         private readonly Dictionary<string, WidgetArrow3D> _solidArrows = new();
         private readonly Dictionary<string, WidgetArc3D> _solidArcs = new();
         // The solid-3D shot's own labels (owner 2026-10-12, the autorotation intro: "each label should avoid the other labels
@@ -200,7 +202,7 @@ namespace FlyingGame.Bridge.Widget
                 pic.GammaDeg = System.Math.Asin(System.Math.Clamp(-vW.Z / pic.VInf, -1, 1)) * 57.2958;
                 Vec3 net = nonGrav + wB;
                 pic.AccelAlong = Dot(net, vh) / mp.MassKg; pic.PathRate = Dot(net, liftDir) / (mp.MassKg * pic.VInf);
-                pic.V["lift4"] = (cg, liftDir * (pic.LiftN / W)); pic.V["drag4"] = (cg, vh * (-3.0 * pic.DragN / W));
+                pic.V["lift4"] = (cg, liftDir * (pic.LiftN / W)); pic.V["drag4"] = (cg, vh * (-DragScale * pic.DragN / W));
             }
             Vec3 sf = nonGrav * (1.0 / mp.MassKg);
             pic.BallDeg = -System.Math.Atan2(sf.Y, System.Math.Max(0.5, -sf.Z)) * 57.2958;
@@ -210,7 +212,7 @@ namespace FlyingGame.Bridge.Widget
             pic.V["weight"] = (cg, s.Attitude.Conjugate().Rotate(new Vec3(0, 0, 1)));
             pic.V["wind"] = (cg, vAir * (-1.0 / System.Math.Max(1, pic.VInf)));   // RELATIVE wind: the air coming at the airplane (−velocity)
             pic.V["lift"] = (cg, lift * (1.0 / W)); pic.V["drag"] = (cg, drag * (DragScale / W));
-            if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (3.0 / W));
+            if (thrust.Length > 1) pic.V["thrust"] = (thrustPos, thrust * (DragScale / W));   // (thrust and drag share a scale)
             if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
             // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.
             Vec3 om = s.Rates;
@@ -310,9 +312,9 @@ namespace FlyingGame.Bridge.Widget
             Vector3 cgU = World(cg);
             float pxM = PixelM(cgU);
             Scr(cgU, out var cgScr);
-            float gPx = 190f * (w.IsWidgetHost ? 1f : Ui);   // one g (one weight) on the screen
+            float gPx = 190f * ForceScale * (w.IsWidgetHost ? 1f : Ui);   // one g (one weight) on the screen
             // FOUR FORCES: lift and weight must both fit, whole, above and below the CG (the game's free area is often short).
-            if (On("fourForces")) gPx = Mathf.Max(50f * Ui, Mathf.Min(gPx, 0.82f * Mathf.Min(scene.yMax - cgScr.y, cgScr.y - scene.yMin)));
+            if (On("fourForces") && ForceScale <= 1f) gPx = Mathf.Max(50f * Ui, Mathf.Min(gPx, 0.82f * Mathf.Min(scene.yMax - cgScr.y, cgScr.y - scene.yMin)));
             float lw = 6f * WidthScale * (scene.height / AeroWidget.FrameSize + 0.25f) / 1.25f * (Widget.IsWidgetHost ? 1f : Ui * 0.8f);
 
             // Readout (classic) and the airplane-scale tag.
@@ -449,8 +451,8 @@ namespace FlyingGame.Bridge.Widget
                 double lb = 0.2248;
                 if (On("weight")) { Arrow("weight", Weight, gPx); _labels.Request("weight", Tip("weight", gPx), Away(Origin("weight"), Tip("weight", gPx)), new[] { P.WeightN * lb }, v => $"WEIGHT {v[0]:#,0} lb", Weight, 3, 10); }
                 if (On("lift") && F.ContainsKey("lift4")) { Arrow("lift4", Lift, gPx); _labels.Request("lift4", Tip("lift4", gPx), Away(Origin("lift4"), Tip("lift4", gPx)), new[] { P.LiftN * lb }, v => $"LIFT {v[0]:#,0} lb", Lift, 5, 10); }
-                if (On("drag") && F.ContainsKey("drag4")) { Arrow("drag4", Drag, gPx); _labels.Request("drag4", Tip("drag4", gPx), Away(Origin("drag4"), Tip("drag4", gPx)), new[] { P.DragN * lb }, v => $"DRAG {v[0]:#,0} lb ×3", Drag, 5, 3); }
-                if (On("thrust") && F.ContainsKey("thrust")) { Arrow("thrust", Thrust, gPx); _labels.Request("thrust", Tip("thrust", gPx), Away(Origin("thrust"), Tip("thrust", gPx)), new[] { P.ThrustAlongN * lb }, v => $"THRUST {v[0]:#,0} lb ×3", Thrust, 5, 3); }
+                if (On("drag") && F.ContainsKey("drag4")) { Arrow("drag4", Drag, gPx); _labels.Request("drag4", Tip("drag4", gPx), Away(Origin("drag4"), Tip("drag4", gPx)), new[] { P.DragN * lb }, v => DragScale == 1.0 ? $"DRAG {v[0]:#,0} lb" : $"DRAG {v[0]:#,0} lb ×{DragScale:0.#}", Drag, 5, 3); }
+                if (On("thrust") && F.ContainsKey("thrust")) { Arrow("thrust", Thrust, gPx); _labels.Request("thrust", Tip("thrust", gPx), Away(Origin("thrust"), Tip("thrust", gPx)), new[] { P.ThrustAlongN * lb }, v => DragScale == 1.0 ? $"THRUST {v[0]:#,0} lb" : $"THRUST {v[0]:#,0} lb ×{DragScale:0.#}", Thrust, 5, 3); }
             }
             else
             {

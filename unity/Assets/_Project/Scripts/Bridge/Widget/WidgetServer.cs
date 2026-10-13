@@ -492,6 +492,7 @@ namespace FlyingGame.Bridge.Widget
                     if (j["labelScale"] != null && w.Display != null) w.Display.TextScale = Mathf.Clamp((float)j["labelScale"].Value<double>(), 1f, 3f);
                     if (j["dragScale"] != null) WidgetVectors.DragScale = System.Math.Clamp(j["dragScale"].Value<double>(), 1.0, 3.0);
                     ok["dragScale"] = WidgetVectors.DragScale;
+                    if (j["forceScale"] != null) WidgetVectors.ForceScale = Mathf.Clamp((float)j["forceScale"].Value<double>(), 0.5f, 3f);
                     if (j["smokeDebug"] != null) WidgetVectors.SmokeDebug = j["smokeDebug"].Value<bool>();
                     if (j["wingWindCyan"] != null) WidgetVectors.WingWindCyan = j["wingWindCyan"].Value<bool>();
                     if (j["solid3D"] != null) WidgetVectors.Solid3D = j["solid3D"].Value<bool>();
@@ -775,6 +776,7 @@ namespace FlyingGame.Bridge.Widget
             return new JObject
             {
                 ["inertialG"] = System.Math.Round(p.InertialG, 3), ["aeroG"] = System.Math.Round(p.AeroG, 3), ["tailLb"] = System.Math.Round(-p.TailN * 0.2248, 1),
+                ["liftLb"] = System.Math.Round(p.LiftN * 0.224809, 1), ["dragLb"] = System.Math.Round(p.DragN * 0.224809, 1), ["thrustLb"] = System.Math.Round(p.ThrustAlongN * 0.224809, 1), ["weightLb"] = System.Math.Round(p.WeightN * 0.224809, 1),
                 ["momentAero"] = System.Math.Round(p.MomAero * 0.7376), ["momentInertia"] = System.Math.Round(p.MomInertia * 0.7376),
                 ["tailAlphaL"] = System.Math.Round(p.TailAlphaL, 2), ["tailAlphaR"] = System.Math.Round(p.TailAlphaR, 2), ["downwashDeg"] = System.Math.Round(p.Eps, 2),
                 ["tailEta"] = System.Math.Round((p.EtaL + p.EtaR) * 0.5, 3), ["tailEtaL"] = System.Math.Round(p.EtaL, 3), ["tailEtaR"] = System.Math.Round(p.EtaR, 3),
