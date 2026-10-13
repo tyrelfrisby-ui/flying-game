@@ -627,7 +627,11 @@ public static class AeroModel
                     {
                         double up = stabZ - strip.PosVec().Z;                   // + when strip is above the stab (z down)
                         double aftOfTe = (stabX - 0.75 * stabChord) - strip.PosVec().X; // + when strip is aft of stab TE
-                        bool inWedge = up > 0 && (aftOfTe < up / Math.Tan(30.0 * Math.PI / 180.0));
+                        // The wedge lies DOWNSTREAM of the stab: above it when the flow comes from below (upright spin),
+                        // below it when the flow comes from the canopy side (inverted spin) — an inverted spin's fin, above
+                        // the stab, is upstream of it and unshielded (2026-10-12, rotary-balance audit).
+                        double downstream = wake.FlowAlpha >= 0 ? up : -up;
+                        bool inWedge = downstream > 0 && (aftOfTe < downstream / Math.Tan(30.0 * Math.PI / 180.0));
                         if (inWedge)
                         {
                             // Half the fin's wake loss again (owner 2026-09-08: the rudder kept ~8 % of its power in

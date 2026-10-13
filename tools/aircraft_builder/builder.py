@@ -74,6 +74,8 @@ def write(idname, disp, mass_kg, cg, inertia, surfaces, fuselage, propulsion, li
     from reversed_flow import fix_table, needs_fix   # (2026-10-12) a wing sliding backwards isn't a barn door
     for t in tabs.values():
         if needs_fix(t): fix_table(t)
+    import lowar_plate   # (2026-10-12) a low-AR tail plate broadside is CD ~1.18, not the 2-D 1.66 (Hoerner)
+    lowar_plate.fix_tables(tabs)
     c = {'schemaVersion':1,'id':idname,'displayName':disp,
         'mass':{'massKg':mass_kg,'cg':cg,'inertia':inertia},
         'surfaces':surfaces,'airfoilTables':tabs,'controls':ctl,'fuselage':fuselage,
