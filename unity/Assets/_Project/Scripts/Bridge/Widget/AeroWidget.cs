@@ -560,6 +560,7 @@ namespace FlyingGame.Bridge.Widget
             // A config'd exhaust is measured on the MODEL itself (owner 2026-10-12: "4 ft after the spinner … out of the belly
             // just ahead of the landing gear"): so far aft of the model's spinner tip, on its belly surface at the centreline.
             ModelNoseFromCg = ModelNoseAndBelly(0, out var noseAt) ? noseAt.X : double.NaN;
+            if (!ModelTopAndBelly(out ModelTopFromCg, out ModelBellyFromCg)) { ModelTopFromCg = double.NaN; ModelBellyFromCg = double.NaN; }
             if (double.IsNaN(ModelNoseFromCg)) { var hubs = _builder.PropHubsBody(); if (hubs.Count == 1) ModelNoseFromCg = hubs[0].x + 0.25 + VisualOffset.X; }   // (a model we can't read: the spinner ≈ the prop hub + 0.25 m)   // (the model's spinner tip: the four-forces thrust starts there)
             if (Config.Smoke != null && Config.Smoke.AftOfNoseM > 0 && ex.Length == 1 && ModelNoseAndBelly(Config.Smoke.AftOfNoseM, out var exM)) ex[0] = exM;
             else for (int i = 0; i < ex.Length; i++) ex[i] += VisualOffset;
@@ -615,6 +616,10 @@ namespace FlyingGame.Bridge.Widget
         public Vec3[] SmokeExhausts = System.Array.Empty<Vec3>();
         /// <summary>The visual model's most forward point (the spinner tip), body x from the CG (m); NaN = unknown.</summary>
         public double ModelNoseFromCg = double.NaN;
+        /// <summary>The visual model's highest and lowest points, body z from the CG (m, + = down; so Top is the more negative):
+        /// the four forces' LIFT starts above the airframe and WEIGHT below it (Ty 2026-10-14), as thrust and drag start clear of
+        /// the spinner and the tail. NaN = unknown (a model we can't read): the vectors then start at the CG as before.</summary>
+        public double ModelTopFromCg = double.NaN, ModelBellyFromCg = double.NaN;
         /// <summary>The middle of the airframe, spinner to tail, body x from the CG (m).</summary>
         public double AirframeMidFromCg
         {
@@ -649,6 +654,35 @@ namespace FlyingGame.Bridge.Widget
             if (belly == float.MinValue) return false;
             at = new Vec3(x, 0, belly) + VisualOffset;
             Debug.Log($"[Smoke] model nose x {nose:0.00} m · exhaust {aft:0.00} m aft at x {x:0.00}, belly z {belly:0.00} (body, from the visual origin)");
+            return true;
+        }
+
+        /// <summary>The visual model's highest and lowest points over the whole airframe (fin top to tyre bottom), body z from the
+        /// CG (m, + = down). The four forces' lift and weight start clear of these, so neither arrow crosses the airplane in any
+        /// view. Falls back to the config's own surfaces when no mesh can be read.</summary>
+        private bool ModelTopAndBelly(out double top, out double belly)
+        {
+            top = belly = double.NaN;
+            float hi = float.MaxValue, lo = float.MinValue;   // body z: − is up
+            foreach (var mf in _visualRoot.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var m = mf.sharedMesh; if (m == null || !m.isReadable || mf.GetComponent<MeshRenderer>() == null || !mf.GetComponent<MeshRenderer>().enabled) continue;
+                var vs = m.vertices; var tf = mf.transform;
+                for (int i = 0; i < vs.Length; i += System.Math.Max(1, vs.Length / 20000))
+                {
+                    float z = -_visualRoot.InverseTransformPoint(tf.TransformPoint(vs[i])).y;   // Unity local → body z (down +)
+                    hi = Mathf.Min(hi, z); lo = Mathf.Max(lo, z);
+                }
+            }
+            if (hi < lo) { top = hi + VisualOffset.Z; belly = lo + VisualOffset.Z; }
+            else if (Config != null)
+            {
+                var cg = Config.Mass.CgVec();
+                foreach (var sf in Config.Surfaces) foreach (var st in sf.Strips) { double z = st.Pos[2] - cg.Z; top = double.IsNaN(top) ? z : System.Math.Min(top, z); belly = double.IsNaN(belly) ? z : System.Math.Max(belly, z); }
+                foreach (var g in Config.Gear) { double z = g.Pos[2]; belly = double.IsNaN(belly) ? z : System.Math.Max(belly, z); }   // (gear Pos is already vs the CG)
+            }
+            if (double.IsNaN(top) || double.IsNaN(belly) || belly - top < 0.2) return false;
+            Debug.Log($"[Widget] airframe top z {top:0.00} m, belly z {belly:0.00} (body, from the CG): the four forces' lift and weight start clear of them");
             return true;
         }
 

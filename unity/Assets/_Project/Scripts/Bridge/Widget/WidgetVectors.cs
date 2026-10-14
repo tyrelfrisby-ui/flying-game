@@ -365,6 +365,16 @@ namespace FlyingGame.Bridge.Widget
                 if (thrust.Length > 1) pic.V["thrust"] = (new Vec3(noseX, 0, cg.Z), thrust * (DragScale / W));
                 if (pic.V.TryGetValue("drag4", out var d4)) pic.V["drag4"] = (new Vec3(tailX - 0.3, 0, cg.Z), d4.vec);
                 pic.V["drag"] = (new Vec3(tailX - 0.3, 0, cg.Z), pic.V["drag"].vec);
+                // LIFT from above the airframe, WEIGHT from below it (Ty 2026-10-14: "the lift and weight vectors starting above
+                // and below the aircraft like the thrust and drag vectors do so no vector overlaps the airplane"). Both stay on
+                // the CG's vertical line, so the pair still reads against each other.
+                if (w is AeroWidget vw && !double.IsNaN(vw.ModelTopFromCg))
+                {
+                    Vec3 above = new(cg.X, 0, cg.Z + vw.ModelTopFromCg - 0.3), below = new(cg.X, 0, cg.Z + vw.ModelBellyFromCg + 0.3);
+                    if (pic.V.TryGetValue("lift4", out var l4)) pic.V["lift4"] = (above, l4.vec);
+                    pic.V["lift"] = (above, pic.V["lift"].vec);
+                    pic.V["weight"] = (below, pic.V["weight"].vec);
+                }
             }
             if (tailW > 0) { pic.HasTail = true; pic.TailN = tailF.Z; pic.V["tail"] = (tailPos * (1.0 / tailW), new Vec3(0, 0, tailF.Z * 4.0 / W)); }
             // Moments about the CG (pitch, nose-up +): aero, and the inertia coupling −(ω × Iω)_y.

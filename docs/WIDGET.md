@@ -511,3 +511,19 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
   - `state.joystick` gives: `names`, raw `axes[8]`, `setup {active, step, of, text, status, progress, focusAxis, learnt}`, `profile {name, aileron/elevator/rudder/throttle {axis, center, pos, neg, dead}, buttons, now}`, `actions`.
   - The module's BACK/SKIP/FINISH/CANCEL and TOOLS' STICK SETUP are `tap:` rects.
 - **Platforms:** iPhone/iPad can't read generic joysticks (Apple's GameController accepts known controllers only).
+
+## Shot renders (tools/shots)
+
+`tools/shots/four-forces-flyby.py` renders the Ep4 four-forces FLY-BY: `zsh tools/deploy/capture.sh` first, then
+`DIST=65 ZOOM=3 python3 tools/shots/four-forces-flyby.py 16:9` (or `square`). It writes the ProRes 4444 .mov with
+alpha, a per-frame telemetry CSV and a `.credits.json` into `Desktop/Talk Flying Animations/Widget Shots/`.
+
+Three things any render script has to get right:
+- **`crowdNed` goes alone.** `view` runs `SetCrowd` before `SetView`, so a `name` in the same command nulls the
+  fixed camera and falls back to the default spectator. Send `zoom` on its own too.
+- **Review offsets are clip time.** They are counted at 33.3 ms per STORED frame whatever the `recordRate`, so at
+  `recordRate 4` (120 Hz history = true 25 % slow motion at 30 fps) a 10 s clip is `seek -10000` then 300 × `step 1`.
+- **`snapshot` reads the last RENDERED frame**, so let the widget draw once after each step before grabbing.
+
+Set `vectorStyle` BEFORE turning a mode on: a label's text is only re-made when its number moves, so a constant
+like weight keeps whatever text it was first drawn with.
