@@ -517,6 +517,9 @@ Glass Overlay holds the arbitration: who asks, who approves. The widget shows th
 `tools/shots/four-forces-flyby.py` renders the Ep4 four-forces FLY-BY: `zsh tools/deploy/capture.sh` first, then
 `DIST=65 ZOOM=3 python3 tools/shots/four-forces-flyby.py 16:9` (or `square`). It writes the ProRes 4444 .mov with
 alpha, a per-frame telemetry CSV and a `.credits.json` into `Desktop/Talk Flying Animations/Widget Shots/`.
+`DIST` is the camera's abeam stand-off in metres and is the shot's whole character; `NAME=` sets the output base
+name, so the same shot can be re-rendered at another distance without overwriting the first (Ty keeps both to
+compare). Restart the capture widget between the two frame modes.
 
 Three things any render script has to get right:
 - **`crowdNed` goes alone.** `view` runs `SetCrowd` before `SetView`, so a `name` in the same command nulls the

@@ -106,7 +106,8 @@ def render(w, tag, frame_mode):
         w.cmd(cmd="snapshot", path=f"{TMP}/f{i:04d}.png")
         if i % 60 == 0:
             print(f"  {tag}: frame {i}/{FRAMES}", flush=True)
-    name = f"Ep4 — Four forces fly-by, C-172 at 25% (level with the airplane){tag}"
+    # NAME lets one shot be re-rendered at another camera distance without overwriting the first (Ty keeps both).
+    name = os.environ.get("NAME", "Ep4 — Four forces fly-by, C-172 at 25% (level with the airplane)") + tag
     mov = os.path.join(OUT, name + ".mov")
     subprocess.run(["ffmpeg", "-y", "-framerate", str(FPS), "-i", f"{TMP}/f%04d.png",
                     "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le",
