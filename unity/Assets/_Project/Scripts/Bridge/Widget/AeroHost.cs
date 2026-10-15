@@ -252,7 +252,11 @@ namespace FlyingGame.Bridge.Widget
             r.LeftAlphaDeg = System.Math.Atan2(vl.Z, System.Math.Max(0.1, vl.X)) * 57.2958;
             r.RightAlphaDeg = System.Math.Atan2(vr.Z, System.Math.Max(0.1, vr.X)) * 57.2958;
             double stallDeg = 15.0;
-            r.LeftStalled = r.LeftAlphaDeg > stallDeg; r.RightStalled = r.RightAlphaDeg > stallDeg;
+            // EITHER WAY: a wing stalls at negative α too, inverted (WidgetVectors already tests |α|). The
+            // one-sided test never fired inverted, so an inverted stall was invisible to `state` and to
+            // everything reading it - an inverted stall could not even be measured. (2026-10-15)
+            r.LeftStalled = System.Math.Abs(r.LeftAlphaDeg) > stallDeg;
+            r.RightStalled = System.Math.Abs(r.RightAlphaDeg) > stallDeg;
             r.OnGround = LandingGear.AnyMainWheelOnGround(Config, s);
             return r;
         }

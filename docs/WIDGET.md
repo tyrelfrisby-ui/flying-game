@@ -530,3 +530,50 @@ Three things any render script has to get right:
 
 Set `vectorStyle` BEFORE turning a mode on: a label's text is only re-made when its number moves, so a constant
 like weight keeps whatever text it was first drawn with.
+
+### Flying the widget from a script (tools/shots/vg.py, 2026-10-15)
+
+The V-g flights for Ep1 are FLOWN, not posed: a loop reads `state`, works out stick, rudder and throttle, and
+sends `controls`. Four things that are not obvious:
+
+- **Two commands per Unity frame.** The server answers once per frame (~17 ms), so a `state` then `controls` loop
+  caps at 30 Hz. Write both into the socket before reading either reply and they are served in the same frame -
+  the loop then runs at frame rate, ~59 Hz.
+- **Sim time is not wall-clock time.** `WidgetReview.Record` accumulates the SIM dt and stores a frame per 1/30 s
+  of simulation, while the sim advances 1/30 s per RENDERED frame. At ~33 fps the sim therefore runs about 10 %
+  faster than the clock on the wall. The stored-frame count (`review.historyMs / 33.3`) is exact and a 30 fps
+  clip is real time for the airplane; wall-clock elapsed is not a check on either.
+- **The review ring wraps at 500 s** (`WidgetHistory.Capacity` 15000 at 30 Hz) and `historyMs` then pins at the
+  cap. A long setup before the recorded sequence silently overwrites its start, which shifts every frame index
+  and mislabels every phase. Count the room before recording and refuse to render a wrapped history.
+- **Pull is NEGATIVE elevator**, aileron positive rolls right, rudder positive yaws right. Measured, not assumed -
+  and the elevator is powerful (0.25 held for 2 s is ~3.9 g in the 172).
+
+Reading `state` while paused returns the SHOWN review frame (`Read() => Read(ShownState, ShownNz)`), so one pass
+over the history can write the telemetry CSV and grab the frames together - row i then IS frame i, with no
+time-mapping afterwards.
+
+A world-fixed camera is `view name=orbit` then `view orbitWorld=true orbitDeg=<bearing from NORTH> orbitElev=0`:
+it follows the airplane's position and never turns with it (180 = due south, so an east-bound airplane crosses
+left to right). Distance is `(max(span,length)*2.6 + 6) / zoom`, so `zoom` below 1 backs the camera off.
+
+### Measuring a stall speed (tools/shots/measure_env.py)
+
+Ty, 2026-10-15: *"if the airplane is pitched down the stall speed will be low."* A nose-down, sinking break
+unloads the wing, and Vs scales with the square root of the load factor, so a break at 0.7 g reads about 16 %
+low. Taking the lowest speed seen anywhere inside a loose g band has the same fault and reads several knots low.
+The method that gives a number worth drawing an envelope with:
+
+1. wings level, clean, idle-ish, holding the FLIGHT PATH level so the wing carries +-1 g right up to the break;
+2. decelerate about 1 kt/s;
+3. take the speed AT the break - the first moment a wing's |alpha| passes the stall angle;
+4. correct it to 1 g: `Vs = KIAS / sqrt(|nz|)`;
+5. release the back pressure (or the push) at once - holding it drives the wing far past the break.
+
+Measured this way: the Extra 300 gives **vs 57.2, vsi 57.2 KIAS** - identical, which is what its symmetrical
+`extra-sym` wing should give (it broke at alpha +14.7 upright and -14.8 inverted). The C-172 gives **vs 52.4,
+vsi 69.3**: both break at |alpha| 15, but the cambered Clark Y makes far less lift inverted. There is no such
+thing as a stall speed on a vertical downline, so a measurement taken while diving means nothing.
+
+`AeroHost.Read` used to flag a stall one way only (`LeftAlphaDeg > stallDeg`), so an inverted stall was invisible
+to `state` - and could not be measured at all. It now tests `|alpha|`, which is what `WidgetVectors` already did.
