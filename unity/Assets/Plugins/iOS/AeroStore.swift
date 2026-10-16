@@ -130,21 +130,31 @@ private final class AeroStore {
             // verify the Multiplayer Pass against Apple's keys, which is how the Pass works without us
             // holding an account for anybody. We do not parse it, store it or log it.
             let jws = result.jwsRepresentation
+            // originalPurchaseDate, not purchaseDate: a restore on a new device gives the transaction a fresh
+            // purchaseDate, and a trial that restarted itself on every reinstall would be no trial at all.
+            let bought = AeroStore.iso(t.originalPurchaseDate)
+            // Family Sharing is off for these products in App Store Connect, so a shared copy should never
+            // arrive. Reported anyway, and ignored on the C# side, because "cannot happen" is not a check.
+            let shared = t.ownershipType == .familyShared
             switch t.productType {
             case .autoRenewable:
                 subs.append([
                     "id": t.productID,
                     "expiresUtc": AeroStore.iso(t.expirationDate),
+                    "purchasedUtc": bought,
                     "revoked": t.revocationDate != nil,
                     "upgraded": t.isUpgraded,
+                    "shared": shared,
                     "jws": jws,
                 ])
             case .nonConsumable:
                 subs.append([
                     "id": t.productID,
                     "expiresUtc": "",                                 // never expires
+                    "purchasedUtc": bought,                           // the trial clock and the unlock's included month
                     "revoked": t.revocationDate != nil,
                     "upgraded": false,
+                    "shared": shared,
                     "jws": jws,
                 ])
             default:
@@ -152,8 +162,9 @@ private final class AeroStore {
             }
         }
 
-        // Unfinished consumables. Nothing is sold as a consumable now that multiplayer is a subscription,
-        // so this is normally empty; C# finishes whatever appears rather than leaving it unfinished for ever.
+        // Unfinished consumables: the multiplayer hours top-up. C# credits the hours and then calls
+        // AeroStoreFinish, in that order, so a purchase killed mid-credit comes back next launch rather
+        // than being lost.
         for await result in Transaction.unfinished {
             guard case .verified(let t) = result, t.productType == .consumable else { continue }
             consumed.append(["id": t.productID, "txn": String(t.id)])

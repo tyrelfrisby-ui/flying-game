@@ -1,0 +1,85 @@
+{
+  "_comment": "DRAFT FOR THE OWNER TO APPROVE - nothing reads this file yet. The points economy from the owner's 2026-10-15 brief: points are EARNED ONLY, never sold, and they buy aircraft and challenges. A lesson is never bought; it is passed by flying it to the standard. See docs/POINTS.md for how every number here was arrived at and which places do not exist yet.",
+
+  "pointsAreEarnedOnly": true,
+  "lessonsArePurchasable": false,
+
+  "_anchor": "The owner set the scale: flying and nothing else should take about 1,000 hours to unlock everything. Everything costs 1,000,000 points and plain flying pays 1,000 an hour, so that anchor is exact and every other rate is a multiple of 'an hour of just flying'.",
+  "totalToUnlockEverything": 1000000,
+
+  "_free": "Free with the download, before any trial or purchase, and the aircraft the starter lessons and challenges are flown in.",
+  "freeAircraft": ["glider-2-33-like", "c172-like"],
+
+  "_earning": "Rates in the order the owner listed them, lowest to highest. 'PerHour' rates are points per hour of that activity; everything else is per event.",
+  "earning": {
+    "flyingPerHour": 1000,
+
+    "landingOnRunwayPaved": 200,
+    "landingOnRunwayGrass": 200,
+    "_landingNote": "A SUCCESSFUL landing only: on a runway, wheels or floats on water at a seaplane base, within the surface, no gear damage and no ground loop. A touch-and-go counts; a bounce that goes around does not. ~200 at a five-minute pattern is about 2,400/h, which keeps it under the tow rate as the owner ordered.",
+
+    "gliderPer100ftGained": 25,
+    "_gliderNote": "Altitude GAINED after release or airstart, counted on the net high-water mark so a climb is not paid for twice by porpoising. A good two-hour soaring flight gaining 10,000 ft total pays about 1,250/h - above plain flying, below tow.",
+
+    "towPerHour": 3000,
+    "_towNote": "While on the rope, either end: towing a glider up is flying too, and someone has to do it.",
+
+    "gate": 120,
+    "_gateNote": "One gate = a rooftop ring (Playground.RooftopRings), a race gate or a correctly-passed race pylon (WorldFeatures.RaceCourse). A ten-gate race lap in three minutes pays about 24,000/h, which is why gates rate above tow.",
+
+    "invertedMultiplier": 2.0,
+    "_invertedNote": "Applies to gates and to the bridge/arch/hangar passes, not to flying time or landings. Inverted means the wings past 120 deg of bank through the whole pass, not a snapshot at the gate.",
+
+    "underBridge": 400,
+    "throughArch": 400,
+    "throughHangar": 400,
+    "_passNote": "Higher per event than a gate because the gap is real geometry with a solid either side. Each counts once per pass, with a cooldown so an orbit of the same arch is not a points mill.",
+
+    "hiddenPlaceFirstFind": 10000,
+    "_hiddenNote": "One-time, per place, the first time it is found. The biggest single award in the table because finding one is the only thing here that cannot be ground out."
+  },
+
+  "_costs": "What points buy. Tiers are by how much aeroplane it is to fly, not by how much we like it. The sum of every aircraft and every challenge below is exactly totalToUnlockEverything.",
+  "aircraftCost": {
+    "target-drone-like": 10000,
+
+    "pa28-archer-like": 15000,
+    "pa18-cub-like": 15000,
+    "pa18-bush-like": 15000,
+    "decathlon-8kcab-like": 15000,
+    "stearman-pt17-like": 15000,
+
+    "aircam-like": 25000,
+    "aircam-amphib-like": 25000,
+    "pa18-floats-like": 25000,
+    "dhc2-beaver-floats-like": 25000,
+    "pa25-pawnee-like": 25000,
+    "dc3-like": 25000,
+
+    "glider-swift-s1-like": 30000,
+    "glider-eb29r-like": 30000,
+
+    "cirrus-sr22-like": 40000,
+    "glasair3-like": 40000,
+    "extra-300-like": 40000,
+    "pitts-s2b-like": 40000,
+    "cassutt-f1-like": 40000,
+    "geebee-r2-like": 40000,
+
+    "seminole-like": 60000,
+    "boeing-737-like": 60000,
+    "hughes-h4-like": 60000,
+
+    "p51d-like": 80000,
+    "f86-sabre-like": 80000
+  },
+
+  "_challengeCosts": "The six configs/challenges lessons stay free - they are where the earning starts, per the owner's 'a few lessons/challenges that earn points'. These are the event challenges that exist in code: RaceController, StolController and CropDustController in EventControllers.cs, plus the two in Scripts/Bridge/Combat. Carrier landings are not a scored challenge yet - the carrier is moving scenery in Playground - so there is no line for one.",
+  "challengeCost": {
+    "air-race": 25000,
+    "stol-contest": 25000,
+    "crop-dust": 25000,
+    "combat": 25000,
+    "formation": 25000
+  }
+}

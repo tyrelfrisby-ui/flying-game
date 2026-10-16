@@ -1,6 +1,23 @@
 {
-  "_comment": "Product identifiers only. PRICES ARE NEVER STORED HERE or anywhere else in this repository - they are read from the App Store at runtime, localised, which is the only place that stays correct when a price changes. These identifiers must match the ones configured in App Store Connect.",
-  "_subscriptions": "Two independent auto-renewing subscriptions in SEPARATE subscription groups, so a pilot can hold either, both, or neither, and buying one never cancels or upgrades the other. 'pro' unlocks the airplanes, the syllabus and the recorder; 'multiplayer' is the pass that lets you fly online and is needed by everyone who goes online, including members who get 'pro' through an external provider.",
-  "subscriptionProductId": "com.tyfrisby.aeroplayground.pro.monthly",
-  "multiplayerProductId": "com.tyfrisby.aeroplayground.multiplayer.monthly"
+  "_comment": "Product identifiers and the rules that go with them. PRICES ARE NEVER STORED HERE or anywhere else in this repository - they are read from the App Store at runtime, localised, which is the only place that stays correct when a price changes. These identifiers must match the ones configured in App Store Connect, and an identifier cannot be changed once it has been created there.",
+
+  "_trial": "A $0 NON-CONSUMABLE, not an introductory offer. Buying it is how the trial's start date gets signed and stored by Apple, so it survives a reinstall, a new device and a wound-back clock. The trial opens everything in single player; it does not include flying online.",
+  "trialProductId": "com.tyfrisby.aeroplayground.trial.14day",
+  "trialDays": 14,
+
+  "_unlock": "One-time non-consumable. Opens every airplane and every lesson, permanently, and includes the first 30 days of online flying. Family Sharing must be OFF for this product in App Store Connect; the app also ignores a family-shared copy of it.",
+  "unlockProductId": "com.tyfrisby.aeroplayground.unlock",
+  "multiplayerDaysWithUnlock": 30,
+
+  "_multiplayer": "Auto-renewing, both in ONE subscription group so monthly and yearly are the same thing at two durations and the store handles switching between them. Needed by everyone who flies online, including members entitled to the content through an external provider. Family Sharing OFF.",
+  "multiplayerProductIds": [
+    "com.tyfrisby.aeroplayground.multiplayer.monthly",
+    "com.tyfrisby.aeroplayground.multiplayer.yearly"
+  ],
+  "multiplayerHoursPerMonth": 70,
+
+  "_topUp": "Consumable. Offered ONLY once the month's included hours are used up, never before. Topped-up hours sit behind the included hours and do not expire at month end.",
+  "topUpProducts": [
+    { "id": "com.tyfrisby.aeroplayground.multiplayer.hours70", "hours": 70 }
+  ]
 }

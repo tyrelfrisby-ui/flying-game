@@ -13,7 +13,8 @@ numbers stay out of this repository because it is public.
 | Privacy manifest | `unity/Assets/Plugins/iOS/PrivacyInfo.xcprivacy`, added to the **app** target (Apple reads it from the app bundle, and Unity would otherwise bury it in UnityFramework) |
 | StoreKit 2 linked, Swift 5 configured, Swift runtime embedded | same hook — iOS 15 deployment target means the runtime cannot be assumed present |
 | Entitlement rules, offline grace, clock-tamper resistance | `src/FlyingGame.Sim/Commerce/Entitlement.cs` |
-| Connected-hours accounting for the relay cost check | `src/FlyingGame.Sim/Commerce/AirtimeMeter.cs` — accounting only; it cannot refuse anybody anything |
+| Trial, one-time unlock, the unlock's included month, external membership | `src/FlyingGame.Sim/Commerce/ContentAccess.cs` |
+| The monthly hour cap, the top-up, and the relay cost counters | `src/FlyingGame.Sim/Commerce/AirtimeMeter.cs` |
 | Apple's signed transaction (JWS) carried up to the join check | `Plugins/iOS/AeroStore.swift` → `Bridge/Commerce/StoreKitBridge.cs` → `EntitlementRuntime.MultiplayerPassJws()` |
 | Paywall with the store's own localised prices, and Restore Purchases always reachable | `Bridge/Commerce/Paywall.cs` |
 | Product identifiers out of source | `unity/Assets/StreamingAssets/commerce.json` |
@@ -44,38 +45,35 @@ keeps so much as the transaction id in a log line, the policy answer changes.
 It stops being true the moment external sign-in ships, which is accounts. See `docs/EXTERNAL-ENTITLEMENT.md` §6.
 
 **Still to wire.** The paywall is not attached to a scene object, and nothing is attached to the multiplayer
-transport — `EntitlementRuntime.CanJoinMultiplayer`, `MultiplayerPassJws`, `BeginMultiplayerSession` and
+transport — `EntitlementRuntime.CanJoinMultiplayer`, `MultiplayerJws`, `BeginMultiplayerSession` and
 `RecordMultiplayerTime` are written but nothing calls them. Until they are called, nothing is gated and no
-hours are counted. That is the next piece of work, and it is deliberately the piece that touches the
+hours are counted — so the hour cap is not actually enforced on anybody yet. That is the next piece of work, and it is deliberately the piece that touches the
 networking code.
 
-## The product catalogue is not settled
+## The product catalogue
 
-The mechanism here — grants, trust, grace, the high-water clock, the StoreKit plumbing, the signed-transaction
-join check, the hours accounting — has survived every version of the business model so far and is worth
-keeping. The **catalogue** has not: it changed four times on 2026-10-15 alone, from metered data, to hour
-packs, to a monthly pass, to a free download with a trial, a points progression, a one-time unlock and a
-multiplayer subscription after it.
+Settled with the owner on 2026-10-15, after four earlier versions that day (metered bytes, hour packs, a
+monthly pass, then this). Identifiers and the rules that go with them are in
+`unity/Assets/StreamingAssets/commerce.json`; prices are not in this repository at all.
 
-So: product identifiers live in `StreamingAssets/commerce.json` and nowhere else, and this layer deliberately
-knows nothing about what anything costs or what the current offer is called. Before the next reshaping is
-built, the model wants to be settled with the owner directly — including the three things the business side
-has flagged as undecided (whether a trial includes multiplayer, what an external provider's members get, and
-exactly which content sits outside the one-time unlock). Each rewrite is real work and the tests go with it.
+| Product | Kind | What it does |
+|---|---|---|
+| `trial.14day` | $0 non-consumable | Starts the fourteen-day trial. Everything, **single player only**. A purchase rather than an introductory offer, so Apple holds the start date and it survives a reinstall, a new device and a wound-back clock. |
+| `unlock` | Non-consumable | Every airplane and lesson, permanently, plus the **first 30 days** of online flying. |
+| `multiplayer.monthly`, `multiplayer.yearly` | Auto-renewing, ONE group | The online pass. Needed by everyone who flies online, external-provider members included. |
+| `multiplayer.hours70` | Consumable | Another block of online hours, offered **only** once the month's cap is used. Bought hours do not expire at month end. |
 
-## Age rating inputs (for the questionnaire)
+Rules in code, each with tests: the trial does not include multiplayer; an external membership grants the
+unlock's content for as long as the membership lasts and nothing more; online flying is capped at the
+configured hours per pilot per month and the cap is hard; a family-shared copy of any of these is ignored,
+because Family Sharing is off for all of them in App Store Connect and "cannot happen" is not a check.
 
-Factual answers for whoever fills the form; the rating follows from them. No violence against persons —
-the combat content is aircraft-vs-aircraft with no depiction of injury. No blood or gore, no sexual content,
-no profanity, no gambling, no alcohol, tobacco or drug references, no horror. Unrestricted web access: no
-(the only outbound links are the terms and privacy pages, opened in Safari). User-generated content: no
-sharing of user content between players. Contests: no. The voice intercom carries live voice between players
-in a shared room, which the form treats as user-to-user communication, so that one is yes and it is the only
-yes in the social group.
+Free, before any purchase: the trainer glider and the C-172, and the lessons and challenges that start you
+earning. Everything else is earned with points or bought. **Points buy aircraft and challenges only — a
+lesson is passed by flying it to the standard, never bought.** The points table is a draft awaiting the
+owner's approval in `configs/progression.json`, with the reasoning and a survey of which named places exist
+in `docs/POINTS.md`. No code earns, stores or spends a point yet.
 
-## Order of work from here
-
-1. Attach the paywall and the gate to the scene and to the transport (above).
-2. Sandbox-test every purchase path on a device: buy, cancel, restore, Ask-to-Buy pending, refund/revoke, and
-   a renewal while offline. The resolver's rules are unit-tested, but the StoreKit plumbing is not and cannot be.
-3. Only then a TestFlight build.
+**Owner-only, and not yet done:** creating these five products in App Store Connect. Worth doing once and
+carefully — a product identifier cannot be changed after it is created, and Family Sharing must be off for
+the unlock and both pass durations.

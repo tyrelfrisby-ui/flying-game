@@ -23,6 +23,14 @@ namespace FlyingGame.Bridge.Commerce
         public readonly DateTime ExpiresUtc;      // DateTime.MaxValue for a non-expiring purchase
         public readonly bool Revoked;
 
+        /// <summary>Apple's ORIGINAL purchase date — the one that survives a restore on a new device. The
+        /// trial's fourteen days and the unlock's included month are both measured from this.</summary>
+        public readonly DateTime PurchasedUtc;
+
+        /// <summary>This copy came through Family Sharing. Family Sharing is off for every product here, so
+        /// it should never be true; when it is, the entitlement layer ignores the entitlement.</summary>
+        public readonly bool FamilyShared;
+
         /// <summary>Apple's own signed transaction (JWS) for this entitlement, exactly as StoreKit handed it
         /// over. It is what the relay is shown at join to prove the Multiplayer Pass without us keeping an
         /// account: Apple signed it, so anyone holding Apple's public keys can check it, and we never have to
@@ -30,8 +38,9 @@ namespace FlyingGame.Bridge.Commerce
         /// it. Empty off device.</summary>
         public readonly string Jws;
 
-        public StoreEntitlement(string id, DateTime expiresUtc, bool revoked, string jws = "")
-        { Id = id; ExpiresUtc = expiresUtc; Revoked = revoked; Jws = jws ?? ""; }
+        public StoreEntitlement(string id, DateTime expiresUtc, bool revoked, string jws = "",
+                                DateTime purchasedUtc = default, bool familyShared = false)
+        { Id = id; ExpiresUtc = expiresUtc; Revoked = revoked; Jws = jws ?? ""; PurchasedUtc = purchasedUtc; FamilyShared = familyShared; }
     }
 
     /// <summary>
@@ -79,10 +88,9 @@ namespace FlyingGame.Bridge.Commerce
         public static IReadOnlyList<StoreOffer> Offers => _offers;
         public static IReadOnlyList<StoreEntitlement> Entitlements => _entitlements;
 
-        /// <summary>Consumables that have arrived and not yet been consumed. Nothing in the app sells a
-        /// consumable any more (both products are subscriptions), so this should always be empty; the
-        /// entitlement layer finishes anything that does turn up so a stray transaction cannot sit unfinished
-        /// for ever. Kept because it is generic store plumbing, not a business model.</summary>
+        /// <summary>Consumables that have arrived and not yet been credited — the multiplayer hours top-up.
+        /// Credit them, then call <see cref="Finish"/> with the id, in that order: a purchase killed
+        /// mid-credit comes back next launch, and the reverse order would lose the hours.</summary>
         public static IReadOnlyList<(string productId, string txnId)> PendingConsumables => _pending;
 
         private static readonly List<StoreOffer> _offers = new();
@@ -128,7 +136,11 @@ namespace FlyingGame.Bridge.Commerce
                         DateTime when = string.IsNullOrEmpty(exp)
                             ? DateTime.MaxValue        // a non-expiring purchase
                             : DateTime.TryParse(exp, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : DateTime.MinValue;
-                        _entitlements.Add(new StoreEntitlement(x.Value<string>("id"), when, x.Value<bool?>("revoked") ?? false, x.Value<string>("jws") ?? ""));
+                        string bought = x.Value<string>("purchasedUtc");
+                        DateTime boughtAt = string.IsNullOrEmpty(bought) ? DateTime.MinValue
+                            : DateTime.TryParse(bought, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var b) ? b : DateTime.MinValue;
+                        _entitlements.Add(new StoreEntitlement(x.Value<string>("id"), when, x.Value<bool?>("revoked") ?? false,
+                            x.Value<string>("jws") ?? "", boughtAt, x.Value<bool?>("shared") ?? false));
                     }
 
                 _pending.Clear();
@@ -150,7 +162,7 @@ namespace FlyingGame.Bridge.Commerce
         {
             private static readonly List<string> _ids = new();
             private static string _state = "{\"ready\":false}";
-            private static readonly List<(string id, DateTime exp)> _granted = new();
+            private static readonly List<(string id, DateTime exp, DateTime bought)> _granted = new();
 
             public static void Start(string idsCsv)
             {
@@ -159,11 +171,14 @@ namespace FlyingGame.Bridge.Commerce
                 Rebuild();
             }
 
-            /// <summary>Pretend the store sold us something, for development and for the paywall's own tests.</summary>
-            public static void GrantForTesting(string productId, DateTime expiresUtc)
+            /// <summary>Pretend the store sold us something, for development and for the paywall's own tests.
+            /// Pass <see cref="DateTime.MaxValue"/> for a non-consumable (the trial, the unlock) and a renewal
+            /// date for a subscription. <paramref name="purchasedUtc"/> defaults to now, which is what the
+            /// trial clock and the unlock's included month are measured from.</summary>
+            public static void GrantForTesting(string productId, DateTime expiresUtc, DateTime purchasedUtc = default)
             {
                 _granted.RemoveAll(g => g.id == productId);
-                _granted.Add((productId, expiresUtc));
+                _granted.Add((productId, expiresUtc, purchasedUtc == default ? DateTime.UtcNow : purchasedUtc));
                 Rebuild();
             }
 
@@ -188,7 +203,15 @@ namespace FlyingGame.Bridge.Commerce
                     offers.Add(new JObject { ["id"] = id, ["title"] = id, ["detail"] = "(editor stand-in — no real store)", ["price"] = "—" });
                 var ents = new JArray();
                 foreach (var g in _granted)
-                    ents.Add(new JObject { ["id"] = g.id, ["expiresUtc"] = g.exp.ToString("o"), ["revoked"] = false, ["jws"] = "" });
+                    ents.Add(new JObject
+                    {
+                        ["id"] = g.id,
+                        ["expiresUtc"] = g.exp == DateTime.MaxValue ? "" : g.exp.ToString("o"),
+                        ["purchasedUtc"] = g.bought.ToString("o"),
+                        ["revoked"] = false,
+                        ["shared"] = false,
+                        ["jws"] = "",
+                    });
                 // No jws off device: there is no Apple signature to hand over, and inventing a plausible-looking
                 // one would let a relay check pass in the editor that must fail everywhere real.
                 _state = new JObject
