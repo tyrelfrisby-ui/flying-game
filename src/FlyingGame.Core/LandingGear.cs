@@ -26,7 +26,7 @@ public static class LandingGear
         {
             if (g.IsTailwheel) continue;
             Vec3 w = s.Position + s.Attitude.Rotate(g.PosVec() - cg);
-            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y);
+            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
             if (waterH.HasValue && waterH.Value >= WorldTerrain.GroundHeightAt(w.X, w.Y) - 0.01) continue;
             if (w.Z >= -WorldTerrain.WheelGroundHeightAt(w.X, w.Y, -w.Z) - 0.02) return true;
         }
@@ -236,7 +236,7 @@ public static class LandingGear
             Vec3 wheelWorld = s.Position + s.Attitude.Rotate(rBody);
             // Ground under THIS wheel: the world height field (plateau airports) — NED z = -height.
             double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
-            double? waterH = FloatHydro.WaterSurfaceAt(wheelWorld.X, wheelWorld.Y);
+            double? waterH = FloatHydro.WaterSurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             if (waterH.HasValue && waterH.Value >= groundH - 0.01) continue; // over water: the hull floats, wheels don't touch the bed
             WorldTerrain.Surface surface = WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved;
             double localGroundZ = groundZ - groundH;

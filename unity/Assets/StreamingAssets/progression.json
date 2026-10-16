@@ -39,6 +39,13 @@
     "_hiddenNote": "One-time, per place, the first time it is found. The biggest single award in the table because finding one is the only thing here that cannot be ground out."
   },
 
+  "_hiddenPlaces": "The places themselves. Nothing reads this yet either - the earner that watches for them is not built - but the list is what it will read, and the geometry of the first two now exists. 'landingRoll' means the find only counts with the wheels down and rolling, not a fly-through.",
+  "hiddenPlaces": [
+    { "id": "island-cave", "what": "The chamber inland of the island's west shore, whose dome breaks the cliff. Water-taxi in through the mouth; a sandy beach, a skylight, a wreck.", "trigger": "enter" },
+    { "id": "waterfall-tunnel", "what": "The bored runway behind the first wall's plunge fall: through the curtain, 70 m of mouth, 2,625 ft of pavement inside the mountain.", "trigger": "enter" },
+    { "id": "drake-school", "what": "The school in the cave inside Drake hill, behind the hologram at the end of the 500 ft strip. Not built yet.", "trigger": "landingRoll" }
+  ],
+
   "_costs": "What points buy. Tiers are by how much aeroplane it is to fly, not by how much we like it. The sum of every aircraft and every challenge below is exactly totalToUnlockEverything.",
   "aircraftCost": {
     "target-drone-like": 10000,

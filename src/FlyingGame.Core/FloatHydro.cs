@@ -35,6 +35,15 @@ public static class FloatHydro
         return WorldTerrain.Active?.WaterSurfaceAt(x, y);
     }
 
+    /// <summary>Water under a point at a known height. Behind a plunge fall the river runs out over an
+    /// overhang, so the same x/y has water on the shelf and dry rock far below it — a wheel or a float needs
+    /// the answer for where it actually is, not for the column it stands in.</summary>
+    public static double? WaterSurfaceAt(double x, double y, double up)
+    {
+        if (FlatWaterOverride.HasValue) return FlatWaterOverride;
+        return WorldTerrain.Active?.WaterSurfaceAt(x, y, up);
+    }
+
     public readonly struct Report
     {
         public readonly double DraftAtStepM, WettedLambda, TrimDeg, SpeedCoefficient, PlaningLiftN, BuoyancyN;
@@ -125,7 +134,7 @@ public static class FloatHydro
                     Vec3 rBody = new Vec3(xs, yF, zs) - cg;
                     Vec3 rWorld = s.Attitude.Rotate(rBody);
                     Vec3 pWorld = s.Position + rWorld;
-                    double? water = WaterSurfaceAt(pWorld.X, pWorld.Y);
+                    double? water = WaterSurfaceAt(pWorld.X, pWorld.Y, -pWorld.Z);
                     if (water is null) continue;
                     double draft = pWorld.Z - (-water.Value);        // >0 keel below the surface (z down)
                     if (pass == 1)
@@ -245,7 +254,7 @@ public static class FloatHydro
                 Vec3 rR = new Vec3(xStern, yF, f.KeelZ - 0.05) - cg;
                 Vec3 rRWorld = s.Attitude.Rotate(rR);
                 Vec3 pR = s.Position + rRWorld;
-                double? water = WaterSurfaceAt(pR.X, pR.Y);
+                double? water = WaterSurfaceAt(pR.X, pR.Y, -pR.Z);
                 if (hasRudder && water is not null && pR.Z - (-water.Value) > 0)
                 {
                     Vec3 vR = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rR));

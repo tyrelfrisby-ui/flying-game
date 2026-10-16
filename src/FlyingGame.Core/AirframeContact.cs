@@ -252,7 +252,7 @@ public static class AirframeContact
 
             // Ground (with the wheel-scale bumps) — normal is world up.
             double groundH = WorldTerrain.WheelGroundHeightAt(w.X, w.Y, -w.Z);
-            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y);
+            double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
             bool onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
             double depth = onWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-groundH);

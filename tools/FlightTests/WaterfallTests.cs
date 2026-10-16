@@ -70,10 +70,15 @@ public class WaterfallTests
             {
                 double recess = WorldTerrain.FallRecessAt(f, f.X + dx);
                 Assert.True(recess * FeetPerMetre >= 150, $"fall {f.Step}: slot {recess * FeetPerMetre:F0} ft at dx {dx}");
-                // The back wall really is there: just behind the recess the ground is the upper plateau.
+                // The back wall really is there: just behind the recess the ground is the upper plateau — except
+                // at the first fall, where the 70 m of it dead behind the curtain is the tunnel's mouth, and the
+                // ground carries on at the bore's floor instead. That hole is the feature (owner 2026-10-16).
                 double rock = t.HeightAt(f.X + dx, f.LipY - recess - 3);
+                bool throughTheMouth = f.Step == WaterfallTunnel.FallStep
+                                       && System.Math.Abs(dx) < WaterfallTunnel.HalfWidthM;
+                if (throughTheMouth) Assert.Equal(WaterfallTunnel.FloorM(f), rock, 3);
+                else Assert.True(rock > f.LowerM + 50, $"fall {f.Step}: back wall {rock:F0}");
                 double air = t.HeightAt(f.X + dx, f.LipY - recess + 3);
-                Assert.True(rock > f.LowerM + 50, $"fall {f.Step}: back wall {rock:F0}");
                 Assert.True(air < f.LowerM + 5, $"fall {f.Step}: slot floor {air:F0}");
             }
         }
@@ -83,14 +88,20 @@ public class WaterfallTests
     public void ShelfIsASolidTheAirframeHits()
     {
         var t = new WorldTerrain();
+        WorldTerrain.Active = t;
         WorldSolids.Boxes.Clear();
+        WorldSolids.Shapes.Clear();
         t.RegisterWaterfallSolids();
-        Assert.Equal(WorldTerrain.StepCount, WorldSolids.Boxes.Count);
+        // One shelf per fall, plus the end wall of the runway tunnel behind the first one.
+        Assert.Equal(WorldTerrain.StepCount + 1, WorldSolids.Boxes.Count);
+        Assert.Single(WorldSolids.Shapes);                                               // the tunnel's arch
         WorldTerrain.Waterfall f = t.Waterfalls[0];
         double bottom = t.FallShelfBottomM(f);
         Assert.NotNull(WorldSolids.Penetration(f.X, f.LipY - 20, bottom + 3));           // inside the rock shelf
         Assert.Null(WorldSolids.Penetration(f.X, f.LipY - 20, bottom - 30));             // in the slot under it
         Assert.Null(WorldSolids.Penetration(f.X, f.LipY + 20, bottom + 3));              // in front of the lip: air
         WorldSolids.Boxes.Clear();
+        WorldSolids.Shapes.Clear();
+        WorldTerrain.Active = null;
     }
 }

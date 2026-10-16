@@ -690,7 +690,7 @@ public sealed class Aircraft
             ForceDebug.Samples = CaptureForces ? new List<ForceSample>(160) : null;
             // Ground effect: the wing's height over the ground (or the water) under the CG.
             double under = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
-            double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y);
+            double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
             if (water.HasValue && water.Value > under) under = water.Value;
             double wingAgl = -s.Position.Z - under - AeroModel.WingZ(Config);
             (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl);

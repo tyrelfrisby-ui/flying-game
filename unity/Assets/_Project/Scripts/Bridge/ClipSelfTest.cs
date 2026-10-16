@@ -47,6 +47,7 @@ namespace FlyingGame.Bridge
             if (mode == "clouds") { yield return CloudTest(); yield break; }
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
+            if (mode == "tunnel") { yield return TunnelTest(); yield break; }
             if (mode == "lesson") { yield return LessonTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
@@ -612,6 +613,44 @@ namespace FlyingGame.Bridge
             Chase?.SetView(ChaseCamera.View.SideLeft);
             yield return Shot("sea-cave-side", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 30, keel, 90, 0);
             Debug.Log("[SelfTest] DONE seaside");
+        }
+
+        /// <summary>AERO_SELFTEST=tunnel: the hidden runway behind the first waterfall — the run in over the gorge
+        /// aimed at the falls, the moment at the curtain, the pavement inside, and the view back out of the mouth.
+        /// The only way to see whether the arch, the slot and the lights read; none of it can be judged from a
+        /// unit test.</summary>
+        private IEnumerator TunnelTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "c172-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            FlyingGame.Core.MathTypes.Quat Hdg(double deg) { double h = deg * System.Math.PI / 360; return new FlyingGame.Core.MathTypes.Quat(0, 0, System.Math.Sin(h), System.Math.Cos(h)); }
+            IEnumerator Shot(string name, double x, double y, double up, double hdg, double v)
+            {
+                Menu.Fly();
+                drv = Menu.Driver;
+                yield return new WaitForSecondsRealtime(0.8f);
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(x, y, -up), Hdg(hdg), new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                yield return new WaitForSecondsRealtime(1.3f);
+                Debug.Log($"[SelfTest] {name}");
+                ScreenCapture.CaptureScreenshot(name + ".png");
+                yield return new WaitForSecondsRealtime(0.7f);
+            }
+            var t = FlyingGame.Core.WorldTerrain.Active;
+            var f = FlyingGame.Core.WaterfallTunnel.Fall(t);
+            double cx = FlyingGame.Core.WaterfallTunnel.CentreX(f);
+            double mouth = FlyingGame.Core.WaterfallTunnel.MouthY(f);
+            double floor = FlyingGame.Core.WaterfallTunnel.FloorM(f);
+            // Heading 270 is up-river: the way in.
+            yield return Shot("tunnel-run-in", cx, f.LipY + 420, floor + 18, 270, 48);
+            yield return Shot("tunnel-curtain", cx, f.LipY + 25, floor + 14, 270, 42);
+            yield return Shot("tunnel-threshold", cx, mouth - 30, floor + 9, 270, 36);
+            yield return Shot("tunnel-rollout", cx, mouth - 420, floor + 3, 270, 20);
+            yield return Shot("tunnel-looking-out", cx, mouth - 740, floor + 6, 90, 0);
+            Debug.Log("[SelfTest] DONE tunnel");
         }
 
         /// <summary>AERO_SELFTEST=clouds: the Skyhawk put at three spots round the first Valley thermal's cumulus — 3.5 km

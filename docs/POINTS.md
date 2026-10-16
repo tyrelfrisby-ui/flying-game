@@ -52,12 +52,13 @@ Checked against `src/FlyingGame.Core/`:
 | "bridges" | **Exists.** In the Playground, the Seaside (a Golden Gate), and `Landmarks`. |
 | "hangars" | **Exists.** At the airports in `WorldTerrain`, and on the Seaside. Whether any is open at both ends and big enough to fly *through* has not been checked and is the thing that matters here. |
 | "the cove on the island" | **Settled 2026-10-16: it is the island CAVE** — the chamber inland of the west shore whose dome breaks the cliff (`Seaside.SeaCave`). That is the hidden-place find; Avalon, the crescent bay on the mainland side, is not one. |
-| "a tunnel with a runway inside it behind the waterfall" | **To be built** (owner, 2026-10-16). It does not exist today: there are three plunge falls, one at each canyon wall, each already with a 60 m amphitheater you can fly along behind the curtain — but no tunnel anywhere and no runway inside anything. New scenery, big enough to land in and take off from. |
+| "a tunnel with a runway inside it behind the waterfall" | **Built** (2026-10-16). `WaterfallTunnel`, behind the FIRST wall's fall — the one a pilot from Valley reaches. Aim at the base of the falls, fly through the curtain, and the back of the amphitheater is a 70 m mouth with 2,625 ft of pavement inside the mountain: land, stop, turn round, take off again. |
 
-So of the named hidden places, the island cave is there and the waterfall tunnel has to be built. Everything
-else in the earning table can be scored against geometry that already exists. Two more hidden places are now
-coming: the tunnel runway behind a fall, and the school in the cave inside Drake hill
-(`docs/pending/DRAKE-HILL-PLAN.md`) — both worth the same one-time find as the cave.
+So of the named hidden places, two now exist — the island cave and the runway behind the waterfall — and the
+third, the school in the cave inside Drake hill (`docs/pending/DRAKE-HILL-PLAN.md`), is planned. All three are
+listed in `configs/progression.json` under `hiddenPlaces`, which is what the earner will read when it is
+built; the school's find needs the wheels on the ground, the other two only need you to get in. Everything
+else in the earning table can be scored against geometry that already exists.
 
 ## What building this actually involves
 

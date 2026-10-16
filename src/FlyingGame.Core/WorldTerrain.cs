@@ -418,6 +418,11 @@ public sealed class WorldTerrain
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
         if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
         if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
+        if (Active != null)
+        {
+            Waterfall tf = Active.Waterfalls[WaterfallTunnel.FallStep];
+            if (WaterfallTunnel.OnRunway(tf, x, y)) return Surface.Paved;                   // the runway in the tunnel
+        }
         return Surface.Rough;
     }
 
@@ -557,6 +562,7 @@ public sealed class WorldTerrain
             double backY = f.LipY - FallRecessM;
             WorldSolids.Boxes.Add(new WorldSolids.Box(f.X, (backY + f.LipY) * 0.5, FallNotchHalfSpanM, (f.LipY - backY) * 0.5, FallShelfBottomM(f), f.UpperM + 1.0));
         }
+        WaterfallTunnel.RegisterSolids(this);   // the bored runway behind the first fall: its arch and end wall
     }
 
     // ---- height field ---------------------------------------------------------------------------
@@ -626,7 +632,12 @@ public sealed class WorldTerrain
     public double HeightAt(double x, double y) => HeightAt(x, y, false);
 
     /// <summary>Ground height; <paramref name="shelfTop"/> = true gives the un-recessed surface the waterfall shelf carries.</summary>
-    public double HeightAt(double x, double y, bool shelfTop)
+    public double HeightAt(double x, double y, bool shelfTop) => HeightAt(x, y, shelfTop, true);
+
+    /// <summary><paramref name="withTunnel"/> = false gives the mountain as if the runway tunnel behind the
+    /// first fall had never been bored — the surface its rock roof carries, which is what the roof solid and
+    /// the roof mesh measure against.</summary>
+    public double HeightAt(double x, double y, bool shelfTop, bool withTunnel)
     {
         double h = BaseHeightAt(x, y, shelfTop);
 
@@ -708,12 +719,47 @@ public sealed class WorldTerrain
             double? isl = Island.HeightAt(x, y);
             if (isl.HasValue) h = SeaCave.InFootprint(x, y) ? isl.Value : System.Math.Max(h, isl.Value);
         }
+
+        // The runway bored in behind the first fall: inside the bore the ground is its floor, flush with the
+        // amphitheater shelf outside the mouth. Last, so nothing above re-carves it.
+        if (withTunnel && !shelfTop)
+        {
+            Waterfall tf = Waterfalls[WaterfallTunnel.FallStep];
+            if (WaterfallTunnel.InFootprint(tf, x, y)) h = WaterfallTunnel.FloorM(tf);
+        }
         return h;
     }
 
     /// <summary>Water surface at x/y (m, up), or null if no water there. Lakes are flat at their level; the
     /// river surface is the local (uncarved) ground minus 2 m, so it steps down at every wall.</summary>
-    public double? WaterSurfaceAt(double x, double y)
+    public double? WaterSurfaceAt(double x, double y) => WaterSurfaceAt(x, y, double.NaN);
+
+    /// <summary>
+    /// Water surface at a POINT. Pass the point's height whenever you have it. At a plunge fall the river runs
+    /// out over an OVERHANG, so one (x, y) has two surfaces: the river on the shelf, and 200 m below it the dry
+    /// amphitheater floor — and now the dry runway in the tunnel bored behind it. Without a height there is no
+    /// way to tell a float on the river from a wheel on the rock beneath it, and the height-less answer has to
+    /// stay the river, because that is what the water mesh is drawn from.
+    /// </summary>
+    public double? WaterSurfaceAt(double x, double y, double up)
+    {
+        if (!double.IsNaN(up))
+        {
+            // Under the shelf behind a curtain: the water is overhead, in free fall, and the floor is dry.
+            foreach (Waterfall wf in Waterfalls)
+            {
+                if (NotchWeight(wf, x) <= 0) continue;
+                double back = wf.LipY - FallRecessAt(wf, x);
+                if (y < wf.LipY && y > back && up < FallShelfBottomM(wf)) return null;
+            }
+            // Inside the tunnel: rock between the point and the river above it.
+            Waterfall tf = Waterfalls[WaterfallTunnel.FallStep];
+            if (WaterfallTunnel.InFootprint(tf, x, y) && up < WaterfallTunnel.CeilingAt(tf, x) + 1.0) return null;
+        }
+        return WaterSurfaceCore(x, y);
+    }
+
+    private double? WaterSurfaceCore(double x, double y)
     {
         foreach (Lake l in Lakes)
         {

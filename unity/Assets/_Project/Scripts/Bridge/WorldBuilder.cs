@@ -45,6 +45,7 @@ namespace FlyingGame.Bridge
             BuildSeaplaneLanes(root.transform);
             BuildSeaplaneBase(WorldTerrain.Active, root.transform);
             BuildWaterfalls(WorldTerrain.Active, root.transform);
+            BuildWaterfallTunnel(WorldTerrain.Active, root.transform);   // the hidden runway behind the first fall
             foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
             // The same landscape on every plateau (owner 2026-09-09): bridge, crop field, landmarks, aerobatic
             // box and race course are built once per step, shifted by WorldTerrain.PlateauDy.
@@ -118,6 +119,18 @@ namespace FlyingGame.Bridge
             return Cells(f.X - hx, f.X + hx, f.LipY - 240, f.LipY + 460, FineStep);
         }
 
+        /// <summary>The bore of the runway tunnel behind the first fall. A 60 m grid would drop a vertex into a
+        /// 70 m slot and tear a gash across the mountain, so the bore gets its own fine patch — and it stops
+        /// exactly where the fall's own patch begins (snapped to the coarse grid) so the two never overlap.</summary>
+        private static (int i0, int i1, int j0, int j1, double step) TunnelPatchCells(WorldTerrain t)
+        {
+            WorldTerrain.Waterfall f = WaterfallTunnel.Fall(t);
+            double x = WaterfallTunnel.CentreX(f), hx = WaterfallTunnel.HalfWidthM + 30;
+            double fallPatchY0 = f.LipY - 240;
+            double snapped = MinY + System.Math.Floor((fallPatchY0 - MinY) / CoarseStep) * CoarseStep;
+            return Cells(x - hx, x + hx, WaterfallTunnel.EndY(f) - 60, snapped, FineStep);
+        }
+
         private static (int i0, int i1, int j0, int j1, double step) Cells(double x0, double x1, double y0, double y1, double step)
         {
             int i0 = (int)System.Math.Floor((x0 - MinX) / CoarseStep), i1 = (int)System.Math.Ceiling((x1 - MinX) / CoarseStep);
@@ -163,6 +176,7 @@ namespace FlyingGame.Bridge
             // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
             var patches = new List<(int i0, int i1, int j0, int j1, double step)>();
             foreach (WorldTerrain.Waterfall f in t.Waterfalls) patches.Add(FinePatchCells(f));
+            patches.Add(TunnelPatchCells(t));
             patches.AddRange(SeasidePatches());
             var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)
@@ -489,6 +503,83 @@ namespace FlyingGame.Bridge
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// The runway tunnel behind the first fall (owner 2026-10-16). The terrain mesh already draws its floor
+        /// — the height field gives the bore's floor inside the footprint — so what is missing is the rock: the
+        /// mountain's own surface over the slot, so the hill still looks like a hill from the air, and the
+        /// underside of the arch, so the bore looks like a bore from inside. Same arrangement as the sea cave.
+        ///
+        /// Nothing here is lit by a lamp: FlyingGame/LitVC carries a 0.58 ambient floor, so a downward-facing
+        /// arch reads as dim rock rather than black, which is what a tunnel with a 70 m mouth would actually
+        /// look like a few hundred metres in.
+        /// </summary>
+        private static void BuildWaterfallTunnel(WorldTerrain t, Transform parent)
+        {
+            WorldTerrain.Waterfall f = WaterfallTunnel.Fall(t);
+            double cx = WaterfallTunnel.CentreX(f), mouthY = WaterfallTunnel.MouthY(f), endY = WaterfallTunnel.EndY(f);
+            double floor = WaterfallTunnel.FloorM(f), hw = WaterfallTunnel.HalfWidthM;
+            var root = new GameObject("WaterfallTunnel");
+            root.transform.SetParent(parent, false);
+
+            var b = new SeasideBuilder.Batch();
+            Color rock = new(0.34f, 0.31f, 0.28f);
+            Color wall = new(0.3f, 0.27f, 0.25f);
+
+            // -- the arch's underside, and the mountain over the slot.
+            const double dy = 6.0, dxs = 5.0;
+            int nx = (int)(2 * hw / dxs) + 1;
+            for (double y = endY; y < mouthY - 0.5; y += dy)
+            {
+                double y2 = System.Math.Min(y + dy, mouthY);
+                for (int i = 0; i < nx - 1; i++)
+                {
+                    double x0 = cx - hw + i * dxs, x1 = System.Math.Min(x0 + dxs, cx + hw);
+                    double c0 = WaterfallTunnel.CeilingAt(f, x0), c1 = WaterfallTunnel.CeilingAt(f, x1);
+                    Color rk = rock * (0.82f + 0.36f * Mathf.PerlinNoise((float)(x0 * 0.05), (float)(y * 0.035)));
+                    // Arch underside (wound to face down into the bore).
+                    b.Quad(U(x0, y, c0), U(x0, y2, c0), U(x1, y2, c1), U(x1, y, c1), rk);
+                    // The mountain's own surface above it: without this the slot is a canyon in the plateau.
+                    double o00 = t.HeightAt(x0, y, false, withTunnel: false), o01 = t.HeightAt(x0, y2, false, withTunnel: false);
+                    double o11 = t.HeightAt(x1, y2, false, withTunnel: false), o10 = t.HeightAt(x1, y, false, withTunnel: false);
+                    b.Quad(U(x0, y, o00), U(x1, y, o10), U(x1, y2, o11), U(x0, y2, o01), TerrainColor(t, x0, y, o00));
+                    // Close the sides where the arch meets the rock, so no sliver of sky shows through.
+                    if (i == 0) b.Quad(U(x0, y, c0), U(x0, y, o00), U(x0, y2, o01), U(x0, y2, c0), wall);
+                    if (i == nx - 2) b.Quad(U(x1, y, c1), U(x1, y2, c1), U(x1, y2, o11), U(x1, y, o10), wall);
+                }
+            }
+            // The end wall, where the bore stops.
+            for (int i = 0; i < nx - 1; i++)
+            {
+                double x0 = cx - hw + i * dxs, x1 = System.Math.Min(x0 + dxs, cx + hw);
+                double c0 = WaterfallTunnel.CeilingAt(f, x0), c1 = WaterfallTunnel.CeilingAt(f, x1);
+                b.Quad(U(x0, endY, floor), U(x1, endY, floor), U(x1, endY, c1), U(x0, endY, c0), wall * 1.1f);
+            }
+            b.Build("TunnelRock", root.transform, SeasideBuilder.VC);
+
+            // -- the pavement, and the lights that make it a runway rather than a floor.
+            var p = new SeasideBuilder.Batch();
+            double rhw = WaterfallTunnel.RunwayHalfWidthM;
+            double r0 = mouthY - WaterfallTunnel.RunwayStartInM, r1 = r0 - WaterfallTunnel.RunwayLengthM;
+            Color asphalt = new(0.19f, 0.19f, 0.21f), paint = new(0.92f, 0.92f, 0.88f), lamp = new(0.95f, 0.85f, 0.45f), thresh = new(0.55f, 0.85f, 0.95f);
+            p.Quad(U(cx - rhw, r1, floor + 0.04), U(cx + rhw, r1, floor + 0.04), U(cx + rhw, r0, floor + 0.04), U(cx - rhw, r0, floor + 0.04), asphalt);
+            // Centreline: 30 m stripes, 20 m gaps.
+            for (double y = r0 - 10; y > r1 + 10; y -= 50)
+                p.Quad(U(cx - 0.6, y - 30, floor + 0.06), U(cx + 0.6, y - 30, floor + 0.06), U(cx + 0.6, y, floor + 0.06), U(cx - 0.6, y, floor + 0.06), paint);
+            // Threshold bar at the mouth end, and edge lights every 60 m down both sides.
+            p.Quad(U(cx - rhw, r0 - 1.8, floor + 0.06), U(cx + rhw, r0 - 1.8, floor + 0.06), U(cx + rhw, r0, floor + 0.06), U(cx - rhw, r0, floor + 0.06), paint);
+            for (double y = r0; y > r1 - 0.5; y -= 60)
+            {
+                bool end = y < r1 + 61;
+                Color c = end ? thresh : lamp;
+                p.Box(U(cx - rhw - 1.2, y, floor + 0.5), new Vector3(0.7f, 1.0f, 0.7f), c);
+                p.Box(U(cx + rhw + 1.2, y, floor + 0.5), new Vector3(0.7f, 1.0f, 0.7f), c);
+            }
+            // Wing-bar lights at the mouth itself: the one cue visible from outside, through the curtain.
+            for (int k = -1; k <= 1; k += 2)
+                p.Box(U(cx + k * (hw - 3), mouthY - 2, floor + 1.0), new Vector3(1.2f, 2.0f, 1.2f), thresh);
+            p.Build("TunnelRunway", root.transform, SeasideBuilder.VC);
         }
 
         private static GameObject SpawnUv(string name, Vector3[] v, Vector2[] uv, int[] tris, Material m, Transform parent)
