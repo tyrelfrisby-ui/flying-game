@@ -118,7 +118,9 @@ How it is built:
 
 | Piece | How |
 |---|---|
-| The hook-up | A full stop on STRIP 0 brings a tow plane up ahead. The existing aerotow does the rest — this is the same rope, the same slack and the same break load that already work outdoors. |
+| The reset | A full stop on STRIP 0, **on the runway surface and undamaged**, and the glider takes itself back to the threshold: it rolls backwards to the start, lined up, with the tow plane ahead and the rope on. Rolled off the surface, or bent, and none of that happens — that is the ordinary crash-and-reset, and a pilot who lands in the rocks should not be rescued by the scenery. |
+| The hook-up | The existing aerotow does the rope — the same slack and the same break load that already work outdoors. |
+| The start | The glider has no engine, so its **throttle becomes the go signal**: full throttle and the tow plane starts its roll, anything less and nothing happens. The hint on screen says so — "Throttle full to start the tow" — because nobody would guess it. |
 | The decision | At each fork the tow plane averages the rope's **lateral pull at its tail** over a window (about 1.5 s) ending at the decision point, with a dead band so small wobbles do not count. Tail pulled left → the RIGHT branch. Tail pulled right → the LEFT branch. |
 | Centred | Inside the dead band the tow plane takes the **safe** branch — the one without the hazard. A glider pilot who does nothing gets round; a glider pilot who wants the slit has to ask for it. |
 | The cue | A light pair on the roof about 400 m before each fork, and the tow plane rocks its wings once. The pilot has to know a decision is coming or it is not a decision. |
