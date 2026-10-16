@@ -19,6 +19,25 @@ namespace FlyingGame.Core;
 public static class LandingGear
 {
     /// <summary>True if any main (non-tail) wheel is at or below the local ground.</summary>
+    /// <summary>
+    /// The tyre's radius — the SAME rule the airframe visual uses, so the physics and the picture agree about
+    /// how big the wheel is. A type can state it; otherwise it comes from the fuselage length, and a
+    /// tailwheel is a bit under half the size of a main.
+    /// </summary>
+    public static double TireRadiusOf(AircraftConfig c, GearConfig g)
+    {
+        double r;
+        if (g.TireRadiusM > 0) r = g.TireRadiusM;
+        else
+        {
+            double length = c.Fuselage?.Crossflow != null && c.Fuselage.Crossflow.LengthM > 0
+                            ? c.Fuselage.Crossflow.LengthM : 7.0;
+            double main = System.Math.Clamp(length * 0.045, 0.15, 0.65);
+            r = g.IsTailwheel ? main * 0.45 : main;
+        }
+        return c.Bushwheels ? r * TirePressure.BushwheelRadiusFactor : r;
+    }
+
     public static bool AnyMainWheelOnGround(AircraftConfig config, RigidBodyState s)
     {
         Vec3 cg = config.Mass.CgVec();
@@ -237,7 +256,28 @@ public static class LandingGear
             // Ground under THIS wheel: the world height field (plateau airports) — NED z = -height.
             double groundH = WorldTerrain.WheelGroundHeightAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
             double? waterH = FloatHydro.WaterSurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
-            if (waterH.HasValue && waterH.Value >= groundH - 0.01) continue; // over water: the hull floats, wheels don't touch the bed
+            bool overWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
+            if (overWater && g.GearType == "float-keel") continue;          // a float's hull does the floating
+            if (overWater)
+            {
+                // A WHEEL on water: it planes while it is fast enough and ploughs when it is not. The force
+                // goes on at the contact point, so the nose-over when the speed decays is the moment arm's
+                // doing and not a special case. (WheelHydro has the physics and the references.)
+                double tyreR = g.TireRadiusM > 0 ? g.TireRadiusM : 0.22;
+                double wheelBottomUp = -wheelWorld.Z - tyreR;               // the bottom of the tyre, in height
+                double depth = waterH!.Value - wheelBottomUp;
+                if (depth > 0)
+                {
+                    Vec3 vWater = s.Attitude.Rotate(s.Velocity + Vec3.Cross(s.Rates, rBody));
+                    if (WorldDecks.All.Count > 0) vWater -= WorldDecks.SurfaceVelocity(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z);
+                    Vec3 hydro = WheelHydro.Force(config, g, depth, staticLoadN, vWater, out _, out _);
+                    totalForce += hydro;
+                    totalMoment += Vec3.Cross(s.Attitude.Rotate(rBody), hydro);
+                    if (touching != null && gi < touching.Length) touching[gi] = true;
+                }
+                // Deep water: the wheel never reaches the bed, so there is no ground contact to add.
+                if (waterH.Value - groundH > tyreR * 2) continue;
+            }
             WorldTerrain.Surface surface = WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved;
             double localGroundZ = groundZ - groundH;
             double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)

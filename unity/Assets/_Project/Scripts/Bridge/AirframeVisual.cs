@@ -1713,7 +1713,9 @@ namespace FlyingGame.Bridge
                     continue;
                 }
 
-                float r = g.TireRadiusM > 0 ? (float)g.TireRadiusM : (g.IsTailwheel ? wheelR * 0.45f : wheelR);
+                // One rule for the tyre's size, shared with the physics (LandingGear.TireRadiusOf), so what you
+                // see is what the wheel actually is — including the bushwheel option, which doubles it.
+                float r = (float)FlyingGame.Core.LandingGear.TireRadiusOf(cfg, g);
                 int firstGearPart = _parts.Count;
                 GameObject wheel;
                 if (g.GearType == "bushwheel")

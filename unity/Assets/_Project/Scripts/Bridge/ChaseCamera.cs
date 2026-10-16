@@ -277,7 +277,47 @@ namespace FlyingGame.Bridge
             return h * Mathf.Cos(pitch) + Vector3.up * Mathf.Sin(pitch);
         }
 
+        /// <summary>How close the camera may get to the ground or the water. Owner 2026-10-16: it never goes
+        /// under either — when an aeroplane flips, the camera gives up the angle rather than the view.</summary>
+        public const float MinAboveSurfaceM = 1.524f;      // 5 ft
+
         private void LateUpdate()
+        {
+            PlaceCamera();
+            KeepAboveSurface();
+        }
+
+        /// <summary>
+        /// The floor under every external view. The camera may be looking from anywhere, but it is never under
+        /// the ground and never under the water: it rises to five feet above whichever is higher and keeps the
+        /// aeroplane in frame from there, which costs the angle and saves the shot.
+        ///
+        /// The cockpit is exempt — that is a pilot's eye, not a camera, and when he is upside down in a river
+        /// his head really is down there.
+        /// </summary>
+        private void KeepAboveSurface()
+        {
+            if (InCockpit) return;
+            Vector3 pos = transform.position;
+            // Unity (east, up, north) → sim (north, east, up).
+            double simX = pos.z, simY = pos.x;
+            double floor = FlyingGame.Core.WorldTerrain.GroundHeightAt(simX, simY);
+            double? water = FlyingGame.Core.FloatHydro.WaterSurfaceAt(simX, simY, pos.y);
+            if (water.HasValue) floor = System.Math.Max(floor, water.Value);
+            float min = (float)floor + MinAboveSurfaceM;
+            if (pos.y >= min) return;
+            pos.y = min;
+            transform.position = pos;
+            // The angle is gone; keep the aeroplane.
+            Transform tgt = OverrideTarget != null ? OverrideTarget : Target;
+            if (tgt != null)
+            {
+                Vector3 look = tgt.position - pos;
+                if (look.sqrMagnitude > 1e-4f) transform.rotation = Quaternion.LookRotation(look, Vector3.up);
+            }
+        }
+
+        private void PlaceCamera()
         {
             // Portrait: the view is the area above the control tray (ScreenLayout); landscape: full screen.
             // Re-evaluated every frame so an autorotation mid-flight takes effect immediately.

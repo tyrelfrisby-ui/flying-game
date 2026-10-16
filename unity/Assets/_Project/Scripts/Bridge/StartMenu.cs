@@ -376,6 +376,16 @@ namespace FlyingGame.Bridge
             y = Stepper(x, y, colW, "Temperature", $"{surfF:F0}°F", ref SessionSettings.IsaDeviationC, -30f, 30f, 1f);
             y = Stepper(x, y, colW, "Thermals", SessionSettings.ThermalScale <= 0.01f ? "Off" : $"{SessionSettings.ThermalScale:F1}×", ref SessionSettings.ThermalScale, 0f, 2f, 0.25f);
 
+            // Bushwheels: twice the tyre, no pants, half the pressure. It changes how the aeroplane lands on
+            // a bar or skims water, so it belongs with the conditions rather than buried in a menu.
+            if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Bushwheels ? "Bushwheels ON" : "Bushwheels off",
+                                SessionSettings.Bushwheels ? _btnOn : _btn))
+            {
+                SessionSettings.Bushwheels = !SessionSettings.Bushwheels;
+                Driver?.ApplySession();          // re-load the aircraft so the tyres change size now
+            }
+            y += row;
+
             if (port) { maxY = Mathf.Max(maxY, y); x = colX(1); }
             else y += gap * 0.4f;
             UiLayout.Label(new Rect(x, y, colW, lh), "MULTIPLAYER", _head); y += lh;

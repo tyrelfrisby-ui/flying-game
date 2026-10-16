@@ -416,6 +416,7 @@ public sealed class WorldTerrain
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
+        { Surface? fc = FrankChurch.SurfaceAt(x, y); if (fc.HasValue) return fc.Value; }   // the backcountry strips
         if (AlpineRange.InRange(x, y)) return Surface.Gravel;                              // granite and scree, not pasture
         if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
         if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
@@ -677,6 +678,8 @@ public sealed class WorldTerrain
 
         // The alpine range on the Summit plateau (owner 2026-10-16): peaks, cirques and the lakes in them.
         h = AlpineRange.HeightAt(x, y, h);
+        // The backcountry west of it: a canyon a kilometre deep with the famous strips on its benches.
+        h = FrankChurch.HeightAt(x, y, h);
 
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)
@@ -769,6 +772,7 @@ public sealed class WorldTerrain
     private double? WaterSurfaceCore(double x, double y)
     {
         { double? alp = AlpineRange.WaterSurfaceAt(x, y); if (alp.HasValue) return alp; }
+        { double? fc = FrankChurch.WaterSurfaceAt(x, y); if (fc.HasValue) return fc; }
         foreach (Lake l in Lakes)
         {
             if (l.Inside(x, y) < 1.0) return l.SurfaceM;

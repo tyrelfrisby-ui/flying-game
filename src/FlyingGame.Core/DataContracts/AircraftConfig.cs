@@ -7,6 +7,13 @@ namespace FlyingGame.Core.DataContracts;
 /// </summary>
 public sealed class AircraftConfig
 {
+    /// <summary>
+    /// BUSHWHEELS (owner 2026-10-16): any aeroplane can be put on big soft tyres. Twice the tyre diameter,
+    /// no wheel pants, and half the pressure — which is what lets it skim water and land on a gravel bar.
+    /// Set from the session when the option is chosen; not part of the type's own data.
+    /// </summary>
+    public bool Bushwheels { get; set; }
+
     public int SchemaVersion { get; set; } = 1;
     public string Id { get; set; } = "";
     public string DisplayName { get; set; } = "";
@@ -414,6 +421,9 @@ public sealed class GearConfig
     public double RollResistN { get; set; } = 40;     // rolling resistance at full load
     public string GearType { get; set; } = "";        // bungee|spring-steel|spring-aluminum|oleo (character/label)
     public double TireRadiusM { get; set; }           // visual tire size (0 = auto from fuselage length); 0.445 = 35" bushwheel
+    // Tyre pressure (psi), which is what decides when a wheel hydroplanes: V_p (kt) = 9√p. 0 = estimate it
+    // from the tyre's size and the aeroplane's weight (WheelHydro.TirePressurePsi).
+    public double TirePressurePsi { get; set; }
     public double BreakSinkMs { get; set; }           // first-contact sink rate that tears this leg off (0 = LandingGear.DefaultBreakSinkMs)
     // Tailwheel (owner 2026-09-12): the wheel CASTORS about its pivot; springs to the rudder pull it toward the
     // commanded angle but always give; past BreakoutRad it swivels free. 0 = LandingGear defaults.
