@@ -61,7 +61,9 @@ namespace FlyingGame.Bridge
             }
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
+            BraidedRiver.RegisterSolids();                  // the boulders and driftwood on the gravel bars
             BuildCombatZone(WorldTerrain.Active, root.transform);
+            AlaskaBuilder.Build(WorldTerrain.Active, root.transform);    // the glaciers, the bergs, the braided river
             SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
             PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
@@ -193,6 +195,9 @@ namespace FlyingGame.Bridge
             patches.Add(Cells(AlpineRange.X0 - 200, AlpineRange.X1 + 200, AlpineRange.Y0 - 200, AlpineRange.Y1 + 200, 30));
             // The backcountry: a canyon with benches cut in it, and strips as narrow as 18 m.
             patches.Add(Cells(FrankChurch.X0 - 200, FrankChurch.X1 + 200, FrankChurch.Y0 - 200, FrankChurch.Y1 + 200, 20));
+            // The Alaska range, and the braided plain below it where the channels are 68 m across.
+            patches.Add(Cells(AlaskaRange.X0 - 200, AlaskaRange.X1 + 200, AlaskaRange.Y0 - 200, AlaskaRange.Y1 + 200, 30));
+            patches.Add(Cells(BraidedRiver.X0 - 200, BraidedRiver.X1 + 200, BraidedRiver.Y0 - 200, BraidedRiver.Y1 + 200, 20));
             patches.AddRange(SeasidePatches());
             var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)
@@ -685,7 +690,7 @@ namespace FlyingGame.Bridge
             return go;
         }
 
-        private static GameObject Spawn(string name, Vector3[] v, int[] tris, Material m, Transform parent, bool doubleSided)
+        internal static GameObject Spawn(string name, Vector3[] v, int[] tris, Material m, Transform parent, bool doubleSided)
         {
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             mesh.vertices = v;

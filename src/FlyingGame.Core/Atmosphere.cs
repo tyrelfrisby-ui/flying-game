@@ -124,6 +124,10 @@ public static class Atmosphere
         {
             w += SlopeLift.WindAt(WorldTerrain.Active, worldPosition, steady);
         }
+        // The glacier wind (owner 2026-10-16): cold air slides off the ice all day and runs down the outwash
+        // plain, so a landing upstream on a gravel bar is always into a headwind. It is a shallow layer and
+        // it is always there, whatever the session's weather says.
+        w += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z);
 
         return w;
     }

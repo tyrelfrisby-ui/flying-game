@@ -115,7 +115,11 @@ public static class LandingGear
     /// rough infield less again — a swerve there slides.</summary>
     public static double SurfaceGrip(WorldTerrain.Surface s) => s switch
     {
-        WorldTerrain.Surface.Paved => 1.0, WorldTerrain.Surface.Gravel => 0.75, WorldTerrain.Surface.Grass => 0.65, _ => 0.55,
+        WorldTerrain.Surface.Paved => 1.0, WorldTerrain.Surface.Gravel => 0.75, WorldTerrain.Surface.Grass => 0.65,
+        // Snow: a tyre has very little to hold on to, which is why a glacier landing is flown straight and why
+        // a ground loop there is so hard to stop (μ ≈ 0.2 of dry tarmac).
+        WorldTerrain.Surface.Snow => 0.20,
+        _ => 0.55,
     };
 
     /// <summary>

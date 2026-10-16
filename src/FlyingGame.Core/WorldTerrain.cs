@@ -375,7 +375,7 @@ public sealed class WorldTerrain
 
     // ---- ground surfaces (what the wheels feel) -------------------------------------------------
 
-    public enum Surface { Paved, Gravel, Grass, Rough }
+    public enum Surface { Paved, Gravel, Grass, Rough, Snow }
 
     /// <summary>Rolling-resistance coefficient (μ_r = rolling force / wheel load) per surface. Values from
     /// published aircraft ground-roll data (ESDU 71026, Raymer Table 17.1, FAA): dry concrete/asphalt
@@ -386,6 +386,9 @@ public sealed class WorldTerrain
         Surface.Paved => 0.025,
         Surface.Gravel => 0.05,
         Surface.Grass => 0.065,
+        // Settled snow on a glacier: a wheel sinks into it and drags (0.10–0.20 in the literature for wheels
+        // on snow); a SKI is a different matter entirely and gets its own treatment.
+        Surface.Snow => 0.14,
         _ => 0.15,
     };
 
@@ -399,6 +402,7 @@ public sealed class WorldTerrain
         Surface.Paved => 0.55,
         Surface.Gravel => 0.50,
         Surface.Grass => 0.35,
+        Surface.Snow => 0.10,          // a keel on snow slides like a ski, because that is what it is
         _ => 0.50,
     };
 
@@ -416,10 +420,10 @@ public sealed class WorldTerrain
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
+        // SOMETHING SOMEBODY MADE comes first — a strip, a bar, a bore — because the broad regions below are
+        // catch-alls over whole blocks of country and will happily claim a runway that runs through them.
+        // (The Alaska block's padding reached over the tunnel maze and turned one of its strips to gravel.)
         { Surface? fc = FrankChurch.SurfaceAt(x, y); if (fc.HasValue) return fc.Value; }   // the backcountry strips
-        if (AlpineRange.InRange(x, y)) return Surface.Gravel;                              // granite and scree, not pasture
-        if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
-        if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
         if (Active != null)
         {
             Waterfall tf = Active.Waterfalls[WaterfallTunnel.FallStep];
@@ -428,6 +432,13 @@ public sealed class WorldTerrain
             // reported as Rough, a tug could not even accelerate along a bore.)
             if (WaterfallTunnel.InFootprint(tf, x, y)) return Surface.Gravel;
         }
+        { Surface? br = BraidedRiver.SurfaceAt(x, y); if (br.HasValue) return br.Value; }  // the outwash gravel
+        if (AlaskaRange.OnIce(x, y)) return Surface.Snow;                                  // glacier ice
+        // ---- the catch-alls: whole regions, and only where nothing above has spoken for the ground.
+        if (AlaskaRange.InRange(x, y)) return Surface.Gravel;                              // rock and moraine
+        if (AlpineRange.InRange(x, y)) return Surface.Gravel;                              // granite and scree, not pasture
+        if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
+        if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
         return Surface.Rough;
     }
 
@@ -680,6 +691,10 @@ public sealed class WorldTerrain
         h = AlpineRange.HeightAt(x, y, h);
         // The backcountry west of it: a canyon a kilometre deep with the famous strips on its benches.
         h = FrankChurch.HeightAt(x, y, h);
+        // The Alaska range on the Mesa plateau: a 19,000 ft mountain and the glaciers off it.
+        h = AlaskaRange.HeightAt(x, y, h);
+        // And the outwash plain below the ice: braided channels, gravel bars, driftwood and boulders.
+        h = BraidedRiver.HeightAt(x, y, h);
 
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)
@@ -773,6 +788,8 @@ public sealed class WorldTerrain
     {
         { double? alp = AlpineRange.WaterSurfaceAt(x, y); if (alp.HasValue) return alp; }
         { double? fc = FrankChurch.WaterSurfaceAt(x, y); if (fc.HasValue) return fc; }
+        { double? ak = AlaskaRange.WaterSurfaceAt(x, y); if (ak.HasValue) return ak; }
+        { double? br = BraidedRiver.WaterSurfaceAt(x, y); if (br.HasValue) return br; }
         foreach (Lake l in Lakes)
         {
             if (l.Inside(x, y) < 1.0) return l.SurfaceM;
