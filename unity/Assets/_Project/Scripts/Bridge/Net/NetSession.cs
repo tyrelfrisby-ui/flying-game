@@ -19,6 +19,15 @@ namespace FlyingGame.Bridge.Net
     ///  - a join asks <see cref="EntitlementRuntime.CanJoinMultiplayer"/> whether this pilot holds the pass,
     ///    and acts on the answer only while <see cref="EntitlementRuntime.GateMultiplayer"/> is on.
     /// Single player, the lessons and the challenges never come through here at all.
+    ///
+    /// Two rules keep the relay's bill honest (owner 2026-10-16), and both are about not paying for nothing:
+    ///  - SOLO: while the room says we are the only pilot in it, no state is sent. The server has stopped its
+    ///    ticker, so with nothing arriving the room hibernates and a lone pilot costs nothing. The keepalive
+    ///    ping stays, because the runtime answers it without waking the room. A "peer" message ends it, and
+    ///    the newcomer gets our state and name immediately so they do not see an empty sky.
+    ///  - IDLE: fifteen minutes without touching a control and we leave the room, with a warning at thirteen.
+    ///    An open menu is not activity. The relay enforces the same rule on the state it receives, so this is
+    ///    a courtesy to the pilot rather than the thing holding the line.
     /// </summary>
     public sealed class NetSession : MonoBehaviour
     {
@@ -35,6 +44,15 @@ namespace FlyingGame.Bridge.Net
         /// Set only when the pass is the reason — a dead network is a reconnect, not a refusal.</summary>
         public string BlockedReason { get; private set; }
 
+        /// <summary>Minutes without a control movement before the room is left, and the warning before it.</summary>
+        public const float IdleWarnSeconds = 13f * 60f, IdleLeaveSeconds = 15f * 60f;
+
+        /// <summary>True while the relay says nobody else is here: nothing is sent, so the room can sleep.</summary>
+        public bool Solo { get; private set; }
+
+        /// <summary>A line for the HUD when the idle timer is about to end the session, or null.</summary>
+        public string IdleWarning { get; private set; }
+
         private FlightSimDriver _driver;
         private StructuralDamage _damage;
         private PilotEgress _egress;
@@ -45,6 +63,8 @@ namespace FlyingGame.Bridge.Net
         private int _attempt;
         private string _joinedAc, _joinedName;
         private bool _counting;          // an airtime session is open with the entitlement layer
+        private float _lastInputT;       // realtime of the last control movement
+        private double _ail, _ele, _rud, _thr, _flap;   // the last control positions seen
         private readonly Dictionary<string, RemoteAircraft> _remotes = new();
         private readonly NetMsg _out = new() { t = "s", p = new float[3], q = new float[4], v = new float[3], d = new float[5], f = new NetFlags() };
 
@@ -53,9 +73,16 @@ namespace FlyingGame.Bridge.Net
         {
             get
             {
-                if (!Active) return null;
+                if (!Active) return IdleWarning;   // normally null; after an idle exit, says why
                 string room = Room == SessionSettings.FfaRoom ? (_shard != null && _shard.Length > 3 ? $"FFA {_shard.Substring(3)}" : "FFA") : $"Room {Room}";
-                if (Connected) { int n = PeerCount + 1; return $"{room} · {n} pilot{(n == 1 ? "" : "s")}"; }
+                if (Connected)
+                {
+                    int n = PeerCount + 1;
+                    string line = $"{room} · {n} pilot{(n == 1 ? "" : "s")}";
+                    if (Solo) line += " · waiting";
+                    if (IdleWarning != null) line += $" · {IdleWarning}";
+                    return line;
+                }
                 if (_client != null && !_client.IsClosed) return $"{room} · connecting…";
                 float wait = _nextConnect - Time.realtimeSinceStartup;
                 return wait > 0.5f ? $"{room} · reconnecting in {Mathf.CeilToInt(wait)} s" : $"{room} · connecting…";
@@ -84,6 +111,8 @@ namespace FlyingGame.Bridge.Net
                 return;
             }
             BlockedReason = null;
+            IdleWarning = null;
+            MarkInput(true);
 
             bool same = Active && room == Room && _client != null && _client.IsOpen;
             Room = room;
@@ -93,6 +122,23 @@ namespace FlyingGame.Bridge.Net
             DestroyRemotes();
             _attempt = 0;
             _nextConnect = 0f;
+        }
+
+        /// <summary>Note the pilot's control positions; any real movement resets the idle clock.
+        /// <paramref name="force"/> restarts it regardless (a fresh join).</summary>
+        private void MarkInput(bool force)
+        {
+            float now = Time.realtimeSinceStartup;
+            if (force) _lastInputT = now;
+            if (_driver == null) return;
+            var i = _driver.Inputs;
+            double flap = _driver.Sim?.Aircraft != null ? _driver.Sim.Aircraft.FlapFraction : 0;
+            const double eps = 0.02;
+            bool moved = System.Math.Abs(i.Aileron - _ail) > eps || System.Math.Abs(i.Elevator - _ele) > eps
+                      || System.Math.Abs(i.Rudder - _rud) > eps || System.Math.Abs(i.ThrottleLever - _thr) > eps
+                      || System.Math.Abs(flap - _flap) > eps;
+            _ail = i.Aileron; _ele = i.Elevator; _rud = i.Rudder; _thr = i.ThrottleLever; _flap = flap;
+            if (moved || force) _lastInputT = now;
         }
 
         public void Leave()
@@ -165,13 +211,26 @@ namespace FlyingGame.Bridge.Net
 
             // ---- outbound
             if (!_client.IsOpen || SelfId == null || _driver == null || _driver.Sim == null) return;
-            if (_driver.AircraftId != _joinedAc || SessionSettings.PilotName != _joinedName)
+            // The idle timer. An open menu is not activity — the owner's rule is that a parked pilot leaves.
+            if (!SessionSettings.MenuOpen) MarkInput(false);
+            float idleFor = now - _lastInputT;
+            if (idleFor > IdleLeaveSeconds)
+            {
+                Debug.Log("[Net] leaving: fifteen minutes without a control movement");
+                IdleWarning = "Left the room — no control movement for 15 minutes. Fly again to rejoin.";
+                Leave();
+                return;
+            }
+            IdleWarning = idleFor > IdleWarnSeconds ? "Still flying? Move the stick." : null;
+
+            if (!Solo && (_driver.AircraftId != _joinedAc || SessionSettings.PilotName != _joinedName))
             {
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
                 _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
             }
             if (now >= _nextPing) { _nextPing = now + 15f; _client.SendQueued("ping"); }   // keepalive (the server answers without waking the room)
-            if (SessionSettings.MenuOpen || now < _nextSend) return;
+            // Alone in the room: send nothing at all, so the relay can hibernate.
+            if (Solo || SessionSettings.MenuOpen || now < _nextSend) return;
             _nextSend = now + 1f / SendHz;
             SendState();
         }
@@ -228,6 +287,8 @@ namespace FlyingGame.Bridge.Net
         /// <summary>Send a message that must not be dropped (radio voice / tune): queued behind any send in flight.</summary>
         public void SendQueued(NetMsg m)
         {
+            // Radio to an empty room is still a message that wakes it, so it waits for a peer too.
+            if (Solo) return;
             if (_client != null && _client.IsOpen && SelfId != null) _client.SendQueued(m.ToJson());
         }
 
@@ -243,6 +304,7 @@ namespace FlyingGame.Bridge.Net
                     break;
                 case "hello":
                     SelfId = m.id;
+                    Solo = m.solo == true;
                     BeginCounting();
                     DestroyRemotes();
                     if (m.peers != null)
@@ -258,6 +320,14 @@ namespace FlyingGame.Bridge.Net
                     break;
                 case "peer":
                     if (m.id != null && m.id != SelfId) Upsert(m.id, m.name, m.ac);
+                    if (Solo)
+                    {
+                        // Somebody arrived: start talking again, and let them see us this frame rather than in
+                        // a tenth of a second — they have nothing of ours while we were quiet.
+                        Solo = false;
+                        _joinedAc = null;
+                        _nextSend = 0f;
+                    }
                     break;
                 case "bye":
                     if (m.id != null && _remotes.TryGetValue(m.id, out RemoteAircraft gone))
@@ -265,6 +335,11 @@ namespace FlyingGame.Bridge.Net
                         _remotes.Remove(m.id);
                         if (gone != null) Destroy(gone.gameObject);
                     }
+                    if (m.solo == true) Solo = true;   // the last one left: go quiet and let the room sleep
+                    break;
+                case "idle":
+                    if (m.c == 1) { Debug.Log("[Net] the relay closed us for being idle"); IdleWarning = "Left the room — idle. Fly again to rejoin."; }
+                    else if (m.w == 1 && IdleWarning == null) IdleWarning = "Still flying? Move the stick.";
                     break;
                 case "S":   // protocol 2: the tick's batch
                     if (m.b != null) foreach (NetMsg x in m.b) if (x != null) { x.t = "s"; Handle(x); }
@@ -314,6 +389,7 @@ namespace FlyingGame.Bridge.Net
         private void DropConnection()
         {
             EndCounting();
+            Solo = false;
             _connectTask = null;
             SelfId = null;
             _client?.Close();

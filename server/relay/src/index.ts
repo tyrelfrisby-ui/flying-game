@@ -11,6 +11,16 @@
  * every state as it arrives). "ping" is answered "pong" by the runtime without waking the room.
  * Uses the WebSocket Hibernation API so an idle room costs nothing.
  *
+ * COST (owner 2026-10-16). A Durable Object is billed for the time it is awake, so the two things that cost real
+ * money are a ticker that never stops and a client that never stops sending:
+ *  - SOLO: with fewer than two pilots connected there is nobody to send to, so the room stops its ticker and says
+ *    so ("solo":true on hello/bye). The client then stops sending state until a "peer" arrives, which lets the
+ *    object hibernate. A lone pilot in a private room went from about $0.006 a pilot-hour to nothing at all.
+ *  - IDLE: a pilot who has not moved a control for IDLE_CLOSE_MS is closed, with a warning at IDLE_WARN_MS. The
+ *    client enforces it on the controls and the room enforces it on the STATE, so a modified client cannot park a
+ *    room awake all night.
+ * Neither caps anybody and neither stores anything: no counters, no history, nothing per pilot beyond the socket.
+ *
  * PRIVACY: the published policy (glassoverlay.com/legal/aero-playground-privacy) promises the relay
  * stores and logs nothing. Keep wrangler observability off and never log names, IPs or voice
  * without updating that policy first.
@@ -18,6 +28,8 @@
  * HTTP
  *   POST /rooms                      -> { code }            fresh 6-char private room code
  *   GET  /rooms/{code}/ws?name=&ac=  -> WebSocket upgrade   (code = ffa | [A-Z0-9]{6})
+ *       &idle=<seconds>                                      ask to be dropped sooner than the default; a client
+ *                                                            can shorten its own idle timeout but never lengthen it
  *   GET  /rooms/{code}               -> { code, pilots }    roster size
  *   GET  /rooms/ffa/assign           -> { code }            the free-for-all shard to join (503 when all are full)
  *
@@ -27,9 +39,10 @@
  *   { t:"tune", fq:"123.45" }                                radio frequency this pilot listens/talks on
  *   { t:"v", a:"<base64 8 kHz mu-law>", e:0|1 }              radio voice (~100 ms per packet; e:1 = mic unkeyed)
  * Server -> clients
- *   { t:"hello", id, peers:[{ id, name, ac, s? }] }          s = that peer's last state, if any
- *   { t:"peer", id, name, ac }                               someone joined
- *   { t:"bye", id }                                          someone left
+ *   { t:"hello", id, peers:[{ id, name, ac, s? }], solo }    s = that peer's last state, if any; solo = you are alone
+ *   { t:"peer", id, name, ac }                               someone joined (stop being solo, send your state now)
+ *   { t:"bye", id, solo? }                                   someone left (solo = you are the only one left)
+ *   { t:"idle", w:1 } / { t:"idle", c:1 }                    idle warning, then the close that follows it
  *   { t:"s", id, p, q, v, d, f }                             fan-out of a peer's state (v1)
  *   { t:"S", b:[{ id, p, q, v, d, f }…] }                    the tick's states (v2)
  *   { t:"v", id, fq, a, e }                                  voice, only to pilots tuned to the same frequency
@@ -57,8 +70,18 @@ const MAX_FREQ = 8;
 const DEFAULT_FREQ = "122.80";
 const MAX_NAME = 16;
 const MAX_AC = 40;
+// Idle (owner 2026-10-16): a pilot parked in a room keeps the object awake and the bill running. The client
+// watches the CONTROLS; the room watches the STATE, which is the half a modified client cannot talk its way out of.
+const IDLE_WARN_MS = 13 * 60 * 1000;
+const IDLE_CLOSE_MS = 15 * 60 * 1000;
+// What counts as having moved: enough to be a pilot flying rather than a trimmed-out aeroplane drifting. 25 m of
+// position, or any real control movement.
+const IDLE_POS_M = 25;
+const IDLE_CTRL = 0.02;
+const IDLE_SWEEP_TICKS = 10;       // check for idle pilots once a second, not every tick: at 5 s the warning
+                                   // and the close could land in the same sweep and the pilot would never see it
 
-interface PeerMeta { id: string; name: string; ac: string; fq?: string; v?: number; r?: string }
+interface PeerMeta { id: string; name: string; ac: string; fq?: string; v?: number; r?: string; im?: number }
 interface StateRec { json: string; p: number[]; seq: number }
 interface RateWindow { start: number; count: number }
 
@@ -68,6 +91,13 @@ function randomCode(): string {
   let s = "";
   for (const b of bytes) s += alphabet[b % alphabet.length];
   return s;
+}
+
+/** The idle timeout for a socket, in ms: the default, or a shorter one the client asked for. */
+function idleMsFrom(v: string | null): number {
+  const s = Number(v);
+  if (!Number.isFinite(s) || s <= 0) return IDLE_CLOSE_MS;
+  return Math.max(5000, Math.min(IDLE_CLOSE_MS, s * 1000));
 }
 
 function clean(v: unknown, max: number, fallback: string): string {
@@ -86,6 +116,9 @@ export class Room extends DurableObject<Env> {
   private metas = new Map<WebSocket, PeerMeta>();
   /** v2: per recipient, the seq of each peer's state last sent to it. */
   private sentSeq = new Map<string, Map<string, number>>();
+  /** When each pilot last did something, and what they were doing then. In memory only, like everything else
+   *  here: it is a timer, not a record, and it dies with the room. */
+  private idle = new Map<string, { at: number; p: number[]; d: number[]; warned: boolean }>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -97,7 +130,8 @@ export class Room extends DurableObject<Env> {
    *  beyond that none. A tick sends only states newer than the last one this pilot was sent. */
   private tick(): void {
     const socks = this.roster();
-    if (socks.length === 0) { if (this.ticker) { clearInterval(this.ticker); this.ticker = null; } return; }
+    if (socks.length < 2) { this.stopTicker(); return; }   // nobody to send to: let the room hibernate
+    if (this.tickNo % IDLE_SWEEP_TICKS === 0) this.sweepIdle(socks);
     if (this.dirty.size === 0 && this.tickNo % 10 !== 0) { this.tickNo++; return; }
     this.dirty.clear();
     const n = this.tickNo++;
@@ -124,7 +158,54 @@ export class Room extends DurableObject<Env> {
       if (parts.length) this.send(ws, `{"t":"S","b":[${parts.join(",")}]}`);
     }
   }
-  private ensureTicker(): void { if (!this.ticker) this.ticker = setInterval(() => this.tick(), TICK_MS); }
+  /** Fewer than two pilots: there is nobody to send anything to. */
+  private alone(except?: WebSocket): boolean {
+    let n = 0;
+    for (const ws of this.ctx.getWebSockets()) if (ws !== except) n++;
+    return n < 2;
+  }
+
+  private stopTicker(): void { if (this.ticker) { clearInterval(this.ticker); this.ticker = null; } }
+
+  /** The ticker is the room's heartbeat and the thing that keeps it awake, so it only runs when a second pilot
+   *  is there to receive a tick. One pilot alone costs nothing. */
+  private ensureTicker(): void {
+    if (this.alone()) { this.stopTicker(); return; }
+    if (!this.ticker) this.ticker = setInterval(() => this.tick(), TICK_MS);
+  }
+
+  /** Has this pilot done anything? Control movement, or enough position change to be going somewhere. A pilot
+   *  flying hands-off is idle by this measure and by the client's, which is the point: both ends agree. */
+  private static stirred(prev: { p: number[]; d: number[] }, p: number[], d: number[]): boolean {
+    for (let i = 0; i < Math.max(prev.d.length, d.length); i++)
+      if (Math.abs((d[i] ?? 0) - (prev.d[i] ?? 0)) > IDLE_CTRL) return true;
+    if (prev.p.length === 3 && p.length === 3) {
+      const dx = p[0] - prev.p[0], dy = p[1] - prev.p[1], dz = p[2] - prev.p[2];
+      if (dx * dx + dy * dy + dz * dz > IDLE_POS_M * IDLE_POS_M) return true;
+    }
+    return false;
+  }
+
+  /** Close the pilots who have stopped flying. The client does this on the controls; this is the half that a
+   *  modified client cannot avoid, because parking means the state stops changing. */
+  private sweepIdle(socks: { ws: WebSocket; meta: PeerMeta }[]): void {
+    const now = Date.now();
+    for (const { ws, meta } of socks) {
+      const rec = this.idle.get(meta.id);
+      if (!rec) continue;
+      const close = meta.im ?? IDLE_CLOSE_MS;
+      const warn = close === IDLE_CLOSE_MS ? IDLE_WARN_MS : close * (IDLE_WARN_MS / IDLE_CLOSE_MS);
+      const age = now - rec.at;
+      if (age > close) {
+        this.send(ws, '{"t":"idle","c":1}');
+        this.leave(ws);
+        try { ws.close(1000, "idle"); } catch { /* already gone */ }
+      } else if (age > warn && !rec.warned) {
+        rec.warned = true;
+        this.send(ws, '{"t":"idle","w":1}');
+      }
+    }
+  }
   private rate = new WeakMap<WebSocket, RateWindow>();
   private voiceRate = new WeakMap<WebSocket, RateWindow>();
 
@@ -183,6 +264,9 @@ export class Room extends DurableObject<Env> {
       ac: clean(url.searchParams.get("ac"), MAX_AC, "glider-2-33-like"),
       v: url.searchParams.get("v") === "2" ? 2 : 1,
       r: code,
+      // A client may ask to be dropped SOONER than the default (the tests do). It cannot ask for longer, so
+      // this is not a way to park a room awake.
+      im: idleMsFrom(url.searchParams.get("idle")),
     };
 
     const pair = new WebSocketPair();
@@ -197,8 +281,11 @@ export class Room extends DurableObject<Env> {
         const { v, r, ...pub } = p.meta;
         return s ? { ...pub, s: JSON.parse(s.json) } : pub;
       });
-    this.send(server, JSON.stringify({ t: "hello", id: meta.id, room: code, peers, tick: TICK_MS }));
+    const solo = peers.length === 0;
+    this.send(server, JSON.stringify({ t: "hello", id: meta.id, room: code, peers, tick: TICK_MS, solo }));
+    // Everyone else stops being solo the moment this arrives, and sends their state straight back.
     this.broadcast(JSON.stringify({ t: "peer", id: meta.id, name: meta.name, ac: meta.ac }), server);
+    this.idle.set(meta.id, { at: Date.now(), p: [], d: [], warned: false });
     if (meta.v === 2) this.ensureTicker();
 
     return new Response(null, { status: 101, webSocket: client });
@@ -225,6 +312,9 @@ export class Room extends DurableObject<Env> {
         const out = JSON.stringify({ t: "s", id: meta.id, p: msg.p, q: msg.q, v: msg.v, d: msg.d, f: msg.f });
         this.lastState.set(meta.id, { json: out, p, seq: (this.lastState.get(meta.id)?.seq ?? 0) + 1 });
         this.dirty.add(meta.id);
+        const d = Array.isArray(msg.d) ? msg.d.slice(0, 5).map(Number) : [];
+        const prev = this.idle.get(meta.id);
+        if (!prev || !prev.p.length || Room.stirred(prev, p, d)) this.idle.set(meta.id, { at: Date.now(), p, d, warned: false });
         // v1 pilots get it now; v2 pilots on the tick.
         for (const o of this.roster()) if (o.ws !== ws && o.meta.v !== 2) this.send(o.ws, out);
         this.ensureTicker();
@@ -239,6 +329,7 @@ export class Room extends DurableObject<Env> {
           fq: meta.fq,
           v: meta.v,
           r: meta.r,
+          im: meta.im,
         };
         if (next.name !== meta.name || next.ac !== meta.ac) {
           this.setMeta(ws, next);
@@ -281,9 +372,13 @@ export class Room extends DurableObject<Env> {
     this.lastState.delete(meta.id);
     this.dirty.delete(meta.id);
     this.sentSeq.delete(meta.id);
+    this.idle.delete(meta.id);
     for (const m of this.sentSeq.values()) m.delete(meta.id);
     this.metas.delete(ws);
-    this.broadcast(JSON.stringify({ t: "bye", id: meta.id }), ws);
+    // The pilot left behind is told they are alone, so they stop sending and the room can go back to sleep.
+    const solo = this.alone(ws);
+    this.broadcast(JSON.stringify(solo ? { t: "bye", id: meta.id, solo: true } : { t: "bye", id: meta.id }), ws);
+    if (solo) this.stopTicker();
   }
 }
 

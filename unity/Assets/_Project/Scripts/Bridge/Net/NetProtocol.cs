@@ -39,7 +39,7 @@ namespace FlyingGame.Bridge.Net
     [Preserve]
     public sealed class NetMsg
     {
-        public string t;        // "hello" | "peer" | "bye" | "s" | "S" | "join" | "tune" | "v"
+        public string t;        // "hello" | "peer" | "bye" | "s" | "S" | "join" | "tune" | "v" | "idle"
         public string id;
         public string name;
         public string ac;
@@ -52,6 +52,9 @@ namespace FlyingGame.Bridge.Net
         public int? e;          // voice: 1 = the sender unkeyed (end of transmission)
         public NetMsg[] b;      // protocol 2 "S": the tick's batch of peer states (each like an "s")
         public int? tick;       // protocol 2 "hello": the room's tick, ms
+        public bool? solo;      // "hello"/"bye": you are the only pilot in the room — stop sending until a "peer"
+        public int? w;          // "idle": 1 = the warning before the close
+        public int? c;          // "idle": 1 = closing you now
 
         public static readonly JsonSerializerSettings Settings = new()
         {

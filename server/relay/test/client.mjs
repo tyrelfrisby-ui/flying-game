@@ -130,6 +130,65 @@ try {
   if (burst > expect + 8 || burst < 20) fail(`rate limit wrong: ${burst}/80 relayed over ${sendS.toFixed(2)} s (expect ~${expect.toFixed(0)})`);
   ok(`rate limit: ${burst}/80 relayed over ${sendS.toFixed(2)} s (bucket expects ~${expect.toFixed(0)})`);
 
+  // ---- SOLO: one pilot in a room costs nothing, so the room says so and the client goes quiet.
+  {
+    const r2 = await (await fetch(`${http}/rooms`, { method: "POST" })).json();
+    const s1 = await connect(r2.code, "Solo1", "c172-like", "&v=2");
+    const h1 = await s1.expect((m) => m.t === "hello", "hello(solo)");
+    if (h1.solo !== true) fail("a lone pilot's hello must say solo:true");
+    ok("lone pilot: hello says solo");
+
+    // The ticker is stopped, so 1 s of states to an empty room produces no ticks at all.
+    for (let i = 0; i < 10; i++) { s1.send(state(i)); await new Promise((r) => setTimeout(r, 100)); }
+    await s1.expectNone((m) => m.t === "S", "a tick with nobody else in the room", 300);
+    ok("lone pilot: no ticks — the room can hibernate");
+
+    const s2 = await connect(r2.code, "Solo2", "p51d-like", "&v=2");
+    const h2 = await s2.expect((m) => m.t === "hello", "hello(second)");
+    if (h2.solo !== false) fail("the second pilot is not solo");
+    await s1.expect((m) => m.t === "peer" && m.id === h2.id, "peer(second)");
+    ok("second pilot arrives: solo ends for both");
+
+    // Now there are two, so the tick runs again.
+    s1.send(state(7));
+    await s2.expect((m) => m.t === "S" && m.b.some((x) => x.id === h1.id), "tick with the first pilot's state");
+    ok("two pilots: the tick is back");
+
+    // The second leaves: the one left behind is told it is alone again.
+    s2.ws.close();
+    const bye = await s1.expect((m) => m.t === "bye" && m.id === h2.id, "bye(second)");
+    if (bye.solo !== true) fail("the last pilot left must be told solo:true");
+    ok("last pilot left: bye says solo");
+    s1.ws.close();
+  }
+
+  // ---- IDLE: a pilot who stops flying is warned and then closed. The sockets ask to be dropped after 8 s
+  // (a client may shorten its own timeout, never lengthen it), so this takes about ten seconds.
+  {
+    const r3 = await (await fetch(`${http}/rooms`, { method: "POST" })).json();
+    const park = await connect(r3.code, "Parked", "c172-like", "&v=2&idle=8");
+    const hp = await park.expect((m) => m.t === "hello", "hello(parked)");
+    const fly = await connect(r3.code, "Flying", "c172-like", "&v=2&idle=8");
+    await fly.expect((m) => m.t === "hello", "hello(flying)");
+
+    // Parked sends the SAME state over and over; flying moves. 11 s covers the 6.9 s warning and the 8 s close.
+    let moved = 0;
+    const timer = setInterval(() => {
+      park.send(state(500));                       // never changes: parked
+      fly.send(state(600 + (moved += 40)));        // 40 m a tick: flying
+    }, 250);
+    const warn = await park.expect((m) => m.t === "idle" && m.w === 1, "idle warning", 12000);
+    if (!warn) fail("no idle warning");
+    ok("parked pilot warned");
+    const closed = await park.expect((m) => m.t === "idle" && m.c === 1, "idle close", 12000);
+    if (!closed) fail("parked pilot not closed");
+    ok("parked pilot closed for being idle");
+    await fly.expectNone((m) => m.t === "idle", "an idle notice for the pilot who kept flying", 500);
+    ok("the pilot who kept flying was left alone");
+    clearInterval(timer);
+    park.ws.close(); fly.ws.close();
+  }
+
   // Leave: A closes, B and C get bye.
   a.ws.close();
   await b.expect((m) => m.t === "bye" && m.id === helloA.id, "bye(A)");
