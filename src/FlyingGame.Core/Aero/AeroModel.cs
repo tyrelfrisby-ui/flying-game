@@ -283,7 +283,7 @@ public static class AeroModel
 
         // wakeStalledFracOverride >= 0 supplies a LAGGED separation state from the caller (stall
         // hysteresis — separated wakes develop fast and wash out slowly). Negative = instantaneous.
-        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask, stripMask);
+        WingWake wake = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, cg, wakeStalledFracOverride, surfaceMask, stripMask, airfoilTables);
 
         // NACA TN-1045/1329 stab-wake rudder shielding: in steep/vertical flow the horizontal tail
         // sheds a wake wedge (60-deg line from its LE, 30-deg from its TE); fin/rudder area inside is
@@ -545,11 +545,24 @@ public static class AeroModel
                 if (flowState is not null && idx < flowState.Separation.Length)
                 {
                     flowState.LocalAlphaRad[idx] = alpha;
+                    flowState.StallPosRad[idx] = table.AlphaClMaxRad;
+                    flowState.StallNegRad[idx] = table.AlphaClMinRad;
                     double sep = flowState.Separation[idx];
                     // SLAT: a deployed leading-edge slat delays separation — the stall angle this strip
                     // can reach before it commits to the separated branch extends by StallExtensionRad.
                     double slatExt = strip.Slat is not null ? strip.Slat.StallExtensionRad * controls.SlatFraction : 0.0;
-                    double aClMax = table.AlphaClMaxRad + slatExt - flapStallShift;
+                    // The stall angle of the branch this strip is on. Upright: the table's Cl-max angle,
+                    // extended by a slat and pulled in by flap camber as before. INVERTED: the table's own
+                    // Cl-min angle, which on a cambered section arrives several degrees sooner (the Clark Y
+                    // table here: -13.0 deg against +16.5 deg). Judging the inverted branch by the upright
+                    // angle held the attached branch well past the point where the measured polar says the
+                    // flow has already gone. Neither device shifts the inverted angle: a leading-edge slat
+                    // energises the UPPER surface, which is the pressure side inverted, and no inverted flap
+                    // data backs a shift. |AlphaClMinRad| == AlphaClMaxRad for a symmetric section, so every
+                    // aerobatic airplane is untouched.
+                    double aClMax = alpha >= 0.0
+                        ? table.AlphaClMaxRad + slatExt - flapStallShift
+                        : -table.AlphaClMinRad;
                     if (sep < 1.0 && Math.Abs(alpha) > aClMax && Math.Abs(alpha) < aClMax + 20.0 * Math.PI / 180.0)
                     {
                         double sign = Math.Sign(alpha);
@@ -782,13 +795,13 @@ public static class AeroModel
 
     /// <summary>Instantaneous stalled fraction of wing area — callers integrate this with an
     /// asymmetric lag (fast separation, slow reattachment) to get the hysteretic wake state.</summary>
-    public static double InstantStalledFraction(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, Vec3 windBody, bool[]? surfaceMask = null, bool[]? stripMask = null)
+    public static double InstantStalledFraction(AircraftConfig config, Vec3 bodyVelocity, Vec3 bodyRates, Vec3 windBody, bool[]? surfaceMask = null, bool[]? stripMask = null, IReadOnlyDictionary<string, AirfoilTable>? airfoilTables = null)
     {
-        WingWake w = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, config.Mass.CgVec(), -1.0, surfaceMask, stripMask);
+        WingWake w = ComputeWingWake(config, bodyVelocity, windBody, bodyRates, config.Mass.CgVec(), -1.0, surfaceMask, stripMask, airfoilTables);
         return w.StalledFraction;
     }
 
-    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg, double stalledFracOverride, bool[]? surfaceMask = null, bool[]? stripMask = null)
+    private static WingWake ComputeWingWake(AircraftConfig config, Vec3 bodyVelocity, Vec3 windBody, Vec3 bodyRates, Vec3 cg, double stalledFracOverride, bool[]? surfaceMask = null, bool[]? stripMask = null, IReadOnlyDictionary<string, AirfoilTable>? airfoilTables = null)
     {
         int stripIdx = 0;
         Vec3 freestream = bodyVelocity - windBody;
@@ -816,7 +829,18 @@ public static class AeroModel
                 totalArea += strip.Area;
                 sumX += pos.X * strip.Area;
                 sumZ += pos.Z * strip.Area;
-                if (Math.Abs(localAlpha) > WingWake.StallAlpha)
+                // WingWake.StallAlpha is a single calibrated angle, applied to |alpha| so either sign counts.
+                // That is right for a symmetric section but not for a cambered one, which reaches its inverted
+                // stall sooner: a Clark Y wing stalls at -13.0 deg, so a 15 deg threshold meant an inverted
+                // C-172 stall was never reported stalled at all — and StalledFraction is what the lessons and
+                // the practice scoring read. Shift the threshold by the section's own asymmetry on the negative
+                // branch only, which leaves every upright number and every symmetric section exactly as before.
+                double stallAt = WingWake.StallAlpha;
+                if (localAlpha < 0.0 && airfoilTables is not null && airfoilTables.TryGetValue(strip.Airfoil, out AirfoilTable? sTab))
+                {
+                    stallAt = Math.Max(2.0 * Math.PI / 180.0, stallAt + (-sTab.AlphaClMinRad - sTab.AlphaClMaxRad));
+                }
+                if (Math.Abs(localAlpha) > stallAt)
                 {
                     stalledArea += strip.Area;
                 }

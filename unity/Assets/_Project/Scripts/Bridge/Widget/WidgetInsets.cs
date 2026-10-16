@@ -214,7 +214,8 @@ namespace FlyingGame.Bridge.Widget
 
         private void AoaInset(Rect r, AeroHost w)
         {
-            var rd = w.Read(); double crit = w.CriticalAlphaDeg(w.Ac.FlapFraction), warn = crit - 3;
+            // The critical angle of the branch the wing is on: inverted, a cambered wing stalls sooner. (2026-10-15)
+            var rd = w.Read(); double crit = w.CriticalAlphaDeg(w.Ac.FlapFraction, rd.AlphaDeg < 0), warn = crit - 3;
             PxText(new Vector2(r.xMin + 10 * TextScale, r.yMax - 14 * TextScale), "ANGLE OF ATTACK", 15f, Color.white, TextAnchor.MiddleLeft);
             var bar = new Rect(r.xMin + 20 * TextScale, r.center.y - 14 * TextScale, r.width - 40 * TextScale, 28 * TextScale);
             float X(double a) => bar.xMin + (float)((System.Math.Clamp(a, -5, 35) + 5) / 40.0) * bar.width;
@@ -223,7 +224,7 @@ namespace FlyingGame.Bridge.Widget
             Quad(new Vector2(X(crit), bar.yMin), new Vector2(X(35), bar.yMin), new Vector2(X(35), bar.yMax), new Vector2(X(crit), bar.yMax), new Color(0.85f, 0.1f, 0.08f, 0.9f));
             float px = X(rd.AlphaDeg);
             PxSeg(new Vector2(px, bar.yMin - 8), new Vector2(px, bar.yMax + 8), 4f, Color.white);
-            PxText(new Vector2(r.center.x, r.yMin + 18), $"α {rd.AlphaDeg:0.0}°   CRITICAL {crit:0}°", 15f, rd.AlphaDeg >= crit ? new Color(1, 0.3f, 0.3f) : Color.white, TextAnchor.MiddleCenter);
+            PxText(new Vector2(r.center.x, r.yMin + 18), $"α {rd.AlphaDeg:0.0}°   CRITICAL {(rd.AlphaDeg < 0 ? "-" : "")}{crit:0}°", 15f, System.Math.Abs(rd.AlphaDeg) >= crit ? new Color(1, 0.3f, 0.3f) : Color.white, TextAnchor.MiddleCenter);
         }
 
         private void WbInset(Rect r, AeroHost w)

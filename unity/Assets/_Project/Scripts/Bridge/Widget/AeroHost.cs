@@ -118,19 +118,26 @@ namespace FlyingGame.Bridge.Widget
             _midSpan[key] = best;
             return best;
         }
-        /// <summary>The type's critical (stall) angle of attack with these flaps: the α of peak lift, swept on the aero model.</summary>
-        public double CriticalAlphaDeg(double flaps)
+        /// <summary>The type's critical (stall) angle of attack with these flaps, as a MAGNITUDE in degrees: the α of
+        /// peak lift swept on the aero model, or — with <paramref name="inverted"/> — the |α| of peak INVERTED lift.
+        /// The two are NOT the same on a cambered wing: the Clark Y reaches its inverted stall at 13° against 16.5°
+        /// upright, so an inverted stall judged by the upright angle is announced several degrees late or (when the
+        /// wing can never reach the upright figure inverted) not at all. A symmetric aerobatic section gives the same
+        /// number either way. Pass <c>alphaDeg &lt; 0</c> to follow the branch the wing is actually on. (2026-10-15)</summary>
+        public double CriticalAlphaDeg(double flaps, bool inverted = false)
         {
-            string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}";
+            string key = $"{AircraftId}|{System.Math.Round(flaps, 2)}|{(inverted ? "inv" : "up")}";
             if (_critAlpha.TryGetValue(key, out double v)) return v;
             var tables = Aircraft.BuildAirfoilTables(Config);
+            double sign = inverted ? -1.0 : 1.0;
             double best = double.MinValue, bestA = 15;
             for (double a = 0; a <= 35; a += 0.25)
             {
-                double ar = a * System.Math.PI / 180, V = 40;
+                double ar = sign * a * System.Math.PI / 180, V = 40;
                 var (F, _) = FlyingGame.Core.Aero.AeroModel.Compute(Config, tables, new Vec3(V * System.Math.Cos(ar), 0, V * System.Math.Sin(ar)), Vec3.Zero, Vec3.Zero, 1.225,
                     new FlyingGame.Core.Aero.ControlDeflections(0, 0, 0, 0, flaps));
-                double lift = F.X * System.Math.Sin(ar) - F.Z * System.Math.Cos(ar);
+                // Lift normal to the relative wind; inverted that lift is negative, so the stall is its MINIMUM.
+                double lift = sign * (F.X * System.Math.Sin(ar) - F.Z * System.Math.Cos(ar));
                 if (lift > best) { best = lift; bestA = a; }
             }
             _critAlpha[key] = bestA;
@@ -251,12 +258,14 @@ namespace FlyingGame.Bridge.Widget
             Vec3 vl = Local(-half * 0.5), vr = Local(half * 0.5);
             r.LeftAlphaDeg = System.Math.Atan2(vl.Z, System.Math.Max(0.1, vl.X)) * 57.2958;
             r.RightAlphaDeg = System.Math.Atan2(vr.Z, System.Math.Max(0.1, vr.X)) * 57.2958;
-            double stallDeg = 15.0;
             // EITHER WAY: a wing stalls at negative α too, inverted (WidgetVectors already tests |α|). The
             // one-sided test never fired inverted, so an inverted stall was invisible to `state` and to
             // everything reading it - an inverted stall could not even be measured. (2026-10-15)
-            r.LeftStalled = System.Math.Abs(r.LeftAlphaDeg) > stallDeg;
-            r.RightStalled = System.Math.Abs(r.RightAlphaDeg) > stallDeg;
+            // And the angle is the TYPE's, per branch, not a flat 15°: a Clark Y wing stalls at 16.5° upright
+            // but 13° inverted, so one constant was late one way and early the other. Both values are cached.
+            bool Stalled(double aDeg) => System.Math.Abs(aDeg) > CriticalAlphaDeg(Ac.FlapFraction, aDeg < 0);
+            r.LeftStalled = Stalled(r.LeftAlphaDeg);
+            r.RightStalled = Stalled(r.RightAlphaDeg);
             r.OnGround = LandingGear.AnyMainWheelOnGround(Config, s);
             return r;
         }

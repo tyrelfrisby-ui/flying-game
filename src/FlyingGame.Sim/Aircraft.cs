@@ -660,7 +660,7 @@ public sealed class Aircraft
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
         // (~1.0 s). Feeding the LAGGED fraction to the aero model stops the wake band flickering
         // on/off across the stall boundary — the relaxation cycle that made fast spins fall out.
-        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody, _surfaceMask, _stripMask);
+        double instantFrac = AeroModel.InstantStalledFraction(Config, State.Velocity, State.Rates, windBody, _surfaceMask, _stripMask, _airfoilTables);
         double tau = instantFrac > _wakeStalledFrac ? Config.StallDynamics.WakeGrowTau : Config.StallDynamics.WakeDecayTau;
         _wakeStalledFrac += (instantFrac - _wakeStalledFrac) * (1.0 - Math.Exp(-dt / tau));
 
@@ -842,12 +842,24 @@ public sealed class Aircraft
         // normal-force slope plus the drag tilt of the rotated local wind — as in NASA rotary-balance data for GA wings,
         // where wing roll is propelling only from the stall to ~35° α. Spin rate is then set by the pitch balance (α) and
         // the fuselage/tail yaw; final calibration awaits the owner's measured spin numbers.)
+        // These two thresholds are a calibration against the UPRIGHT stall. A cambered strip reaches its
+        // INVERTED stall sooner (the Clark Y table: -13.0 deg against +16.5 deg), so for a strip at negative
+        // alpha the same calibrated band is measured from its own stall instead: shifted by the section's
+        // asymmetry, which is zero for a symmetric section and leaves the aerobatic airplanes bit-identical.
         const double sepOn = 16.0 * Math.PI / 180.0, sepOff = 11.0 * Math.PI / 180.0;
         for (int i = 0; i < stripCount; i++)
         {
-            double a = Math.Abs(_flowState.LocalAlphaRad[i]);
+            double aSigned = _flowState.LocalAlphaRad[i];
+            double a = Math.Abs(aSigned);
+            double shift = 0.0;
+            if (aSigned < 0.0 && i < _flowState.StallNegRad.Length && _flowState.StallPosRad[i] > 0.0)
+            {
+                shift = -_flowState.StallNegRad[i] - _flowState.StallPosRad[i];   // <= 0 when cambered
+            }
+            double on = Math.Max(sepOn + shift, 2.0 * Math.PI / 180.0);
+            double off = Math.Max(sepOff + shift, 1.0 * Math.PI / 180.0);
             double s0 = _flowState.Separation[i];
-            double target = a > sepOn ? 1.0 : a < sepOff ? 0.0 : s0;
+            double target = a > on ? 1.0 : a < off ? 0.0 : s0;
             double tauSec = target > s0 ? Config.StallDynamics.StripSepTau : Config.StallDynamics.StripReattachTau;
             _flowState.Separation[i] = s0 + (target - s0) * (1.0 - Math.Exp(-dt / tauSec));
         }

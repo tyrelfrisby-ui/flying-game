@@ -78,9 +78,12 @@ namespace FlyingGame.Bridge.Widget
             var f = w.Shown ?? w.Review.Capture();
             var r = w.Read();
             var spec = w.Controls.Spec;
-            double critA = w.CriticalAlphaDeg(f.FlapsActual), warnA = critA - (spec.StickShaker ? 2.0 : 3.0);
-            bool stall = r.AlphaDeg >= warnA && !r.OnGround;
-            bool spin = !r.OnGround && System.Math.Abs(r.YawRateDps) > 40 && r.AlphaDeg > critA;
+            // |α| against the branch the wing is on: inverted, a cambered wing reaches its stall several degrees
+            // sooner, so the one-sided test warned late or never. An inverted spin counts as a spin too. (2026-10-15)
+            double aMagA = System.Math.Abs(r.AlphaDeg);
+            double critA = w.CriticalAlphaDeg(f.FlapsActual, r.AlphaDeg < 0), warnA = critA - (spec.StickShaker ? 2.0 : 3.0);
+            bool stall = aMagA >= warnA && !r.OnGround;
+            bool spin = !r.OnGround && System.Math.Abs(r.YawRateDps) > 40 && aMagA > critA;
             bool power = spec.Engines > 0, flaps = spec.Flaps.Length > 1, gear = spec.Retractable, splr = spec.Spoilers;
             float leversW = LeversWidth(flaps, gear, splr);
             var insets = new List<string>(); foreach (var n in InsetNames) if (w.Insets.Contains(n)) insets.Add(n);
@@ -546,17 +549,24 @@ namespace FlyingGame.Bridge.Widget
             Plate(x, y, w, h);
             OText(x + w * 0.5f, y + 18, "AOA", 15, Grey);
             float top = y + 44, bot = y + h - 70, gx = x + 40;
-            const float aMin = -5f, aMax = 35f;
+            // The scale reaches well below zero so an INVERTED wing is on it at all: a cambered wing stalls
+            // near -13 deg, which used to peg the needle on the old -5 deg floor with no band to read against.
+            // crit and warn arrive as MAGNITUDES for the branch the wing is on, so they are mirrored onto the
+            // negative side with it and the needle lights on |α|. (2026-10-15)
+            const float aMin = -20f, aMax = 35f;
             float Ya(double a) => bot - (Mathf.Clamp((float)a, aMin, aMax) - aMin) / (aMax - aMin) * (bot - top);
             SegD(gx, top, gx, bot, 2f, Rule);
-            Rect(gx - 4, Ya(aMax), 8, Ya(crit) - Ya(aMax), LitRed);          // critical and beyond
-            Rect(gx - 4, Ya(crit), 8, Ya(warn) - Ya(crit), LitAmber);         // the warning band
-            for (int a = 0; a <= 30; a += 5) { float yy = Ya(a); SegD(gx - 7, yy, gx + 7, yy, 1.2f, Color.white); OText(gx + 12, yy, $"{a}", 14, Color.white, TextAnchor.MiddleLeft); }
+            double sgn = alpha < 0 ? -1.0 : 1.0;
+            float yEnd = Ya(sgn > 0 ? aMax : aMin), yCrit = Ya(sgn * crit), yWarn = Ya(sgn * warn);
+            Rect(gx - 4, Mathf.Min(yEnd, yCrit), 8, Mathf.Abs(yCrit - yEnd), LitRed);        // critical and beyond
+            Rect(gx - 4, Mathf.Min(yCrit, yWarn), 8, Mathf.Abs(yWarn - yCrit), LitAmber);    // the warning band
+            for (int a = -20; a <= 30; a += 10) { float yy = Ya(a); SegD(gx - 7, yy, gx + 7, yy, 1.2f, Color.white); OText(gx + 12, yy, $"{a}", 14, Color.white, TextAnchor.MiddleLeft); }
             float py = Ya(alpha);
-            Color pc = alpha >= crit ? LitRed : alpha >= warn ? LitAmber : Color.white;
+            double aMag = System.Math.Abs(alpha);
+            Color pc = aMag >= crit ? LitRed : aMag >= warn ? LitAmber : Color.white;
             SegD(gx - 22, py, gx - 6, py, 4f, pc); SegD(gx - 6, py, gx - 12, py - 6, 3f, pc); SegD(gx - 6, py, gx - 12, py + 6, 3f, pc);
-            OText(x + w * 0.5f, y + h - 44, System.Math.Abs(alpha) >= 100 ? $"α {alpha:0}°" : $"α {alpha:0.0}°", 16, pc);
-            OText(x + w * 0.5f, y + h - 20, $"CRIT {crit:0}°", 14, LitRed);
+            OText(x + w * 0.5f, y + h - 44, aMag >= 100 ? $"α {alpha:0}°" : $"α {alpha:0.0}°", 16, pc);
+            OText(x + w * 0.5f, y + h - 20, $"CRIT {sgn * crit:0}°", 14, LitRed);
         }
 
         // ---- c. CONTROL COLUMN (side), WHEEL (front), PEDALS ----

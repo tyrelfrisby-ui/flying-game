@@ -153,7 +153,10 @@ namespace FlyingGame.Bridge.Widget
                 return;
             }
             double vs = -r.SinkFpm, altErr = AltFt - r.HeightFt, spdErr = Kias - r.Kias;
-            double crit = _w.CriticalAlphaDeg(_w.Ac.FlapFraction), warn = crit - 3;
+            // |α| against the critical angle of the branch the wing is on, so the protection also holds an
+            // INVERTED airplane off its stall — the one-sided test never fired at negative α. (2026-10-15)
+            double aNow = r.AlphaDeg, aMag = System.Math.Abs(aNow);
+            double crit = _w.CriticalAlphaDeg(_w.Ac.FlapFraction, aNow < 0), warn = crit - 3;
 
             // PITCH: ALT holds the altitude through a VS command; VS holds the set rate and (with a target) captures the altitude.
             double vsCmd;
@@ -175,7 +178,7 @@ namespace FlyingGame.Bridge.Widget
             // (Only once the A/T is at full power: before that, power is the speed's job — giving up the climb at 8 kt slow while
             // the A/T still had throttle in hand made VS + A/T porpoise ±600 fpm; 2026-10-11, the Talk Flying W12 capture.)
             if (!AllowStall && AutoThrottle && spdErr > 8 && Power > 0.97) vsCmd = System.Math.Min(vsCmd, -(spdErr - 8) * 40);
-            if (!AllowStall && r.AlphaDeg > warn) vsCmd = System.Math.Min(vsCmd, -300);
+            if (!AllowStall && aMag > warn) vsCmd = System.Math.Min(vsCmd, -300);
             double q = s.Rates.Y;
             double eCmd = -0.0002 * (vsCmd - vs) + 0.28 * q;   // stick − = pull (nose up); q + = nose-up → damp with push
             if (PitchMode == "aoa")
@@ -188,7 +191,10 @@ namespace FlyingGame.Bridge.Widget
                 // CWS pitch: hold the selected attitude (the target ramps ≤ 3°/s); never past the stall warning unless allowed.
                 PitchCmd = Mathf.MoveTowards((float)PitchCmd, (float)PitchDeg, 3f * dt);
                 eCmd = 0.03 * (r.PitchDeg - PitchCmd) + 0.28 * q;   // nose above the target → push
-                if (!AllowStall && r.AlphaDeg > warn) eCmd = System.Math.Max(eCmd, 0.05 * (r.AlphaDeg - warn + 0.5));
+                // Unload toward the stick that reduces |α| — push when upright, pull when inverted.
+                if (!AllowStall && aMag > warn) eCmd = aNow < 0
+                    ? System.Math.Min(eCmd, -0.05 * (aMag - warn + 0.5))
+                    : System.Math.Max(eCmd, 0.05 * (aMag - warn + 0.5));
             }
             else if (PitchMode == "flc")
             {
@@ -221,7 +227,7 @@ namespace FlyingGame.Bridge.Widget
             // What it can't do.
             _powerSat = AutoThrottle && Power > 0.985 && spdErr > 3 ? _powerSat + dt : 0;
             _eleSat = System.Math.Abs(ele) > 0.97 ? _eleSat + dt : 0;
-            _stallT = r.AlphaDeg > warn ? _stallT + dt : 0;
+            _stallT = aMag > warn ? _stallT + dt : 0;
             _errs.Add((_clock, PitchMode == "vs" ? vs - VsFpm : PitchMode == "pit" ? (r.PitchDeg - PitchCmd) * 20 : altErr)); while (_errs.Count > 0 && _clock - _errs[0].t > 20f) _errs.RemoveAt(0);
             int crossings = 0; double amp = 0;
             for (int i = 1; i < _errs.Count; i++) { if (System.Math.Sign(_errs[i].err) != System.Math.Sign(_errs[i - 1].err)) crossings++; amp = System.Math.Max(amp, System.Math.Abs(_errs[i].err)); }

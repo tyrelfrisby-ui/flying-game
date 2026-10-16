@@ -26,6 +26,13 @@ public sealed class AirfoilTable
     /// <summary>Angle of maximum positive Cl (the stall) — control effectiveness fades past this.</summary>
     public double AlphaClMaxRad { get; }
 
+    /// <summary>Angle of MINIMUM (most negative) Cl — the inverted stall, as a NEGATIVE angle. A cambered
+    /// section reaches it sooner than its upright stall (the Clark Y table here: −13.0° against +16.5°), so
+    /// the two are not mirror images and an inverted wing must not be judged by the upright angle. A
+    /// symmetric section gives |AlphaClMinRad| == AlphaClMaxRad exactly, so nothing changes for the
+    /// aerobatic airplanes. Both come straight from the table — measured polar, no assumed symmetry.</summary>
+    public double AlphaClMinRad { get; }
+
     private readonly double[] _alphaRad;
     private readonly double[] _cl;
     private readonly double[] _cd;
@@ -43,6 +50,7 @@ public sealed class AirfoilTable
         _cl = data.Cl;
 
         double best = 0, bestAlpha = 15.0 * System.Math.PI / 180.0;
+        double worst = 0, worstAlpha = -15.0 * System.Math.PI / 180.0;
         for (int i = 0; i < _alphaRad.Length; i++)
         {
             if (_alphaRad[i] > 0 && _alphaRad[i] < System.Math.PI / 2 && data.Cl[i] > best)
@@ -50,9 +58,17 @@ public sealed class AirfoilTable
                 best = data.Cl[i];
                 bestAlpha = _alphaRad[i];
             }
+            // The inverted stall: the most negative Cl on the negative branch. Searched the same way
+            // rather than mirrored, because camber makes the two angles differ.
+            if (_alphaRad[i] < 0 && _alphaRad[i] > -System.Math.PI / 2 && data.Cl[i] < worst)
+            {
+                worst = data.Cl[i];
+                worstAlpha = _alphaRad[i];
+            }
         }
 
         AlphaClMaxRad = bestAlpha;
+        AlphaClMinRad = worstAlpha;
         _cd = data.Cd;
         _cm = data.Cm;
     }

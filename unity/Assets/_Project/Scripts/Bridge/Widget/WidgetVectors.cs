@@ -277,7 +277,7 @@ namespace FlyingGame.Bridge.Widget
         }
 
         /// <summary>Everything the frame's arrows say, from a state + its force samples (live or a history frame).</summary>
-        public Picture Compute(RigidBodyState s, IReadOnlyList<ForceSample> forces, double critAlphaDeg)
+        public Picture Compute(RigidBodyState s, IReadOnlyList<ForceSample> forces, double critAlphaDeg, double critAlphaInvDeg = -1)
         {
             var w = Widget; var cfg = w.Config; var mp = w.Ac.MassProperties;
             Vec3 cg = cfg.Mass.CgVec();
@@ -399,7 +399,9 @@ namespace FlyingGame.Bridge.Widget
                 Vec3 v = vAir + Vec3.Cross(s.Rates, p - cg);
                 double a = System.Math.Atan2(v.Z, System.Math.Max(0.1, v.X)) * 57.2958;
                 pic.V[side < 0 ? "wingL" : "wingR"] = (p, v * (-1.0 / System.Math.Max(1, pic.VInf)));   // the local relative wind: −(the station's velocity through the air)
-                bool st = System.Math.Abs(a) > critAlphaDeg;   // (either way: an inverted wing stalls at negative α)
+                // Either way: an inverted wing stalls at negative α — and on a cambered wing it gets there
+                // sooner, so each branch is judged by its own critical angle. (2026-10-15)
+                bool st = System.Math.Abs(a) > (a < 0 && critAlphaInvDeg > 0 ? critAlphaInvDeg : critAlphaDeg);
                 if (side < 0) { pic.WingAlphaL = a; pic.StallL = st; } else { pic.WingAlphaR = a; pic.StallR = st; }
             }
             // Tail winds: the stab strip nearest each half's mid-span.
@@ -438,11 +440,12 @@ namespace FlyingGame.Bridge.Widget
         private void Advance()
         {
             var w = Widget; if (w == null || w.Ac == null) return;
-            double crit = w.CriticalAlphaDeg(w.Shown != null ? w.Shown.FlapsActual : w.Ac.FlapFraction);
+            double flapsNow = w.Shown != null ? w.Shown.FlapsActual : w.Ac.FlapFraction;
+            double crit = w.CriticalAlphaDeg(flapsNow), critInv = w.CriticalAlphaDeg(flapsNow, true);
             if (w.Shown == null)
             {
                 _reviewIdx = -1;
-                Current = Compute(w.Ac.State, w.Ac.LastForces, crit);
+                Current = Compute(w.Ac.State, w.Ac.LastForces, crit, critInv);
                 Filter(Current, Mathf.Min(Time.unscaledDeltaTime, 0.1f), _filt);
                 return;
             }
@@ -455,7 +458,7 @@ namespace FlyingGame.Bridge.Widget
             for (int i = start; i >= idx; i--)
             {
                 var f = hist.Get(i);
-                var p = Compute(f.State, f.Forces, crit);
+                var p = Compute(f.State, f.Forces, crit, critInv);
                 Filter(p, 1.0 / WidgetHistory.Hz, _filt);
                 if (i == idx) Current = p;
             }

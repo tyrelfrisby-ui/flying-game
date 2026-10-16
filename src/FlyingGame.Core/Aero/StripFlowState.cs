@@ -24,6 +24,12 @@ public sealed class StripFlowState
     public double[] LagCd = System.Array.Empty<double>();
     public double[] LagCm = System.Array.Empty<double>();
     public double[] ChordM = System.Array.Empty<double>();
+    /// <summary>Each strip's own stall angles from its airfoil table: StallPosRad > 0 (upright),
+    /// StallNegRad &lt; 0 (inverted). Recorded by AeroModel so the separation law can measure its
+    /// hysteresis band from whichever stall the strip is actually approaching — on a cambered section
+    /// those are not mirror images.</summary>
+    public double[] StallPosRad = System.Array.Empty<double>();
+    public double[] StallNegRad = System.Array.Empty<double>();
     public bool LagPrimed;
 
     // Reversible controls (owner 2026-10-02): what a FREE hinged surface feels — the flow angle over it (before its own
@@ -50,6 +56,8 @@ public sealed class StripFlowState
             LagCd = new double[stripCount];
             LagCm = new double[stripCount];
             ChordM = new double[stripCount];
+            StallPosRad = new double[stripCount];
+            StallNegRad = new double[stripCount];
             HingeAlphaRad = new double[stripCount];
             HingeQ = new double[stripCount];
             HingeFlowDir = new double[stripCount];
