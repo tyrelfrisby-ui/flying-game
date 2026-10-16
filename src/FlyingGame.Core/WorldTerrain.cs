@@ -439,6 +439,7 @@ public sealed class WorldTerrain
             if (WaterfallTunnel.InFootprint(tf, x, y)) return Surface.Gravel;
         }
         { Surface? br = BraidedRiver.SurfaceAt(x, y); if (br.HasValue) return br.Value; }  // the outwash gravel
+        { Surface? hd = HighDesert.SurfaceAt(x, y); if (hd.HasValue) return hd.Value; }    // the Reno high desert
         if (AlaskaRange.OnIce(x, y)) return Surface.Snow;                                  // glacier ice
         // ---- the catch-alls: whole regions, and only where nothing above has spoken for the ground.
         if (AlaskaRange.InRange(x, y)) return Surface.Gravel;                              // rock and moraine
@@ -701,6 +702,8 @@ public sealed class WorldTerrain
         h = AlaskaRange.HeightAt(x, y, h);
         // And the outwash plain below the ice: braided channels, gravel bars, driftwood and boulders.
         h = BraidedRiver.HeightAt(x, y, h);
+        // The Reno high desert, west of the Alaska range on the same plateau: mesas you can land on top of.
+        h = HighDesert.HeightAt(x, y, h);
 
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)

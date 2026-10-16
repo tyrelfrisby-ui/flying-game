@@ -48,6 +48,7 @@ namespace FlyingGame.Bridge
             if (mode == "seaside") { yield return SeasideTest(); yield break; }
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
             if (mode == "tunnel") { yield return TunnelTest(); yield break; }
+            if (mode == "desert") { yield return DesertTest(); yield break; }
             if (mode == "lesson") { yield return LessonTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
@@ -613,6 +614,68 @@ namespace FlyingGame.Bridge
             Chase?.SetView(ChaseCamera.View.SideLeft);
             yield return Shot("sea-cave-side", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 30, keel, 90, 0);
             Debug.Log("[SelfTest] DONE seaside");
+        }
+
+        /// <summary>AERO_SELFTEST=desert: the Reno high desert. The whole place lives or dies on whether a mesa
+        /// top READS as landable from the air and whether a threshold's rock piles can be picked out on the way
+        /// in — neither of which any unit test can judge. So: the range on the horizon, each mesa on a base leg,
+        /// a strip from the threshold, the ruts from low final, and the playa.</summary>
+        private IEnumerator DesertTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "pa18-cub-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2f);
+            FlyingGame.Core.MathTypes.Quat Hdg(double deg) { double h = deg * System.Math.PI / 360; return new FlyingGame.Core.MathTypes.Quat(0, 0, System.Math.Sin(h), System.Math.Cos(h)); }
+            IEnumerator Shot(string name, double x, double y, double up, double hdg, double v)
+            {
+                Menu.Fly();
+                drv = Menu.Driver;
+                yield return new WaitForSecondsRealtime(0.8f);
+                drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(new FlyingGame.Core.MathTypes.Vec3(x, y, -up), Hdg(hdg), new FlyingGame.Core.MathTypes.Vec3(v, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+                yield return new WaitForSecondsRealtime(1.3f);
+                Debug.Log($"[SelfTest] {name}");
+                ScreenCapture.CaptureScreenshot(name + ".png");
+                yield return new WaitForSecondsRealtime(0.7f);
+            }
+
+            // The range from the east, the way you would arrive from the Mesa airport.
+            yield return Shot("desert-range", FlyingGame.Core.HighDesert.X1 + 1800, -6000,
+                              FlyingGame.Core.HighDesert.BaseM + 900, 180, 45);
+
+            // Every landable top, seen from a base leg at circuit height off its low end.
+            foreach (FlyingGame.Core.HighDesert.Hill hl in FlyingGame.Core.HighDesert.Hills)
+            {
+                if (!hl.Landable) continue;
+                double hr = hl.TopHeadingDeg * System.Math.PI / 180;
+                double a = hl.TopLengthM * 0.5 + 900;
+                yield return Shot("desert-top-" + hl.Name.Replace(" ", "-").ToLowerInvariant(),
+                                  hl.X + System.Math.Cos(hr) * a, hl.Y + System.Math.Sin(hr) * a,
+                                  hl.TopM + 180, hl.LandingHeadingDeg, 40);
+            }
+
+            // Each made strip: from the threshold on short final, where the rock piles have to read as a gate.
+            foreach (FlyingGame.Core.HighDesert.DesertStrip st in FlyingGame.Core.HighDesert.Strips)
+            {
+                var (ax, ay) = st.At(-0.5 - 320.0 / st.LengthM, 0);
+                double gh = FlyingGame.Core.HighDesert.StripSurfaceAt(st, st.X, st.Y);
+                yield return Shot("desert-final-" + st.Name.Replace(" ", "-").ToLowerInvariant(),
+                                  ax, ay, gh + 32, st.HeadingDeg, 32);
+            }
+
+            // The ruts, from a few feet up over the Playa Strip — the detail that says somebody uses it.
+            {
+                FlyingGame.Core.HighDesert.DesertStrip st = FlyingGame.Core.HighDesert.Strips[2];
+                var (rx, ry) = st.At(-0.35, 0);
+                yield return Shot("desert-ruts", rx, ry, FlyingGame.Core.HighDesert.PlayaSurfaceM + 9, st.HeadingDeg, 24);
+            }
+
+            // The playa itself, from a thousand feet.
+            yield return Shot("desert-playa", FlyingGame.Core.HighDesert.PlayaX - 1600, FlyingGame.Core.HighDesert.PlayaY,
+                              FlyingGame.Core.HighDesert.PlayaSurfaceM + 300, 0, 45);
+            Debug.Log("[SelfTest] DONE desert");
         }
 
         /// <summary>AERO_SELFTEST=tunnel: the hidden runway behind the first waterfall — the run in over the gorge

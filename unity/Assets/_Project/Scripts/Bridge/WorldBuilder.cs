@@ -62,8 +62,10 @@ namespace FlyingGame.Bridge
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
             BraidedRiver.RegisterSolids();                  // the boulders and driftwood on the gravel bars
+            HighDesert.RegisterSolids();                    // the desert rock, the junipers and the threshold cairns
             BuildCombatZone(WorldTerrain.Active, root.transform);
             AlaskaBuilder.Build(WorldTerrain.Active, root.transform);    // the glaciers, the bergs, the braided river
+            HighDesertBuilder.Build(WorldTerrain.Active, root.transform); // the Reno desert: scrub, strips, cairns
             SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
             PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
@@ -103,6 +105,27 @@ namespace FlyingGame.Bridge
                 return c;
             }
             if (SeaCave.IsSand(x, y)) { c = new Color(0.86f, 0.79f, 0.6f, 0f); return c; }
+            // The high desert: sage and dust, not pasture. The default green-to-dry ramp is driven by HEIGHT,
+            // and at 4,000 ft the Mesa plateau is still mostly green — which made Nevada look like Ireland.
+            // The block gets its own palette: grey-green sage on the flats, pale clay on the playa, and the
+            // red rock the mesas are named for showing through on their skirts.
+            if (HighDesert.InArea(x, y))
+            {
+                var sage = new Color(0.52f, 0.50f, 0.36f);
+                var desertRock = new Color(0.56f, 0.42f, 0.33f);
+                var clay = new Color(0.76f, 0.73f, 0.66f);
+                var mesaTop = new Color(0.62f, 0.55f, 0.43f);
+                float fade = (float)HighDesert.EdgeFade(x, y);
+                Color d = Color.Lerp(sage, desertRock, Mathf.Clamp01((slope - 0.25f) / 0.5f));
+                // A mesa top is bare gravel and has to READ as bare gravel from the air — that is the whole
+                // judgement a pilot makes about it. Flat ground took the sage colour, which at a distance
+                // made every landable top look like a green field.
+                if (HighDesert.SurfaceAt(x, y) == WorldTerrain.Surface.Gravel) d = mesaTop;
+                if (HighDesert.OnPlaya(x, y)) d = clay;
+                c = Color.Lerp(c, d, fade);
+                c.a = 1f - Mathf.Clamp01(slope / 0.08f);
+                return c;
+            }
             // The canyon lake's walls: banded Navajo sandstone.
             if (y > CanyonLake.Y0 - 60 && y < CanyonLake.DamY + 80 && slope > 0.5f && System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < CanyonLake.HalfWidthAt(y) + 40)
             {
@@ -198,6 +221,9 @@ namespace FlyingGame.Bridge
             // The Alaska range, and the braided plain below it where the channels are 68 m across.
             patches.Add(Cells(AlaskaRange.X0 - 200, AlaskaRange.X1 + 200, AlaskaRange.Y0 - 200, AlaskaRange.Y1 + 200, 30));
             patches.Add(Cells(BraidedRiver.X0 - 200, BraidedRiver.X1 + 200, BraidedRiver.Y0 - 200, BraidedRiver.Y1 + 200, 20));
+            // The high desert: a mesa top is 230 m across and has to come out FLAT, and the strips on them
+            // are 30 m wide. A 60 m grid would put two vertices across a top and round it off into a dome.
+            patches.Add(Cells(HighDesert.X0 - 200, HighDesert.X1 + 200, HighDesert.Y0 - 200, HighDesert.Y1 + 200, 20));
             patches.AddRange(SeasidePatches());
             var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)

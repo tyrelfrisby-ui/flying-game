@@ -70,6 +70,16 @@ namespace FlyingGame.EditorTools
                 ("seaplane-base", new Vector3(-980f, 345f, -2700f), new Vector3(-720f, 303f, -2600f)),
                 ("seaplane-ramp", new Vector3(-685f, 309f, -2545f), new Vector3(-770f, 305f, -2600f)),
                 ("seaplane-lane", new Vector3(-450f, 318f, -3120f), new Vector3(-450f, 302f, -2300f)),
+                // The Reno high desert on the Mesa plateau (owner 2026-10-16). Unity x = sim y, z = sim x, so
+                // the block (sim x -6900..-3600, y -7450..-4550) lies along Unity z at Unity x around -6000.
+                ("desert-range", new Vector3(-6000f, 2200f, -1000f), new Vector3(-6000f, 1500f, -5000f)),
+                ("desert-redrock", new Vector3(-4600f, 2050f, -4700f), new Vector3(-5280f, 1646f, -5600f)),
+                ("desert-redrock-final", new Vector3(-5280f, 1760f, -4700f), new Vector3(-5280f, 1646f, -5600f)),
+                ("desert-sandpass", new Vector3(-6000f, 1700f, -3700f), new Vector3(-6600f, 1480f, -4700f)),
+                ("desert-hungryridge", new Vector3(-4810f, 1420f, -3350f), new Vector3(-4810f, 1340f, -4150f)),
+                ("desert-playa", new Vector3(-7250f, 1420f, -4900f), new Vector3(-7250f, 1222f, -6100f)),
+                ("desert-ruts", new Vector3(-7250f, 1232f, -6530f), new Vector3(-7250f, 1226f, -5900f)),
+                ("desert-topdown", new Vector3(-6000f, 6000f, -5250f), new Vector3(-6000f, 1400f, -5240f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
             var carrier = Object.FindFirstObjectByType<CarrierRuntime>();
