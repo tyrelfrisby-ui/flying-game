@@ -18,6 +18,9 @@ numbers stay out of this repository because it is public.
 | Apple's signed transaction (JWS) carried up to the join check | `Plugins/iOS/AeroStore.swift` → `Bridge/Commerce/StoreKitBridge.cs` → `EntitlementRuntime.MultiplayerJws()` |
 | Paywall with the store's own localised prices, and Restore Purchases always reachable | `Bridge/Commerce/Paywall.cs` |
 | Product identifiers out of source | `unity/Assets/StreamingAssets/commerce.json` |
+| The layer running in the game: a `Commerce` object with the runtime and the store screen, reachable from the landing page | `SceneBootstrap`, `StartMenu.Store` |
+| Online hours counted where they are actually spent | `Bridge/Net/NetSession.cs` — `BeginCounting` on the relay's `hello`, wall-clock seconds while connected, ended on any disconnect |
+| The join question asked in the one place that can reach the relay | `NetSession.Join` → `EntitlementRuntime.CanJoinMultiplayer` |
 
 ## Required reason APIs
 
@@ -46,10 +49,19 @@ keeps so much as the transaction id in a log line, the policy answer changes.
 
 It stops being true the moment external sign-in ships, which is accounts. See `docs/EXTERNAL-ENTITLEMENT.md` §6.
 
-**Still to wire.** The paywall is not attached to a scene object, and nothing is attached to the multiplayer
-transport — `EntitlementRuntime.CanJoinMultiplayer`, `MultiplayerJws`, `BeginMultiplayerSession` and
-`RecordMultiplayerTime` are written but nothing calls them. Until they are called, nothing is gated and no
-hours are counted.
+**Wired, but deliberately not enforcing.** The entitlement layer runs in the scene, the store screen opens
+from the landing page, and `NetSession` now counts every connected second and asks `CanJoinMultiplayer`
+before it opens a socket. It does not act on the answer: `commerce.json` keeps `"gateMultiplayer": false`,
+because the products do not exist in App Store Connect yet and switching it on today would refuse everybody —
+there would be no pass in the world to hold. Flipping that flag is the same change as making the relay
+require a join token; doing one without the other leaves the two halves disagreeing.
+
+**Still to build.** The relay asks for nothing: `EntitlementRuntime.MultiplayerJws()` returns Apple's signed
+transaction and nothing sends it, because the relay side is an open decision (see the privacy paragraph
+above, and `server/relay/` has no auth at all today). After that, every purchase path has to be walked on a
+device against the sandbox — buy, cancel, restore, Ask-to-Buy pending, refund and revoke, and a renewal that
+lands while the phone is offline — before any of this goes to TestFlight. The fleet picker also still has no
+locks of its own; that is the points work, and it should ask the same layer rather than grow a second answer.
 
 ## The product catalogue
 

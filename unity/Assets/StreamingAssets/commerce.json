@@ -13,5 +13,12 @@
   "multiplayerProductIds": [
     "com.tyfrisby.aeroplayground.multiplayer.monthly",
     "com.tyfrisby.aeroplayground.multiplayer.yearly"
-  ]
+  ],
+
+  "_gate": "Whether the app actually REFUSES a join without the pass. FALSE until the products exist in App Store Connect and the relay checks a join token - with it true today nobody could fly online at all, because there is no product to buy and so no pass to hold. Everything else is live either way: the hours are counted, the paywall sells what the store offers, and CanJoinMultiplayer answers honestly. Flip this to true in the same change that makes the relay require a token, or the two halves disagree.",
+  "gateMultiplayer": false,
+
+  "_links": "Shown on the paywall, which App Review requires. Fill these in when the pages are published; the buttons are hidden while they are empty.",
+  "termsUrl": "",
+  "privacyUrl": ""
 }

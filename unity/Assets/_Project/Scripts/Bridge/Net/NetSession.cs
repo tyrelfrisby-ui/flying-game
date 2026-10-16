@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using FlyingGame.Bridge.Commerce;
 using UnityEngine;
 
 namespace FlyingGame.Bridge.Net
@@ -10,6 +11,14 @@ namespace FlyingGame.Bridge.Net
     /// Connects to the relay over a ClientWebSocket, sends this aircraft's state at 10 Hz, drains the
     /// inbound queue on the main thread, and owns one RemoteAircraft per peer. Reconnects with backoff;
     /// closes cleanly on destroy/pause (resume reconnects).
+    ///
+    /// This is where the commerce layer meets the game. Two things happen here and nowhere else:
+    ///  - every connected second is reported to <see cref="EntitlementRuntime"/>, because the relay is billed
+    ///    by the hour and that is the only honest measure of what online flying costs us. The pass is
+    ///    unlimited, so the count is never a reason to end a flight;
+    ///  - a join asks <see cref="EntitlementRuntime.CanJoinMultiplayer"/> whether this pilot holds the pass,
+    ///    and acts on the answer only while <see cref="EntitlementRuntime.GateMultiplayer"/> is on.
+    /// Single player, the lessons and the challenges never come through here at all.
     /// </summary>
     public sealed class NetSession : MonoBehaviour
     {
@@ -22,6 +31,10 @@ namespace FlyingGame.Bridge.Net
         public int PeerCount => _remotes.Count;
         public string LastError { get; private set; }
 
+        /// <summary>Why the last <see cref="Join"/> did not go online, in words meant for the pilot, or null.
+        /// Set only when the pass is the reason — a dead network is a reconnect, not a refusal.</summary>
+        public string BlockedReason { get; private set; }
+
         private FlightSimDriver _driver;
         private StructuralDamage _damage;
         private PilotEgress _egress;
@@ -31,6 +44,7 @@ namespace FlyingGame.Bridge.Net
         private string _shard;   // the free-for-all shard joined (ffa, ffa2 …)
         private int _attempt;
         private string _joinedAc, _joinedName;
+        private bool _counting;          // an airtime session is open with the entitlement layer
         private readonly Dictionary<string, RemoteAircraft> _remotes = new();
         private readonly NetMsg _out = new() { t = "s", p = new float[3], q = new float[4], v = new float[3], d = new float[5], f = new NetFlags() };
 
@@ -58,6 +72,19 @@ namespace FlyingGame.Bridge.Net
         {
             string room = SessionSettings.EffectiveRoom;
             if (room == null) { Leave(); return; }
+
+            // Does this pilot hold the pass? The hours are unlimited, so this is the whole question, and it
+            // is asked here rather than on the menu so that nothing can reach the relay around it.
+            EntitlementRuntime rt = EntitlementRuntime.Instance;
+            if (rt != null && rt.GateMultiplayer && !rt.CanJoinMultiplayer(out string why))
+            {
+                BlockedReason = string.IsNullOrEmpty(why) ? "Flying online needs the online pass." : why;
+                Debug.Log($"[Net] not joining {room}: {BlockedReason}");
+                Leave();                  // single player carries on exactly as it was
+                return;
+            }
+            BlockedReason = null;
+
             bool same = Active && room == Room && _client != null && _client.IsOpen;
             Room = room;
             Active = true;
@@ -74,6 +101,23 @@ namespace FlyingGame.Bridge.Net
             Room = null;
             DropConnection();
             DestroyRemotes();
+        }
+
+        /// <summary>Open an airtime session with the entitlement layer. Called when the relay says "hello" —
+        /// the moment this pilot is actually in a room, which is the moment it starts costing. A reconnect
+        /// counts as a new session on purpose: waking the room again is the expensive part.</summary>
+        private void BeginCounting()
+        {
+            if (_counting) return;
+            _counting = true;
+            EntitlementRuntime.Instance?.BeginMultiplayerSession();
+        }
+
+        private void EndCounting()
+        {
+            if (!_counting) return;
+            _counting = false;
+            EntitlementRuntime.Instance?.EndMultiplayerSession();
         }
 
         private void Update()
@@ -114,6 +158,10 @@ namespace FlyingGame.Bridge.Net
 
             // ---- inbound
             while (_client.Inbox.TryDequeue(out NetMsg m)) Handle(m);
+
+            // ---- the bill. Unscaled: the relay keeps the room awake while the pilot reads the menu, and
+            // wall-clock time is what it charges for.
+            if (_counting) EntitlementRuntime.Instance?.RecordMultiplayerTime(Time.unscaledDeltaTime);
 
             // ---- outbound
             if (!_client.IsOpen || SelfId == null || _driver == null || _driver.Sim == null) return;
@@ -195,6 +243,7 @@ namespace FlyingGame.Bridge.Net
                     break;
                 case "hello":
                     SelfId = m.id;
+                    BeginCounting();
                     DestroyRemotes();
                     if (m.peers != null)
                     {
@@ -264,6 +313,7 @@ namespace FlyingGame.Bridge.Net
 
         private void DropConnection()
         {
+            EndCounting();
             _connectTask = null;
             SelfId = null;
             _client?.Close();

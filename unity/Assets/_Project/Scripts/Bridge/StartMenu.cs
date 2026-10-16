@@ -19,6 +19,10 @@ namespace FlyingGame.Bridge
         public CropDustController Dust;
         public Practice.PracticeController Practice;
 
+        /// <summary>The store screen. The only way to it from here, until the fleet picker grows locks of its
+        /// own and asks the same question.</summary>
+        public Commerce.Paywall Store;
+
         public bool IsOpen { get; private set; } = true;
 
         private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
@@ -407,6 +411,23 @@ namespace FlyingGame.Bridge
                     y += row;
                     UiLayout.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
                     y += lh;
+                }
+
+                // The pass. Only worth a word when it is actually being asked for: while the gate is off
+                // there is nothing to buy yet and a line about it would be a promise we cannot keep.
+                var ent = Commerce.EntitlementRuntime.Instance;
+                if (ent != null && ent.GateMultiplayer && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo
+                    && !ent.CanJoinMultiplayer(out string whyNot))
+                {
+                    UiLayout.Label(new Rect(x, y, colW, lh * 2f), whyNot, _small);
+                    y += lh * 2f;
+                    if (Store != null && UiLayout.Button(new Rect(x, y, colW, bh), "Flying online", _btnOn)) Store.Open = true;
+                    y += row;
+                }
+                else if (Store != null)
+                {
+                    if (UiLayout.Button(new Rect(x, y, colW, bh), "Store", _btn)) Store.Open = true;
+                    y += row;
                 }
             }
 

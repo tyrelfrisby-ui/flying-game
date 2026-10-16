@@ -194,6 +194,17 @@ namespace FlyingGame.Bridge
             menu.Combat = aircraft.GetComponent<CombatController>();
             cam.gameObject.AddComponent<CombatHud>().Combat = aircraft.GetComponent<CombatController>();   // target indicator + gunsight
             pHud.Menu = menu;
+
+            // Commerce: what this person may fly, and whether they hold the online pass. One object, reached
+            // everywhere else through EntitlementRuntime.Instance, plus the store screen it drives. Nothing
+            // is refused while commerce.json keeps "gateMultiplayer" false — the layer resolves, counts the
+            // online hours and sells what the store offers, and the refusal waits for the products to exist.
+            var commerce = new GameObject("Commerce");
+            var ent = commerce.AddComponent<Commerce.EntitlementRuntime>();
+            var store = commerce.AddComponent<Commerce.Paywall>();
+            store.TermsUrl = ent.TermsUrl;
+            store.PrivacyUrl = ent.PrivacyUrl;
+            menu.Store = store;
             // Multiplayer test (2026-10-11): AERO_MP_TEST=ffa (or a 6-char room code) picks that room and flies — for a
             // terminal-launched end-to-end check against the platform (mp.aeroplayground.app).
             string mpTest = System.Environment.GetEnvironmentVariable("AERO_MP_TEST");

@@ -64,6 +64,16 @@ namespace FlyingGame.Bridge.Commerce
         public StoreOffer UnlockOffer => StoreKitBridge.Offer(_unlockId);
         public IEnumerable<string> PassProductIds => _passIds;
 
+        /// <summary>Whether <see cref="CanJoinMultiplayer"/>'s answer is acted on. Config, and FALSE until the
+        /// products exist in App Store Connect and the relay asks for a join token: switching it on before
+        /// then would refuse everybody, because there would be no pass in the world to hold. The hours are
+        /// counted and the answer is computed either way — only the refusal waits.</summary>
+        public bool GateMultiplayer { get; private set; }
+
+        /// <summary>Links the paywall must show. Empty until the pages are published.</summary>
+        public string TermsUrl { get; private set; } = "";
+        public string PrivacyUrl { get; private set; } = "";
+
         private const string PrefAirtime = "commerce.airtime";
         private const string PrefContentHighWater = "commerce.highwater.content";
         private const string PrefPassHighWater = "commerce.highwater.pass";
@@ -110,6 +120,9 @@ namespace FlyingGame.Bridge.Commerce
                 if (trialDays > 0) _contentResolver.TrialDays = trialDays;
                 double includedDays = o.Value<double?>("multiplayerDaysWithUnlock") ?? 0;
                 if (includedDays > 0) _onlineResolver.IncludedDaysWithUnlock = includedDays;
+                GateMultiplayer = o.Value<bool?>("gateMultiplayer") ?? false;
+                TermsUrl = o.Value<string>("termsUrl") ?? "";
+                PrivacyUrl = o.Value<string>("privacyUrl") ?? "";
             }
             catch (Exception e) { Debug.LogWarning($"commerce.json unreadable: {e.Message}"); }
         }
