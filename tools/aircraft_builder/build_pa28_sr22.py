@@ -20,7 +20,7 @@ def wing_area(c):
 
 def make(idname, name, span, area, taper_tip, dihedral_deg, wing_z, mass, cg_x, inertia, tail_scale, fin_scale,
          stabilator, prop, cd0, limits, spawn, ctl, flap_delta_rad, gear_main_x, gear_nose_x, gear_z, crossflow_len,
-         flap=(0.16, 0.20, 0.8), elevator_saturation_deg=120.0):
+         flap=(0.16, 0.20, 0.8), elevator_saturation_deg=120.0, brs=None):
     c = copy.deepcopy(C172)
     c['id'], c['displayName'], c['spawnIasMs'] = idname, name, spawn
     ky = span / C172_SPAN
@@ -70,6 +70,11 @@ def make(idname, name, span, area, taper_tip, dihedral_deg, wing_z, mass, cg_x, 
         c['controls'][axis].update(vals)
     # Full-aft authority (StallAuthorityTests): the elevator's plain-flap saturation, explicit per type.
     c['controls']['elevator']['saturationDeg'] = elevator_saturation_deg
+    # Whole-aircraft ballistic recovery parachute (owner 2026-10-16), where the type carries one.
+    if brs is not None:
+        c['brs'] = brs
+    else:
+        c.pop('brs', None)
     # ---- gear: tricycle, mains under the low wing, steerable nosewheel linked to the pedals
     for g in c['gear']:
         if g['isSteerable']:
@@ -112,4 +117,12 @@ make('cirrus-sr22-like', 'Cirrus SR22', span=11.67, area=13.46, taper_tip=0.55, 
      ctl={'aileron': axis(ch=(-0.20, -0.45), kt=45, trim='spring', maxDeflRad=0.30),
           'elevator': axis(ch=(-0.15, -0.45), kt=50, trim='spring', maxDeflRad=0.40),
           'rudder': axis(ch=(-0.15, -0.45), kt=45, trim='spring', maxDeflRad=0.40)},
-     flap_delta_rad=0.26, gear_main_x=-0.45, gear_nose_x=1.7, gear_z=1.0, crossflow_len=7.9, flap=(0.16, 0.13, 0.95), elevator_saturation_deg=11.1)
+     flap_delta_rad=0.26, gear_main_x=-0.45, gear_nose_x=1.7, gear_z=1.0, crossflow_len=7.9, flap=(0.16, 0.13, 0.95), elevator_saturation_deg=11.1,
+     # CAPS. The canopy is 2,400 ft2 projected; Cd 1.4 is a round canopy's coefficient on PROJECTED area
+     # (on the flat nominal area it would be ~0.75, and the two must not be mixed). CdS 312 m2 puts 1,500 kg
+     # down at sqrt(2mg/rho.CdS) = 9.0 m/s, which is both the published "approximately 1,700 fpm" and the
+     # published "equivalent to a drop from 13 feet" (9.0 m/s is a fall from 4.1 m). Vpd 140 KIAS = 72 m/s;
+     # certified from 500 ft in level flight. The bridle pulls 1.05 m ABOVE the CG and a little aft, which is
+     # the only reason the aeroplane hangs the right way up under it.
+     brs={'canopyProjectedAreaM2': 223.0, 'cd': 1.4, 'maxDeployIasMs': 72.0, 'minSafeAglM': 152.4,
+          'bridlePos': [-0.30, 0.0, -1.05]})

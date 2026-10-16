@@ -146,6 +146,27 @@ public sealed class Aircraft
     }
     public void SetEngineThrottleScale(int idx, double scale) { if (idx>=0 && idx<Config.Engines.Count) Config.Engines[idx].ThrottleScale = System.Math.Clamp(scale,0,1); }
     public double SlatFraction { get; set; }   // 0..1 (auto or manual)
+    /// <summary>The whole-aircraft parachute, on types that carry one (owner 2026-10-16). Always present as
+    /// an object; <see cref="BallisticRecovery.Out"/> is false until somebody pulls the handle, and nothing
+    /// happens at all unless <see cref="AircraftConfig.Brs"/> is set.</summary>
+    public BallisticRecovery Brs { get; } = new();
+    /// <summary>
+    /// Pull the handle. Returns false if there is no parachute to pull. Vpd is an INDICATED speed, so what
+    /// is judged here is the indicated one — a deployment at 140 kt indicated is the same event at any
+    /// height, which is the whole reason the limit is written that way.
+    /// </summary>
+    public bool DeployBrs(double aglM)
+    {
+        if (Config.Brs is null || Brs.Out) return false;
+        Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
+        Vec3 windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
+        double tas = (State.Velocity - windBody).Length;
+        double rho = Atmosphere.DensityAtAltitude(-State.Position.Z);
+        double ias = tas * System.Math.Sqrt(rho / 1.225);
+        Brs.Deploy(Config.Brs, ias, aglM);
+        return true;
+    }
+
     public double BrakeInput { get; set; }     // 0..1 wheel braking (on ground), both sides
     /// <summary>Differential braking bias -1 (left only) .. +1 (right only): rudder pedal toe-brake feel.
     /// Left/right brake = BrakeInput × (1 ∓ bias) clamped to 0..1.</summary>
@@ -487,6 +508,7 @@ public sealed class Aircraft
     {
         _pendingBreaks.Clear();
         _impacts.Reset();
+        Brs.Step(dt);
         // One lever, two meanings: powered aircraft read it as THROTTLE (full forward = full power),
         // the glider reads aft-of-neutral as speed brake (axisMap "aftOnly") — same thumb geometry.
         double spoilerTarget = Config.Propulsion is null
@@ -725,6 +747,15 @@ public sealed class Aircraft
                 Vec3 vAir = s.Velocity - windBody;
                 double vA = vAir.Length;
                 if (vA > 1.0) totalF -= vAir * (0.5 * airDensity * vA * Config.GearDragAreaM2 * GearExtension);
+            }
+            if (Brs.Out && Config.Brs is not null)
+            {
+                // The whole-aircraft parachute. Applied at the bridle, which is above the CG — that offset is
+                // what makes the aeroplane hang the right way up, and it is the only thing that does.
+                (Vec3 bF, Vec3 bM) = Brs.Forces(Config, s, windBody, airDensity);
+                ForceDebug.Add(Config.Brs.BridleVec(), bF, Vec3.Zero, "brs");
+                totalF += bF;
+                totalM += bM;
             }
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).

@@ -357,7 +357,14 @@ namespace FlyingGame.Bridge
 
         private bool HasEjectionSeat => _driver.Sim?.Aircraft?.Config?.EjectionSeat == true;
         private bool FireAvailable { get { _combat ??= GetComponent<CombatController>(); return _combat != null && _combat.GunsHot && !(_egress?.PilotOut ?? false); } }
-        private bool BailAvailable => _egress != null && _egress.Current == PilotEgress.Phase.InCockpit;
+        /// <summary>
+        /// A whole-aircraft parachute (owner 2026-10-16: "if an airplane has a brs like a cirrus display
+        /// deploy brs instead of bail out"). Where one is fitted nobody bails out at all, so the button says
+        /// what it actually does — and once it is pulled there is nothing left to press.
+        /// </summary>
+        private bool HasBrs => _driver.Sim?.Aircraft?.Config?.Brs != null;
+        private bool BrsPulled => _driver.Sim?.Aircraft?.Brs.Out == true;
+        private bool BailAvailable => _egress != null && _egress.Current == PilotEgress.Phase.InCockpit && !(HasBrs && BrsPulled);
         /// <summary>EJECT exists only on types with an ejection seat (the F-86); everyone else bails out.</summary>
         private bool EjectAvailable => _egress != null && !_egress.PilotOut && HasEjectionSeat;
 
@@ -473,7 +480,7 @@ namespace FlyingGame.Bridge
                 {
                     case Btn.Reset: DoReset(); break;
                     case Btn.Aircraft: CycleAircraft(); break;
-                    case Btn.Bail: if (BailAvailable) _egress.BailOut(); break;
+                    case Btn.Bail: if (BailAvailable) PullTheHandle(); break;
                     case Btn.Flaps:
                         // Three positions (owner 2026-09-15): the tap's third of the slot picks 0 / 50 / 100 directly, so 50 → 0
                         // never has to pass through 100.
@@ -662,6 +669,29 @@ namespace FlyingGame.Bridge
 
         private static float Key(KeyCode k) => Input.GetKey(k) ? 1f : 0f;
 
+        /// <summary>
+        /// The handle. On a type with a ballistic parachute it fires that and everybody stays aboard; on
+        /// everything else the pilot goes over the side as before. The engine is shut down either way —
+        /// the Cirrus checklist has mixture to idle cut-off before the handle, and a running engine under a
+        /// canopy is only a way of swinging the aeroplane about.
+        /// </summary>
+        private void PullTheHandle()
+        {
+            var ac = _driver.Sim?.Aircraft;
+            if (HasBrs && ac != null)
+            {
+                double ground = FlyingGame.Core.WorldTerrain.GroundHeightAt(ac.State.Position.X, ac.State.Position.Y);
+                double agl = -ac.State.Position.Z - ground;
+                if (ac.DeployBrs(agl))
+                {
+                    _throttle = 1f;        // lever +1 is CLOSED ((1 - lever) / 2)
+                    GetComponent<FlightAudio>()?.EjectionSeat();   // the rocket: the loudest thing the aeroplane has
+                }
+                return;
+            }
+            _egress.BailOut();
+        }
+
         private void DoReset()
         {
             _rudder = _aileron = _elevator = 0f;
@@ -729,8 +759,8 @@ namespace FlyingGame.Bridge
                 DrawTrim();
             }
 
-            // BAIL OUT (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
-            if (BailAvailable) Button(_bailRect, "BAIL OUT");
+            // BAIL OUT / DEPLOY BRS (tap) — cockpit only. EJECT — hold; the fill bar shows the hold progress.
+            if (BailAvailable) Button(_bailRect, HasBrs ? "DEPLOY BRS" : "BAIL OUT");
             if (FireAvailable && !DeskMode)   // Mac: Space fires — no on-screen button over the HUD lines
             {
                 Rect g = ToGui(_fireRect);

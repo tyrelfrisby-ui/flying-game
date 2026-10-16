@@ -49,6 +49,7 @@ namespace FlyingGame.Bridge
             if (mode == "playground") { yield return PlaygroundTest(); yield break; }
             if (mode == "tunnel") { yield return TunnelTest(); yield break; }
             if (mode == "desert") { yield return DesertTest(); yield break; }
+            if (mode == "brs") { yield return BrsTest(); yield break; }
             if (mode == "lesson") { yield return LessonTest(); yield break; }
             ClipRecorder.KeepCopies(true);
             bool keepInst = ClipRecorder.IncludeInstruments; int keepSec = ClipRecorder.ClipSeconds;
@@ -614,6 +615,50 @@ namespace FlyingGame.Bridge
             Chase?.SetView(ChaseCamera.View.SideLeft);
             yield return Shot("sea-cave-side", FlyingGame.Core.SeaCave.Cx, FlyingGame.Core.SeaCave.Cy - 30, keel, 90, 0);
             Debug.Log("[SelfTest] DONE seaside");
+        }
+
+        /// <summary>AERO_SELFTEST=brs (owner 2026-10-16): the whole-aircraft parachute, through its sequence.
+        /// The button has to say DEPLOY BRS, the rocket and the bag have to be visible going up, the canopy has
+        /// to fill over about eight seconds and look alarmingly big over a 38 ft wingspan, and the aeroplane has
+        /// to hang under it nose-low. None of that can be judged from a unit test.</summary>
+        private IEnumerator BrsTest()
+        {
+            yield return new WaitForSecondsRealtime(3f);
+            SessionSettings.AircraftId = "cirrus-sr22-like";
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            Menu.Fly();
+            var drv = Menu.Driver;
+            yield return new WaitForSecondsRealtime(2.5f);
+            ScreenCapture.CaptureScreenshot("brs-button.png");          // it must read DEPLOY BRS, not BAIL OUT
+            yield return new WaitForSecondsRealtime(0.6f);
+
+            // Up where there is room to watch the whole thing.
+            double ground = FlyingGame.Core.WorldTerrain.GroundHeightAt(0, 0);
+            drv.Sim.Aircraft.State = new FlyingGame.Core.RigidBodyState(
+                new FlyingGame.Core.MathTypes.Vec3(0, 0, -(ground + 1200)),
+                FlyingGame.Core.MathTypes.Quat.Identity,
+                new FlyingGame.Core.MathTypes.Vec3(55, 0, 0), FlyingGame.Core.MathTypes.Vec3.Zero);
+            yield return new WaitForSecondsRealtime(1.5f);
+            Chase?.SetView(ChaseCamera.View.Tail);
+            drv.Sim.Aircraft.DeployBrs(1200);
+            Debug.Log("[SelfTest] BRS pulled");
+            // Through the sequence: rocket, lines out, half filled, nearly full, full, and settled.
+            float shown = 0f;
+            foreach (float at in new[] { 0.7f, 1.8f, 3.5f, 5.5f, 8.5f, 14f })
+            {
+                yield return new WaitForSecondsRealtime(Mathf.Max(0.05f, at - shown));
+                shown = at;
+                ScreenCapture.CaptureScreenshot($"brs-t{Mathf.RoundToInt(at * 10f)}.png");
+                yield return new WaitForSecondsRealtime(0.05f);
+            }
+            Chase?.SetView(ChaseCamera.View.SideLeft);
+            yield return new WaitForSecondsRealtime(2f);
+            ScreenCapture.CaptureScreenshot("brs-side.png");            // the hang angle, seen from abeam
+            yield return new WaitForSecondsRealtime(1f);
+            Chase?.SetView(ChaseCamera.View.Flyby);
+            yield return new WaitForSecondsRealtime(3f);
+            ScreenCapture.CaptureScreenshot("brs-flyby.png");
+            Debug.Log("[SelfTest] DONE brs");
         }
 
         /// <summary>AERO_SELFTEST=desert: the Reno high desert. The whole place lives or dies on whether a mesa

@@ -75,6 +75,8 @@ namespace FlyingGame.Bridge
             root.AddComponent<Net.NetSession>();
             root.AddComponent<VoiceComms>();   // intercom (VOX, headphones) + radio (hold TALK) over the relay
             root.AddComponent<AirframeVisual>();
+            // The whole-aircraft parachute, on the types that carry one (owner 2026-10-16).
+            root.AddComponent<BrsCanopy>().Driver = root.GetComponent<FlightSimDriver>();
             root.AddComponent<PilotEgress>();   // BAIL OUT / EJECT sequencer + pilot/parachute bodies
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             root.AddComponent<StructuralDamage>();

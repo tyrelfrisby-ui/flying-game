@@ -1569,5 +1569,16 @@
     "gMax": 3.8,
     "gMin": -1.9
   },
-  "verticalBlanketFactor": 0.5
+  "verticalBlanketFactor": 0.5,
+  "brs": {
+    "canopyProjectedAreaM2": 223.0,
+    "cd": 1.4,
+    "maxDeployIasMs": 72.0,
+    "minSafeAglM": 152.4,
+    "bridlePos": [
+      -0.3,
+      0.0,
+      -1.05
+    ]
+  }
 }
