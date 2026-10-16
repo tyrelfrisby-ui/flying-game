@@ -388,8 +388,27 @@ namespace FlyingGame.EditorTools
             string enc = proj.FindFileGuidByProjectPath("Libraries/Plugins/iOS/ClipEncoder.mm");
             if (enc != null) proj.SetCompileFlagsForFile(fw, enc, new System.Collections.Generic.List<string> { "-fobjc-exceptions" });
             else Debug.LogWarning("Xcode: ClipEncoder.mm not found — clip encoder will not build");
+            // STOREKIT 2 + SWIFT (Plugins/iOS/AeroStore.swift). StoreKit 2 is a Swift-only API, so this is the
+            // project's first Swift file and Xcode needs telling: a language version, and the Swift runtime
+            // embedded in the app (the deployment target is iOS 15, where it is not guaranteed to be present).
+            proj.AddFrameworkToProject(fw, "StoreKit.framework", false);
+            string mainTarget = proj.GetUnityMainTargetGuid();
+            foreach (string t in new[] { fw, mainTarget })
+            {
+                proj.SetBuildProperty(t, "SWIFT_VERSION", "5.0");
+                proj.SetBuildProperty(t, "SWIFT_OBJC_BRIDGING_HEADER", "");   // @_cdecl needs none
+            }
+            proj.SetBuildProperty(mainTarget, "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES", "YES");
+            proj.AddBuildProperty(mainTarget, "LD_RUNPATH_SEARCH_PATHS", "@executable_path/Frameworks");
+
+            // PRIVACY MANIFEST. Apple reads it from the APP bundle, and Unity drops files from Plugins/iOS
+            // into the UnityFramework target, so it is added to the main target's resources explicitly.
+            string privacy = proj.FindFileGuidByProjectPath("Libraries/Plugins/iOS/PrivacyInfo.xcprivacy");
+            if (privacy != null) proj.AddFileToBuild(mainTarget, privacy);
+            else Debug.LogWarning("Xcode: PrivacyInfo.xcprivacy not found - App Store review will reject the build");
+
             proj.WriteToFile(projPath);
-            Debug.Log("Xcode: linked AVFoundation, CoreMedia, CoreVideo, Photos frameworks");
+            Debug.Log("Xcode: linked AVFoundation, CoreMedia, CoreVideo, Photos, StoreKit; Swift 5 + embedded runtime; privacy manifest in the app target");
         }
 
         private static void EnsureSceneInBuild()
