@@ -51,11 +51,13 @@ Checked against `src/FlyingGame.Core/`:
 | "arches" | **Exists.** Twin natural arches sharing a pillar in the Playground, the big river arch in `Landmarks`, and an island arch in `Seaside` ("an arch big enough to fly through"). |
 | "bridges" | **Exists.** In the Playground, the Seaside (a Golden Gate), and `Landmarks`. |
 | "hangars" | **Exists.** At the airports in `WorldTerrain`, and on the Seaside. Whether any is open at both ends and big enough to fly *through* has not been checked and is the thing that matters here. |
-| "the cove on the island" | **Partly.** The island has a **cave** — a chamber inland of the west shore whose dome breaks the cliff — which may be what was meant. The named *cove* (Avalon) is a crescent bay on the **mainland** side, not the island. Worth confirming which one he means. |
-| "a tunnel with a runway inside it behind the waterfall" | **Does not exist.** There are waterfalls — a staircase of plunge falls at each canyon wall, four of them — but no tunnel anywhere in the world code, and no runway inside anything. This is new scenery, not a scoring change. |
+| "the cove on the island" | **Settled 2026-10-16: it is the island CAVE** — the chamber inland of the west shore whose dome breaks the cliff (`Seaside.SeaCave`). That is the hidden-place find; Avalon, the crescent bay on the mainland side, is not one. |
+| "a tunnel with a runway inside it behind the waterfall" | **To be built** (owner, 2026-10-16). It does not exist today: there are three plunge falls, one at each canyon wall, each already with a 60 m amphitheater you can fly along behind the curtain — but no tunnel anywhere and no runway inside anything. New scenery, big enough to land in and take off from. |
 
-So of the named hidden places, the island cave is there and the waterfall tunnel is not. Everything else in
-the earning table can be scored against geometry that already exists.
+So of the named hidden places, the island cave is there and the waterfall tunnel has to be built. Everything
+else in the earning table can be scored against geometry that already exists. Two more hidden places are now
+coming: the tunnel runway behind a fall, and the school in the cave inside Drake hill
+(`docs/pending/DRAKE-HILL-PLAN.md`) — both worth the same one-time find as the cave.
 
 ## What building this actually involves
 
