@@ -20,8 +20,9 @@ namespace FlyingGame.Bridge.Commerce
     ///  - UNLOCK: a one-time purchase that opens everything for good and includes the first thirty days of
     ///    online flying.
     ///  - ONLINE: the pass, monthly or yearly, one subscription group. Needed by everyone who flies online,
-    ///    including members entitled to the content through an external provider. Capped at the configured
-    ///    hours per month, with a top-up offered only once those are used — see <see cref="AirtimeMeter"/>.
+    ///    including members entitled to the content through an external provider. UNLIMITED — the owner
+    ///    dropped the hour cap and the top-up (2026-10-16), so <see cref="AirtimeMeter"/> counts hours for
+    ///    the cost check and nothing here ever refuses a pilot over them.
     ///
     /// Each resolver keeps its own high-water clock, so a flight with no signal behaves exactly as if online
     /// and winding the device clock about cannot buy anybody anything.
@@ -48,25 +49,20 @@ namespace FlyingGame.Bridge.Commerce
 
         private string _trialId = "", _unlockId = "";
         private readonly List<string> _passIds = new();
-        private readonly Dictionary<string, double> _topUpHoursByProduct = new();
 
         /// <summary>What they may fly.</summary>
         public ContentAccess Content { get; private set; }
 
-        /// <summary>Whether they may go online at all, before the hours question.</summary>
+        /// <summary>Whether they may go online. The whole question: there is no hours question any more.</summary>
         public MultiplayerAccess Online { get; private set; }
 
-        /// <summary>The online hours: the monthly cap, what is left, and any topped-up hours.</summary>
+        /// <summary>Connected online hours, counted on this device for the cost check only.</summary>
         public AirtimeMeter Airtime => _airtime;
 
         /// <summary>What the store screen should offer, with the store's own localised prices.</summary>
         public StoreOffer TrialOffer => StoreKitBridge.Offer(_trialId);
         public StoreOffer UnlockOffer => StoreKitBridge.Offer(_unlockId);
         public IEnumerable<string> PassProductIds => _passIds;
-
-        /// <summary>The top-up products, which the store screen must offer ONLY when
-        /// <see cref="AirtimeMeter.CapReached"/> — the owner was explicit that it is not sold before then.</summary>
-        public IEnumerable<string> TopUpProductIds => _topUpHoursByProduct.Keys;
 
         private const string PrefAirtime = "commerce.airtime";
         private const string PrefContentHighWater = "commerce.highwater.content";
@@ -82,7 +78,6 @@ namespace FlyingGame.Bridge.Commerce
             if (!string.IsNullOrEmpty(_trialId)) ids.Add(_trialId);
             if (!string.IsNullOrEmpty(_unlockId)) ids.Add(_unlockId);
             ids.AddRange(_passIds);
-            ids.AddRange(_topUpHoursByProduct.Keys);
             if (ids.Count > 0) { StoreKitBridge.Start(ids); _started = true; }
             Resolve();
         }
@@ -95,7 +90,7 @@ namespace FlyingGame.Bridge.Commerce
             if (_pollT < PollSeconds) return;
             _pollT = 0f;
             StoreKitBridge.Poll();
-            CreditPendingTopUps();
+            FinishStrayConsumables();
             Resolve();
         }
 
@@ -110,20 +105,11 @@ namespace FlyingGame.Bridge.Commerce
                 _unlockId = o.Value<string>("unlockProductId") ?? "";
                 if (o["multiplayerProductIds"] is JArray pass)
                     foreach (var x in pass) { string id = (string)x; if (!string.IsNullOrEmpty(id)) _passIds.Add(id); }
-                if (o["topUpProducts"] is JArray tops)
-                    foreach (var x in tops)
-                    {
-                        string id = x.Value<string>("id");
-                        double hours = x.Value<double?>("hours") ?? 0;
-                        if (!string.IsNullOrEmpty(id) && hours > 0) _topUpHoursByProduct[id] = hours;
-                    }
                 // The rules travel with the identifiers, so changing one is a config edit and not a build.
                 double trialDays = o.Value<double?>("trialDays") ?? 0;
                 if (trialDays > 0) _contentResolver.TrialDays = trialDays;
                 double includedDays = o.Value<double?>("multiplayerDaysWithUnlock") ?? 0;
                 if (includedDays > 0) _onlineResolver.IncludedDaysWithUnlock = includedDays;
-                double capHours = o.Value<double?>("multiplayerHoursPerMonth") ?? 0;
-                if (capHours > 0) _airtime.IncludedHoursPerPeriod = capHours;
             }
             catch (Exception e) { Debug.LogWarning($"commerce.json unreadable: {e.Message}"); }
         }
@@ -137,10 +123,8 @@ namespace FlyingGame.Bridge.Commerce
                 {
                     var o = JObject.Parse(s);
                     _airtime.Load(new AirtimeMeter.Snapshot(
-                        o.Value<double?>("inc") ?? 0, o.Value<double?>("buy") ?? 0,
                         o.Value<double?>("per") ?? 0, o.Value<int?>("pern") ?? 0,
                         o.Value<double?>("life") ?? 0, o.Value<int?>("lifen") ?? 0,
-                        o.Value<double?>("lifebuy") ?? 0, o.Value<double?>("cap") ?? 0,
                         Utc(o.Value<string>("end")), o.Value<int?>("days") ?? 0, Utc(o.Value<string>("hw"))));
                 }
                 // Seed each resolver's high-water mark, so a clock wound back cannot extend a trial or a pass.
@@ -165,10 +149,8 @@ namespace FlyingGame.Bridge.Commerce
             var s = _airtime.Save();
             PlayerPrefs.SetString(PrefAirtime, new JObject
             {
-                ["inc"] = s.IncludedRemaining, ["buy"] = s.PurchasedRemaining,
                 ["per"] = s.PeriodSeconds, ["pern"] = s.PeriodSessions,
                 ["life"] = s.LifetimeSeconds, ["lifen"] = s.LifetimeSessions,
-                ["lifebuy"] = s.LifetimePurchased, ["cap"] = s.IncludedPerPeriod,
                 ["end"] = s.PeriodEndUtc.ToString("o"), ["days"] = s.PeriodDays, ["hw"] = s.HighWaterUtc.ToString("o"),
             }.ToString(Newtonsoft.Json.Formatting.None));
             PlayerPrefs.SetString(PrefContentHighWater, _contentResolver.HighWaterUtc.ToString("o"));
@@ -176,23 +158,17 @@ namespace FlyingGame.Bridge.Commerce
             PlayerPrefs.Save();
         }
 
-        /// <summary>A top-up has arrived: credit the hours, then tell StoreKit it is done. In that order —
-        /// if the app dies in between, the transaction is still unfinished and comes back next launch, so the
-        /// pilot gets the hours they bought. The reverse order would lose them.</summary>
-        private void CreditPendingTopUps()
+        /// <summary>There are no consumable products any more — the hours top-up went with the cap. If one
+        /// ever arrives anyway, from a product created in App Store Connect ahead of the code that honours it,
+        /// finish it and say so in the log: an unfinished transaction is re-delivered forever and App Review
+        /// treats a queue that never drains as a bug, which it is.</summary>
+        private void FinishStrayConsumables()
         {
             var pend = StoreKitBridge.PendingConsumables;
-            if (pend.Count == 0) return;
             for (int i = 0; i < pend.Count; i++)
             {
                 var (productId, txnId) = pend[i];
-                if (_topUpHoursByProduct.TryGetValue(productId, out double hours))
-                {
-                    _airtime.CreditHours(hours);
-                    Persist();
-                    Debug.Log($"Credited {hours:0.#} h of online flying ({productId}).");
-                }
-                else Debug.LogWarning($"Unknown consumable {productId} — finishing it without crediting.");
+                Debug.LogWarning($"Consumable {productId} arrived and nothing here grants anything for it — finishing it.");
                 StoreKitBridge.Finish(txnId);
             }
         }
@@ -259,18 +235,14 @@ namespace FlyingGame.Bridge.Commerce
                 || beforeOnline.Permitted != Online.Permitted || beforeOnline.Source != Online.Source) Persist();
         }
 
-        /// <summary>The whole question for a multiplayer join: may they go online, and is there enough of the
-        /// month's hours left for a flight. <paramref name="reason"/> is shown to the pilot verbatim when the
-        /// answer is no — including when the cap is the reason, which is when the top-up may be offered.</summary>
+        /// <summary>The whole question for a multiplayer join: may they go online. The pass is unlimited, so
+        /// a pilot who holds one is never turned away for any reason this layer knows about.
+        /// <paramref name="reason"/> is shown to the pilot verbatim when the answer is no.</summary>
         public bool CanJoinMultiplayer(out string reason)
         {
-            if (!Online.Permitted) { reason = Online.Reason; return false; }
-            return _airtime.CanJoin(out reason);
+            reason = Online.Permitted ? "" : Online.Reason;
+            return Online.Permitted;
         }
-
-        /// <summary>True when the only thing standing between this pilot and a flight is the monthly cap, so
-        /// the top-up is worth offering. False at every other moment, which is the owner's rule.</summary>
-        public bool ShouldOfferTopUp => Online.Permitted && _airtime.CapReached && _airtime.Exhausted;
 
         /// <summary>Apple's signed transaction for whatever permits this pilot to fly online — the pass, or
         /// the unlock during its included month — to be shown to the relay at join so it can verify against
@@ -290,14 +262,9 @@ namespace FlyingGame.Bridge.Commerce
         /// <summary>Left the room, for any reason.</summary>
         public void EndMultiplayerSession() { _airtime.EndSession(); Persist(); }
 
-        /// <summary>A step of online time, reported by the transport. Returns false once the hours have run
-        /// out, which is the transport's cue to leave the session.</summary>
-        public bool RecordMultiplayerTime(float dt)
-        {
-            bool ok = _airtime.Record(dt);
-            if (!ok || _airtime.LowRemaining) Persist();
-            return ok;
-        }
+        /// <summary>A step of online time, reported by the transport. Counted, never judged: there is no
+        /// return value because there is no answer that would end a flight.</summary>
+        public void RecordMultiplayerTime(float dt) => _airtime.Record(dt);
 
         private void OnApplicationPause(bool paused) { if (paused) Persist(); }
         private void OnApplicationQuit() => Persist();

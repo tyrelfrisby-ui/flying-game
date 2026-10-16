@@ -9,15 +9,9 @@
   "unlockProductId": "com.tyfrisby.aeroplayground.unlock",
   "multiplayerDaysWithUnlock": 30,
 
-  "_multiplayer": "Auto-renewing, both in ONE subscription group so monthly and yearly are the same thing at two durations and the store handles switching between them. Needed by everyone who flies online, including members entitled to the content through an external provider. Family Sharing OFF.",
+  "_multiplayer": "Auto-renewing, both in ONE subscription group so monthly and yearly are the same thing at two durations and the store handles switching between them. Needed by everyone who flies online, including members entitled to the content through an external provider. Family Sharing OFF. UNLIMITED: the hour cap and the hours top-up were dropped (owner 2026-10-16), so the pass has no allowance attached and there is no hours product. The app still counts each pilot's connected hours on the device, for the cost check only - nothing about them is sent or stored anywhere else.",
   "multiplayerProductIds": [
     "com.tyfrisby.aeroplayground.multiplayer.monthly",
     "com.tyfrisby.aeroplayground.multiplayer.yearly"
-  ],
-  "multiplayerHoursPerMonth": 70,
-
-  "_topUp": "Consumable. Offered ONLY once the month's included hours are used up, never before. Topped-up hours sit behind the included hours and do not expire at month end.",
-  "topUpProducts": [
-    { "id": "com.tyfrisby.aeroplayground.multiplayer.hours70", "hours": 70 }
   ]
 }

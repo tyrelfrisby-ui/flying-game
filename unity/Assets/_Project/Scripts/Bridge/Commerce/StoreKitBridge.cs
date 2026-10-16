@@ -88,9 +88,11 @@ namespace FlyingGame.Bridge.Commerce
         public static IReadOnlyList<StoreOffer> Offers => _offers;
         public static IReadOnlyList<StoreEntitlement> Entitlements => _entitlements;
 
-        /// <summary>Consumables that have arrived and not yet been credited — the multiplayer hours top-up.
-        /// Credit them, then call <see cref="Finish"/> with the id, in that order: a purchase killed
-        /// mid-credit comes back next launch, and the reverse order would lose the hours.</summary>
+        /// <summary>Consumables that have arrived and not yet been finished. There are no consumable products
+        /// in the catalogue now that the hours top-up is gone, so this should always be empty; the plumbing
+        /// stays because a transaction nobody finishes is re-delivered forever. If a consumable is ever added
+        /// back, grant what it buys FIRST and call <see cref="Finish"/> afterwards — a purchase killed
+        /// mid-grant comes back next launch, and the reverse order would lose it.</summary>
         public static IReadOnlyList<(string productId, string txnId)> PendingConsumables => _pending;
 
         private static readonly List<StoreOffer> _offers = new();

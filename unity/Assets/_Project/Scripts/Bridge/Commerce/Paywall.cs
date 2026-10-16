@@ -7,14 +7,16 @@ namespace FlyingGame.Bridge.Commerce
     /// The store screen: what unlocks the airplanes, and what lets you fly online. IMGUI, like every other
     /// panel in this project (OptionsPanel, StartMenu), so it matches and needs no scene wiring.
     ///
-    /// Four rules it follows — App Review enforces the first three, the owner set the fourth:
+    /// Three rules it follows, all three enforced by App Review:
     ///  - the price shown is the STORE's localised price string, never a number from our side;
     ///  - Restore Purchases is always reachable, not hidden behind a failed purchase;
     ///  - what each thing includes, its length and its renewal are stated on the screen that takes the money,
-    ///    with the terms and privacy links beside them;
-    ///  - the hours top-up is offered ONLY once the month's included hours are used, never before.
+    ///    with the terms and privacy links beside them.
     /// And one rule of our own: it never blocks single player. Someone who has paid and is merely offline
     /// gets a line of explanation, not a wall.
+    ///
+    /// There is nothing here about hours. The pass is unlimited (owner 2026-10-16), so the screen has no
+    /// allowance to report and nothing to sell anybody who has already bought it.
     /// </summary>
     public sealed class Paywall : MonoBehaviour
     {
@@ -164,27 +166,15 @@ namespace FlyingGame.Bridge.Commerce
         private float OnlineTab(float x, float y, float cw)
         {
             var o = Rt.Online;
-            var a = Rt.Airtime;
 
             GUI.Label(new Rect(x, y, cw, _fs * 2.6f), o.Reason, _label); y += _fs * 2.8f;
 
             GUI.Label(new Rect(x, y, cw, _fs * 4.4f),
                 "Flying with other people goes through a relay we rent by the hour, so it is separate from the "
-                + $"airplanes and everyone who flies online needs it. It includes {a.IncludedHoursPerPeriod:0.#} hours a "
-                + "month. Single player, the lessons, and flying together over the same Wi-Fi never need it.",
+                + "airplanes and everyone who flies online needs it. Fly online as much as you like while it "
+                + "runs. Single player, the lessons, and flying together over the same Wi-Fi never need it.",
                 _label);
             y += _fs * 4.6f;
-
-            // Their hours, once they have any standing to speak of.
-            if (o.Permitted || a.PurchasedRemainingSeconds > 0 || a.LifetimeSessions > 0)
-            {
-                string hours = a.Exhausted
-                    ? "No online time left this month."
-                    : $"{a.RemainingHours:0.#} h left"
-                      + (a.PurchasedRemainingSeconds > 0 ? $", including {a.PurchasedRemainingSeconds / 3600.0:0.#} h you topped up" : "")
-                      + (a.PeriodEndUtc > System.DateTime.MinValue ? $" — resets {a.PeriodEndUtc.ToLocalTime():d}" : "");
-                GUI.Label(new Rect(x, y, cw, _fs * 1.8f), hours, _label); y += _fs * 2f;
-            }
 
             if (!StoreKitBridge.Ready)
             {
@@ -192,26 +182,9 @@ namespace FlyingGame.Bridge.Commerce
                 return y + _fs * 2.4f;
             }
 
-            bool busy = !string.IsNullOrEmpty(StoreKitBridge.Purchasing);
-
-            // The top-up, and ONLY once the month's hours are gone. The owner was explicit about this.
-            if (Rt.ShouldOfferTopUp)
-            {
-                foreach (string id in Rt.TopUpProductIds)
-                {
-                    var t = StoreKitBridge.Offer(id);
-                    if (!t.Valid) continue;
-                    GUI.enabled = !busy;
-                    if (GUI.Button(new Rect(x, y, cw, _fs * 2.2f), busy ? "Working…" : $"{t.Title} — {t.Price}", _btnOn))
-                    { StoreKitBridge.Purchase(t.Id); _note = ""; }
-                    GUI.enabled = true;
-                    y += _fs * 2.4f;
-                }
-                GUI.Label(new Rect(x, y, cw, _fs * 1.6f), "Hours you top up do not expire at the end of the month.", _small);
-                return y + _fs * 1.8f;
-            }
-
             if (o.Permitted) return y;
+
+            bool busy = !string.IsNullOrEmpty(StoreKitBridge.Purchasing);
 
             // No pass: offer the durations the store knows about, in the order config lists them.
             foreach (string id in Rt.PassProductIds)
