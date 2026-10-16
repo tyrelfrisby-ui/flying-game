@@ -32,11 +32,14 @@ public static class BraidedRiver
     /// them rather than trusting the layout.)
     /// </summary>
     /// X0 clears the tunnel maze, which runs under this plateau out to x ≈ 3,400 — and where the maze runs,
-    /// the GROUND is its bore floor 440 m down, so a channel laid across it fell off a cliff.
+    /// the GROUND is its bore floor 610 m down, so a channel laid across it fell off a cliff.
     public const double X0 = 3600, X1 = 8000, Y0 = -4150, Y1 = -1450;
 
-    /// <summary>The bed's fall from the lakes to the foot of the plain — a real outwash gradient, about 1 %.</summary>
-    public const double HeadM = 820, FootM = 762;
+    /// <summary>The outwash plain's head and foot — a real outwash gradient, about 1 %. Tied to the BENCH
+    /// plateau (the braids run out across it) rather than written as metres above the sea: the foot IS the
+    /// plateau, and when the step went to 2,000 ft an absolute 762 m would have put the river 150 m under it.</summary>
+    public static double FootM => WorldTerrain.DatumM + WorldTerrain.StepHeightM;
+    public static double HeadM => FootM + 58;
 
     public const double ChannelHalfWidthM = 34;      // one braid
     public const double ChannelDepthM = 0.8;         // shallow: a wheel can skim it, which is the point

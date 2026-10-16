@@ -80,6 +80,21 @@ namespace FlyingGame.EditorTools
                 ("desert-playa", new Vector3(-7250f, 1420f, -4900f), new Vector3(-7250f, 1222f, -6100f)),
                 ("desert-ruts", new Vector3(-7250f, 1232f, -6530f), new Vector3(-7250f, 1226f, -5900f)),
                 ("desert-topdown", new Vector3(-6000f, 6000f, -5250f), new Vector3(-6000f, 1400f, -5240f)),
+                // The mountain fronts (owner 2026-10-16: risers as mountain fronts, not flat shelves). The
+                // fronts run along sim x, so in Unity they run along z and you look at them down Unity x.
+                // First front: a summit to the west, the widest spur to the east, a saddle, and the bay the
+                // Valley aerodrome sits in — where the front is still the old cliff.
+                ("front-first-summit", new Vector3(1200f, 1150f, -4000f), new Vector3(-1500f, 800f, -4000f)),
+                ("front-first-spur", new Vector3(1500f, 1250f, 6500f), new Vector3(-1400f, 800f, 6500f)),
+                ("front-first-pass", new Vector3(-300f, 800f, -3000f), new Vector3(-2400f, 920f, -3000f)),
+                ("front-first-bay", new Vector3(1100f, 1250f, 400f), new Vector3(-1400f, 800f, 400f)),
+                // Along the first front from the south-east, high: spurs, bays and saddles all at once.
+                ("front-first-oblique", new Vector3(2600f, 2700f, 2200f), new Vector3(-1300f, 800f, -4000f)),
+                ("front-first-topdown", new Vector3(-1100f, 5200f, 1500f), new Vector3(-1150f, 500f, 1500f)),
+                // Second front (Bench to Mesa, 3,000 to 5,000 ft) and third (Mesa to Summit, to 7,000 ft).
+                ("front-second", new Vector3(-3000f, 1900f, 8000f), new Vector3(-4800f, 1500f, 8000f)),
+                ("front-third", new Vector3(-6300f, 2600f, -4000f), new Vector3(-8100f, 2000f, -4000f)),
+                ("front-third-east", new Vector3(-5000f, 3400f, 6500f), new Vector3(-7900f, 2300f, 6500f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
             var carrier = Object.FindFirstObjectByType<CarrierRuntime>();

@@ -5,12 +5,16 @@ namespace FlyingGame.Core;
 /// and the renderer (terrain mesh) so what you see is what the wheels touch. Sim frame: x north,
 /// y east, altitude UP (metres); callers convert to NED z as needed.
 ///
-/// Layout (owner request): the base airport sits on a plain at sea level. To the WEST the land rises
+/// Layout (owner request): the base airport sits on a coastal tableland. To the WEST the land rises
 /// in three steep, irregular escarpments — canyon-wall steps, not straight lines — each to a plateau
-/// with its own airport, progressively higher for density-altitude work (owner 2026-09-09: 1,500 ft a step):
-///   A0  0 ft (origin)  ·  A1 1,500 ft  ·  A2 3,000 ft  ·  A3 4,500 ft.
-/// Every plateau carries the SAME landscape as the Valley — airport, lake, bridge, crop field, aerobatic box,
-/// race course, arch, tower and town — shifted by <see cref="PlateauDy"/> in y and up to the plateau's
+/// with its own airport, progressively higher for density-altitude work. Owner 2026-10-16: "keep the climb
+/// from the coast to ~7,000 ft … airports at 3,000 / 5,000 / 7,000 ft for density-altitude practice" — so a
+/// step is 2,000 ft (it was 1,500, which topped out at 5,500):
+///   A0 Valley 1,000 ft  ·  A1 Bench 3,000 ft  ·  A2 Mesa 5,000 ft  ·  A3 Summit 7,000 ft.
+/// A 7,000 ft field is the one that teaches the lesson: a Cub on a warm afternoon up there has a density
+/// altitude near 10,000 ft and climbs at a couple of hundred feet a minute, which no amount of being told
+/// conveys. Every plateau carries SOME of the Valley landscape — airport, lake, bridge, crop field, aerobatic
+/// box, race course, arch, tower and town — shifted by <see cref="PlateauDy"/> in y and up to the plateau's
 /// elevation. The river winds down the steps past all four airports (waterfalls at each wall).
 /// </summary>
 public sealed class WorldTerrain
@@ -22,7 +26,7 @@ public sealed class WorldTerrain
     public static double GroundHeightAt(double x, double y) => Active?.HeightAt(x, y) ?? 0.0;
 
     // ---- layout ---------------------------------------------------------------------------------
-    public const double StepHeightM = 457.2;       // 1,500 ft a step
+    public const double StepHeightM = 609.6;       // 2,000 ft a step (owner 2026-10-16: the top field at 7,000 ft)
     /// <summary>The Valley plain's height above SEA LEVEL (owner 2026-10-03: a coast and an ocean). The gorge is ~150 m
     /// deep in the Valley, so with the plain at sea level its river ran 150 m BELOW the sea; the whole landscape sits on
     /// a 500 ft (152.4 m) coastal tableland instead, and the river reaches the ocean at sea level through a cleft in
@@ -49,10 +53,10 @@ public sealed class WorldTerrain
     /// <summary>Runway centre (x,y) and field elevation for the four airports; runways run along +x.</summary>
     public static readonly Airport[] Airports =
     {
-        new("Valley", 400, 0, DatumM),
-        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, DatumM + StepHeightM),
-        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, DatumM + StepHeightM * 2),
-        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, DatumM + StepHeightM * 3),
+        new("Valley", 400, 0, DatumM),                                                                      // 1,000 ft
+        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, DatumM + StepHeightM),                        // 3,000 ft
+        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, DatumM + StepHeightM * 2),      // 5,000 ft
+        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, DatumM + StepHeightM * 3), // 7,000 ft
     };
 
     /// <summary>Number of plateaus (one per airport); the Valley is plateau 0.</summary>
@@ -547,8 +551,7 @@ public sealed class WorldTerrain
             for (int k = 0; k < 40; k++)
             {
                 x = RiverCentreX(y);
-                double target = EdgeMeanY(i) + EdgeWander(i, x) - EscarpmentWidthM;
-                y += 0.5 * (target - y);
+                y += 0.5 * (CrestY(i, x) - y);     // CrestY, not the bare wander: one source of truth for the top
             }
             f[i] = new Waterfall(i, x, y, DatumM + StepHeightM * (i + 1), DatumM + StepHeightM * i);
         }
@@ -602,6 +605,224 @@ public sealed class WorldTerrain
              + 60.0 * System.Math.Sin(x / 91.0 + 2.1 + p) + 30.0 * System.Math.Sin(x / 37.0 + 3 * p));
     }
 
+    // ---- the mountain fronts (owner 2026-10-16) -------------------------------------------------
+    //
+    // "Reshape the risers as mountain fronts rather than flat shelves." A riser was a 183 m ramp from one
+    // plateau to the next: 2,000 ft of rise in 600 ft of run, a 73° wall of rock with a flat top, and from
+    // the air unmistakably a step in a staircase.
+    //
+    // A real mountain front is not a wall of constant height and width. It is EMBAYED: great spurs reach out
+    // onto the plain and bays cut back between them, and along the crest there are summits with saddles
+    // between — and the saddles are how you get over it without climbing to the summits. So the front here
+    // has two things the wall did not:
+    //
+    //   WIDTH that varies along x. The crest stays exactly where the wall's top was (which is why the three
+    //   waterfalls, their amphitheaters and the tunnel maze behind the first one do not move at all), and the
+    //   TOE reaches forward onto the lower plateau by up to a further 980 m. Where it reaches far the front is
+    //   a 1,160 m slope — a talus fan, then rock at about 44° — and where it reaches not at all it is still
+    //   the old cliff.
+    //
+    //   RELIEF above the crest. Summits every 1.6 km or so, up to 520 m over the plateau behind, with their
+    //   back slopes running down onto it. Between them the crest falls to plateau level: those gaps are the
+    //   passes, and a test checks there is never more than 3 km of front without one.
+    //
+    // WHERE IT MAY GROW is the whole problem, because the plateaus are 3.3 km apart and most of that is
+    // already spoken for. Both ends of the front's growth are therefore gated by <see cref="Keepouts"/>: the
+    // airport pads, and the five big landscape blocks that fill their plateaus edge to edge. The airports all
+    // share x, so every front keeps the old cliff across the middle 3.5 km — the aerodrome sits in a bay in
+    // the range, which is the usual reason an aerodrome is where it is — and becomes mountain out to either
+    // side, where there are 5 km to the west and 7 km to the east with nothing on them.
+
+    /// <summary>How much further than <see cref="EscarpmentWidthM"/> a spur's toe reaches onto the lower plateau.</summary>
+    public const double FrontExtraWidthM = 980.0;
+    /// <summary>How far short of a keepout the toe (or a back slope) stops.</summary>
+    public const double FrontClearM = 140.0;
+    /// <summary>And over what distance in x it tapers away as it comes up on one, so a spur dies into a bay
+    /// instead of ending in a wall.</summary>
+    public const double FrontRoomFadeM = 650.0;
+    /// <summary>How far a summit stands above the plateau behind it, at most.</summary>
+    public const double CrestReliefM = 520.0;
+    /// <summary>And how far back onto that plateau its back slope runs. 520 m in 620 is 40°: a steep back
+    /// side, which is what a fault block looks like, and short enough to fit on a 3.3 km plateau.</summary>
+    public const double CrestBackSlopeM = 620.0;
+    /// <summary>Summits along the crest, roughly this far apart.</summary>
+    public const double CrestSummitSpacingM = 1600.0;
+
+    /// <summary>Uniform hash, 0..1, for the summits' places and sizes: the same scatter the high desert uses,
+    /// and for the same reason — |sin(n)| on its own is an arcsine distribution, not a flat one, and a front
+    /// built on it puts every summit the same size in the same place along every crest.</summary>
+    public static double Hash(double n, double salt)
+    {
+        double v = System.Math.Sin(n * 12.9898 + salt * 78.233) * 43758.5453;
+        return v - System.Math.Floor(v);
+    }
+
+    private static double Smooth01(double t)
+    {
+        t = System.Math.Clamp(t, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>
+    /// Ground a front must not grow into. <see cref="Flat"/> marks the ones that FLATTEN what they stand on —
+    /// a block of ground that replaces the height field with a floor of its own. Those also hold the crest
+    /// back, because a floor needs a finished plateau under it; the rest (a race course, a town) only keep a
+    /// summit's back slope off, since they take the ground they are given.
+    /// </summary>
+    public readonly struct Keepout
+    {
+        public readonly string Name; public readonly double X0, Y0, X1, Y1; public readonly bool Flat;
+        public Keepout(string name, double x0, double y0, double x1, double y1, bool flat = false)
+        { Name = name; X0 = System.Math.Min(x0, x1); Y0 = System.Math.Min(y0, y1); X1 = System.Math.Max(x0, x1); Y1 = System.Math.Max(y0, y1); Flat = flat; }
+    }
+
+    private static Keepout[]? _keepouts;
+    /// <summary>
+    /// The airport pads and the landscape blocks the fronts have to leave alone. The pads are listed with
+    /// their 300 m blend margin, because the blend is what would otherwise ramp the ground from a runway up
+    /// into a mountainside.
+    /// </summary>
+    public static Keepout[] Keepouts => _keepouts ??= BuildKeepouts();
+
+    private static Keepout[] BuildKeepouts()
+    {
+        var k = new System.Collections.Generic.List<Keepout>();
+        foreach (Airport a in Airports)
+            k.Add(new Keepout($"{a.Name} pad", a.X - PadSouthX - 300, a.Y - PadHalfY - 300, a.X + PadHalfX + 300, a.Y + PadHalfY + 300, flat: true));
+        for (int p = 0; p < PlateauCount; p++)
+        {
+            var (cx0, cy0, cx1, cy1) = ValleyCity.At(p).Extent(90);
+            k.Add(new Keepout($"plateau {p} city", cx0, cy0, cx1, cy1));
+            // The race course is the FURTHEST east of the repeated features — 2.1 km out, where the next
+            // plateau's crest is 1.2 km out — so it is the one a summit's back slope reaches. The first front
+            // put pylon 8 on plateau 1 sixty-nine metres up a mountainside.
+            double rx0 = double.MaxValue, ry0 = double.MaxValue, rx1 = double.MinValue, ry1 = double.MinValue;
+            foreach (RaceElement e in RaceCourse.ElementsFor(p))
+            {
+                rx0 = System.Math.Min(rx0, e.X); rx1 = System.Math.Max(rx1, e.X);
+                ry0 = System.Math.Min(ry0, e.Y); ry1 = System.Math.Max(ry1, e.Y);
+            }
+            k.Add(new Keepout($"plateau {p} race course", rx0 - 60, ry0 - 60, rx1 + 60, ry1 + 60));
+            CropField cf = CropField.For(p);
+            k.Add(new Keepout($"plateau {p} crop field", cf.X0 - 60, cf.Y0 - 60, cf.X1 + 60, cf.Y1 + 60));
+            k.Add(new Keepout($"plateau {p} aerobatic box", AeroBox.CenterX - AeroBox.SizeM / 2 - 60, AeroBox.CenterYAt(p) - AeroBox.SizeM / 2 - 60,
+                                                            AeroBox.CenterX + AeroBox.SizeM / 2 + 60, AeroBox.CenterYAt(p) + AeroBox.SizeM / 2 + 60));
+        }
+        k.Add(new Keepout("braided plain", BraidedRiver.X0, BraidedRiver.Y0, BraidedRiver.X1, BraidedRiver.Y1, flat: true));
+        k.Add(new Keepout("high desert", HighDesert.X0, HighDesert.Y0, HighDesert.X1, HighDesert.Y1, flat: true));
+        k.Add(new Keepout("Frank Church", FrankChurch.X0, FrankChurch.Y0, FrankChurch.X1, FrankChurch.Y1, flat: true));
+        // The Alaska range and the alpine range are deliberately NOT here. They take the ground as they find
+        // it — their peaks are a max over whatever is underneath and stand two to four thousand metres over
+        // it — so a front's summits simply become their northern foothills, which is what foothills are. The
+        // five above all FLATTEN their ground, and a front that grows into one leaves a cliff at its boundary.
+        return k.ToArray();
+    }
+
+    /// <summary>
+    /// How far the front at this x may reach from its crest, in the given direction (+1 forward onto the
+    /// lower plateau, −1 back onto the upper one), before it touches something already standing there.
+    /// A keepout's influence fades over <see cref="FrontRoomFadeM"/> in x, so what it does to the front is a
+    /// taper and not a step.
+    /// </summary>
+    private static double FrontRoomAt(double crestY, double x, int dir, double want)
+    {
+        double room = want;
+        foreach (Keepout k in Keepouts)
+        {
+            if (x < k.X0 - FrontRoomFadeM || x > k.X1 + FrontRoomFadeM) continue;
+            // Only what lies in the direction we are growing. Leaving this out was the first version's
+            // mistake: every block ANYWHERE in y came out with a huge negative gap and shut the front down,
+            // so the high desert three plateaus away stopped a spur on the Valley's own front.
+            if (dir > 0 ? k.Y1 <= crestY : k.Y0 >= crestY) continue;
+            // Gap from the crest to the near side of the block, in the direction we are growing.
+            double gap = dir > 0 ? k.Y0 - crestY - FrontClearM : crestY - k.Y1 - FrontClearM;
+            if (gap >= want) continue;                     // far enough away to be no constraint
+            double inX = Smooth01(System.Math.Min(x - (k.X0 - FrontRoomFadeM), (k.X1 + FrontRoomFadeM) - x) / FrontRoomFadeM);
+            room = System.Math.Min(room, want + (System.Math.Max(0, gap) - want) * inX);
+        }
+        return System.Math.Clamp(room, 0, want);
+    }
+
+    /// <summary>The spur profile along a front: 0 in a bay, 1 where a spur reaches out as far as it can.</summary>
+    public static double FrontSpurAt(int i, double x)
+    {
+        double p = 2.3 + i * 5.1;
+        return System.Math.Clamp(0.55 + 0.45 * System.Math.Sin(x / 1150.0 + p)
+                                      + 0.22 * System.Math.Sin(x / 430.0 + 2 * p)
+                                      + 0.10 * System.Math.Sin(x / 197.0 + 3 * p), 0, 1);
+    }
+
+    /// <summary>
+    /// y of the front's crest at x — the top of the rise, which is where the old wall's top was, so the
+    /// waterfalls and the tunnel maze behind the first one do not move.
+    ///
+    /// Except that the crest may not wander BEHIND a block that flattens the plateau: the plateau has to be
+    /// finished before the block starts. The first wall's wander takes it up to 138 m past the high desert's
+    /// northern boundary, and there the desert's floor stood 560 m above the half-built escarpment under it —
+    /// a cliff along the boundary for 3 km. No height probe inside the desert could see it, because inside
+    /// the desert the floor is exactly what it should be.
+    /// </summary>
+    public static double CrestY(int i, double x)
+    {
+        double c = EdgeMeanY(i) + EdgeWander(i, x) - EscarpmentWidthM, lim = c;
+        foreach (Keepout k in Keepouts)
+        {
+            if (!k.Flat) continue;                                            // only a floor needs a finished plateau
+            if (x < k.X0 - FrontRoomFadeM || x > k.X1 + FrontRoomFadeM) continue;
+            if (k.Y1 >= EdgeMeanY(i) || k.Y1 + FrontClearM <= c) continue;    // not behind this crest, or clear of it
+            double inX = Smooth01(System.Math.Min(x - (k.X0 - FrontRoomFadeM), (k.X1 + FrontRoomFadeM) - x) / FrontRoomFadeM);
+            lim = System.Math.Max(lim, c + (k.Y1 + FrontClearM - c) * inX);
+        }
+        return lim;
+    }
+
+    /// <summary>The front's whole horizontal run at x: the cliff band plus however far its toe may reach.</summary>
+    public double FrontWidthAt(int i, double x)
+    {
+        double want = EscarpmentWidthM + FrontExtraWidthM * FrontSpurAt(i, x) * (1 - NotchWeight(Waterfalls[i], x));
+        // Never less than the cliff band: the old wall already stood where it stood, and a keepout is a
+        // licence to not grow, not a licence to take the escarpment away.
+        return System.Math.Max(EscarpmentWidthM, FrontRoomAt(CrestY(i, x), x, +1, want));
+    }
+
+    /// <summary>Summit shape along the crest, 0..1: domes about <see cref="CrestSummitSpacingM"/> apart with
+    /// saddles between them. The gaps ARE the passes — do not fill them in.</summary>
+    public static double CrestShapeAt(int i, double x)
+    {
+        double best = 0;
+        int n = (int)System.Math.Floor(x / CrestSummitSpacingM);
+        for (int j = n - 1; j <= n + 1; j++)
+        {
+            double seed = j * 1.0 + i * 37.0;
+            double cx = (j + 0.5 + (Hash(seed, 0.0) - 0.5) * 0.8) * CrestSummitSpacingM;
+            double halfW = 470.0 + 350.0 * Hash(seed, 1.7);
+            double tall = 0.30 + 0.70 * Hash(seed, 3.1);
+            double u = System.Math.Abs(x - cx) / halfW;
+            if (u >= 1) continue;
+            best = System.Math.Max(best, tall * Smooth01(1 - u));
+        }
+        // A crest that is dead flat between its summits reads as a terrace, which is the thing this was meant
+        // to stop being — a render showed the straight green edge of the plateau running away between two
+        // perfectly good mountains. Under the summits there is a low continuous swell of 10 to 47 m: enough
+        // to lose the straight line, little enough that a saddle is still a saddle you can fly through.
+        double q = 1.1 + i * 3.3;
+        double swell = 0.055 + 0.035 * System.Math.Sin(x / 740.0 + q) + 0.025 * System.Math.Sin(x / 263.0 + 2 * q);
+        return System.Math.Max(best, System.Math.Max(0, swell));
+    }
+
+    /// <summary>How far the summit at this x stands above the plateau behind the crest, and over what distance
+    /// its back slope dies away on it. Zero at a water gap: the river's way through the front is a gap.</summary>
+    public (double reliefM, double backSlopeM) CrestAt(int i, double x)
+    {
+        double shape = CrestShapeAt(i, x) * (1 - NotchWeight(Waterfalls[i], x));
+        if (shape <= 0) return (0, CrestBackSlopeM);
+        double back = FrontRoomAt(CrestY(i, x), x, -1, CrestBackSlopeM);
+        if (back <= 0) return (0, CrestBackSlopeM);
+        // A summit with half the room gets half the height as well as half the back slope: shortening it
+        // alone would stand the same mountain up on a 60° back side, which is not what a fault block does.
+        return (CrestReliefM * shape * (back / CrestBackSlopeM), back);
+    }
+
     /// <summary>Wall profile 0..1 over t = 0..1 across the escarpment: a talus apron then a near-vertical cliff.</summary>
     private static double WallProfile(double t)
     {
@@ -633,8 +854,9 @@ public sealed class WorldTerrain
         Waterfall[] falls = Waterfalls;
         for (int i = 0; i < StepCount; i++)
         {
-            double edge = EdgeMeanY(i) + EdgeWander(i, x);
-            double t = (edge - y) / EscarpmentWidthM;   // grows as you go west past the edge
+            double crest = CrestY(i, x);
+            double run = FrontWidthAt(i, x);
+            double t = (crest + run - y) / run;        // 0 at the toe, 1 at the crest, > 1 behind it
             double p = WallProfile(t);
             double w = NotchWeight(falls[i], x);
             if (w > 0)
@@ -645,6 +867,16 @@ public sealed class WorldTerrain
                 p += (step - p) * w;
             }
             h += StepHeightM * p;
+            // The summits along the crest, and their back slopes down onto the plateau behind.
+            var (relief, back) = CrestAt(i, x);
+            if (relief > 0)
+            {
+                double cw;
+                if (t <= 0.5) cw = 0;
+                else if (t <= 1) cw = Smooth01((t - 0.5) / 0.5);
+                else cw = Smooth01(1 - (t - 1) * run / back);
+                h += relief * cw;
+            }
             // Rock texture on the wall face: small ledges (not inside the notch — the face there is sheer).
             if (t > 0 && t < 1 && w < 0.5) h += 6.0 * System.Math.Sin(x / 23.0) * System.Math.Sin(y / 17.0);
         }

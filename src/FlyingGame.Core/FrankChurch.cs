@@ -28,10 +28,15 @@ public static class FrankChurch
     public static double RimM => WorldTerrain.DatumM + 3 * WorldTerrain.StepHeightM;   // the plateau it is cut into
 
     /// <summary>The canyon's floor at its north end and its south end: a kilometre below the rim, falling as
-    /// it goes, the way a river canyon does.</summary>
+    /// it goes, the way a river canyon does. Given as DEPTH below the rim, so the canyon keeps its walls at
+    /// 35° when the plateau moves — written as metres above the sea it would have become a 4,800 ft slot with
+    /// 58° sides when the step went to 2,000 ft on 2026-10-16.
+    ///
     /// A real river falls about 1–2 % through country like this. The first cut fell 4 %, which made a
-    /// 4,000 ft strip on a bar need a 3.4 % slope just to follow the water.
-    public const double FloorNorthM = 1040, FloorSouthM = 920;
+    /// 4,000 ft strip on a bar need a 3.4 % slope just to follow the water.</summary>
+    public const double FloorDepthNorthM = 636, FloorDepthSouthM = 756;
+    public static double FloorNorthM => RimM - FloorDepthNorthM;
+    public static double FloorSouthM => RimM - FloorDepthSouthM;
     public const double CanyonHalfWidthM = 900;      // rim to rim, halved
     public const double RiverHalfWidthM = 26;
 
@@ -49,12 +54,14 @@ public static class FrankChurch
         public readonly double? OneWayInHeadingDeg;
         public readonly string Character;
 
+        /// <paramref name="depthBelowRimM"/>: how far below the plateau rim the strip sits, 0 for one up on the
+        /// rim itself. Depth, not elevation, so that raising the plateau raises the whole canyon with it.
         public Strip(string name, double x, double y, double headingDeg, double lengthM, double widthM,
-                     double elevationM, double slopePercent, Ground surface, double? oneWayInHeadingDeg,
+                     double depthBelowRimM, double slopePercent, Ground surface, double? oneWayInHeadingDeg,
                      string character)
         {
             Name = name; X = x; Y = y; HeadingDeg = headingDeg; LengthM = lengthM; WidthM = widthM;
-            ElevationM = elevationM; SlopePercent = slopePercent; Surface = surface;
+            ElevationM = RimM - depthBelowRimM; SlopePercent = slopePercent; Surface = surface;
             OneWayInHeadingDeg = oneWayInHeadingDeg; Character = character;
         }
 
@@ -99,7 +106,7 @@ public static class FrankChurch
     /// <summary>
     /// Ten of the famous ones. Lengths and slopes are the real strips'; the positions were not chosen on a map
     /// but MEASURED against the canyon — every one sits where the ground can actually hold it. Four are up on
-    /// the plateau rim at 5,500 ft, four are benches cut into the canyon walls, and two are bars down beside
+    /// the plateau rim at 7,000 ft, four are benches cut into the canyon walls, and two are bars down beside
     /// the water, which is roughly how the real ones are distributed.
     ///
     /// The one-way strips point up the FALL LINE of their wall, 20° off it: the far end climbs into the
@@ -108,29 +115,30 @@ public static class FrankChurch
     /// </summary>
     public static readonly Strip[] Strips =
     {
-        // ---- up on the rim: high, long, and the density-altitude lesson.
-        new Strip("Chamberlain", -3900, -11000,  85, 1100, 40, 1676,  0.0, Ground.Gravel, null,
-                  "On the plateau in an open basin at 5,500 ft. Long and flat — and 5,500 ft on a warm day is the whole lesson."),
-        new Strip("Big Creek", -2600, -11400, 108, 1070, 34, 1676,  0.8, Ground.Gravel, null,
+        //         name            x       y    hdg  len  wid  depth slope  surface          one-way
+        // ---- up on the rim: high, long, and the density-altitude lesson. Depth 0 = the rim, 7,000 ft.
+        new Strip("Chamberlain", -3900, -11000,  85, 1100, 40,    0,  0.0, Ground.Gravel, null,
+                  "On the plateau in an open basin at 7,000 ft. Long and flat — and 7,000 ft on a warm day is the whole lesson."),
+        new Strip("Big Creek", -2600, -11400, 108, 1070, 34,    0,  0.8, Ground.Gravel, null,
                   "On the rim, slightly uphill to the west. Long enough to be comfortable, high enough not to be."),
-        new Strip("Thomas Creek", -4700, -14100,  25, 1220, 30, 1676,  1.2, Ground.Gravel, null,
+        new Strip("Thomas Creek", -4700, -14100,  25, 1220, 30,    0,  1.2, Ground.Gravel, null,
                   "The longest of them, and uphill. Fine until you try to leave on a warm afternoon."),
-        new Strip("Sulphur Creek", -3200, -14300,  70,  915, 30, 1676,  0.0, Ground.Turf, null,
+        new Strip("Sulphur Creek", -3200, -14300,  70,  915, 30,    0,  0.0, Ground.Turf, null,
                   "A meadow strip on the rim, timber off the east end."),
         // ---- benches cut into the canyon walls.
-        new Strip("Johnson Creek", -1400, -12600,  12, 1040, 46, 1500,  0.0, Ground.Turf, null,
-                  "3,400 ft of grass on a wide bench at 4,900 ft, timber at both ends. Two-way, forgiving, and the one to arrive at first."),
-        new Strip("Soldier Bar",  -1900, -13900, 250,  400, 20, 1330,  1.5, Ground.Dirt, 250,
+        new Strip("Johnson Creek", -1400, -12600,  12, 1040, 46,  176,  0.0, Ground.Turf, null,
+                  "3,400 ft of grass on a wide bench at 6,400 ft, timber at both ends. Two-way, forgiving, and the one to arrive at first."),
+        new Strip("Soldier Bar",  -1900, -13900, 250,  400, 20,  346,  1.5, Ground.Dirt, 250,
                   "A 1,300 ft shelf above the river with nothing under the approach end. ONE WAY: land uphill, and there is no going around."),
-        new Strip("Cabin Creek", -3500, -12126,  70,  460, 20, 1450,  3.0, Ground.Dirt, 70,
+        new Strip("Cabin Creek", -3500, -12126,  70,  460, 20,  226,  3.0, Ground.Dirt, 70,
                   "Short, 3 % uphill, and you come at it off the canyon. ONE WAY to the north-east."),
-        new Strip("Dewey Moore", -2900, -13528, 290,  370, 18, 1400,  4.0, Ground.Dirt, 290,
+        new Strip("Dewey Moore", -2900, -13528, 290,  370, 18,  276,  4.0, Ground.Dirt, 290,
                   "The shortest and the steepest: 4 % up, 1,200 ft, and a 400 m drop off the low end. ONE WAY."),
         // ---- bars on the canyon floor, sloping with the river.
-        new Strip("Indian Creek",  -300, -12830,  34, 1220, 30, 1018,  1.8, Ground.Gravel, null,
+        new Strip("Indian Creek",  -300, -12830,  34, 1220, 30,  658,  1.8, Ground.Gravel, null,
                   "On a bar in the canyon bottom beside the river. Long, but the walls are close on both sides."),
-        new Strip("Mackay Bar",    1000, -12486,   8,  460, 24, 1041,  1.8, Ground.Gravel, null,
-                  "The lowest strip here, right down on the river bar where the canyon opens out."),
+        new Strip("Mackay Bar",    1000, -12486,   8,  460, 24,  635,  1.8, Ground.Gravel, null,
+                  "Right down on the river bar where the canyon opens out — and the walls lean over it."),
     };
 
     private static bool InBlock(double x, double y)

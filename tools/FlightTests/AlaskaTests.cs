@@ -102,7 +102,16 @@ public class AlaskaTests : IDisposable
             double? w = _t.WaterSurfaceAt(cx, cy, g.LakeSurfaceM);
             Assert.True(w.HasValue, $"{g.Name} has no lake at its foot");
             Assert.Equal(g.LakeSurfaceM, w!.Value, 3);
-            Assert.True(_t.HeightAt(cx, cy) < g.LakeSurfaceM - 2, "the lake needs a bed under it");
+            // A bed under it — and not far under it. This only asked for "below the surface" at first, and
+            // passed while each lake stood 620 m above the plateau on the far side of the escarpment.
+            double bed = _t.HeightAt(cx, cy);
+            Assert.InRange(bed, g.LakeSurfaceM - 70, g.LakeSurfaceM - 2);
+            // And the ground OUTSIDE the lake's own carving, all the way round, is not far below its surface.
+            // That is the assertion that would have caught it: the ground beyond the rim was the plateau on
+            // the other side of the escarpment, 500 m down.
+            for (double a = 0; a < 6.28; a += 0.5)
+                Assert.True(_t.HeightAt(cx + Math.Cos(a) * g.LakeRx * 1.9, cy + Math.Sin(a) * g.LakeRy * 1.9) > g.LakeSurfaceM - 40,
+                            $"{g.Name}'s lake stands above the ground at {a * 180 / Math.PI:0}°");
             // The ice front stands above the water it calves into.
             Assert.True(g.TermM > g.LakeSurfaceM, $"{g.Name}'s ice front is below its own lake");
 

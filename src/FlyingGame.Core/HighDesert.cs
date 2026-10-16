@@ -45,7 +45,7 @@ public static class HighDesert
     /// layout ran east to x −2,000 and put a mesa under it: a render showed tower blocks standing up the side
     /// of Silver Knoll. A height probe will never find that, because a city does not move the ground.
     public const double X0 = -6900, X1 = -3600, Y0 = -7450, Y1 = -4550;
-    public static double BaseM => WorldTerrain.DatumM + 2 * WorldTerrain.StepHeightM;   // 4,000 ft
+    public static double BaseM => WorldTerrain.DatumM + 2 * WorldTerrain.StepHeightM;   // the Mesa plateau, 5,000 ft
 
     /// <summary>The steepest a landable top is allowed to be, along its lane. Four degrees is 7 %: steep
     /// enough that it matters which way you land, gentle enough that it is a choice and not a trap.</summary>
@@ -80,21 +80,21 @@ public static class HighDesert
     public readonly struct Hill
     {
         public readonly string Name;
-        public readonly double X, Y, TopM, RadiusM;
+        public readonly double X, Y, ReliefM, RadiusM;
         public readonly bool Landable;
         public readonly double TopLengthM, TopWidthM, TopHeadingDeg, TopSlopeDeg;
 
-        public Hill(string name, double x, double y, double topM, double radiusM, bool landable,
+        public Hill(string name, double x, double y, double reliefM, double radiusM, bool landable,
                     double topLengthM, double topWidthM, double topHeadingDeg, double topSlopeDeg)
         {
-            Name = name; X = x; Y = y; TopM = topM; RadiusM = radiusM; Landable = landable;
+            Name = name; X = x; Y = y; ReliefM = reliefM; RadiusM = radiusM; Landable = landable;
             TopLengthM = topLengthM; TopWidthM = topWidthM; TopHeadingDeg = topHeadingDeg; TopSlopeDeg = topSlopeDeg;
         }
 
+        /// <summary>The top's height above the sea: the plateau it stands on plus its own relief.</summary>
+        public double TopM => BaseM + ReliefM;
         public double TopFt => TopM * 3.28084;
         public double TopLengthFt => TopLengthM * 3.28084;
-        /// <summary>How far the top stands above the plateau floor.</summary>
-        public double ReliefM => TopM - BaseM;
         /// <summary>Uphill is the way to land: <see cref="TopHeadingDeg"/> runs DOWN the slope.</summary>
         public double LandingHeadingDeg => (TopHeadingDeg + 180) % 360;
 
@@ -139,28 +139,31 @@ public static class HighDesert
     /// the Cascades taught that two bowls a kilometre apart with 1.3 km radii carve each other's rims, and a
     /// test here checks every pair.
     /// </summary>
+    /// Heights are given as RELIEF above the plateau, not as metres above the sea, so that raising the plateau
+    /// raises the hills with it. They were absolute once, and when the step went from 1,500 ft to 2,000 ft the
+    /// plateau floor came up past the top of Hungry Ridge and buried it.
     public static readonly Hill[] Hills =
     {
-        //           name             x       y     topM  radius land  topLen topWid  hdg  slope
+        //           name             x       y    relief  radius land  topLen topWid  hdg  slope
         // A peak is a cone and IS cut off at its radius, so it has to sit wholly inside the block.
-        new Hill("Peavine",        -6000, -6100, 2130,   880, false,     0,     0,    0,  0),
+        new Hill("Peavine",        -6000, -6100,   911,   880, false,     0,     0,    0,  0),
         // It sat east of the Knoll at first, and its cone stood 113 m above the ground 120 m off that mesa's
         // low end: a hill in the overrun of the strip you have just failed to stop on.
-        new Hill("Spanish Butte",  -4300, -5600, 1890,   700, false,     0,     0,    0,  0),
+        new Hill("Spanish Butte",  -4300, -5600,   671,   700, false,     0,     0,    0,  0),
         // The mesas. A top is long enough to go round again on and short enough to concentrate the mind:
         // 1,600 to 2,900 ft of usable length, which is a backcountry strip's length with nothing at the ends.
         // They run roughly along x, which is the way the block is long and the way the runways run. The
         // relief is 650 to 1,500 ft — enough that the top is committing, little enough that the 36° skirt
         // that falls off it still fits inside the block. There were four; the fourth had to go when the city
         // pushed the block's east edge back, and two mesas 360 m apart carve each other's tops anyway.
-        new Hill("Red Rock Mesa",  -5600, -5280, 1646,     0, true,    700,   230,  178, 2.6),
-        new Hill("Sand Pass Mesa", -4700, -6600, 1480,     0, true,    880,   300,    6, 1.1),
+        new Hill("Red Rock Mesa",  -5600, -5280,   427,     0, true,    700,   230,  178, 2.6),
+        new Hill("Sand Pass Mesa", -4700, -6600,   261,     0, true,    880,   300,    6, 1.1),
         // The third one is LOW on purpose. There is no room beside Red Rock for another full mesa — two of
         // them 600 m apart bury each other's tops in talus, whatever height they are given — but there IS
         // room on the north edge for a 400 ft bench, and a low one is a different kind of flying anyway:
         // gentle enough to be the one you try first, and the only top here you could go round again on
         // below the rim.
-        new Hill("Hungry Ridge",   -4150, -4810, 1340,     0, true,    500,   180,    0, 1.8),
+        new Hill("Hungry Ridge",   -4150, -4810,   121,     0, true,    500,   180,    0, 1.8),
     };
 
     /// <summary>

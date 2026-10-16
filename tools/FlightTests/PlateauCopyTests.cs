@@ -5,15 +5,16 @@ using Xunit;
 
 namespace FlightTests;
 
-/// <summary>Owner 2026-09-09: 1,500 ft plateau steps, and the SAME landscape repeated on every step.</summary>
+/// <summary>Owner 2026-10-16: 2,000 ft plateau steps, so the top field is at 7,000 ft (it was 1,500 ft a step
+/// and 5,500 ft at the top), and the Valley landscape repeated — in part — on every step.</summary>
 [Collection("WorldTerrainActive")]
 public class PlateauCopyTests
 {
     [Fact]
-    public void StepsAre1500Feet()
+    public void StepsAre2000Feet()
     {
         for (int i = 0; i < WorldTerrain.Airports.Length; i++)
-            Assert.InRange((WorldTerrain.Airports[i].ElevationM - WorldTerrain.DatumM) * 3.28084, 1500 * i - 1, 1500 * i + 1);
+            Assert.InRange((WorldTerrain.Airports[i].ElevationM - WorldTerrain.DatumM) * 3.28084, 2000 * i - 1, 2000 * i + 1);
     }
 
     [Fact]

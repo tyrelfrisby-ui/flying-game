@@ -204,6 +204,11 @@ public class AlpineRangeTests : IDisposable
         for (double x = AlpineRange.X0; x <= AlpineRange.X1; x += 200)
         for (double y = AlpineRange.Y0; y <= AlpineRange.Y1; y += 200)
         {
+            // Not where the mountain front at the plateau's rim can reach (2026-10-16): its summits run their
+            // back slopes up to CrestBackSlopeM onto the plateau, and the range's northern foothills are now
+            // that front. What this test is about is the RANGE not spilling where it should not, and that is
+            // still checked everywhere the front cannot get to.
+            if (_t.CrestAt(2, x).reliefM > 0 && y > WorldTerrain.CrestY(2, x) - WorldTerrain.CrestBackSlopeM) continue;
             bool clear = true;
             foreach (AlpineRange.Peak p in AlpineRange.Peaks)
                 if ((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y) < (p.RadiusM + 50) * (p.RadiusM + 50)) clear = false;
@@ -214,7 +219,7 @@ public class AlpineRangeTests : IDisposable
             sampled++;
         }
         _o.WriteLine($"plateau between the mountains: {sampled} points untouched");
-        Assert.True(sampled > 15, "there should still be some plateau between the feet of the mountains");
+        Assert.True(sampled > 12, "there should still be some plateau between the feet of the mountains");   // 18 before the mountain front took a row of them (2026-10-16)
         // And outside the range entirely, nothing has moved at all.
         foreach ((double x, double y) in new[]
                  { (AlpineRange.X1 + 700, -9000.0), (AlpineRange.X1 + 1200, -11000.0),

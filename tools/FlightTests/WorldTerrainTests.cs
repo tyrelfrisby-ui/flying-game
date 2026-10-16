@@ -33,8 +33,11 @@ public class WorldTerrainTests
         }
         Assert.Equal(WorldTerrain.DatumM, WorldTerrain.Airports[0].ElevationM);   // the Valley: 1,000 ft coastal tableland
         Assert.InRange(WorldTerrain.DatumM * 3.28084, 999, 1001);
-        Assert.Equal(WorldTerrain.DatumM + WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);   // 5,500 ft
-        Assert.InRange(WorldTerrain.StepHeightM * 3.28084, 1499, 1501);                     // 1,500 ft a step
+        Assert.Equal(WorldTerrain.DatumM + WorldTerrain.StepHeightM * 3, WorldTerrain.Airports[3].ElevationM, 6);
+        Assert.InRange(WorldTerrain.StepHeightM * 3.28084, 1999, 2001);                     // 2,000 ft a step
+        // The three upper fields at the owner's altitudes (2026-10-16): 3,000 / 5,000 / 7,000 ft.
+        foreach ((int i, double ft) in new[] { (1, 3000.0), (2, 5000.0), (3, 7000.0) })
+            Assert.InRange(WorldTerrain.Airports[i].ElevationM * 3.28084, ft - 1, ft + 1);
     }
 
     [Fact]

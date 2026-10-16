@@ -26,16 +26,19 @@ public static class AlpineRange
     /// carves the other's rim away — which is exactly what the first layout did.
     public const double X0 = 2400, X1 = 8600, Y0 = -14400, Y1 = -8200;
     /// <summary>The plateau it stands on.</summary>
-    public static double BaseM => WorldTerrain.DatumM + 3 * WorldTerrain.StepHeightM;
+    public static double BaseM => WorldTerrain.DatumM + 3 * WorldTerrain.StepHeightM;   // the Summit plateau, 7,000 ft
 
     /// <summary>A peak: a cone of rock, rounded, with its own ridges. Where two overlap they make a ridge,
     /// which is how a range gets its shape without a heightmap.</summary>
     public readonly struct Peak
     {
         public readonly string Name;
-        public readonly double X, Y, TopM, RadiusM;
-        public Peak(string name, double x, double y, double topM, double radiusM)
-        { Name = name; X = x; Y = y; TopM = topM; RadiusM = radiusM; }
+        public readonly double X, Y, ReliefM, RadiusM;
+        public Peak(string name, double x, double y, double reliefM, double radiusM)
+        { Name = name; X = x; Y = y; ReliefM = reliefM; RadiusM = radiusM; }
+        /// <summary>The summit above the sea. Heights in this file are RELIEF above the plateau, so that the
+        /// range keeps its shape when the plateau moves — which it did, by 1,500 ft, on 2026-10-16.</summary>
+        public double TopM => BaseM + ReliefM;
     }
 
     /// <summary>
@@ -49,10 +52,10 @@ public static class AlpineRange
         public readonly double? OpenHeadingDeg;
 
         public Lake(string name, double x, double y, double lengthM, double widthM, double headingDeg,
-                    double surfaceM, double rimM, double basinRadiusM, double? openHeadingDeg)
+                    double surfaceReliefM, double rimM, double basinRadiusM, double? openHeadingDeg)
         {
             Name = name; X = x; Y = y; LengthM = lengthM; WidthM = widthM; HeadingDeg = headingDeg;
-            SurfaceM = surfaceM; RimM = rimM; BasinRadiusM = basinRadiusM; OpenHeadingDeg = openHeadingDeg;
+            SurfaceM = BaseM + surfaceReliefM; RimM = rimM; BasinRadiusM = basinRadiusM; OpenHeadingDeg = openHeadingDeg;
         }
 
         public bool Bowled => OpenHeadingDeg is null;
@@ -100,14 +103,15 @@ public static class AlpineRange
     /// a summit — and where two cones overlap they make a ridge, which is where the range gets its shape.
     public static readonly Peak[] Peaks =
     {
-        new("Thunder",     4500,  -9000, 2620, 1150),
-        new("Cathedral",   5900, -10300, 2900, 1250),   // the high one, in the middle of the range
-        new("Sentinel",    3100, -10400, 2560, 1100),
-        new("Dragontail",  7400,  -9400, 2680, 1100),
-        new("Colchuck",    5000, -12700, 2740, 1200),
-        new("Prusik",      8000, -12700, 2540, 1050),
-        new("Argonaut",    2600, -11800, 2580, 1000),
-        new("Annapurna",   8100,  -9600, 2560,  950),
+        //        name          x       y   relief radius
+        new("Thunder",     4500,  -9000,  944, 1150),
+        new("Cathedral",   5900, -10300, 1224, 1250),   // the high one, in the middle of the range — 11,000 ft
+        new("Sentinel",    3100, -10400,  884, 1100),
+        new("Dragontail",  7400,  -9400, 1004, 1100),
+        new("Colchuck",    5000, -12700, 1064, 1200),
+        new("Prusik",      8000, -12700,  864, 1050),
+        new("Argonaut",    2600, -11800,  904, 1000),
+        new("Annapurna",   8100,  -9600,  884,  950),
     };
 
     /// <summary>
@@ -117,13 +121,13 @@ public static class AlpineRange
     /// </summary>
     public static readonly Lake[] Lakes =
     {
-        //                    name          x      y      len  wid  hdg  surf  rim  basin  open
-        new Lake("Outlet",    3000,  -8900,  914, 300,  40, 2060, 150, 1250, 40),      // 3,000 ft, open north-east
-        new Lake("Hidden",    6000,  -8900,  610, 240,  20, 2240, 250, 1400, null),    // 2,000 ft, a full bowl
-        new Lake("Cirque",    4500, -11300,  460, 200, 340, 2275, 250, 1250, null),    // 1,500 ft, a full bowl
-        new Lake("Crown",     7600, -11000,  305, 170,  10, 2350, 230, 1150, null),    // 1,000 ft, the top bowl
-        new Lake("Shelf",     3200, -13500,  760, 260, 300, 2130, 170, 1200, 300),     // 2,500 ft, open north-west
-        new Lake("Larch",     6600, -13600,  550, 230, 210, 2120, 170, 1200, 210),     // 1,800 ft, open south-west
+        //                    name          x      y      len  wid  hdg  relief rim basin  open   (relief = surface above the plateau)
+        new Lake("Outlet",    3000,  -8900,  914, 300,  40,  384, 150, 1250, 40),      // 3,000 ft long, open north-east
+        new Lake("Hidden",    6000,  -8900,  610, 240,  20,  564, 250, 1400, null),    // 2,000 ft long, a full bowl
+        new Lake("Cirque",    4500, -11300,  460, 200, 340,  599, 250, 1250, null),    // 1,500 ft long, a full bowl
+        new Lake("Crown",     7600, -11000,  305, 170,  10,  674, 230, 1150, null),    // 1,000 ft long, the top bowl
+        new Lake("Shelf",     3200, -13500,  760, 260, 300,  454, 170, 1200, 300),     // 2,500 ft long, open north-west
+        new Lake("Larch",     6600, -13600,  550, 230, 210,  444, 170, 1200, 210),     // 1,800 ft long, open south-west
     };
 
     private static bool InBlock(double x, double y) => x > X0 - 600 && x < X1 + 600 && y > Y0 - 600 && y < Y1 + 600;

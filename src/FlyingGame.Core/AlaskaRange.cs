@@ -23,14 +23,16 @@ public static class AlaskaRange
     /// Cascades' own tests caught.
     /// </summary>
     public const double X0 = 2600, X1 = 8800, Y0 = -7450, Y1 = -4450;
-    public static double BaseM => WorldTerrain.DatumM + 2 * WorldTerrain.StepHeightM;   // 4,000 ft
+    public static double BaseM => WorldTerrain.DatumM + 2 * WorldTerrain.StepHeightM;   // the Mesa plateau, 5,000 ft
 
     public readonly struct Peak
     {
         public readonly string Name;
-        public readonly double X, Y, TopM, RadiusM;
-        public Peak(string name, double x, double y, double topM, double radiusM)
-        { Name = name; X = x; Y = y; TopM = topM; RadiusM = radiusM; }
+        public readonly double X, Y, ReliefM, RadiusM;
+        public Peak(string name, double x, double y, double reliefM, double radiusM)
+        { Name = name; X = x; Y = y; ReliefM = reliefM; RadiusM = radiusM; }
+        /// <summary>The summit above the sea: the plateau plus the peak's own relief.</summary>
+        public double TopM => BaseM + ReliefM;
     }
 
     /// <summary>
@@ -40,18 +42,18 @@ public static class AlaskaRange
     public readonly struct Glacier
     {
         public readonly string Name;
-        public readonly double HeadX, HeadY, HeadM;          // up in the accumulation basin
+        public readonly double HeadX, HeadY, HeadM;          // up in the accumulation basin (m above the sea)
         public readonly double TermX, TermY, TermM;          // where the ice ends, at the lake
         public readonly double HalfWidthM;
         public readonly double LakeRx, LakeRy;               // the proglacial lake at the terminus
         public readonly int Bergs;
 
-        public Glacier(string name, double headX, double headY, double headM,
-                       double termX, double termY, double termM, double halfWidthM,
+        public Glacier(string name, double headX, double headY, double headReliefM,
+                       double termX, double termY, double termReliefM, double halfWidthM,
                        double lakeRx, double lakeRy, int bergs)
         {
-            Name = name; HeadX = headX; HeadY = headY; HeadM = headM;
-            TermX = termX; TermY = termY; TermM = termM; HalfWidthM = halfWidthM;
+            Name = name; HeadX = headX; HeadY = headY; HeadM = BaseM + headReliefM;
+            TermX = termX; TermY = termY; TermM = BaseM + termReliefM; HalfWidthM = halfWidthM;
             LakeRx = lakeRx; LakeRy = lakeRy; Bergs = bergs;
         }
 
@@ -87,13 +89,16 @@ public static class AlaskaRange
         }
     }
 
+    /// Summits are RELIEF above the plateau, not metres above the sea: the range has to keep its shape when the
+    /// plateau under it moves, and it moved 1,500 ft on 2026-10-16.
     public static readonly Peak[] Peaks =
     {
-        new("The High One", 4200, -5900, 5100, 2000),   // 16,700 ft — the biggest thing that fits the plateau
-        new("North Peak",   3200, -4900, 3900, 1100),
-        new("Hunter",       3100, -6900, 3800, 1100),
-        new("Foraker",      5400, -7200, 4000, 1300),
-        new("Huntington",   5500, -4800, 3600, 1100),
+        //          name          x      y    relief radius
+        new("The High One", 4200, -5900, 3881, 2000),   // 17,700 ft — the biggest thing that fits the plateau
+        new("North Peak",   3200, -4900, 2681, 1100),
+        new("Hunter",       3100, -6900, 2581, 1100),
+        new("Foraker",      5400, -7200, 2781, 1300),
+        new("Huntington",   5500, -4800, 2381, 1100),
     };
 
     /// <summary>
@@ -102,16 +107,24 @@ public static class AlaskaRange
     /// </summary>
     public static readonly Glacier[] Glaciers =
     {
-        //                name      headX headY headM  termX termY termM  halfW  lakeRx lakeRy bergs
+        //                name      headX headY headRel termX termY termRel halfW lakeRx lakeRy bergs
         // The heads sit out on the flanks, not through the summit: run a glacier's trough past the top of a
         // mountain and it takes 1,300 ft off it, which is exactly what the first pair did. And they are two
         // kilometres long, because a glacier with 900 m to lose in less than that is a cliff, not a glacier —
         // the first pair averaged 47° and could not have been landed on anywhere.
-        // The ice ENDS ON THE MESA RIM at about 1,300 m and calves into its own lake there; the meltwater
-        // goes over the escarpment and feeds the braided plain on the flats below. Running the ice all the
-        // way down to the plain would need a 1,600 m drop in two kilometres — a 40° average, which is a cliff.
-        new Glacier("Knik",         5000, -6600, 2100,  5300, -4700, 1300,   420,   470,  330,  14),
-        new Glacier("Colony",       6400, -6500, 2050,  6600, -4700, 1310,   340,   420,  300,  10),
+        // The ice comes down TO THE PLATEAU and calves into a lake dug into it; the meltwater goes on over the
+        // escarpment and feeds the braided plain on the flats below. Running the ice all the way down to that
+        // plain would need a 2,100 m drop in two kilometres, which is a cliff.
+        //
+        // The ice fronts used to stop 80 m above the plateau 150 m short of the rim, which put each lake —
+        // which sits beyond its ice front, as a proglacial lake does — OVER the rim and 620 m up in the air
+        // above the plateau below. A render found it standing there as a drum of water; the test underneath
+        // had only asked that the bed be below the surface, and a bed 620 m below is a flood, not a lake.
+        // Both glaciers now end a kilometre further back, with their heads moved back to match so the
+        // gradient is what it was, and their fronts at plateau level so the lakes have a plateau to sit in.
+        // Heights here are RELIEF above that plateau, for the same reason as the peaks'.
+        new Glacier("Knik",         5000, -7000,  555,  5300, -5700,    0,   420,   470,  330,  14),
+        new Glacier("Colony",       6400, -6900,  536,  6600, -5600,    0,   340,   420,  300,  10),
     };
 
     private static bool InBlock(double x, double y)
