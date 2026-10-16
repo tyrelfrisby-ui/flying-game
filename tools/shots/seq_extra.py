@@ -18,9 +18,9 @@ from roll import SlowRoll
 ZOOM = float(os.environ.get("ZOOM", "0.8"))
 WORK_FT = float(os.environ.get("ALT", "9500"))
 VS = float(os.environ.get("VS", "51.7"))        # measured in this sim (measure_env.py)
-VNE_CFG = 130.0 * 1.943844                       # config limits.vneMs = 252.7 KIAS
+VNE_CFG = 113.2 * 1.943844                       # config limits.vneMs = 220.0 KIAS (published; owner 2026-10-15)
 DIVE_TO = float(os.environ.get("DIVE_TO", "188"))  # the 2.5 g pull adds ~20 kt before the nose comes up,
-# so diving to 188 peaks near 210 - "near Vne" on the published 220 KIAS as well as the config's 252.7
+# so diving to 188 peaks near 210 - "near Vne" on the 220 KIAS the config now carries
 ROLL_ENTRY = float(os.environ.get("ROLL_ENTRY", "130"))   # the rolls need flying speed before they can start
 
 

@@ -84,7 +84,7 @@ public class StructuralTests
     [Fact]
     public void SustainedPullPastUltimateFailsTheWings()
     {
-        // (b) Extra 300 diving at Vne (130 m/s), full aft stick: n runs past 15 g and the wings let go.
+        // (b) Extra 300 diving at 130 m/s (253 kt, past its 220-kt Vne), full aft stick: n runs past 15 g and the wings let go.
         var (ac, sim) = Spawn(Load("extra-300-like"), 130, -0.5);
         int fired = 0;
         ac.Structure.OnWingsFailed += () => fired++;
