@@ -84,6 +84,7 @@ public static class WaterfallTunnel
         public readonly string Id;
         public readonly Kind Kind;
         public readonly double X0, Y0, Z0, X1, Y1, Z1, HalfWidth, Crown, Length;
+        private readonly double _bx0, _bx1, _by0, _by1;   // the leg's own box, for a cheap reject
 
         public Leg(string id, Kind kind, double x0, double y0, double z0, double x1, double y1, double z1,
                    double halfWidth, double crown)
@@ -92,12 +93,17 @@ public static class WaterfallTunnel
             X0 = x0; Y0 = y0; Z0 = z0; X1 = x1; Y1 = y1; Z1 = z1;
             HalfWidth = halfWidth; Crown = crown;
             Length = System.Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+            _bx0 = System.Math.Min(x0, x1) - halfWidth; _bx1 = System.Math.Max(x0, x1) + halfWidth;
+            _by0 = System.Math.Min(y0, y1) - halfWidth; _by1 = System.Math.Max(y0, y1) + halfWidth;
         }
 
         /// <summary>Where (x, y) falls on this leg: <paramref name="s"/> is 0..1 along the centreline and
         /// <paramref name="lateral"/> the distance from it. False when the point is off the end or too wide.</summary>
         public bool Locate(double x, double y, out double s, out double lateral)
         {
+            // Ninety-odd legs are queried for every wheel of every step, so each one rejects on its own box
+            // before any arithmetic: inside the maze that leaves two or three to actually measure.
+            if (x < _bx0 || x > _bx1 || y < _by0 || y > _by1) { s = 0; lateral = double.MaxValue; return false; }
             double dx = X1 - X0, dy = Y1 - Y0, len2 = dx * dx + dy * dy;
             s = len2 > 0 ? ((x - X0) * dx + (y - Y0) * dy) / len2 : 0;
             if (s < 0 || s > 1) { lateral = double.MaxValue; return false; }
@@ -364,6 +370,55 @@ public static class WaterfallTunnel
             double hy = System.Math.Abs(dy) * thick + System.Math.Abs(dx) * l.HalfWidth;
             WorldSolids.Boxes.Add(new WorldSolids.Box(cxw, cyw, hx, hy, l.Z1 - 5, l.Z1 + l.Crown + 10));
         }
+    }
+
+    /// <summary>
+    /// The falling rock on the E branch. The rule lives here rather than in the scene because it is a rule:
+    /// a fixed cycle off the clock, a second of warning before every fall, and — the part that matters most —
+    /// a LANE the rocks never fall in, wide enough for the aeroplane the maze was sized around. The owner's
+    /// line is that every bad fork must be passable for anything up to a T-6, so the hazard has to be a thing
+    /// you fly through rather than a thing you survive.
+    /// </summary>
+    public static class Rockfall
+    {
+        public const double CycleS = 9.0;        // the same for everybody: the clock, not a dice
+        public const double TelegraphS = 1.0;    // dust and a rumble before every fall
+        public const double FallS = 1.6;
+        public const int Count = 5;
+        public const double LagS = 0.12;         // each rock leaves a little after the one before
+        /// <summary>Half-width of the clear lane on the right of the bore. A T-6 spans 12.8 m.</summary>
+        public const double LaneHalfWidthM = 12.0;
+
+        /// <summary>Seconds until the next fall.</summary>
+        public static double ToFall(double t) => CycleS - Mod(t, CycleS);
+
+        /// <summary>Dust at the roof, for the last second before a fall.</summary>
+        public static bool Telegraphing(double t) => ToFall(t) < TelegraphS;
+
+        /// <summary>Lateral offset of rock <paramref name="i"/> from the bore's centreline — always on the
+        /// LEFT of the lane, so the lane itself is never blocked.</summary>
+        public static double LateralOf(int i, in Leg leg)
+        {
+            double band = leg.HalfWidth - LaneHalfWidthM;         // the band the rocks may use, left of the lane
+            double step = band / (Count + 1);
+            return -LaneHalfWidthM - step * (i + 1);
+        }
+
+        /// <summary>Where rock <paramref name="i"/> is at time <paramref name="t"/>, or false when it is not
+        /// in the air. <paramref name="up"/> is its centre height; <paramref name="lateral"/> its offset from
+        /// the centreline.</summary>
+        public static bool TryRock(int i, double t, in Leg leg, out double up, out double lateral)
+        {
+            lateral = LateralOf(i, leg);
+            up = 0;
+            double phase = Mod(t, CycleS) - i * LagS;
+            if (phase <= 0 || phase > FallS) return false;
+            double floor = leg.FloorAt(0.5), crown = floor + leg.Crown;
+            up = crown - 1 - 0.5 * 9.81 * phase * phase;
+            return up > floor + 0.5;
+        }
+
+        private static double Mod(double a, double m) => a - m * System.Math.Floor(a / m);
     }
 
     /// <summary>

@@ -303,6 +303,61 @@ public class WaterfallTunnelTests : IDisposable
         Assert.True(WaterfallTunnel.StripHalfWidthM * 2 > 20, "a Jenny spans 13 m");
     }
 
+    // ---- the hazards ----
+
+    [Fact]
+    public void TheRockfallLeavesALaneWideEnoughForTheAeroplaneItWasSizedFor()
+    {
+        // The owner's rule: every bad fork is passable for anything up to a T-6, which spans 12.8 m. So the
+        // rocks are not spread across the bore — they fall on one side of a lane that is always clear.
+        var (_, f) = World();
+        WaterfallTunnel.Leg leg = Leg(f, "E.rockfall");
+        Assert.True(WaterfallTunnel.Rockfall.LaneHalfWidthM * 2 >= 24,
+                    "a T-6 needs 12.8 m of span and somewhere to put it");
+        for (double t = 0; t < WaterfallTunnel.Rockfall.CycleS * 3; t += 0.05)
+        for (int i = 0; i < WaterfallTunnel.Rockfall.Count; i++)
+        {
+            if (!WaterfallTunnel.Rockfall.TryRock(i, t, leg, out double up, out double lateral)) continue;
+            // Every rock, at every moment it is in the air, is clear of the lane and inside the bore.
+            Assert.True(lateral < -WaterfallTunnel.Rockfall.LaneHalfWidthM + 0.001,
+                        $"rock {i} at t={t:0.00} is {lateral:0.0} m off the centreline — inside the lane");
+            Assert.True(System.Math.Abs(lateral) < leg.HalfWidth, $"rock {i} is outside the bore");
+            Assert.True(up > leg.FloorAt(0.5) && up < leg.FloorAt(0.5) + leg.Crown, $"rock {i} is outside the arch");
+        }
+    }
+
+    [Fact]
+    public void TheRockfallIsTheClockAndNotADice()
+    {
+        var (_, f) = World();
+        WaterfallTunnel.Leg leg = Leg(f, "E.rockfall");
+        // The same moment of any cycle looks the same, for ever: a pilot who times it once has timed it.
+        for (int i = 0; i < WaterfallTunnel.Rockfall.Count; i++)
+        for (double t = 0.05; t < WaterfallTunnel.Rockfall.FallS; t += 0.05)
+        {
+            bool a = WaterfallTunnel.Rockfall.TryRock(i, t, leg, out double upA, out _);
+            bool b = WaterfallTunnel.Rockfall.TryRock(i, t + WaterfallTunnel.Rockfall.CycleS * 7, leg, out double upB, out _);
+            Assert.Equal(a, b);
+            if (a) Assert.Equal(upA, upB, 3);        // millimetres, seven cycles apart
+        }
+        // And every fall is announced: the telegraph is on in the second before one, and off well before that.
+        Assert.True(WaterfallTunnel.Rockfall.Telegraphing(WaterfallTunnel.Rockfall.CycleS - 0.4));
+        Assert.False(WaterfallTunnel.Rockfall.Telegraphing(WaterfallTunnel.Rockfall.CycleS * 0.5));
+    }
+
+    [Fact]
+    public void TheRocksFallDownwardsAtTheRateRocksDo()
+    {
+        var (_, f) = World();
+        WaterfallTunnel.Leg leg = Leg(f, "E.rockfall");
+        Assert.True(WaterfallTunnel.Rockfall.TryRock(0, 0.2, leg, out double early, out _));
+        Assert.True(WaterfallTunnel.Rockfall.TryRock(0, 0.6, leg, out double later, out _));
+        Assert.True(later < early, "a rock that is not falling is not a hazard");
+        // 0.5 g t² from the roof, which is what a dropped rock does.
+        double floor = leg.FloorAt(0.5), crown = floor + leg.Crown;
+        Assert.Equal(crown - 1 - 0.5 * 9.81 * 0.36, later, 3);
+    }
+
     // ---- water, which is what made all of this possible ----
 
     [Fact]

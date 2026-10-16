@@ -87,6 +87,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<Practice.PracticeController>().Driver = driver;   // crosswind / flare / approach practice
             root.AddComponent<Practice.LessonDebrief>().Controller = root.GetComponent<Practice.PracticeController>();   // screenshots + replay commentary for the debrief
             root.AddComponent<FlightReplay>().Driver = driver;   // last 10 min of flight, played back on the real airframe
+            root.AddComponent<TunnelHazards>().Driver = driver;   // the falling rock and the sheet of water in the maze behind the falls
             _ = driver;
             return root;
         }

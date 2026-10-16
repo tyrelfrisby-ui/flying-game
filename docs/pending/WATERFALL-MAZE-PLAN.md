@@ -107,14 +107,13 @@ plateau, and **204 m** of rock over the thinnest crown.
 
 ## What is not built yet
 
-The geometry can be flown today. These have no behaviour:
+The geometry and both hazards can be flown today. These have no behaviour yet:
 
-1. **The rockfall** — the shaft, the 9 s cycle, the dust and the sound, and rocks that can hit you.
-2. **The water sheet** — a curtain across the bore that blinds for a second and does no damage.
-3. **The tow** (below) — the reset, the hook-up, the rope-steered forks, and the tow plane refusing the slit.
-4. **The find and the gates** — the maze is listed in `configs/progression.json` under `hiddenPlaces`, but no
+1. **The tow** (below) — the reset, the hook-up, the rope-steered forks, and the tow plane refusing the slit.
+2. **The find and the gates** — the maze is listed in `configs/progression.json` under `hiddenPlaces`, but no
    code earns a point anywhere yet.
-5. **How any of it looks.** The arches read as dim rock on the vertex shader's ambient floor, which is about
+3. **Sound.** The rockfall's rumble and the sheet's hiss are not wired; the dust and the water are visual only.
+4. **How any of it looks.** The arches read as dim rock on the vertex shader's ambient floor, which is about
    right for a bore with a 70 m mouth, but nobody has seen it on a device — `AERO_SELFTEST=tunnel` takes
    fourteen screenshots for exactly that.
 
@@ -148,15 +147,22 @@ One thing to decide: **the slit cannot be flown under tow.** Either the tow decl
 rope says (my proposal — it reads as the tow pilot refusing, which is what a tow pilot would do), or the slit
 gets a second, wider passage alongside it that only opens for a tow.
 
-## The hazards, and the rule they all follow
+## The hazards, and the rule they all follow — built
 
 Every one is **deterministic or telegraphed** — a hazard that kills at random is not a challenge, it is a dice
 roll, and this game is about flying:
 
 - **The slit** never changes. It is geometry, and it either fits or it does not.
-- **The rockfall** is a fixed 9 s cycle with a one-second warning. Nothing about it is hidden after the first
-  look.
-- **The water sheet** does no damage at all. It takes your sight for a second at a place where sight matters.
+- **The rockfall** is a fixed 9 s cycle off the clock with a second of dust before every fall. Five rocks fall
+  from the roof under gravity, and each one is a **solid while it is in the air**, so an aeroplane that hits
+  one is hit by a rock and the structure answers for it through the same contact model as the ground — nothing
+  in the sim has to know what a rock is.
+  Writing the cycle as a testable rule in Core rather than in the scene caught a real mistake: the first
+  version spread the rocks across the whole bore and left gaps of five or six metres, which is lethal to
+  anything with a wingspan. They now fall on ONE SIDE of a **24 m lane that is always clear** — a T-6 spans
+  12.8 m — and a test walks three full cycles to prove no rock ever enters it.
+- **The water sheet** does no damage at all, ever. It takes your sight for about a second, and it sits 120 m
+  before a bend so you have to remember the turn rather than see it.
 
 ## Points
 
