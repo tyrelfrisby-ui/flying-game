@@ -126,6 +126,10 @@ private final class AeroStore {
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let t) = result else { continue }   // unverified grants nothing
+            // Apple's signed transaction, passed through untouched. The relay is shown this at join to
+            // verify the Multiplayer Pass against Apple's keys, which is how the Pass works without us
+            // holding an account for anybody. We do not parse it, store it or log it.
+            let jws = result.jwsRepresentation
             switch t.productType {
             case .autoRenewable:
                 subs.append([
@@ -133,6 +137,7 @@ private final class AeroStore {
                     "expiresUtc": AeroStore.iso(t.expirationDate),
                     "revoked": t.revocationDate != nil,
                     "upgraded": t.isUpgraded,
+                    "jws": jws,
                 ])
             case .nonConsumable:
                 subs.append([
@@ -140,14 +145,15 @@ private final class AeroStore {
                     "expiresUtc": "",                                 // never expires
                     "revoked": t.revocationDate != nil,
                     "upgraded": false,
+                    "jws": jws,
                 ])
             default:
                 break
             }
         }
 
-        // Unfinished consumables: data purchases that have not been credited yet. C# credits the meter and
-        // calls AeroStoreFinish, so a purchase survives being killed mid-credit.
+        // Unfinished consumables. Nothing is sold as a consumable now that multiplayer is a subscription,
+        // so this is normally empty; C# finishes whatever appears rather than leaving it unfinished for ever.
         for await result in Transaction.unfinished {
             guard case .verified(let t) = result, t.productType == .consumable else { continue }
             consumed.append(["id": t.productID, "txn": String(t.id)])

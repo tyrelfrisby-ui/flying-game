@@ -4,9 +4,9 @@ using Xunit;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// The entitlement rules and the data meter, driven through the cases that actually bite: two providers at
-/// once, a revoked grant, a dead network, a clock moved backwards, a plan period rolling over after months
-/// away, and running dry mid-session.
+/// The entitlement rules and the airtime meter, driven through the cases that actually bite: two providers
+/// at once, two subscriptions at once, a revoked grant, a dead network, a clock moved backwards, and a
+/// counting period rolling over after months away.
 /// </summary>
 public class EntitlementTests
 {
@@ -24,7 +24,7 @@ public class EntitlementTests
         var r = new EntitlementResolver().Resolve(Array.Empty<EntitlementGrant>(), T0);
         Assert.Equal(EntitlementTrust.None, r.Trust);
         Assert.False(r.PaidContent);
-        Assert.False(r.MultiplayerEntitled);
+        Assert.False(r.Confirmed);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class EntitlementTests
         Assert.Equal(EntitlementTrust.Fresh, r.Trust);
         Assert.Equal(EntitlementSource.AppStore, r.Source);
         Assert.True(r.PaidContent);
-        Assert.True(r.MultiplayerEntitled);
+        Assert.True(r.Confirmed);
     }
 
     [Fact]
@@ -73,8 +73,9 @@ public class EntitlementTests
         var r = res.Resolve(new[] { Store(-3) }, T0);
         Assert.Equal(EntitlementTrust.Grace, r.Trust);
         Assert.True(r.PaidContent);
-        // ... but multiplayer costs money per session, so it wants a grant we actually confirmed.
-        Assert.False(r.MultiplayerEntitled);
+        // ... but the Multiplayer Pass is checked with Confirmed, which grace does not satisfy: you cannot
+        // reach the relay without reaching the store.
+        Assert.False(r.Confirmed);
         Assert.Contains("11 more days", r.Reason);
     }
 
@@ -115,150 +116,148 @@ public class EntitlementTests
         Assert.Equal(EntitlementTrust.Expired, restored.Resolve(new[] { Store(-20) }, T0.AddDays(-30)).Trust);
     }
 
-    // ---- the data meter ----
+    [Fact]
+    public void TheTwoSubscriptionsAreResolvedIndependently()
+    {
+        // One resolver per product (EntitlementRuntime keeps two), so holding the content subscription
+        // never implies the Multiplayer Pass and a lapsed pass never locks the airplanes.
+        var content = new EntitlementResolver().Resolve(new[] { Store(20) }, T0);
+        var pass = new EntitlementResolver().Resolve(Array.Empty<EntitlementGrant>(), T0);
+        Assert.True(content.PaidContent);
+        Assert.False(pass.Confirmed);
 
-    private const long Mb = 1024 * 1024;
+        var lapsedPass = new EntitlementResolver { GraceDays = 14 }.Resolve(new[] { Store(-20) }, T0);
+        Assert.False(lapsedPass.Confirmed);
+        Assert.True(new EntitlementResolver().Resolve(new[] { External(40) }, T0).PaidContent);
+    }
+
+    // ---- the airtime meter: accounting only. It must never refuse anybody anything. ----
 
     [Fact]
-    public void AnEmptyMeterCannotJoin()
+    public void AirtimeStartsAtZeroAndCountsOnlyInASession()
     {
-        var m = new DataMeter();
-        Assert.False(m.CanJoin(out string why));
-        Assert.Contains("out of multiplayer data", why);
+        var m = new AirtimeMeter();
+        m.Record(10);                              // no session: cannot invent airtime
+        Assert.Equal(0, m.LifetimeSeconds);
+
+        m.BeginSession(T0);
+        m.Record(60);
+        m.Record(30);
+        Assert.Equal(90, m.SessionSeconds);
+        Assert.Equal(90, m.PeriodSeconds);
+        Assert.Equal(90, m.LifetimeSeconds);
+        Assert.Equal(1, m.PeriodSessions);
+        Assert.True(m.InSession);
+
+        m.EndSession();
+        m.Record(1000);                            // a stray report after leaving changes nothing
+        Assert.Equal(90, m.LifetimeSeconds);
     }
 
     [Fact]
-    public void AlmostEmptyIsAlsoRefused()
+    public void SessionsAreCountedBecauseWakingARoomIsTheExpensivePart()
     {
-        var m = new DataMeter();
-        m.Credit(Mb / 2);                       // below MinimumToJoinBytes
-        Assert.False(m.CanJoin(out string why));
-        Assert.Contains("Not enough", why);
+        var m = new AirtimeMeter();
+        for (int i = 0; i < 10; i++) { m.BeginSession(T0.AddMinutes(i)); m.Record(60); m.EndSession(); }
+        Assert.Equal(10, m.PeriodSessions);
+        Assert.Equal(10, m.LifetimeSessions);
+        Assert.Equal(600, m.PeriodSeconds);
+        Assert.Equal(60, m.SessionSeconds);        // the last one only
     }
 
     [Fact]
-    public void CreditingLetsYouJoinAndSpend()
+    public void HoursAreWhatTheCostCheckReads()
     {
-        var m = new DataMeter();
-        m.Credit(100 * Mb);
-        Assert.True(m.CanJoin(out _));
-        m.BeginSession();
-        Assert.True(m.Record(10 * Mb, 1.0));
-        Assert.Equal(90 * Mb, m.AvailableBytes);
-        Assert.Equal(10 * Mb, m.SessionBytes);
-        Assert.Equal(10 * Mb, m.LifetimeBytes);
+        var m = new AirtimeMeter();
+        m.BeginSession(T0);
+        m.Record(5400);                            // 1.5 h
+        Assert.Equal(1.5, m.PeriodHours, 6);
+        Assert.Equal(1.5, m.LifetimeHours, 6);
+        Assert.Equal(1.5, m.SessionHours, 6);
     }
 
     [Fact]
-    public void ThePlanIsSpentBeforePurchasedBytes()
+    public void TheFirstJoinStartsTheCountingPeriod()
     {
-        // Otherwise a plan holder burns bytes they paid extra for while their allowance sits unused.
-        var m = new DataMeter();
-        m.Credit(50 * Mb);
-        m.SetPlan(20 * Mb, T0, 30);
-        m.BeginSession();
-        m.Record(15 * Mb, 1.0);
-        Assert.Equal(5 * Mb, m.PlanRemainingBytes);
-        Assert.Equal(50 * Mb, m.BalanceBytes);
+        var m = new AirtimeMeter();
+        Assert.Equal(0, m.PeriodDays);
+        m.BeginSession(T0);
+        Assert.Equal(30, m.PeriodDays);
+        Assert.Equal(T0.AddDays(30), m.PeriodEndUtc);
     }
 
     [Fact]
-    public void SpendingSpillsFromThePlanIntoTheBalance()
+    public void ThePeriodRollsOverAndTheMonthStartsEmpty()
     {
-        var m = new DataMeter();
-        m.Credit(50 * Mb);
-        m.SetPlan(20 * Mb, T0, 30);
-        m.BeginSession();
-        m.Record(30 * Mb, 1.0);
-        Assert.Equal(0, m.PlanRemainingBytes);
-        Assert.Equal(40 * Mb, m.BalanceBytes);
-    }
-
-    [Fact]
-    public void RunningDryEndsTheSessionRatherThanGoingNegative()
-    {
-        var m = new DataMeter();
-        m.Credit(5 * Mb);
-        m.BeginSession();
-        Assert.False(m.Record(9 * Mb, 1.0));     // the transport's cue to leave
-        Assert.Equal(0, m.AvailableBytes);       // never billed for the overshoot
-        Assert.True(m.Exhausted);
-    }
-
-    [Fact]
-    public void ThePlanPeriodRollsOver()
-    {
-        var m = new DataMeter();
-        m.SetPlan(20 * Mb, T0, 30);
-        m.BeginSession();
-        m.Record(20 * Mb, 1.0);
-        Assert.Equal(0, m.PlanRemainingBytes);
+        var m = new AirtimeMeter();
+        m.BeginSession(T0);
+        m.Record(3600);
+        Assert.Equal(3600, m.PeriodSeconds);
         m.Tick(T0.AddDays(31));
-        Assert.Equal(20 * Mb, m.PlanRemainingBytes);
+        Assert.Equal(0, m.PeriodSeconds);
+        Assert.Equal(0, m.PeriodSessions);
+        Assert.Equal(3600, m.LifetimeSeconds);     // the lifetime total is not a period
     }
 
     [Fact]
-    public void MonthsAwayLandsOnOnePeriodNotManyRefills()
+    public void MonthsAwayLandsOnOnePeriodNotManyRollovers()
     {
-        var m = new DataMeter();
-        m.SetPlan(20 * Mb, T0, 30);
-        m.BeginSession();
-        m.Record(20 * Mb, 1.0);
-        m.Tick(T0.AddDays(400));                 // a long-dormant install
-        Assert.Equal(20 * Mb, m.PlanRemainingBytes);          // one allowance, not thirteen
-        Assert.True(m.PlanPeriodEndUtc > T0.AddDays(400));
-        Assert.True(m.PlanPeriodEndUtc <= T0.AddDays(430));
+        var m = new AirtimeMeter();
+        m.BeginSession(T0);
+        m.Record(3600);
+        m.Tick(T0.AddDays(400));                   // a long-dormant install
+        Assert.True(m.PeriodEndUtc > T0.AddDays(400));
+        Assert.True(m.PeriodEndUtc <= T0.AddDays(430));
+        Assert.Equal(0, m.PeriodSeconds);
     }
 
     [Fact]
     public void APeriodNeverUnrolls()
     {
-        var m = new DataMeter();
-        m.SetPlan(20 * Mb, T0, 30);
+        var m = new AirtimeMeter();
+        m.BeginSession(T0);
         m.Tick(T0.AddDays(31));
-        DateTime after = m.PlanPeriodEndUtc;
-        m.Tick(T0.AddDays(-100));
-        Assert.Equal(after, m.PlanPeriodEndUtc);
-    }
-
-    [Fact]
-    public void TheEstimateIsInTimeNotBytes()
-    {
-        var m = new DataMeter();
-        m.Credit(100 * Mb);
-        m.BeginSession();
-        Assert.True(double.IsPositiveInfinity(m.SecondsRemaining));   // nothing flowing yet
-        for (int i = 0; i < 200; i++) m.Record(64 * 1024, 1.0);       // ~64 kB/s for 200 s
-        Assert.InRange(m.RateBytesPerSec, 60_000, 68_000);
-        Assert.InRange(m.SecondsRemaining, 1000, 1600);
+        DateTime after = m.PeriodEndUtc;
+        m.Tick(T0.AddDays(-100));                  // a clock wound back
+        Assert.Equal(after, m.PeriodEndUtc);
     }
 
     [Fact]
     public void SaveAndLoadRoundTrips()
     {
-        var m = new DataMeter();
-        m.Credit(70 * Mb);
-        m.SetPlan(20 * Mb, T0, 30);
-        m.BeginSession();
-        m.Record(25 * Mb, 1.0);
+        var m = new AirtimeMeter();
+        m.BeginSession(T0);
+        m.Record(1234);
         var s = m.Save();
 
-        var back = new DataMeter();
+        var back = new AirtimeMeter();
         back.Load(s);
-        Assert.Equal(m.BalanceBytes, back.BalanceBytes);
-        Assert.Equal(m.PlanRemainingBytes, back.PlanRemainingBytes);
-        Assert.Equal(m.LifetimeBytes, back.LifetimeBytes);
-        Assert.Equal(m.PlanPeriodEndUtc, back.PlanPeriodEndUtc);
+        Assert.Equal(m.PeriodSeconds, back.PeriodSeconds);
+        Assert.Equal(m.PeriodSessions, back.PeriodSessions);
+        Assert.Equal(m.LifetimeSeconds, back.LifetimeSeconds);
+        Assert.Equal(m.LifetimeSessions, back.LifetimeSessions);
+        Assert.Equal(m.PeriodEndUtc, back.PeriodEndUtc);
+        Assert.False(back.InSession);              // nothing survives a relaunch mid-flight
     }
 
     [Fact]
-    public void LoadedBalancesCannotBeTamperedUpwards()
+    public void ANegativeSaveIsClampedNotTrusted()
     {
-        // A hand-edited save that claims more plan allowance than the plan has is clamped, not trusted.
-        var back = new DataMeter();
-        back.Load(new DataMeter.Snapshot(-5, 10 * Mb, 999 * Mb, -1, T0, T0, 30));
-        Assert.Equal(0, back.BalanceBytes);
-        Assert.Equal(10 * Mb, back.PlanRemainingBytes);
-        Assert.Equal(0, back.LifetimeBytes);
+        var back = new AirtimeMeter();
+        back.Load(new AirtimeMeter.Snapshot(-5, -2, -9, -1, T0, -7, T0));
+        Assert.Equal(0, back.PeriodSeconds);
+        Assert.Equal(0, back.PeriodSessions);
+        Assert.Equal(0, back.LifetimeSeconds);
+        Assert.Equal(0, back.LifetimeSessions);
+        Assert.Equal(0, back.PeriodDays);
+    }
+
+    [Fact]
+    public void TheMeterHasNoWayToRefuseAnybody()
+    {
+        // The whole point of the owner's 2026-10-15 decision: the pass decides who flies online, and flying
+        // a lot is never punished. If this type ever grows a CanJoin, that decision has been reversed.
+        Assert.Null(typeof(AirtimeMeter).GetMethod("CanJoin"));
+        Assert.Null(typeof(AirtimeMeter).GetProperty("Exhausted"));
     }
 }

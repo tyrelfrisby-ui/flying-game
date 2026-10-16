@@ -4,8 +4,8 @@ using UnityEngine;
 namespace FlyingGame.Bridge.Commerce
 {
     /// <summary>
-    /// The subscription screen and the multiplayer-data screen. IMGUI, like every other panel in this
-    /// project (OptionsPanel, StartMenu), so it matches and needs no scene wiring.
+    /// The two subscription screens — the Pilot subscription and the Multiplayer Pass. IMGUI, like every
+    /// other panel in this project (OptionsPanel, StartMenu), so it matches and needs no scene wiring.
     ///
     /// Three rules it follows, because App Review enforces all three:
     ///  - the price shown is the STORE's localised price string, never a number from our side;
@@ -20,7 +20,7 @@ namespace FlyingGame.Bridge.Commerce
         public bool Open;
         public string TermsUrl = "", PrivacyUrl = "";
 
-        private enum Tab { Subscription, Data }
+        private enum Tab { Subscription, Pass }
         private Tab _tab = Tab.Subscription;
         private GUIStyle _btn, _btnOn, _head, _label, _small;
         private Texture2D _bg, _btnBg, _btnOnBg;
@@ -61,11 +61,11 @@ namespace FlyingGame.Bridge.Commerce
             // Tabs.
             float bw = (cw - pad * 0.5f) / 2f;
             if (GUI.Button(new Rect(x, y, bw, _fs * 1.9f), "Subscription", _tab == Tab.Subscription ? _btnOn : _btn)) _tab = Tab.Subscription;
-            if (GUI.Button(new Rect(x + bw + pad * 0.5f, y, bw, _fs * 1.9f), "Multiplayer data", _tab == Tab.Data ? _btnOn : _btn)) _tab = Tab.Data;
+            if (GUI.Button(new Rect(x + bw + pad * 0.5f, y, bw, _fs * 1.9f), "Multiplayer pass", _tab == Tab.Pass ? _btnOn : _btn)) _tab = Tab.Pass;
             y += _fs * 2.6f;
 
             if (_tab == Tab.Subscription) y = Subscription(x, y, cw);
-            else y = Data(x, y, cw);
+            else y = Pass(x, y, cw);
 
             if (!string.IsNullOrEmpty(StoreKitBridge.Error))
             {
@@ -93,7 +93,7 @@ namespace FlyingGame.Bridge.Commerce
 
         private float Subscription(float x, float y, float cw)
         {
-            var res = Rt.Current;
+            var res = Rt.Content;
             // Say where they stand first. Somebody who already pays should not be sold to.
             string standing = res.Trust switch
             {
@@ -107,13 +107,13 @@ namespace FlyingGame.Bridge.Commerce
             if (res.PaidContent)
             {
                 GUI.Label(new Rect(x, y, cw, _fs * 5f),
-                    "Everything is unlocked. Online multiplayer also needs data, which is metered separately — see the other tab.",
+                    "Everything is unlocked. Flying online is a separate pass — see the other tab.",
                     _label);
                 return y + _fs * 5f;
             }
 
             GUI.Label(new Rect(x, y, cw, _fs * 7f),
-                "A subscription unlocks every airplane, the full lesson syllabus, the flight recorder and online multiplayer. "
+                "A subscription unlocks every airplane, the full lesson syllabus and the flight recorder. "
                 + "It renews each month until you cancel, and you can cancel any time in your Apple ID settings. "
                 + "Already subscribe through a service you pay for elsewhere? Sign in with it below instead — no second monthly fee.",
                 _label);
@@ -144,46 +144,57 @@ namespace FlyingGame.Bridge.Commerce
             return y + _fs * 2.2f;
         }
 
-        private float Data(float x, float y, float cw)
+        private float Pass(float x, float y, float cw)
         {
-            var m = Rt.Meter;
+            var res = Rt.Pass;
+            string standing = res.Trust switch
+            {
+                EntitlementTrust.Fresh => $"Active — renews {res.ExpiresUtc.ToLocalTime():d}. Thank you.",
+                EntitlementTrust.Grace => "Connect to the internet once so the App Store can confirm your pass.",
+                EntitlementTrust.Expired => "Your pass has lapsed.",
+                _ => "",
+            };
+            if (!string.IsNullOrEmpty(standing)) { GUI.Label(new Rect(x, y, cw, _fs * 2.4f), standing, _label); y += _fs * 2.6f; }
+
             GUI.Label(new Rect(x, y, cw, _fs * 6f),
-                "Flying online goes through a relay, and that data costs money, so it is metered for everyone — "
-                + "subscribers included. Single player, the lessons and everything on your own device are never metered.",
+                "Flying with other people goes through a relay we rent by the hour, so it is a pass of its own and "
+                + "everyone who flies online needs one. It renews each month until you cancel. Single player, the "
+                + "lessons, and flying together over the same Wi-Fi never need it.",
                 _label);
             y += _fs * 6.2f;
 
-            string left = m.AvailableBytes <= 0 ? "none left"
-                : m.SecondsRemaining == double.PositiveInfinity ? $"{m.AvailableMb:0.#} MB left"
-                : $"{m.AvailableMb:0.#} MB left — about {Mathf.RoundToInt((float)m.SecondsRemaining / 60f)} min at your current rate";
-            GUI.Label(new Rect(x, y, cw, _fs * 1.8f), left, _label); y += _fs * 2f;
-            if (m.PlanAllowanceBytes > 0)
+            if (!res.Confirmed)
+            {
+                if (!StoreKitBridge.Ready)
+                {
+                    GUI.Label(new Rect(x, y, cw, _fs * 2.2f), "Reaching the App Store…", _label);
+                    return y + _fs * 2.4f;
+                }
+                var offer = Rt.MultiplayerOffer;
+                if (!offer.Valid)
+                {
+                    GUI.Label(new Rect(x, y, cw, _fs * 2.4f), "The App Store is not reachable right now. Single player works offline.", _label);
+                    return y + _fs * 2.6f;
+                }
+                bool busy = !string.IsNullOrEmpty(StoreKitBridge.Purchasing);
+                // The store's own localised price string — never a number from our side.
+                GUI.enabled = !busy;
+                if (GUI.Button(new Rect(x, y, cw, _fs * 2.2f), busy ? "Working…" : $"Get the pass — {offer.Price} / month", _btnOn))
+                { StoreKitBridge.Purchase(offer.Id); _note = ""; }
+                GUI.enabled = true;
+                y += _fs * 2.6f;
+            }
+
+            // Their own time online. Shown because it is theirs, not because anything is deducted from it.
+            var a = Rt.Airtime;
+            if (a.LifetimeSessions > 0)
             {
                 GUI.Label(new Rect(x, y, cw, _fs * 1.6f),
-                    $"Plan: {m.PlanRemainingBytes / (1024.0 * 1024.0):0.#} of {m.PlanAllowanceBytes / (1024.0 * 1024.0):0.#} MB this period, resets {m.PlanPeriodEndUtc.ToLocalTime():d}",
+                    $"You have flown online for {a.LifetimeHours:0.#} h across {a.LifetimeSessions} flight{(a.LifetimeSessions == 1 ? "" : "s")}.",
                     _small);
                 y += _fs * 1.8f;
             }
-
-            if (!StoreKitBridge.Ready)
-            {
-                GUI.Label(new Rect(x, y, cw, _fs * 2.2f), "Reaching the App Store…", _label);
-                return y + _fs * 2.4f;
-            }
-
-            bool busy = !string.IsNullOrEmpty(StoreKitBridge.Purchasing);
-            foreach (string id in Rt.DataProductIds)
-            {
-                var o = StoreKitBridge.Offer(id);
-                if (!o.Valid) continue;
-                GUI.enabled = !busy;
-                if (GUI.Button(new Rect(x, y, cw, _fs * 2.1f), busy ? "Working…" : $"{o.Title} — {o.Price}", _btn))
-                { StoreKitBridge.Purchase(o.Id); _note = ""; }
-                GUI.enabled = true;
-                y += _fs * 2.4f;
-            }
-            GUI.Label(new Rect(x, y, cw, _fs * 1.6f), "Data you buy does not expire.", _small);
-            return y + _fs * 1.8f;
+            return y;
         }
     }
 }

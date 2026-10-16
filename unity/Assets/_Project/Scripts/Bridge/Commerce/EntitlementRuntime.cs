@@ -11,10 +11,17 @@ namespace FlyingGame.Bridge.Commerce
     /// Holds the answer to "may this person fly the paid content, and may they go online" for the whole
     /// session, and is the only place the rest of the game should ask.
     ///
-    /// Providers are consulted in order and the longest-lived grant wins (<see cref="EntitlementResolver"/>):
-    /// the App Store subscription, an external membership if one is linked, and a comp. The resolution is
-    /// cached to disk with its own high-water clock, so a flight with no signal behaves exactly as if online
-    /// and winding the device clock about cannot buy time.
+    /// There are two separate questions and two separate subscriptions, resolved independently:
+    ///  - CONTENT (<see cref="Content"/>): the airplanes, the syllabus, the recorder. Granted by the App
+    ///    Store subscription, an external membership if one is linked, or a comp. Forgives a dropped
+    ///    connection for <see cref="EntitlementResolver.GraceDays"/> — a network error must never cost
+    ///    somebody a flight they have paid for.
+    ///  - ONLINE (<see cref="Pass"/>): the Multiplayer Pass, its own subscription, needed by everyone who
+    ///    flies online including members entitled to the content through an external provider (owner
+    ///    2026-10-15). No grace: going online needs a network, so if the relay is reachable the store is too.
+    ///
+    /// Each resolution is cached with its own high-water clock, so a flight with no signal behaves exactly as
+    /// if online and winding the device clock about cannot buy time.
     ///
     /// Product identifiers come from StreamingAssets/commerce.json, never from source, and PRICES are never
     /// stored anywhere in this project — they are read from the store at runtime, localised, which is both
@@ -27,25 +34,33 @@ namespace FlyingGame.Bridge.Commerce
         /// <summary>How often the StoreKit snapshot is read. There is nothing to gain from per-frame.</summary>
         public float PollSeconds = 1.0f;
 
-        private readonly EntitlementResolver _resolver = new();
-        private readonly DataMeter _meter = new();
+        // One resolver per product: the same rules, asked twice, so neither subscription can mask the other.
+        private readonly EntitlementResolver _contentResolver = new();
+        private readonly EntitlementResolver _passResolver = new();
+        private readonly AirtimeMeter _airtime = new();
         private readonly List<EntitlementGrant> _grants = new();
         private float _pollT;
         private bool _started;
 
         private string _subscriptionId = "";
-        private readonly List<string> _dataProductIds = new();
-        private readonly Dictionary<string, long> _dataBytesByProduct = new();
+        private string _multiplayerId = "";
 
-        public EntitlementResolution Current { get; private set; }
-        public DataMeter Meter => _meter;
+        /// <summary>May they fly the paid content (grace included).</summary>
+        public EntitlementResolution Content { get; private set; }
 
-        /// <summary>What the paywall should offer for the subscription, with the store's own price.</summary>
+        /// <summary>May they go online right now (confirmed only).</summary>
+        public EntitlementResolution Pass { get; private set; }
+
+        /// <summary>Connected hours, for our own cost check. It gates nothing — see <see cref="AirtimeMeter"/>.</summary>
+        public AirtimeMeter Airtime => _airtime;
+
+        /// <summary>What the paywall should offer, with the store's own localised prices.</summary>
         public StoreOffer SubscriptionOffer => StoreKitBridge.Offer(_subscriptionId);
-        public IEnumerable<string> DataProductIds => _dataProductIds;
+        public StoreOffer MultiplayerOffer => StoreKitBridge.Offer(_multiplayerId);
 
-        private const string PrefMeter = "commerce.meter";
-        private const string PrefHighWater = "commerce.highwater";
+        private const string PrefAirtime = "commerce.airtime";
+        private const string PrefContentHighWater = "commerce.highwater";
+        private const string PrefPassHighWater = "commerce.highwater.pass";
 
         private void Awake()
         {
@@ -53,21 +68,22 @@ namespace FlyingGame.Bridge.Commerce
             Instance = this;
             LoadConfig();
             LoadPersisted();
-            var ids = new List<string>(_dataProductIds);
-            if (!string.IsNullOrEmpty(_subscriptionId)) ids.Insert(0, _subscriptionId);
+            var ids = new List<string>();
+            if (!string.IsNullOrEmpty(_subscriptionId)) ids.Add(_subscriptionId);
+            if (!string.IsNullOrEmpty(_multiplayerId)) ids.Add(_multiplayerId);
             if (ids.Count > 0) { StoreKitBridge.Start(ids); _started = true; }
             Resolve();
         }
 
         private void Update()
         {
-            _meter.Tick(DateTime.UtcNow);
+            _airtime.Tick(DateTime.UtcNow);
             if (!_started) return;
             _pollT += Time.unscaledDeltaTime;
             if (_pollT < PollSeconds) return;
             _pollT = 0f;
             StoreKitBridge.Poll();
-            CreditPendingPurchases();
+            FinishStrayConsumables();
             Resolve();
         }
 
@@ -79,15 +95,7 @@ namespace FlyingGame.Bridge.Commerce
                 if (!File.Exists(path)) { Debug.LogWarning("commerce.json missing — nothing is for sale this run."); return; }
                 var o = JObject.Parse(File.ReadAllText(path));
                 _subscriptionId = o.Value<string>("subscriptionProductId") ?? "";
-                if (o["dataProducts"] is JArray arr)
-                    foreach (var x in arr)
-                    {
-                        string id = x.Value<string>("id");
-                        long mb = x.Value<long?>("megabytes") ?? 0;
-                        if (string.IsNullOrEmpty(id) || mb <= 0) continue;
-                        _dataProductIds.Add(id);
-                        _dataBytesByProduct[id] = mb * 1024L * 1024L;
-                    }
+                _multiplayerId = o.Value<string>("multiplayerProductId") ?? "";
             }
             catch (Exception e) { Debug.LogWarning($"commerce.json unreadable: {e.Message}"); }
         }
@@ -96,110 +104,141 @@ namespace FlyingGame.Bridge.Commerce
         {
             try
             {
-                string s = PlayerPrefs.GetString(PrefMeter, "");
+                string s = PlayerPrefs.GetString(PrefAirtime, "");
                 if (!string.IsNullOrEmpty(s))
                 {
                     var o = JObject.Parse(s);
-                    _meter.Load(new DataMeter.Snapshot(
-                        o.Value<long?>("bal") ?? 0, o.Value<long?>("alw") ?? 0, o.Value<long?>("rem") ?? 0,
-                        o.Value<long?>("life") ?? 0,
-                        DateTime.Parse(o.Value<string>("end") ?? DateTime.MinValue.ToString("o"), null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal),
-                        DateTime.Parse(o.Value<string>("hw") ?? DateTime.MinValue.ToString("o"), null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal),
-                        o.Value<int?>("days") ?? 0));
+                    _airtime.Load(new AirtimeMeter.Snapshot(
+                        o.Value<double?>("per") ?? 0, o.Value<int?>("pern") ?? 0,
+                        o.Value<double?>("life") ?? 0, o.Value<int?>("lifen") ?? 0,
+                        Utc(o.Value<string>("end")), o.Value<int?>("days") ?? 0, Utc(o.Value<string>("hw"))));
                 }
-                string hw = PlayerPrefs.GetString(PrefHighWater, "");
-                if (!string.IsNullOrEmpty(hw) && DateTime.TryParse(hw, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var t))
-                    _resolver.Resolve(Array.Empty<EntitlementGrant>(), t);   // seeds the high-water mark
+                // Seed each resolver's high-water mark, so a clock wound back cannot buy either subscription time.
+                string hw = PlayerPrefs.GetString(PrefContentHighWater, "");
+                if (!string.IsNullOrEmpty(hw)) _contentResolver.Resolve(Array.Empty<EntitlementGrant>(), Utc(hw));
+                string phw = PlayerPrefs.GetString(PrefPassHighWater, "");
+                if (!string.IsNullOrEmpty(phw)) _passResolver.Resolve(Array.Empty<EntitlementGrant>(), Utc(phw));
             }
             catch (Exception e) { Debug.LogWarning($"commerce state unreadable, starting fresh: {e.Message}"); }
         }
 
+        private static DateTime Utc(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return DateTime.MinValue;
+            const System.Globalization.DateTimeStyles st =
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal;
+            return DateTime.TryParse(s, null, st, out var t) ? t : DateTime.MinValue;
+        }
+
         private void Persist()
         {
-            var s = _meter.Save();
-            PlayerPrefs.SetString(PrefMeter, new JObject
+            var s = _airtime.Save();
+            PlayerPrefs.SetString(PrefAirtime, new JObject
             {
-                ["bal"] = s.Balance, ["alw"] = s.PlanAllowance, ["rem"] = s.PlanRemaining, ["life"] = s.Lifetime,
-                ["end"] = s.PlanPeriodEndUtc.ToString("o"), ["hw"] = s.HighWaterUtc.ToString("o"), ["days"] = s.PlanPeriodDays,
+                ["per"] = s.PeriodSeconds, ["pern"] = s.PeriodSessions,
+                ["life"] = s.LifetimeSeconds, ["lifen"] = s.LifetimeSessions,
+                ["end"] = s.PeriodEndUtc.ToString("o"), ["days"] = s.PeriodDays, ["hw"] = s.HighWaterUtc.ToString("o"),
             }.ToString(Newtonsoft.Json.Formatting.None));
-            PlayerPrefs.SetString(PrefHighWater, _resolver.HighWaterUtc.ToString("o"));
+            PlayerPrefs.SetString(PrefContentHighWater, _contentResolver.HighWaterUtc.ToString("o"));
+            PlayerPrefs.SetString(PrefPassHighWater, _passResolver.HighWaterUtc.ToString("o"));
             PlayerPrefs.Save();
         }
 
-        /// <summary>A data purchase has arrived: credit it, then tell StoreKit it is done. In that order —
-        /// if the app dies in between, the transaction is still unfinished and comes back next launch, so the
-        /// pilot gets the bytes they bought. The reverse order would lose them.</summary>
-        private void CreditPendingPurchases()
+        /// <summary>Nothing in the app is sold as a consumable — both products are subscriptions — so a
+        /// pending consumable means something unexpected arrived (a leftover from an older build, a sandbox
+        /// experiment). Finish it rather than leaving it unfinished for ever, and say so in the log.</summary>
+        private void FinishStrayConsumables()
         {
             var pend = StoreKitBridge.PendingConsumables;
             if (pend.Count == 0) return;
             for (int i = 0; i < pend.Count; i++)
             {
                 var (productId, txnId) = pend[i];
-                if (_dataBytesByProduct.TryGetValue(productId, out long bytes))
-                {
-                    _meter.Credit(bytes);
-                    Persist();
-                    Debug.Log($"Credited {bytes / (1024 * 1024)} MB of multiplayer data ({productId}).");
-                }
+                Debug.LogWarning($"Unexpected consumable {productId} — nothing is sold as a consumable; finishing it.");
                 StoreKitBridge.Finish(txnId);
             }
         }
 
         private void Resolve()
         {
-            _grants.Clear();
+            EntitlementResolution beforeContent = Content, beforePass = Pass;
 
-            // 1. The App Store subscription.
+            // ---- content: the subscription, an external membership, or a comp -------------------------
+            _grants.Clear();
             foreach (var e in StoreKitBridge.Entitlements)
             {
                 if (e.Id != _subscriptionId) continue;
                 _grants.Add(new EntitlementGrant(EntitlementSource.AppStore, e.ExpiresUtc, DateTime.UtcNow, e.Revoked));
             }
 
-            // 2. An external membership, when one is linked. The provider handshake is specified in
-            //    docs/EXTERNAL-ENTITLEMENT.md and does not exist yet; the stub stands in for it so the
-            //    resolution rules and the offline behaviour can be exercised end to end. It is compiled out
-            //    of a release build.
+            // An external membership, when one is linked. The provider handshake is specified in
+            // docs/EXTERNAL-ENTITLEMENT.md and does not exist yet; the stub stands in for it so the
+            // resolution rules and the offline behaviour can be exercised end to end. It is compiled out
+            // of a release build. It grants the CONTENT only: the Multiplayer Pass is ours and is bought
+            // from us by everyone (owner 2026-10-15).
 #if AERO_EXTERNAL_STUB
             if (ExternalEntitlementStub.TryRead(out var ext)) _grants.Add(ext);
 #endif
 
-            // 3. A comp grant (press, testers, the owner). Local, because its whole purpose is to work when
-            //    nothing else does. Forging one costs us a subscription and costs the forger nothing, which
-            //    is an acceptable trade for a handful of grants; if that ever stops being true it wants a
-            //    signature checked against a public key compiled into the build.
-            string comp = PlayerPrefs.GetString("commerce.comp", "");
-            if (!string.IsNullOrEmpty(comp) && DateTime.TryParse(comp, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var compExp))
-                _grants.Add(new EntitlementGrant(EntitlementSource.Comp, compExp, DateTime.UtcNow));
+            // A comp grant (press, testers, the owner). Local, because its whole purpose is to work when
+            // nothing else does. Forging one costs us a subscription and costs the forger nothing, which
+            // is an acceptable trade for a handful of grants; if that ever stops being true it wants a
+            // signature checked against a public key compiled into the build.
+            DateTime comp = Utc(PlayerPrefs.GetString("commerce.comp", ""));
+            if (comp > DateTime.MinValue) _grants.Add(new EntitlementGrant(EntitlementSource.Comp, comp, DateTime.UtcNow));
 
-            EntitlementResolution before = Current;
-            Current = _resolver.Resolve(_grants, DateTime.UtcNow);
-            if (before.Trust != Current.Trust || before.Source != Current.Source) Persist();
+            Content = _contentResolver.Resolve(_grants, DateTime.UtcNow);
+
+            // ---- the Multiplayer Pass: its own subscription, plus the same comp ------------------------
+            _grants.Clear();
+            foreach (var e in StoreKitBridge.Entitlements)
+            {
+                if (e.Id != _multiplayerId) continue;
+                _grants.Add(new EntitlementGrant(EntitlementSource.AppStore, e.ExpiresUtc, DateTime.UtcNow, e.Revoked));
+            }
+            DateTime passComp = Utc(PlayerPrefs.GetString("commerce.comp.multiplayer", ""));
+            if (passComp > DateTime.MinValue) _grants.Add(new EntitlementGrant(EntitlementSource.Comp, passComp, DateTime.UtcNow));
+
+            Pass = _passResolver.Resolve(_grants, DateTime.UtcNow);
+
+            if (beforeContent.Trust != Content.Trust || beforeContent.Source != Content.Source
+                || beforePass.Trust != Pass.Trust || beforePass.Source != Pass.Source) Persist();
         }
 
-        /// <summary>The whole question for a multiplayer join: entitled, and enough data to be worth it.
-        /// <paramref name="reason"/> is shown to the pilot verbatim when the answer is no.</summary>
+        /// <summary>The whole question for a multiplayer join: does this pilot hold the Pass, confirmed now.
+        /// <paramref name="reason"/> is shown to the pilot verbatim when the answer is no. Airtime is counted
+        /// but never consulted — nobody is refused a join for having flown too much.</summary>
         public bool CanJoinMultiplayer(out string reason)
         {
-            if (!Current.MultiplayerEntitled)
+            if (Pass.Confirmed) { reason = ""; return true; }
+            reason = Pass.Trust switch
             {
-                reason = Current.Trust == EntitlementTrust.Grace
-                    ? "Multiplayer needs a live subscription check — connect to the internet once to go online."
-                    : Current.Reason;
-                return false;
-            }
-            return _meter.CanJoin(out reason);
+                EntitlementTrust.Grace => "Connect to the internet once so the App Store can confirm your Multiplayer Pass.",
+                EntitlementTrust.Expired => "Your Multiplayer Pass has lapsed. Single player and local flying still work.",
+                _ => "Flying online needs the Multiplayer Pass. Single player and local flying do not.",
+            };
+            return false;
         }
 
-        /// <summary>Called by the transport with what it actually moved. Returns false when the data has run
-        /// out and the session should end.</summary>
-        public bool RecordMultiplayerTraffic(long bytes, float dt)
+        /// <summary>Apple's signed transaction for the Pass, to be shown to the relay at join so it can
+        /// verify the subscription against Apple's keys and hand back a short-lived join token. Empty when
+        /// there is nothing to show. A bearer token: TLS only, never logged, never written to disk.</summary>
+        public string MultiplayerPassJws()
         {
-            bool ok = _meter.Record(bytes, dt);
-            if (!ok || _meter.LowBalance) Persist();
-            return ok;
+            foreach (var e in StoreKitBridge.Entitlements)
+                if (e.Id == _multiplayerId && !e.Revoked) return e.Jws;
+            return "";
         }
+
+        /// <summary>Joined a room. Starts counting this pilot's connected time.</summary>
+        public void BeginMultiplayerSession() => _airtime.BeginSession(DateTime.UtcNow);
+
+        /// <summary>Left the room, for any reason.</summary>
+        public void EndMultiplayerSession() { _airtime.EndSession(); Persist(); }
+
+        /// <summary>A step of connected time, reported by the transport. Returns nothing to check: airtime
+        /// is accounting, not a limit.</summary>
+        public void RecordMultiplayerTime(float dt) => _airtime.Record(dt);
 
         private void OnApplicationPause(bool paused) { if (paused) Persist(); }
         private void OnApplicationQuit() => Persist();

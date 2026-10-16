@@ -22,7 +22,16 @@ namespace FlyingGame.Bridge.Commerce
         public readonly string Id;
         public readonly DateTime ExpiresUtc;      // DateTime.MaxValue for a non-expiring purchase
         public readonly bool Revoked;
-        public StoreEntitlement(string id, DateTime expiresUtc, bool revoked) { Id = id; ExpiresUtc = expiresUtc; Revoked = revoked; }
+
+        /// <summary>Apple's own signed transaction (JWS) for this entitlement, exactly as StoreKit handed it
+        /// over. It is what the relay is shown at join to prove the Multiplayer Pass without us keeping an
+        /// account: Apple signed it, so anyone holding Apple's public keys can check it, and we never have to
+        /// store it. Treat it as a bearer token — hand it to the relay over TLS, never log it, never persist
+        /// it. Empty off device.</summary>
+        public readonly string Jws;
+
+        public StoreEntitlement(string id, DateTime expiresUtc, bool revoked, string jws = "")
+        { Id = id; ExpiresUtc = expiresUtc; Revoked = revoked; Jws = jws ?? ""; }
     }
 
     /// <summary>
@@ -70,8 +79,10 @@ namespace FlyingGame.Bridge.Commerce
         public static IReadOnlyList<StoreOffer> Offers => _offers;
         public static IReadOnlyList<StoreEntitlement> Entitlements => _entitlements;
 
-        /// <summary>Consumables (data purchases) that have arrived and not yet been credited. Credit them,
-        /// then call <see cref="Finish"/> with the id — a purchase killed mid-credit comes back next launch.</summary>
+        /// <summary>Consumables that have arrived and not yet been consumed. Nothing in the app sells a
+        /// consumable any more (both products are subscriptions), so this should always be empty; the
+        /// entitlement layer finishes anything that does turn up so a stray transaction cannot sit unfinished
+        /// for ever. Kept because it is generic store plumbing, not a business model.</summary>
         public static IReadOnlyList<(string productId, string txnId)> PendingConsumables => _pending;
 
         private static readonly List<StoreOffer> _offers = new();
@@ -117,7 +128,7 @@ namespace FlyingGame.Bridge.Commerce
                         DateTime when = string.IsNullOrEmpty(exp)
                             ? DateTime.MaxValue        // a non-expiring purchase
                             : DateTime.TryParse(exp, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : DateTime.MinValue;
-                        _entitlements.Add(new StoreEntitlement(x.Value<string>("id"), when, x.Value<bool?>("revoked") ?? false));
+                        _entitlements.Add(new StoreEntitlement(x.Value<string>("id"), when, x.Value<bool?>("revoked") ?? false, x.Value<string>("jws") ?? ""));
                     }
 
                 _pending.Clear();
@@ -177,7 +188,9 @@ namespace FlyingGame.Bridge.Commerce
                     offers.Add(new JObject { ["id"] = id, ["title"] = id, ["detail"] = "(editor stand-in — no real store)", ["price"] = "—" });
                 var ents = new JArray();
                 foreach (var g in _granted)
-                    ents.Add(new JObject { ["id"] = g.id, ["expiresUtc"] = g.exp.ToString("o"), ["revoked"] = false });
+                    ents.Add(new JObject { ["id"] = g.id, ["expiresUtc"] = g.exp.ToString("o"), ["revoked"] = false, ["jws"] = "" });
+                // No jws off device: there is no Apple signature to hand over, and inventing a plausible-looking
+                // one would let a relay check pass in the editor that must fail everywhere real.
                 _state = new JObject
                 {
                     ["ready"] = true,

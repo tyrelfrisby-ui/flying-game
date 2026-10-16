@@ -107,8 +107,10 @@ The rule: **a provider that cannot be reached must never cost someone a flight t
   single player behaves exactly as if online.
 - Past the window, with no reachable provider: single player keeps working in full. This is a flight trainer;
   taking the airplane away from someone over a network error would be the wrong call every time.
-- Multiplayer is different, because it costs us money per session. It needs a live, account-backed join pass,
-  so it is withheld when nothing can be checked, with a clear reason rather than a silent failure.
+- Multiplayer is different, because it runs through a relay we rent. It is not part of what an external
+  provider's statement grants, and whether it ever should be is an open owner question (§7). It is checked
+  live — the join needs a signed transaction verified at that moment — so it is withheld when nothing can be
+  checked, with a clear reason rather than a silent failure.
 - The cached entitlement is signed and clock-checked, so moving the device clock forward does not extend it,
   and moving it backward does not either.
 
@@ -150,6 +152,8 @@ be wrong, and both can be driven from the stub without a line of partner code.
 - Whether to approach a partner at all, and which handshake to ask for.
 - Whether this file names the provider publicly (§1).
 - Whether multiplayer stays withheld offline, or gets a short courtesy window.
+- What an external provider's members get for multiplayer, which the business side has flagged as undecided:
+  nothing extra (they buy it from us like everyone else), or some arrangement that is part of the deal.
 
 ---
 

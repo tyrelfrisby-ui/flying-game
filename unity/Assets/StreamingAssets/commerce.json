@@ -1,8 +1,6 @@
 {
   "_comment": "Product identifiers only. PRICES ARE NEVER STORED HERE or anywhere else in this repository - they are read from the App Store at runtime, localised, which is the only place that stays correct when a price changes. These identifiers must match the ones configured in App Store Connect.",
+  "_subscriptions": "Two independent auto-renewing subscriptions in SEPARATE subscription groups, so a pilot can hold either, both, or neither, and buying one never cancels or upgrades the other. 'pro' unlocks the airplanes, the syllabus and the recorder; 'multiplayer' is the pass that lets you fly online and is needed by everyone who goes online, including members who get 'pro' through an external provider.",
   "subscriptionProductId": "com.tyfrisby.aeroplayground.pro.monthly",
-  "dataProducts": [
-    { "id": "com.tyfrisby.aeroplayground.data.250mb", "megabytes": 250 },
-    { "id": "com.tyfrisby.aeroplayground.data.1gb", "megabytes": 1024 }
-  ]
+  "multiplayerProductId": "com.tyfrisby.aeroplayground.multiplayer.monthly"
 }

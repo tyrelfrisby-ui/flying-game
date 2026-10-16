@@ -24,9 +24,11 @@ public enum EntitlementTrust
 }
 
 /// <summary>
-/// One provider's statement that this person may fly the paid content, already verified by whoever owns that
-/// provider's keys. The core never verifies signatures — it resolves between grants, which is the part worth
-/// testing headless.
+/// One provider's statement that this person holds one subscription — the Pilot subscription or the
+/// Multiplayer Pass — already verified by whoever owns that provider's keys. The core never verifies
+/// signatures; it resolves between grants, which is the part worth testing headless. One
+/// <see cref="EntitlementResolver"/> answers for one product, so the two subscriptions are resolved
+/// independently and neither can mask the other.
 /// </summary>
 public readonly struct EntitlementGrant
 {
@@ -68,10 +70,11 @@ public readonly struct EntitlementResolution
     /// flight they have paid for.</summary>
     public bool PaidContent => Trust == EntitlementTrust.Fresh || Trust == EntitlementTrust.Grace;
 
-    /// <summary>Online multiplayer costs us money per session, so it wants a grant we have actually
-    /// confirmed — not one we are taking on trust while offline. It ALSO needs data (see
-    /// <see cref="DataMeter"/>); this is only the entitlement half of the question.</summary>
-    public bool MultiplayerEntitled => Trust == EntitlementTrust.Fresh;
+    /// <summary>Verified against its provider, not taken on trust while offline. What the Multiplayer Pass
+    /// is checked with: going online needs a network by definition, so if the relay is reachable the store is
+    /// too, and there is no case where grace is the kind thing to do. Single-player content uses
+    /// <see cref="PaidContent"/> instead, which does forgive a dropped connection.</summary>
+    public bool Confirmed => Trust == EntitlementTrust.Fresh;
 }
 
 /// <summary>
