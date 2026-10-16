@@ -87,21 +87,21 @@
     "SinkFpm": 2649.5,
     "AlphaDeg": 6.802,
     "PitchDeg": -1.24,
-    "ElevatorDeg": -0.877,
-    "TrimStick": -0.0617
+    "ElevatorDeg": -0.884,
+    "TrimStick": -0.062
   },
   {
     "Id": "boeing-737-like",
     "Flaps": 0.5,
     "VsoKt": 129.27,
     "SpeedKt": 168.05,
-    "GlideDeg": 7.716,
-    "GlideRatio": 7.381,
-    "SinkFpm": 2284.8,
+    "GlideDeg": 7.125,
+    "GlideRatio": 8,
+    "SinkFpm": 2110.8,
     "AlphaDeg": 5.294,
-    "PitchDeg": -2.422,
-    "ElevatorDeg": 6.116,
-    "TrimStick": 0.25
+    "PitchDeg": -1.831,
+    "ElevatorDeg": 29.794,
+    "TrimStick": 1
   },
   {
     "Id": "boeing-737-like",
@@ -111,8 +111,8 @@
     "GlideDeg": 7.125,
     "GlideRatio": 8,
     "SinkFpm": 1936.2,
-    "AlphaDeg": 3.736,
-    "PitchDeg": -3.389,
+    "AlphaDeg": 3.737,
+    "PitchDeg": -3.388,
     "ElevatorDeg": 29.794,
     "TrimStick": 1
   },
@@ -256,7 +256,7 @@
     "SinkFpm": 1101.8,
     "AlphaDeg": 6.87,
     "PitchDeg": -3.047,
-    "ElevatorDeg": -1.882,
+    "ElevatorDeg": -1.881,
     "TrimStick": -0.098
   },
   {
@@ -347,8 +347,8 @@
     "SinkFpm": 1327.1,
     "AlphaDeg": 8.096,
     "PitchDeg": -2.029,
-    "ElevatorDeg": -3.235,
-    "TrimStick": -0.1469
+    "ElevatorDeg": -3.246,
+    "TrimStick": -0.1472
   },
   {
     "Id": "f86-sabre-like",
@@ -529,8 +529,8 @@
     "SinkFpm": 2230.5,
     "AlphaDeg": 6.345,
     "PitchDeg": -3.694,
-    "ElevatorDeg": -2.645,
-    "TrimStick": -0.1256
+    "ElevatorDeg": -2.676,
+    "TrimStick": -0.1267
   },
   {
     "Id": "p51d-like",
@@ -542,8 +542,8 @@
     "SinkFpm": 2093.3,
     "AlphaDeg": 5.105,
     "PitchDeg": -5.252,
-    "ElevatorDeg": 2.031,
-    "TrimStick": 0.1034
+    "ElevatorDeg": 2.044,
+    "TrimStick": 0.1039
   },
   {
     "Id": "p51d-like",
@@ -555,8 +555,8 @@
     "SinkFpm": 2128.6,
     "AlphaDeg": 3.553,
     "PitchDeg": -7.734,
-    "ElevatorDeg": 6.838,
-    "TrimStick": 0.2756
+    "ElevatorDeg": 7.458,
+    "TrimStick": 0.2975
   },
   {
     "Id": "pa18-bush-like",
@@ -776,8 +776,8 @@
     "SinkFpm": 1278.1,
     "AlphaDeg": 6,
     "PitchDeg": -2.324,
-    "ElevatorDeg": -1.259,
-    "TrimStick": -0.0755
+    "ElevatorDeg": -1.26,
+    "TrimStick": -0.0756
   },
   {
     "Id": "seminole-like",
@@ -789,8 +789,8 @@
     "SinkFpm": 1201.2,
     "AlphaDeg": 4.831,
     "PitchDeg": -3.604,
-    "ElevatorDeg": 3.46,
-    "TrimStick": 0.1549
+    "ElevatorDeg": 3.471,
+    "TrimStick": 0.1553
   },
   {
     "Id": "seminole-like",
@@ -802,8 +802,8 @@
     "SinkFpm": 1179.5,
     "AlphaDeg": 3.642,
     "PitchDeg": -5.196,
-    "ElevatorDeg": 8.398,
-    "TrimStick": 0.3306
+    "ElevatorDeg": 8.565,
+    "TrimStick": 0.3365
   },
   {
     "Id": "stearman-pt17-like",

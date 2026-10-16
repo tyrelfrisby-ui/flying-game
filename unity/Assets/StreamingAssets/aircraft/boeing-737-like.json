@@ -1891,7 +1891,7 @@
       "expo": 0.1,
       "deadZone": 0.03,
       "reversible": false,
-      "saturationDeg": 10.5
+      "saturationDeg": 5.1
     },
     "rudder": {
       "maxDeflRad": 0.3,

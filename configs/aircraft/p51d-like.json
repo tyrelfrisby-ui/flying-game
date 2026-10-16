@@ -1443,7 +1443,7 @@
       "centeringSpringKt": 0,
       "trimType": "tab",
       "freeTauS": 0.15,
-      "saturationDeg": 22.7
+      "saturationDeg": 12.1
     },
     "rudder": {
       "maxDeflRad": 0.35,
