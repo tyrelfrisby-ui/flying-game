@@ -1,4 +1,9 @@
-# The maze behind the waterfall — a map for the owner, before it is built
+# The maze behind the waterfall
+
+**Built, 2026-10-16** — the geometry, the strips and the hazard sites are in and flyable
+(`src/FlyingGame.Core/WaterfallTunnel.cs`). What is NOT built yet is listed below: the rockfall and the water
+sheet have no behaviour, and the tow has no AI. Ty's three answers are folded in — the slit stays 40 ft, every
+strip is 2,500 ft, and under tow the tow plane refuses the slit.
 
 Ty, 2026-10-16: *"The waterfall tunnel airport should be a loop the can fly into and out of hidden behind the
 waterfall. Give it a bit of a maze with forks etc and put landing strips here and there… a bad fork could
@@ -7,9 +12,10 @@ narrow slit in the rock requiring knife edge 40 ft wide for example or a waterfa
 fork" should be passable for any airplane up to the t6 in size and speed but no need to support larger or
 faster aircraft."*
 
-**What exists already** (committed, flyable now): one straight bore behind the first wall's fall — a 70 m
-mouth at the amphitheater floor, 900 m of tunnel, 2,625 ft of pavement inside, an arch that is a solid, a wall
-at the far end. That becomes the **last leg and the main strip of the loop**; nothing of it is wasted.
+The layout is written as a PATH — a pen that goes straight, turns and drops — not as a list of coordinates, so
+the numbers below are what the pen was told and a test measures what came out: every leg has at least 200 m of
+mountain over its crown, the floor has exactly one answer everywhere two legs overlap, every leg starts inside
+another one, and the last leg lands on the end of the bore to the metre.
 
 ## The design aeroplane sets every number
 
@@ -21,13 +27,19 @@ harder half, because a 172 cannot hold a knife edge and a glider cannot climb ou
 | Span to clear | **12.8 m** (42 ft) | T-6 |
 | Speed in the maze | 120–180 KIAS | T-6 cruise to a fast run |
 | Tightest main-loop bend | **250 m radius** | 150 kt at 3 g is 215 m; 180 kt at 4 g is 226 m. 250 m leaves something in hand for a pilot who arrives fast. |
-| Dead-end strip, usable | **760 m** (2,493 ft) | T-6 lands in ~1,500 ft and clears 50 ft in ~1,800 ft. A dead end you cannot leave is a trap, not a fork. |
-| Bore cross-section | 70 m wide, 26 m tall | What is already built; a 172 can be sloppy in it and a T-6 can roll in it. |
+| Every strip, usable | **762 m** (2,500 ft) | T-6 lands in ~1,500 ft and clears 50 ft in ~1,800 ft. Owner's rule: every dead end has to work up to the T-6, so they are all this length. |
+| Bore cross-section | 70 m wide, 32 m tall | A 172 can be sloppy in it and a T-6 can roll in it. |
 
 ## The loop, and the glider's way out
 
-Both mouths are behind the same curtain, and the loop **descends the whole way**: in at **430 m**, out at
-**310 m** — 120 m of drop over about 2.5 km of tunnel, an average of 4.8 %.
+Both mouths are in the same back wall, and the loop **descends the whole way**: in at **430 m**, out at
+**305 m** — 125 m of drop over about 5 km of tunnel.
+
+The way **out** is on the river's own centreline, so you leave through the falling water. The way **in** is
+**110 m to the side of it**, which changed from the first draft for two reasons. The honest one: at 430 m the
+curtain hangs only about 19 m clear of the rock, so a pocket entered through the water up there would be
+unflyable. The structural one: the entry leg would otherwise sit directly on top of the exit bore, and the
+ground under a wheel has to have one answer.
 
 **The maze is for powered aeroplanes** (owner, 2026-10-16: *"There should be a landing strip early on for
 gliders but no this is meant for powered airplanes"*). So a glider that follows somebody in gets **STRIP 0**,
@@ -38,69 +50,73 @@ that stops on STRIP 0 is not finished, because of what happens next.
 The 4.8 % descent is now a choice rather than a requirement, and it stays: it gives the loop a one-way sense,
 which is what makes a fork a decision instead of a corridor you can back out of.
 
-The entrance at 430 m sits 115 m below the lip, where the falling water hangs about 19 m out from the rock —
-so the pocket you fly into is about 41 m deep. Tighter than the bottom mouth's 88 m, and deliberately so: the
-high entrance is the hard one.
+Both pockets are measured by a test rather than assumed: more than 30 m of air between the water and the rock
+at each mouth's height, and less than 200 m, which is the line between "behind the waterfall" and "a hole in a
+cliff".
 
-## The map
+## The map, as built
 
 ```
-                        BEHIND THE CURTAIN (the amphitheater, 600 m wide)
-            IN  430 m ───┐                                        ┌─── OUT  310 m
-                         │                                        │   (built: 760 m strip)
-                 ┌───────┴───────┐                           ┌────┴─────┐
-                 │ A  Entry 300 m│                           │  K  Exit │ 380 m, 4 %
-                 │ STRIP 0 500 m │  gliders land here        └────┬─────┘
-                 │ (terminus)    │                                │
-                 └───────┬───────┘                                │
-                     (bend 250 m)                                 │
-                         │                                        │
-                     FORK 1                                       │
-            ┌────────────┴───────────┐                            │
-     ┌──────┴──────┐          ┌──────┴──────┐                      │
-     │ B  Gallery  │          │ C  Dead end │                      │
-     │ 520 m, 5 %  │          │ 300 m + PAD │                      │
-     └──────┬──────┘          │ STRIP 1 760 m│                     │
-        FORK 2                └─────────────┘  (land, turn, go)    │
-     ┌──────┴───────┐                                              │
-┌────┴────┐   ┌─────┴─────┐                                        │
-│ D  Slit │   │ E  Rockfall│                                       │
-│ KNIFE   │   │ 240 m, 6 % │                                       │
-│ EDGE    │   └─────┬──────┘                                       │
-└────┬────┘         │                                              │
-     └──────┬───────┘  (both rejoin)                               │
-       ┌────┴─────┐                                                │
-       │ F  Hall  │  STRIP 2, 520 m — the one you can reach wrong  │
-       │ 600 m, 5 %│                                               │
-       └────┬─────┘                                                │
-        FORK 3                                                      │
-     ┌──────┴───────┐                                               │
-┌────┴─────┐  ┌─────┴──────┐                                        │
-│ G  Sheet │  │ H Dead end │                                        │
-│ of water │  │ STRIP 3 760│                                        │
-│ 180 m    │  └────────────┘                                        │
-└────┬─────┘                                                        │
-     └──────────────────────────────────────────────────────────────┘
+   BEHIND THE CURTAIN                        C: dead end, STRIP 1
+   IN 430 m ─┐  (110 m to the side)          ┌──────────────┐
+             │                               │  762 m + pad │
+        A.entry 120 m                        └──────▲───────┘
+             │                                      │ left at FORK 1
+        bend 250 m ──► north                        │
+             │                                ┌─────┴──────┐
+        S0 GLIDER STRIP 500 m ─────────────────►  FORK 1    │
+             │                                └─────┬──────┘
+        B1 north 700 m ──────────────────────────────┘
+             │
+        bend ──► west,  B2 west 500 m
+             │
+        ┌────┴──── FORK 2 ───────────┐
+   D: 20° out, 120, SLIT 40,        E: 20° out, 120, ROCKFALL 40,
+      120, 40° back, 280, 20° in       120, 40° back, 280, 20° in
+        └────┬───────────────────────┘   (symmetric doglegs, so both
+             │                            end at the same point)
+        bend ──► south
+             │
+        F HALL: STRIP 2, 762 m ─────────── the big chamber
+             │
+        ┌────┴──── FORK 3 ───────────┐
+   G: 70, WATER SHEET 40, 70        H: 45° away, 160 m,
+        │                               STRIP 3 762 m + pad (dead end)
+   K south 365 m
+        │
+   bend ──► east,  K join 1,143 m
+        │
+   OUT 305 m ─► through the curtain, over the bore's own 2,500 ft
 ```
 
-Legs, in order, with what each is for:
+Four strips, three forks, three hazard sites, 92 segments, a footprint of about 2.1 × 3.1 km under the Bench
+plateau, and **204 m** of rock over the thinnest crown.
 
-| Leg | Length | Floor | What it is |
-|---|---|---|---|
-| **A** Entry | 300 m | 430 → 415 m | Straight in from the high mouth. |
-| **STRIP 0** | 500 m | 415 m, level | **The glider strip.** Glider markings, lit, impossible to mistake for the way on, and a terminus: a glider lands and the flight is over. A powered aeroplane can use it too, and take off again. |
-| Bend | 250 m radius | 415 → 410 m | Forced, not chosen: the river above runs at 537 m, so the bore has to swing out from under the upper gorge before the rock over its crown thins. |
-| **FORK 1** | — | — | Left into the Gallery, right into a dead end. Nothing tells you which; the fork is lit the same both ways. |
-| **B** Gallery | 520 m | 410 → 384 m | The long sweeping leg, 250 m bends, wide enough to be flown fast. |
-| **C** Dead end | 300 m + pad | 410 m, level | **STRIP 1**, 760 m with a turnaround pad. Land, stop, turn round, take off again, and you are back at FORK 1 with the other way to go. |
-| **FORK 2** | — | — | The slit or the rockfall. Both pass; neither is free. |
-| **D** The slit | 40 m | 384 m | **12.2 m wide, 20 m tall.** A T-6 goes through on a wing. A 172 needs about 30° of bank to fit its 11 m span in 12.2 m, and 40 m of slit at 100 kt is 0.8 s — long enough to be frightening, short enough to be ballistic. |
-| **E** Rockfall | 240 m | 384 → 370 m | A shaft in the roof drops rock on a **fixed 9 s cycle**, with dust and sound a second before each fall. Timeable, not random. |
-| **F** Hall | 600 m | 370 → 340 m | The big chamber. **STRIP 2**, 520 m — enough for everything but a T-6 in a hurry, which is the joke: the wrong fork can leave you landing on a strip that is a little too short for what you are flying. |
-| **FORK 3** | — | — | The water sheet, or the second dead end. |
-| **G** Water sheet | 180 m | 340 → 330 m | A curtain across the bore from a crack in the roof. Harmless to fly through and blinding for about a second — and it sits 120 m before a 250 m bend, so you have to remember the turn rather than see it. |
-| **H** Dead end | 760 m | 340 m, level | **STRIP 3**. The honest dead end: a full-length strip, a pad, and the only way out is to fly out. |
-| **K** Exit | 380 m | 330 → 310 m | Joins the bore that is already built, and out through the bottom mouth under the falls. |
+| Leg | What it is |
+|---|---|
+| **A.entry** → bend | In from the high mouth and straight into a 250 m bend, which also takes the bore clear of the upper gorge. |
+| **S0.glider** | The glider strip, 500 m, green markings and green edge lights so it cannot be mistaken for the way on. Before any fork, per the owner. |
+| **FORK 1** | Straight on, or left into **C**: 762 m of strip and a pad. Land, turn, take off, and you are back at the fork with the other way to go. |
+| **B1 / B2** | The long legs — 700 m north, a left bend, 500 m west. |
+| **FORK 2** | **D** the slit, or **E** the falling rock. |
+| **D.slit** | **12.2 m wide, 20 m tall, 40 m long.** A T-6 goes through on a wing. A 172 spans 11 m, so it fits with 60 cm a side and has to bank to be comfortable — the challenge the owner asked for, kept at 40 ft on his word. |
+| **E.rockfall** | The same 40 m at full width: the hazard is the rock, not the gap. |
+| **F.hall** | The big chamber, **STRIP 2 at 762 m**, lengthened on the owner's rule. |
+| **FORK 3** | **G** the sheet of water on the way home, or **H**, 45° away from the exit into the last dead end and **STRIP 3**. It turns away deliberately — a blind leg crossing the exit would put two floors in the same place. |
+| **K** | South, a left bend onto the bore's own line, and 1,143 m east to the end of the bore. |
+
+## What is not built yet
+
+The geometry can be flown today. These have no behaviour:
+
+1. **The rockfall** — the shaft, the 9 s cycle, the dust and the sound, and rocks that can hit you.
+2. **The water sheet** — a curtain across the bore that blinds for a second and does no damage.
+3. **The tow** (below) — the reset, the hook-up, the rope-steered forks, and the tow plane refusing the slit.
+4. **The find and the gates** — the maze is listed in `configs/progression.json` under `hiddenPlaces`, but no
+   code earns a point anywhere yet.
+5. **How any of it looks.** The arches read as dim rock on the vertex shader's ambient floor, which is about
+   right for a bore with a 70 m mouth, but nobody has seen it on a device — `AERO_SELFTEST=tunnel` takes
+   fourteen screenshots for exactly that.
 
 ## The tow through the maze — the glider's way round after all
 
@@ -118,6 +134,7 @@ How it is built:
 
 | Piece | How |
 |---|---|
+| The slit | **The tow plane refuses that branch**, whatever the rope says (owner 2026-10-16). No tow pair can fly a knife edge, and a tow pilot who was asked to would say no. |
 | The reset | A full stop on STRIP 0, **on the runway surface and undamaged**, and the glider takes itself back to the threshold: it rolls backwards to the start, lined up, with the tow plane ahead and the rope on. Rolled off the surface, or bent, and none of that happens — that is the ordinary crash-and-reset, and a pilot who lands in the rocks should not be rescued by the scenery. |
 | The hook-up | The existing aerotow does the rope — the same slack and the same break load that already work outdoors. |
 | The start | The glider has no engine, so its **throttle becomes the go signal**: full throttle and the tow plane starts its roll, anything less and nothing happens. The hint on screen says so — "Throttle full to start the tow" — because nobody would guess it. |
@@ -148,17 +165,13 @@ when a pilot first gets in. Beyond that it is **gates** — each fork and each s
 120, doubled inverted — so flying the loop fast and clean pays about what a race lap pays, which is right: it
 is a race course that happens to be inside a mountain.
 
-## Two questions before this gets built
+## Settled with the owner
 
-Answered already: the maze is for powered aeroplanes, with a glider strip early (STRIP 0) — and a glider that
-stops there gets towed round the course, steering the forks through the rope.
-
-1. **The slit at 40 ft.** 12.2 m is narrower than a 172's wingspan, so the 172 must bank to fit. That is a
-   good challenge but it is a real wall: a straight-and-level 172 clips it. Keep 40 ft, or open it to 46 ft
-   (14 m) so a level 172 just passes?
-2. **Strip 2 at 520 m.** Deliberately too short for a T-6, so the wrong fork can put a fast aeroplane on a
-   strip it cannot use. Is that the kind of trap worth having, or should every strip take everything?
-3. **The slit under tow** — the tow plane refuses it, or a wider parallel passage opens for a tow?
+- The maze is for powered aeroplanes, with the glider strip before the first fork.
+- **The slit stays 40 ft** and you must bank to get through it.
+- **Every strip is 2,500 ft** — no strip is a trap for a T-6.
+- **Under tow the tow plane refuses the slit branch**, whatever the rope says. It reads as the tow pilot
+  refusing, which is what a tow pilot would do.
 
 Nothing is built past the straight bore. Exact routing gets pinned against the height field the same way the
 bore was — the rock above every crown, the clearance from the upper gorge, and the bends all measured before

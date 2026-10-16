@@ -113,34 +113,46 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
-        private static (int i0, int i1, int j0, int j1, double step) FinePatchCells(WorldTerrain.Waterfall f)
+        private static Patch FinePatchCells(WorldTerrain.Waterfall f)
         {
             double hx = WorldTerrain.FallNotchHalfSpanM + 240;
             return Cells(f.X - hx, f.X + hx, f.LipY - 240, f.LipY + 460, FineStep);
         }
 
-        /// <summary>The bore of the runway tunnel behind the first fall. A 60 m grid would drop a vertex into a
-        /// 70 m slot and tear a gash across the mountain, so the bore gets its own fine patch — and it stops
-        /// exactly where the fall's own patch begins (snapped to the coarse grid) so the two never overlap.</summary>
-        private static (int i0, int i1, int j0, int j1, double step) TunnelPatchCells(WorldTerrain t)
+        /// <summary>A rectangle of coarse cells replaced by a finer mesh. <c>unbored</c> patches sample the
+        /// terrain as if the tunnel maze had never been cut, so the mountain reads as a mountain from outside;
+        /// the maze's own builder draws the floors and arches underneath it.</summary>
+        private readonly struct Patch
         {
-            WorldTerrain.Waterfall f = WaterfallTunnel.Fall(t);
-            double x = WaterfallTunnel.CentreX(f), hx = WaterfallTunnel.HalfWidthM + 30;
-            double fallPatchY0 = f.LipY - 240;
-            double snapped = MinY + System.Math.Floor((fallPatchY0 - MinY) / CoarseStep) * CoarseStep;
-            return Cells(x - hx, x + hx, WaterfallTunnel.EndY(f) - 60, snapped, FineStep);
+            public readonly int I0, I1, J0, J1; public readonly double Step; public readonly bool Unbored;
+            public Patch(int i0, int i1, int j0, int j1, double step, bool unbored)
+            { I0 = i0; I1 = i1; J0 = j0; J1 = j1; Step = step; Unbored = unbored; }
         }
 
-        private static (int i0, int i1, int j0, int j1, double step) Cells(double x0, double x1, double y0, double y1, double step)
+        /// <summary>The tunnel maze's footprint. A 60 m grid would drop a vertex into a 70 m bore and tear a
+        /// gash across the mountain, so the whole footprint is re-meshed at 20 m — and sampled unbored, since
+        /// what belongs on the surface is the hillside, not the floor 200 m below it. Its edges land on the
+        /// coarse grid lines (60 / 20 = 3), so there is no seam.</summary>
+        private static Patch TunnelPatchCells(WorldTerrain t)
+        {
+            WorldTerrain.Waterfall f = WaterfallTunnel.Fall(t);
+            var (minX, maxX, minY, maxY) = WaterfallTunnel.Bounds(f);
+            // Stop short of the fall's own fine patch, which already draws the amphitheater and both mouths.
+            double fallPatchY0 = f.LipY - 240;
+            double snapped = MinY + System.Math.Floor((fallPatchY0 - MinY) / CoarseStep) * CoarseStep;
+            return Cells(minX - 40, maxX + 40, minY - 40, System.Math.Min(maxY + 40, snapped), 20, unbored: true);
+        }
+
+        private static Patch Cells(double x0, double x1, double y0, double y1, double step, bool unbored = false)
         {
             int i0 = (int)System.Math.Floor((x0 - MinX) / CoarseStep), i1 = (int)System.Math.Ceiling((x1 - MinX) / CoarseStep);
             int j0 = (int)System.Math.Floor((y0 - MinY) / CoarseStep), j1 = (int)System.Math.Ceiling((y1 - MinY) / CoarseStep);
-            return (i0, i1, j0, j1, step);
+            return new Patch(i0, i1, j0, j1, step, unbored);
         }
 
         /// <summary>Seaside detail (step must divide the 60 m coarse grid): Avalon + the sea cave, the sea arch, Airport
         /// in the Sky, the Golden Gate's strait.</summary>
-        private static IEnumerable<(int i0, int i1, int j0, int j1, double step)> SeasidePatches()
+        private static IEnumerable<Patch> SeasidePatches()
         {
             double R = Island.AvalonCoveR;
             yield return Cells(System.Math.Min(Island.AvalonX - R - 450, SeaCave.Cx - SeaCave.RadiusM - 90), Island.AvalonX + R + 450,
@@ -174,7 +186,7 @@ namespace FlyingGame.Bridge
                 cols[j * nx + i] = TerrainColor(t, x, y, h);
             }
             // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
-            var patches = new List<(int i0, int i1, int j0, int j1, double step)>();
+            var patches = new List<Patch>();
             foreach (WorldTerrain.Waterfall f in t.Waterfalls) patches.Add(FinePatchCells(f));
             patches.Add(TunnelPatchCells(t));
             patches.AddRange(SeasidePatches());
@@ -183,7 +195,7 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < nx - 1; i++)
             {
                 bool skip = false;
-                foreach (var p in patches) if (i >= p.i0 && i < p.i1 && j >= p.j0 && j < p.j1) { skip = true; break; }
+                foreach (Patch p in patches) if (i >= p.I0 && i < p.I1 && j >= p.J0 && j < p.J1) { skip = true; break; }
                 if (skip) continue;
                 int a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
                 // Unity is left-handed: (east, up, north). Winding for an upward normal.
@@ -200,17 +212,17 @@ namespace FlyingGame.Bridge
 
             // Fine patches: same height field at 6 m so the lip, the sheer concave back wall and the notch read.
             // Their edges land exactly on the coarse grid lines (60 / 6 = 10), so there is no seam.
-            foreach (var p in patches)
+            foreach (Patch p in patches)
             {
-                double x0 = MinX + p.i0 * step, x1 = MinX + p.i1 * step, y0 = MinY + p.j0 * step, y1 = MinY + p.j1 * step;
-                double fs = p.step;
+                double x0 = MinX + p.I0 * step, x1 = MinX + p.I1 * step, y0 = MinY + p.J0 * step, y1 = MinY + p.J1 * step;
+                double fs = p.Step;
                 int fx = (int)System.Math.Round((x1 - x0) / fs) + 1, fy = (int)System.Math.Round((y1 - y0) / fs) + 1;
                 var fv = new Vector3[fx * fy]; var fc = new Color[fx * fy];
                 for (int j = 0; j < fy; j++)
                 for (int i = 0; i < fx; i++)
                 {
                     double x = x0 + i * fs, y = y0 + j * fs;
-                    double h = t.HeightAt(x, y);
+                    double h = t.HeightAt(x, y, false, withTunnel: !p.Unbored);
                     fv[j * fx + i] = U(x, y, h);
                     fc[j * fx + i] = TerrainColor(t, x, y, h);
                 }
@@ -506,80 +518,118 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>
-        /// The runway tunnel behind the first fall (owner 2026-10-16). The terrain mesh already draws its floor
-        /// — the height field gives the bore's floor inside the footprint — so what is missing is the rock: the
-        /// mountain's own surface over the slot, so the hill still looks like a hill from the air, and the
-        /// underside of the arch, so the bore looks like a bore from inside. Same arrangement as the sea cave.
+        /// The hidden airport behind the first fall (owner 2026-10-16). The terrain over the maze is drawn
+        /// UNBORED — the mountain as if nothing had been cut through it — so everything inside has to be
+        /// drawn here: the floor of every leg, the underside of every arch, and the walls where an arch meets
+        /// its floor. Same arrangement as the sea cave, one leg at a time.
         ///
         /// Nothing here is lit by a lamp: FlyingGame/LitVC carries a 0.58 ambient floor, so a downward-facing
-        /// arch reads as dim rock rather than black, which is what a tunnel with a 70 m mouth would actually
-        /// look like a few hundred metres in.
+        /// arch reads as dim rock rather than black, which is about what a bore with a 70 m mouth looks like
+        /// a few hundred metres in.
         /// </summary>
         private static void BuildWaterfallTunnel(WorldTerrain t, Transform parent)
         {
             WorldTerrain.Waterfall f = WaterfallTunnel.Fall(t);
-            double cx = WaterfallTunnel.CentreX(f), mouthY = WaterfallTunnel.MouthY(f), endY = WaterfallTunnel.EndY(f);
-            double floor = WaterfallTunnel.FloorM(f), hw = WaterfallTunnel.HalfWidthM;
             var root = new GameObject("WaterfallTunnel");
             root.transform.SetParent(parent, false);
 
-            var b = new SeasideBuilder.Batch();
-            Color rock = new(0.34f, 0.31f, 0.28f);
-            Color wall = new(0.3f, 0.27f, 0.25f);
+            var rockB = new SeasideBuilder.Batch();
+            var padB = new SeasideBuilder.Batch();
+            Color rock = new(0.34f, 0.31f, 0.28f), wall = new(0.3f, 0.27f, 0.25f), gravel = new(0.42f, 0.40f, 0.37f);
+            Color asphalt = new(0.19f, 0.19f, 0.21f), paint = new(0.92f, 0.92f, 0.88f);
+            Color lamp = new(0.95f, 0.85f, 0.45f), thresh = new(0.55f, 0.85f, 0.95f), gliderMark = new(0.55f, 0.95f, 0.6f);
 
-            // -- the arch's underside, and the mountain over the slot.
-            const double dy = 6.0, dxs = 5.0;
-            int nx = (int)(2 * hw / dxs) + 1;
-            for (double y = endY; y < mouthY - 0.5; y += dy)
+            foreach (WaterfallTunnel.Leg l in WaterfallTunnel.Legs(f))
             {
-                double y2 = System.Math.Min(y + dy, mouthY);
-                for (int i = 0; i < nx - 1; i++)
+                double len = l.Length;
+                if (len < 0.5) continue;
+                double dx = (l.X1 - l.X0) / len, dy = (l.Y1 - l.Y0) / len;   // along
+                double rx = -dy, ry = dx;                                     // across, to the right
+                int ns = System.Math.Max(1, (int)System.Math.Round(len / 8.0));
+                int nu = l.HalfWidth < 10 ? 4 : 10;                           // the slit needs fewer, it is narrow
+                bool strip = l.Kind == WaterfallTunnel.Kind.Strip || l.Kind == WaterfallTunnel.Kind.GliderStrip
+                             || l.Kind == WaterfallTunnel.Kind.DeadEndPad || l.Id == "exit.bore";
+
+                Vector3 P(double s, double u, double up) =>
+                    U(l.X0 + dx * len * s + rx * u, l.Y0 + dy * len * s + ry * u, up);
+
+                for (int i = 0; i < ns; i++)
                 {
-                    double x0 = cx - hw + i * dxs, x1 = System.Math.Min(x0 + dxs, cx + hw);
-                    double c0 = WaterfallTunnel.CeilingAt(f, x0), c1 = WaterfallTunnel.CeilingAt(f, x1);
-                    Color rk = rock * (0.82f + 0.36f * Mathf.PerlinNoise((float)(x0 * 0.05), (float)(y * 0.035)));
-                    // Arch underside (wound to face down into the bore).
-                    b.Quad(U(x0, y, c0), U(x0, y2, c0), U(x1, y2, c1), U(x1, y, c1), rk);
-                    // The mountain's own surface above it: without this the slot is a canyon in the plateau.
-                    double o00 = t.HeightAt(x0, y, false, withTunnel: false), o01 = t.HeightAt(x0, y2, false, withTunnel: false);
-                    double o11 = t.HeightAt(x1, y2, false, withTunnel: false), o10 = t.HeightAt(x1, y, false, withTunnel: false);
-                    b.Quad(U(x0, y, o00), U(x1, y, o10), U(x1, y2, o11), U(x0, y2, o01), TerrainColor(t, x0, y, o00));
-                    // Close the sides where the arch meets the rock, so no sliver of sky shows through.
-                    if (i == 0) b.Quad(U(x0, y, c0), U(x0, y, o00), U(x0, y2, o01), U(x0, y2, c0), wall);
-                    if (i == nx - 2) b.Quad(U(x1, y, c1), U(x1, y2, c1), U(x1, y2, o11), U(x1, y, o10), wall);
-                }
-            }
-            // The end wall, where the bore stops.
-            for (int i = 0; i < nx - 1; i++)
-            {
-                double x0 = cx - hw + i * dxs, x1 = System.Math.Min(x0 + dxs, cx + hw);
-                double c0 = WaterfallTunnel.CeilingAt(f, x0), c1 = WaterfallTunnel.CeilingAt(f, x1);
-                b.Quad(U(x0, endY, floor), U(x1, endY, floor), U(x1, endY, c1), U(x0, endY, c0), wall * 1.1f);
-            }
-            b.Build("TunnelRock", root.transform, SeasideBuilder.VC);
+                    double s0 = (double)i / ns, s1 = (double)(i + 1) / ns;
+                    double z0 = l.FloorAt(s0), z1 = l.FloorAt(s1);
+                    for (int j = 0; j < nu; j++)
+                    {
+                        double u0 = -l.HalfWidth + 2 * l.HalfWidth * j / nu;
+                        double u1 = -l.HalfWidth + 2 * l.HalfWidth * (j + 1) / nu;
+                        double c00 = z0 + l.ClearHeight(System.Math.Abs(u0)), c01 = z1 + l.ClearHeight(System.Math.Abs(u0));
+                        double c10 = z0 + l.ClearHeight(System.Math.Abs(u1)), c11 = z1 + l.ClearHeight(System.Math.Abs(u1));
 
-            // -- the pavement, and the lights that make it a runway rather than a floor.
-            var p = new SeasideBuilder.Batch();
-            double rhw = WaterfallTunnel.RunwayHalfWidthM;
-            double r0 = mouthY - WaterfallTunnel.RunwayStartInM, r1 = r0 - WaterfallTunnel.RunwayLengthM;
-            Color asphalt = new(0.19f, 0.19f, 0.21f), paint = new(0.92f, 0.92f, 0.88f), lamp = new(0.95f, 0.85f, 0.45f), thresh = new(0.55f, 0.85f, 0.95f);
-            p.Quad(U(cx - rhw, r1, floor + 0.04), U(cx + rhw, r1, floor + 0.04), U(cx + rhw, r0, floor + 0.04), U(cx - rhw, r0, floor + 0.04), asphalt);
-            // Centreline: 30 m stripes, 20 m gaps.
-            for (double y = r0 - 10; y > r1 + 10; y -= 50)
-                p.Quad(U(cx - 0.6, y - 30, floor + 0.06), U(cx + 0.6, y - 30, floor + 0.06), U(cx + 0.6, y, floor + 0.06), U(cx - 0.6, y, floor + 0.06), paint);
-            // Threshold bar at the mouth end, and edge lights every 60 m down both sides.
-            p.Quad(U(cx - rhw, r0 - 1.8, floor + 0.06), U(cx + rhw, r0 - 1.8, floor + 0.06), U(cx + rhw, r0, floor + 0.06), U(cx - rhw, r0, floor + 0.06), paint);
-            for (double y = r0; y > r1 - 0.5; y -= 60)
-            {
-                bool end = y < r1 + 61;
-                Color c = end ? thresh : lamp;
-                p.Box(U(cx - rhw - 1.2, y, floor + 0.5), new Vector3(0.7f, 1.0f, 0.7f), c);
-                p.Box(U(cx + rhw + 1.2, y, floor + 0.5), new Vector3(0.7f, 1.0f, 0.7f), c);
+                        // The floor, and the arch over it (wound to face down into the bore).
+                        Color fl = strip ? gravel : rock * 0.9f;
+                        rockB.Quad(P(s0, u0, z0), P(s1, u0, z1), P(s1, u1, z1), P(s0, u1, z0), fl);
+                        Color rk = rock * (0.82f + 0.36f * Mathf.PerlinNoise((float)(l.X0 * 0.05 + i * 0.3), (float)(l.Y0 * 0.035 + j * 0.27)));
+                        rockB.Quad(P(s0, u0, c00), P(s0, u1, c10), P(s1, u1, c11), P(s1, u0, c01), rk);
+                    }
+                    // Where the arch springs from the floor, close the gap so no sliver of rock shows through.
+                    double zz0 = l.FloorAt(s0), zz1 = l.FloorAt(s1);
+                    rockB.Quad(P(s0, -l.HalfWidth, zz0), P(s1, -l.HalfWidth, zz1), P(s1, -l.HalfWidth, zz1 + 0.6), P(s0, -l.HalfWidth, zz0 + 0.6), wall);
+                    rockB.Quad(P(s0, l.HalfWidth, zz0), P(s0, l.HalfWidth, zz0 + 0.6), P(s1, l.HalfWidth, zz1 + 0.6), P(s1, l.HalfWidth, zz1), wall);
+                }
+
+                // The end of a blind leg, and of the bore: a wall across it.
+                if (l.Kind == WaterfallTunnel.Kind.DeadEndPad || l.Id == "exit.bore")
+                {
+                    double z = l.Z1;
+                    for (int j = 0; j < nu; j++)
+                    {
+                        double u0 = -l.HalfWidth + 2 * l.HalfWidth * j / nu, u1 = -l.HalfWidth + 2 * l.HalfWidth * (j + 1) / nu;
+                        rockB.Quad(P(1, u0, z), P(1, u1, z), P(1, u1, z + l.ClearHeight(System.Math.Abs(u1))), P(1, u0, z + l.ClearHeight(System.Math.Abs(u0))), wall * 1.1f);
+                    }
+                }
+
+                if (!strip) continue;
+
+                // ---- the pavement, and the lights that make a floor into a runway.
+                double hw = WaterfallTunnel.StripHalfWidthM;
+                double a0 = 0, a1 = 1;
+                if (l.Id == "exit.bore")
+                {
+                    a0 = WaterfallTunnel.RunwayStartInM / len;
+                    a1 = System.Math.Min(1, (WaterfallTunnel.RunwayStartInM + WaterfallTunnel.StripM) / len);
+                }
+                int ps = System.Math.Max(1, (int)System.Math.Round(len * (a1 - a0) / 20.0));
+                for (int i = 0; i < ps; i++)
+                {
+                    double s0 = a0 + (a1 - a0) * i / ps, s1 = a0 + (a1 - a0) * (i + 1) / ps;
+                    padB.Quad(P(s0, -hw, l.FloorAt(s0) + 0.04), P(s1, -hw, l.FloorAt(s1) + 0.04),
+                              P(s1, hw, l.FloorAt(s1) + 0.04), P(s0, hw, l.FloorAt(s0) + 0.04), asphalt);
+                }
+                if (l.Kind == WaterfallTunnel.Kind.DeadEndPad) continue;      // a pad is pavement, not a runway
+
+                // Centreline, and a threshold bar at each end.
+                double stripe = 30.0 / len, gap = 20.0 / len;
+                for (double s = a0 + gap; s < a1 - stripe; s += stripe + gap)
+                    padB.Quad(P(s, -0.6, l.FloorAt(s) + 0.06), P(s + stripe, -0.6, l.FloorAt(s + stripe) + 0.06),
+                              P(s + stripe, 0.6, l.FloorAt(s + stripe) + 0.06), P(s, 0.6, l.FloorAt(s) + 0.06), paint);
+                Color mark = l.Kind == WaterfallTunnel.Kind.GliderStrip ? gliderMark : paint;
+                foreach (double s in new[] { a0, a1 - 1.8 / len })
+                    padB.Quad(P(s, -hw, l.FloorAt(s) + 0.06), P(s + 1.8 / len, -hw, l.FloorAt(s) + 0.06),
+                              P(s + 1.8 / len, hw, l.FloorAt(s) + 0.06), P(s, hw, l.FloorAt(s) + 0.06), mark);
+                // Edge lights every 60 m, and the glider strip's own colour so it cannot be mistaken.
+                Color edge = l.Kind == WaterfallTunnel.Kind.GliderStrip ? gliderMark : lamp;
+                for (double s = a0; s <= a1; s += 60.0 / len)
+                {
+                    double z = l.FloorAt(s) + 0.5;
+                    padB.Box(P(s, -hw - 1.2, z), new Vector3(0.7f, 1.0f, 0.7f), edge);
+                    padB.Box(P(s, hw + 1.2, z), new Vector3(0.7f, 1.0f, 0.7f), edge);
+                }
+                // Wing bars at the threshold: the one cue visible from outside, through the curtain.
+                if (l.Id == "exit.bore")
+                    for (int k = -1; k <= 1; k += 2)
+                        padB.Box(P(0.02, k * (l.HalfWidth - 3), l.Z0 + 1.0), new Vector3(1.2f, 2.0f, 1.2f), thresh);
             }
-            // Wing-bar lights at the mouth itself: the one cue visible from outside, through the curtain.
-            for (int k = -1; k <= 1; k += 2)
-                p.Box(U(cx + k * (hw - 3), mouthY - 2, floor + 1.0), new Vector3(1.2f, 2.0f, 1.2f), thresh);
-            p.Build("TunnelRunway", root.transform, SeasideBuilder.VC);
+            rockB.Build("TunnelRock", root.transform, SeasideBuilder.VC);
+            padB.Build("TunnelRunways", root.transform, SeasideBuilder.VC);
         }
 
         private static GameObject SpawnUv(string name, Vector3[] v, Vector2[] uv, int[] tris, Material m, Transform parent)

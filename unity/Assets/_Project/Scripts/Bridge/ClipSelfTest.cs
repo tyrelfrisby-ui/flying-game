@@ -642,14 +642,39 @@ namespace FlyingGame.Bridge
             var t = FlyingGame.Core.WorldTerrain.Active;
             var f = FlyingGame.Core.WaterfallTunnel.Fall(t);
             double cx = FlyingGame.Core.WaterfallTunnel.CentreX(f);
+            double ex = cx + FlyingGame.Core.WaterfallTunnel.EntryOffsetXM;
             double mouth = FlyingGame.Core.WaterfallTunnel.MouthY(f);
             double floor = FlyingGame.Core.WaterfallTunnel.FloorM(f);
-            // Heading 270 is up-river: the way in.
-            yield return Shot("tunnel-run-in", cx, f.LipY + 420, floor + 18, 270, 48);
+            double high = FlyingGame.Core.WaterfallTunnel.EntryFloorM;
+            // Heading 270 is up-river: the way in. The way out is the low mouth, through the curtain.
+            yield return Shot("tunnel-run-in", ex, f.LipY + 420, high + 8, 270, 48);
+            yield return Shot("tunnel-high-mouth", ex, mouth + 40, high + 6, 270, 44);
+            yield return Shot("tunnel-entry", ex, mouth - 60, high + 6, 270, 40);
             yield return Shot("tunnel-curtain", cx, f.LipY + 25, floor + 14, 270, 42);
             yield return Shot("tunnel-threshold", cx, mouth - 30, floor + 9, 270, 36);
             yield return Shot("tunnel-rollout", cx, mouth - 420, floor + 3, 270, 20);
             yield return Shot("tunnel-looking-out", cx, mouth - 740, floor + 6, 90, 0);
+            // And the maze itself: the glider strip, the first fork, the slit and the big hall.
+            foreach (FlyingGame.Core.WaterfallTunnel.Leg l in FlyingGame.Core.WaterfallTunnel.Legs(f))
+            {
+                string name = l.Id switch
+                {
+                    "S0.glider" => "tunnel-glider-strip",
+                    "B1.north" => "tunnel-fork1",
+                    "D.slit" => "tunnel-slit",
+                    "E.rockfall" => "tunnel-rockfall",
+                    "F.hall" => "tunnel-hall",
+                    "G.sheet" => "tunnel-water-sheet",
+                    "H.strip3" => "tunnel-dead-end",
+                    _ => null,
+                };
+                if (name == null) continue;
+                double dx = l.X1 - l.X0, dy = l.Y1 - l.Y0, len = System.Math.Sqrt(dx * dx + dy * dy);
+                double hdg = System.Math.Atan2(dy, dx) * 180 / System.Math.PI;   // sim x north, y east
+                // A little back from the start of the leg, looking down it.
+                double bx = l.X0 - dx / len * 90, by = l.Y0 - dy / len * 90;
+                yield return Shot(name, bx, by, l.Z0 + 8, hdg, 40);
+            }
             Debug.Log("[SelfTest] DONE tunnel");
         }
 

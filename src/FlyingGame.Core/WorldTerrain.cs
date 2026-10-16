@@ -725,7 +725,7 @@ public sealed class WorldTerrain
         if (withTunnel && !shelfTop)
         {
             Waterfall tf = Waterfalls[WaterfallTunnel.FallStep];
-            if (WaterfallTunnel.InFootprint(tf, x, y)) h = WaterfallTunnel.FloorM(tf);
+            if (WaterfallTunnel.InFootprint(tf, x, y)) h = WaterfallTunnel.FloorAt(tf, x, y);
         }
         return h;
     }
@@ -754,7 +754,7 @@ public sealed class WorldTerrain
             }
             // Inside the tunnel: rock between the point and the river above it.
             Waterfall tf = Waterfalls[WaterfallTunnel.FallStep];
-            if (WaterfallTunnel.InFootprint(tf, x, y) && up < WaterfallTunnel.CeilingAt(tf, x) + 1.0) return null;
+            if (WaterfallTunnel.InFootprint(tf, x, y) && up < WaterfallTunnel.CeilingAt(tf, x, y) + 1.0) return null;
         }
         return WaterSurfaceCore(x, y);
     }

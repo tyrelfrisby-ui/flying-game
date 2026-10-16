@@ -92,9 +92,15 @@ public class WaterfallTests
         WorldSolids.Boxes.Clear();
         WorldSolids.Shapes.Clear();
         t.RegisterWaterfallSolids();
-        // One shelf per fall, plus the end wall of the runway tunnel behind the first one.
-        Assert.Equal(WorldTerrain.StepCount + 1, WorldSolids.Boxes.Count);
-        Assert.Single(WorldSolids.Shapes);                                               // the tunnel's arch
+        // One shelf per fall, plus a wall across the end of every blind leg of the tunnel maze — its two dead
+        // ends and the bore. Counted from the layout rather than written down, so adding a dead end to the
+        // maze does not fail a test that has nothing to do with it.
+        WorldTerrain.Waterfall tf = WaterfallTunnel.Fall(t);
+        int blind = 1;                                                                   // the bore itself
+        foreach (WaterfallTunnel.Leg l in WaterfallTunnel.Legs(tf))
+            if (l.Kind == WaterfallTunnel.Kind.DeadEndPad) blind++;
+        Assert.Equal(WorldTerrain.StepCount + blind, WorldSolids.Boxes.Count);
+        Assert.Single(WorldSolids.Shapes);                                               // the maze's arches
         WorldTerrain.Waterfall f = t.Waterfalls[0];
         double bottom = t.FallShelfBottomM(f);
         Assert.NotNull(WorldSolids.Penetration(f.X, f.LipY - 20, bottom + 3));           // inside the rock shelf
