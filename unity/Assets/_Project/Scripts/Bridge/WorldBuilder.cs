@@ -189,6 +189,8 @@ namespace FlyingGame.Bridge
             var patches = new List<Patch>();
             foreach (WorldTerrain.Waterfall f in t.Waterfalls) patches.Add(FinePatchCells(f));
             patches.Add(TunnelPatchCells(t));
+            // The alpine range: ridges, cirques and lakes a few hundred metres across need better than 60 m.
+            patches.Add(Cells(AlpineRange.X0 - 200, AlpineRange.X1 + 200, AlpineRange.Y0 - 200, AlpineRange.Y1 + 200, 30));
             patches.AddRange(SeasidePatches());
             var tris = new List<int>((nx - 1) * (ny - 1) * 6);
             for (int j = 0; j < ny - 1; j++)
@@ -263,6 +265,23 @@ namespace FlyingGame.Bridge
                 }
                 for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
                 Spawn("Lake", v, tr, water, parent, true);
+            }
+            // The alpine lakes: the same fan, turned to each lake's own long axis.
+            var alpine = Mat("FlyingGame/Water", new Color(0.10f, 0.42f, 0.55f, 0.92f));   // colder, clearer
+            foreach (AlpineRange.Lake l in AlpineRange.Lakes)
+            {
+                const int seg = 48;
+                double hd = l.HeadingDeg * System.Math.PI / 180, ca = System.Math.Cos(hd), sa = System.Math.Sin(hd);
+                var v = new Vector3[seg + 1]; var tr = new int[seg * 3];
+                v[0] = U(l.X, l.Y, l.SurfaceM);
+                for (int i = 0; i < seg; i++)
+                {
+                    double a = i * System.Math.PI * 2 / seg;
+                    double along = l.LengthM * 0.5 * System.Math.Cos(a), across = l.WidthM * 0.5 * System.Math.Sin(a);
+                    v[i + 1] = U(l.X + along * ca - across * sa, l.Y + along * sa + across * ca, l.SurfaceM);
+                }
+                for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
+                Spawn($"AlpineLake-{l.Name}", v, tr, alpine, parent, true);
             }
             // River: ribbon along the meander; the surface steps down at each wall.
             var rv = new List<Vector3>(); var rt = new List<int>();

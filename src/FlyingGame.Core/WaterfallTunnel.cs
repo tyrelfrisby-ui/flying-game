@@ -40,6 +40,14 @@ public static class WaterfallTunnel
     public const double SlitCrownM = 20.0;        // and tall enough for a T-6 on its side
     public const double SlitLengthM = 40.0;
     public const double MinRoofM = 3.0;
+    /// <summary>How far each segment's footprint reaches past its own ends.
+    ///
+    /// A bend is chopped into chords, and two chords meeting at 10° leave a wedge of rock sticking into the
+    /// OUTSIDE of the bend — half-width × tan(5°), about 3 m of it — because neither rectangle covers the
+    /// corner. Those spurs are in the collision as well as the picture, and a tug tracking the centreline of
+    /// a 250 m bend clipped one at 29 m/s. Overlapping the segments by a little more than the wedge closes
+    /// them, and costs nothing anywhere else.</summary>
+    public const double JointPadM = 4.5;
 
     // ---- the strips -----------------------------------------------------------------------------
     /// <summary>Every strip a powered aeroplane may have to land on is this long: a T-6 stops in about
@@ -93,8 +101,9 @@ public static class WaterfallTunnel
             X0 = x0; Y0 = y0; Z0 = z0; X1 = x1; Y1 = y1; Z1 = z1;
             HalfWidth = halfWidth; Crown = crown;
             Length = System.Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
-            _bx0 = System.Math.Min(x0, x1) - halfWidth; _bx1 = System.Math.Max(x0, x1) + halfWidth;
-            _by0 = System.Math.Min(y0, y1) - halfWidth; _by1 = System.Math.Max(y0, y1) + halfWidth;
+            double pad = halfWidth + JointPadM;
+            _bx0 = System.Math.Min(x0, x1) - pad; _bx1 = System.Math.Max(x0, x1) + pad;
+            _by0 = System.Math.Min(y0, y1) - pad; _by1 = System.Math.Max(y0, y1) + pad;
         }
 
         /// <summary>Where (x, y) falls on this leg: <paramref name="s"/> is 0..1 along the centreline and
@@ -106,7 +115,8 @@ public static class WaterfallTunnel
             if (x < _bx0 || x > _bx1 || y < _by0 || y > _by1) { s = 0; lateral = double.MaxValue; return false; }
             double dx = X1 - X0, dy = Y1 - Y0, len2 = dx * dx + dy * dy;
             s = len2 > 0 ? ((x - X0) * dx + (y - Y0) * dy) / len2 : 0;
-            if (s < 0 || s > 1) { lateral = double.MaxValue; return false; }
+            double pad = Length > 1e-9 ? JointPadM / Length : 0;
+            if (s < -pad || s > 1 + pad) { lateral = double.MaxValue; return false; }
             double px = X0 + s * dx, py = Y0 + s * dy;
             lateral = System.Math.Sqrt((x - px) * (x - px) + (y - py) * (y - py));
             return lateral < HalfWidth;
@@ -194,10 +204,11 @@ public static class WaterfallTunnel
     {
         double mouthY = MouthY(f), cx = CentreX(f), low = FloorM(f);
 
-        // ---- the way out: the low bore, straight from its mouth into the mountain ----------------
-        var pen = new Pen(cx, mouthY, low, 270);                     // heading west (−y)
+        // ---- the way out: the low bore. Built in the direction it is FLOWN — from its inner end out
+        // through the mouth — because a route follows legs from start to end, and this one is flown outward.
+        var pen = new Pen(cx, mouthY - BoreLengthM, low, 90);        // heading east (+y), toward the mouth
         pen.Straight("exit.bore", BoreLengthM, 0);
-        var boreEnd = pen.Node();
+        var boreStart = (x: cx, y: mouthY - BoreLengthM, z: low, hdg: 90.0);
 
         // ---- the way in: the high mouth, 125 m above the low one and 110 m to the side -----------
         // Not directly above the low mouth: nothing in the maze may sit on top of anything else, or the
@@ -270,13 +281,13 @@ public static class WaterfallTunnel
         pen.Straight("G.run2", 70, 2);
         // Home: south until the bore's own line, then east onto the end of it. A left turn from south to
         // east ends 250 m further south, so stop that far short of the line and let the turn land on it.
-        double southTo = boreEnd.x + BendRadiusM;
+        double southTo = boreStart.x + BendRadiusM;
         var here = pen.Node();
         pen.Straight("K.south", System.Math.Max(80, here.x - southTo), 10);
         pen.Turn("K.bend", BendRadiusM, -90, 6);                     // left: heading east (+y)
         var beforeJoin = pen.Node();
         // The last leg lands on the end of the bore, at the bore's own floor: a junction, not a step.
-        double run = boreEnd.y - beforeJoin.y;
+        double run = boreStart.y - beforeJoin.y;
         pen.Straight("K.join", System.Math.Max(60, run), beforeJoin.z - low);
 
         return pen.Done();
@@ -333,8 +344,9 @@ public static class WaterfallTunnel
             if (lat > StripHalfWidthM) continue;
             if (l.Id == "exit.bore")
             {
-                double along = s * l.Length;
-                if (along < RunwayStartInM || along > RunwayStartInM + StripM) continue;
+                // Measured back from the mouth: the threshold sits RunwayStartInM inside it.
+                double toMouth = (1 - s) * l.Length;
+                if (toMouth < RunwayStartInM || toMouth > RunwayStartInM + StripM) continue;
             }
             return true;
         }
@@ -350,7 +362,9 @@ public static class WaterfallTunnel
         return InFootprint(f, x, y) && outer > ceiling + MinRoofM;
     }
 
-    /// <summary>Register the arch, and a wall across the end of every dead end.</summary>
+    /// <summary>Register the arch, and a wall across the end of every dead end. The bore gets none: its
+    /// inner end is where the maze joins it, so a pilot who flies in through the mouth meets the way home
+    /// coming the other way rather than a wall.</summary>
     public static void RegisterSolids(WorldTerrain t)
     {
         var f = Fall(t);
@@ -359,7 +373,7 @@ public static class WaterfallTunnel
         {
             // A box across the far end of each blind leg. Near its face the least-penetration axis is the
             // way back in, which is the push a pilot who ran out of tunnel needs.
-            if (l.Kind != Kind.DeadEndPad && l.Id != "exit.bore") continue;
+            if (l.Kind != Kind.DeadEndPad) continue;
             double dx = l.X1 - l.X0, dy = l.Y1 - l.Y0, len = System.Math.Sqrt(dx * dx + dy * dy);
             if (len < 1e-6) continue;
             dx /= len; dy /= len;
@@ -369,6 +383,153 @@ public static class WaterfallTunnel
             double hx = System.Math.Abs(dx) * thick + System.Math.Abs(dy) * l.HalfWidth;
             double hy = System.Math.Abs(dy) * thick + System.Math.Abs(dx) * l.HalfWidth;
             WorldSolids.Boxes.Add(new WorldSolids.Box(cxw, cyw, hx, hy, l.Z1 - 5, l.Z1 + l.Crown + 10));
+        }
+    }
+
+    /// <summary>
+    /// The way through the maze, as a graph — and the rule that picks a branch at a fork.
+    ///
+    /// The owner's tow (2026-10-16): a glider that lands on the strip inside the tunnel is launched by a tow
+    /// plane and steers the forks THROUGH THE ROPE. A rope pulling the tug's tail to the left yaws its nose to
+    /// the right, so a tow pilot being dragged that way would go right — which means the glider pilot picks a
+    /// branch by sliding to the OPPOSITE side of the tow. With the glider centred the tug takes the safe
+    /// branch, so a pilot who does nothing gets round; one who wants the rockfall has to ask for it.
+    ///
+    /// And one refusal: no tow pair can fly a knife edge, so the tug declines the slit whatever the rope says
+    /// (owner's call). It reads as the tow pilot refusing, which is what a tow pilot would do.
+    /// </summary>
+    public static class Route
+    {
+        /// <summary>How far the rope has to be off the centre before it counts as asking for something.</summary>
+        public const double RopeDeadBand = 0.12;
+        /// <summary>How far ahead a branch is looked down to see what it leads to.</summary>
+        public const int LookAhead = 8;
+
+        private const double JoinM = 6.0;
+
+        /// <summary>The legs that carry on from the end of leg <paramref name="i"/>.</summary>
+        public static System.Collections.Generic.List<int> Successors(Leg[] legs, int i)
+        {
+            var outs = new System.Collections.Generic.List<int>();
+            Leg l = legs[i];
+            for (int k = 0; k < legs.Length; k++)
+            {
+                if (k == i) continue;
+                Leg o = legs[k];
+                double dx = o.X0 - l.X1, dy = o.Y0 - l.Y1;
+                if (dx * dx + dy * dy > JoinM * JoinM) continue;
+                // Not back the way we came: a successor must not simply reverse the leg.
+                double ddx = (l.X1 - l.X0), ddy = (l.Y1 - l.Y0);
+                double odx = (o.X1 - o.X0), ody = (o.Y1 - o.Y0);
+                if (ddx * odx + ddy * ody <= 0) continue;
+                outs.Add(k);
+            }
+            return outs;
+        }
+
+        /// <summary>True when something of <paramref name="kind"/> lies within <see cref="LookAhead"/> legs
+        /// down this branch — how the tug knows a branch holds the slit before it commits to it.</summary>
+        public static bool LeadsTo(Leg[] legs, int i, Kind kind, int depth = LookAhead)
+        {
+            int at = i;
+            for (int n = 0; n < depth; n++)
+            {
+                if (legs[at].Kind == kind) return true;
+                var outs = Successors(legs, at);
+                if (outs.Count != 1) return outs.Count > 1 && AnyBranchLeadsTo(legs, outs, kind, depth - n - 1);
+                at = outs[0];
+            }
+            return false;
+        }
+
+        private static bool AnyBranchLeadsTo(Leg[] legs, System.Collections.Generic.List<int> outs, Kind kind, int depth)
+        {
+            foreach (int o in outs) if (LeadsTo(legs, o, kind, depth)) return true;
+            return false;
+        }
+
+        /// <summary>How far to the right of the current heading a successor turns. Signed: positive right,
+        /// negative left, about zero for a branch that carries straight on.</summary>
+        public static double Rightness(Leg[] legs, int from, int to)
+        {
+            Leg a = legs[from], b = legs[to];
+            double dx = a.X1 - a.X0, dy = a.Y1 - a.Y0, la = System.Math.Sqrt(dx * dx + dy * dy);
+            double sx = b.X1 - b.X0, sy = b.Y1 - b.Y0, lb = System.Math.Sqrt(sx * sx + sy * sy);
+            if (la < 1e-9 || lb < 1e-9) return 0;
+            return (dx * sy - dy * sx) / (la * lb);      // right of travel is (−dy, dx): the cross product
+        }
+
+        /// <summary>The two options at a fork, as LEFT and RIGHT of each other — which is the only way the
+        /// question has an answer when one branch carries straight on and the other turns. (-1, -1) when the
+        /// leg is not a fork.</summary>
+        public static (int left, int right) Branches(Leg[] legs, int i)
+        {
+            var outs = Successors(legs, i);
+            if (outs.Count < 2) return (-1, -1);
+            int left = outs[0], right = outs[0];
+            double lo = Rightness(legs, i, outs[0]), hi = lo;
+            foreach (int o in outs)
+            {
+                double r = Rightness(legs, i, o);
+                if (r < lo) { lo = r; left = o; }
+                if (r > hi) { hi = r; right = o; }
+            }
+            return (left, right);
+        }
+
+        /// <summary>The branch to take with nobody asking for anything: the one without a hazard on it, and
+        /// never a dead end if there is a way on.</summary>
+        public static int SafeSuccessor(Leg[] legs, int i)
+        {
+            var outs = Successors(legs, i);
+            if (outs.Count == 0) return -1;
+            int best = -1, bestScore = int.MinValue;
+            foreach (int o in outs)
+            {
+                int score = 0;
+                if (LeadsTo(legs, o, Kind.Slit)) score -= 100;
+                if (LeadsTo(legs, o, Kind.Rockfall)) score -= 10;
+                if (LeadsTo(legs, o, Kind.WaterSheet)) score -= 5;
+                if (LeadsTo(legs, o, Kind.DeadEndPad)) score -= 50;
+                if (score > bestScore) { bestScore = score; best = o; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Which way the tug goes at the end of leg <paramref name="i"/>, given the rope's lateral direction in
+        /// the tug's own body frame (negative = the glider is out to the left, which pulls the tail left).
+        /// Tail pulled left → the RIGHT branch. Tail pulled right → the LEFT branch. Centred → the safe one.
+        /// The slit is refused however hard it is asked for.
+        /// </summary>
+        public static int ChooseByRope(Leg[] legs, int i, double ropeLateralBody)
+        {
+            var outs = Successors(legs, i);
+            if (outs.Count <= 1) return outs.Count == 1 ? outs[0] : -1;
+            int safe = SafeSuccessor(legs, i);
+            var (left, right) = Branches(legs, i);
+            int wanted = ropeLateralBody < -RopeDeadBand ? right
+                       : ropeLateralBody > RopeDeadBand ? left
+                       : -1;
+            if (wanted < 0) return safe;
+            // The one thing a tow pilot will not do.
+            if (LeadsTo(legs, wanted, Kind.Slit)) return safe;
+            return wanted;
+        }
+
+        /// <summary>The whole way round with nobody touching anything: the route a centred glider gets.</summary>
+        public static System.Collections.Generic.List<int> SafeRoute(Leg[] legs, int start, int maxLegs = 200)
+        {
+            var route = new System.Collections.Generic.List<int> { start };
+            int at = start;
+            for (int n = 0; n < maxLegs; n++)
+            {
+                int next = SafeSuccessor(legs, at);
+                if (next < 0) break;
+                route.Add(next);
+                at = next;
+            }
+            return route;
         }
     }
 
@@ -474,7 +635,9 @@ public static class WaterfallTunnel
             double plen = push.Length;
             if (plen < 1e-12) { normalNed = new Vec3(0, 0, 1); depth = 0.1; return true; }
             normalNed = push / plen;
-            depth = bestDepth;
+            // Clamped: the contact model is a spring, and being tens of metres inside a mountain is not a
+            // contact — it is a bug somewhere else, and a spring that deep would fire the airframe into orbit.
+            depth = System.Math.Min(bestDepth, 4.0);
             return true;
         }
     }

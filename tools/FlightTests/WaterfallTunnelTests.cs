@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using FlyingGame.Core;
 using Xunit;
 
@@ -50,7 +52,7 @@ public class WaterfallTunnelTests : IDisposable
         Assert.Equal(f.LowerM, floor, 6);                       // the lower plateau: the shelf's own level
         double x = WaterfallTunnel.CentreX(f), mouth = WaterfallTunnel.MouthY(f);
         for (double y = mouth - 5; y > WaterfallTunnel.EndY(f) + 5; y -= 50)
-            Assert.Equal(floor, t.HeightAt(x, y), 3);
+            Assert.Equal(floor, t.HeightAt(x, y), 3);        // the bore is flown outward: its end is the mouth
         Assert.Equal(floor, t.HeightAt(x, mouth + 8), 3);       // no step at the sill
     }
 
@@ -176,7 +178,7 @@ public class WaterfallTunnelTests : IDisposable
         var (_, f) = World();
         WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
         WaterfallTunnel.Leg join = legs[^1], bore = Leg(f, "exit.bore");
-        double d = System.Math.Sqrt((join.X1 - bore.X1) * (join.X1 - bore.X1) + (join.Y1 - bore.Y1) * (join.Y1 - bore.Y1));
+        double d = System.Math.Sqrt((join.X1 - bore.X0) * (join.X1 - bore.X0) + (join.Y1 - bore.Y0) * (join.Y1 - bore.Y0));
         Assert.True(d < WaterfallTunnel.HalfWidthM, $"the last leg ends {d:0} m from the end of the bore");
         Assert.Equal(WaterfallTunnel.FloorM(f), join.Z1, 1);
     }
@@ -249,9 +251,10 @@ public class WaterfallTunnelTests : IDisposable
             double dx = (l.X1 - l.X0) / l.Length, dy = (l.Y1 - l.Y0) / l.Length;
             Assert.NotNull(WorldSolids.Penetration(l.X1 + dx * 10, l.Y1 + dy * 10, l.Z1 + 10));
         }
-        // And so does the bore, which is the one dead end that was there before the maze.
+        // The bore is NOT one of them: its inner end is where the way home joins it, so a pilot who flies in
+        // through the mouth meets the maze coming the other way rather than a wall.
         WaterfallTunnel.Leg bore = Leg(f, "exit.bore");
-        Assert.NotNull(WorldSolids.Penetration(bore.X1 - 10, bore.Y1 - 10, bore.Z1 + 10));
+        Assert.Null(WorldSolids.Penetration(bore.X0, bore.Y0 + 20, bore.Z0 + 10));
     }
 
     [Fact]
@@ -259,7 +262,7 @@ public class WaterfallTunnelTests : IDisposable
     {
         var (_, f) = World();
         WaterfallTunnel.Leg bore = Leg(f, "exit.bore");
-        double x = bore.X0, y = bore.Y0 - 300, floor = bore.Z0;
+        double x = bore.X1, y = bore.Y1 - 300, floor = bore.Z1;
         Assert.Null(WorldSolids.Penetration(x, y, floor + WaterfallTunnel.CrownM - 1));
         var hit = WorldSolids.Penetration(x, y, floor + WaterfallTunnel.CrownM + 1);
         Assert.NotNull(hit);
@@ -278,8 +281,8 @@ public class WaterfallTunnelTests : IDisposable
     {
         var (_, f) = World();
         WaterfallTunnel.Leg bore = Leg(f, "exit.bore");
-        double x = bore.X0;
-        double in0 = bore.Y0 - WaterfallTunnel.RunwayStartInM;
+        double x = bore.X1;
+        double in0 = bore.Y1 - WaterfallTunnel.RunwayStartInM;
         Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(x, in0 - 1));
         Assert.Equal(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(x, in0 - WaterfallTunnel.StripM + 1));
         Assert.NotEqual(WorldTerrain.Surface.Paved, WorldTerrain.SurfaceAt(x, in0 - WaterfallTunnel.StripM - 20));
@@ -299,8 +302,109 @@ public class WaterfallTunnelTests : IDisposable
         var (_, f) = World();
         WaterfallTunnel.Leg bore = Leg(f, "exit.bore");
         double h = bore.ClearHeight(WaterfallTunnel.StripHalfWidthM);
+        _ = f;
         Assert.True(h > 20, $"only {h:0.0} m of headroom at the pavement edge");
         Assert.True(WaterfallTunnel.StripHalfWidthM * 2 > 20, "a Jenny spans 13 m");
+    }
+
+    // ---- the way round, and the rope that chooses it ----
+
+    private static int IndexOf(WaterfallTunnel.Leg[] legs, string id) => System.Array.FindIndex(legs, l => l.Id == id);
+
+    [Fact]
+    public void EveryForkHasExactlyTwoWaysOnAndEveryOtherLegHasOne()
+    {
+        var (_, f) = World();
+        WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
+        int forks = 0, ends = 0;
+        foreach (int i in Enumerable.Range(0, legs.Length))
+        {
+            int n = WaterfallTunnel.Route.Successors(legs, i).Count;
+            if (n == 0) ends++;
+            if (n >= 2) forks++;
+            Assert.True(n <= 2, $"{legs[i].Id} has {n} ways on — a maze of three-way forks is a different game");
+        }
+        Assert.Equal(3, forks);                        // the three the owner asked for
+        Assert.Equal(3, ends);                         // two dead ends and the way out
+    }
+
+    [Fact]
+    public void ACentredGliderGetsRoundWithoutMeetingTheSlit()
+    {
+        // The rule: a pilot who does nothing is taken the safe way. One who wants the rockfall has to ask.
+        var (_, f) = World();
+        WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
+        int start = IndexOf(legs, "S0.glider");
+        var route = WaterfallTunnel.Route.SafeRoute(legs, start);
+        Assert.True(route.Count > 10, $"the safe route is only {route.Count} legs");
+        foreach (int i in route)
+        {
+            Assert.NotEqual(WaterfallTunnel.Kind.Slit, legs[i].Kind);
+            Assert.NotEqual(WaterfallTunnel.Kind.DeadEndPad, legs[i].Kind);
+        }
+        Assert.Equal("exit.bore", legs[route[^1]].Id);     // it ends on the way out, not in a hole
+    }
+
+    [Fact]
+    public void TheRopeChoosesTheFork_TailLeftTakesTheRight()
+    {
+        // Owner's physics, the right way round: a rope pulling the tail left yaws the nose right, so the tug
+        // goes right. The glider pilot picks a branch by sliding to the side OPPOSITE the one they want.
+        var (_, f) = World();
+        WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
+        int fork = IndexOf(legs, "S0.glider");         // FORK 1 is at the end of the glider strip
+        Assert.Equal(2, WaterfallTunnel.Route.Successors(legs, fork).Count);
+
+        var (leftBranch, rightBranch) = WaterfallTunnel.Route.Branches(legs, fork);
+        Assert.NotEqual(leftBranch, rightBranch);
+        Assert.True(WaterfallTunnel.Route.Rightness(legs, fork, rightBranch)
+                    > WaterfallTunnel.Route.Rightness(legs, fork, leftBranch));
+        Assert.Equal(rightBranch, WaterfallTunnel.Route.ChooseByRope(legs, fork, -0.4));   // glider out to the left
+        Assert.Equal(leftBranch, WaterfallTunnel.Route.ChooseByRope(legs, fork, +0.4));    // glider out to the right
+
+        int centred = WaterfallTunnel.Route.ChooseByRope(legs, fork, 0.0);
+        Assert.Equal(WaterfallTunnel.Route.SafeSuccessor(legs, fork), centred);
+    }
+
+    [Fact]
+    public void TheTugRefusesTheSlitHoweverHardTheRopeAsks()
+    {
+        // No tow pair can fly a knife edge, so this is the one branch the rope cannot buy (owner's call).
+        var (_, f) = World();
+        WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
+        int fork = IndexOf(legs, "B2.west");           // FORK 2: the slit or the rockfall
+        var outs = WaterfallTunnel.Route.Successors(legs, fork);
+        Assert.Equal(2, outs.Count);
+        int slitBranch = outs.Find(o => WaterfallTunnel.Route.LeadsTo(legs, o, WaterfallTunnel.Kind.Slit));
+        int rockBranch = outs.Find(o => WaterfallTunnel.Route.LeadsTo(legs, o, WaterfallTunnel.Kind.Rockfall));
+        Assert.True(slitBranch >= 0 && rockBranch >= 0, "one branch should hold the slit and the other the rock");
+        Assert.NotEqual(slitBranch, rockBranch);
+
+        foreach (double rope in new[] { -0.9, -0.4, 0.0, 0.4, 0.9 })
+            Assert.NotEqual(slitBranch, WaterfallTunnel.Route.ChooseByRope(legs, fork, rope));
+
+        bool reachable = false;
+        foreach (double rope in new[] { -0.9, 0.9 })
+            if (WaterfallTunnel.Route.ChooseByRope(legs, fork, rope) == rockBranch) reachable = true;
+        Assert.True(reachable, "a glider pilot who asks for the rockfall should get it");
+    }
+
+    [Fact]
+    public void EveryRouteEndsSomewhereRatherThanGoingRoundForEver()
+    {
+        // Every choice at every fork, walked to its end: a loop in the maze would hang the tug for ever.
+        var (_, f) = World();
+        WaterfallTunnel.Leg[] legs = WaterfallTunnel.Legs(f);
+        var seen = new HashSet<int>();
+        void Walk(int at, int depth)
+        {
+            Assert.True(depth < legs.Length + 5, "a route that never ends means the maze has a loop in it");
+            seen.Add(at);
+            foreach (int o in WaterfallTunnel.Route.Successors(legs, at)) Walk(o, depth + 1);
+        }
+        Walk(IndexOf(legs, "A.entry"), 0);
+        foreach (int i in Enumerable.Range(0, legs.Length))
+            Assert.True(seen.Contains(i), $"{legs[i].Id} cannot be reached from the entrance");
     }
 
     // ---- the hazards ----
@@ -365,7 +469,7 @@ public class WaterfallTunnelTests : IDisposable
     {
         var (t, f) = World();
         WaterfallTunnel.Leg bore = Leg(f, "exit.bore");
-        double x = bore.X0, y = bore.Y0 - 400, floor = bore.Z0;
+        double x = bore.X1, y = bore.Y1 - 400, floor = bore.Z1;
         double? above = t.WaterSurfaceAt(x, y);
         Assert.NotNull(above);
         Assert.True(above!.Value > floor + 150);                       // the river, for the water mesh

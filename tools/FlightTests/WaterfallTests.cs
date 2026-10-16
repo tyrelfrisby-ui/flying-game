@@ -73,13 +73,19 @@ public class WaterfallTests
                 // The back wall really is there: just behind the recess the ground is the upper plateau — except
                 // at the first fall, where the 70 m of it dead behind the curtain is the tunnel's mouth, and the
                 // ground carries on at the bore's floor instead. That hole is the feature (owner 2026-10-16).
+                // Two holes in this wall, at the first fall: the way OUT at the shelf's own level on the river's
+                // centreline, and the way IN 110 m to the side and 125 m higher. Everywhere else it is rock.
+                bool atTheMaze = f.Step == WaterfallTunnel.FallStep;
+                bool throughTheLowMouth = atTheMaze && System.Math.Abs(dx) < WaterfallTunnel.HalfWidthM;
+                bool throughTheHighMouth = atTheMaze
+                    && System.Math.Abs(dx - WaterfallTunnel.EntryOffsetXM) < WaterfallTunnel.HalfWidthM + WaterfallTunnel.JointPadM;
                 double rock = t.HeightAt(f.X + dx, f.LipY - recess - 3);
-                bool throughTheMouth = f.Step == WaterfallTunnel.FallStep
-                                       && System.Math.Abs(dx) < WaterfallTunnel.HalfWidthM;
-                if (throughTheMouth) Assert.Equal(WaterfallTunnel.FloorM(f), rock, 3);
+                if (throughTheLowMouth) Assert.Equal(WaterfallTunnel.FloorM(f), rock, 3);
+                else if (throughTheHighMouth) Assert.InRange(rock, WaterfallTunnel.EntryFloorM - 2, WaterfallTunnel.EntryFloorM);
                 else Assert.True(rock > f.LowerM + 50, $"fall {f.Step}: back wall {rock:F0}");
                 double air = t.HeightAt(f.X + dx, f.LipY - recess + 3);
-                Assert.True(air < f.LowerM + 5, $"fall {f.Step}: slot floor {air:F0}");
+                if (throughTheHighMouth) Assert.InRange(air, WaterfallTunnel.EntryFloorM - 2, WaterfallTunnel.EntryFloorM);   // the high mouth's sill, which slopes
+                else Assert.True(air < f.LowerM + 5, $"fall {f.Step}: slot floor {air:F0}");
             }
         }
     }
@@ -96,7 +102,7 @@ public class WaterfallTests
         // ends and the bore. Counted from the layout rather than written down, so adding a dead end to the
         // maze does not fail a test that has nothing to do with it.
         WorldTerrain.Waterfall tf = WaterfallTunnel.Fall(t);
-        int blind = 1;                                                                   // the bore itself
+        int blind = 0;
         foreach (WaterfallTunnel.Leg l in WaterfallTunnel.Legs(tf))
             if (l.Kind == WaterfallTunnel.Kind.DeadEndPad) blind++;
         Assert.Equal(WorldTerrain.StepCount + blind, WorldSolids.Boxes.Count);

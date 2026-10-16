@@ -416,12 +416,16 @@ public sealed class WorldTerrain
             if (System.Math.Abs(x - (a.X + ApronDx)) <= ApronLengthM / 2 && System.Math.Abs(y - (a.Y + ApronDy)) <= ApronWidthM / 2) return Surface.Paved;
         }
         if (y > Coast.MeanShoreY + 1000 && Island.IsPaved(x, y)) return Surface.Paved;   // Airport in the Sky
+        if (AlpineRange.InRange(x, y)) return Surface.Gravel;                              // granite and scree, not pasture
         if (Mall.OnGrass(x, y)) return Surface.Grass;                                      // the Mall's groomed grass
         if (Hills.IsGrass(x, y)) return Surface.Grass;                                     // the rolling hills: smooth turf
         if (Active != null)
         {
             Waterfall tf = Active.Waterfalls[WaterfallTunnel.FallStep];
-            if (WaterfallTunnel.OnRunway(tf, x, y)) return Surface.Paved;                   // the runway in the tunnel
+            if (WaterfallTunnel.OnRunway(tf, x, y)) return Surface.Paved;                   // the strips in the maze
+            // The rest of the maze's floor is cut rock, not a ploughed field: a wheel rolls on it. (With it
+            // reported as Rough, a tug could not even accelerate along a bore.)
+            if (WaterfallTunnel.InFootprint(tf, x, y)) return Surface.Gravel;
         }
         return Surface.Rough;
     }
@@ -671,6 +675,9 @@ public sealed class WorldTerrain
         // Rolling grass hills (owner 2026-10-05): smooth, landable.
         h += Hills.HeightAt(x, y);
 
+        // The alpine range on the Summit plateau (owner 2026-10-16): peaks, cirques and the lakes in them.
+        h = AlpineRange.HeightAt(x, y, h);
+
         // Lake beds: a shallow bowl under the water.
         foreach (Lake l in Lakes)
         {
@@ -761,6 +768,7 @@ public sealed class WorldTerrain
 
     private double? WaterSurfaceCore(double x, double y)
     {
+        { double? alp = AlpineRange.WaterSurfaceAt(x, y); if (alp.HasValue) return alp; }
         foreach (Lake l in Lakes)
         {
             if (l.Inside(x, y) < 1.0) return l.SurfaceM;
