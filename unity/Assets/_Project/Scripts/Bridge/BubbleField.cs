@@ -37,9 +37,9 @@ namespace FlyingGame.Bridge
         public int TileCandidates = 15;          // best-candidate sampling: tries per point (more = more even)
         public int TileSeed = 20261002;
         public bool VaryTiles = true;            // each tile gets its own rotation/mirror + shift of the cube (no repeats to line up)
-        [Header("Speed streaks (owner 2026-10-02: like snow past a jet)")]
-        public float StreakShutterS = 0.05f;     // streak length = airspeed × this (≈1 m at 20 m/s, 5 m at 100 m/s)
-        public float StreakDim = 0.6f;           // how much a long streak dims (its light is spread along its length)
+        // Speed streaks (owner 2026-10-02: like snow past a jet; 2026-10-15: longer, so α and β read off the air).
+        // Shutter, dimming and the minimum line length now come from SessionSettings.BubbleStreaks — one source for
+        // this field and the wide LiftField, and the OPTIONS row switches all of it at once.
         public float PlainBodyAlpha = 0.16f;     // dense field: plain-air body alpha (the soap-bubble 0.06 is invisible at this size)
         public float SampleRefreshS = 3f;        // how often a lattice cell re-samples the atmosphere (the air changes slowly; owner 2026-10-03 Mac perf: was 0.6 s)
         public int SamplesPerFrame = 300;        // atmosphere samples per frame (the rest come from the cell cache; was 1,500 ≈ 19 ms on the Mac)
@@ -80,6 +80,7 @@ namespace FlyingGame.Bridge
         private Quaternion _tileRot = Quaternion.identity, _tileRotInv = Quaternion.identity;
         private readonly List<(Vector3 pos, Vector3Int key, uint hash)> _cand = new();
         private Vector3 _streak;                 // this frame: world vector from a bubble back along its motion past the aircraft
+        private float _streakDim, _streakMinAspect;
         /// <summary>Render check / tools: the airspeed vector (Unity world) to streak with when there is no aircraft driver.</summary>
         public Vector3? StreakVelocityOverride;
         private FlightSimDriver _driver;
@@ -89,9 +90,15 @@ namespace FlyingGame.Bridge
         private Matrix4x4 BubbleMatrix(Vector3 pos, float size, ref float alpha)
         {
             float L = _streak.magnitude;
+            if (L < 1e-4f) return Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);   // streaks off
+            // A minimum LINE, in bubble diameters: speed alone leaves a 55 KIAS streak barely longer than the
+            // bubble, and slow flight is where the angle of attack is worth reading. The DIRECTION is untouched —
+            // it is the relative wind, so the line's angle against the airframe is α from the side, β from above.
+            L = Mathf.Max(L, size * _streakMinAspect);
             if (L < size * 0.5f) return Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one * size);
-            alpha *= Mathf.Lerp(1f, size / (size + L), StreakDim);
-            return Matrix4x4.TRS(pos + _streak * 0.5f, Quaternion.LookRotation(_streak / L), new Vector3(size, size, size + L));
+            Vector3 dir = _streak / _streak.magnitude;
+            alpha *= Mathf.Lerp(1f, size / (size + L), _streakDim);
+            return Matrix4x4.TRS(pos + dir * (L * 0.5f), Quaternion.LookRotation(dir), new Vector3(size, size, size + L));
         }
 
         /// <summary>Mitchell's best-candidate sampling in a periodic cube: each new point is the farthest (toroidally) of a
@@ -315,7 +322,9 @@ namespace FlyingGame.Bridge
             // streak trails back toward +airspeed from where it is now.
             _driver ??= Follow.GetComponent<FlightSimDriver>();
             Vector3 airVel = StreakVelocityOverride ?? (_driver != null ? _driver.AirVelocityUnity : Vector3.zero);
-            _streak = SessionSettings.BubbleStreaks ? airVel * StreakShutterS : Vector3.zero;
+            _streak = airVel * SessionSettings.StreakShutterS;
+            _streakDim = SessionSettings.StreakDim;
+            _streakMinAspect = SessionSettings.StreakMinAspect;
             float blockRadius = HalfCount * Spacing;
 
             // Camera-space setup for the centre-circle fade.

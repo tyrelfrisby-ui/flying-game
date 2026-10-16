@@ -100,7 +100,7 @@ namespace FlyingGame.Bridge
             float radius = HalfCount * Spacing, t = Time.time;
             Camera cam = Camera.main;
             float pxSize = cam != null ? 2f * Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad) * (FleckPixels / Mathf.Max(200f, cam.pixelHeight)) : 0.004f;
-            Vector3 streak = SessionSettings.BubbleStreaks && _driver != null ? _driver.AirVelocityUnity * 0.05f : Vector3.zero;
+            Vector3 streak = _driver != null ? _driver.AirVelocityUnity * SessionSettings.StreakShutterS : Vector3.zero;
             for (int i = 0; i < _n; i++)
             {
                 float w = _w[i];

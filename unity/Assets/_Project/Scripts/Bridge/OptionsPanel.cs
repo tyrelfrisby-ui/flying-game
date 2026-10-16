@@ -94,7 +94,15 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Auto = gliders only", _label); y += lh * 0.8f;
             BoolRow("Air bubbles", ref SessionSettings.BubblesOn);
             BoolRow("Dense bubbles (GPU instancing)", ref SessionSettings.BubbleInstancing);
-            BoolRow("Bubble streaks (longer with speed)", ref SessionSettings.BubbleStreaks);
+            {
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), "Bubble streaks", _label);
+                float bw = (cw * 0.6f - 2 * gap * 0.4f) / 3f, bx = x + cw * 0.4f;
+                var opts = new[] { (SessionSettings.Streaks.Off, "Off"), (SessionSettings.Streaks.Normal, "Normal"), (SessionSettings.Streaks.Long, "Long") };
+                for (int i = 0; i < 3; i++)
+                    if (GUI.Button(new Rect(bx + i * (bw + gap * 0.4f), y, bw, lh), opts[i].Item2, SessionSettings.BubbleStreaks == opts[i].Item1 ? _btnOn : _btn)) SessionSettings.BubbleStreaks = opts[i].Item1;
+                y += lh + gap * 0.4f;
+            }
+            GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Long = read α and β off the streak angle", _label); y += lh * 0.8f;
             BoolRow("Flight path vector (3 s, air-relative)", ref SessionSettings.ShowFlightPath);
             BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);

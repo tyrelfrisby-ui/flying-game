@@ -18,8 +18,26 @@ namespace FlyingGame.Bridge
         public static float SimSpeed = 1f;
         public static readonly float[] SimSpeeds = { 1f, 0.5f, 0.25f, 0.1f };
         public static string SimSpeedLabel => SimSpeed >= 0.999f ? "TIME 100%" : $"SLOW {SimSpeed * 100:0}%";
-        /// <summary>Bubbles streak with airspeed (OPTIONS).</summary>
-        public static bool BubbleStreaks = true;
+        /// <summary>Bubbles streak with airspeed (OPTIONS). Owner 2026-10-15: "increase the streakiness of the bubbles
+        /// as they pass by the airplane to enhance the linear nature of the movement, so the user can more easily
+        /// determine the alpha and beta angles of their airplane relative to the wind."
+        ///
+        /// Each bubble is stretched along the RELATIVE WIND (the aircraft's velocity through the air mass), so the angle
+        /// the line makes with the airframe IS the angle of attack seen from the side and the sideslip seen from above
+        /// or in front — the streak is not decoration, it is the instrument. NORMAL keeps the photographic 0.05 s
+        /// shutter the bubbles have had since 2026-10-02. LONG, the default, stretches them about three times further,
+        /// dims them much less (a long streak spreading its light over more pixels is physically right but washed the
+        /// line out), and holds a minimum line length in bubble diameters — at 55 KIAS a shutter-length streak is barely
+        /// longer than the bubble itself, and slow flight is exactly where α is worth reading.</summary>
+        public enum Streaks { Off, Normal, Long }
+        public static Streaks BubbleStreaks = Streaks.Long;
+        public static bool StreaksOn => BubbleStreaks != Streaks.Off;
+        /// <summary>Seconds of relative-wind travel a bubble is stretched over (0 = round).</summary>
+        public static float StreakShutterS => BubbleStreaks == Streaks.Long ? 0.16f : BubbleStreaks == Streaks.Normal ? 0.05f : 0f;
+        /// <summary>How much a long streak dims, its light spread along its length: 0 = none, 1 = full.</summary>
+        public static float StreakDim => BubbleStreaks == Streaks.Long ? 0.2f : 0.6f;
+        /// <summary>A streak never draws shorter than this many bubble diameters (0 = length purely from speed).</summary>
+        public static float StreakMinAspect => BubbleStreaks == Streaks.Long ? 6f : 0f;
         public static string AircraftId = "glider-2-33-like";
         public static string TugId = "pa25-pawnee-like";
         public enum InstrumentMode { Analog, Hud, None }
