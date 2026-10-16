@@ -35,6 +35,11 @@ public static class TirePressure
         ["c172-like"] = (38, 29),            // 172S POH: mains 38, nose 29
         ["pa28-archer-like"] = (24, 18),     // Archer POH
         ["boeing-737-like"] = (205, 190),    // airliner mains and nose, the order of magnitude that matters
+        // DHC-2 landplane: 8.50-10 mains, 6.00-6 tailwheel. Not a page I can cite, so it is derived the way a
+        // tyre actually works — footprint pressure carries the load: ~2,300 lb on each main over the ~77 in2 an
+        // 8.50-10 puts down wants 30 psi. The rule of thumb would say 45, which is 60 kt of planing speed
+        // instead of 49 on a wet gravel bar, and that is the difference the number exists to get right.
+        ["dhc2-beaver-like"] = (30, 38),
     };
 
     /// <summary>Is this leg a main wheel? (The others — nose and tail — often run softer.)</summary>

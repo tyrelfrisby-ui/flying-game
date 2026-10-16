@@ -382,7 +382,19 @@ namespace FlyingGame.Bridge
                                 SessionSettings.Bushwheels ? _btnOn : _btn))
             {
                 SessionSettings.Bushwheels = !SessionSettings.Bushwheels;
+                if (SessionSettings.Bushwheels) SessionSettings.Skis = false;   // one or the other: skis go on over the wheels
                 Driver?.ApplySession();          // re-load the aircraft so the tyres change size now
+            }
+            y += row;
+
+            // Wheel-skis: only the glacier knows the difference, and there it is the difference between
+            // landing and arriving. Next to the bushwheels because it is the same kind of choice.
+            if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Skis ? "Wheel-skis ON" : "Wheel-skis off",
+                                SessionSettings.Skis ? _btnOn : _btn))
+            {
+                SessionSettings.Skis = !SessionSettings.Skis;
+                if (SessionSettings.Skis) SessionSettings.Bushwheels = false;
+                Driver?.ApplySession();
             }
             y += row;
 

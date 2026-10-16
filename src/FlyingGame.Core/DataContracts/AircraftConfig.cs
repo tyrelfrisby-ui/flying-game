@@ -14,6 +14,13 @@ public sealed class AircraftConfig
     /// </summary>
     public bool Bushwheels { get; set; }
 
+    /// <summary>
+    /// WHEEL-SKIS (owner 2026-10-16): skis with the wheels still protruding, so the same aeroplane lands on
+    /// a glacier and on pavement. On snow the ski carries it — almost no rolling drag, very little grip and
+    /// no useful brakes; on anything hard the wheel does the work and nothing changes.
+    /// </summary>
+    public bool Skis { get; set; }
+
     public int SchemaVersion { get; set; } = 1;
     public string Id { get; set; } = "";
     public string DisplayName { get; set; } = "";

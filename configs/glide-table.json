@@ -299,6 +299,45 @@
     "TrimStick": 0.4499
   },
   {
+    "Id": "dhc2-beaver-like",
+    "Flaps": 0,
+    "VsoKt": 61.23,
+    "SpeedKt": 79.6,
+    "GlideDeg": 8.292,
+    "GlideRatio": 6.862,
+    "SinkFpm": 1162.5,
+    "AlphaDeg": 5.317,
+    "PitchDeg": -2.975,
+    "ElevatorDeg": -1.784,
+    "TrimStick": -0.0945
+  },
+  {
+    "Id": "dhc2-beaver-like",
+    "Flaps": 0.5,
+    "VsoKt": 57.34,
+    "SpeedKt": 74.55,
+    "GlideDeg": 8.457,
+    "GlideRatio": 6.726,
+    "SinkFpm": 1110.2,
+    "AlphaDeg": 3.543,
+    "PitchDeg": -4.914,
+    "ElevatorDeg": 4.15,
+    "TrimStick": 0.1797
+  },
+  {
+    "Id": "dhc2-beaver-like",
+    "Flaps": 1,
+    "VsoKt": 53.46,
+    "SpeedKt": 69.49,
+    "GlideDeg": 8.931,
+    "GlideRatio": 6.363,
+    "SinkFpm": 1092.5,
+    "AlphaDeg": 2.1,
+    "PitchDeg": -6.831,
+    "ElevatorDeg": 11.431,
+    "TrimStick": 0.4356
+  },
+  {
     "Id": "extra-300-like",
     "Flaps": 0,
     "VsoKt": 57.34,

@@ -20,7 +20,7 @@ namespace FlyingGame.EditorTools
         {
             "glider-2-33-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like", "hughes-h4-like", "dhc2-beaver-floats-like",
+            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like", "hughes-h4-like", "dhc2-beaver-like", "dhc2-beaver-floats-like",
         };
 
         [MenuItem("FlyingGame/Render Airframes")]
@@ -46,6 +46,10 @@ namespace FlyingGame.EditorTools
 
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             var builder = new AirframeBuilder();
+            // SKIS=1 renders the fleet on wheel-skis (owner 2026-10-16), since the option is a session
+            // setting and the loader applies it — the same switch the menu flips.
+            SessionSettings.Skis = System.Environment.GetEnvironmentVariable("SKIS") != null;
+            if (SessionSettings.Skis) SessionSettings.Bushwheels = false;
             string only = System.Environment.GetEnvironmentVariable("AIRFRAME_IDS");
             foreach (string id in only != null ? only.Split(',') : Ids)
             {
@@ -97,7 +101,8 @@ namespace FlyingGame.EditorTools
                     var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                     tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
                     tex.Apply();
-                    File.WriteAllBytes(Path.Combine(outDir, $"{id}-{(pass == 1 ? "defl-" : "")}{name}.png"), tex.EncodeToPNG());
+                    string tag = SessionSettings.Skis ? "skis-" : "";
+                    File.WriteAllBytes(Path.Combine(outDir, $"{id}-{tag}{(pass == 1 ? "defl-" : "")}{name}.png"), tex.EncodeToPNG());
                     Object.DestroyImmediate(tex);
                 }
                 }

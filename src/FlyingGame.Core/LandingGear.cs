@@ -122,6 +122,36 @@ public static class LandingGear
         _ => 0.55,
     };
 
+    // ---- WHEEL-SKIS (owner 2026-10-16) -----------------------------------------------------------------
+    /// <summary>Rolling resistance of a ski on snow. Published figures for waxed ski bases on cold snow run
+    /// 0.03–0.06; a loaded aircraft ski on a glacier is at the top of that. Against 0.14 for a wheel, which
+    /// is why a ski-equipped aeroplane rolls out for ever and why you land uphill.</summary>
+    public const double SkiRollingCoefficient = 0.055;
+    /// <summary>What a ski has instead of grip. A ski has no tread and no contact patch to speak of — it
+    /// holds direction by its length in the snow, and it is a third of a tyre's answer on the same surface.</summary>
+    public const double SkiGripScale = 0.33;
+    /// <summary>Cornering stiffness of a ski, per newton of load: a fraction of a tyre's, so it skids rather
+    /// than bites and the aeroplane has to be flown straight.</summary>
+    public const double SkiCorneringPerLoad = 1.6;
+    /// <summary>
+    /// What share of the weight the WHEEL still carries on a wheel-penetration ski in soft snow — the ski
+    /// takes the rest. It is the only thing the brake has to work with, which is why brakes on skis are
+    /// nearly useless and why a ski pilot stops by landing uphill. A ski brake is therefore LOAD-limited
+    /// (this share of the weight × the tyre's grip in snow), not torque-limited like a brake on a runway.
+    /// </summary>
+    public const double SkiWheelLoadShare = 0.15;
+
+    /// <summary>Is this leg on its ski right now? Wheel-skis only matter on snow; on anything hard the
+    /// wheel protrudes through and does the work, which is the whole point of the design.</summary>
+    public static bool OnSki(AircraftConfig c, WorldTerrain.Surface surface)
+        => c.Skis && surface == WorldTerrain.Surface.Snow;
+
+    /// <summary>The same question for one leg. A float keel or a nose skid is not a wheel and cannot be put
+    /// on a ski, so the option passes them by however it is set in the menu.</summary>
+    public static bool OnSki(AircraftConfig c, GearConfig g, WorldTerrain.Surface surface)
+        => OnSki(c, surface) && g.GearType != "float-keel" && g.GearType != "nose-skid";
+
+
     /// <summary>
     /// The castoring tailwheel's own yaw (owner 2026-09-12): the wheel is not bolted to the rudder — steering springs
     /// pull it toward the rudder command, the ground force on its contact patch (a trail behind the pivot) swings it
@@ -183,7 +213,9 @@ public static class LandingGear
                 // the first 0.5 m/s of patch speed.
                 double rolling = System.Math.Clamp(System.Math.Sqrt(vFwd * vFwd + vSide * vSide) / 0.5, 0.0, 1.0);
                 cornering = System.Math.Max(g.CorneringStiffnessN, TailwheelCorneringPerLoad * loadN) * rolling;
-                grip = g.TireMu * TailwheelMuScale * SurfaceGrip(WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved) * loadN;
+                WorldTerrain.Surface twSurface = WorldTerrain.SurfaceOverride
+                    ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
+                grip = g.TireMu * TailwheelMuScale * SurfaceGrip(twSurface) * loadN * (OnSki(config, g, twSurface) ? SkiGripScale : 1.0);
                 onGround = true;
             }
         }
@@ -282,7 +314,8 @@ public static class LandingGear
                 // Deep water: the wheel never reaches the bed, so there is no ground contact to add.
                 if (waterH.Value - groundH > tyreR * 2) continue;
             }
-            WorldTerrain.Surface surface = WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved;
+            WorldTerrain.Surface surface = WorldTerrain.SurfaceOverride
+                ?? (WorldTerrain.Active != null ? WorldTerrain.SurfaceAt(wheelWorld.X, wheelWorld.Y, -wheelWorld.Z) : WorldTerrain.Surface.Paved);
             double localGroundZ = groundZ - groundH;
             double penetration = wheelWorld.Z - localGroundZ; // >0 = wheel below ground surface (compressed)
             if (penetration <= 0.0)
@@ -362,17 +395,29 @@ public static class LandingGear
             // grows with the wheel load (a tyre's C ≈ 10–15 × its vertical load per radian): a fixed per-type constant
             // left the heavier types with a fifth of their friction budget and they skated sideways (owner).
             double slip = System.Math.Atan2(vSide, System.Math.Abs(vFwd) + 0.5);
-            double cornering = System.Math.Max(g.CorneringStiffnessN, (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad) * normalN);
+            bool onSki = OnSki(config, g, surface);
+            double cornerPerLoad = onSki ? SkiCorneringPerLoad : (g.IsTailwheel ? TailwheelCorneringPerLoad : CorneringPerLoad);
+            double cornering = onSki ? cornerPerLoad * normalN
+                                     : System.Math.Max(g.CorneringStiffnessN, cornerPerLoad * normalN);
             double lateralN = -cornering * slip;
-            double muLimit = g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN;
+            double muLimit = g.TireMu * (g.IsTailwheel ? TailwheelMuScale : 1.0) * SurfaceGrip(surface) * normalN
+                             * (onSki ? SkiGripScale : 1.0);
             lateralN = System.Math.Clamp(lateralN, -muLimit, muLimit);
 
             // Longitudinal: rolling resistance + braking, opposing forward motion, sharing the μ budget.
-            double brakeDemandN = g.Brake ? wheelBrake * g.TireMu * staticLoadN * 0.675 : 0.0;   // torque-limited, not load-limited
+            // A brake on a runway is TORQUE-limited (the pedal asks the tyre for a force). A brake inside a ski is
+            // LOAD-limited instead: it can only work through the share of the weight the wheel still carries
+            // through the ski's hole, times what the tyre can get out of snow.
+            double brakeDemandN = !g.Brake ? 0.0
+                                : onSki ? wheelBrake * g.TireMu * SurfaceGrip(surface) * normalN * SkiWheelLoadShare
+                                        : wheelBrake * g.TireMu * staticLoadN * 0.675;
             // Rolling resistance = μ_r · wheel load, μ_r by surface (paved 0.025 … rough ground 0.15).
-            double rollN = WorldTerrain.RollingCoefficient(surface) * normalN;
+            double rollN = (onSki ? SkiRollingCoefficient : WorldTerrain.RollingCoefficient(surface)) * normalN;
             Vec3 tireForce;
-            if (g.Brake && brakeDemandN > muLimit && speed > 0.3)
+            // A ski is ALREADY sliding on its own bottom, so there is no wheel to lock: the locked branch is for
+            // tyres only. (It used to catch skis too, and since its 0.8 × muLimit came out below the ski's own
+            // rolling drag, touching the brake on snow made the slide LONGER.)
+            if (g.Brake && !onSki && brakeDemandN > muLimit && speed > 0.3)
             {
                 // LOCKED: the brake holds the wheel and the tyre slides — kinetic friction against the whole sliding
                 // velocity (no separate cornering force: a skidding tyre goes where it is going).
@@ -381,7 +426,12 @@ public static class LandingGear
             else
             {
                 double longN = -(rollN + brakeDemandN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);
-                double longBudget = System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
+                // A ski's friction is ANISOTROPIC: it slides forwards on its own base (SkiRollingCoefficient) and
+                // holds sideways only by its length in the snow (SkiGripScale). So the forward drag is not capped by
+                // the lateral budget — on snow that budget (0.8 × 0.20 × 0.33 = 0.053) is actually SMALLER than the
+                // ski's own forward drag (0.055), and clamping to it quietly threw the ski's drag away.
+                double longBudget = onSki ? rollN + brakeDemandN
+                                          : System.Math.Sqrt(System.Math.Max(0.0, muLimit * muLimit - lateralN * lateralN));
                 longN = System.Math.Clamp(longN, -longBudget, longBudget);
                 tireForce = tireRight * lateralN + tireFwd * longN;
             }

@@ -1406,7 +1406,12 @@ namespace FlyingGame.Bridge
             // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
             // the wheels and legs under a model that was exported gear-up (DC-3, 737).
             // ... and a type wearing another type's model (the Cub on floats / on bush wheels) keeps its own gear AND floats.
-            bool ownGear = AirframeModels.UsesOwnGear(cfg.Id);
+            // Wheel-skis on a type that wears a 3-D model: the model's own wheels have to come off and the
+            // procedural gear show, or the skis are drawn under an aeroplane still standing on its tyres. It is
+            // exactly what a type wearing another's model already does — but only where the model's gear can
+            // actually be cut out; without that box the skis stay hidden rather than doubling the undercarriage.
+            bool skiGear = cfg.Skis && AirframeModels.GearBoxMesh.ContainsKey(AirframeModels.ModelId(cfg.Id));
+            bool ownGear = AirframeModels.UsesOwnGear(cfg.Id) || skiGear;
             bool keepGear = ownGear || (AirframeModels.Specs.TryGetValue(AirframeModels.ModelId(cfg.Id), out AirframeModels.Spec spec) && spec.ShowProceduralGear);
             var gearSet = new HashSet<GameObject>();
             if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
@@ -1747,6 +1752,56 @@ namespace FlyingGame.Bridge
                     wheel.transform.localRotation = Quaternion.Euler(0f, 0f, 90f); // cylinder axis y → x (sideways)
                     wheel.transform.localScale = new Vector3(r * 2f, r * 0.3f, r * 2f);
                     wheel.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(tire);
+                }
+
+                // WHEEL-SKIS (owner 2026-10-16): a penetration ski bolted under each wheel, the tyre poking
+                // through its slot, so the same aeroplane lands on the glacier and then taxis on pavement. It
+                // is drawn whenever the option is fitted, as it is in life — you do not take the skis off to
+                // go flying somewhere warm.
+                //
+                // Sized off the FUSELAGE, not off the tyre: a Super Cub's main ski is about 68 in by 12 in
+                // (1.7 × 0.3 m) and a Beaver's about 94 in by 16 in (2.4 × 0.4 m), which is a quarter of the
+                // fuselage length by a twenty-fourth of it in both cases. Sizing it off the tyre instead gave
+                // the Beaver a 3.5 m ski — the tyre rule already runs large, and the error compounded.
+                if (cfg.Skis && g.GearType != "float-keel" && g.GearType != "nose-skid")
+                {
+                    float fusLen = cfg.Fuselage?.Crossflow != null && cfg.Fuselage.Crossflow.LengthM > 0
+                                   ? (float)cfg.Fuselage.Crossflow.LengthM : 7f;
+                    float sl = Mathf.Max(fusLen * (g.IsTailwheel ? 0.08f : 0.25f), r * 2.4f);
+                    float sw = Mathf.Max(fusLen * 0.042f * (g.IsTailwheel ? 0.6f : 1f), r * 0.8f);
+                    float sth = 0.05f;
+                    var skiCol = new Color(0.80f, 0.82f, 0.86f);
+                    var skiMat = UnlitMat(skiCol);
+                    var bungee = new Color(0.12f, 0.12f, 0.14f);
+                    // The axle sits a little aft of the ski's middle, so most of the ski is ahead of the wheel
+                    // and it rides up over the snow instead of digging in.
+                    float cx = gx + sl * 0.08f;
+                    float basez = gz;                                   // the running surface, where the tyre meets the snow
+                    var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Kill(board.GetComponent<Collider>());
+                    Attach(board, "Ski");
+                    board.transform.localPosition = U(cx, gy, basez - sth * 0.5f);
+                    board.transform.localScale = new Vector3(sw, sth, sl);   // span, thickness, fore-aft
+                    board.GetComponent<MeshRenderer>().sharedMaterial = skiMat;
+                    // The upturned tip, and the bungee that holds it up — the two things that say "ski" at a glance.
+                    float tipLen = sl * 0.3f, tipDeg = 32f;
+                    float tipMidX = cx + sl * 0.5f + Mathf.Cos(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f;
+                    float tipMidZ = basez - sth * 0.5f - Mathf.Sin(tipDeg * Mathf.Deg2Rad) * tipLen * 0.5f;
+                    var tip = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Kill(tip.GetComponent<Collider>());
+                    Attach(tip, "SkiTip");
+                    tip.transform.localPosition = U(tipMidX, gy, tipMidZ);
+                    tip.transform.localRotation = Quaternion.Euler(-tipDeg, 0f, 0f);
+                    tip.transform.localScale = new Vector3(sw, sth, tipLen);
+                    tip.GetComponent<MeshRenderer>().sharedMaterial = skiMat;
+                    float tipEndX = cx + sl * 0.5f + Mathf.Cos(tipDeg * Mathf.Deg2Rad) * tipLen;
+                    float tipEndZ = basez - Mathf.Sin(tipDeg * Mathf.Deg2Rad) * tipLen;
+                    // Bungee from the tip up to the axle, and a check cable from the heel — the pair that keeps
+                    // the ski in its flying attitude once the wheels leave the snow.
+                    Strut(new Vector3(tipEndX, gy, tipEndZ), new Vector3(gx, gy, gz - r * 1.1f), 0.022f, bungee);
+                    Strut(new Vector3(cx - sl * 0.5f, gy, basez - sth), new Vector3(gx, gy, gz - r * 0.9f), 0.014f, bungee);
+                    // The pedestal the axle sits in, through the ski's slot.
+                    Strut(new Vector3(gx, gy, basez - sth), new Vector3(gx, gy, gz - r * 0.5f), 0.05f, skiCol);
                 }
 
                 // Leg from the wheel hub up to the body/wing.
@@ -2460,11 +2515,12 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 3.9f, StabRoot = 0.8f, StabTip = 0.75f, FinHeight = 1.35f, FinRoot = 1.6f, FinTip = 0.7f, FinSweepDeg = 40 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.15f, 0.25f, 0.6f),
                     };
+                case "dhc2-beaver-like":
                 case "dhc2-beaver-floats-like":
                     return new Style
                     {
                         // DHC-2 Beaver: deep slab-sided cabin, R-985 radial in a round cowl, strut-braced high wing, tall
-                        // fin; EDO floats are drawn from the floats config.
+                        // fin; EDO floats are drawn from the floats config, and the landplane stands on the gear in its own.
                         BodyAxisZ = -0.2f, BodyHeightScale = 1.25f, BodyWidthScale = 0.9f,
                         Body = new[] { (2.6f, 0.45f), (2.3f, 0.62f), (1.6f, 0.68f), (0.4f, 0.74f), (-0.9f, 0.68f), (-2.2f, 0.5f), (-3.8f, 0.3f), (-5.4f, 0.17f), (-6.4f, 0.1f) },
                         Canopy = (0.9f, -0.62f, 1.6f, 1.2f, 0.45f), PropRadius = 1.3f, RadialEngine = true, BluntNose = true, HighWingStruts = true,

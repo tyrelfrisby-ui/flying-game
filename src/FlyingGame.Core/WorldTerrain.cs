@@ -406,10 +406,16 @@ public sealed class WorldTerrain
         _ => 0.50,
     };
 
+    /// <summary>Test hook: force every surface query to one answer, for a test about a SURFACE rather than
+    /// about a place (the wheel-ski tests want snow, not a particular glacier). Null in the game, always,
+    /// and every test that sets it puts it back.</summary>
+    public static Surface? SurfaceOverride { get; set; }
+
     /// <summary>Which surface lies under (x, y): a strip or the apron inside an airport pad, otherwise ROUGH
     /// (rolling pasture / ploughed field — off-airport landings are a bumpy, high-drag affair).</summary>
     public static Surface SurfaceAt(double x, double y)
     {
+        if (SurfaceOverride.HasValue) return SurfaceOverride.Value;
         foreach (Airport a in Airports)
         {
             if (PadOutsideX(a, x) > 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;

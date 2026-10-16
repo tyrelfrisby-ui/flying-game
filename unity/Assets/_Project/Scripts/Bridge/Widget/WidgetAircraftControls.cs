@@ -50,7 +50,7 @@ namespace FlyingGame.Bridge.Widget
             "dc3-like" => (new double[] { 0, 15, 30, 45 }, 15),                  // hydraulic
             "pa18-cub-like" or "pa18-bush-like" or "pa18-floats-like" => (new double[] { 0, 25, 50 }, 1.5),
             "pa25-pawnee-like" => (new double[] { 0, 15, 30 }, 1.5),
-            "dhc2-beaver-floats-like" => (new double[] { 0, 15, 30, 58 }, 6),    // hand-pumped hydraulic
+            "dhc2-beaver-like" or "dhc2-beaver-floats-like" => (new double[] { 0, 15, 30, 58 }, 6),   // hand-pumped hydraulic
             "aircam-like" or "aircam-amphib-like" => (new double[] { 0, 15, 30 }, 6),
             "f86-sabre-like" => (new double[] { 0, 20, 38 }, 8),
             "glasair3-like" => (new double[] { 0, 20, 40 }, 8),

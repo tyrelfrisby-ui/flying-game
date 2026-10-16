@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge
             // soft tyres. Applied here so every path that loads an aircraft gets it — the physics reads it for
             // the tyre's size and pressure, and the visual draws the tyre the same size the physics uses.
             config.Bushwheels = SessionSettings.Bushwheels;
+            config.Skis = SessionSettings.Skis;
             return config;
         }
     }
