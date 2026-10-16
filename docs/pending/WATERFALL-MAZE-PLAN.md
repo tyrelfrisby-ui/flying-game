@@ -31,9 +31,9 @@ Both mouths are behind the same curtain, and the loop **descends the whole way**
 
 **The maze is for powered aeroplanes** (owner, 2026-10-16: *"There should be a landing strip early on for
 gliders but no this is meant for powered airplanes"*). So a glider that follows somebody in gets **STRIP 0**,
-300 m past the entrance and before the first fork: 500 m of pavement, glider markings, and it is a terminus —
-a 2-33 has no way out of a mountain, and the honest answer to that is a safe place to put it down rather than
-a corridor it cannot finish. Everything past STRIP 0 only has to work for powered aeroplanes up to the T-6.
+300 m past the entrance and before the first fork: 500 m of pavement, glider markings, impossible to mistake
+for the way on. Everything past STRIP 0 only has to work for powered aeroplanes up to the T-6 — and a glider
+that stops on STRIP 0 is not finished, because of what happens next.
 
 The 4.8 % descent is now a choice rather than a requirement, and it stays: it gives the loop a one-way sense,
 which is what makes a fork a decision instead of a corridor you can back out of.
@@ -102,6 +102,33 @@ Legs, in order, with what each is for:
 | **H** Dead end | 760 m | 340 m, level | **STRIP 3**. The honest dead end: a full-length strip, a pad, and the only way out is to fly out. |
 | **K** Exit | 380 m | 330 → 310 m | Joins the bore that is already built, and out through the bottom mouth under the falls. |
 
+## The tow through the maze — the glider's way round after all
+
+Owner, 2026-10-16: *"If a glider lands on the strip inside the tunnel it gets a tow plane to launch and pull
+it through the course under tow. The tow plane makes left right choices based on the direction the rope is
+pulling on the tail. If the rope is pulling tail left on the tow plane the tow plane takes the right option
+for example"*.
+
+This is the best idea in the whole feature, because it turns the glider's dead end into the hardest way to fly
+the maze — and the physics of it is already right. A rope pulling the tow plane's tail to the left yaws its
+nose to the **right**, so a tow pilot being dragged that way would go right. The glider pilot therefore steers
+the pair by **sliding to the side opposite the branch they want**: slide left, and the tow goes right.
+
+How it is built:
+
+| Piece | How |
+|---|---|
+| The hook-up | A full stop on STRIP 0 brings a tow plane up ahead. The existing aerotow does the rest — this is the same rope, the same slack and the same break load that already work outdoors. |
+| The decision | At each fork the tow plane averages the rope's **lateral pull at its tail** over a window (about 1.5 s) ending at the decision point, with a dead band so small wobbles do not count. Tail pulled left → the RIGHT branch. Tail pulled right → the LEFT branch. |
+| Centred | Inside the dead band the tow plane takes the **safe** branch — the one without the hazard. A glider pilot who does nothing gets round; a glider pilot who wants the slit has to ask for it. |
+| The cue | A light pair on the roof about 400 m before each fork, and the tow plane rocks its wings once. The pilot has to know a decision is coming or it is not a decision. |
+| Survivability | Every branch has to pass the **pair**, not just one aeroplane: the slit at knife edge is impossible under tow, so the tow route through FORK 2 takes the rockfall side, and a dead end means the pair lands — STRIP 1 and STRIP 3 at 760 m hold a tow plane and a glider with room. |
+| Points | Tow time already earns at the highest per-hour rate in the draft table. Each fork taken under tow is a gate (120), and completing the loop under tow should pay a one-off on its own — it is harder than flying it. |
+
+One thing to decide: **the slit cannot be flown under tow.** Either the tow declines that branch whatever the
+rope says (my proposal — it reads as the tow pilot refusing, which is what a tow pilot would do), or the slit
+gets a second, wider passage alongside it that only opens for a tow.
+
 ## The hazards, and the rule they all follow
 
 Every one is **deterministic or telegraphed** — a hazard that kills at random is not a challenge, it is a dice
@@ -121,13 +148,15 @@ is a race course that happens to be inside a mountain.
 
 ## Two questions before this gets built
 
-Answered already: the maze is for powered aeroplanes, with a glider strip early (STRIP 0).
+Answered already: the maze is for powered aeroplanes, with a glider strip early (STRIP 0) — and a glider that
+stops there gets towed round the course, steering the forks through the rope.
 
 1. **The slit at 40 ft.** 12.2 m is narrower than a 172's wingspan, so the 172 must bank to fit. That is a
    good challenge but it is a real wall: a straight-and-level 172 clips it. Keep 40 ft, or open it to 46 ft
    (14 m) so a level 172 just passes?
 2. **Strip 2 at 520 m.** Deliberately too short for a T-6, so the wrong fork can put a fast aeroplane on a
    strip it cannot use. Is that the kind of trap worth having, or should every strip take everything?
+3. **The slit under tow** — the tow plane refuses it, or a wider parallel passage opens for a tow?
 
 Nothing is built past the straight bore. Exact routing gets pinned against the height field the same way the
 bore was — the rock above every crown, the clearance from the upper gorge, and the bends all measured before
