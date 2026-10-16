@@ -36,8 +36,11 @@ namespace FlyingGame.Bridge
             // Wing tips against the pylons of every plateau's course (the active race scores its own plateau).
             if (_strikeRaces == null || _strikeRaces.Length != WorldTerrain.PlateauCount)
             {
+                // Only where a course is actually built: a pylon strike against a pylon that is not there is
+                // a collision with nothing (2026-10-16, the repeated landscape was thinned out).
                 _strikeRaces = new AirRace[WorldTerrain.PlateauCount];
-                for (int p = 0; p < _strikeRaces.Length; p++) _strikeRaces[p] = new AirRace(p);
+                for (int p = 0; p < _strikeRaces.Length; p++)
+                    _strikeRaces[p] = WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse) ? new AirRace(p) : null;
             }
             double half = 0; foreach (var sf in ac.Config.Surfaces) foreach (var st in sf.Strips) half = System.Math.Max(half, System.Math.Abs(st.Pos[1]));
             if (ac.IsLost(FlyingGame.Core.AirframeComponent.WingLeft) || ac.IsLost(FlyingGame.Core.AirframeComponent.WingRight)) half *= 0.3;
@@ -46,6 +49,7 @@ namespace FlyingGame.Bridge
             for (int p = 0; p < _strikeRaces.Length; p++)
             {
                 AirRace strikes = Active && Race != null && p == Plateau ? Race : _strikeRaces[p];
+                if (strikes == null) continue;
                 var hit = strikes.CheckPylonStrike(left, right, Time.deltaTime);
                 if (!hit.HasValue) continue;
                 if (WorldBuilder.PylonTops.TryGetValue((p, hit.Value.element, hit.Value.side), out PylonTopBurst top) && top != null) top.Launch();
@@ -255,7 +259,7 @@ namespace FlyingGame.Bridge
 
         public void Begin()
         {
-            Field = CropField.For(SessionSettings.AirportIndex);
+            Field = CropField.For(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.CropField, SessionSettings.AirportIndex));
             Run = new CropDust(Field); Active = true; _struck = false;
             Mesh m = FieldMesh;
             if (m != null)

@@ -53,11 +53,11 @@ namespace FlyingGame.Bridge
             PylonTops.Clear();
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)
             {
-                BuildBridge(WorldTerrain.Active, root.transform, p);
-                BuildCropField(WorldTerrain.Active, root.transform, p);
-                BuildLandmarks(WorldTerrain.Active, root.transform, p);
-                BuildAeroBox(WorldTerrain.Active, root.transform, p);
-                BuildRaceCourse(WorldTerrain.Active, root.transform, p);
+                if (WorldTerrain.Has(p, WorldTerrain.Feature.Bridge)) BuildBridge(WorldTerrain.Active, root.transform, p);
+                if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField)) BuildCropField(WorldTerrain.Active, root.transform, p);
+                BuildLandmarks(WorldTerrain.Active, root.transform, p);      // arch, tower and town, each on the plateaus that have it
+                if (WorldTerrain.Has(p, WorldTerrain.Feature.AeroBox)) BuildAeroBox(WorldTerrain.Active, root.transform, p);
+                if (WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse)) BuildRaceCourse(WorldTerrain.Active, root.transform, p);
             }
             Landmarks.RegisterSolids(WorldTerrain.Active);
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
@@ -93,9 +93,23 @@ namespace FlyingGame.Bridge
             float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
             float hf = Mathf.Clamp01((float)h / 2800f);
             Color c = Color.Lerp(grass, dry, hf * 0.9f);
-            if (h > 2500) c = Color.Lerp(c, snow, Mathf.Clamp01((float)(h - 2500) / 300f));
             float rockiness = Mathf.Clamp01((slope - 0.35f) / 0.6f);
             c = Color.Lerp(c, rock, rockiness);
+            // SNOW GOES ON LAST, over the rock. It used to go on before it, and the rock lerp — which is
+            // saturated on anything steeper than about 30° — then wiped it straight off again. Every mountain
+            // face in the world is steeper than that, so the Alaska range's 17,700 ft summits were bare brown
+            // rock to the top and the only white anywhere was on flat ground above 2,500 m. Owner 2026-10-16:
+            // "I didn't see any screenshots of white snow covered mountains."
+            float snowy = Mathf.Clamp01((float)(h - 2500) / 600f);
+            // And it does not lie on a cliff: above about 77° the face is bare, which is what gives a snow peak
+            // its stripes of rock instead of making it a smooth white cone. The cutoff has to be that high
+            // because these mountains are steep for their size — the High One is 3,900 m of relief inside a
+            // 2,000 m radius, because that is what fits on the plateau — so a cutoff set at a real mountain's
+            // 55° left the whole range bare below the summits.
+            snowy *= 1f - Mathf.Clamp01((slope - 2.8f) / 1.6f);
+            if (snowy > 0) c = Color.Lerp(c, snow, snowy);
+            // Glacier ice: bluer and brighter than snow, so the ice reads as a river through the rock.
+            if (AlaskaRange.OnIce(x, y)) c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f);
             // Sand: the beaches under the sea cliffs, Avalon's cove, the cave's beach; the sea floor below.
             if (h < 3.0 && Coast.IsSea(x, y))
             {
@@ -1345,8 +1359,13 @@ namespace FlyingGame.Bridge
         {
             var root = new GameObject($"Landmarks{p}"); root.transform.SetParent(parent, false);
             var steel = new Color(0.72f, 0.74f, 0.78f);
-            // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)).
+            // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)) — but only the parts this
+            // plateau carries (2026-10-16: the repeated landscape was thinned out).
+            bool hasArch = WorldTerrain.Has(p, WorldTerrain.Feature.Arch);
+            bool hasTower = WorldTerrain.Has(p, WorldTerrain.Feature.Tower);
             double archY = Landmarks.ArchYAt(p), towerY = Landmarks.TowerYAt(p);
+            if (hasArch)
+            {
             // Gateway arch: tapered segments along the parabola, spanning the river in its gorge.
             double cx = Landmarks.ArchCentreXAt(p), baseUp = Landmarks.ArchBaseUp(t, p);
             const int n = 40;
@@ -1365,7 +1384,10 @@ namespace FlyingGame.Bridge
                 double lx = cx + sgn * Landmarks.ArchHalfSpanM;
                 Beam(root, "ArchLeg", U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
             }
+            }
 
+            if (hasTower)
+            {
             // Eiffel-style tower: four curving legs meeting in a slim top, three floors; a road runs under it.
             var iron = new Color(0.45f, 0.33f, 0.25f);
             double tg = t.HeightAt(Landmarks.TowerX, towerY);
@@ -1406,13 +1428,17 @@ namespace FlyingGame.Bridge
             Slab(root.transform, "TowerRoad", Landmarks.TowerX, towerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
                 Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
+            }
 
-            // The city (owner 2026-10-05: "identical to the one you built in the combat zone"): the combat city's grid —
-            // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site, on every plateau.
-            var cityBatch = new SeasideBuilder.Batch();
-            PlaygroundBuilder.BuildCityGrid(ValleyCity.At(p), t, cityBatch, root.transform);
-            PlaygroundBuilder.BuildCityExtras(ValleyCity.At(p), t, cityBatch, root.transform);   // pad, rooftop rings, spinning ring
-            cityBatch.Build("ValleyCity", root.transform, SeasideBuilder.VC);
+            // The town (owner 2026-10-05: "identical to the one you built in the combat zone"): the combat city's grid —
+            // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site.
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.Town))
+            {
+                var cityBatch = new SeasideBuilder.Batch();
+                PlaygroundBuilder.BuildCityGrid(ValleyCity.At(p), t, cityBatch, root.transform);
+                PlaygroundBuilder.BuildCityExtras(ValleyCity.At(p), t, cityBatch, root.transform);   // pad, rooftop rings, spinning ring
+                cityBatch.Build("ValleyCity", root.transform, SeasideBuilder.VC);
+            }
         }
 
         /// <summary>A box beam from a to b (world Unity points) with the given cross-section.</summary>

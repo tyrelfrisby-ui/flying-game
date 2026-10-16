@@ -5,8 +5,11 @@ using Xunit;
 
 namespace FlightTests;
 
-/// <summary>Owner 2026-10-16: 2,000 ft plateau steps, so the top field is at 7,000 ft (it was 1,500 ft a step
-/// and 5,500 ft at the top), and the Valley landscape repeated — in part — on every step.</summary>
+/// <summary>
+/// Owner 2026-10-16: 2,000 ft plateau steps, so the top field is at 7,000 ft (it was 1,500 ft a step and 5,500
+/// at the top) — and the Valley landscape no longer repeated whole on every step. "Thin them out — keep some,
+/// drop some." Each upper plateau keeps its airport, its lake and the river, plus two of the rest.
+/// </summary>
 [Collection("WorldTerrainActive")]
 public class PlateauCopyTests
 {
@@ -17,28 +20,63 @@ public class PlateauCopyTests
             Assert.InRange((WorldTerrain.Airports[i].ElevationM - WorldTerrain.DatumM) * 3.28084, 2000 * i - 1, 2000 * i + 1);
     }
 
+    /// <summary>
+    /// The layout itself: the Valley has everything, every upper plateau has exactly two of the rest, and
+    /// each of the seven features survives somewhere. A thinning that quietly dropped one altogether would
+    /// pass every other test in this file.
+    /// </summary>
     [Fact]
-    public void EveryPlateauCarriesTheValleyLandscapeOnFlatGround()
+    public void EachUpperPlateauKeepsTwoThingsAndNothingIsLostAltogether()
+    {
+        var all = (WorldTerrain.Feature[])System.Enum.GetValues(typeof(WorldTerrain.Feature));
+        foreach (WorldTerrain.Feature f in all)
+        {
+            Assert.True(WorldTerrain.Has(0, f), $"the Valley should carry everything, and has no {f}");
+            Assert.NotEmpty(WorldTerrain.PlateausWith(f));
+        }
+        for (int p = 1; p < WorldTerrain.PlateauCount; p++)
+            Assert.Equal(2, all.Count(f => WorldTerrain.Has(p, f)));
+        // And the owner's list, by name (2026-10-16).
+        Assert.True(WorldTerrain.Has(1, WorldTerrain.Feature.CropField) && WorldTerrain.Has(1, WorldTerrain.Feature.Bridge));
+        Assert.True(WorldTerrain.Has(2, WorldTerrain.Feature.RaceCourse) && WorldTerrain.Has(2, WorldTerrain.Feature.Town));
+        Assert.True(WorldTerrain.Has(3, WorldTerrain.Feature.AeroBox) && WorldTerrain.Has(3, WorldTerrain.Feature.Arch));
+        // "Start me in the aerobatic box" from a field that has none sends you to one that has.
+        Assert.True(WorldTerrain.Has(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.AeroBox, 1), WorldTerrain.Feature.AeroBox));
+        Assert.True(WorldTerrain.Has(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.RaceCourse, 3), WorldTerrain.Feature.RaceCourse));
+    }
+
+    [Fact]
+    public void WhatEachPlateauDoesCarrySitsOnFlatGroundAtItsOwnLevel()
     {
         var t = new WorldTerrain();
         for (int p = 0; p < WorldTerrain.PlateauCount; p++)
         {
             double elev = WorldTerrain.Airports[p].ElevationM, dy = WorldTerrain.PlateauDy(p);
-            // Race course, aerobatic box, crop field, town and tower all sit on this plateau's level.
-            foreach (RaceElement e in RaceCourse.ElementsFor(p)) Assert.InRange(t.HeightAt(e.X, e.Y), elev - 1, elev + 30);
-            Assert.InRange(t.HeightAt(AeroBox.CenterX, AeroBox.CenterYAt(p)), elev - 1, elev + 1);
-            CropField f = CropField.For(p);
-            Assert.Equal(elev, f.ElevationM);
-            Assert.InRange(t.HeightAt(f.WireX, f.PoleY0), elev - 1, elev + 1);
-            var (ccx, ccy) = ValleyCity.At(p).Centre;
-            Assert.InRange(t.HeightAt(ccx, ccy), elev - 1, elev + 1);
-            Assert.InRange(t.HeightAt(Landmarks.TowerX, Landmarks.TowerYAt(p)), elev - 1, elev + 1);
-            // Exact copies: the same x, y shifted by the plateau offset.
-            Assert.Equal(RaceCourse.Elements[3].Y + dy, RaceCourse.ElementsFor(p)[3].Y, 6);
-            Assert.Equal(ValleyCity.At(0).Towers()[17].Cy + dy, ValleyCity.At(p).Towers()[17].Cy, 6);
-            Assert.Equal(ValleyCity.At(0).Towers()[17].HeightM, ValleyCity.At(p).Towers()[17].HeightM, 6);
-            // The arch spans the river in its gorge on every plateau: legs on the rims, well below the deck level.
-            Assert.True(t.WaterSurfaceAt(Landmarks.ArchCentreXAt(p), Landmarks.ArchYAt(p)).HasValue, $"river under the arch on plateau {p}");
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse))
+            {
+                foreach (RaceElement e in RaceCourse.ElementsFor(p)) Assert.InRange(t.HeightAt(e.X, e.Y), elev - 1, elev + 30);
+                Assert.Equal(RaceCourse.Elements[3].Y + dy, RaceCourse.ElementsFor(p)[3].Y, 6);   // an exact copy, shifted
+            }
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.AeroBox))
+                Assert.InRange(t.HeightAt(AeroBox.CenterX, AeroBox.CenterYAt(p)), elev - 1, elev + 1);
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField))
+            {
+                CropField f = CropField.For(p);
+                Assert.Equal(elev, f.ElevationM);
+                Assert.InRange(t.HeightAt(f.WireX, f.PoleY0), elev - 1, elev + 1);
+            }
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.Town))
+            {
+                var (ccx, ccy) = ValleyCity.At(p).Centre;
+                Assert.InRange(t.HeightAt(ccx, ccy), elev - 1, elev + 1);
+                Assert.Equal(ValleyCity.At(0).Towers()[17].Cy + dy, ValleyCity.At(p).Towers()[17].Cy, 6);
+                Assert.Equal(ValleyCity.At(0).Towers()[17].HeightM, ValleyCity.At(p).Towers()[17].HeightM, 6);
+            }
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.Tower))
+                Assert.InRange(t.HeightAt(Landmarks.TowerX, Landmarks.TowerYAt(p)), elev - 1, elev + 1);
+            // The arch spans the river in its gorge: legs on the rims, well below the deck level.
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.Arch))
+                Assert.True(t.WaterSurfaceAt(Landmarks.ArchCentreXAt(p), Landmarks.ArchYAt(p)).HasValue, $"river under the arch on plateau {p}");
         }
     }
 
@@ -56,14 +94,19 @@ public class PlateauCopyTests
             Landmarks.RegisterSolids(t, 0);
             int valley = WorldSolids.Boxes.Count;
             Landmarks.RegisterSolids(t);
-            Assert.Equal(valley * WorldTerrain.PlateauCount + seaside, WorldSolids.Boxes.Count);   // every plateau's copy + the one seaside
+            // Not four copies any more — the Valley's, plus whatever each upper plateau kept.
+            Assert.InRange(WorldSolids.Boxes.Count, valley + seaside + 1, valley * WorldTerrain.PlateauCount + seaside - 1);
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)
             {
                 double elev = WorldTerrain.Airports[p].ElevationM;
-                // The city's tallest tower is solid at 100 m AGL on each plateau.
+                // A town's tallest tower is solid at 100 m AGL — and where there is no town there is NO solid,
+                // which matters more: a solid for a building that was never built is a collision with nothing.
                 FlyCity.Tower b = ValleyCity.At(p).Towers().OrderByDescending(x => x.HeightM).First();
-                Assert.NotNull(WorldSolids.Penetration(b.Cx, b.Cy, elev + 100));
-                Assert.True(AeroBox.Inside(new Vec3(AeroBox.CenterX, AeroBox.CenterYAt(p), -(elev + 300))));
+                bool town = WorldTerrain.Has(p, WorldTerrain.Feature.Town);
+                Assert.Equal(town, WorldSolids.Penetration(b.Cx, b.Cy, elev + 100) != null);
+                Assert.Equal(WorldTerrain.Has(p, WorldTerrain.Feature.AeroBox),
+                             AeroBox.Inside(new Vec3(AeroBox.CenterX, AeroBox.CenterYAt(p), -(elev + 300))));
+                if (!WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse)) continue;
                 var race = new AirRace(p);
                 RaceElement g1 = RaceCourse.ElementsFor(p)[0];
                 race.Update(new Vec3(g1.X - 50, g1.Y, -(elev + 20)), 0, 0.1);
@@ -80,7 +123,7 @@ public class PlateauCopyTests
         // Owner 2026-10-05: "make the city near the initial airport identical to the one you built in the combat zone".
         var t = new WorldTerrain();
         CityGrid combat = FlyCity.Grid;
-        for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+        foreach (int p in WorldTerrain.PlateausWith(WorldTerrain.Feature.Town))
         {
             CityGrid city = ValleyCity.At(p);
             // Identical: the same towers (heights, sizes — turned 90°), the same sky-bridges.
@@ -101,11 +144,17 @@ public class PlateauCopyTests
                 }
             Assert.True(y0 > ay + 300, $"plateau {p}: the city reaches within {y0 - ay:F0} m of the runway centreline");   // close by request (2026-10-05)
             bool Near(double x, double y, double m) => x > x0 - m && x < x1 + m && y > y0 - m && y < y1 + m;
-            foreach (RaceElement e in RaceCourse.ElementsFor(p)) Assert.False(Near(e.X, e.Y, 60), $"race element at {e.X:F0},{e.Y:F0} in the city (plateau {p})");
-            Assert.False(Near(AeroBox.CenterX, AeroBox.CenterYAt(p), AeroBox.SizeM / 2), "aerobatic box over the city");
-            CropField f = CropField.For(p);
-            Assert.False(Near(f.X0, f.Y0, 60) || Near(f.X1, f.Y1, 60), "crop field in the city");
-            Assert.False(Near(Landmarks.TowerX, Landmarks.TowerYAt(p), 100), "the Eiffel-style tower in the city");
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse))
+                foreach (RaceElement e in RaceCourse.ElementsFor(p)) Assert.False(Near(e.X, e.Y, 60), $"race element at {e.X:F0},{e.Y:F0} in the city (plateau {p})");
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.AeroBox))
+                Assert.False(Near(AeroBox.CenterX, AeroBox.CenterYAt(p), AeroBox.SizeM / 2), "aerobatic box over the city");
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField))
+            {
+                CropField f = CropField.For(p);
+                Assert.False(Near(f.X0, f.Y0, 60) || Near(f.X1, f.Y1, 60), "crop field in the city");
+            }
+            if (WorldTerrain.Has(p, WorldTerrain.Feature.Tower))
+                Assert.False(Near(Landmarks.TowerX, Landmarks.TowerYAt(p), 100), "the Eiffel-style tower in the city");
         }
     }
 
@@ -118,7 +167,7 @@ public class PlateauCopyTests
         try
         {
             Landmarks.RegisterSolids(t);
-            for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+            foreach (int p in WorldTerrain.PlateausWith(WorldTerrain.Feature.Town))
             {
                 CityGrid city = ValleyCity.At(p);
                 Assert.Equal(5, city.RooftopRings().Count);

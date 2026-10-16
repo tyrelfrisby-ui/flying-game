@@ -95,6 +95,19 @@ namespace FlyingGame.EditorTools
                 ("front-second", new Vector3(-3000f, 1900f, 8000f), new Vector3(-4800f, 1500f, 8000f)),
                 ("front-third", new Vector3(-6300f, 2600f, -4000f), new Vector3(-8100f, 2000f, -4000f)),
                 ("front-third-east", new Vector3(-5000f, 3400f, 6500f), new Vector3(-7900f, 2300f, 6500f)),
+                // The Alaska range on the Mesa plateau (owner 2026-10-16: "I didn't see any screenshots of
+                // white snow covered mountains"). Nobody had ever rendered it: there were no views for it.
+                // The High One is at sim (4200, −5900), 5,405 m — 17,700 ft — and the snow line is at 2,500 m.
+                ("alaska-massif", new Vector3(-1600f, 4300f, 4200f), new Vector3(-5900f, 3000f, 4200f)),
+                ("alaska-denali", new Vector3(-3400f, 3800f, 4300f), new Vector3(-5900f, 4300f, 4200f)),
+                ("alaska-ridge", new Vector3(-2600f, 4800f, 900f), new Vector3(-6100f, 3400f, 4400f)),
+                ("alaska-glacier", new Vector3(-4600f, 2050f, 5400f), new Vector3(-6900f, 2100f, 5050f)),
+                ("alaska-lake", new Vector3(-4850f, 1620f, 5395f), new Vector3(-5700f, 1560f, 5350f)),
+                ("alaska-braided", new Vector3(-1200f, 1700f, 5800f), new Vector3(-4100f, 950f, 5800f)),
+                // The alpine range and its stair of lakes, on the Summit plateau. Cathedral is 3,357 m.
+                ("alpine-range", new Vector3(-6200f, 5000f, 5900f), new Vector3(-10600f, 2700f, 5900f)),
+                ("alpine-lakes", new Vector3(-7900f, 3100f, 3400f), new Vector3(-9100f, 2500f, 3100f)),
+                ("alpine-cirque", new Vector3(-10100f, 3400f, 4700f), new Vector3(-11300f, 2520f, 4500f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
             var carrier = Object.FindFirstObjectByType<CarrierRuntime>();

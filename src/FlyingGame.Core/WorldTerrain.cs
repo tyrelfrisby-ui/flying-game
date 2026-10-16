@@ -62,6 +62,68 @@ public sealed class WorldTerrain
     /// <summary>Number of plateaus (one per airport); the Valley is plateau 0.</summary>
     public static int PlateauCount => Airports.Length;
 
+    // ---- what each plateau carries (owner 2026-10-16: "Thin them out — keep some, drop some") ----
+    //
+    // Every plateau used to carry a copy of the WHOLE Valley landscape: town, tower, arch, bridge, crop field,
+    // aerobatic box and race course, four of each. From the air it read as the same place four times, and it
+    // left the mountain fronts no room — a front may not grow into something already standing there, so the
+    // repeated features were holding the risers flat at exactly the places the owner wanted mountains.
+    //
+    // Every plateau still has its airport, its lake and the river and gorge: those are the spine, and a float
+    // take-off at 7,000 ft is a lesson of its own. Each upper one keeps TWO of the rest, chosen for its height:
+    //
+    //   3,000 ft  crop field + bridge     ag flying with a density altitude to think about, and the gorge is at
+    //                                     its best here, between two 2,000 ft falls
+    //   5,000 ft  race course + town      Reno is the air races, and the pylons belong on the plateau that
+    //                                     carries the Reno desert; Reno is also a city at 4,500 ft, and the
+    //                                     town gives the course a grandstand
+    //   7,000 ft  aerobatic box + arch    the same figure costs more height up there; and the arch spans the
+    //                                     gorge just above the top fall, which is the best place in the world
+    //                                     for one
+    //
+    // Each upper plateau also has its own big country already — the braided outwash plain and the tunnel maze
+    // below it, the high desert and the Alaska range, the alpine range and the Frank Church.
+
+    /// <summary>The features that were copied onto every plateau.</summary>
+    public enum Feature { Town, Tower, Arch, Bridge, CropField, AeroBox, RaceCourse }
+
+    private static readonly Feature[][] PlateauFeatures =
+    {
+        new[] { Feature.Town, Feature.Tower, Feature.Arch, Feature.Bridge, Feature.CropField, Feature.AeroBox, Feature.RaceCourse },
+        new[] { Feature.CropField, Feature.Bridge },
+        new[] { Feature.RaceCourse, Feature.Town },
+        new[] { Feature.AeroBox, Feature.Arch },
+    };
+
+    /// <summary>Does plateau <paramref name="plateau"/> carry this feature? The Valley carries all of them.</summary>
+    public static bool Has(int plateau, Feature f)
+        => plateau >= 0 && plateau < PlateauFeatures.Length && System.Array.IndexOf(PlateauFeatures[plateau], f) >= 0;
+
+    /// <summary>The plateaus that carry this feature, lowest first — for a menu, a lesson or a contest that
+    /// has to pick one.</summary>
+    public static int[] PlateausWith(Feature f)
+    {
+        var l = new System.Collections.Generic.List<int>();
+        for (int p = 0; p < PlateauCount; p++) if (Has(p, f)) l.Add(p);
+        return l.ToArray();
+    }
+
+    /// <summary>
+    /// The plateau carrying this feature nearest to <paramref name="from"/> — what "start me in the aerobatic
+    /// box" has to mean when you chose a field that no longer has one. Ties go downhill, to the easier air.
+    /// </summary>
+    public static int NearestPlateauWith(Feature f, int from)
+    {
+        int best = -1, bestD = int.MaxValue;
+        for (int p = 0; p < PlateauCount; p++)
+        {
+            if (!Has(p, f)) continue;
+            int d = System.Math.Abs(p - from) * 2 + (p > from ? 1 : 0);   // the tie-break: downhill
+            if (d < bestD) { bestD = d; best = p; }
+        }
+        return best < 0 ? 0 : best;
+    }
+
     /// <summary>y shift that carries a Valley-plateau feature onto plateau <paramref name="p"/> (airports share x).</summary>
     public static double PlateauDy(int p) => Airports[System.Math.Clamp(p, 0, Airports.Length - 1)].Y - Airports[0].Y;
 
@@ -691,22 +753,32 @@ public sealed class WorldTerrain
             k.Add(new Keepout($"{a.Name} pad", a.X - PadSouthX - 300, a.Y - PadHalfY - 300, a.X + PadHalfX + 300, a.Y + PadHalfY + 300, flat: true));
         for (int p = 0; p < PlateauCount; p++)
         {
-            var (cx0, cy0, cx1, cy1) = ValleyCity.At(p).Extent(90);
-            k.Add(new Keepout($"plateau {p} city", cx0, cy0, cx1, cy1));
+            if (Has(p, Feature.Town))
+            {
+                var (cx0, cy0, cx1, cy1) = ValleyCity.At(p).Extent(90);
+                k.Add(new Keepout($"plateau {p} town", cx0, cy0, cx1, cy1));
+            }
             // The race course is the FURTHEST east of the repeated features — 2.1 km out, where the next
             // plateau's crest is 1.2 km out — so it is the one a summit's back slope reaches. The first front
             // put pylon 8 on plateau 1 sixty-nine metres up a mountainside.
-            double rx0 = double.MaxValue, ry0 = double.MaxValue, rx1 = double.MinValue, ry1 = double.MinValue;
-            foreach (RaceElement e in RaceCourse.ElementsFor(p))
+            if (Has(p, Feature.RaceCourse))
             {
-                rx0 = System.Math.Min(rx0, e.X); rx1 = System.Math.Max(rx1, e.X);
-                ry0 = System.Math.Min(ry0, e.Y); ry1 = System.Math.Max(ry1, e.Y);
+                double rx0 = double.MaxValue, ry0 = double.MaxValue, rx1 = double.MinValue, ry1 = double.MinValue;
+                foreach (RaceElement e in RaceCourse.ElementsFor(p))
+                {
+                    rx0 = System.Math.Min(rx0, e.X); rx1 = System.Math.Max(rx1, e.X);
+                    ry0 = System.Math.Min(ry0, e.Y); ry1 = System.Math.Max(ry1, e.Y);
+                }
+                k.Add(new Keepout($"plateau {p} race course", rx0 - 60, ry0 - 60, rx1 + 60, ry1 + 60));
             }
-            k.Add(new Keepout($"plateau {p} race course", rx0 - 60, ry0 - 60, rx1 + 60, ry1 + 60));
-            CropField cf = CropField.For(p);
-            k.Add(new Keepout($"plateau {p} crop field", cf.X0 - 60, cf.Y0 - 60, cf.X1 + 60, cf.Y1 + 60));
-            k.Add(new Keepout($"plateau {p} aerobatic box", AeroBox.CenterX - AeroBox.SizeM / 2 - 60, AeroBox.CenterYAt(p) - AeroBox.SizeM / 2 - 60,
-                                                            AeroBox.CenterX + AeroBox.SizeM / 2 + 60, AeroBox.CenterYAt(p) + AeroBox.SizeM / 2 + 60));
+            if (Has(p, Feature.CropField))
+            {
+                CropField cf = CropField.For(p);
+                k.Add(new Keepout($"plateau {p} crop field", cf.X0 - 60, cf.Y0 - 60, cf.X1 + 60, cf.Y1 + 60));
+            }
+            if (Has(p, Feature.AeroBox))
+                k.Add(new Keepout($"plateau {p} aerobatic box", AeroBox.CenterX - AeroBox.SizeM / 2 - 60, AeroBox.CenterYAt(p) - AeroBox.SizeM / 2 - 60,
+                                                                AeroBox.CenterX + AeroBox.SizeM / 2 + 60, AeroBox.CenterYAt(p) + AeroBox.SizeM / 2 + 60));
         }
         k.Add(new Keepout("braided plain", BraidedRiver.X0, BraidedRiver.Y0, BraidedRiver.X1, BraidedRiver.Y1, flat: true));
         k.Add(new Keepout("high desert", HighDesert.X0, HighDesert.Y0, HighDesert.X1, HighDesert.Y1, flat: true));

@@ -39,15 +39,18 @@ namespace FlyingGame.Bridge
                 (new Vec3(-1100, -1250, 0), 280, 9.0, CloudBaseAglM),
                 (new Vec3(1900, -1500, 0), 420, 14.0, CloudBaseAglM),
                 (new Vec3(2000, 1500, 0), 300, 10.0, CloudBaseAglM),
-                // The ploughed farmer's field east of the runway: dark earth, a strong thermal — narrowed and set to the field's
-                // south side so the cross runway's eastern approach stays in still air.
-                (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2 - 150, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 300, 13.0, CloudBaseAglM),
             };
+            // The ploughed farmer's field east of the runway: dark earth, a strong thermal — narrowed and set to
+            // the field's south side so the cross runway's eastern approach stays in still air. Only on the
+            // plateaus that still have a crop field (2026-10-16).
+            var overTheField = (new Vec3((CropField.Valley.X0 + CropField.Valley.X1) / 2 - 150, (CropField.Valley.Y0 + CropField.Valley.Y1) / 2, 0), 300.0, 13.0, CloudBaseAglM);
             var set = new System.Collections.Generic.List<(Vec3 pos, double r, double core, double top)>();
             for (int p = 0; p < WorldTerrain.PlateauCount; p++)
             {
                 double dy = WorldTerrain.PlateauDy(p), elev = WorldTerrain.Airports[p].ElevationM;
                 foreach (var (pos, r, core, top) in valley) set.Add((new Vec3(pos.X, pos.Y + dy, -elev), r, core, top + elev));
+                if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField))
+                    set.Add((new Vec3(overTheField.Item1.X, overTheField.Item1.Y + dy, -elev), overTheField.Item2, overTheField.Item3, overTheField.Item4 + elev));
             }
             int seed = 0;
             foreach (var (pos, r, core, top) in set)

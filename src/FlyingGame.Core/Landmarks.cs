@@ -61,22 +61,32 @@ public static class Landmarks
     }
 
     /// <summary>Solids of the copy on plateau <paramref name="p"/> (appends; does not clear).</summary>
+    /// Only what this plateau actually carries (2026-10-16: the repeated landscape was thinned out). A solid
+    /// for a tower that is not built is worse than useless — it is a mid-air collision with nothing.
     public static void RegisterSolids(WorldTerrain t, int p)
     {
-        ValleyCity.At(p).RegisterSolids(t);   // the city built for flying (towers + sky-bridges), owner 2026-10-05
-        ValleyCity.At(p).RegisterExtras(t);   // ... with its pad, rooftop rings and spinning ring
-        // Arch legs and tower legs.
-        double archBase = ArchBaseUp(t, p), archY = ArchYAt(p), archCx = ArchCentreXAt(p);
-        foreach (double sgn in new[] { -1.0, 1.0 })
+        if (WorldTerrain.Has(p, WorldTerrain.Feature.Town))
         {
-            WorldSolids.Boxes.Add(new WorldSolids.Box(archCx + sgn * ArchHalfSpanM, archY, ArchLegWidthM / 2, ArchLegWidthM / 2, archBase - 30, archBase + 40));
+            ValleyCity.At(p).RegisterSolids(t);   // the city built for flying (towers + sky-bridges), owner 2026-10-05
+            ValleyCity.At(p).RegisterExtras(t);   // ... with its pad, rooftop rings and spinning ring
         }
-        double towerY = TowerYAt(p);
-        double tg = t.HeightAt(TowerX, towerY);
-        foreach ((double sx, double sy) in new[] { (-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0) })
+        if (WorldTerrain.Has(p, WorldTerrain.Feature.Arch))
         {
-            WorldSolids.Boxes.Add(new WorldSolids.Box(TowerX + sx * (TowerBaseHalfM - 10), towerY + sy * (TowerBaseHalfM - 10), 10, 10, tg, tg + TowerFirstFloorM));
+            double archBase = ArchBaseUp(t, p), archY = ArchYAt(p), archCx = ArchCentreXAt(p);
+            foreach (double sgn in new[] { -1.0, 1.0 })
+            {
+                WorldSolids.Boxes.Add(new WorldSolids.Box(archCx + sgn * ArchHalfSpanM, archY, ArchLegWidthM / 2, ArchLegWidthM / 2, archBase - 30, archBase + 40));
+            }
         }
-        WorldSolids.Boxes.Add(new WorldSolids.Box(TowerX, towerY, TowerHalfAt(TowerSecondFloorM), TowerHalfAt(TowerSecondFloorM), tg + TowerFirstFloorM, tg + TowerHeightM));
+        if (WorldTerrain.Has(p, WorldTerrain.Feature.Tower))
+        {
+            double towerY = TowerYAt(p);
+            double tg = t.HeightAt(TowerX, towerY);
+            foreach ((double sx, double sy) in new[] { (-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0) })
+            {
+                WorldSolids.Boxes.Add(new WorldSolids.Box(TowerX + sx * (TowerBaseHalfM - 10), towerY + sy * (TowerBaseHalfM - 10), 10, 10, tg, tg + TowerFirstFloorM));
+            }
+            WorldSolids.Boxes.Add(new WorldSolids.Box(TowerX, towerY, TowerHalfAt(TowerSecondFloorM), TowerHalfAt(TowerSecondFloorM), tg + TowerFirstFloorM, tg + TowerHeightM));
+        }
     }
 }

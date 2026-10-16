@@ -14,7 +14,8 @@ public static class AeroBox
     {
         double agl = -pos.Z - WorldTerrain.GroundHeightAt(pos.X, pos.Y);
         if (System.Math.Abs(pos.X - CenterX) > SizeM / 2 || agl < FloorAglM || agl > CeilingAglM) return false;
-        for (int p = 0; p < WorldTerrain.PlateauCount; p++)
+        // Only the plateaus that have a box (2026-10-16): the Valley's and the Summit's.
+        foreach (int p in WorldTerrain.PlateausWith(WorldTerrain.Feature.AeroBox))
             if (System.Math.Abs(pos.Y - CenterYAt(p)) <= SizeM / 2) return true;
         return false;
     }

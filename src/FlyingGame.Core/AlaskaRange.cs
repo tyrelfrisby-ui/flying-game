@@ -153,7 +153,11 @@ public static class AlaskaRange
             double d = System.Math.Sqrt((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y));
             if (d >= p.RadiusM) continue;
             double t = 1 - d / p.RadiusM;
-            double cone = baseH + (p.TopM - baseH) * System.Math.Pow(t, 1.6);
+            // Smoothstep, not pow(t, 1.6): a power law has slope 1.6 at the summit, which puts a point on
+            // every mountain — the range rendered as a row of witch's hats. Smoothstep's slope is zero at both
+            // ends, so the summit rounds off and the foot blends into the plateau. (The same mistake, and the
+            // same fix, as the high desert's peaks.)
+            double cone = baseH + (p.TopM - baseH) * Smooth(t);
             cone += Ridge(x, y) * (0.3 + 0.7 * System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
             h = System.Math.Max(h, cone);
         }

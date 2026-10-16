@@ -161,7 +161,9 @@ public static class AlpineRange
             double d = System.Math.Sqrt((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y));
             if (d >= p.RadiusM) continue;
             double t = 1 - d / p.RadiusM;
-            double cone = baseH + (p.TopM - baseH) * System.Math.Pow(t, 1.35);
+            // Smoothstep, not a power law: pow(t, 1.35) has slope 1.35 at the summit and puts a point on
+            // every peak. A render of the range showed eight witch's hats above the cirques.
+            double cone = baseH + (p.TopM - baseH) * Smooth(t);
             // Rock, not a tent: the roughness fades out at the summit and at the foot.
             cone += Ridge(x, y) * (0.35 + 0.65 * System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
             h = System.Math.Max(h, cone);

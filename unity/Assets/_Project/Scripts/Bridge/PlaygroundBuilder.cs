@@ -387,7 +387,7 @@ namespace FlyingGame.Bridge
             if (_races.Count == 0)
             {
                 _races.Add(new RooftopRace(WorldTerrain.Active, FlyCity.Grid));
-                for (int p = 0; p < WorldTerrain.PlateauCount; p++) _races.Add(new RooftopRace(WorldTerrain.Active, ValleyCity.At(p)));
+                foreach (int p in WorldTerrain.PlateausWith(WorldTerrain.Feature.Town)) _races.Add(new RooftopRace(WorldTerrain.Active, ValleyCity.At(p)));
             }
             foreach (RooftopRace race in _races)
             {

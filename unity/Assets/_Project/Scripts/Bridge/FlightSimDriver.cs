@@ -206,12 +206,13 @@ namespace FlyingGame.Bridge
             {
                 // Running in to the aerobatic box: 300 m short of its south edge, heading north through the middle, 700 m
                 // above the ground (box floor 100 m, ceiling 1,067 m).
-                spawnX = AeroBox.CenterX - AeroBox.SizeM / 2 - 300; spawnY = AeroBox.CenterYAt(SessionSettings.AirportIndex); spawnHdg = 0.0;
+                spawnX = AeroBox.CenterX - AeroBox.SizeM / 2 - 300; spawnY = AeroBox.CenterYAt(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.AeroBox, SessionSettings.AirportIndex)); spawnHdg = 0.0;
                 spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 700;
             }
             else if (ch == "event:race")
             {
-                var g = RaceCourse.ElementsFor(SessionSettings.AirportIndex)[0];   // this plateau's course
+                // The nearest plateau that still HAS a course (2026-10-16: only the Valley's and the Mesa's).
+                var g = RaceCourse.ElementsFor(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.RaceCourse, SessionSettings.AirportIndex))[0];
                 spawnX = g.X - g.Forward.X * 800; spawnY = g.Y - g.Forward.Y * 800; spawnHdg = g.HeadingDeg * System.Math.PI / 180;
                 spawnAlt = FlyingGame.Core.WorldTerrain.GroundHeightAt(spawnX, spawnY) + 60;
             }
@@ -219,7 +220,7 @@ namespace FlyingGame.Bridge
             {
                 // Crop dusting (2026-10-07: the south approach now runs through the city): 500 m NORTH of the field (short of the gorge rim) at 30 m AGL,
                 // heading south, lined up on the first pass left (swath 18) — the wires are 100 yards in from this end.
-                CropField f = CropField.For(SessionSettings.AirportIndex);   // this plateau's field
+                CropField f = CropField.For(WorldTerrain.NearestPlateauWith(WorldTerrain.Feature.CropField, SessionSettings.AirportIndex));
                 spawnX = f.X1 + 500; spawnY = f.Y0 + (17 + 0.5) * CropDust.SwathM; spawnHdg = System.Math.PI;   // 500 m: short of the gorge rim
                 spawnAlt = f.ElevationM + 30;
             }
