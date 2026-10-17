@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -36,12 +38,28 @@ public class BrsTests : IDisposable
     private static AircraftConfig Load(string id)
         => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
+    /// <summary>The repository root, found by walking up until the aircraft configs are underneath.</summary>
+    private static string Repo { get { var d = new DirectoryInfo(AppContext.BaseDirectory); while (d != null && !Directory.Exists(Path.Combine(d.FullName, "configs", "aircraft"))) d = d.Parent; return d!.FullName; } }
+
+    /// <summary>Every type in the fleet, read from the configs rather than from a list kept in this file.</summary>
+    private static IEnumerable<(string Id, AircraftConfig C)> Fleet =>
+        Directory.GetFiles(Path.Combine(Repo, "configs", "aircraft"), "*-like.json").OrderBy(f => f)
+                 .Select(f => (Path.GetFileNameWithoutExtension(f), AircraftConfigLoader.LoadFromFile(f)));
+
+    private static IEnumerable<(string Id, AircraftConfig C)> Fitted => Fleet.Where(a => a.C.Brs != null);
+
     [Fact]
-    public void OnlyTheCirrusHasOne()
+    public void TheCirrusIsTheOnlyOneFittedWithOne()
     {
-        Assert.NotNull(Load(Cirrus).Brs);
-        foreach (string id in new[] { "c172-like", "pa28-archer-like", "pa18-cub-like", "f86-sabre-like" })
-            Assert.Null(Load(id).Brs);
+        // Owner 2026-10-16: "the only airplane with a brs is the cirrus ... if we add other airplanes with brs
+        // in the future we need a way to handle this but just do the cirrus for now". Nothing in the sim or the
+        // cockpit names a type: a parachute is a block in a config, the handle appears because the block is
+        // there, and the canopy takes its size from it. So this reads the fleet instead of naming four types
+        // that have none — fitting a second one is a JSON block, this test is what says it happened, and the
+        // checks below then cover the new one without anybody remembering to add it.
+        string[] fitted = Fitted.Select(a => a.Id).ToArray();
+        _o.WriteLine($"fitted with a BRS: {string.Join(", ", fitted)} — of {Fleet.Count()} types in the fleet");
+        Assert.Equal(new[] { Cirrus }, fitted);
     }
 
     [Fact]
@@ -198,14 +216,27 @@ public class BrsTests : IDisposable
     }
 
     [Fact]
-    public void TheBridleHasToBeAboveTheCentreOfGravity()
+    public void EveryAeroplaneFittedWithOneHangsFromItAndArrivesSurvivably()
     {
-        // The one number the whole attitude depends on. Stated as a rule so nobody "tidies" it to zero.
-        AircraftConfig c = Load(Cirrus);
-        Assert.NotNull(c.Brs);
-        double aboveCg = c.Mass.CgVec().Z - c.Brs!.BridleVec().Z;   // z is DOWN, so above = larger
-        _o.WriteLine($"the bridle pulls {aboveCg:0.00} m above the CG");
-        Assert.True(aboveCg > 0.3, "the bridle must be well above the CG or the aeroplane will not hang upright");
+        // The rules a fitted parachute has to obey whatever it is bolted to, so that a second type cannot be
+        // added with numbers that only look like the Cirrus's. The bridle offset is the one the whole attitude
+        // depends on — stated as a rule so nobody "tidies" it to zero — and the descent rate has to come out
+        // of THAT aeroplane's mass and canopy, not out of a wish.
+        Assert.NotEmpty(Fitted);
+        foreach ((string id, AircraftConfig c) in Fitted)
+        {
+            BrsConfig b = c.Brs!;
+            double aboveCg = c.Mass.CgVec().Z - b.BridleVec().Z;    // z is DOWN, so above = larger
+            double v = BallisticRecovery.DescentRateMs(c, 1.225), fpm = v * 196.85;
+            double dropFt = v * v / (2 * 9.81) * 3.28084;
+            _o.WriteLine($"{id} at {c.Mass.MassKg:0} kg: bridle {aboveCg:0.00} m above the CG, {fpm:0} fpm " +
+                         $"= the arrival of a drop from {dropFt:0.0} ft, Vpd {b.MaxDeployIasMs * 1.944:0} kt, " +
+                         $"least height {b.MinSafeAglM * 3.28084:0} ft");
+            Assert.True(aboveCg > 0.3, $"{id}: the bridle must be well above the CG or it will not hang upright");
+            Assert.InRange(dropFt, 8, 25);                 // walk away from it, but not a landing either
+            Assert.InRange(b.MaxDeployIasMs, 40, 150);     // a demonstrated speed, not an airframe limit
+            Assert.InRange(b.MinSafeAglM, 90, 600);
+        }
     }
 
     [Fact]
