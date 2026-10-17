@@ -17,7 +17,11 @@ cd /private/tmp/flyinggame-ios && xattr -cr .
 echo "== xcodebuild $(date)"
 xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration Release \
   -destination "generic/platform=iOS" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-  -derivedDataPath /private/tmp/flyinggame-dd DEVELOPMENT_TEAM=DH425V439F build 2>&1 | tail -5
+  -derivedDataPath /private/tmp/flyinggame-dd DEVELOPMENT_TEAM=DH425V439F build 2>&1 \
+  | { grep -E 'error:|error generated|BUILD|The following build commands failed|^\s+(CompileC|Ld|CodeSign) ' || true; } | tail -14
+# (the lines are filtered rather than tailed: a plugin that fails to compile puts its reason hundreds of
+# lines above the summary, and `tail -5` showed only "(2 failures)". pipefail still carries xcodebuild's
+# own exit status past the grep, so a failed build still stops the script.)
 echo "== install $(date)"
 xcrun devicectl device install app --device $UDID "$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)" 2>&1 | tail -3
 echo "== launch $(date)"

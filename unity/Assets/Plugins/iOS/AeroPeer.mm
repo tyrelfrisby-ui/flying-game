@@ -40,9 +40,12 @@ static AeroPeer *gPeer;
         _events = [NSMutableArray array];
         _lock = [[NSLock alloc] init];
         // MCPeerID's display name is limited to 63 bytes, and it is how the other side learns who we are.
-        NSString *d = display ?: @"pilot";
+        // MCPeerID THROWS on a name it does not like rather than returning nil — empty, or over 63 bytes —
+        // so it is checked here as well as being guarded by @try at the call.
+        NSString *d = display.length > 0 ? display : @"pilot";
         while ([d lengthOfBytesUsingEncoding:NSUTF8StringEncoding] > 63 && d.length > 1)
             d = [d substringToIndex:d.length - 1];
+        if (d.length == 0) d = @"pilot";
         _me = [[MCPeerID alloc] initWithDisplayName:d];
         _session = [[MCSession alloc] initWithPeer:_me securityIdentity:nil encryptionPreference:MCEncryptionOptional];
         _session.delegate = self;

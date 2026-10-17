@@ -394,6 +394,11 @@ namespace FlyingGame.EditorTools
             string enc = proj.FindFileGuidByProjectPath("Libraries/Plugins/iOS/ClipEncoder.mm");
             if (enc != null) proj.SetCompileFlagsForFile(fw, enc, new System.Collections.Generic.List<string> { "-fobjc-exceptions" });
             else Debug.LogWarning("Xcode: ClipEncoder.mm not found — clip encoder will not build");
+            // AeroPeer guards MCPeerID/MCNearbyServiceAdvertiser construction with @try, because they throw
+            // on a display name or service type the framework does not like rather than returning nil.
+            string peer = proj.FindFileGuidByProjectPath("Libraries/Plugins/iOS/AeroPeer.mm");
+            if (peer != null) proj.SetCompileFlagsForFile(fw, peer, new System.Collections.Generic.List<string> { "-fobjc-exceptions" });
+            else Debug.LogWarning("Xcode: AeroPeer.mm not found — device-to-device flying will not build");
             // STOREKIT 2 + SWIFT (Plugins/iOS/AeroStore.swift). StoreKit 2 is a Swift-only API, so this is the
             // project's first Swift file and Xcode needs telling: a language version, and the Swift runtime
             // embedded in the app (the deployment target is iOS 15, where it is not guaranteed to be present).
