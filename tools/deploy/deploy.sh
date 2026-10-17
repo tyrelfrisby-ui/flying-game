@@ -4,7 +4,14 @@
 set -e
 set -o pipefail   # a failed xcodebuild must stop the script (its output is piped through tail)
 cd /Users/tyfrisby/Documents/flying-game
-UDID=00008150-001629A83662401C
+# Every physical device that is reachable right now gets the build — iPhone, iPad mini, iPad Air — or just the
+# ones named as arguments (UDIDs). The phone used to be hard-coded, and with it asleep the script failed at the
+# install and the iPads got nothing, which on 2026-10-17 meant installing by hand four times.
+if (( $# > 0 )); then
+  DEVICES=("$@")
+else
+  DEVICES=(${(f)"$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && (/connected/ || /available \(paired\)/) { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]+$/) print $i }')"})
+fi
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
 find unity/Assets unity/Library unity/Packages src -name "* 2.*" -delete 2>/dev/null || true   # iCloud conflict copies break the build ("already registered")
 echo "== unity export $(date)"
@@ -22,8 +29,22 @@ xcodebuild -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration R
 # (the lines are filtered rather than tailed: a plugin that fails to compile puts its reason hundreds of
 # lines above the summary, and `tail -5` showed only "(2 failures)". pipefail still carries xcodebuild's
 # own exit status past the grep, so a failed build still stops the script.)
-echo "== install $(date)"
-xcrun devicectl device install app --device $UDID "$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)" 2>&1 | tail -3
-echo "== launch $(date)"
-xcrun devicectl device process launch --terminate-existing --device $UDID com.tyrelfrisby.aeroplayground 2>&1 | tail -2
+APP="$(ls -d /private/tmp/flyinggame-dd/Build/Products/Release-iphoneos/*.app | head -1)"
+if (( ${#DEVICES} == 0 )); then
+  echo "== no device reachable — the build is at $APP; re-run with a UDID, or wake a device and run again"
+  echo "== DONE $(date)"
+  exit 0
+fi
+# A device that has gone to sleep must not take the others down with it, so the installs are not under set -e.
+INSTALLED=0
+for D in $DEVICES; do
+  echo "== install $D $(date +%H:%M:%S)"
+  if xcrun devicectl device install app --device $D "$APP" 2>&1 | grep -q 'App installed'; then
+    xcrun devicectl device process launch --terminate-existing --device $D com.tyrelfrisby.aeroplayground 2>&1 | tail -1
+    INSTALLED=$((INSTALLED + 1))
+  else
+    echo "== $D would not take it (asleep, or off the network)"
+  fi
+done
+echo "== installed on $INSTALLED of ${#DEVICES} device(s)"
 echo "== DONE $(date)"
