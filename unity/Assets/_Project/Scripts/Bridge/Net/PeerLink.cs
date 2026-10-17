@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using FlyingGame.Core.Lan;
 using UnityEngine;
 
 namespace FlyingGame.Bridge.Net
@@ -53,7 +54,6 @@ namespace FlyingGame.Bridge.Net
         /// rarely bites; it is here so the two local links behave the same way.</summary>
         public const float FarMetres = LanLink.FarMetres;
 
-        private const char Sep = '\u001f';
         private const int BufBytes = 16384;
 
         private readonly string _room;
@@ -79,8 +79,8 @@ namespace FlyingGame.Bridge.Net
         public bool SuspectPermission => false;
         public string Where => "device to device";
 
-        /// <summary>Our own line in everybody else's roster.</summary>
-        private string Display => $"{_selfId}|{_name}|{_ac}";
+        /// <summary>Our own line in everybody else's roster, trimmed to what MCPeerID allows.</summary>
+        private string Display => PeerEvent.Display(_selfId, _name, _ac);
 
         public System.Threading.Tasks.Task OpenAsync()
         {
@@ -132,25 +132,18 @@ namespace FlyingGame.Bridge.Net
                 int n = AP_Poll(_buf, BufBytes);
                 if (n <= 0) break;
                 string e = System.Text.Encoding.UTF8.GetString(_buf, 0, n);
-                string[] f = e.Split(Sep);
-                if (f.Length < 3) continue;
-                string kind = f[0], display = f[1], payload = f[2];
-                // "id|name|aircraft", and anything that does not look like one is still a pilot — just an
-                // anonymous one, rather than something to drop on the floor.
-                string[] who = display.Split('|');
-                string id = who.Length > 0 && who[0].Length > 0 ? who[0] : display;
-                string name = who.Length > 1 ? who[1] : display;
-                string ac = who.Length > 2 ? who[2] : null;
-
+                // The taking-apart is PeerEvent, in Core, because it is the only part of this that can be
+                // wrong without the compiler saying so — and the only part that can be tested off a device.
+                if (!PeerEvent.TryParse(e, out PeerEventKind kind, out string id, out string name, out string ac, out string payload)) continue;
                 switch (kind)
                 {
-                    case "p":
+                    case PeerEventKind.Peer:
                         _inbox.Enqueue(new NetMsg { t = "peer", id = id, name = name, ac = ac });
                         break;
-                    case "b":
+                    case PeerEventKind.Bye:
                         _inbox.Enqueue(new NetMsg { t = "bye", id = id, solo = AP_Count() == 0 ? true : (bool?)null });
                         break;
-                    case "s":
+                    case PeerEventKind.State:
                         NetMsg m = null;
                         try { m = NetMsg.FromJson(payload); }
                         catch (System.Exception) { }
@@ -159,7 +152,7 @@ namespace FlyingGame.Bridge.Net
                         if (string.IsNullOrEmpty(m.t)) m.t = "s";
                         _inbox.Enqueue(m);
                         break;
-                    case "e":
+                    case PeerEventKind.Error:
                         Error = payload;
                         Debug.LogWarning($"[Peer] {payload}");
                         break;
@@ -180,7 +173,7 @@ namespace FlyingGame.Bridge.Net
         }
 
         /// <summary>Kept in step with the mesh's own divisor so the two links behave alike.</summary>
-        private const int LanMeshFarDivisor = FlyingGame.Core.Lan.LanMesh.FarDivisor;
+        private const int LanMeshFarDivisor = LanMesh.FarDivisor;
 
         public void SendQueued(string json)
         {
