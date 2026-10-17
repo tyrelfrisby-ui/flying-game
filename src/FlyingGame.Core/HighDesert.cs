@@ -250,8 +250,12 @@ public static class HighDesert
             }
     }
 
+    /// <summary>How far outside <see cref="X0"/>..<see cref="Y1"/> the desert still lays its own floor down —
+    /// the footprint it actually FLATTENS, which is the rectangle a mountain front has to keep out of.</summary>
+    public const double FootprintPadM = 600;
+
     private static bool InBlock(double x, double y)
-        => x > X0 - 600 && x < X1 + 600 && y > Y0 - 600 && y < Y1 + 600;
+        => x > X0 - FootprintPadM && x < X1 + FootprintPadM && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
 
     public static bool InArea(double x, double y) => InBlock(x, y);
 
@@ -346,6 +350,16 @@ public static class HighDesert
             double graded = StripSurfaceAt(s, x, y);
             h = outside <= 20 ? graded : graded + (h - graded) * Smooth((outside - 20) / 90.0);
         }
+        // Hand back to the ground underneath across the margin outside the block, in BOTH directions, and
+        // LAST of all — the
+        // fade is 1 everywhere inside the declared rectangle, so nothing in the desert proper moves, and
+        // after the hills, or a mesa whose skirt reaches into the margin is left standing on faded ground
+        // as a 600 m tower (which is what the first attempt at this did). Without
+        // this the floor simply stopped at the edge of its padded footprint: on the SOUTH side the third
+        // mountain front rises, so the floor was laid across its face for 560 m and then stopped (a 900 m
+        // wall at x −4,000), and on the NORTH side the first front falls away to the Bench, so the floor hung
+        // 610 m over it and stopped (a wall at x −4,540). Both found 2026-10-16.
+        h = baseH + (h - baseH) * WorldTerrain.BlockFade(x, y, X0, Y0, X1, Y1, FootprintPadM);
         return h;
     }
 

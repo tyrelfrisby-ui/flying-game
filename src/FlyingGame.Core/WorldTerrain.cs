@@ -34,6 +34,17 @@ public sealed class WorldTerrain
     /// <summary>Owner 2026-10-05: "the elevation of the first airport will have to be about 1,000 ft in order to build the
     /// gorge" — the tableland at 1,000 ft (304.8 m) over the sea: a Grand-Canyon-deep gorge down to the sea, 1,000 ft sea cliffs.</summary>
     public const double DatumM = 304.8;
+
+    /// <summary>
+    /// The rectangle the world's terrain MESH is built over. The height field itself answers anywhere, but
+    /// outside this there is nothing drawn, so anything that places objects on the ground — the forest above
+    /// all — has to stop here or it stands on air. (The renderer's own bounds; it reads them from here.)
+    /// </summary>
+    public const double MeshMinX = -7000, MeshMaxX = 9000, MeshMinY = -15000, MeshMaxY = 12500;
+
+    /// <summary>Is (x, y) on ground that is actually built?</summary>
+    public static bool OnBuiltGround(double x, double y)
+        => x > MeshMinX && x < MeshMaxX && y > MeshMinY && y < MeshMaxY;
     // Owner 2026-10-05: "tighten it up even more, bring everything closer together … it takes a long time to get from
     // feature to feature". The bluff 1.05 km west of the field (was 1.4), plateaus 3.3 km apart (were 4.2).
     public const double StepSpacingM = 3300.0;     // wall to wall: room for the whole Valley layout on every plateau
@@ -780,6 +791,11 @@ public sealed class WorldTerrain
                 k.Add(new Keepout($"plateau {p} aerobatic box", AeroBox.CenterX - AeroBox.SizeM / 2 - 60, AeroBox.CenterYAt(p) - AeroBox.SizeM / 2 - 60,
                                                                 AeroBox.CenterX + AeroBox.SizeM / 2 + 60, AeroBox.CenterYAt(p) + AeroBox.SizeM / 2 + 60));
         }
+        // The DECLARED rectangle, not the padded footprint. Each of these three lays its own ground down for
+        // a few hundred metres outside its stated bounds as well, but it now FADES out over that margin
+        // (BlockFade below), so a front may grow into the margin and come back through. It did not always:
+        // the desert's floor reached 560 m south of its own Y0, flattened the face of the third front and
+        // ended in a 900 m wall where the margin stopped.
         k.Add(new Keepout("braided plain", BraidedRiver.X0, BraidedRiver.Y0, BraidedRiver.X1, BraidedRiver.Y1, flat: true));
         k.Add(new Keepout("high desert", HighDesert.X0, HighDesert.Y0, HighDesert.X1, HighDesert.Y1, flat: true));
         k.Add(new Keepout("Frank Church", FrankChurch.X0, FrankChurch.Y0, FrankChurch.X1, FrankChurch.Y1, flat: true));
@@ -895,6 +911,127 @@ public sealed class WorldTerrain
         return (CrestReliefM * shape * (back / CrestBackSlopeM), back);
     }
 
+    // ---- erosion ---------------------------------------------------------------------------------
+    //
+    // Owner 2026-10-16: "give the fronts and the ranges water-cut shape: ridgelines with creases between
+    // them, fans at the foot, so they look worn rather than sculpted." A fault block that has stood for a
+    // million years is not a smooth ramp — water has taken it apart from the top down, and what is left is
+    // a comb: channels down the fall line, spurs between them, and the material that came out of the
+    // channels lying in a skirt of fans along the foot.
+    //
+    // The whole thing is one function of x (across the front) times one function of t (down it), because the
+    // fall line here IS ±y: the fronts run along x and climb in −y, so a channel is a dip in x that deepens
+    // and then shallows as you come down. Nothing here is noise for the sake of it; every metre taken out
+    // of the face is put back at the toe.
+
+    /// <summary>Crest-to-crest spacing of the gullies across a front.</summary>
+    public const double GullySpacingM = 340.0;
+    /// <summary>How deep the deepest channels cut at mid-face, on a front with the room to have them. The
+    /// first cut was 46 m, which a render said was not erosion but a shadow: on a 2,000 ft riser you have to
+    /// take a hundred metres out of a face before anybody believes water did it.</summary>
+    public const double GullyDepthM = 86.0;
+    /// <summary>How far the spur between two channels stands proud of the plain face.</summary>
+    public const double SpurLiftM = 13.0;
+    /// <summary>How far the debris reaches out from the toe, and how thick it is where it leaves the gully.</summary>
+    public const double FanRunM = 330.0, FanHeightM = 24.0;
+    /// <summary>Erosion fades out this far from any block that flattens its own ground.</summary>
+    public const double ErosionClearM = 110.0;
+
+    /// <summary>
+    /// The comb across a front at x: 1 in the bottom of a gully, 0 along a spur crest. The spacing wanders
+    /// so the channels are not a picket fence, and the exponent makes the channels narrow and the spurs
+    /// broad, which is the way round erosion actually leaves them.
+    /// </summary>
+    public static double GullyAcross(int i, double x)
+    {
+        double u = x / GullySpacingM + 0.42 * Lattice(x / 1900.0, i * 11.0, 5.3) + i * 0.37;
+        double v = u - System.Math.Floor(u);
+        return System.Math.Pow(1 - System.Math.Abs(2 * v - 1), 1.6);
+    }
+
+    /// <summary>How big THIS channel is, 0.45 to 1.25 — a hillside has two or three deep draws on it and a
+    /// dozen scratches, not fifteen identical ones.</summary>
+    public static double GullySizeAt(int i, double x)
+    {
+        double u = x / GullySpacingM + 0.42 * Lattice(x / 1900.0, i * 11.0, 5.3) + i * 0.37;
+        return 0.45 + 0.80 * Hash(System.Math.Floor(u), i * 5.9 + 2.1);
+    }
+
+    /// <summary>How much of the gully's depth is cut at t down the face: nothing at the crest, nothing at the
+    /// toe (where its own fan has filled it), full through the middle.</summary>
+    private static double GullyDepthProfile(double t)
+        => Smooth01(System.Math.Clamp(t / 0.26, 0, 1)) * Smooth01(System.Math.Clamp((1 - t) / 0.34, 0, 1));
+
+    /// <summary>0 inside any block that flattens its own ground, 1 once <see cref="ErosionClearM"/> clear of
+    /// it. Erosion does not touch ground somebody else has levelled.</summary>
+    public static double ErosionRoomAt(double x, double y)
+    {
+        double room = double.MaxValue;
+        foreach (Keepout k in Keepouts)
+        {
+            if (!k.Flat) continue;
+            double dx = System.Math.Max(System.Math.Max(k.X0 - x, x - k.X1), 0);
+            double dy = System.Math.Max(System.Math.Max(k.Y0 - y, y - k.Y1), 0);
+            double d = System.Math.Sqrt(dx * dx + dy * dy);
+            if (d < room) room = d;
+            if (room <= 0) return 0;
+        }
+        return Smooth01(System.Math.Clamp(room / ErosionClearM, 0, 1));
+    }
+
+    /// <summary>
+    /// The same erosion, in the round: channels down a cone's flanks and the spurs between them, for the
+    /// peaks of the Alaska and alpine ranges. <paramref name="t"/> is 1 at the summit and 0 at the foot, so
+    /// the channels close as they climb — which is what puts a RIDGELINE between two of them instead of a
+    /// crease in a tent — and die away again at the foot, where their own debris has filled them.
+    ///
+    /// The wander has to be periodic in the bearing or there is a seam down one side of every mountain, so
+    /// it is made of sines rather than the lattice the fronts use.
+    /// </summary>
+    public static double ConeErosion(double bearing, double t, double seed, int channels, double depthM, double spurM)
+    {
+        if (t <= 0 || t >= 1) return 0;
+        // The wander is deliberately large: with a small one the channels come out evenly spaced and the same
+        // size, and a render of the alpine headwalls showed a row of organ pipes rather than a mountain.
+        double u = channels * (bearing / (2 * System.Math.PI) + 0.105 * System.Math.Sin(3 * bearing + seed)
+                                                             + 0.062 * System.Math.Sin(5 * bearing - 2 * seed)
+                                                             + 0.028 * System.Math.Sin(8 * bearing + 3 * seed));
+        double v = u - System.Math.Floor(u);
+        double across = System.Math.Pow(1 - System.Math.Abs(2 * v - 1), 1.6);
+        // Each channel reaches its own height: some run most of the way to the summit, some peter out
+        // halfway, and a couple are scratches.
+        double n = System.Math.Floor(u);
+        double size = 0.25 + 1.15 * Hash(n, seed);
+        double reach = 0.55 + 0.42 * Hash(n, seed + 3.3);
+        double prof = Smooth01(System.Math.Clamp((reach - t) / 0.26, 0, 1)) * Smooth01(System.Math.Clamp(t / 0.20, 0, 1));
+        return (depthM * size * across - spurM * (1 - across) * (1 - across)) * prof;
+    }
+
+    /// <summary>
+    /// 1 anywhere inside the rectangle, falling to 0 <paramref name="padM"/> outside it. A region whose
+    /// ground reaches past its own bounds uses this to hand back to whatever was underneath, so that it
+    /// ends in a slope instead of a wall.
+    /// </summary>
+    public static double BlockFade(double x, double y, double x0, double y0, double x1, double y1, double padM)
+    {
+        double ex = System.Math.Min(x - (x0 - padM), (x1 + padM) - x);
+        double ey = System.Math.Min(y - (y0 - padM), (y1 + padM) - y);
+        return Smooth01(System.Math.Clamp(System.Math.Min(ex, ey) / padM, 0, 1));
+    }
+
+    /// <summary>Value noise on a unit lattice, 0..1, smooth across the cell edges. (Shared with the forest.)</summary>
+    public static double Lattice(double u, double v, double salt)
+    {
+        double iu = System.Math.Floor(u), iv = System.Math.Floor(v);
+        double fu = Smooth01(u - iu), fv = Smooth01(v - iv);
+        double a = Hash(iu * 157.31 + iv * 311.7, salt);
+        double b = Hash((iu + 1) * 157.31 + iv * 311.7, salt);
+        double c = Hash(iu * 157.31 + (iv + 1) * 311.7, salt);
+        double d = Hash((iu + 1) * 157.31 + (iv + 1) * 311.7, salt);
+        double ab = a + (b - a) * fu, cd = c + (d - c) * fu;
+        return ab + (cd - ab) * fv;
+    }
+
     /// <summary>Wall profile 0..1 over t = 0..1 across the escarpment: a talus apron then a near-vertical cliff.</summary>
     private static double WallProfile(double t)
     {
@@ -949,8 +1086,37 @@ public sealed class WorldTerrain
                 else cw = Smooth01(1 - (t - 1) * run / back);
                 h += relief * cw;
             }
-            // Rock texture on the wall face: small ledges (not inside the notch — the face there is sheer).
-            if (t > 0 && t < 1 && w < 0.5) h += 6.0 * System.Math.Sin(x / 23.0) * System.Math.Sin(y / 17.0);
+            // EROSION. A front wide enough to have a hillside gets gullies cut down it and their fans laid
+            // out along the toe; a bare 183 m cliff gets neither, because a cliff has chutes, not valleys.
+            // Not inside a waterfall's notch, where the face is sheer by construction.
+            double wide = Smooth01(System.Math.Clamp((run - EscarpmentWidthM) / 700.0, 0, 1));
+            if (wide > 0 && w < 0.5)
+            {
+                if (t > 0 && t < 1)
+                {
+                    double across = GullyAcross(i, x), prof = GullyDepthProfile(t);
+                    // Down goes the channel; up goes the spur between two of them, which is what makes a
+                    // ridgeline instead of a dent in a ramp.
+                    double move = GullyDepthM * GullySizeAt(i, x) * across * prof
+                                - SpurLiftM * (1 - across) * (1 - across) * prof;
+                    if (move != 0) h -= move * wide * ErosionRoomAt(x, y);
+                }
+                else if (t <= 0)
+                {
+                    double s2 = -t * run;                       // metres out from the toe
+                    if (s2 < FanRunM)
+                    {
+                        // A continuous apron along the foot with a lobe off every gully mouth.
+                        double f = System.Math.Pow(1 - s2 / FanRunM, 1.7);
+                        h += FanHeightM * wide * GullySizeAt(i, x) * (0.30 + 0.70 * GullyAcross(i, x)) * f * ErosionRoomAt(x, y);
+                    }
+                }
+            }
+            // Rock texture on the wall face: ledges and ribs. The wavelengths are long (360 m and 300 m) on
+            // purpose — the first version used 144 m and 107 m against a 60 m mesh, which is what the alpine
+            // range taught us not to do: detail shorter than about twice the sample spacing does not read as
+            // rock, it reads as corduroy.
+            if (t > 0 && t < 1 && w < 0.5) h += 7.0 * System.Math.Sin(x / 57.0) * System.Math.Sin(y / 48.0);
         }
         return h;
     }

@@ -31,9 +31,12 @@ public class MountainFrontTests
             {
                 if (System.Math.Abs(x - _t.Waterfalls[i].X) < 600) continue;      // the water gap is a hole in the front
                 double crest = WorldTerrain.CrestY(i, x), run = _t.FrontWidthAt(i, x);
-                // 60 m in front of the toe: still the lower plateau (the gorge and the hills aside, which
+                // Clear of the debris at the toe: the lower plateau (the gorge and the hills aside, which
                 // BaseHeightAt does not carry).
-                Assert.InRange(_t.BaseHeightAt(x, crest + run + 60), lower - 8, lower + 8);
+                Assert.InRange(_t.BaseHeightAt(x, crest + run + WorldTerrain.FanRunM + 60), lower - 8, lower + 8);
+                // And ON the debris, 60 m out from the toe: above the plateau, because that is what a fan is,
+                // but never by more than the fan is thick.
+                Assert.InRange(_t.BaseHeightAt(x, crest + run + 60), lower - 8, lower + WorldTerrain.FanHeightM + 2);
                 // Past the back slope: the upper plateau, exactly.
                 var (_, back) = _t.CrestAt(i, x);
                 Assert.InRange(_t.BaseHeightAt(x, crest - back - 120), upper - 8, upper + 8);
@@ -144,27 +147,47 @@ public class MountainFrontTests
     /// sides of the line.
     /// </summary>
     [Fact]
-    public void NoBlockThatFlattensItsGroundHasACliffAtItsBoundary()
+    public void NoBlockThatFlattensItsGroundEndsInACliff()
     {
-        (string name, double x0, double y0, double x1, double y1)[] blocks =
+        // The old version of this test walked the line on the map and found nothing, because the step is not
+        // at the line: each of these blocks lays its own ground down for a few hundred metres OUTSIDE its
+        // declared bounds and then stops. On three sides of the high desert the plateau is at the same height
+        // and nothing shows; on the fourth the third mountain front climbs, so the desert's floor was laid
+        // across its face and ended in a 900 m wall 560 m south of its own Y0 (found 2026-10-16, by probing a
+        // render that showed a flat green wall where a mountainside should have been).
+        //
+        // So: walk right across each margin, at 5 m — fine enough that a real escarpment, which is 3.3 : 1 by
+        // design and may be in here, cannot be mistaken for a discontinuity.
+        (string name, double x0, double y0, double x1, double y1, double pad)[] blocks =
         {
-            ("braided plain", BraidedRiver.X0, BraidedRiver.Y0, BraidedRiver.X1, BraidedRiver.Y1),
-            ("high desert", HighDesert.X0, HighDesert.Y0, HighDesert.X1, HighDesert.Y1),
+            ("braided plain", BraidedRiver.X0, BraidedRiver.Y0, BraidedRiver.X1, BraidedRiver.Y1, BraidedRiver.FootprintPadM),
+            ("high desert", HighDesert.X0, HighDesert.Y0, HighDesert.X1, HighDesert.Y1, HighDesert.FootprintPadM),
+            ("Frank Church", FrankChurch.X0, FrankChurch.Y0, FrankChurch.X1, FrankChurch.Y1, FrankChurch.FootprintPadM),
         };
         double worst = 0; string where = "nowhere";
         foreach (var b in blocks)
-        {
-            for (double x = b.x0; x <= b.x1; x += 20)
-            foreach (double y in new[] { b.y0, b.y1 })
+            for (double x = b.x0; x <= b.x1; x += 40)
             {
-                if (System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < 500) continue;   // the gorge crosses it
-                double inside = _t.HeightAt(x, y + (y == b.y0 ? 25 : -25));
-                double outside = _t.HeightAt(x, y + (y == b.y0 ? -25 : 25));
-                double d = System.Math.Abs(inside - outside);
-                if (d > worst) { worst = d; where = $"{b.name} at x {x:F0}, y {y:F0}"; }
+                if (System.Math.Abs(x - WorldTerrain.RiverCentreX(b.y0)) < 500) continue;   // the gorge crosses it
+                foreach (int side in new[] { -1, 1 })
+                {
+                    double edge = side < 0 ? b.y0 : b.y1;
+                    double from = edge + side * -120, to = edge + side * (b.pad + 260);
+                    double prev = _t.HeightAt(x, from);
+                    for (double y = from + side * 5; side < 0 ? y >= to : y <= to; y += side * 5)
+                    {
+                        double h = _t.HeightAt(x, y);
+                        double d = System.Math.Abs(h - prev);
+                        prev = h;
+                        if (d > worst) { worst = d; where = $"{b.name} at x {x:F0}, y {y:F0}"; }
+                    }
+                }
             }
-        }
-        _o.WriteLine($"worst boundary step: {worst:F1} m over 50 m — {where}");
-        Assert.True(worst < 60, $"a cliff at a block boundary: {worst:F0} m — {where}");
+        _o.WriteLine($"worst step anywhere across a block's margin: {worst:F1} m over 5 m — {where}");
+        // 150 m in 5 m, not 60: where a front is squeezed to its minimum width the ESCARPMENT ITSELF is
+        // 87 m in 5 m — 500 m of climb in 82 m of run, plus a summit's back slope ramping in on top of it —
+        // and that cliff is there on purpose (owner 2026-10-16: "leave the cliff"). What this is looking for
+        // is a block's ground stopping dead, which is hundreds of metres in nothing at all.
+        Assert.True(worst < 150, $"a wall where a block's ground stops: {worst:F0} m in 5 m — {where}");
     }
 }

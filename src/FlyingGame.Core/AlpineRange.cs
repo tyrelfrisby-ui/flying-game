@@ -298,6 +298,9 @@ public static class AlpineRange
             double cone = baseH + (p.TopM - baseH) * Smooth(t);
             // Rock, not a tent: the roughness fades out at the summit and at the foot.
             cone += Ridge(x, y) * (0.35 + 0.65 * System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
+            // And the couloirs (owner 2026-10-16): channels down the flanks with ribs between them. Granite
+            // peaks over cirques are the most eroded thing in the world — it is all the mountain IS.
+            cone -= Couloirs(p, x, y, t, baseH);
             h = System.Math.Max(h, cone);
         }
 
@@ -363,9 +366,21 @@ public static class AlpineRange
             double d = System.Math.Sqrt((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y));
             if (d >= p.RadiusM * SummitFraction) continue;
             double t = 1 - d / p.RadiusM;
-            h = System.Math.Max(h, baseH + (p.TopM - baseH) * Smooth(t));
+            // The SAME cut as the first pass, couloirs and all: re-asserting the plain cone here would fill
+            // the channels back in inside this radius and leave a ring where they stopped.
+            h = System.Math.Max(h, baseH + (p.TopM - baseH) * Smooth(t) - Couloirs(p, x, y, t, baseH));
         }
         return h;
+    }
+
+    /// <summary>The couloirs cut into one peak's flank. Both passes over the peaks have to use this, or the
+    /// summit re-assertion draws a ring round the mountain at <see cref="SummitFraction"/>.</summary>
+    private static double Couloirs(in Peak p, double x, double y, double t, double baseH)
+    {
+        double bearing = System.Math.Atan2(y - p.Y, x - p.X);
+        int channels = 10 + (int)(7 * WorldTerrain.Hash(p.X * 0.011 + p.Y * 0.019, 6.7));
+        double depth = System.Math.Clamp(0.05 * (p.TopM - baseH), 22, 120);
+        return WorldTerrain.ConeErosion(bearing, t, p.X * 0.0013 + p.Y * 0.0009, channels, depth, depth * 0.25);
     }
 
     /// <summary>

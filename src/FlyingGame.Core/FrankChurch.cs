@@ -141,8 +141,11 @@ public static class FrankChurch
                   "Right down on the river bar where the canyon opens out — and the walls lean over it."),
     };
 
+    /// <summary>How far outside the block the canyon's own ground still wins — the footprint it FLATTENS.</summary>
+    public const double FootprintPadM = 400;
+
     private static bool InBlock(double x, double y)
-        => x > X0 - 400 && x < X1 + 400 && y > Y0 - 400 && y < Y1 + 400;
+        => x > X0 - FootprintPadM && x < X1 + FootprintPadM && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
 
     public static bool InArea(double x, double y) => InBlock(x, y);
 

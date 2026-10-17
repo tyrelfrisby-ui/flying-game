@@ -64,10 +64,12 @@ namespace FlyingGame.Bridge
             BraidedRiver.RegisterSolids();                  // the boulders and driftwood on the gravel bars
             HighDesert.RegisterSolids();                    // the desert rock, the junipers and the threshold cairns
             AlpineRange.RegisterSolids();                   // the timber at the alpine lakes' outlets
+            Forest.RegisterSolids();                        // and the forest everywhere else: a function, not a list
             BuildCombatZone(WorldTerrain.Active, root.transform);
             AlaskaBuilder.Build(WorldTerrain.Active, root.transform);    // the glaciers, the bergs, the braided river
             HighDesertBuilder.Build(WorldTerrain.Active, root.transform); // the Reno desert: scrub, strips, cairns
             AlpineBuilder.Build(WorldTerrain.Active, root.transform);     // the alpine lakes' timber
+            ForestStreamer.Attach(WorldTerrain.Active, root.transform);   // the world's timber, built round the camera as it goes
             SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
             PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
@@ -79,7 +81,10 @@ namespace FlyingGame.Bridge
 
         // ---- terrain mesh ------------------------------------------------------------------------
 
-        private const double MinX = -7000, MaxX = 9000, MinY = -15000, MaxY = 12500;   // MinY: past the Summit plateau's tower road; MaxY: past the island
+        // MinY: past the Summit plateau's tower road; MaxY: past the island. These live in Core now, because
+        // the forest has to know where the ground it stands on stops being built.
+        private const double MinX = WorldTerrain.MeshMinX, MaxX = WorldTerrain.MeshMaxX,
+                             MinY = WorldTerrain.MeshMinY, MaxY = WorldTerrain.MeshMaxY;
 
         private const double CoarseStep = 60.0, FineStep = 6.0;
 
@@ -90,6 +95,7 @@ namespace FlyingGame.Bridge
             var dry = new Color(0.62f, 0.56f, 0.36f);
             var rock = new Color(0.47f, 0.42f, 0.37f);
             var snow = new Color(0.9f, 0.9f, 0.92f);
+            var conifer = new Color(0.15f, 0.25f, 0.18f);
             double dhx = (t.HeightAt(x + 8, y) - t.HeightAt(x - 8, y)) / 16.0;
             double dhy = (t.HeightAt(x, y + 8) - t.HeightAt(x, y - 8)) / 16.0;
             float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
@@ -97,6 +103,14 @@ namespace FlyingGame.Bridge
             Color c = Color.Lerp(grass, dry, hf * 0.9f);
             float rockiness = Mathf.Clamp01((slope - 0.35f) / 0.6f);
             c = Color.Lerp(c, rock, rockiness);
+            // The timber (owner 2026-10-16: "conifers up to a treeline that falls with latitude and rises on
+            // sun-facing slopes"). The stems are drawn round the camera only — there are a quarter of a million
+            // of them — so what makes the country read as forested from 5,000 ft, and what makes the TREELINE
+            // read at all, is the ground's own colour. It comes from the same cover function the trees come
+            // from, with the slope this routine has already measured, so the line is in the same place in the
+            // picture as it is in the collision.
+            float cover = (float)Forest.CoverAt(x, y, h, slope, dhx);
+            if (cover > 0) c = Color.Lerp(c, conifer, 0.88f * cover);
             // SNOW GOES ON LAST, over the rock. It used to go on before it, and the rock lerp — which is
             // saturated on anything steeper than about 30° — then wiped it straight off again. Every mountain
             // face in the world is steeper than that, so the Alaska range's 17,700 ft summits were bare brown
@@ -108,7 +122,12 @@ namespace FlyingGame.Bridge
             // because these mountains are steep for their size — the High One is 3,900 m of relief inside a
             // 2,000 m radius, because that is what fits on the plateau — so a cutoff set at a real mountain's
             // 55° left the whole range bare below the summits.
-            snowy *= 1f - Mathf.Clamp01((slope - 2.8f) / 1.6f);
+            // 2.6 rather than 2.8 (2026-10-16), and NOT the 2.1 that was tried first: with the couloirs cut,
+            // 2.1 stripped the snow off the Alaska flanks altogether and gave back the bare brown range the
+            // owner had already objected to once. 2.6 leaves the ribs white and takes the snow off the
+            // channel walls alone, which are the only thing on these mountains steeper than 72° — so the
+            // erosion shows as rock stripes down a white peak, which is what a snow peak looks like.
+            snowy *= 1f - Mathf.Clamp01((slope - 2.6f) / 1.6f);
             if (snowy > 0) c = Color.Lerp(c, snow, snowy);
             // Glacier ice: bluer and brighter than snow, so the ice reads as a river through the rock.
             if (AlaskaRange.OnIce(x, y)) c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f);
@@ -149,7 +168,12 @@ namespace FlyingGame.Bridge
                 Color sandstone = band == 0 ? new Color(0.78f, 0.43f, 0.27f) : band == 1 ? new Color(0.86f, 0.58f, 0.38f) : new Color(0.66f, 0.34f, 0.22f);
                 c = Color.Lerp(c, sandstone, Mathf.Clamp01((slope - 0.35f) / 0.4f));
             }
-            c.a = 1f - Mathf.Clamp01(slope / 0.08f); // flatness → field grid lines
+            // Flatness → field grid lines, which are pasture fences and section lines and belong on farmed
+            // ground. They were being drawn on every flat shelf in the world, including the rims of the
+            // alpine basins at 9,000 ft, where they read as grey staircases cut into the rock. Nobody fences
+            // ground above the treeline, so the grid dies out as the timber does.
+            float farmed = Mathf.Clamp01((float)((Forest.TreeLineAt(x, y, dhx) - h) / 300.0));
+            c.a = (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
             return c;
         }
 

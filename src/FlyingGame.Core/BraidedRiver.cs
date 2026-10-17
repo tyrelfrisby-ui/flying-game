@@ -34,6 +34,9 @@ public static class BraidedRiver
     /// X0 clears the tunnel maze, which runs under this plateau out to x ≈ 3,400 — and where the maze runs,
     /// the GROUND is its bore floor 610 m down, so a channel laid across it fell off a cliff.
     public const double X0 = 3600, X1 = 8000, Y0 = -4150, Y1 = -1450;
+    /// <summary>How far outside that rectangle the outwash still lays its own gravel down — the footprint it
+    /// actually FLATTENS, which is what a mountain front has to keep out of.</summary>
+    public const double FootprintPadM = 300;
 
     /// <summary>The outwash plain's head and foot — a real outwash gradient, about 1 %. Tied to the BENCH
     /// plateau (the braids run out across it) rather than written as metres above the sea: the foot IS the
@@ -254,7 +257,7 @@ public static class BraidedRiver
     }
 
     private static bool InPlain(double x, double y)
-        => x > X0 - 300 && x < X1 + 300 && y > Y0 - 300 && y < Y1 + 300;
+        => x > X0 - FootprintPadM && x < X1 + FootprintPadM && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
 
     public static bool InArea(double x, double y) => InPlain(x, y);
 
@@ -290,6 +293,13 @@ public static class BraidedRiver
         }
         h = System.Math.Max(h, PlainHeightAt(x, y) - ChannelDepthM - 0.2);
 
+        // Hand back to the ground underneath across the margin outside the plain. The plain is laid at its
+        // own level for 300 m beyond its bounds and then stops, which on the south side is where the first
+        // front climbs — so the gravel was being laid across the face and ending in a wall. (The same fault
+        // the high desert had on the third front: 2026-10-16.) Before the strips, not after: their grading
+        // is the last word, and a strip near the edge came out tilted when this was applied over the top.
+        h = baseH + (h - baseH) * WorldTerrain.BlockFade(x, y, X0, Y0, X1, Y1, FootprintPadM);
+
         // The made strips are graded, and that grading is the LAST word: dead flat across, following the
         // valley's own fall along. Applying it before the plain's floor clamp let the gravel texture ripple
         // through and put four centimetres of wave across a strip that is supposed to have been bladed.
@@ -310,7 +320,10 @@ public static class BraidedRiver
     /// <summary>Water in the braids — shallow, which is what makes a wheel skim rather than sink.</summary>
     public static double? WaterSurfaceAt(double x, double y)
     {
-        if (!InPlain(x, y)) return null;
+        // The plain ITSELF, not the margin the height field blends over — the same rule the surface follows.
+        // The bed in the margin is faded toward the ground underneath while the water surface is not, so
+        // water out there sat two and a half metres deep over a bed that had been handed back to the Bench.
+        if (x < X0 || x > X1 || y < Y0 || y > Y1) return null;
         foreach (Bar b in Bars) if (b.On(x, y, 70)) return null;     // a bar and its shoulder are dry
         foreach (NamedStrip ns in NamedStrips) if (ns.On(x, y, 60)) return null;
         double ch = ChannelDepthFraction(x, y);

@@ -80,6 +80,8 @@ namespace FlyingGame.EditorTools
                 ("desert-playa", new Vector3(-7250f, 1420f, -4900f), new Vector3(-7250f, 1222f, -6100f)),
                 ("desert-ruts", new Vector3(-7250f, 1232f, -6530f), new Vector3(-7250f, 1226f, -5900f)),
                 ("desert-topdown", new Vector3(-6000f, 6000f, -5250f), new Vector3(-6000f, 1400f, -5240f)),
+                // The desert's north edge, where its floor used to hang 610 m over the Bench and stop dead.
+                ("desert-northedge", new Vector3(-3000f, 1500f, -4500f), new Vector3(-4700f, 1250f, -4500f)),
                 // The mountain fronts (owner 2026-10-16: risers as mountain fronts, not flat shelves). The
                 // fronts run along sim x, so in Unity they run along z and you look at them down Unity x.
                 // First front: a summit to the west, the widest spur to the east, a saddle, and the bay the
@@ -92,7 +94,7 @@ namespace FlyingGame.EditorTools
                 ("front-first-oblique", new Vector3(2600f, 2700f, 2200f), new Vector3(-1300f, 800f, -4000f)),
                 ("front-first-topdown", new Vector3(-1100f, 5200f, 1500f), new Vector3(-1150f, 500f, 1500f)),
                 // Second front (Bench to Mesa, 3,000 to 5,000 ft) and third (Mesa to Summit, to 7,000 ft).
-                ("front-second", new Vector3(-3000f, 1900f, 8000f), new Vector3(-4800f, 1500f, 8000f)),
+                ("front-second", new Vector3(-1600f, 2100f, 6000f), new Vector3(-5200f, 1250f, 6000f)),
                 ("front-third", new Vector3(-6300f, 2600f, -4000f), new Vector3(-8100f, 2000f, -4000f)),
                 ("front-third-east", new Vector3(-5000f, 3400f, 6500f), new Vector3(-7900f, 2300f, 6500f)),
                 // The Alaska range on the Mesa plateau (owner 2026-10-16: "I didn't see any screenshots of
@@ -110,6 +112,15 @@ namespace FlyingGame.EditorTools
                 ("alpine-outlet", new Vector3(-7400f, 3050f, 2200f), new Vector3(-8900f, 2440f, 3000f)),
                 ("alpine-larch", new Vector3(-11900f, 3250f, 5500f), new Vector3(-13600f, 2500f, 6600f)),
                 ("alpine-cirque", new Vector3(-10100f, 3400f, 4700f), new Vector3(-11300f, 2520f, 4500f)),
+                // The Frank Church canyon and its strips, which had no views at all until the timber arrived
+                // and made it worth looking at the approaches. (Sim (x, y, up) → Unity (y, up, x).)
+                ("church-canyon", new Vector3(-12800f, 2000f, -5000f), new Vector3(-12600f, 1500f, 1000f)),
+                ("church-johnson", new Vector3(-12891f, 2108f, -2769f), new Vector3(-12600f, 1958f, -1400f)),
+                ("church-soldier", new Vector3(-13054f, 1948f, -1592f), new Vector3(-13900f, 1788f, -1900f)),
+                ("church-indian", new Vector3(-13501f, 1576f, -1295f), new Vector3(-12830f, 1476f, -300f)),
+                // The timber itself: the line across the third front, and a low run over the valley stands.
+                ("forest-line", new Vector3(-7800f, 2600f, 1500f), new Vector3(-7800f, 2200f, -3000f)),
+                ("forest-low", new Vector3(-6000f, 1660f, 0f), new Vector3(-5200f, 1555f, 2500f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.
             var carrier = Object.FindFirstObjectByType<CarrierRuntime>();
@@ -123,12 +134,18 @@ namespace FlyingGame.EditorTools
             {
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
+                // The forest is streamed round the camera in the game, and nothing streams in a batch render,
+                // so build the timber round whatever this view is LOOKING AT and throw it away afterwards.
+                // (Unity x is the sim's y and Unity z is the sim's x.)
+                var forest = new GameObject("ForestView");
+                ForestBuilder.BuildAround(FlyingGame.Core.WorldTerrain.Active, forest.transform, look.z, look.x, 2200, 700);
                 cam.Render();
                 RenderTexture.active = rt;
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
                 Object.DestroyImmediate(tex);
+                Object.DestroyImmediate(forest);
             }
             RenderTexture.active = null;
             Debug.Log($"WorldRender: wrote {views.Length} images to {outDir}");

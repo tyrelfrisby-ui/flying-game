@@ -159,6 +159,12 @@ public static class AlaskaRange
             // same fix, as the high desert's peaks.)
             double cone = baseH + (p.TopM - baseH) * Smooth(t);
             cone += Ridge(x, y) * (0.3 + 0.7 * System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
+            // Water and ice take a mountain apart from the top down (owner 2026-10-16): couloirs down the
+            // flanks with ribs standing between them, deepest at mid-height, closing as they reach the summit.
+            double bearing = System.Math.Atan2(y - p.Y, x - p.X);
+            int channels = 11 + (int)(6 * WorldTerrain.Hash(p.X * 0.013 + p.Y * 0.017, 4.1));
+            double depth = System.Math.Clamp(0.045 * (p.TopM - baseH), 30, 170);
+            cone -= WorldTerrain.ConeErosion(bearing, t, p.X * 0.001 + p.Y * 0.0007, channels, depth, depth * 0.22);
             h = System.Math.Max(h, cone);
         }
 
