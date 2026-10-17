@@ -30,4 +30,30 @@ namespace FlyingGame.Bridge.Net
 
         void Close();
     }
+
+    /// <summary>
+    /// A link with no server in it: the aeroplanes are talking to each other directly, either over the wifi
+    /// everybody is already on (<see cref="LanLink"/>) or over a link the devices make themselves with no
+    /// router at all (<see cref="PeerLink"/>). The session needs a few things from these that mean nothing to
+    /// the relay, which keeps its own copy of a pilot's name and does its own fan-out.
+    /// </summary>
+    public interface ILocalLink : INetLink
+    {
+        /// <summary>The pilot changed their name or their aeroplane: it travels with us, so tell the link.</summary>
+        void SetSelf(string name, string aircraft);
+
+        /// <summary>Who is out of sight and can have state at a slower rate (a direct link has no relay to fan out).</summary>
+        void SetFarPeers(System.Collections.Generic.ICollection<string> ids);
+
+        int PeerCount { get; }
+
+        /// <summary>
+        /// Nobody has ever answered, for long enough that the local-network permission is the likeliest
+        /// reason — the one failure a pilot cannot see, because a refused permission fails silently for ever.
+        /// </summary>
+        bool SuspectPermission { get; }
+
+        /// <summary>Where we are listening, for the HUD: "port 47801", "device to device".</summary>
+        string Where { get; }
+    }
 }

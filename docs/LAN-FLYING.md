@@ -78,14 +78,43 @@ wifi, not nothing for a phone radio — so a pilot more than 12 km away, which i
 gets state every fifth tick and stays in the roster. They go back to full rate when they come back into
 sight.
 
+## No router at all: the field case (2026-10-17, same day)
+
+`unity/Assets/Plugins/iOS/AeroPeer.mm` + `PeerLink.cs`. **MultipeerConnectivity**: the devices build their own
+link out of nothing — no access point, no DHCP, no addresses to type, and no sweep, because finding each other
+is part of the protocol. Tens of metres, one hop.
+
+It sits behind the same `ILocalLink` as the wifi mesh and synthesises the same `hello` / `peer` / `bye` / `s`
+messages, so the only difference above the socket is which object `NetSession` built. The switch is **"No wifi
+router"** in the Same-network panel, and it only appears where there is such a thing — the editor and anything
+not Apple get a stub that says no.
+
+Details worth keeping:
+
+* **Only one side invites.** Both devices see each other, so the one whose peer name sorts first sends the
+  invitation and the other waits. Two crossing invitations make `MCSession` drop one of the connections.
+* **The room travels in the discovery info**, and an invitation carries it as its context, so two groups in one
+  field do not merge. The service type (`aeroplay`, ≤ 15 characters by Apple's rule) is shared by everyone.
+* **State goes unreliable, the radio goes reliable.** A late position is worth less than the next one, and
+  head-of-line blocking on a weak link is exactly what makes an aeroplane stutter. A word of radio is not
+  replaceable.
+* **The pilot's name and aeroplane ride in the peer's display name** (`id|name|aircraft`, 63 bytes), which is
+  the one field the framework carries for us — so there is no round of introductions after a connection.
+* **`NSBonjourServices` must list `_aeroplay._tcp` and `_aeroplay._udp`** or discovery silently finds nobody on
+  iOS 14 and later. Added in `BuildScript.OnPostProcessBuild` alongside the framework.
+* The **Mac gets it too**: `tools/native-mac/build.sh` builds the same source into `AeroNative.bundle`, so a Mac
+  can be in a field group as well as on the wifi.
+
+Compiled against both the macOS and iOS SDKs. **Not run between two devices yet** — there is no way to test
+peer-to-peer wifi from a Mac on its own.
+
 ## Still open
 
 * **Not yet flown between two devices.** The transport is tested on sockets and the glue compiles, but no two
   phones have been in a room together yet. First thing to check on a device: the local-network permission
   prompt on first join, and that the sweep finds anybody at all on a real home access point.
-* **The two iPads in a field** (no router): Apple peer-to-peer wifi via `MultipeerConnectivity` or
-  `Network.framework` with `includePeerToPeer`. That needs a native Swift/ObjC plugin and a C# shim; it would
-  sit behind `INetLink` exactly as this does, and it gives discovery for free.
+* **The two iPads in a field** is built (above) but unflown. The things to watch on a device: that the
+  invitation tie-break really does leave one connection rather than none, and what the range is in practice.
 * **The third-party box**: an M5Stack ESP32 in SoftAP mode is a pocket router — both devices join its wifi and
   this code works unchanged, with the ESP answering a "who's here" probe. About an hour of Arduino, and it is
   the same box as the RC link, so one unit could carry the radio and host the match.

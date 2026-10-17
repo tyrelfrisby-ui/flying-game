@@ -374,6 +374,11 @@ namespace FlyingGame.EditorTools
             // JOYSTICK LINK (owner 2026-10-12): the Mac's RC radio / joystick over the local network (Plugins/iOS/JoyLink.mm).
             plist.root.SetString("NSLocalNetworkUsageDescription", "Aero Playground looks for your Mac on your local network so you can fly with the joystick or RC radio connected to it.");
             var bonjour = plist.root.CreateArray("NSBonjourServices"); bonjour.AddString("_aerojoy._udp");
+            // FIELD GROUPS (owner 2026-10-17): MultipeerConnectivity browses Bonjour for its own service type,
+            // and since iOS 14 every type it may browse has to be declared here or discovery silently finds
+            // nobody. Both transports, because it uses TCP and UDP (Plugins/iOS/AeroPeer.mm, "aeroplay").
+            bonjour.AddString("_aeroplay._tcp");
+            bonjour.AddString("_aeroplay._udp");
             plist.WriteToFile(plistPath);
             Debug.Log("Info.plist: ITSAppUsesNonExemptEncryption = false");
             string projPath = PBXProject.GetPBXProjectPath(path);
@@ -381,7 +386,8 @@ namespace FlyingGame.EditorTools
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
             // AVFoundation/CoreMedia/CoreVideo + Photos for the quick clips encoder (Plugins/iOS/ClipEncoder.mm).
-            foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework" })
+            foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework",
+                                         "MultipeerConnectivity.framework" })
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.

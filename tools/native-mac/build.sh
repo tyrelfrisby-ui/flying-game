@@ -7,7 +7,7 @@ REPO=${0:A:h:h:h}
 SRC=$REPO/unity/Assets/Plugins/iOS
 OUT=$REPO/unity/Assets/Plugins/macOS/AeroNative.bundle
 TMP=$(mktemp -d)
-for f in VoiceIO ClipEncoder PilotSpeech JoyLink; do
+for f in VoiceIO ClipEncoder PilotSpeech JoyLink AeroPeer; do
   for arch in arm64 x86_64; do
     clang++ -c -std=c++17 -fobjc-arc -O2 -arch $arch -mmacosx-version-min=11.0 -x objective-c++ "$SRC/$f.mm" -o "$TMP/$f-$arch.o"
   done
@@ -19,7 +19,8 @@ done
 for arch in arm64 x86_64; do
   clang++ -bundle -arch $arch -mmacosx-version-min=11.0 -fobjc-arc "$TMP"/*-$arch.o -o "$TMP/AeroNative-$arch" \
     -framework Foundation -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework QuartzCore \
-    -framework Photos -framework CoreAudio -framework AudioToolbox -framework IOKit -framework Network
+    -framework Photos -framework CoreAudio -framework AudioToolbox -framework IOKit -framework Network \
+    -framework MultipeerConnectivity
 done
 mkdir -p "$OUT/Contents/MacOS"
 lipo -create "$TMP/AeroNative-arm64" "$TMP/AeroNative-x86_64" -output "$OUT/Contents/MacOS/AeroNative"

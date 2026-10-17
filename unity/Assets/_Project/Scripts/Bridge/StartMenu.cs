@@ -27,7 +27,7 @@ namespace FlyingGame.Bridge
 
         private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
         private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
-        private const string PrefLanHint = "net.lanHint";
+        private const string PrefLanHint = "net.lanHint", PrefLanNoRouter = "net.lanNoRouter";
         private string _flapsFor; private bool _flapsHas;
         /// <summary>Does the aircraft picked on this page have flaps? (its config, cached per id)</summary>
         private bool SelectedHasFlaps()
@@ -56,6 +56,7 @@ namespace FlyingGame.Bridge
             SessionSettings.RoomCode = PlayerPrefs.GetString(PrefRoomCode, "");
             SessionSettings.Multiplayer = (SessionSettings.MultiplayerMode)PlayerPrefs.GetInt(PrefMode, 0);
             SessionSettings.LanHint = PlayerPrefs.GetString(PrefLanHint, "");
+            SessionSettings.LanNoRouter = PlayerPrefs.GetInt(PrefLanNoRouter, 0) == 1;
             Open();
         }
 
@@ -110,6 +111,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetString(PrefRoomCode, SessionSettings.RoomCode);
             PlayerPrefs.SetInt(PrefMode, (int)SessionSettings.Multiplayer);
             PlayerPrefs.SetString(PrefLanHint, SessionSettings.LanHint ?? "");
+            PlayerPrefs.SetInt(PrefLanNoRouter, SessionSettings.LanNoRouter ? 1 : 0);
             PlayerPrefs.Save();
             Net?.Join();
         }
@@ -445,14 +447,26 @@ namespace FlyingGame.Bridge
                     SessionSettings.RoomCode = Ascii(lroom, true);
                     if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
                     y += row;
-                    UiLayout.Label(new Rect(x, y, lw, bh), "Find", _label);
-                    string hint = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.LanHint ?? "", 21, _field);
-                    SessionSettings.LanHint = Ascii(hint, false);
-                    y += row;
+                    if (FlyingGame.Bridge.Net.PeerLink.Available)   // "Net" alone is this class's session field
+                    {
+                        if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.LanNoRouter ? "No wifi router: ON" : "No wifi router: off",
+                                            SessionSettings.LanNoRouter ? _btnOn : _btn))
+                            SessionSettings.LanNoRouter = !SessionSettings.LanNoRouter;
+                        y += row;
+                    }
+                    if (!SessionSettings.LanNoRouter)
+                    {
+                        UiLayout.Label(new Rect(x, y, lw, bh), "Find", _label);
+                        string hint = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.LanHint ?? "", 21, _field);
+                        SessionSettings.LanHint = Ascii(hint, false);
+                        y += row;
+                    }
                     UiLayout.Label(new Rect(x, y, colW, lh * 2f),
-                                   SessionSettings.IsValidRoomCode(SessionSettings.RoomCode)
-                                       ? "Everyone on this wifi who types the same code flies together. No internet needed."
-                                       : "Everyone on this wifi taps Fly and finds each other. No internet needed — if nobody appears, type a pilot's last address number in Find.",
+                                   SessionSettings.LanNoRouter
+                                       ? "The devices make their own link — no wifi network at all. Stay within sight of each other."
+                                       : SessionSettings.IsValidRoomCode(SessionSettings.RoomCode)
+                                           ? "Everyone on this wifi who types the same code flies together. No internet needed."
+                                           : "Everyone on this wifi taps Fly and finds each other. No internet needed — if nobody appears, type a pilot's last address number in Find.",
                                    _small);
                     y += lh * 2f;
                 }

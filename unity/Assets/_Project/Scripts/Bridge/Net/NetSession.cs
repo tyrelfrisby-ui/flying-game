@@ -57,7 +57,7 @@ namespace FlyingGame.Bridge.Net
         private StructuralDamage _damage;
         private PilotEgress _egress;
         private INetLink _client;
-        private LanLink _lan;            // the same object as _client when this is a LAN room, else null
+        private ILocalLink _local;       // the same object as _client when nobody is relaying for us, else null
         private Task _connectTask;
         private float _nextSend, _nextConnect, _nextPing, _nextFar;
         private readonly List<string> _far = new();
@@ -70,8 +70,11 @@ namespace FlyingGame.Bridge.Net
         private readonly Dictionary<string, RemoteAircraft> _remotes = new();
         private readonly NetMsg _out = new() { t = "s", p = new float[3], q = new float[4], v = new float[3], d = new float[5], f = new NetFlags() };
 
-        /// <summary>This session is flying on the local network, with no relay and no internet.</summary>
-        public bool Lan => _lan != null;
+        /// <summary>This session is flying with no relay and no internet: one wifi, or device to device.</summary>
+        public bool Lan => _local != null;
+
+        /// <summary>Where the aeroplanes are coming from, for the HUD: "port 47801" / "device to device".</summary>
+        public string LocalWhere => _local != null ? _local.Where : null;
 
         /// <summary>HUD line: "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots" / "connecting…".</summary>
         public string StatusLine
@@ -85,7 +88,17 @@ namespace FlyingGame.Bridge.Net
                 {
                     int n = PeerCount + 1;
                     string line = $"{room} · {n} pilot{(n == 1 ? "" : "s")}";
-                    if (Solo) line += " · waiting";
+                    if (Lan && PeerCount == 0)
+                    {
+                        // The one failure a pilot cannot diagnose: iOS asks for permission to talk to the
+                        // local network on the first join, and if it was refused every probe goes nowhere for
+                        // ever, in silence. Having asked the whole subnet several times over and heard
+                        // nothing at all, say so — on a working network somebody answers in a frame or two.
+                        line += _local.SuspectPermission
+                              ? " · nobody yet — check Local Network in Settings"
+                              : " · looking";
+                    }
+                    else if (Solo) line += " · waiting";
                     if (IdleWarning != null) line += $" · {IdleWarning}";
                     return line;
                 }
@@ -242,7 +255,7 @@ namespace FlyingGame.Bridge.Net
             {
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
                 // On a LAN the name travels in every announcement, so there is nobody to tell but the mesh.
-                if (Lan) _lan.SetSelf(_joinedName, _joinedAc);
+                if (Lan) _local.SetSelf(_joinedName, _joinedAc);
                 else if (!Solo) _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
             }
             if (Lan)
@@ -257,7 +270,7 @@ namespace FlyingGame.Bridge.Net
                     foreach (var kv in _remotes)
                         if (kv.Value != null && Vector3.Distance(me, kv.Value.transform.position) > LanLink.FarMetres)
                             _far.Add(kv.Key);
-                    _lan.SetFarPeers(_far);
+                    _local.SetFarPeers(_far);
                 }
             }
             else if (now >= _nextPing) { _nextPing = now + 15f; _client.SendQueued("ping"); }   // keepalive (the server answers without waking the room)
@@ -275,17 +288,30 @@ namespace FlyingGame.Bridge.Net
             SelfId = null;
             if (SessionSettings.IsLanRoom(Room))
             {
-                var lan = new LanLink(SessionSettings.LanRoomOf(Room), SessionSettings.DeviceId, name, ac);
-                _client = lan;
-                _lan = lan;
-                _connectTask = lan.OpenAsync();
-                if (!string.IsNullOrWhiteSpace(SessionSettings.LanHint)) lan.AddHint(SessionSettings.LanHint);
+                string lanRoom = SessionSettings.LanRoomOf(Room);
+                if (SessionSettings.LanNoRouter && PeerLink.Available)
+                {
+                    // No access point in the field: the devices make the link themselves.
+                    var peer = new PeerLink(lanRoom, SessionSettings.DeviceId, name, ac);
+                    _client = peer;
+                    _local = peer;
+                    _connectTask = peer.OpenAsync();
+                }
+                else
+                {
+                    var lan = new LanLink(lanRoom, SessionSettings.DeviceId, name, ac);
+                    _client = lan;
+                    _local = lan;
+                    _connectTask = lan.OpenAsync();
+                    if (!string.IsNullOrWhiteSpace(SessionSettings.LanHint)) lan.AddHint(SessionSettings.LanHint);
+                }
             }
             else
             {
                 var relay = new RelayClient();
                 _client = relay;
-                _lan = null;
+                _local = null;
+                _local = null;
                 _connectTask = ConnectRoom(relay, Room, name, ac);
             }
             _attempt++;
@@ -434,7 +460,7 @@ namespace FlyingGame.Bridge.Net
         private void DropConnection()
         {
             EndCounting();
-            _lan = null;
+            _local = null;
             Solo = false;
             _connectTask = null;
             SelfId = null;

@@ -13,7 +13,7 @@ namespace FlyingGame.Bridge.Net
     /// What is NOT here, because there is no server to pay for: no shard assignment, no room hibernation, no
     /// idle eviction, no airtime. A room on your own wifi costs nothing and nobody can be charged for it.
     /// </summary>
-    public sealed class LanLink : INetLink
+    public sealed class LanLink : ILocalLink
     {
         /// <summary>Beyond this an aeroplane is a dot you cannot see, and gets state at a fifth of the rate.</summary>
         public const float FarMetres = 12000f;
@@ -32,6 +32,11 @@ namespace FlyingGame.Bridge.Net
         public int Port => _mesh.Port;
         public int PeerCount => _mesh.PeerCount;
         public int ProbesSent => _mesh.ProbesSent;
+        /// <summary>Two full sweeps of a /24 with nothing back: on a working network somebody answers at once.</summary>
+        public const int ProbesBeforeDoubt = 520;
+
+        public bool SuspectPermission => _mesh.PeerCount == 0 && _mesh.ProbesSent > ProbesBeforeDoubt;
+        public string Where => $"port {_mesh.Port}";
         public bool IsOpen => !_closed && _mesh.Running;
         public bool IsClosed => _closed || !_mesh.Running;
         public string Error { get; private set; }

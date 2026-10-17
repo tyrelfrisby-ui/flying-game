@@ -110,6 +110,13 @@ namespace FlyingGame.Bridge
         /// </summary>
         public static string LanHint = "";
 
+        /// <summary>
+        /// NO WIFI ROUTER AT ALL (owner 2026-10-17: "then the two ipads in a field"): the devices make their
+        /// own link with Apple's peer-to-peer wifi instead of using an access point. Tens of metres, nothing
+        /// to join and nothing to type. Ignored where there is no such thing (the editor, Windows).
+        /// </summary>
+        public static bool LanNoRouter;
+
         public static bool IsLanRoom(string room) => room != null && room.StartsWith(LanPrefix);
         /// <summary>The room name without the prefix: what the pilots are actually sharing.</summary>
         public static string LanRoomOf(string room) => IsLanRoom(room) ? room.Substring(LanPrefix.Length) : room;
