@@ -95,7 +95,10 @@ real escarpment, which is 3.3 : 1 by design, cannot be mistaken for a discontinu
 * **Frank Church has no margin fade.** Its ground is the plateau almost everywhere in the margin so there is
   no wall today, but Mackay Bar's east end runs 28 m outside the block's own X1 and a fade there would put a
   bump at the end of a 1,500 ft strip. It wants doing carefully, with the strip tests watched.
-* **The forest is drawn only round the camera.** `ForestStreamer` has not been seen on a device; the radius
-  (1,250 m), the chunk size (360 m) and one-chunk-a-frame are guesses that want a frame-time check.
+* **The forest is drawn only round the camera.** `ForestStreamer` has not been seen on a device, so it no
+  longer counts chunks: it spends a MILLISECOND BUDGET (2 ms of a frame, 4 chunks at most), builds nothing at
+  all after a frame that already ran long, and keeps `WorstFrameMs` so a device can be asked what it cost.
+  The radius (1,250 m) and the chunk size (216 m) are still guesses — what wants checking now is whether the
+  timber arrives fast enough when you are doing 140 kt, not whether it stalls.
 * The fronts' gullies are sampled by a 60 m mesh (owner's call, 2026-10-16: no fine band along the fronts),
   so they are soft. They would be sharp at 30 m.

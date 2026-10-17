@@ -21,7 +21,8 @@ namespace FlyingGame.Bridge
         /// A chunk is 12 × 12 forest cells — 216 m. Building one asks the height field about 144 cells, and
         /// a cell costs about seven height queries, so a chunk is a thousand of them: a millisecond or two on
         /// the Mac and an unknown on the phone. 20 × 20 was the first guess and would have been three times
-        /// that in one frame. This wants a frame-time check on a device before it is trusted.
+        /// that in one frame. The streamer no longer has to guess: it builds against a millisecond budget
+        /// (<see cref="ForestStreamer.BudgetMs"/>) and reports the worst frame it has had.
         /// </summary>
         public const double ChunkM = Forest.CellM * 12;
 
@@ -127,8 +128,25 @@ namespace FlyingGame.Bridge
         public double RadiusM = 1250;
         /// <summary>Within this, a tree gets its trunk and a third skirt.</summary>
         public double DetailRadiusM = 550;
-        /// <summary>Chunks built per frame.</summary>
-        public int PerFrame = 1;
+        /// <summary>
+        /// The most chunks to build in one frame — a ceiling, not a target. What actually limits it is
+        /// <see cref="BudgetMs"/>: a chunk costs what it costs on the device you are holding, which is not a
+        /// number I can know from here, so the streamer spends time rather than counting chunks.
+        /// </summary>
+        public int MaxPerFrame = 4;
+        /// <summary>
+        /// How long building forest may take in one frame. 2 ms of a 16.7 ms frame: the timber comes in over a
+        /// second or two of flying rather than all at once, and never at the cost of a dropped frame.
+        /// </summary>
+        public double BudgetMs = 2.0;
+        /// <summary>
+        /// If the LAST frame already took longer than this, build nothing this one — the phone is busy with
+        /// something else and the forest is the one thing here that can wait. 24 ms is a frame and a half.
+        /// </summary>
+        public double StallGuardMs = 24.0;
+        /// <summary>...but never stall out completely: after this long with nothing built, build one anyway, or
+        /// a device that is slow for its own reasons would fly over bare ground for ever.</summary>
+        public double StarveAfterS = 0.5;
 
         private WorldTerrain _t;
         private Transform _root;
@@ -136,6 +154,12 @@ namespace FlyingGame.Bridge
         private readonly Dictionary<(int, int), GameObject> _live = new();
         private readonly List<(int i, int j, double d)> _want = new();
         private double _lastX = double.NaN, _lastY;
+        private float _lastBuiltAt;
+        private double _worstMs;
+        /// <summary>The longest a single frame has spent building forest, ms — what to look at on a device.</summary>
+        public double WorstFrameMs => _worstMs;
+        /// <summary>Chunks built and still standing, and chunks still wanted: the other two numbers worth seeing.</summary>
+        public (int live, int queued) Depth => (_live.Count, _want.Count);
 
         public static ForestStreamer Attach(WorldTerrain t, Transform parent)
         {
@@ -159,13 +183,22 @@ namespace FlyingGame.Bridge
                 _lastX = x; _lastY = y;
                 Replan(x, y);
             }
-            for (int k = 0; k < PerFrame && _want.Count > 0; k++)
+            if (_want.Count == 0) return;
+            bool starved = Time.unscaledTime - _lastBuiltAt > StarveAfterS;
+            if (!starved && Time.unscaledDeltaTime * 1000.0 > StallGuardMs) return;
+
+            double began = Time.realtimeSinceStartupAsDouble * 1000.0;
+            for (int k = 0; k < MaxPerFrame && _want.Count > 0; k++)
             {
                 var w = _want[_want.Count - 1];
                 _want.RemoveAt(_want.Count - 1);
                 if (_live.ContainsKey((w.i, w.j))) continue;
                 GameObject go = ForestBuilder.BuildChunk(_t, _root, w.i, w.j, w.d < DetailRadiusM);
                 _live[(w.i, w.j)] = go;        // null is a real answer: that square has no trees
+                _lastBuiltAt = Time.unscaledTime;
+                double spent = Time.realtimeSinceStartupAsDouble * 1000.0 - began;
+                if (spent > _worstMs) _worstMs = spent;
+                if (spent > BudgetMs || starved) break;      // starved: one chunk, then wait for a good frame
             }
         }
 
