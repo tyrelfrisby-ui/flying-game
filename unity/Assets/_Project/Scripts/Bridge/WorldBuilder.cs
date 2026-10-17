@@ -63,9 +63,11 @@ namespace FlyingGame.Bridge
             WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
             BraidedRiver.RegisterSolids();                  // the boulders and driftwood on the gravel bars
             HighDesert.RegisterSolids();                    // the desert rock, the junipers and the threshold cairns
+            AlpineRange.RegisterSolids();                   // the timber at the alpine lakes' outlets
             BuildCombatZone(WorldTerrain.Active, root.transform);
             AlaskaBuilder.Build(WorldTerrain.Active, root.transform);    // the glaciers, the bergs, the braided river
             HighDesertBuilder.Build(WorldTerrain.Active, root.transform); // the Reno desert: scrub, strips, cairns
+            AlpineBuilder.Build(WorldTerrain.Active, root.transform);     // the alpine lakes' timber
             SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
             PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
             // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the

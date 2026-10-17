@@ -106,7 +106,9 @@ namespace FlyingGame.EditorTools
                 ("alaska-braided", new Vector3(-1200f, 1700f, 5800f), new Vector3(-4100f, 950f, 5800f)),
                 // The alpine range and its stair of lakes, on the Summit plateau. Cathedral is 3,357 m.
                 ("alpine-range", new Vector3(-6200f, 5000f, 5900f), new Vector3(-10600f, 2700f, 5900f)),
-                ("alpine-lakes", new Vector3(-7900f, 3100f, 3400f), new Vector3(-9100f, 2500f, 3100f)),
+                ("alpine-lakes", new Vector3(-7600f, 3000f, 3200f), new Vector3(-8900f, 2430f, 3000f)),
+                ("alpine-outlet", new Vector3(-7400f, 3050f, 2200f), new Vector3(-8900f, 2440f, 3000f)),
+                ("alpine-larch", new Vector3(-11900f, 3250f, 5500f), new Vector3(-13600f, 2500f, 6600f)),
                 ("alpine-cirque", new Vector3(-10100f, 3400f, 4700f), new Vector3(-11300f, 2520f, 4500f)),
             };
             // Moving scenery doesn't Update in an editor render: pose the carrier for its views.

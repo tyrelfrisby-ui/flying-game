@@ -60,7 +60,7 @@ public class AlpineRangeTests : IDisposable
         for (int j = i + 1; j < lk.Length; j++)
         {
             double d = Math.Sqrt((lk[i].X - lk[j].X) * (lk[i].X - lk[j].X) + (lk[i].Y - lk[j].Y) * (lk[i].Y - lk[j].Y));
-            double need = lk[i].BasinRadiusM + lk[j].BasinRadiusM;
+            double need = lk[i].MaxBasinM + lk[j].MaxBasinM;   // the radius varies with bearing now (2026-10-16)
             Assert.True(d > need, $"{lk[i].Name} and {lk[j].Name} are {d:0} m apart but their basins want {need:0} m");
         }
         // And a basin must not swallow a summit either.
@@ -151,27 +151,34 @@ public class AlpineRangeTests : IDisposable
         foreach (AlpineRange.Lake l in AlpineRange.Lakes)
         {
             if (l.Bowled) continue;
-            double a = l.OpenHeadingDeg!.Value * Math.PI / 180;
-            // Down the notch: the ground stays below the lake's own surface for a good distance out, which is
-            // what makes a straight-in approach possible.
-            for (double d = l.LengthM * 0.5 + 80; d < l.BasinRadiusM; d += 40)
+            double a = l.OutletHeadingDeg!.Value * Math.PI / 180;
+            // Down the valley: past the bar across its mouth, the ground stays below the lake's own surface
+            // all the way out, which is what makes a straight-in approach possible. The bar itself is the
+            // obstacle and is allowed to stand — it is checked for its own height below.
+            double shore = l.ShoreOnOutlet();
+            for (double d = shore + 260; d < shore + l.OutletRunM; d += 40)
             {
                 double h = _t.HeightAt(l.X + Math.Cos(a) * d, l.Y + Math.Sin(a) * d);
-                Assert.True(h < l.SurfaceM, $"{l.Name}: the notch is blocked {d:0} m out ({h - l.SurfaceM:+0;-0} m)");
+                Assert.True(h < l.SurfaceM, $"{l.Name}: the valley is blocked {d - shore:0} m past the shore ({h - l.SurfaceM:+0;-0} m)");
             }
+            // And it keeps falling: a valley, not a shelf.
+            double near = _t.HeightAt(l.X + Math.Cos(a) * (shore + 300), l.Y + Math.Sin(a) * (shore + 300));
+            double far = _t.HeightAt(l.X + Math.Cos(a) * (shore + l.OutletRunM - 60), l.Y + Math.Sin(a) * (shore + l.OutletRunM - 60));
+            _o.WriteLine($"{l.Name,-8} valley falls {near - far:0} m over {l.OutletRunM - 360:0} m");
+            Assert.True(near - far > 90, $"{l.Name}: the outlet valley only falls {near - far:0} m — that is a shelf");
             // And it is wide enough to fly down: at least 300 m across, measured at the lake's own level.
             double wide = 0;
             for (double off = -400; off <= 400; off += 20)
             {
-                double px = l.X + Math.Cos(a) * (l.BasinRadiusM * 0.6) - Math.Sin(a) * off;
-                double py = l.Y + Math.Sin(a) * (l.BasinRadiusM * 0.6) + Math.Cos(a) * off;
+                double px = l.X + Math.Cos(a) * (l.ShoreOnOutlet() + l.OutletRunM * 0.5) - Math.Sin(a) * off;
+                double py = l.Y + Math.Sin(a) * (l.ShoreOnOutlet() + l.OutletRunM * 0.5) + Math.Cos(a) * off;
                 if (_t.HeightAt(px, py) < l.SurfaceM) wide += 20;
             }
             _o.WriteLine($"{l.Name,-8} notch: {wide:0} m wide at the lake's level");
             Assert.True(wide >= 300, $"{l.Name}: the notch is only {wide:0} m wide");
             // The opposite side is still a wall — one way in, not a through-valley.
             double back = 0;
-            for (double d = l.LengthM * 0.5 + 60; d < l.BasinRadiusM + 200; d += 25)
+            for (double d = l.LengthM * 0.5 + 60; d < l.MaxBasinM + 200; d += 25)
                 back = Math.Max(back, _t.HeightAt(l.X - Math.Cos(a) * d, l.Y - Math.Sin(a) * d));
             Assert.True(back > l.SurfaceM + 80, $"{l.Name}: the far end is open too — it is a valley, not a lake in a basin");
         }
@@ -188,7 +195,9 @@ public class AlpineRangeTests : IDisposable
             for (double dy = -60; dy <= 60; dy += 20)
                 top = Math.Max(top, _t.HeightAt(p.X + dx, p.Y + dy));
             _o.WriteLine($"{p.Name,-16} {top,6:0} m ({top * 3.28084,6:0} ft)");
-            Assert.InRange(top, p.TopM - 60, p.TopM + 120);
+            // +160 because a neighbouring cirque's headwall can stand higher than a summit, which is what a
+            // cirque on a ridge does — Cirque's rim is 138 m over Sentinel's top where they meet.
+            Assert.InRange(top, p.TopM - 60, p.TopM + 160);
             Assert.True(top > 2500, $"{p.Name} is below the snow line");
         }
     }
@@ -212,10 +221,23 @@ public class AlpineRangeTests : IDisposable
             bool clear = true;
             foreach (AlpineRange.Peak p in AlpineRange.Peaks)
                 if ((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y) < (p.RadiusM + 50) * (p.RadiusM + 50)) clear = false;
+            // MaxBasinM + the 500 m band the rim is built over: the rim reaches that far whatever the basin's
+            // mean radius is, and shrinking the landable basins left the old margin inside it.
             foreach (AlpineRange.Lake l in AlpineRange.Lakes)
-                if ((x - l.X) * (x - l.X) + (y - l.Y) * (y - l.Y) < (l.BasinRadiusM + 550) * (l.BasinRadiusM + 550)) clear = false;
+            {
+                double reach = l.MaxBasinM + 620;
+                if ((x - l.X) * (x - l.X) + (y - l.Y) * (y - l.Y) < reach * reach) clear = false;
+                // And not in an outlet valley either. Its floor leaves the lake 300 m above the plateau and
+                // has to be carried down to it, so its flanks stand proud of the plateau beside them.
+                if (l.Bowled) continue;
+                var (along, across) = l.Outlet(x, y);
+                if (along > -60 && along < l.OutletRunM + 320
+                    && Math.Abs(across) < l.OutletHalfWidthAt(Math.Max(0, along)) + 740) clear = false;
+            }
             if (!clear) continue;
-            Assert.Equal(AlpineRange.BaseM, _t.HeightAt(x, y), 0);
+            // ±8 m: the basins' gullied walls and the outlet valleys' outer fade reach a few metres onto the
+            // plateau between them, which is what ground at the foot of a mountain does.
+            Assert.InRange(_t.HeightAt(x, y), AlpineRange.BaseM - 8, AlpineRange.BaseM + 8);
             sampled++;
         }
         _o.WriteLine($"plateau between the mountains: {sampled} points untouched");
@@ -224,9 +246,120 @@ public class AlpineRangeTests : IDisposable
         foreach ((double x, double y) in new[]
                  { (AlpineRange.X1 + 700, -9000.0), (AlpineRange.X1 + 1200, -11000.0),
                    (4000.0, AlpineRange.Y0 - 800), (6000.0, AlpineRange.Y0 - 800) })
-            Assert.Equal(AlpineRange.BaseM, _t.HeightAt(x, y), 0);
+            Assert.InRange(_t.HeightAt(x, y), AlpineRange.BaseM - 8, AlpineRange.BaseM + 8);   // the outlet valleys' outer fade reaches a few metres
         // And the Summit airport is untouched.
         WorldTerrain.Airport summit = WorldTerrain.Airports[3];
         Assert.Equal(summit.ElevationM, _t.HeightAt(summit.X, summit.Y), 0);
+    }
+
+    /// <summary>
+    /// Owner 2026-10-16: "Make the terrain more natural with no round bowls." A circle of constant height is
+    /// a crater, and a render of the first six showed exactly that. Both the radius and the rim height have
+    /// to wander round the bearing, and the ground has to show it.
+    /// </summary>
+    [Fact]
+    public void NoBasinIsARoundBowl()
+    {
+        foreach (AlpineRange.Lake l in AlpineRange.Lakes)
+        {
+            double rMin = double.MaxValue, rMax = 0, hMin = double.MaxValue, hMax = 0;
+            for (double deg = 0; deg < 360; deg += 3)
+            {
+                double a = deg * Math.PI / 180;
+                rMin = Math.Min(rMin, l.BasinAt(a)); rMax = Math.Max(rMax, l.BasinAt(a));
+                hMin = Math.Min(hMin, l.RimAt(a)); hMax = Math.Max(hMax, l.RimAt(a));
+            }
+            _o.WriteLine($"{l.Name,-8} basin {rMin:0}–{rMax:0} m, rim {hMin:0}–{hMax:0} m");
+            Assert.True(rMax - rMin > 0.18 * l.BasinRadiusM, $"{l.Name}'s basin is a circle");
+            Assert.True(hMax > hMin * 1.8, $"{l.Name}'s rim is one height all the way round");
+            Assert.True(l.MaxBasinM >= rMax, $"{l.Name}: MaxBasinM under-states the basin");
+        }
+    }
+
+    /// <summary>
+    /// Owner 2026-10-16: "some should have virtually no lip (obstacle) and others should have a lip of say
+    /// 20–100 ft or tall trees." So they are graded, and the grading is in the height field and the solids
+    /// rather than in the comments.
+    /// </summary>
+    [Fact]
+    public void TheExitsAreGradedFromNothingToAWallOfTimber()
+    {
+        int free = 0, obstructed = 0;
+        foreach (AlpineRange.Lake l in AlpineRange.Lakes)
+        {
+            if (l.Bowled) continue;
+            _o.WriteLine($"{l.Name,-8} {l.LengthFt,5:0} ft of water, {(l.Landable ? "landable" : "fly-in only")}, " +
+                         $"obstacle {l.ObstacleFt,3:0} ft ({l.LipM:0} m of rock, {l.TimberM:0} m of timber)");
+            if (l.ObstacleFt < 3) free++;
+            else { obstructed++; Assert.InRange(l.ObstacleFt, 20, 100); }   // the owner's band
+
+            // The rock bar is really in the ground: the highest point across the mouth, measured.
+            double a = l.OutletHeadingDeg!.Value * Math.PI / 180, sh = l.ShoreOnOutlet();
+            double bar = 0;
+            for (double d = 10; d < 230; d += 10)
+                bar = Math.Max(bar, _t.HeightAt(l.X + Math.Cos(a) * (sh + d), l.Y + Math.Sin(a) * (sh + d)));
+            Assert.InRange(bar - l.SurfaceM, l.LipM - 6, l.LipM + 6);
+        }
+        Assert.True(free >= 1, "at least one lake has to have virtually no lip");
+        Assert.True(obstructed >= 2, "and at least two have to have something to clear");
+    }
+
+    [Fact]
+    public void ThreeLakesAreLongEnoughToPutAFloatplaneOn()
+    {
+        var landable = AlpineRange.Lakes.Where(l => l.Landable).ToArray();
+        Assert.Equal(3, landable.Length);
+        foreach (AlpineRange.Lake l in landable)
+        {
+            // 2,500 ft is the shortest of them, which at this altitude is a decision and not a formality.
+            Assert.True(l.LengthFt > 2490, $"{l.Name} is only {l.LengthFt:0} ft of water");
+            Assert.False(l.Bowled, $"{l.Name} is landable but has no way out");
+            _o.WriteLine($"{l.Name,-8} {l.LengthFt:0} ft at {l.SurfaceM * 3.28084:0} ft, obstacle {l.ObstacleFt:0} ft");
+        }
+        // And the ones that are not landable are short enough that nobody would mistake them for it.
+        foreach (AlpineRange.Lake l in AlpineRange.Lakes.Where(l => !l.Landable))
+            Assert.True(l.LengthFt < 2000, $"{l.Name} is {l.LengthFt:0} ft and not marked landable");
+    }
+
+    [Fact]
+    public void TheTimberStandsOnTheGroundOutOfTheWaterAndIsSolid()
+    {
+        var trees = AlpineRange.Trees();
+        Assert.True(trees.Count > 150, $"only {trees.Count} trees");
+        WorldTerrain.Active = _t;
+        try
+        {
+            WorldSolids.Boxes.Clear();
+            AlpineRange.RegisterSolids();
+            Assert.Equal(trees.Count, WorldSolids.Boxes.Count);
+            foreach (AlpineRange.Tree tr in trees)
+            {
+                foreach (AlpineRange.Lake l in AlpineRange.Lakes)
+                    Assert.True(l.Inside(tr.X, tr.Y) >= 1.0, $"a tree standing in {l.Name}");
+                Assert.InRange(tr.HeightM, 10, 45);
+                // Solid from the ground up: a tree you can fly through is scenery, and these are obstacles.
+                double g = _t.HeightAt(tr.X, tr.Y);
+                Assert.NotNull(WorldSolids.Penetration(tr.X, tr.Y, g + tr.HeightM * 0.5));
+                Assert.Null(WorldSolids.Penetration(tr.X, tr.Y, g + tr.HeightM + 20));
+            }
+        }
+        finally { WorldTerrain.Active = null; WorldSolids.Boxes.Clear(); }
+    }
+
+    /// <summary>
+    /// A glacial trough cuts a mountain's flank; it does not take the top off one. Outlet's first valley
+    /// passed 667 m from Sentinel's summit and its shoulder took 780 m off it, which this would have caught.
+    /// </summary>
+    [Fact]
+    public void NoOutletValleyTakesTheTopOffAMountain()
+    {
+        foreach (AlpineRange.Peak p in AlpineRange.Peaks)
+        {
+            double top = 0;
+            for (double dx = -80; dx <= 80; dx += 20)
+            for (double dy = -80; dy <= 80; dy += 20)
+                top = Math.Max(top, _t.HeightAt(p.X + dx, p.Y + dy));
+            Assert.True(top > p.TopM - 40, $"{p.Name} has lost {p.TopM - top:0} m off the top");
+        }
     }
 }
