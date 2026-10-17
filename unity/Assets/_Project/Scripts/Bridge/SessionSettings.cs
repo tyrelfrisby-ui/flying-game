@@ -74,7 +74,8 @@ namespace FlyingGame.Bridge
         public static float ThermalScale = 1f;            // 0 off .. 2 strong
 
         // ---- multiplayer (free play only: challenges/events force Solo) ----
-        public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom }
+        /// <summary>Lan is appended, never inserted: the chosen mode is kept in PlayerPrefs as its number.</summary>
+        public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom, Lan }
         public static MultiplayerMode Multiplayer = MultiplayerMode.Solo;
         public static string RoomCode = "";                // 6 × [A-Z0-9] for PrivateRoom; "ffa" is the well-known free-for-all
         public static string PilotName = "";               // shown on the name tag over your aircraft
@@ -94,6 +95,45 @@ namespace FlyingGame.Bridge
 #endif
         public const string FfaRoom = "ffa";
 
+        /// <summary>
+        /// FLYING ON ONE NETWORK WITH NO INTERNET (owner 2026-10-17: "i want to be sure the ios devices and
+        /// mac app can all join in the same local network with no external internet"). A room name carrying
+        /// this prefix is not a relay room at all — the aeroplanes talk straight to each other over UDP and
+        /// nothing leaves the building.
+        /// </summary>
+        public const string LanPrefix = "lan:";
+        /// <summary>The well-known name everybody on a network lands in unless they type a code.</summary>
+        public const string LanRoom = "LAN";
+        /// <summary>
+        /// An address to try when the sweep cannot find anybody: "192.168.1.42", or just "42" for that host on
+        /// our own subnet — four digits one pilot can read out to another across a room. Usually empty.
+        /// </summary>
+        public static string LanHint = "";
+
+        public static bool IsLanRoom(string room) => room != null && room.StartsWith(LanPrefix);
+        /// <summary>The room name without the prefix: what the pilots are actually sharing.</summary>
+        public static string LanRoomOf(string room) => IsLanRoom(room) ? room.Substring(LanPrefix.Length) : room;
+
+        /// <summary>
+        /// This installation's name on the network, kept so that leaving and rejoining a room does not look
+        /// like two different pilots. Not an account and not a device identifier — a random number made once.
+        /// </summary>
+        public static string DeviceId
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(_deviceId)) return _deviceId;
+                _deviceId = PlayerPrefs.GetString("net.deviceId", "");
+                if (_deviceId.Length != 8)
+                {
+                    _deviceId = System.Guid.NewGuid().ToString("N").Substring(0, 8);
+                    PlayerPrefs.SetString("net.deviceId", _deviceId);
+                }
+                return _deviceId;
+            }
+        }
+        private static string _deviceId;
+
         /// <summary>Room the session actually joins (null = solo). Challenges/events are always solo.</summary>
         public static string EffectiveRoom
         {
@@ -104,6 +144,8 @@ namespace FlyingGame.Bridge
                 {
                     MultiplayerMode.FreeForAll => FfaRoom,
                     MultiplayerMode.PrivateRoom => IsValidRoomCode(RoomCode) ? RoomCode : null,
+                    // A code splits one network into separate rooms; without one everybody shares "LAN".
+                    MultiplayerMode.Lan => LanPrefix + (IsValidRoomCode(RoomCode) ? RoomCode : LanRoom),
                     _ => null,
                 };
             }

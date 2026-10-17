@@ -15,7 +15,7 @@ namespace FlyingGame.Bridge.Net
     /// One send in flight at a time. State packets are latest-wins (a busy line keeps only the newest); radio voice
     /// goes through <see cref="SendQueued"/> and is never dropped.
     /// </summary>
-    public sealed class RelayClient : IDisposable
+    public sealed class RelayClient : INetLink, IDisposable
     {
         public readonly ConcurrentQueue<NetMsg> Inbox = new();
 
@@ -28,6 +28,12 @@ namespace FlyingGame.Bridge.Net
         public bool IsOpen => !_closed && _ws != null && _ws.State == WebSocketState.Open;
         public bool IsClosed => _closed;
         public string Error => _error;
+
+        /// <summary>Next message in, or false (<see cref="INetLink"/>; the queue itself is still public).</summary>
+        public bool TryDequeue(out NetMsg m) => Inbox.TryDequeue(out m);
+
+        /// <summary>Nothing to do: the socket runs itself on its own thread.</summary>
+        public void Service() { }
 
         /// <summary>Connect and start the receive loop. Throws on failure (caller applies backoff).</summary>
         public async Task ConnectAsync(string url, int timeoutMs = 8000)

@@ -56,9 +56,11 @@ namespace FlyingGame.Bridge.Net
         private FlightSimDriver _driver;
         private StructuralDamage _damage;
         private PilotEgress _egress;
-        private RelayClient _client;
+        private INetLink _client;
+        private LanLink _lan;            // the same object as _client when this is a LAN room, else null
         private Task _connectTask;
-        private float _nextSend, _nextConnect, _nextPing;
+        private float _nextSend, _nextConnect, _nextPing, _nextFar;
+        private readonly List<string> _far = new();
         private string _shard;   // the free-for-all shard joined (ffa, ffa2 …)
         private int _attempt;
         private string _joinedAc, _joinedName;
@@ -68,13 +70,17 @@ namespace FlyingGame.Bridge.Net
         private readonly Dictionary<string, RemoteAircraft> _remotes = new();
         private readonly NetMsg _out = new() { t = "s", p = new float[3], q = new float[4], v = new float[3], d = new float[5], f = new NetFlags() };
 
+        /// <summary>This session is flying on the local network, with no relay and no internet.</summary>
+        public bool Lan => _lan != null;
+
         /// <summary>HUD line: "FFA · 12 pilots" / "Room K7Q2ZP · 3 pilots" / "connecting…".</summary>
         public string StatusLine
         {
             get
             {
                 if (!Active) return IdleWarning;   // normally null; after an idle exit, says why
-                string room = Room == SessionSettings.FfaRoom ? (_shard != null && _shard.Length > 3 ? $"FFA {_shard.Substring(3)}" : "FFA") : $"Room {Room}";
+                string room = Lan ? (SessionSettings.LanRoomOf(Room) == SessionSettings.LanRoom ? "Same network" : $"Same network · {SessionSettings.LanRoomOf(Room)}")
+                            : Room == SessionSettings.FfaRoom ? (_shard != null && _shard.Length > 3 ? $"FFA {_shard.Substring(3)}" : "FFA") : $"Room {Room}";
                 if (Connected)
                 {
                     int n = PeerCount + 1;
@@ -102,7 +108,10 @@ namespace FlyingGame.Bridge.Net
 
             // Does this pilot hold the pass? The hours are unlimited, so this is the whole question, and it
             // is asked here rather than on the menu so that nothing can reach the relay around it.
-            EntitlementRuntime rt = EntitlementRuntime.Instance;
+            // A room on your own network uses nothing of ours — no relay, no hours, nothing to charge for —
+            // so it is never gated. Whether that stays true is a decision for the owner, and it is this one
+            // condition.
+            EntitlementRuntime rt = SessionSettings.IsLanRoom(room) ? null : EntitlementRuntime.Instance;
             if (rt != null && rt.GateMultiplayer && !rt.CanJoinMultiplayer(out string why))
             {
                 BlockedReason = string.IsNullOrEmpty(why) ? "Flying online needs the online pass." : why;
@@ -154,7 +163,8 @@ namespace FlyingGame.Bridge.Net
         /// counts as a new session on purpose: waking the room again is the expensive part.</summary>
         private void BeginCounting()
         {
-            if (_counting) return;
+            if (_counting || Lan) return;         // a LAN room is not billed: there is nothing in it but us
+
             _counting = true;
             EntitlementRuntime.Instance?.BeginMultiplayerSession();
         }
@@ -202,8 +212,11 @@ namespace FlyingGame.Bridge.Net
                 _nextSend = now;
             }
 
-            // ---- inbound
-            while (_client.Inbox.TryDequeue(out NetMsg m)) Handle(m);
+            // ---- inbound. The LAN link does its housekeeping here — finding pilots, dropping the ones who
+            // have gone — because it has no thread of its own to do it on.
+            _client.Service();
+            int drained = 0;
+            while (drained++ < 512 && _client.TryDequeue(out NetMsg m)) Handle(m);
 
             // ---- the bill. Unscaled: the relay keeps the room awake while the pilot reads the menu, and
             // wall-clock time is what it charges for.
@@ -212,8 +225,10 @@ namespace FlyingGame.Bridge.Net
             // ---- outbound
             if (!_client.IsOpen || SelfId == null || _driver == null || _driver.Sim == null) return;
             // The idle timer. An open menu is not activity — the owner's rule is that a parked pilot leaves.
+            // It exists because an idle pilot in a relay room costs money; on your own network nobody is
+            // paying for the aeroplane parked on the ramp, so it can sit there all day.
             if (!SessionSettings.MenuOpen) MarkInput(false);
-            float idleFor = now - _lastInputT;
+            float idleFor = Lan ? 0f : now - _lastInputT;
             if (idleFor > IdleLeaveSeconds)
             {
                 Debug.Log("[Net] leaving: fifteen minutes without a control movement");
@@ -223,12 +238,29 @@ namespace FlyingGame.Bridge.Net
             }
             IdleWarning = idleFor > IdleWarnSeconds ? "Still flying? Move the stick." : null;
 
-            if (!Solo && (_driver.AircraftId != _joinedAc || SessionSettings.PilotName != _joinedName))
+            if (_driver.AircraftId != _joinedAc || SessionSettings.PilotName != _joinedName)
             {
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
-                _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
+                // On a LAN the name travels in every announcement, so there is nobody to tell but the mesh.
+                if (Lan) _lan.SetSelf(_joinedName, _joinedAc);
+                else if (!Solo) _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
             }
-            if (now >= _nextPing) { _nextPing = now + 15f; _client.SendQueued("ping"); }   // keepalive (the server answers without waking the room)
+            if (Lan)
+            {
+                // A mesh is N² packets a tick, so the aeroplanes nobody can see are put on a slower rate.
+                // The roster keeps them, and they come back to full rate when they come back into sight.
+                if (now >= _nextFar)
+                {
+                    _nextFar = now + 1f;
+                    _far.Clear();
+                    Vector3 me = _driver.transform.position;
+                    foreach (var kv in _remotes)
+                        if (kv.Value != null && Vector3.Distance(me, kv.Value.transform.position) > LanLink.FarMetres)
+                            _far.Add(kv.Key);
+                    _lan.SetFarPeers(_far);
+                }
+            }
+            else if (now >= _nextPing) { _nextPing = now + 15f; _client.SendQueued("ping"); }   // keepalive (the server answers without waking the room)
             // Alone in the room: send nothing at all, so the relay can hibernate.
             if (Solo || SessionSettings.MenuOpen || now < _nextSend) return;
             _nextSend = now + 1f / SendHz;
@@ -241,8 +273,21 @@ namespace FlyingGame.Bridge.Net
             string ac = _driver != null ? _driver.AircraftId : SessionSettings.AircraftId;
             _joinedAc = ac; _joinedName = SessionSettings.PilotName;
             SelfId = null;
-            _client = new RelayClient();
-            _connectTask = ConnectRoom(_client, Room, name, ac);
+            if (SessionSettings.IsLanRoom(Room))
+            {
+                var lan = new LanLink(SessionSettings.LanRoomOf(Room), SessionSettings.DeviceId, name, ac);
+                _client = lan;
+                _lan = lan;
+                _connectTask = lan.OpenAsync();
+                if (!string.IsNullOrWhiteSpace(SessionSettings.LanHint)) lan.AddHint(SessionSettings.LanHint);
+            }
+            else
+            {
+                var relay = new RelayClient();
+                _client = relay;
+                _lan = null;
+                _connectTask = ConnectRoom(relay, Room, name, ac);
+            }
             _attempt++;
         }
 
@@ -389,6 +434,7 @@ namespace FlyingGame.Bridge.Net
         private void DropConnection()
         {
             EndCounting();
+            _lan = null;
             Solo = false;
             _connectTask = null;
             SelfId = null;

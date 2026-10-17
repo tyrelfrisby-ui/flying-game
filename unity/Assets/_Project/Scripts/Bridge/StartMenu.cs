@@ -27,6 +27,7 @@ namespace FlyingGame.Bridge
 
         private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
         private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
+        private const string PrefLanHint = "net.lanHint";
         private string _flapsFor; private bool _flapsHas;
         /// <summary>Does the aircraft picked on this page have flaps? (its config, cached per id)</summary>
         private bool SelectedHasFlaps()
@@ -54,6 +55,7 @@ namespace FlyingGame.Bridge
             if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "Pilot" + Random.Range(100, 1000);
             SessionSettings.RoomCode = PlayerPrefs.GetString(PrefRoomCode, "");
             SessionSettings.Multiplayer = (SessionSettings.MultiplayerMode)PlayerPrefs.GetInt(PrefMode, 0);
+            SessionSettings.LanHint = PlayerPrefs.GetString(PrefLanHint, "");
             Open();
         }
 
@@ -107,6 +109,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetString(PrefPilotName, SessionSettings.PilotName);
             PlayerPrefs.SetString(PrefRoomCode, SessionSettings.RoomCode);
             PlayerPrefs.SetInt(PrefMode, (int)SessionSettings.Multiplayer);
+            PlayerPrefs.SetString(PrefLanHint, SessionSettings.LanHint ?? "");
             PlayerPrefs.Save();
             Net?.Join();
         }
@@ -410,11 +413,18 @@ namespace FlyingGame.Bridge
             }
             else
             {
-                float third = (colW - 2 * gap * 0.4f) / 3f;
-                var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"), (SessionSettings.MultiplayerMode.PrivateRoom, "Private room") };
+                // Four modes in two rows of two: three across a phone column left no room for a label that
+                // says what the fourth one actually does.
+                float half = (colW - gap * 0.4f) / 2f;
+                var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"),
+                                    (SessionSettings.MultiplayerMode.PrivateRoom, "Private room"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
                 for (int i = 0; i < modes.Length; i++)
-                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, SessionSettings.Multiplayer == modes[i].Item1 ? _btnOn : _btn)) SessionSettings.Multiplayer = modes[i].Item1;
-                y += row;
+                {
+                    float bx = x + (i % 2) * (half + gap * 0.4f), by = y + (i / 2) * row;
+                    if (UiLayout.Button(new Rect(bx, by, half, bh), modes[i].Item2, SessionSettings.Multiplayer == modes[i].Item1 ? _btnOn : _btn))
+                        SessionSettings.Multiplayer = modes[i].Item1;
+                }
+                y += row * 2;
                 if (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo)
                 {
                     float lw = colW * 0.3f;
@@ -422,6 +432,29 @@ namespace FlyingGame.Bridge
                     string name = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.PilotName ?? "", 16, _field);
                     SessionSettings.PilotName = Ascii(name, false);
                     y += row;
+                }
+                if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan)
+                {
+                    // No internet, no relay, no account: everybody on one wifi taps Fly and finds each other.
+                    // The code is optional and only splits one network into separate rooms; the hint is for a
+                    // network that will not let one device probe another, where one pilot reads out the last
+                    // number of their address.
+                    float lw = colW * 0.3f, cw = colW * 0.42f;
+                    UiLayout.Label(new Rect(x, y, lw, bh), "Room", _label);
+                    string lroom = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
+                    SessionSettings.RoomCode = Ascii(lroom, true);
+                    if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
+                    y += row;
+                    UiLayout.Label(new Rect(x, y, lw, bh), "Find", _label);
+                    string hint = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.LanHint ?? "", 21, _field);
+                    SessionSettings.LanHint = Ascii(hint, false);
+                    y += row;
+                    UiLayout.Label(new Rect(x, y, colW, lh * 2f),
+                                   SessionSettings.IsValidRoomCode(SessionSettings.RoomCode)
+                                       ? "Everyone on this wifi who types the same code flies together. No internet needed."
+                                       : "Everyone on this wifi taps Fly and finds each other. No internet needed — if nobody appears, type a pilot's last address number in Find.",
+                                   _small);
+                    y += lh * 2f;
                 }
                 if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
                 {
@@ -439,6 +472,7 @@ namespace FlyingGame.Bridge
                 // there is nothing to buy yet and a line about it would be a promise we cannot keep.
                 var ent = Commerce.EntitlementRuntime.Instance;
                 if (ent != null && ent.GateMultiplayer && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo
+                    && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Lan
                     && !ent.CanJoinMultiplayer(out string whyNot))
                 {
                     UiLayout.Label(new Rect(x, y, colW, lh * 2f), whyNot, _small);
