@@ -118,5 +118,14 @@ peer-to-peer wifi from a Mac on its own.
 * **The third-party box**: an M5Stack ESP32 in SoftAP mode is a pocket router — both devices join its wifi and
   this code works unchanged, with the ESP answering a "who's here" probe. About an hour of Arduino, and it is
   the same box as the RC link, so one unit could carry the radio and host the match.
-* Voice over a LAN is sent to every pilot in the room rather than only those on the frequency, as the relay
-  does; it is filtered on arrival. Fine for a room, worth narrowing for a dorm.
+* ~~Voice over a LAN is sent to every pilot in the room rather than only those on the frequency; it is
+  filtered on arrival.~~ It was not filtered at all: the filter in `VoiceComms.OnVoice` compares the packet's
+  frequency against ours and passes a packet that has none, and only the RELAY ever stamped one — so in a LAN
+  room every pilot heard every other pilot whatever any of them had the box tuned to. The radio did nothing.
+  Fixed 2026-10-17 by stamping the frequency on the packet at the transmitter, where it is known.
+* Voice is still SENT to every pilot on the network and discarded by the ones not on the frequency, which the
+  relay does not do — it sends a call only to the pilots it belongs to. At a dorm's scale that is the
+  bandwidth worth saving: twelve pilots on three frequencies move four times the voice traffic they need to.
+  Narrowing it needs the mesh to carry each peer's frequency and a send that takes a list of peers, which the
+  unicast transport can do (`LanMesh` already addresses each peer individually) and the field link can too
+  (`sendData:toPeers:`). Not done.

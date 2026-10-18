@@ -131,15 +131,22 @@ namespace FlyingGame.Bridge
             }
 
             // Transmitter: whole 100 ms packets while keyed, then the remainder flagged as the end of the call.
+            //
+            // The packet carries the FREQUENCY it was spoken on (2026-10-17). The relay does not need it —
+            // it stamps the frequency it recorded from our "tune" and sends the call only to the pilots on
+            // it — but on a shared network or a field link there is no relay, every pilot hears every
+            // packet, and the only thing standing between them is the test in OnVoice below. That test
+            // passes a packet with no frequency on it, so until now a LAN room's radio did nothing at all:
+            // all twelve pilots heard all twelve, whatever any of them had the box tuned to.
             while (VO_TxAvailable() >= PacketBytes)
             {
                 int n = VO_ReadTx(_tx, PacketBytes, out int ended);
-                if (online) _net.SendQueued(new NetMsg { t = "v", a = System.Convert.ToBase64String(_tx, 0, n), e = ended });
+                if (online) _net.SendQueued(new NetMsg { t = "v", fq = Frequency, a = System.Convert.ToBase64String(_tx, 0, n), e = ended });
             }
             if (!ptt)
             {
                 int n = VO_ReadTx(_tx, _tx.Length, out int ended);
-                if (ended == 1 && online) _net.SendQueued(new NetMsg { t = "v", a = System.Convert.ToBase64String(_tx, 0, n), e = 1 });
+                if (ended == 1 && online) _net.SendQueued(new NetMsg { t = "v", fq = Frequency, a = System.Convert.ToBase64String(_tx, 0, n), e = 1 });
             }
 
             // Who is on the frequency.
@@ -150,6 +157,8 @@ namespace FlyingGame.Bridge
 
         private void OnVoice(NetMsg m)
         {
+            // A packet with no frequency on it is from a build older than 2026-10-17 (the relay always
+            // stamps one): let it through rather than go deaf to it.
             if (m.fq != null && m.fq != Frequency) return;
             if (!_slots.TryGetValue(m.id, out int slot))
             {
