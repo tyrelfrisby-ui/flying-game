@@ -186,6 +186,13 @@ public static class AlpineRange
     /// <summary>The fraction of a peak's radius inside which its cone is re-asserted after the valleys have
     /// cut: the summit pyramid, which is everything above about four fifths of its height.</summary>
     public const double SummitFraction = 0.30;
+    /// <summary>How much further out, as a fraction of the radius, the summit's claim FADES to nothing. A
+    /// claim that simply stopped was a cylinder: where Outlet's valley had cut right up to the line, Sentinel
+    /// stood inside a 613 m vertical wall of a radius 330 m (found 2026-10-17, by walking x across the range
+    /// 5 m at a time). Fading it outwards keeps the summits inviolate, which is the point of it, and costs a
+    /// little of the troughs' depth where they run close under a top. 0.15 is 165 m on Sentinel, which turns
+    /// that wall into a face of about 80° — granite does stand at 80°; it does not stand at 90° in a circle.</summary>
+    public const double SummitFadeFraction = 0.15;
 
     /// Peaks stand BETWEEN the basins — at least 1.3 km from any lake centre, so a basin's carve cannot eat
     /// a summit — and where two cones overlap they make a ridge, which is where the range gets its shape.
@@ -233,7 +240,16 @@ public static class AlpineRange
         new Lake("Crown",     7600, -11000,  305, 170,  10,  740, 230,  990, null,     0,   0,  22, false, 5),
     };
 
-    private static bool InBlock(double x, double y) => x > X0 - 600 && x < X1 + 600 && y > Y0 - 600 && y < Y1 + 600;
+    /// <summary>
+    /// How far outside the block the range's ground still reaches. It has to clear the widest peak's own
+    /// skirt or the cone is cut off with relief still on it: at 600 m (as it was until 2026-10-17) the peak
+    /// at (2,600, −11,800) with its 1,000 m radius stood on a 98 m vertical step 600 m west of the block,
+    /// out in the open between the backcountry and the range. The widest overhang is that one's 800 m.
+    /// </summary>
+    public const double FootprintPadM = 900;
+
+    private static bool InBlock(double x, double y)
+        => x > X0 - FootprintPadM && x < X1 + FootprintPadM && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
 
     /// <summary>Is this point in the range's block at all? (Its ground is granite and scree.)</summary>
     public static bool InRange(double x, double y) => InBlock(x, y);
@@ -296,8 +312,11 @@ public static class AlpineRange
             // Smoothstep, not a power law: pow(t, 1.35) has slope 1.35 at the summit and puts a point on
             // every peak. A render of the range showed eight witch's hats above the cirques.
             double cone = baseH + (p.TopM - baseH) * Smooth(t);
-            // Rock, not a tent: the roughness fades out at the summit and at the foot.
-            cone += Ridge(x, y) * (0.35 + 0.65 * System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
+            // Rock, not a tent: the roughness fades out at the summit and at the foot. It has to reach zero
+            // AT the foot, not 0.35 of itself (2026-10-17) — a cone is continuous where its own skirt ends
+            // only if everything it carries is, and at 0.35 every peak stood in a low kerb of its own rock.
+            // The square root keeps the flanks: this is within a metre of the old curve above t = 0.1.
+            cone += Ridge(x, y) * System.Math.Sqrt(System.Math.Sin(System.Math.PI * System.Math.Clamp(t, 0, 1)));
             // And the couloirs (owner 2026-10-16): channels down the flanks with ribs between them. Granite
             // peaks over cirques are the most eroded thing in the world — it is all the mountain IS.
             cone -= Couloirs(p, x, y, t, baseH);
@@ -364,11 +383,14 @@ public static class AlpineRange
         foreach (Peak p in Peaks)
         {
             double d = System.Math.Sqrt((x - p.X) * (x - p.X) + (y - p.Y) * (y - p.Y));
-            if (d >= p.RadiusM * SummitFraction) continue;
-            double t = 1 - d / p.RadiusM;
+            double f = d / p.RadiusM;
+            if (f >= SummitFraction + SummitFadeFraction) continue;
+            double claim = 1 - Smooth((f - SummitFraction) / SummitFadeFraction);   // 1 inside, 0 at the edge
+            double t = 1 - f;
             // The SAME cut as the first pass, couloirs and all: re-asserting the plain cone here would fill
             // the channels back in inside this radius and leave a ring where they stopped.
-            h = System.Math.Max(h, baseH + (p.TopM - baseH) * Smooth(t) - Couloirs(p, x, y, t, baseH));
+            double cone = baseH + (p.TopM - baseH) * Smooth(t) - Couloirs(p, x, y, t, baseH);
+            if (cone > h) h += (cone - h) * claim;
         }
         return h;
     }
