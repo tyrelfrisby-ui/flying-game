@@ -16,7 +16,34 @@ And his follow-up, a few hours later, which settled the one thing I had been uns
 > need to be the full width this is a 'micro' world and terms can be fudged a bit too but we need semi
 > realistic IFR capability for future IFR lessons"*
 
-Four VORs, two of them on hills; **two NDBs, which are a different animal on purpose**; a line-of-sight
+And then the third message, which turned the whole thing from a feature into a syllabus:
+
+> *"Make some airways ndb based and build an an range and an an range based airway and approach, create a row
+> of fire pots between two airports like the old mail pilots followed. The game will have navigation go from
+> pilotage to ded reconing to fire pots to an ranged to ndb to vor to ils but never to gps"*
+
+## The ladder
+
+That last sentence is the design, so it goes first. Every rung exists, every rung works on its own terms, and
+every rung is **worse than the one above it in a way you can feel** — which is the only thing that makes
+climbing it worth doing.
+
+| Rung | What you use | Where it is | What it costs you |
+|---|---|---|---|
+| **Pilotage** | the window | the towns, bridges, arch, dam and three falls on the sectional | useless in cloud or at night |
+| **Dead reckoning** | heading card, leg clock | `NavRadios` — and no ground speed, on purpose | the wind is a guess, and errors compound |
+| **Fire pots** | the window, at night | 9 beacons, Valley to Summit | **goes dark for a mile at every escarpment** |
+| **A-N range** | your ears | VR, on the Valley field, four courses | no needle; a 3° note and nothing but A or N either side |
+| **NDB** | an ADF needle | BN, SM — down in the valleys | the needle leans up to 8° toward high ground |
+| **VOR** | a CDI | VLY, RIM, CRS, SUM — two on hills | line of sight: behind a ridge it flags |
+| **ILS** | localizer and glideslope | Valley, Bench, Mesa, all runway 27 | one runway, one direction, and the DA is what the terrain allows |
+| ~~GPS~~ | — | **never** | — |
+
+`ChartRasterTests` asserts no chart can learn your position and `VintageNavTests` asserts no plate says GPS
+or RNAV. The ladder is enforced, not just intended.
+
+Four VORs, two of them on hills; **two NDBs, which are a different animal on purpose**; **a four-course
+range and the lighted mail route that came before it**; a line-of-sight
 reception model and the shadow analysis it makes possible; two airways and **seven approach plates** — three
 ILS, two VOR and two ADF — with every altitude derived from this world's own ground; three charts; and no
 own-ship symbol anywhere, ever.
@@ -139,15 +166,34 @@ a final, which is the shape of the real thing), with no secondary area in which 
 Both are stated in `Terps` rather than hidden, because one day somebody will want to know whether these charts
 could be trusted in a real aeroplane, and the answer needs to be easy to find: **no.**
 
-## The airways
+## The airways — Victor, and the coloured ones that came first
 
-| | course | distance | MEA | MOCA |
+**The old airway is 1,900 ft LOWER than the new one over the same ground.** A Victor airway's minimum has to
+satisfy reception as well as obstacles, and up this valley the VHF signal is what holds you up; a coloured
+airway's signal follows the earth, so only the rocks matter. GREEN 1 and V1 run down the same staircase:
+
+| | | MEA | set by |
+|---|---|---:|---|
+| **GREEN 1** VR → SUM | the range's 270 course | **10,600** | terrain |
+| the same route as a Victor airway | | 12,500 | **signal** |
+
+That is the measurable reason the ladder is worth climbing *down* as well as up, and a test asserts the gap.
+
+| | kind | course | distance | MEA | MOCA |
 |---|---:|---:|---:|---:|
-| **V1** SEALS → VLY | 267° | 4.31 NM | 4,100 | 4,100 |
-| V1 VLY → CRS | 270° | 4.28 NM | 10,200 | 10,200 |
-| V1 CRS → SUM | 270° | 1.15 NM | 10,700 | 10,700 |
-| **V2** TALUS → RIM | 180° | 3.78 NM | 5,600 | 5,600 |
-| V2 RIM → SCREE | 180° | 3.67 NM | 6,700 | 6,700 |
+| **V1** SEALS → VLY | Victor | 267° | 4.31 NM | 4,100 | 4,100 |
+| V1 VLY → CRS | Victor | 270° | 4.28 NM | 10,200 | 10,200 |
+| V1 CRS → SUM | Victor | 270° | 1.15 NM | 10,700 | 10,700 |
+| **V2** TALUS → RIM | Victor | 180° | 3.78 NM | 5,600 | 5,600 |
+| V2 RIM → SCREE | Victor | 180° | 3.67 NM | 6,700 | 6,700 |
+| **GREEN 1** VR → SUM | range course | 270° | 5.43 NM | **10,600** | 10,600 |
+| **AMBER 1** RIDGE → VR | range course | 171° | 3.94 NM | 5,600 | 5,600 |
+| AMBER 1 VR → SAGES | range course | 190° | 3.62 NM | 6,700 | 6,700 |
+| **RED 1** BN → SM | beacon track | 270° | 5.80 NM | 12,700 | 12,700 |
+
+**RED 1 costs 2,100 ft for 450 m of offset.** It runs parallel to GREEN 1 up the same valley, 450 m east over
+the crosswind runways instead of the main ones — and that is just far enough to bring the Alaska range's edge
+inside the airway's protected area. It looks like a mistake on the chart and it is not; there is a test.
 
 V1 is the spine: in off the sea at SEALS, over the Valley field, up the escarpment staircase to the top field.
 Every airport is on it or within two miles. V2 crosses it at Rimrock and runs north into the Alaska foothills
@@ -171,6 +217,7 @@ station — is no weaker in a world 15 NM across. That is a property of a small 
 | Mesa RWY 27 | VOR | MDA 5,260 (260 HAT) | the same runway, for the comparison |
 | Summit RWY 36 | VOR | MDA 7,260 (260 HAT) | no course reversal possible |
 | Summit RWY 09 | NDB | MDA 7,260 (260 HAT) | ADF, straight-in only |
+| Valley RWY 27 | **RANGE** | MDA 1,260 (260 HAT) | flown by ear; the MAP is the cone of silence |
 
 **Every ILS here is on runway 27, and the terrain decided that, not me.** Every runway end in the world was
 evaluated against the 34:1 surface. The land climbs westward in three 2,000 ft steps, so a final approach
@@ -231,6 +278,66 @@ turn within 2.0 NM of the station would have to be flown at 11,500 ft, within 2.
 3.0 NM at 18,600 ft, because Summit is ringed by the alpine range to the north and the Frank Church country
 to the south-west. `NavProcedureTests.NoApproachClaimsAProcedureTurnTheTerrainWouldNotAllow` checks that
 reason on every run — a note on a chart that nobody verifies is just a note.
+
+## The fire pots
+
+`FirePots`, and `FirePotLights` puts them in the world. Nine beacons from the Valley field up the staircase
+to Summit, along x = 400 — the same line the range's 270 course and the airway follow, for the same reason:
+it is where the valley goes. Each is a 9 m mast with a lamp that flashes once every three seconds, slightly
+out of step with its neighbours so the chain shimmers down the valley rather than blinking as one.
+
+**The escarpments have no pots on them, and that is the point rather than an omission.** A beacon has to
+stand on ground somebody can drive a truck to and climb a ladder on, so any site on a wall steeper than 12°
+is skipped. The route therefore arrives at the foot of each 2,000 ft wall, **goes dark for 0.97 NM while you
+climb it**, and picks up again on the plateau above:
+
+```
+  #1 (400,     0)  1000 ft   plateau 0
+     --- dark 0.97 NM, climbing the first wall ---
+  #2 (400, -1800)  3000 ft   #3 (400, -2700)   #4 (400, -3600)
+     --- dark 0.97 NM ---
+  #5 (400, -5400)  5000 ft   #6 (400, -6300)   #7 (400, -7200)
+     --- dark 0.97 NM ---
+  #8 (400, -9000)  7000 ft   #9 (400, -9900)
+```
+
+Three dark stretches, one per escarpment, each one a mile of heading and clock between one light and the
+next. That is the lesson this rung teaches, and a test asserts there are exactly three of them and that each
+one steps up a plateau.
+
+## The four-course range
+
+`AnRange`, `AnRangeSignal`, and `RangeAudio` which makes the noise. **VR, 290 kHz, on the Valley field — on
+the same concrete as the VLY VOR**, which is not a shortcut but what happened to nearly every range in the
+world: the VOR was built on the range's own site and the range was switched off. Having both alive here is
+the whole progression standing in one place.
+
+Its courses are **360/090/180/270**, and that was not a free choice either: all four airports sit on x = 400,
+so the **270 course runs down the entire staircase** and the 090 course runs out to sea. Those two *are* the
+east-west airway — because a coloured airway was not a line drawn near a station, it **was** the station's
+course, flown by ear.
+
+**How it works.** Two crossed loops radiate overlapping figure-of-eights. One keys Morse **A** (·−), the
+other **N** (−·), interlocked so each letter falls exactly into the other's silences:
+
+```
+  unit   0  1  2  3  4  5  6  7
+  N      #  #  #  .  #  .  .  .     dash(3) gap(1) dot(1) gap(3)  = N
+  A      .  .  .  #  .  #  #  #     gap(3) dot(1) gap(1) dash(3)  = A
+  both   #  #  #  #  #  #  #  #     one unbroken note
+```
+
+So on the course the two are equally strong and you hear a **steady note**; a few degrees off, one letter
+rises over the other (the **bi-signal zone**); further out, a clean A or N with silence between. There is no
+needle, and the pilot's entire job is to keep the note from breaking up. **The tone is generated for real** —
+1,020 Hz keyed by that table — because drawing "you hear an A" on the glass would be describing the
+instrument instead of giving it to you.
+
+Overhead, both patterns vanish and you hear **silence**: the cone of silence, 25° either side of vertical.
+That is the only positive fix the entire system offers, and the range approach is built around it.
+
+Like the beacons it is low frequency, so the signal follows the ground: at (400, −2500), on the deck behind
+the first escarpment, the co-sited VOR reads **0.00** and the range on the same mast reads **1.00**.
 
 ## The beacons, which are the opposite kind of radio
 
@@ -318,6 +425,23 @@ at 2.3 DME), 2.0 NM out, crossed at 7,700 ft, homing to the beacon on 090.
 reversal within 2 NM of the station would have to be flown at 11,500 ft, and you cannot lose 3,000 ft in the
 2.3 NM from the station to the fix. So the plate says straight-in only, established inbound — which is what
 a mountain plate reads like.
+
+### Valley RANGE RWY 27 — the oldest approach here
+
+VR 290 kHz, final 270°, **MDA 1,260 ft (260 HAT)**. You arrive on the range's 090 course out over the water,
+hold the steady note, reverse at **EMBER** (2.5 NM out, PT within 2.0 NM at 3,100 ft), come back inbound on
+270 — and **the missed approach point is the cone of silence**, the one moment the system tells you where you
+are rather than only which side of a line you are on. If the field is not in sight when the note stops, you
+have already overflown it.
+
+The final approach course lies 450 m north of the runway 27 centreline, because the range sits on the field
+and the crosswind runway does not run through it. A quarter of a mile off at the threshold is a
+circling-to-land sight picture, which is what every range approach was.
+
+It has a **lower minimum than the ILS to the same runway** — 260 ft against 580 — for one reason: a 2.5 NM
+final stops short of the island that pushes 380 ft through the ILS's 34:1 surface at 3.6 NM. The oldest
+approach in the world beats the newest one here on an accident of geography, which is worth knowing before
+anybody concludes the ladder only goes one way.
 
 ## Still open
 

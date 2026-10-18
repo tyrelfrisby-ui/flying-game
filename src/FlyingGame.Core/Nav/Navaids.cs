@@ -88,6 +88,39 @@ public static class Navaids
             + "is the west, over the Frank Church country."),
     };
 
+    /// <summary>
+    /// The four-course range. ONE, on the Valley field, on the same concrete as the VLY VOR — which is not a
+    /// coincidence or a shortcut but what actually happened to nearly every range in the world: the VOR was
+    /// built on the range's own site and the range was switched off. Having both alive here at once is the
+    /// progression the owner wants to fly (2026-10-18: *"pilotage to ded reconing to fire pots to an ranged
+    /// to ndb to vor to ils but never to gps"*) standing in one place.
+    ///
+    /// Its courses are 360/090/180/270, which was not a free choice either: all four airports in this world
+    /// sit on x = 400, so the **270 course runs down the whole staircase** — Valley, Bench, Mesa, Summit —
+    /// and the 090 course runs out to sea. Those two ARE the east-west airway, which is what a coloured
+    /// airway was: not a line drawn near a station but the station's own course, flown by ear.
+    /// </summary>
+    public static readonly AnRange[] Ranges =
+    {
+        new("VR", "Valley Range", 400, 0, 304.8, 290.0, 360.0, 15.0,
+            "on the Valley field, co-sited with the VLY VOR as the real ones were. Its 270 course runs "
+            + "through Bench, Mesa and Summit, because all four fields share x = 400; its 090 course runs "
+            + "out over the water, which is where the let-down for the range approach is flown."),
+    };
+
+    public static AnRange RangeById(string id)
+    {
+        foreach (AnRange r in Ranges) if (r.Id == id) return r;
+        throw new System.ArgumentException($"no range {id}");
+    }
+
+    public static bool TryRangeById(string id, out AnRange r)
+    {
+        foreach (AnRange x in Ranges) if (x.Id == id) { r = x; return true; }
+        r = default;
+        return false;
+    }
+
     public static Ndb NdbById(string id)
     {
         foreach (Ndb n in Ndbs) if (n.Id == id) return n;

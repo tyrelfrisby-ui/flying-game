@@ -17,11 +17,23 @@ public readonly struct AirwayLeg
     { FromId = fromId; ToId = toId; CourseDeg = courseDeg; DistanceNm = distanceNm; MeaFt = meaFt; MocaFt = mocaFt; MeaDrivenBy = meaDrivenBy; }
 }
 
+/// <summary>
+/// What kind of radio an airway is flown on, which decides how its minimum altitude is worked out.
+/// </summary>
+public enum AirwayKind
+{
+    /// <summary>A Victor airway: VOR, VHF, line of sight — so reception can set the MEA.</summary>
+    Victor,
+    /// <summary>A coloured airway: low frequency, ground wave — reception never sets the MEA.</summary>
+    Coloured,
+}
+
 /// <summary>An airway: a designator and the navaids and fixes it runs through, in order.</summary>
 public sealed class Airway
 {
     public string Designator = "";
     public string[] Points = System.Array.Empty<string>();
+    public AirwayKind Kind = AirwayKind.Victor;
     public string Notes = "";
 }
 
@@ -67,6 +79,37 @@ public static class Airways
         },
         new()
         {
+            Designator = "GREEN 1", Kind = AirwayKind.Coloured,
+            Points = new[] { "VR", "SUM" },
+            Notes = "THE RANGE COURSE, and the oldest airway here. A coloured airway was not a line drawn "
+                  + "near a station: it WAS the station's course, flown by ear — green and red for the "
+                  + "east-west ones, amber and blue for north-south. This is the Valley range's 270 course, "
+                  + "and because all four airports share x = 400 it runs straight down the staircase "
+                  + "through every one of them. Its minimum altitude is lower than the Victor airway over "
+                  + "the same ground, because a low-frequency signal follows the earth and reception is "
+                  + "never what holds you up.",
+        },
+        new()
+        {
+            Designator = "AMBER 1", Kind = AirwayKind.Coloured,
+            Points = new[] { "RIDGE", "VR", "SAGES" },
+            Notes = "The Valley range's 360 and 180 courses, north and south from the field. Its end fixes "
+                  + "are NOT the Victor airway's — TALUS and SCREE sit on y = -1180 and the range's courses "
+                  + "run through y = 0, so they needed their own. Crosses "
+                  + "GREEN 1 overhead the range, where the cone of silence gives you the only positive fix "
+                  + "the whole system offers.",
+        },
+        new()
+        {
+            Designator = "RED 1", Kind = AirwayKind.Coloured,
+            Points = new[] { "BN", "SM" },
+            Notes = "The beacon airway: Bench beacon to Summit beacon, 450 m east of GREEN 1 and parallel "
+                  + "to it, over the crosswind runways rather than the main ones. Two low-frequency routes "
+                  + "up the same valley is what this country looked like in 1935, and it is the rung between "
+                  + "the range and the VOR — you track it on an ADF needle rather than by ear.",
+        },
+        new()
+        {
             Designator = "V2",
             Points = new[] { "TALUS", "RIM", "SCREE" },
             Notes = "Across V1 at Rimrock, north into the Alaska range's foothills and south over the high "
@@ -88,12 +131,19 @@ public static class Airways
         new("BUOYS", 850, 4520, FixRole.Faf, 0, "RIM R-088 at 3.1 DME"),
         new("SHELF", 850, 1220, FixRole.Faf, 0, "RIM R-084 at 1.3 DME"),
         new("CEDAR", -5880, -10050, FixRole.Faf, 0, "SUM R-180 at 3.4 DME"),
+        // On the range's own courses, which run through y = 0 rather than through the Victor fixes.
+        new("RIDGE", 7600, 0, FixRole.AirwayFix, 0, "the VR 360 course, 3.9 NM out"),
+        new("SAGES", -6200, 0, FixRole.AirwayFix, 0, "the VR 180 course, 3.6 NM out"),
+        // The range approach's let-down, out over the water on the 090 course.
+        new("EMBER", 400, 4630, FixRole.Iaf, 0, "the VR 090 course, 2.5 NM out over the water"),
     };
 
     /// <summary>Where a point on an airway is — a navaid, or one of the fixes above.</summary>
     public static (double x, double y) PointAt(string id)
     {
         if (Navaids.TryById(id, out Vor v)) return (v.X, v.Y);
+        if (Navaids.TryNdbById(id, out Ndb n)) return (n.X, n.Y);
+        if (Navaids.TryRangeById(id, out AnRange r)) return (r.X, r.Y);
         foreach (ProcedureFix f in EnRouteFixes) if (f.Name == id) return (f.X, f.Y);
         throw new System.ArgumentException($"no airway point {id}");
     }
@@ -139,6 +189,16 @@ public static class Airways
     /// is the station a pilot would actually be tracking there.
     /// </summary>
     public static AirwayLeg Leg(WorldTerrain t, string fromId, string toId)
+        => Leg(t, fromId, toId, AirwayKind.Victor);
+
+    /// <summary>
+    /// Both minimum altitudes for a leg. A COLOURED airway skips the reception half entirely, and that is
+    /// not a shortcut: a low-frequency signal follows the ground, so there is no altitude at which it
+    /// "comes out of the shadow" because it was never in one. The consequence is worth charting — an LF
+    /// airway's MEA over this terrain is the obstacle figure and nothing else, which can put it BELOW the
+    /// Victor airway that replaced it.
+    /// </summary>
+    public static AirwayLeg Leg(WorldTerrain t, string fromId, string toId, AirwayKind kind)
     {
         var (x0, y0) = PointAt(fromId);
         var (x1, y1) = PointAt(toId);
@@ -156,6 +216,9 @@ public static class Airways
         if (Navaids.TryById(fromId, out Vor vf)) defining.Add(vf);
         if (Navaids.TryById(toId, out Vor vt)) defining.Add(vt);
         if (defining.Count == 0) defining.Add(NearestStation((x0 + x1) * 0.5, (y0 + y1) * 0.5));
+
+        if (kind == AirwayKind.Coloured)
+            return new AirwayLeg(fromId, toId, course, nm, obstacleFt, obstacleFt, "terrain");
 
         double signalFt = 0;
         int n = System.Math.Max(4, (int)System.Math.Ceiling(nm * 2));
@@ -179,7 +242,7 @@ public static class Airways
         var l = new List<AirwayLeg>();
         foreach (Airway a in All)
             for (int i = 0; i + 1 < a.Points.Length; i++)
-                l.Add(Leg(t, a.Points[i], a.Points[i + 1]));
+                l.Add(Leg(t, a.Points[i], a.Points[i + 1], a.Kind));
         return l;
     }
 }

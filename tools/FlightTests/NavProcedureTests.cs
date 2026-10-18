@@ -14,11 +14,19 @@ namespace FlyingGame.FlightTests;
 /// fails, the chart is wrong, not the test.
 /// </summary>
 [Collection("WorldTerrainActive")]
-public class NavProcedureTests
+public class NavProcedureTests : IDisposable
 {
     private readonly ITestOutputHelper _o;
     private readonly WorldTerrain _t = new();
     public NavProcedureTests(ITestOutputHelper o) { _o = o; WorldTerrain.Active = _t; }
+
+    /// <summary>
+    /// Hand the world back. A class that sets <see cref="WorldTerrain.Active"/> and walks away leaves every
+    /// later test flying over this world's mountains instead of the flat ground at sea level they were
+    /// written for — which is exactly what happened: WindTests' crosswind touchdown started failing, and only
+    /// when the whole suite ran, because on its own nobody had set the terrain before it.
+    /// </summary>
+    public void Dispose() => WorldTerrain.Active = null;
 
     private ApproachGeometry.RunwayEndGeom End(string airport, string rwy)
     {

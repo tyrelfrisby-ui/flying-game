@@ -393,6 +393,26 @@ namespace FlyingGame.Bridge
         /// </summary>
         private void DrawLandmarks()
         {
+            // The lighted airway first, as a dashed line under everything, so the chain reads as one route.
+            ChartFeature? prev = null;
+            foreach (ChartFeature f in _features)
+            {
+                if (f.Kind != ChartFeatureKind.FirePot) continue;
+                if (prev is ChartFeature p0)
+                {
+                    Vector2 a = ToScreen(p0.X, p0.Y), b = ToScreen(f.X, f.Y);
+                    if (OnScreen(a, 400) || OnScreen(b, 400))
+                    {
+                        // Dashes, because the route is a series of lights rather than a track.
+                        int dashes = Mathf.Clamp(Mathf.RoundToInt((b - a).magnitude / 10f), 1, 40);
+                        for (int k = 0; k < dashes; k += 2)
+                            Line(Vector2.Lerp(a, b, (float)k / dashes), Vector2.Lerp(a, b, (float)(k + 1) / dashes),
+                                 new Color(0.85f, 0.45f, 0.05f, 0.75f), 1.5f);
+                    }
+                }
+                prev = f;
+            }
+
             foreach (ChartFeature f in _features)
             {
                 if (f.Kind == ChartFeatureKind.Town)
@@ -415,6 +435,20 @@ namespace FlyingGame.Bridge
                 float sz = Mathf.Max(5f, 140f / _mPerPx);
                 switch (f.Kind)
                 {
+                    case ChartFeatureKind.FirePot:
+                    {
+                        // A rotating-beacon star, and the leg to the next one, so the chain reads as a route.
+                        var amber = new Color(0.85f, 0.45f, 0.05f);
+                        float s2 = Mathf.Max(3.5f, 90f / _mPerPx);
+                        for (int k = 0; k < 4; k++)
+                        {
+                            float a = k * 45f * Mathf.Deg2Rad;
+                            Line(c - new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * s2,
+                                 c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * s2, amber, 1.5f);
+                        }
+                        if (_mPerPx < 14f) Tag(c, f.Name, amber, new Color(1f, 1f, 1f, 0.7f), s2 + 2f, -_fs * 0.5f);
+                        break;
+                    }
                     case ChartFeatureKind.Obstruction:
                         // The sectional obstruction symbol: a spike with legs, MSL in bold over AGL in brackets.
                         Line(c + new Vector2(-sz * 0.6f, sz * 0.5f), c, ink, 2f);

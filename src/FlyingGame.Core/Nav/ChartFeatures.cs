@@ -1,7 +1,7 @@
 namespace FlyingGame.Core.Nav;
 
 /// <summary>What kind of thing a charted landmark is. The symbol follows from this.</summary>
-public enum ChartFeatureKind { Town, Obstruction, Bridge, Arch, Dam, Waterfall }
+public enum ChartFeatureKind { Town, Obstruction, Bridge, Arch, Dam, Waterfall, FirePot }
 
 /// <summary>
 /// One landmark worth printing. A point feature carries its height above the ground where that is the
@@ -98,6 +98,11 @@ public static class ChartFeatures
         foreach (WorldTerrain.Waterfall w in t.Waterfalls)
             l.Add(new ChartFeature(ChartFeatureKind.Waterfall, $"FALL {w.Step + 1}", w.X, w.LipY,
                                    w.UpperM - w.LowerM, w.UpperM));
+
+        // The lighted airway. On a sectional a beacon is a small star, and the chain of them IS the route —
+        // the oldest thing on this chart and the only one you navigate by looking out of the window at night.
+        foreach (FirePot p in FirePots.All(t))
+            l.Add(new ChartFeature(ChartFeatureKind.FirePot, $"{p.Number}", p.X, p.Y, 0, p.GroundM));
 
         return l;
     }

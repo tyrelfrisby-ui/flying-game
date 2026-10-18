@@ -31,6 +31,8 @@ namespace FlyingGame.Bridge
         public static readonly double[] Obs = { 360, 360 };
         /// <summary>The ADF's frequency, kHz. One receiver: a light aeroplane has one.</summary>
         public static double AdfKhz = 353.0;
+        /// <summary>Is the range receiver switched on? It is the oldest box in the panel and the loudest.</summary>
+        public static bool RangeOn;
         public static bool Shown = true;
 
         /// <summary>The elapsed-time clock a dead-reckoning leg is timed on. Seconds.</summary>
@@ -155,16 +157,17 @@ namespace FlyingGame.Bridge
             // One block in the shared stack, so it can never land on a dial, a button or a lesson line.
             float h = _fs * 5.6f;
             Rect blk = UiLayout.NextBlock(h);
-            float w = Mathf.Min(blk.width, _fs * 56f);
+            float w = Mathf.Min(blk.width, _fs * 66f);
             var box = new Rect(blk.center.x - w * 0.5f, blk.y, w, h);
             GUI.DrawTexture(box, _bg);
 
-            float cw = w / 5f;
+            float cw = w / 6f;
             DrawReceiver(new Rect(box.x, box.y, cw, h), 0, t, p.X, p.Y, altM);
             DrawReceiver(new Rect(box.x + cw, box.y, cw, h), 1, t, p.X, p.Y, altM);
             DrawAdf(new Rect(box.x + cw * 2, box.y, cw, h), t, p.X, p.Y, altM, heading);
-            DrawHeading(new Rect(box.x + cw * 3, box.y, cw, h), heading);
-            DrawClock(new Rect(box.x + cw * 4, box.y, cw, h));
+            DrawRange(new Rect(box.x + cw * 3, box.y, cw, h), t, p.X, p.Y, altM);
+            DrawHeading(new Rect(box.x + cw * 4, box.y, cw, h), heading);
+            DrawClock(new Rect(box.x + cw * 5, box.y, cw, h));
         }
 
         private double Heading()
@@ -296,6 +299,60 @@ namespace FlyingGame.Bridge
             GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, len, width), _white);
             GUI.matrix = m;
             GUI.color = old;
+        }
+
+        private RangeAudio _audio;
+
+        /// <summary>
+        /// The range receiver. There is no needle to draw, because a range has none — so what is on the
+        /// screen is only what you could also hear: the letter, whether the note is steady, and which
+        /// course you are nearest. The sound is the instrument (see <see cref="RangeAudio"/>), and the
+        /// writing on the glass is a courtesy for anybody flying with the volume down.
+        /// </summary>
+        private void DrawRange(Rect r, WorldTerrain t, double x, double y, double altM)
+        {
+            float pad = _fs * 0.3f;
+            var ranges = Navaids.Ranges;
+            AnRange rng = ranges.Length > 0 ? ranges[0] : default;
+            GUI.Label(new Rect(r.x, r.y + pad * 0.5f, r.width, _fs * 1.2f),
+                      ranges.Length > 0 ? $"RANGE  {rng.FreqKhz:0} kHz  {rng.Id}" : "RANGE", _small);
+            if (GUI.Button(new Rect(r.x + pad, r.y + _fs * 1.4f, r.width - 2 * pad, _fs * 1.3f),
+                           RangeOn ? "ON" : "OFF", RangeOn ? _sbtn : _small)) RangeOn = !RangeOn;
+
+            if (ranges.Length == 0) return;
+            RangeTone tone = AnRangeSignal.Read(t, rng, x, y, altM, out double off, out double near, out double sig);
+            bool live = RangeOn && tone != RangeTone.Silent;
+
+            // Hand it to the audio thread. The tone IS the instrument.
+            if (_audio == null)
+            {
+                var go = new GameObject("RangeAudio");
+                go.transform.SetParent(transform, false);
+                _audio = go.AddComponent<RangeAudio>();
+            }
+            _audio.Set(live, off, AnRangeSignal.IsAQuadrant(tone), 1f);
+
+            if (!RangeOn) { GUI.Label(new Rect(r.x, r.y + _fs * 3.1f, r.width, _fs * 1.3f), "receiver off", _small); return; }
+
+            // The big letter, which is what a pilot would say out loud.
+            string big = tone switch
+            {
+                RangeTone.OnCourse => "\u2014\u2014",      // one unbroken note
+                RangeTone.A or RangeTone.BiSignalA => "A",
+                RangeTone.N or RangeTone.BiSignalN => "N",
+                _ => sig < 0.2 ? "—" : "CONE",
+            };
+            var style = new GUIStyle(_label)
+            {
+                fontSize = Mathf.RoundToInt(_fs * 1.8f),
+                fontStyle = FontStyle.Bold,
+                normal = { textColor = tone == RangeTone.OnCourse ? new Color(0.3f, 1f, 0.4f) : new Color(1f, 0.85f, 0.35f) },
+            };
+            GUI.Label(new Rect(r.x, r.y + _fs * 2.9f, r.width, _fs * 1.9f), big, style);
+            string line = tone == RangeTone.Silent
+                ? (sig < 0.2 ? "out of range" : "CONE OF SILENCE — overhead")
+                : $"crs {near:000}  {(System.Math.Abs(off) < AnRangeSignal.OnCourseHalfWidthDeg ? "on" : $"{(off > 0 ? "course right" : "course left")}")}";
+            GUI.Label(new Rect(r.x, r.yMax - _fs * 1.15f, r.width, _fs), line, _small);
         }
 
         private void DrawHeading(Rect r, double heading)

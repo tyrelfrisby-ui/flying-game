@@ -160,6 +160,8 @@ namespace FlyingGame.Bridge
             var views = cam.gameObject.AddComponent<ViewPanel>();               // VIEW / REPLAY / CLIP / REC + the replay bar
             views.Chase = chase; views.Replay = aircraft.GetComponent<FlightReplay>(); views.Options = options;
             options.Driver = aircraft.GetComponent<FlightSimDriver>();
+            // THE FIRE POTS (owner 2026-10-18): the lighted mail route up the staircase, Valley to Summit.
+            new GameObject("FirePots").AddComponent<FirePotLights>();
             // THE CHART (owner 2026-10-18): VFR sectional / IFR low / satellite, from the CHART button or the
             // pause menu. It is given no reference to the aircraft, on purpose: there is no own-ship symbol.
             cam.gameObject.AddComponent<ChartPanel>();

@@ -18,7 +18,7 @@ public readonly struct ProcedureFix
     { Name = name; X = x; Y = y; Role = role; MinAltitudeFt = minAltitudeFt; Identified = identified; }
 }
 
-public enum ApproachKind { Ils, Vor, Ndb }
+public enum ApproachKind { Ils, Vor, Ndb, Range }
 
 /// <summary>Which way the procedure turn is flown, seen from the outbound course.</summary>
 public enum TurnSide { None, Left, Right }
@@ -38,6 +38,8 @@ public sealed class Approach
     public string VorId = "";
     /// <summary>The beacon this procedure is flown on, for an ADF approach.</summary>
     public string NdbId = "";
+    /// <summary>The four-course range this procedure is flown on, by ear.</summary>
+    public string RangeId = "";
     public Ils? Localizer;
     /// <summary>
     /// A circling approach: there is no runway to line up with, so the minimum is a height above everything
@@ -269,6 +271,35 @@ public static class Approaches
                   + "is what a mountain plate reads like, and the restriction is checked by a test rather "
                   + "than asserted in a note. The 260 ft minimum is the lowest of any non-precision approach "
                   + "here, because the Frank Church country west of Summit lies BELOW the plateau.",
+        },
+
+        new()
+        {
+            Title = "RANGE RWY 27", Airport = "Valley", Runway = "27", Kind = ApproachKind.Range,
+            RangeId = "VR", VorId = "VLY", FinalCourseDeg = 270, TdzeFt = 1000,
+            MinimumsFt = 1260, HatFt = 260,
+            Fixes = new[]
+            {
+                new ProcedureFix("EMBER", 400, 4630, FixRole.Iaf, 3100, "the VR 090 course, 2.5 NM out over the water"),
+                new ProcedureFix("EMBER", 400, 4630, FixRole.Faf, 1800, "the VR 090 course, 2.5 NM out over the water"),
+                new ProcedureFix("VR", 400, 0, FixRole.MissedApproachPoint, 1260, "the cone of silence, overhead the field"),
+                new ProcedureFix("EMBER", 400, 4630, FixRole.MissedApproachHold, 3100, "back out the 090 course"),
+            },
+            ProcedureTurn = TurnSide.Right, ProcedureTurnRemainWithinNm = 2.0,
+            ProcedureTurnAltitudeFt = 3100, ProcedureTurnFix = "EMBER",
+            MissedApproachClimbToFt = 3100,
+            MissedApproachText = "Climb to 3,100 ft on the 090 course and hold at EMBER.",
+            Notes = "THE OLDEST APPROACH HERE, and the only one flown entirely by ear. You arrive on the "
+                  + "range's 090 course over the water, hold the steady note, reverse at EMBER, come back "
+                  + "inbound on 270, and the MISSED APPROACH POINT IS THE CONE OF SILENCE — the one moment "
+                  + "the system tells you where you are rather than only which side of a line you are on. "
+                  + "If the field is not in sight when the note stops, you have already overflown it. The "
+                  + "final approach course lies 450 m north of the runway 27 centreline, because the range "
+                  + "sits on the field and the crosswind runway does not run through it; at a quarter of a "
+                  + "mile off at the threshold that is a circling-to-land sight picture, which is what every "
+                  + "range approach was. Decision minimum 260 ft above touchdown, which is lower than the "
+                  + "ILS to the same runway (580) for the one reason that a 2.5 NM final stops short of the "
+                  + "island that pushes through the ILS's 34:1 surface at 3.6 NM.",
         },
     };
 
