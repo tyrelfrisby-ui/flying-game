@@ -713,6 +713,9 @@ public sealed class WorldTerrain
     /// <summary>And over what distance in x it tapers away as it comes up on one, so a spur dies into a bay
     /// instead of ending in a wall.</summary>
     public const double FrontRoomFadeM = 650.0;
+    /// <summary>And over how much of y a block's hold on a front releases as the wandering crest line leaves
+    /// it behind. A boolean here put a 220 m step in the open ground at x = −171 (2026-10-17).</summary>
+    public const double FrontRoomFadeY = 60.0;
     /// <summary>How far a summit stands above the plateau behind it, at most.</summary>
     public const double CrestReliefM = 520.0;
     /// <summary>And how far back onto that plateau its back slope runs. 520 m in 620 is 40°: a steep back
@@ -821,12 +824,20 @@ public sealed class WorldTerrain
             // Only what lies in the direction we are growing. Leaving this out was the first version's
             // mistake: every block ANYWHERE in y came out with a huge negative gap and shut the front down,
             // so the high desert three plateaus away stopped a spur on the Valley's own front.
-            if (dir > 0 ? k.Y1 <= crestY : k.Y0 >= crestY) continue;
+            //
+            // It FADES as the block passes behind us (2026-10-17). It used to be a boolean, and since the
+            // crest wanders in y the boolean flipped partway along a front: at x = −171 on the Valley's
+            // front a block's edge crossed the crest line and the summit standing there — 225 m of it —
+            // switched off between one metre and the next. That is a 220 m wall in the open, and three more
+            // like it along the other fronts.
+            double behind = dir > 0 ? crestY - k.Y1 : k.Y0 - crestY;    // > 0 once the block is past us
+            double ahead = 1 - Smooth01(System.Math.Clamp((behind + FrontRoomFadeY) / FrontRoomFadeY, 0, 1));
+            if (ahead <= 0) continue;
             // Gap from the crest to the near side of the block, in the direction we are growing.
             double gap = dir > 0 ? k.Y0 - crestY - FrontClearM : crestY - k.Y1 - FrontClearM;
             if (gap >= want) continue;                     // far enough away to be no constraint
             double inX = Smooth01(System.Math.Min(x - (k.X0 - FrontRoomFadeM), (k.X1 + FrontRoomFadeM) - x) / FrontRoomFadeM);
-            room = System.Math.Min(room, want + (System.Math.Max(0, gap) - want) * inX);
+            room = System.Math.Min(room, want + (System.Math.Max(0, gap) - want) * inX * ahead);
         }
         return System.Math.Clamp(room, 0, want);
     }
@@ -999,12 +1010,23 @@ public sealed class WorldTerrain
         double v = u - System.Math.Floor(u);
         double across = System.Math.Pow(1 - System.Math.Abs(2 * v - 1), 1.6);
         // Each channel reaches its own height: some run most of the way to the summit, some peter out
-        // halfway, and a couple are scratches.
+        // halfway, and a couple are scratches. Its identity has to come back round to itself (2026-10-17):
+        // `u` climbs by exactly `channels` as the bearing goes once round, so floor(u) at a bearing of +pi
+        // and at -pi — the same ground — differed by `channels` and hashed to a different channel. That put
+        // a radial seam off every peak in both ranges where the ground stepped: 162 m on the 19,000 ft one,
+        // at (3,300, -5,900), down the line of atan2's own discontinuity.
         double n = System.Math.Floor(u);
-        double size = 0.25 + 1.15 * Hash(n, seed);
-        double reach = 0.55 + 0.42 * Hash(n, seed + 3.3);
+        double id = n - channels * System.Math.Floor(n / channels);
+        double size = 0.25 + 1.15 * Hash(id, seed);
+        double reach = 0.55 + 0.42 * Hash(id, seed + 3.3);
         double prof = Smooth01(System.Math.Clamp((reach - t) / 0.26, 0, 1)) * Smooth01(System.Math.Clamp(t / 0.20, 0, 1));
-        return (depthM * size * across - spurM * (1 - across) * (1 - across)) * prof;
+        // The SPUR between two channels belongs to neither of them, so its profile cannot be the one that
+        // happens to be on the left: where a deep channel met a shallow one, the rib standing between them
+        // stepped by the whole difference of the two profiles, which is up to 37 m on this range. It gets the
+        // mean reach instead, and because the channel term goes to zero exactly at a spur's crest, the two
+        // channels now meet along it at the same height.
+        double profSpur = Smooth01(System.Math.Clamp((0.76 - t) / 0.26, 0, 1)) * Smooth01(System.Math.Clamp(t / 0.20, 0, 1));
+        return depthM * size * across * prof - spurM * (1 - across) * (1 - across) * profSpur;
     }
 
     /// <summary>
