@@ -45,6 +45,10 @@ public class WorldContinuityTests
     private const double Candidate = 40;     // worth going back to with a finer probe
     private const double FineM = 0.1;        // how close the second pass puts them
     private const double Wall = 12;          // a step this big in 10 cm is not a slope
+    // These two are the test's REACH, and it is deliberately set at the big ones. Drop them to 10 and 4 and
+    // the sweep takes 16 s instead of 8 and turns up about thirty more steps in the 4 to 33 m band, none of
+    // them diagnosed — the top of that list is in docs/INVISIBLE-WALLS.md under "A second tier". Lowering
+    // these without working through that list first just turns the suite red.
 
     /// <summary>
     /// The ground is allowed to stand vertically in these places, because it is MEANT to and the shape of it

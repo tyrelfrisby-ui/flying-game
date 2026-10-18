@@ -126,9 +126,30 @@ it found the outlet valley in one run after an hour of guessing had got nowhere.
    edge up to whatever is around them is the whole fix. An alpine lake cannot have that bank across its outlet
    notch, because the notch is the way in — it is deliberately the one bearing on which the ground falls AWAY
    from the water. So the alpine case needs the mountain under the lake to exist, not a bank around it.
-2. **The grid is a grid.** Lines 60 m apart find a wall that runs for any distance at all, which is what all
+2. **A second tier, 4 to 33 m, about thirty of them.** The sweep is set at the big ones: it only looks closely
+   where the coarse walk moves more than 40 m, and only calls something a step at 12 m in 10 cm. Drop those
+   two numbers to 10 and 4 — they are `Candidate` and `Wall` in the test — and it takes 16 s instead of 8 and
+   finds a second tier. None is diagnosed. The worst dozen:
+
+   | Step | Where | | Step | Where |
+   |---:|---|---|---:|---|
+   | 32.5 m | (1,680, 590) | | 21.9 m | (6,180, −55) |
+   | 32.3 m | (−5,460, −3,245) | | 21.9 m | (4,860, −505) |
+   | 31.1 m | (1,980, 2,790) | | 21.8 m | (−7,020, −50) |
+   | 30.3 m | (5,880, −375) | | 21.6 m | (6,560, 60) |
+   | 30.0 m | (8,040, −6,750) | | 21.2 m | (8,460, −3,480) |
+   | 26.1 m | (−6,120, −3,245) | | 21.2 m | (−3,660, −495) |
+   | 25.4 m | (−7,140, −3,565) | | 20.9 m | (7,710, −6,960) |
+   | 22.0 m | (1,680, −10,410) | | 20.9 m | (9,180, −3,880) |
+
+   Two patterns are visible without looking at any code: a line of them along y ≈ 0 to 60, which is the
+   Valley plateau's own latitude, and a cluster out east of x = 6,000. An 8.5 m step at the edge of Big
+   Creek's ground slipped under the current setting earlier in the day and was only caught by hand, so this
+   band is not academic — it is simply smaller than one evening could reach.
+
+3. **The grid is a grid.** Lines 60 m apart find a wall that runs for any distance at all, which is what all
    fifteen of these did, but a wall shorter than 60 m can hide between two lines. Nothing here says the grid is
    fine enough; it says there is nothing coarser than it.
-3. **Nothing checks the solids against the ground** — the collision boxes behind the falls, the tunnel roof,
+4. **Nothing checks the solids against the ground** — the collision boxes behind the falls, the tunnel roof,
    the bridge. A wall in the ground is what this is about; a wall in the collision mesh would show up
    differently and nothing is looking.
