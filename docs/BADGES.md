@@ -22,6 +22,10 @@
 > *"A user can choose to show/hide the badges/scores etc of both others and themselves but their handle is
 > always displayed."*
 
+> *"no show hide is both a declutter and a personal preference not to show your own badges and
+> accomplishments. they would still be visible on the user's profile just not shown above their handle to
+> others as they fly."*
+
 ## The five rules, and where each one lives
 
 | Rule | Where | Test |
@@ -91,9 +95,27 @@ The reasoning is not only politeness. The thing that would most discourage someb
 people watching them practise badly — and the people who most need the practice are exactly the ones it would
 chase away.
 
-**The handle is always shown.** The show/hide switch is the *viewer's*, for their own screen — their own
-badge and other people's, separately, in OPTIONS → BADGES. It declutters; it cannot hide anybody from anybody,
-because you have to be able to tell who is in the circuit with you.
+### Three switches, and one of them is a different kind
+
+I built two and the owner corrected me: there are three, and the third is not about a screen at all.
+
+| | What it does | About |
+|---|---|---|
+| Show other pilots' badges and scores | Whether I draw theirs on **my** screen | Declutter |
+| Show my own badge on screen | Whether I draw mine on **my** screen | Declutter |
+| **Let other pilots see my badge and score** | Whether it **leaves the device at all** | Privacy |
+
+The first two are decluttering and change nothing for anybody else. The third is a decision about yourself,
+and **an unpublished badge is not SENT rather than not drawn at the far end.** That distinction is the whole
+value of the switch: "nobody can see it" has to mean nobody *has* it, or the setting is a polite request to
+other people's clients rather than a decision. The net layer drops nulls, so with it off there is no badge
+field in the message at all — just the handle and the aeroplane.
+
+It still shows on **your own profile**, in OPTIONS → BADGES, because that is your profile. The profile readout
+deliberately reads `PilotRecord.OwnBadge()` and `OwnScore()`, which the publishing choice does not touch.
+
+**The handle is on none of the three.** Whichever way all of them go, you always get to know who is in the
+circuit with you — asserted over all four combinations.
 
 ## The boards, and the air they are flown in
 

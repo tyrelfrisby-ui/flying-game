@@ -49,6 +49,7 @@ namespace FlyingGame.Bridge
             if (_loaded) return;
             _loaded = true;
             _book = RatingBook.Default();
+            SessionSettings.LoadBadgePrefs();
             _log = PilotLog.Deserialize(PlayerPrefs.GetString(PrefLog, ""));
             foreach (string a in PlayerPrefs.GetString(PrefAwards, "").Split(';'))
                 if (!string.IsNullOrEmpty(a)) Awards.Add(a);
@@ -113,11 +114,24 @@ namespace FlyingGame.Bridge
             return PilotIdentity.From(SessionSettings.PilotName, _log, _book, Awards, Placings);
         }
 
-        /// <summary>The short badge for the wire and the tag.</summary>
-        public static string Badge() => Identity().Badge;
+        /// <summary>
+        /// What actually goes on the wire, honouring the pilot's own publishing choice. With
+        /// <see cref="SessionSettings.PublishBadge"/> off this is the handle and nothing else — the badge is
+        /// not sent, not merely not drawn at the far end.
+        /// </summary>
+        public static PilotIdentity Published() => Identity().Published(SessionSettings.PublishBadge);
 
-        /// <summary>The combined leaderboard score.</summary>
-        public static double Score() => PilotScore.Combined(Placings);
+        /// <summary>The badge as other pilots will get it: empty when the pilot has chosen not to publish.</summary>
+        public static string Badge() => Published().Badge;
+
+        /// <summary>The score as other pilots will get it.</summary>
+        public static double Score() => Published().Score;
+
+        /// <summary>The badge for the pilot's OWN profile screen, which their publishing choice never hides.</summary>
+        public static string OwnBadge() => Identity().Badge;
+
+        /// <summary>The score on the pilot's own profile, likewise.</summary>
+        public static double OwnScore() => PilotScore.Combined(Placings);
 
         /// <summary>
         /// What is still outstanding for the next rating in a class. The pilot's own screen only — this is

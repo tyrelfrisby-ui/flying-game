@@ -66,7 +66,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 26.6f : 37.8f);          // + the HELP block, the nav radios row and the BADGES block
+            float h = lh * (twoCol ? 28.2f : 39.4f);          // + the HELP block, the nav radios row and the BADGES block
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -203,11 +203,24 @@ namespace FlyingGame.Bridge
             y += gap * 0.5f;
             GUI.Label(new Rect(x, y, cw, lh), "BADGES", _head); y += lh;
             BoolRow("Show other pilots' badges and scores", ref SessionSettings.ShowOtherBadges);
-            BoolRow("Show my own badge", ref SessionSettings.ShowOwnBadge);
+            BoolRow("Show my own badge on screen", ref SessionSettings.ShowOwnBadge);
             {
+                // The third switch is a different kind: the two above are about this screen, this one is
+                // about what leaves the device. Off means other pilots get the handle and nothing else.
+                bool wasPub = SessionSettings.PublishBadge;
+                BoolRow("Let other pilots see my badge and score", ref SessionSettings.PublishBadge);
+                if (SessionSettings.PublishBadge != wasPub) SessionSettings.SaveBadgePrefs();
+                UiLayout.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f),
+                               SessionSettings.PublishBadge
+                                 ? "Others see your handle, badge and score."
+                                 : "Others see your handle only. It stays on your own profile.", _label);
+                y += lh * 0.8f;
+            }
+            {
+                // Your own profile, which your publishing choice never hides — it is your profile.
                 var held = PilotRecord.Held();
                 string badge = FlyingGame.Sim.Ratings.Certificate.Describe(held);
-                double sc = PilotRecord.Score();
+                double sc = PilotRecord.OwnScore();
                 UiLayout.Label(new Rect(x, y, cw, lh * 0.9f),
                                $"You are: {badge}{(sc > 0 ? $"   ·   {FlyingGame.Sim.Ratings.PilotScore.Format(sc)} points" : "")}", _label);
                 y += lh * 0.9f;

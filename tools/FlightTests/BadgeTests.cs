@@ -430,4 +430,62 @@ public class BadgeTests
         Assert.Equal("STUDENT", lines[1]);
         Assert.Single(id.TagLines(false));
     }
+
+    /// <summary>
+    /// THE THIRD SWITCH, and it is a different kind from the other two. Owner, 2026-10-18: *"show hide is
+    /// both a declutter and a personal preference not to show your own badges and accomplishments. they
+    /// would still be visible on the user's profile just not shown above their handle to others as they
+    /// fly."*
+    ///
+    /// Two of the three switches are about the viewer's own screen. This one is about what LEAVES THE
+    /// DEVICE, and the distinction is the whole value of it: "nobody can see it" has to mean nobody HAS it,
+    /// or the setting is a request to other people's clients rather than a decision. So an unpublished
+    /// badge is not sent — and because the net layer drops nulls, there is no field in the message at all.
+    /// </summary>
+    [Fact]
+    public void AnUnpublishedBadgeIsNotSentRatherThanNotDrawn()
+    {
+        var log = new PilotLog();
+        FlyAll(log, RatingClass.Asel, CertLevel.Commercial, 90);
+        PilotIdentity full = PilotIdentity.From("Ty", log, Book, new[] { "SPORTSMAN" },
+                                                new[] { new BoardPlacing("event:stol", "pa18-bush-like", 1) });
+        Assert.Equal("ASEL COMM", full.Badge);
+        Assert.Equal(100, full.Score, 6);
+
+        PilotIdentity published = full.Published(true);
+        Assert.Equal("ASEL COMM", published.Badge);
+        Assert.Equal(100, published.Score, 6);
+        Assert.Single(published.Awards);
+
+        // Switched off: the handle survives and NOTHING else does.
+        PilotIdentity withheld = full.Published(false);
+        _o.WriteLine($"withheld -> handle '{withheld.Handle}', badge '{withheld.Badge}', "
+                     + $"{withheld.Awards.Length} awards, score {withheld.Score:F0}");
+        Assert.Equal("Ty", withheld.Handle);
+        Assert.Equal("", withheld.Badge);
+        Assert.Empty(withheld.Awards);
+        Assert.Equal(0, withheld.Score, 6);
+        // And the tag it makes is the handle alone, whatever the VIEWER has chosen.
+        Assert.Equal(new[] { "Ty" }, withheld.TagLines(true));
+        Assert.Equal(new[] { "Ty" }, withheld.TagLines(false));
+
+        // The pilot's own copy is untouched: it is still on their profile.
+        Assert.Equal("ASEL COMM", full.Badge);
+        Assert.Equal(100, full.Score, 6);
+    }
+
+    [Fact]
+    public void TheHandleIsNotOnAnyOfTheThreeSwitches()
+    {
+        // Whichever way all three go, you always get to know who is in the circuit with you.
+        var id = new PilotIdentity { Handle = "Ty", Badge = "ATP ASEL", Score = 900 };
+        foreach (bool publish in new[] { true, false })
+            foreach (bool view in new[] { true, false })
+            {
+                string[] lines = id.Published(publish).TagLines(view);
+                _o.WriteLine($"  publish {publish}, view {view} -> {string.Join(" / ", lines)}");
+                Assert.Equal("Ty", lines[0]);
+                Assert.True(lines.Length >= 1);
+            }
+    }
 }

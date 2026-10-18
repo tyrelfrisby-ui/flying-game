@@ -78,6 +78,17 @@ namespace FlyingGame.Bridge
         public static bool ShowOtherBadges = true;
         /// <summary>Show my own badge and score on my own tag and in the HUD. Likewise never the handle.</summary>
         public static bool ShowOwnBadge = true;
+        /// <summary>
+        /// PUBLISH my badge and score to other pilots at all (owner 2026-10-18). A different kind of switch
+        /// from the two above: those are about my screen, this is about what leaves the device. Off means
+        /// the badge is NOT SENT rather than not drawn at the far end, because "nobody can see it" has to
+        /// mean nobody has it or it is a request rather than a setting. It still shows on your own profile.
+        /// Persisted, because it is a preference about yourself rather than about this flight.
+        /// </summary>
+        public static bool PublishBadge = true;
+        private const string PrefPublishBadge = "badge.publish";
+        public static void LoadBadgePrefs() => PublishBadge = PlayerPrefs.GetInt(PrefPublishBadge, 1) == 1;
+        public static void SaveBadgePrefs() { PlayerPrefs.SetInt(PrefPublishBadge, PublishBadge ? 1 : 0); PlayerPrefs.Save(); }
 
         /// <summary>
         /// A SCORED CONTEST OWNS THE AIR (owner 2026-10-18: *"every challenge ... must have the exact same

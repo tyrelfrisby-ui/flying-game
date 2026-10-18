@@ -55,6 +55,26 @@ public sealed class PilotIdentity
     }
 
     /// <summary>
+    /// What this pilot ALLOWS other pilots to see. Owner, 2026-10-18: *"show hide is both a declutter and a
+    /// personal preference not to show your own badges and accomplishments. they would still be visible on
+    /// the user's profile just not shown above their handle to others as they fly."*
+    ///
+    /// So there are three switches and they are three different things:
+    ///
+    ///  * **viewing, others** — do I draw other people's badges on MY screen? Declutter. Their choice is
+    ///    unaffected; mine is about my own view.
+    ///  * **viewing, mine** — do I draw my own badge on my own screen?
+    ///  * **publishing, mine** — THIS ONE. Do other pilots get my badge at all? And when the answer is no,
+    ///    the badge is not SENT rather than merely not drawn by whoever receives it. That distinction is the
+    ///    whole value of the switch: "nobody can see it" has to mean nobody has it, or it is a request
+    ///    rather than a setting. It still shows on your own profile, because it is your profile.
+    ///
+    /// The handle survives either way. You always get to know who is in the circuit with you.
+    /// </summary>
+    public PilotIdentity Published(bool publish)
+        => publish ? this : new PilotIdentity { Handle = Handle };
+
+    /// <summary>
     /// The tag over an aeroplane, as lines. <paramref name="showBadges"/> false leaves just the handle,
     /// which is the viewer's choice and the one thing they cannot switch off.
     /// </summary>

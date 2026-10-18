@@ -256,7 +256,18 @@ namespace FlyingGame.Bridge.Net
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
                 // On a LAN the name travels in every announcement, so there is nobody to tell but the mesh.
                 if (Lan) _local.SetSelf(_joinedName, _joinedAc);
-                else if (!Solo) _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc, bdg = PilotRecord.Badge(), sc = PilotRecord.Score() }.ToJson());
+                else if (!Solo)
+                {
+                    // The badge goes out only if the pilot publishes it, and when they do not the fields are
+                    // OMITTED rather than sent empty — nothing about the badge reaches the wire at all.
+                    bool pub = SessionSettings.PublishBadge;
+                    _client.SendQueued(new NetMsg
+                    {
+                        t = "join", name = _joinedName, ac = _joinedAc,
+                        bdg = pub ? PilotRecord.Badge() : null,
+                        sc = pub ? PilotRecord.Score() : (double?)null,
+                    }.ToJson());
+                }
             }
             if (Lan)
             {
