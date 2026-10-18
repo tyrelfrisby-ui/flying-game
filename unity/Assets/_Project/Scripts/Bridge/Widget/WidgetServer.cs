@@ -86,6 +86,30 @@ namespace FlyingGame.Bridge.Widget
                                                      ushort portNetworkOrder, ushort txtLen, byte[] txtRecord, System.IntPtr callBack, System.IntPtr context);
         [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")]
         private static extern void DNSServiceRefDeallocate(System.IntPtr sdRef);
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")] private static extern int getpid();
+        [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.dylib")] private static extern int proc_pid_rusage(int pid, int flavor, byte[] buffer);
+        /// <summary>This process's physical footprint (what Activity Monitor calls Memory), MB; −1 if it can't be read.</summary>
+        public static double FootprintMb()
+        {
+            try { var b = new byte[512]; return proc_pid_rusage(getpid(), 0, b) == 0 ? System.BitConverter.ToUInt64(b, 72) / 1048576.0 : -1; }   // (rusage_info_v0.ri_phys_footprint)
+            catch { return -1; }
+        }
+
+        // CAPTURE GUARD (2026-10-13, Glass: the capture instance was found at 50 GB after 4 h 20 m and took the Mac's memory):
+        // the capture logs its footprint, quits on {"cmd":"quit"}, after IdleQuitS with no command, or past MaxFootprintMb.
+        public const float IdleQuitS = 600f, GuardEveryS = 30f; public const double MaxFootprintMb = 8192;
+        private float _lastCmdAt, _guardAt, _logAt, _quitAt = -1f;
+        private void CaptureGuard()
+        {
+            float now = Time.unscaledTime;
+            if (_quitAt >= 0 && now >= _quitAt) { Debug.Log("[Capture] quit (asked)"); Application.Quit(); _quitAt = -1; return; }
+            if (now < _guardAt) return;
+            _guardAt = now + GuardEveryS;
+            double mb = FootprintMb();
+            if (now >= _logAt) { _logAt = now + 300f; Debug.Log($"[Capture] footprint {mb:0} MB, idle {now - _lastCmdAt:0} s, history {Widget?.Review.History.Count}"); }
+            if (mb > MaxFootprintMb) { Debug.LogError($"[Capture] footprint {mb:0} MB over {MaxFootprintMb:0} MB: quitting"); Application.Quit(); return; }
+            if (now - _lastCmdAt > IdleQuitS) { Debug.Log($"[Capture] no command for {IdleQuitS:0} s: quitting"); Application.Quit(); }
+        }
         private readonly List<System.IntPtr> _bonjour = new();
         public static bool BonjourOk { get; private set; }
 
@@ -287,7 +311,9 @@ namespace FlyingGame.Bridge.Widget
                 try { reply = Handle(JObject.Parse(m.json), m.src); }
                 catch (System.Exception e) { reply = new JObject { ["ok"] = false, ["error"] = e.Message }.ToString(Newtonsoft.Json.Formatting.None); }
                 m.reply?.Invoke(reply);
+                _lastCmdAt = Time.unscaledTime;
             }
+            if (AeroWidget.Capture) CaptureGuard();
             PruneRemotes();
             lock (_subLock)
             {
@@ -704,6 +730,9 @@ namespace FlyingGame.Bridge.Widget
                 }
                 case "state": return StateJson().ToString(Newtonsoft.Json.Formatting.None);
                 case "subscribe": break;
+                case "quit":   // (the capture instance only: a render script ends with it, 2026-10-13)
+                    if (!AeroWidget.Capture) { ok["ok"] = false; ok["error"] = "capture only"; break; }
+                    _quitAt = Time.unscaledTime + 0.5f; ok["footprintMb"] = System.Math.Round(FootprintMb()); break;
                 default: ok["ok"] = false; ok["error"] = "unknown cmd"; break;
             }
             return ok.ToString(Newtonsoft.Json.Formatting.None);
