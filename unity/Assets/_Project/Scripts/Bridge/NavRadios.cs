@@ -1,0 +1,267 @@
+using FlyingGame.Core;
+using FlyingGame.Core.Nav;
+using UnityEngine;
+
+namespace FlyingGame.Bridge
+{
+    /// <summary>
+    /// The navigation radios and the two instruments you need to find your way without a moving map: a
+    /// course deviation indicator per receiver, a heading card, and a clock.
+    ///
+    /// Owner, 2026-10-18: *"they have to navigate by ded reconing or vor only"*. The chart
+    /// (<see cref="ChartPanel"/>) refuses to say where you are, so this is the half that lets you work it
+    /// out. Dead reckoning needs a heading and a time; a cross fix needs two radials. Both are here and
+    /// nothing else is.
+    ///
+    /// Unlike the chart, this DOES read the aeroplane's position — it has to, because that is what a radio
+    /// receiver does. What it never does is turn that into a position on a map: it gives you a radial, a
+    /// needle and a distance, and the triangulation is yours.
+    ///
+    /// Every receiver is line of sight through <see cref="NavReception"/>, so behind a ridge the needle
+    /// flags, and the flag is the real one: OFF means the signal is not there, and the needle parks central
+    /// rather than lying to you. Overhead a station the cone of confusion is shown as such rather than as a
+    /// needle thrashing about, because a pilot reads station passage from that, and it is a fix.
+    /// </summary>
+    public sealed class NavRadios : MonoBehaviour
+    {
+        public FlightSimDriver Driver;
+
+        /// <summary>The two receivers' frequencies and their course selectors. Static so OPTIONS can tune them.</summary>
+        public static readonly double[] Freq = { 115.70, 113.40 };
+        public static readonly double[] Obs = { 360, 360 };
+        public static bool Shown = true;
+
+        /// <summary>The elapsed-time clock a dead-reckoning leg is timed on. Seconds.</summary>
+        public static double LegSeconds;
+        public static bool LegRunning;
+
+        /// <summary>Full-scale needle deflection, degrees: a VOR is 10, a localizer 2.5, a glideslope 0.7.</summary>
+        public const double VorFullScaleDeg = 10.0, LocFullScaleDeg = 2.5, GsFullScaleDeg = 0.7;
+
+        private GUIStyle _label, _small, _flag, _sbtn;
+        private Texture2D _bg, _white, _green, _amber;
+        private int _fs;
+
+        private static Texture2D Solid(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
+
+        /// <summary>What one receiver is reading this instant.</summary>
+        public struct Reading
+        {
+            public bool Tuned;             // the frequency matches something
+            public string Id;
+            public bool Localizer;
+            public bool Usable;            // line of sight says the signal is there
+            public bool Cone;              // overhead the station: a fix, not a fault
+            public double RadialFrom;      // the radial you are on
+            public double Deviation;       // degrees off the selected course, + = course is to the right
+            public bool ToStation;
+            public bool HasDme;
+            public double DmeNm;
+            public bool HasGlideslope;
+            public double GlideslopeDev;   // degrees above (+) or below (-) the path
+        }
+
+        /// <summary>Read a receiver. Pure given the world and a position, so the HUD and a test agree.</summary>
+        public static Reading Read(WorldTerrain t, double freq, double obs, double x, double y, double altM)
+        {
+            var r = new Reading();
+            if (t == null) return r;
+
+            foreach (Vor v in Navaids.Vors)
+            {
+                if (System.Math.Abs(v.FreqMhz - freq) > 0.005) continue;
+                r.Tuned = true; r.Id = v.Id; r.HasDme = v.HasDme;
+                r.Cone = NavReception.InConeOfConfusion(v.X, v.Y, v.AntennaM, x, y, altM);
+                r.Usable = r.Cone
+                        || NavReception.PathSignal(t, v.X, v.Y, v.AntennaM, x, y, altM, v.FreqMhz) >= Airways.UsableSignal;
+                r.RadialFrom = NavReception.RadialDeg(v.X, v.Y, x, y);
+                r.DmeNm = NavReception.SlantRangeNm(v.X, v.Y, v.AntennaM, x, y, altM);
+                r.Deviation = NavReception.CourseDeviationDeg(obs, r.RadialFrom, out bool to);
+                r.ToStation = to;
+                return r;
+            }
+
+            foreach (Approach a in Approaches.All)
+            {
+                if (!a.Localizer.HasValue) continue;
+                Ils ils = a.Localizer.Value;
+                if (System.Math.Abs(ils.FreqMhz - freq) > 0.005) continue;
+                r.Tuned = true; r.Id = ils.Id; r.Localizer = true; r.HasGlideslope = ils.HasGlideslope;
+                // The localizer antenna stands beyond the stop end, so its course line IS the centreline.
+                double c = ils.CourseDeg * System.Math.PI / 180.0;
+                double ux = System.Math.Cos(c), uy = System.Math.Sin(c);
+                const double runwayAndBeyondM = 1125 + 300;
+                double ax = ils.ThresholdX + ux * runwayAndBeyondM, ay = ils.ThresholdY + uy * runwayAndBeyondM;
+                r.Usable = NavReception.PathSignal(t, ax, ay, ils.TdzeM + 5, x, y, altM, ils.FreqMhz) >= Airways.UsableSignal;
+                // Deviation is the angle between the course and the bearing from the antenna, which is why a
+                // localizer gets narrower as you close in rather than staying a fixed width.
+                double brg = NavReception.RadialDeg(ax, ay, x, y);
+                r.Deviation = NavReception.LocalizerDeviationDeg(ils.CourseDeg, brg);
+                r.ToStation = true;
+                r.RadialFrom = brg;
+                double dx = x - ils.ThresholdX, dy = y - ils.ThresholdY;
+                double outNm = -(dx * ux + dy * uy) / NavReception.MetresPerNm;   // back down the final
+                r.DmeNm = System.Math.Abs(outNm);
+                if (ils.HasGlideslope && outNm > 0.05)
+                {
+                    double onPathFt = Terps.GlidepathHeightFt(outNm, ils.GlideslopeDeg);
+                    double hereFt = (altM - ils.TdzeM) * Terps.FtPerM;
+                    // Angle off the path, which is what the needle shows.
+                    double angleHere = System.Math.Atan2(hereFt / Terps.FtPerM, outNm * NavReception.MetresPerNm) * 180 / System.Math.PI;
+                    r.GlideslopeDev = angleHere - ils.GlideslopeDeg;
+                    _ = onPathFt;
+                }
+                return r;
+            }
+            return r;
+        }
+
+        private void Update()
+        {
+            if (LegRunning) LegSeconds += Time.unscaledDeltaTime;
+        }
+
+        private void EnsureStyles()
+        {
+            int fs = Mathf.RoundToInt(Mathf.Min(Screen.width, Screen.height) * 0.019f);
+            if (_label != null && fs == _fs) return;
+            _fs = fs;
+            _bg ??= Solid(new Color(0.03f, 0.05f, 0.07f, 0.8f));
+            _white ??= Solid(Color.white);
+            _green ??= Solid(new Color(0.3f, 1f, 0.4f));
+            _amber ??= Solid(new Color(1f, 0.72f, 0.2f));
+            Font f = UiFont.Get();
+            _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.85f, 0.92f, 1f) } };
+            _small = new GUIStyle(_label) { fontSize = Mathf.RoundToInt(fs * 0.82f) };
+            _flag = new GUIStyle(_label) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(1f, 0.55f, 0.3f) } };
+            var btnBg = Solid(new Color(0.18f, 0.24f, 0.32f, 0.95f));
+            _sbtn = new GUIStyle(_small) { normal = { textColor = Color.white, background = btnBg }, active = { textColor = Color.white, background = btnBg } };
+        }
+
+        private void OnGUI()
+        {
+            if (!Shown || SessionSettings.MenuOpen || ChartPanel.IsOpen) return;
+            if (Driver?.Sim?.Aircraft == null) return;
+            EnsureStyles();
+            var t = WorldTerrain.Active;
+            if (t == null) return;
+
+            var p = Driver.Sim.Aircraft.State.Position;
+            double altM = -p.Z;
+            double heading = Heading();
+
+            // One block in the shared stack, so it can never land on a dial, a button or a lesson line.
+            float h = _fs * 5.6f;
+            Rect blk = UiLayout.NextBlock(h);
+            float w = Mathf.Min(blk.width, _fs * 46f);
+            var box = new Rect(blk.center.x - w * 0.5f, blk.y, w, h);
+            GUI.DrawTexture(box, _bg);
+
+            float cw = w / 4f;
+            DrawReceiver(new Rect(box.x, box.y, cw, h), 0, t, p.X, p.Y, altM);
+            DrawReceiver(new Rect(box.x + cw, box.y, cw, h), 1, t, p.X, p.Y, altM);
+            DrawHeading(new Rect(box.x + cw * 2, box.y, cw, h), heading);
+            DrawClock(new Rect(box.x + cw * 3, box.y, cw, h));
+        }
+
+        private double Heading()
+        {
+            var fwd = Driver.Sim.Aircraft.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0));
+            double deg = Mathf.Atan2((float)fwd.Y, (float)fwd.X) * Mathf.Rad2Deg;
+            return deg < 0 ? deg + 360 : deg;
+        }
+
+        private void DrawReceiver(Rect r, int i, WorldTerrain t, double x, double y, double altM)
+        {
+            Reading rd = Read(t, Freq[i], Obs[i], x, y, altM);
+            float pad = _fs * 0.3f;
+            GUI.Label(new Rect(r.x, r.y + pad * 0.5f, r.width, _fs * 1.2f),
+                      $"NAV {i + 1}   {Freq[i]:0.00}   {(rd.Tuned ? rd.Id : "—")}", _small);
+
+            // The course window, and a tap either side of it to turn the OBS. A localizer has no OBS.
+            float row = r.y + _fs * 1.5f;
+            if (!rd.Localizer)
+            {
+                float bw = _fs * 1.6f;
+                if (GUI.Button(new Rect(r.x + pad, row, bw, _fs * 1.3f), "←", _small)) Obs[i] = (Obs[i] + 359) % 360;
+                if (GUI.Button(new Rect(r.xMax - pad - bw, row, bw, _fs * 1.3f), "→", _small)) Obs[i] = (Obs[i] + 1) % 360;
+                GUI.Label(new Rect(r.x + bw + pad, row, r.width - 2 * (bw + pad), _fs * 1.3f),
+                          $"CRS {Obs[i]:000}°", _label);
+            }
+            else GUI.Label(new Rect(r.x, row, r.width, _fs * 1.3f), "LOC — no OBS", _small);
+
+            // The needle: a scale with five dots either side, and the bar where the course is.
+            float barY = row + _fs * 1.8f;
+            float half = r.width * 0.38f;
+            Vector2 c = new(r.center.x, barY);
+            for (int d = -5; d <= 5; d++)
+            {
+                if (d == 0) continue;
+                GUI.DrawTexture(new Rect(c.x + half * d / 5f - 1, c.y - 1, 2, 2), _white);
+            }
+            if (!rd.Tuned || !rd.Usable)
+            {
+                GUI.Label(new Rect(r.x, barY - _fs * 0.7f, r.width, _fs * 1.4f), rd.Tuned ? "OFF" : "NO STATION", _flag);
+            }
+            else if (rd.Cone)
+            {
+                GUI.Label(new Rect(r.x, barY - _fs * 0.7f, r.width, _fs * 1.4f), "OVER THE STATION", _flag);
+            }
+            else
+            {
+                double full = rd.Localizer ? LocFullScaleDeg : VorFullScaleDeg;
+                float f = Mathf.Clamp((float)(rd.Deviation / full), -1f, 1f);
+                Color old = GUI.color;
+                GUI.color = Mathf.Abs(f) < 0.2f ? new Color(0.3f, 1f, 0.4f) : Color.white;
+                GUI.DrawTexture(new Rect(c.x + half * f - 1.5f, c.y - _fs * 0.8f, 3, _fs * 1.6f), _white);
+                GUI.color = old;
+                string tf = rd.ToStation ? "TO" : "FROM";
+                string dme = rd.HasDme || rd.Localizer ? $"   {rd.DmeNm:0.0} NM" : "";
+                GUI.Label(new Rect(r.x, barY + _fs * 0.9f, r.width, _fs * 1.2f),
+                          $"R-{rd.RadialFrom:000}  {tf}{dme}", _small);
+                if (rd.HasGlideslope)
+                {
+                    // The glideslope, vertical, on the right-hand edge.
+                    float gx = r.xMax - _fs * 0.9f;
+                    for (int d = -2; d <= 2; d++) GUI.DrawTexture(new Rect(gx - 1, c.y + _fs * 1.1f * d - 1, 2, 2), _white);
+                    float gf = Mathf.Clamp((float)(rd.GlideslopeDev / GsFullScaleDeg), -1f, 1f);
+                    GUI.DrawTexture(new Rect(gx - _fs * 0.5f, c.y - gf * _fs * 2.2f - 1.5f, _fs, 3), _green);
+                }
+            }
+        }
+
+        private void DrawHeading(Rect r, double heading)
+        {
+            GUI.Label(new Rect(r.x, r.y + _fs * 0.15f, r.width, _fs * 1.2f), "HEADING", _small);
+            GUI.Label(new Rect(r.x, r.y + _fs * 1.4f, r.width, _fs * 1.8f), $"{heading:000}°",
+                      new GUIStyle(_label) { fontSize = Mathf.RoundToInt(_fs * 1.7f) });
+            // A card: the compass points sliding past a lubber line, which is what you steer on.
+            float y = r.y + _fs * 3.6f, half = r.width * 0.42f;
+            Vector2 c = new(r.center.x, y);
+            GUI.DrawTexture(new Rect(c.x - 1, y - _fs * 0.7f, 2, _fs * 1.4f), _amber);
+            for (int d = -60; d <= 60; d += 10)
+            {
+                double mark = (heading + d + 360) % 360;
+                float px = c.x + half * d / 60f;
+                bool cardinal = Mathf.Abs((float)(mark % 90)) < 0.5f;
+                GUI.DrawTexture(new Rect(px - 0.5f, y + _fs * 0.3f, 1, cardinal ? _fs * 0.6f : _fs * 0.35f), _white);
+                if (d % 30 == 0)
+                    GUI.Label(new Rect(px - _fs * 1.2f, y - _fs * 0.9f, _fs * 2.4f, _fs), $"{mark / 10:00}", _small);
+            }
+            GUI.Label(new Rect(r.x, r.yMax - _fs * 1.1f, r.width, _fs), "mag = true here", _small);
+        }
+
+        private void DrawClock(Rect r)
+        {
+            GUI.Label(new Rect(r.x, r.y + _fs * 0.15f, r.width, _fs * 1.2f), "LEG TIME", _small);
+            int mm = (int)(LegSeconds / 60), ss = (int)(LegSeconds % 60);
+            GUI.Label(new Rect(r.x, r.y + _fs * 1.4f, r.width, _fs * 1.8f), $"{mm:00}:{ss:00}",
+                      new GUIStyle(_label) { fontSize = Mathf.RoundToInt(_fs * 1.7f) });
+            float bw = (r.width - _fs) / 2f, by = r.y + _fs * 3.5f;
+            if (GUI.Button(new Rect(r.x + _fs * 0.3f, by, bw, _fs * 1.4f), LegRunning ? "STOP" : "START", _sbtn)) LegRunning = !LegRunning;
+            if (GUI.Button(new Rect(r.x + _fs * 0.5f + bw, by, bw, _fs * 1.4f), "RESET", _sbtn)) { LegSeconds = 0; LegRunning = true; }
+            // Ground speed is NOT shown: knowing it would make the time redundant and the whole exercise is
+            // to work the leg out from the airspeed you are flying and the wind you were given.
+        }
+    }
+}

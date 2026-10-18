@@ -103,7 +103,7 @@ namespace FlyingGame.Bridge
             // default.
             _practice ??= Object.FindFirstObjectByType<FlyingGame.Bridge.Practice.PracticeController>();
             bool lesson = _practice != null && _practice.Active;
-            int n = lesson ? 7 : 6;
+            int n = lesson ? 8 : 7;        // + CHART
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
             if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other || _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, Screen.height);
@@ -123,7 +123,11 @@ namespace FlyingGame.Bridge
                 SessionSettings.SimSpeed = SessionSettings.SimSpeeds[(i + 1) % SessionSettings.SimSpeeds.Length];
                 if (Time.timeScale > 0f) Time.timeScale = SessionSettings.SimSpeed;
             }
-            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(6, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
+            // CHART (owner 2026-10-18): the VFR sectional, the IFR low chart and the satellite image, any
+            // time. It shows no own-ship position, deliberately — see ChartPanel.
+            if (UiLayout.Button(UiLayout.ToolbarSlot(6, n), "CHART", ChartPanel.IsOpen ? _btnOn : _btn))
+            { ChartPanel.Toggle(); Options?.Close(); Widget.GameAeroPanel.Close(); }
+            if (lesson && UiLayout.Button(UiLayout.ToolbarSlot(7, n), "END", _btn)) { _practice.End(); (_menu ??= Object.FindFirstObjectByType<StartMenu>())?.Open(); }
             // Radio push-to-talk (multiplayer): a text-stack block, so it never lands on a dial or a line.
             if (VoiceComms.RadioAvailable)
             {

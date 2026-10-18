@@ -66,7 +66,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 20.6f : 31.8f);          // +3.1 rows: the HELP block at the foot of the right column
+            float h = lh * (twoCol ? 21.4f : 32.6f);          // +3.1 rows for the HELP block, +0.8 for the nav radios row
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -107,6 +107,9 @@ namespace FlyingGame.Bridge
             BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
             BoolRow("Flight test data", ref SessionSettings.FlightTestData);
+            // The radio stack and the dead-reckoning instruments (owner 2026-10-18). On by default: the
+            // chart shows no position, so these are the only way to find out where you are.
+            BoolRow("Nav radios, heading card and leg clock", ref NavRadios.Shown);
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "lift green · drag red · moment yellow · thrust magenta · wheels cyan", _label); y += lh * 0.8f;
             {
                 GUI.Label(new Rect(x, y, cw * 0.38f, lh), "Instruments", _label);

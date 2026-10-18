@@ -523,6 +523,9 @@ namespace FlyingGame.Bridge
             float hw = s * 0.17f, hh = fh * 0.62f;
             if (UiLayout.Button(new Rect(m, Screen.height - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
             if (UiLayout.Button(new Rect(m + hw + gap * 0.5f, Screen.height - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
+            // is that you look at it before you go.
+            if (UiLayout.Button(new Rect(m + hw * 2.25f + gap, Screen.height - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
             if (SupportDesk.Note.Length > 0)
                 UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
 
