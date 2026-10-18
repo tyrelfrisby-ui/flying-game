@@ -517,6 +517,15 @@ namespace FlyingGame.Bridge
             float fw = s * 0.26f, fh = s * 0.09f;
             if (UiLayout.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
 
+            // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
+            // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
+            // (handoff 2026-10-17): a web page in the browser, nothing sent from the app. See SupportDesk.
+            float hw = s * 0.17f, hh = fh * 0.62f;
+            if (UiLayout.Button(new Rect(m, Screen.height - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
+            if (UiLayout.Button(new Rect(m + hw + gap * 0.5f, Screen.height - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            if (SupportDesk.Note.Length > 0)
+                UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
+
             GUI.enabled = true;
             DrawDropdown(bh, gap);
         }

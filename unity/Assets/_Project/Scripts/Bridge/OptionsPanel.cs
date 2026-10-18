@@ -66,7 +66,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 17.5f : 28.7f);
+            float h = lh * (twoCol ? 20.6f : 31.8f);          // +3.1 rows: the HELP block at the foot of the right column
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -194,6 +194,23 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(x, y, lh, lh), on ? "X" : "", on ? _btnOn : _btn)) JoyLink.On = !on;
                 if (GUI.Button(new Rect(x + lh + gap, y, cw - lh - gap, lh), st.Length > 0 ? $"{what}: {st}" : $"{what} (same Wi-Fi)", _label)) JoyLink.On = !on;
                 y += lh + gap * 0.4f;
+            }
+            // HELP (handoff 2026-10-17): a web page, opened in the browser. No chat in the app, and the app
+            // sends nothing — the URL carries the build and the platform so the page knows which version is
+            // asking. The diagnostics block goes on the CLIPBOARD and nowhere else: the customer reads it and
+            // pastes it, or doesn't. See docs/support/ and SupportDesk.
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, cw, lh), "HELP", _head); y += lh;
+            {
+                float bw = (cw - gap * 0.4f) / 2f;
+                if (GUI.Button(new Rect(x, y, bw, lh), "Help (opens the web)", _btn)) SupportDesk.OpenHelp();
+                if (GUI.Button(new Rect(x + bw + gap * 0.4f, y, bw, lh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+                y += lh + gap * 0.4f;
+                UiLayout.Label(new Rect(x, y, cw, lh * 0.8f),
+                               SupportDesk.Note.Length > 0 ? SupportDesk.Note
+                               : "Diagnostics = build, device, aircraft and the last warnings. No pilot name, nothing bought.",
+                               _label);
+                y += lh * 0.8f;
             }
             y += gap;
             if (GUI.Button(new Rect(panel.xMax - gap - cw * 0.3f, y, cw * 0.3f, lh), "Close", _btnOn)) _open = false;
