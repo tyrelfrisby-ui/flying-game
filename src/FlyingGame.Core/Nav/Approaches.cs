@@ -18,7 +18,7 @@ public readonly struct ProcedureFix
     { Name = name; X = x; Y = y; Role = role; MinAltitudeFt = minAltitudeFt; Identified = identified; }
 }
 
-public enum ApproachKind { Ils, Vor }
+public enum ApproachKind { Ils, Vor, Ndb }
 
 /// <summary>Which way the procedure turn is flown, seen from the outbound course.</summary>
 public enum TurnSide { None, Left, Right }
@@ -36,7 +36,15 @@ public sealed class Approach
     /// <summary>The VOR the procedure is built on — the final approach aid for a VOR approach, and for an
     /// ILS the station that gets you to the localizer.</summary>
     public string VorId = "";
+    /// <summary>The beacon this procedure is flown on, for an ADF approach.</summary>
+    public string NdbId = "";
     public Ils? Localizer;
+    /// <summary>
+    /// A circling approach: there is no runway to line up with, so the minimum is a height above everything
+    /// within 1.3 NM of the field and you look out of the window for the last bit. Its title ends in a
+    /// letter rather than a runway number, which is the convention for saying so.
+    /// </summary>
+    public bool Circling;
     public double FinalCourseDeg;
     public double TdzeFt;
     /// <summary>Decision altitude for an ILS, minimum descent altitude for a VOR approach. Feet MSL.</summary>
@@ -187,6 +195,80 @@ public static class Approaches
                   + "11,500 ft, within 2.5 NM at 14,500 ft, and within 3.0 NM at 18,600 ft, because Summit "
                   + "is ringed by the alpine range to the north and the Frank Church country to the "
                   + "south-west. Arrive established on the 180 radial outbound.",
+        },
+
+        // ---- the non-precision plates (owner 2026-10-18: "build a few vor and adf approaches to put in the
+        // approach plate list ... we need semi realistic IFR capability for future IFR lessons").
+
+        new()
+        {
+            Title = "VOR RWY 27", Airport = "Mesa", Runway = "27", Kind = ApproachKind.Vor,
+            VorId = "RIM", FinalCourseDeg = 273, TdzeFt = 5000,
+            MinimumsFt = 5260, HatFt = 260,
+            Fixes = new[]
+            {
+                new ProcedureFix("SHELF", 850, 1220, FixRole.Iaf, 5900, "RIM R-084 at 1.4 DME"),
+                new ProcedureFix("RIM", 600, -1180, FixRole.Faf, 5900, "overhead Rimrock"),
+                new ProcedureFix("RW27", 850, -6187.5, FixRole.MissedApproachPoint, 5260, "2.7 NM from RIM, timed"),
+                new ProcedureFix("CRS", 400, -7920, FixRole.MissedApproachHold, 10700, "overhead Crestline"),
+            },
+            MissedApproachClimbToFt = 10700,
+            MissedApproachText = "Climb to 10,700 ft on R-273, then direct CRS and hold.",
+            Notes = "The same runway as the Mesa ILS and deliberately so: flying a precision and a "
+                  + "non-precision approach to one piece of pavement, and seeing 200 ft of decision height "
+                  + "against 260 ft of minimum descent altitude and a step down instead of a glideslope, is "
+                  + "the comparison an IFR lesson is built on. The final approach course is the Rimrock VOR's "
+                  + "273 radial flown OUTBOUND, which passes within 250 m of the Mesa 27 threshold and is "
+                  + "2.9 degrees off the runway — inside the 30 degrees a VOR final is allowed. Rimrock "
+                  + "itself is the final approach fix, 2.7 NM out, which is what makes this work without any "
+                  + "DME at all: station passage IS the fix.",
+        },
+
+        new()
+        {
+            Title = "NDB RWY 27", Airport = "Bench", Runway = "27", Kind = ApproachKind.Ndb,
+            VorId = "RIM", NdbId = "BN", FinalCourseDeg = 270, TdzeFt = 3000,
+            MinimumsFt = 3760, HatFt = 760,
+            Fixes = new[]
+            {
+                new ProcedureFix("RIM", 600, -1180, FixRole.Iaf, 4500, "overhead Rimrock"),
+                new ProcedureFix("BN", 850, 1742, FixRole.Faf, 4000, "overhead the Bench beacon, 353 kHz"),
+                new ProcedureFix("RW27", 850, -2887.5, FixRole.MissedApproachPoint, 3760, "2.5 NM from BN, timed"),
+                new ProcedureFix("RIM", 600, -1180, FixRole.MissedApproachHold, 4700, "overhead Rimrock"),
+            },
+            MissedApproachClimbToFt = 4700,
+            MissedApproachText = "Climb to 4,700 ft on 270, then direct RIM and hold.",
+            Notes = "An ADF approach, and the reason there is a beacon at all. The Bench beacon sits on the "
+                  + "Valley plateau 2.5 NM out on the final — a thousand feet BELOW the field it serves, "
+                  + "which is fine for a beacon and would be useless for a VOR, because a low-frequency "
+                  + "signal follows the ground instead of needing to see over the wall. From the beacon you "
+                  + "fly 270 and time it: the ground comes up 2,000 ft underneath you in two and a half "
+                  + "miles, so the whole final is flown nearly level at 4,000 ft to a minimum of 3,760, and "
+                  + "the 760 ft of height above touchdown is the escarpment's crest, not the runway's.",
+        },
+
+        new()
+        {
+            Title = "NDB RWY 09", Airport = "Summit", Runway = "09", Kind = ApproachKind.Ndb,
+            VorId = "SUM", NdbId = "SM", FinalCourseDeg = 90, TdzeFt = 7000,
+            MinimumsFt = 7260, HatFt = 260,
+            Fixes = new[]
+            {
+                new ProcedureFix("CABIN", 850, -14316, FixRole.Iaf, 7700, "SUM R-276 at 2.3 DME"),
+                new ProcedureFix("CABIN", 850, -14316, FixRole.Faf, 7700, "SUM R-276 at 2.3 DME"),
+                new ProcedureFix("RW09", 850, -10612.5, FixRole.MissedApproachPoint, 7260, "2.0 NM from CABIN, timed"),
+                new ProcedureFix("SUM", 400, -10050, FixRole.MissedApproachHold, 10700, "overhead Summit"),
+            },
+            MissedApproachClimbToFt = 10700,
+            MissedApproachText = "Climb to 10,700 ft on 090, then direct SUM and hold.",
+            Notes = "Homing to the Summit beacon on 090, which sits 488 m past the far end of runway 09, so "
+                  + "the needle sits on the nose the whole way down and station passage is the roll-out. "
+                  + "STRAIGHT IN ONLY, established inbound: there is no way to join this from overhead the "
+                  + "field, because a course reversal within 2 NM of the station would have to be flown at "
+                  + "11,500 ft and you cannot lose 3,000 ft in the 2.3 NM from the station to the fix. That "
+                  + "is what a mountain plate reads like, and the restriction is checked by a test rather "
+                  + "than asserted in a note. The 260 ft minimum is the lowest of any non-precision approach "
+                  + "here, because the Frank Church country west of Summit lies BELOW the plateau.",
         },
     };
 

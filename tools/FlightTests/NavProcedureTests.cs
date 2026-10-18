@@ -90,10 +90,17 @@ public class NavProcedureTests
             double along = dx * ux + dy * uy, across = System.Math.Abs(-dx * uy + dy * ux);
             _o.WriteLine($"{a.Airport,-8} {a.Title,-12} FAF {faf.Name,-6} {along / Terps.MetresPerNm,5:F2} NM out, {across,5:F0} m off the centreline");
             Assert.True(along > 0, $"{a.Airport} {a.Title}: the FAF is behind the threshold");
-            Assert.True(across < 60, $"{a.Airport} {a.Title}: the FAF is {across:F0} m off the final approach course");
-            // A final approach segment of 2 to 6 NM: shorter and there is no room to get stable, longer and
-            // this world runs out of room.
-            Assert.InRange(along / Terps.MetresPerNm, 2.0, 6.0);
+            // A localizer's fix is ON the centreline. A VOR or NDB final may be up to 30 degrees off the
+            // runway, so its fix is allowed to sit off the extended centreline too — the Mesa VOR's fix is
+            // the Rimrock station itself, 250 m to one side, which is what lets that approach work with no
+            // DME at all: station passage IS the fix.
+            double allow = a.Kind == ApproachKind.Ils ? 60 : 0.3 * Terps.MetresPerNm;
+            Assert.True(across < allow, $"{a.Airport} {a.Title}: the FAF is {across:F0} m off the final approach course");
+            // A final approach segment of 1.9 to 6 NM. Shorter than that and there is no room to get stable;
+            // longer and this world runs out of room — Summit's runway 09 final is 1.9997 NM because two
+            // miles west of its threshold is as far west as there is. The owner sanctioned the squeeze
+            // directly (2026-10-18: "this is a micro world and terms can be fudged a bit too").
+            Assert.InRange(along / Terps.MetresPerNm, 1.9, 6.0);
         }
     }
 
@@ -155,8 +162,8 @@ public class NavProcedureTests
     {
         // Summit's plate says no course reversal is published and gives the reason. That reason is checked
         // here, because a note on a chart that nobody verifies is just a note.
-        Approach sum = Approaches.All.First(a => a.Airport == "Summit");
-        Assert.Equal(TurnSide.None, sum.ProcedureTurn);
+        foreach (Approach sum in Approaches.All.Where(a => a.Airport == "Summit"))
+            Assert.Equal(TurnSide.None, sum.ProcedureTurn);
         Vor v = Navaids.ById("SUM");
         foreach (double nm in new[] { 2.0, 2.5, 3.0 })
         {
@@ -222,6 +229,13 @@ public class NavProcedureTests
             Assert.InRange(v.FreqMhz, 108.00, 117.95);
             // A VOR is on an even tenth below 112, or anywhere above it.
             if (v.FreqMhz < 112.0) Assert.Equal(0, (int)System.Math.Round(v.FreqMhz * 10) % 2);
+        }
+        // The beacons live in a different band entirely, which is why they get their own receiver.
+        var khz = new HashSet<double>();
+        foreach (Ndb n in Navaids.Ndbs)
+        {
+            Assert.InRange(n.FreqKhz, 190.0, 535.0);
+            Assert.True(khz.Add(n.FreqKhz), $"two beacons on {n.FreqKhz:F0} kHz");
         }
     }
 }

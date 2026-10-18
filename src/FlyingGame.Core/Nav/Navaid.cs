@@ -69,3 +69,33 @@ public readonly struct Ils
     /// <summary>Height above touchdown of the decision altitude, feet.</summary>
     public double DecisionHeightFt => DecisionAltitudeFt - TdzeM * Terps.FtPerM;
 }
+
+/// <summary>
+/// A non-directional beacon. Owner, 2026-10-18: *"Add two ndb's and build a few vor and adf approaches."*
+///
+/// An NDB is a different animal from a VOR and the difference is the point of having them here. It transmits
+/// in the low/medium band (190–535 kHz), where the signal follows the ground instead of travelling in a
+/// straight line — so **an NDB is heard behind a ridge that a VOR cannot see over**, which in a world made of
+/// 2,000 ft walls is exactly where you want one. What you pay for that is accuracy: an LF signal is bent by
+/// high ground beside the path, so the needle leans toward the terrain, and the aeroplane has to work out the
+/// bearing itself from a needle that points at the station rather than from a radial the station tells you.
+///
+/// Both of this world's beacons sit on an extended runway centreline a few hundred metres past the stop end,
+/// which is where a locator goes: track inbound to it and you are tracking down the centreline.
+/// </summary>
+public readonly struct Ndb
+{
+    /// <summary>Two letters, as a locator's identifier is.</summary>
+    public readonly string Id;
+    public readonly string Name;
+    public readonly double X, Y, GroundM;
+    public readonly double FreqKhz;
+    /// <summary>Rated coverage, nautical miles. A locator of this power is good for about fifteen.</summary>
+    public readonly double RangeNm;
+    public readonly string Why;
+
+    public Ndb(string id, string name, double x, double y, double groundM, double freqKhz, double rangeNm, string why)
+    { Id = id; Name = name; X = x; Y = y; GroundM = groundM; FreqKhz = freqKhz; RangeNm = rangeNm; Why = why; }
+
+    public double AntennaM => GroundM + 2.0;
+}

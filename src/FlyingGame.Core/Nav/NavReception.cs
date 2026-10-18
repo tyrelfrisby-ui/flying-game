@@ -161,6 +161,81 @@ public static class NavReception
     public static double LocalizerDeviationDeg(double courseDeg, double bearingFromAntennaDeg)
         => AngleDiff(courseDeg + 180, bearingFromAntennaDeg);
 
+    // ---------------------------------------------------------------- the beacons
+
+    /// <summary>The most the terrain may bend an ADF needle, degrees.</summary>
+    public const double NdbBearingErrorMaxDeg = 8.0;
+
+    /// <summary>Metres of ground standing above the direct path that costs one degree of bearing error.</summary>
+    public const double NdbErrorMetresPerDegree = 100.0;
+
+    /// <summary>
+    /// How strongly a beacon is heard, 0…1. **No terrain test at all**, and that is the whole difference
+    /// between this and <see cref="PathSignal"/>: a low-frequency signal follows the ground rather than
+    /// travelling in a straight line, so a ridge does not put a beacon in shadow the way it shadows a VOR.
+    /// What limits a beacon is its power, so this fades from its rated range out to half again as far.
+    /// </summary>
+    public static double NdbSignal(Ndb n, double x, double y)
+    {
+        double dx = x - n.X, dy = y - n.Y;
+        double nm = System.Math.Sqrt(dx * dx + dy * dy) / MetresPerNm;
+        if (nm <= n.RangeNm) return 1.0;
+        double over = (nm - n.RangeNm) / (n.RangeNm * 0.5);
+        return over >= 1 ? 0.0 : 1.0 - over;
+    }
+
+    /// <summary>
+    /// How far the terrain bends the needle, degrees, signed the way the needle moves — positive meaning it
+    /// reads clockwise of the truth.
+    ///
+    /// This is "mountain effect", and it is the price of a beacon's reach. The signal is re-radiated by high
+    /// ground beside the path, so the needle leans toward the hill. Modelled from the thing that causes it:
+    /// the ground that stands ABOVE the direct line is what re-radiates, so the error grows with how far
+    /// above the line it stands, and it leans toward whichever side of the track is higher. Deterministic,
+    /// so a pilot can learn where this world's needles lie to them — which is the honest version of a
+    /// beacon, and more useful for a lesson than a random wobble.
+    /// </summary>
+    public static double NdbBearingErrorDeg(WorldTerrain t, Ndb n, double x, double y, double altM)
+    {
+        double dx = x - n.X, dy = y - n.Y;
+        double d = System.Math.Sqrt(dx * dx + dy * dy);
+        if (d < MarchM) return 0;
+        double ux = dx / d, uy = dy / d;          // along the path
+        double px = -uy, py = ux;                  // across it
+        double above = 0, left = 0, right = 0;
+        int steps = 0;
+        int nSteps = (int)System.Math.Ceiling(d / MarchM);
+        for (int i = 1; i < nSteps; i++)
+        {
+            double f = (double)i / nSteps;
+            double cx = n.X + dx * f, cy = n.Y + dy * f;
+            double line = n.AntennaM + (altM - n.AntennaM) * f;
+            above = System.Math.Max(above, t.HeightAt(cx, cy, false, false) - line);
+            // Which side the high ground is on, sampled a third of a mile either side.
+            double off = MetresPerNm / 3.0;
+            left += t.HeightAt(cx - px * off, cy - py * off, false, false);
+            right += t.HeightAt(cx + px * off, cy + py * off, false, false);
+            steps++;
+        }
+        if (above <= 0 || steps == 0) return 0;
+        double mag = System.Math.Min(NdbBearingErrorMaxDeg, above / NdbErrorMetresPerDegree);
+        // "Right" is the +across side, which is clockwise of the track from the station outward.
+        return right >= left ? mag : -mag;
+    }
+
+    /// <summary>
+    /// What an ADF needle actually shows: the RELATIVE bearing, degrees clockwise from the nose. Not a
+    /// bearing to anywhere — the aeroplane's heading has to be added to get that, which is the whole skill.
+    /// </summary>
+    public static double RelativeBearingDeg(double bearingToStationDeg, double headingDeg)
+    {
+        double rb = (bearingToStationDeg - headingDeg) % 360.0;
+        return rb < 0 ? rb + 360 : rb;
+    }
+
+    /// <summary>The bearing FROM the aeroplane TO a point — the reciprocal of a radial.</summary>
+    public static double BearingToDeg(double x, double y, double tx, double ty) => RadialDeg(x, y, tx, ty);
+
     /// <summary>Signed difference b − a in degrees, folded to −180…180.</summary>
     public static double AngleDiff(double a, double b)
     {

@@ -66,6 +66,41 @@ public static class Navaids
             "on the Summit field at 7,000 ft, for its own approaches and as the western end of the airway."),
     };
 
+    /// <summary>
+    /// The two beacons, both locators on an extended runway centreline a few hundred metres past the stop
+    /// end — track inbound to one and you are tracking down the centreline. They are deliberately NOT on the
+    /// hills: an NDB's signal follows the ground, so it does not need the height, and putting them low gives
+    /// this world a second kind of coverage in exactly the valleys where the VORs are shadowed.
+    /// </summary>
+    public static readonly Ndb[] Ndbs =
+    {
+        new("BN", "Bench", 850, 1742, 304.8, 353.0, 15.0,
+            "on the Bench runway 27 final approach course, 2.5 NM out — and a THOUSAND FEET BELOW the field "
+            + "it serves, down on the Valley plateau, because the 2,000 ft escarpment is between the two. "
+            + "That is a hopeless site for a VOR and a perfectly good one for a beacon, which is the whole "
+            + "argument for having beacons here. The first site tried was 488 m past the stop end, which "
+            + "turned out to be ON the second escarpment, 522 ft up a hillside."),
+
+        new("SM", "Summit", 850, -9000, 2133.6, 365.0, 15.0,
+            "on the Summit runway 09 centreline, 488 m past the stop end, so the needle sits on the nose "
+            + "all the way down the final and station passage is the roll-out. Runway 09 is the one end at "
+            + "Summit with clean ground in front of it, because Summit is the top plateau and its low side "
+            + "is the west, over the Frank Church country."),
+    };
+
+    public static Ndb NdbById(string id)
+    {
+        foreach (Ndb n in Ndbs) if (n.Id == id) return n;
+        throw new System.ArgumentException($"no beacon {id}");
+    }
+
+    public static bool TryNdbById(string id, out Ndb n)
+    {
+        foreach (Ndb x in Ndbs) if (x.Id == id) { n = x; return true; }
+        n = default;
+        return false;
+    }
+
     public static Vor ById(string id)
     {
         foreach (Vor v in Vors) if (v.Id == id) return v;

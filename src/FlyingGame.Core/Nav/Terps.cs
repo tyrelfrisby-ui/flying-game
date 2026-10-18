@@ -91,6 +91,12 @@ public static class Terps
     public const double PrecisionOcsSlope = 34.0;
     public const double CategoryOneHatFt = 200.0;
 
+    // ---- circling ----
+    /// <summary>Obstacle clearance in the circling area, feet.</summary>
+    public const double CirclingRocFt = 300.0;
+    /// <summary>Circling radius for the slowest approach categories, nautical miles.</summary>
+    public const double CirclingRadiusNmCatA = 1.3;
+
     // ---- missed approach ----
     public const double MissedApproachClimbFtPerNm = 200.0;
     public const double MissedApproachOcsSlope = 40.0;

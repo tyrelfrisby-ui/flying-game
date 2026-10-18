@@ -29,6 +29,8 @@ namespace FlyingGame.Bridge
         /// <summary>The two receivers' frequencies and their course selectors. Static so OPTIONS can tune them.</summary>
         public static readonly double[] Freq = { 115.70, 113.40 };
         public static readonly double[] Obs = { 360, 360 };
+        /// <summary>The ADF's frequency, kHz. One receiver: a light aeroplane has one.</summary>
+        public static double AdfKhz = 353.0;
         public static bool Shown = true;
 
         /// <summary>The elapsed-time clock a dead-reckoning leg is timed on. Seconds.</summary>
@@ -153,15 +155,16 @@ namespace FlyingGame.Bridge
             // One block in the shared stack, so it can never land on a dial, a button or a lesson line.
             float h = _fs * 5.6f;
             Rect blk = UiLayout.NextBlock(h);
-            float w = Mathf.Min(blk.width, _fs * 46f);
+            float w = Mathf.Min(blk.width, _fs * 56f);
             var box = new Rect(blk.center.x - w * 0.5f, blk.y, w, h);
             GUI.DrawTexture(box, _bg);
 
-            float cw = w / 4f;
+            float cw = w / 5f;
             DrawReceiver(new Rect(box.x, box.y, cw, h), 0, t, p.X, p.Y, altM);
             DrawReceiver(new Rect(box.x + cw, box.y, cw, h), 1, t, p.X, p.Y, altM);
-            DrawHeading(new Rect(box.x + cw * 2, box.y, cw, h), heading);
-            DrawClock(new Rect(box.x + cw * 3, box.y, cw, h));
+            DrawAdf(new Rect(box.x + cw * 2, box.y, cw, h), t, p.X, p.Y, altM, heading);
+            DrawHeading(new Rect(box.x + cw * 3, box.y, cw, h), heading);
+            DrawClock(new Rect(box.x + cw * 4, box.y, cw, h));
         }
 
         private double Heading()
@@ -228,6 +231,71 @@ namespace FlyingGame.Bridge
                     GUI.DrawTexture(new Rect(gx - _fs * 0.5f, c.y - gf * _fs * 2.2f - 1.5f, _fs, 3), _green);
                 }
             }
+        }
+
+        /// <summary>
+        /// The ADF. A needle that points AT the beacon, relative to the nose, and nothing else — no course
+        /// selector, no TO/FROM, no deviation bar. Working out where you are from a needle that points at a
+        /// thing is the whole skill, and it is why an ADF approach is harder than a VOR one even though the
+        /// instrument is simpler.
+        ///
+        /// It also tells you when it is lying: the terrain bends a low-frequency signal, so the needle leans
+        /// toward high ground, and when that error is worth knowing about the panel says so rather than
+        /// letting you trust it.
+        /// </summary>
+        private void DrawAdf(Rect r, WorldTerrain t, double x, double y, double altM, double heading)
+        {
+            float pad = _fs * 0.3f;
+            // Tune: the two beacons and off, which is the whole band worth having here.
+            GUI.Label(new Rect(r.x, r.y + pad * 0.5f, r.width, _fs * 1.2f), $"ADF   {AdfKhz:0} kHz", _small);
+            float bw = (r.width - pad * 3) / 2f;
+            var ndbs = Navaids.Ndbs;
+            for (int i = 0; i < ndbs.Length && i < 2; i++)
+                if (GUI.Button(new Rect(r.x + pad + i * (bw + pad), r.y + _fs * 1.4f, bw, _fs * 1.3f),
+                               $"{ndbs[i].Id} {ndbs[i].FreqKhz:0}",
+                               System.Math.Abs(AdfKhz - ndbs[i].FreqKhz) < 0.5 ? _sbtn : _small))
+                    AdfKhz = ndbs[i].FreqKhz;
+
+            Ndb tuned = default;
+            bool found = false;
+            foreach (Ndb n in ndbs) if (System.Math.Abs(n.FreqKhz - AdfKhz) < 0.5) { tuned = n; found = true; break; }
+
+            Vector2 c = new(r.center.x, r.y + _fs * 3.9f);
+            float rad = _fs * 1.3f;
+            // The card: a circle with the nose at the top.
+            for (int k = 0; k < 12; k++)
+            {
+                float a = k * 30f * Mathf.Deg2Rad;
+                var p0 = c + new Vector2(Mathf.Sin(a), -Mathf.Cos(a)) * rad;
+                GUI.DrawTexture(new Rect(p0.x - 1, p0.y - 1, 2, 2), _white);
+            }
+            if (!found) { GUI.Label(new Rect(r.x, c.y - _fs * 0.7f, r.width, _fs * 1.4f), "NO BEACON", _flag); return; }
+            double sig = NavReception.NdbSignal(tuned, x, y);
+            if (sig < 0.2) { GUI.Label(new Rect(r.x, c.y - _fs * 0.7f, r.width, _fs * 1.4f), "OUT OF RANGE", _flag); return; }
+
+            double trueBrg = NavReception.BearingToDeg(x, y, tuned.X, tuned.Y);
+            double err = NavReception.NdbBearingErrorDeg(t, tuned, x, y, altM);
+            double rb = NavReception.RelativeBearingDeg(trueBrg + err, heading);
+            float ang = (float)rb * Mathf.Deg2Rad;
+            Vector2 tip = c + new Vector2(Mathf.Sin(ang), -Mathf.Cos(ang)) * rad;
+            Line(c - new Vector2(Mathf.Sin(ang), -Mathf.Cos(ang)) * rad * 0.45f, tip, new Color(1f, 0.85f, 0.3f), 2.5f);
+            GUI.Label(new Rect(r.x, r.yMax - _fs * 1.15f, r.width, _fs),
+                      System.Math.Abs(err) >= 2.0 ? $"RB {rb:000}  terrain error" : $"RB {rb:000}  MB {(trueBrg + err + 360) % 360:000}",
+                      System.Math.Abs(err) >= 2.0 ? _flag : _small);
+        }
+
+        private void Line(Vector2 a, Vector2 b, Color col, float width)
+        {
+            Vector2 d = b - a;
+            float len = d.magnitude;
+            if (len < 0.5f) return;
+            Matrix4x4 m = GUI.matrix;
+            Color old = GUI.color;
+            GUI.color = col;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - width * 0.5f, len, width), _white);
+            GUI.matrix = m;
+            GUI.color = old;
         }
 
         private void DrawHeading(Rect r, double heading)

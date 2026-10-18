@@ -348,4 +348,122 @@ public class NavigationTests
         Assert.True(System.Math.Abs(driftedNorth) / 10.0 < 0.25);
     }
 
+    // ---------------------------------------------------------------- the beacons
+
+    /// <summary>
+    /// THE WHOLE POINT OF HAVING BEACONS: a low-frequency signal follows the ground, so a ridge that puts a
+    /// VOR into shadow does not shadow an NDB at all. Asserted at the exact spot that proves it — on the
+    /// deck behind the first escarpment, where the Valley VOR is unreadable.
+    /// </summary>
+    [Fact]
+    public void ABeaconIsHeardWhereAVorIsNot()
+    {
+        Vor vly = Navaids.ById("VLY");
+        Ndb bn = Navaids.NdbById("BN");
+        double x = 400, y = -2500;
+        double low = Ground(x, y) + 100 * Terps.MPerFt;
+
+        double vor = NavReception.PathSignal(_t, vly.X, vly.Y, vly.AntennaM, x, y, low, vly.FreqMhz);
+        double ndb = NavReception.NdbSignal(bn, x, y);
+        _o.WriteLine($"at (400,-2500), 100 ft AGL: the Valley VOR reads {vor:F2}, the Bench beacon reads {ndb:F2}");
+        Assert.True(vor < Airways.UsableSignal, "the VOR should be in shadow there");
+        Assert.True(ndb > 0.9, "the beacon should not care about the wall");
+    }
+
+    [Fact]
+    public void ABeaconFadesWithDistanceAndNothingElse()
+    {
+        Ndb bn = Navaids.NdbById("BN");
+        // Inside its rated range it is full strength wherever you are and whatever is in between.
+        Assert.Equal(1.0, NavReception.NdbSignal(bn, bn.X, bn.Y + 10.0 * NavReception.MetresPerNm), 6);
+        // Beyond it, it fades, and half again as far it is gone.
+        double at17 = NavReception.NdbSignal(bn, bn.X, bn.Y + 17.0 * NavReception.MetresPerNm);
+        double at24 = NavReception.NdbSignal(bn, bn.X, bn.Y + 24.0 * NavReception.MetresPerNm);
+        _o.WriteLine($"BN at 10 NM 1.00, at 17 NM {at17:F2}, at 24 NM {at24:F2}");
+        Assert.InRange(at17, 0.05, 0.95);
+        Assert.Equal(0.0, at24, 6);
+        // The world is 15 NM across, so from anywhere in it at least one beacon is readable.
+        int tot = 0, heard = 0;
+        for (double x = XMin; x <= XMax; x += Grid)
+            for (double y = YMin; y <= YMax; y += Grid)
+            {
+                tot++;
+                foreach (Ndb n in Navaids.Ndbs)
+                    if (NavReception.NdbSignal(n, x, y) > 0.2) { heard++; break; }
+            }
+        _o.WriteLine($"a beacon is readable over {100.0 * heard / tot:F1} % of the world");
+        Assert.Equal(tot, heard);
+    }
+
+    /// <summary>
+    /// And the price of that reach. The needle leans toward high ground beside the path, which is what makes
+    /// an ADF approach in mountains a different thing from a VOR one — so the error has to be real, bounded,
+    /// and ZERO where there is nothing in the way.
+    /// </summary>
+    [Fact]
+    public void TheTerrainBendsTheNeedleButOnlyWhereThereIsTerrain()
+    {
+        Ndb bn = Navaids.NdbById("BN");
+        // Straight down the Bench 27 final, over the flat Valley plateau toward the beacon: nothing stands
+        // above the path, so the needle must be honest. This is the bit of sky the approach is flown in.
+        double onFinal = NavReception.NdbBearingErrorDeg(_t, bn, 850, 4000, Ground(850, 4000) + 4000 * Terps.MPerFt);
+        _o.WriteLine($"on the Bench 27 final at 4,000 ft: error {onFinal:+0.0;-0.0;0.0} deg");
+        Assert.True(System.Math.Abs(onFinal) < 0.5, $"the needle lies by {onFinal:F1} deg where the ground is flat");
+
+        // Low down with a range between you and it, it leans — and never further than the cap.
+        double worst = 0;
+        for (double x = XMin; x <= XMax; x += Grid)
+            for (double y = YMin; y <= YMax; y += Grid)
+                foreach (Ndb n in Navaids.Ndbs)
+                {
+                    double e = NavReception.NdbBearingErrorDeg(_t, n, x, y, Ground(x, y) + 1000 * Terps.MPerFt);
+                    worst = System.Math.Max(worst, System.Math.Abs(e));
+                }
+        _o.WriteLine($"worst bearing error anywhere at 1,000 ft AGL: {worst:F1} deg");
+        Assert.True(worst > 2.0, "mountain effect should be worth something somewhere");
+        Assert.True(worst <= NavReception.NdbBearingErrorMaxDeg + 1e-9, $"the error is uncapped: {worst:F1} deg");
+
+        // The same error, same place, every time: a pilot can learn this world's needles.
+        double a = NavReception.NdbBearingErrorDeg(_t, bn, -3000, -8000, 2500);
+        double b = NavReception.NdbBearingErrorDeg(_t, bn, -3000, -8000, 2500);
+        Assert.Equal(a, b, 9);
+    }
+
+    [Fact]
+    public void AnAdfNeedlePointsAtTheBeaconRelativeToTheNose()
+    {
+        // Relative bearing is what the instrument shows, and it is useless without the heading — which is
+        // exactly why the heading card sits next to it.
+        Assert.Equal(0, NavReception.RelativeBearingDeg(90, 90), 6);        // dead ahead
+        Assert.Equal(90, NavReception.RelativeBearingDeg(180, 90), 6);      // off the right wing
+        Assert.Equal(270, NavReception.RelativeBearingDeg(0, 90), 6);       // off the left wing
+        Assert.Equal(180, NavReception.RelativeBearingDeg(270, 90), 6);     // behind
+        // Homing to the Bench beacon from down the final: it should be on the nose while tracking 270.
+        Ndb bn = Navaids.NdbById("BN");
+        double brg = NavReception.BearingToDeg(850, 5000, bn.X, bn.Y);
+        _o.WriteLine($"from 1.8 NM east of BN on the centreline, the beacon bears {brg:F1}");
+        Assert.Equal(270, brg, 1);
+        Assert.Equal(0, NavReception.RelativeBearingDeg(brg, 270), 1);
+    }
+
+    [Fact]
+    public void TheBeaconsSitOnTheGroundTheTableSaysTheyDo()
+    {
+        // A navaid's elevation is a surveyed fact on a chart. If the terrain moves under one, the chart is
+        // wrong — and the first version of this had the Bench beacon declared 522 ft below the hillside it
+        // was actually standing on.
+        foreach (Ndb n in Navaids.Ndbs)
+        {
+            double ground = Ground(n.X, n.Y);
+            _o.WriteLine($"{n.Id}: declared {n.GroundM:F1} m, the ground is {ground:F1} m");
+            Assert.Equal(n.GroundM, ground, 1);
+        }
+        foreach (Vor v in Navaids.Vors)
+        {
+            double ground = Ground(v.X, v.Y);
+            _o.WriteLine($"{v.Id}: declared {v.GroundM:F1} m, the ground is {ground:F1} m");
+            Assert.True(System.Math.Abs(v.GroundM - ground) < 1.0,
+                        $"{v.Id} is charted at {v.GroundM:F1} m but stands on {ground:F1} m");
+        }
+    }
 }

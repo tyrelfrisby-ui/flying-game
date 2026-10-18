@@ -150,6 +150,22 @@ public static class ApproachGeometry
     }
 
     /// <summary>
+    /// The minimum descent altitude for a CIRCLING approach, feet MSL: 300 ft above the highest ground
+    /// within 1.3 NM of the airport, to the next higher 20 ft.
+    ///
+    /// A circling approach is the answer when no runway can be lined up with — which in this world happens
+    /// at Valley and Mesa, where the only usable final approach course comes from a station that is not on
+    /// any centreline. You are brought to the airport and you look out of the window for the rest, and the
+    /// minimum is a height above everything around the field rather than above a corridor.
+    /// </summary>
+    public static double CirclingMdaFt(WorldTerrain t, double airportX, double airportY,
+                                       double radiusNm = Terps.CirclingRadiusNmCatA)
+    {
+        double groundFt = Terps.HighestInCircleM(t, airportX, airportY, radiusNm, 100) * Terps.FtPerM;
+        return Terps.RoundUpFt(groundFt + Terps.CirclingRocFt, MdaRoundFt);
+    }
+
+    /// <summary>
     /// The minimum descent altitude for a non-precision final, feet MSL: the highest ground in the final
     /// approach area from the threshold out to the final approach fix, plus 250 ft, to the next higher 20 ft.
     /// </summary>

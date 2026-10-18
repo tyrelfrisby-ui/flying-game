@@ -10,9 +10,16 @@
 > create an ifr low chart to go along with the vfr chart and a 'satalite image' so the user can see all three
 > but no gps type positions ever."*
 
-Four VORs, two of them on hills; a line-of-sight reception model and the shadow analysis it makes possible;
-two airways and four approach procedures with every altitude derived from this world's own ground; three
-charts; and no own-ship symbol anywhere, ever.
+And his follow-up, a few hours later, which settled the one thing I had been unsure of:
+
+> *"Add two ndb's and build a few vor and adf approaches to put in the approach plate list. Airways don't
+> need to be the full width this is a 'micro' world and terms can be fudged a bit too but we need semi
+> realistic IFR capability for future IFR lessons"*
+
+Four VORs, two of them on hills; **two NDBs, which are a different animal on purpose**; a line-of-sight
+reception model and the shadow analysis it makes possible; two airways and **seven approach plates** — three
+ILS, two VOR and two ADF — with every altitude derived from this world's own ground; three charts; and no
+own-ship symbol anywhere, ever.
 
 ## The one rule, and how it is kept
 
@@ -117,7 +124,9 @@ clearances are the standard ones — 1,000 ft en route (2,000 ft mountainous, wh
 precision final is the 34:1 surface (102 ÷ 3) with a 200 ft Category I decision height; a procedure turn is
 flown within 10 NM at 200 KIAS or less.
 
-**The lateral protected areas are divided by four, and that had to be measured to be believed.** A Victor
+**The lateral protected areas are divided by four** — a decision the owner then sanctioned directly
+(*"Airways don't need to be the full width this is a 'micro' world and terms can be fudged a bit too"*), and
+one that had to be measured to be believed. A Victor
 airway's primary area is 4 NM each side of the centreline — eight nautical miles wide. This world is 8.6 NM
 across. A full-size airway down the airport corridor therefore reaches 4 NM north, far enough to include the
 17,644 ft peak in the Alaska range, and the MEA between the two hill stations came out at **19,800 ft**:
@@ -151,7 +160,17 @@ and a 0.65 NM airway leg from VLY to RIM would have been a bend nobody could fly
 MEA and MOCA are equal on every leg because the MOCA's weaker promise — a signal only within 22 NM of the
 station — is no weaker in a world 15 NM across. That is a property of a small world, not a rule.
 
-## The approaches
+## The approaches — seven plates
+
+| | type | minimums | notes |
+|---|---|---|---|
+| Valley RWY 27 | ILS | DA 1,580 (580 HAT) | the **procedure turn**, over the sea |
+| Bench RWY 27 | ILS | DA 3,480 (480 HAT) | the Rimrock hill is the obstacle |
+| Bench RWY 27 | NDB | MDA 3,760 (760 HAT) | ADF, beacon 1,000 ft below the field |
+| Mesa RWY 27 | ILS | DA 5,200 (**200 HAT**) | nothing penetrates in ten miles |
+| Mesa RWY 27 | VOR | MDA 5,260 (260 HAT) | the same runway, for the comparison |
+| Summit RWY 36 | VOR | MDA 7,260 (260 HAT) | no course reversal possible |
+| Summit RWY 09 | NDB | MDA 7,260 (260 HAT) | ADF, straight-in only |
 
 **Every ILS here is on runway 27, and the terrain decided that, not me.** Every runway end in the world was
 evaluated against the 34:1 surface. The land climbs westward in three 2,000 ft steps, so a final approach
@@ -213,6 +232,39 @@ turn within 2.0 NM of the station would have to be flown at 11,500 ft, within 2.
 to the south-west. `NavProcedureTests.NoApproachClaimsAProcedureTurnTheTerrainWouldNotAllow` checks that
 reason on every run — a note on a chart that nobody verifies is just a note.
 
+## The beacons, which are the opposite kind of radio
+
+`Navaids.Ndbs`. Two, both locators on a runway's final approach course, and they exist because they fail in a
+completely different way from a VOR.
+
+A VOR is VHF and travels in a straight line, so a 2,000 ft wall puts it in shadow. An NDB transmits at
+353 and 365 kHz, where the signal **follows the ground**, so a ridge does not shadow it at all. At
+(400, −2500) — on the deck behind the first escarpment — the Valley VOR reads **0.00** and the Bench beacon
+reads **1.00**. That is asserted in `ABeaconIsHeardWhereAVorIsNot`, and it is the whole argument for having
+them: they give this world a second kind of coverage in exactly the valleys the VORs cannot see into. A
+beacon is readable from **100 %** of the world here, because the world is 15 NM across and a locator is good
+for 15.
+
+So they are deliberately **not** on the hills. **BN (Bench, 353 kHz)** sits at (850, 1742) on the Bench
+runway 27 final, 2.5 NM out and *a thousand feet below the field it serves*, down on the Valley plateau with
+the escarpment between the two. That is a hopeless site for a VOR and a good one for a beacon. (The first
+site tried was 488 m past the stop end, which turned out to be 522 ft up the side of the second escarpment —
+caught by the test that asserts a navaid stands on the ground its chart says it does.) **SM (Summit,
+365 kHz)** sits at (850, −9000), 488 m past the far end of Summit's runway 09, so the needle stays on the
+nose all the way down the final and station passage is the roll-out.
+
+What you pay for the reach is accuracy. High ground beside the path re-radiates the signal and the needle
+leans toward it — "mountain effect" — so `NdbBearingErrorDeg` measures how far the ground stands above the
+direct line and which side of the track is higher, and bends the needle that way, up to 8°. It is
+**deterministic**: the same error at the same place every time, so a pilot can learn where this world's
+needles lie to them, which is more use in a lesson than a random wobble. Down the Bench 27 final over the
+flat plateau the error is 0.3°, and the ADF panel says "terrain error" rather than a magnetic bearing
+whenever it exceeds 2°.
+
+The ADF itself shows **relative bearing only** — a needle pointing at the beacon, measured from the nose. No
+course selector, no TO/FROM, no deviation bar. Turning that into a position is the skill, and it is why an
+ADF approach is harder than a VOR one with a simpler instrument.
+
 ## The three charts
 
 `ChartPanel`, from the CHART button on the toolbar or from the pause menu.
@@ -237,8 +289,43 @@ Magnetic variation here is **zero**, by decision: nothing in this world models a
 it zero makes magnetic and true the same number and keeps the compass, the charts and the radials honest with
 each other. Every course on every chart is both.
 
+### Mesa VOR RWY 27 — the same runway as the ILS, on purpose
+
+RIM, final approach course 273°, **MDA 5,260 ft (260 HAT)**. The FAF is **RIM itself** — overhead the
+station, 2.71 NM out — which is what lets this approach work with no DME at all: station passage *is* the
+fix. The final approach course is the Rimrock 273 radial flown **outbound**; it passes within 250 m of the
+Mesa 27 threshold and is 2.9° off the runway, inside the 30° a VOR final is allowed.
+
+It duplicates the Mesa ILS deliberately. Flying a precision and a non-precision approach to one piece of
+pavement — 200 ft of decision height against 260 ft of minimum descent altitude, a glideslope against a step
+down and a timed missed approach point — is the comparison an IFR lesson is built on.
+
+### Bench NDB RWY 27 — the ADF one
+
+BN 353 kHz, final 270°, **MDA 3,760 ft (760 HAT)**. The beacon is the FAF, 2.5 NM out, crossed at 4,000 ft.
+
+From the beacon you fly 270 and time it, and the ground comes up 2,000 ft underneath you in two and a half
+miles — so the whole final is flown nearly level, 4,000 ft down to 3,760 at 96 ft/NM, and the 760 ft of
+height above touchdown is the **escarpment's crest**, not the runway's.
+
+### Summit NDB RWY 09 — straight in only
+
+SM 365 kHz, final 090°, **MDA 7,260 ft (260 HAT)** — the lowest non-precision minimum in the world, because
+the Frank Church country west of Summit lies *below* the plateau. IAF and FAF are both **CABIN** (SUM R-276
+at 2.3 DME), 2.0 NM out, crossed at 7,700 ft, homing to the beacon on 090.
+
+**No way to join it from overhead the field**, and that is arithmetic rather than an omission: a course
+reversal within 2 NM of the station would have to be flown at 11,500 ft, and you cannot lose 3,000 ft in the
+2.3 NM from the station to the fix. So the plate says straight-in only, established inbound — which is what
+a mountain plate reads like.
+
 ## Still open
 
+0. **There are no IFR lessons yet**, which is what all of this is for (*"we need semi realistic IFR
+   capability for future IFR lessons"*). The syllabus in `src/FlyingGame.Sim/Syllabus` and
+   `Practice/PracticeScenario.cs` has no instrument lessons in it: nothing teaches tracking a radial, timing
+   a leg, intercepting a localizer, flying a procedure turn, or going around from a decision altitude. The
+   plates and the radios are the equipment that such lessons would need, and that is as far as this goes.
 1. **Nothing flies these procedures yet in a test.** The geometry is asserted; an autopilot coupled to the
    localizer and glideslope, flown down to the DA by the game's own law, would prove they are flyable rather
    than merely legal. That is the obvious next test and it is not written.

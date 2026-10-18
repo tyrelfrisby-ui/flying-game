@@ -381,7 +381,7 @@ namespace FlyingGame.Bridge
             if (_layer == ChartLayer.Vfr) DrawLandmarks();
             if (_layer == ChartLayer.IfrLow) DrawAirways();
             DrawAirports();
-            if (_layer != ChartLayer.Satellite) DrawNavaids();
+            if (_layer != ChartLayer.Satellite) { DrawNavaids(); DrawBeacons(); }
             if (_layer == ChartLayer.IfrLow) DrawFixes();
         }
 
@@ -491,6 +491,31 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>
+        /// A beacon: the sectional symbol is a dotted circle, and on an IFR chart it carries its frequency
+        /// and two-letter identifier in a box.
+        /// </summary>
+        private void DrawBeacons()
+        {
+            foreach (Ndb n in Navaids.Ndbs)
+            {
+                Vector2 c = ToScreen(n.X, n.Y);
+                if (!OnScreen(c, 90)) continue;
+                var col = new Color(0.45f, 0.25f, 0.5f);
+                float r = Mathf.Max(6f, 420f / _mPerPx);
+                // Dotted, which is what distinguishes it from a VOR at a glance.
+                for (int k = 0; k < 20; k++)
+                {
+                    float a = k * 18f * Mathf.Deg2Rad;
+                    Vector2 p = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * r;
+                    GUI.DrawTexture(new Rect(p.x - 1f, p.y - 1f, 2.5f, 2.5f), _white);
+                }
+                Circle(c, r * 0.18f, col, 2f, 8);
+                Tag(c, $"{n.Name.ToUpper()}  {n.Id}\n{n.FreqKhz:0} kHz", Color.black,
+                    new Color(0.95f, 0.88f, 0.98f, 0.92f), r + 4f, r + 2f);
+            }
+        }
+
         private void DrawAirways()
         {
             var col = new Color(0.15f, 0.3f, 0.75f);
@@ -562,6 +587,13 @@ namespace FlyingGame.Bridge
                 Text($"{v.Id}  {v.Name}   {v.FreqMhz:0.00}{(v.HasDme ? "  DME" : "")}\n"
                      + $"    {v.GroundM * Terps.FtPerM:0} ft,  {(v.Class == VorClass.Terminal ? "terminal" : "low")}");
             Text("All four are line of sight. Behind a ridge the needle flags; climb and it comes back.");
+
+            Head("BEACONS (ADF)");
+            foreach (Ndb n in Navaids.Ndbs)
+                Text($"{n.Id}  {n.Name}   {n.FreqKhz:0} kHz   {n.RangeNm:0} NM\n    {n.GroundM * Terps.FtPerM:0} ft");
+            Text("A beacon's signal follows the ground, so a ridge does NOT put it in shadow — which is why "
+                 + "these two sit low, in the valleys the VORs cannot see into. The price is accuracy: high "
+                 + "ground beside the path bends the needle toward itself, and the ADF says so when it does.");
 
             if (_layer == ChartLayer.IfrLow || _showPlates)
             {
