@@ -82,15 +82,10 @@ public class WorldContinuityTests
         ("Larch's shoreline across its notch", 6600, -13600, 700),
         ("Cirque's shoreline", 4500, -11300, 700),
         ("Crown's shoreline", 7600, -11000, 700),
-        // And four that were found by this sweep and NOT diagnosed. They are an order of magnitude smaller
-        // than anything above and none of them is in BaseHeightAt — walking the base terrain through the
-        // first one at a metre at a time finds nothing, so each is in a later stage of HeightAt. The first
-        // three are the same feature on each of the three fronts in turn, 3,370 m apart in y, which is the
-        // step spacing. Diagnosing them is the next job on this.
-        ("undiagnosed, on the first front", -2400, -720, 400),
-        ("undiagnosed, on the second front", -2880, -4130, 400),
-        ("undiagnosed, on the third front", -2340, -7440, 400),
-        ("undiagnosed, north of the alpine range", 5460, -8345, 400),
+        // (Four more were found by this sweep and are FIXED, so they are not listed: three were the
+        // world's own airport lakes sitting in 60 to 89 m pits, because their beds are cut out of ground the
+        // grass hills had already raised, and the fourth was Foraker's skirt cut off 150 m short of its own
+        // foot by the Alaska range's south footprint pad.)
     };
 
     private static bool In((string, double x, double y, double r)[] list, double x, double y, out string why)

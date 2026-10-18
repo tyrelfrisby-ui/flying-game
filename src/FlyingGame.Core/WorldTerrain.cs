@@ -156,6 +156,9 @@ public sealed class WorldTerrain
     /// <summary>Distance outside the pad along x (0 inside).</summary>
     public static double PadOutsideX(Airport a, double x) { double rx = x - a.X; return rx >= 0 ? System.Math.Max(0, rx - PadHalfX) : System.Math.Max(0, -rx - PadSouthX); }
 
+    /// <summary>How far past a lake's shoreline its bank reaches, as a fraction of the lake's own radii.</summary>
+    public const double LakeShoreR = 0.5;
+
     // Lakes: one per airport, off the runway's east side. Ellipse (cx, cy, rx, ry).
     public readonly struct Lake
     {
@@ -1153,8 +1156,19 @@ public sealed class WorldTerrain
     /// first fall had never been bored — the surface its rock roof carries, which is what the roof solid and
     /// the roof mesh measure against.</summary>
     public double HeightAt(double x, double y, bool shelfTop, bool withTunnel)
+        => HeightAt(x, y, shelfTop, withTunnel, null);
+
+    /// <summary>
+    /// The same ground, recording the height after each stage into <paramref name="trace"/>. Every invisible
+    /// wall in this world has been a stage that stopped claiming the ground instead of fading out of it
+    /// (2026-10-17, docs/INVISIBLE-WALLS.md), and the cheap way to find which stage did it is to ask the two
+    /// sides of the step what each one thought.
+    /// </summary>
+    public double HeightAt(double x, double y, bool shelfTop, bool withTunnel,
+                           System.Collections.Generic.List<(string stage, double h)>? trace)
     {
         double h = BaseHeightAt(x, y, shelfTop);
+        trace?.Add(("base terrain", h));
 
         // Airport pads: exactly flat at field elevation inside the pad, blended over 300 m outside.
         // Not inside a waterfall notch (real terrain): the Bench pad's corner overhangs the first fall's
@@ -1180,12 +1194,49 @@ public sealed class WorldTerrain
             }
         }
 
+        trace?.Add(("airport pads", h));
         // Grass strip undulations (smooth swoops, on top of the flat pad).
         h += GrassSwoopAt(x, y);
 
+        trace?.Add(("grass swoops", h));
         // Rolling grass hills (owner 2026-10-05): smooth, landable.
         h += Hills.HeightAt(x, y);
 
+        trace?.Add(("grass hills", h));
+        // Lake beds: a shallow bowl under the water, and a SHORE around it (2026-10-17).
+        //
+        // BEFORE the five blocks, not after (2026-10-17). The bank reaches 675 m in x and 450 m in y, and the
+        // lake north-west of the Bench field shares its x with Big Creek 900 m away — so cut after the
+        // backcountry had laid its benches, the bank took the last 59 m of a 3,500 ft strip down with it
+        // (EveryStripIsFlatAcrossAndAtItsOwnSlopeAlong caught that). Skipping the bank over a strip's ground
+        // instead left an 8.5 m step in one metre at the edge of it, which is the very thing this day was
+        // spent removing. Cut first and let the blocks lay their own ground over the top: FrankChurch hands
+        // back whatever it is given anywhere it has nothing of its own to say, so the lake survives
+        // everywhere it should and a bench wins where the two meet.
+        //
+        // The bowl alone was a pit. These lakes take their surface from the field 3 km east of them, but the
+        // grass hills have been laid over the plateau by the time the bed is cut, so around three of the four
+        // the ground stood 60 to 89 m above the water and the bed was cut straight down out of it with a hard
+        // ellipse for an edge. The world sweep found all three: a lake in a shaft, with the water at the
+        // bottom of it. The shore brings the ground down to the water's edge over half a radius again, which
+        // is a bank of fifteen or twenty degrees, and at r = 1 it meets the bed exactly — the bowl is
+        // surface + 2 there, and so is this.
+        foreach (Lake l in Lakes)
+        {
+            double r = l.Inside(x, y);
+            if (r < 1.0)
+            {
+                double depth = 9.0 * System.Math.Sqrt(1 - r * r);
+                h = System.Math.Min(h, l.SurfaceM + 2.0 - depth);
+            }
+            else if (r < 1.0 + LakeShoreR)
+            {
+                double edge = l.SurfaceM + 2.0;
+                h = System.Math.Min(h, edge + (h - edge) * Smooth01((r - 1.0) / LakeShoreR));
+            }
+        }
+
+        trace?.Add(("lake beds", h));
         // The alpine range on the Summit plateau (owner 2026-10-16): peaks, cirques and the lakes in them.
         h = AlpineRange.HeightAt(x, y, h);
         // The backcountry west of it: a canyon a kilometre deep with the famous strips on its benches.
@@ -1197,20 +1248,11 @@ public sealed class WorldTerrain
         // The Reno high desert, west of the Alaska range on the same plateau: mesas you can land on top of.
         h = HighDesert.HeightAt(x, y, h);
 
-        // Lake beds: a shallow bowl under the water.
-        foreach (Lake l in Lakes)
-        {
-            double r = l.Inside(x, y);
-            if (r < 1.0)
-            {
-                double depth = 9.0 * System.Math.Sqrt(1 - r * r);
-                h = System.Math.Min(h, l.SurfaceM + 2.0 - depth);
-            }
-        }
-
+        trace?.Add(("the five blocks", h));
         // The seaplane base: ramp into the Valley lake and its parking pad.
         { double? b = SeaplaneBaseHeightAt(x, y, h); if (b.HasValue) h = b.Value; }
 
+        trace?.Add(("bases and seaplane ramp", h));
         // The coast: the tableland ends in sea cliffs (cap taken off the uncut ground, applied after the gorge).
         double coastCap = Coast.ProfileAt(x, y, h);
 
@@ -1233,12 +1275,14 @@ public sealed class WorldTerrain
                 h = System.Math.Min(h, floor + (h - floor) * wall);
             }
         }
+        trace?.Add(("the gorge", h));
         // The canyon lake behind the dam: the gorge widened and flooded (walls into the water, a deep floor).
         if (y > CanyonLake.Y0 && y < CanyonLake.DamY + 60) h = CanyonLake.CarveAt(x, y, h);
         // The Mall: dead flat, the reflecting pond's bed.
         { double? m = Mall.HeightAt(x, y); if (m.HasValue) h = m.Value; }
         h = System.Math.Min(h, coastCap);
 
+        trace?.Add(("canyon lake, Mall, coast", h));
         // The island rises out of the sea.
         if (y > Coast.MeanShoreY + 1000)
         {
@@ -1246,6 +1290,7 @@ public sealed class WorldTerrain
             if (isl.HasValue) h = SeaCave.InFootprint(x, y) ? isl.Value : System.Math.Max(h, isl.Value);
         }
 
+        trace?.Add(("the island", h));
         // The runway bored in behind the first fall: inside the bore the ground is its floor, flush with the
         // amphitheater shelf outside the mouth. Last, so nothing above re-carves it.
         if (withTunnel && !shelfTop)
@@ -1253,6 +1298,7 @@ public sealed class WorldTerrain
             Waterfall tf = Waterfalls[WaterfallTunnel.FallStep];
             if (WaterfallTunnel.InFootprint(tf, x, y)) h = WaterfallTunnel.FloorAt(tf, x, y);
         }
+        trace?.Add(("the tunnel", h));
         return h;
     }
 

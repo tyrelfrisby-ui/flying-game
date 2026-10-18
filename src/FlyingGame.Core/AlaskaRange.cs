@@ -127,8 +127,18 @@ public static class AlaskaRange
         new Glacier("Colony",       6400, -6900,  536,  6600, -5600,    0,   340,   420,  300,  10),
     };
 
+    /// <summary>
+    /// How far outside the block the range's ground still reaches, per side. Each has to clear the widest
+    /// peak's own skirt or a cone is cut off with relief still on it, and the south side did not: Foraker's
+    /// radius is 1,300 m from a centre 250 m inside Y0, so its skirt reaches 1,050 m past it and the pad was
+    /// 900. That left a 60 m step along the line y = Y0 − 900 (found 2026-10-17 by the world sweep, at
+    /// (5,460, −8,350), which is Foraker's flank). The other three sides clear their peaks: Hunter reaches
+    /// 600 m past X0, Huntington 750 m past Y1, and nothing comes near X1.
+    /// </summary>
+    public const double PadWestM = 800, PadEastM = 800, PadSouthM = 1200, PadNorthM = 800;
+
     private static bool InBlock(double x, double y)
-        => x > X0 - 800 && x < X1 + 800 && y > Y0 - 900 && y < Y1 + 800;
+        => x > X0 - PadWestM && x < X1 + PadEastM && y > Y0 - PadSouthM && y < Y1 + PadNorthM;
 
     public static bool InRange(double x, double y) => InBlock(x, y);
 

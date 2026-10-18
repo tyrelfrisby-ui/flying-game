@@ -1,7 +1,7 @@
 # Invisible walls
 
 2026-10-17. What started as one line in `docs/TIMBER-AND-EROSION.md` — *"Frank Church has no margin fade … it
-wants doing carefully"* — turned out to be a family. Eleven vertical steps in the ground, from 37 m to 2,235 m,
+wants doing carefully"* — turned out to be a family. **Twelve bugs, in fifteen places**, from 37 m to 2,235 m,
 none of them visible as anything from the air until you are in it, every one of them the same mistake.
 
 ## The mistake
@@ -36,10 +36,14 @@ only ever switches off something already zero. Where the room for a fade had to 
 | 162 m | a radial line off every peak in both ranges | `floor(u)` jumped by `channels` where `atan2` wraps | periodic channel id in `ConeErosion` |
 | 98 m | 600 m west of the alpine range's block | a peak's skirt cut off by a 600 m footprint pad | `AlpineRange.FootprintPadM` = 900 |
 | 37 m | every channel boundary on every cone | the spur carried the left-hand channel's profile | mean-reach spur profile in `ConeErosion` |
+| 89 m | three of the four aerodrome lakes | the bed is cut from ground the hills had raised | `WorldTerrain.LakeShoreR` |
+| 60 m | Foraker's southern flank | its skirt cut off 150 m short by a 900 m pad | `AlaskaRange.PadSouthM` |
 | — | the foot of every alpine peak | roughness was 0.35 of itself at the foot, not 0 | `sqrt(sin(πt))` |
 
-Two were known about and written down. The other nine nobody knew were there, including the 2.2 km one across
-the head of a glacier on the mountain the Alaska range is named for.
+Two were known about and written down. The other ten nobody knew were there, including the 2.2 km one across
+the head of a glacier on the mountain the Alaska range is named for, and three of the four lakes beside the
+aerodromes — which have been sitting at the bottom of 60 to 89 m shafts, with the water visible down them,
+for as long as the grass hills have been there.
 
 ## The two that cost something
 
@@ -49,6 +53,16 @@ nothing is out there to drain into; the plateau runs flat at 2,134 m for at leas
 a canyon that opens out into a broad swale and a 759 m wall, so it gets the long taper, 1,200 m, which is the
 same 1:1 slope as the canyon's own walls and at least reads as country. The east end needs no apology: it is
 upstream, and upstream is where a canyon heads into the mountains.
+
+**The lakes had to move in the ORDER, not be fenced off.** Giving the aerodrome lakes a bank broke a strip:
+the bank reaches 675 m in x, the lake north-west of the Bench field shares its x with Big Creek 900 m away,
+and because the lakes were cut after the backcountry lays its benches the bank took the last 59 m of a
+3,500 ft strip with it. The first fix was to skip the bank over any ground a strip has shaped — which left an
+8.5 m step in one metre at the edge of that ground, which is precisely the mistake this whole day was spent
+removing. A boolean guard against a boolean bug is not a fix. What works is cutting the lakes BEFORE the five
+blocks and letting the blocks lay their own ground over the top: `FrankChurch.HeightAt` hands back whatever
+it is given anywhere it has nothing of its own to say, so the lake survives everywhere it should and the
+bench wins where the two meet. 8.52 m became 0.71 m.
 
 **The keepout fade is 60 m, and that number was argued down.** A block's hold on a front releases over 60 m
 of crest wander. The first attempt used 250 m, which removed the wall and also stood a 290 m summit up behind
@@ -106,13 +120,15 @@ it found the outlet valley in one run after an hour of guessing had got nowhere.
    the water. **Making the bed the dish outright was tried and is worse**: it moves the step to the shoreline
    and every lake in the range grows a 600–740 m cliff at its own edge. The fix is a decision about where the
    lakes are, or about whether a basin builds its own mountain, and it is Ty's.
-2. **Four undiagnosed steps**, 44–90 m, listed with coordinates in `Known`. None is in `BaseHeightAt` — the
-   base terrain walked at a metre at a time through the first one is smooth — so each is in a later stage of
-   `HeightAt`. Three of them are the same feature on each of the three fronts in turn, 3,370 m apart in y,
-   which is the step spacing.
-3. **The grid is a grid.** Lines 60 m apart find a wall that runs for any distance at all, which is what all
-   eleven of these did, but a wall shorter than 60 m can hide between two lines. Nothing here says the grid is
+
+   Worth saying what is DIFFERENT about the world's own four airport lakes, which were the same shape of bug
+   and were fixed the same evening: those sit on open ground, so giving them a bank that runs from the water's
+   edge up to whatever is around them is the whole fix. An alpine lake cannot have that bank across its outlet
+   notch, because the notch is the way in — it is deliberately the one bearing on which the ground falls AWAY
+   from the water. So the alpine case needs the mountain under the lake to exist, not a bank around it.
+2. **The grid is a grid.** Lines 60 m apart find a wall that runs for any distance at all, which is what all
+   fifteen of these did, but a wall shorter than 60 m can hide between two lines. Nothing here says the grid is
    fine enough; it says there is nothing coarser than it.
-4. **Nothing checks the solids against the ground** — the collision boxes behind the falls, the tunnel roof,
+3. **Nothing checks the solids against the ground** — the collision boxes behind the falls, the tunnel roof,
    the bridge. A wall in the ground is what this is about; a wall in the collision mesh would show up
    differently and nothing is looking.
