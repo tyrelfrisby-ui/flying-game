@@ -142,10 +142,21 @@ public static class AlaskaRange
         => 60 * System.Math.Sin(x / 260.0) * System.Math.Sin(y / 310.0)
          + 26 * System.Math.Sin(x / 97.0 + 1.3) * System.Math.Sin(y / 113.0 + 0.4);
 
+    /// <summary>How far past its head, as a fraction of its length, a glacier's claim on the ground fades to
+    /// nothing. Short: above the head is the icefall and the cirque wall over it, which is near-vertical rock
+    /// in the real thing.</summary>
+    public const double HeadFadeT = 0.08;
+    /// <summary>And past its toe, where the trough opens out into the valley below the terminus.</summary>
+    public const double ToeFadeT = 0.25;
+
     /// <summary>The mountains, the glaciers cut into them, and the lakes at the ice fronts.</summary>
-    public static double HeightAt(double x, double y, double baseH)
+    public static double HeightAt(double x, double y, double baseH) => HeightAt(x, y, baseH, null);
+
+    /// <summary>The same ground, recording the height after each stage — see the note on
+    /// <see cref="AlpineRange.HeightAt(double, double, double, System.Collections.Generic.List{System.ValueTuple{string, double}}?)"/>.</summary>
+    public static double HeightAt(double x, double y, double baseH, System.Collections.Generic.List<(string stage, double h)>? trace)
     {
-        if (!InBlock(x, y)) return baseH;
+        if (!InBlock(x, y)) { trace?.Add(("outside the block", baseH)); return baseH; }
         double h = baseH;
 
         foreach (Peak p in Peaks)
@@ -168,23 +179,30 @@ public static class AlaskaRange
             h = System.Math.Max(h, cone);
         }
 
+        trace?.Add(("peaks", h));
         // The glaciers: a valley of ice cut through whatever the mountains just built.
+        //
+        // The ice's claim on the ground fades at the SIDES and at the ENDS (the ends, 2026-10-17). Across the
+        // trough it always did — that is what makes it read as ice in a valley rather than a ribbon laid on
+        // the mountainside — but along its length it simply stopped at t = −0.05 and t = 1.25, and where the
+        // mountain above the head was 2.2 km higher than the ice, that is exactly what you got: a 2,235 m
+        // vertical wall across the head of the glacier on the 19,000 ft peak, at (5,400, −7,160), with no
+        // more geology behind it than an inequality.
         foreach (Glacier g in Glaciers)
         {
             var (t, across) = g.Local(x, y);
-            if (t < -0.05 || t > 1.25 || across > g.HalfWidthM + 400) continue;
+            if (t < -HeadFadeT || t > 1 + ToeFadeT || across > g.HalfWidthM + 400) continue;
+            double along = t < 0 ? Smooth((t + HeadFadeT) / HeadFadeT)
+                         : t > 1 ? Smooth((1 + ToeFadeT - t) / ToeFadeT)
+                         : 1;
+            double side = across <= g.HalfWidthM ? 1 : 1 - Smooth((across - g.HalfWidthM) / 400.0);
+            double claim = along * side;
+            if (claim <= 0) continue;
             double ice = g.IceHeightAt(t, across);
-            if (across <= g.HalfWidthM)
-            {
-                h = System.Math.Min(h, ice);
-                continue;
-            }
-            // The valley walls above the ice, so it reads as a glacier in a trough rather than a ribbon laid
-            // on the mountainside.
-            double w = Smooth((across - g.HalfWidthM) / 400.0);
-            h = System.Math.Min(h, ice + (h - ice) * w);
+            h = System.Math.Min(h, ice + (h - ice) * (1 - claim));
         }
 
+        trace?.Add(("glaciers", h));
         // The lake at each ice front.
         foreach (Glacier g in Glaciers)
         {
@@ -197,6 +215,7 @@ public static class AlaskaRange
             double w = Smooth((r - 1) / 0.6);
             h = System.Math.Min(h, surf + (h - surf) * w);
         }
+        trace?.Add(("ice-front lakes", h));
         return h;
     }
 

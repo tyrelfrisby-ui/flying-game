@@ -298,9 +298,17 @@ public static class AlpineRange
     }
 
     /// <summary>The range's surface at (x, y), or the untouched <paramref name="baseH"/> outside it.</summary>
-    public static double HeightAt(double x, double y, double baseH)
+    public static double HeightAt(double x, double y, double baseH) => HeightAt(x, y, baseH, null);
+
+    /// <summary>
+    /// The same ground, recording the height after each stage into <paramref name="trace"/>. Every invisible
+    /// wall in this world has been a stage that stopped claiming the ground instead of fading out of it
+    /// (2026-10-17, see docs/INVISIBLE-WALLS.md), and the only cheap way to tell which stage did it is to
+    /// ask the two sides of the step what each stage thought.
+    /// </summary>
+    public static double HeightAt(double x, double y, double baseH, System.Collections.Generic.List<(string stage, double h)>? trace)
     {
-        if (!InBlock(x, y)) return baseH;
+        if (!InBlock(x, y)) { trace?.Add(("outside the block", baseH)); return baseH; }
         double h = baseH;
 
         // ---- the mountains: the highest cone wins, and overlapping cones make the ridges.
@@ -323,10 +331,12 @@ public static class AlpineRange
             h = System.Math.Max(h, cone);
         }
 
+        trace?.Add(("peaks", h));
         // ---- the basin walls. A bowl's rim is built UP so it is there whatever the peaks do, and an open
         // lake's rim is left out across the notch so the valley can fall away.
         foreach (Lake l in Lakes) h = RimAt(l, x, y, h);
 
+        trace?.Add(("rims", h));
         // ---- the basins themselves, carved out of all of that: the water, the shore, and the walls above it.
         foreach (Lake l in Lakes)
         {
@@ -338,7 +348,14 @@ public static class AlpineRange
             double shore = l.SurfaceM + 4.0;
             if (r <= 1)
             {
-                // The bed: a dish, deepest in the middle.
+                // The bed: a dish, deepest in the middle. NOT an assignment, though it looks as though it
+                // should be one: the lower of the dish and whatever was there is what keeps this continuous.
+                // Making it the dish outright (tried 2026-10-17) fixed one thing and broke a worse one —
+                // Hidden's eastern end stops hanging over a 602 m hole, and instead every lake in the range
+                // grows a 600 to 740 m cliff at its own shoreline, because the basin's WALLS are applied
+                // with a Min as well and cannot build ground up out of a plateau that is lower than the
+                // water. The lakes are not held up by anything where no peak happens to sit under them.
+                // That is a question about where the lakes are, not about a fade. See docs/INVISIBLE-WALLS.md.
                 h = System.Math.Min(h, l.SurfaceM + 2.0 - DepthM * System.Math.Sqrt(System.Math.Max(0, 1 - r * r)));
                 continue;
             }
@@ -363,9 +380,11 @@ public static class AlpineRange
             h = System.Math.Min(h, target * (1 - notch) + drained * notch);
         }
 
+        trace?.Add(("basins", h));
         // ---- the outlet valleys, and the bar across the mouth of each.
         foreach (Lake l in Lakes) h = OutletValleyAt(l, x, y, h);
 
+        trace?.Add(("outlet valleys", h));
         // ---- the basins win back their rims. A valley may run past another basin — this range is crowded
         // and there is nowhere else to put them — but it may not take the wall out of one. Outlet's first
         // valley cut a 640 m slot through Cirque's rim two lakes away.
@@ -375,6 +394,7 @@ public static class AlpineRange
             h = RimAt(l, x, y, h);
         }
 
+        trace?.Add(("rims won back", h));
         // ---- and then the mountains win back their summits. A valley may cut a trough through a flank —
         // that is exactly what a glacial trough does — but it may not take the top off anything, and in a
         // range this crowded a valley's shoulder reaches a summit: Outlet's took 780 m off Sentinel from a
@@ -392,6 +412,7 @@ public static class AlpineRange
             double cone = baseH + (p.TopM - baseH) * Smooth(t) - Couloirs(p, x, y, t, baseH);
             if (cone > h) h += (cone - h) * claim;
         }
+        trace?.Add(("summits won back", h));
         return h;
     }
 
@@ -404,6 +425,10 @@ public static class AlpineRange
         double depth = System.Math.Clamp(0.05 * (p.TopM - baseH), 22, 120);
         return WorldTerrain.ConeErosion(bearing, t, p.X * 0.0013 + p.Y * 0.0009, channels, depth, depth * 0.25);
     }
+
+    /// <summary>How far past the end of its run an outlet valley's claim on the ground fades away — the
+    /// distance over which the trough stops being a trough and becomes whatever it ran into.</summary>
+    public const double OutletTailM = 260;
 
     /// <summary>
     /// The valley a lake drains by, and the bar across its mouth. The valley is a trough running away from
@@ -425,7 +450,12 @@ public static class AlpineRange
         // below the water at the lake's own edge.
         if (l.Inside(x, y) < 0.98) return h;
         var (along, across) = l.Outlet(x, y);
-        if (along < 0 || along > l.OutletRunM + 260) return h;
+        if (along < 0 || along > l.OutletRunM + OutletTailM) return h;
+        // The valley's claim on the ground has to FADE at its far end, not stop (2026-10-17). It used to
+        // stop, with the floor laid at full depth right up to the line, and where the line fell on a
+        // mountainside that is exactly what you got: 853 m of vertical nothing at (6,970, −7,740) and 602 m
+        // at (6,240, −8,785), both of them a valley's end wall rather than any kind of ground.
+        double tail = along <= l.OutletRunM ? 1 : 1 - Smooth((along - l.OutletRunM) / OutletTailM);
         double halfW = l.OutletHalfWidthAt(along);
         // How far the valley reaches sideways has to be budgeted against the peaks and the other basins, and
         // it is bigger than it looks: halfW + edge + fade. The first version reached 965 m and took 780 m off
@@ -457,7 +487,8 @@ public static class AlpineRange
         // Inside the valley the ground IS this profile — filled where the ground was lower, cut where it was
         // higher — and over the last 200 m it gives way to whatever was there before.
         double blend = Smooth(System.Math.Clamp((System.Math.Abs(across) - edge) / fade, 0, 1));
-        h = prof + (h - prof) * blend;
+        double claim = (1 - blend) * tail;
+        h += (prof - h) * claim;
 
         // The bar across the mouth: the rock a glacier leaves at the lip of its basin, and the obstacle you
         // are committing to clearing when you put the aeroplane on the water. Crested about 80 m out.
