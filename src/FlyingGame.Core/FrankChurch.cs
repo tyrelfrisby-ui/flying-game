@@ -144,8 +144,61 @@ public static class FrankChurch
     /// <summary>How far outside the block the canyon's own ground still wins — the footprint it FLATTENS.</summary>
     public const double FootprintPadM = 400;
 
+    // ---- The two ends of the canyon (2026-10-17) -------------------------------------------------------
+    //
+    // A canyon that is a kilometre deep has to STOP somewhere, and until today it stopped by having its
+    // ground end: at the footprint edge the cut simply was not applied any more, which left a 639 m vertical
+    // step across the east mouth and 759 m across the west one. Nothing found them because the margin test
+    // walked each block's north and south edges and this canyon runs east–west, straight out between them.
+    //
+    // So the CUT now dies away at each end instead of being switched off. The taper is applied to the depth
+    // and to the canyon's half width together, so the canyon narrows and shallows into the plateau rather
+    // than becoming a wide flat dish. Where the taper reaches zero this class returns the ground exactly as
+    // it found it, which is why the footprint can reach past the plateau into the range's flank without
+    // flattening anything: beyond the head there is no cut left to apply.
+    //
+    // EAST is the head, and it is the honest end: the river runs from 1,498 m here down to 1,378 m at the
+    // west edge, so this is upstream, and upstream is where a canyon heads into the mountains. The room is
+    // measured, not chosen: the worked ground of Mackay Bar's blend reaches x = 1,535, and the alpine range's
+    // flank starts standing up out of the plateau at about x = 1,900. So the head runs 1,535 → 2,000, which
+    // is 465 m for 636 m of climb — steeper than the canyon's own walls (about 1 : 1) and read as an
+    // amphitheatre at the head of a tributary, with its last 100 m cutting a shallow nick into the range.
+    //
+    // WEST is a lie, and worth naming as one: a river does not shallow out as it goes downstream. There is
+    // nothing out there to drain into — the plateau runs flat at 2,134 m for at least 3 km — so the choice is
+    // between a canyon that opens out into a broad swale and a 759 m wall. It gets the long taper, 1,200 m
+    // from X0, which is a 1 : 1 slope, the same as the walls, so at least it is the shape of country.
+    /// <summary>East end of the ground any strip has shaped (Mackay Bar's blend), measured 2026-10-17.</summary>
+    public const double WorkedEastX = 1535;
+    /// <summary>Where the cut reaches nothing at the head, in the range's flank.</summary>
+    public const double HeadEastX = 2000;
+    /// <summary>Where the cut reaches nothing going downstream, out on the plateau.</summary>
+    public const double HeadWestX = -6800;
+
+    /// <summary>
+    /// How much of the canyon is cut at this x: 1 through the middle, falling to 0 at either end over the
+    /// runs above. Both the depth and the half width are multiplied by it, so the canyon closes in as it
+    /// shallows and there is no cut at all left by the time the footprint ends.
+    /// </summary>
+    public static double EndTaper(double x)
+    {
+        if (x >= WorkedEastX) return 1 - Smooth((x - WorkedEastX) / (HeadEastX - WorkedEastX));
+        if (x <= X0) return 1 - Smooth((X0 - x) / (X0 - HeadWestX));
+        return 1;
+    }
+
+    /// <summary>
+    /// Half the canyon's width at this x, rim to rim: the full <see cref="CanyonHalfWidthM"/> through the
+    /// middle, closing in to the width of its own floor at either head.
+    /// </summary>
+    public static double CanyonHalfWidthAt(double x)
+    {
+        double flat = RiverHalfWidthM + 90;
+        return flat + (CanyonHalfWidthM - flat) * EndTaper(x);
+    }
+
     private static bool InBlock(double x, double y)
-        => x > X0 - FootprintPadM && x < X1 + FootprintPadM && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
+        => x > HeadWestX && x < HeadEastX && y > Y0 - FootprintPadM && y < Y1 + FootprintPadM;
 
     public static bool InArea(double x, double y) => InBlock(x, y);
 
@@ -166,15 +219,22 @@ public static class FrankChurch
         return FloorSouthM + (FloorNorthM - FloorSouthM) * t;
     }
 
-    /// <summary>The canyon cut into the plateau, before any strip bench is put on it.</summary>
+    /// <summary>
+    /// The canyon cut into the plateau, before any strip bench is put on it. <see cref="EndTaper"/> closes it
+    /// in at the two ends: the depth and the half width are both scaled by it, so at the head the canyon is a
+    /// narrow shallow nick and then nothing at all.
+    /// </summary>
     private static double CanyonAt(double x, double y, double rim)
     {
+        double taper = EndTaper(x);
+        if (taper <= 0) return rim;
+        double halfWidth = CanyonHalfWidthAt(x);
         double dy = System.Math.Abs(y - CanyonCentreY(x));
-        if (dy > CanyonHalfWidthM) return rim;
-        double floor = RiverSurfaceAt(x) - 3.0;
+        if (dy > halfWidth) return rim;
+        double floor = rim - (rim - (RiverSurfaceAt(x) - 3.0)) * taper;
         double flat = RiverHalfWidthM + 90;                  // the canyon bottom: the river and its bars
         if (dy <= flat) return floor;
-        double t = (dy - flat) / (CanyonHalfWidthM - flat);
+        double t = (dy - flat) / (halfWidth - flat);
         // Steep near the bottom, rounding off to the rim: a canyon, not a valley.
         double wall = System.Math.Pow(Smooth(t), 0.62);
         return floor + (rim - floor) * wall;
@@ -186,10 +246,25 @@ public static class FrankChurch
         if (!InBlock(x, y)) return baseH;
         double h = CanyonAt(x, y, baseH);
 
-        // The NEAREST strip owns the ground, and only that one. Applying each strip in turn let one strip's
-        // blend zone drag a neighbour's surface off level where the two overlapped — two strips a kilometre
-        // apart left the rim strips 2 m low in the middle.
+        // The NEAREST strip owns the APRON, and only that one, so a bench is dead flat even where a
+        // neighbour's blend reaches it: applying each strip in turn let one strip's blend drag a neighbour's
+        // surface off level, and two strips a kilometre apart left the rim strips 2 m low in the middle.
+        //
+        // Outside the apron EVERY strip in range still blends to the hillside the same way it always did,
+        // and where two of them overlap the answers are averaged rather than one winning outright
+        // (2026-10-17). Winner takes all put a 234 m cliff 260 m off the end of Dewey Moore, where the
+        // nearest strip changes from its bench — 276 m down on the canyon wall — to Sulphur Creek's, up on
+        // the rim: both were blending honestly, from surfaces a couple of hundred metres apart, and the
+        // ground teleported between them at the halfway line.
+        //
+        // The weight is (1 − u) / u², where u is 0 on the apron and 1 at the outer edge of the blend, so it
+        // runs away to infinity as you step onto a bench and falls to nothing at the edge. That makes the
+        // dead-flat apron below the LIMIT of the blend rather than a special case bolted beside it — a
+        // weight of (1 − u) alone still left a 96 m step where the apron ended, because a neighbour 270 m
+        // above was pulling at the first metre outside it. With one strip in range it is exactly the
+        // single-strip blend it replaces.
         double bestOutside = double.MaxValue, bestSurface = 0;
+        double kSum = 0, acc = 0;
         foreach (Strip s in Strips)
         {
             var (along, across) = s.Local(x, y);
@@ -197,18 +272,19 @@ public static class FrankChurch
             double outAlong = System.Math.Max(0, System.Math.Abs(along) - halfL);
             double outAcross = System.Math.Max(0, System.Math.Abs(across) - halfW);
             double outside = System.Math.Sqrt(outAlong * outAlong + outAcross * outAcross);
-            if (outside > ApronM + BlendM || outside >= bestOutside) continue;
-            bestOutside = outside;
+            if (outside >= ApronM + BlendM) continue;
             // The strip and its apron are dead flat across and at the strip's own slope along.
-            bestSurface = s.ElevationM + System.Math.Clamp(along, -halfL, halfL) * s.SlopePercent / 100.0;
+            double surface = s.ElevationM + System.Math.Clamp(along, -halfL, halfL) * s.SlopePercent / 100.0;
+            if (outside < bestOutside) { bestOutside = outside; bestSurface = surface; }
+            double u = System.Math.Max(0, outside - ApronM) / BlendM;
+            if (u <= 0) continue;                           // on a bench: the short circuit below is the limit
+            double value = surface + (h - surface) * Smooth(u);
+            double k = (1 - u) / (u * u);
+            kSum += k; acc += k * value;
         }
         if (bestOutside <= ApronM) return bestSurface;
-        if (bestOutside < double.MaxValue)
-        {
-            double t = Smooth((bestOutside - ApronM) / BlendM);
-            return bestSurface + (h - bestSurface) * t;
-        }
-        return h;
+        if (kSum <= 0) return h;
+        return acc / kSum;
     }
 
     /// <summary>Is (x, y) inside any strip's bench, apron or blend — the ground the strips have shaped?</summary>
@@ -253,7 +329,11 @@ public static class FrankChurch
         if (System.Math.Abs(y - CanyonCentreY(x)) > RiverHalfWidthM) return null;
         // Not where a strip's bench has been laid over the top of it.
         foreach (Strip s in Strips) if (s.On(x, y, ApronM)) return null;
-        return RiverSurfaceAt(x);
+        // And not past the point where the head taper has lifted the bed up to meet the surface, or the
+        // river would be left lying on top of the ground at both ends.
+        double river = RiverSurfaceAt(x);
+        if (RimM - (RimM - (river - 3.0)) * EndTaper(x) >= river) return null;
+        return river;
     }
 
     /// <summary>How long a Cub takes between the two strips farthest apart, in minutes at 90 kt.</summary>

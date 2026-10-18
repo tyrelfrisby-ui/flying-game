@@ -191,10 +191,93 @@ public class FrankChurchTests : IDisposable
     [Fact]
     public void TheBackcountryLeavesTheRestOfTheWorldAlone()
     {
-        // It is cut into its own block, and the Cascades next door are untouched.
+        // It is cut into its own block, and the Cascades next door are untouched. The canyon's cut now dies
+        // away over a head at each end, so the ground it touches reaches further in x than the block itself
+        // (2026-10-17) — but only as far as the heads, and the east one still stops 400 m short of the range.
         Assert.True(FrankChurch.X1 < AlpineRange.X0, "the two areas should be side by side, not on top of each other");
+        Assert.True(FrankChurch.HeadEastX < AlpineRange.X0, "the canyon's head reaches into the Cascades");
         foreach (AlpineRange.Lake l in AlpineRange.Lakes)
             Assert.False(FrankChurch.InArea(l.X, l.Y), $"{l.Name} is inside the backcountry block");
-        Assert.Equal(FrankChurch.RimM, _t.HeightAt(FrankChurch.X0 - 700, -12800), 0);
+        // Beyond either head the ground is the plateau, to the metre, because there is no cut left to apply.
+        Assert.Equal(FrankChurch.RimM, _t.HeightAt(FrankChurch.HeadWestX - 100, -12800), 0);
+        Assert.Equal(0.0, FrankChurch.EndTaper(FrankChurch.HeadWestX), 6);
+        Assert.Equal(0.0, FrankChurch.EndTaper(FrankChurch.HeadEastX), 6);
+        Assert.Equal(1.0, FrankChurch.EndTaper(0), 6);
+    }
+
+    /// <summary>
+    /// The canyon is 636 m deep at its head and 756 m at the other end, and until 2026-10-17 its ground
+    /// simply stopped: a 639 m vertical step across the east mouth and 759 m across the west one, into which
+    /// you could fly at any height. Nothing caught it because the test that walks a block's margins walked
+    /// only the north and south edges, and this canyon runs east–west, out between the two of them.
+    ///
+    /// So: walk the floor from end to end, and walk across both heads at every y, and hold that the ground
+    /// never steps more than a steep hillside's worth. 25 m in 5 m is a 1 : 0.2 face — far steeper than
+    /// anything here is meant to be, and a twenty-fifth of what was there.
+    /// </summary>
+    [Fact]
+    public void TheCanyonDoesNotEndInAWall()
+    {
+        double worst = 0; string where = "nowhere";
+        double prev = _t.HeightAt(FrankChurch.HeadWestX - 300, FrankChurch.CanyonCentreY(FrankChurch.HeadWestX - 300));
+        for (double x = FrankChurch.HeadWestX - 295; x <= FrankChurch.HeadEastX + 300; x += 5)
+        {
+            double h = _t.HeightAt(x, FrankChurch.CanyonCentreY(x));
+            if ((h < FrankChurch.RimM - 20 || prev < FrankChurch.RimM - 20) && System.Math.Abs(h - prev) > worst)
+            { worst = System.Math.Abs(h - prev); where = $"on the floor at x {x:F0}"; }
+            prev = h;
+        }
+        foreach (int side in new[] { -1, 1 })
+        {
+            double from = side < 0 ? FrankChurch.X0 + 100 : FrankChurch.WorkedEastX - 100;
+            double to = side < 0 ? FrankChurch.HeadWestX - 300 : FrankChurch.HeadEastX + 300;
+            // Only the canyon's own country: a band either side of the centreline a little wider than the
+            // canyon ever is. Beyond it the ground belongs to whatever else is there — the alpine range's
+            // footprint ends in a 98 m step of its own 600 m west of its block, which is not this test's.
+            for (double y = FrankChurch.Y0 - 500; y <= FrankChurch.Y1 + 500; y += 10)
+            {
+                double p = _t.HeightAt(from, y);
+                for (double x = from + side * 5; side < 0 ? x >= to : x <= to; x += side * 5)
+                {
+                    double h = _t.HeightAt(x, y);
+                    // The canyon's own country, rim to rim and a little past. Beyond it the ground belongs
+                    // to whatever else is there: the alpine range's footprint ends in a 98 m step of its own
+                    // 600 m west of its block, which is not this test's business.
+                    bool inCanyon = System.Math.Abs(y - FrankChurch.CanyonCentreY(x)) < FrankChurch.CanyonHalfWidthAt(x) + 60;
+                    if (inCanyon && System.Math.Abs(h - p) > worst)
+                    { worst = System.Math.Abs(h - p); where = $"across the {(side < 0 ? "west" : "east")} head at ({x:F0}, {y:F0})"; }
+                    p = h;
+                }
+            }
+        }
+        _o.WriteLine($"worst step through the canyon's two ends: {worst:F1} m over 5 m — {where}");
+        Assert.True(worst < 25, $"the canyon still ends in a wall: {worst:F0} m in 5 m {where}");
+    }
+
+    /// <summary>
+    /// Where two strips' blend zones overlap the ground has to agree with itself. It did not: the nearest
+    /// strip owned the ground outright, so 260 m off the end of Dewey Moore — whose bench is 276 m down on
+    /// the canyon wall — ownership passed to Sulphur Creek's, up on the rim, and the ground teleported 234 m
+    /// at the halfway line. Walk every point of worked ground against its neighbour 5 m away.
+    /// </summary>
+    [Fact]
+    public void NoStripsBlendIntoACliffWhereTheyMeet()
+    {
+        double worst = 0; string where = "nowhere";
+        for (double x = FrankChurch.X0; x <= FrankChurch.X1; x += 25)
+        {
+            double p = _t.HeightAt(x, FrankChurch.Y0 - 500);
+            for (double y = FrankChurch.Y0 - 495; y <= FrankChurch.Y1 + 500; y += 5)
+            {
+                double h = _t.HeightAt(x, y);
+                if (FrankChurch.OnWorkedGround(x, y) && System.Math.Abs(h - p) > worst)
+                { worst = System.Math.Abs(h - p); where = $"at ({x:F0}, {y:F0})"; }
+                p = h;
+            }
+        }
+        _o.WriteLine($"worst step on the ground the strips have shaped: {worst:F1} m over 5 m — {where}");
+        // 25 m in 5 m: these benches are cut into canyon walls, so the ground beside one is allowed to be a
+        // steep hillside. It is not allowed to be a cliff.
+        Assert.True(worst < 25, $"a cliff where two strips' blends meet: {worst:F0} m in 5 m {where}");
     }
 }

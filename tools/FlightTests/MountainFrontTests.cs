@@ -156,6 +156,10 @@ public class MountainFrontTests
         // across its face and ended in a 900 m wall 560 m south of its own Y0 (found 2026-10-16, by probing a
         // render that showed a flat green wall where a mountainside should have been).
         //
+        // The heights are taken WITHOUT the runway tunnel (2026-10-17): the tunnel bored behind the first
+        // fall ends in rock 570 m thick, as a tunnel should, and an x-walk across the braided plain's margin
+        // ran straight into its far end and called it a cliff.
+        //
         // So: walk right across each margin, at 5 m — fine enough that a real escarpment, which is 3.3 : 1 by
         // design and may be in here, cannot be mistaken for a discontinuity.
         (string name, double x0, double y0, double x1, double y1, double pad)[] blocks =
@@ -166,6 +170,10 @@ public class MountainFrontTests
         };
         double worst = 0; string where = "nowhere";
         foreach (var b in blocks)
+        {
+            // BOTH PAIRS OF EDGES. Walking only the north and south ones is how Frank Church kept a 639 m
+            // step across the east mouth of its canyon and 759 m across the west one until 2026-10-17: the
+            // canyon runs east–west and left the block between the two edges this test was looking at.
             for (double x = b.x0; x <= b.x1; x += 40)
             {
                 if (System.Math.Abs(x - WorldTerrain.RiverCentreX(b.y0)) < 500) continue;   // the gorge crosses it
@@ -173,16 +181,38 @@ public class MountainFrontTests
                 {
                     double edge = side < 0 ? b.y0 : b.y1;
                     double from = edge + side * -120, to = edge + side * (b.pad + 260);
-                    double prev = _t.HeightAt(x, from);
+                    double prev = _t.HeightAt(x, from, false, false);
                     for (double y = from + side * 5; side < 0 ? y >= to : y <= to; y += side * 5)
                     {
-                        double h = _t.HeightAt(x, y);
+                        double h = _t.HeightAt(x, y, false, false);
                         double d = System.Math.Abs(h - prev);
                         prev = h;
                         if (d > worst) { worst = d; where = $"{b.name} at x {x:F0}, y {y:F0}"; }
                     }
                 }
             }
+            for (double y = b.y0; y <= b.y1; y += 40)
+                foreach (int side in new[] { -1, 1 })
+                {
+                    double edge = side < 0 ? b.x0 : b.x1;
+                    // Frank Church's own ground reaches further in x than its pad: the canyon's cut dies away
+                    // over a head at each end, and the walk has to start inside that and finish outside it.
+                    double reach = b.name == "Frank Church"
+                        ? (side < 0 ? b.x0 - FrankChurch.HeadWestX : FrankChurch.HeadEastX - b.x1) + 260
+                        : b.pad + 260;
+                    double from = edge + side * -120, to = edge + side * reach;
+                    if (System.Math.Abs(from - WorldTerrain.RiverCentreX(y)) < 500
+                        || System.Math.Abs(to - WorldTerrain.RiverCentreX(y)) < 500) continue;   // the gorge
+                    double prev = _t.HeightAt(from, y, false, false);
+                    for (double x = from + side * 5; side < 0 ? x >= to : x <= to; x += side * 5)
+                    {
+                        double h = _t.HeightAt(x, y, false, false);
+                        double d = System.Math.Abs(h - prev);
+                        prev = h;
+                        if (d > worst) { worst = d; where = $"{b.name} at x {x:F0}, y {y:F0}"; }
+                    }
+                }
+        }
         _o.WriteLine($"worst step anywhere across a block's margin: {worst:F1} m over 5 m — {where}");
         // 150 m in 5 m, not 60: where a front is squeezed to its minimum width the ESCARPMENT ITSELF is
         // 87 m in 5 m — 500 m of climb in 82 m of run, plus a summit's back slope ramping in on top of it —

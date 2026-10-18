@@ -92,9 +92,11 @@ real escarpment, which is 3.3 : 1 by design, cannot be mistaken for a discontinu
 
 ## Still open
 
-* **Frank Church has no margin fade.** Its ground is the plateau almost everywhere in the margin so there is
-  no wall today, but Mackay Bar's east end runs 28 m outside the block's own X1 and a fade there would put a
-  bump at the end of a 1,500 ft strip. It wants doing carefully, with the strip tests watched.
+* ~~**Frank Church has no margin fade.**~~ Done 2026-10-17, and it was not what this said: the ground was
+  NOT the plateau in the margin. The canyon runs east–west and its cut simply stopped at the footprint, which
+  left a 639 m vertical step across the east mouth and 759 m across the west one. Chasing that found five more
+  walls of the same kind elsewhere in the world, one of them 2,235 m across the head of a glacier. See
+  `docs/INVISIBLE-WALLS.md`.
 * **The forest is drawn only round the camera.** `ForestStreamer` has not been seen on a device, so it no
   longer counts chunks: it spends a MILLISECOND BUDGET (2 ms of a frame, 4 chunks at most), builds nothing at
   all after a frame that already ran long, and keeps `WorstFrameMs` so a device can be asked what it cost.
