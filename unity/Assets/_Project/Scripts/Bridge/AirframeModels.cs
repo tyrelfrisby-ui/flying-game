@@ -39,7 +39,10 @@ namespace FlyingGame.Bridge
             { "c172-like", new Spec(new Vector3(0f, 1f, 0f), new Vector3(1f, 0f, 0f)) },
             { "pa18-cub-like", new Spec(Vector3.right, Vector3.up) },
             { "dc3-like", new Spec(Vector3.forward, Vector3.up, groundClearanceM: 0.7f) },     // gear-up export
-            { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, groundClearanceM: 1.2f) },   // gear-up export
+            // hikami3150 "B737-800 Model" (CC BY 4.0, 2026-10-13: replaces the NonCommercial OUTPISTON model): metres, nose +z, gear-up
+            // export. Fitted on LENGTH (39.5 m = 1.158 × the config's 34.1 m span-fit), so its 31.2 m wings run ~1.5 m short of the
+            // physics' tips; the nacelles sit 0.53 m above the tyre plane.
+            { "boeing-737-like", new Spec(Vector3.forward, Vector3.up, largestIsSpan: false, scaleTrim: 1.158f, groundClearanceM: 0.53f) },
             { "geebee-r2-like", new Spec(Vector3.right, Vector3.up) },
             { "seminole-like", new Spec(Vector3.right, Vector3.up) },
             // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial

@@ -1,8 +1,137 @@
-newmtl material00
-Kd 0.800 0.800 0.800
-map_Kd material00_baseColor_scale0.jpg
+# Converted from B737-800_Model.usdz (Sketchfab, hikami3150, CC BY 4.0). Flat UsdPreviewSurface diffuse colours; the source has no textures.
 
-newmtl material03
-Kd 0.800 0.800 0.800
-map_Kd material00_baseColor_scale0.jpg
+newmtl Cylinder_013__0
+Ka 0.000 0.000 0.000
+Kd 1.0000 1.0000 1.0000
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
 
+newmtl Material_004
+Ka 0.000 0.000 0.000
+Kd 0.4435 0.4435 0.4435
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_007
+Ka 0.000 0.000 0.000
+Kd 0.0943 0.0692 0.0473
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_009
+Ka 0.000 0.000 0.000
+Kd 0.4183 0.4183 0.4183
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_011
+Ka 0.000 0.000 0.000
+Kd 0.0372 0.0352 0.0268
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_013
+Ka 0.000 0.000 0.000
+Kd 0.0794 0.0794 0.0794
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_014
+Ka 0.000 0.000 0.000
+Kd 0.6365 0.6365 0.6365
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_016
+Ka 0.000 0.000 0.000
+Kd 0.4896 0.3811 0.3449
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_017
+Ka 0.000 0.000 0.000
+Kd 0.2378 0.1744 0.1333
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_018
+Ka 0.000 0.000 0.000
+Kd 0.2204 0.2204 0.2204
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_020
+Ka 0.000 0.000 0.000
+Kd 0.8001 0.0000 0.0040
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_023
+Ka 0.000 0.000 0.000
+Kd 0.5977 0.5977 0.5977
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_028
+Ka 0.000 0.000 0.000
+Kd 0.3050 0.3050 0.3050
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_031
+Ka 0.000 0.000 0.000
+Kd 0.2999 0.2999 0.2999
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_037
+Ka 0.000 0.000 0.000
+Kd 0.0000 0.0000 0.0000
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_066
+Ka 0.000 0.000 0.000
+Kd 0.0943 0.0943 0.0943
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
+
+newmtl Material_080
+Ka 0.000 0.000 0.000
+Kd 0.8000 0.8000 0.8000
+Ks 0.000 0.000 0.000
+Ns 10
+d 1
+illum 2
