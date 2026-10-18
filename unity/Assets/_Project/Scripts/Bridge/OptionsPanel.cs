@@ -66,7 +66,7 @@ namespace FlyingGame.Bridge
             // Landscape has the width but not the height for one long list: two columns (settings | control feel).
             bool twoCol = Screen.width > Screen.height * 1.3f;
             float w = twoCol ? Mathf.Min(Screen.width * 0.94f, s * 1.9f) : Mathf.Min(Screen.width * 0.9f, s * 0.9f), lh = _fs * 1.8f, gap = _fs * 0.5f;
-            float h = lh * (twoCol ? 21.4f : 32.6f);          // +3.1 rows for the HELP block, +0.8 for the nav radios row
+            float h = lh * (twoCol ? 26.6f : 37.8f);          // + the HELP block, the nav radios row and the BADGES block
             var panel = new Rect((Screen.width - w) * 0.5f, s * 0.02f + mbh + gap, w, h);
             GUI.DrawTexture(panel, _bg);
             float x = panel.x + gap, y = panel.y + gap, cw = twoCol ? (panel.width - 3 * gap) * 0.5f : panel.width - 2 * gap;
@@ -198,6 +198,29 @@ namespace FlyingGame.Bridge
                 if (GUI.Button(new Rect(x + lh + gap, y, cw - lh - gap, lh), st.Length > 0 ? $"{what}: {st}" : $"{what} (same Wi-Fi)", _label)) JoyLink.On = !on;
                 y += lh + gap * 0.4f;
             }
+            // BADGES AND SCORES (owner 2026-10-18): the viewer's choice, both ways round. The HANDLE is not
+            // on this list and never will be — you always get to know who is in the circuit with you.
+            y += gap * 0.5f;
+            GUI.Label(new Rect(x, y, cw, lh), "BADGES", _head); y += lh;
+            BoolRow("Show other pilots' badges and scores", ref SessionSettings.ShowOtherBadges);
+            BoolRow("Show my own badge", ref SessionSettings.ShowOwnBadge);
+            {
+                var held = PilotRecord.Held();
+                string badge = FlyingGame.Sim.Ratings.Certificate.Describe(held);
+                double sc = PilotRecord.Score();
+                UiLayout.Label(new Rect(x, y, cw, lh * 0.9f),
+                               $"You are: {badge}{(sc > 0 ? $"   ·   {FlyingGame.Sim.Ratings.PilotScore.Format(sc)} points" : "")}", _label);
+                y += lh * 0.9f;
+                if (PilotRecord.Awards.Count > 0)
+                {
+                    UiLayout.Label(new Rect(x, y, cw, lh * 0.9f), "Awards: " + string.Join(" · ", PilotRecord.Awards), _label);
+                    y += lh * 0.9f;
+                }
+                UiLayout.Label(new Rect(x, y, cw, lh * 0.9f),
+                               "Your lesson scores are yours. Only the badge and the leaderboard score are sent.", _label);
+                y += lh * 0.9f;
+            }
+
             // HELP (handoff 2026-10-17): a web page, opened in the browser. No chat in the app, and the app
             // sends nothing — the URL carries the build and the platform so the page knows which version is
             // asking. The diagnostics block goes on the CLIPBOARD and nowhere else: the customer reads it and

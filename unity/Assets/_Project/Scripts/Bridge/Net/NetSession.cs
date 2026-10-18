@@ -256,7 +256,7 @@ namespace FlyingGame.Bridge.Net
                 _joinedAc = _driver.AircraftId; _joinedName = SessionSettings.PilotName;
                 // On a LAN the name travels in every announcement, so there is nobody to tell but the mesh.
                 if (Lan) _local.SetSelf(_joinedName, _joinedAc);
-                else if (!Solo) _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc }.ToJson());
+                else if (!Solo) _client.SendQueued(new NetMsg { t = "join", name = _joinedName, ac = _joinedAc, bdg = PilotRecord.Badge(), sc = PilotRecord.Score() }.ToJson());
             }
             if (Lan)
             {
@@ -383,14 +383,14 @@ namespace FlyingGame.Bridge.Net
                         foreach (NetPeer p in m.peers)
                         {
                             if (p?.id == null || p.id == SelfId) continue;
-                            RemoteAircraft r = Upsert(p.id, p.name, p.ac);
+                            RemoteAircraft r = Upsert(p.id, p.name, p.ac, p.bdg, p.sc);
                             if (p.s != null) r.Push(p.s);
                         }
                     }
                     Debug.Log($"[Net] joined {Room} as {SelfId}; {PeerCount} peers");
                     break;
                 case "peer":
-                    if (m.id != null && m.id != SelfId) Upsert(m.id, m.name, m.ac);
+                    if (m.id != null && m.id != SelfId) Upsert(m.id, m.name, m.ac, m.bdg, m.sc);
                     if (Solo)
                     {
                         // Somebody arrived: start talking again, and let them see us this frame rather than in
@@ -421,16 +421,26 @@ namespace FlyingGame.Bridge.Net
             }
         }
 
-        private RemoteAircraft Upsert(string id, string name, string ac)
+        private RemoteAircraft Upsert(string id, string name, string ac) => Upsert(id, name, ac, null, null);
+
+        /// <summary>
+        /// A peer's identity. The badge and board score ride along with the name and the aeroplane because
+        /// all three are PUBLIC results (owner 2026-10-18); the lesson record they came from never leaves
+        /// its owner's device, and a null badge simply means a pilot on a build older than this one.
+        /// </summary>
+        private RemoteAircraft Upsert(string id, string name, string ac, string badge, double? score)
         {
-            if (_remotes.TryGetValue(id, out RemoteAircraft r) && r != null)
+            if (!_remotes.TryGetValue(id, out RemoteAircraft r) || r == null)
+            {
+                r = RemoteAircraft.Create(id, name, ac);
+                _remotes[id] = r;
+            }
+            else
             {
                 r.SetName(name);
                 r.SetAircraft(ac);
-                return r;
             }
-            r = RemoteAircraft.Create(id, name, ac);
-            _remotes[id] = r;
+            if (badge != null || score.HasValue) r.SetBadge(badge ?? r.Badge, score ?? r.BoardScore);
             return r;
         }
 

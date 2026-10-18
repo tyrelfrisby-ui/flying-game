@@ -42,6 +42,10 @@ namespace FlyingGame.Bridge.Net
 
         private static readonly Dictionary<string, AircraftConfig> Configs = new();
 
+        /// <summary>The badge and score this pilot published. Public information; see PilotIdentity.</summary>
+        public string Badge { get; private set; } = "";
+        public double BoardScore { get; private set; }
+
         public static RemoteAircraft Create(string id, string name, string ac)
         {
             var go = new GameObject($"Remote-{name}-{id}");
@@ -51,6 +55,17 @@ namespace FlyingGame.Bridge.Net
             r.SetName(name);
             r.SetAircraft(ac);
             return r;
+        }
+
+        /// <summary>
+        /// The badge and board score that came off the wire (owner 2026-10-18). Both are results and both
+        /// are public; the lesson record behind them never leaves its owner's device.
+        /// </summary>
+        public void SetBadge(string badge, double score)
+        {
+            Badge = badge ?? "";
+            BoardScore = score;
+            SetName(PilotName);     // redraw the tag
         }
 
         public void SetName(string name)
@@ -69,7 +84,17 @@ namespace FlyingGame.Bridge.Net
                 _tag.alignment = TextAlignment.Center;
                 _tag.color = new Color(1f, 1f, 1f, 0.9f);
             }
-            _tag.text = PilotName;
+            // THE HANDLE IS ALWAYS SHOWN (owner 2026-10-18: *"A user can choose to show/hide the
+            // badges/scores etc of both others and themselves but their handle is always displayed"*). The
+            // toggle is the VIEWER's, so it declutters their own screen and cannot hide anybody from
+            // anybody — you always know who is in the circuit with you.
+            var id = new FlyingGame.Sim.Ratings.PilotIdentity
+            {
+                Handle = PilotName,
+                Badge = Badge,
+                Score = BoardScore,
+            };
+            _tag.text = string.Join("\n", id.TagLines(SessionSettings.ShowOtherBadges));
         }
 
         public void SetAircraft(string ac)

@@ -225,6 +225,12 @@ namespace FlyingGame.Bridge.Practice
                 _finishSpoken = true;
                 PilotVoice.Say($"{Scenario.Verdict} Score {Scenario.Score:F0} percent.", 0.52f, 1.0f);
                 if (_touch != null) { _touch.GameAileron = _touch.GameElevator = _touch.GameRudder = _touch.GameThrottle = false; }
+                // The badge (owner 2026-10-18). The score goes into the pilot's own PRIVATE log against the
+                // class this aeroplane belongs to; if that moved the badge, it is worth saying out loud,
+                // because earning a rating is the only thing in the record anybody else gets to see.
+                if (PilotRecord.RecordLesson(Driver != null ? Driver.AircraftId : SessionSettings.AircraftId,
+                                             Kind.ToString(), Scenario.Score))
+                    PilotVoice.Say($"New rating. You are now {PilotRecord.Badge()}.", 0.52f, 1.0f);
             }
             return merged;
         }

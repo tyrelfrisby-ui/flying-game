@@ -88,6 +88,9 @@ namespace FlyingGame.Bridge
             IsOpen = false;
             SessionSettings.MenuOpen = false;
             Time.timeScale = SessionSettings.SimSpeed;
+            // Again here, not only in the menu: this is the one line every flight passes through, so a
+            // scored contest cannot be entered with somebody's own weather however they got to this point.
+            SessionSettings.LockContestConditions();
             SessionSettings.ApplyWeather();
             if (Weather != null) Weather.SyncFromSession();
             Driver.ApplySession();               // aircraft + start position (fires AircraftChanged)
@@ -371,7 +374,22 @@ namespace FlyingGame.Bridge
             // ---- column 3 (portrait: under column 1): conditions · multiplayer
             maxY = Mathf.Max(maxY, y);
             if (port) { x = colX(0); y = maxY + gap; } else { x = colX(2); y = top; }
-            UiLayout.Label(new Rect(x, y, colW, lh), "CONDITIONS", _head); y += lh;
+            // A SCORED CONTEST OWNS THE AIR (owner 2026-10-18). The moment one is selected the conditions
+            // are overwritten with the contest's own and the steppers go dead, because a leaderboard of
+            // times flown in air each pilot chose for themselves is a list of who picked the best tailwind.
+            bool locked = SessionSettings.LockContestConditions();
+            UiLayout.Label(new Rect(x, y, colW, lh), locked ? "CONDITIONS — LOCKED" : "CONDITIONS",
+                           locked ? new GUIStyle(_head) { normal = { textColor = new Color(1f, 0.72f, 0.2f) } } : _head);
+            y += lh;
+            if (locked)
+            {
+                UiLayout.Label(new Rect(x, y, colW, lh * 1.6f),
+                               "This one is scored, so everybody flies it in the same air. Wind, turbulence, "
+                               + "temperature, thermals and tyres are set by the contest.", _small);
+                y += lh * 1.6f;
+            }
+            bool wasEnabled = GUI.enabled;
+            if (locked) GUI.enabled = false;
             y = Stepper(x, y, colW, "Wind from", $"{SessionSettings.WindFromDeg:000}°", ref SessionSettings.WindFromDeg, 0f, 359f, 15f);
             y = Stepper(x, y, colW, "Wind", $"{SessionSettings.WindSpeedMs * 1.944f:F0} kt", ref SessionSettings.WindSpeedMs, 0f, 20f, 1f);
             float turb = SessionSettings.TurbulenceLevel;
@@ -381,8 +399,10 @@ namespace FlyingGame.Bridge
             y = Stepper(x, y, colW, "Temperature", $"{surfF:F0}°F", ref SessionSettings.IsaDeviationC, -30f, 30f, 1f);
             y = Stepper(x, y, colW, "Thermals", SessionSettings.ThermalScale <= 0.01f ? "Off" : $"{SessionSettings.ThermalScale:F1}×", ref SessionSettings.ThermalScale, 0f, 2f, 0.25f);
 
+            if (locked) GUI.enabled = wasEnabled;
             // Bushwheels: twice the tyre, no pants, half the pressure. It changes how the aeroplane lands on
             // a bar or skims water, so it belongs with the conditions rather than buried in a menu.
+            if (locked) GUI.enabled = false;
             if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.Bushwheels ? "Bushwheels ON" : "Bushwheels off",
                                 SessionSettings.Bushwheels ? _btnOn : _btn))
             {
@@ -402,6 +422,7 @@ namespace FlyingGame.Bridge
                 Driver?.ApplySession();
             }
             y += row;
+            if (locked) GUI.enabled = wasEnabled;
 
             if (port) { maxY = Mathf.Max(maxY, y); x = colX(1); }
             else y += gap * 0.4f;

@@ -73,6 +73,35 @@ namespace FlyingGame.Bridge
         public static float IsaDeviationC = 0f;           // hot/cold day
         public static float ThermalScale = 1f;            // 0 off .. 2 strong
 
+        // ---- badges and scores over other people's aeroplanes (owner 2026-10-18) ----
+        /// <summary>Show badges and scores on OTHER pilots' tags. Their handle is shown either way.</summary>
+        public static bool ShowOtherBadges = true;
+        /// <summary>Show my own badge and score on my own tag and in the HUD. Likewise never the handle.</summary>
+        public static bool ShowOwnBadge = true;
+
+        /// <summary>
+        /// A SCORED CONTEST OWNS THE AIR (owner 2026-10-18: *"every challenge ... must have the exact same
+        /// conditions locked ie users cannot tweak the wind to get a better score or crank up the thermal
+        /// intensity"*). Called whenever the selected challenge changes and again before the flight starts:
+        /// it overwrites the weather and tyre settings with the contest's own and returns true if the pilot
+        /// no longer has a choice about them, so the menu can grey them out and say why.
+        /// </summary>
+        public static bool LockContestConditions()
+        {
+            if (!FlyingGame.Sim.Ratings.Contests.TryFor(ChallengeId, out var c)) return false;
+            WindFromDeg = (float)c.WindFromDeg;
+            WindSpeedMs = (float)c.WindSpeedMs;
+            TurbulenceLevel = c.TurbulenceLevel;
+            IsaDeviationC = (float)c.IsaDeviationC;
+            ThermalScale = (float)c.ThermalScale;
+            Bushwheels = c.Bushwheels;
+            Skis = c.Skis;
+            return true;
+        }
+
+        /// <summary>Is the current selection one whose score goes on a public board?</summary>
+        public static bool ContestLocked => FlyingGame.Sim.Ratings.Contests.IsScored(ChallengeId);
+
         // ---- multiplayer (free play only: challenges/events force Solo) ----
         /// <summary>Lan is appended, never inserted: the chosen mode is kept in PlayerPrefs as its number.</summary>
         public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom, Lan }

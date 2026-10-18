@@ -33,6 +33,8 @@ namespace FlyingGame.Bridge.Net
         public string id;
         public string name;
         public string ac;
+        public string bdg;  // the badge, short form — public (owner 2026-10-18)
+        public double? sc;  // the combined leaderboard score — public
         public NetState s;  // last known state (late-joiner roster), may be null
     }
 
@@ -43,6 +45,8 @@ namespace FlyingGame.Bridge.Net
         public string id;
         public string name;
         public string ac;
+        public string bdg;      // badge, short form: public, and NEVER the lesson record behind it
+        public double? sc;      // combined leaderboard score: public
         public string room;
         public float[] p, q, v, d;
         public NetFlags f;
