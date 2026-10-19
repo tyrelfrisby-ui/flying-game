@@ -48,6 +48,7 @@ public class SwiftThermalSpinProbe
     [Theory]
     [InlineData("glider-swift-s1-like")]
     [InlineData("glider-2-33-like")]
+    [InlineData("glider-eb29r-like")]
     [InlineData("extra-300-like")]
     public void TheWidgetsOwnSpinRecipe(string id)
     {
@@ -157,6 +158,7 @@ public class SwiftThermalSpinProbe
     [InlineData("glider-swift-s1-like", true)]
     [InlineData("extra-300-like", false)]
     [InlineData("glider-2-33-like", false)]
+    [InlineData("glider-eb29r-like", false)]
     public void DoesTheRotationSettle(string id, bool rotary)
     {
         if (System.Environment.GetEnvironmentVariable("SWIFT_SPIN") == null) return;
