@@ -520,6 +520,32 @@
     "TrimStick": 0.2221
   },
   {
+    "Id": "j3-cub-floats-like",
+    "Flaps": 0,
+    "VsoKt": 40.04,
+    "SpeedKt": 52.06,
+    "GlideDeg": 10.653,
+    "GlideRatio": 5.316,
+    "SinkFpm": 974.5,
+    "AlphaDeg": 5.208,
+    "PitchDeg": -5.445,
+    "ElevatorDeg": -4.265,
+    "TrimStick": -0.1839
+  },
+  {
+    "Id": "j3-cub-like",
+    "Flaps": 0,
+    "VsoKt": 38.49,
+    "SpeedKt": 50.03,
+    "GlideDeg": 9.386,
+    "GlideRatio": 6.05,
+    "SinkFpm": 826.3,
+    "AlphaDeg": 4.983,
+    "PitchDeg": -4.403,
+    "ElevatorDeg": -3.784,
+    "TrimStick": -0.1666
+  },
+  {
     "Id": "p51d-like",
     "Flaps": 0,
     "VsoKt": 97.19,

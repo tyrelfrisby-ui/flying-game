@@ -1827,7 +1827,7 @@
       "centeringSpringKt": 25,
       "trimType": "spring",
       "freeTauS": 0.12,
-      "saturationDeg": 5.2
+      "saturationDeg": 16.8
     },
     "rudder": {
       "maxDeflRad": 0.5,

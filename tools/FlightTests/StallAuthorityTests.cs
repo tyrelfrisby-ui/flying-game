@@ -32,7 +32,11 @@ public class StallAuthorityTests
     /// <summary>Margin past the wing stall that full aft should hold (deg).</summary>
     public static double TargetMarginDeg(string id) => id switch
     {
-        "extra-300-like" or "pitts-s2b-like" or "decathlon-8kcab-like" => 6.0,
+        // The Swift S-1 is an aerobatic sailplane, cleared for spins — it belongs with the aerobatic types, not with
+        // the trainers whose full aft stick is calibrated to stop just short of the stall (owner, 2026-10-19: with it
+        // in the trainer bucket the Swift could not be spun at all — it stalled, dropped its nose and flew out of it
+        // with the stick on the aft stop and full rudder held. 0.10 turns in 30 s against the Extra's 3.60).
+        "extra-300-like" or "pitts-s2b-like" or "decathlon-8kcab-like" or "glider-swift-s1-like" => 6.0,
         "stearman-pt17-like" => 4.0,
         _ => -0.5,   // trainers: balance just UNDER the stall — full aft bobs across it and MUSHES (~1,300 fpm, 172), wings rockable
     };

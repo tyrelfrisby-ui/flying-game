@@ -56,3 +56,4 @@ scripts/NEXT-PROMPT.md
 unity/Assets/Resources/PerformanceTest*
 unity/Assets/Resources.meta
 unity/Assets/Resources/
+__pycache__/
