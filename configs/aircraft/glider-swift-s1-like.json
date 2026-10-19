@@ -1,4 +1,7 @@
 {
+  "spinAero": {
+    "rollDueToSideslip": "monoplane"
+  },
   "schemaVersion": 1,
   "id": "glider-swift-s1-like",
   "displayName": "Swift S-1 Aerobatic",

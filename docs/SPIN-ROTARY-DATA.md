@@ -117,3 +117,59 @@ turn. With the rotary table as well it is 100 % stalled throughout and makes 2.3
 
 So the elevator class is the half of the fix that is certainly right; whether an AR-13 wing should carry the
 AR-6 rotary table is still open, and until it does, **the Swift departs but does not hold a spin**.
+
+## Trying it on the whole fleet (2026-10-19), and why it is not on the whole fleet
+
+Ty: *"we should really apply this to all airplanes right?"* The case for it is strong, and measured — flying every
+type on the widget's recipe, with the table off, **seven types answer full aft stick and full rudder with a
+SPIRAL**, the wing not stalled at all in the last 20 s of a 45 s hold:
+
+| | stalled, off | stalled, on | s/turn off → on |
+|---|---:|---:|---|
+| Cessna 172 | 100 % | 100 % | 2.4 → 2.1 |
+| Archer | 100 % | 100 % | 1.9 → 2.0 |
+| **SR22** | **0 %** | 100 % | 12.9 → 2.6 |
+| **P-51** | **0 %** | 100 % | 13.8 → 3.4 |
+| **Gee Bee** | **0 %** | 100 % | 9.1 → 6.8 |
+| **Cassutt** | **0 %** | 100 % | 1.6 → 3.8 |
+| **Pitts, with its own table off** | **0 %** | 100 % | 1.4 → 2.1 |
+| 2-33 | 2 % | 72 % | — → 5.8 |
+
+The Cassutt is the clearest tell: 1.6 s a turn at α 14 reads as a fast spin until you look at the angle of attack.
+That is not a conservative default, it is a missing term. (The sweep also reproduces the Extra's documented
+numbers — α 31 → 50, 7.3 → 7.4 s a turn — which is how we know the harness is honest.)
+
+**It still is not on the fleet, because applied at every angle of attack it is a double count.** TR-379 measured
+the SEPARATED wing; in attached flow the strip wing already makes its own roll-due-to-sideslip out of dihedral
+and geometry. Hands on the trim through 40 s of moderate turbulence:
+
+| | peak bank, off | peak bank, on |
+|---|---:|---:|
+| Cessna 172 | 4° | 4° |
+| **Super Cub** | **7°** | **52°** |
+| Swift | 38° | 62° |
+| 2-33 | 57° | 65°, and 22 m/s trim wound up to 43 |
+
+A Super Cub does not roll to 52° in moderate turbulence. Three tests failed on it:
+`TurbulenceTests.GliderBuffetsButStaysStableInModerate`, `SpinTests.TomRecoveryStopsTheSpin` (the 2-33 no longer
+recovers on neutral elevator and opposite rudder inside 6 s) and `DronePilotTests.AerobaticDroneFliesVaried…`.
+
+**And the faithful fix breaks the Pitts.** Gating the term on the wing's stalled fraction — so it only acts where
+the paper measured, and goes to zero in attached flow on its own — fixes the double count and leaves the Extra
+untouched (α 50, 7.4 s a turn, either way). The Pitts goes from 9.52 turns at 100 % stalled to **13.92 turns at
+0 % stalled**: straight back to a spiral. The reason is a latch-out. The Pitts cannot reach the stall on its own
+— with no table at all it spirals at α 13 — so it was using the table's *attached-flow* part to climb into the
+stall, and a gate that waits for the stall never opens. Its elevator is the known cause: the Pitts is on
+`StallAuthorityTests.ManualElevator` because the calibration wanted its elevator chord ×3.6, "a geometry problem
+to fix with data".
+
+So the fleet-wide rollout is blocked behind a real decision, not a flag:
+
+1. **Fix the elevators first.** The Pitts, the Stearman and the F-86 cannot be held past the stall at all — full
+   aft stick pins them at α 13, 10 and 9. Fix those and the stall gate becomes available, and with the gate the
+   table is safe to put on everything.
+2. **Or ship it ungated and accept** that aeroplanes with real dihedral get roughly double their roll-due-to-
+   sideslip near the stall, which is what the Cub's 52° of bank is.
+3. **Or leave it where it is**, which is what was done: the Extra, the Pitts and now the Swift.
+
+Worth saying plainly: option 1 is the right one, and the Pitts' elevator has been the blocker twice now.
