@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "extra-300-like",
-  "displayName": "Aerobat Monoplane (Extra 300S)",
+  "displayName": "Extra 300-like Aerobat",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 820,

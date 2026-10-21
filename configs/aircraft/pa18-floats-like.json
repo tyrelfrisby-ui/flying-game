@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "pa18-floats-like",
-  "displayName": "Super Cub on Floats",
+  "displayName": "Super Cub-like on Floats",
   "spawnIasMs": 33,
   "mass": {
     "massKg": 909,

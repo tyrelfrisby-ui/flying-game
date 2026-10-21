@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "pa25-pawnee-like",
-  "displayName": "Pawnee Tow Plane",
+  "displayName": "Pawnee-like Tow Plane",
   "spawnIasMs": 45,
   "mass": {
     "massKg": 907,

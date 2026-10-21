@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "j3-cub-floats-like",
-  "displayName": "Cub on Floats (J-3, 85 hp)",
+  "displayName": "J-3 Cub-like on Floats",
   "spawnIasMs": 26,
   "mass": {
     "massKg": 613.0,

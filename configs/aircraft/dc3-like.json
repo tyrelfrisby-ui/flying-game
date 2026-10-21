@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dc3-like",
-  "displayName": "Radial Airliner (DC-3)",
+  "displayName": "DC-3-like Airliner",
   "spawnIasMs": 75,
   "mass": {
     "massKg": 11591,

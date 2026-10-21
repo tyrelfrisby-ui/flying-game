@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "c172-like",
-  "displayName": "Skyhawk Trainer",
+  "displayName": "172-like Trainer",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 1043,

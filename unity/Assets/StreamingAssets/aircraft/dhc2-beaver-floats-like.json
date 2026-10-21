@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dhc2-beaver-floats-like",
-  "displayName": "Beaver on Floats (DHC-2)",
+  "displayName": "Beaver-like on Floats",
   "spawnIasMs": 48,
   "mass": {
     "massKg": 2200.0,

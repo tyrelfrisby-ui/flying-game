@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "seminole-like",
-  "displayName": "Twin Trainer (PA-44)",
+  "displayName": "Seminole-like Twin",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 1724,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "glider-eb29r-like",
-  "displayName": "EB29R Open Class",
+  "displayName": "EB29R-like Open Class",
   "spawnIasMs": 30,
   "mass": {
     "massKg": 700,

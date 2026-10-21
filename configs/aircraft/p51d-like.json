@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "p51d-like",
-  "displayName": "WWII Fighter (P-51D)",
+  "displayName": "P-51D-like Fighter",
   "spawnIasMs": 110,
   "mass": {
     "massKg": 4600,

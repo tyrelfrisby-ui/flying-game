@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "hughes-h4-like",
-  "displayName": "Hughes H-4 Hercules",
+  "displayName": "H-4-like Flying Boat",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 136000.0,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "boeing-737-like",
-  "displayName": "Airliner (737-800)",
+  "displayName": "737-like Airliner",
   "spawnIasMs": 130,
   "mass": {
     "massKg": 65000,

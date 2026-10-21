@@ -224,14 +224,14 @@ namespace FlyingGame.Bridge
 
         public static readonly (string id, string name)[] Fleet =
         {
-            ("glider-2-33-like", "Trainer Glider"), ("glider-eb29r-like", "EB29R Open Class"), ("glider-swift-s1-like", "Swift Aerobatic"), ("c172-like", "Skyhawk"), ("pa28-archer-like", "Archer"), ("cirrus-sr22-like", "Cirrus SR22"), ("pa18-cub-like", "Super Cub"),
-            ("pa18-bush-like", "Cub Bushwheels"), ("pa18-floats-like", "Cub on Floats"),
-            ("j3-cub-like", "Cub J-3 85 hp"), ("j3-cub-floats-like", "Cub J-3 on Floats"), ("dhc2-beaver-like", "Beaver"), ("dhc2-beaver-floats-like", "Beaver on Floats"), ("pa25-pawnee-like", "Pawnee"),
-            ("decathlon-8kcab-like", "Decathlon"), ("extra-300-like", "Extra 300"), ("pitts-s2b-like", "Pitts S-2"),
-            ("jn4-jenny-like", "Jenny JN-4D"), ("stearman-pt17-like", "Stearman"), ("p51d-like", "P-51 Mustang"), ("f86-sabre-like", "F-86 Sabre"),
-            ("seminole-like", "Seminole"), ("dc3-like", "DC-3"), ("boeing-737-like", "737"), ("hughes-h4-like", "Hughes H-4"),
-            ("cassutt-f1-like", "Cassutt Formula One"), ("geebee-r2-like", "Gee Bee R-2"), ("glasair3-like", "Glasair III 400"),
-            ("aircam-like", "Lockwood AirCam"), ("aircam-amphib-like", "AirCam Amphib"),
+            ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
+            ("pa18-bush-like", "Super Cub-like, Bushwheels"), ("pa18-floats-like", "Super Cub-like on Floats"),
+            ("j3-cub-like", "J-3 Cub-like, 85 hp"), ("j3-cub-floats-like", "J-3 Cub-like on Floats"), ("dhc2-beaver-like", "Beaver-like"), ("dhc2-beaver-floats-like", "Beaver-like on Floats"), ("pa25-pawnee-like", "Pawnee-like"),
+            ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"),
+            ("jn4-jenny-like", "JN-4D-like Jenny"), ("stearman-pt17-like", "Stearman-like"), ("p51d-like", "P-51D-like"), ("f86-sabre-like", "F-86-like"),
+            ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("boeing-737-like", "737-like"), ("hughes-h4-like", "H-4-like"),
+            ("cassutt-f1-like", "Cassutt-like Racer"), ("geebee-r2-like", "Gee Bee R-2-like"), ("glasair3-like", "Glasair III-like"),
+            ("aircam-like", "AirCam-like"), ("aircam-amphib-like", "AirCam-like Amphib"),
         };
 
         /// <summary>Dogfight 1 v 1 (owner 2026-10-01): the opponent's aircraft and skill (0 easy, 1 moderate, 2 difficult).</summary>

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "cassutt-f1-like",
-  "displayName": "Cassutt Formula One",
+  "displayName": "Cassutt-like Racer",
   "spawnIasMs": 70,
   "mass": {
     "massKg": 340,

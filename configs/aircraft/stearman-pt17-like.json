@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "stearman-pt17-like",
-  "displayName": "Trainer Biplane (PT-17)",
+  "displayName": "Stearman-like Trainer Biplane",
   "spawnIasMs": 45,
   "mass": {
     "massKg": 1200,

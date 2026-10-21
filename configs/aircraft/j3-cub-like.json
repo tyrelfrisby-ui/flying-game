@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "j3-cub-like",
-  "displayName": "Cub (J-3, 85 hp)",
+  "displayName": "J-3 Cub-like (85 hp)",
   "spawnIasMs": 28,
   "mass": {
     "massKg": 553.0,

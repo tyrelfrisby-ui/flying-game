@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "decathlon-8kcab-like",
-  "displayName": "Aerobat Taildragger (Decathlon)",
+  "displayName": "Decathlon-like Aerobat",
   "spawnIasMs": 50,
   "mass": {
     "massKg": 816,

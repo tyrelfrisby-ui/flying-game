@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "pitts-s2b-like",
-  "displayName": "Aerobat Biplane",
+  "displayName": "Pitts S-2-like Aerobat",
   "spawnIasMs": 65,
   "mass": {
     "massKg": 737,

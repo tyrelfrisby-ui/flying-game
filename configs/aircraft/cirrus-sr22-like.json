@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "cirrus-sr22-like",
-  "displayName": "Cirrus SR22",
+  "displayName": "SR22-like",
   "spawnIasMs": 75,
   "mass": {
     "massKg": 1500,

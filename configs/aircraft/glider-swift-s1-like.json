@@ -4,7 +4,7 @@
   },
   "schemaVersion": 1,
   "id": "glider-swift-s1-like",
-  "displayName": "Swift S-1 Aerobatic",
+  "displayName": "Swift S-1-like Aerobat",
   "spawnIasMs": 30,
   "mass": {
     "massKg": 330,

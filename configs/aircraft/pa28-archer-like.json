@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "pa28-archer-like",
-  "displayName": "Archer (PA-28-181)",
+  "displayName": "Archer-like",
   "spawnIasMs": 55,
   "mass": {
     "massKg": 1090,

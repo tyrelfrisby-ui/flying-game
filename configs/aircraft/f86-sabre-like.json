@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "f86-sabre-like",
-  "displayName": "Jet Fighter (F-86 Sabre)",
+  "displayName": "F-86-like Jet Fighter",
   "spawnIasMs": 180,
   "mass": {
     "massKg": 6900,

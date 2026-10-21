@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "geebee-r2-like",
-  "displayName": "Gee Bee R-2",
+  "displayName": "Gee Bee R-2-like",
   "spawnIasMs": 80,
   "mass": {
     "massKg": 1300,

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "aircam-like",
-  "displayName": "Lockwood AirCam",
+  "displayName": "AirCam-like",
   "spawnIasMs": 31.0,
   "mass": {
     "massKg": 730.0,

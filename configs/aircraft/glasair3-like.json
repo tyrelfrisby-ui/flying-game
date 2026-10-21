@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "glasair3-like",
-  "displayName": "Glasair III 400",
+  "displayName": "Glasair III-like",
   "spawnIasMs": 100,
   "mass": {
     "massKg": 1090,
