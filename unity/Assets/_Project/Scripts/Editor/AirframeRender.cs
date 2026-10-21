@@ -89,6 +89,9 @@ namespace FlyingGame.EditorTools
                 {
                     ("iso", new Vector3(1.2f, 0.7f, 1.0f), false),
                     ("top", new Vector3(0.001f, 1f, 0f), true),
+                    // BOTTOM: the view a wing marking is actually read from, for liveries that put their
+                    // lettering under the wings the way a banner-tow aeroplane does (Livery.cs).
+                    ("bottom", new Vector3(0.001f, -1f, 0f), true),
                     ("side", new Vector3(1f, 0.05f, 0f), true),
                     ("front", new Vector3(0f, 0.08f, 1f), true),
                 };

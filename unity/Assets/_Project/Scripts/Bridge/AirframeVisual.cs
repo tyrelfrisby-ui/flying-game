@@ -1320,6 +1320,10 @@ namespace FlyingGame.Bridge
         /// <summary>Repaint the whole airframe one colour (target drones: orange); null = the type's own livery.</summary>
         public Color? Paint;
 
+        /// <summary>The livery resolved for THIS build (Liveries.For), so the parts that run deeper than
+        /// Build() — the fuselage waterline, the markings — do not each look it up again.</summary>
+        private Livery _livery;
+
         public float Build(Transform root, AircraftConfig cfg)
         {
             Clear();
@@ -1327,7 +1331,7 @@ namespace FlyingGame.Bridge
             Style st = StyleFor(cfg.Id);
             // A livery repaints the type's own colours (see Livery.cs); Paint is applied AFTER it so the combat
             // drone's flat orange still overrides everything, which is what that field was for.
-            Livery liv = Liveries.ById(SessionSettings.LiveryId);
+            Livery liv = _livery = Liveries.For(SessionSettings.LiveryId, cfg.Id);
             if (!liv.IsDefault)
             {
                 if (liv.Fuselage.HasValue) st.Fuselage = liv.Fuselage.Value;
@@ -1352,6 +1356,8 @@ namespace FlyingGame.Bridge
             BuildCanopy(st);
             BuildPropulsion(cfg, st);
             BuildAsWing(() => BuildStruts(cfg, st, halfSpan));   // wing/interplane/cabane struts go with the wings
+            // Markings last, so they sit on top of everything they are painted on.
+            BuildDecals(cfg, st, halfSpan);
             BuildGear(cfg, st);
             BuildAsWing(() => BuildSpoilers(cfg, st, halfSpan));
             BuildAsWing(() => BuildSlats(cfg, st));
@@ -1476,10 +1482,9 @@ namespace FlyingGame.Bridge
             // carry without a vertex-colour shader. Segment j runs from angle j*2pi/seg; ring[i] puts the TOP
             // at i=0 (z = -r, and sim z is down-positive), so a segment's height runs 0 at the top to 1 at the
             // bottom and the belly is everything below 1 - BellyFrac.
-            Livery liv = Liveries.ById(SessionSettings.LiveryId);
-            if (liv.Belly.HasValue && !Paint.HasValue)
+            if (_livery.Belly.HasValue && !Paint.HasValue)
             {
-                float cut = 1f - Mathf.Clamp01(liv.BellyFrac);
+                float cut = 1f - Mathf.Clamp01(_livery.BellyFrac);
                 bool IsBelly(int j)
                 {
                     float am = (j + 0.5f) * Mathf.PI * 2f / seg;
@@ -1491,7 +1496,7 @@ namespace FlyingGame.Bridge
                 mb.AddCap(rings[0], U(st.Body[0].x + (st.BluntNose ? 0.05f : st.Body[0].r * 0.8f), 0f, st.BodyAxisZ));
                 mb.AddCap(rings[^1], U(st.Body[^1].x - st.Body[^1].r * 0.5f, 0f, st.BodyAxisZ));
                 Spawn("Fuselage", mb.ToMesh(Vector3.zero), st.Fuselage, Vector3.zero);
-                Spawn("FuselageBelly", belly.ToMesh(Vector3.zero), liv.Belly.Value, Vector3.zero);
+                Spawn("FuselageBelly", belly.ToMesh(Vector3.zero), _livery.Belly.Value, Vector3.zero);
             }
             else
             {
@@ -1670,6 +1675,173 @@ namespace FlyingGame.Bridge
                 cowl.transform.localScale = new Vector3(radius * 0.8f, radius * 0.16f, radius * 0.8f);
                 cowl.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(new Color(0.2f, 0.2f, 0.22f));
             }
+        }
+
+        // ---- markings: the livery's lettering and logos, laid on the surfaces ---------------------
+
+        /// <summary>
+        /// Lay the livery's markings (Livery.cs) on the airframe.
+        ///
+        /// Text is a TextMesh, the same way the world's signs are drawn — nothing to author, no UVs needed on a
+        /// generated wing, and it stays sharp at any size. Images need a texture on a quad.
+        ///
+        /// ORIENTATION, which is the whole trick. U(x,y,z) = (y,-z,x), so sim forward (+x) is Unity +z and sim
+        /// right (+y) is Unity +x. A wing marking reads ALONG THE SPAN with the tops of the letters toward the
+        /// LEADING EDGE — the way a banner-tow aeroplane carries one, and the way an oversized registration sits
+        /// on a Cub — so the text's up-vector is Unity +z and its facing is the surface normal: down for a marking
+        /// read from below, up for one read from above.
+        /// </summary>
+        private void BuildDecals(AircraftConfig cfg, Style st, float halfSpan)
+        {
+            if (_livery.Decals.Count == 0 || Paint.HasValue) return;
+            foreach (Decal d in _livery.Decals)
+            {
+                switch (d.Place)
+                {
+                    case DecalPlace.WingUpper:
+                    case DecalPlace.WingLower:
+                        PlaceWingDecal(cfg, d, halfSpan);
+                        break;
+                    case DecalPlace.FinBothSides:
+                        PlaceFinDecal(cfg, d);
+                        break;
+                    case DecalPlace.FuselageBothSides:
+                        PlaceFuselageDecal(st, d);
+                        break;
+                }
+            }
+        }
+
+        /// <summary>The main wing's strips, biggest lifting surface first, excluding the hinged control rows.</summary>
+        private static List<StripConfig> MainWingStrips(AircraftConfig cfg)
+        {
+            SurfaceConfig best = null; double bestArea = 0;
+            foreach (SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (sf.Id == null || !sf.Id.StartsWith("wing") || sf.Id.EndsWith("aileron") || sf.Strips.Count == 0) continue;
+                double area = 0; foreach (StripConfig stp in sf.Strips) area += stp.Area;
+                if (area > bestArea) { bestArea = area; best = sf; }
+            }
+            return best?.Strips ?? new List<StripConfig>();
+        }
+
+        private void PlaceWingDecal(AircraftConfig cfg, Decal d, float halfSpan)
+        {
+            List<StripConfig> strips = MainWingStrips(cfg);
+            if (strips.Count == 0) return;
+            bool upper = d.Place == DecalPlace.WingUpper;
+            foreach (int side in d.Side == 0 ? new[] { -1, 1 } : new[] { d.Side })
+            {
+                // the strip nearest the asked-for station along THIS half-span
+                float want = side * d.SpanFrac * halfSpan;
+                StripConfig near = null; float bestD = float.MaxValue;
+                foreach (StripConfig stp in strips)
+                {
+                    float y = (float)stp.Pos[1];
+                    if (System.Math.Sign(y) != side || y == 0) continue;
+                    float dist = Mathf.Abs(y - want);
+                    if (dist < bestD) { bestD = dist; near = stp; }
+                }
+                if (near == null) continue;
+                float chord = (float)near.Chord;
+                // A strip's Pos is its QUARTER-CHORD, so the mid-chord — where a marking is centred — is a
+                // quarter of a chord aft of it (x is forward-positive).
+                Vector3 at = U((float)near.Pos[0] - chord * 0.25f, (float)near.Pos[1], (float)near.Pos[2]);
+                // clear of the skin, on the side it is read from
+                at += (upper ? Vector3.up : Vector3.down) * (chord * 0.12f * 0.5f + 0.02f);
+                // A TextMesh shows its -Z face, so LookRotation's forward points AWAY from whoever reads it:
+                // INTO the wing. (2026-10-21: the obvious way round put the underwing lettering on top.)
+                Quaternion rot = Quaternion.LookRotation(upper ? Vector3.down : Vector3.up, Vector3.forward);
+                Mark(d, at, rot, chord * d.HeightFrac, "Decal:" + (d.Text ?? "logo"));
+            }
+        }
+
+        private void PlaceFinDecal(AircraftConfig cfg, Decal d)
+        {
+            foreach (SurfaceConfig sf in cfg.Surfaces)
+            {
+                if (sf.Id != "vStab" || sf.Strips.Count == 0) continue;
+                // middle of the fin by height, a little forward of its hinge
+                float zSum = 0, chord = 0, x = 0;
+                foreach (StripConfig stp in sf.Strips) { zSum += (float)stp.Pos[2]; chord += (float)stp.Chord; x += (float)stp.Pos[0]; }
+                int n = sf.Strips.Count;
+                chord /= n;
+                Vector3 at = U(x / n, 0f, zSum / n);
+                foreach (int side in new[] { -1, 1 })
+                {
+                    Vector3 p = at + new Vector3(side * (chord * 0.08f * 0.5f + 0.015f), 0f, 0f);
+                    // a fin marking reads upright, facing out of the fin's side
+                    Quaternion rot = Quaternion.LookRotation(side > 0 ? Vector3.left : Vector3.right, Vector3.up);
+                    Mark(d, p, rot, chord * d.HeightFrac, "Decal:fin");
+                }
+                return;
+            }
+        }
+
+        private void PlaceFuselageDecal(Style st, Decal d)
+        {
+            // forward of the middle, at the widest station — where an airline's name goes
+            float x = 0, r = 0;
+            foreach ((float sx, float sr) in st.Body) if (sr > r) { r = sr; x = sx; }
+            foreach (int side in new[] { -1, 1 })
+            {
+                Vector3 at = U(x + r * 1.4f, side * (r * 0.92f), st.BodyAxisZ - r * 0.25f);
+                Quaternion rot = Quaternion.LookRotation(side > 0 ? Vector3.left : Vector3.right, Vector3.up);
+                Mark(d, at, rot, r * 2f * d.HeightFrac, "Decal:fuselage");
+            }
+        }
+
+        /// <summary>One marking, scaled to `height` metres and parented so it moves and splits with the airframe.</summary>
+        private void Mark(Decal d, Vector3 at, Quaternion rot, float height, string name)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(_root, false);
+            go.transform.localPosition = at;
+            go.transform.localRotation = rot;
+
+            if (d.Text != null)
+            {
+                var tm = go.AddComponent<TextMesh>();
+                tm.text = d.Text;
+                tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center; tm.color = d.Colour;
+                if (d.Italic) tm.fontStyle = FontStyle.Italic;   // a registration is painted slanted
+                var mr = go.GetComponent<MeshRenderer>();
+                if (tm.font != null)
+                {
+                    // Size it ANALYTICALLY. A TextMesh builds its mesh lazily, so MeshRenderer.bounds is empty
+                    // immediately after AddComponent and measuring there silently leaves the lettering at its
+                    // default size (2026-10-21: the first wing markings came out as specks). With fontSize set
+                    // to the font's own, one characterSize unit is one line height in world units, and a capital
+                    // is about 0.75 of a line.
+                    tm.fontSize = tm.font.fontSize > 0 ? tm.font.fontSize : 16;
+                    // 1.6 measured off a render, not guessed: with fontSize at the font's own size, one
+                    // characterSize unit comes out about 1.6x the cap height asked for.
+                    tm.characterSize = height / 1.6f;
+                    if (mr != null) mr.sharedMaterial = WorldBuilder.DepthTestedText(tm.font);
+                }
+                // If the mesh HAS been built (play mode, or a second build), trust the measurement instead.
+                if (mr != null)
+                {
+                    float h = mr.bounds.size.y;
+                    if (h > 1e-4f) go.transform.localScale = Vector3.one * (height / h);
+                }
+            }
+            else if (d.Texture != null)
+            {
+                var tex = Resources.Load<Texture2D>(d.Texture);
+                if (tex == null) { Debug.LogWarning("[Livery] decal texture missing: " + d.Texture); Kill(go); return; }
+                var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                quad.transform.SetParent(go.transform, false);
+                Object.DestroyImmediate(quad.GetComponent<Collider>());
+                float aspect = tex.height > 0 ? (float)tex.width / tex.height : 1f;
+                quad.transform.localScale = new Vector3(height * aspect, height, 1f);
+                // FlyingGame/Decal takes the mark's LUMINANCE as its alpha, so the solid black field the logo is
+                // authored on drops out and _Color tints the strokes — one file serves a light tail and a dark one.
+                Shader sh = Shader.Find("FlyingGame/Decal") ?? Shader.Find("FlyingGame/UnlitTransparent");
+                quad.GetComponent<MeshRenderer>().sharedMaterial =
+                    new Material(sh) { mainTexture = tex, color = d.Colour };
+            }
+            _parts.Add(go);
         }
 
         private void BuildStruts(AircraftConfig cfg, Style st, float halfSpan)

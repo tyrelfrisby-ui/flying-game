@@ -1,74 +1,170 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
 {
+    /// <summary>Where a marking goes. Wing markings are per SIDE because that is how they are really applied —
+    /// a registration goes on the upper surface of one wing and the lower surface of the other.</summary>
+    public enum DecalPlace { WingUpper, WingLower, FinBothSides, FuselageBothSides }
+
     /// <summary>
-    /// A named paint scheme applied OVER a type's own colours, so one livery dresses any aeroplane in the fleet
-    /// rather than being painted into each type's <see cref="AirframeVisual.Style"/> by hand.
+    /// One marking: a word, a registration, or an image, laid on a surface.
     ///
-    /// Owner 2026-10-21: *"I would like to create custom liveries of each with Talk Flying branding"* — the
-    /// Cessna, the Cub, the Stearman and the 737, the four he flies on the podcast.
+    /// Text is drawn with TextMesh, the same way the world's signs are (WorldBuilder) — no texture to author, no
+    /// UVs needed on the generated wing, and it stays sharp at any size. An image needs a texture and a quad.
+    /// </summary>
+    public readonly struct Decal
+    {
+        public readonly DecalPlace Place;
+        /// <summary>-1 left wing only, +1 right wing only, 0 both. Ignored for fin and fuselage.</summary>
+        public readonly int Side;
+        public readonly string Text;        // null for an image decal
+        public readonly string Texture;     // Resources path, null for a text decal
+        public readonly Color Colour;
+        /// <summary>Height of the lettering as a fraction of the local chord.</summary>
+        public readonly float HeightFrac;
+        /// <summary>Position along the half-span, 0 at the root and 1 at the tip.</summary>
+        public readonly float SpanFrac;
+        /// <summary>Slanted, the way a registration is painted.</summary>
+        public readonly bool Italic;
+
+        public Decal(DecalPlace place, string text = null, string texture = null, int side = 0,
+                     Color? colour = null, float heightFrac = 0.5f, float spanFrac = 0.55f, bool italic = false)
+        {
+            Place = place; Text = text; Texture = texture; Side = side;
+            Colour = colour ?? Color.black; HeightFrac = heightFrac; SpanFrac = spanFrac; Italic = italic;
+        }
+    }
+
+    /// <summary>
+    /// A paint scheme applied OVER a type's own colours, plus its markings.
     ///
-    /// WHY THIS PAINTS THE GENERATED AIRFRAME AND NOT THE DOWNLOADED MODELS. A livery on a generated airframe is
-    /// entirely ours: our geometry, our colours, no attribution owed and no manufacturer's mark on it. Painting
-    /// the same scheme onto a downloaded model would be lawful (CC BY permits adaptation, commercially) but it
-    /// does not make the mesh ours, and putting a brand's livery on a recognisably branded airframe is the one
-    /// move that makes the trademark question WORSE rather than better. See docs/pending/OWN-AIRFRAMES-PLAN.md,
-    /// where the owner's decision is that the generated fleet becomes the shipping look.
+    /// Owner 2026-10-21, in detail: the Super Cub white with red trim and "TALK" / "FLYING" large under the
+    /// wings a word to a side, like a banner tow; the J-3 in Cub yellow with the black lightning bolt and the
+    /// logo where the oversized registration would go (upper right wing, lower left); the 172 and the Archer
+    /// mostly white with the words above and below the wings, the logo on the fin and a registration reading
+    /// TALKFLYING; the Stearman keeping its blue and yellow with the words on the wings and the logo on the fin;
+    /// the 737 silver, art-deco, "TALK FLYING AIR", logo on the fin, black on silver.
     ///
-    /// WHAT THIS CAN AND CANNOT DO TODAY. The generated airframe carries four flat colours — fuselage, wing,
-    /// tail, control surfaces — so a livery is a colour scheme, not yet a paint job: no stripe down the
-    /// fuselage, no logo on the tail. Both want new capability in AirframeVisual (a banded loft for the stripe,
-    /// a decal for the mark). The fuselage now carries a WATERLINE — a two-tone split, dark over light, the way
-    /// a real livery is laid out — built by lofting the body of revolution's segments into two meshes that share
-    /// their boundary vertices. A logo on the tail still wants UVs and a texture on the generated fin.
+    /// So a livery is per TYPE, not one scheme for the fleet: six aeroplanes, six schemes, one brand.
     /// </summary>
     public readonly struct Livery
     {
         public readonly string Id, Name;
-        /// <summary>null = leave the type's own colours alone.</summary>
+        /// <summary>null = leave the type's own colour alone.</summary>
         public readonly Color? Fuselage, Wing, Tail, Control;
-        /// <summary>A WATERLINE: the belly in a second colour, the way an airliner livery is laid out. null = a
-        /// single-colour fuselage. <see cref="BellyFrac"/> is how much of the body height it takes from the
-        /// bottom, so 0.45 puts the line a little below the middle, which is where it flatters most shapes.</summary>
+        /// <summary>A WATERLINE: the belly in a second colour, the way a real livery is laid out. null = one
+        /// colour. <see cref="BellyFrac"/> is how much of the body height it takes from the bottom.</summary>
         public readonly Color? Belly;
         public readonly float BellyFrac;
+        public readonly IReadOnlyList<Decal> Decals;
 
         public Livery(string id, string name, Color? fuselage = null, Color? wing = null, Color? tail = null,
-                      Color? control = null, Color? belly = null, float bellyFrac = 0.45f)
+                      Color? control = null, Color? belly = null, float bellyFrac = 0.45f, Decal[] decals = null)
         {
             Id = id; Name = name; Fuselage = fuselage; Wing = wing; Tail = tail; Control = control;
-            Belly = belly; BellyFrac = bellyFrac;
+            Belly = belly; BellyFrac = bellyFrac; Decals = decals ?? System.Array.Empty<Decal>();
         }
 
-        public bool IsDefault => Fuselage == null && Wing == null && Tail == null && Control == null && Belly == null;
+        public bool IsDefault => Fuselage == null && Wing == null && Tail == null && Control == null
+                                 && Belly == null && Decals.Count == 0;
     }
 
     public static class Liveries
     {
-        // Sampled from talk_flying_logo_transparent.png: brushed silver on near-black. The logo is monochrome,
-        // so the livery is too — which suits an aeroplane, and suits all four types without a clash.
-        private static readonly Color Black = new(0.051f, 0.055f, 0.063f);     // #0D0E10, the logo's ground
-        private static readonly Color Silver = new(0.788f, 0.800f, 0.824f);    // #C9CCD2, the wordmark's highlight
-        private static readonly Color Graphite = new(0.541f, 0.557f, 0.584f);  // #8A8E95, its shadow
+        // From talk_flying_logo_transparent.png: the mark is monochrome, brushed silver on near-black.
+        public static readonly Color Black = new(0.051f, 0.055f, 0.063f);     // #0D0E10
+        public static readonly Color Silver = new(0.788f, 0.800f, 0.824f);    // #C9CCD2
+        public static readonly Color Graphite = new(0.541f, 0.557f, 0.584f);  // #8A8E95
+        // Type colours the schemes keep.
+        private static readonly Color White = new(0.945f, 0.945f, 0.930f);
+        private static readonly Color TrimRed = new(0.706f, 0.090f, 0.129f);  // #B4172100 Cub/Cessna trim red
+        private static readonly Color CubYellow = new(0.976f, 0.761f, 0.063f); // "Cub Yellow" / Lock Haven yellow
+        private static readonly Color StearmanBlue = new(0.153f, 0.247f, 0.549f);
+        private static readonly Color StearmanYellow = new(0.949f, 0.800f, 0.149f);
+
+        private const string LogoTex = "Decals/talk-flying-logo";
 
         public static readonly Livery TypeColours = new("type", "Type colours");
 
-        /// <summary>Black over silver on a waterline, silver tail and control surfaces, graphite wings.</summary>
-        public static readonly Livery TalkFlying =
+        /// <summary>The generic scheme, for any type without one of its own: black over silver.</summary>
+        public static readonly Livery TalkFlyingGeneric =
             new("talk-flying", "Talk Flying", Black, Graphite, Silver, Silver, belly: Silver, bellyFrac: 0.42f);
 
-        /// <summary>The same palette inverted: silver airframe, black tail. Reads better on the big types, where
-        /// an all-black fuselage loses its shape against a dark background.</summary>
-        public static readonly Livery TalkFlyingLight =
-            new("talk-flying-light", "Talk Flying (light)", Silver, Silver, Black, Black, belly: Graphite, bellyFrac: 0.35f);
-
-        public static readonly Livery[] All = { TypeColours, TalkFlying, TalkFlyingLight };
-
-        public static Livery ById(string id)
+        /// <summary>Per-type Talk Flying schemes. Each keeps the aeroplane's own character — the Cub stays Cub
+        /// yellow, the Stearman stays blue and yellow — and carries the branding the way that type really would.</summary>
+        private static readonly Dictionary<string, Livery> PerType = new()
         {
-            foreach (Livery l in All) if (l.Id == id) return l;
+            // SUPER CUB: white with red trim; a word under each wing, big, reading nose-to-tail like a banner.
+            ["pa18-cub-like"] = new("talk-flying", "Talk Flying", White, White, TrimRed, TrimRed, decals: new[]
+            {
+                new Decal(DecalPlace.WingLower, text: "TALK",   side: -1, colour: TrimRed, heightFrac: 0.55f, spanFrac: 0.62f),
+                new Decal(DecalPlace.WingLower, text: "FLYING", side: +1, colour: TrimRed, heightFrac: 0.55f, spanFrac: 0.62f),
+            }),
+
+            // J-3: Cub yellow with the black lightning bolt. The oversized registration that would sit on the
+            // upper right and lower left wing is the logo instead — subtle, as asked.
+            ["j3-cub-like"] = new("talk-flying", "Talk Flying", CubYellow, CubYellow, CubYellow, Black, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, texture: LogoTex, side: +1, heightFrac: 0.70f, spanFrac: 0.55f),
+                new Decal(DecalPlace.WingLower, texture: LogoTex, side: -1, heightFrac: 0.70f, spanFrac: 0.55f),
+            }),
+
+            // 172 and ARCHER: mostly white, the words above AND below the wings, the logo on the fin, and a
+            // registration reading TALKFLYING in the slanted face a registration uses.
+            ["c172-like"] = Trainer(White, TrimRed),
+            ["pa28-archer-like"] = Trainer(White, Black),
+
+            // STEARMAN: keeps its blue and yellow. Words on the wings where the registration would be, logo on the fin.
+            ["stearman-pt17-like"] = new("talk-flying", "Talk Flying", StearmanBlue, StearmanYellow, StearmanYellow, StearmanBlue, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, text: "TALKFLYING", colour: StearmanBlue, heightFrac: 0.5f, spanFrac: 0.55f),
+                new Decal(DecalPlace.WingLower, text: "TALKFLYING", colour: StearmanBlue, heightFrac: 0.5f, spanFrac: 0.55f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
+            }),
+
+            // SCHWEIZER 2-33: a white trainer glider with red trim, marked like the powered trainers --
+            // words above and below the wings, the logo on both sides of the fin, and the registration.
+            ["glider-2-33-like"] = new("talk-flying", "Talk Flying", White, White, White, TrimRed, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
+                new Decal(DecalPlace.WingLower, text: "TALK FLYING", colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
+                new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: TrimRed, heightFrac: 0.30f, italic: true),
+            }),
+
+            // 737: silver all over, art-deco, the wordmark and the logo in BLACK on silver — the logo reversed
+            // out of its usual silver-on-black.
+            ["boeing-737-like"] = new("talk-flying", "Talk Flying Air", Silver, Silver, Silver, Graphite,
+                                      belly: Silver, bellyFrac: 0.40f, decals: new[]
+            {
+                new Decal(DecalPlace.FuselageBothSides, text: "TALK FLYING AIR", colour: Black, heightFrac: 0.30f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, colour: Black, heightFrac: 0.55f),
+            }),
+        };
+
+        private static Livery Trainer(Color body, Color trim) =>
+            new("talk-flying", "Talk Flying", body, body, body, trim, belly: trim, bellyFrac: 0.22f, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", colour: trim, heightFrac: 0.45f, spanFrac: 0.55f),
+                new Decal(DecalPlace.WingLower, text: "TALK FLYING", colour: trim, heightFrac: 0.45f, spanFrac: 0.55f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.50f),
+                // The registration, slanted the way one is really painted -- and reading TALKFLYING.
+                new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: trim, heightFrac: 0.26f, italic: true),
+            });
+
+        public static readonly Livery[] All = { TypeColours, TalkFlyingGeneric };
+
+        /// <summary>The livery to paint `aircraftId` in. A per-type scheme wins over the generic one.</summary>
+        public static Livery For(string liveryId, string aircraftId)
+        {
+            if (liveryId == "type" || string.IsNullOrEmpty(liveryId)) return TypeColours;
+            if (liveryId == "talk-flying" && aircraftId != null && PerType.TryGetValue(aircraftId, out Livery l)) return l;
+            if (liveryId == "talk-flying") return TalkFlyingGeneric;
             return TypeColours;
         }
+
+        /// <summary>Kept for callers that have no aircraft id to hand.</summary>
+        public static Livery ById(string id) => For(id, null);
     }
 }
