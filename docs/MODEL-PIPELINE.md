@@ -51,17 +51,49 @@ against a real 11.0); one that does not is still useful for section *character* 
    - **Read the spread column.** Small spread means the references agree and the number is trustworthy. Large
      spread means something else sits near the centreline at that station — forward it is the spinner and nose
      gear, aft it is the tailplane root.
-4. **Read the plan's formers** for the section outline, and set the superellipse exponent from it. A 172's
+4. **Measure the SIDE VIEW, not only the plan view.** This is the step the 172 skipped, and skipping it is
+   why that model read as a teardrop for two days: the half-widths were measured from three references and
+   the top and bottom lines were written out by hand. An aeroplane lives in its side view.
+   - The **belly** comes from the slice: `edge()` in `measure_model.py` bins a section by height and takes
+     the outermost bin still a real fraction of the body's width, which steps over the fin, the gear legs
+     and the wheels because **those are thin in span and the skin is not**.
+   - The **top line cannot come from a slice** wherever the wing crosses the body, because a wing is as wide
+     as anything and a high wing sits on the roof. Cutting at `|y| < 0.75 m` does not help — that leaves the
+     wing's *root* in the picture. **Isolate the body by connected component**: a wing is one piece spanning
+     more than any fuselage does, so throw away every island wider than 1.4 m. Render what is left as a white
+     emission silhouette on a black world through an **orthographic** camera and read the outline back column
+     by column. Threshold a lit grey render and the glass and the wing's highlights cross it; emission on
+     black makes 0.5 unambiguous.
+   - On the 172 this was the difference between "+0.72 flat from 1.98 m to 2.73 m" — a flat roof and **no
+     windscreen at all** — and a deck at +0.407 breaking to a roof at +0.670, a 52° rake.
+5. **Read the plan's formers** for the section outline, and set the superellipse exponent from it. A 172's
    firewall former is a rounded square (e ≈ 0.55), not an ellipse (e = 1).
-5. **Build** `tools/model_<id>.py`:
+6. **Build** `tools/model_<id>.py`:
    - **Dimensions come from `configs/aircraft/<id>.json`.** The physics is the authority — if the config says the
      wing spans 10.92 m then so does the model, or the aeroplane you see is not the one you fly.
    - Config **z is DOWN-positive**; Blender's is UP. Convert through one named function, not scattered minus
      signs. Getting this wrong puts a high wing under the fuselage and the undercarriage on the roof.
    - The real airfoil, generated (NACA 4-digit is four lines of maths).
    - **Separate named parts, each hinged part's origin ON its hinge line.**
-6. **Export** GLB beside the type's other assets, register in `AirframeModels.Specs`.
-7. **Verify** — render and compare against the references. The images are the test.
+7. **Export** GLB beside the type's other assets, register in `AirframeModels.Specs`.
+8. **Verify** — render and compare against the references. The images are the test.
+
+### Reading the config without being lied to
+
+Three ways the config will hand you a wrong number if you ask carelessly. All three were live in the 172 at
+once, and together they moved the whole aeroplane about 0.9 m relative to its own wing.
+
+| Trap | What happens | What to do |
+|---|---|---|
+| **Prefix matching across surfaces** | `id.startswith("wing")` catches `wing` **and** `wing-aileron`, a metre apart in x. Their mean is a point on neither, and everything positioned from it is wrong together — so nothing looks obviously broken. | Name the surface you mean. |
+| **A strip's `pos` is its CENTRE** | Reading span as `max(abs(y))` stops half a strip short at each tip. The 172's tailplane read 3.02 m where the aeroplane has 3.45 m. | Add half the gap between the outer two strips. The wing hides this — its outer strips are bunched. |
+| **A control surface is its own surface** | `hStab`'s chord is the *stabiliser*; the elevator is separate. The real chord is the sum. | Pair them by station and add. Never "× 2.0". |
+
+**And the config's z is DOWN-positive while Blender's is UP.** One named conversion, `bz()`. Getting it wrong
+puts the high wing under the fuselage and the undercarriage on the roof. The same sign trap bites twice: an
+aerofoil's ordinates are UP-positive, so once `WING_Z` has been through `bz()` the section is `WING_Z + py`,
+not `WING_Z - py`. The 172 flew for a day with its wing upside down, which from most angles just looks like
+the wing is buried in the cabin.
 
 ## 4. The parts every model carries
 
@@ -84,7 +116,10 @@ computes never reaches the visual. Shipping them as their own objects is what ma
 The method is proven on one aeroplane end to end before it is repeated: shape, then controls bound and moving,
 then livery. Then the rest, easiest geometry first so the pipeline matures on simple shapes:
 
-1. **C172** — in progress. Sections measured and plan-corrected; needs windscreen, shaped tail, real gear.
+1. **C172** — in progress. Sections measured, side view measured, glazing, spring-steel gear legs, struts
+   that land on the skin, rounded tips, tail built from the strip edges. Still wants: door and panel lines,
+   a blunter cowl, a dorsal fin, wheel fairings, and the model registered in `AirframeModels.Specs` so the
+   game actually flies it instead of the downloaded one.
 2. **PA-28 Archer**, **J-3 Cub**, **PA-18 Super Cub** — same class, same tooling.
 3. **Stearman**, **Jenny** — biplanes: two wings, struts and wires.
 4. **Extra, Pitts, Decathlon** — aerobatic singles.
@@ -95,6 +130,19 @@ then livery. Then the rest, easiest geometry first so the pipeline matures on si
 **Go back.** When something is learned late that would have helped earlier — the median, the superellipse, the
 z convention — return and apply it to the models already built. The scripts are parametric and re-runnable
 precisely so that costs a re-run rather than a rebuild.
+
+### Two techniques worth reusing
+
+**Glazing is a patch of the skin, lifted.** Build each pane from the *same* section function as the fuselage,
+between two stations and two limits, then push it out 10 mm. Because it is the same surface it cannot float
+off the body or sink into it however the sections change, it follows the windscreen's rake for free, and the
+fuselage stays one watertight loft — which is what `CarveModel` and the UV generator expect. Specify a side
+window by **height** and a windscreen by **fraction of the half-width**, not by section angle: an angle band
+on a deep section puts a windscreen's lower edge somewhere down the side of the nose.
+
+**Shade smooth BY ANGLE.** Marking every polygon smooth rounds off the windscreen corners the measurement
+went to such trouble to find, and smears the wing's trailing edge. `bpy.ops.object.shade_auto_smooth(angle=…)`
+at about 38°. (Blender 4.1 removed `Mesh.use_auto_smooth`; it is a modifier now.)
 
 ## 6. What is still missing in the engine
 

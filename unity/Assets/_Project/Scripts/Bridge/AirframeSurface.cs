@@ -24,6 +24,10 @@ namespace FlyingGame.Bridge
         Rubber,
         /// <summary>Struts, wires, gear legs: small, hard, metallic.</summary>
         Strut,
+        /// <summary>Windscreen, cabin windows, a canopy: dark, very smooth, no panel detail at all. Our own
+        /// models ship the glazing as its own parts (Glass.*) because a 172 without windows does not read as
+        /// a 172 whatever else is right about it.</summary>
+        Glass,
     }
 
     /// <summary>
@@ -127,6 +131,7 @@ namespace FlyingGame.Bridge
                 SurfaceKind.Metal  => (Panels(), 1.0f, 0.9f, 0.80f, 1.10f, colour),
                 SurfaceKind.Rubber => (Blank(), 1.0f, 0.0f, 0.05f, 0.04f, Color.white),
                 SurfaceKind.Strut  => (Blank(), 1.0f, 0.0f, 0.65f, 0.70f, colour),
+                SurfaceKind.Glass  => (Blank(), 1.0f, 0.0f, 0.95f, 1.60f, Color.white),
                 _                  => (Panels(), 1.0f, 0.6f, 0.38f, 0.32f, Color.white),   // Paint
             };
             m.SetTexture("_DetailNormal", p.tex);
@@ -143,6 +148,8 @@ namespace FlyingGame.Bridge
         public static SurfaceKind KindFor(string name, bool fabricAircraft)
         {
             if (name == null) return SurfaceKind.Paint;
+            if (name.StartsWith("Glass") || name.StartsWith("Canopy") || name.StartsWith("Windscreen"))
+                return SurfaceKind.Glass;
             if (name.StartsWith("Tyre") || name.StartsWith("Tire") || name.Contains("Wheel")) return SurfaceKind.Rubber;
             if (name.StartsWith("Strut") || name.StartsWith("Leg") || name.StartsWith("Wire")
                 || name.StartsWith("Gear") || name.Contains("Bungee")) return SurfaceKind.Strut;

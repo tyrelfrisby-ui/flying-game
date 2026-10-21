@@ -66,6 +66,40 @@ def hw_of(sel):
     if not sel: return 0.0
     w = sorted(abs(p[SPAN]) for p in sel)
     return w[int(len(w) * 0.9)] * k
+EDGE_BIN = 0.03        # m: a slab of skin thick enough to hold a few vertices
+EDGE_FRAC = 0.45       # a bin counts as BODY if it is at least this wide compared with the body
+
+
+def edge(sel, hw, top):
+    """The body's OWN top or bottom at a station -- not the fin standing above it or the gear hanging below.
+
+    This is the measurement the first pass of the 172 gave up on, and giving up on it is why that model read
+    as a teardrop: the half-widths were measured and the DEPTHS WERE A GUESS, so the aeroplane had a correct
+    plan view and an invented side view. A 172 lives in its side view -- the raked windscreen, the flat cabin
+    roof, the tapered boom -- so a guessed one is most of the shape thrown away.
+
+    The reason a naive min/max fails is that a slice catches everything the aeroplane has at that station. The
+    trick is that THE PARTS THAT ARE NOT THE BODY ARE THIN IN SPAN: a fin, a gear leg, a wheel, an aerial. So
+    bin the slice by height and walk inward from the extreme, taking the first bin that is still a real
+    fraction of the body's own width. The fin is 50 mm thick and is skipped; the skin, 1.1 m across, is not.
+    """
+    if not sel or hw <= 0:
+        return 0.0
+    zs = [p[HGT] for p in sel]
+    bins = {}
+    for p in sel:
+        b = int(round(p[HGT] * k / EDGE_BIN))
+        w = abs(p[SPAN]) * k
+        if w > bins.get(b, -1.0):
+            bins[b] = w
+    want = EDGE_FRAC * hw
+    for b in sorted(bins, reverse=top):
+        if bins[b] >= want:
+            return b * EDGE_BIN
+    # nothing is wide enough (the extreme nose or tailpost): fall back to the plain extreme
+    return (max(zs) if top else min(zs)) * k
+
+
 # WHICH END IS THE NOSE. Comparing the two ends does not work -- both are thin, a spinner at one and a
 # tailpost at the other. The CABIN is the tell: on a light single the widest body section sits forward of the
 # midpoint, so the nose is whichever end the widest station is nearer to.
@@ -87,13 +121,8 @@ for i in range(N + 1):
         continue
     w = sorted(abs(p[SPAN]) for p in sel)
     hw = w[int(len(w) * 0.9)] * k
-    # The body's own top and bottom. A slice also catches the gear hanging below and the fin standing above,
-    # so take the MEDIAN first and keep only what is within a body-depth of it before reading the extremes.
-    zs = sorted(p[HGT] for p in sel)
-    med = zs[len(zs) // 2]
-    near = [z for z in zs if abs(z - med) * k <= 0.70]
-    if len(near) < 4: near = zs
-    zb, zt = near[int(len(near) * 0.05)] * k, near[int(len(near) * 0.95)] * k
+    # The body's own top and bottom -- see edge().
+    zb, zt = edge(sel, hw, top=False), edge(sel, hw, top=True)
     s_m = f * size[LEN] * k
     rows.append((s_m, f, hw, zb, zt))
     print("MEASURE %6.3f %5.3f %9.3f %10.3f %9.3f" % (s_m, f, hw, zb, zt))
