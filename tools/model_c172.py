@@ -130,17 +130,38 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 # (station aft of the nose, half-width, bottom z, top z) — a 172 is flat-sided with a rounded turtledeck, a
 # squared-off cabin and a boom that tapers to the fin. x here is +forward from the CG, matching the config.
 NOSE = WING_X + 2.05
+# MEASURED, not guessed. tools/measure_model.py slices the reference model at 18 stations, scales by the
+# known 10.92 m span and reports the body's half-width every 0.45 m. The first pass of this file had these
+# numbers INVENTED from a general sense of what a 172 looks like, and it put the widest point of the cabin
+# nearly two metres too far forward — which is why it read as a blimp. The protocol said so all along:
+# NEW-AIRPLANE-PROTOCOL.md 1b, "work from a dimensioned three-view, scale it by the known span, then measure".
+# Measuring a reference for DIMENSIONS is not copying it: the shape of a real 172 is a fact about an aeroplane
+# Cessna built, and our mesh is built from the numbers with its own topology.
+#
+# Two slices were repaired by interpolation (0.91 and 7.24 m) where the cut fell in a gap and read near zero.
+# The depths are a profile over the measured widths rather than measured themselves — a slice also catches the
+# gear below and the fin above, and the vertical did not come out clean enough to trust.
+#   (station aft of the spinner, half-width, bottom, top) — all metres, z about the thrust line
 STATIONS = [
-    (0.00, 0.17, -0.22, 0.26),   # spinner root
-    (0.38, 0.40, -0.40, 0.46),   # cowl
-    (0.95, 0.56, -0.52, 0.62),   # firewall
-    (1.62, 0.60, -0.56, 0.78),   # windscreen base / cabin front
-    (2.55, 0.60, -0.56, 0.82),   # cabin
-    (3.35, 0.54, -0.50, 0.70),   # cabin rear
-    (4.35, 0.40, -0.36, 0.52),   # boom
-    (5.60, 0.26, -0.22, 0.36),
-    (6.85, 0.15, -0.12, 0.26),
-    (7.75, 0.07, -0.05, 0.20),   # tailpost
+    (0.00, 0.073, -0.10, 0.10),
+    (0.45, 0.335, -0.36, 0.30),
+    (0.91, 0.460, -0.46, 0.42),
+    (1.36, 0.520, -0.52, 0.60),
+    (1.81, 0.564, -0.55, 0.74),
+    (2.26, 0.538, -0.55, 0.78),
+    (2.72, 0.556, -0.55, 0.78),
+    (3.17, 0.537, -0.54, 0.72),
+    (3.62, 0.557, -0.52, 0.62),
+    (4.07, 0.462, -0.47, 0.50),
+    (4.53, 0.414, -0.42, 0.44),
+    (4.98, 0.366, -0.37, 0.40),
+    (5.43, 0.302, -0.31, 0.35),
+    (5.88, 0.253, -0.26, 0.31),
+    (6.34, 0.193, -0.21, 0.27),
+    (6.79, 0.125, -0.15, 0.24),
+    (7.24, 0.095, -0.11, 0.22),
+    (7.69, 0.060, -0.08, 0.20),
+    (8.15, 0.020, -0.05, 0.18),
 ]
 SECT = 16
 
@@ -161,8 +182,8 @@ def body_loop(hw, zb, zt):
 
 
 loops = []
-for s, hw, zb, zt in STATIONS:
-    loop = [(NOSE - s, p[1], p[2]) for p in body_loop(hw, zb, zt)]
+for st_s, hw, zb, zt in STATIONS:
+    loop = [(NOSE - st_s, p[1], p[2]) for p in body_loop(hw, zb, zt)]
     loops.append(loop)
 fus = mesh_from_loops("Fuselage", loops)
 
