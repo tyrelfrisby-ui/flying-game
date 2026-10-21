@@ -5,7 +5,7 @@ namespace FlyingGame.Bridge
 {
     /// <summary>Where a marking goes. Wing markings are per SIDE because that is how they are really applied —
     /// a registration goes on the upper surface of one wing and the lower surface of the other.</summary>
-    public enum DecalPlace { WingUpper, WingLower, FinBothSides, FuselageBothSides }
+    public enum DecalPlace { WingUpper, WingLower, FinBothSides, FuselageBothSides, TailSign, LightningBolt }
 
     /// <summary>
     /// One marking: a word, a registration, or an image, laid on a surface.
@@ -27,12 +27,16 @@ namespace FlyingGame.Bridge
         public readonly float SpanFrac;
         /// <summary>Slanted, the way a registration is painted.</summary>
         public readonly bool Italic;
+        /// <summary>An OS font by name — "Futura" for the 737's art-deco wordmark. null = the default face.</summary>
+        public readonly string FontName;
 
         public Decal(DecalPlace place, string text = null, string texture = null, int side = 0,
-                     Color? colour = null, float heightFrac = 0.5f, float spanFrac = 0.55f, bool italic = false)
+                     Color? colour = null, float heightFrac = 0.5f, float spanFrac = 0.55f, bool italic = false,
+                     string fontName = null)
         {
             Place = place; Text = text; Texture = texture; Side = side;
             Colour = colour ?? Color.black; HeightFrac = heightFrac; SpanFrac = spanFrac; Italic = italic;
+            FontName = fontName;
         }
     }
 
@@ -104,10 +108,17 @@ namespace FlyingGame.Bridge
 
             // J-3: Cub yellow with the black lightning bolt. The oversized registration that would sit on the
             // upper right and lower left wing is the logo instead — subtle, as asked.
-            ["j3-cub-like"] = new("talk-flying", "Talk Flying", CubYellow, CubYellow, CubYellow, Black, decals: new[]
+            // Control surfaces stay YELLOW: on a real J-3 the only black is the bolt and the cowl trim.
+            ["j3-cub-like"] = new("talk-flying", "Talk Flying", CubYellow, CubYellow, CubYellow, CubYellow, decals: new[]
             {
                 new Decal(DecalPlace.WingUpper, texture: LogoTex, side: +1, heightFrac: 0.70f, spanFrac: 0.55f),
                 new Decal(DecalPlace.WingLower, texture: LogoTex, side: -1, heightFrac: 0.70f, spanFrac: 0.55f),
+                // The black lightning bolt down the fuselage -- a SHAPE, so it is built as geometry rather
+                // than laid on as a marking.
+                new Decal(DecalPlace.LightningBolt, colour: Black),
+                // The tail sign: our own teddy-bear cub holding a red-backed board. Ty 2026-10-21 chose an
+                // ORIGINAL mascot over a modified Piper bear -- same wink, nothing derived from their mark.
+                new Decal(DecalPlace.TailSign, text: "TALK\nFLYING", colour: White, heightFrac: 0.26f),
             }),
 
             // 172 and ARCHER: mostly white, the words above AND below the wings, the logo on the fin, and a
@@ -138,7 +149,8 @@ namespace FlyingGame.Bridge
             ["boeing-737-like"] = new("talk-flying", "Talk Flying Air", Silver, Silver, Silver, Graphite,
                                       belly: Silver, bellyFrac: 0.40f, decals: new[]
             {
-                new Decal(DecalPlace.FuselageBothSides, text: "TALK FLYING AIR", colour: Black, heightFrac: 0.30f),
+                // Futura, 1927 -- a geometric sans of the period, which is what makes it read deco rather than modern.
+                new Decal(DecalPlace.FuselageBothSides, text: "TALK FLYING AIR", colour: Black, heightFrac: 0.30f, fontName: "Futura"),
                 new Decal(DecalPlace.FinBothSides, texture: LogoTex, colour: Black, heightFrac: 0.55f),
             }),
         };

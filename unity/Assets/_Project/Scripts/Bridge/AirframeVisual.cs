@@ -1708,6 +1708,12 @@ namespace FlyingGame.Bridge
                     case DecalPlace.FuselageBothSides:
                         PlaceFuselageDecal(st, d);
                         break;
+                    case DecalPlace.LightningBolt:
+                        BuildLightningBolt(st, d.Colour);
+                        break;
+                    case DecalPlace.TailSign:
+                        BuildTailSign(cfg, d);
+                        break;
                 }
             }
         }
@@ -1791,6 +1797,116 @@ namespace FlyingGame.Bridge
             }
         }
 
+        /// <summary>
+        /// The J-3's black lightning bolt, down both sides of the fuselage.
+        ///
+        /// A bolt is a SHAPE, not a marking, so it is built as geometry: a ribbon of quads following a zigzag
+        /// along the body, pushed just proud of the skin. The path is in fractions of the body's length and of
+        /// its radius at each station, so it fits whatever fuselage it is given rather than being drawn for one.
+        /// </summary>
+        private void BuildLightningBolt(Style st, Color col)
+        {
+            if (st.Body == null || st.Body.Length < 2) return;
+            float xNose = st.Body[0].x, xTail = st.Body[^1].x, len = xNose - xTail;
+            if (len <= 0.01f) return;
+            float RadAt(float x)
+            {
+                float best = st.Body[0].r, bd = float.MaxValue;
+                foreach ((float bx, float br) in st.Body) { float dd = Mathf.Abs(bx - x); if (dd < bd) { bd = dd; best = br; } }
+                return best;
+            }
+            // (fraction along the body from the nose, height as a fraction of the local radius, half-thickness)
+            (float t, float h, float w)[] path =
+            {
+                (0.10f, 0.08f, 0.16f), (0.34f, 0.08f, 0.26f), (0.42f, -0.36f, 0.26f),
+                (0.52f, -0.36f, 0.26f), (0.60f, 0.18f, 0.26f), (0.88f, 0.18f, 0.12f),
+            };
+            foreach (int side in new[] { -1, 1 })
+            {
+                var mb = new MeshBuilder();
+                for (int i = 0; i < path.Length - 1; i++)
+                {
+                    float x0 = xNose - path[i].t * len, x1 = xNose - path[i + 1].t * len;
+                    float r0 = RadAt(x0), r1 = RadAt(x1);
+                    // just outside the skin, so it reads as paint rather than z-fighting with it
+                    float y0 = side * r0 * 1.02f, y1 = side * r1 * 1.02f;
+                    float z0 = st.BodyAxisZ - path[i].h * r0, z1 = st.BodyAxisZ - path[i + 1].h * r1;
+                    float w0 = path[i].w * r0, w1 = path[i + 1].w * r1;
+                    mb.AddQuad(U(x0, y0, z0 - w0), U(x0, y0, z0 + w0), U(x1, y1, z1 + w1), U(x1, y1, z1 - w1));
+                }
+                Spawn("LightningBolt", mb.ToMesh(Vector3.zero), col, Vector3.zero);
+            }
+        }
+
+        /// <summary>
+        /// The tail sign: a teddy-bear cub holding up a red-backed board.
+        ///
+        /// Built from primitives, the way the rest of the generated airframe is, rather than drawn — so it is
+        /// wholly ours and needs no illustrator. Ty chose an ORIGINAL mascot (2026-10-21) over a modified Piper
+        /// bear: a plush teddy is its own character, where re-lettering their bear would have been a derivative
+        /// of somebody else's mark, which is the one thing in this livery that generating our own geometry
+        /// would NOT have protected.
+        /// </summary>
+        private void BuildTailSign(AircraftConfig cfg, Decal d)
+        {
+            SurfaceConfig fin = null;
+            foreach (SurfaceConfig sf in cfg.Surfaces) if (sf.Id == "vStab" && sf.Strips.Count > 0) { fin = sf; break; }
+            if (fin == null) return;
+            float x = 0, z = 0, chord = 0;
+            foreach (StripConfig stp in fin.Strips) { x += (float)stp.Pos[0]; z += (float)stp.Pos[2]; chord += (float)stp.Chord; }
+            int n = fin.Strips.Count; x /= n; z /= n; chord /= n;
+
+            float s = chord * 0.52f;                       // the bear's height
+            var bear = new GameObject("TailSign");
+            bear.transform.SetParent(_root, false);
+            bear.transform.localPosition = U(x, 0f, z);
+            _parts.Add(bear);
+
+            var fur = new Color(0.455f, 0.325f, 0.231f);   // plush brown
+            var muzzle = new Color(0.761f, 0.659f, 0.545f);
+            GameObject Bit(PrimitiveType t, Vector3 at, Vector3 scale, Color c)
+            {
+                var go = GameObject.CreatePrimitive(t);
+                Object.DestroyImmediate(go.GetComponent<Collider>());
+                go.transform.SetParent(bear.transform, false);
+                go.transform.localPosition = at; go.transform.localScale = scale;
+                go.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(c);
+                return go;
+            }
+            // A chubby seated cub, flattened front-to-back so it sits ON the fin rather than sticking through it.
+            float flat = 0.32f;
+            Bit(PrimitiveType.Sphere, new Vector3(0f, -0.10f * s, 0f), new Vector3(0.62f * s, 0.58f * s, flat * s), fur);         // body
+            Bit(PrimitiveType.Sphere, new Vector3(0f, 0.30f * s, 0f), new Vector3(0.46f * s, 0.44f * s, flat * s), fur);          // head
+            Bit(PrimitiveType.Sphere, new Vector3(-0.19f * s, 0.49f * s, 0f), new Vector3(0.17f * s, 0.17f * s, flat * 0.8f * s), fur);  // ears
+            Bit(PrimitiveType.Sphere, new Vector3(0.19f * s, 0.49f * s, 0f), new Vector3(0.17f * s, 0.17f * s, flat * 0.8f * s), fur);
+            Bit(PrimitiveType.Sphere, new Vector3(0f, 0.22f * s, -0.10f * s), new Vector3(0.22f * s, 0.16f * s, flat * 0.7f * s), muzzle); // muzzle
+            Bit(PrimitiveType.Sphere, new Vector3(-0.34f * s, 0.08f * s, 0f), new Vector3(0.18f * s, 0.30f * s, flat * 0.8f * s), fur);  // paws, up, holding the board
+            Bit(PrimitiveType.Sphere, new Vector3(0.34f * s, 0.08f * s, 0f), new Vector3(0.18f * s, 0.30f * s, flat * 0.8f * s), fur);
+
+            // the board it holds up: red face, thin silver border
+            var board = Bit(PrimitiveType.Cube, new Vector3(0f, 0.00f * s, -0.14f * s),
+                            new Vector3(0.92f * s, 0.34f * s, 0.05f * s), new Color(0.706f, 0.090f, 0.129f));
+            board.name = "TailSignBoard";
+            // ...and its lettering, live text so it stays sharp and can be changed without redrawing anything
+            if (d.Text != null)
+            {
+                var txt = new GameObject("TailSignText");
+                txt.transform.SetParent(bear.transform, false);
+                txt.transform.localPosition = new Vector3(0f, 0f, -0.18f * s);
+                txt.transform.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+                var tm = txt.AddComponent<TextMesh>();
+                tm.text = d.Text; tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center;
+                tm.color = d.Colour;
+                if (tm.font != null)
+                {
+                    tm.fontSize = tm.font.fontSize > 0 ? tm.font.fontSize : 16;
+                    tm.characterSize = (s * d.HeightFrac) / 1.6f;
+                    var mr = txt.GetComponent<MeshRenderer>();
+                    if (mr != null) mr.sharedMaterial = WorldBuilder.DepthTestedText(tm.font);
+                }
+            }
+        }
+
         /// <summary>One marking, scaled to `height` metres and parented so it moves and splits with the airframe.</summary>
         private void Mark(Decal d, Vector3 at, Quaternion rot, float height, string name)
         {
@@ -1805,6 +1921,13 @@ namespace FlyingGame.Bridge
                 tm.text = d.Text;
                 tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center; tm.color = d.Colour;
                 if (d.Italic) tm.fontStyle = FontStyle.Italic;   // a registration is painted slanted
+                if (d.FontName != null)
+                {
+                    // An OS face by name, so the 737's wordmark can be Futura -- a 1927 geometric sans, which
+                    // is what makes it read art deco rather than merely modern.
+                    Font f = Font.CreateDynamicFontFromOSFont(d.FontName, 64);
+                    if (f != null) tm.font = f;
+                }
                 var mr = go.GetComponent<MeshRenderer>();
                 if (tm.font != null)
                 {
@@ -2528,6 +2651,15 @@ namespace FlyingGame.Bridge
                 Vector3 c = Vector3.zero;
                 foreach (Vector3 p in ring) c += p;
                 AddCap(ring, c / ring.Length);
+            }
+
+            /// <summary>One quad from four points, for ribbons that are not lofts (the J-3's lightning bolt).
+            /// Winding does not matter: the Lit shader is two-sided.</summary>
+            public void AddQuad(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+            {
+                int i = _v.Count;
+                _v.Add(a); _v.Add(b); _v.Add(c); _v.Add(d);
+                Quad(i, i + 1, i + 2, i + 3);
             }
 
             private void Quad(int a, int b, int c, int d) { Tri(a, b, c); Tri(a, c, d); }
