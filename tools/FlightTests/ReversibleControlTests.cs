@@ -48,6 +48,7 @@ public class ReversibleControlTests
     [InlineData("p51d-like")]
     [InlineData("dc3-like")]
     [InlineData("seminole-like")]
+    [InlineData("jn4-jenny-like")]   // 1917: cables everywhere, no trim tab, no spring, and nothing balanced
     public void HandsOffHoldsTrimAndReturnsAfterAPull(string id)
     {
         // Each type with its own reversible / spring / trim settings, against the same type stick-fixed.

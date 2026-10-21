@@ -13,7 +13,8 @@ def load_tables():
 TABLES, DYN = load_tables()
 
 def wing_panel(half_span, n, chord_fn, z, dihedral_deg, incidence_deg, twist_deg, airfoil,
-               ail_frac, ail_gain, sweep_deg=0, flap_frac=0, flap=None, slat=None, x0=0.1):
+               ail_frac, ail_gain, sweep_deg=0, flap_frac=0, flap=None, slat=None, x0=0.1,
+               ail_chord_frac=0.25):
     """One wing (both sides): returns (fixed_strips, aileron_strips, flap_strips)."""
     fixed, ails, flaps = [], [], []
     sweep = math.radians(sweep_deg)
@@ -26,8 +27,9 @@ def wing_panel(half_span, n, chord_fn, z, dihedral_deg, incidence_deg, twist_deg
             x = x0 - yc*math.tan(sweep)*side*0 + abs(yc)*math.tan(sweep)  # sweep sets x aft outboard
             has_ail = frac > ail_frac
             has_flap = flap is not None and frac < flap_frac
-            st = {'pos':[round(x,3), round(yc,3), z], 'chord':round(ch*(0.75 if has_ail else 1.0),3),
-                  'area':round(ch*w*(0.75 if has_ail else 1.0),4), 'incidenceRad':round(inc,5),
+            fixed_frac = 1.0 - ail_chord_frac   # the aileron takes ail_chord_frac of the chord (0.25 unless given)
+            st = {'pos':[round(x,3), round(yc,3), z], 'chord':round(ch*(fixed_frac if has_ail else 1.0),3),
+                  'area':round(ch*w*(fixed_frac if has_ail else 1.0),4), 'incidenceRad':round(inc,5),
                   'dihedralRad':round(math.radians(dihedral_deg),5), 'airfoil':airfoil,
                   'control':({'surface':'aileron','gain':round(-ail_gain*side*0.45,3)} if has_ail else None),
                   'sweepRad':round(sweep,5)}
@@ -35,8 +37,9 @@ def wing_panel(half_span, n, chord_fn, z, dihedral_deg, incidence_deg, twist_deg
             if has_flap and flap is not None: st['flap']=flap
             fixed.append(st)
             if has_ail:
-                ails.append({'pos':[round(x-0.8*ch,3), round(yc,3), z], 'chord':round(ch*0.25,3),
-                    'area':round(ch*w*0.25,4), 'incidenceRad':round(inc,5),
+                # 0.8*(1-f)/0.75 is EXACTLY 0.8 at f=0.25, so every earlier type stays bit-identical
+                ails.append({'pos':[round(x-0.8*(fixed_frac/0.75)*ch,3), round(yc,3), z], 'chord':round(ch*ail_chord_frac,3),
+                    'area':round(ch*w*ail_chord_frac,4), 'incidenceRad':round(inc,5),
                     'dihedralRad':round(math.radians(dihedral_deg),5), 'airfoil':airfoil,
                     'control':{'surface':'aileron','gain':round(-ail_gain*side,2)}, 'sweepRad':round(sweep,5)})
     return fixed, ails
@@ -127,3 +130,85 @@ def semi_symmetric(clmax_up=1.35, clmax_inv=1.05, stall_up=15, stall_inv=13, cl0
         cn=c*math.cos(math.radians(d))
         cm.append(round(-(cp-0.25)*abs(cn)*(1 if d>0 else -1),4) if aa<=90 else 0.0)
     return {'alphaRad':[round(math.radians(d),5) for d in deg],'cl':cl,'cd':cd,'cm':cm}
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Component mass breakdown -> mass, CG and inertias (NEW-AIRPLANE-PROTOCOL.md step 1c).
+# Added 2026-10-20 for the Jenny. Before this, every type's CG and inertia tensor was typed into the builder as a
+# finished number, so the breakdown behind it lived only in a document and could drift from the config. This takes
+# the breakdown itself and does the arithmetic, so moving one component moves the CG and the inertias with it.
+# ---------------------------------------------------------------------------------------------------------------
+
+def item(name, lb, x, z=0.0, y=0.0, y_pair=None, shape=None):
+    """One component of the empty weight or the useful load.
+
+    x: station AFT of the datum (the propeller plane, for a single); z: DOWN from the datum (the propeller shaft);
+    y: right of centreline, or y_pair=t to split the mass equally at +/-t (a pair of wheels, tip tanks, nacelles).
+    shape: its own inertia about its own centre, one of
+        ('rod_y', b)       spanwise rod of length b   -- a wing panel, a horizontal tail, a propeller
+        ('rod_x', L)       lengthwise rod of length L -- a fuselage
+        ('rod_z', h)       vertical rod of length h   -- a fin
+        ('box', l, w, h)   a solid box                -- an engine, a fuel tank, a person
+        None               a point mass
+    """
+    return {'name': name, 'lb': lb, 'x': x, 'z': z, 'y': y, 'y_pair': y_pair, 'shape': shape}
+
+
+def _own_inertia(m, shape):
+    """(ixx, iyy, izz) of a component about its OWN centre, in body axes (x fwd, y right, z down)."""
+    if shape is None:
+        return 0.0, 0.0, 0.0
+    kind = shape[0]
+    if kind == 'rod_y':
+        b = shape[1]; i = m * b * b / 12.0
+        return i, 0.0, i          # a rod along y resists roll and yaw, not pitch
+    if kind == 'rod_x':
+        L = shape[1]; i = m * L * L / 12.0
+        return 0.0, i, i
+    if kind == 'rod_z':
+        h = shape[1]; i = m * h * h / 12.0
+        return i, i, 0.0
+    if kind == 'box':
+        l, w, h = shape[1], shape[2], shape[3]
+        return m * (w * w + h * h) / 12.0, m * (l * l + h * h) / 12.0, m * (l * l + w * w) / 12.0
+    raise ValueError('unknown shape ' + kind)
+
+
+def mass_properties(items, verbose=True):
+    """Returns (mass_kg, cg_x_aft_of_datum, cg_z_below_datum, inertia_dict). The inertia dict is about the CG in
+    config axes (x FORWARD, y right, z DOWN) and is what goes straight into B.write().
+
+    Ixz is the product of inertia I_xz = sum(m x z) in those axes, which is the sign RigidBody6DOF's equations of
+    motion expect (they carry +Ixz, with the tensor's off-diagonal being -Ixz)."""
+    mass = sum(i['lb'] for i in items) * 0.45359237
+    tot = sum(i['lb'] for i in items)
+    cgx = sum(i['lb'] * i['x'] for i in items) / tot
+    cgz = sum(i['lb'] * i['z'] for i in items) / tot
+    ixx = iyy = izz = ixz = 0.0
+    rows = []
+    for it in items:
+        m = it['lb'] * 0.45359237
+        x = cgx - it['x']        # config x is FORWARD-positive
+        z = it['z'] - cgz        # config z is DOWN-positive
+        ys = [(m, it['y'])] if it['y_pair'] is None else [(m / 2, -it['y_pair']), (m / 2, it['y_pair'])]
+        ox, oy, oz = _own_inertia(m, it['shape'])
+        dxx = sum(mm * (yy * yy + z * z) for mm, yy in ys) + ox
+        dyy = m * (x * x + z * z) + oy
+        dzz = sum(mm * (x * x + yy * yy) for mm, yy in ys) + oz
+        dxz = m * x * z
+        ixx += dxx; iyy += dyy; izz += dzz; ixz += dxz
+        rows.append((it['name'], it['lb'], m, x, z, dxx, dyy, dzz))
+    if verbose:
+        print(f"  {'component':<34}{'lb':>7}{'kg':>8}{'x':>8}{'z':>7}{'Ixx':>9}{'Iyy':>9}{'Izz':>9}")
+        for n, lb, m, x, z, a, b, c in rows:
+            print(f"  {n:<34}{lb:>7.0f}{m:>8.1f}{x:>8.3f}{z:>7.3f}{a:>9.0f}{b:>9.0f}{c:>9.0f}")
+        print(f"  {'TOTAL':<34}{tot:>7.0f}{mass:>8.1f}  CG {cgx:.3f} m aft, {cgz:.3f} m below the datum")
+    return mass, cgx, cgz, {'ixx': round(ixx), 'iyy': round(iyy), 'izz': round(izz), 'ixz': round(ixz)}
+
+
+def radii_of_gyration(mass, inertia, span, length):
+    """Protocol §1c sanity check: R = 2*sqrt(I/m)/reference. Bands Rx 0.25-0.30, Ry 0.35-0.40, Rz 0.38-0.45."""
+    rx = 2 * math.sqrt(inertia['ixx'] / mass) / span
+    ry = 2 * math.sqrt(inertia['iyy'] / mass) / length
+    rz = 2 * math.sqrt(inertia['izz'] / mass) / ((span + length) / 2)
+    return rx, ry, rz

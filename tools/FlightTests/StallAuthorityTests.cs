@@ -22,7 +22,7 @@ public class StallAuthorityTests
 
     /// <summary>Types whose longitudinal design has been verified through the protocol's stall check. The rest are listed
     /// as PENDING (their elevators were too weak to stall, or the CG/tail is off) — see docs/NEW-AIRPLANE-PROTOCOL.md.</summary>
-    public static readonly HashSet<string> Verified = new() { "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "pa18-bush-like", "glasair3-like", "glider-swift-s1-like", "f86-sabre-like" };
+    public static readonly HashSet<string> Verified = new() { "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "pa18-bush-like", "glasair3-like", "glider-swift-s1-like", "f86-sabre-like", "jn4-jenny-like" };
 
     /// <summary>Types whose elevator is set by hand, not by the calibration (2026-10-06): it wanted the Pitts' elevator chord ×3.6
     /// and the Cub-on-floats' ×1.4 (geometry problems — too much stability — to fix with data), gave the Cassutt and drone a

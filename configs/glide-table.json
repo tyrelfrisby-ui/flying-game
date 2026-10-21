@@ -477,8 +477,8 @@
     "SinkFpm": 510.9,
     "AlphaDeg": 7.847,
     "PitchDeg": 1.815,
-    "ElevatorDeg": -2.912,
-    "TrimStick": -0.1352
+    "ElevatorDeg": -2.663,
+    "TrimStick": -0.1262
   },
   {
     "Id": "hughes-h4-like",
@@ -544,6 +544,19 @@
     "PitchDeg": -4.403,
     "ElevatorDeg": -3.784,
     "TrimStick": -0.1666
+  },
+  {
+    "Id": "jn4-jenny-like",
+    "Flaps": 0,
+    "VsoKt": 33.78,
+    "SpeedKt": 43.92,
+    "GlideDeg": 7.367,
+    "GlideRatio": 7.734,
+    "SinkFpm": 570.3,
+    "AlphaDeg": 4.933,
+    "PitchDeg": -2.435,
+    "ElevatorDeg": -0.802,
+    "TrimStick": -0.0643
   },
   {
     "Id": "p51d-like",

@@ -2413,6 +2413,21 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 3.6f, StabRoot = 1.2f, StabTip = 0.8f, FinHeight = 1.3f, FinRoot = 1.6f, FinTip = 0.7f, FinSweepDeg = 40 },
                         Fuselage = blue, Wing = yellow, TailColor = yellow, Control = red,
                     };
+                case "jn4-jenny-like":
+                    return new Style
+                    {
+                        // 1917 two-bay biplane trainer, clear-doped linen over an olive fuselage, tail SKID. Every
+                        // number below is read off the same mesh the model uses (jenny.obj, named parts, see
+                        // docs/research/JN4-JENNY-DATA.md §6) and then rebased on the computed CG at s 2.045:
+                        // 'capot' starts at s 0.166 so the nose is x +1.88; 'fuselage' ends at s 7.292 so the
+                        // tailpost is x -5.25; 'profondeur' spans z ±1.596 and 'direction' stands 1.604 m tall.
+                        // Flat radiator face at the nose, so BluntNose; a water-cooled V-8, so NOT a radial.
+                        BodyAxisZ = 0.2f, Body = new[] { (1.95f, 0.20f), (1.75f, 0.40f), (1.10f, 0.50f), (0.20f, 0.52f), (-0.70f, 0.44f), (-2.00f, 0.28f), (-3.60f, 0.17f), (-5.10f, 0.09f) },
+                        BluntNose = true, PropRadius = 1.21f, BiplaneStruts = true,
+                        Canopy = (-0.55f, -0.46f, 1.9f, 0.62f, 0.22f),   // no canopy on a Jenny: the coaming over two open cockpits
+                        Tail = new TailSpec { StabSpan = 3.19f, StabRoot = 1.95f, StabTip = 0.90f, FinHeight = 1.60f, FinRoot = 0.96f, FinTip = 0.50f, FinSweepDeg = 25 },
+                        Fuselage = olive, Wing = cream, TailColor = cream, Control = cream,
+                    };
                 case "p51d-like":
                     return new Style
                     {

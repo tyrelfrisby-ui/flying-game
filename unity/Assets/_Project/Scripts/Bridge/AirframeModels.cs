@@ -59,6 +59,16 @@ namespace FlyingGame.Bridge
             { "target-drone-like", new Spec(Vector3.right, Vector3.forward) },
             { "hughes-h4-like", new Spec(Vector3.right, Vector3.forward) },      // helijah export (same convention as his others)
             { "glider-eb29r-like", new Spec(new Vector3(0f, -1f, 0f), new Vector3(0f, 0f, 1f)) },   // export stands on its tail: nose along -y, height along z
+            // helijah's FlightGear Jenny, imported as OBJ+MTL+PNG (not a GLB). Its named meshes place it exactly:
+            // 'helice' sits at x -4.11 and 'direction' (the rudder) at x +4.14, so the FILE's nose is along -x,
+            // with height along y and span along z. The OBJ importer negates x, so the imported mesh's nose is +x
+            // -- the same convention the Cub lands in (its main-gear boxes read x -212..-125 in the file, forward
+            // after the mirror). Metres already: 13.310 m of span against the config's 13.294, so no scale trim.
+            // Its wheels are modelled, so no groundClearanceM. RENDER-VERIFIED 2026-10-20 (build/models/jn4-*.png):
+            // placed bounds come out 13.17 span x 2.95 high x 8.16 long with the centre 2.16 m BEHIND the CG,
+            // which is where a nose-forward 8.25 m aeroplane whose CG sits 2.05 m from the nose must put it --
+            // reversed it would read +2.08. Drawn level, so no pitchDownDeg. 8 of 8 .mtl textures assigned.
+            { "jn4-jenny-like", new Spec(Vector3.right, Vector3.up) },
         };
         public static IEnumerable<string> Ids => Specs.Keys;
 

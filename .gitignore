@@ -57,3 +57,11 @@ unity/Assets/Resources/PerformanceTest*
 unity/Assets/Resources.meta
 unity/Assets/Resources/
 __pycache__/
+
+# Raw downloaded art before it is processed into unity/Assets (172 MB of zips and source trees as of
+# 2026-10-20). The tracked record of a model's licence is unity/Assets/_Project/Resources/Models/<id>/LICENSE.txt;
+# the copy under assets-incoming/models/<id>/ is a local note beside the download it came from.
+assets-incoming/
+
+# Agent worktrees: full checkouts of this repo (329 MB), never part of it.
+.claude/worktrees/

@@ -223,7 +223,7 @@ namespace FlyingGame.Bridge
             ("pa18-bush-like", "Cub Bushwheels"), ("pa18-floats-like", "Cub on Floats"),
             ("j3-cub-like", "Cub J-3 85 hp"), ("j3-cub-floats-like", "Cub J-3 on Floats"), ("dhc2-beaver-like", "Beaver"), ("dhc2-beaver-floats-like", "Beaver on Floats"), ("pa25-pawnee-like", "Pawnee"),
             ("decathlon-8kcab-like", "Decathlon"), ("extra-300-like", "Extra 300"), ("pitts-s2b-like", "Pitts S-2"),
-            ("stearman-pt17-like", "Stearman"), ("p51d-like", "P-51 Mustang"), ("f86-sabre-like", "F-86 Sabre"),
+            ("jn4-jenny-like", "Jenny JN-4D"), ("stearman-pt17-like", "Stearman"), ("p51d-like", "P-51 Mustang"), ("f86-sabre-like", "F-86 Sabre"),
             ("seminole-like", "Seminole"), ("dc3-like", "DC-3"), ("boeing-737-like", "737"), ("hughes-h4-like", "Hughes H-4"),
             ("cassutt-f1-like", "Cassutt Formula One"), ("geebee-r2-like", "Gee Bee R-2"), ("glasair3-like", "Glasair III 400"),
             ("aircam-like", "Lockwood AirCam"), ("aircam-amphib-like", "AirCam Amphib"),

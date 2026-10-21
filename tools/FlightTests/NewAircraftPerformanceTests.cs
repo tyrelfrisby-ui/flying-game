@@ -22,6 +22,9 @@ public class NewAircraftPerformanceTests
     [InlineData("cirrus-sr22-like", 70, 104, 175)]   // SR22 POH: Vs1 ~70 KIAS (Vs0 ~60)
     [InlineData("aircam-like", 38, 52, 80)]           // Lockwood AirCam: stall 39 mph (~34 kt with flaps; ~38 clean), Vy 60 mph (AOPA 2012), 75 % cruise ~80 kt (max level 87)
     [InlineData("dhc2-beaver-like", 52, 63, 124)]     // DHC-2 Mk I at 5,100 lb: stall 60 mph clean (52 kt), best rate of climb ~73 mph IAS (63 kt), cruise 143 mph (124 KTAS) at 5,000 ft
+    // The JN-4D is NOT here on purpose: it has no published stall speed, no published Vy, and its period "cruise
+    // 60 mph" is a habit rather than a power setting, so none of this test's three parameters has a book value for
+    // it. It is checked against the numbers it does have in JennyPerformanceTests.
     public void PerformanceNearTheBook(string id, double vs0, double vy, double cruise)
     {
         AircraftConfig c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));

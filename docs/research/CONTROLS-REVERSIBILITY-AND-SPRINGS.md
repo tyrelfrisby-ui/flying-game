@@ -24,6 +24,7 @@ Research date: 2026-10-02. Prepared for the Aero Playground flight model (contro
 | ACA 8KCAB Decathlon | R, cables | R, cables | R, cables | No centering springs known. Tailwheel steering springs. | **Elevator trim tab** (pilot-adjustable). **Fixed, ground-adjustable rudder tab.** Optional **aileron spades**: stock ailerons are heavy, and spades lighten them a lot. | M | 18, 19 |
 | Extra 300 | R, pushrods/torque tubes | R, pushrods | R, cables | No springs. | Big **aileron spades** give very light, near-neutral roll force. **Cable-driven trim tab on the right elevator.** Horn-balanced elevator and rudder. | M | 20, 21 |
 | Pitts S-2B | R, pushrods; ailerons on both wings joined by an interplane strut | R, pushrod/cable | R, cables | No centering springs known. Pitch trim: **unverified** whether it is a trim tab or a spring bias. Some Pitts (especially homebuilt S-1s) use spring/bungee bias trim. | **Aileron spades on the S-2B** because the ailerons are not finely balanced, so forces are unequal by direction. The S-2C has re-balanced ailerons and no spades. | M/L | 22, 23 |
+| Curtiss JN-4D (1917) | R, cables; ailerons on the **upper wing only**, joined across the centre section | R, cables | R, cables | **None on any axis.** No trim tab, no trim spring, no centering spring. Stabilizer incidence is 0° and ground-set, so pitch is trimmed on the ground with a spanner. There is no tailwheel — it has a tail **skid** — so there are no steering springs either. | **Nothing is balanced**: no horn balances, no mass balances, no tabs. Plain fabric surfaces on cables, and the ailerons are large, deep and overhung. Hinge moments are set one step heavier than the Stearman's for that reason. | L/M | 41, 42 |
 | Boeing-Stearman PT-17 | R, cables; ailerons on the **lower wing only** | R, cables | R, cables | No centering springs. Trim: in-flight **adjustable horizontal stabilizer** (crank). Moderately confident; one web hit describing an elevator tab with a hand wheel looked like a different, British type. | Horn-balanced rudder and elevator. No servo tabs. | M/L | 24, 25 |
 | Gee Bee R-2 (1932) | R, cables/rods | R | R | None known. Assume no springs. | Unknown. Assume an adjustable stabilizer or a ground-bent tab. Airfoil NACA M-6 (8%). | L | 26 |
 | Cassutt F1 racer | R, pushrod/cable | R, pushrod | R, cables | None, or a simple spring bias trim. | Small surfaces, likely a ground-adjustable tab | L | 26 |
@@ -49,6 +50,21 @@ When a reversible control is released, the surface rotates until its aerodynamic
 - **Stabilator with anti-servo tab (PA-28, PA-44)**: a bare stabilator hinged near its quarter-chord would be close to neutral or even unstable in hinge moment. The anti-servo tab deflects **the same direction** as the stabilator trailing edge (TCDS lists stabilator 14° up / 2° down and tab 3° up / 12° down. The tab range combines anti-servo gearing and trim travel, so the gearing ratio is not given directly; about 0.5–1 tab-deg per stab-deg is a reasonable model value). This produces a restoring hinge moment proportional to deflection from the trimmed position. Released, the stabilator **returns to the trim angle** with a firm, roughly linear force. Model it as a stiff aerodynamic spring whose stiffness scales with dynamic pressure q.
 - **Spring-trim aircraft (SR22, 2-33, Swift, EB29R, F-86 bungees)**: the spring's neutral is the trim point. Released, the stick goes to the point where spring torque balances the aerodynamic hinge moment, which is **not** zero hinge moment. On reversible spring-trim gliders the stick drifts slightly with speed (spring trim is speed-stable only near the trim speed). On the irreversible F-86 the stick goes exactly to the spring neutral and the surface follows it.
 - **Bobweight (P-51D, F-86)**: adds a stick force proportional to n (load factor) and, for elevator-free motion, a nose-down moment under positive g. It shifts the free-float elevator angle with g.
+
+### Curtiss JN-4D
+- Cables on all three axes to a **control stick** in both cockpits (the JN-4D took the stick from the JN-4Can;
+  earlier JNs used a shoulder yoke or a wheel) [41]. The spec sheet [42] lists **two** ailerons at 17.6 sq ft each,
+  not four, which is what places them on the upper wing only — the JN-4Can and the JN-4H had four.
+- **No trim of any kind in the cockpit.** The horizontal stabilizer is rigged at 0° incidence against the wings' 2°
+  and is adjusted on the ground. The config uses `trimType: "tab"`, the repo default, because that is the setting
+  that makes the trim command move the elevator's free-float angle — the same choice the Super Cub and the Stearman
+  use for their adjustable stabilizers. Whether a JN-4D had any in-flight stabilizer adjustment is **unverified**.
+- **No wheel brakes.** It stops on the tail skid, in grass. Both mains carry `brake: false`, and the skid is
+  unsteerable with a high scrub coefficient and a high rolling resistance. This is a real constraint on the
+  aeroplane: it cannot be held against power and it cannot be stopped on pavement.
+- Released, every surface trails — there is no spring anywhere to pull it back. Hands-off at trim the config holds
+  its speed to 0.05 m/s and a pull-and-release damps from 6.0 m/s of speed excursion to 1.2
+  (`ReversibleControlTests`), so it is stick-free stable despite having nothing to make it so but the tail.
 
 ### Piper PA-18 Super Cub (incl. floats, bush)
 - Pitch trim: **adjustable horizontal stabilizer** driven by a jackscrew and yoke from an overhead crank (Univair parts catalog, owner discussions). **There is no elevator trim tab and no trim spring.** Trimming changes stabilizer incidence. The free elevator then floats in line with the tail flow at the new incidence.
@@ -169,3 +185,7 @@ These are game-design starting points inferred from the mechanisms above and pil
 38. CASA AD, 737 Rudder Feel and Centering Unit: https://www.casa.gov.au/index.php/node/169371; FR 2009-09-09 737 AD: https://www.govinfo.gov/content/pkg/FR-2009-09-09/html/E9-21412.htm
 39. 737NG flight controls (training): https://www.slideshare.net/slideshow/b737-ng-flight-controls/26849036
 40. FAA AD, Cirrus interconnect (Federal Register): https://www.govinfo.gov/content/pkg/FR-2007-06-21/pdf/E7-12006.pdf
+41. "Curtiss JN Jenny", Wikipedia — control-system history by variant (the JN-4D's stick, the JN-3's wheel, the
+    JN-2's shoulder yoke; ailerons by variant). <https://en.wikipedia.org/wiki/Curtiss_JN_Jenny>
+42. Transcribed JN-4D specification sheet — two ailerons at 17.6 sq ft, stabilizer incidence 0°, wing incidence 2°.
+    <https://airminded.net/jenny/jn4_spec.html>. See docs/research/JN4-JENNY-DATA.md for how it is used.

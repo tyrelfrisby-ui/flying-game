@@ -1,0 +1,21 @@
+Source: Sketchfab (downloaded 2026-10-16 with the owner's account; owner approved the licence the same day)
+Model: Curtiss JN-4 "Jenny"
+Author: helijah (BARANGER Emmanuel)
+URL: https://sketchfab.com/3d-models/curtiss-jn-4-jenny-65df9818a34c44f3a77764d665408f8a
+License: CC Attribution http://creativecommons.org/licenses/by/4.0/
+Commercial use: allowed
+CREDIT LINE: "Curtiss JN-4 "Jenny"" by helijah (BARANGER Emmanuel), https://sketchfab.com/3d-models/curtiss-jn-4-jenny-65df9818a34c44f3a77764d665408f8a, licensed under CC Attribution
+Texture credit (the author's own note): "Texture : Herve. Thank to him"
+
+NOTE ON A SECOND, DIFFERENT NOTICE IN THE SAME DOWNLOAD
+The Read-Me.txt inside the download's source/ folder says, of the author's FlightGear release of this model:
+"This files are GPL." The Sketchfab page the file was downloaded from states CC Attribution, which is the
+licence the download is granted under and the one recorded above. helijah releases his own work, so publishing
+the same model under GPL for FlightGear and under CC BY 4.0 on Sketchfab is his to do.
+
+This is recorded because GPL is NOT on the allowed list in docs/NEW-AIRPLANE-PROTOCOL.md §3 (CC0, CC BY or
+Sketchfab Free Standard) and is copyleft, so if the CC BY grant were ever in doubt this model could not ship.
+The other helijah models already in the fleet rest on the same kind of Sketchfab grant (Archer, Stearman,
+Hughes H-4, Gee Bee and the Grob under CC BY; the SR22 under Sketchfab Free Standard). Raised with the owner 2026-10-20.
+
+Mesh, as measured: 24,855 vertices, 23,659 faces. No decimation needed.

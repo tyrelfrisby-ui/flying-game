@@ -20,7 +20,7 @@ namespace FlyingGame.EditorTools
         {
             "glider-2-33-like", "c172-like", "pitts-s2b-like", "stearman-pt17-like",
             "extra-300-like", "p51d-like", "f86-sabre-like", "seminole-like",
-            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like", "hughes-h4-like", "dhc2-beaver-like", "dhc2-beaver-floats-like",
+            "dc3-like", "boeing-737-like", "pa18-cub-like", "decathlon-8kcab-like", "pa18-bush-like", "pa18-floats-like", "pa25-pawnee-like", "glider-eb29r-like", "glider-swift-s1-like", "cassutt-f1-like", "geebee-r2-like", "glasair3-like", "pa28-archer-like", "cirrus-sr22-like", "hughes-h4-like", "dhc2-beaver-like", "dhc2-beaver-floats-like", "jn4-jenny-like",
         };
 
         [MenuItem("FlyingGame/Render Airframes")]
@@ -28,6 +28,11 @@ namespace FlyingGame.EditorTools
         {
             string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/airframes"));
             Directory.CreateDirectory(outDir);
+            // AIRFRAMES_PROCEDURAL=1 draws the generated shapes instead of the downloaded models, which is the only
+            // way to check an AirframeVisual.Style — with models on (the default) every modelled type renders its
+            // model here and its Style is never seen (2026-10-20, adding the Jenny's).
+            if (System.Environment.GetEnvironmentVariable("AIRFRAMES_PROCEDURAL") != null)
+                FlyingGame.Bridge.SessionSettings.UseAirframeModels = false;
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var camGo = new GameObject("RenderCam");
