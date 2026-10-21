@@ -41,11 +41,28 @@ public class StallAuthorityTests
         _ => -0.5,   // trainers: balance just UNDER the stall — full aft bobs across it and MUSHES (~1,300 fpm, 172), wings rockable
     };
 
+    /// <summary>
+    /// The wing's own stall angle, from the table its biggest lifting surface uses.
+    ///
+    /// This used to look for a surface named exactly "wing" and fall back to a hard-coded 15 deg. Every BIPLANE
+    /// names its wings "wing-upper"/"wing-lower", so all three of them — the Pitts, the Stearman and now the Jenny —
+    /// were silently targeted at 15 deg instead of at their own wings (2026-10-20). It mattered most for the Pitts,
+    /// whose `pitts-wing-upper` table peaks at **12 deg**: the target was 21 deg when it should have been 18, and
+    /// "the Pitts cannot be held past the stall, alpha pins at 13" was measured against a stall angle 3 deg too
+    /// high. alpha 13 is PAST a 12 deg stall, not short of it. See docs/SPIN-ROTARY-DATA.md.
+    /// </summary>
     public static double StallDeg(AircraftConfig c)
     {
         var tables = Aircraft.BuildAirfoilTables(c);
-        foreach (var sf in c.Surfaces) if (sf.Id == "wing") return tables[sf.Strips[0].Airfoil].AlphaClMaxRad * 57.2958;
-        return 15;
+        SurfaceConfig? main = null;
+        double best = 0;
+        foreach (var sf in c.Surfaces)
+        {
+            if (!sf.Id.StartsWith("wing") || sf.Id.EndsWith("aileron") || sf.Strips.Count == 0) continue;
+            double area = sf.Strips.Sum(st => st.Area);
+            if (area > best) { best = area; main = sf; }
+        }
+        return main is null ? 15 : tables[main.Strips[0].Airfoil].AlphaClMaxRad * 57.2958;
     }
 
     /// <summary>Wing AoA where full-aft elevator's pitching moment crosses zero (static, no rates), deg.</summary>
@@ -66,11 +83,16 @@ public class StallAuthorityTests
     [Fact]
     public void FullAftHoldsJustPastTheStallForEveryAircraft()
     {
-        bool calibrate = Environment.GetEnvironmentVariable("CALIBRATE_STALL") != null;
+        bool calibrateAny = Environment.GetEnvironmentVariable("CALIBRATE_STALL") != null;
+        // CALIBRATE_ONLY=<id> scopes the write to ONE type. Without it a calibration run rewrites every config it
+        // touches, and on 2026-10-19 that silently rewrote two unrelated J-3 configs (one grew its elevator by
+        // x1.41) while the intended type was being worked on. Calibrating one aeroplane should change one file.
+        string? only = Environment.GetEnvironmentVariable("CALIBRATE_ONLY");
         var bad = new List<string>();
         foreach (string file in Directory.GetFiles(Path.Combine(Repo, "configs", "aircraft"), "*.json").Order())
         {
             AircraftConfig c = AircraftConfigLoader.LoadFromFile(file);
+            bool calibrate = calibrateAny && (only is null || c.Id == only);
             double stall = StallDeg(c), target = stall + TargetMarginDeg(c.Id);
             if (calibrate && c.Id == "pa28-archer-like")
             {

@@ -14,6 +14,15 @@ namespace FlyingGame.FlightTests;
 /// measurement rather than by argument. The column is chosen by geometry: a biplane gets Fig. 27, a monoplane
 /// Fig. 28. Flown on the widget's own recipe — wings level, power at idle, full aft stick to the stall, then full
 /// rudder, held — and reported over the LAST 20 s of a 45 s hold so the incipient phase is excluded.
+///
+/// FLEET_SPIN_ONLY=&lt;id&gt; measures one type instead of all 31.
+///
+/// READ THE ENTRY, NOT JUST THE COLUMNS. The hold-then-rudder entry is gated on
+/// <see cref="StallAuthorityTests.StallDeg"/>: full aft stick until alpha exceeds it by 2 deg, THEN pro-spin
+/// rudder. That number therefore decides the experiment and not only its reporting, and on 2026-10-20 a wrong
+/// stall reference for biplanes (a hard-coded 15 deg) was putting the Pitts' rudder in 3 deg of alpha late and
+/// making it read as a spiral that needed the table. It does not. See the CORRECTION section of
+/// docs/SPIN-ROTARY-DATA.md.
 /// </summary>
 public class FleetSpinSweep
 {
@@ -50,9 +59,11 @@ public class FleetSpinSweep
     {
         if (System.Environment.GetEnvironmentVariable("FLEET_SPIN") == null) return;
         _out.WriteLine($"{"type",-24} {"AR",5} {"swp",4} {"col",-9}  {"",-3}  {"turns",6} {"s/trn",6} {"ft/trn",7} {"stall",6} {"alpha",6} {"pitch",6}");
+        string? only = System.Environment.GetEnvironmentVariable("FLEET_SPIN_ONLY");
         foreach (string file in Directory.GetFiles(Path.Combine(Repo, "configs", "aircraft"), "*.json").Order())
         {
             AircraftConfig probe = AircraftConfigLoader.LoadFromFile(file);
+            if (only != null && probe.Id != only) continue;
             var (ar, bip, sweep) = WingShape(probe);
             string col = bip ? "biplane" : "monoplane";
             string line0 = "", line1 = "";

@@ -173,3 +173,68 @@ So the fleet-wide rollout is blocked behind a real decision, not a flag:
 3. **Or leave it where it is**, which is what was done: the Extra, the Pitts and now the Swift.
 
 Worth saying plainly: option 1 is the right one, and the Pitts' elevator has been the blocker twice now.
+
+## CORRECTION (2026-10-20): the Pitts row above was an artefact, and option 1 rests on it
+
+Everything above this heading was measured with a **wrong stall reference for every biplane**, and the conclusion
+drawn from it — "fix the Pitts', the Stearman's and the F-86's elevators first" — does not survive the correction.
+
+`StallAuthorityTests.StallDeg` looked for a surface named exactly `"wing"` and fell back to a hard-coded **15°**
+when it could not find one. Every biplane names its wings `wing-upper`/`wing-lower`, so the Pitts, the Stearman
+and (as of today) the Jenny were all measured against 15° instead of against their own wings. The Pitts'
+`pitts-wing-upper` table peaks at **12°**. Found while putting the JN-4D through the protocol; fixed to read the
+type's biggest lifting surface.
+
+**It is not only a reporting threshold.** `FleetSpinSweep` uses the same number to decide when the spin ENTRY is
+complete — it holds full aft stick until `α > StallDeg + 2` and only then feeds in pro-spin rudder. For the Pitts
+that gate was 17° when its wing stalls at 12°, so the rudder went in three degrees of α late, by which time it had
+bled the energy it needed to autorotate.
+
+### What changed, and why the attribution is certain
+
+Re-running the sweep, **seven of the eight rows in the fleet table above reproduce to the digit** — the 172, the
+Archer, the SR22, the P-51, the Gee Bee, the Cassutt and the 2-33, all monoplanes whose stall reference the fix
+does not touch. Exactly one row moved, and it is the only type in that table whose `StallDeg` changed:
+
+| Pitts, with its own table off | stalled | turns in 20 s | s/turn | mean α |
+|---|---:|---:|---:|---:|
+| as recorded above (entry gated at 17°) | **0 %** | — | 1.4 | 13 |
+| corrected (entry gated at 14°) | **100 %** | 9.56 | 2.1 | **29** |
+| corrected, table ON | 100 % | 9.52 | 2.1 | 34 |
+
+**The Pitts spins perfectly well without the table.** Off and on are the same aeroplane: 9.56 turns against 9.52,
+2.1 s a turn either way, 100 % stalled either way.
+
+### What this costs the argument above
+
+- **"The Pitts cannot reach the stall on its own" is false.** It reaches it and stays there for the whole 20 s
+  window. The latch-out that killed the stall gate — the Pitts using the table's attached-flow part to climb into
+  a stall it could not otherwise reach — had no case under it.
+- **The gate is worth re-testing.** It was rejected on one measurement, and that measurement was this one. If the
+  Pitts no longer needs the table, a gate that switches the table off in attached flow may simply leave it alone.
+- **Two of the three "cannot be held past the stall" aeroplanes can be.** With each type read against its own
+  wing, the static full-aft balance is:
+
+  | | wing stall | full-aft balance | |
+  |---|---:|---:|---|
+  | Pitts S-2B | 12.0° | 15.2° | **3.2° past** — short of the aerobatic 6° target, not short of the stall |
+  | F-86 | 10.0° | 11.8° | **1.8° past**, and already beyond its own −0.5° target |
+  | Stearman PT-17 | 16.5° | 11.2° | **5.3° short** — this one is real |
+
+  The Stearman is the genuine case, and the sweep agrees: 0 % stalled at α 10 with the table off AND on, so the
+  table does nothing for it either.
+
+### Where that leaves the fleet-wide question
+
+Option 1 said "fix the elevators first, then the gate becomes available, then the table is safe everywhere", and
+called the Pitts' elevator the blocker. The Pitts is not a blocker. The remaining order is:
+
+1. **Re-run the stall gate** against the corrected harness. This is now the cheap step, not the expensive one.
+2. If the gate holds, the fleet-wide table goes on with it and the double count in attached flow — the Super Cub's
+   7° → 52° of bank in moderate turbulence — goes away by construction.
+3. The **Stearman's** elevator is still a real geometry problem, independent of all of this.
+
+Nothing in the fleet's configs was changed by any of today's work: the correction is to the measurement and to
+what was concluded from it. `CALIBRATE_ONLY=<id>` now scopes a calibration run to one type, so re-deriving one
+aeroplane's elevator cannot quietly rewrite another's (on 2026-10-19 it rewrote two unrelated J-3 configs).
+
