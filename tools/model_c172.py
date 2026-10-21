@@ -181,27 +181,45 @@ STATIONS = [
     (7.75, 0.110, -0.12, 0.22),
     (8.21, 0.020, -0.05, 0.19),
 ]
-SECT = 16
+SECT = 24   # enough to read a radiused corner; the plan's F1 has a generous one
 
 
-def body_loop(hw, zb, zt):
-    """One fuselage section: an ellipse squared off at the sides, which is what gives a 172 its flat flanks."""
+def body_loop(hw, zb, zt, squareness):
+    """One fuselage section, as a SUPERELLIPSE.
+
+    Section A-A of the Marutaka 1:8 plan (assets-incoming/plans-c172/oz3838) is former F1 at the firewall, and
+    it is a ROUNDED SQUARE -- width about equal to height, corners radiused at roughly a fifth of the width.
+    Not an ellipse. That is the shape an RC plan gives you that slicing a mesh cannot: a slice reports a width
+    and a height, never an outline.
+
+    Parametrically a superellipse is  x = a*sgn(cos t)*|cos t|^e,  y = b*sgn(sin t)*|sin t|^e, where e = 1 is
+    an ellipse and smaller e squares it off. e = 0.55 matches F1; the nose and the tail boom relax back toward
+    a true ellipse, which is what the plan's other sections show.
+    """
     pts = []
+    zc, zr = (zt + zb) * 0.5, (zt - zb) * 0.5
     for i in range(SECT):
         a = 2 * math.pi * i / SECT
         cs, sn = math.cos(a), math.sin(a)
-        # |cos|^0.72 fattens the sides toward flat without going fully rectangular
-        y = hw * math.copysign(abs(cs) ** 0.72, cs)
-        zc = (zt + zb) * 0.5
-        zr = (zt - zb) * 0.5
-        z = zc + zr * math.copysign(abs(sn) ** 0.85, sn)
+        y = hw * math.copysign(abs(cs) ** squareness, cs)
+        z = zc + zr * math.copysign(abs(sn) ** squareness, sn)
         pts.append((0.0, y, z))
     return pts
 
 
+def squareness_at(frac):
+    """How square the section is along the body: a true ellipse at the spinner, squared off through the
+    firewall and cabin (the plan's F1), easing back to an ellipse down the tail boom."""
+    if frac < 0.08: return 1.00
+    if frac < 0.22: return 1.00 - (frac - 0.08) / 0.14 * 0.45    # 1.00 -> 0.55 through the cowl
+    if frac < 0.50: return 0.55                                   # firewall and cabin
+    return 0.55 + (frac - 0.50) / 0.50 * 0.40                     # 0.55 -> 0.95 down the boom
+
+
 loops = []
+BODY_LEN = STATIONS[-1][0]
 for st_s, hw, zb, zt in STATIONS:
-    loop = [(NOSE - st_s, p[1], p[2]) for p in body_loop(hw, zb, zt)]
+    loop = [(NOSE - st_s, p[1], p[2]) for p in body_loop(hw, zb, zt, squareness_at(st_s / BODY_LEN))]
     loops.append(loop)
 fus = mesh_from_loops("Fuselage", loops)
 
