@@ -304,22 +304,65 @@ def slab(name, x_le, chord, y0, y1, z, thick, vertical=False, taper=1.0):
     return mesh_from_loops(name, loops)
 
 
+def tail_panel(name, x_le_root, root_c, tip_c, a0, a1, sweep, frac0, frac1, vertical, thick=0.09, n=8):
+    """A piece of a tail surface between two CHORD FRACTIONS of one planform.
+
+    A fin and its rudder are not two shapes, they are ONE outline split at a hinge line. Building them as
+    separate slabs with their own tapers opened a wedge-shaped gap toward the tip -- the fin's trailing edge
+    swept forward as it rose and the rudder's leading edge stayed put, so the aeroplane appeared to have two
+    vertical tails (2026-10-21, owner: "two vertical tails or a detached rudder"). Here both come from the same
+    planform, so the split follows the taper by construction and cannot gape.
+
+    a0/a1 are the span stations (z for a fin, y for a tailplane); sweep is the leading edge's rake per unit.
+    """
+    loops = []
+    for t in (0.0, 1.0):
+        a = a0 + (a1 - a0) * t
+        c = root_c + (tip_c - root_c) * t
+        le = x_le_root - sweep * abs(a - a0)
+        pts = []
+        for i in range(n * 2):
+            ang = 2 * math.pi * i / (n * 2)
+            px = frac0 + (frac1 - frac0) * 0.5 * (1 - math.cos(ang if ang < math.pi else 2 * math.pi - ang))
+            # a symmetric section, thinned toward the tip the way a real surface is
+            th = thick * 5 * (0.2969 * math.sqrt(max(px, 1e-6)) - 0.126 * px - 0.3516 * px**2
+                              + 0.2843 * px**3 - 0.1036 * px**4) * c * 0.5
+            th = th if ang < math.pi else -th
+            if vertical:
+                pts.append((le - px * c, th, a))
+            else:
+                pts.append((le - px * c, a, th))
+        loops.append(pts)
+    return mesh_from_loops(name, loops)
+
+
 hs, vs = surf_stats("hStab"), surf_stats("vStab")
+HINGE = 0.62                                   # the elevator and rudder take the aft 38 % of the chord
 if hs:
-    hc = hs["chord"] * 2.0                                  # stab + elevator together
+    hc = hs["chord"] * 2.0
     x_le = hs["x"] + hc * 0.25
-    parts.append(slab("HStab", x_le, hc * 0.62, -hs["span"] / 2, hs["span"] / 2, hs["z"], 0.09, taper=0.75))
-    el = slab("Elevator", x_le - hc * 0.62, hc * 0.38, -hs["span"] / 2 * 0.98, hs["span"] / 2 * 0.98, hs["z"], 0.08, taper=0.8)
-    set_origin(el, (x_le - hc * 0.62, 0.0, hs["z"]))
-    parts.append(el)
+    half = hs["span"] / 2
+    for nm, f0, f1, hinged in (("HStab", 0.0, HINGE, False), ("Elevator", HINGE, 1.0, True)):
+        for side in (-1, 1):
+            ob = tail_panel(nm if not hinged else nm, x_le, hc, hc * 0.70, 0.0, side * half,
+                            hc * 0.18, f0, f1, vertical=False)
+            if hinged:
+                ob.name = "Elevator.%s" % ("L" if side < 0 else "R")
+                set_origin(ob, (x_le - HINGE * hc, side * half * 0.5, hs["z"]))
+            else:
+                ob.name = "HStab.%s" % ("L" if side < 0 else "R")
+            # lift the whole tailplane to its station
+            for v in ob.data.vertices: v.co.z += hs["z"]
+            parts.append(ob)
 if vs:
     vc = vs["chord"] * 2.0
     x_le = vs["x"] + vc * 0.25
     ztop, zbot = vs["ztop"], vs["zbot"]
-    parts.append(slab("Fin", x_le, vc * 0.60, zbot, ztop, 0.0, 0.10, vertical=True, taper=0.55))
-    rd = slab("Rudder", x_le - vc * 0.60, vc * 0.40, zbot, ztop * 0.98, 0.0, 0.09, vertical=True, taper=0.7)
-    set_origin(rd, (x_le - vc * 0.60, 0.0, (ztop + zbot) * 0.5))
-    parts.append(rd)
+    fin = tail_panel("Fin", x_le, vc, vc * 0.52, zbot, ztop, vc * 0.42, 0.0, HINGE, vertical=True, thick=0.10)
+    parts.append(fin)
+    rud = tail_panel("Rudder", x_le, vc, vc * 0.52, zbot, ztop, vc * 0.42, HINGE, 1.0, vertical=True, thick=0.09)
+    set_origin(rud, (x_le - HINGE * vc, 0.0, (ztop + zbot) * 0.5))
+    parts.append(rud)
 
 # ---- GEAR: the nose leg is its own object and its ORIGIN IS THE STEERING AXIS --------------------------------
 def cyl(name, p0, p1, r, seg=12):
