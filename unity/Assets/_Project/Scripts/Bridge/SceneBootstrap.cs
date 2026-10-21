@@ -165,6 +165,9 @@ namespace FlyingGame.Bridge
             // THE CHART (owner 2026-10-18): VFR sectional / IFR low / satellite, from the CHART button or the
             // pause menu. It is given no reference to the aircraft, on purpose: there is no own-ship symbol.
             cam.gameObject.AddComponent<ChartPanel>();
+            // CREDITS (2026-10-21): the model licences require the credit to reach the PLAYER, and a file in the
+            // source repo does not. See CreditsPanel.
+            cam.gameObject.AddComponent<CreditsPanel>();
             // And the half that lets you work out where you are instead: two VOR/ILS receivers, a heading
             // card and a leg clock. These DO read the position, because that is what a receiver does.
             cam.gameObject.AddComponent<NavRadios>().Driver = aircraft.GetComponent<FlightSimDriver>();

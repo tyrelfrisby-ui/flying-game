@@ -74,6 +74,38 @@ public class GlideTableTests
         Assert.True(n > 10);
     }
 
+    /// <summary>
+    /// The model licences require the credit to reach the PLAYER, not the repository.
+    ///
+    /// 15 of the 17 downloaded models are CC Attribution 4.0 and 2 are Sketchfab Free Standard. CC BY permits
+    /// commercial use freely; what it does NOT permit is using the work without crediting the author to the
+    /// person using it. Until 2026-10-21 the only credit lived in docs/CREDITS.md, which ships to nobody.
+    /// CreditsPanel shows StreamingAssets/credits.md in the game; this holds the two files identical so the
+    /// shipped credit cannot quietly drift from the one the repo maintains, and holds every model folder's
+    /// LICENSE.txt represented in it so a model cannot be added without its author being named.
+    /// </summary>
+    [Fact]
+    public void CreditsReachTheUser()
+    {
+        string docs = Path.Combine(Repo, "docs", "CREDITS.md");
+        string shipped = Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "credits.md");
+        Assert.True(File.Exists(shipped),
+            "unity/Assets/StreamingAssets/credits.md is missing — copy docs/CREDITS.md over it");
+        Assert.True(File.ReadAllText(docs) == File.ReadAllText(shipped),
+            "the shipped credits differ from docs/CREDITS.md — copy docs/CREDITS.md to unity/Assets/StreamingAssets/credits.md");
+
+        string credits = File.ReadAllText(docs);
+        string models = Path.Combine(Repo, "unity", "Assets", "_Project", "Resources", "Models");
+        var missing = new List<string>();
+        foreach (string dir in Directory.GetDirectories(models))
+        {
+            string lic = Path.Combine(dir, "LICENSE.txt");
+            if (!File.Exists(lic)) { missing.Add(Path.GetFileName(dir) + " (no LICENSE.txt)"); continue; }
+            if (!credits.Contains(Path.GetFileName(dir))) missing.Add(Path.GetFileName(dir) + " (not in CREDITS.md)");
+        }
+        Assert.True(missing.Count == 0, "models whose author is not credited to the player: " + string.Join(", ", missing));
+    }
+
     [Fact]
     public void EveryAircraftPassesTheNewAirplaneProtocol()
     {

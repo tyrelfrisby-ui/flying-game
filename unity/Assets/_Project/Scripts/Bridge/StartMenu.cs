@@ -547,6 +547,8 @@ namespace FlyingGame.Bridge
             // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
             // is that you look at it before you go.
             if (UiLayout.Button(new Rect(m + hw * 2.25f + gap, Screen.height - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
+            // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
+            if (UiLayout.Button(new Rect(m + hw * 3.25f + gap * 1.5f, Screen.height - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
             if (SupportDesk.Note.Length > 0)
                 UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
 
