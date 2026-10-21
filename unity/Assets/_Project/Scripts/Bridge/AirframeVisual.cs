@@ -1325,6 +1325,16 @@ namespace FlyingGame.Bridge
             Clear();
             _root = root;
             Style st = StyleFor(cfg.Id);
+            // A livery repaints the type's own colours (see Livery.cs); Paint is applied AFTER it so the combat
+            // drone's flat orange still overrides everything, which is what that field was for.
+            Livery liv = Liveries.ById(SessionSettings.LiveryId);
+            if (!liv.IsDefault)
+            {
+                if (liv.Fuselage.HasValue) st.Fuselage = liv.Fuselage.Value;
+                if (liv.Wing.HasValue) st.Wing = liv.Wing.Value;
+                if (liv.Tail.HasValue) st.TailColor = liv.Tail.Value;
+                if (liv.Control.HasValue) st.Control = liv.Control.Value;
+            }
             if (Paint.HasValue) { st.Fuselage = Paint.Value; st.Wing = Paint.Value; st.TailColor = Paint.Value; st.Control = Color.Lerp(Paint.Value, Color.black, 0.55f); }
 
             _glass ??= new Material(Shader.Find("FlyingGame/UnlitTransparent") ?? Shader.Find("Unlit/Color")) { color = new Color(0.25f, 0.4f, 0.55f, 0.55f) };
@@ -1461,10 +1471,35 @@ namespace FlyingGame.Bridge
                 }
                 rings.Add(ring);
             }
-            mb.AddLoft(rings);
-            mb.AddCap(rings[0], U(st.Body[0].x + (st.BluntNose ? 0.05f : st.Body[0].r * 0.8f), 0f, st.BodyAxisZ));
-            mb.AddCap(rings[^1], U(st.Body[^1].x - st.Body[^1].r * 0.5f, 0f, st.BodyAxisZ));
-            Spawn("Fuselage", mb.ToMesh(Vector3.zero), st.Fuselage, Vector3.zero);
+            // A WATERLINE, when the livery asks for one: the upper fuselage in its colour and the belly in
+            // another, which is how most real liveries are laid out and the only two-tone this geometry can
+            // carry without a vertex-colour shader. Segment j runs from angle j*2pi/seg; ring[i] puts the TOP
+            // at i=0 (z = -r, and sim z is down-positive), so a segment's height runs 0 at the top to 1 at the
+            // bottom and the belly is everything below 1 - BellyFrac.
+            Livery liv = Liveries.ById(SessionSettings.LiveryId);
+            if (liv.Belly.HasValue && !Paint.HasValue)
+            {
+                float cut = 1f - Mathf.Clamp01(liv.BellyFrac);
+                bool IsBelly(int j)
+                {
+                    float am = (j + 0.5f) * Mathf.PI * 2f / seg;
+                    return (1f - Mathf.Cos(am)) * 0.5f > cut;
+                }
+                var belly = new MeshBuilder();
+                mb.AddLoftWhere(rings, j => !IsBelly(j));
+                belly.AddLoftWhere(rings, IsBelly);
+                mb.AddCap(rings[0], U(st.Body[0].x + (st.BluntNose ? 0.05f : st.Body[0].r * 0.8f), 0f, st.BodyAxisZ));
+                mb.AddCap(rings[^1], U(st.Body[^1].x - st.Body[^1].r * 0.5f, 0f, st.BodyAxisZ));
+                Spawn("Fuselage", mb.ToMesh(Vector3.zero), st.Fuselage, Vector3.zero);
+                Spawn("FuselageBelly", belly.ToMesh(Vector3.zero), liv.Belly.Value, Vector3.zero);
+            }
+            else
+            {
+                mb.AddLoft(rings);
+                mb.AddCap(rings[0], U(st.Body[0].x + (st.BluntNose ? 0.05f : st.Body[0].r * 0.8f), 0f, st.BodyAxisZ));
+                mb.AddCap(rings[^1], U(st.Body[^1].x - st.Body[^1].r * 0.5f, 0f, st.BodyAxisZ));
+                Spawn("Fuselage", mb.ToMesh(Vector3.zero), st.Fuselage, Vector3.zero);
+            }
 
             if (st.BellyScoop)
             {
@@ -2283,6 +2318,24 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < rings.Count - 1; i++)
                 for (int j = 0; j < n; j++)
                 {
+                    int a = baseIdx + i * n + j, b = baseIdx + i * n + (j + 1) % n;
+                    int c = baseIdx + (i + 1) * n + j, d = baseIdx + (i + 1) * n + (j + 1) % n;
+                    Quad(a, b, d, c);
+                }
+            }
+
+            /// <summary>Loft only the segments `include` says yes to, so a body of revolution can be built in
+            /// two colours (a waterline: dark upper, light belly) without a vertex-colour shader. The two
+            /// halves share their boundary vertices exactly, so they meet with no seam and no hole.</summary>
+            public void AddLoftWhere(List<Vector3[]> rings, System.Func<int, bool> include)
+            {
+                int n = rings[0].Length;
+                int baseIdx = _v.Count;
+                foreach (Vector3[] r in rings) _v.AddRange(r);
+                for (int i = 0; i < rings.Count - 1; i++)
+                for (int j = 0; j < n; j++)
+                {
+                    if (!include(j)) continue;
                     int a = baseIdx + i * n + j, b = baseIdx + i * n + (j + 1) % n;
                     int c = baseIdx + (i + 1) * n + j, d = baseIdx + (i + 1) * n + (j + 1) % n;
                     Quad(a, b, d, c);

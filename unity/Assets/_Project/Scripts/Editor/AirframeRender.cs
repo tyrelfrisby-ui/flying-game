@@ -55,6 +55,10 @@ namespace FlyingGame.EditorTools
             // setting and the loader applies it — the same switch the menu flips.
             SessionSettings.Skis = System.Environment.GetEnvironmentVariable("SKIS") != null;
             if (SessionSettings.Skis) SessionSettings.Bushwheels = false;
+            // LIVERY=talk-flying paints the GENERATED airframes in a scheme from Livery.cs (pair it with
+            // AIRFRAMES_PROCEDURAL=1, or a modelled type renders its model and wears the model's own paint).
+            string livery = System.Environment.GetEnvironmentVariable("LIVERY");
+            if (livery != null) SessionSettings.LiveryId = livery;
             string only = System.Environment.GetEnvironmentVariable("AIRFRAME_IDS");
             foreach (string id in only != null ? only.Split(',') : Ids)
             {

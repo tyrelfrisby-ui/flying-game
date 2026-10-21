@@ -59,6 +59,11 @@ namespace FlyingGame.Bridge
         public static bool ShowFlightPath = true;
         /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
         public static bool UseAirframeModels = true;
+
+        /// <summary>Paint scheme for the GENERATED airframe (Livery.cs). "type" = each type's own colours.
+        /// It has no effect while a downloaded model is drawn, because the model wears its own paint — so
+        /// choosing a livery also implies UseAirframeModels off for that type.</summary>
+        public static string LiveryId = "type";
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }
