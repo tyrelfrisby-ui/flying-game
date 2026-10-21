@@ -30,6 +30,10 @@ obj~/
 
 # Unity (unity/ project)
 unity/Library/
+# ...and the same path WITHOUT the trailing slash, because unity/Library is now a SYMLINK (2026-10-21) to
+# ~/Library/Application Support/FlyingGame/unity-Library, and git sees a symlink as a file, which a
+# directory-only rule does not match.
+unity/Library
 unity/Temp/
 unity/Logs/
 unity/UserSettings/

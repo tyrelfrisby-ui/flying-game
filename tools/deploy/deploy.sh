@@ -13,7 +13,14 @@ else
   DEVICES=(${(f)"$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && (/connected/ || /available \(paired\)/) { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]+$/) print $i }')"})
 fi
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
-find unity/Assets unity/Library unity/Packages src -name "* 2.*" -delete 2>/dev/null || true   # iCloud conflict copies break the build ("already registered")
+# iCloud conflict copies break the build. The old guard matched `* 2.*` only, which catches a duplicated FILE
+# but not a duplicated DIRECTORY — and on 2026-10-21 iCloud duplicated whole package folders inside the package
+# cache (klak.ndi/Runtime 2, klak.syphon/Editor 2, ...). Duplicate asmdefs and duplicate types took the entire
+# compile down, surfacing as 200+ bogus "Sse2 does not exist" errors inside Unity's own Burst package. Match
+# directories too, and delete deepest-first so a parent going first does not orphan the walk.
+# -L because unity/Library is a SYMLINK since 2026-10-21 (to ~/Library/Application Support/FlyingGame/
+# unity-Library, which iCloud does not sync); find would otherwise look at the link and walk nothing.
+find -L unity/Assets unity/Library unity/Packages src \( -name "* 2" -o -name "* 2.*" \) -depth -exec rm -rf {} + 2>/dev/null || true
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
   /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \
