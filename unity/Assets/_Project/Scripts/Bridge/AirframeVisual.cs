@@ -1329,6 +1329,12 @@ namespace FlyingGame.Bridge
             Clear();
             _root = root;
             Style st = StyleFor(cfg.Id);
+            // Doped fabric over ribs rather than riveted metal: the Cubs, the Stearman, the Jenny, the Decathlon
+            // and the 2-33 are linen aeroplanes, and their wings should scallop between ribs, not carry rivets.
+            _fabricAircraft = cfg.Id != null && (cfg.Id.StartsWith("pa18") || cfg.Id.StartsWith("j3-cub")
+                              || cfg.Id.StartsWith("stearman") || cfg.Id.StartsWith("jn4")
+                              || cfg.Id.StartsWith("decathlon") || cfg.Id.StartsWith("glider-2-33")
+                              || cfg.Id.StartsWith("pa25"));
             // A livery repaints the type's own colours (see Livery.cs); Paint is applied AFTER it so the combat
             // drone's flat orange still overrides everything, which is what that field was for.
             Livery liv = _livery = Liveries.For(SessionSettings.LiveryId, cfg.Id);
@@ -1438,6 +1444,12 @@ namespace FlyingGame.Bridge
             {
                 if (gearSet.Contains(p)) continue;
                 if (overlay && _controls.Any(c => c.T != null && c.T.gameObject == p)) continue;
+                // LIVERY MARKINGS STAY VISIBLE ON A MODEL. They are placed from the CONFIG's geometry, and a
+                // model is scaled to that same geometry, so the wing lettering and the fin logo land correctly on
+                // the real aeroplane — which is the whole point: the downloaded models look far better than the
+                // generated shell, and the branding belongs on what the player actually sees (owner 2026-10-21:
+                // "these look terrible... i was thinking repaint the existing usdz files").
+                if (p != null && (p.name.StartsWith("Decal:") || p.name == "TailSign" || p.name == "LightningBolt")) continue;
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
@@ -2572,7 +2584,7 @@ namespace FlyingGame.Bridge
             Attach(go, name);
             go.transform.localPosition = pivot;
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = UnlitMat(col);
+            go.AddComponent<MeshRenderer>().sharedMaterial = SkinMat(name, col);
             return go;
         }
 
@@ -2587,6 +2599,10 @@ namespace FlyingGame.Bridge
         }
 
         private static readonly Dictionary<Color, Material> Mats = new();
+        /// <summary>True while building a doped-fabric aeroplane, so its wings get rib scalloping rather than
+        /// rivets. Set from the type in Build().</summary>
+        private bool _fabricAircraft;
+
         private static Material UnlitMat(Color c)
         {
             if (!Mats.TryGetValue(c, out Material m))
@@ -2597,6 +2613,14 @@ namespace FlyingGame.Bridge
             return m;
         }
 
+        /// <summary>The material for a part: its surface kind decides the highlight and the panel detail
+        /// (AirframeSurface). Falls back to the old flat-colour FlyingGame/Lit if the shader is missing.</summary>
+        private Material SkinMat(string name, Color c)
+        {
+            Material m = AirframeSurface.MaterialFor(AirframeSurface.KindFor(name, _fabricAircraft), c);
+            return m != null ? m : UnlitMat(c);
+        }
+
         /// <summary>Sim (x fwd, y right, z down) → local Unity (right, up, fwd).</summary>
         private static Vector3 U(float x, float y, float z) => new(y, -z, x);
 
@@ -2604,12 +2628,45 @@ namespace FlyingGame.Bridge
         {
             private readonly List<Vector3> _v = new();
             private readonly List<int> _t = new();
+            private readonly List<Vector2> _uv = new();
 
-            public void AddLoft(List<Vector3[]> rings)
+            /// <summary>
+            /// UVs for a lofted surface: u runs ACROSS the rings and v ALONG them. For a body of revolution
+            /// that is the natural cylindrical unwrap (u around the circumference, v nose to tail); for a wing
+            /// it is chordwise and spanwise. Scaled into metres by the caller's `uScale`/`vScale` so a tiling
+            /// panel-and-rivet map keeps the same real-world size whatever it is laid on — a rivet has to be the
+            /// same size on a Cub and on a 737 or the illusion collapses.
+            /// </summary>
+            private void LoftUVs(List<Vector3[]> rings, float uScale, float vScale)
+            {
+                int n = rings[0].Length;
+                for (int i = 0; i < rings.Count; i++)
+                {
+                    // arc length along the ring, so u does not bunch where the section is tight
+                    float run = 0f;
+                    for (int j = 0; j < n; j++)
+                    {
+                        if (j > 0) run += Vector3.Distance(rings[i][j - 1], rings[i][j]);
+                        float v = i == 0 ? 0f : 0f;
+                        _uv.Add(new Vector2(run * uScale, 0f));
+                    }
+                    // v = distance along the loft, accumulated ring to ring
+                    float along = 0f;
+                    for (int k = 1; k <= i; k++) along += Vector3.Distance(rings[k - 1][0], rings[k][0]);
+                    for (int j = 0; j < n; j++)
+                    {
+                        Vector2 uv = _uv[_uv.Count - n + j];
+                        _uv[_uv.Count - n + j] = new Vector2(uv.x, along * vScale);
+                    }
+                }
+            }
+
+            public void AddLoft(List<Vector3[]> rings, float uScale = 1f, float vScale = 1f)
             {
                 int n = rings[0].Length;
                 int baseIdx = _v.Count;
                 foreach (Vector3[] r in rings) _v.AddRange(r);
+                LoftUVs(rings, uScale, vScale);
                 for (int i = 0; i < rings.Count - 1; i++)
                 for (int j = 0; j < n; j++)
                 {
@@ -2622,11 +2679,13 @@ namespace FlyingGame.Bridge
             /// <summary>Loft only the segments `include` says yes to, so a body of revolution can be built in
             /// two colours (a waterline: dark upper, light belly) without a vertex-colour shader. The two
             /// halves share their boundary vertices exactly, so they meet with no seam and no hole.</summary>
-            public void AddLoftWhere(List<Vector3[]> rings, System.Func<int, bool> include)
+            public void AddLoftWhere(List<Vector3[]> rings, System.Func<int, bool> include,
+                                     float uScale = 1f, float vScale = 1f)
             {
                 int n = rings[0].Length;
                 int baseIdx = _v.Count;
                 foreach (Vector3[] r in rings) _v.AddRange(r);
+                LoftUVs(rings, uScale, vScale);
                 for (int i = 0; i < rings.Count - 1; i++)
                 for (int j = 0; j < n; j++)
                 {
@@ -2642,6 +2701,10 @@ namespace FlyingGame.Bridge
                 int baseIdx = _v.Count;
                 _v.AddRange(ring);
                 _v.Add(apex);
+                // a cap is small and rarely sees detail; a planar unwrap about the apex is enough to keep the
+                // UV array the same length as the vertex array, which Unity requires
+                foreach (Vector3 pt in ring) _uv.Add(new Vector2(pt.x - apex.x, pt.z - apex.z));
+                _uv.Add(Vector2.zero);
                 int n = ring.Length, ap = baseIdx + n;
                 for (int j = 0; j < n; j++) Tri(baseIdx + j, baseIdx + (j + 1) % n, ap);
             }
@@ -2659,6 +2722,8 @@ namespace FlyingGame.Bridge
             {
                 int i = _v.Count;
                 _v.Add(a); _v.Add(b); _v.Add(c); _v.Add(d);
+                _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(1, 0));
+                _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(0, 1));
                 Quad(i, i + 1, i + 2, i + 3);
             }
 
@@ -2668,6 +2733,15 @@ namespace FlyingGame.Bridge
             private void Tri(int a, int b, int c) { _t.Add(a); _t.Add(b); _t.Add(c); }
 
             /// <summary>Mesh with vertices expressed relative to `origin` (the part's pivot).</summary>
+            /// <summary>
+            /// SMOOTHING ANGLE, in degrees. Unity's RecalculateNormals welds nothing, so a lathe built ring by
+            /// ring comes out faceted — the 737's fuselage read as a stack of flat segments and that, more than
+            /// polygon count, is what made the generated fleet look like a toy. Normals are averaged across
+            /// vertices that share a POSITION, but only where the faces meeting there are within this angle, so
+            /// a wing's leading and trailing edges stay crisp while its skin goes smooth.
+            /// </summary>
+            public float SmoothingAngleDeg = 45f;
+
             public Mesh ToMesh(Vector3 origin)
             {
                 var m = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
@@ -2675,9 +2749,42 @@ namespace FlyingGame.Bridge
                 foreach (Vector3 v in _v) verts.Add(v - origin);
                 m.SetVertices(verts);
                 m.SetTriangles(_t, 0);
+                if (_uv.Count == verts.Count) m.SetUVs(0, _uv);
                 m.RecalculateNormals();
+                SmoothNormals(m, verts);
                 m.RecalculateBounds();
+                m.RecalculateTangents();         // a normal map needs tangents or it lights backwards
                 return m;
+            }
+
+            /// <summary>Average normals across co-located vertices whose faces agree to within the smoothing
+            /// angle. Positions are quantised to a tenth of a millimetre so float noise does not split a seam.</summary>
+            private void SmoothNormals(Mesh m, List<Vector3> verts)
+            {
+                if (SmoothingAngleDeg <= 0f) return;
+                Vector3[] n = m.normals;
+                if (n == null || n.Length != verts.Count) return;
+                var groups = new Dictionary<(long, long, long), List<int>>(verts.Count);
+                for (int i = 0; i < verts.Count; i++)
+                {
+                    Vector3 p = verts[i];
+                    var key = ((long)Mathf.Round(p.x * 1e4f), (long)Mathf.Round(p.y * 1e4f), (long)Mathf.Round(p.z * 1e4f));
+                    if (!groups.TryGetValue(key, out List<int> list)) groups[key] = list = new List<int>(4);
+                    list.Add(i);
+                }
+                float cosLimit = Mathf.Cos(SmoothingAngleDeg * Mathf.Deg2Rad);
+                var outN = new Vector3[n.Length];
+                foreach (var kv in groups)
+                {
+                    List<int> list = kv.Value;
+                    foreach (int i in list)
+                    {
+                        Vector3 sum = Vector3.zero;
+                        foreach (int j in list) if (Vector3.Dot(n[i], n[j]) >= cosLimit) sum += n[j];
+                        outN[i] = sum.sqrMagnitude > 1e-9f ? sum.normalized : n[i];
+                    }
+                }
+                m.normals = outN;
             }
         }
 
@@ -2716,6 +2823,18 @@ namespace FlyingGame.Bridge
                         Canopy = (0.2f, -0.45f, 1.8f, 1.1f, 0.5f), PropRadius = 0.95f, HighWingStruts = true,
                         Tail = new TailSpec { StabSpan = 3.45f, StabRoot = 1.3f, StabTip = 0.85f, StabSweepDeg = 5, FinHeight = 1.55f, FinRoot = 1.9f, FinTip = 0.8f, FinSweepDeg = 35 },
                         Fuselage = white, Wing = white, TailColor = white, Control = new Color(0.2f, 0.35f, 0.7f),
+                    };
+                case "j3-cub-like":
+                case "j3-cub-floats-like":
+                    return new Style
+                    {
+                        // J-3: the Super Cub's older, lighter sister — near enough the same length (6.8 m against
+                        // 6.9) and span, but a 65 hp Continental instead of a 150 hp Lycoming, so a slimmer, more
+                        // rounded cowl and a smaller tail. High wing, strut-braced, tandem, taildragger.
+                        BodyAxisZ = -0.25f, Body = new[] { (1.95f, 0.09f), (1.65f, 0.34f), (1.0f, 0.45f), (0.2f, 0.47f), (-0.8f, 0.42f), (-1.8f, 0.30f), (-3.1f, 0.19f), (-4.4f, 0.11f), (-4.95f, 0.075f) },
+                        Canopy = (0.1f, -0.38f, 1.35f, 0.82f, 0.42f), PropRadius = 0.9f, HighWingStruts = true,
+                        Tail = new TailSpec { StabSpan = 2.9f, StabRoot = 0.9f, StabTip = 0.65f, FinHeight = 1.2f, FinRoot = 1.3f, FinTip = 0.55f, FinSweepDeg = 22 },
+                        Fuselage = yellow, Wing = yellow, TailColor = yellow, Control = yellow,
                     };
                 case "pa18-cub-like":
                 case "pa18-bush-like":
