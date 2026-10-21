@@ -23,8 +23,13 @@ N = int(argv[1]) if len(argv) > 1 else 14
 TRUE_SPAN = float(argv[2]) if len(argv) > 2 else 0.0
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-if path.lower().endswith(".glb") or path.lower().endswith(".gltf"):
+lower = path.lower()
+if lower.endswith((".glb", ".gltf")):
     bpy.ops.import_scene.gltf(filepath=path)
+elif lower.endswith((".usdz", ".usd", ".usda", ".usdc")):
+    bpy.ops.wm.usd_import(filepath=path)        # Sketchfab hands out USDZ to Apple platforms
+elif lower.endswith(".fbx"):
+    bpy.ops.import_scene.fbx(filepath=path)
 else:
     bpy.ops.wm.obj_import(filepath=path)
 

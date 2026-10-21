@@ -142,26 +142,44 @@ NOSE = WING_X + 2.05
 # The depths are a profile over the measured widths rather than measured themselves — a slice also catches the
 # gear below and the fin above, and the vertical did not come out clean enough to trust.
 #   (station aft of the spinner, half-width, bottom, top) — all metres, z about the thrust line
+# THE THREE-VIEW, derived rather than drawn. tools/average_sections.py slices THREE independent references
+# (Meee's untextured WIP, ollietaylor219's "True Scale and Accurate", Viva_1's) at 19 stations, scales each by
+# the known 10.92 m span, normalises by its own length, and takes the MEDIAN half-width at each station.
+#
+# Why three, and why the median: averaging the MESHES would be a derivative of all three and would mush the
+# sharp features; averaging the MEASUREMENTS converges on the real aeroplane, because a 172's shape is a fact
+# about a machine Cessna built. The median rather than the mean because one bad slice ruins a mean — at 0.46 m
+# two references said 0.404 and 0.335 and the third said 0.097 (its cut fell between spinner and cowl), and the
+# mean returned 0.279, a number none of them measured.
+#
+# Where they AGREE (spread under 0.07 m) is 1.8 m to 5.9 m — the cabin and the whole aft taper — so those
+# numbers are trustworthy. They disagree at the nose (spinner, nose gear) and over the tailplane root, where
+# the body-isolating band catches other structure; the two small bumps that left at 6.84 and 7.75 m are the
+# tailplane fairing and are smoothed out here.
+#
+# The result: a 1.11 m external cabin, widest 3.2 m from the nose. The first version of this file GUESSED the
+# widest point at about 1.8 m, which is why it read as a blimp.
+#   (station aft of the spinner, half-width, bottom, top) — metres, z about the thrust line
 STATIONS = [
-    (0.00, 0.073, -0.10, 0.10),
-    (0.45, 0.335, -0.36, 0.30),
-    (0.91, 0.460, -0.46, 0.42),
-    (1.36, 0.520, -0.52, 0.60),
-    (1.81, 0.564, -0.55, 0.74),
-    (2.26, 0.538, -0.55, 0.78),
-    (2.72, 0.556, -0.55, 0.78),
-    (3.17, 0.537, -0.54, 0.72),
-    (3.62, 0.557, -0.52, 0.62),
-    (4.07, 0.462, -0.47, 0.50),
-    (4.53, 0.414, -0.42, 0.44),
-    (4.98, 0.366, -0.37, 0.40),
-    (5.43, 0.302, -0.31, 0.35),
-    (5.88, 0.253, -0.26, 0.31),
-    (6.34, 0.193, -0.21, 0.27),
-    (6.79, 0.125, -0.15, 0.24),
-    (7.24, 0.095, -0.11, 0.22),
-    (7.69, 0.060, -0.08, 0.20),
-    (8.15, 0.020, -0.05, 0.18),
+    (0.00, 0.073, -0.09, 0.09),
+    (0.46, 0.335, -0.35, 0.29),
+    (0.91, 0.443, -0.45, 0.40),
+    (1.37, 0.496, -0.51, 0.58),
+    (1.82, 0.563, -0.55, 0.74),
+    (2.28, 0.538, -0.55, 0.78),
+    (2.73, 0.556, -0.55, 0.78),
+    (3.19, 0.543, -0.54, 0.74),
+    (3.64, 0.532, -0.52, 0.64),
+    (4.10, 0.468, -0.47, 0.52),
+    (4.56, 0.414, -0.42, 0.45),
+    (5.01, 0.366, -0.37, 0.40),
+    (5.47, 0.302, -0.31, 0.35),
+    (5.92, 0.253, -0.26, 0.31),
+    (6.38, 0.228, -0.23, 0.28),
+    (6.84, 0.195, -0.20, 0.26),
+    (7.30, 0.160, -0.17, 0.24),
+    (7.75, 0.110, -0.12, 0.22),
+    (8.21, 0.020, -0.05, 0.19),
 ]
 SECT = 16
 
