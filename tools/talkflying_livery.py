@@ -933,17 +933,29 @@ def convex_hull(pts):
     return half(pts)[:-1] + half(pts[::-1])[:-1]
 
 
-def inside_hull(hull, pt):
+def inside_hull(hull, pt, clear=0.0):
+    """Inside the outline, and at least `clear` metres in from every edge of it.
+
+    The clearance is not fussiness. A fin's outline IS its leading edge, and the skin curves away there, so
+    a mark whose corner is exactly on the outline is a mark that wraps round the front -- which is what the
+    owner saw on the 737: "lower this logo just a bit so it doesn't wrap around the leading edge". Held off
+    by a hand's breadth it stays on the flat of the fin.
+    """
     n = len(hull)
     for i in range(n):
         ax, ay = hull[i]
         bx, by = hull[(i + 1) % n]
-        if (bx - ax) * (pt[1] - ay) - (by - ay) * (pt[0] - ax) < -1e-9:
+        ex, ey = bx - ax, by - ay
+        d = math.hypot(ex, ey)
+        if d < 1e-9:
+            continue
+        if (ex * (pt[1] - ay) - ey * (pt[0] - ax)) / d < clear - 1e-9:
             return False
     return True
 
 
-def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep=0.82, at=None):
+def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep=0.82, at=None,
+                     clear=0.0):
     """The biggest rectangle of this artwork's shape that fits INSIDE the fin, and where to put it.
 
     Sizing a mark as a fraction of the fin's bounding box hangs it over the leading edge, because the box
@@ -966,7 +978,7 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep
     def biggest_at(cx, cz):
         def fits(w):
             h = w / asp
-            return all(inside_hull(hull, (cx + sx * w * 0.5, cz + sz * h * 0.5))
+            return all(inside_hull(hull, (cx + sx * w * 0.5, cz + sz * h * 0.5), clear)
                        for sx in (-1, 1) for sz in (-1, 1))
         if not fits(1e-4):
             return 0.0
@@ -1005,8 +1017,8 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep
     if w < (z1 - z0) * 0.06:
         print("LIVERY   fin badge: nothing of a sensible size fits")
         return None
-    print("LIVERY   fin badge: %.2f x %.2f at x %.2f z %.2f  (fin %.2f tall, %.2f chord)"
-          % (w, h, cx, cz, z1 - z0, x1 - x0))
+    print("LIVERY   fin badge: %.2f x %.2f at x %.2f z %.2f  (fin %.2f tall, %.2f chord, %.2f clear)"
+          % (w, h, cx, cz, z1 - z0, x1 - x0, clear))
     return cx, cz, w, h
 
 
@@ -1163,6 +1175,11 @@ def seven37(objs, L, H):
               (10.6, 1.5), (0, sd, 0), rad * 0.95, "Scrub.Titles." + tag, tol=0.02, soft=0.02)
         scrub(objs, (15.42, sd * rad * 0.82, -2.55), (0, 0, 1),
               (1.5, 1.3), (0, sd, 0), rad * 0.95, "Scrub.Roundel." + tag)
+        # ... and the flag on the fin. It used to be covered by the badge, which tied where the badge sits
+        # to where the flag happens to be; with the flag gone the badge can go where it looks right.
+        # Measured the same way: x -15.89 .. -13.95, z 1.86 .. 3.04.
+        scrub(objs, (-14.92, sd * 0.30, 2.45), (0, 0, 1),
+              (2.4, 1.6), (0, sd, 0), 0.6, "Scrub.FinFlag." + tag)
     # ... and only then the livery, so it lands on clean paint. The titles go WHERE THE STOCK ONES WERE,
     # high on the forward fuselage, rather than down across the window line.
     st = text_stamp("TALK FLYING AIRLINES")
@@ -1170,18 +1187,21 @@ def seven37(objs, L, H):
         geo_decal(objs, Decal(st, (L * 0.215, sd * rad * 0.82, zc + rad * 0.74),
                               (0, 0, 1), fit(st, L * 0.021, L * 0.27), (0, sd, 0), INK, depth=rad * 0.95),
                   "Mark.Title." + ("R" if sd > 0 else "L"))
-    # THE FIN: the logo as drawn, black plate and silver mark, sized and placed to the fin's own outline
-    # so nothing hangs over an edge. Its own background is the plate that covers the flag.
-    # AIMED AT THE FLAG, in metres rather than as a fraction of the fin: the flag was measured off a
-    # render at x -15.6 .. -13.8, z 2.0 .. 2.85, and the badge has to sit on top of it rather than
-    # wherever the fin happens to be fattest. `keep` is loose so position wins over size.
-    box = fitted_fin_badge(objs, L, logo_stamp(), at=(-14.88, 2.44), keep=0.55, margin=0.99)
+    # THE FIN: the logo as drawn, black plate and silver mark, sized and placed to the fin's own outline.
+    # It is aimed in metres rather than as a fraction of the fin, and `keep` is loose so position wins over
+    # size. CLEAR OF THE LEADING EDGE: fitting inside the outline is not enough, because a fin's outline IS
+    # its leading edge -- a corner on it is on the curve, and the mark folds round the front, which is what
+    # the owner saw. `clear` holds the mark 0.30 m in from every edge and the target sits it lower, where
+    # the fin is wider. A nose-on render is the test; a side view hides a fold and a 3/4 view flatters it.
+    box = fitted_fin_badge(objs, L, logo_stamp(), at=(-14.60, 2.10), keep=0.55, margin=0.97, clear=0.30)
     if box:
         cx, cz, w, h = box
         for sd in (1, -1):
             d = Decal(logo_stamp(), (cx, sd * 0.12, cz), (0, 0, 1), (w, h), (0, sd, 0), INK, depth=0.8)
             d.literal = True
-            geo_decal(objs, d, "Mark.Fin." + ("R" if sd > 0 else "L"))
+            # a square mark wants a square grid: at the default 96 x 28 the cells are three times taller
+            # than they are wide, and a dropped cell at a panel step takes a visible bite out of the edge
+            geo_decal(objs, d, "Mark.Fin." + ("R" if sd > 0 else "L"), nv=96)
 
 
 PLANES = {
