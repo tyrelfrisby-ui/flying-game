@@ -31,6 +31,7 @@ The stamps themselves are rendered from Blender text objects (there is no image 
 the logo is the project's own PNG.
 """
 import bpy, bmesh, os, sys, math, shutil
+from array import array
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
@@ -151,7 +152,7 @@ def text_stamp(text, slant=0.0, width=1024, bold=True):
     bpy.context.window.scene = prev
     bpy.data.scenes.remove(sc)
     img = bpy.data.images.load(path)
-    _stamps[key] = (list(img.pixels), img.size[0], img.size[1])
+    _stamps[key] = (_pixels(img), img.size[0], img.size[1])
     bpy.data.images.remove(img)
     return _stamps[key]
 
@@ -169,10 +170,17 @@ def solid_stamp():
     return _stamps["solid"]
 
 
+def _pixels(img):
+    """An image's pixels as a flat float array -- see paint() for why this is not a list."""
+    buf = array('f', bytes(img.size[0] * img.size[1] * 16))
+    img.pixels.foreach_get(buf)
+    return buf
+
+
 def logo_stamp():
     if "logo" not in _stamps:
         img = bpy.data.images.load(LOGO)
-        _stamps["logo"] = (list(img.pixels), img.size[0], img.size[1])
+        _stamps["logo"] = (_pixels(img), img.size[0], img.size[1])
         bpy.data.images.remove(img)
     return _stamps["logo"]
 
@@ -344,7 +352,14 @@ def paint(objs, decals):
             uvs = [uvl[li].uv.copy() for li in poly.loop_indices]
             key = img.name
             if key not in buffers:
-                buffers[key] = list(img.pixels)
+                # AN ARRAY, NOT A LIST. A 2048 x 2048 RGBA image is 16.8 million floats; as a Python list
+                # of float objects that is the better part of a gigabyte, and the 172 opens nine images at
+                # once. Three runs of this were killed by the machine running out of memory while a render
+                # was going on beside them. An array('f') is 67 MB for the same pixels, indexes and
+                # assigns exactly the same way, and foreach_get fills it in one call.
+                buf = array('f', bytes(img.size[0] * img.size[1] * 16))
+                img.pixels.foreach_get(buf)
+                buffers[key] = buf
                 sizes[key] = (img.size[0], img.size[1], img)
             W, H, _ = sizes[key]
             buf = buffers[key]
@@ -401,7 +416,7 @@ def flush(buffers, sizes):
     writes second, and both passes work on the same buffers."""
     for key, buf in buffers.items():
         W, H, img = sizes[key]
-        img.pixels = buf
+        img.pixels.foreach_set(buf)
         img.update()
 
 
@@ -586,21 +601,49 @@ def scrub(objs, origin, vdir, size, facing, depth, name, tol=0.07, soft=0.05, ti
         print("LIVERY   %s: changed x %.2f..%.2f  z %.2f..%.2f" % (name, box[0], box[1], box[2], box[3]))
 
 
-def strip_paint(objs, x0, x1, name, z0=-0.55, z1=0.78, hue=0.10, reach=1.3, tile=48):
-    """Take the model's OWN COLOURED PAINT off a stretch of the body and leave the skin that surrounds it.
+def paint_hue(r, g, b, l):
+    """The model's own COLOURED paint. recolour() maps this model's stock blue onto GRAPHITE keeping each
+    texel's luminance, so the paint is everywhere bluer than it is red while the skin, the window frames,
+    the tyres and the shadows are neutral. A darkness test would take the frames out with the cowl."""
+    return b - r > 0.10 * max(b, 1e-4) + 0.010
+
+
+def painted_shade(r, g, b, l):
+    """The soft grey the model's artist painted INTO the skin: the wedge down the fuselage side and the
+    blotch by the door, which the owner asked for on 2026-10-22 after the cowl came off.
+
+    A band, not a threshold, and both edges of it are measured. Mapping the 172's side by luminance in
+    0.2 x 0.1 m cells reads: skin 0.91 everywhere; the streak 0.72 to 0.79 at x 0.0..0.8, z -0.1..-0.3;
+    the blotch 0.67 to 0.70 at x 1.8..2.0, z +0.1..+0.2; and everything that has to survive well below --
+    the trim band 0.12, the window frames and the cowl 0.30. Nothing else is between 0.55 and 0.86.
+    """
+    return 0.55 < l < 0.86
+
+
+def strip_paint(objs, x0, x1, name, mark=paint_hue, z0=-0.55, z1=0.78, reach=1.3, tile=48, top=True,
+                guard=None, pool_min=0.72):
+    """Take a stretch of the model's OWN PAINT off the body and leave the skin that surrounds it.
 
     scrub() cannot do this, and it is worth saying why. Its rule is "whatever is not the paint", judged
     against the median of a tile -- and the 172's cowl is a paint area many tiles across, so the median
     inside it IS the dark paint, nothing would move, and the one thing that would scrub away is the white
     registration sitting in the middle of it. Here the paint is the thing to remove.
 
-    WHAT COUNTS AS PAINT IS ITS HUE, NOT ITS DARKNESS. recolour() maps this model's stock blue onto
-    GRAPHITE keeping each texel's own luminance, so the paint is everywhere bluer than it is red, while
-    the skin, the window frames, the tyres and the shadows are neutral. A darkness test would have taken
-    the window frames and the door seals out with the cowl.
+    WHAT COUNTS AS PAINT is `mark(r, g, b, luma)`: paint_hue() for the cowl scheme, painted_shade() for
+    the grey the artist brushed into the skin. Each marked texel is put back to the median of the SKIN
+    around it -- pooled over three tiles, the same trick scrub() needs -- so the paint goes and the
+    model's own shading stays.
 
-    Each marked texel is put back to the median of the SKIN around it -- pooled over three tiles, the same
-    trick scrub() needs -- so the paint goes and the shading under it stays.
+    `pool_min` IS WHAT COUNTS AS SKIN. The median has to be taken over the skin and nothing else: pooling
+    everything that was not marked puts the trim band's own texels into it, and in a tile that straddles
+    the band the median comes out dark -- so the grey beside the band was "put back" to grey and the band
+    came out wearing a blocky skirt. Dark texels are neither marked nor pooled; they are left alone and
+    they do not vote.
+
+    `guard` LEAVES EDGES ALONE. Where a dark thing meets the skin -- the trim band, a window frame, a
+    door seal -- the texels across the join are antialiased, and every grey between the two is in
+    painted_shade()'s band. Lifting them ate a texel off every edge and the trim band came out with a
+    ragged, stepped outline. A texel with a neighbour darker than `guard` is left as it is.
     """
     tiles, marked = {}, []
 
@@ -609,27 +652,44 @@ def strip_paint(objs, x0, x1, name, z0=-0.55, z1=0.78, hue=0.10, reach=1.3, tile
         W = bpy.data.images[key].size[0]      # not sizes[]: paint() has not returned it yet
         px = i // 4
         t = (key, px % W // tile, px // W // tile)
-        if b - r > hue * max(b, 1e-4) + 0.010:
+        l = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        if mark(r, g, b, l):
             marked.append((key, i, cov, t, p3.x, p3.z))
-        else:
-            tiles.setdefault(t, []).append((0.2126 * r + 0.7152 * g + 0.0722 * b, r, g, b))
+        elif l >= pool_min and (i >> 2) % 3 == 0:
+            # EVERY THIRD TEXEL IS ENOUGH FOR A MEDIAN, and a third of the memory: the 172's side pass
+            # pooled 4.6 million of them, which is hundreds of megabytes of tuples on their own.
+            tiles.setdefault(t, []).append((l, r, g, b))
 
     zc = (z0 + z1) * 0.5
     ds = []
-    for n, v, size, o, dep in (((0, 1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach),
-                               ((0, -1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach),
-                               ((0, 0, 1), (1, 0, 0), (reach * 2, x1 - x0), (0, 0, z1), 0.62)):
+    sides = [((0, 1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach),
+             ((0, -1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach)]
+    if top:
+        sides.append(((0, 0, 1), (1, 0, 0), (reach * 2, x1 - x0), (0, 0, z1), 0.62))
+    for n, v, size, o, dep in sides:
         d = Decal(solid_stamp(), ((x0 + x1) * 0.5, o[1], o[2]), v, size, n, (1, 1, 1), depth=dep)
         d.apply = look
         ds.append(d)
     buffers, sizes = paint(objs, ds)
     if not marked:
-        print("LIVERY   %s: no paint of that hue under it" % name)
+        print("LIVERY   %s: nothing of that description under it" % name)
         return
     pooled = sorted(v for vs in tiles.values() for v in vs)
     gmed = pooled[len(pooled) // 2] if pooled else (0.86, 0.86, 0.86, 0.87)
     box = [1e9, -1e9, 1e9, -1e9]
+    kept = 0
     for key, i, cov, t, wx, wz in marked:
+        if guard is not None:
+            buf, W = buffers[key], sizes[key][0]
+            edge = False
+            for d in (-4, 4, -4 * W, 4 * W):
+                j = i + d
+                if 0 <= j < len(buf) - 3 and 0.2126 * buf[j] + 0.7152 * buf[j+1] + 0.0722 * buf[j+2] < guard:
+                    edge = True
+                    break
+            if edge:
+                kept += 1
+                continue
         pool = []
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
@@ -642,8 +702,8 @@ def strip_paint(objs, x0, x1, name, z0=-0.55, z1=0.78, hue=0.10, reach=1.3, tile
         box[0], box[1] = min(box[0], wx), max(box[1], wx)
         box[2], box[3] = min(box[2], wz), max(box[3], wz)
     flush(buffers, sizes)
-    print("LIVERY   %s: %d texels of paint taken back to the skin (%d skin texels, %d tiles)"
-          % (name, len(marked), len(pooled), len(tiles)))
+    print("LIVERY   %s: %d texels of paint taken back to the skin (%d skin texels, %d tiles, %d left as "
+          "edges)" % (name, len(marked) - kept, len(pooled), len(tiles), kept))
     print("LIVERY   %s: changed x %.2f..%.2f  z %.2f..%.2f" % (name, box[0], box[1], box[2], box[3]))
 
 
@@ -1462,6 +1522,25 @@ def cessna(objs, L, H):
     # door post is the cowl scheme, and that comes off. The floor at z -0.55 leaves the undercarriage
     # legs and the wheel fairings in their own colour, which is where a 172 wears dark anyway.
     strip_paint(objs, 0.30, 4.10, "nose paint")
+    # AND THE GREY THE ARTIST BRUSHED ON. With the cowl's blue gone the owner's eye went to what was
+    # left: "a blotch on the side near the front of the door and a faint streak along the side". Both
+    # are neutral, so paint_hue() cannot see them, and the streak is wider than a pool of tiles, so
+    # scrub() would move only its edges. The ceiling at z 0.24 keeps the cabin glazing out of it.
+    strip_paint(objs, -2.60, 3.10, "side shading", mark=painted_shade, z0=-0.62, z1=0.24, top=False,
+                guard=0.55)
+    # AND ONE RECTANGLE NEITHER PASS CAN SEE. There is a dark panel painted on the side by the door --
+    # the side map puts it at x 1.5..1.9, z -0.25..-0.05 -- and it reads 0.30, which is exactly what the
+    # window frames and the door seals read. painted_shade() must leave that value alone or the frames go
+    # with it, and strip_paint() is the wrong tool anyway. It IS a marking, and a marking is a minority
+    # inside a tile, which is what scrub() is for: it goes back to the median of the skin around it.
+    # THE "RECTANGLE BY THE DOOR" AND THE SKIRT ROUND THE BAND WERE THE SAME BUG, and it was mine, not
+    # the model's. Both were made by this pass: a lifted texel was put back to the median of its tile,
+    # and the median was pooled over everything unmarked -- so a tile straddling the band or a window
+    # frame took its median from THAT and "restored" the skin beside it to grey, in tile-shaped blocks.
+    # pool_min fixed both. Two passes aimed at the rectangle itself are worth recording as dead ends:
+    # scrub() found 399834 texels under it and moved none (its median is the mark, as on the cowl), and
+    # a band-pass with a floor below 0.30 found nothing of that description -- because by then there was
+    # nothing there.
     text, badge, pod = text_stamp("TALK FLYING"), badge_stamp(), podcast_stamp()
     decals = []
     # the centre badge first, because the words have to fit in what is left: from its wingtip out to

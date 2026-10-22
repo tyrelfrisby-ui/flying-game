@@ -28,11 +28,19 @@ TMP = "/private/tmp/aero-ep4"
 BANK = float(os.environ.get("BANK", "40"))        # the thermal circle, degrees (right-hand: core to the right)
 KIAS = float(os.environ.get("KIAS", "56"))        # the circling speed; min sink x sqrt(1/cos bank)
 SLOW_TO = float(os.environ.get("SLOW_TO", "0.62"))  # fraction of it to fly down to before the wing lets go
+# WHICH WAY IT DEPARTS. "slip" is Ty's 2026-10-22 ask: too much TOP rudder in the circle, crossed against
+# the aileron that is holding the bank, so the aeroplane slips and the departure goes OVER THE TOP -- the
+# outside wing stalls first and it rolls AWAY from the turn. "skid" is the other classic and what this
+# shot flew before: bottom rudder, the nose slewing inside, and the inside wing letting go first so it
+# rolls INTO the turn. Same stick, same stall; opposite pedal and opposite departure.
+ENTRY = os.environ.get("ENTRY", "slip")
+PRO = -1.0 if ENTRY == "slip" else 1.0        # the pro-spin pedal, as a sign on a right-hand circle
 ZOOM = float(os.environ.get("ZOOM", "1.30"))
 CLIMB_KT = float(os.environ.get("CLIMB_KT", "8"))   # thermal core
 CORE_M = float(os.environ.get("CORE_M", "150"))     # tight
 AGL_FT = float(os.environ.get("AGL_FT", "5000"))    # the spin's room: it loses ~750 ft a turn
-SPIN_S = float(os.environ.get("SPIN_S", "14"))
+SPIN_S = float(os.environ.get("SPIN_S", "14"))      # held pro-spin: the Swift turns in ~5 s, so this is 2+
+RECOVER_S = float(os.environ.get("RECOVER_S", "14"))
 SLOW_S = float(os.environ.get("SLOW_S", "8"))
 ENTRY_S = float(os.environ.get("ENTRY_S", "8"))
 HIST_HZ = 30.0
@@ -84,16 +92,27 @@ def settle(w, bank, kias, agl_ft, limit=120):
     print(f"  [AP {ap.get('fma')}]")
     if not ap["on"]:
         raise RuntimeError(f"autopilot refused to engage: {ap}")
+    # WHAT MATTERS IS THAT THE CIRCLE IS STEADY, NOT THAT IT IS AT THE NUMBER. The widget's bank hold
+    # sits a few degrees steep in a thermal turn -- commanded 40 it settled at a rock-steady 45 and this
+    # loop rejected it for 120 s and threw. A steady 45 is a better circle to hand over than a wobbling
+    # 40, and the caller takes the bank it is actually given (see main).
     t0 = time.time()
-    steady = 0
+    steady, prev = 0, None
     while time.time() - t0 < limit:
         time.sleep(1.0)
         st = w.cmd(cmd="state")
-        if abs(st["roll"] - bank) < 4 and abs(st["kias"] - kias) < 4:
+        at_bank = abs(st["roll"] - bank) < 4
+        at_speed = abs(st["kias"] - kias) < 4
+        held_bank = prev and abs(st["roll"] - prev[0]) < 1.0 and 20 < abs(st["roll"]) < 60
+        held_speed = prev and abs(st["kias"] - prev[1]) < 1.0 and abs(st["kias"] - kias) < 12
+        prev = (st["roll"], st["kias"])
+        if (at_bank or held_bank) and (at_speed or held_speed):
             steady += 1
             if steady >= 6:
                 break
         else:
+            if steady:
+                print(f"  [settling: {st['roll']:.0f} deg, {st['kias']:.0f} KIAS]")
             steady = 0
     else:
         raise RuntimeError(f"the circle never settled: {st['roll']:.0f} deg bank, {st['kias']:.0f} KIAS")
@@ -190,9 +209,11 @@ def main():
 
     # ---- setup (not recorded) ------------------------------------------------------------------
     st = f.state()
-    print(f"start: {st['kias']:.0f} KIAS, {st['heightFt']:.0f} ft")
+    print(f"start: {st['kias']:.0f} KIAS, {st['heightFt']:.0f} ft   entry: {ENTRY} "
+          f"({'top rudder, over the top' if PRO < 0 else 'bottom rudder, into the turn'})")
     st = settle(w, BANK, KIAS, AGL_FT)
-    print(f"circling: {st['roll']:.0f} deg bank, {st['kias']:.0f} KIAS, {st['heightFt']:.0f} ft, "
+    bank = round(st["roll"], 1)        # the circle the autopilot actually left, which is what gets flown
+    print(f"circling: {bank:.0f} deg bank (asked {BANK:.0f}), {st['kias']:.0f} KIAS, {st['heightFt']:.0f} ft, "
           f"alpha {st['alpha']:.1f}, {-st['sinkFpm']:+.0f} fpm")
     # The thermal is centred on the circle the aeroplane is turning NOW, so it goes on once the turn is established.
     w.cmd(cmd="thermal", on=True, climbKt=CLIMB_KT, radiusM=CORE_M)
@@ -201,10 +222,10 @@ def main():
     # The handover is the loose joint in this: left at a fixed 6 s it sometimes started the recording 15 kt fast,
     # and a fast entry is what turns the departure into a tumble.
     def steady(s):
-        return abs(s["kias"] - KIAS) < 4 and abs(s["roll"] - BANK) < 4 and abs(s["sinkFpm"]) < 900
-    for attempt in range(4):
+        return abs(s["kias"] - KIAS) < 4 and abs(s["roll"] - bank) < 5 and abs(s["sinkFpm"]) < 900
+    for attempt in range(6):
         f.fly(8, lambda st, t, dt: dict(
-            elevator=p.hold_g(st, bank_g(st, KIAS), dt), aileron=p.hold_bank(st, BANK, dt),
+            elevator=p.hold_g(st, bank_g(st, KIAS), dt), aileron=p.hold_bank(st, bank, dt),
             rudder=p.coordinate(st, dt), throttle=-1.0), "settle")
         if steady(f.state()):
             break
@@ -223,12 +244,14 @@ def main():
     print("thermal ...")
     m.mark("thermal")
     f.fly(4, lambda st, t, dt: dict(
-        elevator=p.hold_g(st, bank_g(st, KIAS), dt), aileron=p.hold_bank(st, BANK, dt),
+        elevator=p.hold_g(st, bank_g(st, KIAS), dt), aileron=p.hold_bank(st, bank, dt),
         rudder=p.coordinate(st, dt), throttle=-1.0), "thermal")
 
-    # ---- 2. slowing in the circle, with too much inside rudder ----------------------------------
-    # Inside = the bottom pedal = RIGHT in a right-hand circle. It goes in as the circle slows, and stays in:
-    # that is the mistake being filmed.
+    # ---- 2. slowing in the circle, with too much rudder one way or the other --------------------
+    # The pedal goes in as the circle slows and stays in: that is the mistake being filmed. Which pedal
+    # is ENTRY (see PRO): bottom rudder skids the nose inside and the inside wing lets go; top rudder
+    # slips it and the departure goes over the top. The aileron keeps holding the bank either way, so
+    # the controls are crossed -- which is what makes it a slip rather than a gentle roll-out.
     print("slowing ...")
     m.mark("slow")
     st = f.state()
@@ -237,9 +260,9 @@ def main():
 
     def slow(st, t, dt):
         vcmd[0] = max(floor, vcmd[0] - dt * (KIAS - floor) / 8.0)
-        inside = clamp((st["alpha"] - 7.5) / 3.5, 0.0, 1.0)
-        return dict(elevator=p.hold_g(st, bank_g(st, vcmd[0]), dt), aileron=p.hold_bank(st, BANK, dt),
-                    rudder=clamp(p.coordinate(st, dt) + inside, -1, 1), throttle=-1.0)
+        pedal = clamp((st["alpha"] - 7.5) / 3.5, 0.0, 1.0) * PRO
+        return dict(elevator=p.hold_g(st, bank_g(st, vcmd[0]), dt), aileron=p.hold_bank(st, bank, dt),
+                    rudder=clamp(p.coordinate(st, dt) + pedal, -1, 1), throttle=-1.0)
     f.fly(SLOW_S, slow, "slow", stop=lambda s: s["alpha"] > 13.0)
     st = f.state()
     print(f"  slowed to {st['kias']:.0f} KIAS, alpha {st['alpha']:.1f}, bank {st['roll']:.0f}, {st['heightFt']:.0f} ft")
@@ -256,8 +279,8 @@ def main():
     def entry(st, t, dt):
         ramp = min(1.0, t / 3.0)
         return dict(elevator=ele0[0] + ramp * (-1.0 - ele0[0]),
-                    aileron=p.hold_bank(st, BANK, dt) * (1.0 - ramp),
-                    rudder=1.0, throttle=-1.0)
+                    aileron=p.hold_bank(st, bank, dt) * (1.0 - ramp),
+                    rudder=PRO, throttle=-1.0)
     f.fly(ENTRY_S, entry, "entry", stop=lambda s: s["alpha"] > 18.0)
     st = f.state()
     print(f"  let go at {st['kias']:.0f} KIAS, alpha {st['alpha']:.1f}, bank {st['roll']:.0f}, {st['heightFt']:.0f} ft")
@@ -265,9 +288,45 @@ def main():
     # ---- 4. the spin: pro-spin controls held, nothing else -------------------------------------
     print("spinning ...")
     m.mark("spin")
-    f.fly(SPIN_S, lambda st, t, dt: dict(elevator=-1.0, aileron=0.0, rudder=1.0, throttle=-1.0), "spin")
+    f.fly(SPIN_S, lambda st, t, dt: dict(elevator=-1.0, aileron=0.0, rudder=PRO, throttle=-1.0), "spin")
     st = f.state()
     print(f"  after {SPIN_S:.0f} s: alpha {st['alpha']:.0f}, pitch {st['pitch']:.0f}, {st['kias']:.0f} KIAS, {st['heightFt']:.0f} ft")
+
+    # ---- 5. the recovery (recorded) -------------------------------------------------------------
+    # Standard, and flown like one: ailerons neutral, FULL OPPOSITE RUDDER, then the stick moved forward
+    # to unstall the wing -- in that order and not together. Neither comes out until the rotation has
+    # actually STOPPED, which the yaw rate says and a stopwatch does not: a spin that is nearly stopped
+    # and one that has stopped look the same for about a second. Then the rudder is centralised and the
+    # aeroplane is flown out of the dive on an ANGLE OF ATTACK command, which is how a pull-out is
+    # really flown -- pull to just under the buffet, not to a number of g, or the second stall is yours.
+    print("recovery ...")
+    m.mark("recovery")
+    p.reset()
+    p.seed_elevator(-1.0)
+    stopped = [None]
+
+    def recover(st, t, dt):
+        if stopped[0] is None:
+            if abs(st["yawRate"]) < 30 and st["alpha"] < 11 and t > 1.0:
+                stopped[0] = t
+                print(f"  rotation stopped {t:.1f} s in: {st['kias']:.0f} KIAS, alpha {st['alpha']:.0f}, "
+                      f"pitch {st['pitch']:.0f}, {st['heightFt']:.0f} ft")
+                p.reset()
+                p.seed_elevator(st["controls"]["elevator"])
+            else:
+                # the rudder first, the stick forward a beat behind it
+                return dict(elevator=clamp(-1.0 + 1.6 * min(1.0, max(0.0, (t - 0.5) / 1.2)), -1.0, 0.35),
+                            aileron=0.0, rudder=-PRO, throttle=-1.0)
+        if st["pitch"] < -6.0:
+            return dict(elevator=p.hold_alpha(st, 8.0, dt), aileron=p.hold_bank(st, 0.0, dt),
+                        rudder=p.coordinate(st, dt), throttle=-1.0)
+        return dict(elevator=p.hold_pitch(st, 0.0, dt), aileron=p.hold_bank(st, 0.0, dt),
+                    rudder=p.coordinate(st, dt), throttle=-1.0)
+
+    f.fly(RECOVER_S, recover, "recovery")
+    st = f.state()
+    print(f"  recovered: {st['kias']:.0f} KIAS, pitch {st['pitch']:.0f}, bank {st['roll']:.0f}, "
+          f"{st['heightFt']:.0f} ft, {st['loadFactor']:.2f} g")
 
     mov, mp4, csv, rows = render(w, m, NAME)
     turns = 0.0
@@ -278,7 +337,19 @@ def main():
             turns += d / 360.0
         prev = s["heading"]
     print(f"\n{mov}\n{mp4}\n{csv}")
-    print(f"  {len(rows)} frames = {len(rows)/30:.1f} s, net heading change {turns:+.2f} turns")
+    spun = 0.0
+    prev = None
+    for _, s_, ph in rows:
+        if ph == "spin":
+            if prev is not None:
+                spun += (((s_["heading"] - prev + 540) % 360) - 180) / 360.0
+            prev = s_["heading"]
+        else:
+            prev = None
+    print(f"  {len(rows)} frames = {len(rows)/30:.1f} s, net heading change {turns:+.2f} turns, "
+          f"{abs(spun):.2f} of them in the spin itself")
+    if abs(spun) < 2.0:
+        print(f"  [WARNING: only {abs(spun):.2f} turns of spin -- re-fly with a longer SPIN_S]")
     f.write_csv(os.path.join(OUT, f"{NAME}-flown.csv"))
 
 

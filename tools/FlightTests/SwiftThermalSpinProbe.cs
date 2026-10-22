@@ -104,6 +104,15 @@ public class SwiftThermalSpinProbe
     [InlineData("glider-swift-s1-like", true, false)]
     [InlineData("glider-swift-s1-like", false, true)]
     [InlineData("glider-swift-s1-like", true, true)]
+    // The same four for the 2-33 (Ty, 2026-10-22: he wants the spin shot flown in the branded Schweizer).
+    // As shipped it will not hold one -- the widget's own recipe leaves it stalled 39 % of the time at a
+    // mean alpha of 8 against a 16.5 deg stall, which is a spiral, not autorotation. The real 2-33A is
+    // placarded for spins, so the question these rows answer is WHICH gap: it has no spinAero table at
+    // all, where the Swift carries the published TR-379 monoplane one.
+    [InlineData("glider-2-33-like", false, false)]
+    [InlineData("glider-2-33-like", true, false)]
+    [InlineData("glider-2-33-like", false, true)]
+    [InlineData("glider-2-33-like", true, true)]
     public void WhichGapStopsTheSpin(string id, bool rotary, bool aerobaticElevator)
     {
         if (System.Environment.GetEnvironmentVariable("SWIFT_SPIN") == null) return;
