@@ -32,6 +32,7 @@ the logo is the project's own PNG.
 """
 import bpy, bmesh, os, sys, math, shutil
 from mathutils import Vector, Matrix
+from mathutils.bvhtree import BVHTree
 
 REPO = "/Users/tyfrisby/Documents/flying-game"
 OUT = os.path.join(REPO, "build/talkflying")
@@ -50,6 +51,42 @@ SILVER = (0.760, 0.775, 0.800)
 # stamps: a wordmark or the logo as an RGBA image, rendered once and reused
 # =============================================================================================================
 _stamps = {}
+_font = []
+
+# The wordmark in talk-flying-logo.png is a high-contrast engraved serif: thick stems, hairline crossbars,
+# sharp flared serifs. Bodoni is that face; Didot is the same idea with finer hairlines, and the rest are
+# only here so a machine without them still produces something.
+FONTS = ["/System/Library/Fonts/Supplemental/Bodoni 72.ttc",
+         "/System/Library/Fonts/Supplemental/Didot.ttc",
+         "/System/Library/Fonts/Supplemental/Baskerville.ttc",
+         "/System/Library/Fonts/Supplemental/Times New Roman Bold.ttf"]
+
+
+def brand_font():
+    """The logo's typeface, re-fetched every time.
+
+    Caching the datablock does not survive: text_stamp makes a scene per word and deletes it afterwards,
+    and Blender then garbage-collects the font along with the last object using it. The second word came
+    back as "StructRNA of type VectorFont has been removed". Keep the NAME, not the pointer.
+    """
+    if _font and _font[0] in bpy.data.fonts:
+        return bpy.data.fonts[_font[0]]
+    for path in FONTS:
+        if not os.path.exists(path):
+            continue
+        try:
+            f = bpy.data.fonts.load(path)
+        except RuntimeError:
+            continue
+        f.use_fake_user = True          # nothing else references it between words
+        if not _font:
+            print("LIVERY   font: %s" % os.path.basename(path))
+        _font[:] = [f.name]
+        return f
+    if not _font:
+        print("LIVERY   font: none of the brand faces are installed; using Blender's own")
+        _font[:] = [None]
+    return None
 
 
 def text_stamp(text, slant=0.0, width=1024, bold=True):
@@ -65,9 +102,14 @@ def text_stamp(text, slant=0.0, width=1024, bold=True):
     cu.align_x = 'CENTER'
     cu.align_y = 'CENTER'
     cu.shear = slant
+    f = brand_font()
+    if f is not None:
+        cu.font = f
     if bold:
-        cu.bevel_depth = 0.012          # fattens the strokes; the mark is a heavy sans
-        cu.resolution_u = 3
+        # a whisker of bevel, not the 0.012 a sans wanted: on a high-contrast serif that much fills the
+        # hairlines in and throws away the very thing that makes the face recognisable
+        cu.bevel_depth = 0.004
+        cu.resolution_u = 4
     ob = bpy.data.objects.new("T", cu)
     sc.collection.objects.link(ob)
     bpy.context.view_layer.update()
@@ -114,9 +156,15 @@ def text_stamp(text, slant=0.0, width=1024, bold=True):
 
 
 def solid_stamp():
-    """Full coverage everywhere: a plain rectangle of paint, for covering somebody else's titles."""
+    """Full coverage everywhere: a plain rectangle of paint, for covering somebody else's titles.
+
+    16 texels square rather than 2: with CLIP wrapping and linear filtering, a 2 x 2 image fades to
+    transparent across its whole width, so the plate came out as a soft smudge that covered the middle of
+    the stock titles and nothing else. Any size works once the sampling is nearest-neighbour, but a few
+    texels of margin costs nothing and removes the question.
+    """
     if "solid" not in _stamps:
-        _stamps["solid"] = ([1.0, 1.0, 1.0, 1.0] * 4, 2, 2)
+        _stamps["solid"] = ([1.0, 1.0, 1.0, 1.0] * 256, 16, 16)
     return _stamps["solid"]
 
 
@@ -126,6 +174,27 @@ def logo_stamp():
         _stamps["logo"] = (list(img.pixels), img.size[0], img.size[1])
         bpy.data.images.remove(img)
     return _stamps["logo"]
+
+
+def crop_stamp(stamp, x0, x1, y0, y1, key):
+    """A rectangle cut out of a bigger stamp -- here, the winged-headset badge out of the full lockup,
+    which also carries the wordmark and PODCAST underneath it."""
+    if key in _stamps:
+        return _stamps[key]
+    px, w, h = stamp
+    a, b = int(x0 * w), int(x1 * w)
+    c, d = int(y0 * h), int(y1 * h)
+    out = []
+    for y in range(c, d):
+        row = (y * w + a) * 4
+        out += px[row:row + (b - a) * 4]
+    _stamps[key] = (out, b - a, d - c)
+    return _stamps[key]
+
+
+def badge_stamp():
+    """The wings-and-headset emblem on its own, without the words."""
+    return crop_stamp(logo_stamp(), 0.055, 0.945, 0.535, 0.790, "badge")
 
 
 def sample(stamp, u, v):
@@ -141,6 +210,29 @@ def sample(stamp, u, v):
     r, g, b, a = px[i], px[i + 1], px[i + 2], px[i + 3]
     cov = max(a, 0.2126 * r + 0.7152 * g + 0.0722 * b)
     return (r, g, b, cov)
+
+
+def fit(stamp, height, max_width=None):
+    """A decal rectangle sized from the stamp's OWN aspect, so the letters are never stretched.
+
+    Giving every word the same rectangle is what made TALK and FLYING different sizes on the Super Cub:
+    four letters and six letters pulled to the same width come out with different glyph widths and
+    different apparent stroke weight, which reads as two fonts. Fix the HEIGHT and let the width follow.
+    """
+    _, w, h = stamp
+    a = w / float(h)
+    if max_width and a * height > max_width:
+        height = max_width / a
+    return (a * height, height)
+
+
+def common_height(stamps, height, max_width):
+    """One height that fits ALL of these words inside max_width -- so a pair of words on two wings are the
+    same size as each other, which is the whole point of a banner."""
+    for st in stamps:
+        a = st[1] / float(st[2])
+        height = min(height, max_width / a)
+    return height
 
 
 # =============================================================================================================
@@ -291,54 +383,108 @@ def _stamp_image(stamp, name, colour):
     return img
 
 
-def geo_decal(objs, d, name, lift=0.009):
-    """Lay the mark on a copy of the model's own skin, lifted 9 mm.
+_bvh_cache = {}
+
+
+def surface_tree(objs):
+    """One BVH of the whole aeroplane, built from the vertices themselves.
+
+    Not Object.ray_cast and not Scene.ray_cast: both go through evaluated geometry from the depsgraph, and
+    this tool rewrites meshes in place (load_canonical bakes the transform into the vertices), so the
+    depsgraph holds the aeroplane as it was before it was turned round. Every ray missed and the mark
+    silently went nowhere. BVHTree.FromPolygons takes the data as it is now and has no opinion about it.
+    """
+    key = tuple(sorted(o.name for o in objs))
+    if key in _bvh_cache:
+        return _bvh_cache[key]
+    verts, polys = [], []
+    for ob in objs:
+        base = len(verts)
+        mw = ob.matrix_world
+        verts += [mw @ v.co for v in ob.data.vertices]
+        for poly in ob.data.polygons:
+            idx = [base + i for i in poly.vertices]
+            for t in range(1, len(idx) - 1):
+                polys.append((idx[0], idx[t], idx[t + 1]))
+    tree = BVHTree.FromPolygons(verts, polys)
+    _bvh_cache[key] = tree
+    print("LIVERY   surface: %d triangles" % len(polys))
+    return tree
+
+
+def plate(objs, origin, vdir, size, facing, colour, depth, name, lift=0.006):
+    """A patch of plain paint laid on the skin, to cover markings that came with the model.
+
+    Covering beats erasing here. Painting over them in the texture needs to know which texels they occupy,
+    and on a model whose two sides share their UVs there is no answer that is right for both. A plate is
+    the model's own surface in the livery's own colour: it hides whatever is under it, follows the curve,
+    and needs to know nothing about anybody's UV layout.
+    """
+    return geo_decal(objs, Decal(solid_stamp(), origin, vdir, size, facing, colour, depth=depth),
+                     name, lift=lift)
+
+
+def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
+    """Lay the mark on the model's skin, found BY RAY-CASTING a grid of the MARK'S OWN resolution onto it.
 
     WHY NOT PAINT IT INTO THE TEXTURE. A downloaded model's UV layout belongs to whoever made it, and on
     the 172 the two sides of the fuselage SHARE THEIR TEXELS -- paint the registration on the right and it
     appears mirrored on the left, because it is literally the same pixels. The information to tell the two
     sides apart is not in the file.
 
-    So: take the faces the mark covers, push them out along their own vertex normals, and give the copy its
-    own UVs from the decal's projection. It is not a floating quad -- every vertex is the aeroplane's own
-    surface -- so it follows compound curvature exactly and cannot stand off it.
+    WHY NOT COPY THE FACES EITHER. That works on a dense mesh (the Stearman's fin, 162 faces) and fails
+    completely on a coarse one: the 172's fuselage side is about a dozen triangles far bigger than the
+    mark, so the patch came out as the whole aft fuselage with the mark lost inside one of them.
 
-    KNOWN LIMIT. This works on a mesh whose faces are smaller than the mark (the Stearman's fin, 162 faces)
-    and not on one whose faces are much bigger (the 172's fuselage side is about a dozen triangles, and the
-    mark ends up as a sliver of one of them). Ray-casting a grid of the mark's own resolution onto the skin
-    would fix that and is the right next step; it is written up in the commit rather than half-done here.
+    Casting a grid fixes both. The resolution is the mark's, not the model's, so it reads the same on a
+    300-face aeroplane and a 300,000-face one -- and every vertex of it was measured off the skin, so it
+    follows compound curvature exactly. It is not the floating quad the owner rightly called terrible.
     """
+    tree = surface_tree(objs)
+    reach = max(d.su, d.sv) + d.depth + 1.0
+    grid, hits = [], 0
+    for j in range(nv + 1):
+        row = []
+        for i in range(nu + 1):
+            a, b = i / nu, j / nv
+            base = d.o + d.u * ((a - 0.5) * d.su) + d.v * ((b - 0.5) * d.sv)
+            loc, nor, _, _ = tree.ray_cast(base + d.n * reach, -d.n, reach * 2.2)
+            # EITHER orientation counts. A low-poly fin is a single zero-thickness sheet, so which way
+            # its normal points is an accident of how it was built; what matters is that the surface is
+            # not edge-on and that it is within reach. The first hit coming from outside is the near one.
+            if loc is not None and abs(nor.dot(d.n)) > 0.2 and abs((loc - d.o).dot(d.n)) <= d.depth:
+                row.append((loc + nor.normalized() * lift, a, b))
+                hits += 1
+            else:
+                row.append(None)
+        grid.append(row)
+    if hits < 8:
+        print("LIVERY   %s: nothing under it to stick to" % name)
+        return None
+
     bm = bmesh.new()
     uvl = bm.loops.layers.uv.new("decal")
-    added = 0
-    for ob in objs:
-        me = ob.data
-        mw = ob.matrix_world
-        nrm = mw.to_3x3()
-        for poly in me.polygons:
-            if (nrm @ poly.normal).normalized().dot(d.n) < 0.34:
+    step = max(d.su / nu, d.sv / nv)
+    made = 0
+    for j in range(nv):
+        for i in range(nu):
+            q = (grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i])
+            if any(c is None for c in q):
                 continue
-            ws = [mw @ me.vertices[vi].co for vi in poly.vertices]
-            ab = [d.uv_of(p) for p in ws]
-            # a separating-axis reject, and nothing stricter: asking for a VERTEX inside the rectangle
-            # throws away every face bigger than the mark. The UV clipping decides where the mark ends.
-            if (all(a < 0 for a, _ in ab) or all(a > 1 for a, _ in ab)
-                    or all(b < 0 for _, b in ab) or all(b > 1 for _, b in ab)):
+            # a quad straddling a sharp edge of the model would smear the mark across it
+            if max((q[k][0] - q[(k + 1) % 4][0]).length for k in range(4)) > step * 6:
                 continue
-            vs = []
-            for vi, p in zip(poly.vertices, ws):
-                n = (nrm @ me.vertices[vi].normal).normalized()
-                vs.append(bm.verts.new(p + n * lift))
+            vs = [bm.verts.new(c[0]) for c in q]
             try:
                 f = bm.faces.new(vs)
             except ValueError:
                 continue
-            for loop, (a, b) in zip(f.loops, ab):
-                loop[uvl].uv = (a, b)
-            added += 1
-    if not added:
+            for loop, c in zip(f.loops, q):
+                loop[uvl].uv = (c[1], c[2])
+            made += 1
+    if not made:
         bm.free()
-        print("LIVERY   %s: no surface found to put it on" % name)
+        print("LIVERY   %s: no quad survived" % name)
         return None
     bm.normal_update()
     me = bpy.data.meshes.new(name)
@@ -362,12 +508,13 @@ def geo_decal(objs, d, name, lift=0.009):
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = _stamp_image(d.stamp, name + "Img", d.colour)
     tex.extension = 'CLIP'
+    tex.interpolation = 'Closest'
     nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
     if "Roughness" in bsdf.inputs:
         bsdf.inputs["Roughness"].default_value = 0.45
     me.materials.append(mat)
-    print("LIVERY   %s: %d faces" % (name, added))
+    print("LIVERY   %s: %d quads on the skin (%d of %d rays hit)" % (name, made, hits, (nu + 1) * (nv + 1)))
     return ob
 
 
@@ -456,20 +603,15 @@ def load_canonical(path, true_span):
         print("LIVERY   axes swapped: this one is longer than it is wide")
     k = true_span / size[SP]
 
-    # which end is the nose: the widest body section is forward of the midpoint on everything we fly
+    # WHICH END IS THE NOSE: THE FIN IS AT THE OTHER ONE. The previous test -- the widest body section is
+    # forward of the midpoint -- is true of a light single and meaningless on an airliner, whose fuselage
+    # is the same width for most of its length. It put the 737 round the wrong way, and then everything
+    # placed by the sign of x went on backwards while the printed "nose x" agreed with itself. Nothing on
+    # any aeroplane we fly is taller than its tail.
     lo, hi = mn[LN], mx[LN]
-    band = (hi - lo) / 20.0
-    widest_f, widest = 0.5, -1.0
-    for i in range(21):
-        f = i / 20.0
-        c = lo + (hi - lo) * f
-        sel = sorted(abs(p[SP]) for p in pts if abs(p[LN] - c) <= band and abs(p[SP]) * k < 0.9)
-        if len(sel) < 6:
-            continue
-        w = sel[int(len(sel) * 0.9)]
-        if w > widest:
-            widest, widest_f = w, f
-    sgn = 1.0 if widest_f < 0.5 else -1.0
+    tall = max(pts, key=lambda p: p[HG])
+    tail_at_hi = tall[LN] > (lo + hi) * 0.5
+    sgn = 1.0 if tail_at_hi else -1.0
     # and which way is up: an aeroplane has more of itself above the wing line than below it near the nose
     ctr = (mn + mx) * 0.5
     upper = sum(1 for p in pts if p[HG] > ctr[HG])
@@ -497,8 +639,12 @@ def load_canonical(path, true_span):
     for o in objs:
         o.data.calc_normals_split() if hasattr(o.data, "calc_normals_split") else None
         o.data.calc_loop_triangles()
-    print("LIVERY   canonical: span %.2f  length %.2f  height %.2f" %
-          (size[SP] * k, size[LN] * k, size[HG] * k))
+    bad = [o.name for o in objs if (o.matrix_world - Matrix.Identity(4)).median_scale > 1e-5]
+    if bad:
+        print("LIVERY   WARNING: %d objects still carry a transform (%s ...)" % (bad and len(bad), bad[0]))
+    xs = [v.co.x for o in objs for v in o.data.vertices]
+    print("LIVERY   canonical: span %.2f  length %.2f  height %.2f   nose x=%+.2f  tail x=%+.2f" %
+          (size[SP] * k, size[LN] * k, size[HG] * k, max(xs), min(xs)))
     return objs, size[LN] * k, size[HG] * k
 
 
@@ -567,8 +713,12 @@ def fin_box(objs, L):
     is higher than the bottom of its fin, so the box ran 2.3 m forward onto the fuselage and the mark landed
     behind the cockpit. Find the deck's height just FORWARD of the tail and keep only what stands above it.
     """
-    tol = max(0.10, 0.012 * L)
-    aft = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < tol and v.co.x < -0.20 * L]
+    # NEAR THE CENTRELINE, scaled to the aeroplane. A fixed 0.10 m finds a Cub's fin and misses a 737's,
+    # whose fin is over a metre thick at the root so its skin is nowhere near the centreline except at the
+    # leading and trailing edges. Take a slab a twentieth of the span wide and let the height test below
+    # pick the fin out of it.
+    tol = max(0.12, 0.05 * _halfspan(objs))
+    aft = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < tol and v.co.x < -0.16 * L]
     if len(aft) < 24:
         return None
     # the deck: the top of the body in a slab just ahead of where a fin ever starts
@@ -585,56 +735,96 @@ def fin_box(objs, L):
     if len(up) < 12:
         print("LIVERY   fin: not found (%d aft, %d above the deck)" % (len(aft), len(up)))
         return None
+    # the EXTREMES, not percentiles. On a low-poly model the fin is a handful of quads with vertices only
+    # at its corners, and 3rd/97th percentile clips to whichever cluster is densest -- on the 172 that was
+    # the tip, giving a 0.74 m "fin" at the very back of a 1.5 m one.
     xs = sorted(p.x for p in up)
-    x0, x1 = xs[int(len(xs) * 0.03)], xs[int(len(xs) * 0.97)]
+    x0, x1 = xs[0], xs[-1]
     z0, z1 = cut, max(p.z for p in up)
     print("LIVERY   fin: x %.2f .. %.2f  z %.2f .. %.2f" % (x0, x1, z0, z1))
     return x0, x1, z0, z1
 
 
+LEFT, RIGHT = -1, 1
+
+
+def wing_pair(side, text, badge):
+    """Which mark goes on which surface of which wing.
+
+    The owner's rule: the words above the left wing and the badge above the right, then the opposite
+    underneath -- so whichever wing you are looking at, and from whichever side, you get one of each.
+    """
+    return (text, badge) if side == LEFT else (badge, text)
+
+
+def fin_mark(objs, L, frac_x=0.5, frac_z=0.52, fill=(0.82, 0.76)):
+    """The Talk Flying mark on the vertical tail. Every aeroplane gets one -- it is the one piece of the
+    livery that is the same on all of them, so it lives in one place rather than in four."""
+    fb = fin_box(objs, L)
+    if not fb:
+        print("LIVERY   fin mark: no fin found")
+        return
+    xa, xb, z0, z1 = fb
+    for sd in (1, -1):
+        geo_decal(objs, Decal(logo_stamp(),
+                              ((xa + xb) * 0.5 + (xb - xa) * (frac_x - 0.5), sd * 0.10,
+                               z0 + (z1 - z0) * frac_z),
+                              (0, 0, 1), ((xb - xa) * fill[0], (z1 - z0) * fill[1]),
+                              (0, sd, 0), INK, depth=max(0.35, (xb - xa) * 0.5)),
+                  "Mark.Fin." + ("R" if sd > 0 else "L"))
+
+
 def supercub(objs, L, H):
-    """Banner-tow lettering under the wings, one word each, tops toward the leading edge."""
+    """Banner-tow lettering under the wings, one word each, tops toward the leading edge.
+
+    TALK goes on the aeroplane's LEFT wing and FLYING on its right. That is the opposite of what looks
+    right on paper, and it is right for the only viewer who matters: someone standing underneath sees the
+    aeroplane's left wing on THEIR right, so the reading order flips. The first pass reasoned it out
+    instead of looking, and from the ground it said FLYING TALK.
+    """
     decals = []
-    for side, word in ((1, "TALK"), (-1, "FLYING")):
-        bx = wing_box(objs, side)
-        if bx is None:
-            continue
-        x0, x1 = bx
-        chord = x1 - x0
-        # reading runs -Y so that it reads left to right when you are under it looking up
-        decals.append(Decal(text_stamp(word), (x0 + chord * 0.55, side * 2.9, -0.15),
-                            (1, 0, 0), (3.4, chord * 0.78), (0, 0, -1), INK))
+    boxes = {side: wing_box(objs, side) for side in (1, -1)}
+    if any(b is None for b in boxes.values()):
+        return
+    chord = min(b[1] - b[0] for b in boxes.values())
+    stamps = {w: text_stamp(w) for w in ("TALK", "FLYING")}
+    # one height for both words, so the banner is one size and one weight all the way across
+    h = common_height(stamps.values(), chord * 0.64, 3.9)
+    for side, word in ((-1, "TALK"), (1, "FLYING")):
+        x0, x1 = boxes[side]
+        c = x1 - x0
+        decals.append(Decal(stamps[word], (x0 + c * 0.55, side * 2.9, -0.15),
+                            (1, 0, 0), fit(stamps[word], h), (0, 0, -1), INK))
     paint(objs, decals)
+    fin_mark(objs, L)
 
 
 def cessna(objs, L, H):
-    """White, wordmark top and bottom of both wings, logo on the fin, TALKFLYING for a registration."""
+    """White, words and badge on the wings, the mark on the fin, TALKFLYING for a registration."""
     recolour(objs, lambda r, g, b: whiten(r, g, b, 0.62) if is_neutral(r, g, b)
              else (keep_luma(r, g, b, GRAPHITE) if b > 0.22 and b > r + 0.10 else None))
+    text, badge = text_stamp("TALK FLYING"), badge_stamp()
     decals = []
-    for side in (1, -1):
+    for side in (RIGHT, LEFT):
         bx = wing_box(objs, side)
         if bx is None:
             continue
         x0, x1 = bx
         chord = x1 - x0
-        for z, facing in ((0.30, (0, 0, 1)), (-0.30, (0, 0, -1))):
-            decals.append(Decal(text_stamp("TALK FLYING"), (x0 + chord * 0.5, side * 2.7, z),
-                                (1, 0, 0), (3.6, chord * 0.62), facing, INK))
+        above, below = wing_pair(side, text, badge)
+        for st, z, facing in ((above, 0.30, (0, 0, 1)), (below, -0.30, (0, 0, -1))):
+            h = chord * (0.58 if st is text else 0.46)
+            decals.append(Decal(st, (x0 + chord * 0.5, side * 2.7, z),
+                                (1, 0, 0), fit(st, h, 3.8), facing, INK))
     paint(objs, decals)
     # the fin mark and the registration go on as GEOMETRY: this model's two fuselage sides share their
     # texels, so anything painted into the texture appears mirrored on the far side
-    fb = fin_box(objs, L)
+    fin_mark(objs, L)
     for sd in (1, -1):
-        tag = "R" if sd > 0 else "L"
-        if fb:
-            xa, xb, z0, z1 = fb
-            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, z0 + (z1 - z0) * 0.52),
-                                  (0, 0, 1), ((xb - xa) * 0.80, (z1 - z0) * 0.70), (0, sd, 0), INK),
-                      "Mark.Fin." + tag)
-        geo_decal(objs, Decal(text_stamp("TALKFLYING", slant=0.26), (-L * 0.20, 0.0, 0.02),
-                              (0, 0, 1), (L * 0.30, L * 0.052), (0, sd, 0), INK),
-                  "Mark.Reg." + tag)
+        st = text_stamp("TALKFLYING", slant=0.26)
+        geo_decal(objs, Decal(st, (-L * 0.20, sd * 0.42, 0.02),
+                              (0, 0, 1), fit(st, L * 0.055, L * 0.32), (0, sd, 0), INK, depth=0.55),
+                  "Mark.Reg." + ("R" if sd > 0 else "L"))
 
 
 def biplane_wings(objs, side):
@@ -655,28 +845,27 @@ def biplane_wings(objs, side):
             continue
         x0, x1 = xs[int(len(xs) * 0.02)], xs[int(len(xs) * 0.98)]
         out.append((x0, x1, sum(zz) / len(zz), label))
-        print("LIVERY   %s wing %+d: x %.2f .. %.2f  chord %.2f  z %.2f" % (label, side, x0, x1, x1 - x0, out[-1][2]))
+        print("LIVERY   %s wing %+d: x %.2f .. %.2f  chord %.2f  z %.2f"
+              % (label, side, x0, x1, x1 - x0, out[-1][2]))
     return out
 
 
 def stearman(objs, L, H):
-    """Keeps its blue and yellow. A biplane carries its registration on the TOP of the upper wing and the
-    BOTTOM of the lower one, which is where the wordmark goes, and the mark on the fin."""
+    """Keeps its blue and yellow. A biplane carries its markings on the TOP of the upper wing and the
+    BOTTOM of the lower one, which is where the words and the badge go, and the mark on the fin."""
+    text, badge = text_stamp("TALK FLYING"), badge_stamp()
     decals = []
-    for side in (1, -1):
+    for side in (RIGHT, LEFT):
+        above, below = wing_pair(side, text, badge)
         for x0, x1, zc, label in biplane_wings(objs, side):
             chord = x1 - x0
+            st = above if label == "upper" else below
             facing = (0, 0, 1) if label == "upper" else (0, 0, -1)
-            decals.append(Decal(text_stamp("TALKFLYING"), (x0 + chord * 0.5, side * 2.3, zc),
-                                (1, 0, 0), (2.9, chord * 0.60), facing, INK))
+            h = chord * (0.58 if st is text else 0.46)
+            decals.append(Decal(st, (x0 + chord * 0.5, side * 2.3, zc),
+                                (1, 0, 0), fit(st, h, 3.0), facing, INK))
     paint(objs, decals)
-    fb = fin_box(objs, L)
-    if fb:
-        xa, xb, z0, z1 = fb
-        for sd in (1, -1):
-            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, z0 + (z1 - z0) * 0.5),
-                                  (0, 0, 1), ((xb - xa) * 0.86, (z1 - z0) * 0.80), (0, sd, 0), INK),
-                      "Mark.Fin." + ("R" if sd > 0 else "L"))
+    fin_mark(objs, L)
 
 
 def fuselage_axis(objs, L):
@@ -698,24 +887,32 @@ def seven37(objs, L, H):
     bare metal, which is the 1930s airliner look the owner asked for -- the reverse of the logo."""
     recolour(objs, lambda r, g, b: keep_luma(r, g, b, SILVER, ref=0.45))
     zc, rad = fuselage_axis(objs, L)
-    # The model wears another operator's titles. Lay a panel of bare metal over them before ours goes on --
-    # painted into the texture, which is the one place this model's mirrored UVs help: both sides at once.
-    paint(objs, [Decal(solid_stamp(), (L * 0.26, sd * rad * 0.8, zc + rad * 0.66), (0, 0, 1),
-                       (L * 0.50, rad * 0.95), (0, sd, 0), SILVER, depth=rad * 0.9)
-                 for sd in (1, -1)])
     fb = fin_box(objs, L)
+    for sd in (1, -1):
+        tag = "R" if sd > 0 else "L"
+        # COVER WHAT CAME WITH THE MODEL. It arrives in another operator's colours: titles along the
+        # forward fuselage, a crest behind them, a roundel under the cockpit and a flag on the fin. A
+        # plate of bare metal hides all of it without anyone having to work out which texels it occupies,
+        # which on a model whose two sides share their UVs has no answer that is right for both.
+        plate(objs, (L * 0.30, sd * rad * 0.82, zc + rad * 0.90), (0, 0, 1),
+              (L * 0.56, rad * 1.30), (0, sd, 0), SILVER, rad * 0.95, "Plate.Titles." + tag)
+        plate(objs, (L * 0.445, sd * rad * 0.70, zc + rad * 0.05), (0, 0, 1),
+              (L * 0.12, rad * 0.85), (0, sd, 0), SILVER, rad * 0.95, "Plate.Roundel." + tag)
+        if fb:
+            xa, xb, z0, z1 = fb
+            plate(objs, ((xa + xb) * 0.5, sd * 0.12, z1 - (z1 - z0) * 0.16), (0, 0, 1),
+                  ((xb - xa) * 1.05, (z1 - z0) * 0.42), (0, sd, 0), SILVER, 0.6, "Plate.Flag." + tag)
+    # ... and only then the livery, so it lands on clean metal
     for sd in (1, -1):
         tag = "R" if sd > 0 else "L"
         # the origin sits ON THE SKIN, not on the centreline: the depth limit measures from the decal's
         # own plane, and a 737's skin is 2 m out from its axis
-        geo_decal(objs, Decal(text_stamp("TALK FLYING AIR"), (L * 0.04, sd * rad * 0.8, zc + rad * 0.60),
-                              (0, 0, 1), (L * 0.42, L * 0.044), (0, sd, 0), INK, depth=rad * 0.9),
+        st = text_stamp("TALK FLYING AIR")
+        geo_decal(objs, Decal(st, (L * 0.235, sd * rad * 0.82, zc + rad * 0.56),
+                              (0, 0, 1), fit(st, L * 0.032, L * 0.34), (0, sd, 0), INK, depth=rad * 0.95),
                   "Mark.Title." + tag)
-        if fb:
-            xa, xb, z0, z1 = fb
-            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, sd * 0.12, z0 + (z1 - z0) * 0.55),
-                                  (0, 0, 1), ((xb - xa) * 0.80, (z1 - z0) * 0.70), (0, sd, 0), INK,
-                                  depth=0.5), "Mark.Fin." + tag)
+    # a swept fin is narrower at the top, so the mark sits low and aft where the chord is full
+    fin_mark(objs, L, frac_x=0.34, frac_z=0.26, fill=(0.44, 0.28))
 
 
 PLANES = {
@@ -751,8 +948,11 @@ def render(objs, ident, L, H):
     # length alone put the camera inside the wing
     span = max(abs(v.co.y) for o in objs for v in o.data.vertices) * 2
     size = max(L, H, span, 1.0)
+    # "belly" is STRAIGHT under, not a three-quarter view from below: the Super Cub's banner has to be read
+    # by somebody standing on the ground looking up, and that is the only view that settles which word
+    # comes first. Reasoning about it instead of looking got the order backwards once already.
     for name, d, lens in (("3q", Vector((-1.0, -1.25, 0.40)), 68),
-                          ("belly", Vector((-0.35, -0.30, -1.0)), 60),
+                          ("belly", Vector((0.0, -0.001, -1.0)), 55),
                           ("side", Vector((0.0, -1.0, 0.06)), 80)):
         cam.data.lens = lens
         cam.location = d.normalized() * size * 2.1
