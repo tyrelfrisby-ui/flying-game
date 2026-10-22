@@ -32,7 +32,10 @@ REPO = "/Users/tyfrisby/Documents/flying-game"
 OUT = os.path.join(REPO, "build/models")
 CFG = json.load(open(os.path.join(REPO, "configs/aircraft/glider-2-33-like.json")))
 
-WHITE = (0.880, 0.885, 0.895, 1.0)
+# Schweizer yellow, off the three-view the owner sent on 2026-10-22. Written as LINEAR values
+# because that is what a Principled BSDF's Base Color takes: sRGB (0.98, 0.76, 0.03) through
+# the sRGB transfer curve. Set the sRGB numbers straight into the socket and it renders pale.
+YELLOW = (0.955, 0.538, 0.002, 1.0)
 TRIM = (0.247, 0.263, 0.298, 1.0)        # graphite, the same the liveries are trimmed in
 GLASS = (0.42, 0.50, 0.56, 1.0)
 RUBBER = (0.055, 0.058, 0.062, 1.0)
@@ -73,40 +76,34 @@ def chord_at(y):
     return pts[0][1]
 
 
-LE_X = WING_QC + 0.25 * chord_at(0.0)      # the leading edge is straight; the trailing edge does the taper
+ROOT_LE = WING_QC + 0.25 * chord_at(0.0)   # the root's leading edge; outboard it rakes, see wing_xle()
 DIHEDRAL = WING["strips"][0]["dihedralRad"]
 
 
 # -------------------------------------------------------------------------------------------------------
 # sections
 # -------------------------------------------------------------------------------------------------------
-def clark_y(n=26):
-    """A Clark-Y-like section: 11.7 % thick, cambered, and FLAT UNDERNEATH aft of a third of the chord,
-    which is the whole point of a Clark Y and what a 2-33's wing looks like end-on. Points run from the
-    trailing edge over the top to the leading edge and back under -- the order a closed loop wants."""
+def clark(u, upper):
+    """A Clark-Y-like ordinate at chord fraction u: 11.7 % thick, cambered, and FLAT UNDERNEATH aft of a
+    third of the chord, which is the whole point of a Clark Y and what a 2-33's wing looks like end-on.
+
+    x IS NOT PERTURBED by the surface slope here, the way an exact offset section would do it, because
+    then a cut at a chord fraction is a cut at a PLANE -- and a hinge line is a plane. The difference is
+    under a millimetre on this wing and it is what lets the aileron be truncated instead of squashed.
+    """
     m, p, t = 0.035, 0.42, 0.117
-
-    def camber(x):
-        if x < p:
-            return m / p ** 2 * (2 * p * x - x * x), 2 * m / p ** 2 * (p - x)
-        return m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * x - x * x), 2 * m / (1 - p) ** 2 * (p - x)
-
-    def half(x):
-        return 5 * t * (0.2969 * math.sqrt(x) - 0.1260 * x - 0.3516 * x ** 2 + 0.2843 * x ** 3
-                        - 0.1036 * x ** 4)
-
-    top, bot = [], []
-    for i in range(n + 1):
-        x = 0.5 * (1 - math.cos(math.pi * i / n))              # cosine spacing, tight at the nose
-        yc, dy = camber(x)
-        th = math.atan(dy)
-        yt = half(x)
-        top.append((x - yt * math.sin(th), yc + yt * math.cos(th)))
-        lo = yc - yt * math.cos(th)
-        if x > 0.30:
-            lo = max(lo, 0.0)                                   # the flat bottom
-        bot.append((x + yt * math.sin(th), lo))
-    return list(reversed(top)) + bot[1:-1]
+    u = min(max(u, 0.0), 1.0)
+    if u < p:
+        yc = m / p ** 2 * (2 * p * u - u * u)
+    else:
+        yc = m / (1 - p) ** 2 * ((1 - 2 * p) + 2 * p * u - u * u)
+    # a finite trailing edge, because a fabric-over-ribs wing has a bent sheet back there and because two
+    # surfaces that meet exactly would bridge into a strip of zero-area faces
+    yt = 5 * t * (0.2969 * math.sqrt(u) - 0.1260 * u - 0.3516 * u ** 2 + 0.2843 * u ** 3
+                  - 0.1036 * u ** 4) + 0.0035 * u
+    if upper:
+        return yc + yt
+    return max(yc - yt, 0.0) if u > 0.30 else yc - yt
 
 
 def naca00(t=0.10, n=18):
@@ -120,7 +117,6 @@ def naca00(t=0.10, n=18):
     return list(reversed(top)) + bot[1:-1]
 
 
-CLARK = clark_y()
 SYM = naca00()
 
 
@@ -175,7 +171,7 @@ def grid_mesh(name, rows):
     return ob
 
 
-def paint(ob, rgba, rough=0.45):
+def paint(ob, rgba, rough=0.58):          # doped fabric over ribs is matt, not a waxed glass ship
     mat = bpy.data.materials.new(ob.name + "Mat")
     mat.use_nodes = True
     b = mat.node_tree.nodes["Principled BSDF"]
@@ -247,7 +243,7 @@ def body_loop(x, hw, zb, zt, square=0.72):
 
 def build_body():
     loops = [body_loop(x, hw, zb, zt) for x, hw, zb, zt in STATIONS]
-    return smooth(paint(mesh_from_loops("Fuselage", loops), WHITE))
+    return smooth(paint(mesh_from_loops("Fuselage", loops), YELLOW))
 
 
 def build_canopy():
@@ -285,48 +281,79 @@ def build_wing_root():
     """The short fairing between the cabin roof and the wing's underside -- the cabane a 2-33's wing sits
     on. Without it the wing floats a hand's breadth above the fuselage in any side view."""
     loops = []
-    for x in (LE_X + 0.02, LE_X - 0.45, LE_X - 1.00, LE_X - 1.42):
+    for x in (ROOT_LE + 0.02, ROOT_LE - 0.45, ROOT_LE - 1.00, ROOT_LE - 1.42):
         hw, zb, zt = station(min(x, STATIONS[0][0]))
-        hw = min(hw, 0.33) * (0.72 if x < LE_X - 1.0 else 0.96)
+        hw = min(hw, 0.33) * (0.72 if x < ROOT_LE - 1.0 else 0.96)
         loops.append([(x, hw, zt - 0.06), (x, hw, WING_Z + 0.01),
                       (x, -hw, WING_Z + 0.01), (x, -hw, zt - 0.06)])
-    return smooth(paint(mesh_from_loops("WingRoot", loops), WHITE))
+    return smooth(paint(mesh_from_loops("WingRoot", loops), YELLOW))
 
 
 # -------------------------------------------------------------------------------------------------------
 # flying surfaces
 # -------------------------------------------------------------------------------------------------------
-def wing_loop(side, y, chord_frac=(0.0, 1.0)):
-    """One wing section at station y, as a closed loop in world space."""
+AIL_Y = 5.031      # the aileron starts where the taper does, as it does on the aeroplane
+AIL_U = 0.75       # and takes a quarter of the chord: the config's aileron is 0.250 c at every station
+                   # it exists at, to three decimals, which is why a fixed fraction is the right rule
+
+
+def wing_xle(y):
+    """The leading edge. The config holds the wing's quarter chord at x = 0.10 at EVERY station, so when
+    the chord comes off outboard the leading edge rakes back by a quarter of what is lost and the trailing
+    edge comes forward by three quarters. That is the 2-33's double taper -- a rectangular centre section
+    and a straight-tapered outer panel, exactly the three-view -- and it is what makes the trailing edge
+    and the hinge line come out STRAIGHT.
+
+    The first pass held the leading edge at a fixed x and took the whole taper out of the trailing edge,
+    and cut the aileron at a fraction of the chord starting half a metre inboard of the panel break. That
+    put a kink in the trailing edge at the break and a second one in the hinge, which is what the owner's
+    eye caught: "the trailing edge should be straight and the hinge line should be straight".
+    """
+    return WING_QC + 0.25 * chord_at(y)
+
+
+def wing_section(side, y, u0=0.0, u1=1.0, n=22, shrink=1.0, at_y=None):
+    """A closed section between two chord fractions, SAMPLED along the profile rather than squashed into
+    it. The old version remapped the whole aerofoil into [u0, u1], which gave the wing a short fat section
+    and the aileron a rounded leading edge and the thickness of a whole wing in a quarter of the chord.
+
+    Every section of one object is sampled at the same count, which is what lets them bridge.
+    """
     c = chord_at(y)
+    xle = wing_xle(y)
     z = WING_Z + abs(y) * math.tan(DIHEDRAL)
-    a, b = chord_frac
-    out = []
-    for u, t in CLARK:
-        u = a + u * (b - a)
-        out.append((LE_X - u * c, side * y, z + t * c))
-    return out
+    us = [u0 + (u1 - u0) * 0.5 * (1 - math.cos(math.pi * i / n)) for i in range(n + 1)]
+    ring = [(xle - u * c, side * y, z + clark(u, True) * c) for u in us]
+    ring += [(xle - u * c, side * y, z + clark(u, False) * c) for u in reversed(us)]
+    if u0 <= 1e-9:
+        ring = ring[:-1]                       # the leading edge is one point, not two
+    if shrink != 1.0 or at_y is not None:
+        cx = sum(q[0] for q in ring) / len(ring)
+        cz = sum(q[2] for q in ring) / len(ring)
+        yy = side * (at_y if at_y is not None else y)
+        ring = [(cx + (q[0] - cx) * shrink, yy, cz + (q[2] - cz) * shrink) for q in ring]
+    return ring
 
 
 def build_wing(side):
-    ys = [0.0, 1.0, 2.0, 3.0, 4.0, 4.6, 5.3, 6.0, 6.6, 7.1, 7.45, HALF]
-    loops = [wing_loop(side, y, (0.0, 0.76 if y > 4.6 else 1.0)) for y in ys]
-    # the tip is closed off by a short rounded cap rather than a flat plate
-    tip = wing_loop(side, HALF, (0.0, 0.76))
-    cz = sum(p[2] for p in tip) / len(tip)
-    cx = sum(p[0] for p in tip) / len(tip)
-    loops.append([(cx + (p[0] - cx) * 0.6, side * (HALF + 0.08), cz + (p[2] - cz) * 0.6) for p in tip])
-    ob = smooth(paint(mesh_from_loops("Wing." + ("R" if side > 0 else "L"), loops), WHITE))
-    return ob
+    # two stations at the break, a hair apart: the one inboard carries the full chord and the one outboard
+    # is cut at the hinge, so the loft between them is the aileron's inboard rib
+    ys = [(0.0, 1.0), (1.2, 1.0), (2.4, 1.0), (3.6, 1.0), (4.6, 1.0), (AIL_Y - 0.004, 1.0),
+          (AIL_Y, AIL_U), (5.9, AIL_U), (6.6, AIL_U), (7.15, AIL_U), (7.5, AIL_U), (HALF, AIL_U)]
+    loops = [wing_section(side, y, 0.0, u1) for y, u1 in ys]
+    loops.append(wing_section(side, HALF, 0.0, AIL_U, shrink=0.55, at_y=HALF + 0.06))
+    return smooth(paint(mesh_from_loops("Wing." + ("R" if side > 0 else "L"), loops), YELLOW))
 
 
 def build_aileron(side):
-    """The outboard quarter of the trailing edge, hinged. Its origin sits ON the hinge line so Unity can
-    turn it with a local rotation -- the same rule model_c172.py works to."""
-    ys = [y for y in (4.6, 5.3, 6.0, 6.6, 7.1, 7.45, HALF)]
-    loops = [wing_loop(side, y, (0.76, 1.0)) for y in ys]
-    ob = smooth(paint(mesh_from_loops("Aileron." + ("R" if side > 0 else "L"), loops), WHITE))
-    hinge = Vector((LE_X - 0.76 * chord_at(6.0), side * 6.0, WING_Z + 6.0 * math.tan(DIHEDRAL)))
+    """The outboard quarter of the chord, from the panel break to the tip. Its origin sits ON the hinge
+    line so Unity can turn it with a local rotation -- the same rule model_c172.py works to."""
+    ys = [AIL_Y, 5.9, 6.6, 7.15, 7.5, HALF]
+    loops = [wing_section(side, y, AIL_U, 1.0) for y in ys]
+    loops.append(wing_section(side, HALF, AIL_U, 1.0, shrink=0.70, at_y=HALF + 0.05))
+    ob = smooth(paint(mesh_from_loops("Aileron." + ("R" if side > 0 else "L"), loops), YELLOW))
+    hinge = Vector((wing_xle(6.6) - AIL_U * chord_at(6.6), side * 6.6,
+                    WING_Z + 6.6 * math.tan(DIHEDRAL)))
     off = hinge - ob.location
     for v in ob.data.vertices:
         v.co -= off
@@ -350,7 +377,7 @@ def build_tail_panel(name, x_le, root_c, tip_c, half_span, z0, z1, vertical, thi
             else:
                 loop.append((xl - u * c, half_span * f, z0 + (z1 - z0) * f + t * c))
         loops.append(loop)
-    return smooth(paint(mesh_from_loops(name, loops), WHITE))
+    return smooth(paint(mesh_from_loops(name, loops), YELLOW))
 
 
 def mirror_y(ob, name):
@@ -388,7 +415,7 @@ def strut(name, p0, p1, chord=0.11, thick=0.30):
         for u, t in naca00(thick, 10):
             loop.append(tuple(p + Vector((-(u - 0.25) * chord, 0, 0)) + side * (t * chord)))
         loops.append(loop)
-    return smooth(paint(mesh_from_loops(name, loops), WHITE))
+    return smooth(paint(mesh_from_loops(name, loops), YELLOW))
 
 
 def cyl(name, p0, p1, r, seg=14):
@@ -450,19 +477,19 @@ def main():
     sz = WING_Z + sy * math.tan(DIHEDRAL)
     for side in (1, -1):
         foot = (0.30, side * 0.30, -0.58)
-        head = (LE_X - 0.42 * chord_at(sy), side * sy, sz + 0.012)
+        head = (wing_xle(sy) - 0.42 * chord_at(sy), side * sy, sz + 0.012)
         tag = "R" if side > 0 else "L"
         parts.append(strut("Strut." + tag, foot, head))
         jx = 0.30 + (head[0] - 0.30) * 0.62
         jy = side * (0.30 + (sy - 0.30) * 0.62)
         jz = -0.58 + (head[2] + 0.012 - (-0.58)) * 0.62
         parts.append(strut("Jury." + tag, (jx, jy, jz),
-                           (LE_X - 0.18 * chord_at(abs(jy)), jy,
+                           (wing_xle(abs(jy)) - 0.18 * chord_at(abs(jy)), jy,
                             WING_Z + abs(jy) * math.tan(DIHEDRAL) + 0.01), chord=0.06, thick=0.34))
         # wingtip skid: the config lands this aeroplane on them (gearType tip-skid at y +-7.60)
         ty = side * 7.60
-        parts.append(build_skid("TipSkid." + tag, LE_X - 0.65 * chord_at(7.60) + 0.12,
-                                LE_X - 0.65 * chord_at(7.60) - 0.12,
+        parts.append(build_skid("TipSkid." + tag, wing_xle(7.60) - 0.65 * chord_at(7.60) + 0.12,
+                                wing_xle(7.60) - 0.65 * chord_at(7.60) - 0.12,
                                 WING_Z + 7.60 * math.tan(DIHEDRAL) - 0.05,
                                 WING_Z + 7.60 * math.tan(DIHEDRAL) - 0.05, hw=0.03))
         parts[-1].data.vertices.foreach_set("co", [c for v in parts[-1].data.vertices

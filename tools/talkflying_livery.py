@@ -1638,6 +1638,13 @@ def render(objs, ident, L, H):
     """Three views on a clean background. No sky and no ground -- the podcast widget composites these."""
     sc = bpy.context.scene
     sc.render.engine = 'BLENDER_EEVEE'
+    # AGX IS A FILM EMULATION. It is Blender's default view transform and it rolls saturated colour off
+    # towards cream -- the Schweizer's yellow came out a pale tan, which is not the aeroplane. These are
+    # brand assets: the colour that goes in is the colour that comes out.
+    try:
+        sc.view_settings.view_transform = 'Standard'
+    except TypeError:
+        pass
     sc.render.film_transparent = True
     sc.render.resolution_x, sc.render.resolution_y = 1600, 1000
     sc.render.image_settings.file_format = 'PNG'
@@ -1649,7 +1656,9 @@ def render(objs, ident, L, H):
     w.node_tree.nodes["Background"].inputs[1].default_value = 1.1
     sun = bpy.data.objects.new("S", bpy.data.lights.new("S", type='SUN'))
     bpy.context.collection.objects.link(sun)
-    sun.data.energy = 3.4
+    # 3.4 was set under AgX, which rolls a highlight off gently. Standard clips it, and the top of a
+    # yellow wing went to white paper. 2.4 keeps the shape in the highlight on every one of them.
+    sun.data.energy = 2.4
     sun.data.angle = math.radians(4)
     sun.rotation_euler = (math.radians(52), math.radians(6), math.radians(140))
     cam = bpy.data.objects.new("C", bpy.data.cameras.new("C"))
