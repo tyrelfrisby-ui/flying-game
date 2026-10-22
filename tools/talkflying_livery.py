@@ -198,19 +198,32 @@ def badge_stamp():
     return crop_stamp(logo_stamp(), 0.055, 0.945, 0.535, 0.790, "badge")
 
 
+# THE LOGO'S "BLACK" FIELD IS NOT BLACK. It reads 0.035-0.047 in luminance across nine tenths of the
+# image, so a mark taken straight from it carries a 4 % wash of ink over its whole rectangle -- which is
+# invisible as near-black on a white 737 and perfectly visible as white on the red Schweizer, where the
+# fin logo arrived inside a pale box. Everything of the mark itself is above 0.56. Cutting at 0.08 and
+# rescaling what is left keeps the antialiased edges graded (0.7 % of the image lies between the two) and
+# throws the field away.
+FIELD = 0.08
+
+
+def coverage(r, g, b, a):
+    cov = max(a, 0.2126 * r + 0.7152 * g + 0.0722 * b)
+    return 0.0 if cov <= FIELD else (cov - FIELD) / (1.0 - FIELD)
+
+
 def sample(stamp, u, v):
     """Nearest-neighbour sample; returns (r, g, b, a) with a = 0 outside.
 
-    The project's logo PNG is a white mark on an OPAQUE BLACK field, so its alpha channel says nothing. Its
-    luminance does -- the same trick FlyingGame/Decal uses in the game. So coverage is max(alpha, luminance).
+    The project's logo PNG is a white mark on a nominally black field, so its alpha channel says nothing.
+    Its luminance does -- the same trick FlyingGame/Decal uses in the game. See FIELD for the cut.
     """
     px, w, h = stamp
     if not (0.0 <= u < 1.0 and 0.0 <= v < 1.0):
         return None
     i = (int(v * h) * w + int(u * w)) * 4
     r, g, b, a = px[i], px[i + 1], px[i + 2], px[i + 3]
-    cov = max(a, 0.2126 * r + 0.7152 * g + 0.0722 * b)
-    return (r, g, b, cov)
+    return (r, g, b, coverage(r, g, b, a))
 
 
 def fit(stamp, height, max_width=None):
@@ -397,7 +410,7 @@ def _stamp_image(stamp, name, colour, literal=False):
             # aeroplane is: a printed panel, not an inked stencil
             out[j], out[j + 1], out[j + 2], out[j + 3] = px[j], px[j + 1], px[j + 2], 1.0
         else:
-            a = max(px[j + 3], 0.2126 * px[j] + 0.7152 * px[j + 1] + 0.0722 * px[j + 2])
+            a = coverage(px[j], px[j + 1], px[j + 2], px[j + 3])
             out[j], out[j + 1], out[j + 2], out[j + 3] = colour[0], colour[1], colour[2], a
     img.pixels = out
     img.update()
@@ -719,6 +732,16 @@ def load_canonical(path, true_span):
         bpy.ops.import_scene.gltf(filepath=path)
     elif low.endswith((".usdz", ".usd")):
         bpy.ops.wm.usd_import(filepath=path)
+    elif low.endswith(".blend"):
+        # LINK NOTHING, APPEND THE OBJECTS. The modern sailplane came off OpenGameArt as a .blend and
+        # nothing else, and converting it to a GLB first would put a build artefact between the tool and
+        # its source -- re-run the tool on a different machine and the GLB is not there. Appending reads
+        # the data-blocks only; no script in the file runs (blender is given --disable-autoexec too).
+        with bpy.data.libraries.load(path) as (src_data, dst_data):
+            dst_data.objects = list(src_data.objects)
+        for o in dst_data.objects:
+            if o is not None:
+                bpy.context.collection.objects.link(o)
     else:
         bpy.ops.wm.obj_import(filepath=path)
     objs = [o for o in bpy.data.objects if o.type == 'MESH']
@@ -1062,7 +1085,7 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep
     return cx, cz, w, h
 
 
-def fin_mark(objs, L, prefer=(0.52, 0.50), clear=0.0, lower=0.0, box=None):
+def fin_mark(objs, L, prefer=(0.52, 0.50), clear=0.0, lower=0.0, box=None, ink=INK):
     """The Talk Flying mark on the vertical tail. Every aeroplane gets one -- it is the one piece of the
     livery that is the same on all of them, so it lives in one place rather than in four.
 
@@ -1091,7 +1114,7 @@ def fin_mark(objs, L, prefer=(0.52, 0.50), clear=0.0, lower=0.0, box=None):
     for sd in (1, -1):
         # a square mark wants a square grid: at the default 96 x 28 the cells are three times taller than
         # they are wide, and a dropped cell at a panel step takes a visible bite out of the edge
-        geo_decal(objs, Decal(logo_stamp(), (cx, sd * 0.10, cz), (0, 0, 1), (w, h), (0, sd, 0), INK,
+        geo_decal(objs, Decal(logo_stamp(), (cx, sd * 0.10, cz), (0, 0, 1), (w, h), (0, sd, 0), ink,
                               depth=max(0.35, w * 0.6)),
                   "Mark.Fin." + ("R" if sd > 0 else "L"), nv=96)
 
@@ -1497,11 +1520,117 @@ def seven37(objs, L, H):
             geo_decal(objs, d, "Mark.Fin." + ("R" if sd > 0 else "L"), nv=96)
 
 
+# =============================================================================================================
+# the three gliders
+# =============================================================================================================
+def wing_cut(objs, y, L, side, step=0.015):
+    """The wing's chord and both its skins at one spanwise station, BY RAY-CAST.
+
+    Vertices cannot answer this on a sailplane. The 2-33's wing skin has vertices at the root and at the
+    tip and nowhere in between, so wing_box()'s spanwise slab of vertices finds only the aileron and calls
+    a 1.4 m wing 0.40 m of chord -- the same trap the 172's tailcone set for rear_bay(). A ray dropped from
+    above at a station this far outboard meets the wing and nothing else, and the longest unbroken run of
+    stations that hit IS the chord.
+
+    Returns (leading x, trailing x, top skin z, bottom skin z).
+    """
+    tree = surface_tree(objs)
+    reach = max(L, 4.0)
+
+    def run(down):
+        n = Vector((0, 0, -1.0 if down else 1.0))
+        runs, cur = [], []
+        x = -L
+        while x <= L:
+            loc, _, _, _ = tree.ray_cast(Vector((x, y, -n.z * reach)), n, reach * 2.2)
+            if loc is not None:
+                cur.append((x, loc.z))
+            elif cur:
+                runs.append(cur)
+                cur = []
+            x += step
+        if cur:
+            runs.append(cur)
+        return max(runs, key=len) if runs else None
+
+    top, bot = run(True), run(False)
+    if not top or not bot or len(top) < 6:
+        print("LIVERY   wing %+d at y %.2f: no skin under the rays" % (side, y))
+        return None
+    x0, x1 = max(top[0][0], bot[0][0]), min(top[-1][0], bot[-1][0])
+    zt = sum(z for _, z in top) / len(top)
+    zb = sum(z for _, z in bot) / len(bot)
+    print("LIVERY   wing %+d at y %.2f: chord %.2f (x %.2f .. %.2f)  skin z %.2f / %.2f"
+          % (side, y, x1 - x0, x0, x1, zb, zt))
+    return x0, x1, zt, zb
+
+
+def glider(objs, L, H, out=0.56, hfrac=(0.52, 0.56), ink=INK):
+    """The owner's layout for the sailplanes: the winged badge over the LEFT wing and under the RIGHT, the
+    wordmark over the RIGHT and under the LEFT, and the whole logo on the side of the tail -- so from any
+    angle, above or below, you get one of each.
+
+    ALL OF IT AS GEOMETRY, none of it painted into the texture. Two of these three models have no texture
+    to paint into: the 2-33's skin is flat material colour and so is the CC0 sailplane's, and the Grob's
+    one 1024 atlas is shared between its two wings, which is how the 172's registration came out mirrored.
+    geo_decal asks the file for nothing but the surface itself.
+    """
+    text, badge = text_stamp("TALK FLYING"), badge_stamp()
+    hs = _halfspan(objs)
+    for side in (RIGHT, LEFT):
+        yc = side * out * hs
+        cut = wing_cut(objs, yc, L, side)
+        if cut is None:
+            continue
+        x0, x1, zt, zb = cut
+        chord = x1 - x0
+        cx = x0 + chord * 0.5
+        above, below = (badge, text) if side == LEFT else (text, badge)
+        for st, z, facing, tag in ((above, zt, (0, 0, 1), "Top"), (below, zb, (0, 0, -1), "Bot")):
+            w, h = fit(st, chord * (hfrac[0] if st is badge else hfrac[1]), hs * 0.80)
+            # a long thin mark on a thin wing: the grid is stretched along the span to match, and the
+            # depth is kept near the chord so a mark on the top cannot reach round to the bottom skin
+            geo_decal(objs, Decal(st, (cx, yc, z), (1, 0, 0), (w, h), facing, ink,
+                                  depth=max(0.22, chord * 0.45)),
+                      "Mark.Wing.%s.%s" % (tag, "R" if side > 0 else "L"), nu=128, nv=40)
+    fin_mark(objs, L, ink=ink)
+
+
+def glider_glass(objs, L, H):
+    """The CC0 ship carries 0.46 m of chord on a 12.66 m span -- an aspect ratio of 27, half again as
+    slender as the Grob. The same fraction of chord puts a mark on it half the size, relative to the
+    aeroplane, as the one on the other two, so this wing gives up a little more of its chord.
+    """
+    glider(objs, L, H, hfrac=(0.66, 0.70))
+
+
 PLANES = {
     "pa18-cub-like":      (os.path.join(SRC, "pa18-cub/pa18-cub-helijah.glb"), 10.63, supercub),
     "c172-like":          (os.path.join(SRC, "c172/c172-tonywony.glb"), 10.92, cessna),
     "stearman-pt17-like": (os.path.join(SRC, "stearman-pt17/stearman-pt17-helijah.glb"), 9.63, stearman),
     "boeing-737-like":    (os.path.join(SRC, "boeing-737/b737-800-mirzaarrafi.glb"), 34.11, seven37),
+    # THE THREE GLIDERS, for the podcast animations.
+    #   2-33   OURS, drawn by tools/model_glider233.py from the config's own numbers. The downloaded
+    #          Schweizer was a 15.5 m span on a 13.3 m fuselage -- the real aeroplane is 15.5 on 7.9 --
+    #          so its wings looked stubby and no scaling could fix a ratio. The owner's word on
+    #          2026-10-22 was "the wings are too short, it is a lost cause"; it was deleted, and this
+    #          took its place, with the lift struts the download never had. Run the model script first.
+    #   Grob   helijah's Grob Astir, 15.0 m span, 6.82 m long -- which is the real Astir to within 40 mm,
+    #          so this mesh is dimensionally honest. It is in the repo already, under the 2-33's folder:
+    #          the game draws the 2-33 procedurally and keeps this model unused (see that LICENSE.txt).
+    #   Swift  THERE IS NO SWIFT S-1 MODEL. docs/research/AIRCRAFT-3D-MODELS.md 15 found none and still
+    #          holds. This is EGPJET's CC0 glass single-seater standing in for one, scaled to the Swift's
+    #          12.66 m span -- a modern 15 m ship with winglets and a T-tail, not an aerobat.
+    "glider-2-33-like":   (os.path.join(REPO, "build/models/glider-2-33-like.glb"), 15.44, glider),
+    "grob-astir-like":    (os.path.join(REPO, "unity/Assets/_Project/Resources/Models/glider-2-33-like",
+                                        "glider-2-33-like.obj"), 15.00, glider),
+    "glider-swift-s1-like": (os.path.join(SRC, "sailplane-modern/FFGL.blend"), 12.66, glider_glass),
+}
+
+# where an aeroplane's credit line lives, when it is not beside the download under assets-incoming/models
+LICENCES = {
+    "grob-astir-like": os.path.join(REPO, "unity/Assets/_Project/Resources/Models/glider-2-33-like"),
+    "glider-swift-s1-like": os.path.join(SRC, "sailplane-modern"),
 }
 
 
@@ -1565,10 +1694,13 @@ def main():
     print("LIVERY")
     print("LIVERY CREDIT REQUIRED (CC BY 4.0) -- these are repaints, so the credit travels with them:")
     for ident in wanted:
-        lic = os.path.join(SRC, ident.replace("-like", ""), "LICENSE.txt")
+        lic = os.path.join(LICENCES.get(ident, os.path.join(SRC, ident.replace("-like", ""))), "LICENSE.txt")
         if os.path.exists(lic):
             for line in open(lic):
-                if line.startswith("CREDIT LINE:"):
+                # the CC0 sailplane asks for no attribution at all and offers a credit instead; print it,
+                # because a repaint that travels without saying where the mesh came from is a nuisance
+                # to everyone who meets it later
+                if line.startswith("CREDIT LINE:") or line.startswith("Suggested (optional) credit:"):
                     print("LIVERY   " + line.split(":", 1)[1].strip())
 
 
