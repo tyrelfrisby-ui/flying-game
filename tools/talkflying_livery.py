@@ -261,6 +261,7 @@ class Decal:
         self.u = self.v.cross(self.n).normalized()
         self.su, self.sv = size
         self.colour = colour
+        self.literal = False          # true for a decal that keeps the artwork's own colours
         # HOW DEEP THE PAINT REACHES. Without this a decal is a projector shining through the whole
         # aeroplane: the 737's titles came out twice, once on the fuselage side and again on the belly
         # below the wing, because a belly face also faces outward enough and projects into the rectangle.
@@ -364,7 +365,7 @@ def paint(objs, decals):
     print("LIVERY   painted %d texels across %d images" % (hits, len(buffers)))
 
 
-def _stamp_image(stamp, name, colour):
+def _stamp_image(stamp, name, colour, literal=False):
     """A Blender image of the stamp with real alpha, ready to hang on a material.
 
     The project's logo PNG is a white mark on an OPAQUE BLACK field -- its alpha says nothing and its
@@ -376,8 +377,13 @@ def _stamp_image(stamp, name, colour):
     out = [0.0] * (w * h * 4)
     for i in range(w * h):
         j = i * 4
-        a = max(px[j + 3], 0.2126 * px[j] + 0.7152 * px[j + 1] + 0.0722 * px[j + 2])
-        out[j], out[j + 1], out[j + 2], out[j + 3] = colour[0], colour[1], colour[2], a
+        if literal:
+            # the artwork as drawn, background and all -- which is what a decal applied to a real
+            # aeroplane is: a printed panel, not an inked stencil
+            out[j], out[j + 1], out[j + 2], out[j + 3] = px[j], px[j + 1], px[j + 2], 1.0
+        else:
+            a = max(px[j + 3], 0.2126 * px[j] + 0.7152 * px[j + 1] + 0.0722 * px[j + 2])
+            out[j], out[j + 1], out[j + 2], out[j + 3] = colour[0], colour[1], colour[2], a
     img.pixels = out
     img.update()
     return img
@@ -506,7 +512,7 @@ def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
     nt = mat.node_tree
     bsdf = nt.nodes["Principled BSDF"]
     tex = nt.nodes.new("ShaderNodeTexImage")
-    tex.image = _stamp_image(d.stamp, name + "Img", d.colour)
+    tex.image = _stamp_image(d.stamp, name + "Img", d.colour, literal=d.literal)
     tex.extension = 'CLIP'
     tex.interpolation = 'Closest'
     nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
@@ -757,6 +763,108 @@ def wing_pair(side, text, badge):
     return (text, badge) if side == LEFT else (badge, text)
 
 
+def fin_points(objs, L):
+    """The fin's vertices as (x, z): everything standing above the fuselage's own top deck."""
+    tol = max(0.15, 0.08 * _halfspan(objs))
+    aft = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < tol and v.co.x < -0.16 * L]
+    if len(aft) < 24:
+        return []
+    deck = [p.z for p in aft if p.x > -0.38 * L] or [p.z for p in aft]
+    deck.sort()
+    cut_z = deck[int(len(deck) * 0.92)] + 0.02 * L
+    up = [(p.x, p.z) for p in aft if p.z >= cut_z]
+    if len(up) < 12:
+        zs = sorted(p.z for p in aft)
+        cut_z = zs[int(len(zs) * 0.80)]
+        up = [(p.x, p.z) for p in aft if p.z >= cut_z]
+    return up
+
+
+def convex_hull(pts):
+    """Andrew's monotone chain. A fin is a swept trapezoid with a rounded tip -- close enough to convex
+    that its hull is its outline, and erring inward at the tip is the safe direction to err."""
+    pts = sorted(set(pts))
+    if len(pts) < 3:
+        return pts
+
+    def half(ps):
+        out = []
+        for q in ps:
+            while len(out) >= 2:
+                (ax, ay), (bx, by) = out[-2], out[-1]
+                if (bx - ax) * (q[1] - ay) - (by - ay) * (q[0] - ax) > 0:
+                    break
+                out.pop()
+            out.append(q)
+        return out
+    return half(pts)[:-1] + half(pts[::-1])[:-1]
+
+
+def inside_hull(hull, pt):
+    n = len(hull)
+    for i in range(n):
+        ax, ay = hull[i]
+        bx, by = hull[(i + 1) % n]
+        if (bx - ax) * (pt[1] - ay) - (by - ay) * (pt[0] - ax) < -1e-9:
+            return False
+    return True
+
+
+def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94):
+    """The biggest rectangle of this artwork's shape that fits INSIDE the fin, and where to put it.
+
+    Sizing a mark as a fraction of the fin's bounding box hangs it over the leading edge, because the box
+    is the ROOT chord and a swept fin is far shorter higher up. Sampling the chord at a height does not
+    work either: a low-poly fin has vertices at only a few heights, so a thin band finds nothing at all.
+    Take the outline as a convex hull of the fin's own points, then SEARCH FOR THE PLACE as well as the
+    size -- a square centred on the mid-chord of a swept fin is pinched by the leading edge, and a hand's
+    breadth aft it is half as big again.
+    """
+    pts = fin_points(objs, L)
+    if len(pts) < 8:
+        print("LIVERY   fin badge: no fin found")
+        return None
+    hull = convex_hull(pts)
+    xs_all = [q[0] for q in pts]
+    zs_all = [q[1] for q in pts]
+    x0, x1, z0, z1 = min(xs_all), max(xs_all), min(zs_all), max(zs_all)
+    asp = stamp[1] / float(stamp[2])
+
+    def biggest_at(cx, cz):
+        def fits(w):
+            h = w / asp
+            return all(inside_hull(hull, (cx + sx * w * 0.5, cz + sz * h * 0.5))
+                       for sx in (-1, 1) for sz in (-1, 1))
+        if not fits(1e-4):
+            return 0.0
+        lo, hi = 0.0, (x1 - x0) * 1.2
+        for _ in range(26):
+            mid = (lo + hi) * 0.5
+            if fits(mid):
+                lo = mid
+            else:
+                hi = mid
+        return lo
+
+    best = (0.0, (x0 + x1) * 0.5, z0 + (z1 - z0) * frac_z)
+    for i in range(17):
+        cz = z0 + (z1 - z0) * max(0.02, min(0.98, frac_z - 0.20 + 0.40 * i / 16.0))
+        for j in range(25):
+            cx = x0 + (x1 - x0) * j / 24.0
+            w = biggest_at(cx, cz)
+            if w > best[0]:
+                best = (w, cx, cz)
+    w, cx, cz = best
+    w *= margin
+    h = w / asp
+    if w < (z1 - z0) * 0.06:
+        print("LIVERY   fin badge: nothing of a sensible size fits")
+        return None
+    print("LIVERY   fin badge: %.2f x %.2f at x %.2f z %.2f  (fin %.2f tall, %.2f chord)"
+          % (w, h, cx, cz, z1 - z0, x1 - x0))
+    return cx, cz, w, h
+
+
 def fin_mark(objs, L, frac_x=0.5, frac_z=0.52, fill=(0.82, 0.76)):
     """The Talk Flying mark on the vertical tail. Every aeroplane gets one -- it is the one piece of the
     livery that is the same on all of them, so it lives in one place rather than in four."""
@@ -851,19 +959,24 @@ def biplane_wings(objs, side):
 
 
 def stearman(objs, L, H):
-    """Keeps its blue and yellow. A biplane carries its markings on the TOP of the upper wing and the
-    BOTTOM of the lower one, which is where the words and the badge go, and the mark on the fin."""
+    """Keeps its blue and yellow.
+
+    The wordmark goes ONCE, centred on the upper wing's centre section in the gap between the roundels --
+    a biplane has nowhere else for it to read as one phrase. The badge stays out on the lower wings'
+    undersides, one per panel, because the lower wing has no centre section: at y = 0 it is the fuselage,
+    and a mark placed there lands on the belly.
+    """
     text, badge = text_stamp("TALK FLYING"), badge_stamp()
     decals = []
-    for side in (RIGHT, LEFT):
-        above, below = wing_pair(side, text, badge)
-        for x0, x1, zc, label in biplane_wings(objs, side):
-            chord = x1 - x0
-            st = above if label == "upper" else below
-            facing = (0, 0, 1) if label == "upper" else (0, 0, -1)
-            h = chord * (0.58 if st is text else 0.46)
-            decals.append(Decal(st, (x0 + chord * 0.5, side * 2.3, zc),
-                                (1, 0, 0), fit(st, h, 3.0), facing, INK))
+    for x0, x1, zc, label in biplane_wings(objs, RIGHT):
+        chord = x1 - x0
+        if label == "upper":
+            decals.append(Decal(text, (x0 + chord * 0.5, 0.0, zc), (1, 0, 0),
+                                fit(text, chord * 0.62, 4.2), (0, 0, 1), INK))
+        else:
+            for side in (RIGHT, LEFT):
+                decals.append(Decal(badge, (x0 + chord * 0.5, side * 2.3, zc), (1, 0, 0),
+                                    fit(badge, chord * 0.50, 2.8), (0, 0, -1), INK))
     paint(objs, decals)
     fin_mark(objs, L)
 
@@ -883,36 +996,36 @@ def fuselage_axis(objs, L):
 
 
 def seven37(objs, L, H):
-    """Retro silver, art-deco: TALK FLYING AIR along the fuselage and the mark on the fin, both black on
-    bare metal, which is the 1930s airliner look the owner asked for -- the reverse of the logo."""
+    """Retro silver: TALK FLYING AIRLINES along the forward fuselage where the stock titles were, and the
+    logo itself -- black plate and all -- on the fin where the flag was."""
     recolour(objs, lambda r, g, b: keep_luma(r, g, b, SILVER, ref=0.45))
     zc, rad = fuselage_axis(objs, L)
-    fb = fin_box(objs, L)
     for sd in (1, -1):
         tag = "R" if sd > 0 else "L"
-        # COVER WHAT CAME WITH THE MODEL. It arrives in another operator's colours: titles along the
-        # forward fuselage, a crest behind them, a roundel under the cockpit and a flag on the fin. A
-        # plate of bare metal hides all of it without anyone having to work out which texels it occupies,
-        # which on a model whose two sides share their UVs has no answer that is right for both.
+        # COVER WHAT CAME WITH THE MODEL: titles along the forward fuselage, a crest behind them and a
+        # roundel under the cockpit. A plate of bare metal hides all of it without anyone working out
+        # which texels it occupies -- which, on a model whose two sides share their UVs, has no answer
+        # that is right for both.
         plate(objs, (L * 0.30, sd * rad * 0.82, zc + rad * 0.90), (0, 0, 1),
               (L * 0.56, rad * 1.30), (0, sd, 0), SILVER, rad * 0.95, "Plate.Titles." + tag)
         plate(objs, (L * 0.445, sd * rad * 0.70, zc + rad * 0.05), (0, 0, 1),
               (L * 0.12, rad * 0.85), (0, sd, 0), SILVER, rad * 0.95, "Plate.Roundel." + tag)
-        if fb:
-            xa, xb, z0, z1 = fb
-            plate(objs, ((xa + xb) * 0.5, sd * 0.12, z1 - (z1 - z0) * 0.16), (0, 0, 1),
-                  ((xb - xa) * 1.05, (z1 - z0) * 0.42), (0, sd, 0), SILVER, 0.6, "Plate.Flag." + tag)
-    # ... and only then the livery, so it lands on clean metal
+    # ... and only then the livery, so it lands on clean metal. The titles go WHERE THE STOCK ONES WERE,
+    # high on the forward fuselage, rather than down across the window line.
+    st = text_stamp("TALK FLYING AIRLINES")
     for sd in (1, -1):
-        tag = "R" if sd > 0 else "L"
-        # the origin sits ON THE SKIN, not on the centreline: the depth limit measures from the decal's
-        # own plane, and a 737's skin is 2 m out from its axis
-        st = text_stamp("TALK FLYING AIR")
-        geo_decal(objs, Decal(st, (L * 0.235, sd * rad * 0.82, zc + rad * 0.56),
-                              (0, 0, 1), fit(st, L * 0.032, L * 0.34), (0, sd, 0), INK, depth=rad * 0.95),
-                  "Mark.Title." + tag)
-    # a swept fin is narrower at the top, so the mark sits low and aft where the chord is full
-    fin_mark(objs, L, frac_x=0.34, frac_z=0.26, fill=(0.44, 0.28))
+        geo_decal(objs, Decal(st, (L * 0.275, sd * rad * 0.82, zc + rad * 0.74),
+                              (0, 0, 1), fit(st, L * 0.024, L * 0.30), (0, sd, 0), INK, depth=rad * 0.95),
+                  "Mark.Title." + ("R" if sd > 0 else "L"))
+    # THE FIN: the logo as drawn, black plate and silver mark, sized and placed to the fin's own outline
+    # so nothing hangs over an edge. Its own background is the plate that covers the flag.
+    box = fitted_fin_badge(objs, L, logo_stamp(), frac_z=0.40)
+    if box:
+        cx, cz, w, h = box
+        for sd in (1, -1):
+            d = Decal(logo_stamp(), (cx, sd * 0.12, cz), (0, 0, 1), (w, h), (0, sd, 0), INK, depth=0.8)
+            d.literal = True
+            geo_decal(objs, d, "Mark.Fin." + ("R" if sd > 0 else "L"))
 
 
 PLANES = {
