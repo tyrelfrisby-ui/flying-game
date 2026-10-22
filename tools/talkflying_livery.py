@@ -813,6 +813,42 @@ def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
 # =============================================================================================================
 # base coat
 # =============================================================================================================
+GLAZING = ("glass", "transparent", "canopy", "window", "windshield", "windscreen", "perspex")
+
+
+def glaze(objs, alpha=0.42):
+    """Give a downloaded model's canopy REAL alpha, so the exported GLB is right for whoever opens it.
+
+    These models name their glazing and then leave it solid: the Grob's .mtl has materials called
+    "transparent" and "transparent2" and neither carries a d or a Tr. Exported as it stands, the repaint
+    arrives with an opaque canopy and the far end has to put the alpha back at load, which is what Glass
+    was doing on 2026-10-22. The name is the only signal the file gives, and it is the author's own.
+
+    Both switches matter for glTF: the Principled BSDF's Alpha is what the exporter writes into the
+    material, and the blend mode is what makes it draw as glass in a Blender render of the same file.
+    """
+    n = []
+    for m in bpy.data.materials:
+        if not any(w in m.name.lower() for w in GLAZING) or not m.use_nodes:
+            continue
+        b = next((x for x in m.node_tree.nodes if x.type == 'BSDF_PRINCIPLED'), None)
+        if b is None:
+            continue
+        if "Alpha" in b.inputs:
+            b.inputs["Alpha"].default_value = alpha
+        if "Roughness" in b.inputs:
+            b.inputs["Roughness"].default_value = 0.08
+        for attr, val in (("blend_method", 'BLEND'), ("surface_render_method", 'BLENDED')):
+            if hasattr(m, attr):
+                try:
+                    setattr(m, attr, val)
+                except (TypeError, AttributeError):
+                    pass
+        n.append(m.name)
+    if n:
+        print("LIVERY   glazing: alpha %.2f on %s" % (alpha, ", ".join(n)))
+
+
 def recolour(objs, rule):
     """Change the skin's colour while KEEPING EACH PIXEL'S OWN BRIGHTNESS, so the shading, the panel shadow
     and the grime baked into the texture all survive. A flat fill erases them and the aeroplane goes plastic.
@@ -1978,6 +2014,7 @@ def main():
             continue
         print("LIVERY %s" % ident)
         objs, L, H = load_canonical(path, span)
+        glaze(objs)
         fn(objs, L, H)
         glb = os.path.join(OUT, "%s-talkflying.glb" % ident)
         bpy.ops.object.select_all(action='SELECT')
