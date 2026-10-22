@@ -1295,6 +1295,16 @@ def supercub(objs, L, H):
         c = x1 - x0
         decals.append(Decal(stamps[word], (x0 + c * 0.55, side * 2.9, -0.15),
                             (1, 0, 0), fit(stamps[word], h), (0, 0, -1), INK))
+    # AND THE SAME WORDS ON TOP, which is what you see of a Cub from the circuit rather than from the
+    # ground. The words swap wings. The reading direction is u = v x n, so flipping the surface the paint
+    # sticks to reverses it: with the tops of the letters toward the leading edge on both sides, u runs
+    # out to the aeroplane's right underneath and to its left on top. Putting TALK on the same wing both
+    # times would have it read backwards from one of the two.
+    for side, word in ((1, "TALK"), (-1, "FLYING")):
+        x0, x1 = boxes[side]
+        c = x1 - x0
+        decals.append(Decal(stamps[word], (x0 + c * 0.55, side * 2.9, 0.15),
+                            (1, 0, 0), fit(stamps[word], h), (0, 0, 1), INK))
     paint(objs, decals)
     fin_mark(objs, L)
 
@@ -1332,7 +1342,10 @@ def cessna(objs, L, H):
     # 0.50 m of mark centred at (-3.15, 0.50) sits inside it with 60 mm to spare at the leading edge and
     # 200 mm at the hinge. The owner: "move the talk flying logo to the white part of the tail a little
     # lower and further forward".
-    fin_mark(objs, L, box=(-3.15, 0.50, 0.50))
+    # -3.10, not -3.15: "move the logo on the tail of the Cessna forward 2 inches" (0.051 m). That spends
+    # most of the 60 mm of leading-edge margin, so the ray count in the log is the check -- a mark hanging
+    # off the front of the fin loses rays and comes out with a bite taken out of it.
+    fin_mark(objs, L, box=(-3.10, 0.50, 0.50))
     # THE WINGS OUT OF THE LOGO, ON THE REAR FUSELAGE, BOTH SIDES -- the owner's words. The badge takes
     # the forward end of the bay, where the tailcone is deepest, and the registration goes in behind it,
     # which is the order the two sit in on a real aeroplane anyway. Both were measured, not placed: the
