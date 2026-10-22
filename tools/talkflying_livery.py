@@ -771,7 +771,9 @@ def fin_points(objs, L):
         return []
     deck = [p.z for p in aft if p.x > -0.38 * L] or [p.z for p in aft]
     deck.sort()
-    cut_z = deck[int(len(deck) * 0.92)] + 0.02 * L
+    # A 0.02 * L margin lifts the usable region 1.8 m up a 737's fin; 0.005 lets the TAILCONE in and the
+    # "fin chord" came out 11.2 m, which is most of the aeroplane. 0.012 is the fin and only the fin.
+    cut_z = deck[int(len(deck) * 0.92)] + 0.012 * L
     up = [(p.x, p.z) for p in aft if p.z >= cut_z]
     if len(up) < 12:
         zs = sorted(p.z for p in aft)
@@ -810,7 +812,7 @@ def inside_hull(hull, pt):
     return True
 
 
-def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94):
+def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep=0.82, at=None):
     """The biggest rectangle of this artwork's shape that fits INSIDE the fin, and where to put it.
 
     Sizing a mark as a fraction of the fin's bounding box hangs it over the leading edge, because the box
@@ -846,15 +848,27 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94):
                 hi = mid
         return lo
 
-    best = (0.0, (x0 + x1) * 0.5, z0 + (z1 - z0) * frac_z)
-    for i in range(17):
-        cz = z0 + (z1 - z0) * max(0.02, min(0.98, frac_z - 0.20 + 0.40 * i / 16.0))
-        for j in range(25):
-            cx = x0 + (x1 - x0) * j / 24.0
+    cand = []
+    for i in range(25):
+        cz = z0 + (z1 - z0) * (0.02 + 0.96 * i / 24.0)
+        for j in range(33):
+            cx = x0 + (x1 - x0) * j / 32.0
             w = biggest_at(cx, cz)
-            if w > best[0]:
-                best = (w, cx, cz)
-    w, cx, cz = best
+            if w > 0:
+                cand.append((w, cx, cz))
+    if not cand:
+        print("LIVERY   fin badge: nothing fits")
+        return None
+    top = max(c[0] for c in cand)
+    # WHERE IT GOES MATTERS AS MUCH AS HOW BIG IT IS. Taking the largest square that fits puts it wherever
+    # the fin happens to be fattest; when the mark has a job to do -- covering what was there before --
+    # keep every candidate within `keep` of the largest and then pick the one nearest the target.
+    if at or prefer:
+        px_, pz_ = at if at else (x0 + (x1 - x0) * prefer[0], z0 + (z1 - z0) * prefer[1])
+        ok = [c for c in cand if c[0] >= top * keep]
+        w, cx, cz = min(ok, key=lambda c: (c[1] - px_) ** 2 + (c[2] - pz_) ** 2)
+    else:
+        w, cx, cz = max(cand, key=lambda c: c[0])
     w *= margin
     h = w / asp
     if w < (z1 - z0) * 0.06:
@@ -1014,12 +1028,15 @@ def seven37(objs, L, H):
     # high on the forward fuselage, rather than down across the window line.
     st = text_stamp("TALK FLYING AIRLINES")
     for sd in (1, -1):
-        geo_decal(objs, Decal(st, (L * 0.275, sd * rad * 0.82, zc + rad * 0.74),
-                              (0, 0, 1), fit(st, L * 0.024, L * 0.30), (0, sd, 0), INK, depth=rad * 0.95),
+        geo_decal(objs, Decal(st, (L * 0.215, sd * rad * 0.82, zc + rad * 0.74),
+                              (0, 0, 1), fit(st, L * 0.021, L * 0.27), (0, sd, 0), INK, depth=rad * 0.95),
                   "Mark.Title." + ("R" if sd > 0 else "L"))
     # THE FIN: the logo as drawn, black plate and silver mark, sized and placed to the fin's own outline
     # so nothing hangs over an edge. Its own background is the plate that covers the flag.
-    box = fitted_fin_badge(objs, L, logo_stamp(), frac_z=0.40)
+    # AIMED AT THE FLAG, in metres rather than as a fraction of the fin: the flag was measured off a
+    # render at x -15.6 .. -13.8, z 2.0 .. 2.85, and the badge has to sit on top of it rather than
+    # wherever the fin happens to be fattest. `keep` is loose so position wins over size.
+    box = fitted_fin_badge(objs, L, logo_stamp(), at=(-14.88, 2.44), keep=0.55, margin=0.99)
     if box:
         cx, cz, w, h = box
         for sd in (1, -1):
