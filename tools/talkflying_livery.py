@@ -31,7 +31,7 @@ The stamps themselves are rendered from Blender text objects (there is no image 
 the logo is the project's own PNG.
 """
 import bpy, bmesh, os, sys, math, shutil
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 REPO = "/Users/tyfrisby/Documents/flying-game"
 OUT = os.path.join(REPO, "build/talkflying")
@@ -113,6 +113,13 @@ def text_stamp(text, slant=0.0, width=1024, bold=True):
     return _stamps[key]
 
 
+def solid_stamp():
+    """Full coverage everywhere: a plain rectangle of paint, for covering somebody else's titles."""
+    if "solid" not in _stamps:
+        _stamps["solid"] = ([1.0, 1.0, 1.0, 1.0] * 4, 2, 2)
+    return _stamps["solid"]
+
+
 def logo_stamp():
     if "logo" not in _stamps:
         img = bpy.data.images.load(LOGO)
@@ -149,7 +156,7 @@ class Decal:
     colour   what to paint; the stamp supplies coverage, not colour
     """
 
-    def __init__(self, stamp, origin, vdir, size, facing, colour):
+    def __init__(self, stamp, origin, vdir, size, facing, colour, depth=0.9):
         self.stamp = stamp
         self.o = Vector(origin)
         self.n = Vector(facing).normalized()
@@ -162,9 +169,15 @@ class Decal:
         self.u = self.v.cross(self.n).normalized()
         self.su, self.sv = size
         self.colour = colour
+        # HOW DEEP THE PAINT REACHES. Without this a decal is a projector shining through the whole
+        # aeroplane: the 737's titles came out twice, once on the fuselage side and again on the belly
+        # below the wing, because a belly face also faces outward enough and projects into the rectangle.
+        self.depth = depth
 
     def uv_of(self, p):
         d = Vector(p) - self.o
+        if abs(d.dot(self.n)) > self.depth:
+            return -9.0, -9.0
         a = d.dot(self.u) / self.su + 0.5
         b = d.dot(self.v) / self.sv + 0.5
         return a, b
@@ -259,6 +272,105 @@ def paint(objs, decals):
     print("LIVERY   painted %d texels across %d images" % (hits, len(buffers)))
 
 
+def _stamp_image(stamp, name, colour):
+    """A Blender image of the stamp with real alpha, ready to hang on a material.
+
+    The project's logo PNG is a white mark on an OPAQUE BLACK field -- its alpha says nothing and its
+    luminance says everything, the same as in the game's FlyingGame/Decal shader. So coverage is
+    max(alpha, luminance), and the colour is the livery's, not the file's.
+    """
+    px, w, h = stamp
+    img = bpy.data.images.new(name, w, h, alpha=True)
+    out = [0.0] * (w * h * 4)
+    for i in range(w * h):
+        j = i * 4
+        a = max(px[j + 3], 0.2126 * px[j] + 0.7152 * px[j + 1] + 0.0722 * px[j + 2])
+        out[j], out[j + 1], out[j + 2], out[j + 3] = colour[0], colour[1], colour[2], a
+    img.pixels = out
+    img.update()
+    return img
+
+
+def geo_decal(objs, d, name, lift=0.009):
+    """Lay the mark on a copy of the model's own skin, lifted 9 mm.
+
+    WHY NOT PAINT IT INTO THE TEXTURE. A downloaded model's UV layout belongs to whoever made it, and on
+    the 172 the two sides of the fuselage SHARE THEIR TEXELS -- paint the registration on the right and it
+    appears mirrored on the left, because it is literally the same pixels. The information to tell the two
+    sides apart is not in the file.
+
+    So: take the faces the mark covers, push them out along their own vertex normals, and give the copy its
+    own UVs from the decal's projection. It is not a floating quad -- every vertex is the aeroplane's own
+    surface -- so it follows compound curvature exactly and cannot stand off it.
+
+    KNOWN LIMIT. This works on a mesh whose faces are smaller than the mark (the Stearman's fin, 162 faces)
+    and not on one whose faces are much bigger (the 172's fuselage side is about a dozen triangles, and the
+    mark ends up as a sliver of one of them). Ray-casting a grid of the mark's own resolution onto the skin
+    would fix that and is the right next step; it is written up in the commit rather than half-done here.
+    """
+    bm = bmesh.new()
+    uvl = bm.loops.layers.uv.new("decal")
+    added = 0
+    for ob in objs:
+        me = ob.data
+        mw = ob.matrix_world
+        nrm = mw.to_3x3()
+        for poly in me.polygons:
+            if (nrm @ poly.normal).normalized().dot(d.n) < 0.34:
+                continue
+            ws = [mw @ me.vertices[vi].co for vi in poly.vertices]
+            ab = [d.uv_of(p) for p in ws]
+            # a separating-axis reject, and nothing stricter: asking for a VERTEX inside the rectangle
+            # throws away every face bigger than the mark. The UV clipping decides where the mark ends.
+            if (all(a < 0 for a, _ in ab) or all(a > 1 for a, _ in ab)
+                    or all(b < 0 for _, b in ab) or all(b > 1 for _, b in ab)):
+                continue
+            vs = []
+            for vi, p in zip(poly.vertices, ws):
+                n = (nrm @ me.vertices[vi].normal).normalized()
+                vs.append(bm.verts.new(p + n * lift))
+            try:
+                f = bm.faces.new(vs)
+            except ValueError:
+                continue
+            for loop, (a, b) in zip(f.loops, ab):
+                loop[uvl].uv = (a, b)
+            added += 1
+    if not added:
+        bm.free()
+        print("LIVERY   %s: no surface found to put it on" % name)
+        return None
+    bm.normal_update()
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.collection.objects.link(ob)
+
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    # Blender 4.2 replaced Material.blend_method with surface_render_method for EEVEE. Set whichever the
+    # build has, or the mark renders as an opaque rectangle instead of a mark.
+    for attr, val in (("blend_method", 'BLEND'), ("surface_render_method", 'BLENDED')):
+        if hasattr(mat, attr):
+            try:
+                setattr(mat, attr, val)
+            except (TypeError, AttributeError):
+                pass
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = _stamp_image(d.stamp, name + "Img", d.colour)
+    tex.extension = 'CLIP'
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
+    if "Roughness" in bsdf.inputs:
+        bsdf.inputs["Roughness"].default_value = 0.45
+    me.materials.append(mat)
+    print("LIVERY   %s: %d faces" % (name, added))
+    return ob
+
+
 # =============================================================================================================
 # base coat
 # =============================================================================================================
@@ -326,6 +438,22 @@ def load_canonical(path, true_span):
     size = mx - mn
     order = sorted(range(3), key=lambda i: -size[i])
     SP, LN, HG = order
+    # LONGEST IS NOT ALWAYS THE SPAN. A 737 is longer than it is wide, and taking the longest axis as the
+    # span turned it sideways: the "side view" came out nose-on. What tells them apart is the FIN -- the
+    # length axis has something tall at one end of it, and the span axis has wingtips at both ends, which
+    # are thin and low. So measure the height in the end slabs of each candidate and take the taller.
+    def end_height(ax):
+        lo, hi = mn[ax], mx[ax]
+        slab = (hi - lo) * 0.12
+        best = 0.0
+        for c, lim in ((lo, lo + slab), (hi - slab, hi)):
+            sel = [p[HG] for p in pts if c <= p[ax] <= lim]
+            if len(sel) > 8:
+                best = max(best, max(sel) - min(sel))
+        return best
+    if end_height(LN) < end_height(SP):
+        SP, LN = LN, SP
+        print("LIVERY   axes swapped: this one is longer than it is wide")
     k = true_span / size[SP]
 
     # which end is the nose: the widest body section is forward of the midpoint on everything we fly
@@ -352,7 +480,7 @@ def load_canonical(path, true_span):
         for v in me.vertices:
             w = o.matrix_world @ v.co
             v.co = Vector((-(w[LN] - ctr[LN]) * sgn * k, (w[SP] - ctr[SP]) * k, (w[HG] - ctr[HG]) * k * usg))
-        o.matrix_world.identity()
+        o.matrix_world = Matrix.Identity(4)
         me.update()
     # MIRRORING INVERTS EVERY NORMAL. Turning the model around means negating one axis, which is a
     # reflection: the vertices move but the winding does not, so every face ends up inside out. Nothing
@@ -420,9 +548,11 @@ def wing_box(objs, side):
     mesh is always densest, and reported 60 mm. The slab itself is the thing that has to be right; once it
     is, the extremes are the answer.
     """
+    # 0.45 to 0.70 of the half-span: outboard of every tailplane in the fleet (a Stearman's reaches a third
+    # of the way out, a 737's nearly 0.37) and inboard of the tip, where a wing starts to taper away
     hs = _halfspan(objs)
     xs = sorted(v.co.x for o in objs for v in o.data.vertices
-                if 0.34 * hs < v.co.y * side < 0.62 * hs)
+                if 0.45 * hs < v.co.y * side < 0.70 * hs)
     if len(xs) < 12:
         return None
     bx = xs[int(len(xs) * 0.01)], xs[int(len(xs) * 0.99)]
@@ -431,19 +561,35 @@ def wing_box(objs, side):
 
 
 def fin_box(objs, L):
-    """The fin: on the centreline, aft, and in the upper part of what is there."""
-    cand = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < 0.10 and v.co.x < -0.12 * L]
-    if len(cand) < 20:
+    """The fin: on the centreline, aft, and above the fuselage's own top deck.
+
+    Taking the top quarter of everything aft of the quarter-chord is not enough -- a Stearman's turtledeck
+    is higher than the bottom of its fin, so the box ran 2.3 m forward onto the fuselage and the mark landed
+    behind the cockpit. Find the deck's height just FORWARD of the tail and keep only what stands above it.
+    """
+    tol = max(0.10, 0.012 * L)
+    aft = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < tol and v.co.x < -0.20 * L]
+    if len(aft) < 24:
         return None
-    zs = sorted(p.z for p in cand)
-    zcut = zs[int(len(zs) * 0.72)]
-    up = [p for p in cand if p.z >= zcut]
-    bx = _biggest_cluster([p.x for p in up])
-    if not bx:
+    # the deck: the top of the body in a slab just ahead of where a fin ever starts
+    deck = [p.z for p in aft if p.x > -0.38 * L]
+    if len(deck) < 8:
+        deck = [p.z for p in aft]
+    deck.sort()
+    cut = deck[int(len(deck) * 0.92)] + 0.02 * L
+    up = [p for p in aft if p.z >= cut]
+    if len(up) < 12:
+        zs = sorted(p.z for p in aft)
+        cut = zs[int(len(zs) * 0.80)]
+        up = [p for p in aft if p.z >= cut]
+    if len(up) < 12:
+        print("LIVERY   fin: not found (%d aft, %d above the deck)" % (len(aft), len(up)))
         return None
-    z0, z1 = zcut, max(p.z for p in up)
-    print("LIVERY   fin: x %.2f .. %.2f  z %.2f .. %.2f" % (bx[0], bx[1], z0, z1))
-    return bx[0], bx[1], z0, z1
+    xs = sorted(p.x for p in up)
+    x0, x1 = xs[int(len(xs) * 0.03)], xs[int(len(xs) * 0.97)]
+    z0, z1 = cut, max(p.z for p in up)
+    print("LIVERY   fin: x %.2f .. %.2f  z %.2f .. %.2f" % (x0, x1, z0, z1))
+    return x0, x1, z0, z1
 
 
 def supercub(objs, L, H):
@@ -475,55 +621,101 @@ def cessna(objs, L, H):
         for z, facing in ((0.30, (0, 0, 1)), (-0.30, (0, 0, -1))):
             decals.append(Decal(text_stamp("TALK FLYING"), (x0 + chord * 0.5, side * 2.7, z),
                                 (1, 0, 0), (3.6, chord * 0.62), facing, INK))
-    fb = fin_box(objs, L)
-    if fb:
-        xa, xb, z0, z1 = fb
-        for s in (1, -1):
-            decals.append(Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, (z0 + z1) * 0.5),
-                                (0, 0, 1), ((xb - xa) * 0.85, (z1 - z0) * 0.85), (0, s, 0), INK))
-    # the registration, in an N-number's slanted caps, on the aft fuselage
-    for s in ((-1,) if os.environ.get("ONE_SIDE") else (1, -1)):
-        decals.append(Decal(text_stamp("TALKFLYING", slant=0.28), (-L * 0.22, 0.0, 0.05),
-                            (0, 0, 1), (L * 0.30, L * 0.055), (0, s, 0), INK))
     paint(objs, decals)
+    # the fin mark and the registration go on as GEOMETRY: this model's two fuselage sides share their
+    # texels, so anything painted into the texture appears mirrored on the far side
+    fb = fin_box(objs, L)
+    for sd in (1, -1):
+        tag = "R" if sd > 0 else "L"
+        if fb:
+            xa, xb, z0, z1 = fb
+            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, z0 + (z1 - z0) * 0.52),
+                                  (0, 0, 1), ((xb - xa) * 0.80, (z1 - z0) * 0.70), (0, sd, 0), INK),
+                      "Mark.Fin." + tag)
+        geo_decal(objs, Decal(text_stamp("TALKFLYING", slant=0.26), (-L * 0.20, 0.0, 0.02),
+                              (0, 0, 1), (L * 0.30, L * 0.052), (0, sd, 0), INK),
+                  "Mark.Reg." + tag)
+
+
+def biplane_wings(objs, side):
+    """A biplane's spanwise slab holds BOTH wings, one above the other, and taking its extremes reports a
+    5.3 m chord on a 1.5 m wing. They are separated in height, not in station, so split on z."""
+    hs = _halfspan(objs)
+    sel = [(v.co.x, v.co.z) for o in objs for v in o.data.vertices
+           if 0.45 * hs < v.co.y * side < 0.70 * hs]
+    if len(sel) < 24:
+        return []
+    zs = sorted(p[1] for p in sel)
+    mid = (zs[0] + zs[-1]) * 0.5
+    out = []
+    for lo, hi, label in ((mid, 1e9, "upper"), (-1e9, mid, "lower")):
+        xs = sorted(x for x, z in sel if lo <= z < hi)
+        zz = [z for x, z in sel if lo <= z < hi]
+        if len(xs) < 12:
+            continue
+        x0, x1 = xs[int(len(xs) * 0.02)], xs[int(len(xs) * 0.98)]
+        out.append((x0, x1, sum(zz) / len(zz), label))
+        print("LIVERY   %s wing %+d: x %.2f .. %.2f  chord %.2f  z %.2f" % (label, side, x0, x1, x1 - x0, out[-1][2]))
+    return out
 
 
 def stearman(objs, L, H):
-    """Keeps its blue and yellow; wordmark where the registration goes, logo on the fin."""
+    """Keeps its blue and yellow. A biplane carries its registration on the TOP of the upper wing and the
+    BOTTOM of the lower one, which is where the wordmark goes, and the mark on the fin."""
     decals = []
     for side in (1, -1):
-        bx = wing_box(objs, side)
-        if bx is None:
-            continue
-        x0, x1 = bx
-        chord = x1 - x0
-        for z, facing in ((0.9, (0, 0, 1)), (-0.9, (0, 0, -1))):
-            decals.append(Decal(text_stamp("TALKFLYING"), (x0 + chord * 0.5, side * 2.4, z),
-                                (1, 0, 0), (3.0, chord * 0.55), facing, INK))
+        for x0, x1, zc, label in biplane_wings(objs, side):
+            chord = x1 - x0
+            facing = (0, 0, 1) if label == "upper" else (0, 0, -1)
+            decals.append(Decal(text_stamp("TALKFLYING"), (x0 + chord * 0.5, side * 2.3, zc),
+                                (1, 0, 0), (2.9, chord * 0.60), facing, INK))
+    paint(objs, decals)
     fb = fin_box(objs, L)
     if fb:
         xa, xb, z0, z1 = fb
-        for s in (1, -1):
-            decals.append(Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, (z0 + z1) * 0.5),
-                                (0, 0, 1), ((xb - xa) * 0.8, (z1 - z0) * 0.8), (0, s, 0), INK))
-    paint(objs, decals)
+        for sd in (1, -1):
+            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, z0 + (z1 - z0) * 0.5),
+                                  (0, 0, 1), ((xb - xa) * 0.86, (z1 - z0) * 0.80), (0, sd, 0), INK),
+                      "Mark.Fin." + ("R" if sd > 0 else "L"))
+
+
+def fuselage_axis(objs, L):
+    """The height of the fuselage's own centreline, and its radius. An airliner's bounding box is dominated
+    by a fin two-thirds as tall as the aeroplane is wide, so the box centre sits well above the tube, and a
+    marking placed from it lands on nothing."""
+    mid = [v.co.z for o in objs for v in o.data.vertices if abs(v.co.x) < 0.22 * L and abs(v.co.y) < 0.05 * L]
+    if len(mid) < 40:
+        return 0.0, 1.0
+    mid.sort()
+    zc = mid[len(mid) // 2]
+    r = (mid[int(len(mid) * 0.97)] - mid[int(len(mid) * 0.03)]) * 0.5
+    print("LIVERY   fuselage centreline z %.2f  radius %.2f" % (zc, r))
+    return zc, r
 
 
 def seven37(objs, L, H):
-    """Retro silver, art-deco: TALK FLYING AIR along the fuselage, the mark reversed on the fin, both black
-    on bare metal, which is the 1930s airliner look the owner asked for."""
+    """Retro silver, art-deco: TALK FLYING AIR along the fuselage and the mark on the fin, both black on
+    bare metal, which is the 1930s airliner look the owner asked for -- the reverse of the logo."""
     recolour(objs, lambda r, g, b: keep_luma(r, g, b, SILVER, ref=0.45))
-    decals = []
-    for s in (1, -1):
-        decals.append(Decal(text_stamp("TALK FLYING AIR"), (L * 0.10, 0.0, 0.9),
-                            (0, 0, 1), (L * 0.34, L * 0.045), (0, s, 0), INK))
+    zc, rad = fuselage_axis(objs, L)
+    # The model wears another operator's titles. Lay a panel of bare metal over them before ours goes on --
+    # painted into the texture, which is the one place this model's mirrored UVs help: both sides at once.
+    paint(objs, [Decal(solid_stamp(), (L * 0.26, sd * rad * 0.8, zc + rad * 0.66), (0, 0, 1),
+                       (L * 0.50, rad * 0.95), (0, sd, 0), SILVER, depth=rad * 0.9)
+                 for sd in (1, -1)])
     fb = fin_box(objs, L)
-    if fb:
-        xa, xb, z0, z1 = fb
-        for s in (1, -1):
-            decals.append(Decal(logo_stamp(), ((xa + xb) * 0.5, 0.0, z0 + (z1 - z0) * 0.55),
-                                (0, 0, 1), ((xb - xa) * 0.7, (z1 - z0) * 0.6), (0, s, 0), INK))
-    paint(objs, decals)
+    for sd in (1, -1):
+        tag = "R" if sd > 0 else "L"
+        # the origin sits ON THE SKIN, not on the centreline: the depth limit measures from the decal's
+        # own plane, and a 737's skin is 2 m out from its axis
+        geo_decal(objs, Decal(text_stamp("TALK FLYING AIR"), (L * 0.04, sd * rad * 0.8, zc + rad * 0.60),
+                              (0, 0, 1), (L * 0.42, L * 0.044), (0, sd, 0), INK, depth=rad * 0.9),
+                  "Mark.Title." + tag)
+        if fb:
+            xa, xb, z0, z1 = fb
+            geo_decal(objs, Decal(logo_stamp(), ((xa + xb) * 0.5, sd * 0.12, z0 + (z1 - z0) * 0.55),
+                                  (0, 0, 1), ((xb - xa) * 0.80, (z1 - z0) * 0.70), (0, sd, 0), INK,
+                                  depth=0.5), "Mark.Fin." + tag)
 
 
 PLANES = {
