@@ -37,7 +37,8 @@ CFG = json.load(open(os.path.join(REPO, "configs/aircraft/glider-2-33-like.json"
 # the sRGB transfer curve. Set the sRGB numbers straight into the socket and it renders pale.
 YELLOW = (0.955, 0.538, 0.002, 1.0)
 TRIM = (0.247, 0.263, 0.298, 1.0)        # graphite, the same the liveries are trimmed in
-GLASS = (0.42, 0.50, 0.56, 1.0)
+GLASS = (0.35, 0.62, 0.72, 1.0)       # the three-view's pale blue glazing, linear; over a yellow
+                                      # fuselage a thinner tint just reads cream
 RUBBER = (0.055, 0.058, 0.062, 1.0)
 
 
@@ -59,21 +60,32 @@ WING_Z = 0.46        # the wing's flat underside, which sits ON the cabin roof (
 WING_QC = WING["strips"][0]["pos"][0]                          # 0.10, the quarter-chord station
 
 
+# THE PLANFORM IS MEASURED OFF THE OWNER'S THREE-VIEW, not taken from the config's chord table. The two
+# disagree about where the wing stops being rectangular: the config runs 1.40 m of chord out to y 5.03 and
+# then tapers to 0.86 m, and the drawing runs 1.486 m out to y 3.49 and tapers to 0.724 m. They carry the
+# same wing: 19.8 m2 against the config's 20.4 and the published 20.39, which is inside the 1 % a chord
+# read off a drawing in pixels is good for. The drawing is the shape of the aeroplane, so the drawing wins
+# for the skin; the config still owns the span, the quarter-chord station and every number the physics uses.
+#
+#     measured      1.486 m constant to y 3.49 (0.452 of the half-span), 0.724 m at the tip
+#     leading edge  rakes aft 0.197 m over the taper, trailing edge forward 0.565 m -- 26/74, which IS the
+#                   straight quarter-chord line the config holds at x 0.10 at every station
+BREAK_Y = 3.49
+ROOT_C = 1.486
+TIP_C = 0.724
+
+
 def chord_at(y):
-    """The config's own chord distribution, read at any station by walking its strips."""
-    pts = sorted((abs(s["pos"][1]), s["chord"]) for s in WING["strips"])
-    # the aileron is a separate surface, so a strip that has one is short by the aileron's chord
-    ail = sorted((abs(s["pos"][1]), s["chord"]) for s in AIL["strips"])
-    for ya, ca in ail:
-        for i, (yw, cw) in enumerate(pts):
-            if abs(yw - ya) < 1e-6:
-                pts[i] = (yw, cw + ca)
-    y = min(abs(y), pts[-1][0])
-    for (y0, c0), (y1, c1) in zip(pts, pts[1:]):
-        if y0 <= y <= y1:
-            t = (y - y0) / (y1 - y0) if y1 > y0 else 0.0
-            return c0 + (c1 - c0) * t
-    return pts[0][1]
+    """The 2-33's double taper: a rectangular centre section and a straight-tapered outer panel."""
+    y = min(abs(y), HALF)
+    if y <= BREAK_Y:
+        return ROOT_C
+    return ROOT_C + (TIP_C - ROOT_C) * (y - BREAK_Y) / (HALF - BREAK_Y)
+
+
+def config_wing_area():
+    """What the config flies, for the comparison printed at the end of a run."""
+    return sum(s["area"] for s in WING["strips"]) + sum(s["area"] for s in AIL["strips"])
 
 
 ROOT_LE = WING_QC + 0.25 * chord_at(0.0)   # the root's leading edge; outboard it rakes, see wing_xle()
@@ -266,7 +278,7 @@ def build_canopy():
     b.inputs["Base Color"].default_value = GLASS
     b.inputs["Roughness"].default_value = 0.08
     if "Alpha" in b.inputs:
-        b.inputs["Alpha"].default_value = 0.45
+        b.inputs["Alpha"].default_value = 0.62
     for attr, val in (("blend_method", 'BLEND'), ("surface_render_method", 'BLENDED')):
         if hasattr(m, attr):
             try:
@@ -338,7 +350,7 @@ def wing_section(side, y, u0=0.0, u1=1.0, n=22, shrink=1.0, at_y=None):
 def build_wing(side):
     # two stations at the break, a hair apart: the one inboard carries the full chord and the one outboard
     # is cut at the hinge, so the loft between them is the aileron's inboard rib
-    ys = [(0.0, 1.0), (1.2, 1.0), (2.4, 1.0), (3.6, 1.0), (4.6, 1.0), (AIL_Y - 0.004, 1.0),
+    ys = [(0.0, 1.0), (1.2, 1.0), (2.4, 1.0), (BREAK_Y, 1.0), (4.3, 1.0), (AIL_Y - 0.004, 1.0),
           (AIL_Y, AIL_U), (5.9, AIL_U), (6.6, AIL_U), (7.15, AIL_U), (7.5, AIL_U), (HALF, AIL_U)]
     loops = [wing_section(side, y, 0.0, u1) for y, u1 in ys]
     loops.append(wing_section(side, HALF, 0.0, AIL_U, shrink=0.55, at_y=HALF + 0.06))
@@ -378,6 +390,27 @@ def build_tail_panel(name, x_le, root_c, tip_c, half_span, z0, z1, vertical, thi
                 loop.append((xl - u * c, half_span * f, z0 + (z1 - z0) * f + t * c))
         loops.append(loop)
     return smooth(paint(mesh_from_loops(name, loops), YELLOW))
+
+
+def build_stab(x_le=-3.73, c=1.20, half=1.75, z=0.07, thick=0.10):
+    """The horizontal tail: CONSTANT CHORD WITH SEMICIRCULAR TIPS -- "rounded like a popsicle stick",
+    which is what the three-view draws and what a 2-33 carries. The drawing's own tailplane is inked at a
+    smaller scale than its three views (2.32 m across where the config flies 3.50), so what is taken from
+    it is the shape -- straight sides, a tip that is a half-circle of the chord -- at the config's size.
+
+    One piece through the centreline, not two halves mirrored: two halves left a notch at the root where
+    their swept leading edges met.
+    """
+    r = c * 0.5
+    ys = half - r                                   # where the straight part ends and the tip begins
+    out = [(ys + r * math.sin(math.radians(t)), 2 * r * math.cos(math.radians(t)))
+           for t in (0, 15, 30, 45, 60, 70, 80, 86, 89.3)]
+    stations = ([(-y, ch) for y, ch in reversed(out)]
+                + [(-1.0, c), (-0.5, c), (0.0, c), (0.5, c), (1.0, c)] + out)
+    xmid = x_le - c * 0.5
+    sec = naca00(thick)
+    loops = [[(xmid + (0.5 - u) * ch, y, z + t * ch) for u, t in sec] for y, ch in stations]
+    return smooth(paint(mesh_from_loops("Stab", loops), YELLOW))
 
 
 def mirror_y(ob, name):
@@ -467,8 +500,7 @@ def main():
     # splitting them here buys nothing and costs the outline.
     #   stab     quarter chord x -4.03, chord 0.72 + elevator 0.48 -> leading edge -3.73, span 3.50
     #   fin      quarter chord x -4.05, chord 0.60; rudder -4.45, 0.45 -> -3.90 back to -4.79
-    stab = build_tail_panel("Stab.R", -3.73, 1.20, 0.80, 1.75, 0.07, 0.09, vertical=False)
-    parts += [stab, mirror_y(stab, "Stab.L")]
+    parts.append(build_stab())
     parts.append(build_tail_panel("Fin", -3.90, 0.89, 0.52, 0.0, 0.02, 1.30, vertical=True))
 
     # THE LIFT STRUTS. Out to 45 % of the half-span, off the lower longeron, with a jury strut up to the
@@ -508,6 +540,9 @@ def main():
     bpy.ops.export_scene.gltf(filepath=glb, export_format='GLB', use_selection=True, export_apply=True)
 
     pts = [o.matrix_world @ v.co for o in parts for v in o.data.vertices]
+    area = 2 * sum(0.5 * (chord_at(y) + chord_at(y + 0.01)) * 0.01 for y in
+                   [i * 0.01 for i in range(int(HALF / 0.01))])
+    print("MODEL233 wing area %.2f m2 drawn, %.2f m2 in the config, 20.39 published" % (area, config_wing_area()))
     print("MODEL233 parts %d  span %.2f  length %.2f  height %.2f"
           % (len(parts), max(p.y for p in pts) - min(p.y for p in pts),
              max(p.x for p in pts) - min(p.x for p in pts),
