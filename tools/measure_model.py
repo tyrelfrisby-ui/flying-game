@@ -67,7 +67,11 @@ def hw_of(sel):
     w = sorted(abs(p[SPAN]) for p in sel)
     return w[int(len(w) * 0.9)] * k
 EDGE_BIN = 0.03        # m: a slab of skin thick enough to hold a few vertices
-EDGE_FRAC = 0.45       # a bin counts as BODY if it is at least this wide compared with the body
+EDGE_FRAC = 0.22       # a bin counts as BODY if it is at least this wide compared with the body
+# 0.45 was too strict and biased the TOP LINE LOW on a narrow section: the topmost slabs of a rounded body
+# are themselves narrow, so the walk inward skipped past the skin and reported a bin some way down the
+# side. On the 172's tailcone that cost 0.1-0.3 m and made the boom droop. 0.22 still rejects a fin (0.03 m
+# of half-thickness against a want of 0.066 at the same station) and keeps the skin (0.166).
 
 
 def edge(sel, hw, top):

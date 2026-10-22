@@ -210,41 +210,53 @@ NOSE = LE_ROOT + 2.06
 #   and undercarriage are what is left. Rendered as a white silhouette on black through an orthographic
 #   camera and read back column by column, which gives the outline at 5 mm.
 #
-#   That is what finally produced a windscreen: the deck is at +0.407 at station 1.80 and the roof corner at
-#   +0.670 at 1.98, a rake of about 52 degrees. Measuring through the wing had said +0.72 all the way from
+#   That is what finally produced a windscreen: the deck is at +0.407 at station 1.70 and the roof corner at
+#   +0.681 at 1.88, a rake of about 56 degrees. Measuring through the wing had said +0.72 all the way from
 #   1.98 to 2.73 -- a flat roof and no windscreen, which is the teardrop again by another route.
+#
+#   The cabin roof is +0.62, NOT +0.72. The higher figure is the wing-root fairing and the wing above it,
+#   and it was still in the table after the first silhouette pass because that pass isolated the body by a
+#   span CUT rather than by connected component. Our wing is drawn as its own part, so the fuselage wants
+#   the roof under it; the wing's lower surface then sits about 0.11 m into the fairing, which is what a
+#   172 looks like.
 #
 # The belly is three-point smoothed (the slice quantises to 30 mm); the top line is not, because its one big
 # step is the windscreen and that is a real break in the surface, not noise. Stations are clustered at
 # 1.80/1.98/2.05 to hold the windscreen's corners and at 3.84/4.00/4.10 to hold the drop behind the cabin.
 # The two ends are closed by hand: a slice at the spinner catches the propeller and one at the tailpost
 # catches the fin.
+#
+# THE TABLE ENDS AT THE TAILPOST, NOT AT THE AEROPLANE'S AFT END. It used to run to 8.21 m because that is
+# what the reference measured end to end -- but the aftmost thing on a 172 is the RUDDER, not the fuselage.
+# Lofting the body all the way there gave it an extra 0.6 m of tailcone with the rudder still hung off the
+# back of it. On the reference the fuselage stops at 7.70 m from the spinner (measured with the fin and the
+# gear excluded) and the rudder's trailing edge is 0.48 m behind that.
 #   (station aft of the spinner, half-width, bottom, top) -- all metres, z about the thrust line
 STATIONS = [
     (0.00, 0.073, -0.073, +0.073),
-    (0.46, 0.335, -0.368, +0.223),
-    (0.91, 0.443, -0.596, +0.287),
-    (1.37, 0.496, -0.671, +0.330),
-    (1.62, 0.533, -0.698, +0.360),
-    (1.80, 0.560, -0.712, +0.407),
-    (1.98, 0.554, -0.713, +0.670),
-    (2.05, 0.550, -0.712, +0.681),
-    (2.28, 0.538, -0.699, +0.634),
-    (2.73, 0.556, -0.715, +0.622),
-    (3.19, 0.543, -0.680, +0.600),
-    (3.64, 0.532, -0.623, +0.520),
-    (3.84, 0.504, -0.599, +0.330),
-    (4.00, 0.482, -0.581, +0.275),
-    (4.10, 0.468, -0.569, +0.262),
-    (4.56, 0.414, -0.535, +0.250),
-    (5.01, 0.366, -0.488, +0.222),
-    (5.47, 0.302, -0.419, +0.180),
-    (5.92, 0.253, -0.401, +0.150),
-    (6.38, 0.228, -0.332, +0.093),
-    (6.84, 0.195, -0.291, +0.064),
-    (7.30, 0.160, -0.228, +0.056),
-    (7.75, 0.110, -0.189, +0.043),
-    (8.21, 0.020, -0.150, +0.030),
+    (0.46, 0.335, -0.368, +0.255),
+    (0.91, 0.443, -0.596, +0.310),
+    (1.37, 0.496, -0.671, +0.342),
+    (1.62, 0.533, -0.698, +0.372),
+    (1.70, 0.545, -0.704, +0.407),
+    (1.88, 0.557, -0.712, +0.681),
+    (2.05, 0.550, -0.712, +0.645),
+    (2.28, 0.538, -0.699, +0.625),
+    (2.73, 0.556, -0.715, +0.625),
+    (3.19, 0.543, -0.680, +0.605),
+    (3.45, 0.537, -0.647, +0.595),
+    (3.55, 0.534, -0.634, +0.490),
+    (3.70, 0.524, -0.616, +0.370),
+    (3.85, 0.504, -0.599, +0.250),
+    (4.10, 0.468, -0.569, +0.265),
+    (4.56, 0.414, -0.535, +0.245),
+    (5.01, 0.366, -0.488, +0.215),
+    (5.47, 0.302, -0.419, +0.185),
+    (5.92, 0.253, -0.401, +0.170),
+    (6.38, 0.228, -0.332, +0.145),
+    (6.84, 0.195, -0.291, +0.120),
+    (7.30, 0.160, -0.228, +0.095),
+    (7.60, 0.127, -0.202, +0.080),
 ]
 SECT = 24   # enough to read a radiused corner; the plan's F1 has a generous one
 
@@ -556,43 +568,71 @@ if hs:
             for v in ob.data.vertices: v.co.z += hs["z"]
             parts.append(ob)
 if vs:
-    # the fin's strips run up the FIN, so the half-step is in z and the root/tip chords come from its ends
-    vstep = half_step("vStab", 2)
-    vc = pair_chord("vStab", "rudder-vstab", 2, outer=True, signed=True)     # z is DOWN-positive, so "max z" is the ROOT
-    vtip = pair_chord("vStab", "rudder-vstab", 2, outer=False, signed=True)
-    x_le = vs["x"] + vc * 0.25
-    # THE FIN HAS TO REACH THE BOOM. The config's lowest strip is the lowest place the fin makes LIFT, not
-    # the lowest place it has structure, and it sits about 0.27 m above the tailcone -- so building the root
-    # at the strip edge leaves the fin floating. Take the root from where the body's own skin is at the fin's
-    # mid-chord and bury it 50 mm.
-    x_mid = x_le - vc * 0.5
-    zbot = station_at(NOSE - x_mid)[2] - 0.05
-    ztop = vs["ztop"] + vstep
-    # a 172 stands 2.72 m tall on its wheels, and the config puts the wheels 1.15 m below the thrust line,
-    # so nothing on this aeroplane reaches higher than 1.57 m above it. The strips alone overshoot.
-    ztop = min(ztop, HEIGHT - max(g["pos"][2] for g in CFG.get("gear", [{"pos": [0, 0, 1.15]}])))
-    fin = tail_panel("Fin", x_le, vc, vtip, zbot, ztop, vc * 0.42, 0.0, HINGE, vertical=True, thick=0.10)
+    # THE FIN, FROM ITS OWN STRIPS. Everything here used to come from the MEAN of the four strips -- the mean
+    # x with the ROOT chord, and a leading-edge rake of "chord * 0.42" that was a guess. The fin's strips
+    # sweep aft as they rise (x goes -4.55 to -5.23), so the mean is 0.19 m behind the root, and the guessed
+    # rake made the planform half as big again as a 172's. Drawn against the reference it was a barn door.
+    # Every number below is read off the config's own strips instead.
+    fin_s = sorted(next(x for x in CFG["surfaces"] if x["id"] == "vStab")["strips"], key=lambda t: t["pos"][2])
+    rud_s = sorted(next(x for x in CFG["surfaces"] if x["id"] == "rudder-vstab")["strips"], key=lambda t: t["pos"][2])
+    # config z is DOWN-positive, so the LAST entry after sorting is the lowest strip: the root
+    f_root, f_tip = fin_s[-1], fin_s[0]
+    r_root, r_tip = rud_s[-1], rud_s[0]
+    z_root, z_tip = bz(f_root["pos"][2]), bz(f_tip["pos"][2])
+    vstep = (z_tip - z_root) / (len(fin_s) - 1) * 0.5 if len(fin_s) > 1 else 0.0
+
+    def le_te(fs, rs):
+        """Leading edge from the fin's strip, trailing edge from the rudder's: one planform, two surfaces."""
+        return fs["pos"][0] + fs["chord"] * 0.25, rs["pos"][0] - rs["chord"] * 0.75
+
+    le_r, te_r = le_te(f_root, r_root)
+    le_t, te_t = le_te(f_tip, r_tip)
+    vc, vtip = le_r - te_r, le_t - te_t
+    # the fin's root reaches into the tailcone, and its tip is where the aeroplane stops being 2.72 m tall
+    zbot = station_at(NOSE - (le_r - vc * 0.5))[2] - 0.06
+    # the reference's fin tops out at 1.44-1.48 m above the thrust line; the published 2.72 m height minus
+    # the config's 1.15 m of gear says 1.57, which is the aerial, not the fin
+    ztop = min(z_tip + vstep, 1.47)
+    sweep = (le_r - le_t) / (z_tip - z_root)            # metres of rake per metre of height, from the strips
+    le_at_root = le_r + sweep * (z_root - zbot)         # extend the LE down to where the fin meets the body
+    HINGE_V = (le_r - (r_root["pos"][0] + r_root["chord"] * 0.25)) / vc    # where the rudder starts
+
+    fin = tail_panel("Fin", le_at_root, vc, vtip, zbot, ztop, sweep, 0.0, HINGE_V, vertical=True, thick=0.10)
     parts.append(fin)
-    rud = tail_panel("Rudder", x_le, vc, vtip, zbot, ztop, vc * 0.42, HINGE, 1.0, vertical=True, thick=0.09)
-    set_origin(rud, (x_le - HINGE * vc, 0.0, (ztop + zbot) * 0.5))
+    rud = tail_panel("Rudder", le_at_root, vc, vtip, zbot, ztop, sweep, HINGE_V, 1.0, vertical=True, thick=0.09)
+    set_origin(rud, (le_at_root - HINGE_V * vc, 0.0, (ztop + zbot) * 0.5))
     parts.append(rud)
 
-    # THE DORSAL FIN -- the fillet running forward from the fin's leading edge along the top of the tailcone.
-    # It is one of the few lines that says "Cessna" from a distance, and without it the fin looks bolted on.
-    def tri(xa, za, xb, zb_, xc, zc, t=0.022):
-        loops = []
-        for side in (-1, 1):
-            loops.append([(xa, side * t * 0.3, za), (xb, side * t, zb_), (xc, side * t, zc)])
-        return mesh_from_loops("Fin.Dorsal", loops)
+    # THE DORSAL FIN. One of the few lines that says "Cessna" from a distance, and the reason the fin does
+    # not look bolted on. Measured off the reference's silhouette it is a LONG, CONCAVE blade: it leaves the
+    # tailcone 2.5 m ahead of the fin and stands only 0.07 m proud at first, then sweeps up to about 0.36 m
+    # by the time it reaches the fin's leading edge. The first attempt here was a straight triangle starting
+    # 1.85 m out, which is both too short and the wrong curve -- against the reference it read as a shark fin
+    # rather than a fillet.
+    s_le = NOSE - le_at_root
+    s_fwd = s_le - 2.50                                  # forward is +x, so a station forward is SMALLER s
+    # 0.36 m proud of the tailcone where it meets the fin -- measured off the reference's outline, not taken
+    # as a fraction of the fin's height, which overshot by 0.15 m and gave it a shark's dorsal
+    peak = 0.36
+    rows = []
+    for side in (-1, 1):
+        row = []
+        n = 10
+        for i in range(n + 1):
+            f = i / n
+            sm = s_fwd + (s_le - s_fwd) * f
+            base = station_at(sm)[2] - 0.012
+            row.append((NOSE - sm, side * 0.024 * min(1.0, f * 3.0 + 0.1), base + peak * f ** 1.9))
+        # back along the tailcone, so the blade is a closed outline rather than a sheet
+        for i in range(n, -1, -1):
+            f = i / n
+            sm = s_fwd + (s_le - s_fwd) * f
+            row.append((NOSE - sm, side * 0.024 * min(1.0, f * 3.0 + 0.1) * 0.25, station_at(sm)[2] - 0.05))
+        rows.append(row)
+    parts.append(mesh_from_loops("Fin.Dorsal", rows))
 
-    # forward is +x, so a station FORWARD of the fin is a SMALLER distance aft of the nose
-    s_fwd = (NOSE - x_le) - 1.55            # the fillet starts 1.55 m ahead of the fin
-    parts.append(tri(NOSE - s_fwd, station_at(s_fwd)[2] - 0.01,
-                     x_le, zbot + (ztop - zbot) * 0.30,
-                     x_le, station_at(NOSE - x_le)[2] - 0.01))
-
-print("C172 tail: hstab span %.2f root %.2f tip %.2f | fin %.2f..%.2f root %.2f tip %.2f"
-      % (half * 2, hc, htip, zbot, ztop, vc, vtip))
+    print("C172 fin: root %.2f tip %.2f  z %.2f..%.2f  sweep %.2f  hinge %.2f  TE at station %.2f"
+          % (vc, vtip, zbot, ztop, sweep, HINGE_V, NOSE - te_r))
 
 # ---- GEAR: the nose leg is its own object and its ORIGIN IS THE STEERING AXIS --------------------------------
 def cyl(name, p0, p1, r, seg=12):
