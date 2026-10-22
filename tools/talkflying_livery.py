@@ -34,6 +34,7 @@ import bpy, bmesh, os, sys, math, shutil
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
+PROBE = os.environ.get("TF_PROBE") == "1"      # print an x/z map of what a scrub changed
 REPO = "/Users/tyfrisby/Documents/flying-game"
 OUT = os.path.join(REPO, "build/talkflying")
 LOGO = os.path.join(REPO, "unity/Assets/_Project/Resources/Decals/talk-flying-logo.png")
@@ -262,6 +263,10 @@ class Decal:
         self.su, self.sv = size
         self.colour = colour
         self.literal = False          # true for a decal that keeps the artwork's own colours
+        # WHAT TO DO WITH A COVERED TEXEL. Normally: blend the decal's colour in. A scrub wants to read the
+        # texel it is standing on and decide, which is how the stock titles come OUT of the paint instead of
+        # disappearing under a patch of a slightly different grey. apply(buf, i, cov, key, p3).
+        self.apply = None
         # HOW DEEP THE PAINT REACHES. Without this a decal is a projector shining through the whole
         # aeroplane: the 737's titles came out twice, once on the fuselage side and again on the belly
         # below the wing, because a belly face also faces outward enough and projects into the rectangle.
@@ -355,14 +360,24 @@ def paint(objs, decals):
                                 continue
                             cov = min(1.0, s[3])
                             i = (py * W + px_) * 4
-                            for c in range(3):
-                                buf[i + c] = buf[i + c] * (1 - cov) + d.colour[c] * cov
+                            if d.apply is not None:
+                                d.apply(buf, i, cov, key, p3)
+                            else:
+                                for c in range(3):
+                                    buf[i + c] = buf[i + c] * (1 - cov) + d.colour[c] * cov
                             hits += 1
+    flush(buffers, sizes)
+    print("LIVERY   painted %d texels across %d images" % (hits, len(buffers)))
+    return buffers, sizes
+
+
+def flush(buffers, sizes):
+    """Hand the pixel buffers back to their images. Separate from paint() because a scrub reads first and
+    writes second, and both passes work on the same buffers."""
     for key, buf in buffers.items():
         W, H, img = sizes[key]
         img.pixels = buf
         img.update()
-    print("LIVERY   painted %d texels across %d images" % (hits, len(buffers)))
 
 
 def _stamp_image(stamp, name, colour, literal=False):
@@ -418,16 +433,132 @@ def surface_tree(objs):
     return tree
 
 
-def plate(objs, origin, vdir, size, facing, colour, depth, name, lift=0.006):
-    """A patch of plain paint laid on the skin, to cover markings that came with the model.
+def texel_window(covered, sizes):
+    """TF_WINDOW="<image>,x0,y0,x1,y1": where a rectangle of the TEXTURE lands on the AEROPLANE, in metres.
 
-    Covering beats erasing here. Painting over them in the texture needs to know which texels they occupy,
-    and on a model whose two sides share their UVs there is no answer that is right for both. A plate is
-    the model's own surface in the livery's own colour: it hides whatever is under it, follows the curve,
-    and needs to know nothing about anybody's UV layout.
+    This is how the scrub rectangles below were arrived at rather than guessed. Find the stock marking by
+    eye in the texture (export it and look), give its texel bounds, and this prints the x and z it occupies
+    on the model -- which is what scrub() wants. Note the row order is the buffer's, counting up from the
+    BOTTOM of the image, not down from the top as an image viewer shows it.
     """
-    return geo_decal(objs, Decal(solid_stamp(), origin, vdir, size, facing, colour, depth=depth),
-                     name, lift=lift)
+    if not os.environ.get("TF_WINDOW"):
+        return
+    img, x0, y0, x1, y1 = os.environ["TF_WINDOW"].split(",")
+    x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+    bb, n = [1e9, -1e9, 1e9, -1e9], 0
+    for key, items in covered.items():
+        if key != img:
+            continue
+        W = sizes[key][0]
+        for i, t, cov, wx, wz in items:
+            tx, ty = (i // 4) % W, (i // 4) // W
+            if x0 <= tx <= x1 and y0 <= ty <= y1:
+                bb[0], bb[1] = min(bb[0], wx), max(bb[1], wx)
+                bb[2], bb[3] = min(bb[2], wz), max(bb[3], wz)
+                n += 1
+    print("WINDOW %s texels=%d  x %.2f..%.2f  z %.2f..%.2f" % (img, n, bb[0], bb[1], bb[2], bb[3]))
+
+
+def probe_map(hot, rows=22, cols=100):
+    """TF_PROBE=1: an x/z map of what a scrub actually changed, drawn side-on.
+
+    A rectangle that is a little too generous does not announce itself in the log -- it quietly takes the
+    window line out with the titles. This draws what was changed so that is visible without a render.
+    """
+    if not (PROBE and hot):
+        return
+    xs, zs = [q[0] for q in hot], [q[1] for q in hot]
+    x0, x1, z0, z1 = min(xs), max(xs), min(zs), max(zs)
+    g = [[0] * cols for _ in range(rows)]
+    for x, z in hot:
+        g[min(rows - 1, int((z1 - z) / max(1e-6, z1 - z0) * rows))][
+            min(cols - 1, int((x - x0) / max(1e-6, x1 - x0) * cols))] += 1
+    for r, row in enumerate(g):
+        print("PROBE %7.2f |%s|" % (z1 - (r + 0.5) / rows * (z1 - z0),
+                                    "".join(" .:*#"[min(4, (c + 11) // 12)] for c in row)))
+    print("PROBE x %.2f (aft) .. %.2f (nose)" % (x0, x1))
+
+
+def scrub(objs, origin, vdir, size, facing, depth, name, tol=0.07, soft=0.05, tile=32):
+    """Take the model's own markings OUT of its paint, instead of hiding them under a patch of ours.
+
+    The blunt version, which this replaced, laid a patch of the livery's own colour over them. It shows: a
+    patch of flat SILVER on a skin that recolour() has already clamped to near-white reads as a grey
+    rectangle behind the titles, which is what the owner saw -- "instead of painting the area behind the
+    talk flying airlines grey can you just type talk flying airlines over the aircraft's current paint".
+
+    THE RULE IS "WHATEVER IS NOT THE PAINT", not "whatever is dark". Inside the rectangle, the texture is
+    cut into tiles and each tile's MEDIAN colour is taken as the paint there -- markings are a minority of
+    any tile, and a median over a tile follows the shading gradient instead of flattening it. Every texel
+    more than `tol` away from its tile's median in luminance is pulled back to it, with a soft band so the
+    anti-aliased edges leave no outline. Panel lines and rivets are within the tolerance and survive.
+
+    Two narrower rules were tried first and each left a ghost, and the ghost is as obvious as the patch was:
+      - lifting dark texels to white brought the titles back PALE, because the paint is 0.85, not 1.0;
+      - lifting dark texels to the paint beside them left the titles as BRIGHT OUTLINES, because the stock
+        lettering is dark with a white edge and the crest is gold -- both of which read brighter than the
+        paint, so a dark-only rule never touched them at all.
+
+    SHARED UVS ARE NOT A PROBLEM HERE, unlike a registration: both sides of the fuselage carry the same
+    stock titles on the same texels, and both sides want them gone. One write that lands on both is right.
+    """
+    def luma(buf, j):
+        return 0.2126 * buf[j] + 0.7152 * buf[j + 1] + 0.0722 * buf[j + 2]
+
+    covered, tiles = {}, {}
+
+    def look(buf, i, cov, key, p3):
+        W = bpy.data.images[key].size[0]      # not sizes[]: paint() has not returned it yet
+        px = i // 4
+        t = (key, px % W // tile, px // W // tile)
+        tiles.setdefault(t, []).append((luma(buf, i), buf[i], buf[i + 1], buf[i + 2]))
+        covered.setdefault(key, []).append((i, t, cov, p3.x, p3.z))
+
+    d = Decal(solid_stamp(), origin, vdir, size, facing, (1, 1, 1), depth=depth)
+    d.apply = look
+    buffers, sizes = paint(objs, [d])
+    if not covered:
+        print("LIVERY   %s: nothing under it" % name)
+        return
+    texel_window(covered, sizes)
+    # THE PAINT IN EACH TILE, pooled with its eight neighbours before the median is taken. Pooling is not
+    # optional: a tile is 32 texels and the crest is taller than that, so a tile wholly inside a marking has
+    # that marking as its own median and nothing in it is ever touched. That left the crest and the first
+    # few letters of REPUBLIK sharp while the rest of the word scrubbed away. Three tiles across is wider
+    # than any marking here, and still narrow enough to follow the shading along the fuselage.
+    med = {}
+    for key, tx, ty in tiles:
+        pool = []
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                pool += tiles.get((key, tx + dx, ty + dy), ())
+        pool.sort()
+        med[(key, tx, ty)] = pool[len(pool) // 2]      # (luma, r, g, b) of the paint there
+
+    done, box, hot = 0, [1e9, -1e9, 1e9, -1e9], []
+    for key, items in covered.items():
+        buf = buffers[key]
+        for i, t, cov, wx, wz in items:
+            ml, mr, mg, mb = med[t]
+            k = min(1.0, max(0.0, (abs(luma(buf, i) - ml) - tol) / soft)) * cov
+            if k <= 0.0:
+                continue
+            for c, m in zip(range(3), (mr, mg, mb)):
+                buf[i + c] = buf[i + c] * (1 - k) + m * k
+            done += 1
+            if k > 0.5:
+                box[0], box[1] = min(box[0], wx), max(box[1], wx)
+                box[2], box[3] = min(box[2], wz), max(box[3], wz)
+                if PROBE:
+                    hot.append((wx, wz))
+    flush(buffers, sizes)
+    print("LIVERY   %s: %d of %d texels put back to the paint around them (%d tiles)" %
+          (name, done, sum(len(v) for v in covered.values()), len(med)))
+    probe_map(hot)
+    if box[1] > box[0]:
+        # WHERE IT ACTUALLY BIT, in metres. The rectangle is a guess; this is the measurement that says
+        # whether it caught the stock titles or also took the window line out with them.
+        print("LIVERY   %s: changed x %.2f..%.2f  z %.2f..%.2f" % (name, box[0], box[1], box[2], box[3]))
 
 
 def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
@@ -1016,15 +1147,23 @@ def seven37(objs, L, H):
     zc, rad = fuselage_axis(objs, L)
     for sd in (1, -1):
         tag = "R" if sd > 0 else "L"
-        # COVER WHAT CAME WITH THE MODEL: titles along the forward fuselage, a crest behind them and a
-        # roundel under the cockpit. A plate of bare metal hides all of it without anyone working out
-        # which texels it occupies -- which, on a model whose two sides share their UVs, has no answer
-        # that is right for both.
-        plate(objs, (L * 0.30, sd * rad * 0.82, zc + rad * 0.90), (0, 0, 1),
-              (L * 0.56, rad * 1.30), (0, sd, 0), SILVER, rad * 0.95, "Plate.Titles." + tag)
-        plate(objs, (L * 0.445, sd * rad * 0.70, zc + rad * 0.05), (0, 0, 1),
-              (L * 0.12, rad * 0.85), (0, sd, 0), SILVER, rad * 0.95, "Plate.Roundel." + tag)
-    # ... and only then the livery, so it lands on clean metal. The titles go WHERE THE STOCK ONES WERE,
+        # TAKE OFF WHAT CAME WITH THE MODEL -- the REPUBLIK INDONESIA titles with the garuda crest behind
+        # them, and the roundel under the cockpit -- by scrubbing them out of the model's own paint. The
+        # earlier version laid a plate of flat SILVER over them, and on a skin recolour() has clamped to
+        # near-white that reads as a grey rectangle: "instead of painting the area behind the talk flying
+        # airlines grey can you just type talk flying airlines over the aircraft's current paint".
+        #
+        # EACH RECTANGLE IS MEASURED, not guessed. The texels carrying each stock marking were mapped back
+        # through the mesh (scrub's own TF_WINDOW probe), and they come out at:
+        #     titles + crest   x  4.8 .. 13.9    z -1.68 .. -0.76
+        #     roundel          x 15.0 .. 15.8    z -2.89 .. -2.20
+        # Tight matters: the first attempt covered the whole forward fuselage and took the window line and
+        # the cheatline with it.
+        scrub(objs, (9.36, sd * rad * 0.82, -1.22), (0, 0, 1),
+              (10.6, 1.5), (0, sd, 0), rad * 0.95, "Scrub.Titles." + tag, tol=0.02, soft=0.02)
+        scrub(objs, (15.42, sd * rad * 0.82, -2.55), (0, 0, 1),
+              (1.5, 1.3), (0, sd, 0), rad * 0.95, "Scrub.Roundel." + tag)
+    # ... and only then the livery, so it lands on clean paint. The titles go WHERE THE STOCK ONES WERE,
     # high on the forward fuselage, rather than down across the window line.
     st = text_stamp("TALK FLYING AIRLINES")
     for sd in (1, -1):
