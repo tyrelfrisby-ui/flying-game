@@ -238,3 +238,55 @@ Nothing in the fleet's configs was changed by any of today's work: the correctio
 what was concluded from it. `CALIBRATE_ONLY=<id>` now scopes a calibration run to one type, so re-deriving one
 aeroplane's elevator cannot quietly rewrite another's (on 2026-10-19 it rewrote two unrelated J-3 configs).
 
+
+---
+
+## 2026-10-22 — the stall gate, run against the corrected harness
+
+The document's own next step ("re-run the stall gate; this is now the cheap step") was run. **The gate holds.**
+It is in `AeroModel.ApplyWingSideslipRoll`: the table's C_l is scaled by the wing's own area-weighted
+separated fraction, accumulated from `flowState.Separation` as the strips are flown.
+
+### In ordinary flight the double count is gone
+
+`TurbulenceStabilityProbe` (TURB_PROBE=1), hands on the trim, 40 s of moderate turbulence, table off vs on:
+
+| | bank peak off → on | ended off → on |
+|---|---|---|
+| Super Cub | 7° → 7° (**was 7° → 52°**) | 33.9 → 33.9 m/s |
+| 2-33 | 57° → 54° (**was the 22 m/s trim winding up to 43**) | 32.2 → 31.7 m/s |
+| 172, EB29R, Swift | identical | identical |
+| Extra | identical (both end on the ground; that is the probe's own scenario, unchanged) | |
+
+The table now does nothing in attached flow, which is what "it acts only where the paper measured" means.
+
+### In the spin the types that have the table are unchanged
+
+`SwiftThermalSpinProbe.TheWidgetsOwnSpinRecipe` (SWIFT_SPIN=1), 30 s of held pro-spin controls:
+
+| | turns | stalled | mean α |
+|---|---:|---:|---:|
+| Swift, gated | 5.84 (was 5.82) | 96 % | 40° |
+| Extra, gated | 3.60 (identical) | 100 % | 49° |
+
+728 tests pass, including the three that failed on the ungated table.
+
+### The 2-33 still cannot spin, and the table was never its problem
+
+Given the gated table it manages **0.91 turns in 30 s, 32 % stalled, mean α 14°** against a 16.5° stall —
+worse than with no table at all (2.70 turns), because a gate that waits for the stall never opens and this
+aeroplane cannot reach its stall. Full aft stick balances it at **16.0° against a 16.5° stall: half a degree
+SHORT**. That is `TargetMarginDeg` doing what it is told — trainers are calibrated to stop just short — but
+the 2-33 is placarded for intentional spins and belongs with the types that can hold one.
+
+Moving it to the aerobatic target does not work either: the calibration bisection runs to its cap at a
+saturation of 120°, which is not an elevator, and still only reaches 19.8°. **The 2-33's tail as modelled
+cannot hold its wing past the stall at any saturation.** What is needed is the real elevator geometry —
+chord, area and up-travel from the 2-33A's maintenance data — not a larger number.
+
+### Where the fleet-wide question stands now
+
+The blocker named in October (the double count in attached flow) is measured away. The gate costs the
+types that have the table nothing. Turning the table on fleet-wide is now a decision about what each type
+should DO, not about whether the term is safe — and it is still the owner's call, because it changes how
+seven types behave at the stall.

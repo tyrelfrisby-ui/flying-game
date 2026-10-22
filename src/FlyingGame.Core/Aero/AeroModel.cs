@@ -298,6 +298,10 @@ public static class AeroModel
         }
         if (stabN > 0) { stabX /= stabN; stabZ /= stabN; stabChord /= stabN; }
 
+        // THE WING'S OWN STALLED FRACTION, area-weighted, accumulated as the strips are flown. It gates the
+        // separated-wing rolling moment at the bottom of this method; see ApplyWingSideslipRoll.
+        double gateWingArea = 0.0, gateWingSeparated = 0.0;
+
         for (int surfaceIndex = 0; surfaceIndex < config.Surfaces.Count; surfaceIndex++)
         {
             SurfaceConfig surface = config.Surfaces[surfaceIndex];
@@ -678,6 +682,7 @@ public static class AeroModel
                 // Flap lift increment fades with separation (a stalled flapped section loses the camber lift);
                 // slat lift likewise. (flapClMax only extends the attached-branch cap above.)
                 double attached = flowState is not null && idx < flowState.Separation.Length ? 1.0 - flowState.Separation[idx] : 1.0;
+                if (isWing) { gateWingArea += strip.Area; gateWingSeparated += strip.Area * (1.0 - attached); }
                 double highLiftCl = (flapCl + slatCl) * attached;
                 double clTotal = coeffs.Cl + highLiftCl;
 
@@ -707,7 +712,8 @@ public static class AeroModel
         Vec3 airVelocity = bodyVelocity - (meanWindBody ?? windBody);
         ApplySpoilerDrag(config, airVelocity, airDensity, controls, ref totalForce, surfaceMask);
         ApplyFuselage(config, airVelocity, bodyRates, airDensity, ref totalForce, ref totalMoment);
-        ApplyWingSideslipRoll(config, airVelocity, airDensity, surfaceMask, ref totalMoment);
+        ApplyWingSideslipRoll(config, airVelocity, airDensity, surfaceMask,
+                              gateWingArea > 0.0 ? gateWingSeparated / gateWingArea : 0.0, ref totalMoment);
 
         return (totalForce, totalMoment);
     }
@@ -922,7 +928,8 @@ public static class AeroModel
     /// (the wing the relative wind meets first) loaded up, the trailing half unloaded. Upright (alpha &gt; 0) a wind from the
     /// right (beta &gt; 0) loads the right wing: a roll LEFT; inverted the loads are negative lift and it reverses. Beta is held
     /// at the tests' +/-20 deg beyond (no data past it).</summary>
-    private static void ApplyWingSideslipRoll(AircraftConfig config, Vec3 v, double rho, bool[]? surfaceMask, ref Vec3 totalMoment)
+    private static void ApplyWingSideslipRoll(AircraftConfig config, Vec3 v, double rho, bool[]? surfaceMask,
+                                              double wingStalled, ref Vec3 totalMoment)
     {
         string kind = config.SpinAero?.RollDueToSideslip ?? "";
         if (kind.Length == 0) return;
@@ -942,6 +949,16 @@ public static class AeroModel
         int i0 = 0; while (i0 < SlipRollAlpha.Length - 2 && a > SlipRollAlpha[i0 + 1]) i0++;
         double t = (a - SlipRollAlpha[i0]) / (SlipRollAlpha[i0 + 1] - SlipRollAlpha[i0]);
         double cl20 = tab[i0] + Math.Clamp(t, 0, 1) * (tab[i0 + 1] - tab[i0]);     // C_l at 20 deg yaw
+        // THE STALL GATE. TR-379 measured a SEPARATED wing. In attached flow the strip wing already makes
+        // its own rolling moment due to sideslip out of dihedral, wing-body position and geometry, so the
+        // table counts it a second time and an aeroplane with real dihedral gets roughly double: hands on
+        // the trim through 40 s of moderate turbulence, the Super Cub's peak bank went 7 deg -> 52 and the
+        // 2-33 wound up from a 22 m/s trim to 43. Scaling by the wing's own separated fraction confines
+        // the term to the flow the paper measured, and takes it to zero in attached flow by itself.
+        // docs/SPIN-ROTARY-DATA.md calls this "the faithful fix"; it was rejected once on a measurement
+        // the same document later shows was wrong (the Pitts' entry gated at 17 deg on a 12 deg wing).
+        cl20 *= Math.Clamp(wingStalled, 0.0, 1.0);
+        if (cl20 <= 0.0) return;
         double S = 0; foreach (var sf in config.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) S += st.Area;
         double span = WingSpan(config);
         double q = 0.5 * rho * V * V;
