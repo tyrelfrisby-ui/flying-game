@@ -198,6 +198,18 @@ def badge_stamp():
     return crop_stamp(logo_stamp(), 0.055, 0.945, 0.535, 0.790, "badge")
 
 
+def podcast_stamp():
+    """PODCAST on its own -- the brand's own letterspaced line, cut out of the lockup rather than set
+    again in Bodoni, which would come out as a different word in the same family.
+
+    The crop is measured: the logo's ink sits in four blocks, and the PODCAST line runs rows 341..382
+    with the word itself between columns 328 and 698. The flanking dashes (176..299 and 724..847) are
+    left out -- with them the mark is 16 times as wide as it is tall, which on a wing means letters a
+    hand high on a mark six metres long.
+    """
+    return crop_stamp(logo_stamp(), 0.320, 0.682, 0.330, 0.377, "podcast")
+
+
 # THE LOGO'S "BLACK" FIELD IS NOT BLACK. It reads 0.035-0.047 in luminance across nine tenths of the
 # image, so a mark taken straight from it carries a 4 % wash of ink over its whole rectangle -- which is
 # invisible as near-black on a white 737 and perfectly visible as white on the red Schweizer, where the
@@ -574,6 +586,67 @@ def scrub(objs, origin, vdir, size, facing, depth, name, tol=0.07, soft=0.05, ti
         print("LIVERY   %s: changed x %.2f..%.2f  z %.2f..%.2f" % (name, box[0], box[1], box[2], box[3]))
 
 
+def strip_paint(objs, x0, x1, name, z0=-0.55, z1=0.78, hue=0.10, reach=1.3, tile=48):
+    """Take the model's OWN COLOURED PAINT off a stretch of the body and leave the skin that surrounds it.
+
+    scrub() cannot do this, and it is worth saying why. Its rule is "whatever is not the paint", judged
+    against the median of a tile -- and the 172's cowl is a paint area many tiles across, so the median
+    inside it IS the dark paint, nothing would move, and the one thing that would scrub away is the white
+    registration sitting in the middle of it. Here the paint is the thing to remove.
+
+    WHAT COUNTS AS PAINT IS ITS HUE, NOT ITS DARKNESS. recolour() maps this model's stock blue onto
+    GRAPHITE keeping each texel's own luminance, so the paint is everywhere bluer than it is red, while
+    the skin, the window frames, the tyres and the shadows are neutral. A darkness test would have taken
+    the window frames and the door seals out with the cowl.
+
+    Each marked texel is put back to the median of the SKIN around it -- pooled over three tiles, the same
+    trick scrub() needs -- so the paint goes and the shading under it stays.
+    """
+    tiles, marked = {}, []
+
+    def look(buf, i, cov, key, p3):
+        r, g, b = buf[i], buf[i + 1], buf[i + 2]
+        W = bpy.data.images[key].size[0]      # not sizes[]: paint() has not returned it yet
+        px = i // 4
+        t = (key, px % W // tile, px // W // tile)
+        if b - r > hue * max(b, 1e-4) + 0.010:
+            marked.append((key, i, cov, t, p3.x, p3.z))
+        else:
+            tiles.setdefault(t, []).append((0.2126 * r + 0.7152 * g + 0.0722 * b, r, g, b))
+
+    zc = (z0 + z1) * 0.5
+    ds = []
+    for n, v, size, o, dep in (((0, 1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach),
+                               ((0, -1, 0), (0, 0, 1), (x1 - x0, z1 - z0), (0, 0, zc), reach),
+                               ((0, 0, 1), (1, 0, 0), (reach * 2, x1 - x0), (0, 0, z1), 0.62)):
+        d = Decal(solid_stamp(), ((x0 + x1) * 0.5, o[1], o[2]), v, size, n, (1, 1, 1), depth=dep)
+        d.apply = look
+        ds.append(d)
+    buffers, sizes = paint(objs, ds)
+    if not marked:
+        print("LIVERY   %s: no paint of that hue under it" % name)
+        return
+    pooled = sorted(v for vs in tiles.values() for v in vs)
+    gmed = pooled[len(pooled) // 2] if pooled else (0.86, 0.86, 0.86, 0.87)
+    box = [1e9, -1e9, 1e9, -1e9]
+    for key, i, cov, t, wx, wz in marked:
+        pool = []
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                pool += tiles.get((t[0], t[1] + dx, t[2] + dy), ())
+        pool.sort()
+        m = pool[len(pool) // 2] if pool else gmed
+        buf = buffers[key]
+        for c in range(3):
+            buf[i + c] = buf[i + c] * (1 - cov) + m[c + 1] * cov
+        box[0], box[1] = min(box[0], wx), max(box[1], wx)
+        box[2], box[3] = min(box[2], wz), max(box[3], wz)
+    flush(buffers, sizes)
+    print("LIVERY   %s: %d texels of paint taken back to the skin (%d skin texels, %d tiles)"
+          % (name, len(marked), len(pooled), len(tiles)))
+    print("LIVERY   %s: changed x %.2f..%.2f  z %.2f..%.2f" % (name, box[0], box[1], box[2], box[3]))
+
+
 def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
     """Lay the mark on the model's skin, found BY RAY-CASTING a grid of the MARK'S OWN resolution onto it.
 
@@ -854,6 +927,44 @@ def _biggest_cluster(xs, min_gap=0.22):
     return g[0], g[-1]
 
 
+def paintable_span(objs, zc=0.1):
+    """How far out the wing's skin can be PAINTED at all, measured rather than assumed.
+
+    paint() can only write where there is a base-colour image behind the face, so this is the number a
+    wing mark has to be fitted inside -- not the span, which is what a tip fairing or an untextured
+    control surface would make a liar of. On the 172 it reads 5.46 m, the whole half-span.
+
+    A mark sized without it came out cut: at 3.4 m long centred at y 3.15 the 172's wing read TALK FLY.
+    Sizing the band from this measurement instead puts the whole word on the aeroplane.
+
+    Returns the smaller of the two limits, upper skin and lower, so one number serves both surfaces.
+    """
+    def image_of(mat):
+        if mat is None or not mat.use_nodes:
+            return None
+        for n in mat.node_tree.nodes:
+            if n.type == 'TEX_IMAGE' and n.image is not None:
+                return n.image
+        return None
+
+    lim = {1: 0.0, -1: 0.0}
+    for o in objs:
+        me = o.data
+        mw = o.matrix_world
+        for poly in me.polygons:
+            if (mw @ poly.center).z < zc:
+                continue
+            nz = (mw.to_3x3() @ poly.normal).normalized().z
+            if abs(nz) < 0.5 or not image_of(me.materials[poly.material_index] if me.materials else None):
+                continue
+            sd = 1 if nz > 0 else -1
+            for vi in poly.vertices:
+                lim[sd] = max(lim[sd], abs((mw @ me.vertices[vi].co).y))
+    out = min(lim[1], lim[-1]) if min(lim.values()) > 0 else max(lim.values())
+    print("LIVERY   paintable skin reaches y %.2f (top %.2f, bottom %.2f)" % (out, lim[1], lim[-1]))
+    return out
+
+
 def wing_box(objs, side):
     """Where the wing actually is: a spanwise slab taken as a FRACTION OF THE SPAN, so it sits well outboard
     of any tailplane on anything from a Cub to a 737, and then simply the extremes of what is in it.
@@ -914,7 +1025,17 @@ def fin_box(objs, L):
     return x0, x1, z0, z1
 
 
-LEFT, RIGHT = -1, 1
+# WHICH WAY IS RIGHT. In this frame the nose is +X and up is +Z, and Blender is right-handed, so
+# +Y = Z x X is the aeroplane's LEFT. These were the other way round, and every mark placed through them
+# went on the opposite wing from the one it was asked for: the owner asked for PODCAST on the right wing
+# and a camera behind the aeroplane read it on the left. Two renders settle it and both agree -- a plan
+# view with the nose up (a map is not mirrored: the starboard wing is on the right of the frame) and a
+# view from straight behind (the viewer and the aeroplane face the same way, so the starboard wing is on
+# the viewer's right).
+#
+# This moves the marks on the 172 and the gliders, which is the fix. It does not touch the Cub, the
+# Stearman or the 737: the Cub writes its own +-1 literals, and the other two are symmetric.
+LEFT, RIGHT = 1, -1
 
 
 def wing_pair(side, text, badge):
@@ -1336,8 +1457,22 @@ def cessna(objs, L, H):
     """White, words and badge on the wings, the mark on the fin, TALKFLYING for a registration."""
     recolour(objs, lambda r, g, b: whiten(r, g, b, 0.62) if is_neutral(r, g, b)
              else (keep_luma(r, g, b, GRAPHITE) if b > 0.22 and b > r + 0.10 else None))
-    text, badge = text_stamp("TALK FLYING"), badge_stamp()
+    # "keep the band around the fuselage aft of the cabin but remove the other paint." The band this
+    # model wears sits at x -0.39..-0.05, just behind the cabin; everything forward of the cabin's rear
+    # door post is the cowl scheme, and that comes off. The floor at z -0.55 leaves the undercarriage
+    # legs and the wheel fairings in their own colour, which is where a 172 wears dark anyway.
+    strip_paint(objs, 0.30, 4.10, "nose paint")
+    text, badge, pod = text_stamp("TALK FLYING"), badge_stamp(), podcast_stamp()
     decals = []
+    # the centre badge first, because the words have to fit in what is left: from its wingtip out to
+    # where the paint itself stops
+    ctr = centre_badge(objs, L, badge, 1.1, frac=0.42, depth=0.26)
+    inner = (ctr.su * 0.5 + 0.25) if ctr else 1.5
+    outer = paintable_span(objs) - 0.08
+    band = max(0.8, outer - inner)
+    yc = (inner + outer) * 0.5
+    if ctr:
+        decals.append(ctr)
     for side in (RIGHT, LEFT):
         bx = wing_box(objs, side)
         if bx is None:
@@ -1345,10 +1480,17 @@ def cessna(objs, L, H):
         x0, x1 = bx
         chord = x1 - x0
         above, below = wing_pair(side, text, badge)
+        # the top reads as the lockup it came from, spread across the span: the wordmark out on the left
+        # wing, the winged badge on the centre section, PODCAST out on the right
+        if side == RIGHT:
+            above = pod
         for st, z, facing in ((above, 0.30, (0, 0, 1)), (below, -0.30, (0, 0, -1))):
-            h = chord * (0.58 if st is text else 0.46)
-            decals.append(Decal(st, (x0 + chord * 0.5, side * 2.7, z),
-                                (1, 0, 0), fit(st, h, 3.8), facing, INK))
+            h = chord * (0.46 if st is badge else 0.58)     # the two words share a letter height
+            # IN THE BAND BETWEEN THE BADGE AND THE END OF THE PAINT, both of them measured. At y 2.7
+            # and 3.8 m long the words reached in to 0.8 and PODCAST lost its P under the badge's
+            # wingtip; at y 3.15 and 3.4 m long the left wing came out reading TALK FLY.
+            decals.append(Decal(st, (x0 + chord * 0.5, side * yc, z),
+                                (1, 0, 0), fit(st, h, band), facing, INK))
     paint(objs, decals)
     # the fin mark, the wings and the registration go on as GEOMETRY: this model's two fuselage sides
     # share their texels, so anything painted into the texture appears mirrored on the far side
@@ -1523,6 +1665,38 @@ def seven37(objs, L, H):
 # =============================================================================================================
 # the three gliders
 # =============================================================================================================
+def skin_z(objs, x, y, L, down=True):
+    """The height of the skin at one point, by a single ray. wing_cut() cannot answer this ON the
+    centreline: there the rays hit something at every station from the spinner to the tailpost, so its
+    longest-unbroken-run rule returns the whole aeroplane as one chord."""
+    tree = surface_tree(objs)
+    reach = max(L, 4.0)
+    n = Vector((0, 0, -1.0 if down else 1.0))
+    loc, _, _, _ = tree.ray_cast(Vector((x, y, -n.z * reach)), n, reach * 2.2)
+    return loc.z if loc is not None else None
+
+
+def centre_badge(objs, L, stamp, y_in, frac=0.52, depth=0.30):
+    """The winged badge on the wing's CENTRE SECTION, on the aeroplane's own centreline -- so that from
+    above the three marks read as the lockup they came from: the wordmark out on one wing, the wings in
+    the middle, PODCAST out on the other.
+
+    The chord is measured just outboard of the body, where a ray meets the wing and nothing else; only
+    the height is taken on the centreline itself.
+    """
+    cut = wing_cut(objs, y_in, L, 1)
+    if cut is None:
+        return None
+    x0, x1, zt, _ = cut
+    cx = (x0 + x1) * 0.5
+    z = skin_z(objs, cx, 0.0, L)
+    if z is None:
+        z = zt
+    w, h = fit(stamp, (x1 - x0) * frac)
+    print("LIVERY   centre badge: %.2f x %.2f at x %.2f z %.2f" % (w, h, cx, z))
+    return Decal(stamp, (cx, 0.0, z), (1, 0, 0), (w, h), (0, 0, 1), INK, depth=depth)
+
+
 def wing_cut(objs, y, L, side, step=0.015):
     """The wing's chord and both its skins at one spanwise station, BY RAY-CAST.
 
@@ -1565,17 +1739,27 @@ def wing_cut(objs, y, L, side, step=0.015):
     return x0, x1, zt, zb
 
 
-def glider(objs, L, H, out=0.56, hfrac=(0.52, 0.56), ink=INK):
-    """The owner's layout for the sailplanes: the winged badge over the LEFT wing and under the RIGHT, the
-    wordmark over the RIGHT and under the LEFT, and the whole logo on the side of the tail -- so from any
-    angle, above or below, you get one of each.
+def glider(objs, L, H, out=0.56, hfrac=(0.52, 0.56), ink=INK, lockup=False):
+    """The owner's layout for the sailplanes.
+
+    ON TOP, the lockup spread across the span: the wordmark out on the left wing, the winged badge on the
+    centre section, PODCAST out on the right. A camera behind an aeroplane faces the way the aeroplane
+    faces, so that reads in order.
+
+    UNDERNEATH, his first rule: the winged badge under the right wing and the wordmark under the left, so
+    whichever side you are on you get one of each. And the whole logo on the side of the tail.
 
     ALL OF IT AS GEOMETRY, none of it painted into the texture. Two of these three models have no texture
     to paint into: the 2-33's skin is flat material colour and so is the CC0 sailplane's, and the Grob's
     one 1024 atlas is shared between its two wings, which is how the 172's registration came out mirrored.
     geo_decal asks the file for nothing but the surface itself.
     """
-    text, badge = text_stamp("TALK FLYING"), badge_stamp()
+    text, badge, pod = text_stamp("TALK FLYING"), badge_stamp(), podcast_stamp()
+    # THE LOCKUP, SPREAD ACROSS THE SPAN, on top: the wordmark out on the left wing, the winged badge on
+    # the centre section, PODCAST out on the right. Seen from behind and above -- which is where a camera
+    # follows an aeroplane from -- the aeroplane's left wing is on your left, so that reads in order.
+    # The undersides keep the owner's first rule: the badge under the right wing, the wordmark under the
+    # left, so whichever side you are on you get one of each.
     hs = _halfspan(objs)
     for side in (RIGHT, LEFT):
         yc = side * out * hs
@@ -1585,15 +1769,36 @@ def glider(objs, L, H, out=0.56, hfrac=(0.52, 0.56), ink=INK):
         x0, x1, zt, zb = cut
         chord = x1 - x0
         cx = x0 + chord * 0.5
-        above, below = (badge, text) if side == LEFT else (text, badge)
+        if lockup:
+            above, below = (text, text) if side == LEFT else (pod, badge)
+        else:
+            above, below = (badge, text) if side == LEFT else (text, badge)
         for st, z, facing, tag in ((above, zt, (0, 0, 1), "Top"), (below, zb, (0, 0, -1), "Bot")):
+            # the two words take the SAME letter height, the Cub's banner rule, so the lockup is one
+            # size across the aeroplane. PODCAST is the wider word of the two and comes out a fifth
+            # longer than TALK FLYING; matching their lengths instead would make PODCAST the bigger
+            # word, which it is not.
             w, h = fit(st, chord * (hfrac[0] if st is badge else hfrac[1]), hs * 0.80)
             # a long thin mark on a thin wing: the grid is stretched along the span to match, and the
             # depth is kept near the chord so a mark on the top cannot reach round to the bottom skin
             geo_decal(objs, Decal(st, (cx, yc, z), (1, 0, 0), (w, h), facing, ink,
                                   depth=max(0.22, chord * 0.45)),
                       "Mark.Wing.%s.%s" % (tag, "R" if side > 0 else "L"), nu=128, nv=40)
+    if lockup:
+        d = centre_badge(objs, L, badge, 0.14 * hs, frac=hfrac[0], depth=0.30)
+        if d:
+            d.colour = ink
+            geo_decal(objs, d, "Mark.Wing.Top.C", nu=128, nv=40)
     fin_mark(objs, L, ink=ink)
+
+
+def glider_lockup(objs, L, H):
+    """The 2-33 wears the lockup spread across its wing tops, which the owner asked for on the 2-33 and
+    the 172 and on those two only. The other two sailplanes keep the pair he first asked for -- and the
+    centre badge would not work on them anyway: their wings meet the pod at its widest, so the middle of
+    the badge, which is the headset, lands on the fuselage instead of on the wing.
+    """
+    glider(objs, L, H, lockup=True)
 
 
 def glider_glass(objs, L, H):
@@ -1621,7 +1826,7 @@ PLANES = {
     #   Swift  THERE IS NO SWIFT S-1 MODEL. docs/research/AIRCRAFT-3D-MODELS.md 15 found none and still
     #          holds. This is EGPJET's CC0 glass single-seater standing in for one, scaled to the Swift's
     #          12.66 m span -- a modern 15 m ship with winglets and a T-tail, not an aerobat.
-    "glider-2-33-like":   (os.path.join(REPO, "build/models/glider-2-33-like.glb"), 15.44, glider),
+    "glider-2-33-like":   (os.path.join(REPO, "build/models/glider-2-33-like.glb"), 15.44, glider_lockup),
     "grob-astir-like":    (os.path.join(REPO, "unity/Assets/_Project/Resources/Models/glider-2-33-like",
                                         "glider-2-33-like.obj"), 15.00, glider),
     "glider-swift-s1-like": (os.path.join(SRC, "sailplane-modern/FFGL.blend"), 12.66, glider_glass),
