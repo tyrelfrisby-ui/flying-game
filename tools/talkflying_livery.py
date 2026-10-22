@@ -590,7 +590,16 @@ def geo_decal(objs, d, name, lift=0.010, nu=96, nv=28):
             # its normal points is an accident of how it was built; what matters is that the surface is
             # not edge-on and that it is within reach. The first hit coming from outside is the near one.
             if loc is not None and abs(nor.dot(d.n)) > 0.2 and abs((loc - d.o).dot(d.n)) <= d.depth:
-                row.append((loc + nor.normalized() * lift, a, b))
+                # LIFT TOWARDS THE VIEWER, NOT ALONG THE FACE NORMAL. Which way a face points is an
+                # accident on these models -- load_canonical mirrors the aeroplane and reverses every
+                # winding to compensate, and a low-poly fin is a zero-thickness sheet with no outside at
+                # all -- so lifting along `nor` buries the mark 10 mm INSIDE the skin wherever the normal
+                # happens to face inwards. That is exactly what happened on the 172: the registration
+                # came out as a row of dashes (the few quads whose normal pointed the right way) and the
+                # fin mark and the fuselage badge did not appear at all, though every ray had hit and
+                # every quad had been made. The decal already knows which side it is on: d.n.
+                out = nor.normalized()
+                row.append((loc + (out if out.dot(d.n) > 0 else -out) * lift, a, b))
                 hits += 1
             else:
                 row.append(None)
@@ -894,23 +903,50 @@ def wing_pair(side, text, badge):
     return (text, badge) if side == LEFT else (badge, text)
 
 
-def fin_points(objs, L):
-    """The fin's vertices as (x, z): everything standing above the fuselage's own top deck."""
+def fin_points(objs, L, from_body=False):
+    """The fin's outline as (x, z) points, and the height of the deck it stands on.
+
+    TWO WAYS OF FINDING THE DECK, because one does not serve four aeroplanes. The default ranks the
+    heights of everything aft and takes a high percentile, which is what the 737's badge was fitted with
+    and must stay fitted with: its dorsal fillet blends into the tailcone, so the fuselage's own top deck
+    is a metre and a half below anything that looks like a fin, and measuring it lets eleven metres of
+    tailcone into the "fin chord".
+
+    `from_body` measures it instead, with body_side()'s rays: at a station they report where the body's
+    own skin is and ignore whatever is thin and on the centreline, which is what a fin is. That is what
+    the light aeroplanes need, because a percentile cannot tell a tall thin fin from a deck -- the Cub's
+    fin carries more vertices than the boom it stands on, so the 92nd percentile landed INSIDE the fin,
+    the fin came out 0.21 m tall, and the mark on it was the size of a postage stamp at the very tip.
+
+    Stations are kept only where the ray found something the size of a fuselage: the tailplane is in the
+    way at some of them, and at the tailpost everything is thin, so comparing each station with the
+    MEDIAN of them throws out both. Comparing with the widest does not -- on the 172 the widest station
+    is a tailplane hit and the test then throws out the fuselage.
+    """
     tol = max(0.15, 0.08 * _halfspan(objs))
     aft = [v.co for o in objs for v in o.data.vertices if abs(v.co.y) < tol and v.co.x < -0.16 * L]
     if len(aft) < 24:
-        return []
-    deck = [p.z for p in aft if p.x > -0.38 * L] or [p.z for p in aft]
-    deck.sort()
-    # A 0.02 * L margin lifts the usable region 1.8 m up a 737's fin; 0.005 lets the TAILCONE in and the
-    # "fin chord" came out 11.2 m, which is most of the aeroplane. 0.012 is the fin and only the fin.
-    cut_z = deck[int(len(deck) * 0.92)] + 0.012 * L
+        return [], 0.0
+    cut_z = None
+    if from_body:
+        bands = [b for b in (body_side(objs, -L * f)
+                             for f in (0.18, 0.22, 0.26, 0.30, 0.34, 0.38)) if b]
+        if len(bands) >= 3:
+            mid = sorted(b[2] for b in bands)[len(bands) // 2]
+            decks = [b[1] for b in bands if 0.5 * mid <= b[2] <= 2.0 * mid]
+            if decks:
+                cut_z = max(decks) + 0.012 * L
+    if cut_z is None:
+        deck = sorted(p.z for p in aft if p.x > -0.38 * L) or sorted(p.z for p in aft)
+        # A 0.02 * L margin lifts the usable region 1.8 m up a 737's fin; 0.005 lets the TAILCONE in and
+        # the "fin chord" came out 11.2 m, which is most of the aeroplane. 0.012 is the fin and only it.
+        cut_z = deck[int(len(deck) * 0.92)] + 0.012 * L
     up = [(p.x, p.z) for p in aft if p.z >= cut_z]
     if len(up) < 12:
         zs = sorted(p.z for p in aft)
         cut_z = zs[int(len(zs) * 0.80)]
         up = [(p.x, p.z) for p in aft if p.z >= cut_z]
-    return up
+    return up, cut_z
 
 
 def convex_hull(pts):
@@ -955,7 +991,7 @@ def inside_hull(hull, pt, clear=0.0):
 
 
 def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep=0.82, at=None,
-                     clear=0.0):
+                     clear=0.0, from_body=False):
     """The biggest rectangle of this artwork's shape that fits INSIDE the fin, and where to put it.
 
     Sizing a mark as a fraction of the fin's bounding box hangs it over the leading edge, because the box
@@ -965,19 +1001,23 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep
     size -- a square centred on the mid-chord of a swept fin is pinched by the leading edge, and a hand's
     breadth aft it is half as big again.
     """
-    pts = fin_points(objs, L)
+    pts, deck = fin_points(objs, L, from_body)
     if len(pts) < 8:
         print("LIVERY   fin badge: no fin found")
         return None
     hull = convex_hull(pts)
     xs_all = [q[0] for q in pts]
     zs_all = [q[1] for q in pts]
-    x0, x1, z0, z1 = min(xs_all), max(xs_all), min(zs_all), max(zs_all)
+    x0, x1 = min(xs_all), max(xs_all)
+    # the deck is a floor as well as a filter: nothing of the mark may hang below it
+    z0, z1 = max(min(zs_all), deck), max(zs_all)
     asp = stamp[1] / float(stamp[2])
 
     def biggest_at(cx, cz):
         def fits(w):
             h = w / asp
+            if cz - h * 0.5 < deck + clear:
+                return False
             return all(inside_hull(hull, (cx + sx * w * 0.5, cz + sz * h * 0.5), clear)
                        for sx in (-1, 1) for sz in (-1, 1))
         if not fits(1e-4):
@@ -1022,21 +1062,216 @@ def fitted_fin_badge(objs, L, stamp, frac_z=0.45, margin=0.94, prefer=None, keep
     return cx, cz, w, h
 
 
-def fin_mark(objs, L, frac_x=0.5, frac_z=0.52, fill=(0.82, 0.76)):
+def fin_mark(objs, L, prefer=(0.52, 0.50), clear=0.0, lower=0.0, box=None):
     """The Talk Flying mark on the vertical tail. Every aeroplane gets one -- it is the one piece of the
-    livery that is the same on all of them, so it lives in one place rather than in four."""
-    fb = fin_box(objs, L)
-    if not fb:
-        print("LIVERY   fin mark: no fin found")
-        return
-    xa, xb, z0, z1 = fb
+    livery that is the same on all of them, so it lives in one place rather than in four.
+
+    FITTED TO THE FIN'S OUTLINE, not to a fraction of its bounding box, which is what the 737 has done
+    since the owner asked for its badge to stop wrapping round the leading edge. The fraction was wrong in
+    both directions at once on the others: on the Cub the box reached only from the deck test up, so the
+    mark came out 0.18 m tall at the very tip, and on the 172 it sat centred on the rudder hinge with half
+    of it on a graphite rudder. Neither was ever seen, because every one of these marks was being lifted
+    10 mm INTO the skin (see geo_decal) and none of them rendered at all.
+
+    `lower` drops the fitted mark by that many metres -- the fitter finds the biggest square that fits,
+    which is not always where it looks best, and the owner's eye settles that. `box` places it by hand,
+    (centre x, centre z, size), for a tail whose outline the fitter cannot read; cessna() says why.
+    """
+    if box is None:
+        fitted = fitted_fin_badge(objs, L, logo_stamp(), prefer=prefer, clear=clear,
+                                  from_body=True)
+        if not fitted:
+            return
+        cx, cz, w, h = fitted
+    else:
+        cx, cz, w = box
+        h = w
+        print("LIVERY   fin badge: %.2f x %.2f at x %.2f z %.2f  (placed by hand)" % (w, h, cx, cz))
+    cz -= lower
     for sd in (1, -1):
-        geo_decal(objs, Decal(logo_stamp(),
-                              ((xa + xb) * 0.5 + (xb - xa) * (frac_x - 0.5), sd * 0.10,
-                               z0 + (z1 - z0) * frac_z),
-                              (0, 0, 1), ((xb - xa) * fill[0], (z1 - z0) * fill[1]),
-                              (0, sd, 0), INK, depth=max(0.35, (xb - xa) * 0.5)),
-                  "Mark.Fin." + ("R" if sd > 0 else "L"))
+        # a square mark wants a square grid: at the default 96 x 28 the cells are three times taller than
+        # they are wide, and a dropped cell at a panel step takes a visible bite out of the edge
+        geo_decal(objs, Decal(logo_stamp(), (cx, sd * 0.10, cz), (0, 0, 1), (w, h), (0, sd, 0), INK,
+                              depth=max(0.35, w * 0.6)),
+                  "Mark.Fin." + ("R" if sd > 0 else "L"), nv=96)
+
+
+def body_side(objs, x, keep=0.72, step=0.02):
+    """The band of height over which the fuselage really has a SIDE at station x, found by RAY-CASTING.
+
+    Not from the vertices. This model's tailcone is one long quad from the back of the cabin to the
+    tailpost, so between those two stations there is nothing to measure and anything in between is
+    interpolation -- which is a guess wearing a decimal point. Rays find the skin wherever it actually is,
+    the same way geo_decal finds it when it lays the mark down.
+
+    Two tests pick the side out of the hits. The first keeps only what is out at the SIDE -- within `keep`
+    of the widest hit at that station -- because the fin's sheet lies on the centreline and reaches a long
+    way forward (x -0.25 on the 172), and without this the "side" runs a hand's breadth too high. The
+    second keeps the longest unbroken run, so a window, or the gap between two objects, cannot pass for
+    skin. Returns (z bottom, z top, half-width).
+    """
+    tree = surface_tree(objs)
+    hs = _halfspan(objs)
+    reach = hs * 0.6
+    wide = hs * 0.25                       # wider than any fuselage, narrower than a strut or a wheel
+    hits = []
+    z = hs * 0.25
+    while z > -hs * 0.25:
+        loc, _, _, _ = tree.ray_cast(Vector((x, reach, z)), Vector((0, -1, 0)), reach * 2.2)
+        if loc is not None and abs(loc.y) < wide:
+            hits.append((z, abs(loc.y)))
+        z -= step
+    if not hits:
+        return None
+    ymax = max(q[1] for q in hits)
+    side = [q[0] for q in hits if q[1] >= keep * ymax]
+    if not side:
+        return None
+    runs, cur = [], [side[0]]
+    for a, b in zip(side, side[1:]):
+        if abs(b - a) > step * 2.5:
+            runs.append(cur)
+            cur = []
+        cur.append(b)
+    runs.append(cur)
+    r = max(runs, key=len)
+    return min(r), max(r), ymax
+
+
+def rear_bay(objs, L):
+    """The clear stretch of fuselage: aft of the wing's trailing edge, forward of the tailplane's leading
+    edge. Returns (aft x, forward x).
+
+    The owner asked for the mark "on the back part of the fuselage behind the wings in front of the
+    horizontal tail", which is a statement about two pieces of the aeroplane, not about a fraction of its
+    length -- so both ends are measured off those two pieces. The bands are fractions of the SPAN so they
+    sit outboard of the body and inboard of the tip on anything from a Cub to an airliner.
+    """
+    hs = _halfspan(objs)
+    # WHICH VERTICES BELONG TO A FLYING SURFACE. Not a spanwise slab: this wing has 140 vertices and they
+    # sit at the root and the tip and nowhere in between, so a slab at mid-span is empty and a slab wide
+    # enough to catch something catches the wheel fairings as well. The test that works is per OBJECT --
+    # anything that reaches further out than a fuselage ever does is a flying surface -- and then its OWN
+    # root station is read, which is the end of the bay that matters. (A model with the wing and the
+    # fuselage in one object would measure the fuselage instead; the printed bay below is the check.)
+    surf = [o for o in objs if o.data.vertices and max(abs(v.co.y) for v in o.data.vertices) > 0.25 * hs]
+    wing = [v.co.x for o in surf for v in o.data.vertices if abs(v.co.y) < 0.5 * hs and v.co.x > -0.20 * L]
+    tail = [v.co.x for o in surf for v in o.data.vertices if abs(v.co.y) < 0.5 * hs and v.co.x < -0.20 * L]
+    if len(wing) < 4 or len(tail) < 4:
+        print("LIVERY   rear bay: no wing (%d) or no tailplane (%d)" % (len(wing), len(tail)))
+        return None
+    xa, xf = max(tail), min(wing)
+    print("LIVERY   rear bay: x %.2f .. %.2f  (%.2f m, wing TE to tailplane LE)" % (xa, xf, xf - xa))
+    if not 0.10 * L < xf - xa < 0.65 * L:
+        print("LIVERY   rear bay: that is not a tailcone -- %.2f m on an %.2f m aeroplane" % (xf - xa, L))
+        return None
+    return xa, xf
+
+
+def clean_paint(objs, x0, x1, zc, h, bins=56, drop=0.30, sd=1):
+    """The longest stretch of the body's side that is light enough to carry a black mark, in metres.
+
+    A black mark laid across the graphite stripe behind the cabin disappears into it -- the first fitting
+    of the wings put one wingtip on the stripe and that wing stopped existing. Where the stripe is is not
+    something to be eyeballed off a render and typed in as a number, though: it is in the model's texture,
+    so it can be read out of it. This walks the rectangle with paint()'s own machinery, bins the texels it
+    covers by station, and keeps the longest run of bins whose median brightness is no more than `drop`
+    below the rectangle's own median -- which is the paint, markings being a minority of it.
+
+    The test is ONE-SIDED on purpose. "All one colour" was tried first and it threw away the shaded wedge
+    down the side of the tailcone as well, which is a fifth of a stop darker and carries a black mark
+    perfectly well; what a mark cannot survive is paint as dark as the mark.
+
+    Nothing is written: the hook only reads. paint() hands the buffers back unchanged.
+    """
+    seen = {}
+
+    def look(buf, i, cov, key, p3):
+        b = min(bins - 1, max(0, int((p3.x - x0) / (x1 - x0) * bins)))
+        seen.setdefault(b, []).append(0.2126 * buf[i] + 0.7152 * buf[i + 1] + 0.0722 * buf[i + 2])
+
+    # BOTH SIDES AT ONCE, FROM THE CENTRELINE. paint() only touches a face whose normal faces the decal,
+    # and this model's normals point inward, so a decal asking for the right side is answered by the LEFT
+    # side's faces -- which are then a whole fuselage width away from the decal's own plane and fall
+    # outside its depth wherever the body is fat. The first run of this read the aft half of the tailcone
+    # and nothing forward of the decal's centre, and reported that the paint went dark at x -0.91 when
+    # really the paint had not been looked at. Standing the rectangle ON the centreline puts both sides
+    # within depth, and the two sides share their texels here anyway.
+    ds = []
+    for side in (1, -1):
+        d = Decal(solid_stamp(), ((x0 + x1) * 0.5, 0.0, zc), (0, 0, 1), (x1 - x0, h), (0, side, 0),
+                  (1, 1, 1), depth=0.9)
+        d.apply = look
+        ds.append(d)
+    paint(objs, ds)
+    if len(seen) < bins // 3:
+        print("LIVERY   clean paint: too little of it was reached (%d of %d bins)" % (len(seen), bins))
+        return x0, x1
+    med = {}
+    for b, vs in seen.items():
+        vs.sort()
+        med[b] = vs[len(vs) // 2]
+    whole = sorted(med.values())[len(med) // 2]
+    if PROBE:
+        for b in range(bins):
+            if b in med:
+                print("PROBE  x %6.2f  luma %.2f |%s" % (x0 + (b + 0.5) * (x1 - x0) / bins, med[b],
+                                                         "#" * int(med[b] * 40)))
+    runs, cur = [], []
+    for b in range(bins):
+        if b in med and med[b] >= whole - drop:
+            cur.append(b)
+        else:
+            runs.append(cur)
+            cur = []
+    runs.append(cur)
+    best = max(runs, key=len)
+    if len(best) < 3:
+        print("LIVERY   clean paint: none of it is light enough")
+        return x0, x1
+    step = (x1 - x0) / bins
+    a, b = x0 + best[0] * step, x0 + (best[-1] + 1) * step
+    print("LIVERY   clean paint: x %.2f .. %.2f of %.2f .. %.2f  (%d of %d bins, median luma %.2f)"
+          % (a, b, x0, x1, len(best), bins, whole))
+    return a, b
+
+
+def side_slot(objs, x0, x1, clear=0.05, n=8):
+    """The height a mark can keep ALL THE WAY from x0 to x1 on the body's side.
+
+    A tailcone tapers, so a mark sized on the station where it starts hangs off the bottom at the station
+    where it ends. Take the tightest of several stations across it and the mark stays on the skin.
+    """
+    bands = [b for b in (body_side(objs, x0 + (x1 - x0) * i / float(n)) for i in range(n + 1)) if b]
+    if not bands:
+        return None
+    z0, z1 = max(b[0] for b in bands) + clear, min(b[1] for b in bands) - clear
+    return (z0, z1) if z1 > z0 else None
+
+
+def fitted_side_badge(objs, bay, stamp, frac=(0.33, 0.95), clear=0.06):
+    """The logo's wings on the rear fuselage, sized to the body that is actually there, both sides.
+
+    `frac` is where in the bay the mark lives, measured from the tailplane end. The size is whichever
+    binds: the length of that stretch, or the depth of the shallowest station in it.
+    """
+    xa, xf = bay
+    x0, x1 = xa + (xf - xa) * frac[0], xa + (xf - xa) * frac[1]
+    slot = side_slot(objs, x0, x1, clear)
+    if slot is None:
+        print("LIVERY   side badge: no body under it")
+        return None
+    z0, z1 = slot
+    asp = stamp[1] / float(stamp[2])
+    h = min(z1 - z0, (x1 - x0) / asp)
+    if h <= 0.04:
+        print("LIVERY   side badge: nothing of a sensible size fits (band %.2f m)" % (z1 - z0))
+        return None
+    w = h * asp
+    cx, cz = (x0 + x1) * 0.5, (z0 + z1) * 0.5
+    print("LIVERY   side badge: %.2f x %.2f at x %.2f z %.2f  (band z %.2f..%.2f across x %.2f..%.2f)"
+          % (w, h, cx, cz, z0, z1, x0, x1))
+    return cx, cz, w, h
 
 
 def supercub(objs, L, H):
@@ -1082,14 +1317,57 @@ def cessna(objs, L, H):
             decals.append(Decal(st, (x0 + chord * 0.5, side * 2.7, z),
                                 (1, 0, 0), fit(st, h, 3.8), facing, INK))
     paint(objs, decals)
-    # the fin mark and the registration go on as GEOMETRY: this model's two fuselage sides share their
-    # texels, so anything painted into the texture appears mirrored on the far side
-    fin_mark(objs, L)
-    for sd in (1, -1):
+    # the fin mark, the wings and the registration go on as GEOMETRY: this model's two fuselage sides
+    # share their texels, so anything painted into the texture appears mirrored on the far side
+    # THE 172'S FIN IS NOT SOMETHING THE FITTER CAN READ, so this one is placed by hand. Its fin and its
+    # rudder are two zero-thickness sheets with vertices at their corners and nowhere else -- eight points
+    # for the fin, four for the rudder -- so a convex hull of them runs forward along the dorsal fairing
+    # and aft across the rudder, and the biggest square inside it is on neither the fin nor the white.
+    # Read off the model, in (x, z):
+    #     fin     top (-3.32, 1.27) to (-3.68, 1.26), leading edge down through (-2.51, 0.40) to
+    #             (-2.35, -0.28), root at (-2.93, -0.42)
+    #     rudder  (-4.06, 1.27) (-3.68, 1.25) (-3.45, -0.31) (-2.93, -0.43) -- so the hinge runs from
+    #             (-3.68, 1.25) down to (-3.45, -0.31) and everything aft of it is graphite
+    # and the boom's deck under it is at about z 0. That leaves a white panel the shape of a wedge, and
+    # 0.50 m of mark centred at (-3.15, 0.50) sits inside it with 60 mm to spare at the leading edge and
+    # 200 mm at the hinge. The owner: "move the talk flying logo to the white part of the tail a little
+    # lower and further forward".
+    fin_mark(objs, L, box=(-3.15, 0.50, 0.50))
+    # THE WINGS OUT OF THE LOGO, ON THE REAR FUSELAGE, BOTH SIDES -- the owner's words. The badge takes
+    # the forward end of the bay, where the tailcone is deepest, and the registration goes in behind it,
+    # which is the order the two sit in on a real aeroplane anyway. Both were measured, not placed: the
+    # registration used to be put at a fraction of the length with a guessed height, and most of it
+    # missed the skin and came out as a row of dashes.
+    bay = rear_bay(objs, L)
+    if bay:
+        # and then only the part of it that is ALL ONE COLOUR -- the stripe behind the cabin is graphite
+        # in this livery and a black mark on it is a black mark on black
+        band = side_slot(objs, bay[0], bay[1], clear=0.04)
+        if band:
+            bay = clean_paint(objs, bay[0], bay[1], (band[0] + band[1]) * 0.5, band[1] - band[0])
+    x_aft, x_reg = (bay[0] + 0.06, bay[1]) if bay else (0.0, 0.0)
+    if bay:
+        box = fitted_side_badge(objs, bay, badge, frac=(0.52, 0.97))
+        if box:
+            cx, cz, w, h = box
+            for sd in (1, -1):
+                geo_decal(objs, Decal(badge, (cx, sd * 0.36, cz), (0, 0, 1), (w, h),
+                                      (0, sd, 0), INK, depth=0.60),
+                          "Mark.Body." + ("R" if sd > 0 else "L"))
+            x_reg = cx - w * 0.5 - 0.12
+    slot = side_slot(objs, x_aft, x_reg, clear=0.05) if x_reg - x_aft > 0.25 else None
+    if slot:
+        z0, z1 = slot
         st = text_stamp("TALKFLYING", slant=0.26)
-        geo_decal(objs, Decal(st, (-L * 0.20, sd * 0.42, 0.02),
-                              (0, 0, 1), fit(st, L * 0.055, L * 0.32), (0, sd, 0), INK, depth=0.55),
-                  "Mark.Reg." + ("R" if sd > 0 else "L"))
+        wh = fit(st, (z1 - z0) * 0.80, x_reg - x_aft)
+        print("LIVERY   registration: %.2f x %.2f at x %.2f z %.2f"
+              % (wh[0], wh[1], (x_aft + x_reg) * 0.5, (z0 + z1) * 0.5))
+        for sd in (1, -1):
+            geo_decal(objs, Decal(st, ((x_aft + x_reg) * 0.5, sd * 0.34, (z0 + z1) * 0.5),
+                                  (0, 0, 1), wh, (0, sd, 0), INK, depth=0.55),
+                      "Mark.Reg." + ("R" if sd > 0 else "L"))
+    else:
+        print("LIVERY   registration: no room for it behind the badge")
 
 
 def biplane_wings(objs, side):
@@ -1135,7 +1413,9 @@ def stearman(objs, L, H):
                 decals.append(Decal(badge, (x0 + chord * 0.5, side * 2.3, zc), (1, 0, 0),
                                     fit(badge, chord * 0.50, 2.8), (0, 0, -1), INK))
     paint(objs, decals)
-    fin_mark(objs, L)
+    # "on the stearman move it down about 6 inches and it will be just right" -- the fitter puts the mark
+    # where the biggest square fits, which on this fin is a little high
+    fin_mark(objs, L, lower=0.152)
 
 
 def fuselage_axis(objs, L):
