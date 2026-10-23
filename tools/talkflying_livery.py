@@ -1,8 +1,13 @@
 """Paint the Talk Flying livery onto the downloaded models, for the podcast.
 
-    blender --background --python tools/talkflying_livery.py -- [id ...]
+    blender --background --python tools/talkflying_livery.py -- <id>
 
-    ids: pa18-cub-like  c172-like  stearman-pt17-like  boeing-737-like   (default: all four)
+    ids: pa18-cub-like  c172-like  stearman-pt17-like  boeing-737-like
+         glider-2-33-like  grob-astir-like  glider-swift-s1-like      (default: all seven)
+
+    ONE ID PER RUN if the bytes matter -- the default builds all seven in one process and that does not
+    produce the same bytes as building them one at a time. Invisible difference, but it breaks sha1 as a
+    staleness test; see main().
 
 Writes build/talkflying/<id>-talkflying.glb and three renders per aeroplane. Nothing here touches the game;
 these are podcast assets.
@@ -907,6 +912,48 @@ def is_neutral(r, g, b, tol=0.10):
 # =============================================================================================================
 # load and put the aeroplane in a known frame
 # =============================================================================================================
+def wire_outputs():
+    """Give every material an output node the glTF exporter can actually find.
+
+    The Swift's three materials exported completely empty -- literally {"doubleSided": true, "name": "GLASS"},
+    no colour, no alpha, no roughness -- and the cause was none of the things it looked like. The paint ran,
+    glaze() reported itself on GLASS, the mesh was whole, and the renders were fine, because Blender's own
+    viewport was reading the materials perfectly well.
+
+    Each material in that .blend carries TWO output nodes: one with target EEVEE wired to a Principled BSDF,
+    and a legacy one with target CYCLES wired to a Diffuse BSDF. NEITHER of them targets ALL. The exporter
+    asks node_tree.get_output_node('ALL'), gets None, and so has no surface to read -- it writes the material's
+    name and stops. Nothing in the file is broken for rendering; it is only unreadable to glTF.
+
+    So retarget the output the author meant to ALL. This fires only where there is no ALL output already,
+    and it says so when it fires: on every other model in PLANES it prints nothing, because an importer and
+    Blender itself both make the single output they make with target ALL. The Swift's .blend is the one
+    source here that was hand-built in a file old enough to carry per-engine outputs.
+    """
+    fixed = []
+    for m in bpy.data.materials:
+        if not m.use_nodes or m.node_tree is None:
+            continue
+        if m.node_tree.get_output_node('ALL') is not None:
+            continue
+        outs = [n for n in m.node_tree.nodes
+                if n.type == 'OUTPUT_MATERIAL' and n.inputs['Surface'].links]
+        if not outs:
+            continue
+        # Prefer the active output; failing that one wired to a Principled BSDF, since that is the node the
+        # exporter knows how to read and the Diffuse BSDF on the CYCLES branch would lose the alpha.
+        pick = next((n for n in outs if n.is_active_output), None)
+        if pick is None:
+            pick = next((n for n in outs
+                         if n.inputs['Surface'].links[0].from_node.type == 'BSDF_PRINCIPLED'), outs[0])
+        was = pick.target
+        pick.target = 'ALL'
+        pick.is_active_output = True
+        fixed.append("%s (%s->ALL)" % (m.name, was))
+    if fixed:
+        print("LIVERY   output nodes: %s" % ", ".join(fixed))
+
+
 def load_canonical(path, true_span):
     """Import, then move into: +X forward, +Y right, +Z up, origin at the wing's mid-span, metres."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -927,6 +974,7 @@ def load_canonical(path, true_span):
                 bpy.context.collection.objects.link(o)
     else:
         bpy.ops.wm.obj_import(filepath=path)
+    wire_outputs()
     objs = [o for o in bpy.data.objects if o.type == 'MESH']
     pts = []
     for o in objs:
@@ -2016,6 +2064,28 @@ def render(objs, ident, L, H):
 
 
 def main():
+    """ONE AEROPLANE PER BLENDER PROCESS IF YOU CARE ABOUT THE BYTES.
+
+    Naming several ids in one run gives you the right aeroplanes, but not the same bytes as building them
+    one at a time -- and the published finals were all built one at a time. Measured on the 172: building
+    it second in a run of seven moved the six Mark.* meshes by up to 9.5e-07 m and changed 9 channel
+    samples of 50,331,648 on one 4096 texture, at the edge of a decal where a ray hit on one run and
+    missed on the other. Nothing you can see, and nothing a render or an outline check will catch.
+
+    It matters anyway, because sha1 is how we tell a stale build from a current one, and that test gives a
+    false "stale" the moment the grouping changes. It already did: the Stearman was reported stale on a
+    hash that a seven-model run then reproduced exactly, all forty digits -- current code, different
+    grouping, not an old build. For comparing two GLBs when the grouping is not identical, compare the
+    content and not the bytes.
+
+    The drift is deterministic per grouping, not run-to-run noise, so this is leakage between models in
+    one process rather than anything threaded. Where exactly has not been pinned down; the marks come off
+    a BVH raycast against a mesh that is bit-identical in both builds, so the rays or the tree differ, and
+    the stamp cache is plain float lists that survive the scene wipe harmlessly. Until that is run down,
+    build one at a time:
+
+        for id in $(...); do blender --background --python tools/talkflying_livery.py -- $id; done
+    """
     os.makedirs(OUT, exist_ok=True)
     wanted = argv or list(PLANES)
     for ident in wanted:
