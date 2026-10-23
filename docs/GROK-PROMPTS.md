@@ -88,7 +88,7 @@ Ty asked not to be monkey-in-the-middle. Grok Bot (Chief) now runs Claude Code
 headlessly on the Mac Studio via:
 
 ```
-/Users/tyfrisby/Documents/flying-game/scripts/claude-run.sh
+~/Developer/flying-game/scripts/claude-run.sh   # was ~/Documents/flying-game until the 2026-10-23 move
 # optional: --bg for background agent
 ```
 

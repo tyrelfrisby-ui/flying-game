@@ -28,7 +28,9 @@ jury strut up to the spar, which is what the real one carries.
 import bpy, bmesh, json, math, os
 from mathutils import Vector
 
-REPO = "/Users/tyfrisby/Documents/flying-game"
+# The repo root from THIS FILE's location rather than a hardcoded path: realpath resolves the
+# ~/Documents/flying-game symlink, so a run through either path lands on the real directory.
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 OUT = os.path.join(REPO, "build/models")
 CFG = json.load(open(os.path.join(REPO, "configs/aircraft/glider-2-33-like.json")))
 

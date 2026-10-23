@@ -41,7 +41,9 @@ from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
 PROBE = os.environ.get("TF_PROBE") == "1"      # print an x/z map of what a scrub changed
-REPO = "/Users/tyfrisby/Documents/flying-game"
+# The repo root from THIS FILE's location rather than a hardcoded path: realpath resolves the
+# ~/Documents/flying-game symlink, so a run through either path lands on the real directory.
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 OUT = os.path.join(REPO, "build/talkflying")
 LOGO = os.path.join(REPO, "unity/Assets/_Project/Resources/Decals/talk-flying-logo.png")
 SRC = os.path.join(REPO, "assets-incoming/models")

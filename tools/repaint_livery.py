@@ -15,8 +15,15 @@ Re-runnable: it reads the ORIGINALS from the backup beside it, so running twice 
 """
 import bpy, os, shutil
 
-MODELS = "/Users/tyfrisby/Documents/flying-game/unity/Assets/_Project/Resources/Models"
-ORIG = "/private/tmp/claude-502/-Users-tyfrisby-Documents-flying-game/7be7860f-b18b-4893-9f51-5ecae3f36fa8/scratchpad/tex-orig"
+# The repo root from THIS FILE's location rather than a hardcoded path: realpath resolves the
+# ~/Documents/flying-game symlink, so a run through either path lands on the real directory.
+REPO = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+MODELS = os.path.join(REPO, "unity/Assets/_Project/Resources/Models")
+# Until 2026-10-23 this was a hardcoded path into one session's scratchpad, so it pointed at a directory
+# that no longer existed and a run would have died on the seed copy below. It is cached in build/ now.
+# Losing the cache is survivable: these textures are tracked in git, so the stock ones come back with
+# `git checkout <commit-before-the-repaint> -- unity/Assets/_Project/Resources/Models`.
+ORIG = os.path.join(REPO, "build/tex-orig")
 
 # Talk Flying: the mark is monochrome, so the aeroplane is too — graphite where the stock blue was, and the
 # whites pushed brighter, which is the "more white" the owner asked for.
@@ -33,6 +40,11 @@ def repaint(model, files):
         src = os.path.join(ORIG, fn)
         dst = os.path.join(MODELS, model, fn)
         if not os.path.exists(src):                 # first run: seed the backup from the live file
+            # SAY SO. Seeding is only correct while the live file is still the STOCK texture; do it when the
+            # live file is already repainted and the "original" becomes a repaint, so re-running compounds and
+            # the re-runnable promise in the docstring quietly stops holding.
+            os.makedirs(ORIG, exist_ok=True)
+            print("repaint   seeding backup from the LIVE %s/%s -- correct only if it is still stock" % (model, fn))
             shutil.copy(dst, src)
         img = bpy.data.images.load(src)
         px = list(img.pixels)

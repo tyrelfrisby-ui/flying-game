@@ -8,7 +8,9 @@ import aerofly, vg
 from aerofly import clamp
 from pilot import Pilot
 
-REPO = "/Users/tyfrisby/Documents/flying-game"
+# The repo root from THIS FILE's location rather than a hardcoded path: realpath resolves the
+# ~/Documents/flying-game symlink, so a run through either path lands on the real directory.
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 AIRCRAFT = {"c172": "c172-like", "extra300": "extra-300-like"}
 CRUISE = {"c172": 110, "extra300": 150}
 

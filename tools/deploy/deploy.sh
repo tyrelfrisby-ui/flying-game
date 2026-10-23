@@ -3,7 +3,10 @@
 # serialized-object bug). Logs to build/ios.log.
 set -e
 set -o pipefail   # a failed xcodebuild must stop the script (its output is piped through tail)
-cd /Users/tyfrisby/Documents/flying-game
+# The repo root from THIS SCRIPT's own location, not a hardcoded path. ${0:A} resolves symlinks, so this
+# works whether the script is reached through ~/Developer/flying-game or the ~/Documents symlink -- and it
+# keeps working if that symlink goes away. tools/deploy/deploy.sh -> three :h to the root.
+cd "${0:A:h:h:h}"
 # Every physical device that is reachable right now gets the build — iPhone, iPad mini, iPad Air — or just the
 # ones named as arguments (UDIDs). The phone used to be hard-coded, and with it asleep the script failed at the
 # install and the iPads got nothing, which on 2026-10-17 meant installing by hand four times.

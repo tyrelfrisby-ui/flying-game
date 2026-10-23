@@ -1,7 +1,9 @@
 #!/bin/zsh
 # Archive the exported Xcode project, upload to App Store Connect (TestFlight), then export the OTA dev ipa to build/ota.
 set -u
-D=/Users/tyfrisby/Documents/flying-game/tools/deploy
+# This script's own directory, resolved through any symlink -- ${D:h:h} below is then the repo root, which
+# is how the git check already found it.
+D="${0:A:h}"
 ARCH=/tmp/flyinggame-asc/AeroPlayground.xcarchive
 # Refuse a stale iOS export (2026-10-11: four uploads re-sent the 07:25 export, each a "new build" email, none with
 # the day's changes). The export must be newer than the last commit to the game's code; run deploy.sh first.
@@ -19,5 +21,5 @@ xcodebuild -exportArchive -archivePath $ARCH -exportOptionsPlist $D/ExportOption
 echo "== ota $(date)"
 rm -rf /tmp/flyinggame-asc/dev
 xcodebuild -exportArchive -archivePath $ARCH -exportOptionsPlist $D/ExportOptions-dev.plist -exportPath /tmp/flyinggame-asc/dev -allowProvisioningUpdates 2>&1 | grep -E 'EXPORT|error' | tail -3
-cp /tmp/flyinggame-asc/dev/*.ipa /Users/tyfrisby/Documents/flying-game/build/ota/FlyingGame.ipa && echo "== OTA ipa refreshed"
+cp /tmp/flyinggame-asc/dev/*.ipa ${D:h:h}/build/ota/FlyingGame.ipa && echo "== OTA ipa refreshed"
 echo "== DONE $(date)"
