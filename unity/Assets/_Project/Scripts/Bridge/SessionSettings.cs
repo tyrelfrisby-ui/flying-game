@@ -63,7 +63,11 @@ namespace FlyingGame.Bridge
         /// <summary>Paint scheme for the GENERATED airframe (Livery.cs). "type" = each type's own colours.
         /// It has no effect while a downloaded model is drawn, because the model wears its own paint — so
         /// choosing a livery also implies UseAirframeModels off for that type.</summary>
-        public static string LiveryId = "type";
+        /// <summary>The paint scheme (Livery.cs). AERO_LIVERY picks it at launch, which is how a capture
+        /// instance is told to wear Talk Flying for a recorded shot -- there is no runtime command for it,
+        /// and the alternative was a widget that can only ever film an aeroplane in type colours.</summary>
+        public static string LiveryId =
+            System.Environment.GetEnvironmentVariable("AERO_LIVERY") is string lv && lv.Length > 0 ? lv : "type";
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }

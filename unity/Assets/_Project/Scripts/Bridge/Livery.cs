@@ -144,6 +144,20 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: TrimRed, heightFrac: 0.30f, italic: true),
             }),
 
+            // SWIFT S-1: the aerobatic sailplane, marked the way the Grob's repaint is (owner, 2026-10-22 —
+            // "brand the swift like the grob"): the winged badge over the LEFT wing, the wordmark over the
+            // RIGHT, and the whole logo on both sides of the fin. Mirrored underneath so that whichever side
+            // you are on, and from above or below, you get one of each. White with red trim, which is what
+            // this type already wears.
+            ["glider-swift-s1-like"] = new("talk-flying", "Talk Flying", White, White, White, TrimRed, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, texture: LogoTex, side: -1, heightFrac: 0.72f, spanFrac: 0.42f),
+                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", side: +1, colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
+                new Decal(DecalPlace.WingLower, texture: LogoTex, side: +1, heightFrac: 0.72f, spanFrac: 0.42f),
+                new Decal(DecalPlace.WingLower, text: "TALK FLYING", side: -1, colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
+            }),
+
             // 737: silver all over, art-deco, the wordmark and the logo in BLACK on silver — the logo reversed
             // out of its usual silver-on-black.
             ["boeing-737-like"] = new("talk-flying", "Talk Flying Air", Silver, Silver, Silver, Graphite,
