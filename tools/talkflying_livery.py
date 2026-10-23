@@ -826,6 +826,17 @@ def glaze(objs, alpha=0.42):
 
     Both switches matter for glTF: the Principled BSDF's Alpha is what the exporter writes into the
     material, and the blend mode is what makes it draw as glass in a Blender render of the same file.
+
+    ONLY WHERE THE GLAZING IS ACTUALLY SOLID. The name is a weak signal and the alpha is a strong one:
+    the Cub and the Stearman name their windows "transparent" and already carry 0.15, the 737's glass
+    carries 0.70, and the 172's 0.30. Those are the author's own numbers for that aeroplane's glass and
+    they are not a bug to be corrected -- overwriting them with one house value made a Cub's window three
+    times as opaque as its author drew it. The models this is for leave the alpha at 1.
+
+    A LINKED ALPHA SOCKET IS THE AUTHOR'S TOO, and it does not read as one. The 737's glass has
+    Alpha.default_value 1.000 with a texture wired into the socket: the default is dead, the link drives
+    the transparency, and a check that reads only the default sees "solid" and paints over a window that
+    was never solid. Roughness is left alone for the same reason unless it, too, is a plain value.
     """
     n = []
     for m in bpy.data.materials:
@@ -834,10 +845,13 @@ def glaze(objs, alpha=0.42):
         b = next((x for x in m.node_tree.nodes if x.type == 'BSDF_PRINCIPLED'), None)
         if b is None:
             continue
-        if "Alpha" in b.inputs:
-            b.inputs["Alpha"].default_value = alpha
-        if "Roughness" in b.inputs:
-            b.inputs["Roughness"].default_value = 0.08
+        a = b.inputs.get("Alpha")
+        if a is None or a.links or a.default_value < 0.99:
+            continue
+        a.default_value = alpha
+        r = b.inputs.get("Roughness")
+        if r is not None and not r.links:
+            r.default_value = 0.08
         for attr, val in (("blend_method", 'BLEND'), ("surface_render_method", 'BLENDED')):
             if hasattr(m, attr):
                 try:
