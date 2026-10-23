@@ -13,14 +13,40 @@ else
   DEVICES=(${(f)"$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && (/connected/ || /available \(paired\)/) { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]+$/) print $i }')"})
 fi
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
-# iCloud conflict copies break the build. The old guard matched `* 2.*` only, which catches a duplicated FILE
-# but not a duplicated DIRECTORY — and on 2026-10-21 iCloud duplicated whole package folders inside the package
-# cache (klak.ndi/Runtime 2, klak.syphon/Editor 2, ...). Duplicate asmdefs and duplicate types took the entire
-# compile down, surfacing as 200+ bogus "Sse2 does not exist" errors inside Unity's own Burst package. Match
-# directories too, and delete deepest-first so a parent going first does not orphan the walk.
-# -L because unity/Library is a SYMLINK since 2026-10-21 (to ~/Library/Application Support/FlyingGame/
-# unity-Library, which iCloud does not sync); find would otherwise look at the link and walk nothing.
-find -L unity/Assets unity/Library unity/Packages src \( -name "* 2" -o -name "* 2.*" \) -depth -exec rm -rf {} + 2>/dev/null || true
+# iCloud conflict copies break the build. This guard has now been wrong twice, in the same way both times:
+# it matched too narrowly and the thing it missed took a build down.
+#   2026-10-21: it matched `* 2.*` only, which catches a duplicated FILE but not a duplicated DIRECTORY, and
+#               iCloud had duplicated whole package folders (klak.ndi/Runtime 2, klak.syphon/Editor 2, ...).
+#               Duplicate asmdefs and types took the compile down as 200+ bogus "Sse2 does not exist" errors
+#               inside Unity's own Burst package.
+#   2026-10-23: it matched " 2" only, and iCloud numbers conflicts " 2", " 3" ... " 22". It also looked only
+#               under unity/* and src, so 104 copies under tools/FlightTests were invisible. 943 of them
+#               appeared at once; a "Forest 2.cs" beside "Forest.cs" is picked up by the SDK compile glob, so
+#               FlyingGame.Core failed with 536 CS0101 errors and the test suite could not build.
+# So: match ANY number, and look under tools and configs too.
+# DELETE ONLY WHERE A BASE FILE EXISTS. A numbered file with no base is a real file, not a conflict copy --
+# Unity writes 82 of them into Assets/Resources (PerformanceTestRunInfo 9.json, PerformanceTestRunSettings
+# 14.json.meta, ...) and a blind numeric match would delete every one. Dry-run on 2026-10-23: 123 stale
+# copies matched, all 82 Unity files correctly kept.
+# -depth so a parent going first does not orphan the walk. -L because unity/Library is a SYMLINK since
+# 2026-10-21 (to ~/Library/Application Support/FlyingGame/unity-Library, which iCloud does not sync); find
+# would otherwise look at the link and walk nothing.
+prune_conflicts() {
+  find -L "$@" \
+       \( -name "* [0-9]" -o -name "* [0-9].*" -o -name "* [0-9][0-9]" -o -name "* [0-9][0-9].*" \) \
+       -depth -print0 2>/dev/null |
+  while IFS= read -r -d '' dup; do
+    base="$(dirname "$dup")/$(basename "$dup" | sed -E 's/ [0-9]+(\.[^.]*)?$/\1/')"
+    [ -e "$base" ] && [ "$base" != "$dup" ] && rm -rf "$dup"
+  done
+  return 0
+}
+prune_conflicts unity/Assets unity/Library unity/Packages src tools configs
+# AND A SHALLOW PASS OVER THE PARENTS, because find starts AT its roots and so can never see a duplicate OF
+# one. `unity/Library 2` sat there from 2026-10-21 until 2026-10-23 for exactly that reason -- a conflict copy
+# of the 2.6 GB Unity cache, invisible to a walk rooted at `unity/Library`. Same for `build/iOS/Data 2` and
+# friends. maxdepth keeps this cheap; build/ is pure output so it is only swept here, not above.
+prune_conflicts unity build -maxdepth 2
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
   /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \
