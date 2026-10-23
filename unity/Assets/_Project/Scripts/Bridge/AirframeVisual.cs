@@ -1338,6 +1338,11 @@ namespace FlyingGame.Bridge
             // A livery repaints the type's own colours (see Livery.cs); Paint is applied AFTER it so the combat
             // drone's flat orange still overrides everything, which is what that field was for.
             Livery liv = _livery = Liveries.For(SessionSettings.LiveryId, cfg.Id);
+            // ONE LINE PER BUILD, always. 2026-10-22: the markings did not draw in a player build and
+            // there was no way to tell from outside whether the scheme had even resolved -- the only
+            // evidence was a render, and a model-backed type's render says nothing about the livery.
+            Debug.Log($"[Livery] id='{SessionSettings.LiveryId}' type={cfg.Id} scheme={liv.Name} "
+                    + $"default={liv.IsDefault} marks={liv.Decals.Count} paint={Paint.HasValue} models={SessionSettings.UseAirframeModels}");
             if (!liv.IsDefault)
             {
                 if (liv.Fuselage.HasValue) st.Fuselage = liv.Fuselage.Value;
@@ -1381,7 +1386,57 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < _gearParts.Count; i++) { var gp = _gearParts[i]; _gearParts[i] = (gp.go, gp.downPos - cgU, gp.travel); }
             }
             TryPlaceModel(root, cfg);
+            ProbeMarks();
             return halfSpan;
+        }
+
+        /// <summary>LIVERY_PROBE=1: after everything is built, INCLUDING the model that replaces the procedural
+        /// shell, is any visible skin between a marking and whoever reads it? A mark shows its -Z face, so the
+        /// test is done in the mark's own frame and serves wings, fin and fuselage alike.
+        ///
+        /// This exists because a buried marking is INVISIBLE, not wrong-looking: for as long as the markings had
+        /// been in, no upper-wing one had ever drawn on any type, and nothing said so — the renders simply had
+        /// no lettering on top and that was taken for a build problem. Run it after touching a wing section, a
+        /// Style's body or a marking's placement:
+        ///   LIVERY_PROBE=1 LIVERY=talk-flying Unity -batchmode -quit -projectPath unity \
+        ///     -executeMethod FlyingGame.EditorTools.AirframeRender.Render
+        /// It is O(marks x parts x vertices), hence the switch.</summary>
+        private void ProbeMarks()
+        {
+            if (System.Environment.GetEnvironmentVariable("LIVERY_PROBE") == null) return;
+            foreach (GameObject go in _parts)
+            {
+                if (go == null || !go.name.StartsWith("Decal:")) continue;
+                var mr = go.GetComponentInChildren<MeshRenderer>();
+                if (mr == null) continue;
+                Quaternion inv = Quaternion.Inverse(go.transform.rotation);
+                Vector3 at = go.transform.position;
+                // The mark's own rectangle, not its largest world dimension: lettering's bounds are far wider
+                // than they are tall, and a window sized off the width sweeps in struts and the far wing.
+                Vector3 e = mr.bounds.extents, c = mr.bounds.center;
+                float hx = 0f, hy = 0f;
+                for (int k = 0; k < 8; k++)
+                {
+                    var corner = new Vector3((k & 1) == 0 ? -e.x : e.x, (k & 2) == 0 ? -e.y : e.y, (k & 4) == 0 ? -e.z : e.z);
+                    Vector3 rc = inv * (c + corner - at);
+                    hx = Mathf.Max(hx, Mathf.Abs(rc.x)); hy = Mathf.Max(hy, Mathf.Abs(rc.y));
+                }
+                float buried = 0f; string by = "";
+                foreach (GameObject sp in _parts)
+                {
+                    if (sp == null || sp == go || sp.name.StartsWith("Decal:")) continue;
+                    var mf = sp.GetComponent<MeshFilter>();
+                    var sr = sp.GetComponent<Renderer>();
+                    if (mf == null || mf.sharedMesh == null || sr == null || !sr.enabled) continue;
+                    foreach (Vector3 v in mf.sharedMesh.vertices)
+                    {
+                        Vector3 rel = inv * (sp.transform.TransformPoint(v) - at);
+                        if (Mathf.Abs(rel.x) > hx || Mathf.Abs(rel.y) > hy) continue;
+                        if (-rel.z > buried) { buried = -rel.z; by = $"{sp.name} at span {rel.x / Mathf.Max(hx, 1e-4f):+0.00;-0.00} chord {rel.y / Mathf.Max(hy, 1e-4f):+0.00;-0.00}"; }
+                    }
+                }
+                Debug.Log($"[Probe] {go.name} {(buried > 0f ? $"BURIED {buried * 1000f:F0} mm behind {by}" : "clear")}");
+            }
         }
 
         // ---- real 3-D models (AirframeModels): replace the procedural shell, keep its bookkeeping hidden ---------
@@ -1730,24 +1785,41 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>The main wing's strips, biggest lifting surface first, excluding the hinged control rows.</summary>
-        private static List<StripConfig> MainWingStrips(AircraftConfig cfg)
+        /// <summary>The wing to mark, excluding the hinged control rows: the biggest lifting surface, except on
+        /// a BIPLANE, where a marking read from above belongs on the top wing and one read from below on the
+        /// bottom wing. Putting both on the biggest wing hid the Stearman's under-wing lettering behind its own
+        /// lower wing, a metre below it (measured 2026-10-22: buried 1001 mm).</summary>
+        private static List<StripConfig> MainWingStrips(AircraftConfig cfg, bool upper)
         {
-            SurfaceConfig best = null; double bestArea = 0;
+            var wings = new List<(SurfaceConfig sf, double area, double z)>();
             foreach (SurfaceConfig sf in cfg.Surfaces)
             {
                 if (sf.Id == null || !sf.Id.StartsWith("wing") || sf.Id.EndsWith("aileron") || sf.Strips.Count == 0) continue;
-                double area = 0; foreach (StripConfig stp in sf.Strips) area += stp.Area;
-                if (area > bestArea) { bestArea = area; best = sf; }
+                double area = 0, z = 0;
+                foreach (StripConfig stp in sf.Strips) { area += stp.Area; z += stp.Pos[2]; }
+                wings.Add((sf, area, z / sf.Strips.Count));
             }
-            return best?.Strips ?? new List<StripConfig>();
+            if (wings.Count == 0) return new List<StripConfig>();
+            double lo = double.MaxValue, hi = double.MinValue;
+            foreach (var w in wings) { lo = System.Math.Min(lo, w.z); hi = System.Math.Max(hi, w.z); }
+            var best = wings[0];
+            foreach (var w in wings)
+            {
+                // Stacked wings: sim z is down-positive, so the TOP wing is the one with the smallest z.
+                // Wings at one height (a single wing, or one split into panels): the biggest.
+                bool better = hi - lo > 0.3
+                    ? (upper ? w.z < best.z : w.z > best.z)
+                    : w.area > best.area;
+                if (better) best = w;
+            }
+            return best.sf.Strips;
         }
 
         private void PlaceWingDecal(AircraftConfig cfg, Decal d, float halfSpan)
         {
-            List<StripConfig> strips = MainWingStrips(cfg);
-            if (strips.Count == 0) return;
             bool upper = d.Place == DecalPlace.WingUpper;
+            List<StripConfig> strips = MainWingStrips(cfg, upper);
+            if (strips.Count == 0) return;
             foreach (int side in d.Side == 0 ? new[] { -1, 1 } : new[] { d.Side })
             {
                 // the strip nearest the asked-for station along THIS half-span
@@ -1764,13 +1836,47 @@ namespace FlyingGame.Bridge
                 float chord = (float)near.Chord;
                 // A strip's Pos is its QUARTER-CHORD, so the mid-chord — where a marking is centred — is a
                 // quarter of a chord aft of it (x is forward-positive).
-                Vector3 at = U((float)near.Pos[0] - chord * 0.25f, (float)near.Pos[1], (float)near.Pos[2]);
-                // clear of the skin, on the side it is read from
-                at += (upper ? Vector3.up : Vector3.down) * (chord * 0.12f * 0.5f + 0.02f);
+                //
+                // DIHEDRAL, which is why no upper-wing marking had ever drawn. LoftGroup raises each station
+                // by |y|·tan(dihedral) — the strips carry dihedral as an angle, not in their z — so a marking
+                // placed at the strip's own Pos sits that far UNDER the skin. It buried every upper marking
+                // and merely lowered every under-wing one, which is exactly the way round the fault showed:
+                // the marks below the wings drew, the ones on top never did, on any type, in any build.
+                // Measured 2026-10-22 before the fix: 29 mm into the Swift's wing, 74 mm into the 172's,
+                // 183 mm into the 2-33's — and 0.165 m of daylight under the 172's lower mark.
+                float zRef = (float)near.Pos[2] - Mathf.Abs((float)near.Pos[1]) * Mathf.Tan((float)near.DihedralRad);
+                Vector3 at = U((float)near.Pos[0] - chord * 0.25f, (float)near.Pos[1], zRef);
+                // Clear of the SKIN, by the section's own ordinate rather than a flat fraction of chord: the
+                // mark spans mid-chord ± half its height, which takes in the 35 % station where the section is
+                // deepest, so it has to clear the deepest point on the side it is read from. A main wing is
+                // lofted cambered, which is NOT symmetrical — 0.50 t above the reference line, 0.28 t below.
+                //
+                // And it clears the THICKEST chord the marking reaches, not the one at its centre: lettering
+                // runs a metre or two along a tapered wing, so its inboard end lies over a deeper section.
+                // That is where the last of the burial was, measured 2026-10-22: 8 mm on the 172, 17 mm on the
+                // Archer, both at the inboard end.
+                float reach = chord * d.HeightFrac * 0.5f * (d.Text != null ? d.Text.Length * 0.6f : 1f);
+                float deepest = chord;
+                foreach (StripConfig stp in strips)
+                {
+                    if (System.Math.Sign(stp.Pos[1]) != side) continue;
+                    if (Mathf.Abs((float)stp.Pos[1] - (float)near.Pos[1]) <= reach) deepest = Mathf.Max(deepest, (float)stp.Chord);
+                }
+                at += (upper ? Vector3.up : Vector3.down) * (SkinDepth(SectionCambered, upper) * deepest * SectionTRatio + 0.02f);
                 // A TextMesh shows its -Z face, so LookRotation's forward points AWAY from whoever reads it:
                 // INTO the wing. (2026-10-21: the obvious way round put the underwing lettering on top.)
                 Quaternion rot = Quaternion.LookRotation(upper ? Vector3.down : Vector3.up, Vector3.forward);
-                Mark(d, at, rot, chord * d.HeightFrac, "Decal:" + (d.Text ?? "logo"));
+                GameObject mk = Mark(d, at, rot, chord * d.HeightFrac, "Decal:" + (d.Text ?? "logo"));
+                // LIE IT ALONG THE DIHEDRAL, once it has been sized. A marking reads along the span and is a
+                // metre or two long, so a flat one laid on a wing that ramps upward digs its outboard end in —
+                // measured 2026-10-22, 9 mm on the 172, 119 mm on the Archer, where the lettering is longer.
+                // Sim y maps to Unity x (U(x,y,z) = (y,-z,x)), so the wing rises with |x| and the tilt is about
+                // Unity z, the chord.
+                if (mk != null)
+                {
+                    float tilt = (float)near.DihedralRad * Mathf.Rad2Deg * Mathf.Sign((float)near.Pos[1]);
+                    mk.transform.localRotation = Quaternion.AngleAxis(tilt, Vector3.forward) * rot;
+                }
             }
         }
 
@@ -1787,7 +1893,11 @@ namespace FlyingGame.Bridge
                 Vector3 at = U(x / n, 0f, zSum / n);
                 foreach (int side in new[] { -1, 1 })
                 {
-                    Vector3 p = at + new Vector3(side * (chord * 0.08f * 0.5f + 0.015f), 0f, 0f);
+                    // The fin is lofted SYMMETRICAL at the same t/c as a wing, so its skin stands its own
+                    // deepest ordinate out from the centreline — not the 0.04 c this used to assume, which
+                    // left the 172's fin logo 3 mm inside the fin.
+                    float outFin = SkinDepth(SectionSymmetric, true) * chord * SectionTRatio + 0.015f;
+                    Vector3 p = at + new Vector3(side * outFin, 0f, 0f);
                     // a fin marking reads upright, facing out of the fin's side
                     Quaternion rot = Quaternion.LookRotation(side > 0 ? Vector3.left : Vector3.right, Vector3.up);
                     Mark(d, p, rot, chord * d.HeightFrac, "Decal:fin");
@@ -1801,11 +1911,21 @@ namespace FlyingGame.Bridge
             // forward of the middle, at the widest station — where an airline's name goes
             float x = 0, r = 0;
             foreach ((float sx, float sr) in st.Body) if (sr > r) { r = sr; x = sx; }
+            float xm = x + r * 1.4f;
+            float height = r * 2f * d.HeightFrac;
+            // THE BODY'S OWN HALF-WIDTH, over the length the lettering covers. The fuselage is drawn
+            // Sin(a)·r·BodyWidthScale wide, so the old 0.92 of a radius put the name INSIDE the skin wherever
+            // that scale was 1 — 103 mm into the 737, 34 mm into the 172 (measured 2026-10-22). A marking is
+            // long, so it has to clear the widest station it crosses, not just the one it is centred on.
+            float half = height * 0.5f * Mathf.Max(1, d.Text != null ? d.Text.Length : 1) * 0.6f;
+            float halfWidth = 0f;
+            for (float xs = xm - half; xs <= xm + half; xs += 0.1f) halfWidth = Mathf.Max(halfWidth, BodyRadiusAt(st, xs));
+            halfWidth = halfWidth * st.BodyWidthScale + 0.02f;
             foreach (int side in new[] { -1, 1 })
             {
-                Vector3 at = U(x + r * 1.4f, side * (r * 0.92f), st.BodyAxisZ - r * 0.25f);
+                Vector3 at = U(xm, side * halfWidth, st.BodyAxisZ - r * 0.25f);
                 Quaternion rot = Quaternion.LookRotation(side > 0 ? Vector3.left : Vector3.right, Vector3.up);
-                Mark(d, at, rot, r * 2f * d.HeightFrac, "Decal:fuselage");
+                Mark(d, at, rot, height, "Decal:fuselage");
             }
         }
 
@@ -1919,8 +2039,11 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>One marking, scaled to `height` metres and parented so it moves and splits with the airframe.</summary>
-        private void Mark(Decal d, Vector3 at, Quaternion rot, float height, string name)
+        /// <summary>One marking, scaled to `height` metres and parented so it moves and splits with the airframe.
+        /// Returns it, because the sizing below measures the built mesh along WORLD y — so a caller that wants a
+        /// mark tilted (a wing's dihedral) has to tilt it after this, not before, or the measurement reads the
+        /// tilt as the lettering's height and rescales it by an order of magnitude.</summary>
+        private GameObject Mark(Decal d, Vector3 at, Quaternion rot, float height, string name)
         {
             var go = new GameObject(name);
             go.transform.SetParent(_root, false);
@@ -1964,7 +2087,7 @@ namespace FlyingGame.Bridge
             else if (d.Texture != null)
             {
                 var tex = Resources.Load<Texture2D>(d.Texture);
-                if (tex == null) { Debug.LogWarning("[Livery] decal texture missing: " + d.Texture); Kill(go); return; }
+                if (tex == null) { Debug.LogWarning("[Livery] decal texture missing: " + d.Texture); Kill(go); return null; }
                 var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 quad.transform.SetParent(go.transform, false);
                 Object.DestroyImmediate(quad.GetComponent<Collider>());
@@ -1976,7 +2099,23 @@ namespace FlyingGame.Bridge
                 quad.GetComponent<MeshRenderer>().sharedMaterial =
                     new Material(sh) { mainTexture = tex, color = d.Colour };
             }
+            // WHAT ACTUALLY GOT BUILT, per mark (LIVERY_PROBE=1). The pieces a player build can lose silently
+            // are the font (a TextMesh with a null font draws nothing), the shader (Shader.Find returns null
+            // for a shader no scene references unless it is in Always Included) and the texture
+            // (Resources.Load) — none of which a render can tell apart from a mark that is merely buried.
+            if (System.Environment.GetEnvironmentVariable("LIVERY_PROBE") != null)
+            {
+                var tmD = go.GetComponent<TextMesh>();
+                var mrD = go.GetComponentInChildren<MeshRenderer>();
+                string what = tmD != null
+                    ? $"text='{tmD.text}' font={(tmD.font == null ? "NULL" : tmD.font.name)} size={tmD.fontSize} char={tmD.characterSize:F3}"
+                    : $"tex={d.Texture}";
+                Debug.Log($"[Livery] mark {name} {what} h={height:F2} at={at} "
+                        + $"mat={(mrD == null ? "no-renderer" : mrD.sharedMaterial == null ? "NULL-MAT" : mrD.sharedMaterial.shader == null ? "NULL-SHADER" : mrD.sharedMaterial.shader.name)} "
+                        + $"bounds={(mrD == null ? Vector3.zero : mrD.bounds.size)}");
+            }
             _parts.Add(go);
+            return go;
         }
 
         private void BuildStruts(AircraftConfig cfg, Style st, float halfSpan)
@@ -2301,7 +2440,16 @@ namespace FlyingGame.Bridge
                 plate.transform.SetParent(pivot.transform, false);
                 plate.transform.localPosition = new Vector3(0f, 0f, -height * 0.5f); // plate lies flat, trailing aft of the hinge
                 plate.transform.localScale = new Vector3(len, thick, height);
-                plate.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(st.Control);
+                // Lie it along the dihedral. The plate is a quarter of the span long, so a flat one on a wing
+                // that rises buries its inboard end and stands its outboard end proud — 49 mm on the 2-33,
+                // measured 2026-10-22, which is what was striking through the new wing lettering. The tilt
+                // goes on the PLATE, not the pivot: the pivot's rotation is the spoiler's own deflection.
+                plate.transform.localRotation = Quaternion.AngleAxis(side * dih * Mathf.Rad2Deg, Vector3.forward);
+                // The WING's colour, not the control surfaces'. A spoiler cap lies flush in the upper skin and
+                // is painted with it; a real 2-33's is not picked out like an aileron. It mattered the moment
+                // the wing lettering drew: the 2-33's trim red put a red slab under red letters and the
+                // marking read as struck through.
+                plate.GetComponent<MeshRenderer>().sharedMaterial = UnlitMat(st.Wing);
                 _parts.Add(plate);
                 _controls.Add(new ControlPart { T = pivot.transform, Surface = "spoiler", Gain = 1f, AxisUnity = Vector3.right });
             }
@@ -2508,14 +2656,30 @@ namespace FlyingGame.Bridge
             _controls.Add(new ControlPart { T = go.transform, Surface = surface, Gain = gain, AxisUnity = axis });
         }
 
+        /// <summary>The section's thickness offsets, as fractions of t, negative toward the upper surface. They are
+        /// fields rather than locals because the LIVERY MARKINGS are laid on the skin these draw: a marking
+        /// clears the real ordinate (PlaceWingDecal, PlaceFinDecal) instead of a flat fraction of chord, so
+        /// changing the section here moves the markings with it.</summary>
+        private static readonly float[] SectionCambered = { 0f, -0.45f, -0.5f, -0.3f, 0f, 0.15f, 0.28f, 0.22f };
+        private static readonly float[] SectionSymmetric = { 0f, -0.4f, -0.5f, -0.3f, 0f, 0.3f, 0.5f, 0.4f };
+        /// <summary>Thickness/chord the lofts are drawn at (LoftSurface passes it); 0.08 for a control surface.</summary>
+        private const float SectionTRatio = 0.12f;
+
+        /// <summary>How far the deepest point of a section stands off its reference line, as a fraction of t,
+        /// on the upper surface or the lower. Sim z is down-positive, so an upper ordinate is negative.</summary>
+        private static float SkinDepth(float[] ordinates, bool upper)
+        {
+            float d = 0f;
+            foreach (float o in ordinates) d = Mathf.Max(d, upper ? -o : o);
+            return d;
+        }
+
         /// <summary>8-point airfoil-ish section at one station (sim coords → local Unity).</summary>
         private static Vector3[] Section(float le, float y, float z, float chord, float t, bool isVertical, bool cambered)
         {
             // (chord fraction from LE, thickness offset as fraction of t; negative = toward the upper surface)
             float[] f = { 0f, 0.1f, 0.35f, 0.65f, 1f, 0.65f, 0.35f, 0.1f };
-            float[] up = cambered
-                ? new[] { 0f, -0.45f, -0.5f, -0.3f, 0f, 0.15f, 0.28f, 0.22f }
-                : new[] { 0f, -0.4f, -0.5f, -0.3f, 0f, 0.3f, 0.5f, 0.4f };
+            float[] up = cambered ? SectionCambered : SectionSymmetric;
             var ring = new Vector3[8];
             for (int i = 0; i < 8; i++)
             {
