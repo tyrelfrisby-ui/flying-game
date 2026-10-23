@@ -1,7 +1,7 @@
 {
   "_comment": "Product identifiers and the rules that go with them. PRICES ARE NEVER STORED HERE or anywhere else in this repository - they are read from the App Store at runtime, localised, which is the only place that stays correct when a price changes. These identifiers must match the ones configured in App Store Connect, and an identifier cannot be changed once it has been created there.",
 
-  "_trial": "A $0 NON-CONSUMABLE, not an introductory offer. Buying it is how the trial's start date gets signed and stored by Apple, so it survives a reinstall, a new device and a wound-back clock. The trial opens everything in single player; it does not include flying online.",
+  "_trial": "A FREE NON-CONSUMABLE, not an introductory offer. Buying it is how the trial's start date gets signed and stored by Apple, so it survives a reinstall, a new device and a wound-back clock. The trial opens everything in single player; it does not include flying online.",
   "trialProductId": "com.tyfrisby.aeroplayground.trial.14day",
   "trialDays": 14,
 

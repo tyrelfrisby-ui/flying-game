@@ -249,7 +249,7 @@ No BQM-74 or MQM-107 was found.
 **No acceptable free model found:** PA-25 Pawnee, PA-44 Seminole, Decathlon (Citabria is
 provenance-risky), Pitts (any), Cassutt / F1 racer, Glasair III, Swift S-1, a true open-class sailplane
 (EB29 etc.), BQM-74 / MQM-107 specifically, and a bush Super Cub. Options for these: proxies (above),
-paid models (TurboSquid/CGTrader, roughly $30–80 each), or commissioning models.
+paid models (see the bridge log for the shortlist and what they cost), or commissioning models.
 
 ---
 

@@ -40,7 +40,7 @@ public readonly struct ContentAccess
 /// <summary>
 /// Resolves the one-time unlock, the trial and an external membership into one answer.
 ///
-/// The trial's start date comes from a $0 non-consumable purchase, which means Apple signs and stores it:
+/// The trial's start date comes from a free non-consumable purchase, which means Apple signs and stores it:
 /// it survives a reinstall, a new device and a wound-back clock, none of which is true of a date we write to
 /// disk ourselves. This resolver keeps its own high-water mark on top of that, so moving the device clock
 /// BACK cannot extend a trial either (moving it forward only ends the trial sooner, which is nobody's idea
@@ -62,7 +62,7 @@ public sealed class ContentAccessResolver
     public ContentAccessResolver(DateTime highWaterUtc) { _highWaterUtc = highWaterUtc; }
 
     /// <param name="unlockOwned">The one-time unlock is owned (a verified, non-revoked non-consumable).</param>
-    /// <param name="trialStartedUtc">Apple's purchase date for the $0 trial product; <see cref="DateTime.MinValue"/>
+    /// <param name="trialStartedUtc">Apple's purchase date for the free trial product; <see cref="DateTime.MinValue"/>
     /// if it was never started.</param>
     /// <param name="external">An external provider's membership, already resolved. Its grace window applies:
     /// a member whose provider cannot be reached keeps flying.</param>

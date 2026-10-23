@@ -15,7 +15,7 @@ namespace FlyingGame.Bridge.Commerce
     ///  - FREE: the trainer glider and the C-172, plus the lessons and challenges that start you earning.
     ///    Everything else is earned with points or bought outright. <see cref="Content"/> reports
     ///    <see cref="AccessLevel.Free"/>; the points economy is progression, not commerce, and is not here.
-    ///  - TRIAL: fourteen days of everything, single player only. Started by buying a $0 non-consumable, so
+    ///  - TRIAL: fourteen days of everything, single player only. Started by buying a free non-consumable, so
     ///    Apple holds the start date and it survives a reinstall, a new device and a wound-back clock.
     ///  - UNLOCK: a one-time purchase that opens everything for good and includes the first thirty days of
     ///    online flying.

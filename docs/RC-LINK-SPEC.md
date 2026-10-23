@@ -19,10 +19,10 @@ MLP6DSM ──DSM2──▶ WS3000T dongle ──USB──▶ ESP32-S3 (USB host
 
 | # | Part | Why | Approx. |
 |---|------|-----|---------|
-| 1 | **Espressif ESP32-S3-USB-OTG** dev board | A USB-A host port with its own VBUS power switch, so the dongle plugs straight in. It has Bluetooth LE, a 1.3" screen for status, and a Li-ion battery input. | $35 (DigiKey 15822449) |
+| 1 | **Espressif ESP32-S3-USB-OTG** dev board | A USB-A host port with its own VBUS power switch, so the dongle plugs straight in. It has Bluetooth LE, a 1.3" screen for status, and a Li-ion battery input. | DigiKey 15822449 |
 | 2 | USB-C data cable | Powers the board, and connects it to the Mac to load the firmware | on hand |
 | 3 | Power: any USB-C power bank or charger | Runs the box beside the iPad | on hand |
-| 4 | Optional: 1-cell Li-ion pack for the board's battery input | A cordless box. Confirm the board's connector before buying. | ~$10 |
+| 4 | Optional: 1-cell Li-ion pack for the board's battery input | A cordless box. Confirm the board's connector before buying. | - |
 | 5 | Optional: case | 3D-print one, or a small project box | — |
 
 No adapter is needed: the dongle's USB-A plug goes into the board's USB-A port.

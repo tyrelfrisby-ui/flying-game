@@ -31,8 +31,8 @@ manifest has to grow with it — Apple rejects on the manifest, not on the code.
 
 ## Not done, and whose it is
 
-**Owner only.** Pricing and the subscription product set in App Store Connect; the paid-apps agreement, tax
-and banking; the age rating questionnaire; the App Store privacy answers (they must match the manifest);
+**Owner only.** The commercial setup in App Store Connect, which is kept out of this public repo (see the
+bridge log); the age rating questionnaire; the App Store privacy answers (they must match the manifest);
 screenshots and the description; and pressing Submit. No build is uploaded without the owner's say-so.
 
 **Blocking, and not an engineering task.** The published privacy policy currently says data is not collected
@@ -65,19 +65,12 @@ locks of its own; that is the points work, and it should ask the same layer rath
 
 ## The product catalogue
 
-Settled with the owner on 2026-10-15 and simplified on 2026-10-16, when the hour cap and the hours top-up
-were dropped and the pass became unlimited. Identifiers and the rules that go with them are in
-`unity/Assets/StreamingAssets/commerce.json`; prices are not in this repository at all.
+The product set, the trial design and the commercial reasoning behind them are NOT in this public
+repository -- they are in the private bridge log. What is here is the code and the tests that hold it: the
+identifiers and the rules that go with them live in `unity/Assets/StreamingAssets/commerce.json`.
 
-| Product | Kind | What it does |
-|---|---|---|
-| `trial.14day` | $0 non-consumable | Starts the fourteen-day trial. Everything, **single player only**. A purchase rather than an introductory offer, so Apple holds the start date and it survives a reinstall, a new device and a wound-back clock. |
-| `unlock` | Non-consumable | Every airplane and lesson, permanently, plus the **first 30 days** of online flying. |
-| `multiplayer.monthly`, `multiplayer.yearly` | Auto-renewing, ONE group | The online pass, **unlimited**. Needed by everyone who flies online, external-provider members included. |
-
-There is no consumable and no hours product. The app still counts each pilot's connected hours and sessions on
-the device, because the relay is billed by the hour and that number is how we know whether the pass covers
-what it costs — but nothing is gated on it and nothing leaves the device.
+There is no consumable and no hours product. The app counts each pilot's connected hours and sessions on the
+device, but nothing is gated on that count and nothing leaves the device.
 
 Rules in code, each with tests: the trial does not include multiplayer; an external membership grants the
 unlock's content for as long as the membership lasts and nothing more; the pass is the only question at a join

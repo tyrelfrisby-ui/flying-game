@@ -15,7 +15,7 @@
  * money are a ticker that never stops and a client that never stops sending:
  *  - SOLO: with fewer than two pilots connected there is nobody to send to, so the room stops its ticker and says
  *    so ("solo":true on hello/bye). The client then stops sending state until a "peer" arrives, which lets the
- *    object hibernate. A lone pilot in a private room went from about $0.006 a pilot-hour to nothing at all.
+ *    object hibernate. A lone pilot in a private room went from a real per-hour cost to nothing at all.
  *  - IDLE: a pilot who has not moved a control for IDLE_CLOSE_MS is closed, with a warning at IDLE_WARN_MS. The
  *    client enforces it on the controls and the room enforces it on the STATE, so a modified client cannot park a
  *    room awake all night.
