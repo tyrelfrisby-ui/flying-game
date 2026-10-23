@@ -47,6 +47,11 @@ prune_conflicts unity/Assets unity/Library unity/Packages src tools configs
 # of the 2.6 GB Unity cache, invisible to a walk rooted at `unity/Library`. Same for `build/iOS/Data 2` and
 # friends. maxdepth keeps this cheap; build/ is pure output so it is only swept here, not above.
 prune_conflicts unity build -maxdepth 2
+# assets-incoming/ has no tracked files, so git does not protect it and only a snapshot on the T5 does. A
+# snapshot is not a sync: download a new mesh and the newest tarball quietly stops being the truth. Warn here
+# because this is the script that actually gets run. Read-only, and `|| true` because `set -e` is on above --
+# a stale backup must never stop a deploy.
+tools/backup-assets.sh || true
 echo "== unity export $(date)"
 FLYINGGAME_IOS_OUT=/private/tmp/flyinggame-ios \
   /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \
