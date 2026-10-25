@@ -40,22 +40,8 @@ _spec = importlib.util.spec_from_file_location("ref_photos", os.path.join(REPO, 
 ref_photos = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(ref_photos)
 
-NAMED = {"right": (1, 0, 0), "left": (-1, 0, 0), "up": (0, 1, 0), "down": (0, -1, 0),
-         "forward": (0, 0, 1), "back": (0, 0, -1), "zero": (0, 0, 0), "one": (1, 1, 1)}
-
 # Dimensions Wikipedia does not carry, with the source that does.
 OVERRIDE = {"swift-s1": {"height": (1.74, "EASA TCDS A.038, flight attitude")}}
-
-
-def vec(text):
-    text = text.strip()
-    m = re.match(r"Vector3\.(\w+)", text)
-    if m:
-        return NAMED[m.group(1)]
-    m = re.match(r"new\s+Vector3\(([^)]*)\)", text)
-    if m:
-        return tuple(float(t.strip().rstrip("f")) for t in m.group(1).split(","))
-    raise ValueError("cannot read a Vector3 from %r" % text)
 
 
 def specs():
@@ -171,8 +157,8 @@ def axes(pts, largest_is_span, pitch_down=0.0):
     `pitch_down` is the type's Spec value: the model was drawn sitting on its tail, and `Place()` levels it
     before it is ever seen. Measuring the raw file without that correction reports a tall, short aeroplane --
     on the Extra, +41% in height/span that the game never shows."""
-    ext = sorted(((max(p[i] for p in pts) - min(p[i] for p in pts), i) for i in range(3)), reverse=True)
-    (big, ibig), (mid, imid), (small, ismall) = ext
+    big, mid, small = sorted((max(p[i] for p in pts) - min(p[i] for p in pts) for i in range(3)),
+                             reverse=True)
     ambiguous = mid > 0 and (big - mid) / big < 0.10
     # A model with a non-zero PitchDownDeg was drawn sitting on its tail, and `Place()` levels it before it is
     # ever seen. Its raw height/span is therefore not comparable with a published height, and no correction is
