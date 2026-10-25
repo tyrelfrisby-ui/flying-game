@@ -204,3 +204,28 @@ the only reference that was ever going to say so — the EASA certificate gives 
 never mentions where the tailplane is. The model must be cruciform or it will not read as a Swift; whether
 the *config* moves is a physics question, and a small one, since the height of a tailplane changes its
 downwash exposure rather than its area.
+
+## 6. The free three-views Commons already has
+
+Indexed 2026-10-25 across all 25 airframes. Each is on Wikimedia Commons under a free licence; the full list
+with licence and author per file is in each type's `assets-incoming/ref-<slug>/photos/PHOTOS.md`. **Read the
+variant warning in step 1 before using any of them for a length** — several are military or earlier marks of
+the aeroplane our config describes, and a shared span hides it.
+
+| Airframe | Free three-views on Commons | Variant to watch |
+|---|---|---|
+| `ref-c172` | `Cessna 172 3-view line drawing`, `Cessna 172G Skyhawk 3-view` | Both earlier/shorter than our 172S |
+| `ref-glider233` | `Schweizer SGS 2-33A … colour 3-view drawing` | None — the mark we model |
+| `ref-f86` | F-86A, F-86D, F-86H, XP-86 | Four different marks; D is the all-weather interceptor |
+| `ref-dhc2-beaver` | L-20A, U-6A line drawings, DHC-2 silhouette | Military designations of the same airframe |
+| `ref-p51d` | `P-51D Mustang 3-view (no specs)` | Matches |
+| `ref-pa28` | PA-28-161 Warrior II, PA-28R-200 Arrow | We model an Archer; the Arrow is retractable |
+| `ref-pa44` | `PA-44-180 Seminole 3-view` | Matches |
+| `ref-pa25` | `PA-25 Pawnee C 3-view` | Matches |
+| `ref-j3-cub` | Piper L-4B Grasshopper, Piper TG-8 | L-4B is the militarised J-3; the TG-8 is the GLIDER conversion |
+| `ref-stearman` | `Boeing N2S-3 3-view` | Navy designation of the Model 75 |
+| `ref-geebee` | `Gee Bee Super Sportster 3-view, L'Aerophile 1932` | A contemporary magazine drawing, not a factory one |
+
+Fourteen airframes have none, and four have almost no free photography either: `ref-eb29` returned **2**
+candidates, `ref-geebee` 7, `ref-decathlon` 8, `ref-cassutt` 11. Those will need the RC-plan and measured-mesh
+routes the rest of this document describes; a photograph check is not available to them.
