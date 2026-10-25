@@ -266,7 +266,7 @@ Three things the table cannot do, stated so nobody reads more into it than it ho
 | `c172-like` | `.obj` | −0.9% | +0.1% | Good |
 | `cirrus-sr22-like` | `.glb` | +0.7% | +0.7% | Good |
 
-Ten of fifteen are within 5% on both. Two are the wrong aeroplane (`glider-eb29r-like`, `seminole-like`), two
+Five of fifteen are within 5% on both, and ten within 10%. Two are the wrong aeroplane (`glider-eb29r-like`, `seminole-like`), two
 are a different mark of the right one, and one needs its attitude checked.
 
 ### Switching between a downloaded model and ours
