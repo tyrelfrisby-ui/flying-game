@@ -31,6 +31,7 @@ is gitignored. Nothing of theirs enters the repo, so no attribution attaches to 
 | **RC plan** (Outerzone, AeroFred — free) | **Cross-section OUTLINES** — every former drawn at a numbered station, rib profiles, a scaled three-view | Nothing, if it is semi-scale — check it first |
 | **3-D model** (USDZ/GLB/OBJ) | Station **positions and widths**, overall proportions, median of several | An outline. A slice reports a width and a height, never a shape |
 | **Published three-view / POH** | The **arbiter** when the other two disagree; span, length, height, areas | Sections |
+| **Photographs** (Wikipedia / Wikimedia Commons — free) | What the aeroplane **actually looks like**: where the tailplane sits on the fin, how far forward the canopy starts, the gear rake, the stance. The check that catches a model that measures right and reads wrong | A number, unless the shot is orthogonal. A three-quarter photo cannot give you a ratio |
 
 **Always check a plan before trusting it.** RC plans are frequently semi-scale — fuselages fattened to swallow
 radio gear, wing sections thickened for docile flying, tails enlarged for stability. Scale the plan up by its
@@ -41,6 +42,18 @@ against a real 11.0); one that does not is still useful for section *character* 
 
 1. **Gather** into `assets-incoming/ref-<id>/`, one directory per reference. Downloaded files are untrusted: keep
    scripts elsewhere and pass paths as arguments.
+   - **Photographs first, every time.** *Owner's decision, 2026-10-25: "For the modeling of our own aircraft go
+     to the Wikipedia page for each type and find unlicensed photos you can use to judge your design against
+     for accuracy."* `tools/ref_photos.py <config-id> --download 8` does it: it reads the type's Wikipedia
+     article and its Commons category, **rejects every licence it does not recognise as free**, ranks what is
+     left so a three-view drawing beats a pretty photo, downloads into `assets-incoming/ref-<slug>/photos/`
+     and writes a `PHOTOS.md` recording licence and author per file. `--check` verifies all 25 mappings still
+     resolve. Nothing here ships; `assets-incoming/` is gitignored.
+   - **Commons holds three-views too**, and they are free. It has a colour three-view of the 2-33A and two
+     line drawings of the 172 — the arbiter the table above says to go and find, already there.
+   - **Look one level into subcategories.** Several type categories hold no files at all, only
+     `... by registration` and `... by location` children. Two levels reaches airshows and airports, which
+     are full of other people's aeroplanes.
 2. **Measure each mesh** — `blender --background --python tools/measure_model.py -- <file> <N> <true-span>`.
    It reads OBJ, GLB, USD/USDZ and FBX, scales by the known span, and prints half-width and depth per station.
 3. **Average them** — `python3 tools/average_sections.py <true-span> <file> <file> ...`. It reports the **median**
@@ -77,6 +90,12 @@ against a real 11.0); one that does not is still useful for section *character* 
    - **Separate named parts, each hinged part's origin ON its hinge line.**
 7. **Export** GLB beside the type's other assets, register in `AirframeModels.Specs`.
 8. **Verify** — render and compare against the references. The images are the test.
+   - **Measure the three-view, do not eyeball it.** Segment the drawing by connected component (a flood fill
+     from the widest ink run on a view's centre row) and read each view's bounding box. Cropping a view's
+     bounding *rectangle* is not enough: on the 2-33 drawing the front view overlaps the side view's rows, so
+     a rectangle crop reported the side view's fin reaching the top of the frame.
+   - Then compare **ratios**, not metres, because the drawing has no scale bar. Span against length against
+     height, measured on the mesh with glTF accessor `min`/`max`, which is exact and needs no sampling.
 
 ### Reading the config without being lied to
 
@@ -153,3 +172,26 @@ at about 38°. (Blender 4.1 removed `Mesh.use_auto_smooth`; it is a modifier now
 - **Retractable gear** — `cfg.RetractableGear` exists and the model path handles gear-up exports; the travel is
   not animated from a model's own parts.
 - **Jet fans** — `PropHub` spins propellers and blurs the disc above ~400 rpm; a jet's fan face has no equivalent.
+
+## 5. What the photographs caught
+
+Run on 2026-10-25, the first time the fleet was checked against free photographs and the free three-views
+that came with them.
+
+**The 2-33 is 0.55 m short in height.** Span 15.564 m against a published 15.545, length 7.850 m against a
+published 7.848 — right to twenty millimetres. Height 2.320 m against a published **2.83 m**, and against
+**2.870 m** measured off the Commons three-view, which agrees with the published figure to 1.4% and so
+corroborates it independently. The planform is right and the side view is not, which is exactly the failure
+[step 4](#3-the-steps-per-aeroplane) was written to prevent. Roughly 0.2 m of it is the fin and roughly 0.34 m
+is the body depth below the boom; the remodel will have to settle the split.
+
+**The 172 passes.** Span 11.136 m (real 11.00), length 8.132 m (8.28), height 2.617 m (2.72) — within 1.2%,
+1.8% and 3.8%. It is the one that was built from a checked plan and a measured side view, and it shows.
+
+**The Swift S-1 has a cruciform tail and the config does not.** Three photographs of SP-P600 agree: the
+tailplane sits roughly half way up the fin. `configs/aircraft/glider-swift-s1-like.json` puts `hStab` and
+`elevator` at `z = 0.000`, on the boom centreline, below even the fin root at `z = -0.319`. A photograph was
+the only reference that was ever going to say so — the EASA certificate gives span, length and height and
+never mentions where the tailplane is. The model must be cruciform or it will not read as a Swift; whether
+the *config* moves is a physics question, and a small one, since the height of a tailplane changes its
+downwash exposure rather than its area.
