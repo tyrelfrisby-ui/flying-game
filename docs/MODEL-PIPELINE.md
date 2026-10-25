@@ -229,3 +229,64 @@ the aeroplane our config describes, and a shared span hides it.
 Fourteen airframes have none, and four have almost no free photography either: `ref-eb29` returned **2**
 candidates, `ref-geebee` 7, `ref-decathlon` 8, `ref-cassutt` 11. Those will need the RC-plan and measured-mesh
 routes the rest of this document describes; a photograph check is not available to them.
+
+## 7. The fleet, measured (2026-10-25)
+
+`python3 tools/fleet_accuracy.py` measures the model `AirframeModels.Place()` actually loads against the
+published dimensions of the real aeroplane, for all 25 airframes at once.
+
+**It compares ratios, never metres.** `Place()` scales every model to the config's span at runtime, so a
+model's raw size tells you nothing — a uniform scale cannot change a ratio. Length/span and height/span are
+what survive the scaling, and they are what caught the Swift mesh being short-coupled by 26%.
+
+Three things the table cannot do, stated so nobody reads more into it than it holds:
+
+- **The published figures are the article's FIRST `{{Aircraft specs}}` block**, which is often a different
+  mark from the one our config describes. A modest error may be variant, not model: the 737 row compares an
+  early 737 against a -800 mesh, and the PA-28 row compares a Cherokee against a Cadet.
+- **A model with a non-zero `PitchDownDeg` is drawn sitting on its tail** and `Place()` levels it, so its raw
+  height is not the aeroplane's. Those rows show no height error rather than a wrong one.
+- **`?` means span and length are within 10% of each other**, so sorting the extents cannot tell them apart.
+
+| type | model file | ΔL/S | ΔH/S | reading |
+|---|---|---|---|---|
+| `glider-eb29r-like` | `.obj` | **+57%** | **+127%** | Not an EB29. The file is UNDERPOLY's *Free Sailplane Glider* — a generic ~15 m ship standing in for a 29.3 m open-class aeroplane. The worst in the fleet by a wide margin |
+| `pa18-cub-like` | `.obj` | +0.8% | +32% | Planform exact. The height is a taildragger drawn three-point with no `PitchDownDeg` set — suspected, not proven |
+| `seminole-like` | `.obj` | +18% | +28% | A **Piper PA-23 Apache/Aztec**, not a PA-44 |
+| `boeing-737-like` | `.obj` | +18% | −4% | A -800 against an early-737 published row. Variant, already handled by `scaleTrim: 1.158` |
+| `pa28-archer-like` | `.glb` | −13% | +6% | A PA-28 **Cadet** against a Cherokee published row. Variant |
+| `dc3-like` | `.obj` | +0.7% | +9% | Good |
+| `p51d-like` | `.glb` | −5% | −9% | Good |
+| `extra-300-like` | `.glb` ? | +6% | — | Three-point; no height comparison |
+| `f86-sabre-like` | `.glb` ? | +5% | +3% | Good |
+| `stearman-pt17-like` | `.glb` | −4% | −5% | Good |
+| `geebee-r2-like` | `.obj` | −1.0% | +5% | Good |
+| `hughes-h4-like` | `.glb` | +0.1% | +1.2% | Good |
+| `jn4-jenny-like` | `.obj` | −1.0% | −1.0% | Good |
+| `c172-like` | `.obj` | −0.9% | +0.1% | Good |
+| `cirrus-sr22-like` | `.glb` | +0.7% | +0.7% | Good |
+
+Ten of fifteen are within 5% on both. Two are the wrong aeroplane (`glider-eb29r-like`, `seminole-like`), two
+are a different mark of the right one, and one needs its attitude checked.
+
+### Switching between a downloaded model and ours
+
+*Owner, 2026-10-25: "Keep the usdz files for the ones that have them so we can switch between them as
+needed/desired until our models are up to my standards."*
+
+Nothing downloaded is removed. `SessionSettings.UseOwnModels` (Options: **Our own models where we have one**)
+chooses, and it is **off** by default — the downloaded model is still what a player sees. Our model lives
+beside the downloaded one as `Models/<id>/<id>-own`, and `AirframeModels.OwnSpecs` carries its orientation,
+which is *not* the same as the downloaded model's: our Blender exports come out in the config's own
+convention (nose +x, up +y, span z) while the downloaded files land however their author left them.
+
+A caller asking a question **about the model on screen** — does it need the procedural gear under it? — must
+go through `AirframeModels.TryPlacedSpec`, not `Specs`, or it answers for a model that is not being drawn.
+
+`c172-like-own.glb` had been sitting in `Resources/Models/c172-like/` since it was built and was **never
+loaded by anything**: `Place()` asks for `Models/<id>/<id>`, which is the downloaded OBJ. That is now a
+switch rather than a dead file.
+
+On the USDZ files themselves: only the 172 still has its originals, `ref-c172/truescale/` and `ref-c172/wip/`.
+The rest were converted to OBJ in April 2026 (`fdbbee3`/`c0f2ad5`/`95d21e8`) and the USDZ originals are not in
+the repo — each model's `LICENSE.txt` records where it came from, so any of them can be fetched again.

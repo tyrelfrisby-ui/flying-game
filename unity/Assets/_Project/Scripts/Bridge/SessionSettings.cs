@@ -60,6 +60,12 @@ namespace FlyingGame.Bridge
         /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
         public static bool UseAirframeModels = true;
 
+        /// <summary>Prefer the model we drew ourselves over the downloaded one, for the types where we have both
+        /// (AirframeModels.OwnSpecs). Owner 2026-10-25: the downloaded models stay so we can switch between them
+        /// "until our models are up to my standards", so this is OFF by default — the downloaded model is still
+        /// what a player sees, and this is how we look at ours beside it.</summary>
+        public static bool UseOwnModels = false;
+
         /// <summary>Paint scheme for the GENERATED airframe (Livery.cs). "type" = each type's own colours.
         /// It has no effect while a downloaded model is drawn, because the model wears its own paint — so
         /// choosing a livery also implies UseAirframeModels off for that type.</summary>

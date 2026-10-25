@@ -1489,7 +1489,7 @@ namespace FlyingGame.Bridge
             // actually be cut out; without that box the skis stay hidden rather than doubling the undercarriage.
             bool skiGear = cfg.Skis && AirframeModels.GearBoxMesh.ContainsKey(AirframeModels.ModelId(cfg.Id));
             bool ownGear = AirframeModels.UsesOwnGear(cfg.Id) || skiGear;
-            bool keepGear = ownGear || (AirframeModels.Specs.TryGetValue(AirframeModels.ModelId(cfg.Id), out AirframeModels.Spec spec) && spec.ShowProceduralGear);
+            bool keepGear = ownGear || (AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec spec) && spec.ShowProceduralGear);
             var gearSet = new HashSet<GameObject>();
             if (keepGear) { foreach (var g in _gearParts) if (g.go != null) gearSet.Add(g.go); foreach (var kv in _legParts) foreach (GameObject g in kv.Value) if (g != null) gearSet.Add(g); }
             if (ownGear) foreach (GameObject g in _floatParts) if (g != null) gearSet.Add(g);

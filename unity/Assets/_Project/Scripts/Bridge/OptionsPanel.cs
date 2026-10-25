@@ -105,6 +105,7 @@ namespace FlyingGame.Bridge
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Long = read α and β off the streak angle", _label); y += lh * 0.8f;
             BoolRow("Flight path vector (3 s, air-relative)", ref SessionSettings.ShowFlightPath);
             BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
+            BoolRow("Our own models where we have one (rebuild: switch aircraft)", ref SessionSettings.UseOwnModels);
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
             BoolRow("Flight test data", ref SessionSettings.FlightTestData);
             // The radio stack and the dead-reckoning instruments (owner 2026-10-18). On by default: the

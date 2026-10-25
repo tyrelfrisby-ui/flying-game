@@ -93,7 +93,45 @@ namespace FlyingGame.Bridge
                 } },
         };
 
-        public static bool Has(string id) { string m = ModelId(id); return m != null && Specs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}") != null; }
+        /// <summary>Models we drew ourselves (docs/MODEL-PIPELINE.md), keyed the same way and living beside the
+        /// downloaded one as <c>Models/&lt;id&gt;/&lt;id&gt;-own</c>. Owner 2026-10-25: "Keep the usdz files for the ones
+        /// that have them so we can switch between them as needed/desired until our models are up to my standards" —
+        /// so nothing downloaded is removed, and <see cref="SessionSettings.UseOwnModels"/> chooses between them.
+        /// Our exports come out of Blender in the config's own convention (nose +x, up +y, span z), which is why
+        /// these Specs differ from the downloaded model's for the same aeroplane.</summary>
+        public static readonly Dictionary<string, Spec> OwnSpecs = new()
+        {
+            { "c172-like", new Spec(Vector3.right, Vector3.up) },
+        };
+
+        /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the
+        /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
+        /// about which model is in play.</summary>
+        static bool PickOwn(string modelId) =>
+            SessionSettings.UseOwnModels && modelId != null && OwnSpecs.ContainsKey(modelId)
+            && Resources.Load<GameObject>($"Models/{modelId}/{modelId}-own") != null;
+
+        /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
+        /// Callers that ask a question ABOUT the drawn model (does it need the procedural gear under it?) must go
+        /// through this, not through <see cref="Specs"/>, or they answer for a model that is not on screen.</summary>
+        public static bool TryPlacedSpec(string id, out Spec spec)
+        {
+            string m = ModelId(id);
+            if (m != null && PickOwn(m)) return OwnSpecs.TryGetValue(m, out spec);
+            spec = default;
+            return m != null && Specs.TryGetValue(m, out spec);
+        }
+
+        /// <summary>True where we have drawn our own model of this type, whether or not it is the one being shown.</summary>
+        public static bool HasOwn(string id) { string m = ModelId(id); return m != null && OwnSpecs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}-own") != null; }
+
+        public static bool Has(string id)
+        {
+            string m = ModelId(id);
+            if (m == null) return false;
+            if (PickOwn(m)) return true;
+            return Specs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}") != null;
+        }
 
         /// <summary>Instantiate the model under <paramref name="parent"/>, oriented, scaled to the config span and grounded
         /// on the wheels. Returns the instance (null if none) and its local bounds after placement.</summary>
@@ -102,8 +140,9 @@ namespace FlyingGame.Bridge
             bounds = new Bounds();
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
-            var prefab = Resources.Load<GameObject>($"Models/{id}/{id}");
-            if (prefab == null || !Specs.TryGetValue(id, out Spec spec)) return null;
+            bool own = PickOwn(id);
+            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}-own" : $"Models/{id}/{id}");
+            if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";
             foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);

@@ -19,6 +19,7 @@ Stdlib only, so it runs anywhere python3 does.
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -36,8 +37,8 @@ UA = "flying-game-reference/1.0 (https://github.com/tyfrisby/flying-game; measur
 # Several configs share one real aeroplane -- floats and bushwheel variants are the same airframe,
 # so they share a reference directory rather than downloading the same photos three times.
 TYPES = {
-    "aircam-like":             ("aircam",        "Lockwood Aircraft",              "Lockwood Aircam"),
-    "aircam-amphib-like":      ("aircam",        "Lockwood Aircraft",              "Lockwood Aircam"),
+    "aircam-like":             ("aircam",        "Lockwood Aircam",                "Lockwood Aircam"),
+    "aircam-amphib-like":      ("aircam",        "Lockwood Aircam",                "Lockwood Aircam"),
     "boeing-737-like":         ("b737",          "Boeing 737",                     "Boeing 737"),
     "c172-like":               ("c172",          "Cessna 172",                     "Cessna 172"),
     "cassutt-f1-like":         ("cassutt",       "Cassutt Special",                "Cassutt Racer"),
@@ -228,12 +229,31 @@ def describe(titles, thumb_width):
     return out
 
 
-def safe_name(title):
+def safe_name(title, taken=None):
+    """A filesystem name that keeps its extension and does not collide.
+
+    Truncating the whole name cut the extension off and made four different Jenny photographs share one
+    filename -- the second one found the first already there, reported "(have)", and three photographs were
+    lost silently. Truncate the STEM, keep the suffix, and number a genuine clash."""
     stem = title[5:] if title.startswith("File:") else title
-    keep = "".join(c if (c.isalnum() or c in "-._") else "-" for c in stem)
-    while "--" in keep:
-        keep = keep.replace("--", "-")
-    return keep.strip("-")[:90]
+    root, dot, ext = stem.rpartition(".")
+    if not dot:
+        root, ext = stem, ""
+    def clean(t):
+        t = "".join(c if (c.isalnum() or c in "-._") else "-" for c in t)
+        while "--" in t:
+            t = t.replace("--", "-")
+        return t.strip("-")
+    name = clean(root)[:80] + ("." + clean(ext).lower() if ext else "")
+    if taken is None:
+        return name
+    base, n = name, 2
+    while name in taken:
+        root2, dot2, ext2 = base.rpartition(".")
+        name = "%s-%d.%s" % (root2, n, ext2) if dot2 else "%s-%d" % (base, n)
+        n += 1
+    taken.add(name)
+    return name
 
 
 def run(cid, n_download, thumb_width):
@@ -262,8 +282,9 @@ def run(cid, n_download, thumb_width):
              "", "| # | file | px | licence | author | Commons page |", "|---|---|---|---|---|---|"]
     lines[5] = lines[5] % time.strftime("%Y-%m-%d")
 
+    taken = set()
     for i, c in enumerate(cands, 1):
-        fn = safe_name(c["title"])
+        fn = safe_name(c["title"], taken)
         got = ""
         if i <= n_download:
             dest = os.path.join(outdir, fn)
@@ -318,9 +339,138 @@ def check():
     return 1 if bad else 0
 
 
+FIELDS = ["length", "span", "upper span", "lower span", "height", "wing area",
+          "gross weight", "empty weight", "max takeoff weight"]
+
+# Articles that cover several marks carry one {{Aircraft specs}} per mark, and the first is not always ours.
+# The value is a section heading that must appear just before the block we want.
+SPEC_BLOCK = {"pitts-s2": "Pitts S-2B"}
+
+
+def dimensions(article, prefer=None):
+    """Span, length and height from the article's {{Aircraft specs}} template.
+
+    The config cannot supply these. `fuselage.crossflow.lengthM` is the body's crossflow length, not the
+    aeroplane's: a 172 reads 5.8 m there and is 8.28 m long. The template is the published figure with the
+    article's own citation behind it."""
+    d = api("en.wikipedia.org", {"action": "query", "prop": "revisions", "rvprop": "content",
+                                 "rvslots": "main", "titles": article, "redirects": "1"})
+    pages = d.get("query", {}).get("pages") or [{}]
+    revs = pages[0].get("revisions")
+    if not revs:
+        return {}
+    text = revs[0]["slots"]["main"]["content"]
+    starts = [m.start() for m in re.finditer(r"\{\{\s*aircraft specs", text, re.I)]
+    if not starts:
+        return {}
+    i = starts[0]
+    if prefer:
+        for st in starts:
+            if prefer.lower() in text[max(0, st - 300):st].lower():
+                i = st
+                break
+    # walk to the matching }} so a nested {{cite}} does not end it early
+    depth, j = 0, i
+    while j < len(text) - 1:
+        if text[j:j+2] == "{{":
+            depth += 1; j += 2; continue
+        if text[j:j+2] == "}}":
+            depth -= 1; j += 2
+            if depth == 0:
+                break
+            continue
+        j += 1
+    body = text[i:j]
+    out = {}
+    # Pipes are often indented ("\n    |ref = ..."), so split on the newline-pipe pattern, not the literal.
+    for line in re.split(r"\n\s*\|", body):
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = re.sub(r"<!--.*?-->", "", key, flags=re.S).strip().lower()
+        val = re.sub(r"<!--.*?-->", "", val, flags=re.S).split("<ref")[0].strip().strip("|").strip()
+        for f in FIELDS:
+            if key.startswith(f) and val and not key.endswith("note"):
+                out[key] = val
+    return out
+
+
+def dims_report():
+    """One DIMENSIONS.md per reference directory, plus a fleet table on stdout."""
+    rows = []
+    done = set()
+    for cid, (slug, article, _cat) in sorted(TYPES.items()):
+        if slug in done:
+            continue
+        done.add(slug)
+        fields = dimensions(article, SPEC_BLOCK.get(slug))
+        m = {}
+        for k, v in fields.items():
+            for f in ("length", "span", "upper span", "height"):
+                if k.startswith(f + " m") and k[len(f)+1:].strip() in ("m", "m)"):
+                    m[f] = v
+        # prefer the explicit metre field; fall back to ft/in
+        def metres(f, _alt=None):
+            if f not in m and _alt and _alt in m:
+                f = _alt
+            if f in m:
+                try:
+                    return float(m[f].split()[0].replace(",", "."))
+                except ValueError:
+                    return None
+            # The template writes inches as mixed fractions: "2+1/2", "7+3/4", "10+1/2".
+            def num(t):
+                if not t:
+                    return None
+                tot = 0.0
+                for part in str(t).replace("&nbsp;", " ").split("+"):
+                    part = part.strip()
+                    if not part:
+                        continue
+                    try:
+                        if "/" in part:
+                            a, b = part.split("/", 1)
+                            tot += float(a) / float(b)
+                        else:
+                            tot += float(part.replace(",", "."))
+                    except (ValueError, ZeroDivisionError):
+                        return None
+                return tot
+            ft, inch = num(fields.get(f + " ft")), num(fields.get(f + " in"))
+            if ft is None:
+                return None
+            return ft * 0.3048 + (inch or 0.0) * 0.0254
+        sp = metres("span", "upper span")
+        if sp is None:                      # biplanes: the template writes "upper span ft/in"
+            fields.setdefault("span ft", fields.get("upper span ft"))
+            fields.setdefault("span in", fields.get("upper span in"))
+            sp = metres("span")
+        ln, ht = metres("length"), metres("height")
+        rows.append((slug, article, sp, ln, ht, fields))
+        out = os.path.join(REF, "ref-" + slug, "DIMENSIONS.md")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        with open(out, "w") as f:
+            f.write("# Published dimensions: %s\n\n" % slug)
+            f.write("From the {{Aircraft specs}} template of <https://en.wikipedia.org/wiki/%s>, read %s.\n"
+                    % (article.replace(" ", "_"), time.strftime("%Y-%m-%d")))
+            f.write("The article carries its own citations; this is a convenience copy, not a source.\n\n")
+            f.write("| field | value |\n|---|---|\n")
+            for k in sorted(fields):
+                f.write("| %s | %s |\n" % (k, fields[k]))
+            f.write("\nDerived: span %s m, length %s m, height %s m\n" % (sp, ln, ht))
+        print("%-14s span=%-8s length=%-8s height=%-8s  %s" % (
+            slug,
+            "%.3f" % sp if sp else "-", "%.3f" % ln if ln else "-", "%.3f" % ht if ht else "-",
+            "" if (sp and ln) else "INCOMPLETE"))
+        time.sleep(1.0)
+    return 0
+
+
 def main(argv):
     if "--check" in argv:
         return check()
+    if "--dims" in argv:
+        return dims_report()
     ids, n, width = [], 0, 2000
     i = 0
     while i < len(argv):
