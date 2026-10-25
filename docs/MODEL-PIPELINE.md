@@ -51,6 +51,13 @@ against a real 11.0); one that does not is still useful for section *character* 
      resolve. Nothing here ships; `assets-incoming/` is gitignored.
    - **Commons holds three-views too**, and they are free. It has a colour three-view of the 2-33A and two
      line drawings of the 172 — the arbiter the table above says to go and find, already there.
+   - **Check which variant a drawing is of before you trust its length.** Commons' `Cessna-172-3-view-line-
+     drawing.png` is the factory "172 PRINCIPLE DIMENSIONS" sheet, dimensioned on the drawing itself: 36'
+     span, **24' length**, 8'6" height, 7'2" track, 5° ground angle. Those are the 1956 straight-tail 172.
+     Our config is a 172S — same 36' span, but 27'2" long and 8'11" high. The span agreeing is what makes the
+     trap: it looks like the right drawing. Take the sections, the ground angle and the track from it; take
+     the length from the config. The 2-33A colour three-view has no such problem — one variant, and the
+     2-33A is the one we model.
    - **Look one level into subcategories.** Several type categories hold no files at all, only
      `... by registration` and `... by location` children. Two levels reaches airshows and airports, which
      are full of other people's aeroplanes.
@@ -186,7 +193,9 @@ corroborates it independently. The planform is right and the side view is not, w
 is the body depth below the boom; the remodel will have to settle the split.
 
 **The 172 passes.** Span 11.136 m (real 11.00), length 8.132 m (8.28), height 2.617 m (2.72) — within 1.2%,
-1.8% and 3.8%. It is the one that was built from a checked plan and a measured side view, and it shows.
+1.8% and 3.8%, measured against the published 172S figures and the mesh's own glTF bounds. It is the one that
+was built from a checked plan and a measured side view, and it shows. Note the Commons drawings could not have
+been used for this: both are of earlier, shorter 172s (see the variant warning in step 1).
 
 **The Swift S-1 has a cruciform tail and the config does not.** Three photographs of SP-P600 agree: the
 tailplane sits roughly half way up the fin. `configs/aircraft/glider-swift-s1-like.json` puts `hStab` and
