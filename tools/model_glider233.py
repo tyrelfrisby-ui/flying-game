@@ -209,21 +209,36 @@ def smooth(ob):
 # -------------------------------------------------------------------------------------------------------
 # (station x, half-width, bottom z, top z). The cabin is 1.1 m deep and 0.69 m across, which is the real
 # aeroplane's cockpit; the boom at the tailpost is 0.19 m deep, which is what the fin and stab sit on.
+# REMEASURED 2026-10-25 off the Commons three-view, which is the only free drawing of this aeroplane and
+# is the mark we model (SGS 2-33A). The old table was 0.55 m short in the side view: the pod was about
+# 0.20 m too shallow and the boom's top longeron tapered away aft where the real one runs STRAIGHT, which
+# dropped the fin root and took the fin top down with it.
+#
+# Every z here is (wheel contact at -1.00) + (2.864 - the drawing's depth below its fin top), measured with
+#   blender --background --python tools/measure_threeview.py -- <the drawing> 0 \
+#           --box 540,265,1900,790 --width-m 7.85 --steps 27
+# which puts the component's own bounds at 7.85 m long and 2.870 m tall against a published 2.83.
 STATIONS = [
-    (2.90, 0.045, -0.33, -0.12),
-    (2.62, 0.170, -0.56, 0.06),
-    (2.25, 0.270, -0.68, 0.22),
-    (1.80, 0.330, -0.74, 0.33),
-    (1.20, 0.345, -0.75, 0.36),
-    (0.50, 0.345, -0.75, 0.38),
-    (0.10, 0.340, -0.74, 0.38),
-    (-0.50, 0.310, -0.70, 0.36),
-    (-1.30, 0.255, -0.62, 0.31),
-    (-2.20, 0.195, -0.52, 0.24),
-    (-3.10, 0.145, -0.44, 0.14),
-    (-4.00, 0.100, -0.35, 0.03),
-    (-4.70, 0.070, -0.28, -0.02),
-    (-4.95, 0.045, -0.24, -0.06),
+    (2.90, 0.045, -0.40, -0.30),
+    (2.62, 0.170, -0.62, -0.02),
+    (2.30, 0.270, -0.83, 0.12),
+    (2.00, 0.310, -0.91, 0.27),
+    (1.70, 0.335, -0.95, 0.42),
+    (1.40, 0.345, -0.95, 0.50),
+    (1.09, 0.345, -0.93, 0.55),
+    (0.79, 0.345, -0.89, 0.60),
+    (0.49, 0.345, -0.86, 0.64),
+    (0.19, 0.340, -0.75, 0.66),
+    (-0.11, 0.330, -0.67, 0.64),
+    (-0.41, 0.310, -0.59, 0.58),
+    (-0.72, 0.280, -0.51, 0.45),
+    (-1.32, 0.235, -0.35, 0.385),
+    (-1.92, 0.195, -0.27, 0.385),
+    (-2.53, 0.165, -0.20, 0.385),
+    (-3.13, 0.140, -0.14, 0.385),
+    (-3.73, 0.115, -0.08, 0.385),
+    (-4.33, 0.090, -0.05, 0.385),
+    (-4.95, 0.055, 0.10, 0.385),
 ]
 NA = 16                                   # points round half a section
 
@@ -394,7 +409,7 @@ def build_tail_panel(name, x_le, root_c, tip_c, half_span, z0, z1, vertical, thi
     return smooth(paint(mesh_from_loops(name, loops), YELLOW))
 
 
-def build_stab(x_le=-3.73, c=1.20, half=1.75, z=0.07, thick=0.10):
+def build_stab(x_le=-3.73, c=1.20, half=1.75, z=0.42, thick=0.10):
     """The horizontal tail: CONSTANT CHORD WITH SEMICIRCULAR TIPS -- "rounded like a popsicle stick",
     which is what the three-view draws and what a 2-33 carries. The drawing's own tailplane is inked at a
     smaller scale than its three views (2.32 m across where the config flies 3.50), so what is taken from
@@ -503,20 +518,23 @@ def main():
     #   stab     quarter chord x -4.03, chord 0.72 + elevator 0.48 -> leading edge -3.73, span 3.50
     #   fin      quarter chord x -4.05, chord 0.60; rudder -4.45, 0.45 -> -3.90 back to -4.79
     parts.append(build_stab())
-    parts.append(build_tail_panel("Fin", -3.90, 0.89, 0.52, 0.0, 0.02, 1.30, vertical=True))
+    # The fin, remeasured. Its top edge runs from x -4.03 to -4.64 at z +1.864 on the drawing, its leading
+    # edge meets the boom near x -3.45, and its trailing edge is the tailpost. The old panel topped out at
+    # 1.30 and that one number was 0.25 m of the aeroplane's missing 0.55.
+    parts.append(build_tail_panel("Fin", -3.535, 1.42, 0.52, 0.0, 0.0, 1.864, vertical=True))
 
     # THE LIFT STRUTS. Out to 45 % of the half-span, off the lower longeron, with a jury strut up to the
     # spar at two thirds of the way out -- which is the bracing a 2-33 actually carries.
     sy = 0.45 * HALF
     sz = WING_Z + sy * math.tan(DIHEDRAL)
     for side in (1, -1):
-        foot = (0.30, side * 0.30, -0.58)
+        foot = (0.30, side * 0.30, -0.68)
         head = (wing_xle(sy) - 0.42 * chord_at(sy), side * sy, sz + 0.012)
         tag = "R" if side > 0 else "L"
         parts.append(strut("Strut." + tag, foot, head))
         jx = 0.30 + (head[0] - 0.30) * 0.62
         jy = side * (0.30 + (sy - 0.30) * 0.62)
-        jz = -0.58 + (head[2] + 0.012 - (-0.58)) * 0.62
+        jz = -0.68 + (head[2] + 0.012 - (-0.68)) * 0.62
         parts.append(strut("Jury." + tag, (jx, jy, jz),
                            (wing_xle(abs(jy)) - 0.18 * chord_at(abs(jy)), jy,
                             WING_Z + abs(jy) * math.tan(DIHEDRAL) + 0.01), chord=0.06, thick=0.34))
@@ -533,8 +551,8 @@ def main():
     # the monowheel, semi-recessed in the belly, and the skids it shares the ground with
     parts.append(build_wheel("Wheel", 0.055, -0.78, 0.22, 0.10))
     parts.append(cyl("WheelLeg", (0.055, -0.10, -0.74), (0.055, 0.10, -0.74), 0.035))
-    parts.append(build_skid("NoseSkid", 2.30, 1.10, -0.70, -1.02))
-    parts.append(build_skid("TailSkid", -3.70, -4.15, -0.42, -0.60, hw=0.045))
+    parts.append(build_skid("NoseSkid", 2.30, 1.10, -0.84, -0.96))
+    parts.append(build_skid("TailSkid", -3.70, -4.15, -0.06, -0.14, hw=0.045))
 
     os.makedirs(OUT, exist_ok=True)
     glb = os.path.join(OUT, "glider-2-33-like.glb")

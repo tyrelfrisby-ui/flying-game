@@ -185,12 +185,21 @@ at about 38°. (Blender 4.1 removed `Mesh.use_auto_smooth`; it is a modifier now
 Run on 2026-10-25, the first time the fleet was checked against free photographs and the free three-views
 that came with them.
 
-**The 2-33 is 0.55 m short in height.** Span 15.564 m against a published 15.545, length 7.850 m against a
+**The 2-33 was 0.55 m short in height** (fixed 2026-10-25; see below). Span 15.564 m against a published 15.545, length 7.850 m against a
 published 7.848 — right to twenty millimetres. Height 2.320 m against a published **2.83 m**, and against
 **2.870 m** measured off the Commons three-view, which agrees with the published figure to 1.4% and so
 corroborates it independently. The planform is right and the side view is not, which is exactly the failure
 [step 4](#3-the-steps-per-aeroplane) was written to prevent. Roughly 0.2 m of it is the fin and roughly 0.34 m
-is the body depth below the boom; the remodel will have to settle the split.
+is the body depth below the boom; the remodel settled the split.
+
+**The remodel, and what the drawing actually said.** Profiling the three-view's side-view component
+(`--box 540,265,1900,790 --width-m 7.85`) put its own bounds at 7.85 m long and 2.870 m tall, and gave the
+top and bottom line at 27 stations. Three things were wrong, not one. The pod was about **0.20 m too
+shallow** all the way from the nose to the wing. The boom's **top longeron tapered away aft** where the
+real one runs dead straight at 0.385 above the body axis, which dropped the fin's root and took the fin
+with it. And the fin's own top edge sits at **1.864 above the axis**, against 1.30 drawn. Rebuilt to the
+measured profile with the wheel left at the config's contact, `glider-2-33-like` now reads
+**-0.1% / +1.0%** where it read -0.2% / -18.1%.
 
 **The 172 passes.** Span 11.136 m (real 11.00), length 8.132 m (8.28), height 2.617 m (2.72) — within 1.2%,
 1.8% and 3.8%, measured against the published 172S figures and the mesh's own glTF bounds. It is the one that
