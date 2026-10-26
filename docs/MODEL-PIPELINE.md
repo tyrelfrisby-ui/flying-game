@@ -269,8 +269,16 @@ made it look like a sign problem was the measurement, not the convention: `glb_p
 primitive's accessor min/max and carried the eight corners of that box, and **rotating a box grows its
 axis-aligned bounds**. On the Extra, whose whole airframe is tilted on its nodes, that invented a 3.7%
 error in length and a 40% one in height. Reading the POSITION vertices instead costs about a second a model
-and the Extra now reads **+1.9% / +5.3%** with no correction at all. The remaining caveat -- a published
-figure that is a different mark -- is real and stays.
+and the Extra now reads **+1.9% / +5.3%** with no correction at all.
+
+Two caveats remain. A published figure may be a different mark. And **a taildragger's published height is a
+three-point height while this tool measures the mesh in body axes**, so a model drawn level reads taller
+than the aeroplane is said to be -- about 8 points of the Cub's +32 is attitude, on top of its bush tyres.
+A correction was tried and not kept: rotating each mesh by the three-point angle its own config's gear
+implies needs to know which way the nose points along the length axis, which the file does not say, and
+picking the sign that reduces the height is right for a model drawn level and wrong for one already drawn
+tail-down. Across the eight taildraggers it improved six rows and made the DC-3 (+9.3% to -19.1%) and the
+Gee Bee (+4.6% to +8.7%) worse. Six out of eight is not a correction.
 
 | type | model file | ΔL/S | ΔH/S | reading |
 |---|---|---|---|---|

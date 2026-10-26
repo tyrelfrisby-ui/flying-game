@@ -43,6 +43,19 @@ _spec.loader.exec_module(ref_photos)
 # Dimensions Wikipedia does not carry, with the source that does.
 OVERRIDE = {"swift-s1": {"height": (1.74, "EASA TCDS A.038, flight attitude")}}
 
+# A TAILDRAGGER'S PUBLISHED HEIGHT IS A THREE-POINT HEIGHT, and this tool measures the mesh in BODY AXES.
+# A model drawn level therefore reads taller than the published figure by roughly what the three-point angle
+# does to the fin, and that is a real part of several rows here: the Cub is 12.5 deg nose-up on its own gear
+# and about 8 points of its +32 is attitude.
+#
+# A correction was tried and NOT kept. Rotating each mesh by the three-point angle its own config's gear
+# implies -- atan((z_main - z_tail) / (x_main - x_tail)) -- needs to know which way the model's nose points
+# along its length axis, which the file does not say. Choosing the sign that reduces the height is right for
+# a model drawn level and WRONG for one already drawn tail-down: across the eight taildraggers it improved
+# six rows and made the DC-3 (+9.3% to -19.1%) and the Gee Bee (+4.6% to +8.7%) worse. A correction that is
+# right six times out of eight is not a correction, so the comparison stays in body axes and the limit is
+# written down instead.
+
 # Published heights that are not measured the way a model sits. The Swift's certificated 1,74 m is FLIGHT
 # ATTITUDE -- gear up -- and its config carries no `retractableGear`, so the model is drawn gear down at
 # 2.03 m. Comparing the two would report a 17% error that is really two different measurements, which is
