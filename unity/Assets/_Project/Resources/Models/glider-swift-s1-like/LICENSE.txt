@@ -1,0 +1,11 @@
+Source: built here, not downloaded. tools/model_swift_s1.py (Blender, 2026-10-25).
+Model: Marganski Swift S-1
+Author: this project
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "Swift S-1" modelled for this project with tools/model_swift_s1.py
+Note: this directory holds NO downloaded model. The type had none -- it was drawn procedurally from its
+config, and the config puts the tailplane on the boom centreline where three freely-licensed photographs of
+SP-P600 show a CRUCIFORM tail, half way up the fin. The model is drawn to EASA TCDS A.038 (span 12,68 m,
+length 6,91 m, wing area 11,73 m2); working in assets-incoming/ref-swift-s1/MEASUREMENTS.md.
+Shown only when SessionSettings.UseOwnModels is on (Options: Airframe -> Ours).

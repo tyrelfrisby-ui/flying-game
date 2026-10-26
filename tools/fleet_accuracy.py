@@ -43,6 +43,12 @@ _spec.loader.exec_module(ref_photos)
 # Dimensions Wikipedia does not carry, with the source that does.
 OVERRIDE = {"swift-s1": {"height": (1.74, "EASA TCDS A.038, flight attitude")}}
 
+# Published heights that are not measured the way a model sits. The Swift's certificated 1,74 m is FLIGHT
+# ATTITUDE -- gear up -- and its config carries no `retractableGear`, so the model is drawn gear down at
+# 2.03 m. Comparing the two would report a 17% error that is really two different measurements, which is
+# the same reason a `PitchDownDeg` row shows no height at all.
+HEIGHT_NOT_COMPARABLE = {"swift-s1": "published height is flight attitude, gear up; the mesh is gear down"}
+
 
 def specs():
     """id -> (forward, up) straight out of AirframeModels.Specs, so this file cannot drift from the C#."""
@@ -91,10 +97,17 @@ def obj_points(path):
 
 
 def glb_points(path):
-    """The eight corners of every primitive's POSITION box, carried through the node tree.
+    """Every POSITION vertex, carried through the node tree.
 
-    Node transforms matter: glTF exports keep parts tilted on their nodes, so an accessor's min/max read flat
-    is the part's box in ITS OWN frame, not the aeroplane's."""
+    This used to read each primitive's accessor min/max and carry the eight corners of that BOX. Node
+    transforms matter -- glTF exports keep parts tilted on their nodes -- and that is exactly why the box
+    was wrong: rotate a box and its axis-aligned bounds grow. On most of the fleet the two agree to three
+    decimals, because their parts sit square. On the **Extra 300, whose whole airframe is tilted on its
+    nodes, the box read 0.9272 for length/span where the vertices read 0.8930** -- a 3.7% error invented by
+    the method, and a 40% one in height, which is what made its PitchDownDeg look like a sign problem.
+
+    Decoding the accessors costs a second per model and removes the approximation, so it is not worth
+    keeping the cheap version for the models that happen not to need it."""
     with open(path, "rb") as f:
         data = f.read()
     assert data[:4] == b"glTF", path
@@ -120,20 +133,32 @@ def glb_points(path):
                 rot[c * 4 + r_] *= s[c]
         rot[12], rot[13], rot[14] = t
         return rot
+    # the BIN chunk, which the first pass skipped
+    off, bin_chunk = 12, b""
+    while off < len(data):
+        ln, ty = struct.unpack_from("<II", data, off)
+        if ty == 0x004E4942:
+            bin_chunk = data[off + 8:off + 8 + ln]
+        off += 8 + ln
+
+    def positions(acc_i):
+        a = js["accessors"][acc_i]
+        assert a["type"] == "VEC3" and a["componentType"] == 5126, a      # float32 vec3, always, for POSITION
+        bv = js["bufferViews"][a["bufferView"]]
+        base = bv.get("byteOffset", 0) + a.get("byteOffset", 0)
+        stride = bv.get("byteStride") or 12
+        return [struct.unpack_from("<3f", bin_chunk, base + i * stride) for i in range(a["count"])]
+
     pts = []
     def walk(idx, m):
         n = js["nodes"][idx]
         m = mul(m, trs(n))
         if "mesh" in n:
             for p in js["meshes"][n["mesh"]]["primitives"]:
-                a = js["accessors"][p["attributes"]["POSITION"]]
-                lo, hi = a["min"], a["max"]
-                for cx in (lo[0], hi[0]):
-                    for cy in (lo[1], hi[1]):
-                        for cz in (lo[2], hi[2]):
-                            pts.append((m[0]*cx + m[4]*cy + m[8]*cz + m[12],
-                                        m[1]*cx + m[5]*cy + m[9]*cz + m[13],
-                                        m[2]*cx + m[6]*cy + m[10]*cz + m[14]))
+                for cx, cy, cz in positions(p["attributes"]["POSITION"]):
+                    pts.append((m[0]*cx + m[4]*cy + m[8]*cz + m[12],
+                                m[1]*cx + m[5]*cy + m[9]*cz + m[13],
+                                m[2]*cx + m[6]*cy + m[10]*cz + m[14]))
         for c in n.get("children", []):
             walk(c, m)
     ident = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -214,8 +239,13 @@ def main():
         ls_m, ls_r = L / S, real["length"] / real["span"]
         hs_m = H / S if S else None
         hs_r = real["height"] / real["span"] if "height" in real else None
-        if pitch_down:
-            hs_r = None                 # drawn three-point; its raw height is not the aeroplane's
+        # PitchDownDeg no longer suppresses the height. It tells `Place()` to LEVEL the model for flight;
+        # it says nothing about how the aeroplane was measured, and a taildragger's published height is a
+        # THREE-POINT height -- the attitude the model is drawn in. So the raw comparison is the right one.
+        # What made this look like a sign problem was the old box-based glb_points: the Extra is tilted on
+        # its nodes, its axis-aligned boxes were inflated, and it read +40.7% where the vertices read +5.2%.
+        if slug in HEIGHT_NOT_COMPARABLE:
+            hs_r = None
         e_l = 100.0 * (ls_m - ls_r) / ls_r
         e_h = 100.0 * (hs_m - hs_r) / hs_r if hs_r else None
         worst = max(abs(e_l), abs(e_h) if e_h is not None else 0.0)

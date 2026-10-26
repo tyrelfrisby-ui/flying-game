@@ -114,6 +114,10 @@ namespace FlyingGame.Bridge
             // sailplane standing in for a 29.3 m open-class ship -- +57% L/S and +127% H/S, the worst in
             // the fleet.
             { "glider-eb29r-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_swift_s1.py. There is no downloaded Swift at all -- this type has always been
+            // drawn procedurally, and the procedural airframe follows the config, which puts the tailplane
+            // on the boom centreline. The photographs say CRUCIFORM, half way up the fin.
+            { "glider-swift-s1-like", new Spec(Vector3.right, Vector3.up) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the

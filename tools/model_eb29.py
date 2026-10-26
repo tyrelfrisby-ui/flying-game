@@ -59,8 +59,21 @@ WINGLET_RISE = 0.35                       # and how far up it goes. A glider win
 
 
 def cfg_wing():
+    """Wing chord PLUS aileron chord, which is the planform.
+
+    The two are separate surfaces and the `wing` strips stop at the hinge line: their chord drops from
+    0.703 to 0.493 at y 6.802, exactly where `wing-aileron` starts. Drawn from the wing strips alone the
+    aeroplane gets a 30% step in its chord at 46% of the semi-span that the real one does not have. Added
+    together the taper is straight, which is the check that this is the right reading."""
     w = [s for s in CFG["surfaces"] if s["id"] == "wing"][0]
-    pts = sorted(((s["pos"][1], s["chord"]) for s in w["strips"] if s["pos"][1] > 0))
+    asurf = [s for s in CFG["surfaces"] if s["id"] == "wing-aileron"][0]
+    ail = {round(st["pos"][1], 3): st["chord"] for st in asurf["strips"]}
+    pts = []
+    for st in sorted(w["strips"], key=lambda s: s["pos"][1]):
+        y = st["pos"][1]
+        if y <= 0:
+            continue
+        pts.append((y, st["chord"] + ail.get(round(y, 3), 0.0)))
     k = HALF / pts[-1][0]
     return [(y * k, c) for y, c in pts]
 

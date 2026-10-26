@@ -235,6 +235,11 @@ the aeroplane our config describes, and a shared span hides it.
 | `ref-stearman` | `Boeing N2S-3 3-view` | Navy designation of the Model 75 |
 | `ref-geebee` | `Gee Bee Super Sportster 3-view, L'Aerophile 1932` | A contemporary magazine drawing, not a factory one |
 
+The Swift has neither -- no three-view and no dimensioned plan anywhere free -- and did not need them:
+**EASA TCDS A.038** gives span, length, height, wing area, MAC and CG to the millimetre, which is more than
+a three-view carries. What the certificate does not say is where the tailplane sits on the fin, and three
+photographs of SP-P600 did. See `assets-incoming/ref-swift-s1/MEASUREMENTS.md`.
+
 Fourteen airframes have none, and four have almost no free photography either: `ref-eb29` returned **2**
 candidates, `ref-geebee` 7, `ref-decathlon` 8, `ref-cassutt` 11. Those will need the RC-plan and measured-mesh
 routes the rest of this document describes; a photograph check is not available to them.
@@ -257,16 +262,26 @@ Three things the table cannot do, stated so nobody reads more into it than it ho
   height is not the aeroplane's. Those rows show no height error rather than a wrong one.
 - **`?` means span and length are within 10% of each other**, so sorting the extents cannot tell them apart.
 
+**Two of the three caveats above are gone** (2026-10-25). `PitchDownDeg` no longer suppresses a height: it
+tells `Place()` to level the model for *flight* and says nothing about how the aeroplane was measured, and
+a taildragger's published height **is** a three-point height -- the attitude the model is drawn in. What
+made it look like a sign problem was the measurement, not the convention: `glb_points` read each
+primitive's accessor min/max and carried the eight corners of that box, and **rotating a box grows its
+axis-aligned bounds**. On the Extra, whose whole airframe is tilted on its nodes, that invented a 3.7%
+error in length and a 40% one in height. Reading the POSITION vertices instead costs about a second a model
+and the Extra now reads **+1.9% / +5.3%** with no correction at all. The remaining caveat -- a published
+figure that is a different mark -- is real and stays.
+
 | type | model file | ΔL/S | ΔH/S | reading |
 |---|---|---|---|---|
 | `glider-eb29r-like` | `.obj` | **+57%** | **+127%** | Not an EB29. The file is UNDERPOLY's *Free Sailplane Glider* — a generic ~15 m ship standing in for a 29.3 m open-class aeroplane. The worst in the fleet by a wide margin. Replaced: `tools/model_eb29.py` draws ours at **−0.0% / −0.2%** |
-| `pa18-cub-like` | `.obj` | +0.8% | +32% | Planform exact. The height is a taildragger drawn three-point with no `PitchDownDeg` set — suspected, not proven |
+| `pa18-cub-like` | `.obj` | +0.8% | +32% | Planform exact to under a percent. The height is **bush tyres**: the silhouette shows a tundra wheel, the file is shared with `pa18-bush-like`, and the published row is a standard PA-18. A configuration mismatch, like the 737 and the PA-28, not a model fault |
 | `seminole-like` | `.obj` | +18% | +28% | A **Piper PA-23 Apache/Aztec**, not a PA-44. Replaced: `tools/model_pa44.py` draws ours at **+0.2% / +0.2%**, the closest in the fleet |
 | `boeing-737-like` | `.obj` | +18% | −4% | A -800 against an early-737 published row. Variant, already handled by `scaleTrim: 1.158` |
 | `pa28-archer-like` | `.glb` | −13% | +6% | A PA-28 **Cadet** against a Cherokee published row. Variant |
 | `dc3-like` | `.obj` | +0.7% | +9% | Good |
 | `p51d-like` | `.glb` | −5% | −9% | Good |
-| `extra-300-like` | `.glb` ? | +6% | — | Three-point; no height comparison |
+| `extra-300-like` | `.glb` | +1.9% | +5.3% | Was +6% and no height at all, because its airframe is tilted on its nodes and the old box measurement inflated it. Good |
 | `f86-sabre-like` | `.glb` ? | +5% | +3% | Good |
 | `stearman-pt17-like` | `.glb` | −4% | −5% | Good |
 | `geebee-r2-like` | `.obj` | −1.0% | +5% | Good |
@@ -309,6 +324,23 @@ against a published 2.5908 (+10.5%) and its wing strips sum to 15.43 m2 against 
 wheels left at the config's gear contact, so it still sits on its own gear. The working is in each type's
 `assets-incoming/ref-<slug>/MEASUREMENTS.md`, and the physics side is unchanged -- a surface's z is an
 aerodynamic number and moving it is a separate, separately tested change.
+
+### A config's wing strips are not always the planform
+
+Found on the Swift and then on the EB29, after the EB29 had already shipped with it wrong. Where a type has
+a separate `wing-aileron` surface, the `wing` strips may stop at the hinge line, so the chord they give is
+the planform **minus the aileron** outboard of where the aileron starts. Drawn from the wing strips alone
+the aeroplane gets a step in its chord that the real one does not have -- 30% at 46% of the semi-span on
+the EB29.
+
+The tell is in the numbers before you ever render it: a sudden drop in the chord at exactly the first
+aileron station (0.703 to 0.493 at y 6.802 on the EB29, 0.917 to 0.612 at y 3.165 on the Swift), and a
+planform that integrates well under the published area. Add the two chords and the taper comes out
+straight.
+
+**It is not universal, so it cannot be done blind.** The 2-33's model builds its chord from its own
+double-taper constants and is unaffected; the PA-44's comes off the drawing. Check for the step, and check
+the area, every time.
 
 ### Switching between a downloaded model and ours
 
