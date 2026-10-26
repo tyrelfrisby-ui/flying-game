@@ -17,6 +17,7 @@ shipped. See docs/MODEL-PIPELINE.md.
 Stdlib only, so it runs anywhere python3 does.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -282,6 +283,18 @@ def run(cid, n_download, thumb_width):
              "", "| # | file | px | licence | author | Commons page |", "|---|---|---|---|---|---|"]
     lines[5] = lines[5] % time.strftime("%Y-%m-%d")
 
+    # Content hashes of what is already on disk. Commons serves the same image under more than one title,
+    # and before safe_name was fixed a truncated name could land the same bytes twice under two names --
+    # five such pairs existed across the fleet, which quietly inflated the photo count and gave a type
+    # fewer independent views than its manifest claimed. A duplicate is now dropped on its bytes.
+    have_hash = {}
+    for f_ in os.listdir(outdir) if os.path.isdir(outdir) else []:
+        if f_ == "PHOTOS.md":
+            continue
+        fp = os.path.join(outdir, f_)
+        if os.path.isfile(fp):
+            have_hash[hashlib.sha1(open(fp, "rb").read()).hexdigest()] = f_
+
     taken = set()
     for i, c in enumerate(cands, 1):
         fn = safe_name(c["title"], taken)
@@ -292,9 +305,17 @@ def run(cid, n_download, thumb_width):
                 got = " (have)"
             else:
                 req = urllib.request.Request(c["url"], headers={"User-Agent": UA})
-                with urllib.request.urlopen(req, timeout=60) as r, open(dest, "wb") as f:
-                    f.write(r.read())
-                got = " (%.1f MB)" % (os.path.getsize(dest) / 1e6)
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    blob = r.read()
+                h = hashlib.sha1(blob).hexdigest()
+                if h in have_hash:
+                    got = " (duplicate of %s, not written)" % have_hash[h]
+                    fn = have_hash[h]
+                else:
+                    with open(dest, "wb") as f:
+                        f.write(blob)
+                    have_hash[h] = fn
+                    got = " (%.1f MB)" % (len(blob) / 1e6)
             print("   %2d. %s%s" % (i, fn, got))
         lines.append("| %d | %s | %sx%s | %s | %s | <%s> |" % (
             i, ("`%s`" % fn) if i <= n_download else fn,
