@@ -143,9 +143,9 @@ def glb_points(path):
     return pts
 
 
-def model_file(ident):
+def model_file(ident, own=False):
     for ext in (".obj", ".glb"):
-        p = os.path.join(MODELS, ident, ident + ext)
+        p = os.path.join(MODELS, ident, ident + ("-own" if own else "") + ext)
         if os.path.exists(p):
             return p
     return None
@@ -189,11 +189,20 @@ def published(slug):
 def main():
     sp = specs()
     slug_of = {cid: t[0] for cid, t in ref_photos.TYPES.items()}
+    # Ours too, wherever one exists. A model we built is measured on exactly the same terms as a download:
+    # ratios against the published aeroplane, and no credit for having drawn it ourselves. Our exports land
+    # nose +x, up +y, span z, so the largest extent is the span and there is no three-point attitude.
+    jobs = [(ident, lis, pd, False) for ident, (lis, pd) in sorted(sp.items())]
+    for cid in sorted(ref_photos.TYPES):
+        if model_file(cid, own=True):
+            jobs.append((cid, True, 0.0, True))
     rows = []
-    for ident, (largest_is_span, pitch_down) in sorted(sp.items()):
-        path = model_file(ident)
+    for ident, largest_is_span, pitch_down, own in jobs:
+        path = model_file(ident, own=own)
         slug = slug_of.get(ident)
         if path is None or slug is None:
+            if own:
+                continue
             rows.append((None, ident, "no model file" if path is None else "no reference", None, None, None, None, False))
             continue
         pts = obj_points(path) if path.endswith(".obj") else glb_points(path)
@@ -210,16 +219,17 @@ def main():
         e_l = 100.0 * (ls_m - ls_r) / ls_r
         e_h = 100.0 * (hs_m - hs_r) / hs_r if hs_r else None
         worst = max(abs(e_l), abs(e_h) if e_h is not None else 0.0)
-        rows.append((worst, ident, os.path.basename(path), ls_m, ls_r, e_l, e_h, ambiguous))
+        rows.append((worst, ident + (" (ours)" if own else ""), os.path.basename(path),
+                     ls_m, ls_r, e_l, e_h, ambiguous))
     rows.sort(key=lambda r: (-1 if r[0] is None else -r[0]))
-    print("%-22s %-34s %7s %7s %8s %8s" % ("type", "file", "L/S", "real", "dL/S %", "dH/S %"))
-    print("-" * 92)
+    print("%-29s %-30s %7s %7s %8s %8s" % ("type", "file", "L/S", "real", "dL/S %", "dH/S %"))
+    print("-" * 99)
     for worst, ident, f, lsm, lsr, el, eh, amb in rows:
         if worst is None:
-            print("%-22s %-34s %s" % (ident, f, "--"))
+            print("%-29s %-30s %s" % (ident, f, "--"))
             continue
-        print("%-22s %-30s%s %7.4f %7.4f %+8.1f %s"
-              % (ident, f[:30], " ?" if amb else "  ", lsm, lsr, el,
+        print("%-29s %-28s%s %7.4f %7.4f %+8.1f %s"
+              % (ident, f[:28], " ?" if amb else "  ", lsm, lsr, el,
                  "%+8.1f" % eh if eh is not None else "       -"))
 
 

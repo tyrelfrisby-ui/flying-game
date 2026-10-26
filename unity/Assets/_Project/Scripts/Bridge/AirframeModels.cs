@@ -107,6 +107,13 @@ namespace FlyingGame.Bridge
             // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
             // trainer -- and ours is 0.55 m short in the side view, which is why the switch exists.
             { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_pa44.py. The downloaded seminole-like.obj is a Piper PA-23 Apache/Aztec -- a
+            // different aeroplane with a conventional tail -- which is why ours exists.
+            { "seminole-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_eb29.py. The downloaded glider-eb29r-like.obj is UNDERPOLY's generic ~15 m
+            // sailplane standing in for a 29.3 m open-class ship -- +57% L/S and +127% H/S, the worst in
+            // the fleet.
+            { "glider-eb29r-like", new Spec(Vector3.right, Vector3.up) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the

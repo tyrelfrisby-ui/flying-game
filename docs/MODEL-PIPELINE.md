@@ -250,9 +250,9 @@ Three things the table cannot do, stated so nobody reads more into it than it ho
 
 | type | model file | ΔL/S | ΔH/S | reading |
 |---|---|---|---|---|
-| `glider-eb29r-like` | `.obj` | **+57%** | **+127%** | Not an EB29. The file is UNDERPOLY's *Free Sailplane Glider* — a generic ~15 m ship standing in for a 29.3 m open-class aeroplane. The worst in the fleet by a wide margin |
+| `glider-eb29r-like` | `.obj` | **+57%** | **+127%** | Not an EB29. The file is UNDERPOLY's *Free Sailplane Glider* — a generic ~15 m ship standing in for a 29.3 m open-class aeroplane. The worst in the fleet by a wide margin. Replaced: `tools/model_eb29.py` draws ours at **−0.0% / −0.2%** |
 | `pa18-cub-like` | `.obj` | +0.8% | +32% | Planform exact. The height is a taildragger drawn three-point with no `PitchDownDeg` set — suspected, not proven |
-| `seminole-like` | `.obj` | +18% | +28% | A **Piper PA-23 Apache/Aztec**, not a PA-44 |
+| `seminole-like` | `.obj` | +18% | +28% | A **Piper PA-23 Apache/Aztec**, not a PA-44. Replaced: `tools/model_pa44.py` draws ours at **+0.2% / +0.2%**, the closest in the fleet |
 | `boeing-737-like` | `.obj` | +18% | −4% | A -800 against an early-737 published row. Variant, already handled by `scaleTrim: 1.158` |
 | `pa28-archer-like` | `.glb` | −13% | +6% | A PA-28 **Cadet** against a Cherokee published row. Variant |
 | `dc3-like` | `.obj` | +0.7% | +9% | Good |
@@ -266,8 +266,40 @@ Three things the table cannot do, stated so nobody reads more into it than it ho
 | `c172-like` | `.obj` | −0.9% | +0.1% | Good |
 | `cirrus-sr22-like` | `.glb` | +0.7% | +0.7% | Good |
 
-Five of fifteen are within 5% on both, and ten within 10%. Two are the wrong aeroplane (`glider-eb29r-like`, `seminole-like`), two
+Five of fifteen are within 5% on both, and ten within 10%. The two that were the wrong aeroplane (`glider-eb29r-like`, `seminole-like`) have both been replaced by models built here, and two
 are a different mark of the right one, and one needs its attitude checked.
+
+### Building one ourselves, and what the PA-44 taught
+
+`python3 tools/fleet_accuracy.py` measures ours on the same terms as a download -- ratios against the
+published aeroplane, no credit for having drawn it. The Seminole was the first replacement built under this
+process, and three things are worth carrying to the next one.
+
+**A factory three-view is not one drawing.** The PA-44 sheet's plan and front views share a scale that
+checks out three ways -- its span dimension, its stabilator span to 0.5%, and the wing area its planform
+integrates to (17.03 m2 against a published 17.08). Its **side view does not**: about 99 px/m across
+against 112 px/m up, with a sloping ground line. Measure each view's scale against something printed before
+believing any of it, and when a view fails, use the photographs for what it would have told you.
+
+**Dimension leaders weld views together.** `tools/measure_threeview.py` grew `--box` to cut a view out and
+`--no-fill` to profile everything inside it, because the flood fill that works on a colour drawing comes
+apart on line art -- and `--width-m`, because a column number is not a measurement.
+
+**Two photographs is enough, when the published figures are good.** The EB29 has no free three-view and
+exactly two freely-licensed photographs, which looked like a blocker. It was not: span, length, height and
+wing area pin the size, the config pins the taper and the dihedral, and the photographs settle the three
+things a number cannot -- the canopy, the boom and the winglets. A glider's published height is measured to
+the top of the **fin**, and at 0.06 rad of dihedral a 29.3 m span lifts its tips 0.88 m on its own, so the
+winglets have to be the size they really are or the model measures taller than the aeroplane.
+
+**The config can be the thing that is wrong.** The rule that a model's dimensions come from the config held
+for the 172 and the 2-33. It failed on both of these. `seminole-like.json` puts the aeroplane 2.862 m tall
+against a published 2.5908 (+10.5%) and its wing strips sum to 15.43 m2 against a real 17.08 (-10%);
+`glider-eb29r-like.json` is 2.306 m tall against 1.85 (+25%), 3.6% short in span and 11% high in wing area.
+**The same failure in both: the fin is too tall.** Each model is drawn to the real aeroplane with the
+wheels left at the config's gear contact, so it still sits on its own gear. The working is in each type's
+`assets-incoming/ref-<slug>/MEASUREMENTS.md`, and the physics side is unchanged -- a surface's z is an
+aerodynamic number and moving it is a separate, separately tested change.
 
 ### Switching between a downloaded model and ours
 
