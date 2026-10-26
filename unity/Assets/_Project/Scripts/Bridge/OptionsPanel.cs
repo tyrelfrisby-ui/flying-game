@@ -104,8 +104,24 @@ namespace FlyingGame.Bridge
             }
             GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f), "Long = read α and β off the streak angle", _label); y += lh * 0.8f;
             BoolRow("Flight path vector (3 s, air-relative)", ref SessionSettings.ShowFlightPath);
-            BoolRow("Real airframe models (rebuild: switch aircraft)", ref SessionSettings.UseAirframeModels);
-            BoolRow("Our own models where we have one (rebuild: switch aircraft)", ref SessionSettings.UseOwnModels);
+            {
+                // One choice, three ways to draw the aeroplane, and it takes effect where you are sitting --
+                // AirframeVisual rebuilds on the change, so you can fly the same aeroplane three times over.
+                GUI.Label(new Rect(x, y, cw * 0.38f, lh), "Airframe", _label);
+                float bw = (cw * 0.6f - 2 * gap * 0.4f) / 3f, bx = x + cw * 0.4f;
+                int cur = !SessionSettings.UseAirframeModels ? 0 : SessionSettings.UseOwnModels ? 2 : 1;
+                string[] names = { "Drawn", "Downloaded", "Ours" };
+                for (int i = 0; i < 3; i++)
+                    if (GUI.Button(new Rect(bx + i * (bw + gap * 0.4f), y, bw, lh), names[i], cur == i ? _btnOn : _btn))
+                    { SessionSettings.UseAirframeModels = i > 0; SessionSettings.UseOwnModels = i == 2; }
+                y += lh + gap * 0.4f;
+            }
+            GUI.Label(new Rect(x + cw * 0.4f, y, cw * 0.6f, lh * 0.8f),
+                      AirframeModels.HasOwn(SessionSettings.AircraftId)
+                          ? "Ours: built here \u2014 falls back to the downloaded one elsewhere"
+                          : "Ours: none for this aeroplane yet \u2014 the 172 has one",
+                      _label);
+            y += lh * 0.8f;
             BoolRow("Force vectors", ref SessionSettings.ShowForceVectors);
             BoolRow("Flight test data", ref SessionSettings.FlightTestData);
             // The radio stack and the dead-reckoning instruments (owner 2026-10-18). On by default: the

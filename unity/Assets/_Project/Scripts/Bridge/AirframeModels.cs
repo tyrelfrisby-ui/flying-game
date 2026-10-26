@@ -102,6 +102,11 @@ namespace FlyingGame.Bridge
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
             { "c172-like", new Spec(Vector3.right, Vector3.up) },
+            // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
+            // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
+            // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
+            // trainer -- and ours is 0.55 m short in the side view, which is why the switch exists.
+            { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the

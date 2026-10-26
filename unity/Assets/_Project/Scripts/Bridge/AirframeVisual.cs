@@ -25,6 +25,9 @@ namespace FlyingGame.Bridge
         private FlightSimDriver _driver;
         private readonly AirframeBuilder _builder = new();
         private string _builtId;
+        // Which airframe the hierarchy currently holds, so the Options picker can take effect where you are
+        // rather than at the next aircraft change (owner 2026-10-25: switch between them "as needed/desired").
+        private bool _builtModels, _builtOwn;
         private bool _wingsDetached;   // wing meshes have left the hierarchy (structural failure)
 
         private void Awake()
@@ -68,6 +71,7 @@ namespace FlyingGame.Bridge
             // Challenge spawns adopt a new sim without AircraftChanged — an intact sim airframe means rebuild.
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
             if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
+            if (_builtModels != SessionSettings.UseAirframeModels || _builtOwn != SessionSettings.UseOwnModels) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
@@ -295,6 +299,8 @@ namespace FlyingGame.Bridge
         private void Rebuild()
         {
             _builtId = _driver.AircraftId;
+            _builtModels = SessionSettings.UseAirframeModels;
+            _builtOwn = SessionSettings.UseOwnModels;
             _wingsDetached = false;
             _componentsDetached = false;
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
