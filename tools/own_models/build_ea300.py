@@ -1,4 +1,4 @@
-"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v4 (cockpit interior)
+"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v5 (cockpit interior + rear dash top)
 
 Shape: by Ty's decision (2026-10-26) matched to ~1 in to the approved FlightGear-based Extra (codex/fg-models v9
 5fdacad, wing raised ~10 in), which is the FlightGear EA300 by Patrizio Melis (GPL).  That model is used ONLY as a
@@ -129,7 +129,7 @@ def ck_gauge(x, y, z, r, lean=0.0):
     ck_box('ck_stick', tuple(np.array(a) + 0.0095 * dn + np.array((0, r * 0.25, r * 0.15))), (0.002, r * 0.6, r * 0.08), ry=lean, rx=-0.6)
 def ck_seat(x0, zf, back_top, hw):
     """moulded shell: pan from x0 aft, raised thigh lip, reclined back (30 deg), side bolsters, 5-pt straps"""
-    pan_l, rec = 0.40, math.radians(22); bx = x0 - pan_l
+    pan_l, rec = 0.34, math.radians(22); bx = x0 - pan_l
     ck_box('ck_seat', (x0 - pan_l / 2, 0, zf + 0.03), (pan_l, 2 * hw, 0.05), ry=math.radians(-6))
     ck_box('ck_seat', (x0 - 0.03, 0, zf + 0.07), (0.06, 2 * hw, 0.05))                        # thigh lip
     bl = (back_top - zf) / math.cos(rec); bc = (bx - math.sin(rec) * bl / 2, 0, zf + math.cos(rec) * bl / 2)
@@ -143,10 +143,10 @@ def ck_seat(x0, zf, back_top, hw):
         ck_box('ck_strap', (bx + 0.06, sy * 2.2, zf + 0.09), (0.12, 0.045, 0.008), ry=math.radians(40))
     ck_box('ck_strap', (x0 - 0.12, 0, zf + 0.065), (0.12, 0.045, 0.008))
     ck_box('ck_strap', (bx + 0.10, 0, zf + 0.085), (0.06, 0.07, 0.03))                          # buckle
-def ck_stick(x, zf, h=0.48):
-    ck_cyl('ck_seat', (x, 0, zf), (x, 0, zf + 0.10), 0.045, 12)                                 # rubber boot
-    ck_cyl('ck_stick', (x, 0, zf + 0.08), (x - 0.06, 0, zf + h - 0.12), 0.012, 10)
-    ck_cyl('ck_stick', (x - 0.06, 0, zf + h - 0.13), (x - 0.075, 0, zf + h), 0.02, 12)          # grip
+def ck_stick(x, zf, h=0.36):
+    ck_cyl('ck_seat', (x, 0, zf), (x, 0, zf + 0.07), 0.034, 12)                                 # rubber boot
+    ck_cyl('ck_stick', (x, 0, zf + 0.05), (x - 0.045, 0, zf + h - 0.09), 0.010, 10)
+    ck_cyl('ck_stick', (x - 0.045, 0, zf + h - 0.10), (x - 0.055, 0, zf + h), 0.016, 12)        # grip
 ZF = 0.17   # cockpit floor top (above the mid-wing carry-through)
 # navy tub: floor + inner side walls so the wing root and the painted fuselage skin never show inside
 def ck_tub():
@@ -161,25 +161,27 @@ def ck_tub():
             v = [ck.verts.new(p) for p in q]; ck.faces.new(v if flip else v[::-1])
 _ck('ck_tub', ck_tub)
 # front (student) seat + stick
-ck_seat(-0.60, ZF, 0.56, 0.20); ck_stick(-0.33, ZF, 0.44)
+ck_seat(-0.44, ZF, 0.43, 0.17); ck_stick(-0.25, ZF, 0.34)   # v5: smaller/lower, moved 0.16 m forward
 # rear (PIC) seat + stick
-ck_seat(-1.42, ZF, 0.58, 0.19); ck_stick(-1.20, ZF, 0.46)
+ck_seat(-1.42, ZF, 0.45, 0.17); ck_stick(-1.24, ZF, 0.36)
 # front panel: small arch-top strip under the windscreen, 5 gauges
 arch = [(-0.27, 0.0), (0.27, 0.0)] + [(0.27 * math.cos(t), 0.07 + 0.08 * math.sin(t)) for t in np.linspace(0, math.pi, 11)]
-FPX, FPZ, FL = -0.17, 0.17, math.radians(18)
+FPX, FPZ, FL = -0.14, 0.17, math.radians(18)
 ck_prism('ck_panel', arch, FPX, 0.02, FL, FPZ)
 for y in (-0.19, -0.095, 0, 0.095, 0.19):
     zz = 0.085 if abs(y) < 0.1 else 0.06
     ck_gauge(FPX + zz * math.tan(FL) - 0.011, y, FPZ + zz, 0.036, FL)
-# rear (main) panel: wide trapezoid on the frame just behind the front seat, plus lower centre stack
-trap = [(-0.33, 0.0), (0.33, 0.0), (0.33, 0.12), (0.21, 0.22), (-0.21, 0.22), (-0.33, 0.12)]
-RPX, RPZ, RL = -1.04, 0.26, math.radians(10)
-ck_prism('ck_panel', trap, RPX, 0.03, RL, RPZ)
-ck_box('ck_panel', (RPX + 0.03, 0, 0.19), (0.05, 0.24, 0.14))
-ck_box('ck_face', (RPX - 0.002, 0, 0.19), (0.004, 0.13, 0.07))                                  # radio face
-for y, z, r in ((-0.15, 0.15, 0.04), (-0.05, 0.16, 0.043), (0.05, 0.16, 0.043), (0.15, 0.15, 0.04),
-                (-0.15, 0.06, 0.04), (-0.05, 0.06, 0.043), (0.05, 0.06, 0.043), (0.15, 0.06, 0.04), (-0.27, 0.07, 0.03), (0.27, 0.07, 0.03)):
-    ck_gauge(RPX + z * math.tan(RL) - 0.016, y, RPZ + z, r, RL)
+# rear (main) panel, v5: angular-cornered dash top (glareshield) ~0.20 m deep fore-aft behind the front seat, after the
+# 300L photo; the rectangular instrument panel hangs under its aft lip; radio stack below
+RPX, RPZ = -1.06, 0.30                                       # panel face station / panel bottom
+hood = [(-0.35, 0.0), (0.35, 0.0), (0.35, 0.03), (0.22, 0.12), (-0.22, 0.12), (-0.35, 0.03)]
+ck_prism('ck_panel', hood, RPX + 0.06, 0.20, 0.0, RPZ + 0.16)    # x RPX-0.04 .. RPX+0.16, z 0.46..0.58
+ck_prism('ck_panel', [(-0.33, 0.0), (0.33, 0.0), (0.33, 0.16), (-0.33, 0.16)], RPX + 0.015, 0.03, 0.0, RPZ)
+ck_box('ck_panel', (RPX + 0.03, 0, 0.235), (0.05, 0.24, 0.13))
+ck_box('ck_face', (RPX - 0.002, 0, 0.235), (0.004, 0.13, 0.07))                                 # radio face
+for z in (0.045, 0.115):
+    for y in (-0.24, -0.12, 0.0, 0.12, 0.24):
+        ck_gauge(RPX - 0.001, y, RPZ + z, 0.031, 0.0)
 # light-grey steel tube frame visible along the cockpit sides (sill longeron + diagonals)
 for sy in (1, -1):
     hw_at = lambda x: float(np.interp(-x, -RX, RW_)) - 0.05
