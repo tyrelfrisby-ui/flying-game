@@ -83,6 +83,7 @@ namespace FlyingGame.Bridge
         // Type colours the schemes keep.
         private static readonly Color White = new(0.945f, 0.945f, 0.930f);
         private static readonly Color TrimRed = new(0.706f, 0.090f, 0.129f);  // #B4172100 Cub/Cessna trim red
+        private static readonly Color SgsYellow = new(1f, 0.8f, 0f);     // 255,204,0 sampled from the Commons 2-33A 3-view
         private static readonly Color CubYellow = new(0.976f, 0.761f, 0.063f); // "Cub Yellow" / Lock Haven yellow
         private static readonly Color StearmanBlue = new(0.153f, 0.247f, 0.549f);
         private static readonly Color StearmanYellow = new(0.949f, 0.800f, 0.149f);
@@ -147,14 +148,15 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
             }),
 
-            // SCHWEIZER 2-33: a white trainer glider with red trim, marked like the powered trainers --
-            // words above and below the wings, the logo on both sides of the fin, and the registration.
-            ["glider-2-33-like"] = new("talk-flying", "Talk Flying", White, White, White, TrimRed, decals: new[]
+            // SCHWEIZER 2-33 (owner 2026-10-26): the 3-view's all-yellow scheme kept, branded with black/silver
+            // accents. Our model bakes the cheat line, TALKFLYING and talkflying.com into the fuselage
+            // (glider-2-33-like-own-tf.glb); the wing words and the fin logo are laid on as markings. Every
+            // surface stays yellow -- black only as lettering/trim -- so the silhouette reads on a black background.
+            ["glider-2-33-like"] = new("talk-flying", "Talk Flying", SgsYellow, SgsYellow, SgsYellow, SgsYellow, decals: new[]
             {
-                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
-                new Decal(DecalPlace.WingLower, text: "TALK FLYING", colour: TrimRed, heightFrac: 0.60f, spanFrac: 0.50f),
-                new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
-                new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: TrimRed, heightFrac: 0.30f, italic: true),
+                // The logo is baked onto the aft fuselage: the config-geometry fin decal floats off our fin.
+                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", colour: Black, heightFrac: 0.55f, spanFrac: 0.50f),
+                new Decal(DecalPlace.WingLower, text: "TALK FLYING", colour: Black, heightFrac: 0.55f, spanFrac: 0.50f),
             }),
 
             // SWIFT S-1: the aerobatic sailplane, marked the way the Grob's repaint is (owner, 2026-10-22 —

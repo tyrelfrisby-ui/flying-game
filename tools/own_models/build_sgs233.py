@@ -12,7 +12,10 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/glider-2-33-like/glider-2-33-like-own.glb')
+# SGS_LIVERY=talk-flying builds the Talk Flying version (same yellow base, black/silver trim, TF lettering)
+LIV = os.environ.get('SGS_LIVERY', 'factory')
+OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/glider-2-33-like/glider-2-33-like-own'
+                   + ('-tf' if LIV == 'talk-flying' else '') + '.glb')
 TEX = '/tmp/own_sgs_tex'; os.makedirs(TEX, exist_ok=True)
 YELLOW, WHITE, NAVY, GREY, TYRE = (255, 204, 0), (246, 246, 246), (24, 34, 90), (120, 122, 128), (88, 90, 96)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -220,10 +223,23 @@ def side(name, flip):
     hh = 0.16 * (1 - t) + 0.015
     band = (X < xn) & (X > xt) & (Z < zc + hh) & (Z > zc - hh)
     v.fill(X > -1e9, YELLOW)   # v3: the Commons 3-view is all yellow, no band or pinstripe
-    im = bpy.data.images.load(os.path.join(paint.ART, 'n2033a.png')); w_, h_ = im.size
-    h = 0.16; x0 = mx(470); x1 = x0 - h * w_ / h_
-    zl = mz(236) - 0.02
-    v.stamp('n2033a.png', x0, x1, zl, zl + h)
+    if LIV == 'talk-flying':
+        # Talk Flying trim on the yellow (brand colours from Livery.cs: Black #0D0E10, Silver #C9CCD2):
+        # a black cheat line nose-to-tail sweeping up aft, a silver pinstripe under it, TALKFLYING where the
+        # N-number goes (the existing 2-33 Talk Flying livery convention) and talkflying.com aft.
+        xa, xb = mx(236), mx(705)
+        t = np.clip((xa - X) / (xa - xb), 0, 1); zc = mz(255) + (mz(219) - mz(255)) * t
+        hh = 0.045 * (1 - t) + 0.012; inx = (X < xa) & (X > xb)
+        v.fill(inx & (Z < zc + hh) & (Z > zc - hh), (13, 14, 16))
+        v.fill(inx & (Z < zc - hh - 0.012) & (Z > zc - hh - 0.032), (201, 204, 210))
+        for fn, xf, hgt, zb in (('tf-talkflying.png', mx(400), 0.15, mz(236) + 0.01), ('tf-logo-plate.png', mx(492), 0.26, mz(230) - 0.04), ('tf-talkflying-com.png', mx(585), 0.075, mz(224) + 0.005)):
+            im = bpy.data.images.load(os.path.join(paint.ART, fn)); w_, h_ = im.size
+            v.stamp(fn, xf, xf - hgt * w_ / h_, zb, zb + hgt)
+    else:
+        im = bpy.data.images.load(os.path.join(paint.ART, 'n2033a.png')); w_, h_ = im.size
+        h = 0.16; x0 = mx(470); x1 = x0 - h * w_ / h_
+        zl = mz(236) - 0.02
+        v.stamp('n2033a.png', x0, x1, zl, zl + h)
     return v
 VL, VR = side('sgs_side_l', True), side('sgs_side_r', False)
 M = {'l': paint.mat_image('Paint_sgs_side_l', VL.to_image(TEX + '/l.png')),

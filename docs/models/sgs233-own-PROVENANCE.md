@@ -35,3 +35,6 @@ No GPL or third-party mesh was used as input.
 - Fuselage sections are smooth superellipses. The real fuselage is fabric over a steel tube frame, with stringer facets.
 - Spoilers are flat plates.
 - The tail surfaces are flat thin slabs, not true airfoils.
+
+## Talk Flying livery (v5)
+`SGS_LIVERY=talk-flying` builds `glider-2-33-like-own-tf.glb`: the same yellow base (255,204,0) with a black cheat line + silver pinstripe, TALKFLYING in place of the N-number, the Talk Flying logo on a black/silver plate, and talkflying.com, all baked into the fuselage side texture. Lettering art made with Be Vietnam Pro Bold (OFL); the logo is the project's own Decals/talk-flying-logo.png. No third-party geometry or artwork.

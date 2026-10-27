@@ -126,9 +126,14 @@ namespace FlyingGame.Bridge
         /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
         /// about which model is in play.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || (modelId == "glider-2-33-like" && SessionSettings.LiveryId == "factory")
+            (SessionSettings.UseOwnModels || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying"))
                 || (modelId == "extra-300-like" && SessionSettings.LiveryId == "sunrise")) && modelId != null && OwnSpecs.ContainsKey(modelId)
-            && Resources.Load<GameObject>($"Models/{modelId}/{modelId}-own") != null;
+            && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
+
+        /// <summary>Our 2-33 has its paint baked in, one GLB per livery (tools/own_models/build_sgs233.py,
+        /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.</summary>
+        static string OwnSuffix(string modelId) =>
+            modelId == "glider-2-33-like" && SessionSettings.LiveryId == "talk-flying" ? "-own-tf" : "-own";
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
         /// Callers that ask a question ABOUT the drawn model (does it need the procedural gear under it?) must go
@@ -160,7 +165,7 @@ namespace FlyingGame.Bridge
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
             bool own = PickOwn(id);
-            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}-own" : $"Models/{id}/{id}");
+            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}{OwnSuffix(id)}" : $"Models/{id}/{id}");
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";
