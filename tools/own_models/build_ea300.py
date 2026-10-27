@@ -1,4 +1,4 @@
-"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v7 (cockpit interior, v7 layout)
+"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v8 (cockpit interior + baggage area, TALKFLYING.COM / TALK FLYING PODCAST)
 
 Shape: by Ty's decision (2026-10-26) matched to ~1 in to the approved FlightGear-based Extra (codex/fg-models v9
 5fdacad, wing raised ~10 in), which is the FlightGear EA300 by Patrizio Melis (GPL).  That model is used ONLY as a
@@ -184,6 +184,19 @@ for a, b in zip(_lx[:-1], _lx[1:]):
 ck_seat(-0.694 + 0.152, ZF, 0.328, 0.17, rec_deg=17, back_z0=0.068); ck_stick(-0.504 + 0.152, 0.17 - 0.305, 0.34 + 0.102, floor=ZF)   # v7: pan -0.152 z, seat+stick fwd 0.152, stick +0.102 long   # v6: seat -0.102 z, seat+stick 0.254 aft, stick -0.305 z; recline 22->17 deg to clear the dash top
 # rear (PIC) seat + stick
 ck_seat(-1.42, ZF, 0.348, 0.17, back_z0=0.068); ck_stick(-1.355, 0.17 - 0.305, 0.36 + 0.102, floor=ZF)   # v7: pan -0.152 z, stick +0.102 long   # v6: stick -0.305 z; moved aft 0.115 so it stays behind the moved panel
+# v8: baggage area behind the rear seat: shelf, front lip, side walls (tub walls) and an aft bulkhead following the skin
+BG_X0, BG_X1, BG_Z = -1.80, -2.15, 0.10
+_bw = lambda x: float(np.interp(-x, -RX, RW_)) - 0.06
+ck_box('ck_tub', ((BG_X0 + BG_X1) / 2, 0, BG_Z - 0.003), (abs(BG_X1 - BG_X0), 2 * _bw(BG_X0), 0.006))
+ck_box('ck_tub', (BG_X0, 0, (ZF + BG_Z) / 2), (0.006, 2 * _bw(BG_X0), BG_Z - ZF))
+_ri = int(np.argmin(np.abs(RX - BG_X1))); _rp = RP[_ri][:, 1:3]
+_rp = _rp[_rp[:, 1] >= BG_Z]; _zc = (_rp[:, 1].max() + BG_Z) / 2
+_sc = min(0.92, (_bw(BG_X1) + 0.005) / max(np.abs(_rp[:, 0]).max(), 1e-3))
+_ang = np.arctan2(_rp[:, 1] - _zc, _rp[:, 0]); _rp = _rp[np.argsort(_ang)]
+_poly = [(float(y * _sc), float(_zc + (z - _zc) * 0.92 - BG_Z)) for y, z in _rp]
+_poly = [(-_bw(BG_X1) + 0.005, 0.0), (_bw(BG_X1) - 0.005, 0.0)] + [q for q in _poly if q[0] > 0][::-1] + [q for q in _poly if q[0] <= 0][::-1]
+print('BAGGAGE ring x %.3f top z %.3f, bulkhead pts %d' % (RX[_ri], _rp[:, 1].max(), len(_poly)))
+ck_prism('ck_tub', _poly, BG_X1, 0.01, 0.0, BG_Z)
 # front panel: small arch-top strip under the windscreen, 5 gauges
 arch = [(-0.27, 0.0), (0.27, 0.0)] + [(0.27 * math.cos(t), 0.07 + 0.08 * math.sin(t)) for t in np.linspace(0, math.pi, 11)]
 FPX, FPZ, FL = -0.14, 0.17, math.radians(18)
@@ -371,7 +384,7 @@ _k = (ZW - ZT) / (XW - XT)
 zb = lambda x: np.minimum(ZT + _k * (x - XT), ZW - 0.02)
 LP1, LP2, RW = 0.085, 0.405, 0.025
 FIN_LE = lambda z: np.interp(z, F.s, F.le)
-TH = 0.21; TX0 = XWR - 0.10; TX1 = TX0 - TH * 1555 / 203
+TH = 0.19; TX0 = XWR - 0.10; TX1 = TX0 - TH * 2212 / 203   # v8: TALKFLYING.COM, height 0.21->0.19 so it fits aft of the wing
 print('NAVY LINE tail %.3f wing %.3f (x %.2f)  TALKFLYING x %.2f..%.2f  bottom there %.2f..%.2f, letters %.2f..%.2f' %
       (ZT, ZW, XW, TX0, TX1, botf(TX0), botf(TX1), zb(TX1) - 0.13 - TH, zb(TX0) - 0.13))
 ZSTAR = FIN_TOP - 0.18; SLE_, STE_ = float(np.interp(ZSTAR, F.s, F.le)), float(np.interp(ZSTAR, F.s, F.te))
@@ -391,7 +404,7 @@ def side(name, flip):
     v.fill(pants & (Z > Z_AX + 0.05), NAVY)
     v.fill(pants & (Z > Z_AX + 0.005) & (Z < Z_AX + 0.03), RED)
     zt = min(zb(TX0), zb(TX1)) - 0.13
-    v.stamp('ea-talkflying.png', TX0, TX1, zt - TH, zt)
+    v.stamp('ea-talkflying-com.png', TX0, TX1, zt - TH, zt)
     return v
 VL, VR = side('ea_side_l', True), side('ea_side_r', False)
 GAP_W = 0.03
@@ -408,7 +421,7 @@ lo = lambda y: HW(np.abs(y)) + 0.04
 hi = lambda y: LEv(y) - 0.32 * (LEv(y) - TEv(y)) - GAP_W - RW - 0.03
 print('LETTER height root %.2f tip %.2f' % (hi(0.62) - lo(0.62), hi(3.62) - lo(3.62)))
 VT = plan('ea_top', True); VT.stamp_warp('ea-sunrise.png', 3.62, 0.62, lo, hi); VT.stamp_warp('ea-aviation.png', -0.62, -3.62, lo, hi)
-VB = plan('ea_bot', False); VB.stamp_warp('ea-talk.png', -3.62, -0.62, lo, hi); VB.stamp_warp('ea-flying.png', 0.62, 3.62, lo, hi)
+VB = plan('ea_bot', False); VB.stamp_warp('ea-talk-flying.png', -3.62, -0.62, lo, hi); VB.stamp_warp('ea-podcast.png', 0.62, 3.62, lo, hi)   # v8: TALK FLYING | PODCAST split across the wings
 
 M = {}
 for v in (VL, VR, VT, VB): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))

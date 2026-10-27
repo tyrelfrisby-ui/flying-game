@@ -106,3 +106,8 @@ Fixes made so nothing collides or pokes through the skin: cockpit floor 0.17→0
 ## v7 cockpit layout (2026-10-27)
 Owner moves: both seat pans down 0.152 m with each seatback top kept in place (vertical back extension + bolsters down to the pan); rear panel + black dash top + radio stack, front seat and front stick forward 0.152 m together; both sticks 0.102 m longer with pivots unchanged.
 Fixes: cockpit floor lowered 0.068→−0.084 (no separate seat wells); Cabin plate, side ledges and radio stack follow the floor. BVH check: no cockpit overlap with the fuselage skin or canopy; lowest cockpit z −0.158 (belly ≈ −0.5). Exterior, paint and tint unchanged; compare unchanged.
+
+## v8 baggage area + lettering (2026-10-27)
+- Baggage area behind the rear seat: navy matte shelf at z 0.10 from x −1.80 to −2.15, a front lip down to the floor, the existing tub side walls, and an aft bulkhead at x −2.15 following the fuselage ring (inset), so the aft fuselage cannot be seen through the canopy. BVH check: no skin or canopy overlap.
+- Fuselage sides: TALKFLYING → TALKFLYING.COM (art/ea-talkflying-com.png), navy, between the two lower red stripes at the same placement. Letter height 0.21 → 0.19 so it fits aft of the wing root; forward end unchanged. Nimbus Sans Bold (URW, AGPL/OFL-style free font), the closest match to the existing side wordmark, horizontally scaled ×1.044 to match it.
+- Wing underside: TALK | FLYING → TALK FLYING | PODCAST, split across the wings, in Archivo Black (OFL) sheared 0.15, navy with a red outline like SUNRISE AVIATION. Both wings use the same letter scale (69 % of SUNRISE height), with PODCAST centred (art/ea-talk-flying.png, art/ea-podcast.png).
