@@ -14,7 +14,7 @@ from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/glider-2-33-like/glider-2-33-like-own.glb')
 TEX = '/tmp/own_sgs_tex'; os.makedirs(TEX, exist_ok=True)
-YELLOW, WHITE, NAVY, GREY, TYRE = (250, 194, 12), (246, 246, 246), (24, 34, 90), (120, 122, 128), (88, 90, 96)
+YELLOW, WHITE, NAVY, GREY, TYRE = (255, 204, 0), (246, 246, 246), (24, 34, 90), (120, 122, 128), (88, 90, 96)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 
 # ---- reference frame: Blender metres, nose +X, port +Y, up +Z (yawed 180 deg at export) -------
@@ -87,9 +87,9 @@ for px, top, hw in (CAN[1], CAN[4]):
 P['Canopy_Frame'] = link('Canopy_Frame', bm)
 
 # ---- wing (planform defined earlier from the 3-view; new loft) ---------------------------------
-HALF = 15.54 / 2; Y_KINK = 0.53 * HALF
-ROOT_LE, ROOT_C, TIP_LE, TIP_C = 0.55, 1.52, 0.22, 0.86
-Z0 = 0.47; DIH = math.radians(1.0)
+HALF = 15.54 / 2; Y_KINK = 3.43   # v3: kink measured on the 3-view top view (417 px from centreline at 0.00822 m/px)
+ROOT_LE, ROOT_C, TIP_LE, TIP_C = 0.55, 1.52, 0.36, 0.77   # v3: tip chord 93 px, tip LE 23 px aft of root LE
+Z0 = 0.47; DIH = math.radians(1.5)   # flight manual: dihedral 1.5 deg
 def chord_at(y):
     y = abs(y)
     if y <= Y_KINK: return ROOT_LE, ROOT_C
@@ -205,7 +205,7 @@ tube(bm, (mx(275), 0, mz(292)), (mx(372), 0, mz(293)), r=0.03, f=1.0)
 tube(bm, (mx(715), 0, mz(223)), (mx(728), 0, mz(232)), r=0.015, f=1.0)
 P['Skids'] = link('Skids', bm)
 
-# ---- paint: factory scheme (white fuselage, yellow wings/tail, yellow band + navy pin, N2033A) ----
+# ---- paint: all-yellow scheme sampled from the Commons 3-view (255,204,0), N2033A kept ----
 X0, X1, Z0p, Z1p = -6.0, 3.0, -1.2, 2.0
 def side(name, flip):
     v = View(name, (X0, X1), (Z0p, Z1p), 4096, 1456, flip_a=flip, axes=(0, 2)); X, Z = v.A, v.B
@@ -214,8 +214,7 @@ def side(name, flip):
     zc = mz(256) + (mz(228) - mz(256)) * t
     hh = 0.16 * (1 - t) + 0.015
     band = (X < xn) & (X > xt) & (Z < zc + hh) & (Z > zc - hh)
-    v.fill(band, YELLOW)
-    v.fill((X < xn) & (X > xt) & (Z < zc - hh - 0.015) & (Z > zc - hh - 0.04), NAVY)
+    v.fill(X > -1e9, YELLOW)   # v3: the Commons 3-view is all yellow, no band or pinstripe
     im = bpy.data.images.load(os.path.join(paint.ART, 'n2033a.png')); w_, h_ = im.size
     h = 0.16; x0 = mx(470); x1 = x0 - h * w_ / h_
     zl = mz(236) - 0.02
@@ -235,8 +234,8 @@ for n, o in P.items():
     if n == 'Fuselage':
         setm(o, ['l', 'r']); paint.project(o, lambda nrm, c: (0, VL) if nrm.y >= 0 else (1, VR))
     else:
-        col = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'white'}.get(n)
-        if col is None: col = 'yellow' if n.startswith(('Wing', 'Aileron', 'Spoiler', 'Stab', 'Elevator', 'Fin', 'Rudder')) else 'white'
+        col = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'yellow'}.get(n)
+        if col is None: col = 'yellow' if n.startswith(('Wing', 'Aileron', 'Spoiler', 'Stab', 'Elevator', 'Fin', 'Rudder')) else 'yellow'
         setm(o, [col]); [setattr(p, 'material_index', 0) for p in o.data.polygons]
 for n in ('Fuselage', 'Wing', 'Aileron_L', 'Aileron_R', 'Canopy_Glass', 'Gear'):
     for p in P[n].data.polygons: p.use_smooth = True
