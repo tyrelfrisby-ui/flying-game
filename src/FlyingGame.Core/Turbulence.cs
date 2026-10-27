@@ -218,7 +218,7 @@ public sealed class Turbulence
 }
 
 /// <summary>
-/// Turbulence intensities and length scales after MIL-F-8785C §3.7 / MIL-HDBK-1797 Appendix (the low-altitude
+/// Turbulence intensities and length scales after MIL-F-8785C / MIL-HDBK-1797 (the low-altitude
 /// model), the numbers the spectral field above is scaled by. Heights in metres in and out; the formulas are the
 /// handbook's, in feet, inside.
 ///   below 1,000 ft:  L_w = h,  L_u = L_v = h / (0.177 + 0.000823 h)^1.2,

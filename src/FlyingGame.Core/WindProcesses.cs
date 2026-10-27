@@ -109,9 +109,9 @@ public sealed class VariableWind
 
 /// <summary>
 /// GUSTY (airport 3, owner 2026-10-27: "5 kt gusting 15 kt, with a steady base direction and realistic random gust
-/// onset and decay"). A steady lull wind with discrete gusts on top, each the classic 1 − cos shape of MIL-F-8785C
-/// §3.7.4 / CS-25.341: u = A/2·(1 − cos 2πτ/T) over its duration T. Gusts arrive at random — quiet gaps exponentially
-/// distributed about a mean, durations uniform in a range, amplitudes uniform from 75 % to 100 % of (peak − lull) — so
+/// onset and decay"). A steady lull wind with discrete gusts on top, each the classic 1 − cos shape of the MIL-F-8785C
+/// discrete-gust model and CS-25.341: u = A/2·(1 − cos 2πτ/T) over its duration T. Gusts arrive at random — quiet gaps
+/// exponentially distributed about a mean, durations uniform in a range, amplitudes uniform from 75 % to 100 % of (peak − lull) — so
 /// every gust tops out between ~12.5 and 15 kt. The lull is SOLVED from the statistics so the long-run mean is the
 /// METAR's 5 kt: mean = lull + E[A]·E[T]/2 / (E[T] + E[gap]). Like the variable wind, the n-th gust is a hashed draw,
 /// so the gust train is the same at the same sim time however the frames fall.
