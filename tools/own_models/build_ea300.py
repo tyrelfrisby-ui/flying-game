@@ -1,4 +1,4 @@
-"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v2
+"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v4 (cockpit interior)
 
 Shape: by Ty's decision (2026-10-26) matched to ~1 in to the approved FlightGear-based Extra (codex/fg-models v9
 5fdacad, wing raised ~10 in), which is the FlightGear EA300 by Patrizio Melis (GPL).  That model is used ONLY as a
@@ -96,6 +96,99 @@ bm = bmesh.new()
 for x0, x1, z0, z1, hw in ((CX0, CX1, 0.10, 0.12, 0.30),):
     bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(((x0 + x1) / 2, 0, (z0 + z1) / 2)) @ Matrix.Diagonal((abs(x0 - x1), 2 * hw, z1 - z0, 1)))
 P['Cabin'] = link('Cabin', bm)
+
+# ---- v4 cockpit interior: original geometry sized from EA 300L tandem cockpit photos (refs: ea300-refs/interior,
+# reference only).  Rear seat = PIC with the main panel on the frame behind the front seat; small arch-top front panel
+# under the windscreen; grey moulded seat shells with 5-point harness straps; dark sticks in boots; light-grey tube frame.
+ck = bmesh.new(); ck_tag = []
+CK_T = ['ck_seat', 'ck_strap', 'ck_panel', 'ck_gauge', 'ck_face', 'ck_stick', 'ck_tube', 'ck_tub']
+def _ck(tag, fn):
+    n0 = len(ck.faces); fn(); ck_tag.extend([CK_T.index(tag)] * (len(ck.faces) - n0))
+def ck_box(tag, c, s, ry=0.0, rx=0.0):
+    _ck(tag, lambda: bmesh.ops.create_cube(ck, size=1.0, matrix=Matrix.Translation(c) @ Matrix.Rotation(ry, 4, 'Y') @ Matrix.Rotation(rx, 4, 'X') @ Matrix.Diagonal((s[0], s[1], s[2], 1))))
+def ck_cyl(tag, a, b, r, seg=12):
+    a, b = np.array(a, float), np.array(b, float); d = b - a; ln = np.linalg.norm(d)
+    from mathutils import Vector
+    q = Vector((0, 0, 1)).rotation_difference(Vector(d / ln)).to_matrix().to_4x4()
+    _ck(tag, lambda: bmesh.ops.create_cone(ck, cap_ends=True, segments=seg, radius1=r, radius2=r, depth=ln, matrix=Matrix.Translation(tuple((a + b) / 2)) @ q))
+def ck_prism(tag, poly, x, th, lean=0.0, z0=0.0):
+    """panel slab: poly (y,z) outline in the YZ plane at station x, thickness th along x, top leaning forward by lean rad"""
+    def f():
+        fr, bk = [], []
+        for y, z in poly:
+            dx = z * math.tan(lean)
+            fr.append(ck.verts.new((x + dx - th / 2, y, z0 + z))); bk.append(ck.verts.new((x + dx + th / 2, y, z0 + z)))
+        ck.faces.new(fr[::-1]); ck.faces.new(bk); n = len(poly)
+        for i in range(n): ck.faces.new((fr[i], fr[(i + 1) % n], bk[(i + 1) % n], bk[i]))
+    _ck(tag, f)
+def ck_gauge(x, y, z, r, lean=0.0):
+    """round instrument facing aft (-x): light bezel ring, pale face, dark needle"""
+    a = (x, y, z); dn = np.array((-math.cos(lean), 0, math.sin(lean)))
+    ck_cyl('ck_gauge', np.array(a) - 0.002 * dn, np.array(a) + 0.006 * dn, r, 16)
+    ck_cyl('ck_face', np.array(a) + 0.006 * dn, np.array(a) + 0.008 * dn, r * 0.82, 16)
+    ck_box('ck_stick', tuple(np.array(a) + 0.0095 * dn + np.array((0, r * 0.25, r * 0.15))), (0.002, r * 0.6, r * 0.08), ry=lean, rx=-0.6)
+def ck_seat(x0, zf, back_top, hw):
+    """moulded shell: pan from x0 aft, raised thigh lip, reclined back (30 deg), side bolsters, 5-pt straps"""
+    pan_l, rec = 0.40, math.radians(22); bx = x0 - pan_l
+    ck_box('ck_seat', (x0 - pan_l / 2, 0, zf + 0.03), (pan_l, 2 * hw, 0.05), ry=math.radians(-6))
+    ck_box('ck_seat', (x0 - 0.03, 0, zf + 0.07), (0.06, 2 * hw, 0.05))                        # thigh lip
+    bl = (back_top - zf) / math.cos(rec); bc = (bx - math.sin(rec) * bl / 2, 0, zf + math.cos(rec) * bl / 2)
+    ck_box('ck_seat', bc, (0.05, 2 * hw, bl), ry=-rec)
+    for sy in (1, -1):
+        ck_box('ck_seat', (bc[0] + 0.03, sy * (hw - 0.02), bc[2] - 0.05), (0.10, 0.04, bl * 0.8), ry=-rec)   # back bolsters
+        ck_box('ck_seat', (x0 - pan_l / 2, sy * (hw - 0.02), zf + 0.08), (pan_l * 0.9, 0.04, 0.07))         # pan bolsters
+    # harness: two shoulder straps down the back face, lap belt, crotch strap
+    for sy in (0.07, -0.07):
+        ck_box('ck_strap', (bc[0] + 0.03, sy, bc[2] + 0.02), (0.008, 0.045, bl * 0.75), ry=-rec)
+        ck_box('ck_strap', (bx + 0.06, sy * 2.2, zf + 0.09), (0.12, 0.045, 0.008), ry=math.radians(40))
+    ck_box('ck_strap', (x0 - 0.12, 0, zf + 0.065), (0.12, 0.045, 0.008))
+    ck_box('ck_strap', (bx + 0.10, 0, zf + 0.085), (0.06, 0.07, 0.03))                          # buckle
+def ck_stick(x, zf, h=0.48):
+    ck_cyl('ck_seat', (x, 0, zf), (x, 0, zf + 0.10), 0.045, 12)                                 # rubber boot
+    ck_cyl('ck_stick', (x, 0, zf + 0.08), (x - 0.06, 0, zf + h - 0.12), 0.012, 10)
+    ck_cyl('ck_stick', (x - 0.06, 0, zf + h - 0.13), (x - 0.075, 0, zf + h), 0.02, 12)          # grip
+ZF = 0.17   # cockpit floor top (above the mid-wing carry-through)
+# navy tub: floor + inner side walls so the wing root and the painted fuselage skin never show inside
+def ck_tub():
+    xs = list(np.linspace(CX0 + 0.02, CX1 - 0.02, 12)); hw = lambda x: float(np.interp(-x, -RX, RW_)) - 0.035
+    for a, b in zip(xs[:-1], xs[1:]):
+        for sy in (1, -1):
+            for flip in (0, 1):
+                q = [(a, sy * hw(a), ZF), (b, sy * hw(b), ZF), (b, sy * hw(b), float(topf(b)) - 0.015), (a, sy * hw(a), float(topf(a)) - 0.015)]
+                v = [ck.verts.new(p) for p in q]; ck.faces.new(v if flip else v[::-1])
+        for flip in (0, 1):
+            q = [(a, -hw(a), ZF), (b, -hw(b), ZF), (b, hw(b), ZF), (a, hw(a), ZF)]
+            v = [ck.verts.new(p) for p in q]; ck.faces.new(v if flip else v[::-1])
+_ck('ck_tub', ck_tub)
+# front (student) seat + stick
+ck_seat(-0.60, ZF, 0.56, 0.20); ck_stick(-0.33, ZF, 0.44)
+# rear (PIC) seat + stick
+ck_seat(-1.42, ZF, 0.58, 0.19); ck_stick(-1.20, ZF, 0.46)
+# front panel: small arch-top strip under the windscreen, 5 gauges
+arch = [(-0.27, 0.0), (0.27, 0.0)] + [(0.27 * math.cos(t), 0.07 + 0.08 * math.sin(t)) for t in np.linspace(0, math.pi, 11)]
+FPX, FPZ, FL = -0.17, 0.17, math.radians(18)
+ck_prism('ck_panel', arch, FPX, 0.02, FL, FPZ)
+for y in (-0.19, -0.095, 0, 0.095, 0.19):
+    zz = 0.085 if abs(y) < 0.1 else 0.06
+    ck_gauge(FPX + zz * math.tan(FL) - 0.011, y, FPZ + zz, 0.036, FL)
+# rear (main) panel: wide trapezoid on the frame just behind the front seat, plus lower centre stack
+trap = [(-0.33, 0.0), (0.33, 0.0), (0.33, 0.12), (0.21, 0.22), (-0.21, 0.22), (-0.33, 0.12)]
+RPX, RPZ, RL = -1.04, 0.26, math.radians(10)
+ck_prism('ck_panel', trap, RPX, 0.03, RL, RPZ)
+ck_box('ck_panel', (RPX + 0.03, 0, 0.19), (0.05, 0.24, 0.14))
+ck_box('ck_face', (RPX - 0.002, 0, 0.19), (0.004, 0.13, 0.07))                                  # radio face
+for y, z, r in ((-0.15, 0.15, 0.04), (-0.05, 0.16, 0.043), (0.05, 0.16, 0.043), (0.15, 0.15, 0.04),
+                (-0.15, 0.06, 0.04), (-0.05, 0.06, 0.043), (0.05, 0.06, 0.043), (0.15, 0.06, 0.04), (-0.27, 0.07, 0.03), (0.27, 0.07, 0.03)):
+    ck_gauge(RPX + z * math.tan(RL) - 0.016, y, RPZ + z, r, RL)
+# light-grey steel tube frame visible along the cockpit sides (sill longeron + diagonals)
+for sy in (1, -1):
+    hw_at = lambda x: float(np.interp(-x, -RX, RW_)) - 0.05
+    xs = [-0.10, -0.55, -1.00, -1.45, -1.95]
+    for a, b in zip(xs[:-1], xs[1:]):
+        ck_cyl('ck_tube', (a, sy * hw_at(a), float(topf(a)) - 0.04), (b, sy * hw_at(b), float(topf(b)) - 0.04), 0.012, 8)
+        ck_cyl('ck_tube', (a, sy * hw_at(a), float(topf(a)) - 0.04), (b, sy * (hw_at(b) - 0.02), ZF + 0.02), 0.011, 8)
+P['Cockpit'] = link('Cockpit', ck)
+print('COCKPIT faces', len(ck_tag))
 
 # ---- lifting surfaces: sections interpolated from the measured tables, split at the measured hinge lines --------
 FR = np.array(R['chord_fractions'])
@@ -309,6 +402,16 @@ for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main
 setm(P['Prop'], ['prop_blade', 'prop_tip', 'prop_nickel'])
 for p, t in zip(P['Prop'].data.polygons, face_tag): p.material_index = t
 print('PROP faces', len(face_tag), 'tip', face_tag.count(1), 'nickel', face_tag.count(2))
+M['ck_seat'] = paint.mat_colour('Cockpit_seat', (66, 70, 78), rough=0.75)
+M['ck_strap'] = paint.mat_colour('Cockpit_harness', (150, 138, 112), rough=0.85)
+M['ck_panel'] = paint.mat_colour('Cockpit_panel', (52, 55, 61), rough=0.6)
+M['ck_gauge'] = paint.mat_colour('Cockpit_gauge_bezel', (150, 154, 160), rough=0.4, metal=0.5)
+M['ck_face'] = paint.mat_colour('Cockpit_gauge_face', (176, 182, 188), rough=0.3)
+M['ck_stick'] = paint.mat_colour('Cockpit_stick', (42, 42, 46), rough=0.5)
+M['ck_tube'] = paint.mat_colour('Cockpit_tube', (200, 202, 205), rough=0.5)
+M['ck_tub'] = M['cabin']
+setm(P['Cockpit'], CK_T)
+for p, t in zip(P['Cockpit'].data.polygons, ck_tag): p.material_index = t
 for o in P.values():
     bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
