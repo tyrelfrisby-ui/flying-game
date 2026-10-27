@@ -220,6 +220,13 @@ namespace FlyingGame.Bridge
             _tele.OnGround = d.OnGround;
             _tele.TurbulenceLevel = SessionSettings.TurbulenceLevel;
             _tele.WindSpeedMs = SessionSettings.WindSpeedMs;
+            if (aircraft != null && FlyingGame.Core.Atmosphere.Field != null)
+            {
+                // Regional air: the wind noise follows the air the aircraft is actually in (dead quiet at the home field).
+                var here = FlyingGame.Core.Atmosphere.Field.Sample(aircraft.State.Position, FlyingGame.Core.Atmosphere.SimTimeSec);
+                _tele.TurbulenceLevel = Mathf.Clamp((float)here.SigmaHorizMs / 1.5f, 0f, 3f);   // light ≈ 1.5 m/s, moderate ≈ 4
+                _tele.WindSpeedMs = (float)System.Math.Sqrt(here.MeanWind.X * here.MeanWind.X + here.MeanWind.Y * here.MeanWind.Y);
+            }
             _tele.GroanSeverity = _groanSeverity;
             float gravel = 0f, rough = 0f;
             if (aircraft != null && d.OnGround && FlyingGame.Core.LandingGear.AnyMainWheelOnGround(aircraft.Config, aircraft.State))

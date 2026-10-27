@@ -119,6 +119,9 @@ public sealed class AtmosphereField
     public double SynopticQnhPa { get; set; }
     /// <summary>Global turbulence multiplier (config × session).</summary>
     public double TurbulenceScale { get; set; }
+    /// <summary>Global multiplier on the land-cover convection (the session's thermal setting; the authored thermal
+    /// columns follow <see cref="Atmosphere.ThermalStrengthScale"/> as they always have).</summary>
+    public double ConvectionScale { get; set; } = 1.0;
 
     public CalmZone? Calm { get; }
     public IReadOnlyList<Region> Regions => _regions;
@@ -541,15 +544,15 @@ public sealed class AtmosphereField
         double prof = ConvectiveProfile(agl / zi);
         double cellSize = Config.Convection.CellSizeM;
         double conv = 0;
-        if (prof > 0 && air.ThermalScale > 0)
+        if (prof > 0 && air.ThermalScale > 0 && ConvectionScale > 0)
         {
             if (heat > 0)
             {
                 double p = SeededNoise.Value2D(pos.X / cellSize, pos.Y / cellSize, 4242);
                 double cell = 2.0 * System.Math.Max(0, p) * System.Math.Max(0, p) - 0.25 * System.Math.Max(0, -p);
-                conv = Config.Convection.BackgroundUpdraftMs * air.ThermalScale * heat * cell * prof;
+                conv = Config.Convection.BackgroundUpdraftMs * air.ThermalScale * ConvectionScale * heat * cell * prof;
             }
-            else conv = 0.5 * Config.Convection.BackgroundUpdraftMs * air.ThermalScale * heat * prof;
+            else conv = 0.5 * Config.Convection.BackgroundUpdraftMs * air.ThermalScale * ConvectionScale * heat * prof;
         }
         w += conv;
         mean += new Vec3(0, 0, -w);
@@ -560,7 +563,7 @@ public sealed class AtmosphereField
         double rough = System.Math.Clamp(System.Math.Log(10.0 / 0.03) / (System.Math.Log(10.0) - air.LnZ0), 0.4, 2.0);
         double blDecay = agl <= 305 ? 1.0 : System.Math.Exp(-(agl - 305) / 600.0);
         double su = mil.SigmaU * rough * blDecay * air.TurbScale, sw = mil.SigmaW * rough * blDecay * air.TurbScale;
-        double wStar = 2.0 * air.ThermalScale * System.Math.Max(0, heat);
+        double wStar = 2.0 * air.ThermalScale * ConvectionScale * System.Math.Max(0, heat);
         double zn = agl / zi;
         double sConv = zn < 1 ? 0.6 * wStar * System.Math.Pow(System.Math.Max(zn, 0.02), 1.0 / 3.0) * (1 - 0.8 * zn) : 0;
         double sOro = oro.SigmaMs;

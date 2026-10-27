@@ -133,7 +133,6 @@ namespace FlyingGame.Bridge
             _puffs.Clear();
             if (System.Math.Abs(nowT - _deflPruned) > 5) { _deflPruned = nowT; var old = new List<(long, int)>(); foreach (var kv in _defl) if (System.Math.Abs(nowT - kv.Key.Item1 * 1e-4) > LifeMaxS + 5) old.Add(kv.Key); foreach (var o in old) _defl.Remove(o); }
             Vector3 camPos = cam.transform.position, camFwd = cam.transform.forward;
-            Vec3 wind = Atmosphere.SteadyWind;
             double newerT = double.NaN;
             _lastSlot = long.MinValue;
             for (int k = 0; ; k++)
@@ -170,7 +169,7 @@ namespace FlyingGame.Bridge
                 float fade = Mathf.Pow(1f - (float)age / life, 1.3f) * Mathf.Clamp01(d0 / grow * 1.6f);
                 float a = 0.65f * Mathf.Lerp(0.45f, 1f, s.Flow) * fade * share;   // denser (owner 2026-10-12: the smoke must show in the transparent captures)
                 if (a < 0.004f) continue;
-                Vec3 drift = wind * (Atmosphere.WindGradientFactor(s.Pos) * age) + new Vec3(0, 0, -System.Math.Min(2.0, 0.12 * age));   // + a little warm rise
+                Vec3 drift = Atmosphere.SteadyWindAt(s.Pos) * age + new Vec3(0, 0, -System.Math.Min(2.0, 0.12 * age));   // + a little warm rise
                 Vector3 axis = CoordinateMap.ToUnity(velW * (1.0 / v));
                 // The exhaust jet carries the smoke out along its line for the first moments (≈25 m/s, decaying in ~0.12 s:
                 // about 3 m), then it sits in the air.

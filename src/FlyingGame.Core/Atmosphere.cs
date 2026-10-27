@@ -75,6 +75,10 @@ public static class Atmosphere
         return p / (GasConstantAir * TemperatureAtPosition(worldPosition));
     }
 
+    /// <summary>Static pressure (Pa) at a position: the region's (its QNH) with a field, ISA without.</summary>
+    public static double PressureAt(MathTypes.Vec3 worldPosition) =>
+        Field is not null ? Field.Sample(worldPosition, SimTimeSec).PressurePa : PressureAtAltitude(-worldPosition.Z);
+
     /// <summary>Air density (kg/m^3) for the flight model at a position: the regional field's when there is one,
     /// otherwise exactly <see cref="DensityAtAltitude"/> (the uniform atmosphere, unchanged).</summary>
     public static double DensityAt(MathTypes.Vec3 worldPosition) =>

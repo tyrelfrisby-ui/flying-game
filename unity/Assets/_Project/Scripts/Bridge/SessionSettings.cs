@@ -80,7 +80,7 @@ namespace FlyingGame.Bridge
         public static RunwayPick Runway = RunwayPick.Headwind;
         public static FlyingGame.Core.WorldTerrain.RunwayEnd ChosenRunway() =>
             FlyingGame.Core.WorldTerrain.ChooseRunway(Airport, WindFromDeg * Mathf.Deg2Rad, Runway == RunwayPick.Headwind, WindSpeedMs);
-        public static int AirportIndex = 0;               // WorldTerrain.Airports
+        public static int AirportIndex = FlyingGame.Core.WorldTerrain.DefaultAirportIndex;   // WorldTerrain.Airports
         public static string ChallengeId = null;          // null = free flight
         public static float WindFromDeg = 90f;            // compass: wind blows FROM this heading — from the east, onto the
         public static float WindSpeedMs = 5f;             // ridge to the west: always a crosswind on the (north-south) runways
@@ -352,11 +352,58 @@ namespace FlyingGame.Bridge
             }
         }
 
+        // ---- regional air (owner 2026-10-27: "atmospheric conditions should vary by region across the landscape") ----
+        /// <summary>
+        /// Free flight flies in the REGIONAL atmosphere (configs/atmosphere/regional-atmosphere.json): the air differs
+        /// from place to place, and the home field (the default start airport) sits in a dead-calm, standard-day zone.
+        /// The menu's wind, temperature, turbulence and thermals become the air MASS the regions sit in. Off = the one
+        /// uniform atmosphere everywhere, as before. Anything with its own weather — a challenge, a scored contest, a
+        /// practice or lesson, an event — always flies uniform air (Atmosphere.Field = null): that is the override.
+        /// </summary>
+        public static bool RegionalWeather = true;
+        /// <summary>Debug overlay of the regional air: regions, the calm zone, wind arrows, the lift/sink map (J).</summary>
+        public static bool ShowAtmosphereMap = false;
+        /// <summary>The regional turbulence multiplier for each menu turbulence step (Calm … Severe): the first step is the
+        /// regions' own air, not none — the regions, not the menu, decide where the air is smooth.</summary>
+        public static readonly float[] RegionalTurbulenceSteps = { 1f, 1.5f, 2.2f, 3f };
+        private static FlyingGame.Core.AtmosphereField _regionalField;
+        private static bool _regionalLoadFailed;
+        /// <summary>The loaded regional field (null if the config is missing or broken — then the air is uniform).</summary>
+        public static FlyingGame.Core.AtmosphereField RegionalField
+        {
+            get
+            {
+                if (_regionalField == null && !_regionalLoadFailed)
+                {
+                    try { _regionalField = new FlyingGame.Core.AtmosphereField(UnityAtmosphereLoader.Load()); }
+                    catch (System.Exception e) { _regionalLoadFailed = true; Debug.LogWarning($"[Atmosphere] regional config not loaded ({e.Message}) — uniform air"); }
+                }
+                return _regionalField;
+            }
+        }
+        /// <summary>Does this flight use the regional air? Free flight only, and only if the config loaded.</summary>
+        public static bool UsesRegionalAir => RegionalWeather && ChallengeId == null && RegionalField != null;
+
         /// <summary>Push the weather choices into the atmosphere the wings and bubbles read.</summary>
         public static void ApplyWeather()
         {
             Atmosphere.IsaDeviationK = IsaDeviationC;
             Atmosphere.ThermalStrengthScale = ThermalScale;
+            if (UsesRegionalAir)
+            {
+                FlyingGame.Core.AtmosphereField f = RegionalField;
+                f.SynopticFromRad = WindFromDeg * Mathf.Deg2Rad;
+                f.SynopticSpeedMs = WindSpeedMs;
+                f.SynopticIsaDeviationK = IsaDeviationC;
+                f.SynopticQnhPa = f.Config.Synoptic.QnhHpa * 100.0;
+                f.TurbulenceScale = f.Config.Turbulence.Scale * RegionalTurbulenceSteps[Mathf.Clamp(TurbulenceLevel, 0, RegionalTurbulenceSteps.Length - 1)];
+                f.ConvectionScale = ThermalScale;
+                Atmosphere.Field = f;
+                Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;   // (the field owns the wind; these are not read)
+                Atmosphere.ActiveTurbulence = null;
+                return;
+            }
+            Atmosphere.Field = null;
             float rad = WindFromDeg * Mathf.Deg2Rad;
             // Wind FROM heading h blows toward h+180: vector = -speed·(cos h, sin h) in sim (x north, y east).
             Atmosphere.SteadyWind = WindSpeedMs > 0.01f

@@ -311,7 +311,12 @@ namespace FlyingGame.Bridge
 
             // Steady wind drifts the whole air mass over the ground, so bubbles slide relative to the
             // runway — you SEE the headwind/crosswind, not just feel it.
-            var steady = FlyingGame.Core.Atmosphere.SteadyWind * FlyingGame.Core.Atmosphere.WindGradientFactor(CoordinateMap.ToSim(Follow.position));
+            var followSim = CoordinateMap.ToSim(Follow.position);
+            var steady = FlyingGame.Core.Atmosphere.SteadyWindAt(followSim);
+            // Regional air: the turbulence the bubbles show is the field's own spectral field at the aircraft's σ and
+            // length scales (one full sample a frame; each bubble then costs only the spectral sum).
+            FlyingGame.Core.AtmosphereField field = FlyingGame.Core.Atmosphere.Field;
+            FlyingGame.Core.AtmosphereSample here = field != null ? field.Sample(followSim, FlyingGame.Core.Atmosphere.SimTimeSec) : default;
             if (steady.LengthSquared > 1e-9)
             {
                 _airMassOrigin += CoordinateMap.ToUnity(steady) * Time.deltaTime;
@@ -382,7 +387,12 @@ namespace FlyingGame.Bridge
 
                 // Turbulence made visible: each bubble is displaced by the LOCAL gust — eddies show as
                 // clusters of bubbles swirling together, and the aircraft visibly flies through moving air.
-                if (Turbulence != null && dist0 < FullRangeM)
+                if (field != null && dist0 < FullRangeM && (here.SigmaHorizMs > 0 || here.SigmaVertMs > 0))
+                {
+                    FlyingGame.Core.MathTypes.Vec3 u = field.SpectralTurbulence.UnitGustAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec, here.LengthHorizM, here.LengthVertM, field.AdvectionWind);
+                    pos += CoordinateMap.ToUnity(new FlyingGame.Core.MathTypes.Vec3(u.X * here.SigmaHorizMs, u.Y * here.SigmaHorizMs, u.Z * here.SigmaVertMs)) * GustDisplayScale;
+                }
+                else if (Turbulence != null && dist0 < FullRangeM)
                 {
                     FlyingGame.Core.MathTypes.Vec3 gust = Turbulence.WindAt(simPos, FlyingGame.Core.Atmosphere.SimTimeSec);
                     pos += CoordinateMap.ToUnity(gust) * GustDisplayScale;
