@@ -66,14 +66,16 @@ def blade_strut(bm, a, b, chords, th, n=10):
 # (x, nominal top, bottom, half-width, cockpit sill or None).  The cockpit stations are cut at the sill into a U
 # (outer skin + 12 mm inner skin), so the two cockpits are open under the canopy.
 NT, NB = 2.4, 3.0
+# v3 (Ty): bottom line smoothed - less pot belly (up to 4 cm shallower amidships) and the aft recurve removed
+# (straight taper from the cockpit to the tail post instead of flattening out under the fin)
 ST = [(1.500, 0.175, -0.205, 0.415, None), (1.485, 0.195, -0.235, 0.445, None), (1.450, 0.203, -0.275, 0.460, None),
-      (1.380, 0.208, -0.330, 0.468, None), (1.300, 0.212, -0.375, 0.470, None), (1.150, 0.218, -0.462, 0.470, None),
-      (0.950, 0.221, -0.555, 0.468, None), (0.770, 0.222, -0.607, 0.464, None), (0.450, 0.222, -0.645, 0.455, None),
-      (0.150, 0.222, -0.695, 0.442, None), (-0.130, 0.222, -0.720, 0.430, 0.170), (-0.400, 0.262, -0.730, 0.418, 0.163),
-      (-0.700, 0.305, -0.737, 0.402, 0.158), (-1.000, 0.348, -0.738, 0.383, 0.155), (-1.300, 0.390, -0.728, 0.360, 0.155),
-      (-1.600, 0.429, -0.700, 0.335, 0.155), (-1.800, 0.395, -0.655, 0.312, None), (-2.060, 0.339, -0.577, 0.268, None),
-      (-2.300, 0.300, -0.500, 0.222, None), (-2.512, 0.275, -0.440, 0.182, None), (-2.800, 0.240, -0.385, 0.125, None),
-      (-3.050, 0.215, -0.345, 0.070, None), (-3.290, 0.195, -0.330, 0.018, None)]
+      (1.380, 0.208, -0.330, 0.468, None), (1.300, 0.212, -0.375, 0.470, None), (1.150, 0.218, -0.455, 0.470, None),
+      (0.950, 0.221, -0.540, 0.468, None), (0.770, 0.222, -0.590, 0.464, None), (0.450, 0.222, -0.636, 0.455, None),
+      (0.150, 0.222, -0.670, 0.442, None), (-0.130, 0.222, -0.690, 0.430, 0.170), (-0.400, 0.262, -0.701, 0.418, 0.163),
+      (-0.700, 0.305, -0.705, 0.402, 0.158), (-1.000, 0.348, -0.700, 0.383, 0.155), (-1.300, 0.390, -0.682, 0.360, 0.155),
+      (-1.600, 0.429, -0.640, 0.335, 0.155), (-1.800, 0.395, -0.604, 0.312, None), (-2.060, 0.339, -0.555, 0.268, None),
+      (-2.300, 0.300, -0.511, 0.222, None), (-2.512, 0.275, -0.472, 0.182, None), (-2.800, 0.240, -0.419, 0.125, None),
+      (-3.050, 0.215, -0.374, 0.070, None), (-3.290, 0.195, -0.330, 0.018, None)]
 X_CF, X_CA = -0.130, -1.600            # cockpit opening: windscreen base / canopy rear bow
 def se_pt(t, top, bot, hw):
     zw = bot + 0.62 * (top - bot); c, s = math.cos(t), math.sin(t); up = s >= 0
@@ -275,8 +277,13 @@ for side, sg in (('L', 1), ('R', -1)):
     P[n] = surf_obj(n, ST_, [sg * s for s in tipL(E_IN, B_S * (1 - 1e-4), 12)], x_from=lambda s: H_T - 0.004)
 # fin + rudder: one symmetric section family over height z, cut at the rudder hinge
 FLE = [(-0.40, -2.55), (0.27, -2.55), (0.34, -2.637), (0.45, -2.72), (0.62, -2.86), (0.76, -3.05), (0.81, -3.17), (0.833, -3.29)]
-RTE = [(-0.335, -3.32), (-0.33, -3.50), (-0.30, -3.64), (-0.22, -3.75), (-0.10, -3.81), (0.05, -3.83), (0.20, -3.82),
+RTE_V1 = [(-0.335, -3.32), (-0.33, -3.45), (-0.29, -3.57), (-0.20, -3.68), (-0.07, -3.76), (0.12, -3.80), (0.30, -3.81),
+          (0.50, -3.78), (0.66, -3.71), (0.76, -3.60), (0.82, -3.45), (0.833, -3.31)]
+RTE_V2 = [(-0.335, -3.32), (-0.33, -3.50), (-0.30, -3.64), (-0.22, -3.75), (-0.10, -3.81), (0.05, -3.83), (0.20, -3.82),
        (0.35, -3.78), (0.50, -3.70), (0.63, -3.60), (0.74, -3.48), (0.80, -3.39), (0.833, -3.31)]   # v2: fullest low, narrow top
+# v3 (Ty): split the difference -> rudder trailing edge = 50/50 blend of the v1 and v2 outlines at every height
+_zr = sorted(set([z for z, _ in RTE_V1] + [z for z, _ in RTE_V2] + list(np.linspace(-0.33, 0.83, 30))))
+RTE = [(z, 0.5 * (float(np.interp(z, *zip(*RTE_V1))) + float(np.interp(z, *zip(*RTE_V2))))) for z in _zr]
 fle = lambda z: float(np.interp(z, *zip(*FLE))); rte = lambda z: float(np.interp(z, *zip(*RTE)))
 FN = Surf(fle, rte, lambda z: 0.0, 0.065, axis='z')
 P['Fin'] = surf_obj('Fin', FN, tipL(0.15, 0.828, 12), x_to=lambda s: H_T + 0.004)
@@ -327,8 +334,9 @@ def fus_low(x, y):
     top, bot, hw = k(1), k(2), k(3); zw = bot + 0.62 * (top - bot)
     c = min(1.0, abs(y) / hw) ** (NB / 2); s_ = math.sqrt(max(0.0, 1 - c * c)) ** (2 / NB)
     return np.array((x, y, zw - (zw - bot) * s_))
-X_GF, X_GR, Y_G = 0.47, -0.21, 0.22               # A-frame fuselage pick-ups (front / rear) on the lower longerons
-X_BG = 0.13                                        # bungee housing on the belly centreline, between the pick-ups
+X_GF, X_GR, Y_G = X_AX, -0.21, 0.22               # A-frame fuselage pick-ups (front / rear) on the lower longerons
+X_BG = X_AX                                        # v3: bungee housing at the front-leg station, so the belly struts lie in
+                                                   # the same transverse plane as the front gear legs (Ty)
 Z_BG = fus_low(X_BG, 0.0)[2]
 bm = bmesh.new()
 for sy in (1, -1):
@@ -341,11 +349,29 @@ for sy in (1, -1):
     bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=0.05, radius2=0.05, depth=0.135,
                           matrix=Matrix.Translation((X_AX, sy * Y_AX, Z_AX)) @ Matrix.Rotation(math.pi / 2, 4, 'X'))   # hub
     # bungee strut: inboard leg abeam the axle -> belly centreline (spool end at the bungee housing)
-    blade_strut(bm, (X_AX, sy * 0.70, Z_AX + 0.04), (X_BG, sy * 0.075, Z_BG - 0.085), list(np.linspace(0.065, 0.05, 6)), 0.026)
+    blade_strut(bm, (X_GF, sy * 0.70, Z_AX + 0.04), (X_GF, sy * 0.075, Z_BG - 0.085), list(np.linspace(0.065, 0.05, 6)), 0.026)
 TW = dict(c=(-3.59, 0.0, -0.53), r=0.075, w=0.05)
 tube(bm, [(-3.13, 0, -0.335), (-3.30, 0, -0.39), (-3.45, 0, -0.45), (-3.56, 0, -0.475)], 0.016, 8, r2=0.010)   # tail spring
 for sy in (1, -1): blade_strut(bm, (-3.56, sy * 0.035, -0.47), (-3.59, sy * 0.035, -0.53), [0.04] * 3, 0.008)  # fork
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Gear_Main'] = link('Gear_Main', bm)
+# v3 (Ty): fabric fairing over the A-frame - a thin doped-fabric panel filling the gap between front and rear legs
+bm = bmesh.new()
+for sy in (1, -1):
+    foot = np.array((X_AX, sy * (Y_AX - 0.085), Z_AX + 0.035))
+    Ft, Rt = fus_low(X_GF, sy * Y_G) + np.array((0, 0, 0.02)), fus_low(X_GR, sy * Y_G) + np.array((0, 0, 0.02))
+    nrm = np.cross(Rt - Ft, foot - Ft); nrm = nrm / np.linalg.norm(nrm)
+    rings = []
+    for sv in np.linspace(0.0, 0.94, 14):
+        Fs, Rs = Ft + (foot - Ft) * sv, Rt + (foot - Rt) * sv; ring = []
+        us = np.linspace(0.0, 1.0, 16)
+        for side in (1, -1):
+            for u in (us if side > 0 else us[::-1]):
+                p = Fs + (Rs - Fs) * u
+                if sv == 0.0: p = fus_low(p[0], p[1]) + np.array((0, 0, 0.03))      # top edge buried in the belly skin
+                ring.append(p + side * nrm * (0.004 + 0.010 * math.sin(math.pi * u)))
+        rings.append([tuple(q) for q in ring])
+    loft_rings(bm, rings)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Gear_Fairing'] = link('Gear_Fairing', bm)
 # bungee housing: belly blister on the centreline + cross spool; the shock cords are wrapped round the spool ends
 bm = bmesh.new()
 rs = []
@@ -458,18 +484,20 @@ def side(name, flip):
     v = View(name, (X0, X1), (Z0, Z1), 4096, 1672, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
     v.fill(np.ones_like(A, bool), RED)
     # twin pinstripes: white swoosh off the top of the cowl, two 1.4 in lines sloping gently down aft, pointed ends
-    # v2 (Ty): on the nose the upper stripe angles UP going aft and the lower one mirrors it DOWN by the same amount,
-    # with a white diamond between them; aft of the cowl the two run parallel to the pointed ends.
-    X_END, X_NOSE, X_OPEN = -1.20, 1.47, 0.78
-    zc = 0.072 + (A - 1.40) * 0.035                                    # stripe-pair centreline, gently down aft
-    g = 0.018 + (0.080 - 0.018) * np.clip((X_NOSE - A) / (X_NOSE - X_OPEN), 0, 1)   # half-gap: opens aft, then constant
-    taper = np.clip((A - X_END) / 0.30, 0, 1); ws = 0.035 * taper
-    on = (A > X_END) & (A < X_NOSE)
-    v.fill(on & (np.abs(Z - (zc + g)) < 0.5 * ws), WHITE)
-    v.fill(on & (np.abs(Z - (zc - g)) < 0.5 * ws), WHITE)
-    XD, HL_D = 0.95, 0.17                                              # diamond centre / half-length
-    hh = 0.0 + (0.018 + (0.080 - 0.018) * (X_NOSE - XD) / (X_NOSE - X_OPEN)) - 0.5 * 0.035 - 0.012   # half-height, clear of the stripes
-    v.fill((np.abs(A - XD) / HL_D + np.abs(Z - (0.072 + (XD - 1.40) * 0.035)) / hh) < 1.0, WHITE)
+    # v3 (Horizon Hobby style guide): a wide white swoosh wraps up the cowl front to the cowl top and sweeps down
+    # aft, thinning into the upper pinstripe; a second pinstripe runs aft from the lower cowl, nearly level; a white
+    # diamond sits between them on the nose side where the swoosh levels out. Both stripes end in points at X_END.
+    X_END, X_NOSE = -1.20, 1.47
+    zl = -0.020 + (A - 1.40) * 0.020                                   # lower stripe centre, gently down aft
+    sw = np.clip((A - 0.80) / (X_NOSE - 0.80), 0, 1) ** 1.7          # swoosh ramp toward the cowl front
+    zu = zl + 0.085 + 0.13 * sw
+    taper = np.clip((A - X_END) / 0.30, 0, 1)
+    wu, wl_ = (0.030 + 0.040 * sw) * taper, 0.025 * taper
+    on = (A > X_END) & (A < X_NOSE + 0.04)
+    v.fill(on & (np.abs(Z - zu) < 0.5 * wu), WHITE)
+    v.fill(on & (A < X_NOSE) & (np.abs(Z - zl) < 0.5 * wl_), WHITE)
+    XD = 0.93; ZD = -0.020 + (XD - 1.40) * 0.020 + 0.0425
+    v.fill((np.abs(A - XD) / 0.065 + np.abs(Z - ZD) / 0.026) < 1.0, WHITE)
     # registration, 13 in white block letters on the aft fuselage, both sides reading nose -> tail
     v.stamp('pitts-n31dg.png', -1.25, -2.62, -0.15 - 0.165, -0.15 + 0.165)
     # fin: "Pitts" script and "S-2B"
@@ -497,7 +525,14 @@ def wing_views(tag, le0, zz, yr, xr):
     vb, Y, X = plan('pitts_%s_bot' % tag, False, yr, xr, 4096, 1024); f = (le0(Y) - X) / CH
     vb.fill(np.ones_like(Y, bool), RED); vb.fill((np.floor(np.abs(Y) / Q_W) + np.floor(f * 4)) % 2 == 1, WHITE)
     return vt, vb
-VUT, _ = wing_views('uw', LEU0, ZZ_U, (-3.15, 3.15), (-0.75, 0.72))       # upper underside is plain red (Ty v2)
+# v3 (Ty + Horizon Hobby Pitts style guide): top of the TOP wing = conventional sunburst. Rays fan out from the
+# centre of the wing (mid-chord on the centreline); per side: red hub ray, white ray, narrow red ray, wide white ray
+# toward the trailing edge, red aft hub. The white rays get wide at the tips and along the trailing edge.
+VUT, Y, X = plan('pitts_uw_top', True, (-3.15, 3.15), (-0.75, 0.72), 4096, 1024)
+X0_SB = LEU0(0.0) - 0.5 * CH
+PHI_SB = np.radians([12.0, 2.0, -4.0, -22.0])                                    # ray boundaries, deg from the span axis
+phi = np.arctan2(X - X0_SB, np.abs(Y)); k_sb = (phi[..., None] < PHI_SB).sum(-1)    # 0 fwd hub .. 4 aft hub
+VUT.fill(np.ones_like(Y, bool), RED); VUT.fill(k_sb % 2 == 1, WHITE)
 VLT, VLB = wing_views('lw', LEL0, ZZ_L, (-3.0, 3.0), (-1.06, 0.04))
 VST, Y, X = plan('pitts_stab_top', True, (-1.25, 1.25), (-3.80, -2.55), 2048, 1024)   # rays from the stab root LE
 VST.fill(np.ones_like(Y, bool), RED)
@@ -533,7 +568,7 @@ setm(P['Fuselage'], ['pitts_side_l', 'pitts_side_r', 'red', 'cabin']); paint.pro
 for n in ('Canopy_Frame', 'Fin', 'Rudder', 'Wheel_Pants'):
     setm(P[n], ['pitts_side_l', 'pitts_side_r', 'red'])
     paint.project(P[n], lambda nrm, c: (2, None) if nrm.z <= -0.6 else ((0, VL) if nrm.y >= 0 else (1, VR)))
-for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'red'), ('Gear_Bungee_Housing', 'red'), ('Gear_Bungee', 'tyre'), ('Wheels', 'tyre'),
+for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'red'), ('Gear_Fairing', 'red'), ('Gear_Bungee_Housing', 'red'), ('Gear_Bungee', 'tyre'), ('Wheels', 'tyre'),
              ('Strut_Cabane', 'red'), ('Strut_Interplane', 'red'), ('Strut_Slave_L', 'red'), ('Strut_Slave_R', 'red'),
              ('Wire_Bracing', 'steel'), ('Exhaust', 'exhaust')):
     setm(P[n], [m]); [setattr(p, 'material_index', 0) for p in P[n].data.polygons]

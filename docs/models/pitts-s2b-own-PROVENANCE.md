@@ -77,3 +77,15 @@ All changes were made in `tools/own_models/build_pitts_s2b.py`, and the GLB was 
 - **Nose stripes:** the two white stripes on each side form a symmetric pair. Going aft, the upper one angles up and the lower one angles down by the same amount, opening from 1.4 in apart at the cowl front to 6.3 in apart at x 0.78 m. From there they run parallel to the pointed ends. A white diamond (13 in long) sits between them. This follows the owner's description and the brochure three-view. The single N31DG photo is too low-resolution to confirm the diamond.
 
 Size: 38.5k tris (38,492), 1.63 MB.
+
+## v3 (2026-10-27)
+
+All geometry and textures are still generated procedurally by `tools/own_models/build_pitts_s2b.py`. No third-party or GPL meshes, textures or fonts were added. Reference photos were used only by eye.
+
+- **Rudder:** the outline is a 50/50 blend of the v1 and v2 trailing-edge tables (`RTE = 0.5*(RTE_V1 + RTE_V2)`, sampled per z).
+- **Belly:** the lower fuselage station heights are raised by up to ~4 cm amidships, and the aft taper is straightened. This removes the pot belly and the recurve.
+- **Gear fairing:** a new `Gear_Fairing` object adds a red fabric panel per side, filling the A-frame between the front and rear gear legs. It is a thin lens-section skin, like the real S-2B gear-leg fairing.
+- **Gear geometry:** the front legs, the streamlined belly (bungee) struts and the bungee housing now all sit in the transverse plane x = 0.476 m. The bungee station moved from its v2 position to `X_BG = X_AX`.
+- **Top-wing paint:** the top of the upper wing has a conventional sunburst. White and red rays radiate from the wing centre, widening to the tips and trailing edge (boundaries at 12°, 2°, −4° and −22° from a virtual hub at the wing centreline). The top of the lower wing keeps the v2 zigzag. Both wing undersides are unchanged.
+- **Fuselage stripes:** the stripes follow Ty's style-guide photo of a Horizon Hobby RC Pitts. The upper stripe sweeps down and aft from the cowl top and then runs level. The lower stripe is nearly level, with a white diamond on the nose side between them. Only the stripe layout was copied by eye. The livery is still N31DG (N-number, Pitts script, checkered rudder), and none of the model's registration or branding was used.
+- **Size:** 40,276 triangles; GLB 1.66 MB.
