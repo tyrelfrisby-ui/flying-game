@@ -5,7 +5,7 @@ namespace FlyingGame.Bridge
 {
     /// <summary>Where a marking goes. Wing markings are per SIDE because that is how they are really applied —
     /// a registration goes on the upper surface of one wing and the lower surface of the other.</summary>
-    public enum DecalPlace { WingUpper, WingLower, FinBothSides, FuselageBothSides, TailSign, LightningBolt }
+    public enum DecalPlace { WingUpper, WingLower, FinBothSides, FuselageBothSides, TailSign, LightningBolt, WingCentreUpper, WingCentreLower, FuselageSweep }
 
     /// <summary>
     /// One marking: a word, a registration, or an image, laid on a surface.
@@ -121,9 +121,22 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.TailSign, text: "TALK\nFLYING", colour: White, heightFrac: 0.26f),
             }),
 
-            // 172 and ARCHER: mostly white, the words above AND below the wings, the logo on the fin, and a
-            // registration reading TALKFLYING in the slanted face a registration uses.
-            ["c172-like"] = Trainer(White, TrimRed),
+            // 172: retain the default model's shape; all paint slots stay light, including every hinge.
+            ["c172-like"] = new("talk-flying", "Talk Flying", White, White, White, Silver,
+                belly: White, bellyFrac: 0.22f, decals: new[]
+            {
+                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", side: -1, colour: Black, heightFrac: 0.32f, spanFrac: 0.56f),
+                new Decal(DecalPlace.WingUpper, text: "PODCAST", side: +1, colour: Black, heightFrac: 0.38f, spanFrac: 0.56f),
+                new Decal(DecalPlace.WingLower, text: "TALK FLYING", side: +1, colour: Black, heightFrac: 0.32f, spanFrac: 0.56f),
+                new Decal(DecalPlace.WingLower, text: "PODCAST", side: -1, colour: Black, heightFrac: 0.38f, spanFrac: 0.56f),
+                new Decal(DecalPlace.WingCentreUpper, texture: LogoTex, colour: Black, heightFrac: 0.55f),
+                new Decal(DecalPlace.WingCentreLower, texture: LogoTex, colour: Black, heightFrac: 0.55f),
+                new Decal(DecalPlace.FinBothSides, texture: LogoTex, colour: Black, heightFrac: 0.50f),
+                new Decal(DecalPlace.FuselageBothSides, text: "talkflying.com", colour: Black, heightFrac: 0.22f),
+                new Decal(DecalPlace.FuselageSweep, colour: Black, heightFrac: 0.12f),
+                new Decal(DecalPlace.FuselageSweep, colour: Silver, heightFrac: 0.065f, spanFrac: 0.16f),
+            }),
+            // ARCHER: retain its existing trainer scheme.
             ["pa28-archer-like"] = Trainer(White, Black),
 
             // STEARMAN: keeps its blue and yellow. Words on the wings where the registration would be, logo on the fin.
@@ -179,11 +192,20 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.FuselageBothSides, text: "TALKFLYING", colour: trim, heightFrac: 0.26f, italic: true),
             });
 
+        public static readonly Livery Factory233 = new("factory", "Schweizer factory",
+            White, White, White, White);
+
+        // Surface-conforming paint and raster lettering are embedded in model_extra300.py's GLB.
+        public static readonly Livery SunriseExtra = new("sunrise", "Sunrise Aviation",
+            White, White, White, White);
+
         public static readonly Livery[] All = { TypeColours, TalkFlyingGeneric };
 
         /// <summary>The livery to paint `aircraftId` in. A per-type scheme wins over the generic one.</summary>
         public static Livery For(string liveryId, string aircraftId)
         {
+            if (liveryId == "factory" && aircraftId == "glider-2-33-like") return Factory233;
+            if (liveryId == "sunrise" && aircraftId == "extra-300-like") return SunriseExtra;
             if (liveryId == "type" || string.IsNullOrEmpty(liveryId)) return TypeColours;
             if (liveryId == "talk-flying" && aircraftId != null && PerType.TryGetValue(aircraftId, out Livery l)) return l;
             if (liveryId == "talk-flying") return TalkFlyingGeneric;

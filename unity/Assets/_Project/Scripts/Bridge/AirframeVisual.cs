@@ -704,7 +704,7 @@ namespace FlyingGame.Bridge
                 var procPts = new List<Vector3>();
                 foreach (GameObject part in _parts)
                 {
-                    if (part == null || part.name.StartsWith("Model") || part.name.StartsWith("Fuselage") || _controls.Any(c => c.T != null && c.T.gameObject == part)) continue;
+                    if (part == null || part.name.StartsWith("Model") || part.name.StartsWith("Fuselage") || part.name == "Decal:sweep" || _controls.Any(c => c.T != null && c.T.gameObject == part)) continue;
                     var pf = part.GetComponent<MeshFilter>();
                     if (pf == null || pf.sharedMesh == null || !pf.sharedMesh.isReadable) continue;
                     Matrix4x4 tm = root.worldToLocalMatrix * pf.transform.localToWorldMatrix;
@@ -933,6 +933,11 @@ namespace FlyingGame.Bridge
                         for (int s = 0; s < tris.Length && s < mats.Length; s++)
                         {
                             if (!MatSays(mats[s], PropWords)) continue;
+                            if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null && tris[s].Length > 0)
+                            {
+                                Vector3 lo = rp[tris[s][0]], hi = lo; foreach (int i in tris[s]) { lo = Vector3.Min(lo, rp[i]); hi = Vector3.Max(hi, rp[i]); }
+                                Debug.Log($"[Airframe] DIAG prop material '{mats[s].name}' on {mf.name}: {lo}..{hi}; hub {hc} R {R:F2} front {front[h]:F2}");
+                            }
                             foreach (int i in tris[s])
                             {
                                 if (own[i] >= 0) continue;
@@ -1479,6 +1484,116 @@ namespace FlyingGame.Bridge
             }
         }
 
+        private void PaintTrainerModel(GameObject inst)
+        {
+            foreach (Renderer renderer in inst.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] == null) continue;
+                    string name = materials[i].name.ToLowerInvariant();
+                    // Imported OBJ material names. Retain glazing, tyres, engine details, lights and prop.
+                    bool control = name.Contains("aileron") || name.Contains("rudder") || name.Contains("flap");
+                    bool body = name.Contains("fuselage") || name.Contains("material_008") || name.Contains("material.008");
+                    if (control || body)
+                        materials[i] = UnlitMat((control ? _livery.Control : _livery.Fuselage) ?? Color.white);
+                }
+                renderer.sharedMaterials = materials;
+            }
+        }
+
+        /// <summary>Project paint onto the actual stock skin before it is carved into moving parts.
+        /// Config surfaces differ slightly from the imported model. Use triangle intersections rather than
+        /// guessed offsets, keeping the original model and the procedural fallback on the same decal path.</summary>
+        private void FitTrainerMarks(GameObject inst)
+        {
+            var triangles = new List<(Vector3 a, Vector3 b, Vector3 c)>();
+            foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
+            {
+                Mesh mesh = mf.sharedMesh;
+                if (mesh == null || !mesh.isReadable) continue;
+                Vector3[] vertices = mesh.vertices;
+                Matrix4x4 matrix = _root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                var renderer = mf.GetComponent<Renderer>();
+                if (renderer == null) continue;
+                Material[] materials = renderer.sharedMaterials;
+                for (int sub = 0; sub < mesh.subMeshCount; sub++)
+                {
+                    if (sub >= materials.Length || (materials[sub] != UnlitMat(_livery.Fuselage ?? Color.white)
+                        && materials[sub] != UnlitMat(_livery.Control ?? Color.white))) continue;
+                    int[] indices = mesh.GetTriangles(sub);
+                    for (int i = 0; i + 2 < indices.Length; i += 3)
+                        triangles.Add((matrix.MultiplyPoint3x4(vertices[indices[i]]),
+                            matrix.MultiplyPoint3x4(vertices[indices[i + 1]]), matrix.MultiplyPoint3x4(vertices[indices[i + 2]])));
+                }
+            }
+            bool Surface(Vector3 point, Vector3 outward, out Vector3 hit)
+            {
+                Vector3 origin = point + outward * 20f, direction = -outward;
+                float nearest = float.MaxValue;
+                foreach (var triangle in triangles)
+                {
+                    Vector3 e1 = triangle.b - triangle.a, e2 = triangle.c - triangle.a;
+                    Vector3 h = Vector3.Cross(direction, e2);
+                    float det = Vector3.Dot(e1, h);
+                    if (Mathf.Abs(det) < 1e-7f) continue;
+                    Vector3 delta = origin - triangle.a;
+                    float u = Vector3.Dot(delta, h) / det;
+                    if (u < 0f || u > 1f) continue;
+                    Vector3 q = Vector3.Cross(delta, e1);
+                    float v = Vector3.Dot(direction, q) / det;
+                    if (v < 0f || u + v > 1f) continue;
+                    float distance = Vector3.Dot(e2, q) / det;
+                    if (distance >= 0f) nearest = Mathf.Min(nearest, distance);
+                }
+                hit = nearest < float.MaxValue ? origin + direction * nearest : point;
+                return nearest < float.MaxValue;
+            }
+            foreach (GameObject mark in _parts)
+            {
+                if (mark == null || !mark.name.StartsWith("Decal:")) continue;
+                Vector3 position = mark.transform.localPosition;
+                if (mark.name == "Decal:sweep")
+                {
+                    var mf = mark.GetComponent<MeshFilter>();
+                    Vector3[] vertices = mf.sharedMesh.vertices;
+                    for (int i = 0; i < vertices.Length; i++)
+                    {
+                        Vector3 p = vertices[i] + position;
+                        Vector3 normal = p.x < 0f ? Vector3.left : Vector3.right;
+                        if (Surface(p, normal, out Vector3 hit)) vertices[i] = hit + normal * 0.012f - position;
+                    }
+                    mf.sharedMesh.vertices = vertices;
+                    mf.sharedMesh.RecalculateNormals();
+                    mf.sharedMesh.RecalculateBounds();
+                    continue;
+                }
+                // Sample across the rectangle so a planar word/logo clears camber and a tapered body.
+                var renderer = mark.GetComponentInChildren<Renderer>();
+                if (renderer == null) continue;
+                Bounds bounds = renderer.bounds;
+                Vector3 normalOut = -(mark.transform.localRotation * Vector3.forward);
+                Quaternion inverse = Quaternion.Inverse(mark.transform.rotation);
+                float width = 0f, height = 0f;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 corner = bounds.center + Vector3.Scale(bounds.extents,
+                        new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    Vector3 local = inverse * (corner - mark.transform.position);
+                    width = Mathf.Max(width, Mathf.Abs(local.x)); height = Mathf.Max(height, Mathf.Abs(local.y));
+                }
+                float offset = float.NegativeInfinity;
+                for (int x = -4; x <= 4; x++) for (int y = -2; y <= 2; y++)
+                {
+                    Vector3 sample = position + mark.transform.localRotation * new Vector3(width * x / 4f, height * y / 2f, 0f);
+                    if (Surface(sample, normalOut, out Vector3 hit))
+                        offset = Mathf.Max(offset, Vector3.Dot(hit - sample, normalOut));
+                }
+                if (!float.IsNegativeInfinity(offset)) mark.transform.localPosition += normalOut * (offset + 0.015f);
+            }
+        }
+
         private void TryPlaceModel(Transform root, AircraftConfig cfg)
         {
             UsedModel = false;
@@ -1486,6 +1601,39 @@ namespace FlyingGame.Bridge
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
             if (inst == null) return;
             UsedModel = true;
+            // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
+            bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
+            if (talk172) PaintTrainerModel(inst);
+            if (cfg.Id == "extra-300-like")
+            {
+                // Embedded Sunrise paint belongs only to this scheme, including when the global
+                // own-model switch selects the mid-wing geometry for another livery.
+                foreach (Renderer r in inst.GetComponentsInChildren<Renderer>(true))
+                    if (r.gameObject.name.StartsWith("Sunrise.")) r.gameObject.SetActive(_livery.Id == "sunrise");
+            }
+            if (cfg.Id == "glider-2-33-like")
+            {
+                bool factory = _livery.Id == "factory";
+                // tools/fg_models/build_sgs233.py bakes the factory paint into the GLB (textured cheat line and
+                // registration); flat-recolouring it would wipe that out.
+                bool prePainted = inst.GetComponentsInChildren<Renderer>(true).Any(r => r.gameObject.name == "Fuselage_Painted");
+                foreach (Renderer r in inst.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (prePainted) break;
+                    string n = r.gameObject.name;
+                    if (n.StartsWith("Factory")) { r.enabled = factory; continue; }
+                    if (!factory) continue;
+                    // Preserve glazing, cockpit upholstery, tyres and skid hardware.
+                    if (n.StartsWith("Decal:") || n.StartsWith("Canopy") || n.StartsWith("Seat") || n.StartsWith("Cockpit")
+                        || n.Contains("Wheel") || n.Contains("Skid")) continue;
+                    Color colour = n.StartsWith("Wing.") || n.StartsWith("Aileron.") || n == "Stab"
+                        ? new Color(0.98f, 0.76f, 0.03f) : Color.white;
+                    if (n.StartsWith("Spoiler")) continue;
+                    Material[] mats = r.sharedMaterials;
+                    for (int i = 0; i < mats.Length; i++) mats[i] = UnlitMat(colour);
+                    r.sharedMaterials = mats;
+                }
+            }
             // The procedural shell goes invisible (its parts stay for hinges, gear travel and debris bookkeeping) — except
             // the wheels and legs under a model that was exported gear-up (DC-3, 737).
             // ... and a type wearing another type's model (the Cub on floats / on bush wheels) keeps its own gear AND floats.
@@ -1522,6 +1670,7 @@ namespace FlyingGame.Bridge
                 _parts.Add(go); _wingParts.Add(go); _modelParts.Add(go);
                 filters.Add(mf);
             }
+            if (talk172) FitTrainerMarks(inst);
             _retractable = cfg.RetractableGear;
             try { CarveModel(root, filters); }
             catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
@@ -1773,6 +1922,8 @@ namespace FlyingGame.Bridge
                 {
                     case DecalPlace.WingUpper:
                     case DecalPlace.WingLower:
+                    case DecalPlace.WingCentreUpper:
+                    case DecalPlace.WingCentreLower:
                         PlaceWingDecal(cfg, d, halfSpan);
                         break;
                     case DecalPlace.FinBothSides:
@@ -1780,6 +1931,9 @@ namespace FlyingGame.Bridge
                         break;
                     case DecalPlace.FuselageBothSides:
                         PlaceFuselageDecal(st, d);
+                        break;
+                    case DecalPlace.FuselageSweep:
+                        BuildFuselageSweep(st, d);
                         break;
                     case DecalPlace.LightningBolt:
                         BuildLightningBolt(st, d.Colour);
@@ -1823,18 +1977,19 @@ namespace FlyingGame.Bridge
 
         private void PlaceWingDecal(AircraftConfig cfg, Decal d, float halfSpan)
         {
-            bool upper = d.Place == DecalPlace.WingUpper;
+            bool upper = d.Place == DecalPlace.WingUpper || d.Place == DecalPlace.WingCentreUpper;
+            bool centre = d.Place == DecalPlace.WingCentreUpper || d.Place == DecalPlace.WingCentreLower;
             List<StripConfig> strips = MainWingStrips(cfg, upper);
             if (strips.Count == 0) return;
-            foreach (int side in d.Side == 0 ? new[] { -1, 1 } : new[] { d.Side })
+            foreach (int side in centre ? new[] { 0 } : d.Side == 0 ? new[] { -1, 1 } : new[] { d.Side })
             {
                 // the strip nearest the asked-for station along THIS half-span
-                float want = side * d.SpanFrac * halfSpan;
+                float want = centre ? 0f : side * d.SpanFrac * halfSpan;
                 StripConfig near = null; float bestD = float.MaxValue;
                 foreach (StripConfig stp in strips)
                 {
                     float y = (float)stp.Pos[1];
-                    if (System.Math.Sign(y) != side || y == 0) continue;
+                    if (!centre && (System.Math.Sign(y) != side || y == 0)) continue;
                     float dist = Mathf.Abs(y - want);
                     if (dist < bestD) { bestD = dist; near = stp; }
                 }
@@ -1851,7 +2006,7 @@ namespace FlyingGame.Bridge
                 // Measured 2026-10-22 before the fix: 29 mm into the Swift's wing, 74 mm into the 172's,
                 // 183 mm into the 2-33's — and 0.165 m of daylight under the 172's lower mark.
                 float zRef = (float)near.Pos[2] - Mathf.Abs((float)near.Pos[1]) * Mathf.Tan((float)near.DihedralRad);
-                Vector3 at = U((float)near.Pos[0] - chord * 0.25f, (float)near.Pos[1], zRef);
+                Vector3 at = U((float)near.Pos[0] - chord * 0.25f, centre ? 0f : (float)near.Pos[1], zRef);
                 // Clear of the SKIN, by the section's own ordinate rather than a flat fraction of chord: the
                 // mark spans mid-chord ± half its height, which takes in the 35 % station where the section is
                 // deepest, so it has to clear the deepest point on the side it is read from. A main wing is
@@ -1880,7 +2035,7 @@ namespace FlyingGame.Bridge
                 // Unity z, the chord.
                 if (mk != null)
                 {
-                    float tilt = (float)near.DihedralRad * Mathf.Rad2Deg * Mathf.Sign((float)near.Pos[1]);
+                    float tilt = centre ? 0f : (float)near.DihedralRad * Mathf.Rad2Deg * Mathf.Sign((float)near.Pos[1]);
                     mk.transform.localRotation = Quaternion.AngleAxis(tilt, Vector3.forward) * rot;
                 }
             }
@@ -1942,6 +2097,35 @@ namespace FlyingGame.Bridge
         /// along the body, pushed just proud of the skin. The path is in fractions of the body's length and of
         /// its radius at each station, so it fits whatever fuselage it is given rather than being drawn for one.
         /// </summary>
+        /// <summary>A tapered double-sided cheatline; SpanFrac offsets a parallel accent vertically.</summary>
+        private void BuildFuselageSweep(Style st, Decal d)
+        {
+            if (st.Body == null || st.Body.Length < 2) return;
+            float nose = st.Body[0].x, length = nose - st.Body[^1].x;
+            foreach (int side in new[] { -1, 1 })
+            {
+                var mb = new MeshBuilder();
+                Vector3 Edge(float t, float edge)
+                {
+                    float x = nose - length * t;
+                    float r = BodyRadiusAt(st, x);
+                    // Low at the cabin, rising smoothly into a fine point on the tailcone.
+                    float h = -0.48f + 0.85f * Mathf.SmoothStep(0f, 1f, (t - 0.35f) / 0.57f) + d.SpanFrac;
+                    float w = d.HeightFrac * Mathf.Sin(Mathf.PI * (t - 0.08f) / 0.86f);
+                    float z = st.BodyAxisZ - r * (h + edge * w);
+                    float y = side * (r * st.BodyWidthScale * Mathf.Sqrt(Mathf.Max(0f, 1f - (h + edge * w) * (h + edge * w))) + 0.012f);
+                    return U(x, y, z);
+                }
+                for (int i = 0; i < 64; i++)
+                {
+                    float t0 = Mathf.Lerp(0.08f, 0.94f, i / 64f), t1 = Mathf.Lerp(0.08f, 0.94f, (i + 1) / 64f);
+                    Vector3 a = Edge(t0, -1f), b = Edge(t0, 1f), c = Edge(t1, 1f), e = Edge(t1, -1f);
+                    if (side > 0) mb.AddQuad(a, b, c, e); else mb.AddQuad(e, c, b, a);
+                }
+                Spawn("Decal:sweep", mb.ToMesh(Vector3.zero), d.Colour, Vector3.zero);
+            }
+        }
+
         private void BuildLightningBolt(Style st, Color col)
         {
             if (st.Body == null || st.Body.Length < 2) return;

@@ -102,6 +102,8 @@ namespace FlyingGame.Bridge
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
             { "c172-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_extra300.py: original tandem MID-wing EA 300, drawn level, glTF Y-up.
+            { "extra-300-like", new Spec(Vector3.right, Vector3.up) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
             // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
             // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
@@ -124,7 +126,8 @@ namespace FlyingGame.Bridge
         /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
         /// about which model is in play.</summary>
         static bool PickOwn(string modelId) =>
-            SessionSettings.UseOwnModels && modelId != null && OwnSpecs.ContainsKey(modelId)
+            (SessionSettings.UseOwnModels || (modelId == "glider-2-33-like" && SessionSettings.LiveryId == "factory")
+                || (modelId == "extra-300-like" && SessionSettings.LiveryId == "sunrise")) && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}-own") != null;
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
