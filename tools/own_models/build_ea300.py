@@ -374,6 +374,86 @@ for blade in range(3):
     bm.faces.new(secs[-1]); face_tag.append(1); bm.faces.new(secs[0][::-1]); face_tag.append(0)
 P['Prop'] = link('Prop', bm)
 
+# ---- v11: cowl inlets + an original, simplified Lycoming AEIO-540 flat six visible through them ----------------------
+# Sized from published Lycoming data (bore 5.125 in, overall width ~33-34 in) and generic flat-six layout; drawn from
+# primitives here, no third-party mesh. Lycoming numbering: odd cylinders right (starboard, -y), even left (port, +y);
+# #1 right-front is the most forward cylinder, the left bank sits one crank-throw spacing aft (EN_STAG).
+INLETS = [(sy * 0.285, -0.01, 0.085, 0.080) for sy in (1, -1)]   # (y, z, ry, rz) round-ish inlets either side of the spinner
+_fb = bmesh.new(); _fb.from_mesh(P['Fuselage'].data); _fb.normal_update(); _cut = []
+for f in _fb.faces:
+    c = f.calc_center_median()
+    if c.x < 1.55: continue
+    for (iy, iz, ry, rz) in INLETS:
+        if ((c.y - iy) / ry) ** 2 + ((c.z - iz) / rz) ** 2 < 1.0: _cut.append(f); break
+bmesh.ops.delete(_fb, geom=_cut, context='FACES'); _fb.to_mesh(P['Fuselage'].data); _fb.free()
+print('INLET faces cut', len(_cut))
+def _skin_x(y, z):
+    """x of the cowl skin at (y,z) on its forward face, from the measured rings (front-most ring crossing)."""
+    best = -9
+    for r in RP:
+        pts = r[:, :3]; d = np.hypot(pts[:, 1] - y, pts[:, 2] - z)
+        if d.min() < 0.03: best = max(best, float(r[0, 0]) if np.ptp(pts[:, 0]) < 1e-6 else float(pts[np.argmin(d), 0]))
+    return best
+en_bms = {}; en_tag = []
+EN_T = ['en_core', 'en_cyl', 'en_case', 'en_rocker', 'en_pipe', 'en_baffle', 'en_lip', 'en_dark']
+def _en(tag, fn):   # one bmesh per material, merged at the end (material index = block order)
+    global en
+    en = en_bms.setdefault(tag, bmesh.new()); fn()
+def en_box(tag, c, s):
+    _en(tag, lambda: bmesh.ops.create_cube(en, size=1.0, matrix=Matrix.Translation(c) @ Matrix.Diagonal((s[0], s[1], s[2], 1))))
+def en_cyl(tag, a, b, r, seg=16, r2=None):
+    from mathutils import Vector
+    a, b = np.array(a, float), np.array(b, float); d = b - a; ln = float(np.linalg.norm(d))
+    q = Vector((0, 0, 1)).rotation_difference(Vector(d / ln)).to_matrix().to_4x4()
+    _en(tag, lambda: bmesh.ops.create_cone(en, cap_ends=True, segments=seg, radius1=r, radius2=r if r2 is None else r2, depth=ln, matrix=Matrix.Translation(tuple((a + b) / 2)) @ q))
+EN_X1, EN_PITCH, EN_STAG = 1.52, 0.25, 0.13      # #1 cylinder axis x; per-bank pitch; left bank aft of right
+EN_Z = 0.0                                        # crankshaft on the thrust line
+en_box('en_case', (EN_X1 - 0.30, 0, EN_Z), (0.86, 0.24, 0.24))                     # crankcase, black
+en_cyl('en_case', (EN_X1 + 0.13, 0, EN_Z), (EN_X1 + 0.18, 0, EN_Z), 0.075)          # nose case / prop flange boss
+en_box('en_case', (EN_X1 - 0.33, 0, EN_Z - 0.17), (0.70, 0.20, 0.12))              # sump
+for side, sy in (('R', -1), ('L', 1)):
+    for k in range(3):
+        cx = EN_X1 - k * EN_PITCH - (EN_STAG if side == 'L' else 0.0)
+        y0, y1, y2 = 0.12, 0.29, 0.40                                                # case face, barrel/head joint, head end
+        en_cyl('en_core', (cx, sy * y0, EN_Z), (cx, sy * y1, EN_Z), 0.072, 20)        # barrel
+        for f in np.linspace(y0 + 0.02, y1 - 0.01, 9):                               # barrel cooling fins
+            en_cyl('en_cyl', (cx, sy * (f - 0.003), EN_Z), (cx, sy * (f + 0.003), EN_Z), 0.090, 20)
+        en_cyl('en_core', (cx, sy * y1, EN_Z), (cx, sy * y2, EN_Z), 0.082, 20)        # head
+        for f in np.linspace(y1 + 0.012, y2 - 0.012, 6):                             # head fins (taller, flatter)
+            en_cyl('en_cyl', (cx, sy * (f - 0.003), EN_Z), (cx, sy * (f + 0.003), EN_Z), 0.104, 20)
+        en_box('en_rocker', (cx, sy * (y1 + 0.055), EN_Z + 0.118), (0.12, 0.085, 0.045))   # rocker covers top (exhaust)
+        en_box('en_rocker', (cx, sy * (y1 + 0.055), EN_Z - 0.118), (0.12, 0.085, 0.045))   # and bottom (intake)
+        en_cyl('en_pipe', (cx + 0.03, sy * (y1 + 0.03), EN_Z - 0.10), (cx + 0.03, sy * 0.20, EN_Z - 0.20), 0.022, 10)  # intake runner to sump plenum
+        en_cyl('en_pipe', (cx - 0.03, sy * (y1 + 0.07), EN_Z - 0.10), (cx - 0.05, sy * (y1 + 0.07), EN_Z - 0.26), 0.026, 10)  # exhaust stub
+    # front baffle: lower plate ahead of the front cylinder and an inboard plate, so the inlet looks into a plenum
+    fx = EN_X1 + 0.11 - (EN_STAG if side == 'L' else 0.0)
+    en_box('en_baffle', (fx, sy * 0.25, EN_Z - 0.12), (0.008, 0.20, 0.10))
+    en_box('en_baffle', (fx - 0.10, sy * 0.13, EN_Z + 0.04), (0.20, 0.008, 0.20))
+# prop governor: front of the case on the left (port) side, Lycoming front-mounted governor pad
+en_cyl('en_case', (EN_X1 + 0.06, 0.10, EN_Z + 0.08), (EN_X1 + 0.06, 0.10, EN_Z + 0.15), 0.040, 16)
+en_cyl('en_rocker', (EN_X1 + 0.06, 0.10, EN_Z + 0.15), (EN_X1 + 0.06, 0.10, EN_Z + 0.17), 0.028, 12)
+en_box('en_pipe', (EN_X1 + 0.06, 0.15, EN_Z + 0.13), (0.02, 0.06, 0.02))              # control arm
+# inlet lips + dark ducts: a short tube from just proud of the skin back toward the cylinders hides the cut edge
+for (iy, iz, ry, rz) in INLETS:
+    x0 = _skin_x(iy, iz)
+    if x0 < 0: x0 = 1.73
+    from mathutils import Vector
+    for (tag, xa, xb, rr) in (('en_lip', x0 + 0.006, x0 - 0.03, 1.30), ('en_dark', x0 - 0.03, x0 - 0.09, 1.14)):
+        n = 28; ringa = [(xa, iy + rr * ry * math.cos(a), iz + rr * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+        ringi = [(xa, iy + (rr - 0.30) * ry * math.cos(a), iz + (rr - 0.30) * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+        ringb = [(xb, iy + rr * ry * math.cos(a), iz + rr * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+        ringc = [(xb, iy + (rr - 0.30) * ry * math.cos(a), iz + (rr - 0.30) * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+        def _tube():
+            loft_rings(en, [ringa, ringb, ringc, ringi], cap0=False, cap1=False)
+        _en(tag, _tube)
+    print('INLET y %.3f skin x %.3f' % (iy, x0))
+_all = bmesh.new()
+for t in EN_T:
+    if t not in en_bms: continue
+    _me = bpy.data.meshes.new('_en_' + t); en_bms[t].to_mesh(_me); en_bms[t].free()
+    n0 = len(_all.faces); _all.from_mesh(_me); en_tag.extend([EN_T.index(t)] * (len(_all.faces) - n0)); bpy.data.meshes.remove(_me)
+P['Engine'] = link('Engine', _all)
+
 # ---- paint (approved v9 N300UY rules, re-derived on this geometry) -------------------------------------------------
 X0, X1, Z0p, Z1p = -5.40, 2.45, -1.45, 1.45
 XT = RX.min()                                   # tail cone end
@@ -448,11 +528,14 @@ GAP_W = 0.03
 LEv = lambda y: np.interp(np.abs(y), W.s, W.le); TEv = lambda y: np.interp(np.abs(y), W.s, W.te)
 SLEv = lambda y: np.interp(np.abs(y), S.s, S.le); STEv = lambda y: np.interp(np.abs(y), S.s, S.te)
 STAB_NAVY = 0.32 * float(np.mean(S.le - S.te))
+# v11: Ty wants the stab navy edge + red line straight and spanwise (constant x, no sweep): one station, taken where
+# the v10 offset line crossed mid-semispan
+STAB_NAVY_X = float(np.interp(0.5 * S_TIP, S.s, S.le)) - STAB_NAVY
 def plan(name, flip, bar=False):
     v = View(name, (-4.1, 4.1), (X0, X1), 4096, 3870, flip_a=flip, axes=(1, 0)); Y, Xx = v.A, v.B
     wz = Xx > -2.6
-    # v10: on the stab the navy bar and red line are a constant chordwise offset from each side's LE (no V at the root)
-    split = np.where(wz, LEv(Y) - 0.32 * (LEv(Y) - TEv(Y)), SLEv(Y) - STAB_NAVY)
+    # v11: on the stab the navy bar and red line are straight spanwise lines at constant x (STAB_NAVY_X)
+    split = np.where(wz, LEv(Y) - 0.32 * (LEv(Y) - TEv(Y)), STAB_NAVY_X)
     v.fill(Xx > split, NAVY)
     if bar:   # v9 plain underside: a thick red bar behind the navy LE, 22 % chord at the root (v10) tapering to 11 % at the tip
         ch = LEv(Y) - TEv(Y); bw = np.where(wz, 0.22 * ch * (1 - 0.5 * np.clip(np.abs(Y) / W_TIP, 0, 1)), RW)
@@ -489,6 +572,15 @@ for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main
 setm(P['Prop'], ['prop_blade', 'prop_tip', 'prop_nickel'])
 for p, t in zip(P['Prop'].data.polygons, face_tag): p.material_index = t
 print('PROP faces', len(face_tag), 'tip', face_tag.count(1), 'nickel', face_tag.count(2))
+M['en_cyl'] = paint.mat_colour('Engine_cylinder', (128, 132, 138), rough=0.55, metal=0.3)
+M['en_core'] = paint.mat_colour('Engine_cylinder_core', (74, 77, 82), rough=0.7, metal=0.2)
+M['en_case'] = paint.mat_colour('Engine_case', (24, 24, 27), rough=0.6)
+M['en_rocker'] = paint.mat_colour('Engine_rocker_cover', (34, 64, 140), rough=0.5)
+M['en_pipe'] = paint.mat_colour('Engine_pipe', (92, 88, 84), rough=0.6, metal=0.4)
+M['en_baffle'] = paint.mat_colour('Engine_baffle', (70, 72, 76), rough=0.8)
+M['en_lip'] = M['white']; M['en_dark'] = paint.mat_colour('Engine_duct', (30, 31, 34), rough=0.9)
+setm(P['Engine'], EN_T)
+for p, t in zip(P['Engine'].data.polygons, en_tag): p.material_index = t
 M['ck_seat'] = paint.mat_colour('Cockpit_seat', (66, 70, 78), rough=0.75)
 M['ck_strap'] = paint.mat_colour('Cockpit_harness', (150, 138, 112), rough=0.85)
 M['ck_panel'] = paint.mat_colour('Cockpit_panel', (52, 55, 61), rough=0.6)

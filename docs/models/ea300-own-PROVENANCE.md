@@ -126,3 +126,9 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 - Plain underwing bar: 22 % chord at root, same 50 % taper (11 % at tip).
 - Propeller: 3 blades at 120°, same paint (white, 5 in red tips, 1 in nickel LE). Unity render log: 4/4 control surfaces, 1/1 propellers bound.
 - TF fin badge: vertically centred between stab top and the cap's red line; shrunk slightly to fit (0.81 × 0.21 m).
+
+## v11 (2026-10-27)
+- Stab/elevator paint (both liveries): navy aft edge and red line are now straight spanwise lines at constant x (no sweep), placed where the v10 line crossed mid-semispan.
+- Cowl: two round inlets opened either side of the spinner (faces cut from the lofted skin), with white lips and short dark ducts.
+- Engine: original, simplified flat six drawn from primitives in build_ea300.py (no third-party mesh), sized from published Lycoming O/AEIO-540 data (bore 5.125 in, overall width ~33-34 in). Black crankcase/sump, 3 finned grey cylinders per side (barrel + head fins, darker core), blue rocker covers top and bottom, intake runners and exhaust stubs, front/inboard baffles, prop governor on the front-left of the case. Lycoming numbering: right bank (#1/3/5) forward, left bank (#2/4/6) 0.13 m aft; pitch 0.25 m. The stagger and pitch are estimated from the cylinder fin diameter (~0.19 m), not taken from a drawing.
+- Overlap check: the engine has no faces through the cowl skin; the only contact is the intended inlet-lip/skin seam. Unity render log: 1/1 propellers bound.
