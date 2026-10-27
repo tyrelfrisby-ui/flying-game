@@ -145,10 +145,17 @@ public sealed class OrographyConfig
     public double SpeedUpDecayM { get; set; } = 300;
     /// <summary>Lee downdraught as a fraction of the cross-ridge wind.</summary>
     public double LeeSinkFraction { get; set; } = 0.35;
-    /// <summary>Peak rotor circulation speed as a fraction of the wind.</summary>
-    public double RotorStrength { get; set; } = 0.45;
+    /// <summary>Peak rotor circulation speed as a fraction of the crest-level wind (≈ 0.7 reverses the surface flow under it).</summary>
+    public double RotorStrength { get; set; } = 0.7;
     /// <summary>Rotor centre downwind of the crest, in lee drops.</summary>
     public double RotorDistanceDrops { get; set; } = 1.2;
+    /// <summary>Lee downdraughts need some wind to drive them, rotors a good deal more (they form when the cross-ridge
+    /// wind is ~15–25 kt): each fades in by smoothstep between its min and full wind (m/s), so a 5 kt breeze over a
+    /// wall makes neither.</summary>
+    public double LeeMinWindMs { get; set; } = 2;
+    public double LeeFullWindMs { get; set; } = 6;
+    public double RotorMinWindMs { get; set; } = 4;
+    public double RotorFullWindMs { get; set; } = 10;
     /// <summary>Least lee drop that makes a rotor (m).</summary>
     public double MinLeeDropM { get; set; } = 60;
     /// <summary>Mechanical turbulence from slope: σ adds SlopeTurbulence × |slope| × U.</summary>

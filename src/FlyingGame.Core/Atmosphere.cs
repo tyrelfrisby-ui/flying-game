@@ -90,6 +90,15 @@ public static class Atmosphere
     /// </summary>
     public static AtmosphereField? Field { get; set; }
 
+    /// <summary>Add a thermal column unless the regional field forbids one there (the calm zone and its blend band):
+    /// the one door thermals should come in by. Returns false, and adds nothing, if refused.</summary>
+    public static bool TryAddThermal(Thermal thermal)
+    {
+        if (Field is not null && !Field.AllowsThermalAt(thermal.SurfaceCenter.X, thermal.SurfaceCenter.Y)) return false;
+        Thermals.Add(thermal);
+        return true;
+    }
+
     /// <summary>The full regional sample at a position now (null without a field).</summary>
     public static AtmosphereSample? SampleAt(MathTypes.Vec3 worldPosition) => Field?.Sample(worldPosition, SimTimeSec);
 

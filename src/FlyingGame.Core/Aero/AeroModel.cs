@@ -259,7 +259,8 @@ public static class AeroModel
         bool[]? stripMask = null,
         Vec3? meanWindBody = null,
         double wingHeightAglM = double.PositiveInfinity,
-        double slipstreamSwirlMs = 0.0)
+        double slipstreamSwirlMs = 0.0,
+        WindGradient windGradient = default)
     {
         int stripIndex = 0;
         // GROUND EFFECT (owner 2026-10-03: "is it even modeled?" — it was not). Within about a span of the surface the
@@ -346,6 +347,8 @@ public static class AeroModel
                 Vec3 stripAt = LoadPoint(config, idx, strip);   // a hinged section's loads act at the SECTION quarter-chord
                 Vec3 r = stripAt - cg;
                 Vec3 vLocal = bodyVelocity - windBody + Vec3.Cross(bodyRates, r);
+                // The air is not the same across the airframe (regional atmosphere): the strip sees the wind where IT is.
+                if (windGradient.Active) vLocal -= windGradient.PerX * r.X + windGradient.PerY * r.Y;
 
                 // Propeller slipstream: tail surfaces inside the (contracted) prop wash see the accelerated
                 // flow — this is why a prop aircraft has elevator and rudder authority at low speed (taxi,
@@ -1070,3 +1073,17 @@ public static class AeroModel
             config.Fuselage.Damping.R * bodyRates.Z);
     }
 }
+
+/// <summary>
+/// How the wind changes across the airframe, body axes: the change in the body-frame wind per metre along body x
+/// (nose → tail) and along body y (left → right wing). The aircraft measures it by sampling the atmosphere at the wing
+/// tips and the tail as well as the CG, so a strip at offset r from the CG sees windBody + PerX·r.x + PerY·r.y — a
+/// thermal under one wing rolls the aircraft, a gust front reaching the tail first pitches it. default = uniform air.
+/// </summary>
+public readonly struct WindGradient
+{
+    public readonly Vec3 PerX, PerY;
+    public readonly bool Active;
+    public WindGradient(Vec3 perX, Vec3 perY) { PerX = perX; PerY = perY; Active = true; }
+}
+

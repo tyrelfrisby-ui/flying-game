@@ -161,7 +161,7 @@ public sealed class Aircraft
         Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
         Vec3 windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
         double tas = (State.Velocity - windBody).Length;
-        double rho = Atmosphere.DensityAtAltitude(-State.Position.Z);
+        double rho = Atmosphere.DensityAt(State.Position);
         double ias = tas * System.Math.Sqrt(rho / 1.225);
         Brs.Deploy(Config.Brs, ias, aglM);
         return true;
@@ -656,6 +656,49 @@ public sealed class Aircraft
         _tabOffsetRud = Offset("rudder", Config.Controls.Rudder, trims.RudderRad, trims.RudderRad);
     }
 
+    // Where the airframe samples a regional atmosphere besides its CG: the wing tips and the tail (body axes, from the
+    // CG). Set on first use from the config.
+    private double _halfSpanM = -1, _tailArmM;
+
+    /// <summary>
+    /// The air over the whole airframe from the regional field: density and wind at the CG, and the wind's gradient from
+    /// samples at the left and right wing tips and the tail. The difference between the tips is what rolls (and,
+    /// through the drag of each wing, yaws) an aircraft whose wings sit in different air — one wing in a thermal, one
+    /// tip in the lift off a ridge, a gust front arriving from the side. Four samples a step, once per step (held through
+    /// the RK4 stages like the uniform wind always was), a pure function of position and sim time: deterministic, and
+    /// independent of the frame rate beyond that sample-and-hold.
+    /// </summary>
+    private void SampleRegionalAir(out double density, out Vec3 windBody, out Vec3 meanWindBody, out WindGradient gradient)
+    {
+        if (_halfSpanM < 0)
+        {
+            _halfSpanM = System.Math.Max(0.5, 0.5 * AeroModel.WingSpan(Config));
+            double tail = 0; int n = 0;
+            foreach (SurfaceConfig sf in Config.Surfaces)
+                if (sf.Id.Contains("Stab", StringComparison.OrdinalIgnoreCase) || sf.Id.Contains("tail", StringComparison.OrdinalIgnoreCase))
+                    foreach (StripConfig st in sf.Strips) { tail += st.PosVec().X; n++; }
+            _tailArmM = n > 0 ? tail / n - Config.Mass.CgVec().X : 0.0;
+        }
+        Quat q = State.Attitude, qc = q.Conjugate();
+        Vec3 cgPos = State.Position;
+        AtmosphereSample cg = Atmosphere.SampleAt(cgPos)!.Value;
+        density = cg.DensityKgM3;
+        Vec3 wCg = Atmosphere.WindFromSample(cgPos, cg, true);
+        windBody = qc.Rotate(wCg);
+        meanWindBody = qc.Rotate(Atmosphere.WindFromSample(cgPos, cg, false));
+
+        Vec3 Wind(Vec3 bodyOffset)
+        {
+            Vec3 p = cgPos + q.Rotate(bodyOffset);
+            return qc.Rotate(Atmosphere.WindFromSample(p, Atmosphere.SampleAt(p)!.Value, true));
+        }
+        Vec3 left = Wind(new Vec3(0, -_halfSpanM, 0)), right = Wind(new Vec3(0, _halfSpanM, 0));
+        Vec3 perY = (right - left) / (2 * _halfSpanM);
+        Vec3 perX = Vec3.Zero;
+        if (System.Math.Abs(_tailArmM) > 0.5) perX = (Wind(new Vec3(_tailArmM, 0, 0)) - windBody) / _tailArmM;
+        gradient = perX.LengthSquared + perY.LengthSquared > 0 ? new WindGradient(perX, perY) : default;
+    }
+
     /// <summary>
     /// Advances the aircraft by one fixed timestep toward explicit deflection targets, bypassing the RC
     /// stick shaping. Used to spawn/hold a solved trim (e.g. tow-release trim, per VERTICAL-SLICE.md)
@@ -671,12 +714,19 @@ public sealed class Aircraft
         ControlDeflections controls = new(_aileronRad, _elevatorRad, _rudderRad, _spoilerFraction, FlapFraction, SlatFraction);
 
         double altitudeM = -State.Position.Z;
-        double airDensity = Atmosphere.DensityAtAltitude(altitudeM);
-        // Turbulence wind is world-frame; the aero model works in body frame, so rotate it in.
-        Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
-        Vec3 windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
-        Vec3 meanWindWorld = Atmosphere.MeanWindAtPosition(State.Position);
-        Vec3 meanWindBody = meanWindWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(meanWindWorld) : Vec3.Zero;
+        double airDensity;
+        Vec3 windBody, meanWindBody;
+        WindGradient windGradient = default;
+        if (Atmosphere.Field is null)
+        {
+            airDensity = Atmosphere.DensityAtAltitude(altitudeM);
+            // Turbulence wind is world-frame; the aero model works in body frame, so rotate it in.
+            Vec3 windWorld = Atmosphere.WindAtPosition(State.Position);
+            windBody = windWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(windWorld) : Vec3.Zero;
+            Vec3 meanWindWorld = Atmosphere.MeanWindAtPosition(State.Position);
+            meanWindBody = meanWindWorld.LengthSquared > 1e-9 ? State.Attitude.Conjugate().Rotate(meanWindWorld) : Vec3.Zero;
+        }
+        else SampleRegionalAir(out airDensity, out windBody, out meanWindBody, out windGradient);
         double weightN = MassProperties.MassKg * Atmosphere.GravityMs2;
 
         // Stall hysteresis: the separated wake develops quickly (~0.25 s) but washes out slowly
@@ -715,7 +765,7 @@ public sealed class Aircraft
             double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
             if (water.HasValue && water.Value > under) under = water.Value;
             double wingAgl = -s.Position.Z - under - AeroModel.WingZ(Config);
-            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl);
+            (Vec3 aeroForce, Vec3 aeroMoment) = AeroModel.Compute(Config, _airfoilTables, s.Velocity, s.Rates, windBody, airDensity, controls, _wakeStalledFrac, _flowState, slipDu, slipR, _surfaceMask, _stripMask, meanWindBody, wingAgl, slipSwirl, windGradient);
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;

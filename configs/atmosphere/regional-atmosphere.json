@@ -94,11 +94,11 @@
     },
     {
       "id": "airport3-gusty",
-      "note": "Airport 3 (Mesa, 5,000 ft): 330 at 5 kt gusting 15 — a steady direction, random 1-cosine gusts.",
+      "note": "Airport 3 (Mesa, 5,000 ft): 060 at 5 kt gusting 15 — a steady direction, random 1-cosine gusts.",
       "shape": "circle", "anchor": "airport:Mesa", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
       "isaDeviationC": 4, "roughnessM": 0.05, "turbulenceScale": 1.0, "thermalScale": 1.0,
       "wind": {
-        "mode": "gusty", "fromDeg": 330, "speedKt": 5, "gustPeakKt": 15,
+        "mode": "gusty", "fromDeg": 60, "speedKt": 5, "gustPeakKt": 15,
         "meanGustIntervalS": 18, "minGustDurationS": 4, "maxGustDurationS": 10, "seed": 3,
         "profileExponent": 0.16, "gradientHeightM": 300
       }
@@ -118,8 +118,12 @@
     "speedUpReliefM": 400,
     "speedUpDecayM": 300,
     "leeSinkFraction": 0.35,
-    "rotorStrength": 0.45,
+    "rotorStrength": 0.7,
     "rotorDistanceDrops": 1.2,
+    "leeMinWindMs": 2,
+    "leeFullWindMs": 6,
+    "rotorMinWindMs": 4,
+    "rotorFullWindMs": 10,
     "minLeeDropM": 60,
     "slopeTurbulence": 0.15,
     "leeTurbulence": 0.2,

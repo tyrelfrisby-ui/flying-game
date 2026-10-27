@@ -106,7 +106,7 @@ public sealed class Turbulence
         ulong st = (ulong)(seed * 2654435761.0) | 1UL;
         double Next() { st = st * 6364136223846793005UL + 1442695040888963407UL; return (st >> 11) / (double)(1UL << 53); }
 
-        double kMin = 0.05 / (1.339 * maxLengthM), kMax = 12.0 / minLengthM;
+        double kMin = 0.2 / (1.339 * maxLengthM), kMax = 60.0 / minLengthM;   // eddies from ~30 km down to ~1.6 m
         double dLn = System.Math.Log(kMax / kMin) / (modes - 1);
         var kMag = new double[modes];
         for (int i = 0; i < modes; i++)

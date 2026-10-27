@@ -304,6 +304,26 @@ public sealed class AtmosphereField
     /// <summary>May a thermal stand here? Not inside the calm zone or its blend band (at any height).</summary>
     public bool AllowsThermalAt(double x, double y) => Calm is null || Calm.HorizontalWeight(x, y) <= 0.0;
 
+    /// <summary>
+    /// Where an authored thermal may stand: the point itself if allowed, otherwise pushed straight out of the calm zone
+    /// (along the stadium's outward normal) to <paramref name="marginM"/> past its blend band. The Valley's hand-placed
+    /// thermals keep their number and their side of the field; they just start where the calm air ends.
+    /// </summary>
+    public (double x, double y) NearestThermalSite(double x, double y, double marginM = 50)
+    {
+        if (AllowsThermalAt(x, y) || Calm is null) return (x, y);
+        double c = System.Math.Cos(Calm.HeadingRad), s = System.Math.Sin(Calm.HeadingRad);
+        double dx = x - Calm.CentreX, dy = y - Calm.CentreY;
+        double along = dx * c + dy * s, across = -dx * s + dy * c;
+        double clamped = System.Math.Clamp(along, -Calm.HalfLengthM, Calm.HalfLengthM);
+        double nx = along - clamped, ny = across;                     // from the nearest centreline point, stadium frame
+        double len = System.Math.Sqrt(nx * nx + ny * ny);
+        if (len < 1e-6) { nx = 0; ny = 1; len = 1; }
+        double r = Calm.RadiusM + Calm.BlendWidthM + marginM;
+        double a2 = clamped + nx / len * r, c2 = ny / len * r;
+        return (Calm.CentreX + a2 * c - c2 * s, Calm.CentreY + a2 * s + c2 * c);
+    }
+
     // =============================================================================================================
     // Regional parameters, blended
     // =============================================================================================================
@@ -510,7 +530,8 @@ public sealed class AtmosphereField
 
         // Terrain.
         var (tK0, _, _, _) = Thermo(alt, air.IsaDevK, air.LapseKPerM, Atmosphere.SeaLevelPressurePa);
-        Orography.Result oro = Orography.Evaluate(_ground, pos, windH, Config.Orography, air.OroScale, air.LapseKPerM, tK0);
+        double exp = air.ProfileExp, gh = air.GradientH;
+        Orography.Result oro = Orography.Evaluate(_ground, pos, windH, Config.Orography, air.OroScale, air.LapseKPerM, tK0, z => ProfileFactor(z, exp, gh));
         Vec3 mean = windH * (1 + oro.SpeedUp) + oro.Rotor;
         double w = oro.SlopeLiftMs + oro.LeeMs + oro.WaveMs + air.BackgroundW;
 

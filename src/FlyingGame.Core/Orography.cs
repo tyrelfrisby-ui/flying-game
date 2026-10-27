@@ -19,9 +19,11 @@ namespace FlyingGame.Core;
 ///   upslope   w = V·∇h — <see cref="SlopeLift"/>, the kinematic boundary condition carried up tilted streamlines —
 ///             driven by the SPED-UP wind, so the lift band strengthens as it nears the crest too.
 /// Lee (the side the wind leaves):
-///   the upwind crest is found by a soft arg-max of the drop from each upwind sample, so it moves smoothly;
+///   the upwind crest is found by a soft arg-max of the drop from each upwind sample, so it moves smoothly; the
+///   downdraught fades in between LeeMinWind and LeeFullWind, the rotor between RotorMinWind and RotorFullWind;
 ///   downdraught  w = −LeeSinkFraction · U · e^(−s/2H) · e^(−((z/H − 0.6)/0.7)²)   (s downwind of crest, H the drop)
-///   rotor        a Lamb–Oseen-like vortex RotorDistanceDrops·H downwind, 0.45 H up, radius 0.45 H, turning so its top
+///   rotor        a Lamb–Oseen-like vortex RotorDistanceDrops·H downwind, 0.45 H up, radius 0.45 H, spinning at
+///                RotorStrength × the crest-level wind (the flow coming over the top drives it), turning so its top
 ///                runs downwind and its bottom back toward the hill (reversed surface flow), rising on the hill side;
 ///   lee waves    when the air is stable (N² = g/T·(Γd − Γ) &gt; 0) and the wind is over MinWaveWind: alternating
 ///                down/up bands of wavelength λ = 2πU/N (compressed — see WaveLengthCompression) above crest height,
@@ -46,8 +48,11 @@ public static class Orography
 
     private static readonly double[] Upwind = { 100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3200 };
 
+    /// <param name="windH">The horizontal wind here, its height profile applied.</param>
+    /// <param name="crestProfile">The wind profile factor as a function of height above ground (to refer the lee's
+    /// turbulence to the wind at crest height).</param>
     public static Result Evaluate(System.Func<double, double, double> height, Vec3 pos, Vec3 windH, OrographyConfig c,
-        double scale, double lapseKPerM, double temperatureK)
+        double scale, double lapseKPerM, double temperatureK, System.Func<double, double> crestProfile)
     {
         var r = new Result();
         double u = System.Math.Sqrt(windH.X * windH.X + windH.Y * windH.Y);
@@ -83,13 +88,16 @@ public static class Orography
         r.SlopeLiftMs = -SlopeLift.WindAt(height, pos, fast).Z * scale;
 
         // ---- lee: the crest upwind, smoothly ----
+        // Weighted toward the NEAREST sample that reaches the full drop: behind an escarpment the "crest" is the rim,
+        // not the middle of the plateau beyond it.
         double sw = 0, sDrop = 0, sDist = 0;
         for (int i = 0; i < Upwind.Length; i++)
         {
-            double wi = System.Math.Exp((drop[i] - dropMax) / 40.0);
+            double wi = System.Math.Exp((drop[i] - dropMax) / 40.0 - Upwind[i] / 400.0);
             sw += wi; sDrop += wi * drop[i]; sDist += wi * Upwind[i];
         }
         double H = sDrop / sw, s = sDist / sw;
+        double uCrest = u * crestProfile(H) / System.Math.Max(1e-6, crestProfile(agl));
         r.LeeDropM = H; r.CrestDistanceM = s;
         double gate = SmoothStep((H - 0.5 * c.MinLeeDropM) / (0.5 * c.MinLeeDropM));
         double slope = System.Math.Sqrt(System.Math.Pow((hDn1 - hUp1) / 200.0, 2) + System.Math.Pow((hL - hR) / 200.0, 2));
@@ -98,18 +106,22 @@ public static class Orography
         {
             double z = agl / H;
             double zs = (z - 0.6) / 0.7;
-            r.LeeMs = -gate * scale * c.LeeSinkFraction * u * System.Math.Exp(-s / (2 * H)) * System.Math.Exp(-zs * zs);
+            double leeGate = gate * SmoothStep((u - c.LeeMinWindMs) / System.Math.Max(0.1, c.LeeFullWindMs - c.LeeMinWindMs));
+            double rotorGate = gate * SmoothStep((uCrest - c.RotorMinWindMs) / System.Math.Max(0.1, c.RotorFullWindMs - c.RotorMinWindMs));
+            r.LeeMs = -leeGate * scale * c.LeeSinkFraction * u * System.Math.Exp(-s / (2 * H)) * System.Math.Exp(-zs * zs);
 
             double sr = c.RotorDistanceDrops * H, zr = 0.45 * H, R = 0.45 * H;
             double ds = s - sr, dz = agl - zr, dist = System.Math.Sqrt(ds * ds + dz * dz);
             if (dist > 1e-6)
             {
                 double rho = dist / R;
-                double ut = gate * scale * c.RotorStrength * u * rho * System.Math.Exp(0.5 * (1 - rho * rho));
+                double ut = rotorGate * scale * c.RotorStrength * uCrest * rho * System.Math.Exp(0.5 * (1 - rho * rho));
                 double us = ut * dz / dist, wz = -ut * ds / dist;   // top downwind, bottom back upwind; down on the far side
                 r.Rotor = new Vec3(dx * us, dy * us, -wz);
             }
-            sigmaLee = gate * c.LeeTurbulence * u * System.Math.Exp(-s / (3 * H)) * System.Math.Exp(-System.Math.Max(0, z - 1) / 0.5);
+            // Rotor-zone turbulence: driven by the wind at crest height, strongest against the ground and in the rotor,
+            // gone a crest-height or so above the ground.
+            sigmaLee = leeGate * c.LeeTurbulence * uCrest * System.Math.Exp(-s / (3 * H)) * System.Math.Exp(-agl / H);
 
             // Stable air, a good wind: standing lee waves above the crest.
             double n2 = Atmosphere.GravityMs2 / temperatureK * (0.0098 - lapseKPerM);
