@@ -1604,13 +1604,7 @@ namespace FlyingGame.Bridge
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
             if (talk172) PaintTrainerModel(inst);
-            if (cfg.Id == "extra-300-like")
-            {
-                // Embedded Sunrise paint belongs only to this scheme, including when the global
-                // own-model switch selects the mid-wing geometry for another livery.
-                foreach (Renderer r in inst.GetComponentsInChildren<Renderer>(true))
-                    if (r.gameObject.name.StartsWith("Sunrise.")) r.gameObject.SetActive(_livery.Id == "sunrise");
-            }
+            // The Extra (our EA300) has its paint baked in, one GLB per livery (AirframeModels.OwnSuffix): nothing to do here.
             if (cfg.Id == "glider-2-33-like")
             {
                 bool factory = _livery.Id == "factory";

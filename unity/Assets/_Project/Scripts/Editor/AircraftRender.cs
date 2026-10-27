@@ -46,14 +46,14 @@ namespace FlyingGame.EditorTools
             {
                 if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(outDir))
                     throw new ArgumentException("Aircraft id and output directory are required.");
-                if (livery != "type" && livery != "talk-flying" && livery != "factory" && livery != "sunrise")
-                    throw new ArgumentException("Livery must be type, talk-flying, factory or sunrise.");
+                if (livery != "type" && livery != "talk-flying" && livery != "factory" && livery != "sunrise" && livery != "n300uy")
+                    throw new ArgumentException("Livery must be type, talk-flying, factory, sunrise or n300uy.");
                 if (livery == "factory" && id != "glider-2-33-like")
                     throw new ArgumentException("Factory livery is only available for glider-2-33-like.");
-                if (livery == "sunrise" && id != "extra-300-like")
-                    throw new ArgumentException("Sunrise livery is only available for extra-300-like.");
-                if (livery == "sunrise" && !AirframeModels.HasOwn(id))
-                    throw new InvalidOperationException("Sunrise requires the mid-wing model. Run Blender --background --python tools/model_extra300.py, then let Unity import the GLB.");
+                if ((livery == "sunrise" || livery == "n300uy") && id != "extra-300-like")
+                    throw new ArgumentException(livery + " livery is only available for extra-300-like.");
+                if (id == "extra-300-like" && !AirframeModels.HasOwn(id))
+                    throw new InvalidOperationException("The Extra requires our own EA300. Run EA_LIVERY=tf|n300uy blender -b --python tools/own_models/build_ea300.py, then let Unity import the GLBs.");
                 string output = Path.GetFullPath(outDir);
                 Directory.CreateDirectory(output);
                 SessionSettings.LiveryId = livery;

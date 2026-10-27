@@ -171,6 +171,11 @@ namespace FlyingGame.Bridge
                 new Decal(DecalPlace.FinBothSides, texture: LogoTex, heightFrac: 0.55f),
             }),
 
+            // EXTRA 300 (Ty 2026-10-27): our own EA300 (extra-300-like-own.glb) wears the Talk Flying scheme baked in --
+            // TF fin badge, TALKFLYING.COM sides, SUNRISE AVIATION / TALK FLYING PODCAST wings. No tints, no markings:
+            // anything laid on at runtime would sit over the baked paint.
+            ["extra-300-like"] = new("talk-flying", "Talk Flying"),
+
             // 737: silver all over, art-deco, the wordmark and the logo in BLACK on silver — the logo reversed
             // out of its usual silver-on-black.
             ["boeing-737-like"] = new("talk-flying", "Talk Flying Air", Silver, Silver, Silver, Graphite,
@@ -195,17 +200,27 @@ namespace FlyingGame.Bridge
         public static readonly Livery Factory233 = new("factory", "Schweizer factory",
             White, White, White, White);
 
-        // Surface-conforming paint and raster lettering are embedded in model_extra300.py's GLB.
-        public static readonly Livery SunriseExtra = new("sunrise", "Sunrise Aviation",
-            White, White, White, White);
+        // The Extra's paint is baked into its GLBs (tools/own_models/build_ea300.py), so its schemes carry no tints and
+        // no markings. "sunrise" (the original scheme id) loads the Talk Flying GLB, which still reads SUNRISE AVIATION
+        // on top; "n300uy" loads extra-300-like-own-n300uy.glb (AirframeModels.OwnSuffix).
+        public static readonly Livery SunriseExtra = new("sunrise", "Sunrise Aviation");
+        public static readonly Livery N300UYExtra = new("n300uy", "N300UY");
 
         public static readonly Livery[] All = { TypeColours, TalkFlyingGeneric };
+
+        /// <summary>The schemes a picker should offer for `aircraftId`: the fleet-wide ones plus the type's own.</summary>
+        public static IReadOnlyList<Livery> Available(string aircraftId) => aircraftId switch
+        {
+            "extra-300-like" => new[] { For("talk-flying", aircraftId), N300UYExtra },
+            _ => All,
+        };
 
         /// <summary>The livery to paint `aircraftId` in. A per-type scheme wins over the generic one.</summary>
         public static Livery For(string liveryId, string aircraftId)
         {
             if (liveryId == "factory" && aircraftId == "glider-2-33-like") return Factory233;
             if (liveryId == "sunrise" && aircraftId == "extra-300-like") return SunriseExtra;
+            if (liveryId == "n300uy" && aircraftId == "extra-300-like") return N300UYExtra;
             if (liveryId == "type" || string.IsNullOrEmpty(liveryId)) return TypeColours;
             if (liveryId == "talk-flying" && aircraftId != null && PerType.TryGetValue(aircraftId, out Livery l)) return l;
             if (liveryId == "talk-flying") return TalkFlyingGeneric;

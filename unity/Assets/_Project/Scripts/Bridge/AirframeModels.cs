@@ -48,7 +48,7 @@ namespace FlyingGame.Bridge
             // glider-2-33-like: model OFF (owner 2026-10-06: "the skin for the schweitzer 2-33 is way off — go back to your initial
             // drawing until we find a good skin"); the procedural trainer is drawn. Re-add { "glider-2-33-like", new Spec(Vector3.right, Vector3.up) }.
             // Sketchfab GLBs (owner 2026-10-02; licences + credits in each folder's LICENSE.txt), imported by glTFast.
-            // Extra: exported in the three-point attitude (its tailwheel 0.11 m below its mains) — levelled 11° nose-down
+            // Extra (downloaded; NOT LOADED since 2026-10-27, ours replaces it -- see PickOwn): exported in the three-point attitude (its tailwheel 0.11 m below its mains) — levelled 11° nose-down
             // (build/cg-check.csv: drawn wing, prop hub and gear then line up with the sim's).
             { "extra-300-like", new Spec(Vector3.left, Vector3.forward, pitchDownDeg: 11f) },        // nose -x, top +z (ModelRender)
             { "pa28-archer-like", new Spec(Vector3.right, Vector3.forward) },     // helijah exports: nose +x, top +z
@@ -102,7 +102,8 @@ namespace FlyingGame.Bridge
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
             { "c172-like", new Spec(Vector3.right, Vector3.up) },
-            // tools/model_extra300.py: original tandem MID-wing EA 300, drawn level, glTF Y-up.
+            // tools/own_models/build_ea300.py (docs/models/ea300-own-PROVENANCE.md): our mid-wing EA 300, drawn
+            // level, glTF Y-up, paint baked in. THE Extra for every livery (Ty 2026-10-27) -- see PickOwn.
             { "extra-300-like", new Spec(Vector3.right, Vector3.up) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
             // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
@@ -124,16 +125,23 @@ namespace FlyingGame.Bridge
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the
         /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
-        /// about which model is in play.</summary>
+        /// about which model is in play. The Extra is ours for EVERY livery (Ty 2026-10-27, approved own EA300 v12):
+        /// the FlightGear-based EA300 is retired from shipping use, and the downloaded Sketchfab Extra stays on disk
+        /// but is never loaded.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying"))
-                || (modelId == "extra-300-like" && SessionSettings.LiveryId == "sunrise")) && modelId != null && OwnSpecs.ContainsKey(modelId)
+            (SessionSettings.UseOwnModels || modelId == "extra-300-like"
+                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying")))
+            && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 
-        /// <summary>Our 2-33 has its paint baked in, one GLB per livery (tools/own_models/build_sgs233.py,
-        /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.</summary>
+        /// <summary>Our 2-33 and Extra have their paint baked in, one GLB per livery. 2-33 (tools/own_models/build_sgs233.py,
+        /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.
+        /// Extra (tools/own_models/build_ea300.py, EA_LIVERY=tf|n300uy): Talk Flying for every livery but "n300uy",
+        /// which is the plain N300UY scheme with no Talk Flying branding.</summary>
         static string OwnSuffix(string modelId) =>
-            modelId == "glider-2-33-like" && SessionSettings.LiveryId == "talk-flying" ? "-own-tf" : "-own";
+            modelId == "glider-2-33-like" && SessionSettings.LiveryId == "talk-flying" ? "-own-tf"
+            : modelId == "extra-300-like" && SessionSettings.LiveryId == "n300uy" ? "-own-n300uy"
+            : "-own";
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
         /// Callers that ask a question ABOUT the drawn model (does it need the procedural gear under it?) must go
