@@ -12,8 +12,96 @@ Questions for Ty about the regional atmosphere. Nothing here blocks the branch; 
 8. **Mountain magnitudes.** In 23 kt over the Alaska range, the lee sink reaches about −3.5 m/s and σ about 4.7 m/s, which is moderate-to-severe. This is physically plausible but harsh. Should it be tuned down (`orographicScale`, `leeSinkFraction`)?
 9. **Not flown in the editor or on a device.** Unity batchmode compiled everything cleanly, but nobody has looked at the J overlay, the moved Valley thermals or the feel in the air yet.
 10. **Moved thermals.** The Valley's four hand-placed thermals and the crop-field one sat inside the zone or its blend band. They now start just outside it (~350–600 m further from the runway). Is that OK, or should they be re-authored?
+11. **Rotor speeds in the big ranges look too strong (pre-existing, found while measuring the lakes).** In 25 kt, the worst rotor speed in the rough lee of the Alaska massif is about 74 m/s before lake smoothing. Over the Cascades' Outlet approach it is 53 m/s. Lake smoothing takes these to 26 and 19 m/s. The cause is the crest-level wind: it is referred to drops of up to ~1 km with the power-law profile, then multiplied by `orographicScale` 1.3 and the range's `speedScale`. Rotor speeds that high are not realistic. Should rotor speed be capped (for example at ~1.2 × the 10 m wind), or `rotorStrength` lowered? Default: unchanged, because that tuning is outside this task.
+12. **The Alaska glacier lakes are smoothed but still rough-ish.** The rule is multiplicative: lake × mountain. The Knik lake sits under The High One (×1.85, blending to the range's ×1.6), so its core comes out about ×0.6. That is smoother than the standard ×1, but rougher than the Cascades' lakes (×0.30). Do you want lake cores to have an absolute ceiling instead, such as "never rougher than ×0.4"? Default: multiplicative, as the tests specify.
+13. **Lakes you only fly into stay rough.** Hidden, Cirque and Crown are not `Landable`, so they get no smoothing. Is that right?
 
 ## Log
+### 2026-10-27 — Claude · lane/claude-regional-atmosphere · rough and smooth mountains, smooth seaplane lakes
+Ty: "I want some mountains to be rough and some to be more smooth; make the mountains with lakes to land seaplanes on smoother."
+
+**What it does**
+- `Orography.Evaluate(..., roughness)`: a new per-point factor. It multiplies the terrain's mechanical effects: the orographic σ (slope and lee/rotor turbulence), the rotor's spin and the lee downdraught.
+- The laminar effects are not scaled: speed-up, upslope lift and lee waves. A smooth ridge soars exactly as well as a rough one, and a test pins that slope lift is identical.
+- The factor is the mountain's own (`roughness` zones) × the seaplane-lake smoothing (`lakeSmoothing`).
+- Each zone also has a `lengthScale`. It multiplies the turbulence length scales, weighted by the terrain's share of the turbulence variance. Rough means shorter, sharper eddies; smooth means longer ones. Air away from terrain is unchanged.
+- No zones and no lake sources gives the old field bit for bit. All 19 earlier atmosphere tests pass untouched.
+- `AtmosphereSample` gains `OrographicSigmaMs`, `RotorMs`, `RoughnessFactor` and `LakeSmoothing`. The J overlay shows them on a new readout line, and draws each lake's smooth core and approach corridors in blue.
+
+**Mountains → roughness** (`configs/atmosphere/regional-atmosphere.json` → `roughness`)
+- Layered in list order over ×1, each zone blending in on a smootherstep. Every shape is resolved from the terrain code (`WorldTerrain.EdgeMeanY`/`EscarpmentWidthM`/`FrontExtraWidthM`, the `AlaskaRange`/`AlpineRange`/`FrankChurch`/`HighDesert`/`Hills` block constants, `Coast.MeanShoreY`, the `Peaks` tables), so the zones move if the terrain does.
+- Anything not listed (open plateau, the outwash plain) is ×1.
+
+| zone | feature | factor | L× | character |
+|---|---|---|---|---|
+| The High One summit | `peak:alaska:The High One` (radius 2,000 − 700 m) | **1.85** | 0.70 | roughest air in the world |
+| Huntington | `peak:alaska:Huntington` | **1.75** | 0.75 | steep fluted ice |
+| Alaska range | `alaskaRange` (+400 m) | **1.6** | 0.80 | ice and rock walls |
+| Mesa→Summit wall | `front:2` | **1.5** | 0.80 | the top step, roughest wall |
+| Frank Church canyon | `frankChurch` | **1.45** | 0.75 | canyon rotor |
+| Foraker | `peak:alaska:Foraker` | 1.35 | 0.90 | broad, rounder |
+| Dragontail | `peak:alpine:Dragontail` | 1.35 | 0.75 | the jagged one (over Hidden, not landable) |
+| Bench→Mesa wall | `front:1` | 1.3 | 0.85 | broken rock under the Alaska range |
+| Reno mesas | `highDesert` | 1.25 | 0.85 | sharp rims, talus |
+| Cathedral | `peak:alpine:Cathedral` | 1.15 | 0.90 | the range's high point |
+| *standard terrain* | — | 1.0 | 1.0 | |
+| Alpine range (the lake range) | `alpineRange` (+300 m) | *0.85* | 1.0 | glacier-polished basins |
+| Valley bluff (home ridge) | `front:0` | *0.8* | 1.1 | first ridge-soar should be a ride |
+| Colchuck | `peak:alpine:Colchuck` | *0.7* | 1.1 | rounded dome above Shelf |
+| Sea cliffs | `seaCliffs` | *0.6* | 1.2 | marine air on a clean wall |
+| Rolling hills | `hills` | *0.5* | 1.2 | turf mounds |
+
+From roughest to smoothest the spread is 3.7×.
+
+**Seaplane lakes** (`lakeSmoothing`)
+- Detection: the lakes come from the terrain's own water data, with no typed coordinates. The sources are:
+  - `alpineLandableLakes`: `AlpineRange.Lakes` where `Landable` is set (Outlet, Shelf, Larch). The three lakes you only fly into stay rough.
+  - `alaskaGlacierLakes`: the `AlaskaRange.Glaciers` lake ellipses (Knik, Colony).
+  - `plateauLakes`: `WorldTerrain.Lakes` beside each airport (Valley, Bench, Mesa, Summit). The harbour is at sea, so it is left out.
+  - `canyonLake`: the `CanyonLake` gorge, as capsules down `RiverCentreX`.
+  - A test checks that every lake centre is water according to `WaterSurfaceAt`.
+- Shape:
+  - The core is the water plus a shore margin. Ellipses use a radial shore distance.
+  - Approach corridors run off both ends of the landing axis (the long axis), plus one down an alpine lake's outlet valley (`OutletHeadingDeg`).
+  - The weight fades to 0 across the blend on a smootherstep. Overlapping lakes take the max of their weights, so their effects never add.
+- Numbers: `factor` 0.35 (orographic σ, rotor and lee sink), `boundaryLayerFactor` 0.7 (MIL boundary-layer σ, because water is smoother), `lengthScale` 1.3, `shoreMarginM` 300, `approachLengthM` 1,500 (past the shore), `approachHalfWidthM` 250, `blendWidthM` 600.
+- Effective factor over the lakes: Outlet, Larch and Shelf 0.85 × 0.35 ≈ **0.30**. Knik and Colony are ~1.6–1.85 × 0.35 ≈ **0.56–0.65**. The plateau lakes are 0.28 (Valley, ×0.8 bluff) to ~0.5 (Bench ×1.3, Mesa ×1.5, Summit in the Frank Church ×1.45).
+- Measured: the worst point of each core (water, shore margin, corridors at 15/60/150 m AGL), 25 kt from N/E/S/W. These are before/after values (`SmoothingAtALakeMeasured`):
+
+| lake | σ_oro m/s | total σw m/s | rotor m/s | lee sink m/s |
+|---|---|---|---|---|
+| Outlet | 19.61 → 6.86 | 15.67 → 5.98 | 52.89 → 18.51 | −8.68 → −3.04 |
+| Shelf | 8.29 → 2.90 | 7.49 → 3.53 | 31.84 → 11.15 | −6.49 → −2.27 |
+| Larch | 8.30 → 2.90 | 7.49 → 3.53 | 33.45 → 11.71 | −6.93 → −2.43 |
+| Knik | 26.46 → 9.26 | 20.91 → 7.75 | 73.82 → 25.84 | −15.97 → −5.59 |
+| Colony | 25.68 → 8.99 | 20.32 → 7.56 | 70.64 → 24.73 | −15.63 → −5.47 |
+
+The rotor magnitudes in the big ranges look high. That predates this change; see NEEDS YOU 11.
+
+**Calm home field**
+- `Sample` still returns `CalmSample` itself whenever the calm weight is 1.
+- The canyon lake and most of the Valley lake lie inside the calm zone. 1,897 samples over them are exactly zero.
+
+**Tests**: `MountainRoughnessTests`, 7 tests, all passing.
+- `RoughMountainStirsMoreThanASmoothOneInTheSameWind`: the same synthetic bluff, ×1.6 vs ×0.6, 25 kt.
+  - σ_oro 7.76 vs 2.91, rotor 25.47 vs 9.55, lee sink −6.16 vs −2.31 m/s. Each ratio is exactly 1.6/0.6.
+  - Slope lift is identical.
+  - 600 m into the lee at 60 m AGL: total σ 3.95/2.97 vs 2.28/1.60, L 177 vs 234 m.
+- `TheWorldsMountainsDifferAndTheZonesAreTheTerrainsOwn`: the zones resolve from the terrain constants, and the roughness ordering matches the table.
+- `SeaplaneLakesComeFromTheTerrainsWaterData`: covers the sources above.
+- `SeaplaneLakesAndTheirApproachesAreSmootherByTheConfiguredFactor`: 928 core samples, 4 winds.
+  - σ_oro, rotor and lee sink are each exactly 0.35 × the unsmoothed value, and roughness / the mountain's own = 0.35.
+  - Total σ is lower, while slope lift and speed-up are unchanged.
+  - Clear of the blend, the air is identical to the unsmoothed field.
+- `TheBlendsAreContinuous`: 1 m steps out of every lake on 16 bearings, and across the whole mesh on x and y lines. The largest change per metre is 0.0031 for lake weight, 0.0036 for roughness and 0.0013 for length scale, with no steps.
+- `TheCalmStartAirportIsStillExactlyZeroUnderItsLakes`.
+- `SmoothingAtALakeMeasured` prints the table above.
+
+**Results**
+- Full FlightTests: **736 passed, 3 skipped, 0 failed** (739). That is the previous 729 + 7 new, with the same 3 pre-existing skips.
+- Unity 6000.3.23f1 batchmode compile: no errors. Core, Sim, Bridge (`AtmosphereOverlay`) and EditorTools all compile, and no stray tracked files changed.
+- Not yet flown in the editor.
+
 ### 2026-10-27 — Claude · lane/claude-regional-atmosphere · regional atmosphere, calm home field
 Based on split-surfaces `ed2cc7c`. Commits, oldest first:
 - `61fe42d` The air differs from place to place now, and is dead calm over the home field
