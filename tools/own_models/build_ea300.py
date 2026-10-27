@@ -1,4 +1,4 @@
-"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v6 (cockpit interior, v6 layout)
+"""Our own Extra EA 300 (early two-seat MID-WING, c/n 047 / N300UY) -> extra-300-like-own.glb.   v7 (cockpit interior, v7 layout)
 
 Shape: by Ty's decision (2026-10-26) matched to ~1 in to the approved FlightGear-based Extra (codex/fg-models v9
 5fdacad, wing raised ~10 in), which is the FlightGear EA300 by Patrizio Melis (GPL).  That model is used ONLY as a
@@ -95,7 +95,7 @@ botf = lambda x: np.interp(-np.asarray(x), -RX, RB)
 # cabin tub so the clear canopy does not show the sky through the fuselage: floor only (v3: seat-back boxes read as crude grey blocks)
 gx = RX[[(p[:, 3] == 1).any() for p in RP]]; CX0, CX1 = gx.max(), gx.min()
 bm = bmesh.new()
-for x0, x1, z0, z1, hw in ((CX0, CX1, 0.046, 0.064, 0.30),):   # v6: under the lowered cockpit floor
+for x0, x1, z0, z1, hw in ((CX0, CX1, 0.046 - 0.152, 0.064 - 0.152, 0.30),):   # v6: under the lowered cockpit floor
     bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(((x0 + x1) / 2, 0, (z0 + z1) / 2)) @ Matrix.Diagonal((abs(x0 - x1), 2 * hw, z1 - z0, 1)))
 P['Cabin'] = link('Cabin', bm)
 
@@ -129,12 +129,16 @@ def ck_gauge(x, y, z, r, lean=0.0):
     ck_cyl('ck_gauge', np.array(a) - 0.002 * dn, np.array(a) + 0.006 * dn, r, 16)
     ck_cyl('ck_face', np.array(a) + 0.006 * dn, np.array(a) + 0.008 * dn, r * 0.82, 16)
     ck_box('ck_stick', tuple(np.array(a) + 0.0095 * dn + np.array((0, r * 0.25, r * 0.15))), (0.002, r * 0.6, r * 0.08), ry=lean, rx=-0.6)
-def ck_seat(x0, zf, back_top, hw, rec_deg=22):
+def ck_seat(x0, zf, back_top, hw, rec_deg=22, back_z0=None):
     """moulded shell: pan from x0 aft, raised thigh lip, reclined back (30 deg), side bolsters, 5-pt straps"""
     pan_l, rec = 0.34, math.radians(rec_deg); bx = x0 - pan_l
     ck_box('ck_seat', (x0 - pan_l / 2, 0, zf + 0.03), (pan_l, 2 * hw, 0.05), ry=math.radians(-6))
     ck_box('ck_seat', (x0 - 0.03, 0, zf + 0.07), (0.06, 2 * hw, 0.05))                        # thigh lip
-    bl = (back_top - zf) / math.cos(rec); bc = (bx - math.sin(rec) * bl / 2, 0, zf + math.cos(rec) * bl / 2)
+    bz = zf if back_z0 is None else back_z0                     # v7: reclined back keeps its top; vertical extension down to a lowered pan
+    if bz > zf + 0.01:
+        ck_box('ck_seat', (bx - 0.005, 0, (zf + bz) / 2 + 0.01), (0.05, 2 * hw, bz - zf + 0.02))
+        for sy in (1, -1): ck_box('ck_seat', (bx + 0.025, sy * (hw - 0.02), (zf + bz) / 2 + 0.01), (0.10, 0.04, bz - zf + 0.02))
+    bl = (back_top - bz) / math.cos(rec); bc = (bx - math.sin(rec) * bl / 2, 0, bz + math.cos(rec) * bl / 2)
     ck_box('ck_seat', bc, (0.05, 2 * hw, bl), ry=-rec)
     for sy in (1, -1):
         ck_box('ck_seat', (bc[0] + 0.03, sy * (hw - 0.02), bc[2] - 0.05), (0.10, 0.04, bl * 0.8), ry=-rec)   # back bolsters
@@ -156,7 +160,7 @@ def ck_stick(x, zf, h=0.36, floor=None):
     ck_cyl('ck_seat', (x, 0, fl), (x, 0, fl + 0.07), 0.034, 12)                                 # rubber boot
     ck_cyl('ck_stick', (x, 0, zf + 0.05), (x - 0.045, 0, zf + h - 0.09), 0.010, 10)
     ck_cyl('ck_stick', (x - 0.045, 0, zf + h - 0.10), (x - 0.055, 0, zf + h), 0.016, 12)        # grip
-ZF = 0.068  # v6: cockpit floor top, lowered 0.102 with the seats (wing carry-through trimmed under the tub)
+ZF = 0.068 - 0.152  # v7: floor lowered 0.152 with the seat pans; v6: cockpit floor top, lowered 0.102 with the seats (wing carry-through trimmed under the tub)
 # navy tub: floor + inner side walls so the wing root and the painted fuselage skin never show inside
 def ck_tub():
     xs = list(np.linspace(CX0 + 0.02, CX1 - 0.02, 12)); hw = lambda x: float(np.interp(-x, -RX, RW_)) - 0.05   # v6: inset 0.035->0.05 (sill clash)
@@ -177,9 +181,9 @@ for a, b in zip(_lx[:-1], _lx[1:]):
     if zt > ZF + 0.005 and ww > 0.30:
         for sy in (1, -1): ck_box('ck_tub', (m, sy * (0.30 + ww) / 2 * 1.0, (ZF + zt) / 2), (abs(a - b) + 0.002, ww - 0.295, zt - ZF))
 # front (student) seat + stick
-ck_seat(-0.694, ZF, 0.328, 0.17, rec_deg=17); ck_stick(-0.504, 0.17 - 0.305, 0.34, floor=ZF)   # v6: seat -0.102 z, seat+stick 0.254 aft, stick -0.305 z; recline 22->17 deg to clear the dash top
+ck_seat(-0.694 + 0.152, ZF, 0.328, 0.17, rec_deg=17, back_z0=0.068); ck_stick(-0.504 + 0.152, 0.17 - 0.305, 0.34 + 0.102, floor=ZF)   # v7: pan -0.152 z, seat+stick fwd 0.152, stick +0.102 long   # v6: seat -0.102 z, seat+stick 0.254 aft, stick -0.305 z; recline 22->17 deg to clear the dash top
 # rear (PIC) seat + stick
-ck_seat(-1.42, ZF, 0.348, 0.17); ck_stick(-1.355, 0.17 - 0.305, 0.36, floor=ZF)   # v6: stick -0.305 z; moved aft 0.115 so it stays behind the moved panel
+ck_seat(-1.42, ZF, 0.348, 0.17, back_z0=0.068); ck_stick(-1.355, 0.17 - 0.305, 0.36 + 0.102, floor=ZF)   # v7: pan -0.152 z, stick +0.102 long   # v6: stick -0.305 z; moved aft 0.115 so it stays behind the moved panel
 # front panel: small arch-top strip under the windscreen, 5 gauges
 arch = [(-0.27, 0.0), (0.27, 0.0)] + [(0.27 * math.cos(t), 0.07 + 0.08 * math.sin(t)) for t in np.linspace(0, math.pi, 11)]
 FPX, FPZ, FL = -0.14, 0.17, math.radians(18)
@@ -189,7 +193,7 @@ for y in (-0.19, -0.095, 0, 0.095, 0.19):
     ck_gauge(FPX + zz * math.tan(FL) - 0.011, y, FPZ + zz, 0.036, FL)
 # rear (main) panel, v5: angular-cornered dash top (glareshield) ~0.20 m deep fore-aft behind the front seat, after the
 # 300L photo; the rectangular instrument panel hangs under its aft lip; radio stack below
-RPX, RPZ = -1.314, 0.148                                       # panel face station / panel bottom
+RPX, RPZ = -1.314 + 0.152, 0.148                                       # panel face station / panel bottom
 hood = [(-0.31, 0.0), (0.31, 0.0), (0.31, 0.03), (0.20, 0.12), (-0.20, 0.12), (-0.31, 0.03)]   # v6: narrowed 0.04/side to clear the canopy glass
 _h0 = len(ck_tag); ck_prism('ck_panel', hood, RPX + 0.06, 0.20, 0.0, RPZ + 0.16)    # x RPX-0.04 .. RPX+0.16
 for _i in (2, 3, 4): ck_tag[_h0 + 2 + _i] = CK_T.index('ck_black')          # v6: flat matte black top (+ angled corners)
