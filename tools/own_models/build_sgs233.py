@@ -30,8 +30,11 @@ def link(name, bm):
     o = bpy.data.objects.new(name, me); bpy.context.scene.collection.objects.link(o); return o
 
 # ---- fuselage: 18 stations (px, top py, bottom py, half-width m, superellipse exponent) --------
-ST = [(229, 247, 253, 0.03, 2.0), (232, 241, 261, 0.11, 2.0), (240, 232, 271, 0.20, 2.1),
-      (252, 225, 280, 0.27, 2.2), (266, 222, 286, 0.32, 2.4), (284, 224, 289, 0.345, 2.6),
+# v4: nose stations re-measured on the 3-view (side-view top/bottom, top-view half-width) -> drooped, tapered nose
+ST = [(228.5, 258.5, 261.5, 0.02, 2.0), (231.5, 249.6, 269.3, 0.115, 2.0), (234.7, 245.3, 272.5, 0.16, 2.0),
+      (238.0, 242.1, 274.7, 0.19, 2.0), (241.1, 239.5, 276.8, 0.218, 2.0), (247.5, 235.7, 280.5, 0.255, 2.1),
+      (254.0, 232.5, 283.2, 0.288, 2.2), (260.3, 230.4, 285.9, 0.308, 2.3), (266.7, 228.3, 289.6, 0.33, 2.4),
+      (273.0, 226.7, 292.3, 0.34, 2.5), (284, 225, 291, 0.345, 2.6), (297, 225.5, 291, 0.352, 2.7),
       (310, 226, 291, 0.355, 2.8), (340, 226, 291, 0.355, 2.8), (362, 220, 290, 0.35, 2.8),
       (400, 214, 288, 0.335, 2.8), (440, 213, 282, 0.30, 2.8), (480, 212, 271, 0.245, 2.7),
       (530, 212, 260, 0.19, 2.6), (580, 212, 250, 0.145, 2.5), (630, 212, 240, 0.105, 2.4),
@@ -49,41 +52,38 @@ bm = bmesh.new(); rings = [[bm.verts.new(p) for p in ring(*s)] for s in ST]
 for a, b in zip(rings, rings[1:]):
     for i in range(NR):
         j = (i + 1) % NR; bm.faces.new((a[i], a[j], b[j], b[i]))
-nose = bm.verts.new((mx(227.5), 0, mz(250))); tail = bm.verts.new((mx(741), 0, mz(216.5)))
+nose = bm.verts.new((mx(227.8), 0, mz(260))); tail = bm.verts.new((mx(741), 0, mz(216.5)))
 for i in range(NR):
     j = (i + 1) % NR
     bm.faces.new((rings[0][j], rings[0][i], nose)); bm.faces.new((rings[-1][i], rings[-1][j], tail))
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 P = {'Fuselage': link('Fuselage', bm)}
 
-# ---- canopy: tandem two-seat bubble, sill y=226 from px 284 to 362, crown y=198 ----------------
-CAN = [(284, 226, 0.05), (292, 216, 0.17), (302, 208, 0.24), (316, 202, 0.28), (332, 199, 0.30),
-       (348, 198, 0.30), (362, 198, 0.29)]
-bm = bmesh.new(); M_ = 16; cr = []
-for px, top, hw in CAN:
-    zs, zt = mz(226) - 0.01, mz(top); h = max(zt - zs, 0.01)
-    r = []
-    for i in range(M_ + 1):
-        a = math.pi * i / M_
-        r.append(bm.verts.new((mx(px), hw * math.cos(a), zs + h * math.sin(a) ** 0.8)))
-    cr.append(r)
-for a, b in zip(cr, cr[1:]):
-    for i in range(M_): bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
-bm.faces.new(cr[-1][::-1] if False else cr[-1])
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-P['Canopy_Glass'] = link('Canopy_Glass', bm)
-# canopy frame: thin white bow at the windscreen and a centre bow between the seats
-bm = bmesh.new()
-for px, top, hw in (CAN[1], CAN[4]):
-    zs, zt = mz(226) - 0.005, mz(top) + 0.008
-    prev = None
-    for i in range(M_ + 1):
-        a = math.pi * i / M_
-        p0 = (mx(px) + 0.02, (hw + 0.01) * math.cos(a), zs + (zt - zs) * math.sin(a) ** 0.8)
-        p1 = (mx(px) - 0.02, (hw + 0.01) * math.cos(a), zs + (zt - zs) * math.sin(a) ** 0.8)
-        cur = (bm.verts.new(p0), bm.verts.new(p1))
-        if prev: bm.faces.new((prev[0], cur[0], cur[1], prev[1]))
-        prev = cur
+# ---- canopy (v4): faired into the fuselage. Each section springs from the fuselage side 8 cm below its top,
+# at the fuselage's own width there, and rises as a superellipse to the crown measured on the 3-view.
+STa = np.array(ST)
+def fus(px):
+    return [np.interp(px, STa[:, 0], STa[:, k]) for k in range(1, 5)]
+def sec(px, top_py, m=2.4, M_=16, grow=0.0, drop=0.08):
+    t, b_, hw, n = fus(px); zt, zb = mz(t), mz(b_); zc, hh = (zt + zb) / 2, (zt - zb) / 2
+    z0 = zt - drop; wb = hw * max(1 - abs((z0 - zc) / hh) ** n, 0) ** (1 / n) + 0.004 + grow
+    zcr = max(mz(top_py), zt + 0.002) + grow
+    return [(mx(px), wb * np.sign(math.cos(a)) * abs(math.cos(a)) ** (2 / m), z0 + (zcr - z0) * math.sin(a) ** (2 / m))
+            for a in np.linspace(0, math.pi, M_ + 1)]
+def loft_secs(name, secs, cap_end=True):
+    bm = bmesh.new(); cr = [[bm.verts.new(p) for p in s_] for s_ in secs]
+    for a_, b2 in zip(cr, cr[1:]):
+        for i in range(len(a_) - 1): bm.faces.new((a_[i], a_[i + 1], b2[i + 1], b2[i]))
+    if cap_end: bm.faces.new(cr[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); return link(name, bm)
+CAN = [(279, 226.5), (285, 219.7), (293, 213.3), (301, 208.5), (309, 204.8), (317, 202.1), (325, 199.5),
+       (333, 197.9), (341, 196.3), (349, 195.7), (357, 195.2), (362, 194.5)]
+P['Canopy_Glass'] = loft_secs('Canopy_Glass', [sec(px, tp) for px, tp in CAN])
+bm = bmesh.new()   # frame bows at the windscreen arch, between the seats, and the aft edge
+for px, tp in (CAN[1], CAN[7], CAN[-1]):
+    pa = sec(px + 1.3, tp, grow=0.008); pb = sec(px - 1.3, tp, grow=0.008)
+    va = [bm.verts.new(p) for p in pa]; vb = [bm.verts.new(p) for p in pb]
+    for i in range(len(va) - 1): bm.faces.new((va[i], va[i + 1], vb[i + 1], vb[i]))
 P['Canopy_Frame'] = link('Canopy_Frame', bm)
 
 # ---- wing (planform defined earlier from the 3-view; new loft) ---------------------------------
@@ -129,11 +129,16 @@ for sg, sd in ((1, 'L'), (-1, 'R')):
     P['Spoiler_' + sd] = link('Spoiler_' + sd, bm)
 P['Wing'] = paint.join(wing, 'Wing')
 bm = bmesh.new(); bm.from_mesh(P['Wing'].data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.001); bm.to_mesh(P['Wing'].data); bm.free()
-# wing-root pylon fairing joining the fuselage top to the wing underside (3-view: px 362-458)
-bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1)
-for v in bm.verts:
-    v.co = (mx(362) + (mx(452) - mx(362)) * (v.co.x + 0.5), 0.24 * v.co.y * 2, mz(216) + (Z0 - 0.02 - mz(216)) * (v.co.z + 0.5))
-P['Fuselage_Pylon'] = link('Fuselage_Pylon', bm)
+# wing-root pylon (v4): lofted fairing following the 3-view profile from the canopy's aft end (px 362) up into the
+# wing underside and down the turtle deck to px 475; sections narrow toward the top so it reads as a fillet, not a box
+PYL = [(362, 194.5), (372, 190), (385, 188), (410, 188), (435, 192), (450, 197), (461, 202.7), (469, 208), (475, 211)]
+def pyl_sec(px, tp, M_=16):
+    s_ = sec(px, tp, m=2.4, M_=M_); zw = Z0 + 0.03; out = []
+    for x, y, z in s_:
+        if z > zw: y *= max(0.55, 1 - (z - zw) * 2.0); z = min(z, zw + 0.06)
+        out.append((x, y, z))
+    return out
+P['Fuselage_Pylon'] = loft_secs('Fuselage_Pylon', [pyl_sec(px, tp) for px, tp in PYL])
 
 # ---- tail: fin/rudder (swept LE 640,212 -> 680,117; hinge px 692) and stab/elevator -------------
 def slab(name, outline, axis, t):
@@ -237,9 +242,9 @@ for n, o in P.items():
         col = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'yellow'}.get(n)
         if col is None: col = 'yellow' if n.startswith(('Wing', 'Aileron', 'Spoiler', 'Stab', 'Elevator', 'Fin', 'Rudder')) else 'yellow'
         setm(o, [col]); [setattr(p, 'material_index', 0) for p in o.data.polygons]
-for n in ('Fuselage', 'Wing', 'Aileron_L', 'Aileron_R', 'Canopy_Glass', 'Gear'):
+for n in ('Fuselage', 'Wing', 'Aileron_L', 'Aileron_R', 'Canopy_Glass', 'Gear', 'Canopy_Frame'):
     for p in P[n].data.polygons: p.use_smooth = True
-    try: P[n].data.set_sharp_from_angle(angle=math.radians(50))
+    try: P[n].data.set_sharp_from_angle(angle=math.radians(60))
     except Exception: pass
 import bmesh
 for o in P.values():  # make every part's normals face outward
