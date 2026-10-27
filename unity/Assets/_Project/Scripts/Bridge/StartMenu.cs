@@ -398,6 +398,15 @@ namespace FlyingGame.Bridge
             float surfF = (15f + SessionSettings.IsaDeviationC) * 1.8f + 32f;
             y = Stepper(x, y, colW, "Temperature", $"{surfF:F0}°F", ref SessionSettings.IsaDeviationC, -30f, 30f, 1f);
             y = Stepper(x, y, colW, "Thermals", SessionSettings.ThermalScale <= 0.01f ? "Off" : $"{SessionSettings.ThermalScale:F1}×", ref SessionSettings.ThermalScale, 0f, 2f, 0.25f);
+            // Regional air (free flight): the wind above is the air MASS; each region makes its own weather in it, and the
+            // home field is dead calm. Uniform: that one wind everywhere. Challenges, contests and lessons are always uniform.
+            if (!locked && SessionSettings.ChallengeId == null)
+            {
+                if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.RegionalWeather ? "Air: REGIONAL (calm at home)" : "Air: uniform",
+                                    SessionSettings.RegionalWeather ? _btnOn : _btn))
+                    SessionSettings.RegionalWeather = !SessionSettings.RegionalWeather;
+                y += row;
+            }
 
             if (locked) GUI.enabled = wasEnabled;
             // Bushwheels: twice the tyre, no pants, half the pressure. It changes how the aeroplane lands on

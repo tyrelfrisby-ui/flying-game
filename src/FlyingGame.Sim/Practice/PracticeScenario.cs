@@ -479,6 +479,7 @@ public sealed class PracticeScenario
     /// 4° path to the threshold (flare exercises), heading along the runway, crabbed for the steady crosswind.</summary>
     public Aircraft Spawn()
     {
+        Atmosphere.Field = null;   // the exercise owns its wind: uniform air, whatever the free-flight weather was
         Atmosphere.ActiveTurbulence = null;
         Atmosphere.SteadyWind = WindVector(0, 0);
         if (Airwork) return SpawnAirwork();

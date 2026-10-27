@@ -328,7 +328,7 @@ namespace FlyingGame.Bridge
             var vAir = st.Velocity - st.Attitude.Conjugate().Rotate(FlyingGame.Core.Atmosphere.WindAtPosition(st.Position));
             double tas = vAir.Length, alphaD = tas > 1 ? System.Math.Atan2(vAir.Z, vAir.X) * 57.2958 : 0, betaD = tas > 1 ? System.Math.Asin(System.Math.Clamp(vAir.Y / tas, -1, 1)) * 57.2958 : 0;
             double h = -st.Position.Z, rho = FlyingGame.Core.Atmosphere.DensityAtPosition(st.Position), sigma = rho / 1.225;
-            double tK = FlyingGame.Core.Atmosphere.TemperatureAtPosition(st.Position), pPa = FlyingGame.Core.Atmosphere.PressureAtAltitude(h);
+            double tK = FlyingGame.Core.Atmosphere.TemperatureAtPosition(st.Position), pPa = FlyingGame.Core.Atmosphere.PressureAt(st.Position);
             double q = 0.5 * rho * tas * tas, eas = tas * System.Math.Sqrt(sigma), mach = tas / System.Math.Sqrt(1.4 * 287.05 * tK);
             // Pressure altitude from the static pressure (ISA); density altitude from σ (ISA troposphere).
             double pAltFt = (1 - System.Math.Pow(pPa / 101325.0, 0.190263)) * 145366.45;

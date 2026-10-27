@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "id": "regional-atmosphere",
+  "synoptic": {
+    "windFromDeg": 90,
+    "windSpeedKt": 10,
+    "isaDeviationC": 0,
+    "qnhHpa": 1013.25
+  },
+  "calmZone": {
+    "id": "home-airport-calm",
+    "enabled": true,
+    "anchor": "defaultStartAirport",
+    "radiusM": 1200,
+    "extendBeyondThresholdsM": 1800,
+    "ceilingAfeM": 457.2,
+    "blendWidthM": 600,
+    "ceilingBlendM": 150
+  },
+  "regions": [
+    {
+      "id": "background",
+      "note": "The air mass everywhere nothing else is authored: the synoptic wind over open farmland.",
+      "shape": "global",
+      "roughnessM": 0.05,
+      "turbulenceScale": 1.0,
+      "clearAirSigmaMs": 0.3,
+      "thermalScale": 1.0,
+      "boundaryLayerM": 2000,
+      "lapseRateCPerKm": 6.5,
+      "wind": { "mode": "synoptic", "speedScale": 1.0, "profileExponent": 0.14, "gradientHeightM": 600 }
+    },
+    {
+      "id": "coast-marine",
+      "note": "East of the shore: cool, high-pressure, smooth marine air in a shallow stable layer; the sea breeze blows onshore harder over the smooth water, thermals die, a little subsidence.",
+      "shape": "box", "centerX": 1000, "centerY": 6500, "halfX": 9000, "halfY": 3500, "blendM": 1200,
+      "isaDeviationC": -4, "qnhOffsetHpa": 2.0, "lapseRateCPerKm": 4.5,
+      "roughnessM": 0.0002, "turbulenceScale": 0.6, "clearAirSigmaMs": 0.15,
+      "thermalScale": 0.25, "boundaryLayerM": 600, "backgroundVerticalMs": -0.15,
+      "wind": { "mode": "synoptic", "speedScale": 1.3, "veerDeg": -10, "profileExponent": 0.10, "gradientHeightM": 400 }
+    },
+    {
+      "id": "outwash-glacier",
+      "note": "The braided outwash plain under the ice: cold, stable, smooth gravel; weak thermals.",
+      "shape": "box", "centerX": 5800, "centerY": -2800, "halfX": 2200, "halfY": 1350, "blendM": 600,
+      "isaDeviationC": -6, "lapseRateCPerKm": 5.5, "roughnessM": 0.01, "turbulenceScale": 0.8, "thermalScale": 0.4,
+      "boundaryLayerM": 900,
+      "wind": { "mode": "synoptic", "speedScale": 1.1, "profileExponent": 0.12 }
+    },
+    {
+      "id": "high-desert",
+      "note": "Reno: hot, thin, very convective air — big thermals, low pressure, a deep boundary layer.",
+      "shape": "box", "centerX": -5250, "centerY": -6000, "halfX": 1650, "halfY": 1450, "blendM": 1000,
+      "isaDeviationC": 15, "qnhOffsetHpa": -3.0, "lapseRateCPerKm": 8.5,
+      "roughnessM": 0.05, "turbulenceScale": 1.2, "clearAirSigmaMs": 0.5, "thermalScale": 1.8, "boundaryLayerM": 3000,
+      "wind": { "mode": "synoptic", "speedScale": 1.0, "veerDeg": 20, "profileExponent": 0.14 }
+    },
+    {
+      "id": "alaska-range",
+      "note": "Ice and rock: cold, windy, stable air — strong orographic effects, rotor and lee waves.",
+      "shape": "box", "centerX": 5700, "centerY": -5950, "halfX": 3100, "halfY": 1500, "blendM": 1000,
+      "isaDeviationC": -12, "qnhOffsetHpa": -1.0, "lapseRateCPerKm": 5.0,
+      "roughnessM": 0.3, "turbulenceScale": 1.3, "clearAirSigmaMs": 0.6, "orographicScale": 1.3,
+      "thermalScale": 0.3, "boundaryLayerM": 1200,
+      "wind": { "mode": "synoptic", "speedScale": 1.6, "profileExponent": 0.18, "gradientHeightM": 800 }
+    },
+    {
+      "id": "alpine-range",
+      "note": "Granite and scree: cold and windy aloft, sun-heated rock faces still throw thermals.",
+      "shape": "box", "centerX": 5500, "centerY": -11300, "halfX": 3100, "halfY": 3100, "blendM": 1000,
+      "isaDeviationC": -8, "lapseRateCPerKm": 5.5,
+      "roughnessM": 0.5, "turbulenceScale": 1.2, "clearAirSigmaMs": 0.5, "orographicScale": 1.3,
+      "thermalScale": 0.9, "boundaryLayerM": 1800,
+      "wind": { "mode": "synoptic", "speedScale": 1.4, "veerDeg": -15, "profileExponent": 0.2, "gradientHeightM": 800 }
+    },
+    {
+      "id": "frank-church",
+      "note": "The forested backcountry canyon: warm, sheltered, rough; thermals off the sunny walls.",
+      "shape": "box", "centerX": -2200, "centerY": -12700, "halfX": 3400, "halfY": 2300, "blendM": 900,
+      "isaDeviationC": 6, "lapseRateCPerKm": 7.0,
+      "roughnessM": 0.8, "turbulenceScale": 1.1, "orographicScale": 1.2, "thermalScale": 1.4, "boundaryLayerM": 2200,
+      "wind": { "mode": "synoptic", "speedScale": 0.8, "profileExponent": 0.24 }
+    },
+    {
+      "id": "airport2-variable",
+      "note": "Airport 2 (Bench, 3,000 ft): light and variable — about 5 kt, the direction wandering all the way round.",
+      "shape": "circle", "anchor": "airport:Bench", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
+      "isaDeviationC": 2, "roughnessM": 0.03, "turbulenceScale": 0.5, "thermalScale": 1.0,
+      "wind": {
+        "mode": "variable", "speedKt": 5, "speedJitterKt": 0.8, "fromDeg": 90,
+        "turnRateSigmaDegS": 2.5, "turnRateMaxDegS": 6, "correlationS": 40, "seed": 2,
+        "profileExponent": 0.14, "gradientHeightM": 300
+      }
+    },
+    {
+      "id": "airport3-gusty",
+      "note": "Airport 3 (Mesa, 5,000 ft): 060 at 5 kt gusting 15 — a steady direction, random 1-cosine gusts.",
+      "shape": "circle", "anchor": "airport:Mesa", "radiusM": 1400, "blendM": 700, "ceilingM": 600, "ceilingBlendM": 300,
+      "isaDeviationC": 4, "roughnessM": 0.05, "turbulenceScale": 1.0, "thermalScale": 1.0,
+      "wind": {
+        "mode": "gusty", "fromDeg": 60, "speedKt": 5, "gustPeakKt": 15,
+        "meanGustIntervalS": 18, "minGustDurationS": 4, "maxGustDurationS": 10, "seed": 3,
+        "profileExponent": 0.16, "gradientHeightM": 300
+      }
+    }
+  ],
+  "turbulence": {
+    "spectrum": "vonKarman",
+    "modes": 48,
+    "seed": 7,
+    "scale": 1.0,
+    "minLengthM": 15,
+    "maxLengthM": 762
+  },
+  "orography": {
+    "enabled": true,
+    "maxSpeedUp": 0.6,
+    "speedUpReliefM": 400,
+    "speedUpDecayM": 300,
+    "leeSinkFraction": 0.35,
+    "rotorStrength": 0.7,
+    "rotorDistanceDrops": 1.2,
+    "leeMinWindMs": 2,
+    "leeFullWindMs": 6,
+    "rotorMinWindMs": 4,
+    "rotorFullWindMs": 10,
+    "minLeeDropM": 60,
+    "slopeTurbulence": 0.15,
+    "leeTurbulence": 0.2,
+    "waveLengthCompression": 0.35,
+    "waveAmplitude": 0.25,
+    "minWaveWindMs": 6
+  },
+  "convection": {
+    "backgroundUpdraftMs": 1.0,
+    "cellSizeM": 700,
+    "gridM": 100
+  }
+}

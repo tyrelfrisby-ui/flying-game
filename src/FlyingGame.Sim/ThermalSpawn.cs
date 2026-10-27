@@ -59,7 +59,7 @@ public static class ThermalSpawn
         // core at wind × (1 − climb / w_axis). Centre the circle that drift × DriftLeadSec upwind (as a pilot would), so the
         // drift carries it across the core instead of out of it. (A glider in a strong core barely drifts at all.)
         Vec3 core = th.CoreAt(altitudeM);
-        Vec3 windH = Atmosphere.SteadyWind * Atmosphere.WindGradientFactor(new Vec3(0, 0, -altitudeM));
+        Vec3 windH = Atmosphere.SteadyWindAt(new Vec3(core.X, core.Y, -altitudeM));
         if (windH.X != 0 || windH.Y != 0)
         {
             double wAxis = -th.WindAt(new Vec3(core.X, core.Y, -altitudeM)).Z;
@@ -76,7 +76,7 @@ public static class ThermalSpawn
         double theta = gamma + alpha * Math.Cos(bank);
         Quat q = Mul(Mul(Axis(0, 0, 1, psi), Axis(0, 1, 0, theta)), Axis(1, 0, 0, bank));
         var vAir = new Vec3(v * Math.Cos(gamma) * Math.Cos(psi), v * Math.Cos(gamma) * Math.Sin(psi), -v * Math.Sin(gamma));
-        Vec3 vGround = vAir + Atmosphere.SteadyWind * Atmosphere.WindGradientFactor(pos);
+        Vec3 vGround = vAir + Atmosphere.SteadyWindAt(pos);
         double omega = Atmosphere.GravityMs2 * Math.Tan(bank) / v;   // turn rate about world down (+ = right)
         var state = new RigidBodyState(pos, q, q.Conjugate().Rotate(vGround), q.Conjugate().Rotate(new Vec3(0, 0, omega)));
         return new Plan(state, trim.ElevatorRad, bank, v, r, vms, core);

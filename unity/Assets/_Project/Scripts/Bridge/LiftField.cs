@@ -91,7 +91,7 @@ namespace FlyingGame.Bridge
                 Vector3 c = CellWorld(i);
                 if (c.y < 0f) { _w[i] = 0f; continue; }
                 var sim = CoordinateMap.ToSim(c);
-                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWind * FlyingGame.Core.Atmosphere.WindGradientFactor(sim);
+                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWindAt(sim);
                 float ground = (float)FlyingGame.Core.WorldTerrain.GroundHeightAt(sim.X, sim.Y);
                 _w[i] = c.y < ground ? 0f : -(float)local.Z;
             }

@@ -52,9 +52,15 @@ namespace FlyingGame.Bridge
                 if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField))
                     set.Add((new Vec3(overTheField.Item1.X, overTheField.Item1.Y + dy, -elev), overTheField.Item2, overTheField.Item3, overTheField.Item4 + elev));
             }
+            // The home field's calm zone (regional atmosphere, owner 2026-10-27) holds no thermal: any authored column that
+            // stands in it or its blend band is moved straight out to where the regional air begins — same side of the
+            // field, same strength. (The zone is the default start airport's, whatever the session's weather.)
+            FlyingGame.Core.AtmosphereField field = SessionSettings.RegionalField;
             int seed = 0;
-            foreach (var (pos, r, core, top) in set)
+            foreach (var (authored, r, core, top) in set)
             {
+                Vec3 pos = authored;
+                if (field != null) { var (x, y) = field.NearestThermalSite(pos.X, pos.Y); pos = new Vec3(x, y, pos.Z); }
                 var th = new Thermal(pos, r, core, top);
                 // Lean comes from the wind itself now (Thermal.CoreAt), so a circling glider stays in the column.
                 Atmosphere.Thermals.Add(th);

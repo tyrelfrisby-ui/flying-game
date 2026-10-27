@@ -7,7 +7,9 @@ namespace FlyingGame.Bridge
     /// Sets the active turbulence level — the ONE field both the aircraft (via Atmosphere) and the
     /// bubble field read, so what you see the bubbles doing is exactly what the wings feel. Press T to
     /// cycle Calm → Light → Moderate → Severe. The bubble field is handed the same Turbulence instance
-    /// so its visual gusts and the aircraft's buffeting are the identical air.
+    /// so its visual gusts and the aircraft's buffeting are the identical air. In the regional air
+    /// (SessionSettings.RegionalWeather) T scales the regions' own turbulence, and K, [ and ] — which
+    /// set one wind for the whole map — switch to the uniform air.
     /// </summary>
     public sealed class WeatherController : MonoBehaviour
     {
@@ -26,7 +28,8 @@ namespace FlyingGame.Bridge
         };
         private int _windDir;
         private float _windSpeed = 8f;
-        public string WindLabel => _windDir == 0 ? "Calm" : _windDir < 0 ? $"Wind {SessionSettings.WindFromDeg:000}° {_windSpeed:F0} m/s" : $"{WindDirs[_windDir].Name} {_windSpeed:F0} m/s";
+        public string WindLabel => Atmosphere.Field != null ? $"Regional air (mass {SessionSettings.WindFromDeg:000}° {_windSpeed:F0} m/s)"
+            : _windDir == 0 ? "Calm" : _windDir < 0 ? $"Wind {SessionSettings.WindFromDeg:000}° {_windSpeed:F0} m/s" : $"{WindDirs[_windDir].Name} {_windSpeed:F0} m/s";
 
         /// <summary>Adopt the landing-page weather (SessionSettings.ApplyWeather already set the atmosphere).</summary>
         public void SyncFromSession()
@@ -42,7 +45,8 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.T))
             {
                 _level = (_level + 1) % Levels.Length;
-                Apply();
+                if (Atmosphere.Field != null) ApplyRegionalTurbulence();
+                else Apply();
             }
             if (Input.GetKeyDown(KeyCode.K))
             {
@@ -53,8 +57,18 @@ namespace FlyingGame.Bridge
             if (Input.GetKeyDown(KeyCode.RightBracket)) { _windSpeed = Mathf.Min(20, _windSpeed + 2); ApplyWind(); }
         }
 
+        /// <summary>In the regional air T steps the regions' turbulence up (the regions still decide where it is smooth).</summary>
+        private void ApplyRegionalTurbulence()
+        {
+            SessionSettings.TurbulenceLevel = _level;
+            var f = Atmosphere.Field;
+            f.TurbulenceScale = f.Config.Turbulence.Scale * SessionSettings.RegionalTurbulenceSteps[_level];
+        }
+
         private void ApplyWind()
         {
+            // K / [ / ] set ONE wind for the whole map: that is the uniform override, so they leave the regional air.
+            if (Atmosphere.Field != null) { Atmosphere.Field = null; Apply(); }
             if (_windDir < 0) _windDir = 0;
             if (_windDir == 0) { Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero; return; }
             // Runway is along +x (sim north). Wind blows FROM DirDeg toward the aircraft.

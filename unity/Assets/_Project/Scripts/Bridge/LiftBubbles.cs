@@ -86,7 +86,7 @@ namespace FlyingGame.Bridge
                 Col c = _cols[k];
                 if (now - c.t < RefreshS) continue;
                 var sim = CoordinateMap.ToSim(new Vector3(c.xz.x, p.y, c.xz.y));
-                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWind * FlyingGame.Core.Atmosphere.WindGradientFactor(sim);
+                var local = FlyingGame.Core.Atmosphere.MeanWindAtPosition(sim) - FlyingGame.Core.Atmosphere.SteadyWindAt(sim);
                 c.w = -(float)local.Z; c.t = now;
                 _cols[k] = c;
             }
