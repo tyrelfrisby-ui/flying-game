@@ -378,22 +378,35 @@ P['Prop'] = link('Prop', bm)
 # Sized from published Lycoming data (bore 5.125 in, overall width ~33-34 in) and generic flat-six layout; drawn from
 # primitives here, no third-party mesh. Lycoming numbering: odd cylinders right (starboard, -y), even left (port, +y);
 # #1 right-front is the most forward cylinder, the left bank sits one crank-throw spacing aft (EN_STAG).
-INLETS = [(sy * 0.285, -0.01, 0.085, 0.080) for sy in (1, -1)]   # (y, z, ry, rz) round-ish inlets either side of the spinner
-_fb = bmesh.new(); _fb.from_mesh(P['Fuselage'].data); _fb.normal_update(); _cut = []
-for f in _fb.faces:
-    c = f.calc_center_median()
-    if c.x < 1.55: continue
-    for (iy, iz, ry, rz) in INLETS:
-        if ((c.y - iy) / ry) ** 2 + ((c.z - iz) / rz) ** 2 < 1.0: _cut.append(f); break
+# v12: D-shaped inlets like the real Extra cowl (ref photo): wide and low either side of the spinner, near-flat inboard
+# edge, rounded outboard/top/bottom, ~2:1. Boundary = superellipse, near-flat (n=8) inboard, round (n=2.2) outboard.
+IN_YI, IN_YO, IN_Z, IN_H = 0.195, 0.405, 0.005, 0.105          # inboard/outboard |y|, centre z, full height
+def _d_ring(sy, s=1.0, n_pts=48):
+    yc, a, b = 0.5 * (IN_YI + IN_YO), 0.5 * (IN_YO - IN_YI), 0.5 * IN_H
+    out = []
+    for t in np.linspace(0, 2 * math.pi, n_pts, endpoint=False):
+        c, si = math.cos(t), math.sin(t); n = 2.2 if c >= 0 else 8.0
+        out.append((sy * (yc + s * a * np.sign(c) * abs(c) ** (2 / n)), IN_Z + s * b * np.sign(si) * abs(si) ** (2 / 2.6)))
+    return out
+def _in_d(y, z, s):
+    yc, a, b = 0.5 * (IN_YO + IN_YI), 0.5 * (IN_YO - IN_YI), 0.5 * IN_H
+    u = (abs(y) - yc) / (s * a); v = (z - IN_Z) / (s * b); n = 2.2 if u >= 0 else 8.0
+    return abs(u) ** n + abs(v) ** 2.6 < 1.0
+from mathutils.bvhtree import BVHTree
+from mathutils import Vector
+_fb = bmesh.new(); _fb.from_mesh(P['Fuselage'].data)
+_front = [f for f in _fb.faces if f.calc_center_median().x > 1.5]
+bmesh.ops.subdivide_edges(_fb, edges=list({e for f in _front for e in f.edges}), cuts=4, use_grid_fill=True)
+_fb.normal_update(); _fb.to_mesh(P['Fuselage'].data)
+SKIN = BVHTree.FromBMesh(_fb)                                    # uncut skin, used to drape the lips
+def _hit(y, z):
+    loc, nrm, _, _ = SKIN.ray_cast(Vector((2.6, y, z)), Vector((-1, 0, 0)))
+    if nrm.x < 0: nrm = -nrm
+    return np.array(loc), np.array(nrm)
+_cut = [f for f in _fb.faces if f.calc_center_median().x > 1.55 and _in_d(f.calc_center_median().y, f.calc_center_median().z, 1.06)]
 bmesh.ops.delete(_fb, geom=_cut, context='FACES'); _fb.to_mesh(P['Fuselage'].data); _fb.free()
 print('INLET faces cut', len(_cut))
-def _skin_x(y, z):
-    """x of the cowl skin at (y,z) on its forward face, from the measured rings (front-most ring crossing)."""
-    best = -9
-    for r in RP:
-        pts = r[:, :3]; d = np.hypot(pts[:, 1] - y, pts[:, 2] - z)
-        if d.min() < 0.03: best = max(best, float(r[0, 0]) if np.ptp(pts[:, 0]) < 1e-6 else float(pts[np.argmin(d), 0]))
-    return best
+
 en_bms = {}; en_tag = []
 EN_T = ['en_core', 'en_cyl', 'en_case', 'en_rocker', 'en_pipe', 'en_baffle', 'en_lip', 'en_dark']
 def _en(tag, fn):   # one bmesh per material, merged at the end (material index = block order)
@@ -427,26 +440,26 @@ for side, sy in (('R', -1), ('L', 1)):
         en_cyl('en_pipe', (cx - 0.03, sy * (y1 + 0.07), EN_Z - 0.10), (cx - 0.05, sy * (y1 + 0.07), EN_Z - 0.26), 0.026, 10)  # exhaust stub
     # front baffle: lower plate ahead of the front cylinder and an inboard plate, so the inlet looks into a plenum
     fx = EN_X1 + 0.11 - (EN_STAG if side == 'L' else 0.0)
-    en_box('en_baffle', (fx, sy * 0.25, EN_Z - 0.12), (0.008, 0.20, 0.10))
+    en_box('en_baffle', (fx, sy * 0.26, EN_Z - 0.135), (0.008, 0.20, 0.09))   # v12: top at z -0.09, below the inlet floor
     en_box('en_baffle', (fx - 0.10, sy * 0.13, EN_Z + 0.04), (0.20, 0.008, 0.20))
 # prop governor: front of the case on the left (port) side, Lycoming front-mounted governor pad
 en_cyl('en_case', (EN_X1 + 0.06, 0.10, EN_Z + 0.08), (EN_X1 + 0.06, 0.10, EN_Z + 0.15), 0.040, 16)
 en_cyl('en_rocker', (EN_X1 + 0.06, 0.10, EN_Z + 0.15), (EN_X1 + 0.06, 0.10, EN_Z + 0.17), 0.028, 12)
 en_box('en_pipe', (EN_X1 + 0.06, 0.15, EN_Z + 0.13), (0.02, 0.06, 0.02))              # control arm
-# inlet lips + dark ducts: a short tube from just proud of the skin back toward the cylinders hides the cut edge
-for (iy, iz, ry, rz) in INLETS:
-    x0 = _skin_x(iy, iz)
-    if x0 < 0: x0 = 1.73
-    from mathutils import Vector
-    for (tag, xa, xb, rr) in (('en_lip', x0 + 0.006, x0 - 0.03, 1.30), ('en_dark', x0 - 0.03, x0 - 0.09, 1.14)):
-        n = 28; ringa = [(xa, iy + rr * ry * math.cos(a), iz + rr * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
-        ringi = [(xa, iy + (rr - 0.30) * ry * math.cos(a), iz + (rr - 0.30) * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
-        ringb = [(xb, iy + rr * ry * math.cos(a), iz + rr * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
-        ringc = [(xb, iy + (rr - 0.30) * ry * math.cos(a), iz + (rr - 0.30) * rz * math.sin(a)) for a in np.linspace(0, 2 * math.pi, n, endpoint=False)]
-        def _tube():
-            loft_rings(en, [ringa, ringb, ringc, ringi], cap0=False, cap1=False)
-        _en(tag, _tube)
-    print('INLET y %.3f skin x %.3f' % (iy, x0))
+# v12 lips draped on the skin: outer edge lies 0.8 mm proud of the cowl and rolls over the opening into a dark duct,
+# so there is one continuous lip, no separate ring standing off a sloped face.
+for sy in (1, -1):
+    rows = []
+    for (s, dn, dx, tag) in ((1.30, 0.0008, 0.0, 'en_lip'), (1.14, 0.006, 0.0, 'en_lip'), (1.04, 0.004, -0.012, 'en_lip'),
+                             (0.99, 0.0, -0.030, 'en_lip'), (0.97, 0.0, -0.075, 'en_dark')):
+        ring = []
+        for (y, z) in _d_ring(sy, s):
+            p, nr = _hit(y, z); ring.append(tuple(p + dn * nr + np.array((dx, 0, 0))))
+        rows.append((ring, tag))
+    for (ra, _), (rb, tb) in zip(rows, rows[1:]):
+        _en(tb if tb == 'en_dark' else 'en_lip', lambda ra=ra, rb=rb: loft_rings(en, [ra, rb], cap0=False, cap1=False))
+    print('INLET %+d lip x %.3f..%.3f' % (sy, min(p[0] for p in rows[0][0]), max(p[0] for p in rows[0][0])))
+
 _all = bmesh.new()
 for t in EN_T:
     if t not in en_bms: continue
