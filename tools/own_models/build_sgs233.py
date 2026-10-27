@@ -147,11 +147,12 @@ def slab(name, outline, axis, t):
     bm.faces.new(a); bm.faces.new(b[::-1]); n = len(a)
     for i in range(n): j = (i + 1) % n; bm.faces.new((a[j], a[i], b[i], b[j]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); return link(name, bm)
-HX = 692
-P['Fin'] = slab('Fin', [(mx(640), mz(213)), (mx(668), mz(150)), (mx(680), mz(118)), (mx(HX), mz(117)), (mx(HX), mz(213))], 'y', 0.07)
-P['Rudder'] = slab('Rudder', [(mx(HX + 1), mz(116)), (mx(722), mz(115)), (mx(724), mz(160)), (mx(720), mz(222)), (mx(HX + 1), mz(224))], 'y', 0.05)
+HT, HB = 701, 688   # rudder hinge is raked: 3-view px 701 at the fin tip, 688 at the root
+P['Fin'] = slab('Fin', [(mx(640), mz(213)), (mx(668), mz(150)), (mx(680), mz(118)), (mx(HT), mz(117)), (mx(HB), mz(213))], 'y', 0.07)
+P['Rudder'] = slab('Rudder', [(mx(HT + 1), mz(116)), (mx(722), mz(115)), (mx(724), mz(160)), (mx(720), mz(222)), (mx(HB + 1), mz(224))], 'y', 0.05)
 ZS = mz(211)
-SH = 2.35 / 2; SC = 0.86; SLE = mx(650); SHG = SLE - 0.50
+# measured on the 3-view top view (v2): span 2.30, chord 0.85, elevator 0.38 (45%), LE at side-view px 683 = 5.0 m behind wing LE
+SH = 2.30 / 2; SC = 0.85; SLE = mx(683); SHG = SLE - 0.47
 def rounded(y0, y1, x0, x1, r, n=6):
     pts = []
     for i in range(n + 1):   # port tip, rounded
@@ -166,14 +167,14 @@ def plan(x_front, x_back, rf, rb, n=6):
     for i in range(n + 1):
         a = math.pi / 2 * i / n; pts.append((x_back + rb * (1 - math.cos(a)), SH - rb * (1 - math.sin(a))))
     return pts
-RT = 0.30   # stab outline: straight LE to a rounded LE tip, square at the hinge
+RT = 0.35   # stab outline: straight LE to a rounded LE tip, square at the hinge
 tip = [(SLE - RT * (1 - math.cos(math.pi / 2 * i / 6)), SH - RT + RT * math.sin(math.pi / 2 * i / 6)) for i in range(7)]
 shalf = [(SLE, 0.0)] + tip + [(SHG, SH), (SHG, 0.0)]
 st = shalf + [(x, -y) for x, y in shalf[::-1][1:-1]]
 P['Stab'] = slab('Stab', st, 'z', 0.05)
 for sg, sd in ((1, 'L'), (-1, 'R')):
-    el = [(SHG - 0.01, 0.06 * sg), (SHG - 0.01, SH * sg), (SLE - SC + 0.25, SH * sg)] + \
-         [(SLE - SC + 0.25 * (1 - math.sin(math.pi / 2 * i / 6)), sg * (SH - 0.25 * (1 - math.cos(math.pi / 2 * i / 6)))) for i in range(1, 7)] + \
+    el = [(SHG - 0.01, 0.06 * sg), (SHG - 0.01, SH * sg), (SLE - SC + 0.35, SH * sg)] + \
+         [(SLE - SC + 0.35 * (1 - math.sin(math.pi / 2 * i / 6)), sg * (SH - 0.35 * (1 - math.cos(math.pi / 2 * i / 6)))) for i in range(1, 7)] + \
          [(SLE - SC, 0.06 * sg)]
     if sg < 0: el = el[::-1]
     P['Elevator_' + sd] = slab('Elevator_' + sd, el, 'z', 0.035)
