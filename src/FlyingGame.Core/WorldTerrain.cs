@@ -70,6 +70,14 @@ public sealed class WorldTerrain
         new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, DatumM + StepHeightM * 3), // 7,000 ft
     };
 
+    /// <summary>
+    /// The airport a session starts at unless the pilot picks another (SessionSettings.AirportIndex defaults to this).
+    /// Anything that belongs to "the home field" — the regional atmosphere's calm zone above all — anchors HERE rather
+    /// than to coordinates, so it follows if the default start ever moves.
+    /// </summary>
+    public const int DefaultAirportIndex = 0;
+    public static Airport DefaultAirport => Airports[DefaultAirportIndex];
+
     /// <summary>Number of plateaus (one per airport); the Valley is plateau 0.</summary>
     public static int PlateauCount => Airports.Length;
 

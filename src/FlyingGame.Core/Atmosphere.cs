@@ -44,14 +44,23 @@ public static class Atmosphere
     }
 
     /// <summary>Local air temperature (K) at a world position: ambient at that altitude, plus the warmth of
-    /// any thermal core the point sits in (same Gaussian profile as the thermal's updraft).</summary>
+    /// any thermal core the point sits in (same Gaussian profile as the thermal's updraft). With a regional
+    /// <see cref="Field"/> the ambient is the region's.</summary>
     public static double TemperatureAtPosition(MathTypes.Vec3 worldPosition)
     {
         double altitudeM = -worldPosition.Z;
-        double t = TemperatureAtAltitudeK(altitudeM);
+        double t, scale = ThermalStrengthScale;
+        if (Field is not null)
+        {
+            AtmosphereSample s = Field.Sample(worldPosition, SimTimeSec);
+            t = s.TemperatureK;
+            scale *= s.ThermalFactor;
+        }
+        else t = TemperatureAtAltitudeK(altitudeM);
+        if (scale == 0) return t;
         for (int i = 0; i < Thermals.Count; i++)
         {
-            t += ThermalCoreWarmthK * ThermalStrengthScale * Thermals[i].CoreFractionAt(worldPosition);
+            t += ThermalCoreWarmthK * scale * Thermals[i].CoreFractionAt(worldPosition);
         }
 
         return t;
@@ -62,7 +71,44 @@ public static class Atmosphere
     public static double DensityAtPosition(MathTypes.Vec3 worldPosition)
     {
         double altitudeM = -worldPosition.Z;
-        return PressureAtAltitude(altitudeM) / (GasConstantAir * TemperatureAtPosition(worldPosition));
+        double p = Field is not null ? Field.Sample(worldPosition, SimTimeSec).PressurePa : PressureAtAltitude(altitudeM);
+        return p / (GasConstantAir * TemperatureAtPosition(worldPosition));
+    }
+
+    /// <summary>Air density (kg/m^3) for the flight model at a position: the regional field's when there is one,
+    /// otherwise exactly <see cref="DensityAtAltitude"/> (the uniform atmosphere, unchanged).</summary>
+    public static double DensityAt(MathTypes.Vec3 worldPosition) =>
+        Field is not null ? Field.Sample(worldPosition, SimTimeSec).DensityKgM3 : DensityAtAltitude(-worldPosition.Z);
+
+    /// <summary>
+    /// THE REGIONAL ATMOSPHERE (null = the one uniform atmosphere this class has always been). When set, the field owns
+    /// the wind, its profile, the turbulence, the terrain lift and the temperature/pressure: <see cref="SteadyWind"/>,
+    /// <see cref="ActiveTurbulence"/>, <see cref="ActiveRidge"/> and <see cref="SlopeLiftEnabled"/> are not read. The
+    /// authored <see cref="Thermals"/> still fly, scaled by the field's thermal factor (zero in the calm zone). A
+    /// uniform override (a challenge's headwind, a practice crosswind, a contest's locked weather) is simply
+    /// Field = null.
+    /// </summary>
+    public static AtmosphereField? Field { get; set; }
+
+    /// <summary>The full regional sample at a position now (null without a field).</summary>
+    public static AtmosphereSample? SampleAt(MathTypes.Vec3 worldPosition) => Field?.Sample(worldPosition, SimTimeSec);
+
+    /// <summary>The horizontal wind the air mass drifts with here, its height profile applied — what a thermal leans
+    /// in and what carries smoke and bubbles. Uniform: <see cref="SteadyWind"/> × <see cref="WindGradientFactor"/>.</summary>
+    public static MathTypes.Vec3 SteadyWindAt(MathTypes.Vec3 worldPosition) =>
+        Field is not null ? Field.SteadyWindAt(worldPosition, SimTimeSec) : SteadyWind * WindGradientFactor(worldPosition);
+
+    /// <summary>The wind at a point from a regional sample: its mean (and gust), the authored thermals at the field's
+    /// thermal factor, and the glacier wind outside the calm zone.</summary>
+    public static MathTypes.Vec3 WindFromSample(MathTypes.Vec3 worldPosition, in AtmosphereSample s, bool withGusts)
+    {
+        MathTypes.Vec3 w = withGusts ? s.MeanWind + s.Gust : s.MeanWind;
+        double thermal = s.ThermalFactor * ThermalStrengthScale;
+        if (thermal > 0)
+            for (int i = 0; i < Thermals.Count; i++) w += Thermals[i].WindAt(worldPosition) * thermal;
+        double keep = 1.0 - s.CalmWeight;
+        if (keep > 0) w += BraidedRiver.WindAt(worldPosition.X, worldPosition.Y, -worldPosition.Z) * keep;
+        return w;
     }
 
     /// <summary>Active turbulence field (null = calm). Set by the host (challenge/scene/weather).</summary>
@@ -109,6 +155,7 @@ public static class Atmosphere
 
     private static MathTypes.Vec3 WindAt(MathTypes.Vec3 worldPosition, bool withGusts)
     {
+        if (Field is not null) return WindFromSample(worldPosition, Field.Sample(worldPosition, SimTimeSec), withGusts);
         MathTypes.Vec3 steady = SteadyWind * WindGradientFactor(worldPosition);
         MathTypes.Vec3 w = steady + (withGusts ? ActiveTurbulence?.WindAt(worldPosition, SimTimeSec) ?? MathTypes.Vec3.Zero : MathTypes.Vec3.Zero);
         for (int i = 0; i < Thermals.Count; i++)

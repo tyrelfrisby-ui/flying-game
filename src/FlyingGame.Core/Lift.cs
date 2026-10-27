@@ -27,15 +27,33 @@ public sealed class Thermal
     public Vec3 CoreAt(double altitude)
     {
         Vec3 core = SurfaceCenter + LeanPerM * altitude;
-        Vec3 wind = Atmosphere.SteadyWind;
+        Vec3 wind = Atmosphere.Field is null ? Atmosphere.SteadyWind : RegionalLeanWind();
         double w = CoreUpdraftMs * Atmosphere.ThermalStrengthScale;
         if ((wind.X == 0 && wind.Y == 0) || w < 0.5) return core;
         double baseAlt = -SurfaceCenter.Z, T = TopAltitudeM;
         if (altitude <= baseAlt || T <= 0) return core;
         static double F(double z, double top) => top / Math.PI * Math.Log(Math.Tan(Math.PI * Math.Clamp(z / top, 0.05, 0.95) / 2));
         double secondsPerMetre = (F(altitude, T) - F(baseAlt, T)) / w;
-        double gradient = Atmosphere.WindGradientFactor(new Vec3(0, 0, -0.5 * (altitude + baseAlt)));
+        // (The regional wind already carries its height profile.)
+        double gradient = Atmosphere.Field is null ? Atmosphere.WindGradientFactor(new Vec3(0, 0, -0.5 * (altitude + baseAlt))) : 1.0;
         return new Vec3(core.X + wind.X * gradient * secondsPerMetre, core.Y + wind.Y * gradient * secondsPerMetre, core.Z);
+    }
+
+    // The regional field's wind over this column, high in the profile, memoised per sim instant: a thermal's lean is
+    // asked for on every wind sample and the air it leans in only changes with time.
+    private double _leanTime = double.NaN;
+    private AtmosphereField? _leanField;
+    private Vec3 _leanWind;
+    private Vec3 RegionalLeanWind()
+    {
+        AtmosphereField f = Atmosphere.Field!;
+        if (_leanTime != Atmosphere.SimTimeSec || !ReferenceEquals(f, _leanField))
+        {
+            double ground = f.GroundAt(SurfaceCenter.X, SurfaceCenter.Y);
+            _leanWind = f.SteadyWindAt(new Vec3(SurfaceCenter.X, SurfaceCenter.Y, -(ground + 0.5 * (TopAltitudeM - ground))), Atmosphere.SimTimeSec);
+            _leanTime = Atmosphere.SimTimeSec; _leanField = f;
+        }
+        return _leanWind;
     }
 
     public Thermal(Vec3 surfaceCenter, double coreRadiusM, double coreUpdraftMs, double topAltitudeM)
@@ -181,22 +199,25 @@ public static class SlopeLift
     // ahead of the point, so the band of lift extends ~300 m out in front of the wall instead of hugging it.
     public const double UpwindReachM = 300.0, DownwindReachM = 500.0, WideWeight = 0.55;
 
-    public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind)
+    public static Vec3 WindAt(WorldTerrain t, Vec3 pos, Vec3 meanWind) => WindAt(t.HeightAt, pos, meanWind);
+
+    /// <summary>The same, over any height field (the regional atmosphere passes its own, so tests can build a bluff).</summary>
+    public static Vec3 WindAt(System.Func<double, double, double> height, Vec3 pos, Vec3 meanWind)
     {
         double ux = meanWind.X, uy = meanWind.Y;
         double u = System.Math.Sqrt(ux * ux + uy * uy);
         if (u < 0.5) return Vec3.Zero;
         double alt = -pos.Z;
-        double hHere = t.HeightAt(pos.X, pos.Y);
+        double hHere = height(pos.X, pos.Y);
         double agl = alt - hHere;
         if (agl < -5 || agl > DecayHeightM * 4) return Vec3.Zero;
         agl = System.Math.Max(0, agl);
         // The air at height AGL was deflected by the ground it crossed UPWIND (tilted streamline).
         double sx = pos.X - ux / u * agl * StreamlineTilt, sy = pos.Y - uy / u * agl * StreamlineTilt;
         double dx = ux / u, dy = uy / u;
-        double local = (t.HeightAt(sx + dx * SampleStepM, sy + dy * SampleStepM) - t.HeightAt(sx - dx * SampleStepM, sy - dy * SampleStepM)) / (2 * SampleStepM);
+        double local = (height(sx + dx * SampleStepM, sy + dy * SampleStepM) - height(sx - dx * SampleStepM, sy - dy * SampleStepM)) / (2 * SampleStepM);
         local = System.Math.Clamp(local, -MaxSlope, MaxSlope);
-        double wide = (t.HeightAt(sx + dx * DownwindReachM, sy + dy * DownwindReachM) - t.HeightAt(sx - dx * UpwindReachM, sy - dy * UpwindReachM)) / (UpwindReachM + DownwindReachM);
+        double wide = (height(sx + dx * DownwindReachM, sy + dy * DownwindReachM) - height(sx - dx * UpwindReachM, sy - dy * UpwindReachM)) / (UpwindReachM + DownwindReachM);
         double dhds = System.Math.Clamp(WideWeight * wide + (1 - WideWeight) * local, -MaxSlope, MaxSlope);
         double w = u * dhds * System.Math.Exp(-agl / DecayHeightM);   // + = upward
         return new Vec3(0, 0, -w);
