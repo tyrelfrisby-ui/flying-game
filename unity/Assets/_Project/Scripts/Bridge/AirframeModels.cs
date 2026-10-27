@@ -102,6 +102,8 @@ namespace FlyingGame.Bridge
         public static readonly Dictionary<string, Spec> OwnSpecs = new()
         {
             { "c172-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/model_extra300.py: original tandem MID-wing EA 300, drawn level, glTF Y-up.
+            { "extra-300-like", new Spec(Vector3.right, Vector3.up) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
             // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
             // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
@@ -124,8 +126,14 @@ namespace FlyingGame.Bridge
         /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
         /// about which model is in play.</summary>
         static bool PickOwn(string modelId) =>
-            SessionSettings.UseOwnModels && modelId != null && OwnSpecs.ContainsKey(modelId)
-            && Resources.Load<GameObject>($"Models/{modelId}/{modelId}-own") != null;
+            (SessionSettings.UseOwnModels || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying"))
+                || (modelId == "extra-300-like" && SessionSettings.LiveryId == "sunrise")) && modelId != null && OwnSpecs.ContainsKey(modelId)
+            && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
+
+        /// <summary>Our 2-33 has its paint baked in, one GLB per livery (tools/own_models/build_sgs233.py,
+        /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.</summary>
+        static string OwnSuffix(string modelId) =>
+            modelId == "glider-2-33-like" && SessionSettings.LiveryId == "talk-flying" ? "-own-tf" : "-own";
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
         /// Callers that ask a question ABOUT the drawn model (does it need the procedural gear under it?) must go
@@ -157,7 +165,7 @@ namespace FlyingGame.Bridge
             bool ownGear = UsesOwnGear(id);
             id = ModelId(id);
             bool own = PickOwn(id);
-            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}-own" : $"Models/{id}/{id}");
+            var prefab = Resources.Load<GameObject>(own ? $"Models/{id}/{id}{OwnSuffix(id)}" : $"Models/{id}/{id}");
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";
