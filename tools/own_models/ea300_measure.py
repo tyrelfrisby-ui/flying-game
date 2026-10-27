@@ -99,9 +99,15 @@ def surf(names, mov, spans, axis_span=1, thick_axis=2, minc=0.05):
 R['chord_fractions'] = list(map(float, FR))
 wl, wh = bounds(['Wing', 'Aileron_L', 'Aileron_R'])
 R['wing'] = surf(['Wing', 'Aileron_L'], ['Aileron_L'], list(np.linspace(0.0, wh[1] - 0.004, 41)))
+# v3: a station that cuts the aileron spade strut reads the strut as wing skin; rebuild it from its neighbours
+ws = R['wing']
+for i in range(1, len(ws) - 1):
+    for k in ('up', 'dn'):
+        a, b, c = (np.array(ws[j][k]) for j in (i - 1, i, i + 1))
+        if b.min() < min(a.min(), c.min()) - 0.02: ws[i][k] = list(map(float, (a + c) / 2)); print('WING STATION FIXED', round(ws[i]['s'], 3), k)
 R['wing_r'] = surf(['Wing', 'Aileron_R'], ['Aileron_R'], list(np.linspace(-0.0, wl[1] + 0.004, 41)))
 sl, sh = bounds(['Stab'])
-R['stab'] = surf(['Stab', 'Elevator_L'], ['Elevator_L'], list(np.linspace(0.0, sh[1] - 0.003, 21)))
+R['stab'] = surf(['Stab', 'Elevator_L'], ['Elevator_L'], sorted(set(np.linspace(0.0, sh[1] - 0.003, 21)) | set(np.linspace(0.09, 0.2, 12))))   # v3: dense at the rudder cut-out
 R['aileron_span'] = [float(-bounds(['Aileron_R'])[1][1]), float(bounds(['Aileron_L'])[1][1])] if False else [float(bounds(['Aileron_L'])[0][1]), float(bounds(['Aileron_L'])[1][1])]
 R['elevator_span'] = [float(bounds(['Elevator_L'])[0][1]), float(bounds(['Elevator_L'])[1][1])]
 fl, fh = bounds(['Fin', 'Rudder'])
@@ -151,7 +157,7 @@ pv = T['Prop'][0]; R['prop'] = {'x': float(pv[:, 0].mean()), 'r': float(np.sqrt(
 R['bounds'] = {n: [list(map(float, T[n][0].min(0))), list(map(float, T[n][0].max(0)))] for n in T}
 # ---- radial hull rings of a slice (for gear legs etc.) --------------------------------------------------------------
 from mathutils.geometry import convex_hull_2d
-def hull_ring(p, n=16):
+def hull_ring(p, n=48):
     h = p[convex_hull_2d([tuple(q) for q in p])]; c = h.mean(0)
     d = np.concatenate([h[i] + (h[(i + 1) % len(h)] - h[i]) * t[:, None] for i in range(len(h)) for t in [np.linspace(0, 1, 30, endpoint=False)]])
     a = np.arctan2(d[:, 1] - c[1], d[:, 0] - c[0]); r = np.hypot(d[:, 1] - c[1], d[:, 0] - c[0]); o = np.argsort(a)
@@ -194,6 +200,26 @@ if len(low):
             k = pj.argmax(); ring.append([float(q[k, 0]), float(q[k, 1]), float(q[k, 2])])
         slabs.append(ring)
     R['spade_slabs'] = slabs
+    # v3: the spade is a flat 7 mm plate (plan outline), a small inboard weight and a slanted strut up to the aileron
+    pm = (low[:, 2] > -0.21) & (low[:, 2] < -0.19); q = low[pm]
+    R['spade_plate'] = {'xy': hull_ring(q[:, [0, 1]], 40), 'z': [float(q[:, 2].min()), float(q[:, 2].max())]}
+    q = low[low[:, 2] <= -0.21]
+    # the weight is a wedge from the plate's inboard edge down to the low lump: keep its corner points for a 3D hull
+    edge = low[(np.abs(low[:, 1] - q[:, 1].max() - 0.037) < 0.006) & (low[:, 2] < -0.2)]
+    R['spade_weight_pts'] = [list(map(float, p)) for p in np.concatenate([q, edge])]
+    R['spade_weight'] = {'xy': hull_ring(q[:, [0, 1]], 24), 'z': [float(q[:, 2].min()), float(R['spade_plate']['z'][0])]}
+    q = low[low[:, 2] > -0.196]; zb = np.linspace(q[:, 2].min(), q[:, 2].max(), 7); st = []
+    for z0, z1 in zip(zb[:-1], zb[1:]):
+        c = q[(q[:, 2] >= z0 - 0.004) & (q[:, 2] <= z1 + 0.004)]
+        if len(c) >= 3: st.append({'z': float((z0 + z1) / 2), 'xy': hull_ring(c[:, [0, 1]], 16)})
+    R['spade_strut'] = st
+# v3: fin leading-edge root fillet
+fv = T['Fin'][0]; R['fin_fillet_pts'] = [list(map(float, p)) for p in fv[(fv[:, 0] > -3.94) & (fv[:, 2] < 0.37)]]
+# v3: rudder steering horn (bar across the rudder foot) and the two cables running forward from it
+rv = T['Rudder'][0]; hq = rv[(rv[:, 2] > -0.15) & (rv[:, 2] < -0.13) & (np.abs(rv[:, 1]) > 0.035)]
+bar = hq[hq[:, 0] < hq[:, 0].min() + 0.025]
+R['rudder_horn'] = {'min': list(map(float, bar.min(0))), 'max': list(map(float, bar.max(0))),
+                    'cable_x': [float(hq[:, 0].min()), float(hq[:, 0].max())], 'cable_y': float(np.median(np.abs(hq[:, 1]))), 'cable_z': float(np.median(hq[:, 2]))}
 # main wheel tyre profile: max radius vs y
 mwv = mw; cy = R['main_wheel']['c']; prof = []
 for y in np.linspace(mwv[:, 1].min(), mwv[:, 1].max(), 13):

@@ -34,6 +34,17 @@ def inside(tr, pts):
             n += 1; o = (h[0].x, h[0].y + 1e-4, h[0].z)
         out.append(n % 2 == 1)
     return np.array(out, bool)
+DIRS = [np.array(d, float) / np.linalg.norm(d) for d in [(1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1),(1,1,1),(1,1,-1),(1,-1,1),(1,-1,-1),(-1,1,1),(-1,1,-1),(-1,-1,1),(-1,-1,-1),(1,1,0),(1,-1,0),(-1,1,0),(-1,-1,0),(1,0,1),(1,0,-1),(-1,0,1),(-1,0,-1),(0,1,1),(0,1,-1),(0,-1,1),(0,-1,-1)]]
+def enclosed(tr, p):     # a surface point is hidden when every ray from it hits the same model within 4 m
+    for d in DIRS:
+        h = tr.ray_cast(tuple(p + 0.002 * d), tuple(d), 4.0)
+        if h[0] is None: return False
+    return True
+def visible_dev(own_tr, p, d, th=0.02):
+    m = d > th
+    for i in np.where(m)[0]:
+        if enclosed(own_tr, p[i]): d[i] = 0.0
+    return d
 def dist(tr, pts):
     return np.array([(tr.find_nearest(tuple(p))[3] or 0) for p in pts])
 np.random.seed(1)
@@ -42,12 +53,22 @@ to, vo, tto = tree(O); tr_, vr, ttr = tree(Rf)
 fo = tree({k: v for k, v in O.items() if k.startswith('Fuselage')})[0]; fr = tree({'Fuselage': Rf['Fuselage']})[0]
 def vis(p):   # hidden geometry (inside either fuselage) is not compared
     m = ~(inside(fo, p) | inside(fr, p)); return p[m]
-res = {'ours_to_ref': {}, 'ref_to_ours': {}}
+res = {'ours_to_ref': {}, 'ref_to_ours': {}, 'clusters': []}
+def clusters(tag, name, p, d, th=0.025):
+    m = d > th
+    if not m.any(): return
+    q = p[m] * np.array([-1, -1, 1]); dd = d[m]            # report in the build frame (nose +x, port +y)
+    cell = np.round(q / 0.1).astype(int); keys = {}
+    for c, x, e in zip(map(tuple, cell), q, dd):
+        k = keys.setdefault(c, [0, 0, None]); k[0] += 1
+        if e > k[1]: k[1] = float(e); k[2] = [round(float(v), 3) for v in x]
+    for c, (n, e, x) in sorted(keys.items(), key=lambda kv: -kv[1][1])[:6]:
+        res['clusters'].append([tag, name, n, round(e, 3), x]); print('CL', tag, '%-14s n %4d max %.3f at' % (name, n, e), x)
 for name, (v, t) in O.items():
-    p = samples(v, t); p = p if name.startswith('Fuselage') else vis(p); d = dist(tr_, p); i = int(d.argmax()); res['ours_to_ref'][name] = [float(d.max()), float(np.percentile(d, 99)), float(d.mean()), list(map(float, p[i]))]
+    p = samples(v, t); p = p if name.startswith('Fuselage') else vis(p); d = visible_dev(to, p, dist(tr_, p)); i = int(d.argmax()); res['ours_to_ref'][name] = [float(d.max()), float(np.percentile(d, 99)), float(d.mean()), list(map(float, p[i]))]; clusters('o2r', name, p, d)
 for name, (v, t) in Rf.items():
-    p = samples(v, t); p = p if name == 'Fuselage' else vis(p); d = dist(to, p); i = int(d.argmax())
-    res['ref_to_ours'][name] = [float(d.max()), float(np.percentile(d, 99)), float(d.mean()), list(map(float, p[i]))]
+    p = samples(v, t); p = p if name == 'Fuselage' else vis(p); d = visible_dev(tr_, p, dist(to, p)); i = int(d.argmax())
+    res['ref_to_ours'][name] = [float(d.max()), float(np.percentile(d, 99)), float(d.mean()), list(map(float, p[i]))]; clusters('r2o', name, p, d)
 # silhouettes (orthographic, 4 mm px) - rasterise triangles
 PX = 0.004; X0, X1, Y0, Y1, Z0, Z1 = -2.5, 5.5, -4.2, 4.2, -1.6, 1.5
 def raster(v, t, ax_u, ax_v, u0, u1, v0, v1):
@@ -74,5 +95,5 @@ for tag, parts in (('ours', O), ('ref', Rf)):
     np.save(f'{OUTD}/{tag}_top.npy', raster(v, t, 0, 1, X0, X1, Y0, Y1))
     np.save(f'{OUTD}/{tag}_front.npy', raster(v, t, 1, 2, Y0, Y1, Z0, Z1))
 json.dump(res, open(f'{OUTD}/dev.json', 'w'), indent=1)
-for k in res:
+for k in ('ours_to_ref', 'ref_to_ours'):
     for n, r in sorted(res[k].items(), key=lambda kv: -kv[1][0]): print('DEV', k, '%-14s max %.3f p99 %.3f mean %.4f' % (n, r[0], r[1], r[2]), r[3:] and [round(c, 2) for c in r[3]])

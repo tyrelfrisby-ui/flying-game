@@ -18,7 +18,7 @@ ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb')
 TEX = '/tmp/own_ea300_tex'; os.makedirs(TEX, exist_ok=True)
 NAVY, RED, WHITE = (27, 42, 74), (200, 24, 36), (246, 246, 246)
-NICKEL, TYRE, CABIN = (205, 208, 212), (88, 90, 96), (96, 100, 110)
+NICKEL, TYRE, CABIN = (205, 208, 212), (88, 90, 96), (44, 56, 92)   # v3: navy cabin, not grey
 R = json.load(open(os.path.join(HERE, 'ea300_ref_tables.json')))
 bpy.ops.wm.read_factory_settings(use_empty=True)
 # frame: metres, nose +X, port +Y, up +Z (yawed 180 deg at export, as before)
@@ -58,15 +58,42 @@ for k, bm in bms.items():
     if not bm.faces: bm.free(); continue
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5); bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     P[k] = link(k, bm)
+# v3: the glass/body split follows whole quads, which left a stair-stepped cockpit edge; a smooth coaming tube is
+# swept along the (Laplacian-smoothed) glass boundary to give the clean rim the v9 model shows
+gb = bmesh.new(); gb.from_mesh(P['Canopy_Glass'].data); bd = [e for e in gb.edges if e.is_boundary]
+adj = {}
+for e in bd:
+    a, c = e.verts; adj.setdefault(a, []).append(c); adj.setdefault(c, []).append(a)
+seen = set(); loops = []
+for v0 in adj:
+    if v0 in seen: continue
+    lp = [v0]; seen.add(v0); cur = v0
+    while True:
+        nx = [w for w in adj[cur] if w not in seen]
+        if not nx: break
+        cur = nx[0]; seen.add(cur); lp.append(cur)
+    if len(lp) > 8: loops.append(np.array([tuple(v.co) for v in lp]))
+cb = bmesh.new()
+for lp in loops:
+    for _ in range(6): lp = 0.5 * lp + 0.25 * (np.roll(lp, 1, 0) + np.roll(lp, -1, 0))
+    seg = 8; rad = 0.012; rs = []
+    for i in range(len(lp)):
+        t = lp[(i + 1) % len(lp)] - lp[i - 1]; t /= np.linalg.norm(t)
+        u = np.cross(t, (0, 0, 1)); u = u / (np.linalg.norm(u) + 1e-9) if np.linalg.norm(u) > 1e-3 else np.array((0, 1.0, 0)); w = np.cross(t, u)
+        rs.append([tuple(lp[i] + rad * (math.cos(a) * u + math.sin(a) * w)) for a in np.linspace(0, 2 * math.pi, seg, endpoint=False)])
+    loft_rings(cb, rs + [rs[0]])
+gb.free()
+if loops: P['Canopy_Frame'] = paint.join([P['Canopy_Frame'], link('_coam', cb)], 'Canopy_Frame') if 'Canopy_Frame' in P else link('Canopy_Frame', cb)
+print('COAMING loops', [len(l) for l in loops])
 RX = np.array([r['x'] for r in rings])
 RT = np.array([p[p[:, 3] == 0][:, 2].max() if (p[:, 3] == 0).any() else p[:, 2].max() for p in RP])
 RB = np.array([p[:, 2].min() for p in RP]); RW_ = np.array([p[:, 1].max() for p in RP])
 topf = lambda x: np.interp(-np.asarray(x), -RX, RT)
 botf = lambda x: np.interp(-np.asarray(x), -RX, RB)
-# cabin tub so the clear canopy does not show the sky through the fuselage: floor + two seat backs
+# cabin tub so the clear canopy does not show the sky through the fuselage: floor only (v3: seat-back boxes read as crude grey blocks)
 gx = RX[[(p[:, 3] == 1).any() for p in RP]]; CX0, CX1 = gx.max(), gx.min()
 bm = bmesh.new()
-for x0, x1, z0, z1, hw in ((CX0, CX1, 0.10, 0.12, 0.30), (-0.62, -0.68, 0.10, 0.48, 0.24), (-1.42, -1.48, 0.10, 0.45, 0.22)):
+for x0, x1, z0, z1, hw in ((CX0, CX1, 0.10, 0.12, 0.30),):
     bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(((x0 + x1) / 2, 0, (z0 + z1) / 2)) @ Matrix.Diagonal((abs(x0 - x1), 2 * hw, z1 - z0, 1)))
 P['Cabin'] = link('Cabin', bm)
 
@@ -102,39 +129,46 @@ def surf_obj(name, surf, spans, x_from=None, x_to=None, sgn=1, axis='y'):
 L = lambda a, b, n: list(np.linspace(a, b, n))
 W = Surf(R['wing']); HW = W.hinge_line(); A_IN, A_OUT = R['aileron_span']; W_TIP = W.s.max()
 wing = []
+def prism(bm, xy, z0, z1, sg=1):       # vertical extrusion of a plan outline (y mirrored by sg)
+    pts = xy if sg > 0 else xy[::-1]
+    loft_rings(bm, [[(x, sg * y, z0) for x, y in pts], [(x, sg * y, z1) for x, y in pts]])
 for sg, sd in ((1, 'L'), (-1, 'R')):
-    wing.append(surf_obj('_wi' + sd, W, L(0.0, A_IN, 8), sgn=sg))
-    wing.append(surf_obj('_wf' + sd, W, L(A_IN, W_TIP, 22), x_to=lambda s: HW(s) + 0.006, sgn=sg))
+    # v3: forward wing is one loft root->tip ending at the hinge line; the aft strip inboard of the aileron is its own
+    # loft, so the only end wall at the aileron's inboard end is the real gap wall behind the hinge
+    sp = L(0.0, A_IN, 8) + L(A_IN + 0.0005, W_TIP, 24)   # full chord inboard, steps to the hinge line at A_IN
+    wing.append(surf_obj('_wf' + sd, W, sp, x_to=lambda s: None if s <= A_IN else HW(s) + 0.006, sgn=sg))
     P['Aileron_' + sd] = surf_obj('Aileron_' + sd, W, L(A_IN + 0.008, W_TIP - 0.004, 22), x_from=lambda s: HW(s) - 0.006, sgn=sg)
 P['Wing'] = paint.join(wing, 'Wing')
-if 'spade' in R:       # aileron spades (plate + arm outline, measured), part of each aileron so they move with it
-    for sg, sd in ((1, 'L'), (-1, 'R')):
-      bm = bmesh.new()
-      PL, ST = R['spade_parts']
-      br = [p for p in ST['xz'] if p[1] < -0.03] + [p for p in PL['xz'] if p[1] > -0.18]
-      br = [(sum(p[0] for p in br) / len(br), 0)] and br
-      cx = sum(p[0] for p in br) / len(br); cz = sum(p[1] for p in br) / len(br)
-      br.sort(key=lambda p: math.atan2(p[1] - cz, p[0] - cx))
-      loft_rings(bm, [[(x, sg * y, z) for x, y, z in (r if sg > 0 else r[::-1])] for r in R['spade_slabs']])
-      for SP in [ST, {'y': ST['y'], 'xz': br}]:   # + bridge strut joining arm to plate
-        xz = SP['xz']; ya, yb = SP['y']
-        a = [bm.verts.new((x, sg * ya, z)) for x, z in xz]; b = [bm.verts.new((x, sg * yb, z)) for x, z in xz]
-        bm.faces.new(a); bm.faces.new(b[::-1])
-        for i in range(len(a)): j = (i + 1) % len(a); bm.faces.new((a[i], a[j], b[j], b[i]))
-      if True:
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        P['Aileron_' + sd] = paint.join([P['Aileron_' + sd], link('_sp' + sd, bm)], 'Aileron_' + sd)
+for sg, sd in ((1, 'L'), (-1, 'R')):   # aileron spades: measured plate outline, inboard weight and slanted strut
+    bm = bmesh.new(); SPP = R['spade_plate']; SW = R['spade_weight']; ST = R['spade_strut']
+    prism(bm, SPP['xy'], SPP['z'][0], SPP['z'][1], sg)
+    hp = [bm.verts.new((x, sg * y, z)) for x, y, z in R['spade_weight_pts']]
+    bmesh.ops.convex_hull(bm, input=hp)
+    zs = [SPP['z'][1] - 0.001] + [r['z'] for r in ST[1:]]
+    loft_rings(bm, [[(x, sg * y, z) for x, y in (r['xy'] if sg > 0 else r['xy'][::-1])] for r, z in zip(ST, zs)])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    P['Aileron_' + sd] = paint.join([P['Aileron_' + sd], link('_sp' + sd, bm)], 'Aileron_' + sd)
 S = Surf(R['stab']); HS = S.hinge_line(); E_IN, E_OUT = R['elevator_span']; S_TIP = S.s.max()
 S.s[0] = 0.0
 P['Stab'] = paint.join([surf_obj('_s' + sd, S, [sg * y for y in L(0, S_TIP, 14)], x_to=lambda s: HS(s) + 0.004, sgn=1) for sg, sd in ((1, 'L'), (-1, 'R'))], 'Stab')
 for sg, sd in ((1, 'L'), (-1, 'R')):
-    P['Elevator_' + sd] = surf_obj('Elevator_' + sd, S, L(E_IN, S_TIP - 0.003, 14), x_from=lambda s: HS(s) - 0.004, sgn=sg)
+    P['Elevator_' + sd] = surf_obj('Elevator_' + sd, S, sorted(set(L(max(E_IN, 0.075), S_TIP - 0.003, 14)) | {s for s in S.s if 0.075 < s < 0.25}), x_from=lambda s: HS(s) - 0.004, sgn=sg)
 F = Surf(R['fin'], signed=True, minc=0.012)
 HFX = float(np.median([t['hinge'] for t in R['fin'] if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02]))   # rudder hinge x
 FZ0 = R['fin_only_zmin']; FZ1 = R['bounds']['Fin'][1][2]; FIN_TOP = R['fin_z'][1]
 P['Fin'] = surf_obj('Fin', F, L(FZ0, FZ1, 14), x_to=lambda z: HFX + 0.004, axis='z')
+bm = bmesh.new(); bmesh.ops.convex_hull(bm, input=[bm.verts.new(p) for p in R['fin_fillet_pts']])   # LE root fillet
+P['Fin'] = paint.join([P['Fin'], link('_ff', bm)], 'Fin')
 P['Rudder'] = paint.join([surf_obj('_r0', F, L(F.s.min(), FZ1, 18), x_from=lambda z: min(HFX - 0.004, F.at(z)[0]), axis='z'),
                           surf_obj('_r1', F, L(FZ1, F.s.max(), 6), axis='z')], 'Rudder')
+RH = R['rudder_horn']; bm = bmesh.new()      # steering horn across the rudder foot + the two cables forward
+c = [(a + b) / 2 for a, b in zip(RH['min'], RH['max'])]; d = [b - a for a, b in zip(RH['min'], RH['max'])]
+bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(c) @ Matrix.Diagonal((d[0], d[1], d[2], 1)))
+for sg in (1, -1):
+    x0, x1 = RH['cable_x']
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.002, radius2=0.002, depth=x1 - x0,
+                          matrix=Matrix.Translation(((x0 + x1) / 2, sg * RH['cable_y'], RH['cable_z'])) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
+P['Rudder'] = paint.join([P['Rudder'], link('_horn', bm)], 'Rudder')
 
 # ---- undercarriage ------------------------------------------------------------------------------------------------
 def tube_path(bm, pts, wx, wy, n=12):
@@ -256,7 +290,7 @@ VB = plan('ea_bot', False); VB.stamp_warp('ea-talk.png', -3.62, -0.62, lo, hi); 
 M = {}
 for v in (VL, VR, VT, VB): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))
 M['white'] = paint.mat_colour('Paint_white', WHITE); M['navy'] = paint.mat_colour('Paint_navy', NAVY)
-M['tyre'] = paint.mat_colour('Paint_tyre', TYRE, rough=0.8); M['cabin'] = paint.mat_colour('Paint_cabin', CABIN, rough=0.8); M['glass'] = paint.mat_glass('Glass')
+M['tyre'] = paint.mat_colour('Paint_tyre', TYRE, rough=0.8); M['cabin'] = paint.mat_colour('Paint_cabin', CABIN, rough=0.8); M['glass'] = paint.mat_glass('Glass', col=(120, 150, 185), alpha=0.42)   # v3: bluer, denser tint like v9
 M['prop_spinner'] = paint.mat_colour('Prop_spinner', WHITE)
 M['prop_blade'] = paint.mat_colour('Prop_blade', WHITE, rough=0.4)
 M['prop_tip'] = paint.mat_colour('Prop_blade_tip', RED, rough=0.4)

@@ -73,3 +73,20 @@ Measured deviation (metres; max / p99), v2 against FG v9:
 - Not reproduced: the FG cockpit interior and engine detail (we use a simple cabin tub).
 
 Licensing status: **unresolved.** A shape deliberately fitted to a GPL model may be treated as a derivative work. See the AGENT-LOG.md NEEDS YOU entry, which asks Claude to assess this, with the option of asking Patrizio Melis for permission. The previous fully clean-room v1 is commit 638c05a.
+
+## v3 (2026-10-26, overnight agent pass)
+Same method: measured the FG v9 reference into number tables (`ea300_measure.py`), then rebuilt every surface from those numbers. No FG geometry, UVs or textures are copied.
+- Wing: one loft from root to tip. It is full chord inboard and steps to the hinge line at the aileron's inboard end. This removes the internal full-chord end cap (was 11 cm). Wing station 2.498 had read the spade strut as wing skin; it is now rebuilt from the stations either side.
+- Aileron spades are redrawn from measurements: a 7 mm plan-outline plate, the wedge-shaped weight, and a slanted strut lofted through 6 z-levels.
+- Rudder: added the steering horn bar and two 4 mm cables, measured from the reference.
+- Fin: added a leading-edge root fillet (hull of the measured fillet points).
+- Elevators: denser stab stations at the rudder cut-out. The elevator root now starts at y 0.075.
+- Gear: section rings resampled at 48 points (was 16).
+- Canopy: a smooth coaming tube runs along the glass boundary, replacing the stair-stepped edge. The seat-back boxes were removed and the cabin is now navy. The glass tint is bluer and denser to match v9.
+- Compare now ignores fully enclosed points and reports clusters.
+- Result: every part is within 2.5 cm in 3D except three:
+  - Fuselage nose cap, 7.1 cm. It sits inside the spinner and cannot be seen.
+  - Tail wheel, 2.6–2.8 cm. Our tail wheel is a simple cone; the reference is a tyre.
+  - Aileron spade-arm top, 2.8 cm.
+  The last two are still within 1 inch + 3 mm.
+- Silhouettes, % of outline within 25 mm: side 99.98, front 100, top 99.2. The top-view residual is around the tail-cone/rudder root.

@@ -17,3 +17,6 @@
 - Visible-surface p99 is ≤ 3.7 cm in every part. Silhouette outlines are within 25 mm on 99.3–99.9% of the outline. Details are in PROVENANCE.
 - Unity rig binds 4/4 surfaces and 1/1 prop.
 - Local commit only: no push and no merge.
+
+## 2026-10-26 EA 300 own model v3 (codex/own-ea300)
+Did the v3 shape pass and visual QA (see docs/models/ea300-own-PROVENANCE.md v3). Outputs are in the box at /workspace/ea300-own-v3/. Not pushed. The GPL NEEDS YOU note from v2 still stands.
