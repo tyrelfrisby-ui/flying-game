@@ -152,12 +152,10 @@ namespace FlyingGame.Bridge
             // accents. Our model bakes the cheat line, TALKFLYING and talkflying.com into the fuselage
             // (glider-2-33-like-own-tf.glb); the wing words and the fin logo are laid on as markings. Every
             // surface stays yellow -- black only as lettering/trim -- so the silhouette reads on a black background.
-            ["glider-2-33-like"] = new("talk-flying", "Talk Flying", SgsYellow, SgsYellow, SgsYellow, SgsYellow, decals: new[]
-            {
-                // The logo is baked onto the aft fuselage: the config-geometry fin decal floats off our fin.
-                new Decal(DecalPlace.WingUpper, text: "TALK FLYING", colour: Black, heightFrac: 0.55f, spanFrac: 0.50f),
-                new Decal(DecalPlace.WingLower, text: "TALK FLYING", colour: Black, heightFrac: 0.55f, spanFrac: 0.50f),
-            }),
+            ["glider-2-33-like"] = new("talk-flying", "Talk Flying", SgsYellow, SgsYellow, SgsYellow, SgsYellow,
+                // v6: every marking is baked into the model -- wing TALK FLYING / PODCAST and the emblem too (the
+                // config-geometry wing words sat under our high wing and the fin logo floated off our fin).
+                decals: new Decal[0]),
 
             // SWIFT S-1: the aerobatic sailplane, marked the way the Grob's repaint is (owner, 2026-10-22 —
             // "brand the swift like the grob"): the winged badge over the LEFT wing, the wordmark over the

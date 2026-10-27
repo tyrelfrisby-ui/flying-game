@@ -38,3 +38,6 @@ No GPL or third-party mesh was used as input.
 
 ## Talk Flying livery (v5)
 `SGS_LIVERY=talk-flying` builds `glider-2-33-like-own-tf.glb`: the same yellow base (255,204,0) with a black cheat line + silver pinstripe, TALKFLYING in place of the N-number, the Talk Flying logo on a black/silver plate, and talkflying.com, all baked into the fuselage side texture. Lettering art made with Be Vietnam Pro Bold (OFL); the logo is the project's own Decals/talk-flying-logo.png. No third-party geometry or artwork.
+
+## v6 wing marks
+Top: TALK FLYING (port) / PODCAST (starboard), reading from above nose-up, and the wings-and-headset emblem over the fuselage. Underside: TALK FLYING / PODCAST reading from below nose-up. Baked into the wing via planar top/bottom projections. The emblem is cropped from our own Decals/talk-flying-logo.png (wordmark removed) on a black outline; lettering is Be Vietnam Pro Bold (OFL).

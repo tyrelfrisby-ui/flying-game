@@ -242,6 +242,27 @@ def side(name, flip):
         v.stamp('n2033a.png', x0, x1, zl, zl + h)
     return v
 VL, VR = side('sgs_side_l', True), side('sgs_side_r', False)
+WING_TOP = WING_BOT = None
+if LIV == 'talk-flying':
+    # v6 Talk Flying wing marks, baked (the in-game wing words sat under our high wing). Planar top/bottom views:
+    # a = span y, b = chord x (nose up). From above port (+y) is on the left, so the top view runs u along -y;
+    # from below port is on the right, so the bottom view runs u along +y. Text then reads left-to-right in both.
+    xb0, xb1 = ROOT_LE - ROOT_C - 0.06, ROOT_LE + 0.06
+    WING_TOP = View('sgs_wing_top', (-HALF - 0.05, HALF + 0.05), (xb0, xb1), 4096, 512, flip_a=True, axes=(1, 0))
+    WING_BOT = View('sgs_wing_bot', (-HALF - 0.05, HALF + 0.05), (xb0, xb1), 4096, 512, flip_a=False, axes=(1, 0))
+    xm = ROOT_LE - 0.45 * ROOT_C
+    def word(v, png, ymid, h):
+        im = bpy.data.images.load(os.path.join(paint.ART, png), check_existing=True); w_, h_ = im.size; L_ = h * w_ / h_
+        v.stamp(png, ymid - L_ / 2, ymid + L_ / 2, xm - h / 2, xm + h / 2)
+    YMID = 2.25                     # inner panel, clear of the pylon/fuselage (|y|<0.75) and the ailerons (|y|>A_IN)
+    for v in (WING_TOP, WING_BOT): v.fill(v.A > -1e9, YELLOW)
+    word(WING_TOP, 'tf-wing-talkflying.png', YMID, 0.30)      # port, read from above
+    word(WING_TOP, 'tf-wing-podcast.png', -YMID, 0.30)        # starboard
+    word(WING_TOP, 'tf-emblem.png', 0.0, 0.48)                # wings-and-headset emblem over the fuselage
+    word(WING_BOT, 'tf-wing-talkflying.png', -YMID, 0.30)     # from below, nose up: starboard is on the left
+    word(WING_BOT, 'tf-wing-podcast.png', YMID, 0.30)
+    M_WT = paint.mat_image('Paint_sgs_wing_top', WING_TOP.to_image(TEX + '/wt.png'))
+    M_WB = paint.mat_image('Paint_sgs_wing_bot', WING_BOT.to_image(TEX + '/wb.png'))
 M = {'l': paint.mat_image('Paint_sgs_side_l', VL.to_image(TEX + '/l.png')),
      'r': paint.mat_image('Paint_sgs_side_r', VR.to_image(TEX + '/r.png')),
      'yellow': paint.mat_colour('Paint_yellow', YELLOW), 'white': paint.mat_colour('Paint_white', WHITE),
@@ -254,6 +275,12 @@ P['Fuselage'] = paint.join([P['Fuselage'], P.pop('Fuselage_Pylon')], 'Fuselage')
 for n, o in P.items():
     if n == 'Fuselage':
         setm(o, ['l', 'r']); paint.project(o, lambda nrm, c: (0, VL) if nrm.y >= 0 else (1, VR))
+    elif WING_TOP is not None and n == 'Wing':
+        o.data.materials.clear(); o.data.materials.append(M_WT); o.data.materials.append(M_WB)
+        paint.project(o, lambda nrm, c: (0, WING_TOP) if nrm.z >= 0 else (1, WING_BOT))
+    elif WING_TOP is not None and n.startswith('Spoiler'):
+        o.data.materials.clear(); o.data.materials.append(M_WT)
+        paint.project(o, lambda nrm, c: (0, WING_TOP))
     else:
         col = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'yellow'}.get(n)
         if col is None: col = 'yellow' if n.startswith(('Wing', 'Aileron', 'Spoiler', 'Stab', 'Elevator', 'Fin', 'Rudder')) else 'yellow'
