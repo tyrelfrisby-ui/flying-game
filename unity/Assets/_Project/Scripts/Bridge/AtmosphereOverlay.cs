@@ -94,6 +94,30 @@ namespace FlyingGame.Bridge
                 GroundLoop(f, core, 20, col);
                 if (r.Shape != "box") GroundLoop(f, r.Shape == "capsule" ? Stadium(r.CenterX, r.CenterY, r.HeadingRad, cfg.HalfLengthM, cfg.RadiusM + cfg.BlendM) : Stadium(r.CenterX, r.CenterY, 0, 0, cfg.RadiusM + cfg.BlendM), 20, col * 0.5f);
             }
+            // Seaplane lakes' smooth air: the water grown by its shore margin, and the approach corridors.
+            var lakeCol = new Color(0.4f, 0.7f, 1f);
+            double margin = f.Config.LakeSmoothing.ShoreMarginM;
+            foreach (AtmosphereField.SeaplaneLake l in f.SeaplaneLakes)
+            {
+                if (l.SemiMajorM > 0)
+                {
+                    var ring = new List<(double, double)>();
+                    double c = System.Math.Cos(l.HeadingRad), sn = System.Math.Sin(l.HeadingRad);
+                    for (int i = 0; i < 48; i++)
+                    {
+                        double a = i * 2 * System.Math.PI / 48;
+                        double u = (l.SemiMajorM + margin) * System.Math.Cos(a), v = (l.SemiMinorM + margin) * System.Math.Sin(a);
+                        ring.Add((l.CentreX + u * c - v * sn, l.CentreY + u * sn + v * c));
+                    }
+                    GroundLoop(f, ring, 15, lakeCol);
+                }
+                foreach (var (x0, y0, x1, y1, hw) in l.Segments)
+                {
+                    double len = System.Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+                    if (len < 1) continue;
+                    GroundLoop(f, Stadium(0.5 * (x0 + x1), 0.5 * (y0 + y1), System.Math.Atan2(y1 - y0, x1 - x0), 0.5 * len, hw), 15, lakeCol * 0.7f);
+                }
+            }
             AtmosphereField.CalmZone z = f.Calm;
             if (z == null) return;
             var calm = new Color(0.3f, 0.9f, 1f);
@@ -184,7 +208,8 @@ namespace FlyingGame.Bridge
             string text = $"AIR [{Toggle}]  {s.RegionId}{(s.CalmWeight > 0 ? $"  calm {s.CalmWeight:P0}" : "")}\n"
                 + $"wind {from:000}° {spd * kt:F0} kt  w {-s.MeanWind.Z:+0.0;-0.0} m/s  gust σ {s.SigmaHorizMs:F1}/{s.SigmaVertMs:F1} m/s  L {s.LengthHorizM:F0} m\n"
                 + $"OAT {s.TemperatureK - 273.15:F0}°C (ISA{s.IsaDeviationK:+0;-0})  QNH {s.QnhPa / 100:F0} hPa  DA {s.DensityAltitudeM * 3.28084:F0} ft\n"
-                + $"slope {s.SlopeLiftMs:+0.0;-0.0}  lee {s.LeeMs:+0.0;-0.0}  wave {s.WaveMs:+0.0;-0.0}  conv {s.ConvectiveMs:+0.0;-0.0}  speed-up {s.SpeedUp:P0}";
+                + $"slope {s.SlopeLiftMs:+0.0;-0.0}  lee {s.LeeMs:+0.0;-0.0}  wave {s.WaveMs:+0.0;-0.0}  conv {s.ConvectiveMs:+0.0;-0.0}  speed-up {s.SpeedUp:P0}\n"
+                + $"terrain rough ×{s.RoughnessFactor:F2}{(s.LakeSmoothing > 0 ? $" (seaplane lake {s.LakeSmoothing:P0})" : "")}  σ terrain {s.OrographicSigmaMs:F1} m/s  rotor {s.RotorMs:F1} m/s";
             GUI.Label(new Rect(Screen.width * 0.02f, Screen.height * 0.12f, Screen.width * 0.6f, Screen.height * 0.2f), text, _style);
         }
     }
