@@ -413,6 +413,12 @@ M['ck_stick'] = paint.mat_colour('Cockpit_stick', (42, 42, 46), rough=0.5)
 M['ck_tube'] = paint.mat_colour('Cockpit_tube', (200, 202, 205), rough=0.5)
 M['ck_tub'] = M['cabin']
 setm(P['Cockpit'], CK_T)
+for _n in CK_T[:-1]:   # v5: whole interior matte = high roughness, no metal, no specular sheen
+    for _nd in M[_n].node_tree.nodes:
+        if _nd.type == 'BSDF_PRINCIPLED':
+            _nd.inputs['Roughness'].default_value = 0.9; _nd.inputs['Metallic'].default_value = 0.0
+            for _k in ('Specular IOR Level', 'Specular'):
+                if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
 for p, t in zip(P['Cockpit'].data.polygons, ck_tag): p.material_index = t
 for o in P.values():
     bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(o.data); bm.free()
