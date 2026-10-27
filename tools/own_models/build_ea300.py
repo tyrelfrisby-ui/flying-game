@@ -15,7 +15,10 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb')
+# v9: two liveries off one geometry. EA_LIVERY=tf (default) -> extra-300-like-own.glb, the Talk Flying scheme the game
+# already loads; EA_LIVERY=n300uy -> extra-300-like-own-n300uy.glb, the plain owner's copy with no Talk Flying branding.
+LIVERY = os.environ.get('EA_LIVERY', 'tf'); assert LIVERY in ('tf', 'n300uy'), LIVERY
+OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own%s.glb' % ('' if LIVERY == 'tf' else '-' + LIVERY))
 TEX = '/tmp/own_ea300_tex'; os.makedirs(TEX, exist_ok=True)
 NAVY, RED, WHITE = (27, 42, 74), (200, 24, 36), (246, 246, 246)
 NICKEL, TYRE, CABIN = (205, 208, 212), (88, 90, 96), (44, 56, 92)   # v3: navy cabin, not grey
@@ -384,10 +387,26 @@ _k = (ZW - ZT) / (XW - XT)
 zb = lambda x: np.minimum(ZT + _k * (x - XT), ZW - 0.02)
 LP1, LP2, RW = 0.085, 0.405, 0.025
 FIN_LE = lambda z: np.interp(z, F.s, F.le)
-TH = 0.19; TX0 = XWR - 0.10; TX1 = TX0 - TH * 2212 / 203   # v8: TALKFLYING.COM, height 0.21->0.19 so it fits aft of the wing
+SIDE_ART = 'ea-talkflying-com.png' if LIVERY == 'tf' else 'ea-n300uy.png'   # v9: both set in Liberation Sans Bold (OFL 1.1)
+_sw, _sh = {'ea-talkflying-com.png': (2203, 203), 'ea-n300uy.png': (955, 203)}[SIDE_ART]
+TH = 0.19; TX0 = XWR - 0.10; TX1 = TX0 - TH * _sw / _sh   # v8: TALKFLYING.COM, height 0.21->0.19 so it fits aft of the wing
 print('NAVY LINE tail %.3f wing %.3f (x %.2f)  TALKFLYING x %.2f..%.2f  bottom there %.2f..%.2f, letters %.2f..%.2f' %
       (ZT, ZW, XW, TX0, TX1, botf(TX0), botf(TX1), zb(TX1) - 0.13 - TH, zb(TX0) - 0.13))
 ZSTAR = FIN_TOP - 0.18; SLE_, STE_ = float(np.interp(ZSTAR, F.s, F.le)), float(np.interp(ZSTAR, F.s, F.te))
+def _fin_logo(asp=891 / 228, m=0.04):
+    """Largest badge rectangle that sits wholly in the fin's white field (below the red line, above the fuselage)."""
+    best = None
+    for zhi, h in [(zh, hh) for zh in np.linspace(FIN_TOP - 0.36 - m, FIN_TOP - 1.2, 60) for hh in np.linspace(0.05, 0.6, 111)]:
+        if best and h <= best[3] - best[2]: continue
+        zlo = zhi - h; zz = np.linspace(zlo, zhi, 9)
+        xf = float(np.min(FIN_LE(zz))) - m; xa = float(np.max(np.interp(zz, F.s, F.te))) + m
+        w = asp * h
+        if w > xf - xa: continue
+        xc = 0.5 * (xf + xa); xs = np.linspace(xc - w / 2, xc + w / 2, 9)
+        if zlo < float(np.max(topf(xs))) + m: continue
+        best = (xc + w / 2, xc - w / 2, zlo, zhi)
+    return best
+FIN_LOGO = _fin_logo(); print('FIN LOGO', FIN_LOGO)
 def side(name, flip):
     v = View(name, (X0, X1), (Z0p, Z1p), 4096, 1520, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
     finz = (A < FIN_LE(Z) + 0.02) & (Z > topf(A) + 0.02) & (A < -3.3)
@@ -404,24 +423,35 @@ def side(name, flip):
     v.fill(pants & (Z > Z_AX + 0.05), NAVY)
     v.fill(pants & (Z > Z_AX + 0.005) & (Z < Z_AX + 0.03), RED)
     zt = min(zb(TX0), zb(TX1)) - 0.13
-    v.stamp('ea-talkflying-com.png', TX0, TX1, zt - TH, zt)
+    if LIVERY == 'tf':
+        v.stamp(SIDE_ART, TX0, TX1, zt - TH, zt)
+    else:   # v9: N300UY centred on the white band between the two lower red stripes, same height as the wordmark
+        xm = 0.5 * (TX0 + TX1); zm = float(zb(xm)) - 0.5 * (LP1 + RW + LP2)
+        v.stamp(SIDE_ART, xm + 0.5 * (TX0 - TX1), xm - 0.5 * (TX0 - TX1), zm - 0.5 * TH, zm + 0.5 * TH)
+    if LIVERY == 'tf':   # v9: wings-and-headset badge in the fin's white field, both sides, reading the same way (like the text)
+        v.stamp('ea-tf-badge.png', *FIN_LOGO)
     return v
 VL, VR = side('ea_side_l', True), side('ea_side_r', False)
 GAP_W = 0.03
 LEv = lambda y: np.interp(np.abs(y), W.s, W.le); TEv = lambda y: np.interp(np.abs(y), W.s, W.te)
 SLEv = lambda y: np.interp(np.abs(y), S.s, S.le); STEv = lambda y: np.interp(np.abs(y), S.s, S.te)
-def plan(name, flip):
+def plan(name, flip, bar=False):
     v = View(name, (-4.1, 4.1), (X0, X1), 4096, 3870, flip_a=flip, axes=(1, 0)); Y, Xx = v.A, v.B
     wz = Xx > -2.6
     split = np.where(wz, LEv(Y) - 0.32 * (LEv(Y) - TEv(Y)), SLEv(Y) - 0.32 * (SLEv(Y) - STEv(Y)))
     v.fill(Xx > split, NAVY)
-    v.fill((Xx <= split - GAP_W) & (Xx > split - GAP_W - RW), RED)
+    if bar:   # v9 plain underside: a thick red bar behind the navy LE, 15 % chord at the root tapering to 7.5 % at the tip
+        ch = LEv(Y) - TEv(Y); bw = np.where(wz, 0.15 * ch * (1 - 0.5 * np.clip(np.abs(Y) / W_TIP, 0, 1)), RW)
+        v.fill((Xx <= split - GAP_W) & (Xx > split - GAP_W - bw), RED)
+    else:
+        v.fill((Xx <= split - GAP_W) & (Xx > split - GAP_W - RW), RED)
     return v
 lo = lambda y: HW(np.abs(y)) + 0.04
 hi = lambda y: LEv(y) - 0.32 * (LEv(y) - TEv(y)) - GAP_W - RW - 0.03
 print('LETTER height root %.2f tip %.2f' % (hi(0.62) - lo(0.62), hi(3.62) - lo(3.62)))
 VT = plan('ea_top', True); VT.stamp_warp('ea-sunrise.png', 3.62, 0.62, lo, hi); VT.stamp_warp('ea-aviation.png', -0.62, -3.62, lo, hi)
-VB = plan('ea_bot', False); VB.stamp_warp('ea-talk-flying.png', -3.62, -0.62, lo, hi); VB.stamp_warp('ea-podcast.png', 0.62, 3.62, lo, hi)   # v8: TALK FLYING | PODCAST split across the wings
+VB = plan('ea_bot', False, bar=(LIVERY == 'n300uy'))
+if LIVERY == 'tf': VB.stamp_warp('ea-talk-flying.png', -3.62, -0.62, lo, hi); VB.stamp_warp('ea-podcast.png', 0.62, 3.62, lo, hi)   # v8: TALK FLYING | PODCAST split across the wings
 
 M = {}
 for v in (VL, VR, VT, VB): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))
