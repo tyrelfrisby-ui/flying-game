@@ -339,7 +339,7 @@ for sg in (1, -1):
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Wheel_Pants'] = link('Wheel_Pants', bm)
 PX0, PX1 = min(r['x'] for r in PR), max(r['x'] for r in PR)
 
-# ---- spinner and two-blade propeller -----------------------------------------------------------------------------------
+# ---- spinner and three-blade propeller (v10: 3 blades at 120 deg) -----------------------------------------------------------------------------------
 SPX = R['spinner_tip_x']; PROP_X = R['prop']['x']
 prof = [(x, r) for x, r in R['spinner'] if x < SPX - 0.004]
 bm = bmesh.new(); rs = [[bm.verts.new((x, r * math.sin(a), r * math.cos(a))) for a in np.linspace(0, 2 * math.pi, 28, endpoint=False)] for x, r in prof]
@@ -350,9 +350,10 @@ for a_, b2 in zip(rs, rs[1:]):
 bm.faces.new(rs[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Spinner'] = link('Spinner', bm)
 R_P, PITCH = R['prop']['r'], 1.9
 bm = bmesh.new(); face_tag = []
-for blade in (0, 1):
-    rad = np.array([0, 0, 1.0]) if blade == 0 else np.array([0, 0, -1.0])
-    tan = np.array([0, 1.0, 0]) if blade == 0 else np.array([0, -1.0, 0])   # direction of travel
+for blade in range(3):
+    ph = blade * 2 * math.pi / 3
+    rad = np.array([0, math.sin(ph), math.cos(ph)])
+    tan = np.array([0, math.cos(ph), -math.sin(ph)])   # direction of travel (same sense as the old 2-blade)
     ax = np.array([1.0, 0, 0]); hub = np.array([PROP_X, 0, 0])
     rr = np.linspace(0.14, R_P, 16); secs = []; us = []
     for r in rr:
@@ -385,15 +386,29 @@ SLE, STE, SUP, SDN = S.at(0.1); ZS = 0.5 * (float(SUP.max()) + float(SDN.min()))
 ZT = ZS + 0.04                                  # navy ends just above the tailplane
 _k = (ZW - ZT) / (XW - XT)
 zb = lambda x: np.minimum(ZT + _k * (x - XT), ZW - 0.02)
-LP1, LP2, RW = 0.085, 0.405, 0.025
+LP1, LP2, RW = 0.085, 0.405, 0.025; LP3_GAP = 0.02
 FIN_LE = lambda z: np.interp(z, F.s, F.le)
 SIDE_ART = 'ea-talkflying-com.png' if LIVERY == 'tf' else 'ea-n300uy.png'   # v9: both set in Liberation Sans Bold (OFL 1.1)
 _sw, _sh = {'ea-talkflying-com.png': (2203, 203), 'ea-n300uy.png': (955, 203)}[SIDE_ART]
-TH = 0.19; TX0 = XWR - 0.10; TX1 = TX0 - TH * _sw / _sh   # v8: TALKFLYING.COM, height 0.21->0.19 so it fits aft of the wing
+# v10: centred fore-aft between the wing-root TE and the stab-root LE, on the white band between the stripes;
+# height shrinks so the (sloping) band still clears the letters by 0.025 m top and bottom.
+XLC = 0.5 * (XWR + float(S.at(0.1)[0]))
+TH = 0.19   # v8
+_band = LP2 - (LP1 + RW) - 0.05
+TH = min(TH, _band / (1 + abs(_k) * _sw / _sh)); TX0 = XLC + 0.5 * TH * _sw / _sh; TX1 = XLC - 0.5 * TH * _sw / _sh
+print('SIDE LETTERS centre x %.2f height %.3f' % (XLC, TH))   # v8: TALKFLYING.COM, height 0.21->0.19
 print('NAVY LINE tail %.3f wing %.3f (x %.2f)  TALKFLYING x %.2f..%.2f  bottom there %.2f..%.2f, letters %.2f..%.2f' %
       (ZT, ZW, XW, TX0, TX1, botf(TX0), botf(TX1), zb(TX1) - 0.13 - TH, zb(TX0) - 0.13))
 ZSTAR = FIN_TOP - 0.18; SLE_, STE_ = float(np.interp(ZSTAR, F.s, F.le)), float(np.interp(ZSTAR, F.s, F.te))
-def _fin_logo(asp=891 / 228, m=0.04):
+def _fin_logo(asp=891 / 228, m=0.04, h0=0.23):
+    """v10: vertically centred between the stab top and the bottom of the cap's red line; v9 size, shrunk if needed."""
+    zc = 0.5 * (float(SUP.max()) + FIN_TOP - 0.36)
+    for h in np.linspace(h0, 0.05, 60):
+        zz = np.linspace(zc - h / 2, zc + h / 2, 9)
+        xf = float(np.min(FIN_LE(zz))) - m; xa = float(np.max(np.interp(zz, F.s, F.te))) + m; w = asp * h
+        if w <= xf - xa:
+            xc = 0.5 * (xf + xa); return (xc + w / 2, xc - w / 2, zc - h / 2, zc + h / 2)
+def _fin_logo_v9(asp=891 / 228, m=0.04):
     """Largest badge rectangle that sits wholly in the fin's white field (below the red line, above the fuselage)."""
     best = None
     for zhi, h in [(zh, hh) for zh in np.linspace(FIN_TOP - 0.36 - m, FIN_TOP - 1.2, 60) for hh in np.linspace(0.05, 0.6, 111)]:
@@ -415,6 +430,7 @@ def side(name, flip):
     v.fill(body & (d < 0.05), NAVY)
     v.fill(body & (d >= LP1) & (d < LP1 + RW), RED)
     v.fill(body & (d >= LP2) & (d < LP2 + RW), RED)
+    v.fill(body & (d >= LP2 + RW + LP3_GAP) & (d < LP2 + 2 * RW + LP3_GAP), RED)   # v10: second thin stripe under the lower one
     v.fill(finz & (Z > FIN_TOP - 0.30), NAVY)
     v.fill(finz & (Z > FIN_TOP - 0.36) & (Z < FIN_TOP - 0.33), RED)
     for f in (0.2, 0.5, 0.8):
@@ -422,12 +438,8 @@ def side(name, flip):
     pants = (Z < -0.9) & (A > PX0 - 0.02) & (A < PX1 + 0.02)
     v.fill(pants & (Z > Z_AX + 0.05), NAVY)
     v.fill(pants & (Z > Z_AX + 0.005) & (Z < Z_AX + 0.03), RED)
-    zt = min(zb(TX0), zb(TX1)) - 0.13
-    if LIVERY == 'tf':
-        v.stamp(SIDE_ART, TX0, TX1, zt - TH, zt)
-    else:   # v9: N300UY centred on the white band between the two lower red stripes, same height as the wordmark
-        xm = 0.5 * (TX0 + TX1); zm = float(zb(xm)) - 0.5 * (LP1 + RW + LP2)
-        v.stamp(SIDE_ART, xm + 0.5 * (TX0 - TX1), xm - 0.5 * (TX0 - TX1), zm - 0.5 * TH, zm + 0.5 * TH)
+    zm = float(zb(XLC)) - 0.5 * (LP1 + RW + LP2)   # both liveries: centred on the band between the stripes
+    v.stamp(SIDE_ART, TX0, TX1, zm - 0.5 * TH, zm + 0.5 * TH)
     if LIVERY == 'tf':   # v9: wings-and-headset badge in the fin's white field, both sides, reading the same way (like the text)
         v.stamp('ea-tf-badge.png', *FIN_LOGO)
     return v
@@ -435,13 +447,15 @@ VL, VR = side('ea_side_l', True), side('ea_side_r', False)
 GAP_W = 0.03
 LEv = lambda y: np.interp(np.abs(y), W.s, W.le); TEv = lambda y: np.interp(np.abs(y), W.s, W.te)
 SLEv = lambda y: np.interp(np.abs(y), S.s, S.le); STEv = lambda y: np.interp(np.abs(y), S.s, S.te)
+STAB_NAVY = 0.32 * float(np.mean(S.le - S.te))
 def plan(name, flip, bar=False):
     v = View(name, (-4.1, 4.1), (X0, X1), 4096, 3870, flip_a=flip, axes=(1, 0)); Y, Xx = v.A, v.B
     wz = Xx > -2.6
-    split = np.where(wz, LEv(Y) - 0.32 * (LEv(Y) - TEv(Y)), SLEv(Y) - 0.32 * (SLEv(Y) - STEv(Y)))
+    # v10: on the stab the navy bar and red line are a constant chordwise offset from each side's LE (no V at the root)
+    split = np.where(wz, LEv(Y) - 0.32 * (LEv(Y) - TEv(Y)), SLEv(Y) - STAB_NAVY)
     v.fill(Xx > split, NAVY)
-    if bar:   # v9 plain underside: a thick red bar behind the navy LE, 15 % chord at the root tapering to 7.5 % at the tip
-        ch = LEv(Y) - TEv(Y); bw = np.where(wz, 0.15 * ch * (1 - 0.5 * np.clip(np.abs(Y) / W_TIP, 0, 1)), RW)
+    if bar:   # v9 plain underside: a thick red bar behind the navy LE, 22 % chord at the root (v10) tapering to 11 % at the tip
+        ch = LEv(Y) - TEv(Y); bw = np.where(wz, 0.22 * ch * (1 - 0.5 * np.clip(np.abs(Y) / W_TIP, 0, 1)), RW)
         v.fill((Xx <= split - GAP_W) & (Xx > split - GAP_W - bw), RED)
     else:
         v.fill((Xx <= split - GAP_W) & (Xx > split - GAP_W - RW), RED)

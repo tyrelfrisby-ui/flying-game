@@ -118,3 +118,11 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 - **Plain N300UY** (`extra-300-like-own-n300uy.glb`): no Talk Flying branding. Fuselage sides read N300UY (art/ea-n300uy.png), navy, centred between the two lower red stripes, same height as the wordmark. Wing undersides carry no lettering; instead a red bar sits behind the navy leading edge (after the same 0.03 m white gap), 15 % of local chord deep at the root tapering linearly to 7.5 % at the tip. SUNRISE / AVIATION on top unchanged.
 - Side lettering font: Nimbus Sans → **Liberation Sans Bold** (Liberation Fonts 2.x, Red Hat, **SIL Open Font License 1.1**), Helvetica/Arial-metric; best shape match to the old wordmark among OFL candidates (IoU 0.81 vs Inter Bold 0.81 / Work Sans 0.81), scaled ×0.962 horizontally to keep the old wordmark's width per letter. Wing lettering stays **Archivo Black** (Omnibus-Type, **SIL OFL 1.1**). Arimo (Apache 2.0) deliberately not used.
 - Four-view renders via tools/own_models/ea300_fourview.py (Blender, ortho top/bottom/side/iso + fin close-ups).
+
+## v10 Ty feedback (2026-10-27)
+- Stab (both): navy bar aft edge and red line are now a constant chordwise offset (0.32 × mean stab chord) from each side's LE, parallel to it, so there's no V at the root.
+- Side lettering (both): centred fore-aft between wing-root TE and stab-root LE (x −2.47), vertically centred between the lower red stripes, height 0.19 (fits, no shrink).
+- Second thin red stripe (both) under the lower stripe: 0.025 m, 0.02 m white gap, parallel (as on the real N300UY).
+- Plain underwing bar: 22 % chord at root, same 50 % taper (11 % at tip).
+- Propeller: 3 blades at 120°, same paint (white, 5 in red tips, 1 in nickel LE). Unity render log: 4/4 control surfaces, 1/1 propellers bound.
+- TF fin badge: vertically centred between stab top and the cap's red line; shrunk slightly to fit (0.81 × 0.21 m).
