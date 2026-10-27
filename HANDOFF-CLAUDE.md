@@ -77,7 +77,7 @@ a7e1c96 mountain roughness + lake smoothing · 4434ed9 AGENT-LOG.
 
 ### 1.4 Worktrees / stray work
 - ~/Developer/flying-game-worktrees/claude-ea300-swap → checked out on lane/claude-ota-ea300-atmos (clean).
-- ~/Developer/flying-game-worktrees/claude-regional-atmosphere → lane/claude-regional-atmosphere (clean). Contains an untracked copy of the gitignored `scripts/claude-run.sh`.
+- ~/Developer/flying-game-worktrees/claude-regional-atmosphere → lane/claude-regional-atmosphere (clean). Also holds a copy of the gitignored `scripts/claude-run.sh`.
 - ~/Developer/flying-game-worktrees/claude-handoff → this branch.
 - Older Claude Code subagent worktrees in `~/Developer/flying-game/.claude/worktrees/` (2026-10-13 spin work): `spin-autorotation-fix` 288af7d (+4 unmerged:
   3c7bf54, ffa15a8, ebf875c, 288af7d), `spin-step3-hysteresis` 91c3cef and `spin-rotary-autorotation` 49af347 (both already contained in split-surfaces). Review or prune.
@@ -115,7 +115,7 @@ safe to discard with `git checkout -- unity/ProjectSettings/ProjectSettings.asse
 - develop/v2 AGENT-LOG open items addressed to Claude: HANDOFF `[codex → claude] codex/audit-and-look` — review A-D commits 776f9690 / 00a74d23 / bed083f2 and resolve the
   export-queue free-space margin (needs max(10 GB, 10 %) free when the clone fails → blocks external-drive exports; proposed fix: big margin only for copies > 64 MB). **Still open.**
   NEEDS YOU `[claude, 10-26]` main checkout was on codex/audit-and-look — now on develop/v2 (resolved).
-- ~/Documents/overlay-studio/.claude/worktrees/ holds ~45 old Claude Code subagent worktrees (one locked). Review/prune when convenient.
+- ~/Documents/overlay-studio/.claude/worktrees/ holds 47 old Claude Code subagent worktrees (one locked). Review/prune when convenient.
 - ~/Documents/overlay-studio-dev (develop/v2 707c1731) has 14 uncommitted files (BACKLOG.md, legal/*, …) that are not from the Claude lanes — untouched.
 
 ---
