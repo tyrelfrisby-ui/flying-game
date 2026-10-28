@@ -217,13 +217,19 @@ namespace FlyingGame.Bridge
 
         public static readonly Livery[] All = { TypeColours, TalkFlyingGeneric };
 
-        /// <summary>The schemes a picker should offer for `aircraftId`: the fleet-wide ones plus the type's own.</summary>
-        public static IReadOnlyList<Livery> Available(string aircraftId) => aircraftId switch
+        private static readonly Livery[] TypeOnly = { TypeColours };
+
+        /// <summary>The schemes the livery picker offers for `aircraftId` (FlyingGame.Core.LiveryChoice, the default first):
+        /// the Extra's Talk Flying and N300UY, the Pitts's N31DG and N1191. Every other type has the one it has always
+        /// flown in, its own colours, so the picker (StartMenu: more than one, or nothing) leaves it alone.</summary>
+        public static IReadOnlyList<Livery> Available(string aircraftId)
         {
-            "extra-300-like" => new[] { For("talk-flying", aircraftId), N300UYExtra },
-            "pitts-s2b-like" => new[] { N31DGPitts, N1191Pitts },
-            _ => All,
-        };
+            var options = FlyingGame.Core.LiveryChoice.For(aircraftId);
+            if (options.Count == 0) return TypeOnly;
+            var list = new Livery[options.Count];
+            for (int i = 0; i < list.Length; i++) list[i] = For(options[i].Id, aircraftId);
+            return list;
+        }
 
         /// <summary>The livery to paint `aircraftId` in. A per-type scheme wins over the generic one.</summary>
         public static Livery For(string liveryId, string aircraftId)

@@ -44,7 +44,7 @@ namespace FlyingGame.EditorTools
             GameObject root = null, cameraObject = null, sunObject = null;
             Camera camera = null;
             var builder = new AirframeBuilder();
-            string previousLivery = SessionSettings.LiveryId;
+            string previousLivery = SessionSettings.LiveryOverride;
             bool previousModels = SessionSettings.UseAirframeModels, previousOwn = SessionSettings.UseOwnModels;
             try
             {
@@ -65,7 +65,7 @@ namespace FlyingGame.EditorTools
                     throw new InvalidOperationException("The Extra requires our own EA300. Run EA_LIVERY=tf|n300uy blender -b --python tools/own_models/build_ea300.py, then let Unity import the GLBs.");
                 string output = Path.GetFullPath(outDir);
                 Directory.CreateDirectory(output);
-                SessionSettings.LiveryId = livery;
+                SessionSettings.LiveryOverride = livery;
                 SessionSettings.UseAirframeModels = true;
                 if (id == "glider-2-33-like") SessionSettings.UseOwnModels = true;
                 // Temporary scene only: never save or modify a project scene or asset.
@@ -177,7 +177,7 @@ namespace FlyingGame.EditorTools
             }
             finally
             {
-                SessionSettings.LiveryId = previousLivery;
+                SessionSettings.LiveryOverride = previousLivery;
                 SessionSettings.UseAirframeModels = previousModels;
                 SessionSettings.UseOwnModels = previousOwn;
                 RenderTexture.active = previous;

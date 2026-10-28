@@ -66,14 +66,34 @@ namespace FlyingGame.Bridge
         /// what a player sees, and this is how we look at ours beside it.</summary>
         public static bool UseOwnModels = false;
 
-        /// <summary>Paint scheme for the GENERATED airframe (Livery.cs). "type" = each type's own colours.
-        /// It has no effect while a downloaded model is drawn, because the model wears its own paint — so
-        /// choosing a livery also implies UseAirframeModels off for that type.</summary>
-        /// <summary>The paint scheme (Livery.cs). AERO_LIVERY picks it at launch, which is how a capture
-        /// instance is told to wear Talk Flying for a recorded shot -- there is no runtime command for it,
-        /// and the alternative was a widget that can only ever film an aeroplane in type colours.</summary>
-        public static string LiveryId =
-            System.Environment.GetEnvironmentVariable("AERO_LIVERY") is string lv && lv.Length > 0 ? lv : "type";
+        /// <summary>The paint scheme OVERRIDE (Livery.cs), for every type: AERO_LIVERY at launch, which is how a capture
+        /// instance is told to wear Talk Flying for a recorded shot, and the editor renders' -livery. null = none, and
+        /// each type wears its own choice (<see cref="LiveryFor"/>).</summary>
+        public static string LiveryOverride =
+            System.Environment.GetEnvironmentVariable("AERO_LIVERY") is string lv && lv.Length > 0 ? lv : null;
+
+        /// <summary>The livery picker's choices (owner 2026-10-28), per type, as saved in PlayerPrefs: read once per type.</summary>
+        private static readonly System.Collections.Generic.Dictionary<string, string> _liveryChoice = new();
+
+        /// <summary>The scheme id `aircraftId` is painted and loaded in: the override, else the player's saved choice for
+        /// that type (only types with a picker, FlyingGame.Core.LiveryChoice), else "type" — what it wore before the picker.</summary>
+        public static string LiveryFor(string aircraftId)
+        {
+            if (!string.IsNullOrEmpty(LiveryOverride) || !LiveryChoice.HasChoice(aircraftId))
+                return LiveryChoice.Resolve(aircraftId, LiveryOverride, null);
+            if (!_liveryChoice.TryGetValue(aircraftId, out string saved))
+                _liveryChoice[aircraftId] = saved = PlayerPrefs.GetString(LiveryChoice.PrefKey(aircraftId), "");
+            return LiveryChoice.Resolve(aircraftId, null, saved);
+        }
+
+        /// <summary>The picker: choose `liveryId` for `aircraftId` and keep it across launches. The airframe on screen
+        /// follows (AirframeVisual rebuilds when its type's livery changes).</summary>
+        public static void SetLivery(string aircraftId, string liveryId)
+        {
+            _liveryChoice[aircraftId] = liveryId;
+            PlayerPrefs.SetString(LiveryChoice.PrefKey(aircraftId), liveryId);
+            PlayerPrefs.Save();
+        }
         /// <summary>Which paved runway the runway start / on-final start / tow uses (owner 2026-09-10): into the wind,
         /// or the crosswind one.</summary>
         public enum RunwayPick { Headwind, Crosswind }

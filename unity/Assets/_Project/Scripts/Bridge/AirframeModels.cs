@@ -143,24 +143,16 @@ namespace FlyingGame.Bridge
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
             (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like"
-                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying")))
+                || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying")))
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
 
-        /// <summary>Our 2-33 and Extra have their paint baked in, one GLB per livery. 2-33 (tools/own_models/build_sgs233.py,
-        /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.
-        /// Extra (tools/own_models/build_ea300.py, EA_LIVERY=tf|n300uy): Talk Flying for every livery but "n300uy",
-        /// which is the plain N300UY scheme with no Talk Flying branding. Pitts (tools/own_models/build_pitts_s2b.py,
-        /// PITTS_LIVERY=N31DG|N1191): N31DG (Hartzell 2-blade) for every livery but "n1191", the factory sunburst with
-        /// diamonds (MT 3-blade).</summary>
-        public static string OwnSuffix(string modelId) => OwnSuffix(modelId, SessionSettings.LiveryId);
+        /// <summary>The GLB suffix for this type's livery (FlyingGame.Core.LiveryChoice.OwnSuffix, where the mapping lives so
+        /// FlightTests can hold it): the type's own choice from the picker, or the AERO_LIVERY override.</summary>
+        public static string OwnSuffix(string modelId) => OwnSuffix(modelId, SessionSettings.LiveryFor(modelId));
 
         /// <summary><see cref="OwnSuffix(string)"/> for a given livery id (tests, renders).</summary>
-        public static string OwnSuffix(string modelId, string liveryId) =>
-            modelId == "glider-2-33-like" && liveryId == "talk-flying" ? "-own-tf"
-            : modelId == "extra-300-like" && liveryId == "n300uy" ? "-own-n300uy"
-            : modelId == "pitts-s2b-like" && liveryId == "n1191" ? "-own-n1191"
-            : "-own";
+        public static string OwnSuffix(string modelId, string liveryId) => FlyingGame.Core.LiveryChoice.OwnSuffix(modelId, liveryId);
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.
         /// Callers that ask a question ABOUT the drawn model (does it need the procedural gear under it?) must go

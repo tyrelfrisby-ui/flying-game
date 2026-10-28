@@ -28,6 +28,8 @@ namespace FlyingGame.Bridge
         // Which airframe the hierarchy currently holds, so the Options picker can take effect where you are
         // rather than at the next aircraft change (owner 2026-10-25: switch between them "as needed/desired").
         private bool _builtModels, _builtOwn;
+        // ...and which livery: the landing page's livery picker likewise shows on the aeroplane at once (owner 2026-10-28).
+        private string _builtLivery;
         private bool _wingsDetached;   // wing meshes have left the hierarchy (structural failure)
 
         private void Awake()
@@ -72,6 +74,8 @@ namespace FlyingGame.Bridge
             if (_wingsDetached && !_driver.Sim.Aircraft.Structure.WingsFailed) Rebuild();
             if (_componentsDetached && _driver.Sim.Aircraft.LostComponents.Count == 0) Rebuild();
             if (_builtModels != SessionSettings.UseAirframeModels || _builtOwn != SessionSettings.UseOwnModels) Rebuild();
+            // A broken airframe keeps its pieces off until the next flight's fresh sim; the new livery waits for that rebuild.
+            else if (!_wingsDetached && !_componentsDetached && _builtLivery != SessionSettings.LiveryFor(_builtId)) Rebuild();
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
@@ -301,6 +305,7 @@ namespace FlyingGame.Bridge
             _builtId = _driver.AircraftId;
             _builtModels = SessionSettings.UseAirframeModels;
             _builtOwn = SessionSettings.UseOwnModels;
+            _builtLivery = SessionSettings.LiveryFor(_builtId);
             _wingsDetached = false;
             _componentsDetached = false;
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
@@ -1438,11 +1443,12 @@ namespace FlyingGame.Bridge
                               || cfg.Id.StartsWith("pa25"));
             // A livery repaints the type's own colours (see Livery.cs); Paint is applied AFTER it so the combat
             // drone's flat orange still overrides everything, which is what that field was for.
-            Livery liv = _livery = Liveries.For(SessionSettings.LiveryId, cfg.Id);
+            string liveryId = SessionSettings.LiveryFor(cfg.Id);
+            Livery liv = _livery = Liveries.For(liveryId, cfg.Id);
             // ONE LINE PER BUILD, always. 2026-10-22: the markings did not draw in a player build and
             // there was no way to tell from outside whether the scheme had even resolved -- the only
             // evidence was a render, and a model-backed type's render says nothing about the livery.
-            Debug.Log($"[Livery] id='{SessionSettings.LiveryId}' type={cfg.Id} scheme={liv.Name} "
+            Debug.Log($"[Livery] id='{liveryId}' type={cfg.Id} scheme={liv.Name} "
                     + $"default={liv.IsDefault} marks={liv.Decals.Count} paint={Paint.HasValue} models={SessionSettings.UseAirframeModels}");
             if (!liv.IsDefault)
             {
