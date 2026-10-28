@@ -76,7 +76,8 @@ namespace FlyingGame.Bridge
         private static readonly System.Collections.Generic.Dictionary<string, string> _liveryChoice = new();
 
         /// <summary>The scheme id `aircraftId` is painted and loaded in: the override, else the player's saved choice for
-        /// that type (only types with a picker, FlyingGame.Core.LiveryChoice), else "type" — what it wore before the picker.</summary>
+        /// that type (only types with a picker, FlyingGame.Core.LiveryChoice), else the type's default (the unmarked scheme
+        /// for the Pitts and the Extra), and "type" for every other type.</summary>
         public static string LiveryFor(string aircraftId)
         {
             if (!string.IsNullOrEmpty(LiveryOverride) || !LiveryChoice.HasChoice(aircraftId))

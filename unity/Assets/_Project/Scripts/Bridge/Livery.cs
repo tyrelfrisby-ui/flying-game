@@ -205,13 +205,20 @@ namespace FlyingGame.Bridge
             White, White, White, White);
 
         // The Extra's paint is baked into its GLBs (tools/own_models/build_ea300.py), so its schemes carry no tints and
-        // no markings. "sunrise" (the original scheme id) loads the Talk Flying GLB, which still reads SUNRISE AVIATION
-        // on top; "n300uy" loads extra-300-like-own-n300uy.glb (AirframeModels.OwnSuffix).
+        // no markings. "unmarked" (the default, Ty 2026-10-28) loads extra-300-like-own-unmarked.glb: no N-number and no
+        // Talk Flying, fin stars and stripes and the red underwing bar kept. "sunrise" (the original scheme id) loads the
+        // Talk Flying GLB, which still reads SUNRISE AVIATION on top; "n300uy" loads extra-300-like-own-n300uy.glb
+        // (AirframeModels.OwnSuffix).
+        public static readonly Livery UnmarkedExtra = new("unmarked", "Unmarked");
         public static readonly Livery SunriseExtra = new("sunrise", "Sunrise Aviation");
         public static readonly Livery N300UYExtra = new("n300uy", "N300UY");
 
-        // The Pitts's paint is baked into its GLBs too (tools/own_models/build_pitts_s2b.py). Every scheme id loads N31DG
-        // (pitts-s2b-like-own.glb) except "n1191", the factory sunburst with diamonds (pitts-s2b-like-own-n1191.glb).
+        // The Pitts's paint is baked into its GLBs too (tools/own_models/build_pitts_s2b.py). "checker-unmarked" (the
+        // default, Ty 2026-10-28) is N31DG's checkered scheme with no registration, "factory-unmarked" N1191's factory
+        // sunburst with diamonds with none; "n31dg" / "n1191" are the registered aeroplanes (pitts-s2b-like-own.glb /
+        // pitts-s2b-like-own-n1191.glb).
+        public static readonly Livery CheckerPitts = new("checker-unmarked", "Checkered");
+        public static readonly Livery FactoryPitts = new("factory-unmarked", "Factory");
         public static readonly Livery N31DGPitts = new("n31dg", "N31DG");
         public static readonly Livery N1191Pitts = new("n1191", "N1191");
 
@@ -220,8 +227,8 @@ namespace FlyingGame.Bridge
         private static readonly Livery[] TypeOnly = { TypeColours };
 
         /// <summary>The schemes the livery picker offers for `aircraftId` (FlyingGame.Core.LiveryChoice, the default first):
-        /// the Extra's Talk Flying and N300UY, the Pitts's N31DG and N1191. Every other type has the one it has always
-        /// flown in, its own colours, so the picker (StartMenu: more than one, or nothing) leaves it alone.</summary>
+        /// the Extra's Unmarked, Talk Flying and N300UY, the Pitts's Checkered, Factory, N31DG and N1191. Every other type
+        /// has the one it has always flown in, its own colours, so the picker (StartMenu: more than one, or nothing) leaves it alone.</summary>
         public static IReadOnlyList<Livery> Available(string aircraftId)
         {
             var options = FlyingGame.Core.LiveryChoice.For(aircraftId);
@@ -236,7 +243,10 @@ namespace FlyingGame.Bridge
         {
             if (liveryId == "factory" && aircraftId == "glider-2-33-like") return Factory233;
             if (liveryId == "sunrise" && aircraftId == "extra-300-like") return SunriseExtra;
+            if (liveryId == "unmarked" && aircraftId == "extra-300-like") return UnmarkedExtra;
             if (liveryId == "n300uy" && aircraftId == "extra-300-like") return N300UYExtra;
+            if (liveryId == "checker-unmarked" && aircraftId == "pitts-s2b-like") return CheckerPitts;
+            if (liveryId == "factory-unmarked" && aircraftId == "pitts-s2b-like") return FactoryPitts;
             if (liveryId == "n31dg" && aircraftId == "pitts-s2b-like") return N31DGPitts;
             if (liveryId == "n1191" && aircraftId == "pitts-s2b-like") return N1191Pitts;
             if (liveryId == "type" || string.IsNullOrEmpty(liveryId)) return TypeColours;
