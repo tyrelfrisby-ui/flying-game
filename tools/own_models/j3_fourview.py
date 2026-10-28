@@ -4,7 +4,8 @@
 import bpy, sys, math, mathutils
 a = sys.argv[sys.argv.index('--') + 1:]; G, OUT = a[0], a[1]
 ONLY = a[2].split(',') if len(a) > 2 and a[2] not in ('', 'all') else None
-OPEN = len(a) > 3 and a[3] == 'open'
+OPEN = len(a) > 3 and 'open' in a[3]
+TRIM = len(a) > 3 and 'trim' in a[3]      # show the stab at full LE-down trim (-4 deg)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=G)
 sc = bpy.context.scene
@@ -12,10 +13,15 @@ if OPEN:
     for o in sc.objects:
         if 'open_deg' in o.keys():
             o.rotation_mode = 'XYZ'; o.rotation_euler = (math.radians(o['open_deg']), 0, 0)
+if TRIM:
+    for o in sc.objects:
+        if 'trim_axis_gltf' in o.keys():
+            g = o['trim_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
+            o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = mathutils.Quaternion(ax, -math.radians(o['trim_deg_le_down']))
 for e in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
     try: sc.render.engine = e; break
     except Exception: pass
-sc.render.film_transparent = False
+sc.render.film_transparent = True; sc.render.image_settings.color_mode = 'RGBA'   # composer outlines + puts on white
 w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
 w.node_tree.nodes['Background'].inputs[0].default_value = (0.82, 0.86, 0.9, 1); w.node_tree.nodes['Background'].inputs[1].default_value = 0.9
 for rot, e in (((math.radians(40), 0, math.radians(-150)), 3.0), ((math.radians(150), 0, math.radians(60)), 1.2)):
@@ -46,6 +52,8 @@ cam('door', (0.25, 8, 0.25), (0.25, 0, 0.25), 2.4, (1400, 1100))
 cam('door_iso', (-2.6, 3.4, 1.1), (0.25, 0.3, 0.2), 0, (1400, 1100), persp=35)
 cam('gear_front', (-8, 0, -0.75), (0, 0, -0.75), 2.6, (1400, 900))
 cam('gear_iso', (-2.4, 2.7, -0.55), (-0.3, 0.5, -0.85), 0, (1400, 1000), persp=35)
+cam('gear_side', (0.25, 8, -0.65), (0.25, 0, -0.65), 1.9, (1400, 1000))         # right main gear, door side
+cam('tail_trim', (4.35, 8, 0.45), (4.35, 0, 0.45), 1.7, (1400, 1000))          # right side, ortho (stab at Z_S)
 cam('tail', (4.6, 12, 0.6), (4.6, 0, 0.6), 1.9, (1200, 1000))
 cam('tailwheel', (5.6, 1.4, 0.2), (4.75, 0, 0.05), 0, (1200, 1000), persp=40)
 cam('wsh', (-2.2, 1.6, 1.0), (-0.80, 0.25, 0.33), 0.9, (1200, 900))

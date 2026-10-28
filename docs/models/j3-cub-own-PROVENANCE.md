@@ -122,3 +122,26 @@ Node origins sit on the hinge lines, axles and pivots. The axes are glTF vectors
 - The float step (drawing station xd 2.144) sits about 0.24–0.47 m aft of the EDO CG band (xd 1.67–1.905) at
   drawing scale. It is kept as drawn.
 - TCDS A-691 says "water rudders"; per the brief and the 60-1320 parts list, only the LH one is modelled.
+
+## v2 (2026-10-28)
+
+Changes requested by Ty after v1:
+
+- **Tail bracing.** Only the aft flying wires are modelled now: one over (to the fin) and one under (to the fuselage) per side, both meeting the stab at the rear spar (xd ≈ 6.02 m). The forward wires were removed because the J-3 trims with a jack-screw at the stab leading edge and has no trim tab.
+- **Trimmable stabilizer.** `Stab` has its origin on the rear spar / elevator hinge line (xd 6.05). It carries `trim_axis_gltf` (positive rotation = LE up), `trim_deg_le_up` 2.5 and `trim_deg_le_down` 4.0, from the TCDS A-691 stab travel. The build asserts that a positive rotation raises the LE. `Elevator_L/R` are children of `Stab`.
+- **Right split door.** The front edge of both halves is a chevron: the forward point is at the sill, the upper (window) half leans about 0.14 m aft at the top, and the lower half leans about 0.16 m aft at the bottom. The fixed side window and the door glass follow the same line. The offsets were judged by eye from the photos below. The hinges and open angles are unchanged.
+- **Main gear.** A triangular sheet-metal vee fairing fills the gap between the front and rear legs (from photos d01, c34, c37 and c47). The tail spring is now 3 leaves (Univair parts list).
+
+Photo references (Wikimedia Commons; used by eye only, not traced and not included in the repo):
+
+| Photo | Author | Licence |
+|---|---|---|
+| N21677, 1938 Piper J3C-65 (3831849629).jpg: right door open, gear side | Jerry Gunner | CC BY 2.0 |
+| Piper J.3C-65 Cub '22318' (N3626K) (29973327035).jpg: right door closed, chevron, gear | Alan Wilson | CC BY-SA 2.0 |
+| Piper J-3 Cub RSideFront CFM 7Oct2011 (15138444150).jpg | Valder137 | CC BY 2.0 |
+| Piper J-3 Cub BehindRWing FLAirMuse 29Aug09 (14576620426).jpg | Valder137 | CC BY 2.0 |
+| Piper J-3 Cub UnderRWing FLAirMuse 29Aug09 (14413199947).jpg | Valder137 | CC BY 2.0 |
+| Cavanaugh Flight Museum-2008-10-29-010 (4270558146).jpg: gear front | Perry Quan | CC BY-SA 2.0 |
+| Piper Cub.JPG: gear front 3/4 | Ad Meskens | CC BY-SA 3.0 |
+
+No third-party geometry, logos or registration marks are used.
