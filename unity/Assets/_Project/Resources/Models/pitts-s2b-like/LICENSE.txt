@@ -1,0 +1,11 @@
+Source: built here, not downloaded. tools/own_models/build_pitts_s2b.py (Blender, 2026-10-27, v10.1).
+Model: Pitts S-2B, two liveries: pitts-s2b-like-own.glb (N31DG, Hartzell 2-blade; the default) and
+pitts-s2b-like-own-n1191.glb (N1191 factory sunburst with diamonds, MT 3-blade; livery "n1191").
+Author: this project (clean-room; provenance in docs/models/pitts-s2b-own-PROVENANCE.md)
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "Pitts S-2B" modelled for this project with tools/own_models/build_pitts_s2b.py
+Note: no third-party mesh was downloaded, opened, traced or measured. Dimensions are from the Aviat brochure,
+Jane's and FAA TCDS A8SO; paint from reference photos by eye only (no pixels used). The registration
+lettering is set in Liberation Sans Bold (SIL Open Font License 1.1), pre-rendered into the paint; no font
+file ships.
