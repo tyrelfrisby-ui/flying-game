@@ -89,3 +89,69 @@ All geometry and textures are still generated procedurally by `tools/own_models/
 - **Top-wing paint:** the top of the upper wing has a conventional sunburst. White and red rays radiate from the wing centre, widening to the tips and trailing edge (boundaries at 12°, 2°, −4° and −22° from a virtual hub at the wing centreline). The top of the lower wing keeps the v2 zigzag. Both wing undersides are unchanged.
 - **Fuselage stripes:** the stripes follow Ty's style-guide photo of a Horizon Hobby RC Pitts. The upper stripe sweeps down and aft from the cowl top and then runs level. The lower stripe is nearly level, with a white diamond on the nose side between them. Only the stripe layout was copied by eye. The livery is still N31DG (N-number, Pitts script, checkered rudder), and none of the model's registration or branding was used.
 - **Size:** 40,276 triangles; GLB 1.66 MB.
+
+## v4 (2026-10-27): factory sunburst scheme, two liveries, three-view tail
+
+Builds: `PITTS_LIVERY=N31DG` (default) writes `pitts-s2b-like-own.glb`; `PITTS_LIVERY=N1191` writes
+`pitts-s2b-like-own-n1191.glb`. Geometry is identical; paint and prop differ. Command:
+`PITTS_LIVERY=N1191 blender -b --python tools/own_models/build_pitts_s2b.py`. Triangle counts: 52,696 (N1191), 51,404 (N31DG).
+Bounds: 5.724 m long, 6.094 m span, 2.175 m tall (wheels to fin top).
+
+### Paint references: used by eye only
+The Aviat factory paint scheme was laid out by eye from these published painted three-views, mainly the first two:
+Horizons NZ Model Graphics S-2B sheet, AirshowModels 1/32 S-2B manual page 8, the Munden S-2C sheet (cross-check only),
+and a photo of a green S-2B (pattern cross-check). **Nothing was traced, sampled or copied into a texture.** Every
+boundary is our own simple geometry, generated in `build_pitts_s2b.py`:
+- straight sloped stripes;
+- quadratic-Bezier swooshes;
+- diamonds as |dx|/a + |dz|/b < 1;
+- sunburst rays, given as angle sectors from a hub.
+
+All scheme elements are recreated this way:
+- **Base colour:** red (200, 24, 36).
+- **Outlines:** every white area has a 16 mm navy (22, 26, 62) outline. Lettering and checkerboards are not outlined.
+- **Upper wing top:**
+  - red leading-edge band (13 cm, follows the rounded tips);
+  - red centre V;
+  - white/red sunburst rays fanning aft and outboard from a hub at |y| 0.38 m behind the band. Red sectors are 12–26°, 38–52°, 62–71° and 77–81.5° from straight aft.
+- **Upper wing underside:** plain red.
+- **Lower wing top:** the same sunburst without the LE band. The ASM sheet labels this "BOTTOM WING SUNBURST PATTERN", and Munden agrees. The steering note said to judge this from the drawings, which overrides the earlier "top of the bottom wing solid red".
+- **Lower wing underside:**
+  - N1191: a white spanwise stripe at 9–20 % chord, plus three white diamonds per side at mid-chord (factory).
+  - N31DG: red/white checkerboard, as in v3.
+- **Stab and elevators:** rays from a hub at the stab root LE (|y| 0.205 m). The sectors match the rays printed on the Aviat factory three-view: red 5–21°, 34–49° and ≥ 61°. The underside is red. See `pitts-s2b-v4-tail-planform-overlay.png`.
+- **Fuselage:**
+  - two white stripes from the nose diamond to the rudder post;
+  - upper and lower swooshes from the diamond to the cowl top and cowl bottom;
+  - a white band over the cowl top and a white chevron under the cowl;
+  - a white turtledeck wedge behind the canopy, from the canopy rear to x = −2.20 m.
+- **Wheel pants:** a white nose diamond and two thin stripes on each pant.
+- **Rudder:**
+  - N1191: three white diamonds;
+  - N31DG: the red/white checkerboard from v3.
+- **Fin:** "Pitts" script and "S-2B" (as v3).
+- **Registration:** 25 cm white letters on the aft fuselage under the stripes. The N1191 artwork (`art/pitts-n1191.png`) is set in Liberation Sans Bold, the same as N31DG.
+- **Props:** both are clockwise seen from the cockpit, and both use the TCDS options.
+  - N1191: MT-Propeller 3-blade composite, 74.8 in, wide paddle blades, white with red tips (5 in).
+  - N31DG: Hartzell 2-blade, 80 in, grey with white tips.
+- **Spinner:** red on both. HNZ draws it silver; we kept red to match the N31DG photo.
+
+### Geometry changes
+- **Stab/elevator planform:** traced from the Aviat factory three-view top view, which gives the LE and TE versus span (`STAB_T`).
+  - Span is 2.28 m.
+  - The elevator runs from |y| 0.155 m to the tip, with the hinge on the rudder hinge line.
+  - There are no balance horns, matching the drawing. The optional trim tab is not modelled.
+- **Fin/rudder side profile:** traced from the Aviat three-view side view, with the drawing scaled to 5.71 m length and checked against the 2.02 m height.
+  - The tail-light bump on the TE is smoothed.
+  - Fin top is z 0.847 (v3: 0.833).
+  - Remaining outline differences, RMS / max in cm:
+
+| Sheet | v4 | v3 | Notes |
+|---|---|---|---|
+| Aviat | 0.5 / 2.6 | 2.8 / 8.0 | |
+| Horizons NZ | 3.5 / 7.5 | 5.8 / 12.5 | 1.7 / 9.9 after a −4.5 cm vertical shift; the HNZ tail sits higher |
+| AirshowModels | 2.3 / 5.6 | 1.3 / 4.9 | 1.1 / 3.5 after a +3.5 cm shift |
+
+  - Overlays: `pitts-s2b-v4-rudder-overlays.png`. The Munden S-2C rudder is squared off, unlike the S-2B, so it was used only to corroborate the hinge position and the diamonds.
+  - The Aviat ground line comes out about 3 % short of the published 2.02 m, so one uniform scale from the length was used.
+- **Slave struts:** moved to sit immediately behind the I-struts, 6 cm aft at the same span stations and with the same lean.
