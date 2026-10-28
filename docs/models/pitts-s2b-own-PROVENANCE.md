@@ -292,3 +292,20 @@ Owner request: "The side stripes need more work try to match the n260bf 3 view f
   - `gear`: low view of the gear and wheel pants
 - `pitts-s2b-v8-<livery>-nose-side-closeup.png` and `-pant-closeup.png`: crops of the side view.
 - `pitts-s2b-v8-vs-references.png`: the N260BF side, bottom, top and pant, the green S-2B photo, and the Horizon photo, against the v8 renders, with v7 as the "before" row.
+
+## v9 (Ty: v8 nose "not even close")
+### Change (both liveries, `build_pitts_s2b.py`, paint only)
+- The v8 tongue/hook rule is replaced. The two stripes fork at the nose diamond (x 1.07, mid stripe pack); ahead of it
+  each stripe widens into a sweeping white band: the upper one curves up and crosses the cowl top as a band (x ~1.13-1.31),
+  the lower one curves down and wraps under the chin as a band (x ~1.11-1.31), with a white V aft along the belly (apex
+  x 0.68) between two rounded red tongues. Red wedge between the bands ahead of the diamond; red nose bowl ahead of both.
+- Band edges are (t, u) tables applied by one 3-D rule to the side, top and bottom projections.
+- Wheel pants: two stripes with a red gap, a diamond spanning the pack near the nose, crescent bands hugging the pant nose.
+- Unchanged: navy outlines (16 mm), fuselage stripes, turtledeck, registration, rudder, wings, geometry
+  (54952 tris N1191, 53660 N31DG).
+### Method / sources
+- Shapes set over 5 iterations against matched-camera Blender renders (`tools/own_models/pitts_refviews.py`: side, top,
+  bottom ortho and two perspective cameras) shown next to / blended 50:50 with the N260BF (Munden) three-view, the Horizons
+  NZ side, the green S-2B photo and the Horizon photo. The references were looked at by eye only, to read off positions;
+  nothing was traced, sampled or copied into the textures, and the 50:50 overlays are review images only (not inputs).
+- No third-party or GPL mesh, UV or texture used.

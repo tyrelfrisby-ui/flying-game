@@ -1,4 +1,4 @@
-"""Our own Pitts S-2B -> two liveries from one model.   v4
+"""Our own Pitts S-2B -> two liveries from one model.   v9
   PITTS_LIVERY=N31DG (default): -> pitts-s2b-like-own.glb       red/white checkered rudder + checkered lower-wing
                                                                  underside, Hartzell 2-blade (grey, white tips)
   PITTS_LIVERY=N1191          : -> pitts-s2b-like-own-n1191.glb  the factory scheme: three white rudder diamonds, white
@@ -12,10 +12,17 @@ v4 geometry (Ty): fin/rudder side profile and stab/elevator planform re-traced f
 to the published 5.71 m length; other S-2B three-views used as checks), slave struts directly behind the I-struts.
 v4 paint: the Aviat factory sunburst scheme, re-created procedurally below from published painted three-views (Horizons
 NZ, AirshowModels, Munden S-2C; looked at by eye only - nothing traced, sampled or copied into the textures): red base,
-sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond, the stripes widening
-forward into hooks that meet in a band over the cowl and a band + V under it (v8: N260BF three-view, green S-2B photo,
-Horizon photo, by eye only), white turtledeck wedge behind the canopy (down the sides), the same stripe / diamond / hook
-style on the wheel pants, every white area outlined in a thin (16 mm) navy line.
+sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond, white turtledeck
+wedge behind the canopy (down the sides), every white area outlined in a thin (16 mm) navy line.
+v9 nose + wheel pants (Ty, rejected v8 hooks): the two stripes fork at the diamond (mid-cowl, x 1.07); ahead of it each
+stripe widens into a sweeping white band, the upper one curving UP and crossing the cowl top as a straight band (x ~1.13-
+1.31), the lower one curving DOWN and wrapping under the chin as a band (x ~1.11-1.31) with a white V running aft along
+the belly between two rounded red tongues; red wedge between the bands ahead of the diamond, red nose bowl ahead of both.
+Band edges are tables of (t, u) (t = normalised height above / below the stripe, u = distance aft of the cowl face) so one
+3-D rule paints the side, top and bottom projections consistently. Pants: the same design in miniature (pair of stripes
+with a red gap, diamond near the nose, crescent bands hugging the pant nose top and bottom). Shapes were set by
+iterating against matched-camera renders of the N260BF (Munden) three-view, the Horizons NZ side, the green S-2B photo and
+the Horizon photo (references looked at by eye only - nothing traced, sampled or copied into the textures).
 Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (Liberation Sans Bold, Dancing Script).
 
   PITTS_LIVERY=N1191 blender -b --python tools/own_models/build_pitts_s2b.py
@@ -584,30 +591,65 @@ def diamond(A, B, ca, cb, ha, hb):
 ZU_ = lambda x: 0.050 + 0.0289 * (x - 0.745); WU_ = lambda x: 0.044 - 0.003 * (0.745 - x)   # upper stripe centre / width
 ZL_ = lambda x: -0.031 + 0.0259 * (x - 0.745); WL_ = 0.032
 X_ST = -3.275                                                                                # stripes end at the tail post
-DM_X, DM_Z, DM_HA, DM_HB = 1.27, 0.019, 0.075, 0.058                                       # nose diamond, between the stripes
-CB_X0, CB_X1 = 1.21, 1.41                                                                    # cowl-top band (v8: = X_TU .. X_FR)
-# v8 (Ty, N260BF three-view + green S-2B photo + Horizon photo, by eye only): forward of the diamond the two stripes
-# WIDEN: their inner edges run straight on to the nose ring, their outer edges flare out, the upper one UP over the cowl
-# top and the lower one DOWN under it. The red between each stripe and the cowl top / bottom ends forward in a rounded
-# tongue (semi-ellipse), so each flare is a white hook. Over the top the two upper flares meet in a straight band across
-# the cowl (Horizon photo, N260BF top view). Under the cowl the two lower flares meet in a band across the chin with a
-# white V running aft along the centre line (green S-2B photo, N260BF bottom view). A red nose ring is left ahead of X_FR.
-X_FR = 1.41                                                   # forward edge of the white (red nose ring ahead of it)
-X_TU, RX_U, ZT_U = 1.20, 0.105, 0.215                         # upper red tongue: centre of its rounded end, x radius, cowl top
-X_TL, RX_L = 1.15, 0.15                                       # lower red tongue
-X_VA, HV = 0.90, 0.22                                         # V under the cowl: aft apex, half-width at X_BL
-_fwd = sorted([s_ for s_ in ST if s_[0] >= 0.7]); ZB_C = lambda x: np.interp(x, [s_[0] for s_ in _fwd], [s_[2] for s_ in _fwd])
-K_OV = 1.3                                                    # tongue ellipse overshoots the cowl top / bottom so its edge meets the surface at an angle
-X_BU = X_TU + RX_U * np.sqrt(1 - (2 / K_OV - 1) ** 2)             # where the upper tongue edge reaches the cowl top = start of the top band
-X_BL = X_TL + RX_L * np.sqrt(1 - (2 / K_OV - 1) ** 2)             # where the lower tongue edge reaches the cowl bottom = start of the chin band
-def tongue(A, Z, outer, x_t, rx, z_far, up):
-    """red tongue beyond a stripe's outer edge, ending forward in a semi-ellipse from outer to K_OV x (z_far - outer) at x_t"""
-    z_far = outer + K_OV * (z_far - outer)
-    if up:
-        zm = 0.5 * (outer + z_far); rz = 0.5 * (z_far - outer); beyond = Z > outer
-    else:
-        zm = 0.5 * (outer + z_far); rz = 0.5 * (outer - z_far); beyond = Z < outer
-    return beyond & ((A < x_t) | (((A - x_t) / rx) ** 2 + ((Z - zm) / rz) ** 2 < 1.0))
+# v9 (Ty: "not even close" to v8): rebuilt from the references, studied by eye with a pixel grid (see DESIGN_NOTES.md).
+# The stripes END in a big diamond about mid-cowl. From the diamond's upper-forward edge a white band sweeps up and
+# forward over the cowl top; from its lower-forward edge another sweeps down and forward under the chin. Both widen
+# as they go. Between them a red wedge points into the diamond, and the whole nose bowl ahead is red. Each band edge
+# is our own smooth curve u(t). u = distance aft of the cowl face (x 1.50). t = normalised height: 0 at the stripe's
+# outer edge, 1 at the cowl top / bottom line, > 1 carries the band over the top / under the chin.
+# The top and belly projections use the same rule on the cowl's own superellipse surface, so the bands meet there.
+X_CW = 1.50
+DM_X, DM_HA, DM_HB = 1.07, 0.090, 0.070   # nose diamond
+DM_Z = 0.5 * ((0.050 + 0.0289 * (DM_X - 0.745)) + 0.5 * (0.044 - 0.003 * (0.745 - DM_X)) + (-0.031 + 0.0259 * (DM_X - 0.745)) - 0.016)
+BU_F = [(-0.35, .37), (0.0, .30), (.3, .245), (.6, .215), (.8, .20), (1.0, .19), (3.0, .19)]   # upper band forward edge (t, u)
+BU_A = [(0.0, .56), (.12, .50), (.35, .46), (.6, .42), (.8, .385), (1.0, .37), (3.0, .37)]   # upper band aft edge
+BL_F = [(-0.10, .40), (-0.067, .36), (0.0, .27), (.1, .235), (.3, .215), (.6, .20), (1.0, .19), (3.0, .19)]   # lower band forward edge
+BL_A = [(0.0, .57), (.1, .49), (.3, .47), (.6, .46), (.8, .44), (.92, .41), (1.0, .39), (3.0, .39)]   # lower band aft edge
+X_VA, HV = 0.68, 0.14   # belly V: aft apex, half-width at the chin band
+def crv(pts, n=40):
+    """Catmull-Rom through (t, u) points, densified -> (ts, us) for np.interp"""
+    P_ = [pts[0]] + list(pts) + [pts[-1]]; ts, us = [], []
+    for i in range(1, len(P_) - 2):
+        p0, p1, p2, p3 = [np.array(P_[j], float) for j in (i - 1, i, i + 1, i + 2)]
+        for s in np.linspace(0, 1, n, endpoint=False):
+            q = 0.5 * ((2 * p1) + (-p0 + p2) * s + (2 * p0 - 5 * p1 + 4 * p2 - p3) * s * s + (-p0 + 3 * p1 - 3 * p2 + p3) * s ** 3)
+            ts.append(q[0]); us.append(q[1])
+    ts.append(pts[-1][0]); us.append(pts[-1][1]); ts = np.maximum.accumulate(np.array(ts)); return ts, np.array(us)
+def band_edges(F, Aft):
+    tf, uf = crv(F); ta, ua = crv(Aft)
+    return lambda t: np.interp(t, tf, uf), lambda t: np.interp(t, ta, ua), F[0][0]
+_STs = sorted(ST, key=lambda s_: s_[0])
+CTOP = lambda x: np.interp(x, [s_[0] for s_ in _STs], [s_[1] for s_ in _STs])
+CBOT = lambda x: np.interp(x, [s_[0] for s_ in _STs], [s_[2] for s_ in _STs])
+CHW = lambda x: np.interp(x, [s_[0] for s_ in _STs], [s_[3] for s_ in _STs])
+def nose_white(A, Z, upper=True, lower=True):
+    """v9 nose rule at (x, z): stripes up to the diamond + the two sweeping bands (diamond itself painted separately)"""
+    u = X_CW - A; W = np.zeros(A.shape, bool)
+    zt = ZU_(A) + 0.5 * WU_(A); zb = ZL_(A) - 0.5 * WL_
+    if upper:
+        fF, fA, t0 = band_edges(BU_F, BU_A)
+        t = (Z - zt) / np.maximum(CTOP(A) - zt, 1e-3)
+        W |= (A > X_ST) & (A < DM_X) & (Z > ZU_(A) - 0.5 * WU_(A)) & (Z < zt)                          # upper stripe, ends in the diamond
+        W |= (Z > ZU_(A) - 0.5 * WU_(A)) & (t >= t0) & (u >= fF(t)) & (u <= fA(t)) & (A < X_CW)        # upper band
+    if lower:
+        fF, fA, t0 = band_edges(BL_F, BL_A)
+        t = (zb - Z) / np.maximum(zb - CBOT(A), 1e-3)
+        W |= (A > X_ST) & (A < DM_X) & (Z < ZL_(A) + 0.5 * WL_) & (Z > zb)                             # lower stripe
+        W |= (Z < ZL_(A) + 0.5 * WL_) & (t >= t0) & (u >= fF(t)) & (u <= fA(t)) & (A < X_CW) & (Z > -0.75)   # lower band
+    return W
+def cowl_z(Y, X, up):
+    """surface height of the fuselage superellipse at (x, |y|): upper or lower half"""
+    top, bot, hw = CTOP(X), CBOT(X), CHW(X); zw = bot + 0.62 * (top - bot); r = np.clip(np.abs(Y) / hw, 0, 1)
+    return zw + (top - zw) * (1 - r ** NT) ** (1 / NT) if up else zw - (zw - bot) * (1 - r ** NB) ** (1 / NB)
+# wheel pants (v9): the same design in miniature, in pant-normalised coordinates (u as a fraction of the pant length
+# from its nose, stripe heights as fractions of the local pant height from the top)
+PX_N, PX_T = 0.80, -0.18; PL = PX_N - PX_T
+PS_U, PS_L = (0.30, 0.40), (0.58, 0.68)                           # stripe bands, fraction of local height from the top (v9: red gap as wide as a stripe)
+PD_U, PD_HA, PD_HF = 0.165, 0.042, 0.19                           # pant diamond: centre (fraction of L), half-width (m), half-height (fraction of local height)
+PU_F = [(-0.3, .115), (0.0, .085), (.4, .05), (1.0, .03), (1.6, .025), (3.0, .025)]
+PU_A = [(0.0, .21), (.15, .165), (.45, .13), (1.0, .11), (1.6, .11), (3.0, .11)]
+PL_F = [(-0.3, .115), (0.0, .085), (.4, .05), (1.0, .03), (1.6, .025), (3.0, .025)]
+PL_A = [(0.0, .21), (.15, .17), (.45, .14), (1.0, .12), (1.6, .12), (3.0, .12)]
 # v7 (Ty): the white turtledeck patch behind the canopy, as on the HNZ / AirshowModels / Munden side views. Its leading
 # edge runs down the canopy rear bow from the top to about half the canopy height above the sill (z Z_TW0). Its lower
 # edge is a smooth concave arc that sweeps aft and up and blends tangentially into the fuselage top line at X_TWA,
@@ -628,33 +670,31 @@ def turtledeck_white_top(Y, X):
     r = np.clip(np.abs(Y) / hw, 0, 1)
     zs = zw + (top - zw) * (1 - r ** NT) ** (1 / NT)                 # upper superellipse surface height at (x, |y|)
     return (X < X_TW0) & (X > X_TWA) & (np.abs(Y) < hw) & (zs > ZB_TW(X))
-X_PF, X_PT, RX_P = 0.77, 0.56, 0.10                        # pant: white starts aft of the red nose cap; tongue end; x radius
-PD_X, PD_Z, PD_HA, PD_HB = 0.62, -1.147, 0.055, 0.058            # pant diamond between the stripes
 def side(name, flip):
     v = View(name, (X0, X1), (Z0, Z1), 4096, 1672, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
     v.fill(np.ones_like(A, bool), RED)
     W = np.zeros(A.shape, bool)
-    # v8: stripes run from the tail post to the nose ring; forward of the diamond they widen into hooks over / under the cowl
-    eu = ZU_(A) + 0.5 * WU_(A); el = ZL_(A) - 0.5 * WL_
-    W |= (A > X_ST) & (A < X_FR) & (Z > ZU_(A) - 0.5 * WU_(A)) & ~tongue(A, Z, eu, X_TU, RX_U, ZT_U, True)
-    W |= (A > X_ST) & (A < X_FR) & (Z < ZL_(A) + 0.5 * WL_) & (Z > -0.75) & ~tongue(A, Z, el, X_TL, RX_L, float(ZB_C(X_TL)), False)
+    W |= nose_white(A, Z)                                         # v9: stripes, diamond fork, sweeping bands
     # turtledeck: white wedge behind the canopy coming down the fuselage side (v6), curved lower edge (v7), same 3-D boundary as the top view
     W |= turtledeck_white_side(A, Z)
-    # wheel pants (v8): the fuselage style in miniature, as on the N260BF three-view: two stripes along the pant that widen
-    # forward of a diamond into hooks curving up over and down under the pant nose, a red nose cap ahead of X_PF
-    xs_p = [r[0] for r in PANT][::-1]; zc = np.interp(A, xs_p, [r[1] for r in PANT][::-1]); ht = np.interp(A, xs_p, [r[2] for r in PANT][::-1])
-    hb = np.interp(A, xs_p, [r[3] for r in PANT][::-1])
-    pz = (Z < -0.85) & (A > -0.08) & (A < X_PF)
-    hw_p = 0.011 + 0.006 * np.clip((A + 0.08) / 0.65, 0, 1)
-    zu_p, zl_p = zc + 0.52 * ht, zc - 0.52 * ht
-    W |= pz & (Z > zu_p - hw_p) & ~tongue(A, Z, zu_p + hw_p, X_PT, RX_P, float(np.interp(X_PT, xs_p, [r[1] + r[2] for r in PANT][::-1])), True)
-    W |= pz & (Z < zl_p + hw_p) & ~tongue(A, Z, zl_p - hw_p, X_PT, RX_P, float(np.interp(X_PT, xs_p, [r[1] - r[3] for r in PANT][::-1])), False)
+    # wheel pants (v9): stripes converge on the tail tip, end in a diamond near the nose; bands sweep up / down over the nose
+    xs_p = [r[0] for r in PANT][::-1]; zc = np.interp(A, xs_p, [r[1] for r in PANT][::-1])
+    ptop = zc + np.interp(A, xs_p, [r[2] for r in PANT][::-1]); pbot = zc - np.interp(A, xs_p, [r[3] for r in PANT][::-1])
+    hgt = np.maximum(ptop - pbot, 1e-3); pz = (Z < -0.85) & (A > PX_T) & (A < PX_N); up_ = (PX_N - A) / PL
+    pd_x = PX_N - PD_U * PL
+    z_ut, z_ub = ptop - PS_U[0] * hgt, ptop - PS_U[1] * hgt; z_lt, z_lb = ptop - PS_L[0] * hgt, ptop - PS_L[1] * hgt
+    W |= pz & (A < pd_x) & (((Z < z_ut) & (Z > z_ub)) | ((Z < z_lt) & (Z > z_lb)))
+    fF, fA, t0 = band_edges(PU_F, PU_A); t = (Z - z_ut) / np.maximum(ptop - z_ut, 1e-3)
+    W |= pz & (Z > z_ub) & (t >= t0) & (up_ >= fF(t)) & (up_ <= fA(t))
+    fF, fA, t0 = band_edges(PL_F, PL_A); t = (z_lb - Z) / np.maximum(z_lb - pbot, 1e-3)
+    W |= pz & (Z < z_lt) & (t >= t0) & (up_ >= fF(t)) & (up_ <= fA(t))
+    pd_hgt = float(np.interp(pd_x, xs_p, [r[2] + r[3] for r in PANT][::-1])); pd_z = float(np.interp(pd_x, xs_p, [r[1] + r[2] for r in PANT][::-1])) - 0.5 * (PS_U[0] + PS_L[1]) * pd_hgt
     # rudder
     if LIV == 'N1191':        # three white diamonds stacked on the rudder, tip to tip (factory)
         for zc_ in (0.60, 0.28, -0.04):
             W |= diamond(A, Z, -3.52, zc_, 0.085, 0.14) & (A < H_T - 0.006)
     paint_white(v, W)
-    paint_white(v, diamond(A, Z, DM_X, DM_Z, DM_HA, DM_HB) | diamond(A, Z, PD_X, PD_Z, PD_HA, PD_HB))   # nose + pant diamonds, own outline on top
+    paint_white(v, diamond(A, Z, DM_X, DM_Z, DM_HA, DM_HB) | diamond(A, Z, pd_x, pd_z, PD_HA, PD_HF * pd_hgt))   # nose + pant diamonds, own outline on top
     if LIV == 'N31DG':        # checkered rudder: aligned with the hinge line and horizontal, red check at the top-forward corner
         i = np.floor((H_T - A) / Q_R); j = np.floor((Z_FT - Z) / Q_R)
         v.fill((A < H_T - 0.002) & (Z > -0.40) & ((i + j) % 2 == 1), WHITE)
@@ -672,11 +712,12 @@ def plan(name, flip, yr, xr, w, h):
 VFT, Y, X = plan('pitts_fus_top', True, (-0.5, 0.5), (-4.0, 2.0), 1024, 4096)
 VFT.fill(np.ones_like(Y, bool), RED)
 paint_white(VFT, turtledeck_white_top(Y, X) |
-            ((X > X_BU) & (X < X_FR)))                                    # v8: the upper hooks meet in a band over the cowl
+            ((X > 0.74) & nose_white(X, cowl_z(Y, X, True), True, False)))   # v9: the upper bands carry straight over the cowl
 VFB, Y, X = plan('pitts_fus_bot', False, (-0.5, 0.5), (-4.0, 2.0), 1024, 4096)
 VFB.fill(np.ones_like(Y, bool), RED)
-paint_white(VFB, ((X > X_BL) & (X < X_FR)) |                         # v8: the lower hooks meet in a band across the chin
-            ((X <= X_BL) & (X > X_VA) & (np.abs(Y) < HV * (X - X_VA) / (X_BL - X_VA))))   # and a white V runs aft along the centre
+X_V0 = X_CW - BL_A[-1][1]                                              # chin band's aft edge at the bottom line = top of the V
+paint_white(VFB, ((X > 0.74) & nose_white(X, cowl_z(Y, X, False), False, True)) |   # v9: the lower bands join across the chin
+            ((X <= X_V0 + 0.02) & (X > X_VA) & (np.abs(Y) < HV * (X - X_VA) / (X_V0 - X_VA))))   # and a white V runs aft along the centre
 # sunburst (top of both wings): rays fan aft and outboard from a hub on each side at the root, just behind the red
 # leading-edge band beside the red centre V; ray boundaries in degrees from straight aft (0) toward outboard (90)
 BAND, Y_HUB = 0.13, 0.38
