@@ -248,6 +248,33 @@ namespace FlyingGame.Bridge
             foreach (var f in SessionSettings.Fleet) if (f.id == SessionSettings.AircraftId) acName = f.name;
             Dropdown("aircraft", new Rect(x, y, colW, bh), acName, System.Linq.Enumerable.Select(SessionSettings.Fleet, f => (f.name, f.id == SessionSettings.AircraftId, (System.Action)(() => SessionSettings.AircraftId = f.id))));
             y += row;
+            {
+                // LIVERY (owner 2026-10-28): only for a type that comes in more than one scheme (the Pitts: N31DG / N1191, the
+                // Extra: Talk Flying / N300UY). The choice is per type and kept across launches (SessionSettings.SetLivery), and
+                // the aeroplane behind this page repaints at once. AERO_LIVERY (captures, dev builds) still wins over it.
+                string acId = SessionSettings.AircraftId;
+                var livs = Liveries.Available(acId);
+                if (livs.Count > 1)
+                {
+                    bool forced = !string.IsNullOrEmpty(SessionSettings.LiveryOverride);
+                    UiLayout.Label(new Rect(x, y, colW, lh), forced ? "LIVERY  (AERO_LIVERY set)" : "LIVERY", _head); y += lh;
+                    string chosen = FlyingGame.Core.LiveryChoice.Selected(acId, SessionSettings.LiveryFor(acId));
+                    if (livs.Count <= 3)
+                    {
+                        float bw = (colW - (livs.Count - 1) * gap * 0.4f) / livs.Count;
+                        for (int i = 0; i < livs.Count; i++)
+                            if (UiLayout.Button(new Rect(x + i * (bw + gap * 0.4f), y, bw, bh), livs[i].Name, livs[i].Id == chosen ? _btnOn : _btn))
+                                SessionSettings.SetLivery(acId, livs[i].Id);
+                    }
+                    else
+                    {
+                        string chosenName = chosen;
+                        foreach (var l in livs) if (l.Id == chosen) chosenName = l.Name;
+                        Dropdown("livery", new Rect(x, y, colW, bh), chosenName, System.Linq.Enumerable.Select(livs, l => (l.Name, l.Id == chosen, (System.Action)(() => SessionSettings.SetLivery(acId, l.Id)))));
+                    }
+                    y += row;
+                }
+            }
             if (SessionSettings.AircraftId.StartsWith("glider"))
             {
                 float half = (colW - gap * 0.4f) / 2f;

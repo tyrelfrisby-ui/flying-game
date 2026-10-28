@@ -280,6 +280,12 @@ namespace FlyingGame.Bridge
                 ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-list.png");
                 yield return new WaitForSecondsRealtime(0.5f);
                 Menu.CloseListForTest();
+                // The livery picker row (owner 2026-10-28) shows for the Pitts and the Extra only.
+                string ac = SessionSettings.AircraftId; SessionSettings.AircraftId = "pitts-s2b-like";
+                yield return new WaitForSecondsRealtime(0.5f);
+                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-livery.png");
+                yield return new WaitForSecondsRealtime(0.5f);
+                SessionSettings.AircraftId = ac;
                 Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
             }
             Debug.Log("[SelfTest] DONE menu");
