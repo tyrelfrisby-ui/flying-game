@@ -2063,9 +2063,9 @@
   "gear": [
     {
       "pos": [
-        0.123,
-        -0.8,
-        1.0
+        0.202,
+        -0.81,
+        1.194
       ],
       "springN": 80000,
       "dampNs": 4000,
@@ -2075,13 +2075,14 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "rollResistN": 40,
+      "tireRadiusM": 0.17
     },
     {
       "pos": [
-        0.123,
-        0.8,
-        1.0
+        0.202,
+        0.81,
+        1.194
       ],
       "springN": 80000,
       "dampNs": 4000,
@@ -2091,13 +2092,14 @@
       "maxSteerRad": 0.0,
       "tireMu": 0.8,
       "corneringStiffnessN": 8000,
-      "rollResistN": 40
+      "rollResistN": 40,
+      "tireRadiusM": 0.17
     },
     {
       "pos": [
-        -3.5,
+        -3.864,
         0,
-        0.361
+        0.47
       ],
       "springN": 25000,
       "dampNs": 3750.0,
@@ -2108,7 +2110,8 @@
       "tireMu": 0.6,
       "corneringStiffnessN": 2200,
       "rollResistN": 20,
-      "steerSpringNmPerRad": 6
+      "steerSpringNmPerRad": 6,
+      "tireRadiusM": 0.075
     }
   ],
   "limits": {
