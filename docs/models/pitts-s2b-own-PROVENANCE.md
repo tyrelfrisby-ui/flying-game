@@ -337,3 +337,11 @@ Owner request: "The side stripes need more work try to match the n260bf 3 view f
   read off the N260BF and HNZ views by eye with a pixel grid.
 - References were looked at by eye only; nothing was traced, sampled or copied into the textures, and the overlays are
   review images only (not inputs). No third-party or GPL mesh, UV or texture used.
+
+## v10.1 (Ty: remove the fin logo)
+### Change (both liveries, `build_pitts_s2b.py`, paint only)
+- Removed the white "Pitts" script and "S-2B" lettering from both sides of the fin in N31DG and N1191. The two `v.stamp` calls are gone; `tools/own_models/art/pitts-script.png` and `pitts-s2b.png` stay in the repo but are unused.
+- Everything else is unchanged: N31DG checkered rudder, N1191 rudder diamonds, stripes, registration, geometry, props.
+- Rebuilt: `PITTS_LIVERY=N31DG` → pitts-s2b-like-own.glb, `PITTS_LIVERY=N1191` → pitts-s2b-like-own-n1191.glb.
+### Renders
+- Box: /workspace/pitts-own-v10-1/ (side, rudder, tailiso for both liveries; `pitts-v10-before-n31dg-*` is v10 for comparison; compare-rudder.png = v10 N31DG | v10.1 N31DG | v10.1 N1191).
