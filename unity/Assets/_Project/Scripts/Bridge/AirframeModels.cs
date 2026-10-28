@@ -26,7 +26,10 @@ namespace FlyingGame.Bridge
             /// <summary>Model exported sitting on its tail (three-point attitude): pitch it nose-DOWN by this much so its fuselage
             /// datum lies along the sim's body x axis (owner 2026-10-10: the Extra was drawn ~11° nose-high).</summary>
             public readonly float PitchDownDeg;
-            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; }
+            /// <summary>The model's control surfaces are meshes of their own, named for them (Aileron_UL, Elevator_L, Rudder):
+            /// the rig hangs each one whole on its own hinge line instead of carving the airframe by the config's chord fraction.</summary>
+            public readonly bool NamedSurfaces;
+            public Spec(Vector3 modelForward, Vector3 modelUp, bool largestIsSpan = true, float scaleTrim = 1f, float groundClearanceM = 0f, float pitchDownDeg = 0f, bool namedSurfaces = false) { ModelForward = modelForward; ModelUp = modelUp; LargestIsSpan = largestIsSpan; ScaleTrim = scaleTrim; GroundClearanceM = groundClearanceM; PitchDownDeg = pitchDownDeg; NamedSurfaces = namedSurfaces; }
             /// <summary>Rotation that carries the model's forward/up axes onto Unity +z / +y (then the three-point fix).</summary>
             public Quaternion Rotation => Quaternion.AngleAxis(PitchDownDeg, Vector3.right) * Quaternion.Inverse(Quaternion.LookRotation(ModelForward, ModelUp));
         }
@@ -105,6 +108,15 @@ namespace FlyingGame.Bridge
             // tools/own_models/build_ea300.py (docs/models/ea300-own-PROVENANCE.md): our mid-wing EA 300, drawn
             // level, glTF Y-up, paint baked in. THE Extra for every livery (Ty 2026-10-27) -- see PickOwn.
             { "extra-300-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/own_models/build_pitts_s2b.py (docs/models/pitts-s2b-own-PROVENANCE.md): our clean-room S-2B, same
+            // export convention as the EA300 (nose +x after import, glTF Y-up), drawn level on the thrust line, paint
+            // baked in. THE Pitts for every livery (Ty 2026-10-27) -- see PickOwn. Span-fitting alone would make it the
+            // config's outermost strip span (2 x 2.998 m); the trim takes it to its true 6.094 m upper span (Aviat),
+            // which also makes its length the real 5.71 m. On its wheels it sits in a 10.1 deg three-point attitude
+            // against the config gear's 10.0 deg. Its ailerons (upper + lower), elevators and rudder are their own meshes,
+            // hinged at the model's lines -- the config's upper wing is unswept and its hinges sit 5-7 cm off the model's,
+            // so carving by the config cut into the wings, stab and fin (namedSurfaces).
+            { "pitts-s2b-like", new Spec(Vector3.right, Vector3.up, scaleTrim: 6.094f / 5.996f, namedSurfaces: true) },
             // Same convention, same build script family: tools/model_glider233.py puts the nose at +x and
             // exports Y-up, so the GLB reads length x, height y, span z exactly as the 172's does. The
             // downloaded 2-33 is switched off (see Specs above), so this picks ours over the procedural
@@ -127,9 +139,10 @@ namespace FlyingGame.Bridge
         /// owner has asked for it, otherwise the downloaded model. One place, so Has() and Place() cannot disagree
         /// about which model is in play. The Extra is ours for EVERY livery (Ty 2026-10-27, approved own EA300 v12):
         /// the FlightGear-based EA300 is retired from shipping use, and the downloaded Sketchfab Extra stays on disk
-        /// but is never loaded.</summary>
+        /// but is never loaded. The Pitts likewise (Ty 2026-10-27, approved own S-2B v10.1): there is no downloaded
+        /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || modelId == "extra-300-like"
+            (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like"
                 || (modelId == "glider-2-33-like" && (SessionSettings.LiveryId == "factory" || SessionSettings.LiveryId == "talk-flying")))
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;
@@ -137,10 +150,16 @@ namespace FlyingGame.Bridge
         /// <summary>Our 2-33 and Extra have their paint baked in, one GLB per livery. 2-33 (tools/own_models/build_sgs233.py,
         /// SGS_LIVERY=talk-flying): the plain factory yellow, and the same yellow with Talk Flying trim and lettering.
         /// Extra (tools/own_models/build_ea300.py, EA_LIVERY=tf|n300uy): Talk Flying for every livery but "n300uy",
-        /// which is the plain N300UY scheme with no Talk Flying branding.</summary>
-        static string OwnSuffix(string modelId) =>
-            modelId == "glider-2-33-like" && SessionSettings.LiveryId == "talk-flying" ? "-own-tf"
-            : modelId == "extra-300-like" && SessionSettings.LiveryId == "n300uy" ? "-own-n300uy"
+        /// which is the plain N300UY scheme with no Talk Flying branding. Pitts (tools/own_models/build_pitts_s2b.py,
+        /// PITTS_LIVERY=N31DG|N1191): N31DG (Hartzell 2-blade) for every livery but "n1191", the factory sunburst with
+        /// diamonds (MT 3-blade).</summary>
+        public static string OwnSuffix(string modelId) => OwnSuffix(modelId, SessionSettings.LiveryId);
+
+        /// <summary><see cref="OwnSuffix(string)"/> for a given livery id (tests, renders).</summary>
+        public static string OwnSuffix(string modelId, string liveryId) =>
+            modelId == "glider-2-33-like" && liveryId == "talk-flying" ? "-own-tf"
+            : modelId == "extra-300-like" && liveryId == "n300uy" ? "-own-n300uy"
+            : modelId == "pitts-s2b-like" && liveryId == "n1191" ? "-own-n1191"
             : "-own";
 
         /// <summary>The Spec of the model that will actually be placed for this type — ours or the downloaded one.

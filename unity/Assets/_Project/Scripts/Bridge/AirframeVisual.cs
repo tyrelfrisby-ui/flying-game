@@ -652,7 +652,7 @@ namespace FlyingGame.Bridge
         /// prop disc ahead of the cowl (blades reaching past half the radius, or a spinner on the axis), or anything on a
         /// material named for a propeller. A mesh the importer left unreadable stays rigid.
         /// </summary>
-        private void CarveModel(Transform root, List<MeshFilter> filters)
+        private void CarveModel(Transform root, List<MeshFilter> filters, bool namedSurfaces = false)
         {
             // Control-surface regions in root space, from the hidden procedural surfaces.
             var regions = new List<(ControlPart c, Vector3 pivot, Vector3 a, Vector3 cd, Vector3 n, Vector2 sa, Vector2 sc, Vector2 sn)>();
@@ -764,6 +764,92 @@ namespace FlyingGame.Bridge
                     regions[g] = (cp, pivot, rg.a, rg.cd, rg.n, rg.sa, new Vector2(-0.02f, cf * chordM + 0.06f), new Vector2(-half, half));
                     if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
                         Debug.Log($"[Airframe] DIAG fit {rg.c.Surface}: model chord {chordM:F2} m (LE {le:F2}, TE {te:F2} from the config hinge), layer {mid:F2} m off, config chord fraction {cf:F2} → hinge moved {qh:F2} m aft");
+                }
+            }
+
+            // Models whose control surfaces are meshes of their own (Spec.NamedSurfaces -- our Pitts: Aileron_UL/UR/LL/LR,
+            // Elevator_L/R, Rudder): each such mesh goes WHOLE to the nearest fitted region of its kind, that region's hinge
+            // moves onto the mesh's own leading edge and turns about the model's own hinge line (the config's upper wing is
+            // unswept, the model's is swept ~6 deg), and nothing else is carved for that kind of surface.
+            var namedRegion = new Dictionary<MeshFilter, int>();
+            var namedKinds = new HashSet<string>();
+            if (namedSurfaces)
+            {
+                static string Kind(string n)
+                {
+                    n = n.ToLowerInvariant();
+                    return n.Contains("aileron") ? "aileron" : n.Contains("elevator") ? "elevator" : n.Contains("rudder") ? "rudder" : null;
+                }
+                var pts = new Dictionary<int, List<Vector3>>();
+                foreach (MeshFilter mf in filters)
+                {
+                    string kind = Kind(mf.name);
+                    Mesh src = mf.sharedMesh;
+                    if (kind == null || src == null || !src.isReadable) continue;
+                    Matrix4x4 tm = root.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                    Vector3[] v = src.vertices;
+                    if (v.Length == 0) continue;
+                    var r = new Vector3[v.Length]; Vector3 cen = Vector3.zero;
+                    for (int i = 0; i < v.Length; i++) { r[i] = tm.MultiplyPoint3x4(v[i]); cen += r[i]; }
+                    cen /= v.Length;
+                    int best = -1; float bestD = 0.6f;
+                    for (int g = 0; g < regions.Count; g++)
+                    {
+                        var rg = regions[g];
+                        if (rg.c.Surface != kind || !rg.c.T.name.StartsWith("ModelHinge:")) continue;   // fitted to the model only
+                        Vector3 q = cen - rg.pivot;
+                        float qa = Vector3.Dot(q, rg.a), qc = Vector3.Dot(q, rg.cd), qn = Vector3.Dot(q, rg.n);
+                        float d = Mathf.Max(0f, rg.sa.x - qa, qa - rg.sa.y) + Mathf.Max(0f, rg.sc.x - 0.3f - qc, qc - rg.sc.y - 0.3f) + Mathf.Abs(qn);
+                        if (d < bestD) { bestD = d; best = g; }
+                    }
+                    if (best < 0) { Debug.LogWarning($"[Airframe] named surface mesh {mf.name}: no fitted {kind} region near it -- left to the carve"); continue; }
+                    namedRegion[mf] = best; namedKinds.Add(kind);
+                    if (!pts.TryGetValue(best, out var l)) pts[best] = l = new List<Vector3>();
+                    l.AddRange(r);
+                }
+                foreach (var kv in pts)
+                {
+                    var rg = regions[kv.Key]; List<Vector3> p = kv.Value;
+                    float aLo = float.MaxValue, aHi = float.MinValue;
+                    foreach (Vector3 v in p) { float qa = Vector3.Dot(v - rg.pivot, rg.a); aLo = Mathf.Min(aLo, qa); aHi = Mathf.Max(aHi, qa); }
+                    // The hinge line: the leading edge (front-most point) in a band near each end of the span, clear of the tips.
+                    Vector3 Le(float f0, float f1)
+                    {
+                        Vector3 bestP = Vector3.zero; float bq = float.MaxValue;
+                        foreach (Vector3 v in p)
+                        {
+                            Vector3 q = v - rg.pivot; float f = (Vector3.Dot(q, rg.a) - aLo) / Mathf.Max(1e-3f, aHi - aLo);
+                            if (f < f0 || f > f1) continue;
+                            float qc = Vector3.Dot(q, rg.cd);
+                            if (qc < bq) { bq = qc; bestP = v; }
+                        }
+                        return bestP;
+                    }
+                    Vector3 le0 = Le(0.1f, 0.3f), le1 = Le(0.7f, 0.9f);
+                    // The LE point sits on the surface's skin, the hinge on its mid-plane: take the mid-thickness of the mesh there.
+                    float nLo = float.MaxValue, nHi = float.MinValue;
+                    foreach (Vector3 v in p) { float qn = Vector3.Dot(v - rg.pivot, rg.n); nLo = Mathf.Min(nLo, qn); nHi = Mathf.Max(nHi, qn); }
+                    Vector3 axis = le1 - le0;
+                    if (axis.sqrMagnitude < 0.01f) continue;
+                    axis.Normalize();
+                    if (Vector3.Dot(axis, rg.a) < 0f) axis = -axis;
+                    if (Vector3.Angle(axis, rg.a) > 15f) axis = rg.a;   // a mesh too odd to read a hinge off: keep the config's axis
+                    Vector3 hinge = le0 + rg.n * (0.5f * (nLo + nHi) - Vector3.Dot(le0 - rg.pivot, rg.n));
+                    rg.c.T.localPosition = hinge;
+                    rg.c.AxisUnity = axis;
+                    Vector3 cd = Vector3.Cross(rg.n, axis).normalized; if (Vector3.Dot(cd, rg.cd) < 0f) cd = -cd;
+                    Vector3 n = Vector3.Cross(axis, cd);
+                    float cHi = 0f, sLo = float.MaxValue, sHi = float.MinValue, tLo = float.MaxValue, tHi = float.MinValue;
+                    foreach (Vector3 v in p)
+                    {
+                        Vector3 q = v - hinge;
+                        cHi = Mathf.Max(cHi, Vector3.Dot(q, cd));
+                        float qa = Vector3.Dot(q, axis), qn = Vector3.Dot(q, n);
+                        sLo = Mathf.Min(sLo, qa); sHi = Mathf.Max(sHi, qa); tLo = Mathf.Min(tLo, qn); tHi = Mathf.Max(tHi, qn);
+                    }
+                    regions[kv.Key] = (rg.c, hinge, axis, cd, n, new Vector2(sLo - 0.03f, sHi + 0.03f), new Vector2(-0.02f, cHi + 0.02f), new Vector2(tLo - 0.02f, tHi + 0.02f));
+                    if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                        Debug.Log($"[Airframe] DIAG named {rg.c.Surface}: {p.Count} vertices, hinge {hinge} axis {axis} ({Vector3.Angle(axis, rg.a):F1} deg off the config's), chord {cHi:F2} m");
                 }
             }
 
@@ -998,9 +1084,13 @@ namespace FlyingGame.Bridge
                 // surface gets a looser window. The tail cone under a full-span elevator stays put (|x| < 0.18 m).
                 var named = new bool[nv];
                 for (int s = 0; s < tris.Length && s < mats.Length; s++) if (MatSays(mats[s], SurfaceWords)) foreach (int i in tris[s]) named[i] = true;
-                for (int g = 0; g < nR; g++)
+                // A surface that is a mesh of its own (Spec.NamedSurfaces) moves whole; nothing else is carved for its kind.
+                if (namedRegion.TryGetValue(mf, out int whole))
+                    for (int i = 0; i < nv; i++) { if (own[i] < 0) own[i] = whole; }
+                for (int g = 0; g < nR && !namedRegion.ContainsKey(mf); g++)
                 {
                     var rg = regions[g];
+                    if (namedKinds.Contains(rg.c.Surface)) continue;
                     float half = 0.5f * (rg.sn.y - rg.sn.x);
                     var qns = new List<float>();
                     var cand = new List<int>();
@@ -1604,7 +1694,8 @@ namespace FlyingGame.Bridge
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
             if (talk172) PaintTrainerModel(inst);
-            // The Extra (our EA300) has its paint baked in, one GLB per livery (AirframeModels.OwnSuffix): nothing to do here.
+            // The Extra (our EA300) and the Pitts (our S-2B) have their paint baked in, one GLB per livery
+            // (AirframeModels.OwnSuffix): nothing to do here.
             if (cfg.Id == "glider-2-33-like")
             {
                 bool factory = _livery.Id == "factory";
@@ -1666,7 +1757,8 @@ namespace FlyingGame.Bridge
             }
             if (talk172) FitTrainerMarks(inst);
             _retractable = cfg.RetractableGear;
-            try { CarveModel(root, filters); }
+            bool namedSurfaces = AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec placed) && placed.NamedSurfaces;
+            try { CarveModel(root, filters, namedSurfaces); }
             catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
         }
 

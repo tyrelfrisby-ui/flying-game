@@ -27,12 +27,16 @@ namespace FlyingGame.EditorTools
                         throw new ArgumentException("Missing argument " + flag);
                     return args[i + 1];
                 }
-                Render(Read("-aircraft"), Read("-livery"), Read("-out"));
+                // Optional -deflect <deg>: hold aileron, elevator and rudder all at +deg (sim sign), to see
+                // the model's carved control surfaces move.
+                int d = Array.IndexOf(args, "-deflect");
+                float deflectDeg = d >= 0 && d + 1 < args.Length ? float.Parse(args[d + 1], System.Globalization.CultureInfo.InvariantCulture) : 0f;
+                Render(Read("-aircraft"), Read("-livery"), Read("-out"), deflectDeg);
             }
             catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
         }
 
-        public static void Render(string id, string livery, string outDir)
+        public static void Render(string id, string livery, string outDir, float deflectDeg = 0f)
         {
             int exitCode = 1;
             RenderTexture previous = RenderTexture.active;
@@ -46,12 +50,17 @@ namespace FlyingGame.EditorTools
             {
                 if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(outDir))
                     throw new ArgumentException("Aircraft id and output directory are required.");
-                if (livery != "type" && livery != "talk-flying" && livery != "factory" && livery != "sunrise" && livery != "n300uy")
-                    throw new ArgumentException("Livery must be type, talk-flying, factory, sunrise or n300uy.");
+                if (livery != "type" && livery != "talk-flying" && livery != "factory" && livery != "sunrise" && livery != "n300uy"
+                    && livery != "n31dg" && livery != "n1191")
+                    throw new ArgumentException("Livery must be type, talk-flying, factory, sunrise, n300uy, n31dg or n1191.");
                 if (livery == "factory" && id != "glider-2-33-like")
                     throw new ArgumentException("Factory livery is only available for glider-2-33-like.");
                 if ((livery == "sunrise" || livery == "n300uy") && id != "extra-300-like")
                     throw new ArgumentException(livery + " livery is only available for extra-300-like.");
+                if ((livery == "n31dg" || livery == "n1191") && id != "pitts-s2b-like")
+                    throw new ArgumentException(livery + " livery is only available for pitts-s2b-like.");
+                if (id == "pitts-s2b-like" && !AirframeModels.HasOwn(id))
+                    throw new InvalidOperationException("The Pitts requires our own S-2B. Run PITTS_LIVERY=N31DG|N1191 blender -b --python tools/own_models/build_pitts_s2b.py, then let Unity import the GLBs.");
                 if (id == "extra-300-like" && !AirframeModels.HasOwn(id))
                     throw new InvalidOperationException("The Extra requires our own EA300. Run EA_LIVERY=tf|n300uy blender -b --python tools/own_models/build_ea300.py, then let Unity import the GLBs.");
                 string output = Path.GetFullPath(outDir);
@@ -75,7 +84,8 @@ namespace FlyingGame.EditorTools
                 // Use the game's complete build path, including model selection, placement,
                 // materials, overlays and carved/skinned moving parts. Keep session defaults.
                 builder.Build(root.transform, UnityAircraftConfigLoader.LoadFromStreamingAssets(id));
-                builder.SetDeflections(0f, 0f, 0f, 0f);
+                float rad = deflectDeg * Mathf.Deg2Rad;
+                builder.SetDeflections(rad, rad, rad, 0f);
                 builder.SpinProps(_ => 0f, 0.02f);
                 foreach (var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                     skin.forceMatrixRecalculationPerRender = true;

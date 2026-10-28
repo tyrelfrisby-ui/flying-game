@@ -176,6 +176,10 @@ namespace FlyingGame.Bridge
             // anything laid on at runtime would sit over the baked paint.
             ["extra-300-like"] = new("talk-flying", "Talk Flying"),
 
+            // PITTS S-2B (Ty 2026-10-27): our own S-2B (pitts-s2b-like-own.glb) wears N31DG baked in -- red/white
+            // sunburst, checkered rudder. No tints, no markings, as for the Extra.
+            ["pitts-s2b-like"] = new("talk-flying", "N31DG"),
+
             // 737: silver all over, art-deco, the wordmark and the logo in BLACK on silver — the logo reversed
             // out of its usual silver-on-black.
             ["boeing-737-like"] = new("talk-flying", "Talk Flying Air", Silver, Silver, Silver, Graphite,
@@ -206,12 +210,18 @@ namespace FlyingGame.Bridge
         public static readonly Livery SunriseExtra = new("sunrise", "Sunrise Aviation");
         public static readonly Livery N300UYExtra = new("n300uy", "N300UY");
 
+        // The Pitts's paint is baked into its GLBs too (tools/own_models/build_pitts_s2b.py). Every scheme id loads N31DG
+        // (pitts-s2b-like-own.glb) except "n1191", the factory sunburst with diamonds (pitts-s2b-like-own-n1191.glb).
+        public static readonly Livery N31DGPitts = new("n31dg", "N31DG");
+        public static readonly Livery N1191Pitts = new("n1191", "N1191");
+
         public static readonly Livery[] All = { TypeColours, TalkFlyingGeneric };
 
         /// <summary>The schemes a picker should offer for `aircraftId`: the fleet-wide ones plus the type's own.</summary>
         public static IReadOnlyList<Livery> Available(string aircraftId) => aircraftId switch
         {
             "extra-300-like" => new[] { For("talk-flying", aircraftId), N300UYExtra },
+            "pitts-s2b-like" => new[] { N31DGPitts, N1191Pitts },
             _ => All,
         };
 
@@ -221,6 +231,8 @@ namespace FlyingGame.Bridge
             if (liveryId == "factory" && aircraftId == "glider-2-33-like") return Factory233;
             if (liveryId == "sunrise" && aircraftId == "extra-300-like") return SunriseExtra;
             if (liveryId == "n300uy" && aircraftId == "extra-300-like") return N300UYExtra;
+            if (liveryId == "n31dg" && aircraftId == "pitts-s2b-like") return N31DGPitts;
+            if (liveryId == "n1191" && aircraftId == "pitts-s2b-like") return N1191Pitts;
             if (liveryId == "type" || string.IsNullOrEmpty(liveryId)) return TypeColours;
             if (liveryId == "talk-flying" && aircraftId != null && PerType.TryGetValue(aircraftId, out Livery l)) return l;
             if (liveryId == "talk-flying") return TalkFlyingGeneric;
