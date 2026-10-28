@@ -56,10 +56,16 @@ smoke check, three Pitts ground-handling). iOS player: `** BUILD SUCCEEDED **` a
 `2026.1028.1623` is installed on the iPhone 17 Pro and the iPad mini and published at
 `https://mac-studio.tail9aad2a.ts.net/ota`.
 
-**`devicectl` works; `deploy.sh` says it does not.** The install step reported `installed on 0 of 3 device(s)`
-while both devices were awake and reachable -- `xcrun devicectl device install app` then succeeded by hand on
-both. `deploy.sh` discovers devices correctly and swallows the install errors inside a pipeline whose output it
-discards, so a working route is reported as unavailable. Worth fixing; it cost us a wrong recommendation today.
+**`deploy.sh` printed a guess as a diagnosis (fixed here).** Its install step reported `installed on 0 of 3
+device(s)` at 16:22 and explained each one as "(asleep, or off the network)". That reason was invented: the real
+message from `devicectl` went into a `grep -q` and was discarded. I read the guess as the diagnosis and sent Ty
+to the OTA route; he said the devices were awake, and `devicectl device install app` then put the build on both
+by hand. **The 16:22 failure itself was probably genuine** -- the devices were woken after that run -- so the
+defect is the reporting, not the discovery: `devicectl list devices` calls all three `available (paired)` even
+while `device info details` shows the phone `connected` with a live tunnel, so there is nothing to sort by and
+the install must be its own test. Now the failure branch prints devicectl's own error and names the device
+(verified on both branches: a real install, and a bogus UDID giving
+`ERROR: The specified device was not found ... error 1000`).
 
 **Uncommitted work nobody should touch.** Four worktrees are dirty and none of it is from this lane:
 `flying-game` (main, `split-surfaces`) 2 files, `codex-own-j3-cub` 6, `codex-talkflying-livery-v2` 2,

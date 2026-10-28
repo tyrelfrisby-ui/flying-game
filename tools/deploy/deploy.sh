@@ -13,6 +13,10 @@ cd "${0:A:h:h:h}"
 if (( $# > 0 )); then
   DEVICES=("$@")
 else
+  # DISCOVERY IS NOT REACHABILITY, and `devicectl list devices` cannot tell them apart: it reports all three of
+  # these as `available (paired)` even while `devicectl device info details` says the phone's Device State is
+  # `connected` with a live tunnel. So there is nothing to sort by here -- take every physical device and let the
+  # install itself be the test, which is why the failure branch below has to print devicectl's real reason.
   DEVICES=(${(f)"$(xcrun devicectl list devices 2>/dev/null | awk '/physical/ && (/connected/ || /available \(paired\)/) { for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]+$/) print $i }')"})
 fi
 rm -rf /private/tmp/flyinggame-ios /private/tmp/flyinggame-dd unity/Library/PlayerDataCache unity/Library/Bee unity/Library/il2cpp_cache unity/Library/BuildPlayerData
@@ -77,14 +81,24 @@ if (( ${#DEVICES} == 0 )); then
   exit 0
 fi
 # A device that has gone to sleep must not take the others down with it, so the installs are not under set -e.
+# PRINT devicectl's OWN REASON when an install fails. This used to say "(asleep, or off the network)" -- a guess,
+# printed as though it were the diagnosis, with devicectl's actual message thrown away by the pipe into grep. On
+# 2026-10-28 that guess sent us to the OTA route when a plain `devicectl device install app` worked by hand on
+# both devices moments later; a route that works being reported as unavailable costs more than a failed install.
+# Also name the device, because a bare UDID tells you nothing about which one went missing.
 INSTALLED=0
 for D in $DEVICES; do
-  echo "== install $D $(date +%H:%M:%S)"
-  if xcrun devicectl device install app --device $D "$APP" 2>&1 | grep -q 'App installed'; then
+  NAME=$(xcrun devicectl list devices 2>/dev/null | awk -v d="$D" 'index($0, d) { sub(/  +[0-9A-Fa-f]{8}-.*/, ""); print; exit }')
+  [ -n "$NAME" ] || NAME=$D
+  echo "== install $NAME $(date +%H:%M:%S)"
+  OUT=$(xcrun devicectl device install app --device $D "$APP" 2>&1)
+  if print -r -- "$OUT" | grep -q 'App installed'; then
     xcrun devicectl device process launch --terminate-existing --device $D com.tyrelfrisby.aeroplayground 2>&1 | tail -1
     INSTALLED=$((INSTALLED + 1))
   else
-    echo "== $D would not take it (asleep, or off the network)"
+    echo "== $NAME would not take it:"
+    print -r -- "$OUT" | grep -iE 'error|unable|denied|asleep|not (connected|paired|found)|timed out|NSLocalizedDescription|NSLocalizedRecoverySuggestion' | head -4 | sed 's/^/     /'
+    print -r -- "$OUT" | grep -qiE 'error|unable|denied|asleep|not (connected|paired|found)|timed out' || print -r -- "$OUT" | tail -4 | sed 's/^/     /'
   fi
 done
 echo "== installed on $INSTALLED of ${#DEVICES} device(s)"
