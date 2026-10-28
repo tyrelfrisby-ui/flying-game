@@ -137,3 +137,9 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 - Cowl inlets reshaped from round to D-shaped, from a reference photo of a real Extra 300 cowl (shape only; nothing traced or copied). Each inlet is wide and low (|y| 0.195-0.405 m, 0.105 m tall, ~2:1), with a near-flat inboard edge by the spinner and a rounded outboard edge, top and bottom (superellipse, n=8 inboard / 2.2 outboard). Front cowl faces are subdivided 4x before the cut.
 - Lips are now draped on the skin by ray-casting the uncut cowl: the outer edge lies 0.8 mm proud and rolls over into a dark duct, so there is no doubled ring when seen from 3/4. The front lower baffle is lowered (top at z -0.09) so the heads show through the inlets. Paint unchanged.
 - The engine has no faces through the skin (the only contact is the lip/skin seam). Unity: 1/1 propellers bound.
+
+## Unmarked livery (2026-10-28, codex/unmarked-liveries; the in-game default)
+`EA_LIVERY=unmarked` writes `extra-300-like-own-unmarked.glb`: the N300UY base scheme with no N-number, no Talk Flying
+(TALKFLYING.COM, TF fin badge, wing lettering) and no SUNRISE / AVIATION; the fin stars and stripes and the red
+underwing bar are kept. Geometry and the 3-blade prop are node for node the N300UY GLB's (checked by FlightTests). The
+provenance, including the GPL question above, is the same as the other two liveries'.

@@ -345,3 +345,10 @@ Owner request: "The side stripes need more work try to match the n260bf 3 view f
 - Rebuilt: `PITTS_LIVERY=N31DG` → pitts-s2b-like-own.glb, `PITTS_LIVERY=N1191` → pitts-s2b-like-own-n1191.glb.
 ### Renders
 - Box: /workspace/pitts-own-v10-1/ (side, rudder, tailiso for both liveries; `pitts-v10-before-n31dg-*` is v10 for comparison; compare-rudder.png = v10 N31DG | v10.1 N31DG | v10.1 N1191).
+
+## Unmarked liveries (2026-10-28, codex/unmarked-liveries; the in-game default)
+`PITTS_LIVERY=CHECKER-UNMARKED` writes `pitts-s2b-like-own-checker-unmarked.glb` (the N31DG checkered scheme) and
+`PITTS_LIVERY=FACTORY-UNMARKED` writes `pitts-s2b-like-own-factory-unmarked.glb` (the N1191 factory sunburst). The only
+change from the marked builds is that the registration is not painted; the area is left in the plain underlying paint.
+Geometry is node for node the same as the marked sibling (checked by FlightTests), and so is the prop: the checkered
+GLBs carry the Hartzell 2-blade, the factory GLBs the MT 3-blade. Same clean-room provenance; nothing new to credit.
