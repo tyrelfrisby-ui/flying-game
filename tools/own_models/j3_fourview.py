@@ -11,8 +11,10 @@ HIDE = [h for h in os.environ.get('J3_HIDE', '').split(',') if h]   # hide nodes
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=G)
 sc = bpy.context.scene
+SHOW = [h for h in os.environ.get('J3_SHOW', '').split(',') if h]   # render only nodes starting with these
 for o in list(sc.objects):
     if any(o.name.startswith(h) for h in HIDE): o.hide_render = True
+    if SHOW and o.type == 'MESH' and not any(o.name.startswith(h) for h in SHOW): o.hide_render = True
 if OPEN:
     for o in sc.objects:
         if 'open_deg' in o.keys():
@@ -87,3 +89,26 @@ cam('brow_l', (-2.6, -1.3, 1.1), (-1.40, -0.28, 0.2), 1.0, (1300, 1000))
 cam('brow_front', (-8, 0, 0.15), (0, 0, 0.15), 1.1, (1300, 800))
 cam('tail_side_ov', (4.133, -20, 0.835), (4.133, 0, 0.835), 2.0, (1600, 1600))     # 1.25 mm/px, port side, nose left
 cam('tail_top_ov', (4.183, 0, 20), (4.183, 0, 0), 3.2, (1600, 1600), 'X')          # 2.0 mm/px
+# v5 close-ups (frame: x = xd - 1.817, y = -y_build (right side +y), z = z_build + 0.135)
+cam('panel', (-0.55, 0, 0.205), (-0.587, 0, 0.205), 0.66, (1400, 900))                    # straight on (hide fuselage/liner/wing)
+cam('panel_rear', (0.80, 0.0, 0.50), (-0.587, 0, 0.19), 0, (1400, 1000), persp=30)        # from the rear seat
+cam('panel_rear_wide', (0.80, 0.0, 0.50), (-0.587, 0, 0.19), 0, (1400, 1000), persp=18)
+cam('int_door', (0.55, 2.0, 0.40), (-0.40, 0.0, 0.12), 0, (1400, 1000), persp=28)         # through the open door (right side)
+cam('exh', (-1.10, 1.6, -0.12), (-1.20, 0.25, -0.04), 0.62, (1300, 1000))                 # right side, hole + stacks
+cam('exh_l', (-1.10, -1.6, -0.12), (-1.20, -0.25, -0.04), 0.62, (1300, 1000))
+cam('exh_rear', (-0.50, 0.62, -0.05), (-1.32, 0.32, -0.02), 0, (1000, 1300), persp=30)    # like Ty's rear photo
+cam('exh_low', (-0.55, 1.2, -0.95), (-1.10, 0.15, -0.38), 0, (1300, 1000), persp=35)      # tail stub under the lower right cowl
+cam('prop_front', (-6, 0, 0.135), (-1.9, 0, 0.135), 1.95, (1800, 700))
+cam('prop_back', (3, 0, 0.135), (-1.9, 0, 0.135), 1.95, (1800, 700))                       # needs J3_SHOW=Prop
+cam('prop_tip_f', (-6, 0.72, 0.135), (-1.9, 0.72, 0.135), 0.42, (1200, 700))
+cam('prop_tip_b', (3, 0.72, 0.135), (-1.9, 0.72, 0.135), 0.42, (1200, 700))
+cam('prop_hub', (-6, 0, 0.135), (-1.9, 0, 0.135), 0.30, (1000, 1000))
+cam('prop_iso', (-3.2, 1.1, 0.75), (-1.9, 0.30, 0.135), 0, (1400, 900), persp=35)
+cam('brow_rear', (-0.55, 0.58, 0.06), (-1.35, 0.33, 0.05), 0, (1000, 1300), persp=30)     # rear plate, like Ty's rear photo
+cam('brow_ty', (-2.1, -1.45, 0.42), (-1.36, -0.30, 0.10), 0, (1300, 1000), persp=30)     # like Ty's eyebrow photo (left side)
+cam('cowl_r', (-1.30, 20, -0.06), (-1.30, 0, -0.06), 0.95, (1400, 1100))
+cam('cowl_l', (-1.30, -20, -0.06), (-1.30, 0, -0.06), 0.95, (1400, 1100))
+cam('cowl_dzus', (-1.05, 0.75, 0.0), (-1.06, 0.26, -0.1), 0, (1200, 1000), persp=30)
+cam('bear_r', (4.13, 20, 0.855), (4.13, 0, 0.855), 0.46, (1000, 1000))
+cam('bear_l', (4.13, -20, 0.855), (4.13, 0, 0.855), 0.46, (1000, 1000))
+cam('tail_photo_r', (4.30, 3.0, 0.95), (4.25, 0, 0.85), 0, (1000, 1100), persp=35)

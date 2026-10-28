@@ -403,12 +403,27 @@ for k_, v_ in JURY.items(): print('JURY', k_, 'strut pt', v_[0], '-> spar', v_[1
 
 # ---- engine: A-65 heads under black hoods, exhaust, nose bowl inlet, crank flange, fuel cap + float wire -------------
 EN_T = []
-EN_NAMES = ('cyl', 'head', 'rocker', 'hood', 'exh', 'case', 'dark', 'alu', 'steel')
+EN_NAMES = ('cyl', 'head', 'rocker', 'hood', 'exh', 'case', 'dark', 'alu', 'steel', 'seam')
 def en_add(bm, tag, fn):
     fn(); tag_new(bm, EN_NAMES.index(tag))
 bme = bmesh.new()
 HEADS = {1: (0.335, 0.475), -1: (0.39, 0.53)}      # Continental: left bank forward (#2/#4 left are ahead of #1/#3)
 CZ = -0.03
+RIV, RIVP, HOLES = [], [], {}
+VC_Y0, VC_Y1 = 0.356, 0.392            # valve cover inboard (head) / outboard face, from the head centreline
+def vcover(hx, sy):
+    """v5: polished (chrome-look) rocker cover per Ty's first eyebrow photo: rounded-rectangle box with a domed top, red
+    gasket at the head joint and four hold-down screws (Ty's rear photo shows black lettered covers; polished kept)."""
+    def rr(ins):
+        a, b, rc = 0.05 - ins, 0.064 - ins, max(0.022 - ins * 0.6, 0.006); pts = []
+        for qx, qz, t0 in ((a - rc, b - rc, 0), (-(a - rc), b - rc, 90), (-(a - rc), -(b - rc), 180), (a - rc, -(b - rc), 270)):
+            for t in np.radians(np.linspace(t0, t0 + 90, 6)): pts.append((qx + rc * math.cos(t), qz + rc * math.sin(t)))
+        return pts
+    rings = [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(ins)] for yy, ins in ((VC_Y0 + 0.004, 0.0), (VC_Y1 - 0.010, 0.0), (VC_Y1 - 0.004, 0.006), (VC_Y1, 0.017))]
+    en_add(bme, 'rocker', lambda: loft_rings(bme, rings))
+    en_add(bme, 'alu', lambda: loft_rings(bme, [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(-0.003)] for yy in (VC_Y0, VC_Y0 + 0.004)]))  # red gasket
+    for dx, dz in ((0.036, 0.050), (-0.036, 0.050), (0.036, -0.050), (-0.036, -0.050)):
+        en_add(bme, 'steel', lambda: cyl(bme, B(hx + dx, sy * (VC_Y1 - 0.009), CZ + dz), B(hx + dx, sy * (VC_Y1 - 0.003), CZ + dz), 0.0045, 8))
 for sy in (1, -1):
     for hx in HEADS[sy]:
         en_add(bme, 'cyl', lambda: cyl(bme, B(hx, sy * 0.10, CZ), B(hx, sy * 0.245, CZ), 0.052, 20))
@@ -416,28 +431,31 @@ for sy in (1, -1):
             y0 = 0.245 + k * 0.0115
             en_add(bme, 'head', lambda: cyl(bme, B(hx, sy * y0, CZ), B(hx, sy * (y0 + 0.006), CZ), 0.066 if k % 2 == 0 else 0.062, 20))
             en_add(bme, 'head', lambda: cyl(bme, B(hx, sy * (y0 + 0.006), CZ), B(hx, sy * (y0 + 0.0115), CZ), 0.052, 20))
-        en_add(bme, 'rocker', lambda: rbox(bme, B(hx, sy * 0.373, CZ), (0.10, 0.034, 0.13)))   # valve rocker cover
-        en_add(bme, 'rocker', lambda: cyl(bme, B(hx, sy * 0.385, CZ), B(hx, sy * 0.393, CZ), 0.03, 12))
+        vcover(hx, sy)                                                          # v5 polished valve (rocker) cover
         en_add(bme, 'steel', lambda: tube(bme, [B(hx + 0.01, sy * 0.13, CZ - 0.075), B(hx + 0.01, sy * 0.28, CZ - 0.07)], 0.008, n=8))
-        en_add(bme, 'exh', lambda: tube(bme, [B(hx, sy * 0.30, CZ - 0.06), B(hx + 0.02, sy * 0.30, CZ - 0.12), B(hx + 0.06, sy * 0.292, CZ - 0.15)], 0.017, n=10))
-    # v4 "eyebrows": ONE black sheet-metal scoop per bank (photos NASM / c40 / c19; Severin front view) riveted to the cowl
-    # side above the head opening, roofing both heads, its front lip curling down ahead of the front head and its aft end
-    # rolling down behind the rear head; outboard edge droops, bottom + outboard face open (rocker covers visible).
+    # v5 eyebrow (Ty photos ty-eyebrows + ty-cowl-eyebrow-rear): ONE tall black scoop per bank, a constant rounded-square
+    # arch roofing both heads, OPEN at the front, rising well above the cowl opening; the outboard face drops to a lip just
+    # above the valve covers (covers stay exposed below). The BACK closes down into a flat riveted black plate that meets
+    # the cowl at the aft edge of the head opening.
     def eyebrow(sy=sy):
-        xf, xr = HEADS[sy][0] - 0.09, HEADS[sy][1] + 0.10; ZT, ZL, YO = 0.165, 0.0, 0.43
-        xs = L(xf, xr, 16)
-        def sc(x_):                                       # full section over both heads, closing down onto the cowl aft
-            t = (x_ - (HEADS[sy][1] + 0.03)) / (xr - HEADS[sy][1] - 0.03)
-            return 1.0 if t <= 0 else 0.12 + 0.88 * math.cos(min(t, 1.0) * math.pi / 2)
-        us = [math.sin(a_) for a_ in np.linspace(0, math.pi / 2, 11)]
-        def pt(x_, u, off=0.0):
-            k = sc(x_); yi = fus_y(min(max(x_, 0.19), 0.95), ZL + k * (ZT - ZL)) - 0.012
-            yo = yi + k * (YO - yi); zt = ZL + k * (ZT - ZL)
-            y_ = yi + u * (yo - yi); z_ = ZL + (zt - ZL) * math.sqrt(max(0.0, 1 - u * u))
-            return B(x_, sy * (y_ - off * u), z_ - off * math.sqrt(max(0.0, 1 - u * u)))
-        top = [[pt(x_, u) for u in us] for x_ in xs]; bot = [[pt(x_, u, 0.004) for u in us] for x_ in xs]
+        h0, h1 = HEADS[sy]; xf, xr = h0 - 0.075, HOOD[sy][1] + 0.012
+        ZT, ZL, YO, PW, ZA = 0.195, 0.034, 0.447, 2.6, 0.118
+        xs = L(xf, xr, 14)
+        def yi_(x_): return fus_y(min(max(x_, 0.19), 0.95), ZA) - 0.006
+        def sect(x_, off=0.0):                       # (y, z) from the cowl attach line over the crown down to the lip
+            zt = ZT - 0.012 * max(0.0, (x_ - (xr - 0.04)) / 0.04); yi = yi_(x_); out = [(yi - 0.004, ZA)]
+            for u in np.linspace(0, 1, 13):
+                yy = yi + (YO - yi) * u; zz = ZL + (zt - ZL) * (1 - u ** PW) ** (1 / PW)
+                out.append((yy, zz))
+            if off:
+                c = np.array((yi, ZL)); out = [tuple(c + (np.array(p) - c) * (1 - off / max(np.linalg.norm(np.array(p) - c), 1e-6))) for p in out]
+            return out
+        # v5b: scoop front edge raked -- the crown leads, the outboard lip trails (Ty eyebrow photos)
+        def shx(x_, j_): return x_ + 0.045 * max(0, j_ - 1) / 12.0 * (1 - (x_ - xf) / (xr - xf))
+        top = [[B(shx(x_, j_), sy * p[0], p[1]) for j_, p in enumerate(sect(x_))] for x_ in xs]
+        bot = [[B(shx(x_, j_), sy * p[0], p[1]) for j_, p in enumerate(sect(x_, 0.004))] for x_ in xs]
         vt = [[bme.verts.new(p_) for p_ in row] for row in top]; vb = [[bme.verts.new(p_) for p_ in row] for row in bot]
-        nI, nJ = len(top), len(us); fs = []
+        nI, nJ = len(top), len(top[0]); fs = []
         for a_ in range(nI - 1):
             for b_ in range(nJ - 1):
                 fs.append(bme.faces.new((vt[a_][b_], vt[a_ + 1][b_], vt[a_ + 1][b_ + 1], vt[a_][b_ + 1])))
@@ -447,12 +465,71 @@ for sy in (1, -1):
             (a0, b0), (a1, b1) = rim[k_], rim[(k_ + 1) % len(rim)]
             fs.append(bme.faces.new((vt[a0][b0], vb[a0][b0], vb[a1][b1], vt[a1][b1])))
         bmesh.ops.recalc_face_normals(bme, faces=fs)
+        # rear plate: follows the arch, closes at the outboard lip, runs inboard to the cowl (v5b: stops at the lip so the covers show below)
+        ZP = ZL - 0.012; poly = sect(xr) + [(YO, ZP), (fus_y(xr, ZP) - 0.004, ZP)]
+        vf = [bme.verts.new(B(xr - 0.001, sy * y_, z_)) for y_, z_ in poly]; vk = [bme.verts.new(B(xr + 0.003, sy * y_, z_)) for y_, z_ in poly]
+        pf = [bme.faces.new(vf), bme.faces.new(vk[::-1])]
+        for i_ in range(len(poly)):
+            j_ = (i_ + 1) % len(poly); pf.append(bme.faces.new((vf[i_], vk[i_], vk[j_], vf[j_])))
+        bmesh.ops.recalc_face_normals(bme, faces=pf)
+        RIV.append((sy, xr + 0.003, poly))
+        for x_ in L(xf + 0.02, xr - 0.02, 8):                                  # rivets along the cowl attach flange
+            p_ = sect(x_)[2]; RIVP.append((B(x_, sy * (p_[0] + 0.0), p_[1] + 0.003), (0, 0, 1)))
     en_add(bme, 'hood', eyebrow)
-    xa, xb = HEADS[sy][0], 0.74
-    en_add(bme, 'exh', lambda: tube(bme, [B(xa + 0.06, sy * 0.292, CZ - 0.15), B(0.62, sy * 0.29, -0.175), B(xb, sy * 0.285, -0.19)], 0.024, n=12))
+    # v5 exhaust (Ty photo ty-cowl-eyebrow-rear): chrome/steel stack drops from each exhaust port, turns aft below the
+    # heads, the two join and the collector runs aft out through a round hole in the lower cowl side (dark grommet ring).
+    hf, hr = HEADS[sy]; XH = HOOD[sy][1] + 0.045; ZE = -0.158; PY = 0.300; yc_ = fus_y(XH, ZE)
+    for hx_ in (hf, hr):
+        en_add(bme, 'steel', lambda: tube(bme, [B(hx_ + 0.008, sy * PY, CZ - 0.055), B(hx_ + 0.008, sy * PY, ZE + 0.035), B(hx_ + 0.022, sy * PY, ZE + 0.006),
+                                                 B(hx_ + 0.05, sy * PY, ZE), B(hr + 0.06, sy * PY, ZE)], 0.016, n=12))
+        en_add(bme, 'dark', lambda: cyl(bme, B(hx_ + 0.008, sy * PY, CZ - 0.05), B(hx_ + 0.008, sy * PY, CZ - 0.065), 0.024, 12))   # port flange
+    en_add(bme, 'steel', lambda: tube(bme, [B(hr + 0.04, sy * PY, ZE), B(XH - 0.03, sy * (PY - 0.008), ZE), B(XH, sy * (yc_ + 0.004), ZE),
+                                             B(XH + 0.05, sy * (yc_ - 0.035), ZE - 0.004)], 0.020, n=14))
+    en_add(bme, 'dark', lambda: cyl(bme, B(hr + 0.065, sy * PY, ZE), B(hr + 0.085, sy * PY, ZE), 0.0215, 14))       # slip-joint clamp
+    _nrm = np.array((0, 0.01, -(fus_y(XH, ZE + 0.01) - yc_))); _nrm /= np.linalg.norm(_nrm)
+    _c = np.array((XH + 0.012, yc_ - 0.0006, ZE))
+    en_add(bme, 'dark', lambda: cyl(bme, B(_c[0], sy * _c[1], _c[2]), B(_c[0], sy * (_c[1] + 0.0025 * _nrm[1]), _c[2] + 0.0025 * _nrm[2]), 0.032, 24))
+    HOLES[sy] = (XH + 0.012, ZE)
+    if sy == -1:   # heat-darkened tail stub under the lower right cowl (judgement for the 'lower right' exhaust exit)
+        xt = 0.74; zb_ = F_BOT(xt)
+        en_add(bme, 'exh', lambda: tube(bme, [B(xt - 0.07, -0.175, zb_ + 0.07), B(xt - 0.01, -0.175, zb_ + 0.008), B(xt + 0.05, -0.18, zb_ - 0.04)], 0.020, n=12))
 en_add(bme, 'case', lambda: rbox(bme, B(0.47, 0, CZ), (0.34, 0.20, 0.16)))
 en_add(bme, 'steel', lambda: cyl(bme, B(0.14, 0, 0), B(0.19, 0, 0), 0.055, 20))
 en_add(bme, 'dark', lambda: rbox(bme, B(0.197, 0, -0.215), (0.012, 0.11, 0.06), Matrix.Rotation(math.radians(-40), 4, 'Y')))
+# v5 eyebrow rear-plate rivets (Ty photo ty-cowl-eyebrow-rear)
+for sy_, xp_, poly_ in RIV:
+    pp = np.array(poly_); c_ = pp.mean(0); seg_ = list(zip(pp, np.roll(pp, -1, 0)))
+    for a_, b_ in seg_:
+        n_ = max(1, int(np.linalg.norm(b_ - a_) / 0.026))
+        for t_ in np.linspace(0, 1, n_, endpoint=False):
+            q_ = a_ + (b_ - a_) * t_; q_ = q_ + (c_ - q_) / np.linalg.norm(c_ - q_) * 0.009
+            en_add(bme, 'hood', lambda: cyl(bme, B(xp_, sy_ * q_[0], q_[1]), B(xp_ + 0.0022, sy_ * q_[0], q_[1]), 0.0028, 6, r2=0.0016))
+for p_, n_ in RIVP:
+    en_add(bme, 'hood', lambda: cyl(bme, p_, (p_[0], p_[1], p_[2] + 0.002), 0.0028, 6, r2=0.0016))
+# v5 cowl panel lines (Ty photo ty-cowl-eyebrow-rear): raised dark hairline rings at the cowl / fuselage joint and the nose
+# bowl joint, plus the top-centre split; the side split (lower cowl) is painted into the side maps below.
+def seam_ring(xd, w_=0.004, off=0.0010):
+    pr = np.array(ring(xd)); c_ = pr.mean(0); rs = []
+    for dx in (-w_ / 2, w_ / 2):
+        q = []
+        for p in pr:
+            d = p - c_; d[0] = 0; q.append(tuple(np.array((-(xd + dx), p[1], p[2])) + d / np.linalg.norm(d) * off))
+        rs.append(q)
+    loft_rings(bme, rs, False, False)
+for xs_ in (0.787, 0.262): en_add(bme, 'seam', lambda: seam_ring(xs_))
+en_add(bme, 'seam', lambda: bar(bme, [B(x_, 0, F_TOP(x_) + 0.0008) for x_ in L(0.262, 0.787, 12)], 0.004, 0.0012))
+# v5 Dzus quarter-turn fasteners: black round heads with the steel wire spring clip, along the cowl edges
+DZ = [(0.770, z_) for z_ in (-0.40, -0.28, -0.16, -0.04, 0.08)] + [(x_, -0.222) for x_ in (0.34, 0.50)] + [(0.285, z_) for z_ in (-0.24, -0.13)]
+def dzus(xd, z, sy):
+    y = fus_y(xd, z); y2 = fus_y(xd, z + 0.01); n_ = np.array((0, 0.01 * sy, -(y2 - y))); n_ /= np.linalg.norm(n_)
+    p = np.array(B(xd, sy * y, z)) + n_ * 0.0004; e1 = np.array((1.0, 0, 0)); e2 = np.cross(n_, e1)
+    en_add(bme, 'dark', lambda: cyl(bme, p, p + n_ * 0.003, 0.0105, 16))
+    sl = [p + n_ * 0.0031 + e2 * 0.007, p + n_ * 0.0031 - e2 * 0.007]
+    en_add(bme, 'steel', lambda: tube(bme, sl, 0.0011, n=5))
+    wl = [p + n_ * 0.0018 + 0.0145 * (math.cos(t) * e1 + math.sin(t) * e2) for t in np.radians(np.linspace(-110, 110, 12))]
+    en_add(bme, 'steel', lambda: tube(bme, wl, 0.0011, n=5))
+for sy in (1, -1):
+    for xd_, z_ in DZ: dzus(xd_, z_, sy)
 # v4 (Ty): red fuel cap on the nose-tank filler ahead of the windshield + the float-gauge wire, ~8 in above the cap with a
 # 90-degree bend at the top (bend points aft, toward the pilot: judgement)
 ZCAP = F_TOP(0.85)
@@ -467,45 +544,62 @@ print('FUELCAP top z %.3f, wire top z %.3f (%.1f in above the cap)' % (ZCAP + 0.
 EN_T = [EN_NAMES[t] for t in tags_of(bme)]; P['Engine'] = link('Engine', bme)
 
 # ---- prop: 72 in fixed-pitch wood (TCDS A-691: Sensenich / McCauley 72 in wood props for the A-65), no spinner -------
-# 42 in pitch (judgement within the TCDS pitch range), clockwise from the cockpit (Continental), brass-sheathed tips.
-X_P, R_P, PITCH, TIP = -0.09, 36 * IN, 42 * IN, 5 * IN
+# v5 (Ty photo refs/j3-cub/ty-prop.png): Sensenich-type planform -- narrow neck off a round hub, widest ~0.7 R, elliptical
+# rounded tip; natural birch laminations under amber varnish (texture j3_prop_wood.png, planar UV in the disc plane);
+# brass leading-edge sheath from ~0.42 R round the tip with a rivet row just behind it on both faces; red tips (12.4 in
+# band, both faces); 6-bolt hub, no faceplate. The maker's decal is a trademark -> generic text-free oval in the texture.
+# 42 in pitch (judgement within the TCDS pitch range), clockwise from the cockpit (Continental).
+X_P, R_P, PITCH = -0.09, 36 * IN, 42 * IN
+CHT = [(0.0, 0.098), (0.06, 0.080), (0.16, 0.074), (0.30, 0.090), (0.45, 0.108), (0.60, 0.119), (0.72, 0.121), (0.82, 0.114)]
+SH_R0, SH_W = 0.42 * R_P, 0.014
 def chord(q):
-    c = 0.080 + 0.060 * math.sin(math.pi * min(q / 0.55, 1) * 0.5) - 0.02 * max(q - 0.55, 0) - (0.08 * ((q - 0.9) / 0.1) ** 2 if q > 0.9 else 0)
-    return max(c, 0.025)
-bmp = bmesh.new(); face_tag = []
+    if q <= 0.82: return float(np.interp(q, [a for a, _ in CHT], [b for _, b in CHT]))
+    return max(0.114 * math.sqrt(max(0.0, 1 - ((q - 0.82) / 0.18) ** 3)), 0.010)   # v5b blunter round tip
+def p_sec(r):
+    q = (r - 0.07) / (R_P - 0.07); c = chord(q)
+    beta = math.atan(PITCH / (2 * math.pi * max(r, 0.22))); th = (0.60 - 0.5 * q / 0.2) * c if q < 0.2 else max((0.15 - 0.09 * q) * c, 0.006)
+    if q < 0.05: c, th, beta = 0.105, 0.10, 0.0
+    return c, th, beta
+def p_angles(c):
+    a_s = math.acos(max(-0.9, 1 - 2 * SH_W / c))
+    half = [0.0, a_s / 2, a_s] + list(np.linspace(a_s, math.pi, 9)[1:])
+    return half + [2 * math.pi - a for a in half[1:-1][::-1]]
+bmp = bmesh.new(); PRIV = []
 for blade in range(2):
     ph = math.pi / 2 + blade * math.pi
     rad = np.array([0, math.sin(ph), math.cos(ph)]); tan = np.cross([1.0, 0, 0], rad)
     ax = np.array([1.0, 0, 0]); hub = np.array([X_P, 0, 0])
-    rr = np.linspace(0.07, R_P, 18); secs = []
+    rr = sorted(set([round(x_, 5) for x_ in np.linspace(0.07, R_P, 28)] + [round(R_P * (0.82 + 0.18 * (1 - (1 - t_) ** 1.6)), 5) for t_ in np.linspace(0.05, 0.97, 12)] + [round(SH_R0, 5)])); secs = []
     for r in rr:
-        q = (r - 0.07) / (R_P - 0.07); c = chord(q)
-        beta = math.atan(PITCH / (2 * math.pi * max(r, 0.22))); th = (0.60 - 0.5 * q / 0.2) * c if q < 0.2 else (0.15 - 0.09 * q) * c
-        if q < 0.05: c, th = 0.105, 0.10; beta = 0.0
-        sp_ = []
-        for a in np.linspace(0, 2 * math.pi, 18, endpoint=False):
-            u = 0.5 * c * math.cos(a); v = 0.5 * th * math.sin(a)
-            cd = math.cos(beta) * tan + math.sin(beta) * ax; nd = -math.sin(beta) * tan + math.cos(beta) * ax
-            sp_.append(hub + r * rad + u * cd + v * nd)
-        secs.append([bmp.verts.new(p) for p in sp_])
+        c, th, beta = p_sec(r); cd = math.cos(beta) * tan + math.sin(beta) * ax; nd = -math.sin(beta) * tan + math.cos(beta) * ax
+        secs.append([bmp.verts.new(hub + r * rad + 0.5 * c * math.cos(a) * cd + 0.5 * th * math.sin(a) * nd) for a in p_angles(c)])
     for k in range(len(secs) - 1):
-        for i in range(18):
-            j = (i + 1) % 18; bmp.faces.new((secs[k][i], secs[k][j], secs[k + 1][j], secs[k + 1][i]))
-            face_tag.append(1 if 0.5 * (rr[k] + rr[k + 1]) > R_P - TIP else 0)
-    bmp.faces.new(secs[-1]); face_tag.append(1); bmp.faces.new(secs[0][::-1]); face_tag.append(0)
-n0 = len(bmp.faces)                                            # hub block + bolt circle face plate
-cyl(bmp, (X_P - 0.05, 0, 0), (X_P + 0.05, 0, 0), 0.080, 24); bmp.faces.ensure_lookup_table(); face_tag += [0] * (len(bmp.faces) - n0)  # wood hub
-n0 = len(bmp.faces); cyl(bmp, (X_P + 0.05, 0, 0), (X_P + 0.065, 0, 0), 0.045, 16); bmp.faces.ensure_lookup_table(); face_tag += [2] * (len(bmp.faces) - n0)
-bmesh.ops.recalc_face_normals(bmp, faces=bmp.faces); P['Prop'] = link('Prop', bmp)
-def _prop_tag(c):                                                # by geometry: brass tips, steel bolt plate, wood
-    r = math.hypot(c.y, c.z)
-    if r > R_P - TIP: return 1
-    if c.x > X_P + 0.052 and r < 0.047: return 2
-    return 0
-face_tag = [_prop_tag(p.center) for p in P['Prop'].data.polygons]
+        rm = 0.5 * (rr[k] + rr[k + 1])
+        for i in range(20):
+            j = (i + 1) % 20; bmp.faces.new((secs[k][i], secs[k][j], secs[k + 1][j], secs[k + 1][i]))
+            tag_new(bmp, 1 if (i in (0, 1, 18, 19) and rm > SH_R0) or rm > R_P - 0.012 else 0)
+    bmp.faces.new(secs[-1]); tag_new(bmp, 1); bmp.faces.new(secs[0][::-1]); tag_new(bmp, 0)
+    for r in np.arange(SH_R0 + 0.015, R_P - 0.03, IN):                     # sheath rivet row, both faces
+        c, th, beta = p_sec(r); cd = math.cos(beta) * tan + math.sin(beta) * ax; nd = -math.sin(beta) * tan + math.cos(beta) * ax
+        u = 0.5 * c - 0.010; a_ = math.acos(u / (0.5 * c))
+        for sg_ in (1, -1):
+            pt_ = hub + r * rad + u * cd + sg_ * 0.5 * th * math.sin(a_) * nd
+            cyl(bmp, pt_ - sg_ * nd * 0.0004, pt_ + sg_ * nd * 0.0010, 0.0017, 6, r2=0.0011); tag_new(bmp, 1)
+cyl(bmp, (X_P - 0.05, 0, 0), (X_P + 0.05, 0, 0), 0.088, 32); tag_new(bmp, 0)                 # wood hub boss
+cyl(bmp, (X_P + 0.0495, 0, 0), (X_P + 0.0505, 0, 0), 0.026, 20); tag_new(bmp, 3)             # crank bore (dark)
+cyl(bmp, (X_P + 0.046, 0, 0), (X_P + 0.0515, 0, 0), 0.016, 12); tag_new(bmp, 2)              # crank nose
+for k in range(6):                                                                          # 6-bolt hub: holes + bolt heads
+    t = math.radians(30 + 60 * k); y_, z_ = 0.042 * math.cos(t), 0.042 * math.sin(t)
+    cyl(bmp, (X_P + 0.0496, y_, z_), (X_P + 0.0506, y_, z_), 0.0095, 12); tag_new(bmp, 3)
+    cyl(bmp, (X_P + 0.0500, y_, z_), (X_P + 0.0565, y_, z_), 0.0072, 6); tag_new(bmp, 2)
+    cyl(bmp, (X_P - 0.0506, y_, z_), (X_P - 0.0496, y_, z_), 0.0095, 12); tag_new(bmp, 3)    # back face: bolt holes
+bmesh.ops.recalc_face_normals(bmp, faces=bmp.faces); face_tag = tags_of(bmp); P['Prop'] = link('Prop', bmp)
+_uv = P['Prop'].data.uv_layers.new(name='UVMap')
+for lp in P['Prop'].data.loops:
+    co = P['Prop'].data.vertices[lp.vertex_index].co; _uv.data[lp.index].uv = ((co.y + R_P) / (2 * R_P), (co.z + 0.10) / 0.20)
 
 # ---- cabin: floor, two seats in tandem, two sticks, pedals, panel with five gauges + compass, window frame tubes -------
-CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark']
+CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu']
 bmc = bmesh.new(); ck_tag = []
 def ck(tag, fn):
     fn(); tag_new(bmc, CK_T.index(tag))
@@ -520,11 +614,57 @@ def firewall():                                                                 
     pr = np.array(ring(0.80)); c = pr.mean(0); pr = c + (pr - c) * np.array([1, 0.985, 0.985])
     bmc.faces.new([bmc.verts.new(p) for p in pr]); bmc.faces.new([bmc.verts.new(p) for p in pr[::-1]])
 ck('dark', firewall)
-ck('panel', lambda: rbox(bmc, B(1.23, 0, 0.04), (0.012, 0.56, 0.20)))
-for k, (gy, gz) in enumerate(((0.17, 0.06), (0.08, 0.06), (-0.01, 0.06), (-0.10, 0.06), (-0.18, 0.06))):
-    ck('gauge', lambda: cyl(bmc, B(1.225, gy, gz), B(1.215, gy, gz), 0.036, 16))
-    ck('face', lambda: cyl(bmc, B(1.215, gy, gz), B(1.213, gy, gz), 0.030, 16))
-ck('dark', lambda: rbox(bmc, B(1.16, 0, 0.215), (0.05, 0.06, 0.045)))                       # compass on the cowl deck
+# v5 instrument panel (Ty photo refs/j3-cub/ty-panel.png): black sheet panel, straight bottom, short vertical sides and a
+# low arched top; one row of five instruments L->R: tach (chrome bezel), ASI, ball compass, altimeter (black bezels), oil
+# temp / pressure (chrome bezel); 'REAR SEAT FOR SOLO FLYING' placard under the compass, small placard top centre, black
+# knob upper left, chrome primer lower right, chrome screws round the edge. Faces from j3_panel_atlas.png (Panel_Gauges).
+PX, PZB, PHW, PHS, PHC = 1.23, -0.04, 0.28, 0.105, 0.217
+PXA = PX + 0.003                                                     # aft (cockpit) face of the panel
+def panel_outline(ins=0.0):
+    pts = [(-PHW + ins, PZB + ins), (PHW - ins, PZB + ins)]
+    for t in np.linspace(0, math.pi, 25): pts.append(((PHW - ins) * math.cos(t), PZB + PHS + (PHC - PHS - ins) * math.sin(t)))
+    return pts
+def panel_plate():
+    po = panel_outline(); vf = [bmc.verts.new(B(PX - 0.003, y, z)) for y, z in po]; vb = [bmc.verts.new(B(PXA, y, z)) for y, z in po]
+    fs = [bmc.faces.new(vf), bmc.faces.new(vb[::-1])]
+    for i in range(len(po)):
+        k = (i + 1) % len(po); fs.append(bmc.faces.new((vf[i], vb[i], vb[k], vf[k])))
+    bmesh.ops.recalc_face_normals(bmc, faces=fs)
+ck('panel', panel_plate)
+ZG = PZB + 0.097
+GAUGES = [(0.164, 0.043, 'chrome', 0.036), (0.075, 0.0355, 'gauge', 0.030), (-0.011, 0.0355, 'gauge', 0.027),
+          (-0.095, 0.0355, 'gauge', 0.030), (-0.181, 0.041, 'chrome', 0.035)]
+def circ(y0, z0, r, n=32): return [(y0 + r * math.cos(t), z0 + r * math.sin(t)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
+for gy, rb, bt, rf in GAUGES:
+    rings_ = [[B(xx, y, z) for y, z in circ(gy, ZG, rr_)] for xx, rr_ in ((PXA, rb), (PXA + 0.007, rb - 0.001), (PXA + 0.009, rb - 0.004),
+                                                                        (PXA + 0.008, rf + 0.002), (PXA + 0.003, rf + 0.001))]
+    ck(bt, lambda: loft_rings(bmc, rings_, False, False))
+for gy, rb, bt, rf in GAUGES:                                                                    # v5b gauge mounting screws
+    for t_ in (45, 135, 225, 315):
+        y_, z_ = gy + (rb + 0.007) * math.cos(math.radians(t_)), ZG + (rb + 0.007) * math.sin(math.radians(t_))
+        ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.002, y_, z_), 0.0028, 8, r2=0.002))
+ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.172), (0.002, 0.034, 0.015)))          # small placard, top centre
+ck('dark', lambda: cyl(bmc, B(PXA, 0.217, PZB + 0.138), B(PXA + 0.020, 0.217, PZB + 0.138), 0.012, 16))      # knob, upper left
+ck('chrome', lambda: cyl(bmc, B(PXA, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.007, 12))   # primer barrel
+ck('chrome', lambda: cyl(bmc, B(PXA + 0.014, -0.240, PZB + 0.041), B(PXA + 0.024, -0.240, PZB + 0.041), 0.012, 16))  # primer knob
+_po = np.array(panel_outline(0.013)); _sl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([_po, _po[:1]]), axis=0), axis=1))]
+for s_ in np.linspace(0, _sl[-1], 16, endpoint=False):                                                # chrome screws
+    y_ = np.interp(s_, _sl, np.r_[_po[:, 0], _po[0, 0]]); z_ = np.interp(s_, _sl, np.r_[_po[:, 1], _po[0, 1]])
+    ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.0025, y_, z_), 0.0042, 8, r2=0.003))
+# gauge faces + placard: separate object with UVs into the panel atlas (2560x640: five 512 px faces + placard strip)
+bmg = bmesh.new(); _uvg = bmg.loops.layers.uv.new('UVMap'); AW, AH = 2560.0, 640.0
+def uvface(vu):
+    f = bmg.faces.new([bmg.verts.new(p) for p, _ in vu])
+    for l_, (_, uv) in zip(f.loops, vu): l_[_uvg].uv = uv
+for i, (gy, rb, bt, rf) in enumerate(GAUGES):
+    xf_ = PXA + (0.007 if i == 2 else 0.004); cu = (i * 512 + 256) / AW
+    rim_ = [(B(xf_, gy + rf * math.cos(t), ZG + rf * math.sin(t)), ((i * 512 + 256 - 254 * math.cos(t)) / AW, 1 - (256 - 254 * math.sin(t)) / AH))
+            for t in np.linspace(0, 2 * math.pi, 32, endpoint=False)]
+    for k in range(32): uvface([(B(xf_ + (0.002 if i == 2 else 0), gy, ZG), (cu, 1 - 256 / AH)), rim_[(k + 1) % 32], rim_[k]])
+_pw, _ph, _py, _pz = 0.071, 0.0142, -0.011, PZB + 0.037
+uvface([(B(PXA + 0.0008, _py + _pw / 2, _pz + _ph / 2), (0, 1 - 512 / AH)), (B(PXA + 0.0008, _py + _pw / 2, _pz - _ph / 2), (0, 0.0)),
+        (B(PXA + 0.0008, _py - _pw / 2, _pz - _ph / 2), (640 / AW, 0.0)), (B(PXA + 0.0008, _py - _pw / 2, _pz + _ph / 2), (640 / AW, 1 - 512 / AH))])
+P['Panel_Gauges'] = link('Panel_Gauges', bmg)
 def round_back(bm, xc, zb, ht, sw, th=0.05, lean=0.10):
     r = sw / 2; zc = zb + ht - r
     prof = [(-r, zb), (r, zb)] + [(r * math.cos(t), zc + r * math.sin(t)) for t in np.linspace(0, math.pi, 19)]
@@ -818,6 +958,8 @@ _ax = np.where(_z >= _D['zs'], _D['ax_s'] + (_D['ax_t'] - _D['ax_s']) * np.clip(
 VR.fill(((np.abs(_xd - _fx) < _w * 1.2) | (np.abs(_xd - _ax) < _w * 1.2)) & (_z > _D['zb'] - _w) & (_z < _D['zt'] + _w)
         | ((np.abs(_z - _D['zs']) < _w) | (np.abs(_z - _D['zt']) < _w) | (np.abs(_z - _D['zb']) < _w)) & (_xd > _fx - _w) & (_xd < _ax + _w),
         (150, 112, 8))
+for V_ in (VL, VR):   # v5 cowl panel line (Ty photo ty-cowl-eyebrow-rear): side panel / lower cowl split
+    V_.fill((np.abs(V_.B + 0.20) < 0.0018) & (-V_.A > 0.262) & (-V_.A < 0.787), (70, 52, 6))
 M = {}
 for V_ in (VL, VR): M[V_.name] = paint.mat_image('Paint_' + V_.name, V_.to_image(os.path.join(TEX, V_.name + '.png')), rough=0.4)
 C = paint.mat_colour
@@ -835,6 +977,17 @@ M.update(yellow=C('Paint_cub_yellow', YEL, rough=0.4), black=C('Paint_black', BL
          ck_face=C('Gauge_face', (14, 14, 16), rough=0.2), ck_stick=C('Cabin_stick', (28, 28, 30), rough=0.5),
          ck_dark=C('Cabin_dark', (40, 36, 32), rough=0.9))
 M['ck_tubeY'] = M['yellow']; M['en_steel'] = M['steel']
+# v5 materials: exhaust chrome/steel, cowl gap, black interior (Ty panel photo), panel atlas, varnished prop
+TEXD = os.path.join(HERE, 'textures')
+M.update(en_steel=C('Exhaust_steel', (150, 150, 156), rough=0.30, metal=1.0), en_seam=C('Cowl_panel_gap', (40, 30, 8), rough=0.9),
+         en_alu=C('Fuel_cap_red', (196, 28, 24), rough=0.35),
+         ck_panel=C('Cabin_panel_black', (20, 20, 22), rough=0.45), ck_gauge=C('Gauge_bezel_black', (14, 14, 16), rough=0.3, metal=0.3),
+         ck_chrome=C('Cabin_chrome', (226, 228, 232), rough=0.1, metal=1.0), ck_alu=C('Placard_aluminium', (196, 198, 202), rough=0.3, metal=0.8),
+         ck_floor=C('Cabin_floor_black', (30, 29, 28), rough=0.9), ck_dark=C('Cabin_dark', (28, 27, 26), rough=0.9),
+         cabin=C('Cabin_liner_black', (36, 34, 32), rough=0.9),
+         ck_atlas=paint.mat_image('Panel_gauge_faces', bpy.data.images.load(os.path.join(TEXD, 'j3_panel_atlas.png')), rough=0.25),
+         prop_wood=paint.mat_image('Prop_wood_varnished', bpy.data.images.load(os.path.join(TEXD, 'j3_prop_wood.png')), rough=0.2),
+         prop_sheath=C('Prop_LE_sheath_brass', (206, 172, 100), rough=0.25, metal=0.9), prop_dark=C('Prop_bolt_hole', (16, 14, 12), rough=0.8))
 def setm(o, names, idx=None):
     o.data.materials.clear()
     for n in names: o.data.materials.append(M[n])
@@ -850,10 +1003,40 @@ setm(P['Fuselage'], ['j3_side_l', 'j3_side_r', 'yellow']); paint.project(P['Fuse
 for n in ('DoorUpper_R', 'DoorLower_R'):
     setm(P[n], ['j3_side_l', 'j3_side_r', 'yellow', 'cabin'])
     paint.project(P[n], lambda nrm, c: (3, None) if nrm.y > 0.3 else fus_assign(nrm, c))
-setm(P['Engine'], ['en_' + t for t in ('cyl', 'head', 'rocker', 'hood', 'exh', 'case', 'dark', 'alu', 'steel')],
-     [('cyl', 'head', 'rocker', 'hood', 'exh', 'case', 'dark', 'alu', 'steel').index(t) for t in EN_T])
+setm(P['Engine'], ['en_' + t for t in EN_NAMES], [EN_NAMES.index(t) for t in EN_T])
 setm(P['Cabin'], ['ck_' + t for t in CK_T], ck_tag)
-setm(P['Prop'], ['wood', 'brass', 'steel'], face_tag)
+setm(P['Prop'], ['prop_wood', 'prop_sheath', 'steel', 'prop_dark'], face_tag)
+setm(P['Panel_Gauges'], ['ck_atlas'])
+# ---- v5 fin emblem (Ty photo refs/j3-cub/ty-tail-bear.png for size, placement and colours ONLY): ORIGINAL cartoon bear
+# holding a red sign that reads only 'CUB' (j3_fin_bear.png, drawn by j3_textures.py). Both fin faces, conformed to the
+# fin surface; UVs run nose->tail on the left and tail->nose on the right so neither side reads mirrored.
+from mathutils.bvhtree import BVHTree
+DXC, DZC, DW, DH = 5.95, 0.72, 0.265, 0.314
+_fm = P['Fin'].data; _bvh = BVHTree.FromPolygons([v.co.copy() for v in _fm.vertices], [tuple(p.vertices) for p in _fm.polygons])
+_dm = paint.mat_image('Fin_emblem_bear', bpy.data.images.load(os.path.join(TEXD, 'j3_fin_bear.png')), rough=0.35)
+_nt = _dm.node_tree; _tx = [n for n in _nt.nodes if n.type == 'TEX_IMAGE'][0]; _bs = [n for n in _nt.nodes if n.type == 'BSDF_PRINCIPLED'][0]
+_rd = _nt.nodes.new('ShaderNodeMath'); _rd.operation = 'ROUND'                  # glTF exporter -> alphaMode MASK
+_nt.links.new(_tx.outputs['Alpha'], _rd.inputs[0]); _nt.links.new(_rd.outputs[0], _bs.inputs['Alpha'])
+for k_, v_ in (('blend_method', 'CLIP'), ('surface_render_method', 'DITHERED')):
+    try: setattr(_dm, k_, v_)
+    except Exception: pass
+for side, sg in (('L', 1), ('R', -1)):
+    bmd = bmesh.new(); _uvd = bmd.loops.layers.uv.new('UVMap'); NU, NV = 12, 14; grid = []
+    for j in range(NV + 1):
+        row = []
+        for i in range(NU + 1):
+            fu, fv = i / NU, j / NV; xd_ = DXC - DW / 2 + DW * fu; z_ = DZC - DH / 2 + DH * fv
+            hit = _bvh.ray_cast(Vector((-xd_, sg * 1.0, z_)), Vector((0, -sg, 0)))
+            y_ = (hit[0].y if hit[0] is not None else 0.0) + sg * 0.0009
+            row.append((bmd.verts.new((-xd_, y_, z_)), (fu if sg > 0 else 1 - fu, fv)))
+        grid.append(row)
+    for j in range(NV):
+        for i in range(NU):
+            cs = (grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i])
+            if sg < 0: cs = cs[::-1]
+            f = bmd.faces.new([c[0] for c in cs])
+            for l_, c in zip(f.loops, cs): l_[_uvd].uv = c[1]
+    P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('Strut_Wing', 'yellow'),
              ('Glass', 'glass'), ('Window_R', 'glass'), ('Cabin_Liner', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
@@ -871,7 +1054,7 @@ for n in P:
     if not P[n].data.materials: print('NO MATERIAL', n)
 for o in P.values():
     bm = bmesh.new(); bm.from_mesh(o.data)
-    if o.name not in ('Glass', 'Window_R', 'Cabin_Liner'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if o.name not in ('Glass', 'Window_R', 'Cabin_Liner', 'Panel_Gauges', 'Fin_Decal_L', 'Fin_Decal_R'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
@@ -976,6 +1159,9 @@ if VAR == 'wheels':
         origin('Shock_Lower_' + side, w(d['A']), parent=piv)
         origin('Shock_Boot_' + side, w(d['T']))
     st = origin('TailWheel_Steer', TWP); st['steer_axis_gltf'] = gl_axis((0, 0, 1))
+    st['steer_deg_springs'] = 30.0; st['full_swivel'] = True
+    st['note'] = ('tailwheel swivel pivot: rotate about steer_axis (local origin on the kingpin). Steered by the rudder springs '
+                  'through about +/-30 deg (judgement), beyond that it breaks out and casters (full swivel) for ground handling')
     o = origin('Wheel_Tail', w(TWC), parent=st); o['spin_axis_gltf'] = gl_axis((0, 1, 0))
 if VAR == 'floats':
     o = origin('WaterRudder_L', w(WR_P)); o['steer_axis_gltf'] = gl_axis((0, 0, 1))
