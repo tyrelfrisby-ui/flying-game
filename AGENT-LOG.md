@@ -2,8 +2,13 @@
 
 ## NEEDS YOU
 - **EA300 GPL — decision needed before App Store release (Claude's review, 2026-10-27; see the Log entry below).** Our own EA300 is now the in-game Extra. Claude's assessment: treat the airframe shell (v2–v12) as a likely derivative of Patrizio Melis's GPL FlightGear EA300, and treat GPL content as not safe to ship through the App Store. **Ty: pick one before App Store release:** (a) ask Patrizio Melis (github.com/cobe571) for written permission to use the measured shape in a closed, commercial App Store game (a draft request is in the log entry); or (b) put the v12 cockpit, engine, inlets, prop and paint onto the clean-room v1 shell (638c05a). This does not block TestFlight or internal builds.
-- **Pitts S-2B (Claude, 2026-10-27): one small decision, not blocking.** (The livery picker now exists, and the HANDOFF prop note is fixed — see the 2026-10-28 Log entry.)
-  - **The flight config's gear doesn't quite match the model (physics left unchanged).** On its wheels the model sits right: same three-point attitude (10.1° vs the config's 10.0°), tailwheel on the config's ground line within 2 cm. But relative to the wings, the config's main gear is about 0.19 m short and its tailwheel about 0.4 m forward of the model's. Visually, the sim CG ends up ~0.33 m below the model's thrust line (about 0.1 m above the lower wing), and the physics wings sit ~0.2 m below the drawn ones. That is where the aeroplane appears to roll and pitch about. Matching it means lengthening the config gear, which changes ground handling and needs re-tuning against GroundLoopTests and the other taildragger tests. Say if you want that.
+- **Pitts / Extra ground handling (Claude, 2026-10-28): please feel-test on a device.** The gear now matches the models and both types were retuned (see the Log entry). Things to try:
+  - Pitts: taxi, a full-rudder turn at walking pace, and three-point and wheel landings. It is meant to need quick feet: relaxed rudder on the rollout loops it, active rudder holds it.
+  - Both: full brakes at a fast taxi (12 kt). This still noses over (Pitts flips, Extra strikes its prop), while half brakes, or full brakes at a walk, do not. That is realistic, but if it feels harsh on the touch pad, the knob is the global brake capacity in `LandingGear.Compute` (the 2026-09-13 0.675 tune), not these configs.
+- **Left over from matching the models (Claude, 2026-10-28): physics left unchanged, decide if wanted.**
+  - Pitts: the drawn thrust line is 0.135 m above the sim's CG (it was 0.33 m), so it still appears to pivot a little low. Closing that means moving `mass.cg` z or `propulsion.thrustLineZ`, which is a flight-model change.
+  - Extra: the config's tail surfaces sit about 0.5 m ahead of the drawn tail. The config span is 7.43 m against the model's 7.99 m, so the model is drawn at 93 %. Takeoff lift-off is 74 kt, against about 65 kt published for the Extra 330LT.
+  - Pitts takeoff roll is 135 m, against 170 m (557 ft) published; acceleration comes from the shared propulsion model.
 - **Livery picker (Claude, 2026-10-28): please look at it on a device.** It compiles, the swap is verified in the editor, and the airframe renders are right, but nobody has seen the LIVERY buttons on an iPhone or iPad yet. `AERO_SELFTEST=menu` now also saves `selftest-menu-<shape>-livery.png` (Pitts selected) for each of the four screen shapes.
 
 ## HANDOFF
@@ -22,6 +27,69 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-livery-picker · ground handling: Pitts S-2B and Extra 300 gear matched to the models, retuned
+**Gear geometry** (config frame: x forward, z down from the config origin; measured from the GLBs placed as `AirframeModels.Place` places them, lined up on the wings)
+
+| | mains x / ±y / z | tailwheel x / z | three-point |
+|---|---|---|---|
+| Pitts, before | 0.123 / 0.80 / 1.000 | −3.500 / 0.361 | 10.0° |
+| Pitts, after (= model) | 0.202 / 0.81 / 1.194 | −3.864 / 0.470 | 10.1° (model 10.1°) |
+| Extra, before | 0.100 / 1.00 / 0.950 | −3.200 / 0.368 | 10.0° |
+| Extra, after (= model) | 0.250 / 0.827 / 1.386 | −4.796 / 0.564 | 9.25° (model 9.25°) |
+
+- Pitts: mains were 0.19 m short and 8 cm aft; the tailwheel was 0.36 m forward. Both liveries share the airframe and measure identically.
+- Extra: mains were 0.44 m short and 15 cm aft; the tailwheel was **1.6 m forward**. With the old gear, the 2.0 m prop cleared the ground by −5 cm in a level attitude, and the drawn wing sat 0.44 m above the physics wing.
+- Tyre radii now come from the models: Pitts 0.17 / 0.075 m, Extra 0.145 / 0.067 m.
+- The tailwheel's share of the weight is now Pitts 10 % (was 8 %) and Extra 9 % (was 8 %).
+- Visual pivot: the Pitts' sim CG is now 0.135 m below the drawn thrust line (was 0.33 m). The Extra's is 0.07 m above it (was 0.37 m below).
+
+**Retune** (`tailwheel steerSpringNmPerRad`; nothing else in the physics changed)
+- Pitts 6 → 15. At 6 the castor ran free, so the tailwheel did no steering. A full-rudder taxi turn wound up into a loop, and no pilot could hold a rollout below about 20 m/s.
+- Extra 75 → 60. The longer, correct tail arm made it too stable at 75: ×0.28, below the owner's 0.3–1.6 band.
+
+**Ground numbers, after (before on the old configs)**, with the scripted pilot in the new `AerobatGroundHandlingTests`:
+- Taxi:
+  - 90° turns take about 7 s.
+  - A full-rudder turn at 5 kt is steady: Pitts 11.9 °/s, Extra 14.2 °/s.
+  - The steering never unlocks and the tail never lifts.
+  - Half brakes from 8 kt stop in 3.2 m with the tail down. Before, the Pitts **flipped** and the Extra **struck its prop**.
+- Takeoff:
+  - Pitts: tail up at 13.6 m/s; lift-off 34.7 m/s (78 mph) after **135 m** (published S-2B ground roll 170 m). It needs +19 % right rudder, and swings 95° left in 5 s hands-off.
+  - Extra: lift-off 38.0 m/s (74 kt) after **163 m** (published 300L 115–200 m). It needs +10 % right rudder and swings 51° left hands-off.
+- Landing (quick feet, no brakes / half brakes below 20 m/s):
+
+  | | three-point | wheel landing |
+  |---|---|---|
+  | Pitts | 595 / **246 m** (published 229 m) | 803 / 485 m |
+  | Extra | 712 / 326 m | 896 / 525 m |
+
+  - All of them stay within 0.5 m of the centreline and 2.3° of heading, and none strikes the prop.
+  - The wheel-landing rolls are longer because the tail is held up, with no braking, until it comes down by itself.
+- Ground loop:
+  - Hands-off yaw-rate growth at 8 m/s: Pitts ×6.6 (was ×5.2), Extra ×0.46 (was ×0.68).
+  - Relaxed feet loop the Pitts on a three-point rollout (180°) but keep the Extra straight (1.7°).
+  - An 8° swerve at 12 or 18 m/s is caught by rudder and differential brake: worst excursion Pitts 22°, Extra 14°.
+
+**Tests**
+- New `tools/FlightTests/AerobatGroundHandlingTests.cs`, 13 tests plus an opt-in probe (`GROUND_PROBE=1`, `GROUND_TRACE=1`, `GROUND_CFG_DIR=` for before/after runs):
+  - `GearMatchesTheModels`: all four GLBs, gear within 2.5 cm, three-point within 0.3°;
+  - taxi;
+  - takeoff (bands from the published rolls);
+  - three-point and wheel landings;
+  - the quick-feet/relaxed-feet ground-loop split.
+- `GroundLoopTests.SteeringUnlocksInAGroundLoop…` is re-seeded from 20 to 40 °/s at 12 m/s. With the tailwheel where the model has it, the 20 °/s loop bleeds its speed off with the castor peaking at 28–33°, even at the old spring. A 40 °/s loop still unlocks it (49°). The assertion is unchanged.
+- `OwnPittsModelTests`: GLB readers made `internal` for reuse. No other test changed.
+- `~/.dotnet/dotnet test tools/FlightTests`: **756 passed, 3 skipped, 0 failed** (11 m 19 s; was 742 + 14 new cases, the 3 skips are the same pre-existing ones).
+
+**Unity**
+- Unity 6000.3.23f1 batchmode compile: clean.
+- New editor `GroundStanceRender` parks the airframe the way `LandingGear.RestingState` does, over a runway strip, and logs the drawn tyre heights. Renders are in `/tmp/ground-retune/*-ground-{side,3q}.png`.
+  - N31DG and N1191: three-point 10.10°; mains −2.8 cm, tailwheel −2.5 cm (the struts' intended 2 cm settle); the lowest other part is 29 cm up.
+  - Talk Flying and N300UY: 9.25°; mains −2.5 cm, tailwheel −2.3 cm; the belly is 45 cm up.
+  - All four log **SITS ON ITS WHEELS**.
+- `AircraftRender.Capture` and its size constants are now `internal` so the new tool can reuse them.
+- Local commits only. No push, merge, deploy or device build. No GLB or art touched.
+
 ### 2026-10-28 — Claude · lane/claude-livery-picker · in-game LIVERY picker (Pitts N31DG/N1191, Extra Talk Flying/N300UY), per aircraft, saved
 **In the UI**
 - Landing page (FLIGHT SETUP), first column: a **LIVERY** row appears right under the AIRCRAFT drop-down, but only when the chosen type has more than one scheme (`Liveries.Available(id).Count > 1`). Today that is the Pitts S-2 (**N31DG** | **N1191**) and the Extra 300 (**Talk Flying** | **N300UY**). Every other type shows no row.
