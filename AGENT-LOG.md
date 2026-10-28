@@ -9,10 +9,11 @@
   - Pitts: the drawn thrust line is 0.135 m above the sim's CG (it was 0.33 m), so it still appears to pivot a little low. Closing that means moving `mass.cg` z or `propulsion.thrustLineZ`, which is a flight-model change.
   - Extra: the config's tail surfaces sit about 0.5 m ahead of the drawn tail. The config span is 7.43 m against the model's 7.99 m, so the model is drawn at 93 %. Takeoff lift-off is 74 kt, against about 65 kt published for the Extra 330LT.
   - Pitts takeoff roll is 135 m, against 170 m (557 ft) published; acceleration comes from the shared propulsion model.
-- **Livery picker (Claude, 2026-10-28): please look at it on a device.** It compiles, the swap is verified in the editor, and the airframe renders are right, but nobody has seen the LIVERY buttons on an iPhone or iPad yet. `AERO_SELFTEST=menu` now also saves `selftest-menu-<shape>-livery.png` (Pitts selected) for each of the four screen shapes.
+- **Livery picker (Claude, 2026-10-28): please look at it on a device.** The LIVERY row is now one drop-down for both types: four Pitts schemes (Checkered, Factory, N31DG, N1191) and three Extra (Unmarked, Talk Flying, N300UY). It compiles and the swap is verified in the editor, but nobody has seen it on an iPhone or iPad yet. `AERO_SELFTEST=menu` saves `selftest-menu-<shape>-livery.png` (Pitts selected) for each of the four screen shapes. Also check that the unmarked defaults are what you want a new player to see first.
+- **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
-- [codex → Claude] codex/unmarked-liveries · Ty (2026-10-28): unmarked liveries, make them the game DEFAULTS · details:
+- [codex → Claude] codex/unmarked-liveries · Ty (2026-10-28): unmarked liveries, make them the game DEFAULTS · **DONE by Claude on lane/claude-livery-picker (2026-10-28), see Log. The props below are the wrong way round: checker-unmarked has the Hartzell 2-blade and factory-unmarked the MT 3-blade, the same as N31DG / N1191.** · details:
   - New GLBs (same geometry/props as the approved v10.1 Pitts and v12 Extra; only markings removed, removed areas left in the plain underlying paint):
     - pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb: id 'checker-unmarked' (N31DG checkered scheme, MT 3-blade prop, no registration). **Pitts DEFAULT.**
     - pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb: id 'factory-unmarked' (N1191 factory diamonds scheme, Hartzell 2-blade prop, no registration).
@@ -34,6 +35,48 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-livery-picker · unmarked liveries are the defaults (Pitts Checkered, Extra Unmarked)
+**What the GLBs really carry**
+
+I checked each GLB directly: blade runs counted round the spinner axis, plus prop materials, node names and per-node vertex data.
+
+| livery id (picker name) | GLB | prop | same mesh as |
+|---|---|---|---|
+| checker-unmarked (Checkered) **Pitts default** | pitts-s2b-like-own-checker-unmarked | **Hartzell 2-blade**, grey with white tips, r 1.016 m | -own (N31DG), node for node |
+| factory-unmarked (Factory) | pitts-s2b-like-own-factory-unmarked | **MT 3-blade**, white with red tips, r 0.950 m | -own-n1191, node for node |
+| n31dg (N31DG) | pitts-s2b-like-own | Hartzell 2-blade | |
+| n1191 (N1191) | pitts-s2b-like-own-n1191 | MT 3-blade | |
+| unmarked (Unmarked) **Extra default** | extra-300-like-own-unmarked | 3-blade, r 1.000 m | -own-n300uy, node for node |
+| talk-flying (Talk Flying) | extra-300-like-own | 3-blade | |
+| n300uy (N300UY) | extra-300-like-own-n300uy | 3-blade | |
+
+- The HANDOFF's prop text was reversed. The GLBs agree with `build_pitts_s2b.py` (CHECKER-UNMARKED is the N31DG scheme with the Hartzell; FACTORY-UNMARKED is the N1191 scheme with the MT), so nothing is wrong in the art.
+- The tests encode the counts from the files.
+
+**Changes**
+- Core `LiveryChoice`:
+  - Options, default first: Pitts checker-unmarked / factory-unmarked / n31dg / n1191; Extra unmarked / talk-flying / n300uy.
+  - `Resolve`: with no override and no valid saved id, it now returns the type's first option (`Default`), not "type". Saved ids from before (n31dg, n1191, talk-flying, n300uy) still resolve to themselves. Unknown ids fall back to the unmarked default.
+  - `OwnSuffix` is now a switch. Anything not explicitly marked, including "type", goes to the unmarked GLB. Pitts "talk-flying" stays N31DG and Extra "sunrise" stays Talk Flying, as before.
+- `Livery.cs`: schemes `CheckerPitts` "Checkered", `FactoryPitts` "Factory" and `UnmarkedExtra` "Unmarked", so the picker shows those names.
+- `AircraftRender` accepts the new ids.
+- .meta files for the three new GLBs: the siblings' glTFast importer settings, each with its own GUID (Unity accepted them without rewriting them).
+- Picker: the LIVERY row is now always a drop-down, for both types.
+  - With three or four segment buttons in a column, each button gets about 90 pt on an iPhone in portrait, so "Talk Flying" would be shrunk below the page's type size.
+  - A drop-down keeps the row the same shape when the player switches between Pitts and Extra, and matches every other field on the page.
+- Credits (docs and StreamingAssets), the Pitts LICENSE.txt and both PROVENANCE docs list the unmarked GLBs. They are the same clean-room / EA300 builds, so there is nothing new to credit. The EA300 GPL question in NEEDS YOU covers the unmarked Extra too.
+
+**Verified**
+- Unity 6000.3.23f1 batchmode compile is clean.
+- `LiverySwapCheck` PASS: every pick loads its own GLB and paint with no leak on repeats. Pitts binds 6/6 control surfaces and 1/1 propellers in all four liveries; Extra binds 4/4 and 1/1 in all three.
+- `GroundStanceRender`: all three unmarked GLBs SIT ON THEIR WHEELS.
+  - Pitts: three-point 10.10°, mains −2.8 cm, tailwheel −2.5 cm.
+  - Extra: 9.25°, −2.5 cm and −2.3 cm.
+  - These match the marked siblings, so the ground-handling retune applies unchanged. `GearMatchesTheModels` now also runs on the unmarked GLBs.
+- Renders of all 7 liveries (AircraftRender) are in /tmp/unmarked-liveries/<type>-<livery>/, and ground-stance shots are in /tmp/unmarked-liveries/stance/.
+  - The unmarked Pittses carry no registration.
+  - The unmarked Extra has no N-number, no Talk Flying and no Sunrise Aviation; the fin stars and stripes and the red stripes are kept.
+- FlightTests (full suite): **769 passed, 0 failed, 3 skipped** (772 total).
 ### 2026-10-28 — Grok Bot executor · codex/unmarked-liveries · unmarked liveries (Ty): Pitts checker-unmarked + factory-unmarked (no registration), Extra unmarked (no N-number, no Talk Flying / Sunrise Aviation); built from 8fea251 with livery switches only; handed to Claude as the new defaults (see HANDOFF). Local commit only.
 ### 2026-10-28 — Claude · lane/claude-livery-picker · ground handling: Pitts S-2B and Extra 300 gear matched to the models, retuned
 **Gear geometry** (config frame: x forward, z down from the config origin; measured from the GLBs placed as `AirframeModels.Place` places them, lined up on the wings)
