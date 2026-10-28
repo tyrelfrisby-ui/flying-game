@@ -145,3 +145,7 @@ Photo references (Wikimedia Commons; used by eye only, not traced and not includ
 | Piper Cub.JPG: gear front 3/4 | Ad Meskens | CC BY-SA 3.0 |
 
 No third-party geometry, logos or registration marks are used.
+
+## v3 (2026-10-28)
+
+- Main gear: the X formed by the bungee shock struts and the inverted centre V now lies in the plane of the front gear legs. The apex pin moved from xd 2.12 to xd 1.4675, on the front-leg line at z -0.80 (Ty's review). Float variant: the front cross wires now end exactly on the front strut axes, in the same plane. Nothing else changed.

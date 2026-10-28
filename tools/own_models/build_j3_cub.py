@@ -497,7 +497,11 @@ if VAR == 'wheels':
     R_W, W_W = 0.2235, 0.203
     WC = np.array(B(1.48, 0.92, -1.11))
     G_H = np.array(B(1.46, 0.32, -0.625)); G_C = np.array(B(2.04, 0.32, -0.605))     # leg pins (front = pivot, rear)
-    G_A = np.array(B(1.48, 0.80, -1.11)); G_T = np.array(B(2.12, 0.05, -0.80))      # axle end / apex pin
+    G_A = np.array(B(1.48, 0.80, -1.11))                                               # axle end
+    # apex pin of the X (shock struts + inverted centre V) lies IN THE PLANE OF THE FRONT LEGS (Ty v3 review): put it on
+    # the front-leg line H -> A+(0,0,0.02) at the apex height, so struts, centre V and front legs share one plane
+    _Z_T = -0.80; _A2 = G_A + np.array((0.0, 0, 0.02)); _t = (_Z_T - G_H[2]) / (_A2[2] - G_H[2])
+    G_T = np.array((G_H[0] + _t * (_A2[0] - G_H[0]), B(0, 0.05, 0)[1], _Z_T))           # apex pin
     WHEEL_RISE = 0.10                    # nominal full travel at the wheel (not published; for Ty to confirm)
     G_U = (G_C - G_H) / np.linalg.norm(G_C - G_H)
     def g_rot(p, th):
@@ -523,7 +527,8 @@ if VAR == 'wheels':
         m = np.array((1, sy, 1.0)); T = G_T * m
         tube(bmf, [tuple(T), B(1.46, sy * 0.30, -0.62)], 0.014, n=8)
         tube(bmf, [tuple(T), B(2.04, sy * 0.30, -0.61)], 0.013, n=8)
-    cyl(bmf, B(2.12, 0.07, -0.80), B(2.12, -0.07, -0.80), 0.022, 12)
+    cyl(bmf, (G_T[0], 0.07, G_T[2]), (G_T[0], -0.07, G_T[2]), 0.022, 12)
+    print('GEAR X apex in front-leg plane: xd %.4f z %.3f' % (-G_T[0], G_T[2]))
     P['Gear_Main'] = link('Gear_Main', bmf)
     for side, sy in (('L', 1), ('R', -1)):
         m = np.array((1, sy, 1.0)); H, C, T, A, Wc = G_H * m, G_C * m, G_T * m, G_A * m, WC * m
@@ -691,7 +696,7 @@ if VAR == 'floats':
     P['Float_Struts'] = link('Float_Struts', bms)
     bmw = bmesh.new()
     for sy in (1, -1):
-        tube(bmw, [B(XF, sy * YI, ZD + 0.03), B(XFT, -sy * YT, -0.63)], 0.004, n=6)       # front cross wires
+        tube(bmw, [B(XF, sy * YI, ZD + 0.02), B(XFT, -sy * YT, -0.625)], 0.004, n=6)      # front cross wires: ends ON the front strut axes (same plane)
         tube(bmw, [B(XR, sy * YI, ZD + 0.03), B(XRT, -sy * YT, ZRT - 0.005)], 0.004, n=6)   # rear cross wires
         tube(bmw, [B(XF, sy * (Y_FL - 0.15), ZD + 0.035), B(fx(4480), -sy * (Y_FL - 0.15), ZD + 0.035)], 0.004, n=6)  # spreader X
     xh = fx(5570)                                                   # LH water-rudder steering cables: horn -> deck -> rear strut -> fuselage
