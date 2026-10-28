@@ -124,14 +124,16 @@ public class OwnPittsModelTests
         Assert.Equal(blades, runs);
     }
 
-    /// <summary>The livery → GLB mapping the game is written with (AirframeModels.OwnSuffix): every Pitts and Extra suffix it
+    /// <summary>The livery → GLB mapping the game is written with (AirframeModels.OwnSuffix → Core LiveryChoice.OwnSuffix): every Pitts and Extra suffix it
     /// can ask for has a GLB on disk, the Pitts's "n1191" goes to the N1191 GLB, the Pitts always takes our model, and Livery.cs
     /// resolves both Pitts scheme ids.</summary>
     [Fact]
     public void LiveryIdsMapOntoGlbsThatExist()
     {
         string models = File.ReadAllText(Path.Combine(Bridge, "AirframeModels.cs"));
-        var pairs = Regex.Matches(models, @"modelId == ""([\w-]+)"" && liveryId == ""([\w-]+)"" \? ""(-own[\w-]*)""")
+        string choice = File.ReadAllText(Path.Combine(Repo, "src", "FlyingGame.Core", "LiveryChoice.cs"));   // the mapping lives here
+        Assert.Contains("FlyingGame.Core.LiveryChoice.OwnSuffix(modelId, liveryId)", models);
+        var pairs = Regex.Matches(choice, @"modelId == ""([\w-]+)"" && liveryId == ""([\w-]+)"" \? ""(-own[\w-]*)""")
             .Select(m => (model: m.Groups[1].Value, livery: m.Groups[2].Value, suffix: m.Groups[3].Value)).ToList();
         Assert.Contains(("pitts-s2b-like", "n1191", "-own-n1191"), pairs);
         Assert.Contains(("extra-300-like", "n300uy", "-own-n300uy"), pairs);
@@ -145,7 +147,7 @@ public class OwnPittsModelTests
         string liveries = File.ReadAllText(Path.Combine(Bridge, "Livery.cs"));
         Assert.Matches(@"liveryId == ""n1191"" && aircraftId == ""pitts-s2b-like""\) return N1191Pitts", liveries);
         Assert.Matches(@"liveryId == ""n31dg"" && aircraftId == ""pitts-s2b-like""\) return N31DGPitts", liveries);
-        Assert.Matches(@"""pitts-s2b-like"" => new\[\] \{ N31DGPitts, N1191Pitts \}", liveries);
+        Assert.Matches(@"\[""pitts-s2b-like""\] = new\[\] \{ \(""n31dg"", ""N31DG""\), \(""n1191"", ""N1191""\) \}", choice);
     }
 
     [Fact]
