@@ -1,17 +1,26 @@
-"""Our own Great Lakes 2T-1A-2 style biplane (Aero Playground).   v1 draft
+"""Our own Great Lakes 2T-1A-2 style biplane (Aero Playground).   v2
 
 Clean-room: all geometry is generated here from numbers measured by eye off a public 1970 three-view (American Aircraft
 Modeler, Great Lakes 2T-1A, scaled to the TCDS A18EA span 26 ft 8 in / length 20 ft 4 in), the FAA TCDS A18EA (dimensions,
-chord, sweep, engine / propeller, control travel) and public photos of 2T-1A-2 aircraft (Wikimedia Commons; nose, cowl,
-"big tail", gear). See docs/models/great-lakes-own-PROVENANCE.md. No third-party or GPL mesh, UV or texture is read or
-imported, and nothing from the references is traced, sampled or copied into the textures.
+chord, sweep, engine / propeller, control travel), the Great Lakes aircraft maintenance manual (rigging; landing gear
+layout drawings I-7 / I-9) and public photos of 2T-1A-2 aircraft. See docs/models/great-lakes-own-PROVENANCE.md. No
+third-party or GPL mesh, UV or texture is read or imported, and nothing from the references is traced, sampled or copied
+into the textures.
 
-Variant (v1, to be confirmed by Ty): 2T-1A-2, Lycoming IO-360 class flat four, 180 hp, round Lycoming cowl + spinner,
-Hartzell 2-blade 74 in constant-speed prop (clockwise from the cockpit), "big tail" fin/rudder, wheel pants, ailerons on
-the lower wing only (factory 2-aileron), N-type interplane struts. Swept upper outer panels (9 deg), flat centre section
-with a semicircular TE cut-out, 2.75 / 2.5 deg dihedral, 46 in chord.
-Livery (placeholder, no manufacturer logos): white, red nose bowl + red/navy cheat line, red wing / stab / fin tips with
-a navy pinstripe, placeholder registration N719GL (our own render of Liberation Sans Bold, OFL).
+Variant: 2T-1A-2, Lycoming IO-360 class flat four, 180 hp, round Lycoming cowl + spinner, Hartzell 2-blade 74 in
+constant-speed prop (clockwise from the cockpit), "big tail" fin/rudder, wheel pants, ailerons on the lower wing only
+(factory 2-aileron), N-type interplane struts. Swept upper outer panels (9 deg), flat centre section with a semicircular
+TE cut-out, 46 in chord. v2 rigging per the manual: upper wing 0 deg dihedral, lower 2 deg, 3 deg incidence on both.
+
+v2 landing gear (rigged, separate parts): axle U-joint hinge at the fuselage centreline (Gear_Pivot_L/R), compression
+strut aft to the lower longeron fitting (Gear_HingeAxis_<s> marks the far end of the hinge axis), oleo shock strut from the
+outrigger top pin (Gear_OleoTop_<s>) to the axle end. Wheel + axle + pant rotate about the hinge axis while the oleo
+telescopes (Oleo_Cylinder_<s> re-aims at Gear_OleoTop, Oleo_Shaft_<s> at the cylinder). Stroke 9 in (Ty-supplied
+8-10 in; no published figure); the published 7 ft 4 in height corresponds to static load (~6.2 in compression). The GLB
+is exported fully extended; the pivot extras carry stroke and hinge angles. GEARSTATE lines print the 3-point states.
+
+Liveries (GL_LIVERY): v1 = the original white placeholder (registration N719GL); red-sunburst and white-stripes = Ty's
+two schemes, painted by eye from his photos, no registration, no logos or text.
 
 Frame: metres, nose +X, port +Y, up +Z; origin = upper-wing centre-section LE station on the thrust line (yawed 180 deg
 at export, like the Pitts / EA300).
@@ -23,8 +32,10 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-OUT = os.environ.get('GL_OUT') or os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb')
-TEX = os.environ.get('GL_TEX', '/tmp/own_greatlakes_tex'); os.makedirs(TEX, exist_ok=True)
+LIV = os.environ.get('GL_LIVERY', 'v1').lower()                    # v1 (placeholder) | red-sunburst | white-stripes
+assert LIV in ('v1', 'red-sunburst', 'white-stripes'), LIV
+OUT = os.environ.get('GL_OUT') or os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own%s.glb' % ('' if LIV == 'v1' else '-' + LIV))
+TEX = os.environ.get('GL_TEX', '/tmp/own_greatlakes_tex_' + LIV); os.makedirs(TEX, exist_ok=True)
 RED, WHITE, NAVY = (196, 26, 38), (245, 245, 243), (22, 30, 70)
 BLADE, STEEL, TYRE, CABIN = (60, 62, 66), (196, 200, 206), (40, 40, 42), (58, 60, 64)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -280,11 +291,11 @@ def tip_round(le0):
     def te(y):
         d = np.clip((np.abs(y) - (S_W - RT)) / RT, 0, 1); return le0(y) - CH + 0.65 * CH * (1 - np.sqrt(np.maximum(1 - d ** 2, 0)))
     return le, te
-Y_CS, SWEEP_U, DIH_U, DIH_L = 0.92, 9.0, 2.75, 2.5
+Y_CS, SWEEP_U, DIH_U, DIH_L = 0.92, 9.0, 0.0, 2.0   # v2: rigging manual III-4: 0 deg upper, 2 deg lower
 LEU0 = lambda y: -np.maximum(np.abs(y) - Y_CS, 0) * math.tan(math.radians(SWEEP_U))
 Z_U = lambda y: 0.69 + max(abs(y) - Y_CS, 0) * math.tan(math.radians(DIH_U))
 LEU, TEU = tip_round(LEU0)
-WU = Surf(LEU, TEU, Z_U, 0.12, m=0.02, inc=1.0)
+WU = Surf(LEU, TEU, Z_U, 0.12, m=0.02, inc=3.0)   # v2: 3 deg incidence (rigging manual)
 CUT_R, CUT_D = 0.43, 0.17                                           # centre-section TE cut-out (half-width, depth)
 def wu_to(s):
     return (-CH + CUT_D * math.sqrt(max(1 - (s / CUT_R) ** 2, 0.0)) + 0.0005) if abs(s) < CUT_R else None
@@ -296,7 +307,7 @@ LE_L, Y_LR = -0.65, 0.36
 LEL0 = lambda y: LE_L + 0.0 * np.abs(y)
 Z_L = lambda y: -0.74 + abs(y) * math.tan(math.radians(DIH_L))
 LEL, TEL = tip_round(LEL0)
-WL = Surf(LEL, TEL, Z_L, 0.12, m=0.02, inc=1.0)
+WL = Surf(LEL, TEL, Z_L, 0.12, m=0.02, inc=3.0)
 HF, AL_IN, AL_OUT = 0.76, 1.32, 3.46                               # Friese ailerons, lower wing only (factory 2-aileron)
 HL = lambda y: LEL0(y) - HF * CH
 def wl_to(s): return (HL(s) + GAP) if AL_IN < abs(s) <= AL_OUT else None
@@ -387,38 +398,93 @@ for sy in (1, -1):   # stab struts below (streamlined tube, fuselage bottom -> s
     blade_strut(bm, (-4.30, sy * 0.06, -0.48), (-4.25, sy * 0.95, Z_S - 0.02), [0.03] * 3, 0.012)
 P['Strut_Stab'] = link('Strut_Stab', bm)
 
-# ---- undercarriage: split-axle legs (oleo leg, rear drag tube, inner V), wheel pants, spring tailwheel --------------
-X_AX, Y_AX, Z_AX, R_W = -0.37, 0.97, -1.43, 0.20
-bm = bmesh.new()
+# ---- undercarriage (v2): the real 2T-1A-2 layout, rigged so the strut can be animated --------------------------------
+# Maintenance & Rigging Manual 2T-1A-2 (Waco Classic), I-7 "Landing Gear Assembly" + I-9 "Shock Strut Assembly":
+#   * 20101 axle assy: a split axle, hinged at the fuselage centre line on a U-joint (A-60406), out to the wheel;
+#   * A-60399 compression strut (faired, 20119) from the axle end aft-up to a fuselage fitting;
+#   * 20102-1 shock strut, near vertical, from the axle end up to a fuselage outrigger fitting, inside the B-60999 oleo
+#     streamline fairing with a 62169 cap: the 20102-5 shaft/piston on TOP, the 20102-11 coil spring and the 20102-2
+#     cylinder BELOW (oleo + spring, 16 oz MIL-H-5606).  6.00-6 mains (600 x 6, 29 psi).
+# So the axle + compression strut are one rigid triangle that swings about the line through its two fuselage pins
+# (centre-line hinge H, compression-strut fitting C); the shock strut (top pin T fixed, bottom pin at the axle end A)
+# telescopes.  Pin positions: three-view side view (by eye) + photos N3765F, N6196L (side) and the Commons front photo.
+# Stroke: no published figure (manual, TCDS); Ty (Great Lakes pilot) gives 8-10 in of travel -> 9 in used here.
+# The meshes are built in the EXTENDED (no-load) position; the hinge angles for static and full compression are
+# computed below and written to the GLB (node extras) and to PROVENANCE.
+R_W = 17.5 * IN / 2                                  # 6.00-6 tyre, 17.5 in OD
+X_AX, Y_AX, Z_AX = -0.377, 0.97, -1.487              # wheel centre, extended (three-view side view axle centre)
+G_H = np.array((-0.36, 0.05, -0.83))                 # axle hinge (U-joint), just off the centre line under the belly
+G_C = np.array((-0.85, 0.40, -0.78))                 # compression-strut fuselage fitting (lower longeron, lower-wing spar)
+G_T = np.array((-0.20, 0.62, -0.60))                 # shock-strut top pin on the outrigger fitting (firewall bottom)
+G_A = np.array((X_AX, Y_AX - 0.13, Z_AX))            # axle end: shock-strut bottom pin + compression-strut end
+STROKE = 9.0 * IN
+L_CYL, L_SH = 0.50, 0.44                             # cylinder (+ streamline fairing) / exposed shaft lengths, measured
+G_U = (G_C - G_H) / np.linalg.norm(G_C - G_H)        # hinge axis (port side; starboard mirrors y)
+def g_rot(p, th, sy=1):
+    """rotate point p (port-side coords) about the hinge axis by th (rad, + = wheel up)"""
+    u = G_U.copy(); h = G_H.copy(); v = np.array(p, float) - h
+    r = v * math.cos(th) + np.cross(u, v) * math.sin(th) + u * np.dot(u, v) * (1 - math.cos(th))
+    return h + r
+_s = 1.0 if g_rot(G_A, 0.05)[2] > G_A[2] else -1.0  # sign so + raises the wheel
+def g_len(th): return float(np.linalg.norm(G_T - g_rot(G_A, _s * th)))
+L_EXT = g_len(0.0)
+def g_theta_for(dl):
+    lo, hi = 0.0, 0.8
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if L_EXT - g_len(mid) < dl: lo = mid
+        else: hi = mid
+    return 0.5 * (lo + hi)
+TH_FULL = g_theta_for(STROKE)
+def g_wheel(th): return g_rot((X_AX, Y_AX, Z_AX), _s * th)
+print('GEAR L_ext %.3f m (%.1f in)  stroke %.1f in -> hinge %.2f deg, wheel rise %.3f m, wheel dx %+.3f dy %+.3f'
+      % (L_EXT, L_EXT / IN, STROKE / IN, math.degrees(TH_FULL), g_wheel(TH_FULL)[2] - Z_AX, g_wheel(TH_FULL)[0] - X_AX,
+         g_wheel(TH_FULL)[1] - Y_AX))
+assert L_CYL + L_SH > L_EXT - 0.02 and L_SH - STROKE > 0.05, 'cylinder/shaft lengths must overlap and keep shaft visible'
+
+bm = bmesh.new()                                      # fixed structure: outrigger fittings + strut caps, tail spring
 for sy in (1, -1):
-    ft = np.array((X_AX, sy * (Y_AX - 0.10), Z_AX + 0.05))
-    blade_strut(bm, tuple(ft), (-0.30, sy * 0.42, -0.78), list(np.linspace(0.06, 0.08, 6)), 0.04)   # oleo leg (faired)
-    tube(bm, [tuple(ft), (-0.92, sy * 0.42, -0.79)], 0.02, 10)                                       # drag tube
-    tube(bm, [tuple(ft + (0, 0, -0.02)), (-0.50, sy * 0.08, -0.83)], 0.02, 10)                        # inner V
-    tube(bm, [(X_AX, sy * (Y_AX - 0.13), Z_AX), (X_AX, sy * (Y_AX + 0.06), Z_AX)], 0.022, 10)         # axle
-    bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=0.055, radius2=0.055, depth=0.15,
-                          matrix=Matrix.Translation((X_AX, sy * Y_AX, Z_AX)) @ Matrix.Rotation(math.pi / 2, 4, 'X'))   # hub
+    m = np.array((1, sy, 1.0)); T = G_T * m
+    blade_strut(bm, (T[0] + 0.01, sy * 0.42, T[2] + 0.02), tuple(T + (0, 0, 0.0)), [0.07] * 3, 0.035)   # outrigger
+    d = (G_A - G_T) * m; d /= np.linalg.norm(d)
+    blade_strut(bm, tuple(T - 0.03 * d), tuple(T + 0.09 * d), [0.075, 0.09, 0.095], 0.05)                 # 62169 cap
 TW = dict(c=(-4.83, 0.0, -0.83), r=0.10, w=0.06)
 tube(bm, [(-4.40, 0, -0.47), (-4.55, 0, -0.56), (-4.68, 0, -0.65), (-4.78, 0, -0.73)], 0.018, 8, r2=0.011)   # tail spring
 for sy in (1, -1): blade_strut(bm, (-4.78, sy * 0.045, -0.72), (-4.83, sy * 0.045, -0.83), [0.045] * 3, 0.008)  # fork
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Gear_Main'] = link('Gear_Main', bm)
-bm = bmesh.new(); WP = [(-0.07, 0.11), (-0.066, 0.165), (-0.05, 0.193), (-0.022, 0.20), (0.022, 0.20), (0.05, 0.193), (0.066, 0.165), (0.07, 0.11)]
-for sg in (1, -1):
-    rs = [[(X_AX + r * math.sin(a), sg * Y_AX + dy, Z_AX + r * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 32, endpoint=False)] for dy, r in WP]
-    loft_rings(bm, rs if sg > 0 else rs[::-1])
+bm = bmesh.new()
 bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=TW['r'], radius2=TW['r'], depth=TW['w'],
                       matrix=Matrix.Translation(TW['c']) @ Matrix.Rotation(math.pi / 2, 4, 'X'))
-P['Wheels'] = link('Wheels', bm)
-PANT = [(0.42, 0, .01, .01, .01), (0.38, 0, .10, .09, .075), (0.28, 0, .18, .15, .11), (0.12, 0, .235, .15, .12),
-        (0, 0, .245, .15, .12), (-0.15, .02, .22, .14, .11), (-0.32, .04, .16, .11, .085), (-0.48, .06, .08, .05, .045),
-        (-0.58, .07, .01, .01, .01)]          # (dx from the axle, dz centre, top half-height, bottom half-height, half-width)
-PANT = [(X_AX + dx, Z_AX + dz, ht, hb, hw) for dx, dz, ht, hb, hw in PANT]
-bm = bmesh.new()
-for sg in (1, -1):
-    rs = [[(x, sg * Y_AX + hw * math.cos(t), zc + (ht if math.sin(t) > 0 else hb) * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 24, endpoint=False)]
-          for x, zc, ht, hb, hw in PANT]
-    loft_rings(bm, rs)
-bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Wheel_Pants'] = link('Wheel_Pants', bm)
+P['Wheel_Tail'] = link('Wheel_Tail', bm)
+WP = [(-0.076, 0.12), (-0.072, 0.183), (-0.055, 0.213), (-0.024, 0.222), (0.024, 0.222), (0.055, 0.213), (0.072, 0.183), (0.076, 0.12)]
+PANT = [(0.46, 0, .01, .01, .01), (0.42, 0, .11, .10, .083), (0.31, 0, .20, .165, .12), (0.13, 0, .26, .165, .13),
+        (0, 0, .27, .165, .13), (-0.17, .02, .245, .155, .12), (-0.355, .045, .18, .12, .094), (-0.53, .065, .09, .055, .05),
+        (-0.64, .075, .01, .01, .01)]          # (dx from the axle, dz centre, top half-height, bottom half-height, half-width)
+GEAR_SIDES = {}
+for side, sy in (('L', 1), ('R', -1)):
+    m = np.array((1, sy, 1.0)); H, C, T, A = G_H * m, G_C * m, G_T * m, G_A * m
+    bm = bmesh.new()                                  # axle assy + compression strut + axle stub + hub (one rigid part)
+    tube(bm, [tuple(H), tuple(A)], 0.024, 10)                                                            # 20101 axle
+    bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=6, radius=0.035, matrix=Matrix.Translation(tuple(H)))   # U-joint
+    blade_strut(bm, tuple(A), tuple(C), [0.065] * 4, 0.028)                                                # A-60399 (faired)
+    tube(bm, [tuple(A), (X_AX, sy * (Y_AX + 0.06), Z_AX)], 0.022, 10)                                      # stub axle
+    bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=0.06, radius2=0.06, depth=0.16,
+                          matrix=Matrix.Translation((X_AX, sy * Y_AX, Z_AX)) @ Matrix.Rotation(math.pi / 2, 4, 'X'))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Gear_Axle_' + side] = link('Gear_Axle_' + side, bm)
+    bm = bmesh.new()
+    rs = [[(X_AX + r * math.sin(a), sy * Y_AX + dy, Z_AX + r * math.cos(a)) for a in np.linspace(0, 2 * math.pi, 32, endpoint=False)] for dy, r in WP]
+    loft_rings(bm, rs if sy > 0 else rs[::-1]); P['Wheel_' + side] = link('Wheel_' + side, bm)
+    bm = bmesh.new()
+    rs = [[(X_AX + dx, sy * Y_AX + hw * math.cos(t), Z_AX + dz + (ht if math.sin(t) > 0 else hb) * math.sin(t))
+           for t in np.linspace(0, 2 * math.pi, 24, endpoint=False)] for dx, dz, ht, hb, hw in PANT]
+    loft_rings(bm, rs); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Wheel_Pant_' + side] = link('Wheel_Pant_' + side, bm)
+    d = (T - A) / np.linalg.norm(T - A)
+    bm = bmesh.new()                                  # 20102-2 cylinder inside the B-60999 oleo streamline (moves with A)
+    blade_strut(bm, tuple(A - 0.02 * d), tuple(A + L_CYL * d), [0.085, 0.10, 0.105, 0.105, 0.10], 0.06)
+    P['Oleo_Cylinder_' + side] = link('Oleo_Cylinder_' + side, bm)
+    bm = bmesh.new()                                  # 20102-5 shaft / piston (chrome), hangs from T
+    tube(bm, [tuple(T), tuple(T - L_SH * d)], 0.019, 14); P['Oleo_Shaft_' + side] = link('Oleo_Shaft_' + side, bm)
+    GEAR_SIDES[side] = dict(H=H, C=C, T=T, A=A)
 
 # ---- spinner and prop: Hartzell 2-blade constant speed, 74 in, clockwise seen from the cockpit (Lycoming) -----------
 SPB, SPX, SPR = 0.675, 1.10, 0.185
@@ -490,48 +556,160 @@ bm = bmesh.new()
 for sy in (1, -1): tube(bm, [(0.05, sy * 0.18, -0.66), (-0.02, sy * 0.18, -0.78), (-0.12, sy * 0.19, -0.84)], 0.026, 12)
 P['Exhaust'] = link('Exhaust', bm)
 
-# ---- paint (v1 placeholder livery, ours): white; red nose bowl, red cheat line with a navy pinstripe; red fin/rudder
-# cap, wing tips and stab tips with navy pinstripes; red struts and spinner; placeholder registration. No logos.
-X0, X1, Z0, Z1 = -5.25, 1.20, -1.70, 1.05
-X_TP = -4.53                                                    # tail post
-def XN(z):   # aft edge of the red nose bowl: a swept line, further aft at the chin
-    return 0.36 - 0.06 * (z - 0.25)
-def ZC(x):   # cheat line centre
-    return 0.02 + (-0.25 - 0.02) * (X_FACE - x) / (X_FACE - X_TP)
-def WC(x):   # cheat line width
-    return 0.11 + (0.05 - 0.11) * (X_FACE - x) / (X_FACE - X_TP)
-PIN, PIN_GAP = 0.025, 0.02
-Z_CAP, CAP_PIN = 0.62, 0.025
-def side(name, flip):
-    v = View(name, (X0, X1), (Z0, Z1), 4096, 1748, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
-    v.fill(np.ones_like(A, bool), WHITE)
-    zc, wc = ZC(A), WC(A)
-    v.fill((A > H_T + 0.012) & (np.abs(Z - zc) < 0.5 * wc), RED)                                   # cheat line
-    pb = zc - 0.5 * wc - PIN_GAP
-    v.fill((A > H_T + 0.012) & (Z < pb) & (Z > pb - PIN) & (A < XN(Z) + 0.02), NAVY)                # navy pinstripe below it
-    v.fill((A > XN(Z)) & (Z > -0.95), RED)                                                         # nose bowl
-    v.fill((A < X_TP + 1.2) & (Z > Z_CAP), RED)                                                   # fin / rudder cap
-    v.fill((A < X_TP + 1.2) & (A > X_TP - 1.0) & (Z > Z_CAP - 0.02 - CAP_PIN) & (Z < Z_CAP - 0.02), NAVY)
-    v.fill((Z < -1.05) & (A > X_AX + 0.18), RED)                                                   # pant noses
-    rh = 0.20; aspect = 764 / 150
-    v.stamp('greatlakes-n719gl.png', -2.25, -2.25 - rh * aspect, -0.56, -0.56 + rh)
-    return v
-VL, VR = side('gl_side_l', True), side('gl_side_r', False)
-def plan(name, flip, yr, xr, w, h):
-    v = View(name, yr, xr, w, h, flip_a=flip, axes=(1, 0)); return v, v.A, v.B
-VFT, Y, X = plan('gl_fus_top', True, (-0.5, 0.5), (X0, X1), 1024, 4096)
-VFT.fill(np.ones_like(Y, bool), WHITE)
-VFT.fill(X > XN(np.vectorize(lambda x, y: fus_z(x, y, True))(X, Y)), RED)
-VFB, Y, X = plan('gl_fus_bot', False, (-0.5, 0.5), (X0, X1), 1024, 4096)
-VFB.fill(np.ones_like(Y, bool), WHITE)
-VFB.fill(X > XN(np.vectorize(lambda x, y: fus_z(x, y, False))(X, Y)), RED)
-def tips(v, Y, y_red, pin):
-    v.fill(np.ones_like(Y, bool), WHITE)
-    v.fill(np.abs(Y) > y_red, RED)
-    v.fill((np.abs(Y) > y_red - pin[0]) & (np.abs(Y) < y_red - pin[1]), NAVY)
-VUW, Y, X = plan('gl_wing_u', True, (-4.1, 4.1), (-1.75, 0.05), 4096, 1024); tips(VUW, Y, 3.45, (0.07, 0.04))
-VLW, Y, X = plan('gl_wing_l', True, (-4.1, 4.1), (-1.85, -0.60), 4096, 768); tips(VLW, Y, 3.45, (0.07, 0.04))
-VST, Y, X = plan('gl_stab', True, (-1.6, 1.6), (-5.15, -3.85), 2048, 1024); tips(VST, Y, 1.20, (0.06, 0.035))
+if LIV == 'v1':
+    # ---- paint (v1 placeholder livery, ours): white; red nose bowl, red cheat line with a navy pinstripe; red fin/rudder
+    # cap, wing tips and stab tips with navy pinstripes; red struts and spinner; placeholder registration. No logos.
+    X0, X1, Z0, Z1 = -5.25, 1.20, -1.80, 1.05
+    X_TP = -4.53                                                    # tail post
+    def XN(z):   # aft edge of the red nose bowl: a swept line, further aft at the chin
+        return 0.36 - 0.06 * (z - 0.25)
+    def ZC(x):   # cheat line centre
+        return 0.02 + (-0.25 - 0.02) * (X_FACE - x) / (X_FACE - X_TP)
+    def WC(x):   # cheat line width
+        return 0.11 + (0.05 - 0.11) * (X_FACE - x) / (X_FACE - X_TP)
+    PIN, PIN_GAP = 0.025, 0.02
+    Z_CAP, CAP_PIN = 0.62, 0.025
+    def side(name, flip):
+        v = View(name, (X0, X1), (Z0, Z1), 4096, 1748, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
+        v.fill(np.ones_like(A, bool), WHITE)
+        zc, wc = ZC(A), WC(A)
+        v.fill((A > H_T + 0.012) & (np.abs(Z - zc) < 0.5 * wc), RED)                                   # cheat line
+        pb = zc - 0.5 * wc - PIN_GAP
+        v.fill((A > H_T + 0.012) & (Z < pb) & (Z > pb - PIN) & (A < XN(Z) + 0.02), NAVY)                # navy pinstripe below it
+        v.fill((A > XN(Z)) & (Z > -0.95), RED)                                                         # nose bowl
+        v.fill((A < X_TP + 1.2) & (Z > Z_CAP), RED)                                                   # fin / rudder cap
+        v.fill((A < X_TP + 1.2) & (A > X_TP - 1.0) & (Z > Z_CAP - 0.02 - CAP_PIN) & (Z < Z_CAP - 0.02), NAVY)
+        v.fill((Z < -1.05) & (A > X_AX + 0.18), RED)                                                   # pant noses
+        rh = 0.20; aspect = 764 / 150
+        v.stamp('greatlakes-n719gl.png', -2.25, -2.25 - rh * aspect, -0.56, -0.56 + rh)
+        return v
+    VL, VR = side('gl_side_l', True), side('gl_side_r', False)
+    def plan(name, flip, yr, xr, w, h):
+        v = View(name, yr, xr, w, h, flip_a=flip, axes=(1, 0)); return v, v.A, v.B
+    VFT, Y, X = plan('gl_fus_top', True, (-0.5, 0.5), (X0, X1), 1024, 4096)
+    VFT.fill(np.ones_like(Y, bool), WHITE)
+    VFT.fill(X > XN(np.vectorize(lambda x, y: fus_z(x, y, True))(X, Y)), RED)
+    VFB, Y, X = plan('gl_fus_bot', False, (-0.5, 0.5), (X0, X1), 1024, 4096)
+    VFB.fill(np.ones_like(Y, bool), WHITE)
+    VFB.fill(X > XN(np.vectorize(lambda x, y: fus_z(x, y, False))(X, Y)), RED)
+    def tips(v, Y, y_red, pin):
+        v.fill(np.ones_like(Y, bool), WHITE)
+        v.fill(np.abs(Y) > y_red, RED)
+        v.fill((np.abs(Y) > y_red - pin[0]) & (np.abs(Y) < y_red - pin[1]), NAVY)
+    VUW, Y, X = plan('gl_wing_u', True, (-4.1, 4.1), (-1.75, 0.05), 4096, 1024); tips(VUW, Y, 3.45, (0.07, 0.04))
+    VLW, Y, X = plan('gl_wing_l', True, (-4.1, 4.1), (-1.85, -0.60), 4096, 768); tips(VLW, Y, 3.45, (0.07, 0.04))
+    VST, Y, X = plan('gl_stab', True, (-1.6, 1.6), (-5.15, -3.85), 2048, 1024); tips(VST, Y, 1.20, (0.06, 0.035))
+
+else:
+    # ---- liveries (v2): Ty's two schemes, from his photos by eye (no tracing, no sampling); no registration, no text/logos.
+    #  red-sunburst : all red; navy nose bowl; two navy, white-outlined fuselage stripes nose to tail; red/white/navy sunburst
+    #                 rays on both wings (top and bottom) and the stab; navy tips/outline; navy fin/rudder border; red pants
+    #                 with a navy nose and stripe; red struts and gear; white spinner.
+    #  white-stripes: white; swooping red / light-blue / navy fuselage stripes cowl to tail; red edge trim with light-blue and
+    #                 navy pinstripes on wings and stab; light-blue + navy fin/rudder with a red border; striped pants;
+    #                 white struts and gear; chrome spinner.
+    LBLUE = (72, 150, 214)
+    def sil(v, names):
+        """plan/side silhouette of the named parts in view v (triangle raster, no external libs)"""
+        m = np.zeros(v.A.shape, bool); ia, ib = v.axes
+        for n in names:
+            o = P[n]; co = np.array([x.co[:] for x in o.data.vertices])
+            for poly in o.data.polygons:
+                vs = list(poly.vertices)
+                for k in range(1, len(vs) - 1):
+                    tri = co[[vs[0], vs[k], vs[k + 1]]]; pa, pb = tri[:, ia], tri[:, ib]
+                    us, vv = v.px(pa, pb); c0, c1 = int(max(min(us) - 1, 0)), int(min(max(us) + 2, v.w)); r0, r1 = int(max(min(vv) - 1, 0)), int(min(max(vv) + 2, v.h))
+                    if c1 <= c0 or r1 <= r0: continue
+                    A_, B_ = v.A[r0:r1, c0:c1], v.B[r0:r1, c0:c1]
+                    (x1, x2, x3), (y1, y2, y3) = pa, pb
+                    den = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3)
+                    if abs(den) < 1e-12: continue
+                    l1 = ((y2 - y3) * (A_ - x3) + (x3 - x2) * (B_ - y3)) / den
+                    l2 = ((y3 - y1) * (A_ - x3) + (x1 - x3) * (B_ - y3)) / den
+                    m[r0:r1, c0:c1] |= (l1 >= -1e-6) & (l2 >= -1e-6) & (l1 + l2 <= 1 + 1e-6)
+        return m
+    def erode(m, metres, v):
+        pa = abs(v.a1 - v.a0) / v.w; n = max(1, int(round(metres / pa))); m = m.copy()
+        for _ in range(n):
+            e = m.copy(); e[1:] &= m[:-1]; e[:-1] &= m[1:]; e[:, 1:] &= m[:, :-1]; e[:, :-1] &= m[:, 1:]
+            e[0] = e[-1] = False; e[:, 0] = e[:, -1] = False; m = e
+        return m
+    def close(m, metres, v):
+        pa = abs(v.a1 - v.a0) / v.w; n = max(1, int(round(metres / pa))); d = m.copy()
+        for _ in range(n):
+            e = d.copy(); e[1:] |= d[:-1]; e[:-1] |= d[1:]; e[:, 1:] |= d[:, :-1]; e[:, :-1] |= d[:, 1:]; d = e
+        return erode(d, metres, v) | m
+    def bands(v, m, spec, clip=None):
+        """concentric edge bands inward from the silhouette: spec = [(width_m, colour or None), ...]"""
+        cur = m
+        for wdt, col in spec:
+            inner = erode(cur, wdt, v)
+            if col is not None: v.fill(cur & ~inner & (True if clip is None else clip), col)
+            cur = inner
+    def plan(name, flip, yr, xr, w, h):
+        v = View(name, yr, xr, w, h, flip_a=flip, axes=(1, 0)); return v, v.A, v.B
+    X0, X1, Z0, Z1 = -5.25, 1.20, -1.80, 1.05
+    X_TP = -4.53
+    def XN(z): return 0.36 - 0.06 * (z - 0.25)                  # aft edge of the nose bowl
+    def lerp(x, xs, zs): return np.interp(x, xs[::-1], zs[::-1]) if xs[0] > xs[-1] else np.interp(x, xs, zs)
+    BASE = RED if LIV == 'red-sunburst' else WHITE
+    PANT_Z = Z_AX + 0.0
+    def side(name, flip):
+        v = View(name, (X0, X1), (Z0, Z1), 4096, 1748, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
+        v.fill(np.ones_like(A, bool), BASE)
+        fin = close(sil(v, ['Fin', 'Rudder']), 0.03, v); ext = fin | ((Z < 0.30) & (A > X_TP - 0.7) & (A < X_TP + 1.4))
+        pant = (Z < -1.15)
+        if LIV == 'red-sunburst':
+            z1 = lerp(A, [0.70, -0.5, -4.5], [0.02, -0.03, -0.13]); w1 = lerp(A, [0.70, -4.5], [0.075, 0.035])
+            z2 = z1 - lerp(A, [0.70, -4.5], [0.13, 0.055]); w2 = lerp(A, [0.70, -4.5], [0.04, 0.02])
+            ok = (A < XN(Z) + 0.01) & (A > X_TP - 0.05) & ~fin & ~pant
+            for zc, wc in ((z1, w1), (z2, w2)):
+                v.fill(ok & (np.abs(Z - zc) < 0.5 * wc + 0.014), WHITE); v.fill(ok & (np.abs(Z - zc) < 0.5 * wc), NAVY)
+            v.fill((A > XN(Z) - 0.02) & (Z > -0.95) & ~pant, WHITE); v.fill((A > XN(Z)) & (Z > -0.95) & ~pant, NAVY)   # nose bowl
+            bands(v, ext, [(0.012, RED), (0.05, NAVY), (0.014, WHITE)], clip=fin)                                   # fin / rudder border
+            v.fill(pant & (A > X_AX + 0.30), NAVY); v.fill(pant & (A > X_AX + 0.28) & (A <= X_AX + 0.30), WHITE)  # pant nose
+            v.fill(pant & (np.abs(Z - (PANT_Z + 0.07 - 0.10 * (A - X_AX))) < 0.022) & (A <= X_AX + 0.28), NAVY)  # pant stripe
+        else:
+            zs = lerp(A, [1.0, 0.3, -1.0, -2.6, -3.9, -4.5], [0.06, -0.05, -0.20, -0.24, -0.17, 0.10])
+            f = lerp(A, [1.0, -1.0, -4.5], [1.0, 0.9, 0.55])
+            ok = (A > X_TP - 0.6) & ~pant & (Z > -0.98)
+            v.fill(ok & (Z > zs + 0.105 * f) & (Z < zs + 0.17 * f) & (A < 0.45), RED)
+            v.fill(ok & (Z > zs - 0.005 * f) & (Z < zs + 0.085 * f), LBLUE)
+            v.fill(ok & (Z > zs - 0.20 * f) & (Z < zs - 0.025 * f), NAVY)
+            v.fill(ok & (A > 0.45) & (Z < zs - 0.025 * f) & (Z > -0.98), NAVY)                     # navy lower cowl
+            rud = fin & (A < H_T + 0.06) & (Z < 0.80); v.fill(fin, LBLUE); v.fill(rud, NAVY)
+            bands(v, ext, [(0.05, RED), (0.014, WHITE)], clip=fin)
+            for dz, wdt, col in ((0.155, 0.045, RED), (0.08, 0.05, LBLUE), (-0.01, 0.06, NAVY)):
+                v.fill(pant & (np.abs(Z - (PANT_Z + dz + 0.06 * (A - X_AX))) < 0.5 * wdt) & (A > X_AX - 0.25), col)
+        return v
+    VL, VR = side('gl_side_l', True), side('gl_side_r', False)
+    VFT, Y, X = plan('gl_fus_top', True, (-0.5, 0.5), (X0, X1), 1024, 4096); VFT.fill(np.ones_like(Y, bool), BASE)
+    VFB, Y, X = plan('gl_fus_bot', False, (-0.5, 0.5), (X0, X1), 1024, 4096); VFB.fill(np.ones_like(Y, bool), BASE)
+    if LIV == 'red-sunburst':
+        for VF, up in ((VFT, True), (VFB, False)):
+            VF.fill(VF.B > XN(np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)) - 0.02, WHITE)
+            VF.fill(VF.B > XN(np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)), NAVY)
+    else:
+        VFB.fill(VFB.B > -0.6, NAVY)
+    def surface(v, names, x0, rays):
+        m = sil(v, names); Y_, X_ = v.A, v.B
+        if LIV == 'red-sunburst':
+            v.fill(m, RED); ph = np.degrees(np.arctan2(np.abs(Y_), X_ - x0))
+            for c in rays:
+                v.fill(m & (np.abs(ph - c) < rays[c] + 1.2), WHITE); v.fill(m & (np.abs(ph - c) < rays[c]), NAVY)
+            bands(v, m, [(0.035, NAVY), (0.012, WHITE)])
+            v.fill(m & (np.abs(Y_) > np.abs(Y_).max() * 0 + v.tipcut), NAVY)
+        else:
+            v.fill(m, WHITE); bands(v, m, [(0.06, RED), (0.012, None), (0.022, LBLUE), (0.01, None), (0.018, NAVY)])
+            v.fill(m & (np.abs(Y_) > v.tipcut), RED)
+    VUW, Y, X = plan('gl_wing_u', True, (-4.1, 4.1), (-1.75, 0.05), 4096, 1024); VUW.tipcut = S_W - 0.16
+    surface(VUW, ['Wing_Upper'], -CH + 0.02, {16: 3.0, 34: 3.5, 52: 3.5, 70: 3.0})
+    VLW, Y, X = plan('gl_wing_l', True, (-4.1, 4.1), (-1.85, -0.60), 4096, 768); VLW.tipcut = S_W - 0.16
+    surface(VLW, ['Wing_Lower', 'Aileron_LL', 'Aileron_LR'], LE_L - CH + 0.02, {16: 3.0, 34: 3.5, 52: 3.5, 70: 3.0})
+    VST, Y, X = plan('gl_stab', True, (-1.6, 1.6), (-5.15, -3.85), 2048, 1024)
+    _sv = np.array([x.co[:] for n in ('Stab', 'Elevator_L', 'Elevator_R') for x in P[n].data.vertices])
+    VST.tipcut = np.abs(_sv[:, 1]).max() - 0.10
+    surface(VST, ['Stab', 'Elevator_L', 'Elevator_R'], _sv[:, 0].min() + 0.02, {22: 4.0, 48: 4.5, 74: 4.0})
 
 M = {}
 for v in (VL, VR, VFT, VFB, VUW, VLW, VST): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))
@@ -540,7 +718,10 @@ M['steel'] = paint.mat_colour('Wire_steel', STEEL, rough=0.25, metal=0.9)
 M['tyre'] = paint.mat_colour('Paint_tyre', TYRE, rough=0.8); M['cabin'] = paint.mat_colour('Paint_cabin', CABIN, rough=0.85)
 M['glass'] = paint.mat_glass('Glass', col=(120, 150, 185), alpha=0.35)
 M['frame'] = paint.mat_colour('Windscreen_frame', (40, 40, 44), rough=0.5)
-M['prop_spinner'] = paint.mat_colour('Prop_spinner', RED)
+M['prop_spinner'] = paint.mat_colour('Prop_spinner', RED) if LIV == 'v1' else (paint.mat_colour('Prop_spinner', WHITE) if LIV == 'red-sunburst' else paint.mat_colour('Prop_spinner_chrome', (225, 228, 232), rough=0.12, metal=1.0))
+M['base'] = paint.mat_colour('Paint_base', WHITE if LIV != 'red-sunburst' else RED)
+M['strut'] = M['red'] if LIV in ('v1', 'red-sunburst') else M['white']
+M['gear'] = M['red'] if LIV == 'red-sunburst' else M['white']
 M['prop_blade'] = paint.mat_colour('Prop_blade', BLADE, rough=0.45, metal=0.3); M['prop_tip'] = paint.mat_colour('Prop_blade_tip', WHITE, rough=0.4)
 M['exhaust'] = paint.mat_colour('Exhaust_steel', (120, 112, 104), rough=0.5, metal=0.6)
 def setm(o, names):
@@ -555,11 +736,12 @@ def fus_assign(nrm, c):
     if nrm.z >= 0.7: return (2, VFT)
     return (0, VL) if nrm.y >= 0 else (1, VR)
 setm(P['Fuselage'], ['gl_side_l', 'gl_side_r', 'gl_fus_top', 'cabin', 'gl_fus_bot']); paint.project(P['Fuselage'], fus_assign)
-for n in ('Wheel_Pants', 'Fin', 'Rudder'):
-    setm(P[n], ['gl_side_l', 'gl_side_r', 'white'])
+for n in ('Wheel_Pant_L', 'Wheel_Pant_R', 'Fin', 'Rudder'):
+    setm(P[n], ['gl_side_l', 'gl_side_r', 'base'])
     paint.project(P[n], lambda nrm, c: (2, None) if nrm.z <= -0.6 else ((0, VL) if nrm.y >= 0 else (1, VR)))
-for n, m in (('Headrest', 'white'), ('Windscreen_Glass', 'glass'), ('Windscreen_Frame', 'frame'), ('Spinner', 'prop_spinner'),
-             ('Gear_Main', 'white'), ('Wheels', 'tyre'), ('Strut_Cabane', 'red'), ('Strut_Interplane', 'red'), ('Strut_Stab', 'red'),
+for n, m in (('Headrest', 'base'), ('Windscreen_Glass', 'glass'), ('Windscreen_Frame', 'frame'), ('Spinner', 'prop_spinner'),
+             ('Gear_Main', 'gear'), ('Gear_Axle_L', 'gear'), ('Gear_Axle_R', 'gear'), ('Oleo_Cylinder_L', 'gear'), ('Oleo_Cylinder_R', 'gear'),
+             ('Oleo_Shaft_L', 'steel'), ('Oleo_Shaft_R', 'steel'), ('Wheel_L', 'tyre'), ('Wheel_R', 'tyre'), ('Wheel_Tail', 'tyre'), ('Strut_Cabane', 'strut'), ('Strut_Interplane', 'strut'), ('Strut_Stab', 'strut'),
              ('Wire_Bracing', 'steel'), ('Exhaust', 'exhaust')):
     setm(P[n], [m]); [setattr(p, 'material_index', 0) for p in P[n].data.polygons]
 setm(P['Prop'], ['prop_blade', 'prop_tip'])
@@ -594,12 +776,68 @@ for o in P.values():
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
     except Exception: pass
 P['Fuselage'].name = 'Fuselage_Painted'
+# ---- gear travel: hinge angle for a given strut compression, and the 3-point height at each state -----------------
+MOV = {s: ['Gear_Axle_' + s, 'Wheel_' + s, 'Wheel_Pant_' + s, 'Oleo_Cylinder_' + s] for s in ('L', 'R')}
+_V = {n: np.array([v.co[:] for v in o.data.vertices]) for n, o in P.items()}
+def _posed(th):
+    out = {}
+    for n, a in _V.items():
+        side = next((s for s in MOV if n in MOV[s]), None)
+        if side is None: out[n] = a; continue
+        m = np.array((1, 1 if side == 'L' else -1, 1.0)); b = a * m
+        out[n] = np.array([g_rot(p, _s * th) for p in b]) * m
+    return out
+def _three_point(th):
+    V = _posed(th); allv = np.concatenate(list(V.values()))
+    mw = np.concatenate([V['Wheel_L'], V['Wheel_R']]); tw = V['Wheel_Tail']
+    def rot(a, ph):  # nose-up pitch ph about +y (nose is +x)
+        c, s = math.cos(ph), math.sin(ph); return np.stack([a[:, 0] * c - a[:, 2] * s, a[:, 1], a[:, 0] * s + a[:, 2] * c], 1)
+    lo, hi = -0.1, 0.5
+    for _ in range(60):
+        ph = 0.5 * (lo + hi)
+        if rot(mw, ph)[:, 2].min() < rot(tw, ph)[:, 2].min(): lo = ph   # tail still high -> more nose-up
+        else: hi = ph
+    r = rot(allv, ph); g = rot(mw, ph)[:, 2].min()
+    return float(r[:, 2].max() - g), math.degrees(ph)
+H_PUB = 7 * 0.3048 + 4 * IN                           # 7 ft 4 in (Waco Classic spec sheet)
+GEAR_STATES = {}
+for nm, th in (('extended', 0.0), ('full', TH_FULL)):
+    h, ph = _three_point(th); GEAR_STATES[nm] = (th, h, ph)
+lo, hi = 0.0, TH_FULL
+if GEAR_STATES['extended'][1] > H_PUB > GEAR_STATES['full'][1]:
+    for _ in range(50):
+        mid = 0.5 * (lo + hi)
+        if _three_point(mid)[0] > H_PUB: lo = mid
+        else: hi = mid
+    th_st = 0.5 * (lo + hi); GEAR_STATES['static'] = (th_st, *_three_point(th_st))
+for nm, (th, h, ph) in GEAR_STATES.items():
+    print('GEARSTATE %-8s hinge %5.2f deg  strut %.3f m (%.2f in compressed)  wheel z %+.3f  3pt height %.3f m (%.1f in) pitch %.2f'
+          % (nm, math.degrees(th), g_len(th), (L_EXT - g_len(th)) / IN, g_wheel(th)[2], h, h / IN, ph))
+print('PUBLISHED height %.3f m' % H_PUB)
 allv = np.concatenate([np.array([v.co[:] for v in o.data.vertices]) for o in P.values()])
 print('BOUNDS', allv.min(0), allv.max(0), 'size', allv.max(0) - allv.min(0), 'parts', sorted(P))
 print('TRIS', sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in P.values()))
 for o in P.values(): o.data.transform(Matrix.Rotation(math.pi, 4, 'Z'))   # nose +x after glTF import, as the EA300
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
+# rig: per side an empty 'Gear_Pivot_<s>' at the axle hinge H (parent of axle assy, wheel, pant, oleo cylinder) and
+# marker empties 'Gear_HingeAxis_<s>' at C (hinge axis = Pivot -> HingeAxis) and 'Gear_OleoTop_<s>' at T (where the
+# fixed Oleo_Shaft_<s> pivots; the cylinder's origin sits on the bottom pin A and its +axis points at T).
+RZ = Matrix.Rotation(math.pi, 4, 'Z'); EXTRA = []
+def _empty(name, loc):
+    e = bpy.data.objects.new(name, None); bpy.context.scene.collection.objects.link(e); e.location = loc; EXTRA.append(e); return e
+for side, d in GEAR_SIDES.items():
+    w = lambda p: RZ @ Vector(tuple(float(c) for c in p))
+    piv = _empty('Gear_Pivot_' + side, w(d['H']))
+    _empty('Gear_HingeAxis_' + side, w(d['C'])); _empty('Gear_OleoTop_' + side, w(d['T']))
+    piv['stroke_m'] = round(STROKE, 4); piv['strut_len_extended_m'] = round(L_EXT, 4)
+    piv['hinge_deg_full'] = round(math.degrees(TH_FULL), 3)
+    if 'static' in GEAR_STATES: piv['hinge_deg_static'] = round(math.degrees(GEAR_STATES['static'][0]), 3)
+    piv['wheel_up_sign_model_frame'] = int(_s * (1 if side == 'L' else -1))
+    for n in MOV[side]:
+        o = P[n]; org = w(d['A']) if n.startswith('Oleo_Cylinder') else piv.location
+        o.data.transform(Matrix.Translation(-org)); o.parent = piv; o.location = org - piv.location
+    o = P['Oleo_Shaft_' + side]; org = w(d['T']); o.data.transform(Matrix.Translation(-org)); o.location = org
 bpy.ops.object.select_all(action='DESELECT')
-for o in P.values(): o.select_set(True)
-bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True)
+for o in list(P.values()) + EXTRA: o.select_set(True)
+bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True, export_extras=True)
 print('WROTE', OUT, os.path.getsize(OUT))
