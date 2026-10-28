@@ -257,7 +257,10 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>AERO_SELFTEST=menu (owner 2026-10-03: "doubled up text ... check it in both landscape and vertical"): the
-        /// landing page at iPhone and iPad shapes, landscape and portrait, scrolled to the top and to the bottom.</summary>
+        /// landing page at iPhone and iPad shapes, landscape and portrait. Since the page became a chapter/page setup
+        /// (owner 2026-10-28) there is no top and bottom of one long page to shoot — every CHAPTER gets its own shot,
+        /// on both pages, and so does every chapter of the in-flight OPTIONS panel. A chapter that needs a scrollbar at
+        /// any of these four shapes is a chapter with too much on it.</summary>
         private IEnumerator MenuLayoutTest()
         {
             var shapes = new (string name, int w, int h)[] { ("iphone-land", 1311, 603), ("iphone-port", 603, 1311), ("ipad-land", 1180, 820), ("ipad-port", 820, 1180) };
@@ -267,15 +270,14 @@ namespace FlyingGame.Bridge
             {
                 Screen.SetResolution(sh.w, sh.h, FullScreenMode.Windowed);
                 yield return new WaitForSecondsRealtime(1.5f);
-                Menu.ScrollTo(false);
-                yield return new WaitForSecondsRealtime(0.5f);
-                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-top.png");
-                yield return new WaitForSecondsRealtime(0.5f);
-                Menu.ScrollTo(true);
-                yield return new WaitForSecondsRealtime(0.5f);
-                ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-end.png");
-                yield return new WaitForSecondsRealtime(0.5f);
-                Menu.ScrollTo(false); Menu.OpenListForTest("aircraft");   // a drop-down open over the page
+                foreach (string page in new[] { "Aircraft", "Start", "Lessons", "Weather", "Players" })
+                {
+                    Menu.ShowPage(page);
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-{page.ToLowerInvariant()}.png");
+                    yield return new WaitForSecondsRealtime(0.4f);
+                }
+                Menu.ShowPage("Aircraft"); Menu.OpenListForTest("aircraft");   // a drop-down open over the page
                 yield return new WaitForSecondsRealtime(0.5f);
                 ScreenCapture.CaptureScreenshot($"selftest-menu-{sh.name}-list.png");
                 yield return new WaitForSecondsRealtime(0.5f);
@@ -287,6 +289,29 @@ namespace FlyingGame.Bridge
                 yield return new WaitForSecondsRealtime(0.5f);
                 SessionSettings.AircraftId = ac;
                 Debug.Log($"[SelfTest] menu {sh.name} {Screen.width}x{Screen.height}");
+            }
+            // The in-flight OPTIONS panel, chapter by chapter, at the same four shapes.
+            var opts = Object.FindFirstObjectByType<OptionsPanel>();
+            if (opts != null)
+            {
+                SessionSettings.ChallengeId = null;
+                Menu.Fly();
+                yield return new WaitForSecondsRealtime(2.5f);
+                foreach (var sh in shapes)
+                {
+                    Screen.SetResolution(sh.w, sh.h, FullScreenMode.Windowed);
+                    yield return new WaitForSecondsRealtime(1.2f);
+                    foreach (string page in OptionsPanel.PageNamesForTest)
+                    {
+                        opts.ShowPageForTest(page);
+                        yield return new WaitForSecondsRealtime(0.5f);
+                        ScreenCapture.CaptureScreenshot($"selftest-options-{sh.name}-{page.ToLowerInvariant()}.png");
+                        yield return new WaitForSecondsRealtime(0.4f);
+                    }
+                    Debug.Log($"[SelfTest] options {sh.name} {Screen.width}x{Screen.height}");
+                }
+                opts.Close();
+                Menu.Open();
             }
             Debug.Log("[SelfTest] DONE menu");
         }

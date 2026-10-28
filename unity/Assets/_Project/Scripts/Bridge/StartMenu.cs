@@ -25,7 +25,7 @@ namespace FlyingGame.Bridge
 
         public bool IsOpen { get; private set; } = true;
 
-        private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field;
+        private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field, _tab, _tabOn;
         private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
         private const string PrefLanHint = "net.lanHint", PrefLanNoRouter = "net.lanNoRouter";
         private string _flapsFor; private bool _flapsHas;
@@ -44,12 +44,14 @@ namespace FlyingGame.Bridge
         }
 
         private Net.NetSession Net => Driver != null ? Driver.GetComponent<Net.NetSession>() : null;
-        private Texture2D _bg, _btnBg, _btnOnBg, _ddBg;
+        private Texture2D _bg, _btnBg, _btnOnBg, _ddBg, _tabBg, _tabOnBg;
         private int _fs;
         private Vector2 _fleetScroll;
 
         private void Start()
         {
+            // How the player left it last time: the display settings, and this page's own choices.
+            SessionSettings.LoadPrefs();
             // Multiplayer identity persists across launches (name/code/mode).
             SessionSettings.PilotName = PlayerPrefs.GetString(PrefPilotName, "");
             if (string.IsNullOrEmpty(SessionSettings.PilotName)) SessionSettings.PilotName = "Pilot" + Random.Range(100, 1000);
@@ -87,7 +89,8 @@ namespace FlyingGame.Bridge
         {
             IsOpen = false;
             SessionSettings.MenuOpen = false;
-            Time.timeScale = SessionSettings.SimSpeed;
+            SessionSettings.PanelPause = false;
+            SessionSettings.ApplyTimeScale();
             // Again here, not only in the menu: this is the one line every flight passes through, so a
             // scored contest cannot be entered with somebody's own weather however they got to this point.
             SessionSettings.LockContestConditions();
@@ -116,6 +119,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetString(PrefLanHint, SessionSettings.LanHint ?? "");
             PlayerPrefs.SetInt(PrefLanNoRouter, SessionSettings.LanNoRouter ? 1 : 0);
             PlayerPrefs.Save();
+            SessionSettings.SavePrefs();          // this page's choices, so the next launch opens where we left off
             Net?.Join();
         }
 
@@ -135,6 +139,10 @@ namespace FlyingGame.Bridge
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             _small = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 0.8f), alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.8f, 0.85f, 0.9f) } };
             _field = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white, background = _btnBg }, focused = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(8, 8, 4, 4) };
+            _tabBg ??= Solid(new Color(0.10f, 0.14f, 0.20f, 0.95f));
+            _tabOnBg ??= Solid(new Color(0.16f, 0.34f, 0.46f, 0.98f));
+            _tab = new GUIStyle(_btn) { normal = { textColor = new Color(0.72f, 0.80f, 0.88f), background = _tabBg }, active = { textColor = Color.white, background = _tabBg } };
+            _tabOn = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.75f, 0.98f, 1f), background = _tabOnBg }, active = { textColor = Color.white, background = _tabOnBg } };
         }
 
         // ---- drop-down lists (owner 2026-10-06: "give the landing page pull down menus for aircraft, challenge, flying lessons
@@ -206,6 +214,51 @@ namespace FlyingGame.Bridge
             }
         }
 
+        // ---- chapters (owner 2026-10-28: "overhaul the landing page and the menu so it takes up less space,
+        // ---- put more things into pull downs or buttons that open pages, maybe use a chapter/page setup").
+        // One page at a time, one column, the same shape in portrait and landscape so the page does not move
+        // around under your thumb when the iPad turns. Each page is short enough to need no scrolling on a
+        // phone; the scroll group underneath is kept as the safety net, not as the way the page is read.
+        private enum Page { Aircraft, Start, Lessons, Weather, Players }
+        private static readonly string[] PageNames = { "Aircraft", "Start", "Lessons", "Weather", "Players" };
+        private Page _page = Page.Aircraft;
+        /// <summary>Self-test / tools: show a given chapter by name ("aircraft", "start", …).</summary>
+        public void ShowPage(string name)
+        {
+            for (int i = 0; i < PageNames.Length; i++)
+                if (string.Equals(PageNames[i], name, System.StringComparison.OrdinalIgnoreCase)) { _page = (Page)i; _scrollY = 0f; }
+        }
+        public string PageName => PageNames[(int)_page];
+
+        private float _x, _colW, _lh, _gap, _bh, _row;
+
+        /// <summary>What FLY will do, in one line — so a setting on another chapter is never a surprise.</summary>
+        private string SetupLine()
+        {
+            string ac = SessionSettings.AircraftId;
+            foreach (var f in SessionSettings.Fleet) if (f.id == SessionSettings.AircraftId) ac = f.name;
+            string where = SessionSettings.StartMode switch
+            {
+                SessionSettings.Start.InTheAir => "in the air",
+                SessionSettings.Start.OnTheRunway => "on the runway",
+                SessionSettings.Start.OnFinal => "on final",
+                SessionSettings.Start.InAeroBox => "aerobatic box",
+                SessionSettings.Start.InCombatZone => "combat zone",
+                _ => "in a thermal",
+            };
+            string what = "free flight";
+            if (SessionSettings.ChallengeId != null)
+            {
+                foreach (var c in SessionSettings.Challenges) if (c.id == SessionSettings.ChallengeId) what = c.name;
+                foreach (var l in SessionSettings.Lessons) if (l.id == SessionSettings.ChallengeId) what = l.name;
+            }
+            string mp = SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Solo ? "solo"
+                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.FreeForAll ? "free-for-all"
+                      : SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan ? "same network" : "private room";
+            return $"{ac}  ·  {where}, {SessionSettings.Airport.Name}  ·  {what}  ·  "
+                 + $"wind {SessionSettings.WindFromDeg:000}°/{SessionSettings.WindSpeedMs * 1.944f:F0} kt  ·  {mp}";
+        }
+
         private void OnGUI()
         {
             EnsureStyles();
@@ -220,30 +273,87 @@ namespace FlyingGame.Bridge
 
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
             float m = s * 0.03f, w = Screen.width - 2 * m;
-            float lh = _fs * 1.55f, gap = _fs * 0.45f;
-            float bh = lh * 1.05f, row = bh + gap * 0.4f;
+            _lh = _fs * 1.55f; _gap = _fs * 0.45f;
+            _bh = _lh * 1.05f; _row = _bh + _gap * 0.4f;
+            float lh = _lh, gap = _gap, bh = _bh, row = _row;
             bool listOpen = _dd != null;
             // An open list has the page's touches: the page underneath dims and ignores them.
             GUI.enabled = !listOpen;
-            UiLayout.Label(new Rect(m, m * 0.6f, w, lh * 1.3f), "FLIGHT SETUP", _title);
-            float pageTop = m * 0.6f + lh * 1.5f;
-            // One page (owner 2026-10-06): landscape three columns, portrait two (no-overlap rule) — long lists are drop-downs.
-            bool port = Screen.height > Screen.width;
-            int cols = port ? 2 : 3;
-            float colW = (w - (cols - 1) * gap) / cols;
+            UiLayout.Label(new Rect(m, m * 0.6f, w * 0.52f, lh * 1.3f), "FLIGHT SETUP", _title);
+            UiLayout.Label(new Rect(m + w * 0.52f, m * 0.6f, w * 0.48f, lh * 1.3f), SetupLine(), _small);
 
-            float fw0 = s * 0.26f, fh0 = s * 0.09f;
+            // The chapter tabs, one row across whatever the shape.
+            float tabY = m * 0.6f + lh * 1.5f;
+            {
+                int n = PageNames.Length;
+                float tw = (w - (n - 1) * gap * 0.4f) / n;
+                for (int i = 0; i < n; i++)
+                    if (UiLayout.Button(new Rect(m + i * (tw + gap * 0.4f), tabY, tw, bh * 1.15f), PageNames[i], (int)_page == i ? _tabOn : _tab))
+                    { _page = (Page)i; _scrollY = 0f; _dd = null; }
+            }
+            float pageTop = tabY + bh * 1.15f + gap;
+
+            // One column, wide enough to read and narrow enough to thumb: the page no longer has to be
+            // divided into columns to fit, because only one chapter is on screen at a time.
+            _colW = Mathf.Min(w, s * 0.86f);
+
+            float fh0 = s * 0.09f;
             var viewport = new Rect(0f, pageTop, Screen.width, Screen.height - pageTop - fh0 - m * 1.5f);
-            if (!listOpen) ScrollInput(viewport, lh);   // (kept for very small screens; the page normally fits)
+            if (!listOpen) ScrollInput(viewport, lh);   // (kept for very small screens; a chapter normally fits)
             _scrollY = Mathf.Clamp(_scrollY, 0f, Mathf.Max(0f, _contentH - viewport.height));
             GUI.BeginGroup(viewport);
             _groupOffset = new Vector2(viewport.x, viewport.y);
-            float top = -_scrollY, maxY = 0f;
-            float colX(int c) => m + c * (colW + gap);
+            float top = -_scrollY;
+            _x = (Screen.width - _colW) * 0.5f;
+            float y = top;
+            switch (_page)
+            {
+                case Page.Aircraft: AircraftPage(ref y); break;
+                case Page.Start: StartPage(ref y); break;
+                case Page.Lessons: LessonsPage(ref y); break;
+                case Page.Weather: WeatherPage(ref y); break;
+                case Page.Players: PlayersPage(ref y); break;
+            }
+            GUI.EndGroup();
+            _contentH = y - top + gap;
+            if (_contentH > viewport.height + 1f)
+            {
+                // Scroll bar: only on a screen too small for the chapter.
+                float frac = viewport.height / _contentH, thumbH = Mathf.Max(lh, viewport.height * frac);
+                float thumbY = viewport.y + (viewport.height - thumbH) * (_scrollY / Mathf.Max(1f, _contentH - viewport.height));
+                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, viewport.y, m * 0.18f, viewport.height), _btnBg);
+                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
+            }
 
-            // ---- column 1: aircraft · start · airport · instruments
-            float x = colX(0), y = top;
-            UiLayout.Label(new Rect(x, y, colW, lh), "AIRCRAFT", _head); y += lh;
+            // ---- FLY
+            float fw = s * 0.26f, fh = s * 0.09f;
+            if (UiLayout.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
+
+            // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
+            // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
+            // (handoff 2026-10-17): a web page in the browser, nothing sent from the app. See SupportDesk.
+            float hw = s * 0.17f, hh = fh * 0.62f;
+            if (UiLayout.Button(new Rect(m, Screen.height - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
+            if (UiLayout.Button(new Rect(m + hw + gap * 0.5f, Screen.height - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
+            // is that you look at it before you go.
+            if (UiLayout.Button(new Rect(m + hw * 2.25f + gap, Screen.height - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
+            // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
+            if (UiLayout.Button(new Rect(m + hw * 3.25f + gap * 1.5f, Screen.height - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
+            if (SupportDesk.Note.Length > 0)
+                UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
+
+            GUI.enabled = true;
+            DrawDropdown(bh, gap);
+        }
+
+        private void Head(string text, ref float y) { UiLayout.Label(new Rect(_x, y, _colW, _lh), text, _head); y += _lh; }
+
+        // ---- chapter: aircraft · livery · tow plane
+        private void AircraftPage(ref float y)
+        {
+            float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;
+            Head("AIRCRAFT", ref y);
             string acName = SessionSettings.AircraftId;
             foreach (var f in SessionSettings.Fleet) if (f.id == SessionSettings.AircraftId) acName = f.name;
             Dropdown("aircraft", new Rect(x, y, colW, bh), acName, System.Linq.Enumerable.Select(SessionSettings.Fleet, f => (f.name, f.id == SessionSettings.AircraftId, (System.Action)(() => SessionSettings.AircraftId = f.id))));
@@ -252,15 +362,13 @@ namespace FlyingGame.Bridge
                 // LIVERY (owner 2026-10-28): only for a type that comes in more than one scheme (the Pitts: Checkered / Factory /
                 // N31DG / N1191, the Extra: Unmarked / Talk Flying / N300UY; the unmarked one is the default). The choice is per
                 // type and kept across launches (SessionSettings.SetLivery), and the aeroplane behind this page repaints at once.
-                // AERO_LIVERY (captures, dev builds) still wins over it. A drop-down like every other field on the page: three or
-                // four segment buttons in one column leave ~90 pt each on an iPhone in portrait (UiLayout.Fit shrinks "Talk
-                // Flying" below the page's type size), and the row keeps one shape when the player switches Pitts ↔ Extra.
+                // AERO_LIVERY (captures, dev builds) still wins over it.
                 string acId = SessionSettings.AircraftId;
                 var livs = Liveries.Available(acId);
                 if (livs.Count > 1)
                 {
                     bool forced = !string.IsNullOrEmpty(SessionSettings.LiveryOverride);
-                    UiLayout.Label(new Rect(x, y, colW, lh), forced ? "LIVERY  (AERO_LIVERY set)" : "LIVERY", _head); y += lh;
+                    Head(forced ? "LIVERY  (AERO_LIVERY set)" : "LIVERY", ref y);
                     string chosen = FlyingGame.Core.LiveryChoice.Selected(acId, SessionSettings.LiveryFor(acId));
                     string chosenName = chosen;
                     foreach (var l in livs) if (l.Id == chosen) chosenName = l.Name;
@@ -271,13 +379,24 @@ namespace FlyingGame.Bridge
             if (SessionSettings.AircraftId.StartsWith("glider"))
             {
                 float half = (colW - gap * 0.4f) / 2f;
-                UiLayout.Label(new Rect(x, y, colW, lh), "TOW PLANE", _head); y += lh;
+                Head("TOW PLANE", ref y);
                 if (UiLayout.Button(new Rect(x, y, half, bh), "Pawnee", SessionSettings.TugId == "pa25-pawnee-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa25-pawnee-like";
                 if (UiLayout.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
                 y += row;
             }
             y += gap * 0.4f;
-            UiLayout.Label(new Rect(x, y, colW, lh), "START", _head); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh * 2f),
+                SessionSettings.AircraftId.StartsWith("glider") ? "A sailplane: no engine. Tap TOW on the runway for the aerotow, or start in a thermal."
+                : SessionSettings.AircraftId == "pa18-floats-like" ? "On floats: it lands on the field's lake as readily as on the strip."
+                : "Everything else about the aeroplane — how it is drawn, the instruments, the aids — is on the OPTIONS panel in flight.", _small);
+            y += lh * 2f;
+        }
+
+        // ---- chapter: where you begin · airport · instruments
+        private void StartPage(ref float y)
+        {
+            float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;
+            Head("START", ref y);
             var starts = new[] { (SessionSettings.Start.InTheAir, "In the air"), (SessionSettings.Start.OnTheRunway, "On the runway"), (SessionSettings.Start.OnFinal, "On final, 300 ft"),
                                  (SessionSettings.Start.InAeroBox, "Aerobatic box"), (SessionSettings.Start.InCombatZone, "Combat zone"), (SessionSettings.Start.InThermal, "In a thermal") };
             string startName = "";
@@ -293,7 +412,7 @@ namespace FlyingGame.Bridge
                 y += row;
             }
             y += gap * 0.4f;
-            UiLayout.Label(new Rect(x, y, colW, lh), "AIRPORT", _head); y += lh;
+            Head("AIRPORT", ref y);
             {
                 var aps = FlyingGame.Core.WorldTerrain.Airports;
                 string Ap(int i) => $"{aps[i].Name}  {aps[i].ElevationM * 3.28084:N0} ft";
@@ -302,12 +421,13 @@ namespace FlyingGame.Bridge
                 y += row;
             }
             y += gap * 0.4f;
-            UiLayout.Label(new Rect(x, y, colW, lh), "INSTRUMENTS", _head); y += lh;
+            Head("INSTRUMENTS", ref y);
             {
                 float third = (colW - 2 * gap * 0.4f) / 3f;
                 var modes = new[] { (SessionSettings.InstrumentMode.Analog, "Dials"), (SessionSettings.InstrumentMode.Hud, "HUD"), (SessionSettings.InstrumentMode.None, "None") };
                 for (int i = 0; i < modes.Length; i++)
-                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, SessionSettings.Instruments == modes[i].Item1 ? _btnOn : _btn)) SessionSettings.Instruments = modes[i].Item1;
+                    if (UiLayout.Button(new Rect(x + i * (third + gap * 0.4f), y, third, bh), modes[i].Item2, SessionSettings.Instruments == modes[i].Item1 ? _btnOn : _btn))
+                    { SessionSettings.Instruments = modes[i].Item1; SessionSettings.SavePrefs(); }
                 y += row;
             }
             UiLayout.Label(new Rect(x, y, colW, lh * 2f), SessionSettings.StartMode == SessionSettings.Start.InTheAir
@@ -319,11 +439,13 @@ namespace FlyingGame.Bridge
                 : (SessionSettings.AircraftId.StartsWith("glider") ? "At the threshold. Tap TOW for the aerotow."
                    : SessionSettings.AircraftId == "pa18-floats-like" ? "Afloat on the field's lake, engine idling." : "At the threshold, engine idling."), _small);
             y += lh * 2f;
+        }
 
-            // ---- column 2: challenge · flying lesson (+ its options)
-            maxY = Mathf.Max(maxY, y);
-            x = colX(1); y = top;
-            UiLayout.Label(new Rect(x, y, colW, lh), "CHALLENGE", _head); y += lh;
+        // ---- chapter: challenge · flying lesson (+ its options)
+        private void LessonsPage(ref float y)
+        {
+            float x = _x, colW = _colW, gap = _gap, bh = _bh, row = _row;
+            Head("CHALLENGE", ref y);
             {
                 bool isLesson = SessionSettings.IsPractice(SessionSettings.ChallengeId);
                 string chName = isLesson ? "—  (a lesson is picked)" : "Free flight";
@@ -345,7 +467,7 @@ namespace FlyingGame.Bridge
                 y += row;
             }
             y += gap * 0.4f;
-            UiLayout.Label(new Rect(x, y, colW, lh), "FLYING LESSON", _head); y += lh;
+            Head("FLYING LESSON", ref y);
             {
                 bool gliderPicked = SessionSettings.AircraftId.StartsWith("glider");
                 if (gliderPicked && SessionSettings.LessonNeedsEngine(SessionSettings.ChallengeId)) SessionSettings.ChallengeId = null;
@@ -358,7 +480,7 @@ namespace FlyingGame.Bridge
             if (SessionSettings.LessonHasAxisChoice(SessionSettings.ChallengeId))
             {
                 // Which controls YOU fly (the game takes the rest) — owner 2026-09-15.
-                UiLayout.Label(new Rect(x, y, colW, lh), "YOU FLY", _head); y += lh;
+                Head("YOU FLY", ref y);
                 if (SessionSettings.LessonUserAxes < 0) SessionSettings.LessonUserAxes = SessionSettings.LessonDefaultAxes(SessionSettings.ChallengeId);
                 string[] names = { "AIL", "ELE", "RUD", SessionSettings.AircraftId.StartsWith("glider") ? "SPOIL" : "THR" };
                 float aw = (colW - 3 * gap * 0.3f) / 4f;
@@ -372,7 +494,7 @@ namespace FlyingGame.Bridge
             if (SessionSettings.LessonHasFlapChoice(SessionSettings.ChallengeId) && SelectedHasFlaps())
             {
                 // Flaps for the landing lessons (owner 2026-10-03): the lesson starts on the power-off glide for this setting.
-                UiLayout.Label(new Rect(x, y, colW, lh), "FLAPS", _head); y += lh;
+                Head("FLAPS", ref y);
                 (float f, string n)[] fl = { (0f, "UP"), (0.5f, "HALF"), (1f, "FULL") };
                 float flw = (colW - 2 * gap * 0.3f) / 3f;
                 for (int i = 0; i < 3; i++)
@@ -382,7 +504,7 @@ namespace FlyingGame.Bridge
             if (SessionSettings.IsPractice(SessionSettings.ChallengeId) && SessionSettings.PracticeHasWindChoice(SessionSettings.ChallengeId))
             {
                 // Practice wind (owner 2026-09-15): steady / gusty / shifting crosswind, or calm / head / tail winds with gusts.
-                UiLayout.Label(new Rect(x, y, colW, lh), "PRACTICE WIND", _head); y += lh;
+                Head("PRACTICE WIND", ref y);
                 var choices = SessionSettings.PracticeIsCrosswind(SessionSettings.ChallengeId) ? SessionSettings.CrosswindChoices : SessionSettings.AlongWindChoices;
                 string wName = null;
                 foreach (var c in choices) if (c.w == SessionSettings.PracticeWindChoice) wName = c.name;
@@ -390,10 +512,12 @@ namespace FlyingGame.Bridge
                 Dropdown("pwind", new Rect(x, y, colW, bh), wName, System.Linq.Enumerable.Select(choices, c => (c.name, c.w == SessionSettings.PracticeWindChoice, (System.Action)(() => SessionSettings.PracticeWindChoice = c.w))));
                 y += row;
             }
+        }
 
-            // ---- column 3 (portrait: under column 1): conditions · multiplayer
-            maxY = Mathf.Max(maxY, y);
-            if (port) { x = colX(0); y = maxY + gap; } else { x = colX(2); y = top; }
+        // ---- chapter: the air, and what the aeroplane stands on
+        private void WeatherPage(ref float y)
+        {
+            float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;
             // A SCORED CONTEST OWNS THE AIR (owner 2026-10-18). The moment one is selected the conditions
             // are overwritten with the contest's own and the steppers go dead, because a leaderboard of
             // times flown in air each pilot chose for themselves is a list of who picked the best tailwind.
@@ -452,138 +576,107 @@ namespace FlyingGame.Bridge
             }
             y += row;
             if (locked) GUI.enabled = wasEnabled;
+        }
 
-            if (port) { maxY = Mathf.Max(maxY, y); x = colX(1); }
-            else y += gap * 0.4f;
-            UiLayout.Label(new Rect(x, y, colW, lh), "MULTIPLAYER", _head); y += lh;
+        // ---- chapter: who else is up
+        private void PlayersPage(ref float y)
+        {
+            float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;
+            Head("MULTIPLAYER", ref y);
             bool freePlay = SessionSettings.ChallengeId == null;
             if (!freePlay)
             {
                 SessionSettings.Multiplayer = SessionSettings.MultiplayerMode.Solo;
                 UiLayout.Label(new Rect(x, y, colW, lh), "Free flight only — challenges fly solo.", _small);
                 y += lh;
+                return;
             }
-            else
+            // Four modes in two rows of two: three across a phone column left no room for a label that
+            // says what the fourth one actually does.
+            float half = (colW - gap * 0.4f) / 2f;
+            var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"),
+                                (SessionSettings.MultiplayerMode.PrivateRoom, "Private room"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
+            for (int i = 0; i < modes.Length; i++)
             {
-                // Four modes in two rows of two: three across a phone column left no room for a label that
-                // says what the fourth one actually does.
-                float half = (colW - gap * 0.4f) / 2f;
-                var modes = new[] { (SessionSettings.MultiplayerMode.Solo, "Solo"), (SessionSettings.MultiplayerMode.FreeForAll, "Free-for-all"),
-                                    (SessionSettings.MultiplayerMode.PrivateRoom, "Private room"), (SessionSettings.MultiplayerMode.Lan, "Same network") };
-                for (int i = 0; i < modes.Length; i++)
-                {
-                    float bx = x + (i % 2) * (half + gap * 0.4f), by = y + (i / 2) * row;
-                    if (UiLayout.Button(new Rect(bx, by, half, bh), modes[i].Item2, SessionSettings.Multiplayer == modes[i].Item1 ? _btnOn : _btn))
-                        SessionSettings.Multiplayer = modes[i].Item1;
-                }
-                y += row * 2;
-                if (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo)
-                {
-                    float lw = colW * 0.3f;
-                    UiLayout.Label(new Rect(x, y, lw, bh), "Pilot", _label);
-                    string name = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.PilotName ?? "", 16, _field);
-                    SessionSettings.PilotName = Ascii(name, false);
-                    y += row;
-                }
-                if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan)
-                {
-                    // No internet, no relay, no account: everybody on one wifi taps Fly and finds each other.
-                    // The code is optional and only splits one network into separate rooms; the hint is for a
-                    // network that will not let one device probe another, where one pilot reads out the last
-                    // number of their address.
-                    float lw = colW * 0.3f, cw = colW * 0.42f;
-                    UiLayout.Label(new Rect(x, y, lw, bh), "Room", _label);
-                    string lroom = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
-                    SessionSettings.RoomCode = Ascii(lroom, true);
-                    if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
-                    y += row;
-                    if (FlyingGame.Bridge.Net.PeerLink.Available)   // "Net" alone is this class's session field
-                    {
-                        if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.LanNoRouter ? "No wifi router: ON" : "No wifi router: off",
-                                            SessionSettings.LanNoRouter ? _btnOn : _btn))
-                            SessionSettings.LanNoRouter = !SessionSettings.LanNoRouter;
-                        y += row;
-                    }
-                    if (!SessionSettings.LanNoRouter)
-                    {
-                        UiLayout.Label(new Rect(x, y, lw, bh), "Find", _label);
-                        string hint = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.LanHint ?? "", 21, _field);
-                        SessionSettings.LanHint = Ascii(hint, false);
-                        y += row;
-                    }
-                    UiLayout.Label(new Rect(x, y, colW, lh * 2f),
-                                   SessionSettings.LanNoRouter
-                                       ? "The devices make their own link — no wifi network at all. Stay within sight of each other."
-                                       : SessionSettings.IsValidRoomCode(SessionSettings.RoomCode)
-                                           ? "Everyone on this wifi who types the same code flies together. No internet needed."
-                                           : "Everyone on this wifi taps Fly and finds each other. No internet needed — if nobody appears, type a pilot's last address number in Find.",
-                                   _small);
-                    y += lh * 2f;
-                }
-                if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
-                {
-                    float lw = colW * 0.3f, cw = colW * 0.42f;
-                    UiLayout.Label(new Rect(x, y, lw, bh), "Code", _label);
-                    string code = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
-                    SessionSettings.RoomCode = Ascii(code, true);
-                    if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
-                    y += row;
-                    UiLayout.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
-                    y += lh;
-                }
-
-                // The pass. Only worth a word when it is actually being asked for: while the gate is off
-                // there is nothing to buy yet and a line about it would be a promise we cannot keep.
-                var ent = Commerce.EntitlementRuntime.Instance;
-                if (ent != null && ent.GateMultiplayer && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo
-                    && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Lan
-                    && !ent.CanJoinMultiplayer(out string whyNot))
-                {
-                    UiLayout.Label(new Rect(x, y, colW, lh * 2f), whyNot, _small);
-                    y += lh * 2f;
-                    if (Store != null && UiLayout.Button(new Rect(x, y, colW, bh), "Flying online", _btnOn)) Store.Open = true;
-                    y += row;
-                }
-                else if (Store != null)
-                {
-                    if (UiLayout.Button(new Rect(x, y, colW, bh), "Store", _btn)) Store.Open = true;
-                    y += row;
-                }
+                float bx = x + (i % 2) * (half + gap * 0.4f), by = y + (i / 2) * row;
+                if (UiLayout.Button(new Rect(bx, by, half, bh), modes[i].Item2, SessionSettings.Multiplayer == modes[i].Item1 ? _btnOn : _btn))
+                    SessionSettings.Multiplayer = modes[i].Item1;
             }
-
-            maxY = Mathf.Max(maxY, y);
-            GUI.EndGroup();
-            _contentH = maxY - top + gap;
-            if (_contentH > viewport.height + 1f)
+            y += row * 2;
+            if (SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo)
             {
-                // Scroll bar: only on a screen too small for the page.
-                float frac = viewport.height / _contentH, thumbH = Mathf.Max(lh, viewport.height * frac);
-                float thumbY = viewport.y + (viewport.height - thumbH) * (_scrollY / Mathf.Max(1f, _contentH - viewport.height));
-                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, viewport.y, m * 0.18f, viewport.height), _btnBg);
-                GUI.DrawTexture(new Rect(Screen.width - m * 0.5f, thumbY, m * 0.18f, thumbH), _btnOnBg);
+                float lw = colW * 0.3f;
+                UiLayout.Label(new Rect(x, y, lw, bh), "Pilot", _label);
+                string name = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.PilotName ?? "", 16, _field);
+                SessionSettings.PilotName = Ascii(name, false);
+                y += row;
+            }
+            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.Lan)
+            {
+                // No internet, no relay, no account: everybody on one wifi taps Fly and finds each other.
+                // The code is optional and only splits one network into separate rooms; the hint is for a
+                // network that will not let one device probe another, where one pilot reads out the last
+                // number of their address.
+                float lw = colW * 0.3f, cw = colW * 0.42f;
+                UiLayout.Label(new Rect(x, y, lw, bh), "Room", _label);
+                string lroom = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
+                SessionSettings.RoomCode = Ascii(lroom, true);
+                if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
+                y += row;
+                if (FlyingGame.Bridge.Net.PeerLink.Available)   // "Net" alone is this class's session field
+                {
+                    if (UiLayout.Button(new Rect(x, y, colW, bh), SessionSettings.LanNoRouter ? "No wifi router: ON" : "No wifi router: off",
+                                        SessionSettings.LanNoRouter ? _btnOn : _btn))
+                        SessionSettings.LanNoRouter = !SessionSettings.LanNoRouter;
+                    y += row;
+                }
+                if (!SessionSettings.LanNoRouter)
+                {
+                    UiLayout.Label(new Rect(x, y, lw, bh), "Find", _label);
+                    string hint = GUI.TextField(new Rect(x + lw, y, colW - lw, bh), SessionSettings.LanHint ?? "", 21, _field);
+                    SessionSettings.LanHint = Ascii(hint, false);
+                    y += row;
+                }
+                UiLayout.Label(new Rect(x, y, colW, lh * 2f),
+                               SessionSettings.LanNoRouter
+                                   ? "The devices make their own link — no wifi network at all. Stay within sight of each other."
+                                   : SessionSettings.IsValidRoomCode(SessionSettings.RoomCode)
+                                       ? "Everyone on this wifi who types the same code flies together. No internet needed."
+                                       : "Everyone on this wifi taps Fly and finds each other. No internet needed — if nobody appears, type a pilot's last address number in Find.",
+                               _small);
+                y += lh * 2f;
+            }
+            if (SessionSettings.Multiplayer == SessionSettings.MultiplayerMode.PrivateRoom)
+            {
+                float lw = colW * 0.3f, cw = colW * 0.42f;
+                UiLayout.Label(new Rect(x, y, lw, bh), "Code", _label);
+                string code = GUI.TextField(new Rect(x + lw, y, cw, bh), SessionSettings.RoomCode ?? "", 6, _field);
+                SessionSettings.RoomCode = Ascii(code, true);
+                if (UiLayout.Button(new Rect(x + lw + cw + gap * 0.4f, y, colW - lw - cw - gap * 0.4f, bh), "Create", _btn)) SessionSettings.RoomCode = SessionSettings.NewRoomCode();
+                y += row;
+                UiLayout.Label(new Rect(x, y, colW, lh), SessionSettings.IsValidRoomCode(SessionSettings.RoomCode) ? "Share the code — friends type it to join." : "6 letters/digits: type a friend's code or Create.", _small);
+                y += lh;
             }
 
-            // ---- FLY
-            float fw = s * 0.26f, fh = s * 0.09f;
-            if (UiLayout.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
-
-            // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
-            // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
-            // (handoff 2026-10-17): a web page in the browser, nothing sent from the app. See SupportDesk.
-            float hw = s * 0.17f, hh = fh * 0.62f;
-            if (UiLayout.Button(new Rect(m, Screen.height - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
-            if (UiLayout.Button(new Rect(m + hw + gap * 0.5f, Screen.height - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
-            // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
-            // is that you look at it before you go.
-            if (UiLayout.Button(new Rect(m + hw * 2.25f + gap, Screen.height - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
-            // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
-            if (UiLayout.Button(new Rect(m + hw * 3.25f + gap * 1.5f, Screen.height - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
-            if (SupportDesk.Note.Length > 0)
-                UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
-
-            GUI.enabled = true;
-            DrawDropdown(bh, gap);
+            // The pass. Only worth a word when it is actually being asked for: while the gate is off
+            // there is nothing to buy yet and a line about it would be a promise we cannot keep.
+            var ent = Commerce.EntitlementRuntime.Instance;
+            if (ent != null && ent.GateMultiplayer && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Solo
+                && SessionSettings.Multiplayer != SessionSettings.MultiplayerMode.Lan
+                && !ent.CanJoinMultiplayer(out string whyNot))
+            {
+                UiLayout.Label(new Rect(x, y, colW, lh * 2f), whyNot, _small);
+                y += lh * 2f;
+                if (Store != null && UiLayout.Button(new Rect(x, y, colW, bh), "Flying online", _btnOn)) Store.Open = true;
+                y += row;
+            }
+            else if (Store != null)
+            {
+                if (UiLayout.Button(new Rect(x, y, colW, bh), "Store", _btn)) Store.Open = true;
+                y += row;
+            }
         }
+
 
         /// <summary>Picking a lesson resets its wind to one it offers, and its axes to the lesson's own.</summary>
         private static void PickLesson(string id)

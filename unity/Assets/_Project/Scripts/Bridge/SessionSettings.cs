@@ -43,20 +43,22 @@ namespace FlyingGame.Bridge
         public enum InstrumentMode { Analog, Hud, None }
         /// <summary>Lift/sink markers: Auto = on for gliders, off for powered types; or forced On / Off.</summary>
         public enum Tri { Auto, On, Off }
-        public static Tri LiftMarkers = Tri.Auto;
-        public static bool BubblesOn = true;
+        // Owner 2026-10-28: "default everything off". Auto used to switch the markers on for every glider;
+        // now nothing is drawn until the player asks for it, and LoadPrefs restores whatever they asked for last.
+        public static Tri LiftMarkers = Tri.Off;
+        public static bool BubblesOn = false;             // owner 2026-10-28: off until asked for
         public static bool ShowForceVectors = false;
         /// <summary>Owner 2026-10-07: an optional flight-test data block (α, β, q, TAS/EAS/Mach, pressure and density
         /// altitude, OAT, load factors, rates, path angle, control positions…).</summary>
         public static bool FlightTestData = false;   // draw every force/moment the physics applies, on the airframe
         public static bool LiftMarkersVisible(string aircraftId) => LiftMarkers == Tri.On || (LiftMarkers == Tri.Auto && aircraftId != null && aircraftId.StartsWith("glider"));
-        public static InstrumentMode Instruments = InstrumentMode.Analog;   // round dials / green HUD / nothing      // aerotow tug for the glider: Pawnee or Super Cub
+        public static InstrumentMode Instruments = InstrumentMode.Hud;      // round dials / green HUD / nothing; owner 2026-10-28: the HUD is the default display
         public static Start StartMode = Start.InTheAir;
         /// <summary>Dense bubble field drawn with GPU instancing (thousands of bubbles). Off = the old per-bubble draws
         /// with a sparser field — the escape hatch if instancing fails to place instances on a device.</summary>
         public static bool BubbleInstancing = true;
         /// <summary>Magenta 5-second flight path vector with a cone at its tip (owner 2026-09-10).</summary>
-        public static bool ShowFlightPath = true;
+        public static bool ShowFlightPath = false;        // owner 2026-10-28: off until asked for
         /// <summary>Real 3-D airframe models where one exists (AirframeModels); off = the procedural airframes.</summary>
         public static bool UseAirframeModels = true;
 
@@ -343,6 +345,127 @@ namespace FlyingGame.Bridge
             (FlyingGame.Sim.Practice.PracticeWind.Calm, "Calm"), (FlyingGame.Sim.Practice.PracticeWind.Headwind, "Headwind"), (FlyingGame.Sim.Practice.PracticeWind.HeadwindGusty, "Gusty headwind"),
             (FlyingGame.Sim.Practice.PracticeWind.Tailwind, "Tailwind"), (FlyingGame.Sim.Practice.PracticeWind.TailwindGusty, "Gusty tailwind"),
         };
+
+        // ---- what the player set last time (owner 2026-10-28) ----
+        //
+        // "it should also remember how you last set it up instead of going back to defaults every time."
+        // Everything on this list is written the moment it changes and read once at startup, so the defaults
+        // above are only ever seen on a fresh install. The settings that already keep themselves are NOT on
+        // this list and must not be added to it: clip length and clip instruments (ClipRecorder), the intercom
+        // and the radio frequency (VoiceComms), the master volume (FlightAudio), the livery per type
+        // (LiveryChoice), the badge publishing choice (SaveBadgePrefs) and the control feel (SaveFeel).
+
+        /// <summary>Freeze the world while a menu or settings panel is open (owner 2026-10-28: "i keep crashing
+        /// because i'm turning off bubbles etc"). Never applied in multiplayer — the other aeroplanes are real
+        /// people and the relay keeps running, so there the panel is just a panel.</summary>
+        public static bool PauseWhenMenuOpen = true;
+
+        /// <summary>A settings panel is open over a flight that is already running (OPTIONS, and the landing page's
+        /// own sub-pages reached from it). Held separately from <see cref="MenuOpen"/>, which means the landing
+        /// page owns the whole screen.</summary>
+        public static bool PanelPause;
+
+        /// <summary>Other real pilots are in the air with us, so time is not ours to stop.</summary>
+        public static bool MultiplayerLive => Multiplayer != MultiplayerMode.Solo && EffectiveRoom != null;
+
+        /// <summary>Should the world be standing still this frame?</summary>
+        public static bool WorldFrozen => MenuOpen || (PanelPause && PauseWhenMenuOpen && !MultiplayerLive);
+
+        /// <summary>Put Time.timeScale where <see cref="WorldFrozen"/> says it belongs. A replay drives the clock
+        /// itself, so it is left alone.</summary>
+        public static void ApplyTimeScale()
+        {
+            if (ReplayActive) return;
+            Time.timeScale = WorldFrozen ? 0f : SimSpeed;
+        }
+
+        private const string PrefVer = "set.v";
+        private static bool _prefsLoaded;
+
+        /// <summary>Restore the remembered settings. Safe to call more than once; only the first call reads.</summary>
+        public static void LoadPrefs()
+        {
+            if (_prefsLoaded) return;
+            _prefsLoaded = true;
+            if (PlayerPrefs.GetInt(PrefVer, 0) < 1) return;   // fresh install: keep the defaults above
+            LiftMarkers        = (Tri)PlayerPrefs.GetInt("set.liftMarkers", (int)LiftMarkers);
+            BubblesOn          = GetBool("set.bubbles", BubblesOn);
+            BubbleInstancing   = GetBool("set.bubbleInstancing", BubbleInstancing);
+            BubbleStreaks      = (Streaks)PlayerPrefs.GetInt("set.bubbleStreaks", (int)BubbleStreaks);
+            ShowFlightPath     = GetBool("set.flightPath", ShowFlightPath);
+            ShowForceVectors   = GetBool("set.forceVectors", ShowForceVectors);
+            FlightTestData     = GetBool("set.flightTestData", FlightTestData);
+            ShowAtmosphereMap  = GetBool("set.atmosphereMap", ShowAtmosphereMap);
+            Instruments        = (InstrumentMode)PlayerPrefs.GetInt("set.instruments", (int)Instruments);
+            UseAirframeModels  = GetBool("set.airframeModels", UseAirframeModels);
+            UseOwnModels       = GetBool("set.ownModels", UseOwnModels);
+            ShowOtherBadges    = GetBool("set.otherBadges", ShowOtherBadges);
+            ShowOwnBadge       = GetBool("set.ownBadge", ShowOwnBadge);
+            PauseWhenMenuOpen  = GetBool("set.pauseOnMenu", PauseWhenMenuOpen);
+            NavRadios.Shown    = GetBool("set.navRadios", NavRadios.Shown);
+            // The landing page's own choices, so FLY is one tap after a restart.
+            AircraftId         = PlayerPrefs.GetString("set.aircraft", AircraftId);
+            TugId              = PlayerPrefs.GetString("set.tug", TugId);
+            StartMode          = (Start)PlayerPrefs.GetInt("set.startMode", (int)StartMode);
+            AirportIndex       = PlayerPrefs.GetInt("set.airport", AirportIndex);
+            Runway             = (RunwayPick)PlayerPrefs.GetInt("set.runway", (int)Runway);
+            WindFromDeg        = PlayerPrefs.GetFloat("set.windFrom", WindFromDeg);
+            WindSpeedMs        = PlayerPrefs.GetFloat("set.windSpeed", WindSpeedMs);
+            TurbulenceLevel    = PlayerPrefs.GetInt("set.turbulence", TurbulenceLevel);
+            IsaDeviationC      = PlayerPrefs.GetFloat("set.isaDev", IsaDeviationC);
+            ThermalScale       = PlayerPrefs.GetFloat("set.thermalScale", ThermalScale);
+            SimSpeed           = PlayerPrefs.GetFloat("set.simSpeed", SimSpeed);
+            if (!System.Array.Exists(Fleet, f => f.id == AircraftId)) AircraftId = Fleet[0].id;
+            AirportIndex = Mathf.Clamp(AirportIndex, 0, WorldTerrain.Airports.Length - 1);
+            SimSpeed = Mathf.Clamp(SimSpeed, SimSpeeds[SimSpeeds.Length - 1], 1f);
+        }
+
+        /// <summary>Write the remembered settings. Called from the panels on every change.</summary>
+        public static void SavePrefs()
+        {
+            _prefsLoaded = true;                              // a save before any load must not be undone by one
+            PlayerPrefs.SetInt(PrefVer, 1);
+            PlayerPrefs.SetInt("set.liftMarkers", (int)LiftMarkers);
+            SetBool("set.bubbles", BubblesOn);
+            SetBool("set.bubbleInstancing", BubbleInstancing);
+            PlayerPrefs.SetInt("set.bubbleStreaks", (int)BubbleStreaks);
+            SetBool("set.flightPath", ShowFlightPath);
+            SetBool("set.forceVectors", ShowForceVectors);
+            SetBool("set.flightTestData", FlightTestData);
+            SetBool("set.atmosphereMap", ShowAtmosphereMap);
+            PlayerPrefs.SetInt("set.instruments", (int)Instruments);
+            SetBool("set.airframeModels", UseAirframeModels);
+            SetBool("set.ownModels", UseOwnModels);
+            SetBool("set.otherBadges", ShowOtherBadges);
+            SetBool("set.ownBadge", ShowOwnBadge);
+            SetBool("set.pauseOnMenu", PauseWhenMenuOpen);
+            SetBool("set.navRadios", NavRadios.Shown);
+            PlayerPrefs.SetString("set.aircraft", AircraftId ?? "");
+            PlayerPrefs.SetString("set.tug", TugId ?? "");
+            PlayerPrefs.SetInt("set.startMode", (int)StartMode);
+            PlayerPrefs.SetInt("set.airport", AirportIndex);
+            PlayerPrefs.SetInt("set.runway", (int)Runway);
+            PlayerPrefs.SetFloat("set.windFrom", WindFromDeg);
+            PlayerPrefs.SetFloat("set.windSpeed", WindSpeedMs);
+            PlayerPrefs.SetInt("set.turbulence", TurbulenceLevel);
+            PlayerPrefs.SetFloat("set.isaDev", IsaDeviationC);
+            PlayerPrefs.SetFloat("set.thermalScale", ThermalScale);
+            PlayerPrefs.SetFloat("set.simSpeed", SimSpeed);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>Put every remembered setting back to the shipped default (OPTIONS &gt; Game &gt; Reset).</summary>
+        public static void ResetPrefs()
+        {
+            LiftMarkers = Tri.Off; BubblesOn = false; BubbleInstancing = true; BubbleStreaks = Streaks.Long;
+            ShowFlightPath = false; ShowForceVectors = false; FlightTestData = false; ShowAtmosphereMap = false;
+            Instruments = InstrumentMode.Hud; UseAirframeModels = true; UseOwnModels = false;
+            ShowOtherBadges = true; ShowOwnBadge = true; PauseWhenMenuOpen = true; NavRadios.Shown = true;
+            SavePrefs();
+        }
+
+        private static bool GetBool(string k, bool dflt) => PlayerPrefs.GetInt(k, dflt ? 1 : 0) == 1;
+        private static void SetBool(string k, bool v) => PlayerPrefs.SetInt(k, v ? 1 : 0);
 
         // ---- control feel (owner 2026-09-15): per-axis expo and dead zone the user can tune; < 0 = the aircraft's own ----
         public static readonly float[] FeelExpo = { -1f, -1f, -1f };       // aileron, elevator, rudder
