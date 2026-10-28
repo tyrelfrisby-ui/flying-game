@@ -1,6 +1,10 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
+- **Pitts CG height (Claude, 2026-10-28).** `mass.cg` z is 0.20 m below the datum, derived from what the ground handling needs, because a TCDS gives no vertical CG. The station (x) is now sourced from TCDS A8SO. A mass breakdown per the new-airplane protocol's step 1c would settle the height.
+- **Flat-spin smoke check is red (Claude, 2026-10-28), and it is not the flight model.** `AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin` reports a marker inside the airframe. Cause: one plate covers a whole tailplane including the part inside the fuselage, so near the root "off the plate" and "outside the body" are mutually unsatisfiable and `KeepOut`'s two pushes swap the marker back and forth. It surfaced because the Extra's tail is now at the arm its drawing gives it, which roots the stabiliser further aft in a thinner part of the body. I had a partial fix (skip a plate where it is buried in the body); it cleared the tail root and then failed the same way at the wing root, so I reverted it rather than leave an unverified change to shared flow code inside this diff. The fix belongs in how AirframeFlow builds its plates — a surface should start at the body skin.
+- **The menu overhaul wants a look on a device (Claude, 2026-10-28).** OPTIONS is eight chapters and the landing page five. It ran clean through `AERO_SELFTEST=menu` at all four screen shapes, but nobody has thumbed it yet. Check in particular that a chapter never needs its scrollbar on an iPhone in portrait, and that the "world paused" note reads right.
 - **EA300 GPL — decision needed before App Store release (Claude's review, 2026-10-27; see the Log entry below).** Our own EA300 is now the in-game Extra. Claude's assessment: treat the airframe shell (v2–v12) as a likely derivative of Patrizio Melis's GPL FlightGear EA300, and treat GPL content as not safe to ship through the App Store. **Ty: pick one before App Store release:** (a) ask Patrizio Melis (github.com/cobe571) for written permission to use the measured shape in a closed, commercial App Store game (a draft request is in the log entry); or (b) put the v12 cockpit, engine, inlets, prop and paint onto the clean-room v1 shell (638c05a). This does not block TestFlight or internal builds.
 - **Pitts / Extra ground handling (Claude, 2026-10-28): please feel-test on a device.** The gear now matches the models and both types were retuned (see the Log entry). Things to try:
   - Pitts: taxi, a full-rudder turn at walking pace, and three-point and wheel landings. It is meant to need quick feet: relaxed rudder on the rollout loops it, active rudder holds it.
@@ -35,6 +39,98 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-menu-aero · menu overhaul, remembered settings, and the Pitts/Extra surfaces rebuilt from their models
+
+Owner, in one go: *"overhaul the landing page and the menue so it takes up less space put more things into pull downs
+or buttons that open pages maybe use a chapter/page setup. in normal (not multiplayer) the game should pause while you
+are changing settings … i keep crashing because i'm turning off bubbles etc. it should also remember how you last set
+it up instead of going back to defaults every time. default everything off (bubbles flightpath vector force vector
+etc) and hud as the instrument display. with the new extra and pitts models i want you to recheck all of the
+dimensions and sizes for lifting surfaces … adjust the formulas for the control powers as needed … check the fuselage
+aerodynamic contribution as well."*
+
+**The menu**
+- OPTIONS is now a header that never scrolls plus eight chapter tabs — Display · Aids · Controls · Audio · Clips ·
+  Badges · Game · Help — one page at a time, two rows of four on a phone in portrait and one row of eight in
+  landscape. Every control the old one-long-list panel had is still there, on a page.
+- The unclosable menu cannot come back. OPTIONS and Close are drawn BEFORE the scroll view, the panel is clamped to
+  the screen, and a page's height is MEASURED from where its last row actually ended on the previous pass rather than
+  counted by hand. Adding a row to a page can no longer make the panel the wrong size — the worst it can now do is
+  show a scrollbar.
+- The landing page is five chapters — Aircraft · Start · Lessons · Weather · Players — one column, the same shape in
+  portrait and landscape so it does not move under your thumb when the iPad turns. FLY, HELP, CHART and CREDITS stay
+  where they were, and a one-line summary beside the title says what FLY will do, so a setting on another chapter is
+  never a surprise.
+- The world stops while OPTIONS is open: `SessionSettings.PauseWhenMenuOpen`, on by default, switchable on the Game
+  page. Multiplayer is the exception — `MultiplayerLive` keeps time running when other real pilots are up, and the
+  header says which it is doing.
+- Everything is remembered. `SessionSettings.LoadPrefs`/`SavePrefs` persist the display settings, the aids, the badge
+  switches, the pause choice, the nav radios and the landing page's own choices; the panels write on every change.
+  The settings that already kept themselves (clips, voice, volume, livery, badge publishing, control feel) are NOT on
+  that list and must not be added to it.
+- New defaults, per the owner: bubbles OFF, flight path vector OFF, force vectors OFF, flight test data OFF, lift
+  markers OFF (they used to come on for every glider), instruments = HUD. These are only ever seen on a fresh install.
+  Nav radios are left ON — the chart shows no position, so they are the only way to know where you are, and they were
+  not on the owner's list.
+- `AERO_SELFTEST=menu` now shoots every chapter of both panels at the four screen shapes instead of the top and bottom
+  of one long page. It ran clean through all four shapes and all thirteen chapters.
+
+**The Pitts and the Extra: lifting surfaces rebuilt from the models**
+
+Full write-up, method and before/after tables in `docs/CONTROL-SURFACES.md` ("Pitts and Extra: the surfaces rebuilt
+from the models"). The short version:
+
+| | before | after |
+|---|---|---|
+| Pitts static margin | 44 % MAC | **12.9 %** |
+| Pitts elevator saturation | 120° (non-physical) | **19.4°**, full aft balances on its 18° target |
+| Extra static margin | 9 % MAC | **17.1 %** |
+| Extra elevator saturation | 13.5°, 4.8° short of target | **30.8°**, on target |
+| Extra wing span | 7.43 m (model shrunk to fit) | **7.994 m** (published 8.00) |
+
+- The Extra's tail arm was **1.10 m short** — a quarter of the real arm — and its fin was twice the drawn size: two
+  errors cancelling to a plausible-looking 9 % MAC.
+- The Pitts' stabiliser was 29 % larger than the drawn one and its fin 81 % larger. It was the 44 % MAC type the
+  control-surfaces doc had been carrying as open work since 2026-10-06, and the reason the stall calibration wanted
+  its elevator chord ×3.6. It now calibrates like any other type, so it came off `StallAuthorityTests.ManualElevator`.
+- Control gains are derived from the chord ratio the model has, not hand-set: g = (0.85·τ(E) − E)/(1 − E). The 0.45
+  that was on every aileron and rudder becomes 0.35–0.40.
+- Areas are scaled to the published total (Pitts ×1.023 to 11.6 m², Extra ×1.082 to 10.84 m²) because these meshes
+  were only ever checked on length/span and height/span, never on area. The spanwise distribution, arms, chords,
+  heights and stations are the measurements.
+- The fuselage body terms were re-measured as rasterised union silhouettes. The Extra's side area was 2.4× low and its
+  centroid 0.88 m forward of where the body is. `cd0Area` and the crossflow `cd` are untouched on purpose.
+- **The Pitts' CG, fact-checked against FAA TCDS A8SO** (Ty asked). The config datum is the lower wing leading edge
+  (the model's origin is exactly there). The S-2B sheet gives the datum as 91.81" forward of that edge and the
+  **Acrobatic** C.G. range as (+89.58 to +90.50) at **1625 lb** — and `massKg` 737 is exactly 1625 lb, so that is the
+  range that applies. It works out to **0.033–0.057 m FORWARD of the lower wing LE**. The old config had the CG
+  0.030 m **AFT** of it: the wrong side of the datum feature, about 3 in outside the envelope. `mass.cg` is now the
+  acrobatic mid-range, **0.045 m**, which gives 12.9 % MAC and an elevator that calibrates to 19.4°. The TCDS also
+  notes the S-2B has "wings and landing gear moved forward 6 inches" against the S-2A, which is why its mains sit so
+  far ahead of the CG — the aeroplane really is short-coupled on the ground.
+  The CG **height** (0.20 m below the datum) is still derived, not certified: a TCDS gives no vertical CG.
+- **Control-surface travel is now the certificates' (Ty asked for the CG fact-check; this fell out of it).** Both
+  configs carried `maxDeflRad` 0.52 rad = 29.8° on all three axes — an unsourced deflection limit, and therefore
+  unsourced control power. A8SO gives the S-2B aileron 25°, elevator 27°, rudder 30°; EASA.A.362 gives the EA 300
+  aileron 30°, elevator 25°, rudder 30°. So the Pitts loses 19 % of its aileron travel and 10 % of its elevator, and
+  the Extra 19 % of its elevator. Both elevators re-calibrated afterwards and land on their targets (Pitts saturation
+  20.3° for an 18.0° balance, Extra 48.7° for 20.0°).
+- **The Extra's CG needed no change.** EASA.A.362 Issue 09: datum is the plane of the firewall, C.G. 75.0–89.8 cm aft
+  of it at 820 kg or below, and `massKg` is 820. With the firewall at the aft face of the engine (config x +0.79,
+  ±0.05 — the model has no firewall node) that is config x +0.04 to −0.11 against `mass.cg` −0.02: inside, slightly
+  forward of mid-range, and its 17.1 % MAC agrees.
+- The gear moved with it: the model is lined up on the wing chord line, and the wing's quarter-chords were 0.26 m out,
+  so the drawn wheels sit 0.26 m forward of where the config had them (Pitts) and the Extra's grew 6.6 % with its
+  span. Taken from `GearMatchesTheModels`' own measurement of the drawn contacts.
+
+**Pitts v13 (owner, 2026-10-28, ~/Desktop/Pitts-v13-handoff)** — installed over the v12 GLBs in place, keeping the
+.meta files and GUIDs. Checked against v12 before installing: every lifting surface is identical to 4 decimal places
+in area and extent, the node set is the same, and **the slave struts did not move** (same frontal area, same spanwise
+station 1.918–2.035 m, same chord position) — their 10-inch inboard move was v11→v12 and is already in the
+measurements above. The only change the airstream sees is the cabane feet moving inboard: +0.0014 m² of frontal area
+on an aeroplane presenting 2.83 m², which is 0.05 % and lives inside the lumped `cd0Area`. No aerodynamic rework.
+`checker-unmarked` (no tail number) was already the default and stays it.
+
 ### 2026-10-28 — Claude · lane/claude-livery-picker · unmarked liveries are the defaults (Pitts Checkered, Extra Unmarked)
 **What the GLBs really carry**
 
