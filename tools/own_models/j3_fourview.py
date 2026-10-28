@@ -6,9 +6,13 @@ a = sys.argv[sys.argv.index('--') + 1:]; G, OUT = a[0], a[1]
 ONLY = a[2].split(',') if len(a) > 2 and a[2] not in ('', 'all') else None
 OPEN = len(a) > 3 and 'open' in a[3]
 TRIM = len(a) > 3 and 'trim' in a[3]      # show the stab at full LE-down trim (-4 deg)
+import os
+HIDE = [h for h in os.environ.get('J3_HIDE', '').split(',') if h]   # hide nodes whose name starts with these (cutaways)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=G)
 sc = bpy.context.scene
+for o in list(sc.objects):
+    if any(o.name.startswith(h) for h in HIDE): o.hide_render = True
 if OPEN:
     for o in sc.objects:
         if 'open_deg' in o.keys():
@@ -62,3 +66,24 @@ cam('float_iso', (-4.6, -5.2, 0.8), (0.4, -0.4, -0.9), 0, (1600, 1000), persp=38
 cam('float_rig', (-8, 0, -0.75), (0, 0, -0.75), 2.9, (1400, 900))
 cam('float_side', (0.95, -20, -0.9), (0.95, 0, -0.9), 5.0, (1600, 700))
 cam('struts_low', (-2.6, -3.2, -1.9), (0.3, 0, -0.8), 0, (1400, 1000), persp=40)
+# v4 close-ups
+cam('jury', (2.2, 4.2, -0.5), (0.2, 2.2, 0.35), 0, (1400, 1000), persp=35)        # right wing struts from aft/below
+cam('jury_front', (-8, 2.2, 0.25), (0, 2.2, 0.25), 1.6, (1200, 1000))
+cam('jury_up', (0.2, 2.25, -1.6), (0.2, 2.25, 0.4), 1.4, (1200, 1000), 'X')       # looking straight up at the jury station
+cam('stripe', (1.45, -20, 0.12), (1.45, 0, 0.12), 5.4, (1600, 600))                # port side, whole bolt
+cam('stripe_nose', (-0.3, -20, 0.05), (-0.3, 0, 0.05), 1.6, (1400, 900))
+cam('stripe_r', (1.45, 20, 0.12), (1.45, 0, 0.12), 5.4, (1600, 600))
+cam('seats', (0.45, 1.9, 0.7), (0.4, 0, -0.15), 0, (1400, 1000), persp=30)
+cam('seats_cut', (0.6, 20, -0.05), (0.6, 0, -0.05), 1.9, (1400, 1000))
+cam('seats_iso', (-0.9, 1.4, 0.55), (0.35, 0, -0.15), 0, (1400, 1000), persp=28)
+cam('door_fold', (-2.4, 2.6, -0.9), (0.25, 0.35, -0.45), 0, (1400, 1000), persp=35)
+cam('door_front', (-8, 0.65, -0.4), (0, 0.65, -0.4), 1.1, (1100, 1000))
+cam('door_aft', (8, 0.65, -0.4), (0, 0.65, -0.4), 1.1, (1100, 1000))
+cam('door_side', (0.3, 8, -0.05), (0.3, 0, -0.05), 1.6, (1400, 1100))
+cam('cap', (-2.0, 0.9, 0.85), (-0.95, 0, 0.45), 0, (1200, 1000), persp=50)
+cam('cap_side', (-0.95, -20, 0.45), (-0.95, 0, 0.45), 0.6, (1000, 1000))
+cam('brow', (-2.6, 1.3, 1.1), (-1.40, 0.28, 0.2), 1.0, (1300, 1000))
+cam('brow_l', (-2.6, -1.3, 1.1), (-1.40, -0.28, 0.2), 1.0, (1300, 1000))
+cam('brow_front', (-8, 0, 0.15), (0, 0, 0.15), 1.1, (1300, 800))
+cam('tail_side_ov', (4.133, -20, 0.835), (4.133, 0, 0.835), 2.0, (1600, 1600))     # 1.25 mm/px, port side, nose left
+cam('tail_top_ov', (4.183, 0, 20), (4.183, 0, 0), 3.2, (1600, 1600), 'X')          # 2.0 mm/px

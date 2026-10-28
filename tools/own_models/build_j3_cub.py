@@ -195,7 +195,7 @@ F_HW = tbl([(0.185, 0.05), (0.19, 0.09), (0.20, 0.12), (0.22, 0.165), (0.25, 0.2
 F_NT = tbl([(0.185, 2.2), (0.785, 2.6), (0.96, 2.6), (1.40, 6.0), (1.50, 14.0), (2.95, 14.0), (3.25, 2.8), (6.25, 2.4)])
 F_NB = tbl([(0.185, 2.2), (0.785, 2.8), (1.00, 5.0), (6.25, 5.0)])
 ZWF = 0.55
-KLO = list(np.linspace(-0.31, 0.03, 9))
+KLO = [-0.31] + list(np.linspace(-0.215, 0.03, 8))      # v4: a key row on the raised lower-door bottom (zb -0.215)
 KHI = [0.06, 0.10, 0.14, 0.18, 0.22, 0.26, 0.30, 0.34, 0.38, 0.42, 0.46, 0.47, 0.49]
 KEYZ = KLO + KHI; KMIN, KMAX, KPIV = KEYZ[0], KEYZ[-1], 0.03
 MT_, MB_ = 14, 14
@@ -232,7 +232,7 @@ def fus_y(xd, z):
 # stations: dense where windows / door / hoods have edges
 XS = [0.185, 0.186, 0.188, 0.191, 0.195, 0.20, 0.207, 0.215, 0.225, 0.238, 0.25, 0.27, 0.29, 0.31, 0.325, 0.345,
       0.37, 0.40, 0.43, 0.46, 0.49, 0.52, 0.545, 0.57, 0.60, 0.65, 0.70, 0.75, 0.785, 0.84, 0.90, 0.96]
-XS += L(0.99, 1.23, 9) + L(1.27, 1.59, 7) + L(1.62, 1.94, 17) + L(1.98, 2.15, 4) + [2.19, 2.225, 2.30, 2.36, 2.40, 2.43, 2.47]   # 0.02 m through the chevron door edge
+XS += L(0.99, 1.23, 9) + L(1.27, 1.59, 7) + L(1.62, 1.94, 17) + L(1.98, 2.15, 4) + [2.19, 2.225] + L(2.25, 2.43, 10) + [2.47]   # 0.02 m through the chevron front + slanted aft door edges
 XS += L(2.4975, 2.82, 13) + [2.87, 2.95, 3.03, 3.10, 3.20, 3.35, 3.50, 3.70, 3.90, 4.10, 4.35, 4.60, 4.85, 5.10, 5.30,
                               5.45, 5.60, 5.75, 5.90, 6.02, 6.12, 6.20, 6.25]
 XS = sorted(set(round(v, 4) for v in XS))
@@ -246,25 +246,32 @@ D_X0, D_X1, D_Z0, D_Z1, D_ZC = 2.47, 2.80, 0.03, 0.47, 0.23     # rear "D" windo
 def d_aft(z):
     h = (D_Z1 - D_ZC) if z >= D_ZC else (D_ZC - D_Z0); r = min(abs(z - D_ZC) / h, 1.0)
     return D_X0 + (D_X1 - D_X0) * (1 - r ** 2.5) ** (1 / 2.5)
-DOOR = dict(x0=1.70, x1=2.43, zs=0.03, zt=0.49, zb=-0.31, gx0=1.73, gx1=2.40, gz0=0.06, gz1=0.46)
+DOOR = dict(x0=1.70, x1=2.43, zs=0.03, zt=0.49, zb=-0.215, gx0=1.73, gx1=2.40, gz0=0.06, gz1=0.46)
 # chevron front edge (photos c37 / c47 / d01, refs/j3-cub): the door's forward point is at the sill (x0); the upper (window)
 # half's front edge leans aft toward the top, the lower half's front edge leans aft toward the bottom. Lower door depth
 # (sill -> zb) ~ half the sill-to-belly height, bottom well above the lower longeron (photos).
-DOOR.update(up_lean=0.14, lo_lean=0.16)
+# v4 (Ty): lower panel bottom raised 0.095 m (zb -0.31 -> -0.215) so the folded-down panel (bottom at 2*zb - zs) clears the
+# lift struts; same chevron angle (lean per metre unchanged). Aft edge slants so the door is narrow at the bottom and wide
+# at the top (photos c47 / d01 / c34): 2.43 at the top, 2.40 at the split line, 2.25 at the bottom of the lower panel.
+DOOR.update(up_lean=0.14, lo_lean=0.16 * 0.245 / 0.34, ax_t=2.43, ax_s=2.40, ax_b=2.25)
 def door_fx(z):
     """door front edge xd at height z (chevron, forward point at the sill)"""
     if z >= DOOR['zs']: return DOOR['x0'] + DOOR['up_lean'] * (z - DOOR['zs']) / (DOOR['zt'] - DOOR['zs'])
     return DOOR['x0'] + DOOR['lo_lean'] * (DOOR['zs'] - z) / (DOOR['zs'] - DOOR['zb'])
+def door_ax(z):
+    """door aft edge xd at height z (slanted: narrow at the bottom, wide at the top)"""
+    if z >= DOOR['zs']: return DOOR['ax_s'] + (DOOR['ax_t'] - DOOR['ax_s']) * min((z - DOOR['zs']) / (DOOR['zt'] - DOOR['zs']), 1.0)
+    return DOOR['ax_s'] - (DOOR['ax_s'] - DOOR['ax_b']) * min((DOOR['zs'] - z) / (DOOR['zs'] - DOOR['zb']), 1.0)
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
 def region(c, n):
     xd, y, z = -c.x, c.y, c.z; side = abs(n.y) > 0.45
     if 0.96 < xd < (door_fx(z) - POST if side else 1.665) and z > (max(0.03, sill_d(xd)) if side else 0.03) and (xd < 1.42 or (side and z < DOOR['zt'])):
         return 'glass'
-    if DOOR['x0'] < xd < DOOR['x1'] and side:
+    if DOOR['x0'] < xd < door_ax(z) and side:
         if y < 0:
             if DOOR['zs'] < z < DOOR['zt'] and xd > door_fx(z):
-                return 'door_glass' if (door_fx(z) + 0.03 < xd < DOOR['gx1'] and DOOR['gz0'] < z < DOOR['gz1']) else 'door_up'
+                return 'door_glass' if (door_fx(z) + 0.03 < xd < door_ax(z) - 0.03 and DOOR['gz0'] < z < DOOR['gz1']) else 'door_up'
             if DOOR['zb'] < z < DOOR['zs'] and xd > door_fx(z): return 'door_lo'
         elif DOOR['zs'] < z < DOOR['zt'] and xd > door_fx(z) and not (2.19 < xd < 2.225):
             return 'glass'
@@ -289,11 +296,15 @@ for v in bm.verts:
     ls = set(lab[f.index] for f in v.link_faces)
     if len(ls) < 2 or min(abs(f.normal.y) for f in v.link_faces) < 0.45: continue
     xd, z = -v.co.x, v.co.z
-    if not (DOOR['zb'] - 0.005 < z < DOOR['zt'] + 0.005) or not (1.55 < xd < 2.0): continue
+    if not (DOOR['zb'] - 0.005 < z < DOOR['zt'] + 0.005) or not (1.55 < xd < 2.0 or 2.17 < xd < 2.47): continue
     f0 = door_fx(z); tg = []
-    if ls & {'door_up', 'door_lo'} or ('glass' in ls and v.co.y > 0): tg.append(f0)          # door front edge (left: window)
-    if 'glass' in ls: tg.append(f0 - POST)                                                   # fixed side window aft edge
-    if 'door_glass' in ls: tg.append(f0 + 0.03)                                              # door window front edge
+    if xd > 2.17:                                                                             # v4 slanted aft edge
+        if 2.23 < xd and (ls & {'door_up', 'door_lo'} or ('glass' in ls and v.co.y > 0)): tg.append(door_ax(z))
+        if 'door_glass' in ls: tg.append(door_ax(z) - 0.03)
+        f0 = None
+    if f0 is not None and (ls & {'door_up', 'door_lo'} or ('glass' in ls and v.co.y > 0)): tg.append(f0)          # door front edge (left: window)
+    if f0 is not None and 'glass' in ls: tg.append(f0 - POST)                                                   # fixed side window aft edge
+    if f0 is not None and 'door_glass' in ls: tg.append(f0 + 0.03)                                              # door window front edge
     tg = [t for t in tg if abs(t - xd) < 0.024]
     if tg: v.co.x = -min(tg, key=lambda t: abs(t - xd)); CHEV += 1
 print('DOOR chevron verts snapped', CHEV)
@@ -318,16 +329,24 @@ for nm, b2 in (('DoorUpper_R', b_door_up), ('DoorLower_R', b_door_lo)):
     P[nm] = link(nm, b2)
 P['Window_R'] = link('Window_R', b_door_gl)
 
-# ---- tail: stab + elevators (hinge xd 6.05), fin + balanced rudder (hinge xd 6.255, horn above the fin) ---------------
-H_S, Z_S, H_R = -6.05, 0.35, -6.255
-ST = [(0.0, .68, .22), (0.05, .68, .22), (0.10, .68, .33), (0.25, .67, .43), (0.50, .63, .48), (0.75, .57, .47),
-      (1.00, .50, .43), (1.07, .46, .41), (1.25, .38, .30), (1.35, .28, .19), (1.40, .17, .11), (1.415, .10, .065),
-      (1.43, 0.0, 0.0)]
-S_S = 1.43
+# ---- tail: stab + elevators (hinge xd 6.19), fin + balanced rudder (hinge xd 6.255, horn above the fin) ---------------
+# v4 tail check against two published 3-views (refs/j3-cub/: Commons J-3 3-view; P. Severin 3-view after Paul Matt /
+# Piper J3 service manual). Both put the elevator hinge only ~0.05-0.08 m ahead of the rudder hinge (v3 had 0.205), so
+# the stab/elevator group moves 0.14 m aft. Planform = Severin top view (half-span scaled to the owner's-manual 9 ft 6 in
+# = 1.448 m): stab exposed ~15 sq ft, elevators ~11 sq ft (manual 15.1 / 11.7). Elevator inboard edge = the drawing's
+# diagonal cut-out beside the rudder (table TE offsets at y 0.06-0.30).
+H_S, Z_S, H_R = -6.19, 0.35, -6.255
+ST = [(0.000, .684, .030), (0.045, .684, .040), (0.060, .684, .066), (0.100, .684, .154), (0.120, .684, .199),
+      (0.150, .684, .259), (0.199, .677, .334), (0.249, .677, .384), (0.299, .670, .418), (0.399, .656, .465),
+      (0.499, .643, .480), (0.598, .623, .481), (0.698, .596, .470), (0.798, .563, .453), (0.898, .525, .428),
+      (0.997, .477, .395), (1.097, .423, .360), (1.197, .354, .316), (1.247, .315, .289), (1.296, .271, .261),
+      (1.346, .213, .220), (1.376, .182, .190), (1.396, .152, .161), (1.416, .118, .134), (1.426, .095, .116),
+      (1.436, .069, .086), (1.444, .047, .058), (1.448, 0.0, 0.0)]
+S_S = 1.448
 LES = lambda y: H_S + float(np.interp(abs(y), [r[0] for r in ST], [r[1] for r in ST]))
 TES = lambda y: H_S - float(np.interp(abs(y), [r[0] for r in ST], [r[2] for r in ST]))
 STB = Surf(LES, TES, lambda y: Z_S, 0.045, minc=0.01)
-E_IN, E_PHI = 0.035, math.radians(30)
+E_IN, E_PHI = 0.045, math.radians(28)     # e_cut only spaces the root sections; the ST table sets the cut
 def e_cut(s): return H_R - 0.004 - max(abs(s) - E_IN, 0) / math.tan(E_PHI)      # elevator inboard edge (rudder swing room)
 E_MEET = E_IN + (H_R - 0.004 - TES(0.4)) * math.tan(E_PHI)
 ss = sorted(set([round(v, 4) for v in L(0.0, 0.10, 3) + L(0.14, 1.25, 12) + tipL(1.27, S_S - 0.001, 10)]))
@@ -336,17 +355,20 @@ for side, sg in (('L', 1), ('R', -1)):
     spn = L(E_IN + 0.003, E_MEET, 8) + L(E_MEET + 0.03, 1.25, 9) + tipL(1.27, S_S - 0.004, 9)
     P['Elevator_' + side] = surf_obj('Elevator_' + side, STB, [sg * s for s in spn], x_from=lambda s: H_S - GAP,
                                      x_to=lambda s: max(TES(s), e_cut(s)))
-FLE = tbl([(0.40, 5.20), (0.47, 5.30), (0.50, 5.39), (0.53, 5.46), (0.58, 5.53), (0.63, 5.58), (0.80, 5.68), (1.00, 5.81), (1.11, 5.88)])
-RTE = tbl([(0.045, 6.26), (0.06, 6.37), (0.09, 6.50), (0.13, 6.61), (0.17, 6.69), (0.24, 6.75), (0.32, 6.78), (0.40, 6.795),
-           (0.465, 6.79), (0.60, 6.75), (0.80, 6.68), (1.00, 6.62), (1.11, 6.59), (1.19, 6.56), (1.26, 6.53), (1.32, 6.50),
-           (1.36, 6.45), (1.39, 6.40), (1.41, 6.25)])
-HLE = tbl([(1.11, 5.88), (1.20, 5.93), (1.30, 5.99), (1.35, 6.04), (1.38, 6.10), (1.40, 6.18), (1.41, 6.25)])
+# v4: fin LE / rudder TE nudged to the mean of the two 3-views (LE ~0.02 fwd); lower rudder rounded per both drawings;
+# rudder area 6.55 sq ft (manual 6.55), fin above the turtledeck ~4.2 (manual 4.7 incl. the part inside the fairing)
+FLE = tbl([(0.40, 5.20), (0.47, 5.30), (0.50, 5.385), (0.53, 5.45), (0.58, 5.515), (0.63, 5.56), (0.80, 5.66), (1.00, 5.79), (1.11, 5.86)])
+RTE = tbl([(0.045, 6.26), (0.05, 6.29), (0.06, 6.31), (0.08, 6.38), (0.10, 6.445), (0.12, 6.515), (0.14, 6.58), (0.16, 6.645),
+           (0.18, 6.69), (0.20, 6.72), (0.24, 6.752), (0.28, 6.775), (0.32, 6.787), (0.40, 6.795), (0.465, 6.79), (0.60, 6.738),
+           (0.80, 6.672), (1.00, 6.607), (1.11, 6.577), (1.19, 6.547), (1.26, 6.513), (1.32, 6.475), (1.36, 6.435), (1.39, 6.385),
+           (1.41, 6.25)])
+HLE = tbl([(1.11, 5.86), (1.20, 5.915), (1.30, 5.98), (1.35, 6.03), (1.38, 6.095), (1.40, 6.175), (1.41, 6.25)])
 def fin_le(z): return -(FLE(z) if z <= 1.11 else HLE(z))
-def fin_te(z): return -RTE(z) if z > 0.10 else -6.26 - (z - 0.045) / 0.055 * 0.11
+def fin_te(z): return -RTE(max(z, 0.045))
 FIN = Surf(fin_le, fin_te, lambda z: 0.0, 0.065, axis='z', minc=0.01)
 P['Fin'] = surf_obj('Fin', FIN, L(0.40, 1.105, 12), x_to=lambda z: H_R + GAP)
 bmr = bmesh.new()
-for zs, xf in ((L(0.045, 1.115, 16), lambda z: H_R - GAP), (L(1.115, 1.409, 8), None)):
+for zs, xf in ((L(0.045, 0.20, 8) + L(0.24, 1.115, 14), lambda z: H_R - GAP), (L(1.115, 1.409, 8), None)):
     secs = [FIN.section(z, None if xf is None else xf(z), None, 22) for z in zs]
     loft_rings(bmr, secs)
 for sy in (1, -1):                                               # rudder horns (steering spring / cable attach)
@@ -354,23 +376,30 @@ for sy in (1, -1):                                               # rudder horns 
 bmesh.ops.recalc_face_normals(bmr, faces=bmr.faces); P['Rudder'] = link('Rudder', bmr)
 bmw = bmesh.new()             # tail brace wires: AFT wires only (one over, one under each side) at the stab rear spar -
 for sy in (1, -1):            # the J-3 trims with a jack-screw on the stab LE (no trim tab), so there are no forward wires
-    for a, b in (((6.12, 0, 0.98), (6.02, sy * 0.95, Z_S + 0.015)),
-                 ((6.02, sy * 0.95, Z_S - 0.015), (6.20, sy * 0.025, 0.045))):
+    for a, b in (((6.21, 0, 0.98), (6.16, sy * 0.95, Z_S + 0.015)),          # v4: follow the stab aft (rear spar xd 6.16)
+                 ((6.16, sy * 0.95, Z_S - 0.015), (6.22, sy * 0.025, 0.04))):
         tube(bmw, [B(*a), B(*b)], 0.003, n=6)
 P['Wire_Tail'] = link('Wire_Tail', bmw)
 
 # ---- lift struts (V pair each side, front + rear spar) and jury struts --------------------------------------------------
 bms = bmesh.new()
-F_ST = (2.05, 0.325, -0.57); Y_ST = 3.40
+F_ST = (2.05, 0.325, -0.57); Y_ST = 3.40; J_F = 0.62; JURY = {}
 for sy in (1, -1):
     root = np.array(B(F_ST[0], sy * F_ST[1], F_ST[2]))
+    js = []
     for xs_ in (1.695, 2.40):
         tip = wsurf(W, sy * Y_ST, (xs_ - LE_D) / CH, False) + np.array((0, 0, 0.01))
         blade_strut(bms, root, tip, [0.085] * 6, 0.036)
-        j = root + 0.62 * (tip - root); jt = wsurf(W, j[1], (-j[0] - LE_D) / CH, False)
-        tube(bms, [j, jt + np.array((0, 0, 0.01))], 0.011, n=8)
+        # v4 (Ty / NASM + museum photos): each jury strut runs from its lift strut straight up to ITS OWN spar (front strut
+        # -> front spar, rear -> rear spar) at the same span station, and a cross tube ties the front and rear lift
+        # struts together right at that jury station.
+        j = root + J_F * (tip - root); jt = wsurf(W, j[1], (xs_ - LE_D) / CH, False) + np.array((0, 0, 0.008))
+        tube(bms, [j, jt], 0.011, n=8); js.append(j)
+        JURY[(sy, xs_)] = (np.round(j, 3), np.round(jt, 3))
+    tube(bms, js, 0.012, n=8)                                     # front <-> rear lift-strut tie at the jury station
     tube(bms, [root + np.array((0, 0, 0.03)), np.array(B(F_ST[0], sy * (F_ST[1] - 0.03), F_ST[2] + 0.03))], 0.018, n=8)
 P['Strut_Wing'] = link('Strut_Wing', bms)
+for k_, v_ in JURY.items(): print('JURY', k_, 'strut pt', v_[0], '-> spar', v_[1])
 
 # ---- engine: A-65 heads under black hoods, exhaust, nose bowl inlet, crank flange, fuel cap + float wire -------------
 EN_T = []
@@ -391,21 +420,50 @@ for sy in (1, -1):
         en_add(bme, 'rocker', lambda: cyl(bme, B(hx, sy * 0.385, CZ), B(hx, sy * 0.393, CZ), 0.03, 12))
         en_add(bme, 'steel', lambda: tube(bme, [B(hx + 0.01, sy * 0.13, CZ - 0.075), B(hx + 0.01, sy * 0.28, CZ - 0.07)], 0.008, n=8))
         en_add(bme, 'exh', lambda: tube(bme, [B(hx, sy * 0.30, CZ - 0.06), B(hx + 0.02, sy * 0.30, CZ - 0.12), B(hx + 0.06, sy * 0.292, CZ - 0.15)], 0.017, n=10))
-    for hx in HEADS[sy]:                                                         # black "eyebrow" baffle over top/front of each head
-        def eyebrow():
-            ts = np.radians(np.linspace(55, 205, 16)); prof = []
-            for r_, tt in [(0.084, t_) for t_ in ts] + [(0.078, t_) for t_ in ts[::-1]]:
-                prof.append((hx + r_ * math.cos(tt), r_ * math.sin(tt) + CZ))
-            loft_rings(bme, [[B(px, sy * yy, pz) for px, pz in prof] for yy in (0.25, 0.365)])
-        en_add(bme, 'hood', eyebrow)
+    # v4 "eyebrows": ONE black sheet-metal scoop per bank (photos NASM / c40 / c19; Severin front view) riveted to the cowl
+    # side above the head opening, roofing both heads, its front lip curling down ahead of the front head and its aft end
+    # rolling down behind the rear head; outboard edge droops, bottom + outboard face open (rocker covers visible).
+    def eyebrow(sy=sy):
+        xf, xr = HEADS[sy][0] - 0.09, HEADS[sy][1] + 0.10; ZT, ZL, YO = 0.165, 0.0, 0.43
+        xs = L(xf, xr, 16)
+        def sc(x_):                                       # full section over both heads, closing down onto the cowl aft
+            t = (x_ - (HEADS[sy][1] + 0.03)) / (xr - HEADS[sy][1] - 0.03)
+            return 1.0 if t <= 0 else 0.12 + 0.88 * math.cos(min(t, 1.0) * math.pi / 2)
+        us = [math.sin(a_) for a_ in np.linspace(0, math.pi / 2, 11)]
+        def pt(x_, u, off=0.0):
+            k = sc(x_); yi = fus_y(min(max(x_, 0.19), 0.95), ZL + k * (ZT - ZL)) - 0.012
+            yo = yi + k * (YO - yi); zt = ZL + k * (ZT - ZL)
+            y_ = yi + u * (yo - yi); z_ = ZL + (zt - ZL) * math.sqrt(max(0.0, 1 - u * u))
+            return B(x_, sy * (y_ - off * u), z_ - off * math.sqrt(max(0.0, 1 - u * u)))
+        top = [[pt(x_, u) for u in us] for x_ in xs]; bot = [[pt(x_, u, 0.004) for u in us] for x_ in xs]
+        vt = [[bme.verts.new(p_) for p_ in row] for row in top]; vb = [[bme.verts.new(p_) for p_ in row] for row in bot]
+        nI, nJ = len(top), len(us); fs = []
+        for a_ in range(nI - 1):
+            for b_ in range(nJ - 1):
+                fs.append(bme.faces.new((vt[a_][b_], vt[a_ + 1][b_], vt[a_ + 1][b_ + 1], vt[a_][b_ + 1])))
+                fs.append(bme.faces.new((vb[a_][b_], vb[a_][b_ + 1], vb[a_ + 1][b_ + 1], vb[a_ + 1][b_])))
+        rim = [(a_, 0) for a_ in range(nI)] + [(nI - 1, b_) for b_ in range(1, nJ)] + [(a_, nJ - 1) for a_ in range(nI - 2, -1, -1)] + [(0, b_) for b_ in range(nJ - 2, 0, -1)]
+        for k_ in range(len(rim)):
+            (a0, b0), (a1, b1) = rim[k_], rim[(k_ + 1) % len(rim)]
+            fs.append(bme.faces.new((vt[a0][b0], vb[a0][b0], vb[a1][b1], vt[a1][b1])))
+        bmesh.ops.recalc_face_normals(bme, faces=fs)
+    en_add(bme, 'hood', eyebrow)
     xa, xb = HEADS[sy][0], 0.74
     en_add(bme, 'exh', lambda: tube(bme, [B(xa + 0.06, sy * 0.292, CZ - 0.15), B(0.62, sy * 0.29, -0.175), B(xb, sy * 0.285, -0.19)], 0.024, n=12))
 en_add(bme, 'case', lambda: rbox(bme, B(0.47, 0, CZ), (0.34, 0.20, 0.16)))
 en_add(bme, 'steel', lambda: cyl(bme, B(0.14, 0, 0), B(0.19, 0, 0), 0.055, 20))
 en_add(bme, 'dark', lambda: rbox(bme, B(0.197, 0, -0.215), (0.012, 0.11, 0.06), Matrix.Rotation(math.radians(-40), 4, 'Y')))
-en_add(bme, 'alu', lambda: cyl(bme, B(0.85, 0, 0.197), B(0.85, 0, 0.215), 0.035, 16))
-en_add(bme, 'steel', lambda: tube(bme, [B(0.85, 0, 0.21), B(0.85, 0, 0.32), B(0.84, 0, 0.335)], 0.0025, n=6))
-en_add(bme, 'dark', lambda: rbox(bme, B(0.84, 0, 0.335), (0.012, 0.012, 0.012)))
+# v4 (Ty): red fuel cap on the nose-tank filler ahead of the windshield + the float-gauge wire, ~8 in above the cap with a
+# 90-degree bend at the top (bend points aft, toward the pilot: judgement)
+ZCAP = F_TOP(0.85)
+en_add(bme, 'alu', lambda: cyl(bme, B(0.85, 0, ZCAP - 0.006), B(0.85, 0, ZCAP + 0.016), 0.037, 24))      # cap body
+en_add(bme, 'alu', lambda: cyl(bme, B(0.85, 0, ZCAP + 0.016), B(0.85, 0, ZCAP + 0.024), 0.031, 24, r2=0.024))  # domed crown
+en_add(bme, 'alu', lambda: rbox(bme, B(0.85, 0, ZCAP + 0.028), (0.012, 0.050, 0.012)))                   # wing grip
+en_add(bme, 'steel', lambda: cyl(bme, B(0.85, 0, ZCAP + 0.03), B(0.85, 0, ZCAP + 0.055), 0.005, 10))     # wire guide
+WIRE_TOP = ZCAP + 0.024 + 0.203
+en_add(bme, 'dark', lambda: tube(bme, [B(0.85, 0, ZCAP + 0.05), B(0.85, 0, WIRE_TOP - 0.01), B(0.853, 0, WIRE_TOP - 0.001),
+                                       B(0.862, 0, WIRE_TOP), B(0.89, 0, WIRE_TOP)], 0.002, n=6))
+print('FUELCAP top z %.3f, wire top z %.3f (%.1f in above the cap)' % (ZCAP + 0.024, WIRE_TOP, 0.203 / 0.0254))
 EN_T = [EN_NAMES[t] for t in tags_of(bme)]; P['Engine'] = link('Engine', bme)
 
 # ---- prop: 72 in fixed-pitch wood (TCDS A-691: Sensenich / McCauley 72 in wood props for the A-65), no spinner -------
@@ -467,11 +525,22 @@ for k, (gy, gz) in enumerate(((0.17, 0.06), (0.08, 0.06), (-0.01, 0.06), (-0.10,
     ck('gauge', lambda: cyl(bmc, B(1.225, gy, gz), B(1.215, gy, gz), 0.036, 16))
     ck('face', lambda: cyl(bmc, B(1.215, gy, gz), B(1.213, gy, gz), 0.030, 16))
 ck('dark', lambda: rbox(bmc, B(1.16, 0, 0.215), (0.05, 0.06, 0.045)))                       # compass on the cowl deck
+def round_back(bm, xc, zb, ht, sw, th=0.05, lean=0.10):
+    r = sw / 2; zc = zb + ht - r
+    prof = [(-r, zb), (r, zb)] + [(r * math.cos(t), zc + r * math.sin(t)) for t in np.linspace(0, math.pi, 19)]
+    vf = [bm.verts.new(B(xc - th / 2 + lean * (z - zb), y, z)) for y, z in prof]
+    vb = [bm.verts.new(B(xc + th / 2 + lean * (z - zb), y, z)) for y, z in prof]
+    fs = [bm.faces.new(vf), bm.faces.new(vb[::-1])]
+    for i in range(len(prof)):
+        k = (i + 1) % len(prof); fs.append(bm.faces.new((vf[i], vb[i], vb[k], vf[k])))
+    bmesh.ops.recalc_face_normals(bm, faces=fs)
 for x0, x1, zb, zt in ((1.68, 2.05, -0.36, 0.05), (2.45, 2.82, -0.40, 0.18)):            # front seat / rear bench seat
-    sw = 0.44 if x0 < 2 else min(0.58, 2 * (min(fus_y(x1 + 0.06, zb - 0.04), fus_y(x1 + 0.06, zb + 0.04)) - 0.02))
+    # v4: black seats; front seat 14 in wide (owner's manual) with a round-topped back ~0.50 m tall, slight recline
+    sw = 0.36 if x0 < 2 else min(0.58, 2 * (min(fus_y(x1 + 0.06, zb - 0.04), fus_y(x1 + 0.06, zb + 0.04)) - 0.02))
     ck('seat', lambda: rbox(bmc, B((x0 + x1) / 2, 0, zb), (x1 - x0, sw, 0.08)))
-    ck('seat', lambda: rbox(bmc, B(x1 + 0.03, 0, (zb + zt) / 2 + 0.03), (0.06, sw, zt - zb)))
-    zf = F_BOT(x1) + 0.05; ck('dark', lambda: rbox(bmc, B((x0 + x1) / 2, 0, (zb + zf) / 2), (x1 - x0 - 0.05, 0.40, zb - zf)))
+    if x0 < 2: ck('seat', lambda: round_back(bmc, x1 + 0.03, zb - 0.04, 0.50, sw))
+    else: ck('seat', lambda: rbox(bmc, B(x1 + 0.03, 0, (zb + zt) / 2 + 0.03), (0.06, sw, zt - zb)))
+    zf = F_BOT(x1) + 0.05; ck('dark', lambda: rbox(bmc, B((x0 + x1) / 2, 0, (zb + zf) / 2), (x1 - x0 - 0.05, min(0.40, sw - 0.04), zb - zf)))
 for sx in (1.55, 2.30):
     ck('stick', lambda: tube(bmc, [B(sx, 0, F_BOT(sx) + 0.04), B(sx - 0.03, 0, -0.10), B(sx - 0.05, 0, 0.02)], 0.011, n=8))
     ck('dark', lambda: cyl(bmc, B(sx - 0.05, 0, -0.02), B(sx - 0.055, 0, 0.06), 0.017, 10))
@@ -723,7 +792,11 @@ if VAR == 'floats':
 #FLOATS-END#
 
 # ---- paint: Cub yellow everywhere, plain black lightning stripe on both fuselage sides (no logo, no registration) -----
-STRIPE = [(0.82, -0.17), (1.24, -0.125), (1.25, 0.0), (1.48, -0.08), (5.80, 0.30), (1.48, -0.17), (1.56, -0.26), (1.34, -0.16)]
+# v4: the factory Cub bolt, traced off side photos (refs/j3-cub c38 / c19 / c07) and checked against the Severin 3-view:
+# a long thin forward spike at the nose, a Z step (upper bar's front edge leaning forward, a notch and a down-aft barb
+# below), then one straight taper rising aft to a point just behind the stab LE (xd, z drawing frame)
+STRIPE = [(0.84, -0.20), (1.242, -0.19), (1.122, -0.06), (1.563, -0.049), (2.044, -0.026), (3.123, 0.026), (4.462, 0.14),
+          (5.71, 0.258), (4.462, 0.118), (3.123, -0.018), (2.044, -0.09), (1.563, -0.135), (1.308, -0.157), (1.404, -0.26)]
 def pip(px, py, poly):
     inside = np.zeros(px.shape, bool); n = len(poly)
     for i in range(n):
@@ -740,8 +813,10 @@ _xd, _z, _w = -VR.A, VR.B, 0.0035                                  # right-side 
 _D = DOOR
 _fx = np.where(_z >= _D['zs'], _D['x0'] + _D['up_lean'] * (_z - _D['zs']) / (_D['zt'] - _D['zs']),
                _D['x0'] + _D['lo_lean'] * (_D['zs'] - _z) / (_D['zs'] - _D['zb']))
-VR.fill(((np.abs(_xd - _fx) < _w * 1.2) | (np.abs(_xd - _D['x1']) < _w)) & (_z > _D['zb'] - _w) & (_z < _D['zt'] + _w)
-        | ((np.abs(_z - _D['zs']) < _w) | (np.abs(_z - _D['zt']) < _w) | (np.abs(_z - _D['zb']) < _w)) & (_xd > _fx - _w) & (_xd < _D['x1'] + _w),
+_ax = np.where(_z >= _D['zs'], _D['ax_s'] + (_D['ax_t'] - _D['ax_s']) * np.clip((_z - _D['zs']) / (_D['zt'] - _D['zs']), 0, 1),
+               _D['ax_s'] - (_D['ax_s'] - _D['ax_b']) * np.clip((_D['zs'] - _z) / (_D['zs'] - _D['zb']), 0, 1))
+VR.fill(((np.abs(_xd - _fx) < _w * 1.2) | (np.abs(_xd - _ax) < _w * 1.2)) & (_z > _D['zb'] - _w) & (_z < _D['zt'] + _w)
+        | ((np.abs(_z - _D['zs']) < _w) | (np.abs(_z - _D['zt']) < _w) | (np.abs(_z - _D['zb']) < _w)) & (_xd > _fx - _w) & (_xd < _ax + _w),
         (150, 112, 8))
 M = {}
 for V_ in (VL, VR): M[V_.name] = paint.mat_image('Paint_' + V_.name, V_.to_image(os.path.join(TEX, V_.name + '.png')), rough=0.4)
@@ -754,8 +829,8 @@ M.update(yellow=C('Paint_cub_yellow', YEL, rough=0.4), black=C('Paint_black', BL
          en_cyl=C('Engine_barrel', (60, 62, 66), rough=0.6, metal=0.3), en_head=C('Engine_head', (168, 168, 164), rough=0.45, metal=0.6),
          en_rocker=C('Engine_rocker_cover', (215, 216, 220), rough=0.15, metal=1.0), en_hood=C('Engine_hood', (18, 18, 20), rough=0.5),
          en_exh=C('Exhaust', (110, 96, 84), rough=0.6, metal=0.5), en_case=C('Engine_case', (120, 122, 125), rough=0.5, metal=0.3),
-         en_dark=C('Engine_dark', (25, 25, 27), rough=0.8), en_alu=C('Fuel_cap', (200, 200, 204), rough=0.25, metal=1.0),
-         ck_floor=C('Cabin_floor', (70, 58, 46), rough=0.9), ck_seat=C('Cabin_seat', (96, 62, 40), rough=0.7),
+         en_dark=C('Engine_dark', (25, 25, 27), rough=0.8), en_alu=C('Fuel_cap_red', (196, 28, 24), rough=0.35),
+         ck_floor=C('Cabin_floor', (70, 58, 46), rough=0.9), ck_seat=C('Cabin_seat_black', (22, 22, 24), rough=0.75),
          ck_panel=C('Cabin_panel', (52, 40, 30), rough=0.6), ck_gauge=C('Gauge_bezel', (30, 30, 32), rough=0.4, metal=0.4),
          ck_face=C('Gauge_face', (14, 14, 16), rough=0.2), ck_stick=C('Cabin_stick', (28, 28, 30), rough=0.5),
          ck_dark=C('Cabin_dark', (40, 36, 32), rough=0.9))
@@ -868,8 +943,8 @@ for side, sg in (('L', 1), ('R', -1)):
     o = origin('Elevator_' + side, (H_S, sg * 0.7, Z_S), parent=P['Stab']); o['hinge_axis_gltf'] = gl_axis((0, 1, 0))
 o = origin('Rudder', (H_R, 0, 0.7)); o['hinge_axis_gltf'] = gl_axis((0, 0, 1))
 o = origin('Prop', (X_P, 0, 0)); o['spin_axis_gltf'] = gl_axis(w((1, 0, 0)) - w((0, 0, 0)))
-XDH = 0.5 * (DOOR['x0'] + DOOR['x1'])
-DOORS = {'DoorUpper_R': ((XDH, -fus_y(XDH, DOOR['zt']), DOOR['zt']), 90.0), 'DoorLower_R': ((XDH, -fus_y(XDH, DOOR['zb']), DOOR['zb']), -175.0)}
+XDH = 0.5 * (door_fx(DOOR['zt']) + door_ax(DOOR['zt'])); XDL = 0.5 * (door_fx(DOOR['zb']) + door_ax(DOOR['zb']))
+DOORS = {'DoorUpper_R': ((XDH, -fus_y(XDH, DOOR['zt']), DOOR['zt']), 90.0), 'DoorLower_R': ((XDL, -fus_y(XDL, DOOR['zb']), DOOR['zb']), -175.0)}
 for n, (pd, deg) in DOORS.items():
     vs0 = np.array([v.co[:] for v in P[n].data.vertices]).mean(0)
     o = origin(n, B(*pd)); o['hinge_axis_gltf'] = gl_axis((1, 0, 0)); o['open_deg'] = deg
@@ -879,6 +954,16 @@ for n, (pd, deg) in DOORS.items():
         print('DOOR %s at %+.0f deg: centroid y %+.3f -> %+.3f, z %+.3f -> %+.3f' % (n, deg * k, vs0[1], vs1[1], vs0[2], vs1[2]))
         if k == 0.5: assert vs1[1] > vs0[1] + 0.1, 'door must swing outward (+y = right side after the yaw)'
 origin('Window_R', w(B(*DOORS['DoorUpper_R'][0])), parent=P['DoorUpper_R'])
+# v4 clearance: lower door folded down (-175 deg) vs the right lift struts (min distance of its verts to the strut mesh)
+_o = P['DoorLower_R']; _R = Matrix.Rotation(math.radians(-175.0), 4, 'X')
+_dv = np.array([(_o.location + _R @ v.co)[:] for v in _o.data.vertices])
+_sv = np.array([v.co[:] for v in P['Strut_Wing'].data.vertices]); _sv = _sv[_sv[:, 1] > 0.2]
+from mathutils.kdtree import KDTree as _KD
+_kd = _KD(len(_sv))
+for i_, c_ in enumerate(_sv): _kd.insert(c_, i_)
+_kd.balance(); _dm = min(_kd.find(c_)[2] for c_ in _dv)
+print('DOOR folded lower panel: bottom z %.3f, min distance to the lift struts %.3f m' % (_dv[:, 2].min(), _dm))
+assert _dm > 0.02, 'folded lower door must clear the lift struts' 
 if VAR == 'wheels':
     for side, d in GEAR_SIDES.items():
         piv = _empty('Gear_Pivot_' + side, w(d['H'])); _empty('Gear_HingeAxis_' + side, w(d['C'])); _empty('Gear_ShockTop_' + side, w(d['T']))

@@ -149,3 +149,23 @@ No third-party geometry, logos or registration marks are used.
 ## v3 (2026-10-28)
 
 - Main gear: the X formed by the bungee shock struts and the inverted centre V now lies in the plane of the front gear legs. The apex pin moved from xd 2.12 to xd 1.4675, on the front-leg line at z -0.80 (Ty's review). Float variant: the front cross wires now end exactly on the front strut axes, in the same plane. Nothing else changed.
+
+## v4 (2026-10-28)
+
+Ty's review of v3. Every change applies to both the wheels and float GLBs. References were used by eye or measured off drawings; nothing was traced into geometry from a third-party mesh. Files and licences are listed in the agent box refs/j3-cub/SOURCES.md.
+
+- **Jury struts:** each lift strut gets a jury running up to its own spar at the same span station (front 1.695, rear 2.40). A tie tube joins the front and rear struts at that station. Strut points are at y ±2.232. Photos: Commons J-3 side and under-wing shots.
+- **Stripe:** the factory lightning bolt was redrawn from side photos (Commons NC35773 by HawkeyeUK, CC BY-SA 2.0; Piper J3C Cub 05 by Huhu Uet, CC BY 3.0; N92107 by André Gerwing, CC BY-SA 4.0). It has a point at the nose, one zigzag under the windshield, and tapers to the tail post. It was checked against the Severin 3-view; judgement call: the photos win where they differ (Severin's front is about 0.03 m lower, with the upper corner 0.09 m aft).
+- **Seats:** both are black. The front seatback has a semicircular top.
+- **Right door:** the aft edge is angled so the opening and panels are narrow at the bottom and wide at the top. The aft edge runs xd 2.40 at the sill, 2.43 at the top and 2.25 at the bottom. The bottom of the lower panel is raised 0.095 m. Folded (-175°), the lower panel's bottom sits at z -0.325 with a minimum of 0.065 m to the lift struts. The build asserts more than 0.02 m. Door photos: d01, c34, c37, c42, c47 (see the v2 list). Hinges and open_deg are unchanged.
+- **Fuel cap:** red, on the nose tank ahead of the windshield. A float-gauge wire stands 8.0 in above the cap with a 90° bend at the top (bend points aft; judgement call).
+- **Eyebrows:** each cylinder bank has one black sheet-metal hood over the heads, riveted to the cowl edge, from the NASM, Cavanaugh (c40) and N92107 photos.
+- **Tail check** against two published 3-views: P. Severin (after Paul Matt / Piper J3 service manual; toni-clark.com kit drawing) and the Commons 3-view by User:Kaboldy (CC BY-SA 4.0):
+  - The elevator hinge and stab group move 0.14 m aft (hinge xd 6.05 to 6.19).
+  - Stab/elevator planform now follows Severin's top view, scaled to the manual's 9 ft 6 in span. Stab is 16.40 sq ft total / 15.96 exposed (was 16.61 / 15.73); elevators 11.05 sq ft (was 11.76).
+  - The elevator root cut follows the drawing.
+  - The fin LE is about 0.02 m further forward.
+  - The lower rudder is rounder per Commons (rudder 6.55 sq ft, was 6.70). Fin above z 0.47 is 4.20 sq ft.
+  - Tail-wire attach points follow the moved stab.
+  - Judgement calls: where the drawings disagree, the side view follows Commons (Severin's rudder TE runs slightly aft) and the span follows the manual (Commons' stab is about 3% larger).
+- Part names and rig extras are unchanged.
