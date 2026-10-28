@@ -309,3 +309,31 @@ Owner request: "The side stripes need more work try to match the n260bf 3 view f
   NZ side, the green S-2B photo and the Horizon photo. The references were looked at by eye only, to read off positions;
   nothing was traced, sampled or copied into the textures, and the 50:50 overlays are review images only (not inputs).
 - No third-party or GPL mesh, UV or texture used.
+
+## v10 (Ty: lower and widen the fuselage stripes)
+### Change (both liveries, `build_pitts_s2b.py`, paint only)
+- Fuselage stripe pack lowered and widened. Each stripe edge is one straight line from the nose diamond station (x 1.07)
+  to the tail post (x -3.275), so the stripes carry aft consistently to the tail:
+
+  | edge | z at x 1.07 | z at x -3.275 |
+  |---|---|---|
+  | upper stripe top | 0.012 | -0.020 |
+  | upper stripe bottom | -0.058 | -0.060 |
+  | lower stripe top | -0.128 | -0.100 |
+  | lower stripe bottom | -0.198 | -0.140 |
+
+  Combined pack height on the cowl 0.21 m, tapering to ~0.12 m at the tail post.
+- Nose diamond: centre z -0.093 (about 44% down the cowl side, v9 sat higher), half-sizes 0.105 x 0.105, so it spans the pack.
+- Nose bands, chin V and cowl-top band (the v9 (t, u) tables) re-fitted to the new stripe positions.
+- **Registration moved down**: letters now span z -0.46 to -0.21 (v9: -0.40 to -0.15), same x start (-1.30, running aft),
+  same 0.25 m height. The lower stripe's bottom edge at x -1.30 is z ~-0.17, so the letters sit clear below the stripes.
+- Wheel pants: crescent bands reshaped to curve around the pant nose (v9 read as straight bars); the pant white and pant
+  diamond now use a 9 mm navy outline (fuselage, wings and tail keep 16 mm).
+- Unchanged: geometry (54952 tris N1191, 53660 N31DG), rudder, wings, turtledeck, lettering art.
+### Method / sources
+- Fast 2-D previews of the side paint, then 4 full iterations of matched-camera Blender renders
+  (`tools/own_models/pitts_refviews.py`) beside / blended 50:50 with the N260BF (Munden) three-view, the Horizons NZ side,
+  the green S-2B photo and the Horizon photo. Target values (pack height ~0.17-0.21 m, diamond 40-48% down the cowl) were
+  read off the N260BF and HNZ views by eye with a pixel grid.
+- References were looked at by eye only; nothing was traced, sampled or copied into the textures, and the overlays are
+  review images only (not inputs). No third-party or GPL mesh, UV or texture used.
