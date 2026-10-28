@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
 - **Pitts CG height (Claude, 2026-10-28).** `mass.cg` z is 0.20 m below the datum, derived from what the ground handling needs, because a TCDS gives no vertical CG. The station (x) is now sourced from TCDS A8SO. A mass breakdown per the new-airplane protocol's step 1c would settle the height.
@@ -40,6 +41,53 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
+
+Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
+does not have to be rediscovered:
+
+**Branch.** `lane/claude-menu-aero` is **65 commits ahead of `origin/split-surfaces` and 0 behind**, so it
+fast-forwards. `origin` carries only `main` and `split-surfaces` -- **no `lane/*` branch has ever been pushed**.
+Until this lane lands on `split-surfaces`, anything branched from it is building on work that is not yet on the
+shared branch. That merge is Ty's.
+
+**Builds and tests at handover.** Suite: 4 failures, all pre-existing and all written up above (one flat-spin
+smoke check, three Pitts ground-handling). iOS player: `** BUILD SUCCEEDED **` at 16:22, and the resulting build
+`2026.1028.1623` is installed on the iPhone 17 Pro and the iPad mini and published at
+`https://mac-studio.tail9aad2a.ts.net/ota`.
+
+**`devicectl` works; `deploy.sh` says it does not.** The install step reported `installed on 0 of 3 device(s)`
+while both devices were awake and reachable -- `xcrun devicectl device install app` then succeeded by hand on
+both. `deploy.sh` discovers devices correctly and swallows the install errors inside a pipeline whose output it
+discards, so a working route is reported as unavailable. Worth fixing; it cost us a wrong recommendation today.
+
+**Uncommitted work nobody should touch.** Four worktrees are dirty and none of it is from this lane:
+`flying-game` (main, `split-surfaces`) 2 files, `codex-own-j3-cub` 6, `codex-talkflying-livery-v2` 2,
+`codex-beaver-edo-floats` 1. The main checkout's `OptionsPanel.cs` change is an **earlier fix for the same
+unclosable-menu bug** this lane fixed by rewriting the panel into chapters (scroll view, Close outside the scroll
+view, panel clamped to the screen -- the same three rules). It is superseded, and it will conflict with this lane.
+**Ty: it is yours to keep or drop; I have not touched it.**
+
+**The boundary for a visuals agent.** `src/FlyingGame.Core`, `src/FlyingGame.Sim`, `configs/aircraft/*.json` and
+`tools/FlightTests` are physics and stay put -- every config number is measured off a model or read off a type
+certificate. Two things in the visual half are load-bearing for physics and are the easy ways to break it
+silently: `AirframeVisual.StyleFor` is where the **propeller hub** comes from (`Prop(Body[0].x + 0.12f, 0f,
+BodyAxisZ, PropRadius, ...)`, blades bind only within `0.5 x hub.Radius`, and a miss freezes the prop with no
+error), and the **GLB axis convention** (nose -x, up +y, span z -> `config_x = -glb_x`, `config_y = +glb_z`,
+`config_z = -glb_y`) is what the aero measuring scripts read, so a re-export at a different orientation or with a
+scale on a node makes that aeroplane's physics wrong without a single test failing.
+
+**Do not install URP or HDRP.** Built-in pipeline is deliberate: 18 hand-written shaders and every procedural
+material are written for it. `FirePotLights.cs` has two `Shader.Find("Universal Render Pipeline/...")` calls with
+fallbacks; they are vestigial and do not mean URP is in use. A pipeline migration is Ty's decision, not a step
+inside a visuals pass.
+
+**Every asset wants a tracked `.meta`.** All 117 `.cs` files under `src/` have one; `BiplaneCellule` was the only
+one without, because it was written after the last Unity import (`4c2b94e`). An untracked `.meta` means Unity
+invents a fresh GUID on the next machine and the same file arrives as a different asset. This applies to any new
+GLB, shader or texture.
+
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · biplane cellules measured for the whole fleet, and the stall estimator stops truncating
 
 Owner: *"account for cellule clmax of a biplane configuration and don't just do it as a one off for this airplane
