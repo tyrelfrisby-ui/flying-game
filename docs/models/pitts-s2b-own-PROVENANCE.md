@@ -195,3 +195,33 @@ The script rotates the Rudder object about the hinge and both elevators about th
 - Renders:
   - `pitts-s2b-v5-<livery>-rudder-deflection-check.png`: annotated top view with the rudder at full left and full right.
   - `pitts-s2b-v5-<livery>-top.png`, `-tailtop.png`, `-tailiso.png` and `-rudder.png`.
+
+## v6 (2026-10-27): turtledeck wedge down the fuselage sides
+
+Owner request: make the white patch behind the canopy come much further down the side, as on the three-view drawings, so that it is visible in the side view.
+
+### References (used by eye only)
+- Horizons NZ Model Graphics S-2B side view, the S-2B 1/32 manual (p. 8) from AirshowModels, and Barry Munden's S-2C (corroboration only).
+- All three show a white wedge behind the canopy:
+  - Its leading edge runs down the canopy rear bow, from the turtledeck top to about the canopy sill line.
+  - Its lower edge rises aft to meet the top line.
+  - In plan view it fills the turtledeck width behind the canopy and tapers to a point (Munden plan; HNZ iso).
+
+### Change (both liveries, `build_pitts_s2b.py`)
+- A single 3-D rule now paints both the side-view and the top-view projections, so the two meet at the seam with one continuous navy outline. Previously the patch was painted from the top view only.
+- A fuselage surface point is white when all of the following hold:
+  - x is between −2.200 m (apex) and −1.607 m (just aft of the rear bow tube).
+  - z is above a straight line rising from z = 0.170 m at the bow to the fuselage top line at the apex.
+- At the bow the white runs from the turtledeck top (z 0.429) down to 0.170, which is just above the 0.155 sill line. That puts 0.26 m of white in the side view.
+- In plan view the white is nearly full width at the canopy (|y| < 0.32 m) and tapers to the apex at x −2.20, the same apex as v4/v5.
+- The thin navy outline (16 mm) is unchanged.
+- Clearances to the other markings:
+  - Upper fuselage stripe: its top edge is at about z 0.00 at this station, so it stays at least 0.17 m below the wedge.
+  - Registration: lies below z −0.15.
+  - Fin script: starts at x −2.86.
+  - Nothing overlaps.
+- Geometry is unchanged from v5. The rudder clearance results above still apply.
+
+### Renders
+- `pitts-s2b-v6-<livery>-side.png`, `-iso.png`, `-top.png` and `-tailiso.png`.
+- `pitts-s2b-v6-side-vs-references.png`: the model side views stacked against the HNZ, AirshowModels and Munden side views and the v4/v5 "before" view, with close-ups of the canopy rear.

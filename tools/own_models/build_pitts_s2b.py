@@ -13,7 +13,7 @@ to the published 5.71 m length; other S-2B three-views used as checks), slave st
 v4 paint: the Aviat factory sunburst scheme, re-created procedurally below from published painted three-views (Horizons
 NZ, AirshowModels, Munden S-2C; looked at by eye only - nothing traced, sampled or copied into the textures): red base,
 sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond + cowl swooshes and
-bands, white turtledeck behind the canopy, wheel-pant stripes, every white area outlined in a thin (16 mm) navy line.
+bands, white turtledeck wedge behind the canopy (down the sides), wheel-pant stripes, every white area outlined in a thin (16 mm) navy line.
 Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (Liberation Sans Bold, Dancing Script).
 
   PITTS_LIVERY=N1191 blender -b --python tools/own_models/build_pitts_s2b.py
@@ -592,6 +592,24 @@ def swoosh(p0, p1, p2, w0, w1, n=24):
     for t in np.linspace(0, 1, n):
         pts.append(tuple((1 - t) ** 2 * np.array(p0) + 2 * t * (1 - t) * np.array(p1) + t * t * np.array(p2))); ws.append(w0 + (w1 - w0) * t)
     return pts, ws
+# v6 (Ty): the white turtledeck patch comes well down the fuselage side, as on the HNZ / AirshowModels / Munden side
+# views: a wedge whose leading edge runs down the canopy rear bow from the top to just above the sill line (z X_TW0),
+# and whose lower edge rises straight aft to meet the top centre line at X_TWA (the apex of the top-view wedge).
+# One 3-D rule (surface point white if z > ZB_TW(x)) paints both the side and the top projections, so they join.
+X_TW0, Z_TW0, X_TWA = X_CA - 0.007, 0.170, -2.200
+_aft = [s_ for s_ in ST if s_[0] <= X_CA]
+_ax = [s_[0] for s_ in _aft][::-1]
+FTOP = lambda x: np.interp(x, _ax, [s_[1] for s_ in _aft][::-1])
+FBOT = lambda x: np.interp(x, _ax, [s_[2] for s_ in _aft][::-1])
+FHW = lambda x: np.interp(x, _ax, [s_[3] for s_ in _aft][::-1])
+ZB_TW = lambda x: Z_TW0 + (FTOP(X_TWA) - Z_TW0) * (X_TW0 - x) / (X_TW0 - X_TWA)
+def turtledeck_white_side(A, Z):
+    return (A < X_TW0) & (A > X_TWA) & (Z > ZB_TW(A))
+def turtledeck_white_top(Y, X):
+    top, bot, hw = FTOP(X), FBOT(X), FHW(X); zw = bot + 0.62 * (top - bot)
+    r = np.clip(np.abs(Y) / hw, 0, 1)
+    zs = zw + (top - zw) * (1 - r ** NT) ** (1 / NT)                 # upper superellipse surface height at (x, |y|)
+    return (X < X_TW0) & (X > X_TWA) & (np.abs(Y) < hw) & (zs > ZB_TW(X))
 def side(name, flip):
     v = View(name, (X0, X1), (Z0, Z1), 4096, 1672, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
     v.fill(np.ones_like(A, bool), RED)
@@ -605,8 +623,8 @@ def side(name, flip):
     roi = (A > 0.9) & (A < 1.6)
     W[roi] |= band(A[roi], Z[roi], pu, wu) | band(A[roi], Z[roi], pl, wl)
     W |= (A > CB_X0) & (A < CB_X1) & (Z > 0.17)                            # where the cowl-top band rolls over the top
-    # turtledeck: the white deck behind the canopy shows as a thin wedge above the canopy-rear line in side view
-    # (painted from the top view; nothing extra here)
+    # turtledeck: white wedge behind the canopy coming down the fuselage side (v6), same 3-D boundary as the top view
+    W |= turtledeck_white_side(A, Z)
     # wheel pants: a white diamond on the nose of the pant and two thin stripes running aft along it
     xs_p = [r[0] for r in PANT][::-1]; zc = np.interp(A, xs_p, [r[1] for r in PANT][::-1]); ht = np.interp(A, xs_p, [r[2] for r in PANT][::-1])
     pz = (Z < -0.85)
@@ -635,7 +653,7 @@ def plan(name, flip, yr, xr, w, h):
 # fuselage top / belly (plan views): white turtledeck wedge behind the canopy, cowl-top band; chevron under the cowl
 VFT, Y, X = plan('pitts_fus_top', True, (-0.5, 0.5), (-4.0, 2.0), 1024, 4096)
 VFT.fill(np.ones_like(Y, bool), RED)
-paint_white(VFT, ((X < X_CA + 0.02) & (X > -2.20) & (np.abs(Y) < 0.215 * (X + 2.20) / (X_CA + 2.20 + 0.02))) |
+paint_white(VFT, turtledeck_white_top(Y, X) |
             ((X > CB_X0) & (X < CB_X1)))
 VFB, Y, X = plan('pitts_fus_bot', False, (-0.5, 0.5), (-4.0, 2.0), 1024, 4096)
 VFB.fill(np.ones_like(Y, bool), RED)
