@@ -282,6 +282,26 @@ of fuselage, gear, struts and wires, and it is calibrated against book speeds wi
 the aeroplane cruises at **120 mph on 75 % power**, which is exactly the Waco/Great Lakes spec sheet's max
 cruise, and runs to 133 mph at full power (the sheet's "153 mph maximum speed" is Vne, not a level speed).
 
+### A new own-model type still needs a `StyleFor` entry — for its propeller
+
+Worth knowing before the next aeroplane goes in. This type is always drawn from its GLB
+(`AirframeModels.PickOwn`), so the procedural airframe in `AirframeVisual.StyleFor` is never rendered for it —
+which makes it easy to assume no entry is needed. But that style is also **where the propeller's hub comes
+from**: `Prop()` is driven by `Body[0].x + 0.12` and `PropRadius`, and the model's blades only bind and spin
+when they sit within half a radius of that hub. With no `case`, the type falls through to the default arm — a
+2-33 trainer, whose `PropRadius` is 0 — so no hub is created at all.
+
+The airframe build logs it. Rendering the type with `AircraftRender` before and after the entry:
+
+```
+before   [Airframe] model rig: 4/4 control surfaces, 0/0 propellers bound
+after    [Airframe] model rig: 4/4 control surfaces, 1/1 propellers bound
+```
+
+The control surfaces bind either way — those come from the config's own control strips — so a silent, static
+propeller is the whole symptom, and no test in the suite sees it. The entry puts the hub at config x 0.85,
+which is exactly where the model's blades are (tolerance 0.47 m), with `PropRadius` the TCDS 74 in.
+
 ### Open
 
 - **Stall speed is 10 % low**: Vso 51 mph against the sheet's 57. It is a lift limit, so no amount of drag moves

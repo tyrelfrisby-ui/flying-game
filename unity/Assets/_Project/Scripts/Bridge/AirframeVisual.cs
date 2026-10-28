@@ -3327,6 +3327,22 @@ namespace FlyingGame.Bridge
                         Tail = new TailSpec { StabSpan = 2.6f, StabRoot = 1.0f, StabTip = 0.7f, FinHeight = 1.1f, FinRoot = 1.3f, FinTip = 0.5f, FinSweepDeg = 35 },
                         Fuselage = red, Wing = red, TailColor = red, Control = white,
                     };
+                // Great Lakes 2T-1A-2 (2026-10-28). This type is ALWAYS drawn from its own GLB (AirframeModels.PickOwn),
+                // so the body, canopy and tail below are never rendered -- but the style is still what gives the
+                // PROPELLER ITS HUB: Prop() is driven by Body[0].x + 0.12 and PropRadius, and the model's blades only
+                // bind and spin when they sit within half a radius of that hub. Without an entry here the type fell
+                // through to the default (a 2-33 trainer) whose PropRadius is 0, so no hub was made at all and the
+                // drawn propeller stood still. Body[0].x 0.73 puts the hub at 0.85, which is exactly where the model's
+                // blades are, and BodyAxisZ 0 is its thrust line. PropRadius is the TCDS 74 in. The rest is measured
+                // off the model so the fallback airframe is at least the right aeroplane.
+                case "great-lakes-like":
+                    return new Style
+                    {
+                        BodyAxisZ = 0.0f, Body = new[] { (0.73f, 0.17f), (0.55f, 0.40f), (0.0f, 0.46f), (-1.2f, 0.44f), (-2.3f, 0.37f), (-3.4f, 0.25f), (-4.3f, 0.15f), (-4.9f, 0.09f) },
+                        Canopy = (-1.5f, -0.45f, 1.1f, 0.6f, 0.35f), PropRadius = 0.94f, BiplaneStruts = true,
+                        Tail = new TailSpec { StabSpan = 3.09f, StabRoot = 0.98f, StabTip = 0.31f, FinHeight = 0.97f, FinRoot = 1.22f, FinTip = 0.69f, FinSweepDeg = 28 },
+                        Fuselage = red, Wing = red, TailColor = red, Control = white,
+                    };
                 case "stearman-pt17-like":
                     return new Style
                     {

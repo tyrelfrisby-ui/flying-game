@@ -58,6 +58,13 @@ measured off its model").
 there is no downloaded Great Lakes and no procedural style for the type, so this GLB IS the aeroplane. No
 `Livery` entry: the paint is baked into the model's textures.
 
+**One gotcha worth carrying forward.** A type that is always drawn from its own GLB still needs a
+`AirframeVisual.StyleFor` entry, because that is where the PROPELLER HUB comes from — not just the procedural
+airframe, which for such a type is never rendered. Without one the Great Lakes fell through to the default arm
+(a 2-33 trainer, `PropRadius` 0), no hub was created, and its propeller would have been frozen. `AircraftRender`
+reports it: `0/0 propellers bound` before the entry, `1/1` after. Control surfaces bind either way, since those
+come from the config's control strips, so nothing in the test suite sees this.
+
 **The model measures true.** Wing area 17.460 m² against a published 187.6 sq ft = 17.429 (+0.2 %), span
 8.126 m against 26 ft 8 in (−0.02 %), length 6.214 m against 20 ft 4 in, main tyre radius 0.222 m exactly the
 600×6's 17.5 in. Areas scaled ×0.9982 onto published; everything else is the measurement.
