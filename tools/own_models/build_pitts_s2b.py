@@ -31,6 +31,7 @@ the lower stripe. Wheel pants: curved crescents, pant outline 9 mm (fuselage sta
 Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (Liberation Sans Bold, Dancing Script).
 
   PITTS_LIVERY=N1191 blender -b --python tools/own_models/build_pitts_s2b.py
+  PITTS_LIVERY=CHECKER-UNMARKED | FACTORY-UNMARKED : the same schemes with no registration (Ty 2026-10-28)
 """
 import bpy, bmesh, sys, os, math, numpy as np
 from mathutils import Matrix, Vector
@@ -38,10 +39,17 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-LIV = os.environ.get('PITTS_LIVERY', 'N31DG').upper(); assert LIV in ('N31DG', 'N1191'), LIV
-OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own%s.glb' % ('' if LIV == 'N31DG' else '-' + LIV.lower()))
-TEX = '/tmp/own_pitts_tex_' + LIV.lower(); os.makedirs(TEX, exist_ok=True)
-print('LIVERY', LIV)
+# unmarked variants (Ty 2026-10-28): the same two schemes with NO registration anywhere; otherwise identical to v10.1
+#   PITTS_LIVERY=CHECKER-UNMARKED -> pitts-s2b-like-own-checker-unmarked.glb (N31DG scheme + Hartzell 2-blade)
+#   PITTS_LIVERY=FACTORY-UNMARKED -> pitts-s2b-like-own-factory-unmarked.glb (N1191 scheme + MT 3-blade)
+LIV_ID = os.environ.get('PITTS_LIVERY', 'N31DG').upper()
+_SCHEME = {'N31DG': 'N31DG', 'N1191': 'N1191', 'CHECKER-UNMARKED': 'N31DG', 'FACTORY-UNMARKED': 'N1191'}
+assert LIV_ID in _SCHEME, LIV_ID
+LIV = _SCHEME[LIV_ID]            # paint scheme + prop
+UNMARKED = LIV_ID.endswith('-UNMARKED')
+OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own%s.glb' % ('' if LIV_ID == 'N31DG' else '-' + LIV_ID.lower()))
+TEX = '/tmp/own_pitts_tex_' + LIV_ID.lower(); os.makedirs(TEX, exist_ok=True)
+print('LIVERY', LIV_ID, 'scheme', LIV, 'unmarked', UNMARKED)
 RED, WHITE, NAVY = (200, 24, 36), (246, 246, 246), (22, 26, 62)
 BLADE, STEEL, TYRE, CABIN = (128, 131, 136), (196, 200, 206), (40, 40, 42), (58, 60, 64)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -716,7 +724,8 @@ def side(name, flip):
     # registration: white block letters (~10 in) on the aft fuselage under the stripes, both sides reading nose -> tail.
     # v10: moved down with the lower stripe pack, z -0.46 .. -0.21 (was -0.40 .. -0.15), same x span
     rh = 0.25; png = 'pitts-%s.png' % LIV.lower(); aspect = {'N31DG': 687 / 162, 'N1191': 607 / 162}[LIV]
-    v.stamp(png, -1.30, -1.30 - rh * aspect, Z_REG, Z_REG + rh)
+    if not UNMARKED:          # unmarked variants: no registration; the area stays the plain underlying paint
+        v.stamp(png, -1.30, -1.30 - rh * aspect, Z_REG, Z_REG + rh)
     # v10.1 (Ty): no "Pitts" script / "S-2B" logo on the fin in either livery (art PNGs kept, unused)
     return v
 VL, VR = side('pitts_side_l', True), side('pitts_side_r', False)

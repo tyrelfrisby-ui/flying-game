@@ -12,6 +12,13 @@
 - **Livery picker (Claude, 2026-10-28): please look at it on a device.** It compiles, the swap is verified in the editor, and the airframe renders are right, but nobody has seen the LIVERY buttons on an iPhone or iPad yet. `AERO_SELFTEST=menu` now also saves `selftest-menu-<shape>-livery.png` (Pitts selected) for each of the four screen shapes.
 
 ## HANDOFF
+- [codex → Claude] codex/unmarked-liveries · Ty (2026-10-28): unmarked liveries, make them the game DEFAULTS · details:
+  - New GLBs (same geometry/props as the approved v10.1 Pitts and v12 Extra; only markings removed, removed areas left in the plain underlying paint):
+    - pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb: id 'checker-unmarked' (N31DG checkered scheme, MT 3-blade prop, no registration). **Pitts DEFAULT.**
+    - pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb: id 'factory-unmarked' (N1191 factory diamonds scheme, Hartzell 2-blade prop, no registration).
+    - extra-300-like/extra-300-like-own-unmarked.glb: id 'unmarked' (no N-number, no Talk Flying / TALKFLYING.COM / TF badge / Sunrise Aviation; fin stars and stripes kept; red underwing bar like N300UY). **Extra DEFAULT.**
+  - Task (lane/claude-livery-picker, src/FlyingGame.Core/LiveryChoice.cs): add the ids to Options (pitts-s2b-like: ("checker-unmarked","Checkered"), ("factory-unmarked","Factory"); extra-300-like: ("unmarked","Extra")), map OwnSuffix pitts checker-unmarked→"-own-checker-unmarked", factory-unmarked→"-own-factory-unmarked", extra unmarked→"-own-unmarked", and make them the per-type defaults (Pitts = checker-unmarked, Extra = unmarked). Keep the marked liveries (n31dg, n1191, talk-flying, n300uy) selectable. New GLBs have no .meta yet (Unity generates it).
+  - Build: PITTS_LIVERY=CHECKER-UNMARKED|FACTORY-UNMARKED tools/own_models/build_pitts_s2b.py; EA_LIVERY=unmarked tools/own_models/build_ea300.py. Renders (agent box): /workspace/unmarked-v1/{pitts-checker-unmarked,pitts-factory-unmarked,extra-unmarked}-{side,top,front,bottom}.png.
 - [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: **DONE by Claude on lane/claude-pitts-own (2026-10-27), see Log; open points under NEEDS YOU** · own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
   - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, Hartzell 2-blade prop, grey with white tips) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, MT 3-blade prop, white with red tips). The n1191 GLB has no .meta yet (Unity generates it).
   - Task: make these the in-game Pitts S-2B (existing flight config configs/aircraft/pitts-s2b-like.json). N31DG (-own) is the default; N1191 (-own-n1191) is selectable the same way as the Extra's N300UY (AirframeModels suffix / AERO_LIVERY), or a picker if easy. Check scale/orientation, US prop rotation (clockwise from the cockpit), control-surface binding.
@@ -27,6 +34,7 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Grok Bot executor · codex/unmarked-liveries · unmarked liveries (Ty): Pitts checker-unmarked + factory-unmarked (no registration), Extra unmarked (no N-number, no Talk Flying / Sunrise Aviation); built from 8fea251 with livery switches only; handed to Claude as the new defaults (see HANDOFF). Local commit only.
 ### 2026-10-28 — Claude · lane/claude-livery-picker · ground handling: Pitts S-2B and Extra 300 gear matched to the models, retuned
 **Gear geometry** (config frame: x forward, z down from the config origin; measured from the GLBs placed as `AirframeModels.Place` places them, lined up on the wings)
 
