@@ -1,4 +1,4 @@
-# Great Lakes 2T-1A-2 style biplane: our own model (v3)
+# Great Lakes 2T-1A-2 style biplane: our own model (v4)
 
 - Outputs (`unity/Assets/_Project/Resources/Models/great-lakes-like/`): `great-lakes-like-own.glb` (v1 placeholder paint),
   `great-lakes-like-own-red-sunburst.glb`, `great-lakes-like-own-white-stripes.glb`
@@ -102,18 +102,25 @@ hinge_deg_full.
 ## Liveries
 No registration, logos or text on the liveries. Painted by eye from Ty's photos as our own simple geometry (bands,
 offsets, rays, level sets); no photo pixel is sampled or traced. Registrations and watermarks in the photos are ignored.
-- `red-sunburst`: all-red airframe; navy, white-outlined fuselage stripes nose to tail; navy cowl front; red/white/navy
-  sunburst rays from the centre-section TE on the wings (top and bottom) and the stab, sweeping AFT from the root (v3
-  fix, Ty: they swept forward in v2); navy tips and edge trim; navy fin/rudder outline; red pants with a navy stripe;
-  red struts and gear; white spinner; Hartzell 2-blade prop.
-- `white-stripes` (v3, redone from white-1/2/3): white airframe. Fuselage, top to bottom: white decking, red, white
-  separation, light blue, white separation, navy, white belly; the light blue and navy start behind a white nose bowl and the red
-  starts at the cowl top. The bands are level sets of the depth below one envelope (top line, fin LE, fin top, rudder
-  TE), so they sweep up round the fin as concentric arcs: white rim, red outer arc (fading out over the rudder top),
-  light-blue dome, navy core in the lower fin/rudder, navy below the stab. Wing tops solid red; the upper-wing
-  underside has a red LE wrap then light-blue and navy bands full span; the lower underside is white with a red LE. Stab:
-  red LE and tips with light-blue and navy diagonals parallel to the tip. Pants: white nose; light-blue and red bands
-  rising at the front and tapering aft; low navy swoosh. White struts and gear; chrome spinner; Hartzell 2-blade prop.
+- `red-sunburst`: all-red airframe; navy, white-outlined fuselage stripes from the nose that taper to a point at the
+  stab LE (v4); navy cowl front; red/white/navy sunburst rays from the centre-section TE on the wings (top and bottom),
+  sweeping AFT from the root; on the stab/elevators (v4, from red-tail-closeup) rays from a hub at |y| 0.16 behind the
+  stab LE at 12/30/64 deg, navy outer sectors, red/navy alternating, white pinstripes, white 12 mm edge (no navy rim);
+  navy tips and edge trim on the wings; fin/rudder outline red edge + navy + white inner line that starts thin at the
+  fin root, follows the fin LE, top and rudder TE and tapers to a point at the rudder's bottom-front corner (v4: it no
+  longer comes down/forward to meet the fuselage stripes); red pants with a navy stripe; red struts and gear; white
+  spinner; Hartzell 2-blade prop.
+- `white-stripes` (v3 from white-1/2/3; v4 wings/tail from white-wings-1/2): white airframe. Fuselage, top to bottom:
+  white decking, red, white separation, light blue, white separation, navy, white belly; the light blue and navy start
+  behind a white nose bowl and the red starts at the cowl top. v4: the bands are now constant-depth offsets below ONE
+  straight reference line (cowl z 0.24 down to the fin-root LE), so they run straight along the side and only curve up
+  at the vertical tail, where they become level sets of the envelope (fin LE, fin top, rudder TE): white rim, red outer
+  arc, light-blue fin, navy core in the lower fin/rudder. v4 wings (top AND bottom of both wings): predominantly white;
+  each tip has a red cap with a diagonal inboard edge, then white, light-blue, white, navy bands, raked aft-outboard
+  (edge line |y| − 0.12·(distance aft of LE); red > 3.55 m, light blue 3.21–3.49, navy 2.90–3.15). Stab/elevators (both
+  faces): same treatment, rake 0.42 (red > 1.10, light blue 0.88–1.06, navy 0.66–0.84), rest white. Widths and angles
+  read off white-wings-2 by eye (~10 mm/px at the tip). Pants: white nose; light-blue and red bands rising at the front
+  and tapering aft; low navy swoosh. White struts and gear; chrome spinner; Hartzell 2-blade prop.
 
 ### v1 placeholder (default file `great-lakes-like-own.glb`)
 - White base with a red nose bowl.
@@ -122,6 +129,15 @@ offsets, rays, level sets); no photo pixel is sampled or traced. Registrations a
 - Red wing tips (|y| > 3.45) and stab tips (|y| > 1.20), each with a navy pinstripe.
 - Red struts, red spinner, red pant noses.
 - Placeholder registration N719GL. It has not been checked against the FAA registry, so swap it for Ty's choice.
+
+## v4 changes (2026-10-28)
+- **Cowl (all liveries):** v3 ended the cowl at an open, chopped front. The cowl tables now stop at x 0.57 and a
+  quarter-ellipse lip closes them to a rounded face at x 0.69 (face half-sizes top 0.165, bottom −0.30, half-width
+  0.30); 12 sine-spaced loft stations over the lip; the two cylinder inlets (y ±0.215, 48×66 mm) are cut in the face;
+  spinner backplate moved to the new face. Lip shape by eye from red-2-ramp / white-3-ramp.
+- **red-sunburst tail** and **white-stripes wings/tail/fuselage**: see Liveries above.
+- Renders and photo compares: `/workspace/greatlakes-own-v4/` on the build box (four-views, iso, tail, nose, photo and
+  compare-*.png). References used by eye only; nothing is traced or sampled.
 
 ## Unity part names
 The part names are compatible with AirframeVisual / RemoteAircraft:
