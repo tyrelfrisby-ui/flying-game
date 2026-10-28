@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
 - **Pitts CG height (Claude, 2026-10-28).** `mass.cg` z is 0.20 m below the datum, derived from what the ground handling needs, because a TCDS gives no vertical CG. The station (x) is now sourced from TCDS A8SO. A mass breakdown per the new-airplane protocol's step 1c would settle the height.
 - **Flat-spin smoke check is red (Claude, 2026-10-28), and it is not the flight model.** `AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin` reports a marker inside the airframe. Cause: one plate covers a whole tailplane including the part inside the fuselage, so near the root "off the plate" and "outside the body" are mutually unsatisfiable and `KeepOut`'s two pushes swap the marker back and forth. It surfaced because the Extra's tail is now at the arm its drawing gives it, which roots the stabiliser further aft in a thinner part of the body. I had a partial fix (skip a plate where it is buried in the body); it cleared the tail root and then failed the same way at the wing root, so I reverted it rather than leave an unverified change to shared flow code inside this diff. The fix belongs in how AirframeFlow builds its plates — a surface should start at the body skin.
@@ -39,6 +40,53 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-menu-aero · the Great Lakes 2T-1A-2 is in the game, measured off its model and its type certificate
+
+Owner: *"The red Great Lakes is in ~/Desktop/GreatLakes-red-handoff/, import it into aero and work the
+aerodynamics and physics off of the model by measuring the model just like you did with the pitts and extra.
+reference the tcds for the cg location."*
+
+A new type, not a correction to an old one — the first whose flight model was built from the mesh and the
+certificate from the start. Full write-up in `docs/CONTROL-SURFACES.md` ("Great Lakes 2T-1A-2: a new type
+measured off its model").
+
+**Installed.** `great-lakes-like-own.glb` (the red-sunburst livery, installed as the default own-model file so
+`AirframeModels.HasOwn` finds it), `tools/own_models/build_great_lakes.py`,
+`docs/models/great-lakes-own-PROVENANCE.md`, a `LICENSE.txt` beside the model and a `docs/CREDITS.md` line
+(both of which the suite requires). Wired into `SessionSettings.Fleet`, into `AirframeModels.OwnSpecs` with
+`namedSurfaces` — its ailerons, elevators and rudder are meshes of their own — and into `PickOwn`, because
+there is no downloaded Great Lakes and no procedural style for the type, so this GLB IS the aeroplane. No
+`Livery` entry: the paint is baked into the model's textures.
+
+**The model measures true.** Wing area 17.460 m² against a published 187.6 sq ft = 17.429 (+0.2 %), span
+8.126 m against 26 ft 8 in (−0.02 %), length 6.214 m against 20 ft 4 in, main tyre radius 0.222 m exactly the
+600×6's 17.5 in. Areas scaled ×0.9982 onto published; everything else is the measurement.
+
+**Locating the datum was the interesting part.** A18EA gives it as "centre of most forward lateral fuselage
+tube", which is not a feature you can point at in a mesh. But the same sheet gives M.A.C. 46.0 in with its LE
+at Sta. 9.0, so the MAC quarter-chord is 0.521 m aft of datum — and the cellule's area-weighted quarter-chord
+measures at config x −0.720, putting the datum at −0.200. The model's own firewall station puts it at −0.175.
+**Two independent routes, 25 mm apart.** The TCDS CG at 1800 lb (+20.0 to +23.8 in aft of datum) is then
+config x −0.708 to −0.804, which is 23.9 % to 32.2 % MAC — a textbook light-aircraft envelope. `mass.cg` is
+the mid-range, −0.756.
+
+**Static margin 14.6 % MAC on the first run**, with no tuning at all. It passed pitch stability, stall
+authority, the new-airplane protocol, spawn trim, takeoff and ground loop first time; the only two things it
+broke were bookkeeping (the glide table needed regenerating and the credits needed mirroring to
+StreamingAssets).
+
+**`cd0Area` is calibrated, not guessed.** It is the one number that is neither geometry nor certificate — the
+parasite area of fuselage, gear, struts and wires. `BOOK_SPEEDS=1` now sweeps it for this type too: at **0.59**
+it cruises at **120 mph on 75 % power**, exactly the Waco/Great Lakes spec sheet's max cruise, and runs to
+133 mph at full power. (The sheet's "maximum speed 153 mph" is Vne repeated, not a level speed; 133 mph for
+180 hp on a wire-braced biplane is the sensible reading.)
+
+Also from A18EA rev 11: 1800 lb max weight, Vne 153 mph, load factors **+5.40 / −4.00** (NOTE 6, specific to
+the 2T-1A-2 and confirmed independently by the manufacturer's sheet), IO-360 at 180 hp / 2700 rpm, the 74-inch
+Hartzell HC-C2YK-4F, and control travel — aileron 24 up / 22 down, elevator 21 up / 29 down, rudder ±35°.
+Derived gains from the measured chord ratios: aileron 0.348, elevator 0.395, rudder 0.395. Rigging from the
+maintenance manual via the provenance: 3° incidence both wings, 2° dihedral on the lower wing only.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · menu overhaul, remembered settings, and the Pitts/Extra surfaces rebuilt from their models
 
 Owner, in one go: *"overhaul the landing page and the menue so it takes up less space put more things into pull downs

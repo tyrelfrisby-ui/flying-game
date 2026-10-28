@@ -260,7 +260,7 @@ namespace FlyingGame.Bridge
             ("glider-2-33-like", "2-33-like Glider"), ("glider-eb29r-like", "EB29R-like Open Class"), ("glider-swift-s1-like", "Swift S-1-like"), ("c172-like", "172-like"), ("pa28-archer-like", "Archer-like"), ("cirrus-sr22-like", "SR22-like"), ("pa18-cub-like", "Super Cub-like"),
             ("pa18-bush-like", "Super Cub-like, Bushwheels"), ("pa18-floats-like", "Super Cub-like on Floats"),
             ("j3-cub-like", "J-3 Cub-like, 85 hp"), ("j3-cub-floats-like", "J-3 Cub-like on Floats"), ("dhc2-beaver-like", "Beaver-like"), ("dhc2-beaver-floats-like", "Beaver-like on Floats"), ("pa25-pawnee-like", "Pawnee-like"),
-            ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"),
+            ("decathlon-8kcab-like", "Decathlon-like"), ("extra-300-like", "Extra 300-like"), ("pitts-s2b-like", "Pitts S-2-like"), ("great-lakes-like", "Great Lakes-like"),
             ("jn4-jenny-like", "JN-4D-like Jenny"), ("stearman-pt17-like", "Stearman-like"), ("p51d-like", "P-51D-like"), ("f86-sabre-like", "F-86-like"),
             ("seminole-like", "Seminole-like"), ("dc3-like", "DC-3-like"), ("boeing-737-like", "737-like"), ("hughes-h4-like", "H-4-like"),
             ("cassutt-f1-like", "Cassutt-like Racer"), ("geebee-r2-like", "Gee Bee R-2-like"), ("glasair3-like", "Glasair III-like"),

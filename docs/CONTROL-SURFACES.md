@@ -220,6 +220,82 @@ correction to everything that depends on the body in sideslip — the Munk pitch
 spin. `cd0Area` and the crossflow `cd` are deliberately **not** touched: the first is calibrated against the book
 cruise speed and best glide, the second is the standard bluff-body coefficient, and neither is geometry.
 
+## Great Lakes 2T-1A-2: a new type measured off its model (2026-10-28)
+
+Owner: *"import it into aero and work the aerodynamics and physics off of the model by measuring the model just
+like you did with the pitts and extra. reference the tcds for the cg location."*
+
+The first type whose flight model was built from its mesh and its type certificate from the start, rather than
+corrected afterwards. Same method as the Pitts and the Extra above: cosine-spaced spanwise bands, area from a
+rasterised silhouette clipped to the band, chord from thin-slab stations across it, `pos` the strip's own
+quarter-chord, fixed-strip gain derived from the measured chord ratio.
+
+### The model measures true
+
+| | model | published | |
+|---|---|---|---|
+| wing area, both wings | 17.460 m² | 187.6 sq ft = 17.429 m² | +0.2 % |
+| span | 8.126 m | 26 ft 8 in = 8.128 m | −0.02 % |
+| length | 6.214 m | 20 ft 4 in = 6.20 m | +0.2 % |
+| main tyre radius | 0.222 m | 600×6, 17.5 in | exact |
+
+So the areas are scaled by ×0.9982 to land on the published total and nothing else is touched.
+
+| surface | measured |
+|---|---|
+| upper wing (no ailerons — factory 2-aileron) | 9.109 m² |
+| lower wing | 7.143 m² |
+| ailerons (lower only) | 1.177 m² |
+| stabiliser / elevator | 1.472 / 1.127 m² |
+| fin / rudder | 0.518 / 0.580 m² |
+
+Derived gains: aileron 0.348 (E 0.229), elevator 0.395 (E 0.448), rudder 0.395 (E 0.442). Rigging from the
+maintenance manual via the provenance: 3° incidence on both wings, 2° dihedral on the lower wing only, upper
+wing flat.
+
+### Locating the datum, and the CG
+
+FAA TCDS A18EA gives the datum as "centre of most forward lateral fuselage tube", which is not a feature that
+can be pointed at in a mesh. But the same sheet gives **M.A.C. 46.0 in with its leading edge at Sta. 9.0**, so
+the MAC quarter-chord is 20.5 in = 0.521 m aft of datum — and the cellule's area-weighted quarter-chord measures
+at config x −0.720. That puts the datum at **−0.200**. The model's own firewall station puts it at **−0.175**.
+Two independent routes, 25 mm apart, which is good enough to trust.
+
+| | |
+|---|---|
+| TCDS C.G. at 1800 lb (`massKg` 816 = 1800 lb, the max weight) | +20.0 to +23.8 in aft of datum |
+| in the config frame | x −0.708 to −0.804 |
+| as % MAC | **23.9 % to 32.2 %** |
+| `mass.cg` | −0.756, the mid-range |
+
+Everything else sourced from A18EA rev 11: 1800 lb max weight, Vne 153 mph, manoeuvring load factors
+**+5.40 / −4.00** (NOTE 6, specific to the 2T-1A-2), Lycoming IO-360 at 180 hp / 2700 rpm, the Hartzell
+HC-C2YK-4F at 74.0 in, and control travel — aileron 24 up / 22 down, elevator 21 up / 29 down, rudder ±35°.
+The elevator's asymmetry cannot be expressed: `ControlAxisConfig` carries one symmetric `MaxDeflRad` per axis,
+so the pair becomes its mean (25°). The stabiliser is a jack screw, not a trim tab (`trimType` "stabilizer").
+
+### What came out
+
+**Static margin 14.6 % MAC on the first run**, with no tuning — straight from the measured geometry and the
+certificated CG. `cd0Area` is the one number that is neither geometry nor certificate: it is the parasite area
+of fuselage, gear, struts and wires, and it is calibrated against book speeds with `BOOK_SPEEDS=1`. At **0.59**
+the aeroplane cruises at **120 mph on 75 % power**, which is exactly the Waco/Great Lakes spec sheet's max
+cruise, and runs to 133 mph at full power (the sheet's "153 mph maximum speed" is Vne, not a level speed).
+
+### Open
+
+- **Stall speed is 10 % low**: Vso 51 mph against the sheet's 57. It is a lift limit, so no amount of drag moves
+  it; closing it means a lower cellule CLmax (1.43 now, 1.14 needed), which is what a biplane's mutual
+  interference does at this gap/chord. The wing section is not known for this type — the provenance says only
+  "~12 % with slight camber" — so nothing was changed. For scale, the fleet's Vso against book runs from the
+  Jenny at −14 % to the Pitts at +20 %; this is not a biplane bias and not peculiar to this aeroplane.
+- **The inertias are estimates**, from radii of gyration scaled off the Pitts and the Extra. There is no mass
+  breakdown for the type (new-airplane protocol step 1c). This is the only part of the config with no source.
+- **`mass.cg` z (0.25 m below the thrust line) is derived, not certified** — a TCDS gives no vertical CG.
+- **The gear is exported extended.** The physics contacts are the *static* ones, so the aeroplane sits at the
+  published 7 ft 4 in and its three-point angle comes out 7.2° against the provenance's solved 6.91°. Until the
+  oleo rig is animated the drawn wheels hang about 0.23 m below where the aeroplane is standing.
+
 ## Control effectiveness τ (thin-airfoil theory)
 
 Flat plate with a plain flap, Glauert: cos θ_h = 2E − 1, A₀ = α + δ(π − θ_h)/π, A_n = 2δ sin(nθ_h)/(nπ).

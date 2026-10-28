@@ -1,0 +1,13 @@
+Source: built here, not downloaded. tools/own_models/build_great_lakes.py (Blender, 2026-10-28, v6).
+Model: Great Lakes 2T-1A-2, red-sunburst livery: great-lakes-like-own.glb (all-red airframe with navy and white
+fuselage stripes, sunburst rays on the wings and tail, no registration or logos; the default and currently the
+only livery wired in).
+Author: this project (clean-room; provenance in docs/models/great-lakes-own-PROVENANCE.md)
+License: same as the rest of this repository
+Commercial use: ours to allow
+CREDIT LINE: "Great Lakes 2T-1A-2" modelled for this project with tools/own_models/build_great_lakes.py
+Note: no third-party mesh was downloaded, opened, imported, traced or measured. Geometry is generated
+procedurally from tables typed in by eye off reference drawings and photographs. Dimensions are from the
+American Aircraft Modeler September 1970 three-view, the Great Lakes maintenance manual and FAA TCDS A18EA;
+paint from the owner's own photographs by eye only (no pixels used). There are no manufacturer logos or
+trademarks on the model, and no registration on this livery.

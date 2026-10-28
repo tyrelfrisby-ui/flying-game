@@ -133,6 +133,15 @@ namespace FlyingGame.Bridge
             // drawn procedurally, and the procedural airframe follows the config, which puts the tailplane
             // on the boom centreline. The photographs say CRUCIFORM, half way up the fin.
             { "glider-swift-s1-like", new Spec(Vector3.right, Vector3.up) },
+            // tools/own_models/build_great_lakes.py (docs/models/great-lakes-own-PROVENANCE.md): our clean-room
+            // 2T-1A-2, same export convention as the Pitts and the EA300 (nose +x after import, glTF Y-up), drawn
+            // level on the thrust line with its origin at the upper-wing centre-section LE. There is no downloaded
+            // Great Lakes and no procedural style for the type, so this GLB IS the aeroplane -- see PickOwn. Its
+            // ailerons (lower wing only), elevators and rudder are meshes of their own, hinged at the model's own
+            // lines, so the rig hangs them whole rather than carving the airframe (namedSurfaces).
+            // NOTE: the gear is exported EXTENDED (the provenance solves static at 6.19 in of its 9 in stroke), so
+            // until the oleo rig is animated the drawn wheels hang about 0.23 m below the config's contact points.
+            { "great-lakes-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
         };
 
         /// <summary>The suffix for the file to load, and the Spec that goes with it: ours when we have one and the
@@ -142,7 +151,7 @@ namespace FlyingGame.Bridge
         /// but is never loaded. The Pitts likewise (Ty 2026-10-27, approved own S-2B v10.1): there is no downloaded
         /// Pitts, so without our GLB the type falls back to the procedural airframe.</summary>
         static bool PickOwn(string modelId) =>
-            (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like"
+            (SessionSettings.UseOwnModels || modelId == "extra-300-like" || modelId == "pitts-s2b-like" || modelId == "great-lakes-like"
                 || (modelId == "glider-2-33-like" && (SessionSettings.LiveryFor(modelId) is "factory" or "talk-flying")))
             && modelId != null && OwnSpecs.ContainsKey(modelId)
             && Resources.Load<GameObject>($"Models/{modelId}/{modelId}{OwnSuffix(modelId)}") != null;

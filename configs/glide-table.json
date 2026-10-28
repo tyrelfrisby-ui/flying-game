@@ -481,6 +481,19 @@
     "TrimStick": -0.1233
   },
   {
+    "Id": "great-lakes-like",
+    "Flaps": 0,
+    "VsoKt": 44.51,
+    "SpeedKt": 57.87,
+    "GlideDeg": 7.467,
+    "GlideRatio": 7.63,
+    "SinkFpm": 761.6,
+    "AlphaDeg": 4.27,
+    "PitchDeg": -3.197,
+    "ElevatorDeg": -3.461,
+    "TrimStick": -0.1788
+  },
+  {
     "Id": "hughes-h4-like",
     "Flaps": 0,
     "VsoKt": 74.84,

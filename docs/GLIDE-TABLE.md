@@ -43,6 +43,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | glider-2-33-like | up | 28 | 36 | 5.3 | 10.7:1 | 339 | 0.6 | 5.9 | -0.7 | -0.06 |
 | glider-eb29r-like | up | 46 | 59 | 5.0 | 11.3:1 | 528 | 0.6 | 5.6 | -3.3 | -0.15 |
 | glider-swift-s1-like | up | 35 | 45 | 4.9 | 11.7:1 | 392 | 3.1 | 8.0 | -2.6 | -0.12 |
+| great-lakes-like | up | 45 | 58 | 7.5 | 7.6:1 | 762 | -3.2 | 4.3 | -3.5 | -0.18 |
 | hughes-h4-like | up | 75 | 97 | 5.7 | 10.0:1 | 980 | -0.4 | 5.3 | -4.6 | -0.20 |
 | hughes-h4-like | half | 70 | 91 | 6.3 | 9.1:1 | 1010 | -2.3 | 4.0 | 0.5 | +0.05 |
 | hughes-h4-like | full | 65 | 85 | 6.9 | 8.3:1 | 1030 | -3.9 | 3.0 | 5.3 | +0.22 |

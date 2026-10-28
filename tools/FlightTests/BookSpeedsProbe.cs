@@ -31,6 +31,8 @@ public class BookSpeedsProbe
     [InlineData("jn4-jenny-like", 33.53, 20.12)]    // JN-4D: 75 mph maximum level, 45 mph MINIMUM level
     [InlineData("stearman-pt17-like", 55.4, 23.2)]  // PT-17: 124 mph maximum level, 52 mph stall
     [InlineData("pitts-s2b-like", 71.5, 25.0)]      // S-2B: 160 mph maximum level, 56 mph stall clean
+    [InlineData("great-lakes-like", 68.4, 25.72)]   // 2T-1A-2: Waco/Great Lakes spec sheet, 133 kt (153 mph) max at sea
+                                                    // level and 50 kt (57 mph) stall; max cruise 105 kt (120 mph)
     [InlineData("c172-like", 63.0, 24.7)]           // 172: 141 mph maximum level, 55 mph stall clean -- the MONOPLANE control
     public void Cd0AreaAgainstTheBookSpeeds(string id, double bookMaxMs, double bookCruiseMs)
     {
