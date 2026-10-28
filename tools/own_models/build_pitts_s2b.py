@@ -1,4 +1,4 @@
-"""Our own Pitts S-2B -> two liveries from one model.   v10
+"""Our own Pitts S-2B -> two liveries from one model.   v10.1 (fin script logo removed)
   PITTS_LIVERY=N31DG (default): -> pitts-s2b-like-own.glb       red/white checkered rudder + checkered lower-wing
                                                                  underside, Hartzell 2-blade (grey, white tips)
   PITTS_LIVERY=N1191          : -> pitts-s2b-like-own-n1191.glb  the factory scheme: three white rudder diamonds, white
@@ -717,9 +717,7 @@ def side(name, flip):
     # v10: moved down with the lower stripe pack, z -0.46 .. -0.21 (was -0.40 .. -0.15), same x span
     rh = 0.25; png = 'pitts-%s.png' % LIV.lower(); aspect = {'N31DG': 687 / 162, 'N1191': 607 / 162}[LIV]
     v.stamp(png, -1.30, -1.30 - rh * aspect, Z_REG, Z_REG + rh)
-    # fin: "Pitts" script and "S-2B"
-    v.stamp('pitts-script.png', -2.86, -3.183, 0.40, 0.56)
-    v.stamp('pitts-s2b.png', -2.975, -3.115, 0.335, 0.385)
+    # v10.1 (Ty): no "Pitts" script / "S-2B" logo on the fin in either livery (art PNGs kept, unused)
     return v
 VL, VR = side('pitts_side_l', True), side('pitts_side_r', False)
 def plan(name, flip, yr, xr, w, h):
