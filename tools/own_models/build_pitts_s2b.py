@@ -9,7 +9,8 @@ Clean-room: all geometry is generated here from numbers measured off the public 
 published dimensions (wingspan, length, chords, stagger, gear track; see the dimension table below and
 docs/models/pitts-s2b-own-PROVENANCE.md).  No third-party or GPL mesh, UV or texture is read or imported.
 v4 geometry (Ty): fin/rudder side profile and stab/elevator planform re-traced from the Aviat factory three-view (scaled
-to the published 5.71 m length; other S-2B three-views used as checks), slave struts directly behind the I-struts.
+to the published 5.71 m length; other S-2B three-views used as checks). v11 (Ty): slave struts 10 in inboard of the I-struts, pinned to aileron horns just
+ahead of the aileron leading edge.
 v4 paint: the Aviat factory sunburst scheme, re-created procedurally below from published painted three-views (Horizons
 NZ, AirshowModels, Munden S-2C; looked at by eye only - nothing traced, sampled or copied into the textures): red base,
 sunburst on the top of both wings and on the stab/elevators, white fuselage stripes + nose diamond, white turtledeck
@@ -39,9 +40,9 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
 from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
-# unmarked variants (Ty 2026-10-28): the same two schemes with NO registration anywhere; otherwise identical to v10.1
-#   PITTS_LIVERY=CHECKER-UNMARKED -> pitts-s2b-like-own-checker-unmarked.glb (N31DG scheme + Hartzell 2-blade)
-#   PITTS_LIVERY=FACTORY-UNMARKED -> pitts-s2b-like-own-factory-unmarked.glb (N1191 scheme + MT 3-blade)
+# unmarked variants (Ty 2026-10-28): the same two schemes with NO registration anywhere
+#   PITTS_LIVERY=CHECKER-UNMARKED -> pitts-s2b-like-own-checker-unmarked.glb (N31DG scheme + its prop)
+#   PITTS_LIVERY=FACTORY-UNMARKED -> pitts-s2b-like-own-factory-unmarked.glb (N1191 scheme + its prop)
 LIV_ID = os.environ.get('PITTS_LIVERY', 'N31DG').upper()
 _SCHEME = {'N31DG': 'N31DG', 'N1191': 'N1191', 'CHECKER-UNMARKED': 'N31DG', 'FACTORY-UNMARKED': 'N1191'}
 assert LIV_ID in _SCHEME, LIV_ID
@@ -361,35 +362,113 @@ bm = bmesh.new(); loft_rings(bm, [rudder_sec(z) for z in rz]); bmesh.ops.recalc_
 P['Rudder'] = link('Rudder', bm)
 
 # ---- struts and wires ------------------------------------------------------------------------------------------
-def wl_low(y, f):  # upper-wing lower surface z / lower-wing upper surface z at chord fraction f (nominal)
-    return 0.613 - yt(f, 0.12) * CH + yc(f, 0.01) * CH, -0.551 + math.tan(math.radians(3)) * abs(y) + yt(f, 0.12) * CH
-bm = bmesh.new()   # cabane: an N on each side, from the upper longerons to the centre section
-for sy in (1, -1):
-    ft, rt = (0.50, sy * 0.10, 0.575), (0.06, sy * 0.10, 0.565)
-    fb, rb = (0.53, sy * 0.30, 0.185), (0.22, sy * 0.30, 0.185)
-    for a, b in ((fb, ft), (rb, rt), (fb, rt)): blade_strut(bm, a, b, [0.050] * 4, 0.020)
+def wl_low(y, f):  # upper-wing lower surface z / lower-wing upper surface z at chord fraction f
+    # v12: exact to the lofted skins (Surf.section): incidence about the LE included (it was left out before v12, which
+    # put the I-strut ends and the lower aileron horns up to ~1.5 cm off the skin)
+    di = -f * CH * math.sin(math.radians(1.0))
+    return (float(0.613 + di - yt(f, 0.12) * CH + yc(f, 0.01) * CH),
+            float(-0.551 + math.tan(math.radians(3)) * abs(y) + di + yt(f, 0.12) * CH))
+# v12 (Ty + his overhead front-quarter reference photo): the cabane is two inverted Vs. A forward and a rear pair of
+# tubes rise from the upper longerons INSIDE the fuselage (just ahead of the windscreen) and meet at the centreline
+# under the top wing. A longitudinal tube joins the two apexes; tabs come down from the front and rear spars of the top
+# wing to that tube. All of the top end is covered by the 'banana fairing': a ~5 in diameter half-round fairing running
+# fore-aft under the centre section, bent to follow the wing's under-skin, rounded at both ends. Only the tubes
+# heading into the fairing are visible; the internal tube/tabs are modelled simply.
+F_SP, R_SP = 0.15, 0.62                       # front / rear spar chord fractions (top wing)
+X_SPF, X_SPR = float(LEU0(0)) - F_SP * CH, float(LEU0(0)) - R_SP * CH
+BAN_R, BAN_F, BAN_A, BAN_EMB = 0.0635, 0.10, 0.80, 0.012   # 5 in dia; chord fractions of its nose / tail; embed in skin
+zsk0 = lambda x: wl_low(0.0, (float(LEU0(0)) - x) / CH)[0]    # top-wing under-skin z at the centreline
+X_AF, X_AR = 0.43, 0.07                       # apexes: forward / rear V meet here, inside the fairing
+Z_AP = lambda x: zsk0(x) - 0.030
+bm = bmesh.new()
+for xb, xa in ((0.47, X_AF), (0.02, X_AR)):   # forward V, rear V (bottoms on the upper longerons, inside the fuselage)
+    for sy in (1, -1):
+        tube(bm, [(xb, sy * 0.38, 0.11), (xa, sy * 0.012, Z_AP(xa))], 0.016, 10)
+xs = np.linspace(X_SPF + 0.03, X_SPR - 0.03, 9)
+tube(bm, [(x, 0.0, Z_AP(x)) for x in xs], 0.014, 10)       # longitudinal tube apex -> apex (extended to the spar tabs)
+for xt in (X_SPF, X_SPR):                                    # spar tabs: plates from the spar down onto the tube
+    zt0, zt1 = zsk0(xt) + 0.010, Z_AP(xt) - 0.010
+    vs = [bm.verts.new((xt + dx, dy, z)) for dx, z in ((-0.025, zt1), (0.025, zt1), (0.025, zt0), (-0.025, zt0)) for dy in (-0.003, 0.003)]
+    for q in ((0, 2, 4, 6), (1, 7, 5, 3), (0, 1, 3, 2), (2, 3, 5, 4), (4, 5, 7, 6), (6, 7, 1, 0)):
+        bm.faces.new([vs[i] for i in q])
 P['Strut_Cabane'] = link('Strut_Cabane', bm)
+bm = bmesh.new()   # banana fairing
+xn, xt_ = float(LEU0(0)) - BAN_F * CH, float(LEU0(0)) - BAN_A * CH; Lb = xn - xt_
+rings = []
+for u in np.linspace(0, 1, 41):
+    x = xn - Lb * u; d = min(x - xt_, xn - x)                # distance to the nearer end
+    r = BAN_R * math.sqrt(max(1 - (max(BAN_R - d, 0) / BAN_R) ** 2, 0.0004)) if d < BAN_R else BAN_R
+    zs = zsk0(x)                                             # half-round hanging from the skin, top edges embedded
+    rings.append([(x, r * math.cos(t), zs + BAN_EMB - (r + BAN_EMB) * math.sin(t)) for t in np.linspace(0, math.pi, 15)])
+loft_rings(bm, rings, closed=False)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+P['Cabane_Fairing'] = link('Cabane_Fairing', bm)
+print('CABANE spars x %.3f / %.3f, apex x %.3f / %.3f z %.3f / %.3f, banana x %.3f .. %.3f (%.0f mm), r %.4f'
+      % (X_SPF, X_SPR, X_AF, X_AR, Z_AP(X_AF), Z_AP(X_AR), xn, xt_, 1000 * Lb, BAN_R))
 YI_U, YI_L = 2.28, 2.18
-bm = bmesh.new()   # interplane I-struts: flared ends spread over ~50 % chord, narrow waist
+# v12 (Ty): the I-strut ends widen to give bolt hardpoints on the FRONT and REAR spars, so each end must sit on the skin
+# from front spar to rear spar with no gap. Stations are horizontal-ish sections (chord along x, thickness along y);
+# every vertex's z blends the two skins at its own x, so the end rings follow the wing under/over-skin exactly and are
+# embedded I_EMB into the wing. End chord spans F_SP - I_PAD .. R_SP + I_PAD of each wing; waist chord 0.13 m.
+I_PAD, I_EMB, I_TH = 0.04, 0.006, 0.030
+bm = bmesh.new()   # interplane I-struts
 for sy in (1, -1):
-    xu = float(LEU0(YI_U)) - 0.40 * CH; xl = float(LEL0(YI_L)) - 0.40 * CH
-    zu = wl_low(YI_U, 0.4)[0] + 0.012; zl = wl_low(YI_L, 0.4)[1] - 0.012
-    ch = [0.13 + 0.40 * abs(2 * t - 1) ** 5 for t in np.linspace(0, 1, 13)]
-    blade_strut(bm, (xu, sy * YI_U, zu), (xl, sy * YI_L, zl), ch, 0.030)
+    fu0, fu1 = F_SP - I_PAD, R_SP + I_PAD; fc = 0.5 * (fu0 + fu1); c_end = (fu1 - fu0) * CH
+    xcu = float(LEU0(YI_U)) - fc * CH; xcl = float(LEL0(YI_L)) - fc * CH
+    zU = lambda x: wl_low(YI_U, (float(LEU0(YI_U)) - x) / CH)[0] + I_EMB
+    zL = lambda x: wl_low(YI_L, (float(LEL0(YI_L)) - x) / CH)[1] - I_EMB
+    rings = []
+    for t in np.linspace(0, 1, 25):
+        c = 0.13 + (c_end - 0.13) * abs(2 * t - 1) ** 5
+        ring = []
+        for th in np.linspace(0, 2 * math.pi, 20, endpoint=False):
+            u = 0.5 * c * math.cos(th); v = 0.5 * I_TH * math.sin(th) * (1 - 0.35 * math.cos(th))
+            # the flare blends into a flat pad at each end so the last stations hug the skin
+            pad = 0.5 * I_TH + 0.004 if t in (0.0, 1.0) else 0.0
+            v = math.copysign(max(abs(v), pad * abs(math.sin(th)) ** 0.3), v) if pad else v
+            xu_, xl_ = xcu + u, xcl + u
+            ring.append((xu_ + (xl_ - xu_) * t, sy * (YI_U + (YI_L - YI_U) * t) + v, zU(xu_) + (zL(xl_) - zU(xu_)) * t))
+        rings.append(ring)
+    loft_rings(bm, rings)
+    print('ISTRUT_%s top x %.3f..%.3f (spars %.3f/%.3f)  bottom x %.3f..%.3f (spars %.3f/%.3f)' % (
+        'L' if sy > 0 else 'R', xcu - c_end / 2, xcu + c_end / 2, float(LEU0(YI_U)) - F_SP * CH, float(LEU0(YI_U)) - R_SP * CH,
+        xcl - c_end / 2, xcl + c_end / 2, -F_SP * CH, -R_SP * CH))
 P['Strut_Interplane'] = link('Strut_Interplane', bm)
-# v4 (Ty): aileron slave struts immediately behind the I-struts - same span stations and lean, on the ailerons just aft
-# of the hinge (the I-strut's aft flange ends at ~66 % chord, the hinge is at 75 %)
+# v11 (Ty): aileron slave struts 10 in (0.254 m) inboard of the I-struts, same lean as the I-struts. Each end pins to an
+# aileron horn: a fitting fixed to the aileron that projects forward of the aileron leading edge, into the wing just ahead
+# of it, hanging below the upper wing / standing above the lower wing; the strut pin is just ahead of the aileron LE.
+# The horns are part of the aileron meshes, so they deflect with the ailerons about the hinge line.
+Y_SL_U, Y_SL_L = YI_U - 0.254, YI_L - 0.254
+SL_PIN, HORN_FWD, HORN_AFT, HORN_H, HORN_T = 0.040, 0.065, 0.035, 0.040, 0.008
+def horn(obj, Hf, y, upper):
+    """fitting on the aileron at span y: from HORN_AFT aft of the hinge to HORN_FWD ahead of it, HORN_H outside the skin"""
+    xa, xf = float(Hf(y)) - HORN_AFT, float(Hf(y)) + HORN_FWD
+    fa, ff = HF + HORN_AFT / CH, HF - HORN_FWD / CH
+    sk = (lambda f: wl_low(y, f)[0]) if upper else (lambda f: wl_low(y, f)[1])
+    o = -1 if upper else 1                                    # outward from the skin (down under the upper wing)
+    pts = [(xa, sk(fa) - o * 0.006), (xf, sk(ff) - o * 0.006), (xf - 0.012, sk(ff) + o * HORN_H), (xa, sk(fa) + o * 0.5 * HORN_H)]
+    bm = bmesh.new(); bm.from_mesh(obj.data)
+    vs = [[bm.verts.new((x_, y + dy, z_)) for x_, z_ in pts] for dy in (-0.5 * HORN_T, 0.5 * HORN_T)]
+    bm.faces.new(vs[0][::-1]); bm.faces.new(vs[1])
+    for i in range(4):
+        j = (i + 1) % 4; bm.faces.new((vs[0][i], vs[0][j], vs[1][j], vs[1][i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[-6:]); bm.to_mesh(obj.data); bm.free(); obj.data.update()
+    xp = float(Hf(y)) + SL_PIN
+    return (xp, sk(HF - SL_PIN / CH) + o * (HORN_H - 0.010))  # strut pin: near the outer edge of the horn
 for side, sy in (('L', 1), ('R', -1)):   # aileron slave struts (upper aileron drives the lower)
-    bm = bmesh.new(); xu = float(HU(YI_U)) - 0.06; xl = float(HL(YI_L)) - 0.06
-    blade_strut(bm, (xu, sy * YI_U, wl_low(YI_U, 0.81)[0] + 0.006), (xl, sy * YI_L, wl_low(YI_L, 0.81)[1] - 0.006), [0.045] * 3, 0.016)
+    xu, zu = horn(P['Aileron_U' + side], HU, sy * Y_SL_U, True)
+    xl, zl = horn(P['Aileron_L' + side], HL, sy * Y_SL_L, False)
+    bm = bmesh.new()
+    blade_strut(bm, (xu, sy * Y_SL_U, zu), (xl, sy * Y_SL_L, zl), [0.040] * 3, 0.016)
     P['Strut_Slave_' + side] = link('Strut_Slave_' + side, bm)
+    print('SLAVE_%s top (%.3f, %.3f, %.3f) bottom (%.3f, %.3f, %.3f); aileron LE x %.3f / %.3f' % (side, xu, sy * Y_SL_U, zu, xl, sy * Y_SL_L, zl, float(HU(Y_SL_U)), float(HL(Y_SL_L))))
 bm = bmesh.new(); RWI = 0.0035
 for sy in (1, -1):
     for dx in (0.0, -0.07):   # double flying wires: lower fuselage at the lower-wing root -> upper wing at the I-strut
         tube(bm, [(0.06 + dx, sy * 0.36, -0.57), (0.20 + dx, sy * (YI_U - 0.03), 0.555)], RWI, 6)
     for dx in (0.0, -0.07):   # double landing wires: cabane top -> lower wing at the I-strut
         tube(bm, [(0.40 + dx, sy * 0.13, 0.56), (-0.25 + dx, sy * (YI_L - 0.03), -0.40)], RWI, 6)
-    tube(bm, [(0.50, sy * 0.10, 0.56), (0.22, -sy * 0.30, 0.19)], RWI, 6)                  # cabane cross wire
+    # v12: no cabane cross wire (the inverted-V cabane is triangulated)
     tube(bm, [(-3.12, 0.0, 0.60), (-3.02, sy * 0.62, 0.083)], RWI, 6)                     # tail: fin -> stab top
     tube(bm, [(-3.02, sy * 0.62, 0.059), (-3.08, sy * 0.025, -0.34)], RWI, 6)            # stab bottom -> tail post
 P['Wire_Bracing'] = link('Wire_Bracing', bm)
@@ -807,7 +886,7 @@ for n in ('Canopy_Frame', 'Fin', 'Rudder'):
     setm(P[n], ['pitts_side_l', 'pitts_side_r', 'red'])
     paint.project(P[n], lambda nrm, c: (2, None) if nrm.z <= -0.6 else ((0, VL) if nrm.y >= 0 else (1, VR)))
 for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'red'), ('Gear_Fairing', 'red'), ('Gear_Bungee_Housing', 'red'), ('Gear_Bungee', 'tyre'), ('Wheels', 'tyre'),
-             ('Strut_Cabane', 'red'), ('Strut_Interplane', 'red'), ('Strut_Slave_L', 'red'), ('Strut_Slave_R', 'red'),
+             ('Strut_Cabane', 'red'), ('Cabane_Fairing', 'red'), ('Strut_Interplane', 'red'), ('Strut_Slave_L', 'red'), ('Strut_Slave_R', 'red'),
              ('Wire_Bracing', 'steel'), ('Exhaust', 'exhaust')):
     setm(P[n], [m]); [setattr(p, 'material_index', 0) for p in P[n].data.polygons]
 setm(P['Prop'], ['prop_blade', 'prop_tip'])
