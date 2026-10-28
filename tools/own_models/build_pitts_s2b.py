@@ -592,17 +592,19 @@ def swoosh(p0, p1, p2, w0, w1, n=24):
     for t in np.linspace(0, 1, n):
         pts.append(tuple((1 - t) ** 2 * np.array(p0) + 2 * t * (1 - t) * np.array(p1) + t * t * np.array(p2))); ws.append(w0 + (w1 - w0) * t)
     return pts, ws
-# v6 (Ty): the white turtledeck patch comes well down the fuselage side, as on the HNZ / AirshowModels / Munden side
-# views: a wedge whose leading edge runs down the canopy rear bow from the top to just above the sill line (z X_TW0),
-# and whose lower edge rises straight aft to meet the top centre line at X_TWA (the apex of the top-view wedge).
-# One 3-D rule (surface point white if z > ZB_TW(x)) paints both the side and the top projections, so they join.
-X_TW0, Z_TW0, X_TWA = X_CA - 0.007, 0.170, -2.200
+# v7 (Ty): the white turtledeck patch behind the canopy, as on the HNZ / AirshowModels / Munden side views. Its leading
+# edge runs down the canopy rear bow from the top to about half the canopy height above the sill (z Z_TW0). Its lower
+# edge is a smooth concave arc that sweeps aft and up and blends tangentially into the fuselage top line at X_TWA,
+# which is also the apex of the top-view wedge: gap below the top line = g0 * (1 - t) ** P_TW, t = 0 at the bow and
+# 1 at the apex. One 3-D rule (a surface point is white if z > ZB_TW(x)) paints both the side and the top projections,
+# so the two join.
+X_TW0, Z_TW0, X_TWA, P_TW = X_CA - 0.007, 0.292, -2.200, 2.2
 _aft = [s_ for s_ in ST if s_[0] <= X_CA]
 _ax = [s_[0] for s_ in _aft][::-1]
 FTOP = lambda x: np.interp(x, _ax, [s_[1] for s_ in _aft][::-1])
 FBOT = lambda x: np.interp(x, _ax, [s_[2] for s_ in _aft][::-1])
 FHW = lambda x: np.interp(x, _ax, [s_[3] for s_ in _aft][::-1])
-ZB_TW = lambda x: Z_TW0 + (FTOP(X_TWA) - Z_TW0) * (X_TW0 - x) / (X_TW0 - X_TWA)
+ZB_TW = lambda x: FTOP(x) - (FTOP(X_TW0) - Z_TW0) * np.clip((x - X_TWA) / (X_TW0 - X_TWA), 0, 1) ** P_TW
 def turtledeck_white_side(A, Z):
     return (A < X_TW0) & (A > X_TWA) & (Z > ZB_TW(A))
 def turtledeck_white_top(Y, X):
@@ -623,7 +625,7 @@ def side(name, flip):
     roi = (A > 0.9) & (A < 1.6)
     W[roi] |= band(A[roi], Z[roi], pu, wu) | band(A[roi], Z[roi], pl, wl)
     W |= (A > CB_X0) & (A < CB_X1) & (Z > 0.17)                            # where the cowl-top band rolls over the top
-    # turtledeck: white wedge behind the canopy coming down the fuselage side (v6), same 3-D boundary as the top view
+    # turtledeck: white wedge behind the canopy coming down the fuselage side (v6), curved lower edge (v7), same 3-D boundary as the top view
     W |= turtledeck_white_side(A, Z)
     # wheel pants: a white diamond on the nose of the pant and two thin stripes running aft along it
     xs_p = [r[0] for r in PANT][::-1]; zc = np.interp(A, xs_p, [r[1] for r in PANT][::-1]); ht = np.interp(A, xs_p, [r[2] for r in PANT][::-1])

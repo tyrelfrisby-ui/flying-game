@@ -225,3 +225,30 @@ Owner request: make the white patch behind the canopy come much further down the
 ### Renders
 - `pitts-s2b-v6-<livery>-side.png`, `-iso.png`, `-top.png` and `-tailiso.png`.
 - `pitts-s2b-v6-side-vs-references.png`: the model side views stacked against the HNZ, AirshowModels and Munden side views and the v4/v5 "before" view, with close-ups of the canopy rear.
+
+## v7 (2026-10-27): turtledeck wedge starts halfway up the canopy and has a curved lower edge
+
+Owner correction to v6: "It should start about half way up the canopy and it has a curved line to the edge."
+
+### Change (both liveries, `build_pitts_s2b.py`, paint only)
+- **Leading edge:** runs down the canopy rear bow (x −1.607) from the turtledeck top (z 0.429) to z 0.292. That is halfway between the 0.155 sill and the top of the bow. In v6 it reached the sill.
+- **Lower edge:** now a smooth concave arc instead of v6's straight line. The gap below the fuselage top line is `g0·(1−t)^2.2`, where t = 0 at the bow and 1 at the apex (x −2.20), and g0 = 0.134 m. The arc rises steeply out of the bow, sweeps aft and up, and blends tangentially into the top edge and turtledeck. This matches the Horizons NZ and AirshowModels side views, with the Munden S-2C as corroboration.
+- **Paint rule:** still one 3-D rule (white where z > ZB_TW(x)) for both the side and top projections. The top-view apex stays at x −2.20, and the plan-view wedge now has matching concave sides.
+- **Outline:** the thin navy outline (16 mm) is unchanged.
+
+| x (m) | Fuselage top z | Lower edge z | White depth in side view | Plan-view half-width |
+|---|---|---|---|---|
+| −1.61 | 0.427 | 0.293 | 0.134 | 0.274 |
+| −1.70 | 0.412 | 0.319 | 0.093 | 0.238 |
+| −1.80 | 0.395 | 0.338 | 0.057 | 0.195 |
+| −1.90 | 0.373 | 0.343 | 0.030 | 0.147 |
+| −2.00 | 0.352 | 0.339 | 0.012 | 0.099 |
+| −2.10 | 0.333 | 0.330 | 0.003 | 0.050 |
+| −2.20 | apex | | | 0 |
+
+- **Clearances:** the wedge stays at least 0.29 m above the upper stripe (top edge at about z 0.00) and further from the registration (z ≤ −0.15). Nothing overlaps.
+- **Geometry and triangle counts:** unchanged from v5 (54952 triangles for N1191, 53660 for N31DG).
+
+### Renders
+- `pitts-s2b-v7-<livery>-{side,iso,top,closeup,tailiso,cockpit}.png`.
+- `pitts-s2b-v7-side-vs-references.png`, with the v6 side view as the "before" row.
