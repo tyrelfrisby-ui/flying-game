@@ -6,9 +6,10 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// Our own clean-room Pitts S-2B (tools/own_models/build_pitts_s2b.py, Ty 2026-10-27) is THE in-game Pitts: N31DG
-/// (pitts-s2b-like-own.glb, Hartzell 2-blade) for every livery, N1191 (pitts-s2b-like-own-n1191.glb, MT 3-blade) as
-/// livery "n1191". The Unity side (AirframeModels / Livery) can't be loaded here, so these hold the files it loads
+/// Our own clean-room Pitts S-2B (tools/own_models/build_pitts_s2b.py, Ty 2026-10-27) is THE in-game Pitts, in four
+/// liveries: the checkered scheme with the Hartzell 2-blade, unmarked (pitts-s2b-like-own-checker-unmarked.glb, the
+/// default since Ty 2026-10-28) or as N31DG (pitts-s2b-like-own.glb), and the factory sunburst with diamonds with the MT
+/// 3-blade, unmarked (pitts-s2b-like-own-factory-unmarked.glb) or as N1191 (pitts-s2b-like-own-n1191.glb). The Unity side (AirframeModels / Livery) can't be loaded here, so these hold the files it loads
 /// and the mapping it is written with: the GLBs are there, imported, true to size, nose and top where the OwnSpecs
 /// entry expects them, carry the named parts the rig binds, and each livery's GLB is the one with its own propeller.
 /// </summary>
@@ -23,7 +24,9 @@ public class OwnPittsModelTests
     }
     internal static string Models => Path.Combine(Repo, "unity", "Assets", "_Project", "Resources", "Models");
     private static string Bridge => Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge");
-    private static string Glb(string suffix) => Path.Combine(Models, "pitts-s2b-like", "pitts-s2b-like" + suffix + ".glb");
+    private static string Glb(string suffix) => Glb("pitts-s2b-like", suffix);
+    private static string Glb(string model, string suffix) => Path.Combine(Models, model, model + suffix + ".glb");
+    private static readonly string[] PittsSuffixes = { "-own-checker-unmarked", "-own-factory-unmarked", "-own", "-own-n1191" };
 
     /// <summary>A GLB's JSON chunk and binary chunk.</summary>
     internal static (JsonElement json, byte[] bin) ReadGlb(string path)
@@ -66,13 +69,16 @@ public class OwnPittsModelTests
     private static string ImporterScript(string meta) => Regex.Match(File.ReadAllText(meta), @"script: \{[^}]*guid: (\w+)").Groups[1].Value;
 
     [Fact]
-    public void BothLiveriesShipAsImportedGlbs()
+    public void EveryLiveryShipsAsAnImportedGlb()
     {
         string extraMeta = Path.Combine(Models, "extra-300-like", "extra-300-like-own.glb.meta");
+        // Every own Pitts and Extra GLB has its own committed GUID (none may collide with a sibling's, or with each other's).
         var guids = new HashSet<string>();
-        foreach (string suffix in new[] { "-own", "-own-n1191" })
+        var glbs = PittsSuffixes.Select(sfx => Glb(sfx))
+            .Concat(new[] { "-own", "-own-n300uy", "-own-unmarked" }.Select(sfx => Glb("extra-300-like", sfx)));
+        foreach (string glb in glbs)
         {
-            string glb = Glb(suffix), meta = glb + ".meta";
+            string meta = glb + ".meta";
             Assert.True(File.Exists(glb), glb + " is missing");
             Assert.True(File.Exists(meta), meta + " is missing — Unity would import it under a GUID nobody has committed");
             Assert.True(guids.Add(Guid(meta)), meta + ": duplicate GUID");
@@ -85,6 +91,8 @@ public class OwnPittsModelTests
     }
 
     [Theory]
+    [InlineData("-own-checker-unmarked")]
+    [InlineData("-own-factory-unmarked")]
     [InlineData("-own")]
     [InlineData("-own-n1191")]
     public void TrueToSizeNoseAndTopWhereTheSpecSaysAndRigPartsNamed(string suffix)
@@ -105,13 +113,20 @@ public class OwnPittsModelTests
         Assert.True(span > length);
     }
 
-    /// <summary>Each livery is the GLB with its own propeller: N31DG a Hartzell 2-blade, N1191 an MT 3-blade.</summary>
+    /// <summary>Each livery is the GLB with its own propeller, as counted in the files (2026-10-28; the unmarked HANDOFF
+    /// had the two unmarked Pittses' props the wrong way round): the checkered Pittses, unmarked and N31DG, a Hartzell
+    /// 2-blade; the factory ones, unmarked and N1191, an MT 3-blade; every Extra a 3-blade.</summary>
     [Theory]
-    [InlineData("-own", 2)]
-    [InlineData("-own-n1191", 3)]
-    public void EachLiveryHasItsOwnPropeller(string suffix, int blades)
+    [InlineData("pitts-s2b-like", "-own-checker-unmarked", 2)]
+    [InlineData("pitts-s2b-like", "-own", 2)]
+    [InlineData("pitts-s2b-like", "-own-factory-unmarked", 3)]
+    [InlineData("pitts-s2b-like", "-own-n1191", 3)]
+    [InlineData("extra-300-like", "-own-unmarked", 3)]
+    [InlineData("extra-300-like", "-own", 3)]
+    [InlineData("extra-300-like", "-own-n300uy", 3)]
+    public void EachLiveryHasItsOwnPropeller(string model, string suffix, int blades)
     {
-        var prop = Vertices(Glb(suffix))["Prop"];
+        var prop = Vertices(Glb(model, suffix))["Prop"];
         // Blade count = runs of occupied 10-degree sectors round the spinner axis (x), well out on the blades.
         float r = prop.Max(p => MathF.Sqrt(p.y * p.y + p.z * p.z));
         var occupied = new bool[36];
@@ -120,34 +135,58 @@ public class OwnPittsModelTests
                 occupied[(int)((MathF.Atan2(p.z, p.y) * 180f / MathF.PI + 360f) % 360f / 10f) % 36] = true;
         int runs = 0;
         for (int i = 0; i < 36; i++) if (occupied[i] && !occupied[(i + 35) % 36]) runs++;
-        _o.WriteLine($"{suffix}: {runs} blades, tip radius {r:F3} m");
+        _o.WriteLine($"{model}{suffix}: {runs} blades, tip radius {r:F3} m");
         Assert.Equal(blades, runs);
     }
 
-    /// <summary>The livery → GLB mapping the game is written with (AirframeModels.OwnSuffix → Core LiveryChoice.OwnSuffix): every Pitts and Extra suffix it
-    /// can ask for has a GLB on disk, the Pitts's "n1191" goes to the N1191 GLB, the Pitts always takes our model, and Livery.cs
-    /// resolves both Pitts scheme ids.</summary>
+    /// <summary>An unmarked livery is its marked sibling with the markings painted out (2026-10-28): node for node the same
+    /// mesh, so the gear matched to the models and the rig bindings hold for it too.</summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", "-own-checker-unmarked", "-own")]
+    [InlineData("pitts-s2b-like", "-own-factory-unmarked", "-own-n1191")]
+    [InlineData("extra-300-like", "-own-unmarked", "-own-n300uy")]
+    public void UnmarkedIsTheSameAirframeAsItsMarkedSibling(string model, string unmarked, string marked)
+    {
+        var a = Vertices(Glb(model, unmarked));
+        var b = Vertices(Glb(model, marked));
+        Assert.Equal(b.Keys.OrderBy(k => k), a.Keys.OrderBy(k => k));
+        foreach (var (name, verts) in b)
+            Assert.True(verts.SequenceEqual(a[name]), $"{model}{unmarked}: '{name}' differs from {marked}");
+    }
+
+    /// <summary>The livery → GLB mapping the game is written with (AirframeModels.OwnSuffix → Core LiveryChoice.OwnSuffix):
+    /// every Pitts and Extra livery the picker offers loads its own GLB, which is on disk, the Pitts always takes our model,
+    /// and Livery.cs resolves every scheme id the picker offers to a scheme of that name.</summary>
     [Fact]
     public void LiveryIdsMapOntoGlbsThatExist()
     {
         string models = File.ReadAllText(Path.Combine(Bridge, "AirframeModels.cs"));
-        string choice = File.ReadAllText(Path.Combine(Repo, "src", "FlyingGame.Core", "LiveryChoice.cs"));   // the mapping lives here
         Assert.Contains("FlyingGame.Core.LiveryChoice.OwnSuffix(modelId, liveryId)", models);
-        var pairs = Regex.Matches(choice, @"modelId == ""([\w-]+)"" && liveryId == ""([\w-]+)"" \? ""(-own[\w-]*)""")
-            .Select(m => (model: m.Groups[1].Value, livery: m.Groups[2].Value, suffix: m.Groups[3].Value)).ToList();
-        Assert.Contains(("pitts-s2b-like", "n1191", "-own-n1191"), pairs);
-        Assert.Contains(("extra-300-like", "n300uy", "-own-n300uy"), pairs);
-        // (The 2-33's "-own-tf" is not on this branch; PickOwn falls back when a GLB is missing, so only ours are held here.)
-        foreach (var (model, livery, suffix) in pairs.Where(p => p.model is "pitts-s2b-like" or "extra-300-like"))
-            Assert.True(File.Exists(Path.Combine(Models, model, model + suffix + ".glb")), $"livery {livery} of {model} asks for {model}{suffix}.glb, which is not there");
-        Assert.Single(pairs, p => p.model == "pitts-s2b-like");   // every other livery → N31DG (-own)
+        var expected = new Dictionary<(string, string), string>
+        {
+            [("pitts-s2b-like", "checker-unmarked")] = "-own-checker-unmarked",
+            [("pitts-s2b-like", "factory-unmarked")] = "-own-factory-unmarked",
+            [("pitts-s2b-like", "n31dg")] = "-own",
+            [("pitts-s2b-like", "n1191")] = "-own-n1191",
+            [("extra-300-like", "unmarked")] = "-own-unmarked",
+            [("extra-300-like", "talk-flying")] = "-own",
+            [("extra-300-like", "n300uy")] = "-own-n300uy",
+        };
+        string liveries = File.ReadAllText(Path.Combine(Bridge, "Livery.cs"));
+        foreach (string model in new[] { "pitts-s2b-like", "extra-300-like" })
+            foreach (var (livery, name) in FlyingGame.Core.LiveryChoice.For(model))
+            {
+                string suffix = FlyingGame.Core.LiveryChoice.OwnSuffix(model, livery);
+                Assert.Equal(expected[(model, livery)], suffix);
+                Assert.True(File.Exists(Glb(model, suffix)), $"livery {livery} of {model} asks for {model}{suffix}.glb, which is not there");
+                // Livery.For resolves the id to a scheme of the picker's name (else the picker would show "Type colours").
+                if (livery == "talk-flying") continue;   // the Extra's Talk Flying is its PerType scheme
+                var m = Regex.Match(liveries, $@"liveryId == ""{livery}"" && aircraftId == ""{model}""\) return (\w+);");
+                Assert.True(m.Success, $"Livery.For has no scheme for {model} {livery}");
+                Assert.Matches($@"{m.Groups[1].Value} = new\(""{livery}"", ""{name}""\)", liveries);
+            }
         Assert.Matches(@"PickOwn\(string modelId\) =>[\s\S]*?modelId == ""pitts-s2b-like""", models);
         Assert.Matches(@"OwnSpecs[\s\S]*?\{ ""pitts-s2b-like"", new Spec\(", models);
-
-        string liveries = File.ReadAllText(Path.Combine(Bridge, "Livery.cs"));
-        Assert.Matches(@"liveryId == ""n1191"" && aircraftId == ""pitts-s2b-like""\) return N1191Pitts", liveries);
-        Assert.Matches(@"liveryId == ""n31dg"" && aircraftId == ""pitts-s2b-like""\) return N31DGPitts", liveries);
-        Assert.Matches(@"\[""pitts-s2b-like""\] = new\[\] \{ \(""n31dg"", ""N31DG""\), \(""n1191"", ""N1191""\) \}", choice);
     }
 
     [Fact]
@@ -155,8 +194,9 @@ public class OwnPittsModelTests
     {
         string credits = File.ReadAllText(Path.Combine(Repo, "docs", "CREDITS.md"));
         string line = credits.Split('\n').SkipWhile(l => !l.StartsWith("- **pitts-s2b-like**")).Take(2).Aggregate("", (a, b) => a + b + "\n");
-        Assert.Contains("pitts-s2b-like-own.glb", line);
-        Assert.Contains("pitts-s2b-like-own-n1191.glb", line);
+        foreach (string sfx in PittsSuffixes) Assert.Contains("pitts-s2b-like" + sfx + ".glb", line);
+        string extra = credits.Split('\n').First(l => l.StartsWith("- **extra-300-like**"));
+        foreach (string sfx in new[] { "-own", "-own-n300uy", "-own-unmarked" }) Assert.Contains("extra-300-like" + sfx + ".glb", extra);
         Assert.Contains("build_pitts_s2b.py", line);
         Assert.Contains("SIL Open Font License 1.1", line);
         Assert.True(File.Exists(Path.Combine(Repo, "docs", "models", "pitts-s2b-own-PROVENANCE.md")));

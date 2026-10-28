@@ -312,8 +312,11 @@ public class AerobatGroundHandlingTests
     [Theory]
     [InlineData(Pitts, "pitts-s2b-like/pitts-s2b-like-own.glb", 6.094 / 5.996)]
     [InlineData(Pitts, "pitts-s2b-like/pitts-s2b-like-own-n1191.glb", 6.094 / 5.996)]
+    [InlineData(Pitts, "pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb", 6.094 / 5.996)]
+    [InlineData(Pitts, "pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb", 6.094 / 5.996)]
     [InlineData(Extra, "extra-300-like/extra-300-like-own.glb", 1.0)]
     [InlineData(Extra, "extra-300-like/extra-300-like-own-n300uy.glb", 1.0)]
+    [InlineData(Extra, "extra-300-like/extra-300-like-own-unmarked.glb", 1.0)]
     public void GearMatchesTheModels(string file, string glb, double trim)
     {
         var c = Load(file);

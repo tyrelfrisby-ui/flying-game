@@ -23,10 +23,13 @@ public class LiveryPickerTests
     [Fact]
     public void OnlyThePittsAndTheExtraOfferAChoice_DefaultFirst()
     {
-        Assert.Equal(new[] { "n31dg", "n1191" }, LiveryChoice.For(Pitts).Select(o => o.Id));
-        Assert.Equal(new[] { "N31DG", "N1191" }, LiveryChoice.For(Pitts).Select(o => o.Name));
-        Assert.Equal(new[] { "talk-flying", "n300uy" }, LiveryChoice.For(Extra).Select(o => o.Id));
-        Assert.Equal(new[] { "Talk Flying", "N300UY" }, LiveryChoice.For(Extra).Select(o => o.Name));
+        // Ty 2026-10-28: the unmarked schemes are the defaults; the registered aeroplanes stay selectable.
+        Assert.Equal(new[] { "checker-unmarked", "factory-unmarked", "n31dg", "n1191" }, LiveryChoice.For(Pitts).Select(o => o.Id));
+        Assert.Equal(new[] { "Checkered", "Factory", "N31DG", "N1191" }, LiveryChoice.For(Pitts).Select(o => o.Name));
+        Assert.Equal(new[] { "unmarked", "talk-flying", "n300uy" }, LiveryChoice.For(Extra).Select(o => o.Id));
+        Assert.Equal(new[] { "Unmarked", "Talk Flying", "N300UY" }, LiveryChoice.For(Extra).Select(o => o.Name));
+        Assert.Equal("checker-unmarked", LiveryChoice.Default(Pitts));
+        Assert.Equal("unmarked", LiveryChoice.Default(Extra));
         Assert.True(LiveryChoice.HasChoice(Pitts));
         Assert.True(LiveryChoice.HasChoice(Extra));
         foreach (string id in new[] { "glider-2-33-like", "c172-like", "pa18-cub-like", "decathlon-8kcab-like", "boeing-737-like" })
@@ -34,6 +37,7 @@ public class LiveryPickerTests
             Assert.False(LiveryChoice.HasChoice(id), id);
             Assert.Empty(LiveryChoice.For(id));
             Assert.Null(LiveryChoice.Selected(id, "type"));
+            Assert.Null(LiveryChoice.Default(id));
         }
         Assert.False(LiveryChoice.HasChoice(null));
     }
@@ -41,27 +45,37 @@ public class LiveryPickerTests
     [Fact]
     public void EnvironmentOverrideWinsOverTheSavedChoiceWhichWinsOverTheDefault()
     {
-        // Nothing saved, no override: "type", what every aeroplane wore before the picker (Pitts → N31DG, Extra → Talk Flying).
-        Assert.Equal("type", LiveryChoice.Resolve(Pitts, null, null));
-        Assert.Equal("type", LiveryChoice.Resolve(Pitts, "", ""));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, LiveryChoice.Resolve(Pitts, null, null)));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, LiveryChoice.Resolve(Extra, null, null)));
-        Assert.Equal("n31dg", LiveryChoice.Selected(Pitts, "type"));
-        Assert.Equal("talk-flying", LiveryChoice.Selected(Extra, "type"));
-        // Saved.
-        Assert.Equal("n1191", LiveryChoice.Resolve(Pitts, null, "n1191"));
-        Assert.Equal("n31dg", LiveryChoice.Resolve(Pitts, null, "n31dg"));
-        Assert.Equal("n300uy", LiveryChoice.Resolve(Extra, null, "n300uy"));
-        Assert.Equal("n1191", LiveryChoice.Selected(Pitts, "n1191"));
+        // Nothing saved, no override: the type's default, the unmarked scheme (Pitts checkered, Extra unmarked).
+        Assert.Equal("checker-unmarked", LiveryChoice.Resolve(Pitts, null, null));
+        Assert.Equal("checker-unmarked", LiveryChoice.Resolve(Pitts, "", ""));
+        Assert.Equal("unmarked", LiveryChoice.Resolve(Extra, null, null));
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, LiveryChoice.Resolve(Pitts, null, null)));
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, LiveryChoice.Resolve(Extra, null, null)));
+        Assert.Equal("checker-unmarked", LiveryChoice.Selected(Pitts, "type"));
+        Assert.Equal("unmarked", LiveryChoice.Selected(Extra, "type"));
+        // Saved, including every id a player could have saved before the unmarked schemes existed.
+        foreach (string id in new[] { "checker-unmarked", "factory-unmarked", "n31dg", "n1191" })
+        {
+            Assert.Equal(id, LiveryChoice.Resolve(Pitts, null, id));
+            Assert.Equal(id, LiveryChoice.Selected(Pitts, id));
+        }
+        foreach (string id in new[] { "unmarked", "talk-flying", "n300uy" })
+        {
+            Assert.Equal(id, LiveryChoice.Resolve(Extra, null, id));
+            Assert.Equal(id, LiveryChoice.Selected(Extra, id));
+        }
         // The override beats the saved choice, whatever it is.
         Assert.Equal("n31dg", LiveryChoice.Resolve(Pitts, "n31dg", "n1191"));
         Assert.Equal("n1191", LiveryChoice.Resolve(Pitts, "n1191", "n31dg"));
         Assert.Equal("talk-flying", LiveryChoice.Resolve(Extra, "talk-flying", "n300uy"));
         Assert.Equal("type", LiveryChoice.Resolve(Pitts, "type", "n1191"));
-        // A saved id that is not (or no longer) one of the type's options is ignored.
-        Assert.Equal("type", LiveryChoice.Resolve(Pitts, null, "n300uy"));
-        Assert.Equal("type", LiveryChoice.Resolve(Extra, null, "n1191"));
-        Assert.Equal("type", LiveryChoice.Resolve(Pitts, null, "bogus"));
+        // A saved id that is not (or no longer) one of the type's options falls back to the default.
+        Assert.Equal("checker-unmarked", LiveryChoice.Resolve(Pitts, null, "n300uy"));
+        Assert.Equal("checker-unmarked", LiveryChoice.Resolve(Pitts, null, "unmarked"));
+        Assert.Equal("unmarked", LiveryChoice.Resolve(Extra, null, "n1191"));
+        Assert.Equal("unmarked", LiveryChoice.Resolve(Extra, null, "checker-unmarked"));
+        Assert.Equal("checker-unmarked", LiveryChoice.Resolve(Pitts, null, "bogus"));
+        Assert.Equal("unmarked", LiveryChoice.Resolve(Extra, null, "type"));
     }
 
     [Fact]
@@ -86,8 +100,8 @@ public class LiveryPickerTests
         Assert.NotEqual(LiveryChoice.PrefKey(Pitts), LiveryChoice.PrefKey(Extra));
         Assert.Equal("livery.pitts-s2b-like", LiveryChoice.PrefKey(Pitts));
         Assert.Equal("n1191", LiveryChoice.Resolve(Pitts, null, Saved(Pitts)));
-        Assert.Equal("type", LiveryChoice.Resolve(Extra, null, Saved(Extra)));          // choosing N1191 left the Extra alone
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, LiveryChoice.Resolve(Extra, null, Saved(Extra))));
+        Assert.Equal("unmarked", LiveryChoice.Resolve(Extra, null, Saved(Extra)));      // choosing N1191 left the Extra alone
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, LiveryChoice.Resolve(Extra, null, Saved(Extra))));
         prefs[LiveryChoice.PrefKey(Extra)] = "n300uy";
         Assert.Equal("n1191", LiveryChoice.Resolve(Pitts, null, Saved(Pitts)));        // ...and N300UY leaves the Pitts alone
         Assert.Equal("n300uy", LiveryChoice.Resolve(Extra, null, Saved(Extra)));
@@ -97,20 +111,28 @@ public class LiveryPickerTests
     [Fact]
     public void EveryChoiceLoadsItsOwnGlb()
     {
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, "checker-unmarked"));
+        Assert.Equal("-own-factory-unmarked", LiveryChoice.OwnSuffix(Pitts, "factory-unmarked"));
         Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, "n31dg"));
         Assert.Equal("-own-n1191", LiveryChoice.OwnSuffix(Pitts, "n1191"));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, "type"));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, "talk-flying"));
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, "type"));        // "type" = the default
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, null));
+        Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, "talk-flying"));                  // its Talk Flying scheme was N31DG
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, "unmarked"));
         Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, "talk-flying"));
+        Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, "sunrise"));
         Assert.Equal("-own-n300uy", LiveryChoice.OwnSuffix(Extra, "n300uy"));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, "type"));
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Extra, "n1191"));                   // another type's id never crosses over
-        Assert.Equal("-own", LiveryChoice.OwnSuffix(Pitts, "n300uy"));
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, "type"));
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, null));
+        Assert.Equal("-own-unmarked", LiveryChoice.OwnSuffix(Extra, "n1191"));              // another type's id never crosses over
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, "n300uy"));
+        Assert.Equal("-own-checker-unmarked", LiveryChoice.OwnSuffix(Pitts, "unmarked"));
         Assert.Equal("-own-tf", LiveryChoice.OwnSuffix("glider-2-33-like", "talk-flying"));
+        Assert.Equal("-own", LiveryChoice.OwnSuffix("glider-2-33-like", "factory"));
         foreach (string id in new[] { Pitts, Extra })
         {
             var suffixes = LiveryChoice.For(id).Select(o => LiveryChoice.OwnSuffix(id, o.Id)).ToList();
-            Assert.Equal(suffixes.Count, suffixes.Distinct().Count());                    // two choices, two different models
+            Assert.Equal(suffixes.Count, suffixes.Distinct().Count());                    // every choice its own model
             foreach (string sfx in suffixes)
                 Assert.True(File.Exists(Path.Combine(Models, id, id + sfx + ".glb")), $"{id}{sfx}.glb is missing");
         }
@@ -134,7 +156,10 @@ public class LiveryPickerTests
         string menu = File.ReadAllText(Path.Combine(Bridge, "StartMenu.cs"));
         Assert.Contains("Liveries.Available(acId)", menu);
         Assert.Contains("if (livs.Count > 1)", menu);
-        Assert.Contains("SessionSettings.SetLivery(acId, livs[i].Id)", menu);
+        // One drop-down for the livery row, whatever the type (4 Pitts schemes, 3 Extra): the same shape on every screen.
+        Assert.Contains("Dropdown(\"livery\"", menu);
+        Assert.Contains("SessionSettings.SetLivery(acId, l.Id)", menu);
+        Assert.DoesNotContain("livs.Count <= ", menu);
         // No caller left on the old single fleet-wide livery.
         foreach (string f in Directory.GetFiles(Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts"), "*.cs", SearchOption.AllDirectories))
             Assert.DoesNotMatch(@"SessionSettings\.LiveryId\b", File.ReadAllText(f));
