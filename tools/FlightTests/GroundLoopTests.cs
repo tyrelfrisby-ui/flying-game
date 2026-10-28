@@ -110,13 +110,16 @@ public class GroundLoopTests
         Assert.True(extra < deca && deca < pitts);
     }
 
-    /// <summary>Steering unlocks past 45° in a ground loop and stays free until the rudder is brought to the wheel.</summary>
+    /// <summary>Steering unlocks past 45° in a ground loop and stays free until the rudder is brought to the wheel.
+    /// 2026-10-28: the Pitts' gear now sits where its model's does (tailwheel 0.36 m further aft, more of the weight on it),
+    /// and the 20°/s loop this used to seed now bleeds its speed off with the castor peaking at 28–33° — at the old spring
+    /// too. A sharper 40°/s loop (the one a hands-off Pitts gets into) still swings it past breakout (49°).</summary>
     [Fact]
     public void SteeringUnlocksInAGroundLoopAndReengagesWhenTheRudderMatches()
     {
         var c = Load("pitts-s2b-like.json"); WorldTerrain.Active = null; Atmosphere.SteadyWind = Vec3.Zero;
         var rest = LandingGear.RestingState(c, 0, 0, 0);
-        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, rest.Attitude.Conjugate().Rotate(new Vec3(12, 0, 0)), new Vec3(0, 0, 20 * Math.PI / 180)), ControlDeflections.Neutral);
+        var ac = new Aircraft(c, new RigidBodyState(rest.Position, rest.Attitude, rest.Attitude.Conjugate().Rotate(new Vec3(12, 0, 0)), new Vec3(0, 0, 40 * Math.PI / 180)), ControlDeflections.Neutral);
         var sim = new SimLoop(ac);
         bool unlocked = false; double maxAngle = 0;
         for (double t = 0; t < 8; t += 0.02)

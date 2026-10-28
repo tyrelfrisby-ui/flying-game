@@ -17,16 +17,16 @@ public class OwnPittsModelTests
     private readonly ITestOutputHelper _o;
     public OwnPittsModelTests(ITestOutputHelper o) { _o = o; }
 
-    private static string Repo
+    internal static string Repo
     {
         get { var d = new DirectoryInfo(AppContext.BaseDirectory); while (d != null && !Directory.Exists(Path.Combine(d.FullName, "configs", "aircraft"))) d = d.Parent; return d!.FullName; }
     }
-    private static string Models => Path.Combine(Repo, "unity", "Assets", "_Project", "Resources", "Models");
+    internal static string Models => Path.Combine(Repo, "unity", "Assets", "_Project", "Resources", "Models");
     private static string Bridge => Path.Combine(Repo, "unity", "Assets", "_Project", "Scripts", "Bridge");
     private static string Glb(string suffix) => Path.Combine(Models, "pitts-s2b-like", "pitts-s2b-like" + suffix + ".glb");
 
     /// <summary>A GLB's JSON chunk and binary chunk.</summary>
-    private static (JsonElement json, byte[] bin) ReadGlb(string path)
+    internal static (JsonElement json, byte[] bin) ReadGlb(string path)
     {
         byte[] d = File.ReadAllBytes(path);
         Assert.True(BitConverter.ToUInt32(d, 0) == 0x46546C67, path + ": not a GLB");   // "glTF"
@@ -37,7 +37,7 @@ public class OwnPittsModelTests
     }
 
     /// <summary>Each named node's mesh vertices (glTF frame: our exports put the nose at -x, up +y, span z).</summary>
-    private static Dictionary<string, List<(float x, float y, float z)>> Vertices(string path)
+    internal static Dictionary<string, List<(float x, float y, float z)>> Vertices(string path)
     {
         var (j, bin) = ReadGlb(path);
         var res = new Dictionary<string, List<(float, float, float)>>();
