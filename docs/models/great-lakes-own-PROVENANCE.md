@@ -139,6 +139,31 @@ offsets, rays, level sets); no photo pixel is sampled or traced. Registrations a
 - Renders and photo compares: `/workspace/greatlakes-own-v4/` on the build box (four-views, iso, tail, nose, photo and
   compare-*.png). References used by eye only; nothing is traced or sampled.
 
+## v5 changes (2026-10-28). NOT approved by Ty.
+Ty's notes covered the red nose and pants, and the white nose, wing tips, tail and lower rudder. Everything is by eye from his scheme photos; nothing is traced or sampled.
+- **red-sunburst nose and side stripes** (red-1, red-2, red-3):
+  - The navy nose bowl now ends in an aft-pointing chevron, XB(z). The aft edge is x ~0.47 at the cowl top, the chevron point is at (0.37, −0.15) on the lower stripe line, and the edge runs forward to x ~0.53–0.56 under the chin. A white outline runs just aft of it.
+  - The upper stripe flares at the front into a tall navy panel. Its top edge sweeps up in a long hockey-stick curve from about x −0.35 to ~4 cm under the cowl top. Its lower edge drops toward the chevron. Its front edge parallels the bowl outline, with a thin red gap (white, red, white).
+  - The lower stripe sits ~0.16 m below. It tapers symmetrically to a point that runs into the chevron.
+  - Both stripes keep the v4 straight run and taper aft. The top and bottom plan maps use the same XB edge.
+- **red-sunburst wheel pants:**
+  - One long navy wedge runs from the pant nose. Its white-edged top sweeps from the top of the nose down-aft to a point at du −0.23. Its bottom edge rises from the nose bottom.
+  - A white pinstripe continues along that lower edge almost to the pant tail. The pant is red above and below.
+- **white-stripes nose** (white-3 / white-1 / white-2):
+  - The white bowl's aft edge is near-vertical over the light blue (x ~0.51–0.53). Below that, the navy's front edge slants forward going down (x 0.575 at z −0.30, 0.62 at −0.45), so the navy wraps under the cowl toward the chin.
+  - Light blue runs up onto the cowl top front. The red wedge now starts at x ~0.22 and reaches full width by x ~−0.20.
+  - The navy's lower edge drops into a smooth chin lobe, deepest (z ~−0.60) around x 0.05–0.22, and sweeps back up to the straight band edge by x ~−0.6.
+- **white-stripes wings and stab** ("several parallel stripes running the span along the leading edge then they turn and angle back at the tips"):
+  - The bands are nested L shapes. Each band has a spanwise leg parallel to the LE, at a fixed distance aft of the local LE, and a tip leg raked aft-outboard as in v4. The colour is the outer of the two legs, so they meet in a mitred corner.
+  - Order from the LE and tip inward: red, white, light blue, white, navy, white.
+  - Distances aft of the LE: wings 0.11 / 0.14 / 0.24 / 0.27 / 0.36 m; stab 0.06 / 0.085 / 0.15 / 0.175 / 0.235 m.
+  - The plan map is shared by the top and bottom skins, so the LE legs also appear underneath. Judgement call: the photos only show the underside of the upper wing, and that has them.
+- **white-stripes fin and rudder** (white-3 fin crop, white-wings-2): v4 painted the whole fin and rudder below the stab navy. Now:
+  - The rudder below the stab is white.
+  - Under the stab, forward of the hinge, a 0.12 m navy band (the fuselage navy run-out) reaches the tail post, with white below.
+  - Above the stab, the v4 arch (navy core, white rim, light blue, red rings) is unchanged.
+- Renders and photo compares are in `/workspace/greatlakes-own-v5/` on the build box.
+
 ## Unity part names
 The part names are compatible with AirframeVisual / RemoteAircraft:
 

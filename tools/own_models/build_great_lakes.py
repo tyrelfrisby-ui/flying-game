@@ -689,6 +689,19 @@ else:
     X0, X1, Z0, Z1 = -5.25, 1.20, -1.80, 1.05
     X_TP = -4.565
     def XN(z): return 0.36 - 0.06 * (z - 0.25)                  # aft edge of the nose bowl
+    # v5 (Ty: "make the side stripes curve and blend into the nose exactly like the photo", red-2-ramp zoom, by eye):
+    # the red scheme's navy nose bowl ends in a shallow CHEVRON pointing aft at the level of the LOWER stripe (whose
+    # front tapers into it); top edge at x ~0.47, lower edge sweeping forward to x ~0.53-0.56 at the chin.
+    # XB(z) = its aft edge (navy forward of it, white outline just aft).
+    _XBZ = [-0.95, -0.60, -0.40, -0.22, -0.15, -0.08, 0.05, 0.15, 0.245, 0.40]
+    _XBX = [0.565, 0.535, 0.480, 0.405, 0.370, 0.392, 0.425, 0.448, 0.468, 0.475]
+    def XB(z): return np.interp(z, _XBZ, _XBX)
+    def dil(m, metres, v):
+        pa = abs(v.a1 - v.a0) / v.w; n = max(1, int(round(metres / pa))); d = m.copy()
+        for _ in range(n):
+            e = d.copy(); e[1:] |= d[:-1]; e[:-1] |= d[1:]; e[:, 1:] |= d[:, :-1]; e[:, :-1] |= d[:, 1:]; d = e
+        return d
+    def sstep(x): x = np.clip(x, 0, 1); return x * x * (3 - 2 * x)
     def lerp(x, xs, zs): return np.interp(x, xs[::-1], zs[::-1]) if xs[0] > xs[-1] else np.interp(x, xs, zs)
     BASE = RED if LIV == 'red-sunburst' else WHITE
     PANT_Z = Z_AX + 0.0
@@ -701,15 +714,36 @@ else:
         ext = fin | ((Z < _ft + 0.012) & (A > H_T + 0.03) & (A < X_TP + 1.4))   # border follows the fin LE + whole rudder, not the fuselage join
         pant = (Z < -1.15)
         if LIV == 'red-sunburst':
-            z1 = lerp(A, [0.70, -0.5, -4.5], [0.02, -0.03, -0.13]); w1 = lerp(A, [0.70, -4.5], [0.075, 0.035])
-            z2 = z1 - lerp(A, [0.70, -4.5], [0.13, 0.055]); w2 = lerp(A, [0.70, -4.5], [0.04, 0.02])
-            # v4 (Ty, red-tail-closeup): both lines taper to a point and END at the stab root leading edge
+            # v5 (Ty via red-1 / red-2 / red-3): the two navy, white-outlined stripes run straight aft from the nose and
+            # taper to points at the stab root LE (v4). At the FRONT they blend into the nose bowl as on red-2-ramp:
+            #  - upper stripe: flares into a tall navy panel; its top edge sweeps UP (hockey stick) to ~4 cm under the
+            #    cowl top, its lower edge drops toward the chevron, and its front edge parallels the bowl outline with a
+            #    thin red gap.
+            #  - lower stripe (~0.16 m below): tapers to a point that runs into the bowl's aft-pointing chevron.
+            z1 = lerp(A, [0.70, -0.5, -4.5], [0.012, -0.03, -0.13]); w1 = lerp(A, [0.70, -0.3, -4.5], [0.056, 0.056, 0.035])
+            z2 = z1 - lerp(A, [0.70, -0.5, -4.5], [0.162, 0.150, 0.055]); w2 = lerp(A, [0.70, -0.3, -4.5], [0.044, 0.042, 0.02])
             X_SL = float(SLE(0.0)); g = np.clip((A - X_SL) / (-2.8 - X_SL), 0, 1)
-            ok = (A < XN(Z) + 0.01) & (A > X_SL) & ~fin & ~pant
-            for zc, wc in ((z1, w1), (z2, w2)):
-                zc = Z_S + (zc - Z_S) * g; wc = wc * g
-                v.fill(ok & (np.abs(Z - zc) < 0.5 * wc + 0.014 * g), WHITE); v.fill(ok & (np.abs(Z - zc) < 0.5 * wc), NAVY)
-            v.fill((A > XN(Z) - 0.02) & (Z > -0.95) & ~pant, WHITE); v.fill((A > XN(Z)) & (Z > -0.95) & ~pant, NAVY)   # nose bowl
+            ok = (A > X_SL) & ~fin & ~pant & (Z > -0.95)
+            WO = 0.014; GAPB = 0.018 + 0.012 + WO          # bowl white + red gap + stripe white
+            # upper stripe: flares at the front into a tall navy panel whose front edge parallels the bowl outline,
+            # top edge sweeping up (hockey stick) to ~4 cm under the cowl top, lower edge dropping to just above the chevron
+            zc, wc = Z_S + (z1 - Z_S) * g, w1 * g
+            ztop = zc + 0.5 * wc + (0.200 - (0.012 + 0.028)) * sstep((A + 0.35) / (0.44 + 0.35)) ** 2.2
+            zlo1 = zc - 0.5 * wc - (0.075) * sstep((A + 0.15) / (0.36 + 0.15)) ** 1.6
+            nav1 = ok & (Z > zlo1) & (Z < ztop) & (A < XB(Z) - GAPB)
+            # lower stripe: tapers symmetrically to a point that runs into the bowl's chevron
+            zc2, wc2 = Z_S + (z2 - Z_S) * g, w2 * g
+            XT2 = float(XB(-0.15)) - GAPB + 0.012
+            hw2 = 0.5 * wc2 * (1 - np.clip((A - 0.12) / (XT2 - 0.12), 0, 1) ** 1.5)
+            nav2 = ok & (np.abs(Z - zc2) < hw2) & (A < XT2)
+            for nv in (nav1, nav2):
+                v.fill(ok & dil(nv, WO, v) & (A < XB(Z) - 0.004) & (A >= -2.0), WHITE)
+            # taper-to-point aft ends keep the v4 proportional outline (0.014 g)
+            for zc_, wc_ in ((zc, wc), (zc2, wc2)):
+                v.fill(ok & (A < -2.0) & (np.abs(Z - zc_) < 0.5 * wc_ + WO * g), WHITE)
+            v.fill(nav1, NAVY); v.fill(nav2, NAVY)
+            # nose bowl: white outline then navy
+            v.fill((A > XB(Z) - 0.018) & (Z > -0.95) & ~pant, WHITE); v.fill((A > XB(Z)) & (Z > -0.95) & ~pant, NAVY)
             # v4 fin / rudder border (Ty, red-tail-closeup): red edge, navy, white pinstripe, following the outline from
             # where the fin LE meets the fuselage, over the top, down the rudder TE and round the rudder bottom; it tapers
             # to a point at BOTH ends (fin root LE; rudder bottom-front at the hinge) and does not run along the fuselage
@@ -727,8 +761,17 @@ else:
             w_e, w_n, w_w = 0.012 * gg, 0.05 * gg, 0.014 * gg
             v.fill(fin & (dist >= w_e) & (dist < w_e + w_n) & (gg > 0.02), NAVY)
             v.fill(fin & (dist >= w_e + w_n) & (dist < w_e + w_n + w_w) & (gg > 0.02), WHITE)
-            v.fill(pant & (A > X_AX + 0.30), NAVY); v.fill(pant & (A > X_AX + 0.28) & (A <= X_AX + 0.30), WHITE)  # pant nose
-            v.fill(pant & (np.abs(Z - (PANT_Z + 0.07 - 0.10 * (A - X_AX))) < 0.022) & (A <= X_AX + 0.28), NAVY)  # pant stripe
+            # v5 pants (red-2-ramp / red-1-air): the navy nose runs aft as ONE long tapering navy wedge on the pant side:
+            # its upper white edge sweeps from the top of the pant nose (du 0.39, dz 0.25) down-aft to a point at
+            # (du -0.23, dz -0.015); its lower white edge runs from the nose bottom (du 0.45, dz -0.08) up and aft to
+            # dz ~-0.02 and carries on as a white pinstripe almost to the pant tail. Red above and below.
+            du, dz = A - X_AX, Z - Z_AX
+            zu_ = np.interp(du, [-0.23, 0.10, 0.30, 0.39, 0.47], [-0.015, 0.10, 0.20, 0.25, 0.30])
+            zl_ = np.interp(du, [-0.60, -0.23, 0.17, 0.33, 0.45, 0.47], [-0.010, -0.016, -0.030, -0.045, -0.085, -0.10])
+            pn = pant & (dz < zu_) & (dz > zl_) & (du > -0.23)
+            v.fill(pant & dil(pn, 0.012, v) & (du > -0.25), WHITE)
+            v.fill(pant & (np.abs(dz - zl_) < 0.0065 + 0.0) & (du > -0.60) & (du < 0.47), WHITE)   # pinstripe aft
+            v.fill(pn, NAVY)
         else:
             # v3 white-stripes, by eye from white-1/2/3: three bands red / light blue / navy with white separations,
             # laid out as level sets of the depth below one "upper envelope" (fuselage top line -> fin LE -> fin top ->
@@ -754,13 +797,22 @@ else:
             d[:, tw] = dd
             xe = np.clip(xa, XR, 0.55)[None, :]; q = (0.55 - xe) / (0.55 - XR)            # 0 at the cowl, 1 at the fin root
             GAP_ = 0.03
-            t0 = 0.05 + (0.035 - 0.05) * q                                            # white above the red
-            wr = lerp(xe, [0.30, 0.05, XR], [0.0, 0.13, 0.07])                       # red starts behind the cowl
+            # v5 nose (Ty: "make the nose match the pictures exactly", white-3 / white-1 / white-2): light blue runs right up
+            # onto the cowl top at the front (thin white above it), the red wedge starts further aft (x ~0.22, over the
+            # cabane) and reaches full width by x ~-0.20.
+            t0 = lerp(xe, [0.55, 0.20, XR], [0.02, 0.05, 0.035])                     # white above the red
+            wr = lerp(xe, [0.22, -0.20, XR], [0.0, 0.13, 0.07])                      # red starts behind the cowl
             fr = np.clip((A - (H_T - 0.15)) / 0.45, 0, 1)            # red arc thins out over the fin top toward the rudder
             t1 = t0 + wr * fr; t2 = t1 + GAP_ * np.clip(wr / 0.03, 0, 1)
             t3 = 0.41 + (0.235 - 0.41) * q; t4 = t3 + GAP_                          # light-blue bottom edge: straight
             t5 = 0.68 + (0.365 - 0.68) * q                                            # navy bottom edge: straight
             nb = d < t5
+            # v5 nose: the navy's lower edge drops into a CHIN LOBE under the cowl (white-3: deepest just aft of the bowl,
+            # sweeping back up to the straight band edge behind the firewall); white below.
+            _zb = Zr(A) - t5
+            _zl = np.interp(A, [-0.70, -0.40, -0.15, 0.05, 0.22, 0.38, 0.53, 0.70], [-0.40, -0.45, -0.54, -0.60, -0.58, -0.47, -0.34, -0.30])
+            _bl = sstep((A + 0.75) / 0.10)
+            nb = Z > (_zb * (1 - _bl) + np.minimum(_zl, _zb) * _bl)
             inF = fin & (Z > top1 - 0.005)                           # fin / rudder above the fuselage line
             aft = (A < H_T + 0.01) | inF                             # rudder + fin: no lower limit on the navy core
             core = (((A - (H_T - FCX)) / FCA) ** 2 + ((Z - FCZ) / FCB) ** 2) < 1.0   # navy core (white-3: dome, apex near hinge)
@@ -771,8 +823,16 @@ else:
             v.fill(ok & aft & core & (d > t0) & ~erode(core, 0.022, v) & (d > t1 + 0.01), WHITE)   # white line round the core
             v.fill(ok & aft & erode(core, 0.022, v) & (d > t0), NAVY)
             v.fill(ok & ~(fin | nb) & (A < H_T + 0.40) & (Z < Z_S - 0.03), WHITE)   # white belly under the tail
-            v.fill(ok & (fin | nb) & (A < H_T + 0.40) & (Z < Z_S - 0.03) & (d > t0), NAVY)   # fin + rudder below the stab: navy (white-3), no rings
-            v.fill(ok & (A > 0.55 - 0.17 * np.clip((0.25 - Z) / 0.8, 0, 1)), WHITE)            # white nose bowl, swept aft at the chin
+            # v5 (Ty: the lower navy "grabbed onto the whole lower rudder"; white-3 fin crop / white-wings-2): below the
+            # stab the rudder is WHITE; only the fuselage's navy band runs aft to the tail post (forward of the hinge),
+            # with the white belly under it. v4 painted the whole fin/rudder below the stab navy.
+            _ut = ok & (A < H_T + 0.40) & (A > H_T + 0.005) & (Z < Z_S - 0.03)
+            _ub = (Z_S - 0.15) + (Zr(A) - t5 - (Z_S - 0.15)) * sstep((A - H_T - 0.10) / 0.30)
+            v.fill(_ut & (Z > _ub), NAVY); v.fill(_ut & (Z <= _ub), WHITE)
+            v.fill(ok & fin & (A < H_T + 0.005) & (Z < Z_S - 0.01), WHITE)
+            # v5 white nose bowl (white-3 nose crop): its aft edge is near-vertical over the light blue (x ~0.51-0.53),
+            # then the navy's front edge slants FORWARD going down so the navy wraps under the cowl toward the chin
+            v.fill(ok & (A > np.interp(Z, [-1.0, -0.60, -0.45, -0.30, -0.15, 0.05, 0.25, 0.40], [0.70, 0.66, 0.62, 0.575, 0.525, 0.51, 0.53, 0.55])), WHITE)
             # pants (white-3): white nose cap; light-blue and red bands rise at the front and sweep aft along the side as
             # tapering lines; navy swoosh low at the front running aft below them; all converging on the pant tail.
             du, dz = A - X_AX, Z - Z_AX
@@ -792,8 +852,9 @@ else:
     VFB, Y, X = plan('gl_fus_bot', False, (-0.5, 0.5), (X0, X1), 1024, 4096); VFB.fill(np.ones_like(Y, bool), BASE)
     if LIV == 'red-sunburst':
         for VF, up in ((VFT, True), (VFB, False)):
-            VF.fill(VF.B > XN(np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)) - 0.02, WHITE)
-            VF.fill(VF.B > XN(np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)), NAVY)
+            _zz = np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)        # v5: same chevron bowl edge XB as the sides
+            VF.fill(VF.B > XB(_zz) - 0.018, WHITE)
+            VF.fill(VF.B > XB(_zz), NAVY)
     def surface(v, names, x0, rays, y0=0.0):
         m = sil(v, names); Y_, X_ = v.A, v.B
         if LIV == 'red-sunburst':
@@ -818,13 +879,19 @@ else:
             le = np.where(m.any(0), np.where(m, X_, -99).max(0), -99.0)          # LE x per spanwise column
             ya = np.abs(Y_[0]); yc = v.tipcut - 0.25; jc = np.argmin(np.abs(ya - yc) + (le < -50) * 99)
             le = np.where(ya > yc, le[jc], le)[None, :]; dle = le - X_
+            # v5 (Ty: "several parallel stripes running the span along the leading edge then they turn and angle back at
+            # the tips", white-wings-1/-2, white-3): nested L bands. Each band has a spanwise leg parallel to the LE
+            # (level set of dle) and a tip leg raked aft-outboard as in v4 (level set of u); colour = the OUTER of the
+            # two, so the legs meet in a mitred corner. Order from the LE / tip inward: red, white, light blue, white,
+            # navy, white. Same plan map on top and bottom skins.
             if v.kind == 'stab':
-                u = np.abs(Y_) - 0.42 * (float(SLE(1.2)) - X_); RB = (1.10, 1.06, 0.88, 0.84, 0.66)
+                u = np.abs(Y_) - 0.42 * (float(SLE(1.2)) - X_); RB0 = 1.10
+                TE_, LE_ = [0.0, 0.04, 0.22, 0.26, 0.44], [0.06, 0.085, 0.15, 0.175, 0.235]
             else:
-                u = np.abs(Y_) - 0.12 * dle; RB = (3.55, 3.49, 3.21, 3.15, 2.90)
-            v.fill(m & (u > RB[0]), RED)
-            v.fill(m & (u < RB[1]) & (u > RB[2]), LBLUE)
-            v.fill(m & (u < RB[3]) & (u > RB[4]), NAVY)
+                u = np.abs(Y_) - 0.12 * dle; RB0 = 3.55
+                TE_, LE_ = [0.0, 0.06, 0.34, 0.40, 0.65], [0.11, 0.14, 0.24, 0.27, 0.36]
+            idx = np.minimum(np.searchsorted(TE_, RB0 - u), np.searchsorted(LE_, dle))
+            for i_, c_ in enumerate([RED, WHITE, LBLUE, WHITE, NAVY]): v.fill(m & (idx == i_), c_)
     WRAYS = ([13, 27, 41, 54, 66, 76, 84], [RED, NAVY, RED, NAVY, RED, NAVY, RED, NAVY])
     VUW, Y, X = plan('gl_wing_u', True, (-4.1, 4.1), (-1.75, 0.05), 4096, 1024); VUW.tipcut = S_W - 0.16; VUW.kind = 'upper'
     surface(VUW, ['Wing_Upper'], float(LEU0(0.0)) + 0.03, WRAYS)
