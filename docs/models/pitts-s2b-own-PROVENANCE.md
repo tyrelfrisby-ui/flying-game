@@ -252,3 +252,43 @@ Owner correction to v6: "It should start about half way up the canopy and it has
 ### Renders
 - `pitts-s2b-v7-<livery>-{side,iso,top,closeup,tailiso,cockpit}.png`.
 - `pitts-s2b-v7-side-vs-references.png`, with the v6 side view as the "before" row.
+
+## v8 (2026-10-27): cowl stripe hooks, cowl-top band, chin band and V, matching wheel-pant style
+
+Owner request: "The side stripes need more work try to match the n260bf 3 view for the front how the stripes widen as they move forward from the diamond and curve up/down. Make sure you look at that front view photo I gave you for how it comes together under the cowling and the other photo for the top of the cowling. Match that style on the wheel pants like the 3 view."
+
+### Sources (used by eye only, not traced)
+- The Barry Munden N260BF S-2C three-view (side, top and bottom) for the hook shape forward of the diamond, the cowl-top band, the chin band with the white V, and the pant style.
+- The owner's green S-2B photo for how the two sides join under the cowl (a white chin).
+- The owner's Horizon Pitts photo for the upper stripe sweeping over the cowl top as a band.
+- No image was traced, sampled or projected. Every shape below is a parametric curve in `build_pitts_s2b.py`, with values chosen by comparing renders against the pictures.
+
+### Change (both liveries, `build_pitts_s2b.py`, paint only)
+- **Nose diamond:** moved forward onto the cowl, between the stripes, at x 1.27 and z 0.019. Its half-length is 0.075 and its half-height is 0.058. In v7 it was at x 1.10.
+- **Stripe hooks:** both stripes now run from the tail post to the forward edge of the white at x 1.41. A red nose ring sits ahead of that edge. Forward of the diamond, each stripe widens outward. Above the upper stripe and below the lower stripe, the red is a "tongue" that ends forward in a semi-ellipse:
+  - upper tongue: starts at x 1.20, x-radius 0.105
+  - lower tongue: starts at x 1.15, x-radius 0.15
+  - The white therefore widens gradually from the stripe edge and hooks up over the cowl top or down under the cowl bottom.
+  - The tongue ellipse overshoots the cowl top and bottom by a factor of 1.3 (K_OV), so its edge meets the top and bottom surfaces at an angle rather than tangentially. This avoids an outline streak along the seam.
+- **Cowl-top band (top view):** white across the cowl top from x X_BU (where the upper tongue edge reaches the top, about 1.29) to 1.41. The upper hooks from both sides meet in this band, as in the N260BF top view and the Horizon photo.
+- **Chin (bottom view):** a white band across the chin from x X_BL (where the lower tongue edge reaches the bottom, about 1.28) to 1.41. Behind it, a white V points aft along the centreline:
+  - It is 0.22 half-width at the band and comes to an apex at x 0.90.
+  - The red lower tongues from each side form the V's edges, as in the N260BF bottom view and the green S-2B photo.
+  - Cowl faces (x > 0.85) with a normal z of −0.75 or less now use the bottom projection; v7 used −0.92. This puts the sloping chin underside in the bottom view, so the V joins the band.
+- **Removed:** the v5–v7 cowl swoosh and cowl band in the side projection, and the old belly chevron.
+- **Wheel pants:** the same style in miniature, as on the three-view:
+  - two thin stripes along the pant (0.52 × the pant half-height above and below its centre) that widen forward into hooks over the pant top and under the pant bottom
+  - pant tongues start at x 0.56 with an x-radius of 0.10
+  - a red nose cap ahead of x 0.77
+  - a white diamond between the stripes at x 0.62 (half-length 0.055, half-height 0.058)
+  - The pants now use their own side-projected paint on every face, so the hooks wrap round the pant nose.
+- **Unchanged:** the thin navy outlines (16 mm, dilation), the registration, the rudder diamonds and checks, the wings, and the v7 turtledeck.
+- **Geometry and triangle counts:** unchanged (54952 triangles for N1191, 53660 for N31DG).
+
+### Renders
+- `pitts-s2b-v8-<livery>-{side,front,top,bottom,lowfront,nose,gear,iso}.png`
+  - `lowfront`: low front 3/4 under the cowl
+  - `nose`: nose close-up
+  - `gear`: low view of the gear and wheel pants
+- `pitts-s2b-v8-<livery>-nose-side-closeup.png` and `-pant-closeup.png`: crops of the side view.
+- `pitts-s2b-v8-vs-references.png`: the N260BF side, bottom, top and pant, the green S-2B photo, and the Horizon photo, against the v8 renders, with v7 as the "before" row.
