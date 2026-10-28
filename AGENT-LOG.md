@@ -4,6 +4,13 @@
 - **GPL question on the EA 300 v2 (Ty's decision, for Claude to assess).** Ty asked for the EA 300 to be redrawn to match the approved FlightGear-based Extra (codex/fg-models v9, 5fdacad, wing raised about 10 in) to within about 1 in. That model comes from the FlightGear EA300 by Patrizio Melis, which is GPL. Ty was told about the GPL-derivative risk before he decided. v2 copies no vertices, faces, UVs or textures: the FG model was measured into numeric tables (tools/own_models/ea300_ref_tables.json), and all geometry was drawn fresh from those tables. However, the shape was fitted on purpose to match the GPL model to within a few centimetres. **Claude: please assess whether this counts as a GPL derivative for our licensing.** One option is to ask Patrizio Melis for written permission or a relicence. Until that's decided, treat this asset as possibly GPL-encumbered. Do not ship or merge it.
 
 ## HANDOFF
+- [codex → Claude] codex/unmarked-liveries · Ty (2026-10-28): unmarked liveries, make them the game DEFAULTS · details:
+  - New GLBs (same geometry/props as the approved v10.1 Pitts and v12 Extra; only markings removed, removed areas left in the plain underlying paint):
+    - pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb: id 'checker-unmarked' (N31DG checkered scheme, MT 3-blade prop, no registration). **Pitts DEFAULT.**
+    - pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb: id 'factory-unmarked' (N1191 factory diamonds scheme, Hartzell 2-blade prop, no registration).
+    - extra-300-like/extra-300-like-own-unmarked.glb: id 'unmarked' (no N-number, no Talk Flying / TALKFLYING.COM / TF badge / Sunrise Aviation; fin stars and stripes kept; red underwing bar like N300UY). **Extra DEFAULT.**
+  - Task (lane/claude-livery-picker, src/FlyingGame.Core/LiveryChoice.cs): add the ids to Options (pitts-s2b-like: ("checker-unmarked","Checkered"), ("factory-unmarked","Factory"); extra-300-like: ("unmarked","Extra")), map OwnSuffix pitts checker-unmarked→"-own-checker-unmarked", factory-unmarked→"-own-factory-unmarked", extra unmarked→"-own-unmarked", and make them the per-type defaults (Pitts = checker-unmarked, Extra = unmarked). Keep the marked liveries (n31dg, n1191, talk-flying, n300uy) selectable. New GLBs have no .meta yet (Unity generates it).
+  - Build: PITTS_LIVERY=CHECKER-UNMARKED|FACTORY-UNMARKED tools/own_models/build_pitts_s2b.py; EA_LIVERY=unmarked tools/own_models/build_ea300.py. Renders (agent box): /workspace/unmarked-v1/{pitts-checker-unmarked,pitts-factory-unmarked,extra-unmarked}-{side,top,front,bottom}.png.
 - [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
   - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, MT 3-blade prop) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, Hartzell 2-blade prop). The n1191 GLB has no .meta yet (Unity generates it).
   - Task: make these the in-game Pitts S-2B (existing flight config configs/aircraft/pitts-s2b-like.json). N31DG (-own) is the default; N1191 (-own-n1191) is selectable the same way as the Extra's N300UY (AirframeModels suffix / AERO_LIVERY), or a picker if easy. Check scale/orientation, US prop rotation (clockwise from the cockpit), control-surface binding.
@@ -19,6 +26,7 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Grok Bot executor · codex/unmarked-liveries · unmarked liveries (Ty): Pitts checker-unmarked + factory-unmarked (no registration), Extra unmarked (no N-number, no Talk Flying / Sunrise Aviation); built from 8fea251 with livery switches only; handed to Claude as the new defaults (see HANDOFF). Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · v10.1: fin "Pitts"/"S-2B" script removed from both liveries (Ty); GLBs rebuilt; renders /workspace/pitts-own-v10-1 (box). Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · Ty approved Pitts S-2B v10 (c8b90bc) in N31DG + N1191; handed to Claude (see HANDOFF). Local commit only.
 

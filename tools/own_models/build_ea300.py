@@ -17,7 +17,10 @@ from paint import View
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 # v9: two liveries off one geometry. EA_LIVERY=tf (default) -> extra-300-like-own.glb, the Talk Flying scheme the game
 # already loads; EA_LIVERY=n300uy -> extra-300-like-own-n300uy.glb, the plain owner's copy with no Talk Flying branding.
-LIVERY = os.environ.get('EA_LIVERY', 'tf'); assert LIVERY in ('tf', 'n300uy'), LIVERY
+# unmarked (Ty 2026-10-28): EA_LIVERY=unmarked -> extra-300-like-own-unmarked.glb, the N300UY base scheme with NO
+# registration and NO Talk Flying / Sunrise Aviation text or badge anywhere; those areas keep the plain underlying paint.
+LIVERY = os.environ.get('EA_LIVERY', 'tf'); assert LIVERY in ('tf', 'n300uy', 'unmarked'), LIVERY
+UNMARKED = LIVERY == 'unmarked'
 OUT = os.path.join(ROOT, 'unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own%s.glb' % ('' if LIVERY == 'tf' else '-' + LIVERY))
 TEX = '/tmp/own_ea300_tex'; os.makedirs(TEX, exist_ok=True)
 NAVY, RED, WHITE = (27, 42, 74), (200, 24, 36), (246, 246, 246)
@@ -532,7 +535,7 @@ def side(name, flip):
     v.fill(pants & (Z > Z_AX + 0.05), NAVY)
     v.fill(pants & (Z > Z_AX + 0.005) & (Z < Z_AX + 0.03), RED)
     zm = float(zb(XLC)) - 0.5 * (LP1 + RW + LP2)   # both liveries: centred on the band between the stripes
-    v.stamp(SIDE_ART, TX0, TX1, zm - 0.5 * TH, zm + 0.5 * TH)
+    if not UNMARKED: v.stamp(SIDE_ART, TX0, TX1, zm - 0.5 * TH, zm + 0.5 * TH)
     if LIVERY == 'tf':   # v9: wings-and-headset badge in the fin's white field, both sides, reading the same way (like the text)
         v.stamp('ea-tf-badge.png', *FIN_LOGO)
     return v
@@ -559,8 +562,9 @@ def plan(name, flip, bar=False):
 lo = lambda y: HW(np.abs(y)) + 0.04
 hi = lambda y: LEv(y) - 0.32 * (LEv(y) - TEv(y)) - GAP_W - RW - 0.03
 print('LETTER height root %.2f tip %.2f' % (hi(0.62) - lo(0.62), hi(3.62) - lo(3.62)))
-VT = plan('ea_top', True); VT.stamp_warp('ea-sunrise.png', 3.62, 0.62, lo, hi); VT.stamp_warp('ea-aviation.png', -0.62, -3.62, lo, hi)
-VB = plan('ea_bot', False, bar=(LIVERY == 'n300uy'))
+VT = plan('ea_top', True)
+if not UNMARKED: VT.stamp_warp('ea-sunrise.png', 3.62, 0.62, lo, hi); VT.stamp_warp('ea-aviation.png', -0.62, -3.62, lo, hi)
+VB = plan('ea_bot', False, bar=(LIVERY in ('n300uy', 'unmarked')))
 if LIVERY == 'tf': VB.stamp_warp('ea-talk-flying.png', -3.62, -0.62, lo, hi); VB.stamp_warp('ea-podcast.png', 0.62, 3.62, lo, hi)   # v8: TALK FLYING | PODCAST split across the wings
 
 M = {}
