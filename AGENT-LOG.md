@@ -19,6 +19,7 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · Great Lakes 2T-1A-2-style own model v1 draft (tools/own_models/build_great_lakes.py, gl_fourview.py, docs/models/great-lakes-own-PROVENANCE.md); GLB great-lakes-like/great-lakes-like-own.glb; renders /workspace/greatlakes-own-v1 (box); placeholder livery N719GL, variant questions pending Ty; no Unity integration. Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · v10.1: fin "Pitts"/"S-2B" script removed from both liveries (Ty); GLBs rebuilt; renders /workspace/pitts-own-v10-1 (box). Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · Ty approved Pitts S-2B v10 (c8b90bc) in N31DG + N1191; handed to Claude (see HANDOFF). Local commit only.
 
