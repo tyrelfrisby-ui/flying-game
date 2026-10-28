@@ -38,30 +38,34 @@ namespace FlyingGame.Core.Aero;
 /// </summary>
 public sealed class BiplaneCellule
 {
-    /// <summary>Did this config turn out to have a cellule at all? False for every monoplane.</summary>
-    public bool IsCellule { get; private init; }
+    // `private set`, not `private init`: Unity's compiler has no System.Runtime.CompilerServices.IsExternalInit,
+    // so every `init` accessor here is a CS0518 that takes the whole iOS player build down -- and the .NET test
+    // build compiles it happily, so the suite stays green while the game will not build. Found 2026-10-28.
 
-    public double GapM { get; private init; }
+    /// <summary>Did this config turn out to have a cellule at all? False for every monoplane.</summary>
+    public bool IsCellule { get; private set; }
+
+    public double GapM { get; private set; }
     /// <summary>Positive = the UPPER wing is forward of the lower, the usual arrangement.</summary>
-    public double StaggerM { get; private init; }
-    public double MeanChordM { get; private init; }
-    public double SpanM { get; private init; }
+    public double StaggerM { get; private set; }
+    public double MeanChordM { get; private set; }
+    public double SpanM { get; private set; }
     /// <summary>Difference in rigging incidence, upper minus lower (rad).</summary>
-    public double DecalageRad { get; private init; }
+    public double DecalageRad { get; private set; }
     /// <summary>Upper wing area over lower wing area. 1 = an orthogonal cellule.</summary>
-    public double AreaRatio { get; private init; }
+    public double AreaRatio { get; private set; }
 
     public double GapOverChord => MeanChordM > 1e-6 ? GapM / MeanChordM : 0.0;
     public double StaggerOverChord => MeanChordM > 1e-6 ? StaggerM / MeanChordM : 0.0;
 
     /// <summary>Prandtl's induced-drag interference factor for the gap over the SPAN.</summary>
-    public double SigmaPrandtl { get; private init; }
+    public double SigmaPrandtl { get; private set; }
 
     /// <summary>Cellule CLmax as a fraction of the isolated section's CLmax. 1 for a monoplane.</summary>
-    public double ClMaxFactor { get; private init; }
+    public double ClMaxFactor { get; private set; }
 
     /// <summary>The surface ids that make up the cellule (the wings, not their hinged rows).</summary>
-    public IReadOnlyList<string> WingIds { get; private init; } = Array.Empty<string>();
+    public IReadOnlyList<string> WingIds { get; private set; } = Array.Empty<string>();
 
     /// <summary>
     /// CELLULE CLmax AGAINST GAP / CHORD. The classical result: the wings interfere less the further apart they are,
