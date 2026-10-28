@@ -260,20 +260,69 @@ public sealed class PracticeScenario
     /// stall in the first gust).</summary>
     public static double EstimateVso(AircraftConfig config, double altitudeM, double flapFraction = 0.0)
     {
-        // Scan DOWN from a comfortable speed and stop at the first speed the trim solver can no longer hold below 14° of
-        // angle of attack (scanning up found spurious low-speed solutions on some types).
+        // Scan DOWN from a comfortable speed and stop at the first speed the trim solver can no longer hold below the
+        // aeroplane's OWN stalling angle (scanning up found spurious low-speed solutions on some types, so the scan
+        // still needs a ceiling).
+        //
+        // That ceiling used to be a flat 14 deg, and it TRUNCATED every type whose wing reaches its CLmax above it:
+        // the scan stopped before the aeroplane had actually stalled and reported the last speed it could still
+        // trim, which is faster than the stall. Measured against book figures on 2026-10-28, all three types whose
+        // wings stall above 14 deg body alpha read fast -- the 172 (CLmax at 16.9 deg body, +13.4 %), the Extra
+        // (14.0 deg, +12.0 %) and the Decathlon (14.0 deg, +5.5 %) -- while all three that reach CLmax below it read
+        // true: the Stearman (13.5 deg, +1.3 %), the Pitts (12.0 deg) and the Great Lakes (12.0 deg). A measurement
+        // artefact was being read as an aerodynamic one.
+        //
+        // So the ceiling is now the type's own wing stall in BODY axes -- its section's alpha at CLmax less the
+        // rigging incidence -- plus 3 deg, far enough past the stall that the trim genuinely fails there.
         double vRef = config.SpawnIasMs > 1 ? config.SpawnIasMs : 25.0;
         // (With flaps the fast end may not trim at all — the elevator runs out nose-down — so failures before the first
         // trimmable speed are skipped; the stall is the first failure AFTER one.)
+        double cap = AlphaCapRad(config);
         double last = vRef; bool found = false;
         for (double v = vRef * 1.6; v >= vRef * 0.35; v -= 0.5)
         {
             TrimSolver.Result t = TrimSolver.SolveGliderTrim(config, v, altitudeM, flapFraction: flapFraction);
-            bool ok = t.Converged && !double.IsNaN(t.AlphaRad) && t.AlphaRad < 14.0 * Math.PI / 180 && t.GlideRatio > 0;
+            bool ok = t.Converged && !double.IsNaN(t.AlphaRad) && t.AlphaRad < cap && t.GlideRatio > 0;
             if (!ok) { if (found) return last; continue; }
             found = true; last = v;
         }
         return last;
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, object> _alphaCap = new();
+
+    /// <summary>How far past level trim the Vso scan may look: this aeroplane's own wing stall in BODY axes (its
+    /// section's alpha at CLmax, less the wing's rigging incidence) plus 3 deg. Clamped to 12-28 deg so a type with
+    /// an odd table cannot send the scan somewhere silly.</summary>
+    public static double AlphaCapRad(AircraftConfig config)
+    {
+        if (_alphaCap.TryGetValue(config, out object? cached)) return (double)cached;
+        double cap = 17.0 * Math.PI / 180;
+        try
+        {
+            SurfaceConfig? main = null; double best = 0;
+            foreach (SurfaceConfig sf in config.Surfaces)
+            {
+                if (!sf.Id.StartsWith("wing", StringComparison.OrdinalIgnoreCase)
+                    || sf.Id.EndsWith("aileron", StringComparison.OrdinalIgnoreCase) || sf.Strips.Count == 0) continue;
+                double area = 0; foreach (StripConfig st in sf.Strips) area += st.Area;
+                if (area > best) { best = area; main = sf; }
+            }
+            if (main is not null)
+            {
+                var tables = FlyingGame.Sim.Aircraft.BuildAirfoilTables(config);
+                if (tables.TryGetValue(main.Strips[0].Airfoil, out AirfoilTable? tab))
+                {
+                    double inc = 0; foreach (StripConfig st in main.Strips) inc += st.IncidenceRad;
+                    inc /= main.Strips.Count;
+                    cap = Math.Clamp(tab.AlphaClMaxRad - inc + 3.0 * Math.PI / 180,
+                                     12.0 * Math.PI / 180, 28.0 * Math.PI / 180);
+                }
+            }
+        }
+        catch (Exception) { }
+        _alphaCap.Add(config, cap);
+        return cap;
     }
 
     /// <summary>Level-flight speed at 75 % power: the slowest speed whose drag power (weight ÷ glide ratio × V ÷ η) reaches

@@ -40,6 +40,29 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-menu-aero · biplane cellules measured for the whole fleet, and the stall estimator stops truncating
+
+Owner: *"account for cellule clmax of a biplane configuration and don't just do it as a one off for this airplane
+build it as a tool/table that applies to all biplanes current and future."* Table, numbers and the reasoning are in
+`docs/CONTROL-SURFACES.md` ("Biplane cellules, and what a stall speed is actually measuring").
+
+- **`FlyingGame.Core.Aero.BiplaneCellule`** measures a cellule off the strips alone — gap, stagger, decalage, span,
+  area ratio, Prandtl's σ and the CLmax factor. Nothing hand-entered per type, so a biplane added tomorrow is
+  covered. The interference curve is a table (`ClMaxByGapOverChord`) left in the open and labelled as a
+  standard-form fit rather than a transcribed source, so it can be replaced from Diehl or NACA TR 256/269 without
+  touching anything else. `BiplaneCelluleTests` prints the fleet table and guards detection, the table's shape, and
+  that the AeroModel wiring is actually reachable.
+- **It is wired but OFF** (`cellule.liftInterference`, per type). The Stearman has the tightest cellule we own and
+  already matches its book stall to +1.3 % with no interference term; the Pitts needs 44 % MORE lift than it makes.
+  The fleet's section tables are evidently carrying this effect already, so a type may only switch it on once its
+  tables are a true 2-D section. On the Great Lakes it would move Vso 51.2 → 53.5 mph (−10.2 % → −6.1 % vs book).
+- **`EstimateVso`'s ceiling was a flat 14° of alpha** and truncated any type whose wing stalls above it — the scan
+  stopped before the aeroplane had stalled and reported a speed faster than the stall. It is now the type's own wing
+  stall in body axes plus 3°. The 172 went from +13.4 % to +9.3 % against book. It did NOT explain the Extra or the
+  Decathlon, which sit exactly at 14° and did not move; their error and the Pitts' +20 % have other causes.
+- 776 of 783 pass. The four failures are the long-standing Pitts ground-handling three and the flat-spin smoke
+  check, all under NEEDS YOU.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · the Great Lakes 2T-1A-2 is in the game, measured off its model and its type certificate
 
 Owner: *"The red Great Lakes is in ~/Desktop/GreatLakes-red-handoff/, import it into aero and work the

@@ -58,6 +58,13 @@ public sealed class AircraftConfig
     /// <summary>Separated-flow wing terms the strip model can't produce (spin research 2026-10-13). Null/empty = none.</summary>
     public SpinAeroConfig? SpinAero { get; set; }
 
+    /// <summary>Biplane cellule interference (<see cref="FlyingGame.Core.Aero.BiplaneCellule"/>). Absent = off, which
+    /// is the default for every type: switching it on is a per-type decision, because a section table that was fitted
+    /// to make the aeroplane stall at the right speed is already carrying this effect implicitly and would count it
+    /// twice. The cellule is MEASURED from the strips whether this is set or not, so the numbers are always available
+    /// to a probe or a test.</summary>
+    public CelluleConfig? Cellule { get; set; }
+
     /// <summary>Seaplane floats (null = landplane). See FloatHydro.</summary>
     public FloatsConfig? Floats { get; set; }
 
@@ -247,6 +254,14 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+/// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>
+public sealed class CelluleConfig
+{
+    /// <summary>Apply the measured cellule CLmax factor to this aeroplane's wing strips. Only turn this on for a type
+    /// whose section tables are a TRUE 2-D section; see BiplaneCellule for why.</summary>
+    public bool LiftInterference { get; set; }
 }
 
 public sealed class SpinAeroConfig

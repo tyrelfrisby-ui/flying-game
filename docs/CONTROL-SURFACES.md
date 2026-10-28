@@ -316,6 +316,64 @@ which is exactly where the model's blades are (tolerance 0.47 m), with `PropRadi
   published 7 ft 4 in and its three-point angle comes out 7.2° against the provenance's solved 6.91°. Until the
   oleo rig is animated the drawn wheels hang about 0.23 m below where the aeroplane is standing.
 
+## Biplane cellules, and what a stall speed is actually measuring (2026-10-28)
+
+Owner: *"account for cellule clmax of a biplane configuration and don't just do it as a one off for this airplane
+build it as a tool/table that applies to all biplanes current and future."*
+
+Two wings one above the other never make what two isolated wings of the same total area would: each flies in the
+other's field. `FlyingGame.Core.Aero.BiplaneCellule` measures that from the strips alone — nothing is hand-entered
+per type, so a biplane added tomorrow is covered the moment its config exists.
+
+### The fleet's cellules
+
+| type | gap | gap/chord | stagger | Su/Sl | decalage | σ (Prandtl) | CLmax × | Vso would |
+|---|---|---|---|---|---|---|---|---|
+| great-lakes-like | 1.36 m | 1.24 | +0.40 c | 1.09 | 0.0° | 0.528 | 0.915 | +4.5 % |
+| jn4-jenny-like | 1.52 m | 1.10 | +0.29 c | 1.36 | 0.0° | 0.623 | 0.893 | +5.8 % |
+| pitts-s2b-like | 1.10 m | 1.23 | +0.61 c | 1.10 | 0.0° | 0.507 | 0.922 | +4.1 % |
+| stearman-pt17-like | 1.08 m | 0.75 | +0.31 c | 1.02 | −1.0° | 0.630 | 0.833 | +9.6 % |
+
+`BiplaneCelluleTests` prints this and guards it: all four are detected, five monoplanes are confirmed NOT cellules
+and return exactly 1.0, the table stays monotonic and bounded, and turning the switch on demonstrably raises the
+stall speed (which keeps the AeroModel wiring from going unreachable).
+
+**The interference curve is a TABLE, `ClMaxByGapOverChord`, deliberately in the open.** It carries the shape the
+classical data has — about three quarters of a monoplane at half a chord of gap, nine tenths at a chord and a
+quarter, asymptotic to one — but it is a standard-form fit, **not a transcribed source**. Anyone with Diehl's
+*Engineering Aerodynamics* or NACA TR 256 / TR 269 should overwrite those nine pairs; nothing else has to change.
+
+### It is wired, and it is OFF
+
+`cellule.liftInterference`, per type, absent by default. The evidence did not support switching it on fleet-wide:
+
+- The **Stearman** has the tightest cellule we own (gap/chord 0.75, against the Great Lakes' 1.24 and the Pitts'
+  1.23), so it should suffer the most interference of any of them. It already matches its book stall to **+1.3 %**
+  with no interference term at all. Switching it on takes it to about **+11 %**.
+- The **Pitts** needs 44 % MORE lift than it makes, not less: it realises CLmax 1.13 where its book stall wants
+  1.63, because its section tables are 1.22 (upper) and 1.05 (lower, symmetric). Switching it on takes it from
+  +20 % to about +25 %.
+
+The reading is that the fleet's section tables are already doing this work implicitly — an *effective cellule*
+value rather than a true 2-D section — so a type may only switch this on once its tables are the real section, or
+the effect is counted twice. On the Great Lakes it would move Vso 51.2 → 53.5 mph, i.e. −10.2 % → −6.1 % against
+book.
+
+### What a stall speed was actually measuring
+
+Worth knowing before anyone reads a Vso number as aerodynamics. `PracticeScenario.EstimateVso` scans down and stops
+where the trim solver can no longer hold the aeroplane below a ceiling on angle of attack. That ceiling was a flat
+**14°**, which truncated any type whose wing reaches CLmax above it: the scan stopped before the aeroplane had
+stalled and reported the last speed it could still trim, which is faster than the stall.
+
+It is now the type's own wing stall in body axes — its section's α at CLmax less the rigging incidence — plus 3°,
+clamped to 12–28°. The 172, whose wing reaches CLmax at 16.9° body α and so was being cut off 2.9° early, went from
+**+13.4 % to +9.3 %** against its book stall.
+
+That did not explain the whole fleet, and the claim should not be stretched: the Extra and the Decathlon sit exactly
+*at* 14°, so there was nothing to recover and neither moved. Their remaining error, and the Pitts' +20 %, have
+causes not yet isolated — but they are no longer confounded by a measurement artefact.
+
 ## Control effectiveness τ (thin-airfoil theory)
 
 Flat plate with a plain flap, Glauert: cos θ_h = 2E − 1, A₀ = α + δ(π − θ_h)/π, A_n = 2δ sin(nθ_h)/(nπ).

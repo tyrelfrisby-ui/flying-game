@@ -33,7 +33,7 @@
           "area": 1.1693,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -46,7 +46,7 @@
           "area": 1.143,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -59,7 +59,7 @@
           "area": 0.9843,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -72,7 +72,7 @@
           "area": 0.7556,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -85,7 +85,7 @@
           "area": 0.4257,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -98,7 +98,7 @@
           "area": 0.0779,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -111,7 +111,7 @@
           "area": 1.1696,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -124,7 +124,7 @@
           "area": 1.143,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -137,7 +137,7 @@
           "area": 0.9843,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -150,7 +150,7 @@
           "area": 0.7556,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -163,7 +163,7 @@
           "area": 0.4257,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -176,7 +176,7 @@
           "area": 0.0751,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         }
       ]
@@ -196,7 +196,7 @@
           "area": 0.8068,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -209,7 +209,7 @@
           "area": 0.9379,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 0.3481
@@ -225,7 +225,7 @@
           "area": 0.7379,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 0.3481
@@ -241,7 +241,7 @@
           "area": 0.5864,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 0.3481
@@ -257,7 +257,7 @@
           "area": 0.4256,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -270,7 +270,7 @@
           "area": 0.0778,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -283,7 +283,7 @@
           "area": 0.8068,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -296,7 +296,7 @@
           "area": 0.9379,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -0.3481
@@ -312,7 +312,7 @@
           "area": 0.7414,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -0.3481
@@ -328,7 +328,7 @@
           "area": 0.5821,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -0.3481
@@ -344,7 +344,7 @@
           "area": 0.4254,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         },
         {
@@ -357,7 +357,7 @@
           "area": 0.0769,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": null
         }
       ]
@@ -377,7 +377,7 @@
           "area": 0.1951,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -393,7 +393,7 @@
           "area": 0.2325,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -409,7 +409,7 @@
           "area": 0.1609,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": 1.0
@@ -425,7 +425,7 @@
           "area": 0.1951,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -441,7 +441,7 @@
           "area": 0.2325,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -457,7 +457,7 @@
           "area": 0.1609,
           "incidenceRad": 0.0524,
           "dihedralRad": 0.0349,
-          "airfoil": "clarkY-like",
+          "airfoil": "naca2312",
           "control": {
             "surface": "aileron",
             "gain": -1.0
@@ -875,156 +875,6 @@
     }
   ],
   "airfoilTables": {
-    "clarkY-like": {
-      "alphaRad": [
-        -3.14159,
-        -2.79253,
-        -2.44346,
-        -2.0944,
-        -1.74533,
-        -1.5708,
-        -1.39626,
-        -1.0472,
-        -0.69813,
-        -0.34907,
-        -0.22689,
-        -0.17453,
-        -0.13963,
-        -0.06981,
-        0.0,
-        0.08727,
-        0.17453,
-        0.22689,
-        0.2618,
-        0.28798,
-        0.31416,
-        0.34907,
-        0.38397,
-        0.45379,
-        0.5236,
-        0.66323,
-        0.7854,
-        1.0472,
-        1.309,
-        1.5708,
-        1.74533,
-        2.0944,
-        2.44346,
-        2.79253,
-        3.14159
-      ],
-      "cl": [
-        0.0,
-        0.35,
-        0.5,
-        0.42,
-        0.18,
-        0.0,
-        -0.28,
-        -0.52,
-        -0.66,
-        -0.55,
-        -0.82,
-        -0.6,
-        -0.32,
-        0.0,
-        0.3,
-        0.69,
-        1.07,
-        1.28,
-        1.4,
-        1.48,
-        1.34,
-        1.16,
-        1.06,
-        0.96,
-        0.92,
-        0.93,
-        0.95,
-        0.63,
-        0.32,
-        0.0,
-        -0.25,
-        -0.55,
-        -0.62,
-        -0.4,
-        0.0
-      ],
-      "cd": [
-        0.05,
-        0.35,
-        0.85,
-        1.15,
-        1.28,
-        1.26,
-        1.24,
-        0.95,
-        0.53,
-        0.16,
-        0.045,
-        0.022,
-        0.02,
-        0.01,
-        0.008,
-        0.01,
-        0.016,
-        0.03,
-        0.055,
-        0.085,
-        0.14,
-        0.2,
-        0.26,
-        0.36,
-        0.5,
-        0.78,
-        1.0,
-        0.97,
-        1.16,
-        1.26,
-        1.28,
-        1.15,
-        0.85,
-        0.35,
-        0.05
-      ],
-      "cm": [
-        0.0,
-        0.25,
-        0.3,
-        0.31,
-        0.3,
-        0.315,
-        0.254,
-        0.0844,
-        0.0137,
-        0.0077,
-        0.0,
-        -0.045,
-        -0.057,
-        -0.057,
-        -0.057,
-        -0.057,
-        -0.057,
-        -0.056,
-        -0.055,
-        -0.054,
-        -0.08,
-        -0.1,
-        -0.12,
-        -0.14,
-        -0.16,
-        -0.19,
-        -0.22,
-        -0.24,
-        -0.24,
-        -0.24,
-        -0.24,
-        -0.24,
-        -0.24,
-        -0.24,
-        -0.24
-      ]
-    },
     "naca0012-like": {
       "alphaRad": [
         -2.79253,
@@ -1344,6 +1194,156 @@
         0.0,
         0.0
       ]
+    },
+    "naca2312": {
+      "alphaRad": [
+        -3.14159,
+        -2.79253,
+        -2.44346,
+        -2.0944,
+        -1.74533,
+        -1.5708,
+        -1.39626,
+        -1.0472,
+        -0.69813,
+        -0.34907,
+        -0.22689,
+        -0.17453,
+        -0.13963,
+        -0.06981,
+        0.0,
+        0.08727,
+        0.17453,
+        0.22689,
+        0.2618,
+        0.28798,
+        0.31416,
+        0.34907,
+        0.38397,
+        0.45379,
+        0.5236,
+        0.66323,
+        0.7854,
+        1.0472,
+        1.309,
+        1.5708,
+        1.74533,
+        2.0944,
+        2.44346,
+        2.79253,
+        3.14159
+      ],
+      "cl": [
+        0.0,
+        0.35,
+        0.5,
+        0.42,
+        0.18,
+        0.0,
+        -0.28,
+        -0.52,
+        -0.66,
+        -0.55,
+        -0.96,
+        -0.79,
+        -0.63,
+        -0.21,
+        0.22,
+        0.76,
+        1.25,
+        1.41,
+        1.45,
+        1.33,
+        1.21,
+        1.1,
+        1.03,
+        0.96,
+        0.92,
+        0.93,
+        0.95,
+        0.63,
+        0.32,
+        0.0,
+        -0.25,
+        -0.55,
+        -0.62,
+        -0.4,
+        0.0
+      ],
+      "cd": [
+        0.05,
+        0.35,
+        0.85,
+        1.15,
+        1.28,
+        1.26,
+        1.24,
+        0.95,
+        0.53,
+        0.16,
+        0.0325,
+        0.0172,
+        0.0122,
+        0.0076,
+        0.0062,
+        0.0073,
+        0.0118,
+        0.0185,
+        0.03,
+        0.065,
+        0.125,
+        0.195,
+        0.26,
+        0.36,
+        0.5,
+        0.78,
+        1.0,
+        0.97,
+        1.16,
+        1.26,
+        1.28,
+        1.15,
+        0.85,
+        0.35,
+        0.05
+      ],
+      "cm": [
+        0.0,
+        0.25,
+        0.3,
+        0.31,
+        0.3,
+        0.315,
+        0.254,
+        0.0844,
+        0.0137,
+        0.0077,
+        0.0,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.04,
+        -0.054,
+        -0.08,
+        -0.1,
+        -0.12,
+        -0.14,
+        -0.16,
+        -0.19,
+        -0.22,
+        -0.24,
+        -0.24,
+        -0.24,
+        -0.24,
+        -0.24,
+        -0.24,
+        -0.24,
+        -0.24
+      ]
     }
   },
   "controls": {
@@ -1360,7 +1360,7 @@
       "freeTauS": 0.12
     },
     "elevator": {
-      "saturationDeg": 18.0,
+      "saturationDeg": 31.4,
       "maxDeflRad": 0.4363,
       "rateRadPerSec": 3.0,
       "expo": 0.1,
@@ -1395,7 +1395,7 @@
     "rollDueToSideslip": "biplane"
   },
   "fuselage": {
-    "cd0Area": 0.59,
+    "cd0Area": 0.62,
     "sideForceArea": 4.783,
     "damping": {
       "p": 0,

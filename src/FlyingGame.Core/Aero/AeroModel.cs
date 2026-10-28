@@ -584,6 +584,19 @@ public static class AeroModel
                     }
                 }
 
+                // BIPLANE CELLULE (owner 2026-10-28). Two wings one above the other never make what two isolated
+                // wings of the same area would: each flies in the other's field. BiplaneCellule measures the gap,
+                // stagger and span off these very strips and returns the cellule's CLmax as a fraction of the
+                // section's. Scaling Cl here rather than capping it takes the lift slope down with the peak, which
+                // is what the interference actually does, and the induced-drag term below then follows from the
+                // reduced Cl on its own. OFF unless the type asks for it -- see CelluleConfig and BiplaneCellule.
+                if (isWing && config.Cellule?.LiftInterference == true)
+                {
+                    BiplaneCellule cell = BiplaneCellule.For(config);
+                    if (cell.Covers(config.Surfaces[surfaceIndex].Id))
+                        coeffs = new AeroCoefficients(coeffs.Cl * cell.ClMaxFactor, coeffs.Cd, coeffs.Cm);
+                }
+
                 // Drag polar: airfoil tables carry PROFILE drag only; induced drag is added here
                 // per strip as Cl²/(π·AR·e) so it varies with local alpha (and therefore with
                 // control deflection — this is where adverse yaw's drag asymmetry comes from).
