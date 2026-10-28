@@ -2,9 +2,13 @@
 
 ## NEEDS YOU
 - **EA300 GPL — decision needed before App Store release (Claude's review, 2026-10-27; see the Log entry below).** Our own EA300 is now the in-game Extra. Claude's assessment: treat the airframe shell (v2–v12) as a likely derivative of Patrizio Melis's GPL FlightGear EA300, and treat GPL content as not safe to ship through the App Store. **Ty: pick one before App Store release:** (a) ask Patrizio Melis (github.com/cobe571) for written permission to use the measured shape in a closed, commercial App Store game (a draft request is in the log entry); or (b) put the v12 cockpit, engine, inlets, prop and paint onto the clean-room v1 shell (638c05a). This does not block TestFlight or internal builds.
+- **Pitts S-2B (Claude, 2026-10-27): three small decisions, none blocking.**
+  - **Players cannot pick N1191 yet.** N31DG shows for every livery. N1191 appears only with `AERO_LIVERY=n1191`, which is a launch-time env var for captures and dev builds. No livery picker exists in the game, and building one (UI, persistence, rebuilding the airframe) was more than "easy and safe" here. `Liveries.Available("pitts-s2b-like")` already lists N31DG and N1191 for a future picker. Say if you want one.
+  - **The flight config's gear doesn't quite match the model (physics left unchanged).** On its wheels the model sits right: same three-point attitude (10.1° vs the config's 10.0°), tailwheel on the config's ground line within 2 cm. But relative to the wings, the config's main gear is about 0.19 m short and its tailwheel about 0.4 m forward of the model's. Visually, the sim CG ends up ~0.33 m below the model's thrust line (about 0.1 m above the lower wing), and the physics wings sit ~0.2 m below the drawn ones. That is where the aeroplane appears to roll and pitch about. Matching it means lengthening the config gear, which changes ground handling and needs re-tuning against GroundLoopTests and the other taildragger tests. Say if you want that.
+  - The HANDOFF text has the props swapped. The GLBs and PROVENANCE are right, and the tests now pin it: N31DG has the Hartzell 2-blade, N1191 the MT 3-blade.
 
 ## HANDOFF
-- [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
+- [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: **DONE by Claude on lane/claude-pitts-own (2026-10-27), see Log; open points under NEEDS YOU** · own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
   - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, MT 3-blade prop) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, Hartzell 2-blade prop). The n1191 GLB has no .meta yet (Unity generates it).
   - Task: make these the in-game Pitts S-2B (existing flight config configs/aircraft/pitts-s2b-like.json). N31DG (-own) is the default; N1191 (-own-n1191) is selectable the same way as the Extra's N300UY (AirframeModels suffix / AERO_LIVERY), or a picker if easy. Check scale/orientation, US prop rotation (clockwise from the cockpit), control-surface binding.
   - Credits/licensing (docs/models/pitts-s2b-own-PROVENANCE.md): fully clean-room procedural Blender build (tools/own_models/build_pitts_s2b.py); no third-party mesh used or measured; dimensions from Aviat/Jane's/TCDS A8SO; paint from reference photos only; fonts SIL OFL 1.1. No GPL question.
@@ -19,6 +23,50 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-27 — Claude · lane/claude-pitts-own · own Pitts S-2B (v10.1) is now the in-game Pitts, N31DG by default and N1191 as livery `n1191`
+**Wiring** (follows the EA300 swap)
+- `AirframeModels`:
+  - New `OwnSpecs["pitts-s2b-like"]`: nose +x and Y-up, like the EA300. It has a scale trim of 6.094/5.996, so the model comes out at its true 6.10 m span and 5.72 m length. Span-fitting alone would size it to the config's outermost strip span.
+  - `PickOwn` always takes our model. The procedural Pitts style remains only as the fallback when the GLB is missing.
+  - `OwnSuffix`: livery `n1191` loads `-own-n1191`; every other livery loads `-own` (N31DG). New overload `OwnSuffix(model, livery)`.
+- `Livery.cs`:
+  - Added `N31DGPitts` (`n31dg`) and `N1191Pitts` (`n1191`), plus a per-type talk-flying entry with no tints and no marks. Log shows `default=True marks=0` for every id.
+  - `Available(pitts)` returns N31DG and N1191. There is no picker UI (see NEEDS YOU).
+- `AircraftRender`: accepts `-livery n31dg|n1191`. New optional `-deflect <deg>`.
+- Model folder: added a `.meta` for the N1191 GLB (new GUID, same glTFast settings), plus `LICENSE.txt` and its `.meta`.
+- Credits: added to `docs/CREDITS.md` and the shipped `StreamingAssets/credits.md`. The model is clean-room and ours; the font is Liberation Sans Bold, SIL OFL 1.1.
+
+**Rig**
+- New `Spec.NamedSurfaces`, set for the Pitts only.
+  - The model's `Aileron_UL/UR/LL/LR`, `Elevator_L/R` and `Rudder` meshes each move whole, hinged on the mesh's own leading edge and its own hinge axis.
+  - The measured axes are: upper ailerons 5.4° (wing sweep), lower ailerons ±3° (dihedral), and the rudder vertical, 11.8° from the config's tilted axis.
+- Why: the generic carve hinged at the config's chord fraction (~32%) along the config's unswept axes. It cut 5–7 cm into the wings, stab and fin, and smeared the paint when deflected (seen in a `-deflect 20` render).
+- The Extra and the 2-33 are untouched. The Extra re-render still binds 4/4 surfaces and 1/1 prop.
+- Binding:
+  - **N31DG: 6/6 control surfaces (4 ailerons, elevator pair, rudder), 1/1 propellers** (Hartzell 2-blade).
+  - **N1191: 6/6, 1/1** (MT 3-blade).
+- Prop rotation: clockwise from the cockpit. Every hub turns −θ about Unity +z (nose), and the GLB blades are pitched for US rotation.
+
+**Verification**
+- Unity 6000.3.23f1 batchmode compile: clean, no errors. The renders below ran on the final code.
+- Renders under `/tmp/pitts-own-unity/`: `n31dg`, `n1191`, `type`, `talk-flying`, `n31dg-deflect20`, `n1191-deflect20` and `extra-regression`. All exited 0.
+  - Nose forward and upright.
+  - N31DG has the checkered rudder and 2 blades. N1191 has the rudder diamonds and 3 blades.
+  - `type` and `talk-flying` both show N31DG.
+- On the ground: placement puts the main wheels on the contact plane. The model's three-point attitude is 10.1° against the config gear's 10.0°.
+- New `tools/FlightTests/OwnPittsModelTests.cs` (7 tests):
+  - GLBs and metas present (unique GUIDs, same importer settings as the EA300);
+  - span 6.07–6.12 m and length 5.69–5.75 m;
+  - nose at −x and up at +y in the file;
+  - rig mesh names present;
+  - 2 blades on N31DG and 3 on N1191;
+  - the livery-id → GLB mapping in `AirframeModels.cs` and `Livery.cs`;
+  - the CREDITS entry.
+- `~/.dotnet/dotnet test tools/FlightTests`: **736 passed, 3 skipped, 0 failed** (13 m 53 s).
+- No physics changed. `configs/aircraft/pitts-s2b-like.json` and its StreamingAssets copy are untouched; the gear mismatch is in NEEDS YOU.
+- Aside: `glider-2-33-like-own-tf.glb`, which `OwnSuffix` maps the 2-33's `talk-flying` livery to, is not on this branch. `PickOwn` falls back, so it is not broken, but it may be worth bringing over.
+- Local commits only. No push, merge, deploy or device build.
+
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · v10.1: fin "Pitts"/"S-2B" script removed from both liveries (Ty); GLBs rebuilt; renders /workspace/pitts-own-v10-1 (box). Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · Ty approved Pitts S-2B v10 (c8b90bc) in N31DG + N1191; handed to Claude (see HANDOFF). Local commit only.
 
