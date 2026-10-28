@@ -24,10 +24,17 @@ public class StallAuthorityTests
     /// as PENDING (their elevators were too weak to stall, or the CG/tail is off) — see docs/NEW-AIRPLANE-PROTOCOL.md.</summary>
     public static readonly HashSet<string> Verified = new() { "c172-like", "pa28-archer-like", "cirrus-sr22-like", "pa18-cub-like", "pa18-bush-like", "glasair3-like", "glider-swift-s1-like", "f86-sabre-like", "jn4-jenny-like" };
 
-    /// <summary>Types whose elevator is set by hand, not by the calibration (2026-10-06): it wanted the Pitts' elevator chord ×3.6
-    /// and the Cub-on-floats' ×1.4 (geometry problems — too much stability — to fix with data), gave the Cassutt and drone a
-    /// non-physical 7.8° saturation, and the 2-33 is set from its spin (20°).</summary>
-    public static readonly HashSet<string> ManualElevator = new() { "pitts-s2b-like", "pa18-floats-like", "cassutt-f1-like", "target-drone-like", "glider-2-33-like", "stearman-pt17-like" };
+    /// <summary>Types whose elevator is set by hand, not by the calibration (2026-10-06): it wanted the Cub-on-floats'
+    /// elevator chord ×1.4 (a geometry problem — too much stability — to fix with data), gave the Cassutt and drone a
+    /// non-physical 7.8° saturation, and the 2-33 is set from its spin (20°).
+    ///
+    /// The PITTS came off this list on 2026-10-28. It was here because the calibration wanted its elevator chord ×3.6 and
+    /// it had to be flown on a non-physical 120° saturation — both symptoms of the real fault, which was its tail
+    /// geometry: 44 % MAC static margin, a stabiliser 29 % larger than the drawn one, a tail arm 0.33 m too long and a
+    /// CG on the wrong side of the lower wing leading edge (TCDS A8SO puts it forward of it, the config had it aft).
+    /// With the surfaces rebuilt from the model's own measurements it calibrates like any other type, to 19.4°, and
+    /// balances full aft exactly on its 18° target. See docs/CONTROL-SURFACES.md.</summary>
+    public static readonly HashSet<string> ManualElevator = new() { "pa18-floats-like", "cassutt-f1-like", "target-drone-like", "glider-2-33-like", "stearman-pt17-like" };
 
     /// <summary>Margin past the wing stall that full aft should hold (deg).</summary>
     public static double TargetMarginDeg(string id) => id switch

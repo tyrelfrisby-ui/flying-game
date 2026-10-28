@@ -45,21 +45,180 @@ The section's lift change per δ, relative to its lift slope, is the flap effect
 | Super Cub | 15 | 18 |
 | 2-33 | 18 | 6 |
 | P-51 | 35 | 12 |
-| Extra 300 | 42 | 9 |
+| Extra 300 | 42 | 9 → **17.1** (surfaces rebuilt 2026-10-28) |
+| Pitts S-2B | 44 | **12.9** (surfaces rebuilt + CG from TCDS A8SO, 2026-10-28) |
 | Pawnee | 32 | 4 |
 | Gee Bee R-2 | 35 | 3 |
 | 737 | 53 | 18 |
 
-Real light aircraft fly at roughly 5–20 % MAC. Still high (CG or tail geometry to check against data): Pitts 44,
-EB29R 42, Stearman 26. `PitchStabilityTests` prints them all and fails any type that is unstable.
+Real light aircraft fly at roughly 5–20 % MAC. Still high (CG or tail geometry to check against data): EB29R 42,
+Stearman 26. `PitchStabilityTests` prints them all and fails any type that is unstable. The **Pitts** was the worst of
+them at 44 %; it is now 12.9 % — see "Pitts and Extra: the surfaces rebuilt from the models" below.
 
 ### Full-aft authority (StallAuthorityTests, every type now)
 
 With real stability most types pulled far past the stall at full aft (737 45°, Beaver 36°, Extra 34°). The protocol's
 plain-flap saturation is now calibrated for every type. Low values (< 8°: F-86 3.0, Gee Bee 4.9, Swift 5.2, 2-33 6.0,
 Pawnee 7.5, Cassutt 7.8, SR22 7.9) mean an elevator large for the type's stability — candidates for real geometry.
-Rejected and left PENDING: the Pitts (the calibrator wanted its elevator chord ×3.6) and the Stearman (too stable to
-reach its target); the Cub on floats (×1.4 chord for 0.5°) keeps its elevator.
+Rejected and left PENDING: the Stearman (too stable to reach its target); the Cub on floats (×1.4 chord for 0.5°)
+keeps its elevator. The **Pitts** was on that list — the calibrator wanted its elevator chord ×3.6, and it flew on a
+non-physical 120° saturation — until its surfaces were rebuilt on 2026-10-28; it now calibrates to 22.9° like any other
+type (20.3°) and balances full aft on its 18° target.
+
+## Pitts and Extra: the surfaces rebuilt from the models (2026-10-28)
+
+Owner: *"with the new extra and pitts models i want you to recheck all of the dimensions and sizes for lifting surfaces
+wings, ailerons, stabilizers and elevator/rudder. adjust the formulas for the control powers as needed based on the
+updated measurements and stability. check the fuselage aerodynamic contribution as well."*
+
+Both configs predated the models they are now drawn as. Every lifting surface was re-measured off the GLB — the Pitts
+from v12, whose stab, elevator, fin and rudder outlines are traced from the Aviat factory three-view
+(`docs/models/pitts-s2b-own-PROVENANCE.md`), and the Extra from its own build. Method: each surface is sliced into
+cosine-spaced spanwise bands (the spacing the configs already used — it reproduces their station list to 1 mm); a band's
+area is a rasterised silhouette **clipped to the band**, so two bands cannot claim the same square metre, and its chord
+is the mean of thin-slab chords sampled across it, which gets a planform break — an aileron ending mid-band — right
+where a single centre slice would not.
+
+### What was wrong
+
+| | config before | model | |
+|---|---|---|---|
+| Pitts horizontal stab | 1.503 m² | 1.161 m² | +29 % |
+| Pitts fin | 0.644 m² | 0.356 m² | +81 % |
+| Pitts rudder | 0.347 m² | 0.514 m² | −32 % |
+| Pitts rudder vertical centre | 0.81 m above the body axis | 0.26 m | 0.55 m high |
+| Pitts tail arm | stab q/c at −3.14 m | −2.87 m | 0.27 m long |
+| Extra wing span | 7.43 m | 7.99 m | −7 % (published 8.00) |
+| Extra aileron | 1.498 m² | 1.872 m² | −20 % |
+| Extra stab span | 2.80 m | 3.19 m | −12 % (published 3.20) |
+| Extra elevator | 0.947 m² | 0.728 m² | +30 % |
+| Extra fin | 0.887 m² | 0.445 m² | +99 % |
+| Extra tail arm | stab q/c at −2.88 m | −3.98 m | **1.10 m short** |
+
+Two of those are structural rather than cosmetic. The Extra's tail arm was a quarter short, so its pitch and yaw
+stiffness and its elevator and rudder power were all being derived off the wrong lever — and its fin was twice the
+drawn size, which is how it came out at a plausible 9 % MAC: two errors cancelling. And its config span being 7 %
+under the published 8.00 m meant the engine was **shrinking the new model** to fit a flight model that was too small.
+
+The fixed and hinged chords also used to overlap. The old Pitts aileron row sat 0.196 m forward of the wing's own
+trailing edge, so `AeroModel.BuildLoadX` reconstructed a section chord of 1.313 m where the real section is 1.048 m —
+19 % long, on the lever arm that sets Cmα. Rebuilt, the two rows meet at the hinge line to within 6 mm.
+
+### Areas are scaled to the published total
+
+A uniform scale cannot change a ratio, and these meshes were only ever checked on length/span and height/span, never on
+area. So the measured spanwise **distribution** is kept and the areas are scaled to the published total: the Pitts from
+11.33 to 11.6 m² (×1.023, Aviat brochure / Jane's) and the Extra from 10.02 to 10.84 m² (×1.082, the reference pack's
+`extra300/SPEC.md`, from NZ CAA TAR 8/21B/31 Rev 1). Nothing else is scaled — arms, chords, heights and stations are
+the measurements.
+
+### Control power is derived, not hand-set
+
+The fixed-strip gain now comes from the chord ratio the model actually has, through the τ(E) table below:
+g = (0.85·τ(E) − E)/(1 − E). The hand-set 0.45 everywhere was never that.
+
+| | E = c_hinged/c_section | gain before | gain now |
+|---|---|---|---|
+| Pitts aileron, upper / lower | 0.248 / 0.236 | 0.450 | 0.356 / 0.351 |
+| Pitts elevator | 0.409 | 0.379 | 0.393 |
+| Pitts rudder | 0.446 | 0.450 | 0.395 |
+| Extra aileron | 0.271 | 0.450 | 0.365 |
+| Extra elevator | 0.308 | 0.379 | 0.376 |
+| Extra rudder | 0.473 | 0.450 | 0.394 |
+
+Leading-edge sweep is measured too, from a least-squares fit of the LE against span, rather than copied: the Pitts'
+upper wing 5.6° (its provenance says "about 6°"), its stab 21.6° and its fin 38.4° where the config said 30°.
+
+### What it did
+
+| | before | after |
+|---|---|---|
+| Pitts static margin | 44 % MAC | **12.9 %** |
+| Pitts elevator saturation | 120° (non-physical) | **20.3°**, full aft balances on its 18° target |
+| Pitts horizontal tail volume V_h | 0.60 | 0.47 (aerobatic band 0.35–0.45) |
+| Extra static margin | 9 % MAC | **17.1 %** |
+| Extra elevator saturation | 13.5°, full aft 4.8° short of target | **48.7°**, on target |
+
+The Pitts' 12.9 % needed its CG as well as its tail: on the rebuilt surfaces alone, with `mass.cg` where it was, it
+came out at 2.2 % MAC — stable, but on the edge.
+
+### The Pitts' CG, against the type certificate
+
+The config datum is the **lower wing leading edge**: the model's origin sits exactly there (`Wing_Lower` runs from
+x 0.000 to 1.016, and 1.016 m is the published 40-inch constant chord), and `GearMatchesTheModels` puts the config's
+wing within 12 mm of the model's, so the two frames coincide.
+
+**FAA TCDS A8SO, Model S-2B** (Revision 21, 2005): datum **91.81" forward of the lower wing leading edge**; C.G. range
+Acrobatic **(+89.58 to +90.50) at 1625 pounds**, Normal (+88.50 to +90.20) at 1700 pounds, (+86.35) at 1475 lb or less.
+Our `massKg` is 737 = **1625 lb**, which is exactly the acrobatic category maximum, so the acrobatic range is the one
+that applies. Subtracting the datum offset:
+
+| | CG, relative to the lower wing LE |
+|---|---|
+| TCDS acrobatic @ 1625 lb (our weight) | **0.033 – 0.057 m FORWARD** |
+| TCDS normal @ 1700 lb | 0.041 – 0.084 m forward |
+| TCDS, 1475 lb or less | 0.139 m forward |
+| config before 2026-10-28 | 0.030 m **AFT** — the wrong side of the leading edge, ~3 in outside the envelope |
+| config now | **0.045 m forward** — the acrobatic mid-range |
+
+So the certificate confirms what the aerodynamics were asking for, and the old CG was not merely mis-placed within the
+envelope but on the wrong side of the datum feature entirely. At the certified mid-range the static margin is 12.9 %
+MAC and the elevator calibrates to 20.3°.
+
+The 0.20 m **down** is still derived, not certified: the datum sat 1.33 m above the wheels on an aeroplane 2.17 m tall,
+and a taildragger with its CG that high ground-loops and noses over on the brakes. TCDSs do not give a vertical CG.
+
+### Against the type certificates (Ty asked, 2026-10-28)
+
+Both types were fact-checked against their certificates. Two things came out of it.
+
+**The Pitts' CG was on the wrong side of its datum feature** — see the section above. The conversion is corroborated
+by the seat arms: A8SO puts the two seats at +105.15" and +136.50", which is 13.34" and 44.69" aft of the lower wing
+leading edge, and the model's provenance independently recorded "front ~13 in and rear ~45 in aft of the lower-wing
+LE". So the datum conversion and the model's origin agree.
+
+**The Extra's CG is already inside its envelope**, and needed no change. EASA.A.362 Issue 09 gives the EA 300's datum
+as the **plane of the firewall** and the C.G. range at 820 kg or below — `massKg` is 820 — as 75.0 to 89.8 cm aft of
+it. Taking the firewall at the aft face of the engine (`Engine` ends at config x +0.79; the model carries no firewall
+node, so this is ±0.05 m), that is config x **+0.04 to −0.11**, against `mass.cg` of **−0.02**: inside, a little
+forward of the mid-range. Its 17.1 % MAC static margin agrees.
+
+**Control-surface travel was over-certified on both, and is now the certificate's.** Both configs carried
+`maxDeflRad` 0.52 rad — 29.8° — on all three axes, which is a deflection limit, and therefore control power, that
+nobody had sourced.
+
+| | certified | was | now |
+|---|---|---|---|
+| Pitts aileron (symmetrical) | 25° ± 2° (A8SO) | 29.8° | **25°** |
+| Pitts elevator | 27° ± 0.75° (A8SO) | 29.8° | **27°** |
+| Pitts rudder | 30° ± 0.75° (A8SO) | 29.8° | 30° |
+| Extra aileron | 30° ± 2° (EASA.A.362) | 29.8° | 30° |
+| Extra elevator | 25° ± 2° (EASA.A.362) | 29.8° | **25°** |
+| Extra rudder | 30° ± 2° (EASA.A.362) | 29.8° | 30° |
+
+The Pitts loses 19 % of its aileron travel and 10 % of its elevator; the Extra loses 19 % of its elevator. Both
+elevators were re-calibrated afterwards and both land exactly on their full-aft targets: Pitts saturation 20.3° for
+an 18.0° balance, Extra 48.7° for 20.0°.
+
+### The fuselage
+
+The body terms were measured the same way, as a rasterised union silhouette of the fuselage, canopy, cowl and engine —
+not a bounding box, and not a sum of per-part projections, which double-counts a cowl over a fuselage and counts the
+cockpit interior twice. The gear is left out: its drag is `LandingGear`'s.
+
+| | Pitts before → after | Extra before → after |
+|---|---|---|
+| `crossflow.lengthM` | 4.00 → 5.19 | 6.65 → 6.94 |
+| `crossflow.bodyRadiusM` | 0.40 → 0.498 | 0.55 → 0.533 |
+| `crossflow.planArea` | 2.80 → 3.35 | 2.20 → 4.66 |
+| `crossflow.planCenterX` | −0.40 → −0.36 | −0.30 → −0.65 |
+| `crossflow.sideArea`, `sideForceArea` | 3.20 → 4.44 | 2.50 → 6.06 |
+| `crossflow.sideCenterX` | −0.30 → −0.83 | −0.30 → −1.18 |
+
+The Extra's side area was 2.4× low and its centroid 0.88 m forward of where the body actually is, which is a large
+correction to everything that depends on the body in sideslip — the Munk pitch moment, the yaw damping and the flat
+spin. `cd0Area` and the crossflow `cd` are deliberately **not** touched: the first is calibrated against the book
+cruise speed and best glide, the second is the standard bluff-body coefficient, and neither is geometry.
 
 ## Control effectiveness τ (thin-airfoil theory)
 
@@ -102,7 +261,10 @@ The configs carry C_hα −0.12…−0.20, C_hδ −0.30…−0.45: the values o
 
 ## Open per-type work
 
-- Pitts, EB29R, 737, Seminole, Stearman, floatplanes, DC-3 and others still sit at 25–60 % MAC static margin: CG and
-  tail sizes to check against each type's data.
+- EB29R, 737, Seminole, Stearman, floatplanes, DC-3 and others still sit at 25–60 % MAC static margin: CG and
+  tail sizes to check against each type's data. The Pitts and the Extra came off this list on 2026-10-28.
+- **The Pitts' CG height is derived; its station is now sourced.** `mass.cg` is [0.045, 0, 0.20]. The 0.045 is TCDS
+  A8SO (below). The 0.20 **down** is not: a TCDS gives no vertical CG, and that number is what the ground handling
+  needs. A weight-and-balance breakdown per the protocol's step 1c would settle it.
 - Seminole: the real aircraft has an all-moving stabilator with an anti-servo tab; it is modelled as stab + elevator.
 - Hinge coefficients per type from each surface's balance (none / horn / overhang / Frise / anti-servo tab).

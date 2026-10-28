@@ -340,15 +340,15 @@
   {
     "Id": "extra-300-like",
     "Flaps": 0,
-    "VsoKt": 57.34,
-    "SpeedKt": 74.55,
-    "GlideDeg": 10.125,
-    "GlideRatio": 5.6,
-    "SinkFpm": 1327.1,
-    "AlphaDeg": 8.096,
-    "PitchDeg": -2.029,
-    "ElevatorDeg": -3.246,
-    "TrimStick": -0.1472
+    "VsoKt": 56.37,
+    "SpeedKt": 73.28,
+    "GlideDeg": 9.835,
+    "GlideRatio": 5.768,
+    "SinkFpm": 1267.6,
+    "AlphaDeg": 8.243,
+    "PitchDeg": -1.591,
+    "ElevatorDeg": -5.167,
+    "TrimStick": -0.2515
   },
   {
     "Id": "f86-sabre-like",
@@ -795,15 +795,15 @@
   {
     "Id": "pitts-s2b-like",
     "Flaps": 0,
-    "VsoKt": 60.26,
-    "SpeedKt": 78.34,
-    "GlideDeg": 10.835,
-    "GlideRatio": 5.225,
-    "SinkFpm": 1491.3,
-    "AlphaDeg": 6.192,
-    "PitchDeg": -4.643,
-    "ElevatorDeg": -11.711,
-    "TrimStick": -0.4452
+    "VsoKt": 58.32,
+    "SpeedKt": 75.81,
+    "GlideDeg": 9.957,
+    "GlideRatio": 5.697,
+    "SinkFpm": 1327.4,
+    "AlphaDeg": 6.189,
+    "PitchDeg": -3.768,
+    "ElevatorDeg": -4.709,
+    "TrimStick": -0.2172
   },
   {
     "Id": "seminole-like",
