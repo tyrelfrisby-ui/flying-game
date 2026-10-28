@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- 2026-10-28 — Codex · lane/codex-audit-plan · Ty must approve docs/AUDIT-PLAN-2026-10.md before ANY code changes from it start.
 - **EA300 GPL — decision needed before App Store release (Claude's review, 2026-10-27; see the Log entry below).** Our own EA300 is now the in-game Extra. Claude's assessment: treat the airframe shell (v2–v12) as a likely derivative of Patrizio Melis's GPL FlightGear EA300, and treat GPL content as not safe to ship through the App Store. **Ty: pick one before App Store release:** (a) ask Patrizio Melis (github.com/cobe571) for written permission to use the measured shape in a closed, commercial App Store game (a draft request is in the log entry); or (b) put the v12 cockpit, engine, inlets, prop and paint onto the clean-room v1 shell (638c05a). This does not block TestFlight or internal builds.
 - **Pitts / Extra ground handling (Claude, 2026-10-28): please feel-test on a device.** The gear now matches the models and both types were retuned (see the Log entry). Things to try:
   - Pitts: taxi, a full-rudder turn at walking pace, and three-point and wheel landings. It is meant to need quick feet: relaxed rudder on the rollout loops it, active rudder holds it.
@@ -35,6 +36,10 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Codex · lane/codex-audit-plan · read-only app audit and water plan
+- Added `docs/AUDIT-PLAN-2026-10.md`: ranked findings, physics/UI/scenery audit, C172 rig inventory, detailed mobile water approach, budgets, phased acceptance gates and Claude/Codex hand-off contracts.
+- Verified source baseline 39f942c and Built-in rendering (not the URP described in the older architecture doc); identified existing float hydro/spray/reflection/wake systems and their limits. No implementation, Unity/build/test execution, deployment or git mutation; only the audit document and these log additions changed. Ty approval is required before implementation.
+
 ### 2026-10-28 — Claude · lane/claude-livery-picker · unmarked liveries are the defaults (Pitts Checkered, Extra Unmarked)
 **What the GLBs really carry**
 
