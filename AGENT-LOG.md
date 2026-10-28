@@ -2,14 +2,13 @@
 
 ## NEEDS YOU
 - **EA300 GPL — decision needed before App Store release (Claude's review, 2026-10-27; see the Log entry below).** Our own EA300 is now the in-game Extra. Claude's assessment: treat the airframe shell (v2–v12) as a likely derivative of Patrizio Melis's GPL FlightGear EA300, and treat GPL content as not safe to ship through the App Store. **Ty: pick one before App Store release:** (a) ask Patrizio Melis (github.com/cobe571) for written permission to use the measured shape in a closed, commercial App Store game (a draft request is in the log entry); or (b) put the v12 cockpit, engine, inlets, prop and paint onto the clean-room v1 shell (638c05a). This does not block TestFlight or internal builds.
-- **Pitts S-2B (Claude, 2026-10-27): three small decisions, none blocking.**
-  - **Players cannot pick N1191 yet.** N31DG shows for every livery. N1191 appears only with `AERO_LIVERY=n1191`, which is a launch-time env var for captures and dev builds. No livery picker exists in the game, and building one (UI, persistence, rebuilding the airframe) was more than "easy and safe" here. `Liveries.Available("pitts-s2b-like")` already lists N31DG and N1191 for a future picker. Say if you want one.
+- **Pitts S-2B (Claude, 2026-10-27): one small decision, not blocking.** (The livery picker now exists, and the HANDOFF prop note is fixed — see the 2026-10-28 Log entry.)
   - **The flight config's gear doesn't quite match the model (physics left unchanged).** On its wheels the model sits right: same three-point attitude (10.1° vs the config's 10.0°), tailwheel on the config's ground line within 2 cm. But relative to the wings, the config's main gear is about 0.19 m short and its tailwheel about 0.4 m forward of the model's. Visually, the sim CG ends up ~0.33 m below the model's thrust line (about 0.1 m above the lower wing), and the physics wings sit ~0.2 m below the drawn ones. That is where the aeroplane appears to roll and pitch about. Matching it means lengthening the config gear, which changes ground handling and needs re-tuning against GroundLoopTests and the other taildragger tests. Say if you want that.
-  - The HANDOFF text has the props swapped. The GLBs and PROVENANCE are right, and the tests now pin it: N31DG has the Hartzell 2-blade, N1191 the MT 3-blade.
+- **Livery picker (Claude, 2026-10-28): please look at it on a device.** It compiles, the swap is verified in the editor, and the airframe renders are right, but nobody has seen the LIVERY buttons on an iPhone or iPad yet. `AERO_SELFTEST=menu` now also saves `selftest-menu-<shape>-livery.png` (Pitts selected) for each of the four screen shapes.
 
 ## HANDOFF
 - [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: **DONE by Claude on lane/claude-pitts-own (2026-10-27), see Log; open points under NEEDS YOU** · own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
-  - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, MT 3-blade prop) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, Hartzell 2-blade prop). The n1191 GLB has no .meta yet (Unity generates it).
+  - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, Hartzell 2-blade prop, grey with white tips) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, MT 3-blade prop, white with red tips). The n1191 GLB has no .meta yet (Unity generates it).
   - Task: make these the in-game Pitts S-2B (existing flight config configs/aircraft/pitts-s2b-like.json). N31DG (-own) is the default; N1191 (-own-n1191) is selectable the same way as the Extra's N300UY (AirframeModels suffix / AERO_LIVERY), or a picker if easy. Check scale/orientation, US prop rotation (clockwise from the cockpit), control-surface binding.
   - Credits/licensing (docs/models/pitts-s2b-own-PROVENANCE.md): fully clean-room procedural Blender build (tools/own_models/build_pitts_s2b.py); no third-party mesh used or measured; dimensions from Aviat/Jane's/TCDS A8SO; paint from reference photos only; fonts SIL OFL 1.1. No GPL question.
 - [codex → Claude] codex/own-ea300 · APPROVED by Ty (2026-10-27, v12 d0c6130) as DONE: own EA300 in two liveries · swap in as the in-game Extra 300, review provenance · **DONE by Claude on lane/claude-ea300-swap (2026-10-27), see Log; the GPL decision is in NEEDS YOU** · details:
@@ -23,6 +22,39 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Claude · lane/claude-livery-picker · in-game LIVERY picker (Pitts N31DG/N1191, Extra Talk Flying/N300UY), per aircraft, saved
+**In the UI**
+- Landing page (FLIGHT SETUP), first column: a **LIVERY** row appears right under the AIRCRAFT drop-down, but only when the chosen type has more than one scheme (`Liveries.Available(id).Count > 1`). Today that is the Pitts S-2 (**N31DG** | **N1191**) and the Extra 300 (**Talk Flying** | **N300UY**). Every other type shows no row.
+- Up to three schemes are side-by-side buttons, the same size and style as the glider's TOW PLANE buttons; the chosen one is green. Four or more would become a drop-down like the others. The row takes the place the TOW PLANE row takes for a glider, so the page's height is unchanged from the glider case the menu self-test already covers (iPhone and iPad, portrait and landscape).
+- One tap chooses and saves. The aeroplane repaints at once: behind the page if it is the type you are flying (MENU mid-flight → tap a livery → FLY), otherwise when you FLY.
+- The choice is **per aircraft**: N1191 on the Pitts leaves the Extra alone, and the reverse. It **persists** across launches in PlayerPrefs (`livery.<aircraftId>`).
+- If `AERO_LIVERY` is set (captures, dev builds) it still wins for every type, and the header reads "LIVERY (AERO_LIVERY set)".
+
+**How**
+- New `src/FlyingGame.Core/LiveryChoice.cs` (pure, so FlightTests holds it): per-type options with the default first, `Resolve(id, env, saved)` = env, else the saved id if it is one of the type's options, else `"type"`; `Selected`, `PrefKey`, and the livery → GLB `OwnSuffix` mapping (moved here from AirframeModels, unchanged).
+- `"type"` remains the default, which is exactly what everything wore before: N31DG for the Pitts, the Talk Flying GLB for the Extra, type colours for everyone else.
+- `SessionSettings.LiveryId` (one fleet-wide id) is replaced by `LiveryOverride` (AERO_LIVERY, or a render's `-livery`) plus `LiveryFor(aircraftId)` and `SetLivery(aircraftId, id)` (PlayerPrefs, cached per type).
+- `AirframeModels.PickOwn`/`OwnSuffix`, `AirframeBuilder.Build` (`[Livery]` log line) and the editor renders all go through `LiveryFor`/`LiveryOverride`. `Liveries.Available` is built from `LiveryChoice`; types with no choice now get just their type colours, so ">1" is the picker's gate.
+- `AirframeVisual` remembers the livery it built and rebuilds through its existing path when `LiveryFor(type)` changes, the same way the Options model toggles do. It skips that while wings or components are broken off; the next flight's rebuild picks the new livery up.
+- `OptionsPanel.cs` is **not touched**.
+
+**Verification**
+- Unity 6000.3.23f1 batchmode compile: clean, 0 errors, no new warnings. Unity modified no tracked files.
+- `AircraftRender` into `/tmp/livery-picker/`:
+  - `pitts-s2b-like-n31dg`: checkered rudder, 2-blade grey prop. **6/6, 1/1** bound.
+  - `pitts-s2b-like-n1191`: rudder diamonds, 3-blade white prop with red tips. **6/6, 1/1** bound.
+  - `extra-300-like-talk-flying`: TALKFLYING.COM, TF fin badge. **4/4, 1/1** bound.
+  - `extra-300-like-n300uy`: N300UY, no badge. **4/4, 1/1** bound.
+  - All exited 0. The "stray child 'Model' cleared" line is in every earlier render log too (render teardown).
+- New editor `LiverySwapCheck.Run` (log `/tmp/livery-picker/swap.log`): **PASS**.
+  - For each type with a choice it picks A, B, A, B through `SetLivery` (no override) and rebuilds the same root, as the game does.
+  - Each pick resolves to itself and loads its own GLB and paint. A repeat leaves an identical hierarchy (Extra 116 objects, Pitts 123), and the scene root count stays 1, so nothing leaked. Every build binds 4/4+1/1 (Extra) and 6/6+1/1 (Pitts).
+  - The player's saved prefs are restored afterwards.
+- New `tools/FlightTests/LiveryPickerTests.cs` (6 tests): options and defaults per type, env > saved > default, invalid or foreign saved ids ignored, other types unchanged, per-aircraft isolation, OwnSuffix for every choice with its GLB on disk, and the Unity wiring (source). `OwnPittsModelTests` now reads the mapping from LiveryChoice.
+- `~/.dotnet/dotnet test tools/FlightTests`: **742 passed, 3 skipped, 0 failed** (14 m 20 s; was 736 + the 6 new).
+- HANDOFF fix: N31DG = Hartzell 2-blade (grey, white tips), N1191 = MT 3-blade (white, red tips). Those two NEEDS YOU items are gone.
+- Local commits only. No push, merge, deploy or device build.
+
 ### 2026-10-27 — Claude · lane/claude-pitts-own · own Pitts S-2B (v10.1) is now the in-game Pitts, N31DG by default and N1191 as livery `n1191`
 **Wiring** (follows the EA300 swap)
 - `AirframeModels`:
@@ -31,7 +63,7 @@
   - `OwnSuffix`: livery `n1191` loads `-own-n1191`; every other livery loads `-own` (N31DG). New overload `OwnSuffix(model, livery)`.
 - `Livery.cs`:
   - Added `N31DGPitts` (`n31dg`) and `N1191Pitts` (`n1191`), plus a per-type talk-flying entry with no tints and no marks. Log shows `default=True marks=0` for every id.
-  - `Available(pitts)` returns N31DG and N1191. There is no picker UI (see NEEDS YOU).
+  - `Available(pitts)` returns N31DG and N1191. There was no picker UI then (one was added 2026-10-28, see that entry).
 - `AircraftRender`: accepts `-livery n31dg|n1191`. New optional `-deflect <deg>`.
 - Model folder: added a `.meta` for the N1191 GLB (new GUID, same glTFast settings), plus `LICENSE.txt` and its `.meta`.
 - Credits: added to `docs/CREDITS.md` and the shipped `StreamingAssets/credits.md`. The model is clean-room and ours; the font is Liberation Sans Bold, SIL OFL 1.1.
