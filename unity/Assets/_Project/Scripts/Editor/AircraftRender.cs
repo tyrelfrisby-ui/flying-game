@@ -12,8 +12,8 @@ namespace FlyingGame.EditorTools
     /// <summary>Batchmode capture of the current in-game aircraft. Requires graphics (no -nographics).</summary>
     public static class AircraftRender
     {
-        private const int Width = 1600;
-        private const int Height = 1000;
+        internal const int Width = 1600;
+        internal const int Height = 1000;
 
         public static void RenderFromArgs()
         {
@@ -191,7 +191,7 @@ namespace FlyingGame.EditorTools
             }
         }
 
-        private static void Capture(Camera camera, RenderTexture rt, Bounds bounds,
+        internal static void Capture(Camera camera, RenderTexture rt, Bounds bounds,
             Vector3 direction, Vector3 up, bool orthographic, string path, float frameFill = 1f / 1.15f, List<Vector3> fitPoints = null)
         {
             camera.ResetProjectionMatrix();
