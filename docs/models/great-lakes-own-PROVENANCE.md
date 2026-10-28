@@ -1,4 +1,4 @@
-# Great Lakes 2T-1A-2 style biplane: our own model (v2)
+# Great Lakes 2T-1A-2 style biplane: our own model (v3)
 
 - Outputs (`unity/Assets/_Project/Resources/Models/great-lakes-like/`): `great-lakes-like-own.glb` (v1 placeholder paint),
   `great-lakes-like-own-red-sunburst.glb`, `great-lakes-like-own-white-stripes.glb`
@@ -51,9 +51,19 @@ manufacturer logos or trademarks on the model.
   - Lower: LE 0.65 m aft of the upper LE (stagger), unswept, 2 deg dihedral (manual; v1 had 2.5). The interplane gap was checked against the strut pin
     lengths and left unchanged.
   - Tips: asymmetric elliptical rounding (LE over 0.38 m, TE over 0.60 m).
-- Tail: the hinge line is at x -4.565 and the stab at z -0.14. The stab span is 3.07 m (table in the script). The
-  elevators have a V cut-out for the rudder (E_IN 0.06, 38 deg). Fin LE and rudder TE are tables, and the fin top is at
-  z 0.957.
+- Tail (v3, Ty: "exact to the drawing"): the fin/rudder side profile (FLE / RTE tables) and the stab/elevator plan
+  form (STAB_T) are measured off the 1970 AAM 2T-1A three-view at 0.0115 m/px. The rudder hinge line is at x -4.59
+  (drawing px 1232.5) and the stab at z -0.14; the fin top is at z 0.914. The aft-most point (rudder/elevator TE) is
+  at -5.14, so the length over the spinner is 6.24 m against the published 6.20 m (the drawing governs the tail; 0.6 %).
+  The fin root is the concave blend into the top longeron as drawn (Ty's review of overlay-side.png); the top
+  longeron is at z 0.066 at x -3.8. Dense fin stations (FIN_ST) keep the outline from faceting. The elevators have a
+  diagonal cut-out for the rudder (E_IN 0.06, 32 deg); rudder +-35 deg (min clearance 0.036 m) and elevator 21 up /
+  29 down are kept.
+  - Check method: `tools/own_models/gl_overlay.py -- <glb> <outprefix>` renders the Fin + Rudder + Fuselage silhouette (side) and the
+    Stab + Elevators (top/bottom) orthographically at the drawing scale and draws the outline in red over the drawing
+    (grey/black). Outputs overlay-side/top/bottom.png. This is a visual check only; no drawing pixels go into the model.
+  - Where the drawing's views disagree slightly, the side view governs the fin/rudder and the plan views govern the
+    stab/elevator outline.
 - Gear (v2, rigged; see "Main gear and suspension" below). The tailwheel (r 0.10) sits on a spring.
 
 ## Main gear and suspension (v2)
@@ -90,14 +100,20 @@ cylinder origin (re-aim 3.1 deg static, 4.4 deg full). Pivot extras: stroke_m, s
 hinge_deg_full.
 
 ## Liveries
-No registration, logos or text on the v2 liveries. Painted by eye from Ty's photos as our own simple geometry (bands,
-offsets, rays); no photo pixel is sampled. Registrations and watermarks in the photos are ignored.
+No registration, logos or text on the liveries. Painted by eye from Ty's photos as our own simple geometry (bands,
+offsets, rays, level sets); no photo pixel is sampled or traced. Registrations and watermarks in the photos are ignored.
 - `red-sunburst`: all-red airframe; navy, white-outlined fuselage stripes nose to tail; navy cowl front; red/white/navy
-  sunburst rays from the centre-section TE on the wings (top and bottom) and the stab; navy tips and edge trim; navy
-  fin/rudder outline; red pants with a navy stripe; red struts and gear; white spinner; Hartzell 2-blade prop.
-- `white-stripes`: white airframe; swooping red over light blue over navy stripes from cowl to tail; red edge/tip trim
-  with blue/navy pinstripes on wings and stab; light-blue fin and navy rudder with a red outline; red/blue/navy striped
-  white pants; white struts; chrome spinner; Hartzell 2-blade prop.
+  sunburst rays from the centre-section TE on the wings (top and bottom) and the stab, sweeping AFT from the root (v3
+  fix, Ty: they swept forward in v2); navy tips and edge trim; navy fin/rudder outline; red pants with a navy stripe;
+  red struts and gear; white spinner; Hartzell 2-blade prop.
+- `white-stripes` (v3, redone from white-1/2/3): white airframe. Fuselage, top to bottom: white decking, red, white
+  separation, light blue, white separation, navy, white belly; the light blue and navy start behind a white nose bowl and the red
+  starts at the cowl top. The bands are level sets of the depth below one envelope (top line, fin LE, fin top, rudder
+  TE), so they sweep up round the fin as concentric arcs: white rim, red outer arc (fading out over the rudder top),
+  light-blue dome, navy core in the lower fin/rudder, navy below the stab. Wing tops solid red; the upper-wing
+  underside has a red LE wrap then light-blue and navy bands full span; the lower underside is white with a red LE. Stab:
+  red LE and tips with light-blue and navy diagonals parallel to the tip. Pants: white nose; light-blue and red bands
+  rising at the front and tapering aft; low navy swoosh. White struts and gear; chrome spinner; Hartzell 2-blade prop.
 
 ### v1 placeholder (default file `great-lakes-like-own.glb`)
 - White base with a red nose bowl.
@@ -123,6 +139,6 @@ There is no aircraft config or Unity integration yet; those are a later handoff.
 
 ## Known differences / open items
 - Height: resolved in v2 by the gear model (see the suspension table).
-- Still open with Ty: ailerons (2 vs 4), tail, which livery is the default, N-number. 180 hp 2T-1A-2 kept.
+- Still open with Ty: ailerons (2 vs 4), which livery is the default, N-number. (Tail resolved in v3: matched to the drawing.) 180 hp 2T-1A-2 kept.
 - Simplified items: the engine is primitives only, the cockpit has a few gauges only, and the cowl has no hinge or
   fastener detail.
