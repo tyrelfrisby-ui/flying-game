@@ -290,11 +290,26 @@ STE = lambda y: H_T - np.interp(np.abs(y), _sd, [t[2] for t in STAB_T])
 ST_ = Surf(SLE, STE, lambda y: 0.071, 0.09)
 sp = sorted(set([round(d, 4) for d in _sd if d < B_S] + [round(v, 4) for v in tipL(0, B_S * (1 - 1e-4), 10)]))
 sp = [-s_ for s_ in sp[::-1] if s_ > 0] + sp
-P['Stab'] = surf_obj('Stab', ST_, sp, x_to=lambda s: H_T + 0.004)
-E_IN = 0.155
+# v5: centre of the stab TE cut back ahead of the rudder nose so the swinging rudder skins never reach it
+sp = sorted(set(sp + [-0.045, -0.065, 0.045, 0.065]))
+P['Stab'] = surf_obj('Stab', ST_, sp, x_to=lambda s: H_T + 0.004 + 0.022 * float(np.clip((0.065 - abs(s)) / 0.02, 0, 1)))
+# v5 (Ty: "the elevator halves should come to a point at the rudder post/hingeline ... a v shaped gap between them for
+# the rudder to move through its travel ... clearance it needs plus an inch"): each elevator's inboard end is a straight
+# diagonal cut from a point on the hinge line at |y| = E_IN, running aft-outboard at E_PHI to the aft centreline, until
+# it meets the trailing edge (|y| = E_MEET). Sized for TCDS A8SO S-2B rudder travel L/R 30 deg +/- 0.75 deg: at 30.75 deg
+# the rudder (TE, side skins and the hinge-post corner, every rudder height the elevator can reach at +/-27.75 deg)
+# clears the cut edge by >= 1 in at every elevator angle; measured values + first-contact angles in the provenance (v5).
+E_IN, E_PHI = 0.082, 30.0
+E_TAN = math.tan(math.radians(E_PHI))
+E_CUT = lambda s: H_T - 0.004 - (abs(s) - E_IN) / E_TAN          # x of the diagonal cut at span s (aft is -x)
+_m = np.linspace(E_IN, 0.6, 6001); E_MEET = float(_m[np.argmax(E_CUT(_m) <= STE(_m))])
+def e_to(s):
+    return float(E_CUT(s)) if E_CUT(s) > STE(s) else None
+e_sp = [E_IN] + [E_IN + (E_MEET - E_IN) * t for t in np.linspace(0, 1, 15)[1:]] + [d for d in _sd if E_MEET + 0.01 < d < B_S] + [B_S * (1 - 1e-4)]
 for side, sg in (('L', 1), ('R', -1)):
     n = 'Elevator_' + side
-    P[n] = surf_obj(n, ST_, [sg * s_ for s_ in [E_IN + 0.004] + [d for d in _sd if E_IN + 0.01 < d < B_S] + [B_S * (1 - 1e-4)]], x_from=lambda s: H_T - 0.004)
+    P[n] = surf_obj(n, ST_, [sg * s_ for s_ in e_sp], x_from=lambda s: H_T - 0.004, x_to=e_to)
+print('ELEV_V E_IN %.3f E_PHI %.1f E_MEET %.4f' % (E_IN, E_PHI, E_MEET))
 # fin + rudder: one symmetric section family over height z, cut at the rudder hinge
 # v4 (Ty: "the rudder accurate"): fin LE and rudder outline traced from the Aviat factory three-view side view (scaled
 # to 5.715 m nose-to-rudder, thrust line = spinner axis); HNZ and AirshowModels S-2B sheets used as checks (overlays in
@@ -311,9 +326,17 @@ RTE = [(-0.322, -3.310), (-0.305, -3.370), (-0.289, -3.416), (-0.278, -3.463), (
 Z_FT = 0.8465
 fle = lambda z: float(np.interp(z, *zip(*FLE))); rte = lambda z: float(np.interp(z, *zip(*RTE)))
 FN = Surf(fle, rte, lambda z: 0.0, 0.065, axis='z')
-P['Fin'] = surf_obj('Fin', FN, tipL(0.15, Z_FT, 14), x_to=lambda s: H_T + 0.004)
+R_POST = lambda z: float(yt((fle(z) - H_T) / (fle(z) - rte(z)), 0.065) * (fle(z) - rte(z)))   # rudder half-thickness at the hinge
+# v5: fin aft face set ahead of the rudder nose (local post radius + 3 mm) so the rudder swings without entering the fin
+P['Fin'] = surf_obj('Fin', FN, tipL(0.15, Z_FT, 14), x_to=lambda s: H_T + R_POST(s) + 0.003)
 rz = [-0.320 + (Z_FT + 0.320) * (1 - math.cos(math.pi * t)) / 2 for t in np.linspace(0, 1, 28)]
-P['Rudder'] = surf_obj('Rudder', FN, rz, x_from=lambda s: H_T - 0.004)
+# v5: rudder nose = half-cylinder about the hinge line (radius = local skin half-thickness at the hinge, i.e. the
+# rudder post), so it is unchanged by deflection and the skins aft of it swing clear of the fin / stab / elevators
+def rudder_sec(z, nn=9):
+    sec = FN.section(z, x_from=H_T); rho = abs(sec[0][1])
+    return sec + [(H_T + rho * math.cos(t), rho * math.sin(t), z) for t in np.linspace(-math.pi / 2, math.pi / 2, nn + 2)[1:-1]]
+bm = bmesh.new(); loft_rings(bm, [rudder_sec(z) for z in rz]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+P['Rudder'] = link('Rudder', bm)
 
 # ---- struts and wires ------------------------------------------------------------------------------------------
 def wl_low(y, f):  # upper-wing lower surface z / lower-wing upper surface z at chord fraction f (nominal)

@@ -155,3 +155,43 @@ All scheme elements are recreated this way:
   - Overlays: `pitts-s2b-v4-rudder-overlays.png`. The Munden S-2C rudder is squared off, unlike the S-2B, so it was used only to corroborate the hinge position and the diamonds.
   - The Aviat ground line comes out about 3 % short of the published 2.02 m, so one uniform scale from the length was used.
 - **Slave struts:** moved to sit immediately behind the I-struts, 6 cm aft at the same span stations and with the same lean.
+
+## v5 (2026-10-27): pointed elevators, V gap and rudder travel clearance
+
+Owner request: the elevator halves should come to a point at the rudder post/hinge line, with a V-shaped gap between them so the rudder can swing through its full TCDS travel plus at least 1 inch of clearance.
+
+### Source: travel limits
+- FAA Type Certificate Data Sheet **A8SO**, Revision 21 (February 15, 2005), Model S-2B section (p. 9), "Movements":
+  - Rudder: LEFT 30° ± .75°, RIGHT 30° ± .75°.
+  - Elevator: UP 27° ± .75°, DOWN 27° ± .75°. Elevator tab: UP 7° / DOWN 19° ± 2° (not modelled).
+- Checked at the tolerance limit: rudder **30.75°** each way, elevator **±27.75°**.
+
+### Geometry changes (both liveries, from `build_pitts_s2b.py`)
+- **Elevators:**
+  - Each half's inboard edge is a straight diagonal cut from a point on the hinge line at |y| = 0.082 m, running aft and outboard at 30° to the hinge line (`E_IN = 0.082`, `E_PHI = 30°`).
+  - The cut meets the elevator TE at |y| = 0.358 m (`E_MEET`).
+  - Seen from above, the halves form a V that opens aft, with its apex at the rudder post.
+- **Rudder:**
+  - Added a half-round nose (local half-thickness radius) centred on the hinge line. Its profile is the same at any deflection, so the gap at the hinge stays constant.
+  - The lower aft part needed no reshaping. Its bottom sits below the elevators' reach and clears the tail spring and tailwheel by ≥ 52 mm.
+- **Fin:** the aft face moved forward to the hinge line + local post radius + 3 mm, so the swinging rudder never enters it (v4: hinge line + 4 mm).
+- **Stab:**
+  - The centre section (|y| < 0.045 m) now ends at the hinge line + 26 mm, so it sits clear of the rudder nose.
+  - It blends back to the hinge line + 4 mm by |y| = 0.065 m.
+
+### Verification (`tools/own_models/pitts_rudder_clearance.py` on the exported GLBs)
+The script rotates the Rudder object about the hinge and both elevators about their hinge. It then measures the minimum distance between surfaces (vertex to surface, both ways) and runs a BVH triangle-intersection test.
+
+| Check (rudder 30.75° L and R) | N31DG | N1191 |
+|---|---|---|
+| Rudder TE/bottom to near elevator inboard edge, elevator neutral | 35.8 mm (1.41 in) | 35.8 mm |
+| Same, worst elevator deflection (±27.75°) | **30.6 mm (1.20 in)** | 30.6 mm |
+| Rudder to far elevator | ≥ 50.3 mm | ≥ 50.3 mm |
+| First rudder–elevator contact angle | 37.6° (elev 0), 40.3° (elev −27.75°), 41.2° (elev +27.75°) | same |
+| Fin / stab / fuselage / flying wires / tail gear | 3.2 / 19.9 / 3.1 / 167.8 / 52.8 mm, 0 intersecting triangles | same |
+
+- Requirement: ≥ 25.4 mm (1 in) at full travel. It passes with 5.2 mm of margin in the worst case.
+- For comparison, v4 contacted the elevators at 24.6° rudder, below the TCDS travel, and clipped the fin and stab.
+- Renders:
+  - `pitts-s2b-v5-<livery>-rudder-deflection-check.png`: annotated top view with the rudder at full left and full right.
+  - `pitts-s2b-v5-<livery>-top.png`, `-tailtop.png`, `-tailiso.png` and `-rudder.png`.
