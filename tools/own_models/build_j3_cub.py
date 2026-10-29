@@ -878,11 +878,12 @@ def panel_outline(ins=0.0):
     return pts
 # v11 (Ty): the panel is not flat. The face is vertical through the instrument row; just above it (knee PKZ) it rolls
 # forward on a radius into the dark dash deck that runs forward to the windshield base (photos ty-panel, ty-panel-seat).
-PKZ = PZB + 0.170
+PKZ = PZB + 0.152                                                    # v12 (Ty seat photo): the roll starts right at the gauge tops
+PRC = 0.065                                                          # v12: larger hood roll radius (v11 0.05 cap / 0.045 centre)
 def p_arch(y): return PZB + PHS + (PHC - PHS) * math.sqrt(max(0.0, 1 - (y / PHW) ** 2)) - 0.002
 def p_knee(y):                                                       # knee just above the instruments; drops toward the panel ends
     t = min(1.0, max(0.0, (abs(y) - 0.21) / 0.07)); return PKZ + (PZB + 0.055 - PKZ) * (t * t * (3 - 2 * t))
-def p_rad(y): return min(0.05, max(0.012, p_arch(y) - p_knee(y)))
+def p_rad(y): return min(PRC, max(0.012, p_arch(y) - p_knee(y)))
 def p_hood(y, th):                                                   # point on the rolled top at angle th (0 = vertical face)
     r = p_rad(y); zk = p_arch(y) - r; return (PXA - r + r * math.cos(th), zk + r * math.sin(th))
 def p_prof(y):
@@ -911,7 +912,7 @@ def tank_deck():                                                    # dash deck:
             q = [bmc.verts.new(p) for p in (rs[i][j], rs[i][j + 1], rs[i + 1][j + 1], rs[i + 1][j])]
             bmc.faces.new(q); bmc.faces.new([bmc.verts.new(v.co) for v in q[::-1]])
 ck('panel', tank_deck)
-print('PANEL v11: vertical face to knee z %.3f, top rolls forward into the deck, radius %.3f m centre / %.3f m ends' % (p_arch(0) - p_rad(0), p_rad(0), p_rad(PHW)))
+print('PANEL v12: vertical face to knee z %.3f, top rolls forward into the deck, radius %.3f m centre / %.3f m ends' % (p_arch(0) - p_rad(0), p_rad(0), p_rad(PHW)))
 ZG = PZB + 0.110
 GAUGES = [(0.164, 0.043, 'chrome', 0.036), (0.075, 0.0355, 'gauge', 0.030), (-0.011, 0.0355, 'gauge', 0.027),
           (-0.095, 0.0355, 'gauge', 0.030), (-0.181, 0.041, 'chrome', 0.035)]
