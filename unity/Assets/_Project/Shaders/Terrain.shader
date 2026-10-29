@@ -290,6 +290,20 @@ Shader "FlyingGame/Terrain"
                     // Do not erase that thin edge a second time with the rock mask.
                     float3 meadow=lerp(float3(.34,.41,.22),float3(.49,.47,.32),
                         saturate((i.wp.y-treeLine)/500));
+                    // Alaska headwall toes south of ALL glacier heads are dry tundra.
+                    // The padded Alpine meadow footprint reaches here, but its real
+                    // core ends 900 m inside that bound. Correct the meadow SOURCE,
+                    // before either meadow blend; snow/ice deposition stays unchanged.
+                    float southHead=min(_GlacierAxes[0].y,min(_GlacierAxes[1].y,_GlacierAxes[2].y));
+                    float southHeads=1-smoothstep(southHead-400,southHead,i.wp.x);
+                    float outsideMeadowCore=smoothstep(_MountainAlpine.z-900,_MountainAlpine.z-700,i.wp.x);
+                    float sourceMeadowChroma=meadow.g-max(meadow.r,meadow.b);
+                    float headwallMeadow=alaska*outsideMeadowCore*southHeads
+                        *smoothstep(.012,.055,sourceMeadowChroma);
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeOriginalMeadow=meadow;
+                    #endif
+                    meadow=lerp(meadow,lerp(float3(.43,.40,.35),float3(.55,.53,.48),broad),headwallMeadow);
                     #if defined(TERRAIN_GREEN_PROBE)
                     float3 probeBeforeEarlyMeadow=albedo;
                     float probeEarlyMeadowWeight=mountain*(1-exposed)*(1-forest);
@@ -622,8 +636,12 @@ Shader "FlyingGame/Terrain"
                     if(_TerrainGreenProbeMode<14.5) return probeCorridors;
                     if(_TerrainGreenProbeMode<15.5) return float4(probeBeforeEarlyMeadow,1);
                     if(_TerrainGreenProbeMode<16.5) return float4(probeAfterEarlyMeadow,1);
-                    return float4(probeEarlyMeadowWeight,mountainRock,exposed,
+                    if(_TerrainGreenProbeMode<17.5) return float4(probeEarlyMeadowWeight,mountainRock,exposed,
                         smoothstep(_MountainAlpine.z-900,_MountainAlpine.z-700,i.wp.x));
+                    if(_TerrainGreenProbeMode<18.5) return float4(probeOriginalMeadow,1);
+                    if(_TerrainGreenProbeMode<19.5) return float4(headwallMeadow,southHeads,outsideMeadowCore,sourceMeadowChroma);
+                    if(_TerrainGreenProbeMode<20.5) return float4(macroNormal,aspect);
+                    return float4(broad,treeLine,redrock,headwallMeadow);
                     #endif
 
                 }

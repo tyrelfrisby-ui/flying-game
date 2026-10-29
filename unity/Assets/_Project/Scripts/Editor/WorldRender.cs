@@ -15,7 +15,7 @@ namespace FlyingGame.EditorTools
         {
             string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/world"));
             Directory.CreateDirectory(outDir);
-            File.WriteAllText(Path.Combine(outDir,"green-probe.txt"),"M17 terrain source probe; normal PNGs saved before diagnostics.\n");
+            File.WriteAllText(Path.Combine(outDir,"green-probe.txt"),"M18 terrain source probe; ORIGINAL materials, normal PNGs saved before diagnostics.\n");
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             FlyingGame.Core.WorldTerrain.Active = new FlyingGame.Core.WorldTerrain();
@@ -495,7 +495,8 @@ namespace FlyingGame.EditorTools
             report.AppendLine("camera="+cam.transform.position.ToString("F6")+" rotation="+cam.transform.rotation.ToString("F6")
                 +" fov="+cam.fieldOfView.ToString(culture)+" aspect="+cam.aspect.ToString(culture));
             foreach(string uniform in new[]{"_MountainAlpine","_MountainAlaska","_GlacierWidths"})
-                report.AppendLine(uniform+"="+Shader.GetGlobalVector(uniform).ToString("F6"));
+                report.AppendLine("GLOBAL "+uniform+"="+Shader.GetGlobalVector(uniform).ToString("F6"));
+            report.AppendLine("GLOBAL _DayAtmosphere="+Shader.GetGlobalVector("_DayAtmosphere").ToString("F6"));
             for(int gi=0;gi<3;gi++) report.AppendLine("glacierAxis"+gi+"="+AlaskaBuilder.GlacierAxis(gi).ToString("F6"));
             report.AppendLine("Columns: pixelX,pixelY,plateRGB; modes are raw linear float4, NOT display colours.");
             string[] labels={"worldXYZ_valid","vertexRGBA","geologySnow_curvature_normalY_valid",
@@ -503,14 +504,16 @@ namespace FlyingGame.EditorTools
                 "glacier_skyView_corridorVegetation_glacialSetting","minCorridorDistance_colonySetting_greenToe_chroma",
                 "meadowRGB","beforeGlacierRGB","afterGlacierRGB","beforeMeadowRGB","afterMeadowRGB",
                 "afterCanopyAndToeRGB","corridorDistances012","beforeEarlyMeadowRGB","afterEarlyMeadowRGB",
-                "earlyMeadowWeight_mountainRock_exposed_outsideAlpineCore"};
+                "earlyMeadowWeight_mountainRock_exposed_outsideAlpineCore",
+                "originalMeadowRGB","headwallMeadowWeight_southHeads_outsideCore_sourceChroma",
+                "macroNormalXYZ_aspect","broad_treeLine_redrock_headwallMeadow"};
             var pixels=new System.Collections.Generic.List<Vector2Int>();
             // Cover every Chief rectangle, including the small upper-left Colony patch,
             // and neighbouring brown/snow controls. 20 px spacing prevents one missed edge.
             if(shot=="alaska-colony")
             {
                 for(int y=220;y<=340;y+=20) for(int x=1180;x<=1380;x+=20) pixels.Add(new Vector2Int(x,y));
-                for(int y=260;y<=300;y+=20) for(int x=780;x<=980;x+=20) pixels.Add(new Vector2Int(x,y));
+                for(int y=240;y<=300;y+=20) for(int x=780;x<=1220;x+=20) pixels.Add(new Vector2Int(x,y));
                 for(int y=60;y<=180;y+=20) for(int x=220;x<=260;x+=20) pixels.Add(new Vector2Int(x,y));
             }
             else
@@ -522,7 +525,8 @@ namespace FlyingGame.EditorTools
             var values=new Color[labels.Length,pixels.Count];
             var states=new System.Collections.Generic.List<(Renderer renderer,bool enabled,Material[] materials,bool terrain)>();
             var visibleWorld=new Color[pixels.Count];
-            var clones=new System.Collections.Generic.List<Material>();
+            var materialStates=new System.Collections.Generic.Dictionary<Material,(string[] keywords,float mode)>();
+            float savedProbeMode=Shader.GetGlobalFloat("_TerrainGreenProbeMode");
             RenderTexture savedTarget=cam.targetTexture, savedActive=RenderTexture.active;
             CameraClearFlags savedClear=cam.clearFlags; Color savedBackground=cam.backgroundColor;
             var target=new RenderTexture(plate.width,plate.height,24,RenderTextureFormat.ARGBFloat,RenderTextureReadWrite.Linear);
@@ -539,19 +543,28 @@ namespace FlyingGame.EditorTools
                         isTerrain &= material!=null && material.shader.name=="FlyingGame/Terrain";
                     states.Add((renderer,renderer.enabled,originals,isTerrain));
                     if(!isTerrain) continue;
-                    var probeMaterials=new Material[originals.Length];
-                    for(int mi=0;mi<originals.Length;mi++)
+                    // Non-Properties uniforms/arrays set with Material.SetVector are not
+                    // reliably retained by the M17 Material copy. Probe the very same
+                    // materials, preserving renderer property blocks and every uniform.
+                    report.AppendLine("renderer="+renderer.name+" propertyBlock="+renderer.HasPropertyBlock());
+                    foreach(var material in originals)
                     {
-                        var copy=new Material(originals[mi]); copy.EnableKeyword("TERRAIN_GREEN_PROBE");
-                        clones.Add(copy); probeMaterials[mi]=copy;
+                        if(materialStates.ContainsKey(material)) continue;
+                        materialStates.Add(material,(material.shaderKeywords,material.GetFloat("_TerrainGreenProbeMode")));
+                        report.AppendLine("MATERIAL "+material.name+" keywords="+string.Join(",",material.shaderKeywords));
+                        foreach(string uniform in new[]{"_MountainAlpine","_MountainAlaska","_GlacierWidths","_DayAtmosphere"})
+                            report.AppendLine("  material.GetVector("+uniform+")="+material.GetVector(uniform).ToString("F6"));
+                        var axes=material.GetVectorArray("_GlacierAxes");
+                        for(int gi=0;gi<axes.Length;gi++) report.AppendLine("  material.GetVectorArray(_GlacierAxes)["+gi+"]="+axes[gi].ToString("F6"));
+                        material.EnableKeyword("TERRAIN_GREEN_PROBE");
                     }
-                    renderer.sharedMaterials=probeMaterials;
                 }
                 cam.targetTexture=target; cam.clearFlags=CameraClearFlags.SolidColor;
                 cam.backgroundColor=new Color(-99999,-99999,-99999,-99999);
                 // First keep all scenery visible: a different value here proves that
                 // another renderer occludes the terrain at the named plate pixel.
                 Shader.SetGlobalFloat("_TerrainGreenProbeMode",1);
+                foreach(var entry in materialStates) entry.Key.SetFloat("_TerrainGreenProbeMode",1);
                 cam.Render(); RenderTexture.active=target;
                 readback.ReadPixels(new Rect(0,0,plate.width,plate.height),0,0); readback.Apply();
                 for(int pi=0;pi<pixels.Count;pi++)
@@ -560,11 +573,20 @@ namespace FlyingGame.EditorTools
                 for(int mode=1;mode<=labels.Length;mode++)
                 {
                     Shader.SetGlobalFloat("_TerrainGreenProbeMode",mode);
+                    foreach(var entry in materialStates) entry.Key.SetFloat("_TerrainGreenProbeMode",mode);
                     cam.Render(); RenderTexture.active=target;
                     readback.ReadPixels(new Rect(0,0,plate.width,plate.height),0,0); readback.Apply();
                     for(int pi=0;pi<pixels.Count;pi++)
                         values[mode-1,pi]=readback.GetPixel(pixels[pi].x,plate.height-1-pixels[pi].y);
                 }
+                int alaskaControls=0,snowControls=0;
+                for(int pi=0;pi<pixels.Count;pi++)
+                {
+                    if(values[3,pi].g>.5f) alaskaControls++;
+                    if(values[3,pi].g>.5f && values[4,pi].r>.01f) snowControls++;
+                }
+                report.AppendLine("PROBE VALIDATION: alaska>0.5 samples="+alaskaControls+"; Alaska snow>0.01 samples="+snowControls
+                    +(alaskaControls>0 && snowControls>0 ? "; PASS" : "; FAIL: do not use zero biome rows as attribution"));
                 for(int pi=0;pi<pixels.Count;pi++)
                 {
                     Vector2Int pixel=pixels[pi]; Color colour=plate.GetPixel(pixel.x,plate.height-1-pixel.y);
@@ -590,12 +612,13 @@ namespace FlyingGame.EditorTools
             }
             finally
             {
-                Shader.SetGlobalFloat("_TerrainGreenProbeMode",0);
+                Shader.SetGlobalFloat("_TerrainGreenProbeMode",savedProbeMode);
+                foreach(var entry in materialStates)
+                { entry.Key.shaderKeywords=entry.Value.keywords; entry.Key.SetFloat("_TerrainGreenProbeMode",entry.Value.mode); }
                 foreach(var state in states)
                 { state.renderer.sharedMaterials=state.materials; state.renderer.enabled=state.enabled; }
                 cam.targetTexture=savedTarget; cam.clearFlags=savedClear; cam.backgroundColor=savedBackground;
                 RenderTexture.active=savedActive;
-                foreach(var material in clones) Object.DestroyImmediate(material);
                 Object.DestroyImmediate(readback); target.Release(); Object.DestroyImmediate(target);
             }
         }
