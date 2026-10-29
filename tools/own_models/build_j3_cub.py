@@ -348,6 +348,13 @@ SK_Y, SK_F1 = 0.30, (1 - math.cos(math.pi * 8 / 25)) / 2
 # so the roof edge sits well aft of the LE (chord sample 6, 13.6 pct), leaving a yellow LE band ahead of the glass.
 SK_F0 = (1 - math.cos(math.pi * 6 / 25)) / 2
 SK_I0 = 6
+# v13 (Ty): the greenhouse is a long rectangle between the spars: front spar at 15 pct chord (the apex fitting where the
+# windshield V tubes and the ceiling tubes meet), aft edge at the rear-spar carry-through tube (rear lift-strut spar
+# station xd 2.40). Both spar stations fall between wing chord samples, so the wing is cut on the samples just outside
+# them (6 and 15) and yellow skin strips fill back to the exact spar lines.
+FS_F, RS_X = 0.15, 2.40
+RS_F = (RS_X - LE_D) / CH
+SK_IC1 = 15; SK_FC1 = (1 - math.cos(math.pi * SK_IC1 / 25)) / 2
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
 def region(c, n):
@@ -365,7 +372,7 @@ def region(c, n):
             return 'glass'
     if D_X0 < xd < D_X1 + 0.03 and D_Z0 < z < D_Z1 and side and xd < d_aft(z):
         return 'glass'
-    if LE_D + SK_F0 * CH <= xd < LE_D + SK_F1 * CH + 0.01 and abs(y) < SK_Y and n.z > 0.6:
+    if LE_D + FS_F * CH <= xd < LE_D + RS_F * CH + 0.01 and abs(y) < SK_Y and n.z > 0.6:
         return 'hole'                                                         # v11: cabin roof open under the skylight
     sy = 1 if y > 0 else -1
     if HOOD[sy][0] < xd < HOOD[sy][1] and -0.12 < z < 0.13 and abs(n.y) > 0.40:
@@ -438,61 +445,78 @@ for sy in (1, -1):
     # the sill, just beside the panel's upper corner); upper end near the centreline at the front spar (SK_F1 chord) under
     # the wing; inside the cabin with a clear gap to the glass (gap grows with height).
     _va = np.array((PL_X0 + 0.004, sy * (fus_y(PL_X0 + 0.004, PL_Z0 + 0.006) - AP_R * 1.9), PL_Z0 + 0.006))
-    _vx = LE_D + SK_F1 * CH; _vb = np.array((_vx, sy * 0.016, wing_low_c(_vx) - AP_R - 0.001))
+    _vx = LE_D + FS_F * CH; _vb = np.array((_vx, sy * 0.016, wing_low_c(_vx) - AP_R - 0.001))
     tube(_bct, [B(*(_va + (_vb - _va) * t_)) for t_ in np.linspace(0, 1, 24)], AP_R, n=14)
-_vx = LE_D + SK_F1 * CH
-rbox(_bct, B(_vx, 0, wing_low_c(_vx) - 0.006), (0.05, 0.07, 0.012))                 # spar fitting where the V tubes meet
+_vx = LE_D + FS_F * CH
+rbox(_bct, B(_vx + 0.010, 0, wing_low_c(_vx) - 0.006), (0.05, 0.07, 0.012))                 # spar fitting where the V tubes meet
 P['A_Pillar'] = link('A_Pillar', _bap); P['Cabin_Tubes'] = link('Cabin_Tubes', _bct); AP_SCREWS = 0
 _gap = [min(fus_y(x_, z_) - abs(y_) for x_, y_, z_ in [(-q[0], q[1], q[2])]) for q in [B(*(_va + (_vb - _va) * t_)) for t_ in (0.25, 0.5, 0.75)]]
-print('V TUBES v11: (%.3f, %.3f, %.3f) -> (%.3f, %.3f, %.3f); gap to the side skin at 25/50/75 pct %s m' % (tuple(_va) + tuple(_vb) + (str([round(g_, 3) for g_ in _gap]),)))
-# ---- v12c (Ty photos): second V tube in the cabin ceiling, under the skylight. Yellow 1 in steel tube lying just under
-# the ceiling (wing centre-section lower contour): apex at the front-spar fitting where the windshield V tubes meet,
-# legs running forward and outboard to the upper cabin corners at the A-pillar / triangle-window frame tops. In Ty's
-# 3/4 photo it reads as the near-level tube from the V apex out to the near A-pillar top, just under the roof.
+print('V TUBES v13 (meet at the 15 pct front-spar apex): (%.3f, %.3f, %.3f) -> (%.3f, %.3f, %.3f); gap to the side skin at 25/50/75 pct %s m' % (tuple(_va) + tuple(_vb) + (str([round(g_, 3) for g_ in _gap]),)))
+# ---- v13 (Ty): ceiling (upper) tubes. Each runs from its rear-spar attach point (top cabin corner at the rear spar,
+# xd RS_X) forward and inboard to the single front-spar fitting on the centreline above the windshield (15 pct chord),
+# the same point the windshield V tubes meet. A rear-spar carry-through tube crosses the cabin between the two rear
+# attach points, under the greenhouse's aft edge. All yellow 1 in steel tube lying just under the wing lower contour.
 _bcv = bmesh.new(); _CVE = []
-_cxa = _vx - 0.012
+_cxa = _vx + 0.012
+_zr = wing_low_c(RS_X) - AP_R - 0.002
+_yr = fus_y(RS_X, _zr - 0.01) - AP_R * 1.6
 for sy in (1, -1):
-    _cxb = 0.5 * (PL_X1 + PV_X)
-    _ya, _yb = sy * 0.022, sy * (fus_y(_cxb, wing_low_c(_cxb) - 0.02) - AP_R * 1.9)
     pts = []
-    for t_ in np.linspace(0, 1, 28):
-        x_ = _cxa + (_cxb - _cxa) * t_; y_ = _ya + (_yb - _ya) * t_
+    for t_ in np.linspace(0, 1, 32):
+        x_ = _cxa + (RS_X - _cxa) * t_; y_ = sy * (0.020 + (_yr - 0.020) * t_)
         pts.append(B(x_, y_, wing_low_c(x_) - AP_R - 0.002))
-    tube(_bcv, pts, AP_R, n=14); _CVE.append((_cxb, _yb, wing_low_c(_cxb) - AP_R - 0.002))
-    rbox(_bcv, B(_cxb + 0.006, _yb, wing_low_c(_cxb) - 0.006), (0.04, 0.035, 0.012))     # corner fitting under the roof
+    tube(_bcv, pts, AP_R, n=14); _CVE.append((RS_X, sy * _yr, _zr))
+    rbox(_bcv, B(RS_X, sy * _yr, wing_low_c(RS_X) - 0.006), (0.05, 0.04, 0.012))         # rear-spar attach fitting
+tube(_bcv, [B(RS_X, y_, _zr) for y_ in np.linspace(-_yr - 0.01, _yr + 0.01, 12)], AP_R, n=14)   # rear-spar carry-through
 P['Ceiling_Tubes'] = link('Ceiling_Tubes', _bcv)
-print('CEILING V v12c: apex (%.3f, 0, %.3f) -> corners (%.3f, +-%.3f, %.3f); r %.4f' % (_cxa, wing_low_c(_cxa) - AP_R - 0.002, _CVE[0][0], abs(_CVE[0][1]), _CVE[0][2], AP_R))
+print('CEILING v13: front-spar apex (%.3f, 0, %.3f) = %.0f pct chord -> rear-spar attach (%.3f, +-%.3f, %.3f) = %.1f pct chord; carry-through tube at xd %.3f; r %.4f' % (_cxa, wing_low_c(_cxa) - AP_R - 0.002, FS_F * 100, RS_X, _yr, _zr, RS_F * 100, RS_X, AP_R))
 # ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
 _bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
 def _wf(c_): return (-c_.x - LE_D) / CH
-_cut = [f for f in _bw.faces if abs(f.calc_center_median().y) < SK_Y and SK_F0 < _wf(f.calc_center_median()) < SK_F1]
-_bsk = bmesh.new()
+_cut = [f for f in _bw.faces if abs(f.calc_center_median().y) < SK_Y and SK_F0 < _wf(f.calc_center_median()) < SK_FC1]
 WRAP_F = (WS_XT - LE_D) / CH                                        # windshield top on the LE underside
-for f in _cut:
-    if f.normal.z > 0.3:
-        _bsk.faces.new([_bsk.verts.new(v.co + f.normal * 0.0008) for v in f.verts])
-bmesh.ops.remove_doubles(_bsk, verts=_bsk.verts, dist=1e-5)
 bmesh.ops.delete(_bw, geom=_cut, context='FACES'); _bw.to_mesh(P['Wing'].data); _bw.free()
+_ys = list(np.linspace(-SK_Y, SK_Y, 9))
+_bsk = bmesh.new()                                                  # v13: flush clear panel, front spar -> rear spar
+_gf = list(np.linspace(FS_F, RS_F, 22))
+_G = [[_bsk.verts.new(tuple(wsurf(W, y_, f_, True) + (0, 0, 0.0008))) for y_ in _ys] for f_ in _gf]
+for i in range(len(_gf) - 1):
+    for j in range(len(_ys) - 1):
+        _bsk.faces.new([_G[i][j], _G[i][j + 1], _G[i + 1][j + 1], _G[i + 1][j]])
+bmesh.ops.recalc_face_normals(_bsk, faces=_bsk.faces)
+if sum(f.normal.z for f in _bsk.faces) < 0: bmesh.ops.reverse_faces(_bsk, faces=_bsk.faces)
 P['Skylight'] = link('Skylight', _bsk)
-_bsf = bmesh.new(); _fq = [(1 - math.cos(math.pi * i / 25)) / 2 for i in range(SK_I0, 9)]
+_bsf = bmesh.new()
 def _two(pts):
-    _bsf.faces.new([_bsf.verts.new(q) for q in pts]); _bsf.faces.new([_bsf.verts.new(q) for q in pts[::-1]])
-for sy in (1, -1):
+    _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts]); _bsf.faces.new([_bsf.verts.new(tuple(q)) for q in pts[::-1]])
+def _strip(f0_, f1_, up_):                                           # yellow skin back to the spar line (both faces)
+    fs_ = np.linspace(f0_, f1_, 3)
+    for a_, b_ in zip(fs_, fs_[1:]):
+        for c_, d_ in zip(_ys, _ys[1:]):
+            _two([wsurf(W, c_, a_, up_), wsurf(W, d_, a_, up_), wsurf(W, d_, b_, up_), wsurf(W, c_, b_, up_)])
+for up_ in (True, False):
+    _strip(SK_F0, FS_F, up_); _strip(RS_F, SK_FC1, up_)
+_fq = list(np.linspace(SK_F0, SK_FC1, 30))
+for sy in (1, -1):                                                   # root ribs close the cut wing at |y| = SK_Y
     _y = sy * SK_Y
-    _two([tuple(wsurf(W, _y, f_, True)) for f_ in _fq[::-1]] + [tuple(wsurf(W, _y, f_, False)) for f_ in _fq[1:]])
-_ys = [-SK_Y, -SK_Y / 2, 0.0, SK_Y / 2, SK_Y]
-for a_, b_ in zip(_ys, _ys[1:]):
-    _two([tuple(wsurf(W, a_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, False)), tuple(wsurf(W, a_, SK_F1, False))])
-    _two([tuple(wsurf(W, a_, SK_F0, True)), tuple(wsurf(W, b_, SK_F0, True)), tuple(wsurf(W, b_, SK_F0, False)), tuple(wsurf(W, a_, SK_F0, False))])
+    _two([wsurf(W, _y, f_, True) for f_ in _fq[::-1]] + [wsurf(W, _y, f_, False) for f_ in _fq[1:]])
+for a_, b_ in zip(_ys, _ys[1:]):                                     # front + rear spar faces
+    for f_ in (FS_F, RS_F):
+        _two([wsurf(W, a_, f_, True), wsurf(W, b_, f_, True), wsurf(W, b_, f_, False), wsurf(W, a_, f_, False)])
 P['Skylight_Frame'] = link('Skylight_Frame', _bsf)
-_btr = bmesh.new()                                                     # v12: black rubber trim (photo)
-tube(_btr, [tuple(np.array(wsurf(W, y_, SK_F0, True)) + (0, 0, 0.004)) for y_ in np.linspace(-SK_Y - 0.012, SK_Y + 0.012, 17)], 0.0065, n=10)
+_btr = bmesh.new()                                                     # dark rubber frame round the whole rectangle
+_RT = 0.0065
+for f_ in (FS_F, RS_F):
+    tube(_btr, [tuple(np.array(wsurf(W, y_, f_, True)) + (0, 0, 0.004)) for y_ in np.linspace(-SK_Y - 0.012, SK_Y + 0.012, 17)], _RT, n=10)
+for sy in (1, -1):
+    _yr2 = sy * (SK_Y + 0.004)
+    tube(_btr, [tuple(np.array(wsurf(W, _yr2, f_, True)) + (0, 0, 0.004)) for f_ in np.linspace(FS_F, RS_F, 30)], _RT, n=10)
 for sy in (1, -1):                                                     # along each root nose where the windshield wrap meets the wing
     _yr = sy * (SK_Y + 0.012); _c = (np.array(wsurf(W, _yr, 0.12, True)) + np.array(wsurf(W, _yr, 0.12, False))) / 2
-    _pp = [np.array(wsurf(W, _yr, f_, True)) for f_ in np.linspace(SK_F0, 0, 13)] + [np.array(wsurf(W, _yr, f_, False)) for f_ in np.linspace(0, WRAP_F + 0.02, 8)[1:]]
-    tube(_btr, [tuple(q + (q - _c) / np.linalg.norm(q - _c) * 0.004) for q in _pp], 0.0065, n=10)
+    _pp = [np.array(wsurf(W, _yr, f_, True)) for f_ in np.linspace(FS_F, 0, 14)] + [np.array(wsurf(W, _yr, f_, False)) for f_ in np.linspace(0, WRAP_F + 0.02, 8)[1:]]
+    tube(_btr, [tuple(q + (q - _c) / np.linalg.norm(q - _c) * 0.004) for q in _pp], _RT, n=10)
 P['Skylight_Trim'] = link('Skylight_Trim', _btr)
-print('SKYLIGHT v12: roof panel |y| < %.2f m, %.3f -> %.3f chord (xd %.3f -> %.3f), LE nose solid yellow (windshield top at %.3f chord underneath), black rubber forward edge + root noses; %d wing faces cut, %d clear faces' % (SK_Y, SK_F0, SK_F1, LE_D + SK_F0 * CH, LE_D + SK_F1 * CH, WRAP_F, len(_cut), len(P['Skylight'].data.polygons)))
+print('SKYLIGHT v13: rectangle %.3f m long x %.3f m wide (|y| < %.2f), front spar %.1f pct -> rear spar %.1f pct chord (xd %.3f -> %.3f), LE nose solid yellow ahead (windshield top at %.3f chord underneath), dark rubber frame all round + root noses; %d wing faces cut, %d clear faces' % ((RS_F - FS_F) * CH, 2 * SK_Y, SK_Y, FS_F * 100, RS_F * 100, LE_D + FS_F * CH, LE_D + RS_F * CH, WRAP_F, len(_cut), len(P['Skylight'].data.polygons)))
 print('PILLAR v10: (%.3f, %.3f) -> (%.3f, %.3f) rake %.1f deg; vertical tube xd %.3f; triangle window base %.3f m, top %.3f m'
       % (PL_X0, PL_Z0, PL_X1, PL_Z1, math.degrees(math.atan2(PL_Z1 - PL_Z0, PL_X1 - PL_X0)), PV_X, PV_X - PL_X0, PV_X - pl_x(0.50)))
 print('WINDSHIELD v10: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
