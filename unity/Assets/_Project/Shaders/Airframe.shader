@@ -120,6 +120,7 @@ Shader "FlyingGame/Airframe"
                 float fres = pow(1.0 - saturate(dot(n, v)), 4.0) * _FresnelStrength;
                 col += fres * lerp(float3(1,1,1), float3(1,.77,.53), _SunsetOn);
 
+                col = SunsetAirframeResponse(col, normalize(_WorldSpaceCameraPos - i.wpos), _ReflectionRendering);
                 return fixed4(col, 1.0);
             }
             ENDCG

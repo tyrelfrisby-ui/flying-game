@@ -131,7 +131,17 @@ Shader "FlyingGame/Water"
                                     * .055 * saturate(motion.z/2.5));
                                 float bow = exp(-taxiSide*taxiSide/max(.1,origin.z*origin.z)
                                     -(taxiAft+2)*(taxiAft+2)*2);
-                                float tilt = (envelope*oscillation*.035 + bow*.055)
+                                // Compact radial packets around each step: bounded to a few metres.
+                                float radius = length(taxiDelta);
+                                float ringFade = exp(-radius/1.9) * (1-smoothstep(2.8,4.5,radius));
+                                float ringPhase = radius*8.5-t*2.4;
+                                float ring = sin(ringPhase)*ringFade;
+                                taxiGlint = max(taxiGlint, (.11*envelope*packet
+                                    + .075*ringFade*pow(saturate(cos(ringPhase)),8))
+                                    * saturate(motion.z/2.5));
+                                float2 radial = taxiDelta/max(.15,radius);
+                                n = normalize(float3(n.x + radial.x*ring*.055, 1, n.z + radial.y*ring*.055));
+                                float tilt = (envelope*oscillation*.055 + bow*.075)
                                     * saturate(motion.z/2.5);
                                 n = normalize(float3(n.x + across.x*sign(taxiSide)*tilt,
                                     n.y, n.z + across.y*sign(taxiSide)*tilt));
@@ -171,7 +181,7 @@ Shader "FlyingGame/Water"
 
                 float3 refl;
                 if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
-                else refl = DaySky(reflect(-v,n));
+                else refl = DaySkyRough(reflect(-v,n), .85 * (1-fresnel));
                 if (_ReflOn > 0.5 && abs(i.wp.y - _ReflPlaneY) < 1.5)
                 {
                     float4 uv = i.sp; uv.xy += n.xz * 0.025 * uv.w;   // ripple distortion
@@ -185,8 +195,8 @@ Shader "FlyingGame/Water"
                 float sceneZ = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.sp)));
                 float surfaceZ = -mul(UNITY_MATRIX_V, float4(i.wp,1)).z;
                 float depth = max(0, sceneZ - surfaceZ) * max(.05, v.y);
-                float3 deep = lerp(_Color.rgb, float3(.025,.045,.06), _SunsetOn);
-                float3 shallow = lerp(_Color.rgb * 1.3, float3(.16,.14,.105), _SunsetOn);
+                float3 deep = lerp(_Color.rgb * float3(.50,.72,.64), float3(.025,.045,.06), _SunsetOn);
+                float3 shallow = lerp(_Color.rgb * float3(.72,1.0,.80), float3(.16,.14,.105), _SunsetOn);
                 if (scenery > .5)
                 {
                     if (i.depth.y > .5) depth = max(0,i.depth.x);

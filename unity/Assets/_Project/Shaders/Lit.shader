@@ -54,6 +54,7 @@ Shader "FlyingGame/Lit"
                     float rim = pow(1-saturate(dot(n,v)),3);
                     col += env * (.055 + .17 * rim) * saturate(dot(_Color.rgb,float3(.3,.4,.3))*3);
                 }
+                col = SunsetAirframeResponse(col, normalize(_WorldSpaceCameraPos - i.wp), _ReflectionRendering);
                 return fixed4(col,1);
             }
             ENDCG

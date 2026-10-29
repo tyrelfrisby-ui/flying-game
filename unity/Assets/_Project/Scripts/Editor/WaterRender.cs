@@ -268,7 +268,7 @@ namespace FlyingGame.EditorTools
                     float span = Mathf.Max(1, heroBounds.size.x);
                     float waterY = (float)lake.SurfaceM;
                     Vector3 aim = new Vector3(heroBounds.center.x,
-                        heroBounds.center.y + heroBounds.extents.y * .25f, heroBounds.center.z);
+                        waterY + .65f, heroBounds.center.z);
                     camera.fieldOfView = 78;
                     float minimumAft = span * .35f;
                     float lowerAft = minimumAft, upperAft = span * 4;
@@ -278,8 +278,9 @@ namespace FlyingGame.EditorTools
                     {
                         float aft = fit == 23 ? upperAft : (lowerAft + upperAft) * .5f;
                         camera.ResetProjectionMatrix();
-                        camera.transform.position = new Vector3(heroBounds.center.x - span * .50f,
-                            waterY + 1, heroBounds.min.z - aft);
+                        float rearDistance = heroBounds.center.z - heroBounds.min.z + aft;
+                        camera.transform.position = new Vector3(heroBounds.center.x - rearDistance * Mathf.Tan(25 * Mathf.Deg2Rad),
+                            waterY + .65f, heroBounds.min.z - aft);
                         camera.transform.LookAt(aim);
                         envelopeMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
                         envelopeMax = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
@@ -297,19 +298,19 @@ namespace FlyingGame.EditorTools
                             }
                         }
                         Vector2 extent = envelopeMax - envelopeMin;
-                        if (inFront && extent.x <= .94f && extent.y <= .94f) upperAft = aft;
+                        if (inFront && extent.x <= .94f && envelopeMin.y >= -.02f && envelopeMax.y <= .92f) upperAft = aft;
                         else lowerAft = aft;
                     }
-                    // Optical shift keeps the wing-root aim while centring the complete
-                    // silhouette/mirror. No camera-height or aircraft-pose compromise.
+                    // Centre the silhouette horizontally; retain a fixed horizon vertically.
                     Vector2 envelopeCenter = (envelopeMin + envelopeMax) * .5f;
                     Matrix4x4 heroProjection = camera.projectionMatrix;
                     heroProjection.m02 += 2 * (envelopeCenter.x - .5f);
-                    heroProjection.m12 += 2 * (envelopeCenter.y - .5f);
+                    // Horizontal optical axis and fixed shift put the horizon 45% down.
+                    heroProjection.m12 = -.10f;
                     camera.projectionMatrix = heroProjection;
                     File.WriteAllText(Path.Combine(output, "hero-diagnostics.txt"),
                         $"Bounds={heroBounds}; span={span}; camera={camera.transform.position}; aim={aim}\n" +
-                        $"Tail aft={upperAft}; nominal aft={minimumAft}; left={span*.50f}; height=1; FOV={camera.fieldOfView}\n" +
+                        $"Tail aft={upperAft}; nominal aft={minimumAft}; yaw=25deg aft-left; height=.65; FOV={camera.fieldOfView}\n" +
                         $"Unshifted envelope={envelopeMin}..{envelopeMax}; projection shift={heroProjection.m02},{heroProjection.m12}\n");
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);

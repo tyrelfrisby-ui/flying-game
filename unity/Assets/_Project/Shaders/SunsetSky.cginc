@@ -21,7 +21,7 @@ float3 SunsetEnvironment(float3 ray) {
  return fill+float3(.27,.16,.06)*sun;
 }
 // Analytic built-in atmosphere; shared sky and water directions keep the horizon coherent.
-float3 DaySky(float3 ray) {
+float3 DaySkyRough(float3 ray, float roughness) {
  ray=normalize(ray);
  float y=saturate(ray.y);
  float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.42));
@@ -34,7 +34,7 @@ float3 DaySky(float3 ray) {
  // Project onto a horizontal deck: distant banks shrink toward the horizon.
  // The old bounded denominator kept identical large stickers at every elevation.
  float2 p=ray.xz/max(.12,y+.08)*1.3;
- float pixelWidth=max(.06,length(fwidth(p))*.8);
+ float pixelWidth=max(.06,length(fwidth(p))*.8) + roughness*.42;
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);
  float field=-2;
@@ -71,7 +71,20 @@ float3 DaySky(float3 ray) {
  float light=saturate(crownLight+erosion*.30);
  float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
 
- return lerp(sky,cloudColor,cloud*.94);
+ // Unresolved capillary slopes spread cloud radiance and lower its contrast.
+ return lerp(sky,cloudColor,cloud*.94*(1-roughness*.88));
+}
+float3 DaySky(float3 ray) { return DaySkyRough(ray,0); }
+// Backlighting uses the horizontal view so main and submerged mirror eyes
+// agree about the sun being behind the subject. Applied only by airframe materials.
+float3 SunsetAirframeResponse(float3 color, float3 view, float reflected) {
+ float2 horizontalView=view.xz/max(.001,length(view.xz));
+ float2 horizontalSun=_SunsetSunDir.xz/max(.001,length(_SunsetSunDir.xz));
+ float backlit=smoothstep(.15,.75,-dot(horizontalView,horizontalSun))*_SunsetOn;
+ float luminance=dot(color,float3(.2126,.7152,.0722));
+ float3 silhouette=luminance*float3(.48,.53,.63);
+ color=lerp(color,color*.78,backlit);
+ return lerp(color,silhouette,backlit*saturate(reflected)*.86);
 }
 float3 SunsetSky(float3 ray) {
  ray=normalize(ray); float y=max(ray.y,0);
