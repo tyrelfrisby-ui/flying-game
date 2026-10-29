@@ -826,7 +826,8 @@ def tank_deck():                                                    # v5f: fuel-
         f = (xd - 0.95) / (PX - 0.002 - 0.95); row = []
         for y in np.linspace(-PHW, PHW, 15):
             za = PZB + PHS + (PHC - PHS) * math.sqrt(max(0.0, 1 - (y / PHW) ** 2)) - 0.004
-            row.append(B(xd, y, za))
+            yl = fus_y(xd, za) - 0.008                              # v8b: keep the deck inside the skin (its corners
+            row.append(B(xd, max(-yl, min(yl, y)), za))            # poked out as a dark wedge behind the cowl)
         rs.append(row)
     for i in range(len(rs) - 1):
         for j in range(len(rs[i]) - 1):
