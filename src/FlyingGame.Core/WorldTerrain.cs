@@ -463,7 +463,24 @@ public sealed class WorldTerrain
 
     // ---- ground surfaces (what the wheels feel) -------------------------------------------------
 
-    public enum Surface { Paved, Gravel, Grass, Rough, Snow }
+    /// <summary>
+    /// What is under the wheels. PackedGlacierSnow is APPENDED, never inserted: the chart raster stores this
+    /// enum as a byte (<see cref="Nav.ChartRaster"/>), so every member's underlying value is on the wire and
+    /// renumbering them would repaint every stored chart. It takes 5, the next free value.
+    /// </summary>
+    public enum Surface
+    {
+        Paved, Gravel, Grass, Rough,
+        /// <summary>Settled snow: soft, a wheel sinks into it. The glacier at large.</summary>
+        Snow,
+        /// <summary>
+        /// The wind-packed, graded surface of a glacier landing zone (owner 2026-10-29). It is a different
+        /// surface from <see cref="Snow"/> in both directions: a ski runs on it almost freely (0.02 against
+        /// 0.055) and holds sideways better than it does in soft snow (0.12 against 0.05), while a WHEEL is
+        /// worse off than on gravel because it still breaks through the crust and ploughs.
+        /// </summary>
+        PackedGlacierSnow,
+    }
 
     /// <summary>Rolling-resistance coefficient (μ_r = rolling force / wheel load) per surface. Values from
     /// published aircraft ground-roll data (ESDU 71026, Raymer Table 17.1, FAA): dry concrete/asphalt
@@ -477,6 +494,11 @@ public sealed class WorldTerrain
         // Settled snow on a glacier: a wheel sinks into it and drags (0.10–0.20 in the literature for wheels
         // on snow); a SKI is a different matter entirely and gets its own treatment.
         Surface.Snow => 0.14,
+        // A packed glacier landing zone is HARDER than settled snow but a wheel still breaks the crust and
+        // ploughs the broken stuff in front of it, so it is draggier than the soft snow it sits on, not less.
+        // 0.18 is the floor: see LandingGear.SnowSinkageRolling, where the wheel's own bearing pressure
+        // takes it toward 0.35.
+        Surface.PackedGlacierSnow => 0.18,
         _ => 0.15,
     };
 
@@ -491,6 +513,7 @@ public sealed class WorldTerrain
         Surface.Gravel => 0.50,
         Surface.Grass => 0.35,
         Surface.Snow => 0.10,          // a keel on snow slides like a ski, because that is what it is
+        Surface.PackedGlacierSnow => 0.04,   // and on packed, wind-polished ice it slides very nearly freely
         _ => 0.50,
     };
 
@@ -528,6 +551,10 @@ public sealed class WorldTerrain
         }
         { Surface? br = BraidedRiver.SurfaceAt(x, y); if (br.HasValue) return br.Value; }  // the outwash gravel
         { Surface? hd = HighDesert.SurfaceAt(x, y); if (hd.HasValue) return hd.Value; }    // the Reno high desert
+        // The graded landing zones and their safety buffer are the packed, groomed surface; the rest of the
+        // ice — the icefall, the margins, the broken stuff — is soft snow, which is what it was everywhere
+        // before the zones existed.
+        if (AlaskaRange.InLandingBuffer(x, y)) return Surface.PackedGlacierSnow;
         if (AlaskaRange.OnIce(x, y)) return Surface.Snow;                                  // glacier ice
         // ---- the catch-alls: whole regions, and only where nothing above has spoken for the ground.
         if (AlaskaRange.InRange(x, y)) return Surface.Gravel;                              // rock and moraine
@@ -575,6 +602,16 @@ public sealed class WorldTerrain
     public static double MicroBumpAt(double x, double y)
     {
         Surface s = SurfaceAt(x, y);
+        // BROKEN ICE. A crevasse field is a no-go area, and a no-go area a wheel cannot feel is a decoration:
+        // the handoff's no-go zones (the icefall, the margins, local steepening — never inside the landing
+        // buffer) get half-metre blocks at a few metres' pitch, so putting an aeroplane down there wrecks the
+        // arrival. These are not modelled crevasses — nothing swallows you yet, and whether it should is the
+        // owner's call; they are the broken surface AROUND them, which is enough to make the no-go real.
+        if (s == Surface.Snow && AlaskaRange.Crevassed(x, y))
+        {
+            return 0.30 * System.Math.Sin(x / 2.3) * System.Math.Sin(y / 1.9)
+                 + 0.18 * System.Math.Sin(x / 0.9 + y / 1.1) + 0.30;
+        }
         if (s == Surface.Rough)
         {
             return 0.10 * System.Math.Sin(x / 1.3) * System.Math.Sin(y / 1.7) + 0.06 * System.Math.Sin(x / 0.7 + y / 0.9) + 0.06;

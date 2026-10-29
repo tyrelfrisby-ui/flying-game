@@ -84,12 +84,20 @@ public class AlaskaTests : IDisposable
         {
             double mx = (g.HeadX + g.TermX) * 0.5, my = (g.HeadY + g.TermY) * 0.5;
             Assert.True(AlaskaRange.OnIce(mx, my), $"the middle of the {g.Name} is not ice");
-            Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(mx, my));
+            // Snow of one kind or the other. The middle of a 1,334 m glacier falls inside its landing
+            // zone's 920 m safety buffer, which is the GRADED surface and reports PackedGlacierSnow
+            // (2026-10-29) — a ski runs on it almost freely and holds sideways more than twice as well.
+            // What this test is about is that ice is snow under the wheels and rock is not.
+            WorldTerrain.Surface ice = WorldTerrain.SurfaceAt(mx, my);
+            Assert.True(ice is WorldTerrain.Surface.Snow or WorldTerrain.Surface.PackedGlacierSnow,
+                        $"the middle of the {g.Name} is {ice}");
             // Off the side of the glacier it is mountain again.
             double dx = (g.TermX - g.HeadX) / g.LengthM, dy = (g.TermY - g.HeadY) / g.LengthM;
             double ox = mx - dy * (g.HalfWidthM + 150), oy = my + dx * (g.HalfWidthM + 150);
             Assert.False(AlaskaRange.OnIce(ox, oy));
-            Assert.NotEqual(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(ox, oy));
+            WorldTerrain.Surface off = WorldTerrain.SurfaceAt(ox, oy);
+            Assert.False(off is WorldTerrain.Surface.Snow or WorldTerrain.Surface.PackedGlacierSnow,
+                         $"off the side of the {g.Name} the ground is {off}");
         }
     }
 

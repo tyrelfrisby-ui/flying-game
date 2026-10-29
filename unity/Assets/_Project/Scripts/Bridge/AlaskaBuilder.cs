@@ -39,21 +39,21 @@ namespace FlyingGame.Bridge
             BuildMadeStrips(root.transform);
         }
 
-        // Visual corridors only. Sim XY metres; endpoints follow existing valley floors.
-        // First two are sourced from Core, third is the broad valley east of Colony.
+        // The ice corridors, all three from Core (AlaskaRange.Corridors). The third one — the East Fork —
+        // used to be a literal here: `new Vector4(7500, -7000, 7700, -5500)` with a half-width of 280, which
+        // the sim could not see. So the shader painted ice along a corridor the height field called gravel
+        // and the surface model called Rough: a pilot could see a glacier out of the window, land on it, and
+        // find rock. One source now answers for all three, and the sim's landing zones, surface designation
+        // and crevasse no-go areas are stated in the same S/U frame these feed the shader.
         public static Vector4 GlacierAxis(int index)
         {
-            if (index < AlaskaRange.Glaciers.Length)
-            {
-                var g = AlaskaRange.Glaciers[index];
-                return new Vector4((float)g.HeadX, (float)g.HeadY, (float)g.TermX, (float)g.TermY);
-            }
-            return new Vector4(7500, -7000, 7700, -5500);
+            var c = AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)];
+            return new Vector4((float)c.HeadX, (float)c.HeadY, (float)c.TermX, (float)c.TermY);
         }
-        public static float GlacierHalfWidth(int index) => index < AlaskaRange.Glaciers.Length
-            ? (float)AlaskaRange.Glaciers[index].HalfWidthM : 280f;
-        public static string GlacierName(int index) => index < AlaskaRange.Glaciers.Length
-            ? AlaskaRange.Glaciers[index].Name : "East Fork";
+        public static float GlacierHalfWidth(int index) =>
+            (float)AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)].HalfWidthM;
+        public static string GlacierName(int index) =>
+            AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)].Name;
         public static void ConfigureTerrain(Material material)
         {
             var axes = new Vector4[3]; var widths = new Vector4();

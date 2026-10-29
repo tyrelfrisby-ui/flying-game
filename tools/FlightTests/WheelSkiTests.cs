@@ -206,7 +206,10 @@ public class WheelSkiTests : IDisposable
         double s0 = 0.86;
         double px = knik.HeadX + dx * knik.LengthM * s0, py = knik.HeadY + dy * knik.LengthM * s0;
         double uphill = Math.Atan2(-dy, -dx);                   // back up the glacier
-        Assert.Equal(WorldTerrain.Surface.Snow, WorldTerrain.SurfaceAt(px, py));
+        // s = 0.86 is inside the Knik's landing-zone safety buffer, so this is the GRADED surface
+        // (2026-10-29): PackedGlacierSnow, not the settled snow it used to be. The landing is the same
+        // landing — up the ice, on skis — and it is now being made on the zone that was graded for it.
+        Assert.Equal(WorldTerrain.Surface.PackedGlacierSnow, WorldTerrain.SurfaceAt(px, py));
 
         AircraftConfig c = Load(Cub, true);
         double ground = t.HeightAt(px, py);
@@ -218,7 +221,10 @@ public class WheelSkiTests : IDisposable
         Vec3 start = ac.State.Position;
         double slowest = 99;
         int steps = 0;
-        for (; steps < 8000; steps++)
+        // 60 s, not the 40 s this used to allow. s = 0.86 is inside the Knik's landing-zone buffer, so the
+        // landing is now made on the GRADED surface, where a ski's running coefficient is 0.02 against the
+        // 0.055 of the settled snow it used to be — it still stops, at 40.3 s, and it used to stop at 32.
+        for (; steps < 12000; steps++)
         {
             loop.RunFor(SimLoop.DefaultFixedDtSec, Idle);
             slowest = Math.Min(slowest, ac.State.Velocity.Length);

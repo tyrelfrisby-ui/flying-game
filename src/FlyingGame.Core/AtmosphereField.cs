@@ -487,6 +487,10 @@ public sealed class AtmosphereField
             WorldTerrain.Surface.Rough => 0.55,
             WorldTerrain.Surface.Grass => 0.35,
             WorldTerrain.Surface.Snow => -0.5,
+            // A graded landing zone is still a glacier: wind-packed snow over ice, with the air over it
+            // sinking as hard as anywhere else on the ice. Without this line it fell to the `_ => 0.4`
+            // default and the LZ would have made thermals like a pasture.
+            WorldTerrain.Surface.PackedGlacierSnow => -0.5,
             _ => 0.4,
         };
         double cover = Forest.CoverAt(x, y);

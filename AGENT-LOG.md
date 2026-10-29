@@ -1,6 +1,12 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+
+- **Should a crevasse swallow you?** The glacier no-go areas are real now — broken ice you can feel through the
+  wheels, half-metre blocks outside the landing buffer — but nothing opens up and takes an aeroplane. Modelling
+  an actual crevasse means a hole in the collision world and a way to be in it, which is a gameplay decision
+  and not a physics one. Fly the icefall edge on the Knik and say whether the broken surface is enough.
+
 - **Visuals pass 4, batch C iteration 6 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-M8 water/world ERRORS empty. Incoming valley-city **3.5/10**, town **3/10**, facade/street **4/10**, roofs **3.5/10**, overview **2/10**; city/town/roofs-night **3/10**, street-night **4/10**, overview-night **3/10** (glow alone ~5). Three taller two-axis cladding terraces, contrasting roof membranes/green terraces, larger crowns/masts and central masonry podiums; infill grows to 12–49 m / 42–104 m frontage toward centre, perimeter houses now three per eligible lot, rear/return wings form courtyard street walls. Original tower cores/heights/challenge rows retained, so full tower-height gradient remains limited. Night windows integrate each pixel axis independently, preserve resolved floor gaps, reduce distant average and radiance, vary floor occupancy 30–60%, darken unlit shell. Haze/dome, moonlit overview, roads, cars, tanks and existing equipment retained. **No outgoing score: rerender required.** Zero added draws/materials/textures/passes; conservative additional mesh bound <6 MiB/city, CPU copies excluded; iPad shader/aggregate-memory profiling needed. Two existing assets/metas plus log. Chief: separate Bridge/Editor and strict Metal, all eleven C6 review shots plus roof/tank/car detail and full day/water/world regressions; check cream faces, grazing-window shimmer, terrace/infill contacts and night far energy. No Unity/tests/build/git attempted; uncommitted for runner.
 - **Visuals pass 4, batch M iteration 9 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-C6 water/world ERRORS empty. Incoming massif/ridge/Denali **1.5/10**, Ruth **2/10**, glacier/LZ **3/10**, Colony/East Fork **2/10**, alpine-range **3/10**, cirque/lakes/larch **2/10**, first-wall **3/10**, front-second **2/10**. Replaced Alaska camouflage snow windows with slope-held clean benches and narrow long vertical couloirs, jittered stationary granite joints/ribs; quieter granite grain and stronger blue-grey skylight for Ruth. Alpine snow has a raw-elevation 2920–3140 m gate and gentler low meadow rock mask. Ice boundaries now signed-distance ~1.5 px AA, narrow lateral moraine/edge darkening; wider rock/snow foreland removes Colony green. M8 crevasse gates, 2/3 medial bands, East Fork snow, exact 800 x 80 m clear LZs/axes/headings/report and haze retained. **Max displacement 0 m; no outgoing scores without rerender.** Existing shader/meta plus log only, no new draws/textures/passes/assets. Chief: strict Metal, separate assemblies, all fourteen review shots + CSV, full regressions and iPad ALU profiling; check diagonal-face chute continuity, near/far aliasing, meadow snow exclusion and Colony foreland extent. Rounded silhouettes remain. No Unity/tests/build/git attempted; uncommitted for runner.
 - **Visuals pass 4, batch C iteration 4 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-M6 water/world ERRORS empty. Incoming overview-night **2/10**, city/town night **3/10**, roof-night **3/10**, street-night **3/10**, daytime roofs **3/10**, facade/city/street **4/10**, town **3/10**. Added distance-filtered sodium road ribbons and stronger unresolved-window average, blue-grey night exposure/fill, city-centred sky glow; night-only head/tail exposure streaks. Three wider cladding tiers on eligible non-challenge towers, larger contrasting roof equipment, explicit 2/3 eligible-brick tank gate, corrected membrane overpaint and equipment contacts/separation. High moving cars 4x / curb slots 3x C3; equal-speed phase slots avoid lane overlap; surface bays omitted under expanded cladding. Sparse lamps on existing tower road only; no invented highway. New `city-water-tower-detail`/`city-water-tower-night`; existing views retained. **No outgoing score; rerender required.** Zero extra draws/materials/textures/passes; conservative street-only payload ~20/31/57 MiB per city Low/Medium/High (before plaza skips, excluding CPU copies/lot roofs). Chief: separate Bridge/Editor + strict Metal compile; overview-night, valley-city-night, town-night, city-roofs-night, city-street-night, tank/roof/traffic detail and motion pair, full day set and water/world regressions; profile iPad aggregate memory/GPU. Seven existing Unity sources/metas plus log; no Unity/tests/build/git attempted, left uncommitted for runner.
@@ -54,6 +60,134 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-10-29 — Claude · lane/claude-glacier-ski · glacier ski landing zones, sim side
+
+Picked up the visual owner's HANDOFF "glacier ski landing zones" (P4-M7 table and its measured CSV). Branched
+off lane/codex-visuals so the heights and the shader masks come from one geometry; **nothing pushed or merged**.
+
+- **THE KNIK COULD NOT BE GRADED AS A BENCH, and that is the headline.** Measured on a 10 m grid: the clear
+  rectangle runs 1690.3 m down to 1538.5 m — **152 m of fall in 800 m, 27.5° at its upper end** — and its lower
+  end is **67 m from the ice front**, with the proglacial lake beyond. So the fill has nowhere to go, and a 3°
+  bench touching natural ground at the bottom needs a **110 m cut** at the top: a slot canyon in the ice. The
+  cause is that `Glacier.IceHeightAt` used `(1−s)³` of the whole drop while its own comment claimed it put
+  "nearly all of the drop in the icefall at the top and then a long shallow tongue". A cubic has no tongue —
+  its gradient falls off smoothly the whole way — so the LZ straddled the foot of the icefall.
+- **Fixed by giving the glaciers the profile that comment describes**: below s = 0.30 the ice falls at exactly
+  2.8°; above it the icefall carries all the rest at a constant gradient with a 0.04-in-s fillet where the two
+  meet. Head, terminus, length, width, total drop and both lakes are untouched. Steepest point: **Knik 53.5°,
+  Colony 52.9°, against the 51.3° / 50.7° the cubic already reached at the head** — nowhere more than ~2°
+  steeper than what it replaces, while the whole lower 70% is landable instead of the last few hundred metres.
+  Both profiles verified monotone over 500 samples.
+- **The three zones, measured (10 m grid, spans confined to the rectangle):**
+
+| Zone | Grade | Along | Across | 30 m residual | Fall over 800 m |
+| --- | --- | --- | --- | --- | --- |
+| Knik | its own tongue | **2.80°** | 0.00° | 0.00 m | 39.1 m (1541.3–1580.4) |
+| Colony | pad, flattened | **0.00°** | 0.00° | 0.00 m | 0.0 m (1524.0) |
+| East Fork | pad, already flat | **0.00°** | 0.00° | 0.00 m | 0.0 m (1524.0) |
+
+  All inside 3° / 2° / 0.5 m. The height field is within **0.0 cm** of each zone's own declared plane.
+  Measuring the slope over spans that reached out into the apron instead made the Knik read 5.57° — the apron,
+  not the thing that was graded; the test now measures it the way the tolerance is stated.
+- **The zones are applied LAST, after the lakes.** The Knik's lake reaches r = 1.47 of its own radius at the
+  zone's lower end and its shore blend was taking 3 m off the last 40 m of the rectangle — a 4° break across
+  the touchdown end. Nothing may be laid over a graded surface afterwards.
+- **Buffer and crevasse no-go areas.** 920 × 200 m, with the earthwork blended out over the 60 m along / 60 m
+  across between the two rectangles — the same feather the terrain shader uses to exclude its cracks. 987
+  points per buffer verified crevasse-free; the icefall (upper 55%), the margins (|U| > 0.45 × half-width) and
+  local steepening past 12° are marked. Broken ice is something the wheels can FEEL: 0.58 m blocks at a few
+  metres' pitch outside the buffer, so a no-go area is not a decoration. These are not modelled crevasses —
+  nothing swallows you, and **whether it should is Ty's call** (see NEEDS YOU).
+- **`PackedGlacierSnow`**, appended as value 5 after auditing serialisation (`ChartRaster` stores the enum as a
+  byte, so members may be added but never renumbered; it has its own chart colour). Inside the safety buffer;
+  the rest of the ice stays `Snow`. Coefficients as the handoff proposed: **ski rolling 0.02** (soft snow 0.055),
+  **ski lateral 0.12** (soft snow 0.05), **keel/skid sliding 0.04**, **wheel rolling 0.18** rising to **0.35**
+  with sinkage — driven by the wheel's own bearing pressure, so a bushwheel at 2.6 kN sits at 0.21 and a hard
+  tyre at 12 kN is at the full 0.35. The ski's lateral hold is now an absolute μ of its own rather than a scale
+  on the tyre's, because what resists a sideways slide is the ski's edge and the tyre inside it is irrelevant.
+- **The East Fork is in Core now.** Its axis and half-width were a literal in `AlaskaBuilder.GlacierAxis`
+  (`Vector4(7500, −7000, 7700, −5500)`, 280 m) that the sim could not see — so the shader painted ice along a
+  corridor the surface model called gravel, and a pilot could land on what looked like a glacier and find rock.
+  All three corridors come from `AlaskaRange.Corridors`; it is a corridor and not a `Glacier`, because it has no
+  head on the mountain, no icefall and no proglacial lake, and the tests that ask every `Glacier` for its lake
+  and its gradient still mean what they say.
+- **Peaks: ridges and buttresses.** The reach now varies with the bearing — 3–5 main ridges per peak with
+  cirques bitten in between, so the foot is a star and not a circle — plus a broad rib standing out on the
+  lower flank of each ridge. The reach only ever varies DOWNWARD, never past `RadiusM`: Foraker's skirt already
+  reaches 1,050 m of the 1,200 m south pad, and letting a ridge reach further brings back the 60 m step along
+  y = Y0 − 900 that the world sweep found on 2026-10-17.
+- **Alpine treeline forest.** One line in `Forest.Timbered` — `SurfaceAt(x, y) != Surface.Rough` — kept every
+  conifer off the Cascades, because the alpine block reports Gravel as a whole ("granite and scree, not
+  pasture"). That is why render after render came back with bare rock to the valley floor and a "treeline" that
+  was only the edge of the block. The alpine block is now allowed its timber and `TreeLineAt` decides where it
+  ends. It needed a second piece: the Summit plateau is at 2,134 m and the treeline over that longitude comes
+  out near 2,070 m — *below the valley floors* — so allowing timber alone would have put nothing on it but a
+  fringe. `AlpineMassLiftM` adds 400 m over the massif, fading over 1,800 m outside it: the mass-elevation
+  (Massenerhebung) effect, which is real and named. The line then runs near 2,480 m, which puts timber across
+  the floors and up the first 350 m of every peak and leaves bare rock above. **Alaska is deliberately NOT
+  given forest**: it is glacier country, and what is not ice there is moraine and outwash.
+- **Verified by ski-landing on each glacier**, flown, Cub on skis, touchdown 31 kt up the ice 40 m inside the
+  downhill end: Knik **270 m, climbing 13.1 m**, stopped at S+91 / U−25.2; Colony and East Fork **313 m** on the
+  flat, stopped at S+47 / U−22.5. All three stop inside the 800 m rectangle and inside the 80 m width. Two
+  things this test caught about itself and not about the zones: with the rudder free the Cub wandered 55–68 m
+  off the centreline (a ski has a fraction of a tyre's lateral hold and the tailwheel castors), so there is a
+  pilot on the rudder; and the first pilot read its heading out of `RigidBodyState.Velocity`, which is in BODY
+  axes — the track came out as the sideslip direction, the rudder sat at full deflection for the whole run, and
+  **two different gain sets produced byte-identical results**, which is how it was found.
+- **Four things the suite then caught, all of them real and none of them in the glacier work proper.**
+  1. `AtmosphereField` switches on the surface with a `_ => 0.4` default, so the new surface fell through to
+     open-country heating and **a glacier landing zone would have generated thermals like a pasture**. It gets
+     the ice's own −0.5. Found by auditing every switch over `Surface` for a default arm rather than by a test.
+  2. `WorldContinuityTests.NowhereDoesTheGroundStopDead` found **15 m in 0.1 m at (2520, −6820)**, on Hunter's
+     west flank. The step is in the BASE FIELD — an 18 m escarpment — and `cone = baseH + (TopM − baseH) ×
+     Smooth(t)` was carrying a scaled copy of it up the mountainside as an 11 m wall. The old fixed-radius
+     footprint happened to attenuate it below the test's threshold; varying the reach with the bearing pushed
+     it over. The cone now stands on `BaseM + ReliefM × Smooth(t)` — the plateau the range's own doc has always
+     said its heights are relief above — so no wrinkle in the base field propagates into it at all. Plus a fade
+     over the last 6% of the reach, because the `Ridge` term is multiplied by `(0.3 + 0.7 sin(πt))`, which is
+     0.3 and **not zero** at the rim, so a cone could stand up to 26 m proud of the ground at its own edge.
+  3. **A ski had no static friction**, and it turns out to matter. The Knik's graded tongue falls at 2.8°
+     (tan = 0.049) and a ski's running coefficient on packed snow is 0.02, so an aeroplane that had stopped
+     crept back down the zone for ever. That is the model saying you cannot park on a glacier, and a ski pilot
+     parks on one. A ski base rides on a film of water it melts itself and there is no film at a standstill —
+     published static coefficients run 0.1–0.4 against 0.02–0.08 kinetic — so the coefficient is now 4× its
+     running value at rest, fading to the running value by 1 m/s. 0.08 on packed snow against the 0.049 it has
+     to hold.
+  4. `ACubOnSkisCanBePutOnTheKnikAndStop` then wanted **60 s instead of 40**: it stops at 40.3 s, where it used
+     to stop at 32, because it is now landing on the graded surface where the ski runs more than twice as
+     freely. Nothing else about it changed — 198 m against its 400 m limit, climbing 9.0 m.
+  Two tests were updated rather than fixed, and for the same reason in both: the middle of a 1,334 m glacier
+  and the Knik touchdown point at s = 0.86 both fall inside a landing zone's safety buffer, so they report
+  `PackedGlacierSnow` and not `Snow`. `AlaskaTests` now asks that ice be snow of one kind or the other, which
+  is what that test is about; `WheelSkiTests` asserts the packed zone by name, because that is the surface the
+  landing is now being made on and that is the point.
+- **11 new tests, all passing.** Suite: **787 passed, 4 failed, 3 skipped, 794 total** — the four are the known
+  ones by name (flat-spin smoke, Pitts three-point and wheel landings ×2, Pitts quick feet). Nothing new.
+  (The 794 is a counted discovery, not a remembered number: I first wrote 789/796 into this entry from
+  arithmetic rather than from the run, which is the same habit that put `init` in a commit that did not build.)
+- **A fifth failure turned out to be older than this lane, and it is a shipping bug.**
+  `GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` reported "great-lakes-like: StreamingAssets copy
+  missing or different". I checked it on clean `split-surfaces` in the main checkout and it fails there too, so
+  **yesterday's "4-failure baseline" is 5 today** and I was wrong to carry 4 forward without re-checking.
+  `unity/Assets/StreamingAssets/aircraft/` is **gitignored**, yet 62 of the 63 aircraft configs are tracked in
+  it — they are the data the GAME loads at runtime, mirrored from `configs/aircraft` by `Editor/ConfigSync.cs`.
+  The Great Lakes' mirror was never added, and because the directory is ignored a plain `git add` would have
+  skipped it silently. So the aeroplane's runtime config existed only as an untracked file created by a Unity
+  run, and it reached the shipped ipa by luck. Added with `git add -f`, with a `.meta` carrying a GUID derived
+  from the asset path so it is the same in every worktree — an untracked `.meta` is the trap where Unity
+  invents a fresh GUID. **Ty: this wants the same fix on `split-surfaces` and `main`, and the ignore rule
+  wants a decision — either these mirrors are tracked, in which case the rule should not cover them, or they
+  are generated, in which case 62 of them should not be in git.**
+
+**For the visual owner:** the sim's crevasse no-go is WIDER than the cracks the terrain shader draws — the
+shader gates on the outer 35% of the half-width and the upper 35% of the length, the sim on the outer 55% and
+the upper 55%. The sim's is deliberately the more conservative of the two, but the drawn cracks should grow to
+match it or a pilot will see clean ice where the ground is broken. Also: the Knik's ice is now ~140 m lower at
+s = 0.30 than it was, so its trough is 11% deeper over the tongue, and the Colony pad's upper approach has a
+natural wall just outside the buffer (35° at S −450) — it is landed from down-glacier, uphill, into the glacier
+wind, which is the technique anyway.
+
 ### 2026-10-29 — Codex · lane/codex-visuals · pass 4, batch P iteration 2
 
 - **Self-review:** read NEEDS YOU, P1, pass-3 entries and original handover boundaries. P4-P1 water/world ERRORS empty. Opened river-lake, gorge-flight, arch, bridge and their four details, powell-canyon-low, powell-mesa-aerial, powell-ring-detail, lake-shore-detail and desert-redrock; compared all six Powell/Navajo photos directly in viewer. Low canyon **3/10**, aerial/river detail **3/10**, gorge/detail **4/10**, arch/bridge detail **3/10**, ring **4/10**: welcome teal/ring, but grey high walls, green plateau, dense conifers, dark square rock facets and graphic silhouettes. Original river **1/10 presentation**, arch/bridge **0/10 presentation** (different landmark cameras buried; untouched). Separate seaplane shore **2/10**, Nevada redrock **2/10**, unchanged. Chief aggregate ~4/10 acknowledged. No outgoing score before new renders.
