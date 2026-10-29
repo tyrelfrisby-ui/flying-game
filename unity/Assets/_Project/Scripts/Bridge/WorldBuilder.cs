@@ -270,7 +270,7 @@ namespace FlyingGame.Bridge
         {
             var airportGrass = new Vector4[4];
             WorldTerrain.Strip grassStrip = WorldTerrain.AirportStrips[3];
-            for(int index=0;index<Math.Min(4,WorldTerrain.Airports.Length);index++)
+            for(int index=0;index<System.Math.Min(4,WorldTerrain.Airports.Length);index++)
             {
                 var airport=WorldTerrain.Airports[index];
                 airportGrass[index]=new Vector4((float)(airport.Y+grassStrip.Dy),(float)(airport.X+grassStrip.Dx),
