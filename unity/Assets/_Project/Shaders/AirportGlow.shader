@@ -15,8 +15,8 @@ Shader "FlyingGame/AirportGlow"
             #pragma fragment frag
             #include "UnityCG.cginc"
             float _AirportDusk, _ReflectionRendering, _HaloPixels, _SunsetOn, _CityNight, _AirportBeaconPreview, _AirportBeaconTime;
-            struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float4 color:COLOR; };
-            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float visible:TEXCOORD1; float2 opticalRadii:TEXCOORD2; };
+            struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float4 color:COLOR; float3 rowStep:TEXCOORD1; };
+            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float visible:TEXCOORD1; float2 opticalRadii:TEXCOORD2; float rowClarity:TEXCOORD3; };
             v2f vert(appdata v)
             {
                 v2f o;
@@ -50,13 +50,30 @@ Shader "FlyingGame/AirportGlow"
                 float haloPixels=lerp(5.0,7.0,quality)*resolutionScale;
                 haloPixels*=1+beacon*.45;
                 haloPixels=lerp(haloPixels,6.0*resolutionScale,papi);
+                // Only edge rows carry a 60 m world-space neighbour vector.
+                // Estimate the smaller projected interval on either side so the
+                // far, foreshortened row loses its skirt before becoming a rail.
+                o.rowClarity=1;
+                if(dot(v.rowStep,v.rowStep)>1)
+                {
+                    float3 delta=mul((float3x3)UNITY_MATRIX_V,mul((float3x3)unity_ObjectToWorld,v.rowStep));
+                    float4 centreClip=mul(UNITY_MATRIX_P,view);
+                    float4 nextClip=mul(UNITY_MATRIX_P,view+float4(delta,0));
+                    float4 prevClip=mul(UNITY_MATRIX_P,view-float4(delta,0));
+                    float2 centreNdc=centreClip.xy/max(.001,centreClip.w);
+                    float nextSpacing=length((nextClip.xy/max(.001,nextClip.w)-centreNdc)*_ScreenParams.xy*.5);
+                    float prevSpacing=length((prevClip.xy/max(.001,prevClip.w)-centreNdc)*_ScreenParams.xy*.5);
+                    float spacing=min(nextSpacing,prevSpacing);
+                    o.rowClarity=smoothstep(2*corePixels,4*haloPixels,spacing);
+                    haloPixels=lerp(corePixels*1.1,haloPixels,o.rowClarity);
+                }
                 // The physical floor may enlarge a nearby fixture, but cannot
                 // bypass the close-up screen cap. The pixel floor survives at range.
                 float physicalRadius=lerp(1.0,.35,papi);
                 float maxScreenFraction=lerp(.01,.0075,thresholdGreen);
                 maxScreenFraction=lerp(maxScreenFraction,.008,papi);
                 float screenLimit=metresPerPixel*_ScreenParams.y*maxScreenFraction;
-                float radius=min(max(physicalRadius,metresPerPixel*haloPixels),screenLimit);
+                float radius=min(max(physicalRadius,metresPerPixel*max(haloPixels,corePixels/.55)),screenLimit);
                 // Independent radii keep the bright disc 3-5 px across rather
                 // than shrinking it to ~1/10 of an already tiny halo card.
                 o.opticalRadii=float2(min(.55,metresPerPixel*corePixels/max(.001,radius)),
@@ -75,7 +92,10 @@ Shader "FlyingGame/AirportGlow"
                 float haloRadius=max(.001,i.opticalRadii.y);
                 float papi=step(.75,i.color.a)*(1-step(.9,i.color.a));
                 float core=exp(-.693147*radius2/(coreRadius*coreRadius))*2.7;
-                float skirt=exp(-3.0*radius2/(haloRadius*haloRadius))*lerp(.32,.20,papi);
+                // Keep the A8 half-maximum core size, but trim its faint
+                // outer tail in dense edge rows; PAPI/end/beacon are unchanged.
+                core*=lerp(1-smoothstep(1.0,2.25,radius2/(coreRadius*coreRadius)),1,i.rowClarity);
+                float skirt=lerp(.04,1,i.rowClarity)*exp(-3.0*radius2/(haloRadius*haloRadius))*lerp(.32,.20,papi);
                 float halo=(core+skirt)*(1-smoothstep(.75,1.0,radius2));
                 return float4(i.color.rgb*halo*strength*i.visible,0);
             }

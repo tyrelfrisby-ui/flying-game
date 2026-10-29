@@ -13,9 +13,9 @@ namespace FlyingGame.Bridge
         {
             var b = new SeasideBuilder.Batch();
             var lamps = new SeasideBuilder.Batch();
-            var glowPositions=new List<Vector3>(); var glowColours=new List<Color>(); var glowDirections=new List<Vector3>();
+            var glowPositions=new List<Vector3>(); var glowRowSteps=new List<Vector3>(); var glowColours=new List<Color>(); var glowDirections=new List<Vector3>();
             int signCount=0;
-            void Glow(Vector3 position,Color colour,Vector3 direction=default) { glowPositions.Add(position); glowColours.Add(colour); glowDirections.Add(direction); }
+            void Glow(Vector3 position,Color colour,Vector3 direction=default,Vector3 rowStep=default) { glowPositions.Add(position); glowColours.Add(colour); glowDirections.Add(direction); glowRowSteps.Add(rowStep); }
             void Sign(Vector3 position,string label,Color background,Color foreground,float width)
             {
                 AirportSign(b,parent,position,label,background,foreground,width); signCount++;
@@ -26,11 +26,11 @@ namespace FlyingGame.Bridge
             Vector3 P(double x, double y, double h=0) => U(x,y,z+h);
             void Stroke(double x0,double y0,double x1,double y1,float width,Color color)
                 => b.Beam(P(x0,y0,.105),P(x1,y1,.105),width,.018f,color);
-            void Lamp(Vector3 p,Color color)
+            void Lamp(Vector3 p,Color color,Vector3 rowStep=default)
             {
                 b.Box(p+Vector3.up*.15f,new Vector3(.26f,.3f,.26f),steel);
                 lamps.Box(p+Vector3.up*.35f,new Vector3(.46f,.22f,.46f),color);
-                Glow(p+Vector3.up*.42f,color);
+                Glow(p+Vector3.up*.42f,color,rowStep:rowStep);
             }
             // Existing pavement only. Curved parking lead-ins and a marked apron taxi lane.
             double laneX=ax+105;
@@ -94,7 +94,22 @@ namespace FlyingGame.Bridge
                         bool crossing=false;
                         foreach(WorldTerrain.Strip other in WorldTerrain.AirportStrips)
                             if(WorldTerrain.IsPaved(other.Kind)&&other.Kind!=s.Kind&&WorldTerrain.InStrip(a,other,p.z,p.x,1)) crossing=true;
-                        if(!crossing) Lamp(p,white);
+                        // The crosswind edge rows straddle the main PAPI station.
+                        // Leave a clear optical area around every four-box bank;
+                        // otherwise their omnidirectional white lamps look like extra PAPI units.
+                        bool besidePapi=false;
+                        foreach(WorldTerrain.Strip other in WorldTerrain.AirportStrips)
+                        {
+                            if(!WorldTerrain.IsPaved(other.Kind)) continue;
+                            double oh=other.HeadingDeg*Math.PI/180, oc=Math.Cos(oh), os=Math.Sin(oh);
+                            double dx=p.z-a.X-other.Dx, dy=p.x-a.Y-other.Dy;
+                            double along=dx*oc+dy*os, across=-dx*os+dy*oc;
+                            foreach(int approach in new[]{-1,1})
+                                if(Math.Abs(along-approach*(other.Length/2-300))<22 &&
+                                   across*approach>other.Width/2+2 && across*approach<other.Width/2+57)
+                                    besidePapi=true;
+                        }
+                        if(!crossing&&!besidePapi) Lamp(p,white,R(60,0)-R(0,0));
                     }
                     foreach(int end in new[]{-1,1})
                     {
@@ -245,7 +260,7 @@ namespace FlyingGame.Bridge
             beaconHead.AddComponent<AirportBeacon>();
             b.Build("AirportFurniture",parent,SeasideBuilder.VC);
             lamps.Build("AirportLenses",parent,_airportLamps);
-            AirportHalos(parent,glowPositions,glowColours,glowDirections);
+            AirportHalos(parent,glowPositions,glowColours,glowDirections,glowRowSteps);
             Debug.Log($"Airport visuals {a.Name}: {signCount} sign panels, 7 added hangar bays, 1 FBO, {glowPositions.Count} luminous fixtures; collider-free dressing.");
         }
 
@@ -268,21 +283,23 @@ namespace FlyingGame.Bridge
             return (float)(h11+(h01-h11)*(1-u)+(h10-h11)*(1-v));
         }
 
-        private static void AirportHalos(Transform parent,List<Vector3> centres,List<Color> colours,List<Vector3> directions)
+        private static void AirportHalos(Transform parent,List<Vector3> centres,List<Color> colours,List<Vector3> directions,List<Vector3> rowSteps)
         {
             int count=centres.Count;
             var vertices=new Vector3[count*4]; var normals=new Vector3[count*4];
+            var spacing=new List<Vector3>(count*4);
             var uv=new Vector2[count*4]; var coloursOut=new Color[count*4]; var triangles=new int[count*6];
             Vector2[] corners={new Vector2(-1,-1),new Vector2(-1,1),new Vector2(1,1),new Vector2(1,-1)};
             for(int k=0;k<count;k++)
             {
-                for(int j=0;j<4;j++) { int index=k*4+j; vertices[index]=centres[k]; normals[index]=directions[k]; uv[index]=corners[j]; coloursOut[index]=colours[k]; }
+                for(int j=0;j<4;j++) { int index=k*4+j; vertices[index]=centres[k]; normals[index]=directions[k]; uv[index]=corners[j]; coloursOut[index]=colours[k]; spacing.Add(rowSteps[k]); }
                 int v=k*4,t=k*6;
                 triangles[t]=v; triangles[t+1]=v+1; triangles[t+2]=v+2;
                 triangles[t+3]=v; triangles[t+4]=v+2; triangles[t+5]=v+3;
             }
             var mesh=new Mesh { name="Airport fixture halos" };
             mesh.vertices=vertices; mesh.normals=normals; mesh.uv=uv; mesh.colors=coloursOut; mesh.triangles=triangles;
+            mesh.SetUVs(1,spacing);
             mesh.RecalculateBounds(); var bounds=mesh.bounds; bounds.Expand(52); mesh.bounds=bounds;
             if(_airportGlow==null)
             {
