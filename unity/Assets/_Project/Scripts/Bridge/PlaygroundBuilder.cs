@@ -236,6 +236,7 @@ namespace FlyingGame.Bridge
         /// </summary>
         internal static void BuildCityGrid(CityGrid grid, WorldTerrain t, SeasideBuilder.Batch b, Transform parent)
         {
+            var facades = new UrbanFacades();
             Color[] walls = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.52f, 0.44f), new(0.86f, 0.86f, 0.88f) };
             var (ex0, ey0, ex1, ey1) = grid.Extent(100);
             var (cgx, cgy) = grid.Centre;
@@ -245,10 +246,16 @@ namespace FlyingGame.Bridge
             foreach (FlyCity.Tower tw in grid.Towers())
             {
                 double g = t.HeightAt(tw.Cx, tw.Cy);
-                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? new Color(.46f,.53f,.57f) : walls[System.Math.Min(tw.Style, 3)];
+                int archetype = (tw.I*3+tw.J*7)%4;
+                if(tw.HeightM>190 && tw.Style%2==0) archetype=0;
+                Color c = archetype == 0 ? new Color(.24f,.36f,.39f)
+                    : archetype == 1 ? Color.Lerp(new Color(.42f,.24f,.18f),new Color(.61f,.42f,.30f),tw.Style*.22f)
+                    : archetype == 2 ? new Color(.61f,.61f,.56f) : walls[System.Math.Min(tw.Style,3)];
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM / 2), new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2)), c, c * 0.8f);
                 Vector3 size = new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2));
-                b.Facade(U(tw.Cx, tw.Cy, g), size, Quaternion.identity, tw.Style);
+                facades.Add(U(tw.Cx,tw.Cy,g),size,archetype,tw.I*53+tw.J*19,c);
+                bool protectedLot = grid.PadLot.HasValue && tw.J == grid.PadLot.Value.j;
+                UrbanDressing.Lot(b,facades,U(tw.Cx,tw.Cy,g),size,tw.I,tw.J,archetype,protectedLot);
                 // Sidewalk block and roof membrane sit on the existing ground/roof, with no collision change.
                 b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(140, .16f, 140), new Color(.58f,.57f,.53f));
                 // Landscaped inset beds make the 140 m lots read as blocks around the existing towers.
@@ -277,6 +284,8 @@ namespace FlyingGame.Bridge
                 if (tw.HeightM > 90)
                     b.Box(U(tw.Cx, tw.Cy, g + 6), new Vector3(size.x + .2f, .35f, size.z + .2f), c * .85f);
             }
+            facades.Build(parent);
+            UrbanDressing.Streets(grid,g0,b);
             foreach (var (a, n, h) in grid.SkyBridges())
             {
                 double g = t.HeightAt(a.Cx, a.Cy);

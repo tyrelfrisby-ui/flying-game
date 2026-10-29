@@ -412,6 +412,7 @@ namespace FlyingGame.Bridge
         private static void BuildAvalon(WorldTerrain t, Transform parent)
         {
             var b = new Batch();
+            var facades = new UrbanFacades();
             double ax = Island.AvalonX, ay = Island.AvalonY, R = Island.AvalonCoveR;
             // The Casino: round, white, red-tile roof, on the bay's north point.
             var (kx, ky) = Island.CasinoXY;
@@ -433,7 +434,7 @@ namespace FlyingGame.Bridge
                 Color wall = rng.NextDouble() < 0.7 ? Stucco : new Color(0.95f, 0.84f, 0.7f);
                 Quaternion q = Quaternion.Euler(0, yaw, 0);
                 b.Box(U(hx, hy, hg + hh / 2 - 1), new Vector3(w, hh + 2, l), q, wall, Tile);
-                b.Facade(U(hx, hy, hg - 2), new Vector3(w, hh + 2, l), q, i);
+                facades.Add(U(hx,hy,hg-2),new Vector3(w,hh+2,l),4,i*17,wall,q);
                 // Gabled clay/slate roof; original house footprint and wall height remain unchanged.
                 Vector3 centre = U(hx, hy, hg + hh);
                 Vector3 P(float x, float y, float z) => centre + q * new Vector3(x,y,z);
@@ -470,6 +471,7 @@ namespace FlyingGame.Bridge
                 b.Box(U(bx, by, 0.6), new Vector3(len * 0.32f, 1.6f, len), q, Color.white, new Color(0.85f, 0.8f, 0.7f));
                 if (rng.NextDouble() < 0.5) b.Box(U(bx, by, 6), new Vector3(0.2f, 10f, 0.2f), q, new Color(0.85f, 0.85f, 0.85f));
             }
+            facades.Build(parent);
             b.Build("Avalon", parent, VC);
         }
 

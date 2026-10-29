@@ -21,7 +21,7 @@ Shader "FlyingGame/LitVC"
 
             fixed4 _Color;
             float4 _BubbleSunDir;
-            float _SunsetOn, _ReflectionRendering;
+            float _SunsetOn, _ReflectionRendering, _CityNight;
             float4 _ReflectionClip;
 
             v2f vert (appdata v)
@@ -42,6 +42,10 @@ Shader "FlyingGame/LitVC"
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(n, l));
                 fixed4 c = fixed4(i.c.rgb * _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.53,.51,.54), float3(.64,.65,.73), n.y * .5 + .5) + float3(.65,.43,.24)*d, _SunsetOn), 1.0);
+                // Only the night fixture enables this. Alpha zero marks city lamp/beacon heads;
+                // ordinary vertex colours retain alpha one and the day expression above is unchanged.
+                float emission = saturate(1-i.c.a);
+                c.rgb = lerp(c.rgb, c.rgb*.085 + i.c.rgb*emission, _CityNight);
                 UNITY_APPLY_FOG(i.fogCoord, c);
                 return c;
             }

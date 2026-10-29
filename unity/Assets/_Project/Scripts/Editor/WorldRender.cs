@@ -79,6 +79,14 @@ namespace FlyingGame.EditorTools
             var (baseX,baseY) = FlyingGame.Core.WorldTerrain.BaseShore;
             double inland = FlyingGame.Core.WorldTerrain.BaseInland;
             double baseTop = FlyingGame.Core.WorldTerrain.BasePadHeightM;
+            // Street cameras stand on the city road slab, whose elevation follows the grid centre.
+            // Sampling only the old world camera coordinate placed both cameras underneath that slab.
+            Vector3 Street(double u, double v)
+            {
+                var p = city.Map(u,v); var centre = city.Centre;
+                double road = System.Math.Max(terrain.HeightAt(p.x,p.y),terrain.HeightAt(centre.x,centre.y)+.08);
+                return WorldBuilder.U(p.x,p.y,road+2);
+            }
             (string name, Vector3 pos, Vector3 look)[] views =
             {
                 ("city-facade-detail", Outside(city.PadTower.Cx-260,city.PadTower.Cy-240,padH-50), WorldBuilder.U(city.PadTower.Cx,city.PadTower.Cy,padH-80)),
@@ -111,12 +119,16 @@ namespace FlyingGame.EditorTools
                 ("sky-horizon-detail", new Vector3(2900f, 500f, -1200f), new Vector3(2000f, 650f, -1700f)),
                 ("overview", new Vector3(9000f, 9000f, -9000f), new Vector3(-3500f, 800f, 1500f)),
                 ("valley-city", new Vector3(2400f, 750f, 200f), new Vector3(900f, 350f, -1500f)),
+                ("valley-city-night", new Vector3(2400f,750f,200f),new Vector3(900f,350f,-1500f)),
+                ("town-night", new Vector3(1160f,650f,-3700f),new Vector3(1160f,400f,-1750f)),
+                ("overview-night",new Vector3(9000f,9000f,-9000f),new Vector3(-3500f,800f,1500f)),
+                ("city-street-night",Street(425,510),Street(425,900)),
                 ("valley-pad", new Vector3(1700f, 650f, -3300f), new Vector3(900f, 500f, -2850f)),
                 ("topdown", new Vector3(-1500f, 17000f, 900f), new Vector3(-1500f, 0f, 910f)),
                 ("topdown-valley", new Vector3(900f, 7500f, 600f), new Vector3(900f, 0f, 610f)),
                 ("gorge-flight", new Vector3(-400f, 420f, 1650f), new Vector3(900f, 200f, 1700f)),
                 ("hills", new Vector3(2900f, 500f, -1200f), new Vector3(2000f, 300f, -1700f)),
-                ("valley-city-street", new Vector3(1900f, 280f, -1200f), new Vector3(1000f, 200f, -2200f)),
+                ("valley-city-street", Street(425,510), Street(425,900)),
                 ("valley-airport", new Vector3(1200f, 700f, -1600f), new Vector3(0f, 0f, 400f)),
                 ("first-wall", new Vector3(2500f, 1500f, -2500f), new Vector3(-1800f, 450f, 1000f)),
                 ("summit-airport", new Vector3(-7000f, 3500f, -1800f), new Vector3(-8900f, 2700f, 400f)),
@@ -136,7 +148,7 @@ namespace FlyingGame.EditorTools
                 ("arch", new Vector3(-1250f, 120f, 1300f), new Vector3(-900f, 120f, 1740f)),
                 ("eiffel", new Vector3(-600f, 120f, -2500f), new Vector3(-1000f, 120f, -1750f)),
                 ("town", new Vector3(1160f, 400f, -3700f), new Vector3(1160f, 60f, -1750f)),
-                ("town-street", new Vector3(1170f, 40f, -3000f), new Vector3(1170f, 60f, -1500f)),
+                ("town-street", Street(85,340), Street(85,700)),
                 // Plunge waterfall at the first wall (sim x 1849, lip y −2002): front, from inside the slot, and the lip.
                 ("waterfall-front", new Vector3(-1350f, 520f, 2350f), new Vector3(-1985f, 380f, 1849f)),
                 ("waterfall-slot", new Vector3(-2030f, 350f, 1480f), new Vector3(-2030f, 330f, 2200f)),
@@ -211,11 +223,27 @@ namespace FlyingGame.EditorTools
                 var (cx, cy, ch, _) = FlyingGame.Core.Carrier.PoseAt(20);
                 carrier.transform.SetPositionAndRotation(WorldBuilder.U(cx, cy, 0), Quaternion.Euler(0f, (float)(ch * Mathf.Rad2Deg), 0f));
             }
+            // Fixture-only exposure for shaders that bake their own daylight rather than using Unity lights.
+            // Restore exact shared material colours for every day plate; no terrain/airport source changes.
+            var nightTints = new System.Collections.Generic.List<(Material material,string property,Color colour)>();
+            var seenMaterials = new System.Collections.Generic.HashSet<Material>();
+            foreach(var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            foreach(var material in renderer.sharedMaterials)
+            {
+                if(material==null || !seenMaterials.Add(material) || material.shader.name=="FlyingGame/LitVC") continue;
+                foreach(string property in new[] { "_Color", "_SkyColor" })
+                    if(material.HasProperty(property)) nightTints.Add((material,property,material.GetColor(property)));
+            }
             string onlyViews = System.Environment.GetEnvironmentVariable("WORLD_VIEWS");
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
+                bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");
+                foreach(var tint in nightTints)
+                    tint.material.SetColor(tint.property,night ? tint.colour*new Color(.075f,.095f,.14f,1) : tint.colour);
+                RenderSettings.fog = false;
+                cam.clearFlags = CameraClearFlags.Skybox;
                 if (dusk)
                 {
                     var sun = new GameObject("DuskSun").AddComponent<Light>();
@@ -224,6 +252,15 @@ namespace FlyingGame.EditorTools
                     Shader.SetGlobalFloat("_AirportDusk", .78f);
                 }
                 else { SunsetLighting.ApplyDay(); Shader.SetGlobalFloat("_AirportDusk", 0); }
+                Shader.SetGlobalFloat("_CityNight",night?1:0);
+                if(night)
+                {
+                    cam.clearFlags=CameraClearFlags.SolidColor;
+                    cam.backgroundColor=new Color(.012f,.018f,.032f);
+                    RenderSettings.fog=true; RenderSettings.fogMode=FogMode.Exponential;
+                    RenderSettings.fogDensity=.00028f;
+                    RenderSettings.fogColor=new Color(.028f,.031f,.043f);
+                }
                 cam.GetComponent<Skybox>().material = RenderSettings.skybox;
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
                 // The forest is streamed round the camera in the game, and nothing streams in a batch render,
@@ -240,6 +277,9 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(forest);
             }
             Shader.SetGlobalFloat("_AirportDusk", 0);
+            Shader.SetGlobalFloat("_CityNight",0);
+            foreach(var tint in nightTints) tint.material.SetColor(tint.property,tint.colour);
+            RenderSettings.fog=false;
             SunsetLighting.ApplyDay();
             RenderTexture.active = null;
             Debug.Log($"WorldRender: wrote {views.Length} images to {outDir}");

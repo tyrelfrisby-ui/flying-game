@@ -19,6 +19,7 @@ namespace FlyingGame.Bridge
 
         public static void ApplyDay()
         {
+            Shader.SetGlobalFloat("_CityNight", 0);
             Shader.SetGlobalFloat("_SunsetOn", 0);
             ConfigureDayAtmosphere();
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(.4f, .8f, -.4f).normalized);
