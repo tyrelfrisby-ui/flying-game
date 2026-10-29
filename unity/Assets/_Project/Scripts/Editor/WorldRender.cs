@@ -33,7 +33,7 @@ namespace FlyingGame.EditorTools
                 return index >= 0 && index + 1 < args.Length ? args[index + 1] : fallback;
             }
             SunsetLighting.ConfigureDayAtmosphere(ReadAtmosphere("-skyQuality", "Balanced"),
-                float.Parse(ReadAtmosphere("-hazeDensity", "0.000065"), System.Globalization.CultureInfo.InvariantCulture),
+                float.Parse(ReadAtmosphere("-hazeDensity", "0.000052"), System.Globalization.CultureInfo.InvariantCulture),
                 float.Parse(ReadAtmosphere("-hazeClearRange", "850"), System.Globalization.CultureInfo.InvariantCulture));
 
             var camGo = new GameObject("RenderCam");

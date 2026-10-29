@@ -119,9 +119,12 @@ Shader "FlyingGame/Water"
                                 float taxiSide = dot(taxiDelta, across);
                                 float spread = origin.z * .55 + max(0,taxiAft) * .42;
                                 float edge = abs(taxiSide) - spread;
-                                float envelope = exp(-edge*edge/.22) * exp(-max(0,taxiAft)/9)
+                                float envelope = exp(-edge*edge/.22) * exp(-max(0,taxiAft)/5)
                                     * smoothstep(-.8,.6,taxiAft);
-                                float oscillation = sin(edge*9-t*.9);
+                                // Short curved shoulders, with a little irregular spacing rather
+                                // than ruler-straight rails stretching through the whole frame.
+                                float oscillation = sin(edge*9 + .22*sin(taxiAft*1.4)-t*.9);
+                                envelope *= 1-smoothstep(9,17,taxiAft);
                                 taxiGlint = max(taxiGlint, envelope * pow(saturate(oscillation),6)
                                     * .18 * saturate(motion.z/2.5));
                                 float bow = exp(-taxiSide*taxiSide/max(.1,origin.z*origin.z)

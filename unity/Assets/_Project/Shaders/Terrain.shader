@@ -84,14 +84,17 @@ Shader "FlyingGame/Terrain"
                 else
                 {
                     col*=1-.12*(1-fieldInterior)*saturate(i.c.a);
-                    // Height-dependent optical depth: distant ridges lose contrast and become blue.
+                    // Optical depth along the viewing segment through an exponential
+                    // blue atmosphere. Vertical top-down paths should not fog like
+                    // equally long horizontal valley paths.
                     float distanceM=length(i.wp-_WorldSpaceCameraPos);
-                    // Preserve local contrast; optical depth accrues only beyond the clear range.
-                    // Average ray altitude reduces haze in elevated/top-down views.
-                    float altitude=max(0,(i.wp.y+_WorldSpaceCameraPos.y)*.5);
-                    // Gradually strengthen long paths, retaining the clear near field.
                     float path=max(0,distanceM-_DayAtmosphere.y);
-                    float optical=path*_DayAtmosphere.x*(1+smoothstep(1500,9000,path)*.75)*exp(-altitude*.00009);
+                    float lowAltitude=max(0,min(i.wp.y,_WorldSpaceCameraPos.y));
+                    float altitudeSpan=abs(i.wp.y-_WorldSpaceCameraPos.y);
+                    float scaledSpan=altitudeSpan*.00032;
+                    float meanDensity=exp(-lowAltitude*.00032)
+                        *(1-exp(-max(.001,scaledSpan)))/max(.001,scaledSpan);
+                    float optical=path*_DayAtmosphere.x*meanDensity;
                     float haze=1-exp(-optical);
                     col=lerp(col,float3(.32,.49,.68),haze);
                 }

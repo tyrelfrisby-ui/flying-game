@@ -132,7 +132,7 @@ namespace FlyingGame.EditorTools
                 Shader.SetGlobalFloat("_SunsetOn", 0); Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
                 if (sunset) BuildSunsetShore(); else WorldBuilder.BuildAll();
                 SunsetLighting.ConfigureDayAtmosphere(Read("-skyQuality", "Balanced"),
-                    float.Parse(Read("-hazeDensity", "0.000065"), System.Globalization.CultureInfo.InvariantCulture),
+                    float.Parse(Read("-hazeDensity", "0.000052"), System.Globalization.CultureInfo.InvariantCulture),
                     float.Parse(Read("-hazeClearRange", "850"), System.Globalization.CultureInfo.InvariantCulture));
                 RenderSettings.fog = false;
                 RenderSettings.ambientLight = new Color(.65f, .7f, .78f);
@@ -191,13 +191,13 @@ namespace FlyingGame.EditorTools
                 if (displacement && !calm)
                 {
                     offsets[0] = new Vector3(12, 3, 13);
-                    offsets[1] = new Vector3(-7, 3, -10);
+                    offsets[1] = new Vector3(-10, 6, -13);
                     offsets[2] = new Vector3(7, 2, 6);
                 }
                 var names = new[] { "spray", "wake", "bow" };
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? (displacement ? -7 : -24) : 0));
+                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? (displacement ? -3 : -24) : 0));
                     Call(reflection, "OnPreCull");
                     camera.Render(); RenderTexture.active = rt;
                     var tex = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
@@ -241,18 +241,41 @@ namespace FlyingGame.EditorTools
                     File.WriteAllBytes(Path.Combine(output,"sunset.png"),photo.EncodeToPNG());
                     WriteComparison(photo, output);
                     UnityEngine.Object.DestroyImmediate(photo);
-                    // Photo camera: fixed close position relative to the left float tail.
-                    // Allow wing tips beyond the crop; retain room vertically for the mirror.
-                    // Chief must verify the crop on each airframe.
-                    float floatTail = (float)(cfg.Floats.BowX - cfg.Floats.LengthM);
-                    Vector3 leftTail = root.transform.TransformPoint(new Vector3(
-                        -(float)cfg.Floats.SpreadM * .5f, 0, floatTail));
-                    camera.fieldOfView = 94;
-                    camera.transform.position = new Vector3(leftTail.x - 2.5f,
-                        (float)lake.SurfaceM + 1, leftTail.z - 4);
-                    camera.transform.LookAt(new Vector3(at.x + .3f,
-                        (float)lake.SurfaceM + .55f, at.z + 1));
-                    Debug.Log($"WaterRender hero: camera={camera.transform.position}, leftTail={leftTail}, water={lake.SurfaceM}, fov={camera.fieldOfView}");
+                    // Low rear-quarter photo pose. Fit only airframe mesh renderers:
+                    // particle bounds can otherwise force the camera far out of the scene.
+                    var heroBounds = new Bounds(at, Vector3.zero);
+                    foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+                        heroBounds.Encapsulate(r.bounds);
+                    camera.fieldOfView = 88;
+                    Vector3 aim = new Vector3(heroBounds.center.x,
+                        (float)lake.SurfaceM + .55f, heroBounds.center.z);
+                    Vector3 rear = new Vector3(-.16f, 0, -1).normalized;
+                    float heroDistance = 7;
+                    for (int fit = 0; fit < 48; fit++)
+                    {
+                        camera.transform.position = aim + rear * heroDistance;
+                        camera.transform.position = new Vector3(camera.transform.position.x,
+                            (float)lake.SurfaceM + 1, camera.transform.position.z);
+                        camera.transform.LookAt(aim);
+                        bool fits = true;
+                        // Include the complete mirrored envelope as well as the aircraft.
+                        for (int corner = 0; corner < 8; corner++)
+                        {
+                            Vector3 point = heroBounds.center + Vector3.Scale(heroBounds.extents,
+                                new Vector3((corner & 1) == 0 ? -1 : 1,
+                                    (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                            for (int mirror = 0; mirror < 2; mirror++)
+                            {
+                                Vector3 projected = camera.WorldToViewportPoint(point);
+                                fits &= projected.z > .2f && projected.x > .035f && projected.x < .965f
+                                    && projected.y > .035f && projected.y < .965f;
+                                point.y = 2 * (float)lake.SurfaceM - point.y;
+                            }
+                        }
+                        if (fits) break;
+                        heroDistance *= 1.045f;
+                    }
+                    Debug.Log($"WaterRender hero: camera={camera.transform.position}, distance={heroDistance}, bounds={heroBounds}, water={lake.SurfaceM}, fov={camera.fieldOfView}");
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
                     hero.ReadPixels(new Rect(0,0,1000,1600),0,0); hero.Apply();
