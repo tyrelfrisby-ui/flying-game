@@ -121,7 +121,8 @@ namespace FlyingGame.Bridge
                 float speed = (float)f.SpeedMs;
                 Vector3 origin = CoordinateMap.ToUnity(f.StepWorld);
                 float load = Mathf.Clamp01((float)(f.PlaningLiftN + f.BuoyancyN) / 1500f);
-                _foamOrigins[i] = new Vector4(origin.x, origin.z, beam, load * Mathf.InverseLerp(2, 10, speed));
+                // Displacement taxi keeps solver ripples without cosmetic step whitewater.
+                _foamOrigins[i] = new Vector4(origin.x, origin.z, beam, load * Mathf.InverseLerp(4, 10, speed));
                 _foamMotion[i] = new Vector4(forward.x, forward.z, speed, floats == 1 ? 0 : i == 0 ? -1 : 1);
                 bool planing = f.PlaningLiftN > f.BuoyancyN && speed > 4f;
                 // Height pushed per step: a displacement hull heaps water at the bow; planing, the step throws the bigger

@@ -47,13 +47,13 @@ namespace FlyingGame.EditorTools
                 for(int row=0;row<4;row++)
                 {
                     float cluster=.5f+.5f*Mathf.Sin(i*.23f);
-                    float h=5+cluster*12+(float)rng.NextDouble()*13;
+                    float h=7+cluster*9+(float)rng.NextDouble()*10;
                     float depth=row*48+(float)rng.NextDouble()*43;
                     Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*25,.3f*Mathf.Sin(i*.67f+row),z+6+depth);
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
-                        float radius=h*(.21f-crown*.020f)*( .8f+(float)rng.NextDouble()*.4f);
+                        float radius=h*(.28f-crown*.026f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
                         for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});
@@ -72,11 +72,11 @@ namespace FlyingGame.EditorTools
                 verts.Add(origin+new Vector3(x,crest,710));
                 if(i>0) { int n=i*2; tris.AddRange(new[]{n-2,n-1,n,n,n-1,n+1}); }
             }
-            var haze = WorldBuilder.Mat("FlyingGame/Lit",new Color(.30f,.31f,.29f));
+            var haze = WorldBuilder.Mat("FlyingGame/Lit",new Color(.35f,.32f,.29f));
             SpawnMesh("Distant shore haze",verts.ToArray(),tris.ToArray(),haze,parent);
         }
 
-        static void WriteComparison(Texture2D render, string output)
+        static void WriteComparison(Texture2D render, string output, string filename = "reference-left-render-right.png")
         {
             string reference = Path.GetFullPath(Path.Combine(Application.dataPath,"../../docs/refs/target-look-sunset-floatplane.png"));
             if (!File.Exists(reference)) throw new FileNotFoundException("Sunset comparison reference missing",reference);
@@ -94,7 +94,7 @@ namespace FlyingGame.EditorTools
                 float ry=((y-height*.5f)/(width*1.6f))+.5f;
                 board.SetPixel(x+width,y,ry>=0 && ry<=1 ? render.GetPixelBilinear((x+.5f)/width,ry) : Color.black);
             }
-            board.Apply(); File.WriteAllBytes(Path.Combine(output,"reference-left-render-right.png"),board.EncodeToPNG());
+            board.Apply(); File.WriteAllBytes(Path.Combine(output,filename),board.EncodeToPNG());
             UnityEngine.Object.DestroyImmediate(board); UnityEngine.Object.DestroyImmediate(photo);
         }
 
@@ -111,15 +111,21 @@ namespace FlyingGame.EditorTools
                 string output = Path.GetFullPath(Read("-out", "build/renders/water"));
                 bool sunset = Read("-preset", "day") == "sunset";
                 bool calm = Array.IndexOf(args, "-calm") >= 0;
-                float speed = float.Parse(Read("-speed", calm ? "0" : "18"), System.Globalization.CultureInfo.InvariantCulture);
                 string id = Read("-aircraft", "j3-cub-floats-like");
                 float throttle = float.Parse(Read("-throttle", calm ? "0" : "1"), System.Globalization.CultureInfo.InvariantCulture);
+                // Explicit tow speed wins; zero throttle alone represents slow displacement taxi.
+                float speed = float.Parse(Read("-speed", calm ? "0" : throttle <= 0 ? "2.5" : "18"), System.Globalization.CultureInfo.InvariantCulture);
+                bool displacement = speed < 4;
+                Debug.Log($"WaterRender fixture: speed={speed} m/s throttle={throttle} displacement={displacement}");
                 float lift = float.Parse(Read("-lift", "0"), System.Globalization.CultureInfo.InvariantCulture);
                 Directory.CreateDirectory(output);
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 WorldTerrain.Active = new WorldTerrain();
                 Shader.SetGlobalFloat("_SunsetOn", 0); Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
                 if (sunset) BuildSunsetShore(); else WorldBuilder.BuildAll();
+                SunsetLighting.ConfigureDayAtmosphere(Read("-skyQuality", "Balanced"),
+                    float.Parse(Read("-hazeDensity", "0.000038"), System.Globalization.CultureInfo.InvariantCulture),
+                    float.Parse(Read("-hazeClearRange", "850"), System.Globalization.CultureInfo.InvariantCulture));
                 RenderSettings.fog = false;
                 RenderSettings.ambientLight = new Color(.65f, .7f, .78f);
                 var sun = new GameObject("Sun").AddComponent<Light>();
@@ -139,7 +145,7 @@ namespace FlyingGame.EditorTools
                 for (int frame = 0; frame < 960; frame++)
                 {
                     double north = lake.Cx + (frame - 959) * speed / 60;
-                    var attitude = new Quat(0, Math.Sin((calm ? 0 : 3) * Math.PI / 360), 0, Math.Cos((calm ? 0 : 3) * Math.PI / 360));
+                    var attitude = new Quat(0, Math.Sin((displacement ? 0 : 3) * Math.PI / 360), 0, Math.Cos((displacement ? 0 : 3) * Math.PI / 360));
                     var state = new RigidBodyState(new Vec3(north, lake.Cy, -lake.SurfaceM - cfg.Floats.KeelZ + .13 - lift), attitude, new Vec3(speed, 0, 0), Vec3.Zero);
                     var ac = new Aircraft(cfg, state, ControlDeflections.Neutral);
                     ac.SetReplayPose(state, ControlDeflections.Neutral, throttle, 0, 1, 1);
@@ -174,10 +180,16 @@ namespace FlyingGame.EditorTools
                 var rt = new RenderTexture(1600, 1000, 24); camera.targetTexture = rt;
                 Vector3 at = root.transform.position;
                 var offsets = new[] { new Vector3(15, 5, 15), new Vector3(30, 40, -45), new Vector3(7, 2, 6) };
+                if (displacement && !calm)
+                {
+                    offsets[0] = new Vector3(12, 3, 13);
+                    offsets[1] = new Vector3(15, 18, -22);
+                    offsets[2] = new Vector3(7, 2, 6);
+                }
                 var names = new[] { "spray", "wake", "bow" };
                 for (int i = 0; i < offsets.Length; i++)
                 {
-                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? -24 : 0));
+                    camera.transform.position = at + offsets[i]; camera.transform.LookAt(at + new Vector3(0, -1, i == 1 ? (displacement ? -7 : -24) : 0));
                     Call(reflection, "OnPreCull");
                     camera.Render(); RenderTexture.active = rt;
                     var tex = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
@@ -221,6 +233,39 @@ namespace FlyingGame.EditorTools
                     File.WriteAllBytes(Path.Combine(output,"sunset.png"),photo.EncodeToPNG());
                     WriteComparison(photo, output);
                     UnityEngine.Object.DestroyImmediate(photo);
+                    // Additional low rear-quarter hero: fit both real and mirrored bounds.
+                    // Fit projected corners, not just world X width, for wider types and near-wing perspective.
+                    camera.fieldOfView = 64;
+                    Vector3 heroCentre = aircraftBounds.center;
+                    heroCentre.y = (float)lake.SurfaceM + .25f;
+                    Vector3 rearQuarter = new Vector3(-.56f, 0, -.83f).normalized;
+                    float heroDistance = Mathf.Max(6, aircraftBounds.size.x * .65f);
+                    for (int fit = 0; fit < 60; fit++)
+                    {
+                        camera.transform.position = heroCentre + rearQuarter * heroDistance;
+                        camera.transform.position = new Vector3(camera.transform.position.x, (float)lake.SurfaceM + 1, camera.transform.position.z);
+                        camera.transform.LookAt(heroCentre);
+                        bool fits = true;
+                        for (int corner = 0; corner < 8; corner++)
+                        {
+                            Vector3 point = aircraftBounds.center + Vector3.Scale(aircraftBounds.extents,
+                                new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                            for (int mirror = 0; mirror < 2; mirror++)
+                            {
+                                if (mirror == 1) point.y = 2 * (float)lake.SurfaceM - point.y;
+                                Vector3 uv = camera.WorldToViewportPoint(point);
+                                if (uv.z <= camera.nearClipPlane || uv.x < .055f || uv.x > .945f || uv.y < .055f || uv.y > .945f) fits = false;
+                            }
+                        }
+                        if (fits) break;
+                        heroDistance *= 1.035f;
+                    }
+                    Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
+                    var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
+                    hero.ReadPixels(new Rect(0,0,1000,1600),0,0); hero.Apply();
+                    File.WriteAllBytes(Path.Combine(output,"sunset-hero.png"),hero.EncodeToPNG());
+                    WriteComparison(hero, output, "reference-left-hero-right.png");
+                    UnityEngine.Object.DestroyImmediate(hero);
                     camera.targetTexture = null; RenderTexture.active = null;
                     portrait.Release(); UnityEngine.Object.DestroyImmediate(portrait);
                 }

@@ -141,7 +141,7 @@ Shader "FlyingGame/Water"
                 float ndv = saturate(dot(n, v));
                 float fresnel = .0204 + .9796 * pow(1.0 - ndv, 5.0);
 
-                float3 refl = _SkyColor.rgb;
+                float3 refl = DaySky(reflect(-v,n));
                 if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
                 if (_ReflOn > 0.5 && abs(i.wp.y - _ReflPlaneY) < 1.5)
                 {
@@ -168,7 +168,7 @@ Shader "FlyingGame/Water"
                 float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
                 // A calm sunset lake reflects the luminous deck well into the foreground.
                 // Keep silhouettes and sky on the same reflection weight; no additive sky wash.
-                float mirror = lerp(fresnel, max(fresnel, .72 + .22 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
+                float mirror = lerp(fresnel, max(fresnel, .91 + .07 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
                 float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.

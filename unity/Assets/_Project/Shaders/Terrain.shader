@@ -19,6 +19,7 @@ Shader "FlyingGame/Terrain"
             fixed4 _Color; float4 _BubbleSunDir;
             float _SunsetOn, _ReflectionRendering;
             float4 _ReflectionClip;
+            float4 _DayAtmosphere;
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -85,8 +86,12 @@ Shader "FlyingGame/Terrain"
                     col*=1-.12*(1-fieldInterior)*saturate(i.c.a);
                     // Height-dependent optical depth: distant ridges lose contrast and become blue.
                     float distanceM=length(i.wp-_WorldSpaceCameraPos);
-                    float haze=1-exp(-distanceM*.000055*exp(-max(0,i.wp.y)*.00014));
-                    col=lerp(col,float3(.67,.77,.86),haze);
+                    // Preserve local contrast; optical depth accrues only beyond the clear range.
+                    // Average ray altitude reduces haze in elevated/top-down views.
+                    float altitude=max(0,(i.wp.y+_WorldSpaceCameraPos.y)*.5);
+                    float optical=max(0,distanceM-_DayAtmosphere.y)*_DayAtmosphere.x*exp(-altitude*.00022);
+                    float haze=1-exp(-optical);
+                    col=lerp(col,float3(.32,.49,.68),haze);
                 }
                 return fixed4(col * _Color.rgb, 1);
             }
