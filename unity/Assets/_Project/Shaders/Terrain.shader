@@ -36,6 +36,13 @@ Shader "FlyingGame/Terrain"
                 return lerp(lerp(hashTerrain(q),hashTerrain(q+float2(1,0)),f.x),
                             lerp(hashTerrain(q+float2(0,1)),hashTerrain(q+1),f.x),f.y);
             }
+            // Value noise has detail within each lattice cell. Remove its contrast
+            // before a cell falls below four pixels, for colour AND optical normals.
+            float filteredTerrain(float2 p)
+            {
+                float footprint=max(length(ddx(p)),length(ddy(p)));
+                return lerp(.5,noiseTerrain(p),1-smoothstep(.125,.25,footprint));
+            }
             fixed4 frag (v2f i, float facing : VFACE) : SV_Target
             {
                 // Explicit world-space half-space rejects submerged terrain even at grazing angles.
@@ -68,26 +75,23 @@ Shader "FlyingGame/Terrain"
                     // unlike an xz-only texture they do not stretch across near-vertical faces.
                     float3 weights=pow(abs(n),float3(4,4,4));
                     weights/=max(.001,weights.x+weights.y+weights.z);
-                    float rockGrain=noiseTerrain(i.wp.xz*.075)*weights.y;
-                    rockGrain+=noiseTerrain(i.wp.zy*float2(.065,.095))*weights.x;
-                    rockGrain+=noiseTerrain(i.wp.xy*float2(.065,.095))*weights.z;
-                    // Gravity projected into the macro tangent plane. Across-flow distance is
-                    // world anchored; the long axis follows the actual downhill slope, not world Y.
-                    float2 downhill=length(macroNormal.xz) > .001
-                        ? normalize(macroNormal.xz) : float2(1,0);
-                    float2 across=float2(-downhill.y,downhill.x);
-                    float3 flow=normalize(float3(downhill.x*macroNormal.y,
-                        -length(macroNormal.xz),downhill.y*macroNormal.y));
-                    float along=dot(i.wp,flow);
-                    float crossFlow=dot(i.wp.xz,across);
-                    float warp=noiseTerrain(float2(crossFlow*.004,along*.0018));
-                    // 20–60 m ribs, hundreds of metres downhill. Two scales avoid a comb.
-                    float drainage=noiseTerrain(float2(crossFlow*.026+warp*.85,along*.0015));
+                    float rockGrain=filteredTerrain(i.wp.xz*.075)*weights.y;
+                    rockGrain+=filteredTerrain(i.wp.zy*float2(.065,.095))*weights.x;
+                    rockGrain+=filteredTerrain(i.wp.xy*float2(.065,.095))*weights.z;
+                    // Fixed world projections: rotating a world-position dot product by
+                    // the varying slope normal made coordinates race across every face.
+                    // Blend stationary side fields instead. 42 m cross-slope cells and
+                    // 125 m vertical cells give soft, approximately 3:1 drainage ribs.
+                    float sideWeight=weights.x/max(.001,weights.x+weights.z);
+                    float drainage=lerp(filteredTerrain(i.wp.xy*float2(.024,.008)+13.7),
+                        filteredTerrain(i.wp.zy*float2(.024,.008)+31.2),sideWeight);
                     float fine=rockGrain;
                     if (_DayAtmosphere.z > .5)
-                        fine=noiseTerrain(float2(crossFlow*.052+warp,along*.0035+19));
-                    float channel=1-smoothstep(.25,.57,drainage);
-                    float tributary=1-smoothstep(.30,.60,fine);
+                        fine=lerp(filteredTerrain(i.wp.xy*float2(.045,.015)+7.1),
+                            filteredTerrain(i.wp.zy*float2(.045,.015)+23.6),sideWeight);
+                    // Broad soft channels, no absolute-value/height contour functions.
+                    float channel=1-smoothstep(.22,.72,drainage);
+                    float tributary=1-smoothstep(.22,.72,fine);
                     float gully=saturate(channel*.84+tributary*channel*.16+hollow*.16);
                     // Recover the substrate hidden by the old vertex snow, then deposit snow by
                     // altitude, aspect and concavity. Ice metadata bypasses this reconstruction.
@@ -112,37 +116,39 @@ Shader "FlyingGame/Terrain"
                     float talus=hollow*smoothstep(.60,.82,macroNormal.y)
                         *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
                     albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
-                    float bed=i.wp.y*.022+broad*.60+ground.x*.00035;
-                    float band=sin(bed)/(1+fwidth(bed)*2);
-                    albedo*=1+(broad-.5)*.18+(rockGrain-.5)*.25;
-                    // World-height stratigraphy: distinct cream/tan/rust/grey beds,
-                    // with broad unequal packages rather than faint equal sine stripes.
-                    float package=noiseTerrain(float2(bed*.35,7.3));
-                    float3 strata=lerp(float3(.52,.30,.19),float3(.72,.60,.43),
-                        smoothstep(-.65,.35,band));
-                    strata=lerp(strata,float3(.43,.42,.39),
-                        smoothstep(.60,.78,package)*smoothstep(-.3,.6,band));
-                    float darkBed=(1-smoothstep(-.80,-.40,band))*cliff;
-                    strata*=1-darkBed*.34;
-                    albedo=lerp(albedo,strata*(.87+rockGrain*.26),redrock*.82);
-                    float fan=talus*(.45+gully*.55);
-                    albedo=lerp(albedo,float3(.66,.55,.42),fan*redrock*.65);
-                    albedo*=1-cliff*(gully*.30+hollow*.12);
-                    albedo*=1+cliff*(1-gully)*.10;
+                    // Nonperiodic unequal beds with gently warped contacts. Side
+                    // coordinate varies slowly, so these remain strata, not speckle.
+                    float bed=i.wp.y*.0065+(broad-.5)*.32+ground.x*.00012;
+                    float package=filteredTerrain(float2(bed,7.3));
+                    float thinBeds=filteredTerrain(float2(bed*3.3+19.1,4.8));
+                    float lamina=filteredTerrain(float2(bed*5.7+37.2,2.6));
+                    albedo*=1+(broad-.5)*.18+(rockGrain-.5)*.18;
+                    float3 strata=lerp(float3(.55,.32,.22),float3(.76,.65,.48),
+                        smoothstep(.25,.72,package));
+                    strata=lerp(strata,float3(.47,.46,.43),
+                        smoothstep(.53,.76,thinBeds)*.65);
+                    strata=lerp(strata,float3(.82,.72,.55),
+                        smoothstep(.62,.80,lamina)*.52);
+                    strata*=1-cliff*(1-smoothstep(.23,.39,thinBeds))*.16;
+                    albedo=lerp(albedo,strata*(.94+rockGrain*.12),redrock*.82);
+                    float fan=talus*(.65+gully*.20);
+                    albedo=lerp(albedo,float3(.73,.63,.49)*( .97+broad*.06),fan*redrock*.82);
+                    albedo*=1-cliff*(1-talus*.8)*(gully*.16+hollow*.08);
+                    albedo*=1+cliff*(1-talus*.8)*(1-gully)*.06;
                     if(i.geology.x >= 0)
                         albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow);
                     // Surface-gradient bump in world space. These are shading heights only:
                     // NO vertex movement, depth/parallax change, or collision displacement.
                     float detailFade=1-smoothstep(8,38,length(fwidth(i.wp)));
                     float relief=detailFade*cliff*(1-snow*.85)*(1-forest)*
-                        ((rockGrain-.5)*1.8-gully*13.0);
+                        ((rockGrain-.5)*1.2-gully*4.0)*(1-talus*.8);
                     float3 dpdx=ddx(i.wp), dpdy=ddy(i.wp);
                     float3 r1=cross(dpdy,n), r2=cross(n,dpdx);
                     float determinant=dot(dpdx,r1);
                     float3 gradient=(ddx(relief)*r1+ddy(relief)*r2)
                         *sign(determinant)/max(abs(determinant),.00001);
                     // Bound the perturbation; avoid grazing-angle derivative explosions.
-                    gradient*=min(1,.65/max(.001,length(gradient)));
+                    gradient*=min(1,.35/max(.001,length(gradient)));
                     n=normalize(n-gradient);
                     float crowns=lerp(.5,noiseTerrain(ground*.14),saturate(1-length(fwidth(ground))*.025));
                     float canopy=smoothstep(.15,.8,forest);

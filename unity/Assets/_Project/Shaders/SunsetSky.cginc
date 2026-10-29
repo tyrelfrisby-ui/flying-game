@@ -37,7 +37,7 @@ float3 DaySkyRough(float3 ray, float roughness) {
  // Project onto a horizontal deck: distant banks shrink toward the horizon.
  // The old bounded denominator kept identical large stickers at every elevation.
  // No low-elevation constant denominator: that turns deck cells into curtains.
- float2 p=ray.xz/max(.012,y)*1.3;
+ float2 p=ray.xz/max(.012,y)*.45;
  float pixelWidth=max(.06,length(fwidth(p))*.8) + roughness*.42;
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);
@@ -48,11 +48,11 @@ float3 DaySkyRough(float3 ray, float roughness) {
  {
      float2 id=cell+float2(cx,cy);
      float seed=skyHash(id);
-     float2 center=id+.5+float2(seed-.5,skyHash(id+41.7)-.5)*.44;
+     float2 center=id+.5+float2(seed-.5,skyHash(id+41.7)-.5)*.68;
      float2 delta=p-center;
-     float radius=lerp(.17,.42,skyHash(id+17.3));
+     float radius=lerp(.24,.48,skyHash(id+17.3));
      // Leave entire cells clear, rather than putting one identical cloud in each.
-     float occupied=smoothstep(.25,.43,seed);
+     float occupied=smoothstep(.48,.65,seed);
      // One broad base with a smaller sunlit turret, no textures or geometry.
      float baseShape=1-dot(delta/float2(radius*1.28,radius*.73),
                            delta/float2(radius*1.28,radius*.73));
@@ -71,7 +71,10 @@ float3 DaySkyRough(float3 ray, float roughness) {
  float erosion=skyNoise(p*7.7+13.2)-.5;
  if (_DayAtmosphere.z > .5) erosion+=(skyNoise(p*23.1+7.1)-.5)*.35;
  field+=erosion*.85;
- float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)*smoothstep(.018,.12,y);
+ // Dissolve unresolved horizon cells rather than showing rows of tiny stamps.
+ float resolved=1-smoothstep(.12,.25,length(fwidth(p)));
+ float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)
+     *smoothstep(.035,.18,y)*resolved;
  float light=saturate(crownLight+erosion*.30);
  float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
 
