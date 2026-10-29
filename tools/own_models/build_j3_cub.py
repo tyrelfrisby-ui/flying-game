@@ -338,6 +338,10 @@ def door_ax(z):
     """door aft edge xd at height z (slanted: narrow at the bottom, wide at the top)"""
     if z >= DOOR['zs']: return DOOR['ax_s'] + (DOOR['ax_t'] - DOOR['ax_s']) * min((z - DOOR['zs']) / (DOOR['zt'] - DOOR['zs']), 1.0)
     return DOOR['ax_s'] - (DOOR['ax_s'] - DOOR['ax_b']) * min((DOOR['zs'] - z) / (DOOR['zs'] - DOOR['zb']), 1.0)
+# v11 (Ty): clear skylight in the wing centre section over the cabin: both wing skins open between the wing-root
+# stations (|y| < SK_Y, the dihedral break) from the LE back to the front spar (SK_F1 of chord, the nearest chord
+# sample to 25 pct); clear upper panel, yellow root ribs + spar face close the cut wing; fuselage top under it removed.
+SK_Y, SK_F1 = 0.30, (1 - math.cos(math.pi * 8 / 25)) / 2
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
 def region(c, n):
@@ -355,6 +359,8 @@ def region(c, n):
             return 'glass'
     if D_X0 < xd < D_X1 + 0.03 and D_Z0 < z < D_Z1 and side and xd < d_aft(z):
         return 'glass'
+    if WS_XT + 0.004 <= xd < LE_D + SK_F1 * CH + 0.01 and abs(y) < SK_Y and n.z > 0.6:
+        return 'hole'                                                         # v11: cabin roof open under the skylight
     sy = 1 if y > 0 else -1
     if HOOD[sy][0] < xd < HOOD[sy][1] and -0.12 < z < 0.13 and abs(n.y) > 0.40:
         return 'hole'
@@ -422,9 +428,39 @@ for sy in (1, -1):
     tube(_bap, pts, AP_R, n=14); _APP.append(pts)
     pv = [B(PV_X, sy * (fus_y(PV_X, z_) - AP_R * 0.55), z_) for z_ in np.linspace(0.026, 0.548, 16)]
     tube(_bap, pv, AP_R, n=14)
-    dg = [B(x_, sy * (fus_y(x_, ap_z(x_)) - AP_R - 0.009), ap_z(x_)) for x_ in np.linspace(AP_X0 + 0.01, AP_X1 + 0.01, 20)]
-    tube(_bct, dg, AP_R, n=14)
+    # v11 (Ty): the two cabin V tubes. Lower end lands on the bottom of the A-pillar (windshield bottom side corner at
+    # the sill, just beside the panel's upper corner); upper end near the centreline at the front spar (SK_F1 chord) under
+    # the wing; inside the cabin with a clear gap to the glass (gap grows with height).
+    _va = np.array((PL_X0 + 0.004, sy * (fus_y(PL_X0 + 0.004, PL_Z0 + 0.006) - AP_R * 1.9), PL_Z0 + 0.006))
+    _vx = LE_D + SK_F1 * CH; _vb = np.array((_vx, sy * 0.016, wing_low_c(_vx) - AP_R - 0.001))
+    tube(_bct, [B(*(_va + (_vb - _va) * t_)) for t_ in np.linspace(0, 1, 24)], AP_R, n=14)
+_vx = LE_D + SK_F1 * CH
+rbox(_bct, B(_vx, 0, wing_low_c(_vx) - 0.006), (0.05, 0.07, 0.012))                 # spar fitting where the V tubes meet
 P['A_Pillar'] = link('A_Pillar', _bap); P['Cabin_Tubes'] = link('Cabin_Tubes', _bct); AP_SCREWS = 0
+_gap = [min(fus_y(x_, z_) - abs(y_) for x_, y_, z_ in [(-q[0], q[1], q[2])]) for q in [B(*(_va + (_vb - _va) * t_)) for t_ in (0.25, 0.5, 0.75)]]
+print('V TUBES v11: (%.3f, %.3f, %.3f) -> (%.3f, %.3f, %.3f); gap to the side skin at 25/50/75 pct %s m' % (tuple(_va) + tuple(_vb) + (str([round(g_, 3) for g_ in _gap]),)))
+# ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
+_bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
+def _wf(c_): return (-c_.x - LE_D) / CH
+_cut = [f for f in _bw.faces if abs(f.calc_center_median().y) < SK_Y and _wf(f.calc_center_median()) < SK_F1]
+_bsk = bmesh.new()
+for f in _cut:
+    if f.normal.z > 0.3 and _wf(f.calc_center_median()) > 0.03:
+        _bsk.faces.new([_bsk.verts.new(v.co + f.normal * 0.0008) for v in f.verts])
+bmesh.ops.remove_doubles(_bsk, verts=_bsk.verts, dist=1e-5)
+bmesh.ops.delete(_bw, geom=_cut, context='FACES'); _bw.to_mesh(P['Wing'].data); _bw.free()
+P['Skylight'] = link('Skylight', _bsk)
+_bsf = bmesh.new(); _fq = [(1 - math.cos(math.pi * i / 25)) / 2 for i in range(9)]
+def _two(pts):
+    _bsf.faces.new([_bsf.verts.new(q) for q in pts]); _bsf.faces.new([_bsf.verts.new(q) for q in pts[::-1]])
+for sy in (1, -1):
+    _y = sy * SK_Y
+    _two([tuple(wsurf(W, _y, f_, True)) for f_ in _fq[::-1]] + [tuple(wsurf(W, _y, f_, False)) for f_ in _fq[1:]])
+_ys = [-SK_Y, -SK_Y / 2, 0.0, SK_Y / 2, SK_Y]
+for a_, b_ in zip(_ys, _ys[1:]):
+    _two([tuple(wsurf(W, a_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, False)), tuple(wsurf(W, a_, SK_F1, False))])
+P['Skylight_Frame'] = link('Skylight_Frame', _bsf)
+print('SKYLIGHT v11: |y| < %.2f m, LE -> %.3f chord (xd %.3f); %d wing faces cut, %d clear faces' % (SK_Y, SK_F1, LE_D + SK_F1 * CH, len(_cut), len(P['Skylight'].data.polygons)))
 print('PILLAR v10: (%.3f, %.3f) -> (%.3f, %.3f) rake %.1f deg; vertical tube xd %.3f; triangle window base %.3f m, top %.3f m'
       % (PL_X0, PL_Z0, PL_X1, PL_Z1, math.degrees(math.atan2(PL_Z1 - PL_Z0, PL_X1 - PL_X0)), PV_X, PV_X - PL_X0, PV_X - pl_x(0.50)))
 print('WINDSHIELD v10: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
@@ -825,27 +861,42 @@ def panel_outline(ins=0.0):
     pts = [(-PHW + ins, PZB + ins), (PHW - ins, PZB + ins)]
     for t in np.linspace(0, math.pi, 25): pts.append(((PHW - ins) * math.cos(t), PZB + PHS + (PHC - PHS - ins) * math.sin(t)))
     return pts
+# v11 (Ty): the panel is not flat. The face is vertical through the instrument row; just above it (knee PKZ) it rolls
+# forward on a radius into the dark dash deck that runs forward to the windshield base (photos ty-panel, ty-panel-seat).
+PKZ = PZB + 0.170
+def p_arch(y): return PZB + PHS + (PHC - PHS) * math.sqrt(max(0.0, 1 - (y / PHW) ** 2)) - 0.002
+def p_knee(y):                                                       # knee just above the instruments; drops toward the panel ends
+    t = min(1.0, max(0.0, (abs(y) - 0.21) / 0.07)); return PKZ + (PZB + 0.055 - PKZ) * (t * t * (3 - 2 * t))
+def p_rad(y): return min(0.05, max(0.012, p_arch(y) - p_knee(y)))
+def p_hood(y, th):                                                   # point on the rolled top at angle th (0 = vertical face)
+    r = p_rad(y); zk = p_arch(y) - r; return (PXA - r + r * math.cos(th), zk + r * math.sin(th))
+def p_prof(y):
+    zk = p_arch(y) - p_rad(y)
+    return [(PXA, PZB + (zk - PZB) * k / 6) for k in range(6)] + [p_hood(y, th) for th in np.linspace(0, math.pi / 2, 11)]
 def panel_plate():
-    po = panel_outline(); vf = [bmc.verts.new(B(PX - 0.003, y, z)) for y, z in po]; vb = [bmc.verts.new(B(PXA, y, z)) for y, z in po]
-    fs = [bmc.faces.new(vf), bmc.faces.new(vb[::-1])]
-    for i in range(len(po)):
-        k = (i + 1) % len(po); fs.append(bmc.faces.new((vf[i], vb[i], vb[k], vf[k])))
-    bmesh.ops.recalc_face_normals(bmc, faces=fs)
+    ys = np.linspace(-PHW, PHW, 45); G = [[B(x_, y, z_) for x_, z_ in p_prof(y)] for y in ys]
+    for i in range(len(ys) - 1):
+        for j in range(len(G[0]) - 1):
+            q = (G[i][j], G[i][j + 1], G[i + 1][j + 1], G[i + 1][j])
+            bmc.faces.new([bmc.verts.new(p) for p in q]); bmc.faces.new([bmc.verts.new(p) for p in q[::-1]])
+    for i in (0, len(ys) - 1):                                     # thin edge strips at the bottom and ends
+        pass
 ck('panel', panel_plate)
-def tank_deck():                                                    # v5f: fuel-tank top between the windshield base and the panel
+def tank_deck():                                                    # dash deck: windshield base -> top of the rolled panel
     rs = []
-    for xd in L(0.95, PX - 0.002, 5):
-        f = (xd - 0.95) / (PX - 0.002 - 0.95); row = []
+    for k in range(6):
+        row = []
         for y in np.linspace(-PHW, PHW, 15):
-            za = PZB + PHS + (PHC - PHS) * math.sqrt(max(0.0, 1 - (y / PHW) ** 2)) - 0.004
-            yl = fus_y(xd, za) - 0.008                              # v8b: keep the deck inside the skin (its corners
-            row.append(B(xd, max(-yl, min(yl, y)), za))            # poked out as a dark wedge behind the cowl)
+            za = p_arch(y); xe = PXA - p_rad(y); xd = 0.95 + (xe - 0.95) * k / 5
+            yl = fus_y(xd, za) - 0.008                              # v8b: keep the deck inside the skin
+            row.append(B(xd, max(-yl, min(yl, y)), za))
         rs.append(row)
     for i in range(len(rs) - 1):
         for j in range(len(rs[i]) - 1):
             q = [bmc.verts.new(p) for p in (rs[i][j], rs[i][j + 1], rs[i + 1][j + 1], rs[i + 1][j])]
             bmc.faces.new(q); bmc.faces.new([bmc.verts.new(v.co) for v in q[::-1]])
 ck('panel', tank_deck)
+print('PANEL v11: vertical face to knee z %.3f, top rolls forward into the deck, radius %.3f m centre / %.3f m ends' % (p_arch(0) - p_rad(0), p_rad(0), p_rad(PHW)))
 ZG = PZB + 0.110
 GAUGES = [(0.164, 0.043, 'chrome', 0.036), (0.075, 0.0355, 'gauge', 0.030), (-0.011, 0.0355, 'gauge', 0.027),
           (-0.095, 0.0355, 'gauge', 0.030), (-0.181, 0.041, 'chrome', 0.035)]
@@ -858,14 +909,18 @@ for gy, rb, bt, rf in GAUGES:                                                   
     for t_ in (45, 135, 225, 315):
         y_, z_ = gy + (rb + 0.007) * math.cos(math.radians(t_)), ZG + (rb + 0.007) * math.sin(math.radians(t_))
         ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.002, y_, z_), 0.0028, 8, r2=0.002))
-ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.172), (0.002, 0.034, 0.015)))          # small placard, top centre
+ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.153), (0.002, 0.034, 0.012)))          # small placard, top centre
 ck('dark', lambda: cyl(bmc, B(PXA, 0.215, PZB + 0.140), B(PXA + 0.024, 0.215, PZB + 0.140), 0.014, 16))      # knob, upper left
 ck('chrome', lambda: cyl(bmc, B(PXA, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.007, 12))   # primer barrel
 ck('chrome', lambda: cyl(bmc, B(PXA + 0.014, -0.240, PZB + 0.041), B(PXA + 0.024, -0.240, PZB + 0.041), 0.012, 16))  # primer knob
 _po = np.array(panel_outline(0.013)); _sl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([_po, _po[:1]]), axis=0), axis=1))]
 for s_ in np.linspace(0, _sl[-1], 16, endpoint=False):                                                # chrome screws
     y_ = np.interp(s_, _sl, np.r_[_po[:, 0], _po[0, 0]]); z_ = np.interp(s_, _sl, np.r_[_po[:, 1], _po[0, 1]])
-    ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.0025, y_, z_), 0.0042, 8, r2=0.003))
+    if z_ > p_arch(y_) - p_rad(y_) and p_rad(y_) > 0.006:           # v11: top screws sit on the rolled hood
+        x1_, z1_ = p_hood(y_, math.radians(55)); nx_, nz_ = math.cos(math.radians(55)), math.sin(math.radians(55))
+        ck('chrome', lambda: cyl(bmc, B(x1_, y_, z1_), B(x1_ + 0.0025 * nx_, y_, z1_ + 0.0025 * nz_), 0.0042, 8, r2=0.003))
+    else:
+        ck('chrome', lambda: cyl(bmc, B(PXA, y_, z_), B(PXA + 0.0025, y_, z_), 0.0042, 8, r2=0.003))
 # gauge faces + placard: separate object with UVs into the panel atlas (2560x640: five 512 px faces + placard strip)
 bmg = bmesh.new(); _uvg = bmg.loops.layers.uv.new('UVMap'); AW, AH = 2560.0, 640.0
 def uvface(vu):
@@ -1266,7 +1321,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Skylight', 'glass'), ('Skylight_Frame', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
@@ -1281,7 +1336,7 @@ for n in P:
     if not P[n].data.materials: print('NO MATERIAL', n)
 for o in P.values():
     bm = bmesh.new(); bm.from_mesh(o.data)
-    if o.name not in ('Glass', 'Window_R', 'Cabin_Liner', 'Liner_Stbd', 'Panel_Gauges', 'Fin_Decal_L', 'Fin_Decal_R'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if o.name not in ('Glass', 'Window_R', 'Skylight', 'Skylight_Frame', 'Cabin_Liner', 'Liner_Stbd', 'Panel_Gauges', 'Fin_Decal_L', 'Fin_Decal_R'): bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
