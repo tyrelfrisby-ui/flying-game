@@ -30,6 +30,12 @@ for e in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
 sc.render.film_transparent = True; sc.render.image_settings.color_mode = 'RGBA'   # composer outlines + puts on white
 w = bpy.data.worlds.new('w'); sc.world = w; w.use_nodes = True
 w.node_tree.nodes['Background'].inputs[0].default_value = (0.82, 0.86, 0.9, 1); w.node_tree.nodes['Background'].inputs[1].default_value = 0.9
+# v5d: sky / ground gradient so polished metal (valve covers, exhaust) reads as chrome rather than flat grey
+_nt = w.node_tree; _tc = _nt.nodes.new('ShaderNodeTexCoord'); _sp = _nt.nodes.new('ShaderNodeSeparateXYZ'); _cr = _nt.nodes.new('ShaderNodeValToRGB')
+_nt.links.new(_tc.outputs['Generated'], _sp.inputs[0]); _nt.links.new(_sp.outputs[2], _cr.inputs[0])
+_cr.color_ramp.elements[0].position = 0.0; _cr.color_ramp.elements[0].color = (0.10, 0.09, 0.08, 1)
+_cr.color_ramp.elements[1].position = 0.08; _cr.color_ramp.elements[1].color = (0.82, 0.86, 0.92, 1)
+_nt.links.new(_cr.outputs[0], _nt.nodes['Background'].inputs[0])
 for rot, e in (((math.radians(40), 0, math.radians(-150)), 3.0), ((math.radians(150), 0, math.radians(60)), 1.2)):
     l = bpy.data.lights.new('s', 'SUN'); l.energy = e; o = bpy.data.objects.new('s', l); o.rotation_euler = rot; sc.collection.objects.link(o)
 sc.view_settings.view_transform = 'Standard'
@@ -90,7 +96,7 @@ cam('brow_front', (-8, 0, 0.15), (0, 0, 0.15), 1.1, (1300, 800))
 cam('tail_side_ov', (4.133, -20, 0.835), (4.133, 0, 0.835), 2.0, (1600, 1600))     # 1.25 mm/px, port side, nose left
 cam('tail_top_ov', (4.183, 0, 20), (4.183, 0, 0), 3.2, (1600, 1600), 'X')          # 2.0 mm/px
 # v5 close-ups (frame: x = xd - 1.817, y = -y_build (right side +y), z = z_build + 0.135)
-cam('panel', (-0.55, 0, 0.205), (-0.587, 0, 0.205), 0.66, (1400, 900))                    # straight on (hide fuselage/liner/wing)
+cam('panel', (-0.55, 0, 0.235), (-0.587, 0, 0.235), 0.66, (1400, 900))                    # straight on (hide fuselage/liner/wing)
 cam('panel_rear', (0.80, 0.0, 0.50), (-0.587, 0, 0.19), 0, (1400, 1000), persp=30)        # from the rear seat
 cam('panel_rear_wide', (0.80, 0.0, 0.50), (-0.587, 0, 0.19), 0, (1400, 1000), persp=18)
 cam('int_door', (0.55, 2.0, 0.40), (-0.40, 0.0, 0.12), 0, (1400, 1000), persp=28)         # through the open door (right side)
@@ -111,4 +117,14 @@ cam('cowl_l', (-1.30, -20, -0.06), (-1.30, 0, -0.06), 0.95, (1400, 1100))
 cam('cowl_dzus', (-1.05, 0.75, 0.0), (-1.06, 0.26, -0.1), 0, (1200, 1000), persp=30)
 cam('bear_r', (4.13, 20, 0.855), (4.13, 0, 0.855), 0.46, (1000, 1000))
 cam('bear_l', (4.13, -20, 0.855), (4.13, 0, 0.855), 0.46, (1000, 1000))
+cam('brow_side_l', (-1.25, -1.7, 0.12), (-1.33, -0.30, 0.06), 0, (1300, 1000), persp=30)    # like Ty's green photo
+cam('brow_front_c', (-6, -0.33, 0.12), (-1.3, -0.33, 0.12), 0.62, (1100, 900))               # one bank head-on (J3_HIDE=Prop)
+cam('brow_ty2', (-1.80, -0.82, 0.13), (-1.38, -0.36, 0.05), 0, (1300, 1000), persp=30)     # Ty yellow photo: low, close, fwd-left
+cam('brow_rear2', (-0.80, 0.86, 0.12), (-1.42, 0.37, 0.02), 0, (1000, 1300), persp=30)    # Ty rear photo: close behind the plate
+cam('brow_3q', (-2.0, -1.10, 0.55), (-1.36, -0.30, 0.08), 0, (1300, 1000), persp=26)
+cam('panel_fseat', (-0.20, 0.0, 0.30), (-0.587, 0, 0.225), 0, (1400, 1000), persp=24)          # from the front seat
+cam('brow_grey', (-0.95, -0.85, 0.06), (-1.40, -0.37, 0.07), 0, (1300, 1000), persp=34)     # Ty grey photo: aft-left, low
+cam('int_door2', (0.42, 1.25, 0.14), (-0.12, 0.0, -0.12), 0, (1400, 1000), persp=24)          # close, into the open door
+cam('cutaway', (0.30, 8, 0.05), (0.30, 0, 0.05), 3.4, (1800, 1000))                        # J3_HIDE=Fuselage,Glass,Window,Door,Wing,Strut
+cam('cutaway_3q', (1.6, 3.6, 1.6), (0.10, 0, -0.05), 0, (1600, 1100), persp=30)
 cam('tail_photo_r', (4.30, 3.0, 0.95), (4.25, 0, 0.85), 0, (1000, 1100), persp=35)

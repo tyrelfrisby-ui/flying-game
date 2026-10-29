@@ -9,7 +9,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else '.'; os.makedirs(OUT, exist_ok=True)
 FD = '/usr/share/fonts/truetype/dejavu/'
 def F(sz, bold=True): return ImageFont.truetype(FD + ('DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'), sz)
 def FC(sz): return ImageFont.truetype(FD + 'DejaVuSans-Bold.ttf', sz)
-CREAM, INK, RED, GRN = (236, 226, 196), (22, 20, 18), (196, 36, 26), (40, 150, 60)
+CREAM, INK, RED, GRN = (232, 212, 160), (22, 20, 18), (196, 36, 26), (40, 150, 60)
 S = 512                                   # one gauge cell (face disc fills the cell); atlas 5 cells + placard row
 A = Image.new('RGB', (S * 5, S + 128), (20, 20, 20)); D = ImageDraw.Draw(A)
 def polar(cx, cy, r, deg):                 # deg clockwise from 12 o'clock
