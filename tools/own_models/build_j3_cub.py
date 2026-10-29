@@ -896,6 +896,14 @@ CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'ch
 bmc = bmesh.new(); ck_tag = []
 def ck(tag, fn):
     fn(); tag_new(bmc, CK_T.index(tag))
+# v15 rig: movable cockpit parts are built with the same ck() calls but into their own bmesh -> their own named node
+_BMSTACK = []; SUBS = {}; RIGPTS = {}
+def sub_begin():
+    global bmc; _BMSTACK.append(bmc); bmc = bmesh.new()
+def sub_end(name):
+    global bmc; SUBS[name] = tags_of(bmc); P[name] = link(name, bmc); bmc = _BMSTACK.pop()
+def wall_n(wl, u, v):                                                   # unit wall normal (towards the cabin) at (u, v)
+    d = np.array(wl.P(u, v, 1.0)) - np.array(wl.P(u, v, 0.0)); return d / np.linalg.norm(d)
 def floor():                                                                                 # floorboards follow the belly
     rs = []
     for xd in L(0.86, 2.84, 12):
@@ -969,7 +977,10 @@ for gy, rb, bt, rf in GAUGES:                                                   
 ck('alu', lambda: rbox(bmc, B(PXA + 0.001, 0, PZB + 0.153), (0.002, 0.034, 0.012)))          # small placard, top centre
 ck('dark', lambda: cyl(bmc, B(PXA, 0.215, PZB + 0.140), B(PXA + 0.024, 0.215, PZB + 0.140), 0.014, 16))      # knob, upper left
 ck('chrome', lambda: cyl(bmc, B(PXA, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.007, 12))   # primer barrel
+sub_begin()                                                                                     # v15: Primer_Plunger node (pulls aft)
+ck('chrome', lambda: cyl(bmc, B(PXA - 0.040, -0.240, PZB + 0.041), B(PXA + 0.014, -0.240, PZB + 0.041), 0.0035, 10))  # plunger rod (hidden in the barrel when in)
 ck('chrome', lambda: cyl(bmc, B(PXA + 0.014, -0.240, PZB + 0.041), B(PXA + 0.024, -0.240, PZB + 0.041), 0.012, 16))  # primer knob
+sub_end('Primer_Plunger'); RIGPTS['Primer_Plunger'] = B(PXA + 0.014, -0.240, PZB + 0.041)
 _po = np.array(panel_outline(0.013)); _sl = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([_po, _po[:1]]), axis=0), axis=1))]
 for s_ in np.linspace(0, _sl[-1], 16, endpoint=False):                                                # chrome screws
     y_ = np.interp(s_, _sl, np.r_[_po[:, 0], _po[0, 0]]); z_ = np.interp(s_, _sl, np.r_[_po[:, 1], _po[0, 1]])
@@ -992,6 +1003,47 @@ _pw, _ph, _py, _pz = 0.071, 0.0142, -0.011, PZB + 0.037
 uvface([(B(PXA + 0.0008, _py + _pw / 2, _pz + _ph / 2), (0, 1 - 512 / AH)), (B(PXA + 0.0008, _py + _pw / 2, _pz - _ph / 2), (0, 0.0)),
         (B(PXA + 0.0008, _py - _pw / 2, _pz - _ph / 2), (640 / AW, 0.0)), (B(PXA + 0.0008, _py - _pw / 2, _pz + _ph / 2), (640 / AW, 1 - 512 / AH))])
 P['Panel_Gauges'] = link('Panel_Gauges', bmg)
+# ---- v15 rig: gauge needles + compass card as separate nodes (the atlas faces are now painted without needles).
+# Needle shapes / lengths / colours are the old painted ones (j3_textures.py), at the REST reading (engine off, on the
+# ground at 0 ft): tach pegged below 500, ASI on its pin, both altimeter hands at 0, oil temp at 100 F, oil pressure 0.
+def prism(bm, pts, x0, x1):                                             # (y, z) outline extruded along xd
+    a = [bm.verts.new(B(x0, y, z)) for y, z in pts]; b = [bm.verts.new(B(x1, y, z)) for y, z in pts]
+    bm.faces.new(a); bm.faces.new(b[::-1]); n = len(pts)
+    for i in range(n):
+        j = (i + 1) % n; bm.faces.new((a[i], a[j], b[j], b[i]))
+NEEDLES = {}; NEEDLE_TAGS = {}
+def needle_mesh(name, gi, cpx, a_deg, L, tail, wpx, mat, dz=0.0, hub=16):
+    gy, rb, bt, rf = GAUGES[gi]; k = rf / 254.0; xf = PXA + 0.004 + dz        # atlas px -> m on this face
+    c = np.array((gy, ZG - cpx * k)); t = math.radians(a_deg)               # atlas angle: clockwise from 12 o'clock as seen
+    d = np.array((-math.sin(t), math.cos(t))); nr = np.array((-d[1], d[0])); hw = wpx * k / 2
+    pts = [c - d * tail * k - nr * hw, c + d * L * k - nr * hw * 0.45, c + d * (L + 10) * k, c + d * L * k + nr * hw * 0.45, c - d * tail * k + nr * hw]
+    bm = bmesh.new(); prism(bm, [tuple(q) for q in pts], xf + 0.0009, xf + 0.0014); nf = len(bm.faces)
+    cyl(bm, B(xf + 0.0005, c[0], c[1]), B(xf + 0.0020, c[0], c[1]), hub * k, 12)
+    NEEDLE_TAGS[name] = (mat, nf, len(bm.faces) - nf); P[name] = link(name, bm); NEEDLES[name] = B(xf, c[0], c[1])
+needle_mesh('Needle_Tach', 0, 0, -140, 200, 40, 9, 'needle_orange')
+needle_mesh('Needle_Airspeed', 1, 0, 18, 205, 40, 9, 'needle_red')
+needle_mesh('Needle_Alt_1000ft', 3, 0, 0, 120, 20, 16, 'needle_black')
+needle_mesh('Needle_Alt_100ft', 3, 0, 0, 210, 40, 8, 'needle_black', dz=0.0008, hub=12)
+needle_mesh('Needle_OilTemp', 4, -35, -60, 190, 20, 8, 'needle_black')
+needle_mesh('Needle_OilPress', 4, 175, -60, 190, 20, 8, 'needle_black')
+# compass card: vertical-axis drum behind the compass window, UVs into the atlas strip (x 640..2560, y 516..636). Label L
+# (deg) sits at drum bearing L+180 (the side facing the pilot shows the heading), so the numbers run right-to-left as on
+# a real wet compass. Modelled at heading 000 (N under the lubber line).
+CC_R, CC_H = 0.016, 0.016; _cg = GAUGES[2][0]; CC_X = PXA + 0.005
+bmk = bmesh.new(); _uvk = bmk.loops.layers.uv.new('UVMap'); _NK = 72
+def _ck_pt(L, z): t = math.radians(L); return B(CC_X + CC_R * math.cos(t), _cg + CC_R * math.sin(t), z)
+_zt, _zb = ZG + CC_H / 2, ZG - CC_H / 2; _vt, _vb = 1 - 516 / AH, 1 - 636 / AH
+for i in range(_NK):
+    L0, L1 = 360.0 * i / _NK, 360.0 * (i + 1) / _NK; u0, u1 = (640 + 1920 * L0 / 360) / AW, (640 + 1920 * L1 / 360) / AW
+    vs = [(_ck_pt(L0, _zb), (u0, _vb)), (_ck_pt(L1, _zb), (u1, _vb)), (_ck_pt(L1, _zt), (u1, _vt)), (_ck_pt(L0, _zt), (u0, _vt))]
+    f = bmk.faces.new([bmk.verts.new(q) for q, _ in vs])
+    for l_, (_, uv) in zip(f.loops, vs): l_[_uvk].uv = uv
+for z_ in (_zt, _zb):                                                   # dark caps (UV on the black compass window)
+    f = bmk.faces.new([bmk.verts.new(_ck_pt(360.0 * i / _NK, z_)) for i in range(_NK)])
+    for l_ in f.loops: l_[_uvk].uv = (0.5, 0.6)
+P['Compass_Card'] = link('Compass_Card', bmk); NEEDLES['Compass_Card'] = B(CC_X, _cg, ZG)
+ck('label', lambda: rbox(bmc, B(CC_X + CC_R + 0.0014, _cg, ZG), (0.0008, 0.00045, CC_H + 0.002)))     # white lubber line
+print('GAUGES v15: needles %s; compass card drum r %.3f h %.3f at %s' % (sorted(k for k in NEEDLES if k.startswith('Needle')), CC_R, CC_H, np.round(NEEDLES['Compass_Card'], 3)))
 def round_back(bm, xc, zb, ht, sw, th=0.05, lean=0.10):
     r = sw / 2; zc = zb + ht - r
     prof = [(-r, zb), (r, zb)] + [(r * math.cos(t), zc + r * math.sin(t)) for t in np.linspace(0, math.pi, 19)]
@@ -1008,12 +1060,16 @@ for x0, x1, zb, zt in ((1.68, 2.05, -0.36, 0.05), (2.45, 2.82, -0.40, 0.18)):   
     if x0 < 2: ck('seat', lambda: round_back(bmc, x1 + 0.03, zb - 0.04, 0.50, sw))
     else: ck('seat', lambda: rbox(bmc, B(x1 + 0.03, 0, (zb + zt) / 2 + 0.03), (0.06, sw, zt - zb)))
     zf = F_BOT(x1) + 0.05; ck('dark', lambda: rbox(bmc, B((x0 + x1) / 2, 0, (zb + zf) / 2), (x1 - x0 - 0.05, min(0.40, sw - 0.04), zb - zf)))
-for sx in (1.55, 2.30):
+for nm_, sx in (('Front', 1.55), ('Rear', 2.30)):                       # v15: each stick its own node (pivot at the floor socket)
+    sub_begin()
     ck('stick', lambda: tube(bmc, [B(sx, 0, F_BOT(sx) + 0.04), B(sx - 0.03, 0, -0.10), B(sx - 0.05, 0, 0.02)], 0.011, n=8))
     ck('dark', lambda: cyl(bmc, B(sx - 0.05, 0, -0.02), B(sx - 0.055, 0, 0.06), 0.017, 10))
-for px in (1.12, 1.85):
-    for sy in (1, -1):
+    sub_end('Stick_' + nm_); RIGPTS['Stick_' + nm_] = B(sx, 0, F_BOT(sx) + 0.04)
+for nm_, px in (('Front', 1.12), ('Rear', 1.85)):                       # v15: each rudder pedal its own node (hinged at the floor)
+    for sd_, sy in (('L', 1), ('R', -1)):
+        sub_begin()
         ck('stick', lambda: bar(bmc, [B(px, sy * 0.13, -0.53), B(px - 0.04, sy * 0.13, -0.42)], 0.07, 0.01, up=(1, 0, 0.4)))
+        sub_end('Pedal_%s_%s' % (nm_, sd_)); RIGPTS['Pedal_%s_%s' % (nm_, sd_)] = B(px, sy * 0.13, -0.53)
 # v6 (Ty review): the cabin is fabric-lined throughout (Cabin_Liner / Liner_Stbd) -- no exposed steel tube truss on the
 # sidewalls or in the windows. Only a couple of tubes show, low in the footwell under the fuel tank (behind the panel).
 for sy in (1, -1):
@@ -1102,8 +1158,12 @@ for nm, xc_ in (('front', 1.335), ('rear', 2.205)):
     NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0105, 0.0034)
     w_.screw(0.0, -TH + 0.016, 0.0025)
     st0, st1 = (-TW / 2 + 0.011, -0.002, 0.004), (-TW / 2 + 0.003, 0.024, 0.010)           # short stem out of the aft top corner (closed end)
+    sub_begin()                                                         # v15: Throttle_Lever_Front / _Rear node (pivot at the plate tip)
     w_.cyl('stick', st0, st1, 0.0040, 10)
     kn = (-TW / 2 + 0.001, 0.032, 0.012); w_.ball('stick', kn, 0.0165)
+    sub_end('Throttle_Lever_' + nm.capitalize())
+    RIGPTS['Throttle_Lever_' + nm.capitalize()] = (w_.P(0, -TH + 0.016, 0), wall_n(w_, 0, -TH + 0.016), w_.P(*kn))
+    THR_DEG = 2 * math.degrees(math.atan2(TW / 2 - 0.001, 0.032 + TH - 0.016))   # closed (aft corner) -> open (forward corner)
     THR[nm] = (w_.P(0, -TH + 0.016, 0), w_.P(*kn))
 # link rod between the two levers, behind the liner (lever pivots at the plate tips), then forward to the firewall
 _lk = [np.array(THR['front'][0]) * (1, 1, 1), np.array(THR['rear'][0])]
@@ -1121,8 +1181,12 @@ for u_, v_ in [(_fo[0][0] + 0.006, 0.0), (0.069, 0.038), (0.069, -0.038), (-0.02
 NTX += FW_.text('FUEL', 0.004, 0.004, 0.0085, 0.0018)
 NTX += FW_.text('OFF', -0.026, -0.019, 0.0105, 0.0018) + FW_.text('ON', 0.030, -0.019, 0.0105, 0.0018)
 FW_.arrow(0.019, -0.010, -0.019, 0.0018, w=0.0011, head=0.0040)      # OFF <- ON
+sub_begin()                                                             # v15: FuelValve_Lever node (pivot boss in the pan)
+FW_.cyl('chrome', (0.016, 0.0, 0.0015), (0.016, 0.0, 0.0060), 0.0045, 12)                         # pivot boss
+FW_.cyl('chrome', (0.016, 0.0, 0.0040), (0.046, 0.020, 0.0040), 0.0022, 8)                        # lever arm
 FW_.cyl('chrome', (0.046, 0.020, 0.0016), (0.046, 0.020, 0.016), 0.0028, 8)
 FW_.ball('red', (0.046, 0.020, 0.020), 0.0075)
+sub_end('FuelValve_Lever'); RIGPTS['FuelValve_Lever'] = (FW_.P(0.016, 0.0, 0.0), wall_n(FW_, 0.016, 0.0), FW_.P(0.046, 0.020, 0.020))
 FV = np.array(FW_.P(0.046, 0.020, 0.020))
 # -- elevator trim: square plate below the fuel plate, tick scale, crank
 TR_ = Wall(1, 1.565, -0.220); TS = 0.088
@@ -1133,9 +1197,11 @@ for k_, u_ in enumerate(np.linspace(-0.030, 0.030, 13)):
 NTX += TR_.text('NOSE', 0.0, 0.019, 0.0078, 0.0028) + TR_.text('UP', -0.031, 0.020, 0.0055, 0.0028) + TR_.text('DOWN', 0.029, 0.020, 0.0055, 0.0028)
 NTX += TR_.text('UP', -0.030, -0.027, 0.0055, 0.0028) + TR_.text('DOWN', 0.028, -0.027, 0.0055, 0.0028)
 for u_, v_ in [(-0.037, 0.037), (0.037, 0.037), (-0.037, -0.037), (0.037, -0.037)]: TR_.screw(u_, v_, 0.0025)
+sub_begin()                                                             # v15: Trim_Crank node (turns about the hub)
 TR_.cyl('chrome', (0.0, -0.002, 0.0025), (0.0, -0.002, 0.014), 0.011, 16)                        # crank hub
 ck('chrome', lambda: bar(bmc, [TR_.P(0.0, -0.002, 0.016), TR_.P(-0.034, 0.006, 0.016)], 0.010, 0.005, up=tuple(np.array(TR_.P(0, 0, 1)) - np.array(TR_.P(0, 0, 0)))))
 TR_.cyl('chrome', (-0.034, 0.006, 0.016), (-0.034, 0.006, 0.046), 0.0062, 12)                    # handle
+sub_end('Trim_Crank'); RIGPTS['Trim_Crank'] = (TR_.P(0.0, -0.002, 0.0), wall_n(TR_, 0.0, -0.002), TR_.P(0.0, 0.030, 0.0))
 TK = np.array(TR_.P(-0.034, 0.006, 0.046))
 # -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft) + rod to the rear knob
 CW_ = Wall(-1, 1.455, -0.175); _co = d_shape(0.130, 0.080, False); _ci = shrink(_co, 0.85)
@@ -1143,18 +1209,24 @@ CW_.slab('dark', _co, 0.0, 0.0015); CW_.ring('panel', _co, _ci, 0.0, 0.0105)
 for u_, v_ in [(0.059, 0.034), (0.059, -0.034), (-0.015, 0.036), (-0.015, -0.036), (-0.059, 0.0)]: CW_.screw(u_, v_, 0.0105)
 NTX += CW_.text('CARB HEAT', 0.008, 0.016, 0.0080, 0.0018) + CW_.text('OFF', -0.014, -0.006, 0.0085, 0.0018) + CW_.text('ON', 0.032, -0.006, 0.0085, 0.0018)
 CW_.arrow(0.024, 0.001, -0.006, 0.0018, w=0.0010, head=0.0035)
+sub_begin()                                                             # v15: CarbHeat_Lever node (pivot at the fork)
 CW_.cyl('chrome', (-0.040, -0.024, 0.008), (0.034, -0.024, 0.008), 0.0026, 8)                   # lever rod across the pan
 CW_.cyl('chrome', (0.004, -0.024, 0.003), (0.004, -0.024, 0.013), 0.0045, 10)                   # pivot / fork
 CW_.ball('stick', (-0.043, -0.024, 0.009), 0.0055)                                              # small black ball, forward end
+sub_end('CarbHeat_Lever'); RIGPTS['CarbHeat_Lever'] = (CW_.P(0.004, -0.024, 0.0), wall_n(CW_, 0.004, -0.024), CW_.P(-0.043, -0.024, 0.009))
 _c0 = np.array(CW_.P(0.034, -0.024, 0.012))
 CK2 = Wall(-1, 2.150, -0.262)                                          # rear-seat knob, lower right wall
 _c1 = np.array(CK2.P(0.0, 0.0, 0.016))
 _cr = [tuple(_c0 + (_c1 - _c0) * t_) for t_ in np.linspace(0, 1, 16)]
 ck('stick', lambda: tube(bmc, _cr, 0.0024, n=8))                       # black push-pull rod
 _cm = Wall(-1, 1.80, -0.175 + (-0.262 + 0.175) * (1.455 - 1.80) / (1.455 - 2.150)); _cm.slab('chrome', [(-0.003, -0.011), (0.003, -0.011), (0.003, 0.003), (-0.003, 0.003)], 0.0, 0.0012)   # wall clip
+sub_begin()                                                             # v15: CarbHeat_Knob_Rear node (pulls aft along the rod)
+_cd = (_c1 - _c0) / np.linalg.norm(_c1 - _c0)
+ck('chrome', lambda: cyl(bmc, tuple(_c1 - 0.045 * _cd), tuple(_c1), 0.0017, 8))                # inner wire (hidden in the rod when pushed in)
 CK2.cyl('chrome', (0.0, 0.0, 0.016), (0.012, 0.0, 0.016), 0.0030, 8)                           # shaft into the knob (aft)
 CK2.cyl('red', (0.010, 0.0, 0.016), (0.022, 0.0, 0.016), 0.0055, 16, r2=0.0125)               # red mushroom knob
 CK2.cyl('red', (0.022, 0.0, 0.016), (0.030, 0.0, 0.016), 0.0125, 16, r2=0.0115)
+sub_end('CarbHeat_Knob_Rear'); RIGPTS['CarbHeat_Knob_Rear'] = (tuple(_c1), _cd)
 CH_K = np.array(CK2.P(0.030, 0.0, 0.016))
 # -- magneto switch (Ty photo, v14): black oval plate on the ceiling at the LEFT wing root, the wing's lower skin just
 # inboard of / above the left window near the upper longeron, ahead of the front spar (the greenhouse opens aft of it).
@@ -1179,9 +1251,11 @@ for su in (-1, 1):                                                     # mountin
 for w_, a_ in (('OFF', 145), ('L', 108), ('R', 72), ('BOTH', 30)):
     t_ = math.radians(a_); NTX += MG.text(w_, 0.0275 * math.cos(t_), 0.0195 * math.sin(t_), 0.0060, 0.0032, tilt=t_ - math.pi / 2)
 NTX += MG.text('AAF TYPE A', 0.0, -0.0205, 0.0054, 0.0032)
+sub_begin()                                                             # v15: MagSwitch_Knob node (rotary, OFF/L/R/BOTH detents)
 MG.cyl('maroon', (0.0, -0.002, 0.003), (0.0, -0.002, 0.016), 0.0150, 20, 0.0130)          # rotary knob
 MG.cyl('maroon', (0.0, -0.002, 0.016), (0.0, -0.002, 0.019), 0.0130, 20, 0.0110)
 ck('maroon', lambda: bar(bmc, [MG.P(-0.004, -0.002, 0.012), MG.P(-0.036, 0.004, 0.010)], 0.009, 0.005, up=tuple(MG.N)))   # lever handle
+sub_end('MagSwitch_Knob'); RIGPTS['MagSwitch_Knob'] = (MG.P(0.0, -0.002, 0.0), tuple(MG.N))
 MGP = np.array(MG.P(0, 0, 0))
 print('MAGSWITCH v14: left wing-root ceiling xd %.3f y %.3f z %.3f (wing lower skin %.3f, front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, wing_low_c(MG_X), LE_D + FS_F * CH, np.round(MG.N, 2)))
 print('CONTROLS v14 (Ty photos): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), red knob %s; trim plate xd 1.565 z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), rod aft to red knob %s; %d label text faces' % (
@@ -1502,6 +1576,12 @@ for n in ('DoorUpper_R', 'DoorLower_R'):
     paint.project(P[n], lambda nrm, c: (3, None) if nrm.y > 0.3 else fus_assign(nrm, c))
 setm(P['Engine'], ['en_' + t for t in EN_NAMES], [EN_NAMES.index(t) for t in EN_T])
 setm(P['Cabin'], ['ck_' + t for t in CK_T], ck_tag)
+for n_, t_ in SUBS.items():                                             # v15 movable cockpit nodes: only the materials they use
+    used = sorted(set(t_)); setm(P[n_], ['ck_' + CK_T[i] for i in used], [used.index(i) for i in t_])
+M.update(needle_orange=C('Needle_orange', (200, 70, 30), rough=0.4), needle_red=C('Needle_red', (196, 36, 26), rough=0.4),
+         needle_black=C('Needle_black', (22, 20, 18), rough=0.4), needle_hub=C('Needle_hub', (30, 30, 30), rough=0.5))
+for n_, (m_, a_, b_) in NEEDLE_TAGS.items(): setm(P[n_], [m_, 'needle_hub'], [0] * a_ + [1] * b_)
+setm(P['Compass_Card'], ['ck_atlas'])
 setm(P['Prop'], ['prop_wood', 'prop_sheath', 'steel', 'prop_dark'], face_tag)
 setm(P['Panel_Gauges'], ['ck_atlas'])
 # ---- v5 fin emblem (Ty photo refs/j3-cub/ty-tail-bear.png for size, placement and colours ONLY): ORIGINAL cartoon bear
@@ -1729,6 +1809,113 @@ if VAR == 'floats':
     P['Float_L']['note'] = ('EDO 60-1320 from Piper/EDO dwg 60-S-908A. *_x_glb / *_z values are in the exported (Blender, z-up, nose -x) '
                             'frame; origin of each float at its step, centreline, deck height')
 #FLOATRIG-END#
+# ---- v15 cockpit rig (Ty: "make the J-3 fully animatable"): instruments, cockpit controls, linked sticks + pedals --------
+# Every node below carries one uniform keyframed mapping (read by j3_fourview.py J3_POSE and by Aero):
+#   rig_param        driving parameter name (shared names = mechanically linked parts, e.g. both sticks, all 4 pedals)
+#   rig_axis_gltf    rotation axis (glTF, y up) through the node's own origin   |  rig_move_axis_gltf  translation axis
+#   rig_map_param / rig_map_deg (or rig_map_m)  piecewise-linear param -> angle (deg) / offset (m) FROM THE MODELLED POSE
+#                    (clamped at the ends unless rig_map_extrapolate = 1; rig_map_wrap = 360 means param is taken mod 360)
+#   rig_param_model  the param value the mesh is modelled at (the map is 0 there)
+# Signs are asserted against the meshes / probe points below (a +5 deg test rotation must move the probe the stated way).
+RZ3 = RZ.to_3x3(); RIG2 = []
+def wd(v): return RZ3 @ Vector(tuple(float(c) for c in v))                      # build-frame direction -> export frame
+def wloc(o):
+    v = Vector(o.location)
+    while o.parent is not None: o = o.parent; v = v + o.location
+    return v
+def gl_pt(v): return [round(v.x, 4), round(v.z, 4), round(-v.y, 4)]
+def origin2(n, p, parent=None):
+    o = P[n]; org = w(p); o.data.transform(Matrix.Translation(-org)); o.parent = parent
+    o.location = org - (wloc(parent) if parent is not None else Vector()); return o
+def group(name, p, parent=None):
+    e = _empty(name, w(p)); e.parent = parent
+    if parent is not None: e.location = w(p) - wloc(parent)
+    return e
+def rig2(o, param, ax, ps, vals, unit, label, tv=None, want=None, kind='rot', link='', note='', extra=None):
+    ax = Vector(tuple(ax)).normalized()
+    if want is not None:
+        ok = False
+        for sg in (1, -1):
+            d = ((Matrix.Rotation(math.radians(5), 3, sg * ax) @ Vector(tv)) - Vector(tv)) if kind == 'rot' else sg * ax
+            if want(d): ax = sg * ax; ok = True; break
+        assert ok, 'rig sign: ' + o.name
+    o['rig_param'] = param; o['rig_axis_gltf' if kind == 'rot' else 'rig_move_axis_gltf'] = gl_axis(ax)
+    o['rig_map_param'] = [float(q) for q in ps]; o['rig_map_deg' if kind == 'rot' else 'rig_map_m'] = [float(q) for q in vals]
+    o['rig_param_model'] = float(ps[[abs(q) < 1e-9 for q in vals].index(True)]); o['rig_unit'] = unit; o['rig_desc'] = label
+    if link: o['rig_link'] = link
+    if note: o['note'] = note
+    for k_, v_ in (extra or {}).items(): o[k_] = v_
+    RIG2.append(dict(node=o.name, parent=o.parent.name if o.parent else None, param=param, unit=unit, kind=kind, axis_gltf=gl_axis(ax),
+                     pivot_gltf=gl_pt(wloc(o)), map=[[float(a_), float(b_)] for a_, b_ in zip(ps, vals)], model=o['rig_param_model'],
+                     desc=label, link=link, extra=extra or {}))
+    print('RIG %-22s %-13s %s axis %s pivot %s map %s  %s' % (o.name, param, kind, gl_axis(ax), gl_pt(wloc(o)),
+          ' '.join('%g:%g' % (a_, b_) for a_, b_ in zip(ps, vals)), label))
+    return ax
+FWD, AFT, UP, STBD = Vector((-1, 0, 0)), Vector((1, 0, 0)), Vector((0, 0, 1)), Vector((0, 1, 0))
+CKP = group('Cockpit', B(1.60, 0, 0.0))                                         # pure grouping empties (identity rotation)
+INS = group('Instruments', B(PXA, 0, ZG), CKP)
+CTL = group('Controls', B(1.60, 0, -0.20), CKP)
+# instruments: +angle = clockwise as seen from the seat (axis points forward through the dial)
+_NMAP = {'Needle_Tach': ('engine_rpm', [0, 500, 3500], [0, 5, 275], 'rpm', 'tach x100 rpm dial 500..3500 over 270 deg (pegged below 500)', {}),
+         'Needle_Airspeed': ('airspeed_mph', [0, 40, 140, 150], [0, 12, 312, 327], 'mph', 'ASI 40..140 mph over 300 deg, rests on its pin below 40', {}),
+         'Needle_Alt_100ft': ('altitude_ft', [0, 1000], [0, 360], 'ft', 'altimeter long hand, 1 turn per 1000 ft (unbounded)', {'rig_map_extrapolate': 1}),
+         'Needle_Alt_1000ft': ('altitude_ft', [0, 10000], [0, 360], 'ft', 'altimeter short hand, 1 turn per 10000 ft (unbounded)', {'rig_map_extrapolate': 1}),
+         'Needle_OilTemp': ('oil_temp_f', [100, 250], [0, 120], 'degF', 'oil temperature 100..250 F over 120 deg (upper dial)', {}),
+         'Needle_OilPress': ('oil_psi', [0, 80], [0, 120], 'psi', 'oil pressure 0..80 psi over 120 deg (lower dial)', {})}
+for n_, (prm, ps, ds, un, lab, ex) in _NMAP.items():
+    origin2(n_, NEEDLES[n_], INS)
+    rig2(P[n_], prm, FWD, ps, ds, un, lab + '; +deg clockwise from the seat', tv=UP, want=lambda d: d.y > 0, extra=ex)
+origin2('Compass_Card', NEEDLES['Compass_Card'], INS)
+rig2(P['Compass_Card'], 'heading_deg', UP, [0, 360], [0, 360], 'deg magnetic', 'wet-compass card drum: turns opposite the airplane so the heading '
+     'sits under the lubber line (modelled at 000; reverse-sensing numbers)', tv=AFT, want=lambda d: d.y > 0, extra={'rig_map_wrap': 360.0})
+# cockpit controls
+for nm_ in ('Front', 'Rear'):
+    pv, nb, kb = RIGPTS['Throttle_Lever_' + nm_]; o = origin2('Throttle_Lever_' + nm_, pv, CTL)
+    rig2(o, 'throttle', wd(nb), [0, 1], [0, THR_DEG], '0..1', 'ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip',
+         tv=w(kb) - w(pv), want=lambda d: d.x < 0, link='front and rear throttles share one push rod (same param)')
+pv, nb, kb = RIGPTS['FuelValve_Lever']; o = origin2('FuelValve_Lever', pv, CTL)
+rig2(o, 'fuel_valve', wd(nb), [0, 1], [90, 0], '0=OFF 1=ON', 'shut-off lever, modelled ON (knob forward); OFF swings the knob up/aft 90 deg',
+     tv=w(kb) - w(pv), want=lambda d: d.x > 0)
+pv, nb, kb = RIGPTS['Trim_Crank']; o = origin2('Trim_Crank', pv, CTL)
+rig2(o, 'trim', wd(nb), [-1, 0, 1], [-450, 0, 450], '-1 nose down .. +1 nose up', 'trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP)',
+     tv=w(kb) - w(pv), want=lambda d: d.x > 0, link='drives the Stab jack screw (trim param)')
+rig2(P['Stab'], 'trim', Vector(_le), [-1, 0, 1], [2.5, 0, -4.0], '-1 nose down .. +1 nose up', 'stabilizer incidence: +1 nose-up trim = LE down 4 deg, -1 = LE up 2.5 deg (TCDS A-691)',
+     link='Trim_Crank (same param); Elevator_L/R ride on the Stab')
+pv, nb, kb = RIGPTS['CarbHeat_Lever']; o = origin2('CarbHeat_Lever', pv, CTL)
+rig2(o, 'carb_heat', wd(nb), [0, 1], [0, 35], '0=OFF 1=ON', 'carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement)',
+     tv=w(kb) - w(pv), want=lambda d: d.z > 0, link='rear knob CarbHeat_Knob_Rear (same param, push-pull rod)')
+pv, cd = RIGPTS['CarbHeat_Knob_Rear']; o = origin2('CarbHeat_Knob_Rear', pv, CTL)
+rig2(o, 'carb_heat', wd(cd), [0, 1], [0, 0.035], '0=OFF 1=ON', 'rear-seat carb heat knob pulls 35 mm aft along the rod for ON', kind='move', want=lambda d: d.x > 0,
+     link='CarbHeat_Lever (same param)')
+pv, nb = RIGPTS['MagSwitch_Knob']; o = origin2('MagSwitch_Knob', pv, CKP)
+rig2(o, 'magneto', wd(nb), [0, 1, 2, 3], [0, -37, -73, -115], '0 OFF 1 L 2 R 3 BOTH (integer detents)', 'rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below)',
+     extra={'rig_detents': ['OFF', 'L', 'R', 'BOTH']})
+o = origin2('Primer_Plunger', RIGPTS['Primer_Plunger'], INS)
+rig2(o, 'primer', AFT, [0, 1], [0, 0.050], '0 in .. 1 out', 'primer plunger pulls straight aft 50 mm (judgement)', kind='move', want=lambda d: d.x > 0)
+# sticks: roll empty on the torque tube (x axis) -> stick node pitches about y. Both sticks share the params (rigid link).
+for nm_ in ('Front', 'Rear'):
+    pv = RIGPTS['Stick_' + nm_]; ro = group('Stick_%s_Roll' % nm_, pv, CTL)
+    rig2(ro, 'aileron', FWD, [-1, 0, 1], [-20, 0, 20], '-1..+1', 'stick roll on the torque tube: +1 = stick top to the right (roll right)', tv=UP, want=lambda d: d.y > 0,
+         link='Aileron_L/R (+1: R TE up 18, L TE down 18); front + rear sticks linked')
+    o = origin2('Stick_' + nm_, pv, ro)
+    rig2(o, 'elevator', STBD, [-1, 0, 1], [-15, 0, 20], '-1..+1', 'stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement)', tv=UP, want=lambda d: d.x > 0,
+         link='Elevator_L/R (+1: TE up 34, -1: TE down 29); front + rear sticks linked')
+for nm_ in ('Front', 'Rear'):
+    for sd_ in ('L', 'R'):
+        n_ = 'Pedal_%s_%s' % (nm_, sd_); o = origin2(n_, RIGPTS[n_], CTL)
+        rig2(o, 'rudder', STBD, [-1, 0, 1], [-18, 0, 18], '-1..+1', '%s pedal hinged at the floor: +1 (right rudder) moves its top %s' % (sd_, 'forward' if sd_ == 'R' else 'aft'),
+             tv=UP, want=(lambda d: d.x < 0) if sd_ == 'R' else (lambda d: d.x > 0),
+             link='Rudder (+/-30), TailWheel_Steer (+/-30, wheels), WaterRudder_L (+/-25, floats); all four pedals linked')
+_lst = [n_ for n_ in RIG]
+print('RIG v15 nodes: %d cockpit/instrument nodes + %d existing surface nodes' % (len(RIG2), len(_lst)))
+if os.environ.get('J3_RIGJSON'):
+    import json
+    _surf = []
+    for n_ in RIG:
+        o = bpy.data.objects[n_]
+        _surf.append(dict(node=n_, parent=o.parent.name if o.parent else None, param=o['rig_param'], axis_gltf=list(o['rig_axis_gltf']), pivot_gltf=gl_pt(wloc(o)),
+                          deg_pos=o['rig_deg_pos'], deg_neg=o['rig_deg_neg'], link=o.get('rig_link', '')))
+    json.dump(dict(variant=VAR, cockpit=RIG2, surfaces=_surf), open(os.environ['J3_RIGJSON'], 'w'), indent=1)
 P['Fuselage'].name = 'Fuselage_Painted'
 bpy.context.view_layer.update()
 fin = np.concatenate([np.array([(o.matrix_world @ v.co)[:] for v in o.data.vertices]) for o in P.values()])

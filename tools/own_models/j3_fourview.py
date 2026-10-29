@@ -33,6 +33,22 @@ if POSE:
     for o in sc.objects:
         if 'rig_param' not in o.keys() or o['rig_param'] not in POSE: continue
         p = POSE[o['rig_param']]
+        if 'rig_map_param' in o.keys():                                  # v15 keyframed map (offset from the modelled pose)
+            ps = list(o['rig_map_param']); vs = list(o['rig_map_deg'] if 'rig_map_deg' in o.keys() else o['rig_map_m'])
+            if 'rig_map_wrap' in o.keys(): p = p % o['rig_map_wrap']
+            if o.get('rig_map_extrapolate') and (p < ps[0] or p > ps[-1]):
+                i0 = 0 if p < ps[0] else len(ps) - 2; val = vs[i0] + (p - ps[i0]) * (vs[i0 + 1] - vs[i0]) / (ps[i0 + 1] - ps[i0])
+            else:
+                p = min(max(p, ps[0]), ps[-1]); i0 = max(i for i in range(len(ps) - 1) if ps[i] <= p) if p > ps[0] else 0
+                val = vs[i0] + (p - ps[i0]) * (vs[i0 + 1] - vs[i0]) / (ps[i0 + 1] - ps[i0])
+            if 'rig_axis_gltf' in o.keys():
+                g = o['rig_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
+                o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = mathutils.Quaternion(ax, math.radians(val)) @ o.rotation_quaternion
+                print('POSE %-22s %s=%+.2f -> %+.1f deg' % (o.name, o['rig_param'], POSE[o['rig_param']], val))
+            else:
+                g = o['rig_move_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1])); o.location = o.location + ax * val
+                print('POSE %-22s %s=%+.2f -> move %+.3f m' % (o.name, o['rig_param'], POSE[o['rig_param']], val))
+            continue
         if 'rig_axis_gltf' in o.keys():
             g = o['rig_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
             deg = p * o['rig_deg_pos'] if p >= 0 else p * o['rig_deg_neg']

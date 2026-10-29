@@ -1,0 +1,121 @@
+# J-3 Cub own model: animation rig spec (v15)
+
+This is for Claude/Aero, for the aircraft configs `j3-cub-like` (wheels) and `j3-cub-floats-like` (floats). Both GLBs carry the same cockpit rig, and every value below is also stored on its node as glTF `extras`, so a config loader can read the rig straight from the file.
+
+## Frame and conventions
+- The GLB is in the glTF frame: **+x aft, +y up, +z port**. The nose points to −x, and the origin is the config datum, the same as the v1 to v14 handoff.
+- All pivots and axes below are in that glTF frame, in metres. A pivot is the node's world origin at the rest pose.
+- Every node rotates or translates about **its own origin**. Its rest transform has identity rotation, with the parent empties in between.
+- `rig_map_param` / `rig_map_deg` (or `rig_map_m` for translations) is a piecewise-linear table from the control parameter to the angle or offset, measured **from the modelled pose**.
+  - Clamp at the table ends, unless `rig_map_extrapolate` = 1. That applies only to the altimeter hands, which are unbounded.
+  - `rig_map_wrap` = 360 means take the parameter mod 360 (compass).
+  - The angle is right-handed about `rig_axis_gltf`: `q = AxisAngle(rig_axis_gltf, deg) * q_rest`.
+- `rig_param_model` is the parameter value that the mesh is modelled at. The map is zero there.
+- Nodes that share a `rig_param` are mechanically linked and must be driven together:
+  - both throttles;
+  - both sticks;
+  - all four pedals with the rudder, the tailwheel and the water rudder;
+  - trim crank and stabilizer;
+  - carb heat lever and the rear carb heat knob.
+- The axis signs were asserted by the build script against probe points on the meshes. The build fails if a sign is wrong.
+- Reference implementation: `tools/own_models/j3_fourview.py` with `J3_POSE="param=value,..."`.
+
+## Hierarchy (cockpit)
+```
+Cockpit (empty)
+├── Instruments (empty, at the panel)
+│   ├── Needle_Tach, Needle_Airspeed, Needle_Alt_100ft, Needle_Alt_1000ft, Needle_OilTemp, Needle_OilPress
+│   ├── Compass_Card
+│   └── Primer_Plunger
+├── Controls (empty)
+│   ├── Stick_Front_Roll (empty, roll) ── Stick_Front (pitch)
+│   ├── Stick_Rear_Roll  (empty, roll) ── Stick_Rear  (pitch)
+│   ├── Pedal_Front_L, Pedal_Front_R, Pedal_Rear_L, Pedal_Rear_R
+│   ├── Throttle_Lever_Front, Throttle_Lever_Rear
+│   ├── FuelValve_Lever, Trim_Crank, CarbHeat_Lever, CarbHeat_Knob_Rear
+└── MagSwitch_Knob
+```
+- The static plates, labels, gauge faces, bezels, primer barrel and lubber line stay in `Cabin` and `Panel_Gauges`.
+- The heel brakes are static. There is no brake rig.
+
+## Control parameters
+| param | range | meaning |
+|---|---|---|
+| aileron | −1..+1 | +1 = stick right (roll right) |
+| elevator | −1..+1 | +1 = stick aft (nose up) |
+| rudder | −1..+1 | +1 = right pedal |
+| trim | −1..+1 | +1 = full nose-up trim |
+| throttle | 0..1 | 0 = CLOSED, 1 = OPEN |
+| fuel_valve | 0/1 | 1 = ON (modelled), 0 = OFF |
+| carb_heat | 0..1 | 0 = OFF (modelled), 1 = ON |
+| magneto | 0,1,2,3 | integer detents OFF, L, R, BOTH (modelled OFF) |
+| primer | 0..1 | 0 = locked in, 1 = pulled out 50 mm |
+| engine_rpm | rpm | tach |
+| airspeed_mph | mph | ASI (the dial is in mph) |
+| altitude_ft | ft | altimeter (both hands) |
+| oil_temp_f / oil_psi | °F / psi | oil gauge (two needles) |
+| heading_deg | deg magnetic | compass card |
+
+## Cockpit and instrument nodes
+| node | parent | param | type | axis (glTF) | pivot (glTF) | map (param→deg or m) | notes |
+|---|---|---|---|---|---|---|---|
+| Needle_Tach | Instruments | engine_rpm | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, 0.164] | 0→0, 500→5, 3500→275 deg | tach x100 rpm dial 500..3500 over 270 deg (pegged below 500); +deg clockwise from the seat |
+| Needle_Airspeed | Instruments | airspeed_mph | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, 0.075] | 0→0, 40→12, 140→312, 150→327 deg | ASI 40..140 mph over 300 deg, rests on its pin below 40; +deg clockwise from the seat |
+| Needle_Alt_100ft | Instruments | altitude_ft | rotate | [-1.0, 0.0, -0.0] | [-0.5792, 0.233, -0.095] | 0→0, 1000→360 deg | altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat; rig_map_extrapolate=1 |
+| Needle_Alt_1000ft | Instruments | altitude_ft | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.233, -0.095] | 0→0, 10000→360 deg | altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat; rig_map_extrapolate=1 |
+| Needle_OilTemp | Instruments | oil_temp_f | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.2378, -0.181] | 100→0, 250→120 deg | oil temperature 100..250 F over 120 deg (upper dial); +deg clockwise from the seat |
+| Needle_OilPress | Instruments | oil_psi | rotate | [-1.0, 0.0, -0.0] | [-0.58, 0.2089, -0.181] | 0→0, 80→120 deg | oil pressure 0..80 psi over 120 deg (lower dial); +deg clockwise from the seat |
+| Compass_Card | Instruments | heading_deg | rotate | [0.0, 1.0, -0.0] | [-0.579, 0.233, -0.011] | 0→0, 360→360 deg | wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing numbers); rig_map_wrap=360.0 |
+| Throttle_Lever_Front | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [-0.482, 0.065, 0.3056] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
+| Throttle_Lever_Rear | Controls | throttle | rotate | [-0.0, -0.0, 1.0] | [0.388, 0.065, 0.3075] | 0→0, 1→41.3322 deg | ball swings forward along the plate top edge CLOSED (aft) -> OPEN (fwd) about the plate tip |
+| FuelValve_Lever | Controls | fuel_valve | rotate | [0.0, 0.0, -1.0] | [-0.303, 0.035, 0.3074] | 0→90, 1→0 deg | shut-off lever, modelled ON (knob forward); OFF swings the knob up/aft 90 deg |
+| Trim_Crank | Controls | trim | rotate | [0.0, 0.0, -1.0] | [-0.252, -0.087, 0.3066] | -1→-450, 0→0, 1→450 deg | trim crank, 1.25 turns each way from neutral (judgement); +nose-up turns the top of the crank aft (toward UP) |
+| Stab | None | trim | rotate | [0.0, 0.0, -1.0] | [4.373, 0.485, 0.0] | -1→2.5, 0→0, 1→-4 deg | stabilizer incidence: +1 nose-up trim = LE down 4 deg, -1 = LE up 2.5 deg (TCDS A-691) |
+| CarbHeat_Lever | Controls | carb_heat | rotate | [0.0, -0.0, -1.0] | [-0.358, -0.064, -0.307] | 0→0, 1→35 deg | carb heat lever about its fork pivot; ON swings the forward ball up 35 deg (judgement) |
+| CarbHeat_Knob_Rear | Controls | carb_heat | translate | [0.99546, -0.09488, 0.00701] | [0.333, -0.127, -0.2903] | 0→0, 1→0.035 m | rear-seat carb heat knob pulls 35 mm aft along the rod for ON |
+| MagSwitch_Knob | Cockpit | magneto | rotate | [-0.08196, -0.99664, -0.0] | [-0.259, 0.6609, 0.215] | 0→0, 1→-37, 2→-73, 3→-115 deg | rotary mag switch, detents at the plate labels OFF/L/R/BOTH (clockwise seen from below); rig_detents=['OFF', 'L', 'R', 'BOTH'] |
+| Primer_Plunger | Instruments | primer | translate | [1.0, 0.0, -0.0] | [-0.57, 0.164, -0.24] | 0→0, 1→0.05 m | primer plunger pulls straight aft 50 mm (judgement) |
+| Stick_Front_Roll | Controls | aileron | rotate | [-1.0, 0.0, -0.0] | [-0.267, -0.4576, -0.0] | -1→-20, 0→0, 1→20 deg | stick roll on the torque tube: +1 = stick top to the right (roll right) |
+| Stick_Front | Stick_Front_Roll | elevator | rotate | [0.0, 0.0, -1.0] | [-0.267, -0.4576, -0.0] | -1→-15, 0→0, 1→20 deg | stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement) |
+| Stick_Rear_Roll | Controls | aileron | rotate | [-1.0, 0.0, -0.0] | [0.483, -0.4077, 0.0] | -1→-20, 0→0, 1→20 deg | stick roll on the torque tube: +1 = stick top to the right (roll right) |
+| Stick_Rear | Stick_Rear_Roll | elevator | rotate | [0.0, 0.0, -1.0] | [0.483, -0.4077, 0.0] | -1→-15, 0→0, 1→20 deg | stick pitch: +1 = stick aft 20 deg, -1 = forward 15 deg (judgement) |
+| Pedal_Front_L | Controls | rudder | rotate | [0.0, 0.0, -1.0] | [-0.697, -0.395, 0.13] | -1→-18, 0→0, 1→18 deg | L pedal hinged at the floor: +1 (right rudder) moves its top aft |
+| Pedal_Front_R | Controls | rudder | rotate | [-0.0, -0.0, 1.0] | [-0.697, -0.395, -0.13] | -1→-18, 0→0, 1→18 deg | R pedal hinged at the floor: +1 (right rudder) moves its top forward |
+| Pedal_Rear_L | Controls | rudder | rotate | [0.0, 0.0, -1.0] | [0.033, -0.395, 0.13] | -1→-18, 0→0, 1→18 deg | L pedal hinged at the floor: +1 (right rudder) moves its top aft |
+| Pedal_Rear_R | Controls | rudder | rotate | [-0.0, -0.0, 1.0] | [0.033, -0.395, -0.13] | -1→-18, 0→0, 1→18 deg | R pedal hinged at the floor: +1 (right rudder) moves its top forward |
+
+## Outside surfaces (v7 rig, unchanged)
+These nodes use the older extras: `rig_deg_pos` for param > 0 and `rig_deg_neg` for param < 0, both linear. The water-rudder retract and the doors use `(p − rig_param_model) * rig_deg_pos`.
+
+| node | variant | param | axis (glTF) | pivot (glTF) | +1 | −1 |
+|---|---|---|---|---|---|---|
+| Aileron_L | both | aileron | [0.0, -0.02284, -0.99974] | [0.853, 0.7975, 3.465] | 18 | -18 |
+| Elevator_L | both | elevator | [-0.0, -0.0, 1.0] | [4.373, 0.485, 0.7] | 34 | -29 |
+| Aileron_R | both | aileron | [-0.0, -0.02284, 0.99974] | [0.853, 0.7975, -3.465] | 18 | -18 |
+| Elevator_R | both | elevator | [-0.0, -0.0, 1.0] | [4.373, 0.485, -0.7] | 34 | -29 |
+| Rudder | both | rudder | [0.0, 1.0, -0.0] | [4.438, 0.835, 0.0] | 30 | -30 |
+| TailWheel_Steer | wheels | rudder | [0.0, 1.0, -0.0] | [4.638, 0.095, 0.0] | 30 | -30 |
+| WaterRudder_L | floats | rudder | [0.0, 1.0, -0.0] | [2.3551, -0.9387, 0.9525] | 25 | -25 |
+| WaterRudder_Blade_L | floats | water_rudder_up | [0.0, 0.0, 1.0] | [2.3551, -1.1584, 0.9525] | 90 | -0 |
+
+- The stabilizer trim is in the cockpit table above (`Stab`, param `trim`). Elevator_L and Elevator_R are children of Stab, so trim and elevator add up.
+- The prop spins about `spin_axis` at 6 deg/s per rpm, clockwise as seen from the cockpit.
+
+## Travel limits, and where they come from
+- **Surfaces:** aileron ±18°, elevator +34° up / −29° down, rudder ±30° (from the v7 rig, TCDS A-691). Stabilizer LE +2.5° up / −4° down (TCDS A-691).
+- **Stick travel at the grip** (by eye from the Cub cockpit geometry; the TCDS gives surface travel, not stick travel):
+  - roll ±20°;
+  - pitch aft 20°, forward 15°.
+- **Pedals:** ±18° about the floor hinge (by eye).
+- **Tailwheel steer:** ±30° with the rudder. **Water rudder:** ±25° with the rudder.
+- **Throttle:** 41.3°. That is the arc that takes the ball from the aft (CLOSED) end of the plate to the forward (OPEN) end.
+- **Fuel valve:** 90° quarter-turn. **Carb heat:** lever 35°, rear knob 35 mm pull. **Primer:** 50 mm pull. **Magneto:** detents at the plate label angles 0 / −37 / −73 / −115°.
+- **Trim crank:** ±450° (1.25 turns each way). This is a judgement for a game-friendly feel. The real J-3 crank takes several turns stop to stop.
+- **Gauges:**
+  - ASI 40–140 mph over 300°, resting on its pin below 40;
+  - tach 500–3500 rpm over 270°;
+  - altimeter: long hand one turn per 1000 ft, short hand one turn per 10 000 ft;
+  - oil temperature 100–250 °F over 120°; oil pressure 0–80 psi over 120°.
+  - All are modelled at the rest reading (engine off, 0 ft, 000 heading).
+- **Compass:** the card turns about the vertical axis, so the heading sits under the lubber line. At N, the 3 and 6 show to the left of the lubber line, as on a real wet compass.
+

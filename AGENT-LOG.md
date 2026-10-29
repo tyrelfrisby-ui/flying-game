@@ -4,6 +4,67 @@
 - **GPL question on the EA 300 v2 (Ty's decision, for Claude to assess).** Ty asked for the EA 300 to be redrawn to match the approved FlightGear-based Extra (codex/fg-models v9, 5fdacad, wing raised about 10 in) to within about 1 in. That model comes from the FlightGear EA300 by Patrizio Melis, which is GPL. Ty was told about the GPL-derivative risk before he decided. v2 copies no vertices, faces, UVs or textures: the FG model was measured into numeric tables (tools/own_models/ea300_ref_tables.json), and all geometry was drawn fresh from those tables. However, the shape was fitted on purpose to match the GPL model to within a few centimetres. **Claude: please assess whether this counts as a GPL derivative for our licensing.** One option is to ask Patrizio Melis for written permission or a relicence. Until that's decided, treat this asset as possibly GPL-encumbered. Do not ship or merge it.
 
 ## HANDOFF
+- [codex → Claude] aircraft-config · codex/own-j3-cub · J-3 v15 COCKPIT RIG (Ty: "make the J-3 fully animatable so Aero can drive it") · for configs/aircraft/j3-cub-like.json and j3-cub-floats-like.json · NOT yet reviewed by Ty:
+  - Both GLBs (wheels and floats) were rebuilt. The full spec is in docs/models/j3-cub-own-RIG.md. Every value below is also stored in the node's glTF extras.
+  - **Convention**
+    - The frame is glTF: +x aft, +y up, +z port, with the origin at the config datum (unchanged).
+    - Each node rotates or translates about its own origin. Rest rotation is identity.
+    - Extras:
+      - rig_param: shared names mean the parts are linked;
+      - rig_axis_gltf (rotation) or rig_move_axis_gltf (translation);
+      - rig_map_param / rig_map_deg (or rig_map_m): a piecewise-linear table, offset from the modelled pose, clamped at the ends;
+      - rig_map_extrapolate=1 on the altimeter hands; rig_map_wrap=360 on the compass;
+      - rig_param_model; rig_detents on the mag switch.
+    - Apply it as q = AxisAngle(axis, deg) * q_rest.
+    - Reference implementation: tools/own_models/j3_fourview.py with J3_POSE.
+  - **Hierarchy:** Cockpit > Instruments (needles, Compass_Card, Primer_Plunger) and Controls (Stick_*_Roll > Stick_*, Pedal_*, levers); MagSwitch_Knob sits directly under Cockpit.
+  - **Parameters:**
+    - aileron, elevator, rudder, trim: −1..1 (+ = roll right / stick aft / right pedal / nose-up);
+    - throttle 0..1; fuel_valve (1 = ON); carb_heat 0..1; magneto 0..3 (OFF/L/R/BOTH); primer 0..1;
+    - engine_rpm, airspeed_mph, altitude_ft, oil_temp_f, oil_psi, heading_deg.
+  - **Linkage, to be driven together:**
+    - the front and rear sticks;
+    - all four pedals with the Rudder (±30), TailWheel_Steer (±30, wheels) and WaterRudder_L (±25, floats);
+    - Trim_Crank with Stab (trim +1 = LE down 4°, −1 = LE up 2.5°; Elevator_L/R are children of Stab);
+    - both throttles;
+    - CarbHeat_Lever with CarbHeat_Knob_Rear.
+  - The surface nodes (Aileron_L/R ±18, Elevator_L/R +34/−29, Rudder, TailWheel_Steer, WaterRudder_L, WaterRudder_Blade_L water_rudder_up, doors, FuelGauge_Wire, Prop) keep their v7 extras (rig_deg_pos/neg). They are listed in the RIG doc.
+  - **Cockpit nodes** (wheels GLB values; the floats GLB is identical):
+      - Needle_Tach (parent Instruments): engine_rpm rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, 0.164], 0→0, 500→5, 3500→275 deg
+      - Needle_Airspeed (parent Instruments): airspeed_mph rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, 0.075], 0→0, 40→12, 140→312, 150→327 deg
+      - Needle_Alt_100ft (parent Instruments): altitude_ft rotate, axis [-1.0, 0.0, -0.0], pivot [-0.5792, 0.233, -0.095], 0→0, 1000→360 deg rig_map_extrapolate=1
+      - Needle_Alt_1000ft (parent Instruments): altitude_ft rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, -0.095], 0→0, 10000→360 deg rig_map_extrapolate=1
+      - Needle_OilTemp (parent Instruments): oil_temp_f rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.2378, -0.181], 100→0, 250→120 deg
+      - Needle_OilPress (parent Instruments): oil_psi rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.2089, -0.181], 0→0, 80→120 deg
+      - Compass_Card (parent Instruments): heading_deg rotate, axis [0.0, 1.0, -0.0], pivot [-0.579, 0.233, -0.011], 0→0, 360→360 deg rig_map_wrap=360.0
+      - Throttle_Lever_Front (parent Controls): throttle rotate, axis [-0.0, -0.0, 1.0], pivot [-0.482, 0.065, 0.3056], 0→0, 1→41.3322 deg
+      - Throttle_Lever_Rear (parent Controls): throttle rotate, axis [-0.0, -0.0, 1.0], pivot [0.388, 0.065, 0.3075], 0→0, 1→41.3322 deg
+      - FuelValve_Lever (parent Controls): fuel_valve rotate, axis [0.0, 0.0, -1.0], pivot [-0.303, 0.035, 0.3074], 0→90, 1→0 deg
+      - Trim_Crank (parent Controls): trim rotate, axis [0.0, 0.0, -1.0], pivot [-0.252, -0.087, 0.3066], -1→-450, 0→0, 1→450 deg
+      - Stab (parent None): trim rotate, axis [0.0, 0.0, -1.0], pivot [4.373, 0.485, 0.0], -1→2.5, 0→0, 1→-4 deg
+      - CarbHeat_Lever (parent Controls): carb_heat rotate, axis [0.0, -0.0, -1.0], pivot [-0.358, -0.064, -0.307], 0→0, 1→35 deg
+      - CarbHeat_Knob_Rear (parent Controls): carb_heat translate, axis [0.99546, -0.09488, 0.00701], pivot [0.333, -0.127, -0.2903], 0→0, 1→0.035 m
+      - MagSwitch_Knob (parent Cockpit): magneto rotate, axis [-0.08196, -0.99664, -0.0], pivot [-0.259, 0.6609, 0.215], 0→0, 1→-37, 2→-73, 3→-115 deg rig_detents=['OFF', 'L', 'R', 'BOTH']
+      - Primer_Plunger (parent Instruments): primer translate, axis [1.0, 0.0, -0.0], pivot [-0.57, 0.164, -0.24], 0→0, 1→0.05 m
+      - Stick_Front_Roll (parent Controls): aileron rotate, axis [-1.0, 0.0, -0.0], pivot [-0.267, -0.4576, -0.0], -1→-20, 0→0, 1→20 deg
+      - Stick_Front (parent Stick_Front_Roll): elevator rotate, axis [0.0, 0.0, -1.0], pivot [-0.267, -0.4576, -0.0], -1→-15, 0→0, 1→20 deg
+      - Stick_Rear_Roll (parent Controls): aileron rotate, axis [-1.0, 0.0, -0.0], pivot [0.483, -0.4077, 0.0], -1→-20, 0→0, 1→20 deg
+      - Stick_Rear (parent Stick_Rear_Roll): elevator rotate, axis [0.0, 0.0, -1.0], pivot [0.483, -0.4077, 0.0], -1→-15, 0→0, 1→20 deg
+      - Pedal_Front_L (parent Controls): rudder rotate, axis [0.0, 0.0, -1.0], pivot [-0.697, -0.395, 0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Front_R (parent Controls): rudder rotate, axis [-0.0, -0.0, 1.0], pivot [-0.697, -0.395, -0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Rear_L (parent Controls): rudder rotate, axis [0.0, 0.0, -1.0], pivot [0.033, -0.395, 0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Rear_R (parent Controls): rudder rotate, axis [-0.0, -0.0, 1.0], pivot [0.033, -0.395, -0.13], -1→-18, 0→0, 1→18 deg
+  - **Judgement calls, for Ty to confirm:**
+    - stick travel ±20° roll and +20/−15° pitch at the grip;
+    - pedals ±18°;
+    - trim crank ±450° (1.25 turns each way);
+    - carb heat lever 35° and rear knob 35 mm;
+    - primer 50 mm;
+    - the fuel valve is a 90° quarter-turn.
+  - Gauge dials are as painted: ASI 40–140 mph over 300°, tach 500–3500 over 270°, oil 120° arcs.
+  - The heel brakes are static. There is no brake rig.
+  - The painted needles were removed from the panel atlas, so Aero must drive the needle nodes. At the rest pose they read engine off, 0 ft and heading 000.
+  - Contact sheet on the agent box: /workspace/j3-cub-v14/rig/.
 - [codex → Claude] codex/own-j3-cub · own Piper J-3C-65 Cub style model v1, wheels + EDO 1320 floats (NOT yet reviewed by Ty) · wire in as the visual for configs/aircraft/j3-cub-like.json and j3-cub-floats-like.json · details:
   - Models: unity/Assets/_Project/Resources/Models/j3-cub-like/j3-cub-like-own.glb (wheels) and j3-cub-floats-like/j3-cub-floats-like-own.glb (floats). No .meta yet. Same frame/convention as the own Pitts/EA300/Great Lakes (origin = config datum). Cub yellow + plain black lightning stripe, no logo/registration. 72 in wood prop, clockwise from the cockpit.
   - Rig (extras, glTF axes): Aileron/Elevator/Rudder hinge_axis_gltf; Prop/Wheel_* spin_axis_gltf; TailWheel_Steer steer_axis_gltf; right split door DoorUpper_R open_deg +90 (folds up under the wing) and DoorLower_R open_deg -175 (folds down), both about hinge_axis_gltf, 0 = closed — please add a door open/close toggle. Bungee gear: Gear_Pivot_L/R rotate about Pivot->Gear_HingeAxis_<s> (hinge_deg_full 9.02 at wheel_rise_full_m 0.10; verify the wheel moves UP); the bungee strut EXTENDS +1.57 in at full travel (v3; strut_len_extended_m 0.812). Floats: WaterRudder_L only (steer_axis_gltf, link to rudder) + child WaterRudder_Blade_L (retract_axis_gltf, retract_deg 90 = up).
@@ -58,6 +119,7 @@
   - v12d (Ty cockpit controls): in Cabin. Linked front and rear throttles on the left wall (xd 1.450 and 2.335; replace the old v6 placeholder box). Fuel shut-off valve under the panel centre with a push-pull knob at the lower-left panel corner on the left wall. Carb heat knob on the right wall below the door front (xd 1.745, z -0.30). The build prints CONTROLS v12d. Positions are estimates; Ty to confirm.
   - v13 (Ty spar-bay greenhouse): front-spar apex at 15 pct chord (xd 1.648) is the single meeting point for the windshield V tubes and the ceiling tubes. The ceiling tubes run from the rear-spar attach points (xd 2.400, |y| 0.28) forward to the apex. There is a rear-spar carry-through tube. The skylight is a 0.75 x 0.60 m rectangle between the spars with a dark rubber frame all round; the LE ahead of it is solid yellow. The build prints V TUBES v13, CEILING v13 and SKYLIGHT v13. Open item: the front lift strut still attaches at 17.9 pct chord (xd 1.695), not at the 15 pct front spar. Ty to confirm.
   - v14 (Ty photo controls): in Cabin, the v12d guesses were replaced with the controls from Ty's photos. Two triangle throttle plates with ball knobs (linked); the D-shaped fuel shut-off plate; the square elevator trim plate with crank; the D-shaped carb heat plate on the right wall with its rod to a red rear knob; and the magneto switch on the left wing-root ceiling. White label text is font geometry. New materials: ck_label, ck_red, ck_maroon. The build prints CONTROLS v14 and MAGSWITCH v14. No intercoms, headsets, radios or tablet mounts. Heights and stations are by eye; Ty to confirm.
+  - v15 (Ty: fully animatable cockpit): rig spec in docs/models/j3-cub-own-RIG.md; see the aircraft-config HANDOFF entry at the top of HANDOFF. The build prints GAUGES v15 and RIG lines and fails on a wrong axis sign.
 - [codex → Claude] codex/own-great-lakes · Great Lakes 2T-1A-2 own model v5 (supersedes v4, v3 and v2; NOT approved by Ty; use latest v5; for planning gear suspension + livery wiring). v5 (2026-10-28) changes: red-sunburst side stripes curve and blend into the navy nose bowl per Ty's red photos (lower stripe tapers to a chevron at the bowl, upper stripe flares to parallel it; wheel pants get a matching navy wedge + white pinstripe); white-stripes nose bowl/chin redrawn to the white-3 photos, wing tips and stab carry nested parallel red/white/light-blue/white/navy bands along the LE that turn and rake aft at the tips, lower rudder is white below the stab (navy no longer wraps the whole lower rudder). v4 (2026-10-28) changes: cowl front closed and rounded on all liveries (inlets in the face); red-sunburst stab rays per Ty's tail photo, fin/rudder trim tapers out at the rudder bottom-front, fuselage stripes taper to the stab LE; white-stripes wings and stab are white with diagonal red-tip / light-blue / navy bands top and bottom, fuselage stripes straight until they curve up at the fin. v3: tail matched to the 1970 AAM three-view incl. the fin-root blend; sunburst rays sweep aft. GLB file names and part names unchanged · details:
   - Models (unity/Assets/_Project/Resources/Models/great-lakes-like/): great-lakes-like-own.glb (v1 placeholder paint, N719GL), great-lakes-like-own-red-sunburst.glb (id 'red-sunburst', suffix "-own-red-sunburst"), great-lakes-like-own-white-stripes.glb (id 'white-stripes', suffix "-own-white-stripes"). Both new liveries: no registration, no logos/text; Hartzell 2-blade prop (clockwise from the cockpit). Default livery is undecided (ask Ty); suggest adding both to LiveryChoice when the Great Lakes is wired in.
   - Gear suspension values: stroke 9 in = 0.2286 m (Ty-supplied 8-10 in; no published figure); oleo length extended 0.931 m; static (derived from published 7 ft 4 in height) = 6.19 in compression, hinge 15.79 deg, wheel rise 0.227 m, 3-pt pitch 6.91 deg; full = 9 in, hinge 22.92 deg, wheel rise 0.342 m (+0.148 m aft, +0.158 m outboard), pitch 5.41 deg. GLB is exported fully extended (3-pt height 2.469 m).
@@ -78,6 +140,7 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v15 (Ty): fully animatable cockpit. Needles and the compass card are separate pivoted nodes. The throttles (linked), fuel valve, trim crank (drives Stab), carb heat lever and rear knob, mag switch (OFF/L/R/BOTH detents) and primer are movable. Linked sticks and pedals drive the surfaces, the tailwheel and the water rudder. Rig spec in docs/models/j3-cub-own-RIG.md, plus an aircraft-config HANDOFF. Wheels and floats GLBs rebuilt. Contact sheet at /workspace/j3-cub-v14/rig/ (box). Local commit only.
 ### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v14 (Ty photos): cockpit controls rebuilt to match Ty's photos, with labelled triangle throttles, D-shaped fuel and carb heat plates, the trim crank plate and the magneto switch. Wheels and floats GLBs rebuilt. Local commit only.
 ### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v13 (Ty): front-spar apex moved to 15 pct chord where the windshield V tubes and the ceiling tubes meet. The ceiling tubes now run from the rear-spar attach points. A rear-spar carry-through tube was added. The skylight is now a large rectangle from the front spar to the rear spar with a dark rubber frame all round. Wheels and floats GLBs rebuilt. Local commit only.
 ### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v12d (Ty): cockpit controls. Linked front and rear throttles (left wall), fuel shut-off valve and knob, carb heat knob (right wall below the door). Wheels and floats GLBs rebuilt. Local commit only.

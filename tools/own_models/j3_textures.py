@@ -25,7 +25,11 @@ def label(cx, cy, r, a, txt, f, col=INK):
     x, y = polar(cx, cy, r, a); D.text((x, y), txt, font=f, fill=col, anchor='mm')
 def arc(cx, cy, r, a0, a1, w, col):
     D.arc((cx - r, cy - r, cx + r, cy + r), a0 - 90, a1 - 90, fill=col, width=w)
+# v15 rig: the needles and the compass card are separate animated meshes in the GLB (build_j3_cub.py), so the faces
+# are painted WITHOUT needles; PAINT_NEEDLES=1 restores the old painted needles (reference only).
+PAINT_NEEDLES = os.environ.get('PAINT_NEEDLES') == '1'
 def needle(cx, cy, a, L, col=RED, w=9, tail=40):
+    if not PAINT_NEEDLES: return
     D.line([polar(cx, cy, -tail, a), polar(cx, cy, L, a)], fill=col, width=w); D.ellipse((cx - 16, cy - 16, cx + 16, cy + 16), fill=(30, 30, 30))
 # 0 tachometer (x100 RPM): 5..35 over 270 deg
 cx, cy = face(0); a0, a1 = -135, 135
@@ -45,20 +49,43 @@ ticks(cx, cy, 205, 238, asd(40), asd(140), 20, 4); ticks(cx, cy, 190, 238, asd(4
 for v in range(40, 160, 20): label(cx, cy, 152, asd(v), str(v), F(52))
 D.text((cx, cy - 72), 'AIR SPEED', font=F(30), fill=INK, anchor='mm'); D.text((cx, cy + 92), 'M P H', font=F(26, False), fill=INK, anchor='mm')
 needle(cx, cy, asd(40) - 12, 205)
-# 2 compass ball: black, white card band + lubber line
+# 2 compass ball: black window; v15: the card is a separate drum mesh (Compass_Card) textured from the strip below,
+# the lubber line is a white bar in front of it (Cabin mesh)
 cx, cy = face(2, (14, 14, 16))
-D.rectangle((cx - 200, cy - 70, cx + 200, cy + 70), fill=(26, 26, 30))
-for k, t in enumerate(['30', '33', 'N', '3', '6']):
+if PAINT_NEEDLES: D.rectangle((cx - 200, cy - 70, cx + 200, cy + 70), fill=(26, 26, 30))
+for k, t in enumerate(['30', '33', 'N', '3', '6'] if PAINT_NEEDLES else []):
     x = cx - 176 + k * 88
     D.text((x, cy - 6), t, font=F(62 if t == 'N' else 44), fill=(240, 240, 236), anchor='mm')
-for k in range(42): x = cx - 205 + k * 10; D.line([(x, cy + 52), (x, cy + 70 - (8 if k % 3 else 0))], fill=(230, 230, 230), width=3)
-D.line([(cx + 8, cy - 140), (cx + 8, cy + 150)], fill=(245, 245, 240), width=7)
+if PAINT_NEEDLES:
+    for k in range(42): x = cx - 205 + k * 10; D.line([(x, cy + 52), (x, cy + 70 - (8 if k % 3 else 0))], fill=(230, 230, 230), width=3)
+    D.line([(cx + 8, cy - 140), (cx + 8, cy + 150)], fill=(245, 245, 240), width=7)
 D.line([(cx - 120, cy + 120), (cx + 120, cy + 120)], fill=(200, 200, 196), width=3)
+# v15 compass card strip (atlas x 640..2560, y 512..640): u = heading label / 360 across the full drum circumference.
+# Wet-compass card: seen from the pilot the numbers run right-to-left (reverse sensing) -- the drum UVs handle that; here
+# the labels are drawn left to right 0..360. The drum is 0.016 m radius x 0.016 m tall, so a drum mm is 19.1 px across but
+# 8 px up: each label is drawn upright then stretched x2.39 so it reads with normal proportions on the drum.
+CS0, CSW, CSH = 640, 1920, 128; CR, CHT = 0.016, 0.016; KX = (CSW / (2 * math.pi * CR)) / (CSH / CHT)
+D.rectangle((CS0, S, CS0 + CSW, S + CSH), fill=(26, 26, 30))
+for deg in range(0, 360, 5):
+    x = CS0 + CSW * deg / 360.0; tall = deg % 30 == 0; mid = deg % 10 == 0
+    D.line([(x, S + CSH - 6), (x, S + CSH - (34 if tall else 24 if mid else 15))], fill=(235, 235, 230), width=3)
+NAMES = {0: 'N', 90: 'E', 180: 'S', 270: 'W'}
+for deg in range(0, 360, 30):
+    t = NAMES.get(deg, str(deg // 10)); f = F(50 if deg in NAMES else 36)
+    tw = int(D.textlength(t, font=f)) + 8; L = Image.new('RGB', (tw, 72), (26, 26, 30)); LD = ImageDraw.Draw(L)
+    LD.text((tw / 2, 36), t, font=f, fill=(240, 240, 236), anchor='mm')
+    L = L.resize((max(1, int(tw * KX)), 72), Image.LANCZOS)
+    L = L.transpose(Image.FLIP_LEFT_RIGHT)                       # strip u runs right-to-left on the drum face seen from the seat
+    for xo in (0, -CSW, CSW):                                     # wrap at 0/360
+        x = int(CS0 + CSW * deg / 360.0 - L.width / 2) + xo
+        if x + L.width > CS0 and x < CS0 + CSW:
+            cl = max(0, CS0 - x); cr = min(L.width, CS0 + CSW - x); A.paste(L.crop((cl, 0, cr, 72)), (x + cl, S + 10))
 # 3 altimeter: 0..9 x 1000 ft, one long + one short hand
 cx, cy = face(3); ticks(cx, cy, 205, 238, 0, 360, 50, 4); ticks(cx, cy, 185, 238, 0, 360, 10, 8)
 for v in range(10): label(cx, cy, 152, v * 36, str(v), F(56))
 D.text((cx, cy - 72), 'ALTITUDE', font=F(28), fill=INK, anchor='mm'); D.text((cx, cy + 80), 'FEET', font=F(22, False), fill=INK, anchor='mm')
-D.line([(cx, cy), polar(cx, cy, 120, 10)], fill=INK, width=16); needle(cx, cy, 3, 210, INK, 8)
+if PAINT_NEEDLES: D.line([(cx, cy), polar(cx, cy, 120, 10)], fill=INK, width=16)
+needle(cx, cy, 3, 210, INK, 8)
 D.ellipse((cx - 46, cy + 128, cx + 46, cy + 160), outline=INK, width=3)
 # 4 oil temperature / pressure combination: two arc dials, top TEMP, bottom PRESSURE
 cx, cy = face(4)
@@ -71,7 +98,7 @@ for yo, lab, vals, red_at in ((-95, 'TEMPERATURE', ['100', '150', '200', '250'],
     arc(cx, oc, 205, -60 + 120 * (0.25 if red_at is None else 0.0), -60 + 120 * (0.75 if red_at is None else 0.85), 12, GRN)
     D.line([polar(cx, oc, 170, 60 if red_at else -60 + 120 * 0.125), polar(cx, oc, 215, 60 if red_at else -60 + 120 * 0.125)], fill=RED, width=10)
     D.text((cx, oc - 95), lab, font=F(22), fill=INK, anchor='mm')
-    D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
+    if PAINT_NEEDLES: D.line([(cx, oc), polar(cx, oc, 190, -10 if red_at else 8)], fill=INK, width=8)
 D.line([(cx - 230, cy + 8), (cx + 230, cy + 8)], fill=(120, 112, 96), width=3)
 # placard (aluminium, black letters)
 P0 = (0, S, 640, S + 128); D.rectangle(P0, fill=(178, 182, 186)); D.rectangle((8, S + 8, 632, S + 120), outline=INK, width=5)
