@@ -90,10 +90,10 @@ Shader "FlyingGame/Terrain"
                 float formation=.5;
                 if(_DayAtmosphere.z>.5)
                     formation=filteredMountain(float2(p.x*.0011,p.y*.0017)+27.3);
-                // Broad boundary meanders only: ~80 m noise cells, 18 m full range.
-                // No chip family: differentiating 5 m warps pitted the snow normal.
-                float edgeWarp=(filteredMountain(p*.0125+11.7)-.5)*18;
-                float crossM=p.x+bend+edgeWarp;
+                // Only kilometre-scale bend enters the optical normal. The former
+                // 80 m simplex warp can produce shorter derivative lobes in both
+                // lighting and snow retention; remove that candidate ripple source.
+                float crossM=p.x+bend;
                 float cell=floor(crossM/520);
                 float couloir=0, trough=0, opticalShape=14;
                 // Sum compact, smoothly vanishing profiles instead of picking the nearest
@@ -446,8 +446,10 @@ Shader "FlyingGame/Terrain"
                             // edge (900 m footprint pad), with a 200 m fade OUTSIDE it.
                             float outsideAlpineCore=smoothstep(_MountainAlpine.z-900,
                                 _MountainAlpine.z-700,i.wp.x);
+                            // Extend only the vegetation replacement past the fading wall
+                            // footprint. The original foreland/ice and actual-core gates stay put.
                             corridorVegetation=max(corridorVegetation,alaska*outsideAlpineCore
-                                *(1-smoothstep(width+1200,width+1800,corridorDistance)));
+                                *(1-smoothstep(width+1800,width+2600,corridorDistance)));
                             float setting=wallBiome
                                 *(1-smoothstep(width+900,width+1400,corridorDistance));
                             surroundings=max(surroundings,setting);
@@ -567,8 +569,10 @@ Shader "FlyingGame/Terrain"
                     // Apply after meadow/substrate/canopy. Do not reuse alpineMeadow:
                     // its padded overlap is precisely where the surviving green is painted.
                     float vegetationChroma=albedo.g-max(albedo.r,albedo.b);
+                    // Catch the faint, partly blended green edge as well as saturated
+                    // meadow. Neutral rock and blue-white snow/ice still select zero.
                     float greenToe=corridorVegetation*(1-glacierSurface)
-                        *smoothstep(.012,.055,vegetationChroma);
+                        *smoothstep(.002,.018,vegetationChroma);
                     float3 dryToe=lerp(float3(.34,.31,.27),float3(.49,.46,.40),broad);
                     albedo=lerp(albedo,dryToe,greenToe);
 
