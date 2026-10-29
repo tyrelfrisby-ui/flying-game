@@ -222,3 +222,24 @@ Ty's review of v5, re-matched side by side against ty-eyebrows.png and ty-cowl-e
 - **Interior:** fabric-lined throughout (Cabin_Liner / Liner_Stbd). The exposed sidewall truss and the window-frame tubes are removed. Only two diagonal tubes and a cross tube show, low in the footwell under the fuel tank.
 - **Exhaust:** each stack is one continuous tube from the port flange through a radiused 90° bend into the collector. The left-stack gap came from the tube() ring frame flipping at x↔z bends, so tube() and tube_r() now use parallel-transport frames.
 - Part names, pivots and rig extras are unchanged.
+
+## v7 (2026-10-28)
+
+Ty's review of v6. References are by eye or from drawings only; no third-party meshes.
+
+- **Eyebrows:** smaller. The crown never rises above the cowl top line (build check: max crown −0.010 m). The mouth crown is ~0.15–0.16 m and the aft crown ~0.12 m above the thrust line, with less taper. The inner edge comes down to the cylinder base; the rear wrap cap is kept. Re-matched against ty-eyebrows.png and ty-cowl-eyebrow-rear.png.
+- **Windshield to wing:** a new `Windshield_Fairing` (3 mm sheet, 4 mm proud). Following photos c37/c42/c47, the glass runs up tangent into the wing nose and wraps onto the upper skin to ~6 % chord across the flat cabin top (±0.246 m). Outboard to ±0.356 m it tapers into a short root fillet whose edge slides onto the LE underside and sinks into the skin, leaving no open edge.
+- **Door inner faces:** Cub-yellow paint (`Door_inner_yellow`), not black.
+- **Wingtip planform:** traced from the Kaboldy Wikimedia Commons J-3 3-view (refs/j3-cub/3view_commons_kaboldy.png). The table is TIP_S / TIP_FL / TIP_FT in build_j3_cub.py, as fractions of chord from the LE and TE against the span from the tip. The LE rounds back over 0.68 m and the TE over 1.04 m, giving a round, semicircular-looking front bow. v6 used a 0.42 × 0.62 ellipse, which read as a "D". A top-down overlay on the drawing matches the outline to within a few mm. The drawing's aileron outboard end is ~4 cm further out than ours (not changed).
+- **Rig** (custom properties on each pivot node; glTF axes; travels per TCDS A-691):
+  - `rig_param`, `rig_axis_gltf`, `rig_deg_pos`, `rig_deg_neg`, `rig_param_model`.
+  - Translations use `rig_move_axis_gltf` / `rig_move_m`.
+  - Ailerons (`aileron`, +1 = roll right): 18° up / 18° down about the hinge line.
+  - Elevators (`elevator`, +1 = TE up / stick aft): 34° up / 29° down.
+  - Rudder (`rudder`, +1 = TE to starboard / right pedal): 30° / 30°.
+  - TailWheel_Steer: linked to `rudder`, ±30° (the spring range; beyond that it is full swivel, which is not modelled).
+  - DoorUpper_R / DoorLower_R (`door_open` 0..1): the upper hinges up 90° to the wing and the lower hinges down 175°. Folded-door clearance to the lift struts is 0.065 m.
+  - FuelGauge_Wire (`fuel` 0..1): 10 in of wire shows above the cap at full; it slides 0.221 m down to the hook on the guide at empty.
+  - Prop: `prop_rpm`, +6 deg/s per rpm (clockwise from the cockpit).
+  - Floats: WaterRudder_L steers with `rudder` at ±25° (judgement). The link is 25/30, with `rig_limit_deg` 25. WaterRudder_Blade_L retracts on `water_rudder_up` 0..1: 0 is down (as drawn on 60-S-908A) and 1 is swung up 90°.
+  - Every pivot's sign is asserted in the build (a centroid-motion test); all pass on both variants.

@@ -24,6 +24,25 @@ if TRIM:
         if 'trim_axis_gltf' in o.keys():
             g = o['trim_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
             o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = mathutils.Quaternion(ax, -math.radians(o['trim_deg_le_down']))
+# v7 rig pose: J3_POSE="aileron=1,elevator=-1,rudder=1,door_open=1,fuel=0,water_rudder_up=1" drives every node that
+# carries the uniform rig extras (rig_param + rig_axis_gltf / rig_deg_pos / rig_deg_neg, or rig_move_axis_gltf / rig_move_m).
+POSE = {}
+for kv in os.environ.get('J3_POSE', '').split(','):
+    if '=' in kv: k, v = kv.split('='); POSE[k.strip()] = float(v)
+if POSE:
+    for o in sc.objects:
+        if 'rig_param' not in o.keys() or o['rig_param'] not in POSE: continue
+        p = POSE[o['rig_param']]
+        if 'rig_axis_gltf' in o.keys():
+            g = o['rig_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
+            deg = p * o['rig_deg_pos'] if p >= 0 else p * o['rig_deg_neg']
+            if o['rig_param'] in ('door_open', 'fuel', 'water_rudder_up'): deg = (p - o.get('rig_param_model', 0.0)) * o['rig_deg_pos']
+            o.rotation_mode = 'QUATERNION'; o.rotation_quaternion = mathutils.Quaternion(ax, math.radians(deg)) @ o.rotation_quaternion
+            print('POSE %-22s %s=%+.2f -> %+.1f deg' % (o.name, o['rig_param'], p, deg))
+        elif 'rig_move_axis_gltf' in o.keys():
+            g = o['rig_move_axis_gltf']; ax = mathutils.Vector((g[0], -g[2], g[1]))
+            off = (p - o.get('rig_param_model', 0.0)) * o['rig_move_m']; o.location = o.location + ax * off
+            print('POSE %-22s %s=%+.2f -> move %+.3f m' % (o.name, o['rig_param'], p, off))
 for e in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE'):
     try: sc.render.engine = e; break
     except Exception: pass
@@ -104,6 +123,12 @@ cam('exh', (-1.10, 1.6, -0.12), (-1.20, 0.25, -0.04), 0.62, (1300, 1000))       
 cam('exh_l', (-1.10, -1.6, -0.12), (-1.20, -0.25, -0.04), 0.62, (1300, 1000))
 cam('exh_rear', (-0.50, 0.62, -0.05), (-1.32, 0.32, -0.02), 0, (1000, 1300), persp=30)    # like Ty's rear photo
 cam('exh_low', (-0.55, 1.2, -0.95), (-1.10, 0.15, -0.38), 0, (1300, 1000), persp=35)      # tail stub under the lower right cowl
+# v7 close-ups: windshield top / wing leading edge + root fairing (frame: x = xd - 1.817, y = -y_build, z = z_build + 0.135)
+cam('wsw', (-1.75, 1.15, 1.02), (-0.40, 0.12, 0.68), 0, (1400, 1000), persp=40)
+cam('wsw_l', (-1.75, -1.15, 1.02), (-0.40, -0.12, 0.68), 0, (1400, 1000), persp=40)
+cam('wsw_side', (-0.35, -20, 0.62), (-0.35, 0, 0.62), 0.75, (1400, 1000))
+cam('wsw_front', (-8, 0, 0.62), (0, 0, 0.62), 0.95, (1400, 900))
+cam('wsw_low', (-1.6, 0.75, 0.50), (-0.40, 0.15, 0.68), 0, (1400, 1000), persp=40)
 cam('prop_front', (-6, 0, 0.135), (-1.9, 0, 0.135), 1.95, (1800, 700))
 cam('prop_back', (3, 0, 0.135), (-1.9, 0, 0.135), 1.95, (1800, 700))                       # needs J3_SHOW=Prop
 cam('prop_tip_f', (-6, 0.72, 0.135), (-1.9, 0.72, 0.135), 0.42, (1200, 700))
@@ -128,3 +153,17 @@ cam('int_door2', (0.42, 1.25, 0.14), (-0.12, 0.0, -0.12), 0, (1400, 1000), persp
 cam('cutaway', (0.30, 8, 0.05), (0.30, 0, 0.05), 3.4, (1800, 1000))                        # J3_HIDE=Fuselage,Glass,Window,Door,Wing,Strut
 cam('cutaway_3q', (1.6, 3.6, 1.6), (0.10, 0, -0.05), 0, (1600, 1100), persp=30)
 cam('tail_photo_r', (4.30, 3.0, 0.95), (4.25, 0, 0.85), 0, (1000, 1100), persp=35)
+# v7 rig close-ups (use with J3_POSE)
+cam('ail_back', (20, 0, 0.80), (0, 0, 0.80), 11.2, (1800, 700))                         # from behind: both ailerons
+cam('ail_r', (3.6, 4.6, 0.30), (0.85, 3.6, 0.80), 0, (1400, 1000), persp=35)             # right aileron, aft / low
+cam('elev', (6.6, 2.4, 1.5), (4.45, 0, 0.55), 0, (1400, 1000), persp=35)                # tail, aft right high
+cam('tail_top', (4.5, 0, 20), (4.5, 0, 0), 2.8, (1400, 1400), 'X')                       # rudder / elevator from above
+cam('tail_back', (20, 0, 0.75), (4.4, 0, 0.75), 3.4, (1400, 1000))
+cam('fuel_side', (-0.95, -20, 0.62), (-0.95, 0, 0.62), 0.75, (1000, 1000))              # fuel float wire, left side ortho
+cam('fuel_3q', (-1.75, -0.9, 0.95), (-0.95, 0, 0.62), 0, (1000, 1000), persp=40)
+cam('wr_side', (2.45, -20, -1.0), (2.45, 0, -1.0), 1.3, (1200, 1000))                    # LH water rudder, side ortho
+cam('wr_top', (2.45, -0.95, 6), (2.45, -0.95, 0), 1.3, (1200, 1200), 'X')                # LH water rudder from above
+cam('wr_back', (8, -0.95, -0.9), (2.4, -0.95, -0.9), 1.4, (1200, 1000))
+cam('tw_top', (4.80, 0, 6), (4.80, 0, 0), 1.0, (1000, 1000), 'X')                       # tailwheel steer from above (J3_HIDE=Fuselage,Stab,Elev,Rudder,Fin)
+cam('door_r', (0.05, 3.2, 0.25), (-0.20, 0, 0.30), 0, (1400, 1100), persp=32)            # right side, both door halves
+cam('tip_top', (0.40, 4.85, 20), (0.40, 4.85, 0), 1.8, (1600, 1600), 'X')               # right wingtip planform, 1.125 mm/px

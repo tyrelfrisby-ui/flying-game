@@ -156,16 +156,24 @@ def wsurf(W_, y, f, upper):
 
 # wing: constant 63 in chord (three-view 1.62 m), 35 ft 2.5 in span, LE 1.405 m aft of the prop hub, chord line at the LE
 # 0.59 m above the thrust line, 1.8 deg incidence, 1.5 deg dihedral outboard of the centre fitting (config value; the
-# drawing's 1 deg is within reading error), continuous over the cabin. Tips: the three-view's asymmetric round tip.
+# drawing's 1 deg is within reading error), continuous over the cabin. Tips: traced off the 3-view top view (v7, below).
 CH, GAP = 1.62, 0.006
 LE_D, TE_D = 1.405, 1.405 + CH
 S_W = 5.37
-RL, RT = 0.42, 0.92
+# v7 tip: the planform traced off the Commons 3-view top view (Kaboldy, "corrected views"; both tips agree within 1 px),
+# by eye from the drawing only. Distance in from the tip apex (m, drawing scaled to the 35 ft 2.5 in span) vs. how far the
+# outline is set back from the straight LE / TE (fraction of chord). The LE side is a near-circular bow (R ~ 0.68 m about
+# 43 pct chord, straight LE from ~0.68 m in), the TE side a longer, flatter arc (straight TE from ~1.03 m in). v6 used a
+# 0.42 m x 0.62 m ellipse on the LE side, which read as a D.
+TIP_S  = [0.0, 0.0026, 0.0052, 0.0104, 0.0156, 0.026, 0.039, 0.0521, 0.0781, 0.1041, 0.1302, 0.1562, 0.2083, 0.2603, 0.3124, 0.3644, 0.4165, 0.4686, 0.5206, 0.5727, 0.6248, 0.6768, 0.7289, 0.7809, 0.833, 0.8851, 0.9371, 0.9892, 1.0413]
+TIP_FL = [0.432, 0.3851, 0.3719, 0.3522, 0.3358, 0.3112, 0.2857, 0.2652, 0.2299, 0.202, 0.1773, 0.1568, 0.1215, 0.092, 0.069, 0.0493, 0.0345, 0.0213, 0.0115, 0.0049, 0.0016, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+TIP_FT = [0.568, 0.5213, 0.5074, 0.4885, 0.4721, 0.4475, 0.422, 0.4007, 0.3662, 0.3366, 0.3103, 0.2857, 0.2438, 0.2077, 0.1757, 0.1486, 0.124, 0.1018, 0.0837, 0.0673, 0.0525, 0.0394, 0.0287, 0.0197, 0.0131, 0.0066, 0.0033, 0.0016, 0.0]
+RL, RT = 0.677, 1.041
 def tip_round(le0):
     def le(y):
-        d = np.clip((np.abs(y) - (S_W - RL)) / RL, 0, 1); return le0(y) - 0.38 * CH * (1 - np.sqrt(np.maximum(1 - d ** 2, 0)))
+        s = np.maximum(S_W - np.abs(y), 0.0); return le0(y) - CH * np.interp(s, TIP_S, TIP_FL)
     def te(y):
-        d = np.clip((np.abs(y) - (S_W - RT)) / RT, 0, 1); return le0(y) - CH + 0.62 * CH * (1 - np.sqrt(np.maximum(1 - d ** 2, 0)))
+        s = np.maximum(S_W - np.abs(y), 0.0); return le0(y) - CH + CH * np.interp(s, TIP_S, TIP_FT)
     return le, te
 DIH, Y_DIH = 1.5, 0.30
 LEW0 = lambda y: -LE_D + 0.0 * np.abs(y)
@@ -175,7 +183,7 @@ W = Surf(LEW, TEW, ZW, 0.125, m=0.035, inc=1.8)
 AL_IN, AL_OUT, HA = 2.13, 4.80, -2.67           # aileron span stations and hinge line (three-view top view)
 def w_to(s): return (HA + GAP) if AL_IN < abs(s) <= AL_OUT else None
 hs = sorted(set([round(v, 4) for v in L(0.0, Y_DIH, 3) + L(Y_DIH + 0.05, AL_IN, 7) + L(AL_IN + 0.0005, S_W - RT, 10) +
-                 L(S_W - RT + 0.03, AL_OUT, 7) + [AL_OUT + 0.0005] + tipL(AL_OUT + 0.02, S_W - 0.001, 16)]))
+                 L(S_W - RT + 0.03, AL_OUT, 7) + [AL_OUT + 0.0005] + tipL(AL_OUT + 0.02, S_W - 0.001, 26)]))
 sp_w = [-s for s in hs[::-1] if s > 0] + hs
 P['Wing'] = surf_obj('Wing', W, sp_w, x_to=w_to, n=26)
 for side, sg in (('L', 1), ('R', -1)):
@@ -186,7 +194,7 @@ def wing_low_c(xd):            # wing lower skin over the fuselage centreline
 
 # ---- fuselage: superellipse sections, flat sides, flat top under the wing, rounded turtledeck aft, rounded cowl -------
 # Lines off the three-view side view (top / bottom) and top view (half-breadth), drawing stations xd (m aft of the hub).
-def _top_cabin(xd): return wing_low_c(xd) - 0.004
+def _top_cabin(xd): return wing_low_c(xd) + 0.003     # v7: tucked 3 mm inside the wing skin (was -0.004: a see-through slot under the wing from the side)
 _TOPF = [(0.185, 0.035), (0.19, 0.07), (0.20, 0.10), (0.215, 0.13), (0.24, 0.155), (0.28, 0.170), (0.33, 0.178),
          (0.45, 0.183), (0.60, 0.19), (0.785, 0.20), (0.96, 0.21), (1.05, 0.30), (1.15, 0.39), (1.25, 0.465),
          (1.33, 0.52), (1.40, 0.556)]
@@ -347,6 +355,44 @@ for nm, b2 in (('DoorUpper_R', b_door_up), ('DoorLower_R', b_door_lo)):
     P[nm] = link(nm, b2)
 P['Window_R'] = link('Window_R', b_door_gl)
 
+# ---- v7 (Ty): windshield top -> wing leading edge fairing ---------------------------------------------------------------
+# Real J-3s (photos c37 / c42 / c47, refs/j3-cub) have a sheet-metal cap across the centre section: the windshield top
+# tucks under it and it wraps the wing nose onto the upper skin, so the glass runs smoothly up into the leading edge
+# instead of stopping 30 mm below the nose with a notch. Profile per span station: on the glass (tangent to the
+# windshield line) -> cubic blend, vertical at the nose -> follows the upper skin to ~6 % chord; 4 mm proud, 3 mm thick.
+# Outboard of the flat cabin top it tapers into a short root fillet: the skirt edge slides onto the LE underside and the
+# whole skin sinks 1.5 mm into the wing (v7c side view showed an open 10 mm sliver at the outboard end).
+def _zfus(xd, y):
+    top, bot, hw, nt = F_TOP(xd), F_BOT(xd), F_HW(xd), F_NT(xd); zw = bot + ZWF * (top - bot)
+    if abs(y) >= hw: return None
+    c = (abs(y) / hw) ** (nt / 2); s_ = math.sqrt(max(1 - c * c, 0)); return zw + (top - zw) * s_ ** (2 / nt)
+WF_OFF, WF_T = 0.004, 0.003
+_hw0 = F_HW(1.37)
+WF_Y0 = max(y for y in np.linspace(0, _hw0, 400) if _zfus(1.37, y) is not None and _zfus(1.37, y) >= F_TOP(1.37) - 0.025)
+WF_Y1 = WF_Y0 + 0.11
+def _wf_prof(y):
+    tt = min(max((abs(y) - WF_Y0) / (WF_Y1 - WF_Y0), 0), 1); tt = tt * tt * (3 - 2 * tt); off = WF_OFF * (1 - tt) - 0.0015 * tt     # outboard end sinks 1.5 mm into the skin: no open edge
+    nose = wsurf(W, y, 0.0, True); xn, zn = -nose[0], nose[2]                     # drawing xd, z of the wing nose
+    ups = [wsurf(W, y, f, True) for f in (0.002, 0.006, 0.013, 0.024, 0.038, 0.055)]
+    wrap = [(xn - off, zn)] + [(-u[0], u[2] + off) for u in ups]
+    ya = min(abs(y), WF_Y0)
+    xs_ = (1.345, 1.362, 1.378)
+    glass = [(x_, (_zfus(x_, ya) if _zfus(x_, ya) is not None else F_TOP(x_)) + off) for x_ in xs_]
+    lows = [wsurf(W, y, f, False) for f in (0.012, 0.007, 0.003)]                  # outboard: the skirt melts onto the LE underside
+    gl = [(x_ * (1 - tt) + (-lw[0]) * tt, z_ * (1 - tt) + (lw[2] - off) * tt) for (x_, z_), lw in zip(glass, lows)]
+    (x0, z0), (x1, z1) = gl[-2], gl[-1]; sl = (z1 - z0) / (x1 - x0); a = (x1, z1); d = (xn - off, zn)
+    L_ = math.hypot(d[0] - a[0], d[1] - a[1]); t0 = np.array((1.0, sl)) / math.hypot(1.0, sl)
+    c1 = np.array(a) + 0.45 * L_ * t0; c2 = np.array(d) - 0.45 * L_ * np.array((0.0, 1.0))
+    bz = [tuple((1 - u) ** 3 * np.array(a) + 3 * (1 - u) ** 2 * u * c1 + 3 * (1 - u) * u * u * c2 + u ** 3 * np.array(d)) for u in np.linspace(0, 1, 9)[1:-1]]
+    return [B(x_, y, z_) for x_, z_ in gl + bz + wrap]
+_wfy = sorted(set([round(v, 4) for v in list(np.linspace(-WF_Y1, -WF_Y0, 7)) + list(np.linspace(-WF_Y0, WF_Y0, 15)) + list(np.linspace(WF_Y0, WF_Y1, 7))]))
+_bwf = bmesh.new(); loft_rings(_bwf, [_wf_prof(y) for y in _wfy], cap0=False, cap1=False, closed=False)
+bmesh.ops.solidify(_bwf, geom=_bwf.faces[:], thickness=WF_T)
+P['Windshield_Fairing'] = link('Windshield_Fairing', _bwf)
+_wfc = _wf_prof(0.0)
+print('WSFAIR span +/-%.3f (flat to +/-%.3f); centre: glass start xd %.3f z %.3f -> nose xd %.3f z %.3f -> upper xd %.3f z %.3f'
+      % (WF_Y1, WF_Y0, -_wfc[0][0], _wfc[0][2], -wsurf(W, 0, 0, True)[0], wsurf(W, 0, 0, True)[2], -_wfc[-1][0], _wfc[-1][2]))
+
 # ---- tail: stab + elevators (hinge xd 6.19), fin + balanced rudder (hinge xd 6.255, horn above the fin) ---------------
 # v4 tail check against two published 3-views (refs/j3-cub/: Commons J-3 3-view; P. Severin 3-view after Paul Matt /
 # Piper J3 service manual). Both put the elevator hinge only ~0.05-0.08 m ahead of the rudder hinge (v3 had 0.205), so
@@ -482,11 +528,17 @@ for sy in (1, -1):
         # the cap and along the attach flange (ty-cowl-eyebrow-rear.png).
         ZL, ZW, YO, T_ = 0.070, -0.040, 0.346, 0.005
         RC = 0.040                                      # cap radius (aft roll-down)
+        SHX = 0.050                                     # v7: mouth rake (crown leads the lip), was 0.070
         NA = 24
         def frac(x_): return min(max((x_ - xf) / (xr - xf), 0.0), 1.0)
-        def zf_(x_): return 0.132 - 0.004 * frac(x_)
-        def yf_(x_): return fus_y(min(max(x_, 0.19), 0.95), zf_(x_)) - 0.006
-        def hc_(x_): return 0.265 - 0.115 * frac(x_) ** 0.85           # funnel: tall mouth -> low over the aft head
+        # v7 (Ty review of v6): the INNER edge comes down to the base of the cylinder (where it leaves the cowl, just
+        # above the barrel), not up on the cowl shoulder; the crown never rises above the cowl top line (side view), and
+        # the funnel taper is gentler (mouth/aft crown ratio 0.69, was 0.57).
+        ZF0 = CZ + 0.064
+        def zf_(x_): return ZF0 - 0.002 * frac(x_)
+        def yf_(x_): return fus_y(min(max(x_, 0.19), 0.95), zf_(x_)) - 0.010
+        def hc_(x_):                                                       # funnel: mouth -> lower over the aft head
+            return min(0.172 - 0.055 * frac(x_) ** 0.9, F_TOP(max(x_, 0.19)) - 0.010)   # crown is unraked (leads the lip)
         def yo_(x_): return YO + 0.010 * (1 - frac(x_)) ** 2              # mouth flares a little outboard at the front
         def zl_(x_):                                                       # lip drops behind the aft head centre
             s_ = min(max((x_ - (h1 - 0.015)) / (xr - (h1 - 0.015)), 0.0), 1.0); s_ = s_ * s_ * (3 - 2 * s_)
@@ -508,7 +560,7 @@ for sy in (1, -1):
             return out
         def shx(x_, p):
             w = min(max((hc_(x_) - p[1]) / (hc_(x_) - ZL), 0), 1)
-            return x_ + 0.070 * w * (1 - frac(x_)) ** 2
+            return x_ + SHX * w * (1 - frac(x_)) ** 2
         xs = list(L(xf, xr, 18))
         S = [sect(x_) for x_ in xs]
         # rounded cap: blend the last arch down onto the cowl / lip line behind the aft cylinder
@@ -521,6 +573,8 @@ for sy in (1, -1):
             xs.append(xr + RC * math.sin(ph)); c_ = math.cos(ph)
             S.append([(l_[0] + (a_[0] - l_[0]) * c_, l_[1] + (a_[1] - l_[1]) * c_) for a_, l_ in zip(arch, lowr)])
         print('BROW', sy, 'mouth crown %.3f' % max(q[1] for q in S[0]), 'aft crown %.3f' % max(q[1] for q in arch), 'lip aft', arch[-1])
+        _over = max(max(q[1] for q in S[a]) - F_TOP(max(xs[a], 0.19)) for a in range(len(L(xf, xr, 18))))
+        print('BROW', sy, 'max crown above the cowl top line %.4f m (must be <= 0)' % _over); assert _over <= 0.0, 'eyebrow crown above the cowl top'
         if np.mean([q[1] for q in offs(S[0], T_)]) > np.mean([q[1] for q in S[0]]): T2 = -T_
         else: T2 = T_
         top = [[B(shx(x_, p), sy * p[0], p[1]) for p in S[a]] for a, x_ in enumerate(xs)]
@@ -638,10 +692,17 @@ en_add(bme, 'alu', lambda: cyl(bme, B(0.85, 0, ZCAP - 0.006), B(0.85, 0, ZCAP + 
 en_add(bme, 'alu', lambda: cyl(bme, B(0.85, 0, ZCAP + 0.016), B(0.85, 0, ZCAP + 0.024), 0.031, 24, r2=0.024))  # domed crown
 en_add(bme, 'alu', lambda: rbox(bme, B(0.85, 0, ZCAP + 0.028), (0.012, 0.050, 0.012)))                   # wing grip
 en_add(bme, 'steel', lambda: cyl(bme, B(0.85, 0, ZCAP + 0.03), B(0.85, 0, ZCAP + 0.055), 0.005, 10))     # wire guide
-WIRE_TOP = ZCAP + 0.024 + 0.203
-en_add(bme, 'dark', lambda: tube(bme, [B(0.85, 0, ZCAP + 0.05), B(0.85, 0, WIRE_TOP - 0.01), B(0.853, 0, WIRE_TOP - 0.001),
-                                       B(0.862, 0, WIRE_TOP), B(0.89, 0, WIRE_TOP)], 0.002, n=6))
-print('FUELCAP top z %.3f, wire top z %.3f (%.1f in above the cap)' % (ZCAP + 0.024, WIRE_TOP, 0.203 / 0.0254))
+WIRE_TOP = ZCAP + 0.024 + 0.254     # v7 (Ty): 10 in showing above the cap crown at full fuel (was 8 in)
+# v7 (Ty): the float wire is its own part (FuelGauge_Wire), built at FULL fuel with 10 in showing above the cap crown; it
+# slides down through the guide as the tank empties until only the 90-degree hook rests on the guide (nothing showing).
+# The shank continues 0.26 m below the cap inside the tank so it never leaves the guide.
+WIRE_GUIDE = ZCAP + 0.055
+_bfw = bmesh.new()
+tube(_bfw, [B(0.85, 0, ZCAP - 0.26), B(0.85, 0, WIRE_TOP - 0.01), B(0.853, 0, WIRE_TOP - 0.001),
+            B(0.862, 0, WIRE_TOP), B(0.89, 0, WIRE_TOP)], 0.002, n=6)
+P['FuelGauge_Wire'] = link('FuelGauge_Wire', _bfw)
+FUEL_TRAVEL = WIRE_TOP - 0.002 - WIRE_GUIDE                     # hook (wire radius 2 mm) comes to rest on the guide top
+print('FUELCAP top z %.3f, wire top z %.3f (%.1f in above the cap at full), travel to empty %.3f m' % (ZCAP + 0.024, WIRE_TOP, (WIRE_TOP - ZCAP - 0.024) / 0.0254, FUEL_TRAVEL))
 EN_T = [EN_NAMES[t] for t in tags_of(bme)]; P['Engine'] = link('Engine', bme)
 
 # ---- prop: 72 in fixed-pitch wood (TCDS A-691: Sensenich / McCauley 72 in wood props for the A-65), no spinner -------
@@ -1109,7 +1170,8 @@ M.update(en_plug=C('Spark_plug_shield', (170, 170, 175), rough=0.35, metal=1.0),
          ck_panel=C('Cabin_panel_black', (20, 20, 22), rough=0.45), ck_gauge=C('Gauge_bezel_black', (14, 14, 16), rough=0.3, metal=0.3),
          ck_chrome=C('Cabin_chrome', (226, 228, 232), rough=0.1, metal=1.0), ck_alu=C('Placard_aluminium', (196, 198, 202), rough=0.3, metal=0.8),
          ck_floor=C('Cabin_floor_black', (30, 29, 28), rough=0.9), ck_dark=C('Cabin_dark', (28, 27, 26), rough=0.9),
-         cabin=C('Cabin_fabric_yellow', (176, 138, 36), rough=0.9), door_in=C('Door_inner_black', (30, 29, 28), rough=0.8),   # v5f: sidewalls = inside of the yellow fabric (photos d01, c14)
+         cabin=C('Cabin_fabric_yellow', (176, 138, 36), rough=0.9), door_in=C('Door_inner_yellow', YEL, rough=0.7),   # v7 (Ty): door inner face (upper + lower) is the Cub-yellow paint, not black (v7c 176,138,36 read olive in shade)
+           # v5f: sidewalls = inside of the yellow fabric (photos d01, c14)
          ck_atlas=paint.mat_image('Panel_gauge_faces', bpy.data.images.load(os.path.join(TEXD, 'j3_panel_atlas.png')), rough=0.25),
          prop_wood=paint.mat_image('Prop_wood_varnished', bpy.data.images.load(os.path.join(TEXD, 'j3_prop_wood.png')), rough=0.2),
          prop_sheath=C('Prop_LE_sheath_brass', (206, 172, 100), rough=0.25, metal=0.9), prop_dark=C('Prop_bolt_hole', (16, 14, 12), rough=0.8))
@@ -1163,8 +1225,8 @@ for side, sg in (('L', 1), ('R', -1)):
             for l_, c in zip(f.loops, cs): l_[_uvd].uv = c[1]
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
-             ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('Windshield_Fairing', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
@@ -1251,11 +1313,54 @@ for side, sg in (('L', 1), ('R', -1)):
     o = origin('Elevator_' + side, (H_S, sg * 0.7, Z_S), parent=P['Stab']); o['hinge_axis_gltf'] = gl_axis((0, 1, 0))
 o = origin('Rudder', (H_R, 0, 0.7)); o['hinge_axis_gltf'] = gl_axis((0, 0, 1))
 o = origin('Prop', (X_P, 0, 0)); o['spin_axis_gltf'] = gl_axis(w((1, 0, 0)) - w((0, 0, 0)))
+# ---- v7 rig: every movable part carries one uniform set of glTF extras, read by a single pose function -----------------
+#   rig_param      driving parameter (aileron / elevator / rudder: -1..+1; door_open / fuel / water_rudder_up: 0..1)
+#   rig_axis_gltf  rotation axis (glTF, y up) through the node's own origin; a POSITIVE angle about it is the +param motion
+#   rig_deg_pos    angle at param = +1;  rig_deg_neg  angle magnitude at param = -1 (applied as -rig_deg_neg)
+#   rig_move_axis_gltf / rig_move_m  translation: offset = (param - rig_param_model) * rig_move_m along the axis
+# Signs (TCDS A-691 J3C-65 / J3C-65S travels): aileron +1 = roll right (R TE up 18, L TE down 18; 18/18 each way);
+# elevator +1 = stick aft (TE up 34, down 29); rudder +1 = right pedal (TE to starboard 30, port 30). Asserted on the meshes.
+RIG = []
+def _local_pts(o):
+    pts = [Vector(v.co) for v in o.data.vertices]
+    for ch in o.children: pts += [ch.location + Vector(v.co) for v in ch.data.vertices]
+    return pts
+def rig_rot(o, param, axis, pos, neg, want, label, model_at=0.0):
+    pts = _local_pts(o); c = sum(pts, Vector()) / len(pts); ax = Vector(axis).normalized(); ok = False
+    for sg in (1, -1):
+        R = Matrix.Rotation(math.radians(0.5 * pos), 4, sg * ax)
+        if want((R @ c) - c): ax = sg * ax; ok = True; break
+    assert ok, 'rig sign: ' + o.name
+    d = (Matrix.Rotation(math.radians(pos), 4, ax) @ c) - c; assert want(d), o.name
+    o['rig_param'] = param; o['rig_axis_gltf'] = gl_axis(ax); o['rig_deg_pos'] = float(pos); o['rig_deg_neg'] = float(neg)
+    o['rig_param_model'] = float(model_at)
+    RIG.append(o.name)
+    print('RIG %-20s %-15s +%5.1f / -%5.1f deg  %s: centroid moves (%+.3f %+.3f %+.3f) at +1' % (o.name, param, pos, neg, label, d.x, d.y, d.z))
+    return ax
+for side, sg in (('L', 1), ('R', -1)):          # build +y = port; after the yaw the right side is +y (same as the door assert)
+    _ax = w(hinge_mid(W, sg * AL_OUT, HA)) - w(hinge_mid(W, sg * AL_IN, HA))
+    if side == 'R': rig_rot(P['Aileron_R'], 'aileron', _ax, 18.0, 18.0, lambda d: d.z > 0, 'TE up at +1 (roll right)')
+    else: rig_rot(P['Aileron_L'], 'aileron', _ax, 18.0, 18.0, lambda d: d.z < 0, 'TE down at +1 (roll right)')
+    rig_rot(P['Elevator_' + side], 'elevator', Vector((0, 1, 0)), 34.0, 29.0, lambda d: d.z > 0, 'TE up at +1 (stick aft)')
+rig_rot(P['Rudder'], 'rudder', Vector((0, 0, 1)), 30.0, 30.0, lambda d: d.y > 0, 'TE to starboard at +1 (right pedal)')
+_pa = Vector(w((1, 0, 0)) - w((0, 0, 0))).normalized()
+_tip = Vector((0, 0, 1.0)); _d = (Matrix.Rotation(math.radians(5), 4, _pa) @ _tip) - _tip
+_fwd_sign = 1 if _d.y > 0 else -1                # +angle about spin_axis: top of disc to starboard = clockwise from the cockpit
+P['Prop']['rig_param'] = 'prop_rpm'; P['Prop']['rig_axis_gltf'] = P['Prop']['spin_axis_gltf']; P['Prop']['rig_deg_per_s_per_rpm'] = 6.0 * _fwd_sign
+P['Prop']['note'] = 'spin about spin_axis at rig_deg_per_s_per_rpm * rpm deg/s (sign gives the A-65 direction: clockwise seen from the cockpit)'
+print('RIG Prop spin about spin_axis: deg/s per rpm %+.1f (clockwise from the cockpit)' % (6.0 * _fwd_sign))
+o = origin('FuelGauge_Wire', B(0.85, 0, ZCAP + 0.055))
+o['rig_param'] = 'fuel'; o['rig_move_axis_gltf'] = gl_axis((0, 0, 1)); o['rig_move_m'] = round(float(FUEL_TRAVEL), 4); o['rig_param_model'] = 1.0
+o['note'] = ('nose-tank float wire: modelled at FULL (fuel = 1, 10 in showing above the cap). offset = (fuel - 1) * rig_move_m along '
+             'rig_move_axis (up), so fuel = 0 drops it %.3f m until only the hook rests on the guide' % FUEL_TRAVEL)
+print('RIG FuelGauge_Wire   fuel 0..1: %.1f in showing at full -> hook on the guide at empty (travel %.3f m)' % ((WIRE_TOP - ZCAP - 0.024) / 0.0254, FUEL_TRAVEL))
 XDH = 0.5 * (door_fx(DOOR['zt']) + door_ax(DOOR['zt'])); XDL = 0.5 * (door_fx(DOOR['zb']) + door_ax(DOOR['zb']))
 DOORS = {'DoorUpper_R': ((XDH, -fus_y(XDH, DOOR['zt']), DOOR['zt']), 90.0), 'DoorLower_R': ((XDL, -fus_y(XDL, DOOR['zb']), DOOR['zb']), -175.0)}
 for n, (pd, deg) in DOORS.items():
     vs0 = np.array([v.co[:] for v in P[n].data.vertices]).mean(0)
     o = origin(n, B(*pd)); o['hinge_axis_gltf'] = gl_axis((1, 0, 0)); o['open_deg'] = deg
+    o['rig_param'] = 'door_open'; o['rig_axis_gltf'] = gl_axis((1, 0, 0)); o['rig_deg_pos'] = deg; o['rig_deg_neg'] = 0.0; o['rig_param_model'] = 0.0
+    print('RIG %-20s door_open 0..1 -> %+.0f deg (%s)' % (n, deg, 'upper half hinges up to the wing' if deg > 0 else 'lower half hinges down'))
     o['note'] = 'rotate about hinge_axis (local origin on the hinge line) by open_deg to open; 0 = closed'
     for k in (0.5, 1.0):
         R = Matrix.Rotation(math.radians(deg * k), 4, 'X'); vs1 = np.array([(R @ v.co) + o.location for v in o.data.vertices]).mean(0)
@@ -1285,9 +1390,11 @@ if VAR == 'wheels':
         origin('Shock_Boot_' + side, w(d['T']))
     st = origin('TailWheel_Steer', TWP); st['steer_axis_gltf'] = gl_axis((0, 0, 1))
     st['steer_deg_springs'] = 30.0; st['full_swivel'] = True
+    o = origin('Wheel_Tail', w(TWC), parent=st); o['spin_axis_gltf'] = gl_axis((0, 1, 0))
+    rig_rot(st, 'rudder', Vector((0, 0, 1)), 30.0, 30.0, lambda d: d.y > 0, 'wheel trails to starboard at +1 (steers with the rudder)')
+    st['rig_link'] = 'rudder springs; breaks out to full swivel beyond rig_deg (ground handling)'
     st['note'] = ('tailwheel swivel pivot: rotate about steer_axis (local origin on the kingpin). Steered by the rudder springs '
                   'through about +/-30 deg (judgement), beyond that it breaks out and casters (full swivel) for ground handling')
-    o = origin('Wheel_Tail', w(TWC), parent=st); o['spin_axis_gltf'] = gl_axis((0, 1, 0))
 if VAR == 'floats':
     o = origin('WaterRudder_L', w(WR_P)); o['steer_axis_gltf'] = gl_axis((0, 0, 1))
     o['note'] = 'LH water rudder only (60-1320 Fig.1: RH float less water rudder). Steers about steer_axis, linked to the air rudder'
@@ -1297,6 +1404,12 @@ if VAR == 'floats':
     R = Matrix.Rotation(math.radians(90), 4, Vector((0, -1, 0))); vs1 = np.array([(R @ v.co)[:] for v in b.data.vertices]).mean(0)
     print('WRUDDER blade centroid rel hinge down %s -> retracted %s' % (np.round(vs0, 3), np.round(vs1, 3)))
     assert vs1[2] > vs0[2] + 0.05, 'retract must lift the blade'
+    # steering: cable-linked to the air rudder pedals; EDO-style water rudder swings ~25 deg each way (judgement: no
+    # 60-1320 travel figure in hand), so full rudder (30) gives 25 (link ratio 0.833) and the water rudder stops at 25.
+    rig_rot(o, 'rudder', Vector((0, 0, 1)), 25.0, 25.0, lambda d: d.y > 0, 'blade trails to starboard at +1 (right pedal)')
+    o['rig_link'] = 'air rudder via cables: water rudder deg = rudder param * 25 (limit +/-25; air rudder 30 at the same pedal)'
+    o['rig_limit_deg'] = 25.0
+    rig_rot(b, 'water_rudder_up', Vector((0, -1, 0)), 90.0, 0.0, lambda d: d.z > 0, 'blade swings up/aft at 1 (retracted), 0 = down')
     for side in ('L', 'R'): o = origin('Float_' + side, w(B(FLOAT_INFO['step_xd'], (1 if side == 'L' else -1) * 75 * IN / 2, FLOAT_INFO['deck_z'])))
     root = P['Fuselage']
     for k, v in FLOAT_INFO.items():
