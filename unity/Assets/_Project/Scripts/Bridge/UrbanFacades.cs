@@ -647,9 +647,10 @@ namespace FlyingGame.Bridge
             int extensionStart=b.Count,extensionEnd=b.Count;
             float extensionArea=0;
             int nearCount=0,nearTested=0,nearForest=0,nearGround=0,nearView=0,nearSight=0,nearOverlap=0;
-            int laneSegments=0,laneRejected=0,streetTrees=0;
-            var extensionRows=new Dictionary<int,double>();
-            var nearLanes=new Dictionary<double,(double min,double max)>();
+            int streetTrees=0;
+            int frontageMoved=0,frontageRetained=0,frontageTested=0,frontageForest=0,frontageGround=0;
+            int foreground=0,foregroundTested=0,foregroundForest=0,foregroundGround=0,foregroundView=0,foregroundSight=0;
+            var usedFrontage=new List<Vector3>();
             if(grid.Rotated && terrain!=null)
             {
                 // Exact town eye/look, translated with the city's plateau. Never move a camera.
@@ -689,11 +690,91 @@ namespace FlyingGame.Bridge
                     }
                     return true;
                 }
+                var sourceLots=new List<((double x,double y) map,Vector3 size,double low,double high,int row,int col)>();
+                var rejectedFrontage=new HashSet<(int edge,int block,int depth,int slot,int width)>();
+                // C13: registered conifers are SIM trees, so none may be hidden here.
+                // Relocate the detached C11 estate to the existing asphalt rectangle's
+                // street ends. No collector or new carriageway is authored. Each garden
+                // starts beside the old paved edge, with up to two adjoining garden depths.
+                // Source acceptance below stays unchanged: relocation cannot delete homes.
+                bool Frontage(Vector3 size,out (double x,double y) target,out double low,out double high)
+                {
+                    target=default; low=high=0;
+                    // Work in whole street-end groups, rather than scattered meadow samples.
+                    // East then west, then the northern edge; south is the pad approach.
+                    for(int edge=0;edge<3;edge++)
+                    for(int block=0;block<(edge<2?15:6);block++)
+                    for(int depthRow=0;depthRow<3;depthRow++)
+                    for(int slot=0;slot<5;slot++)
+                    {
+                        int row=edge<2?block:15;
+                        if(reservedRows.Contains(row) || (edge<2 && reservedRows.Contains(row+1))) continue;
+                        double u=edge==0?1146+depthRow*44:edge==1?-126-depthRow*44:85+block*170+(slot-2)*24;
+                        double v=edge<2?85+block*170+(slot-2)*24:2666+depthRow*28;
+                        // A second/third garden depth requires an occupied inner neighbour:
+                        // this can extend frontage, never restart an isolated field cluster.
+                        if(depthRow>0)
+                        {
+                            var inner=grid.Map(edge==0?u-44:edge==1?u+44:u,edge<2?v:v-28);
+                            bool anchored=false;
+                            foreach(var placed in usedFrontage)
+                                if(Mathf.Abs(placed.x-(float)inner.y)<1 && Mathf.Abs(placed.z-(float)inner.x)<1) anchored=true;
+                            if(!anchored) continue;
+                        }
+                        var m=grid.Map(u,v);
+                        float gx=size.x*.5f+3,gz=size.z*.5f+3;
+                        Vector3 centre=WorldBuilder.U(m.x,m.y,0);
+                        bool blocked=false;
+                        foreach(var placed in usedFrontage)
+                            if(Mathf.Abs(placed.x-centre.x)<placed.y+gx+2 && Mathf.Abs(placed.z-centre.z)<24)
+                            { blocked=true; break; }
+                        if(edge==0 && v<1280) continue; // retain all C10/C12 gardens unchanged
+                        if(blocked) continue;
+                        // Reserve every incoming source until ALL relocations finish.
+                        // A late source guard must never overlap an earlier moved house.
+                        foreach(var source in sourceLots)
+                            if(System.Math.Abs(source.map.y-m.y)<source.size.x*.5+gx+3
+                                && System.Math.Abs(source.map.x-m.x)<source.size.z*.5+gz+3)
+                            { blocked=true; break; }
+                        if(blocked) continue;
+                        var key=(edge,block,depthRow,slot,(int)size.x);
+                        if(rejectedFrontage.Contains(key)) continue;
+                        frontageTested++;
+                        foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                            if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,m.x-gz)<70
+                                && System.Math.Abs(m.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+gx+70) blocked=true;
+                        low=double.MaxValue; high=double.MinValue;
+                        foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                        {
+                            double x=m.x+dx*gz,y=m.y+dy*gx,h=terrain.HeightAt(x,y);
+                            low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                            if(terrain.WaterSurfaceAt(x,y).HasValue) blocked=true;
+                        }
+                        if(blocked || high-low>2.5 || System.Math.Abs(high-ground)>12)
+                        { rejectedFrontage.Add(key); frontageGround++; continue; }
+                        // Include the short door path all the way to the EXISTING asphalt.
+                        double pathX=edge==2?grid.X0+2632:m.x+14;
+                        double pathY=edge==0?grid.Y0+1112:edge==1?grid.Y0-92:m.y;
+                        foreach(var tr in FlyingGame.Core.Forest.InRect(
+                            System.Math.Min(m.x-gz,pathX)-12,System.Math.Min(m.y-gx,pathY)-12,
+                            System.Math.Max(m.x+gz,pathX)+12,System.Math.Max(m.y+gx,pathY)+12))
+                            if(System.Math.Abs(tr.X-m.x)<gz+tr.CrownRadiusM && System.Math.Abs(tr.Y-m.y)<gx+tr.CrownRadiusM
+                                || tr.X>System.Math.Min(m.x,pathX)-2-tr.CrownRadiusM
+                                    && tr.X<System.Math.Max(m.x,pathX)+2+tr.CrownRadiusM
+                                    && tr.Y>System.Math.Min(m.y,pathY)-2-tr.CrownRadiusM
+                                    && tr.Y<System.Math.Max(m.y,pathY)+2+tr.CrownRadiusM)
+                            { blocked=true; break; }
+                        if(blocked) { rejectedFrontage.Add(key); frontageForest++; continue; }
+                        usedFrontage.Add(new Vector3(centre.x,gx,centre.z));
+                        target=m; return true;
+                    }
+                    return false;
+                }
                 // Up to 96 distinct ridges, each terrace containing four homes. 48 m
                 // spacing leaves 14 m between eaves and 30 m between garden fronts.
                 // Start on the camera side; a failed lot never shifts any existing body.
-                for(int row=0;row<26 && extension<96;row++)
-                for(int col=0;col<20 && extension<96;col++)
+                for(int row=0;row<26 && sourceLots.Count<96;row++)
+                for(int col=0;col<20 && sourceLots.Count<96;col++)
                 {
                     candidates++;
                     double u=1140+col*48,v=140+row*48;
@@ -736,9 +817,33 @@ namespace FlyingGame.Bridge
                     { viewRejected++; continue; }
                     if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,5,-8)))
                     { sightRejected++; continue; }
+                    sourceLots.Add((map,size,low,high,row,col));
+                }
+                // Move the most detached lots first. If frontage is exhausted, the
+                // preservation guard favours the sources already nearest the city edge.
+                sourceLots.Sort((a,c)=>c.map.y.CompareTo(a.map.y));
+                foreach(var source in sourceLots)
+                {
+                    var map=source.map;
+                    var size=source.size;
+                    double low=source.low,high=source.high;
+                    int row=source.row,col=source.col;
+                    bool detached=(row+col)%4==0;
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    // Preserve the source lot count/roof identity; use a validated street
+                    // frontage when available. Guard retained sources are explicitly logged,
+                    // never silently counted as successful relocations.
+                    bool moved=Frontage(size,out var frontage,out double frontageLow,out double frontageHigh);
+                    if(moved)
+                    {
+                        map=frontage; low=frontageLow; high=frontageHigh;
+                        foot=WorldBuilder.U(map.x,map.y,high+.16);
+                        frontageMoved++;
+                    }
+                    else frontageRetained++;
                     // Green garden, pale door paths, restrained C10 light walls/36-degree
                     // slate and brown roofs. No asphalt/paved lot or new road surface.
-                    float gx=size.x*.5f+3,gz=20;
+                    float gx=size.x*.5f+3,gz=moved?11:20;
                     Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,
                         terrain.HeightAt(map.x+z,map.y+x)+.08);
                     b.Quad(Lawn(-gx,-gz),Lawn(-gx,gz),Lawn(gx,gz),Lawn(gx,-gz),new Color(.32f,.39f,.27f));
@@ -750,15 +855,35 @@ namespace FlyingGame.Bridge
                     for(int door=0;door<doors;door++)
                     {
                         float x=(door-(doors-1)*.5f)*8;
-                        b.Quad(Lawn(x-.55f,-19.5f),Lawn(x-.55f,-8.5f),
-                            Lawn(x+.55f,-8.5f),Lawn(x+.55f,-19.5f),new Color(.54f,.51f,.44f));
+                        b.Quad(Lawn(x-.55f,moved?-11:-19.5f),Lawn(x-.55f,-8.5f),
+                            Lawn(x+.55f,-8.5f),Lawn(x+.55f,moved?-11:-19.5f),new Color(.54f,.51f,.44f));
+                    }
+                    if(moved)
+                    {
+                        var local=grid.Unmap(map.x,map.y);
+                        // Garden gate/path connects to the original city asphalt, no road.
+                        if(local.u>1100 || local.u<0)
+                        {
+                            float end=(float)(local.u>1100?1112-local.u:-92-local.u);
+                            float gate=local.u>1100?-size.x*.5f:size.x*.5f;
+                            // Shared path follows the garden side, clear of every body.
+                            float pathMin=Mathf.Min(end,gate),pathMax=Mathf.Max(end,gate);
+                            b.Quad(Lawn(pathMin,13),Lawn(pathMin,15),Lawn(pathMax,15),Lawn(pathMax,13),new Color(.56f,.53f,.47f));
+                            b.Quad(Lawn(gate-.7f,0),Lawn(gate-.7f,14),Lawn(gate+.7f,14),Lawn(gate+.7f,0),new Color(.56f,.53f,.47f));
+                        }
+                        else
+                        {
+                            float end=(float)(2632-local.v);
+                            b.Quad(Lawn(-.8f,end),Lawn(-.8f,-9),Lawn(.8f,-9),Lawn(.8f,end),new Color(.56f,.53f,.47f));
+                        }
+                        if(frontageMoved%12==0)
+                        { Tree(b,Lawn(gx+2,12),17003+frontageMoved); streetTrees++; }
                     }
                     extension++; extensionArea+=size.x*size.z;
-                    extensionRows[row]=u;
                 }
                 extensionEnd=b.Count;
-                // C12: a second, smaller-grain band at the town-facing edge. C11 bodies
-                // remain exactly where they were. Small footprints fit real forest gaps;
+                // C12: retain the second, smaller-grain band at the town-facing edge.
+                // C11 source count is preserved, with C13 street-edge relocations. Small footprints fit real forest gaps;
                 // registered forest is never cleared for the sake of the render.
                 for(int candidate=0;candidate<72 && nearCount<72;candidate++)
                 {
@@ -807,83 +932,57 @@ namespace FlyingGame.Bridge
                     Building(foot,size,15001+candidate*37,1,candidate/3);
                     b.Quad(Lawn(-.7f,-18),Lawn(-.7f,-7),Lawn(.7f,-7),Lawn(.7f,-18),new Color(.56f,.53f,.46f));
                     nearCount++;
-                    double laneV=v-24;
-                    if(nearLanes.TryGetValue(laneV,out var range))
-                        nearLanes[laneV]=(System.Math.Min(range.min,u),System.Math.Max(range.max,u+12));
-                    else nearLanes[laneV]=(System.Math.Min(1110,u),System.Math.Max(1110,u+12));
+
                 }
-                // C12: six-metre residential lanes along the C11 garden frontages,
-                // joined by an edge collector. Entirely outside the old city road/lot
-                // boundary (u=1090); unchanged city street ends meet the collector.
-                // Eight-metre terrain-draped pieces avoid floating hillside asphalt.
-                Vector3 Surface(double u,double v,float lift)
+                // C13 fallback: houses IN FRONT of the sim-owned belt, never clear it.
+                // The existing C10/C12 rows remain; these small garden walk-ups occupy
+                // only genuinely open near-camera land, with no invented road/collision.
+                // Scan near-to-far to favour a readable lower-middle band in the town lens.
+                for(int row=0;row<10 && foreground<72;row++)
+                for(int col=0;col<20 && foreground<72;col++)
                 {
-                    var m=grid.Map(u,v);
-                    return WorldBuilder.U(m.x,m.y,terrain.HeightAt(m.x,m.y)+lift);
-                }
-                void Lane(double u0,double v0,double u1,double v1)
-                {
-                    double length=System.Math.Sqrt((u1-u0)*(u1-u0)+(v1-v0)*(v1-v0));
-                    int steps=Mathf.CeilToInt((float)length/8);
-                    double du=(u1-u0)/steps,dv=(v1-v0)/steps;
-                    double nx=-dv/ System.Math.Sqrt(du*du+dv*dv),nz=du/System.Math.Sqrt(du*du+dv*dv);
-                    for(int k=0;k<steps;k++)
+                    double u=548+col*30,v=-780+row*36;
+                    // C10 starts at u=1190; its gardens/eaves remain beyond this band.
+                    foregroundTested++;
+                    var map=grid.Map(u,v);
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-12)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+82) blocked=true;
+                    double low=double.MaxValue,high=double.MinValue;
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
                     {
-                        double u=u0+du*k,v=v0+dv*k;
-                        var m=grid.Map(u+du*.5,v+dv*.5);
-                        bool blocked=false;
-                        foreach(var tr in FlyingGame.Core.Forest.InRect(m.x-12,m.y-12,m.x+12,m.y+12))
-                            if(System.Math.Abs(tr.X-m.x)<6+tr.CrownRadiusM && System.Math.Abs(tr.Y-m.y)<6+tr.CrownRadiusM)
-                            { blocked=true; break; }
-                        foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
-                            if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,m.x-8)<70
-                                && System.Math.Abs(m.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+78) blocked=true;
-                        for(int corner=0;corner<4;corner++)
-                        {
-                            double cu=u+(corner/2)*du+(corner%2==0?-4:4)*nx;
-                            double cv=v+(corner/2)*dv+(corner%2==0?-4:4)*nz;
-                            var c=grid.Map(cu,cv);
-                            if(terrain.WaterSurfaceAt(c.x,c.y).HasValue) blocked=true;
-                        }
-                        if(blocked || System.Math.Abs(Surface(u,v,0).y-Surface(u+du,v+dv,0).y)>2)
-                        { laneRejected++; continue; }
-                        void Strip(double a,double c,float lift,Color colour)
-                        {
-                            b.Quad(Surface(u+nx*a,v+nz*a,lift),Surface(u+nx*c,v+nz*c,lift),
-                                Surface(u+du+nx*c,v+dv+nz*c,lift),Surface(u+du+nx*a,v+dv+nz*a,lift),colour);
-                        }
-                        Strip(-4,4,.09f,new Color(.56f,.55f,.50f));
-                        Strip(-3,3,.105f,new Color(.26f,.27f,.26f));
-                        if(k%3==0) Strip(-.07,.07,.12f,new Color(.72f,.68f,.52f));
-                        laneSegments++;
+                        double x=map.x+dx*12,y=map.y+dy*12,h=terrain.HeightAt(x,y);
+                        low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                        if(terrain.WaterSurfaceAt(x,y).HasValue) blocked=true;
                     }
-                }
-                int lastRow=-1;
-                foreach(var row in extensionRows)
-                {
-                    double v=116+row.Key*48;
-                    Lane(1110,v,row.Value+22,v);
-                    lastRow=System.Math.Max(lastRow,row.Key);
-                    // Occasional small deciduous garden trees, not a new forest belt.
-                    double u=row.Value+21;
-                    var m=grid.Map(u,v+11);
-                    if(!terrain.WaterSurfaceAt(m.x,m.y).HasValue)
-                    { Tree(b,Surface(u,v+11,.12f),row.Key*17); streetTrees++; }
-                }
-                double collectorStart=85,collectorEnd=lastRow>=0?116+lastRow*48:85;
-                foreach(var row in nearLanes)
-                {
-                    Lane(row.Value.min,row.Key,row.Value.max,row.Key);
-                    collectorStart=System.Math.Min(collectorStart,row.Key);
-                    collectorEnd=System.Math.Max(collectorEnd,row.Key);
-                }
-                if(collectorEnd>collectorStart)
-                {
-                    Lane(1110,collectorStart,1110,collectorEnd);
-                    Lane(1091,85,1110,85);
+                    if(blocked || high-low>1.3 || System.Math.Abs(high-ground)>12)
+                    { foregroundGround++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-26,map.y-26,map.x+26,map.y+26))
+                        if(System.Math.Abs(tr.X-map.x)<12+tr.CrownRadiusM && System.Math.Abs(tr.Y-map.y)<12+tr.CrownRadiusM)
+                        { blocked=true; break; }
+                    if(blocked) { foregroundForest++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 size=new Vector3(16,6.2f,14);
+                    Vector3 roof=foot+Vector3.up*11,relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    if(depth<260 || depth>850 || Mathf.Abs(Vector3.Dot(relative,right))+12>depth*tanHalfFov*aspect*.9f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+12>depth*tanHalfFov*.88f)
+                    { foregroundView++; continue; }
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,4.5f,-7)))
+                    { foregroundSight++; continue; }
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-12,-12),Lawn(-12,12),Lawn(12,12),Lawn(12,-12),new Color(.34f,.41f,.28f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,19001+row*71+col*13,4,row+col/3);
+                    b.Quad(Lawn(-.7f,-12),Lawn(-.7f,-7),Lawn(.7f,-7),Lawn(.7f,-12),new Color(.56f,.53f,.46f));
+                    foreground++;
                 }
             }
-            Debug.Log($"Roof district C12 near band {grid.X0},{grid.Y0}: {nearCount}/72 placed from {nearTested}; rejects overlap={nearOverlap}, ground/water/airport={nearGround}, forest={nearForest}, frustum={nearView}, sightline={nearSight}; lanes={laneSegments} eight-metre-or-shorter pieces, rejected={laneRejected}, garden trees={streetTrees}. All C11 bodies retained; visible band and lane continuity require renders.");
+            Debug.Log($"Roof district C13 {grid.X0},{grid.Y0}: sim-owned belt, trees removed=0; frontage moved={frontageMoved}, retained source guards={frontageRetained}, tested={frontageTested}, rejects forest={frontageForest}, ground/water/airport={frontageGround}; foreground {foreground}/72 from {foregroundTested}, rejects ground/water/airport={foregroundGround}, forest={foregroundForest}, frustum={foregroundView}, sightline={foregroundSight}; garden trees={streetTrees}; no new streets. Retained source guards mean isolated-cluster acceptance is NOT met.");
+            Debug.Log($"Roof district C12 near band {grid.X0},{grid.Y0}: {nearCount}/72 placed from {nearTested}; rejects overlap={nearOverlap}, ground/water/airport={nearGround}, forest={nearForest}, frustum={nearView}, sightline={nearSight}. C11 source quota retained; see C13 relocation log. Visible band requires renders.");
             Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {extensionEnd-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
             Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
             // Count/footprint are emitted for Chief's render log; no collision registration.
