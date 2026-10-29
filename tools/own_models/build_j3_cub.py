@@ -445,6 +445,23 @@ rbox(_bct, B(_vx, 0, wing_low_c(_vx) - 0.006), (0.05, 0.07, 0.012))             
 P['A_Pillar'] = link('A_Pillar', _bap); P['Cabin_Tubes'] = link('Cabin_Tubes', _bct); AP_SCREWS = 0
 _gap = [min(fus_y(x_, z_) - abs(y_) for x_, y_, z_ in [(-q[0], q[1], q[2])]) for q in [B(*(_va + (_vb - _va) * t_)) for t_ in (0.25, 0.5, 0.75)]]
 print('V TUBES v11: (%.3f, %.3f, %.3f) -> (%.3f, %.3f, %.3f); gap to the side skin at 25/50/75 pct %s m' % (tuple(_va) + tuple(_vb) + (str([round(g_, 3) for g_ in _gap]),)))
+# ---- v12c (Ty photos): second V tube in the cabin ceiling, under the skylight. Yellow 1 in steel tube lying just under
+# the ceiling (wing centre-section lower contour): apex at the front-spar fitting where the windshield V tubes meet,
+# legs running forward and outboard to the upper cabin corners at the A-pillar / triangle-window frame tops. In Ty's
+# 3/4 photo it reads as the near-level tube from the V apex out to the near A-pillar top, just under the roof.
+_bcv = bmesh.new(); _CVE = []
+_cxa = _vx - 0.012
+for sy in (1, -1):
+    _cxb = 0.5 * (PL_X1 + PV_X)
+    _ya, _yb = sy * 0.022, sy * (fus_y(_cxb, wing_low_c(_cxb) - 0.02) - AP_R * 1.9)
+    pts = []
+    for t_ in np.linspace(0, 1, 28):
+        x_ = _cxa + (_cxb - _cxa) * t_; y_ = _ya + (_yb - _ya) * t_
+        pts.append(B(x_, y_, wing_low_c(x_) - AP_R - 0.002))
+    tube(_bcv, pts, AP_R, n=14); _CVE.append((_cxb, _yb, wing_low_c(_cxb) - AP_R - 0.002))
+    rbox(_bcv, B(_cxb + 0.006, _yb, wing_low_c(_cxb) - 0.006), (0.04, 0.035, 0.012))     # corner fitting under the roof
+P['Ceiling_Tubes'] = link('Ceiling_Tubes', _bcv)
+print('CEILING V v12c: apex (%.3f, 0, %.3f) -> corners (%.3f, +-%.3f, %.3f); r %.4f' % (_cxa, wing_low_c(_cxa) - AP_R - 0.002, _CVE[0][0], abs(_CVE[0][1]), _CVE[0][2], AP_R))
 # ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
 _bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
 def _wf(c_): return (-c_.x - LE_D) / CH
@@ -1337,7 +1354,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Skylight', 'glass'), ('Skylight_Frame', 'yellow'), ('Skylight_Trim', 'black'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Ceiling_Tubes', 'yellow'), ('Skylight', 'glass'), ('Skylight_Frame', 'yellow'), ('Skylight_Trim', 'black'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
