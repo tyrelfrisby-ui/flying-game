@@ -27,6 +27,7 @@ Shader "FlyingGame/Terrain"
             float4 _AirportGrass[4];
             float4 _AirportPasture[4], _AirportPastureHeights;
             float4 _MountainAlpine, _MountainAlaska;
+            float4 _GlacierAxes[3], _GlacierWidths;
             float mountainRegion(float2 p, float4 bounds)
             {
                 float2 inside=min(p-bounds.xy,bounds.zw-p);
@@ -134,22 +135,28 @@ Shader "FlyingGame/Terrain"
                     float mountainRock=mountain*max(exposed,bareAltitude)*(1-redrock);
                     // Cover stays tied to the existing forest registry. Never add trees
                     // to strips, authored clearings, or slopes that have no sim timber.
-                    forest*=1-mountain*max(exposed,bareAltitude);
+                    // Registered canopy already has sim altitude/aspect/slope thinning.
+                    // Do not erase that thin edge a second time with the rock mask.
                     float3 meadow=lerp(float3(.34,.41,.22),float3(.49,.47,.32),
                         saturate((i.wp.y-treeLine)/500));
                     albedo=lerp(albedo,meadow,mountain*(1-exposed)*(1-forest));
-                    float snowLine=lerp(2820,1830,alaska)-aspect*220;
+                    float snowLine=lerp(3170,1770,alaska)-aspect*lerp(150,240,alaska);
                     float raggedHeight=i.wp.y+(broad-.5)*260+(rockGrain-.5)*75;
                     float snowAltitude=smoothstep(snowLine-160,snowLine+320,raggedHeight);
                     // 35-40 degree snow retention, with sheltered hollows extending
                     // below the regional line. Near-vertical faces remain bare.
-                    float retention=smoothstep(.75,.84,macroNormal.y+(broad-.5)*.06);
-                    float cap=snowAltitude*retention*(1-ridge*.38);
+                    // Compressed Alaska relief reaches 70+ degrees: retain bonded ice
+                    // to 74 degrees, leaving the sheer couloir walls as granite.
+                    float retention=smoothstep(lerp(.75,.13,alaska),lerp(.84,.28,alaska),
+                        macroNormal.y+(broad-.5)*.06);
+                    float cap=snowAltitude*retention*(1-ridge*lerp(.38,.12,alaska));
                     float sheltered=smoothstep(.48,.78,gully+hollow*.30);
                     float patchAltitude=smoothstep(snowLine-430,snowLine+100,raggedHeight);
                     float streak=sheltered*patchAltitude*smoothstep(.42,.76,macroNormal.y)
                         *(1-retention)*(.35+aspect*.45)*(1-ridge*.65);
-                    float snow=saturate(cap+streak)*(1-redrock);
+                    float alaskaIce=snowAltitude*smoothstep(.08,.23,macroNormal.y)
+                        *smoothstep(.30,.65,gully+hollow*.45)*.92;
+                    float snow=saturate(max(cap+streak,alaskaIce*alaska))*(1-redrock);
                     // Preserve the established non-range snow response on front walls.
                     float legacyAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
                     float legacyRetention=smoothstep(.64,.88,macroNormal.y);
@@ -188,7 +195,10 @@ Shader "FlyingGame/Terrain"
                         // Limestone packages dip gently across both stationary side
                         // projections; triplanar grain above supplies face-scale rock.
                         // Unequal 18/53/137 m beds avoid a repeated ruler or moire.
-                        float bedHeight=i.wp.y+i.wp.x*.065+i.wp.z*.025+(broad-.5)*24;
+                        float bedHeight=i.wp.y+i.wp.x*.31-i.wp.z*.19
+                            +(noiseTerrain(i.wp.xz*.0016)-.5)*170+(broad-.5)*48;
+                        float bedFace=(1-smoothstep(.766,.866,macroNormal.y))
+                            *smoothstep(.20,.55,drainage)*(1-hollow*.65);
                         float bedLarge=filteredTerrain(float2(bedHeight/137,11.7));
                         float bedMid=filteredTerrain(float2(bedHeight/53+23.1,3.4));
                         float bedSmall=.5;
@@ -199,10 +209,12 @@ Shader "FlyingGame/Terrain"
                         limestone*=1+(bedSmall-.5)*.24;
                         float darkBed=(1-smoothstep(.28,.44,bedMid))*.28;
                         limestone*=1-darkBed;
-                        limestone=lerp(float3(.59,.59,.55),limestone,exposed);
-                        beddingRelief=(bedMid-.5)*alpine*.7;
+                        limestone=lerp(float3(.59,.59,.55),limestone,bedFace*.60);
+                        beddingRelief=(bedMid-.5)*alpine*bedFace*.42;
                         // Alaska is massive granite: no sedimentary bands.
-                        float3 granite=lerp(float3(.46,.48,.50),float3(.64,.65,.64),broad);
+                        float3 granite=lerp(float3(.62,.64,.65),float3(.76,.76,.73),broad);
+                        float fracture=1-smoothstep(.08,.16,abs(drainage-.48));
+                        granite*=1-fracture*.13*(1-smoothstep(.40,.62,rockGrain));
                         granite*=1+(rockGrain-.5)*.14;
                         float3 mountainStone=lerp(limestone,granite,alaska);
                         mountainStone*=1-gully*.09-hollow*.08;
@@ -213,7 +225,7 @@ Shader "FlyingGame/Terrain"
                         float debrisHeight=smoothstep(treeLine-100,treeLine+420,i.wp.y);
                         float fanWidth=lerp(.76,.40,toe);
                         float fanChannel=smoothstep(fanWidth,fanWidth+.22,gully);
-                        float debris=saturate(hollow*2.2+fanChannel*.55)*toe
+                        float debris=saturate(hollow*3.4+fanChannel*.85)*toe
                             *debrisHeight*(1-forest)*(1-snow);
                         float3 scree=lerp(float3(.66,.65,.60),float3(.59,.62,.64),alaska);
                         scree*=.97+rockGrain*.06;
@@ -235,6 +247,61 @@ Shader "FlyingGame/Terrain"
                     // Bound the perturbation; avoid grazing-angle derivative explosions.
                     gradient*=min(1,.35/max(.001,length(gradient)));
                     n=normalize(n-gradient);
+                    if(alaska>.001)
+                    {
+                        float glacier=0, iceAcross=0, iceAlong=0, iceWidth=1, iceLength=1;
+                        float2 iceDown=float2(0,1);
+                        for(int gi=0;gi<3;gi++)
+                        {
+                            float4 axis=_GlacierAxes[gi];
+                            float2 delta=axis.zw-axis.xy;
+                            float len=max(1,length(delta));
+                            float2 down=delta/len, right=float2(-down.y,down.x);
+                            float2 local=i.wp.zx-axis.xy;
+                            float along=dot(local,down), across=dot(local,right);
+                            float width=_GlacierWidths[gi];
+                            float edge=1-smoothstep(width*.88,width,abs(across));
+                            float ends=smoothstep(0,65,along)*(1-smoothstep(len-90,len,along));
+                            float claim=edge*ends*smoothstep(.65,.90,macroNormal.y);
+                            if(claim>glacier)
+                            {
+                                glacier=claim; iceAcross=across; iceAlong=along;
+                                iceWidth=width; iceLength=len; iceDown=down;
+                            }
+                        }
+                        // One centred 800 x 80 m snow runway per corridor, 65% downstream.
+                        // 60 m safety feather outside the clear rectangle; no actual flattening.
+                        float lz=(1-smoothstep(400,460,abs(iceAlong-iceLength*.65)))
+                            *(1-smoothstep(40,100,abs(iceAcross)));
+                        float edgeZone=smoothstep(.45,.86,abs(iceAcross)/iceWidth);
+                        float icefall=(1-smoothstep(.30,.55,iceAlong/iceLength))
+                            +saturate((.98-macroNormal.y)*12);
+                        float warp=filteredTerrain(float2(iceAlong*.006,iceAcross*.008));
+                        float phase=(iceAlong+abs(iceAcross)*.32+(warp-.5)*38)/31;
+                        float footprint=max(abs(ddx(phase)),abs(ddy(phase)));
+                        float fissure=1-smoothstep(.035,.105,abs(frac(phase)-.5));
+                        fissure*=1-smoothstep(.12,.28,footprint);
+                        float cracks=fissure*saturate(edgeZone+icefall*.8)*(1-lz);
+                        float drift=(warp-.5)*20;
+                        float iceAA=max(.5,max(length(ddx(i.wp.xz)),length(ddy(i.wp.xz))));
+                        float medial=(1-smoothstep(max(0,9-iceAA),22+iceAA,abs(iceAcross-iceWidth*.30-drift)))
+                            *smoothstep(.20,.45,iceAlong/iceLength);
+                        float lateral=smoothstep(.82,.97,abs(iceAcross)/iceWidth);
+                        float moraine=max(medial,lateral)*(1-lz);
+                        float3 iceColour=lerp(float3(.95,.975,.99),float3(.19,.39,.51),cracks*.85);
+                        iceColour=lerp(iceColour,float3(.27,.29,.30)*( .9+rockGrain*.2),moraine*.82);
+                        albedo=lerp(albedo,iceColour,glacier);
+                        float opticalIce=-cracks*.8;
+                        float3 iceGradient=(ddx(opticalIce)*r1+ddy(opticalIce)*r2)
+                            *sign(determinant)/max(abs(determinant),.00001);
+                        iceGradient*=min(1,.20/max(.001,length(iceGradient)));
+                        n=normalize(n-iceGradient*glacier);
+                        // Smooth shading at the centre, exact terrain depth/silhouette retained.
+                        float grade=dot(macroNormal.xz,float2(iceDown.y,iceDown.x));
+                        float3 iceNormal=normalize(float3(iceDown.y*grade,macroNormal.y,iceDown.x*grade));
+                        n=normalize(lerp(n,iceNormal,glacier*(1-edgeZone)*(1-cracks)*lerp(.85,1,lz)));
+                        forest*=1-glacier;
+                    }
                     float crowns=lerp(.5,noiseTerrain(ground*.14),saturate(1-length(fwidth(ground))*.025));
                     float canopy=smoothstep(.15,.8,forest);
                     albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);

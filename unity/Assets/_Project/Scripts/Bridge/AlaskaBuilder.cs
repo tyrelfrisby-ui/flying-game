@@ -32,43 +32,35 @@ namespace FlyingGame.Bridge
         {
             var root = new GameObject("Alaska");
             root.transform.SetParent(parent, false);
-            BuildGlaciers(root.transform);
+            // Ice finish is on the exact terrain, eliminating the detached faceted ice slab.
             BuildGlacierLakes(root.transform);
             BuildBraids(t, root.transform);
             BuildObstacles(root.transform);
             BuildMadeStrips(root.transform);
         }
 
-        /// <summary>The ice: a crowned surface down each trough, dirtier toward the snout where the moraine is.</summary>
-        private static void BuildGlaciers(Transform parent)
+        // Visual corridors only. Sim XY metres; endpoints follow existing valley floors.
+        // First two are sourced from Core, third is the broad valley east of Colony.
+        public static Vector4 GlacierAxis(int index)
         {
-            var b = new SeasideBuilder.Batch();
-            foreach (AlaskaRange.Glacier g in AlaskaRange.Glaciers)
+            if (index < AlaskaRange.Glaciers.Length)
             {
-                double dx = (g.TermX - g.HeadX) / g.LengthM, dy = (g.TermY - g.HeadY) / g.LengthM;
-                double rx = -dy, ry = dx;
-                const int ns = 60, nu = 10;
-                for (int i = 0; i < ns; i++)
-                {
-                    double t0 = (double)i / ns, t1 = (double)(i + 1) / ns;
-                    for (int j = 0; j < nu; j++)
-                    {
-                        double u0 = -g.HalfWidthM + 2 * g.HalfWidthM * j / nu;
-                        double u1 = -g.HalfWidthM + 2 * g.HalfWidthM * (j + 1) / nu;
-                        Vector3 P(double tt, double uu) =>
-                            U(g.HeadX + dx * g.LengthM * tt + rx * uu,
-                              g.HeadY + dy * g.LengthM * tt + ry * uu,
-                              g.IceHeightAt(tt, System.Math.Abs(uu)) + 0.4);
-                        // Broad nonperiodic ice variation: row stripes read as a checkerboard
-                        // with the faceted lighting, rather than narrow crevasses.
-                        float stripe = .98f + .02f * Mathf.PerlinNoise((float)t0 * 7.3f, (float)(u0 / g.HalfWidthM) * 1.7f + 19f);
-                        float dirt = (float)System.Math.Max(System.Math.Abs(u0) / g.HalfWidthM, t0 * t0);
-                        Color c = Color.Lerp(Ice, IceDirty, Mathf.Clamp01(dirt * 0.9f)) * stripe;
-                        b.Quad(P(t0, u0), P(t1, u0), P(t1, u1), P(t0, u1), c);
-                    }
-                }
+                var g = AlaskaRange.Glaciers[index];
+                return new Vector4((float)g.HeadX, (float)g.HeadY, (float)g.TermX, (float)g.TermY);
             }
-            b.Build("GlacierIce", parent, SeasideBuilder.VC);
+            return new Vector4(7500, -7000, 7700, -5500);
+        }
+        public static float GlacierHalfWidth(int index) => index < AlaskaRange.Glaciers.Length
+            ? (float)AlaskaRange.Glaciers[index].HalfWidthM : 280f;
+        public static string GlacierName(int index) => index < AlaskaRange.Glaciers.Length
+            ? AlaskaRange.Glaciers[index].Name : "East Fork";
+        public static void ConfigureTerrain(Material material)
+        {
+            var axes = new Vector4[3]; var widths = new Vector4();
+            for (int index=0; index<3; index++)
+            { axes[index]=GlacierAxis(index); widths[index]=GlacierHalfWidth(index); }
+            material.SetVectorArray("_GlacierAxes", axes);
+            material.SetVector("_GlacierWidths", widths);
         }
 
         /// <summary>The proglacial lakes, and the bergs floating in them.</summary>

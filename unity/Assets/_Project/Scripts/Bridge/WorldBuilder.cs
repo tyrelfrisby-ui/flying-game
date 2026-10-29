@@ -391,6 +391,8 @@ namespace FlyingGame.Bridge
                 (float)(AlaskaRange.Y0-AlaskaRange.PadSouthM), (float)(AlaskaRange.X0-AlaskaRange.PadWestM),
                 (float)(AlaskaRange.Y1+AlaskaRange.PadNorthM), (float)(AlaskaRange.X1+AlaskaRange.PadEastM)));
 
+            AlaskaBuilder.ConfigureTerrain(terrainMaterial);
+
             double step = CoarseStep;
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];

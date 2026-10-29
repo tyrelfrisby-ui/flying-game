@@ -51,6 +51,44 @@ namespace FlyingGame.EditorTools
 
             // Derive inspection cameras from today's terrain: the old fixed fall views are underground.
             var terrain = FlyingGame.Core.WorldTerrain.Active;
+            // Exact read-only sim queries for Claude; emitted on every scenery render.
+            // No assumptions that the old ice overlay matched the underlying terrain.
+            var glacierReport = new System.Text.StringBuilder();
+            glacierReport.AppendLine("name,centre_x,centre_y,centre_elevation_m,lz_x,lz_y,lz_elevation_m,along_deg,across_deg,heading_deg,max_along_deg,max_across_deg,max_30m_residual_m");
+            Vector3 GlacierView(int index, double fraction, double across, double above)
+            {
+                Vector4 a=AlaskaBuilder.GlacierAxis(index);
+                double dx=a.z-a.x, dy=a.w-a.y, len=System.Math.Sqrt(dx*dx+dy*dy);
+                double x=a.x+dx*fraction-dy/len*across, y=a.y+dy*fraction+dx/len*across;
+                return WorldBuilder.U(x,y,terrain.HeightAt(x,y)+above);
+            }
+            for(int gi=0;gi<3;gi++)
+            {
+                Vector4 a=AlaskaBuilder.GlacierAxis(gi);
+                double dx=a.z-a.x,dy=a.w-a.y,len=System.Math.Sqrt(dx*dx+dy*dy);
+                double ux=dx/len,uy=dy/len,rx=-uy,ry=ux;
+                double cx=a.x+dx*.5,cy=a.y+dy*.5,lx=a.x+dx*.65,ly=a.y+dy*.65;
+                double Height(double along,double across) => terrain.HeightAt(lx+ux*along+rx*across,ly+uy*along+ry*across);
+                double Deg(double rise,double run) => System.Math.Atan2(rise,run)*180/System.Math.PI;
+                double alongSlope=Deg(Height(15,0)-Height(-15,0),30);
+                double crossSlope=Deg(Height(0,15)-Height(0,-15),30);
+                double maxAlong=0,maxAcross=0,maxResidual=0;
+                for(double along=-400;along<=400;along+=20)
+                for(double across=-40;across<=40;across+=20)
+                {
+                    double h=Height(along,across);
+                    maxAlong=System.Math.Max(maxAlong,System.Math.Abs(Deg(Height(along+15,across)-Height(along-15,across),30)));
+                    maxAcross=System.Math.Max(maxAcross,System.Math.Abs(Deg(Height(along,across+15)-Height(along,across-15),30)));
+                    maxResidual=System.Math.Max(maxResidual,System.Math.Abs(h-(Height(along-15,across)+Height(along+15,across))*.5));
+                    maxResidual=System.Math.Max(maxResidual,System.Math.Abs(h-(Height(along,across-15)+Height(along,across+15))*.5));
+                }
+                var culture=System.Globalization.CultureInfo.InvariantCulture;
+                glacierReport.AppendLine(string.Format(culture,"{0},{1:F2},{2:F2},{3:F3},{4:F2},{5:F2},{6:F3},{7:F3},{8:F3},{9:F2},{10:F3},{11:F3},{12:F3}",
+                    AlaskaBuilder.GlacierName(gi),cx,cy,terrain.HeightAt(cx,cy),lx,ly,Height(0,0),alongSlope,crossSlope,
+                    (System.Math.Atan2(uy,ux)*180/System.Math.PI+360)%360,maxAlong,maxAcross,maxResidual));
+            }
+            File.WriteAllText(Path.Combine(outDir,"glacier-sim-handoff.csv"),glacierReport.ToString());
+            Debug.Log("Glacier sim handoff (read-only terrain samples):\n"+glacierReport);
             var fall = terrain.Waterfalls[0];
             double top = terrain.RiverSurfaceAt(fall.LipY-1);
             double pool = terrain.RiverSurfaceAt(fall.LipY+FlyingGame.Core.WorldTerrain.RiverTableStepPublic+2);
@@ -309,7 +347,11 @@ namespace FlyingGame.EditorTools
                 ("alaska-massif", new Vector3(-1600f, 4300f, 4200f), new Vector3(-5900f, 3000f, 4200f)),
                 ("alaska-denali", new Vector3(-3400f, 3800f, 4300f), new Vector3(-5900f, 4300f, 4200f)),
                 ("alaska-ridge", new Vector3(-2600f, 4800f, 900f), new Vector3(-6100f, 3400f, 4400f)),
-                ("alaska-glacier", new Vector3(-4600f, 2050f, 5400f), new Vector3(-6900f, 2100f, 5050f)),
+                ("alaska-glacier", GlacierView(0,.92,330,330), GlacierView(0,.40,0,0)),
+                ("alaska-ruth", GlacierView(0,.98,0,180), GlacierView(0,.12,0,350)),
+                ("alaska-glacier-lz", GlacierView(0,.98,0,32), GlacierView(0,.46,0,4)),
+                ("alaska-colony", GlacierView(1,.95,230,250), GlacierView(1,.38,0,0)),
+                ("alaska-east-fork", GlacierView(2,.95,200,230), GlacierView(2,.38,0,0)),
                 ("alaska-lake", new Vector3(-4850f, 1620f, 5395f), new Vector3(-5700f, 1560f, 5350f)),
                 ("alaska-braided", new Vector3(-1200f, 1700f, 5800f), new Vector3(-4100f, 950f, 5800f)),
                 // The alpine range and its stair of lakes, on the Summit plateau. Cathedral is 3,357 m.
