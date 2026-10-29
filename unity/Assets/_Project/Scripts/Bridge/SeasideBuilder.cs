@@ -140,10 +140,24 @@ namespace FlyingGame.Bridge
                 }
             }
 
-            public GameObject Build(string name, Transform parent, Material m)
+            public GameObject Build(string name, Transform parent, Material m, bool smooth = false)
             {
                 var mesh = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
                 mesh.SetVertices(_v); mesh.SetNormals(_n); mesh.SetColors(_c); mesh.SetTriangles(_t, 0);
+                if (smooth)
+                {
+                    // Batch faces duplicate vertices. Average their existing normals at coincident
+                    // positions so strata/joints do not reveal each four-vertex quad.
+                    var sums = new Dictionary<Vector3, Vector3>();
+                    for (int i=0; i<_v.Count; i++)
+                    {
+                        sums.TryGetValue(_v[i], out Vector3 sum);
+                        sums[_v[i]] = sum + _n[i];
+                    }
+                    var normals = new List<Vector3>(_v.Count);
+                    for (int i=0; i<_v.Count; i++) normals.Add(sums[_v[i]].normalized);
+                    mesh.SetNormals(normals);
+                }
                 mesh.RecalculateBounds();
                 var go = new GameObject(name);
                 go.transform.SetParent(parent, false);

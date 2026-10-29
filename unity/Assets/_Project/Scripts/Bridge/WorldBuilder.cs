@@ -170,18 +170,14 @@ namespace FlyingGame.Bridge
                 c.a = 0f; // Desert shelves are not farm fields.
                 return c;
             }
-            // Explicit regional metadata: -1 is glacier ice; [-3,-2) is Powell.
-            // Rim finish fades within 90 m of the existing lake wall; mountain biomes bypass this.
-            if (y > CanyonLake.Y0 && y < CanyonLake.DamY)
+            // Powell includes the enclosing cliffs and dry plateau, with a soft biome boundary.
+            // No altitude ceiling: the high walls behind the narrow carved shore are sandstone too.
+            float powell = PowellRegionMask(x, y);
+            if (powell > 0)
             {
-                double edge = System.Math.Abs(x-CanyonLake.CentreX(y))-CanyonLake.HalfWidthAt(y);
-                float mask = 1-Mathf.SmoothStep(0,1,(float)((edge-12)/90));
-                if (mask > 0 && h < WorldTerrain.DatumM+8)
-                {
-                    geology.x = -2-mask;
-                    c = new Color(.79f,.44f,.25f,0);
-                    cover = 0;
-                }
+                geology.x = -2-powell;
+                c = Color.Lerp(c, new Color(.79f,.44f,.25f,0), powell);
+                cover *= 1-powell;
             }
             // A narrow damp mineral band at the existing water line. No bank geometry is moved.
             double shore = double.MaxValue;
@@ -211,6 +207,17 @@ namespace FlyingGame.Bridge
             float farmed = Mathf.Clamp01((float)((Forest.TreeLineAt(x, y, dhx) - h) / 300.0));
             c.a = cover > .05f ? -cover : (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
             return c;
+        }
+
+        // Shared by terrain metadata and visual vegetation only; never changes Forest solids.
+        internal static float PowellRegionMask(double x, double y)
+        {
+            double along = System.Math.Max(CanyonLake.Y0-y, y-CanyonLake.DamY);
+            double sampleY = System.Math.Max(CanyonLake.Y0, System.Math.Min(CanyonLake.DamY, y));
+            double edge = System.Math.Abs(x-CanyonLake.CentreX(sampleY))-CanyonLake.HalfWidthAt(sampleY);
+            float across = 1-Mathf.SmoothStep(0,1,(float)((edge-650)/400));
+            float ends = 1-Mathf.SmoothStep(0,1,(float)((along-220)/350));
+            return across*ends;
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>

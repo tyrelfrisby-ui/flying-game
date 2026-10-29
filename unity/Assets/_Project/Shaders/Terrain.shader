@@ -62,8 +62,9 @@ Shader "FlyingGame/Terrain"
                 float3 n=normalize(i.n);
                 float3 albedo=i.c.rgb;
                 float forest=saturate(-i.c.a);
+                float powellMask=saturate(-i.geology.x-2);
                 // All new detail is day-only: the sunset comparison keeps its existing response.
-                if (_SunsetOn < .5)
+                if (_SunsetOn < .5 && powellMask < .999)
                 {
                     float3 macroNormal=n;
                     float2 ground=float2(i.wp.x*.81+i.wp.z*.59,i.wp.z*.81-i.wp.x*.59);
@@ -151,7 +152,6 @@ Shader "FlyingGame/Terrain"
                     albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);
 
                 }
-                float powellMask=saturate(-i.geology.x-2);
                 if(powellMask>.001)
                 {
                     float3 sandstone;
@@ -204,7 +204,7 @@ Shader "FlyingGame/Terrain"
                     float scaledSpan=altitudeSpan*.00020;
                     float meanDensity=exp(-lowAltitude*.00020)
                         *(1-exp(-max(.001,scaledSpan)))/max(.001,scaledSpan);
-                    float optical=path*_DayAtmosphere.x*meanDensity*1.65;
+                    float optical=path*_DayAtmosphere.x*meanDensity*lerp(1.65,.8,powellMask);
                     float haze=1-exp(-optical);
                     col=lerp(col,float3(.32,.49,.68),haze);
                 }

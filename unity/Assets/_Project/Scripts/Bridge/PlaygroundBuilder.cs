@@ -59,10 +59,105 @@ namespace FlyingGame.Bridge
             foreach (Spire s in CanyonLake.Spires) Spire(b, s, seed++);
             foreach (Spire s in CanyonLake.ArchPillars()) Spire(b, s, seed++);
             foreach (NaturalArch a in CanyonLake.Arches) Arch(b, a);
-            b.Build("CanyonLakeRock", parent, WorldBuilder.Mat("FlyingGame/PowellSandstone", Color.white));
+            b.Build("CanyonLakeRock", parent, WorldBuilder.Mat("FlyingGame/PowellSandstone", Color.white), true);
+            BuildPowellWalls(t, parent);
             var dam = new SeasideBuilder.Batch();
             Dam(dam);
             dam.Build("CanyonLakeDam", parent, SeasideBuilder.VC);
+        }
+
+        // Collider-free shore dressing. An isoheight search follows the ACTUAL sim wall;
+        // ledges project at most 0.9 m toward the lake. Sloping terrain stays sloping:
+        // a sheer replacement outside that envelope would conceal collision surprises.
+        private static void BuildPowellWalls(WorldTerrain t, Transform parent)
+        {
+            var walls = new SeasideBuilder.Batch();
+            bool low = QualitySettings.GetQualityLevel() <= 1;
+            double alongStep = low ? 24 : 12;
+            const int levels = 18;
+            Vector3 WallPoint(double y, int side, int level)
+            {
+                double cx = CanyonLake.CentreX(y), width = CanyonLake.HalfWidthAt(y);
+                double rim = t.HeightAt(cx+side*(width+3),y);
+                double top = System.Math.Max(CanyonLake.SurfaceM+1, rim);
+                double h = CanyonLake.SurfaceM-1+(top-CanyonLake.SurfaceM+1)*level/levels;
+                double a = System.Math.Max(0,width-CanyonLake.WallM-6), z = width+8;
+                // Use the first shore crossing, avoiding unrelated plateau props.
+                for (int k=0; k<10; k++)
+                {
+                    double mid=(a+z)*.5;
+                    if(t.HeightAt(cx+side*mid,y)<h) a=mid; else z=mid;
+                }
+                double distance=(a+z)*.5;
+                // Broad alcoves recede INTO rock. Small alternating ledges stay in envelope.
+                double alcove=System.Math.Pow(System.Math.Max(0,System.Math.Sin(y*.019+side)),6)*1.2;
+                double ledge=.55+.30*System.Math.Cos(h*1.1);
+                double x=cx+side*(distance-ledge+alcove);
+                return U(x,y,h);
+            }
+            for(int side=-1; side<=1; side+=2)
+            {
+                Vector3[] Row(double y)
+                {
+                    var row=new Vector3[levels+1];
+                    for(int j=0;j<=levels;j++) row[j]=WallPoint(y,side,j);
+                    return row;
+                }
+                var previous=Row(CanyonLake.Y0+8);
+                for(double y=CanyonLake.Y0+8; y<CanyonLake.DamY-75; y+=alongStep)
+                {
+                    double next=System.Math.Min(CanyonLake.DamY-75,y+alongStep);
+                    var current=Row(next);
+                    for(int j=0;j<levels;j++)
+                        walls.Quad(previous[j],previous[j+1],current[j+1],current[j],Color.white);
+                    previous=current;
+                }
+            }
+            // Low flat-topped slickrock benches outside the lake/flight corridor.
+            // Accept only naturally flat, unpaved sites; every point stays within 2.4 m
+            // of the existing terrain, rather than creating tall uncollidable buttes.
+            int made=0;
+            for(double y=CanyonLake.Y0+180; y<CanyonLake.DamY-160 && made<8; y+=185)
+                for(int side=-1;side<=1;side+=2)
+                {
+                    double x=CanyonLake.CentreX(y)+side*(CanyonLake.HalfWidthAt(y)+190);
+                    if(WorldTerrain.SurfaceAt(x,y)!=WorldTerrain.Surface.Rough) continue;
+                    bool airport=false;
+                    foreach(var field in WorldTerrain.Airports)
+                        if(System.Math.Abs(x-field.X)<1800 && System.Math.Abs(y-field.Y)<650) airport=true;
+                    if(airport) continue;
+                    double floor=t.HeightAt(x,y), min=floor, max=floor;
+                    const int sides=12;
+                    const double radius=23;
+                    for(int k=0;k<sides;k++)
+                    {
+                        double a=k*System.Math.PI*2/sides;
+                        double h=t.HeightAt(x+radius*System.Math.Cos(a),y+radius*System.Math.Sin(a));
+                        min=System.Math.Min(min,h); max=System.Math.Max(max,h);
+                    }
+                    // Check the cap interior as well as its boundary before flattening it.
+                    bool clear=true;
+                    for(double dx=-radius;dx<=radius;dx+=4)
+                        for(double dy=-radius;dy<=radius;dy+=4)
+                        {
+                            if(dx*dx+dy*dy>radius*radius) continue;
+                            if(WorldTerrain.SurfaceAt(x+dx,y+dy)!=WorldTerrain.Surface.Rough) clear=false;
+                            double h=t.HeightAt(x+dx,y+dy);
+                            min=System.Math.Min(min,h); max=System.Math.Max(max,h);
+                        }
+                    if(!clear || max-min>.8) continue;
+                    double top=max+1.5;
+                    for(int k=0;k<sides;k++)
+                    {
+                        double a=k*System.Math.PI*2/sides, b=(k+1)*System.Math.PI*2/sides;
+                        double ax=x+radius*System.Math.Cos(a), ay=y+radius*System.Math.Sin(a);
+                        double bx=x+radius*System.Math.Cos(b), by=y+radius*System.Math.Sin(b);
+                        walls.Quad(U(ax,ay,t.HeightAt(ax,ay)),U(ax,ay,top),U(bx,by,top),U(bx,by,t.HeightAt(bx,by)),Color.white);
+                        walls.Tri(U(ax,ay,top),U(x,y,top),U(bx,by,top),Color.white);
+                    }
+                    made++;
+                }
+            walls.Build("PowellShoreLedges",parent,WorldBuilder.Mat("FlyingGame/PowellSandstone",Color.white),true);
         }
 
         /// <summary>A sandstone spire: stacked rough frustums in Navajo-sandstone bands, a flat cap.</summary>
