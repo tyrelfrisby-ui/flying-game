@@ -26,6 +26,13 @@ Shader "FlyingGame/Terrain"
             float4 _ReflectionEye;
             float4 _AirportGrass[4];
             float4 _AirportPasture[4], _AirportPastureHeights;
+            float4 _MountainAlpine, _MountainAlaska;
+            float mountainRegion(float2 p, float4 bounds)
+            {
+                float2 inside=min(p-bounds.xy,bounds.zw-p);
+                return smoothstep(0,400,min(inside.x,inside.y))*step(1,bounds.z-bounds.x);
+            }
+
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -63,6 +70,11 @@ Shader "FlyingGame/Terrain"
                 float3 n=normalize(i.n);
                 float3 albedo=i.c.rgb;
                 float forest=saturate(-i.c.a);
+                float alpine=mountainRegion(i.wp.xz,_MountainAlpine);
+                float alaska=mountainRegion(i.wp.xz,_MountainAlaska);
+                float mountain=max(alpine,alaska);
+                alpine*=1-alaska; // Granite takes priority in the overlapping footprint skirts.
+
                 // Local maintained turf takes precedence over shoreline sandstone.
                 // Height/slope gates leave the gorge walls and lower banks untouched.
                 float pasture=0;
@@ -114,44 +126,107 @@ Shader "FlyingGame/Terrain"
                     float3 substrate=saturate((albedo-float3(.9,.9,.92)*oldSnow)/max(.20,1-oldSnow));
                     substrate=lerp(substrate,float3(.47,.42,.37),smoothstep(.45,.85,oldSnow));
                     if(i.geology.x >= 0) albedo=substrate;
-                    float aspect=macroNormal.z*.5+.5; // Unity north: sheltered north-facing slopes.
-                    float snowAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
-                    // Continuous upper snow only on gentle slopes. Steep faces carry
-                    // faint narrow, elongated couloirs, never round thresholded patches.
-                    float retention=smoothstep(.64,.88,macroNormal.y);
-                    float cap=snowAltitude*retention*(.94-ridge*.24);
-                    float streak=smoothstep(.72,.92,gully)*snowAltitude
-                        *smoothstep(.18,.35,macroNormal.y)*(1-retention)*(1-ridge*.6);
-                    float snow=saturate(cap+streak*.32)*(1-redrock);
+                    // North is +Unity Z: positive normal.z faces the shaded north.
+                    float aspect=macroNormal.z*.5+.5;
+                    float treeLine=lerp(2180,1720,alaska)+(broad-.5)*170-aspect*100;
+                    float bareAltitude=smoothstep(treeLine+80,treeLine+520,i.wp.y);
+                    float exposed=(1-smoothstep(.60,.819,macroNormal.y));
+                    float mountainRock=mountain*max(exposed,bareAltitude)*(1-redrock);
+                    // Cover stays tied to the existing forest registry. Never add trees
+                    // to strips, authored clearings, or slopes that have no sim timber.
+                    forest*=1-mountain*max(exposed,bareAltitude);
+                    float3 meadow=lerp(float3(.34,.41,.22),float3(.49,.47,.32),
+                        saturate((i.wp.y-treeLine)/500));
+                    albedo=lerp(albedo,meadow,mountain*(1-exposed)*(1-forest));
+                    float snowLine=lerp(2820,1830,alaska)-aspect*220;
+                    float raggedHeight=i.wp.y+(broad-.5)*260+(rockGrain-.5)*75;
+                    float snowAltitude=smoothstep(snowLine-160,snowLine+320,raggedHeight);
+                    // 35-40 degree snow retention, with sheltered hollows extending
+                    // below the regional line. Near-vertical faces remain bare.
+                    float retention=smoothstep(.75,.84,macroNormal.y+(broad-.5)*.06);
+                    float cap=snowAltitude*retention*(1-ridge*.38);
+                    float sheltered=smoothstep(.48,.78,gully+hollow*.30);
+                    float patchAltitude=smoothstep(snowLine-430,snowLine+100,raggedHeight);
+                    float streak=sheltered*patchAltitude*smoothstep(.42,.76,macroNormal.y)
+                        *(1-retention)*(.35+aspect*.45)*(1-ridge*.65);
+                    float snow=saturate(cap+streak)*(1-redrock);
+                    // Preserve the established non-range snow response on front walls.
+                    float legacyAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
+                    float legacyRetention=smoothstep(.64,.88,macroNormal.y);
+                    float legacyStreak=smoothstep(.72,.92,gully)*legacyAltitude
+                        *smoothstep(.18,.35,macroNormal.y)*(1-legacyRetention)*(1-ridge*.6);
+                    float legacySnow=saturate(legacyAltitude*legacyRetention*(.94-ridge*.24)+legacyStreak*.32)*(1-redrock);
+                    snow=lerp(legacySnow,snow,mountain);
                     float talus=hollow*smoothstep(.60,.82,macroNormal.y)
                         *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
                     albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
-                    // Nonperiodic unequal beds with gently warped contacts. Side
-                    // coordinate varies slowly, so these remain strata, not speckle.
-                    float bed=i.wp.y*.0065+(broad-.5)*.32+ground.x*.00012;
-                    float package=filteredTerrain(float2(bed,7.3));
-                    float thinBeds=filteredTerrain(float2(bed*3.3+19.1,4.8));
-                    float lamina=filteredTerrain(float2(bed*5.7+37.2,2.6));
                     albedo*=1+(drainage-.5)*.072+(rockGrain-.5)*.072;
-                    float3 strata=lerp(float3(.55,.32,.22),float3(.76,.65,.48),
-                        smoothstep(.25,.72,package));
-                    strata=lerp(strata,float3(.47,.46,.43),
-                        smoothstep(.53,.76,thinBeds)*.65);
-                    strata=lerp(strata,float3(.82,.72,.55),
-                        smoothstep(.62,.80,lamina)*.52);
-                    strata*=1-cliff*(1-smoothstep(.23,.39,thinBeds))*.16;
-                    albedo=lerp(albedo,strata*(.94+rockGrain*.12),redrock*.82);
-                    float fan=talus*(.65+gully*.20);
-                    albedo=lerp(albedo,float3(.73,.63,.49)*( .97+broad*.06),fan*redrock*.82);
+                    if(redrock>.001)
+                    {
+                        // Existing desert beds: do not spend these three samples on
+                        // grey mountain rock that has a different geological package.
+                        float bed=i.wp.y*.0065+(broad-.5)*.32+ground.x*.00012;
+                        float package=filteredTerrain(float2(bed,7.3));
+                        float thinBeds=filteredTerrain(float2(bed*3.3+19.1,4.8));
+                        float lamina=filteredTerrain(float2(bed*5.7+37.2,2.6));
+                        float3 strata=lerp(float3(.55,.32,.22),float3(.76,.65,.48),
+                            smoothstep(.25,.72,package));
+                        strata=lerp(strata,float3(.47,.46,.43),smoothstep(.53,.76,thinBeds)*.65);
+                        strata=lerp(strata,float3(.82,.72,.55),smoothstep(.62,.80,lamina)*.52);
+                        strata*=1-cliff*(1-smoothstep(.23,.39,thinBeds))*.16;
+                        albedo=lerp(albedo,strata*(.94+rockGrain*.12),redrock*.82);
+                        float fan=talus*(.65+gully*.20);
+                        albedo=lerp(albedo,float3(.73,.63,.49)*(.97+broad*.06),fan*redrock*.82);
+                    }
                     albedo*=1-cliff*(1-talus*.8)*(gully*.064+hollow*.032);
                     albedo*=1+cliff*(1-talus*.8)*(1-gully)*.024;
                     if(i.geology.x >= 0)
-                        albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow);
+                        albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow*(1-mountain));
+                    float beddingRelief=0;
+                    if(mountain>.001)
+                    {
+                        // Limestone packages dip gently across both stationary side
+                        // projections; triplanar grain above supplies face-scale rock.
+                        // Unequal 18/53/137 m beds avoid a repeated ruler or moire.
+                        float bedHeight=i.wp.y+i.wp.x*.065+i.wp.z*.025+(broad-.5)*24;
+                        float bedLarge=filteredTerrain(float2(bedHeight/137,11.7));
+                        float bedMid=filteredTerrain(float2(bedHeight/53+23.1,3.4));
+                        float bedSmall=.5;
+                        if(_DayAtmosphere.z>.5)
+                            bedSmall=filteredTerrain(float2(bedHeight/18+41.3,8.2));
+                        float3 limestone=lerp(float3(.43,.45,.46),float3(.73,.70,.62),
+                            smoothstep(.25,.75,bedLarge*.55+bedMid*.45));
+                        limestone*=1+(bedSmall-.5)*.24;
+                        float darkBed=(1-smoothstep(.28,.44,bedMid))*.28;
+                        limestone*=1-darkBed;
+                        limestone=lerp(float3(.59,.59,.55),limestone,exposed);
+                        beddingRelief=(bedMid-.5)*alpine*.7;
+                        // Alaska is massive granite: no sedimentary bands.
+                        float3 granite=lerp(float3(.46,.48,.50),float3(.64,.65,.64),broad);
+                        granite*=1+(rockGrain-.5)*.14;
+                        float3 mountainStone=lerp(limestone,granite,alaska);
+                        mountainStone*=1-gully*.09-hollow*.08;
+                        albedo=lerp(albedo,mountainStone,mountainRock);
+                        // Concave toes and channel mouths broaden into smooth debris
+                        // aprons as the slope shallows. No geometry or depth offset.
+                        float toe=smoothstep(.58,.83,macroNormal.y);
+                        float debrisHeight=smoothstep(treeLine-100,treeLine+420,i.wp.y);
+                        float fanWidth=lerp(.76,.40,toe);
+                        float fanChannel=smoothstep(fanWidth,fanWidth+.22,gully);
+                        float debris=saturate(hollow*2.2+fanChannel*.55)*toe
+                            *debrisHeight*(1-forest)*(1-snow);
+                        float3 scree=lerp(float3(.66,.65,.60),float3(.59,.62,.64),alaska);
+                        scree*=.97+rockGrain*.06;
+                        albedo=lerp(albedo,scree,debris*mountain*.88);
+                        if(i.geology.x>=0)
+                            albedo=lerp(albedo,float3(.96,.975,.99),snow*mountain);
+                        talus=max(talus,debris*mountain);
+                    }
                     // Surface-gradient bump in world space. These are shading heights only:
                     // NO vertex movement, depth/parallax change, or collision displacement.
                     float detailFade=1-smoothstep(8,38,length(fwidth(i.wp)));
                     float relief=detailFade*cliff*(1-snow*.85)*(1-forest)*
-                        ((rockGrain-.5)*1.2-gully*4.0)*(1-talus*.8);
+                        ((rockGrain-.5)*1.2-gully*lerp(4.0,2.5,mountain)+beddingRelief)*(1-talus*.8);
                     float3 dpdx=ddx(i.wp), dpdy=ddy(i.wp);
                     float3 r1=cross(dpdy,n), r2=cross(n,dpdx);
                     float determinant=dot(dpdx,r1);
@@ -232,9 +307,13 @@ Shader "FlyingGame/Terrain"
                     float scaledSpan=altitudeSpan*.00020;
                     float meanDensity=exp(-lowAltitude*.00020)
                         *(1-exp(-max(.001,scaledSpan)))/max(.001,scaledSpan);
-                    float optical=path*_DayAtmosphere.x*meanDensity*lerp(1.65,.8,powellMask);
+                    // Terrain-only depth separation: retain the clear near field,
+                    // progressively blue/desaturated ranges, no change to the sky.
+                    float rangeHaze=1+mountain*.85;
+                    float optical=path*_DayAtmosphere.x*meanDensity*lerp(1.65,.8,powellMask)*rangeHaze;
                     float haze=1-exp(-optical);
-                    col=lerp(col,float3(.32,.49,.68),haze);
+                    float3 hazeColour=lerp(float3(.32,.49,.68),float3(.43,.57,.70),mountain);
+                    col=lerp(col,hazeColour,haze);
                 }
                 return fixed4(col * _Color.rgb, 1);
             }

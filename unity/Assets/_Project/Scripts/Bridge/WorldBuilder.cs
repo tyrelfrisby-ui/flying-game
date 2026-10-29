@@ -382,6 +382,15 @@ namespace FlyingGame.Bridge
             terrainMaterial.SetVectorArray("_AirportGrass",airportGrass);
             terrainMaterial.SetVectorArray("_AirportPasture",airportPasture);
             terrainMaterial.SetVector("_AirportPastureHeights",airportPastureHeights);
+            // Visual biome rectangles in Unity XZ (sim YX). Inward feathering keeps
+            // the two adjacent ranges distinct without changing the height field.
+            terrainMaterial.SetVector("_MountainAlpine", new Vector4(
+                (float)(AlpineRange.Y0-AlpineRange.FootprintPadM), (float)(AlpineRange.X0-AlpineRange.FootprintPadM),
+                (float)(AlpineRange.Y1+AlpineRange.FootprintPadM), (float)(AlpineRange.X1+AlpineRange.FootprintPadM)));
+            terrainMaterial.SetVector("_MountainAlaska", new Vector4(
+                (float)(AlaskaRange.Y0-AlaskaRange.PadSouthM), (float)(AlaskaRange.X0-AlaskaRange.PadWestM),
+                (float)(AlaskaRange.Y1+AlaskaRange.PadNorthM), (float)(AlaskaRange.X1+AlaskaRange.PadEastM)));
+
             double step = CoarseStep;
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];
