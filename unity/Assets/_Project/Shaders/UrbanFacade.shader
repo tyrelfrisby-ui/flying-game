@@ -41,6 +41,20 @@ Shader "FlyingGame/UrbanFacade"
    {
     float2 m=1-smoothstep(halfSize-aa,halfSize+aa,abs(f-.5)); return m.x*m.y;
    }
+   // Integrate a periodic rectangular opening across the pixel, independently per axis.
+   // Grazing faces keep resolved dark floor bands instead of switching to a solid face average.
+   float windowAxis(float coord,float halfSize,float footprint)
+   {
+    float width=2*halfSize;
+    float a=coord-max(.001,footprint)*.5, b=coord+max(.001,footprint)*.5;
+    float ia=floor(a)*width+clamp(frac(a)-(.5-halfSize),0,width);
+    float ib=floor(b)*width+clamp(frac(b)-(.5-halfSize),0,width);
+    return saturate((ib-ia)/max(.001,footprint));
+   }
+   float filteredPane(float2 coord,float2 halfSize,float2 footprint)
+   {
+    return windowAxis(coord.x,halfSize.x,footprint.x)*windowAxis(coord.y,halfSize.y,footprint.y);
+   }
    float4 frag(v2f i):SV_Target
    {
     if (_ReflectionRendering>.5) clip(dot(float4(i.world,1),_ReflectionClip));
@@ -131,18 +145,37 @@ Shader "FlyingGame/UrbanFacade"
     glass=lerp(glass,float3(.13,.17,.18),mullion*.7*detail);
     float sun=saturate(dot(n,normalize(_BubbleSunDir.xyz)));
     float3 base=lerp(wall,lerp(float3(.065,.075,.075),glass,frame),pane);
-    base*=.58+.42*sun;
+    // Broad paired floor spandrels survive longer than individual window mullions.
+    float beltPhase=frac(i.uv.y/(pitch.y*3));
+    float beltAA=max(fwidth(i.uv.y/(pitch.y*3)),.001);
+    float belt=1-smoothstep(.035,.035+beltAA,abs(beltPhase-.04));
+    base*=1-belt*lerp(.12,.30,ribbon);
+    float footShade=lerp(.72,1,smoothstep(0,18,i.uv.y));
+    base*=footShade*(.48+.52*sun);
+    if(_CityNight<.001)
+    {
+     float4 dayResult=float4(base,1);
+     UNITY_APPLY_FOG(i.fogCoord,dayResult); return dayResult;
+    }
     float building=hash(float2(i.data.y,41.7));
-    float occupancy=lerp(.30,.65,building);
+    float floorUse=hash(float2(cell.y+i.data.y,73.1));
+    float occupancy=lerp(.30,.60,saturate(building*.55+floorUse*.45));
     float lit=step(1-occupancy,rnd);
     float3 warm=lerp(float3(1,.77,.46),float3(.72,.86,1),step(.65,hash(cell+i.data.y+19)));
     // Analytic pixel-footprint average replaces subpixel hash/grid sampling at aerial distance.
     // A restrained unresolved contribution avoids solid glowing walls at aerial distance.
-    float unresolved=smoothstep(.18,.85,max(aa.x,aa.y));
+    float unresolved=smoothstep(.65,1.8,min(aa.x,aa.y));
     float coverage=4*paneSize.x*paneSize.y;
-    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.95,unresolved);
+    // A grazing horizontal footprint must not erase still-resolved dark floor bands.
+    float lightPane=filteredPane(grid*float2(1+brick,1),paneSize,paneAA);
+    float lightFrame=filteredPane(grid*float2(1+brick,1),max(.05,paneSize-float2(.025,.024)),paneAA);
+    float floorGap=windowAxis(grid.y,.35,aa.y);
+    float rowLit=step(1-occupancy,hash(float2(cell.y+i.data.y,91.7)));
+    float filteredLit=lerp(lit,rowLit*occupancy,smoothstep(.6,1.5,aa.x));
+    float roomLight=lerp(lightPane*lightFrame*filteredLit*(.55+.45*hash(cell+27)),coverage*occupancy*.12,unresolved);
+    roomLight*=lerp(.40+floorGap*.60,1,unresolved);
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
-    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.65,2.5,building);
+    float3 night=base*float3(.085,.11,.16)+roomLight*lerp(warm,averageLight,unresolved)*lerp(.85,1.35,building);
     float4 result=float4(lerp(base,night,_CityNight),1);
     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
    }
