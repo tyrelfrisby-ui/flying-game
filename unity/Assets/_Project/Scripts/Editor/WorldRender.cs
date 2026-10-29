@@ -159,8 +159,25 @@ namespace FlyingGame.EditorTools
                 serviceTower=candidate; break;
             }
             Vector3 serviceRoof=WorldBuilder.U(serviceTower.Cx,serviceTower.Cy,terrain.HeightAt(serviceTower.Cx,serviceTower.Cy)+serviceTower.HeightM);
+            var tankTower=serviceTower;
+            bool foundTank=false;
+            foreach(var candidate in city.Towers())
+            {
+                int style=(candidate.I*3+candidate.J*7)%4;
+                if(candidate.HeightM>190 && candidate.Style%2==0) style=0;
+                int seed=candidate.I*53+candidate.J*19;
+                if(style!=1 || seed%3==1 || candidate.HeightM>=330 || (city.PadLot.HasValue && candidate.J==city.PadLot.Value.j)) continue;
+                bool protectedTank=false;
+                foreach(var ring in cityRingRoofs) if(ring.t.I==candidate.I && ring.t.J==candidate.J) protectedTank=true;
+                if(protectedTank) continue;
+                tankTower=candidate; foundTank=true; break;
+            }
+            if(!foundTank) Debug.LogWarning("City water-tank detail: no eligible brick roof; inspect eligibility before acceptance");
+            Vector3 tankRoof=WorldBuilder.U(tankTower.Cx,tankTower.Cy,terrain.HeightAt(tankTower.Cx,tankTower.Cy)+tankTower.HeightM);
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("city-water-tower-detail", tankRoof+new Vector3(65,38,-75), tankRoof+Vector3.up*5),
+                ("city-water-tower-night", tankRoof+new Vector3(65,38,-75), tankRoof+Vector3.up*5),
                 ("city-rooftop-equipment", serviceRoof+new Vector3(-65,45,-75), serviceRoof),
                 ("city-rooftop-equipment-night", serviceRoof+new Vector3(-65,45,-75), serviceRoof),
                 ("city-traffic-detail", Street(425,485), Street(425,555)),
@@ -339,8 +356,9 @@ namespace FlyingGame.EditorTools
                 Shader.SetGlobalFloat("_CityTrafficTime",name=="city-traffic-motion"?12:0);
                 bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");
+                bool urbanNight=night && (name.StartsWith("city-") || name.StartsWith("valley-city") || name=="town-night" || name=="overview-night");
                 foreach(var tint in nightTints)
-                    tint.material.SetColor(tint.property,night ? tint.colour*new Color(.18f,.22f,.30f,1) : tint.colour);
+                    tint.material.SetColor(tint.property,night ? tint.colour*(urbanNight?new Color(.30f,.38f,.53f,1):new Color(.18f,.22f,.30f,1)) : tint.colour);
                 RenderSettings.fog = false;
                 cam.clearFlags = CameraClearFlags.Skybox;
                 if (dusk)
@@ -352,13 +370,14 @@ namespace FlyingGame.EditorTools
                 }
                 else { SunsetLighting.ApplyDay(); Shader.SetGlobalFloat("_AirportDusk", 0); }
                 Shader.SetGlobalFloat("_CityNight",night?1:0);
+                Shader.SetGlobalFloat("_UrbanNightFill",urbanNight?1:0);
                 if(night)
                 {
                     cam.clearFlags=CameraClearFlags.Skybox;
                     cam.backgroundColor=new Color(.012f,.018f,.032f);
                     RenderSettings.fog=true; RenderSettings.fogMode=FogMode.Exponential;
-                    RenderSettings.fogDensity=.00010f;
-                    RenderSettings.fogColor=new Color(.055f,.055f,.065f);
+                    RenderSettings.fogDensity=urbanNight?.000055f:.00010f;
+                    RenderSettings.fogColor=urbanNight?new Color(.067f,.079f,.105f):new Color(.055f,.055f,.065f);
                 }
                 cam.GetComponent<Skybox>().material = RenderSettings.skybox;
                 // Editor captures do not advance Update. Freeze opposed beacon beams at
@@ -412,6 +431,7 @@ namespace FlyingGame.EditorTools
             Shader.SetGlobalFloat("_AirportDusk", 0);
             Shader.SetGlobalFloat("_AirportBeaconPreview",0);
             Shader.SetGlobalFloat("_CityNight",0);
+            Shader.SetGlobalFloat("_UrbanNightFill",0);
             Shader.SetGlobalFloat("_CityTrafficPreview",0);
             foreach(var tint in nightTints) tint.material.SetColor(tint.property,tint.colour);
             RenderSettings.fog=false;

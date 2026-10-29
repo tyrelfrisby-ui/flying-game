@@ -32,20 +32,20 @@ namespace FlyingGame.Bridge
             }
         }
         // Opaque road tile: analytic light falloff shares the facade material and draw.
-        public void Pool(Vector3 centre, Vector3 size, Color light)
+        public void Pool(Vector3 centre, Vector3 size, Color light, int style = 5)
         {
             int start=vertices.Count;
             Vector2[] corners={new(-1,-1),new(-1,1),new(1,1),new(1,-1)};
             foreach(var v in corners)
             {
                 vertices.Add(centre+new Vector3(v.x*size.x*.5f,0,v.y*size.z*.5f));
-                normals.Add(Vector3.up); uv.Add(v); data.Add(new Vector2(5,0)); colours.Add(light); travel.Add(Vector4.zero);
+                normals.Add(Vector3.up); uv.Add(v); data.Add(new Vector2(style,0)); colours.Add(light); travel.Add(Vector4.zero);
             }
             indices.AddRange(new[]{start,start+1,start+2,start,start+2,start+3});
         }
         // Animated traffic is baked into this same opaque draw. Only vertex positions move;
         // no transforms, Update loop, colliders, allocations or per-car draw submissions.
-        public void TrafficCar(Vector3 centre, Vector3 forward, int seed, float length)
+        public void TrafficCar(Vector3 centre, Vector3 forward, int seed, float length, float phaseSlot = -1)
         {
             Quaternion q=Quaternion.LookRotation(forward,Vector3.up);
             void Box(Vector3 offset,Vector3 size,Color colour)
@@ -60,7 +60,7 @@ namespace FlyingGame.Bridge
                     {
                         vertices.Add(v); normals.Add(n); uv.Add(Vector2.zero);
                         data.Add(new Vector2(6,seed)); colours.Add(colour);
-                        travel.Add(new Vector4(forward.x,0,forward.z,length));
+                        travel.Add(new Vector4(forward.x,phaseSlot,forward.z,length));
                     }
                     indices.AddRange(new[]{start,start+1,start+2,start,start+2,start+3});
                 }
@@ -88,10 +88,27 @@ namespace FlyingGame.Bridge
                         vertices.Add(centre+q*new Vector3(side*.65f+corner.x*.24f,.87f+corner.y*.12f,end*2.32f));
                         normals.Add(forward*end); uv.Add(Vector2.zero); data.Add(new Vector2(6,seed));
                         colours.Add(end==1?new Color(1,.91f,.72f,0):new Color(1,.018f,.008f,0));
-                        travel.Add(new Vector4(forward.x,0,forward.z,length));
+                        travel.Add(new Vector4(forward.x,phaseSlot,forward.z,length));
                     }
                     indices.AddRange(new[]{start,start+1,start+2,start,start+2,start+3});
                 }
+            }
+        }
+        // Ground-projected exposure streaks, baked into the traffic draw and travel envelope.
+        public void TrafficStreak(Vector3 centre, Vector3 forward, int seed, float phaseSlot)
+        {
+            Vector3 right=Vector3.Cross(Vector3.up,forward);
+            foreach(int end in new[]{-1,1}) foreach(int side in new[]{-1,1})
+            {
+                int start=vertices.Count;
+                foreach(var corner in new[]{new Vector2(-1,-1),new Vector2(-1,1),new Vector2(1,1),new Vector2(1,-1)})
+                {
+                    vertices.Add(centre+right*(side*.62f+corner.x*.18f)+forward*(end*5+corner.y*3));
+                    normals.Add(Vector3.up); uv.Add(corner); data.Add(new Vector2(7,seed));
+                    colours.Add(end==1?new Color(1,.83f,.52f):new Color(1,.025f,.009f));
+                    travel.Add(new Vector4(forward.x,phaseSlot,forward.z,114));
+                }
+                indices.AddRange(new[]{start,start+1,start+2,start,start+2,start+3});
             }
         }
         public void Build(Transform parent)
@@ -124,18 +141,18 @@ namespace FlyingGame.Bridge
                 // Limited to non-challenge lots, within the existing 140 m pavement block.
                 if(size.y>120 && (i*7+j)%3!=1)
                 {
-                    int tiers=2;
+                    int tiers=3;
                     for(int tier=0;tier<tiers;tier++)
                     {
-                        float spread=tier==0?14:7;
-                        Vector3 tierSize=new Vector3(size.x+spread,size.y*(tier==0?.40f:.73f),size.z+spread);
+                        float spread=tier==0?60:tier==1?40:20;
+                        Vector3 tierSize=new Vector3(size.x+spread,size.y*(tier==0?.32f:tier==1?.58f:.81f),size.z+(tier==0?28:tier==1?16:8));
                         Color tierWall=style==0?new Color(.28f,.36f,.38f):style==1?new Color(.49f,.30f,.23f):style==2?new Color(.59f,.59f,.55f):new Color(.55f,.49f,.41f);
                         tierWall*=.92f+((i*13+j*7)%11)*.016f;
                         b.Box(bottom+Vector3.up*tierSize.y*.5f,tierSize,tierWall);
                         facades.Add(bottom,tierSize,style,i*53+j*19,tierWall);
                         // Only exposed terrace rim; service equipment belongs on the top roof.
                         Vector3 top=bottom+Vector3.up*(tierSize.y+.05f);
-                        Color trim=new(.35f,.36f,.34f);
+                        Color trim=new(.65f,.62f,.52f);
                         foreach(int side in new[]{-1,1})
                         {
                             b.Box(top+new Vector3(side*(tierSize.x*.5f-.2f),.4f,0),new Vector3(.4f,.8f,tierSize.z),trim);
@@ -158,7 +175,7 @@ namespace FlyingGame.Bridge
             if(protectedLot) return;
             // Small mixed-use infill occupies the existing sidewalk lot, clear of the 30 m road.
             bool house = i==0 || i==6 || j==15;
-            Vector3 shop=bottom+new Vector3(0,0,-52);
+            Vector3 shop=bottom+new Vector3(0,0,-58);
             float h=house?7:10+(i+j)%3*3;
             Vector3 shopSize=new Vector3(house?17:36,h,house?15:20);
             Color wall=house?new Color(.69f,.66f,.55f):new Color(.46f,.28f,.21f);
@@ -202,10 +219,10 @@ namespace FlyingGame.Bridge
                 }
             }
             // Six surface parking bays on the clear side of each non-challenge block.
-            for(int k=0;k<(QualitySettings.GetQualityLevel()<=2?4:6);k++)
+            for(int k=0;k<(size.y>120 && (i*7+j)%3!=1?0:QualitySettings.GetQualityLevel()<=2?4:6);k++)
             {
                 Vector3 car=bottom+new Vector3(53,.30f,-20+k*6);
-                if((i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
+                if(size.x*.5f+((size.y>120 && (i*7+j)%3!=1)?30:0)<48 && (i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
                 b.Box(car+new Vector3(0,-.005f,3),new Vector3(6,.02f,.13f),Paint);
             }
         }
@@ -213,43 +230,43 @@ namespace FlyingGame.Bridge
         static void Roof(SeasideBuilder.Batch b,Vector3 roof,Vector3 size,int style,int seed)
         {
             Color membrane=Color.Lerp(new Color(.13f,.15f,.16f),new Color(.66f,.62f,.52f),(seed%5)/4f);
-            b.Box(roof+Vector3.up*.025f,new Vector3(size.x-.7f,.05f,size.z-.7f),membrane);
+            b.Box(roof+Vector3.up*.16f,new Vector3(size.x-.7f,.16f,size.z-.7f),membrane);
             Color rim=new(.49f,.48f,.43f);
             foreach(int side in new[]{-1,1})
             {
                 b.Box(roof+new Vector3(side*(size.x*.5f-.25f),.5f,0),new Vector3(.65f,1.4f,size.z),rim);
                 b.Box(roof+new Vector3(0,.5f,side*(size.z*.5f-.25f)),new Vector3(size.x,1.4f,.65f),rim);
             }
-            b.Box(roof+new Vector3(-size.x*.25f,1.8f,-size.z*.22f),new Vector3(7,3.6f,8),rim*.8f);
-            int units=QualitySettings.GetQualityLevel()<=2?2+seed%2:2+seed%5;
+            b.Box(roof+new Vector3(-size.x*.30f,2.5f,-size.z*.30f),new Vector3(8,5,9),rim*.8f);
+            int units=QualitySettings.GetQualityLevel()<=2?3:4+seed%3;
             for(int k=0;k<units;k++)
             {
-                Vector3 hvac=roof+new Vector3((k%3-1)*8,1.6f,Mathf.Min(size.z*.5f-3,size.z*.16f+(k/3)*7));
-                b.Box(hvac-Vector3.up*1.2f,new Vector3(6.5f,.8f,5.5f),new Color(.22f,.24f,.24f));
-                b.Box(hvac,new Vector3(6,2.6f,5),new Color(.66f,.69f,.68f));
+                Vector3 hvac=roof+new Vector3((k%3-1)*10,2.3f,Mathf.Min(size.z*.5f-5,size.z*.08f+(k/3)*10));
+                b.Box(hvac-Vector3.up*1.45f,new Vector3(9.5f,1.2f,8.5f),new Color(.22f,.24f,.24f));
+                b.Box(hvac,new Vector3(8.5f,3.4f,7.5f),new Color(.66f,.69f,.68f));
                 for(int fan=0;fan<2;fan++)
-                    b.Cylinder(hvac+new Vector3(fan*2.8f-1.4f,1.31f,0),1.15f,.16f,QualitySettings.GetQualityLevel()<=2?6:10,new Color(.16f,.20f,.21f));
-                b.Box(hvac+new Vector3(0,-.3f,2.53f),new Vector3(4.8f,1.3f,.09f),new Color(.32f,.36f,.36f));
+                    b.Cylinder(hvac+new Vector3(fan*4f-2f,1.71f,0),1.6f,.16f,QualitySettings.GetQualityLevel()<=2?6:10,new Color(.16f,.20f,.21f));
+                b.Box(hvac+new Vector3(0,-.3f,3.78f),new Vector3(7,1.8f,.09f),new Color(.32f,.36f,.36f));
             }
-            if(style==1 && (seed*37+seed/7)%10<3)
+            if(style==1 && seed%3!=1)
             {
-                Vector3 tank=roof+new Vector3(size.x*.25f,0,-size.z*.24f);
+                Vector3 tank=roof+new Vector3(size.x*.22f,.24f,-size.z*.28f);
                 foreach(int x in new[]{-1,1}) foreach(int z in new[]{-1,1})
                     b.Box(tank+new Vector3(x*2.4f,2.2f,z*2.4f),new Vector3(.30f,4.4f,.30f),new Color(.23f,.24f,.23f));
-                b.Cylinder(tank+Vector3.up*4.3f,3.8f,5.5f,10,new Color(.34f,.25f,.18f),new Color(.28f,.28f,.25f),1.8f);
+                b.Cylinder(tank+Vector3.up*4.3f,4.8f,7.5f,10,new Color(.34f,.25f,.18f),new Color(.28f,.28f,.25f),2.4f);
                 for(int band=0;band<3;band++)
-                    b.Cylinder(tank+Vector3.up*(4.6f+band*2.35f),3.84f,.14f,10,new Color(.19f,.22f,.23f));
+                    b.Cylinder(tank+Vector3.up*(4.6f+band*3.25f),4.84f,.14f,10,new Color(.19f,.22f,.23f));
                 foreach(int side in new[]{-1,1})
                     b.Beam(tank+new Vector3(-2.4f,.3f,side*2.4f),tank+new Vector3(2.4f,4.2f,side*2.4f),.16f,.16f,new Color(.23f,.24f,.23f));
             }
-            if(size.y>220 && seed%3==0)
+            if(size.y>220 && seed%3==0 && style!=1)
             {
                 for(int k=0;k<3;k++)
-                    b.Box(roof+Vector3.up*(2+k*3.5f),new Vector3(size.x*(.52f-k*.12f),4,size.z*(.52f-k*.12f)),rim*.8f);
-                b.Cylinder(roof+Vector3.up*12,.3f,10,6,new Color(.43f,.46f,.46f));
+                    b.Box(roof+new Vector3(size.x*.22f,2+k*3.5f,-size.z*.25f),new Vector3(size.x*(.25f-k*.06f),4,size.z*(.25f-k*.06f)),rim*.8f);
+                b.Cylinder(roof+new Vector3(size.x*.22f,10.8f,-size.z*.25f),.3f,10,6,new Color(.43f,.46f,.46f));
             }
             if(size.y>230)
-                b.Box(roof+new Vector3(size.x*.38f,1.2f,size.z*.38f),new Vector3(1.1f,.6f,1.1f),Emission(1,.035f,.015f));
+                b.Box(roof+new Vector3(size.x*.38f,.54f,size.z*.38f),new Vector3(1.1f,.6f,1.1f),Emission(1,.035f,.015f));
         }
         static void Tree(SeasideBuilder.Batch b,Vector3 foot,int seed)
         {
@@ -303,9 +320,14 @@ namespace FlyingGame.Bridge
                     int trafficStride=QualitySettings.GetQualityLevel()<=1?3:QualitySettings.GetQualityLevel()<=2?2:1;
                     if(block%trafficStride==0)
                     foreach(int direction in new[]{-1,1})
+                    for(int lane=0;lane<(QualitySettings.GetQualityLevel()<=2?1:2);lane++)
+                    for(int car=0;car<2;car++)
                     {
-                        Vector3 centre=P2(across,along,.09)+right*(direction*4f);
-                        facades.TrafficCar(centre,forward*direction,axis*2000+road*71+block*13+(direction+1)*5,114);
+                        int seed=axis*2000+road*71+block*13+(direction+1)*5+lane*131;
+                        float slot=(car+.17f+lane*.29f)/2f;
+                        Vector3 centre=P2(across,along,.14)+right*(direction*(3.5f+lane*5));
+                        facades.TrafficCar(centre,forward*direction,seed,114,slot);
+                        facades.TrafficStreak(centre+Vector3.up*.012f,forward*direction,seed,slot);
                     }
                     void Flat(Vector3 centre,Vector3 size,Color c)
                     {
@@ -326,9 +348,9 @@ namespace FlyingGame.Bridge
                         int stride=QualitySettings.GetQualityLevel()<=1?2:1;
                         for(int k=-4;k<=4;k+=stride) Tree(b,P2(across+side*19,along+k*14,.31),road+block+k+10);
                         // Deterministic gaps along each curb, clear of crosswalks.
-                        for(int parked=0;parked<(QualitySettings.GetQualityLevel()<=1?1:QualitySettings.GetQualityLevel()<=2?2:3);parked++)
+                        for(int parked=0;parked<(QualitySettings.GetQualityLevel()<=1?3:QualitySettings.GetQualityLevel()<=2?6:9);parked++)
                             if((road*7+block+parked)%3!=0)
-                                Car(b,P2(across+side*12.5,along-36+parked*25,.09),Quaternion.LookRotation(forward*side,Vector3.up),road*17+block+parked);
+                                Car(b,P2(across+side*12.5,along-48+parked*12,.09),Quaternion.LookRotation(forward*side,Vector3.up),road*17+block+parked);
                         // Four lamps on each side per block: road pools overlap gently to reveal the grid.
                         int lamps=QualitySettings.GetQualityLevel()<=2?2:4;
                         for(int k=0;k<lamps;k++)

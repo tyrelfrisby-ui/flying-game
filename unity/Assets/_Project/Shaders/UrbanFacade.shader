@@ -22,8 +22,9 @@ Shader "FlyingGame/UrbanFacade"
     // Time based decorative traffic, constrained to one clear avenue segment.
     float moving=step(5.5,v.data.x);
     float trafficTime=lerp(_Time.y,_CityTrafficTime,_CityTrafficPreview);
-    float phase=frac(trafficTime*(7.0+frac(v.data.y*.137)*5.0)/max(1.0,v.travel.w)+frac(v.data.y*.618034));
-    v.vertex.xyz+=v.travel.xyz*((phase-.5)*v.travel.w*moving);
+    float offset=v.travel.y<0?frac(v.data.y*.618034):v.travel.y;
+    float phase=frac(trafficTime*(7.0+frac(v.data.y*.137)*5.0)/max(1.0,v.travel.w)+offset);
+    v.vertex.xyz+=float3(v.travel.x,0,v.travel.z)*((phase-.5)*v.travel.w*moving);
     o.pos=UnityObjectToClipPos(v.vertex); o.world=mul(unity_ObjectToWorld,v.vertex).xyz;
     o.normal=UnityObjectToWorldNormal(v.normal); o.uv=v.uv; o.data=v.data; o.color=v.color;
     UNITY_TRANSFER_FOG(o,o.pos); return o;
@@ -42,6 +43,17 @@ Shader "FlyingGame/UrbanFacade"
    {
     if (_ReflectionRendering>.5) clip(dot(float4(i.world,1),_ReflectionClip));
     float style=i.data.x;
+    if(style>6.5)
+    {
+     clip(_CityNight-.5); // no daytime road/marking overpaint from exposure streaks
+     float sun=saturate(dot(float3(0,1,0),normalize(_BubbleSunDir.xyz)));
+     float3 shade=lerp(float3(.58,.58,.58)+.42*sun,float3(.64,.65,.73)+float3(.65,.43,.24)*sun,_SunsetOn);
+     float3 road=float3(.25,.26,.26)*shade;
+     float taper=saturate(1-abs(i.uv.y));
+     float width=1-smoothstep(.35,1,abs(i.uv.x));
+     float4 result=float4(lerp(road,road*.25+i.color.rgb*width*taper*2.4,_CityNight),1);
+     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+    }
     if(style>5.5)
     {
      float sun=saturate(dot(normalize(i.normal),normalize(_BubbleSunDir.xyz)));
@@ -60,7 +72,11 @@ Shader "FlyingGame/UrbanFacade"
      float3 road=float3(.25,.26,.26)*lerp(dayShade,sunsetShade,_SunsetOn);
      float edge=saturate(1-dot(i.uv,i.uv));
      float falloff=edge*edge;
-     float3 pool=road*.20+i.color.rgb*falloff*.65;
+     // Aerial sodium ribbon is the integrated unresolved lamp row. It retains
+     // average energy after individual pools/dots fall below a pixel.
+     float distant=smoothstep(450,2400,distance(_WorldSpaceCameraPos,i.world));
+     float3 sodium=float3(1,.49,.16);
+     float3 pool=road*float3(.26,.31,.42)+lerp(i.color.rgb*falloff*.65,sodium*(.12+.15*falloff),distant);
      float4 result=float4(lerp(road,pool,_CityNight),1);
      UNITY_APPLY_FOG(i.fogCoord,result); return result;
     }
@@ -113,7 +129,7 @@ Shader "FlyingGame/UrbanFacade"
     // A restrained unresolved contribution avoids solid glowing walls at aerial distance.
     float unresolved=smoothstep(.18,.85,max(aa.x,aa.y));
     float coverage=4*paneSize.x*paneSize.y;
-    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.34,unresolved);
+    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.65,unresolved);
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
     float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.05,1.65,building);
     float4 result=float4(lerp(base,night,_CityNight),1);

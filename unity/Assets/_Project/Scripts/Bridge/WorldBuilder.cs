@@ -1815,6 +1815,14 @@ namespace FlyingGame.Bridge
             Slab(root.transform, "TowerRoad", Landmarks.TowerX, towerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
                 Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
+            // Sparse night dots follow only the existing landmark road, never an invented highway.
+            for(double d=-Landmarks.RoadHalfLengthM+40;d<Landmarks.RoadHalfLengthM;d+=100)
+            {
+                double side=((int)(d/100)%2==0?1:-1)*(Landmarks.RoadWidthM*.5+1);
+                Vector3 foot=U(Landmarks.TowerX+d,towerY+side,tg+.15);
+                dressing.Box(foot+Vector3.up*3.5f,new Vector3(.16f,7,.16f),new Color(.24f,.26f,.27f));
+                dressing.Box(foot+Vector3.up*7,new Vector3(1.4f,.3f,1.4f),new Color(1,.58f,.23f,0));
+            }
             }
 
             if (dressing.Count > 0) dressing.Build("LandmarkStructure", root.transform, SeasideBuilder.VC);

@@ -333,6 +333,8 @@ namespace FlyingGame.Bridge
         /// avenue paving, the towers with floor bands, the sky-bridges, the fountain plaza with its two basins and the
         /// crossing water cannons. The pad, the rooftop rings and the spinning ring are the combat city's own.
         /// </summary>
+        static int urbanGlowRoot, urbanGlowCount;
+
         internal static void BuildCityGrid(CityGrid grid, WorldTerrain t, SeasideBuilder.Batch b, Transform parent)
         {
             var facades = new UrbanFacades();
@@ -340,6 +342,15 @@ namespace FlyingGame.Bridge
             var (ex0, ey0, ex1, ey1) = grid.Extent(100);
             var (cgx, cgy) = grid.Centre;
             double g0 = t.HeightAt(cgx, cgy);
+            // Register each city independently: multiple cities can share an elevation.
+            int rootId=parent.root.GetInstanceID();
+            if(urbanGlowRoot!=rootId)
+            {
+                urbanGlowRoot=rootId; urbanGlowCount=0;
+                for(int k=0;k<8;k++) Shader.SetGlobalVector("_UrbanGlow"+k,Vector4.zero);
+            }
+            int glowIndex=Mathf.Min(7,urbanGlowCount++);
+            Shader.SetGlobalVector("_UrbanGlow"+glowIndex,new Vector4((float)cgy,(float)g0,(float)cgx,1));
             // Plaza-paved city ground (the avenues).
             b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.25f, 0.26f, 0.26f));
             var ringRoofs = grid.RooftopRings();
@@ -372,7 +383,7 @@ namespace FlyingGame.Bridge
                     }
                 }
                 Color roof = tw.Style % 2 == 0 ? new Color(.34f,.36f,.36f) : new Color(.52f,.50f,.45f);
-                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
+                if(protectedRoof) b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
                 // Flush roof service panels preserve every landable roof height.
                 Vector3 roofCentre = U(tw.Cx,tw.Cy,g+tw.HeightM+.05);
                 for (int k=0;k<(protectedRoof?3:0);k++)
