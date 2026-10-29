@@ -137,64 +137,9 @@ namespace FlyingGame.Bridge
         static Color Emission(float r,float g,float b) => new Color(r,g,b,0);
         public static void Lot(SeasideBuilder.Batch b, UrbanFacades facades, Vector3 bottom, Vector3 size, int i, int j, int style, bool protectedLot)
         {
-            Vector3 roof = bottom+Vector3.up*size.y;
-            // Challenge roofs/approach rows are left entirely clear. Everything here is visual only.
-            if(!protectedLot)
-            {
-                Roof(b,roof,size,style,i*53+j*19);
-                // Outward cladding tiers retain the original core and its roof elevation.
-                // Limited to non-challenge lots, within the existing 140 m pavement block.
-                if(size.y>120 && (i*7+j)%3!=1)
-                {
-                    int tiers=3;
-                    for(int tier=0;tier<tiers;tier++)
-                    {
-                        float spread=tier==0?56:tier==1?32:12;
-                        Vector3 tierSize=new Vector3(Mathf.Min(128,size.x+spread),size.y*(tier==0?.38f:tier==1?.68f:.90f),Mathf.Min(128,size.z+(tier==0?48:tier==1?28:12)));
-                        Color tierWall=style==0?new Color(.28f,.36f,.38f):style==1?new Color(.49f,.30f,.23f):style==2?new Color(.59f,.59f,.55f):new Color(.55f,.49f,.41f);
-                        tierWall*=.92f+((i*13+j*7)%11)*.016f;
-                        b.Box(bottom+Vector3.up*tierSize.y*.5f,tierSize,tierWall);
-                        facades.Add(bottom,tierSize,style,i*53+j*19,tierWall);
-                        // Only exposed terrace rim; service equipment belongs on the top roof.
-                        Vector3 top=bottom+Vector3.up*(tierSize.y+.05f);
-                        Color terrace=(i+j+tier)%3==0?new Color(.26f,.33f,.22f):new Color(.42f,.43f,.40f);
-                        b.Box(top,new Vector3(tierSize.x-.6f,.10f,tierSize.z-.6f),terrace);
-                        Color trim=new(.49f,.48f,.44f);
-                        foreach(int side in new[]{-1,1})
-                        {
-                            b.Box(top+new Vector3(side*(tierSize.x*.5f-.2f),.4f,0),new Vector3(.4f,.8f,tierSize.z),trim);
-                            b.Box(top+new Vector3(0,.4f,side*(tierSize.z*.5f-.2f)),new Vector3(tierSize.x,.8f,.4f),trim);
-                        }
-                    }
-                }
-                else if(size.y>=125 && i>0 && i<6 && j>2 && j<13)
-                {
-                    // Broad masonry podium below the original slab: no tower/core replacement.
-                    Vector3 podium=new Vector3(Mathf.Max(size.x,126),28+(i+j)%3*6,Mathf.Max(size.z,124));
-                    Color stone=(i+j)%2==0?new Color(.56f,.52f,.44f):new Color(.44f,.32f,.25f);
-                    b.Box(bottom+Vector3.up*podium.y*.5f,podium,stone);
-                    facades.Add(bottom,podium,3,i*53+j*19,stone);
-                    b.Box(bottom+Vector3.up*(podium.y+.08f),new Vector3(podium.x-.5f,.12f,podium.z-.5f),new Color(.29f,.35f,.25f));
-                }
-                else if(size.y<125 && (i+j)%3==0)
-                {
-                    // Two perpendicular wings form an asymmetric L around the existing core.
-                    Color stone=new(.50f,.44f,.37f);
-                    Vector3 wingSize=new(Mathf.Min(126,size.x+38),Mathf.Min(48,size.y*.72f),size.z*.5f);
-                    Vector3 wing=bottom+new Vector3(6,0,-size.z*.25f);
-                    b.Box(wing+Vector3.up*wingSize.y*.5f,wingSize,stone);
-                    facades.Add(wing,wingSize,1,i*53+j*19,stone);
-                    if((i+j)%2==0)
-                    {
-                        Vector3 returnSize=new Vector3(18,wingSize.y*.74f,Mathf.Min(110,size.z+32));
-                        Vector3 returnBottom=bottom+new Vector3(-Mathf.Min(55,size.x*.5f+6),0,8);
-                        b.Box(returnBottom+Vector3.up*returnSize.y*.5f,returnSize,stone*.88f);
-                        facades.Add(returnBottom,returnSize,3,i*53+j*19,stone*.88f);
-                    }
-                    Vector3 service=wing+new Vector3(size.x*.5f+3,wingSize.y+1,0);
-                    b.Box(service,new Vector3(4,2,5),new Color(.63f,.66f,.65f));
-                }
-            }
+            // Original bodies are authored by PlaygroundBuilder and may carry sim challenges.
+            // This additive shell never edits their dimensions, collision, pad or ring surfaces.
+            if(!protectedLot) Massing(b,facades,bottom,size,i,j,style);
             if(protectedLot) return;
             // Small mixed-use infill occupies the existing sidewalk lot, clear of the 30 m road.
             float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
@@ -211,8 +156,8 @@ namespace FlyingGame.Bridge
                 Vector3 a=shop+new Vector3(-x,h,-z), c=shop+new Vector3(x,h,-z), d=shop+new Vector3(-x,h,z), e=shop+new Vector3(x,h,z);
                 Vector3 r=shop+new Vector3(0,h+4,-z), t=shop+new Vector3(0,h+4,z);
                 Color tile=(j%2==0)?new Color(.32f,.19f,.14f):new Color(.23f,.27f,.28f);
-                b.Quad(a,r,t,d,tile); b.Quad(r,c,e,t,tile*.85f);
-                b.Tri(a,c,r,wall); b.Tri(d,t,e,wall);
+                b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.85f);
+                b.Tri(a,r,c,wall); b.Tri(d,e,t,wall);
                 b.Box(shop+new Vector3(5,h+2,3),new Vector3(1.1f,4,1.1f),new Color(.39f,.24f,.19f));
             }
             else
@@ -275,17 +220,183 @@ namespace FlyingGame.Bridge
                     Vector3 d=foot+new Vector3(-10,hs.y,9),e=foot+new Vector3(10,hs.y,9);
                     Vector3 r=foot+new Vector3(0,hs.y+5,-9),t=foot+new Vector3(0,hs.y+5,9);
                     Color tile=(i+j)%2==0?new Color(.27f,.20f,.16f):new Color(.22f,.27f,.29f);
-                    b.Quad(a,r,t,d,tile); b.Quad(r,c,e,t,tile*.82f);
-                    b.Tri(a,c,r,siding); b.Tri(d,t,e,siding);
+                    b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.82f);
+                    b.Tri(a,r,c,siding); b.Tri(d,e,t,siding);
                     b.Box(foot+new Vector3(5,hs.y+2,3),new Vector3(1,4,1),new Color(.38f,.24f,.18f));
                 }
             }
-            // Six surface parking bays on the clear side of each non-challenge block.
-            for(int k=0;k<(size.y>120 && (i*7+j)%3!=1?0:QualitySettings.GetQualityLevel()<=2?4:6);k++)
+            // Forecourt parking stays between the shop strip and main shaft, clear of the
+            // new side wings. Stepped podium lots have no surface bays under the building.
+            bool podiumLot=(size.y>90 && (i*7+j*3)%5<2) || ((i==2 || i==4) && (j==6 || j==9));
+            if(!podiumLot && size.z<62)
+            for(int k=0;k<(QualitySettings.GetQualityLevel()<=2?4:6);k++)
             {
-                Vector3 car=bottom+new Vector3(53,.30f,-20+k*6);
-                if(size.x*.5f+((size.y>120 && (i*7+j)%3!=1)?30:0)<48 && (i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
-                b.Box(car+new Vector3(0,-.005f,3),new Vector3(6,.02f,.13f),Paint);
+                Vector3 car=bottom+new Vector3(-30+k*12,.30f,-40);
+                if((i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
+                b.Box(car+new Vector3(5,-.005f,0),new Vector3(.13f,.02f,5),Paint);
+            }
+        }
+
+        // All architecture is baked into the two existing city batches. No per-lot renderer.
+        static void Massing(SeasideBuilder.Batch b,UrbanFacades facades,Vector3 bottom,Vector3 size,int i,int j,int style)
+        {
+            int seed=i*53+j*19;
+            float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
+            Color wall=style==0?new Color(.28f,.36f,.38f):style==1?new Color(.49f,.30f,.23f)
+                :style==2?new Color(.59f,.59f,.55f):new Color(.55f,.49f,.41f);
+            wall*=.92f+seed%11*.016f;
+            void Block(Vector3 foot,Vector3 extent,int kind,Color paint,bool dress=true)
+            {
+                b.Box(foot+Vector3.up*extent.y*.5f,extent,paint);
+                facades.Add(foot,extent,kind,seed,paint);
+                if(dress)
+                {
+                    Vector3 roof=foot+Vector3.up*extent.y;
+                    Terrace(b,roof,extent,seed);
+                    // Wing roofs have bounded service geometry; tanks remain on main roofs.
+                    b.Box(roof+new Vector3(-extent.x*.25f,1.5f,-extent.z*.25f),new Vector3(4,3,5),paint*.82f);
+                    int units=QualitySettings.GetQualityLevel()<=2?1:2;
+                    for(int unit=0;unit<units;unit++)
+                    {
+                        Vector3 hvac=roof+new Vector3(0,1.1f,(unit-.5f)*7);
+                        b.Box(hvac,new Vector3(5,2.2f,5),new Color(.60f,.63f,.61f));
+                        b.Cylinder(hvac+Vector3.up*1.12f,1.6f,.16f,6,new Color(.16f,.20f,.21f));
+                    }
+                }
+            }
+            // Forty percent of the deterministic mid/high-rise families get genuine stacked
+            // volumes. Their original cores remain inside; the upper extension creates the
+            // central height profile rather than merely widening the old rectangular shaft.
+            bool stepped=size.y>90 && (i*7+j*3)%5<2;
+            bool pinnacle=(i==2 || i==4) && (j==6 || j==9);
+            float height=Mathf.Max(size.y,70+Mathf.Pow(core,1.45f)*460);
+            if(pinnacle) height=Mathf.Max(height,450+((i+j)%3)*25);
+            if(stepped || pinnacle)
+            {
+                float podiumHeight=10+(seed%4)*3.3f;
+                Vector3 podium=new Vector3(Mathf.Min(128,size.x+54),podiumHeight,Mathf.Min(128,size.z+54));
+                Block(bottom,podium,3,Color.Lerp(wall,new Color(.58f,.52f,.43f),.55f),false);
+                Terrace(b,bottom+Vector3.up*podiumHeight,podium,seed);
+                float previous=podiumHeight;
+                for(int tier=0;tier<3;tier++)
+                {
+                    float spread=36-tier*18;
+                    float top=height*(tier==0?.42f:tier==1?.73f:1);
+                    Vector3 extent=new Vector3(Mathf.Min(128,size.x+spread+.6f),top-previous,Mathf.Min(128,size.z+spread+.6f));
+                    Vector3 foot=bottom+Vector3.up*previous;
+                    Block(foot,extent,style,wall,false);
+                    Terrace(b,bottom+Vector3.up*top,extent,seed+tier);
+                    if(tier==2)
+                    {
+                        // Dress the actual top, not the roof buried inside the new shell.
+                        Vector3 roofSize=new Vector3(extent.x,height,extent.z);
+                        Roof(b,bottom+Vector3.up*top,roofSize,style,seed);
+                        if(style!=1)
+                            Crown(b,bottom+Vector3.up*(top+.3f)+new Vector3(extent.x*.12f,0,-extent.z*.16f),
+                                extent*.80f,24+core*22,seed,pinnacle);
+                        else if(pinnacle)
+                        {
+                            // Brick tank stays at the rear-right; mast occupies the left edge.
+                            Vector3 mast=bottom+new Vector3(-extent.x*.42f,top+1,0);
+                            b.Cylinder(mast,.65f,42,6,new Color(.54f,.55f,.52f));
+                            b.Cylinder(mast+Vector3.up*42,.95f,1.2f,6,Emission(1,.035f,.015f));
+                        }
+                    }
+                    previous=top;
+                }
+            }
+            else
+            {
+                Vector3 roof=bottom+Vector3.up*size.y;
+                Roof(b,roof,size,style,seed);
+                if(core<.36f || size.y<100)
+                {
+                    // Long gabled residential/low-block roof: two slopes and closed gables.
+                    // A clear front service strip keeps existing HVAC and tanks unobstructed.
+                    Vector3 cap=new Vector3(size.x*(style==1?.45f:.94f),0,size.z*.60f);
+                    Gable(b,roof+new Vector3(style==1?-size.x*.23f:0,1,-size.z*.14f),cap,8+seed%6,seed,wall);
+                }
+                else if(style!=1)
+                    Crown(b,roof+new Vector3(size.x*.12f,.3f,-size.z*.16f),size*.80f,18+core*22,seed,false);
+
+                // L, U, enclosed courtyard and twin slab families around the retained shaft.
+                // Low wings frame the shaft; new volumes stay inside the 140 m block.
+                float wingHeight=Mathf.Min(size.y*.70f,18+core*86);
+                float edge=Mathf.Max(size.x,size.z)*.5f;
+                float room=67-edge;
+                if(room>=16)
+                {
+                    int family=seed%4;
+                    float depth=Mathf.Min(24,room-2);
+                    float offset=67-depth*.5f;
+                    Color masonry=Color.Lerp(wall,new Color(.51f,.43f,.34f),.55f);
+                    Vector3 bar=new Vector3(depth,wingHeight,Mathf.Min(94,size.z+24));
+                    Block(bottom+new Vector3(-offset,0,0),bar,style==0?2:1,masonry);
+                    if(family==0)
+                    {
+                        // Join the long side slab to one corner of the shaft: a real L,
+                        // rather than two disconnected rectangular buildings on the lot.
+                        float inner=-67+depth;
+                        float gap=-size.x*.5f-inner;
+                        Vector3 link=new Vector3(gap+2,wingHeight,depth);
+                        Vector3 foot=bottom+new Vector3((inner-size.x*.5f)*.5f,0,size.z*.5f-depth*.5f);
+                        Block(foot,link,3,masonry,false);
+                        Terrace(b,foot+Vector3.up*link.y,link,seed);
+                    }
+                    if(family!=0)
+                        Block(bottom+new Vector3(offset,0,0),new Vector3(depth,wingHeight*(family==3?.83f:1),bar.z),3,masonry*.94f);
+                    if(family==1 || family==2)
+                    {
+                        Vector3 link=new Vector3(offset*2-depth,wingHeight*.82f,depth);
+                        Block(bottom+new Vector3(0,0,-offset),link,1,masonry);
+                        if(family==2) Block(bottom+new Vector3(0,0,offset),link,3,masonry*.94f);
+                    }
+                }
+            }
+        }
+        static void Terrace(SeasideBuilder.Batch b,Vector3 top,Vector3 size,int seed)
+        {
+            Color membrane=Membranes[Mathf.Abs(seed)%Membranes.Length];
+            b.Box(top+Vector3.up*.12f,new Vector3(size.x-.3f,.18f,size.z-.3f),membrane);
+            Color stone=new Color(.49f,.48f,.44f);
+            foreach(int side in new[]{-1,1})
+            {
+                b.Box(top+new Vector3(side*(size.x*.5f-.2f),.5f,0),new Vector3(.4f,1,size.z),stone);
+                b.Box(top+new Vector3(0,.5f,side*(size.z*.5f-.2f)),new Vector3(size.x,1,.4f),stone);
+            }
+        }
+        static void Gable(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,float height,int seed,Color wall)
+        {
+            float x=size.x*.5f,z=size.z*.5f;
+            Vector3 a=foot+new Vector3(-x,0,-z),c=foot+new Vector3(x,0,-z);
+            Vector3 d=foot+new Vector3(-x,0,z),e=foot+new Vector3(x,0,z);
+            Vector3 r=foot+new Vector3(0,height,-z),t=foot+new Vector3(0,height,z);
+            Color tile=seed%3==0?new Color(.38f,.23f,.17f):seed%3==1?new Color(.24f,.29f,.30f):new Color(.40f,.37f,.31f);
+            b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.84f);
+            b.Tri(a,r,c,wall); b.Tri(d,e,t,wall);
+            b.Box(foot+new Vector3(-x*.60f,height*.48f,-z*.35f),new Vector3(2,height*.95f+3,2),new Color(.38f,.25f,.20f));
+        }
+        static void Crown(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,float height,int seed,bool mast)
+        {
+            // Clipped rectangular footprint, four broad sloping faces and four chamfer faces.
+            // Cyclic footprint is clockwise from above for outward wall normals.
+            float x=size.x*.40f,z=size.z*.32f,clip=Mathf.Min(x,z)*.30f;
+            Vector3[] ring={new(-x+clip,0,-z),new(-x,0,-z+clip),new(-x,0,z-clip),new(-x+clip,0,z),
+                new(x-clip,0,z),new(x,0,z-clip),new(x,0,-z+clip),new(x-clip,0,-z)};
+            Color metal=seed%3==0?new Color(.31f,.35f,.35f):seed%3==1?new Color(.46f,.43f,.36f):new Color(.22f,.31f,.31f);
+            float inset=seed%2==0?.48f:.16f;
+            for(int k=0;k<8;k++)
+            {
+                Vector3 a=ring[k],c=ring[(k+1)%8];
+                Vector3 u=a*inset+Vector3.up*height,v=c*inset+Vector3.up*height;
+                b.Quad(foot+a,foot+c,foot+v,foot+u,metal*(k%2==0?1:.88f));
+                b.Tri(foot+Vector3.up*height,foot+u,foot+v,metal*.86f);
+            }
+            if(mast)
+            {
+                b.Box(foot+Vector3.up*(height+2),new Vector3(6,4,6),metal);
+                b.Cylinder(foot+Vector3.up*(height+4),.65f,38,6,new Color(.54f,.55f,.52f));
+                b.Cylinder(foot+Vector3.up*(height+42),.95f,1.2f,6,Emission(1,.035f,.015f));
             }
         }
 
@@ -300,10 +411,13 @@ namespace FlyingGame.Bridge
                 b.Box(roof+new Vector3(0,.5f,side*(size.z*.5f-.25f)),new Vector3(size.x,1.4f,.65f),rim);
             }
             b.Box(roof+new Vector3(-size.x*.30f,2.5f,-size.z*.30f),new Vector3(8,5,9),rim*.8f);
-            int units=size.z<28?3:QualitySettings.GetQualityLevel()<=2?3:4+seed%3;
+            int units=Mathf.Min(size.z<28?3:QualitySettings.GetQualityLevel()<=2?3:4+seed%3,
+                size.x<30?2:6);
             for(int k=0;k<units;k++)
             {
-                Vector3 hvac=roof+new Vector3((k%3-1)*10,2.3f,Mathf.Min(size.z*.5f-5,size.z*.30f+(k/3)*10));
+                float serviceX=size.x<30?0:(k%3-1)*Mathf.Min(10,(size.x-10)*.33f);
+                float serviceZ=size.x<30?(k-.5f)*10:Mathf.Min(size.z*.5f-5,size.z*.30f+(k/3)*10);
+                Vector3 hvac=roof+new Vector3(serviceX,2.3f,serviceZ);
                 b.Box(hvac-Vector3.up*1.45f,new Vector3(9.5f,1.2f,8.5f),new Color(.22f,.24f,.24f));
                 b.Box(hvac,new Vector3(8.5f,3.4f,7.5f),new Color(.66f,.69f,.68f));
                 for(int fan=0;fan<2;fan++)
@@ -320,39 +434,6 @@ namespace FlyingGame.Bridge
                     b.Cylinder(tank+Vector3.up*(4.6f+band*3.25f),4.84f,.14f,10,new Color(.19f,.22f,.23f));
                 foreach(int side in new[]{-1,1})
                     b.Beam(tank+new Vector3(-2.4f,.3f,side*2.4f),tank+new Vector3(2.4f,4.2f,side*2.4f),.16f,.16f,new Color(.23f,.24f,.23f));
-            }
-            if(size.y>220 && seed%3==0 && style!=1)
-            {
-                for(int k=0;k<3;k++)
-                    b.Box(roof+new Vector3(size.x*.22f,2+k*3.5f,-size.z*.25f),new Vector3(size.x*(.25f-k*.06f),4,size.z*(.25f-k*.06f)),rim*.8f);
-                b.Cylinder(roof+new Vector3(size.x*.22f,10.8f,-size.z*.25f),.3f,10,6,new Color(.43f,.46f,.46f));
-            }
-            // Large roof silhouettes on non-challenge lots only. Original tower/roof stays intact.
-            // Keep the tank family unchanged; crowns occupy the rear half away from front HVAC.
-            if(size.y>95 && style!=1 && seed%4!=1 && (size.y<=220 || seed%3!=0))
-            {
-                float h=Mathf.Clamp(size.y*.18f,17,44);
-                Vector3 centre=roof+new Vector3(size.x*.14f,.24f,-size.z*.18f);
-                float x=size.x*.32f,z=size.z*.28f;
-                Color metal=seed%2==0?new Color(.23f,.34f,.34f):new Color(.48f,.47f,.43f);
-                Vector3 a=centre+new Vector3(-x,0,-z),c=centre+new Vector3(x,0,-z);
-                Vector3 d=centre+new Vector3(x,0,z),e=centre+new Vector3(-x,0,z);
-                if(seed%2==0)
-                {
-                    // Mansard/chamfered crown, broad enough to survive the 1–3 km views.
-                    Vector3 u=centre+new Vector3(-x*.48f,h,-z*.48f),v=centre+new Vector3(x*.48f,h,-z*.48f);
-                    Vector3 w=centre+new Vector3(x*.48f,h,z*.48f),q=centre+new Vector3(-x*.48f,h,z*.48f);
-                    b.Quad(a,c,v,u,metal); b.Quad(c,d,w,v,metal*.83f);
-                    b.Quad(d,e,q,w,metal); b.Quad(e,a,u,q,metal*.83f); b.Quad(u,v,w,q,metal*.74f);
-                }
-                else
-                {
-                    Vector3 peak=centre+Vector3.up*h;
-                    b.Tri(a,c,peak,metal); b.Tri(c,d,peak,metal*.82f);
-                    b.Tri(d,e,peak,metal); b.Tri(e,a,peak,metal*.82f);
-                }
-                if(seed%5==0)
-                    b.Cylinder(centre+Vector3.up*h,.55f,18,6,new Color(.49f,.51f,.50f));
             }
             if(size.y>230)
                 b.Box(roof+new Vector3(size.x*.38f,.54f,size.z*.38f),new Vector3(1.1f,.6f,1.1f),Emission(1,.035f,.015f));

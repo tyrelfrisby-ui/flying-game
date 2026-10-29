@@ -159,7 +159,7 @@ Shader "FlyingGame/UrbanFacade"
     }
     float building=hash(float2(i.data.y,41.7));
     float floorUse=hash(float2(cell.y+i.data.y,73.1));
-    float occupancy=lerp(.30,.60,saturate(building*.55+floorUse*.45));
+    float occupancy=lerp(.30,.65,saturate(building*.55+floorUse*.45));
     float lit=step(1-occupancy,rnd);
     float3 warm=lerp(float3(1,.77,.46),float3(.72,.86,1),step(.65,hash(cell+i.data.y+19)));
     // Analytic pixel-footprint average replaces subpixel hash/grid sampling at aerial distance.
@@ -172,10 +172,10 @@ Shader "FlyingGame/UrbanFacade"
     float floorGap=windowAxis(grid.y,.35,aa.y);
     float rowLit=step(1-occupancy,hash(float2(cell.y+i.data.y,91.7)));
     float filteredLit=lerp(lit,rowLit*occupancy,smoothstep(.6,1.5,aa.x));
-    float roomLight=lerp(lightPane*lightFrame*filteredLit*(.55+.45*hash(cell+27)),coverage*occupancy*.12,unresolved);
+    float roomLight=lerp(lightPane*lightFrame*filteredLit*(.55+.45*hash(cell+27)),coverage*occupancy*.95,unresolved);
     roomLight*=lerp(.40+floorGap*.60,1,unresolved);
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
-    float3 night=base*float3(.085,.11,.16)+roomLight*lerp(warm,averageLight,unresolved)*lerp(.85,1.35,building);
+    float3 night=base*float3(.085,.11,.16)+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.65,2.5,building);
     float4 result=float4(lerp(base,night,_CityNight),1);
     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
    }
