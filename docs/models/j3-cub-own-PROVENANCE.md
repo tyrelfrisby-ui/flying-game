@@ -212,3 +212,13 @@ Ty's review of v4, matched side by side against Ty's own photos (agent box refs/
   - black door inner face;
   - door-side truss tubes removed so the opening is clear, per d01.
 - Other part names and rig extras are unchanged. New meshes: `Panel_Gauges`, `Liner_Stbd`, `Fin_Decal_L/R`.
+
+## v6 (2026-10-28)
+
+Ty's review of v5, re-matched side by side against ty-eyebrows.png and ty-cowl-eyebrow-rear.png (references by eye only; no third-party meshes):
+
+- **Eyebrow hoods:** no longer parallel to the cylinders. Each hood is tall at the front mouth (crown ~0.265 m above the thrust line) and funnels down to ~0.150 m over the aft cylinder. Behind the aft head centre the outboard lip drops from just above the valve covers to below the head centreline. The hood then ends in a rounded cap that rolls down onto the cowl behind the aft cylinder, enclosing it, instead of a flat plate. Rivet rows run round the cap, along the attach flange and on the lower aft edge.
+- **Valve covers:** a flat flange round the pressed cover with 10 hold-down screws (4 corners, 2 per long side, 1 top, 1 bottom). This was counted from the photos, where 4–6 screws show per cover on the lit half.
+- **Interior:** fabric-lined throughout (Cabin_Liner / Liner_Stbd). The exposed sidewall truss and the window-frame tubes are removed. Only two diagonal tubes and a cross tube show, low in the footwell under the fuel tank.
+- **Exhaust:** each stack is one continuous tube from the port flange through a radiused 90° bend into the collector. The left-stack gap came from the tube() ring frame flipping at x↔z bends, so tube() and tube_r() now use parallel-transport frames.
+- Part names, pivots and rig extras are unchanged.

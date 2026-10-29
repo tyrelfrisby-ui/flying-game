@@ -59,8 +59,15 @@ def tube(bm, pts, r, n=8, r2=None, cap=True):
     pts = np.array(pts, float); rs = []; m = len(pts)
     for k, p in enumerate(pts):
         d = pts[min(k + 1, m - 1)] - pts[max(k - 1, 0)]; d /= np.linalg.norm(d)
-        ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0])
-        u = np.cross(d, ref); u /= np.linalg.norm(u); w = np.cross(d, u)
+        if k == 0:
+            ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0])
+            u = np.cross(d, ref); u /= np.linalg.norm(u)
+        else:                                   # v6: parallel transport (no ring flip at sharp bends)
+            u = u - np.dot(u, d) * d
+            if np.linalg.norm(u) < 1e-6:
+                ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0]); u = np.cross(d, ref)
+            u /= np.linalg.norm(u)
+        w = np.cross(d, u)
         rk = r if r2 is None else r + (r2 - r) * k / (m - 1)
         rs.append([tuple(p + rk * (math.cos(t) * u + math.sin(t) * w)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)])
     loft_rings(bm, rs, cap, cap)
@@ -69,8 +76,15 @@ def tube_r(bm, pts, rads, n=12):
     pts = np.array(pts, float); rs = []; m = len(pts)
     for k, p in enumerate(pts):
         d = pts[min(k + 1, m - 1)] - pts[max(k - 1, 0)]; d /= np.linalg.norm(d)
-        ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0])
-        u = np.cross(d, ref); u /= np.linalg.norm(u); w = np.cross(d, u)
+        if k == 0:
+            ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0])
+            u = np.cross(d, ref); u /= np.linalg.norm(u)
+        else:                                   # v6: parallel transport (no ring flip at sharp bends)
+            u = u - np.dot(u, d) * d
+            if np.linalg.norm(u) < 1e-6:
+                ref = np.array([0, 0, 1.0]) if abs(d[0]) > 0.8 else np.array([1.0, 0, 0]); u = np.cross(d, ref)
+            u /= np.linalg.norm(u)
+        w = np.cross(d, u)
         rs.append([tuple(p + rads[k] * (math.cos(t) * u + math.sin(t) * w)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)])
     loft_rings(bm, rs)
 def blade_strut(bm, a, b, chords, th, n=10):
@@ -429,13 +443,18 @@ def vcover(hx, sy):
         for qx, qz, t0 in ((a - rc, b - rc, 0), (-(a - rc), b - rc, 90), (-(a - rc), -(b - rc), 180), (a - rc, -(b - rc), 270)):
             for t in np.radians(np.linspace(t0, t0 + 90, 7)): pts.append((qx + rc * math.cos(t), qz + rc * math.sin(t)))
         return pts
-    prof = [(VC_Y0 + 0.004, 0.0), (VC_Y1 - 0.028, 0.0)] + [(VC_Y1 - 0.028 + 0.036 * math.sin(th), 0.040 * (1 - math.cos(th)))
+    prof = [(VC_Y0 + 0.008, 0.006), (VC_Y1 - 0.028, 0.006)] + [(VC_Y1 - 0.028 + 0.036 * math.sin(th), 0.040 * (1 - math.cos(th)))
                                                          for th in np.radians(np.linspace(0, 90, 10))[1:]]
+    prof = [(yy, ins if k < 2 else ins + 0.006) for k, (yy, ins) in enumerate(prof)]   # v6: body inset 6 mm inside the flange
     rings = [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr2(ins)] for yy, ins in prof]
     en_add(bme, 'rocker', lambda: loft_rings(bme, rings))
-    en_add(bme, 'alu', lambda: loft_rings(bme, [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(-0.003)] for yy in (VC_Y0, VC_Y0 + 0.004)]))  # red gasket
-    for dx, dz in ((0.042, 0.054), (-0.042, 0.054), (0.042, -0.054), (-0.042, -0.054)):
-        en_add(bme, 'steel', lambda: cyl(bme, B(hx + dx, sy * (VC_Y1 - 0.012), CZ + dz), B(hx + dx, sy * (VC_Y1 - 0.003), CZ + dz), 0.0045, 8))
+    en_add(bme, 'alu', lambda: loft_rings(bme, [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(-0.010)] for yy in (VC_Y0, VC_Y0 + 0.003)]))  # red gasket
+    # v6 (Ty: many more screws): flat flange round the pressed cover, 10 hold-down screws on it (4 corners, 2 per long
+    # side, 1 top, 1 bottom -- counted from ty-eyebrows.png, 4-6 visible per cover on the lit half)
+    en_add(bme, 'rocker', lambda: loft_rings(bme, [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(-0.008)] for yy in (VC_Y0 + 0.003, VC_Y0 + 0.008)]))
+    for dx, dz in ((0.050, 0.060), (-0.050, 0.060), (0.050, -0.060), (-0.050, -0.060), (0.062, 0.020), (0.062, -0.020),
+                   (-0.062, 0.020), (-0.062, -0.020), (0.0, 0.072), (0.0, -0.072)):
+        en_add(bme, 'steel', lambda: cyl(bme, B(hx + dx, sy * (VC_Y0 + 0.007), CZ + dz), B(hx + dx, sy * (VC_Y0 + 0.0115), CZ + dz), 0.0045, 10, r2=0.0032))
 for sy in (1, -1):
     for hx in HEADS[sy]:
         en_add(bme, 'cyl', lambda: cyl(bme, B(hx, sy * 0.10, CZ), B(hx, sy * 0.245, CZ), 0.052, 20))
@@ -456,29 +475,52 @@ for sy in (1, -1):
         # outboard wall to the lip ZL just above the valve covers. Closed at the back by a flat riveted plate that
         # fills the whole arch down to the lip line and in to the cowl (no flare / no free edge).
         h0, h1 = HEADS[sy]; xf, xr = h0 - 0.090, HOOD[sy][1] + 0.010
-        ZL, YO, T_, NE = 0.070, 0.346, 0.005, 2.0   # v5j: narrow half-tube over the fins; lip at the cover/head joint so the covers stand ~2.5 in proud
-        xs = L(xf, xr, 16); NA = 22
-        def frac(x_): return (x_ - xf) / (xr - xf)
+        # v6 (Ty review of v5): NOT parallel to the cylinders -- each hood starts LARGE at the front mouth and funnels down
+        # towards the aft cylinder, and its back WRAPS DOWN round the back of the aft cylinder, enclosing it: past the aft
+        # head centre the outboard lip drops from just above the covers (ZL) to below the head centreline (ZW), and the
+        # hood ends in a rounded cap (no flat plate) that rolls down onto the cowl behind the aft cylinder; rivet rows on
+        # the cap and along the attach flange (ty-cowl-eyebrow-rear.png).
+        ZL, ZW, YO, T_ = 0.070, -0.040, 0.346, 0.005
+        RC = 0.040                                      # cap radius (aft roll-down)
+        NA = 24
+        def frac(x_): return min(max((x_ - xf) / (xr - xf), 0.0), 1.0)
         def zf_(x_): return 0.132 - 0.004 * frac(x_)
         def yf_(x_): return fus_y(min(max(x_, 0.19), 0.95), zf_(x_)) - 0.006
-        def hc_(x_): return 0.205 - 0.035 * frac(x_) ** 1.2
-        def sect(x_):                                   # v5j: half-tube (tilted half-ellipse) from the cowl foot over the fins to the lip
-            yf, zf, Hc = yf_(x_), zf_(x_), hc_(x_); yo = max(YO, yf + 0.06); a = (yo - yf) / 2; ym = yf + a
+        def hc_(x_): return 0.265 - 0.115 * frac(x_) ** 0.85           # funnel: tall mouth -> low over the aft head
+        def yo_(x_): return YO + 0.010 * (1 - frac(x_)) ** 2              # mouth flares a little outboard at the front
+        def zl_(x_):                                                       # lip drops behind the aft head centre
+            s_ = min(max((x_ - (h1 - 0.015)) / (xr - (h1 - 0.015)), 0.0), 1.0); s_ = s_ * s_ * (3 - 2 * s_)
+            return ZL + (ZW - ZL) * s_
+        def sect(x_):
+            yf, zf, Hc, zl = yf_(x_), zf_(x_), hc_(x_), zl_(x_); yo = max(yo_(x_), yf + 0.06); a = (yo - yf) / 2; ym = yf + a
             b = Hc - (zf + ZL) / 2; out = []
             for t in np.linspace(0, math.pi, NA):
-                out.append((ym - a * math.cos(t), zf + (ZL - zf) * (1 - math.cos(t)) / 2 + b * math.sin(t)))
+                zc = zf + (ZL - zf) * (1 - math.cos(t)) / 2 + b * math.sin(t)
+                if t > math.pi / 2:                     # outboard half: stretch down to the (lowered) lip
+                    w_ = (t - math.pi / 2) / (math.pi / 2); zc += (zl - ZL) * w_ ** 1.6
+                out.append((ym - a * math.cos(t), zc))
             return out
-        def offs(pts, d):                               # inward offset along the 2-D section normal
+        def offs(pts, d):
             P_ = np.array(pts); out = []
             for k in range(len(P_)):
-                tg = P_[min(k + 1, len(P_) - 1)] - P_[max(k - 1, 0)]; nrm = np.array((tg[1], -tg[0])); nrm /= np.linalg.norm(nrm)
+                tg = P_[min(k + 1, len(P_) - 1)] - P_[max(k - 1, 0)]; nrm = np.array((tg[1], -tg[0])); nrm /= np.linalg.norm(nrm) + 1e-12
                 out.append(tuple(P_[k] + d * nrm))
             return out
-        def shx(x_, p):                                 # rake: the lower wall trails the crown at the front, fades aft
+        def shx(x_, p):
             w = min(max((hc_(x_) - p[1]) / (hc_(x_) - ZL), 0), 1)
             return x_ + 0.070 * w * (1 - frac(x_)) ** 2
+        xs = list(L(xf, xr, 18))
         S = [sect(x_) for x_ in xs]
-        print('BROW', sy, 'foot y %.3f..%.3f' % (S[0][0][0], S[-1][0][0]), 'lip', S[0][-1], 'crown', max(q[1] for q in S[0]))
+        # rounded cap: blend the last arch down onto the cowl / lip line behind the aft cylinder
+        arch = S[-1]; zf = zf_(xr)
+        low = [(fus_y(xr + 0.02, z_) + 0.002, z_) for z_ in np.linspace(zf, ZW, 9)] + [(y_, ZW) for y_ in np.linspace(fus_y(xr + 0.02, ZW) + 0.002, yo_(xr), 7)[1:]]
+        la = np.cumsum([0] + [math.dist(low[i], low[i + 1]) for i in range(len(low) - 1)]); la /= la[-1]
+        aa = np.cumsum([0] + [math.dist(arch[i], arch[i + 1]) for i in range(len(arch) - 1)]); aa /= aa[-1]
+        lowr = [(float(np.interp(t, la, [q[0] for q in low])), float(np.interp(t, la, [q[1] for q in low]))) for t in aa]
+        for ph in np.radians(np.linspace(0, 88, 9))[1:]:
+            xs.append(xr + RC * math.sin(ph)); c_ = math.cos(ph)
+            S.append([(l_[0] + (a_[0] - l_[0]) * c_, l_[1] + (a_[1] - l_[1]) * c_) for a_, l_ in zip(arch, lowr)])
+        print('BROW', sy, 'mouth crown %.3f' % max(q[1] for q in S[0]), 'aft crown %.3f' % max(q[1] for q in arch), 'lip aft', arch[-1])
         if np.mean([q[1] for q in offs(S[0], T_)]) > np.mean([q[1] for q in S[0]]): T2 = -T_
         else: T2 = T_
         top = [[B(shx(x_, p), sy * p[0], p[1]) for p in S[a]] for a, x_ in enumerate(xs)]
@@ -495,33 +537,25 @@ for sy in (1, -1):
             fs.append(bme.faces.new((vt[a0][b0], vb[a0][b0], vb[a1][b1], vt[a1][b1])))
         bmesh.ops.recalc_face_normals(bme, faces=fs)
         tube(bme, [top[0][k] for k in range(nJ)], 0.0045, n=8)          # rolled front lip
-        # rear plate: fills the arch (foot -> crown -> lip) down to the lip line and in along the cowl profile; built as
-        # a quad strip between the arch and that lower boundary (both run foot -> lip), two faces + rim, riveted
-        arch = S[-1]; zf, yf = zf_(xr), yf_(xr)
-        low = [(fus_y(xr, z_) - 0.004, z_) for z_ in np.linspace(zf, ZL, 7)] + [(y_, ZL) for y_ in np.linspace(fus_y(xr, ZL) - 0.004, YO, 9)[1:]]
-        la = np.cumsum([0] + [math.dist(low[i], low[i + 1]) for i in range(len(low) - 1)]); la /= la[-1]
-        aa = np.cumsum([0] + [math.dist(arch[i], arch[i + 1]) for i in range(len(arch) - 1)]); aa /= aa[-1]
-        lowr = [(float(np.interp(t, la, [q[0] for q in low])), float(np.interp(t, la, [q[1] for q in low]))) for t in aa]
-        pf = []
-        for xp_, flip in ((xr - 0.0035, False), (xr + 0.0005, True)):
-            va = [bme.verts.new(B(xp_, sy * y_, z_)) for y_, z_ in arch]; vl = [bme.verts.new(B(xp_, sy * y_, z_)) for y_, z_ in lowr]
-            for i_ in range(len(arch) - 1):
-                q = [va[i_], va[i_ + 1], vl[i_ + 1], vl[i_]]
-                if i_ == 0: q = [va[0], va[1], vl[1]]
-                elif i_ == len(arch) - 2: q = [va[i_], va[i_ + 1], vl[i_]]
-                pf.append(bme.faces.new(q[::-1] if flip else q))
-        bmesh.ops.recalc_face_normals(bme, faces=pf)
-        poly = arch + lowr[::-1][1:-1]
-        RIV.append((sy, xr + 0.0005, poly))
-        for x_ in L(xf + 0.03, xr - 0.02, 9):                                  # rivets along the attach flange on the cowl
-            p_ = sect(x_)[1]; RIVP.append((B(x_, sy * p_[0], p_[1] + 0.003), (0, 0, 1)))
+        def riv_on(a_, b_):                              # rivet on the outer skin at grid (a_, b_), normal = skin outward
+            p_ = np.array(top[a_][b_]); n_ = p_ - np.array(bot[a_][b_]); n_ /= np.linalg.norm(n_) + 1e-12
+            RIVP.append((tuple(p_), tuple(n_)))
+        n0 = len(L(xf, xr, 18))
+        for a_ in (n0 + 1, n0 + 5):                      # two rivet rows round the cap
+            for b_ in range(1, nJ - 1, 2): riv_on(a_, b_)
+        for a_ in range(1, n0, 2): riv_on(a_, 1)        # attach flange row on the cowl
+        for a_ in range(n0 - 6, n0, 2): riv_on(a_, nJ - 2)   # lower aft edge of the wrap
     en_add(bme, 'hood', eyebrow)
     # v5 exhaust (Ty photo ty-cowl-eyebrow-rear): chrome/steel stack drops from each exhaust port, turns aft below the
     # heads, the two join and the collector runs aft out through a round hole in the lower cowl side (dark grommet ring).
     hf, hr = HEADS[sy]; XH = HOOD[sy][1] + 0.045; ZE = -0.158; PY = 0.300; yc_ = fus_y(XH, ZE)
     for hx_ in (hf, hr):
-        en_add(bme, 'steel', lambda: tube(bme, [B(hx_ + 0.008, sy * PY, CZ - 0.055), B(hx_ + 0.008, sy * PY, ZE + 0.035), B(hx_ + 0.022, sy * PY, ZE + 0.006),
-                                                 B(hx_ + 0.05, sy * PY, ZE), B(hr + 0.06, sy * PY, ZE)], 0.016, n=12))
+        # v6 (Ty: left stack had a gap): one continuous stack, port flange -> radiused 90 deg bend -> joins the
+        # collector; built with parallel-transport rings (the old frame flipped at the bend and pinched the tube open)
+        RB = 0.034; _pts = [B(hx_ + 0.008, sy * PY, CZ - 0.050)] + [B(hx_ + 0.008 + RB - RB * math.cos(t_), sy * PY, ZE + RB - RB * math.sin(t_))
+                                                                  for t_ in np.radians(np.linspace(0, 90, 10))]
+        _pts += [B(x_, sy * PY, ZE) for x_ in L(hx_ + 0.008 + RB + 0.012, hr + 0.07, 4)]
+        en_add(bme, 'steel', lambda: tube(bme, _pts, 0.016, n=14))
         en_add(bme, 'dark', lambda: cyl(bme, B(hx_ + 0.008, sy * PY, CZ - 0.05), B(hx_ + 0.008, sy * PY, CZ - 0.065), 0.024, 12))   # port flange
     en_add(bme, 'steel', lambda: tube(bme, [B(hr + 0.04, sy * PY, ZE), B(XH - 0.03, sy * (PY - 0.008), ZE), B(XH, sy * (yc_ + 0.004), ZE),
                                              B(XH + 0.05, sy * (yc_ - 0.035), ZE - 0.004)], 0.020, n=14))
@@ -572,7 +606,7 @@ for sy_, xp_, poly_ in RIV:
             q_ = a_ + (b_ - a_) * t_; q_ = q_ + (c_ - q_) / np.linalg.norm(c_ - q_) * 0.009
             en_add(bme, 'hood', lambda: cyl(bme, B(xp_, sy_ * q_[0], q_[1]), B(xp_ + 0.0022, sy_ * q_[0], q_[1]), 0.0028, 6, r2=0.0016))
 for p_, n_ in RIVP:
-    en_add(bme, 'hood', lambda: cyl(bme, p_, (p_[0], p_[1], p_[2] + 0.002), 0.0028, 6, r2=0.0016))
+    en_add(bme, 'hood', lambda: cyl(bme, p_, (p_[0] + 0.002 * n_[0], p_[1] + 0.002 * n_[1], p_[2] + 0.002 * n_[2]), 0.0028, 6, r2=0.0016))
 # v5 cowl panel lines (Ty photo ty-cowl-eyebrow-rear): raised dark hairline rings at the cowl / fuselage joint and the nose
 # bowl joint, plus the top-centre split; the side split (lower cowl) is painted into the side maps below.
 def seam_ring(xd, w_=0.004, off=0.0010):
@@ -767,26 +801,13 @@ for sx in (1.55, 2.30):
 for px in (1.12, 1.85):
     for sy in (1, -1):
         ck('stick', lambda: bar(bmc, [B(px, sy * 0.13, -0.53), B(px - 0.04, sy * 0.13, -0.42)], 0.07, 0.01, up=(1, 0, 0.4)))
-for sy in (1, -1):                                                                          # frame tubes seen in the windows
-    for a, b in (((0.96, 0.195), (1.53, 0.52)), ((1.23, 0.03), (1.56, 0.515)), ((1.665, 0.03), (1.665, 0.50))):
-        ck('tubeY', lambda: tube(bmc, [B(a[0], sy * (fus_y(a[0], a[1]) - 0.004), a[1]), B(b[0], sy * (fus_y(b[0], b[1]) - 0.004), b[1])], 0.011, n=8))
-    if sy > 0: ck('tubeY', lambda: tube(bmc, [B(1.70, sy * (HW_CAB - 0.012), 0.03), B(2.47, sy * (HW_CAB - 0.012), 0.03)], 0.01, n=8))   # v5f: none across the door
-    if sy > 0: ck('dark', lambda: rbox(bmc, B(1.60, 0.27, -0.12), (0.05, 0.02, 0.03)))  # throttle (left wall)
-# v5c interior (period J-3 cockpit, On Centerline J3L-65 style as described; geometry by judgement): exposed yellow
-# 4130 tube truss on both sidewalls inside the fabric (lower longeron, verticals, diagonals), heel-brake pedals behind
-# the rudder pedals front and rear, the stabilizer trim crank on the left wall by the rear seat, floor-board battens.
+# v6 (Ty review): the cabin is fabric-lined throughout (Cabin_Liner / Liner_Stbd) -- no exposed steel tube truss on the
+# sidewalls or in the windows. Only a couple of tubes show, low in the footwell under the fuel tank (behind the panel).
 for sy in (1, -1):
-    ZU, ZLo = 0.03, -0.40
-    st_ = [1.23, 1.665, 2.06, 2.47, 2.90]
+    if sy > 0: ck('dark', lambda: rbox(bmc, B(1.60, 0.27, -0.12), (0.05, 0.02, 0.03)))  # throttle (left wall)
     def wall(x_, z_): return B(x_, sy * (fus_y(x_, z_) - 0.016), z_)
-    ck('tubeY', lambda: tube(bmc, [wall(x_, ZLo) for x_ in L(1.23, 2.90, 8)], 0.010, n=8))          # lower longeron
-    ck('tubeY', lambda: tube(bmc, [wall(x_, ZU) for x_ in L(1.23, 1.70, 3)], 0.010, n=8))           # upper longeron fwd
-    for x_ in st_[1:]:
-        if sy < 0 and x_ == 2.06: continue                                                       # v5f: door opening clear (d01)
-        ck('tubeY', lambda: tube(bmc, [wall(x_, ZLo), wall(x_, -0.18), wall(x_, ZU)], 0.009, n=8))  # verticals
-    for xa_, xb_ in zip(st_[:-1], st_[1:]):
-        if sy < 0 and 1.6 < xa_ < 2.3: continue                                                    # v5f: door opening clear (d01)
-        ck('tubeY', lambda: tube(bmc, [wall(xa_, ZU), wall(0.5 * (xa_ + xb_), -0.185), wall(xb_, ZLo)], 0.008, n=8))   # diagonals
+    ck('tubeY', lambda: tube(bmc, [wall(0.98, -0.06), wall(1.20, -0.40)], 0.010, n=10))          # diagonal under the tank
+ck('tubeY', lambda: tube(bmc, [B(1.04, fus_y(1.04, -0.36) - 0.016, -0.36), B(1.04, -(fus_y(1.04, -0.36) - 0.016), -0.36)], 0.010, n=10))  # cross tube
 for px in (1.12, 1.85):                                                                     # heel brakes (black pads)
     for sy in (1, -1):
         ck('dark', lambda: bar(bmc, [B(px + 0.11, sy * 0.13, -0.545), B(px + 0.08, sy * 0.13, -0.49)], 0.05, 0.010, up=(1, 0, 0.6)))

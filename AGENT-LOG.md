@@ -30,6 +30,12 @@
     - Instrument panel per Ty's photo on the new Panel_Gauges mesh: RPM, ASI, ball compass, altimeter, oil T/P, cream faces, and the "REAR SEAT FOR SOLO FLYING" placard.
     - Tandem interior: black seats, sticks, heel brakes (geometry only), trim crank, yellow fabric sidewalls, tube truss. Also new: the Liner_Stbd and Fin_Decal_L/R meshes.
     - Renders: /workspace/j3-cub-v5 (box).
+  - v6 (Ty review of v5, both GLBs):
+    - Eyebrow hoods funnel from a large front mouth down over the aft cylinder and wrap round its back in a rounded, riveted cap (no flat plate).
+    - Valve covers have a flange with 10 screws each.
+    - The cabin is fabric-lined, with no exposed truss; only a couple of tubes show under the fuel tank.
+    - The exhaust stacks are continuous: tube() now uses parallel-transport frames.
+    - Renders: /workspace/j3-cub-v6 (box).
 - [codex → Claude] codex/own-great-lakes · Great Lakes 2T-1A-2 own model v5 (supersedes v4, v3 and v2; NOT approved by Ty; use latest v5; for planning gear suspension + livery wiring). v5 (2026-10-28) changes: red-sunburst side stripes curve and blend into the navy nose bowl per Ty's red photos (lower stripe tapers to a chevron at the bowl, upper stripe flares to parallel it; wheel pants get a matching navy wedge + white pinstripe); white-stripes nose bowl/chin redrawn to the white-3 photos, wing tips and stab carry nested parallel red/white/light-blue/white/navy bands along the LE that turn and rake aft at the tips, lower rudder is white below the stab (navy no longer wraps the whole lower rudder). v4 (2026-10-28) changes: cowl front closed and rounded on all liveries (inlets in the face); red-sunburst stab rays per Ty's tail photo, fin/rudder trim tapers out at the rudder bottom-front, fuselage stripes taper to the stab LE; white-stripes wings and stab are white with diagonal red-tip / light-blue / navy bands top and bottom, fuselage stripes straight until they curve up at the fin. v3: tail matched to the 1970 AAM three-view incl. the fin-root blend; sunburst rays sweep aft. GLB file names and part names unchanged · details:
   - Models (unity/Assets/_Project/Resources/Models/great-lakes-like/): great-lakes-like-own.glb (v1 placeholder paint, N719GL), great-lakes-like-own-red-sunburst.glb (id 'red-sunburst', suffix "-own-red-sunburst"), great-lakes-like-own-white-stripes.glb (id 'white-stripes', suffix "-own-white-stripes"). Both new liveries: no registration, no logos/text; Hartzell 2-blade prop (clockwise from the cockpit). Default livery is undecided (ask Ty); suggest adding both to LiveryChoice when the Great Lakes is wired in.
   - Gear suspension values: stroke 9 in = 0.2286 m (Ty-supplied 8-10 in; no published figure); oleo length extended 0.931 m; static (derived from published 7 ft 4 in height) = 6.19 in compression, hinge 15.79 deg, wheel rise 0.227 m, 3-pt pitch 6.91 deg; full = 9 in, hinge 22.92 deg, wheel rise 0.342 m (+0.148 m aft, +0.158 m outboard), pitch 5.41 deg. GLB is exported fully extended (3-pt height 2.469 m).
@@ -50,6 +56,12 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v6 per Ty (eyebrow taper/wrap, cover screws, lined cabin, exhaust gap):
+- Eyebrows taper (crown 0.265 → 0.150 m). The outboard lip drops behind the aft head, and the hood ends in a rounded cap down onto the cowl, enclosing the aft cylinder. Rivets run on the cap and the flange.
+- Valve covers: a flange plus 10 screws each (counted from ty-eyebrows.png).
+- Interior: the sidewall truss and window-frame tubes are removed and the liner covers everything. Two diagonals and a cross tube remain under the tank.
+- Exhaust: one continuous stack per cylinder with a radiused bend. The gap was a ring-frame flip in tube(), now parallel transport.
+- No part renames.
 ### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v5 per Ty (matched side by side with Ty's photos ty-eyebrows / ty-cowl-eyebrow-rear / ty-panel):
 - Engine: exposed A-65-8 cylinders, narrow half-tube eyebrow scoops closing into flat riveted rear plates (no flare), and polished pillow valve covers 2.5 in proud. Two plugs per cylinder with yellow leads to the magnetos; stacks into a collector.
 - Cowl and decoration: Dzus fasteners, wood prop with a generic decal, and an original bear emblem.
