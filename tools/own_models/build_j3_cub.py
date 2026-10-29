@@ -993,7 +993,6 @@ for px in (1.12, 1.85):
 # v6 (Ty review): the cabin is fabric-lined throughout (Cabin_Liner / Liner_Stbd) -- no exposed steel tube truss on the
 # sidewalls or in the windows. Only a couple of tubes show, low in the footwell under the fuel tank (behind the panel).
 for sy in (1, -1):
-    if sy > 0: ck('dark', lambda: rbox(bmc, B(1.60, 0.27, -0.12), (0.05, 0.02, 0.03)))  # throttle (left wall)
     def wall(x_, z_): return B(x_, sy * (fus_y(x_, z_) - 0.016), z_)
     ck('tubeY', lambda: tube(bmc, [wall(0.98, -0.06), wall(1.20, -0.40)], 0.010, n=10))          # diagonal under the tank
 ck('tubeY', lambda: tube(bmc, [B(1.04, fus_y(1.04, -0.36) - 0.016, -0.36), B(1.04, -(fus_y(1.04, -0.36) - 0.016), -0.36)], 0.010, n=10))  # cross tube
@@ -1005,6 +1004,59 @@ _tc = B(2.38, 0.27, -0.02)                                                      
 ck('dark', lambda: cyl(bmc, _tc, (_tc[0], _tc[1] - 0.025, _tc[2]), 0.045, 20))
 ck('chrome', lambda: bar(bmc, [(_tc[0], _tc[1] - 0.026, _tc[2]), (_tc[0], _tc[1] - 0.026, _tc[2] + 0.055)], 0.012, 0.006, up=(0, -1, 0)))
 ck('dark', lambda: cyl(bmc, (_tc[0], _tc[1] - 0.026, _tc[2] + 0.05), (_tc[0], _tc[1] - 0.065, _tc[2] + 0.05), 0.009, 8))
+# ---- v12d (Ty: cockpit controls; owner's manual J3C-65: "Throttle, fuel shut-off, and stabilizer control on left side
+# of cockpit ... Carburetor heater control on right side of cockpit"; carb heat "push-pull control on the right side of the
+# cockpit below the door"; Ty ty-panel.png: front throttle = black ball on a lever in a chrome slotted quadrant on the left
+# wall just aft of the panel's lower-left corner, ball a little below the panel bottom; public-domain Commons "Piper Cub cockpit.jpg" + VH-IMR: fuel shut-off valve on the tank
+# outlet under the panel centre, worked by a push-pull rod from the left side).
+def ball(bm, c, r):
+    bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=r, matrix=Matrix.Translation(tuple(c)))
+def lwall(x_, z_, ins): return fus_y(x_, z_) - ins                   # left (port) wall = build +y, inset from the skin
+TQ_LEN, TQ_OPEN = 0.150, math.radians(12)                            # lever pivot -> knob centre; mid-travel lean forward
+THR = {}
+for nm, px_, pz_ in (('front', 1.450, -0.235), ('rear', 2.335, -0.300)):
+    yw = lwall(px_, pz_, 0.030); pv = np.array((px_, yw, pz_))
+    def lev(t_, th_=TQ_OPEN): return pv + np.array((-math.sin(th_) * t_, 0.0, math.cos(th_) * t_))
+    kn = lev(TQ_LEN); THR[nm] = (pv, kn, lev(0.055))
+    def arcp(r_, yo_): return [B(*(pv + np.array((-math.sin(a_) * r_, yo_, math.cos(a_) * r_)))) for a_ in np.linspace(math.radians(-24), math.radians(42), 16)]
+    for r_ in (0.118 - 0.0075, 0.118 + 0.0075):                      # chrome quadrant strip either side of the lever slot
+        ck('chrome', lambda: bar(bmc, arcp(r_, 0.006), 0.008, 0.003, up=(0, 1, 0)))
+    ck('dark', lambda: bar(bmc, arcp(0.118, 0.010), 0.012, 0.002, up=(0, 1, 0)))                         # slot backing
+    for a_ in (math.radians(-24), math.radians(42)):                 # strip end standoffs to the wall
+        q_ = pv + np.array((-math.sin(a_) * 0.118, 0.0, math.cos(a_) * 0.118))
+        ck('chrome', lambda: rbox(bmc, B(q_[0], q_[1] + 0.012, q_[2]), (0.012, 0.020, 0.012)))
+    ck('alu', lambda: rbox(bmc, B(px_, yw + 0.014, pz_), (0.040, 0.008, 0.040)))                            # pivot bracket
+    ck('chrome', lambda: cyl(bmc, B(*(pv + (0, 0.004, 0))), B(*(pv - (0, 0.020, 0))), 0.012, 14))                # pivot boss
+    ck('chrome', lambda: tube(bmc, [B(*lev(t_)) for t_ in np.linspace(-0.045, TQ_LEN - 0.012, 8)], 0.0055, n=10))  # lever
+    ck('stick', lambda: ball(bmc, B(*kn), 0.019))                                                           # black ball knob
+# link rod between the two levers along the left wall (the rear throttle drives the front one), then the carburettor rod
+_lf, _lr = THR['front'][2] - (0, 0.012, 0), THR['rear'][2] - (0, 0.012, 0)
+ck('chrome', lambda: tube(bmc, [B(*(_lf + (_lr - _lf) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0042, n=8))
+_lb = THR['front'][0] + np.array((math.sin(TQ_OPEN) * 0.045, -0.012, -math.cos(TQ_OPEN) * 0.045))
+_fw = np.array((0.82, lwall(0.82, -0.32, 0.040), -0.32))
+ck('chrome', lambda: tube(bmc, [B(*(_lb + (_fw - _lb) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0042, n=8))
+# fuel shut-off: valve on the tank outlet under the panel centre, handle arm, push-pull rod to a knob on the left wall at the
+# panel's lower-left corner (pull = OFF). Tank bottom (not modelled) taken at z -0.03 behind the panel.
+FV = np.array((1.16, 0.035, -0.065))
+ck('alu', lambda: rbox(bmc, B(*FV), (0.040, 0.034, 0.030)))                                                # valve body
+ck('alu', lambda: cyl(bmc, B(*(FV + (0, 0, 0.015))), B(1.16, 0.035, 0.080), 0.006, 10))                     # line up to the tank outlet (behind the panel)
+ck('alu', lambda: tube(bmc, [B(*(FV - (0.020, 0, 0))), B(1.05, 0.03, -0.09), B(0.84, 0.02, -0.20)], 0.004, n=8))  # to the strainer
+_fh = FV + np.array((0.0, 0.017, -0.012))
+ck('chrome', lambda: bar(bmc, [B(*_fh), B(*(_fh + (0.045, 0.004, -0.010)))], 0.012, 0.004, up=(0, 0, 1)))  # handle arm
+FK = np.array((1.300, lwall(1.300, -0.070, 0.032), -0.070))
+ck('chrome', lambda: tube(bmc, [B(*(_fh + (0.045, 0.004, -0.010) + (FK - _fh - (0.045, 0.004, -0.010)) * t_)) for t_ in np.linspace(0, 1, 10)], 0.0030, n=8))
+ck('alu', lambda: rbox(bmc, B(FK[0] - 0.012, FK[1] + 0.015, FK[2]), (0.012, 0.034, 0.040)))                # wall guide bracket
+ck('chrome', lambda: cyl(bmc, B(*(FK - (0.006, 0, 0))), B(*(FK + (0.020, 0, 0))), 0.0035, 10))              # shaft
+ck('stick', lambda: cyl(bmc, B(*(FK + (0.018, 0, 0))), B(*(FK + (0.034, 0, 0))), 0.0125, 16, r2=0.011))     # knob (aft face)
+# carburettor heat: push-pull knob on the right wall below the door's front corner, cable forward to the firewall
+CH_K = np.array((1.745, -lwall(1.745, -0.300, 0.034), -0.300))
+ck('alu', lambda: rbox(bmc, B(CH_K[0] - 0.010, CH_K[1] - 0.016, CH_K[2]), (0.014, 0.036, 0.045)))           # bracket
+ck('chrome', lambda: cyl(bmc, B(*(CH_K - (0.010, 0, 0))), B(*(CH_K + (0.022, 0, 0))), 0.0035, 10))
+ck('stick', lambda: cyl(bmc, B(*(CH_K + (0.020, 0, 0))), B(*(CH_K + (0.036, 0, 0))), 0.0125, 16, r2=0.011))
+_cf = np.array((0.82, -lwall(0.82, -0.30, 0.040), -0.30))
+ck('dark', lambda: tube(bmc, [B(*(CH_K - (0.010, 0, 0) + (_cf - CH_K + (0.010, 0, 0)) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0035, n=8))
+print('CONTROLS v12d: throttles (left wall) front pivot (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f), rear pivot (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f), linked; fuel shut-off valve (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f); carb heat knob (%.3f, %.3f, %.3f)' % (
+    tuple(THR['front'][0]) + tuple(THR['front'][1]) + tuple(THR['rear'][0]) + tuple(THR['rear'][1]) + tuple(FV) + tuple(FK) + tuple(CH_K)))
 ck_tag = tags_of(bmc); P['Cabin'] = link('Cabin', bmc)
 TAGS = {}
 
