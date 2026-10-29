@@ -122,8 +122,8 @@ namespace FlyingGame.EditorTools
                     for(int side=-1;side<=1;side++)
                     {
                         Vector3 sample=point+Vector3.Cross(Vector3.up,path.normalized)*side*65;
-                        float top=(float)terrain.HeightAt(sample.z,sample.x)+3;
-                        eye.y=Mathf.Max(eye.y,aim.y+(top-aim.y)/t);
+                        float groundTop=(float)terrain.HeightAt(sample.z,sample.x)+3;
+                        eye.y=Mathf.Max(eye.y,aim.y+(groundTop-aim.y)/t);
                     }
                 }
                 foreach(var tree in FlyingGame.Core.Forest.InRect(
