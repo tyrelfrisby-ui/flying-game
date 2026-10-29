@@ -252,6 +252,16 @@ MT_, MB_ = 14, 14
 AP_X0, AP_Z0, AP_X1, AP_Z1 = 1.000, 0.168, 1.425, 0.580
 def ap_z(xd): return AP_Z0 + (AP_Z1 - AP_Z0) * (xd - AP_X0) / (AP_X1 - AP_X0)
 def ap_x(z): return AP_X0 + (z - AP_Z0) * (AP_X1 - AP_X0) / (AP_Z1 - AP_Z0)
+# v10 (Ty markup of v9_3q, green line): the A-pillar (windshield / side-window frame tube) is further aft and steeper:
+# from the windshield's bottom side corner (where its lower side edge meets the side-window sill, xd 1.232 z 0.030) up and
+# aft to the wing underside ~3 in behind the root LE (LE xd ~1.40 -> xd 1.478, wing bottom z 0.545). The glass is one
+# sheet: it still wraps in plan along the v9 line (ap_z, now the front cabin diagonal tube) and runs flat along the side
+# back to this pillar. A vertical frame tube at xd PV_X (moved forward from the old door-post strip) closes the small
+# triangular first side window (wide at the sill, narrow under the wing).
+PL_X0, PL_Z0, PL_X1, PL_Z1 = 1.232, 0.030, 1.478, 0.545
+def pl_z(xd): return PL_Z0 + (PL_Z1 - PL_Z0) * (xd - PL_X0) / (PL_X1 - PL_X0)
+def pl_x(z): return PL_X0 + (z - PL_Z0) * (PL_X1 - PL_X0) / (PL_Z1 - PL_Z0)
+PV_X = 1.510                                                        # vertical frame tube behind the triangle window
 WS_PLAN_E = 2.0                                                     # plan shape exponent (2 = ellipse quarter)
 def ws_wrap(xd, y, z):
     """v9: plan-view wrap of the windshield ahead of the pillar line; returns the (signed) half-breadth"""
@@ -300,6 +310,7 @@ XS = [0.185, 0.186, 0.188, 0.191, 0.195, 0.20, 0.207, 0.215, 0.225, 0.238, 0.25,
 XS += L(0.99, 1.23, 9) + L(1.27, 1.59, 7) + L(1.62, 1.94, 17) + [0.975, WS_XB - 0.004, WS_XB + 0.004] + L(1.0, 1.58, 30) + L(1.98, 2.15, 4) + [2.19, 2.225] + L(2.25, 2.43, 10) + [2.47]   # v8: dense through the windshield profile; 0.02 m through the chevron front + slanted aft door edges
 XS += L(2.4975, 2.82, 13) + [2.87, 2.95, 3.03, 3.10, 3.20, 3.35, 3.50, 3.70, 3.90, 4.10, 4.35, 4.60, 4.85, 5.10, 5.30,
                               5.45, 5.60, 5.75, 5.90, 6.02, 6.12, 6.20, 6.25]
+XS += [PV_X - 0.004, PV_X, PV_X + 0.004]
 XS = sorted(set(round(v, 4) for v in XS))
 bm = bmesh.new()
 loft_rings(bm, [ring(x) for x in XS], cap0=True, cap1=True)
@@ -331,9 +342,9 @@ POST = 0.035                                                         # door post
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
 def region(c, n):
     xd, y, z = -c.x, c.y, c.z; side = abs(n.y) > 0.45
-    if WS_XB < xd < WS_XT + 0.004 and z > ap_z(xd) and z > sill_d(xd) - 0.004:
+    if WS_XB < xd < WS_XT + 0.004 and z > pl_z(xd) and z > sill_d(xd) - 0.004:
         return 'glass'                                                        # windshield (above / ahead of the A-pillar)
-    if side and 0.96 < xd < door_fx(z) - POST and z > max(0.03, sill_d(xd)) and z < ap_z(xd) and (xd < 1.42 or z < DOOR['zt'] or xd < DOOR['x0'] - POST):   # v8: up to the wing root aft of the pillar
+    if side and 0.96 < xd < door_fx(z) - (0 if y > 0 else POST) and z > max(0.03, sill_d(xd)) and z < pl_z(xd) and (xd < PV_X or z < DOOR['zt']):   # v10: triangle to the wing root, then window tops at zt; left side has no door-post strip   # v8: up to the wing root aft of the pillar
         return 'glass'                                                        # front side window
     if DOOR['x0'] < xd < door_ax(z) and side:
         if y < 0:
@@ -369,8 +380,8 @@ for v in bm.verts:
         if 2.23 < xd and (ls & {'door_up', 'door_lo'} or ('glass' in ls and v.co.y > 0)): tg.append(door_ax(z))
         if 'door_glass' in ls: tg.append(door_ax(z) - 0.03)
         f0 = None
-    if f0 is not None and (ls & {'door_up', 'door_lo'} or ('glass' in ls and v.co.y > 0)): tg.append(f0)          # door front edge (left: window)
-    if f0 is not None and 'glass' in ls: tg.append(f0 - POST)                                                   # fixed side window aft edge
+    if f0 is not None and ls & {'door_up', 'door_lo'}: tg.append(f0)          # door front edge (left: window)
+    if f0 is not None and 'glass' in ls and v.co.y < 0: tg.append(f0 - POST)                                                   # fixed side window aft edge
     if f0 is not None and 'door_glass' in ls: tg.append(f0 + 0.03)                                              # door window front edge
     tg = [t for t in tg if abs(t - xd) < 0.024]
     if tg: v.co.x = -min(tg, key=lambda t: abs(t - xd)); CHEV += 1
@@ -401,18 +412,23 @@ for nm, b2 in (('DoorUpper_R', b_door_up), ('DoorLower_R', b_door_lo)):
     P[nm] = link(nm, b2)
 P['Window_R'] = link('Window_R', b_door_gl)
 
-# ---- v9 (Ty): A-pillar = yellow round steel tube (~1 in OD) on the windshield / side-window corner (no black strip) --
+# ---- v10 (Ty): A-pillar = yellow round steel tube (1 in OD) on the windshield / side-window boundary (green line) ------
+# plus the vertical frame tube behind the triangle window (both on the skin line, glass edges on their outer half) and,
+# separately, the internal cabin steel tubes (inside the glass): the front diagonal on the v9 line (deck corner -> wing LE)
 AP_R = 0.5 * 1.0 * IN
-_bap = bmesh.new(); _APP = []
+_bap = bmesh.new(); _bct = bmesh.new(); _APP = []
 for sy in (1, -1):
-    pts = []
-    for x_ in np.linspace(AP_X0, AP_X1 + 0.015, 24):
-        z_ = ap_z(x_); y_ = fus_y(x_, z_) - AP_R * 0.55                # glass edge rests along the tube's outer half
-        pts.append(B(x_, sy * y_, z_))
+    pts = [B(x_, sy * (fus_y(x_, pl_z(x_)) - AP_R * 0.55), pl_z(x_)) for x_ in np.linspace(PL_X0 - 0.004, PL_X1 + 0.010, 24)]
     tube(_bap, pts, AP_R, n=14); _APP.append(pts)
-P['A_Pillar'] = link('A_Pillar', _bap); AP_SCREWS = 0
-print('WINDSHIELD v9: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
-      'A-pillar (%.3f, %.3f) -> (%.3f, %.3f), rake %.1f deg above horizontal, tube OD %.1f in'
+    pv = [B(PV_X, sy * (fus_y(PV_X, z_) - AP_R * 0.55), z_) for z_ in np.linspace(0.026, 0.548, 16)]
+    tube(_bap, pv, AP_R, n=14)
+    dg = [B(x_, sy * (fus_y(x_, ap_z(x_)) - AP_R - 0.009), ap_z(x_)) for x_ in np.linspace(AP_X0 + 0.01, AP_X1 + 0.01, 20)]
+    tube(_bct, dg, AP_R, n=14)
+P['A_Pillar'] = link('A_Pillar', _bap); P['Cabin_Tubes'] = link('Cabin_Tubes', _bct); AP_SCREWS = 0
+print('PILLAR v10: (%.3f, %.3f) -> (%.3f, %.3f) rake %.1f deg; vertical tube xd %.3f; triangle window base %.3f m, top %.3f m'
+      % (PL_X0, PL_Z0, PL_X1, PL_Z1, math.degrees(math.atan2(PL_Z1 - PL_Z0, PL_X1 - PL_X0)), PV_X, PV_X - PL_X0, PV_X - pl_x(0.50)))
+print('WINDSHIELD v10: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
+      'A-pillar (%.3f, %.3f) -> (%.3f, %.3f), rake %.1f deg above horizontal (v10: front cabin diagonal tube line), tube OD %.1f in'
       % (WS_XB, WS_ZB, (WS_XB - 0.85) / IN, WS_XT, WS_ZT, WS_FT * 100, AP_X0, AP_Z0, AP_X1, AP_Z1,
          math.degrees(math.atan2(AP_Z1 - AP_Z0, AP_X1 - AP_X0)), 2 * AP_R / IN))
 
@@ -1250,7 +1266,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
