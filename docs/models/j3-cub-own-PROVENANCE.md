@@ -255,3 +255,10 @@ Ty's windshield fix. References are by eye from photos only (refs/j3-cub/cand c3
 
 ## v8b (2026-10-28) – cowl/windshield wedge
 - Ty: small dark wedge at the cowl's rear top corner ahead of the A-pillar foot. Cause: the v5f cabin tank deck (panel black, PHW 0.28 m wide from xd 0.95) was wider than the fuselage there and poked through the skin. Fix: each tank-deck point is clamped to fus_y(xd, z) - 0.008 m so the deck stays inside the skin. No other geometry changed.
+
+## v9 (2026-10-29) – A-pillar is a yellow tube at the windshield corner
+- Ty rejected the v8 pillar: "No black and wrong location it is at the corner of the windshield." His photos (yellow J-3, AirSpace auction listing) show one curved clear sheet. Its side edge rests on a round fuselage-colour tube at the windshield's corner. The tube runs from the deck's top-front corner (at the cowl's rear edge) up and aft to the wing LE at the root, and the side window starts right behind it. There is no black strip and there are no screws. A public J3C-65 photo (Wikimedia Commons, N3406N, port 3/4) was used for comparison only and confirms this.
+- Removed: the black `A_Pillar` strip and the `A_Pillar_Screws` object.
+- Added: `A_Pillar` is now a round tube, 1.0 in OD, painted fuselage yellow. It follows the v8 pillar line (1.000, 0.168) -> (1.425, 0.580), xd/z in metres aft of the hub, raked 44 deg, and sits just inside the skin line `fus_y(xd, z) - 0.55 r`.
+- Windshield plan wrap (`ws_wrap`): forward of the pillar line, the fuselage half-breadth is limited by a plan-view quarter ellipse (exponent 2). It runs from the full width at the pillar to the centreline at the v8 profile (`_WSC`). The sheet therefore curves round to the tube, which becomes the corner, instead of standing flat on the side. Both `ring()` and `fus_y()` apply the wrap. The v8 profile and its flush tangent to the wing top skin at 5% chord are unchanged.
+- No other geometry changed. References were read by eye from photos; no third-party mesh was used.

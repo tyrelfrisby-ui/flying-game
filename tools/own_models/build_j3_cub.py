@@ -242,6 +242,25 @@ KLO = [-0.31] + list(np.linspace(-0.215, 0.03, 8))      # v4: a key row on the r
 KHI = [0.06, 0.10, 0.14, 0.18, 0.22, 0.26, 0.30, 0.34, 0.38, 0.42, 0.46, 0.47, 0.49]
 KEYZ = KLO + KHI; KMIN, KMAX, KPIV = KEYZ[0], KEYZ[-1], 0.03
 MT_, MB_ = 14, 14
+# v9 (Ty: "No black and wrong location - it is at the corner of the windshield"; AirSpace J-3 photos + refs c37/c47):
+# the windshield is one curved clear sheet whose side edges sit on the front cabin-frame tube (yellow, ~1 in OD) at the
+# windshield's corner. In side view that tube runs straight from the deck's top-front corner (just aft of the boot cowl
+# edge, at the windshield base) up and aft to the wing LE at the root. Aft/below it the flat cabin side carries the side
+# window; ahead/above it the glass wraps inward in plan (quarter ellipse per waterline) to the centreline profile, so the
+# tube IS the corner between the windshield and the side window (v8 left the glass flat on the side and put a black strip
+# in the middle of the side).
+AP_X0, AP_Z0, AP_X1, AP_Z1 = 1.000, 0.168, 1.425, 0.580
+def ap_z(xd): return AP_Z0 + (AP_Z1 - AP_Z0) * (xd - AP_X0) / (AP_X1 - AP_X0)
+def ap_x(z): return AP_X0 + (z - AP_Z0) * (AP_X1 - AP_X0) / (AP_Z1 - AP_Z0)
+WS_PLAN_E = 2.0                                                     # plan shape exponent (2 = ellipse quarter)
+def ws_wrap(xd, y, z):
+    """v9: plan-view wrap of the windshield ahead of the pillar line; returns the (signed) half-breadth"""
+    if not (WS_XB - 0.01 < xd < WS_XT + 0.03) or z <= ap_z(xd): return y
+    xp = ap_x(z); xc = float(np.interp(z, _WSC[:, 1], _WSC[:, 0])) if z > WS_ZB else WS_XB
+    if xp - xc < 1e-4: return y
+    u = min(max((xp - xd) / (xp - xc), 0.0), 1.0)
+    lim = F_HW(xd) * (1 - u ** WS_PLAN_E) ** (1 / WS_PLAN_E)
+    return math.copysign(min(abs(y), lim), y)
 def se_pt(t, top, bot, hw, nt, nb):
     zw = bot + ZWF * (top - bot); c, s = math.cos(t), math.sin(t); up = s >= 0
     n = nt if up else nb; h = (top - zw) if up else (zw - bot)
@@ -267,11 +286,14 @@ def ring(xd):
     ttop = list(np.linspace(th[-1], math.pi - th[-1], MT_ + 2)[1:-1])
     tr = [math.pi - t for t in th[::-1]]                            # starboard band, high -> low
     tbot = list(np.linspace(math.pi - th[0], 2 * math.pi + th[0], MB_ + 2)[1:-1])
-    return [(-xd, *se_pt(t, top, bot, hw, nt, nb)) for t in tl + ttop + tr + tbot]
+    out = []
+    for t in tl + ttop + tr + tbot:
+        y_, z_ = se_pt(t, top, bot, hw, nt, nb); out.append((-xd, ws_wrap(xd, y_, z_), z_))
+    return out
 def fus_y(xd, z):
     """half-breadth of the fuselage at station xd, height z"""
     top, bot, hw, nt, nb = F_TOP(xd), F_BOT(xd), F_HW(xd), F_NT(xd), F_NB(xd)
-    t = t_at(z, top, bot, nt, nb); return abs(se_pt(t, top, bot, hw, nt, nb)[0])
+    t = t_at(z, top, bot, nt, nb); return abs(ws_wrap(xd, se_pt(t, top, bot, hw, nt, nb)[0], z))
 # stations: dense where windows / door / hoods have edges
 XS = [0.185, 0.186, 0.188, 0.191, 0.195, 0.20, 0.207, 0.215, 0.225, 0.238, 0.25, 0.27, 0.29, 0.31, 0.325, 0.345,
       0.37, 0.40, 0.43, 0.46, 0.49, 0.52, 0.545, 0.57, 0.60, 0.65, 0.70, 0.75, 0.785, 0.84, 0.90, 0.96]
@@ -307,12 +329,6 @@ def door_ax(z):
     return DOOR['ax_s'] - (DOOR['ax_s'] - DOOR['ax_b']) * min((DOOR['zs'] - z) / (DOOR['zs'] - DOOR['zb']), 1.0)
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
-# v8 (Ty): A-pillar. The windshield ends at a raked A-pillar at each side (black screwed strip over the frame tube,
-# photos c37 / c38 / c47): straight in side view, from the deck just aft of the windshield base up and aft to the wing
-# leading edge, on the deck-to-side corner; its foot is the side window's lower-front corner on the sill (surface normal ~50-60 deg off vertical). The side window is the triangle
-# below / aft of it: its sloping sill runs up forward into the pillar (front point ~xd 1.02).
-AP_X0, AP_Z0, AP_X1, AP_Z1 = 1.000, 0.168, 1.425, 0.580
-def ap_z(xd): return AP_Z0 + (AP_Z1 - AP_Z0) * (xd - AP_X0) / (AP_X1 - AP_X0)
 def region(c, n):
     xd, y, z = -c.x, c.y, c.z; side = abs(n.y) > 0.45
     if WS_XB < xd < WS_XT + 0.004 and z > ap_z(xd) and z > sill_d(xd) - 0.004:
@@ -385,40 +401,20 @@ for nm, b2 in (('DoorUpper_R', b_door_up), ('DoorLower_R', b_door_lo)):
     P[nm] = link(nm, b2)
 P['Window_R'] = link('Window_R', b_door_gl)
 
-# ---- v8 (Ty): A-pillar strips (replace the v7 windshield-top fairing: the glass now runs flush into the wing top skin) ---
-AP_W, AP_T, AP_OFF = 0.034, 0.003, 0.0015
-def _surf_pt(xd, z, sy):
-    return np.array(B(xd, sy * fus_y(xd, z), z))
-def _surf_n(xd, z, sy):
-    p = _surf_pt(xd, z, sy); a_ = _surf_pt(xd + 0.002, ap_z(xd + 0.002), sy) - _surf_pt(xd - 0.002, ap_z(xd - 0.002), sy)
-    b_ = _surf_pt(xd, z + 0.002, sy) - _surf_pt(xd, z - 0.002, sy); nn = np.cross(a_, b_); nn /= np.linalg.norm(nn)
-    return nn if np.dot(nn, (0, sy, 0.3)) > 0 else -nn
-_bap = bmesh.new(); AP_SCREWS = 0
+# ---- v9 (Ty): A-pillar = yellow round steel tube (~1 in OD) on the windshield / side-window corner (no black strip) --
+AP_R = 0.5 * 1.0 * IN
+_bap = bmesh.new(); _APP = []
 for sy in (1, -1):
-    xs_ = np.linspace(AP_X0, AP_X1, 40); rows = []
-    for x_ in xs_:
-        zc = ap_z(x_); row = []
-        for dz in (-0.5 * AP_W, 0.0, 0.5 * AP_W):
-            z_ = min(zc + dz, F_TOP(x_) - 0.004); row.append(_surf_pt(x_, z_, sy) + _surf_n(x_, z_, sy) * AP_OFF)
-        rows.append(row)
-    vs = [[_bap.verts.new(p) for p in r] for r in rows]
-    for i in range(len(vs) - 1):
-        for k in range(2):
-            q = (vs[i][k], vs[i + 1][k], vs[i + 1][k + 1], vs[i][k + 1]); _bap.faces.new(q if sy > 0 else q[::-1])
-bmesh.ops.recalc_face_normals(_bap, faces=_bap.faces[:])
-for f in _bap.faces: pass
-bmesh.ops.solidify(_bap, geom=_bap.faces[:], thickness=AP_T)
-P['A_Pillar'] = link('A_Pillar', _bap)
-_bsc = bmesh.new()
-for sy in (1, -1):
-    for x_ in np.linspace(AP_X0 + 0.03, AP_X1 - 0.03, 8):
-        z_ = ap_z(x_); p = _surf_pt(x_, z_, sy); nn = _surf_n(x_, z_, sy)
-        cyl(_bsc, tuple(p + nn * (AP_OFF + AP_T * 0.5)), tuple(p + nn * (AP_OFF + AP_T + 0.0016)), 0.0035, 10); AP_SCREWS += 1
-P['A_Pillar_Screws'] = link('A_Pillar_Screws', _bsc)
-print('WINDSHIELD v8: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
-      'A-pillar (%.3f, %.3f) -> (%.3f, %.3f), rake %.1f deg above horizontal, %d screws'
+    pts = []
+    for x_ in np.linspace(AP_X0, AP_X1 + 0.015, 24):
+        z_ = ap_z(x_); y_ = fus_y(x_, z_) - AP_R * 0.55                # glass edge rests along the tube's outer half
+        pts.append(B(x_, sy * y_, z_))
+    tube(_bap, pts, AP_R, n=14); _APP.append(pts)
+P['A_Pillar'] = link('A_Pillar', _bap); AP_SCREWS = 0
+print('WINDSHIELD v9: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
+      'A-pillar (%.3f, %.3f) -> (%.3f, %.3f), rake %.1f deg above horizontal, tube OD %.1f in'
       % (WS_XB, WS_ZB, (WS_XB - 0.85) / IN, WS_XT, WS_ZT, WS_FT * 100, AP_X0, AP_Z0, AP_X1, AP_Z1,
-         math.degrees(math.atan2(AP_Z1 - AP_Z0, AP_X1 - AP_X0)), AP_SCREWS))
+         math.degrees(math.atan2(AP_Z1 - AP_Z0, AP_X1 - AP_X0)), 2 * AP_R / IN))
 
 # ---- tail: stab + elevators (hinge xd 6.19), fin + balanced rudder (hinge xd 6.255, horn above the fin) ---------------
 # v4 tail check against two published 3-views (refs/j3-cub/: Commons J-3 3-view; P. Severin 3-view after Paul Matt /
@@ -1254,7 +1250,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'black'), ('A_Pillar_Screws', 'steel'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
