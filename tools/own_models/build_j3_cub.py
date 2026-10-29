@@ -892,7 +892,7 @@ for lp in P['Prop'].data.loops:
     co = P['Prop'].data.vertices[lp.vertex_index].co; _uv.data[lp.index].uv = ((co.y + R_P) / (2 * R_P), (co.z + 0.10) / 0.20)
 
 # ---- cabin: floor, two seats in tandem, two sticks, pedals, panel with five gauges + compass, window frame tubes -------
-CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu']
+CK_T = ['floor', 'seat', 'panel', 'gauge', 'face', 'stick', 'tubeY', 'dark', 'chrome', 'alu', 'label', 'red', 'maroon']
 bmc = bmesh.new(); ck_tag = []
 def ck(tag, fn):
     fn(); tag_new(bmc, CK_T.index(tag))
@@ -1024,63 +1024,168 @@ for px in (1.12, 1.85):                                                         
     for sy in (1, -1):
         ck('dark', lambda: bar(bmc, [B(px + 0.11, sy * 0.13, -0.545), B(px + 0.08, sy * 0.13, -0.49)], 0.05, 0.010, up=(1, 0, 0.6)))
         ck('stick', lambda: cyl(bmc, B(px + 0.115, sy * 0.13, -0.56), B(px + 0.115, sy * 0.13, -0.53), 0.006, 6))
-_tc = B(2.38, 0.27, -0.02)                                                                  # trim crank, left wall
-ck('dark', lambda: cyl(bmc, _tc, (_tc[0], _tc[1] - 0.025, _tc[2]), 0.045, 20))
-ck('chrome', lambda: bar(bmc, [(_tc[0], _tc[1] - 0.026, _tc[2]), (_tc[0], _tc[1] - 0.026, _tc[2] + 0.055)], 0.012, 0.006, up=(0, -1, 0)))
-ck('dark', lambda: cyl(bmc, (_tc[0], _tc[1] - 0.026, _tc[2] + 0.05), (_tc[0], _tc[1] - 0.065, _tc[2] + 0.05), 0.009, 8))
-# ---- v12d (Ty: cockpit controls; owner's manual J3C-65: "Throttle, fuel shut-off, and stabilizer control on left side
-# of cockpit ... Carburetor heater control on right side of cockpit"; carb heat "push-pull control on the right side of the
-# cockpit below the door"; Ty ty-panel.png: front throttle = black ball on a lever in a chrome slotted quadrant on the left
-# wall just aft of the panel's lower-left corner, ball a little below the panel bottom; public-domain Commons "Piper Cub cockpit.jpg" + VH-IMR: fuel shut-off valve on the tank
-# outlet under the panel centre, worked by a push-pull rod from the left side).
+# ---- v14 (Ty reference photos, read literally; nothing traced or copied, sizes by eye against the 2.6 in gauges):
+#  throttles: two black inverted-triangle plates high on the left wall just under the window sill, front (just aft of the
+#    panel) and rear (beside the rear seat); black label band 'CLOSED -> OPEN' / 'THROTTLE' in white; black ball knob on a
+#    short stem out of the plate's forward top corner; the two levers are linked behind the liner.
+#  fuel shut-off: black D-shaped recessed plate on the left wall between the throttles (round side forward, flat side aft),
+#    'FUEL' / 'OFF <- ON' in white, small red knob lever at the aft top.
+#  elevator trim: square black plate below the fuel plate, white tick scale along the top, 'NOSE' 'UP' 'DOWN', chrome crank.
+#  carb heat: black D-shaped recessed plate low and forward on the right wall (flat side forward, round side aft),
+#    'CARB HEAT' / 'OFF <- ON', chrome lever; a black push-pull rod runs aft along the lower right wall to a red knob
+#    (rear-seat carb heat).
+# Labels are real geometry from Blender's built-in UI font (filled text curves meshed at build time), white material.
 def ball(bm, c, r):
     bmesh.ops.create_uvsphere(bm, u_segments=16, v_segments=10, radius=r, matrix=Matrix.Translation(tuple(c)))
-def lwall(x_, z_, ins): return fus_y(x_, z_) - ins                   # left (port) wall = build +y, inset from the skin
-TQ_LEN, TQ_OPEN = 0.150, math.radians(12)                            # lever pivot -> knob centre; mid-travel lean forward
-THR = {}
-for nm, px_, pz_ in (('front', 1.450, -0.235), ('rear', 2.335, -0.300)):
-    yw = lwall(px_, pz_, 0.030); pv = np.array((px_, yw, pz_))
-    def lev(t_, th_=TQ_OPEN): return pv + np.array((-math.sin(th_) * t_, 0.0, math.cos(th_) * t_))
-    kn = lev(TQ_LEN); THR[nm] = (pv, kn, lev(0.055))
-    def arcp(r_, yo_): return [B(*(pv + np.array((-math.sin(a_) * r_, yo_, math.cos(a_) * r_)))) for a_ in np.linspace(math.radians(-24), math.radians(42), 16)]
-    for r_ in (0.118 - 0.0075, 0.118 + 0.0075):                      # chrome quadrant strip either side of the lever slot
-        ck('chrome', lambda: bar(bmc, arcp(r_, 0.006), 0.008, 0.003, up=(0, 1, 0)))
-    ck('dark', lambda: bar(bmc, arcp(0.118, 0.010), 0.012, 0.002, up=(0, 1, 0)))                         # slot backing
-    for a_ in (math.radians(-24), math.radians(42)):                 # strip end standoffs to the wall
-        q_ = pv + np.array((-math.sin(a_) * 0.118, 0.0, math.cos(a_) * 0.118))
-        ck('chrome', lambda: rbox(bmc, B(q_[0], q_[1] + 0.012, q_[2]), (0.012, 0.020, 0.012)))
-    ck('alu', lambda: rbox(bmc, B(px_, yw + 0.014, pz_), (0.040, 0.008, 0.040)))                            # pivot bracket
-    ck('chrome', lambda: cyl(bmc, B(*(pv + (0, 0.004, 0))), B(*(pv - (0, 0.020, 0))), 0.012, 14))                # pivot boss
-    ck('chrome', lambda: tube(bmc, [B(*lev(t_)) for t_ in np.linspace(-0.045, TQ_LEN - 0.012, 8)], 0.0055, n=10))  # lever
-    ck('stick', lambda: ball(bmc, B(*kn), 0.019))                                                           # black ball knob
-# link rod between the two levers along the left wall (the rear throttle drives the front one), then the carburettor rod
-_lf, _lr = THR['front'][2] - (0, 0.012, 0), THR['rear'][2] - (0, 0.012, 0)
-ck('chrome', lambda: tube(bmc, [B(*(_lf + (_lr - _lf) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0042, n=8))
-_lb = THR['front'][0] + np.array((math.sin(TQ_OPEN) * 0.045, -0.012, -math.cos(TQ_OPEN) * 0.045))
-_fw = np.array((0.82, lwall(0.82, -0.32, 0.040), -0.32))
-ck('chrome', lambda: tube(bmc, [B(*(_lb + (_fw - _lb) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0042, n=8))
-# fuel shut-off: valve on the tank outlet under the panel centre, handle arm, push-pull rod to a knob on the left wall at the
-# panel's lower-left corner (pull = OFF). Tank bottom (not modelled) taken at z -0.03 behind the panel.
-FV = np.array((1.16, 0.035, -0.065))
-ck('alu', lambda: rbox(bmc, B(*FV), (0.040, 0.034, 0.030)))                                                # valve body
-ck('alu', lambda: cyl(bmc, B(*(FV + (0, 0, 0.015))), B(1.16, 0.035, 0.080), 0.006, 10))                     # line up to the tank outlet (behind the panel)
-ck('alu', lambda: tube(bmc, [B(*(FV - (0.020, 0, 0))), B(1.05, 0.03, -0.09), B(0.84, 0.02, -0.20)], 0.004, n=8))  # to the strainer
-_fh = FV + np.array((0.0, 0.017, -0.012))
-ck('chrome', lambda: bar(bmc, [B(*_fh), B(*(_fh + (0.045, 0.004, -0.010)))], 0.012, 0.004, up=(0, 0, 1)))  # handle arm
-FK = np.array((1.300, lwall(1.300, -0.070, 0.032), -0.070))
-ck('chrome', lambda: tube(bmc, [B(*(_fh + (0.045, 0.004, -0.010) + (FK - _fh - (0.045, 0.004, -0.010)) * t_)) for t_ in np.linspace(0, 1, 10)], 0.0030, n=8))
-ck('alu', lambda: rbox(bmc, B(FK[0] - 0.012, FK[1] + 0.015, FK[2]), (0.012, 0.034, 0.040)))                # wall guide bracket
-ck('chrome', lambda: cyl(bmc, B(*(FK - (0.006, 0, 0))), B(*(FK + (0.020, 0, 0))), 0.0035, 10))              # shaft
-ck('stick', lambda: cyl(bmc, B(*(FK + (0.018, 0, 0))), B(*(FK + (0.034, 0, 0))), 0.0125, 16, r2=0.011))     # knob (aft face)
-# carburettor heat: push-pull knob on the right wall below the door's front corner, cable forward to the firewall
-CH_K = np.array((1.745, -lwall(1.745, -0.300, 0.034), -0.300))
-ck('alu', lambda: rbox(bmc, B(CH_K[0] - 0.010, CH_K[1] - 0.016, CH_K[2]), (0.014, 0.036, 0.045)))           # bracket
-ck('chrome', lambda: cyl(bmc, B(*(CH_K - (0.010, 0, 0))), B(*(CH_K + (0.022, 0, 0))), 0.0035, 10))
-ck('stick', lambda: cyl(bmc, B(*(CH_K + (0.020, 0, 0))), B(*(CH_K + (0.036, 0, 0))), 0.0125, 16, r2=0.011))
-_cf = np.array((0.82, -lwall(0.82, -0.30, 0.040), -0.30))
-ck('dark', lambda: tube(bmc, [B(*(CH_K - (0.010, 0, 0) + (_cf - CH_K + (0.010, 0, 0)) * t_)) for t_ in np.linspace(0, 1, 12)], 0.0035, n=8))
-print('CONTROLS v12d: throttles (left wall) front pivot (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f), rear pivot (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f), linked; fuel shut-off valve (%.3f, %.3f, %.3f) knob (%.3f, %.3f, %.3f); carb heat knob (%.3f, %.3f, %.3f)' % (
-    tuple(THR['front'][0]) + tuple(THR['front'][1]) + tuple(THR['rear'][0]) + tuple(THR['rear'][1]) + tuple(FV) + tuple(FK) + tuple(CH_K)))
+def lwall(x_, z_, ins): return fus_y(x_, z_) - ins                   # wall half-width at (xd, z), inset from the skin
+class Wall:
+    """plate frame on a cabin side wall: u = reading direction seen from inside (left wall -xd = forward, right wall +xd = aft), v = up,
+    h = height off the wall towards the cabin centre. Points follow the curved skin (inset WALL_IN)."""
+    IN = 0.0075
+    def __init__(self, side, xc, zc): self.s, self.xc, self.zc = side, xc, zc
+    def P(self, u, v, h=0.0):
+        x_ = self.xc + (-u if self.s > 0 else u); z_ = self.zc + v
+        return B(x_, self.s * (fus_y(x_, z_) - self.IN - h), z_)
+    def slab(self, tag, uv, h0, h1):
+        def f():
+            lo = [bmc.verts.new(self.P(u, v, h0)) for u, v in uv]; hi = [bmc.verts.new(self.P(u, v, h1)) for u, v in uv]
+            bmc.faces.new(hi); bmc.faces.new(lo[::-1])
+            for i in range(len(uv)):
+                j = (i + 1) % len(uv); bmc.faces.new([lo[i], lo[j], hi[j], hi[i]])
+        ck(tag, f)
+    def ring(self, tag, outer, inner, h0, h1):                        # raised bezel between two outlines of equal count
+        def f():
+            n = len(outer); L = lambda pts, h: [bmc.verts.new(self.P(u, v, h)) for u, v in pts]
+            oh, ih, ol, il = L(outer, h1), L(inner, h1), L(outer, h0), L(inner, h0)
+            for i in range(n):
+                j = (i + 1) % n
+                bmc.faces.new([oh[i], oh[j], ih[j], ih[i]]); bmc.faces.new([ol[j], ol[i], oh[i], oh[j]]); bmc.faces.new([il[i], il[j], ih[j], ih[i]])
+        ck(tag, f)
+    def text(self, body, u, v, size, h, tilt=0.0):
+        cu = bpy.data.curves.new('txt_tmp', 'FONT'); cu.body = body; cu.size = size; cu.align_x = 'CENTER'; cu.align_y = 'CENTER'
+        ob = bpy.data.objects.new('txt_tmp', cu); bpy.context.scene.collection.objects.link(ob)
+        dg = bpy.context.evaluated_depsgraph_get(); me = ob.evaluated_get(dg).to_mesh()
+        ct, st = math.cos(tilt), math.sin(tilt)
+        q = [(u + co.x * ct - co.y * st, v + co.x * st + co.y * ct) for co in (vv.co for vv in me.vertices)]
+        polys = [list(pg.vertices) for pg in me.polygons]
+        ob.evaluated_get(dg).to_mesh_clear(); bpy.data.objects.remove(ob); bpy.data.curves.remove(cu)
+        def f():
+            vs = [bmc.verts.new(self.P(a_, b_, h)) for a_, b_ in q]
+            for pg in polys:
+                try: bmc.faces.new([vs[k] for k in pg])
+                except ValueError: pass
+        ck('label', f); return len(polys)
+    def arrow(self, u0, u1, v, h, w=0.0011, head=0.0035):           # white arrow u0 -> u1
+        d = 1 if u1 > u0 else -1; ub = u1 - d * head
+        self.slab('label', [(u0, v - w), (ub, v - w), (ub, v + w), (u0, v + w)][::d], h, h + 0.0004)
+        self.slab('label', [(ub, v - head * 0.6), (u1, v), (ub, v + head * 0.6)][::d], h, h + 0.0004)
+    def cyl(self, tag, a, b, r, seg=12, r2=None): ck(tag, lambda: cyl(bmc, self.P(*a), self.P(*b), r, seg, r2))
+    def ball(self, tag, c, r): ck(tag, lambda: ball(bmc, self.P(*c), r))
+    def screw(self, u, v, h): self.cyl('chrome', (u, v, h), (u, v, h + 0.0018), 0.0022, 8, 0.0016)
+def d_shape(w, ht, round_first=True, n=10):                           # D outline (u, v), centred; round end at -u if round_first
+    r = ht / 2; xs = w / 2 - r
+    arc = [(-xs - r * math.sin(t), r * math.cos(t)) for t in np.linspace(0, math.pi, n)]
+    pts = arc + [(w / 2, -r), (w / 2, r)]
+    if not round_first: pts = [(-u, v) for u, v in pts][::-1]
+    return pts
+def shrink(pts, k):
+    c = np.mean(np.array(pts), 0); return [tuple(c + (np.array(p) - c) * k) for p in pts]
+# -- throttle plates (left wall, s = +1: u = -xd = forward; ball at the aft top corner, CLOSED aft). Top edge just under the side-window sill (z 0.03).
+TW, TB, TH = 0.088, 0.014, 0.098                                       # top width, bottom tip width, height
+THR = {}; NTX = 0
+for nm, xc_ in (('front', 1.335), ('rear', 2.205)):
+    w_ = Wall(1, xc_, 0.012)
+    w_.slab('panel', [(-TW / 2, 0), (-TB / 2, -TH), (TB / 2, -TH), (TW / 2, 0)], 0.0, 0.0025)
+    w_.slab('face', [(-0.037, -0.009), (-0.037, -0.036), (0.037, -0.036), (0.037, -0.009)], 0.0025, 0.0032)       # label band
+    NTX += w_.text('CLOSED', -0.022, -0.0155, 0.0068, 0.0034, tilt=0.06) + w_.text('OPEN', 0.024, -0.0155, 0.0068, 0.0034, tilt=-0.06)
+    w_.arrow(-0.0045, 0.0055, -0.0150, 0.0034, w=0.0007, head=0.0025)
+    NTX += w_.text('THROTTLE', 0.0, -0.0290, 0.0105, 0.0034)
+    w_.screw(0.0, -TH + 0.016, 0.0025)
+    st0, st1 = (-TW / 2 + 0.011, -0.002, 0.004), (-TW / 2 + 0.003, 0.024, 0.010)           # short stem out of the aft top corner (closed end)
+    w_.cyl('stick', st0, st1, 0.0040, 10)
+    kn = (-TW / 2 + 0.001, 0.032, 0.012); w_.ball('stick', kn, 0.0165)
+    THR[nm] = (w_.P(0, -TH + 0.016, 0), w_.P(*kn))
+# link rod between the two levers, behind the liner (lever pivots at the plate tips), then forward to the firewall
+_lk = [np.array(THR['front'][0]) * (1, 1, 1), np.array(THR['rear'][0])]
+for q_ in _lk: q_[1] = fus_y(-q_[0], q_[2]) - 0.003
+_fw = np.array(B(0.82, fus_y(0.82, -0.10) - 0.012, -0.10))
+_lp = [_lk[1] + (_lk[0] - _lk[1]) * t_ for t_ in np.linspace(0, 1, 40)] + [_lk[0] + (_fw - _lk[0]) * t_ for t_ in np.linspace(0, 1, 20)[1:]]
+for q_ in _lp: q_[1] = fus_y(-q_[0], q_[2]) - 0.003                    # follows the skin inside the 6 mm liner gap, so it stays hidden
+ck('dark', lambda: tube(bmc, [tuple(q_) for q_ in _lp], 0.0015, n=6))
+# -- fuel shut-off D plate (left wall, between the throttles; round side aft, flat side forward, red knob forward top)
+FW_ = Wall(1, 1.530, -0.100); _fo = d_shape(0.150, 0.088, True); _fi = shrink(_fo, 0.86)
+FW_.slab('dark', _fo, 0.0, 0.0015)                                    # recessed pan (fills the D)
+FW_.ring('panel', _fo, _fi, 0.0, 0.0110)                              # raised black bezel -> pan reads recessed ~10 mm
+for u_, v_ in [(_fo[0][0] + 0.006, 0.0), (0.069, 0.038), (0.069, -0.038), (-0.020, 0.040), (-0.020, -0.040)]:
+    FW_.screw(u_ if abs(u_) < 0.07 else u_, v_ * 1.0, 0.0110)
+NTX += FW_.text('FUEL', 0.004, 0.004, 0.0085, 0.0018)
+NTX += FW_.text('OFF', -0.026, -0.019, 0.0105, 0.0018) + FW_.text('ON', 0.030, -0.019, 0.0105, 0.0018)
+FW_.arrow(0.019, -0.010, -0.019, 0.0018, w=0.0011, head=0.0040)      # OFF <- ON
+FW_.cyl('chrome', (0.046, 0.020, 0.0016), (0.046, 0.020, 0.016), 0.0028, 8)
+FW_.ball('red', (0.046, 0.020, 0.020), 0.0075)
+FV = np.array(FW_.P(0.046, 0.020, 0.020))
+# -- elevator trim: square plate below the fuel plate, tick scale, crank
+TR_ = Wall(1, 1.565, -0.220); TS = 0.088
+TR_.slab('panel', [(-TS / 2, -TS / 2), (TS / 2, -TS / 2), (TS / 2, TS / 2), (-TS / 2, TS / 2)], 0.0, 0.0025)
+for k_, u_ in enumerate(np.linspace(-0.030, 0.030, 13)):
+    hh = 0.0055 if k_ % 6 == 0 else 0.0035
+    TR_.slab('label', [(u_ - 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035 - hh), (u_ + 0.0007, 0.035), (u_ - 0.0007, 0.035)], 0.0025, 0.0029)
+NTX += TR_.text('NOSE', 0.0, 0.019, 0.0078, 0.0028) + TR_.text('UP', -0.031, 0.020, 0.0055, 0.0028) + TR_.text('DOWN', 0.029, 0.020, 0.0055, 0.0028)
+NTX += TR_.text('UP', -0.030, -0.027, 0.0055, 0.0028) + TR_.text('DOWN', 0.028, -0.027, 0.0055, 0.0028)
+for u_, v_ in [(-0.037, 0.037), (0.037, 0.037), (-0.037, -0.037), (0.037, -0.037)]: TR_.screw(u_, v_, 0.0025)
+TR_.cyl('chrome', (0.0, -0.002, 0.0025), (0.0, -0.002, 0.014), 0.011, 16)                        # crank hub
+ck('chrome', lambda: bar(bmc, [TR_.P(0.0, -0.002, 0.016), TR_.P(-0.034, 0.006, 0.016)], 0.010, 0.005, up=tuple(np.array(TR_.P(0, 0, 1)) - np.array(TR_.P(0, 0, 0)))))
+TR_.cyl('chrome', (-0.034, 0.006, 0.016), (-0.034, 0.006, 0.046), 0.0062, 12)                    # handle
+TK = np.array(TR_.P(-0.034, 0.006, 0.046))
+# -- carb heat D plate (right wall, s = -1: u = +xd = aft; flat side forward, round side aft) + rod to the rear knob
+CW_ = Wall(-1, 1.455, -0.175); _co = d_shape(0.130, 0.080, False); _ci = shrink(_co, 0.85)
+CW_.slab('dark', _co, 0.0, 0.0015); CW_.ring('panel', _co, _ci, 0.0, 0.0105)
+for u_, v_ in [(0.059, 0.034), (0.059, -0.034), (-0.015, 0.036), (-0.015, -0.036), (-0.059, 0.0)]: CW_.screw(u_, v_, 0.0105)
+NTX += CW_.text('CARB HEAT', 0.008, 0.016, 0.0080, 0.0018) + CW_.text('OFF', -0.014, -0.006, 0.0085, 0.0018) + CW_.text('ON', 0.032, -0.006, 0.0085, 0.0018)
+CW_.arrow(0.024, 0.001, -0.006, 0.0018, w=0.0010, head=0.0035)
+CW_.cyl('chrome', (-0.040, -0.024, 0.008), (0.034, -0.024, 0.008), 0.0026, 8)                   # lever rod across the pan
+CW_.cyl('chrome', (0.004, -0.024, 0.003), (0.004, -0.024, 0.013), 0.0045, 10)                   # pivot / fork
+CW_.ball('stick', (-0.043, -0.024, 0.009), 0.0055)                                              # small black ball, forward end
+_c0 = np.array(CW_.P(0.034, -0.024, 0.012))
+CK2 = Wall(-1, 2.150, -0.262)                                          # rear-seat knob, lower right wall
+_c1 = np.array(CK2.P(0.0, 0.0, 0.016))
+_cr = [tuple(_c0 + (_c1 - _c0) * t_) for t_ in np.linspace(0, 1, 16)]
+ck('stick', lambda: tube(bmc, _cr, 0.0024, n=8))                       # black push-pull rod
+_cm = Wall(-1, 1.80, -0.175 + (-0.262 + 0.175) * (1.455 - 1.80) / (1.455 - 2.150)); _cm.slab('chrome', [(-0.003, -0.011), (0.003, -0.011), (0.003, 0.003), (-0.003, 0.003)], 0.0, 0.0012)   # wall clip
+CK2.cyl('chrome', (0.0, 0.0, 0.016), (0.012, 0.0, 0.016), 0.0030, 8)                           # shaft into the knob (aft)
+CK2.cyl('red', (0.010, 0.0, 0.016), (0.022, 0.0, 0.016), 0.0055, 16, r2=0.0125)               # red mushroom knob
+CK2.cyl('red', (0.022, 0.0, 0.016), (0.030, 0.0, 0.016), 0.0125, 16, r2=0.0115)
+CH_K = np.array(CK2.P(0.030, 0.0, 0.016))
+# -- magneto switch (Ty photo, v14): black oval plate on the ceiling at the LEFT wing root, the wing's lower skin just
+# inboard of / above the left window near the upper longeron, ahead of the front spar (the greenhouse opens aft of it).
+# 'OFF L R BOTH' round the top, 'AAF TYPE A' along the bottom, maroon rotary knob with a lever handle.
+class Plane(Wall):
+    def __init__(self, o, U, V):
+        self.o, self.U, self.V = np.array(o, float), np.array(U, float), np.array(V, float)
+        self.N = np.cross(self.U, self.V); self.N /= np.linalg.norm(self.N)
+    def P(self, u, v, h=0.0): return tuple(self.o + u * self.U + v * self.V + h * self.N)
+MG_X, MG_Y = 1.560, 0.215
+_mz = wing_low_c(MG_X) - 0.0055
+_sl = (wing_low_c(MG_X + 0.01) - wing_low_c(MG_X - 0.01)) / 0.02              # lower-skin slope dz/dxd
+_Vb = np.array(B(MG_X - 0.01, 0, -_sl * 0.01)) - np.array(B(MG_X, 0, 0)); _Vb /= np.linalg.norm(_Vb)   # plate up = forward
+MG = Plane(B(MG_X, MG_Y, _mz), np.array(B(0, -1, 0)) * (1, 1, 1) - np.array(B(0, 0, 0)), _Vb)        # u = to the right seen from the seat
+if MG.N[2] > 0: MG = Plane(B(MG_X, MG_Y, _mz), -(np.array(B(0, -1, 0)) - np.array(B(0, 0, 0))), _Vb)
+MG = Plane(MG.o, -MG.U, -MG.V)                                         # turn 180 deg: reads upright from the front seat (checked in render)
+_ov = [(0.036 * math.cos(t), 0.027 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 28, endpoint=False)]
+MG.slab('panel', _ov, 0.0, 0.0030)
+for su in (-1, 1):                                                     # mounting ears + screws
+    MG.slab('panel', [(su * 0.030, -0.010), (su * 0.043, -0.008), (su * 0.043, 0.008), (su * 0.030, 0.010)][::su], 0.0, 0.0030)
+    MG.screw(su * 0.039, 0.0, 0.0030)
+for w_, a_ in (('OFF', 145), ('L', 108), ('R', 72), ('BOTH', 30)):
+    t_ = math.radians(a_); NTX += MG.text(w_, 0.0275 * math.cos(t_), 0.0195 * math.sin(t_), 0.0060, 0.0032, tilt=t_ - math.pi / 2)
+NTX += MG.text('AAF TYPE A', 0.0, -0.0205, 0.0054, 0.0032)
+MG.cyl('maroon', (0.0, -0.002, 0.003), (0.0, -0.002, 0.016), 0.0150, 20, 0.0130)          # rotary knob
+MG.cyl('maroon', (0.0, -0.002, 0.016), (0.0, -0.002, 0.019), 0.0130, 20, 0.0110)
+ck('maroon', lambda: bar(bmc, [MG.P(-0.004, -0.002, 0.012), MG.P(-0.036, 0.004, 0.010)], 0.009, 0.005, up=tuple(MG.N)))   # lever handle
+MGP = np.array(MG.P(0, 0, 0))
+print('MAGSWITCH v14: left wing-root ceiling xd %.3f y %.3f z %.3f (wing lower skin %.3f, front spar xd %.3f), plate normal %s' % (MG_X, MG_Y, _mz, wing_low_c(MG_X), LE_D + FS_F * CH, np.round(MG.N, 2)))
+print('CONTROLS v14 (Ty photos): throttle plates (left wall) front xd 1.335 rear xd 2.205, top z 0.012 (window sill 0.03), %.3f x %.3f m, ball r 0.0165 at front %s rear %s, linked behind the liner; fuel D plate xd 1.530 z -0.100 (0.150 x 0.088), red knob %s; trim plate xd 1.565 z -0.220 (%.3f sq), crank handle %s; carb heat D plate (right wall) xd 1.455 z -0.175 (0.130 x 0.080), rod aft to red knob %s; %d label text faces' % (
+    TW, TH, np.round(THR['front'][1], 3), np.round(THR['rear'][1], 3), np.round(FV, 3), TS, np.round(TK, 3), np.round(CH_K, 3), NTX))
 ck_tag = tags_of(bmc); P['Cabin'] = link('Cabin', bmc)
 TAGS = {}
 
@@ -1372,6 +1477,7 @@ M.update(en_plug=C('Spark_plug_shield', (170, 170, 175), rough=0.35, metal=1.0),
          en_steel=C('Exhaust_steel', (150, 150, 156), rough=0.30, metal=1.0), en_seam=C('Cowl_panel_gap', (40, 30, 8), rough=0.9),
          en_alu=C('Fuel_cap_red', (196, 28, 24), rough=0.35),
          ck_panel=C('Cabin_panel_black', (20, 20, 22), rough=0.45), ck_gauge=C('Gauge_bezel_black', (14, 14, 16), rough=0.3, metal=0.3),
+         ck_label=C('Placard_text_white', (236, 236, 230), rough=0.5), ck_red=C('Knob_red', (186, 22, 20), rough=0.35), ck_maroon=C('Knob_maroon', (118, 34, 28), rough=0.4),
          ck_chrome=C('Cabin_chrome', (226, 228, 232), rough=0.1, metal=1.0), ck_alu=C('Placard_aluminium', (196, 198, 202), rough=0.3, metal=0.8),
          ck_floor=C('Cabin_floor_black', (30, 29, 28), rough=0.9), ck_dark=C('Cabin_dark', (28, 27, 26), rough=0.9),
          cabin=C('Cabin_fabric_yellow', (176, 138, 36), rough=0.9), door_in=C('Door_inner_yellow', YEL, rough=0.7),   # v7 (Ty): door inner face (upper + lower) is the Cub-yellow paint, not black (v7c 176,138,36 read olive in shade)
