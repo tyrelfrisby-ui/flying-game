@@ -29,7 +29,7 @@ fin navy cap with 3 white stars and red line; wing/stab navy front 32 %, 0.03 ga
 TALK/FLYING underneath (tapered, off the ailerons); clear canopy; white prop with 5 in red tips and 1 in nickel LE; navy-topped wheel pants with red stripe.
 
 ## Known differences from the real aircraft
-- Ailerons start at y 1.40 m to match the game's aileron rig; the real ones run further inboard.
+- Ailerons run y 1.011–3.997 m (measured), hinge-to-TE area 0.913 m² each vs the manual's 0.855 m² (+7 %, within measurement/definition tolerance; chord 23 % inboard → 30 % at the tip, hinge swept 8.3°). The game config's aileron strips (from |y| 0.905, 4.1° sweep) do not match this; see v14.
 - Airfoil is a generic symmetric 16→12 % section; no dihedral modelled; root chord and planform measured from the 300/L drawing.
 - Fuselage cross-sections are superellipses — no cowl seams, louvres, exhausts, access panels, antennas or step.
 - Canopy is a single smooth bubble with three frame bows; no hinge hardware, no interior/pilots.
@@ -159,3 +159,12 @@ also pulled ~300 aft stab vertices into the elevator, so the stab sheared with i
 - Rudder cables moved to a static `Tail_Cables` object (they detach ~4 cm at the horn at full rudder). The elevator root
   rib sits ~1 cm inside the fuselage skin (hidden). Stab stations now match the elevator stations.
 - All three liveries rebuilt. The game still needs `namedSurfaces` + marker support in the rig to use these hinges.
+
+## v14 (2026-10-29, lane/codex-extra-hinges): aileron check, spade strut foot
+- Checked both ailerons at ±30° (manual: ±30°) about their v13 hinge markers ((0.8267, ±1.0195, 0.0749) → (0.3918, ±3.9929, 0.0737) in Blender import frame):
+  straight hinge, half-round nose (r 0.023–0.042 m) inside the wing cut-out, no BVH overlap with any other mesh in either direction, spade plate clears the wing at 30° TE-down.
+- Fix: the spade strut foot used the measured reference z (0.008 m), which left the whole spade hanging 4–5 cm below our aileron's lower skin (0.050–0.060 m).
+  The top strut ring is now raised to our aileron lower skin + 4 mm (z 0.064, still well under the upper skin at ≥0.088), so the spade is attached and rotates with the aileron.
+  Plate and weight positions are unchanged (raising them would cost the plate its ~3 cm clearance under the wing at full TE-down).
+- Real Extra 300 (Service Manual ch. 6): span 8.00 m, wing 10.7 m² (model 10.77), tip chord 0.83 m (model 0.826), aileron 2 × 0.855 m² (model 2 × 0.913), ±30°.
+

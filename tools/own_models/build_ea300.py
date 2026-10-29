@@ -341,6 +341,8 @@ for sg, sd in ((1, 'L'), (-1, 'R')):   # aileron spades: measured plate outline,
     hp = [bm.verts.new((x, sg * y, z)) for x, y, z in R['spade_weight_pts']]
     bmesh.ops.convex_hull(bm, input=hp)
     zs = [SPP['z'][1] - 0.001] + [r['z'] for r in ST[1:]]
+    zs[-1] = max(HA._ud(y, x)[1] for x, y in ST[-1]['xy']) + 0.004   # v14: strut foot up onto OUR aileron's lower skin (the measured foot z left a 4-5 cm air gap)
+    print('SPADE foot z %.4f (measured %.4f)' % (zs[-1], ST[-1]['z']))
     loft_rings(bm, [[(x, sg * y, z) for x, y in (r['xy'] if sg > 0 else r['xy'][::-1])] for r, z in zip(ST, zs)])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     P['Aileron_' + sd] = paint.join([P['Aileron_' + sd], link('_sp' + sd, bm)], 'Aileron_' + sd)
