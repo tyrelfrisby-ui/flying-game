@@ -250,9 +250,28 @@ namespace FlyingGame.Bridge
                 Vector3 size = new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2));
                 b.Facade(U(tw.Cx, tw.Cy, g), size, Quaternion.identity, tw.Style);
                 // Sidewalk block and roof membrane sit on the existing ground/roof, with no collision change.
-                b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(size.x + 10, .16f, size.z + 10), new Color(.58f,.57f,.53f));
+                b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(140, .16f, 140), new Color(.58f,.57f,.53f));
+                // Landscaped inset beds make the 140 m lots read as blocks around the existing towers.
+                // Flat opaque surfaces only: nothing added to the flight/collision envelope.
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float bedWidth = Mathf.Max(0, (140-size.x)*.5f-12);
+                    if (bedWidth > 3)
+                    {
+                        Vector3 bed = U(tw.Cx, tw.Cy, g+.23) + new Vector3(side*(size.x*.5f+6+bedWidth*.5f),0,0);
+                        b.Box(bed,new Vector3(bedWidth,.035f,Mathf.Min(110,size.z+24)),new Color(.30f,.36f,.24f));
+                    }
+                }
                 Color roof = tw.Style % 2 == 0 ? new Color(.34f,.36f,.36f) : new Color(.52f,.50f,.45f);
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
+                // Flush roof service panels preserve every landable roof height.
+                Vector3 roofCentre = U(tw.Cx,tw.Cy,g+tw.HeightM+.05);
+                for (int k=0;k<3;k++)
+                {
+                    Vector3 panel = roofCentre + new Vector3(-size.x*.28f+k*size.x*.27f,0,size.z*.25f);
+                    float hw=size.x*.075f, hd=size.z*.12f;
+                    b.Quad(panel+new Vector3(-hw,0,-hd),panel+new Vector3(-hw,0,hd),panel+new Vector3(hw,0,hd),panel+new Vector3(hw,0,-hd),new Color(.25f,.28f,.29f));
+                }
                 // Cornice and occasional belt course rather than black stripes on every fourth floor.
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .6), new Vector3(size.x + .25f, .45f, size.z + .25f), c * .86f);
                 if (tw.HeightM > 90)

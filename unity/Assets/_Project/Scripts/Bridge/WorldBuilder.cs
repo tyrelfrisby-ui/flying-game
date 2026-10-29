@@ -521,6 +521,16 @@ namespace FlyingGame.Bridge
                 roof.transform.localScale = new Vector3((float)(hd * 1.05), 0.4f, (float)(2 * hx + 1));
                 roof.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.45f, 0.20f, 0.18f));
             }
+            // Hangar cladding, door panel joints and clerestory glazing use the existing fittings batch.
+            Color metalSeam = new Color(.48f,.52f,.53f), pane = new Color(.18f,.27f,.30f);
+            for (double d=-hx+2;d<hx-1;d+=4)
+            {
+                dockDetails.Box(U(sx+d,hy-inl*(hd+.12),pad+hh*.42),new Vector3(.025f,(float)(hh*.80),.065f),metalSeam);
+                dockDetails.Box(U(sx+d,hy+inl*(hd+.04),pad+hh*.73),new Vector3(.035f,1.1f,2.5f),pane);
+            }
+            foreach (int side in new[] {-1,1})
+                for (double d=-hd+2;d<hd-1;d+=4)
+                    dockDetails.Box(U(sx+side*(hx+.04),hy+d,pad+hh*.72),new Vector3(2.5f,1.1f,.035f),pane);
             // Floating docks either side of the ramp: pontoon decks (no pilings) riding the water, finger piers, gangways.
             foreach (int side in new[] { -1, 1 })
             {

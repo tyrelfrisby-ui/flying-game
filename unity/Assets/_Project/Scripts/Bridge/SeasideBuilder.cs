@@ -67,14 +67,14 @@ namespace FlyingGame.Bridge
                     float width = face % 2 == 0 ? size.x : size.z;
                     float depth = face % 2 == 0 ? size.z : size.x;
                     int cols = Mathf.Clamp(Mathf.FloorToInt(width / 4.5f), 2, 6);
-                    int rows = Mathf.Clamp(Mathf.FloorToInt(size.y / 4.2f), 1, 24);
+                    int rows = Mathf.Clamp(Mathf.FloorToInt(size.y / 4.2f), 1, 40);
                     float dx = width / (cols + 1), dy = size.y / (rows + 1);
                     Vector3 P(float x, float y) => bottom + q * new Vector3(x, y, depth * .5f + .035f);
                     for (int r = 0; r < rows; r++)
                     for (int c = 0; c < cols; c++)
                     {
                         float x = -width * .5f + dx * (c + 1), y = dy * (r + 1);
-                        float hw = dx * .29f, hh = Mathf.Min(1.25f, dy * .31f);
+                        float hw = dx * (style % 2 == 0 ? .37f : .29f), hh = Mathf.Min(1.8f, dy * .32f);
                         float v = ((r * 7 + c * 13 + style * 3 + face) % 11) / 10f;
                         Color glass = Color.Lerp(new Color(.16f,.22f,.25f), new Color(.39f,.48f,.52f), v);
                         Quad(P(x-hw,y-hh), P(x+hw,y-hh), P(x+hw,y+hh), P(x-hw,y+hh), glass);
