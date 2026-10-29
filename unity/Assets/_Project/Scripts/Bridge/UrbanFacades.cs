@@ -510,8 +510,94 @@ namespace FlyingGame.Bridge
                 }
             }
         }
+        // Visual-only low-rise infill. Uses existing paved blocks/lawns, never the forest,
+        // roads, plaza, or any challenge row. Bodies/facades/roofs share the two city batches.
+        static void RoofDistrict(FlyingGame.Core.CityGrid grid,double ground,SeasideBuilder.Batch b,UrbanFacades facades)
+        {
+            var occupied=new Dictionary<(int,int),FlyingGame.Core.FlyCity.Tower>();
+            foreach(var tower in grid.Towers()) occupied[(tower.I,tower.J)]=tower;
+            var reservedRows=new HashSet<int>();
+            if(grid.PadLot.HasValue) reservedRows.Add(grid.PadLot.Value.j);
+            reservedRows.Add(grid.Tallest.J);
+            foreach(var ring in grid.RooftopRings()) reservedRows.Add(ring.t.J);
+            int count=0,emptyBlocks=0,bodyStart=b.Count;
+            bool roofChimneys=QualitySettings.GetQualityLevel()>2;
+            float area=0;
+            void Building(Vector3 foot,Vector3 size,int seed,int kind)
+            {
+                Color wall=kind==1?new Color(.50f,.32f,.24f):kind==3?new Color(.65f,.60f,.49f)
+                    :seed%3==0?new Color(.66f,.69f,.62f):seed%3==1?new Color(.68f,.57f,.44f):new Color(.49f,.57f,.59f);
+                b.Box(foot+Vector3.up*size.y*.5f,size,wall);
+                facades.Add(foot,size,kind,seed,wall);
+                Vector3 roofSize=size;
+                if(!roofChimneys) roofSize.y=0; // C8 builder omits optional chimneys at zero metadata height.
+                PitchedRoof(b,foot+Vector3.up*size.y,roofSize,seed,wall);
+                if(kind==3)
+                {
+                    Color awning=seed%2==0?new Color(.19f,.34f,.27f):new Color(.49f,.22f,.16f);
+                    b.Box(foot+new Vector3(0,3,-size.z*.5f-.7f),new Vector3(size.x-.5f,.22f,1.6f),awning);
+                }
+                count++; area+=size.x*size.z;
+            }
+            for(int i=0;i<7;i++) for(int j=0;j<16;j++)
+            {
+                if(reservedRows.Contains(j)) continue;
+                var map=grid.Map(i*170,j*170);
+                if(grid.InPlaza(map.x,map.y)) continue;
+                Vector3 centre=WorldBuilder.U(map.x,map.y,ground+.33);
+                if(!occupied.TryGetValue((i,j),out var tower))
+                {
+                    // Six garden rows of seven separate roofs fill each existing open block.
+                    // 18 m frontage / 21 m depth leaves gaps, garden strips and rear access.
+                    emptyBlocks++;
+                    // Flush garden/path dressing uses the same opaque colour batch.
+                    Vector3 garden=centre-Vector3.up*.18f;
+                    b.Quad(garden+new Vector3(-64,0,-64),garden+new Vector3(-64,0,64),
+                        garden+new Vector3(64,0,64),garden+new Vector3(64,0,-64),new Color(.33f,.39f,.28f));
+                    for(int row=0;row<6;row++)
+                    {
+                        Vector3 path=garden+new Vector3(0,.025f,-43.5f+row*21);
+                        b.Quad(path+new Vector3(-63,0,-1),path+new Vector3(-63,0,1),
+                            path+new Vector3(63,0,1),path+new Vector3(63,0,-1),new Color(.57f,.55f,.49f));
+                    }
+                    for(int row=0;row<6;row++) for(int col=0;col<7;col++)
+                    {
+                        int seed=1009+i*997+j*71+row*13+col*17;
+                        bool warehouse=row==4 && col==5 && (i+j)%3==0;
+                        // A single warehouse replaces four house slots, with no overlapping roofs.
+                        if((i+j)%3==0 && row>=4 && col>=5 && !warehouse) continue;
+                        int kind=row==0 && col%3==0?3:col%3==1?1:4;
+                        Vector3 size=warehouse?new Vector3(29,5,18)
+                            :new Vector3(kind==1?8:10+seed%5,kind==3?9:3.1f*(1+seed%2),kind==3?11:14+seed%3);
+                        Vector3 offset=new Vector3(-54+col*18,0,-52.5f+row*21);
+                        if(warehouse) offset+=new Vector3(9,0,10.5f);
+                        if(kind==1 && !warehouse)
+                        {
+                            // Paired narrow rowhouses read as a terrace with individual ridges.
+                            foreach(int side in new[]{-1,1})
+                                Building(centre+offset+new Vector3(side*4.6f,0,0),size,seed+side*103,kind);
+                        }
+                        else Building(centre+offset,size,seed,warehouse?2:kind);
+                    }
+                }
+                else
+                {
+                    // Peripheral rear lawns only. Lot's shops are at world z=-58;
+                    // its side wings end by z=47. Family 2 has a rear crossbar: exclude it.
+                    float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
+                    int seed=i*53+j*19;
+                    if(core>.25f || seed%4==2 || tower.HeightM>=330) continue;
+                    for(int col=0;col<5;col++)
+                        Building(centre+new Vector3(-36+col*18,0,57),
+                            new Vector3(10+col%3,3.1f*(1+(col+i+j)%2),12),2003+seed*7+col*23,4);
+                }
+            }
+            // Count/footprint are emitted for Chief's render log; no collision registration.
+            Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} visual-only buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; no colliders.");
+        }
         public static void Streets(FlyingGame.Core.CityGrid grid, double ground, SeasideBuilder.Batch b, UrbanFacades facades)
         {
+            RoofDistrict(grid,ground,b,facades);
             Vector3 P(double u,double v,double h) { var p=grid.Map(u,v); return WorldBuilder.U(p.x,p.y,ground+h); }
             // Longitudinal coordinates a (across street), z (along street) rotate through the public map.
             for(int axis=0;axis<2;axis++)
