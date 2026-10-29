@@ -241,15 +241,22 @@ namespace FlyingGame.Bridge
             var (cgx, cgy) = grid.Centre;
             double g0 = t.HeightAt(cgx, cgy);
             // Plaza-paved city ground (the avenues).
-            b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.6f, 0.6f, 0.58f));
+            b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.25f, 0.26f, 0.26f));
             foreach (FlyCity.Tower tw in grid.Towers())
             {
                 double g = t.HeightAt(tw.Cx, tw.Cy);
-                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? Glass : walls[System.Math.Min(tw.Style, 3)];
+                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? new Color(.46f,.53f,.57f) : walls[System.Math.Min(tw.Style, 3)];
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM / 2), new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2)), c, c * 0.8f);
-                // Floor bands every 4 floors so height reads.
-                for (double z = 14; z < tw.HeightM - 4; z += 16)
-                    b.Box(U(tw.Cx, tw.Cy, g + z), new Vector3((float)(tw.Hy * 2) + 0.6f, 0.8f, (float)(tw.Hx * 2) + 0.6f), c * 0.7f);
+                Vector3 size = new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2));
+                b.Facade(U(tw.Cx, tw.Cy, g), size, Quaternion.identity, tw.Style);
+                // Sidewalk block and roof membrane sit on the existing ground/roof, with no collision change.
+                b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(size.x + 10, .16f, size.z + 10), new Color(.58f,.57f,.53f));
+                Color roof = tw.Style % 2 == 0 ? new Color(.34f,.36f,.36f) : new Color(.52f,.50f,.45f);
+                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
+                // Cornice and occasional belt course rather than black stripes on every fourth floor.
+                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .6), new Vector3(size.x + .25f, .45f, size.z + .25f), c * .86f);
+                if (tw.HeightM > 90)
+                    b.Box(U(tw.Cx, tw.Cy, g + 6), new Vector3(size.x + .2f, .35f, size.z + .2f), c * .85f);
             }
             foreach (var (a, n, h) in grid.SkyBridges())
             {

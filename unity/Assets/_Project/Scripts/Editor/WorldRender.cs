@@ -59,6 +59,10 @@ namespace FlyingGame.EditorTools
             double baseTop = FlyingGame.Core.WorldTerrain.BasePadHeightM;
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("city-facade-detail", Outside(city.PadTower.Cx-260,city.PadTower.Cy-240,padH-50), WorldBuilder.U(city.PadTower.Cx,city.PadTower.Cy,padH-80)),
+                ("eiffel-detail", Outside(FlyingGame.Core.Landmarks.TowerX-360,FlyingGame.Core.Landmarks.TowerYAt(0)-420,terrain.HeightAt(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0))+180), WorldBuilder.U(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0),terrain.HeightAt(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0))+130)),
+                ("arch-detail", Outside(FlyingGame.Core.Landmarks.ArchCentreXAt(0)+300,FlyingGame.Core.Landmarks.ArchYAt(0)+450,FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+180), WorldBuilder.U(FlyingGame.Core.Landmarks.ArchCentreXAt(0),FlyingGame.Core.Landmarks.ArchYAt(0),FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+100)),
+                ("avalon-detail", Outside(FlyingGame.Core.Island.AvalonX-300,FlyingGame.Core.Island.AvalonY-650,280), WorldBuilder.U(FlyingGame.Core.Island.AvalonX,FlyingGame.Core.Island.AvalonY+250,50)),
                 ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
                 ("valley-airport-detail", Outside(valley.X-950,valley.Y-650,valley.ElevationM+600), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("runway-threshold-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2-180,valley.Y-90,valley.ElevationM+95), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2+180,valley.Y,valley.ElevationM)),

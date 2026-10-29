@@ -1536,6 +1536,7 @@ namespace FlyingGame.Bridge
         private static void BuildLandmarks(WorldTerrain t, Transform parent, int p)
         {
             var root = new GameObject($"Landmarks{p}"); root.transform.SetParent(parent, false);
+            var dressing = new SeasideBuilder.Batch();
             var steel = new Color(0.72f, 0.74f, 0.78f);
             // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)) — but only the parts this
             // plateau carries (2026-10-16: the repeated landscape was thinned out).
@@ -1554,13 +1555,13 @@ namespace FlyingGame.Bridge
                 double h0 = Landmarks.ArchHeightAt(x0), h1 = Landmarks.ArchHeightAt(x1);
                 double um = (u0 + u1) / 2, w = Landmarks.ArchLegWidthM + (Landmarks.ArchTopWidthM - Landmarks.ArchLegWidthM) * (1 - um * um);
                 Vector3 a = U(cx + x0, archY, baseUp + h0), b = U(cx + x1, archY, baseUp + h1);
-                Beam(root, "ArchSeg", a, b, (float)w, (float)w, steel);
+                dressing.Beam(a, b, (float)w, (float)w, steel);
             }
             // Legs reach down to the wall they stand on.
             foreach (double sgn in new[] { -1.0, 1.0 })
             {
                 double lx = cx + sgn * Landmarks.ArchHalfSpanM;
-                Beam(root, "ArchLeg", U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
+                dressing.Beam(U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
             }
             }
 
@@ -1577,12 +1578,21 @@ namespace FlyingGame.Bridge
                     double h = Landmarks.TowerHeightM * i / segs;
                     double r0 = Landmarks.TowerHalfAt(prevH), r1 = Landmarks.TowerHalfAt(h);
                     float thick = (float)(6.0 * (1 - h / Landmarks.TowerHeightM) + 1.5);
-                    Beam(root, "TowerLeg", U(Landmarks.TowerX + sx * r0, towerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, towerY + sy * r1, tg + h), thick, thick, iron);
+                    dressing.Beam(U(Landmarks.TowerX + sx * r0, towerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, towerY + sy * r1, tg + h), thick, thick, iron);
                     // Lattice cross-braces between neighbouring legs at each segment.
                     if (sx < 0 && i <= segs)
                     {
-                        Beam(root, "Brace", U(Landmarks.TowerX - r1, towerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, towerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
-                        Beam(root, "Brace", U(Landmarks.TowerX + sy * r1, towerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, towerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        dressing.Beam(U(Landmarks.TowerX - r1, towerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, towerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        dressing.Beam(U(Landmarks.TowerX + sy * r1, towerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, towerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                    }
+                    // Diagonal lattice on all four faces, within the original leg envelope.
+                    if (sx < 0 && i > 2)
+                    {
+                        float brace = Mathf.Max(.45f, thick * .22f);
+                        dressing.Beam(U(Landmarks.TowerX-r0,towerY+sy*r0,tg+prevH), U(Landmarks.TowerX+r1,towerY+sy*r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+r0,towerY+sy*r0,tg+prevH), U(Landmarks.TowerX-r1,towerY+sy*r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+sy*r0,towerY-r0,tg+prevH), U(Landmarks.TowerX+sy*r1,towerY+r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+sy*r0,towerY+r0,tg+prevH), U(Landmarks.TowerX+sy*r1,towerY-r1,tg+h), brace, brace, iron);
                     }
                     prevH = h;
                 }
@@ -1590,7 +1600,7 @@ namespace FlyingGame.Bridge
             foreach (double fh in new[] { Landmarks.TowerFirstFloorM, Landmarks.TowerSecondFloorM, Landmarks.TowerTopFloorM })
             {
                 float half = (float)Landmarks.TowerHalfAt(fh) + 4f;
-                WBox(root, "TowerFloor", U(Landmarks.TowerX, towerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
+                dressing.Box(U(Landmarks.TowerX, towerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
             }
             // First-floor arches (the road passes under them): a low curved beam between the legs on each side.
             foreach (double sy in new[] { -1.0, 1.0 })
@@ -1599,7 +1609,7 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < 12; i++)
                 {
                     double a0 = System.Math.PI * i / 12, a1 = System.Math.PI * (i + 1) / 12;
-                    Beam(root, "TowerArch", U(Landmarks.TowerX - r * System.Math.Cos(a0), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
+                    dressing.Beam(U(Landmarks.TowerX - r * System.Math.Cos(a0), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
                                             U(Landmarks.TowerX - r * System.Math.Cos(a1), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a1)), 2.5f, 2.5f, iron);
                 }
             }
@@ -1607,6 +1617,8 @@ namespace FlyingGame.Bridge
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
                 Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
             }
+
+            if (dressing.Count > 0) dressing.Build("LandmarkStructure", root.transform, SeasideBuilder.VC);
 
             // The town (owner 2026-10-05: "identical to the one you built in the combat zone"): the combat city's grid —
             // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site.

@@ -57,6 +57,31 @@ namespace FlyingGame.Bridge
 
             public void Box(Vector3 centre, Vector3 size, Color col, Color? top = null) => Box(centre, size, Quaternion.identity, col, top);
 
+            // Opaque facade panes share the existing colour batch: no materials, textures or colliders per window.
+            // Bounds cap geometry for tall buildings; distant panes merge into a restrained blue-grey facade.
+            public void Facade(Vector3 bottom, Vector3 size, Quaternion rotation, int style)
+            {
+                for (int face = 0; face < 4; face++)
+                {
+                    Quaternion q = rotation * Quaternion.Euler(0, face * 90, 0);
+                    float width = face % 2 == 0 ? size.x : size.z;
+                    float depth = face % 2 == 0 ? size.z : size.x;
+                    int cols = Mathf.Clamp(Mathf.FloorToInt(width / 4.5f), 2, 6);
+                    int rows = Mathf.Clamp(Mathf.FloorToInt(size.y / 4.2f), 1, 24);
+                    float dx = width / (cols + 1), dy = size.y / (rows + 1);
+                    Vector3 P(float x, float y) => bottom + q * new Vector3(x, y, depth * .5f + .035f);
+                    for (int r = 0; r < rows; r++)
+                    for (int c = 0; c < cols; c++)
+                    {
+                        float x = -width * .5f + dx * (c + 1), y = dy * (r + 1);
+                        float hw = dx * .29f, hh = Mathf.Min(1.25f, dy * .31f);
+                        float v = ((r * 7 + c * 13 + style * 3 + face) % 11) / 10f;
+                        Color glass = Color.Lerp(new Color(.16f,.22f,.25f), new Color(.39f,.48f,.52f), v);
+                        Quad(P(x-hw,y-hh), P(x+hw,y-hh), P(x+hw,y+hh), P(x-hw,y+hh), glass);
+                    }
+                }
+            }
+
             /// <summary>A beam between two points with a square-ish cross-section.</summary>
             public void Beam(Vector3 a, Vector3 b, float w, float h, Color col)
             {
@@ -408,12 +433,32 @@ namespace FlyingGame.Bridge
                 Color wall = rng.NextDouble() < 0.7 ? Stucco : new Color(0.95f, 0.84f, 0.7f);
                 Quaternion q = Quaternion.Euler(0, yaw, 0);
                 b.Box(U(hx, hy, hg + hh / 2 - 1), new Vector3(w, hh + 2, l), q, wall, Tile);
-                b.Box(U(hx, hy, hg + hh + 1), new Vector3(w * 1.08f, 1.6f, l * 1.08f), q, Tile);
+                b.Facade(U(hx, hy, hg - 2), new Vector3(w, hh + 2, l), q, i);
+                // Gabled clay/slate roof; original house footprint and wall height remain unchanged.
+                Vector3 centre = U(hx, hy, hg + hh);
+                Vector3 P(float x, float y, float z) => centre + q * new Vector3(x,y,z);
+                float rw = w * .54f, rl = l * .54f, rise = w * .28f;
+                Color roof = i % 5 == 0 ? new Color(.28f,.30f,.31f) : Tile * ( .85f + (i % 4) * .05f);
+                b.Quad(P(-rw,0,-rl), P(0,rise,-rl), P(0,rise,rl), P(-rw,0,rl), roof);
+                b.Quad(P(0,rise,-rl), P(rw,0,-rl), P(rw,0,rl), P(0,rise,rl), roof * .9f);
+                b.Tri(P(-rw,0,-rl), P(rw,0,-rl), P(0,rise,-rl), wall);
+                b.Tri(P(rw,0,rl), P(-rw,0,rl), P(0,rise,rl), wall);
             }
             // The green Pleasure Pier, from mid-beach out into the bay.
             double px = ax, py0 = ay + R * 0.97, py1 = ay + R * 0.55;
             b.Box(U(px, (py0 + py1) / 2, 3), new Vector3((float)(py0 - py1), 1f, 9f), Wood);
             for (double py = py1; py < py0; py += 12) b.Box(U(px, py, -2), new Vector3(0.8f, 9f, 0.8f), Wood);
+            // Timber edge fascia, mooring cleats and dark fenders on the existing pier.
+            // No quay/shoreline footprint or boat mooring is moved.
+            foreach (double side in new[] { -1.0, 1.0 })
+            {
+                b.Box(U(px + side * 4.4, (py0 + py1) / 2, 2.85), new Vector3((float)(py0-py1), .45f, .22f), Wood * .72f);
+                for (double py = py1 + 18; py < py0 - 6; py += 24)
+                {
+                    b.Box(U(px + side * 4.65, py, 2.2), new Vector3(1.2f, 1.6f, .35f), new Color(.16f,.17f,.16f));
+                    b.Box(U(px + side * 3.8, py, 3.8), new Vector3(.8f,.3f,1.1f), new Color(.28f,.29f,.27f));
+                }
+            }
             b.Box(U(px, py1 + 8, 6), new Vector3(10f, 6f, 12f), PierGreen, PierGreen * 0.8f);
             // Boats on their moorings, in rows, all head to wind.
             for (int i = 0; i < 70; i++)
