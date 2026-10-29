@@ -18,6 +18,26 @@ float powellNoise(float2 p)
         lerp(powellHash(q+float2(0,1)),powellHash(q+1),f.x),f.y);
     return lerp(.5,v,1-smoothstep(.125,.3,max(length(ddx(p)),length(ddy(p)))));
 }
+// Thin runnels hang from horizontal major ledges. Each 8 m column has a
+// different width, length and density; two offset ledge families avoid a grid.
+// 1–4 m widths / 12–60 m drops, with very small lateral weathering wander.
+float powellRunnel(float u, float y, float offset)
+{
+    float column=floor(u/8);
+    float ledge=floor((y-offset)/64)+1;
+    float seed=powellHash(float2(column,ledge+offset));
+    float centre=(column+.18+.64*powellHash(float2(column+71,ledge)))*8;
+    float width=lerp(.55,1.8,seed);
+    float wander=(powellNoise(float2(column+offset,y*.018))-.5)*.55;
+    float distance=abs(u-centre+wander);
+    float aa=max(.06,fwidth(u));
+    float thin=1-smoothstep(width*.45,width+aa,distance);
+    float drop=ledge*64+offset-y;
+    float lengthM=lerp(12,60,powellHash(float2(column+39,ledge)));
+    float tail=1-smoothstep(lengthM*.35,lengthM,drop);
+    float density=smoothstep(.25,.55,seed);
+    return thin*tail*density*(1-smoothstep(2,8,fwidth(u)));
+}
 void powellSurface(float3 p, inout float3 n, out float3 rock)
 {
     float steep=1-smoothstep(.45,.82,abs(n.y));
@@ -35,8 +55,8 @@ void powellSurface(float3 p, inout float3 n, out float3 rock)
     if(_DayAtmosphere.z>.5)
         grain=lerp(powellNoise(p.xy*float2(.65,.32)),powellNoise(p.zy*float2(.65,.32)),side);
     float streak=lerp(powellNoise(p.xy*float2(.24,.03)+13),powellNoise(p.zy*float2(.24,.03)+13),side);
-    float joints=lerp(powellNoise(p.xy*float2(.095,.006)),powellNoise(p.zy*float2(.095,.006)),side);
-    float fracture=1-smoothstep(.12,.25,joints);
+    float joints=lerp(powellNoise(p.xy*float2(.38,.025)),powellNoise(p.zy*float2(.38,.025)),side);
+    float fracture=1-smoothstep(.13,.23,joints);
     // Blend stationary samples, never positions multiplied by a varying normal.
     float2 crossPhase=p.y*8+p.xz*.65+grain*2;
     float2 crossFine=sin(crossPhase)*(1-smoothstep(.6,2.0,fwidth(crossPhase)));
@@ -45,9 +65,17 @@ void powellSurface(float3 p, inout float3 n, out float3 rock)
     rock*=1+(grain-.5)*.10+crossBed*.025-contact*.14*steep;
     float cap=smoothstep(44,65,h)*(.70-steep*.60)+(1-steep)*.16;
     rock=lerp(rock,float3(.910,.788,.627),saturate(cap));
-    float varnish=smoothstep(.49,.73,streak)*steep*(.42+.58*powellNoise(float2(p.y*.035,7)));
-    rock=lerp(rock,float3(.17,.105,.075),varnish*.64);
-    rock*=1-fracture*steep*.25;
+    float runX=powellRunnel(p.x,p.y,0);
+    float runZ=powellRunnel(p.z,p.y,0);
+    if(_DayAtmosphere.z>.5)
+    {
+        runX=max(runX,powellRunnel(p.x+3.1,p.y,32)*.65);
+        runZ=max(runZ,powellRunnel(p.z+3.1,p.y,32)*.65);
+    }
+    float varnish=lerp(runX,runZ,side)*steep*smoothstep(26,29,h);
+    float3 stain=lerp(float3(.105,.075,.060),float3(.125,.145,.165),streak);
+    rock=lerp(rock,stain,varnish*.82);
+    rock*=1-fracture*steep*.12;
     // Continuous 26 m calcite ring; sharp, horizontal former high-water mark.
     float ring=(1-smoothstep(26-max(.15,fwidth(h)),26+max(.15,fwidth(h)),h))*smoothstep(-1,1,h);
     rock=lerp(rock,float3(.91,.865,.735)*(.94+streak*.08),ring*.90);
@@ -59,7 +87,7 @@ void powellSurface(float3 p, inout float3 n, out float3 rock)
     float topMark=0;
     if(_DayAtmosphere.z>.5) topMark=smoothstep(.74,.86,powellNoise(p.xz*.6))*(1-steep);
     rock=lerp(rock,float3(.34,.32,.19),topMark*.55);
-    float relief=steep*((grain-.5)*.12-fracture*.35-contact*.06);
+    float relief=steep*((grain-.5)*.20-fracture*.16-contact*.06);
     float3 dx=ddx(p), dy=ddy(p), r1=cross(dy,n), r2=cross(n,dx);
     float det=dot(dx,r1);
     float3 grad=(ddx(relief)*r1+ddy(relief)*r2)*sign(det)/max(.00001,abs(det));

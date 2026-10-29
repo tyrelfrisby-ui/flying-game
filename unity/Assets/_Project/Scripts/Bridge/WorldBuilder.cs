@@ -210,14 +210,37 @@ namespace FlyingGame.Bridge
         }
 
         // Shared by terrain metadata and visual vegetation only; never changes Forest solids.
-        internal static float PowellRegionMask(double x, double y)
+        internal static float PowellRegionMask(double x, double y, bool rimTrees = false)
         {
             double along = System.Math.Max(CanyonLake.Y0-y, y-CanyonLake.DamY);
             double sampleY = System.Math.Max(CanyonLake.Y0, System.Math.Min(CanyonLake.DamY, y));
             double edge = System.Math.Abs(x-CanyonLake.CentreX(sampleY))-CanyonLake.HalfWidthAt(sampleY);
-            float across = 1-Mathf.SmoothStep(0,1,(float)((edge-650)/400));
-            float ends = 1-Mathf.SmoothStep(0,1,(float)((along-220)/350));
-            return across*ends;
+            float across = 1-Mathf.SmoothStep(0,1,(float)((edge-(rimTrees ? 1100 : 650))/(rimTrees ? 450 : 400)));
+            float ends = 1-Mathf.SmoothStep(0,1,(float)((along-(rimTrees ? 650 : 220))/350));
+            float region = across*ends;
+            if (region <= 0) return 0;
+            // The asymmetric airport PAD encloses its runways, strips, taxiways and apron.
+            // Union their explicit rectangles too, so a future extended strip stays protected.
+            // Same exclusion for sandstone and the wider visual rim-tree clearance.
+            foreach (var airport in WorldTerrain.Airports)
+            {
+                double outside = System.Math.Max(WorldTerrain.PadOutsideX(airport,x),
+                    System.Math.Max(0,System.Math.Abs(y-airport.Y)-WorldTerrain.PadHalfY));
+                if (outside <= 150) return 0;
+                foreach (var strip in WorldTerrain.AirportStrips)
+                {
+                    double a=strip.HeadingDeg*System.Math.PI/180;
+                    double dx=x-airport.X-strip.Dx, dy=y-airport.Y-strip.Dy;
+                    double alongStrip=System.Math.Abs(dx*System.Math.Cos(a)+dy*System.Math.Sin(a))-strip.Length*.5;
+                    double acrossStrip=System.Math.Abs(-dx*System.Math.Sin(a)+dy*System.Math.Cos(a))-strip.Width*.5;
+                    outside=System.Math.Min(outside,System.Math.Max(0,System.Math.Max(alongStrip,acrossStrip)));
+                }
+                double apron=System.Math.Max(System.Math.Abs(x-airport.X-WorldTerrain.ApronDx)-WorldTerrain.ApronLengthM*.5,
+                    System.Math.Abs(y-airport.Y-WorldTerrain.ApronDy)-WorldTerrain.ApronWidthM*.5);
+                outside=System.Math.Min(outside,System.Math.Max(0,apron));
+                region*=Mathf.SmoothStep(0,1,(float)((outside-150)/100));
+            }
+            return region;
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
@@ -640,6 +663,7 @@ namespace FlyingGame.Bridge
         private static void BuildWaterfalls(WorldTerrain t, Transform parent)
         {
             var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
+            var powellRock = Mat("FlyingGame/PowellSandstone", Color.white);
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
             var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.72f));
             mistMat.SetFloat("_Mist", 1f);
@@ -700,7 +724,11 @@ namespace FlyingGame.Bridge
                             tr.AddRange(new[] { a, p0, b, b, p0, p1 });
                         }
                     }
-                    Spawn("Shelf", v.ToArray(), tr.ToArray(), rock, root.transform, true);
+                    // Powell lip uses the same world-space beds/caps as the surrounding cliff.
+                    // Its shader is two-sided: duplicated reverse triangles would cancel normals.
+                    bool powellShelf = f.Step == 0;
+                    Spawn("Shelf", v.ToArray(), tr.ToArray(), powellShelf ? powellRock : rock,
+                        root.transform, !powellShelf);
                 }
 
                 // -- curtain: parabola from the lip; two sheets (front/back) for depth.

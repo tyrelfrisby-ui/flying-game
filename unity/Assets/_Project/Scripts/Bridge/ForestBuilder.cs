@@ -47,7 +47,7 @@ namespace FlyingGame.Bridge
             foreach (Forest.Tree tr in Forest.InRect(x0, y0, x0 + ChunkM, y0 + ChunkM))
             {
                 // Owner-requested Powell visual clearance; the sim forest registry is unchanged.
-                float desert = WorldBuilder.PowellRegionMask(tr.X, tr.Y);
+                float desert = WorldBuilder.PowellRegionMask(tr.X, tr.Y, rimTrees: true);
                 float keep = (float)(tr.TwistDeg / 360.0);
                 if (desert > .001f && keep < desert) continue;
                 Add(b, tr, detail);

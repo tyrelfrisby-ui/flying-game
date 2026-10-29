@@ -146,16 +146,33 @@ namespace FlyingGame.Bridge
                 mesh.SetVertices(_v); mesh.SetNormals(_n); mesh.SetColors(_c); mesh.SetTriangles(_t, 0);
                 if (smooth)
                 {
-                    // Batch faces duplicate vertices. Average their existing normals at coincident
-                    // positions so strata/joints do not reveal each four-vertex quad.
-                    var sums = new Dictionary<Vector3, Vector3>();
-                    for (int i=0; i<_v.Count; i++)
+                    // Powell only (default off): weld seam roundoff in 2 mm bins and
+                    // angle-weight actual triangle normals, including nonplanar quads.
+                    // Keep horizontal caps separate from cliff sides for a crisp mesa lip.
+                    (Vector3Int, bool) Key(int i) => (new Vector3Int(
+                        Mathf.RoundToInt(_v[i].x*500), Mathf.RoundToInt(_v[i].y*500),
+                        Mathf.RoundToInt(_v[i].z*500)), Mathf.Abs(_n[i].y) > .94f);
+                    var sums = new Dictionary<(Vector3Int, bool), Vector3>();
+                    for (int t=0; t<_t.Count; t+=3)
                     {
-                        sums.TryGetValue(_v[i], out Vector3 sum);
-                        sums[_v[i]] = sum + _n[i];
+                        int ia=_t[t], ib=_t[t+1], ic=_t[t+2];
+                        Vector3 face=Vector3.Cross(_v[ib]-_v[ia],_v[ic]-_v[ia]).normalized;
+                        void Add(int i, int j, int k)
+                        {
+                            Vector3 u=(_v[j]-_v[i]).normalized, v=(_v[k]-_v[i]).normalized;
+                            float angle=Mathf.Acos(Mathf.Clamp(Vector3.Dot(u,v),-1,1));
+                            var key=Key(i);
+                            sums.TryGetValue(key,out Vector3 sum);
+                            sums[key]=sum+face*angle;
+                        }
+                        Add(ia,ib,ic); Add(ib,ic,ia); Add(ic,ia,ib);
                     }
                     var normals = new List<Vector3>(_v.Count);
-                    for (int i=0; i<_v.Count; i++) normals.Add(sums[_v[i]].normalized);
+                    for (int i=0; i<_v.Count; i++)
+                    {
+                        Vector3 normal=sums[Key(i)];
+                        normals.Add(normal.sqrMagnitude>.000001f ? normal.normalized : _n[i]);
+                    }
                     mesh.SetNormals(normals);
                 }
                 mesh.RecalculateBounds();
