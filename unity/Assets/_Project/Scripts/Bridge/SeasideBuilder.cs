@@ -244,6 +244,7 @@ namespace FlyingGame.Bridge
             mesh.RecalculateNormals(); mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 200000f);
             var go = new GameObject("Ocean"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.layer = WaterReflection.WaterLayer;
             go.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.05f, 0.22f, 0.4f, 0.95f));
         }
 

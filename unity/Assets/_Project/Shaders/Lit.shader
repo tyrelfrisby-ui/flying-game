@@ -24,6 +24,7 @@ Shader "FlyingGame/Lit"
 
             fixed4 _Color;
             float4 _BubbleSunDir;
+            float _SunsetOn;
 
             v2f vert (appdata_base v)
             {
@@ -38,9 +39,10 @@ Shader "FlyingGame/Lit"
                 float3 n = normalize(i.n) * (facing >= 0 ? 1.0 : -1.0);
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(n, l));
-                return fixed4(_Color.rgb * (0.58 + 0.42 * d), 1.0);
+                return fixed4(_Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn), 1.0);
             }
             ENDCG
         }
     }
+    Fallback "Diffuse"
 }

@@ -1,0 +1,15 @@
+Shader "FlyingGame/SunsetSky" {
+ SubShader { Tags { "Queue"="Background" "RenderType"="Background" "PreviewType"="Skybox" }
+ Cull Off ZWrite Off
+ Pass { CGPROGRAM
+ #pragma target 3.0
+ #pragma vertex vert
+ #pragma fragment frag
+ #include "UnityCG.cginc"
+ #include "SunsetSky.cginc"
+ struct v2f { float4 pos:SV_POSITION; float3 ray:TEXCOORD0; };
+ v2f vert(float4 v:POSITION) { v2f o; o.pos=UnityObjectToClipPos(v); o.ray=mul((float3x3)unity_ObjectToWorld,v.xyz); return o; }
+ fixed4 frag(v2f i):SV_Target { return fixed4(SunsetSky(i.ray),1); }
+ ENDCG }
+ }
+}

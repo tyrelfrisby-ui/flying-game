@@ -1,5 +1,5 @@
-// Glassy water: fresnel sky reflection + planar reflection of the aircraft (rendered by WaterReflection
-// into _ReflectionTex) + sun glint + faint animated ripples. Reflection texture is only valid for the
+// Glassy water: directional sky + tiered planar reflection of aircraft and scenery (WaterReflection
+// writes _ReflectionTex), depth absorption, sun glint and ambient ripples. Reflection is valid for the
 // water plane at _ReflPlaneY (the lake under the aircraft); other lakes fall back to the sky term.
 Shader "FlyingGame/Water"
 {
@@ -17,9 +17,12 @@ Shader "FlyingGame/Water"
         Pass
         {
             CGPROGRAM
+            #pragma target 3.0
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "SunsetSky.cginc"
+            UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
             struct appdata { float4 vertex : POSITION; };
             struct v2f { float4 pos : SV_POSITION; float3 wp : TEXCOORD0; float4 sp : TEXCOORD1; };
             fixed4 _Color, _SkyColor;
@@ -53,7 +56,8 @@ Shader "FlyingGame/Water"
                 float2 p = i.wp.xz;
                 float a = sin(p.x * 0.35 + p.y * 0.2 + t * 1.1) + 0.6 * sin(p.x * 0.9 - p.y * 0.7 + t * 1.7);
                 float b = cos(p.x * 0.25 - p.y * 0.4 + t * 0.9) + 0.6 * cos(p.x * 0.6 + p.y * 1.1 + t * 1.4);
-                float3 n = normalize(float3(a * 0.02, 1.0, b * 0.02));
+                float ripple = lerp(.012, .0007, _WaterCalm);
+                float3 n = normalize(float3(a * ripple, 1.0, b * ripple));
                 float foam = 0;
                 if (_WakeOn > 0.5 && abs(i.wp.y - _WakeY) < 1.5)
                 {
@@ -68,28 +72,37 @@ Shader "FlyingGame/Water"
                         // World-space foam rafts break up the crest history; no painted or guessed V.
                         float history = max(tex2D(_WakeFoamTex, wuv).r, saturate((length(slope) - .12) * 4) * .4);
                         float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
-                        float coverage = smoothstep(.22, .7, history + lace * .38);
-                        foam = coverage * saturate(history * 1.5);
+                        float coverage = smoothstep(.48, .78, lace);
+                        foam = coverage * saturate(history) * .65;
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));
                     }
                 }
                 float3 v = normalize(_WorldSpaceCameraPos - i.wp);
                 float ndv = saturate(dot(n, v));
-                float fresnel = 0.06 + 0.9 * pow(1.0 - ndv, 3.0);
+                float fresnel = .0204 + .9796 * pow(1.0 - ndv, 5.0);
 
                 float3 refl = _SkyColor.rgb;
+                if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
                 if (_ReflOn > 0.5 && abs(i.wp.y - _ReflPlaneY) < 1.5)
                 {
-                    float4 uv = i.sp; uv.xy += n.xz * 0.6 * uv.w;   // ripple distortion
+                    float4 uv = i.sp; uv.xy += n.xz * 0.025 * uv.w;   // ripple distortion
                     fixed4 r = tex2Dproj(_ReflectionTex, UNITY_PROJ_COORD(uv));
                     refl = lerp(refl, r.rgb, r.a);
                 }
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float3 h = normalize(l + v);
                 float spec = pow(saturate(dot(n, h)), 220.0) * 1.2;
-                float3 col = lerp(_Color.rgb, refl, fresnel) + spec * (1 - foam);
+                // Screen depth is measured along the view ray; vertical depth removes the grazing-angle bias.
+                float sceneZ = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.sp)));
+                float surfaceZ = -mul(UNITY_MATRIX_V, float4(i.wp,1)).z;
+                float depth = max(0, sceneZ - surfaceZ) * max(.05, v.y);
+                float3 deep = lerp(_Color.rgb, float3(.025,.045,.06), _SunsetOn);
+                float3 shallow = lerp(_Color.rgb * 1.3, float3(.16,.14,.105), _SunsetOn);
+                float3 body = lerp(shallow, deep, 1-exp(-depth*.22));
+                float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
+                float3 col = lerp(body, refl, fresnel) + spec * sunTint * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
-                return fixed4(col, _Color.a);
+                return fixed4(col, 1);
             }
             ENDCG
         }

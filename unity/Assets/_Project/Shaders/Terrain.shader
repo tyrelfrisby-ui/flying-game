@@ -16,6 +16,7 @@ Shader "FlyingGame/Terrain"
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; };
             struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; };
             fixed4 _Color; float4 _BubbleSunDir;
+            float _SunsetOn;
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -25,7 +26,7 @@ Shader "FlyingGame/Terrain"
             {
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(normalize(i.n), l));
-                float3 col = i.c.rgb * (0.55 + 0.45 * d);
+                float3 col = i.c.rgb * lerp(float3(.55,.55,.55) + .45*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
                 // Field boundaries every 200 m on flat ground (alpha carries flatness).
                 float2 g = abs(frac(i.wp.xz / 200.0) - 0.5);
                 float fieldLine = 1.0 - smoothstep(0.47, 0.5, max(g.x, g.y));
@@ -35,4 +36,5 @@ Shader "FlyingGame/Terrain"
             ENDCG
         }
     }
+    Fallback "Diffuse"
 }

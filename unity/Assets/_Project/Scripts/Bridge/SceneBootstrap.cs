@@ -57,6 +57,7 @@ namespace FlyingGame.Bridge
             light.type = LightType.Directional;
             light.intensity = 1.1f;
             sun.transform.rotation = Quaternion.Euler(55f, -35f, 0f);
+            if (System.Environment.GetEnvironmentVariable("AERO_SUNSET") == "1") SunsetLighting.Apply(light, true);
         }
 
         private static GameObject BuildAircraft()
@@ -122,7 +123,7 @@ namespace FlyingGame.Bridge
             }
 
             cam.farClipPlane = 20000f;
-            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
             cam.gameObject.AddComponent<AudioListener>();

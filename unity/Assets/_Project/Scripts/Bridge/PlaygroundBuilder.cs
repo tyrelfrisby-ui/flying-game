@@ -41,6 +41,7 @@ namespace FlyingGame.Bridge
             wm.SetVertices(v); wm.SetTriangles(tr, 0); wm.RecalculateNormals(); wm.RecalculateBounds();
             var wgo = new GameObject("CanyonLakeWater"); wgo.transform.SetParent(parent, false);
             wgo.AddComponent<MeshFilter>().sharedMesh = wm;
+            wgo.layer = WaterReflection.WaterLayer;
             wgo.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.06f, 0.3f, 0.42f, 0.93f));
 
             var b = new SeasideBuilder.Batch();
@@ -360,6 +361,7 @@ namespace FlyingGame.Bridge
             var mesh = new Mesh { name = "ReflectingPond" }; mesh.vertices = v; mesh.triangles = new[] { 0, 2, 1, 0, 3, 2, 0, 1, 2, 0, 2, 3 }; mesh.RecalculateNormals();
             var go = new GameObject("ReflectingPond"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.layer = WaterReflection.WaterLayer;
             go.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.12f, 0.3f, 0.36f, 0.95f));
         }
     }

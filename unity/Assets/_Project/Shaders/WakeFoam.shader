@@ -25,8 +25,8 @@ Shader "Hidden/FlyingGame/WakeFoam"
                 float slope = length(float2(right-left,front-back)) / (2 * _Cell);
                 // Compression identifies positive crests, rather than whitening both sides of every ripple.
                 float compression = max(0, 4*h-left-right-back-front) / _Cell;
-                float breaking = smoothstep(.012, .09, slope) * smoothstep(.003, .04, compression);
-                float old = tex2D(_MainTex, i.uv).r * .99584; // 12 s e-fold at the solver's 0.05 s step
+                float breaking = smoothstep(.10, .38, slope) * smoothstep(.04, .18, compression);
+                float old = tex2D(_MainTex, i.uv).r * .98758; // 4 s e-fold at the solver's 0.05 s step
                 return float4(saturate(max(old, breaking * .85)),0,0,1);
             }
             ENDCG

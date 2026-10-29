@@ -2,12 +2,7 @@ using UnityEngine;
 
 namespace FlyingGame.Bridge
 {
-    /// <summary>
-    /// Planar reflection of the aircraft in the water under it (owner request: glassy, reflective water — and
-    /// the classic seaplane height cue: the gap between the aircraft and its reflection). A second camera,
-    /// mirrored about the water plane, renders ONLY the aircraft layer into a small texture that the
-    /// FlyingGame/Water shader samples in screen space. Cheap on mobile: a few dozen meshes at 512².
-    /// </summary>
+    // One planar camera, with terrain/shoreline on balanced and high tiers. Water is excluded.
     [RequireComponent(typeof(Camera))]
     public sealed class WaterReflection : MonoBehaviour
     {
@@ -15,7 +10,29 @@ namespace FlyingGame.Bridge
         /// <summary>Water-side props drawn into the reflection too: lane buoys, docks, the seaplane hangar (owner 2026-10-07).</summary>
         public const int PropsLayer = 9;
         public FlightSimDriver Driver;
-        public int TextureSize = 512;
+        public enum ReflectionQuality { Low, Balanced, High }
+        public ReflectionQuality Quality = ReflectionQuality.Balanced;
+        // 0 = tier default; explicit override is useful for comparison captures.
+        public int TextureSize = 0;
+        public const int WaterLayer = 4;
+        public bool ReflectScenery = true;
+        private int Mask => ((Quality == ReflectionQuality.Low || !ReflectScenery)
+            ? (1 << AircraftLayer) | (1 << PropsLayer)
+            : _main.cullingMask) & ~((1 << WaterLayer) | (1 << 5) | (1 << 2));
+
+        private void EnsureTexture()
+        {
+            int size = TextureSize > 0 ? Mathf.Clamp(TextureSize, 128, 2048)
+                : Quality == ReflectionQuality.High ? 1536 : Quality == ReflectionQuality.Low ? 384 : 768;
+            int width = Mathf.Max(128, Mathf.RoundToInt(size * Mathf.Min(1, _main.aspect)));
+            int height = Mathf.Max(128, Mathf.RoundToInt(size / Mathf.Max(1, _main.aspect)));
+            if (_rt != null && _rt.width == width && _rt.height == height) return;
+            if (_rt != null) { _rt.Release(); Dispose(_rt); }
+            _rt = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32);
+            _rt.name = "Planar water reflection"; _rt.wrapMode = TextureWrapMode.Clamp;
+            _rt.filterMode = FilterMode.Bilinear; _rt.Create();
+            _refl.targetTexture = _rt;
+        }
 
         private Camera _main, _refl;
         private RenderTexture _rt;
@@ -25,16 +42,16 @@ namespace FlyingGame.Bridge
 
         private void Awake()
         {
+            if (_refl != null) return;
             _main = GetComponent<Camera>();
+            _main.depthTextureMode |= DepthTextureMode.Depth;
             var go = new GameObject("WaterReflectionCamera");
             go.hideFlags = HideFlags.HideAndDontSave;
             _refl = go.AddComponent<Camera>();
             _refl.enabled = false;
             _refl.clearFlags = CameraClearFlags.SolidColor;
             _refl.backgroundColor = new Color(0, 0, 0, 0);      // alpha 0 = "no aircraft here" → sky
-            _refl.cullingMask = (1 << AircraftLayer) | (1 << PropsLayer);
-            _rt = new RenderTexture(TextureSize, TextureSize, 16, RenderTextureFormat.ARGB32);
-            _refl.targetTexture = _rt;
+            EnsureTexture();
             Shader.SetGlobalFloat(ReflOnId, 0f);
         }
 
@@ -63,16 +80,25 @@ namespace FlyingGame.Bridge
             var reflection = Matrix4x4.identity;
             reflection.m11 = -1f; reflection.m13 = 2f * planeY;   // y' = -y + 2*planeY
             _refl.CopyFrom(_main);
+            _refl.enabled = false;
             _refl.clearFlags = CameraClearFlags.SolidColor; _refl.backgroundColor = new Color(0, 0, 0, 0);
-            _refl.cullingMask = (1 << AircraftLayer) | (1 << PropsLayer);
+            EnsureTexture();
+            _refl.cullingMask = Mask;
+            _refl.depthTextureMode = DepthTextureMode.None;
+            _refl.allowMSAA = false;
+            _refl.farClipPlane = Mathf.Min(_main.farClipPlane, Quality == ReflectionQuality.High ? 6000 : 3000);
+            // Transform is needed by skybox and world-space specular, in addition to the view matrix.
+            _refl.transform.position = reflection.MultiplyPoint(pos);
+            _refl.transform.rotation = Quaternion.LookRotation(reflection.MultiplyVector(_main.transform.forward), reflection.MultiplyVector(_main.transform.up));
             _refl.targetTexture = _rt;
             _refl.worldToCameraMatrix = _main.worldToCameraMatrix * reflection;
             // Oblique near plane at the water so nothing under the surface reflects.
             Vector4 planeCam = CameraSpacePlane(_refl.worldToCameraMatrix, new Vector3(0, planeY, 0), Vector3.up);
-            _refl.projectionMatrix = _main.CalculateObliqueMatrix(planeCam);
-            GL.invertCulling = true;
-            _refl.Render();
-            GL.invertCulling = false;
+            _refl.projectionMatrix = Matrix4x4.Perspective(_main.fieldOfView, _main.aspect, _main.nearClipPlane, _refl.farClipPlane);
+            _refl.projectionMatrix = _refl.CalculateObliqueMatrix(planeCam);
+            bool previousCulling = GL.invertCulling;
+            try { GL.invertCulling = !previousCulling; _refl.Render(); }
+            finally { GL.invertCulling = previousCulling; }
             Shader.SetGlobalTexture(ReflTexId, _rt);
             Shader.SetGlobalFloat(ReflPlaneId, planeY);
             Shader.SetGlobalFloat(ReflOnId, 1f);
@@ -85,10 +111,16 @@ namespace FlyingGame.Bridge
             return new Vector4(cnormal.x, cnormal.y, cnormal.z, -Vector3.Dot(cpos, cnormal));
         }
 
+        private static void Dispose(Object obj)
+        {
+            if (Application.isPlaying) Destroy(obj); else DestroyImmediate(obj);
+        }
+
         private void OnDestroy()
         {
-            if (_refl != null) Destroy(_refl.gameObject);
-            if (_rt != null) _rt.Release();
+            if (_refl != null) Dispose(_refl.gameObject);
+            if (_rt != null) { _rt.Release(); Dispose(_rt); }
+            Shader.SetGlobalFloat(ReflOnId, 0);
         }
     }
 }

@@ -45,6 +45,7 @@ Shader "FlyingGame/Airframe"
             sampler2D _DetailNormal;
             float _DetailTile, _DetailDepth, _Smoothness, _SpecStrength, _FresnelStrength;
             float4 _BubbleSunDir;
+            float _SunsetOn;
 
             struct v2f
             {
@@ -86,12 +87,12 @@ Shader "FlyingGame/Airframe"
 
                 float d = saturate(dot(n, l));
                 // the same 0.58 ambient floor FlyingGame/Lit used, so nothing in the fleet changes brightness
-                float3 col = _Color.rgb * (0.58 + 0.42 * d);
+                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
 
                 // Blinn-Phong: smoothness drives the exponent, so a polished cowl is tight and fabric is broad
                 float power = exp2(_Smoothness * 10.0) + 1.0;
                 float spec = pow(saturate(dot(n, h)), power) * _SpecStrength * d;
-                col += _SpecTint.rgb * spec;
+                col += _SpecTint.rgb * spec * lerp(float3(1,1,1),float3(1,.66,.38),_SunsetOn);
 
                 // a painted curve catches the sky at its edge
                 float fres = pow(1.0 - saturate(dot(n, v)), 4.0) * _FresnelStrength;

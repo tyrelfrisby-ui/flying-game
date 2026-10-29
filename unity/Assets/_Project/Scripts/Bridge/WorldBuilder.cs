@@ -772,6 +772,7 @@ namespace FlyingGame.Bridge
             }
             mesh.triangles = tris; mesh.RecalculateNormals(); mesh.RecalculateBounds();
             var go = new GameObject(name);
+            if (m.shader.name == "FlyingGame/Water") go.layer = WaterReflection.WaterLayer;
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = m;
