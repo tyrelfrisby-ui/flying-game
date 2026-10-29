@@ -644,8 +644,12 @@ namespace FlyingGame.Bridge
             // This band is beyond the last tower/road column and every protected row.
             int extension=0, candidates=0, treesRejected=0, terrainRejected=0;
             int waterRejected=0, airportRejected=0, viewRejected=0, sightRejected=0;
-            int extensionStart=b.Count;
+            int extensionStart=b.Count,extensionEnd=b.Count;
             float extensionArea=0;
+            int nearCount=0,nearTested=0,nearForest=0,nearGround=0,nearView=0,nearSight=0,nearOverlap=0;
+            int laneSegments=0,laneRejected=0,streetTrees=0;
+            var extensionRows=new Dictionary<int,double>();
+            var nearLanes=new Dictionary<double,(double min,double max)>();
             if(grid.Rotated && terrain!=null)
             {
                 // Exact town eye/look, translated with the city's plateau. Never move a camera.
@@ -658,7 +662,7 @@ namespace FlyingGame.Bridge
                 // Generate the sight corridor's registered trees once, not once per lot.
                 // Temporary CPU list only; never added to the mesh or collision registry.
                 var sightTrees=new List<FlyingGame.Core.Forest.Tree>();
-                foreach(var tr in FlyingGame.Core.Forest.InRect(grid.X0-912,grid.Y0+768,
+                foreach(var tr in FlyingGame.Core.Forest.InRect(grid.X0-912,grid.Y0-40,
                     grid.X0+1352,grid.Y0+2084)) sightTrees.Add(tr);
                 // Reject a lot whose roof cannot be seen above actual terrain/registered
                 // forest. No visual clearing of trees that still have sim collision.
@@ -750,9 +754,137 @@ namespace FlyingGame.Bridge
                             Lawn(x+.55f,-8.5f),Lawn(x+.55f,-19.5f),new Color(.54f,.51f,.44f));
                     }
                     extension++; extensionArea+=size.x*size.z;
+                    extensionRows[row]=u;
+                }
+                extensionEnd=b.Count;
+                // C12: a second, smaller-grain band at the town-facing edge. C11 bodies
+                // remain exactly where they were. Small footprints fit real forest gaps;
+                // registered forest is never cleared for the sake of the render.
+                for(int candidate=0;candidate<72 && nearCount<72;candidate++)
+                {
+                    double u,v;
+                    if(candidate<48) { u=1092+(candidate%8)*34; v=-196+(candidate/8)*48; }
+                    else { u=1092; v=140+(candidate-48)*48; }
+                    nearTested++;
+                    // Keep the existing six-by-six flank and every C11 garden intact.
+                    if(u>=1150 && v<=-202) { nearOverlap++; continue; }
+                    var map=grid.Map(u,v);
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-18)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+84) blocked=true;
+                    double g=terrain.HeightAt(map.x,map.y),low=g,high=g;
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                    {
+                        double h=terrain.HeightAt(map.x+dx*9,map.y+dy*9);
+                        low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                        if(terrain.WaterSurfaceAt(map.x+dx*18,map.y+dy*14).HasValue) blocked=true;
+                    }
+                    if(blocked || System.Math.Abs(g-ground)>100 || high-low>2.5)
+                    { nearGround++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-30,map.y-26,map.x+30,map.y+26))
+                        if(System.Math.Abs(tr.X-map.x)<18+tr.CrownRadiusM
+                            && System.Math.Abs(tr.Y-map.y)<14+tr.CrownRadiusM) { blocked=true; break; }
+                    if(blocked) { nearForest++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 size=new Vector3(16,9.3f,14); // three-storey town walk-up
+                    Vector3 roof=foot+Vector3.up*14;
+                    Vector3 relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    if(depth<650 || depth>2050 || Mathf.Abs(Vector3.Dot(relative,right))+10>depth*tanHalfFov*aspect*.94f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+14>depth*tanHalfFov*.94f)
+                    { nearView++; continue; }
+                    // Roof AND upper facade must clear the forest. The former low 5 m
+                    // test discarded houses with visible upper storeys behind the tree belt.
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,9,-7)))
+                    { nearSight++; continue; }
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,
+                        terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-12,-18),Lawn(-12,18),Lawn(12,18),Lawn(12,-18),new Color(.34f,.41f,.28f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,15001+candidate*37,1,candidate/3);
+                    b.Quad(Lawn(-.7f,-18),Lawn(-.7f,-7),Lawn(.7f,-7),Lawn(.7f,-18),new Color(.56f,.53f,.46f));
+                    nearCount++;
+                    double laneV=v-24;
+                    if(nearLanes.TryGetValue(laneV,out var range))
+                        nearLanes[laneV]=(System.Math.Min(range.min,u),System.Math.Max(range.max,u+12));
+                    else nearLanes[laneV]=(System.Math.Min(1110,u),System.Math.Max(1110,u+12));
+                }
+                // C12: six-metre residential lanes along the C11 garden frontages,
+                // joined by an edge collector. Entirely outside the old city road/lot
+                // boundary (u=1090); unchanged city street ends meet the collector.
+                // Eight-metre terrain-draped pieces avoid floating hillside asphalt.
+                Vector3 Surface(double u,double v,float lift)
+                {
+                    var m=grid.Map(u,v);
+                    return WorldBuilder.U(m.x,m.y,terrain.HeightAt(m.x,m.y)+lift);
+                }
+                void Lane(double u0,double v0,double u1,double v1)
+                {
+                    double length=System.Math.Sqrt((u1-u0)*(u1-u0)+(v1-v0)*(v1-v0));
+                    int steps=Mathf.CeilToInt((float)length/8);
+                    double du=(u1-u0)/steps,dv=(v1-v0)/steps;
+                    double nx=-dv/ System.Math.Sqrt(du*du+dv*dv),nz=du/System.Math.Sqrt(du*du+dv*dv);
+                    for(int k=0;k<steps;k++)
+                    {
+                        double u=u0+du*k,v=v0+dv*k;
+                        var m=grid.Map(u+du*.5,v+dv*.5);
+                        bool blocked=false;
+                        foreach(var tr in FlyingGame.Core.Forest.InRect(m.x-12,m.y-12,m.x+12,m.y+12))
+                            if(System.Math.Abs(tr.X-m.x)<6+tr.CrownRadiusM && System.Math.Abs(tr.Y-m.y)<6+tr.CrownRadiusM)
+                            { blocked=true; break; }
+                        foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                            if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,m.x-8)<70
+                                && System.Math.Abs(m.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+78) blocked=true;
+                        for(int corner=0;corner<4;corner++)
+                        {
+                            double cu=u+(corner/2)*du+(corner%2==0?-4:4)*nx;
+                            double cv=v+(corner/2)*dv+(corner%2==0?-4:4)*nz;
+                            var c=grid.Map(cu,cv);
+                            if(terrain.WaterSurfaceAt(c.x,c.y).HasValue) blocked=true;
+                        }
+                        if(blocked || System.Math.Abs(Surface(u,v,0).y-Surface(u+du,v+dv,0).y)>2)
+                        { laneRejected++; continue; }
+                        void Strip(double a,double c,float lift,Color colour)
+                        {
+                            b.Quad(Surface(u+nx*a,v+nz*a,lift),Surface(u+nx*c,v+nz*c,lift),
+                                Surface(u+du+nx*c,v+dv+nz*c,lift),Surface(u+du+nx*a,v+dv+nz*a,lift),colour);
+                        }
+                        Strip(-4,4,.09f,new Color(.56f,.55f,.50f));
+                        Strip(-3,3,.105f,new Color(.26f,.27f,.26f));
+                        if(k%3==0) Strip(-.07,.07,.12f,new Color(.72f,.68f,.52f));
+                        laneSegments++;
+                    }
+                }
+                int lastRow=-1;
+                foreach(var row in extensionRows)
+                {
+                    double v=116+row.Key*48;
+                    Lane(1110,v,row.Value+22,v);
+                    lastRow=System.Math.Max(lastRow,row.Key);
+                    // Occasional small deciduous garden trees, not a new forest belt.
+                    double u=row.Value+21;
+                    var m=grid.Map(u,v+11);
+                    if(!terrain.WaterSurfaceAt(m.x,m.y).HasValue)
+                    { Tree(b,Surface(u,v+11,.12f),row.Key*17); streetTrees++; }
+                }
+                double collectorStart=85,collectorEnd=lastRow>=0?116+lastRow*48:85;
+                foreach(var row in nearLanes)
+                {
+                    Lane(row.Value.min,row.Key,row.Value.max,row.Key);
+                    collectorStart=System.Math.Min(collectorStart,row.Key);
+                    collectorEnd=System.Math.Max(collectorEnd,row.Key);
+                }
+                if(collectorEnd>collectorStart)
+                {
+                    Lane(1110,collectorStart,1110,collectorEnd);
+                    Lane(1091,85,1110,85);
                 }
             }
-            Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {b.Count-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
+            Debug.Log($"Roof district C12 near band {grid.X0},{grid.Y0}: {nearCount}/72 placed from {nearTested}; rejects overlap={nearOverlap}, ground/water/airport={nearGround}, forest={nearForest}, frustum={nearView}, sightline={nearSight}; lanes={laneSegments} eight-metre-or-shorter pieces, rejected={laneRejected}, garden trees={streetTrees}. All C11 bodies retained; visible band and lane continuity require renders.");
+            Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {extensionEnd-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
             Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
             // Count/footprint are emitted for Chief's render log; no collision registration.
             Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} visual-only buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; no colliders.");
