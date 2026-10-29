@@ -446,10 +446,8 @@ Shader "FlyingGame/Terrain"
                             // edge (900 m footprint pad), with a 200 m fade OUTSIDE it.
                             float outsideAlpineCore=smoothstep(_MountainAlpine.z-900,
                                 _MountainAlpine.z-700,i.wp.x);
-                            // Extend only the vegetation replacement past the fading wall
-                            // footprint. The original foreland/ice and actual-core gates stay put.
                             corridorVegetation=max(corridorVegetation,alaska*outsideAlpineCore
-                                *(1-smoothstep(width+1800,width+2600,corridorDistance)));
+                                *(1-smoothstep(width+1200,width+1800,corridorDistance)));
                             float setting=wallBiome
                                 *(1-smoothstep(width+900,width+1400,corridorDistance));
                             surroundings=max(surroundings,setting);
@@ -569,10 +567,8 @@ Shader "FlyingGame/Terrain"
                     // Apply after meadow/substrate/canopy. Do not reuse alpineMeadow:
                     // its padded overlap is precisely where the surviving green is painted.
                     float vegetationChroma=albedo.g-max(albedo.r,albedo.b);
-                    // Catch the faint, partly blended green edge as well as saturated
-                    // meadow. Neutral rock and blue-white snow/ice still select zero.
                     float greenToe=corridorVegetation*(1-glacierSurface)
-                        *smoothstep(.002,.018,vegetationChroma);
+                        *smoothstep(.012,.055,vegetationChroma);
                     float3 dryToe=lerp(float3(.34,.31,.27),float3(.49,.46,.40),broad);
                     albedo=lerp(albedo,dryToe,greenToe);
 
