@@ -119,10 +119,7 @@ for k in (0, -1):   # sill rails along both canopy edges
     for p0, p1 in zip(pts, pts[1:]):
         v = [bm.verts.new(q) for q in (p0, p1, (p1[0], p1[1], p1[2] + 0.035), (p0[0], p0[1], p0[2] + 0.035))]
         bm.faces.new(v)
-pts = [sec(px, tp, grow=0.008)[8] for px, tp in CAN]   # crown rib
-for p0, p1 in zip(pts, pts[1:]):
-    v = [bm.verts.new(q) for q in ((p0[0], 0.018, p0[2]), (p1[0], 0.018, p1[2]), (p1[0], -0.018, p1[2]), (p0[0], -0.018, p0[2]))]
-    bm.faces.new(v)
+# no crown rib: the real canopy is one seamless clear bubble (photo C-FDWB)
 P['Canopy_Frame'] = link('Canopy_Frame', bm)
 
 # ---- wing (planform from the 3-view) --------------------------------------------------------------
