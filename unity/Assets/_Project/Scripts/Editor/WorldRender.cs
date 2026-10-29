@@ -148,8 +148,24 @@ namespace FlyingGame.EditorTools
             papiCloseLook.y=(float)valley.ElevationM+.85f; // PAPI optical centre
             papiCloseEye.y=papiCloseLook.y+400*Mathf.Tan(3*Mathf.Deg2Rad);
             Debug.Log($"PAPI close plates: 100 m before threshold, 400 m to boxes, 3.00 degrees, 27 degree lens; eye {papiCloseEye}, target {papiCloseLook}, box spacing 9 m");
+            var serviceTower=city.Towers()[0];
+            var cityRingRoofs=city.RooftopRings();
+            foreach(var candidate in city.Towers())
+            {
+                if(candidate.HeightM<120 || candidate.HeightM>220 || (city.PadLot.HasValue && candidate.J==city.PadLot.Value.j)) continue;
+                bool protectedService=false;
+                foreach(var ring in cityRingRoofs) if(ring.t.I==candidate.I && ring.t.J==candidate.J) protectedService=true;
+                if(protectedService) continue;
+                serviceTower=candidate; break;
+            }
+            Vector3 serviceRoof=WorldBuilder.U(serviceTower.Cx,serviceTower.Cy,terrain.HeightAt(serviceTower.Cx,serviceTower.Cy)+serviceTower.HeightM);
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("city-rooftop-equipment", serviceRoof+new Vector3(-65,45,-75), serviceRoof),
+                ("city-rooftop-equipment-night", serviceRoof+new Vector3(-65,45,-75), serviceRoof),
+                ("city-traffic-detail", Street(425,485), Street(425,555)),
+                ("city-traffic-motion", Street(425,485), Street(425,555)),
+                ("city-traffic-night", Street(425,485), Street(425,555)),
                 ("city-roofs-detail", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
                 ("city-roofs-night", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
                 ("city-street-furniture", Street(438,525), Street(438,620)),
@@ -319,6 +335,8 @@ namespace FlyingGame.EditorTools
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
                 cam.fieldOfView=name.StartsWith("runway-papi-close-")?27f:name.StartsWith("runway-papi-")?35f:50f;
                 Shader.SetGlobalFloat("_AirportGrassPreviewOff",name=="valley-airport-grass-control-dusk"?1:0);
+                Shader.SetGlobalFloat("_CityTrafficPreview",1);
+                Shader.SetGlobalFloat("_CityTrafficTime",name=="city-traffic-motion"?12:0);
                 bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");
                 foreach(var tint in nightTints)
@@ -394,6 +412,7 @@ namespace FlyingGame.EditorTools
             Shader.SetGlobalFloat("_AirportDusk", 0);
             Shader.SetGlobalFloat("_AirportBeaconPreview",0);
             Shader.SetGlobalFloat("_CityNight",0);
+            Shader.SetGlobalFloat("_CityTrafficPreview",0);
             foreach(var tint in nightTints) tint.material.SetColor(tint.property,tint.colour);
             RenderSettings.fog=false;
             SunsetLighting.ApplyDay();

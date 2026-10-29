@@ -12,17 +12,28 @@ Shader "FlyingGame/UrbanFacade"
    #pragma target 3.0
    #pragma multi_compile_fog
    #include "UnityCG.cginc"
-   struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float2 data:TEXCOORD1; float4 color:COLOR; };
+   struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float2 data:TEXCOORD1; float4 color:COLOR; float4 travel:TEXCOORD2; };
    struct v2f { float4 pos:SV_POSITION; float3 world:TEXCOORD0; float3 normal:TEXCOORD1; float2 uv:TEXCOORD2; float2 data:TEXCOORD3; float4 color:COLOR; UNITY_FOG_COORDS(4) };
    float4 _BubbleSunDir, _ReflectionClip, _DayAtmosphere;
-   float _CityNight, _ReflectionRendering, _SunsetOn;
+   float _CityNight, _ReflectionRendering, _SunsetOn, _CityTrafficPreview, _CityTrafficTime;
    v2f vert(appdata v)
    {
-    v2f o; o.pos=UnityObjectToClipPos(v.vertex); o.world=mul(unity_ObjectToWorld,v.vertex).xyz;
+    v2f o;
+    // Time based decorative traffic, constrained to one clear avenue segment.
+    float moving=step(5.5,v.data.x);
+    float trafficTime=lerp(_Time.y,_CityTrafficTime,_CityTrafficPreview);
+    float phase=frac(trafficTime*(7.0+frac(v.data.y*.137)*5.0)/max(1.0,v.travel.w)+frac(v.data.y*.618034));
+    v.vertex.xyz+=v.travel.xyz*((phase-.5)*v.travel.w*moving);
+    o.pos=UnityObjectToClipPos(v.vertex); o.world=mul(unity_ObjectToWorld,v.vertex).xyz;
     o.normal=UnityObjectToWorldNormal(v.normal); o.uv=v.uv; o.data=v.data; o.color=v.color;
     UNITY_TRANSFER_FOG(o,o.pos); return o;
    }
-   float hash(float2 p) { return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
+   float hash(float2 p)
+   {
+    float3 q=frac(float3(p.x,p.y,p.x)*.1031);
+    q+=dot(q,q.yzx+33.33);
+    return frac((q.x+q.y)*q.z);
+   }
    float boxMask(float2 f,float2 halfSize,float2 aa)
    {
     float2 m=1-smoothstep(halfSize-aa,halfSize+aa,abs(f-.5)); return m.x*m.y;
@@ -31,6 +42,15 @@ Shader "FlyingGame/UrbanFacade"
    {
     if (_ReflectionRendering>.5) clip(dot(float4(i.world,1),_ReflectionClip));
     float style=i.data.x;
+    if(style>5.5)
+    {
+     float sun=saturate(dot(normalize(i.normal),normalize(_BubbleSunDir.xyz)));
+     float3 body=i.color.rgb*(.48+.52*sun);
+     float lamp=1-step(.01,i.color.a);
+     float3 night=lerp(body*.22,i.color.rgb*2.2,lamp);
+     float4 result=float4(lerp(body,night,_CityNight),1);
+     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+    }
     if(style>4.5)
     {
      // Same top-face asphalt as the city slab by day; smooth analytic sodium/LED spill by night.
@@ -49,14 +69,19 @@ Shader "FlyingGame/UrbanFacade"
     float brick=1-step(.5,abs(style-1));
     float house=step(3.5,style);
     float2 pitch=float2(lerp(3.8,2.2,curtain),lerp(3.6,3.9,brick));
+    pitch=lerp(pitch,float2(4.8,3.9),brick);
     pitch=lerp(pitch,float2(3.4,3.1),house);
     float2 grid=i.uv/pitch, cell=floor(grid), f=frac(grid);
     float2 aa=max(fwidth(grid),.001);
-    float rnd=hash(cell+float2(i.data.y,3.7));
+    float rnd=hash(cell+float2(i.data.y,3.7)+i.normal.xz*17);
     float2 paneSize=float2(lerp(.31,.475,curtain),lerp(.32,.46,curtain));
     paneSize.x=lerp(paneSize.x,.49,ribbon);
-    float pane=boxMask(f,paneSize,aa);
-    float frame=boxMask(f,max(.05,paneSize-float2(.025,.024)),aa);
+    // Brick walk-ups use paired narrow sash windows rather than office panes.
+    float2 paneCoord=lerp(f,float2(frac(f.x*2),f.y),brick);
+    float2 paneAA=aa*float2(1+brick,1);
+    paneSize=lerp(paneSize,float2(.29,.30),brick);
+    float pane=boxMask(paneCoord,paneSize,paneAA);
+    float frame=boxMask(paneCoord,max(.05,paneSize-float2(.025,.024)),paneAA);
     float storefront=1-smoothstep(4.3,4.5,i.uv.y);
     pane=lerp(pane,boxMask(frac(i.uv/float2(5,5)),float2(.46,.43),max(fwidth(i.uv/float2(5,5)),.001)),storefront);
     frame=lerp(frame,pane,storefront);
@@ -72,23 +97,25 @@ Shader "FlyingGame/UrbanFacade"
     float3 reflected=reflect(-view,n);
     float sky=saturate(reflected.y*.7+.5);
     float3 glass=lerp(float3(.055,.10,.12),float3(.40,.57,.64),sky);
-    glass*=lerp(.65,1.12,rnd);
+    glass*=lerp(lerp(.72,1.08,rnd),.96,curtain);
     float blind=step(.76,rnd)*(1-step(.60,f.y));
-    glass=lerp(glass,float3(.48,.44,.35),blind*.65);
+    glass=lerp(glass,float3(.48,.44,.35),blind*.65*(1-curtain));
     float mullion=1-boxMask(frac(i.uv/float2(pitch.x*.5,pitch.y)),float2(.478,.49),max(fwidth(i.uv/float2(pitch.x*.5,pitch.y)),.001));
     glass=lerp(glass,float3(.13,.17,.18),mullion*.7*detail);
     float sun=saturate(dot(n,normalize(_BubbleSunDir.xyz)));
     float3 base=lerp(wall,lerp(float3(.065,.075,.075),glass,frame),pane);
     base*=.58+.42*sun;
-    float lit=step(.60,rnd); // 40 percent, deterministic per room and building.
+    float building=hash(float2(i.data.y,41.7));
+    float occupancy=lerp(.18,.52,building);
+    float lit=step(1-occupancy,rnd);
     float3 warm=lerp(float3(1,.77,.46),float3(.72,.86,1),step(.65,hash(cell+i.data.y+19)));
     // Analytic pixel-footprint average replaces subpixel hash/grid sampling at aerial distance.
-    // Preserve the 40% occupancy energy instead of letting tiny windows vanish or sparkle.
+    // A restrained unresolved contribution avoids solid glowing walls at aerial distance.
     float unresolved=smoothstep(.18,.85,max(aa.x,aa.y));
     float coverage=4*paneSize.x*paneSize.y;
-    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*.40*.85,unresolved);
+    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.34,unresolved);
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
-    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*2.4;
+    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.05,1.65,building);
     float4 result=float4(lerp(base,night,_CityNight),1);
     UNITY_APPLY_FOG(i.fogCoord,result); return result;
    }
