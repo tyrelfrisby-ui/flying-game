@@ -173,7 +173,19 @@ namespace FlyingGame.Bridge
             float y = top + 0.03f;
             void Stripe(float u0, float v0, float u1, float v1, float w, Color c)
             {
-                Vector3 a = new(v0, y, u0), e = new(v1, y, u1), d = (e - a).normalized, n = new Vector3(d.z, 0, -d.x) * (w / 2);
+                // Clip decorative paint to the existing deck; the angled guide otherwise floats over water.
+                float t0 = 0, t1 = 1;
+                bool ClipAxis(float start, float delta, float lo, float hi)
+                {
+                    if (Mathf.Abs(delta) < .00001f) return start >= lo && start <= hi;
+                    float aT = (lo - start) / delta, bT = (hi - start) / delta;
+                    t0 = Mathf.Max(t0, Mathf.Min(aT,bT));
+                    t1 = Mathf.Min(t1, Mathf.Max(aT,bT));
+                    return t1 > t0;
+                }
+                float du = u1-u0, dv = v1-v0;
+                if (!ClipAxis(u0,du,-L+w*.5f,L-w*.5f) || !ClipAxis(v0,dv,vp+w*.5f,vs-w*.5f)) return;
+                Vector3 a = new(v0+dv*t0, y, u0+du*t0), e = new(v0+dv*t1, y, u0+du*t1), d = (e - a).normalized, n = new Vector3(d.z, 0, -d.x) * (w / 2);
                 b.Quad(a - n, a + n, e + n, e - n, c);   // facing up
             }
             // Deck edges, the bow (straight) centreline, the angled landing area: edges, dashed centreline, the wires.
