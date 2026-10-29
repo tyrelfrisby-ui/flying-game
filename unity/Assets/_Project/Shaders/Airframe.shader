@@ -40,12 +40,13 @@ Shader "FlyingGame/Airframe"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "SunsetSky.cginc"
 
             fixed4 _Color, _SpecTint;
             sampler2D _DetailNormal;
             float _DetailTile, _DetailDepth, _Smoothness, _SpecStrength, _FresnelStrength;
             float4 _BubbleSunDir;
-            float _SunsetOn, _ReflectionRendering;
+            float _ReflectionRendering;
             float4 _ReflectionClip;
 
             struct v2f
@@ -80,7 +81,7 @@ Shader "FlyingGame/Airframe"
 
                 // surface detail: panel lines and rivets, in tangent space
                 float3 tn = UnpackNormal(tex2D(_DetailNormal, i.uv));
-                tn.xy *= _DetailDepth * lerp(1.0, .3, _SunsetOn);
+                tn.xy *= _DetailDepth * lerp(1.0, .08, _SunsetOn);
                 float3 t = normalize(i.t), b = normalize(i.b);
                 n = normalize(t * tn.x + b * tn.y + n * tn.z);
 
@@ -92,6 +93,12 @@ Shader "FlyingGame/Airframe"
                 float d = saturate(dot(n, l));
                 // the same 0.58 ambient floor FlyingGame/Lit used, so nothing in the fleet changes brightness
                 float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.53,.51,.54), float3(.64,.65,.73), n.y * .5 + .5) + float3(.65,.43,.24)*d, _SunsetOn);
+
+                // Broad sky reflection gives curved paint a cool-to-warm response even
+                // away from the tiny sun. Analytic environment, no cubemap or extra pass.
+                float3 env = SunsetEnvironment(reflect(-v,n));
+                col += _SunsetOn * env * (.10 + .18 * _Smoothness) *
+                    (.35 + .65 * pow(1-saturate(dot(n,v)), 2));
 
                 // Blinn-Phong: smoothness drives the exponent, so a polished cowl is tight and fabric is broad
                 float power = exp2(_Smoothness * 10.0) + 1.0;

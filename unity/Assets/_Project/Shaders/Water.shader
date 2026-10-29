@@ -69,7 +69,9 @@ Shader "FlyingGame/Water"
                         float hx = tex2D(_WakeTex, wuv + float2(_WakeTexel.x, 0)).r - tex2D(_WakeTex, wuv - float2(_WakeTexel.x, 0)).r;
                         float hz = tex2D(_WakeTex, wuv + float2(0, _WakeTexel.y)).r - tex2D(_WakeTex, wuv - float2(0, _WakeTexel.y)).r;
                         float2 slope = float2(hx, hz) / (2.0 * _WakeTexel.z);
-                        n = normalize(float3(n.x - slope.x * 2.0, 1.0, n.z - slope.y * 2.0));
+                        // Keep the solver intact; limit only optical slope amplification. The old
+                        // 2x slope made every radial forcing pulse read as a circular ring.
+                        n = normalize(float3(n.x - slope.x * .65, 1.0, n.z - slope.y * .65));
                         // World-space foam rafts break up the crest history.
                         float history = max(tex2D(_WakeFoamTex, wuv).r, saturate((length(slope) - .12) * 4) * .4);
                         float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
@@ -94,14 +96,15 @@ Shader "FlyingGame/Water"
                             float armDistance = abs(side - max(0, aft) * .354 - origin.z * .35 + wander);
                             float arms = 1 - smoothstep(width * .25, width, armDistance);
                             float fade = exp(-age * .8) * smoothstep(0, 1.2, aft);
-                            float breakup = smoothstep(.29 + saturate(age * .09), .73, lace);
-                            breakup *= smoothstep(.2, .65, noise(float2(aft * .7, f * 13.1)));
+                            // Connected young cusp line, becoming elongated, broken rafts downstream.
+                            float streak = noise(float2(aft * .19, signedSide * 4.5) + f * 13.1);
+                            float breakup = lerp(.8, smoothstep(.30, .65, streak), saturate(age / 2.5));
                             float turbulentWidth = origin.z * .7 + max(0,aft) * .07;
                             float stepFoam = exp(-side * side / max(.2, turbulentWidth * turbulentWidth)) * exp(-max(0,aft) / 6);
-                            stepFoam *= .4 + .6 * smoothstep(.3, .65, lace);
+                            stepFoam *= .65 + .35 * smoothstep(.25, .7, noise(float2(aft * .32, signedSide * 5)));
                             float transverse = pow(saturate(cos(aft * 1.8 / max(1, motion.z / 8) + side * side / max(1,aft))), 12);
                             float inside = 1 - smoothstep(max(0,aft)*.30, max(0,aft)*.354 + .1, side);
-                            float active = origin.w * stepFoam * .8 + origin.w * fade * (arms * outward * breakup * .8 + inside * transverse * .08);
+                            float active = origin.w * stepFoam * .95 + origin.w * fade * (arms * outward * breakup * .8 + inside * transverse * .08);
                             foam = max(foam, active * step(0, aft));
                         }
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));
@@ -130,7 +133,10 @@ Shader "FlyingGame/Water"
                 float3 shallow = lerp(_Color.rgb * 1.3, float3(.16,.14,.105), _SunsetOn);
                 float3 body = lerp(shallow, deep, 1-exp(-depth*.22));
                 float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
-                float3 col = lerp(body, refl, fresnel) + spec * sunTint * (1 - foam);
+                // A calm sunset lake reflects the luminous deck well into the foreground.
+                // Keep silhouettes and sky on the same reflection weight; no additive sky wash.
+                float mirror = lerp(fresnel, max(fresnel, .72 + .22 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
+                float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 return fixed4(col, 1);
             }

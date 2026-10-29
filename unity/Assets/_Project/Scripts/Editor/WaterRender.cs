@@ -39,15 +39,16 @@ namespace FlyingGame.EditorTools
             for (int i=0;i<180;i++)
             {
                 float x=-1300+i*15;
-                float z=340+25*Mathf.Sin(i*.08f)+12*Mathf.Sin(i*.31f);
+                float z=340+55*Mathf.Sin(i*.08f)+27*Mathf.Sin(i*.31f);
                 int n=verts.Count;
-                verts.Add(origin+new Vector3(x,-.4f,z)); verts.Add(origin+new Vector3(x,5,z+40));
+                verts.Add(origin+new Vector3(x,-.4f,z)); verts.Add(origin+new Vector3(x,1.2f+Mathf.Sin(i*.43f)*.8f,z+40));
                 if(previousBank >= 0) tris.AddRange(new[]{previousBank,previousBank+1,n,n,previousBank+1,n+1});
                 previousBank = n;
                 for(int row=0;row<2;row++)
                 {
-                    float h=7+(float)rng.NextDouble()*12;
-                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*12,2,z+18+row*24);
+                    float cluster=.5f+.5f*Mathf.Sin(i*.23f);
+                    float h=4+cluster*9+(float)rng.NextDouble()*13;
+                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*20,-.1f,z+6+row*38);
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
@@ -176,6 +177,16 @@ namespace FlyingGame.EditorTools
                         source.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0); source.Apply();
                         File.WriteAllBytes(Path.Combine(output, "reflection-source.png"), source.EncodeToPNG());
                         UnityEngine.Object.DestroyImmediate(source);
+                        // Same pose, same water: isolate the scenery contribution in every run.
+                        bool scenery = reflection.ReflectScenery;
+                        reflection.ReflectScenery = false;
+                        Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = rt;
+                        var isolated = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
+                        isolated.ReadPixels(new Rect(0, 0, 1600, 1000), 0, 0); isolated.Apply();
+                        File.WriteAllBytes(Path.Combine(output, "reflection-scenery-off.png"), isolated.EncodeToPNG());
+                        UnityEngine.Object.DestroyImmediate(isolated);
+                        reflection.ReflectScenery = scenery;
+                        Call(reflection, "OnPreCull");
                         RenderTexture.active = rt;
                     }
                     UnityEngine.Object.DestroyImmediate(tex);
@@ -188,7 +199,7 @@ namespace FlyingGame.EditorTools
                     var aircraftBounds = new Bounds(at, Vector3.zero);
                     foreach (var r in root.GetComponentsInChildren<Renderer>()) aircraftBounds.Encapsulate(r.bounds);
                     float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(31 * Mathf.Deg2Rad) * camera.aspect * .90f));
-                    camera.transform.position = new Vector3(at.x + distance * .22f, (float)lake.SurfaceM + 1.4f, at.z - distance);
+                    camera.transform.position = new Vector3(at.x - distance * .48f, (float)lake.SurfaceM + 1.05f, at.z - distance);
                     camera.transform.LookAt(new Vector3(at.x, (float)lake.SurfaceM + .55f, at.z));
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var photo = new Texture2D(1000, 1600, TextureFormat.RGB24, false);

@@ -69,7 +69,7 @@ namespace FlyingGame.Bridge
             var r = ps.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = _mat;
             r.renderMode = ParticleSystemRenderMode.Stretch;
-            r.velocityScale = .09f; r.lengthScale = 2.0f;
+            r.velocityScale = .12f; r.lengthScale = 2.4f;
             var sh = ps.shape; sh.enabled = false;
             return ps;
         }
@@ -218,11 +218,11 @@ namespace FlyingGame.Bridge
             SetRate(ps, rate);
             if (rate <= 0f) return;
             var main = ps.main;
-            main.startSize = new ParticleSystem.MinMaxCurve(size * .14f, size * .55f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .23f, size * .68f);
             ps.transform.position = new Vector3(keelPoint.x, waterY + 0.05f, keelPoint.z);
             // Spray sheet: outboard and up, plus a little aft (it's left behind), speed ~ boat speed.
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.28f + .45f * Mathf.Clamp01(draft / 0.3f)) - fwd * 0.55f).normalized;
+            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.20f + .45f * Mathf.Clamp01(draft / 0.3f)) - fwd * 0.55f).normalized;
             float v = Mathf.Clamp(speed * 0.5f, 1.5f, 12f);
             vel.x = Spread(dir.x * v, .6f, 1.2f);
             vel.y = Spread(dir.y * v, .6f, 1.2f);

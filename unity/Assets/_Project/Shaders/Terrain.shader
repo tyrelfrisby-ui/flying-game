@@ -26,7 +26,15 @@ Shader "FlyingGame/Terrain"
             fixed4 frag (v2f i) : SV_Target
             {
                 // Explicit world-space half-space rejects submerged terrain even at grazing angles.
-                if (_ReflectionRendering > .5) clip(dot(float4(i.wp, 1), _ReflectionClip));
+                if (_ReflectionRendering > .5)
+                {
+                    clip(dot(float4(i.wp, 1), _ReflectionClip));
+                    // Height-field terrain is a one-sided surface. The mirrored eye is below
+                    // the lake: reject plateau undersides explicitly, independently of winding
+                    // state on the nested Camera.Render. Half-space clipping cannot remove
+                    // an underside whose vertices are ABOVE the water.
+                    clip(dot(normalize(i.n), _WorldSpaceCameraPos - i.wp));
+                }
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(normalize(i.n), l));
                 float3 col = i.c.rgb * lerp(float3(.55,.55,.55) + .45*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
