@@ -211,6 +211,13 @@ namespace FlyingGame.EditorTools
                         source.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0); source.Apply();
                         File.WriteAllBytes(Path.Combine(output, "reflection-source.png"), source.EncodeToPNG());
                         UnityEngine.Object.DestroyImmediate(source);
+                        var mirrorCamera = (Camera)typeof(WaterReflection).GetField("_refl", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(reflection);
+                        File.WriteAllText(Path.Combine(output, "reflection-diagnostics.txt"),
+                            $"Fixture surface={lake.SurfaceM}; reflected surface={Shader.GetGlobalFloat("_ReflPlaneY")}; harbor={WorldTerrain.Harbor.SurfaceM}\n" +
+                            $"Aircraft Unity={root.transform.position}; sim={CoordinateMap.ToSim(root.transform.position)}\n" +
+                            $"Main eye={camera.transform.position}; mirrored eye={mirrorCamera.transform.position}\n" +
+                            $"View determinant={mirrorCamera.worldToCameraMatrix.determinant}; near={mirrorCamera.nearClipPlane}; far={mirrorCamera.farClipPlane}\n" +
+                            $"Projection (finite, no oblique clip):\n{mirrorCamera.projectionMatrix}\nView:\n{mirrorCamera.worldToCameraMatrix}\n");
                         // Same pose, same water: isolate the scenery contribution in every run.
                         bool scenery = reflection.ReflectScenery;
                         reflection.ReflectScenery = false;
@@ -244,13 +251,22 @@ namespace FlyingGame.EditorTools
                     // Low rear-quarter photo pose. Fit only airframe mesh renderers:
                     // particle bounds can otherwise force the camera far out of the scene.
                     var heroBounds = new Bounds(at, Vector3.zero);
-                    foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
-                        heroBounds.Encapsulate(r.bounds);
+                    var heroPoints = new System.Collections.Generic.List<Vector3>();
+                    foreach (var filter in root.GetComponentsInChildren<MeshFilter>())
+                    {
+                        var renderer = filter.GetComponent<MeshRenderer>();
+                        if (renderer == null || !renderer.enabled || filter.sharedMesh == null) continue;
+                        heroBounds.Encapsulate(renderer.bounds);
+                        // Fit the actual silhouette, not the empty corners of a large
+                        // wing-to-tail bounding box. Editor-only; no runtime mesh readback.
+                        foreach (var vertex in filter.sharedMesh.vertices)
+                            heroPoints.Add(filter.transform.TransformPoint(vertex));
+                    }
                     camera.fieldOfView = 88;
                     Vector3 aim = new Vector3(heroBounds.center.x,
                         (float)lake.SurfaceM + .55f, heroBounds.center.z);
-                    Vector3 rear = new Vector3(-.16f, 0, -1).normalized;
-                    float heroDistance = 7;
+                    Vector3 rear = new Vector3(-.42f, 0, -1).normalized;
+                    float heroDistance = Mathf.Max(4, aim.z - heroBounds.min.z + 1.5f);
                     for (int fit = 0; fit < 48; fit++)
                     {
                         camera.transform.position = aim + rear * heroDistance;
@@ -259,15 +275,13 @@ namespace FlyingGame.EditorTools
                         camera.transform.LookAt(aim);
                         bool fits = true;
                         // Include the complete mirrored envelope as well as the aircraft.
-                        for (int corner = 0; corner < 8; corner++)
+                        foreach (var silhouettePoint in heroPoints)
                         {
-                            Vector3 point = heroBounds.center + Vector3.Scale(heroBounds.extents,
-                                new Vector3((corner & 1) == 0 ? -1 : 1,
-                                    (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                            Vector3 point = silhouettePoint;
                             for (int mirror = 0; mirror < 2; mirror++)
                             {
                                 Vector3 projected = camera.WorldToViewportPoint(point);
-                                fits &= projected.z > .2f && projected.x > .035f && projected.x < .965f
+                                fits &= projected.z > .2f && projected.x > .015f && projected.x < .985f
                                     && projected.y > .035f && projected.y < .965f;
                                 point.y = 2 * (float)lake.SurfaceM - point.y;
                             }

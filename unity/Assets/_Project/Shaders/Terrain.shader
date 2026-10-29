@@ -9,6 +9,9 @@ Shader "FlyingGame/Terrain"
         Tags { "RenderType" = "Opaque" }
         Pass
         {
+            // Reflection view has negative determinant; determine physical facing
+            // from the triangle below, independently of backend winding conversion.
+            Cull Off
             CGPROGRAM
             #pragma target 3.0
             #pragma vertex vert
@@ -19,6 +22,7 @@ Shader "FlyingGame/Terrain"
             fixed4 _Color; float4 _BubbleSunDir;
             float _SunsetOn, _ReflectionRendering;
             float4 _ReflectionClip;
+            float4 _ReflectionEye;
             float4 _DayAtmosphere;
             v2f vert (appdata v)
             {
@@ -32,15 +36,20 @@ Shader "FlyingGame/Terrain"
                 return lerp(lerp(hashTerrain(q),hashTerrain(q+float2(1,0)),f.x),
                             lerp(hashTerrain(q+float2(0,1)),hashTerrain(q+1),f.x),f.y);
             }
-            fixed4 frag (v2f i) : SV_Target
+            fixed4 frag (v2f i, float facing : VFACE) : SV_Target
             {
                 // Explicit world-space half-space rejects submerged terrain even at grazing angles.
                 if (_ReflectionRendering > .5)
                 {
                     clip(dot(float4(i.wp, 1), _ReflectionClip));
-                    // Rasterizer winding handles visibility. Smooth vertex normals do
-                    // not describe a cliff triangle's facing and must not clip its pixels.
+                    // Use a true face normal, not the smoothed cliff vertex normal.
+                    // Orient the derivative cross product with the mesh's outward normal;
+                    // screen Y / Metal render-target flips cannot change this test.
+                    float3 faceNormal = cross(ddx(i.wp), ddy(i.wp));
+                    faceNormal *= dot(faceNormal, i.n) < 0 ? -1 : 1;
+                    clip(dot(faceNormal, _ReflectionEye.xyz - i.wp));
                 }
+                else clip(facing);
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float3 n=normalize(i.n);
                 float3 albedo=i.c.rgb;

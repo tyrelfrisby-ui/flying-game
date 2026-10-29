@@ -94,7 +94,7 @@ Shader "FlyingGame/Airframe"
 
                 float d = saturate(dot(n, l));
                 // the same 0.58 ambient floor FlyingGame/Lit used, so nothing in the fleet changes brightness
-                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.24,.28,.36), float3(.77,.78,.86), saturate(n.y * .5 + .5)) + float3(.60,.37,.18)*d, _SunsetOn);
+                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.24,.27,.34) + SunsetEnvironment(n)*.60 + float3(.60,.37,.18)*d, _SunsetOn);
 
                 // Broad sky reflection gives curved paint a cool-to-warm response even
                 // away from the tiny sun. Analytic environment, no cubemap or extra pass.

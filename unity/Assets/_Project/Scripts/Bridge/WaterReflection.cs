@@ -120,6 +120,7 @@ namespace FlyingGame.Bridge
                 if (pane != null && pane.enabled) { _hiddenPanes.Add(pane); pane.enabled = false; }
             bool previousCulling = GL.invertCulling;
             Shader.SetGlobalVector("_ReflectionClip", new Vector4(0, 1, 0, -planeY - .03f));
+            Shader.SetGlobalVector("_ReflectionEye", _refl.transform.position);
             Shader.SetGlobalFloat("_ReflectionRendering", 1);
             try { GL.invertCulling = !previousCulling; _refl.Render(); }
             finally
