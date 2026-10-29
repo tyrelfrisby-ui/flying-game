@@ -638,6 +638,121 @@ namespace FlyingGame.Bridge
                     flankCount++;
                 }
             }
+            // C11: C10's close southern flank is mostly OUTSIDE the town lens. Retain
+            // every surviving C10 body, and extend along the eastern edge instead.
+            // Map axes are sim (north,east), U swaps these into Unity (east,up,north).
+            // This band is beyond the last tower/road column and every protected row.
+            int extension=0, candidates=0, treesRejected=0, terrainRejected=0;
+            int waterRejected=0, airportRejected=0, viewRejected=0, sightRejected=0;
+            int extensionStart=b.Count;
+            float extensionArea=0;
+            if(grid.Rotated && terrain!=null)
+            {
+                // Exact town eye/look, translated with the city's plateau. Never move a camera.
+                Vector3 eye=WorldBuilder.U(grid.X0-900,grid.Y0+780,ground+95.2);
+                Vector3 aim=WorldBuilder.U(grid.X0+1050,grid.Y0+780,ground-244.8);
+                Vector3 forward=(aim-eye).normalized;
+                Vector3 right=Vector3.Cross(Vector3.up,forward).normalized;
+                Vector3 up=Vector3.Cross(forward,right);
+                const float tanHalfFov=.46630766f, aspect=1.6f;
+                // Generate the sight corridor's registered trees once, not once per lot.
+                // Temporary CPU list only; never added to the mesh or collision registry.
+                var sightTrees=new List<FlyingGame.Core.Forest.Tree>();
+                foreach(var tr in FlyingGame.Core.Forest.InRect(grid.X0-912,grid.Y0+768,
+                    grid.X0+1352,grid.Y0+2084)) sightTrees.Add(tr);
+                // Reject a lot whose roof cannot be seen above actual terrain/registered
+                // forest. No visual clearing of trees that still have sim collision.
+                bool ClearSight(Vector3 roof)
+                {
+                    Vector3 ray=roof-eye;
+                    float length=ray.magnitude;
+                    int steps=Mathf.CeilToInt(length/18);
+                    for(int step=1;step<steps;step++)
+                    {
+                        Vector3 sample=eye+ray*((float)step/steps);
+                        if(terrain.HeightAt(sample.z,sample.x)+1>sample.y) return false;
+                    }
+                    // Public forest query returns deterministic trees including crown radius.
+                    foreach(var tr in sightTrees)
+                    {
+                        double dz=roof.z-eye.z,dx=roof.x-eye.x;
+                        double t=((tr.X-eye.z)*dz+(tr.Y-eye.x)*dx)/(dz*dz+dx*dx);
+                        if(t<=0 || t>=1) continue;
+                        double z=eye.z+t*dz,x=eye.x+t*dx;
+                        double radius=tr.CrownRadiusM+2;
+                        if((tr.X-z)*(tr.X-z)+(tr.Y-x)*(tr.Y-x)<radius*radius
+                            && tr.TopM+2>eye.y+t*(roof.y-eye.y)) return false;
+                    }
+                    return true;
+                }
+                // Up to 96 distinct ridges, each terrace containing four homes. 48 m
+                // spacing leaves 14 m between eaves and 30 m between garden fronts.
+                // Start on the camera side; a failed lot never shifts any existing body.
+                for(int row=0;row<26 && extension<96;row++)
+                for(int col=0;col<20 && extension<96;col++)
+                {
+                    candidates++;
+                    double u=1140+col*48,v=140+row*48;
+                    var map=grid.Map(u,v);
+                    bool detached=(row+col)%4==0;
+                    Vector3 size=detached?new Vector3(18,6.4f,16):new Vector3(32,7,16);
+                    double hx=21,hy=size.x*.5+4;
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-hx)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+hy+70)
+                            blocked=true;
+                    if(blocked) { airportRejected++; continue; }
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                        if(terrain.WaterSurfaceAt(map.x+dx*hx,map.y+dy*hy).HasValue) blocked=true;
+                    if(blocked) { waterRejected++; continue; }
+                    double g=terrain.HeightAt(map.x,map.y);
+                    // Hills begin at sim east=1650: C10's city-height gate excluded
+                    // this open grass even though small houses can follow its gentle slope.
+                    // Individual stone footings meet unchanged terrain; no estate-wide pad.
+                    double low=g,high=g;
+                    foreach(int dx in new[]{-1,1}) foreach(int dy in new[]{-1,1})
+                    {
+                        double corner=terrain.HeightAt(map.x+dx*size.z*.5,map.y+dy*size.x*.5);
+                        low=System.Math.Min(low,corner); high=System.Math.Max(high,corner);
+                    }
+                    if(System.Math.Abs(g-ground)>100 || high-low>2.5)
+                    { terrainRejected++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-hx-12,map.y-hy-12,map.x+hx+12,map.y+hy+12))
+                        if(System.Math.Abs(tr.X-map.x)<hx+tr.CrownRadiusM
+                            && System.Math.Abs(tr.Y-map.y)<hy+tr.CrownRadiusM) { blocked=true; break; }
+                    if(blocked) { treesRejected++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 roof=foot+Vector3.up*12;
+                    Vector3 relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    // Keep the whole roof inside the lens with an 8% horizontal margin.
+                    if(depth<950 || depth>2800 || Mathf.Abs(Vector3.Dot(relative,right))+size.x*.5f>depth*tanHalfFov*aspect*.84f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+14>depth*tanHalfFov*.9f)
+                    { viewRejected++; continue; }
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,5,-8)))
+                    { sightRejected++; continue; }
+                    // Green garden, pale door paths, restrained C10 light walls/36-degree
+                    // slate and brown roofs. No asphalt/paved lot or new road surface.
+                    float gx=size.x*.5f+3,gz=20;
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,
+                        terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-gx,-gz),Lawn(-gx,gz),Lawn(gx,gz),Lawn(gx,-gz),new Color(.32f,.39f,.27f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,11003+row*37+col*13,detached?4:1,row+col/4);
+                    int doors=detached?1:4;
+                    for(int door=0;door<doors;door++)
+                    {
+                        float x=(door-(doors-1)*.5f)*8;
+                        b.Quad(Lawn(x-.55f,-19.5f),Lawn(x-.55f,-8.5f),
+                            Lawn(x+.55f,-8.5f),Lawn(x+.55f,-19.5f),new Color(.54f,.51f,.44f));
+                    }
+                    extension++; extensionArea+=size.x*size.z;
+                }
+            }
+            Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {b.Count-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
             Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
             // Count/footprint are emitted for Chief's render log; no collision registration.
             Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} visual-only buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; no colliders.");
