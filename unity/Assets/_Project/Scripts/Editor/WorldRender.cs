@@ -22,7 +22,7 @@ namespace FlyingGame.EditorTools
 
             var camGo = new GameObject("RenderCam");
             var cam = camGo.AddComponent<Camera>();
-            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f);
+            cam.clearFlags = CameraClearFlags.Skybox; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f);
             cam.fieldOfView = 50f; cam.nearClipPlane = 1f; cam.farClipPlane = 60000f;
             var rt = new RenderTexture(1600, 1000, 24); cam.targetTexture = rt;
 
@@ -77,6 +77,7 @@ namespace FlyingGame.EditorTools
                 ("desert-redrock-final", new Vector3(-5280f, 1760f, -4700f), new Vector3(-5280f, 1646f, -5600f)),
                 ("desert-sandpass", new Vector3(-6000f, 1700f, -3700f), new Vector3(-6600f, 1480f, -4700f)),
                 ("desert-hungryridge", new Vector3(-4810f, 1420f, -3350f), new Vector3(-4810f, 1340f, -4150f)),
+                ("desert-hungryridge-high", new Vector3(-4810f, 1950f, -3350f), new Vector3(-4810f, 1500f, -4150f)),
                 ("desert-playa", new Vector3(-7250f, 1420f, -4900f), new Vector3(-7250f, 1222f, -6100f)),
                 ("desert-ruts", new Vector3(-7250f, 1232f, -6530f), new Vector3(-7250f, 1226f, -5900f)),
                 ("desert-topdown", new Vector3(-6000f, 6000f, -5250f), new Vector3(-6000f, 1400f, -5240f)),

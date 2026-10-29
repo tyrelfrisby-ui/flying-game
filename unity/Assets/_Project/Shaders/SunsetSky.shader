@@ -9,7 +9,7 @@ Shader "FlyingGame/SunsetSky" {
  #include "SunsetSky.cginc"
  struct v2f { float4 pos:SV_POSITION; float3 ray:TEXCOORD0; };
  v2f vert(float4 v:POSITION) { v2f o; o.pos=UnityObjectToClipPos(v); o.ray=mul((float3x3)unity_ObjectToWorld,v.xyz); return o; }
- fixed4 frag(v2f i):SV_Target { return fixed4(SunsetSky(i.ray),1); }
+ fixed4 frag(v2f i):SV_Target { return fixed4(_SunsetOn > .5 ? SunsetSky(i.ray) : DaySky(i.ray),1); }
  ENDCG }
  }
 }

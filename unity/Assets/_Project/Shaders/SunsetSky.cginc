@@ -16,6 +16,25 @@ float3 SunsetEnvironment(float3 ray) {
  float sun=pow(saturate(dot(normalize(ray),normalize(_SunsetSunDir.xyz))),8);
  return fill+float3(.40,.23,.09)*sun;
 }
+// Day-only analytic atmosphere. SunsetSky below is kept unchanged for WaterRender.
+float3 DaySky(float3 ray) {
+ ray=normalize(ray);
+ float y=saturate(ray.y);
+ float3 sky=lerp(float3(.72,.81,.88),float3(.20,.43,.70),pow(y,.42));
+ float3 sunDir=normalize(float3(.4,.8,-.4));
+ float sun=saturate(dot(ray,sunDir));
+ sky+=float3(.18,.16,.12)*pow(sun,24);
+ sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
+ // Broad separated banks, soft eroded edges and cooler dense interiors.
+ float2 p=ray.xz/max(.09,y)*2.0;
+ float broad=skyNoise(p);
+ float detail=skyNoise(p*3.7+13.2);
+ float fine=skyNoise(p*11.3+7.1);
+ float density=broad*.65+detail*.25+fine*.10;
+ float cloud=smoothstep(.57,.73,density)*smoothstep(.025,.16,y);
+ float3 cloudColor=lerp(float3(.98,.98,.96),float3(.62,.70,.79),smoothstep(.62,.88,density));
+ return lerp(sky,cloudColor,cloud*.94);
+}
 float3 SunsetSky(float3 ray) {
  ray=normalize(ray); float y=max(ray.y,0);
  float3 sky=lerp(float3(1.0,.78,.47),float3(.77,.61,.69),smoothstep(0,.20,y));

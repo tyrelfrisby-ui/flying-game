@@ -155,7 +155,7 @@ namespace FlyingGame.EditorTools
                 reflection.Quality = (WaterReflection.ReflectionQuality)Enum.Parse(typeof(WaterReflection.ReflectionQuality), Read("-reflectionQuality", "High"), true);
                 reflection.ReflectScenery = Read("-reflectionScenery", "on") != "off";
                 reflection.TextureSize = int.Parse(Read("-reflectionSize", "0"));
-                camera.clearFlags = sunset ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.45f, .66f, .95f);
+                camera.clearFlags = CameraClearFlags.Skybox; camera.backgroundColor = new Color(.45f, .66f, .95f);
                 camera.nearClipPlane = .15f; camera.farClipPlane = 12000; camera.fieldOfView = 48;
                 var rt = new RenderTexture(1600, 1000, 24); camera.targetTexture = rt;
                 Vector3 at = root.transform.position;

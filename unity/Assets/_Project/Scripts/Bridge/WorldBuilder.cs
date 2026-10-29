@@ -38,6 +38,7 @@ namespace FlyingGame.Bridge
         /// <summary>Build everything under one root; returns it.</summary>
         public static GameObject BuildAll()
         {
+            SunsetLighting.ApplyDay();
             WorldTerrain.Active ??= new WorldTerrain();
             var root = new GameObject("World");
             BuildTerrain(WorldTerrain.Active, root.transform);
@@ -147,7 +148,7 @@ namespace FlyingGame.Bridge
             if (HighDesert.InArea(x, y))
             {
                 var sage = new Color(0.52f, 0.50f, 0.36f);
-                var desertRock = new Color(0.56f, 0.42f, 0.33f);
+                var desertRock = new Color(0.63f, 0.40f, 0.28f);
                 var clay = new Color(0.76f, 0.73f, 0.66f);
                 var mesaTop = new Color(0.62f, 0.55f, 0.43f);
                 float fade = (float)HighDesert.EdgeFade(x, y);
@@ -158,7 +159,7 @@ namespace FlyingGame.Bridge
                 if (HighDesert.SurfaceAt(x, y) == WorldTerrain.Surface.Gravel) d = mesaTop;
                 if (HighDesert.OnPlaya(x, y)) d = clay;
                 c = Color.Lerp(c, d, fade);
-                c.a = 1f - Mathf.Clamp01(slope / 0.08f);
+                c.a = 0f; // Desert shelves are not farm fields.
                 return c;
             }
             // The canyon lake's walls: banded Navajo sandstone.
@@ -173,7 +174,7 @@ namespace FlyingGame.Bridge
             // alpine basins at 9,000 ft, where they read as grey staircases cut into the rock. Nobody fences
             // ground above the treeline, so the grid dies out as the timber does.
             float farmed = Mathf.Clamp01((float)((Forest.TreeLineAt(x, y, dhx) - h) / 300.0));
-            c.a = (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
+            c.a = cover > .05f ? -cover : (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
             return c;
         }
 
