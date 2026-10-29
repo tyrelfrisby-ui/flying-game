@@ -47,21 +47,26 @@ Shader "FlyingGame/Terrain"
                 // All new detail is day-only: the sunset comparison keeps its existing response.
                 if (_SunsetOn < .5)
                 {
-                    float broad=noiseTerrain(i.wp.xz*.006);
-                    float grain=noiseTerrain(i.wp.xz*.17+i.wp.y*.021);
+                    // Rotated world projections avoid axis-aligned checks on steep faces.
+                    float2 ground=float2(i.wp.x*.81+i.wp.z*.59,i.wp.z*.81-i.wp.x*.59);
+                    float broad=noiseTerrain(ground*.0047);
+                    float grain=noiseTerrain(float2(ground.x*.11+i.wp.y*.073,ground.y*.083-i.wp.y*.061));
                     float cliff=1-smoothstep(.42,.86,n.y);
                     float snow=smoothstep(.70,.86,min(albedo.r,min(albedo.g,albedo.b)));
-                    // World-space strata with irregular bed thickness; no repeating texture tile.
-                    float bed=i.wp.y*.13 + broad*2.8 + i.wp.x*.0018;
-                    float band=(sin(bed)+.35*sin(bed*2.37+grain)) / (1+fwidth(bed)*2);
-                    float joints=noiseTerrain(float2(i.wp.x+i.wp.z*.73,i.wp.y*.21)*.045);
-                    albedo*=1+(broad-.5)*.18+(grain-.5)*.15;
-                    albedo*=1+cliff*(1-snow)*(band*.13+(joints-.5)*.28);
-                    // Darker crevices through snow, preserving the authored altitude/slope snow mask.
-                    albedo*=1-snow*cliff*smoothstep(.58,.80,joints)*.16;
-                    // Canopy mottling survives beyond the streamed tree radius; tied to actual cover.
-                    float crowns=lerp(.5,noiseTerrain(i.wp.xz*.095),saturate(1-length(fwidth(i.wp.xz))*.025));
-                    albedo*=1+forest*((crowns-.5)*.60+(broad-.5)*.24);
+                    float redrock=smoothstep(.08,.22,albedo.r-albedo.g);
+                    // Broad beds are strongest in sandstone, subdued in grey alpine rock.
+                    float bed=i.wp.y*.048 + broad*1.4 + ground.x*.0007;
+                    float band=sin(bed)/(1+fwidth(bed)*2);
+                    float joints=noiseTerrain(float2(ground.x*.019+i.wp.y*.027,ground.y*.023-i.wp.y*.014));
+                    albedo*=1+(broad-.5)*.10+(grain-.5)*.09;
+                    albedo*=1+cliff*(1-snow)*(band*lerp(.035,.24,redrock)+(joints-.5)*.17);
+                    albedo=lerp(albedo,albedo*float3(1.08,1.02,.90),redrock*cliff*smoothstep(.1,.8,band)*.4);
+                    albedo*=1-snow*cliff*smoothstep(.56,.78,joints)*.23;
+                    // Irregular crown-sized light patches over a continuous dark canopy.
+                    float crowns=lerp(.5,noiseTerrain(ground*.14),saturate(1-length(fwidth(ground))*.025));
+                    float canopy=smoothstep(.15,.8,forest);
+                    albedo=lerp(albedo,float3(.115,.205,.13)*( .8+crowns*.65+(broad-.5)*.16),canopy*.85);
+
                 }
                 float d = saturate(dot(n, l));
                 float3 dayFill=lerp(float3(.32,.38,.44),float3(.51,.57,.62),n.y*.5+.5);

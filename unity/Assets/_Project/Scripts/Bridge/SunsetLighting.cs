@@ -17,7 +17,7 @@ namespace FlyingGame.Bridge
 
         public static void Apply(Light sun, bool calm)
         {
-            var direction = new Vector3(-.24f, .045f, .97f).normalized;
+            var direction = new Vector3(.18f, .045f, .983f).normalized;
             sun.transform.rotation = Quaternion.LookRotation(-direction);
             sun.color = new Color(1f, .66f, .38f); sun.intensity = .85f;
             RenderSettings.sun = sun;

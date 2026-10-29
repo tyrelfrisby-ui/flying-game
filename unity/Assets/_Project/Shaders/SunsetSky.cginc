@@ -16,7 +16,7 @@ float3 SunsetEnvironment(float3 ray) {
  float sun=pow(saturate(dot(normalize(ray),normalize(_SunsetSunDir.xyz))),8);
  return fill+float3(.40,.23,.09)*sun;
 }
-// Day-only analytic atmosphere. SunsetSky below is kept unchanged for WaterRender.
+// Analytic built-in atmosphere; shared sky and water directions keep the horizon coherent.
 float3 DaySky(float3 ray) {
  ray=normalize(ray);
  float y=saturate(ray.y);
@@ -26,21 +26,22 @@ float3 DaySky(float3 ray) {
  sky+=float3(.18,.16,.12)*pow(sun,24);
  sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
  // Broad separated banks, soft eroded edges and cooler dense interiors.
- float2 p=ray.xz/max(.09,y)*2.0;
+ float2 p=ray.xz/max(.035,y)*1.35;
  float broad=skyNoise(p);
  float detail=skyNoise(p*3.7+13.2);
  float fine=skyNoise(p*11.3+7.1);
  float density=broad*.65+detail*.25+fine*.10;
- float cloud=smoothstep(.57,.73,density)*smoothstep(.025,.16,y);
- float3 cloudColor=lerp(float3(.98,.98,.96),float3(.62,.70,.79),smoothstep(.62,.88,density));
+ // Fade before the projection clamp: no vertical curtains at the horizon.
+ float cloud=smoothstep(.53,.71,density)*smoothstep(.08,.23,y);
+ float3 cloudColor=lerp(float3(.98,.98,.96),float3(.62,.70,.79),smoothstep(.64,.88,density));
  return lerp(sky,cloudColor,cloud*.94);
 }
 float3 SunsetSky(float3 ray) {
  ray=normalize(ray); float y=max(ray.y,0);
- float3 sky=lerp(float3(1.0,.78,.47),float3(.77,.61,.69),smoothstep(0,.20,y));
+ float3 sky=lerp(float3(1.0,.84,.53),float3(.86,.62,.67),smoothstep(0,.27,y));
  sky=lerp(sky,float3(.30,.43,.65),smoothstep(.12,.80,y));
  float toward=pow(saturate(dot(ray,normalize(_SunsetSunDir.xyz))),12);
- sky+=float3(.14,.08,.025)*toward*exp(-y*7);
+ sky+=float3(.40,.24,.075)*toward*exp(-y*5);
  // A world-space deck of small, softly lit cloudlets, broken by broader gaps.
  // Continuous density and multiscale erosion avoid hard, flat camouflage patches.
  float2 p=ray.xz/max(.12,ray.y+.10)*2.4;
@@ -55,9 +56,10 @@ float3 SunsetSky(float3 ray) {
  float3 shadow=lerp(float3(.74,.57,.64),float3(.39,.46,.61),smoothstep(.08,.7,y));
  float3 lit=lerp(float3(1,.77,.66),float3(.68,.69,.78),smoothstep(.08,.7,y));
  float3 cloudColor=lerp(lit,shadow,edge*.8);
+ cloudColor=lerp(cloudColor,float3(1,.85,.64),toward*exp(-y*2.5)*.72);
  sky=lerp(sky,cloudColor,cloud*.60);
  float sun=dot(ray,normalize(_SunsetSunDir.xyz));
- sky+=float3(1,.66,.28)*pow(saturate(sun),350)*.24;
+ sky+=float3(1,.66,.28)*pow(saturate(sun),350)*.55;
  sky=lerp(sky,float3(1,.91,.69),smoothstep(.99994,.99998,sun));
  return sky;
 }

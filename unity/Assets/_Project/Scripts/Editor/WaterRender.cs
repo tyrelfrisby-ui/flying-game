@@ -47,12 +47,13 @@ namespace FlyingGame.EditorTools
                 for(int row=0;row<4;row++)
                 {
                     float cluster=.5f+.5f*Mathf.Sin(i*.23f);
-                    float h=6+cluster*7+(float)rng.NextDouble()*11;
-                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*25,-.1f,z+6+row*24);
+                    float h=5+cluster*12+(float)rng.NextDouble()*13;
+                    float depth=row*48+(float)rng.NextDouble()*43;
+                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*25,.3f*Mathf.Sin(i*.67f+row),z+6+depth);
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
-                        float radius=h*(.15f-crown*.014f)*( .8f+(float)rng.NextDouble()*.4f);
+                        float radius=h*(.21f-crown*.020f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
                         for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});
@@ -60,6 +61,19 @@ namespace FlyingGame.EditorTools
                 }
             }
             SpawnMesh("Conifer shoreline",verts.ToArray(),tris.ToArray(),bank,parent);
+            // A distant softened ridge closes gaps between crowns without a ruler-flat opaque base.
+            // One opaque mesh; no transparent fog cards or extra reflection target.
+            verts.Clear(); tris.Clear();
+            for(int i=0;i<180;i++)
+            {
+                float x=-1400+i*17;
+                float crest=9+6*Mathf.Sin(i*.087f)+3*Mathf.Sin(i*.31f)+2*Mathf.Sin(i*1.73f);
+                verts.Add(origin+new Vector3(x,-1,690));
+                verts.Add(origin+new Vector3(x,crest,710));
+                if(i>0) { int n=i*2; tris.AddRange(new[]{n-2,n-1,n,n,n-1,n+1}); }
+            }
+            var haze = WorldBuilder.Mat("FlyingGame/Lit",new Color(.30f,.31f,.29f));
+            SpawnMesh("Distant shore haze",verts.ToArray(),tris.ToArray(),haze,parent);
         }
 
         static void WriteComparison(Texture2D render, string output)
@@ -195,11 +209,11 @@ namespace FlyingGame.EditorTools
                 {
                     // Rear view: whole aircraft, floats and their complete reflection, looking into low sun.
                     var portrait = new RenderTexture(1000, 1600, 24);
-                    camera.targetTexture = portrait; camera.aspect = 1000f / 1600; camera.fieldOfView = 62;
+                    camera.targetTexture = portrait; camera.aspect = 1000f / 1600; camera.fieldOfView = 68;
                     var aircraftBounds = new Bounds(at, Vector3.zero);
                     foreach (var r in root.GetComponentsInChildren<Renderer>()) aircraftBounds.Encapsulate(r.bounds);
-                    float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(31 * Mathf.Deg2Rad) * camera.aspect * .90f));
-                    camera.transform.position = new Vector3(at.x - distance * .48f, (float)lake.SurfaceM + 1.05f, at.z - distance);
+                    float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(34 * Mathf.Deg2Rad) * camera.aspect * .90f));
+                    camera.transform.position = new Vector3(at.x - distance * .30f, (float)lake.SurfaceM + .85f, at.z - distance);
                     camera.transform.LookAt(new Vector3(at.x, (float)lake.SurfaceM + .55f, at.z));
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var photo = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
