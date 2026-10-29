@@ -101,17 +101,18 @@ namespace FlyingGame.Bridge
                         Vector3 forward=R(end*2,0)-R(0,0);
                         forward.Normalize();
                         Vector3 right=R(0,1)-R(0,0); right.Normalize();
-                        for(int j=0;j<8;j++)
+                        int endLamps=Math.Max(8,(int)Math.Ceiling(s.Width/3.0)+1);
+                        for(int j=0;j<endLamps;j++)
                         {
-                            Vector3 p=R(end*(s.Length/2+1),(j-3.5)*s.Width/8,.23);
+                            Vector3 p=R(end*(s.Length/2+1),-s.Width/2+j*s.Width/(endLamps-1),.23);
                             b.Box(p,new Vector3(.4f,.25f,.4f),steel);
                             // vertical faces, directed to approach and runway respectively
-                            Vector3 across=right*.42f, up=Vector3.up*.22f;
+                            Vector3 across=right*.52f, up=Vector3.up*.26f;
                             Vector3 outside=p+forward*.22f, inside=p-forward*.22f;
                             lamps.Quad(outside-across-up,outside+across-up,outside+across+up,outside-across+up,new Color(.03f,1,.23f));
                             lamps.Quad(inside-across-up,inside+across-up,inside+across+up,inside-across+up,new Color(1,.035f,.015f));
                             // View-direction masks in the halo shader keep red/green on their own sides.
-                            Glow(outside,new Color(.03f,1,.23f,1),forward);
+                            Glow(outside,new Color(.03f,1,.23f,.95f),forward);
                             Glow(inside,new Color(1,.035f,.015f,1),-forward);
                         }
                         // Four PAPI boxes left of each approach. Emissive two-white/two-red inspection appearance.

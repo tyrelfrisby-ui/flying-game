@@ -101,6 +101,44 @@ namespace FlyingGame.EditorTools
                 double y=valley.Y+strip.Dy+along*System.Math.Sin(angle)+across*System.Math.Cos(angle);
                 return WorldBuilder.U(x,y,terrain.HeightAt(x,y)+height);
             }
+            // Approach height is relative to the RUNWAY, never terrain beneath final.
+            // The old terrain-relative camera sat below field level among the trees.
+            var papiStrip=FindStrip("paved");
+            Vector3 papiEye=Vector3.zero, papiLook=Vector3.zero;
+            float bestPapiHeight=float.PositiveInfinity;
+            foreach(int end in new[] {-1,1})
+            {
+                Vector3 eye=StripView("paved",end*(papiStrip.Length/2+1400),0,0);
+                Vector3 aim=StripView("paved",end*(papiStrip.Length/2-300),0,0);
+                aim.y=(float)valley.ElevationM+.85f;
+                eye.y=aim.y+1700*Mathf.Tan(3*Mathf.Deg2Rad);
+                Vector3 path=eye-aim;
+                float span=new Vector2(path.x,path.z).magnitude;
+                // Clear the whole runway/PAPI sight corridor, without hiding any trees.
+                for(float distance=40;distance<span;distance+=12)
+                {
+                    float t=distance/span;
+                    Vector3 point=aim+path*t;
+                    for(int side=-1;side<=1;side++)
+                    {
+                        Vector3 sample=point+Vector3.Cross(Vector3.up,path.normalized)*side*65;
+                        float top=(float)terrain.HeightAt(sample.z,sample.x)+3;
+                        eye.y=Mathf.Max(eye.y,aim.y+(top-aim.y)/t);
+                    }
+                }
+                foreach(var tree in FlyingGame.Core.Forest.InRect(
+                    System.Math.Min(eye.z,aim.z)-90,System.Math.Min(eye.x,aim.x)-90,
+                    System.Math.Max(eye.z,aim.z)+90,System.Math.Max(eye.x,aim.x)+90))
+                {
+                    Vector3 delta=WorldBuilder.U(tree.X,tree.Y,0)-new Vector3(aim.x,0,aim.z);
+                    float along=(delta.x*path.x+delta.z*path.z)/(span*span);
+                    float lateral=Mathf.Abs(delta.x*path.z-delta.z*path.x)/span;
+                    if(along>.025f && along<=1 && lateral<65+tree.CrownRadiusM)
+                        eye.y=Mathf.Max(eye.y,aim.y+((float)tree.TopM+4-aim.y)/along);
+                }
+                if(eye.y<bestPapiHeight) { bestPapiHeight=eye.y; papiEye=eye; papiLook=aim; }
+            }
+            Debug.Log($"PAPI plates: 1400 m beyond threshold, eye {papiEye}, target {papiLook}, glide {Mathf.Atan2(papiEye.y-papiLook.y,1700)*Mathf.Rad2Deg:F2} degrees (terrain/tree clearance included)");
             (string name, Vector3 pos, Vector3 look)[] views =
             {
                 ("city-roofs-detail", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
@@ -113,7 +151,9 @@ namespace FlyingGame.EditorTools
                 ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
                 ("airport-beacon-green-night", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-225,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-40,valley.ElevationM+32), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5)),
                 ("airport-beacon-white-night", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-225,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-40,valley.ElevationM+32), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5)),
-                ("runway-papi-night", StripView("paved",-FindStrip("paved").Length/2-650,0,50), StripView("paved",-FindStrip("paved").Length/2+300,-45,1)),
+                ("runway-papi-night", papiEye, papiLook),
+                ("runway-papi-dusk", papiEye, papiLook),
+                ("valley-airport-grass-control-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-normal-control-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
@@ -265,6 +305,8 @@ namespace FlyingGame.EditorTools
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
+                cam.fieldOfView=name.StartsWith("runway-papi-")?35f:50f;
+                Shader.SetGlobalFloat("_AirportGrassPreviewOff",name=="valley-airport-grass-control-dusk"?1:0);
                 bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");
                 foreach(var tint in nightTints)
@@ -327,6 +369,7 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(tex);
                 Object.DestroyImmediate(forest);
             }
+            Shader.SetGlobalFloat("_AirportGrassPreviewOff",0);
             Shader.SetGlobalFloat("_AirportDusk", 0);
             Shader.SetGlobalFloat("_AirportBeaconPreview",0);
             Shader.SetGlobalFloat("_CityNight",0);

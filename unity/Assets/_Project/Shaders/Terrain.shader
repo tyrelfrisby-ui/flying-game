@@ -21,7 +21,7 @@ Shader "FlyingGame/Terrain"
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; float2 geology : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; float2 geology : TEXCOORD2; };
             fixed4 _Color; float4 _BubbleSunDir;
-            float _SunsetOn, _ReflectionRendering;
+            float _SunsetOn, _ReflectionRendering, _AirportGrassPreviewOff;
             float4 _ReflectionClip;
             float4 _ReflectionEye;
             float4 _AirportGrass[4];
@@ -168,14 +168,18 @@ Shader "FlyingGame/Terrain"
                     float2 local=i.wp.xz-bounds.xy;
                     float edge=max(abs(local.x)-bounds.z,abs(local.y)-bounds.w);
                     float aa=grassAA;
-                    float mask=(1-smoothstep(-aa,aa,edge))*step(1,bounds.z);
+                    // Feather the cut grass into its surrounding pasture, not a dark rectangle.
+                    float mask=(1-smoothstep(-1.5-aa,aa,edge))*step(1,bounds.z)*(1-_AirportGrassPreviewOff);
                     if(mask>.001)
                     {
                         float variation=lerp(.5,noiseTerrain(local*.08),1-smoothstep(1.5,3.0,aa));
                         float mow=.5+.5*sin(local.x*1.05)*(1-smoothstep(.6,2.5,aa));
-                        float tracks=exp(-pow((abs(local.x)-1.8)/.65,2));
-                        float3 turf=float3(.38,.47,.23)*(.89+.09*mow+.10*variation);
-                        turf=lerp(turf,float3(.37,.33,.21),tracks*(.30+.12*variation));
+                        float tracks=exp(-pow((abs(local.x)-1.8)/.65,2))
+                            *(1-smoothstep(.6,2.5,aa));
+                        // Match the local vertex pasture colour (and its altitude palette).
+                        // The old fixed olive replacement created the long dark band.
+                        float3 turf=i.c.rgb*(.98+.04*mow+.025*(variation-.5));
+                        turf=lerp(turf,turf*float3(.95,.86,.73),tracks*(.18+.08*variation));
                         albedo=lerp(albedo,turf,mask);
                     }
                 }
