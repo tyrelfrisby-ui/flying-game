@@ -9,15 +9,15 @@ Shader "FlyingGame/SunsetSky" {
  #include "SunsetSky.cginc"
  struct v2f { float4 pos:SV_POSITION; float3 ray:TEXCOORD0; };
  v2f vert(float4 v:POSITION) { v2f o; o.pos=UnityObjectToClipPos(v); o.ray=v.xyz; return o; }
- float _CityNight, _UrbanNightFill;
- float4 _UrbanGlow0, _UrbanGlow1, _UrbanGlow2, _UrbanGlow3;
- float4 _UrbanGlow4, _UrbanGlow5, _UrbanGlow6, _UrbanGlow7;
+ float _CityNight;
+ #include "UrbanGlow.cginc"
  float urbanDome(float3 ray,float4 city)
  {
   if(city.w<.5) return 0;
   float3 delta=city.xyz+float3(0,550,0)-_WorldSpaceCameraPos;
   float span=max(1,length(delta));
-  return city.w*exp((dot(ray,delta/span)-1)*10)*exp(-span/26000);
+  float angularRadius=clamp(1850/span,.06,.55);
+  return city.w*exp((dot(ray,delta/span)-1)/(angularRadius*angularRadius))*exp(-span/26000);
  }
  fixed4 frag(v2f i):SV_Target
  {
@@ -31,7 +31,7 @@ Shader "FlyingGame/SunsetSky" {
     +urbanDome(ray,_UrbanGlow4)+urbanDome(ray,_UrbanGlow5)
     +urbanDome(ray,_UrbanGlow6)+urbanDome(ray,_UrbanGlow7);
    float3 moon=lerp(float3(.022,.032,.060),float3(.065,.077,.10),glow);
-   return fixed4(moon+float3(.09,.046,.014)*saturate(dome),1);
+   return fixed4(urbanHaze(moon+float3(.07,.032,.009)*saturate(dome),_WorldSpaceCameraPos+ray*40000),1);
   }
   return fixed4(_SunsetOn > .5 ? SunsetSky(i.ray) : DaySky(i.ray),1);
  }

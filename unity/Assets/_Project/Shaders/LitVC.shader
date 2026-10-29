@@ -11,17 +11,19 @@ Shader "FlyingGame/LitVC"
         Pass
         {
             CGPROGRAM
+            #pragma target 3.0
             #pragma vertex vert
             #pragma fragment frag
             #pragma multi_compile_fog
             #include "UnityCG.cginc"
+            #include "UrbanGlow.cginc"
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; };
-            struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float4 c : COLOR; float clipDistance : TEXCOORD2; UNITY_FOG_COORDS(1) };
+            struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float4 c : COLOR; float clipDistance : TEXCOORD2; float3 world : TEXCOORD3; UNITY_FOG_COORDS(1) };
 
             fixed4 _Color;
             float4 _BubbleSunDir;
-            float _SunsetOn, _ReflectionRendering, _CityNight, _Emission, _UrbanNightFill;
+            float _SunsetOn, _ReflectionRendering, _CityNight, _Emission;
             float4 _ReflectionClip;
 
             v2f vert (appdata v)
@@ -29,6 +31,7 @@ Shader "FlyingGame/LitVC"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.clipDistance = dot(mul(unity_ObjectToWorld, v.vertex), _ReflectionClip);
+                o.world = mul(unity_ObjectToWorld,v.vertex).xyz;
                 o.n = UnityObjectToWorldNormal(v.normal);
                 o.c = v.color;
                 UNITY_TRANSFER_FOG(o, o.pos);
@@ -48,6 +51,7 @@ Shader "FlyingGame/LitVC"
                 c.rgb = lerp(c.rgb, c.rgb*lerp(float3(.20,.20,.20),float3(.23,.28,.38),_UrbanNightFill) + i.c.rgb*emission*1.6, _CityNight);
                 c.rgb = lerp(c.rgb, i.c.rgb * _Color.rgb, _Emission);
                 UNITY_APPLY_FOG(i.fogCoord, c);
+                c.rgb=urbanHaze(c.rgb,i.world);
                 return c;
             }
             ENDCG

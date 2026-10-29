@@ -24,7 +24,7 @@ namespace FlyingGame.Bridge
                 Vector2[] corners = { new(0,0), new(w,0), new(w,size.y), new(0,size.y) };
                 foreach (var v in corners)
                 {
-                    vertices.Add(bottom + q * new Vector3(v.x-w*.5f,v.y,d*.5f+.045f));
+                    vertices.Add(bottom + q * new Vector3(v.x-w*.5f,v.y,d*.5f+.14f));
                     normals.Add(q * Vector3.forward); uv.Add(v);
                     data.Add(new Vector2(style,seed)); colours.Add(wall); travel.Add(Vector4.zero);
                 }
@@ -51,7 +51,11 @@ namespace FlyingGame.Bridge
             void Box(Vector3 offset,Vector3 size,Color colour)
             {
                 Vector3 h=size*.5f;
-                Vector3 P(float x,float y,float z)=>centre+q*(offset+Vector3.Scale(h,new Vector3(x,y,z)));
+                Vector3 P(float x,float y,float z)
+                {
+                    float taper=offset.y>1.1f && y>0?.86f:1;
+                    return centre+q*(offset+Vector3.Scale(h,new Vector3(x*taper,y,z*taper)));
+                }
                 void Face(Vector3 a,Vector3 b,Vector3 c,Vector3 d)
                 {
                     int start=vertices.Count;
@@ -164,10 +168,17 @@ namespace FlyingGame.Bridge
                 {
                     // Two perpendicular wings form an asymmetric L around the existing core.
                     Color stone=new(.50f,.44f,.37f);
-                    Vector3 wingSize=new(size.x+18,Mathf.Min(32,size.y*.6f),size.z*.5f);
+                    Vector3 wingSize=new(Mathf.Min(126,size.x+38),Mathf.Min(48,size.y*.72f),size.z*.5f);
                     Vector3 wing=bottom+new Vector3(6,0,-size.z*.25f);
                     b.Box(wing+Vector3.up*wingSize.y*.5f,wingSize,stone);
                     facades.Add(wing,wingSize,1,i*53+j*19,stone);
+                    if((i+j)%2==0)
+                    {
+                        Vector3 returnSize=new Vector3(18,wingSize.y*.74f,Mathf.Min(110,size.z+32));
+                        Vector3 returnBottom=bottom+new Vector3(-Mathf.Min(55,size.x*.5f+6),0,8);
+                        b.Box(returnBottom+Vector3.up*returnSize.y*.5f,returnSize,stone*.88f);
+                        facades.Add(returnBottom,returnSize,3,i*53+j*19,stone*.88f);
+                    }
                     Vector3 service=wing+new Vector3(size.x*.5f+3,wingSize.y+1,0);
                     b.Box(service,new Vector3(4,2,5),new Color(.63f,.66f,.65f));
                 }
@@ -241,7 +252,7 @@ namespace FlyingGame.Bridge
             int units=QualitySettings.GetQualityLevel()<=2?3:4+seed%3;
             for(int k=0;k<units;k++)
             {
-                Vector3 hvac=roof+new Vector3((k%3-1)*10,2.3f,Mathf.Min(size.z*.5f-5,size.z*.08f+(k/3)*10));
+                Vector3 hvac=roof+new Vector3((k%3-1)*10,2.3f,Mathf.Min(size.z*.5f-5,size.z*.30f+(k/3)*10));
                 b.Box(hvac-Vector3.up*1.45f,new Vector3(9.5f,1.2f,8.5f),new Color(.22f,.24f,.24f));
                 b.Box(hvac,new Vector3(8.5f,3.4f,7.5f),new Color(.66f,.69f,.68f));
                 for(int fan=0;fan<2;fan++)
@@ -264,6 +275,31 @@ namespace FlyingGame.Bridge
                 for(int k=0;k<3;k++)
                     b.Box(roof+new Vector3(size.x*.22f,2+k*3.5f,-size.z*.25f),new Vector3(size.x*(.25f-k*.06f),4,size.z*(.25f-k*.06f)),rim*.8f);
                 b.Cylinder(roof+new Vector3(size.x*.22f,10.8f,-size.z*.25f),.3f,10,6,new Color(.43f,.46f,.46f));
+            }
+            // Large roof silhouettes on non-challenge lots only. Original tower/roof stays intact.
+            // Keep the tank family unchanged; crowns occupy the rear half away from front HVAC.
+            if(size.y>95 && style!=1 && seed%4!=1 && (size.y<=220 || seed%3!=0))
+            {
+                float h=Mathf.Clamp(size.y*.12f,13,32);
+                Vector3 centre=roof+new Vector3(size.x*.08f,.24f,-size.z*.21f);
+                float x=size.x*.27f,z=size.z*.22f;
+                Color metal=seed%2==0?new Color(.23f,.34f,.34f):new Color(.48f,.47f,.43f);
+                Vector3 a=centre+new Vector3(-x,0,-z),c=centre+new Vector3(x,0,-z);
+                Vector3 d=centre+new Vector3(x,0,z),e=centre+new Vector3(-x,0,z);
+                if(seed%2==0)
+                {
+                    // Mansard/chamfered crown, broad enough to survive the 1–3 km views.
+                    Vector3 u=centre+new Vector3(-x*.48f,h,-z*.48f),v=centre+new Vector3(x*.48f,h,-z*.48f);
+                    Vector3 w=centre+new Vector3(x*.48f,h,z*.48f),q=centre+new Vector3(-x*.48f,h,z*.48f);
+                    b.Quad(a,c,v,u,metal); b.Quad(c,d,w,v,metal*.83f);
+                    b.Quad(d,e,q,w,metal); b.Quad(e,a,u,q,metal*.83f); b.Quad(u,v,w,q,metal*.74f);
+                }
+                else
+                {
+                    Vector3 peak=centre+Vector3.up*h;
+                    b.Tri(a,c,peak,metal); b.Tri(c,d,peak,metal*.82f);
+                    b.Tri(d,e,peak,metal); b.Tri(e,a,peak,metal*.82f);
+                }
             }
             if(size.y>230)
                 b.Box(roof+new Vector3(size.x*.38f,.54f,size.z*.38f),new Vector3(1.1f,.6f,1.1f),Emission(1,.035f,.015f));
@@ -288,7 +324,7 @@ namespace FlyingGame.Bridge
         static void Car(SeasideBuilder.Batch b,Vector3 p,Quaternion q,int seed)
         {
             b.Box(p+Vector3.up*.62f,new Vector3(1.85f,.85f,4.5f),q,CarPaint(seed));
-            b.Box(p+Vector3.up*1.22f,new Vector3(1.65f,.65f,2.2f),q,new Color(.13f,.22f,.25f));
+            b.Box(p+q*new Vector3(0,1.37f,-.25f),new Vector3(1.55f,.78f,2.15f),q,new Color(.13f,.22f,.25f));
             foreach(int end in new[]{-1,1})
                 b.Box(p+q*new Vector3(0,.32f,end*1.35f),new Vector3(2.07f,.6f,.65f),q,new Color(.055f,.06f,.06f));
             foreach(int side in new[]{-1,1})
@@ -329,6 +365,9 @@ namespace FlyingGame.Bridge
                         facades.TrafficCar(centre,forward*direction,seed,114,slot);
                         facades.TrafficStreak(centre+Vector3.up*.012f,forward*direction,seed,slot);
                     }
+                    // Continuous far-LOD road energy fills the gaps between lamp pools and junctions.
+                    // Shader discards this at close range and for every day/sunset fragment.
+                    facades.Pool(P2(across,along,.096),S(25,0,170),new Color(1,.55f,.22f),8);
                     void Flat(Vector3 centre,Vector3 size,Color c)
                     {
                         Vector3 x=Vector3.right*size.x*.5f,z=Vector3.forward*size.z*.5f;

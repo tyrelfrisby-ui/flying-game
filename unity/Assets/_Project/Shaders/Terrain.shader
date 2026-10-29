@@ -17,6 +17,7 @@ Shader "FlyingGame/Terrain"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "UrbanGlow.cginc"
             #include "PowellSandstone.cginc"
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; float2 geology : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; float2 geology : TEXCOORD2; };
@@ -382,7 +383,7 @@ Shader "FlyingGame/Terrain"
                     float3 hazeColour=lerp(float3(.32,.49,.68),float3(.43,.57,.70),mountain);
                     col=lerp(col,hazeColour,haze);
                 }
-                return fixed4(col * _Color.rgb, 1);
+                return fixed4(urbanHaze(col * _Color.rgb,i.wp), 1);
             }
             ENDCG
         }

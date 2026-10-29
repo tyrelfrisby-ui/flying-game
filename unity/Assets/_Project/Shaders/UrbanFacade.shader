@@ -4,6 +4,7 @@ Shader "FlyingGame/UrbanFacade"
  {
   Tags { "RenderType"="Opaque" }
   Cull Off
+  Offset -1, -1
   Pass
   {
    CGPROGRAM
@@ -12,6 +13,7 @@ Shader "FlyingGame/UrbanFacade"
    #pragma target 3.0
    #pragma multi_compile_fog
    #include "UnityCG.cginc"
+   #include "UrbanGlow.cginc"
    struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float2 data:TEXCOORD1; float4 color:COLOR; float4 travel:TEXCOORD2; };
    struct v2f { float4 pos:SV_POSITION; float3 world:TEXCOORD0; float3 normal:TEXCOORD1; float2 uv:TEXCOORD2; float2 data:TEXCOORD3; float4 color:COLOR; UNITY_FOG_COORDS(4) };
    float4 _BubbleSunDir, _ReflectionClip, _DayAtmosphere;
@@ -43,6 +45,15 @@ Shader "FlyingGame/UrbanFacade"
    {
     if (_ReflectionRendering>.5) clip(dot(float4(i.world,1),_ReflectionClip));
     float style=i.data.x;
+    if(style>7.5)
+    {
+     clip(_CityNight-.5);
+     float farWeight=smoothstep(1000,3200,distance(_WorldSpaceCameraPos,i.world));
+     clip(farWeight-.001);
+     float edge=1-smoothstep(.65,1,abs(i.uv.x));
+     float4 result=float4(float3(1,.48,.14)*(.20+.65*edge)*farWeight,1);
+     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
+    }
     if(style>6.5)
     {
      clip(_CityNight-.5); // no daytime road/marking overpaint from exposure streaks
@@ -52,7 +63,7 @@ Shader "FlyingGame/UrbanFacade"
      float taper=saturate(1-abs(i.uv.y));
      float width=1-smoothstep(.35,1,abs(i.uv.x));
      float4 result=float4(lerp(road,road*.25+i.color.rgb*width*taper*2.4,_CityNight),1);
-     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
     }
     if(style>5.5)
     {
@@ -61,7 +72,7 @@ Shader "FlyingGame/UrbanFacade"
      float lamp=1-step(.01,i.color.a);
      float3 night=lerp(body*.22,i.color.rgb*2.2,lamp);
      float4 result=float4(lerp(body,night,_CityNight),1);
-     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
     }
     if(style>4.5)
     {
@@ -76,9 +87,9 @@ Shader "FlyingGame/UrbanFacade"
      // average energy after individual pools/dots fall below a pixel.
      float distant=smoothstep(450,2400,distance(_WorldSpaceCameraPos,i.world));
      float3 sodium=float3(1,.49,.16);
-     float3 pool=road*float3(.26,.31,.42)+lerp(i.color.rgb*falloff*.65,sodium*(.12+.15*falloff),distant);
+     float3 pool=road*float3(.26,.31,.42)+lerp(i.color.rgb*falloff*.65,sodium*(.65+.42*falloff),distant);
      float4 result=float4(lerp(road,pool,_CityNight),1);
-     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+     UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
     }
     float curtain=1-step(.5,abs(style-0));
     float ribbon=1-step(.5,abs(style-2));
@@ -122,18 +133,18 @@ Shader "FlyingGame/UrbanFacade"
     float3 base=lerp(wall,lerp(float3(.065,.075,.075),glass,frame),pane);
     base*=.58+.42*sun;
     float building=hash(float2(i.data.y,41.7));
-    float occupancy=lerp(.18,.52,building);
+    float occupancy=lerp(.30,.65,building);
     float lit=step(1-occupancy,rnd);
     float3 warm=lerp(float3(1,.77,.46),float3(.72,.86,1),step(.65,hash(cell+i.data.y+19)));
     // Analytic pixel-footprint average replaces subpixel hash/grid sampling at aerial distance.
     // A restrained unresolved contribution avoids solid glowing walls at aerial distance.
     float unresolved=smoothstep(.18,.85,max(aa.x,aa.y));
     float coverage=4*paneSize.x*paneSize.y;
-    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.65,unresolved);
+    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*occupancy*.95,unresolved);
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
-    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.05,1.65,building);
+    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.65,2.5,building);
     float4 result=float4(lerp(base,night,_CityNight),1);
-    UNITY_APPLY_FOG(i.fogCoord,result); return result;
+    UNITY_APPLY_FOG(i.fogCoord,result); result.rgb=urbanHaze(result.rgb,i.world); return result;
    }
    ENDCG
   }
