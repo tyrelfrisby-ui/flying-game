@@ -169,6 +169,27 @@ namespace FlyingGame.Bridge
                 Color sandstone = band == 0 ? new Color(0.78f, 0.43f, 0.27f) : band == 1 ? new Color(0.86f, 0.58f, 0.38f) : new Color(0.66f, 0.34f, 0.22f);
                 c = Color.Lerp(c, sandstone, Mathf.Clamp01((slope - 0.35f) / 0.4f));
             }
+            // A narrow damp mineral band at the existing water line. No bank geometry is moved.
+            double shore = double.MaxValue;
+            foreach (WorldTerrain.Lake lake in WorldTerrain.Lakes)
+            {
+                double r = lake.Inside(x, y);
+                if (r < 1.12) shore = System.Math.Min(shore, System.Math.Abs(h - lake.SurfaceM));
+            }
+            if (System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < WorldTerrain.RiverHalfWidthM + 24)
+                shore = System.Math.Min(shore, System.Math.Abs(h - t.RiverSurfaceAt(y)));
+            if (CanyonLake.OnWater(x, y)) shore = System.Math.Min(shore, System.Math.Abs(h - CanyonLake.SurfaceM));
+            foreach (AlpineRange.Lake lake in AlpineRange.Lakes)
+            {
+                double angle = lake.HeadingDeg * System.Math.PI / 180;
+                double dx = x-lake.X, dy = y-lake.Y;
+                double along = (dx*System.Math.Cos(angle)+dy*System.Math.Sin(angle))/(lake.LengthM*.5);
+                double across = (-dx*System.Math.Sin(angle)+dy*System.Math.Cos(angle))/(lake.WidthM*.5);
+                if (along*along+across*across < 1.25) shore = System.Math.Min(shore,System.Math.Abs(h-lake.SurfaceM));
+            }
+            float damp = 1 - Mathf.SmoothStep(0, 1, (float)(shore / 5));
+            c = Color.Lerp(c, Color.Lerp(new Color(.30f,.29f,.23f), new Color(.23f,.25f,.24f), rockiness), damp * .8f);
+            cover *= 1 - damp;
             // Flatness → field grid lines, which are pasture fences and section lines and belong on farmed
             // ground. They were being drawn on every flat shelf in the world, including the rims of the
             // alpine basins at 9,000 ft, where they read as grey staircases cut into the rock. Nobody fences
@@ -326,37 +347,35 @@ namespace FlyingGame.Bridge
         private static void BuildWater(WorldTerrain t, Transform parent)
         {
             var water = Mat("FlyingGame/Water", new Color(0.08f, 0.28f, 0.5f, 0.92f));
-            // Lakes: ellipse fans.
+            water.SetFloat("_SceneryWater", 1);
+            // Concentric rings retain the shoreline and sample the actual bowl's optical depth.
+            void LakeMesh(string name, double cx, double cy, double rx, double ry, double heading, double surface, Material mat)
+            {
+                const int seg = 96, rings = 8;
+                var v = new List<Vector3> { U(cx, cy, surface) }; var tr = new List<int>();
+                double ca = System.Math.Cos(heading), sa = System.Math.Sin(heading);
+                for (int r = 1; r <= rings; r++)
+                for (int i = 0; i < seg; i++)
+                {
+                    double a = i * System.Math.PI * 2 / seg, radius = 1 - System.Math.Pow(1 - (double)r / rings, 2);
+                    double dx = rx * System.Math.Cos(a) * radius, dy = ry * System.Math.Sin(a) * radius;
+                    v.Add(U(cx + dx * ca - dy * sa, cy + dx * sa + dy * ca, surface));
+                    int here = 1 + (r - 1) * seg + i, next = 1 + (r - 1) * seg + (i + 1) % seg;
+                    if (r == 1) tr.AddRange(new[] { 0, here, next });
+                    else { int inner = here - seg, innerNext = next - seg; tr.AddRange(new[] { inner, here, innerNext, innerNext, here, next }); }
+                }
+                WaterOptics(Spawn(name, v.ToArray(), tr.ToArray(), mat, parent, false), t);
+            }
             foreach (WorldTerrain.Lake l in WorldTerrain.Lakes)
-            {
-                const int seg = 48;
-                var v = new Vector3[seg + 1]; var tr = new int[seg * 3];
-                v[0] = U(l.Cx, l.Cy, l.SurfaceM);
-                for (int i = 0; i < seg; i++)
-                {
-                    double a = i * System.Math.PI * 2 / seg;
-                    v[i + 1] = U(l.Cx + l.Rx * System.Math.Cos(a), l.Cy + l.Ry * System.Math.Sin(a), l.SurfaceM);
-                }
-                for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
-                Spawn("Lake", v, tr, water, parent, true);
-            }
-            // The alpine lakes: the same fan, turned to each lake's own long axis.
-            var alpine = Mat("FlyingGame/Water", new Color(0.10f, 0.42f, 0.55f, 0.92f));   // colder, clearer
+                LakeMesh("Lake", l.Cx, l.Cy, l.Rx, l.Ry, 0, l.SurfaceM, water);
+            var alpine = Mat("FlyingGame/Water", new Color(0.055f, 0.22f, 0.25f, 1));
+            alpine.SetFloat("_SceneryWater", 1);
             foreach (AlpineRange.Lake l in AlpineRange.Lakes)
-            {
-                const int seg = 48;
-                double hd = l.HeadingDeg * System.Math.PI / 180, ca = System.Math.Cos(hd), sa = System.Math.Sin(hd);
-                var v = new Vector3[seg + 1]; var tr = new int[seg * 3];
-                v[0] = U(l.X, l.Y, l.SurfaceM);
-                for (int i = 0; i < seg; i++)
-                {
-                    double a = i * System.Math.PI * 2 / seg;
-                    double along = l.LengthM * 0.5 * System.Math.Cos(a), across = l.WidthM * 0.5 * System.Math.Sin(a);
-                    v[i + 1] = U(l.X + along * ca - across * sa, l.Y + along * sa + across * ca, l.SurfaceM);
-                }
-                for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
-                Spawn($"AlpineLake-{l.Name}", v, tr, alpine, parent, true);
-            }
+                LakeMesh($"AlpineLake-{l.Name}", l.X, l.Y, l.LengthM * .5, l.WidthM * .5,
+                    l.HeadingDeg * System.Math.PI / 180, l.SurfaceM, alpine);
+            var river = Mat("FlyingGame/Water", new Color(.035f, .16f, .17f, 1));
+            river.SetFloat("_SceneryWater", 1); river.SetFloat("_RiverFlow", 1);
+            var backRiver = new Material(river); backRiver.SetVector("_FlowDirection", new Vector4(0,1,0,0));
             // The backcountry canyon's river: a ribbon down the bottom, broken where a strip's bar covers it.
             {
                 var bv = new List<Vector3>(); var bt = new List<int>();
@@ -367,15 +386,15 @@ namespace FlyingGame.Bridge
                     if (FrankChurch.OnWorkedGround(x, cy)) { run = 0; continue; }
                     double surf = FrankChurch.RiverSurfaceAt(x);
                     double hw = FrankChurch.RiverHalfWidthM;
-                    bv.Add(U(x, cy - hw, surf)); bv.Add(U(x, cy + hw, surf));
+                    for (int c = 0; c < 5; c++) bv.Add(U(x, cy + hw * (c * .5 - 1), surf));
                     if (run > 0)
                     {
-                        int b = bv.Count - 4;
-                        bt.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
+                        for (int c = 0; c < 4; c++)
+                        { int b = bv.Count - 10 + c; bt.AddRange(new[] { b, b+5, b+1, b+1, b+5, b+6 }); }
                     }
                     run++;
                 }
-                if (bt.Count > 0) Spawn("BackcountryRiver", bv.ToArray(), bt.ToArray(), water, parent, true);
+                if (bt.Count > 0) WaterOptics(Spawn("BackcountryRiver", bv.ToArray(), bt.ToArray(), backRiver, parent, false), t);
             }
             // River: ribbon along the meander; the surface steps down at each wall.
             var rv = new List<Vector3>(); var rt = new List<int>();
@@ -387,17 +406,28 @@ namespace FlyingGame.Bridge
                 if (WorldTerrain.PastRiverMouth(y)) break;   // the river ends in the sea
                 double cx = WorldTerrain.RiverCentreX(y);
                 double surf = t.WaterSurfaceAt(cx, y) ?? (t.BaseHeightAt(cx, y) - 2.0);
-                rv.Add(U(cx - halfW, y, surf)); rv.Add(U(cx + halfW, y, surf));
+                for (int c = 0; c < 5; c++) rv.Add(U(cx + halfW * (c * .5 - 1), y, surf));
                 // Break the ribbon at a plunge fall (drop ≫ a staircase step): the curtain mesh takes over.
                 if (n > 0 && prevSurf - surf < 100)
                 {
-                    int b = rv.Count - 4;
-                    rt.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
+                    for (int c = 0; c < 4; c++)
+                    { int b = rv.Count - 10 + c; rt.AddRange(new[] { b, b+1, b+5, b+1, b+6, b+5 }); }
                 }
                 prevSurf = surf;
                 n++;
             }
-            Spawn("River", rv.ToArray(), rt.ToArray(), water, parent, true);
+            WaterOptics(Spawn("River", rv.ToArray(), rt.ToArray(), river, parent, false), t);
+        }
+
+        // CPU optical depth is independent of the view ray and also works without a depth camera.
+        // No heights or collision are changed; uv2.y marks meshes carrying this optional channel.
+        internal static void WaterOptics(GameObject go, WorldTerrain terrain)
+        {
+            var mesh = go.GetComponent<MeshFilter>().sharedMesh;
+            var v = mesh.vertices; var depth = new Vector2[v.Length];
+            for (int i = 0; i < v.Length; i++)
+                depth[i] = new Vector2(Mathf.Max(0, v[i].y - (float)terrain.HeightAt(v[i].z, v[i].x)), 1);
+            mesh.uv2 = depth;
         }
 
         // ---- seaplane lanes and base (owner 2026-10-07) --------------------------------------------
@@ -531,6 +561,10 @@ namespace FlyingGame.Bridge
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
             var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.55f));
             mistMat.SetFloat("_Mist", 1f);
+            var poolMat = Mat("FlyingGame/Waterfall", new Color(.91f,.95f,.94f,.94f));
+            poolMat.SetFloat("_Mist", 2f);
+            var sprayMat = Mat("FlyingGame/Waterfall", new Color(.94f,.97f,1,.38f));
+            sprayMat.SetFloat("_Mist", 3f);
 
             foreach (WorldTerrain.Waterfall f in t.Waterfalls)
             {
@@ -593,11 +627,11 @@ namespace FlyingGame.Bridge
                     double zPool = t.RiverSurfaceAt(f.LipY + WorldTerrain.RiverTableStepPublic + 2.0);
                     double drop = System.Math.Max(10.0, zTop - zPool);
                     double tFall = System.Math.Sqrt(2.0 * drop / 9.81);
-                    const int rows = 48;
+                    const int rows = 48, cols = 16;
                     foreach (double sheet in new[] { 0.0, -3.0 })
                     {
-                        var v = new Vector3[(rows + 1) * 2]; var uv = new Vector2[(rows + 1) * 2];
-                        var tr = new int[rows * 6];
+                        var v = new Vector3[(rows + 1) * (cols + 1)]; var uv = new Vector2[v.Length];
+                        var tr = new int[rows * cols * 6];
                         for (int k = 0; k <= rows; k++)
                         {
                             double s01 = (double)k / rows;
@@ -605,12 +639,19 @@ namespace FlyingGame.Bridge
                             double y = f.LipY + WorldTerrain.FallLipSpeedMs * tk + sheet;
                             double z = zTop - 0.5 * 9.81 * tk * tk;
                             double half = (WorldTerrain.RiverHalfWidthM + 2) * (1.0 + 0.25 * s01);   // the sheet spreads as it falls
-                            v[k * 2] = U(f.X - half, y, z); v[k * 2 + 1] = U(f.X + half, y, z);
-                            uv[k * 2] = new Vector2(0, (float)s01); uv[k * 2 + 1] = new Vector2(1, (float)s01);
-                            if (k > 0)
+                            for (int c = 0; c <= cols; c++)
                             {
-                                int b = (k - 1) * 2, o = (k - 1) * 6;
-                                tr[o] = b; tr[o + 1] = b + 2; tr[o + 2] = b + 1; tr[o + 3] = b + 1; tr[o + 4] = b + 2; tr[o + 5] = b + 3;
+                                double u = (double)c / cols;
+                                double rag = System.Math.Sin(c * 2.17 + s01 * 13 + sheet) * s01 * 1.5;
+                                int idx = k * (cols + 1) + c;
+                                v[idx] = U(f.X + (u * 2 - 1) * half + rag, y + rag * .35, z);
+                                uv[idx] = new Vector2((float)u, (float)s01);
+                                if (k > 0 && c < cols)
+                                {
+                                    int b = (k - 1) * (cols + 1) + c, o = ((k - 1) * cols + c) * 6;
+                                    tr[o] = b; tr[o+1] = b+cols+1; tr[o+2] = b+1;
+                                    tr[o+3] = b+1; tr[o+4] = b+cols+1; tr[o+5] = b+cols+2;
+                                }
                             }
                         }
                         SpawnUv(sheet == 0.0 ? "Curtain" : "CurtainBack", v, uv, tr, curtainMat, root.transform);
@@ -618,6 +659,33 @@ namespace FlyingGame.Bridge
 
                     // -- mist at the plunge pool: three crossed vertical quads, 160 m wide, 90 m tall, boiling.
                     double yHit = f.LipY + WorldTerrain.FallLipSpeedMs * tFall;
+                    // One low oval of aerated water, with outward moving broken rafts.
+                    const int poolSeg = 64;
+                    var pv = new Vector3[poolSeg+1]; var puv = new Vector2[poolSeg+1]; var pt = new int[poolSeg*3];
+                    pv[0] = U(f.X,yHit+12,zPool+.32); puv[0] = new Vector2(.5f,.5f);
+                    for (int c = 0; c < poolSeg; c++)
+                    {
+                        double a = c * System.Math.PI * 2 / poolSeg;
+                        double dx = System.Math.Cos(a), dy = System.Math.Sin(a);
+                        pv[c+1] = U(f.X+dx*95,yHit+12+dy*66,zPool+.32);
+                        puv[c+1] = new Vector2((float)(.5+dx*.5),(float)(.5+dy*.5));
+                        pt[c*3] = 0; pt[c*3+1] = c+1; pt[c*3+2] = (c+1)%poolSeg+1;
+                    }
+                    SpawnUv("PlungeFoam",pv,puv,pt,poolMat,root.transform);
+                    // Bounded spray fans: small translucent fragments, batched into one draw per fall.
+                    var sv = new List<Vector3>(); var suv = new List<Vector2>(); var st = new List<int>();
+                    for (int c = 0; c < 32; c++)
+                    {
+                        double a = c * 2.39996, radius = 8 + (c%7)*7, height = 5 + (c%5)*3;
+                        double dx = System.Math.Cos(a), dy = System.Math.Sin(a);
+                        double x = f.X+dx*radius, y = yHit+dy*radius;
+                        int b = sv.Count;
+                        sv.Add(U(x-2,y,zPool+1)); sv.Add(U(x+2,y,zPool+1));
+                        sv.Add(U(x+dx*height-1,y+dy*height,zPool+height)); sv.Add(U(x+dx*height+1,y+dy*height,zPool+height));
+                        suv.Add(new Vector2(0,0)); suv.Add(new Vector2(1,0)); suv.Add(new Vector2(0,1)); suv.Add(new Vector2(1,1));
+                        st.AddRange(new[] { b,b+2,b+1,b+1,b+2,b+3 });
+                    }
+                    SpawnUv("ImpactSpray",sv.ToArray(),suv.ToArray(),st.ToArray(),sprayMat,root.transform);
                     for (int q = 0; q < 3; q++)
                     {
                         double ang = q * System.Math.PI / 3.0;

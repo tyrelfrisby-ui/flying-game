@@ -6,6 +6,9 @@ Shader "FlyingGame/Water"
     Properties
     {
         _Color ("Deep colour", Color) = (0.08, 0.28, 0.5, 0.92)
+        _SceneryWater ("Scenery depth palette", Float) = 0
+        _RiverFlow ("River flow", Float) = 0
+        _FlowDirection ("Flow direction", Vector) = (1,0,0,0)
         _SkyColor ("Sky", Color) = (0.45, 0.66, 0.95, 1)
     }
     SubShader
@@ -23,11 +26,12 @@ Shader "FlyingGame/Water"
             #include "UnityCG.cginc"
             #include "SunsetSky.cginc"
             UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
-            struct appdata { float4 vertex : POSITION; };
-            struct v2f { float4 pos : SV_POSITION; float3 wp : TEXCOORD0; float4 sp : TEXCOORD1; };
+            struct appdata { float4 vertex : POSITION; float2 depth : TEXCOORD1; };
+            struct v2f { float4 pos : SV_POSITION; float3 wp : TEXCOORD0; float4 sp : TEXCOORD1; float2 depth : TEXCOORD2; };
             fixed4 _Color, _SkyColor;
             sampler2D _ReflectionTex;
             float _ReflPlaneY, _ReflOn;
+            float _SceneryWater, _RiverFlow; float4 _FlowDirection;
             float4 _BubbleSunDir;
             // Wake waves (WakeWaves.cs): height field over the active lake, its world rect and texel, and that lake's surface.
             sampler2D _WakeTex, _WakeFoamTex;
@@ -46,7 +50,7 @@ Shader "FlyingGame/Water"
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.wp = mul(unity_ObjectToWorld, v.vertex).xyz;
-                o.sp = ComputeScreenPos(o.pos);
+                o.sp = ComputeScreenPos(o.pos); o.depth = v.depth;
                 return o;
             }
 
@@ -60,6 +64,21 @@ Shader "FlyingGame/Water"
                 float ripple = lerp(.012, .0007, _WaterCalm);
                 float3 n = normalize(float3(a * ripple, 1.0, b * ripple));
                 float foam = 0;
+                float scenery = _SceneryWater * (1 - _SunsetOn);
+                if (_RiverFlow > .5 && scenery > .5)
+                {
+                    float2 along = _FlowDirection.xy;
+                    float2 across = float2(-along.y, along.x);
+                    float2 flow = float2(dot(p, across), dot(p, along) - t * 3.4);
+                    float coarse = noise(flow * float2(.20, .045));
+                    float fine = noise(flow * float2(.65, .13));
+                    n = normalize(float3(n.x + (coarse-.5)*.065, 1, n.z + (fine-.5)*.045));
+                    // Only sloping reaches break; flat water stays clear. Motion is cosmetic.
+                    float slope = length(float2(ddx(i.wp.y),ddy(i.wp.y))) /
+                        max(.01, length(ddx(p)) + length(ddy(p)));
+                    float rapid = smoothstep(.025,.13,slope);
+                    foam = rapid * smoothstep(.48,.75,coarse*.6+fine*.4) * .72;
+                }
                 if (_WakeOn > 0.5 && abs(i.wp.y - _WakeY) < 1.5)
                 {
                     float2 wuv = (i.wp.xz - _WakeRect.xy) * _WakeRect.zw;
@@ -132,6 +151,12 @@ Shader "FlyingGame/Water"
                 float depth = max(0, sceneZ - surfaceZ) * max(.05, v.y);
                 float3 deep = lerp(_Color.rgb, float3(.025,.045,.06), _SunsetOn);
                 float3 shallow = lerp(_Color.rgb * 1.3, float3(.16,.14,.105), _SunsetOn);
+                if (scenery > .5)
+                {
+                    if (i.depth.y > .5) depth = max(0,i.depth.x);
+                    shallow = float3(.20,.27,.22);
+                    deep = _Color.rgb * float3(.62,.77,.68);
+                }
                 float3 body = lerp(shallow, deep, 1-exp(-depth*.22));
                 float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
                 // A calm sunset lake reflects the luminous deck well into the foreground.
@@ -139,7 +164,9 @@ Shader "FlyingGame/Water"
                 float mirror = lerp(fresnel, max(fresnel, .72 + .22 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
                 float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
-                return fixed4(col, 1);
+                // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
+                float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,.35,depth) : 1;
+                return fixed4(col, alpha);
             }
             ENDCG
         }

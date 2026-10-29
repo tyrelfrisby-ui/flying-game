@@ -34,15 +34,23 @@ namespace FlyingGame.Bridge
             {
                 double cx = CanyonLake.CentreX(y), W = CanyonLake.HalfWidthAt(y) - 1;
                 double yl = System.Math.Min(y, CanyonLake.DamCentreY(cx - W) - 4), yr = System.Math.Min(y, CanyonLake.DamCentreY(cx + W) - 4);
-                v.Add(U(cx - W, yl, CanyonLake.SurfaceM)); v.Add(U(cx + W, yr, CanyonLake.SurfaceM));
-                if (v.Count >= 4) { int b0 = v.Count - 4; tr.AddRange(new[] { b0, b0 + 2, b0 + 1, b0 + 1, b0 + 2, b0 + 3, b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2 }); }
+                for (int c = 0; c <= 8; c++)
+                {
+                    double f = c / 8.0;
+                    v.Add(U(cx + W * (f*2-1), yl + (yr-yl)*f, CanyonLake.SurfaceM));
+                    if (v.Count > 9 && c < 8)
+                    { int b0 = v.Count - 1 - 9; tr.AddRange(new[] { b0,b0+1,b0+9,b0+1,b0+10,b0+9 }); }
+                }
             }
             var wm = new Mesh { name = "CanyonLake", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             wm.SetVertices(v); wm.SetTriangles(tr, 0); wm.RecalculateNormals(); wm.RecalculateBounds();
             var wgo = new GameObject("CanyonLakeWater"); wgo.transform.SetParent(parent, false);
             wgo.AddComponent<MeshFilter>().sharedMesh = wm;
             wgo.layer = WaterReflection.WaterLayer;
-            wgo.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.06f, 0.3f, 0.42f, 0.93f));
+            var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.19f,.20f,1));
+            water.SetFloat("_SceneryWater", 1);
+            wgo.AddComponent<MeshRenderer>().sharedMaterial = water;
+            WorldBuilder.WaterOptics(wgo, t);
 
             var b = new SeasideBuilder.Batch();
             int seed = 0;

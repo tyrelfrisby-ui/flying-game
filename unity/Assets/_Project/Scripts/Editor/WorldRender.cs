@@ -23,11 +23,32 @@ namespace FlyingGame.EditorTools
             var camGo = new GameObject("RenderCam");
             var cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.Skybox; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f);
+            cam.depthTextureMode = DepthTextureMode.Depth;
             cam.fieldOfView = 50f; cam.nearClipPlane = 1f; cam.farClipPlane = 60000f;
             var rt = new RenderTexture(1600, 1000, 24); cam.targetTexture = rt;
 
+            // Derive inspection cameras from today's terrain: the old fixed fall views are underground.
+            var terrain = FlyingGame.Core.WorldTerrain.Active;
+            var fall = terrain.Waterfalls[0];
+            double top = terrain.RiverSurfaceAt(fall.LipY-1);
+            double pool = terrain.RiverSurfaceAt(fall.LipY+FlyingGame.Core.WorldTerrain.RiverTableStepPublic+2);
+            double drop = System.Math.Max(10,top-pool);
+            double hit = fall.LipY+FlyingGame.Core.WorldTerrain.FallLipSpeedMs*System.Math.Sqrt(2*drop/9.81);
+            Vector3 Outside(double x, double y, double h) => WorldBuilder.U(x,y,System.Math.Max(h,terrain.HeightAt(x,y)+35));
+            var lake = FlyingGame.Core.WorldTerrain.SeaplaneBaseLake;
+            double lakeY = (FlyingGame.Core.CanyonLake.Y0+FlyingGame.Core.CanyonLake.DamY)*.5;
+            double lakeX = FlyingGame.Core.CanyonLake.CentreX(lakeY);
+            double bridgeY = FlyingGame.Core.WorldTerrain.BridgeY;
+            double bridgeX = FlyingGame.Core.WorldTerrain.RiverCentreX(bridgeY);
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("waterfall-front-detail", Outside(fall.X,hit+drop*.85,pool+drop*.55), WorldBuilder.U(fall.X,fall.LipY,pool+drop*.5)),
+                ("waterfall-slot-detail", WorldBuilder.U(fall.X,fall.LipY-25,pool+45), WorldBuilder.U(fall.X,hit+20,pool+drop*.35)),
+                ("waterfall-lip-detail", Outside(fall.X,fall.LipY-100,top+95), WorldBuilder.U(fall.X,hit,pool+drop*.65)),
+                ("river-lake-detail", Outside(lakeX+450,lakeY-500,FlyingGame.Core.CanyonLake.SurfaceM+550), WorldBuilder.U(lakeX,lakeY,FlyingGame.Core.CanyonLake.SurfaceM)),
+                ("gorge-flight-detail", Outside(lakeX,lakeY-350,FlyingGame.Core.CanyonLake.SurfaceM+85), WorldBuilder.U(lakeX,lakeY+300,FlyingGame.Core.CanyonLake.SurfaceM+15)),
+                ("bridge-detail", Outside(bridgeX+250,bridgeY+350,FlyingGame.Core.WorldTerrain.DatumM+200), WorldBuilder.U(bridgeX,bridgeY,FlyingGame.Core.CanyonLake.SurfaceM)),
+                ("seaplane-lane-detail", Outside(lake.Cx-100,lake.Cy,lake.SurfaceM+55), WorldBuilder.U(lake.Cx+200,lake.Cy,lake.SurfaceM)),
                 ("overview", new Vector3(9000f, 9000f, -9000f), new Vector3(-3500f, 800f, 1500f)),
                 ("valley-city", new Vector3(2400f, 750f, 200f), new Vector3(900f, 350f, -1500f)),
                 ("valley-pad", new Vector3(1700f, 650f, -3300f), new Vector3(900f, 500f, -2850f)),
