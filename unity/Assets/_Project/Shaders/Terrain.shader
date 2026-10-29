@@ -86,35 +86,34 @@ Shader "FlyingGame/Terrain"
             // Uneven centres persist for kilometres vertically; no thresholded 2D blobs.
             float3 graniteRibs(float2 p)
             {
-                float bend=(filteredMountain(float2(p.x*.00065,p.y*.00045))-.5)*22;
+                float bend=(filteredMountain(float2(p.x*.00035,p.y*.00030))-.5)*38;
                 float crossM=p.x+bend;
-                float cell=floor(crossM/110);
-                float distanceM=1000, widthM=4;
+                // 380 m catchments: roughly 3-6 chutes across the authored peak faces.
+                float cell=floor(crossM/380);
+                float distanceM=1000, widthM=20, signedM=0;
                 for(int ri=-1;ri<=1;ri++)
                 {
                     float id=cell+ri;
                     float seed=frac((id*.1031+17.17)*(id*.1031+51.73));
-                    float centre=(id+.18+.64*seed)*110;
-                    float dist=abs(crossM-centre);
-                    if(dist<distanceM) { distanceM=dist; widthM=3+seed*6; }
+                    float centre=(id+.27+.46*seed)*380;
+                    float offset=crossM-centre;
+                    float dist=abs(offset);
+                    if(dist<distanceM)
+                    {
+                        distanceM=dist; signedM=offset;
+                        // 20-60 m full width, tapering gradually towards the summit.
+                        widthM=(14+seed*16)*lerp(1,.72,smoothstep(2200,5200,p.y));
+                    }
                 }
-                float aa=max(.35,fwidth(crossM)*.65);
+                float aa=max(.65,fwidth(crossM)*.75);
                 float couloir=1-smoothstep(max(0,widthM-aa),widthM+aa,distanceM);
-                // Optical relief describes the broad rock ribs between the snow chutes.
-                float rib=1-exp(-distanceM*.055);
-                if(_DayAtmosphere.z<.5) return float3(0,couloir,rib);
-                float jointCoordinate=p.x+(filteredMountain(p*.0009+37)-.5)*9;
-                float jc=floor(jointCoordinate/23);
-                float jointDistance=100;
-                for(int ji=-1;ji<=1;ji++)
-                {
-                    float id=jc+ji;
-                    float seed=frac((id*.107+7.13)*(id*.107+31.91));
-                    jointDistance=min(jointDistance,abs(jointCoordinate-(id+.15+.7*seed)*23));
-                }
-                float jaa=max(.20,fwidth(jointCoordinate)*.65);
-                float joint=(1-smoothstep(max(0,.45-jaa),.85+jaa,jointDistance))
-                    *(1-smoothstep(2,7,jaa));
+                // Broad buttress, 60-200 m across, between white fall-line corridors.
+                float rib=smoothstep(35,95,distanceM);
+                // Only one sparse large joint per catchment; no 23 m fluting family.
+                float jointDistance=abs(signedM-118);
+                float joint=(1-smoothstep(max(0,1.2-aa),2.5+aa,jointDistance))
+                    *(1-smoothstep(3,10,aa));
+                if(_DayAtmosphere.z<.5) joint=0;
                 return float3(joint,couloir,rib);
             }
             fixed4 frag (v2f i, float facing : VFACE) : SV_Target
@@ -136,6 +135,9 @@ Shader "FlyingGame/Terrain"
                 float3 albedo=i.c.rgb;
                 float forest=saturate(-i.c.a);
                 float alpine=mountainRegion(i.wp.xz,_MountainAlpine);
+                // Keep provenance BEFORE Alaska's padded footprint takes priority.
+                float alpineSnowDomain=smoothstep(.01,.50,alpine);
+                float alpineMeadow=alpineSnowDomain*(1-smoothstep(3000,3060,i.wp.y));
                 float alaska=mountainRegion(i.wp.xz,_MountainAlaska);
                 float mountain=max(alpine,alaska);
                 alpine*=1-alaska; // Granite takes priority in the overlapping footprint skirts.
@@ -199,7 +201,8 @@ Shader "FlyingGame/Terrain"
                             // never rotate position coordinates with a varying normal.
                             float3 ribsX=graniteRibs(i.wp.xy);
                             float3 ribsZ=graniteRibs(i.wp.zy+float2(371,0));
-                            float3 ribs=lerp(ribsX,ribsZ,sideWeight);
+                            // Dominant projection avoids two crossing sets on diagonal faces.
+                            float3 ribs=sideWeight>.5 ? ribsZ : ribsX;
                             mountainJoint=lerp(mountainJoint,ribs.x,alaska);
                             couloir=ribs.y;
                             buttress=lerp(buttress,ribs.z,alaska);
@@ -240,7 +243,8 @@ Shader "FlyingGame/Terrain"
                     float exposed=(1-smoothstep(.60,.819,macroNormal.y));
                     float mountainRock=mountain*max(exposed,bareAltitude)*(1-redrock);
                     mountainRock*=1-alpine*smoothstep(.78,.94,macroNormal.y)
-                        *(1-smoothstep(2920,3140,i.wp.y))*.88;
+                        *(1-smoothstep(3000,3060,i.wp.y))*.88;
+                    mountainRock*=1-alpineMeadow*smoothstep(.78,.94,macroNormal.y);
                     // Cover stays tied to the existing forest registry. Never add trees
                     // to strips, authored clearings, or slopes that have no sim timber.
                     // Registered canopy already has sim altitude/aspect/slope thinning.
@@ -263,23 +267,24 @@ Shader "FlyingGame/Terrain"
                     float streak=sheltered*patchAltitude*smoothstep(.42,.76,macroNormal.y)
                         *(1-retention)*(.35+aspect*.45)*(1-ridge*.65);
                     float snow=saturate(cap+streak)*(1-redrock);
-                    // Alaska: clean benches/crests, predominantly bare >55-60 degree
-                    // granite faces, with narrow continuous chutes between the rock ribs.
-                    float bench=smoothstep(.52,.76,macroNormal.y);
-                    float chute=couloir*smoothstep(.09,.22,macroNormal.y);
-                    float alaskaSnow=snowAltitude*max(bench,chute*.95);
+                    // Authored Alaska faces are unusually steep: snow survives to ~78 degrees,
+                    // leaving only the steepest broad buttresses exposed, not entire flanks.
+                    float bench=smoothstep(.12,.28,macroNormal.y);
+                    float chute=couloir*smoothstep(.04,.12,macroNormal.y);
+                    float rockRib=buttress*(1-smoothstep(.22,.42,macroNormal.y));
+                    float alaskaSnow=snowAltitude*max(bench*(1-rockRib*.68),chute);
+                    alaskaSnow=max(alaskaSnow,snowAltitude*smoothstep(.65,.90,macroNormal.y));
                     snow=lerp(snow,alaskaSnow,alaska)*(1-redrock);
                     // An absolute local snowline gate prevents sunny lake meadows from
                     // inheriting upper-ridge deposition through aspect/noise alone.
-                    float meadowExclusion=smoothstep(2920,3140,i.wp.y);
-                    snow*=lerp(1,meadowExclusion,alpine);
+                    float meadowExclusion=1-alpineMeadow;
                     // Preserve the established non-range snow response on front walls.
                     float legacyAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
                     float legacyRetention=smoothstep(.64,.88,macroNormal.y);
                     float legacyStreak=smoothstep(.72,.92,gully)*legacyAltitude
                         *smoothstep(.18,.35,macroNormal.y)*(1-legacyRetention)*(1-ridge*.6);
                     float legacySnow=saturate(legacyAltitude*legacyRetention*(.94-ridge*.24)+legacyStreak*.32)*(1-redrock);
-                    snow=lerp(legacySnow,snow,mountain);
+                    snow=lerp(legacySnow,snow,mountain)*meadowExclusion;
                     float talus=hollow*smoothstep(.60,.82,macroNormal.y)
                         *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
                     albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
@@ -329,10 +334,10 @@ Shader "FlyingGame/Terrain"
                         beddingRelief-=mountainJoint*.65;
                         float graniteTone=filteredMountain(ground*.00045);
                         float3 granite=lerp(float3(.58,.60,.63),float3(.66,.64,.60),graniteTone);
-                        granite*=1-mountainJoint*.48;
+                        granite*=1-mountainJoint*.18;
                         granite*=1+(rockGrain-.5)*.055+buttress*.065;
                         float3 mountainStone=lerp(limestone,granite,alaska);
-                        mountainStone*=1-gully*.09-hollow*.08;
+                        mountainStone*=1-(gully*.09+hollow*.08)*(1-alaska*.75);
                         albedo=lerp(albedo,mountainStone,mountainRock);
                         // Concave toes and channel mouths broaden into smooth debris
                         // aprons as the slope shallows. No geometry or depth offset.
@@ -363,8 +368,9 @@ Shader "FlyingGame/Terrain"
                     float detailFade=1-smoothstep(8,38,length(fwidth(i.wp)));
                     float relief=detailFade*cliff*(1-snow*lerp(.85,.40,alaska))*(1-forest)*
                         ((rockGrain-.5)*lerp(1.2,.18,alaska)-gully*lerp(4.0,2.5,mountain)
-                            +beddingRelief+alaska*(buttress*6-mountainJoint*.45))*(1-talus*.8)
-                        +detailFade*benchIce*((rockGrain-.5)*2.2-mountainJoint);
+                            +beddingRelief+alaska*(buttress*8-mountainJoint*.12))*(1-talus*.8)
+                        +detailFade*benchIce*((rockGrain-.5)*.18-mountainJoint*.12);
+                    relief*=lerp(1,.45,alaska);
                     float3 dpdx=ddx(i.wp), dpdy=ddy(i.wp);
                     float3 r1=cross(dpdy,n), r2=cross(n,dpdx);
                     float determinant=dot(dpdx,r1);
@@ -373,6 +379,7 @@ Shader "FlyingGame/Terrain"
                     // Bound the perturbation; avoid grazing-angle derivative explosions.
                     gradient*=min(1,.35/max(.001,length(gradient)));
                     n=normalize(n-gradient);
+                    float glacialSetting=0;
                     if(alaska>.001)
                     {
                         float glacier=0, iceAcross=0, iceAlong=0, iceWidth=1, iceLength=1, marginDistance=1000;
@@ -388,21 +395,26 @@ Shader "FlyingGame/Terrain"
                             float2 local=i.wp.zx-axis.xy;
                             float along=dot(local,down), across=dot(local,right);
                             float width=_GlacierWidths[gi];
-                            float marginNoise=filteredMountain(float2(along*.008,across*.005)+gi*17.3);
+                            float marginNoise=filteredMountain(float2(along*.0015,across*.0010)+gi*17.3);
                             // Signed-distance edge with ~1.5 pixel transition, no 65 m smear.
                             // Smooth stationary axis noise avoids slope/triangle sawteeth.
-                            float boundary=width+(marginNoise-.5)*36;
+                            float boundary=width+(marginNoise-.5)*16;
                             float edgeDistance=abs(across)-boundary;
                             float edgeAA=max(.5,fwidth(edgeDistance)*.75);
                             float edge=1-smoothstep(-edgeAA,edgeAA,edgeDistance);
-                            float endAA=max(.5,fwidth(along)*.75);
-                            float ends=smoothstep(-endAA,endAA,along)
+                            // Rounded, low-frequency head contact instead of a straight cut
+                            // across the coarse mesh's scalloped upper valley wall.
+                            float headDistance=90*pow(saturate(abs(across)/width),2)
+                                +(marginNoise-.5)*12-along;
+                            float endAA=max(.5,fwidth(headDistance)*.75);
+                            float ends=(1-smoothstep(-endAA,endAA,headDistance))
                                 *(1-smoothstep(len-endAA,len+endAA,along));
                             float clearLz=(1-smoothstep(400,460,abs(along-len*.65)))
                                 *(1-smoothstep(40,100,abs(across)));
-                            float claim=max(edge*ends,clearLz);
-                            float setting=(1-smoothstep(width+700,width+1300,abs(across)))
-                                *smoothstep(-700,-100,along)*(1-smoothstep(len+650,len+1200,along));
+                            float claim=max(edge*ends,clearLz)*(1-alpineMeadow);
+                            float setting=(1-smoothstep(width+1500,width+2100,abs(across)))
+                                *smoothstep(-1300,-700,along)*(1-smoothstep(len+900,len+1500,along))
+                                *(1-alpineMeadow);
                             surroundings=max(surroundings,setting);
                             if(claim>glacier)
                             {
@@ -410,6 +422,7 @@ Shader "FlyingGame/Terrain"
                                 iceWidth=width; iceLength=len; iceDown=down; marginDistance=edgeDistance;
                             }
                         }
+                        glacialSetting=max(surroundings,glacier);
                         if(surroundings>.001 || glacier>.001)
                         {
                             // Local glacial foreland overrides green plateau vegetation.
@@ -493,6 +506,15 @@ Shader "FlyingGame/Terrain"
                             }
                         }
                     }
+                    // Colony wall-foot grass came from meadow + residual vertex forest.
+                    // Keep brown tundra outside ice even beyond the narrow glacier corridors.
+                    float colonySetting=alaska*(1-alpineSnowDomain)*(1-glacialSetting)
+                        *(1-smoothstep(1900,2350,i.wp.y));
+                    float3 tundra=lerp(float3(.43,.40,.35),float3(.55,.53,.48),broad);
+                    albedo=lerp(albedo,tundra,colonySetting);
+                    forest*=1-colonySetting;
+                    // Final low alpine meadow finish also excludes any corridor foreland white.
+                    albedo=lerp(albedo,meadow,alpineMeadow*smoothstep(.72,.92,macroNormal.y));
                     float crowns=lerp(.5,noiseTerrain(ground*.14),saturate(1-length(fwidth(ground))*.025));
                     float canopy=smoothstep(.15,.8,forest);
                     albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);
@@ -543,7 +565,7 @@ Shader "FlyingGame/Terrain"
                 float d = saturate(dot(n, l));
                 float3 dayFill=lerp(float3(.32,.38,.44),float3(.51,.57,.62),n.y*.5+.5);
                 // Readable blue-grey skylight on shaded Alaska granite, including Ruth.
-                dayFill=lerp(dayFill,max(dayFill,float3(.46,.53,.63)),alaska*(1-_SunsetOn));
+                dayFill=lerp(dayFill,max(dayFill,float3(.60,.67,.78)),alaska*(1-_SunsetOn));
                 float3 col = albedo * lerp(dayFill + float3(.52,.48,.40)*d,
                     float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
                 if(powellMask>.001)
