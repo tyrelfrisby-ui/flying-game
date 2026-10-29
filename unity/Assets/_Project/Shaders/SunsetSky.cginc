@@ -25,6 +25,9 @@ float3 DaySkyRough(float3 ray, float roughness) {
  ray=normalize(ray);
  float y=saturate(ray.y);
  float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.42));
+ // Elevated downward views see below the true horizon beyond the finite world.
+ // Continue into a softly graded haze hemisphere rather than clamping to blue.
+ sky=lerp(sky,float3(.34,.46,.58),smoothstep(0,.70,-ray.y)*.75);
  float3 sunDir=normalize(float3(.4,.8,-.4));
  float sun=saturate(dot(ray,sunDir));
  sky+=float3(.14,.12,.075)*pow(sun,32);
@@ -33,7 +36,8 @@ float3 DaySkyRough(float3 ray, float roughness) {
  // enormous connected, melted patches; cellular envelopes keep clear gaps.
  // Project onto a horizontal deck: distant banks shrink toward the horizon.
  // The old bounded denominator kept identical large stickers at every elevation.
- float2 p=ray.xz/max(.12,y+.08)*1.3;
+ // No low-elevation constant denominator: that turns deck cells into curtains.
+ float2 p=ray.xz/max(.012,y)*1.3;
  float pixelWidth=max(.06,length(fwidth(p))*.8) + roughness*.42;
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);
@@ -67,7 +71,7 @@ float3 DaySkyRough(float3 ray, float roughness) {
  float erosion=skyNoise(p*7.7+13.2)-.5;
  if (_DayAtmosphere.z > .5) erosion+=(skyNoise(p*23.1+7.1)-.5)*.35;
  field+=erosion*.85;
- float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)*smoothstep(.005,.055,y);
+ float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)*smoothstep(.018,.12,y);
  float light=saturate(crownLight+erosion*.30);
  float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
 

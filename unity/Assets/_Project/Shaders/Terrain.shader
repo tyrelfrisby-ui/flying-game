@@ -71,20 +71,24 @@ Shader "FlyingGame/Terrain"
                     float rockGrain=noiseTerrain(i.wp.xz*.075)*weights.y;
                     rockGrain+=noiseTerrain(i.wp.zy*float2(.065,.095))*weights.x;
                     rockGrain+=noiseTerrain(i.wp.xy*float2(.065,.095))*weights.z;
-                    // Side projections follow gravity on cliff faces. Broad troughs rather than
-                    // contours of isotropic noise avoid the closed ink-loop artefact of M2.
-                    float warp=noiseTerrain(ground*.006);
-                    float2 sideWeight=abs(macroNormal.xz);
-                    sideWeight/=max(.001,sideWeight.x+sideWeight.y);
-                    float drainageX=noiseTerrain(float2(i.wp.z*.022+warp*.65,i.wp.y*.0023));
-                    float drainageZ=noiseTerrain(float2(i.wp.x*.022-warp*.65,i.wp.y*.0023+17));
-                    float drainage=drainageX*sideWeight.x+drainageZ*sideWeight.y;
-                    float channel=1-smoothstep(.24,.53,drainage);
+                    // Gravity projected into the macro tangent plane. Across-flow distance is
+                    // world anchored; the long axis follows the actual downhill slope, not world Y.
+                    float2 downhill=length(macroNormal.xz) > .001
+                        ? normalize(macroNormal.xz) : float2(1,0);
+                    float2 across=float2(-downhill.y,downhill.x);
+                    float3 flow=normalize(float3(downhill.x*macroNormal.y,
+                        -length(macroNormal.xz),downhill.y*macroNormal.y));
+                    float along=dot(i.wp,flow);
+                    float crossFlow=dot(i.wp.xz,across);
+                    float warp=noiseTerrain(float2(crossFlow*.004,along*.0018));
+                    // 20–60 m ribs, hundreds of metres downhill. Two scales avoid a comb.
+                    float drainage=noiseTerrain(float2(crossFlow*.026+warp*.85,along*.0015));
                     float fine=rockGrain;
                     if (_DayAtmosphere.z > .5)
-                        fine=noiseTerrain(ground*.061+float2(warp*.6,i.wp.y*.003));
-                    float tributary=1-smoothstep(.28,.57,fine);
-                    float gully=saturate(channel*.7+tributary*channel*.3+hollow*.25);
+                        fine=noiseTerrain(float2(crossFlow*.052+warp,along*.0035+19));
+                    float channel=1-smoothstep(.25,.57,drainage);
+                    float tributary=1-smoothstep(.30,.60,fine);
+                    float gully=saturate(channel*.84+tributary*channel*.16+hollow*.16);
                     // Recover the substrate hidden by the old vertex snow, then deposit snow by
                     // altitude, aspect and concavity. Ice metadata bypasses this reconstruction.
                     float oldSnow=saturate(i.geology.x);
@@ -96,26 +100,42 @@ Shader "FlyingGame/Terrain"
                     // Very compressed peaks need discontinuous snow tongues on their flanks;
                     // shallow caps also retain exposed wind-scoured patches instead of white rings.
                     float retention=smoothstep(.28,.74,macroNormal.y);
-                    float pocket=gully*smoothstep(.19,.43,macroNormal.y)*.62;
+                    float pocket=pow(gully,2)*smoothstep(.19,.39,macroNormal.y)*.92;
                     float accumulation=snowAltitude*(retention*.78+pocket)*(1-ridge*.55);
                     float breakup=(broad-.5)*.60+(rockGrain-.5)*.24+(fine-.5)*.24;
                     float snow=smoothstep(.35,.75,accumulation+breakup)*(1-redrock);
+                    // Thin persistent couloir snow between the broken upper-slope patches.
+                    float snowTongue=snowAltitude*smoothstep(.68,.88,gully)
+                        *smoothstep(.20,.40,macroNormal.y)*(1-ridge*.6);
+                    snow=max(snow,snowTongue*.82*(1-redrock));
                     snow*=smoothstep(.16,.29,macroNormal.y); // no snow on near-vertical rock
                     float talus=hollow*smoothstep(.60,.82,macroNormal.y)
                         *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
                     albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
-                    float bed=i.wp.y*.048+broad*1.4+ground.x*.0007;
+                    float bed=i.wp.y*.022+broad*.60+ground.x*.00035;
                     float band=sin(bed)/(1+fwidth(bed)*2);
                     albedo*=1+(broad-.5)*.18+(rockGrain-.5)*.25;
-                    albedo*=1+cliff*band*lerp(.045,.19,redrock);
-                    albedo*=1-cliff*(gully*.12+hollow*.14); // crease occlusion, not baked sunlight
+                    // World-height stratigraphy: distinct cream/tan/rust/grey beds,
+                    // with broad unequal packages rather than faint equal sine stripes.
+                    float package=noiseTerrain(float2(bed*.35,7.3));
+                    float3 strata=lerp(float3(.52,.30,.19),float3(.72,.60,.43),
+                        smoothstep(-.65,.35,band));
+                    strata=lerp(strata,float3(.43,.42,.39),
+                        smoothstep(.60,.78,package)*smoothstep(-.3,.6,band));
+                    float darkBed=(1-smoothstep(-.80,-.40,band))*cliff;
+                    strata*=1-darkBed*.34;
+                    albedo=lerp(albedo,strata*(.87+rockGrain*.26),redrock*.82);
+                    float fan=talus*(.45+gully*.55);
+                    albedo=lerp(albedo,float3(.66,.55,.42),fan*redrock*.65);
+                    albedo*=1-cliff*(gully*.30+hollow*.12);
+                    albedo*=1+cliff*(1-gully)*.10;
                     if(i.geology.x >= 0)
                         albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow);
                     // Surface-gradient bump in world space. These are shading heights only:
                     // NO vertex movement, depth/parallax change, or collision displacement.
                     float detailFade=1-smoothstep(8,38,length(fwidth(i.wp)));
                     float relief=detailFade*cliff*(1-snow*.85)*(1-forest)*
-                        ((rockGrain-.5)*1.8-gully*2.4);
+                        ((rockGrain-.5)*1.8-gully*13.0);
                     float3 dpdx=ddx(i.wp), dpdy=ddy(i.wp);
                     float3 r1=cross(dpdy,n), r2=cross(n,dpdx);
                     float determinant=dot(dpdx,r1);
@@ -151,10 +171,10 @@ Shader "FlyingGame/Terrain"
                     float path=max(0,distanceM-_DayAtmosphere.y);
                     float lowAltitude=max(0,min(i.wp.y,_WorldSpaceCameraPos.y));
                     float altitudeSpan=abs(i.wp.y-_WorldSpaceCameraPos.y);
-                    float scaledSpan=altitudeSpan*.00032;
-                    float meanDensity=exp(-lowAltitude*.00032)
+                    float scaledSpan=altitudeSpan*.00020;
+                    float meanDensity=exp(-lowAltitude*.00020)
                         *(1-exp(-max(.001,scaledSpan)))/max(.001,scaledSpan);
-                    float optical=path*_DayAtmosphere.x*meanDensity;
+                    float optical=path*_DayAtmosphere.x*meanDensity*1.65;
                     float haze=1-exp(-optical);
                     col=lerp(col,float3(.32,.49,.68),haze);
                 }
