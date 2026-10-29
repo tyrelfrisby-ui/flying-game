@@ -41,6 +41,36 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-29 — Claude · lane/claude-extra-hinges · the propeller turns about its spinner
+
+Ty: "The Extra 300's propeller spins about a point 0.24 m above its real axis — the prop looks too high."
+Exactly right, to the centimetre. `AirframeVisual.CarveModel` centred each hub on the middle of the
+propeller's bounding box. With three blades one of them points straight up, so the box ran -0.52..+1.00 m
+vertically and its centre sat 0.24 m high; the earlier tip snap had already put the hub on the axis, and
+this pass undid it. The prop swept a cone, and the blur disc hung above the cowl.
+
+The hub now goes on the **spinner's own centroid** — the bound propeller vertices inside 0.4 R of the hub
+the tip snap found — which is on the axis whatever the blade count. A model with no spinner falls back to
+the mean of every bound propeller vertex, also on the axis for any evenly spaced blades. The 0.5 R reject
+that throws out a wheel pant or a cowl piece is unchanged, and only x and y move; the hub keeps its z.
+
+Measured with SKIN_DIAG, which now prints the new hub beside the box centre the old code would have used:
+
+| | new hub | old box centre | blades |
+|---|---|---|---|
+| Extra 300 | (0.00, **0.00**, 2.54) | (0.00, **0.24**, 1.97) | 3 |
+| Pitts S-2B | (0.00, 0.00, 1.68) | (0.00, 0.00, 1.69) | 2 |
+| Great Lakes | (0.00, 0.20, 1.61) | (0.00, 0.20, 0.86) | 2 |
+
+Both two-blade props are unchanged. The c172 and the Seminole bind no propeller from their models at all
+(`0/1` and `0/2` propellers bound), so neither pass reaches them.
+
+**Why it hid:** `AircraftRender` only ever rendered a stopped propeller — `SpinProps(_ => 0f, 0.02f)`. It
+gains `-rpm <rpm>` and `-propdeg <deg>`, which hold a turning hub at a chosen angle (`SpinProps` integrates
+rpm over dt, so `dt = deg / (rpm * 6)`), and `-own`, without which the c172 and Seminole GLBs cannot be
+reached at all. Rendered at 0 rpm, at 300 rpm with the hub turned 60°, and at 2,500 rpm: the spinner stays
+on the cowl nose and the blur disc is centred on it. Lane only; not pushed, not merged.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
