@@ -16,7 +16,8 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public const float WaveSpeedMs = 6f, StepSec = 0.05f, DecaySec = 100f, LastsSec = 300f;
 
-        private Material _sim;
+        private Material _sim, _foamSim;
+        private RenderTexture _foam, _foamNext;
         private RenderTexture _prev, _curr, _next;
         private int _lake = -1;
         private float _cell, _width, _depth, _acc, _sinceForcing = 1e9f;
@@ -30,6 +31,8 @@ namespace FlyingGame.Bridge
             Shader sh = Shader.Find("Hidden/FlyingGame/WaveSim");
             if (sh == null || !SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RHalf)) { enabled = false; Shader.SetGlobalFloat(WakeOnId, 0f); return; }
             _sim = new Material(sh);
+            var foamShader = Shader.Find("Hidden/FlyingGame/WakeFoam");
+            if (foamShader != null && foamShader.isSupported) _foamSim = new Material(foamShader);
             Shader.SetGlobalFloat(WakeOnId, 0f);
         }
 
@@ -56,6 +59,7 @@ namespace FlyingGame.Bridge
                 Step(n);
             }
             Shader.SetGlobalTexture(WakeTexId, _curr);
+            Shader.SetGlobalTexture("_WakeFoamTex", _foam != null ? (Texture)_foam : Texture2D.blackTexture);
         }
 
         private void Allocate(int lake)
@@ -71,6 +75,7 @@ namespace FlyingGame.Bridge
             _width = tw * _cell; _depth = th * _cell;
             _min = new Vector2(c.x - _width / 2, c.z - _depth / 2);
             _prev = Make(tw, th); _curr = Make(tw, th); _next = Make(tw, th);
+            if (_foamSim != null) { _foam = Make(tw, th); _foamNext = Make(tw, th); _foamSim.SetFloat("_Cell", _cell); }
             _lake = lake; _acc = 0f;
             Shader.SetGlobalVector(WakeRectId, new Vector4(_min.x, _min.y, 1f / _width, 1f / _depth));
             Shader.SetGlobalVector(WakeTexelId, new Vector4(1f / tw, 1f / th, _cell, 0));
@@ -91,8 +96,10 @@ namespace FlyingGame.Bridge
 
         private void Release()
         {
-            foreach (var rt in new[] { _prev, _curr, _next }) if (rt != null) { rt.Release(); Destroy(rt); }
-            _prev = _curr = _next = null; _lake = -1;
+            foreach (var rt in new[] { _prev, _curr, _next, _foam, _foamNext }) if (rt != null) { rt.Release(); Destroy(rt); }
+            _prev = _curr = _next = _foam = _foamNext = null;
+            Shader.SetGlobalTexture("_WakeFoamTex", Texture2D.blackTexture);
+            _lake = -1;
             Shader.SetGlobalFloat(WakeOnId, 0f);
         }
 
@@ -134,8 +141,19 @@ namespace FlyingGame.Bridge
             _sim.SetVectorArray("_Src", _src);
             Graphics.Blit(_curr, _next, _sim);
             var t = _prev; _prev = _curr; _curr = _next; _next = t;
+            if (_foamSim != null && _foam != null)
+            {
+                _foamSim.SetTexture("_Height", _curr);
+                Graphics.Blit(_foam, _foamNext, _foamSim);
+                t = _foam; _foam = _foamNext; _foamNext = t;
+            }
         }
 
-        private void OnDestroy() => Release();
+        private void OnDestroy()
+        {
+            Release();
+            if (_sim != null) Destroy(_sim);
+            if (_foamSim != null) Destroy(_foamSim);
+        }
     }
 }

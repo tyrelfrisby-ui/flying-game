@@ -27,10 +27,16 @@ Shader "FlyingGame/Water"
             float _ReflPlaneY, _ReflOn;
             float4 _BubbleSunDir;
             // Wake waves (WakeWaves.cs): height field over the active lake, its world rect and texel, and that lake's surface.
-            sampler2D _WakeTex;
+            sampler2D _WakeTex, _WakeFoamTex;
             float4 _WakeRect, _WakeTexel;
             float _WakeOn, _WakeY;
 
+            float hash(float2 p) { return frac(sin(dot(p, float2(127.1,311.7))) * 43758.5453); }
+            float noise(float2 p)
+            {
+                float2 q = floor(p), f = frac(p); f = f*f*(3-2*f);
+                return lerp(lerp(hash(q),hash(q+float2(1,0)),f.x),lerp(hash(q+float2(0,1)),hash(q+1),f.x),f.y);
+            }
             v2f vert (appdata v)
             {
                 v2f o;
@@ -59,7 +65,12 @@ Shader "FlyingGame/Water"
                         float hz = tex2D(_WakeTex, wuv + float2(0, _WakeTexel.y)).r - tex2D(_WakeTex, wuv - float2(0, _WakeTexel.y)).r;
                         float2 slope = float2(hx, hz) / (2.0 * _WakeTexel.z);
                         n = normalize(float3(n.x - slope.x * 2.0, 1.0, n.z - slope.y * 2.0));
-                        foam = saturate((length(slope) - 0.12) * 4.0) * 0.4;   // only the steepest crests froth
+                        // World-space foam rafts break up the crest history; no painted or guessed V.
+                        float history = max(tex2D(_WakeFoamTex, wuv).r, saturate((length(slope) - .12) * 4) * .4);
+                        float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
+                        float coverage = smoothstep(.22, .7, history + lace * .38);
+                        foam = coverage * saturate(history * 1.5);
+                        n = normalize(lerp(n, float3(0,1,0), foam * .65));
                     }
                 }
                 float3 v = normalize(_WorldSpaceCameraPos - i.wp);
@@ -76,7 +87,7 @@ Shader "FlyingGame/Water"
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float3 h = normalize(l + v);
                 float spec = pow(saturate(dot(n, h)), 220.0) * 1.2;
-                float3 col = lerp(_Color.rgb, refl, fresnel) + spec;
+                float3 col = lerp(_Color.rgb, refl, fresnel) + spec * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 return fixed4(col, _Color.a);
             }
