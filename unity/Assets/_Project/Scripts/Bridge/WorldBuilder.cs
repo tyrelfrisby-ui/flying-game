@@ -559,7 +559,7 @@ namespace FlyingGame.Bridge
         {
             var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
-            var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.55f));
+            var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.72f));
             mistMat.SetFloat("_Mist", 1f);
             var poolMat = Mat("FlyingGame/Waterfall", new Color(.91f,.95f,.94f,.94f));
             poolMat.SetFloat("_Mist", 2f);
@@ -627,6 +627,14 @@ namespace FlyingGame.Bridge
                     double zPool = t.RiverSurfaceAt(f.LipY + WorldTerrain.RiverTableStepPublic + 2.0);
                     double drop = System.Math.Max(10.0, zTop - zPool);
                     double tFall = System.Math.Sqrt(2.0 * drop / 9.81);
+                    // The river may be drowned by the canyon lake: impact belongs on the visible water.
+                    for (int solve = 0; solve < 3; solve++)
+                    {
+                        double hitY = f.LipY + WorldTerrain.FallLipSpeedMs * tFall;
+                        zPool = t.WaterSurfaceAt(f.X, hitY) ?? zPool;
+                        drop = System.Math.Max(10.0, zTop-zPool);
+                        tFall = System.Math.Sqrt(2.0*drop/9.81);
+                    }
                     const int rows = 48, cols = 16;
                     foreach (double sheet in new[] { 0.0, -3.0 })
                     {
@@ -667,11 +675,14 @@ namespace FlyingGame.Bridge
                     {
                         double a = c * System.Math.PI * 2 / poolSeg;
                         double dx = System.Math.Cos(a), dy = System.Math.Sin(a);
-                        pv[c+1] = U(f.X+dx*95,yHit+12+dy*66,zPool+.32);
+                        double px = f.X+dx*95, py = yHit+12+dy*66;
+                        pv[c+1] = U(px,py,zPool+.32);
                         puv[c+1] = new Vector2((float)(.5+dx*.5),(float)(.5+dy*.5));
                         pt[c*3] = 0; pt[c*3+1] = c+1; pt[c*3+2] = (c+1)%poolSeg+1;
                     }
                     SpawnUv("PlungeFoam",pv,puv,pt,poolMat,root.transform);
+                    // Render foam after its underlying water regardless of large ribbon bounds.
+                    poolMat.renderQueue = 3002;
                     // Bounded spray fans: small translucent fragments, batched into one draw per fall.
                     var sv = new List<Vector3>(); var suv = new List<Vector2>(); var st = new List<int>();
                     for (int c = 0; c < 32; c++)

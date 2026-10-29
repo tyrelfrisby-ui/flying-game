@@ -73,23 +73,26 @@ Shader "FlyingGame/Waterfall"
                     float2 c = i.uv - 0.5;
                     float r = length(c * float2(1.0, 1.4)) * 2.0;
                     float n = vnoise(i.uv * 5.0 + float2(t * 0.15, -t * 0.35)) * 0.6 + vnoise(i.uv * 11.0 - float2(0, t * 0.6)) * 0.4;
-                    float a = pow(saturate(1.0 - r), 1.4) * saturate(i.uv.y*12) * (1-smoothstep(.35,1,i.uv.y)) * (.3 + .7*n);
+                    float a = (1-smoothstep(.1,1,r)) * saturate(i.uv.y*18) * (1-smoothstep(.3,1,i.uv.y)) * (.5 + .5*n);
                     return fixed4(0.93, 0.96, 1.0, a * _Color.a);
                 }
                 // Curtain: u across, v down the fall. Streaks = stretched noise scrolling down; two layers at
                 // different rates read as sheets of water sliding over each other. Water speeds up as it
                 // falls, so lower streaks scroll faster (v * (1 + v)).
                 float v = i.uv.y, u = i.uv.x;
-                float s1 = vnoise(float2(u * 28.0, v * 6.0 - t * _Speed * (1.0 + v)));
-                float s2 = vnoise(float2(u * 60.0 + 3.1, v * 14.0 - t * _Speed * 1.7 * (1.0 + v)));
+                // Metre-scale down-fall detail: normalized v stretched six noise cells over the entire cliff.
+                float fallCoord = -i.wp.y*.12 - t*_Speed*3;
+                float bend = vnoise(float2(u*9,fallCoord*.28))*1.8;
+                float s1 = vnoise(float2(u * 28.0+bend, fallCoord));
+                float s2 = vnoise(float2(u * 60.0 + 3.1, fallCoord*2.3-t*_Speed));
                 float streak = smoothstep(0.35, 0.8, s1 * 0.65 + s2 * 0.35);
                 // Aeration: the sheet breaks into white water with distance fallen.
-                float foam = smoothstep(.08,.75,v) * (.55 + .45 * s2);
+                float foam = smoothstep(.08,.75,v) * (.72 + .28 * s2);
                 float3 col = lerp(float3(.30,.49,.48),float3(.94,.97,.96),saturate(.25 + .48*streak + .65*foam));
                 // Edges of the curtain are ragged/thinner.
                 float ragged = .025 + .035*vnoise(float2(v*32-t*2,u*5));
                 float edge = smoothstep(0.0, ragged, u) * smoothstep(0.0, ragged, 1.0 - u);
-                float holes = lerp(1,smoothstep(.20,.42,s1*.6+s2*.4),v*.65);
+                float holes = lerp(1,smoothstep(.12,.32,s1*.6+s2*.4),v*.4);
                 float a = _Color.a * (.45 + .4*streak + .15*foam) * edge * holes;
                 return fixed4(col, a);
             }

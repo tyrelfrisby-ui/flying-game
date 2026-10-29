@@ -34,6 +34,15 @@ namespace FlyingGame.EditorTools
             double pool = terrain.RiverSurfaceAt(fall.LipY+FlyingGame.Core.WorldTerrain.RiverTableStepPublic+2);
             double drop = System.Math.Max(10,top-pool);
             double hit = fall.LipY+FlyingGame.Core.WorldTerrain.FallLipSpeedMs*System.Math.Sqrt(2*drop/9.81);
+            for (int solve = 0; solve < 3; solve++)
+            {
+                pool = terrain.WaterSurfaceAt(fall.X,hit) ?? pool;
+                drop = System.Math.Max(10,top-pool);
+                hit = fall.LipY+FlyingGame.Core.WorldTerrain.FallLipSpeedMs*System.Math.Sqrt(2*drop/9.81);
+            }
+            double reachY = fall.LipY + 350;
+            double reachX = FlyingGame.Core.WorldTerrain.RiverCentreX(reachY);
+            double reachH = terrain.WaterSurfaceAt(reachX,reachY) ?? pool;
             Vector3 Outside(double x, double y, double h) => WorldBuilder.U(x,y,System.Math.Max(h,terrain.HeightAt(x,y)+35));
             var lake = FlyingGame.Core.WorldTerrain.SeaplaneBaseLake;
             double lakeY = (FlyingGame.Core.CanyonLake.Y0+FlyingGame.Core.CanyonLake.DamY)*.5;
@@ -42,7 +51,10 @@ namespace FlyingGame.EditorTools
             double bridgeX = FlyingGame.Core.WorldTerrain.RiverCentreX(bridgeY);
             (string name, Vector3 pos, Vector3 look)[] views =
             {
-                ("waterfall-front-detail", Outside(fall.X,hit+drop*.85,pool+drop*.55), WorldBuilder.U(fall.X,fall.LipY,pool+drop*.5)),
+                ("waterfall-front-detail", Outside(fall.X+drop*.25,hit+drop*1.65,pool+drop*.65), WorldBuilder.U(fall.X,hit-15,pool+drop*.48)),
+                ("waterfall-pool-detail", Outside(fall.X+140,hit+230,pool+95), WorldBuilder.U(fall.X,hit+12,pool+12)),
+                ("river-flow-detail", Outside(reachX+120,reachY+180,reachH+150), WorldBuilder.U(reachX,reachY,reachH)),
+                ("lake-shore-detail", Outside(lake.Cx+lake.Rx*.65,lake.Cy,lake.SurfaceM+35), WorldBuilder.U(lake.Cx+lake.Rx*.95,lake.Cy,lake.SurfaceM)),
                 ("waterfall-slot-detail", WorldBuilder.U(fall.X,fall.LipY-25,pool+45), WorldBuilder.U(fall.X,hit+20,pool+drop*.35)),
                 ("waterfall-lip-detail", Outside(fall.X,fall.LipY-100,top+95), WorldBuilder.U(fall.X,hit,pool+drop*.65)),
                 ("river-lake-detail", Outside(lakeX+450,lakeY-500,FlyingGame.Core.CanyonLake.SurfaceM+550), WorldBuilder.U(lakeX,lakeY,FlyingGame.Core.CanyonLake.SurfaceM)),

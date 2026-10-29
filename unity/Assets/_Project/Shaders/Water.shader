@@ -61,10 +61,17 @@ Shader "FlyingGame/Water"
                 float2 p = i.wp.xz;
                 float a = sin(p.x * 0.35 + p.y * 0.2 + t * 1.1) + 0.6 * sin(p.x * 0.9 - p.y * 0.7 + t * 1.7);
                 float b = cos(p.x * 0.25 - p.y * 0.4 + t * 0.9) + 0.6 * cos(p.x * 0.6 + p.y * 1.1 + t * 1.4);
-                float ripple = lerp(.012, .0007, _WaterCalm);
+                float scenery = _SceneryWater * (1 - _SunsetOn);
+                // Scenery uses irregular capillary patches, avoiding two visible crossing sine grids.
+                if (scenery > .5)
+                {
+                    float warp = noise(p*.017 + t*.025)*5;
+                    a = noise(p*.19 + float2(warp,-t*.24))-.5;
+                    b = noise(p*.27 + float2(t*.18,warp)+31.7)-.5;
+                }
+                float ripple = lerp(lerp(.012,.009,scenery), .0007, _WaterCalm);
                 float3 n = normalize(float3(a * ripple, 1.0, b * ripple));
                 float foam = 0;
-                float scenery = _SceneryWater * (1 - _SunsetOn);
                 if (_RiverFlow > .5 && scenery > .5)
                 {
                     float2 along = _FlowDirection.xy;
@@ -154,8 +161,8 @@ Shader "FlyingGame/Water"
                 if (scenery > .5)
                 {
                     if (i.depth.y > .5) depth = max(0,i.depth.x);
-                    shallow = float3(.20,.27,.22);
-                    deep = _Color.rgb * float3(.62,.77,.68);
+                    shallow = float3(.24,.30,.24);
+                    deep = _Color.rgb * float3(.78,.90,.80);
                 }
                 float3 body = lerp(shallow, deep, 1-exp(-depth*.22));
                 float3 sunTint = lerp(float3(1,1,1),float3(1,.68,.36),_SunsetOn);
@@ -165,7 +172,7 @@ Shader "FlyingGame/Water"
                 float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
-                float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,.35,depth) : 1;
+                float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,1.2,depth) : 1;
                 return fixed4(col, alpha);
             }
             ENDCG
