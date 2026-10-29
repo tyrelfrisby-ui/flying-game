@@ -196,14 +196,35 @@ def wing_low_c(xd):            # wing lower skin over the fuselage centreline
 # Lines off the three-view side view (top / bottom) and top view (half-breadth), drawing stations xd (m aft of the hub).
 def _top_cabin(xd): return wing_low_c(xd) + 0.003     # v7: tucked 3 mm inside the wing skin (was -0.004: a see-through slot under the wing from the side)
 _TOPF = [(0.185, 0.035), (0.19, 0.07), (0.20, 0.10), (0.215, 0.13), (0.24, 0.155), (0.28, 0.170), (0.33, 0.178),
-         (0.45, 0.183), (0.60, 0.19), (0.785, 0.20), (0.96, 0.21), (1.05, 0.30), (1.15, 0.39), (1.25, 0.465),
-         (1.33, 0.52), (1.40, 0.556)]
+         (0.45, 0.183), (0.60, 0.19), (0.785, 0.20), (0.96, 0.21)]
+# ---- v8 (Ty): windshield side profile. The glass is flush with the wing's top skin: it leaves the upper-skin contour on a
+# tangent (WS_FT of chord aft of the LE) and runs down and forward to its base on the tank deck about 6 in aft of the fuel
+# cap (cap at xd 0.85). Profile = cubic Bezier: tangent to the skin at the top, near-straight lower run (photos c37/c38/c47).
+# Aft of the tangent point the fuselage top tucks 4 mm inside the wing and drops to the cabin roof (all hidden in the wing).
+WS_XB, WS_ZB, WS_FT, WS_K1, WS_K2 = 0.85 + 6 * IN, 0.214, 0.05, 0.40, 0.30
+_fsu = np.linspace(0.0, 0.6, 1201)
+_UPC = np.array([wsurf(W, 0.0, f, True) for f in _fsu])
+def wing_up_c(xd): return float(np.interp(xd, -_UPC[:, 0], _UPC[:, 2]))       # wing upper skin over the centreline
+_wt, _wt2 = wsurf(W, 0.0, WS_FT, True), wsurf(W, 0.0, WS_FT + 0.002, True)
+WS_XT, WS_ZT = float(-_wt[0]), float(_wt[2])
+_tT = np.array((-(_wt2[0] - _wt[0]), _wt2[2] - _wt[2])); _tT = _tT / np.linalg.norm(_tT)       # skin direction (aft) at the tangent point
+_P0, _P3 = np.array((WS_XB, WS_ZB)), np.array((WS_XT, WS_ZT)); _Lw = float(np.linalg.norm(_P3 - _P0))
+_P2 = _P3 - WS_K2 * _Lw * _tT
+_d0 = (_P2 - _P0) / np.linalg.norm(_P2 - _P0); _P1 = _P0 + WS_K1 * _Lw * _d0
+_ub = np.linspace(0, 1, 400)[:, None]
+_WSC = (1 - _ub) ** 3 * _P0 + 3 * (1 - _ub) ** 2 * _ub * _P1 + 3 * (1 - _ub) * _ub ** 2 * _P2 + _ub ** 3 * _P3
+assert np.all(np.diff(_WSC[:, 0]) > 0), 'windshield profile must be monotonic in xd'
+def ws_line(xd): return float(np.interp(xd, _WSC[:, 0], _WSC[:, 1]))
+WS_XIN = WS_XT + 0.06                                                          # top stays 4 mm inside the skin to here
 _TOPA = [(3.03, None), (3.10, 0.536), (3.27, 0.53), (3.60, 0.512), (4.00, 0.49), (4.32, 0.475), (4.80, 0.478),
          (5.20, 0.488), (5.39, 0.495), (5.80, 0.48), (6.25, 0.45)]
 _TOPA[0] = (3.03, _top_cabin(3.02))
 def F_TOP(xd):
-    if xd <= 1.40: return tbl(_TOPF)(xd)
-    if xd <= 1.43: return _TOPF[-1][1] + (_top_cabin(1.43) - _TOPF[-1][1]) * (xd - 1.40) / 0.03
+    if xd <= 0.96: return tbl(_TOPF)(xd)
+    if xd <= WS_XB: return 0.21 + (WS_ZB - 0.21) * (xd - 0.96) / (WS_XB - 0.96)
+    if xd <= WS_XT: return ws_line(xd)
+    if xd <= WS_XIN: return wing_up_c(xd) - 0.004 * min((xd - WS_XT) / 0.02, 1.0)
+    if xd <= 1.75: return (wing_up_c(WS_XIN) - 0.004) + (_top_cabin(1.75) - wing_up_c(WS_XIN) + 0.004) * (xd - WS_XIN) / (1.75 - WS_XIN)
     if xd <= 3.02: return _top_cabin(xd)
     return tbl(_TOPA)(xd)
 F_BOT = tbl([(0.185, -0.05), (0.19, -0.15), (0.20, -0.24), (0.22, -0.31), (0.25, -0.36), (0.30, -0.40), (0.33, -0.42),
@@ -254,7 +275,7 @@ def fus_y(xd, z):
 # stations: dense where windows / door / hoods have edges
 XS = [0.185, 0.186, 0.188, 0.191, 0.195, 0.20, 0.207, 0.215, 0.225, 0.238, 0.25, 0.27, 0.29, 0.31, 0.325, 0.345,
       0.37, 0.40, 0.43, 0.46, 0.49, 0.52, 0.545, 0.57, 0.60, 0.65, 0.70, 0.75, 0.785, 0.84, 0.90, 0.96]
-XS += L(0.99, 1.23, 9) + L(1.27, 1.59, 7) + L(1.62, 1.94, 17) + L(1.98, 2.15, 4) + [2.19, 2.225] + L(2.25, 2.43, 10) + [2.47]   # 0.02 m through the chevron front + slanted aft door edges
+XS += L(0.99, 1.23, 9) + L(1.27, 1.59, 7) + L(1.62, 1.94, 17) + [0.975, WS_XB - 0.004, WS_XB + 0.004] + L(1.0, 1.58, 30) + L(1.98, 2.15, 4) + [2.19, 2.225] + L(2.25, 2.43, 10) + [2.47]   # v8: dense through the windshield profile; 0.02 m through the chevron front + slanted aft door edges
 XS += L(2.4975, 2.82, 13) + [2.87, 2.95, 3.03, 3.10, 3.20, 3.35, 3.50, 3.70, 3.90, 4.10, 4.35, 4.60, 4.85, 5.10, 5.30,
                               5.45, 5.60, 5.75, 5.90, 6.02, 6.12, 6.20, 6.25]
 XS = sorted(set(round(v, 4) for v in XS))
@@ -286,10 +307,18 @@ def door_ax(z):
     return DOOR['ax_s'] - (DOOR['ax_s'] - DOOR['ax_b']) * min((DOOR['zs'] - z) / (DOOR['zs'] - DOOR['zb']), 1.0)
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
+# v8 (Ty): A-pillar. The windshield ends at a raked A-pillar at each side (black screwed strip over the frame tube,
+# photos c37 / c38 / c47): straight in side view, from the deck just aft of the windshield base up and aft to the wing
+# leading edge, on the deck-to-side corner; its foot is the side window's lower-front corner on the sill (surface normal ~50-60 deg off vertical). The side window is the triangle
+# below / aft of it: its sloping sill runs up forward into the pillar (front point ~xd 1.02).
+AP_X0, AP_Z0, AP_X1, AP_Z1 = 1.000, 0.168, 1.425, 0.580
+def ap_z(xd): return AP_Z0 + (AP_Z1 - AP_Z0) * (xd - AP_X0) / (AP_X1 - AP_X0)
 def region(c, n):
     xd, y, z = -c.x, c.y, c.z; side = abs(n.y) > 0.45
-    if 0.96 < xd < (door_fx(z) - POST if side else 1.665) and z > (max(0.03, sill_d(xd)) if side else 0.03) and (xd < 1.42 or (side and z < DOOR['zt'])):
-        return 'glass'
+    if WS_XB < xd < WS_XT + 0.004 and z > ap_z(xd) and z > sill_d(xd) - 0.004:
+        return 'glass'                                                        # windshield (above / ahead of the A-pillar)
+    if side and 0.96 < xd < door_fx(z) - POST and z > max(0.03, sill_d(xd)) and z < ap_z(xd) and (xd < 1.42 or z < DOOR['zt'] or xd < DOOR['x0'] - POST):   # v8: up to the wing root aft of the pillar
+        return 'glass'                                                        # front side window
     if DOOR['x0'] < xd < door_ax(z) and side:
         if y < 0:
             if DOOR['zs'] < z < DOOR['zt'] and xd > door_fx(z):
@@ -351,47 +380,45 @@ P['Fuselage'] = link('Fuselage', b_skin)
 P['Cabin_Liner'] = link('Cabin_Liner', b_lin); P['Liner_Stbd'] = link('Liner_Stbd', b_lin_r)
 P['Glass'] = link('Glass', b_glass)
 for nm, b2 in (('DoorUpper_R', b_door_up), ('DoorLower_R', b_door_lo)):
+    bmesh.ops.dissolve_degenerate(b2, dist=1e-5, edges=b2.edges[:])     # v8: a zero-area sliver otherwise spikes the solidify
     bmesh.ops.solidify(b2, geom=b2.faces[:], thickness=0.012)
     P[nm] = link(nm, b2)
 P['Window_R'] = link('Window_R', b_door_gl)
 
-# ---- v7 (Ty): windshield top -> wing leading edge fairing ---------------------------------------------------------------
-# Real J-3s (photos c37 / c42 / c47, refs/j3-cub) have a sheet-metal cap across the centre section: the windshield top
-# tucks under it and it wraps the wing nose onto the upper skin, so the glass runs smoothly up into the leading edge
-# instead of stopping 30 mm below the nose with a notch. Profile per span station: on the glass (tangent to the
-# windshield line) -> cubic blend, vertical at the nose -> follows the upper skin to ~6 % chord; 4 mm proud, 3 mm thick.
-# Outboard of the flat cabin top it tapers into a short root fillet: the skirt edge slides onto the LE underside and the
-# whole skin sinks 1.5 mm into the wing (v7c side view showed an open 10 mm sliver at the outboard end).
-def _zfus(xd, y):
-    top, bot, hw, nt = F_TOP(xd), F_BOT(xd), F_HW(xd), F_NT(xd); zw = bot + ZWF * (top - bot)
-    if abs(y) >= hw: return None
-    c = (abs(y) / hw) ** (nt / 2); s_ = math.sqrt(max(1 - c * c, 0)); return zw + (top - zw) * s_ ** (2 / nt)
-WF_OFF, WF_T = 0.004, 0.003
-_hw0 = F_HW(1.37)
-WF_Y0 = max(y for y in np.linspace(0, _hw0, 400) if _zfus(1.37, y) is not None and _zfus(1.37, y) >= F_TOP(1.37) - 0.025)
-WF_Y1 = WF_Y0 + 0.11
-def _wf_prof(y):
-    tt = min(max((abs(y) - WF_Y0) / (WF_Y1 - WF_Y0), 0), 1); tt = tt * tt * (3 - 2 * tt); off = WF_OFF * (1 - tt) - 0.0015 * tt     # outboard end sinks 1.5 mm into the skin: no open edge
-    nose = wsurf(W, y, 0.0, True); xn, zn = -nose[0], nose[2]                     # drawing xd, z of the wing nose
-    ups = [wsurf(W, y, f, True) for f in (0.002, 0.006, 0.013, 0.024, 0.038, 0.055)]
-    wrap = [(xn - off, zn)] + [(-u[0], u[2] + off) for u in ups]
-    ya = min(abs(y), WF_Y0)
-    xs_ = (1.345, 1.362, 1.378)
-    glass = [(x_, (_zfus(x_, ya) if _zfus(x_, ya) is not None else F_TOP(x_)) + off) for x_ in xs_]
-    lows = [wsurf(W, y, f, False) for f in (0.012, 0.007, 0.003)]                  # outboard: the skirt melts onto the LE underside
-    gl = [(x_ * (1 - tt) + (-lw[0]) * tt, z_ * (1 - tt) + (lw[2] - off) * tt) for (x_, z_), lw in zip(glass, lows)]
-    (x0, z0), (x1, z1) = gl[-2], gl[-1]; sl = (z1 - z0) / (x1 - x0); a = (x1, z1); d = (xn - off, zn)
-    L_ = math.hypot(d[0] - a[0], d[1] - a[1]); t0 = np.array((1.0, sl)) / math.hypot(1.0, sl)
-    c1 = np.array(a) + 0.45 * L_ * t0; c2 = np.array(d) - 0.45 * L_ * np.array((0.0, 1.0))
-    bz = [tuple((1 - u) ** 3 * np.array(a) + 3 * (1 - u) ** 2 * u * c1 + 3 * (1 - u) * u * u * c2 + u ** 3 * np.array(d)) for u in np.linspace(0, 1, 9)[1:-1]]
-    return [B(x_, y, z_) for x_, z_ in gl + bz + wrap]
-_wfy = sorted(set([round(v, 4) for v in list(np.linspace(-WF_Y1, -WF_Y0, 7)) + list(np.linspace(-WF_Y0, WF_Y0, 15)) + list(np.linspace(WF_Y0, WF_Y1, 7))]))
-_bwf = bmesh.new(); loft_rings(_bwf, [_wf_prof(y) for y in _wfy], cap0=False, cap1=False, closed=False)
-bmesh.ops.solidify(_bwf, geom=_bwf.faces[:], thickness=WF_T)
-P['Windshield_Fairing'] = link('Windshield_Fairing', _bwf)
-_wfc = _wf_prof(0.0)
-print('WSFAIR span +/-%.3f (flat to +/-%.3f); centre: glass start xd %.3f z %.3f -> nose xd %.3f z %.3f -> upper xd %.3f z %.3f'
-      % (WF_Y1, WF_Y0, -_wfc[0][0], _wfc[0][2], -wsurf(W, 0, 0, True)[0], wsurf(W, 0, 0, True)[2], -_wfc[-1][0], _wfc[-1][2]))
+# ---- v8 (Ty): A-pillar strips (replace the v7 windshield-top fairing: the glass now runs flush into the wing top skin) ---
+AP_W, AP_T, AP_OFF = 0.034, 0.003, 0.0015
+def _surf_pt(xd, z, sy):
+    return np.array(B(xd, sy * fus_y(xd, z), z))
+def _surf_n(xd, z, sy):
+    p = _surf_pt(xd, z, sy); a_ = _surf_pt(xd + 0.002, ap_z(xd + 0.002), sy) - _surf_pt(xd - 0.002, ap_z(xd - 0.002), sy)
+    b_ = _surf_pt(xd, z + 0.002, sy) - _surf_pt(xd, z - 0.002, sy); nn = np.cross(a_, b_); nn /= np.linalg.norm(nn)
+    return nn if np.dot(nn, (0, sy, 0.3)) > 0 else -nn
+_bap = bmesh.new(); AP_SCREWS = 0
+for sy in (1, -1):
+    xs_ = np.linspace(AP_X0, AP_X1, 40); rows = []
+    for x_ in xs_:
+        zc = ap_z(x_); row = []
+        for dz in (-0.5 * AP_W, 0.0, 0.5 * AP_W):
+            z_ = min(zc + dz, F_TOP(x_) - 0.004); row.append(_surf_pt(x_, z_, sy) + _surf_n(x_, z_, sy) * AP_OFF)
+        rows.append(row)
+    vs = [[_bap.verts.new(p) for p in r] for r in rows]
+    for i in range(len(vs) - 1):
+        for k in range(2):
+            q = (vs[i][k], vs[i + 1][k], vs[i + 1][k + 1], vs[i][k + 1]); _bap.faces.new(q if sy > 0 else q[::-1])
+bmesh.ops.recalc_face_normals(_bap, faces=_bap.faces[:])
+for f in _bap.faces: pass
+bmesh.ops.solidify(_bap, geom=_bap.faces[:], thickness=AP_T)
+P['A_Pillar'] = link('A_Pillar', _bap)
+_bsc = bmesh.new()
+for sy in (1, -1):
+    for x_ in np.linspace(AP_X0 + 0.03, AP_X1 - 0.03, 8):
+        z_ = ap_z(x_); p = _surf_pt(x_, z_, sy); nn = _surf_n(x_, z_, sy)
+        cyl(_bsc, tuple(p + nn * (AP_OFF + AP_T * 0.5)), tuple(p + nn * (AP_OFF + AP_T + 0.0016)), 0.0035, 10); AP_SCREWS += 1
+P['A_Pillar_Screws'] = link('A_Pillar_Screws', _bsc)
+print('WINDSHIELD v8: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
+      'A-pillar (%.3f, %.3f) -> (%.3f, %.3f), rake %.1f deg above horizontal, %d screws'
+      % (WS_XB, WS_ZB, (WS_XB - 0.85) / IN, WS_XT, WS_ZT, WS_FT * 100, AP_X0, AP_Z0, AP_X1, AP_Z1,
+         math.degrees(math.atan2(AP_Z1 - AP_Z0, AP_X1 - AP_X0)), AP_SCREWS))
 
 # ---- tail: stab + elevators (hinge xd 6.19), fin + balanced rudder (hinge xd 6.255, horn above the fin) ---------------
 # v4 tail check against two published 3-views (refs/j3-cub/: Commons J-3 3-view; P. Severin 3-view after Paul Matt /
@@ -1226,7 +1253,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('Windshield_Fairing', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'black'), ('A_Pillar_Screws', 'steel'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])

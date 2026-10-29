@@ -243,3 +243,12 @@ Ty's review of v6. References are by eye or from drawings only; no third-party m
   - Prop: `prop_rpm`, +6 deg/s per rpm (clockwise from the cockpit).
   - Floats: WaterRudder_L steers with `rudder` at ±25° (judgement). The link is 25/30, with `rig_limit_deg` 25. WaterRudder_Blade_L retracts on `water_rudder_up` 0..1: 0 is down (as drawn on 60-S-908A) and 1 is swung up 90°.
   - Every pivot's sign is asserted in the build (a centroid-motion test); all pass on both variants.
+
+## v8 (2026-10-28)
+
+Ty's windshield fix. References are by eye from photos only (refs/j3-cub/cand c37, c38, c40, c47); no third-party meshes.
+
+- **Windshield profile:** the top of the windshield is flush with the wing top skin. In side view it leaves the wing contour on a tangent to the upper skin at 5 % chord (xd 1.486 m, z 0.661 m above the thrust line) and runs down and forward to its base on the deck at xd 1.002 m, which is 6.0 in aft of the fuel cap (xd 0.85). The curve is a cubic Bezier (WS_* constants in build_j3_cub.py): G1-tangent to the skin at the top, with a near-straight lower run. The build asserts it is monotonic. Between the tangent point and the cabin top it follows the wing upper contour 4 mm below the skin, hidden inside the wing.
+- **A-pillar:** new parts `A_Pillar` (black, 34 mm wide, 3 mm thick, 1.5 mm proud of the skin) and `A_Pillar_Screws` (steel, 8 per side). One pillar per side. In side view it is a straight line raked 44° above horizontal, from its foot at the side window's lower-front corner on the sill, just aft of the windshield base (xd 1.000, z 0.168), up and aft to the wing leading edge (xd 1.425, z 0.580). On the sides the windshield glass stays above the sill line. It sits on the deck-to-side corner, so from the front the windshield spans the fuselage width as a round-cornered arch (c40). The windshield glass is only above or ahead of the pillar. The fixed side window is the area below or aft of it: its sloping sill runs up forward into the pillar (front point ≈ xd 1.02), and aft of the pillar it now reaches up to the wing root.
+- **Removed:** the v7 `Windshield_Fairing`. The glass now meets the top skin flush, so the fairing is no longer needed.
+- **Mesh:** fuselage stations densified to 0.02 m through the windshield (xd 1.00–1.58). A degenerate sliver face in the door split is now dissolved before the door panels are solidified (it had produced a far-off spike vertex).
