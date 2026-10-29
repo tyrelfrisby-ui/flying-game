@@ -569,21 +569,6 @@ Shader "FlyingGame/Terrain"
                     float vegetationChroma=albedo.g-max(albedo.r,albedo.b);
                     float greenToe=corridorVegetation*(1-glacierSurface)
                         *smoothstep(.012,.055,vegetationChroma);
-                    // Separate narrow correction at Foraker's eastern footprint edge
-                    // (sim XY centre 5400,-7200, radius 1300 m). Never widen the
-                    // corridor replacement: that reaches pale snow on moraine mounds.
-                    // This annulus has at most 280 m support, only on the eastern toe.
-                    float footEdge=length(i.wp.zx-float2(5400,-7200))-1300;
-                    float footBand=1-smoothstep(60,140,abs(footEdge));
-                    footBand*=smoothstep(6000,6100,i.wp.z)*alaska
-                        *smoothstep(_MountainAlpine.z-900,_MountainAlpine.z-700,i.wp.x);
-                    // Test PRE-replacement albedo. Bright or snow-covered ground gets
-                    // exactly zero extra paint; blue-white also fails positive G chroma.
-                    float toeBrightness=max(albedo.r,max(albedo.g,albedo.b));
-                    float darkBareToe=(1-smoothstep(.48,.60,toeBrightness))
-                        *(1-smoothstep(.02,.15,snow))*(1-glacierSurface);
-                    float footGreen=footBand*darkBareToe*smoothstep(.002,.018,vegetationChroma);
-                    greenToe=max(greenToe,footGreen);
                     float3 dryToe=lerp(float3(.34,.31,.27),float3(.49,.46,.40),broad);
                     albedo=lerp(albedo,dryToe,greenToe);
 
