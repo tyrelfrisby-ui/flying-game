@@ -15,6 +15,7 @@ namespace FlyingGame.EditorTools
         {
             string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/world"));
             Directory.CreateDirectory(outDir);
+            File.WriteAllText(Path.Combine(outDir,"green-probe.txt"),"M17 terrain source probe; normal PNGs saved before diagnostics.\n");
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             FlyingGame.Core.WorldTerrain.Active = new FlyingGame.Core.WorldTerrain();
@@ -466,6 +467,8 @@ namespace FlyingGame.EditorTools
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+                if(name=="alaska-colony" || name=="alaska-east-fork")
+                    WriteGreenProbe(cam,tex,name,outDir);
                 Object.DestroyImmediate(tex);
                 Object.DestroyImmediate(forest);
             }
@@ -480,6 +483,121 @@ namespace FlyingGame.EditorTools
             SunsetLighting.ApplyDay();
             RenderTexture.active = null;
             Debug.Log($"WorldRender: wrote {views.Length} images to {outDir}");
+        }
+        // M17: sample the actual rasterized terrain and shader terms, using the exact
+        // named-shot camera and pixel centres. No guessed mountain bounds or sim edits.
+        // Runs AFTER saving the normal PNG. Probe variant is never enabled in play.
+        static void WriteGreenProbe(Camera cam,Texture2D plate,string shot,string outDir)
+        {
+            var culture=System.Globalization.CultureInfo.InvariantCulture;
+            var report=new System.Text.StringBuilder();
+            report.AppendLine("\nSHOT "+shot+"; pixels use top-left origin; Unity XYZ=(sim Y,height,sim X)");
+            report.AppendLine("camera="+cam.transform.position.ToString("F6")+" rotation="+cam.transform.rotation.ToString("F6")
+                +" fov="+cam.fieldOfView.ToString(culture)+" aspect="+cam.aspect.ToString(culture));
+            foreach(string uniform in new[]{"_MountainAlpine","_MountainAlaska","_GlacierWidths"})
+                report.AppendLine(uniform+"="+Shader.GetGlobalVector(uniform).ToString("F6"));
+            for(int gi=0;gi<3;gi++) report.AppendLine("glacierAxis"+gi+"="+AlaskaBuilder.GlacierAxis(gi).ToString("F6"));
+            report.AppendLine("Columns: pixelX,pixelY,plateRGB; modes are raw linear float4, NOT display colours.");
+            string[] labels={"worldXYZ_valid","vertexRGBA","geologySnow_curvature_normalY_valid",
+                "alpineDomain_alaska_alpineMeadow_mountain","snow_meadowFinish_canopy_forest",
+                "glacier_skyView_corridorVegetation_glacialSetting","minCorridorDistance_colonySetting_greenToe_chroma",
+                "meadowRGB","beforeGlacierRGB","afterGlacierRGB","beforeMeadowRGB","afterMeadowRGB",
+                "afterCanopyAndToeRGB","corridorDistances012","beforeEarlyMeadowRGB","afterEarlyMeadowRGB",
+                "earlyMeadowWeight_mountainRock_exposed_outsideAlpineCore"};
+            var pixels=new System.Collections.Generic.List<Vector2Int>();
+            // Cover every Chief rectangle, including the small upper-left Colony patch,
+            // and neighbouring brown/snow controls. 20 px spacing prevents one missed edge.
+            if(shot=="alaska-colony")
+            {
+                for(int y=220;y<=340;y+=20) for(int x=1180;x<=1380;x+=20) pixels.Add(new Vector2Int(x,y));
+                for(int y=260;y<=300;y+=20) for(int x=780;x<=980;x+=20) pixels.Add(new Vector2Int(x,y));
+                for(int y=60;y<=180;y+=20) for(int x=220;x<=260;x+=20) pixels.Add(new Vector2Int(x,y));
+            }
+            else
+            {
+                for(int y=260;y<=380;y+=20) for(int x=540;x<=820;x+=20) pixels.Add(new Vector2Int(x,y));
+                for(int y=300;y<=340;y+=20) for(int x=140;x<=340;x+=20) pixels.Add(new Vector2Int(x,y));
+            }
+            pixels.Add(new Vector2Int(800,500)); pixels.Add(new Vector2Int(1000,700));
+            var values=new Color[labels.Length,pixels.Count];
+            var states=new System.Collections.Generic.List<(Renderer renderer,bool enabled,Material[] materials,bool terrain)>();
+            var visibleWorld=new Color[pixels.Count];
+            var clones=new System.Collections.Generic.List<Material>();
+            RenderTexture savedTarget=cam.targetTexture, savedActive=RenderTexture.active;
+            CameraClearFlags savedClear=cam.clearFlags; Color savedBackground=cam.backgroundColor;
+            var target=new RenderTexture(plate.width,plate.height,24,RenderTextureFormat.ARGBFloat,RenderTextureReadWrite.Linear);
+            target.antiAliasing=1;
+            var readback=new Texture2D(plate.width,plate.height,TextureFormat.RGBAFloat,false,true);
+            try
+            {
+                foreach(var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    if(!renderer.enabled) continue;
+                    Material[] originals=renderer.sharedMaterials;
+                    bool isTerrain=originals.Length>0;
+                    foreach(var material in originals)
+                        isTerrain &= material!=null && material.shader.name=="FlyingGame/Terrain";
+                    states.Add((renderer,renderer.enabled,originals,isTerrain));
+                    if(!isTerrain) continue;
+                    var probeMaterials=new Material[originals.Length];
+                    for(int mi=0;mi<originals.Length;mi++)
+                    {
+                        var copy=new Material(originals[mi]); copy.EnableKeyword("TERRAIN_GREEN_PROBE");
+                        clones.Add(copy); probeMaterials[mi]=copy;
+                    }
+                    renderer.sharedMaterials=probeMaterials;
+                }
+                cam.targetTexture=target; cam.clearFlags=CameraClearFlags.SolidColor;
+                cam.backgroundColor=new Color(-99999,-99999,-99999,-99999);
+                // First keep all scenery visible: a different value here proves that
+                // another renderer occludes the terrain at the named plate pixel.
+                Shader.SetGlobalFloat("_TerrainGreenProbeMode",1);
+                cam.Render(); RenderTexture.active=target;
+                readback.ReadPixels(new Rect(0,0,plate.width,plate.height),0,0); readback.Apply();
+                for(int pi=0;pi<pixels.Count;pi++)
+                    visibleWorld[pi]=readback.GetPixel(pixels[pi].x,plate.height-1-pixels[pi].y);
+                foreach(var state in states) if(!state.terrain) state.renderer.enabled=false;
+                for(int mode=1;mode<=labels.Length;mode++)
+                {
+                    Shader.SetGlobalFloat("_TerrainGreenProbeMode",mode);
+                    cam.Render(); RenderTexture.active=target;
+                    readback.ReadPixels(new Rect(0,0,plate.width,plate.height),0,0); readback.Apply();
+                    for(int pi=0;pi<pixels.Count;pi++)
+                        values[mode-1,pi]=readback.GetPixel(pixels[pi].x,plate.height-1-pixels[pi].y);
+                }
+                for(int pi=0;pi<pixels.Count;pi++)
+                {
+                    Vector2Int pixel=pixels[pi]; Color colour=plate.GetPixel(pixel.x,plate.height-1-pixel.y);
+                    report.AppendLine(string.Format(culture,"pixel {0},{1}; plateRGB={2:F6},{3:F6},{4:F6}",pixel.x,pixel.y,colour.r,colour.g,colour.b));
+                    for(int mode=0;mode<labels.Length;mode++)
+                    {
+                        Color value=values[mode,pi];
+                        report.AppendLine(string.Format(culture,"  {0}={1:F6},{2:F6},{3:F6},{4:F6}",labels[mode],value.r,value.g,value.b,value.a));
+                    }
+                    Color world=values[0,pi], visible=visibleWorld[pi];
+                    float worldDelta=Mathf.Abs(world.r-visible.r)+Mathf.Abs(world.g-visible.g)+Mathf.Abs(world.b-visible.b);
+                    report.AppendLine("  visibleSource="+(world.a>.5f && world.r>-90000 && worldDelta<.05f
+                        ? "Terrain.shader" : "NON_TERRAIN_OR_NO_HIT: do not attribute underlying terrain to visible green"));
+                    if(world.a>.5f && world.r>-90000)
+                    {
+                        double simHeight=FlyingGame.Core.WorldTerrain.Active.HeightAt(world.b,world.r);
+                        report.AppendLine(string.Format(culture,"  simX={0:F3} simY={1:F3} renderedHeight={2:F3} simHeight={3:F3} meshMinusSim={4:F3}",
+                            world.b,world.r,world.g,simHeight,world.g-simHeight));
+                    }
+                }
+                File.AppendAllText(Path.Combine(outDir,"green-probe.txt"),report.ToString());
+                Debug.Log("WorldRender green probe: "+shot+" "+pixels.Count+" pixels; green-probe.txt");
+            }
+            finally
+            {
+                Shader.SetGlobalFloat("_TerrainGreenProbeMode",0);
+                foreach(var state in states)
+                { state.renderer.sharedMaterials=state.materials; state.renderer.enabled=state.enabled; }
+                cam.targetTexture=savedTarget; cam.clearFlags=savedClear; cam.backgroundColor=savedBackground;
+                RenderTexture.active=savedActive;
+                foreach(var material in clones) Object.DestroyImmediate(material);
+                Object.DestroyImmediate(readback); target.Release(); Object.DestroyImmediate(target);
+            }
         }
     }
 }
