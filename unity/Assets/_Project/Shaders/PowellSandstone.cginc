@@ -25,7 +25,7 @@ float4 _PowellRimBounds;
 float powellCatchment(float u, float depth)
 {
     float broad=powellNoise(float2(u/90,depth/170)+float2(31,67));
-    return smoothstep(.59,.73,broad);
+    return smoothstep(.36,.54,broad);
 }
 // Runoff is widest/darkest at its lip, narrowing to irregular 10–80 m tails.
 float powellRunnel(float u, float y, float rim, float offset, float cluster)
@@ -37,15 +37,17 @@ float powellRunnel(float u, float y, float rim, float offset, float cluster)
     float drop=max(0,rim-y);
     float lengthM=lerp(10,80,powellHash(float2(column+39,offset)));
     float progress=saturate(drop/lengthM);
-    float width=lerp(.8,4.8,seed)*lerp(1,.12,progress);
+    // Broad strokes can join into curtains inside a catchment; clean catchment
+    // gaps remain tens of metres wide. Avoid restoring the fine column barcode.
+    float width=lerp(2.6,7.2,seed)*lerp(1,.12,progress);
     float wander=(powellNoise(float2(column+offset,y*.06))-.5)*lerp(.3,2.4,progress);
     float aa=max(.12,fwidth(u));
     float thin=1-smoothstep(width*.45,width+aa,abs(warped-centre+wander));
-    float tail=(1-smoothstep(.25,1,progress));
+    float tail=(1-smoothstep(.45,1,progress));
     // Outside catchments only a few isolated columns can carry a faint stain.
     float density=max(cluster,smoothstep(.975,.995,seed)*.24);
     float ragged=lerp(1,.55+.45*powellNoise(float2(u*.45,y*.24)),progress);
-    return thin*tail*density*ragged*(.45+.55*seed)
+    return thin*tail*density*ragged*(.78+.22*seed)
         *(1-smoothstep(3,10,fwidth(u)))*step(y,rim+.3);
 }
 void powellSurface(float3 p, inout float3 n, out float3 rock)
@@ -82,12 +84,12 @@ void powellSurface(float3 p, inout float3 n, out float3 rock)
     float runZ=powellRunnel(p.z,p.y,rim,19,clusterZ);
     if(_DayAtmosphere.z>.5)
     {
-        runX=max(runX,powellRunnel(p.x+4.1,p.y,rim,43,clusterX)*.60);
-        runZ=max(runZ,powellRunnel(p.z+4.1,p.y,rim,61,clusterZ)*.60);
+        runX=max(runX,powellRunnel(p.x+4.1,p.y,rim,43,clusterX)*.82);
+        runZ=max(runZ,powellRunnel(p.z+4.1,p.y,rim,61,clusterZ)*.82);
     }
     float varnish=lerp(runX,runZ,side)*steep*smoothstep(26,29,h);
-    float3 stain=lerp(float3(.105,.075,.060),float3(.125,.145,.165),streak);
-    rock=lerp(rock,stain,varnish*.82);
+    float3 stain=lerp(float3(.065,.038,.023),float3(.105,.075,.052),streak);
+    rock=lerp(rock,stain,saturate(varnish*1.18));
     rock*=1-fracture*steep*.035;
     // Continuous 26 m calcite ring; sharp, horizontal former high-water mark.
     float ring=(1-smoothstep(26-max(.15,fwidth(h)),26+max(.15,fwidth(h)),h))*smoothstep(-1,1,h);

@@ -794,8 +794,22 @@ namespace FlyingGame.Bridge
                     // Powell lip uses the same world-space beds/caps as the surrounding cliff.
                     // Its shader is two-sided: duplicated reverse triangles would cancel normals.
                     bool powellShelf = PowellRegionMask(f.X,f.LipY) > .1f;
-                    Spawn("Shelf", v.ToArray(), tr.ToArray(), powellShelf ? powellRock : rock,
+                    var shelfObject = Spawn("Shelf", v.ToArray(), tr.ToArray(), powellShelf ? powellRock : rock,
                         root.transform, !powellShelf);
+                    if (powellShelf)
+                    {
+                        // The flat four-vertex soffit reads as a dark ruler along
+                        // the otherwise matched cliff panels from the lake.
+                        // Give only that visual face the lip's outward shading
+                        // normal, treating it as a rounded rock return. No change
+                        // to positions, winding, roof/skirt normals or collision.
+                        var shelfMesh = shelfObject.GetComponent<MeshFilter>().sharedMesh;
+                        var shelfNormals = shelfMesh.normals;
+                        Vector3 lipNormal = U(0, 1, 0);
+                        for (int k = baseIdx; k < baseIdx + 4; k++)
+                            shelfNormals[k] = lipNormal;
+                        shelfMesh.normals = shelfNormals;
+                    }
                 }
 
                 // -- curtain: parabola from the lip; two sheets (front/back) for depth.
