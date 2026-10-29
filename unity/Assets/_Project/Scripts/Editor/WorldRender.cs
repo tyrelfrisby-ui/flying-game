@@ -19,6 +19,13 @@ namespace FlyingGame.EditorTools
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             FlyingGame.Core.WorldTerrain.Active = new FlyingGame.Core.WorldTerrain();
             WorldBuilder.BuildAll();
+            SunsetLighting.ApplyDay();
+            RenderSettings.fog = false;
+            // Scenery plates omit translucent training volumes, preserving their frames
+            // and all geometry/colliders. The game still shows its navigation aids.
+            foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                if (renderer.sharedMaterial != null && renderer.sharedMaterial.shader.name == "FlyingGame/Glass")
+                    renderer.enabled = false;
             var args = System.Environment.GetCommandLineArgs();
             string ReadAtmosphere(string flag, string fallback)
             {
@@ -26,12 +33,13 @@ namespace FlyingGame.EditorTools
                 return index >= 0 && index + 1 < args.Length ? args[index + 1] : fallback;
             }
             SunsetLighting.ConfigureDayAtmosphere(ReadAtmosphere("-skyQuality", "Balanced"),
-                float.Parse(ReadAtmosphere("-hazeDensity", "0.000038"), System.Globalization.CultureInfo.InvariantCulture),
+                float.Parse(ReadAtmosphere("-hazeDensity", "0.000065"), System.Globalization.CultureInfo.InvariantCulture),
                 float.Parse(ReadAtmosphere("-hazeClearRange", "850"), System.Globalization.CultureInfo.InvariantCulture));
 
             var camGo = new GameObject("RenderCam");
             var cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.Skybox; cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f);
+            camGo.AddComponent<Skybox>().material = RenderSettings.skybox;
             cam.depthTextureMode = DepthTextureMode.Depth;
             cam.fieldOfView = 50f; cam.nearClipPlane = 1f; cam.farClipPlane = 60000f;
             var rt = new RenderTexture(1600, 1000, 24); cam.targetTexture = rt;

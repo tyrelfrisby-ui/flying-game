@@ -21,6 +21,7 @@ Shader "FlyingGame/Airframe"
 {
     Properties
     {
+        _WaterMetal ("Float aluminium environment", Float) = 0
         _Color ("Colour", Color) = (1, 1, 1, 1)
         _DetailNormal ("Panel lines + rivets (normal)", 2D) = "bump" {}
         _DetailTile ("Detail tiling (per metre)", Float) = 1.0
@@ -47,6 +48,7 @@ Shader "FlyingGame/Airframe"
             float _DetailTile, _DetailDepth, _Smoothness, _SpecStrength, _FresnelStrength;
             float4 _BubbleSunDir;
             float _ReflectionRendering;
+            float _WaterMetal;
             float4 _ReflectionClip;
 
             struct v2f
@@ -99,6 +101,15 @@ Shader "FlyingGame/Airframe"
                 float3 env = SunsetEnvironment(reflect(-v,n));
                 col += _SunsetOn * env * (.10 + .18 * _Smoothness) *
                     (.35 + .65 * pow(1-saturate(dot(n,v)), 2));
+
+                // Aluminium floats trade diffuse plastic fill for directional sky response.
+                if (_WaterMetal > .5)
+                {
+                float3 metalEnv = lerp(float3(.13,.20,.28),float3(.62,.74,.85),saturate(n.y*.5+.5));
+                if (_SunsetOn > .5) metalEnv = SunsetEnvironment(reflect(-v,n))
+                    * lerp(.22,1.10,saturate(n.y*.65+.40));
+                col = lerp(col, col*.22 + metalEnv*_Color.rgb*.95, .85);
+                }
 
                 // Blinn-Phong: smoothness drives the exponent, so a polished cowl is tight and fabric is broad
                 float power = exp2(_Smoothness * 10.0) + 1.0;

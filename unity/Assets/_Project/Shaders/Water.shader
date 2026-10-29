@@ -123,10 +123,10 @@ Shader "FlyingGame/Water"
                                     * smoothstep(-.8,.6,taxiAft);
                                 float oscillation = sin(edge*9-t*.9);
                                 taxiGlint = max(taxiGlint, envelope * pow(saturate(oscillation),6)
-                                    * .035 * saturate(motion.z/2.5));
+                                    * .18 * saturate(motion.z/2.5));
                                 float bow = exp(-taxiSide*taxiSide/max(.1,origin.z*origin.z)
                                     -(taxiAft+2)*(taxiAft+2)*2);
-                                float tilt = (envelope*oscillation*.022 + bow*.018)
+                                float tilt = (envelope*oscillation*.065 + bow*.055)
                                     * saturate(motion.z/2.5);
                                 n = normalize(float3(n.x + across.x*sign(taxiSide)*tilt,
                                     n.y, n.z + across.y*sign(taxiSide)*tilt));
@@ -193,7 +193,8 @@ Shader "FlyingGame/Water"
                 // Keep silhouettes and sky on the same reflection weight; no additive sky wash.
                 float mirror = lerp(fresnel, max(fresnel, .91 + .07 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
                 float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
-                col += refl * taxiGlint;
+                // Small reflective crests, no aerated planing foam.
+                col += lerp(float3(.38,.53,.66),refl,.65) * taxiGlint;
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
                 float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,1.2,depth) : 1;

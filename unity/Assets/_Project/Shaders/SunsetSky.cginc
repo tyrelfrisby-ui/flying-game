@@ -62,7 +62,11 @@ float3 SunsetSky(float3 ray) {
  float detail=skyNoise(p*17+warp);
  float fine=skyNoise(p*41);
  float density=cells*.48+detail*.27+fine*.1+broad*.15;
- float cloud=smoothstep(.34,.73,density)*smoothstep(.035,.23,y);
+ // Clear low band, broad gaps toward the sun, denser cool deck overhead.
+ float breakup=smoothstep(.25,.60,broad);
+ float cloud=smoothstep(.34,.73,density)*smoothstep(.055,.25,y)
+     *lerp(.40+breakup*.60,1,smoothstep(.18,.55,y))
+     *(1-toward*exp(-y*4)*.40);
  float edge=smoothstep(.34,.76,density);
  float3 shadow=lerp(float3(.72,.49,.49),float3(.34,.41,.54),smoothstep(.10,.43,y));
  float3 lit=lerp(float3(1,.78,.59),float3(.66,.69,.77),smoothstep(.10,.46,y));

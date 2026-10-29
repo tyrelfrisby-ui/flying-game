@@ -9,7 +9,7 @@ namespace FlyingGame.Bridge
         // Reuses the included sky shader; no cubemap, cloud mesh or extra render pass.
         // Public for editor fixtures (EditorTools is a separate assembly).
         // Same atmosphere on every tier; Low skips the finest cloud noise octave.
-        public static void ConfigureDayAtmosphere(string tier = null, float density = .000038f, float clearRange = 850f)
+        public static void ConfigureDayAtmosphere(string tier = null, float density = .000065f, float clearRange = 850f)
         {
             string quality = tier ?? QualitySettings.names[QualitySettings.GetQualityLevel()];
             bool low = quality.IndexOf("low", System.StringComparison.OrdinalIgnoreCase) >= 0

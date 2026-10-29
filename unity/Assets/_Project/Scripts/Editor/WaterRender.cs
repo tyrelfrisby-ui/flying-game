@@ -18,8 +18,8 @@ namespace FlyingGame.EditorTools
     {
         static object Call(object o, string name, params object[] args) => o.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(o, args);
         // Spawn is internal to the runtime assembly; keep fixture access out of its public API.
-        static void SpawnMesh(string name, Vector3[] vertices, int[] triangles, Material material, Transform parent) =>
-            typeof(WorldBuilder).GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic)
+        static GameObject SpawnMesh(string name, Vector3[] vertices, int[] triangles, Material material, Transform parent) =>
+            (GameObject)typeof(WorldBuilder).GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic)
                 .Invoke(null, new object[] { name, vertices, triangles, material, parent, true });
         // A controlled visual stage, not replacement terrain or a new simulated lake.
         // Uses the real harbour's surface and real FloatHydro/wake signals.
@@ -30,7 +30,8 @@ namespace FlyingGame.EditorTools
             var parent = new GameObject("Sunset comparison stage").transform;
             var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.065f,.08f,1));
             SpawnMesh("Calm harbour", new[] { origin+new Vector3(-2400,0,-2000), origin+new Vector3(-2400,0,2400), origin+new Vector3(2400,0,2400), origin+new Vector3(2400,0,-2000) }, new[]{0,1,2,0,2,3}, water, parent);
-            var bank = WorldBuilder.Mat("FlyingGame/Lit",new Color(.055f,.065f,.055f));
+            var bank = WorldBuilder.Mat("FlyingGame/LitVC",Color.white);
+            var shoreColors = new System.Collections.Generic.List<Color>();
             var rng = new System.Random(743);
             var verts = new System.Collections.Generic.List<Vector3>();
             var tris = new System.Collections.Generic.List<int>();
@@ -44,23 +45,30 @@ namespace FlyingGame.EditorTools
                 verts.Add(origin+new Vector3(x,-.4f,z)); verts.Add(origin+new Vector3(x,1.2f+Mathf.Sin(i*.43f)*.8f,z+40));
                 if(previousBank >= 0) tris.AddRange(new[]{previousBank,previousBank+1,n,n,previousBank+1,n+1});
                 previousBank = n;
+                shoreColors.Add(new Color(.045f,.055f,.048f));
+                shoreColors.Add(new Color(.045f,.055f,.048f));
                 for(int row=0;row<4;row++)
                 {
                     float cluster=.5f+.5f*Mathf.Sin(i*.23f);
-                    float h=7+cluster*9+(float)rng.NextDouble()*10;
-                    float depth=row*48+(float)rng.NextDouble()*43;
+                    int treeStart = verts.Count;
+                    float h=5+cluster*8+(float)rng.NextDouble()*17;
+                    float depth=row*95+(float)rng.NextDouble()*65;
                     Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*25,.3f*Mathf.Sin(i*.67f+row),z+6+depth);
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
-                        float radius=h*(.34f-crown*.032f)*( .8f+(float)rng.NextDouble()*.4f);
+                        float radius=h*(.24f-crown*.022f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
                         for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});
                     }
+                    Color layerColor = Color.Lerp(new Color(.035f,.047f,.040f),
+                        new Color(.24f,.25f,.26f), row/3f*.62f);
+                    for (int vertex=treeStart; vertex<verts.Count; vertex++) shoreColors.Add(layerColor);
                 }
             }
-            SpawnMesh("Conifer shoreline",verts.ToArray(),tris.ToArray(),bank,parent);
+            var shore = SpawnMesh("Conifer shoreline",verts.ToArray(),tris.ToArray(),bank,parent);
+            shore.GetComponent<MeshFilter>().sharedMesh.colors = shoreColors.ToArray();
             // A distant softened ridge closes gaps between crowns without a ruler-flat opaque base.
             // One opaque mesh; no transparent fog cards or extra reflection target.
             verts.Clear(); tris.Clear();
@@ -124,7 +132,7 @@ namespace FlyingGame.EditorTools
                 Shader.SetGlobalFloat("_SunsetOn", 0); Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
                 if (sunset) BuildSunsetShore(); else WorldBuilder.BuildAll();
                 SunsetLighting.ConfigureDayAtmosphere(Read("-skyQuality", "Balanced"),
-                    float.Parse(Read("-hazeDensity", "0.000038"), System.Globalization.CultureInfo.InvariantCulture),
+                    float.Parse(Read("-hazeDensity", "0.000065"), System.Globalization.CultureInfo.InvariantCulture),
                     float.Parse(Read("-hazeClearRange", "850"), System.Globalization.CultureInfo.InvariantCulture));
                 RenderSettings.fog = false;
                 RenderSettings.ambientLight = new Color(.65f, .7f, .78f);
@@ -183,7 +191,7 @@ namespace FlyingGame.EditorTools
                 if (displacement && !calm)
                 {
                     offsets[0] = new Vector3(12, 3, 13);
-                    offsets[1] = new Vector3(10, 10, -15);
+                    offsets[1] = new Vector3(-7, 3, -10);
                     offsets[2] = new Vector3(7, 2, 6);
                 }
                 var names = new[] { "spray", "wake", "bow" };
@@ -233,45 +241,18 @@ namespace FlyingGame.EditorTools
                     File.WriteAllBytes(Path.Combine(output,"sunset.png"),photo.EncodeToPNG());
                     WriteComparison(photo, output);
                     UnityEngine.Object.DestroyImmediate(photo);
-                    // Additional low rear-quarter hero: fit real and mirrored mesh points.
-                    camera.fieldOfView = 64;
-                    Vector3 heroCentre = aircraftBounds.center;
-                    heroCentre.y = (float)lake.SurfaceM + .25f;
-                    // Fit actual mesh points: a combined AABB includes empty space between
-                    // wing tips and tail and was pushing the hero far away.
-                    var heroPoints = new System.Collections.Generic.List<Vector3>();
-                    foreach (var meshFilter in root.GetComponentsInChildren<MeshFilter>())
-                    {
-                        var mesh = meshFilter.sharedMesh;
-                        if (mesh == null || !mesh.isReadable) continue;
-                        foreach (var vertex in mesh.vertices)
-                            heroPoints.Add(meshFilter.transform.TransformPoint(vertex));
-                    }
-                    if (heroPoints.Count == 0)
-                        for (int corner = 0; corner < 8; corner++)
-                            heroPoints.Add(aircraftBounds.center + Vector3.Scale(aircraftBounds.extents,
-                                new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1)));
-                    Vector3 rearQuarter = new Vector3(-.32f, 0, -.948f).normalized;
-                    float heroDistance = 3;
-                    for (int fit = 0; fit < 240; fit++)
-                    {
-                        camera.transform.position = heroCentre + rearQuarter * heroDistance;
-                        camera.transform.position = new Vector3(camera.transform.position.x, (float)lake.SurfaceM + 1, camera.transform.position.z);
-                        camera.transform.LookAt(heroCentre);
-                        bool fits = true;
-                        foreach (var meshPoint in heroPoints)
-                        {
-                            Vector3 point = meshPoint;
-                            for (int mirror = 0; mirror < 2; mirror++)
-                            {
-                                if (mirror == 1) point.y = 2 * (float)lake.SurfaceM - point.y;
-                                Vector3 uv = camera.WorldToViewportPoint(point);
-                                if (uv.z <= camera.nearClipPlane || uv.x < .035f || uv.x > .965f || uv.y < .055f || uv.y > .945f) fits = false;
-                            }
-                        }
-                        if (fits) break;
-                        heroDistance *= 1.015f;
-                    }
+                    // Photo camera: fixed close position relative to the left float tail.
+                    // Allow wing tips beyond the crop; retain room vertically for the mirror.
+                    // Chief must verify the crop on each airframe.
+                    float floatTail = (float)(cfg.Floats.BowX - cfg.Floats.LengthM);
+                    Vector3 leftTail = root.transform.TransformPoint(new Vector3(
+                        -(float)cfg.Floats.SpreadM * .5f, 0, floatTail));
+                    camera.fieldOfView = 94;
+                    camera.transform.position = new Vector3(leftTail.x - 2.5f,
+                        (float)lake.SurfaceM + 1, leftTail.z - 4);
+                    camera.transform.LookAt(new Vector3(at.x + .3f,
+                        (float)lake.SurfaceM + .55f, at.z + 1));
+                    Debug.Log($"WaterRender hero: camera={camera.transform.position}, leftTail={leftTail}, water={lake.SurfaceM}, fov={camera.fieldOfView}");
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
                     hero.ReadPixels(new Rect(0,0,1000,1600),0,0); hero.Apply();

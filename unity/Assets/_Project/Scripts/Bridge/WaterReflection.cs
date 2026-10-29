@@ -35,6 +35,8 @@ namespace FlyingGame.Bridge
         }
 
         private Camera _main, _refl;
+        private Renderer[] _zonePanes;
+        private readonly System.Collections.Generic.List<Renderer> _hiddenPanes = new();
         private RenderTexture _rt;
         private static readonly int ReflTexId = Shader.PropertyToID("_ReflectionTex");
         private static readonly int ReflPlaneId = Shader.PropertyToID("_ReflPlaneY");
@@ -86,7 +88,9 @@ namespace FlyingGame.Bridge
             _refl.cullingMask = Mask;
             _refl.depthTextureMode = DepthTextureMode.None;
             _refl.allowMSAA = false;
-            _refl.farClipPlane = Mathf.Min(_main.farClipPlane, Quality == ReflectionQuality.High ? 6000 : 3000);
+            // A shorter reflection frustum cuts distant cliffs off above their shoreline.
+            // Resolution/masks carry the tier budget; reflected geometry uses the same reach.
+            _refl.farClipPlane = _main.farClipPlane;
             // Transform is needed by skybox and world-space specular, in addition to the view matrix.
             _refl.transform.position = reflection.MultiplyPoint(pos);
             _refl.transform.rotation = Quaternion.LookRotation(reflection.MultiplyVector(_main.transform.forward), reflection.MultiplyVector(_main.transform.up));
@@ -96,13 +100,33 @@ namespace FlyingGame.Bridge
             // near plane also tilts the far plane, slicing distant cliffs into slivers.
             // The scenery/aircraft shaders clip the water half-space in world space;
             // unlike an oblique far plane that is independent of camera pitch/distance.
-            _refl.projectionMatrix = Matrix4x4.Perspective(_main.fieldOfView, _main.aspect, _main.nearClipPlane, _refl.farClipPlane);
+            _refl.projectionMatrix = _main.projectionMatrix;
             _refl.cullingMatrix = _refl.projectionMatrix * _refl.worldToCameraMatrix;
+            // Glass zone panes are navigation aids, not physical reflectors. Restore
+            // their renderers after this camera so gameplay visibility is unchanged.
+            if (_zonePanes == null)
+            {
+                var found = new System.Collections.Generic.List<Renderer>();
+                foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                {
+                    var material = renderer.sharedMaterial;
+                    if (material != null && material.shader.name == "FlyingGame/Glass"
+                        && renderer.gameObject.layer != AircraftLayer) found.Add(renderer);
+                }
+                _zonePanes = found.ToArray();
+            }
+            _hiddenPanes.Clear();
+            foreach (var pane in _zonePanes)
+                if (pane != null && pane.enabled) { _hiddenPanes.Add(pane); pane.enabled = false; }
             bool previousCulling = GL.invertCulling;
             Shader.SetGlobalVector("_ReflectionClip", new Vector4(0, 1, 0, -planeY - .03f));
             Shader.SetGlobalFloat("_ReflectionRendering", 1);
             try { GL.invertCulling = !previousCulling; _refl.Render(); }
-            finally { GL.invertCulling = previousCulling; Shader.SetGlobalFloat("_ReflectionRendering", 0); }
+            finally
+            {
+                GL.invertCulling = previousCulling; Shader.SetGlobalFloat("_ReflectionRendering", 0);
+                foreach (var pane in _hiddenPanes) if (pane != null) pane.enabled = true;
+            }
             Shader.SetGlobalTexture(ReflTexId, _rt);
             Shader.SetGlobalFloat(ReflPlaneId, planeY);
             Shader.SetGlobalFloat(ReflOnId, 1f);
