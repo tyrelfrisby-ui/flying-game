@@ -17,13 +17,13 @@ Shader "FlyingGame/Terrain"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            #include "PowellSandstone.cginc"
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; float2 geology : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; float2 geology : TEXCOORD2; };
             fixed4 _Color; float4 _BubbleSunDir;
             float _SunsetOn, _ReflectionRendering;
             float4 _ReflectionClip;
             float4 _ReflectionEye;
-            float4 _DayAtmosphere;
             float4 _AirportGrass[4];
             v2f vert (appdata v)
             {
@@ -151,6 +151,13 @@ Shader "FlyingGame/Terrain"
                     albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);
 
                 }
+                float powellMask=saturate(-i.geology.x-2);
+                if(powellMask>.001)
+                {
+                    float3 sandstone;
+                    powellSurface(i.wp,n,sandstone);
+                    albedo=lerp(albedo,sandstone,powellMask);
+                }
                 // The authored grass strip is narrower than one coarse terrain cell.
                 // Paint its exact footprint on the visible terrain instead of a coplanar overlay.
                 // No field-grid mask, depth bias, displacement or world-wide tiling lines.
@@ -176,6 +183,13 @@ Shader "FlyingGame/Terrain"
                 float3 dayFill=lerp(float3(.32,.38,.44),float3(.51,.57,.62),n.y*.5+.5);
                 float3 col = albedo * lerp(dayFill + float3(.52,.48,.40)*d,
                     float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
+                if(powellMask>.001)
+                {
+                    float3 desertFill=lerp(float3(.28,.34,.43),float3(.43,.48,.54),n.y*.5+.5);
+                    float3 desertLight=lerp(desertFill+float3(.68,.57,.43)*d,
+                        float3(.32,.30,.34)+float3(.81,.53,.29)*d,_SunsetOn);
+                    col=lerp(col,albedo*desertLight,powellMask);
+                }
                 // Airport pasture has no synthetic section-line grid, including at dusk.
                 if (_SunsetOn < .5)
                 {

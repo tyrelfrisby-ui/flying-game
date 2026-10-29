@@ -170,12 +170,18 @@ namespace FlyingGame.Bridge
                 c.a = 0f; // Desert shelves are not farm fields.
                 return c;
             }
-            // The canyon lake's walls: banded Navajo sandstone.
-            if (y > CanyonLake.Y0 - 60 && y < CanyonLake.DamY + 80 && slope > 0.5f && System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < CanyonLake.HalfWidthAt(y) + 40)
+            // Explicit regional metadata: -1 is glacier ice; [-3,-2) is Powell.
+            // Rim finish fades within 90 m of the existing lake wall; mountain biomes bypass this.
+            if (y > CanyonLake.Y0 && y < CanyonLake.DamY)
             {
-                int band = (int)(h / 9) % 3;
-                Color sandstone = band == 0 ? new Color(0.78f, 0.43f, 0.27f) : band == 1 ? new Color(0.86f, 0.58f, 0.38f) : new Color(0.66f, 0.34f, 0.22f);
-                c = Color.Lerp(c, sandstone, Mathf.Clamp01((slope - 0.35f) / 0.4f));
+                double edge = System.Math.Abs(x-CanyonLake.CentreX(y))-CanyonLake.HalfWidthAt(y);
+                float mask = 1-Mathf.SmoothStep(0,1,(float)((edge-12)/90));
+                if (mask > 0 && h < WorldTerrain.DatumM+8)
+                {
+                    geology.x = -2-mask;
+                    c = new Color(.79f,.44f,.25f,0);
+                    cover = 0;
+                }
             }
             // A narrow damp mineral band at the existing water line. No bank geometry is moved.
             double shore = double.MaxValue;

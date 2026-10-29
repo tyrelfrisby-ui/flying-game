@@ -7,6 +7,7 @@ Shader "FlyingGame/Water"
     {
         _Color ("Deep colour", Color) = (0.08, 0.28, 0.5, 0.92)
         _SceneryWater ("Scenery depth palette", Float) = 0
+        _PowellWater ("Powell shallow tint", Float) = 0
         _RiverFlow ("River flow", Float) = 0
         _FlowDirection ("Flow direction", Vector) = (1,0,0,0)
         _SkyColor ("Sky", Color) = (0.45, 0.66, 0.95, 1)
@@ -31,7 +32,7 @@ Shader "FlyingGame/Water"
             fixed4 _Color, _SkyColor;
             sampler2D _ReflectionTex;
             float _ReflPlaneY, _ReflOn;
-            float _SceneryWater, _RiverFlow; float4 _FlowDirection;
+            float _SceneryWater, _RiverFlow, _PowellWater; float4 _FlowDirection;
             float4 _BubbleSunDir;
             // Wake waves (WakeWaves.cs): height field over the active lake, its world rect and texel, and that lake's surface.
             sampler2D _WakeTex, _WakeFoamTex;
@@ -200,7 +201,7 @@ Shader "FlyingGame/Water"
                 if (scenery > .5)
                 {
                     if (i.depth.y > .5) depth = max(0,i.depth.x);
-                    shallow = float3(.24,.30,.24);
+                    shallow = lerp(float3(.24,.30,.24),float3(.13,.43,.43),_PowellWater);
                     deep = _Color.rgb * float3(.78,.90,.80);
                 }
                 float3 body = lerp(shallow, deep, 1-exp(-depth*.22));

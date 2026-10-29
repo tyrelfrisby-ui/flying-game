@@ -28,6 +28,7 @@ namespace FlyingGame.Bridge
         // ---- the canyon lake ------------------------------------------------------------------------------------------
         private static void BuildLake(WorldTerrain t, Transform parent)
         {
+            Shader.SetGlobalFloat("_PowellWaterLevel", (float)CanyonLake.SurfaceM);
             // Water: a strip down the canyon at the lake level, stopping at the dam's upstream face.
             var v = new List<Vector3>(); var tr = new List<int>();
             for (double y = CanyonLake.Y0; y <= CanyonLake.DamY; y += 15)
@@ -47,8 +48,9 @@ namespace FlyingGame.Bridge
             var wgo = new GameObject("CanyonLakeWater"); wgo.transform.SetParent(parent, false);
             wgo.AddComponent<MeshFilter>().sharedMesh = wm;
             wgo.layer = WaterReflection.WaterLayer;
-            var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.19f,.20f,1));
+            var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.085f,.34f,.39f,1));
             water.SetFloat("_SceneryWater", 1);
+            water.SetFloat("_PowellWater", 1);
             wgo.AddComponent<MeshRenderer>().sharedMaterial = water;
             WorldBuilder.WaterOptics(wgo, t);
 
@@ -57,8 +59,10 @@ namespace FlyingGame.Bridge
             foreach (Spire s in CanyonLake.Spires) Spire(b, s, seed++);
             foreach (Spire s in CanyonLake.ArchPillars()) Spire(b, s, seed++);
             foreach (NaturalArch a in CanyonLake.Arches) Arch(b, a);
-            Dam(b);
-            b.Build("CanyonLakeRock", parent, SeasideBuilder.VC);
+            b.Build("CanyonLakeRock", parent, WorldBuilder.Mat("FlyingGame/PowellSandstone", Color.white));
+            var dam = new SeasideBuilder.Batch();
+            Dam(dam);
+            dam.Build("CanyonLakeDam", parent, SeasideBuilder.VC);
         }
 
         /// <summary>A sandstone spire: stacked rough frustums in Navajo-sandstone bands, a flat cap.</summary>
