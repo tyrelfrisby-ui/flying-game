@@ -1079,6 +1079,13 @@ namespace FlyingGame.Bridge
             var owners = new List<int[]>();
             var comps = new List<int[]>();   // welded connected-piece id per vertex (null when there are no props)
             var propLo = new Vector3[_props.Count]; var propHi = new Vector3[_props.Count]; var propAny = new bool[_props.Count];
+            // The hub goes on the SPINNER, not on the middle of the propeller's bounding box: with an odd number of
+            // blades one blade points up and the box is lopsided (the Extra's 3-blade box ran -0.52..+1.00 m, centre
+            // 0.24 m high, and the prop turned about a point a quarter of a metre above its real axis). The spinner's
+            // own centroid is on the axis whatever the blade count; the mean of every bound vertex is the fallback,
+            // which is also on the axis for any evenly spaced blades.
+            var propSpinSum = new Vector3[_props.Count]; var propSpinN = new int[_props.Count];
+            var propAllSum = new Vector3[_props.Count]; var propAllN = new int[_props.Count];
             foreach (var (mf, rp, tris, mats, _) in meshes)
             {
                 int nv = rp.Length;
@@ -1145,6 +1152,9 @@ namespace FlyingGame.Bridge
                             if (own[i] != nR + 2 * h) continue;
                             if (!propAny[h]) { propLo[h] = propHi[h] = rp[i]; propAny[h] = true; }
                             else { propLo[h] = Vector3.Min(propLo[h], rp[i]); propHi[h] = Vector3.Max(propHi[h], rp[i]); }
+                            propAllSum[h] += rp[i]; propAllN[h]++;
+                            float sdx = rp[i].x - hc.x, sdy = rp[i].y - hc.y;
+                            if (sdx * sdx + sdy * sdy < 0.4f * 0.4f * R * R) { propSpinSum[h] += rp[i]; propSpinN[h]++; }
                         }
                     }
                 }
@@ -1248,7 +1258,12 @@ namespace FlyingGame.Bridge
             {
                 if (!propAny[h]) continue;
                 PropHub hub = _props[h];
-                Vector3 c = 0.5f * (propLo[h] + propHi[h]), hp = hub.Hub.localPosition;
+                // On the axis: the spinner's centroid (vertices inside 0.4 R of the hub the tip snap found), or the mean of
+                // every bound vertex when the model has no spinner.
+                Vector3 c = propSpinN[h] > 0 ? propSpinSum[h] / propSpinN[h]
+                          : propAllN[h] > 0 ? propAllSum[h] / propAllN[h]
+                          : 0.5f * (propLo[h] + propHi[h]);
+                Vector3 hp = hub.Hub.localPosition;
                 Vector3 delta = new Vector3(c.x - hp.x, c.y - hp.y, 0f);
                 if (delta.magnitude > 0.5f * hub.Radius)
                 {
@@ -1259,6 +1274,10 @@ namespace FlyingGame.Bridge
                 }
                 hub.Hub.localPosition = hp + delta;
                 foreach (Transform ch in hub.Hub) ch.localPosition -= delta;
+                if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                    Debug.Log($"[Airframe] DIAG prop {h} hub {hub.Hub.localPosition} from the "
+                              + (propSpinN[h] > 0 ? $"spinner ({propSpinN[h]} vertices inside 0.4 R)" : $"mean of {propAllN[h]} bound vertices")
+                              + $", moved {delta.magnitude * 100f:F1} cm; box centre would have been {0.5f * (propLo[h] + propHi[h])}, box {propLo[h]}..{propHi[h]}, R {hub.Radius:F2}");
                 if (hub.Disc != null) hub.Disc.transform.localPosition = new Vector3(0f, 0f, propHi[h].z - hub.Hub.localPosition.z + 0.02f);
                 hub.ModelBound = true;
                 hub.BladeBone = new GameObject("PropBlades").transform;
