@@ -243,6 +243,7 @@ namespace FlyingGame.Bridge
             double g0 = t.HeightAt(cgx, cgy);
             // Plaza-paved city ground (the avenues).
             b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.25f, 0.26f, 0.26f));
+            var ringRoofs = grid.RooftopRings();
             foreach (FlyCity.Tower tw in grid.Towers())
             {
                 double g = t.HeightAt(tw.Cx, tw.Cy);
@@ -255,7 +256,9 @@ namespace FlyingGame.Bridge
                 Vector3 size = new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2));
                 facades.Add(U(tw.Cx,tw.Cy,g),size,archetype,tw.I*53+tw.J*19,c);
                 bool protectedLot = grid.PadLot.HasValue && tw.J == grid.PadLot.Value.j;
-                UrbanDressing.Lot(b,facades,U(tw.Cx,tw.Cy,g),size,tw.I,tw.J,archetype,protectedLot);
+                bool protectedRoof=protectedLot || tw.HeightM>=330;
+                foreach(var ring in ringRoofs) if(ring.t.I==tw.I && ring.t.J==tw.J) protectedRoof=true;
+                UrbanDressing.Lot(b,facades,U(tw.Cx,tw.Cy,g),size,tw.I,tw.J,archetype,protectedRoof);
                 // Sidewalk block and roof membrane sit on the existing ground/roof, with no collision change.
                 b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(140, .16f, 140), new Color(.58f,.57f,.53f));
                 // Landscaped inset beds make the 140 m lots read as blocks around the existing towers.
@@ -273,19 +276,21 @@ namespace FlyingGame.Bridge
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
                 // Flush roof service panels preserve every landable roof height.
                 Vector3 roofCentre = U(tw.Cx,tw.Cy,g+tw.HeightM+.05);
-                for (int k=0;k<3;k++)
+                for (int k=0;k<(protectedRoof?3:0);k++)
                 {
                     Vector3 panel = roofCentre + new Vector3(-size.x*.28f+k*size.x*.27f,0,size.z*.25f);
                     float hw=size.x*.075f, hd=size.z*.12f;
                     b.Quad(panel+new Vector3(-hw,0,-hd),panel+new Vector3(-hw,0,hd),panel+new Vector3(hw,0,hd),panel+new Vector3(hw,0,-hd),new Color(.25f,.28f,.29f));
                 }
+                if(tw.HeightM>=330)
+                    b.Box(roofCentre+new Vector3(size.x*.4f,-.015f,size.z*.4f),new Vector3(1.8f,.02f,1.8f),new Color(1,.025f,.015f,0));
                 // Cornice and occasional belt course rather than black stripes on every fourth floor.
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .6), new Vector3(size.x + .25f, .45f, size.z + .25f), c * .86f);
                 if (tw.HeightM > 90)
                     b.Box(U(tw.Cx, tw.Cy, g + 6), new Vector3(size.x + .2f, .35f, size.z + .2f), c * .85f);
             }
+            UrbanDressing.Streets(grid,g0,b,facades);
             facades.Build(parent);
-            UrbanDressing.Streets(grid,g0,b);
             foreach (var (a, n, h) in grid.SkyBridges())
             {
                 double g = t.HeightAt(a.Cx, a.Cy);

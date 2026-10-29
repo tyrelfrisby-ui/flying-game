@@ -27,10 +27,23 @@ Shader "FlyingGame/UrbanFacade"
    {
     float2 m=1-smoothstep(halfSize-aa,halfSize+aa,abs(f-.5)); return m.x*m.y;
    }
-   fixed4 frag(v2f i):SV_Target
+   float4 frag(v2f i):SV_Target
    {
     if (_ReflectionRendering>.5) clip(dot(float4(i.world,1),_ReflectionClip));
     float style=i.data.x;
+    if(style>4.5)
+    {
+     // Same top-face asphalt as the city slab by day; smooth analytic sodium/LED spill by night.
+     float sun=saturate(dot(float3(0,1,0),normalize(_BubbleSunDir.xyz)));
+     float3 dayShade=float3(.58,.58,.58)+.42*sun;
+     float3 sunsetShade=lerp(float3(.53,.51,.54),float3(.64,.65,.73),1)+float3(.65,.43,.24)*sun;
+     float3 road=float3(.25,.26,.26)*lerp(dayShade,sunsetShade,_SunsetOn);
+     float edge=saturate(1-dot(i.uv,i.uv));
+     float falloff=edge*edge;
+     float3 pool=road*.20+i.color.rgb*falloff*.65;
+     float4 result=float4(lerp(road,pool,_CityNight),1);
+     UNITY_APPLY_FOG(i.fogCoord,result); return result;
+    }
     float curtain=1-step(.5,abs(style-0));
     float ribbon=1-step(.5,abs(style-2));
     float brick=1-step(.5,abs(style-1));
@@ -68,9 +81,15 @@ Shader "FlyingGame/UrbanFacade"
     float3 base=lerp(wall,lerp(float3(.065,.075,.075),glass,frame),pane);
     base*=.58+.42*sun;
     float lit=step(.60,rnd); // 40 percent, deterministic per room and building.
-    float3 warm=lerp(float3(1,.56,.22),float3(.67,.83,1),step(.74,hash(cell+i.data.y+19)));
-    float3 night=base*.085+pane*frame*lit*warm*(.6+.4*hash(cell+27));
-    fixed4 result=fixed4(lerp(base,night,_CityNight),1);
+    float3 warm=lerp(float3(1,.77,.46),float3(.72,.86,1),step(.65,hash(cell+i.data.y+19)));
+    // Analytic pixel-footprint average replaces subpixel hash/grid sampling at aerial distance.
+    // Preserve the 40% occupancy energy instead of letting tiny windows vanish or sparkle.
+    float unresolved=smoothstep(.18,.85,max(aa.x,aa.y));
+    float coverage=4*paneSize.x*paneSize.y;
+    float roomLight=lerp(pane*frame*lit*(.7+.3*hash(cell+27)),coverage*.40*.85,unresolved);
+    float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
+    float3 night=base*.20+roomLight*lerp(warm,averageLight,unresolved)*2.4;
+    float4 result=float4(lerp(base,night,_CityNight),1);
     UNITY_APPLY_FOG(i.fogCoord,result); return result;
    }
    ENDCG

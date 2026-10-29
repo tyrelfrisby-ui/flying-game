@@ -44,8 +44,8 @@ Shader "FlyingGame/LitVC"
                 fixed4 c = fixed4(i.c.rgb * _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.53,.51,.54), float3(.64,.65,.73), n.y * .5 + .5) + float3(.65,.43,.24)*d, _SunsetOn), 1.0);
                 // Only the night fixture enables this. Alpha zero marks city lamp/beacon heads;
                 // ordinary vertex colours retain alpha one and the day expression above is unchanged.
-                float emission = saturate(1-i.c.a);
-                c.rgb = lerp(c.rgb, c.rgb*.085 + i.c.rgb*emission, _CityNight);
+                float emission = 1-step(.01,i.c.a);
+                c.rgb = lerp(c.rgb, c.rgb*.20 + i.c.rgb*emission*1.6, _CityNight);
                 c.rgb = lerp(c.rgb, i.c.rgb * _Color.rgb, _Emission);
                 UNITY_APPLY_FOG(i.fogCoord, c);
                 return c;

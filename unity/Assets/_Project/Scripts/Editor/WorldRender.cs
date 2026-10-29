@@ -89,6 +89,9 @@ namespace FlyingGame.EditorTools
             }
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("city-roofs-detail", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
+                ("city-roofs-night", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
+                ("city-street-furniture", Street(438,525), Street(438,620)),
                 ("city-facade-detail", Outside(city.PadTower.Cx-260,city.PadTower.Cy-240,padH-50), WorldBuilder.U(city.PadTower.Cx,city.PadTower.Cy,padH-80)),
                 ("eiffel-detail", Outside(FlyingGame.Core.Landmarks.TowerX-360,FlyingGame.Core.Landmarks.TowerYAt(0)-420,terrain.HeightAt(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0))+180), WorldBuilder.U(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0),terrain.HeightAt(FlyingGame.Core.Landmarks.TowerX,FlyingGame.Core.Landmarks.TowerYAt(0))+130)),
                 ("arch-detail", Outside(FlyingGame.Core.Landmarks.ArchCentreXAt(0)+300,FlyingGame.Core.Landmarks.ArchYAt(0)+450,FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+180), WorldBuilder.U(FlyingGame.Core.Landmarks.ArchCentreXAt(0),FlyingGame.Core.Landmarks.ArchYAt(0),FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+100)),
@@ -242,7 +245,7 @@ namespace FlyingGame.EditorTools
                 bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");
                 foreach(var tint in nightTints)
-                    tint.material.SetColor(tint.property,night ? tint.colour*new Color(.075f,.095f,.14f,1) : tint.colour);
+                    tint.material.SetColor(tint.property,night ? tint.colour*new Color(.18f,.22f,.30f,1) : tint.colour);
                 RenderSettings.fog = false;
                 cam.clearFlags = CameraClearFlags.Skybox;
                 if (dusk)
@@ -256,11 +259,11 @@ namespace FlyingGame.EditorTools
                 Shader.SetGlobalFloat("_CityNight",night?1:0);
                 if(night)
                 {
-                    cam.clearFlags=CameraClearFlags.SolidColor;
+                    cam.clearFlags=CameraClearFlags.Skybox;
                     cam.backgroundColor=new Color(.012f,.018f,.032f);
                     RenderSettings.fog=true; RenderSettings.fogMode=FogMode.Exponential;
-                    RenderSettings.fogDensity=.00028f;
-                    RenderSettings.fogColor=new Color(.028f,.031f,.043f);
+                    RenderSettings.fogDensity=.00010f;
+                    RenderSettings.fogColor=new Color(.055f,.055f,.065f);
                 }
                 cam.GetComponent<Skybox>().material = RenderSettings.skybox;
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
