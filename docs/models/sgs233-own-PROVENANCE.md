@@ -48,3 +48,13 @@ Sources (viewed only, nothing traced or committed): the Commons 2-33A 3-view abo
 - Overlay comparisons: /workspace/233-v2/compare/ on the agent box (final_* vs v6_before_*).
 
 Known differences (v7): the 3-view is internally inconsistent in places (front-view wing ~0.15 m lower than the side view; top-view rudder TE further aft than the side view) -- the side view was kept. Rear side windows are not cut through; canopy is static; tail surfaces remain thin slabs; spoilers are flat plates.
+
+## v8 photo-literal interior (lane/codex-sgs233-cockpit)
+Sources (viewed by eye only; nothing traced, sampled into textures or committed): nine real 2-33 interior/exterior photos supplied by Ty (front panel black and orange variants, footwell from above, left wall front and rear, seat cushions, view forward, red/white exterior) plus the POH cockpit drawing. The photos stay on the agent box (/workspace/aero-refs/233/interior/). No third-party meshes, textures or GPL assets (FlightGear sgs233 not used).
+- Front panel: black D panel under a padded coaming; altimeter left, eyeball vent with wet compass below at centre, VSI and large 40-160 mph ASI with arcs on the right; FLIGHT LIMITS / checklist placards; yellow ball tow release with RELEASE label at bottom centre. No clock. Rear panel removed (none in the photos).
+- Floor/controls: light-grey riveted floor, maroon box channel between cast-frame pedals, chrome bent stick with black ribbed grip and red boot on a riveted plate (front and rear sticks, rear pedals).
+- Left wall: AIR BRAKE handle in an EXTEND--RETRACT slot panel high on the wall (front and rear), red-ball trim lever low and forward, control cables, W&B placard (C.G. 78.2-86.1, EMPTY 647.0 61542.5, FRONT SEAT 43.8, REAR SEAT 74.7, W-BALLAST 666.5).
+- Seats: birch front seat board, red/cream striped cushions, black webbing lap belts with lift-lever buckles and shoulder straps, white liner with sculpted side panels, white cross tube behind the front seat with RELEASE sleeve and the rear release knob at its left end.
+- Structure: right-side canopy hinge knuckles, left canopy latch, left door rail/hinges/latch, boarding step, wing-root skylight glass + frame over the rear seat.
+- All placard/dial/cushion art is our own PIL art (make_sgs_dials.py, DejaVu Sans Bold). Omitted on purpose: SCHWEIZER pedal emboss, the photo aircraft's N17879, radios/headsets/mics/intercom/batteries.
+- Known differences (v8): exterior paint stays factory yellow with N2033A (photos show red/white); pedal frame and harness anchor geometry approximate; skylight mostly hidden under the wing from outside; tow knob yellow per Ty (AFM says red).

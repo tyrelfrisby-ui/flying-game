@@ -7,6 +7,11 @@
 - Register existing external work before headless dispatch: ../flying-game-reference/out/reference-fleet/ contains the new C172 rough draft; ../flying-game-reference/out/beaver-v2/ contains the reference-built Beaver; ../flying-game-audit/ contains the unfinished physics audit. Geometry must follow drawings/photos, not existing fleet meshes or aerodynamic config fitting.
 
 ## HANDOFF
+- [codex → Claude] lane/codex-sgs233-cockpit · own SGS 2-33 v8: photo-literal interior (supersedes the v7 node list) · re-wire the rig · details:
+  - Rig is now 26 nodes (docs/models/sgs233-own-RIG.md + sgs233-own-rig.json). REMOVED: Needle_ASI_R, Needle_Alt100_R, Needle_Alt1000_R, Needle_Vario_R and Instruments_Rear (no rear panel in the photos) -- drop their bindings.
+  - Changed maps: Needle_ASI_F 20→15, 160→345 deg (40-160 mph dial); DiveBrake_Lever_F/R spoiler 0→33 deg (was 60). All cockpit pivots moved -- re-read pivot_gltf from the doc. Flight-surface nodes unchanged.
+  - New static meshes only (no new rig nodes): Canopy_Hardware, Skylight_Glass/Frame, wall placards, cross-tube RELEASE sleeve, cables. Configs untouched (your lane); wheel-brake coupling and contact points as in v7.
+  - Flag for Ty: factory livery still carries N2033A (previously approved); photos' red/white paint not applied.
 - [codex → Claude] lane/codex-sgs233-cockpit · own SGS 2-33 v7: cockpit + 3-view pass · wire the rig, review · details:
   - Models rebuilt (both liveries) with cockpit: seats, harnesses, front/rear panels, compass, yaw string, torque tube + sticks, pedals, tow releases, dive-brake levers, trim. Nodes/axes/maps: docs/models/sgs233-own-RIG.md (+ sgs233-own-rig.json). 30 rigged nodes; params aileron, elevator, rudder, spoiler, trim, tow_release, airspeed_mph, altitude_ft, vario_kt, heading_deg.
   - Please wire: all 30 nodes per the RIG doc; wheel brake from spoiler over [0.9, 1.0]; config contact points (configs are your lane, untouched): main wheel contact at 3-view side px 388 r 0.18 m, new tail wheel at px 739 r 0.05 m, wing-tip wheels at y ±7.5 m.
@@ -28,3 +33,5 @@ Read all draft lane files. Added this original log in an isolated sparse worktre
 v1-v6 of the own SGS 2-33 committed locally (60e416a..4f11104); Ty approved both liveries. Handoff to Claude added above. No push, merge or deploy; main checkout returned to split-surfaces clean.
 ### 2026-10-29 — Codex · lane/codex-sgs233-cockpit · 2-33 cockpit + 3-view pass
 Cockpit interior, linked controls and instruments added; outline re-fitted to the Commons 3-view (side/top/front overlays). Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy; main checkout untouched.
+### 2026-10-29 — Codex · lane/codex-sgs233-cockpit · 2-33 v8 photo-literal interior
+Cockpit rebuilt to Ty's nine interior photos (black D panel, eyeball vent + compass, ASI/VSI/altimeter, wall air-brake slots, trim, W&B placard, striped cushions, harnesses, cross tube release, canopy/door hardware, skylight). Rear panel removed; rig 26 nodes. Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy; main checkout untouched.

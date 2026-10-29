@@ -313,9 +313,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.625,
-    -0.155,
-    0.135
+    -1.744,
+    -0.1,
+    -0.125
    ],
    "map": [
     [
@@ -324,20 +324,16 @@
     ],
     [
      20.0,
-     10.0
+     15.0
     ],
     [
-     140.0,
-     310.0
-    ],
-    [
-     150.0,
-     335.0
+     160.0,
+     345.0
     ]
    ],
    "model": 0.0,
-   "desc": "ASI 20..140 mph over 300 deg (AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20; +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
+   "desc": "ASI 20..160 mph over 15..345 deg (photographed dial layout; AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20; +deg clockwise from the seat",
+   "link": "front panel only (v8: rear instruments removed)",
    "extra": {}
   },
   {
@@ -352,9 +348,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.625,
-    -0.155,
-    -0.0
+    -1.744,
+    -0.136,
+    0.228
    ],
    "map": [
     [
@@ -368,7 +364,7 @@
    ],
    "model": 0.0,
    "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
+   "link": "front panel only (v8: rear instruments removed)",
    "extra": {
     "rig_map_extrapolate": 1
    }
@@ -385,9 +381,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.6275,
-    -0.155,
-    -0.0
+    -1.7465,
+    -0.136,
+    0.228
    ],
    "map": [
     [
@@ -401,7 +397,7 @@
    ],
    "model": 0.0,
    "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
+   "link": "front panel only (v8: rear instruments removed)",
    "extra": {
     "rig_map_extrapolate": 1
    }
@@ -418,9 +414,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.625,
-    -0.155,
-    -0.135
+    -1.744,
+    -0.153,
+    -0.217
    ],
    "map": [
     [
@@ -438,147 +434,7 @@
    ],
    "model": 0.0,
    "desc": "variometer, modelled at 0 (9 o'clock), +10 kt climb = 150 deg clockwise; +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
-   "extra": {}
-  },
-  {
-   "node": "Needle_ASI_R",
-   "parent": "Instruments_Rear",
-   "param": "airspeed_mph",
-   "unit": "mph",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    -0.8045,
-    -0.055,
-    0.075
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     20.0,
-     10.0
-    ],
-    [
-     140.0,
-     310.0
-    ],
-    [
-     150.0,
-     335.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "ASI 20..140 mph over 300 deg (AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20; +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
-   "extra": {}
-  },
-  {
-   "node": "Needle_Alt100_R",
-   "parent": "Instruments_Rear",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    -0.8045,
-    -0.055,
-    -0.0
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
-   "extra": {
-    "rig_map_extrapolate": 1
-   }
-  },
-  {
-   "node": "Needle_Alt1000_R",
-   "parent": "Instruments_Rear",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    -0.807,
-    -0.055,
-    -0.0
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
-   "extra": {
-    "rig_map_extrapolate": 1
-   }
-  },
-  {
-   "node": "Needle_Vario_R",
-   "parent": "Instruments_Rear",
-   "param": "vario_kt",
-   "unit": "kt",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    -0.8045,
-    -0.055,
-    -0.075
-   ],
-   "map": [
-    [
-     -10.0,
-     -150.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     150.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "variometer, modelled at 0 (9 o'clock), +10 kt climb = 150 deg clockwise; +deg clockwise from the seat",
-   "link": "front and rear instruments read the same param",
+   "link": "front panel only (v8: rear instruments removed)",
    "extra": {}
   },
   {
@@ -593,8 +449,8 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.675,
-    0.0,
+    -1.74,
+    -0.126,
     -0.0
    ],
    "map": [
@@ -627,7 +483,7 @@
    ],
    "pivot_gltf": [
     -1.07,
-    -0.83,
+    -0.907,
     -0.0
    ],
    "map": [
@@ -661,8 +517,8 @@
     -1.0
    ],
    "pivot_gltf": [
-    -1.42,
-    -0.83,
+    -1.46,
+    -0.907,
     -0.0
    ],
    "map": [
@@ -697,7 +553,7 @@
    ],
    "pivot_gltf": [
     -0.7,
-    -0.83,
+    -0.907,
     -0.0
    ],
    "map": [
@@ -731,9 +587,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -2.0,
-    -0.845,
-    0.115
+    -1.9,
+    -0.853,
+    0.125
    ],
    "map": [
     [
@@ -766,9 +622,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    -2.0,
-    -0.845,
-    -0.115
+    -1.9,
+    -0.853,
+    -0.125
    ],
    "map": [
     [
@@ -802,8 +658,8 @@
    ],
    "pivot_gltf": [
     -1.015,
-    -0.845,
-    0.28
+    -0.853,
+    0.255
    ],
    "map": [
     [
@@ -837,8 +693,8 @@
    ],
    "pivot_gltf": [
     -1.015,
-    -0.845,
-    -0.28
+    -0.853,
+    -0.255
    ],
    "map": [
     [
@@ -871,8 +727,8 @@
     -0.0
    ],
    "pivot_gltf": [
-    -1.615,
-    -0.29,
+    -1.752,
+    -0.19,
     -0.0
    ],
    "map": [
@@ -887,7 +743,7 @@
    ],
    "model": 0.0,
    "desc": "tow release: pull the knob full out (50 mm aft) to release (AFM); yellow per Ty, AFM says red",
-   "link": "front (panel bottom centre) and rear (front seat back top left) knobs on one cable",
+   "link": "front (big yellow ball, panel bottom centre) and rear (left end of the white seat-back cross tube) knobs on one cable",
    "extra": {}
   },
   {
@@ -903,8 +759,8 @@
    ],
    "pivot_gltf": [
     -0.815,
-    -0.16,
-    0.205
+    -0.125,
+    0.2734
    ],
    "map": [
     [
@@ -918,7 +774,7 @@
    ],
    "model": 0.0,
    "desc": "tow release: pull the knob full out (50 mm aft) to release (AFM); yellow per Ty, AFM says red",
-   "link": "front (panel bottom centre) and rear (front seat back top left) knobs on one cable",
+   "link": "front (big yellow ball, panel bottom centre) and rear (left end of the white seat-back cross tube) knobs on one cable",
    "extra": {}
   },
   {
@@ -933,9 +789,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -1.56,
-    -0.56,
-    0.3037
+    -1.5368,
+    -0.5418,
+    0.334
    ],
    "map": [
     [
@@ -944,11 +800,11 @@
     ],
     [
      1.0,
-     60.0
+     33.0
     ]
    ],
    "model": 0.0,
-   "desc": "dive-brake handle swings aft 60 deg (judgement) as the doors open; unlock = push forward/down then pull straight back (AFM)",
+   "desc": "AIR BRAKE handle in the left-wall slot: modelled stowed at the forward RETRACT end, swings aft 33 deg to EXTEND (wall placard + AFM: pull aft to extend)",
    "link": "Spoiler_L/R + Spoiler_Lower_L/R; front + rear levers linked; wheel_brake engages over spoiler 0.9..1.0",
    "extra": {
     "wheel_brake_from_spoiler": [
@@ -969,9 +825,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -0.8,
-    -0.52,
-    0.309
+    -0.6368,
+    -0.6318,
+    0.3472
    ],
    "map": [
     [
@@ -980,11 +836,11 @@
     ],
     [
      1.0,
-     60.0
+     33.0
     ]
    ],
    "model": 0.0,
-   "desc": "dive-brake handle swings aft 60 deg (judgement) as the doors open; unlock = push forward/down then pull straight back (AFM)",
+   "desc": "AIR BRAKE handle in the left-wall slot: modelled stowed at the forward RETRACT end, swings aft 33 deg to EXTEND (wall placard + AFM: pull aft to extend)",
    "link": "Spoiler_L/R + Spoiler_Lower_L/R; front + rear levers linked; wheel_brake engages over spoiler 0.9..1.0",
    "extra": {
     "wheel_brake_from_spoiler": [
@@ -1005,9 +861,9 @@
     -1.0
    ],
    "pivot_gltf": [
-    -1.47,
-    -0.845,
-    0.17
+    -1.4,
+    -0.62,
+    0.3127
    ],
    "map": [
     [
@@ -1024,7 +880,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "bungee trim lever in a 4-notch quadrant: aft = nose up (judgement 20 deg each way)",
+   "desc": "red-ball trim lever low on the left wall, 4-notch quadrant: aft = nose up (judgement 20 deg each way)",
    "link": "",
    "extra": {
     "rig_detents": [

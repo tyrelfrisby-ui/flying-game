@@ -313,6 +313,39 @@ for sg in (1, -1):
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 P['Window_Rear'] = link('Window_Rear', bm); P['Window_Rear_Frame'] = link('Window_Rear_Frame', bmf)
 
+# ---- v8 exterior details from the photos: right-side canopy hinges, left rear door (rails, hinges, latch), canopy latch,
+# wing-root skylight over the rear seat (clear, framed), boarding step under the left door
+bm = bmesh.new()
+def _sill(px, sg, dz=0.0):
+    tp = float(np.interp(px, [p for p, _ in CAN], [q for _, q in CAN])); s_ = sec(px, tp, grow=0.012); lo = s_[0] if sg > 0 else s_[-1]
+    return (lo[0], lo[1], lo[2] + dz)
+for px in (287, 303, 319):                                                          # canopy hinge knuckles on the right sill
+    x_, y_, z_ = _sill(px, -1, 0.012); cyl(bm, (x_, y_ - 0.006, z_), 'X', 0.011, 0.05, seg=12)
+x_, y_, z_ = _sill(305, 1, 0.02); box(bm, (x_, y_ + 0.008, z_), (0.06, 0.016, 0.025))          # canopy latch, left sill
+d0, d1 = _sill(326, 1, 0.004), _sill(361, 1, 0.004)
+tube(bm, d0, d1, r=0.009, f=1.0, n=8)
+for dz in (0.06, 0.22):                                                             # door hinges on its forward edge
+    x_, y_, z_ = _sill(326.5, 1, dz); cyl(bm, (x_, y_ + 0.004, z_), 'Z', 0.009, 0.05, seg=10)
+x_, y_, z_ = _sill(360, 1, 0.14); box(bm, (x_ + 0.02, y_ + 0.012, z_), (0.07, 0.012, 0.018)); box(bm, (x_ + 0.05, y_ + 0.006, z_), (0.012, 0.012, 0.03))  # door latch
+SPX = 352; ZST = mz(fus(SPX)[1]) + 0.16                                             # boarding step, lower left
+yo = outer_y(SPX, ZST); box(bm, (mx(SPX), yo + 0.05, ZST - 0.05), (0.11, 0.07, 0.012)); tube(bm, (mx(SPX), yo - 0.01, ZST), (mx(SPX), yo + 0.07, ZST - 0.05), r=0.008, f=1.0)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+P['Canopy_Hardware'] = link('Canopy_Hardware', bm)
+bm = bmesh.new(); bmf = bmesh.new()                                                 # skylight on the pylon front, px 363..383
+SKY = [363, 368, 373, 378, 383]
+rows_ = []
+for px in SKY:
+    tp = float(np.interp(px, [p for p, _ in PYL], [q for _, q in PYL])); s_ = pyl_sec(px, tp, grow=0.006)
+    zt = max(z for _, _, z in s_); rows_.append([p for p in s_ if p[2] > zt - 0.05 and abs(p[1]) < 0.20])
+nmin = min(len(r) for r in rows_); rows_ = [r[(len(r) - nmin) // 2:(len(r) - nmin) // 2 + nmin] for r in rows_]
+vv = [[bm.verts.new(p) for p in r] for r in rows_]
+for a, b in zip(vv, vv[1:]):
+    for i in range(nmin - 1): bm.faces.new((a[i], a[i + 1], b[i + 1], b[i]))
+ring_ = [rows_[0][i] for i in range(nmin)] + [rows_[k][-1] for k in range(1, len(rows_))] + [rows_[-1][i] for i in range(nmin - 2, -1, -1)] + [rows_[k][0] for k in range(len(rows_) - 2, -1, -1)]
+for p0, p1 in zip(ring_, ring_[1:]): tube(bmf, (p0[0], p0[1], p0[2] + 0.003), (p1[0], p1[1], p1[2] + 0.003), r=0.008, f=1.0, n=6)
+bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+P['Skylight_Glass'] = link('Skylight_Glass', bm); P['Skylight_Frame'] = link('Skylight_Frame', bmf)
+
 # ---- cockpit (seats, harnesses, panels, instruments, linked controls, tube frame, liner) ----------------
 exec(compile(open(os.path.join(HERE, 'sgs233_cockpit.py')).read(), os.path.join(HERE, 'sgs233_cockpit.py'), 'exec'))
 
@@ -363,23 +396,30 @@ M = {'l': paint.mat_image('Paint_sgs_side_l', VL.to_image(TEX + '/l.png')),
      'grey': paint.mat_colour('Paint_grey', GREY, rough=0.6), 'tyre': paint.mat_colour('Paint_tyre', TYRE, rough=0.8),
      'glass': paint.mat_glass('Glass'), 'glass_dark': paint.mat_glass('Glass_Tinted', (40, 52, 64), alpha=0.75),
      'steel': paint.mat_colour('Stainless', (200, 202, 206), rough=0.25, metal=0.9),
-     'liner': paint.mat_colour('Int_Liner', (128, 130, 128), rough=0.8), 'plywood': paint.mat_colour('Int_Floor', (150, 122, 84), rough=0.85),
-     'tube': paint.mat_colour('Int_Tube', (186, 188, 192), rough=0.5, metal=0.3), 'canvas': paint.mat_colour('Int_Canvas', (58, 60, 64), rough=0.9),
-     'webbing': paint.mat_colour('Int_Webbing', (36, 38, 44), rough=0.85), 'cushion': paint.mat_colour('Int_Cushion', (28, 38, 78), rough=0.9),
-     'metal': paint.mat_colour('Int_Metal', (176, 178, 182), rough=0.3, metal=0.8), 'panel': paint.mat_colour('Int_Panel', (30, 30, 32), rough=0.7),
+     'liner_white': paint.mat_colour('Int_Liner', (222, 223, 220), rough=0.7), 'floor_grey': paint.mat_colour('Int_Floor', (196, 198, 200), rough=0.75),
+     'tube': paint.mat_colour('Int_Tube', (186, 188, 192), rough=0.5, metal=0.3), 'tube_white': paint.mat_colour('Int_Tube_White', (230, 230, 228), rough=0.45),
+     'webbing': paint.mat_colour('Int_Webbing', (30, 31, 34), rough=0.85), 'fabric_grey': paint.mat_colour('Int_Seatback_Fabric', (196, 198, 198), rough=0.9),
+     'metal': paint.mat_colour('Int_Metal', (190, 192, 196), rough=0.3, metal=0.8), 'alu_cast': paint.mat_colour('Int_Alu_Cast', (168, 170, 172), rough=0.55, metal=0.7),
+     'chrome': paint.mat_colour('Int_Chrome', (220, 222, 226), rough=0.12, metal=1.0), 'panel': paint.mat_colour('Int_Panel', (22, 22, 24), rough=0.7),
+     'coaming': paint.mat_colour('Int_Coaming', (18, 18, 20), rough=0.85), 'vent': paint.mat_colour('Int_Vent', (16, 16, 17), rough=0.45),
      'bezel': paint.mat_colour('Int_Bezel', (16, 16, 18), rough=0.5), 'needle': paint.mat_colour('Int_Needle', (245, 245, 240), rough=0.5),
-     'grip': paint.mat_colour('Int_Grip', (24, 24, 24), rough=0.7), 'boot': paint.mat_colour('Int_Boot', (44, 36, 30), rough=0.85),
-     'knob_yellow': paint.mat_colour('Knob_Yellow', (255, 205, 0), rough=0.4), 'knob_blue': paint.mat_colour('Knob_Blue', (30, 70, 180), rough=0.4),
-     'knob_green': paint.mat_colour('Knob_Green', (40, 140, 60), rough=0.4), 'yawstring': paint.mat_colour('YawString', (225, 40, 40), rough=0.9),
+     'grip': paint.mat_colour('Int_Grip', (20, 20, 20), rough=0.75), 'boot_red': paint.mat_colour('Int_Boot_Red', (140, 30, 32), rough=0.7),
+     'red_channel': paint.mat_colour('Int_Channel_Maroon', (120, 28, 30), rough=0.6), 'birch': paint.mat_colour('Int_Seat_Birch', (196, 160, 112), rough=0.8),
+     'cable': paint.mat_colour('Int_Cable', (60, 62, 66), rough=0.4, metal=0.6),
+     'knob_yellow': paint.mat_colour('Knob_Yellow', (255, 205, 0), rough=0.35), 'knob_red': paint.mat_colour('Knob_Red', (200, 30, 25), rough=0.35),
+     'yawstring': paint.mat_colour('YawString', (225, 40, 40), rough=0.9),
      'dial_asi': paint.mat_image('Dial_ASI', _img('sgs-dial-asi.png'), 0.4), 'dial_alt': paint.mat_image('Dial_ALT', _img('sgs-dial-alt.png'), 0.4),
      'dial_vario': paint.mat_image('Dial_VARIO', _img('sgs-dial-vario.png'), 0.4), 'compass': paint.mat_image('Compass_Card', _img('sgs-compass-band.png'), 0.4),
-     'placard': paint.mat_image('Placard', _img('sgs-placard.png'), 0.6)}
+     'panel_face': paint.mat_image('Panel_Face', _img('sgs-panel-face.png'), 0.7), 'wall_airbrake': paint.mat_image('Wall_AirBrake', _img('sgs-wall-airbrake.png'), 0.7),
+     'wall_wb': paint.mat_image('Wall_WB', _img('sgs-wall-wb.png'), 0.7), 'release_tube': paint.mat_image('Release_Tube', _img('sgs-release-tube.png'), 0.5),
+     'cushion_stripe': paint.mat_image('Int_Cushion_Stripe', _img('sgs-cushion-stripe.png'), 0.9)}
 def setm(o, names):
     o.data.materials.clear()
     for n in names: o.data.materials.append(M[n])
 P['Fuselage'] = paint.join([P['Fuselage'], P.pop('Fuselage_Pylon')], 'Fuselage')
 COL = {'Canopy_Glass': 'glass', 'Gear': 'tyre', 'Tyres_Small': 'tyre', 'Skids': 'grey', 'Struts': 'yellow', 'Canopy_Frame': 'yellow',
-       'Pitot': 'steel', 'Window_Rear': 'glass_dark', 'Window_Rear_Frame': 'grey'}
+       'Pitot': 'steel', 'Window_Rear': 'glass_dark', 'Window_Rear_Frame': 'grey', 'Canopy_Hardware': 'grey',
+       'Skylight_Glass': 'glass', 'Skylight_Frame': 'grey'}
 for n, o in P.items():
     if n == 'Fuselage':
         setm(o, ['l', 'r']); paint.project(o, lambda nrm, c: (0, VL) if nrm.y >= 0 else (1, VR))
@@ -391,13 +431,17 @@ for n, o in P.items():
         paint.project(o, lambda nrm, c: (0, WING_TOP))
     else:
         col = CK_MAT.get(n) or COL.get(n) or 'yellow'
-        setm(o, [col]); [setattr(p, 'material_index', 0) for p in o.data.polygons]
+        if isinstance(col, list):                   # multi-material cockpit node: face material indices set at build time
+            mi = [p.material_index for p in o.data.polygons]; setm(o, col)   # (materials.clear() resets the indices)
+            for p, k in zip(o.data.polygons, mi): p.material_index = k
+        else: setm(o, [col]); [setattr(p, 'material_index', 0) for p in o.data.polygons]
 for n in ('Fuselage', 'Wing', 'Aileron_L', 'Aileron_R', 'Canopy_Glass', 'Gear', 'Canopy_Frame', 'Cockpit_Liner', 'Seat_Front_Cushion',
-          'Seat_Rear_Cushion', 'Stick_F_Boot', 'Stick_R_Boot', 'Tyres_Small'):
+          'Seat_Rear_Cushion', 'Stick_F_Boot', 'Stick_R_Boot', 'Tyres_Small', 'Cockpit_SidePanels', 'Panel_Coaming', 'Panel_Vent',
+          'Stick_F', 'Stick_R', 'TowRelease_F', 'TowRelease_R', 'Trim_Lever', 'Skylight_Glass'):
     for p in P[n].data.polygons: p.use_smooth = True
     try: P[n].data.set_sharp_from_angle(angle=math.radians(60))
     except Exception: pass
-KEEP_WINDING = {'Cockpit_Liner', 'Cockpit_Bulkhead', 'Cockpit_Floor', 'Placard_Front', 'Seat_Front_Canvas'} | {n for n in P if n.startswith('Dial_')}
+KEEP_WINDING = {'Cockpit_Liner', 'Cockpit_Bulkhead', 'Cockpit_Floor'} | set(CK_DECALS) | {n for n in P if n.startswith('Dial_')}
 for n, o in P.items():  # outward normals (the liner faces inward by construction; dial discs face the pilot)
     if n in KEEP_WINDING: continue
     bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(o.data); bm.free()
@@ -471,20 +515,20 @@ rig2(o, 'rudder', ax, [-1, 0, 1], [-30, 0, 30], '-1..+1', 'rudder on the raked h
 o = origin2('Gear', WHEEL_C); o['spin_axis_gltf'] = gl_axis(wd((0, 1, 0))); o['wheel_radius_m'] = WHEEL_R
 o['note'] = 'main monowheel (5.00-5 class tyre, 0.36 m dia on the 3-view); spin about spin_axis'
 o = origin2('Tyres_Small', TW_C); o['note'] = 'tail wheel (origin) + both wingtip wheels, static'
-# cockpit hierarchy: Cockpit > Instruments_Front / Instruments_Rear / Controls / Interior (identity rotations)
+# cockpit hierarchy: Cockpit > Instruments_Front / Controls / Interior (identity rotations)
 CKP = group('Cockpit', (1.0, 0, -0.45))
-INF = group('Instruments_Front', (PF_X, 0, PF_Z), CKP); INR = group('Instruments_Rear', (PR_X, 0, PR_Z), CKP)
+INF = group('Instruments_Front', (PF_X, 0, ZB + 0.1), CKP)   # v8: no rear instruments (none in the photos or the POH figure)
 CTL = group('Controls', (1.1, 0, ZF), CKP); INT = group('Interior', (1.0, 0, -0.45), CKP)
 for n in CK_STATIC: origin2(n, (1.0, 0, -0.45), INT)
-_NMAP = {'Needle_ASI': ('airspeed_mph', [0, 20, 140, 150], [0, 10, 310, 335], 'mph', 'ASI 20..140 mph over 300 deg (AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20', {}),
+_NMAP = {'Needle_ASI': ('airspeed_mph', [0, 20, 160], [0, 15, 345], 'mph', 'ASI 20..160 mph over 15..345 deg (photographed dial layout; AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20', {}),
          'Needle_Alt100': ('altitude_ft', [0, 1000], [0, 360], 'ft', 'altimeter long hand, 1 turn per 1000 ft (unbounded)', {'rig_map_extrapolate': 1}),
          'Needle_Alt1000': ('altitude_ft', [0, 10000], [0, 360], 'ft', 'altimeter short hand, 1 turn per 10000 ft (unbounded)', {'rig_map_extrapolate': 1}),
          'Needle_Vario': ('vario_kt', [-10, 0, 10], [-150, 0, 150], 'kt', 'variometer, modelled at 0 (9 o\'clock), +10 kt climb = 150 deg clockwise', {})}
-for sfx, grp in (('F', INF), ('R', INR)):
+for sfx, grp in (('F', INF),):
     for base_, (prm, ps, ds, un, lab, ex) in _NMAP.items():
         n_ = base_ + '_' + sfx; origin2(n_, NEEDLES[n_], grp)
         rig2(P[n_], prm, FWD, ps, ds, un, lab + '; +deg clockwise from the seat', tv=UP, want=lambda d: d.y > 0, extra=ex,
-             link='front and rear instruments read the same param')
+             link='front panel only (v8: rear instruments removed)')
 origin2('Compass_Card', NEEDLES['Compass_Card'], INF)
 rig2(P['Compass_Card'], 'heading_deg', UP, [0, 360], [0, 360], 'deg magnetic', 'wet-compass card drum: turns opposite the airplane so the heading '
      'sits under the lubber line (modelled at 000; reverse-sensing card)', tv=AFT, want=lambda d: d.y > 0, extra={'rig_map_wrap': 360.0})
@@ -502,14 +546,14 @@ for n_ in ('Pedal_F_L', 'Pedal_F_R', 'Pedal_R_L', 'Pedal_R_R'):
 for n_ in ('TowRelease_F', 'TowRelease_R'):
     o = origin2(n_, RIGPTS[n_], CTL)
     rig2(o, 'tow_release', AFT, [0, 1], [0, 0.05], '0..1', 'tow release: pull the knob full out (50 mm aft) to release (AFM); yellow per Ty, AFM says red', kind='move', want=lambda d: d.x > 0,
-         link='front (panel bottom centre) and rear (front seat back top left) knobs on one cable')
+         link='front (big yellow ball, panel bottom centre) and rear (left end of the white seat-back cross tube) knobs on one cable')
 for n_ in ('DiveBrake_Lever_F', 'DiveBrake_Lever_R'):
     pv, tp = RIGPTS[n_]; o = origin2(n_, pv, CTL)
-    rig2(o, 'spoiler', STBD, [0, 1], [0, 60], '0..1', 'dive-brake handle swings aft 60 deg (judgement) as the doors open; unlock = push forward/down then pull straight back (AFM)',
+    rig2(o, 'spoiler', STBD, [0, 1], [0, 33], '0..1', 'AIR BRAKE handle in the left-wall slot: modelled stowed at the forward RETRACT end, swings aft 33 deg to EXTEND (wall placard + AFM: pull aft to extend)',
          tv=w(tp) - w(pv), want=lambda d: d.x > 0, link='Spoiler_L/R + Spoiler_Lower_L/R; front + rear levers linked; wheel_brake engages over spoiler 0.9..1.0',
          extra={'wheel_brake_from_spoiler': [0.9, 1.0]})
 pv, tp = RIGPTS['Trim_Lever']; o = origin2('Trim_Lever', pv, CTL)
-rig2(o, 'trim', STBD, [-1, 0, 1], [-20, 0, 20], '-1 nose down .. +1 nose up', 'bungee trim lever in a 4-notch quadrant: aft = nose up (judgement 20 deg each way)',
+rig2(o, 'trim', STBD, [-1, 0, 1], [-20, 0, 20], '-1 nose down .. +1 nose up', 'red-ball trim lever low on the left wall, 4-notch quadrant: aft = nose up (judgement 20 deg each way)',
      tv=w(tp) - w(pv), want=lambda d: d.x > 0, extra={'rig_detents': [-1.0, -0.3333, 0.3333, 1.0]})
 print('RIG nodes: %d' % len(RIG2))
 if os.environ.get('SGS_RIGJSON'):
