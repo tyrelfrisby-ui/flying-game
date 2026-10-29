@@ -89,7 +89,9 @@ Shader "FlyingGame/Terrain"
                     // Preserve local contrast; optical depth accrues only beyond the clear range.
                     // Average ray altitude reduces haze in elevated/top-down views.
                     float altitude=max(0,(i.wp.y+_WorldSpaceCameraPos.y)*.5);
-                    float optical=max(0,distanceM-_DayAtmosphere.y)*_DayAtmosphere.x*exp(-altitude*.00022);
+                    // Gradually strengthen long paths, retaining the clear near field.
+                    float path=max(0,distanceM-_DayAtmosphere.y);
+                    float optical=path*_DayAtmosphere.x*(1+smoothstep(1500,9000,path)*.75)*exp(-altitude*.00016);
                     float haze=1-exp(-optical);
                     col=lerp(col,float3(.32,.49,.68),haze);
                 }

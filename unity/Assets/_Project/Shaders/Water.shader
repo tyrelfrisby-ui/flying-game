@@ -72,6 +72,7 @@ Shader "FlyingGame/Water"
                 float ripple = lerp(lerp(.012,.009,scenery), .0007, _WaterCalm);
                 float3 n = normalize(float3(a * ripple, 1.0, b * ripple));
                 float foam = 0;
+                float taxiGlint = 0;
                 if (_RiverFlow > .5 && scenery > .5)
                 {
                     float2 along = _FlowDirection.xy;
@@ -108,6 +109,28 @@ Shader "FlyingGame/Water"
                         for (int f = 0; f < 2; f++)
                         {
                             float4 origin = _FoamOrigins[f], motion = _FoamMotion[f];
+                            // Wet displacement taxi: normal-only bow shoulders and a short
+                            // diverging ripple train. No planing whitewater at walking pace.
+                            if (origin.z > 0 && motion.z > .05 && motion.z < 4)
+                            {
+                                float2 taxiDelta = p - origin.xy;
+                                float2 across = float2(motion.y, -motion.x);
+                                float taxiAft = -dot(taxiDelta, motion.xy);
+                                float taxiSide = dot(taxiDelta, across);
+                                float spread = origin.z * .55 + max(0,taxiAft) * .42;
+                                float edge = abs(taxiSide) - spread;
+                                float envelope = exp(-edge*edge/.22) * exp(-max(0,taxiAft)/9)
+                                    * smoothstep(-.8,.6,taxiAft);
+                                float oscillation = sin(edge*9-t*.9);
+                                taxiGlint = max(taxiGlint, envelope * pow(saturate(oscillation),6)
+                                    * .035 * saturate(motion.z/2.5));
+                                float bow = exp(-taxiSide*taxiSide/max(.1,origin.z*origin.z)
+                                    -(taxiAft+2)*(taxiAft+2)*2);
+                                float tilt = (envelope*oscillation*.022 + bow*.018)
+                                    * saturate(motion.z/2.5);
+                                n = normalize(float3(n.x + across.x*sign(taxiSide)*tilt,
+                                    n.y, n.z + across.y*sign(taxiSide)*tilt));
+                            }
                             if (origin.w <= .001) continue;
                             float2 delta = p - origin.xy;
                             float aft = -dot(delta, motion.xy);
@@ -170,6 +193,7 @@ Shader "FlyingGame/Water"
                 // Keep silhouettes and sky on the same reflection weight; no additive sky wash.
                 float mirror = lerp(fresnel, max(fresnel, .91 + .07 * pow(1-ndv, 2)), _WaterCalm * _SunsetOn);
                 float3 col = lerp(body, refl, mirror) + spec * sunTint * (1 - foam);
+                col += refl * taxiGlint;
                 col = lerp(col, float3(0.92, 0.95, 0.97), foam);
                 // Sub-metre edge blends the existing mesh into the damp bank rather than a blue cutout.
                 float alpha = scenery > .5 && i.depth.y > .5 ? smoothstep(0,1.2,depth) : 1;

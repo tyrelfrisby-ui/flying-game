@@ -22,22 +22,23 @@ float3 SunsetEnvironment(float3 ray) {
 float3 DaySky(float3 ray) {
  ray=normalize(ray);
  float y=saturate(ray.y);
- float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.48));
+ float3 sky=lerp(float3(.48,.65,.80),float3(.075,.26,.52),pow(y,.42));
  float3 sunDir=normalize(float3(.4,.8,-.4));
  float sun=saturate(dot(ray,sunDir));
  sky+=float3(.14,.12,.075)*pow(sun,32);
  sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
  // Separated cumulus banks, rather than a continuous sheet of tiny white cells.
- float2 p=ray.xz/max(.045,y)*.85;
+ // Stereographic dome keeps cloud lobes round in low horizon views.
+ float2 p=ray.xz/(.65+y)*3.8;
  float broad=skyNoise(p);
  float detail=skyNoise(p*3.7+13.2);
  float fine=detail;
  if (_DayAtmosphere.z > .5) fine=skyNoise(p*11.3+7.1);
  float density=broad*.72+detail*.23+fine*.05;
- float cloud=smoothstep(.59,.69,density)*smoothstep(.055,.18,y);
+ float cloud=smoothstep(.57,.66,density)*smoothstep(.025,.11,y);
  // Offset density approximates a sun-facing bright crown and a cooler dense base.
- float crown=skyNoise(p+sunDir.xz*.18);
- float light=saturate(.52+(broad-crown)*4.5+(detail-.5)*.6);
+ float crown=skyNoise(p+sunDir.xz*.09);
+ float light=saturate(.67+(broad-crown)*7.5+(detail-.5)*.85);
  float3 cloudColor=lerp(float3(.40,.51,.65),float3(1,.99,.95),light);
 
  return lerp(sky,cloudColor,cloud*.94);
@@ -48,9 +49,9 @@ float3 SunsetSky(float3 ray) {
  float toward=pow(saturate(dot(ray,sunDir)),8);
  // Broad peach/gold lower sky, rose middle, cool blue-grey above. Warmth is
  // directional, so the lake gets the same gold path from the reflected ray.
- float3 sky=lerp(float3(.95,.71,.43),float3(.87,.57,.56),smoothstep(.015,.44,y));
- sky=lerp(sky,float3(.32,.43,.59),smoothstep(.30,.92,y));
- float aureole=toward*exp(-y*2.7);
+ float3 sky=lerp(float3(.96,.75,.49),float3(.80,.57,.61),smoothstep(.015,.22,y));
+ sky=lerp(sky,float3(.30,.42,.60),smoothstep(.13,.53,y));
+ float aureole=toward*exp(-y*7);
  sky=lerp(sky,float3(1,.87,.61),aureole*.68);
  // A world-space deck of small, softly lit cloudlets, broken by broader gaps.
  // Continuous density and multiscale erosion avoid hard, flat camouflage patches.
@@ -63,10 +64,10 @@ float3 SunsetSky(float3 ray) {
  float density=cells*.48+detail*.27+fine*.1+broad*.15;
  float cloud=smoothstep(.34,.73,density)*smoothstep(.035,.23,y);
  float edge=smoothstep(.34,.76,density);
- float3 shadow=lerp(float3(.72,.49,.49),float3(.34,.41,.54),smoothstep(.15,.85,y));
- float3 lit=lerp(float3(1,.78,.59),float3(.66,.69,.77),smoothstep(.18,.85,y));
+ float3 shadow=lerp(float3(.72,.49,.49),float3(.34,.41,.54),smoothstep(.10,.43,y));
+ float3 lit=lerp(float3(1,.78,.59),float3(.66,.69,.77),smoothstep(.10,.46,y));
  float3 cloudColor=lerp(lit,shadow,edge*.8);
- cloudColor=lerp(cloudColor,float3(1,.85,.64),toward*exp(-y*1.3)*.82);
+ cloudColor=lerp(cloudColor,float3(1,.85,.64),toward*exp(-y*5)*.82);
  sky=lerp(sky,cloudColor,cloud*.68);
  float sun=dot(ray,normalize(_SunsetSunDir.xyz));
  sky+=float3(1,.66,.28)*pow(saturate(sun),350)*.55;

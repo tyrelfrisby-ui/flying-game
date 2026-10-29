@@ -53,7 +53,7 @@ namespace FlyingGame.EditorTools
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
-                        float radius=h*(.28f-crown*.026f)*( .8f+(float)rng.NextDouble()*.4f);
+                        float radius=h*(.34f-crown*.032f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
                         for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});
@@ -183,7 +183,7 @@ namespace FlyingGame.EditorTools
                 if (displacement && !calm)
                 {
                     offsets[0] = new Vector3(12, 3, 13);
-                    offsets[1] = new Vector3(15, 18, -22);
+                    offsets[1] = new Vector3(10, 10, -15);
                     offsets[2] = new Vector3(7, 2, 6);
                 }
                 var names = new[] { "spray", "wake", "bow" };
@@ -233,32 +233,44 @@ namespace FlyingGame.EditorTools
                     File.WriteAllBytes(Path.Combine(output,"sunset.png"),photo.EncodeToPNG());
                     WriteComparison(photo, output);
                     UnityEngine.Object.DestroyImmediate(photo);
-                    // Additional low rear-quarter hero: fit both real and mirrored bounds.
-                    // Fit projected corners, not just world X width, for wider types and near-wing perspective.
+                    // Additional low rear-quarter hero: fit real and mirrored mesh points.
                     camera.fieldOfView = 64;
                     Vector3 heroCentre = aircraftBounds.center;
                     heroCentre.y = (float)lake.SurfaceM + .25f;
-                    Vector3 rearQuarter = new Vector3(-.56f, 0, -.83f).normalized;
-                    float heroDistance = Mathf.Max(6, aircraftBounds.size.x * .65f);
-                    for (int fit = 0; fit < 60; fit++)
+                    // Fit actual mesh points: a combined AABB includes empty space between
+                    // wing tips and tail and was pushing the hero far away.
+                    var heroPoints = new System.Collections.Generic.List<Vector3>();
+                    foreach (var meshFilter in root.GetComponentsInChildren<MeshFilter>())
+                    {
+                        var mesh = meshFilter.sharedMesh;
+                        if (mesh == null || !mesh.isReadable) continue;
+                        foreach (var vertex in mesh.vertices)
+                            heroPoints.Add(meshFilter.transform.TransformPoint(vertex));
+                    }
+                    if (heroPoints.Count == 0)
+                        for (int corner = 0; corner < 8; corner++)
+                            heroPoints.Add(aircraftBounds.center + Vector3.Scale(aircraftBounds.extents,
+                                new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1)));
+                    Vector3 rearQuarter = new Vector3(-.32f, 0, -.948f).normalized;
+                    float heroDistance = 3;
+                    for (int fit = 0; fit < 240; fit++)
                     {
                         camera.transform.position = heroCentre + rearQuarter * heroDistance;
                         camera.transform.position = new Vector3(camera.transform.position.x, (float)lake.SurfaceM + 1, camera.transform.position.z);
                         camera.transform.LookAt(heroCentre);
                         bool fits = true;
-                        for (int corner = 0; corner < 8; corner++)
+                        foreach (var meshPoint in heroPoints)
                         {
-                            Vector3 point = aircraftBounds.center + Vector3.Scale(aircraftBounds.extents,
-                                new Vector3((corner & 1) == 0 ? -1 : 1, (corner & 2) == 0 ? -1 : 1, (corner & 4) == 0 ? -1 : 1));
+                            Vector3 point = meshPoint;
                             for (int mirror = 0; mirror < 2; mirror++)
                             {
                                 if (mirror == 1) point.y = 2 * (float)lake.SurfaceM - point.y;
                                 Vector3 uv = camera.WorldToViewportPoint(point);
-                                if (uv.z <= camera.nearClipPlane || uv.x < .055f || uv.x > .945f || uv.y < .055f || uv.y > .945f) fits = false;
+                                if (uv.z <= camera.nearClipPlane || uv.x < .035f || uv.x > .965f || uv.y < .055f || uv.y > .945f) fits = false;
                             }
                         }
                         if (fits) break;
-                        heroDistance *= 1.035f;
+                        heroDistance *= 1.015f;
                     }
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
