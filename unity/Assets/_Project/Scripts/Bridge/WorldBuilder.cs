@@ -722,8 +722,7 @@ namespace FlyingGame.Bridge
         private static void BuildWaterfalls(WorldTerrain t, Transform parent)
         {
             var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
-            var powellRock = Mat("FlyingGame/PowellSandstone", new Color(1.18f,1.04f,.90f));
-            powellRock.SetFloat("_Shelf",1);
+            var powellRock = Mat("FlyingGame/PowellSandstone", Color.white);
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
             var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.72f));
             mistMat.SetFloat("_Mist", 1f);
@@ -768,7 +767,10 @@ namespace FlyingGame.Bridge
                     int topRow = (ny - 1) * nx;
                     for (int i = 0; i < nx - 1; i++)
                     {
-                        int a = topRow + i, b = a + 1;
+                        // Separate vertical lip vertices from the roof normal sums.
+                        int roofA = topRow + i, roofB = roofA + 1;
+                        int a = v.Count; v.Add(v[roofA]);
+                        int b = v.Count; v.Add(v[roofB]);
                         int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
                         int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
                         tr.AddRange(new[] { a, b, p0, b, p1, p0 });
@@ -778,10 +780,15 @@ namespace FlyingGame.Bridge
                     {
                         for (int j = 0; j < ny - 1; j++)
                         {
-                            int a = j * nx + col, b = a + nx;
+                            int roofA = j * nx + col, roofB = roofA + nx;
+                            int a = v.Count; v.Add(v[roofA]);
+                            int b = v.Count; v.Add(v[roofB]);
                             int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
                             int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
-                            tr.AddRange(new[] { a, p0, b, b, p0, p1 });
+                            // U swaps sim east/north; each end needs outward winding.
+                            tr.AddRange(col == 0
+                                ? new[] { a, b, p0, b, p1, p0 }
+                                : new[] { a, p0, b, b, p0, p1 });
                         }
                     }
                     // Powell lip uses the same world-space beds/caps as the surrounding cliff.
