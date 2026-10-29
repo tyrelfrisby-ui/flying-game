@@ -1,6 +1,8 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **The city blocks' low-rise now has collision — and two things want your eye (Claude, 2026-10-29, `lane/claude-urban-collision`, off `lane/codex-visuals` at `192070e`).** 1,639 houses, terraces, shops and warehouses across the three cities are solids you crash into; 6 were refused (4 on the Valley main's south final, 2 on a city pad approach) and are not drawn either, because a roof the sim does not have is a ghost. Suite **783 passed / 4 failed / 3 skipped / 790** — the known four (three Pitts ground-handling, flat-spin smoke). Not pushed, not merged. **(1)** Codex's main 7x16 block lattice has **no airport check at all** — only his extension/flank/frontage paths test `PadOutsideX`. 138 houses per Valley city stand inside the Valley and Mesa pad rectangles. They are allowed, because they are off every strip, but that is luck rather than design: the city grid simply overlaps the airport's flat field. **(2)** Still with no collision: `UrbanDressing.Lot`'s perimeter shops and street walls, and — the bigger hole — `Massing`'s stacked tower volumes, which reach `70 + core^1.45 * 460` m, well above the `tw.HeightM` the sim registers for the same tower. You can fly through the top of a drawn skyscraper today. Say whether you want that chased next.
+
 - **Visuals pass 4, batch M iteration 15 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** Newest P4-C12 water/world ERRORS empty. Opened all fourteen mountain plates against P4-M14-world and three real mountain photos; incoming mountain appearance ties M14 (scores below). **Terrain.shader only + log**, exact supplied M14 baseline with three localized edits: remove .0125/m boundary warp feeding optical rib normal/snow; extend green-only corridor replacement from width+1200..1800 to **width+1800..2600 m**; chroma threshold **.012..055 → .002..018** for faint green. Original actual-Alpine-core gate, glacier exclusion, blue-white floor, snow deposition, compact profiles, granite colour, ice/LZ/head/lighting/haze retained. **Ripple attribution provisional; outgoing appearance, ~70% snow and all-fourteen non-regression UNVERIFIED.** Maximum displacement **0 m**, no new assets/draws/textures/passes. Chief: strict Metal and fourteen-shot M14 A/B; revert either localized change if it regresses any shot. In particular inspect broad Ruth/massif faces, toe-edge coverage, retained blue-white floor and band-free alpine-lakes. No Unity/tests/build/git attempted; left uncommitted for runner.
 - **Visuals pass 4, batch C iteration 13 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-M15 water/world ERRORS empty. Reviewed all eleven requested city plates, C12 town/valley-city and four real city/harbour photos: incoming C12 city content ties (town **3/10**, city/street/facade/roofs **4/10**, overview **2/10**, street/city/town/roof night **4/10**, overview-night **3/10**). Blocking conifers are **Core.Forest sim-owned/collidable**, so **0 trees removed**, fallback used. UrbanFacades.cs only: retain incoming **599 Valley / 505 Bench / 479 combat** source quota, relocate C11 detached lots to checked street-end frontage (most detached first; contiguous garden depths), remove C12's incomplete new carriageways, add at most **72** checked foreground pitched-roof homes before the belt. All C10/C12 bodies and C7/C8 roof/core code retained. **Actual relocation/foreground counts and outgoing appearance UNVERIFIED.** Runtime C13 log reports relocated / retained source guards / rejection counts: **any retained source guards require inspection; do not accept the isolated-cluster goal on code alone**. No new streets, forest hiding, cameras, existing streets, registered footprints or protected rows changed. Same two city batches, **0 extra draws/materials/textures/passes**, conservative **<2 MiB** added GPU payload/city before removed lanes/CPU copies. Sim owner: baseline 599/505/479 need collision; C11 bodies may relocate; use C13 actual totals/positions, maximum **671/577/479**. Chief: separate assemblies, strict Metal, all eleven requested plates vs C12, verify count retention, no remaining detached source guards, readable foreground roofs, contacts/garden paths and night/day regressions/iPad cost. Only source + log, existing meta; no Unity/tests/build/git attempted; uncommitted for runner.
 - **Visuals pass 4, batch M iteration 14 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-C11 water/world ERRORS empty. Compared all fourteen newest mountain views with M12 and real photos; M13 regresses Alaska/Ruth/toe floors, alpine cirque/larch remain tied. Terrain.shader only: reverted M13 floor overpaint, pale wall substrate, fine snow-patch and granite-colour changes to M12; retained continuous compact rib sum/no ladder ledges. Removed fine edge warp and hairline fractures; one ~80 m boundary warp remains. Restored M12 dark granite/snow gates, ice/foreland and Ruth lighting. Green source trace identifies **padded Alpine meadow provenance** vetoing prior correction and repainting green; finite corridor green-only replacement now fades outside actual Alpine core (-8200..-8000 sim Y), protecting blue-white ice/snow by chroma. **Source diagnosis, not rendered isolation; outgoing green fix/~70% snow/all-fourteen improvement UNVERIFIED.** Maximum displacement **0 m**. Existing meta, no new assets/draws/textures/passes. Chief: strict Metal + fourteen-shot M12 comparison, particularly Colony/East Fork pale floor/no green and alpine-lakes no bands; full regressions/iPad timing. No Unity/tests/build/git attempted; uncommitted for runner.
@@ -56,6 +58,59 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-29 — Claude · lane/claude-urban-collision · the cities' low-rise is something you crash into
+
+Owner: "Give them collision so aircraft crash into them, using simple box or roof-prism colliders generated
+from the same placement data. Keep landing pads, rings and approach paths clear." Branched off the TIP of
+`lane/codex-visuals` (`192070e`, C13), not `8debd22` — `UrbanFacades.cs` gained 405 lines between the two,
+and colliders have to match the layout that is actually shipping.
+
+**The placement is not re-derived.** `RoofDistrict` is six hundred lines of stateful placement gated on
+terrain, forest and a camera's lens, rewritten twice today. A copy of that layout in Core would be wrong
+inside a week. Instead `RoofDistrict.Building` registers each house through `UrbanLowRise.Add` **from the
+same `foot` and `size` that make the mesh** — 13 lines added to Codex's file, and collision follows him
+wherever he moves a building. What is in Core is the half that is physics:
+
+- `src/FlyingGame.Core/UrbanLowRise.cs` — a block is a box to the eave with a 36° gable above it, ridged
+  along its long axis. Penetration takes the least-penetration face **but never the floor**: a house stands
+  ON the ground, and a free-standing box's blind least-penetration rule drives an aeroplane that clipped a
+  wall a metre up into the earth. Walls are footed 2 m down so a wheel at the surface is inside the house.
+  A roof strike pushes off the **slope** of the gable, not straight up.
+- The index. Three cities is ~1,600 buildings; a linear scan at 20 hard points x 500 Hz would be most of a
+  step. A 64 m uniform grid in compressed-row form measures **1.1 µs per step** against a 2,000 µs budget,
+  and a test checks it against a plain scan over 40,000 samples (0 disagreements).
+- Keep-clear, staked lazily out of Core's own data on the first `Add`.
+
+**Two mistakes worth recording, both caught by building the world rather than by the unit tests.**
+
+1. *The Valley cities' houses were being wiped.* `WorldBuilder.BuildAll` draws the plateau cities inside
+   `BuildLandmarks`, **before** it calls `Landmarks.RegisterSolids`. Clearing the registry there deleted
+   1,166 buildings and left only the combat city's 408; the keep-clear rules arrived equally late. The
+   registry is now emptied once at the top of `BuildAll` and the rules stake themselves on first use, so no
+   build order can get between them.
+2. *Keeping the airport PADS clear was the wrong rule.* A pad is 2,950 x 1,700 m of flattened field around
+   30 m of runway. Refusing the rectangle threw out **138 houses per Valley city** standing a kilometre from
+   any strip, and a 4 km final (instrument dimensions, in a world 8.6 x 14.9 NM end to end) ate 71 more in
+   the combat city, which sits on the Valley's extended centreline. The rule now walks
+   `WorldTerrain.AirportStrips` — main, crosswind, gravel, grass, all axis-aligned — at 120 m either side,
+   plus a 1,500 m x ±150 m final off each end of the **paved** runways only. Which houses belong on an
+   airfield is the visual owner's call; which ground an aeroplane lands on is not.
+
+**Measured in the built world** (`UrbanCollisionCheck`, a new editor tool, `-nographics`):
+
+| | |
+|---|---|
+| registered as solids | **1,639** (Valley 640-ish, Bench 520-ish, combat 479) |
+| refused | **6** — 4 Valley paved final south, 2 city pad approach |
+| standing where a pilot needs the ground | **0** |
+| tallest / widest | 14.4 m to the ridge / 52.0 m |
+| 2.8 km run at 4 m AGL through a city | inside a building for **199 m** |
+
+Suite **783 passed / 4 failed / 3 skipped / 790 total** — the four are the known baseline (three Pitts
+ground-handling, `SmokeGoesRoundTheAirframeInTheFlatSpin`). Seven new tests in
+`tools/FlightTests/UrbanLowRiseTests.cs`. Unity Bridge and Core both compile clean. Lane only; not pushed,
+not merged.
+
 ### 2026-10-29 — Codex · lane/codex-visuals · pass 4, batch P iteration 2
 
 - **Self-review:** read NEEDS YOU, P1, pass-3 entries and original handover boundaries. P4-P1 water/world ERRORS empty. Opened river-lake, gorge-flight, arch, bridge and their four details, powell-canyon-low, powell-mesa-aerial, powell-ring-detail, lake-shore-detail and desert-redrock; compared all six Powell/Navajo photos directly in viewer. Low canyon **3/10**, aerial/river detail **3/10**, gorge/detail **4/10**, arch/bridge detail **3/10**, ring **4/10**: welcome teal/ring, but grey high walls, green plateau, dense conifers, dark square rock facets and graphic silhouettes. Original river **1/10 presentation**, arch/bridge **0/10 presentation** (different landmark cameras buried; untouched). Separate seaplane shore **2/10**, Nevada redrock **2/10**, unchanged. Chief aggregate ~4/10 acknowledged. No outgoing score before new renders.

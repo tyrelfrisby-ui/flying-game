@@ -40,6 +40,7 @@ namespace FlyingGame.Bridge
         {
             SunsetLighting.ApplyDay();
             WorldTerrain.Active ??= new WorldTerrain();
+            UrbanLowRise.Clear();   // the cities register their low-rise as they are drawn, below
             var root = new GameObject("World");
             BuildPowellRimLookup(WorldTerrain.Active);
             BuildTerrain(WorldTerrain.Active, root.transform);

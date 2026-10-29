@@ -397,6 +397,27 @@ public sealed class CityGrid
         WorldSolids.Boxes.Add(new WorldSolids.Box(sx, sy, 2, 2, sg + Tallest.HeightM, sg + Tallest.HeightM + FlyCity.SpinPostM - 1));   // the bearing post
     }
 
+    /// <summary>The ground this city's pilots need kept clear of low-rise infill: the landing pad and the run
+    /// up to it, and the ground under every ring — a ring is on a roof, far above any house, but the
+    /// aeroplane that comes off one is not.</summary>
+    public void KeepClear(WorldTerrain t)
+    {
+        if (PadLot.HasValue)
+        {
+            var (px, py) = PadCentre;
+            UrbanLowRise.AddKeepClear(UrbanLowRise.KeepClear.Circle("city pad", px, py, FlyCity.PadRadiusM + UrbanLowRise.PadClearM));
+            double ax = Rotated ? PadDir * UrbanLowRise.PadApproachM : 0, ay = Rotated ? 0 : PadDir * UrbanLowRise.PadApproachM;
+            double hw = UrbanLowRise.PadClearM;
+            UrbanLowRise.AddKeepClear(UrbanLowRise.KeepClear.Rect("city pad approach",
+                Math.Min(px, px + ax) - (Rotated ? 0 : hw), Math.Min(py, py + ay) - (Rotated ? hw : 0),
+                Math.Max(px, px + ax) + (Rotated ? 0 : hw), Math.Max(py, py + ay) + (Rotated ? hw : 0)));
+        }
+        foreach (var (tw, _) in RooftopRings())
+            UrbanLowRise.AddKeepClear(UrbanLowRise.KeepClear.Circle("rooftop ring", tw.Cx, tw.Cy, FlyCity.RingRadiusM + UrbanLowRise.RingClearM));
+        var (sx, sy, _) = SpinRingCentre;
+        UrbanLowRise.AddKeepClear(UrbanLowRise.KeepClear.Circle("spinning ring", sx, sy, FlyCity.SpinRingRadiusM + UrbanLowRise.RingClearM));
+    }
+
     /// <summary>The towers and sky-bridges as solids (airframe contact).</summary>
     public void RegisterSolids(WorldTerrain t)
     {

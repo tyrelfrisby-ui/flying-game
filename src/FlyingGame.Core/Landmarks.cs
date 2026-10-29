@@ -40,6 +40,10 @@ public static class Landmarks
     {
         WorldSolids.Boxes.Clear();
         WorldSolids.Shapes.Clear();
+        // The cities' low-rise is registered by the visual builder as it draws it (UrbanLowRise), which it
+        // does for the plateau cities BEFORE this runs -- so nothing is cleared or staked out here, only
+        // hung back on the solids list this method just emptied.
+        UrbanLowRise.RegisterSolids();
         RegisterSeasideSolids(t);   // first: it resets the wheel decks, and every city adds its pad's
         for (int p = 0; p < WorldTerrain.PlateauCount; p++) RegisterSolids(t, p);
     }

@@ -523,8 +523,19 @@ namespace FlyingGame.Bridge
             int count=0,emptyBlocks=0,bodyStart=b.Count;
             bool roofChimneys=QualitySettings.GetQualityLevel()>2;
             float area=0;
+            // Sim collision, from the same foot and size that make the mesh (no second copy of the layout).
+            // Unity (x,up,z) is sim (y,up,x); the district roof is a 36-degree gable ridged along the long
+            // axis, so it rises halfWidth*tan(36) above the wall top. A building the sim will not have --
+            // on a pad, under a ring, on a final -- is not drawn either, or the roof would be a ghost.
+            bool Solid(Vector3 foot,Vector3 size)
+            {
+                bool ridgeAlongX=size.z>=size.x;
+                float ridge=Mathf.Min(size.x,size.z)*.5f*Mathf.Tan(36f*Mathf.Deg2Rad);
+                return FlyingGame.Core.UrbanLowRise.Add(foot.z,foot.x,size.z*.5f,size.x*.5f,foot.y,size.y,ridge,ridgeAlongX);
+            }
             void Building(Vector3 foot,Vector3 size,int seed,int kind,int roofSeed)
             {
+                if(!Solid(foot,size)) return;
                 // Pale plaster, buff stone and muted brick: the roof carries the silhouette.
                 Color wall=kind==1?new Color(.66f,.53f,.43f):kind==3?new Color(.72f,.67f,.57f)
                     :seed%3==0?new Color(.74f,.73f,.66f):seed%3==1?new Color(.73f,.66f,.55f):new Color(.66f,.68f,.65f);
@@ -986,7 +997,7 @@ namespace FlyingGame.Bridge
             Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {extensionEnd-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
             Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
             // Count/footprint are emitted for Chief's render log; no collision registration.
-            Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} visual-only buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; no colliders.");
+            Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; all {count} are sim solids (UrbanLowRise), {FlyingGame.Core.UrbanLowRise.Refused} refused so far for standing on a pad, under a ring or on a final.");
         }
         public static void Streets(FlyingGame.Core.CityGrid grid, double ground, SeasideBuilder.Batch b, UrbanFacades facades)
         {
