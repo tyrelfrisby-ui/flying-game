@@ -7,6 +7,11 @@
 - Register existing external work before headless dispatch: ../flying-game-reference/out/reference-fleet/ contains the new C172 rough draft; ../flying-game-reference/out/beaver-v2/ contains the reference-built Beaver; ../flying-game-audit/ contains the unfinished physics audit. Geometry must follow drawings/photos, not existing fleet meshes or aerodynamic config fitting.
 
 ## HANDOFF
+- [codex → Claude] lane/codex-sgs233-cockpit · own SGS 2-33 v7: cockpit + 3-view pass · wire the rig, review · details:
+  - Models rebuilt (both liveries) with cockpit: seats, harnesses, front/rear panels, compass, yaw string, torque tube + sticks, pedals, tow releases, dive-brake levers, trim. Nodes/axes/maps: docs/models/sgs233-own-RIG.md (+ sgs233-own-rig.json). 30 rigged nodes; params aileron, elevator, rudder, spoiler, trim, tow_release, airspeed_mph, altitude_ft, vario_kt, heading_deg.
+  - Please wire: all 30 nodes per the RIG doc; wheel brake from spoiler over [0.9, 1.0]; config contact points (configs are your lane, untouched): main wheel contact at 3-view side px 388 r 0.18 m, new tail wheel at px 739 r 0.05 m, wing-tip wheels at y ±7.5 m.
+  - Wing is now NACA 43012A with 3.5° incidence / 3° washout -- geometry only; aero config untouched.
+  - Flag for Ty: factory livery still carries N2033A (previously approved).
 - [codex → Claude] codex/own-sgs233 · APPROVED by Ty (2026-10-26) as DONE: own clean-room Schweizer SGS 2-33 with two liveries · review, integrate, confirm provenance · details:
   - Models: unity/Assets/_Project/Resources/Models/glider-2-33-like/glider-2-33-like-own.glb (factory all-yellow 255,204,0, N2033A) and glider-2-33-like-own-tf.glb (Talk Flying: same yellow, black cheat line + silver pinstripe, TALKFLYING, logo plate, talkflying.com; wing top TALK FLYING port / PODCAST starboard with the wings-and-headset emblem centred; underside TALK FLYING / PODCAST). All paint baked; no surface solid black. Built by tools/own_models/build_sgs233.py (SGS_LIVERY=talk-flying for the TF GLB) + tools/own_models/paint.py, art in tools/own_models/art/.
   - Code: AirframeModels.cs -- PickOwn uses the own 2-33 for LiveryId "factory" and "talk-flying"; OwnSuffix() loads -own or -own-tf per livery (Has/Place agree). Livery.cs -- glider-2-33-like "talk-flying" entry is now SgsYellow on all surfaces with no runtime decals (all baked; runtime wing words sat under the high wing, fin logo floated off the fin). AirframeVisual.cs carries the pre-painted-model handling from fg-models.
@@ -21,3 +26,5 @@
 Read all draft lane files. Added this original log in an isolated sparse worktree; no draft was installed or edited. No configs, assets, source or tests changed. Both draft runners pass zsh -n; no live execution, push, merge, deploy or migration. Main checkout unchanged. Stop after reporting as requested.
 ### 2026-10-26 — Codex · codex/own-sgs233 · own 2-33 handoff
 v1-v6 of the own SGS 2-33 committed locally (60e416a..4f11104); Ty approved both liveries. Handoff to Claude added above. No push, merge or deploy; main checkout returned to split-surfaces clean.
+### 2026-10-29 — Codex · lane/codex-sgs233-cockpit · 2-33 cockpit + 3-view pass
+Cockpit interior, linked controls and instruments added; outline re-fitted to the Commons 3-view (side/top/front overlays). Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy; main checkout untouched.

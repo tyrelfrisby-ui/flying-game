@@ -28,10 +28,8 @@ No GPL or third-party mesh was used as input.
 
 ## Known differences from the real aircraft
 - The stab span (2.35 m) was scaled from the drawing, not taken from a published figure.
-- The airfoil is a simplified NACA-like section, not the real 2-33 section.
 - Each side has a single streamlined lift strut plus simple cabane poles. The real strut and jury-strut arrangement is more detailed.
 - The wing-root pylon is a smooth lofted fairing. On the real airplane it is a framed structure with a rear window.
-- There is no cockpit interior.
 - Fuselage sections are smooth superellipses. The real fuselage is fabric over a steel tube frame, with stringer facets.
 - Spoilers are flat plates.
 - The tail surfaces are flat thin slabs, not true airfoils.
@@ -41,3 +39,12 @@ No GPL or third-party mesh was used as input.
 
 ## v6 wing marks
 Top: TALK FLYING (port) / PODCAST (starboard), reading from above nose-up, and the wings-and-headset emblem over the fuselage. Underside: TALK FLYING / PODCAST reading from below nose-up. Baked into the wing via planar top/bottom projections. The emblem is cropped from our own Decals/talk-flying-logo.png (wordmark removed) on a black outline; lettering is Be Vietnam Pro Bold (OFL).
+
+## v7 cockpit + 3-view pass (lane/codex-sgs233-cockpit)
+Sources (viewed only, nothing traced or committed): the Commons 2-33A 3-view above (overlaid at 0.01527 m/px side/front, 0.01542 m/px top), the FAA-published Schweizer 2-33A flight manual/POH (cockpit figure, placards, travels, ASI arcs), and public photos of 2-33 cockpits. Reference images live only on the agent box (/workspace/aero-refs/233/).
+- Wing section: NACA 43012A per the flight manual, 3° washout (AFM); 3.5° root incidence is a judgement fit to the 3-view root/TE line.
+- Pylon aft fairing now ends vertically at the wing TE as on the 3-view; elevator centre gap 4 cm.
+- Cockpit (sgs233_cockpit.py, own code): steel-tube cage, tandem seats with cushions and harnesses, front panel (ASI mph, altimeter, variometer, placard, wet compass on the hood, yaw string on the canopy), rear panel on the front seat back, single torque tube with linked sticks, sliding pedals front and rear, yellow tow-release knobs (front panel bottom centre; rear at top left of the front seat back), dive-brake levers on the left wall, bungee trim quadrant. Dial faces/compass band/placard are our own PIL art (make_sgs_dials.py, DejaVu Sans Bold).
+- Overlay comparisons: /workspace/233-v2/compare/ on the agent box (final_* vs v6_before_*).
+
+Known differences (v7): the 3-view is internally inconsistent in places (front-view wing ~0.15 m lower than the side view; top-view rudder TE further aft than the side view) -- the side view was kept. Rear side windows are not cut through; canopy is static; tail surfaces remain thin slabs; spoilers are flat plates.
