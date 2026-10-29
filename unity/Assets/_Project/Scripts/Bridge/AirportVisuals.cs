@@ -121,7 +121,7 @@ namespace FlyingGame.Bridge
                             b.Box(p,new Vector3(1.1f,.65f,1.0f),white);
                             Color papi=j<2?white:new Color(1,.025f,.015f);
                             lamps.Box(p+Vector3.up*.15f,new Vector3(.8f,.20f,.75f),papi);
-                            Glow(p+Vector3.up*.50f,papi,forward);
+                            Glow(p+Vector3.up*.50f,new Color(papi.r,papi.g,papi.b,.8f),forward);
                         }
                     }
                     // Gravel-to-grass visual shoulder ribbon, sampled on existing terrain.
@@ -281,7 +281,7 @@ namespace FlyingGame.Bridge
             }
             var mesh=new Mesh { name="Airport fixture halos" };
             mesh.vertices=vertices; mesh.normals=normals; mesh.uv=uv; mesh.colors=coloursOut; mesh.triangles=triangles;
-            mesh.RecalculateBounds(); var bounds=mesh.bounds; bounds.Expand(30); mesh.bounds=bounds;
+            mesh.RecalculateBounds(); var bounds=mesh.bounds; bounds.Expand(52); mesh.bounds=bounds;
             if(_airportGlow==null)
             {
                 _airportGlow=new Material(Shader.Find("FlyingGame/AirportGlow"));

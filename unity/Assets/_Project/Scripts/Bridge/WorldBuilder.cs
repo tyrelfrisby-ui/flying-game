@@ -333,7 +333,31 @@ namespace FlyingGame.Bridge
             }
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "Terrain" };
             mesh.vertices = verts; mesh.colors = cols; mesh.uv = geology; mesh.triangles = tris.ToArray();
-            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+            // The infield is part of ONE shared mesh, not separately tiled grass.
+            // Area-weighted 60 m triangle normals sample grass swells asymmetrically,
+            // producing straight lighting bands across an otherwise smooth field.
+            // Sample a common world-space gradient instead, only on airport pasture.
+            // No vertex, triangle, depth or collision changes; non-airport normals retained.
+            var terrainNormals=mesh.normals;
+            for(int index=0;index<verts.Length;index++)
+            {
+                Vector3 point=verts[index];
+                foreach(var airport in WorldTerrain.Airports)
+                {
+                    double outsideX=WorldTerrain.PadOutsideX(airport,point.z);
+                    double outsideY=System.Math.Max(0,System.Math.Abs(point.x-airport.Y)-WorldTerrain.PadHalfY);
+                    double outside=System.Math.Sqrt(outsideX*outsideX+outsideY*outsideY);
+                    if(outside>=120 || System.Math.Abs(point.y-airport.ElevationM)>25) continue;
+                    const double sample=8;
+                    float east=(float)((t.HeightAt(point.z,point.x+sample)-t.HeightAt(point.z,point.x-sample))/(2*sample));
+                    float north=(float)((t.HeightAt(point.z+sample,point.x)-t.HeightAt(point.z-sample,point.x))/(2*sample));
+                    float blend=1-Mathf.SmoothStep(0,1,(float)(outside/120));
+                    terrainNormals[index]=Vector3.Slerp(terrainNormals[index],new Vector3(-east,1,-north).normalized,blend);
+                    break;
+                }
+            }
+            mesh.normals=terrainNormals; mesh.RecalculateBounds();
             var go = new GameObject("Terrain");
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;

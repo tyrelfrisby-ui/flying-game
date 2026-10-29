@@ -14,7 +14,7 @@ Shader "FlyingGame/AirportGlow"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
-            float _AirportDusk, _ReflectionRendering, _HaloPixels, _SunsetOn, _CityNight;
+            float _AirportDusk, _ReflectionRendering, _HaloPixels, _SunsetOn, _CityNight, _AirportBeaconPreview, _AirportBeaconTime;
             struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float4 color:COLOR; };
             struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float visible:TEXCOORD1; };
             v2f vert(appdata v)
@@ -26,19 +26,24 @@ Shader "FlyingGame/AirportGlow"
                 float directional=dot(v.normal,v.normal);
                 float visible=directional>.1?smoothstep(.02,.25,dot(v.normal,towardEye)):1;
                 // Beacon alpha encodes opposed green/white rotating heads (120 degrees/s).
-                if(v.color.a<.75)
+                float beacon=1-step(.75,v.color.a);
+                float papi=step(.75,v.color.a)*(1-step(.9,v.color.a));
+                if(beacon>.5)
                 {
                     float phase=v.color.a<.375?0:UNITY_PI;
-                    float beam=cos(atan2(towardEye.x,towardEye.z)-_Time.y*2.094395+phase);
-                    visible*=.25+.75*smoothstep(.88,.99,beam);
+                    float seconds=lerp(_Time.y,_AirportBeaconTime,_AirportBeaconPreview);
+                    float beam=cos(atan2(towardEye.x,towardEye.z)-seconds*2.094395+phase);
+                    visible*=.015+5*smoothstep(.80,.985,beam);
                 }
                 float4 view=mul(UNITY_MATRIX_V,float4(world,1));
                 float metresPerPixel=2*max(1,-view.z)/max(1,_ScreenParams.y*UNITY_MATRIX_P._m11);
-                float radius=max(1.0,min(12.0,metresPerPixel*_HaloPixels));
+                // PAPI and beacon need more optical area than edge lamps, still one card.
+                float pixels=_HaloPixels*(1+beacon*1.8+papi*.55);
+                float radius=max(1.0,min(24.0,metresPerPixel*pixels));
                 view.xy+=v.uv*radius;
                 view.z+=.65; // Put the optical glow just in front of its opaque lens.
                 o.pos=mul(UNITY_MATRIX_P,view); o.uv=v.uv; o.color=v.color;
-                o.visible=visible; return o;
+                o.visible=visible*(1+papi*1.5); return o;
             }
             float4 frag(v2f i):SV_Target
             {

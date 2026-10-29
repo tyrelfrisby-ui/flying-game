@@ -111,6 +111,10 @@ namespace FlyingGame.EditorTools
                 ("arch-detail", Outside(FlyingGame.Core.Landmarks.ArchCentreXAt(0)+300,FlyingGame.Core.Landmarks.ArchYAt(0)+450,FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+180), WorldBuilder.U(FlyingGame.Core.Landmarks.ArchCentreXAt(0),FlyingGame.Core.Landmarks.ArchYAt(0),FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+100)),
                 ("avalon-detail", Outside(FlyingGame.Core.Island.AvalonX-300,FlyingGame.Core.Island.AvalonY-650,280), WorldBuilder.U(FlyingGame.Core.Island.AvalonX,FlyingGame.Core.Island.AvalonY+250,50)),
                 ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
+                ("airport-beacon-green-night", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-225,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-40,valley.ElevationM+32), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5)),
+                ("airport-beacon-white-night", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-225,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-40,valley.ElevationM+32), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5)),
+                ("runway-papi-night", StripView("paved",-FindStrip("paved").Length/2-650,0,50), StripView("paved",-FindStrip("paved").Length/2+300,-45,1)),
+                ("valley-airport-normal-control-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("airport-signs-detail", WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+93,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-71,valley.ElevationM+1.8), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+93,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-85,valley.ElevationM+.7)),
@@ -285,13 +289,37 @@ namespace FlyingGame.EditorTools
                     RenderSettings.fogColor=new Color(.055f,.055f,.065f);
                 }
                 cam.GetComponent<Skybox>().material = RenderSettings.skybox;
+                // Editor captures do not advance Update. Freeze opposed beacon beams at
+                // known phases; the game continues using _Time and AirportBeacon.Update.
+                bool beaconPlate=name.StartsWith("airport-beacon-");
+                Shader.SetGlobalFloat("_AirportBeaconPreview",beaconPlate?1:0);
+                if(beaconPlate)
+                {
+                    Vector3 beacon=WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5);
+                    Vector3 eye=pos-beacon;
+                    float phase=name.Contains("white")?Mathf.PI:0;
+                    Shader.SetGlobalFloat("_AirportBeaconTime",(Mathf.Atan2(eye.x,eye.z)+phase)/2.094395f);
+                }
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
                 // The forest is streamed round the camera in the game, and nothing streams in a batch render,
                 // so build the timber round whatever this view is LOOKING AT and throw it away afterwards.
                 // (Unity x is the sim's y and Unity z is the sim's x.)
                 var forest = new GameObject("ForestView");
                 ForestBuilder.BuildAround(FlyingGame.Core.WorldTerrain.Active, forest.transform, look.z, look.x, 2200, 700);
-                cam.Render();
+                // A/B control for Chief: original triangle-averaged normals, identical
+                // camera/material/exposure. Restore immediately after this one capture.
+                Mesh normalControl=null; Vector3[] restoredNormals=null;
+                if(name=="valley-airport-normal-control-night")
+                {
+                    var terrainObject=GameObject.Find("Terrain");
+                    if(terrainObject!=null)
+                    {
+                        normalControl=terrainObject.GetComponent<MeshFilter>().sharedMesh;
+                        restoredNormals=normalControl.normals; normalControl.RecalculateNormals();
+                    }
+                }
+                try { cam.Render(); }
+                finally { if(normalControl!=null) normalControl.normals=restoredNormals; }
                 RenderTexture.active = rt;
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
@@ -300,6 +328,7 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(forest);
             }
             Shader.SetGlobalFloat("_AirportDusk", 0);
+            Shader.SetGlobalFloat("_AirportBeaconPreview",0);
             Shader.SetGlobalFloat("_CityNight",0);
             foreach(var tint in nightTints) tint.material.SetColor(tint.property,tint.colour);
             RenderSettings.fog=false;
