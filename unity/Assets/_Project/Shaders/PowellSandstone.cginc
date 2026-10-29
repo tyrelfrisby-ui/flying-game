@@ -25,7 +25,9 @@ float4 _PowellRimBounds;
 float powellCatchment(float u, float depth)
 {
     float broad=powellNoise(float2(u/90,depth/170)+float2(31,67));
-    return smoothstep(.36,.54,broad);
+    // Broaden the existing catchments rather than adding independent fine streaks.
+    // Their low-frequency valleys still leave distinct clean orange wall patches.
+    return smoothstep(.24,.42,broad);
 }
 // Runoff is widest/darkest at its lip, narrowing to irregular 10–80 m tails.
 float powellRunnel(float u, float y, float rim, float offset, float cluster)
@@ -39,7 +41,7 @@ float powellRunnel(float u, float y, float rim, float offset, float cluster)
     float progress=saturate(drop/lengthM);
     // Broad strokes can join into curtains inside a catchment; clean catchment
     // gaps remain tens of metres wide. Avoid restoring the fine column barcode.
-    float width=lerp(2.6,7.2,seed)*lerp(1,.12,progress);
+    float width=lerp(3.5,8.6,seed)*lerp(1,.12,progress);
     float wander=(powellNoise(float2(column+offset,y*.06))-.5)*lerp(.3,2.4,progress);
     float aa=max(.12,fwidth(u));
     float thin=1-smoothstep(width*.45,width+aa,abs(warped-centre+wander));
