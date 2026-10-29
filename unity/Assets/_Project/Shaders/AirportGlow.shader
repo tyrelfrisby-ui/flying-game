@@ -38,9 +38,12 @@ Shader "FlyingGame/AirportGlow"
                 float thresholdGreen=step(.925,v.color.a)*(1-step(.975,v.color.a));
                 float4 view=mul(UNITY_MATRIX_V,float4(world,1));
                 float metresPerPixel=2*max(1,-view.z)/max(1,_ScreenParams.y*UNITY_MATRIX_P._m11);
-                // PAPI and beacon need more optical area than edge lamps, still one card.
-                float pixels=_HaloPixels*(1+beacon*1.8+papi*.55+thresholdGreen*.8);
-                float radius=max(1.0,min(24.0,metresPerPixel*pixels));
+                // Beacon and threshold boosts retain their existing optical area.
+                // PAPI spacing is already 9 m. Keep its optical card compact so
+                // adjacent red/white cores remain separate, including distant plates.
+                float pixels=_HaloPixels*(1+beacon*1.8+thresholdGreen*.8);
+                pixels=lerp(pixels,max(1.0,_HaloPixels*.65),papi);
+                float radius=max(lerp(1.0,.35,papi),min(24.0,metresPerPixel*pixels));
                 view.xy+=v.uv*radius;
                 view.z+=.65; // Put the optical glow just in front of its opaque lens.
                 o.pos=mul(UNITY_MATRIX_P,view); o.uv=v.uv; o.color=v.color;
@@ -53,6 +56,9 @@ Shader "FlyingGame/AirportGlow"
                 clip(.5-_ReflectionRendering); // No un-clipped halos in mirrored water views.
                 float radius2=dot(i.uv,i.uv); clip(1-radius2);
                 float halo=(exp(-radius2*5)*.35+exp(-radius2*70)*2.7)*(1-radius2);
+                float papi=step(.75,i.color.a)*(1-step(.9,i.color.a));
+                float papiHalo=(exp(-radius2*12)*.18+exp(-radius2*85)*3.2)*(1-radius2);
+                halo=lerp(halo,papiHalo,papi);
                 return float4(i.color.rgb*halo*strength*i.visible,0);
             }
             ENDCG

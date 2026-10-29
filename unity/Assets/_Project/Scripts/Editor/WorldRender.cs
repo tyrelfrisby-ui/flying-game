@@ -106,6 +106,7 @@ namespace FlyingGame.EditorTools
             var papiStrip=FindStrip("paved");
             Vector3 papiEye=Vector3.zero, papiLook=Vector3.zero;
             float bestPapiHeight=float.PositiveInfinity;
+            int papiEnd=-1;
             foreach(int end in new[] {-1,1})
             {
                 Vector3 eye=StripView("paved",end*(papiStrip.Length/2+1400),0,0);
@@ -136,9 +137,17 @@ namespace FlyingGame.EditorTools
                     if(along>.025f && along<=1 && lateral<65+tree.CrownRadiusM)
                         eye.y=Mathf.Max(eye.y,aim.y+((float)tree.TopM+4-aim.y)/along);
                 }
-                if(eye.y<bestPapiHeight) { bestPapiHeight=eye.y; papiEye=eye; papiLook=aim; }
+                if(eye.y<bestPapiHeight) { bestPapiHeight=eye.y; papiEye=eye; papiLook=aim; papiEnd=end; }
             }
             Debug.Log($"PAPI plates: 1400 m beyond threshold, eye {papiEye}, target {papiLook}, glide {Mathf.Atan2(papiEye.y-papiLook.y,1700)*Mathf.Rad2Deg:F2} degrees (terrain/tree clearance included)");
+            // Close inspection: exactly 400 m from the PAPI station (100 m before
+            // threshold), on the extended centreline. Do not reuse the distant
+            // obstacle-clearance height: that would cease to be a 3-degree plate.
+            Vector3 papiCloseEye=StripView("paved",papiEnd*(papiStrip.Length/2+100),0,0);
+            Vector3 papiCloseLook=StripView("paved",papiEnd*(papiStrip.Length/2-300),0,0);
+            papiCloseLook.y=(float)valley.ElevationM+.85f; // PAPI optical centre
+            papiCloseEye.y=papiCloseLook.y+400*Mathf.Tan(3*Mathf.Deg2Rad);
+            Debug.Log($"PAPI close plates: 100 m before threshold, 400 m to boxes, 3.00 degrees, 27 degree lens; eye {papiCloseEye}, target {papiCloseLook}, box spacing 9 m");
             (string name, Vector3 pos, Vector3 look)[] views =
             {
                 ("city-roofs-detail", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
@@ -153,6 +162,8 @@ namespace FlyingGame.EditorTools
                 ("airport-beacon-white-night", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-225,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-40,valley.ElevationM+32), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-140,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+12.5)),
                 ("runway-papi-night", papiEye, papiLook),
                 ("runway-papi-dusk", papiEye, papiLook),
+                ("runway-papi-close-night", papiCloseEye, papiCloseLook),
+                ("runway-papi-close-dusk", papiCloseEye, papiCloseLook),
                 ("valley-airport-grass-control-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-normal-control-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
@@ -306,7 +317,7 @@ namespace FlyingGame.EditorTools
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
-                cam.fieldOfView=name.StartsWith("runway-papi-")?35f:50f;
+                cam.fieldOfView=name.StartsWith("runway-papi-close-")?27f:name.StartsWith("runway-papi-")?35f:50f;
                 Shader.SetGlobalFloat("_AirportGrassPreviewOff",name=="valley-airport-grass-control-dusk"?1:0);
                 bool night = name.EndsWith("-night");
                 bool dusk = name.EndsWith("-dusk");

@@ -120,7 +120,8 @@ namespace FlyingGame.Bridge
                         {
                             Vector3 p=R(end*(s.Length/2-300),end*(s.Width/2+16+j*9),.35);
                             b.Box(p,new Vector3(1.1f,.65f,1.0f),white);
-                            Color papi=j<2?white:new Color(1,.025f,.015f);
+                            // On path: red pair nearest runway, white pair outboard.
+                            Color papi=j<2?new Color(1,.025f,.015f):white;
                             lamps.Box(p+Vector3.up*.15f,new Vector3(.8f,.20f,.75f),papi);
                             Glow(p+Vector3.up*.50f,new Color(papi.r,papi.g,papi.b,.8f),forward);
                         }
