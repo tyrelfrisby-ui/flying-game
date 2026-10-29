@@ -45,7 +45,8 @@ Shader "FlyingGame/Airframe"
             sampler2D _DetailNormal;
             float _DetailTile, _DetailDepth, _Smoothness, _SpecStrength, _FresnelStrength;
             float4 _BubbleSunDir;
-            float _SunsetOn;
+            float _SunsetOn, _ReflectionRendering;
+            float4 _ReflectionClip;
 
             struct v2f
             {
@@ -55,12 +56,14 @@ Shader "FlyingGame/Airframe"
                 float3 b : TEXCOORD2;
                 float2 uv : TEXCOORD3;
                 float3 wpos : TEXCOORD4;
+                float clipDistance : TEXCOORD5;
             };
 
             v2f vert (float4 vertex : POSITION, float3 normal : NORMAL, float4 tangent : TANGENT, float2 uv : TEXCOORD0)
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(vertex);
+                o.clipDistance = dot(mul(unity_ObjectToWorld, vertex), _ReflectionClip);
                 o.n = UnityObjectToWorldNormal(normal);
                 o.t = UnityObjectToWorldDir(tangent.xyz);
                 // tangent.w carries the bitangent sign; unity_WorldTransformParams.w handles a mirrored scale
@@ -72,11 +75,12 @@ Shader "FlyingGame/Airframe"
 
             fixed4 frag (v2f i, fixed facing : VFACE) : SV_Target
             {
+                if (_ReflectionRendering > .5) clip(i.clipDistance);
                 float3 n = normalize(i.n) * (facing >= 0 ? 1.0 : -1.0);
 
                 // surface detail: panel lines and rivets, in tangent space
                 float3 tn = UnpackNormal(tex2D(_DetailNormal, i.uv));
-                tn.xy *= _DetailDepth;
+                tn.xy *= _DetailDepth * lerp(1.0, .3, _SunsetOn);
                 float3 t = normalize(i.t), b = normalize(i.b);
                 n = normalize(t * tn.x + b * tn.y + n * tn.z);
 
@@ -87,7 +91,7 @@ Shader "FlyingGame/Airframe"
 
                 float d = saturate(dot(n, l));
                 // the same 0.58 ambient floor FlyingGame/Lit used, so nothing in the fleet changes brightness
-                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.48,.46,.50) + float3(.65,.43,.24)*d, _SunsetOn);
+                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.53,.51,.54), float3(.64,.65,.73), n.y * .5 + .5) + float3(.65,.43,.24)*d, _SunsetOn);
 
                 // Blinn-Phong: smoothness drives the exponent, so a polished cowl is tight and fabric is broad
                 float power = exp2(_Smoothness * 10.0) + 1.0;
@@ -96,7 +100,7 @@ Shader "FlyingGame/Airframe"
 
                 // a painted curve catches the sky at its edge
                 float fres = pow(1.0 - saturate(dot(n, v)), 4.0) * _FresnelStrength;
-                col += fres;
+                col += fres * lerp(float3(1,1,1), float3(1,.77,.53), _SunsetOn);
 
                 return fixed4(col, 1.0);
             }

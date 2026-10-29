@@ -54,7 +54,7 @@ namespace FlyingGame.Bridge
             main.startSpeed = 0f;
             main.gravityModifier = 0.9f;
             main.maxParticles = maxParticles * 2;
-            main.startRotation = new ParticleSystem.MinMaxCurve(-Mathf.PI, Mathf.PI);
+            main.startRotation = new ParticleSystem.MinMaxCurve(-.15f, .15f);
             main.startColor = new Color(0.92f, 0.97f, 1f, 0.7f);
             main.loop = true;
             main.playOnAwake = true;
@@ -69,7 +69,7 @@ namespace FlyingGame.Bridge
             var r = ps.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = _mat;
             r.renderMode = ParticleSystemRenderMode.Stretch;
-            r.velocityScale = .055f; r.lengthScale = 1.4f;
+            r.velocityScale = .09f; r.lengthScale = 2.0f;
             var sh = ps.shape; sh.enabled = false;
             return ps;
         }
@@ -218,12 +218,12 @@ namespace FlyingGame.Bridge
             SetRate(ps, rate);
             if (rate <= 0f) return;
             var main = ps.main;
-            main.startSize = new ParticleSystem.MinMaxCurve(size * .18f, size * .8f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .14f, size * .55f);
             ps.transform.position = new Vector3(keelPoint.x, waterY + 0.05f, keelPoint.z);
             // Spray sheet: outboard and up, plus a little aft (it's left behind), speed ~ boat speed.
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.6f + Mathf.Clamp01(draft / 0.3f)) - fwd * 0.4f).normalized;
-            float v = Mathf.Clamp(speed * 0.6f, 1.5f, 14f);
+            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.28f + .45f * Mathf.Clamp01(draft / 0.3f)) - fwd * 0.55f).normalized;
+            float v = Mathf.Clamp(speed * 0.5f, 1.5f, 12f);
             vel.x = Spread(dir.x * v, .6f, 1.2f);
             vel.y = Spread(dir.y * v, .6f, 1.2f);
             vel.z = Spread(dir.z * v, .6f, 1.2f);

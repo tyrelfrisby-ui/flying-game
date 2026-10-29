@@ -46,13 +46,14 @@ namespace FlyingGame.EditorTools
                 previousBank = n;
                 for(int row=0;row<2;row++)
                 {
-                    float h=9+(float)rng.NextDouble()*17;
+                    float h=7+(float)rng.NextDouble()*12;
                     Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*12,2,z+18+row*24);
-                    for(int crown=0;crown<3;crown++)
+                    for(int crown=0;crown<9;crown++)
                     {
-                        float bottom=h*(.12f+crown*.23f), top=h*(.65f+crown*.175f), radius=h*(.22f-crown*.045f);
+                        float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
+                        float radius=h*(.20f-crown*.019f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
-                        for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius,bottom,Mathf.Sin(a)*radius)); }
+                        for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});
                     }
                 }
@@ -167,6 +168,16 @@ namespace FlyingGame.EditorTools
                     var tex = new Texture2D(1600, 1000, TextureFormat.RGB24, false);
                     tex.ReadPixels(new Rect(0, 0, 1600, 1000), 0, 0); tex.Apply();
                     File.WriteAllBytes(Path.Combine(output, names[i] + ".png"), tex.EncodeToPNG());
+                    if (i == 0)
+                    {
+                        var reflectionTarget = (RenderTexture)typeof(WaterReflection).GetField("_rt", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(reflection);
+                        RenderTexture.active = reflectionTarget;
+                        var source = new Texture2D(reflectionTarget.width, reflectionTarget.height, TextureFormat.RGBA32, false);
+                        source.ReadPixels(new Rect(0, 0, source.width, source.height), 0, 0); source.Apply();
+                        File.WriteAllBytes(Path.Combine(output, "reflection-source.png"), source.EncodeToPNG());
+                        UnityEngine.Object.DestroyImmediate(source);
+                        RenderTexture.active = rt;
+                    }
                     UnityEngine.Object.DestroyImmediate(tex);
                 }
                 if (sunset)
@@ -176,8 +187,8 @@ namespace FlyingGame.EditorTools
                     camera.targetTexture = portrait; camera.aspect = 1000f / 1600; camera.fieldOfView = 62;
                     var aircraftBounds = new Bounds(at, Vector3.zero);
                     foreach (var r in root.GetComponentsInChildren<Renderer>()) aircraftBounds.Encapsulate(r.bounds);
-                    float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(31 * Mathf.Deg2Rad) * camera.aspect * .94f));
-                    camera.transform.position = new Vector3(at.x + distance * .12f, (float)lake.SurfaceM + 1.4f, at.z - distance);
+                    float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(31 * Mathf.Deg2Rad) * camera.aspect * .90f));
+                    camera.transform.position = new Vector3(at.x + distance * .22f, (float)lake.SurfaceM + 1.4f, at.z - distance);
                     camera.transform.LookAt(new Vector3(at.x, (float)lake.SurfaceM + .55f, at.z));
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var photo = new Texture2D(1000, 1600, TextureFormat.RGB24, false);

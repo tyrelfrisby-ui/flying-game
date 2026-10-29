@@ -70,7 +70,7 @@ Shader "FlyingGame/Water"
                         float hz = tex2D(_WakeTex, wuv + float2(0, _WakeTexel.y)).r - tex2D(_WakeTex, wuv - float2(0, _WakeTexel.y)).r;
                         float2 slope = float2(hx, hz) / (2.0 * _WakeTexel.z);
                         n = normalize(float3(n.x - slope.x * 2.0, 1.0, n.z - slope.y * 2.0));
-                        // World-space foam rafts break up the crest history; no painted or guessed V.
+                        // World-space foam rafts break up the crest history.
                         float history = max(tex2D(_WakeFoamTex, wuv).r, saturate((length(slope) - .12) * 4) * .4);
                         float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
                         float coverage = smoothstep(.48, .78, lace);
@@ -83,17 +83,25 @@ Shader "FlyingGame/Water"
                             if (origin.w <= .001) continue;
                             float2 delta = p - origin.xy;
                             float aft = -dot(delta, motion.xy);
-                            float side = abs(dot(delta, float2(motion.y, -motion.x)));
+                            float signedSide = dot(delta, float2(motion.y, -motion.x));
+                            float side = abs(signedSide);
                             float age = max(0, aft) / max(1, motion.z);
-                            float width = max(.22, origin.z * .45) + max(0, aft) * .012;
-                            float armDistance = abs(side - max(0, aft) * .354 - origin.z * .35);
+                            float width = max(.28, origin.z * .65) + max(0, aft) * .018;
+                            // The outer arm of each float forms the fleet's visible V. Inner
+                            // arms interfere and dissipate; retaining both produced four rails.
+                            float outward = motion.w == 0 ? 1 : smoothstep(-.15, .15, signedSide * motion.w);
+                            float wander = (noise(float2(aft * .38, f * 7.3)) - .5) * width;
+                            float armDistance = abs(side - max(0, aft) * .354 - origin.z * .35 + wander);
                             float arms = 1 - smoothstep(width * .25, width, armDistance);
-                            float fade = exp(-age * .55) * smoothstep(0, 1.2, aft);
-                            float breakup = smoothstep(.22 + saturate(age * .06), .68, lace);
-                            float stepFoam = exp(-side * side / max(.2, origin.z * origin.z)) * exp(-max(0,aft) / 4);
+                            float fade = exp(-age * .8) * smoothstep(0, 1.2, aft);
+                            float breakup = smoothstep(.29 + saturate(age * .09), .73, lace);
+                            breakup *= smoothstep(.2, .65, noise(float2(aft * .7, f * 13.1)));
+                            float turbulentWidth = origin.z * .7 + max(0,aft) * .07;
+                            float stepFoam = exp(-side * side / max(.2, turbulentWidth * turbulentWidth)) * exp(-max(0,aft) / 6);
+                            stepFoam *= .4 + .6 * smoothstep(.3, .65, lace);
                             float transverse = pow(saturate(cos(aft * 1.8 / max(1, motion.z / 8) + side * side / max(1,aft))), 12);
                             float inside = 1 - smoothstep(max(0,aft)*.30, max(0,aft)*.354 + .1, side);
-                            float active = origin.w * stepFoam * .8 + origin.w * fade * (arms * breakup * .9 + inside * transverse * .12);
+                            float active = origin.w * stepFoam * .8 + origin.w * fade * (arms * outward * breakup * .8 + inside * transverse * .08);
                             foam = max(foam, active * step(0, aft));
                         }
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));
@@ -113,7 +121,7 @@ Shader "FlyingGame/Water"
                 }
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float3 h = normalize(l + v);
-                float spec = pow(saturate(dot(n, h)), 220.0) * 1.2;
+                float spec = pow(saturate(dot(n, h)), 220.0) * 1.2 * lerp(1.0, .22, _WaterCalm * _SunsetOn);
                 // Screen depth is measured along the view ray; vertical depth removes the grazing-angle bias.
                 float sceneZ = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(i.sp)));
                 float surfaceZ = -mul(UNITY_MATRIX_V, float4(i.wp,1)).z;

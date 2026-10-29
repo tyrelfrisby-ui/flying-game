@@ -10,19 +10,25 @@ float skyNoise(float2 p) {
 }
 float3 SunsetSky(float3 ray) {
  ray=normalize(ray); float y=max(ray.y,0);
- float3 sky=lerp(float3(1.0,.69,.34),float3(.72,.48,.62),smoothstep(0,.19,y));
- sky=lerp(sky,float3(.24,.30,.49),smoothstep(.12,.85,y));
+ float3 sky=lerp(float3(1.0,.78,.47),float3(.77,.61,.69),smoothstep(0,.20,y));
+ sky=lerp(sky,float3(.35,.45,.64),smoothstep(.12,.80,y));
  float toward=pow(saturate(dot(ray,normalize(_SunsetSunDir.xyz))),12);
- sky+=float3(.25,.13,.035)*toward*exp(-y*7);
- // A fixed cloud deck in world direction: no screen-space texture or mirrored cloud mismatch.
+ sky+=float3(.14,.08,.025)*toward*exp(-y*7);
+ // A world-space deck of small, softly lit cloudlets, broken by broader gaps.
+ // Continuous density and multiscale erosion avoid hard, flat camouflage patches.
  float2 p=ray.xz/max(.12,ray.y+.10)*2.4;
  float broad=skyNoise(p*.8);
- float cells=skyNoise(p*7+skyNoise(p*1.7)*2);
- float detail=skyNoise(p*17);
- float cloud=smoothstep(.37,.70,cells*.6+broad*.28+detail*.12);
- cloud*=smoothstep(.025,.16,y);
- float3 cloudColor=lerp(float3(.94,.57,.49),float3(.44,.43,.58),smoothstep(.08,.7,y));
- sky=lerp(sky,cloudColor,cloud*.72);
+ float2 warp=float2(skyNoise(p*2.1),skyNoise(p*2.1+31.7));
+ float cells=skyNoise(p*15+warp*2);
+ float detail=skyNoise(p*38+warp);
+ float fine=skyNoise(p*81);
+ float density=cells*.48+detail*.27+fine*.1+broad*.15;
+ float cloud=smoothstep(.32,.72,density)*smoothstep(.025,.16,y);
+ float edge=smoothstep(.42,.66,density);
+ float3 shadow=lerp(float3(.74,.57,.64),float3(.39,.46,.61),smoothstep(.08,.7,y));
+ float3 lit=lerp(float3(1,.77,.66),float3(.68,.69,.78),smoothstep(.08,.7,y));
+ float3 cloudColor=lerp(lit,shadow,edge*.8);
+ sky=lerp(sky,cloudColor,cloud*.87);
  float sun=dot(ray,normalize(_SunsetSunDir.xyz));
  sky+=float3(1,.66,.28)*pow(saturate(sun),350)*.24;
  sky=lerp(sky,float3(1,.91,.69),smoothstep(.99994,.99998,sun));
