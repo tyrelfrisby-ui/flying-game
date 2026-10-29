@@ -1,6 +1,6 @@
-// Terrain: vertex colour (grass/rock/dry by height+slope, computed on the CPU) × directional shading,
-// plus farm-field grid lines on flat ground (vertex alpha = flatness) so the valley floor keeps the
-// original 200 m field pattern. Two-sided not needed (closed surface).
+// Built-in terrain: CPU biome/cover, snow provenance and curvature; day-only procedural
+// rock/drainage surface-gradient normals and slope/aspect snow. No geometric displacement.
+// Vertex alpha retains forest coverage / flat farm masks; sunset and mirrored facing retained.
 Shader "FlyingGame/Terrain"
 {
     Properties { _Color ("Tint", Color) = (1, 1, 1, 1) }
@@ -17,8 +17,8 @@ Shader "FlyingGame/Terrain"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
-            struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; };
-            struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; };
+            struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; float2 geology : TEXCOORD0; };
+            struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; float2 geology : TEXCOORD2; };
             fixed4 _Color; float4 _BubbleSunDir;
             float _SunsetOn, _ReflectionRendering;
             float4 _ReflectionClip;
@@ -27,7 +27,7 @@ Shader "FlyingGame/Terrain"
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
-                o.wp = mul(unity_ObjectToWorld, v.vertex).xyz; o.c = v.color; return o;
+                o.wp = mul(unity_ObjectToWorld, v.vertex).xyz; o.c = v.color; o.geology = v.geology; return o;
             }
             float hashTerrain(float2 p) { return frac(sin(dot(p,float2(127.1,311.7)))*43758.5453); }
             float noiseTerrain(float2 p)
@@ -57,25 +57,69 @@ Shader "FlyingGame/Terrain"
                 // All new detail is day-only: the sunset comparison keeps its existing response.
                 if (_SunsetOn < .5)
                 {
-                    // Rotated world projections avoid axis-aligned checks on steep faces.
+                    float3 macroNormal=n;
                     float2 ground=float2(i.wp.x*.81+i.wp.z*.59,i.wp.z*.81-i.wp.x*.59);
                     float broad=noiseTerrain(ground*.0047);
-                    float grain=noiseTerrain(float2(ground.x*.11+i.wp.y*.073,ground.y*.083-i.wp.y*.061));
                     float cliff=1-smoothstep(.42,.86,n.y);
-                    float snow=smoothstep(.70,.86,min(albedo.r,min(albedo.g,albedo.b)));
                     float redrock=smoothstep(.08,.22,albedo.r-albedo.g);
-                    // Broad beds are strongest in sandstone, subdued in grey alpine rock.
-                    float bed=i.wp.y*.048 + broad*1.4 + ground.x*.0007;
+                    float hollow=saturate(i.geology.y*2.5);
+                    float ridge=saturate(-i.geology.y*2);
+                    // World-anchored triplanar joints. Vertical projections preserve scale on cliffs;
+                    // unlike an xz-only texture they do not stretch across near-vertical faces.
+                    float3 weights=pow(abs(n),float3(4,4,4));
+                    weights/=max(.001,weights.x+weights.y+weights.z);
+                    float rockGrain=noiseTerrain(i.wp.xz*.075)*weights.y;
+                    rockGrain+=noiseTerrain(i.wp.zy*float2(.065,.095))*weights.x;
+                    rockGrain+=noiseTerrain(i.wp.xy*float2(.065,.095))*weights.z;
+                    // Warped nested drainage channels: horizontal contours intersect the slope,
+                    // while a slower height term bends them gradually downhill (no periodic sine rails).
+                    float warp=noiseTerrain(ground*.012);
+                    float drainage=noiseTerrain(ground*.028+float2(warp*2.1,i.wp.y*.0018));
+                    float channel=1-abs(drainage*2-1);
+                    channel=smoothstep(.66,.94,channel);
+                    float fine=rockGrain;
+                    if (_DayAtmosphere.z > .5)
+                        fine=noiseTerrain(ground*.092+float2(warp*3.7,i.wp.y*.006));
+                    float tributary=smoothstep(.72,.95,1-abs(fine*2-1));
+                    float gully=saturate(channel*.8+tributary*channel*.35+hollow*.4);
+                    // Recover the substrate hidden by the old vertex snow, then deposit snow by
+                    // altitude, aspect and concavity. Ice metadata bypasses this reconstruction.
+                    float oldSnow=saturate(i.geology.x);
+                    float3 substrate=saturate((albedo-float3(.9,.9,.92)*oldSnow)/max(.06,1-oldSnow));
+                    substrate=lerp(substrate,float3(.43,.42,.40),smoothstep(.90,1,oldSnow));
+                    if(i.geology.x >= 0) albedo=substrate;
+                    float aspect=macroNormal.z*.5+.5; // Unity north: sheltered north-facing slopes.
+                    float snowAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
+                    float retention=smoothstep(.40,.76,macroNormal.y);
+                    float pocket=gully*hollow*smoothstep(.27,.58,macroNormal.y)*.65;
+                    float snow=saturate(snowAltitude*(retention+pocket)*(1-ridge*.38))*(1-redrock);
+                    snow*=smoothstep(.24,.44,macroNormal.y); // steep faces always expose rock
+                    float talus=hollow*smoothstep(.60,.82,macroNormal.y)
+                        *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
+                    albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
+                    float bed=i.wp.y*.048+broad*1.4+ground.x*.0007;
                     float band=sin(bed)/(1+fwidth(bed)*2);
-                    float joints=noiseTerrain(float2(ground.x*.019+i.wp.y*.027,ground.y*.023-i.wp.y*.014));
-                    albedo*=1+(broad-.5)*.10+(grain-.5)*.09;
-                    albedo*=1+cliff*(1-snow)*(band*lerp(.035,.24,redrock)+(joints-.5)*.17);
-                    albedo=lerp(albedo,albedo*float3(1.08,1.02,.90),redrock*cliff*smoothstep(.1,.8,band)*.4);
-                    albedo*=1-snow*cliff*smoothstep(.56,.78,joints)*.23;
-                    // Irregular crown-sized light patches over a continuous dark canopy.
+                    albedo*=1+(broad-.5)*.18+(rockGrain-.5)*.25;
+                    albedo*=1+cliff*band*lerp(.045,.19,redrock);
+                    albedo*=1-cliff*(gully*.23+hollow*.18); // crease occlusion, not baked sunlight
+                    if(i.geology.x >= 0)
+                        albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow);
+                    // Surface-gradient bump in world space. These are shading heights only:
+                    // NO vertex movement, depth/parallax change, or collision displacement.
+                    float detailFade=1-smoothstep(8,38,length(fwidth(i.wp)));
+                    float relief=detailFade*cliff*(1-snow*.85)*(1-forest)*
+                        ((rockGrain-.5)*1.3-gully*1.8);
+                    float3 dpdx=ddx(i.wp), dpdy=ddy(i.wp);
+                    float3 r1=cross(dpdy,n), r2=cross(n,dpdx);
+                    float determinant=dot(dpdx,r1);
+                    float3 gradient=(ddx(relief)*r1+ddy(relief)*r2)
+                        *sign(determinant)/max(abs(determinant),.00001);
+                    // Bound the perturbation; avoid grazing-angle derivative explosions.
+                    gradient*=min(1,.65/max(.001,length(gradient)));
+                    n=normalize(n-gradient);
                     float crowns=lerp(.5,noiseTerrain(ground*.14),saturate(1-length(fwidth(ground))*.025));
                     float canopy=smoothstep(.15,.8,forest);
-                    albedo=lerp(albedo,float3(.115,.205,.13)*( .8+crowns*.65+(broad-.5)*.16),canopy*.85);
+                    albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);
 
                 }
                 float d = saturate(dot(n, l));

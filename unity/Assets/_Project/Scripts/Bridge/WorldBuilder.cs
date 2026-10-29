@@ -90,15 +90,20 @@ namespace FlyingGame.Bridge
         private const double CoarseStep = 60.0, FineStep = 6.0;
 
         /// <summary>Terrain vertex colour by slope and height (shared by the coarse mesh and the fine waterfall patches).</summary>
-        private static Color TerrainColor(WorldTerrain t, double x, double y, double h)
+        private static Color TerrainColor(WorldTerrain t, double x, double y, double h, out Vector2 geology)
         {
             var grass = new Color(0.42f, 0.55f, 0.28f);
             var dry = new Color(0.62f, 0.56f, 0.36f);
             var rock = new Color(0.47f, 0.42f, 0.37f);
             var snow = new Color(0.9f, 0.9f, 0.92f);
             var conifer = new Color(0.15f, 0.25f, 0.18f);
-            double dhx = (t.HeightAt(x + 8, y) - t.HeightAt(x - 8, y)) / 16.0;
-            double dhy = (t.HeightAt(x, y + 8) - t.HeightAt(x, y - 8)) / 16.0;
+            double east = t.HeightAt(x + 8, y), west = t.HeightAt(x - 8, y);
+            double north = t.HeightAt(x, y + 8), south = t.HeightAt(x, y - 8);
+            double dhx = (east - west) / 16.0, dhy = (north - south) / 16.0;
+            // Signed concavity, normalized by slope: positive in drainage hollows.
+            // Data only; all rendered vertices remain exactly on the sampled sim surface.
+            geology = new Vector2(0, Mathf.Clamp((float)((east + west + north + south - 4 * h)
+                / (8 * (1 + System.Math.Sqrt(dhx * dhx + dhy * dhy)))), -1, 1));
             float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
             float hf = Mathf.Clamp01((float)h / 2800f);
             Color c = Color.Lerp(grass, dry, hf * 0.9f);
@@ -129,9 +134,11 @@ namespace FlyingGame.Bridge
             // channel walls alone, which are the only thing on these mountains steeper than 72° — so the
             // erosion shows as rock stripes down a white peak, which is what a snow peak looks like.
             snowy *= 1f - Mathf.Clamp01((slope - 2.6f) / 1.6f);
+            geology.x = snowy;
             if (snowy > 0) c = Color.Lerp(c, snow, snowy);
             // Glacier ice: bluer and brighter than snow, so the ice reads as a river through the rock.
-            if (AlaskaRange.OnIce(x, y)) c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f);
+            if (AlaskaRange.OnIce(x, y))
+            { c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f); geology.x = -1; }
             // Sand: the beaches under the sea cliffs, Avalon's cove, the cave's beach; the sea floor below.
             if (h < 3.0 && Coast.IsSea(x, y))
             {
@@ -159,6 +166,7 @@ namespace FlyingGame.Bridge
                 if (HighDesert.SurfaceAt(x, y) == WorldTerrain.Surface.Gravel) d = mesaTop;
                 if (HighDesert.OnPlaya(x, y)) d = clay;
                 c = Color.Lerp(c, d, fade);
+                geology.x = 0; // Desert palette above replaces the snowy biome completely.
                 c.a = 0f; // Desert shelves are not farm fields.
                 return c;
             }
@@ -264,13 +272,14 @@ namespace FlyingGame.Bridge
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];
             var cols = new Color[nx * ny];
+            var geology = new Vector2[nx * ny];
             for (int j = 0; j < ny; j++)
             for (int i = 0; i < nx; i++)
             {
                 double x = MinX + i * step, y = MinY + j * step;
                 double h = t.HeightAt(x, y);
                 verts[j * nx + i] = U(x, y, h);
-                cols[j * nx + i] = TerrainColor(t, x, y, h);
+                cols[j * nx + i] = TerrainColor(t, x, y, h, out geology[j * nx + i]);
             }
             // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
             var patches = new List<Patch>();
@@ -300,7 +309,7 @@ namespace FlyingGame.Bridge
                 tris.Add(b); tris.Add(d); tris.Add(c);
             }
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "Terrain" };
-            mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris.ToArray();
+            mesh.vertices = verts; mesh.colors = cols; mesh.uv = geology; mesh.triangles = tris.ToArray();
             mesh.RecalculateNormals(); mesh.RecalculateBounds();
             var go = new GameObject("Terrain");
             go.transform.SetParent(parent, false);
@@ -315,13 +324,14 @@ namespace FlyingGame.Bridge
                 double fs = p.Step;
                 int fx = (int)System.Math.Round((x1 - x0) / fs) + 1, fy = (int)System.Math.Round((y1 - y0) / fs) + 1;
                 var fv = new Vector3[fx * fy]; var fc = new Color[fx * fy];
+                var fg = new Vector2[fx * fy];
                 for (int j = 0; j < fy; j++)
                 for (int i = 0; i < fx; i++)
                 {
                     double x = x0 + i * fs, y = y0 + j * fs;
                     double h = t.HeightAt(x, y, false, withTunnel: !p.Unbored);
                     fv[j * fx + i] = U(x, y, h);
-                    fc[j * fx + i] = TerrainColor(t, x, y, h);
+                    fc[j * fx + i] = TerrainColor(t, x, y, h, out fg[j * fx + i]);
                 }
                 var ft = new int[(fx - 1) * (fy - 1) * 6];
                 int k = 0;
@@ -333,7 +343,7 @@ namespace FlyingGame.Bridge
                     ft[k++] = b; ft[k++] = d; ft[k++] = c;
                 }
                 var fm = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "TerrainFine" };
-                fm.vertices = fv; fm.colors = fc; fm.triangles = ft;
+                fm.vertices = fv; fm.colors = fc; fm.uv = fg; fm.triangles = ft;
                 fm.RecalculateNormals(); fm.RecalculateBounds();
                 var fgo = new GameObject("TerrainFine");
                 fgo.transform.SetParent(parent, false);
