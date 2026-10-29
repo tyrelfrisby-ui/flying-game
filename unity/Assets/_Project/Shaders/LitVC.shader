@@ -3,7 +3,7 @@
 // Same cheap one-dot-product sun shading as Lit; two-sided.
 Shader "FlyingGame/LitVC"
 {
-    Properties { _Color ("Tint", Color) = (1, 1, 1, 1) }
+    Properties { _Color ("Tint", Color) = (1, 1, 1, 1) _Emission ("Self-lit fixtures", Range(0,1)) = 0 }
     SubShader
     {
         Tags { "RenderType" = "Opaque" }
@@ -21,7 +21,7 @@ Shader "FlyingGame/LitVC"
 
             fixed4 _Color;
             float4 _BubbleSunDir;
-            float _SunsetOn, _ReflectionRendering, _CityNight;
+            float _SunsetOn, _ReflectionRendering, _CityNight, _Emission;
             float4 _ReflectionClip;
 
             v2f vert (appdata v)
@@ -46,6 +46,7 @@ Shader "FlyingGame/LitVC"
                 // ordinary vertex colours retain alpha one and the day expression above is unchanged.
                 float emission = saturate(1-i.c.a);
                 c.rgb = lerp(c.rgb, c.rgb*.085 + i.c.rgb*emission, _CityNight);
+                c.rgb = lerp(c.rgb, i.c.rgb * _Color.rgb, _Emission);
                 UNITY_APPLY_FOG(i.fogCoord, c);
                 return c;
             }

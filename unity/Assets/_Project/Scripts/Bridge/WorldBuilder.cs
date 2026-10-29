@@ -1287,7 +1287,7 @@ namespace FlyingGame.Bridge
 
         // ---- airports ----------------------------------------------------------------------------
 
-        private static readonly Color Asphalt = new(0.24f, 0.24f, 0.26f), Gravel = new(0.58f, 0.55f, 0.48f), Earth = new(0.36f, 0.25f, 0.15f),
+        private static readonly Color Asphalt = new(0.34f, 0.34f, 0.35f), Gravel = new(0.58f, 0.55f, 0.48f), Earth = new(0.36f, 0.25f, 0.15f),
             Grass = new(0.36f, 0.52f, 0.22f), Paint = Color.white, Apron = new(0.62f, 0.62f, 0.60f);
 
         private static void BuildAirport(WorldTerrain.Airport a, Transform parent)
@@ -1297,6 +1297,7 @@ namespace FlyingGame.Bridge
             // Paved apron around the hangar (the only other hard surface on the pad — the infield is rough ground).
             var apron = Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
             AirportFinish(apron, Apron, 1);
+            apron.GetComponent<MeshRenderer>().sharedMaterial.SetFloat("_Apron",1);
             AirportApronDetails(root.transform, a);
             foreach (WorldTerrain.Strip s in WorldTerrain.AirportStrips)
             {
@@ -1356,7 +1357,7 @@ namespace FlyingGame.Bridge
                 b.Box(U(x+80,py,z+.09),new Vector3(.30f,.025f,50),yellow);
                 b.Box(U(x+55,py,z+.09),new Vector3(12,.025f,.30f),yellow);
                 // Two original, static light-aircraft silhouettes. No models or colliders.
-                if (k != 1 && k != 3) continue;
+                if (k != 1 && k != 2 && k != 3) continue;
                 Vector3 c = U(x+47,py,z+1.25);
                 Color body = new Color(.78f,.77f,.70f);
                 b.Box(c,new Vector3(.85f,.9f,7.2f),body);

@@ -7,6 +7,7 @@ Shader "FlyingGame/AirportSurface"
         _Kind ("0 asphalt, 1 concrete, 2 gravel, 3 grass, 4 timber, 5 deck", Float) = 0
         _Size ("Local metres", Vector) = (1,1,1,0)
         _Origin ("Local origin", Vector) = (0,0,0,0)
+        _Apron ("Apron flood pools", Float) = 0
         _Length ("Runway length (zero disables rubber)", Float) = 0
     }
     SubShader
@@ -23,7 +24,7 @@ Shader "FlyingGame/AirportSurface"
             #include "UnityCG.cginc"
             #include "SunsetSky.cginc"
             float4 _Color, _Size, _Origin, _BubbleSunDir, _ReflectionClip;
-            float _Kind, _Length, _ReflectionRendering;
+            float _Kind, _Length, _ReflectionRendering, _Apron, _AirportDusk;
             struct v2f { float4 pos:SV_POSITION; float3 wp:TEXCOORD0; float3 n:TEXCOORD1; float2 p:TEXCOORD2; UNITY_FOG_COORDS(3) };
             v2f vert(appdata_base v)
             {
@@ -53,7 +54,8 @@ Shader "FlyingGame/AirportSurface"
                 {
                     float2 cell=floor((p+float2(13,7))/float2(8,29));
                     float patch=step(.83,hash(cell));
-                    c*=1-.15*patch*top;
+                    c*=1-.22*patch*top;
+                    c*=.91+.18*noise(float2(p.x*.13,p.y*.008));
                     float seam=surfaceLine(p.x-1.4-noise(float2(p.y*.09,6))*.35,.018,aa);
                     float joint=surfaceLine((frac((p.y+noise(p*.13)*.8)/29+.5)-.5)*29,.025,aa);
                     c*=1-top*(seam*.22+joint*.13);
@@ -63,7 +65,7 @@ Shader "FlyingGame/AirportSurface"
                         float touch=smoothstep(65,145,dist)*(1-smoothstep(430,650,dist));
                         float rubber=exp(-pow((abs(p.x)-2.1)/1.0,2))*touch;
                         rubber*=.3+.7*noise(float2(p.x*7,p.y*.17));
-                        c*=1-rubber*.43*top;
+                        c*=1-rubber*.65*top;
                     }
                 }
                 else if (_Kind<1.5)
@@ -71,6 +73,9 @@ Shader "FlyingGame/AirportSurface"
                     float2 q=abs(frac((p+3)/6)-.5)*6;
                     float joint=(1-smoothstep(.025,.025+aa,min(q.x,q.y)))*saturate(.1/aa);
                     c*=1-joint*.22*top;
+                    c*=.94+.12*hash(floor((p+3)/6));
+                    float oil=pow(saturate(noise(p*.31)-.38),3)*1.8;
+                    c*=1-oil*top;
                     c*=1-.14*pow(saturate(noise(p*.18)-.35),2)*top;
                 }
                 else if (_Kind<2.5)
@@ -85,7 +90,7 @@ Shader "FlyingGame/AirportSurface"
                     // Broad dry/wet variation breaks up the otherwise uniform mown carpet.
                     c=lerp(c,c*float3(1.08,1.01,.85),smoothstep(.48,.78,broad)*.45);
                     float tracks=exp(-pow((abs(p.x)-1.8)/.55,2));
-                    c*=.91+.09*mow;
+                    c*=.84+.16*mow;
                     c=lerp(c,float3(.40,.35,.22),tracks*(.22+.22*medium));
                 }
                 else
@@ -98,6 +103,9 @@ Shader "FlyingGame/AirportSurface"
                 float3 l=dot(_BubbleSunDir.xyz,_BubbleSunDir.xyz)>.001?normalize(_BubbleSunDir.xyz):normalize(float3(.4,.8,-.4));
                 float d=saturate(dot(n,l));
                 c*=lerp(float3(.58,.58,.58)+.42*d,lerp(float3(.53,.51,.54),float3(.64,.65,.73),saturate(n.y*.5+.5))+float3(.65,.43,.24)*d,_SunsetOn);
+                // Two broad flood pools on the existing apron, no extra transparent overdraw.
+                float2 flood=float2(p.x-94,abs(p.y)-128);
+                c+=float3(.30,.23,.12)*exp(-dot(flood,flood)/500)*_Apron*_AirportDusk*top;
                 fixed4 result=fixed4(c,1);
                 UNITY_APPLY_FOG(i.fogCoord,result);
                 return result;

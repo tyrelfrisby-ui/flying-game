@@ -154,15 +154,8 @@ Shader "FlyingGame/Terrain"
                 float3 dayFill=lerp(float3(.32,.38,.44),float3(.51,.57,.62),n.y*.5+.5);
                 float3 col = albedo * lerp(dayFill + float3(.52,.48,.40)*d,
                     float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
-                // Thin dark boundaries, not bright graph paper, and none beneath forest canopy.
-                float2 g = abs(frac(i.wp.xz / 200.0) - 0.5);
-                float fieldInterior = 1.0 - smoothstep(0.488, 0.5, max(g.x, g.y));
-                if (_SunsetOn > .5)
-                {
-                    float oldLine=1.0-smoothstep(.47,.5,max(g.x,g.y));
-                    col*=1-.35*oldLine*saturate(i.c.a);
-                }
-                else
+                // Airport pasture has no synthetic section-line grid, including at dusk.
+                if (_SunsetOn < .5)
                 {
                     // No synthetic 200 m farm grid in the daytime airport infields.
                     // Optical depth along the viewing segment through an exponential

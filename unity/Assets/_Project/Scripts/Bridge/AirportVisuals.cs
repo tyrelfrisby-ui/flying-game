@@ -21,7 +21,7 @@ namespace FlyingGame.Bridge
             void Lamp(Vector3 p,Color color)
             {
                 b.Box(p+Vector3.up*.15f,new Vector3(.26f,.3f,.26f),steel);
-                lamps.Box(p+Vector3.up*.35f,new Vector3(.22f,.16f,.22f),color);
+                lamps.Box(p+Vector3.up*.35f,new Vector3(1.05f,.34f,1.05f),color);
             }
             // Existing pavement only. Curved parking lead-ins and a marked apron taxi lane.
             double laneX=ax+105;
@@ -56,9 +56,12 @@ namespace FlyingGame.Bridge
                 else for(double dx=-6;dx<6;dx+=1.8)
                     Stroke(laneX+dx,hy,laneX+Math.Min(6,dx+.9),hy,.30f,yellow);
             }
-            AirportSign(b,parent,P(laneX-9,holdY+2),"18-36",new Color(.66f,.025f,.025f),Color.white,4.0f);
-            AirportSign(b,parent,P(laneX+9,holdY+6),"A",new Color(.035f,.04f,.04f),yellow,1.3f);
-            AirportSign(b,parent,P(laneX+9,holdY+9),"APRON >",yellow,new Color(.025f,.025f,.025f),4.6f);
+            int runwayHeading = (int)Math.Round(WorldTerrain.AirportStrips[0].HeadingDeg/10.0)%36;
+            if(runwayHeading==0) runwayHeading=36;
+            string holding = ((runwayHeading+17)%36+1).ToString("00")+"-"+runwayHeading.ToString("00");
+            AirportSign(b,parent,P(laneX-9,holdY+2),holding,new Color(.66f,.025f,.025f),Color.white,4.0f);
+            AirportSign(b,parent,P(laneX-11.8,holdY+2),"A",new Color(.035f,.04f,.04f),yellow,1.3f);
+            AirportSign(b,parent,P(laneX-14.9,holdY+2),"APRON >",yellow,new Color(.025f,.025f,.025f),4.6f);
             for(double py=ay-110;py<=ay+110;py+=22)
                 foreach(int side in new[]{-1,1}) Lamp(P(laneX+side*8,py),blue);
 
@@ -69,7 +72,7 @@ namespace FlyingGame.Bridge
                 bool paved=WorldTerrain.IsPaved(s.Kind);
                 if(paved)
                 {
-                    // 60 m runway edge fixture spacing. Each end has separate inward green/outward red faces.
+                    // 60 m runway edge fixture spacing. Each end has inward red/outward green faces.
                     for(double d=-s.Length/2+30;d<s.Length/2;d+=60)
                     foreach(int side in new[]{-1,1})
                     {
@@ -90,10 +93,10 @@ namespace FlyingGame.Bridge
                             Vector3 p=R(end*(s.Length/2+1),(j-3.5)*s.Width/8,.23);
                             b.Box(p,new Vector3(.4f,.25f,.4f),steel);
                             // vertical faces, directed to approach and runway respectively
-                            Vector3 across=right*.16f, up=Vector3.up*.09f;
+                            Vector3 across=right*.42f, up=Vector3.up*.22f;
                             Vector3 outside=p+forward*.22f, inside=p-forward*.22f;
-                            lamps.Quad(outside-across-up,outside+across-up,outside+across+up,outside-across+up,new Color(1,.035f,.015f));
-                            lamps.Quad(inside-across-up,inside+across-up,inside+across+up,inside-across+up,new Color(.03f,1,.23f));
+                            lamps.Quad(outside-across-up,outside+across-up,outside+across+up,outside-across+up,new Color(.03f,1,.23f));
+                            lamps.Quad(inside-across-up,inside+across-up,inside+across+up,inside-across+up,new Color(1,.035f,.015f));
                         }
                         // Four PAPI boxes left of each approach. Emissive two-white/two-red inspection appearance.
                         for(int j=0;j<4;j++)
@@ -147,9 +150,21 @@ namespace FlyingGame.Bridge
                 b.Box(tank+new Vector3(0,1.1f,-2.6f),new Vector3(.65f,2.2f,.65f),new Color(.61f,.12f,.08f));
                 b.Tube(new[]{tank+new Vector3(0,1.8f,-2.9f),tank+new Vector3(.7f,.4f,-3.2f),tank+new Vector3(1,.2f,-2.6f)},.055f,4,steel);
             }
-            // Three small gabled T-hangar bays along the apron perimeter. No new collision.
-            for(int k=0;k<3;k++)
-                AirportSmallHangar(b,P(ax+60-k*28,ay+108),12,9,6,k);
+            // Full-size visual hangar row along the apron perimeter, clear of lead-ins.
+            AirportSmallHangar(b,P(ax+55,ay+105),22,30,7,0);
+            AirportSmallHangar(b,P(ax+15,ay+105),26,32,8,1);
+            AirportQuonset(b,P(ax-30,ay+105),24,36,8);
+            // A linked T-hangar row; alternating door tones keep individual bays legible.
+            for(int k=0;k<4;k++)
+                AirportSmallHangar(b,P(ax-130+k*19,ay-105),18,22,6,k%3);
+            // FBO entrance glazing, canopy and fascia on the existing office.
+            Vector3 office=P(ax-85,ay+85);
+            b.Box(office+new Vector3(-6.12f,2.2f,0),new Vector3(.12f,2.3f,14),new Color(.12f,.23f,.28f));
+            for(int k=-3;k<=3;k++)
+                b.Box(office+new Vector3(-6.22f,2.2f,k*2),new Vector3(.12f,2.4f,.09f),white);
+            b.Box(office+new Vector3(-8,3.7f,0),new Vector3(4,.22f,17),new Color(.62f,.65f,.63f));
+            foreach(int side in new[]{-1,1})
+                b.Box(office+new Vector3(-9.5f,1.8f,side*7.5f),new Vector3(.12f,3.6f,.12f),steel);
             // Corrugated side walls on the original full-size hangar (doors remain in place).
             for(int side=-1;side<=1;side+=2)
             for(int j=-24;j<=24;j++)
@@ -186,8 +201,8 @@ namespace FlyingGame.Bridge
             b.Box(beacon+Vector3.up*6,new Vector3(.35f,12,.35f),steel);
             b.Box(beacon+Vector3.up*12,new Vector3(2,.22f,2),steel);
             var head=new SeasideBuilder.Batch();
-            head.Box(new Vector3(-.65f,0,0),new Vector3(.65f,.35f,.65f),new Color(.025f,1,.18f));
-            head.Box(new Vector3(.65f,0,0),new Vector3(.65f,.35f,.65f),white);
+            head.Box(new Vector3(-.65f,0,0),new Vector3(1.0f,.5f,1.0f),new Color(.025f,1,.18f));
+            head.Box(new Vector3(.65f,0,0),new Vector3(1.0f,.5f,1.0f),white);
             if(_airportLamps==null) { _airportLamps=Mat("FlyingGame/LitVC",Color.white); _airportLamps.SetFloat("_Emission",1); }
             GameObject beaconHead=head.Build("AirportBeacon",parent,_airportLamps);
             beaconHead.transform.position=beacon+Vector3.up*12.5f;
@@ -207,8 +222,14 @@ namespace FlyingGame.Bridge
                 Vector3 eave=p+new Vector3(side*(depth/2+.5f),height,0);
                 Vector3 ridge=p+new Vector3(0,height+rise,0);
                 b.Quad(eave+Vector3.forward*(width/2+.5f),eave-Vector3.forward*(width/2+.5f),ridge-Vector3.forward*(width/2+.5f),ridge+Vector3.forward*(width/2+.5f),roof);
-                b.Tri(p+new Vector3(side*depth/2,height,width/2),p+new Vector3(0,height+rise,width/2),p+new Vector3(0,height,width/2),wall);
             }
+            for(float k=-width/2;k<=width/2;k+=1.2f)
+            foreach(int side in new[]{-1,1})
+                b.Beam(p+new Vector3(side*(depth/2+.5f),height+.04f,k),p+new Vector3(0,height+rise+.04f,k),.055f,.055f,roof*.8f);
+            foreach(int end in new[]{-1,1})
+                b.Tri(p+new Vector3(-depth/2,height,end*width/2),p+new Vector3(depth/2,height,end*width/2),p+new Vector3(0,height+rise,end*width/2),wall);
+            for(float k=-width/2;k<=width/2;k+=.6f)
+                b.Box(p+new Vector3(depth/2+.035f,height/2,k),new Vector3(.06f,height,.055f),wall*.85f);
             Vector3 face=p+Vector3.left*(depth/2+.025f);
             b.Box(face+Vector3.up*(height*.43f),new Vector3(.07f,height*.85f,width*.85f),new Color(.30f,.36f,.38f));
             for(float r=-width*.40f;r<width*.42f;r+=.45f)
@@ -216,18 +237,43 @@ namespace FlyingGame.Bridge
             b.Box(face+Vector3.up*(height-.2f),new Vector3(.25f,.16f,width+1),roof);
         }
 
+        private static void AirportQuonset(SeasideBuilder.Batch b,Vector3 p,float width,float depth,float height)
+        {
+            Color sheet=new Color(.53f,.58f,.57f), trim=new Color(.29f,.34f,.35f);
+            // Barrel axis along Unity x; front faces the apron centre.
+            for(int k=0;k<16;k++)
+            {
+                float a=k*Mathf.PI/16, c=(k+1)*Mathf.PI/16;
+                Vector3 v0=new Vector3(0,Mathf.Sin(a)*height,Mathf.Cos(a)*width/2);
+                Vector3 v1=new Vector3(0,Mathf.Sin(c)*height,Mathf.Cos(c)*width/2);
+                Color shade=k%2==0?sheet:sheet*.94f;
+                b.Quad(p+v0+Vector3.right*depth/2,p+v1+Vector3.right*depth/2,p+v1-Vector3.right*depth/2,p+v0-Vector3.right*depth/2,shade);
+                foreach(int end in new[]{-1,1})
+                    b.Tri(p+Vector3.right*(end*depth/2),p+v0+Vector3.right*(end*depth/2),p+v1+Vector3.right*(end*depth/2),sheet);
+            }
+            Vector3 front=p+Vector3.left*(depth/2+.06f);
+            b.Box(front+Vector3.up*2.8f,new Vector3(.15f,5.6f,width*.78f),trim);
+            for(float k=-width*.38f;k<width*.39f;k+=.55f)
+                b.Box(front+new Vector3(-.10f,2.8f,k),new Vector3(.08f,5.6f,.05f),sheet);
+        }
+
         private static void AirportSign(SeasideBuilder.Batch b,Transform parent,Vector3 p,string text,Color bg,Color ink,float width)
         {
-            b.Box(p+Vector3.up*.7f,new Vector3(.18f,.9f,width),bg);
+            b.Box(p+Vector3.up*.7f,new Vector3(.20f,1.0f,width+.12f),new Color(.22f,.24f,.22f));
+            b.Box(p+Vector3.up*.7f,new Vector3(.24f,.88f,width),bg);
             foreach(int side in new[]{-1,1}) b.Box(p+new Vector3(0,.18f,side*(width/2-.2f)),new Vector3(.08f,.36f,.08f),new Color(.55f,.56f,.51f));
             foreach(int side in new[]{-1,1})
             {
                 var go=new GameObject("AirportSignText"); go.transform.SetParent(parent,false);
-                go.transform.position=p+new Vector3(side*.105f,.7f,0);
+                go.transform.position=p+new Vector3(side*.13f,.7f,0);
                 go.transform.rotation=Quaternion.Euler(0,side>0?90:270,0);
-                var tm=go.AddComponent<TextMesh>(); tm.text=text; tm.fontSize=48; tm.characterSize=.14f;
+                var tm=go.AddComponent<TextMesh>(); tm.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); tm.text=text; tm.fontSize=48; tm.characterSize=1f;
                 tm.anchor=TextAnchor.MiddleCenter; tm.alignment=TextAlignment.Center; tm.color=ink;
-                if(tm.font!=null) go.GetComponent<MeshRenderer>().sharedMaterial=DepthTestedText(tm.font);
+                var renderer=go.GetComponent<MeshRenderer>();
+                if(tm.font!=null) renderer.sharedMaterial=DepthTestedText(tm.font);
+                Vector3 extent=renderer.bounds.size;
+                float fit=Mathf.Min(width*.86f/Mathf.Max(.01f,extent.z),.65f/Mathf.Max(.01f,extent.y));
+                go.transform.localScale=Vector3.one*fit;
             }
         }
     }
