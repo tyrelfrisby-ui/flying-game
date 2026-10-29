@@ -33,6 +33,7 @@ Shader "FlyingGame/Water"
             sampler2D _WakeTex, _WakeFoamTex;
             float4 _WakeRect, _WakeTexel;
             float _WakeOn, _WakeY;
+            float4 _FoamOrigins[2], _FoamMotion[2];
 
             float hash(float2 p) { return frac(sin(dot(p, float2(127.1,311.7))) * 43758.5453); }
             float noise(float2 p)
@@ -74,6 +75,27 @@ Shader "FlyingGame/Water"
                         float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
                         float coverage = smoothstep(.48, .78, lace);
                         foam = coverage * saturate(history) * .65;
+                        // Cosmetic Kelvin envelope, anchored to each wet step and its measured speed/load.
+                        // It supplements the coarse solver grid; no height/forcing constants are changed.
+                        for (int f = 0; f < 2; f++)
+                        {
+                            float4 origin = _FoamOrigins[f], motion = _FoamMotion[f];
+                            if (origin.w <= .001) continue;
+                            float2 delta = p - origin.xy;
+                            float aft = -dot(delta, motion.xy);
+                            float side = abs(dot(delta, float2(motion.y, -motion.x)));
+                            float age = max(0, aft) / max(1, motion.z);
+                            float width = max(.22, origin.z * .45) + max(0, aft) * .012;
+                            float armDistance = abs(side - max(0, aft) * .354 - origin.z * .35);
+                            float arms = 1 - smoothstep(width * .25, width, armDistance);
+                            float fade = exp(-age * .55) * smoothstep(0, 1.2, aft);
+                            float breakup = smoothstep(.22 + saturate(age * .06), .68, lace);
+                            float stepFoam = exp(-side * side / max(.2, origin.z * origin.z)) * exp(-max(0,aft) / 4);
+                            float transverse = pow(saturate(cos(aft * 1.8 / max(1, motion.z / 8) + side * side / max(1,aft))), 12);
+                            float inside = 1 - smoothstep(max(0,aft)*.30, max(0,aft)*.354 + .1, side);
+                            float active = origin.w * stepFoam * .8 + origin.w * fade * (arms * breakup * .9 + inside * transverse * .12);
+                            foam = max(foam, active * step(0, aft));
+                        }
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));
                     }
                 }

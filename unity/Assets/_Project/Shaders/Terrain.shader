@@ -16,7 +16,8 @@ Shader "FlyingGame/Terrain"
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float4 color : COLOR; };
             struct v2f { float4 pos : SV_POSITION; float3 n : TEXCOORD0; float3 wp : TEXCOORD1; float4 c : COLOR; };
             fixed4 _Color; float4 _BubbleSunDir;
-            float _SunsetOn;
+            float _SunsetOn, _ReflectionRendering;
+            float4 _ReflectionClip;
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -24,6 +25,8 @@ Shader "FlyingGame/Terrain"
             }
             fixed4 frag (v2f i) : SV_Target
             {
+                // Explicit world-space half-space rejects submerged terrain even at grazing angles.
+                if (_ReflectionRendering > .5) clip(dot(float4(i.wp, 1), _ReflectionClip));
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(normalize(i.n), l));
                 float3 col = i.c.rgb * lerp(float3(.55,.55,.55) + .45*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);

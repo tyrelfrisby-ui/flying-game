@@ -111,7 +111,7 @@ namespace FlyingGame.Bridge
                 // Main spray: driven by this float's drag (owner: more drag = bigger splash).
                 float k = Mathf.Clamp01((float)f.DragN / DragForFullSpray);
                 float sizeK = 0.25f + 1.6f * k;                    // planing sheet → deep plunge
-                float rate = k * (40f + 120f * Mathf.Clamp01(speed / 15f));
+                float rate = Mathf.Sqrt(k) * (100f + 220f * Mathf.Clamp01(speed / 15f));
                 Emit(_step[i], rate, sizeK, step, waterY, fwd, right, i == 0 ? -1f : 1f, speed, (float)f.StepDraftM);
                 // The spray area behind the body: thrown up from just aft of the step with little forward speed, so the
                 // aircraft runs away from it and it hangs behind as a field of mist over the wake.
@@ -157,7 +157,8 @@ namespace FlyingGame.Bridge
                 float strength = water.HasValue && hub.y > water.Value ? power * proximity : 0f;
                 // Slipstream entrains water at the bottom of the disc, then carries it aft.
                 var ps = _prop[i];
-                SetRate(ps, strength * 160);
+                SetRate(ps, strength * 220);
+                ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = _mistMat;
                 if (strength <= 0) continue;
                 ps.transform.position = new Vector3(hub.x, (float)water.Value + .06f, hub.z);
                 var main = ps.main; main.startSize = new ParticleSystem.MinMaxCurve(.04f, .2f + strength * .35f);
@@ -217,7 +218,7 @@ namespace FlyingGame.Bridge
             SetRate(ps, rate);
             if (rate <= 0f) return;
             var main = ps.main;
-            main.startSize = new ParticleSystem.MinMaxCurve(size * .12f, size * .6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .18f, size * .8f);
             ps.transform.position = new Vector3(keelPoint.x, waterY + 0.05f, keelPoint.z);
             // Spray sheet: outboard and up, plus a little aft (it's left behind), speed ~ boat speed.
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
@@ -226,7 +227,9 @@ namespace FlyingGame.Bridge
             vel.x = Spread(dir.x * v, .6f, 1.2f);
             vel.y = Spread(dir.y * v, .6f, 1.2f);
             vel.z = Spread(dir.z * v, .6f, 1.2f);
-            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.25f + 0.4f * draft;
+            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Box;
+            ps.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+            sh.scale = new Vector3(.12f, .05f, .45f + Mathf.Max(0, draft));
         }
     }
 }

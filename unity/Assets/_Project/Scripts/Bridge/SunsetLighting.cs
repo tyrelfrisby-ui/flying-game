@@ -15,7 +15,7 @@ namespace FlyingGame.Bridge
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(.38f, .32f, .46f);
             RenderSettings.ambientEquatorColor = new Color(.48f, .34f, .30f);
-            RenderSettings.ambientGroundColor = new Color(.10f, .13f, .17f);
+            RenderSettings.ambientGroundColor = new Color(.30f, .29f, .34f);
             Shader.SetGlobalFloat("_SunsetOn", 1);
             Shader.SetGlobalFloat("_WaterCalm", calm ? 1 : 0);
             Shader.SetGlobalVector("_SunsetSunDir", direction);

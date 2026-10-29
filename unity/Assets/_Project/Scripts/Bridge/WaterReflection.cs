@@ -93,12 +93,17 @@ namespace FlyingGame.Bridge
             _refl.targetTexture = _rt;
             _refl.worldToCameraMatrix = _main.worldToCameraMatrix * reflection;
             // Oblique near plane at the water so nothing under the surface reflects.
-            Vector4 planeCam = CameraSpacePlane(_refl.worldToCameraMatrix, new Vector3(0, planeY, 0), Vector3.up);
+            Vector4 planeCam = CameraSpacePlane(_refl.worldToCameraMatrix, new Vector3(0, planeY + .03f, 0), Vector3.up);
             _refl.projectionMatrix = Matrix4x4.Perspective(_main.fieldOfView, _main.aspect, _main.nearClipPlane, _refl.farClipPlane);
             _refl.projectionMatrix = _refl.CalculateObliqueMatrix(planeCam);
+            // CopyFrom can retain a source culling frustum. Cull using the actual mirrored,
+            // oblique frustum, including shoreline triangles intersecting the water.
+            _refl.cullingMatrix = _refl.projectionMatrix * _refl.worldToCameraMatrix;
             bool previousCulling = GL.invertCulling;
+            Shader.SetGlobalVector("_ReflectionClip", new Vector4(0, 1, 0, -planeY - .03f));
+            Shader.SetGlobalFloat("_ReflectionRendering", 1);
             try { GL.invertCulling = !previousCulling; _refl.Render(); }
-            finally { GL.invertCulling = previousCulling; }
+            finally { GL.invertCulling = previousCulling; Shader.SetGlobalFloat("_ReflectionRendering", 0); }
             Shader.SetGlobalTexture(ReflTexId, _rt);
             Shader.SetGlobalFloat(ReflPlaneId, planeY);
             Shader.SetGlobalFloat(ReflOnId, 1f);

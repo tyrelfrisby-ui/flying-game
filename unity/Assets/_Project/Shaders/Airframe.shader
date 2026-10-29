@@ -87,7 +87,7 @@ Shader "FlyingGame/Airframe"
 
                 float d = saturate(dot(n, l));
                 // the same 0.58 ambient floor FlyingGame/Lit used, so nothing in the fleet changes brightness
-                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.19,.22,.30) + float3(.81,.53,.29)*d, _SunsetOn);
+                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, float3(.48,.46,.50) + float3(.65,.43,.24)*d, _SunsetOn);
 
                 // Blinn-Phong: smoothness drives the exponent, so a polished cowl is tight and fabric is broad
                 float power = exp2(_Smoothness * 10.0) + 1.0;

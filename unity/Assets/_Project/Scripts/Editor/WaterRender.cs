@@ -174,8 +174,11 @@ namespace FlyingGame.EditorTools
                     // Rear view: whole aircraft, floats and their complete reflection, looking into low sun.
                     var portrait = new RenderTexture(1000, 1600, 24);
                     camera.targetTexture = portrait; camera.aspect = 1000f / 1600; camera.fieldOfView = 62;
-                    camera.transform.position = new Vector3(at.x + 1.4f, (float)lake.SurfaceM + 2.0f, at.z - 19);
-                    camera.transform.LookAt(new Vector3(at.x, (float)lake.SurfaceM + 1.0f, at.z));
+                    var aircraftBounds = new Bounds(at, Vector3.zero);
+                    foreach (var r in root.GetComponentsInChildren<Renderer>()) aircraftBounds.Encapsulate(r.bounds);
+                    float distance = Mathf.Max(10, aircraftBounds.size.x / (2 * Mathf.Tan(31 * Mathf.Deg2Rad) * camera.aspect * .94f));
+                    camera.transform.position = new Vector3(at.x + distance * .12f, (float)lake.SurfaceM + 1.4f, at.z - distance);
+                    camera.transform.LookAt(new Vector3(at.x, (float)lake.SurfaceM + .55f, at.z));
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var photo = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
                     photo.ReadPixels(new Rect(0,0,1000,1600),0,0); photo.Apply();
