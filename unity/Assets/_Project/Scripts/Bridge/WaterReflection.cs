@@ -92,12 +92,11 @@ namespace FlyingGame.Bridge
             _refl.transform.rotation = Quaternion.LookRotation(reflection.MultiplyVector(_main.transform.forward), reflection.MultiplyVector(_main.transform.up));
             _refl.targetTexture = _rt;
             _refl.worldToCameraMatrix = _main.worldToCameraMatrix * reflection;
-            // Oblique near plane at the water so nothing under the surface reflects.
-            Vector4 planeCam = CameraSpacePlane(_refl.worldToCameraMatrix, new Vector3(0, planeY + .03f, 0), Vector3.up);
+            // Keep a conventional finite frustum. At a grazing water angle an oblique
+            // near plane also tilts the far plane, slicing distant cliffs into slivers.
+            // The scenery/aircraft shaders clip the water half-space in world space;
+            // unlike an oblique far plane that is independent of camera pitch/distance.
             _refl.projectionMatrix = Matrix4x4.Perspective(_main.fieldOfView, _main.aspect, _main.nearClipPlane, _refl.farClipPlane);
-            _refl.projectionMatrix = _refl.CalculateObliqueMatrix(planeCam);
-            // CopyFrom can retain a source culling frustum. Cull using the actual mirrored,
-            // oblique frustum, including shoreline triangles intersecting the water.
             _refl.cullingMatrix = _refl.projectionMatrix * _refl.worldToCameraMatrix;
             bool previousCulling = GL.invertCulling;
             Shader.SetGlobalVector("_ReflectionClip", new Vector4(0, 1, 0, -planeY - .03f));
@@ -107,13 +106,6 @@ namespace FlyingGame.Bridge
             Shader.SetGlobalTexture(ReflTexId, _rt);
             Shader.SetGlobalFloat(ReflPlaneId, planeY);
             Shader.SetGlobalFloat(ReflOnId, 1f);
-        }
-
-        private static Vector4 CameraSpacePlane(Matrix4x4 worldToCam, Vector3 pos, Vector3 normal)
-        {
-            Vector3 cpos = worldToCam.MultiplyPoint(pos);
-            Vector3 cnormal = worldToCam.MultiplyVector(normal).normalized;
-            return new Vector4(cnormal.x, cnormal.y, cnormal.z, -Vector3.Dot(cpos, cnormal));
         }
 
         private static void Dispose(Object obj)

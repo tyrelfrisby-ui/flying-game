@@ -44,15 +44,15 @@ namespace FlyingGame.EditorTools
                 verts.Add(origin+new Vector3(x,-.4f,z)); verts.Add(origin+new Vector3(x,1.2f+Mathf.Sin(i*.43f)*.8f,z+40));
                 if(previousBank >= 0) tris.AddRange(new[]{previousBank,previousBank+1,n,n,previousBank+1,n+1});
                 previousBank = n;
-                for(int row=0;row<2;row++)
+                for(int row=0;row<4;row++)
                 {
                     float cluster=.5f+.5f*Mathf.Sin(i*.23f);
-                    float h=4+cluster*9+(float)rng.NextDouble()*13;
-                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*20,-.1f,z+6+row*38);
+                    float h=6+cluster*7+(float)rng.NextDouble()*11;
+                    Vector3 at=origin+new Vector3(x+(float)rng.NextDouble()*25,-.1f,z+6+row*24);
                     for(int crown=0;crown<9;crown++)
                     {
                         float bottom=h*(.08f+crown*.09f), top=bottom+h*.28f;
-                        float radius=h*(.20f-crown*.019f)*( .8f+(float)rng.NextDouble()*.4f);
+                        float radius=h*(.15f-crown*.014f)*( .8f+(float)rng.NextDouble()*.4f);
                         int v=verts.Count; verts.Add(at+Vector3.up*top);
                         for(int j=0;j<9;j++) { float a=j*Mathf.PI*2/9; verts.Add(at+new Vector3(Mathf.Cos(a)*radius*(.65f+(float)rng.NextDouble()*.5f),bottom+h*((float)rng.NextDouble()-.5f)*.045f,Mathf.Sin(a)*radius)); }
                         for(int j=0;j<9;j++) tris.AddRange(new[]{v,v+1+j,v+1+(j+1)%9});

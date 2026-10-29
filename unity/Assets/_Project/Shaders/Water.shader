@@ -71,12 +71,12 @@ Shader "FlyingGame/Water"
                         float2 slope = float2(hx, hz) / (2.0 * _WakeTexel.z);
                         // Keep the solver intact; limit only optical slope amplification. The old
                         // 2x slope made every radial forcing pulse read as a circular ring.
-                        n = normalize(float3(n.x - slope.x * .65, 1.0, n.z - slope.y * .65));
+                        n = normalize(float3(n.x - slope.x * .25, 1.0, n.z - slope.y * .25));
                         // World-space foam rafts break up the crest history.
                         float history = max(tex2D(_WakeFoamTex, wuv).r, saturate((length(slope) - .12) * 4) * .4);
                         float lace = noise(p * 1.7 + float2(t * .025, 0)) * .65 + noise(p * 5.3) * .35;
                         float coverage = smoothstep(.48, .78, lace);
-                        foam = coverage * saturate(history) * .65;
+                        foam = coverage * saturate(history) * .16;
                         // Cosmetic Kelvin envelope, anchored to each wet step and its measured speed/load.
                         // It supplements the coarse solver grid; no height/forcing constants are changed.
                         for (int f = 0; f < 2; f++)
@@ -88,23 +88,24 @@ Shader "FlyingGame/Water"
                             float signedSide = dot(delta, float2(motion.y, -motion.x));
                             float side = abs(signedSide);
                             float age = max(0, aft) / max(1, motion.z);
-                            float width = max(.28, origin.z * .65) + max(0, aft) * .018;
+                            float width = max(.28, origin.z * .65) + max(0, aft) * .032;
                             // The outer arm of each float forms the fleet's visible V. Inner
                             // arms interfere and dissipate; retaining both produced four rails.
                             float outward = motion.w == 0 ? 1 : smoothstep(-.15, .15, signedSide * motion.w);
                             float wander = (noise(float2(aft * .38, f * 7.3)) - .5) * width;
                             float armDistance = abs(side - max(0, aft) * .354 - origin.z * .35 + wander);
-                            float arms = 1 - smoothstep(width * .25, width, armDistance);
+                            float ragged = noise(float2(aft * .65, signedSide * 3.1));
+                            float arms = 1 - smoothstep(width * .12, width * (.65 + ragged * .7), armDistance);
                             float fade = exp(-age * .8) * smoothstep(0, 1.2, aft);
                             // Connected young cusp line, becoming elongated, broken rafts downstream.
                             float streak = noise(float2(aft * .19, signedSide * 4.5) + f * 13.1);
-                            float breakup = lerp(.8, smoothstep(.30, .65, streak), saturate(age / 2.5));
+                            float breakup = lerp(.9, smoothstep(.36, .68, streak), saturate(age / 1.4));
                             float turbulentWidth = origin.z * .7 + max(0,aft) * .07;
                             float stepFoam = exp(-side * side / max(.2, turbulentWidth * turbulentWidth)) * exp(-max(0,aft) / 6);
-                            stepFoam *= .65 + .35 * smoothstep(.25, .7, noise(float2(aft * .32, signedSide * 5)));
+                            stepFoam *= .65 + .35 * smoothstep(.25, .7, noise(float2(aft * 1.7, signedSide * 3.2)));
                             float transverse = pow(saturate(cos(aft * 1.8 / max(1, motion.z / 8) + side * side / max(1,aft))), 12);
                             float inside = 1 - smoothstep(max(0,aft)*.30, max(0,aft)*.354 + .1, side);
-                            float active = origin.w * stepFoam * .95 + origin.w * fade * (arms * outward * breakup * .8 + inside * transverse * .08);
+                            float active = origin.w * stepFoam * 1.25 + origin.w * fade * (arms * outward * breakup * .8 + inside * transverse * .045);
                             foam = max(foam, active * step(0, aft));
                         }
                         n = normalize(lerp(n, float3(0,1,0), foam * .65));

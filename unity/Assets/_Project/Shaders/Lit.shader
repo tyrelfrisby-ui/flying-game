@@ -46,7 +46,7 @@ Shader "FlyingGame/Lit"
                 float3 n = normalize(i.n) * (facing >= 0 ? 1.0 : -1.0);
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(n, l));
-                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.53,.51,.54), float3(.64,.65,.73), n.y * .5 + .5) + float3(.65,.43,.24)*d, _SunsetOn);
+                float3 col = _Color.rgb * lerp(float3(.58,.58,.58) + .42*d, lerp(float3(.24,.28,.36), float3(.77,.78,.86), saturate(n.y * .5 + .5)) + float3(.60,.37,.18)*d, _SunsetOn);
                 if (_SunsetOn > .5)
                 {
                     float3 v = normalize(_WorldSpaceCameraPos-i.wp);

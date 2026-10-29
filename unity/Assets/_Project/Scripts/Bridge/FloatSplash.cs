@@ -201,15 +201,15 @@ namespace FlyingGame.Bridge
         private static void EmitTrail(ParticleSystem ps, float rate, float size, Vector3 at, float waterY, Vector3 right, float side, float speed, float beam)
         {
             SetRate(ps, rate);
-            var main = ps.main; main.startSize = new ParticleSystem.MinMaxCurve(size * .3f, size); main.gravityModifier = .18f;
+            var main = ps.main; main.startSize = new ParticleSystem.MinMaxCurve(size * .35f, size * .65f); main.gravityModifier = .35f;
             ps.transform.position = new Vector3(at.x, waterY + 0.1f, at.z);
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-            float up = Mathf.Clamp(speed * 0.12f, 1f, 4f), out_ = Mathf.Clamp(speed * 0.08f, 0.5f, 3f);
+            float up = Mathf.Clamp(speed * 0.055f, .35f, 1.8f), out_ = Mathf.Clamp(speed * 0.08f, 0.5f, 3f);
             Vector3 o = right * side * out_;
             vel.x = Spread(o.x, .3f, 1.2f);
             vel.y = new ParticleSystem.MinMaxCurve(up * 0.5f, up);
             vel.z = Spread(o.z, .3f, 1.2f);
-            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.4f + 0.5f * beam;
+            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(.3f + .4f * beam, .06f, .5f);
         }
 
         /// <summary>Position the emitter on the water at the keel point and throw spray outboard/up with the boat speed.</summary>
@@ -218,7 +218,7 @@ namespace FlyingGame.Bridge
             SetRate(ps, rate);
             if (rate <= 0f) return;
             var main = ps.main;
-            main.startSize = new ParticleSystem.MinMaxCurve(size * .23f, size * .68f);
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .28f, size * .82f);
             ps.transform.position = new Vector3(keelPoint.x, waterY + 0.05f, keelPoint.z);
             // Spray sheet: outboard and up, plus a little aft (it's left behind), speed ~ boat speed.
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;

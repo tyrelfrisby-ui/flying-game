@@ -29,11 +29,8 @@ Shader "FlyingGame/Terrain"
                 if (_ReflectionRendering > .5)
                 {
                     clip(dot(float4(i.wp, 1), _ReflectionClip));
-                    // Height-field terrain is a one-sided surface. The mirrored eye is below
-                    // the lake: reject plateau undersides explicitly, independently of winding
-                    // state on the nested Camera.Render. Half-space clipping cannot remove
-                    // an underside whose vertices are ABOVE the water.
-                    clip(dot(normalize(i.n), _WorldSpaceCameraPos - i.wp));
+                    // Rasterizer winding handles visibility. Smooth vertex normals do
+                    // not describe a cliff triangle's facing and must not clip its pixels.
                 }
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float d = saturate(dot(normalize(i.n), l));
