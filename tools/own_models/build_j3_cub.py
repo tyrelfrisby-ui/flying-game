@@ -419,13 +419,13 @@ def vcover(hx, sy):
     """v5: polished (chrome-look) rocker cover per Ty's first eyebrow photo: rounded-rectangle box with a domed top, red
     gasket at the head joint and four hold-down screws (Ty's rear photo shows black lettered covers; polished kept)."""
     def rr(ins):
-        a, b, rc = 0.05 - ins, 0.064 - ins, max(0.022 - ins * 0.6, 0.006); pts = []
+        a, b, rc = 0.060 - ins, 0.070 - ins, max(0.024 - ins * 0.6, 0.006); pts = []
         for qx, qz, t0 in ((a - rc, b - rc, 0), (-(a - rc), b - rc, 90), (-(a - rc), -(b - rc), 180), (a - rc, -(b - rc), 270)):
             for t in np.radians(np.linspace(t0, t0 + 90, 6)): pts.append((qx + rc * math.cos(t), qz + rc * math.sin(t)))
         return pts
     # v5h: pillow cover -- straight walls then a quarter-ellipse dome (Ty's yellow photo: rounded, domed pressed covers)
     def rr2(ins):
-        a, b = 0.05 - ins, 0.064 - ins; rc = min(max(0.026 - ins * 0.3, 0.010), a - 0.001, b - 0.001); pts = []
+        a, b = 0.060 - ins, 0.070 - ins; rc = min(max(0.030 - ins * 0.3, 0.010), a - 0.001, b - 0.001); pts = []
         for qx, qz, t0 in ((a - rc, b - rc, 0), (-(a - rc), b - rc, 90), (-(a - rc), -(b - rc), 180), (a - rc, -(b - rc), 270)):
             for t in np.radians(np.linspace(t0, t0 + 90, 7)): pts.append((qx + rc * math.cos(t), qz + rc * math.sin(t)))
         return pts
@@ -434,7 +434,7 @@ def vcover(hx, sy):
     rings = [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr2(ins)] for yy, ins in prof]
     en_add(bme, 'rocker', lambda: loft_rings(bme, rings))
     en_add(bme, 'alu', lambda: loft_rings(bme, [[B(hx + px, sy * yy, CZ + pz) for px, pz in rr(-0.003)] for yy in (VC_Y0, VC_Y0 + 0.004)]))  # red gasket
-    for dx, dz in ((0.034, 0.048), (-0.034, 0.048), (0.034, -0.048), (-0.034, -0.048)):
+    for dx, dz in ((0.042, 0.054), (-0.042, 0.054), (0.042, -0.054), (-0.042, -0.054)):
         en_add(bme, 'steel', lambda: cyl(bme, B(hx + dx, sy * (VC_Y1 - 0.012), CZ + dz), B(hx + dx, sy * (VC_Y1 - 0.003), CZ + dz), 0.0045, 8))
 for sy in (1, -1):
     for hx in HEADS[sy]:
@@ -455,20 +455,18 @@ for sy in (1, -1):
         # runs level outboard at the crown Hc, turns through a smooth rounded corner and drops as a near-vertical
         # outboard wall to the lip ZL just above the valve covers. Closed at the back by a flat riveted plate that
         # fills the whole arch down to the lip line and in to the cowl (no flare / no free edge).
-        h0, h1 = HEADS[sy]; xf, xr = h0 - 0.068, HOOD[sy][1] + 0.010
-        ZL, YO, T_, NE = 0.050, 0.420, 0.005, 2.0   # v5f: rounder section, outer wall down to the cover tops
+        h0, h1 = HEADS[sy]; xf, xr = h0 - 0.090, HOOD[sy][1] + 0.010
+        ZL, YO, T_, NE = 0.070, 0.346, 0.005, 2.0   # v5j: narrow half-tube over the fins; lip at the cover/head joint so the covers stand ~2.5 in proud
         xs = L(xf, xr, 16); NA = 22
         def frac(x_): return (x_ - xf) / (xr - xf)
-        def zf_(x_): return 0.150 - 0.006 * frac(x_)
+        def zf_(x_): return 0.132 - 0.004 * frac(x_)
         def yf_(x_): return fus_y(min(max(x_, 0.19), 0.95), zf_(x_)) - 0.006
-        def hc_(x_): return 0.200 - 0.040 * frac(x_) ** 1.2
-        def sect(x_):                                   # (y, z) foot on the cowl -> crown -> outboard wall -> lip
-            yf, zf, Hc = yf_(x_), zf_(x_), hc_(x_); yc = yf + 0.015; a = YO - yc; b = Hc - ZL; out = []
-            for u in np.linspace(0, 1, 6)[:-1]:          # blend off the cowl shoulder up to the crown
-                out.append((yf + (yc - yf) * u, zf + (Hc - zf) * math.sin(math.pi / 2 * u)))
-            for t in np.linspace(math.pi / 2, 0, NA - 5):
-                c, s_ = math.cos(t), math.sin(t)
-                out.append((yc + a * c ** (2 / NE), ZL + b * s_ ** (2 / NE)))
+        def hc_(x_): return 0.205 - 0.035 * frac(x_) ** 1.2
+        def sect(x_):                                   # v5j: half-tube (tilted half-ellipse) from the cowl foot over the fins to the lip
+            yf, zf, Hc = yf_(x_), zf_(x_), hc_(x_); yo = max(YO, yf + 0.06); a = (yo - yf) / 2; ym = yf + a
+            b = Hc - (zf + ZL) / 2; out = []
+            for t in np.linspace(0, math.pi, NA):
+                out.append((ym - a * math.cos(t), zf + (ZL - zf) * (1 - math.cos(t)) / 2 + b * math.sin(t)))
             return out
         def offs(pts, d):                               # inward offset along the 2-D section normal
             P_ = np.array(pts); out = []
@@ -478,8 +476,9 @@ for sy in (1, -1):
             return out
         def shx(x_, p):                                 # rake: the lower wall trails the crown at the front, fades aft
             w = min(max((hc_(x_) - p[1]) / (hc_(x_) - ZL), 0), 1)
-            return x_ + 0.085 * w * (1 - frac(x_)) ** 2
+            return x_ + 0.070 * w * (1 - frac(x_)) ** 2
         S = [sect(x_) for x_ in xs]
+        print('BROW', sy, 'foot y %.3f..%.3f' % (S[0][0][0], S[-1][0][0]), 'lip', S[0][-1], 'crown', max(q[1] for q in S[0]))
         if np.mean([q[1] for q in offs(S[0], T_)]) > np.mean([q[1] for q in S[0]]): T2 = -T_
         else: T2 = T_
         top = [[B(shx(x_, p), sy * p[0], p[1]) for p in S[a]] for a, x_ in enumerate(xs)]
@@ -552,8 +551,8 @@ for sy_ in (1, -1):
             en_add(bme, 'steel', lambda: cyl(bme, tuple(tip_), tuple(elb_), 0.0075, 10))           # elbow nut
             mag_ = MAGS[sy_]; tgt_ = np.array((mag_[0] - 0.075, mag_[1] + sy_ * (0.012 * k_ - 0.006), mag_[2]))
             if k_ == 0:      # top lead: up out of the elbow, aft over the head fins under the hood, in to the magneto
-                pts_ = [elb_, elb_ + np.array((0, 0, 0.012)), np.array(B(hx_ + 0.02, sy_ * 0.310, CZ + 0.105)),
-                        np.array(B(0.60, sy_ * 0.22, CZ + 0.10)), np.array(B(0.66, sy_ * 0.12, CZ + 0.05)), tgt_]
+                pts_ = [elb_, elb_ + np.array((0, 0, 0.012)), np.array(B(hx_ + 0.01, sy_ * 0.290, CZ + 0.095)),
+                        np.array(B(hx_ + 0.04, sy_ * 0.235, CZ + 0.080)), np.array(B(0.64, sy_ * 0.15, CZ + 0.06)), tgt_]   # v5j: inboard into the cowl inside the opening
             else:            # bottom lead: down, then aft in a loose loop just below the valve covers (Ty photo), in to the mag
                 pts_ = [elb_, elb_ + np.array((0, 0, -0.010)), np.array(B(hx_ - 0.02, sy_ * 0.345, CZ - 0.105)),
                         np.array(B(hx_ + 0.02, sy_ * 0.385, CZ - 0.088)), np.array(B(hx_ + 0.07, sy_ * 0.370, CZ - 0.100)), np.array(B(0.58, sy_ * 0.30, CZ - 0.10)),
