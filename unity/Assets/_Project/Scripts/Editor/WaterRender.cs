@@ -17,6 +17,10 @@ namespace FlyingGame.EditorTools
     public static class WaterRender
     {
         static object Call(object o, string name, params object[] args) => o.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(o, args);
+        // Spawn is internal to the runtime assembly; keep fixture access out of its public API.
+        static void SpawnMesh(string name, Vector3[] vertices, int[] triangles, Material material, Transform parent) =>
+            typeof(WorldBuilder).GetMethod("Spawn", BindingFlags.Static | BindingFlags.NonPublic)
+                .Invoke(null, new object[] { name, vertices, triangles, material, parent, true });
         // A controlled visual stage, not replacement terrain or a new simulated lake.
         // Uses the real harbour's surface and real FloatHydro/wake signals.
         static void BuildSunsetShore()
@@ -25,7 +29,7 @@ namespace FlyingGame.EditorTools
             Vector3 origin = CoordinateMap.ToUnity(new Vec3(lake.Cx, lake.Cy, -lake.SurfaceM));
             var parent = new GameObject("Sunset comparison stage").transform;
             var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.035f,.065f,.08f,1));
-            WorldBuilder.Spawn("Calm harbour", new[] { origin+new Vector3(-2400,0,-2000), origin+new Vector3(-2400,0,2400), origin+new Vector3(2400,0,2400), origin+new Vector3(2400,0,-2000) }, new[]{0,1,2,0,2,3}, water, parent, true);
+            SpawnMesh("Calm harbour", new[] { origin+new Vector3(-2400,0,-2000), origin+new Vector3(-2400,0,2400), origin+new Vector3(2400,0,2400), origin+new Vector3(2400,0,-2000) }, new[]{0,1,2,0,2,3}, water, parent);
             var bank = WorldBuilder.Mat("FlyingGame/Lit",new Color(.055f,.065f,.055f));
             var rng = new System.Random(743);
             var verts = new System.Collections.Generic.List<Vector3>();
@@ -53,7 +57,7 @@ namespace FlyingGame.EditorTools
                     }
                 }
             }
-            WorldBuilder.Spawn("Conifer shoreline",verts.ToArray(),tris.ToArray(),bank,parent,true);
+            SpawnMesh("Conifer shoreline",verts.ToArray(),tris.ToArray(),bank,parent);
         }
 
         static void WriteComparison(Texture2D render, string output)

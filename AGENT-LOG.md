@@ -1,7 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
-- **Water visuals / sunset — Chief verification and Ty look review pending (Codex, 2026-10-28, `lane/codex-visuals`).** First pass is committed as `d0e492d`; Chief has supplied PNGs for baseline and all four floatplanes. Those were inspected: first-pass foam was a broad white carpet, scenery was absent from reflections, sky was flat blue. This continuation reduces foam and adds a built-in sunset preset, full-scene planar reflection tiers and a photo-comparison fixture. New code has passed only the limited Unity-reference C# compilation and diff checks. **New shaders/images, suite and iOS build remain unverified**; Chief must run the exact commands at the top of the newest Log entry. Old log claims that no PNGs/commit exist describe the first sandbox run only and are now superseded. Changes from this continuation are intentionally uncommitted for the runner. Ty: review the resulting comparison and mobile frame time before accepting the look; photorealism is not claimed without seeing the new renders.
+- **Water visuals / sunset — Chief rerun and Ty look review pending (Codex, 2026-10-28, `lane/codex-visuals`).** Previous passes are committed as `d0e492d` / `33f23d4`. Chief's Unity run failed with two `WaterRender` CS0117 errors: **no new renders were produced and the iOS build was not attempted** (`build/renders/sunset-j3-cub-floats-like.log`). This fix uses fixture-local reflection for internal `WorldBuilder.Spawn`, preserving the runtime API. All editor references added by both commits were rechecked; separate Bridge → Editor compilation passes, and the committed fixture reproduces both errors under that check. Fix and log are uncommitted for the runner. **Unity shader/render verification, suite and dummy-UDID build remain pending**: Chief should rerun the existing commands below, then Ty should review the comparisons and mobile frame time. Prior single-assembly compile success was insufficient and is superseded by this check.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -42,6 +42,29 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-28 — Codex · lane/codex-visuals · editor assembly fix-up
+
+- Replaced only the two direct internal `WorldBuilder.Spawn` calls with a fixture-local reflection wrapper, matching existing non-public fixture access and retaining mesh/water-layer behavior; no game API changes. Audited every editor addition in `d0e492d` / `33f23d4`: `WaterRender`'s remaining directly accessed runtime types/members are public; private lifecycle/solver/texture accesses already use reflection; `BuildScript` added only shader-name strings. No other accessibility fixes needed.
+- Compiled **all** current Bridge scripts into `FlyingGame.Bridge.dll`, then **all** Editor scripts referencing that new DLL (no Bridge sources or cached Bridge DLL in the Editor check). Both passed with warnings only. Core/Sim and package references remain cached Unity assemblies; this is an accessibility/C# check, not Unity shader import or a player build. A control run using committed `WaterRender` failed with exactly the two reported CS0117 errors. Response files/logs are ignored under `build/renders/check-*`; regenerate and run from this worktree:
+
+```sh
+python3 - <<'PYCOMPILE'
+from pathlib import Path
+base = Path('build/renders/compile-sunset.rsp').read_text().splitlines()
+refs = [x for x in base if x.startswith('-r:') and 'FlyingGame.Bridge.dll' not in x and 'WaterVisualCompile.dll' not in x]
+refs += ['-r:"' + str(next(Path('unity/Library/PackageCache').glob('com.unity.nuget.newtonsoft-json@*/Runtime/Newtonsoft.Json.dll'))) + '"']
+for kind, assembly in [('Bridge', 'Bridge'), ('Editor', 'EditorTools')]:
+    lines = ['-target:library', '-langversion:9', '-define:UNITY_EDITOR,UNITY_STANDALONE_OSX', '-out:build/renders/FlyingGame.' + assembly + '.dll'] + refs
+    lines += ['-unsafe'] if kind == 'Bridge' else ['-r:build/renders/FlyingGame.Bridge.dll']
+    lines += [str(p) for p in sorted(Path('unity/Assets/_Project/Scripts', kind).rglob('*.cs'))]
+    Path('build/renders/check-' + kind.lower() + '.rsp').write_text('\n'.join(lines) + '\n')
+PYCOMPILE
+~/.dotnet/dotnet /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/Resources/Scripting/DotNetSdkRoslyn/csc.dll @build/renders/check-bridge.rsp > build/renders/check-bridge.log 2>&1 &&
+~/.dotnet/dotnet /Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/Resources/Scripting/DotNetSdkRoslyn/csc.dll @build/renders/check-editor.rsp > build/renders/check-editor.log 2>&1
+```
+
+- `git diff --check` passes. Only `WaterRender.cs` and this log changed; no look restart, Core/Sim/config/test/GLB/prop-hub changes, commit, push, merge or deploy. Chief owns the render/suite/dummy-UDID build rerun using the continuation commands below.
+
 ### 2026-10-28 — Codex · lane/codex-visuals · sunset photo target continuation
 
 **Chief commands (from this worktree; graphics required, never `-nographics`):**
