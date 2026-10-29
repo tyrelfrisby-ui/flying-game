@@ -24,8 +24,13 @@ namespace FlyingGame.EditorTools
             // Scenery plates omit translucent training volumes, preserving their frames
             // and all geometry/colliders. The game still shows its navigation aids.
             foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
-                if (renderer.sharedMaterial != null && renderer.sharedMaterial.shader.name == "FlyingGame/Glass")
+            {
+                bool training = false;
+                for (Transform t = renderer.transform; t != null; t = t.parent)
+                    if (t.name == "CombatZone" || t.name.StartsWith("AeroBox")) training = true;
+                if (training || (renderer.sharedMaterial != null && renderer.sharedMaterial.shader.name == "FlyingGame/Glass"))
                     renderer.enabled = false;
+            }
             var args = System.Environment.GetCommandLineArgs();
             string ReadAtmosphere(string flag, string fallback)
             {
@@ -81,6 +86,8 @@ namespace FlyingGame.EditorTools
                 ("arch-detail", Outside(FlyingGame.Core.Landmarks.ArchCentreXAt(0)+300,FlyingGame.Core.Landmarks.ArchYAt(0)+450,FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+180), WorldBuilder.U(FlyingGame.Core.Landmarks.ArchCentreXAt(0),FlyingGame.Core.Landmarks.ArchYAt(0),FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+100)),
                 ("avalon-detail", Outside(FlyingGame.Core.Island.AvalonX-300,FlyingGame.Core.Island.AvalonY-650,280), WorldBuilder.U(FlyingGame.Core.Island.AvalonX,FlyingGame.Core.Island.AvalonY+250,50)),
                 ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
+                ("valley-airport-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
+                ("airport-signs-detail", Outside(valley.X-450,valley.Y+60,valley.ElevationM+12), WorldBuilder.U(valley.X-420,valley.Y+95,valley.ElevationM+1)),
                 ("valley-airport-detail", Outside(valley.X-950,valley.Y-650,valley.ElevationM+600), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("runway-threshold-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2-180,valley.Y-90,valley.ElevationM+95), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2+180,valley.Y,valley.ElevationM)),
                 ("airport-apron-detail", Outside(valley.X-650,valley.Y+430,valley.ElevationM+130), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy,valley.ElevationM+3)),
@@ -208,6 +215,16 @@ namespace FlyingGame.EditorTools
             foreach ((string name, Vector3 pos, Vector3 look) in views)
             {
                 if (!string.IsNullOrEmpty(onlyViews) && !onlyViews.Contains(name)) continue;
+                bool dusk = name.EndsWith("-dusk");
+                if (dusk)
+                {
+                    var sun = new GameObject("DuskSun").AddComponent<Light>();
+                    sun.type = LightType.Directional;
+                    SunsetLighting.Apply(sun, false);
+                    Shader.SetGlobalFloat("_AirportDusk", .78f);
+                }
+                else { SunsetLighting.ApplyDay(); Shader.SetGlobalFloat("_AirportDusk", 0); }
+                cam.GetComponent<Skybox>().material = RenderSettings.skybox;
                 cam.transform.position = pos; cam.transform.LookAt(look, Vector3.up);
                 // The forest is streamed round the camera in the game, and nothing streams in a batch render,
                 // so build the timber round whatever this view is LOOKING AT and throw it away afterwards.
@@ -222,6 +239,8 @@ namespace FlyingGame.EditorTools
                 Object.DestroyImmediate(tex);
                 Object.DestroyImmediate(forest);
             }
+            Shader.SetGlobalFloat("_AirportDusk", 0);
+            SunsetLighting.ApplyDay();
             RenderTexture.active = null;
             Debug.Log($"WorldRender: wrote {views.Length} images to {outDir}");
         }

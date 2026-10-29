@@ -81,14 +81,14 @@ Shader "FlyingGame/Terrain"
                     // Fixed world projections: rotating a world-position dot product by
                     // the varying slope normal made coordinates race across every face.
                     // Blend stationary side fields instead. 42 m cross-slope cells and
-                    // 125 m vertical cells give soft, approximately 3:1 drainage ribs.
+                    // 375 m vertical cells stretch the previous ribs a further 3:1.
                     float sideWeight=weights.x/max(.001,weights.x+weights.z);
-                    float drainage=lerp(filteredTerrain(i.wp.xy*float2(.024,.008)+13.7),
-                        filteredTerrain(i.wp.zy*float2(.024,.008)+31.2),sideWeight);
+                    float drainage=lerp(filteredTerrain(i.wp.xy*float2(.024,.0027)+13.7),
+                        filteredTerrain(i.wp.zy*float2(.024,.0027)+31.2),sideWeight);
                     float fine=rockGrain;
                     if (_DayAtmosphere.z > .5)
-                        fine=lerp(filteredTerrain(i.wp.xy*float2(.045,.015)+7.1),
-                            filteredTerrain(i.wp.zy*float2(.045,.015)+23.6),sideWeight);
+                        fine=lerp(filteredTerrain(i.wp.xy*float2(.045,.005)+7.1),
+                            filteredTerrain(i.wp.zy*float2(.045,.005)+23.6),sideWeight);
                     // Broad soft channels, no absolute-value/height contour functions.
                     float channel=1-smoothstep(.22,.72,drainage);
                     float tributary=1-smoothstep(.22,.72,fine);
@@ -101,18 +101,13 @@ Shader "FlyingGame/Terrain"
                     if(i.geology.x >= 0) albedo=substrate;
                     float aspect=macroNormal.z*.5+.5; // Unity north: sheltered north-facing slopes.
                     float snowAltitude=smoothstep(2440-aspect*180,3050-aspect*180,i.wp.y+(broad-.5)*160);
-                    // Very compressed peaks need discontinuous snow tongues on their flanks;
-                    // shallow caps also retain exposed wind-scoured patches instead of white rings.
-                    float retention=smoothstep(.28,.74,macroNormal.y);
-                    float pocket=pow(gully,2)*smoothstep(.19,.39,macroNormal.y)*.92;
-                    float accumulation=snowAltitude*(retention*.78+pocket)*(1-ridge*.55);
-                    float breakup=(broad-.5)*.60+(rockGrain-.5)*.24+(fine-.5)*.24;
-                    float snow=smoothstep(.35,.75,accumulation+breakup)*(1-redrock);
-                    // Thin persistent couloir snow between the broken upper-slope patches.
-                    float snowTongue=snowAltitude*smoothstep(.68,.88,gully)
-                        *smoothstep(.20,.40,macroNormal.y)*(1-ridge*.6);
-                    snow=max(snow,snowTongue*.82*(1-redrock));
-                    snow*=smoothstep(.16,.29,macroNormal.y); // no snow on near-vertical rock
+                    // Continuous upper snow only on gentle slopes. Steep faces carry
+                    // faint narrow, elongated couloirs, never round thresholded patches.
+                    float retention=smoothstep(.64,.88,macroNormal.y);
+                    float cap=snowAltitude*retention*(.94-ridge*.24);
+                    float streak=smoothstep(.72,.92,gully)*snowAltitude
+                        *smoothstep(.18,.35,macroNormal.y)*(1-retention)*(1-ridge*.6);
+                    float snow=saturate(cap+streak*.32)*(1-redrock);
                     float talus=hollow*smoothstep(.60,.82,macroNormal.y)
                         *(1-smoothstep(.88,.98,macroNormal.y))*(1-forest);
                     albedo=lerp(albedo,lerp(float3(.44,.43,.40),float3(.57,.43,.32),redrock),talus*.65);
@@ -122,7 +117,7 @@ Shader "FlyingGame/Terrain"
                     float package=filteredTerrain(float2(bed,7.3));
                     float thinBeds=filteredTerrain(float2(bed*3.3+19.1,4.8));
                     float lamina=filteredTerrain(float2(bed*5.7+37.2,2.6));
-                    albedo*=1+(broad-.5)*.18+(rockGrain-.5)*.18;
+                    albedo*=1+(drainage-.5)*.072+(rockGrain-.5)*.072;
                     float3 strata=lerp(float3(.55,.32,.22),float3(.76,.65,.48),
                         smoothstep(.25,.72,package));
                     strata=lerp(strata,float3(.47,.46,.43),
@@ -133,8 +128,8 @@ Shader "FlyingGame/Terrain"
                     albedo=lerp(albedo,strata*(.94+rockGrain*.12),redrock*.82);
                     float fan=talus*(.65+gully*.20);
                     albedo=lerp(albedo,float3(.73,.63,.49)*( .97+broad*.06),fan*redrock*.82);
-                    albedo*=1-cliff*(1-talus*.8)*(gully*.16+hollow*.08);
-                    albedo*=1+cliff*(1-talus*.8)*(1-gully)*.06;
+                    albedo*=1-cliff*(1-talus*.8)*(gully*.064+hollow*.032);
+                    albedo*=1+cliff*(1-talus*.8)*(1-gully)*.024;
                     if(i.geology.x >= 0)
                         albedo=lerp(albedo,float3(.87,.90,.94)*(1+(rockGrain-.5)*.045),snow);
                     // Surface-gradient bump in world space. These are shading heights only:
@@ -169,7 +164,7 @@ Shader "FlyingGame/Terrain"
                 }
                 else
                 {
-                    col*=1-.12*(1-fieldInterior)*saturate(i.c.a);
+                    // No synthetic 200 m farm grid in the daytime airport infields.
                     // Optical depth along the viewing segment through an exponential
                     // blue atmosphere. Vertical top-down paths should not fog like
                     // equally long horizontal valley paths.

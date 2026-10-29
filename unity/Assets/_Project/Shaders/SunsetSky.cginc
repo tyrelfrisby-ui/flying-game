@@ -37,7 +37,11 @@ float3 DaySkyRough(float3 ray, float roughness) {
  // Project onto a horizontal deck: distant banks shrink toward the horizon.
  // The old bounded denominator kept identical large stickers at every elevation.
  // No low-elevation constant denominator: that turns deck cells into curtains.
- float2 p=ray.xz/max(.012,y)*.45;
+ // Spherical elevation contributes most of the envelope: a horizontal
+ // deck alone foreshortened every turret into thin horizon streaks.
+ float2 deck=ray.xz/max(.012,y)*.45;
+ float2 volume=float2(atan2(ray.z,ray.x)*2.6,y*4.4);
+ float2 p=lerp(deck,volume,.60);
  float pixelWidth=max(.06,length(fwidth(p))*.8) + roughness*.42;
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);

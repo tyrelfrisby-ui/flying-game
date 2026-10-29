@@ -11,7 +11,7 @@ namespace FlyingGame.Bridge
     /// distance marks, undulating grass), an apron and an open hangar — plus the ploughed field and its power line. Edit-mode safe (used by the editor's
     /// world render tool as well as at play start).
     /// </summary>
-    public static class WorldBuilder
+    public static partial class WorldBuilder
     {
         // Sim (x north, y east, up) → Unity (east, up, north).
         public static Vector3 U(double x, double y, double up) => new((float)y, (float)up, (float)x);
@@ -1325,6 +1325,7 @@ namespace FlyingGame.Bridge
             // Apron + open hangar.
             BuildHangar(root.transform, a.X + WorldTerrain.HangarDx, a.Y + WorldTerrain.HangarDy, a.ElevationM);
             BuildWindsocks(root.transform, a);
+            AirportVisualDressing(root.transform, a);
             // Field name on the apron.
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
         }
@@ -1348,12 +1349,12 @@ namespace FlyingGame.Bridge
             double z = a.ElevationM;
             Color yellow = new Color(.83f,.65f,.16f), dark = new Color(.22f,.25f,.27f);
             // Lead-in and parking tees stay entirely on existing apron pavement.
-            b.Box(U(x+105,y,z+.085),new Vector3(220,.025f,.18f),yellow);
+            b.Box(U(x+105,y,z+.085),new Vector3(220,.025f,.30f),yellow);
             for (int k = 0; k < 5; k++)
             {
                 double py = y-95+k*42;
-                b.Box(U(x+80,py,z+.09),new Vector3(.18f,.025f,50),yellow);
-                b.Box(U(x+55,py,z+.09),new Vector3(12,.025f,.18f),yellow);
+                b.Box(U(x+80,py,z+.09),new Vector3(.30f,.025f,50),yellow);
+                b.Box(U(x+55,py,z+.09),new Vector3(12,.025f,.30f),yellow);
                 // Two original, static light-aircraft silhouettes. No models or colliders.
                 if (k != 1 && k != 3) continue;
                 Vector3 c = U(x+47,py,z+1.25);
@@ -1381,7 +1382,7 @@ namespace FlyingGame.Bridge
 
         /// <summary>
         /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (width-dependent count, 150 ft), the
-        /// runway NUMBERS (60 ft tall, magnetic heading / 10, read upright from each approach end), touchdown-zone bars at
+        /// runway NUMBERS (60 ft tall, geometry heading / 10 (world has no magnetic variation), read upright from each approach end), touchdown-zone bars at
         /// 500 / 1,500 / 2,000 / 2,500 ft on the long runway, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
         /// edge stripes. Main runway along x (north) = 36 / 18; the crosswind runway along y = 09 / 27.
         /// </summary>
@@ -1396,7 +1397,7 @@ namespace FlyingGame.Bridge
                 double A(double d) => end < 0 ? -L / 2 + d : L / 2 - d;
                 double X(double c) => end < 0 ? c : -c;
                 // FAA width table: 60 ft = 4, 75 ft = 6, 100 ft = 8 stripes.
-                int count = W >= 29 ? 8 : W >= 22 ? 6 : 4;
+                int count = W >= 60 ? 16 : W >= 45 ? 12 : W >= 29 ? 8 : W >= 22 ? 6 : 4;
                 double sw = 5.75 * ft;
                 for (int k = 0; k < count / 2; k++)
                     foreach (int side in new[] { -1, 1 })
@@ -1413,7 +1414,7 @@ namespace FlyingGame.Bridge
                         for (int k = 0; k < n; k++)
                             Child(strip, "TDZ", A(d * ft + 37.5 * ft), X(side * (W / 2 - 4 * ft - k * 5 * ft - 1.5 * ft)), 0.05, 75 * ft, 3 * ft, 0.03, Paint);
                 for (int side = -1; side <= 1; side += 2)
-                    Child(strip, "Aim", A(1020 * ft + 75 * ft), X(side * (W / 2 - 4 * ft - 7.5 * ft)), 0.05, 150 * ft, 15 * ft, 0.03, Paint);
+                    Child(strip, "Aim", A(1020 * ft + 75 * ft), X(side * System.Math.Min(43.5 * ft, W / 2 - 3 * ft - 7.5 * ft)), 0.05, 150 * ft, 15 * ft, 0.03, Paint);
             }
             // Centreline: 120 ft stripes, 80 ft gaps, between the numbers.
             for (double d = -L / 2 + 280 * ft; d < L / 2 - 280 * ft - 120 * ft; d += 200 * ft)
@@ -1773,7 +1774,7 @@ namespace FlyingGame.Bridge
             root.transform.SetParent(parent, false);
             root.transform.position = U(cx, cy, elev);
 
-            Box(root, "Apron", new Vector3(0f, 0.02f, 0f), new Vector3(2f * halfW + 30f, 0.04f, 2f * halfL + 40f), Apron);
+            // Main apron already covers this footprint; omit the duplicate coplanar slab.
             Box(root, "WallWest", new Vector3(-halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
             Box(root, "WallEast", new Vector3(halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
             Box(root, "Roof", new Vector3(0f, height + wall * 0.5f, 0f), new Vector3(2f * halfW + 2f, wall, 2f * halfL + 2f), roofCol);
