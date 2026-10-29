@@ -262,34 +262,55 @@ namespace FlyingGame.EditorTools
                         foreach (var vertex in filter.sharedMesh.vertices)
                             heroPoints.Add(filter.transform.TransformPoint(vertex));
                     }
-                    camera.fieldOfView = 88;
+                    // Fixed aircraft-relative photo pose: left offset never grows with
+                    // fit distance. A narrow portrait must fit the wings and full mirror;
+                    // solve the aft distance, rather than changing FOV/side each iteration.
+                    float span = Mathf.Max(1, heroBounds.size.x);
+                    float waterY = (float)lake.SurfaceM;
                     Vector3 aim = new Vector3(heroBounds.center.x,
-                        (float)lake.SurfaceM + .55f, heroBounds.center.z);
-                    Vector3 rear = new Vector3(-.42f, 0, -1).normalized;
-                    float heroDistance = Mathf.Max(4, aim.z - heroBounds.min.z + 1.5f);
-                    for (int fit = 0; fit < 48; fit++)
+                        heroBounds.center.y + heroBounds.extents.y * .25f, heroBounds.center.z);
+                    camera.fieldOfView = 62;
+                    float minimumAft = span * .60f;
+                    float lowerAft = minimumAft, upperAft = span * 4;
+                    Vector2 envelopeMin = Vector2.zero, envelopeMax = Vector2.one;
+                    // Bisection is deterministic and avoids the 4.5% fit-step slack.
+                    for (int fit = 0; fit < 24; fit++)
                     {
-                        camera.transform.position = aim + rear * heroDistance;
-                        camera.transform.position = new Vector3(camera.transform.position.x,
-                            (float)lake.SurfaceM + 1, camera.transform.position.z);
+                        float aft = fit == 23 ? upperAft : (lowerAft + upperAft) * .5f;
+                        camera.ResetProjectionMatrix();
+                        camera.transform.position = new Vector3(heroBounds.center.x - span * .25f,
+                            waterY + 1, heroBounds.min.z - aft);
                         camera.transform.LookAt(aim);
-                        bool fits = true;
-                        // Include the complete mirrored envelope as well as the aircraft.
+                        envelopeMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+                        envelopeMax = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+                        bool inFront = true;
                         foreach (var silhouettePoint in heroPoints)
                         {
                             Vector3 point = silhouettePoint;
                             for (int mirror = 0; mirror < 2; mirror++)
                             {
                                 Vector3 projected = camera.WorldToViewportPoint(point);
-                                fits &= projected.z > .2f && projected.x > .015f && projected.x < .985f
-                                    && projected.y > .035f && projected.y < .965f;
-                                point.y = 2 * (float)lake.SurfaceM - point.y;
+                                inFront &= projected.z > .2f;
+                                envelopeMin = Vector2.Min(envelopeMin, new Vector2(projected.x, projected.y));
+                                envelopeMax = Vector2.Max(envelopeMax, new Vector2(projected.x, projected.y));
+                                point.y = 2 * waterY - point.y;
                             }
                         }
-                        if (fits) break;
-                        heroDistance *= 1.045f;
+                        Vector2 extent = envelopeMax - envelopeMin;
+                        if (inFront && extent.x <= .94f && extent.y <= .94f) upperAft = aft;
+                        else lowerAft = aft;
                     }
-                    Debug.Log($"WaterRender hero: camera={camera.transform.position}, distance={heroDistance}, bounds={heroBounds}, water={lake.SurfaceM}, fov={camera.fieldOfView}");
+                    // Optical shift keeps the wing-root aim while centring the complete
+                    // silhouette/mirror. No camera-height or aircraft-pose compromise.
+                    Vector2 envelopeCenter = (envelopeMin + envelopeMax) * .5f;
+                    Matrix4x4 heroProjection = camera.projectionMatrix;
+                    heroProjection.m02 += 2 * (envelopeCenter.x - .5f);
+                    heroProjection.m12 += 2 * (envelopeCenter.y - .5f);
+                    camera.projectionMatrix = heroProjection;
+                    File.WriteAllText(Path.Combine(output, "hero-diagnostics.txt"),
+                        $"Bounds={heroBounds}; span={span}; camera={camera.transform.position}; aim={aim}\n" +
+                        $"Tail aft={upperAft}; nominal aft={minimumAft}; left={span*.25f}; height=1; FOV={camera.fieldOfView}\n" +
+                        $"Unshifted envelope={envelopeMin}..{envelopeMax}; projection shift={heroProjection.m02},{heroProjection.m12}\n");
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);
                     hero.ReadPixels(new Rect(0,0,1000,1600),0,0); hero.Apply();

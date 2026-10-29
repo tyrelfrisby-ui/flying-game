@@ -117,19 +117,21 @@ Shader "FlyingGame/Water"
                                 float2 across = float2(motion.y, -motion.x);
                                 float taxiAft = -dot(taxiDelta, motion.xy);
                                 float taxiSide = dot(taxiDelta, across);
-                                float spread = origin.z * .55 + max(0,taxiAft) * .42;
+                                // Curved, short wave packets rather than a continuous
+                                // ridge along a straight V. Taxi strength stays normal-only.
+                                float downstream = max(0,taxiAft);
+                                float spread = origin.z * .55 + downstream * .34 + .12*sqrt(downstream);
                                 float edge = abs(taxiSide) - spread;
-                                float envelope = exp(-edge*edge/.22) * exp(-max(0,taxiAft)/5)
-                                    * smoothstep(-.8,.6,taxiAft);
-                                // Short curved shoulders, with a little irregular spacing rather
-                                // than ruler-straight rails stretching through the whole frame.
-                                float oscillation = sin(edge*9 + .22*sin(taxiAft*1.4)-t*.9);
-                                envelope *= 1-smoothstep(9,17,taxiAft);
-                                taxiGlint = max(taxiGlint, envelope * pow(saturate(oscillation),6)
-                                    * .18 * saturate(motion.z/2.5));
+                                float envelope = exp(-edge*edge/.48) * exp(-downstream/2.8)
+                                    * smoothstep(-.8,.6,taxiAft) * (1-smoothstep(5,10,taxiAft));
+                                float phase = taxiAft*3.5 + edge*4.0 - t*1.7;
+                                float packet = pow(saturate(sin(phase)),3);
+                                float oscillation = sin(phase);
+                                taxiGlint = max(taxiGlint, envelope * packet
+                                    * .055 * saturate(motion.z/2.5));
                                 float bow = exp(-taxiSide*taxiSide/max(.1,origin.z*origin.z)
                                     -(taxiAft+2)*(taxiAft+2)*2);
-                                float tilt = (envelope*oscillation*.065 + bow*.055)
+                                float tilt = (envelope*oscillation*.035 + bow*.055)
                                     * saturate(motion.z/2.5);
                                 n = normalize(float3(n.x + across.x*sign(taxiSide)*tilt,
                                     n.y, n.z + across.y*sign(taxiSide)*tilt));
@@ -167,8 +169,9 @@ Shader "FlyingGame/Water"
                 float ndv = saturate(dot(n, v));
                 float fresnel = .0204 + .9796 * pow(1.0 - ndv, 5.0);
 
-                float3 refl = DaySky(reflect(-v,n));
+                float3 refl;
                 if (_SunsetOn > .5) refl = SunsetSky(reflect(-v,n));
+                else refl = DaySky(reflect(-v,n));
                 if (_ReflOn > 0.5 && abs(i.wp.y - _ReflPlaneY) < 1.5)
                 {
                     float4 uv = i.sp; uv.xy += n.xz * 0.025 * uv.w;   // ripple distortion

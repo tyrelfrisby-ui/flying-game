@@ -29,21 +29,40 @@ float3 DaySky(float3 ray) {
  float sun=saturate(dot(ray,sunDir));
  sky+=float3(.14,.12,.075)*pow(sun,32);
  sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
- // Separated cumulus banks, rather than a continuous sheet of tiny white cells.
- // Stereographic dome keeps cloud lobes round in low horizon views.
- float2 p=ray.xz/(.65+y)*3.8;
- float broad=skyNoise(p);
- float detail=skyNoise(p*3.7+13.2);
- float fine=detail;
- if (_DayAtmosphere.z > .5) fine=skyNoise(p*11.3+7.1);
- float density=broad*.66+detail*.20+fine*.14;
- float cloud=smoothstep(.565,.625,density)*smoothstep(.025,.11,y);
- // Offset density approximates a sun-facing bright crown and a cooler dense base.
- float crown=skyNoise(p+sunDir.xz*.09);
- float light=saturate(.52+(broad-crown)*5.0+(detail-.5)*1.2);
- // Dense interiors keep a shaded base; eroded edges receive the brighter rim.
- light=lerp(light,.98,(1-smoothstep(.57,.69,density))*.45);
- float3 cloudColor=lerp(float3(.40,.51,.65),float3(1,.99,.95),light);
+ // Separate rounded cumulus lobes. Value-noise thresholding alone made
+ // enormous connected, melted patches; cellular envelopes keep clear gaps.
+ float2 p=ray.xz/(.65+y)*5.2;
+ // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
+ float2 cell=floor(p-.5);
+ float field=-2;
+ float crownLight=0;
+ for (int cy=0;cy<2;cy++)
+ for (int cx=0;cx<2;cx++)
+ {
+     float2 id=cell+float2(cx,cy);
+     float seed=skyHash(id);
+     float2 center=id+.5+float2(seed-.5,skyHash(id+41.7)-.5)*.44;
+     float2 delta=p-center;
+     float radius=lerp(.23,.43,skyHash(id+17.3));
+     // One broad base with a smaller sunlit turret, no textures or geometry.
+     float baseShape=1-dot(delta/float2(radius*1.28,radius*.73),
+                           delta/float2(radius*1.28,radius*.73));
+     float2 turret=delta-float2(-radius*.28,radius*.30);
+     float topShape=1-dot(turret/(radius*.78),turret/(radius*.78));
+     float shape=max(baseShape,topShape);
+     if (shape>field)
+     {
+         field=shape;
+         crownLight=saturate(.55+delta.y/max(.1,radius)*.45-delta.x*.22);
+     }
+ }
+ float erosion=skyNoise(p*7.7+13.2)-.5;
+ if (_DayAtmosphere.z > .5) erosion+=(skyNoise(p*23.1+7.1)-.5)*.35;
+ field+=erosion*.32;
+ float cloud=smoothstep(-.08,.12,field)*smoothstep(.025,.11,y);
+ float rim=(1-smoothstep(.08,.65,field))*.26;
+ float light=saturate(crownLight+rim);
+ float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
 
  return lerp(sky,cloudColor,cloud*.94);
 }
