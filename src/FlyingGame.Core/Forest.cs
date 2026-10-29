@@ -90,8 +90,27 @@ public static class Forest
         double line = MeanTreeLineM - TreeLineLapsePerM * x;
         line += TreeLineAspectM * System.Math.Clamp(northGrad / 0.6, -1, 1);
         line += 70 * (Lattice(x / 2400.0, y / 2400.0, 19.3) - 0.5);
+        line += AlpineMassLiftM * WorldTerrain.BlockFade(x, y, AlpineRange.X0, AlpineRange.Y0,
+                                                        AlpineRange.X1, AlpineRange.Y1, MassLiftFadeM);
         return line;
     }
+
+    /// <summary>
+    /// How much higher the treeline runs over the alpine massif — the mass-elevation (Massenerhebung) effect:
+    /// a treeline sits several hundred metres higher in the interior of a large mountain mass than on the
+    /// outer ranges at the same latitude, because the mass of rock warms the air over it.
+    ///
+    /// Without it the alpine range gets no forest worth the name. Its plateau is the Summit one at 7,000 ft
+    /// (2,134 m) and the treeline over that longitude comes out at about 2,070 m, which is BELOW the valley
+    /// floors — so allowing timber on the block's scree would have put nothing on it but a fringe where the
+    /// line's own wander happened to rise above the plateau. With the lift the line runs near 2,480 m, which
+    /// puts timber across the floors and up the first 350 m of every peak and leaves bare rock above it: a
+    /// treeline you can see, which is what the owner asked for.
+    /// </summary>
+    public const double AlpineMassLiftM = 400.0;
+    /// <summary>How far outside the alpine block the lift fades to nothing, so there is no step in the line
+    /// along the block's edge.</summary>
+    public const double MassLiftFadeM = 1800.0;
 
     /// <summary>dh/dx — the slope's north-south component. Positive means the ground rises to the north, so
     /// the slope faces south, into the sun.</summary>
@@ -163,7 +182,19 @@ public static class Forest
         // Nothing stands outside the built world: the height field answers everywhere, but the mesh stops,
         // and a render from the north edge showed a line of conifers standing in mid-air over the sea.
         if (!WorldTerrain.OnBuiltGround(x, y)) return false;
-        if (WorldTerrain.SurfaceAt(x, y) != WorldTerrain.Surface.Rough) return false;
+        WorldTerrain.Surface sfc = WorldTerrain.SurfaceAt(x, y);
+        // ROUGH is pasture and rolling country, which is where the timber has always been allowed. The
+        // ALPINE range is reported Gravel over its whole block — "granite and scree, not pasture" — and that
+        // one line kept every conifer off the Cascades: render after render came back with bare rock down to
+        // the valley floor and a "treeline" that was only the edge of the block, which is not what a
+        // mountain range looks like from the air. A real range carries forest up its lower slopes and stops
+        // at a treeline, and TreeLineAt is already the thing that knows where that is, so the alpine block
+        // is allowed its timber and the treeline decides where it ends (owner 2026-10-29).
+        //
+        // The ALASKA block is NOT allowed it: it stands 1,500 ft lower but it is glacier country, and what is
+        // not ice there is moraine and outwash gravel with the ice still working on it.
+        if (sfc != WorldTerrain.Surface.Rough &&
+            !(sfc == WorldTerrain.Surface.Gravel && AlpineRange.InRange(x, y))) return false;
         // The backcountry strips are grass and gravel, so the surface test above already keeps timber off the
         // strip itself — but not off the APRON that has been graded flat round it. Nobody clears a bench out
         // of a canyon side and leaves two hundred-foot firs standing on the overrun. The blend beyond the
