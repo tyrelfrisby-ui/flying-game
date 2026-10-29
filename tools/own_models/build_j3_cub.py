@@ -342,6 +342,12 @@ def door_ax(z):
 # stations (|y| < SK_Y, the dihedral break) from the LE back to the front spar (SK_F1 of chord, the nearest chord
 # sample to 25 pct); clear upper panel, yellow root ribs + spar face close the cut wing; fuselage top under it removed.
 SK_Y, SK_F1 = 0.30, (1 - math.cos(math.pi * 8 / 25)) / 2
+# v12 (Ty photo): the skylight is a clear roof panel flush with the top contour, starting where the windshield top meets
+# the roof (SK_F0) with a black rubber strip on that forward edge; the LE nose skin ahead of it stays solid yellow.
+# Ty's 3/4 photo: the near-root rubber sweeps from the roof edge forward round the nose and down to the A-pillar top,
+# so the roof edge sits well aft of the LE (chord sample 6, 13.6 pct), leaving a yellow LE band ahead of the glass.
+SK_F0 = (1 - math.cos(math.pi * 6 / 25)) / 2
+SK_I0 = 6
 POST = 0.035                                                         # door post between the fixed side window and the door
 HOOD = {1: (0.27, 0.545), -1: (0.325, 0.60)}                        # head openings (xd range) per side; z -0.12..0.06
 def region(c, n):
@@ -359,7 +365,7 @@ def region(c, n):
             return 'glass'
     if D_X0 < xd < D_X1 + 0.03 and D_Z0 < z < D_Z1 and side and xd < d_aft(z):
         return 'glass'
-    if WS_XT + 0.004 <= xd < LE_D + SK_F1 * CH + 0.01 and abs(y) < SK_Y and n.z > 0.6:
+    if LE_D + SK_F0 * CH <= xd < LE_D + SK_F1 * CH + 0.01 and abs(y) < SK_Y and n.z > 0.6:
         return 'hole'                                                         # v11: cabin roof open under the skylight
     sy = 1 if y > 0 else -1
     if HOOD[sy][0] < xd < HOOD[sy][1] and -0.12 < z < 0.13 and abs(n.y) > 0.40:
@@ -442,15 +448,16 @@ print('V TUBES v11: (%.3f, %.3f, %.3f) -> (%.3f, %.3f, %.3f); gap to the side sk
 # ---- v11 skylight: cut the wing centre section, clear panel on top, root ribs + front spar face (yellow) -------------
 _bw = bmesh.new(); _bw.from_mesh(P['Wing'].data); _bw.faces.ensure_lookup_table(); bmesh.ops.recalc_face_normals(_bw, faces=_bw.faces)
 def _wf(c_): return (-c_.x - LE_D) / CH
-_cut = [f for f in _bw.faces if abs(f.calc_center_median().y) < SK_Y and _wf(f.calc_center_median()) < SK_F1]
+_cut = [f for f in _bw.faces if abs(f.calc_center_median().y) < SK_Y and SK_F0 < _wf(f.calc_center_median()) < SK_F1]
 _bsk = bmesh.new()
+WRAP_F = (WS_XT - LE_D) / CH                                        # windshield top on the LE underside
 for f in _cut:
-    if f.normal.z > 0.3 and _wf(f.calc_center_median()) > 0.03:
+    if f.normal.z > 0.3:
         _bsk.faces.new([_bsk.verts.new(v.co + f.normal * 0.0008) for v in f.verts])
 bmesh.ops.remove_doubles(_bsk, verts=_bsk.verts, dist=1e-5)
 bmesh.ops.delete(_bw, geom=_cut, context='FACES'); _bw.to_mesh(P['Wing'].data); _bw.free()
 P['Skylight'] = link('Skylight', _bsk)
-_bsf = bmesh.new(); _fq = [(1 - math.cos(math.pi * i / 25)) / 2 for i in range(9)]
+_bsf = bmesh.new(); _fq = [(1 - math.cos(math.pi * i / 25)) / 2 for i in range(SK_I0, 9)]
 def _two(pts):
     _bsf.faces.new([_bsf.verts.new(q) for q in pts]); _bsf.faces.new([_bsf.verts.new(q) for q in pts[::-1]])
 for sy in (1, -1):
@@ -459,8 +466,16 @@ for sy in (1, -1):
 _ys = [-SK_Y, -SK_Y / 2, 0.0, SK_Y / 2, SK_Y]
 for a_, b_ in zip(_ys, _ys[1:]):
     _two([tuple(wsurf(W, a_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, True)), tuple(wsurf(W, b_, SK_F1, False)), tuple(wsurf(W, a_, SK_F1, False))])
+    _two([tuple(wsurf(W, a_, SK_F0, True)), tuple(wsurf(W, b_, SK_F0, True)), tuple(wsurf(W, b_, SK_F0, False)), tuple(wsurf(W, a_, SK_F0, False))])
 P['Skylight_Frame'] = link('Skylight_Frame', _bsf)
-print('SKYLIGHT v11: |y| < %.2f m, LE -> %.3f chord (xd %.3f); %d wing faces cut, %d clear faces' % (SK_Y, SK_F1, LE_D + SK_F1 * CH, len(_cut), len(P['Skylight'].data.polygons)))
+_btr = bmesh.new()                                                     # v12: black rubber trim (photo)
+tube(_btr, [tuple(np.array(wsurf(W, y_, SK_F0, True)) + (0, 0, 0.004)) for y_ in np.linspace(-SK_Y - 0.012, SK_Y + 0.012, 17)], 0.0065, n=10)
+for sy in (1, -1):                                                     # along each root nose where the windshield wrap meets the wing
+    _yr = sy * (SK_Y + 0.012); _c = (np.array(wsurf(W, _yr, 0.12, True)) + np.array(wsurf(W, _yr, 0.12, False))) / 2
+    _pp = [np.array(wsurf(W, _yr, f_, True)) for f_ in np.linspace(SK_F0, 0, 13)] + [np.array(wsurf(W, _yr, f_, False)) for f_ in np.linspace(0, WRAP_F + 0.02, 8)[1:]]
+    tube(_btr, [tuple(q + (q - _c) / np.linalg.norm(q - _c) * 0.004) for q in _pp], 0.0065, n=10)
+P['Skylight_Trim'] = link('Skylight_Trim', _btr)
+print('SKYLIGHT v12: roof panel |y| < %.2f m, %.3f -> %.3f chord (xd %.3f -> %.3f), LE nose solid yellow (windshield top at %.3f chord underneath), black rubber forward edge + root noses; %d wing faces cut, %d clear faces' % (SK_Y, SK_F0, SK_F1, LE_D + SK_F0 * CH, LE_D + SK_F1 * CH, WRAP_F, len(_cut), len(P['Skylight'].data.polygons)))
 print('PILLAR v10: (%.3f, %.3f) -> (%.3f, %.3f) rake %.1f deg; vertical tube xd %.3f; triangle window base %.3f m, top %.3f m'
       % (PL_X0, PL_Z0, PL_X1, PL_Z1, math.degrees(math.atan2(PL_Z1 - PL_Z0, PL_X1 - PL_X0)), PV_X, PV_X - PL_X0, PV_X - pl_x(0.50)))
 print('WINDSHIELD v10: base xd %.3f z %.3f (%.1f in aft of the fuel cap) -> tangent to the wing top skin at xd %.3f z %.3f (%.0f pct chord); '
@@ -1321,7 +1336,7 @@ for side, sg in (('L', 1), ('R', -1)):
     P['Fin_Decal_' + side] = link('Fin_Decal_' + side, bmd); P['Fin_Decal_' + side].data.materials.append(_dm)
 for n, m in (('Wing', 'yellow'), ('Aileron_L', 'yellow'), ('Aileron_R', 'yellow'), ('Stab', 'yellow'), ('Elevator_L', 'yellow'),
              ('Elevator_R', 'yellow'), ('Fin', 'yellow'), ('Rudder', 'yellow'), ('Wire_Tail', 'steel'), ('FuelGauge_Wire', 'en_dark'), ('Strut_Wing', 'yellow'),
-             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Skylight', 'glass'), ('Skylight_Frame', 'yellow'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
+             ('Glass', 'glass'), ('Window_R', 'glass'), ('A_Pillar', 'yellow'), ('Cabin_Tubes', 'yellow'), ('Skylight', 'glass'), ('Skylight_Frame', 'yellow'), ('Skylight_Trim', 'black'), ('Cabin_Liner', 'cabin'), ('Liner_Stbd', 'cabin'), ('Gear_Main', 'yellow'), ('Gear_Leg_L', 'yellow'),
              ('Gear_Leg_R', 'yellow'), ('Shock_Lower_L', 'yellow'), ('Shock_Lower_R', 'yellow'), ('Shock_Boot_L', 'boot'),
              ('Shock_Boot_R', 'boot'), ('TailWheel_Spring', 'black'), ('TailWheel_Steer', 'black'), ('TailWheel_Links', 'steel')):
     if n in P: setm(P[n], [m])
