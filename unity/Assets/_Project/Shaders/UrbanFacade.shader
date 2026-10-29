@@ -174,6 +174,11 @@ Shader "FlyingGame/UrbanFacade"
     float filteredLit=lerp(lit,rowLit*occupancy,smoothstep(.6,1.5,aa.x));
     float roomLight=lerp(lightPane*lightFrame*filteredLit*(.55+.45*hash(cell+27)),coverage*occupancy*.95,unresolved);
     roomLight*=lerp(.40+floorGap*.60,1,unresolved);
+    // The close street-edge panes used the daylight mullion only in glass albedo;
+    // their additive room term painted straight across it. Restore that divider
+    // only while both pane axes are well resolved; leave distant glow unchanged.
+    float closePane=1-smoothstep(.04,.12,max(aa.x,aa.y));
+    roomLight*=1-mullion*.7*detail*closePane;
     float3 averageLight=lerp(float3(1,.77,.46),float3(.72,.86,1),.35);
     float3 night=base*float3(.085,.11,.16)+roomLight*lerp(warm,averageLight,unresolved)*lerp(1.65,2.5,building);
     float4 result=float4(lerp(base,night,_CityNight),1);

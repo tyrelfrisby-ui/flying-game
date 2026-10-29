@@ -152,30 +152,29 @@ namespace FlyingGame.Bridge
             facades.Add(shop,shopSize,house?4:1,i*37+j*11,wall);
             if(house)
             {
-                float x=shopSize.x*.53f,z=shopSize.z*.53f;
-                Vector3 a=shop+new Vector3(-x,h,-z), c=shop+new Vector3(x,h,-z), d=shop+new Vector3(-x,h,z), e=shop+new Vector3(x,h,z);
-                Vector3 r=shop+new Vector3(0,h+4,-z), t=shop+new Vector3(0,h+4,z);
-                Color tile=(j%2==0)?new Color(.32f,.19f,.14f):new Color(.23f,.27f,.28f);
-                b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.85f);
-                b.Tri(a,r,c,wall); b.Tri(d,e,t,wall);
-                b.Box(shop+new Vector3(5,h+2,3),new Vector3(1.1f,4,1.1f),new Color(.39f,.24f,.19f));
+                PitchedRoof(b,shop+Vector3.up*h,shopSize,i*53+j*19,wall);
             }
             else
             {
-                // Parapet, stairwell, paired HVAC on these non-landable decorative shops.
-                b.Box(shop+Vector3.up*(h+.02f),new Vector3(shopSize.x-1,.04f,19),new Color(.30f,.32f,.30f));
-                for(int side=-1;side<=1;side+=2)
+                if(h<=18)
+                    PitchedRoof(b,shop+Vector3.up*h,shopSize,i*53+j*19,wall);
+                else
                 {
-                    b.Box(shop+new Vector3(side*(shopSize.x*.5f-.3f),h+.35f,0),new Vector3(.5f,.7f,20),wall*.85f);
-                    b.Box(shop+new Vector3(0,h+.35f,side*9.7f),new Vector3(shopSize.x,.7f,.5f),wall*.85f);
-                }
-                b.Box(shop+new Vector3(-11,h+1,3),new Vector3(5,2,6),new Color(.38f,.37f,.33f));
-                for(int k=0;k<2;k++) b.Box(shop+new Vector3(k*7,h+.8f,3),new Vector3(4,1.6f,4),new Color(.48f,.50f,.48f));
-                if((i+j)%5==0)
-                {
-                    Vector3 tank=shop+new Vector3(10,h, -4);
-                    for(int leg=-1;leg<=1;leg+=2) b.Box(tank+new Vector3(leg*1.3f,1,0),new Vector3(.2f,2,.2f),new Color(.23f,.23f,.21f));
-                    b.Cylinder(tank+Vector3.up*2,2,3,8,new Color(.32f,.25f,.18f),new Color(.22f,.22f,.20f),.7f);
+                    // Flat roofs remain on taller mixed-use blocks.
+                    b.Box(shop+Vector3.up*(h+.02f),new Vector3(shopSize.x-1,.04f,19),new Color(.30f,.32f,.30f));
+                    for(int side=-1;side<=1;side+=2)
+                    {
+                        b.Box(shop+new Vector3(side*(shopSize.x*.5f-.3f),h+.35f,0),new Vector3(.5f,.7f,20),wall*.85f);
+                        b.Box(shop+new Vector3(0,h+.35f,side*9.7f),new Vector3(shopSize.x,.7f,.5f),wall*.85f);
+                    }
+                    b.Box(shop+new Vector3(-11,h+1,3),new Vector3(5,2,6),new Color(.38f,.37f,.33f));
+                    for(int k=0;k<2;k++) b.Box(shop+new Vector3(k*7,h+.8f,3),new Vector3(4,1.6f,4),new Color(.48f,.50f,.48f));
+                    if((i+j)%5==0)
+                    {
+                        Vector3 tank=shop+new Vector3(10,h, -4);
+                        for(int leg=-1;leg<=1;leg+=2) b.Box(tank+new Vector3(leg*1.3f,1,0),new Vector3(.2f,2,.2f),new Color(.23f,.23f,.21f));
+                        b.Cylinder(tank+Vector3.up*2,2,3,8,new Color(.32f,.25f,.18f),new Color(.22f,.22f,.20f),.7f);
+                    }
                 }
                 Color awning=(i%2==0)?new Color(.18f,.31f,.25f):new Color(.51f,.20f,.14f);
                 foreach(int front in new[]{-1,1})
@@ -196,7 +195,9 @@ namespace FlyingGame.Bridge
                 Color stone=(i+j)%2==0?new Color(.55f,.51f,.43f):new Color(.37f,.32f,.28f);
                 b.Box(rear+Vector3.up*rearSize.y*.5f,rearSize,stone);
                 facades.Add(rear,rearSize,(i+j)%2==0?3:1,i*53+j*19+401,stone);
-                Roof(b,rear+Vector3.up*rearSize.y,rearSize,3,i*53+j*19+401);
+                if(rearSize.y<=18)
+                    PitchedRoof(b,rear+Vector3.up*rearSize.y,rearSize,i*53+j*19+401,stone);
+                else Roof(b,rear+Vector3.up*rearSize.y,rearSize,3,i*53+j*19+401);
                 if(core>.55f && size.x<94)
                 {
                     Vector3 side=bottom+new Vector3(-58,0,0);
@@ -216,13 +217,7 @@ namespace FlyingGame.Bridge
                     Color siding=(i+j+side)%2==0?new Color(.58f,.61f,.56f):new Color(.64f,.53f,.41f);
                     b.Box(foot+Vector3.up*hs.y*.5f,hs,siding);
                     facades.Add(foot,hs,4,i*53+j*19+side*101,siding);
-                    Vector3 a=foot+new Vector3(-10,hs.y,-9),c=foot+new Vector3(10,hs.y,-9);
-                    Vector3 d=foot+new Vector3(-10,hs.y,9),e=foot+new Vector3(10,hs.y,9);
-                    Vector3 r=foot+new Vector3(0,hs.y+5,-9),t=foot+new Vector3(0,hs.y+5,9);
-                    Color tile=(i+j)%2==0?new Color(.27f,.20f,.16f):new Color(.22f,.27f,.29f);
-                    b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.82f);
-                    b.Tri(a,r,c,siding); b.Tri(d,e,t,siding);
-                    b.Box(foot+new Vector3(5,hs.y+2,3),new Vector3(1,4,1),new Color(.38f,.24f,.18f));
+                    PitchedRoof(b,foot+Vector3.up*hs.y,hs,i*53+j*19+side*101,siding);
                 }
             }
             // Forecourt parking stays between the shop strip and main shaft, clear of the
@@ -252,6 +247,11 @@ namespace FlyingGame.Bridge
                 if(dress)
                 {
                     Vector3 roof=foot+Vector3.up*extent.y;
+                    if(extent.y<=18)
+                    {
+                        PitchedRoof(b,roof,extent,seed,paint);
+                        return;
+                    }
                     Terrace(b,roof,extent,seed);
                     // Wing roofs have bounded service geometry; tanks remain on main roofs.
                     b.Box(roof+new Vector3(-extent.x*.25f,1.5f,-extent.z*.25f),new Vector3(4,3,5),paint*.82f);
@@ -308,15 +308,16 @@ namespace FlyingGame.Bridge
             else
             {
                 Vector3 roof=bottom+Vector3.up*size.y;
-                Roof(b,roof,size,style,seed);
-                if(core<.36f || size.y<100)
+                if(size.y<=18)
+                    PitchedRoof(b,roof,size,seed,wall);
+                else Roof(b,roof,size,style,seed);
+                if(size.y>18 && (core<.36f || size.y<100))
                 {
-                    // Long gabled residential/low-block roof: two slopes and closed gables.
-                    // A clear front service strip keeps existing HVAC and tanks unobstructed.
+                    // Preserve C7's taller peripheral cap and its clear service strip.
                     Vector3 cap=new Vector3(size.x*(style==1?.45f:.94f),0,size.z*.60f);
-                    Gable(b,roof+new Vector3(style==1?-size.x*.23f:0,1,-size.z*.14f),cap,8+seed%6,seed,wall);
+                    PitchedRoof(b,roof+new Vector3(style==1?-size.x*.23f:0,1,-size.z*.14f),cap,seed,wall);
                 }
-                else if(style!=1)
+                else if(size.y>18 && style!=1)
                     Crown(b,roof+new Vector3(size.x*.12f,.3f,-size.z*.16f),size*.80f,18+core*22,seed,false);
 
                 // L, U, enclosed courtyard and twin slab families around the retained shaft.
@@ -365,16 +366,55 @@ namespace FlyingGame.Bridge
                 b.Box(top+new Vector3(0,.5f,side*(size.z*.5f-.2f)),new Vector3(size.x,1,.4f),stone);
             }
         }
-        static void Gable(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,float height,int seed,Color wall)
+        static readonly Color[] PitchedColours={
+            new(.19f,.22f,.25f), new(.39f,.20f,.14f), new(.31f,.25f,.19f),
+            new(.24f,.34f,.29f), new(.53f,.56f,.55f)};
+        static void PitchedRoof(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,int seed,Color wall)
         {
-            float x=size.x*.5f,z=size.z*.5f;
-            Vector3 a=foot+new Vector3(-x,0,-z),c=foot+new Vector3(x,0,-z);
-            Vector3 d=foot+new Vector3(-x,0,z),e=foot+new Vector3(x,0,z);
-            Vector3 r=foot+new Vector3(0,height,-z),t=foot+new Vector3(0,height,z);
-            Color tile=seed%3==0?new Color(.38f,.23f,.17f):seed%3==1?new Color(.24f,.29f,.30f):new Color(.40f,.37f,.31f);
-            b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile*.84f);
-            b.Tri(a,r,c,wall); b.Tri(d,e,t,wall);
-            b.Box(foot+new Vector3(-x*.60f,height*.48f,-z*.35f),new Vector3(2,height*.95f+3,2),new Color(.38f,.25f,.20f));
+            int variant=Mathf.Abs(seed);
+            // Local z is always the long axis. Overhang is measured from the wall,
+            // not a percentage of its width; broad warehouse roofs retain a real pitch.
+            bool turn=size.x>size.z;
+            Quaternion q=turn?Quaternion.Euler(0,90,0):Quaternion.identity;
+            float halfWidth=Mathf.Min(size.x,size.z)*.5f;
+            float halfLength=Mathf.Max(size.x,size.z)*.5f;
+            float eave=.3f+(variant%4)*.1f;
+            float x=halfWidth+eave,z=halfLength+eave;
+            float pitch=(25+variant%16)*Mathf.Deg2Rad;
+            float rise=x*Mathf.Tan(pitch);
+            // Put the eave just below the wall top: roof planes intersect the body
+            // at the wall and leave no bright floating slit under the overhang.
+            Vector3 P(float u,float y,float v)=>foot+q*new Vector3(u,y-eave*Mathf.Tan(pitch),v);
+            Vector3 a=P(-x,0,-z),c=P(x,0,-z),d=P(-x,0,z),e=P(x,0,z);
+            Color tile=PitchedColours[variant%PitchedColours.Length];
+            bool hip=variant%3==0;
+            float inset=hip?x:0;
+            Vector3 r=P(0,rise,-z+inset),t=P(0,rise,z-inset);
+            b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile);
+            if(hip)
+            {
+                b.Tri(a,r,c,tile); b.Tri(d,e,t,tile);
+            }
+            else
+            {
+                // Wall-aligned gable ends stop at the roof slope, inside the eaves.
+                float wallRise=halfWidth*Mathf.Tan(pitch);
+                Vector3 A(float u,float y,float v)=>foot+q*new Vector3(u,y,v);
+                b.Tri(A(-halfWidth,0,-halfLength),A(0,wallRise,-halfLength),A(halfWidth,0,-halfLength),wall);
+                b.Tri(A(-halfWidth,0,halfLength),A(halfWidth,0,halfLength),A(0,wallRise,halfLength),wall);
+            }
+            // A narrow fascia makes the overhang readable without extra materials.
+            foreach(int side in new[]{-1,1})
+            {
+                Vector3 centre=P(side*x,-.13f,0);
+                b.Box(centre,new Vector3(.16f,.26f,2*z),q,tile*.8f);
+            }
+            if(size.y>0 && variant%2==0)
+            {
+                Vector3 chimney=foot+q*new Vector3(halfWidth*.45f,0,-halfLength*.3f);
+                float top=halfWidth*.55f*Mathf.Tan(pitch)+1.6f;
+                b.Box(chimney+Vector3.up*top*.5f,new Vector3(1.1f,top,1.1f),new Color(.38f,.25f,.20f));
+            }
         }
         static void Crown(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,float height,int seed,bool mast)
         {
