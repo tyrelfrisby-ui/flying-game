@@ -169,3 +169,46 @@ Ty's review of v3. Every change applies to both the wheels and float GLBs. Refer
   - Tail-wire attach points follow the moved stab.
   - Judgement calls: where the drawings disagree, the side view follows Commons (Severin's rudder TE runs slightly aft) and the span follows the manual (Commons' stab is about 3% larger).
 - Part names and rig extras are unchanged.
+
+## v5 (2026-10-28)
+
+Ty's review of v4, matched side by side against Ty's own photos (agent box refs/j3-cub/: ty-eyebrows.png, ty-cowl-eyebrow-rear.png, ty-panel.png) plus the d01 door photo and c14 cabin photo from the v2 list. Everything was modelled by eye. No third-party mesh was used. Both GLBs were rebuilt.
+
+- **Engine:** Continental A-65-8 (not a Lycoming O-145). Four cylinders are exposed through the cowl cut-outs, with finned barrels and heads.
+  - Bank stagger: port heads at xd 0.335 / 0.475, starboard at 0.39 / 0.53.
+  - The crankcase and cylinders sit on the thrust line (judgement call: CZ moved to the hub line).
+  - Two magnetos sit on the accessory case at xd 0.70, ±0.085 (placement is a judgement call).
+- **Valve (rocker) covers:** pressed, pillow-domed covers with a red gasket and four hold-down screws. Each is 0.12 x 0.14 m. They stand about 0.064 m (2.5 in) proud of the eyebrow lip. The finish is polished per ty-eyebrows.png. Ty's rear photo shows black lettered covers; polished was kept. No maker lettering is modelled.
+- **Ignition:** two shielded plugs per cylinder (top front and bottom), each with an elbow nut. Yellow leads run to the magnetos:
+  - top leads go inboard into the cowl inside the opening;
+  - bottom leads hang in a loose loop below the covers, as in Ty's photo.
+- **Eyebrows:** one narrow black half-tube scoop per bank over the head fins. Its section is a tilted half-ellipse:
+  - the foot is riveted to the cowl just above the opening (z 0.132);
+  - the crown is z 0.205 at the front and 0.170 at the back;
+  - the lip is at the cover/head joint (y 0.346, z 0.070), so the covers stand out past it.
+  - The front is an open, raked mouth with a rolled lip that starts 0.09 m ahead of the front head.
+  - The back closes into a flat riveted plate that fills the arch down to the lip line and the cowl. There is no flare or free edge (ty-cowl-eyebrow-rear.png).
+- **Exhaust:** a steel stack drops from each port into a collector, which runs aft out through a grommeted hole in the lower cowl side. The tail stub is heat-darkened (judgement call).
+- **Cowl:** Dzus fasteners on the side panels with panel gaps.
+- **Prop:** 72 in varnished wood with a brass leading-edge sheath, red tips and a generic text-free decal. Pitch is 42 in (judgement call).
+- **Fin emblem:** an original "CUB" bear drawn for this project. It is not the Piper bear or any other trademark. There is no N-number on the default livery.
+- **Tailwheel:** `TailWheel_Steer` extras now include `steer_deg_springs` 30 and `full_swivel` true. Steering is ±30° through the rudder springs (judgement call); past that the wheel breaks out and casters.
+- **Instrument panel (ty-panel.png):** black low-arched panel, raised to meet the flat tank deck (judgement call).
+  - One row, left to right:
+    - RPM, chrome bezel;
+    - ASI;
+    - ball compass;
+    - altimeter;
+    - combined oil temperature / pressure, chrome bezel.
+  - Faces are cream (232,212,160; judgement call retint). The other bezels are black.
+  - Placards: a small top-centre placard and "REAR SEAT FOR SOLO FLYING" under the compass. A knob sits right.
+  - The faces are a generated texture atlas (tools/own_models/j3_textures.py, textures/j3_panel_atlas.png) on the new `Panel_Gauges` mesh.
+- **Interior (J-3 tandem):**
+  - black seats, two sticks and heel brakes (geometry only, no brake gameplay);
+  - trim crank on the left (location is a judgement call);
+  - black floor;
+  - exposed tube truss (layout is a judgement call);
+  - yellow fabric sidewalls per d01 / c14, with a new `Liner_Stbd` split so the door-side liner can be hidden for cutaways;
+  - black door inner face;
+  - door-side truss tubes removed so the opening is clear, per d01.
+- Other part names and rig extras are unchanged. New meshes: `Panel_Gauges`, `Liner_Stbd`, `Fin_Decal_L/R`.

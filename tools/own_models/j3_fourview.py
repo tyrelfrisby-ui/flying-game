@@ -123,7 +123,7 @@ cam('brow_ty2', (-1.80, -0.82, 0.13), (-1.38, -0.36, 0.05), 0, (1300, 1000), per
 cam('brow_rear2', (-0.80, 0.86, 0.12), (-1.42, 0.37, 0.02), 0, (1000, 1300), persp=30)    # Ty rear photo: close behind the plate
 cam('brow_3q', (-2.0, -1.10, 0.55), (-1.36, -0.30, 0.08), 0, (1300, 1000), persp=26)
 cam('panel_fseat', (-0.20, 0.0, 0.30), (-0.587, 0, 0.225), 0, (1400, 1000), persp=24)          # from the front seat
-cam('brow_grey', (-1.12, -0.98, 0.10), (-1.43, -0.36, 0.08), 0, (1300, 1000), persp=30)     # Ty grey photo: aft-left, low
+cam('brow_grey', (-1.62, -1.00, 0.16), (-1.40, -0.36, 0.06), 0, (1300, 1000), persp=30)     # Ty grey photo: fwd-left, low, into the scoop mouth (J3_HIDE=Prop)
 cam('int_door2', (0.42, 1.25, 0.14), (-0.12, 0.0, -0.12), 0, (1400, 1000), persp=24)          # close, into the open door
 cam('cutaway', (0.30, 8, 0.05), (0.30, 0, 0.05), 3.4, (1800, 1000))                        # J3_HIDE=Fuselage,Glass,Window,Door,Wing,Strut
 cam('cutaway_3q', (1.6, 3.6, 1.6), (0.10, 0, -0.05), 0, (1600, 1100), persp=30)
