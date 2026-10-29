@@ -49,8 +49,25 @@ namespace FlyingGame.EditorTools
             double lakeX = FlyingGame.Core.CanyonLake.CentreX(lakeY);
             double bridgeY = FlyingGame.Core.WorldTerrain.BridgeY;
             double bridgeX = FlyingGame.Core.WorldTerrain.RiverCentreX(bridgeY);
+            var city = FlyingGame.Core.ValleyCity.At(0);
+            var (padX,padY) = city.PadCentre;
+            double padH = terrain.HeightAt(city.PadTower.Cx,city.PadTower.Cy)+FlyingGame.Core.FlyCity.PadDeckM;
+            var valley = FlyingGame.Core.WorldTerrain.Airports[0];
+            var summit = FlyingGame.Core.WorldTerrain.Airports[3];
+            var (baseX,baseY) = FlyingGame.Core.WorldTerrain.BaseShore;
+            double inland = FlyingGame.Core.WorldTerrain.BaseInland;
+            double baseTop = FlyingGame.Core.WorldTerrain.BasePadHeightM;
             (string name, Vector3 pos, Vector3 look)[] views =
             {
+                ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
+                ("valley-airport-detail", Outside(valley.X-950,valley.Y-650,valley.ElevationM+600), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
+                ("runway-threshold-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2-180,valley.Y-90,valley.ElevationM+95), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2+180,valley.Y,valley.ElevationM)),
+                ("airport-apron-detail", Outside(valley.X-650,valley.Y+430,valley.ElevationM+130), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy,valley.ElevationM+3)),
+                ("summit-airport-detail", Outside(summit.X-950,summit.Y-650,summit.ElevationM+600), WorldBuilder.U(summit.X-350,summit.Y+60,summit.ElevationM)),
+                ("stol-strip-detail", Outside(valley.X-300,valley.Y+300,valley.ElevationM+120), WorldBuilder.U(valley.X,valley.Y+420,valley.ElevationM)),
+                ("grass-strip-detail", Outside(valley.X-530,valley.Y-520,valley.ElevationM+145), WorldBuilder.U(valley.X-100,valley.Y-420,valley.ElevationM)),
+                ("seaplane-base-detail", Outside(baseX+220,baseY-inland*190,baseTop+180), WorldBuilder.U(baseX,baseY+inland*55,baseTop)),
+                ("seaplane-dock-detail", Outside(baseX+90,baseY-inland*100,lake.SurfaceM+32), WorldBuilder.U(baseX+40,baseY-inland*30,lake.SurfaceM+.4)),
                 ("waterfall-front-detail", Outside(fall.X+drop*.25,hit+drop*1.65,pool+drop*.65), WorldBuilder.U(fall.X,hit-15,pool+drop*.48)),
                 ("waterfall-pool-detail", Outside(fall.X+140,hit+230,pool+95), WorldBuilder.U(fall.X,hit+12,pool+12)),
                 ("river-flow-detail", Outside(reachX+120,reachY+180,reachH+150), WorldBuilder.U(reachX,reachY,reachH)),

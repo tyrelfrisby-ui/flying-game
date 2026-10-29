@@ -494,10 +494,13 @@ namespace FlyingGame.Bridge
                 ramp.transform.position = (a + b) * 0.5f + ramp.transform.up * 0.04f - ramp.transform.up * 0.4f;
                 ramp.transform.localScale = new Vector3((float)(2 * WorldTerrain.BaseRampHalfWidthM), 0.8f, (b - a).magnitude);
                 ramp.GetComponent<MeshRenderer>().sharedMaterial = Lit(concrete);
+                AirportFinish(ramp, concrete, 1);
             }
             // Parking pad (sim x along the lake, y inland), with a yellow lead-in line ramp → hangar and tie-down rows.
             double padCy = Y(8.0 + WorldTerrain.BasePadDepthM / 2);
-            Slab(root.transform, "SeaplanePad", sx, padCy, pad + 0.06, 2 * WorldTerrain.BasePadHalfXM, WorldTerrain.BasePadDepthM, 1.2, 0, concrete);
+            var basePad = Slab(root.transform, "SeaplanePad", sx, padCy, pad + 0.06, 2 * WorldTerrain.BasePadHalfXM, WorldTerrain.BasePadDepthM, 1.2, 0, concrete);
+            AirportFinish(basePad, concrete, 1);
+            var dockDetails = new SeasideBuilder.Batch();
             Slab(root.transform, "LeadIn", sx, Y(8.0 + (WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0) / 2), pad + 0.09, 0.6, WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0, 0.03, 0, paint);
             for (int row = 0; row < 2; row++)
                 for (double dx = -110; dx <= 110; dx += 22)
@@ -522,7 +525,18 @@ namespace FlyingGame.Bridge
             foreach (int side in new[] { -1, 1 })
             {
                 double dxDock = side * 40, len = 60;
-                Slab(root.transform, "DockDeck", sx + dxDock, Y(-2 - len / 2), surf + 0.40, 3.0, len, 0.25, 0, wood);
+                var dock = Slab(root.transform, "DockDeck", sx + dxDock, Y(-2 - len / 2), surf + 0.40, 3.0, len, 0.25, 0, wood);
+                AirportFinish(dock, new Color(.45f,.39f,.29f), 4);
+                for (double d = 5; d < len; d += 8)
+                {
+                    foreach (int edge in new[] { -1, 1 })
+                    {
+                        Vector3 cleat = U(sx+dxDock+edge*1.3,Y(-2-d),surf+.47);
+                        dockDetails.Box(cleat,new Vector3(.16f,.16f,.7f),new Color(.25f,.28f,.29f));
+                        dockDetails.Box(cleat+Vector3.up*.13f,new Vector3(.18f,.12f,1.0f),new Color(.42f,.44f,.42f));
+                        dockDetails.Box(U(sx+dxDock+edge*1.55,Y(-2-d),surf+.20),new Vector3(.65f,.48f,.22f),new Color(.18f,.20f,.21f));
+                    }
+                }
                 for (double d = 4; d < len; d += 8)
                     foreach (int s2 in new[] { -1, 1 })
                     {
@@ -534,7 +548,7 @@ namespace FlyingGame.Bridge
                         p.GetComponent<MeshRenderer>().sharedMaterial = Lit(drum);
                     }
                 for (double d = 12; d < len; d += 16)
-                    Slab(root.transform, "FingerPier", sx + dxDock + side * 6.5, Y(-2 - d), surf + 0.40, 10.0, 1.6, 0.2, 0, wood);
+                    AirportFinish(Slab(root.transform, "FingerPier", sx + dxDock + side * 6.5, Y(-2 - d), surf + 0.40, 10.0, 1.6, 0.2, 0, wood), new Color(.45f,.39f,.29f), 4);
                 // Gangway from the pad edge down to the floating deck.
                 Vector3 g0 = U(sx + dxDock, Y(6), pad + 0.1), g1 = U(sx + dxDock, Y(-3), surf + 0.42);
                 var gw = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(gw.GetComponent<Collider>());
@@ -543,6 +557,7 @@ namespace FlyingGame.Bridge
                 gw.transform.position = (g0 + g1) * 0.5f; gw.transform.localScale = new Vector3(1.6f, 0.15f, (g1 - g0).magnitude);
                 gw.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.5f, 0.5f, 0.52f));
             }
+            dockDetails.Build("DockFittings",root.transform,SeasideBuilder.VC);
             Reflected(root);
         }
 
@@ -1260,7 +1275,9 @@ namespace FlyingGame.Bridge
             var root = new GameObject($"Airport-{a.Name}");
             root.transform.SetParent(parent, false);
             // Paved apron around the hangar (the only other hard surface on the pad — the infield is rough ground).
-            Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
+            var apron = Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
+            AirportFinish(apron, Apron, 1);
+            AirportApronDetails(root.transform, a);
             foreach (WorldTerrain.Strip s in WorldTerrain.AirportStrips)
             {
                 bool paved = WorldTerrain.IsPaved(s.Kind);
@@ -1268,6 +1285,7 @@ namespace FlyingGame.Bridge
                 GameObject strip = s.Kind == "grass"
                     ? GrassStrip(root.transform, a, s)   // follows the Snoopy swoops in the height field
                     : Slab(root.transform, $"Strip-{s.Kind}", a.X + s.Dx, a.Y + s.Dy, a.ElevationM + (s.Kind == "paved-xwind" ? 0.045 : 0.04), s.Length, s.Width, 0.06, s.HeadingDeg, c);
+                if (s.Kind != "grass") AirportFinish(strip, c, paved ? 0 : 2, paved ? s.Length : 0);
                 if (paved) RunwayMarkings(strip, s);
                 if (s.Kind == "gravel")
                 {
@@ -1291,10 +1309,60 @@ namespace FlyingGame.Bridge
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
         }
 
+        // Visual finishes only: same mesh, transform and collision footprint as the original slab.
+        private static void AirportFinish(GameObject go, Color color, int kind, double length = 0, Vector3? origin = null)
+        {
+            var m = new Material(Shader.Find("FlyingGame/AirportSurface"));
+            m.SetColor("_Color", color); m.SetFloat("_Kind", kind); m.SetFloat("_Length", (float)length);
+            Vector3 size = go.transform.localScale;
+            m.SetVector("_Size", new Vector4(size.x,size.y,size.z,0));
+            Vector3 o = origin ?? Vector3.zero;
+            m.SetVector("_Origin", new Vector4(o.x,o.y,o.z,0));
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
+        private static void AirportApronDetails(Transform parent, WorldTerrain.Airport a)
+        {
+            var b = new SeasideBuilder.Batch();
+            double x = a.X + WorldTerrain.ApronDx, y = a.Y + WorldTerrain.ApronDy;
+            double z = a.ElevationM;
+            Color yellow = new Color(.83f,.65f,.16f), dark = new Color(.22f,.25f,.27f);
+            // Lead-in and parking tees stay entirely on existing apron pavement.
+            b.Box(U(x+105,y,z+.085),new Vector3(220,.025f,.18f),yellow);
+            for (int k = 0; k < 5; k++)
+            {
+                double py = y-95+k*42;
+                b.Box(U(x+80,py,z+.09),new Vector3(.18f,.025f,50),yellow);
+                b.Box(U(x+55,py,z+.09),new Vector3(12,.025f,.18f),yellow);
+                // Two original, static light-aircraft silhouettes. No models or colliders.
+                if (k != 1 && k != 3) continue;
+                Vector3 c = U(x+47,py,z+1.25);
+                Color body = new Color(.78f,.77f,.70f);
+                b.Box(c,new Vector3(.85f,.9f,7.2f),body);
+                b.Box(c+new Vector3(0,.35f,.8f),new Vector3(10.4f,.16f,1.3f),body);
+                b.Box(c+new Vector3(0,.05f,-2.8f),new Vector3(3.5f,.12f,.8f),body);
+                b.Box(c+new Vector3(0,.7f,-2.9f),new Vector3(.12f,1.4f,1.0f),new Color(.35f,.40f,.49f));
+                b.Box(c+new Vector3(0,.57f,1.0f),new Vector3(.7f,.5f,1.5f),new Color(.16f,.24f,.29f));
+                foreach (float side in new[] {-1f,1f})
+                    b.Box(c+new Vector3(side*.95f,-.85f,.7f),new Vector3(.25f,.65f,.6f),dark);
+            }
+            // Office and service equipment sit clear of the hangar openings and parking row.
+            Vector3 office = U(x-85,y+85,z);
+            b.Box(office+Vector3.up*2,new Vector3(12,4,18),new Color(.64f,.61f,.53f));
+            b.Box(office+Vector3.up*4.15f,new Vector3(13,.3f,19),dark);
+            for (int k=0;k<4;k++)
+                b.Box(office+new Vector3(-6.04f,2.4f,-6+k*4),new Vector3(.08f,1.2f,2.2f),new Color(.18f,.28f,.33f));
+            b.Box(U(x-100,y+50,z+1.1),new Vector3(4,2.2f,7),new Color(.64f,.65f,.61f));
+            // Raised standing seams on the existing hangar roof, batched with the apron furniture.
+            for (int k=-10;k<=10;k++)
+                b.Box(U(a.X+WorldTerrain.HangarDx,a.Y+WorldTerrain.HangarDy+k*2.1,z+16.65),new Vector3(.06f,.09f,51),new Color(.34f,.36f,.39f));
+            b.Build("AirportApronDressing",parent,SeasideBuilder.VC);
+        }
+
         /// <summary>
-        /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (8 stripes, 150 ft), the
+        /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (width-dependent count, 150 ft), the
         /// runway NUMBERS (60 ft tall, magnetic heading / 10, read upright from each approach end), touchdown-zone bars at
-        /// 500 / 1,500 / 2,000 ft, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
+        /// 500 / 1,500 / 2,000 / 2,500 ft on the long runway, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
         /// edge stripes. Main runway along x (north) = 36 / 18; the crosswind runway along y = 09 / 27.
         /// </summary>
         private static void RunwayMarkings(GameObject strip, WorldTerrain.Strip s)
@@ -1307,18 +1375,20 @@ namespace FlyingGame.Bridge
                 // "along" measured from THIS threshold, inward; across mirrored so each end reads correctly.
                 double A(double d) => end < 0 ? -L / 2 + d : L / 2 - d;
                 double X(double c) => end < 0 ? c : -c;
-                // Threshold stripes: 8, 150 ft long, starting 20 ft in.
-                double sw = 5.75 * ft, gap = (W - 2 * 3 * ft - 8 * sw) / 7.0;
-                for (int k = 0; k < 8; k++)
-                {
-                    double c = -W / 2 + 3 * ft + sw / 2 + k * (sw + gap);
-                    if (k >= 4) c += 0; // (a centreline gap is implicit in the even spacing)
-                    Child(strip, "Thresh", A(20 * ft + 75 * ft), X(c), 0.05, 150 * ft, sw, 0.03, Paint);
-                }
+                // FAA width table: 60 ft = 4, 75 ft = 6, 100 ft = 8 stripes.
+                int count = W >= 29 ? 8 : W >= 22 ? 6 : 4;
+                double sw = 5.75 * ft;
+                for (int k = 0; k < count / 2; k++)
+                    foreach (int side in new[] { -1, 1 })
+                    {
+                        double c = side * (sw * 1.5 + k * sw * 2);
+                        Child(strip, "Thresh", A(20 * ft + 75 * ft), X(c), 0.05, 150 * ft, sw, 0.03, Paint);
+                    }
                 // Numbers, 60 ft tall, 20 ft beyond the stripes.
                 Numerals(strip, (end < 0 ? hdg : recip).ToString("00"), A(190 * ft + 30 * ft), end > 0);
-                // Touchdown zone (3 bars at 500 ft, 2 at 1,500, 2 at 2,000), aiming point at 1,000 ft.
-                foreach ((double d, int n) in new[] { (500.0, 3), (1500.0, 2), (2000.0, 2) })
+                // Long-runway touchdown zones; omit reciprocal-end overlap. Aim begins at 1,020 ft.
+                foreach ((double d, int n) in new[] { (500.0, 3), (1500.0, 2), (2000.0, 1), (2500.0, 1) })
+                    if (L > 1800 && d * ft + 75 * ft < L / 2 - 200)
                     for (int side = -1; side <= 1; side += 2)
                         for (int k = 0; k < n; k++)
                             Child(strip, "TDZ", A(d * ft + 37.5 * ft), X(side * (W / 2 - 4 * ft - k * 5 * ft - 1.5 * ft)), 0.05, 75 * ft, 3 * ft, 0.03, Paint);
@@ -1388,6 +1458,7 @@ namespace FlyingGame.Bridge
             var go = new GameObject("Strip-grass"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = Lit(Grass);
+            AirportFinish(go, new Color(.38f,.46f,.24f), 3, 0, U(a.X+s.Dx,a.Y+s.Dy,0));
             // Winding check: flip if the normal came out downward.
             if (mesh.normals.Length > 0 && mesh.normals[0].y < 0) { System.Array.Reverse(tris); mesh.triangles = tris; mesh.RecalculateNormals(); }
             return go;

@@ -183,7 +183,7 @@ namespace FlyingGame.Bridge
             double tan = System.Math.Tan(Carrier.AngledDeckDeg * System.Math.PI / 180);
             float La = 210, u0a = -L + 2;
             float V(float u, float off) => (float)(-3 - (u - u0a) * tan) + off;
-            Stripe(u0a, V(u0a, 0), u0a + La, V(u0a + La, 0), 0.5f, white);
+            // Dashed centreline below; do not paint a continuous stripe underneath it.
             Stripe(u0a, V(u0a, 11), u0a + La, V(u0a + La, 11), 0.6f, white);
             Stripe(u0a, V(u0a, -11), u0a + La, V(u0a + La, -11), 0.6f, white);
             for (float u = u0a + 6; u < u0a + La; u += 14) Stripe(u, V(u, 0), u + 7, V(u + 7, 0), 0.9f, white);
@@ -192,6 +192,25 @@ namespace FlyingGame.Bridge
                 float u = -L + 45 + i * 12;
                 Vector3 a = new(V(u, -12), y + 0.05f, u), e = new(V(u, 12), y + 0.05f, u);
                 b.Beam(a, e, 0.25f, 0.12f, new Color(0.1f, 0.1f, 0.1f));
+            }
+            // Landing-area foul line: alternating short red/white marks on the island side.
+            for (float u=u0a+4;u<u0a+La-5;u+=5)
+                Stripe(u,V(u,13),u+2.5f,V(u+2.5f,13),.45f,((int)((u-u0a)/5)%2)==0?white:red);
+            // Recessed tie-down crosses, deliberately kept away from the landing markings.
+            Color recess = new Color(.15f,.16f,.17f);
+            for (float u=-L+12;u<L-10;u+=7)
+                for (float v=vp+4;v<vs-3;v+=6)
+                {
+                    if (Mathf.Abs(v-V(u,0))<13) continue;
+                    Stripe(u-.18f,v,u+.18f,v,.09f,recess);
+                    Stripe(u,v-.18f,u,v+.18f,.09f,recess);
+                }
+            // Deck-edge catwalk and repeated support ribs below the existing landing surface.
+            foreach (float side in new[] {vp,vs})
+            {
+                b.Box(new Vector3(side,top-1.7f,0),new Vector3(1.4f,.3f,2*L-12),hull);
+                for (float u=-L+10;u<L-8;u+=12)
+                    b.Box(new Vector3(side,top-2.2f,u),new Vector3(1.2f,1.2f,.35f),hull*.82f);
             }
             // Bow catapults (two pairs of tracks).
             foreach (float v in new[] { -6f, 8f }) Stripe(L - 100, v, L - 6, v, 0.3f, new Color(0.15f, 0.15f, 0.15f));
@@ -202,6 +221,12 @@ namespace FlyingGame.Bridge
             b.Box(new Vector3(iv0 - 0.05f, top + ih * 0.74f, (iu0 + iu1) / 2 + 8), new Vector3(0.1f, 1.6f, (iu1 - iu0) * 0.5f), new Color(0.08f, 0.1f, 0.13f));
             b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 0.95f, (iu0 + iu1) / 2 + 6), new Vector3(1.2f, ih * 0.3f, 1.2f), hull);
             b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 1.02f, (iu0 + iu1) / 2 + 6), new Vector3(9f, 0.6f, 2.5f), hull);
+            // Individual bridge glazing and mullions on the forward and starboard faces.
+            Color glass = new Color(.12f,.20f,.24f);
+            for (float v=iv0+1;v<iv1-1;v+=2)
+                b.Box(new Vector3(v,top+ih*.74f,(iu0+iu1)/2+8+(iu1-iu0)*.275f+.06f),new Vector3(1.5f,1.4f,.12f),glass);
+            for (float u=(iu0+iu1)/2+8-(iu1-iu0)*.23f;u<(iu0+iu1)/2+8+(iu1-iu0)*.23f;u+=3)
+                b.Box(new Vector3(iv1-.69f,top+ih*.74f,u),new Vector3(.12f,1.4f,2.3f),glass);
             // "68" on the island's port face, in white strokes (seven-segment style).
             void Digit(int d, float cu)
             {
@@ -230,6 +255,12 @@ namespace FlyingGame.Bridge
             }
             var root = new GameObject("Carrier"); root.transform.SetParent(parent, false);
             b.Build("CarrierShip", root.transform, VC);
+            // A separate opaque finish lies on the unaltered deck, below all paint and wires.
+            var finish = new Batch();
+            finish.Quad(new Vector3(vp,top+.01f,-L),new Vector3(vp,top+.01f,L),new Vector3(vs,top+.01f,L),new Vector3(vs,top+.01f,-L),Color.white);
+            var deckMat = new Material(Shader.Find("FlyingGame/AirportSurface"));
+            deckMat.SetColor("_Color",deck); deckMat.SetFloat("_Kind",5); deckMat.SetFloat("_Length",2*L);
+            finish.Build("CarrierDeckFinish",root.transform,deckMat);
             root.AddComponent<CarrierRuntime>();
         }
 

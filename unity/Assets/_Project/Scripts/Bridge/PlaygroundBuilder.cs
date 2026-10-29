@@ -169,6 +169,15 @@ namespace FlyingGame.Bridge
                     b.Quad(q0, r0, r1, q1, Color.white);
                 }
                 for (double d = -R + 14; d < R - 14; d += 18) b.Box(U(px + d, py, top + 0.06), new Vector3(1.2f, 0.04f, 9f), Color.white);
+                // Fine deck expansion seams clipped to the existing circular landing pad.
+                // The pad is for fixed-wing practice, so retain its existing ring/centreline scheme.
+                Color joint = new Color(.18f,.19f,.20f);
+                for (double d=-R+10;d<R-8;d+=12)
+                {
+                    double half=System.Math.Sqrt((R-3)*(R-3)-d*d);
+                    b.Box(U(px+d,py,top+.015),new Vector3((float)(2*half),.015f,.055f),joint);
+                    b.Box(U(px,py+d,top+.015),new Vector3(.055f,.015f,(float)(2*half)),joint);
+                }
                 // Brackets: raking struts from the tower face down to the pad's underside.
                 // (along whichever way the pad hangs: d out from the tower, q across)
                 double dx = px - tw.Cx, dy = py - tw.Cy, dl = System.Math.Sqrt(dx * dx + dy * dy); dx /= dl; dy /= dl;
