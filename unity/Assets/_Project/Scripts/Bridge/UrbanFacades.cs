@@ -369,7 +369,7 @@ namespace FlyingGame.Bridge
         static readonly Color[] PitchedColours={
             new(.19f,.22f,.25f), new(.39f,.20f,.14f), new(.31f,.25f,.19f),
             new(.24f,.34f,.29f), new(.53f,.56f,.55f)};
-        static void PitchedRoof(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,int seed,Color wall)
+        static void PitchedRoof(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,int seed,Color wall,bool district=false)
         {
             int variant=Mathf.Abs(seed);
             // Local z is always the long axis. Overhang is measured from the wall,
@@ -378,16 +378,16 @@ namespace FlyingGame.Bridge
             Quaternion q=turn?Quaternion.Euler(0,90,0):Quaternion.identity;
             float halfWidth=Mathf.Min(size.x,size.z)*.5f;
             float halfLength=Mathf.Max(size.x,size.z)*.5f;
-            float eave=.3f+(variant%4)*.1f;
+            float eave=district?(halfWidth<=4?.5f:1.05f):.3f+(variant%4)*.1f;
             float x=halfWidth+eave,z=halfLength+eave;
-            float pitch=(25+variant%16)*Mathf.Deg2Rad;
+            float pitch=(district?36:25+variant%16)*Mathf.Deg2Rad;
             float rise=x*Mathf.Tan(pitch);
             // Put the eave just below the wall top: roof planes intersect the body
             // at the wall and leave no bright floating slit under the overhang.
             Vector3 P(float u,float y,float v)=>foot+q*new Vector3(u,y-eave*Mathf.Tan(pitch),v);
             Vector3 a=P(-x,0,-z),c=P(x,0,-z),d=P(-x,0,z),e=P(x,0,z);
-            Color tile=PitchedColours[variant%PitchedColours.Length];
-            bool hip=variant%3==0;
+            Color tile=PitchedColours[district?(variant%10<6?0:variant%10<9?2:1):variant%PitchedColours.Length];
+            bool hip=!district && variant%3==0;
             float inset=hip?x:0;
             Vector3 r=P(0,rise,-z+inset),t=P(0,rise,z-inset);
             b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile);
@@ -523,15 +523,16 @@ namespace FlyingGame.Bridge
             int count=0,emptyBlocks=0,bodyStart=b.Count;
             bool roofChimneys=QualitySettings.GetQualityLevel()>2;
             float area=0;
-            void Building(Vector3 foot,Vector3 size,int seed,int kind)
+            void Building(Vector3 foot,Vector3 size,int seed,int kind,int roofSeed)
             {
-                Color wall=kind==1?new Color(.50f,.32f,.24f):kind==3?new Color(.65f,.60f,.49f)
-                    :seed%3==0?new Color(.66f,.69f,.62f):seed%3==1?new Color(.68f,.57f,.44f):new Color(.49f,.57f,.59f);
+                // Pale plaster, buff stone and muted brick: the roof carries the silhouette.
+                Color wall=kind==1?new Color(.66f,.53f,.43f):kind==3?new Color(.72f,.67f,.57f)
+                    :seed%3==0?new Color(.74f,.73f,.66f):seed%3==1?new Color(.73f,.66f,.55f):new Color(.66f,.68f,.65f);
                 b.Box(foot+Vector3.up*size.y*.5f,size,wall);
                 facades.Add(foot,size,kind,seed,wall);
                 Vector3 roofSize=size;
                 if(!roofChimneys) roofSize.y=0; // C8 builder omits optional chimneys at zero metadata height.
-                PitchedRoof(b,foot+Vector3.up*size.y,roofSize,seed,wall);
+                PitchedRoof(b,foot+Vector3.up*size.y,roofSize,roofSeed,wall,true);
                 if(kind==3)
                 {
                     Color awning=seed%2==0?new Color(.19f,.34f,.27f):new Color(.49f,.22f,.16f);
@@ -575,9 +576,9 @@ namespace FlyingGame.Bridge
                         {
                             // Paired narrow rowhouses read as a terrace with individual ridges.
                             foreach(int side in new[]{-1,1})
-                                Building(centre+offset+new Vector3(side*4.6f,0,0),size,seed+side*103,kind);
+                                Building(centre+offset+new Vector3(side*4.6f,0,0),size,seed+side*103,kind,i*3+j+row);
                         }
-                        else Building(centre+offset,size,seed,warehouse?2:kind);
+                        else Building(centre+offset,size,seed,warehouse?2:kind,i*3+j+row);
                     }
                 }
                 else
@@ -589,9 +590,55 @@ namespace FlyingGame.Bridge
                     if(core>.25f || seed%4==2 || tower.HeightM>=330) continue;
                     for(int col=0;col<5;col++)
                         Building(centre+new Vector3(-36+col*18,0,57),
-                            new Vector3(10+col%3,3.1f*(1+(col+i+j)%2),12),2003+seed*7+col*23,4);
+                            new Vector3(10+col%3,3.1f*(1+(col+i+j)%2),12),2003+seed*7+col*23,4,i+j);
                 }
             }
+            // The town camera is south of the pad row, behind the forest belt. Put the
+            // visible suburb on the open eastern flank, beyond the pad/approach columns.
+            // Do not hide registered forest: reject whole gardens containing a tree crown.
+            // All positions are outside the original city blocks and protected challenge rows.
+            int flankCount=0;
+            var terrain=FlyingGame.Core.WorldTerrain.Active;
+            if(grid.Rotated && terrain!=null)
+            {
+                for(int row=0;row<6;row++) for(int col=0;col<6;col++)
+                {
+                    double u=1190+col*76, v=-590+row*70;
+                    var map=grid.Map(u,v);
+                    bool terrace=(row+col)%3!=0;
+                    Vector3 size=terrace?new Vector3(52,7,17):new Vector3(18,6.4f,16);
+                    // Garden includes eaves and a crown buffer. Existing forest is untouched.
+                    double hx=27,hy=size.x*.5+12;
+                    bool blocked=false;
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-hx-12,map.y-hy-12,map.x+hx+12,map.y+hy+12))
+                        if(System.Math.Abs(tr.X-map.x)<hx+tr.CrownRadiusM && System.Math.Abs(tr.Y-map.y)<hy+tr.CrownRadiusM)
+                        { blocked=true; break; }
+                    double g=terrain.HeightAt(map.x,map.y);
+                    if(blocked || System.Math.Abs(g-ground)>3) continue;
+                    // Keep gardens on genuinely flat lawn; no terrain cuts or raised pads.
+                    foreach(int dx in new[]{-1,1}) foreach(int dy in new[]{-1,1})
+                        if(System.Math.Abs(terrain.HeightAt(map.x+dx*hx,map.y+dy*hy)-g)>.3) blocked=true;
+                    if(blocked) continue;
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,g+.34);
+                    // Continuous 52 m terraces have one shared gable ridge; detached homes
+                    // have 58 m clear frontage gaps. Both face the same garden frontage.
+                    Vector3 garden=foot-Vector3.up*.17f;
+                    float gx=size.x*.5f+8,gz=27;
+                    b.Quad(garden+new Vector3(-gx,0,-gz),garden+new Vector3(-gx,0,gz),
+                        garden+new Vector3(gx,0,gz),garden+new Vector3(gx,0,-gz),new Color(.31f,.40f,.25f));
+                    Building(foot,size,7001+row*37+col*13,terrace?1:4,row+col/3);
+                    // Short door paths, not paved parking lots.
+                    int doors=terrace?6:1;
+                    for(int door=0;door<doors;door++)
+                    {
+                        float x=(door-(doors-1)*.5f)*8;
+                        b.Box(foot+new Vector3(x,.01f,-15),new Vector3(1.25f,.07f,12),new Color(.54f,.51f,.44f));
+                    }
+                    Tree(b,foot+new Vector3(gx-3,0,19),row*31+col);
+                    flankCount++;
+                }
+            }
+            Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
             // Count/footprint are emitted for Chief's render log; no collision registration.
             Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} visual-only buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; no colliders.");
         }
