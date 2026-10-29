@@ -59,8 +59,9 @@ namespace FlyingGame.Bridge
                             U(g.HeadX + dx * g.LengthM * tt + rx * uu,
                               g.HeadY + dy * g.LengthM * tt + ry * uu,
                               g.IceHeightAt(tt, System.Math.Abs(uu)) + 0.4);
-                        // Crevasse striping across the ice, and moraine dirt down the sides and at the snout.
-                        float stripe = (i % 3 == 0) ? 0.90f : 1f;
+                        // Broad nonperiodic ice variation: row stripes read as a checkerboard
+                        // with the faceted lighting, rather than narrow crevasses.
+                        float stripe = .98f + .02f * Mathf.PerlinNoise((float)t0 * 7.3f, (float)(u0 / g.HalfWidthM) * 1.7f + 19f);
                         float dirt = (float)System.Math.Max(System.Math.Abs(u0) / g.HalfWidthM, t0 * t0);
                         Color c = Color.Lerp(Ice, IceDirty, Mathf.Clamp01(dirt * 0.9f)) * stripe;
                         b.Quad(P(t0, u0), P(t1, u0), P(t1, u1), P(t0, u1), c);
