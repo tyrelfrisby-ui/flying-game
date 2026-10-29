@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using FlyingGame.Core;
 using UnityEngine;
 
@@ -7,11 +8,18 @@ namespace FlyingGame.Bridge
     // Original procedural airport furniture, all collider-free. Pavement and sim surfaces stay fixed.
     public static partial class WorldBuilder
     {
-        private static Material _airportLamps;
+        private static Material _airportLamps, _airportGlow;
         private static void AirportVisualDressing(Transform parent, WorldTerrain.Airport a)
         {
             var b = new SeasideBuilder.Batch();
             var lamps = new SeasideBuilder.Batch();
+            var glowPositions=new List<Vector3>(); var glowColours=new List<Color>(); var glowDirections=new List<Vector3>();
+            int signCount=0;
+            void Glow(Vector3 position,Color colour,Vector3 direction=default) { glowPositions.Add(position); glowColours.Add(colour); glowDirections.Add(direction); }
+            void Sign(Vector3 position,string label,Color background,Color foreground,float width)
+            {
+                AirportSign(b,parent,position,label,background,foreground,width); signCount++;
+            }
             Color yellow = new Color(.93f,.69f,.12f), steel = new Color(.28f,.30f,.29f);
             Color white = new Color(.87f,.86f,.79f), blue = new Color(.06f,.25f,1f);
             double z = a.ElevationM, ax = a.X+WorldTerrain.ApronDx, ay = a.Y+WorldTerrain.ApronDy;
@@ -21,7 +29,8 @@ namespace FlyingGame.Bridge
             void Lamp(Vector3 p,Color color)
             {
                 b.Box(p+Vector3.up*.15f,new Vector3(.26f,.3f,.26f),steel);
-                lamps.Box(p+Vector3.up*.35f,new Vector3(1.05f,.34f,1.05f),color);
+                lamps.Box(p+Vector3.up*.35f,new Vector3(.46f,.22f,.46f),color);
+                Glow(p+Vector3.up*.42f,color);
             }
             // Existing pavement only. Curved parking lead-ins and a marked apron taxi lane.
             double laneX=ax+105;
@@ -59,9 +68,13 @@ namespace FlyingGame.Bridge
             int runwayHeading = (int)Math.Round(WorldTerrain.AirportStrips[0].HeadingDeg/10.0)%36;
             if(runwayHeading==0) runwayHeading=36;
             string holding = ((runwayHeading+17)%36+1).ToString("00")+"-"+runwayHeading.ToString("00");
-            AirportSign(b,parent,P(laneX-9,holdY+2),holding,new Color(.66f,.025f,.025f),Color.white,4.0f);
-            AirportSign(b,parent,P(laneX-11.8,holdY+2),"A",new Color(.035f,.04f,.04f),yellow,1.3f);
-            AirportSign(b,parent,P(laneX-14.9,holdY+2),"APRON >",yellow,new Color(.025f,.025f,.025f),4.6f);
+            Sign(P(laneX-9,holdY+2),holding,new Color(.66f,.025f,.025f),Color.white,4.0f);
+            Sign(P(laneX-11.8,holdY+2),"A",new Color(.035f,.04f,.04f),yellow,1.3f);
+            Sign(P(laneX-14.9,holdY+2),"APRON \u2192",yellow,new Color(.025f,.025f,.025f),4.6f);
+            // Matching signs on the far shoulder of the same holding position.
+            Sign(P(laneX+10,holdY+2),holding,new Color(.66f,.025f,.025f),Color.white,4.0f);
+            Sign(P(laneX+12.8,holdY+2),"A",new Color(.035f,.04f,.04f),yellow,1.3f);
+            Sign(P(laneX+15.4,holdY+2),"\u2190 APRON",yellow,new Color(.025f,.025f,.025f),3.6f);
             for(double py=ay-110;py<=ay+110;py+=22)
                 foreach(int side in new[]{-1,1}) Lamp(P(laneX+side*8,py),blue);
 
@@ -97,13 +110,18 @@ namespace FlyingGame.Bridge
                             Vector3 outside=p+forward*.22f, inside=p-forward*.22f;
                             lamps.Quad(outside-across-up,outside+across-up,outside+across+up,outside-across+up,new Color(.03f,1,.23f));
                             lamps.Quad(inside-across-up,inside+across-up,inside+across+up,inside-across+up,new Color(1,.035f,.015f));
+                            // View-direction masks in the halo shader keep red/green on their own sides.
+                            Glow(outside,new Color(.03f,1,.23f,1),forward);
+                            Glow(inside,new Color(1,.035f,.015f,1),-forward);
                         }
                         // Four PAPI boxes left of each approach. Emissive two-white/two-red inspection appearance.
                         for(int j=0;j<4;j++)
                         {
                             Vector3 p=R(end*(s.Length/2-300),end*(s.Width/2+16+j*9),.35);
                             b.Box(p,new Vector3(1.1f,.65f,1.0f),white);
-                            lamps.Box(p+Vector3.up*.15f,new Vector3(.8f,.20f,.75f),j<2?white:new Color(1,.025f,.015f));
+                            Color papi=j<2?white:new Color(1,.025f,.015f);
+                            lamps.Box(p+Vector3.up*.15f,new Vector3(.8f,.20f,.75f),papi);
+                            Glow(p+Vector3.up*.50f,papi,forward);
                         }
                     }
                     // Gravel-to-grass visual shoulder ribbon, sampled on existing terrain.
@@ -127,22 +145,25 @@ namespace FlyingGame.Bridge
                     foreach(int side in new[]{-1,1})
                     {
                         Vector3 p=R(d,side*(s.Width/2+1.5));
-                        p.y=(float)WorldTerrain.Active.HeightAt(p.z,p.x)+.04f;
-                        b.Cylinder(p,.38f,.48f,6,white,white);
+                        p.y=AirportVisibleGround(p.z,p.x)+.04f;
+                        b.Cylinder(p,.48f,.60f,6,white,white);
+                        b.Box(p+Vector3.up*.08f,new Vector3(1.1f,.16f,1.1f),white);
                     }
                 }
             }
             // Segmented circle on the rough infield, clear of every strip.
             Vector3 circle=P(a.X-650,a.Y+360);
-            circle.y=(float)WorldTerrain.Active.HeightAt(circle.z,circle.x)+.06f;
+            circle.y=AirportVisibleGround(circle.z,circle.x)+.06f;
             for(int j=0;j<16;j++)
             {
                 float t=j*Mathf.PI/8;
                 Vector3 v=new Vector3(Mathf.Cos(t),0,Mathf.Sin(t));
                 b.Box(circle+v*12,new Vector3(2,.18f,.6f),Quaternion.Euler(0,-t*Mathf.Rad2Deg,0),white);
             }
+            Windsock(parent,a.X-650,a.Y+360,circle.y);
             // Fuel equipment and small service apron, on the existing apron footprint.
             Vector3 fuel=P(ax+125,ay+25);
+            b.Box(fuel+new Vector3(1.8f,.07f,-.5f),new Vector3(11,.08f,12),new Color(.57f,.57f,.53f));
             for(int k=0;k<2;k++)
             {
                 Vector3 tank=fuel+new Vector3(k*4,0,0);
@@ -165,6 +186,9 @@ namespace FlyingGame.Bridge
             b.Box(office+new Vector3(-8,3.7f,0),new Vector3(4,.22f,17),new Color(.62f,.65f,.63f));
             foreach(int side in new[]{-1,1})
                 b.Box(office+new Vector3(-9.5f,1.8f,side*7.5f),new Vector3(.12f,3.6f,.12f),steel);
+            Sign(office+new Vector3(-6.5f,2.7f,0),a.Name.ToUpperInvariant()+" FBO",new Color(.12f,.20f,.23f),white,8);
+            for(int k=-3;k<=3;k++)
+                lamps.Box(office+new Vector3(-6.28f,2.2f,k*2),new Vector3(.035f,1.75f,1.8f),new Color(.78f,.58f,.29f));
             // Corrugated side walls on the original full-size hangar (doors remain in place).
             for(int side=-1;side<=1;side+=2)
             for(int j=-24;j<=24;j++)
@@ -195,10 +219,20 @@ namespace FlyingGame.Bridge
                 b.Box(pole+Vector3.up*7,new Vector3(.2f,14,.2f),steel);
                 b.Box(pole+new Vector3(-1,14,0),new Vector3(2,.25f,.6f),steel);
                 lamps.Box(pole+new Vector3(-1,13.8f,0),new Vector3(1.8f,.10f,.5f),new Color(1,.83f,.51f));
+                Glow(pole+new Vector3(-1,13.8f,0),new Color(1,.83f,.51f));
             }
             // Beacon tower: separated green/white heads; runtime rotation is purely cosmetic.
             Vector3 beacon=P(ax-140,ay+105);
             b.Box(beacon+Vector3.up*6,new Vector3(.35f,12,.35f),steel);
+            for(int level=0;level<4;level++)
+            {
+                float lo=level*3, hi=lo+3;
+                foreach(int side in new[]{-1,1})
+                    b.Beam(beacon+new Vector3(side*.7f,lo,0),beacon+new Vector3(side*.7f,hi,0),.10f,.10f,steel);
+                b.Beam(beacon+new Vector3(-.7f,lo,0),beacon+new Vector3(.7f,hi,0),.08f,.08f,steel);
+            }
+            Glow(beacon+new Vector3(-.65f,12.5f,0),new Color(.025f,1,.18f,.25f));
+            Glow(beacon+new Vector3(.65f,12.5f,0),new Color(white.r,white.g,white.b,.5f));
             b.Box(beacon+Vector3.up*12,new Vector3(2,.22f,2),steel);
             var head=new SeasideBuilder.Batch();
             head.Box(new Vector3(-.65f,0,0),new Vector3(1.0f,.5f,1.0f),new Color(.025f,1,.18f));
@@ -209,6 +243,56 @@ namespace FlyingGame.Bridge
             beaconHead.AddComponent<AirportBeacon>();
             b.Build("AirportFurniture",parent,SeasideBuilder.VC);
             lamps.Build("AirportLenses",parent,_airportLamps);
+            AirportHalos(parent,glowPositions,glowColours,glowDirections);
+            Debug.Log($"Airport visuals {a.Name}: {signCount} sign panels, 7 added hangar bays, 1 FBO, {glowPositions.Count} luminous fixtures; collider-free dressing.");
+        }
+
+        // Interpolate the existing coarse terrain triangles for furniture only. The grass
+        // height field has small swells that the 60 m visible mesh cannot exactly reproduce.
+        // This keeps edge markers on the visible ground without changing either surface.
+        private static float AirportVisibleGround(double x,double y)
+        {
+            double x0=MinX+Math.Floor((x-MinX)/CoarseStep)*CoarseStep;
+            double y0=MinY+Math.Floor((y-MinY)/CoarseStep)*CoarseStep;
+            double u=(x-x0)/CoarseStep,v=(y-y0)/CoarseStep;
+            var terrain=WorldTerrain.Active;
+            double h10=terrain.HeightAt(x0+CoarseStep,y0),h01=terrain.HeightAt(x0,y0+CoarseStep);
+            if(u+v<=1)
+            {
+                double h00=terrain.HeightAt(x0,y0);
+                return (float)(h00+(h10-h00)*u+(h01-h00)*v);
+            }
+            double h11=terrain.HeightAt(x0+CoarseStep,y0+CoarseStep);
+            return (float)(h11+(h01-h11)*(1-u)+(h10-h11)*(1-v));
+        }
+
+        private static void AirportHalos(Transform parent,List<Vector3> centres,List<Color> colours,List<Vector3> directions)
+        {
+            int count=centres.Count;
+            var vertices=new Vector3[count*4]; var normals=new Vector3[count*4];
+            var uv=new Vector2[count*4]; var coloursOut=new Color[count*4]; var triangles=new int[count*6];
+            Vector2[] corners={new Vector2(-1,-1),new Vector2(-1,1),new Vector2(1,1),new Vector2(1,-1)};
+            for(int k=0;k<count;k++)
+            {
+                for(int j=0;j<4;j++) { int index=k*4+j; vertices[index]=centres[k]; normals[index]=directions[k]; uv[index]=corners[j]; coloursOut[index]=colours[k]; }
+                int v=k*4,t=k*6;
+                triangles[t]=v; triangles[t+1]=v+1; triangles[t+2]=v+2;
+                triangles[t+3]=v; triangles[t+4]=v+2; triangles[t+5]=v+3;
+            }
+            var mesh=new Mesh { name="Airport fixture halos" };
+            mesh.vertices=vertices; mesh.normals=normals; mesh.uv=uv; mesh.colors=coloursOut; mesh.triangles=triangles;
+            mesh.RecalculateBounds(); var bounds=mesh.bounds; bounds.Expand(30); mesh.bounds=bounds;
+            if(_airportGlow==null)
+            {
+                _airportGlow=new Material(Shader.Find("FlyingGame/AirportGlow"));
+                string tier=QualitySettings.names[QualitySettings.GetQualityLevel()];
+                bool low=tier.IndexOf("low",StringComparison.OrdinalIgnoreCase)>=0 || tier.IndexOf("fast",StringComparison.OrdinalIgnoreCase)>=0;
+                _airportGlow.SetFloat("_HaloPixels",low?1.5f:Application.isMobilePlatform?2.0f:3.0f);
+            }
+            var go=new GameObject("AirportFixtureHalos"); go.transform.SetParent(parent,false);
+            go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            var renderer=go.AddComponent<MeshRenderer>(); renderer.sharedMaterial=_airportGlow;
+            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off; renderer.receiveShadows=false;
         }
 
         private static void AirportSmallHangar(SeasideBuilder.Batch b,Vector3 p,float width,float depth,float height,int style)
@@ -232,8 +316,11 @@ namespace FlyingGame.Bridge
                 b.Box(p+new Vector3(depth/2+.035f,height/2,k),new Vector3(.06f,height,.055f),wall*.85f);
             Vector3 face=p+Vector3.left*(depth/2+.025f);
             b.Box(face+Vector3.up*(height*.43f),new Vector3(.07f,height*.85f,width*.85f),new Color(.30f,.36f,.38f));
-            for(float r=-width*.40f;r<width*.42f;r+=.45f)
-                b.Box(face+new Vector3(-.05f,height*.43f,r),new Vector3(.05f,height*.85f,.045f),new Color(.44f,.48f,.47f));
+            for(float r=-width*.40f;r<width*.42f;r+=.8f)
+                b.Box(face+new Vector3(-.05f,height*.43f,r),new Vector3(.06f,height*.85f,.10f),new Color(.44f,.48f,.47f));
+            for(int k=-2;k<=2;k++)
+                b.Box(face+new Vector3(-.09f,height*.64f,k*width*.14f),new Vector3(.045f,.65f,width*.10f),new Color(.18f,.28f,.31f));
+            b.Box(face+new Vector3(-.10f,1.05f,width*.44f),new Vector3(.08f,2.1f,.85f),new Color(.63f,.66f,.62f));
             b.Box(face+Vector3.up*(height-.2f),new Vector3(.25f,.16f,width+1),roof);
         }
 
@@ -261,12 +348,22 @@ namespace FlyingGame.Bridge
         {
             b.Box(p+Vector3.up*.7f,new Vector3(.20f,1.0f,width+.12f),new Color(.22f,.24f,.22f));
             b.Box(p+Vector3.up*.7f,new Vector3(.24f,.88f,width),bg);
+            // A location sign has a yellow border as well as yellow lettering.
+            if(bg.r<.1f)
+            foreach(int face in new[]{-1,1})
+            {
+                foreach(int edge in new[]{-1,1})
+                {
+                    b.Box(p+new Vector3(face*.126f,.7f+edge*.405f,0),new Vector3(.015f,.035f,width-.06f),ink);
+                    b.Box(p+new Vector3(face*.126f,.7f,edge*(width/2-.03f)),new Vector3(.015f,.82f,.035f),ink);
+                }
+            }
             foreach(int side in new[]{-1,1}) b.Box(p+new Vector3(0,.18f,side*(width/2-.2f)),new Vector3(.08f,.36f,.08f),new Color(.55f,.56f,.51f));
             foreach(int side in new[]{-1,1})
             {
                 var go=new GameObject("AirportSignText"); go.transform.SetParent(parent,false);
                 go.transform.position=p+new Vector3(side*.13f,.7f,0);
-                go.transform.rotation=Quaternion.Euler(0,side>0?90:270,0);
+                go.transform.rotation=Quaternion.Euler(0,side>0?270:90,0);
                 var tm=go.AddComponent<TextMesh>(); tm.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); tm.text=text; tm.fontSize=48; tm.characterSize=1f;
                 tm.anchor=TextAnchor.MiddleCenter; tm.alignment=TextAlignment.Center; tm.color=ink;
                 var renderer=go.GetComponent<MeshRenderer>();

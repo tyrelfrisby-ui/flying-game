@@ -24,6 +24,7 @@ Shader "FlyingGame/Terrain"
             float4 _ReflectionClip;
             float4 _ReflectionEye;
             float4 _DayAtmosphere;
+            float4 _AirportGrass[4];
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -149,6 +150,27 @@ Shader "FlyingGame/Terrain"
                     float canopy=smoothstep(.15,.8,forest);
                     albedo=lerp(albedo,float3(.115,.205,.13)*(.8+crowns*.65+(broad-.5)*.16),canopy*.85);
 
+                }
+                // The authored grass strip is narrower than one coarse terrain cell.
+                // Paint its exact footprint on the visible terrain instead of a coplanar overlay.
+                // No field-grid mask, depth bias, displacement or world-wide tiling lines.
+                float grassAA=max(.12,max(length(ddx(i.wp.xz)),length(ddy(i.wp.xz))));
+                for (int airport=0; airport<4; airport++)
+                {
+                    float4 bounds=_AirportGrass[airport];
+                    float2 local=i.wp.xz-bounds.xy;
+                    float edge=max(abs(local.x)-bounds.z,abs(local.y)-bounds.w);
+                    float aa=grassAA;
+                    float mask=(1-smoothstep(-aa,aa,edge))*step(1,bounds.z);
+                    if(mask>.001)
+                    {
+                        float variation=lerp(.5,noiseTerrain(local*.08),1-smoothstep(1.5,3.0,aa));
+                        float mow=.5+.5*sin(local.x*1.05)*(1-smoothstep(.6,2.5,aa));
+                        float tracks=exp(-pow((abs(local.x)-1.8)/.65,2));
+                        float3 turf=float3(.38,.47,.23)*(.89+.09*mow+.10*variation);
+                        turf=lerp(turf,float3(.37,.33,.21),tracks*(.30+.12*variation));
+                        albedo=lerp(albedo,turf,mask);
+                    }
                 }
                 float d = saturate(dot(n, l));
                 float3 dayFill=lerp(float3(.32,.38,.44),float3(.51,.57,.62),n.y*.5+.5);

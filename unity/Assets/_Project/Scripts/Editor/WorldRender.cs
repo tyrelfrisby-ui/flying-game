@@ -87,6 +87,20 @@ namespace FlyingGame.EditorTools
                 double road = System.Math.Max(terrain.HeightAt(p.x,p.y),terrain.HeightAt(centre.x,centre.y)+.08);
                 return WorldBuilder.U(p.x,p.y,road+2);
             }
+            FlyingGame.Core.WorldTerrain.Strip FindStrip(string kind)
+            {
+                foreach(var strip in FlyingGame.Core.WorldTerrain.AirportStrips)
+                    if(strip.Kind==kind) return strip;
+                throw new System.InvalidOperationException("Missing airport strip "+kind);
+            }
+            Vector3 StripView(string kind, double along, double across, double height)
+            {
+                var strip=FindStrip(kind);
+                double angle=strip.HeadingDeg*System.Math.PI/180;
+                double x=valley.X+strip.Dx+along*System.Math.Cos(angle)-across*System.Math.Sin(angle);
+                double y=valley.Y+strip.Dy+along*System.Math.Sin(angle)+across*System.Math.Cos(angle);
+                return WorldBuilder.U(x,y,terrain.HeightAt(x,y)+height);
+            }
             (string name, Vector3 pos, Vector3 look)[] views =
             {
                 ("city-roofs-detail", Outside(city.PadTower.Cx-450,city.PadTower.Cy-550,padH+180), WorldBuilder.U(city.PadTower.Cx-220,city.PadTower.Cy-350,padH-70)),
@@ -97,15 +111,17 @@ namespace FlyingGame.EditorTools
                 ("arch-detail", Outside(FlyingGame.Core.Landmarks.ArchCentreXAt(0)+300,FlyingGame.Core.Landmarks.ArchYAt(0)+450,FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+180), WorldBuilder.U(FlyingGame.Core.Landmarks.ArchCentreXAt(0),FlyingGame.Core.Landmarks.ArchYAt(0),FlyingGame.Core.Landmarks.ArchBaseUp(terrain,0)+100)),
                 ("avalon-detail", Outside(FlyingGame.Core.Island.AvalonX-300,FlyingGame.Core.Island.AvalonY-650,280), WorldBuilder.U(FlyingGame.Core.Island.AvalonX,FlyingGame.Core.Island.AvalonY+250,50)),
                 ("valley-pad-detail", Outside(padX-180,padY-180,padH+130), WorldBuilder.U(padX,padY,padH)),
+                ("valley-airport-night", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("valley-airport-dusk", Outside(valley.X-950,valley.Y-650,valley.ElevationM+380), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
-                ("airport-signs-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+96,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-70,valley.ElevationM+2.4), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+96,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-85,valley.ElevationM+.7)),
+                ("airport-signs-detail", WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+93,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-71,valley.ElevationM+1.8), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+93,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy-85,valley.ElevationM+.7)),
                 ("valley-airport-detail", Outside(valley.X-950,valley.Y-650,valley.ElevationM+600), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("runway-threshold-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2-180,valley.Y-90,valley.ElevationM+95), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.MainRunwayDx-FlyingGame.Core.WorldTerrain.RunwayLengthM/2+180,valley.Y,valley.ElevationM)),
                 ("airport-hangars-detail", Outside(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-80,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+15,valley.ElevationM+18), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx+10,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+105,valley.ElevationM+4)),
+                ("airport-fbo-detail", WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-100,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+50,valley.ElevationM+3), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx-85,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy+85,valley.ElevationM+2)),
                 ("airport-apron-detail", Outside(valley.X-650,valley.Y+430,valley.ElevationM+130), WorldBuilder.U(valley.X+FlyingGame.Core.WorldTerrain.ApronDx,valley.Y+FlyingGame.Core.WorldTerrain.ApronDy,valley.ElevationM+3)),
                 ("summit-airport-detail", Outside(summit.X-950,summit.Y-650,summit.ElevationM+600), WorldBuilder.U(summit.X-350,summit.Y+60,summit.ElevationM)),
-                ("stol-strip-detail", Outside(valley.X-300,valley.Y+300,valley.ElevationM+120), WorldBuilder.U(valley.X,valley.Y+420,valley.ElevationM)),
-                ("grass-strip-detail", Outside(valley.X-530,valley.Y-520,valley.ElevationM+145), WorldBuilder.U(valley.X-100,valley.Y-420,valley.ElevationM)),
+                ("stol-strip-detail", StripView("gravel",-FindStrip("gravel").Length/2-85,-28,45), StripView("gravel",-30,0,0)),
+                ("grass-strip-detail", StripView("grass",-FindStrip("grass").Length/2-85,-30,48), StripView("grass",-50,0,0)),
                 ("seaplane-base-detail", Outside(baseX+220,baseY-inland*190,baseTop+180), WorldBuilder.U(baseX,baseY+inland*55,baseTop)),
                 ("seaplane-dock-detail", Outside(baseX+90,baseY-inland*100,lake.SurfaceM+32), WorldBuilder.U(baseX+40,baseY-inland*30,lake.SurfaceM+.4)),
                 ("waterfall-front-detail", Outside(fall.X+drop*.25,hit+drop*1.65,pool+drop*.65), WorldBuilder.U(fall.X,hit-15,pool+drop*.48)),
@@ -136,7 +152,7 @@ namespace FlyingGame.EditorTools
                 ("valley-airport", Outside(valley.X-1000,valley.Y+650,valley.ElevationM+430), WorldBuilder.U(valley.X-350,valley.Y+60,valley.ElevationM)),
                 ("first-wall", new Vector3(2500f, 1500f, -2500f), new Vector3(-1800f, 450f, 1000f)),
                 ("summit-airport", new Vector3(-7000f, 3500f, -1800f), new Vector3(-8900f, 2700f, 400f)),
-                ("stol-strip", new Vector3(600f, 120f, -50f), new Vector3(420f, 0f, 250f)),
+                ("stol-strip", StripView("gravel",-380,12,55), StripView("gravel",50,0,0)),
                 ("river-lake", new Vector3(3500f, 1400f, -3200f), new Vector3(2400f, 850f, 1500f)),
                 ("race-course", new Vector3(1950f, 520f, 250f), new Vector3(1950f, 40f, 1200f)),
                 ("race-gate", new Vector3(1800f, 45f, 650f), new Vector3(1800f, 40f, 860f)),
@@ -148,7 +164,7 @@ namespace FlyingGame.EditorTools
                 ("bridge", new Vector3(-150f, 120f, 2200f), new Vector3(-150f, 0f, 1900f)),
                 ("crop-field", new Vector3(2050f, 90f, -300f), new Vector3(1750f, 25f, 400f)),
                 ("crop-wires", new Vector3(1450f, 25f, 100f), new Vector3(1750f, 30f, 191f)),
-                ("grass-strip", new Vector3(-435f, 5f, -180f), new Vector3(-420f, 1f, 350f)),
+                ("grass-strip", StripView("grass",-460,15,55), StripView("grass",20,0,0)),
                 ("arch", new Vector3(-1250f, 120f, 1300f), new Vector3(-900f, 120f, 1740f)),
                 ("eiffel", new Vector3(-600f, 120f, -2500f), new Vector3(-1000f, 120f, -1750f)),
                 ("town", new Vector3(1160f, 400f, -3700f), new Vector3(1160f, 60f, -1750f)),

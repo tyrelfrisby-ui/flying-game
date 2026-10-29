@@ -268,6 +268,16 @@ namespace FlyingGame.Bridge
 
         private static void BuildTerrain(WorldTerrain t, Transform parent)
         {
+            var airportGrass = new Vector4[4];
+            WorldTerrain.Strip grassStrip = WorldTerrain.AirportStrips[3];
+            for(int index=0;index<Math.Min(4,WorldTerrain.Airports.Length);index++)
+            {
+                var airport=WorldTerrain.Airports[index];
+                airportGrass[index]=new Vector4((float)(airport.Y+grassStrip.Dy),(float)(airport.X+grassStrip.Dx),
+                    (float)(grassStrip.Width/2),(float)(grassStrip.Length/2));
+            }
+            var terrainMaterial=Mat("FlyingGame/Terrain",Color.white);
+            terrainMaterial.SetVectorArray("_AirportGrass",airportGrass);
             double step = CoarseStep;
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];
@@ -314,7 +324,7 @@ namespace FlyingGame.Bridge
             var go = new GameObject("Terrain");
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+            go.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
 
             // Fine patches: same height field at 6 m so the lip, the sheer concave back wall and the notch read.
             // Their edges land exactly on the coarse grid lines (60 / 6 = 10), so there is no seam.
@@ -348,7 +358,7 @@ namespace FlyingGame.Bridge
                 var fgo = new GameObject("TerrainFine");
                 fgo.transform.SetParent(parent, false);
                 fgo.AddComponent<MeshFilter>().sharedMesh = fm;
-                fgo.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+                fgo.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
             }
         }
 
@@ -1481,6 +1491,9 @@ namespace FlyingGame.Bridge
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = Lit(Grass);
             AirportFinish(go, new Color(.38f,.46f,.24f), 3, 0, U(a.X+s.Dx,a.Y+s.Dy,0));
+            // Fine strip lies below the coarse visible terrain in places. Its finish now lives
+            // on that terrain, with the same authored footprint; retain mesh/transform untouched.
+            go.GetComponent<MeshRenderer>().enabled=false;
             // Winding check: flip if the normal came out downward.
             if (mesh.normals.Length > 0 && mesh.normals[0].y < 0) { System.Array.Reverse(tris); mesh.triangles = tris; mesh.RecalculateNormals(); }
             return go;

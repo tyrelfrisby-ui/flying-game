@@ -24,7 +24,7 @@ Shader "FlyingGame/AirportSurface"
             #include "UnityCG.cginc"
             #include "SunsetSky.cginc"
             float4 _Color, _Size, _Origin, _BubbleSunDir, _ReflectionClip;
-            float _Kind, _Length, _ReflectionRendering, _Apron, _AirportDusk;
+            float _Kind, _Length, _ReflectionRendering, _Apron, _AirportDusk, _CityNight;
             struct v2f { float4 pos:SV_POSITION; float3 wp:TEXCOORD0; float3 n:TEXCOORD1; float2 p:TEXCOORD2; UNITY_FOG_COORDS(3) };
             v2f vert(appdata_base v)
             {
@@ -105,7 +105,7 @@ Shader "FlyingGame/AirportSurface"
                 c*=lerp(float3(.58,.58,.58)+.42*d,lerp(float3(.53,.51,.54),float3(.64,.65,.73),saturate(n.y*.5+.5))+float3(.65,.43,.24)*d,_SunsetOn);
                 // Two broad flood pools on the existing apron, no extra transparent overdraw.
                 float2 flood=float2(p.x-94,abs(p.y)-128);
-                c+=float3(.30,.23,.12)*exp(-dot(flood,flood)/500)*_Apron*_AirportDusk*top;
+                c+=float3(.48,.35,.17)*exp(-dot(flood,flood)/680)*_Apron*max(_AirportDusk,max(_SunsetOn*.78,_CityNight))*top;
                 fixed4 result=fixed4(c,1);
                 UNITY_APPLY_FOG(i.fogCoord,result);
                 return result;
