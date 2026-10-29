@@ -47,14 +47,29 @@ rings = R['fuselage']['rings']; NA = len(rings[0]['pts'])
 bms = {k: bmesh.new() for k in ('Fuselage', 'Canopy_Glass', 'Canopy_Frame')}
 names = ['Fuselage', 'Canopy_Glass', 'Canopy_Frame']
 RP = [np.array(r['pts']) for r in rings]
-for k, (ra, rb) in enumerate(zip(RP, RP[1:])):
+# v13: the tail cone loft stops 3 mm ahead of the rudder's half-round nose (XCUT is set from the rudder hinge line and
+# thickness below; the measured cone ran ~11 mm past the hinge into the lower rudder).  Only the loft is trimmed: RP/RX
+# (paint, cockpit, baggage) keep the measured rings.
+_rr = R['fin']; _hf = np.polyfit([t['s'] for t in _rr if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02],
+                                [t['hinge'] for t in _rr if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02], 1)
+def _half_t(t, x):
+    fx = t['xle'] - np.array(R['chord_fractions']) * (t['xle'] - t['xte'])
+    return 0.5 * (float(np.interp(-x, -fx, t['up'])) - float(np.interp(-x, -fx, t['dn'])))
+_rx = [np.polyval(_hf, t['s']) for t in _rr]
+XCUT = max(x + max(_half_t(t, x if t['xle'] - x > 0.003 else t['xle'] - 0.012), 0.0) for t, x in zip(_rr, _rx) if t['s'] < 0.26) + 0.003
+RPL = [r for r in RP if r[0, 0] > XCUT]
+_k = len(RPL)
+if _k < len(RP):
+    ra, rb = RP[_k - 1], RP[_k]; f = (ra[0, 0] - XCUT) / (ra[0, 0] - rb[0, 0]); rc = ra + f * (rb - ra); rc[:, 3] = ra[:, 3]; RPL.append(rc)
+print('TAIL CONE cut at x %.4f (%d -> %d rings)' % (XCUT, len(RP), len(RPL)))
+for k, (ra, rb) in enumerate(zip(RPL, RPL[1:])):
     for i in range(NA):
         j = (i + 1) % NA; t = [ra[i, 3], ra[j, 3], rb[j, 3], rb[i, 3]]
         tag = max(set(t), key=t.count) if t.count(max(set(t), key=t.count)) >= 3 else 0
         bm = bms[names[int(tag)]]
         bm.faces.new([bm.verts.new((p[0], p[1], p[2])) for p in (ra[i], ra[j], rb[j], rb[i])])
-for end, ring in ((0, RP[0]), (1, RP[-1])):
-    bm = bms['Fuselage']; c = ring[:, :3].mean(0); c[0] += 0.004 if end == 0 else -0.004
+for end, ring in ((0, RPL[0]), (1, RPL[-1])):
+    bm = bms['Fuselage']; c = ring[:, :3].mean(0); c[0] += 0.004 if end == 0 else 0.0   # v13: flat rudder-post face
     cv = bm.verts.new(c)
     for i in range(NA):
         j = (i + 1) % NA; a, b = ring[i, :3], ring[j, :3]
@@ -262,8 +277,46 @@ def surf_obj(name, surf, spans, x_from=None, x_to=None, sgn=1, axis='y'):
     secs = [surf.section(s, None if x_from is None else x_from(s), None if x_to is None else x_to(s), sgn, axis) for s in spans]
     loft_rings(bm, secs); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); return link(name, bm)
 L = lambda a, b, n: list(np.linspace(a, b, n))
+# v13 real hinges (Ty 2026-10-29: "fix that to be real hinged surface at the hinge line").  Every moving surface is a
+# separate mesh with a half-round nose centred on ONE straight hinge line (x from the measured hinge fit, mid-plane
+# fitted straight across the span), radius = the local half-thickness there (Pitts v5 style).  The fixed surface ahead
+# ends 3 mm clear of that nose, so rotating the whole mesh about the hinge line never opens a gap or pushes a corner
+# through the fixed skin.  The node origin sits on the hinge line and an empty '<Name>_HingeAxis' marks its far end.
+class Hinge:
+    CLEAR = 0.003
+    def __init__(self, surf, hinge, spans):
+        self.f, self.h = surf, hinge
+        a, b = np.polyfit(spans, [self._ud(s, self.xh(s), mid=True) for s in spans], 1); self.c = lambda s: a * abs(s) + b
+    def _ud(self, s, x, mid=False):
+        le, te, up, dn = self.f.at(s); fx = le - FR * (le - te)
+        u, d = float(np.interp(-x, -fx, up)), float(np.interp(-x, -fx, dn)); return 0.5 * (u + d) if mid else (u, d)
+    def xh(self, s):                  # hinge x, or just behind the LE where the LE is aft of the hinge (rudder foot)
+        return min(self.h(s), self.f.at(s)[0] - 0.0005)
+    def r(self, s):                   # nose radius about (xh, c); LE on the hinge -> thickness read 12 mm aft
+        le = self.f.at(s)[0]; x = self.xh(s); c = self.c(s); rr = []
+        for xr in ((x, le - 0.012) if le - x < 0.003 else (x,)):
+            u, d = self._ud(s, xr); rr += [u - c, c - d]
+        return max(rr)
+    def x_to(self, s): return self.xh(s) + self.r(s) + self.CLEAR
+    def ring(self, s, sgn=1, axis='y', n=22, nn=9):
+        le, te, up, dn = self.f.at(s); fx = le - FR * (le - te); x0 = self.xh(s); c = self.c(s); r = self.r(s)
+        xq = x0 + (te - x0) * (1 - np.cos(np.linspace(0, math.pi, n))) / 2
+        u = np.interp(-xq, -fx, up); d = np.interp(-xq, -fx, dn)
+        w = np.clip(1 - (x0 - xq) / 0.02, 0, 1)                       # fade the skin onto the nose over 20 mm
+        u = u + max(0.0, c + r - u[0]) * w; d = d - max(0.0, d[0] - (c - r)) * w
+        loop = list(zip(xq, u)) + list(zip(xq[::-1], d[::-1]))
+        loop += [(x0 + r * math.cos(t), c + r * math.sin(t)) for t in np.linspace(-math.pi / 2, math.pi / 2, nn + 2)[1:-1]]
+        if axis == 'y': return [(x, sgn * s, z) for x, z in loop]
+        return [(x, z, s) for x, z in loop]
+    def obj(self, name, spans, sgn=1, axis='y'):
+        bm = bmesh.new(); loft_rings(bm, [self.ring(s, sgn, axis) for s in spans]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); return link(name, bm)
+    def axis_pts(self, s0, s1, sgn=1, axis='y'):   # straight hinge line end points (build frame)
+        p = lambda s: (self.h(s), sgn * s, self.c(s)) if axis == 'y' else (self.h(s), self.c(s), s)
+        return p(s0), p(s1)
+HINGES = {}
 W = Surf(R['wing']); HW = W.hinge_line(); A_IN, A_OUT = R['aileron_span']; W_TIP = W.s.max()
 wing = []
+AS = L(A_IN + 0.008, W_TIP - 0.004, 22); HA = Hinge(W, HW, AS)
 def prism(bm, xy, z0, z1, sg=1):       # vertical extrusion of a plan outline (y mirrored by sg)
     pts = xy if sg > 0 else xy[::-1]
     loft_rings(bm, [[(x, sg * y, z0) for x, y in pts], [(x, sg * y, z1) for x, y in pts]])
@@ -271,8 +324,9 @@ for sg, sd in ((1, 'L'), (-1, 'R')):
     # v3: forward wing is one loft root->tip ending at the hinge line; the aft strip inboard of the aileron is its own
     # loft, so the only end wall at the aileron's inboard end is the real gap wall behind the hinge
     sp = L(0.0, A_IN, 8) + L(A_IN + 0.0005, W_TIP, 24)   # full chord inboard, steps to the hinge line at A_IN
-    wing.append(surf_obj('_wf' + sd, W, sp, x_to=lambda s: None if s <= A_IN else HW(s) + 0.006, sgn=sg))
-    P['Aileron_' + sd] = surf_obj('Aileron_' + sd, W, L(A_IN + 0.008, W_TIP - 0.004, 22), x_from=lambda s: HW(s) - 0.006, sgn=sg)
+    wing.append(surf_obj('_wf' + sd, W, sp, x_to=lambda s: None if s <= A_IN else HA.x_to(s), sgn=sg))
+    P['Aileron_' + sd] = HA.obj('Aileron_' + sd, AS, sgn=sg)   # v13: half-round nose on the hinge line (was a flat cut 6 mm aft)
+    HINGES['Aileron_' + sd] = HA.axis_pts(AS[0], AS[-1], sg)
 P['Wing'] = paint.join(wing, 'Wing')
 # v6: trim the hidden mid-wing carry-through faces inside the cockpit tub (inside the fuselage, never seen from
 # outside) so the lowered floor/seats/stick wells do not show white wing skin
@@ -292,25 +346,37 @@ for sg, sd in ((1, 'L'), (-1, 'R')):   # aileron spades: measured plate outline,
     P['Aileron_' + sd] = paint.join([P['Aileron_' + sd], link('_sp' + sd, bm)], 'Aileron_' + sd)
 S = Surf(R['stab']); HS = S.hinge_line(); E_IN, E_OUT = R['elevator_span']; S_TIP = S.s.max()
 S.s[0] = 0.0
-P['Stab'] = paint.join([surf_obj('_s' + sd, S, [sg * y for y in L(0, S_TIP, 14)], x_to=lambda s: HS(s) + 0.004, sgn=1) for sg, sd in ((1, 'L'), (-1, 'R'))], 'Stab')
-for sg, sd in ((1, 'L'), (-1, 'R')):
-    P['Elevator_' + sd] = surf_obj('Elevator_' + sd, S, sorted(set(L(max(E_IN, 0.075), S_TIP - 0.003, 14)) | {s for s in S.s if 0.075 < s < 0.25}), x_from=lambda s: HS(s) - 0.004, sgn=sg)
+ES = sorted(set(L(max(E_IN, 0.075), S_TIP - 0.003, 14)) | {s for s in S.s if 0.075 < s < 0.25}); HE = Hinge(S, HS, ES)
+P['Stab'] = paint.join([surf_obj('_s' + sd, S, [sg * y for y in sorted(set(L(0, S_TIP, 14)) | set(ES))], x_to=HE.x_to, sgn=1) for sg, sd in ((1, 'L'), (-1, 'R'))], 'Stab')
+for sg, sd in ((1, 'L'), (-1, 'R')):   # v13: half-round nose on the hinge line (was a flat cut 4 mm aft, 8 mm open slot)
+    P['Elevator_' + sd] = HE.obj('Elevator_' + sd, ES, sgn=sg); HINGES['Elevator_' + sd] = HE.axis_pts(ES[0], ES[-1], sg)
 F = Surf(R['fin'], signed=True, minc=0.012)
-HFX = float(np.median([t['hinge'] for t in R['fin'] if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02]))   # rudder hinge x
 FZ0 = R['fin_only_zmin']; FZ1 = R['bounds']['Fin'][1][2]; FIN_TOP = R['fin_z'][1]
-P['Fin'] = surf_obj('Fin', F, L(FZ0, FZ1, 14), x_to=lambda z: HFX + 0.004, axis='z')
+_hfit = np.polyfit([t['s'] for t in R['fin'] if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02],
+                   [t['hinge'] for t in R['fin'] if t['hinge'] is not None and t['xle'] - t['hinge'] > 0.02], 1)
+HF = lambda z: float(np.polyval(_hfit, z))   # v13: straight rudder hinge line (the horn rows and the foot are excluded from the fit)
+FZ1G = FZ1 + 0.003                           # balance horn floats 3 mm above the fin cap
+RS = sorted(set(L(F.s.min(), FZ1G, 18)) | {z for z in F.s if F.s.min() < z < FZ1G}); HR = Hinge(F, HF, RS)
+# full-height rudder: foot (below the fuselage line) to the fin cap is one hinged loft, nose half-round about the hinge
+_fz0 = next(z for z in np.linspace(FZ0, FZ1, 400) if F.at(z)[0] > HR.x_to(z) + 0.02)   # fin starts where it has chord ahead of the nose (inside the fuselage)
+P['Fin'] = surf_obj('Fin', F, L(_fz0, FZ1, 14), x_to=HR.x_to, axis='z')
+print('FIN root z %.3f (fin_only_zmin %.3f), aft face x %.4f..%.4f' % (_fz0, FZ0, HR.x_to(_fz0), HR.x_to(FZ1)))
 bm = bmesh.new(); bmesh.ops.convex_hull(bm, input=[bm.verts.new(p) for p in R['fin_fillet_pts']])   # LE root fillet
 P['Fin'] = paint.join([P['Fin'], link('_ff', bm)], 'Fin')
-P['Rudder'] = paint.join([surf_obj('_r0', F, L(F.s.min(), FZ1, 18), x_from=lambda z: min(HFX - 0.004, F.at(z)[0]), axis='z'),
-                          surf_obj('_r1', F, L(FZ1, F.s.max(), 6), axis='z')], 'Rudder')
-RH = R['rudder_horn']; bm = bmesh.new()      # steering horn across the rudder foot + the two cables forward
+P['Rudder'] = paint.join([HR.obj('_r0', RS, axis='z'), surf_obj('_r1', F, L(FZ1G, F.s.max(), 6), axis='z')], 'Rudder')
+HINGES['Rudder'] = HR.axis_pts(F.s.min(), F.s.max(), axis='z')
+RH = R['rudder_horn']; bm = bmesh.new()      # steering horn across the rudder foot (moves with the rudder)
 c = [(a + b) / 2 for a, b in zip(RH['min'], RH['max'])]; d = [b - a for a, b in zip(RH['min'], RH['max'])]
 bmesh.ops.create_cube(bm, size=1.0, matrix=Matrix.Translation(c) @ Matrix.Diagonal((d[0], d[1], d[2], 1)))
+P['Rudder'] = paint.join([P['Rudder'], link('_horn', bm)], 'Rudder')
+bm = bmesh.new()                             # v13: the two cables forward are their own static part (no 'rudder' in the name)
 for sg in (1, -1):
     x0, x1 = RH['cable_x']
     bmesh.ops.create_cone(bm, cap_ends=True, segments=8, radius1=0.002, radius2=0.002, depth=x1 - x0,
                           matrix=Matrix.Translation(((x0 + x1) / 2, sg * RH['cable_y'], RH['cable_z'])) @ Matrix.Rotation(math.pi / 2, 4, 'Y'))
-P['Rudder'] = paint.join([P['Rudder'], link('_horn', bm)], 'Rudder')
+P['Tail_Cables'] = link('Tail_Cables', bm)
+for k, (a, b) in HINGES.items(): print('HINGE %-11s %s -> %s' % (k, np.round(a, 4), np.round(b, 4)))
+print('NOSE r rudder %.4f..%.4f, elevator %.4f..%.4f, aileron %.4f..%.4f' % (min(map(HR.r, RS)), max(map(HR.r, RS)), min(map(HE.r, ES)), max(map(HE.r, ES)), min(map(HA.r, AS)), max(map(HA.r, AS))))
 
 # ---- undercarriage ------------------------------------------------------------------------------------------------
 def tube_path(bm, pts, wx, wy, n=12):
@@ -581,7 +647,7 @@ def setm(o, names):
 for n in ('Wing', 'Aileron_L', 'Aileron_R', 'Stab', 'Elevator_L', 'Elevator_R'):
     setm(P[n], ['ea_top', 'white', 'ea_bot'])
     paint.project(P[n], lambda nrm, c: (0, VT) if nrm.z >= 0.45 else ((2, VB) if nrm.z <= -0.45 else (1, None)))
-for n in [k for k in ('Fuselage', 'Canopy_Frame', 'Fin', 'Rudder', 'Wheel_Pants') if k in P]:
+for n in [k for k in ('Fuselage', 'Canopy_Frame', 'Fin', 'Rudder', 'Tail_Cables', 'Wheel_Pants') if k in P]:
     setm(P[n], ['ea_side_l', 'ea_side_r', 'white'])   # belly faces stay plain white (side paint would smear under)
     paint.project(P[n], lambda nrm, c: (2, None) if nrm.z <= -0.6 else ((0, VL) if nrm.y >= 0 else (1, VR)))
 for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'white'), ('Wheels', 'tyre'), ('Cabin', 'cabin')):
@@ -623,8 +689,17 @@ P['Fuselage'].name = 'Fuselage_Painted'
 allv = np.concatenate([np.array([v.co[:] for v in o.data.vertices]) for o in P.values()])
 print('BOUNDS', allv.min(0), allv.max(0), 'size', allv.max(0) - allv.min(0), 'parts', sorted(P))
 for o in P.values(): o.data.transform(Matrix.Rotation(math.pi, 4, 'Z'))   # OwnSpecs read nose +x after glTF import
+# v13 hinge rig data: each moving surface's node origin is ON its hinge line (rudder foot / elevator + aileron inboard
+# end) and a top-level empty '<Name>_HingeAxis' sits at the other end, so hinge axis = node origin -> marker (same idea
+# as the Great Lakes Gear_Pivot/Gear_HingeAxis).  Rotating the whole mesh about that line is the full deflection model.
+from mathutils import Vector
+RZ = Matrix.Rotation(math.pi, 4, 'Z'); EXTRA = []
+for n, (a, b) in HINGES.items():
+    pa, pb = RZ @ Vector(tuple(map(float, a))), RZ @ Vector(tuple(map(float, b)))
+    o = P[n]; o.data.transform(Matrix.Translation(-pa)); o.location = pa; o['hinge_axis_marker'] = n + '_HingeAxis'
+    e = bpy.data.objects.new(n + '_HingeAxis', None); bpy.context.scene.collection.objects.link(e); e.location = pb; EXTRA.append(e)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
-for o in P.values(): o.select_set(True)
-bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True)
+for o in list(P.values()) + EXTRA: o.select_set(True)
+bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_yup=True, export_apply=True, export_extras=True)
 print('WROTE', OUT, os.path.getsize(OUT))

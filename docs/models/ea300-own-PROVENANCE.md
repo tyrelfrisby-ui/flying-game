@@ -36,7 +36,7 @@ TALK/FLYING underneath (tapered, off the ailerons); clear canopy; white prop wit
 - Gear legs, pants and tailwheel are simplified; no brakes.
 - Registration N300UY is replaced by TALKFLYING per the approved scheme; real stripe geometry differs.
 - Belly is plain white (side paint not wrapped underneath).
-- In-game the model is rescaled to the config span (~0.94) and the config tail arm is ~15 cm shorter, so elevator hinge alignment is approximate.
+- In-game the model is rescaled to the config span (~0.94). Since v13 each control surface carries its own hinge line (node origin + `<Name>_HingeAxis` marker), so the rig no longer needs the config hinge/chord to line up with the mesh.
 
 
 ---
@@ -143,3 +143,19 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 (TALKFLYING.COM, TF fin badge, wing lettering) and no SUNRISE / AVIATION; the fin stars and stripes and the red
 underwing bar are kept. Geometry and the 3-blade prop are node for node the N300UY GLB's (checked by FlightTests). The
 provenance, including the GPL question above, is the same as the other two liveries'.
+
+## v13 (2026-10-29, lane/codex-extra-hinges): real hinged surfaces
+Problem: the rudder was one full-height mesh but the game rig (generic carve, no `namedSurfaces`) re-cut it from config
+strips that start ~0.15 m up and moved the hinge 0.38 m aft, so only the part above the stab moved; the elevator carve
+also pulled ~300 aft stab vertices into the elevator, so the stab sheared with it.
+- Rudder, elevators and ailerons are rebuilt as true hinged surfaces (`Hinge` class in build_ea300.py): a straight
+  fitted hinge line, a half-round nose about it (radius = local half-thickness), and the fixed surface cut 3 mm aft of the
+  nose, so ±30° rudder / ±25° elevator / 30° aileron swing with no faces through the fixed parts and no visible gap.
+- The rudder runs the full height, foot at z -0.184 (fuselage bottom) to the cap; the tail cone is trimmed flat just
+  ahead of the rudder nose (x -4.578) and the fin starts where it has chord ahead of the nose.
+- Each hinged mesh's node origin is the hinge's inboard/bottom point, and a top-level empty `<Name>_HingeAxis` marks the
+  other end (exported with extras, `hinge_axis_marker`). Hinge lines (build frame, m): rudder (-4.614,0,-0.184)→(-4.610,0,1.260);
+  elevators (-4.315,±0.075,0.181)→(-4.315,±1.590,0.189); ailerons (-0.827,±1.020,0.075)→(-0.392,±3.993,0.074).
+- Rudder cables moved to a static `Tail_Cables` object (they detach ~4 cm at the horn at full rudder). The elevator root
+  rib sits ~1 cm inside the fuselage skin (hidden). Stab stations now match the elevator stations.
+- All three liveries rebuilt. The game still needs `namedSurfaces` + marker support in the rig to use these hinges.
