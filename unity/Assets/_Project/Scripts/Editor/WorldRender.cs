@@ -555,7 +555,8 @@ namespace FlyingGame.EditorTools
                         foreach(string uniform in new[]{"_MountainAlpine","_MountainAlaska","_GlacierWidths","_DayAtmosphere"})
                             report.AppendLine("  material.GetVector("+uniform+")="+material.GetVector(uniform).ToString("F6"));
                         var axes=material.GetVectorArray("_GlacierAxes");
-                        for(int gi=0;gi<axes.Length;gi++) report.AppendLine("  material.GetVectorArray(_GlacierAxes)["+gi+"]="+axes[gi].ToString("F6"));
+                        if(axes==null) report.AppendLine("  material.GetVectorArray(_GlacierAxes)=null");
+                        else for(int gi=0;gi<axes.Length;gi++) report.AppendLine("  material.GetVectorArray(_GlacierAxes)["+gi+"]="+axes[gi].ToString("F6"));
                         material.EnableKeyword("TERRAIN_GREEN_PROBE");
                     }
                 }
