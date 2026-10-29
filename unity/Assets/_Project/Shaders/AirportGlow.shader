@@ -16,7 +16,7 @@ Shader "FlyingGame/AirportGlow"
             #include "UnityCG.cginc"
             float _AirportDusk, _ReflectionRendering, _HaloPixels, _SunsetOn, _CityNight, _AirportBeaconPreview, _AirportBeaconTime;
             struct appdata { float4 vertex:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float4 color:COLOR; };
-            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float visible:TEXCOORD1; float closeFade:TEXCOORD2; };
+            struct v2f { float4 pos:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float visible:TEXCOORD1; float2 opticalRadii:TEXCOORD2; };
             v2f vert(appdata v)
             {
                 v2f o;
@@ -41,21 +41,26 @@ Shader "FlyingGame/AirportGlow"
                 // Render-target projections can flip Y (including Metal). A signed
                 // scale here collapses the denominator to 1 and makes 24 m blobs.
                 float metresPerPixel=2*max(.01,-view.z)/max(1,_ScreenParams.y*abs(UNITY_MATRIX_P._m11));
-                // Retain tier-controlled distant visibility.
-                // PAPI spacing is already 9 m. Keep its optical card compact so
-                // adjacent red/white cores remain separate, including distant plates.
-                float pixels=_HaloPixels*(1+beacon*1.8+thresholdGreen*.8);
-                pixels=lerp(pixels,max(1.0,_HaloPixels*.65),papi);
-                float worldRadius=max(lerp(1.0,.35,papi),min(24.0,metresPerPixel*pixels));
-                // Radius <= 1% of image height for every fixture (2% diameter).
-                // End rows are tighter still; PAPI discs must resolve individually.
+                // Size the visible core, not just its mostly transparent card. All
+                // pixel targets are relative to a 1024-wide plate, including Retina.
+                float resolutionScale=max(.25,_ScreenParams.x/1024.0);
+                float quality=saturate((_HaloPixels-1.5)/1.5);
+                float corePixels=lerp(1.5,2.1,quality)*resolutionScale;
+                corePixels=lerp(corePixels,2.25*resolutionScale,papi);
+                float haloPixels=lerp(5.0,7.0,quality)*resolutionScale;
+                haloPixels*=1+beacon*.45;
+                haloPixels=lerp(haloPixels,6.0*resolutionScale,papi);
+                // The physical floor may enlarge a nearby fixture, but cannot
+                // bypass the close-up screen cap. The pixel floor survives at range.
+                float physicalRadius=lerp(1.0,.35,papi);
                 float maxScreenFraction=lerp(.01,.0075,thresholdGreen);
-                maxScreenFraction=lerp(maxScreenFraction,.004,papi);
+                maxScreenFraction=lerp(maxScreenFraction,.008,papi);
                 float screenLimit=metresPerPixel*_ScreenParams.y*maxScreenFraction;
-                float radius=min(worldRadius,screenLimit);
-                // Suppress the broad additive skirt as a physical minimum starts
-                // enlarging the light on screen. Keep a compact, bright core.
-                o.closeFade=saturate(metresPerPixel*pixels/max(.001,worldRadius));
+                float radius=min(max(physicalRadius,metresPerPixel*haloPixels),screenLimit);
+                // Independent radii keep the bright disc 3-5 px across rather
+                // than shrinking it to ~1/10 of an already tiny halo card.
+                o.opticalRadii=float2(min(.55,metresPerPixel*corePixels/max(.001,radius)),
+                                     min(1.0,metresPerPixel*haloPixels/max(.001,radius)));
                 view.xy+=v.uv*radius;
                 o.pos=mul(UNITY_MATRIX_P,view); o.uv=v.uv; o.color=v.color;
                 o.visible=visible*(1+papi*1.5+thresholdGreen*1.8); return o;
@@ -66,10 +71,12 @@ Shader "FlyingGame/AirportGlow"
                 clip(strength-.001);
                 clip(.5-_ReflectionRendering); // No un-clipped halos in mirrored water views.
                 float radius2=dot(i.uv,i.uv); clip(1-radius2);
-                float halo=(exp(-radius2*5)*.35*lerp(.18,1,i.closeFade)+exp(-radius2*70)*2.7)*(1-radius2);
+                float coreRadius=max(.001,i.opticalRadii.x);
+                float haloRadius=max(.001,i.opticalRadii.y);
                 float papi=step(.75,i.color.a)*(1-step(.9,i.color.a));
-                float papiHalo=(exp(-radius2*18)*.08*i.closeFade+exp(-radius2*100)*3.2)*(1-radius2);
-                halo=lerp(halo,papiHalo,papi);
+                float core=exp(-.693147*radius2/(coreRadius*coreRadius))*2.7;
+                float skirt=exp(-3.0*radius2/(haloRadius*haloRadius))*lerp(.32,.20,papi);
+                float halo=(core+skirt)*(1-smoothstep(.75,1.0,radius2));
                 return float4(i.color.rgb*halo*strength*i.visible,0);
             }
             ENDCG
