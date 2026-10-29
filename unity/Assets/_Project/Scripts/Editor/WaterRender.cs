@@ -262,15 +262,15 @@ namespace FlyingGame.EditorTools
                         foreach (var vertex in filter.sharedMesh.vertices)
                             heroPoints.Add(filter.transform.TransformPoint(vertex));
                     }
-                    // Fixed aircraft-relative photo pose: left offset never grows with
-                    // fit distance. A narrow portrait must fit the wings and full mirror;
-                    // solve the aft distance, rather than changing FOV/side each iteration.
+                    // A wider lens allows the float tails to sit closer to the low camera.
+                    // Retain full silhouette/mirror fitting; increase lateral baseline
+                    // to reveal the near float side instead of an almost axial rear view.
                     float span = Mathf.Max(1, heroBounds.size.x);
                     float waterY = (float)lake.SurfaceM;
                     Vector3 aim = new Vector3(heroBounds.center.x,
                         heroBounds.center.y + heroBounds.extents.y * .25f, heroBounds.center.z);
-                    camera.fieldOfView = 62;
-                    float minimumAft = span * .60f;
+                    camera.fieldOfView = 78;
+                    float minimumAft = span * .35f;
                     float lowerAft = minimumAft, upperAft = span * 4;
                     Vector2 envelopeMin = Vector2.zero, envelopeMax = Vector2.one;
                     // Bisection is deterministic and avoids the 4.5% fit-step slack.
@@ -278,7 +278,7 @@ namespace FlyingGame.EditorTools
                     {
                         float aft = fit == 23 ? upperAft : (lowerAft + upperAft) * .5f;
                         camera.ResetProjectionMatrix();
-                        camera.transform.position = new Vector3(heroBounds.center.x - span * .25f,
+                        camera.transform.position = new Vector3(heroBounds.center.x - span * .50f,
                             waterY + 1, heroBounds.min.z - aft);
                         camera.transform.LookAt(aim);
                         envelopeMin = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
@@ -309,7 +309,7 @@ namespace FlyingGame.EditorTools
                     camera.projectionMatrix = heroProjection;
                     File.WriteAllText(Path.Combine(output, "hero-diagnostics.txt"),
                         $"Bounds={heroBounds}; span={span}; camera={camera.transform.position}; aim={aim}\n" +
-                        $"Tail aft={upperAft}; nominal aft={minimumAft}; left={span*.25f}; height=1; FOV={camera.fieldOfView}\n" +
+                        $"Tail aft={upperAft}; nominal aft={minimumAft}; left={span*.50f}; height=1; FOV={camera.fieldOfView}\n" +
                         $"Unshifted envelope={envelopeMin}..{envelopeMax}; projection shift={heroProjection.m02},{heroProjection.m12}\n");
                     Call(reflection, "OnPreCull"); camera.Render(); RenderTexture.active = portrait;
                     var hero = new Texture2D(1000, 1600, TextureFormat.RGB24, false);

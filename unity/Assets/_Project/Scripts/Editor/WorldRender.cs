@@ -99,6 +99,9 @@ namespace FlyingGame.EditorTools
                 ("gorge-flight-detail", Outside(lakeX,lakeY-350,FlyingGame.Core.CanyonLake.SurfaceM+85), WorldBuilder.U(lakeX,lakeY+300,FlyingGame.Core.CanyonLake.SurfaceM+15)),
                 ("bridge-detail", Outside(bridgeX+250,bridgeY+350,FlyingGame.Core.WorldTerrain.DatumM+200), WorldBuilder.U(bridgeX,bridgeY,FlyingGame.Core.CanyonLake.SurfaceM)),
                 ("seaplane-lane-detail", Outside(lake.Cx-100,lake.Cy,lake.SurfaceM+55), WorldBuilder.U(lake.Cx+200,lake.Cy,lake.SurfaceM)),
+                // Atmosphere inspection at two elevations; all original scenery plates remain.
+                ("sky-cumulus-detail", new Vector3(2900f, 500f, -1200f), new Vector3(2000f, 1400f, -1700f)),
+                ("sky-horizon-detail", new Vector3(2900f, 500f, -1200f), new Vector3(2000f, 650f, -1700f)),
                 ("overview", new Vector3(9000f, 9000f, -9000f), new Vector3(-3500f, 800f, 1500f)),
                 ("valley-city", new Vector3(2400f, 750f, 200f), new Vector3(900f, 350f, -1500f)),
                 ("valley-pad", new Vector3(1700f, 650f, -3300f), new Vector3(900f, 500f, -2850f)),

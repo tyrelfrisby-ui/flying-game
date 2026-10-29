@@ -31,7 +31,10 @@ float3 DaySky(float3 ray) {
  sky=lerp(sky,float3(1,.98,.88),smoothstep(.99994,.99998,sun));
  // Separate rounded cumulus lobes. Value-noise thresholding alone made
  // enormous connected, melted patches; cellular envelopes keep clear gaps.
- float2 p=ray.xz/(.65+y)*5.2;
+ // Project onto a horizontal deck: distant banks shrink toward the horizon.
+ // The old bounded denominator kept identical large stickers at every elevation.
+ float2 p=ray.xz/max(.12,y+.08)*1.3;
+ float pixelWidth=max(.06,length(fwidth(p))*.8);
  // Four nearest cell centres suffice: maximum lobe reach plus jitter < 1 cell.
  float2 cell=floor(p-.5);
  float field=-2;
@@ -43,25 +46,29 @@ float3 DaySky(float3 ray) {
      float seed=skyHash(id);
      float2 center=id+.5+float2(seed-.5,skyHash(id+41.7)-.5)*.44;
      float2 delta=p-center;
-     float radius=lerp(.23,.43,skyHash(id+17.3));
+     float radius=lerp(.17,.42,skyHash(id+17.3));
+     // Leave entire cells clear, rather than putting one identical cloud in each.
+     float occupied=smoothstep(.25,.43,seed);
      // One broad base with a smaller sunlit turret, no textures or geometry.
      float baseShape=1-dot(delta/float2(radius*1.28,radius*.73),
                            delta/float2(radius*1.28,radius*.73));
      float2 turret=delta-float2(-radius*.28,radius*.30);
      float topShape=1-dot(turret/(radius*.78),turret/(radius*.78));
-     float shape=max(baseShape,topShape);
+     float shape=max(baseShape,topShape)-(1-occupied)*4;
      if (shape>field)
      {
          field=shape;
-         crownLight=saturate(.55+delta.y/max(.1,radius)*.45-delta.x*.22);
+         // Rounded lit interior with shaded lower/side edges. A bright rim
+         // all around the old silhouette made each cloud read as a cut-out.
+         crownLight=saturate(.32+sqrt(saturate(shape))*.55
+             +delta.y/max(.1,radius)*.24-delta.x/max(.1,radius)*.18);
      }
  }
  float erosion=skyNoise(p*7.7+13.2)-.5;
  if (_DayAtmosphere.z > .5) erosion+=(skyNoise(p*23.1+7.1)-.5)*.35;
- field+=erosion*.32;
- float cloud=smoothstep(-.08,.12,field)*smoothstep(.025,.11,y);
- float rim=(1-smoothstep(.08,.65,field))*.26;
- float light=saturate(crownLight+rim);
+ field+=erosion*.85;
+ float cloud=smoothstep(-.18-pixelWidth,.22+pixelWidth,field)*smoothstep(.005,.055,y);
+ float light=saturate(crownLight+erosion*.30);
  float3 cloudColor=lerp(float3(.38,.48,.62),float3(1,.99,.95),light);
 
  return lerp(sky,cloudColor,cloud*.94);
@@ -72,8 +79,8 @@ float3 SunsetSky(float3 ray) {
  float toward=pow(saturate(dot(ray,sunDir)),4);
  // Broad peach/gold lower sky, rose middle, cool blue-grey above. Warmth is
  // directional, so the lake gets the same gold path from the reflected ray.
- float3 sky=lerp(float3(1,.84,.57),float3(.92,.65,.66),smoothstep(.025,.38,y));
- sky=lerp(sky,float3(.48,.49,.64),smoothstep(.25,.90,y));
+ float3 sky=lerp(float3(1,.84,.57),float3(.92,.65,.66),smoothstep(.025,.26,y));
+ sky=lerp(sky,float3(.43,.50,.65),smoothstep(.18,.62,y));
  float aureole=toward*exp(-y*7);
  sky=lerp(sky,float3(1,.91,.64),aureole*.85);
  // A world-space deck of small, softly lit cloudlets, broken by broader gaps.
@@ -91,8 +98,8 @@ float3 SunsetSky(float3 ray) {
      *lerp(.40+breakup*.60,1,smoothstep(.18,.55,y))
      *(1-toward*exp(-y*4)*.40);
  float edge=smoothstep(.34,.76,density);
- float3 shadow=lerp(float3(.84,.51,.47),float3(.43,.43,.56),smoothstep(.18,.78,y));
- float3 lit=lerp(float3(1,.84,.65),float3(.76,.69,.77),smoothstep(.18,.82,y));
+ float3 shadow=lerp(float3(.84,.51,.47),float3(.43,.43,.56),smoothstep(.14,.60,y));
+ float3 lit=lerp(float3(1,.84,.65),float3(.76,.69,.77),smoothstep(.14,.64,y));
  float3 cloudColor=lerp(lit,shadow,edge*.8);
  cloudColor=lerp(cloudColor,float3(1,.85,.64),toward*exp(-y*5)*.82);
  sky=lerp(sky,cloudColor,cloud*.68);
