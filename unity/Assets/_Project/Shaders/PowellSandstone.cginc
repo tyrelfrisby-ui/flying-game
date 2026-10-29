@@ -18,25 +18,26 @@ float powellNoise(float2 p)
         lerp(powellHash(q+float2(0,1)),powellHash(q+1),f.x),f.y);
     return lerp(.5,v,1-smoothstep(.125,.3,max(length(ddx(p)),length(ddy(p)))));
 }
-// Thin runnels hang from horizontal major ledges. Each 8 m column has a
-// different width, length and density; two offset ledge families avoid a grid.
-// 1–4 m widths / 12–60 m drops, with very small lateral weathering wander.
-float powellRunnel(float u, float y, float offset)
+sampler2D _PowellRimHeights;
+float4 _PowellRimBounds;
+// Irregular runoff columns hang from sampled real rim heights. Wavy sides,
+// clustered occupancy and unequal soft tails replace the old horizontal grid.
+float powellRunnel(float u, float y, float rim, float offset)
 {
-    float column=floor(u/8);
-    float ledge=floor((y-offset)/64)+1;
-    float seed=powellHash(float2(column,ledge+offset));
-    float centre=(column+.18+.64*powellHash(float2(column+71,ledge)))*8;
-    float width=lerp(.55,1.8,seed);
-    float wander=(powellNoise(float2(column+offset,y*.018))-.5)*.55;
-    float distance=abs(u-centre+wander);
-    float aa=max(.06,fwidth(u));
-    float thin=1-smoothstep(width*.45,width+aa,distance);
-    float drop=ledge*64+offset-y;
-    float lengthM=lerp(12,60,powellHash(float2(column+39,ledge)));
-    float tail=1-smoothstep(lengthM*.35,lengthM,drop);
-    float density=smoothstep(.25,.55,seed);
-    return thin*tail*density*(1-smoothstep(2,8,fwidth(u)));
+    float warped=u+(powellNoise(float2(u*.018,offset))-.5)*24;
+    float column=floor(warped/11);
+    float seed=powellHash(float2(column,offset));
+    float centre=(column+.15+.7*powellHash(float2(column+71,offset)))*11;
+    float width=lerp(.5,3,seed);
+    float wander=(powellNoise(float2(column+offset,y*.035))-.5)*2;
+    float aa=max(.12,fwidth(u));
+    float thin=1-smoothstep(width*.35,width+aa,abs(warped-centre+wander));
+    float drop=max(0,rim-y);
+    float lengthM=lerp(15,80,powellHash(float2(column+39,offset)));
+    float tail=1-smoothstep(lengthM*.25,lengthM,drop);
+    float cluster=powellNoise(float2(column*.31,offset));
+    float density=smoothstep(.28,.62,seed*cluster*1.8);
+    return thin*tail*density*(.35+.65*seed)*(1-smoothstep(3,10,fwidth(u)));
 }
 void powellSurface(float3 p, inout float3 n, out float3 rock)
 {
@@ -65,12 +66,13 @@ void powellSurface(float3 p, inout float3 n, out float3 rock)
     rock*=1+(grain-.5)*.10+crossBed*.025-contact*.14*steep;
     float cap=smoothstep(44,65,h)*(.70-steep*.60)+(1-steep)*.16;
     rock=lerp(rock,float3(.910,.788,.627),saturate(cap));
-    float runX=powellRunnel(p.x,p.y,0);
-    float runZ=powellRunnel(p.z,p.y,0);
+    float rim=tex2D(_PowellRimHeights,(p.xz-_PowellRimBounds.xy)*_PowellRimBounds.zw).r;
+    float runX=powellRunnel(p.x,p.y,rim,7);
+    float runZ=powellRunnel(p.z,p.y,rim,19);
     if(_DayAtmosphere.z>.5)
     {
-        runX=max(runX,powellRunnel(p.x+3.1,p.y,32)*.65);
-        runZ=max(runZ,powellRunnel(p.z+3.1,p.y,32)*.65);
+        runX=max(runX,powellRunnel(p.x+4.1,p.y,rim,43)*.70);
+        runZ=max(runZ,powellRunnel(p.z+4.1,p.y,rim,61)*.70);
     }
     float varnish=lerp(runX,runZ,side)*steep*smoothstep(26,29,h);
     float3 stain=lerp(float3(.105,.075,.060),float3(.125,.145,.165),streak);

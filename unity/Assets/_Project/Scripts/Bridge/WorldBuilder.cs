@@ -41,6 +41,7 @@ namespace FlyingGame.Bridge
             SunsetLighting.ApplyDay();
             WorldTerrain.Active ??= new WorldTerrain();
             var root = new GameObject("World");
+            BuildPowellRimLookup(WorldTerrain.Active);
             BuildTerrain(WorldTerrain.Active, root.transform);
             BuildWater(WorldTerrain.Active, root.transform);
             BuildSeaplaneLanes(root.transform);
@@ -219,28 +220,86 @@ namespace FlyingGame.Bridge
             float ends = 1-Mathf.SmoothStep(0,1,(float)((along-(rimTrees ? 650 : 220))/350));
             float region = across*ends;
             if (region <= 0) return 0;
-            // The asymmetric airport PAD encloses its runways, strips, taxiways and apron.
-            // Union their explicit rectangles too, so a future extended strip stays protected.
-            // Same exclusion for sandstone and the wider visual rim-tree clearance.
+            // Tree clearance must continue across airport-adjacent shores and rims.
+            if (rimTrees) return region;
+            var terrain = WorldTerrain.Active;
+            if (terrain == null || edge < 250) return region;
+            double height = terrain.HeightAt(x,y);
+            double gx=(terrain.HeightAt(x+8,y)-terrain.HeightAt(x-8,y))/16;
+            double gy=(terrain.HeightAt(x,y+8)-terrain.HeightAt(x,y-8))/16;
+            float flat=1-Mathf.SmoothStep(0,1,(float)((System.Math.Sqrt(gx*gx+gy*gy)-.35)/.116));
             foreach (var airport in WorldTerrain.Airports)
             {
+                float level=1-Mathf.SmoothStep(0,1,(float)((System.Math.Abs(height-airport.ElevationM)-5)/3));
+                if (level*flat<=0) continue;
                 double outside = System.Math.Max(WorldTerrain.PadOutsideX(airport,x),
                     System.Math.Max(0,System.Math.Abs(y-airport.Y)-WorldTerrain.PadHalfY));
-                if (outside <= 150) return 0;
-                foreach (var strip in WorldTerrain.AirportStrips)
-                {
-                    double a=strip.HeadingDeg*System.Math.PI/180;
-                    double dx=x-airport.X-strip.Dx, dy=y-airport.Y-strip.Dy;
-                    double alongStrip=System.Math.Abs(dx*System.Math.Cos(a)+dy*System.Math.Sin(a))-strip.Length*.5;
-                    double acrossStrip=System.Math.Abs(-dx*System.Math.Sin(a)+dy*System.Math.Cos(a))-strip.Width*.5;
-                    outside=System.Math.Min(outside,System.Math.Max(0,System.Math.Max(alongStrip,acrossStrip)));
-                }
-                double apron=System.Math.Max(System.Math.Abs(x-airport.X-WorldTerrain.ApronDx)-WorldTerrain.ApronLengthM*.5,
-                    System.Math.Abs(y-airport.Y-WorldTerrain.ApronDy)-WorldTerrain.ApronWidthM*.5);
-                outside=System.Math.Min(outside,System.Math.Max(0,apron));
-                region*=Mathf.SmoothStep(0,1,(float)((outside-150)/100));
+                // Keep the authored flat infield; feather only outside it. Noise breaks
+                // the rectangular boundary without changing any surface or collision.
+                float noise=Mathf.PerlinNoise((float)x*.009f,(float)y*.009f);
+                float fringe=Mathf.SmoothStep(0,1,(float)(outside/(60+60*noise)));
+                float shore=Mathf.SmoothStep(0,1,(float)((edge-250)/100));
+                region*=1-(1-fringe)*level*flat*shore;
             }
             return region;
+        }
+
+        private static Texture2D powellRimLookup;
+        // Small, generated height lookup: nearest higher flat surface is the source
+        // of runoff. No repeated world-height ledge families, runtime terrain queries,
+        // extra geometry or persistent photo assets.
+        private static void BuildPowellRimLookup(WorldTerrain terrain)
+        {
+            const int size=256;
+            const float step=20;
+            float north=(float)CanyonLake.CentreX((CanyonLake.Y0+CanyonLake.DamY)*.5)-size*step*.5f;
+            float east=(float)((CanyonLake.Y0+CanyonLake.DamY)*.5)-size*step*.5f;
+            var heights=new float[size*size];
+            for(int j=0;j<size;j++) for(int i=0;i<size;i++)
+                heights[j*size+i]=(float)terrain.HeightAt(north+i*step,east+j*step);
+            var rocks=new List<Spire>(CanyonLake.Spires);
+            rocks.AddRange(CanyonLake.ArchPillars());
+            var pixels=new float[size*size];
+            for(int j=0;j<size;j++) for(int i=0;i<size;i++)
+            {
+                float h=heights[j*size+i], rim=h, nearest=float.MaxValue;
+                for(int dz=-1;dz<=1;dz++) for(int dx=-1;dx<=1;dx++)
+                {
+                    if(dx==0 && dz==0) continue;
+                    for(int k=1;k<=25;k++)
+                    {
+                        int x=i+dx*k, z=j+dz*k;
+                        if(x<1 || x>=size-1 || z<1 || z>=size-1) break;
+                        int q=z*size+x;
+                        float candidate=heights[q];
+                        float sx=(heights[q+1]-heights[q-1])/(2*step);
+                        float sz=(heights[q+size]-heights[q-size])/(2*step);
+                        float distance=k*Mathf.Sqrt(dx*dx+dz*dz);
+                        if(candidate>=h && sx*sx+sz*sz<.217f && distance<nearest)
+                        { rim=candidate; nearest=distance; break; }
+                    }
+                }
+                // Authored spires/arch crowns have their own true local rims,
+                // independent of the terrain beneath the flooded lake.
+                double px=north+i*step, py=east+j*step;
+                foreach(var spire in rocks)
+                    if((px-spire.X)*(px-spire.X)+(py-spire.Y)*(py-spire.Y)<
+                        (spire.BaseR+step)*(spire.BaseR+step)) rim=(float)spire.TopM;
+                foreach(var arch in CanyonLake.Arches)
+                {
+                    var local=arch.Local(px,py);
+                    if(System.Math.Abs(local.s)<arch.HalfSpan+step && System.Math.Abs(local.c)<arch.WidthM*.5+step)
+                        rim=(float)arch.OuterAt(System.Math.Clamp(local.s,-arch.HalfSpan,arch.HalfSpan));
+                }
+                pixels[j*size+i]=rim;
+            }
+            Kill(powellRimLookup);
+            powellRimLookup=new Texture2D(size,size,TextureFormat.RFloat,false,true)
+                { name="Powell generated rim heights",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear };
+            powellRimLookup.SetPixelData(pixels,0); powellRimLookup.Apply(false,true);
+            Shader.SetGlobalTexture("_PowellRimHeights",powellRimLookup);
+            // Unity horizontal coordinates are (east,north).
+            Shader.SetGlobalVector("_PowellRimBounds",new Vector4(east-step*.5f,north-step*.5f,1/(size*step),1/(size*step)));
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
@@ -663,7 +722,8 @@ namespace FlyingGame.Bridge
         private static void BuildWaterfalls(WorldTerrain t, Transform parent)
         {
             var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
-            var powellRock = Mat("FlyingGame/PowellSandstone", Color.white);
+            var powellRock = Mat("FlyingGame/PowellSandstone", new Color(1.18f,1.04f,.90f));
+            powellRock.SetFloat("_Shelf",1);
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
             var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.72f));
             mistMat.SetFloat("_Mist", 1f);
@@ -726,7 +786,7 @@ namespace FlyingGame.Bridge
                     }
                     // Powell lip uses the same world-space beds/caps as the surrounding cliff.
                     // Its shader is two-sided: duplicated reverse triangles would cancel normals.
-                    bool powellShelf = f.Step == 0;
+                    bool powellShelf = PowellRegionMask(f.X,f.LipY) > .1f;
                     Spawn("Shelf", v.ToArray(), tr.ToArray(), powellShelf ? powellRock : rock,
                         root.transform, !powellShelf);
                 }

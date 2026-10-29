@@ -175,6 +175,7 @@ namespace FlyingGame.EditorTools
                 ("waterfall-slot-detail", WorldBuilder.U(fall.X,fall.LipY-25,pool+45), WorldBuilder.U(fall.X,hit+20,pool+drop*.35)),
                 ("waterfall-lip-detail", Outside(fall.X,fall.LipY-100,top+95), WorldBuilder.U(fall.X,hit,pool+drop*.65)),
                 ("powell-canyon-low", WorldBuilder.U(FlyingGame.Core.CanyonLake.CentreX(250)+35,250,FlyingGame.Core.CanyonLake.SurfaceM+14), WorldBuilder.U(FlyingGame.Core.CanyonLake.CentreX(-350),-350,FlyingGame.Core.CanyonLake.SurfaceM+28)),
+                ("powell-canyon-low-shelf-control", WorldBuilder.U(FlyingGame.Core.CanyonLake.CentreX(250)+35,250,FlyingGame.Core.CanyonLake.SurfaceM+14), WorldBuilder.U(FlyingGame.Core.CanyonLake.CentreX(-350),-350,FlyingGame.Core.CanyonLake.SurfaceM+28)),
                 ("powell-mesa-aerial", WorldBuilder.U(lakeX+220,lakeY-300,FlyingGame.Core.CanyonLake.SurfaceM+1500), WorldBuilder.U(lakeX,lakeY,FlyingGame.Core.CanyonLake.SurfaceM)),
                 ("powell-ring-detail", WorldBuilder.U(lakeX,lakeY,FlyingGame.Core.CanyonLake.SurfaceM+15), WorldBuilder.U(lakeX+FlyingGame.Core.CanyonLake.HalfWidthAt(lakeY),lakeY,FlyingGame.Core.CanyonLake.SurfaceM+25)),
                 ("river-lake-detail", Outside(lakeX+450,lakeY-500,FlyingGame.Core.CanyonLake.SurfaceM+550), WorldBuilder.U(lakeX,lakeY,FlyingGame.Core.CanyonLake.SurfaceM)),
@@ -360,8 +361,17 @@ namespace FlyingGame.EditorTools
                         restoredNormals=normalControl.normals; normalControl.RecalculateNormals();
                     }
                 }
+                var shelfControl=new System.Collections.Generic.List<Renderer>();
+                if(name=="powell-canyon-low-shelf-control")
+                    foreach(var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+                        if(renderer.enabled && renderer.name=="Shelf")
+                        { shelfControl.Add(renderer); renderer.enabled=false; }
                 try { cam.Render(); }
-                finally { if(normalControl!=null) normalControl.normals=restoredNormals; }
+                finally
+                {
+                    if(normalControl!=null) normalControl.normals=restoredNormals;
+                    foreach(var shelfRenderer in shelfControl) shelfRenderer.enabled=true;
+                }
                 RenderTexture.active = rt;
                 var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
