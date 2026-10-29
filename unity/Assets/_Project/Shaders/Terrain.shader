@@ -25,6 +25,7 @@ Shader "FlyingGame/Terrain"
             float4 _ReflectionClip;
             float4 _ReflectionEye;
             float4 _AirportGrass[4];
+            float4 _AirportPasture[4], _AirportPastureHeights;
             v2f vert (appdata v)
             {
                 v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.n = UnityObjectToWorldNormal(v.normal);
@@ -62,9 +63,21 @@ Shader "FlyingGame/Terrain"
                 float3 n=normalize(i.n);
                 float3 albedo=i.c.rgb;
                 float forest=saturate(-i.c.a);
-                float powellMask=saturate(-i.geology.x-2);
+                // Local maintained turf takes precedence over shoreline sandstone.
+                // Height/slope gates leave the gorge walls and lower banks untouched.
+                float pasture=0;
+                for(int field=0;field<4;field++)
+                {
+                    float4 bounds=_AirportPasture[field];
+                    float2 outside=abs(i.wp.xz-bounds.xy)-bounds.zw;
+                    float edge=max(outside.x,outside.y);
+                    float level=1-smoothstep(5,15,abs(i.wp.y-_AirportPastureHeights[field]));
+                    float flat=smoothstep(.90,.98,n.y);
+                    pasture=max(pasture,(1-smoothstep(0,60,edge))*level*flat*step(1,bounds.z));
+                }
+                float powellMask=saturate(-i.geology.x-2)*(1-pasture);
                 // All new detail is day-only: the sunset comparison keeps its existing response.
-                if (_SunsetOn < .5 && powellMask < .999)
+                if (_SunsetOn < .5 && powellMask < .999 && pasture < .999)
                 {
                     float3 macroNormal=n;
                     float2 ground=float2(i.wp.x*.81+i.wp.z*.59,i.wp.z*.81-i.wp.x*.59);
@@ -162,6 +175,17 @@ Shader "FlyingGame/Terrain"
                 // Paint its exact footprint on the visible terrain instead of a coplanar overlay.
                 // No field-grid mask, depth bias, displacement or world-wide tiling lines.
                 float grassAA=max(.12,max(length(ddx(i.wp.xz)),length(ddy(i.wp.xz))));
+                if(pasture>.001)
+                {
+                    // Same green/olive altitude palette as the airfield vertex grass.
+                    // Fine, filtered low-contrast variation; no thresholded dirt spots.
+                    float3 turf=lerp(float3(.42,.55,.28),float3(.62,.56,.36),saturate(i.wp.y/2800)*.9);
+                    float grain=filteredTerrain(i.wp.xz*.32)-.5;
+                    float mow=sin(i.wp.z*.785398)*(1-smoothstep(.6,2.5,grassAA));
+                    turf*=1+grain*.035+mow*.018;
+                    albedo=lerp(albedo,turf,pasture);
+                    n=normalize(lerp(n,normalize(i.n),pasture));
+                }
                 for (int airport=0; airport<4; airport++)
                 {
                     float4 bounds=_AirportGrass[airport];

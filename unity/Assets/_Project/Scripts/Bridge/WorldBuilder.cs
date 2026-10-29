@@ -364,15 +364,24 @@ namespace FlyingGame.Bridge
         private static void BuildTerrain(WorldTerrain t, Transform parent)
         {
             var airportGrass = new Vector4[4];
+            var airportPasture = new Vector4[4];
+            var airportPastureHeights = new Vector4();
             WorldTerrain.Strip grassStrip = WorldTerrain.AirportStrips[3];
             for(int index=0;index<System.Math.Min(4,WorldTerrain.Airports.Length);index++)
             {
                 var airport=WorldTerrain.Airports[index];
+                // Exact existing asymmetric pad bounds; shader colour only, never geometry.
+                airportPasture[index]=new Vector4((float)airport.Y,
+                    (float)(airport.X+(WorldTerrain.PadHalfX-WorldTerrain.PadSouthX)*.5),
+                    (float)WorldTerrain.PadHalfY,(float)((WorldTerrain.PadHalfX+WorldTerrain.PadSouthX)*.5));
+                airportPastureHeights[index]=(float)airport.ElevationM;
                 airportGrass[index]=new Vector4((float)(airport.Y+grassStrip.Dy),(float)(airport.X+grassStrip.Dx),
                     (float)(grassStrip.Width/2),(float)(grassStrip.Length/2));
             }
             var terrainMaterial=Mat("FlyingGame/Terrain",Color.white);
             terrainMaterial.SetVectorArray("_AirportGrass",airportGrass);
+            terrainMaterial.SetVectorArray("_AirportPasture",airportPasture);
+            terrainMaterial.SetVector("_AirportPastureHeights",airportPastureHeights);
             double step = CoarseStep;
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];

@@ -64,7 +64,10 @@ Shader "FlyingGame/AirportGlow"
                     float nextSpacing=length((nextClip.xy/max(.001,nextClip.w)-centreNdc)*_ScreenParams.xy*.5);
                     float prevSpacing=length((prevClip.xy/max(.001,prevClip.w)-centreNdc)*_ScreenParams.xy*.5);
                     float spacing=min(nextSpacing,prevSpacing);
-                    o.rowClarity=smoothstep(2*corePixels,4*haloPixels,spacing);
+                    // Suppress only when neighbouring bright cores nearly touch.
+                    // A9's four-halo-radius upper bound dimmed even normally spaced
+                    // aerial rows. Above three core radii this is exactly A8 again.
+                    o.rowClarity=smoothstep(2*corePixels,3*corePixels,spacing);
                     haloPixels=lerp(corePixels*1.1,haloPixels,o.rowClarity);
                 }
                 // The physical floor may enlarge a nearby fixture, but cannot
