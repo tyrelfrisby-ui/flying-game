@@ -572,7 +572,7 @@ public sealed class Aircraft
             double unstable = Math.Abs(den) > 1e-9 ? -a / -den : 0.0;
             double side = currentRad - unstable;
             if (Math.Abs(side) < 1e-6) side = a != 0.0 ? a : 1.0;
-            return Math.Sign(side) * axis.MaxDeflRad;
+            return Math.Sign(side) * axis.LimitFor(Math.Sign(side));
         }
         if (den < 1e-6) return currentRad;
         double d;
@@ -589,7 +589,7 @@ public sealed class Aircraft
             double tab = trimRad + TabOffset(surface);
             d = (a - b * tab) / den;
         }
-        return Math.Clamp(d, -axis.MaxDeflRad, axis.MaxDeflRad);
+        return axis.ClampDefl(d);
     }
 
     /// <summary>The hinge-moment terms of <see cref="FreeFloat"/>: a (flow), b (deflection, negative), k (spring).</summary>
@@ -644,12 +644,12 @@ public sealed class Aircraft
             {
                 // a + b·δ − k·(δ − neutral) = 0 at δ = current  →  neutral
                 double neutral = current - (a + b * current) / k;
-                return Math.Clamp(neutral - trim, -axis.MaxDeflRad, axis.MaxDeflRad);
+                return axis.ClampDefl(neutral - trim);
             }
             if (Math.Abs(b) < 1e-6) return 0.0;
             // a + b·(δ − tab) − k·δ = 0 at δ = current  →  tab
             double tab = current - (k * current - a) / b;
-            return Math.Clamp(tab - trim, -axis.MaxDeflRad, axis.MaxDeflRad);
+            return axis.ClampDefl(tab - trim);
         }
         _tabOffsetAil = Offset("aileron", Config.Controls.Aileron, trims.AileronRad, trims.AileronRad);
         _tabOffsetEle = Offset("elevator", Config.Controls.Elevator, trims.ElevatorRad, trims.ElevatorRad);
@@ -901,12 +901,12 @@ public sealed class Aircraft
     public static double StickForDeflection(double deflRad, ControlAxisConfig axis)
     {
         if (axis.MaxDeflRad <= 1e-9 || Math.Abs(deflRad) < 1e-9) return 0.0;
-        double sign = Math.Sign(deflRad), target = Math.Min(Math.Abs(deflRad), axis.MaxDeflRad);
+        double sign = Math.Sign(deflRad), target = Math.Min(Math.Abs(deflRad), axis.LimitFor(sign));
         double lo = 0.0, hi = 1.0;
         for (int i = 0; i < 40; i++)
         {
             double mid = 0.5 * (lo + hi);
-            if (ShapeAxis(mid, axis) < target) lo = mid; else hi = mid;
+            if (Math.Abs(ShapeAxis(sign * mid, axis)) < target) lo = mid; else hi = mid;
         }
         return sign * 0.5 * (lo + hi);
     }
@@ -922,7 +922,7 @@ public sealed class Aircraft
 
         double rescaled = Math.Clamp((magnitude - axis.DeadZone) / (1.0 - axis.DeadZone), 0.0, 1.0);
         double shaped = axis.Expo * rescaled * rescaled * rescaled + (1.0 - axis.Expo) * rescaled;
-        return Math.Sign(clamped) * shaped * axis.MaxDeflRad;
+        return Math.Sign(clamped) * shaped * axis.LimitFor(Math.Sign(clamped));
     }
 
     private static double SlewTo(double current, double target, double ratePerSec, double dt)

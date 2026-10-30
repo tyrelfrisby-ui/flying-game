@@ -536,7 +536,7 @@ public sealed class PracticeScenario
             double e0 = elevRad, e1 = elevRad - 0.02, q0 = QAfter(e0), q1 = QAfter(e1);
             for (int i = 0; i < 12 && Math.Abs(q1) > 1e-4 && Math.Abs(q1 - q0) > 1e-9; i++)
             {
-                double e2 = Math.Clamp(e1 - q1 * (e1 - e0) / (q1 - q0), -Config.Controls.Elevator.MaxDeflRad, Config.Controls.Elevator.MaxDeflRad);
+                double e2 = Config.Controls.Elevator.ClampDefl(e1 - q1 * (e1 - e0) / (q1 - q0));
                 e0 = e1; q0 = q1; e1 = e2; q1 = QAfter(e1);
             }
             _trimIdleStick = _elevTrim;   // the power-off glide trim at this speed

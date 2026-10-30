@@ -61,6 +61,32 @@ Pawnee 7.5, Cassutt 7.8, SR22 7.9) mean an elevator large for the type's stabili
 Rejected and left PENDING: the Pitts (the calibrator wanted its elevator chord ×3.6) and the Stearman (too stable to
 reach its target); the Cub on floats (×1.4 chord for 0.5°) keeps its elevator.
 
+### Travel, and the stops that are not symmetric
+
+A type certificate lists each surface's movement, and for most aeroplanes the elevator's two stops are not the same
+distance from neutral: more up than down, because the flare needs it and a pushover does not. `ControlAxisConfig` now
+carries an optional **`maxDeflNegRad`** beside `maxDeflRad` — the limit in the NEGATIVE-deflection direction, 0 meaning
+symmetric. In the sim's sign convention positive elevator is trailing-edge DOWN, so `maxDeflNegRad` is the UP travel.
+Everything that clamps a deflection (stick shaping, its inverse, the free-float balance, the tab calibration, the trim
+solver, the practice scenarios' pitch search) goes through `axis.ClampDefl`/`axis.LimitFor(sign)` rather than
+±`MaxDeflRad`, and the full-aft authority measurement uses `LimitFor(-1)`.
+
+The J-3 was the first type measured against its certificate (FAA Aircraft Specification **A-691 Rev 34**, Item 4
+"Control Surface Movements"), 2026-10-30:
+
+| Surface | A-691 | config before | config now |
+|---|---|---|---|
+| Elevator | 34° up / 29° down | ±29.8° | 34° up / 29° down |
+| Aileron | 18° up / 18° down | ±20.1° | ±18° |
+| Rudder | 30° left / 30° right | ±25.2° | ±30° |
+| Stabiliser (trim) | 2.5° up / 4° down | not modelled | not modelled |
+
+It matters twice over. The 12 % of extra aileron was part of why the Cub rolled at 78°/s where a real one rolls at
+45–55 (70°/s now — the rest is effectiveness, not travel), and the own-model GLB is rigged to the certificate's
+numbers, so a config that disagrees draws a surface in one place and flies it in another. Full-aft authority moves with
+the up travel, so both J-3 configs were re-calibrated after the change: saturation 71.9 → 42.7° (landplane),
+120 → 59.8° (floats).
+
 ## Control effectiveness τ (thin-airfoil theory)
 
 Flat plate with a plain flap, Glauert: cos θ_h = 2E − 1, A₀ = α + δ(π − θ_h)/π, A_n = 2δ sin(nθ_h)/(nπ).

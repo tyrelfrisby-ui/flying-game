@@ -1,3 +1,5 @@
+using System;
+
 namespace FlyingGame.Core.DataContracts;
 
 /// <summary>
@@ -193,6 +195,22 @@ public sealed class ControlAxisConfig
     public double SaturationDeg { get; set; } = 120.0;   // ≈ none unless the stall calibration sets it (StallAuthorityTests)
 
     public double MaxDeflRad { get; set; }
+
+    /// <summary>Travel limit in the NEGATIVE-deflection direction (rad) when the surface is not symmetric; 0 = symmetric
+    /// (<see cref="MaxDeflRad"/> both ways). Sim sign convention: positive elevator is trailing-edge DOWN, so this is the
+    /// UP travel, and almost every certificated elevator has more of it than down travel — the J-3's TCDS (FAA A-691
+    /// Item 4) gives 34 deg up / 29 deg down. Ailerons and rudders are normally symmetric and leave this at 0.</summary>
+    public double MaxDeflNegRad { get; set; }
+
+    /// <summary>The travel limit on the side `sign` lies on.</summary>
+    public double LimitFor(double sign) => sign < 0.0 && MaxDeflNegRad > 1e-9 ? MaxDeflNegRad : MaxDeflRad;
+
+    /// <summary>Clamp a deflection to this axis's stops, which need not be the same distance from neutral.</summary>
+    public double ClampDefl(double deflRad) => Math.Clamp(deflRad, -LimitFor(-1.0), LimitFor(1.0));
+
+    /// <summary>The bigger of the two stops: a search bound, not a limit to deflect to.</summary>
+    public double MaxTravelRad => Math.Max(MaxDeflRad, MaxDeflNegRad);
+
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
     public double Expo { get; set; }
     public double DeadZone { get; set; }

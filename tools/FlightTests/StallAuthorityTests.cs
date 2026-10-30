@@ -69,7 +69,7 @@ public class StallAuthorityTests
     public static double FullAftBalanceDeg(AircraftConfig c)
     {
         var tables = Aircraft.BuildAirfoilTables(c);
-        double up = -c.Controls.Elevator.MaxDeflRad, prev = double.NaN;
+        double up = -c.Controls.Elevator.LimitFor(-1.0), prev = double.NaN;
         for (double a = 2; a <= 45; a += 0.25)
         {
             double ar = a / 57.2958, v = 30;

@@ -1363,7 +1363,7 @@
   },
   "controls": {
     "aileron": {
-      "maxDeflRad": 0.35,
+      "maxDeflRad": 0.3142,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
       "deadZone": 0.03,
@@ -1375,7 +1375,8 @@
       "freeTauS": 0.12
     },
     "elevator": {
-      "maxDeflRad": 0.52,
+      "maxDeflRad": 0.5061,
+      "maxDeflNegRad": 0.5934,
       "rateRadPerSec": 3.0,
       "expo": 0.1,
       "deadZone": 0.03,
@@ -1385,10 +1386,10 @@
       "centeringSpringKt": 30,
       "trimType": "spring",
       "freeTauS": 0.12,
-      "saturationDeg": 71.9
+      "saturationDeg": 42.7
     },
     "rudder": {
-      "maxDeflRad": 0.44,
+      "maxDeflRad": 0.5236,
       "rateRadPerSec": 4.0,
       "expo": 0.2,
       "deadZone": 0.03,

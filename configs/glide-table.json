@@ -529,8 +529,8 @@
     "SinkFpm": 947.3,
     "AlphaDeg": 5.324,
     "PitchDeg": -5.288,
-    "ElevatorDeg": -4.387,
-    "TrimStick": -0.1882
+    "ElevatorDeg": -4.393,
+    "TrimStick": -0.169
   },
   {
     "Id": "j3-cub-like",
@@ -542,8 +542,8 @@
     "SinkFpm": 826.3,
     "AlphaDeg": 4.983,
     "PitchDeg": -4.403,
-    "ElevatorDeg": -3.784,
-    "TrimStick": -0.1666
+    "ElevatorDeg": -3.791,
+    "TrimStick": -0.15
   },
   {
     "Id": "jn4-jenny-like",
