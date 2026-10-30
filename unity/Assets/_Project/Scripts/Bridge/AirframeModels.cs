@@ -174,6 +174,16 @@ namespace FlyingGame.Bridge
             return m != null && Specs.TryGetValue(m, out spec);
         }
 
+        /// <summary>The name our OWN model of this type is filed under — its GLB's base name, liveries aside
+        /// (<c>extra-300-like-own</c>), which is the key its rig table carries too (docs/models/*-rig.json,
+        /// mirrored to StreamingAssets/rigs). null when the model on screen is not ours, so a downloaded
+        /// aeroplane is never handed our model's rig.</summary>
+        public static string PlacedOwnName(string id)
+        {
+            string m = ModelId(id);
+            return m != null && PickOwn(m) ? m + "-own" : null;
+        }
+
         /// <summary>True where we have drawn our own model of this type, whether or not it is the one being shown.</summary>
         public static bool HasOwn(string id) { string m = ModelId(id); return m != null && OwnSpecs.ContainsKey(m) && Resources.Load<GameObject>($"Models/{m}/{m}-own") != null; }
 

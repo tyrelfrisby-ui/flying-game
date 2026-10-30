@@ -492,7 +492,7 @@ namespace FlyingGame.Bridge
                     case Btn.Tow:
                         if (tow != null && ac?.Config?.Propulsion == null)
                         {
-                            if (tow.Towing) tow.ReleaseFromGlider();
+                            if (tow.Towing) tow.PullRelease();
                             else if (_driver.GroundStart && tow.Tow == null) tow.StartTow();
                         }
                         break;

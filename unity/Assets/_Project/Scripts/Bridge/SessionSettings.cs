@@ -68,6 +68,15 @@ namespace FlyingGame.Bridge
         /// what a player sees, and this is how we look at ours beside it.</summary>
         public static bool UseOwnModels = false;
 
+        /// <summary>WHICH SEAT the cockpit view sits in, for a model that was drawn with more than one eye point
+        /// (the Extra 300's Eye_Front / Eye_Rear). Aerobatic two-seaters are flown SOLO FROM THE REAR, which is
+        /// why the model marks Eye_Rear `default_view: true` — so Rear is the default here, and the front seat is
+        /// the passenger's view. A model with one eye point ignores this, and a model with none keeps the old
+        /// canopy-top eye (PilotEgress.CockpitLocal).</summary>
+        public enum CockpitSeat { Rear, Front }
+        public static CockpitSeat Seat = CockpitSeat.Rear;
+        public static string SeatLabel => Seat == CockpitSeat.Rear ? "REAR (PIC)" : "FRONT";
+
         /// <summary>The paint scheme OVERRIDE (Livery.cs), for every type: AERO_LIVERY at launch, which is how a capture
         /// instance is told to wear Talk Flying for a recorded shot, and the editor renders' -livery. null = none, and
         /// each type wears its own choice (<see cref="LiveryFor"/>).</summary>
@@ -399,6 +408,7 @@ namespace FlyingGame.Bridge
             Instruments        = (InstrumentMode)PlayerPrefs.GetInt("set.instruments", (int)Instruments);
             UseAirframeModels  = GetBool("set.airframeModels", UseAirframeModels);
             UseOwnModels       = GetBool("set.ownModels", UseOwnModels);
+            Seat               = (CockpitSeat)PlayerPrefs.GetInt("set.seat", (int)Seat);
             ShowOtherBadges    = GetBool("set.otherBadges", ShowOtherBadges);
             ShowOwnBadge       = GetBool("set.ownBadge", ShowOwnBadge);
             PauseWhenMenuOpen  = GetBool("set.pauseOnMenu", PauseWhenMenuOpen);
@@ -436,6 +446,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetInt("set.instruments", (int)Instruments);
             SetBool("set.airframeModels", UseAirframeModels);
             SetBool("set.ownModels", UseOwnModels);
+            PlayerPrefs.SetInt("set.seat", (int)Seat);
             SetBool("set.otherBadges", ShowOtherBadges);
             SetBool("set.ownBadge", ShowOwnBadge);
             SetBool("set.pauseOnMenu", PauseWhenMenuOpen);
@@ -459,7 +470,7 @@ namespace FlyingGame.Bridge
         {
             LiftMarkers = Tri.Off; BubblesOn = false; BubbleInstancing = true; BubbleStreaks = Streaks.Long;
             ShowFlightPath = false; ShowForceVectors = false; FlightTestData = false; ShowAtmosphereMap = false;
-            Instruments = InstrumentMode.Hud; UseAirframeModels = true; UseOwnModels = false;
+            Instruments = InstrumentMode.Hud; UseAirframeModels = true; UseOwnModels = false; Seat = CockpitSeat.Rear;
             ShowOtherBadges = true; ShowOwnBadge = true; PauseWhenMenuOpen = true; NavRadios.Shown = true;
             SavePrefs();
         }

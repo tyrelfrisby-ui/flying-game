@@ -127,6 +127,61 @@ namespace FlyingGame.Bridge
             return hit;
         }
 
+        /// <summary>The rows a MODELLED COCKPIT brings with it: which seat the view sits in, and the sequence
+        /// card in the holder. Both are hidden for an aeroplane whose model has neither, so the page does not
+        /// grow controls that do nothing.</summary>
+        private void CockpitRows(ref float y)
+        {
+            AirframeVisual visual = Driver != null ? Driver.GetComponent<AirframeVisual>() : null;
+            if (visual == null) return;
+
+            // Two eye points means two seats to choose between. Solo aerobatics is flown from the rear, which
+            // is why the model marks that one as its default view.
+            bool twoSeats = visual.CockpitEye() != null && visual.FindInModel("Eye_Front") != null
+                                                        && visual.FindInModel("Eye_Rear") != null;
+            if (twoSeats)
+            {
+                var seats = new[] { SessionSettings.CockpitSeat.Rear, SessionSettings.CockpitSeat.Front };
+                int sp = PickRow("Cockpit seat", new[] { "Rear (PIC)", "Front" },
+                                 System.Array.IndexOf(seats, SessionSettings.Seat), ref y);
+                if (sp >= 0) { SessionSettings.Seat = seats[sp]; SessionSettings.SavePrefs(); }
+                Note("Solo aerobatics is flown from the rear seat", ref y);
+            }
+
+            // The canopy. Mapped by the rig, but a mapping nobody can reach is not a canopy, so here is the
+            // handle: open and shut on the ground, and the bail-out still throws it clear in the air.
+            CockpitRigState cockpit = visual.Cockpit;
+            if (visual.Rig != null && visual.Rig.Find("Canopy") != null && cockpit.CanopyUsable)
+            {
+                int cp = PickRow("Canopy", new[] { "Shut", "Open" }, cockpit.CanopyOpen01 > 0.5f ? 1 : 0, ref y);
+                if (cp == 0) cockpit.SetCanopyLock(true);
+                else if (cp == 1) cockpit.CommandCanopy(1f);
+                Note($"Opens below {CockpitRigState.CanopyMaxOpenKt:F0} kt; faster than that it shuts and locks", ref y);
+            }
+
+            SequenceCard card = visual.Card;
+            if (card == null || !card.HasHolder) return;
+
+            SequenceCardPicker.Poll(card);
+            string what = card.Page > 0
+                ? (card.StoredPageCount > 1 ? $"Your card, page {card.Page} of {card.StoredPageCount}" : "Your card")
+                : "2026 IAC Power Sportsman Known";
+            Note("Sequence card: " + what, ref y);
+
+            bool pdf = card.StoredPdf.Length > 0 && card.StoredPageCount > 1;
+            string[] actions = pdf ? new[] { "Choose PDF", "Prev page", "Next page", "Default" }
+                                   : new[] { SequenceCardPicker.Available ? "Choose PDF" : "Choose PNG", "Default" };
+            int act = PickRow("Card", actions, -1, ref y);
+            if (act == 0) SequenceCardPicker.Pick(card);
+            else if (pdf && act == 1) card.TurnTo(card.Page - 1);
+            else if (pdf && act == 2) card.TurnTo(card.Page + 1);
+            else if (act == actions.Length - 1) card.ResetToDefault();
+
+            if (SequenceCardPicker.Busy) Note("Pick a PDF…", ref y);
+            else if (SequenceCardPicker.LastError.Length > 0) Note(SequenceCardPicker.LastError, ref y);
+            else if (!SequenceCardPicker.Available) Note("A PDF needs the device; here give a PNG (SEQ_CARD)", ref y);
+        }
+
         private void Note(string text, ref float y)
         {
             UiLayout.Label(new Rect(_x, y, _cw, _lh * 0.8f), text, _note);
@@ -234,6 +289,8 @@ namespace FlyingGame.Bridge
             Note(AirframeModels.HasOwn(SessionSettings.AircraftId)
                      ? "Ours: built here — falls back to the downloaded one elsewhere"
                      : "Ours: none for this aeroplane yet — the 172 has one", ref y);
+
+            CockpitRows(ref y);
 
             var tri = new[] { SessionSettings.Tri.Auto, SessionSettings.Tri.On, SessionSettings.Tri.Off };
             int lm = PickRow("Show lift", new[] { "Auto", "On", "Off" }, System.Array.IndexOf(tri, SessionSettings.LiftMarkers), ref y);

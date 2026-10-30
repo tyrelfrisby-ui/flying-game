@@ -50,8 +50,9 @@ namespace FlyingGame.Bridge
 
         private void OnAircraftChanged()
         {
-            // A fresh sim Aircraft is intact: put the wings back even when the type is unchanged.
-            if (_driver.AircraftId != _builtId || _wingsDetached) Rebuild();
+            // A fresh sim Aircraft is intact: put the wings back even when the type is unchanged — and the
+            // canopy, which a bailout threw away and nothing else would ever put back.
+            if (_driver.AircraftId != _builtId || _wingsDetached || _rigPartGone) Rebuild();
         }
 
         private bool _componentsDetached;
@@ -88,6 +89,129 @@ namespace FlyingGame.Bridge
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
+            // A model that brought its own rig moves ITS parts — the same control positions the aero model is
+            // using, so the drawn surfaces and the cockpit always agree with the aeroplane being flown.
+            if (_builder.HasOwnRig)
+            {
+                var rd = DebugDeflect.HasValue
+                    ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
+                    : d;
+                _builder.SetRig(RigInputsNow(acp, rd, Time.deltaTime), Time.deltaTime);
+                // The red handle, pulled all the way: the canopy is gone the moment the rig says so, whether
+                // the hand on it was the player's or the bailout's.
+                if (Cockpit.CanopyPull01 >= 0.999f && !Cockpit.CanopyGone) JettisonRigPart(_driver.WorldVelocityUnity);
+                // The panel's own glass and paper: the two avionics LCDs, and the sequence card in its holder.
+                _displays.Bind(FindInModel);
+                _displays.Update(_lastRig);
+                Card.Bind(this, _driver.AircraftId);
+            }
+        }
+
+        // ---- what the model's own rig is fed (AirframeRig) --------------------------------------------------
+
+        private TouchFlightControls _touch; private TowController _tow; private bool _cockpitLooked;
+        /// <summary>The panel's own state across frames — lagged readings, the engine gauges with no sim behind
+        /// them, the avionics and the canopy. Public so the cockpit UI and the bailout can reach it.</summary>
+        public readonly CockpitRigState Cockpit = new();
+        /// <summary>The avionics LCDs and the sequence card holder, where the model has them.</summary>
+        private readonly CockpitDisplays _displays = new();
+        public readonly SequenceCard Card = new();
+
+        /// <summary>The control positions the AERO MODEL is using, plus everything the panel shows, in the units
+        /// the rig table asks for.
+        ///
+        /// The stick positions come from RigInputs.FromDeflections, which owns the one sign that has to be got
+        /// right (the sim's elevator is positive trailing-edge down, the rig's is positive stick aft); the trim
+        /// lever needs the same flip, and is done here because it is the pilot's control, not the airframe's.
+        /// Everything else is <see cref="CockpitRigState"/>'s.</summary>
+        private FlyingGame.Core.RigInputs RigInputsNow(FlyingGame.Sim.Aircraft ac, in FlyingGame.Core.Aero.ControlDeflections d, float dt)
+        {
+            if (!_cockpitLooked)
+            {
+                // The trim lever and the release knob are the pilot's, not the airframe's: they live on the
+                // controls and the tow, where the player's hands reach them.
+                _touch = GetComponent<TouchFlightControls>();
+                _tow = GetComponent<TowController>();
+                _cockpitLooked = true;
+            }
+            ControlsConfig c = ac.Config.Controls;
+            FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
+                d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
+                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
+
+            // The trim LEVER's own position. The slider biases the elevator nose-DOWN for positive, and the
+            // lever is positive aft / nose-up, so it is the negative of the bias in stick units.
+            r.Trim = _touch != null ? System.Math.Clamp(-_touch.TrimElevator / Mathf.Max(0.01f, _touch.TrimAuthority), -1.0, 1.0)
+                                    : System.Math.Clamp(-_driver.TrimStick / 0.6, -1.0, 1.0);
+            r.TowRelease = _tow != null ? _tow.KnobPull01 : 0.0;
+            Cockpit.Fill(ref r, _driver, ac, d, dt);
+            _lastRig = r;
+            return r;
+        }
+
+        private FlyingGame.Core.RigInputs _lastRig;
+
+        /// <summary>The model's rig, for the camera (its eye points) and the cockpit UI. null unless the
+        /// aeroplane on screen is one we drew and rigged ourselves.</summary>
+        public AirframeRig Rig => _builder.Rig;
+
+        /// <summary>A named node inside the placed model — the eye points, the display faces, the sequence card.
+        /// null for the procedural shell, or where the model has no such node.</summary>
+        public Transform FindInModel(string node) => _builder.FindInModel(node);
+
+        private bool _rigPartGone;
+
+        /// <summary>Where the cockpit camera's eye belongs, when the model was drawn with eye points
+        /// (Eye_Rear / Eye_Front). Solo aerobatics is flown from the REAR seat, which is why the Extra marks
+        /// Eye_Rear as its default view; OPTIONS can move to the front. null where the model has no eye point,
+        /// and the old canopy-top estimate stands.</summary>
+        public Transform CockpitEye()
+        {
+            bool front = SessionSettings.Seat == SessionSettings.CockpitSeat.Front;
+            return _builder.FindInModel(front ? "Eye_Front" : "Eye_Rear")
+                ?? _builder.FindInModel(front ? "Eye_Rear" : "Eye_Front");
+        }
+
+        /// <summary>Throw away the one part the model's rig says comes off — the Extra's canopy, with its glass,
+        /// its frame and both lock levers, because they are its children in the GLB. The real part leaves, not a
+        /// stand-in: it is detached from the aeroplane with the airframe's own velocity plus the kick a canopy
+        /// gets off its hinge, the rig stops driving it, and the aeroplane stays canopy-less until the next
+        /// flight's rebuild. false where this model has nothing to lose, which is when the procedural stand-in
+        /// (<see cref="CanopyJettison"/>) is still the right answer.</summary>
+        public bool JettisonRigPart(Vector3 worldVelocityUnity)
+        {
+            AirframeRig rig = _builder.Rig;
+            if (rig == null || Cockpit.CanopyGone) return false;
+            (Transform part, string _) = rig.Jettisonable();
+            if (part == null) return false;
+
+            Bounds b = PartBounds(part);
+            rig.Release(part);
+            ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aeroplane until now, in the replay too
+            part.SetParent(null, true);
+
+            var body = part.gameObject.AddComponent<DebrisBody>();
+            body.MassKg = 15f;                                           // a one-piece acro canopy, glass and frame
+            body.CdA = Mathf.Clamp(0.9f * b.size.x * b.size.z, 0.4f, 3f); // a scoop broadside to the flow
+            body.Velocity = worldVelocityUnity + transform.up * 6f - transform.forward * 2f;
+            body.AngularVelocityRad = new Vector3(5f, 1.2f, 3f);         // pitches over backwards as it leaves
+            body.RestHeightM = Mathf.Max(0.1f, b.extents.y * 0.5f);
+            body.LifeSec = 45f;
+
+            Cockpit.CanopyGone = true;
+            _rigPartGone = true;
+            return true;
+        }
+
+        /// <summary>World bounds of a part and everything under it, or a canopy-sized box where it has no
+        /// renderer of its own.</summary>
+        private static Bounds PartBounds(Transform part)
+        {
+            var rs = part.GetComponentsInChildren<Renderer>(true);
+            if (rs.Length == 0) return new Bounds(part.position, new Vector3(0.9f, 0.5f, 1.6f));
+            Bounds b = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+            return b;
         }
 
         /// <summary>
@@ -308,6 +432,10 @@ namespace FlyingGame.Bridge
             _builtLivery = SessionSettings.LiveryFor(_builtId);
             _wingsDetached = false;
             _componentsDetached = false;
+            _rigPartGone = false;
+            Cockpit.Reset();
+            _displays.Forget();
+            Card.Forget();
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
@@ -539,6 +667,39 @@ namespace FlyingGame.Bridge
         private const float HingeSign = -1f;
         private const float SpoilerMaxRad = 1.05f; // 60° paddle rise at full deploy
 
+        /// <summary>The placed model's own rig (the 2-33's 30 nodes, the Extra's 60), when it brought one — see
+        /// AirframeRig. While it is in play, its nodes are what the eye sees move; the procedural surfaces
+        /// underneath still deflect, hidden, because the rest of the bookkeeping is hung off them.</summary>
+        private AirframeRig _rig;
+        public bool HasOwnRig => _rig != null;
+        public AirframeRig Rig => _rig;
+
+        /// <summary>The placed model's own root, or null where the aeroplane on screen is the procedural shell.
+        /// Named nodes that are NOT rig nodes live under here — the eye points, the display faces, the sequence
+        /// card — so they are looked up from this and not from a scan of the scene.</summary>
+        private Transform _modelRoot;
+        public Transform ModelRoot => _modelRoot;
+
+        /// <summary>A named node inside the placed model (the name as the GLB spells it; the "Model:" prefix
+        /// TryPlaceModel puts on every MESH object is allowed for). null where there is no such node.</summary>
+        public Transform FindInModel(string node)
+        {
+            if (_modelRoot == null || string.IsNullOrEmpty(node)) return null;
+            foreach (Transform t in _modelRoot.GetComponentsInChildren<Transform>(true))
+            {
+                string n = t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name;
+                if (n == node) return t;
+            }
+            return null;
+        }
+
+        /// <summary>Move the model's own moving parts — surfaces, sticks, pedals, levers, needles, yaw string —
+        /// to the sim's current state. Does nothing for a model without a rig.</summary>
+        public void SetRig(in FlyingGame.Core.RigInputs inputs, float dt) => _rig?.Apply(inputs, dt);
+
+        // The type's full travel, so a deflection in radians can be put on the rig's -1..+1 scale. Filled by Build.
+        private float _ailMaxRad = 1f, _eleMaxRad = 1f, _rudMaxRad = 1f;
+
         /// <summary>Move every hinged surface to the sim's current deflections (radians; spoiler 0..1).</summary>
         public void SetDeflections(float aileronRad, float elevatorRad, float rudderRad, float spoilerFrac)
         {
@@ -555,6 +716,10 @@ namespace FlyingGame.Bridge
                 } * c.Gain;
                 c.T.localRotation = Quaternion.AngleAxis(HingeSign * d * Mathf.Rad2Deg, c.AxisUnity);
             }
+            // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
+            // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
+            _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
+                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad));
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
@@ -1308,6 +1473,8 @@ namespace FlyingGame.Bridge
             _gearParts.Clear();
             _legParts.Clear();
             _modelParts.Clear();
+            _rig = null;
+            _modelRoot = null;
             UsedModel = false;
         }
 
@@ -1435,6 +1602,10 @@ namespace FlyingGame.Bridge
             Clear();
             _root = root;
             Style st = StyleFor(cfg.Id);
+            ControlsConfig cc = cfg.Controls;
+            _ailMaxRad = cc != null && cc.Aileron.MaxDeflRad > 1e-6 ? (float)cc.Aileron.MaxDeflRad : 1f;
+            _eleMaxRad = cc != null && cc.Elevator.MaxDeflRad > 1e-6 ? (float)cc.Elevator.MaxDeflRad : 1f;
+            _rudMaxRad = cc != null && cc.Rudder.MaxDeflRad > 1e-6 ? (float)cc.Rudder.MaxDeflRad : 1f;
             // Doped fabric over ribs rather than riveted metal: the Cubs, the Stearman, the Jenny, the Decathlon
             // and the 2-33 are linen aeroplanes, and their wings should scallop between ribs, not carry rivets.
             _fabricAircraft = cfg.Id != null && (cfg.Id.StartsWith("pa18") || cfg.Id.StartsWith("j3-cub")
@@ -1697,6 +1868,7 @@ namespace FlyingGame.Bridge
             GameObject inst = AirframeModels.Place(root, cfg.Id, cfg, out _);
             if (inst == null) return;
             UsedModel = true;
+            _modelRoot = inst.transform;
             // The stock C172 remains the base geometry. Only this explicitly selected scheme repaints it.
             bool talk172 = cfg.Id == "c172-like" && _livery.Id == "talk-flying";
             if (talk172) PaintTrainerModel(inst);
@@ -1752,6 +1924,10 @@ namespace FlyingGame.Bridge
                 if (p != null && (p.name.StartsWith("Decal:") || p.name == "TailSign" || p.name == "LightningBolt")) continue;
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
+            // A model we drew ourselves may bring its OWN rig (docs/models/<model>-rig.json): every moving
+            // part already a separate node with its origin on its pivot. Bind it here, on the untouched
+            // instance, so each node's imported pose is its rest pose.
+            _rig = AirframeRig.Bind(inst, AirframeModels.PlacedOwnName(cfg.Id));
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
             var filters = new List<MeshFilter>();
             foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
@@ -1763,9 +1939,16 @@ namespace FlyingGame.Bridge
             }
             if (talk172) FitTrainerMarks(inst);
             _retractable = cfg.RetractableGear;
-            bool namedSurfaces = AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec placed) && placed.NamedSurfaces;
-            try { CarveModel(root, filters, namedSurfaces); }
-            catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
+            // The carve is for a DOWNLOADED model, which arrives as one solid aeroplane: it cuts hinge regions
+            // out of its meshes and skins them to bones. A model with its own rig already HAS those parts,
+            // pivoted where its draughtsman put them — carving it would tear the geometry and deflect it twice.
+            if (_rig != null) Debug.Log("[Airframe] the model's own rig drives its moving parts; the hinge carve is skipped.");
+            else
+            {
+                bool namedSurfaces = AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec placed) && placed.NamedSurfaces;
+                try { CarveModel(root, filters, namedSurfaces); }
+                catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
+            }
         }
 
         private static void Kill(Object o)

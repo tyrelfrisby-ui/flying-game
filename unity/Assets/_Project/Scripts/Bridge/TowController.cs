@@ -44,16 +44,35 @@ namespace FlyingGame.Bridge
             if (_rope != null) { _rope.enabled = false; _rope.positionCount = 0; }
         }
 
+        /// <summary>The release knob's pull, 0 (home) .. 1 (full 50 mm out) — what the cockpit rig draws.
+        /// Letting go of the rope is an EVENT in the sim (the hook lets go or it doesn't), so the KNOB is
+        /// animated here instead: out fast under the hand, back on its spring.</summary>
+        public float KnobPull01 { get; private set; }
+        private const float PullSec = 0.10f, SpringBackSec = 0.30f;
+        private float _handOnKnobSec;
+
+        /// <summary>Pull the yellow ball. The knob travels whether or not there is a rope on the hook —
+        /// a pull with nothing on tow is still a pull.</summary>
+        public void PullRelease()
+        {
+            _handOnKnobSec = PullSec;
+            ReleaseFromGlider();
+        }
+
         private void Update()
         {
             if (Input.GetKeyDown(KeyCode.Y) && !Towing)
             {
                 StartTow();
             }
-            if (Input.GetKeyDown(KeyCode.G) && Towing)
+            if (Input.GetKeyDown(KeyCode.G))
             {
-                ReleaseFromGlider();
+                PullRelease();
             }
+            _handOnKnobSec = Mathf.Max(0f, _handOnKnobSec - Time.deltaTime);
+            KnobPull01 = _handOnKnobSec > 0f
+                ? Mathf.MoveTowards(KnobPull01, 1f, Time.deltaTime / PullSec)
+                : Mathf.MoveTowards(KnobPull01, 0f, Time.deltaTime / SpringBackSec);
 
             if (Tow != null)
             {
@@ -138,7 +157,8 @@ namespace FlyingGame.Bridge
             : Towing ? $"TOW  {_pilot?.Status}   rope {Tow.Tension:F0} N   RELEASE when ready"
             : _pilot != null ? $"TOW  released ({Tow?.SeverReason})  tug {_pilot.Status}" : null;
 
-        /// <summary>Glider-side release (button / G key).</summary>
+        /// <summary>Glider-side release: the rope lets go. Callers that want the KNOB to move with it go
+        /// through <see cref="PullRelease"/>.</summary>
         public void ReleaseFromGlider()
         {
             if (Towing) { Tow.Release("glider"); if (_pilot != null) _pilot.GliderReleased = true; }

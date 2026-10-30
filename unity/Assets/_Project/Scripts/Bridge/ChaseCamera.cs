@@ -74,6 +74,18 @@ namespace FlyingGame.Bridge
         private Vector3 _dir = Vector3.forward; // smoothed follow direction (world)
         private Vector3 _offset;                // smoothed camera offset from the target (world)
         private Camera _cam;
+        /// <summary>The aeroplane's visual, for the eye points a rigged model brings. Looked up from Target the
+        /// first time it is wanted and whenever Target changes (switching aircraft rebuilds the hierarchy).</summary>
+        private AirframeVisual _visualCache; private Transform _visualFor;
+        private AirframeVisual _visual
+        {
+            get
+            {
+                if (Target == null) return null;
+                if (_visualFor != Target) { _visualFor = Target; _visualCache = Target.GetComponent<AirframeVisual>(); }
+                return _visualCache;
+            }
+        }
 
         /// <summary>Fit the chase distance to the airframe (a 737 needs ~3x the glider's 14 m).</summary>
         public void FitTo(float spanM, float lengthM = 0f)
@@ -158,7 +170,15 @@ namespace FlyingGame.Bridge
                 case View.Cockpit:
                     // Simple cockpit (owner 2026-10-01): the eye at the canopy, looking along the nose a few degrees down,
                     // rolling with the aircraft — the cowl, wings and prop in view, the instruments as a panel below.
-                    transform.position = t.TransformPoint(PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f);
+                    //
+                    // A model drawn with its own EYE POINTS puts the eye exactly where its draughtsman sat the
+                    // pilot (the Extra's Eye_Rear / Eye_Front, OPTIONS > seat) instead of at the canopy-top
+                    // estimate. The ORIENTATION still comes from the airframe, not from the empty: an eye point
+                    // is a position, and a stray rotation on it would cant the whole view with nothing on
+                    // screen to say why.
+                    Transform eye = _visual != null ? _visual.CockpitEye() : null;
+                    transform.position = eye != null ? eye.position
+                                                     : t.TransformPoint(PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f);
                     transform.rotation = t.rotation * Quaternion.Euler(CockpitLookDownDeg, 0f, 0f);
                     break;
                 case View.Tail:
