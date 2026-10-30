@@ -913,9 +913,9 @@
     -0.0
    ],
    "pivot_gltf": [
-    1.17,
-    0.463,
-    -0.12
+    1.184,
+    0.14,
+    -0.262
    ],
    "map": [
     [
@@ -928,7 +928,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
+   "desc": "panel-mount wet compass (rear panel, lower right) card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
    "link": "rear (PIC) panel only",
    "note": "",
    "extra": {
@@ -2176,6 +2176,32 @@
     0.016
    ],
    "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT"
+  }
+ ],
+ "card_slots": [
+  {
+   "node": "SequenceCard_Face",
+   "parent": "Instruments_Rear",
+   "material": "SequenceCard_Face",
+   "centre_gltf": [
+    1.212,
+    0.3974,
+    0.0
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.12,
+    0.1553
+   ],
+   "aspect": "8.5x11 portrait",
+   "uv": "one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot's right, v up); material SequenceCard_Face",
+   "default_texture": "tools/own_models/art/ea-seqcard-default.png",
+   "holder_top_above_dash_m": 0.05,
+   "note": "static card in a holder centred on the top edge of the rear dash; replace the texture at runtime (any PDF page rasterised at 8.5:11)"
   }
  ]
 }

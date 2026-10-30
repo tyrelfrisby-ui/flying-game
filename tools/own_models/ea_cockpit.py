@@ -222,20 +222,39 @@ for n, z_, knob in (('Prop_R', 0.180, 'ck_grip'), ('Mixture_R', 0.130, 'ck_knob_
     put(n, 'ck_buckle', gcyl, c + V3((0.06, 0, 0)), c + V3((-0.010, 0, 0)), 0.0035, 8)
     put(n, knob, gcyl, c + V3((-0.008, 0, 0)), c + V3((-0.026, 0, 0)), 0.012, 16); put(n, knob, gsph, c + V3((-0.026, 0, 0)), 0.012, 14, 6)
     RIGPTS[n] = tuple(c)
-# wet compass on the glareshield (hood) top, offset right of the canopy centreline
-cx, cy, cz = XP_R - 0.008, -0.12, 0.463
-for c_, s_ in (((cx, cy, cz + 0.026), (0.06, 0.07, 0.006)), ((cx, cy, cz - 0.026), (0.06, 0.07, 0.006)), ((cx + 0.028, cy, cz), (0.006, 0.07, 0.058)),
-               ((cx, cy + 0.032, cz), (0.06, 0.006, 0.058)), ((cx, cy - 0.032, cz), (0.06, 0.006, 0.058))):
-    put(CK_INT, 'ck_bezel', gbox, c_, s_)
-put(CK_INT, 'ck_bezel', gbox, (cx + 0.01, cy, cz - 0.034), (0.04, 0.03, 0.012))
-put(CK_INT, 'ck_lubber', gbox, (cx - 0.0245, cy, cz), (0.001, 0.0016, 0.03))
-bc = bmesh.new(); uv = bc.loops.layers.uv.verify(); N_ = 48; RC, HC = 0.022, 0.016
+# wet compass IN the rear panel (Ty, 2026-10-30): a 2-1/4 in panel-mount compass (round flush bezel, short case, drum card
+# behind a window with a lubber line) in the lower right of the panel, under the avionics heads. Size E (57 mm hole).
+cx, cy, cz = XP_R - 0.022, -0.262, 0.140; RBC = 0.029
+put(CK_INT, 'ck_bezel', gcyl, (XP_R + 0.002, cy, cz), (XP_R - 0.004, cy, cz), RBC + 0.004, 32)          # flange on the panel face
+for flip in (0, 1):                                                                                    # case shell (open aft)
+    ring_ = [[(xx, cy + RBC * math.sin(t), cz + RBC * math.cos(t)) for t in np.linspace(0, 2 * math.pi, 32, endpoint=False)] for xx in (XP_R - 0.004, XP_R - 0.044)]
+    put(CK_INT, 'ck_bezel', loft_rings, ring_ if flip else ring_[::-1], False, False)
+put(CK_INT, 'ck_bezel', bezel, XP_R - 0.040, cy, cz, RBC)                                               # front bezel ring
+put(CK_INT, 'ck_hub', gcyl, (XP_R - 0.004, cy, cz), (XP_R - 0.008, cy, cz), RBC - 0.001, 32)            # dark case back
+put(CK_INT, 'ck_lubber', gbox, (cx - 0.0195, cy, cz), (0.001, 0.0016, 0.026))
+bc = bmesh.new(); uv = bc.loops.layers.uv.verify(); N_ = 48; RC, HC = 0.018, 0.016
 ra = [[bc.verts.new((cx - RC * math.cos(2 * math.pi * k / N_), cy + RC * math.sin(2 * math.pi * k / N_), cz + h)) for k in range(N_ + 1)] for h in (-HC / 2, HC / 2)]
 for k in range(N_):
     f = bc.faces.new((ra[0][k], ra[0][k + 1], ra[1][k + 1], ra[1][k]))
     for lp, (u_, v_) in zip(f.loops, ((1 - k / N_, 0), (1 - (k + 1) / N_, 0), (1 - (k + 1) / N_, 1), (1 - k / N_, 1))): lp[uv].uv = (u_, v_)
 for h, rr in ((0, ra[0][:N_]), (1, ra[1][:N_])): bc.faces.new(rr if h else rr[::-1])
 CK['Compass_Card_R'] = [bc, ['compass']]; NEEDLES['Compass_Card_R'] = dict(c=(cx, cy, cz), key='COMPASS', grp='R')
+# aerobatic sequence card holder (Ty, 2026-10-30): centred on the top edge of the rear dash (the glareshield's aft face),
+# its frame standing 50 mm above the top. The card face is its own node + material 'SequenceCard_Face', a single quad
+# facing the pilot, letter portrait (8.5 x 11), UV 0..1 (u to the pilot's right, v up) so any PDF page can be put on it.
+HOOD_X, HOOD_TOP = RPX - 0.04, RPZ + 0.16 + 0.12                     # glareshield aft face station / its top (build_ea300.py)
+CW_ = 0.120; CH_ = CW_ * 11.0 / 8.5; CTOP = HOOD_TOP + 0.050; CZ_ = CTOP - 0.003 - CH_ / 2; CX_ = HOOD_X - 0.010
+put(CK_INT, 'ck_grip', gbox, (HOOD_X - 0.003, 0, CZ_ + 0.001), (0.006, CW_ + 0.012, CH_ + 0.010))          # backing plate
+for sy in (1, -1): put(CK_INT, 'ck_grip', gbox, (HOOD_X - 0.0085, sy * (CW_ / 2 + 0.003), CZ_ + 0.001), (0.005, 0.006, CH_ + 0.010))   # side rails
+put(CK_INT, 'ck_grip', gbox, (HOOD_X - 0.010, 0, CZ_ - CH_ / 2 - 0.002), (0.008, CW_ + 0.012, 0.006))         # bottom lip
+put(CK_INT, 'ck_buckle', gbox, (CX_ - 0.0035, 0, CTOP - 0.0005), (0.004, 0.030, 0.007))                      # top spring clip (over the top margin)
+put(CK_INT, 'ck_placard', gbox, (CX_ + 0.002, 0, CZ_), (0.003, CW_, CH_))                                     # card stock (edges / back)
+def card_quad(bm_, x, yc, zc, w_, h_):
+    uv = bm_.loops.layers.uv.verify(); q = [(yc + w_ / 2, zc - h_ / 2), (yc - w_ / 2, zc - h_ / 2), (yc - w_ / 2, zc + h_ / 2), (yc + w_ / 2, zc + h_ / 2)]
+    f = bm_.faces.new([bm_.verts.new((x, y, z)) for y, z in q])             # normal -x: faces the pilot
+    for lp, (u_, v_) in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))): lp[uv].uv = (u_, v_)
+put('SequenceCard_Face', 'seqcard', card_quad, CX_, 0.0, CZ_, CW_, CH_)
+SEQCARD = dict(c=(CX_, 0.0, CZ_), size=(CW_, CH_), top=CTOP, hood_top=HOOD_TOP)
 # compact avionics stacked at the right edge of the rear panel, clear of the rear stick (Ty, 2026-10-30): TY91/TY96-style radio head over a TT21/TT22-
 # style transponder head, each 63 W x 44 H mm (Trig datasheets), on a black mounting plate. Plain faces, no text; layout E.
 AVY, AVZ = -0.258, 0.225; AVW, AVH = 0.063, 0.044
@@ -253,7 +272,7 @@ for nm, zc, art, lcd, knobs in (('Radio', AVZ + AVH / 2 + 0.0005, 'avx_com', (15
         x0 = XP_R - 0.0125; put(n, 'ck_grip', gcyl, (x0, y, z), (x0 - ln, y, z), r, 16)
         put(n, 'ck_buckle', segbox, (x0 - ln - 0.0004, y, z + 0.25 * r), (x0 - ln - 0.0004, y, z + 0.92 * r), 0.0012, 0.0008, (0, 1, 0))
         NEEDLES[n] = dict(c=(XP_R - 0.0125, y, z), key=hk, grp='R')
-put(CK_INT, 'ck_placard', gbox, (XP_R - 0.001, -0.25, 0.130), (0.002, 0.05, 0.022))         # blank placard (no text)
+put(CK_INT, 'ck_placard', gbox, (XP_R - 0.001, -0.075, 0.072), (0.002, 0.05, 0.022))        # blank placard (no text); moved to the centre stack for the panel compass
 
 # ---- fuel selector in each cockpit (POH): OFF / ACRO&CENTRE / WING, modelled on ACRO&CENTRE (E detent angles)
 c = V3((XP_R, 0.0, -0.040)); put(CK_INT, 'dial_fuelsel', dial, XP_R, 0.0, -0.040, 0.030)

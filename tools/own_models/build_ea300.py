@@ -694,13 +694,14 @@ for k_, (nm_, col_) in CK_COL.items():
 for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'cht', 'fuel', 'g', 'tc', 'mag', 'fuelsel'):
     M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('ea-dial-%s.png' % k_), 0.5)
 M['compass'] = paint.mat_image('Compass_Card', _img('ea-compass-band.png'), 0.5)
+M['seqcard'] = paint.mat_image('SequenceCard_Face', _img('ea-seqcard-default.png'), 0.8)   # swappable card slot (any PDF page at runtime)
 for k_ in ('com', 'xpdr'): M['avx_' + k_] = paint.mat_image('Avionics_Face_' + k_.upper(), _img('ea-avx-%s.png' % k_), 0.5)
 for n_, tg_ in CK_TAGS.items():
     u_ = list(dict.fromkeys(tg_)); setm(P[n_], u_)
     assert len(tg_) == len(P[n_].data.polygons), (n_, len(tg_), len(P[n_].data.polygons))
     for p, t in zip(P[n_].data.polygons, tg_): p.material_index = u_.index(t)
 for _n, o in P.items():
-    if _n == 'Footwell_Liner': continue   # v15: double-sided by construction
+    if _n in ('Footwell_Liner', 'SequenceCard_Face'): continue   # v15: double-sided by construction; the card is one quad, wound to face the pilot
     bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))

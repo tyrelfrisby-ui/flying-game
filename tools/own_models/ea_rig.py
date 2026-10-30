@@ -63,7 +63,7 @@ for n, d in NEEDLES.items():
         rig2(o, 'slip_ball', FWD, [-1, 0, 1], [-SLIP_DEG, 0, SLIP_DEG], '-1..+1', 'turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot\'s right (E %g deg)' % SLIP_DEG,
              tv=Vector((0, 0, -1)), want=lambda d: d.y > 0, link=other)
     elif k == 'COMPASS':
-        rig2(o, 'heading_deg', UP, [0, 360], [0, 360], 'deg magnetic', 'wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)',
+        rig2(o, 'heading_deg', UP, [0, 360], [0, 360], 'deg magnetic', 'panel-mount wet compass (rear panel, lower right) card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)',
              tv=AFT, want=lambda d: d.y > 0, link=other, extra={'rig_map_wrap': 360.0})
 DISP = []                                          # v13.1: avionics display surfaces (text drawn by the sim, not a needle rig)
 for n, d in DISPLAYS.items():
@@ -73,6 +73,16 @@ for n, d in DISPLAYS.items():
     DISP.append(dict(node=n, parent=INR.name, params=prm, centre_gltf=gl_pt(wloc(o)), facing_gltf=gl_axis(AFT), size_m=[round(d['size'][0], 4), round(d['size'][1], 4)],
                      note=o['note'] + ('; active + standby frequency, 25 / 8.33 kHz' if n.startswith('Radio') else '; 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT'))) 
     print('DISPLAY %s params %s centre %s size %s' % (n, prm, gl_pt(wloc(o)), o['rig_display_size_m']))
+# v15.1 sequence-card slot (Ty, 2026-10-30): static, swappable texture; no rig param
+o = origin2('SequenceCard_Face', SEQCARD['c'], INR)
+o['seqcard_slot'] = True; o['seqcard_aspect'] = '8.5x11 portrait (w/h = 0.7727)'; o['seqcard_size_m'] = [round(SEQCARD['size'][0], 4), round(SEQCARD['size'][1], 4)]
+o['seqcard_uv'] = 'one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot\'s right, v up); material SequenceCard_Face'
+o['seqcard_default'] = '2026 IAC Power Sportsman Known (art/ea-seqcard-default.png)'
+CARDS = [dict(node='SequenceCard_Face', parent=INR.name, material='SequenceCard_Face', centre_gltf=gl_pt(wloc(o)), facing_gltf=gl_axis(AFT),
+              size_m=[round(SEQCARD['size'][0], 4), round(SEQCARD['size'][1], 4)], aspect='8.5x11 portrait', uv=o['seqcard_uv'], default_texture='tools/own_models/art/ea-seqcard-default.png',
+              holder_top_above_dash_m=round(SEQCARD['top'] - SEQCARD['hood_top'], 4),
+              note='static card in a holder centred on the top edge of the rear dash; replace the texture at runtime (any PDF page rasterised at 8.5:11)')]
+print('SEQCARD centre %s size %s top above dash %.3f' % (gl_pt(wloc(o)), CARDS[0]['size_m'], SEQCARD['top'] - SEQCARD['hood_top']))
 for n in ('Switch_Master_R',):
     o = origin2(n, RIGPTS[n], INR)
     rig2(o, 'master', STBD, [0, 1], [60, 0], '0 OFF / 1 ON', 'battery master toggle: modelled ON (up), OFF = 60 deg down (E)',
@@ -134,4 +144,4 @@ for n, prm, ps, vs, want_, lab in (('Aileron_L', 'aileron', [-1, 0, 1], [30, 0, 
          link={'aileron': 'StickRoll_F/R', 'elevator': 'Stick_F/R', 'rudder': 'Pedal_*'}[prm])
 print('RIG nodes: %d' % len(RIG2))
 if os.environ.get('EA_RIGJSON'):
-    json.dump(dict(model='extra-300-like-own', livery=LIVERY, rig=RIG2, displays=DISP), open(os.environ['EA_RIGJSON'], 'w'), indent=1)
+    json.dump(dict(model='extra-300-like-own', livery=LIVERY, rig=RIG2, displays=DISP, card_slots=CARDS), open(os.environ['EA_RIGJSON'], 'w'), indent=1)
