@@ -213,6 +213,112 @@
    }
   },
   {
+   "node": "Needle_G_F",
+   "parent": "Instruments_Front",
+   "param": "g_load",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.088,
+    -0.12
+   ],
+   "map": [
+    [
+     -4.0,
+     -92.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     230.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_GMax_F",
+   "parent": "Instruments_Front",
+   "param": "g_max_seen",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.088,
+    -0.12
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     230.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Needle_GMin_F",
+   "parent": "Instruments_Front",
+   "param": "g_min_seen",
+   "unit": "g",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.088,
+    -0.12
+   ],
+   "map": [
+    [
+     -4.0,
+     -92.0
+    ],
+    [
+     0.0,
+     0.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
    "node": "Needle_G_R",
    "parent": "Instruments_Rear",
    "param": "g_load",
@@ -244,7 +350,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -278,7 +384,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -312,7 +418,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -793,6 +899,145 @@
    "note": "",
    "extra": {
     "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "Radio_VolumeKnob_R",
+   "parent": "Instruments_Rear",
+   "param": "com_volume",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.6505,
+    0.0985,
+    -0.035
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     270.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "radio head volume knob (left, on/off + squelch push), 0 = off .. 1 = full over 270 deg (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Radio_TuneOuter_R",
+   "parent": "Instruments_Rear",
+   "param": "com_freq_mhz",
+   "unit": "MHz",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.6505,
+    0.0985,
+    -0.083
+   ],
+   "map": [
+    [
+     118.0,
+     0.0
+    ],
+    [
+     137.0,
+     285.0
+    ]
+   ],
+   "model": 118.0,
+   "desc": "radio head dual-concentric tuning knob, OUTER (MHz): 15 deg detent per MHz, turns with the MHz part (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Radio_TuneInner_R",
+   "parent": "Instruments_Rear",
+   "param": "com_freq_mhz",
+   "unit": "MHz",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.6505,
+    0.0985,
+    -0.083
+   ],
+   "map": [
+    [
+     118.0,
+     0.0
+    ],
+    [
+     119.0,
+     600.0
+    ]
+   ],
+   "model": 118.0,
+   "desc": "radio head dual-concentric tuning knob, INNER (kHz): 15 deg detent per 25 kHz channel, i.e. 600 deg per MHz (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
+   }
+  },
+  {
+   "node": "Xpdr_Knob_R",
+   "parent": "Instruments_Rear",
+   "param": "xpdr_knob_clicks",
+   "unit": "clicks",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    1.6505,
+    0.0535,
+    -0.0815
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     30.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "transponder head rotary knob (squawk / menu entry): 30 deg per click (E; unbounded, wrap 360); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_map_extrapolate": 1,
+    "rig_dial_ang0_deg": 0.0
    }
   },
   {
@@ -1652,7 +1897,7 @@
     ]
    ],
    "model": 1.0714,
-   "desc": "jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down, to confirm with Ty",
+   "desc": "jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down (confirmed by Ty, 2026-10-30)",
    "link": "Trim_F/Trim_R",
    "note": "",
    "extra": {}
@@ -1816,6 +2061,54 @@
    "link": "TorqueTube / sticks",
    "note": "",
    "extra": {}
+  }
+ ],
+ "displays": [
+  {
+   "node": "Radio_Display_R",
+   "parent": "Instruments_Rear",
+   "params": [
+    "com_freq_mhz",
+    "com_standby_mhz"
+   ],
+   "centre_gltf": [
+    1.6511,
+    0.1035,
+    -0.059
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.032,
+    0.019
+   ],
+   "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); active + standby frequency, 25 / 8.33 kHz"
+  },
+  {
+   "node": "Xpdr_Display_R",
+   "parent": "Instruments_Rear",
+   "params": [
+    "xpdr_squawk",
+    "xpdr_mode"
+   ],
+   "centre_gltf": [
+    1.6511,
+    0.06,
+    -0.0515
+   ],
+   "facing_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "size_m": [
+    0.039,
+    0.016
+   ],
+   "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT"
   }
  ]
 }

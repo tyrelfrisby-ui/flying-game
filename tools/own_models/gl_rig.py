@@ -63,6 +63,14 @@ for n, d in NEEDLES.items():
     elif k == 'COMPASS':
         rig2(o, 'heading_deg', UP, [0, 360], [0, 360], 'deg magnetic', 'wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)',
              tv=AFT, want=lambda d: d.y > 0, link=other, extra={'rig_map_wrap': 360.0})
+DISP = []                                          # v13.1: avionics display surfaces (text drawn by the sim, not a needle rig)
+for n, d in DISPLAYS.items():
+    o = origin2(n, d['c'], INR); prm = ['com_freq_mhz', 'com_standby_mhz'] if n.startswith('Radio') else ['xpdr_squawk', 'xpdr_mode']
+    o['rig_display_params'] = prm; o['rig_display_size_m'] = [round(d['size'][0], 4), round(d['size'][1], 4)]
+    o['note'] = 'dark LCD face: UV 0..1 over the window (u to the pilot\'s right, v up); the sim draws the text on it (render texture / TMP)'
+    DISP.append(dict(node=n, parent=INR.name, params=prm, centre_gltf=gl_pt(wloc(o)), facing_gltf=gl_axis(AFT), size_m=[round(d['size'][0], 4), round(d['size'][1], 4)],
+                     note=o['note'] + ('; active + standby frequency, 25 / 8.33 kHz' if n.startswith('Radio') else '; 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT'))) 
+    print('DISPLAY %s params %s centre %s size %s' % (n, prm, gl_pt(wloc(o)), o['rig_display_size_m']))
 tt = origin2('TorqueTube', RIGPTS['TorqueTube'], CTL)
 rig2(tt, 'aileron', FWD, [-1, 0, 1], [-18, 0, 18], '-1..+1', 'aileron torque tube under the floor carrying both sticks: +1 = stick tops to the right (roll right), 18 deg (E)',
      link='Aileron_LL/LR (drivers) -> UL/UR (slave struts); Stick_F and Stick_R are children', **CW)
@@ -107,7 +115,7 @@ o = P['Rudder']; o.data.transform(Matrix.Translation(-rp.location)); o.parent = 
 rig2(rp, 'rudder', UP, [-1, 0, 1], [-35, 0, 35], '-1..+1', 'rudder on the vertical hinge line at the sternpost: +1 (right pedal) TE to starboard 35 (TCDS A18EA)', tv=AFT, want=lambda d: d.y > 0, link='Pedal_*')
 rp['hinge_axis_marker'] = 'Rudder_HingeAxis'
 rig2(tp, 'trim', Vector((0, 1, 0)), [-1, 1, 1.0714], [7.25, 0.25, 0.0], '-1 nose down .. +1 nose up',
-     'jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down, to confirm with Ty',
+     'jack-screw stabilizer about the rear beam: LE up 7.25 deg at -1 (nose down), 0.25 at +1 (nose up) (TCDS A18EA travel); modelled at 0 deg = just past +1. Sense: nose-up trim = LE down (confirmed by Ty, 2026-10-30)',
      tv=FWD, want=lambda d: d.z > 0, link='Trim_F/Trim_R')
 for key, A in AIL.items():
     piv = bpy.data.objects['Aileron_%s_Pivot' % key]; ax = wd(A['u']); tv_ = wd(A['te'] - A['o']); r_ = RIG[key[1]]
@@ -122,4 +130,4 @@ for key, A in AIL.items():
     rig2(piv, 'aileron', ax, ps, [round(float(v), 3) for v in vs], '-1..+1', lab + ' (+deg = TE up)', tv=tv_, want=lambda d: d.z > 0, link='TorqueTube / sticks')
 print('RIG nodes: %d' % len(RIG2))
 if os.environ.get('GL_RIGJSON'):
-    json.dump(dict(model='great-lakes-like-own', livery=LIV, rig=RIG2), open(os.environ['GL_RIGJSON'], 'w'), indent=1)
+    json.dump(dict(model='great-lakes-like-own', livery=LIV, rig=RIG2, displays=DISP), open(os.environ['GL_RIGJSON'], 'w'), indent=1)

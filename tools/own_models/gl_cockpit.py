@@ -3,7 +3,8 @@
 # greatlakes2t.co.uk 2T-1A-2 cockpit / panel photos (see PROVENANCE v13), the TCDS A18EA seat arms and the manual's
 # control descriptions. Values marked (E) are estimates. Moving parts are separate objects; gl_rig.py (post-yaw) puts
 # their origins on the pivots and writes the rig extras. Static parts are one multi-material 'Cockpit_Interior'.
-# No radios, intercoms, headsets, transponder / GPS boxes or radio brackets (Ty); no placard text, no registration.
+# No intercoms, headsets or tablet mounts; no placard text, no registration. v13.1 (Ty, 2026-10-30): the GL has electrics, so the
+# rear panel carries compact panel-mount radio + transponder control heads (plain faces, no maker text); no other avionics.
 from gl_dialmaps import DIALS, SLIP_DEG
 CK = {}; RIGPTS = {}; NEEDLES = {}; CK_INT = 'Cockpit_Interior'
 def _o(n):
@@ -151,7 +152,8 @@ HANDS = {'ASI': [('ASI', 0.86, 0.075)], 'ALT': [('ALT100', 0.86, 0.06), ('ALT100
 HNAME = {'ASI': 'ASI', 'ALT100': 'Alt100', 'ALT1000': 'Alt1000', 'VSI': 'VSI', 'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
          'CHT': 'CHT', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin'}
 # (y, z, bezel radius) on each panel, +y = pilot's left. 3-1/8 in instruments r 0.040, 2-1/4 in r 0.028 (by eye off the photos)
-PANEL = {'F': (XP_F, {'ALT': (0.140, 0.084, 0.040), 'ASI': (0.048, 0.002, 0.040), 'TACH': (-0.041, 0.005, 0.040), 'OIL': (-0.130, 0.015, 0.028)}),
+PANEL = {'F': (XP_F, {'ALT': (0.140, 0.084, 0.040), 'ASI': (0.048, 0.002, 0.040), 'TACH': (-0.041, 0.005, 0.040), 'OIL': (-0.130, 0.015, 0.028),
+                      'G': (-0.120, 0.088, 0.040)}),   # v13.1 (Ty): front G-meter, mirrors the altimeter (E: not in KPT_0054)
          'R': (XP_R, {'G': (0.124, 0.071, 0.040), 'MP': (-0.154, 0.071, 0.040), 'CHT': (-0.228, 0.032, 0.028), 'VSI': (0.203, -0.019, 0.040),
                       'ALT': (0.115, -0.019, 0.040), 'ASI': (0.028, -0.019, 0.040), 'TC': (-0.059, -0.019, 0.040), 'TACH': (-0.148, -0.019, 0.040),
                       'OIL': (-0.224, -0.029, 0.028), 'HOBBS': (0.296, -0.032, 0.025), 'MAG': (0.279, 0.020, 0.014)})}
@@ -197,7 +199,31 @@ for k in range(N_):
     for lp, (u_, v_) in zip(f.loops, ((1 - k / N_, 0), (1 - (k + 1) / N_, 0), (1 - (k + 1) / N_, 1), (1 - k / N_, 1))): lp[uv].uv = (u_, v_)
 for h, rr in ((0, ra[0][:N_]), (1, ra[1][:N_])): bc.faces.new(rr if h else rr[::-1])
 CK['Compass_Card_R'] = [bc, ['compass']]; NEEDLES['Compass_Card_R'] = dict(c=(cx, cy, cz), key='COMPASS', grp='R')
-put(CK_INT, 'ck_plug', gcyl, (XP_R, -0.059, 0.074), (XP_R - 0.005, -0.059, 0.074), 0.045, 32)
+# v13.1 (Ty, 2026-10-30): the GL has electrics, so the rear panel's radio hole gets real compact avionics: a TY91/TY96-style
+# radio control head over a TT21/TT22-style transponder control head, each 63 W x 44 H mm (Trig datasheets), stacked on a
+# black mounting plate that fills the old blank hole. Plain faces (gl-avx-*.png, no text); knob / display layout E.
+def texbox(bm_, x, yc, zc, w_, h_, dep):
+    """closed box, panel plane, aft face (toward the seat) at x - dep UV-mapped 0..1 (u to the pilot's right, v up)"""
+    uv = bm_.loops.layers.uv.verify(); q = [(yc + w_ / 2, zc - h_ / 2), (yc - w_ / 2, zc - h_ / 2), (yc - w_ / 2, zc + h_ / 2), (yc + w_ / 2, zc + h_ / 2)]
+    a = [bm_.verts.new((x, y, z)) for y, z in q]; b = [bm_.verts.new((x - dep, y, z)) for y, z in q]
+    bm_.faces.new(a[::-1]); f = bm_.faces.new(b)
+    for i in range(4): bm_.faces.new((a[i], a[(i + 1) % 4], b[(i + 1) % 4], b[i]))
+    for lp in f.loops: lp[uv].uv = ((yc + w_ / 2 - lp.vert.co.y) / w_, (lp.vert.co.z - (zc - h_ / 2)) / h_)
+AVY, AVZ = -0.059, 0.074; AVW, AVH = 0.063, 0.044
+put(CK_INT, 'ck_plug', gbox, (XP_R - 0.001, AVY, AVZ), (0.003, AVW + 0.008, 2 * AVH + 0.010))       # mounting plate
+DISPLAYS = {}
+for nm, zc, art, lcd, knobs in (('Radio', AVZ + AVH / 2 + 0.0005, 'avx_com', (150, 50, 480, 250), (('COMVOL', 75, 200, 0.0045, 0.012), ('COMOUT', 555, 200, 0.0075, 0.010), ('COMIN', 555, 200, 0.0048, 0.017))),
+                                ('Xpdr', AVZ - AVH / 2 - 0.0005, 'avx_xpdr', (40, 50, 440, 220), (('XPKNOB', 540, 200, 0.0058, 0.012),))):
+    put(CK_INT, art, texbox, XP_R - 0.0025, AVY, zc, AVW, AVH, 0.010)                               # head body, face at XP_R - 0.0125
+    px = lambda u, v: (AVY + AVW / 2 - u / 630 * AVW, zc + AVH / 2 - v / 440 * AVH)                  # face art px -> (y, z)
+    (y0, z0), (y1, z1) = px(lcd[0], lcd[1]), px(lcd[2], lcd[3]); n = nm + '_Display_R'
+    put(n, 'ck_lcd', texbox, XP_R - 0.0125, 0.5 * (y0 + y1), 0.5 * (z0 + z1), abs(y1 - y0) - 0.001, abs(z1 - z0) - 0.001, 0.0006)
+    DISPLAYS[n] = dict(c=(XP_R - 0.0131, 0.5 * (y0 + y1), 0.5 * (z0 + z1)), size=(abs(y1 - y0) - 0.001, abs(z1 - z0) - 0.001))
+    for hk, u, v, r, ln in knobs:
+        y, z = px(u, v); n = {'COMVOL': 'Radio_VolumeKnob_R', 'COMOUT': 'Radio_TuneOuter_R', 'COMIN': 'Radio_TuneInner_R', 'XPKNOB': 'Xpdr_Knob_R'}[hk]
+        x0 = XP_R - 0.0125; put(n, 'ck_grip', gcyl, (x0, y, z), (x0 - ln, y, z), r, 16)
+        put(n, 'ck_buckle', segbox, (x0 - ln - 0.0004, y, z + 0.25 * r), (x0 - ln - 0.0004, y, z + 0.92 * r), 0.0012, 0.0008, (0, 1, 0))   # index line
+        NEEDLES[n] = dict(c=(XP_R - 0.0125, y, z), key=hk, grp='R')
 put(CK_INT, 'ck_placard', gbox, (XP_R - 0.001, 0.205, 0.095), (0.002, 0.06, 0.028))
 put(CK_INT, 'ck_grip', gbox, (XP_F - 0.004, 0.21, 0.05), (0.008, 0.018, 0.026))                  # front toggle switch + red lamp (static)
 put(CK_INT, 'ck_buckle', gcyl, (XP_F - 0.008, 0.21, 0.05), (XP_F - 0.024, 0.21, 0.058), 0.0025, 6)

@@ -109,3 +109,16 @@ for h in range(0, 360, 5):
         if h % 30 == 0:
             s_ = names.get(h, str(h // 10)); bb = d.textbbox((0, 0), s_, font=f); d.text((x - (bb[2] - bb[0]) / 2, 34), s_, fill=WH, font=f)
 im.save(os.path.join(ART, 'gl-compass-band.png')); print('wrote gl-compass-band.png')
+# v13.1 compact panel-mount avionics faces (Ty, 2026-10-30): plain faces, no maker text, no legends. 10 px per mm over
+# the real 63 x 44 mm control-head face (TY91/TY96-style radio head, TT21/TT22-style transponder head: Trig datasheets);
+# the layouts (display window, knob seats, button row) are our estimates (E). The LCD itself is a separate mesh node.
+def avx_face(lcd, seats, buttons, name):
+    im = Image.new('RGB', (630, 440), (34, 34, 38)); d = ImageDraw.Draw(im)
+    d.rectangle((3, 3, 626, 436), outline=(70, 70, 76), width=6)
+    d.rectangle(lcd, fill=(10, 12, 12), outline=(84, 84, 90), width=5)
+    for cx, cy, r in seats: d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(22, 22, 24), outline=(84, 84, 90), width=4)
+    for x0, y0, x1, y1 in buttons: d.rounded_rectangle((x0, y0, x1, y1), 8, fill=(64, 64, 70), outline=(96, 96, 102), width=3)
+    save(im, name)
+AVX = {'com': dict(lcd=(150, 50, 480, 250), seats=[(75, 200, 50), (555, 200, 72)], buttons=[(165 + 82 * i, 300, 225 + 82 * i, 370) for i in range(4)]),
+       'xpdr': dict(lcd=(40, 50, 440, 220), seats=[(540, 200, 62)], buttons=[(40 + 68 * i, 285, 92 + 68 * i, 355) for i in range(6)])}
+for k, v in AVX.items(): avx_face(v['lcd'], v['seats'], v['buttons'], 'gl-avx-%s.png' % k)

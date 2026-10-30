@@ -38,10 +38,13 @@ outboard); pin markers Strut_Slave_<s>_PinUpper / _PinLower ride on the ailerons
 pin. The lower ailerons are driven (24 up / 22 down, TCDS A18EA); the uppers follow at constant strut length (extras
 carry the solved follower table). gl_aileronpose.py poses / renders it.
 
+v13.1 (Ty, 2026-10-30): front G-meter (Needle_G/GMax/GMin_F); rear compact radio + transponder control heads
+(Trig-size 63 x 44 mm faces, plain art art/gl-avx-*.png, knob nodes + Radio/Xpdr_Display_R, see the RIG doc);
+stab trim sense confirmed (nose-up = LE down); Eye_Rear is the default solo view.
 v13 cockpits + rig (Ty: accurate tandem open cockpits for the cockpit view, every instrument and control rigged):
 gl_cockpit.py builds both cockpits (instrument panels, seats, belts, sticks on one torque tube, rudder pedals + heel
 brakes, throttle / prop / mixture quadrants, stab trim, fuel valve, rear mag key, frame tubes, liner) by eye off the
-greatlakes2t.co.uk 2T-1A-2 photos (PROVENANCE v13); no radios / intercoms / headsets / placard text. Dial faces are our
+greatlakes2t.co.uk 2T-1A-2 photos (PROVENANCE v13); no intercoms / headsets / placard text. Dial faces are our
 own art (make_gl_dials.py -> art/gl-dial-*.png; scales in gl_dialmaps.py). gl_rig.py (post-yaw) puts every needle,
 control and the elevator / rudder (new Elevator_L/R_Pivot under Stab_TrimPivot, Rudder_Pivot, + HingeAxis markers) on
 its pivot and writes rig_* extras; GL_RIGJSON=<path> also dumps the table (docs/models/great-lakes-own-RIG.md, -rig.json).
@@ -1100,7 +1103,8 @@ CK_COL = {'ck_wall': ('Cockpit_side_panel', (150, 160, 172)), 'ck_floor': ('Cock
           'ck_hub': ('Cockpit_hub', (20, 20, 22)), 'ck_ball': ('Cockpit_tc_ball', (16, 16, 18)), 'ck_lubber': ('Cockpit_lubber', (230, 110, 30)),
           'ck_plug': ('Cockpit_blank_plug', (34, 34, 36)), 'ck_placard': ('Cockpit_placard_blank', (226, 222, 206)), 'ck_lamp': ('Cockpit_lamp_red', (200, 30, 22)),
           'ck_stick': ('Cockpit_stick_tube', (186, 188, 192)), 'ck_grip': ('Cockpit_black', (22, 22, 24)), 'ck_knob_red': ('Cockpit_knob_red', (180, 30, 26)),
-          'ck_pedal': ('Cockpit_pedal', (176, 178, 182)), 'ck_quadrant': ('Cockpit_quadrant', (120, 124, 130)), 'ck_trim': ('Cockpit_trim_knob', (24, 24, 26))}
+          'ck_pedal': ('Cockpit_pedal', (176, 178, 182)), 'ck_quadrant': ('Cockpit_quadrant', (120, 124, 130)), 'ck_trim': ('Cockpit_trim_knob', (24, 24, 26)),
+          'ck_lcd': ('Cockpit_avionics_display', (12, 16, 15))}
 for k_, (nm_, col_) in CK_COL.items():
     if k_ not in M: M[k_] = paint.mat_colour(nm_, col_, rough=0.9)
     for _nd in M[k_].node_tree.nodes:
@@ -1110,6 +1114,7 @@ for k_, (nm_, col_) in CK_COL.items():
 for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'cht', 'g', 'tc', 'hobbs', 'mag'):
     M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('gl-dial-%s.png' % k_), 0.5)
 M['compass'] = paint.mat_image('Compass_Card', _img('gl-compass-band.png'), 0.5)
+for k_ in ('com', 'xpdr'): M['avx_' + k_] = paint.mat_image('Avionics_Face_' + k_.upper(), _img('gl-avx-%s.png' % k_), 0.5)   # v13.1
 for n_, tg_ in CK_TAGS.items():
     u_ = list(dict.fromkeys(tg_)); setm(P[n_], u_)
     assert len(tg_) == len(P[n_].data.polygons), (n_, len(tg_), len(P[n_].data.polygons))
@@ -1220,7 +1225,7 @@ tp = _empty('Stab_TrimPivot', _wv((X_RB, 0.0, Z_S)))
 _empty('Stab_TrimAxis', _wv((X_RB, 1.0, Z_S))); _empty('Stab_TrimJack', _wv((float(SLE(0.0)) - 0.12, 0.0, Z_S)))
 tp['trim_travel_up_deg_min'] = 0.25; tp['trim_travel_up_deg_max'] = 7.25; tp['trim_tolerance_deg'] = 0.5
 tp['trim_type'] = 'jack-screw stabilizer, leading edge moves, pivot on rear beam, no trim tab'
-tp['trim_deg_as_modelled'] = 0.0; tp['trim_sense_note'] = "TCDS 'Up' = stabilizer LE up (to confirm with Ty)"
+tp['trim_deg_as_modelled'] = 0.0; tp['trim_sense_note'] = "TCDS 'Up' = stabilizer LE up; nose-up trim = LE down (confirmed by Ty, 2026-10-30)"
 for n in ('Stab', 'Elevator_L', 'Elevator_R'):
     o = P[n]; org = tp.location.copy(); o.data.transform(Matrix.Translation(-org)); o.parent = tp; o.location = org - tp.location
 # v11 aileron rig. Per aileron an empty 'Aileron_<UL|UR|LL|LR>_Pivot' on the hinge line (mid-thickness at the 76 %

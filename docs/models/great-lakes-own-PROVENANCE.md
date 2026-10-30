@@ -1,11 +1,11 @@
-# Great Lakes 2T-1A-2 style biplane: our own model (v13, NOT approved)
+# Great Lakes 2T-1A-2 style biplane: our own model (v13.1, NOT approved)
 
 - Outputs (`unity/Assets/_Project/Resources/Models/great-lakes-like/`): `great-lakes-like-own.glb` (v1 placeholder paint),
   `great-lakes-like-own-red-sunburst.glb`, `great-lakes-like-own-white-stripes.glb`
 - In the game (Claude, 2026-10-28): the red-sunburst build is installed AS `great-lakes-like-own.glb`, i.e.
   `GL_LIVERY=red-sunburst GL_OUT=unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb`.
 - Build: `GL_LIVERY=v1|red-sunburst|white-stripes [GL_RIGJSON=<json>] blender -b --python tools/own_models/build_great_lakes.py`
-- Rig (v13): `docs/models/great-lakes-own-RIG.md` + `great-lakes-own-rig.json` (51 nodes)
+- Rig (v13): `docs/models/great-lakes-own-RIG.md` + `great-lakes-own-rig.json` (58 nodes in v13.1)
 - Gear poses: `blender -b --python tools/own_models/gl_gearpose.py -- <glb> <extended|static|full|deg> <outprefix>`
 - Renders: `blender -b --python tools/own_models/gl_fourview.py -- <glb> <outprefix>`
 
@@ -295,7 +295,7 @@ Ty: red fuselage paint APPROVED and frozen; white wings/stab frozen. v8 = red-su
   parents Stab, Elevator_L and Elevator_R (mesh origins on the pivot). Pivot axis = Stab_TrimPivot -> Stab_TrimAxis
   (lateral); Stab_TrimJack marks the front-spar actuator. Extras: trim_travel_up_deg_min 0.25, trim_travel_up_deg_max
   7.25, trim_tolerance_deg 0.5 (TCDS A18EA / manual: travel 1/4 deg up to 7 1/4 deg up), trim_deg_as_modelled 0,
-  trim_type, trim_sense_note. Open: confirm that "up" means LE up, and the 0 deg reference. The brace wires lie on
+  trim_type, trim_sense_note. "Up" = LE up and nose-up trim = LE down, confirmed by Ty 2026-10-30. The brace wires lie on
   the pivot line, so they stay valid through trim travel.
 
 ## v11 changes (2026-10-28). NOT approved by Ty.
@@ -369,6 +369,21 @@ gear moving parts, Strut_Slave_L/R and the upper aileron brackets (Aileron_UL/UR
 - Renders on the agent box: /workspace/great-lakes-ailerons/v12/ (4-views per livery, white standard; gear front view
   v11 extended vs v12 static; aileron -1/0/+1 poses).
 
+## v13.1 changes (2026-10-30). NOT approved by Ty.
+- Front G-meter (Ty: "make sure the Great Lakes front seat has airspeed, altitude and g meter"): Needle_G_F /
+  Needle_GMax_F / Needle_GMin_F, the same dial art, maps and TCDS A18EA NOTE 6 red marks (+5.4 / -4.0) as the rear
+  accelerometer. NOT in the KPT_0054 front-panel photo: added at Ty's request, top right of the front panel (position E).
+- Rear-panel avionics (Ty: the "no radios" rule was only for the J-3 and 2-33, which have no electrics; aircraft with
+  electrics get their real avionics). A compact panel-mount radio control head (TY91/TY96-style) over a compact
+  transponder control head (TT21/TT22-style) in the photo's radio hole (IMG_1664), replacing v13's blank plug. Face size
+  63 x 44 mm each from the public Trig datasheets / installation manuals (TC90 radio controller, 00839-00; TC20
+  transponder controller, 00560-00; 35-54 mm behind the panel). Faces are our own plain PIL art (make_gl_dials.py ->
+  art/gl-avx-com.png, gl-avx-xpdr.png): dark LCD window, knob seats, plain buttons, NO maker name or text. Knob /
+  button / window layout by eye off the public product photos (E). Rigged knobs + two display nodes for the sim's
+  frequency / squawk text (RIG doc, Displays).
+- Still left out: intercoms, headsets, tablet mounts and any other avionics box.
+- Default solo view: Eye_Rear (Ty, 2026-10-30).
+
 ## v13 changes (2026-10-29). NOT approved by Ty.
 Ty: "accurate tandem open cockpits for the cockpit view ... every instrument working as a rig node ... every control
 moving with real pivots ... hinged at the real hinge lines". Geometry: `tools/own_models/gl_cockpit.py` (exec'd by the
@@ -378,10 +393,10 @@ maker's name, no registration); scales: `gl_dialmaps.py`.
 - Both cockpits, by eye off the photos above (front: KPT_0054; rear: IMG_1664, IMG_1666, n76l_4): instrument panels
   front and rear (front: altimeter, ASI, tach, oil pressure / temperature, toggle switch + light; rear (PIC):
   accelerometer, wet compass on the coaming, MP, VSI, altimeter, ASI, turn coordinator, tach, CHT, oil P/T, Hobbs,
-  mag key, a blank plug where the photo's radio sits, a blank placard), seats with cushions and 4-point belts, sticks
+  mag key, a blank plug where the photo's radio sits (v13.1: the radio + transponder heads), a blank placard), seats with cushions and 4-point belts, sticks
   on one torque tube, hinged rudder pedals with heel brakes in both cockpits, left-wall throttle / prop / mixture
   quadrants, stabilizer trim knobs, fuel shut-off handles, floor boards, frame tubes and an inner liner.
-- Left out on purpose (Ty): radios, intercoms, headsets, transponder / GPS boxes, radio brackets, tablet mounts; the
+- Left out on purpose (Ty; radio + transponder heads added back in v13.1): radios, intercoms, headsets, transponder / GPS boxes, radio brackets, tablet mounts; the
   "SOLO REAR SEAT ONLY" and other placards are blank plates; no "Great Lakes" text on the dials; no N-number.
 - Rig: 51 nodes (table and maps in great-lakes-own-RIG.md). New Elevator_L_Pivot / Elevator_R_Pivot (children of
   Stab_TrimPivot) and Rudder_Pivot on the real hinge lines, with _HingeAxis markers, like the v11 aileron pivots.
@@ -414,7 +429,7 @@ The aircraft config and Unity integration are Claude's (lane/claude-menu-aero, 2
   fastener detail.
 - v13 cockpit: every value marked (E) in great-lakes-own-RIG.md is an estimate (layout by eye, control ranges, dial
   sweeps, eye points). The small top-right rear gauge is read as CHT (E).
-- Stabilizer trim sense to confirm with Ty: modelled as nose-up trim = stabilizer LE down (trim +1 = 1/4 deg up,
+- Stabilizer trim sense CONFIRMED by Ty (2026-10-30): nose-up trim = stabilizer LE down (trim +1 = 1/4 deg up,
   -1 = 7-1/4 deg up per the TCDS); the stab sits at 0 deg in the GLB, which is trim 1.0714, so the sim must drive it.
 - Aileron lower down stop is the v12 rigged 21.01 deg (TCDS 22 +-1).
 - Doors / canopies: the Great Lakes is open-cockpit, nothing to open or jettison (no canopy or door nodes).

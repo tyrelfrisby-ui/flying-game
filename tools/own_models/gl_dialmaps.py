@@ -23,6 +23,11 @@ DIALS = {
     'G':       ('g_load', [-4, 0, 10], [-92, 0, 230], 0.0, 'g', 'accelerometer -4..+10 g, 0 g at 12 o\'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors)', {}),
     'GMAX':    ('g_max_seen', [0, 10], [0, 230], 0.0, 'g', 'accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged)', {}),
     'GMIN':    ('g_min_seen', [-4, 0], [-92, 0], 0.0, 'g', 'accelerometer min tell-tale (follows g_load down, stays)', {}),
+    # v13.1 compact avionics knobs on the rear panel (Ty, 2026-10-30). Layout / detent angles E; frequency range per ICAO VHF COM.
+    'COMVOL':  ('com_volume', [0, 1], [0, 270], 0.0, '0..1', 'radio head volume knob (left, on/off + squelch push), 0 = off .. 1 = full over 270 deg (E)', {}),
+    'COMOUT':  ('com_freq_mhz', [118, 137], [0, 285], 0.0, 'MHz', 'radio head dual-concentric tuning knob, OUTER (MHz): 15 deg detent per MHz, turns with the MHz part (E; unbounded, wrap 360)', {'rig_map_extrapolate': 1}),
+    'COMIN':   ('com_freq_mhz', [118, 119], [0, 600], 0.0, 'MHz', 'radio head dual-concentric tuning knob, INNER (kHz): 15 deg detent per 25 kHz channel, i.e. 600 deg per MHz (E; unbounded, wrap 360)', {'rig_map_extrapolate': 1}),
+    'XPKNOB':  ('xpdr_knob_clicks', [0, 1], [0, 30], 0.0, 'clicks', 'transponder head rotary knob (squawk / menu entry): 30 deg per click (E; unbounded, wrap 360)', {'rig_map_extrapolate': 1}),
     'TC':      ('turn_rate_dps', [-6, 0, 6], [-40, 0, 40], 0.0, 'deg/s', 'turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E)', {}),
     'MAG':     ('magneto', [0, 1, 2, 3, 4], [0, 30, 60, 90, 130], -60.0, 'OFF/R/L/BOTH/START', 'ignition key OFF, R, L, BOTH, START (spring back to BOTH); detent angles E', {'rig_detents': [0, 1, 2, 3, 4]}),
 }
