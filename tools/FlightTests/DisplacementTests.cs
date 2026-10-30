@@ -39,6 +39,11 @@ public class DisplacementTests
     }
 
     [Theory]
+    // A J-3 on Edo 60-1320s (FAA Aircraft Specification A-691 Rev 34, Item 206: "Edo 60-1320 floats with water
+    // rudders (171 lb.)", maximum weight 1,300 lb). Edo names a float for the pounds it displaces, so the pair is
+    // 2,640 lb on a 1,300 lb aeroplane. This row exists because its absence is how the J-3 came to be flying on the
+    // SUPER CUB's EDO 2000s -- the float block was a byte-for-byte copy, 1,972 lb a side and 2.92 W of reserve.
+    [InlineData("j3-cub-floats-like", 1.8, 2.3)]
     [InlineData("pa18-floats-like", 1.8, 2.6)]   // EDO 2000 pair ≈ 4,000 lb on a ~1,800-2,000 lb Cub ≈ 2.0-2.2 W
     [InlineData("dhc2-beaver-floats-like", 1.8, 2.3)]   // EDO 4930 pair ≈ 9,860 lb on a 4,850-5,090 lb Beaver ≈ 1.9-2.0 W
     [InlineData("hughes-h4-like", 1.8, 25.0)]    // hull: 25 x 30 x 218 ft — enormous reserve; its rest DRAFT is the real check (FlyingBoatTests)

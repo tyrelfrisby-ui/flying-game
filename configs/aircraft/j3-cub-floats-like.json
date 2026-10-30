@@ -4,7 +4,7 @@
   "displayName": "J-3 Cub-like on Floats",
   "spawnIasMs": 26,
   "mass": {
-    "massKg": 613.0,
+    "massKg": 589.7,
     "cg": [
       -0.05,
       0,
@@ -1448,9 +1448,9 @@
   "gear": [
     {
       "pos": [
-        2.2,
-        -1.3,
-        1.45
+        1.9,
+        -1.26,
+        1.41
       ],
       "springN": 45000,
       "dampNs": 4000,
@@ -1466,8 +1466,8 @@
     {
       "pos": [
         -0.12,
-        -1.3,
-        1.55
+        -1.26,
+        1.495
       ],
       "springN": 60000,
       "dampNs": 5000,
@@ -1482,9 +1482,9 @@
     },
     {
       "pos": [
-        -2.3,
-        -1.3,
-        1.39
+        -2.01,
+        -1.26,
+        1.36
       ],
       "springN": 45000,
       "dampNs": 4000,
@@ -1499,9 +1499,9 @@
     },
     {
       "pos": [
-        2.2,
-        1.3,
-        1.45
+        1.9,
+        1.26,
+        1.41
       ],
       "springN": 45000,
       "dampNs": 4000,
@@ -1517,8 +1517,8 @@
     {
       "pos": [
         -0.12,
-        1.3,
-        1.55
+        1.26,
+        1.495
       ],
       "springN": 60000,
       "dampNs": 5000,
@@ -1533,9 +1533,9 @@
     },
     {
       "pos": [
-        -2.3,
-        1.3,
-        1.39
+        -2.01,
+        1.26,
+        1.36
       ],
       "springN": 45000,
       "dampNs": 4000,
@@ -1564,17 +1564,17 @@
     "isTug": true
   },
   "floats": {
-    "lengthM": 4.95,
-    "beamM": 0.66,
-    "depthM": 0.42,
+    "lengthM": 4.3,
+    "beamM": 0.585,
+    "depthM": 0.365,
     "deadriseDeg": 20,
     "stepFraction": 0.55,
-    "spreadM": 2.6,
-    "bowX": 2.6,
-    "keelZ": 1.55,
+    "spreadM": 2.52,
+    "bowX": 2.24,
+    "keelZ": 1.495,
     "forebodyKeelDeg": 2.5,
     "afterbodyKeelDeg": 4.0,
-    "waterRudderAreaM2": 0.05,
+    "waterRudderAreaM2": 0.038,
     "waterRudderMaxRad": 0.6
   }
 }

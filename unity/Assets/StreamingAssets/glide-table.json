@@ -522,15 +522,15 @@
   {
     "Id": "j3-cub-floats-like",
     "Flaps": 0,
-    "VsoKt": 40.04,
-    "SpeedKt": 52.06,
-    "GlideDeg": 10.653,
-    "GlideRatio": 5.316,
-    "SinkFpm": 974.5,
-    "AlphaDeg": 5.208,
-    "PitchDeg": -5.445,
-    "ElevatorDeg": -4.265,
-    "TrimStick": -0.1839
+    "VsoKt": 39.07,
+    "SpeedKt": 50.79,
+    "GlideDeg": 10.613,
+    "GlideRatio": 5.337,
+    "SinkFpm": 947.3,
+    "AlphaDeg": 5.324,
+    "PitchDeg": -5.288,
+    "ElevatorDeg": -4.387,
+    "TrimStick": -0.1882
   },
   {
     "Id": "j3-cub-like",
