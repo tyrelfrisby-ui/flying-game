@@ -131,8 +131,22 @@ Narrowed, and the 2-33's yaw string still fails it.
 from:` — Unity links neither PDFKit nor UniformTypeIdentifiers on its own, and nothing in the editor or the
 test suite wants them. Both are now added in `BuildScript.OnPostProcessBuild` beside the clip encoder's.
 
-Gates: Unity editor compiles all four assemblies clean, and `tools/deploy/deploy.sh` to `** BUILD SUCCEEDED **`
-(build 2026.1030.0728, installed and launched on the iPad mini). Not pushed, not merged.
+**Seven tests had been red since the v15 cockpit landed, and nobody had noticed.** The suite on this lane came
+back 11 failed. Running the same tests at `073f113` gave the same 11, and at `fe9c35e` — the v15 commit itself —
+seven of them were already failing, all at one assertion in `OwnPittsModelTests.Vertices`: *"the build bakes
+every transform into the mesh"*. For an unrigged model that was true. A RIGGED one cannot satisfy it: a rig
+node's whole purpose is to sit on its own pivot with a transform of its own, so `GearMatchesTheModels` x3,
+`EachLiveryHasItsOwnPropeller` x3 and `UnmarkedIsTheSameAirframeAsItsMarkedSibling` went red the moment the
+cockpit arrived — not because anything about the aeroplane was wrong, but because the reader was asking for
+something a rig is not allowed to give it. `Vertices` now composes each node's transform up to the scene root
+(glTF `matrix`, or T * R * S) instead of forbidding transforms, which is what every caller wanted anyway: where
+each part really is on the aeroplane. Seven green, the Pitts' unrigged GLBs unaffected (identity composes to
+identity), and the suite is 4 failed / 790 passed / 3 skipped — the four being the Pitts ground handling (x3)
+and the flat-spin smoke check, all already written up above and all deliberately not forced green.
+
+Gates: suite 4 failed / 790 passed / 3 skipped (down from 11 failed), the Unity editor compiling all four
+assemblies clean, and `tools/deploy/deploy.sh` to `** BUILD SUCCEEDED **` (build 2026.1030.0728, installed and
+launched on the iPad mini). Not pushed, not merged.
 ### 2026-10-30 — Grok Bot executor · lane/codex-extra-cockpit · Extra 300 v15.1 compass + sequence card
 
 Ty: compass into the panel, sequence holder centred on the dash top standing about 2 in above it, 2026 IAC Sportsman Known on the card, card swappable. The wet compass is now a 2-1/4 in panel-mount unit at the lower right of the rear panel (same Compass_Card_R node and heading_deg rig, new pivot); the blank placard moved to the centre stack. The holder sits on the glareshield's aft face, top 50 mm above the dash. The card face is its own node and material `SequenceCard_Face` (one quad, letter portrait 8.5 x 11, UV 0..1), documented in docs/models/ea300-own-RIG.md and under `card_slots` in the rig JSON. Default texture: the IAC's 2026 Power Sportsman Known pilot card (make_ea_seqcard.py; source in PROVENANCE v15.1). Physics and configs not touched. Open: the compass card is still static until the game drives heading_deg; the runtime PDF card swap is not built; the Pitts and Great Lakes need the same holder and card node.
