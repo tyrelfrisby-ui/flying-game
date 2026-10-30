@@ -170,7 +170,7 @@ def ck_seat(x0, zf, back_top, hw, rec_deg=22, back_z0=None):
         ck_box('ck_strap', (bx + 0.06, sy * 2.2, zf + 0.09), (0.12, 0.045, 0.008), ry=math.radians(40))
     ck_box('ck_strap', (x0 - 0.12, 0, zf + 0.065), (0.12, 0.045, 0.008))
     ck_box('ck_strap', (bx + 0.10, 0, zf + 0.085), (0.06, 0.07, 0.03))                          # buckle
-def ck_stick(x, zf, h=0.36, floor=None):
+def ck_stick(x, zf, h=0.36, floor=None, stick=True):
     """v6: zf = stick pivot (may sit below the floor in a well); boot sits at the floor opening"""
     fl = zf if floor is None else floor
     if floor is not None and floor > zf + 0.02:          # navy stick well down through the floor to the pivot
@@ -179,6 +179,7 @@ def ck_stick(x, zf, h=0.36, floor=None):
             ck_box('ck_tub', (x + sx, sy, (zf - 0.02 + fl) / 2), (lx, ly, fl - zf + 0.02))
         ck_box('ck_tub', (x, 0, zf - 0.02), (2 * w, 2 * w, 0.006))
     ck_cyl('ck_seat', (x, 0, fl), (x, 0, fl + 0.07), 0.034, 12)                                 # rubber boot
+    if not stick: return                                  # v15: the stick itself is a rigged part (ea_cockpit.py)
     ck_cyl('ck_stick', (x, 0, zf + 0.05), (x - 0.045, 0, zf + h - 0.09), 0.010, 10)
     ck_cyl('ck_stick', (x - 0.045, 0, zf + h - 0.10), (x - 0.055, 0, zf + h), 0.016, 12)        # grip
 ZF = 0.068 - 0.152  # v7: floor lowered 0.152 with the seat pans; v6: cockpit floor top, lowered 0.102 with the seats (wing carry-through trimmed under the tub)
@@ -202,9 +203,9 @@ for a, b in zip(_lx[:-1], _lx[1:]):
     if zt > ZF + 0.005 and ww > 0.30:
         for sy in (1, -1): ck_box('ck_tub', (m, sy * (0.30 + ww) / 2 * 1.0, (ZF + zt) / 2), (abs(a - b) + 0.002, ww - 0.295, zt - ZF))
 # front (student) seat + stick
-ck_seat(-0.694 + 0.152, ZF, 0.328, 0.17, rec_deg=17, back_z0=0.068); ck_stick(-0.504 + 0.152, 0.17 - 0.305, 0.34 + 0.102, floor=ZF)   # v7: pan -0.152 z, seat+stick fwd 0.152, stick +0.102 long   # v6: seat -0.102 z, seat+stick 0.254 aft, stick -0.305 z; recline 22->17 deg to clear the dash top
+ck_seat(-0.694 + 0.152, ZF, 0.328, 0.17, rec_deg=17, back_z0=0.068); ck_stick(-0.504 + 0.152, 0.17 - 0.305, 0.34 + 0.102, floor=ZF, stick=False)   # v7: pan -0.152 z, seat+stick fwd 0.152, stick +0.102 long   # v6: seat -0.102 z, seat+stick 0.254 aft, stick -0.305 z; recline 22->17 deg to clear the dash top
 # rear (PIC) seat + stick
-ck_seat(-1.42, ZF, 0.348, 0.17, back_z0=0.068); ck_stick(-1.355, 0.17 - 0.305, 0.36 + 0.102, floor=ZF)   # v7: pan -0.152 z, stick +0.102 long   # v6: stick -0.305 z; moved aft 0.115 so it stays behind the moved panel
+ck_seat(-1.42, ZF, 0.348, 0.17, back_z0=0.068); ck_stick(-1.355, 0.17 - 0.305, 0.36 + 0.102, floor=ZF, stick=False)   # v7: pan -0.152 z, stick +0.102 long   # v6: stick -0.305 z; moved aft 0.115 so it stays behind the moved panel
 # v8: baggage area behind the rear seat: shelf, front lip, side walls (tub walls) and an aft bulkhead following the skin
 BG_X0, BG_X1, BG_Z = -1.80, -2.15, 0.10
 _bw = lambda x: float(np.interp(-x, -RX, RW_)) - 0.06
@@ -220,23 +221,16 @@ print('BAGGAGE ring x %.3f top z %.3f, bulkhead pts %d' % (RX[_ri], _rp[:, 1].ma
 ck_prism('ck_tub', _poly, BG_X1, 0.01, 0.0, BG_Z)
 # front panel: small arch-top strip under the windscreen, 5 gauges
 arch = [(-0.27, 0.0), (0.27, 0.0)] + [(0.27 * math.cos(t), 0.07 + 0.08 * math.sin(t)) for t in np.linspace(0, math.pi, 11)]
-FPX, FPZ, FL = -0.14, 0.17, math.radians(18)
+FPX, FPZ, FL = -0.14, 0.17, 0.0     # v15: upright (instruments are rigged dials, ea_cockpit.py)
 ck_prism('ck_panel', arch, FPX, 0.02, FL, FPZ)
-for y in (-0.19, -0.095, 0, 0.095, 0.19):
-    zz = 0.085 if abs(y) < 0.1 else 0.06
-    ck_gauge(FPX + zz * math.tan(FL) - 0.011, y, FPZ + zz, 0.036, FL)
 # rear (main) panel, v5: angular-cornered dash top (glareshield) ~0.20 m deep fore-aft behind the front seat, after the
 # 300L photo; the rectangular instrument panel hangs under its aft lip; radio stack below
 RPX, RPZ = -1.314 + 0.152, 0.148                                       # panel face station / panel bottom
 hood = [(-0.31, 0.0), (0.31, 0.0), (0.31, 0.03), (0.20, 0.12), (-0.20, 0.12), (-0.31, 0.03)]   # v6: narrowed 0.04/side to clear the canopy glass
 _h0 = len(ck_tag); ck_prism('ck_panel', hood, RPX + 0.06, 0.20, 0.0, RPZ + 0.16)    # x RPX-0.04 .. RPX+0.16
 for _i in (2, 3, 4): ck_tag[_h0 + 2 + _i] = CK_T.index('ck_black')          # v6: flat matte black top (+ angled corners)
-ck_prism('ck_panel', [(-0.30, 0.0), (0.30, 0.0), (0.30, 0.16), (-0.30, 0.16)], RPX + 0.015, 0.03, 0.0, RPZ)
-ck_box('ck_panel', (RPX + 0.03, 0, (ZF + RPZ) / 2), (0.05, 0.24, RPZ - ZF))   # v6: stack trimmed to the floor
-ck_box('ck_face', (RPX - 0.002, 0, (ZF + RPZ) / 2), (0.004, 0.13, 0.05))                                 # radio face
-for z in (0.045, 0.115):
-    for y in (-0.24, -0.12, 0.0, 0.12, 0.24):
-        ck_gauge(RPX - 0.001, y, RPZ + z, 0.031, 0.0)
+ck_prism('ck_panel', [(-0.30, -0.048), (0.30, -0.048), (0.30, 0.16), (-0.30, 0.16)], RPX + 0.015, 0.03, 0.0, RPZ)   # v15: 48 mm deeper for the 2x3 six-pack
+ck_box('ck_panel', (RPX + 0.025, 0, (ZF + 0.10) / 2), (0.05, 0.24, 0.10 - ZF))   # v15: centre stack under the deeper panel (avionics + fuel selector); v6: trimmed to the floor
 # light-grey steel tube frame visible along the cockpit sides (sill longeron + diagonals)
 for sy in (1, -1):
     hw_at = lambda x: float(np.interp(-x, -RX, RW_)) - 0.075
@@ -244,8 +238,9 @@ for sy in (1, -1):
     for a, b in zip(xs[:-1], xs[1:]):
         ck_cyl('ck_tube', (a, sy * min(hw_at(a), sillw(a) - 0.05), float(topf(a)) - 0.06), (b, sy * min(hw_at(b), sillw(b) - 0.05), float(topf(b)) - 0.06), 0.012, 8)
         ck_cyl('ck_tube', (a, sy * min(hw_at(a), sillw(a) - 0.05), float(topf(a)) - 0.06), (b, sy * (hw_at(b) - 0.02), ZF + 0.02), 0.011, 8)
-P['Cockpit'] = link('Cockpit', ck)
+P['Cockpit_Shell'] = link('Cockpit_Shell', ck)   # v15: renamed; 'Cockpit' is now the group empty (ea_rig.py)
 print('COCKPIT faces', len(ck_tag))
+exec(open(os.path.join(HERE, 'ea_cockpit.py')).read())   # v15: clean-room rigged cockpit + canopy split
 
 # ---- lifting surfaces: sections interpolated from the measured tables, split at the measured hinge lines --------
 FR = np.array(R['chord_fractions'])
@@ -331,9 +326,9 @@ P['Wing'] = paint.join(wing, 'Wing')
 # v6: trim the hidden mid-wing carry-through faces inside the cockpit tub (inside the fuselage, never seen from
 # outside) so the lowered floor/seats/stick wells do not show white wing skin
 _bm = bmesh.new(); _bm.from_mesh(P['Wing'].data)
-for _co, _no in (((0, 0.30, 0), (0, 1, 0)), ((0, -0.30, 0), (0, 1, 0)), ((CX0 - 0.005, 0, 0), (1, 0, 0))):
+for _co, _no in (((0, 0.30, 0), (0, 1, 0)), ((0, -0.30, 0), (0, 1, 0)), ((X_FW, 0, 0), (1, 0, 0))):   # v15: to the firewall (footwell)
     _g = _bm.verts[:] + _bm.edges[:] + _bm.faces[:]; bmesh.ops.bisect_plane(_bm, geom=_g, plane_co=_co, plane_no=_no)
-_cut = [f for f in _bm.faces if CX1 < f.calc_center_median().x < CX0 - 0.005 and abs(f.calc_center_median().y) < 0.30]
+_cut = [f for f in _bm.faces if CX1 < f.calc_center_median().x < X_FW and abs(f.calc_center_median().y) < 0.30]
 bmesh.ops.delete(_bm, geom=_cut, context='FACES'); _bm.to_mesh(P['Wing'].data); _bm.free(); print('WING trimmed faces', len(_cut))
 for sg, sd in ((1, 'L'), (-1, 'R')):   # aileron spades: measured plate outline, inboard weight and slanted strut
     bm = bmesh.new(); SPP = R['spade_plate']; SW = R['spade_weight']; ST = R['spade_strut']
@@ -649,10 +644,10 @@ def setm(o, names):
 for n in ('Wing', 'Aileron_L', 'Aileron_R', 'Stab', 'Elevator_L', 'Elevator_R'):
     setm(P[n], ['ea_top', 'white', 'ea_bot'])
     paint.project(P[n], lambda nrm, c: (0, VT) if nrm.z >= 0.45 else ((2, VB) if nrm.z <= -0.45 else (1, None)))
-for n in [k for k in ('Fuselage', 'Canopy_Frame', 'Fin', 'Rudder', 'Tail_Cables', 'Wheel_Pants') if k in P]:
+for n in [k for k in ('Fuselage', 'Canopy_Frame', 'Window_Frame', 'Canopy_Sill', 'Fin', 'Rudder', 'Tail_Cables', 'Wheel_Pants') if k in P]:
     setm(P[n], ['ea_side_l', 'ea_side_r', 'white'])   # belly faces stay plain white (side paint would smear under)
     paint.project(P[n], lambda nrm, c: (2, None) if nrm.z <= -0.6 else ((0, VL) if nrm.y >= 0 else (1, VR)))
-for n, m in (('Canopy_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'white'), ('Wheels', 'tyre'), ('Cabin', 'cabin')):
+for n, m in (('Canopy_Glass', 'glass'), ('Window_Glass', 'glass'), ('Spinner', 'prop_spinner'), ('Gear_Main', 'white'), ('Wheels', 'tyre'), ('Cabin', 'cabin')):
     setm(P[n], [m]); [setattr(p, 'material_index', 0) for p in P[n].data.polygons]
 setm(P['Prop'], ['prop_blade', 'prop_tip', 'prop_nickel'])
 for p, t in zip(P['Prop'].data.polygons, face_tag): p.material_index = t
@@ -674,15 +669,38 @@ M['ck_face'] = paint.mat_colour('Cockpit_gauge_face', (176, 182, 188), rough=0.3
 M['ck_stick'] = paint.mat_colour('Cockpit_stick', (42, 42, 46), rough=0.5)
 M['ck_tube'] = paint.mat_colour('Cockpit_tube', (200, 202, 205), rough=0.5)
 M['ck_tub'] = M['cabin']; M['ck_black'] = paint.mat_colour('Cockpit_dash_top', (39, 39, 40), rough=0.9)   # ~0.02 linear albedo
-setm(P['Cockpit'], CK_T)
+setm(P['Cockpit_Shell'], CK_T)
 for _n in [t for t in CK_T if t != 'ck_tub']:   # v5: whole interior matte = high roughness, no metal, no specular sheen
     for _nd in M[_n].node_tree.nodes:
         if _nd.type == 'BSDF_PRINCIPLED':
             _nd.inputs['Roughness'].default_value = 0.9; _nd.inputs['Metallic'].default_value = 0.0
             for _k in ('Specular IOR Level', 'Specular'):
                 if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
-for p, t in zip(P['Cockpit'].data.polygons, ck_tag): p.material_index = t
-for o in P.values():
+for p, t in zip(P['Cockpit_Shell'].data.polygons, ck_tag): p.material_index = t
+# v15 rigged-cockpit materials (matte, no specular), dial / compass / avionics art from make_ea_dials.py
+def _img(fn): return bpy.data.images.load(os.path.join(paint.ART, fn), check_existing=True)
+CK_COL = {'ck_wall': ('Cockpit_footwell', (30, 36, 58)), 'ck_bezel': ('Cockpit_bezel', (30, 30, 32)), 'ck_needle': ('Cockpit_needle', (236, 236, 230)),
+          'ck_telltale': ('Cockpit_telltale', (232, 190, 40)), 'ck_hub': ('Cockpit_hub', (20, 20, 22)), 'ck_ball': ('Cockpit_tc_ball', (16, 16, 18)),
+          'ck_lubber': ('Cockpit_lubber', (230, 110, 30)), 'ck_plug': ('Cockpit_blank_plug', (34, 34, 36)), 'ck_placard': ('Cockpit_placard_blank', (226, 222, 206)),
+          'ck_buckle': ('Cockpit_hardware', (200, 202, 206)), 'ck_grip': ('Cockpit_black', (22, 22, 24)), 'ck_knob_red': ('Cockpit_knob_red', (180, 30, 26)),
+          'ck_pedal': ('Cockpit_pedal', (176, 178, 182)), 'ck_quadrant': ('Cockpit_quadrant', (60, 62, 68)), 'ck_trim': ('Cockpit_trim_knob', (24, 24, 26)),
+          'ck_lcd': ('Cockpit_avionics_display', (12, 16, 15))}
+for k_, (nm_, col_) in CK_COL.items():
+    if k_ not in M: M[k_] = paint.mat_colour(nm_, col_, rough=0.9)
+    for _nd in M[k_].node_tree.nodes:
+        if _nd.type == 'BSDF_PRINCIPLED':
+            for _k in ('Specular IOR Level', 'Specular'):
+                if _k in _nd.inputs: _nd.inputs[_k].default_value = 0.0
+for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'cht', 'fuel', 'g', 'tc', 'mag', 'fuelsel'):
+    M['dial_' + k_] = paint.mat_image('Dial_' + k_.upper(), _img('ea-dial-%s.png' % k_), 0.5)
+M['compass'] = paint.mat_image('Compass_Card', _img('ea-compass-band.png'), 0.5)
+for k_ in ('com', 'xpdr'): M['avx_' + k_] = paint.mat_image('Avionics_Face_' + k_.upper(), _img('ea-avx-%s.png' % k_), 0.5)
+for n_, tg_ in CK_TAGS.items():
+    u_ = list(dict.fromkeys(tg_)); setm(P[n_], u_)
+    assert len(tg_) == len(P[n_].data.polygons), (n_, len(tg_), len(P[n_].data.polygons))
+    for p, t in zip(P[n_].data.polygons, tg_): p.material_index = u_.index(t)
+for _n, o in P.items():
+    if _n == 'Footwell_Liner': continue   # v15: double-sided by construction
     bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bm.to_mesh(o.data); bm.free()
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
@@ -700,6 +718,9 @@ for n, (a, b) in HINGES.items():
     pa, pb = RZ @ Vector(tuple(map(float, a))), RZ @ Vector(tuple(map(float, b)))
     o = P[n]; o.data.transform(Matrix.Translation(-pa)); o.location = pa; o['hinge_axis_marker'] = n + '_HingeAxis'
     e = bpy.data.objects.new(n + '_HingeAxis', None); bpy.context.scene.collection.objects.link(e); e.location = pb; EXTRA.append(e)
+def _empty(name, loc):
+    e = bpy.data.objects.new(name, None); bpy.context.scene.collection.objects.link(e); e.location = loc; EXTRA.append(e); return e
+exec(open(os.path.join(HERE, 'ea_rig.py')).read())   # v15: cockpit + canopy rig (pivots, hierarchy, extras)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(P.values()) + EXTRA: o.select_set(True)

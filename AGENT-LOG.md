@@ -19,6 +19,15 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- [codex → Claude] lane/codex-extra-cockpit · Extra 300 v15 clean-room rigged cockpit (NOT yet approved by Ty) · wire the cockpit rig and canopy into the game · details:
+  - Model: extra-300-like-own{,-n300uy,-unmarked}.glb rebuilt (tools/own_models/build_ea300.py + new ea_cockpit.py, ea_rig.py, ea_dialmaps.py, make_ea_dials.py, art/ea-dial-*.png, ea-avx-*.png, ea-compass-band.png). Same GLB axes, scale, node names for the airframe and v13 hinged surfaces. The old `Cockpit` mesh is now `Interior/Cockpit_Shell`; `Cockpit` is a group. The canopy's side windows are split off as static Window_Glass / Window_Frame.
+  - Rig: docs/models/ea300-own-RIG.md (node table, params, estimates marked E) and docs/models/ea300-own-rig.json (machine-readable; the same data is in each node's glTF extras). 60 rig nodes + 2 displays. Front seat: ASI, ALT, G (with max/min tell-tales), TACH, oil. Rear (PIC) seat: full panel, ASI / TC / ALT / G / MP / VSI / CHT / fuel / oil / tach / mag key / compass, plus a Trig-style radio head (TY91/TY96 type) over a transponder head (TT21/TT22 type), each 63 x 44 mm, plain dark faces, no maker text. Rigged: com_freq_mhz, com_standby_mhz, com_volume, xpdr_squawk, xpdr_mode, xpdr_knob_clicks (displays: Radio_Display_R, Xpdr_Display_R, text drawn by the game).
+  - Controls on real pivots in both seats: stick roll+pitch, pedals with toe brakes, throttle; rear only: prop, mixture, trim, master, mag key. Fuel selector and canopy lock in both seats.
+  - Canopy: root `Canopy` on the right-sill hinge (Canopy_HingeAxis), opens 0..100 deg to starboard (canopy_open), red locks CanopyLock_F/R (canopy_lock, 1 = locked), CanopyRelease_F/R pull handles (canopy_jettison). On a bailout, jettison the actual Canopy node (detach it and give it the airframe velocity); nothing else comes off.
+  - Task: cockpit camera at Eye_Rear by default (extra `default_view: true`); Eye_Front selectable. Drive every rig node from rig.json each frame (local rotation about axis_gltf, maps piecewise linear and clamped unless rig_map_extrapolate / rig_map_wrap). Draw the radio / transponder text on the two display quads. No intercom, headset or cable items.
+  - Physics: unchanged. Surface travels in the rig are the EA 300/L POH values (aileron ±30, elevator ±25, rudder ±30).
+  - Follow-ups: no elevator trim tab is modelled (Trim_R moves only). The GPL question on the v2–v12 shell is still Ty's (NEEDS YOU); the v15 cockpit itself is clean-room. The Pitts needs the same cockpit treatment next.
+  - Renders: agent box /workspace/extra-cockpit/ (Mac copy: flying-game-worktrees/_xfer/extra-cockpit/): eye views, panels, avionics, canopy closed/half/open/jettisoned, MIN/NEU/MAX sheets, 3 photo comparisons.
 - [codex → Claude] codex/unmarked-liveries · Ty (2026-10-28): unmarked liveries, make them the game DEFAULTS · **DONE by Claude on lane/claude-livery-picker (2026-10-28), see Log. The props below are the wrong way round: checker-unmarked has the Hartzell 2-blade and factory-unmarked the MT 3-blade, the same as N31DG / N1191.** · details:
   - New GLBs (same geometry/props as the approved v10.1 Pitts and v12 Extra; only markings removed, removed areas left in the plain underlying paint):
     - pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb: id 'checker-unmarked' (N31DG checkered scheme, MT 3-blade prop, no registration). **Pitts DEFAULT.**
@@ -41,6 +50,10 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-30 — Grok Bot executor · lane/codex-extra-cockpit · Extra 300 v15 rigged cockpit
+
+Built to the Great Lakes v13 standard on Ty's request (2026-10-30). The new cockpit is clean-room, placed by eye from public photos (rear-panel photo, a 330LX tandem cockpit, an EA 300-L side view) and text sources (POH limits and travels, AAIB G-ZXCL and Patty Wagstaff notes on the one-piece canopy hinged right, the 300L IPC). The sources are listed in docs/models/ea300-own-PROVENANCE.md (v15). No photos are committed. Rig: 60 nodes + 2 displays, every instrument a node with a map; the estimates are marked E in docs/models/ea300-own-RIG.md. Canopy opens, locks and jettisons as its own part. The Trig-style heads sit at the right edge of the rear panel, clear of the rear stick. All three liveries were rebuilt and re-imported in Blender (60 rig nodes each, Eye_Rear default). Physics and configs were not touched. Open: Ty's GPL decision on the v2–v12 shell (NEEDS YOU), and the Pitts needs the same cockpit.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
