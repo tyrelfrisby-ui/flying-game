@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -26,9 +27,26 @@ namespace FlyingGame.EditorTools
         {
             public readonly string Source;      // repo-relative
             public readonly string Dest;        // StreamingAssets-relative
-            public readonly string Glob;        // null for a single file
+            public readonly string Glob;        // which source files; null for a single file
+            public readonly string DestGlob;    // which destination files the sweep owns; defaults to Glob
 
-            public Mirror(string source, string dest, string glob = null) { Source = source; Dest = dest; Glob = glob; }
+            /// <summary>
+            /// Given a source file's text, the destination file name. null means "same name as the source", which is
+            /// almost always right. The model rigs are the exception: a rig table DECLARES which model it belongs to
+            /// in its own "model" field, and that is what names the file the game looks for. A fixed source→dest name
+            /// table would hardcode a copy of something the file already says, and a rebuilt rig that changed its
+            /// model name would then mirror to the old path and go on looking correct — which is the shape of bug
+            /// this whole change exists to remove. So the name is read, not configured.
+            /// </summary>
+            public readonly Func<string, string> NameFromContent;
+
+            public Mirror(string source, string dest, string glob = null, string destGlob = null,
+                          Func<string, string> nameFromContent = null)
+            {
+                Source = source; Dest = dest; Glob = glob;
+                DestGlob = destGlob ?? glob;
+                NameFromContent = nameFromContent;
+            }
         }
 
         /// <summary>
@@ -44,7 +62,27 @@ namespace FlyingGame.EditorTools
             new("configs/glide-table.json", "glide-table.json"),
             new("configs/progression.json", "progression.json"),
             new("docs/CREDITS.md", "credits.md"),
+            // The model rigs: every moving part of a model we drew ourselves, written beside the GLB by that model's
+            // Blender build script. Matches nothing on this branch yet — the rig tables arrive with
+            // lane/claude-extra-cockpit and lane/claude-sgs233-rig — and is declared here so those lanes only have to
+            // stop committing their mirror, not teach ConfigSync about it again.
+            new("docs/models", "rigs", "*-rig.json", destGlob: "*.json", nameFromContent: RigModelName),
         };
+
+        /// <summary>A rig table's destination name: the model it says it belongs to. null skips the file.</summary>
+        private static string RigModelName(string text)
+        {
+            try
+            {
+                string model = (string)Newtonsoft.Json.Linq.JObject.Parse(text)["model"];
+                return string.IsNullOrEmpty(model) ? null : model + ".json";
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"ConfigSync: a *-rig.json is not a rig table ({e.Message}); skipped.");
+                return null;
+            }
+        }
 
         /// <summary>
         /// FLYINGGAME_NO_CONFIG_SYNC=1 holds the editor's load-time sync back, so <see cref="CheckMirrors"/> can be
@@ -80,6 +118,10 @@ namespace FlyingGame.EditorTools
             }
         }
 
+        /// <summary>Where one source file lands: what its content says, or its own name.</summary>
+        private static string DestNameFor(Mirror m, string sourcePath, string text) =>
+            m.NameFromContent == null ? Path.GetFileName(sourcePath) : m.NameFromContent(text);
+
         private static bool SyncFile(Mirror m)
         {
             string src = RepoPath(m.Source), dst = DestPath(m.Dest);
@@ -100,17 +142,19 @@ namespace FlyingGame.EditorTools
             var wanted = new HashSet<string>();
             foreach (string file in Directory.GetFiles(src, m.Glob))
             {
-                string name = Path.GetFileName(file);
+                string text = File.ReadAllText(file);
+                string name = DestNameFor(m, file, text);
+                if (name == null) continue;          // the resolver rejected it; it has already said why
                 wanted.Add(name);
                 string target = Path.Combine(dst, name);
-                if (File.Exists(target) && File.ReadAllText(file) == File.ReadAllText(target)) continue;
-                File.Copy(file, target, overwrite: true);
+                if (File.Exists(target) && File.ReadAllText(target) == text) continue;
+                File.WriteAllText(target, text);
                 changed = true;
             }
 
             // Sweep: a mirror whose source is gone. Without this a renamed config left its old copy in the player
             // for good, and the game went on offering an aircraft the repo no longer describes.
-            foreach (string stale in Directory.GetFiles(dst, m.Glob))
+            foreach (string stale in Directory.GetFiles(dst, m.DestGlob))
             {
                 if (wanted.Contains(Path.GetFileName(stale))) continue;
                 File.Delete(stale);
@@ -143,16 +187,20 @@ namespace FlyingGame.EditorTools
                 if (!Directory.Exists(src)) continue;
                 if (!Directory.Exists(dst)) { bad.Add($"{m.Dest}/ missing entirely (from {m.Source}/)"); continue; }
 
-                var sources = new HashSet<string>(Directory.GetFiles(src, m.Glob).Select(Path.GetFileName));
-                foreach (string name in sources)
+                var sources = new HashSet<string>();
+                foreach (string file in Directory.GetFiles(src, m.Glob))
                 {
+                    string text = File.ReadAllText(file);
+                    string name = DestNameFor(m, file, text);
+                    if (name == null) { bad.Add($"{m.Source}/{Path.GetFileName(file)} does not say where it belongs"); continue; }
+                    sources.Add(name);
                     string target = Path.Combine(dst, name);
-                    if (!File.Exists(target)) bad.Add($"{m.Dest}/{name} missing (from {m.Source}/{name})");
-                    else if (File.ReadAllText(Path.Combine(src, name)) != File.ReadAllText(target))
-                        bad.Add($"{m.Dest}/{name} differs from {m.Source}/{name}");
+                    if (!File.Exists(target)) bad.Add($"{m.Dest}/{name} missing (from {m.Source}/{Path.GetFileName(file)})");
+                    else if (File.ReadAllText(target) != text)
+                        bad.Add($"{m.Dest}/{name} differs from {m.Source}/{Path.GetFileName(file)}");
                 }
 
-                foreach (string stale in Directory.GetFiles(dst, m.Glob))
+                foreach (string stale in Directory.GetFiles(dst, m.DestGlob))
                 {
                     if (!sources.Contains(Path.GetFileName(stale))) bad.Add($"{m.Dest}/{Path.GetFileName(stale)} has no source in {m.Source}/");
                 }

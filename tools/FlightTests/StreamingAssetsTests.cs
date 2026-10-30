@@ -37,10 +37,17 @@ public class StreamingAssetsTests
         var table = Regex.Match(cs, @"Mirror\[\]\s+Mirrors\s*=\s*\{(.*?)\};", RegexOptions.Singleline);
         Assert.True(table.Success, "ConfigSync.cs no longer declares a `Mirror[] Mirrors = { … };` table — this test reads it");
 
-        var rows = Regex.Matches(table.Groups[1].Value, @"new\(\s*""([^""]+)""\s*,\s*""([^""]+)""\s*(?:,\s*""([^""]+)""\s*)?\)")
+        // Tolerate arguments after the glob (destGlob:, nameFromContent:) — but never silently: the parsed count must
+        // equal the number of `new(` calls in the table. My first version of this regex demanded a `)` straight after
+        // the glob, so the rigs row was invisible and a `>= 6` assertion passed on the other six. A row this test
+        // cannot see is a row it does not check.
+        string body = table.Groups[1].Value;
+        var rows = Regex.Matches(body, @"new\(\s*""([^""]+)""\s*,\s*""([^""]+)""(?:\s*,\s*""([^""]+)"")?[^()]*(?:\([^()]*\))?[^()]*\)")
             .Select(m => (Source: m.Groups[1].Value, Dest: m.Groups[2].Value, IsDirectory: m.Groups[3].Success))
             .ToArray();
-        Assert.True(rows.Length >= 6, $"only {rows.Length} mirrors parsed out of ConfigSync.cs; the table's shape must have changed");
+        int declared = Regex.Matches(body, @"\bnew\(").Count;
+        Assert.Equal(declared, rows.Length);
+        Assert.True(rows.Length >= 7, $"only {rows.Length} mirrors parsed out of ConfigSync.cs; the table's shape must have changed");
         return rows;
     }
 

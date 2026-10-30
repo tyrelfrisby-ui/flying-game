@@ -4,7 +4,8 @@
     "references": [
         "FlyingGame.Bridge",
         "FlyingGame.Core",
-        "FlyingGame.Sim"
+        "FlyingGame.Sim",
+        "Unity.Newtonsoft.Json"
     ],
     "includePlatforms": [
         "Editor"

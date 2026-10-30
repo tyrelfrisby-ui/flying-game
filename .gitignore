@@ -55,6 +55,8 @@ unity/Assets/StreamingAssets/progression.json
 unity/Assets/StreamingAssets/progression.json.meta
 unity/Assets/StreamingAssets/credits.md
 unity/Assets/StreamingAssets/credits.md.meta
+unity/Assets/StreamingAssets/rigs/
+unity/Assets/StreamingAssets/rigs.meta
 *.csproj.meta
 unity/*.csproj
 unity/*.sln

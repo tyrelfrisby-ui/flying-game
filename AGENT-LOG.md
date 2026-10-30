@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **Merge order for the four ready lanes (Claude, 2026-10-30): `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`.** `config-mirror` first: it removes the aircraft trap and adds the guard and tests the rest assume. `flow-plates` second: independent (`AirframeFlow` only), and it takes the failure baseline from 4 to 3, leaving just the three Pitts ground-handling tests awaiting your feel-test. Then the two rig lanes, each of which **will conflict on `ConfigSync.cs`** — both rewrote it from the same base. The resolution is fixed: take `config-mirror`'s version, drop the lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written (it clears an editor cache; the generic sync cannot call it because `AirframeRig` does not exist on this base). `sgs233-rig` is last because it branched at `ed2cc7ca`, not `1b67dd5`, so it needs bringing forward.
 - **StreamingAssets is generated now; three pushed/unmerged lanes still carry a hand-committed mirror (Claude, 2026-10-30).** `lane/claude-config-mirror` makes `configs/**` + `docs/CREDITS.md` the only copies in the repo and has the build write the player's. **Ty: two things.** (a) `lane/claude-extra-cockpit` is **already pushed** and adds a fifth mirror class, `StreamingAssets/rigs/` (`docs/models/*-rig.json`, with a filename mapping), committed by hand. Merging it reintroduces the trap unless whoever merges adds a rigs row to ConfigSync's `Mirrors` table (it needs a name-mapping field the struct does not have yet), gitignores `rigs/` + `rigs.meta`, and `git rm -r --cached`es the copy. `lane/claude-sgs233-rig` carries a second rigs file. `StreamingAssetsTests.NothingGeneratedIsCommitted` fails until that is done, by design. (b) `lane/claude-glacier-ski`, `claude-glacier-visuals`, `claude-j3-edo1320`, `claude-regional-atmosphere` and `claude-soft-wings` each carry a mirror copy that will conflict trivially — take the deletion side.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
@@ -97,10 +98,25 @@ stays scratch. `StreamingAssetsTests.NoTrackedFileIsGitignored` now holds the wh
 without it `check-ignore` says nothing about tracked files, which is precisely the set in question, and the test
 passes vacuously — mine did, and reported a clean repo twice before I noticed the flag was missing.
 
-**Not fixed here: the rigs mirror.** `lane/claude-extra-cockpit` (pushed) adds `StreamingAssets/rigs/`, mirroring
-`docs/models/*-rig.json` with a filename mapping, committed by hand. I could not fold it in: the rig sources do not
-exist on `split-surfaces`, so the code would have been untestable here. It is in NEEDS YOU with the three steps the
-merge needs.
+**The rigs mirror, declared here and closed on its own lanes (follow-up commit).** The instruction was to give
+`Mirror` a destination-NAME field for an `ea300-own-rig.json` → `extra-300-like-own.json` mapping. There is no mapping
+to type: a rig table declares the model it belongs to in its own `model` field, and that is what names the file the
+game looks for. A fixed name table would hold a second copy of something the file already says, and a rebuilt rig that
+changed its model name would mirror to the old path and go on looking right — the same shape of bug as the one being
+removed. So `Mirror` gained a content **resolver** (`NameFromContent`) and a separate `DestGlob` for the sweep, and
+the row is `new("docs/models", "rigs", "*-rig.json", destGlob: "*.json", nameFromContent: RigModelName)`. It reads the
+field with Newtonsoft, which meant adding `Unity.Newtonsoft.Json` to the Editor asmdef — the Editor assembly had no
+JSON reader. `docs/models/` exists on `split-surfaces` with zero `*-rig.json`, so the row is a true declaration
+matching nothing, and the rig lanes only have to stop committing their mirror rather than teach ConfigSync again.
+
+Proven by planting the real `ea300-own-rig.json` from `lane/claude-extra-cockpit`: it landed as
+`rigs/extra-300-like-own.json`, byte-identical, named from its own field; removing the source swept it by name.
+
+**And the test passed vacuously first.** My manifest regex demanded a `)` straight after the glob, so the rigs row —
+which has named arguments after it — was invisible, and the `>= 6` assertion was satisfied by the other six. A row the
+test cannot see is a row it does not check. It now asserts the parsed count EQUALS the number of `new(` calls in the
+table, so a row it cannot parse fails instead of disappearing. That is the second vacuous pass in this one change,
+after `check-ignore` without `--no-index`; both looked exactly like success.
 
 **`configs/progression.json` and its mirror are read by nothing** — no C# anywhere loads `progression.json`. I left
 both in place and am only noting it; deleting a config nobody reads is a separate call.
