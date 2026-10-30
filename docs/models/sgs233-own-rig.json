@@ -890,6 +890,146 @@
      1.0
     ]
    }
+  },
+  {
+   "node": "YawString_1",
+   "parent": "Interior",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.56524,
+    0.82493,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.588,
+    0.2152,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -8.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     8.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 1/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 40% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_2",
+   "parent": "YawString_1",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.5145,
+    0.85749,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.553,
+    0.2392,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 2/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_3",
+   "parent": "YawString_2",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.5145,
+    0.85749,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.518,
+    0.2602,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 3/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_4",
+   "parent": "YawString_3",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.50718,
+    0.86184,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.483,
+    0.2812,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 4/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
   }
  ]
 }

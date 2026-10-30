@@ -552,6 +552,14 @@ for n_ in ('DiveBrake_Lever_F', 'DiveBrake_Lever_R'):
 pv, tp = RIGPTS['Trim_Lever']; o = origin2('Trim_Lever', pv, CTL)
 rig2(o, 'trim', STBD, [-1, 0, 1], [-20, 0, 20], '-1 nose down .. +1 nose up', 'red-ball trim lever low on the left wall, 4-notch quadrant: aft = nose up (judgement 20 deg each way)',
      tv=w(tp) - w(pv), want=lambda d: d.x > 0, extra={'rig_detents': [-1.0, -0.3333, 0.3333, 1.0]})
+_par = INT
+for i_ in range(YS_N):   # yaw string chain: each link pivots at its forward end about the local canopy normal
+    nm_ = 'YawString_%d' % (i_ + 1); o = origin2(nm_, RIGPTS[nm_], _par); k_ = (0.4, 0.2, 0.2, 0.2)[i_]
+    rig2(o, 'sideslip_deg', Vector(YS_AX[i_]), [-20, 0, 20], [-20 * k_, 0, 20 * k_], 'deg (beta)',
+         'yaw-string link %d/%d (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT '
+         '(step on the head: right rudder centres it); %.0f%% of beta on this link, tip = beta in total; sim may add a small flutter' % (i_ + 1, YS_N, 100 * k_),
+         tv=Vector(tuple(YS_J[i_ + 1] - YS_J[i_])), want=lambda d: d.y < 0, link='chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)')
+    _par = o
 print('RIG nodes: %d' % len(RIG2))
 if os.environ.get('SGS_RIGJSON'):
     import json; json.dump(dict(model='glider-2-33-like-own', livery=LIV, rig=RIG2), open(os.environ['SGS_RIGJSON'], 'w'), indent=1)

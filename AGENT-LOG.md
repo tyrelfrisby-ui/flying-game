@@ -7,6 +7,11 @@
 - Register existing external work before headless dispatch: ../flying-game-reference/out/reference-fleet/ contains the new C172 rough draft; ../flying-game-reference/out/beaver-v2/ contains the reference-built Beaver; ../flying-game-audit/ contains the unfinished physics audit. Geometry must follow drawings/photos, not existing fleet meshes or aerodynamic config fitting.
 
 ## HANDOFF
+- [codex → Claude] lane/codex-sgs233-cockpit · own SGS 2-33 v10: every moving part rigged (supersedes the v8 node list) · wire all 30 nodes · details:
+  - Rig is now 30 nodes (docs/models/sgs233-own-RIG.md + sgs233-own-rig.json, with neutral/range/coupled columns). NEW: YawString_1..4, a parented 4-link chain on param `sideslip_deg` (+beta = wind from the right, tail to PORT; 8/4/4/4 deg per link at 20 beta; apply local rotations down the chain). The static crown anchor is now `YawString_Tape`.
+  - Wire: aileron→Aileron_L/R + TorqueTube (sticks ride on it); elevator→Elevator_L/R + Stick_F/R; rudder→Rudder + all four pedals (60 mm slide); spoiler→4 doors + DiveBrake_Lever_F/R (wheel brake from spoiler 0.9..1.0); tow_release→TowRelease_F/R (50 mm pull); trim→Trim_Lever; airspeed_mph, altitude_ft (100 ft + 1000 ft hands, wrap), vario_kt, heading_deg (wrap), sideslip_deg. Every node origin is on its pivot: rotate the local rest pose by interp(map) about axis_gltf; kind move = translate in metres.
+  - Verified at min/neutral/max in renders (agent box /workspace/233-v5/). Judgement values: stick roll ±18 / pitch -15/+18, pedal slide ±60 mm (the real pedals may hinge), trim ±20, yaw-string split. Configs untouched (your lane). No radios/intercoms.
+  - Flag for Ty: factory livery still carries N2033A (previously approved).
 - [codex → Claude] lane/codex-sgs233-cockpit · own SGS 2-33 v8: photo-literal interior (supersedes the v7 node list) · re-wire the rig · details:
   - Rig is now 26 nodes (docs/models/sgs233-own-RIG.md + sgs233-own-rig.json). REMOVED: Needle_ASI_R, Needle_Alt100_R, Needle_Alt1000_R, Needle_Vario_R and Instruments_Rear (no rear panel in the photos) -- drop their bindings.
   - Changed maps: Needle_ASI_F 20→15, 160→345 deg (40-160 mph dial); DiveBrake_Lever_F/R spoiler 0→33 deg (was 60). All cockpit pivots moved -- re-read pivot_gltf from the doc. Flight-surface nodes unchanged.
@@ -35,3 +40,5 @@ v1-v6 of the own SGS 2-33 committed locally (60e416a..4f11104); Ty approved both
 Cockpit interior, linked controls and instruments added; outline re-fitted to the Commons 3-view (side/top/front overlays). Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy; main checkout untouched.
 ### 2026-10-29 — Codex · lane/codex-sgs233-cockpit · 2-33 v8 photo-literal interior
 Cockpit rebuilt to Ty's nine interior photos (black D panel, eyeball vent + compass, ASI/VSI/altimeter, wall air-brake slots, trim, W&B placard, striped cushions, harnesses, cross tube release, canopy/door hardware, skylight). Rear panel removed; rig 26 nodes. Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy; main checkout untouched.
+### 2026-10-29 — Codex · lane/codex-sgs233-cockpit · 2-33 v10 moving-part rig audit
+Audited every requested moving part; added the yaw string as a 4-link sideslip chain (30 rig nodes); RIG doc regenerated with neutral/range/coupling; verification renders at min/neutral/max. Both GLBs rebuilt in Blender on the Mac. Local commit only; no push, merge or deploy.

@@ -192,9 +192,16 @@ P['Compass_Card'] = link('Compass_Card', bm); CK_MAT['Compass_Card'] = 'compass'
 # yaw string: taped to the canopy crown at x 1.60 (in view of both seats), streaming aft
 _px = xpx(1.60); _tp = float(np.interp(_px, [p for p, _ in CAN], [q for _, q in CAN])); _s = sec(_px, _tp)[8]
 bm = bmesh.new(); box(bm, (_s[0], 0, _s[2] + 0.004), (0.03, 0.02, 0.002))
-_px2 = xpx(1.46); _s2 = sec(_px2, float(np.interp(_px2, [p for p, _ in CAN], [q for _, q in CAN])))[8]
-strip(bm, [(_s[0] - 0.01, 0, _s[2] + 0.006), (0.5 * (_s[0] + _s2[0]), 0.004, 0.5 * (_s[2] + _s2[2]) + 0.012), (_s2[0], 0.0, _s2[2] + 0.016)], 0.006, 0.0015)
-ck('YawString', bm, 'yawstring')
+ck('YawString_Tape', bm, 'yawstring')            # static tape on the crown; the string itself is a 4-link chain
+def _crown(x):
+    px_ = xpx(x); return np.array(sec(px_, float(np.interp(px_, [p for p, _ in CAN], [q for _, q in CAN])))[8], float)
+YS_N = 4; YS_X = np.linspace(_s[0] - 0.012, _s[0] - 0.012 - 0.14, YS_N + 1)   # 140 mm of string streaming aft
+YS_J = [_crown(x) + np.array((0, 0, 0.006)) for x in YS_X]; YS_AX = []
+for i in range(YS_N):
+    a_, b_ = YS_J[i], YS_J[i + 1]; d_ = (b_ - a_) / np.linalg.norm(b_ - a_)
+    n_ = np.array((-d_[2], 0.0, d_[0])); n_ = n_ if n_[2] > 0 else -n_; YS_AX.append(tuple(n_ / np.linalg.norm(n_)))
+    bm = bmesh.new(); strip(bm, [a_ - d_ * 0.002, b_ + d_ * 0.002], 0.006, 0.0015)
+    nm_ = 'YawString_%d' % (i + 1); ck(nm_, bm, 'yawstring', static=False); RIGPTS[nm_] = tuple(a_)
 
 # ---- nose floor: maroon box channel between the pedals, pedal hinge rails -------------------------------------
 bm = bmesh.new()
