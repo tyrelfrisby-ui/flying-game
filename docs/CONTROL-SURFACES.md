@@ -81,6 +81,12 @@ The J-3 was the first type measured against its certificate (FAA Aircraft Specif
 | Rudder | 30° left / 30° right | ±25.2° | ±30° |
 | Stabiliser (trim) | 2.5° up / 4° down | not modelled | not modelled |
 
+The same reading of A-691 settled the engine: Item 311C certificates the C-85 as an optional engine for the J-3, which
+is the 85 hp the config claims, but the config turned it at **2,700 rpm** — above the C-85's 2,575 and well above the
+A-65's 2,350. The redline is now 2,575 (owner, 2026-10-30), so the 85 hp is made where the engine makes it. Power and
+thrust do not depend on `maxRpm`; torque reaction and the gyroscopic couple do, in opposite directions — the same power
+at lower rpm is **+4.9 % torque** (a little more left swing) and **−4.6 % prop angular momentum**.
+
 It matters twice over. The 12 % of extra aileron was part of why the Cub rolled at 78°/s where a real one rolls at
 45–55 (70°/s now — the rest is effectiveness, not travel), and the own-model GLB is rigged to the certificate's
 numbers, so a config that disagrees draws a surface in one place and flies it in another. Full-aft authority moves with

@@ -1429,7 +1429,7 @@
     "maxPowerW": 63400.0,
     "propDiameterM": 1.83,
     "idleRpm": 700,
-    "maxRpm": 2700,
+    "maxRpm": 2575,
     "propInertia": 2.4,
     "rotationSign": 1,
     "efficiency": 0.74,
