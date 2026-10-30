@@ -180,3 +180,9 @@ also pulled ~300 aft stab vertices into the elevator, so the stab sheared with i
 - **Not modelled:** an elevator trim tab (trim is a sim effect only); intercom / headset jacks. The seats and 5-point straps are the earlier v4–v12 shell cockpit parts, kept as they were.
 - Verification renders: /workspace/extra-cockpit/ on the agent box (not committed). Every estimate is marked (E) in the RIG doc.
 - **Pitts S-2B:** needs the same treatment (front ASI / ALT / G, full rear panel with radio + transponder heads, controls on real pivots, canopy open / close / jettison); not done here.
+
+## v15.1 rear panel: panel compass + sequence card (2026-10-30, Ty)
+- The wet compass moved from the glareshield into the rear panel: a 2-1/4 in panel-mount compass (round flush bezel, short case, the same drum card art/ea-compass-band.png behind a window, lubber line), lower right under the radio heads. Size and the exact spot are estimates. The blank placard that sat there moved to the centre stack.
+- New sequence card holder centred on the top edge of the rear dash, standing 50 mm above it, with the card face as its own node and material `SequenceCard_Face` (letter portrait, UV 0..1) so the sim can swap the texture.
+- Default card art (art/ea-seqcard-default.png, made by make_ea_seqcard.py): page 4 (the pilot's card) of the IAC's published 2026 Power Sportsman Known sheet, https://www.iac.org/sites/default/files/Sequences/SPTP-Known-2026.pdf (listed on https://www.iac.org/sequences, announced 2025-11-20), rasterised at 150 dpi with the strokes thickened, plus a figure / Aresti catalogue number / K list copied from the sheet's Form A (total K 127). The page has no IAC logo and none was added. The PDF itself is not in the repo (build/refs).
+
