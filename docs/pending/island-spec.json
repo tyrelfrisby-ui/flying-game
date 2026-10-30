@@ -1,0 +1,5666 @@
+{
+  "schema_version": 1,
+  "phase": "1A",
+  "gate": "G1a \u2014 PENDING Ty",
+  "source": {
+    "page": "https://cursor.com/canvas/store-178d2425-5795-49a6-85ae-7f4edb32b69b/37b79ccf-6477-41de-8f0a-3bf7b01273d6",
+    "page_access": "unavailable; full user restatement used",
+    "decisions": "Decisions locked v1 2026-10-30; 13 and 20 revised same day"
+  },
+  "world": {
+    "frame": {
+      "origin": "Frank Church summit",
+      "xy_units": "km",
+      "x": "east",
+      "y": "north",
+      "altitude": "ft MSL unless explicitly suffixed",
+      "sim_conversion": "sim X=1000*y; sim Y=1000*x; sim Z=-0.3048*altitude_ft",
+      "headings": "true clockwise from north; magnetic = (true - 7) mod 360",
+      "variation_east_deg": 7
+    },
+    "radius_km": 20,
+    "main_island_size_km_target": [
+      18.3,
+      17.5
+    ],
+    "seeds": {
+      "terrain": 20261030,
+      "forest": 20261031,
+      "driftwood": 20261032,
+      "parked_aircraft": 20261033,
+      "buildings": 20261034
+    },
+    "numeric_status": "All authored geometry/elevations are design targets unless locked by Ty. Generated measurements explicitly say computed. No certified IFR values.",
+    "coast_polygon": [
+      [
+        -9.7,
+        -5.7
+      ],
+      [
+        -9.6,
+        -3.8
+      ],
+      [
+        -9.5,
+        -1
+      ],
+      [
+        -9.1,
+        2
+      ],
+      [
+        -8.8,
+        5.7
+      ],
+      [
+        -7,
+        7.3
+      ],
+      [
+        -4.5,
+        7.8
+      ],
+      [
+        -1,
+        7.7
+      ],
+      [
+        2,
+        7.4
+      ],
+      [
+        4.5,
+        6.5
+      ],
+      [
+        6.6,
+        6.4
+      ],
+      [
+        7.9,
+        4.5
+      ],
+      [
+        8.6,
+        2
+      ],
+      [
+        8.4,
+        -1
+      ],
+      [
+        7.5,
+        -3.8
+      ],
+      [
+        6.2,
+        -6
+      ],
+      [
+        4,
+        -8.4
+      ],
+      [
+        2,
+        -9.7
+      ],
+      [
+        0,
+        -9.8
+      ],
+      [
+        -1.54,
+        -9.6
+      ],
+      [
+        -3.3,
+        -8.7
+      ],
+      [
+        -5.3,
+        -7.4
+      ],
+      [
+        -7.8,
+        -6.6
+      ]
+    ],
+    "catalina": {
+      "centre": [
+        3.5,
+        -14
+      ],
+      "semi_axes_km": [
+        2.6,
+        1
+      ],
+      "long_axis_true_deg": 300,
+      "north_shore_gap_km_target": 3.5
+    },
+    "edge": {
+      "ocean_bed_m": -30,
+      "land_shore_fade_km": 0.1,
+      "ring_fade_start_km": 19.5,
+      "ring_fade_end_km": 20,
+      "hard_wall": false
+    },
+    "airports": [
+      {
+        "id": "PHDH",
+        "elevation_ft": 14,
+        "elevation_status": "locked",
+        "start_group": "coastal",
+        "runways": [
+          {
+            "id": "8/26",
+            "centre": [
+              4.99,
+              5.9
+            ],
+            "heading_true_deg": 91,
+            "numbers_magnetic": "8/26",
+            "length_ft": 9007,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "PANC",
+        "elevation_ft": 151,
+        "elevation_status": "locked",
+        "start_group": "coastal",
+        "runways": [
+          {
+            "id": "16/34",
+            "centre": [
+              -8.64,
+              -3.07
+            ],
+            "heading_true_deg": 165,
+            "numbers_magnetic": "16/34",
+            "length_ft": 10865,
+            "width_ft": 200,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "PALH",
+        "elevation_ft": 79,
+        "elevation_status": "locked",
+        "start_group": "PANC float variant",
+        "runways": [
+          {
+            "id": "8W/26W",
+            "centre": [
+              -7.96,
+              -1.8
+            ],
+            "heading_true_deg": 90,
+            "numbers_magnetic": "8W/26W",
+            "length_ft": 4541,
+            "width_ft": 188,
+            "surface": "water",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          },
+          {
+            "id": "15/33",
+            "centre": [
+              -7.85,
+              -1.25
+            ],
+            "heading_true_deg": 153,
+            "numbers_magnetic": "15/33",
+            "length_ft": 2200,
+            "width_ft": 75,
+            "surface": "gravel",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "PATK",
+        "elevation_ft": 365,
+        "elevation_status": "locked",
+        "start_group": "coastal",
+        "runways": [
+          {
+            "id": "2/20",
+            "centre": [
+              -6.34,
+              4.99
+            ],
+            "heading_true_deg": 27,
+            "numbers_magnetic": "2/20",
+            "length_ft": 3500,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "KSNA",
+        "elevation_ft": 56,
+        "elevation_status": "locked",
+        "start_group": "coastal",
+        "runways": [
+          {
+            "id": "2L/20R",
+            "centre": [
+              0.96,
+              -8.06
+            ],
+            "heading_true_deg": 28,
+            "numbers_magnetic": "2L/20R",
+            "length_ft": 5700,
+            "width_ft": 150,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          },
+          {
+            "id": "2R/20L",
+            "centre": [
+              1.2,
+              -8.16
+            ],
+            "heading_true_deg": 28,
+            "numbers_magnetic": "2R/20L",
+            "length_ft": 2886,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "KMYL",
+        "elevation_ft": 5024,
+        "elevation_status": "locked",
+        "start_group": "inland",
+        "runways": [
+          {
+            "id": "17/35",
+            "centre": [
+              -0.58,
+              2.78
+            ],
+            "heading_true_deg": 179,
+            "numbers_magnetic": "17/35",
+            "length_ft": 6101,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "3U2",
+        "elevation_ft": 4960,
+        "elevation_status": "locked",
+        "start_group": "inland",
+        "runways": [
+          {
+            "id": "19/1",
+            "centre": [
+              1.82,
+              -0.86
+            ],
+            "heading_true_deg": 192,
+            "numbers_magnetic": "19/1",
+            "length_ft": 3400,
+            "width_ft": 150,
+            "surface": "turf",
+            "slope_percent": 0.5,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            },
+            "operation": "land 19; depart 1; slope target pending real survey"
+          }
+        ]
+      },
+      {
+        "id": "KMEV",
+        "elevation_ft": 4724,
+        "elevation_status": "locked",
+        "start_group": "inland",
+        "runways": [
+          {
+            "id": "17/35",
+            "centre": [
+              -3.02,
+              -1.73
+            ],
+            "heading_true_deg": 180,
+            "numbers_magnetic": "17/35",
+            "length_ft": 7399,
+            "width_ft": 100,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          },
+          {
+            "id": "13/31",
+            "centre": [
+              -2.35,
+              -2.02
+            ],
+            "heading_true_deg": 135,
+            "numbers_magnetic": "13/31",
+            "length_ft": 5299,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          },
+          {
+            "id": "13G/31G",
+            "centre": [
+              -2.05,
+              -1.9
+            ],
+            "heading_true_deg": 135,
+            "numbers_magnetic": "13G/31G",
+            "length_ft": 2000,
+            "width_ft": 75,
+            "surface": "grass",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            },
+            "dimensions_status": "proposed target; no dimensions supplied"
+          }
+        ]
+      },
+      {
+        "id": "KPGA",
+        "elevation_ft": 4317,
+        "elevation_status": "locked",
+        "start_group": "inland",
+        "runways": [
+          {
+            "id": "16/34",
+            "centre": [
+              3.74,
+              -3.26
+            ],
+            "heading_true_deg": 170,
+            "numbers_magnetic": "16/34",
+            "length_ft": 5950,
+            "width_ft": 150,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          },
+          {
+            "id": "7/25",
+            "centre": [
+              4.18,
+              -2.5
+            ],
+            "heading_true_deg": 82,
+            "numbers_magnetic": "7/25",
+            "length_ft": 2201,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "KAVX",
+        "elevation_ft": 1602,
+        "elevation_status": "locked",
+        "start_group": null,
+        "runways": [
+          {
+            "id": "5/23",
+            "centre": [
+              3.6,
+              -14.4
+            ],
+            "heading_true_deg": 55,
+            "numbers_magnetic": "5/23",
+            "length_ft": 3000,
+            "width_ft": 75,
+            "surface": "asphalt",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            }
+          }
+        ]
+      },
+      {
+        "id": "DRAKE",
+        "elevation_ft": 4700,
+        "elevation_status": "locked",
+        "start_group": null,
+        "runways": [
+          {
+            "id": "17",
+            "centre": [
+              -4.9,
+              -3.98
+            ],
+            "heading_true_deg": 180,
+            "numbers_magnetic": "17",
+            "length_ft": 2992,
+            "width_ft": 100,
+            "surface": "grass",
+            "slope_percent": 0,
+            "pad": {
+              "shoulder_m": 60,
+              "end_shoulder_m": 60,
+              "blend_m": 300
+            },
+            "operation": "one-way land 17; hidden chamber; approach-surface exception unresolved"
+          }
+        ]
+      }
+    ],
+    "airparks": [
+      {
+        "id": "AP1",
+        "name": "Payette",
+        "centre": [
+          -1.6,
+          4.6
+        ],
+        "heading_true_deg": 167,
+        "numbers_magnetic": "16/34",
+        "surface": "grass",
+        "length_ft": 2800,
+        "width_ft": 60,
+        "gear": "wheels or tailwheel",
+        "elevation_ft": 5024,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP2",
+        "name": "Talkeetna village",
+        "centre": [
+          -6.9,
+          6.8
+        ],
+        "heading_true_deg": 17,
+        "numbers_magnetic": "1/19",
+        "surface": "gravel",
+        "length_ft": 1700,
+        "width_ft": 60,
+        "gear": "tundra tires",
+        "elevation_ft": 365,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP3",
+        "name": "Carson Valley",
+        "centre": [
+          -2,
+          -3.9
+        ],
+        "heading_true_deg": 180,
+        "numbers_magnetic": "17/35",
+        "surface": "grass",
+        "length_ft": 2400,
+        "width_ft": 60,
+        "gear": "wheels",
+        "elevation_ft": 4700,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP4",
+        "name": "Mokuleia ranch",
+        "centre": [
+          2.3,
+          6.7
+        ],
+        "heading_true_deg": 67,
+        "numbers_magnetic": "6/24",
+        "surface": "grass",
+        "length_ft": 1800,
+        "width_ft": 60,
+        "gear": "tailwheel",
+        "elevation_ft": 1350,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP5",
+        "name": "Windward bluff",
+        "centre": [
+          7.2,
+          3
+        ],
+        "heading_true_deg": 40,
+        "numbers_magnetic": "3/21",
+        "surface": "grass",
+        "length_ft": 1500,
+        "width_ft": 60,
+        "gear": "STOL",
+        "elevation_ft": 900,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP6",
+        "name": "Upcountry ranch",
+        "centre": [
+          4.2,
+          2.6
+        ],
+        "heading_true_deg": 60,
+        "numbers_magnetic": "5/23",
+        "surface": "grass",
+        "length_ft": 2000,
+        "width_ft": 60,
+        "gear": "tailwheel",
+        "elevation_ft": 2600,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 3,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP7",
+        "name": "Point Mac",
+        "centre": [
+          -8.6,
+          1.2
+        ],
+        "heading_true_deg": 97,
+        "numbers_magnetic": "9/27",
+        "surface": "gravel",
+        "length_ft": 2000,
+        "width_ft": 60,
+        "gear": "tundra tires",
+        "elevation_ft": 180,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP8",
+        "name": "Willow-style",
+        "centre": [
+          -8.2,
+          3.6
+        ],
+        "heading_true_deg": 7,
+        "numbers_magnetic": "36/18",
+        "surface": "grass",
+        "length_ft": 2600,
+        "width_ft": 60,
+        "gear": "wheels or floats",
+        "elevation_ft": 250,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        },
+        "float_pond": {
+          "centre": [
+            -8,
+            3.7
+          ],
+          "length_m": 600,
+          "width_m": 120,
+          "elevation_ft": 250
+        }
+      },
+      {
+        "id": "AP9",
+        "name": "Turnagain bench",
+        "centre": [
+          -5.7,
+          -6
+        ],
+        "heading_true_deg": 47,
+        "numbers_magnetic": "4/22",
+        "surface": "gravel",
+        "length_ft": 1600,
+        "width_ft": 60,
+        "gear": "tundra tires",
+        "elevation_ft": 2900,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP10",
+        "name": "Yellow Pine",
+        "centre": [
+          2.7,
+          1.2
+        ],
+        "heading_true_deg": 17,
+        "numbers_magnetic": "1/19",
+        "surface": "gravel",
+        "length_ft": 2800,
+        "width_ft": 60,
+        "gear": "wheels",
+        "elevation_ft": 4500,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP11",
+        "name": "Payette east shore",
+        "centre": [
+          0.8,
+          4.6
+        ],
+        "heading_true_deg": 147,
+        "numbers_magnetic": "14/32",
+        "surface": "gravel",
+        "length_ft": 1900,
+        "width_ft": 60,
+        "gear": "tundra tires",
+        "elevation_ft": 5024,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP12",
+        "name": "Bullfrog",
+        "centre": [
+          1.8,
+          -4.4
+        ],
+        "heading_true_deg": 167,
+        "numbers_magnetic": "16/34",
+        "surface": "gravel",
+        "length_ft": 2500,
+        "width_ft": 60,
+        "gear": "wheels; floats at marina",
+        "elevation_ft": 3800,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP13",
+        "name": "Navajo mesa",
+        "centre": [
+          5.8,
+          -2
+        ],
+        "heading_true_deg": 17,
+        "numbers_magnetic": "1/19",
+        "surface": "dirt",
+        "length_ft": 2000,
+        "width_ft": 60,
+        "gear": "tundra tires",
+        "elevation_ft": 4500,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      },
+      {
+        "id": "AP14",
+        "name": "Trabuco ranch",
+        "centre": [
+          -2.4,
+          -7.6
+        ],
+        "heading_true_deg": 27,
+        "numbers_magnetic": "2/20",
+        "surface": "grass",
+        "length_ft": 2200,
+        "width_ft": 60,
+        "gear": "wheels",
+        "elevation_ft": 1600,
+        "elevation_status": "target; fictional field",
+        "slope_percent": 0,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 250
+        },
+        "buildings": {
+          "hangars": 3,
+          "houses": 5,
+          "windsocks": 1,
+          "parked_aircraft": 3,
+          "setback_m": 100
+        }
+      }
+    ],
+    "hazards": {
+      "owner": "Codex; deterministic WorldSolids, excluded from height field; all charted",
+      "towers": [
+        {
+          "id": "T1",
+          "centre": [
+            4.9,
+            4.45
+          ],
+          "height_agl_m": 75,
+          "guyed": true,
+          "charted": true,
+          "lights": true
+        },
+        {
+          "id": "T2",
+          "centre": [
+            -1.7,
+            -1
+          ],
+          "height_agl_m": 35,
+          "guyed": false,
+          "charted": true,
+          "lights": true
+        },
+        {
+          "id": "T3",
+          "centre": [
+            2.9,
+            -7.4
+          ],
+          "height_agl_m": 180,
+          "guyed": true,
+          "charted": true,
+          "lights": true
+        },
+        {
+          "id": "T4",
+          "centre": [
+            -6.9,
+            -2.9
+          ],
+          "height_agl_m": 50,
+          "guyed": true,
+          "charted": true,
+          "lights": true
+        },
+        {
+          "id": "T5",
+          "centre": [
+            -6.9,
+            5.4
+          ],
+          "height_agl_m": 55,
+          "guyed": true,
+          "charted": true,
+          "lights": true
+        },
+        {
+          "id": "T6",
+          "centre": [
+            4.6,
+            -3.95
+          ],
+          "height_agl_m": 45,
+          "guyed": true,
+          "charted": true,
+          "lights": true
+        }
+      ],
+      "wires": [
+        {
+          "id": "W1",
+          "endpoints": [
+            [
+              1.55,
+              0.25
+            ],
+            [
+              2.2,
+              0.3
+            ]
+          ],
+          "lowest_agl_m": 40,
+          "charted": true,
+          "marker_balls": true,
+          "lights": true,
+          "sag_fraction": 0.08
+        },
+        {
+          "id": "W2",
+          "endpoints": [
+            [
+              2.4,
+              -5.55
+            ],
+            [
+              3.3,
+              -5.25
+            ]
+          ],
+          "lowest_agl_m": 250,
+          "charted": true,
+          "marker_balls": true,
+          "lights": true,
+          "sag_fraction": 0.08
+        },
+        {
+          "id": "W3",
+          "endpoints": [
+            [
+              -6.55,
+              -1.1
+            ],
+            [
+              -6.65,
+              -0.05
+            ]
+          ],
+          "lowest_agl_m": 30,
+          "charted": true,
+          "marker_balls": true,
+          "lights": true,
+          "sag_fraction": 0.08
+        },
+        {
+          "id": "W4",
+          "endpoints": [
+            [
+              -3.9,
+              -3.45
+            ],
+            [
+              -2.5,
+              -3.45
+            ]
+          ],
+          "lowest_agl_m": 18,
+          "charted": true,
+          "marker_balls": true,
+          "lights": true,
+          "sag_fraction": 0.08
+        },
+        {
+          "id": "W5",
+          "endpoints": [
+            [
+              -2.2,
+              -8.5
+            ],
+            [
+              -0.2,
+              -8.9
+            ]
+          ],
+          "lowest_agl_m": 60,
+          "charted": true,
+          "marker_balls": true,
+          "lights": true,
+          "sag_fraction": 0.08
+        }
+      ]
+    },
+    "height_field": {
+      "algorithm": "island-review-v1",
+      "grid": {
+        "min_km": -20,
+        "max_km": 20,
+        "spacing_m": 100,
+        "rows": 401,
+        "columns": 401,
+        "format": "little-endian float32 metres MSL; row 0 south; column 0 west; x fastest; bilinear interpolation; JSON sidecar"
+      },
+      "base": {
+        "interior_ft": 4600,
+        "coastal_ft": 30,
+        "interior_radius_km": 6,
+        "shore_transition_km": 2
+      },
+      "peaks": [
+        {
+          "id": "Frank Church",
+          "centre": [
+            0,
+            0
+          ],
+          "top_ft": 9020,
+          "radius_km": 2.0
+        },
+        {
+          "id": "Sierra",
+          "centre": [
+            -1.54,
+            -0.58
+          ],
+          "top_ft": 7550,
+          "radius_km": 1.3
+        },
+        {
+          "id": "Chugach",
+          "centre": [
+            -5.4,
+            -1.4
+          ],
+          "top_ft": 6890,
+          "radius_km": 1.6
+        },
+        {
+          "id": "Denali-like",
+          "centre": [
+            -3.46,
+            5.86
+          ],
+          "top_ft": 8530,
+          "radius_km": 1.5
+        },
+        {
+          "id": "Mokuleia",
+          "centre": [
+            5.6,
+            4
+          ],
+          "top_ft": 2950,
+          "radius_km": 1.5
+        },
+        {
+          "id": "Catalina",
+          "centre": [
+            2.9,
+            -13.7
+          ],
+          "top_ft": 2100,
+          "radius_km": 0.8
+        },
+        {
+          "id": "Drake Hill",
+          "centre": [
+            -4.9,
+            -4.5
+          ],
+          "top_ft": 5750,
+          "radius_km": 0.7
+        }
+      ],
+      "crests": [
+        {
+          "id": "Mokuleia",
+          "path": [
+            [
+              3.17,
+              4.99
+            ],
+            [
+              4.6,
+              4.4
+            ],
+            [
+              6.05,
+              3.74
+            ]
+          ],
+          "width_km": 0.5,
+          "top_ft": 2950
+        },
+        {
+          "id": "Sierra",
+          "path": [
+            [
+              -1.1,
+              0.3
+            ],
+            [
+              -1.54,
+              -0.58
+            ],
+            [
+              -2.2,
+              -2
+            ]
+          ],
+          "width_km": 0.5,
+          "top_ft": 7550
+        },
+        {
+          "id": "Chugach-Denali",
+          "path": [
+            [
+              -5.6,
+              -2.8
+            ],
+            [
+              -5.4,
+              -1.4
+            ],
+            [
+              -5.3,
+              -0.6
+            ],
+            [
+              -5,
+              1.4
+            ],
+            [
+              -4.2,
+              3.4
+            ],
+            [
+              -3.46,
+              5.86
+            ]
+          ],
+          "width_km": 0.5,
+          "top_ft": 7000
+        },
+        {
+          "id": "Summit",
+          "path": [
+            [
+              -0.9,
+              1
+            ],
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0.6
+            ],
+            [
+              0.4,
+              -1.2
+            ]
+          ],
+          "width_km": 0.5,
+          "top_ft": 8000
+        }
+      ],
+      "order": [
+        "coast and bed",
+        "regional base",
+        "Mokuleia regional lowland override",
+        "smooth crest and summit envelopes",
+        "lakes and glacier tongues",
+        "canyon cuts",
+        "pass and box-fork cuts",
+        "reassert peak centre elevations with compact smooth envelopes",
+        "flat/sloped pads with continuous blend",
+        "coast fade to ocean bed"
+      ],
+      "continuity": "Every local influence has zero weight at its footprint boundary using cubic smoothstep; no boolean relief cutoff. Cavities require WorldSolids shell, not a second ground field.",
+      "sampling_limit": "100 m bake is a review artefact; continuous evaluator authoritative; 60 m shoulders and small solids need analytic evaluation in Phase 1B.",
+      "water_lane_bed_offset_m": 3,
+      "summit_reassertion": {
+        "core_radius_km": 0.12,
+        "blend_end_radius_km": 0.4,
+        "order": "after cuts, before surface pads; set exact authored summit elevations"
+      },
+      "regional_overrides": [
+        {
+          "id": "Mokuleia lowland",
+          "centre": [
+            5,
+            4
+          ],
+          "radii_km": [
+            3,
+            3
+          ],
+          "elevation_ft": 1800
+        }
+      ],
+      "cavities": {
+        "DRAKE": "height field is upper rock envelope; only exterior152m uses ground pad; interior floor is separate height-aware deck/shell at4700ft; never flatten full hill to cave floor",
+        "collision_status": "Phase1B requires below-roof ground/contact routing; current review bake cannot certify cave interiors"
+      }
+    },
+    "water": [
+      {
+        "id": "Payette Lake",
+        "centre": [
+          -0.48,
+          4.42
+        ],
+        "elevation_ft": 4990,
+        "radii_km": [
+          0.55,
+          0.8
+        ],
+        "depth_m": 20
+      },
+      {
+        "id": "Lake Hood",
+        "centre": [
+          -7.96,
+          -1.8
+        ],
+        "elevation_ft": 79,
+        "radii_km": [
+          0.85,
+          0.18
+        ],
+        "depth_m": 3
+      },
+      {
+        "id": "Knik ice lake",
+        "centre": [
+          -6.95,
+          -0.4
+        ],
+        "elevation_ft": 100,
+        "radii_km": [
+          0.45,
+          0.25
+        ],
+        "depth_m": 12
+      },
+      {
+        "id": "Lake Powell",
+        "centre": [
+          2.775,
+          -4.525
+        ],
+        "elevation_ft": 3700,
+        "radii_km": [
+          0.575,
+          0.625
+        ],
+        "depth_m": 50
+      },
+      {
+        "id": "Bighorn Outlet",
+        "centre": [
+          0.7,
+          0.9
+        ],
+        "elevation_ft": 6400,
+        "radii_km": [
+          0.4575,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": true,
+        "basin_rim_m": 150,
+        "outlet": "open valley",
+        "timber_m": 0
+      },
+      {
+        "id": "Bighorn Shelf",
+        "centre": [
+          1.8,
+          2.7
+        ],
+        "elevation_ft": 6660,
+        "radii_km": [
+          0.4,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": true,
+        "basin_rim_m": 150,
+        "outlet": "open valley",
+        "timber_m": 0
+      },
+      {
+        "id": "Bighorn Larch",
+        "centre": [
+          3.3,
+          2
+        ],
+        "elevation_ft": 6600,
+        "radii_km": [
+          0.38,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": true,
+        "basin_rim_m": 150,
+        "outlet": "open valley",
+        "timber_m": 26
+      },
+      {
+        "id": "Bighorn Hidden",
+        "centre": [
+          0.2,
+          1.3
+        ],
+        "elevation_ft": 7380,
+        "radii_km": [
+          0.275,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": false,
+        "basin_rim_m": 250,
+        "outlet": "enclosed/committing",
+        "timber_m": 0
+      },
+      {
+        "id": "Bighorn Cirque",
+        "centre": [
+          1.2,
+          0.8
+        ],
+        "elevation_ft": 7580,
+        "radii_km": [
+          0.23,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": false,
+        "basin_rim_m": 250,
+        "outlet": "enclosed/committing",
+        "timber_m": 0
+      },
+      {
+        "id": "Bighorn Crown",
+        "centre": [
+          2.7,
+          1.9
+        ],
+        "elevation_ft": 7840,
+        "radii_km": [
+          0.1525,
+          0.12
+        ],
+        "depth_m": 14,
+        "landable": false,
+        "basin_rim_m": 250,
+        "outlet": "enclosed/committing",
+        "timber_m": 0
+      }
+    ],
+    "glaciers": [
+      {
+        "id": "Knik",
+        "path": [
+          [
+            -5.4,
+            -1.4
+          ],
+          [
+            -6,
+            0.1
+          ],
+          [
+            -6.5,
+            0.1
+          ]
+        ],
+        "head_ft": 6000,
+        "ski_zone": {
+          "centre": [
+            -6.2,
+            0.1
+          ],
+          "elevation_ft": 1100,
+          "length_m": 450,
+          "width_m": 100
+        },
+        "half_width_m": 200
+      },
+      {
+        "id": "Ruth",
+        "path": [
+          [
+            -3.46,
+            5.86
+          ],
+          [
+            -4.1,
+            5.2
+          ],
+          [
+            -3.9,
+            4.7
+          ]
+        ],
+        "head_ft": 7300,
+        "ski_zone": {
+          "centre": [
+            -3.9,
+            4.7
+          ],
+          "elevation_ft": 1300,
+          "length_m": 450,
+          "width_m": 100
+        },
+        "half_width_m": 200
+      }
+    ],
+    "canyons": [
+      {
+        "id": "C1",
+        "path": [
+          [
+            0.6,
+            1.7
+          ],
+          [
+            1.82,
+            -0.86
+          ],
+          [
+            2.5,
+            -1.8
+          ]
+        ],
+        "rim_width_m": [
+          1300,
+          900
+        ],
+        "floor_width_m": [
+          250,
+          250
+        ],
+        "depth_m": [
+          450,
+          450
+        ],
+        "floor_ft": [
+          4900,
+          4900
+        ]
+      },
+      {
+        "id": "C2",
+        "path": [
+          [
+            2.5,
+            -1.8
+          ],
+          [
+            3,
+            -0.2
+          ],
+          [
+            4,
+            1.2
+          ],
+          [
+            5,
+            1.8
+          ]
+        ],
+        "rim_width_m": [
+          900,
+          600,
+          400
+        ],
+        "floor_width_m": [
+          300,
+          225,
+          150
+        ],
+        "depth_m": [
+          600,
+          600
+        ],
+        "floor_ft": [
+          4400,
+          3450
+        ]
+      },
+      {
+        "id": "C3",
+        "path": [
+          [
+            2.88,
+            -5.38
+          ],
+          [
+            1.92,
+            -6.34
+          ],
+          [
+            0,
+            -6.72
+          ],
+          [
+            -1.15,
+            -7.87
+          ],
+          [
+            -1.54,
+            -9.6
+          ]
+        ],
+        "rim_width_m": [
+          1400,
+          1400
+        ],
+        "floor_width_m": [
+          350,
+          350
+        ],
+        "depth_m": [
+          900,
+          500
+        ],
+        "floor_ft": [
+          3700,
+          0
+        ]
+      },
+      {
+        "id": "C4",
+        "path": [
+          [
+            -4.6,
+            -0.9
+          ],
+          [
+            -5.7,
+            -0.4
+          ],
+          [
+            -6.95,
+            -0.4
+          ]
+        ],
+        "rim_width_m": [
+          800,
+          800
+        ],
+        "floor_width_m": [
+          300,
+          300
+        ],
+        "depth_m": [
+          1200,
+          1200
+        ],
+        "floor_ft": [
+          100,
+          100
+        ]
+      }
+    ],
+    "lesson_terrain": [
+      {
+        "id": "L1",
+        "fork": [
+          0.6,
+          1.7
+        ],
+        "safe_path": [
+          [
+            -0.58,
+            2.78
+          ],
+          [
+            0.6,
+            1.7
+          ],
+          [
+            1.82,
+            -0.86
+          ]
+        ],
+        "box_path": [
+          [
+            0.6,
+            1.7
+          ],
+          [
+            1.05,
+            2.1
+          ]
+        ],
+        "saddle_ft": 6400,
+        "box_length_m": 600,
+        "headwall_ft": 7500,
+        "box_floor_rise_m": 250,
+        "climb_reference": "loaded trainer 300 ft/min at 80 kt; target only; Claude verifies aircraft/DA"
+      },
+      {
+        "id": "L2",
+        "fork": [
+          -4.6,
+          -0.9
+        ],
+        "safe_path": [
+          [
+            -3.17,
+            -1.73
+          ],
+          [
+            -4.6,
+            -0.9
+          ],
+          [
+            -5.8,
+            -0.3
+          ],
+          [
+            -7.96,
+            -1.8
+          ]
+        ],
+        "box_path": [
+          [
+            -4.6,
+            -0.9
+          ],
+          [
+            -4.95,
+            -1.25
+          ]
+        ],
+        "saddle_ft": 5740,
+        "box_length_m": 500,
+        "headwall_ft": 6890,
+        "box_floor_rise_m": 300,
+        "climb_reference": "loaded trainer 300 ft/min at 80 kt; target only; Claude verifies aircraft/DA"
+      },
+      {
+        "id": "L3",
+        "fork": [
+          1.92,
+          -6.34
+        ],
+        "safe_path": [
+          [
+            2.88,
+            -5.38
+          ],
+          [
+            1.92,
+            -6.34
+          ],
+          [
+            0,
+            -6.72
+          ],
+          [
+            -1.54,
+            -9.6
+          ]
+        ],
+        "box_path": [
+          [
+            1.92,
+            -6.34
+          ],
+          [
+            2.16,
+            -6.52
+          ]
+        ],
+        "saddle_ft": 3200,
+        "box_length_m": 300,
+        "headwall_ft": 5000,
+        "box_floor_rise_m": 150,
+        "climb_reference": "loaded trainer 300 ft/min at 80 kt; target only; Claude verifies aircraft/DA"
+      },
+      {
+        "id": "L4",
+        "fork": [
+          -4.5,
+          4.7
+        ],
+        "safe_path": [
+          [
+            -6.34,
+            4.99
+          ],
+          [
+            -4.5,
+            4.7
+          ],
+          [
+            -3.9,
+            4.7
+          ]
+        ],
+        "box_path": [
+          [
+            -4.5,
+            4.7
+          ],
+          [
+            -4.5,
+            5.1
+          ]
+        ],
+        "saddle_ft": 1300,
+        "box_length_m": 400,
+        "headwall_ft": 8530,
+        "box_floor_rise_m": 350,
+        "climb_reference": "loaded trainer 300 ft/min at 80 kt; target only; Claude verifies aircraft/DA"
+      }
+    ],
+    "lift_terrain": [
+      {
+        "id": "S1",
+        "name": "Mokuleia ridge",
+        "centre": [
+          4.3,
+          4
+        ],
+        "thermal_start": true
+      },
+      {
+        "id": "S2",
+        "name": "Carson Valley lee",
+        "centre": [
+          -3.71,
+          -1
+        ],
+        "thermal_start": true
+      },
+      {
+        "id": "S3",
+        "name": "Page mesa",
+        "centre": [
+          4.5,
+          -4.6
+        ],
+        "thermal_start": true
+      },
+      {
+        "id": "S4",
+        "name": "McCall south slopes",
+        "centre": [
+          0.2,
+          2.4
+        ],
+        "thermal_start": true
+      },
+      {
+        "id": "S5",
+        "name": "OC sea breeze",
+        "centre": [
+          2.2,
+          -9
+        ],
+        "thermal_start": false
+      },
+      {
+        "id": "S6",
+        "name": "Knik tongue",
+        "centre": [
+          -6,
+          0.6
+        ],
+        "thermal_start": false
+      },
+      {
+        "id": "S7",
+        "name": "Chugach lee",
+        "centre": [
+          -7.6,
+          -2.6
+        ],
+        "thermal_start": false
+      }
+    ],
+    "features": [
+      {
+        "id": "F1",
+        "name": "Drake Hill and hidden school shell",
+        "centre": [
+          -4.9,
+          -4.3
+        ],
+        "status": "target",
+        "hill_diameter_m": 1400,
+        "relief_m": 320,
+        "north_cliff_m": 200,
+        "valley_ft": 4700,
+        "chamber_m": [
+          820,
+          420,
+          140
+        ],
+        "minimum_rock_cover_m": 60,
+        "exterior_strip_m": 152,
+        "interior_strip_m": 760,
+        "hologram": "Claude trigger; Codex visual shell",
+        "interior": {
+          "east_glider_hill_m": 70,
+          "slope_m": 260,
+          "pillow_pool_m": [
+            70,
+            45
+          ],
+          "west_apron_m": 240,
+          "glass_labs_m": [
+            240,
+            45
+          ],
+          "name": null
+        }
+      },
+      {
+        "id": "F2",
+        "name": "Pirate cave",
+        "centre": [
+          2.7,
+          -14.6
+        ],
+        "status": "target",
+        "mouth_m": [
+          60,
+          26
+        ],
+        "chamber_radius_m": 90,
+        "skylight_diameter_m": 10,
+        "mouth_true_deg": 240,
+        "contents": [
+          "wreck",
+          "beach",
+          "seeded driftwood"
+        ]
+      },
+      {
+        "id": "F3",
+        "name": "Avalon Casino harbour beach",
+        "centre": [
+          4.5,
+          -13.7
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F4",
+        "name": "Catalina sea arch",
+        "centre": [
+          3.5,
+          -14
+        ],
+        "status": "target",
+        "opening_m": 150
+      },
+      {
+        "id": "F6",
+        "name": "Powell arches spires dam marina ramp",
+        "centre": [
+          2.88,
+          -5.15
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F7",
+        "name": "Sea stacks Dillingham beach",
+        "centre": [
+          6,
+          6.2
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F11",
+        "name": "Carson hay fields crop dusting",
+        "centre": [
+          -2.9,
+          -4.4
+        ],
+        "status": "target",
+        "crop_field_m": [
+          600,
+          300
+        ],
+        "wire": "W4 replaces legacy field wire; no extra uncharted wire"
+      },
+      {
+        "id": "F12",
+        "name": "Page landable mesas rock pile strips",
+        "centre": [
+          5,
+          -3.7
+        ],
+        "status": "target",
+        "top_max_slope_deg": 4,
+        "clean_lane_width_m": 46,
+        "threshold_pile_spacing_m": 30.48
+      },
+      {
+        "id": "F13",
+        "name": "Knik braided bars driftwood",
+        "centre": [
+          -6.7,
+          0.3
+        ],
+        "status": "target",
+        "braids": 8,
+        "bar_raise_m": 1.6,
+        "clean_lane_m": [
+          520,
+          52
+        ],
+        "chalk_line_and_cones": true
+      },
+      {
+        "id": "F14",
+        "name": "Middle Fork bars and strips",
+        "centre": [
+          3.5,
+          0.5
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F15",
+        "name": "Talkeetna River bars",
+        "centre": [
+          -7.2,
+          5.8
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F16",
+        "name": "OC beaches piers marina",
+        "centre": [
+          2.8,
+          -9
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F17",
+        "name": "Bighorn Crags lakes",
+        "centre": [
+          1.2,
+          1.8
+        ],
+        "status": "target"
+      },
+      {
+        "id": "F18",
+        "name": "Historic outdoor glider slope",
+        "centre": [
+          4.3,
+          4
+        ],
+        "status": "target"
+      },
+      {
+        "id": "CITY",
+        "name": "OC Fly City and city grid",
+        "centre": [
+          4.8,
+          -6.6
+        ],
+        "status": "target",
+        "extent_km": [
+          1.02,
+          2.55
+        ],
+        "max_building_m": 300,
+        "keep": [
+          "rooftop rings",
+          "spinning ring",
+          "sky bridges",
+          "hole tower",
+          "fountain plaza",
+          "raised landing disc",
+          "street grid"
+        ],
+        "ring_radius_m": 22,
+        "spinning_ring_radius_m": 45
+      },
+      {
+        "id": "RACE",
+        "name": "Air race pylon course",
+        "centre": [
+          7,
+          -0.3
+        ],
+        "status": "target",
+        "extent_km": [
+          1.11,
+          0.35
+        ],
+        "gate_half_width_m": 22.86,
+        "pylon_height_m": 75,
+        "element_count": 12,
+        "chart": true,
+        "elements": [
+          {
+            "sequence": 1,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              45,
+              1800
+            ],
+            "centre": [
+              6.4675,
+              -0.175
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 2,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              345,
+              1800
+            ],
+            "centre": [
+              6.7675,
+              -0.175
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 3,
+            "kind": "PylonOnRight",
+            "old_sim_xy_m": [
+              540,
+              1755
+            ],
+            "centre": [
+              6.9625,
+              -0.13
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 4,
+            "kind": "PylonOnLeft",
+            "old_sim_xy_m": [
+              720,
+              1845
+            ],
+            "centre": [
+              7.1425,
+              -0.22
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 5,
+            "kind": "PylonOnRight",
+            "old_sim_xy_m": [
+              900,
+              1755
+            ],
+            "centre": [
+              7.3225,
+              -0.13
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 6,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              1050,
+              1800
+            ],
+            "centre": [
+              7.4725,
+              -0.175
+            ],
+            "heading_true_deg": 90
+          },
+          {
+            "sequence": 7,
+            "kind": "PylonOnRight",
+            "old_sim_xy_m": [
+              1110,
+              1920
+            ],
+            "centre": [
+              7.5325,
+              -0.295
+            ],
+            "heading_true_deg": 180
+          },
+          {
+            "sequence": 8,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              1020,
+              2050
+            ],
+            "centre": [
+              7.4425,
+              -0.425
+            ],
+            "heading_true_deg": 270
+          },
+          {
+            "sequence": 9,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              720,
+              2050
+            ],
+            "centre": [
+              7.1425,
+              -0.425
+            ],
+            "heading_true_deg": 270
+          },
+          {
+            "sequence": 10,
+            "kind": "PylonOnLeft",
+            "old_sim_xy_m": [
+              540,
+              2095
+            ],
+            "centre": [
+              6.9625,
+              -0.47
+            ],
+            "heading_true_deg": 270
+          },
+          {
+            "sequence": 11,
+            "kind": "PylonOnRight",
+            "old_sim_xy_m": [
+              360,
+              2005
+            ],
+            "centre": [
+              6.7825,
+              -0.38
+            ],
+            "heading_true_deg": 270
+          },
+          {
+            "sequence": 12,
+            "kind": "Gate",
+            "old_sim_xy_m": [
+              120,
+              2050
+            ],
+            "centre": [
+              6.5425,
+              -0.425
+            ],
+            "heading_true_deg": 270
+          }
+        ]
+      },
+      {
+        "id": "CARRIER",
+        "name": "Carrier off OC",
+        "centre": [
+          6.8,
+          -10.5
+        ],
+        "status": "target",
+        "moving_deck": true,
+        "operating_radius_km": 0.3
+      },
+      {
+        "id": "FOREST",
+        "name": "Regional forest",
+        "centre": [
+          0,
+          2
+        ],
+        "status": "target",
+        "cell_m": 18,
+        "treeline_m": 2350,
+        "max_height_m": 42,
+        "exclude": [
+          "pads",
+          "approach corridors",
+          "water",
+          "cities",
+          "canyon safe lines"
+        ]
+      },
+      {
+        "id": "GATEWAY",
+        "name": "Gateway style river arch",
+        "centre": [
+          0.5,
+          -6.7
+        ],
+        "status": "target"
+      },
+      {
+        "id": "PLAYA",
+        "name": "Page dry playa",
+        "centre": [
+          5.8,
+          -4.9
+        ],
+        "status": "target"
+      }
+    ],
+    "roads": [
+      {
+        "id": "Carson-Page",
+        "path": [
+          [
+            -3,
+            -3.2
+          ],
+          [
+            -1,
+            -4.4
+          ],
+          [
+            1,
+            -4.3
+          ],
+          [
+            2.6,
+            -3.6
+          ],
+          [
+            3.4,
+            -3
+          ]
+        ]
+      },
+      {
+        "id": "Middle Fork service road",
+        "path": [
+          [
+            2.5,
+            -1.8
+          ],
+          [
+            3,
+            -0.2
+          ],
+          [
+            4,
+            1.2
+          ],
+          [
+            5,
+            1.8
+          ]
+        ]
+      }
+    ],
+    "backcountry_strips": [
+      {
+        "id": "Chamberlain",
+        "centre": [
+          2.8,
+          -1.5
+        ],
+        "heading_true_deg": 85,
+        "length_m": 1100,
+        "width_m": 40,
+        "elevation_ft": 7000,
+        "slope_percent": 0.0,
+        "surface": "gravel",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -3900,
+          -11000
+        ]
+      },
+      {
+        "id": "Big Creek",
+        "centre": [
+          3,
+          -0.8
+        ],
+        "heading_true_deg": 108,
+        "length_m": 1070,
+        "width_m": 34,
+        "elevation_ft": 7000,
+        "slope_percent": 0.8,
+        "surface": "gravel",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -2600,
+          -11400
+        ]
+      },
+      {
+        "id": "Thomas Creek",
+        "centre": [
+          3.8,
+          -0.7
+        ],
+        "heading_true_deg": 25,
+        "length_m": 1220,
+        "width_m": 30,
+        "elevation_ft": 7000,
+        "slope_percent": 1.2,
+        "surface": "gravel",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -4700,
+          -14100
+        ]
+      },
+      {
+        "id": "Sulphur Creek",
+        "centre": [
+          4.6,
+          -0.3
+        ],
+        "heading_true_deg": 70,
+        "length_m": 915,
+        "width_m": 30,
+        "elevation_ft": 7000,
+        "slope_percent": 0.0,
+        "surface": "turf",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -3200,
+          -14300
+        ]
+      },
+      {
+        "id": "Soldier Bar",
+        "centre": [
+          4.4,
+          0.6
+        ],
+        "heading_true_deg": 250,
+        "length_m": 400,
+        "width_m": 20,
+        "elevation_ft": 5865,
+        "slope_percent": 1.5,
+        "surface": "dirt",
+        "one_way_true_deg": 250,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -1900,
+          -13900
+        ]
+      },
+      {
+        "id": "Cabin Creek",
+        "centre": [
+          3.2,
+          0.3
+        ],
+        "heading_true_deg": 70,
+        "length_m": 460,
+        "width_m": 20,
+        "elevation_ft": 6259,
+        "slope_percent": 3.0,
+        "surface": "dirt",
+        "one_way_true_deg": 70,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -3500,
+          -12126
+        ]
+      },
+      {
+        "id": "Dewey Moore",
+        "centre": [
+          4.8,
+          1.1
+        ],
+        "heading_true_deg": 290,
+        "length_m": 370,
+        "width_m": 18,
+        "elevation_ft": 6094,
+        "slope_percent": 4.0,
+        "surface": "dirt",
+        "one_way_true_deg": 290,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -2900,
+          -13528
+        ]
+      },
+      {
+        "id": "Indian Creek",
+        "centre": [
+          3.8,
+          1.6
+        ],
+        "heading_true_deg": 34,
+        "length_m": 1220,
+        "width_m": 30,
+        "elevation_ft": 4841,
+        "slope_percent": 1.8,
+        "surface": "gravel",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          -300,
+          -12830
+        ]
+      },
+      {
+        "id": "Mackay Bar",
+        "centre": [
+          5,
+          1.8
+        ],
+        "heading_true_deg": 8,
+        "length_m": 460,
+        "width_m": 24,
+        "elevation_ft": 4917,
+        "slope_percent": 1.8,
+        "surface": "gravel",
+        "one_way_true_deg": null,
+        "pad": {
+          "shoulder_m": 60,
+          "end_shoulder_m": 60,
+          "blend_m": 200
+        },
+        "old_sim_metres": [
+          1000,
+          -12486
+        ]
+      }
+    ],
+    "aerobatic_boxes": [
+      {
+        "id": "AB1",
+        "name": "Dillingham",
+        "centre": [
+          6.9,
+          7.6
+        ],
+        "airport": "PHDH",
+        "density_altitude": "low",
+        "side_m": 1000,
+        "floor_agl_m": 100,
+        "ceiling_agl_m": 1100,
+        "centre_ground_ft": 0,
+        "floor_msl_ft_target": 328,
+        "ceiling_msl_ft_target": 3609,
+        "judges_offset_m": 150,
+        "judges_side": "south",
+        "markers": {
+          "colour": "white",
+          "cross_arm_m": 40,
+          "cross_width_m": 4,
+          "corner_L_leg_m": 30,
+          "corner_width_m": 4,
+          "side_T_leg_m": 30,
+          "side_T_width_m": 4,
+          "rafts": true,
+          "orange_corner_buoys": true,
+          "shore_judges_marker": true
+        },
+        "judges_shore_marker_status": "target: align shore reference with judges line; exact intersection pending shore geometry review"
+      },
+      {
+        "id": "AB2",
+        "name": "Cook Inlet",
+        "centre": [
+          -10.1,
+          -3.6
+        ],
+        "airport": "PANC",
+        "density_altitude": "low",
+        "side_m": 1000,
+        "floor_agl_m": 100,
+        "ceiling_agl_m": 1100,
+        "centre_ground_ft": 0,
+        "floor_msl_ft_target": 328,
+        "ceiling_msl_ft_target": 3609,
+        "judges_offset_m": 150,
+        "judges_side": "east",
+        "markers": {
+          "colour": "white",
+          "cross_arm_m": 40,
+          "cross_width_m": 4,
+          "corner_L_leg_m": 30,
+          "corner_width_m": 4,
+          "side_T_leg_m": 30,
+          "side_T_width_m": 4,
+          "rafts": true,
+          "orange_corner_buoys": true,
+          "shore_judges_marker": true
+        }
+      },
+      {
+        "id": "AB3",
+        "name": "McCall",
+        "centre": [
+          -2.5,
+          4
+        ],
+        "airport": "KMYL",
+        "density_altitude": "high",
+        "side_m": 1000,
+        "floor_agl_m": 100,
+        "ceiling_agl_m": 1100,
+        "centre_ground_ft": 5000,
+        "floor_msl_ft_target": 5328,
+        "ceiling_msl_ft_target": 8609,
+        "judges_offset_m": 150,
+        "judges_side": "east",
+        "markers": {
+          "colour": "white",
+          "cross_arm_m": 40,
+          "cross_width_m": 4,
+          "corner_L_leg_m": 30,
+          "corner_width_m": 4,
+          "side_T_leg_m": 30,
+          "side_T_width_m": 4,
+          "rafts": false,
+          "orange_corner_buoys": false,
+          "shore_judges_marker": false
+        }
+      }
+    ],
+    "combat_zones": [
+      {
+        "id": "CZ1",
+        "name": "KAIWI MOA",
+        "bearings_true_deg": [
+          15,
+          50
+        ],
+        "radii_km": [
+          14,
+          19.5
+        ],
+        "floor_msl_ft_target": 500,
+        "ceiling_msl_ft_target": 12500,
+        "default_status": "HOT",
+        "available_statuses": [
+          "HOT",
+          "COLD"
+        ],
+        "optional": false,
+        "enabled": true,
+        "minimum_clearance_km": 1.85,
+        "chart": "magenta hatched boundary; floor-ceiling-status",
+        "name_status": "placeholder; unverified against official MOA list",
+        "hook_owner": "Claude: HOT may trigger event:combat and dogfight; COLD never triggers",
+        "gunnery_targets": [
+          {
+            "id": "CZ1-GT1",
+            "centre": [
+              8.056562,
+              14.685173
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ1-GT2",
+            "centre": [
+              8.589346,
+              14.728395
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ1-GT3",
+            "centre": [
+              8.814083,
+              14.2434
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ1-GT4",
+            "centre": [
+              9.3484,
+              14.258679
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ1-GT5",
+            "centre": [
+              9.547446,
+              13.762586
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ1-GT6",
+            "centre": [
+              10.08183,
+              13.749881
+            ],
+            "radius_m": 14,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          }
+        ],
+        "drone_orbit": {
+          "centre_start": "CZ1",
+          "count": 3,
+          "radius_m_target": 500,
+          "altitude_ft_target": 3000,
+          "owner": "Claude opponent/AI logic"
+        }
+      },
+      {
+        "id": "CZ2",
+        "name": "PAINTED MOA",
+        "bearings_true_deg": [
+          95,
+          135
+        ],
+        "radii_km": [
+          13.5,
+          19.5
+        ],
+        "floor_msl_ft_target": 500,
+        "ceiling_msl_ft_target": 12500,
+        "default_status": "HOT",
+        "available_statuses": [
+          "HOT",
+          "COLD"
+        ],
+        "optional": false,
+        "enabled": true,
+        "minimum_clearance_km": 1.85,
+        "chart": "magenta hatched boundary; floor-ceiling-status",
+        "name_status": "placeholder; unverified against official MOA list",
+        "hook_owner": "Claude: HOT may trigger event:combat and dogfight; COLD never triggers",
+        "gunnery_targets": [
+          {
+            "id": "CZ2-GT1",
+            "centre": [
+              15.37813,
+              -5.980228
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ2-GT2",
+            "centre": [
+              15.492976,
+              -6.496744
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ2-GT3",
+            "centre": [
+              15.044074,
+              -6.776861
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ2-GT4",
+            "centre": [
+              15.13173,
+              -7.29868
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ2-GT5",
+            "centre": [
+              14.668783,
+              -7.55492
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ2-GT6",
+            "centre": [
+              14.729009,
+              -8.080611
+            ],
+            "radius_m": 14,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          }
+        ],
+        "drone_orbit": {
+          "centre_start": "CZ2",
+          "count": 3,
+          "radius_m_target": 500,
+          "altitude_ft_target": 3000,
+          "owner": "Claude opponent/AI logic"
+        }
+      },
+      {
+        "id": "CZ3",
+        "name": "SUSITNA MOA",
+        "bearings_true_deg": [
+          315,
+          350
+        ],
+        "radii_km": [
+          14.5,
+          19.5
+        ],
+        "floor_msl_ft_target": 500,
+        "ceiling_msl_ft_target": 12500,
+        "default_status": "HOT",
+        "available_statuses": [
+          "HOT",
+          "COLD"
+        ],
+        "optional": false,
+        "enabled": true,
+        "minimum_clearance_km": 1.85,
+        "chart": "magenta hatched boundary; floor-ceiling-status",
+        "name_status": "placeholder; unverified against official MOA list",
+        "hook_owner": "Claude: HOT may trigger event:combat and dogfight; COLD never triggers",
+        "gunnery_targets": [
+          {
+            "id": "CZ3-GT1",
+            "centre": [
+              -8.819145,
+              14.533502
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ3-GT2",
+            "centre": [
+              -8.584546,
+              15.019839
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ3-GT3",
+            "centre": [
+              -8.046434,
+              14.975143
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ3-GT4",
+            "centre": [
+              -7.786703,
+              15.448536
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ3-GT5",
+            "centre": [
+              -7.251669,
+              15.375737
+            ],
+            "radius_m": 30,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          },
+          {
+            "id": "CZ3-GT6",
+            "centre": [
+              -6.967518,
+              15.834889
+            ],
+            "radius_m": 14,
+            "platform": "moored floating bullseye raft",
+            "target_top_msl_m": 1
+          }
+        ],
+        "drone_orbit": {
+          "centre_start": "CZ3",
+          "count": 3,
+          "radius_m_target": 500,
+          "altitude_ft_target": 3000,
+          "owner": "Claude opponent/AI logic"
+        }
+      },
+      {
+        "id": "CZ4",
+        "name": "KACHEMAK MOA",
+        "bearings_true_deg": [
+          228,
+          262
+        ],
+        "radii_km": [
+          14,
+          19.5
+        ],
+        "floor_msl_ft_target": 500,
+        "ceiling_msl_ft_target": 12500,
+        "default_status": "HOT",
+        "available_statuses": [
+          "HOT",
+          "COLD"
+        ],
+        "optional": true,
+        "enabled": false,
+        "minimum_clearance_km": 1.85,
+        "chart": "magenta hatched boundary; floor-ceiling-status",
+        "name_status": "placeholder; unverified against official MOA list",
+        "hook_owner": "Claude: HOT may trigger event:combat and dogfight; COLD never triggers"
+      }
+    ],
+    "starts": [
+      {
+        "id": "PHDH:OnTheRunway",
+        "airport": "PHDH",
+        "group": "coastal",
+        "mode": "OnTheRunway",
+        "centre": [
+          3.69753,
+          5.92256
+        ],
+        "altitude_ft_target": 14,
+        "heading_true_deg": 91,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PHDH:OnFinal",
+        "airport": "PHDH",
+        "group": "coastal",
+        "mode": "OnFinal",
+        "centre": [
+          2.817664,
+          5.937918
+        ],
+        "altitude_ft_target": 314,
+        "heading_true_deg": 91,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PHDH:InTheAir",
+        "airport": "PHDH",
+        "group": "coastal",
+        "mode": "InTheAir",
+        "centre": [
+          2.617695,
+          5.941409
+        ],
+        "altitude_ft_target": 1514,
+        "heading_true_deg": 91,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PANC:OnTheRunway",
+        "airport": "PANC",
+        "group": "coastal",
+        "mode": "OnTheRunway",
+        "centre": [
+          -9.047854,
+          -1.547869
+        ],
+        "altitude_ft_target": 151,
+        "heading_true_deg": 165,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PANC:OnFinal",
+        "airport": "PANC",
+        "group": "coastal",
+        "mode": "OnFinal",
+        "centre": [
+          -9.275615,
+          -0.697854
+        ],
+        "altitude_ft_target": 451,
+        "heading_true_deg": 165,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PANC:InTheAir",
+        "airport": "PANC",
+        "group": "coastal",
+        "mode": "InTheAir",
+        "centre": [
+          -9.327378,
+          -0.504669
+        ],
+        "altitude_ft_target": 1651,
+        "heading_true_deg": 165,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PALH:OnTheRunway",
+        "airport": "PALH",
+        "group": "PANC float variant",
+        "mode": "OnTheRunway",
+        "centre": [
+          -8.572048,
+          -1.8
+        ],
+        "altitude_ft_target": 79,
+        "heading_true_deg": 90,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PALH:OnFinal",
+        "airport": "PALH",
+        "group": "PANC float variant",
+        "mode": "OnFinal",
+        "centre": [
+          -9.452048,
+          -1.8
+        ],
+        "altitude_ft_target": 379,
+        "heading_true_deg": 90,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PALH:InTheAir",
+        "airport": "PALH",
+        "group": "PANC float variant",
+        "mode": "InTheAir",
+        "centre": [
+          -9.652048,
+          -1.8
+        ],
+        "altitude_ft_target": 1579,
+        "heading_true_deg": 90,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PATK:OnTheRunway",
+        "airport": "PATK",
+        "group": "coastal",
+        "mode": "OnTheRunway",
+        "centre": [
+          -6.545839,
+          4.586018
+        ],
+        "altitude_ft_target": 365,
+        "heading_true_deg": 27,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PATK:OnFinal",
+        "airport": "PATK",
+        "group": "coastal",
+        "mode": "OnFinal",
+        "centre": [
+          -6.945351,
+          3.801932
+        ],
+        "altitude_ft_target": 665,
+        "heading_true_deg": 27,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "PATK:InTheAir",
+        "airport": "PATK",
+        "group": "coastal",
+        "mode": "InTheAir",
+        "centre": [
+          -7.036149,
+          3.623731
+        ],
+        "altitude_ft_target": 1865,
+        "heading_true_deg": 27,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KSNA:OnTheRunway",
+        "airport": "KSNA",
+        "group": "coastal",
+        "mode": "OnTheRunway",
+        "centre": [
+          0.589737,
+          -8.756363
+        ],
+        "altitude_ft_target": 56,
+        "heading_true_deg": 28,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KSNA:OnFinal",
+        "airport": "KSNA",
+        "group": "coastal",
+        "mode": "OnFinal",
+        "centre": [
+          0.176602,
+          -9.533357
+        ],
+        "altitude_ft_target": 356,
+        "heading_true_deg": 28,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KSNA:InTheAir",
+        "airport": "KSNA",
+        "group": "coastal",
+        "mode": "InTheAir",
+        "centre": [
+          0.082708,
+          -9.709947
+        ],
+        "altitude_ft_target": 1556,
+        "heading_true_deg": 28,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMYL:OnTheRunway",
+        "airport": "KMYL",
+        "group": "inland",
+        "mode": "OnTheRunway",
+        "centre": [
+          -0.594831,
+          3.629663
+        ],
+        "altitude_ft_target": 5024,
+        "heading_true_deg": 179,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMYL:OnFinal",
+        "airport": "KMYL",
+        "group": "inland",
+        "mode": "OnFinal",
+        "centre": [
+          -0.610189,
+          4.509529
+        ],
+        "altitude_ft_target": 5324,
+        "heading_true_deg": 179,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMYL:InTheAir",
+        "airport": "KMYL",
+        "group": "inland",
+        "mode": "InTheAir",
+        "centre": [
+          -0.61368,
+          4.709498
+        ],
+        "altitude_ft_target": 6524,
+        "heading_true_deg": 179,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "3U2:OnTheRunway",
+        "airport": "3U2",
+        "group": "inland",
+        "mode": "OnTheRunway",
+        "centre": [
+          1.911099,
+          -0.431415
+        ],
+        "altitude_ft_target": 4960,
+        "heading_true_deg": 192,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "3U2:OnFinal",
+        "airport": "3U2",
+        "group": "inland",
+        "mode": "OnFinal",
+        "centre": [
+          2.094061,
+          0.429355
+        ],
+        "altitude_ft_target": 5260,
+        "heading_true_deg": 192,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "3U2:InTheAir",
+        "airport": "3U2",
+        "group": "inland",
+        "mode": "InTheAir",
+        "centre": [
+          2.135643,
+          0.624985
+        ],
+        "altitude_ft_target": 6460,
+        "heading_true_deg": 192,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMEV:OnTheRunway",
+        "airport": "KMEV",
+        "group": "inland",
+        "mode": "OnTheRunway",
+        "centre": [
+          -3.02,
+          -0.682392
+        ],
+        "altitude_ft_target": 4724,
+        "heading_true_deg": 180,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMEV:OnFinal",
+        "airport": "KMEV",
+        "group": "inland",
+        "mode": "OnFinal",
+        "centre": [
+          -3.02,
+          0.197608
+        ],
+        "altitude_ft_target": 5024,
+        "heading_true_deg": 180,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KMEV:InTheAir",
+        "airport": "KMEV",
+        "group": "inland",
+        "mode": "InTheAir",
+        "centre": [
+          -3.02,
+          0.397608
+        ],
+        "altitude_ft_target": 6224,
+        "heading_true_deg": 180,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KPGA:OnTheRunway",
+        "airport": "KPGA",
+        "group": "inland",
+        "mode": "OnTheRunway",
+        "centre": [
+          3.596431,
+          -2.445781
+        ],
+        "altitude_ft_target": 4317,
+        "heading_true_deg": 170,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KPGA:OnFinal",
+        "airport": "KPGA",
+        "group": "inland",
+        "mode": "OnFinal",
+        "centre": [
+          3.443621,
+          -1.57915
+        ],
+        "altitude_ft_target": 4617,
+        "heading_true_deg": 170,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "KPGA:InTheAir",
+        "airport": "KPGA",
+        "group": "inland",
+        "mode": "InTheAir",
+        "centre": [
+          3.408891,
+          -1.382188
+        ],
+        "altitude_ft_target": 5817,
+        "heading_true_deg": 170,
+        "note": "geometry candidate; Claude chooses runway, aircraft trim and clearance"
+      },
+      {
+        "id": "AB1",
+        "mode": "InAeroBox",
+        "centre": [
+          6.9,
+          7.6
+        ],
+        "altitude_ft_target": 2300,
+        "heading_true_deg": 0
+      },
+      {
+        "id": "AB2",
+        "mode": "InAeroBox",
+        "centre": [
+          -10.1,
+          -3.6
+        ],
+        "altitude_ft_target": 2300,
+        "heading_true_deg": 0
+      },
+      {
+        "id": "AB3",
+        "mode": "InAeroBox",
+        "centre": [
+          -2.5,
+          4
+        ],
+        "altitude_ft_target": 7300,
+        "heading_true_deg": 0
+      },
+      {
+        "id": "CZ1",
+        "mode": "InCombatZone",
+        "enabled": true,
+        "centre": [
+          8.999768,
+          14.126807
+        ],
+        "altitude_ft_target": 5000,
+        "heading_true_deg": 122.5
+      },
+      {
+        "id": "CZ2",
+        "mode": "InCombatZone",
+        "enabled": true,
+        "centre": [
+          14.954078,
+          -6.973201
+        ],
+        "altitude_ft_target": 5000,
+        "heading_true_deg": 205.0
+      },
+      {
+        "id": "CZ3",
+        "mode": "InCombatZone",
+        "enabled": true,
+        "centre": [
+          -7.849726,
+          15.079184
+        ],
+        "altitude_ft_target": 5000,
+        "heading_true_deg": 62.5
+      },
+      {
+        "id": "CZ4",
+        "mode": "InCombatZone",
+        "enabled": false,
+        "centre": [
+          -15.180655,
+          -7.078856
+        ],
+        "altitude_ft_target": 5000,
+        "heading_true_deg": 335.0
+      },
+      {
+        "id": "S1",
+        "mode": "InThermal",
+        "centre": [
+          4.3,
+          4
+        ],
+        "altitude_agl_ft_target": 1500,
+        "owner": "Codex position; Claude lift and spawn trim"
+      },
+      {
+        "id": "S2",
+        "mode": "InThermal",
+        "centre": [
+          -3.71,
+          -1
+        ],
+        "altitude_agl_ft_target": 1500,
+        "owner": "Codex position; Claude lift and spawn trim"
+      },
+      {
+        "id": "S3",
+        "mode": "InThermal",
+        "centre": [
+          4.5,
+          -4.6
+        ],
+        "altitude_agl_ft_target": 1500,
+        "owner": "Codex position; Claude lift and spawn trim"
+      },
+      {
+        "id": "S4",
+        "mode": "InThermal",
+        "centre": [
+          0.2,
+          2.4
+        ],
+        "altitude_agl_ft_target": 1500,
+        "owner": "Codex position; Claude lift and spawn trim"
+      }
+    ],
+    "practice_lines": [
+      {
+        "id": "ST-PHDH",
+        "airport": "PHDH",
+        "path": [
+          [
+            4.389368,
+            5.869048
+          ],
+          [
+            5.589186,
+            5.848105
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-PANC",
+        "airport": "PANC",
+        "path": [
+          [
+            -8.853711,
+            -2.506098
+          ],
+          [
+            -8.543128,
+            -3.665209
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-PALH",
+        "airport": "PALH",
+        "path": [
+          [
+            -8.56,
+            -1.858651
+          ],
+          [
+            -7.36,
+            -1.858651
+          ]
+        ],
+        "type": "straight buoy reference line",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-PATK",
+        "airport": "PATK",
+        "path": [
+          [
+            -6.536164,
+            4.513748
+          ],
+          [
+            -6.070007,
+            5.428634
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1026.8,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-KSNA",
+        "airport": "KSNA",
+        "path": [
+          [
+            0.72499,
+            -8.614585
+          ],
+          [
+            1.288356,
+            -7.555048
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-KMYL",
+        "airport": "KMYL",
+        "path": [
+          [
+            -0.631895,
+            3.379186
+          ],
+          [
+            -0.610952,
+            2.179368
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-3U2",
+        "airport": "3U2",
+        "path": [
+          [
+            1.871868,
+            -0.361736
+          ],
+          [
+            1.664722,
+            -1.336284
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 996.32,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-KMEV",
+        "airport": "KMEV",
+        "path": [
+          [
+            -3.06524,
+            -1.13
+          ],
+          [
+            -3.06524,
+            -2.33
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      },
+      {
+        "id": "ST-KPGA",
+        "airport": "KPGA",
+        "path": [
+          [
+            3.583754,
+            -2.678294
+          ],
+          [
+            3.792132,
+            -3.860064
+          ]
+        ],
+        "type": "straight section line on pad shoulder",
+        "length_m": 1200,
+        "status": "target; actual low relief screened in fit-check"
+      }
+    ],
+    "gameplay_inventory": [
+      {
+        "id": "event:race",
+        "name": "Air Racing",
+        "destination": "RACE",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "event:stol",
+        "name": "STOL contest",
+        "destination": "AP3 Carson Valley; 150 m line setback, 600 ft marks, 3 rounds",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "event:dust",
+        "name": "Crop dusting",
+        "destination": "F11",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "event:aerobox",
+        "name": "Aerobatic box",
+        "destination": "AB1-AB3",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "event:combat",
+        "name": "Combat zone",
+        "destination": "CZ1-CZ3",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "event:dogfight",
+        "name": "Dogfight 1 v 1",
+        "destination": "CZ1-CZ3",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c1-wings-level",
+        "name": "Wings level",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c2-best-glide",
+        "name": "Best glide",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c3-cardinal-turn",
+        "name": "Cardinal turn",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c4-stall-recover",
+        "name": "Stall recovery",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c10-headwind-landing",
+        "name": "Headwind landing",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "a1c11-crosswind-landing",
+        "name": "Crosswind landing",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:straight",
+        "name": "Straight: wings level",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:climb-level-descend",
+        "name": "Climb, level, descend",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:glide-rear",
+        "name": "Glide: speed to fly",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:glide-side",
+        "name": "Glide: speed to fly \u00b7 side view",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:climb-vy",
+        "name": "Climb: best rate (Vy)",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "lesson:climb-vx",
+        "name": "Climb: best angle (Vx) \u00b7 side view",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:xwind-rudder",
+        "name": "Crosswind \u00b7 rudder",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:xwind-aileron",
+        "name": "Crosswind \u00b7 aileron",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:land-rudder",
+        "name": "Crosswind landing \u00b7 rudder",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:land-aileron",
+        "name": "Crosswind landing \u00b7 aileron",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:flare",
+        "name": "Round-out & flare",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:flare-side",
+        "name": "Flare \u00b7 side view",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:approach-side",
+        "name": "Approach \u00b7 side view",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:s-turns",
+        "name": "S-turns 45\u00b0",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:s-turns-test",
+        "name": "Test: S-turns, one speed cycle",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:stall-side",
+        "name": "Stall \u00b7 side view",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:stall-rudder",
+        "name": "Stall, wing drop \u00b7 rudder",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "practice:stall-elevator",
+        "name": "Stall, recover \u00b7 elevator",
+        "destination": "all eight starts; airwork area 1500 ft AGL; landing tasks use chosen runway; S-turns use ST field lines",
+        "source": "SessionSettings.cs Challenges/Lessons; StartMenu dispatch",
+        "owner": "Codex geometry/placement; Claude event/scoring/spawn logic"
+      },
+      {
+        "id": "F1",
+        "name": "Drake Hill and hidden school shell",
+        "destination": "F1",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F2",
+        "name": "Pirate cave",
+        "destination": "F2",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F3",
+        "name": "Avalon Casino harbour beach",
+        "destination": "F3",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F4",
+        "name": "Catalina sea arch",
+        "destination": "F4",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F6",
+        "name": "Powell arches spires dam marina ramp",
+        "destination": "F6",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F7",
+        "name": "Sea stacks Dillingham beach",
+        "destination": "F7",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F11",
+        "name": "Carson hay fields crop dusting",
+        "destination": "F11",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F12",
+        "name": "Page landable mesas rock pile strips",
+        "destination": "F12",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F13",
+        "name": "Knik braided bars driftwood",
+        "destination": "F13",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F14",
+        "name": "Middle Fork bars and strips",
+        "destination": "F14",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F15",
+        "name": "Talkeetna River bars",
+        "destination": "F15",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F16",
+        "name": "OC beaches piers marina",
+        "destination": "F16",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F17",
+        "name": "Bighorn Crags lakes",
+        "destination": "F17",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "F18",
+        "name": "Historic outdoor glider slope",
+        "destination": "F18",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "CITY",
+        "name": "OC Fly City and city grid",
+        "destination": "CITY",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "RACE",
+        "name": "Air race pylon course",
+        "destination": "RACE",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "CARRIER",
+        "name": "Carrier off OC",
+        "destination": "CARRIER",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "FOREST",
+        "name": "Regional forest",
+        "destination": "FOREST",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "GATEWAY",
+        "name": "Gateway style river arch",
+        "destination": "GATEWAY",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "PLAYA",
+        "name": "Page dry playa",
+        "destination": "PLAYA",
+        "source": "world code / Ty inventory",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Chamberlain",
+        "name": "Chamberlain",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Big Creek",
+        "name": "Big Creek",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Thomas Creek",
+        "name": "Thomas Creek",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Sulphur Creek",
+        "name": "Sulphur Creek",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Soldier Bar",
+        "name": "Soldier Bar",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Cabin Creek",
+        "name": "Cabin Creek",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Dewey Moore",
+        "name": "Dewey Moore",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Indian Creek",
+        "name": "Indian Creek",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "strip:Mackay Bar",
+        "name": "Mackay Bar",
+        "destination": "C2 Middle Fork",
+        "source": "FrankChurch.Strips",
+        "owner": "Codex"
+      },
+      {
+        "id": "extra:59",
+        "name": "aerotow and tow hookup",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:60",
+        "name": "float bases ramps buoy lanes",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:61",
+        "name": "glacier ski landings and icebergs",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:62",
+        "name": "sloped grass Snoopy swoop training lane",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:63",
+        "name": "waterfalls and plunge pools",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:64",
+        "name": "river road bridge",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "extra:65",
+        "name": "hidden school interior shell and outdoor historic gliders",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "source": "world source audit beyond supplied list",
+        "owner": "Codex geometry; Claude logic"
+      },
+      {
+        "id": "gunnery:targets",
+        "name": "five 30 m bullseyes + one 14 m target; three target drones",
+        "destination": "six moored target rafts per CZ1-CZ3; three-drone orbit",
+        "source": "Combat/Gunnery.cs CombatZone.BuildGroundTargets; CombatController",
+        "owner": "Codex target geometry; Claude AI/hit/event logic"
+      },
+      {
+        "id": "combat:concealment",
+        "name": "six legacy puffy combat clouds / concealment",
+        "destination": "CZ1-CZ3 weather volumes proposed; Claude-owned",
+        "source": "Combat/Gunnery.cs CombatZone.Clouds",
+        "owner": "Claude weather; no world cloud implementation"
+      }
+    ],
+    "deleted_features": [
+      "Golden Gate",
+      "Eiffel-style tower",
+      "DC Mall",
+      "F5 waterfall tunnel (do not remove code until later Claude phase)"
+    ],
+    "locked_decisions": [
+      {
+        "id": 1,
+        "text": "True field elevations; about 18.3 x 17.5 km; cap 35% only between flat fields; ocean ring radius20 km"
+      },
+      {
+        "id": 2,
+        "text": "PANC length10865 ft"
+      },
+      {
+        "id": 3,
+        "text": "Default060 true15 kt /053 magnetic ATIS; Calm and Strong trade25 kt (Claude)"
+      },
+      {
+        "id": 4,
+        "text": "Eight airport starts; PALH adjacent PANC float variant waiver; KAVX not start"
+      },
+      {
+        "id": 5,
+        "text": "Bighorn Crags renaming; carrier offOC; Golden Gate/Eiffel/DC Mall dropped"
+      },
+      {
+        "id": 6,
+        "text": "All6 towers and5 wires charted"
+      },
+      {
+        "id": 7,
+        "text": "Glacier ski zones1000-1300 ft"
+      },
+      {
+        "id": 8,
+        "text": "LakePowell3700 ft full pool"
+      },
+      {
+        "id": 9,
+        "text": "Menu lane first; verified already included"
+      },
+      {
+        "id": 10,
+        "text": "Catalina northshore about3.5 km offOC SSE ofKSNA within ring"
+      },
+      {
+        "id": 11,
+        "text": "Variation7E; published magnetic, physics true"
+      },
+      {
+        "id": 12,
+        "text": "Real idents/frequencies where fit; DRK114.10; unique idents/frequencies"
+      },
+      {
+        "id": 13,
+        "text": "Revised13: KSNA only LOC BC2L I-SNA111.75; noILS orGS; exactly oneAN range approach"
+      },
+      {
+        "id": 14,
+        "text": "MEA/minima targets; computedTerps wins"
+      },
+      {
+        "id": 15,
+        "text": "Drake valley4700 ft inCarson"
+      },
+      {
+        "id": 16,
+        "text": "Drake strip2992 ft; outdoorMokuleia historic gliders"
+      },
+      {
+        "id": 17,
+        "text": "CatalinaSW cave60x26 m mouth90 m chamber radius"
+      },
+      {
+        "id": 18,
+        "text": "F5 waterfall tunnel deleted; code/tests removed later byClaude"
+      },
+      {
+        "id": 19,
+        "text": "14 airparksAP1-AP14; each surface,length,gear,hangars,houses"
+      },
+      {
+        "id": 20,
+        "text": "Revised20: Codex entireworld; ClaudeIFR/weather afterG1; failures HANDOFF, no reshaping"
+      },
+      {
+        "id": 21,
+        "text": "Three IACboxes,2low1high,charted visiblemarkers"
+      },
+      {
+        "id": 22,
+        "text": "MOA-style HOT/COLD zones clearIFR; HOT entry can engage"
+      }
+    ],
+    "review_history": {
+      "starting_layout_retained_in_session": true,
+      "changes_applied_only_to_documentation": true,
+      "runtime_unchanged": true
+    }
+  },
+  "changes": [
+    {
+      "item": "AP8 runway numbers",
+      "old": "18/36 at 007 true",
+      "new": "36/18 at unchanged 007 true",
+      "reason": "007 true - 7E = 000 magnetic; order follows the authored heading; length and position unchanged"
+    },
+    {
+      "item": "KMEV glider strip",
+      "old": "13G/31G; no dimensions/centre",
+      "new": "centre (-2.20,-1.90), 135 true, 2000 x 75 ft grass, 4724 ft",
+      "reason": "explicit review geometry; target pending Ty approval"
+    },
+    {
+      "item": "F1 Drake Hill and hidden school shell",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        -4.9,
+        -4.3
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F2 Pirate cave",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        2.7,
+        -14.6
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F3 Avalon Casino harbour beach",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        4.5,
+        -13.7
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F4 Catalina sea arch",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        3.5,
+        -14
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F6 Powell arches spires dam marina ramp",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        2.88,
+        -5.15
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F7 Sea stacks Dillingham beach",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        6,
+        6.2
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F11 Carson hay fields crop dusting",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        -2.9,
+        -4.4
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F12 Page landable mesas rock pile strips",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        5,
+        -3.7
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F13 Knik braided bars driftwood",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        -6.7,
+        0.3
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F14 Middle Fork bars and strips",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        3.5,
+        0.5
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F15 Talkeetna River bars",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        -7.2,
+        5.8
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F16 OC beaches piers marina",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        2.8,
+        -9
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F17 Bighorn Crags lakes",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        1.2,
+        1.8
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "F18 Historic outdoor glider slope",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        4.3,
+        4
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "CITY OC Fly City and city grid",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        4.8,
+        -6.6
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "RACE Air race pylon course",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        7,
+        -0.3
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "CARRIER Carrier off OC",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        6.8,
+        -10.5
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "FOREST Regional forest",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        0,
+        2
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "GATEWAY Gateway style river arch",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        0.5,
+        -6.7
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "PLAYA Page dry playa",
+      "old": "legacy duplicated plateau/world position or unspecified starting position",
+      "new": [
+        5.8,
+        -4.9
+      ],
+      "reason": "consolidated island allocation; supplied F positions retained where given; new placements are targets"
+    },
+    {
+      "item": "Chamberlain",
+      "old": {
+        "sim_xy_m": [
+          -3900,
+          -11000
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          2.8,
+          -1.5
+        ],
+        "elevation_ft": 7000
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Big Creek",
+      "old": {
+        "sim_xy_m": [
+          -2600,
+          -11400
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          3,
+          -0.8
+        ],
+        "elevation_ft": 7000
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Thomas Creek",
+      "old": {
+        "sim_xy_m": [
+          -4700,
+          -14100
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          3.8,
+          -0.7
+        ],
+        "elevation_ft": 7000
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Sulphur Creek",
+      "old": {
+        "sim_xy_m": [
+          -3200,
+          -14300
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          4.6,
+          -0.3
+        ],
+        "elevation_ft": 7000
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Soldier Bar",
+      "old": {
+        "sim_xy_m": [
+          -1900,
+          -13900
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          4.4,
+          0.6
+        ],
+        "elevation_ft": 5865
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Cabin Creek",
+      "old": {
+        "sim_xy_m": [
+          -3500,
+          -12126
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          3.2,
+          0.3
+        ],
+        "elevation_ft": 6259
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Dewey Moore",
+      "old": {
+        "sim_xy_m": [
+          -2900,
+          -13528
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          4.8,
+          1.1
+        ],
+        "elevation_ft": 6094
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Indian Creek",
+      "old": {
+        "sim_xy_m": [
+          -300,
+          -12830
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          3.8,
+          1.6
+        ],
+        "elevation_ft": 4841
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "Mackay Bar",
+      "old": {
+        "sim_xy_m": [
+          1000,
+          -12486
+        ],
+        "elevation": "legacy relative to 7000 ft plateau"
+      },
+      "new": {
+        "centre": [
+          5,
+          1.8
+        ],
+        "elevation_ft": 4917
+      },
+      "reason": "move into Middle Fork; retain dimensions, surface, slope and one-way character; candidate fit unresolved"
+    },
+    {
+      "item": "legacy airports/features",
+      "old": "Valley/Bench/Mesa/Summit and repeated boxes/races/cities",
+      "new": "eight real-elevation starts; AB1-AB3; one RACE; OC city",
+      "reason": "locked island plan"
+    },
+    {
+      "item": "legacy glacial/alpine terrain",
+      "old": "Alaska/Enchantments blocks and old high ski elevations",
+      "new": "Knik/Ruth 1100/1300 ft ski tongues; Bighorn six-lake stair",
+      "reason": "locked renaming and low glacier landing zones"
+    },
+    {
+      "item": "3U2 slope",
+      "old": "unspecified slope",
+      "new": "0.5% longitudinal target",
+      "reason": "make explicit pending surveyed value; locked centre elevation and dimensions retained"
+    },
+    {
+      "item": "airpark elevations/widths",
+      "old": "unspecified",
+      "new": "per-airpark target elevations, width 60 ft, 60 m shoulders",
+      "reason": "required for height-field review; no true elevation was supplied for fictional strips"
+    },
+    {
+      "item": "legacy waterfall tunnel",
+      "old": "existing tunnel and older tunnel-first Drake plan",
+      "new": "excluded from island design; code unchanged in Phase 1A",
+      "reason": "locked deletion decision 18"
+    },
+    {
+      "item": "legacy crop-field conductors",
+      "old": "separate 30.48 m AGL wire set",
+      "new": "use charted W4 at 18 m minimum AGL",
+      "reason": "keep exactly five authored wire spans; no hidden duplicate hazard"
+    },
+    {
+      "item": "legacy Gateway-style river arch",
+      "old": "Landmarks.Arch duplicated across plateaus",
+      "new": "one target arch at (0.5,-6.7)",
+      "reason": "not on the dropped list; preserve audited fly-through feature"
+    },
+    {
+      "item": "Coast transition band",
+      "old": 0.35,
+      "new": 0.1,
+      "reason": "100 m shore fade keeps locked Catalina runway and its 60 m shoulders at true elevation; compact smooth transition still reaches sea bed continuously"
+    },
+    {
+      "item": "AP9 fictional elevation target",
+      "old": 600,
+      "new": 3200,
+      "reason": "reduce mean field-to-field grades while keeping supplied position, dimensions and surface"
+    },
+    {
+      "item": "AP14 fictional elevation target",
+      "old": 250,
+      "new": 1600,
+      "reason": "reduce mean field-to-field grades while keeping supplied position, dimensions and surface"
+    },
+    {
+      "item": "AP4 fictional elevation target",
+      "old": 180,
+      "new": 1600,
+      "reason": "reduce mean field-to-field grades while keeping supplied position, dimensions and surface"
+    },
+    {
+      "item": "AP10 fictional elevation target",
+      "old": 5200,
+      "new": 4500,
+      "reason": "reduce mean field-to-field grades while keeping supplied position, dimensions and surface"
+    },
+    {
+      "item": "AP2 Talkeetna village centre",
+      "old": [
+        -7,
+        4.7
+      ],
+      "new": [
+        -6.9,
+        6.8
+      ],
+      "reason": "separate village strip from PATK while retaining Talkeetna regional identity; new shore/approach clearance remains to be checked"
+    },
+    {
+      "item": "KMEV 17/35 centre",
+      "old": [
+        -3.17,
+        -1.73
+      ],
+      "new": [
+        -3.02,
+        -1.73
+      ],
+      "reason": "150 m east shift increases Lake Hood edge-to-edge run, bringing critical flat-field grade below 35%; IFR records unchanged"
+    },
+    {
+      "item": "KMEV 13/31 centre",
+      "old": [
+        -2.5,
+        -2.02
+      ],
+      "new": [
+        -2.35,
+        -2.02
+      ],
+      "reason": "150 m east shift increases Lake Hood edge-to-edge run, bringing critical flat-field grade below 35%; IFR records unchanged"
+    },
+    {
+      "item": "KMEV 13G/31G centre",
+      "old": [
+        -2.2,
+        -1.9
+      ],
+      "new": [
+        -2.05,
+        -1.9
+      ],
+      "reason": "150 m east shift increases Lake Hood edge-to-edge run, bringing critical flat-field grade below 35%; IFR records unchanged"
+    },
+    {
+      "item": "PHDH east beach coast vertices",
+      "old": [
+        [
+          6.4,
+          6.2
+        ],
+        [
+          7.7,
+          4.5
+        ]
+      ],
+      "new": [
+        [
+          6.6,
+          6.4
+        ],
+        [
+          7.9,
+          4.5
+        ]
+      ],
+      "reason": "add 0.2 km of coastal apron near east runway end for 300 m shore setback"
+    },
+    {
+      "item": "Legacy CombatZone targets",
+      "old": {
+        "five_open_ground_bullseyes_radius_m": 30,
+        "one_gorge_floor_target_radius_m": 14,
+        "three_orbiting_drones": true
+      },
+      "new": "six target rafts and three-drone orbit per active CZ; exact positions in each zone",
+      "reason": "preserve gunnery over the new over-water sectors without creating new land; Claude adapts target water/altitude handling"
+    },
+    {
+      "item": "Box labels",
+      "old": {
+        "water_floor_ceiling_ft": [
+          330,
+          3610
+        ],
+        "AB3_floor_ceiling_ft": [
+          5330,
+          8610
+        ]
+      },
+      "new": {
+        "water_floor_ceiling_ft": [
+          328,
+          3609
+        ],
+        "AB3_floor_ceiling_ft": [
+          5328,
+          8609
+        ]
+      },
+      "reason": "label conversions rounded to nearest foot from locked 100 m / 1100 m AGL dimensions; no change to box dimensions"
+    },
+    {
+      "item": "RACE element geometry",
+      "old": [
+        {
+          "sequence": 1,
+          "sim_xy_m": [
+            45,
+            1800
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 2,
+          "sim_xy_m": [
+            345,
+            1800
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 3,
+          "sim_xy_m": [
+            540,
+            1755
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 4,
+          "sim_xy_m": [
+            720,
+            1845
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 5,
+          "sim_xy_m": [
+            900,
+            1755
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 6,
+          "sim_xy_m": [
+            1050,
+            1800
+          ],
+          "heading_true_deg": 0
+        },
+        {
+          "sequence": 7,
+          "sim_xy_m": [
+            1110,
+            1920
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 8,
+          "sim_xy_m": [
+            1020,
+            2050
+          ],
+          "heading_true_deg": 180
+        },
+        {
+          "sequence": 9,
+          "sim_xy_m": [
+            720,
+            2050
+          ],
+          "heading_true_deg": 180
+        },
+        {
+          "sequence": 10,
+          "sim_xy_m": [
+            540,
+            2095
+          ],
+          "heading_true_deg": 180
+        },
+        {
+          "sequence": 11,
+          "sim_xy_m": [
+            360,
+            2005
+          ],
+          "heading_true_deg": 180
+        },
+        {
+          "sequence": 12,
+          "sim_xy_m": [
+            120,
+            2050
+          ],
+          "heading_true_deg": 180
+        }
+      ],
+      "new": [
+        {
+          "sequence": 1,
+          "centre": [
+            6.4675,
+            -0.175
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 2,
+          "centre": [
+            6.7675,
+            -0.175
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 3,
+          "centre": [
+            6.9625,
+            -0.13
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 4,
+          "centre": [
+            7.1425,
+            -0.22
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 5,
+          "centre": [
+            7.3225,
+            -0.13
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 6,
+          "centre": [
+            7.4725,
+            -0.175
+          ],
+          "heading_true_deg": 90
+        },
+        {
+          "sequence": 7,
+          "centre": [
+            7.5325,
+            -0.295
+          ],
+          "heading_true_deg": 180
+        },
+        {
+          "sequence": 8,
+          "centre": [
+            7.4425,
+            -0.425
+          ],
+          "heading_true_deg": 270
+        },
+        {
+          "sequence": 9,
+          "centre": [
+            7.1425,
+            -0.425
+          ],
+          "heading_true_deg": 270
+        },
+        {
+          "sequence": 10,
+          "centre": [
+            6.9625,
+            -0.47
+          ],
+          "heading_true_deg": 270
+        },
+        {
+          "sequence": 11,
+          "centre": [
+            6.7825,
+            -0.38
+          ],
+          "heading_true_deg": 270
+        },
+        {
+          "sequence": 12,
+          "centre": [
+            6.5425,
+            -0.425
+          ],
+          "heading_true_deg": 270
+        }
+      ],
+      "reason": "preserve all 12 gates/chicane/turn sequence; rotate course 90 true and move to eastern island; dimensions retained"
+    },
+    {
+      "item": "AP9 Turnagain bench refinement",
+      "old": {
+        "centre": [
+          -6.6,
+          -5
+        ],
+        "elevation_ft": 3200
+      },
+      "new": {
+        "centre": [
+          -5.7,
+          -6
+        ],
+        "elevation_ft": 2900
+      },
+      "reason": "move bench southeast to obtain enough horizontal run from both PANC and Drake; keep gravel surface,1600 ft length and heading"
+    },
+    {
+      "item": "AP4 fictional elevation refinement",
+      "old": 1600,
+      "new": 1350,
+      "reason": "keep PHDH-to-ranch padded-edge mean grade within35%; AP11 relationship remains an explicit fit conflict"
+    },
+    {
+      "item": "Height-field composition refinement",
+      "old": "coast-derived4600ft interior base; glacier cuts can replace heads; full Drake pad flattens hill",
+      "new": "Mokuleia1800ft regional base; fade glacier head claim; reassert authored peaks; exterior-only Drake terrain pad",
+      "reason": "honour all seven authored summit targets and preserve the hidden chamber rock envelope; interior floor belongs to3D shell, not an open trench"
+    },
+    {
+      "item": "ST-PHDH practice reference line",
+      "old": [
+        [
+          4.39,
+          6.5
+        ],
+        [
+          5.59,
+          6.5
+        ]
+      ],
+      "new": [
+        [
+          4.389368,
+          5.869048
+        ],
+        [
+          5.589186,
+          5.848105
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-PANC practice reference line",
+      "old": [
+        [
+          -9.24,
+          -2.47
+        ],
+        [
+          -8.04,
+          -2.47
+        ]
+      ],
+      "new": [
+        [
+          -8.853711,
+          -2.506098
+        ],
+        [
+          -8.543128,
+          -3.665209
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-PALH practice reference line",
+      "old": [
+        [
+          -8.56,
+          -1.2
+        ],
+        [
+          -7.36,
+          -1.2
+        ]
+      ],
+      "new": [
+        [
+          -8.56,
+          -1.858651
+        ],
+        [
+          -7.36,
+          -1.858651
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-PATK practice reference line",
+      "old": [
+        [
+          -6.94,
+          5.59
+        ],
+        [
+          -5.74,
+          5.59
+        ]
+      ],
+      "new": [
+        [
+          -6.536164,
+          4.513748
+        ],
+        [
+          -6.070007,
+          5.428634
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-KSNA practice reference line",
+      "old": [
+        [
+          0.36,
+          -7.46
+        ],
+        [
+          1.56,
+          -7.46
+        ]
+      ],
+      "new": [
+        [
+          0.72499,
+          -8.614585
+        ],
+        [
+          1.288356,
+          -7.555048
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-KMYL practice reference line",
+      "old": [
+        [
+          -1.18,
+          3.38
+        ],
+        [
+          0.02,
+          3.38
+        ]
+      ],
+      "new": [
+        [
+          -0.631895,
+          3.379186
+        ],
+        [
+          -0.610952,
+          2.179368
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-3U2 practice reference line",
+      "old": [
+        [
+          1.22,
+          -0.26
+        ],
+        [
+          2.42,
+          -0.26
+        ]
+      ],
+      "new": [
+        [
+          1.871868,
+          -0.361736
+        ],
+        [
+          1.664722,
+          -1.336284
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-KMEV practice reference line",
+      "old": [
+        [
+          -3.62,
+          -1.13
+        ],
+        [
+          -2.42,
+          -1.13
+        ]
+      ],
+      "new": [
+        [
+          -3.06524,
+          -1.13
+        ],
+        [
+          -3.06524,
+          -2.33
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    },
+    {
+      "item": "ST-KPGA practice reference line",
+      "old": [
+        [
+          3.14,
+          -2.66
+        ],
+        [
+          4.34,
+          -2.66
+        ]
+      ],
+      "new": [
+        [
+          3.583754,
+          -2.678294
+        ],
+        [
+          3.792132,
+          -3.860064
+        ]
+      ],
+      "reason": "align reference line with flat runway shoulder30m outside surface edge, avoiding steep arbitrary cross-country road; use buoy reference at PALH"
+    }
+  ],
+  "ifr": {
+    "owner": "Claude",
+    "status": "Ty supplied targets copied unchanged; no IFR implementation; computed TERPS values win",
+    "variation_east_deg": 7,
+    "navaids": {
+      "vor": [
+        {
+          "ident": "DRK",
+          "frequency": 114.1,
+          "centre": [
+            -4.9,
+            -4.3
+          ]
+        },
+        {
+          "ident": "SWR",
+          "frequency": 113.2,
+          "centre": [
+            -1.2,
+            -0.2
+          ]
+        },
+        {
+          "ident": "CKH",
+          "frequency": 113.9,
+          "centre": [
+            6.6,
+            5.3
+          ]
+        },
+        {
+          "ident": "ANC",
+          "frequency": 114.3,
+          "centre": [
+            -9.3,
+            -4.3
+          ]
+        },
+        {
+          "ident": "TKA",
+          "frequency": 116.2,
+          "centre": [
+            -6.1,
+            5.6
+          ]
+        },
+        {
+          "ident": "SLI",
+          "frequency": 115.7,
+          "centre": [
+            2.2,
+            -9.3
+          ]
+        },
+        {
+          "ident": "PGA",
+          "frequency": 116.45,
+          "centre": [
+            3.98,
+            -4.6
+          ]
+        },
+        {
+          "ident": "SXC",
+          "frequency": 114.15,
+          "centre": [
+            3.9,
+            -13.8
+          ]
+        }
+      ],
+      "ndb": [
+        {
+          "ident": "IOM",
+          "frequency": 363,
+          "centre": [
+            -0.5,
+            5
+          ]
+        },
+        {
+          "ident": "PEE",
+          "frequency": 305,
+          "centre": [
+            -6.5,
+            5.25
+          ]
+        },
+        {
+          "ident": "CMQ",
+          "frequency": 338,
+          "centre": [
+            -9.5,
+            -2
+          ]
+        }
+      ],
+      "range": {
+        "ident": "MEV",
+        "frequency_khz": 251,
+        "centre": [
+          -3.2,
+          -6
+        ],
+        "legs_true_deg": [
+          0,
+          79,
+          185,
+          286
+        ],
+        "legs_magnetic_deg": [
+          353,
+          72,
+          178,
+          279
+        ],
+        "fictional": true
+      },
+      "localizers": [
+        {
+          "ident": "I-BSC",
+          "frequency_mhz": 110.55,
+          "airport": "PANC",
+          "runway": "16",
+          "glideslope": true
+        },
+        {
+          "ident": "I-FRI",
+          "frequency_mhz": 109.5,
+          "airport": "PANC",
+          "runway": "34",
+          "glideslope": true
+        },
+        {
+          "ident": "I-SNA",
+          "frequency_mhz": 111.75,
+          "airport": "KSNA",
+          "runway": "20R front; only 2L back course published",
+          "glideslope": false
+        },
+        {
+          "ident": "I-DLM",
+          "frequency_mhz": 108.9,
+          "airport": "PHDH",
+          "runway": "26",
+          "glideslope": true
+        },
+        {
+          "ident": "I-MYL",
+          "frequency_mhz": 110.9,
+          "airport": "KMYL",
+          "runway": "LDA 17",
+          "glideslope": false
+        }
+      ],
+      "notes": [
+        "I-BSC real ident; moved from real 111.75 to avoid I-SNA",
+        "I-SNA aligned 20R; antenna beyond departure end of 20R just south of 2L threshold",
+        "Fictional: MEV range, I-FRI, I-DLM, I-MYL, every fix except JUKEP",
+        "DYERS no longer used",
+        "DNJ 116.20 dropped: TKA collision",
+        "DRK/SXC need 50 kHz receiver spacing",
+        "MEV both range and airport ident",
+        "no duplicate ident or frequency"
+      ]
+    },
+    "airways": [
+      {
+        "id": "V1",
+        "route": "CKH-SWR-ANC",
+        "courses_magnetic_deg": [
+          228,
+          236
+        ],
+        "mea_ft_targets": [
+          11500
+        ]
+      },
+      {
+        "id": "V2",
+        "route": "SLI-PGA-SWR",
+        "courses_magnetic_deg": [
+          14,
+          303
+        ],
+        "mea_ft_targets": [
+          6500,
+          11500
+        ]
+      },
+      {
+        "id": "V3",
+        "route": "CKH-PGA",
+        "courses_magnetic_deg": [
+          188
+        ],
+        "mea_ft_targets": [
+          7500
+        ]
+      },
+      {
+        "id": "V4",
+        "route": "SWR-DRK-SLI",
+        "courses_magnetic_deg": [
+          215,
+          118
+        ],
+        "mea_ft_targets": [
+          11500,
+          9000
+        ]
+      },
+      {
+        "id": "V5",
+        "route": "DRK-ANC",
+        "courses_magnetic_deg": [
+          263
+        ],
+        "mea_ft_targets": [
+          9000
+        ]
+      },
+      {
+        "id": "V6",
+        "route": "SLI-SXC",
+        "courses_magnetic_deg": [
+          152
+        ],
+        "mea_ft_targets": [
+          4500
+        ]
+      },
+      {
+        "id": "V7",
+        "route": "TKA-SWR",
+        "courses_magnetic_deg": [
+          133
+        ],
+        "mea_ft_targets": [
+          11500
+        ]
+      },
+      {
+        "id": "A1",
+        "route": "IOM-PEE",
+        "courses_magnetic_deg": [
+          265
+        ],
+        "mea_ft_targets": [
+          11000
+        ]
+      },
+      {
+        "id": "A2",
+        "route": "CMQ-PEE",
+        "courses_magnetic_deg": [
+          15
+        ],
+        "mea_ft_targets": [
+          5000
+        ]
+      },
+      {
+        "id": "G1",
+        "route": "PGA-MEV-ANC",
+        "courses_magnetic_deg": [
+          252,
+          279
+        ],
+        "mea_ft_targets": [
+          8000,
+          9000
+        ]
+      },
+      {
+        "id": "T201",
+        "route": "KAALA-TRADE-SURFR-PIERS-CASNO-FLATS-KNIKR-DENAL",
+        "courses_magnetic_deg": [],
+        "mea_ft_targets": [
+          2500,
+          5000
+        ]
+      }
+    ],
+    "approaches": [
+      {
+        "airport": "PANC",
+        "title": "ILS 16",
+        "final_magnetic_deg": 158,
+        "faf": "JUKEP",
+        "faf_ft_target": 1800,
+        "da_ft_target": 351
+      },
+      {
+        "airport": "PANC",
+        "title": "ILS 34",
+        "final_magnetic_deg": 338,
+        "faf": "SPENA",
+        "da_ft_target": 322
+      },
+      {
+        "airport": "KSNA",
+        "title": "LOC BC RWY 2L",
+        "final_magnetic_deg": 21,
+        "localizer": "I-SNA",
+        "frequency_mhz": 111.75,
+        "glideslope": false,
+        "front_course_magnetic_deg": 201,
+        "final_true_deg": 28,
+        "threshold": [
+          0.55,
+          -8.83
+        ],
+        "fixes": [
+          {
+            "id": "BALBO",
+            "centre": [
+              -2.93,
+              -15.37
+            ],
+            "threshold_nm": 4,
+            "sli_radial": 213,
+            "sli_dme": 4.3,
+            "altitude_ft_target": 1500
+          },
+          {
+            "id": "LIDOS",
+            "centre": [
+              -1.62,
+              -12.92
+            ],
+            "threshold_nm": 2.5,
+            "sli_radial": 220,
+            "sli_dme": 2.8,
+            "altitude_ft_target": 1000
+          },
+          {
+            "id": "WEDGE",
+            "centre": [
+              -0.75,
+              -11.28
+            ],
+            "threshold_nm": 1.5,
+            "sli_radial": 229,
+            "sli_dme": 1.9,
+            "altitude_ft_target": null
+          }
+        ],
+        "hold": {
+          "fix": "BALBO",
+          "inbound_magnetic_deg": 21,
+          "turns": "right",
+          "leg_minutes": 1,
+          "altitude_ft_target": 2500,
+          "outer_radius_km_target": 19.2,
+          "if_outside_ring": "shorten legs or use DME legs; Claude checks"
+        },
+        "feeders": [
+          {
+            "from": "SLI",
+            "radial": 213,
+            "distance_nm": 4.3,
+            "altitude_ft_target": 2500
+          },
+          {
+            "from": "CASNO",
+            "course_magnetic_deg": 141,
+            "distance_nm": 3.8,
+            "altitude_ft_target": 2500
+          }
+        ],
+        "mda_ft_target": 560,
+        "hat_ft_target": 504,
+        "visibility_sm": 1,
+        "visual_segment_deg_target": 3,
+        "circling": false,
+        "missed": {
+          "at": "WEDGE",
+          "turn": "LEFT",
+          "radius_km_target": 0.9,
+          "climb_to_ft_target": 2500,
+          "heading_magnetic_deg": 180,
+          "then": "direct BALBO and hold",
+          "shore_clearance_km_target": 0.17,
+          "catalina_clearance_km_target": 2.4
+        },
+        "notes": [
+          "KSNA publishes no ILS 20R or ILS 2L; only this approach",
+          "REVERSE SENSING: plain CDI backwards inbound; HSI set front course 201 for normal sensing",
+          "Ignore any glideslope indication; none installed",
+          "Fix names fictional; Claude checks FAA fix list",
+          "final inbound from SSW over open water"
+        ]
+      },
+      {
+        "airport": "PHDH",
+        "title": "ILS 26",
+        "final_magnetic_deg": 264,
+        "faf": "MOKUL",
+        "da_ft_target": 214
+      },
+      {
+        "airport": "KMYL",
+        "title": "RNAV 17",
+        "final_magnetic_deg": 172
+      },
+      {
+        "airport": "KMYL",
+        "title": "LDA/DME 17",
+        "final_magnetic_deg": 153,
+        "localizer": "I-MYL",
+        "faf": "IOM"
+      },
+      {
+        "airport": "KMEV",
+        "title": "Range 35",
+        "final_magnetic_deg": 353,
+        "mda_ft_target": 5600,
+        "only_AN_range_approach": true
+      },
+      {
+        "airport": "KMEV",
+        "title": "RNAV 35",
+        "final_magnetic_deg": 353
+      },
+      {
+        "airport": "KPGA",
+        "title": "VOR/DME 34",
+        "final_magnetic_deg": 343,
+        "pga_radial": 163,
+        "faf_dme": 3,
+        "faf_ft_target": 5400,
+        "mda_ft_target": 4900
+      },
+      {
+        "airport": "KPGA",
+        "title": "RNAV 16",
+        "final_magnetic_deg": 163
+      },
+      {
+        "airport": "KAVX",
+        "title": "VOR-A",
+        "final_magnetic_deg": 200,
+        "circling_only": true,
+        "navaid": "SXC",
+        "mda_ft_target": 2400
+      },
+      {
+        "airport": "PATK",
+        "title": "NDB 2",
+        "final_magnetic_deg": 20,
+        "navaid": "PEE",
+        "mda_ft_target": 1000
+      }
+    ],
+    "vfr_only": [
+      "3U2",
+      "PALH",
+      "AP1-AP14"
+    ],
+    "weather_owned_by_claude": {
+      "default_wind_true_deg": 60,
+      "default_speed_kt": 15,
+      "atis_magnetic_deg": 53,
+      "presets": [
+        "Calm",
+        "Strong trade 25 kt"
+      ]
+    },
+    "box_airway_targets": {
+      "AB1": "T201 KAALA-TRADE MEA at least 5000",
+      "AB2": "T201 CASNO-FLATS-KNIKR MEA at least 5000; G1/V1/V5 9000 and up",
+      "AB3": "A1 11000; V7 11500"
+    }
+  },
+  "open_for_ty": [
+    "CZ4 remains optional and disabled until Ty decides; placeholder MOA names require official name check before chart publication.",
+    "AP8 magnetic order corrected to 36/18; approve correction or explain intended runway convention.",
+    "Spacing/grade conflicts remain in supplied airpark and legacy backcountry allocation. AP2 moved to (-6.9,6.8), four fictional airpark elevations adjusted and KMEV group shifted 150 m east; approve those proposals. IFR remains Claude-owned and unchanged.",
+    "Strict 20:1 from every runway end conflicts with one-way terrain and Drake cliff/hologram. Clarify exceptions; no locked geometry silently changed.",
+    "Drake 5750 ft peak and 4700 ft valley differ by 1050 ft / 320.04 m; 320 m relief is rounded. Resolve crown centre (-4.9,-4.5) versus DRK (-4.9,-4.3) and 60 m roof cover near dome edges in detailed shell design.",
+    "PALH gravel elevation unspecified: provisionally 79 ft same as water lane; needs true field datum confirmation.",
+    "3U2 slope 0.5% is a target pending real longitudinal survey; KMEV glider strip dimensions are targets.",
+    "T201 fix coordinates and non-KSNA missed/hold geometries are not supplied: full zone/airway clearance cannot be established; Claude must supply final geometry.",
+    "100 m design bake is not flight-certified or an engine import; source analytic API has no baked format. Fine terrain/solid continuity, cave roofs, forest/buildings and loaded-trainer climb validation await Phase 1B and Claude.",
+    "Initial field centres and true headings do not always reproduce stated IFR lines exactly (e.g. KSNA supplied threshold); IFR data remains unchanged; Claude reconciles geometry after approval.",
+    "Review fit-check failures and decide whether to authorize a revised layout at G1a; this draft is not a passing world or G1 approval.",
+    "Gunnery targets are now over water: six moored bullseye rafts per active zone. Claude must adapt ground-hit height logic and drone/cloud placement; no land added in MOAs.",
+    "Drake interior cannot be validated by a single upper-surface bake. The height-aware cave floor/deck and collision routing must preserve the roof while allowing underground flight; Phase1B shell validation required.",
+    "AB1 judges line south of the offshore square is still over water; a literal shore marker on that line may not intersect the authored beach. Confirm a shore-aligned extension/reference marker rather than moving the locked box dimensions."
+  ]
+}

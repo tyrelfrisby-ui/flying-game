@@ -1,0 +1,1847 @@
+{
+  "base": "split-surfaces 1b67dd5",
+  "menu_lane_in_base": true,
+  "files": [
+    {
+      "path": "src/FlyingGame.Core/WorldTerrain.cs",
+      "sha256": "55371352454028846baf046cceda19444a0a9da341e1b7287425230f8f36122f",
+      "lines_read": 1424,
+      "public_entry_points": [
+        {
+          "line": 20,
+          "declaration": "public sealed class WorldTerrain"
+        },
+        {
+          "line": 29,
+          "declaration": "public const double StepHeightM = 609.6;       // 2,000 ft a step (owner 2026-10-16: the top field at 7,000 ft)"
+        },
+        {
+          "line": 36,
+          "declaration": "public const double DatumM = 304.8;"
+        },
+        {
+          "line": 43,
+          "declaration": "public const double MeshMinX = -7000, MeshMaxX = 9000, MeshMinY = -15000, MeshMaxY = 12500;"
+        },
+        {
+          "line": 50,
+          "declaration": "public const double StepSpacingM = 3300.0;     // wall to wall: room for the whole Valley layout on every plateau"
+        },
+        {
+          "line": 51,
+          "declaration": "public const double FirstEdgeY = -1050.0;      // mean y of the first escarpment (walls run along x)"
+        },
+        {
+          "line": 52,
+          "declaration": "public const double EscarpmentWidthM = 183.0;  // horizontal run of one wall (talus + cliff) \u2014 same profile as the old 900 m wall"
+        },
+        {
+          "line": 53,
+          "declaration": "public const int StepCount = 3;"
+        },
+        {
+          "line": 56,
+          "declaration": "public const double PlateauAirportOffsetM = 2400.0;"
+        },
+        {
+          "line": 58,
+          "declaration": "public readonly struct Airport"
+        },
+        {
+          "line": 65,
+          "declaration": "public static readonly Airport[] Airports ="
+        },
+        {
+          "line": 78,
+          "declaration": "public const int DefaultAirportIndex = 0;"
+        },
+        {
+          "line": 107,
+          "declaration": "public enum Feature { Town, Tower, Arch, Bridge, CropField, AeroBox, RaceCourse }"
+        },
+        {
+          "line": 152,
+          "declaration": "public const double RunwayLengthM = 2400.0;"
+        },
+        {
+          "line": 153,
+          "declaration": "public const double XwindRunwayLengthM = 1125.0;"
+        },
+        {
+          "line": 156,
+          "declaration": "public const double MainRunwayDx = 750.0 - RunwayLengthM / 2;   // the crosswind runway keeps its length (75 % of the old main; it spans the pad's y)"
+        },
+        {
+          "line": 157,
+          "declaration": "public const double RunwayWidthM = 30.0;"
+        },
+        {
+          "line": 160,
+          "declaration": "public const double PadHalfX = 1250.0, PadHalfY = 850.0;"
+        },
+        {
+          "line": 163,
+          "declaration": "public const double PadSouthX = 1700.0;"
+        },
+        {
+          "line": 168,
+          "declaration": "public const double LakeShoreR = 0.5;"
+        },
+        {
+          "line": 171,
+          "declaration": "public readonly struct Lake"
+        },
+        {
+          "line": 182,
+          "declaration": "public static readonly Lake[] Lakes = BuildLakes();"
+        },
+        {
+          "line": 205,
+          "declaration": "public const double SeaplaneLaneWidthM = 60.0, SeaplaneBuoySpacingM = 50.0;"
+        },
+        {
+          "line": 206,
+          "declaration": "public readonly struct SeaplaneLane"
+        },
+        {
+          "line": 214,
+          "declaration": "public static readonly SeaplaneLane[] SeaplaneLanes ="
+        },
+        {
+          "line": 233,
+          "declaration": "public const double BaseRampHalfWidthM = 12.0, BaseRampWaterEndM = 55.0, BasePadHalfXM = 130.0, BasePadDepthM = 170.0, BasePadAboveWaterM = 1.0;"
+        },
+        {
+          "line": 236,
+          "declaration": "public const double BaseInland = -1.0;"
+        },
+        {
+          "line": 240,
+          "declaration": "public const double BaseHangarDy = 120.0, BaseHangarHalfX = 22.0, BaseHangarHalfY = 18.0, BaseHangarHeightM = 11.0;"
+        },
+        {
+          "line": 265,
+          "declaration": "public const double RiverHalfWidthM = 35.0;"
+        },
+        {
+          "line": 281,
+          "declaration": "public const double TwistStartY = 600.0;"
+        },
+        {
+          "line": 286,
+          "declaration": "public const double GorgeDepthUpstreamM = 15.0, GorgeDepthDownstreamM = 306.0;   // down to (just under) the sea from the 1,000 ft tableland"
+        },
+        {
+          "line": 287,
+          "declaration": "public const double GorgeUpstreamY = -11500.0, GorgeDownstreamY = 3400.0;"
+        },
+        {
+          "line": 288,
+          "declaration": "public const double BridgeY = -150.0;   // road bridge abeam the Valley airport"
+        },
+        {
+          "line": 352,
+          "declaration": "public const double RiverTableStepPublic = RiverTableStep;   // renderer: sample clear of a lip"
+        },
+        {
+          "line": 384,
+          "declaration": "public readonly struct Strip"
+        },
+        {
+          "line": 394,
+          "declaration": "public static readonly Strip[] AirportStrips ="
+        },
+        {
+          "line": 402,
+          "declaration": "public const double XwindRunwayDx = 450;"
+        },
+        {
+          "line": 404,
+          "declaration": "public const double ThresholdSetbackM = 80.0;   // where a runway start / tow hookup sits in from the threshold"
+        },
+        {
+          "line": 409,
+          "declaration": "public readonly struct RunwayEnd"
+        },
+        {
+          "line": 460,
+          "declaration": "public const double HangarDx = -450, HangarDy = 200;"
+        },
+        {
+          "line": 462,
+          "declaration": "public const double ApronDx = HangarDx + 60, ApronDy = HangarDy - 30, ApronLengthM = 320, ApronWidthM = 260;"
+        },
+        {
+          "line": 466,
+          "declaration": "public enum Surface { Paved, Gravel, Grass, Rough, Snow }"
+        },
+        {
+          "line": 599,
+          "declaration": "public const double StolLineFromThresholdM = 150.0, StolMarkedLengthM = 250.0;"
+        },
+        {
+          "line": 609,
+          "declaration": "public const double FallRecessM = 60.0;          // back-wall set-back behind the lip at the river centre (\u2248 197 ft)"
+        },
+        {
+          "line": 610,
+          "declaration": "public const double FallNotchHalfSpanM = 300.0;  // half-width (x) of the amphitheater notch"
+        },
+        {
+          "line": 611,
+          "declaration": "public const double FallShelfThickM = 12.0;      // rock under the upper river bed"
+        },
+        {
+          "line": 612,
+          "declaration": "public const double FallLipSpeedMs = 4.0;        // water speed leaving the lip (sets the curtain's arc)"
+        },
+        {
+          "line": 614,
+          "declaration": "public readonly struct Waterfall"
+        },
+        {
+          "line": 721,
+          "declaration": "public const double FrontExtraWidthM = 980.0;"
+        },
+        {
+          "line": 723,
+          "declaration": "public const double FrontClearM = 140.0;"
+        },
+        {
+          "line": 726,
+          "declaration": "public const double FrontRoomFadeM = 650.0;"
+        },
+        {
+          "line": 729,
+          "declaration": "public const double FrontRoomFadeY = 60.0;"
+        },
+        {
+          "line": 731,
+          "declaration": "public const double CrestReliefM = 520.0;"
+        },
+        {
+          "line": 734,
+          "declaration": "public const double CrestBackSlopeM = 620.0;"
+        },
+        {
+          "line": 736,
+          "declaration": "public const double CrestSummitSpacingM = 1600.0;"
+        },
+        {
+          "line": 759,
+          "declaration": "public readonly struct Keepout"
+        },
+        {
+          "line": 950,
+          "declaration": "public const double GullySpacingM = 340.0;"
+        },
+        {
+          "line": 954,
+          "declaration": "public const double GullyDepthM = 86.0;"
+        },
+        {
+          "line": 956,
+          "declaration": "public const double SpurLiftM = 13.0;"
+        },
+        {
+          "line": 958,
+          "declaration": "public const double FanRunM = 330.0, FanHeightM = 24.0;"
+        },
+        {
+          "line": 960,
+          "declaration": "public const double ErosionClearM = 110.0;"
+        },
+        {
+          "line": 1382,
+          "declaration": "public static class Hills"
+        },
+        {
+          "line": 1384,
+          "declaration": "public const double X0 = -3100, X1 = -400, Y0 = 1650, Y1 = 2480, EdgeM = 150;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Seaside.cs",
+      "sha256": "3ef2b79223d16e2b88a5d5c39ba986ff293feffb75e5e68ffae9219d9e231227",
+      "lines_read": 426,
+      "public_entry_points": [
+        {
+          "line": 15,
+          "declaration": "public static class Coast"
+        },
+        {
+          "line": 17,
+          "declaration": "public const double SeaLevelM = 0.0;"
+        },
+        {
+          "line": 18,
+          "declaration": "public const double MeanShoreY = 3000.0;   // owner 2026-10-05: the coast closer (was 5.2 km east of the field)"
+        },
+        {
+          "line": 19,
+          "declaration": "public const double CliffRunM = 90.0, BeachM = 28.0, BeachTopM = 2.2;"
+        },
+        {
+          "line": 54,
+          "declaration": "public static class Island"
+        },
+        {
+          "line": 56,
+          "declaration": "public readonly struct Lobe"
+        },
+        {
+          "line": 63,
+          "declaration": "public static readonly Lobe Main = new(600, 7250, 2700, 850, 600, 2.6), WestEnd = new(4520, 7320, 960, 520, 380, 2.4);   // moved in with the coast (\u22122.2 km)"
+        },
+        {
+          "line": 64,
+          "declaration": "public const double SeaFloorM = -30.0;"
+        },
+        {
+          "line": 72,
+          "declaration": "public const double RunwayX = 1350, RunwayY = 7270, RunwayElevM = 488.3, RunwayLengthM = 914.4, RunwayWidthM = 30.5;"
+        },
+        {
+          "line": 73,
+          "declaration": "public const double RunwayPadHalfX = RunwayLengthM / 2 + 60, RunwayPadHalfY = 75, RunwayBlendM = 140;"
+        },
+        {
+          "line": 77,
+          "declaration": "public const double AvalonX = -1450, AvalonCoveR = 330;"
+        },
+        {
+          "line": 82,
+          "declaration": "public const double CasinoRadiusM = 27, CasinoHeightM = 42;"
+        },
+        {
+          "line": 156,
+          "declaration": "public static class SeaCave"
+        },
+        {
+          "line": 158,
+          "declaration": "public const double RadiusM = 75, DomeM = 40, FloorWaterM = -5.0, BeachTopM = 1.4;"
+        },
+        {
+          "line": 160,
+          "declaration": "public const double MouthHalfWidthM = 20, MouthHeightM = 24;"
+        },
+        {
+          "line": 161,
+          "declaration": "public const double SkylightRadiusM = 10, SkylightOffsetM = 22;   // hole in the roof, a little inland of centre"
+        },
+        {
+          "line": 162,
+          "declaration": "public const double MinRoofM = 3.0;"
+        },
+        {
+          "line": 228,
+          "declaration": "public sealed class RoofSolid : WorldSolids.IShape"
+        },
+        {
+          "line": 244,
+          "declaration": "public static class SeaArch"
+        },
+        {
+          "line": 250,
+          "declaration": "public const double OpeningM = 150, ThickM = 34, HalfWidthYM = 32;"
+        },
+        {
+          "line": 270,
+          "declaration": "public static class GoldenGate"
+        },
+        {
+          "line": 276,
+          "declaration": "public const double DeckHalfWidthM = 14, DeckThickM = 8, TowerAboveDeckM = 150, TowerLegM = 10, AnchorBackM = 340;"
+        },
+        {
+          "line": 331,
+          "declaration": "public static class Carrier"
+        },
+        {
+          "line": 333,
+          "declaration": "public const double SpeedKt = 18.0, SpeedMs = SpeedKt * 0.514444;"
+        },
+        {
+          "line": 334,
+          "declaration": "public const double HalfLengthM = 165, DeckPortM = 34, DeckStarboardM = 24, DeckTopM = 18.3, DeckThickM = 3, DraftM = 11;"
+        },
+        {
+          "line": 335,
+          "declaration": "public const double HullHalfBeamM = 20, IslandU0 = 10, IslandU1 = 70, IslandV0 = 16, IslandV1 = 26, IslandTopM = DeckTopM + 42;"
+        },
+        {
+          "line": 336,
+          "declaration": "public const double TrackX0 = -2600, TrackX1 = 2600, TurnRadiusM = 300;"
+        },
+        {
+          "line": 338,
+          "declaration": "public const double AngledDeckDeg = 9;"
+        },
+        {
+          "line": 374,
+          "declaration": "public sealed class Deck : WorldDecks.IMovingDeck"
+        },
+        {
+          "line": 386,
+          "declaration": "public sealed class Solid : WorldSolids.IShape"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/FrankChurch.cs",
+      "sha256": "1544301a6bef6b187088326835134ef7d0f8b690fd4424a32cb4d25f44dd2bc3",
+      "lines_read": 352,
+      "public_entry_points": [
+        {
+          "line": 24,
+          "declaration": "public static class FrankChurch"
+        },
+        {
+          "line": 27,
+          "declaration": "public const double X0 = -5600, X1 = 1200, Y0 = -15000, Y1 = -10400;"
+        },
+        {
+          "line": 37,
+          "declaration": "public const double FloorDepthNorthM = 636, FloorDepthSouthM = 756;"
+        },
+        {
+          "line": 40,
+          "declaration": "public const double CanyonHalfWidthM = 900;      // rim to rim, halved"
+        },
+        {
+          "line": 41,
+          "declaration": "public const double RiverHalfWidthM = 26;"
+        },
+        {
+          "line": 43,
+          "declaration": "public enum Ground { Turf, Gravel, Dirt }"
+        },
+        {
+          "line": 49,
+          "declaration": "public readonly struct Strip"
+        },
+        {
+          "line": 99,
+          "declaration": "public const double ApronM = 70;"
+        },
+        {
+          "line": 101,
+          "declaration": "public const double BlendM = 240;"
+        },
+        {
+          "line": 116,
+          "declaration": "public static readonly Strip[] Strips ="
+        },
+        {
+          "line": 145,
+          "declaration": "public const double FootprintPadM = 400;"
+        },
+        {
+          "line": 172,
+          "declaration": "public const double WorkedEastX = 1535;"
+        },
+        {
+          "line": 174,
+          "declaration": "public const double HeadEastX = 2000;"
+        },
+        {
+          "line": 176,
+          "declaration": "public const double HeadWestX = -6800;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/AlaskaRange.cs",
+      "sha256": "bf6a3bc271e6a61fd46ec8f40456afafa6d7ba7fb367c4df25d83b267b8d9bb0",
+      "lines_read": 276,
+      "public_entry_points": [
+        {
+          "line": 18,
+          "declaration": "public static class AlaskaRange"
+        },
+        {
+          "line": 25,
+          "declaration": "public const double X0 = 2600, X1 = 8800, Y0 = -7450, Y1 = -4450;"
+        },
+        {
+          "line": 28,
+          "declaration": "public readonly struct Peak"
+        },
+        {
+          "line": 42,
+          "declaration": "public readonly struct Glacier"
+        },
+        {
+          "line": 94,
+          "declaration": "public static readonly Peak[] Peaks ="
+        },
+        {
+          "line": 108,
+          "declaration": "public static readonly Glacier[] Glaciers ="
+        },
+        {
+          "line": 138,
+          "declaration": "public const double PadWestM = 800, PadEastM = 800, PadSouthM = 1200, PadNorthM = 800;"
+        },
+        {
+          "line": 158,
+          "declaration": "public const double HeadFadeT = 0.08;"
+        },
+        {
+          "line": 160,
+          "declaration": "public const double ToeFadeT = 0.25;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/BraidedRiver.cs",
+      "sha256": "97a8b1ab1e67a685688a045af4c1f14376828195d005b1221be2cd9cf54786d0",
+      "lines_read": 421,
+      "public_entry_points": [
+        {
+          "line": 23,
+          "declaration": "public static class BraidedRiver"
+        },
+        {
+          "line": 36,
+          "declaration": "public const double X0 = 3600, X1 = 8000, Y0 = -4150, Y1 = -1450;"
+        },
+        {
+          "line": 39,
+          "declaration": "public const double FootprintPadM = 300;"
+        },
+        {
+          "line": 47,
+          "declaration": "public const double ChannelHalfWidthM = 34;      // one braid"
+        },
+        {
+          "line": 48,
+          "declaration": "public const double ChannelDepthM = 0.8;         // shallow: a wheel can skim it, which is the point"
+        },
+        {
+          "line": 49,
+          "declaration": "public const double BarRaiseM = 1.6;             // how far a bar stands above the water"
+        },
+        {
+          "line": 53,
+          "declaration": "public const double MaxStepM = 3.0;"
+        },
+        {
+          "line": 54,
+          "declaration": "public const double CleanLaneHalfWidthM = 26;"
+        },
+        {
+          "line": 55,
+          "declaration": "public const double CleanLaneLengthM = 520;"
+        },
+        {
+          "line": 57,
+          "declaration": "public enum Obstacle { Driftwood, Boulder, Bush }"
+        },
+        {
+          "line": 59,
+          "declaration": "public readonly struct Hazard"
+        },
+        {
+          "line": 71,
+          "declaration": "public readonly struct Bar"
+        },
+        {
+          "line": 128,
+          "declaration": "public const int Braids = 8;"
+        },
+        {
+          "line": 149,
+          "declaration": "public static readonly Bar[] Bars ="
+        },
+        {
+          "line": 167,
+          "declaration": "public readonly struct NamedStrip"
+        },
+        {
+          "line": 209,
+          "declaration": "public const double ChalkLineFrac = -0.17;"
+        },
+        {
+          "line": 211,
+          "declaration": "public const double ConeSpacingM = 60;"
+        },
+        {
+          "line": 213,
+          "declaration": "public static readonly NamedStrip[] NamedStrips ="
+        },
+        {
+          "line": 343,
+          "declaration": "public const double GlacierWindMs = 9.3;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/HighDesert.cs",
+      "sha256": "9675fb159d2c7b88276afff48cf38e76d1c4a90da5d7c680251860b3eadf63ef",
+      "lines_read": 493,
+      "public_entry_points": [
+        {
+          "line": 31,
+          "declaration": "public static class HighDesert"
+        },
+        {
+          "line": 47,
+          "declaration": "public const double X0 = -6900, X1 = -3600, Y0 = -7450, Y1 = -4550;"
+        },
+        {
+          "line": 52,
+          "declaration": "public const double MaxTopSlopeDeg = 4.0;"
+        },
+        {
+          "line": 54,
+          "declaration": "public const double CleanLaneHalfWidthM = 23;"
+        },
+        {
+          "line": 56,
+          "declaration": "public const double ThresholdPileSpacingM = 30.48;"
+        },
+        {
+          "line": 58,
+          "declaration": "public const double RutGaugeM = 2.4;"
+        },
+        {
+          "line": 61,
+          "declaration": "public const double SkirtSlopeDeg = 36.0;"
+        },
+        {
+          "line": 63,
+          "declaration": "public enum Scrub { Sagebrush, Rock, Juniper }"
+        },
+        {
+          "line": 65,
+          "declaration": "public readonly struct Hazard"
+        },
+        {
+          "line": 80,
+          "declaration": "public readonly struct Hill"
+        },
+        {
+          "line": 145,
+          "declaration": "public static readonly Hill[] Hills ="
+        },
+        {
+          "line": 174,
+          "declaration": "public const double PlayaX = -6100, PlayaY = -7250, PlayaRx = 480, PlayaRy = 150;"
+        },
+        {
+          "line": 187,
+          "declaration": "public readonly struct DesertStrip"
+        },
+        {
+          "line": 229,
+          "declaration": "public static readonly DesertStrip[] Strips ="
+        },
+        {
+          "line": 255,
+          "declaration": "public const double FootprintPadM = 600;"
+        },
+        {
+          "line": 277,
+          "declaration": "public const double EdgeFadeM = 500;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/AlpineRange.cs",
+      "sha256": "87b8fbb32a00efba42f3e0429d788b589570f7e695b7b0ceac439d95fb2f8ea2",
+      "lines_read": 593,
+      "public_entry_points": [
+        {
+          "line": 22,
+          "declaration": "public static class AlpineRange"
+        },
+        {
+          "line": 27,
+          "declaration": "public const double X0 = 2400, X1 = 8600, Y0 = -14400, Y1 = -8200;"
+        },
+        {
+          "line": 33,
+          "declaration": "public readonly struct Peak"
+        },
+        {
+          "line": 63,
+          "declaration": "public readonly struct Lake"
+        },
+        {
+          "line": 180,
+          "declaration": "public const double NotchHalfAngleDeg = 32.0;"
+        },
+        {
+          "line": 183,
+          "declaration": "public const double NotchDropM = 30.0;"
+        },
+        {
+          "line": 185,
+          "declaration": "public const double DepthM = 14.0;"
+        },
+        {
+          "line": 188,
+          "declaration": "public const double SummitFraction = 0.30;"
+        },
+        {
+          "line": 195,
+          "declaration": "public const double SummitFadeFraction = 0.15;"
+        },
+        {
+          "line": 199,
+          "declaration": "public static readonly Peak[] Peaks ="
+        },
+        {
+          "line": 217,
+          "declaration": "public static readonly Lake[] Lakes ="
+        },
+        {
+          "line": 249,
+          "declaration": "public const double FootprintPadM = 900;"
+        },
+        {
+          "line": 431,
+          "declaration": "public const double OutletTailM = 260;"
+        },
+        {
+          "line": 513,
+          "declaration": "public readonly struct Tree"
+        },
+        {
+          "line": 521,
+          "declaration": "public const double TreeCrownRatio = 0.34;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Playground.cs",
+      "sha256": "44892891b95b7dc87ef610b5a9b6d2eead20a44cff3ee5f9b185e28ece28f162",
+      "lines_read": 603,
+      "public_entry_points": [
+        {
+          "line": 12,
+          "declaration": "public static class WorldClock { public static double TimeS; }"
+        },
+        {
+          "line": 16,
+          "declaration": "public static class WorldDecks"
+        },
+        {
+          "line": 18,
+          "declaration": "public interface IDeck { bool TopAt(double x, double y, out double topM); }"
+        },
+        {
+          "line": 20,
+          "declaration": "public interface IMovingDeck : IDeck { Vec3 VelocityAt(double x, double y); }"
+        },
+        {
+          "line": 21,
+          "declaration": "public static readonly List<IDeck> All = new();"
+        },
+        {
+          "line": 42,
+          "declaration": "public sealed class Circle : IDeck"
+        },
+        {
+          "line": 51,
+          "declaration": "public readonly struct Spire"
+        },
+        {
+          "line": 60,
+          "declaration": "public readonly struct NaturalArch"
+        },
+        {
+          "line": 81,
+          "declaration": "public static class CanyonLake"
+        },
+        {
+          "line": 83,
+          "declaration": "public const double Y0 = -950, DamY = 600, WallM = 12.0;   // 2026-10-05: from the foot of the bluff's fall to where the bends begin \u2014 1.55 km (3,000 ft of clear water)"
+        },
+        {
+          "line": 84,
+          "declaration": "public const double SurfaceM = WorldTerrain.DatumM - 57.0;  // 57 m under the rim, as before \u2014 the deeper gorge makes it ~190 m deep"
+        },
+        {
+          "line": 85,
+          "declaration": "public const double TwinArchY = -100;"
+        },
+        {
+          "line": 86,
+          "declaration": "public const double DamBowM = 45, DamCrestM = SurfaceM + 3, DamCrestThickM = 8, DamBaseThickM = 45;"
+        },
+        {
+          "line": 127,
+          "declaration": "public static readonly Spire[] Spires = BuildSpires();"
+        },
+        {
+          "line": 149,
+          "declaration": "public static readonly NaturalArch[] Arches = BuildArches();"
+        },
+        {
+          "line": 184,
+          "declaration": "public sealed class SpireSolid : WorldSolids.IShape"
+        },
+        {
+          "line": 200,
+          "declaration": "public sealed class ArchSolid : WorldSolids.IShape"
+        },
+        {
+          "line": 223,
+          "declaration": "public sealed class DamSolid : WorldSolids.IShape"
+        },
+        {
+          "line": 248,
+          "declaration": "public sealed class CityGrid"
+        },
+        {
+          "line": 250,
+          "declaration": "public const double Pitch = 170;"
+        },
+        {
+          "line": 251,
+          "declaration": "public const int Cols = 7, Rows = 16;"
+        },
+        {
+          "line": 252,
+          "declaration": "public const double PlazaU0 = 170, PlazaU1 = 510, PlazaV0 = 1750, PlazaV1 = 2090, FountainCrossM = 110;"
+        },
+        {
+          "line": 419,
+          "declaration": "public static class ValleyCity"
+        },
+        {
+          "line": 421,
+          "declaration": "public const double X0 = -2800, Y0 = 380;   // right off the runway's south end (2026-10-05: \"the city closer to the runway\")"
+        },
+        {
+          "line": 433,
+          "declaration": "public static class FlyCity"
+        },
+        {
+          "line": 435,
+          "declaration": "public const double X0 = 3330, Y0 = 150, Pitch = 170;   // moved in with the coast (\u22122.2 km)"
+        },
+        {
+          "line": 436,
+          "declaration": "public const int Cols = 7, Rows = 16;"
+        },
+        {
+          "line": 441,
+          "declaration": "public const double PlazaX0 = 3500, PlazaX1 = 3840, PlazaY0 = 1900, PlazaY1 = 2240, FountainCrossM = 110;"
+        },
+        {
+          "line": 448,
+          "declaration": "public const double PadRadiusM = 76.2, PadTowerHeightM = 300, PadDeckM = 230;"
+        },
+        {
+          "line": 451,
+          "declaration": "public readonly struct Tower"
+        },
+        {
+          "line": 458,
+          "declaration": "public static readonly CityGrid Grid = new(X0, Y0, false, PadLot);"
+        },
+        {
+          "line": 468,
+          "declaration": "public const double RingRadiusM = 22, RingTubeM = 1.6, RingAboveRoofM = 32;"
+        },
+        {
+          "line": 472,
+          "declaration": "public const double SpinRingRadiusM = 45, SpinRingTubeM = 3.5, SpinPeriodS = 10, SpinPostM = 14;"
+        },
+        {
+          "line": 478,
+          "declaration": "public sealed class TorusSolid : WorldSolids.IShape"
+        },
+        {
+          "line": 515,
+          "declaration": "public static class Mall"
+        },
+        {
+          "line": 517,
+          "declaration": "public const double CentreX = 3050, PondY0 = 300, PondLengthM = 914.4, PondHalfWidthM = 32, GrassWidthM = 100, PondDepthM = 2.6;"
+        },
+        {
+          "line": 520,
+          "declaration": "public const double MonumentY = 90, MonumentHeightM = 169.3, MonumentBaseHalfM = 8.4, MonumentShaftTopHalfM = 5.25, MonumentShaftM = 152.4;"
+        },
+        {
+          "line": 521,
+          "declaration": "public const double CapitolY = 1360, CapitolHalfLengthM = 115, CapitolHalfDepthM = 35, CapitolWingM = 30, CapitolDomeR = 30, CapitolDomeTopM = 88;"
+        },
+        {
+          "line": 558,
+          "declaration": "public sealed class RooftopRace"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/WorldFeatures.cs",
+      "sha256": "bebe3e72dbff95b42735d6a4185e380226a29bcca3ccd4fec5959234521d33fd",
+      "lines_read": 518,
+      "public_entry_points": [
+        {
+          "line": 8,
+          "declaration": "public static class AeroBox"
+        },
+        {
+          "line": 10,
+          "declaration": "public const double CenterX = 400, CenterY = 650, SizeM = 1000.0;   // owner 2026-10-05: right next to the runway"
+        },
+        {
+          "line": 11,
+          "declaration": "public const double FloorAglM = 100.0, CeilingAglM = 1067.0;"
+        },
+        {
+          "line": 26,
+          "declaration": "public sealed class RaceElement"
+        },
+        {
+          "line": 28,
+          "declaration": "public enum Kinds { Gate, PylonOnLeft, PylonOnRight }"
+        },
+        {
+          "line": 31,
+          "declaration": "public const double GateHalfWidthM = 22.86, GateHeightM = 75.0, PylonRadiusM = 1.5;   // pylons 150 ft apart (owner 2026-10-06: \"farther apart\"; was 100 ft), 75 m tall"
+        },
+        {
+          "line": 32,
+          "declaration": "public const double NumberAglM = 91.44;                                                // the rotating numbers, 300 ft up"
+        },
+        {
+          "line": 44,
+          "declaration": "public static class RaceCourse"
+        },
+        {
+          "line": 46,
+          "declaration": "public static readonly RaceElement[] Elements ="
+        },
+        {
+          "line": 105,
+          "declaration": "public sealed class AirRace"
+        },
+        {
+          "line": 119,
+          "declaration": "public const double PylonStrikeCooldownSec = 4.0;"
+        },
+        {
+          "line": 205,
+          "declaration": "public sealed class StolRun"
+        },
+        {
+          "line": 207,
+          "declaration": "public enum Phases { Approach, Rolling, Stopped, Disqualified }"
+        },
+        {
+          "line": 256,
+          "declaration": "public sealed class StolContest"
+        },
+        {
+          "line": 258,
+          "declaration": "public const double LineFromThresholdM = 150.0, MarkSpacingM = 3.048, MarkedLengthM = 3.048 * 60;   // marks every 10 ft for 600 ft"
+        },
+        {
+          "line": 259,
+          "declaration": "public const int Rounds = 3;"
+        },
+        {
+          "line": 260,
+          "declaration": "public const double HeadingRad = System.Math.PI;   // southbound"
+        },
+        {
+          "line": 261,
+          "declaration": "public enum Kinds { Landing, Takeoff }"
+        },
+        {
+          "line": 262,
+          "declaration": "public enum Phases { Approach, Rolling, Stopped, TakeoffRoll, Airborne, Foul, Finished }"
+        },
+        {
+          "line": 356,
+          "declaration": "public sealed class CropField"
+        },
+        {
+          "line": 358,
+          "declaration": "public static readonly CropField[] All = BuildAll();"
+        },
+        {
+          "line": 377,
+          "declaration": "public const double CellM = 5.0;"
+        },
+        {
+          "line": 378,
+          "declaration": "public const int CellsX = 120, CellsY = 60;                          // 600 \u00d7 300 m of 5 m cells (3 across a swath)"
+        },
+        {
+          "line": 381,
+          "declaration": "public const double PoleOffsetM = 40.0;                              // poles stand this far outside the field edges"
+        },
+        {
+          "line": 384,
+          "declaration": "public const double PoleHeightM = 42.0;                              // wire attachment height AGL at the poles"
+        },
+        {
+          "line": 385,
+          "declaration": "public const double WireLowestAglM = 30.48;                          // 100 ft at mid-span"
+        },
+        {
+          "line": 386,
+          "declaration": "public const double WireSpacingM = 2.5;                              // three conductors on the crossarm (along x)"
+        },
+        {
+          "line": 408,
+          "declaration": "public sealed class CropDust"
+        },
+        {
+          "line": 410,
+          "declaration": "public const int Swaths = 20, PreSprayed = 15;"
+        },
+        {
+          "line": 411,
+          "declaration": "public const double SwathM = 15.0;                                   // 300 m / 20 \u2248 49 ft (a Pawnee's 50 ft swath)"
+        },
+        {
+          "line": 412,
+          "declaration": "public const double LineTolM = 6.0, HeightMinM = 1.524, HeightMaxM = 6.096, SpeedMinMs = 80 / 1.943844, SpeedMaxMs = 110 / 1.943844;"
+        },
+        {
+          "line": 413,
+          "declaration": "public const double SprayAglM = 25.0;                                // the boom opens below this over the field"
+        },
+        {
+          "line": 414,
+          "declaration": "public const double WireHitHalfBandM = 1.8;"
+        },
+        {
+          "line": 416,
+          "declaration": "public static readonly int[] Order = BuildOrder();"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Forest.cs",
+      "sha256": "e64304ca83fa2ddadf4c7ce51138e5f64b50c7b7b7ca459ce7930c5745f55251",
+      "lines_read": 341,
+      "public_entry_points": [
+        {
+          "line": 28,
+          "declaration": "public static class Forest"
+        },
+        {
+          "line": 32,
+          "declaration": "public const double CellM = 18.0;"
+        },
+        {
+          "line": 36,
+          "declaration": "public const double MeanTreeLineM = 2350.0;"
+        },
+        {
+          "line": 39,
+          "declaration": "public const double TreeLineLapsePerM = 450.0 / 8000.0;"
+        },
+        {
+          "line": 41,
+          "declaration": "public const double TreeLineAspectM = 130.0;"
+        },
+        {
+          "line": 44,
+          "declaration": "public const double TreeLineFadeM = 160.0;"
+        },
+        {
+          "line": 57,
+          "declaration": "public const double MaxSlopeTan = 2.00;"
+        },
+        {
+          "line": 59,
+          "declaration": "public const double ShoreClearM = 6.0;"
+        },
+        {
+          "line": 62,
+          "declaration": "public const double MaxHeightM = 42.0;"
+        },
+        {
+          "line": 70,
+          "declaration": "public const double SkyClearM = MaxHeightM + 60;"
+        },
+        {
+          "line": 72,
+          "declaration": "public const double FullHeightBelowM = 700.0;"
+        },
+        {
+          "line": 75,
+          "declaration": "public const double CrownRatio = 2.4;"
+        },
+        {
+          "line": 235,
+          "declaration": "public readonly struct Tree"
+        },
+        {
+          "line": 289,
+          "declaration": "public sealed class Solids : WorldSolids.IShape"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Landmarks.cs",
+      "sha256": "ca9db6b3e7396c5fe7b7be97d860db37ec2058f95f0d6f9a97577b64ba70bdd5",
+      "lines_read": 92,
+      "public_entry_points": [
+        {
+          "line": 13,
+          "declaration": "public static class Landmarks"
+        },
+        {
+          "line": 16,
+          "declaration": "public const double ArchY = -600.0, ArchHalfSpanM = 75.0, ArchHeightM = 175.0, ArchLegWidthM = 14.0, ArchTopWidthM = 5.0;"
+        },
+        {
+          "line": 30,
+          "declaration": "public const double TowerX = -900.0, TowerY = -500.0, TowerHeightM = 300.0, TowerBaseHalfM = 62.0, TowerFirstFloorM = 57.0, TowerSecondFloorM = 115.0, TowerTopFloorM = 276.0;"
+        },
+        {
+          "line": 31,
+          "declaration": "public const double RoadHalfLengthM = 900.0, RoadWidthM = 12.0;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Orography.cs",
+      "sha256": "70e0d0ae515ad4e6598b42ff8c8d4a0c85d813ae5811ee7cc28afe5c6e5acef6",
+      "lines_read": 145,
+      "public_entry_points": [
+        {
+          "line": 34,
+          "declaration": "public static class Orography"
+        },
+        {
+          "line": 36,
+          "declaration": "public struct Result"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/AirframeContact.cs",
+      "sha256": "2e6361d7b4c9e272f1db361839e2ed919ff0c1b47dfb982df284370a0984b4f3",
+      "lines_read": 293,
+      "public_entry_points": [
+        {
+          "line": 11,
+          "declaration": "public enum AirframeComponent"
+        },
+        {
+          "line": 21,
+          "declaration": "public static class WingPanels"
+        },
+        {
+          "line": 23,
+          "declaration": "public const double OuterFraction = 0.55;"
+        },
+        {
+          "line": 46,
+          "declaration": "public sealed class ContactPoint"
+        },
+        {
+          "line": 57,
+          "declaration": "public static class WorldSolids"
+        },
+        {
+          "line": 59,
+          "declaration": "public readonly struct Box"
+        },
+        {
+          "line": 64,
+          "declaration": "public static readonly System.Collections.Generic.List<Box> Boxes = new();"
+        },
+        {
+          "line": 67,
+          "declaration": "public interface IShape { bool Penetrate(double x, double y, double up, out Vec3 normalNed, out double depth); }"
+        },
+        {
+          "line": 68,
+          "declaration": "public static readonly System.Collections.Generic.List<IShape> Shapes = new();"
+        },
+        {
+          "line": 98,
+          "declaration": "public sealed class ImpactRecorder"
+        },
+        {
+          "line": 106,
+          "declaration": "public static class AirframeContact"
+        },
+        {
+          "line": 108,
+          "declaration": "public const double SpringNPerM = 150000.0, DampNsPerM = 9000.0, FrictionMu = 0.7;"
+        },
+        {
+          "line": 112,
+          "declaration": "public const double ReboundFraction = 0.08;"
+        },
+        {
+          "line": 114,
+          "declaration": "public const double TailBoomBreakMs = 5.5, CabinBreakMs = 8.0, NoseBreakMs = 6.0;"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/Airways.cs",
+      "sha256": "9604b6d478c9635e012a080be4161e3bdebe458c2d4ce3a62e13c3e675af904b",
+      "lines_read": 248,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public readonly struct AirwayLeg"
+        },
+        {
+          "line": 23,
+          "declaration": "public enum AirwayKind"
+        },
+        {
+          "line": 32,
+          "declaration": "public sealed class Airway"
+        },
+        {
+          "line": 60,
+          "declaration": "public static class Airways"
+        },
+        {
+          "line": 63,
+          "declaration": "public const double UsableSignal = 0.35;"
+        },
+        {
+          "line": 66,
+          "declaration": "public const double CeilingFt = 24000.0;"
+        },
+        {
+          "line": 68,
+          "declaration": "public static readonly Airway[] All ="
+        },
+        {
+          "line": 123,
+          "declaration": "public static readonly ProcedureFix[] EnRouteFixes ="
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/AnRange.cs",
+      "sha256": "f79a60bf6ab3e8006c171a222bb505688ebcebce81dfab2740860771b5ac4730",
+      "lines_read": 228,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum RangeTone"
+        },
+        {
+          "line": 44,
+          "declaration": "public readonly struct AnRange"
+        },
+        {
+          "line": 76,
+          "declaration": "public static class AnRangeSignal"
+        },
+        {
+          "line": 79,
+          "declaration": "public const double OnCourseHalfWidthDeg = 1.5;"
+        },
+        {
+          "line": 82,
+          "declaration": "public const double BiSignalHalfWidthDeg = 12.0;"
+        },
+        {
+          "line": 85,
+          "declaration": "public const double ConeHalfAngleDeg = 25.0;"
+        },
+        {
+          "line": 88,
+          "declaration": "public static readonly int[] MorseA = { 1, 3 };"
+        },
+        {
+          "line": 90,
+          "declaration": "public static readonly int[] MorseN = { 3, 1 };"
+        },
+        {
+          "line": 149,
+          "declaration": "public const double UnitSeconds = 0.15;"
+        },
+        {
+          "line": 152,
+          "declaration": "public const double ToneHz = 1020.0;"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/ApproachGeometry.cs",
+      "sha256": "220909d62a81b23dd3851d3dbed40261cfdf064cfa9c5b8af3bd0a52058ebbfd",
+      "lines_read": 177,
+      "public_entry_points": [
+        {
+          "line": 17,
+          "declaration": "public static class ApproachGeometry"
+        },
+        {
+          "line": 20,
+          "declaration": "public const double FinalHalfWidthAtThresholdM = 152.0;"
+        },
+        {
+          "line": 23,
+          "declaration": "public const double FinalSplayDeg = 15.0;"
+        },
+        {
+          "line": 26,
+          "declaration": "public const double MdaRoundFt = 20.0;"
+        },
+        {
+          "line": 29,
+          "declaration": "public readonly struct RunwayEndGeom"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/Approaches.cs",
+      "sha256": "e5b831de342307e0678abf889d63b7369347dc84500e3a2ed07abcb37ecd673d",
+      "lines_read": 318,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum FixRole { AirwayFix, Iaf, IntermediateFix, Faf, MissedApproachPoint, MissedApproachHold }"
+        },
+        {
+          "line": 7,
+          "declaration": "public readonly struct ProcedureFix"
+        },
+        {
+          "line": 21,
+          "declaration": "public enum ApproachKind { Ils, Vor, Ndb, Range }"
+        },
+        {
+          "line": 24,
+          "declaration": "public enum TurnSide { None, Left, Right }"
+        },
+        {
+          "line": 30,
+          "declaration": "public sealed class Approach"
+        },
+        {
+          "line": 83,
+          "declaration": "public static class Approaches"
+        },
+        {
+          "line": 107,
+          "declaration": "public static readonly Approach[] All ="
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/ChartFeatures.cs",
+      "sha256": "bdafd7787c9b4b4ee41f4cc73795483d99dc0f89313699dd1971c4ae5c207610",
+      "lines_read": 109,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum ChartFeatureKind { Town, Obstruction, Bridge, Arch, Dam, Waterfall, FirePot }"
+        },
+        {
+          "line": 10,
+          "declaration": "public readonly struct ChartFeature"
+        },
+        {
+          "line": 42,
+          "declaration": "public static class ChartFeatures"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/ChartRaster.cs",
+      "sha256": "31ac2a3b0e999183206fd3b050e5a7a75d764e6040c9480485232aeddb2a3974",
+      "lines_read": 212,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum ChartLayer"
+        },
+        {
+          "line": 30,
+          "declaration": "public static class ChartRaster"
+        },
+        {
+          "line": 33,
+          "declaration": "public const double XMin = -7200, XMax = 9200, YMin = -15600, YMax = 11000;"
+        },
+        {
+          "line": 36,
+          "declaration": "public const double SnowFromM = 2500, SnowToM = 3100;"
+        },
+        {
+          "line": 39,
+          "declaration": "public const double ContourFt = 500;"
+        },
+        {
+          "line": 42,
+          "declaration": "public const double SeaLevelM = 0.0;"
+        },
+        {
+          "line": 45,
+          "declaration": "public sealed class Grid"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/FirePots.cs",
+      "sha256": "c8b0746c09f67f3d0d0056edf4295b4b3b35ffbc9b61a18c6c55920cb67659c1",
+      "lines_read": 98,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public readonly struct FirePot"
+        },
+        {
+          "line": 35,
+          "declaration": "public static class FirePots"
+        },
+        {
+          "line": 38,
+          "declaration": "public const double RouteX = 400.0;"
+        },
+        {
+          "line": 41,
+          "declaration": "public const double StartY = 0.0, EndY = -10050.0;"
+        },
+        {
+          "line": 44,
+          "declaration": "public const double SpacingM = 900.0;"
+        },
+        {
+          "line": 47,
+          "declaration": "public const double MaxSlopeDeg = 12.0;"
+        },
+        {
+          "line": 50,
+          "declaration": "public const double SlopeProbeM = 120.0;"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/NavReception.cs",
+      "sha256": "4a2c8b47948582ed5ad4606226881037c3babe105f183cc77eb98cda0fd4006d",
+      "lines_read": 247,
+      "public_entry_points": [
+        {
+          "line": 39,
+          "declaration": "public static class NavReception"
+        },
+        {
+          "line": 42,
+          "declaration": "public const double BandMidMhz = 113.0;"
+        },
+        {
+          "line": 45,
+          "declaration": "public const double LightMMhz = 299.792458;"
+        },
+        {
+          "line": 48,
+          "declaration": "public const double ConeHalfAngleDeg = 25.0;"
+        },
+        {
+          "line": 51,
+          "declaration": "public const double FresnelClearFraction = 0.6;"
+        },
+        {
+          "line": 55,
+          "declaration": "public const double MarchM = 60.0;"
+        },
+        {
+          "line": 57,
+          "declaration": "public const double MetresPerNm = 1852.0;"
+        },
+        {
+          "line": 167,
+          "declaration": "public const double NdbBearingErrorMaxDeg = 8.0;"
+        },
+        {
+          "line": 170,
+          "declaration": "public const double NdbErrorMetresPerDegree = 100.0;"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/Navaid.cs",
+      "sha256": "0d9f6c56047654d86d51eaf274cea25dc44fd8c3d291e9b3138bb714b5cb8093",
+      "lines_read": 101,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum VorClass { Terminal, Low }"
+        },
+        {
+          "line": 10,
+          "declaration": "public readonly struct Vor"
+        },
+        {
+          "line": 45,
+          "declaration": "public readonly struct Ils"
+        },
+        {
+          "line": 86,
+          "declaration": "public readonly struct Ndb"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/Navaids.cs",
+      "sha256": "a436c5f3328a8956c93ef9218c41ad5d400f4d50bc38a3ce04448f0faf9c7c3c",
+      "lines_read": 159,
+      "public_entry_points": [
+        {
+          "line": 44,
+          "declaration": "public static class Navaids"
+        },
+        {
+          "line": 47,
+          "declaration": "public const double MagneticVariationDeg = 0.0;"
+        },
+        {
+          "line": 49,
+          "declaration": "public static readonly Vor[] Vors ="
+        },
+        {
+          "line": 75,
+          "declaration": "public static readonly Ndb[] Ndbs ="
+        },
+        {
+          "line": 103,
+          "declaration": "public static readonly AnRange[] Ranges ="
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "src/FlyingGame.Core/Nav/Terps.cs",
+      "sha256": "02c027a66062edf5f3a717f308a44f46f8a32b48659731f159c56d196db308be",
+      "lines_read": 234,
+      "public_entry_points": [
+        {
+          "line": 4,
+          "declaration": "public enum NavSegment { EnRoute, Initial, Intermediate, FinalNonPrecision, FinalPrecision, ProcedureTurn, MissedApproach }"
+        },
+        {
+          "line": 45,
+          "declaration": "public static class Terps"
+        },
+        {
+          "line": 47,
+          "declaration": "public const double FtPerM = 3.280839895013123;"
+        },
+        {
+          "line": 48,
+          "declaration": "public const double MPerFt = 0.3048;"
+        },
+        {
+          "line": 49,
+          "declaration": "public const double MetresPerNm = 1852.0;"
+        },
+        {
+          "line": 52,
+          "declaration": "public const double EnRouteRocFt = 1000.0;"
+        },
+        {
+          "line": 53,
+          "declaration": "public const double EnRouteRocMountainousFt = 2000.0;"
+        },
+        {
+          "line": 54,
+          "declaration": "public const double InitialRocFt = 1000.0;"
+        },
+        {
+          "line": 55,
+          "declaration": "public const double IntermediateRocFt = 500.0;"
+        },
+        {
+          "line": 56,
+          "declaration": "public const double FinalNonPrecisionRocFt = 250.0;"
+        },
+        {
+          "line": 57,
+          "declaration": "public const double ProcedureTurnRocFt = 1000.0;"
+        },
+        {
+          "line": 72,
+          "declaration": "public const double LateralScale = 4.0;"
+        },
+        {
+          "line": 74,
+          "declaration": "public const double EnRouteHalfWidthNmReal = 4.0;"
+        },
+        {
+          "line": 75,
+          "declaration": "public const double InitialHalfWidthNmReal = 4.0;"
+        },
+        {
+          "line": 76,
+          "declaration": "public const double IntermediateHalfWidthNmReal = 2.0;"
+        },
+        {
+          "line": 77,
+          "declaration": "public const double FinalHalfWidthNmReal = 1.0;"
+        },
+        {
+          "line": 79,
+          "declaration": "public const double EnRouteHalfWidthNm = EnRouteHalfWidthNmReal / LateralScale;"
+        },
+        {
+          "line": 80,
+          "declaration": "public const double InitialHalfWidthNm = InitialHalfWidthNmReal / LateralScale;"
+        },
+        {
+          "line": 81,
+          "declaration": "public const double IntermediateHalfWidthNm = IntermediateHalfWidthNmReal / LateralScale;"
+        },
+        {
+          "line": 82,
+          "declaration": "public const double FinalHalfWidthNm = FinalHalfWidthNmReal / LateralScale;"
+        },
+        {
+          "line": 85,
+          "declaration": "public const double ProcedureTurnRemainWithinNm = 10.0;"
+        },
+        {
+          "line": 86,
+          "declaration": "public const double ProcedureTurnMaxIasKt = 200.0;"
+        },
+        {
+          "line": 89,
+          "declaration": "public const double StandardGlidepathDeg = 3.0;"
+        },
+        {
+          "line": 91,
+          "declaration": "public const double PrecisionOcsSlope = 34.0;"
+        },
+        {
+          "line": 92,
+          "declaration": "public const double CategoryOneHatFt = 200.0;"
+        },
+        {
+          "line": 96,
+          "declaration": "public const double CirclingRocFt = 300.0;"
+        },
+        {
+          "line": 98,
+          "declaration": "public const double CirclingRadiusNmCatA = 1.3;"
+        },
+        {
+          "line": 101,
+          "declaration": "public const double MissedApproachClimbFtPerNm = 200.0;"
+        },
+        {
+          "line": 102,
+          "declaration": "public const double MissedApproachOcsSlope = 40.0;"
+        },
+        {
+          "line": 109,
+          "declaration": "public const double MountainousReliefM = 914.4;"
+        },
+        {
+          "line": 110,
+          "declaration": "public const double MountainousRadiusNm = 10.0;"
+        }
+      ],
+      "owner": "Claude read-only"
+    },
+    {
+      "path": "configs/challenges/a1c2-best-glide.json",
+      "sha256": "3e550f5c88a6e126117f858995963705908870551da3851f100bec26a9007531",
+      "lines_read": 54,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "configs/challenges/a1c4-stall-recover.json",
+      "sha256": "8923e7c4079b8597c220b5ad041eb32fd5bd422041a2f6fc01b04e7da137ec83",
+      "lines_read": 54,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "configs/challenges/a1c10-headwind-landing.json",
+      "sha256": "b909604779dd64642cff881cf20ce26ba9d7d76b7f3571c342e7b3bbe83d5b4c",
+      "lines_read": 54,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "configs/challenges/a1c11-crosswind-landing.json",
+      "sha256": "57c5577482b418076ac75570217a226ffad5d5b5a2d9fc798872aaefa359f493",
+      "lines_read": 54,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "configs/challenges/a1c1-wings-level.json",
+      "sha256": "dd0cb43136366edf58d3acb6accda4e4472111ba9dacd508f6aae7667ed7fa2f",
+      "lines_read": 54,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "configs/challenges/a1c3-cardinal-turn.json",
+      "sha256": "05f0c995c9cb6a2c1e497bb92977efa8825e2c25f371a445d5d43b144be20069",
+      "lines_read": 73,
+      "public_entry_points": [],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "unity/Assets/_Project/Scripts/Bridge/SessionSettings.cs",
+      "sha256": "d807139dc91e89d200cdef12d77196892e638d4c73c64c0b3a5b7296894e7d57",
+      "lines_read": 562,
+      "public_entry_points": [
+        {
+          "line": 8,
+          "declaration": "public static class SessionSettings"
+        },
+        {
+          "line": 10,
+          "declaration": "public enum Start { InTheAir, OnTheRunway, OnFinal, InAeroBox, InCombatZone, InThermal }"
+        },
+        {
+          "line": 19,
+          "declaration": "public static readonly float[] SimSpeeds = { 1f, 0.5f, 0.25f, 0.1f };"
+        },
+        {
+          "line": 32,
+          "declaration": "public enum Streaks { Off, Normal, Long }"
+        },
+        {
+          "line": 43,
+          "declaration": "public enum InstrumentMode { Analog, Hud, None }"
+        },
+        {
+          "line": 45,
+          "declaration": "public enum Tri { Auto, On, Off }"
+        },
+        {
+          "line": 102,
+          "declaration": "public enum RunwayPick { Headwind, Crosswind }"
+        },
+        {
+          "line": 156,
+          "declaration": "public enum MultiplayerMode { Solo, FreeForAll, PrivateRoom, Lan }"
+        },
+        {
+          "line": 174,
+          "declaration": "public const string FfaRoom = \"ffa\";"
+        },
+        {
+          "line": 182,
+          "declaration": "public const string LanPrefix = \"lan:\";"
+        },
+        {
+          "line": 184,
+          "declaration": "public const string LanRoom = \"LAN\";"
+        },
+        {
+          "line": 258,
+          "declaration": "public static readonly (string id, string name)[] Fleet ="
+        },
+        {
+          "line": 273,
+          "declaration": "public static readonly string[] SkillNames = { \"Easy\", \"Moderate\", \"Difficult\" };"
+        },
+        {
+          "line": 275,
+          "declaration": "public static readonly (string id, string name)[] Challenges ="
+        },
+        {
+          "line": 284,
+          "declaration": "public static readonly (string id, string name)[] Lessons ="
+        },
+        {
+          "line": 339,
+          "declaration": "public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] CrosswindChoices ="
+        },
+        {
+          "line": 343,
+          "declaration": "public static readonly (FlyingGame.Sim.Practice.PracticeWind w, string name)[] AlongWindChoices ="
+        },
+        {
+          "line": 471,
+          "declaration": "public static readonly float[] FeelExpo = { -1f, -1f, -1f };       // aileron, elevator, rudder"
+        },
+        {
+          "line": 472,
+          "declaration": "public static readonly float[] FeelDeadZone = { -1f, -1f, -1f };"
+        },
+        {
+          "line": 473,
+          "declaration": "public static readonly string[] FeelAxisNames = { \"Aileron\", \"Elevator\", \"Rudder\" };"
+        },
+        {
+          "line": 512,
+          "declaration": "public static readonly float[] RegionalTurbulenceSteps = { 1f, 1.5f, 2.2f, 3f };"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "unity/Assets/_Project/Scripts/Bridge/StartMenu.cs",
+      "sha256": "45b269a0b08c17d74b15093e020b7531b7b0408d8205b6d88752c23ea167f859",
+      "lines_read": 759,
+      "public_entry_points": [
+        {
+          "line": 11,
+          "declaration": "public sealed class StartMenu : MonoBehaviour"
+        }
+      ],
+      "owner": "world reference; not edited"
+    },
+    {
+      "path": "src/FlyingGame.Core/Combat/Gunnery.cs",
+      "sha256": "b4d2bb81841405324e3267254fe7180c7918cd525a9a9e1ad07e317e7e38abf6",
+      "lines_read": 255,
+      "findings": "six ground bullseyes (five radius30m, one14m), three drones; six concealment clouds; logic remains Claude-owned"
+    },
+    {
+      "path": "unity/Assets/_Project/Scripts/Bridge/Combat/CombatController.cs",
+      "sha256": "6ff1181de451c96451b42b68f62618d303f9a288a063e833efed4c7de9b2dbfc",
+      "lines_read": 490,
+      "findings": "six ground bullseyes (five radius30m, one14m), three drones; six concealment clouds; logic remains Claude-owned"
+    }
+  ],
+  "review_notes": {
+    "menu_lane": "Read using git show; ancestor verification returned0; no menu edits",
+    "WorldSolids": "AirframeContact.cs:57; boxes and arbitrary IShape penetration; decks in Playground; separate cavity/raised surfaces",
+    "navigation": "Nav data read-only; current variation0 conflicts with locked7E: handoff only",
+    "terrain": "Analytic WorldTerrain has no binary importer; f32 format defined explicitly for review",
+    "source_page": "Cursor URL inaccessible; Ty full restatement used",
+    "moa_name_check": {
+      "date": "2026-10-30",
+      "sources": [
+        "https://sua.faa.gov/sua/siteFrame.app",
+        "https://www.faa.gov/air_traffic/publications/atpubs/sua_html/"
+      ],
+      "result": "FAA SUA portal accessible but dynamic name inventory not exposed; FAA publication URL unavailable; domain searches inconclusive. Names remain provisional."
+    }
+  }
+}

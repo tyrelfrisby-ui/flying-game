@@ -1,0 +1,549 @@
+{
+  "pad_conflicts": [],
+  "pad_max_error_m": 0.0,
+  "grade_failures": [
+    {
+      "grade_percent": 102.63,
+      "fields": [
+        "KPGA 16/34",
+        "Chamberlain"
+      ],
+      "edge_gap_km": 0.7969
+    },
+    {
+      "grade_percent": 79.82,
+      "fields": [
+        "KPGA 7/25",
+        "Chamberlain"
+      ],
+      "edge_gap_km": 1.0245
+    },
+    {
+      "grade_percent": 54.14,
+      "fields": [
+        "AP5",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 3.4343
+    },
+    {
+      "grade_percent": 53.96,
+      "fields": [
+        "AP4",
+        "AP11"
+      ],
+      "edge_gap_km": 2.0754
+    },
+    {
+      "grade_percent": 52.17,
+      "fields": [
+        "PHDH 8/26",
+        "AP11"
+      ],
+      "edge_gap_km": 2.927
+    },
+    {
+      "grade_percent": 51.54,
+      "fields": [
+        "PALH 8W/26W",
+        "DRAKE 17"
+      ],
+      "edge_gap_km": 2.7325
+    },
+    {
+      "grade_percent": 47.35,
+      "fields": [
+        "KSNA 2L/20R",
+        "AP12"
+      ],
+      "edge_gap_km": 2.4102
+    },
+    {
+      "grade_percent": 47.28,
+      "fields": [
+        "AP13",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 1.6115
+    },
+    {
+      "grade_percent": 45.12,
+      "fields": [
+        "KPGA 16/34",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 1.8123
+    },
+    {
+      "grade_percent": 44.15,
+      "fields": [
+        "PANC 16/34",
+        "DRAKE 17"
+      ],
+      "edge_gap_km": 3.1402
+    },
+    {
+      "grade_percent": 43.78,
+      "fields": [
+        "KPGA 7/25",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 1.8678
+    },
+    {
+      "grade_percent": 43.44,
+      "fields": [
+        "PALH 15/33",
+        "DRAKE 17"
+      ],
+      "edge_gap_km": 3.2425
+    },
+    {
+      "grade_percent": 41.32,
+      "fields": [
+        "AP10",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 1.844
+    },
+    {
+      "grade_percent": 41.3,
+      "fields": [
+        "AP12",
+        "Chamberlain"
+      ],
+      "edge_gap_km": 2.3616
+    },
+    {
+      "grade_percent": 40.28,
+      "fields": [
+        "DRAKE 17",
+        "AP9"
+      ],
+      "edge_gap_km": 1.3621
+    },
+    {
+      "grade_percent": 39.67,
+      "fields": [
+        "KSNA 2R/20L",
+        "AP12"
+      ],
+      "edge_gap_km": 2.8769
+    },
+    {
+      "grade_percent": 37.55,
+      "fields": [
+        "KSNA 2L/20R",
+        "Chamberlain"
+      ],
+      "edge_gap_km": 5.6368
+    },
+    {
+      "grade_percent": 36.22,
+      "fields": [
+        "PHDH 8/26",
+        "Sulphur Creek"
+      ],
+      "edge_gap_km": 5.879
+    },
+    {
+      "grade_percent": 35.59,
+      "fields": [
+        "AP10",
+        "Chamberlain"
+      ],
+      "edge_gap_km": 2.1413
+    }
+  ],
+  "approach_terrain_screen": [
+    {
+      "airport": "PANC",
+      "title": "ILS 16",
+      "max_terrain_penetration_m": 172.39,
+      "location": [
+        -8.986895534018865,
+        -1.137794542123886
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "PANC",
+      "title": "ILS 34",
+      "max_terrain_penetration_m": 1019.87,
+      "location": [
+        -7.943572880681959,
+        -5.012188291656271
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KSNA",
+      "title": "LOC BC RWY 2L",
+      "max_terrain_penetration_m": 417.42,
+      "location": [
+        0.26330559922604646,
+        -9.017700218327105
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "PHDH",
+      "title": "ILS 26",
+      "max_terrain_penetration_m": 143.62,
+      "location": [
+        6.659856389598627,
+        5.705811195485112
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KMYL",
+      "title": "RNAV 17",
+      "max_terrain_penetration_m": 0.0,
+      "location": [
+        -0.5962271148670972,
+        3.7096507881139296
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KMYL",
+      "title": "LDA/DME 17",
+      "max_terrain_penetration_m": 0.0,
+      "location": [
+        -0.5962271148670972,
+        3.7096507881139296
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KMEV",
+      "title": "Range 35",
+      "max_terrain_penetration_m": 0.0,
+      "location": [
+        -3.02,
+        -2.8576076
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KMEV",
+      "title": "RNAV 35",
+      "max_terrain_penetration_m": 0.0,
+      "location": [
+        -3.02,
+        -2.8576076
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KPGA",
+      "title": "VOR/DME 34",
+      "max_terrain_penetration_m": 66.24,
+      "location": [
+        3.799556445562766,
+        -4.576876883051978
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KPGA",
+      "title": "RNAV 16",
+      "max_terrain_penetration_m": 772.73,
+      "location": [
+        3.234001569167525,
+        -1.5135806990795826
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "KAVX",
+      "title": "VOR-A",
+      "max_terrain_penetration_m": 0.0,
+      "location": [
+        3.9745163146489273,
+        -14.137760853300302
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    },
+    {
+      "airport": "PATK",
+      "title": "NDB 2",
+      "max_terrain_penetration_m": 1270.81,
+      "location": [
+        -6.763951052672996,
+        4.157949210204009
+      ],
+      "sampled_half_width": "150 m + 0.05 * distance; design screen only"
+    }
+  ],
+  "approach_obstacle_screen": [],
+  "airway_failures": [
+    {
+      "route": "V2",
+      "segment": "SLI-PGA",
+      "terrain_ft": 4600,
+      "mea_target_ft": 6500,
+      "clearance_ft": 1900
+    },
+    {
+      "route": "V3",
+      "segment": "CKH-PGA",
+      "terrain_ft": 7000,
+      "mea_target_ft": 7500,
+      "clearance_ft": 500
+    },
+    {
+      "route": "A2",
+      "segment": "CMQ-PEE",
+      "terrain_ft": 7000,
+      "mea_target_ft": 5000,
+      "clearance_ft": -2000
+    },
+    {
+      "route": "G1",
+      "segment": "PGA-MEV",
+      "terrain_ft": 7008,
+      "mea_target_ft": 8000,
+      "clearance_ft": 992
+    }
+  ],
+  "spacing_failures": [
+    {
+      "fields": [
+        "AP6",
+        "Indian Creek"
+      ],
+      "centre_distance_km": 1.077,
+      "pad_gap_km": 0.236,
+      "required_km": 1.5
+    },
+    {
+      "fields": [
+        "AP6",
+        "Mackay Bar"
+      ],
+      "centre_distance_km": 1.131,
+      "pad_gap_km": 0.752,
+      "required_km": 1.5
+    },
+    {
+      "fields": [
+        "AP10",
+        "Cabin Creek"
+      ],
+      "centre_distance_km": 1.03,
+      "pad_gap_km": 0.528,
+      "required_km": 1.5
+    },
+    {
+      "fields": [
+        "AP10",
+        "Indian Creek"
+      ],
+      "centre_distance_km": 1.17,
+      "pad_gap_km": 0.598,
+      "required_km": 1.5
+    },
+    {
+      "fields": [
+        "Chamberlain",
+        "Big Creek"
+      ],
+      "centre_distance_km": 0.728,
+      "pad_gap_km": 0.339,
+      "required_km": 0.8
+    },
+    {
+      "fields": [
+        "Soldier Bar",
+        "Dewey Moore"
+      ],
+      "centre_distance_km": 0.64,
+      "pad_gap_km": 0.317,
+      "required_km": 0.8
+    },
+    {
+      "fields": [
+        "Dewey Moore",
+        "Mackay Bar"
+      ],
+      "centre_distance_km": 0.728,
+      "pad_gap_km": 0.359,
+      "required_km": 0.8
+    }
+  ],
+  "shore_setback_failures": [],
+  "box_climb_targets": [
+    {
+      "lesson": "L1",
+      "required_fpm_target": 3376,
+      "trainer_reference_fpm_target": 300
+    },
+    {
+      "lesson": "L2",
+      "required_fpm_target": 4861,
+      "trainer_reference_fpm_target": 300
+    },
+    {
+      "lesson": "L3",
+      "required_fpm_target": 4051,
+      "trainer_reference_fpm_target": 300
+    },
+    {
+      "lesson": "L4",
+      "required_fpm_target": 7089,
+      "trainer_reference_fpm_target": 300
+    }
+  ],
+  "box_final_warnings": [],
+  "race_known_final_clearance_km": 3.198,
+  "race_nearest_final": "KPGA RNAV 16",
+  "peak_actual_ft": [
+    {
+      "id": "Frank Church",
+      "target_ft": 9020,
+      "computed_ft": 9020.0
+    },
+    {
+      "id": "Sierra",
+      "target_ft": 7550,
+      "computed_ft": 7550.0
+    },
+    {
+      "id": "Chugach",
+      "target_ft": 6890,
+      "computed_ft": 6890.0
+    },
+    {
+      "id": "Denali-like",
+      "target_ft": 8530,
+      "computed_ft": 8530.0
+    },
+    {
+      "id": "Mokuleia",
+      "target_ft": 2950,
+      "computed_ft": 2950.0
+    },
+    {
+      "id": "Catalina",
+      "target_ft": 2100,
+      "computed_ft": 2100.0
+    },
+    {
+      "id": "Drake Hill",
+      "target_ft": 5750,
+      "computed_ft": 5750.0
+    }
+  ],
+  "practice_line_terrain_range_m": [
+    {
+      "id": "ST-PHDH",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-PANC",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-PALH",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-PATK",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-KSNA",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-KMYL",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-3U2",
+      "range_m": 4.98
+    },
+    {
+      "id": "ST-KMEV",
+      "range_m": 0.0
+    },
+    {
+      "id": "ST-KPGA",
+      "range_m": 0.0
+    }
+  ],
+  "zone_clearance_screen": [
+    {
+      "zone": "CZ1",
+      "minimum_sampled_distance_km": 3.199,
+      "nearest": "PHDH ILS 26",
+      "passes_known_segments": true
+    },
+    {
+      "zone": "CZ2",
+      "minimum_sampled_distance_km": 2.88,
+      "nearest": "KAVX VOR-A",
+      "passes_known_segments": true
+    },
+    {
+      "zone": "CZ3",
+      "minimum_sampled_distance_km": 3.38,
+      "nearest": "KMYL LDA/DME 17",
+      "passes_known_segments": true
+    }
+  ],
+  "fit_check": [
+    {
+      "rule": 1,
+      "status": "PASS sampled",
+      "evidence": "345 continuous samples; maximum runway surface error 0.00 m at KAVX 5/23; 0 incompatible overlapping pad pairs. 60 m shoulders are authored; Drake cave interior excluded (3D floor/roof unverified); PALH gravel datum and 3U2 slope remain targets."
+    },
+    {
+      "rule": 2,
+      "status": "FAIL",
+      "evidence": "19 flat-field pairs exceed 35% mean edge-to-edge grade; worst finite 102.63%. PALH\u2013KMEV pairs: PALH 8W/26W/KMEV 17/35 34.42%, PALH 8W/26W/KMEV 13/31 33.70%, PALH 8W/26W/KMEV 13G/31G 29.19%, PALH 15/33/KMEV 17/35 31.38%, PALH 15/33/KMEV 13/31 30.82%, PALH 15/33/KMEV 13G/31G 26.97%. This is an endpoint feasibility test, not a slope-profile certificate."
+    },
+    {
+      "rule": 3,
+      "status": "FAIL",
+      "evidence": "7/12 supplied finals penetrate sampled terrain fan; 0 sampled tower/wire penetrations. All-runway-end surfaces, buildings, trees, non-KSNA misses/holds remain unverified. KSNA data retained unchanged."
+    },
+    {
+      "rule": 4,
+      "status": "FAIL",
+      "evidence": "4 sampled airway segments have less than 2000 ft target clearance within 2 nm; T201 coordinates absent. Full-width grid/obstacle sweep and final computed MEAs belong to Claude."
+    },
+    {
+      "rule": 5,
+      "status": "PASS footprint / UNVERIFIED flight volumes",
+      "evidence": "Coast/Catalina vertices maximum radius 16.446 km <20; active CZ outer radius 19.5 km; ocean bed is continuous and has no wall. BALBO hold outer radius 19.2 km is supplied target, not computed; T201/misses need geometry."
+    },
+    {
+      "rule": 6,
+      "status": "FAIL",
+      "evidence": "7 centre-spacing violations (already fails before pad-edge interpretation); 0 runway-end shore setback violations. PANC/PALH waiver alone applied. Backcountry and airpark relocation needs approval/revision."
+    },
+    {
+      "rule": 7,
+      "status": "PASS target / UNVERIFIED flight",
+      "evidence": "L1: 3376 ft/min required at 80 kt versus 300 ft/min reference, L2: 4861 ft/min required at 80 kt versus 300 ft/min reference, L3: 4051 ft/min required at 80 kt versus 300 ft/min reference, L4: 7089 ft/min required at 80 kt versus 300 ft/min reference. Need actual loaded trainer/DA trajectory and headwall mesh; no sim claim."
+    },
+    {
+      "rule": 8,
+      "status": "UNVERIFIED",
+      "evidence": "0 box/final proximity warnings (<0.5 km screen); known CZ/final/airway boundary distances: CZ1 3.199 km, CZ2 2.880 km, CZ3 3.380 km. Missing T201, missed/hold polygons prevent 1 nm certification; supplied box/MEA targets retained."
+    },
+    {
+      "rule": 9,
+      "status": "PASS generated",
+      "evidence": "No random calls; authored integer seeds; continuous evaluator and binary/raster generated in fixed iteration order. Re-run SHA-256 comparison required before commit."
+    },
+    {
+      "rule": 10,
+      "status": "PASS design / UNVERIFIED integration",
+      "evidence": "One continuous evaluator drives bake/render/checks. Source engine remains unchanged analytic WorldTerrain; Phase 1B must bind physics and renderer to same evaluator. Towers/wires/cave shells remain separate WorldSolids."
+    }
+  ]
+}

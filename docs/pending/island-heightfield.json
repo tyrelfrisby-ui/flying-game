@@ -1,0 +1,15 @@
+{
+  "min_km": -20,
+  "max_km": 20,
+  "spacing_m": 100,
+  "rows": 401,
+  "columns": 401,
+  "format": "little-endian float32 metres MSL; row 0 south; column 0 west; x fastest; bilinear interpolation; JSON sidecar",
+  "byte_order": "little",
+  "altitude_units": "m MSL",
+  "row_order": "south to north",
+  "column_order": "west to east",
+  "sha256": "bac948d948dbb998bb3e5d169bd5cac467b6f4b4b59602fe7023d22a3aaf3053",
+  "spec_sha256": "af1e87d49c476420e57d43616295745dc147abdd9255f6fe2d2429e2621a4ec6",
+  "engine_import": false
+}
