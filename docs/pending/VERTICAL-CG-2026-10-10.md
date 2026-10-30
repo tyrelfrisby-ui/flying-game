@@ -4,6 +4,10 @@ The owner asked for a check of the vertical CG on every airplane, after noticing
 
 **Tool:** `CgCheck` (editor) builds each type the way the game draws it and writes `build/cg-check.csv`.
 - Run it with `Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.CgCheck.Run`.
+- `build/` is scratch and gitignored. The snapshot this page's findings were read off is kept beside it as
+  `cg-check-2026-10-10.csv` (28 types; the fleet is 32 now, so re-run the tool before trusting a row).
+  It used to live at `build/cg-check.csv` — tracked inside an ignored directory, so a re-run could never be
+  committed without `git add -f`. See the 2026-10-30 AGENT-LOG entry.
 - `AirframeRender` with `CG_MARK=1` draws the CG as a red ball.
 
 ## Fixed and shipped

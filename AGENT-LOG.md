@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **StreamingAssets is generated now; three pushed/unmerged lanes still carry a hand-committed mirror (Claude, 2026-10-30).** `lane/claude-config-mirror` makes `configs/**` + `docs/CREDITS.md` the only copies in the repo and has the build write the player's. **Ty: two things.** (a) `lane/claude-extra-cockpit` is **already pushed** and adds a fifth mirror class, `StreamingAssets/rigs/` (`docs/models/*-rig.json`, with a filename mapping), committed by hand. Merging it reintroduces the trap unless whoever merges adds a rigs row to ConfigSync's `Mirrors` table (it needs a name-mapping field the struct does not have yet), gitignores `rigs/` + `rigs.meta`, and `git rm -r --cached`es the copy. `lane/claude-sgs233-rig` carries a second rigs file. `StreamingAssetsTests.NothingGeneratedIsCommitted` fails until that is done, by design. (b) `lane/claude-glacier-ski`, `claude-glacier-visuals`, `claude-j3-edo1320`, `claude-regional-atmosphere` and `claude-soft-wings` each carry a mirror copy that will conflict trivially — take the deletion side.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -41,6 +42,69 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-10-30 — StreamingAssets is generated, and a build that would ship the wrong configs now fails (Claude)
+
+Branch `lane/claude-config-mirror`, off `split-surfaces` at `1b67dd5`. The owner asked for this after the Great Lakes
+turned out to have been shipping with no runtime config.
+
+**The bug, properly.** `unity/Assets/StreamingAssets/aircraft/` was gitignored **and** tracked. `git add` on a new
+mirror silently did nothing; only `git add -f` worked. The suite never noticed, because it read the mirror off the
+working copy, which always had it. So a new aircraft reached the player only if someone remembered the `-f`.
+`great-lakes-like.json` was never added: the Great Lakes was in the menu and could not be flown, and
+`GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` had been red on clean `split-surfaces` for days saying so.
+Three lanes ended up carrying the same one-line `git add -f` without any of them being the cure. Two smaller symptoms
+of the same shape: `ConfigSync` copied but never deleted, so four dead challenge copies (`a1c1`–`a1c4`) had been
+shipping at the StreamingAssets root since the challenges moved into `challenges/`, read by nothing; and nothing
+checked the mirror at **build** time, so a green suite said nothing about what the player would load.
+
+**The fix is to stop having two copies.** `configs/**` and `docs/CREDITS.md` are the sources. Nothing under
+StreamingAssets is tracked any more except `commerce.json`, which has no repo source and is the original.
+
+- `ConfigSync.cs` is now a declared `Mirrors` manifest of six (source → destination) pairs. It copies, and it
+  **sweeps**: a mirror whose source is gone is deleted, so a renamed config cannot linger in the player.
+- `ConfigSync.SyncAndRequireComplete()` runs first in `BuildiOS`, `BuildMac` and `BuildWidget`: sync, then verify
+  byte-for-byte, then `EditorApplication.Exit(1)` in batch mode if the player would get the wrong configs.
+- `ConfigSync.CheckMirrors` is a headless read-only check, with `FLYINGGAME_NO_CONFIG_SYNC=1` to hold the editor's
+  load-time sync back so it reports what a **checkout** ships rather than what a sync would ship.
+- `tools/FlightTests/StreamingAssetsTests.cs` holds the shape: nothing committed outside an allowlist, every generated
+  path ignored, every mirror has its source, all three builds call the guard. It reads ConfigSync's own manifest, so
+  adding a mirror and forgetting `.gitignore` fails the suite.
+- Four tests that asserted the mirror exists are gone or narrowed, because on a fresh clone it correctly does not:
+  the mirror assertion in `EveryAircraftPassesTheNewAirplaneProtocol`, the byte-equality half of `CreditsReachTheUser`
+  (its model-credit half stays), `RegionalAtmosphereTests.ConfigIsMirroredToStreamingAssets` → `TheRegionalConfigSaysWhatTheWorldNeeds`,
+  and four `File.Copy` calls in the REGEN paths of `GlideTableTests` and `StallAuthorityTests`.
+
+**Why the test is an allowlist and not manifest-driven.** A manifest-driven check only catches mirrors ConfigSync
+already knows about, and every instance of this bug so far arrived as a *new* mirror someone added by hand. An
+allowlist fails on a committed mirror it has never heard of, which is what should happen.
+
+**Proven, not assumed.** The guard was run against the live bug rather than reasoned about. With the load-time sync
+suppressed it printed `aircraft/great-lakes-like.json missing (from configs/aircraft/great-lakes-like.json)` and exited
+1; with the sync allowed it regenerated the file, logged `StreamingAssets complete (6 mirrors verified)` and exited 0
+(31 → 32 of 32 configs). A planted `renamed-away-like.json` was swept with
+`deleted stale mirror aircraft/renamed-away-like.json (no configs/aircraft source)`. And the allowlist test was
+negative-tested by force-adding `aircraft/c172-like.json`, which failed it by name — then caught my own slip a few
+minutes later, when a `git reset` on that path restored the index entry from HEAD instead of dropping it.
+
+**The same trap was in one more place, and the repo now has none.** Asking git the general question —
+`git ls-files | git check-ignore --no-index --stdin -v` — found 63 tracked-but-ignored files on `split-surfaces`: the
+62 aircraft mirrors, and `build/cg-check.csv`, a generated CG report committed inside the ignored `build/` directory.
+It had gone stale at 28 rows against a 32-aircraft fleet, because refreshing it would have needed `git add -f` too,
+and `docs/pending/VERTICAL-CG-2026-10-10.md` cites it as evidence. Moved to
+`docs/pending/cg-check-2026-10-10.csv`, beside the page that reads it, where a re-run is an ordinary commit; `build/`
+stays scratch. `StreamingAssetsTests.NoTrackedFileIsGitignored` now holds the whole repo at zero. Note the `--no-index`:
+without it `check-ignore` says nothing about tracked files, which is precisely the set in question, and the test
+passes vacuously — mine did, and reported a clean repo twice before I noticed the flag was missing.
+
+**Not fixed here: the rigs mirror.** `lane/claude-extra-cockpit` (pushed) adds `StreamingAssets/rigs/`, mirroring
+`docs/models/*-rig.json` with a filename mapping, committed by hand. I could not fold it in: the rig sources do not
+exist on `split-surfaces`, so the code would have been untestable here. It is in NEEDS YOU with the three steps the
+merge needs.
+
+**`configs/progression.json` and its mirror are read by nothing** — no C# anywhere loads `progression.json`. I left
+both in place and am only noting it; deleting a config nobody reads is a separate call.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
