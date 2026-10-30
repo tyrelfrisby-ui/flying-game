@@ -4,12 +4,13 @@
   "spacing_m": 100,
   "rows": 401,
   "columns": 401,
-  "format": "little-endian float32 metres MSL; row 0 south; column 0 west; x fastest; bilinear interpolation; JSON sidecar",
+  "format": "little-endian float32 metres MSL; row0south; column0west; xfastest; fixed SW-NE diagonal linear interpolation; analytic same-source pads/cavities/solids detail",
+  "interpolation": "fixed SW-NE diagonal, piecewise-linear triangles; explicit analytic flat/sloped pad detail overlays are part of same authoring evaluator",
   "byte_order": "little",
   "altitude_units": "m MSL",
   "row_order": "south to north",
   "column_order": "west to east",
-  "sha256": "bac948d948dbb998bb3e5d169bd5cac467b6f4b4b59602fe7023d22a3aaf3053",
-  "spec_sha256": "af1e87d49c476420e57d43616295745dc147abdd9255f6fe2d2429e2621a4ec6",
+  "sha256": "549403de453e0ba965aa4fb29f0a8646e041f083818eeaca18c7a1870a31c8da",
+  "spec_sha256": "b7ef1e1d651820f1267ca59c4d81db44cdd563c88a2ea7e73db614129e0f1388",
   "engine_import": false
 }

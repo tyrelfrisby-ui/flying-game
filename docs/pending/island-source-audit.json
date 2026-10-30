@@ -1843,5 +1843,23 @@
       ],
       "result": "FAA SUA portal accessible but dynamic name inventory not exposed; FAA publication URL unavailable; domain searches inconclusive. Names remain provisional."
     }
+  },
+  "phase_1a2": {
+    "baseline": "048d9cd",
+    "original_brief": "/Users/tyfrisby/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.prompt.txt",
+    "previous_report": "/Users/tyfrisby/Developer/agent-lanes/aero-playground/logs/codex-island-world-1a-20261030-1009.last.md",
+    "source_of_truth": "Fulloriginalrestatement andTy2026-10-30 decisions1\u20139; Page toolopenfailed again.",
+    "ifr_values_equal_to_baseline": true,
+    "trainer_reference": {
+      "path": "configs/aircraft/c172-like.json",
+      "sha256": "60c4036a1008f8bf297c01d4ab337fc2263bedff0b9fb25403f867b9e8145eb0",
+      "mass_kg": 1043,
+      "power_w": 134000
+    },
+    "moa_name_source": "https://aeronav.faa.gov/afd/02OCT2025/AK_rear_02OCT2025.pdf",
+    "name_finding": "Susitna is real; APprefix marksallfourfictional simulatorzones; noauthoritativeuniquenessclaim.",
+    "new_implementation": "None; generators/reviewartifacts only.",
+    "water_surface_correction": "Completewaterplanes anddifferent-level overlaps/fieldinundation checked; broadcutbeds cannot hidephysical watersurface obstructions.",
+    "final_ifr_handoff": "KPGA primary(5.79,-1.06), secondary(5.95,-0.3), secondary heading102true/095magnetic; locked4317ft and5950/2201ft lengths unchanged. Original IFR input unchanged for Claude reconciliation."
   }
 }
