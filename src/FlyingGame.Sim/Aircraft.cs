@@ -770,6 +770,12 @@ public sealed class Aircraft
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
             Vec3 totalM = aeroMoment;
+            if (Config.WeightShift is not null)
+            {
+                // A flex wing has nothing to deflect: the pilot swings his own mass on the hang strap and the whole
+                // wing follows, so its control axes carry the swing ANGLE. Same call the trim solver makes.
+                totalM += Config.WeightShift.SwingMoment(_elevatorRad, _aileronRad, aeroForce, MassProperties.MassKg);
+            }
             if (ExternalForceWorld.LengthSquared > 1e-9)
             {
                 Vec3 fBody = s.Attitude.Conjugate().Rotate(ExternalForceWorld);

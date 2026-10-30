@@ -494,6 +494,19 @@
     "TrimStick": -0.0909
   },
   {
+    "Id": "hang-glider-like",
+    "Flaps": 0,
+    "VsoKt": 17.69,
+    "SpeedKt": 23,
+    "GlideDeg": 5.333,
+    "GlideRatio": 10.712,
+    "SinkFpm": 216.5,
+    "AlphaDeg": 6.272,
+    "PitchDeg": 0.939,
+    "ElevatorDeg": -14.328,
+    "TrimStick": -0.7499
+  },
+  {
     "Id": "hughes-h4-like",
     "Flaps": 0,
     "VsoKt": 72.89,
@@ -804,6 +817,19 @@
     "PitchDeg": -4.293,
     "ElevatorDeg": 0.748,
     "TrimStick": 0.1301
+  },
+  {
+    "Id": "paraglider-en-b-like",
+    "Flaps": 0,
+    "VsoKt": 15.55,
+    "SpeedKt": 20.22,
+    "GlideDeg": 7.859,
+    "GlideRatio": 7.245,
+    "SinkFpm": 279.9,
+    "AlphaDeg": -1.161,
+    "PitchDeg": -9.019,
+    "ElevatorDeg": 8.202,
+    "TrimStick": 0.4088
   },
   {
     "Id": "pitts-s2b-like",

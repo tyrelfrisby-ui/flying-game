@@ -89,6 +89,11 @@ public static class TrimSolver
             Vec3 bodyVelocity = new(iasMs * Math.Cos(alpha), 0, iasMs * Math.Sin(alpha));
             ControlDeflections controls = new(0, elevatorRad, 0, spoilerFraction, flapFraction);
             (Vec3 force, Vec3 moment) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
+            // On a weight-shift wing x[2] is not an elevator angle at all -- it is how far the pilot has swung, and
+            // the pitching moment is his apparent weight at that offset. Without this the solver is looking for an
+            // elevator that does not exist and never trims.
+            if (config.WeightShift is not null)
+                moment += config.WeightShift.SwingMoment(elevatorRad, 0.0, force, mass);
             if (idleProp && config.Propulsion != null)
             {
                 // The power-off glide is with the engine IDLING: the windmilling prop's drag belongs in it.
@@ -130,6 +135,7 @@ public static class TrimSolver
             ControlDeflections controls = new(0, elevatorRad, 0, spoilerFraction, flapFraction);
             (Vec3 force, _) = AeroModel.Compute(config, tables, bodyVelocity, Vec3.Zero, Vec3.Zero, airDensity, controls);
             if (idleProp && config.Propulsion != null) force += PropModel.Compute(config.Propulsion, 0.0, bodyVelocity, Vec3.Zero, airDensity).Force * PropCount(config);
+            // (the swing changes no FORCE, only the moment, so the glide ratio needs nothing added here)
 
             double velDirX = Math.Cos(alpha), velDirZ = Math.Sin(alpha);
             double drag = -(force.X * velDirX + force.Z * velDirZ);

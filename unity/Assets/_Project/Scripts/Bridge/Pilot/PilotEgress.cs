@@ -191,6 +191,7 @@ namespace FlyingGame.Bridge
 
             if (_pilot == null) return;
             _pilot.Steer = ReadSteer();
+            _pilot.BodyPos = ReadBodyPos();
             _pilot.Tick(dt);
 
             var cam = Cam();
@@ -313,6 +314,16 @@ namespace FlyingGame.Bridge
         {
             if (_touch != null) return _touch.StickAileron;
             return (float)_driver.Inputs.Aileron;
+        }
+
+        /// <summary>Free-fall body position off the PITCH axis, which the canopy does not use: hands neutral is
+        /// the steepest useful track (so a pilot who has just left an aeroplane flies AWAY from it without
+        /// being told to), back is flat and stable and slow, forward is head down and fast. See
+        /// <see cref="FlyingGame.Core.SkydiverAero"/> for what each costs.</summary>
+        private float ReadBodyPos()
+        {
+            float pitch = _touch != null ? _touch.StickElevator : (float)_driver.Inputs.Elevator;
+            return Mathf.Clamp01(0.5f + 0.5f * pitch);
         }
 
         private ChaseCamera Cam()

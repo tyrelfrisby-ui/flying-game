@@ -44,6 +44,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | glider-eb29r-like | up | 46 | 59 | 5.0 | 11.3:1 | 528 | 0.6 | 5.6 | -3.3 | -0.15 |
 | glider-swift-s1-like | up | 35 | 45 | 4.9 | 11.7:1 | 392 | 3.1 | 8.0 | -2.6 | -0.12 |
 | great-lakes-like | up | 45 | 58 | 7.3 | 7.8:1 | 742 | -4.3 | 3.0 | -1.4 | -0.09 |
+| hang-glider-like | up | 18 | 23 | 5.3 | 10.7:1 | 216 | 0.9 | 6.3 | -14.3 | -0.75 |
 | hughes-h4-like | up | 73 | 95 | 5.7 | 10.1:1 | 948 | 0.3 | 5.9 | -5.2 | -0.22 |
 | hughes-h4-like | half | 68 | 88 | 6.2 | 9.1:1 | 975 | -1.5 | 4.7 | -0.2 | -0.04 |
 | hughes-h4-like | full | 64 | 83 | 6.9 | 8.3:1 | 1011 | -3.5 | 3.4 | 4.9 | +0.21 |
@@ -68,6 +69,7 @@ Valley field (1000 ft), windmilling-prop drag included; gliders at half spoiler.
 | pa28-archer-like | up | 53 | 69 | 7.4 | 7.7:1 | 909 | -0.2 | 7.3 | -1.6 | -0.25 |
 | pa28-archer-like | half | 52 | 67 | 8.7 | 6.6:1 | 1021 | -2.3 | 6.4 | -0.4 | -0.09 |
 | pa28-archer-like | full | 50 | 64 | 9.9 | 5.7:1 | 1121 | -4.3 | 5.6 | 0.7 | +0.13 |
+| paraglider-en-b-like | up | 16 | 20 | 7.9 | 7.2:1 | 280 | -9.0 | -1.2 | 8.2 | +0.41 |
 | pitts-s2b-like | up | 58 | 76 | 10.0 | 5.7:1 | 1327 | -3.8 | 6.2 | -4.7 | -0.22 |
 | seminole-like | up | 65 | 85 | 8.1 | 7.0:1 | 1214 | -1.5 | 6.6 | -1.6 | -0.09 |
 | seminole-like | half | 60 | 78 | 8.3 | 6.9:1 | 1141 | -2.7 | 5.6 | 3.1 | +0.14 |
