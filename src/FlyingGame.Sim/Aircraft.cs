@@ -737,7 +737,10 @@ public sealed class Aircraft
             if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
             {
                 double rudderCmd = Config.Controls.Rudder.MaxDeflRad > 1e-6 ? _rudderRad / Config.Controls.Rudder.MaxDeflRad : 0;
-                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, BrakeInput, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, wheelsUp: amphibUp);
+                // The 2-33's wheel brake is ON the dive-brake handle, at the end of its travel: full air
+                // brake is also full brake, whatever the pilot's own brake input is doing (SpoilerConfig).
+                double wheelBrake = Math.Max(BrakeInput, Config.Controls.Spoiler.BrakeFromHandle(_spoilerFraction));
+                (Vec3 gForceWorld, Vec3 gMomentWorld) = LandingGear.Compute(Config, s, rudderCmd, wheelBrake, 0.0, BrakeBias, _lostGear, _pendingBreaks, _gearTouching, _impacts, GearExtension > 0.9 ? Tailwheel : null, wheelsUp: amphibUp);
                 totalF += s.Attitude.Conjugate().Rotate(gForceWorld);
                 totalM += s.Attitude.Conjugate().Rotate(gMomentWorld);
             }

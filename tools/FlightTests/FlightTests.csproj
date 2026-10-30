@@ -32,6 +32,11 @@
       <Link>TestData\challenges\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- The models' rig tables (their moving parts), checked against what the sim can drive. -->
+    <None Include="..\..\docs\models\*-rig.json">
+      <Link>TestData\rigs\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -75,6 +75,15 @@ namespace FlyingGame.Bridge
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+            // A model that brought its own rig moves ITS parts — the same control positions, so the drawn
+            // surfaces and the cockpit always agree with the aeroplane the sim is flying.
+            if (_builder.HasOwnRig)
+                _builder.SetRig(RigInputsNow(_driver.Sim.Aircraft,
+                                             DebugDeflect.HasValue
+                                                 ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
+                                                 : d,
+                                             Time.deltaTime),
+                                Time.deltaTime);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
             _builder.SpinProps(i =>
@@ -84,6 +93,63 @@ namespace FlyingGame.Bridge
                 return eng[i].Feathered ? 0f : eng[i].ThrottleScale <= 0 ? rpm * 0.6f : rpm;   // a dead engine windmills slower
             }, Time.deltaTime);
             if (_driver.Sim.Aircraft.Config.RetractableGear) _builder.SetGearExtension((float)_driver.Sim.Aircraft.GearExtension);
+        }
+
+        // ---- what the model's own rig is fed (AirframeRig) --------------------------------------------------
+
+        private TouchFlightControls _touch; private TowController _tow; private bool _cockpitLooked;
+        private double _energyHeightM = double.NaN, _varioMs;
+        private float _headingFiltDeg = float.NaN;
+
+        /// <summary>The control positions the AERO MODEL is using, plus the instrument readings, in the units
+        /// the rig table asks for.
+        ///
+        /// The stick positions come from RigInputs.FromDeflections, which owns the one sign that has to be got
+        /// right (the sim's elevator is positive trailing-edge down, the rig's is positive stick aft); the trim
+        /// slider needs the same flip, and is done here because it is the pilot's control, not the airframe's.
+        /// β already arrives positive for a relative wind from the right (FlightSimDriver.BetaDeg = asin(v_y / V)).</summary>
+        private FlyingGame.Core.RigInputs RigInputsNow(FlyingGame.Sim.Aircraft ac, in FlyingGame.Core.Aero.ControlDeflections d, float dt)
+        {
+            if (!_cockpitLooked)
+            {
+                // The trim lever and the release knob are the pilot's, not the airframe's: they live on the
+                // controls and the tow, where the player's hands reach them.
+                _touch = GetComponent<TouchFlightControls>();
+                _tow = GetComponent<TowController>();
+                _cockpitLooked = true;
+            }
+            ControlsConfig c = ac.Config.Controls;
+            FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
+                d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
+                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
+
+            // Total-energy variometer: the rate of change of HEIGHT PLUS KINETIC HEIGHT, so a pull-up reads as
+            // the trade it is rather than as lift. Lagged about a second, like the capacity bottle on a real one.
+            double v = _driver.IasMs, alt = _driver.AltitudeM;
+            double he = alt + v * v / (2.0 * 9.80665);
+            if (dt > 1e-4 && !double.IsNaN(_energyHeightM))
+                _varioMs += ((he - _energyHeightM) / dt - _varioMs) * (1.0 - System.Math.Exp(-dt / 1.0));
+            _energyHeightM = he;
+
+            // Magnetic heading. Variation in this world is zero (ChartPanel says so to the pilot), so the
+            // compass reads the sim's own heading: x is north, y east.
+            var fwd = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0));
+            float hdg = Mathf.Atan2((float)fwd.Y, (float)fwd.X) * Mathf.Rad2Deg;
+            if (float.IsNaN(_headingFiltDeg)) _headingFiltDeg = hdg;
+            else _headingFiltDeg += Mathf.DeltaAngle(_headingFiltDeg, hdg) * (1f - Mathf.Exp(-dt / 0.25f));   // a damped card, not a dead one
+            _headingFiltDeg = Mathf.Repeat(_headingFiltDeg, 360f);
+
+            // The trim LEVER's own position. The slider biases the elevator nose-DOWN for positive, and the
+            // lever is positive aft / nose-up, so it is the negative of the bias in stick units.
+            r.Trim = _touch != null ? System.Math.Clamp(-_touch.TrimElevator / Mathf.Max(0.01f, _touch.TrimAuthority), -1.0, 1.0)
+                                    : System.Math.Clamp(-_driver.TrimStick / 0.6, -1.0, 1.0);
+            r.TowRelease = _tow != null ? _tow.KnobPull01 : 0.0;
+            r.AirspeedMph = v * 2.2369363;
+            r.AltitudeFt = alt * 3.2808399;
+            r.VarioKt = _varioMs * 1.9438445;
+            r.HeadingDeg = _headingFiltDeg;
+            r.SideslipDeg = _driver.BetaDeg;
+            return r;
         }
 
         /// <summary>
@@ -534,6 +600,19 @@ namespace FlyingGame.Bridge
         private const float HingeSign = -1f;
         private const float SpoilerMaxRad = 1.05f; // 60° paddle rise at full deploy
 
+        /// <summary>The placed model's own rig (the 2-33's 30 nodes), when it brought one — see AirframeRig.
+        /// While it is in play, its nodes are what the eye sees move; the procedural surfaces underneath still
+        /// deflect, hidden, because the rest of the bookkeeping is hung off them.</summary>
+        private AirframeRig _rig;
+        public bool HasOwnRig => _rig != null;
+
+        /// <summary>Move the model's own moving parts — surfaces, sticks, pedals, levers, needles, yaw string —
+        /// to the sim's current state. Does nothing for a model without a rig.</summary>
+        public void SetRig(in FlyingGame.Core.RigInputs inputs, float dt) => _rig?.Apply(inputs, dt);
+
+        // The type's full travel, so a deflection in radians can be put on the rig's -1..+1 scale. Filled by Build.
+        private float _ailMaxRad = 1f, _eleMaxRad = 1f, _rudMaxRad = 1f;
+
         /// <summary>Move every hinged surface to the sim's current deflections (radians; spoiler 0..1).</summary>
         public void SetDeflections(float aileronRad, float elevatorRad, float rudderRad, float spoilerFrac)
         {
@@ -550,6 +629,10 @@ namespace FlyingGame.Bridge
                 } * c.Gain;
                 c.T.localRotation = Quaternion.AngleAxis(HingeSign * d * Mathf.Rad2Deg, c.AxisUnity);
             }
+            // A model with its own rig moves ITS surfaces on the same deflections — so every caller that poses
+            // an aeroplane (a remote player's, the widget's replay, a render) gets them, not only the live one.
+            _rig?.SetControls(FlyingGame.Core.RigInputs.FromDeflections(aileronRad, elevatorRad, rudderRad, spoilerFrac,
+                                                                        _ailMaxRad, _eleMaxRad, _rudMaxRad));
         }
 
         // ---- spinning propellers (owner 2026-10-04) ----------------------------------------------------------------
@@ -1213,6 +1296,7 @@ namespace FlyingGame.Bridge
             _gearParts.Clear();
             _legParts.Clear();
             _modelParts.Clear();
+            _rig = null;
             UsedModel = false;
         }
 
@@ -1340,6 +1424,10 @@ namespace FlyingGame.Bridge
             Clear();
             _root = root;
             Style st = StyleFor(cfg.Id);
+            ControlsConfig cc = cfg.Controls;
+            _ailMaxRad = cc != null && cc.Aileron.MaxDeflRad > 1e-6 ? (float)cc.Aileron.MaxDeflRad : 1f;
+            _eleMaxRad = cc != null && cc.Elevator.MaxDeflRad > 1e-6 ? (float)cc.Elevator.MaxDeflRad : 1f;
+            _rudMaxRad = cc != null && cc.Rudder.MaxDeflRad > 1e-6 ? (float)cc.Rudder.MaxDeflRad : 1f;
             // Doped fabric over ribs rather than riveted metal: the Cubs, the Stearman, the Jenny, the Decathlon
             // and the 2-33 are linen aeroplanes, and their wings should scallop between ribs, not carry rivets.
             _fabricAircraft = cfg.Id != null && (cfg.Id.StartsWith("pa18") || cfg.Id.StartsWith("j3-cub")
@@ -1661,6 +1749,10 @@ namespace FlyingGame.Bridge
                 if (p != null && (p.name.StartsWith("Decal:") || p.name == "TailSign" || p.name == "LightningBolt")) continue;
                 foreach (Renderer r in p.GetComponentsInChildren<Renderer>(true)) r.enabled = false;
             }
+            // A model we drew ourselves may bring its OWN rig (docs/models/<model>-rig.json): every moving
+            // part already a separate node with its origin on its pivot. Bind it here, on the untouched
+            // instance, so each node's imported pose is its rest pose.
+            _rig = AirframeRig.Bind(inst, AirframeModels.PlacedOwnName(cfg.Id));
             // The model's meshes join the part lists so wing/panel/nose/tail splits cut the real mesh.
             var filters = new List<MeshFilter>();
             foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
@@ -1672,8 +1764,15 @@ namespace FlyingGame.Bridge
             }
             if (talk172) FitTrainerMarks(inst);
             _retractable = cfg.RetractableGear;
-            try { CarveModel(root, filters); }
-            catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
+            // The carve is for a DOWNLOADED model, which arrives as one solid aeroplane: it cuts hinge regions
+            // out of its meshes and skins them to bones. A model with its own rig already HAS those parts,
+            // pivoted where its draughtsman put them — carving it would tear the geometry and deflect it twice.
+            if (_rig != null) Debug.Log("[Airframe] the model's own rig drives its moving parts; the hinge carve is skipped.");
+            else
+            {
+                try { CarveModel(root, filters); }
+                catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
+            }
         }
 
         private static void Kill(Object o)

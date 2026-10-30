@@ -1537,7 +1537,9 @@
       "dragOnly": true,
       "axis": "throttleLever",
       "axisMap": "aftOnly",
-      "plateAreaM2": 1.2
+      "plateAreaM2": 1.2,
+      "wheelBrakeFromSpoiler": 0.9,
+      "wheelBrakeFullSpoiler": 1.0
     }
   },
   "fuselage": {
