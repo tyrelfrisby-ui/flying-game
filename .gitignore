@@ -40,6 +40,14 @@ unity/UserSettings/
 unity/obj/
 unity/Assets/StreamingAssets/aircraft/
 unity/Assets/StreamingAssets/aircraft.meta
+# The model rigs are a GENERATED mirror of docs/models/*-rig.json, written by ConfigSync under the name each rig
+# table declares in its own "model" field. Committing the mirror as well is the trap that let great-lakes-like ship
+# with no runtime config (2026-10-30): the aircraft mirror was gitignored-but-tracked, so a new file reached the
+# player only if someone ran `git add -f`. Do not commit anything under rigs/, and never `git add -f` it.
+# lane/claude-config-mirror declares this mirror in ConfigSync's Mirrors table and tests the rule repo-wide; merge
+# that branch first, then resolve ConfigSync.cs here in its favour (see AGENT-LOG 2026-10-30).
+unity/Assets/StreamingAssets/rigs/
+unity/Assets/StreamingAssets/rigs.meta
 *.csproj.meta
 unity/*.csproj
 unity/*.sln

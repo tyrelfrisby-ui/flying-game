@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **The rigs mirror is no longer committed on this lane, and merging it needs `lane/claude-config-mirror` first (Claude, 2026-10-30).** `unity/Assets/StreamingAssets/rigs/` was gitignored-but-tracked here, the same trap that let great-lakes-like ship with no runtime config: `git add` on a new rig mirror does nothing, only `git add -f` works, and nothing notices. The mirror is now untracked and gitignored; `ConfigSync` on this lane still writes it at editor load, so the lane works standing alone. **Ty: merge order is `config-mirror`, then `flow-plates`, then `extra-cockpit`, then `sgs233-rig`.** `ConfigSync.cs` WILL conflict when this lane merges after `config-mirror` — both rewrote the file from the same base. The resolution is fixed: **take `config-mirror`'s version** (its `Mirrors` table already declares the rigs mirror and derives the destination name from each rig table's own `model` field), **drop this lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written** — that call clears an editor-side cache and `config-mirror`'s generic sync cannot make it, because `AirframeRig` does not exist on its base. **This lane is already pushed**, so the remote still carries the committed mirror until you push this fix.
 - **The Extra's cockpit wants a flight on a device (Claude, 2026-10-30).** All 60 rig nodes are bound and measured correct in the editor (worst pivot error 0.1 mm), but nobody has sat in it. Worth checking: (a) the REAR seat is the default view and the eye height feels right — OPTIONS > Display has a seat picker; (b) the sequence card — tap OPTIONS > Display > Card > Choose PDF, pick a sequence off the device or iCloud Drive, step pages, and Default to put the IAC card back; **this is the only part that cannot be tested anywhere but a device**, because the picker and the rasteriser are iOS's (UIDocumentPickerViewController + PDFKit); (c) the canopy — OPTIONS has Shut/Open, it refuses to open above 60 kt and shuts itself if you accelerate with it open; (d) bail out and watch the real canopy leave, and confirm the aeroplane stays canopy-less until the flight is reset.
 - **Four gauges on the Extra's panel have no sim behind them (Claude, 2026-10-30), and you should decide whether that is acceptable.** The sim has no oil, no cylinder heads, no manifold and no fuel quantity, so manifold pressure, oil pressure, oil temperature and CHT are a PRESENTATION model built from throttle, rpm and ambient pressure (`CockpitRigState.FillEngineGauges`, marked (P)), tuned so the needles sit inside the dial markings the model is drawn with. The FUEL gauge reads full always, because an engine that cannot run dry should not have a needle falling toward E. Nothing here reaches the flight model. The alternative is a real engine-systems model in Sim, which is a bigger piece of work and a physics change this lane was told not to make.
 - **Codex: the Extra's ASI prose and its map disagree (Claude, 2026-10-30).** `docs/models/ea300-own-RIG.md` says the ASI needle "rests at 0 below 40", but the map in `ea300-own-rig.json` is 0 kt -> 0 deg, 40 -> 25, 260 -> 335, so the needle lifts off the peg smoothly from a standstill. The DATA is the better behaviour (that is what a real ASI does) and it is what the game now draws; the prose is the loose part. One line in the doc, no rebuild.
@@ -53,6 +54,44 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-10-30 — the rigs mirror stops being committed (Claude)
+
+`unity/Assets/StreamingAssets/rigs/` was gitignored **and** tracked on this lane — `docs/models/ea300-own-rig.json`
+mirrored to `extra-300-like-own.json` — which is exactly the trap that shipped the Great Lakes with no runtime config.
+In that state `git add` on a new mirror silently does nothing and only `git add -f` works, so a rebuilt or renamed
+rig reaches the player only if somebody remembers the flag.
+
+- `.gitignore`: `unity/Assets/StreamingAssets/rigs/` and `rigs.meta`.
+- `git rm -r --cached unity/Assets/StreamingAssets/rigs unity/Assets/StreamingAssets/rigs.meta`. No `git add -f`
+  anywhere; the files stay on disk and `ConfigSync` rewrites them on editor load, so the cockpit still animates.
+- `rigs.meta` sits BESIDE the directory, not inside it, so `git rm -r --cached .../rigs` misses it. It took a second
+  `git ls-files | git check-ignore --no-index --stdin -v` to notice. Mind the `--no-index`: without it `check-ignore`
+  says nothing about tracked files, which is precisely the set in question.
+
+Tracked-but-ignored on this lane is now the 62 aircraft configs and `build/cg-check.csv` only — both of which are
+`lane/claude-config-mirror`'s to remove, by design. `StreamingAssetsTests` is deliberately NOT ported here: its
+`NoTrackedFileIsGitignored` check would fail on those 62, and it arrives with the branch that deletes them.
+
+**Why the rigs row lives on `config-mirror` and not here.** The destination name is not a mapping anybody should
+type: a rig table declares the model it belongs to in its own `model` field, and that is what names the file the game
+looks for. A fixed source→dest table would hold a second copy of something the file already says, and a rebuilt rig
+that changed its model name would mirror to the old path and go on looking right. So `config-mirror`'s `Mirror` gained
+a content resolver rather than a name field, and its row — `new("docs/models", "rigs", "*-rig.json", destGlob:
+"*.json", nameFromContent: RigModelName)` — matches zero files on `split-surfaces` and picks this lane's rig up the
+moment it merges. Verified there against this very file: it landed as `extra-300-like-own.json`, byte-identical,
+and was swept by name when the source was removed.
+
+**Gates.** Suite **4 failed / 790 passed / 3 skipped** — the baseline four (Pitts ground handling x3, flat-spin
+smoke). That 4 is flattered, and worth knowing before anyone reads it as clean:
+`EveryAircraftPassesTheNewAirplaneProtocol` passes here only because this worktree holds an **untracked**
+`great-lakes-like.json` that a Unity run left behind. A fresh clone of this branch would show 5. That is the trap
+itself, demonstrated one more time, and the reason `config-mirror` was measured in a brand-new worktree.
+`** BUILD SUCCEEDED **`, installed on the iPad mini, and the built player carries the rig at
+`Data/Raw/rigs/extra-300-like-own.json`.
+
+**Recommended merge order:** `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`. `config-mirror` first because it removes the aircraft trap and adds the tests everything else assumes; `flow-plates` second because it is independent and takes the failure baseline from 4 to 3, leaving only the three Pitts ground-handling tests awaiting your feel-test.
+
 ### 2026-10-30 — Claude · lane/claude-extra-cockpit · the Extra 300's cockpit is wired to the sim
 
 Branched off `lane/codex-extra-cockpit` 073f113. Physics and configs untouched, as asked.
