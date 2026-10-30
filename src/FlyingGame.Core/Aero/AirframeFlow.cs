@@ -28,6 +28,7 @@ public sealed class AirframeFlow
         public bool Vertical;            // the fin (normal = y), else a horizontal surface (normal = z)
         public double[] S = System.Array.Empty<double>(), Le = System.Array.Empty<double>(), Te = System.Array.Empty<double>(), Plane = System.Array.Empty<double>();
         public double SMin, SMax;
+        public double SInLo = double.MaxValue, SInHi = double.MinValue;   // the span the body owns, not the plate (empty: lo > hi)
     }
 
     private readonly List<Plate> _plates = new();
@@ -36,7 +37,7 @@ public sealed class AirframeFlow
 
     /// <summary>The fuselage as measured on the model: at stations <paramref name="x"/> (descending, nose first), its radius
     /// and the height of its axis (body z).</summary>
-    public void SetFuselage(double[] x, double[] radius, double[] axisZ) { if (x != null && x.Length >= 2) { _px = Rev(x); _pr = Rev(radius); _pz = Rev(axisZ); } }   // (kept tail first: ascending x)
+    public void SetFuselage(double[] x, double[] radius, double[] axisZ) { if (x != null && x.Length >= 2) { _px = Rev(x); _pr = Rev(radius); _pz = Rev(axisZ); ClipPlatesToSkin(); } }   // (kept tail first: ascending x)
 
     private double AxisAt(double x)
     {
@@ -100,6 +101,69 @@ public sealed class AirframeFlow
             });
         }
         // (a pair of plates the same surface's two halves listed apart stay two plates: each covers its own span)
+        ClipPlatesToSkin();
+    }
+
+    private const double Eta = 0.03;   // how far off a plate's face KeepOut stands a point
+
+    /// <summary>Does this plate occupy the station <paramref name="s"/> — is there a surface there at all?</summary>
+    private static bool Occupies(Plate p, double s) => s >= p.SMin && s <= p.SMax && !(s > p.SInLo && s < p.SInHi);
+
+    /// <summary>A surface starts at the fuselage skin. Over the span where a plate's own face lies inside the body — or so
+    /// close outside it that there is no room to stand <see cref="Eta"/> off that face and still be clear of the body — the
+    /// plate is not an obstacle; the body is, and it alone. Without this a marker at a wing or tail root is caught between
+    /// two keep-outs whose feasible sets do not overlap: the plate pushes it to the face, the body pushes it radially back
+    /// through the face, and neither ever lets go. (It is not enough to drop the span that is merely BURIED — the Extra's
+    /// stabiliser root emerges 17 mm outside a 206 mm body radius and still leaves no room, which is why dropping only the
+    /// buried span cleared the tail and then deadlocked again at the wing root.)</summary>
+    private void ClipPlatesToSkin()
+    {
+        foreach (var p in _plates)
+        {
+            const int n = 240;
+            int first = -1, last = -1;
+            for (int i = 0; i <= n; i++)
+                if (!RoomBesideFace(p, p.SMin + (p.SMax - p.SMin) * i / n)) { if (first < 0) first = i; last = i; }
+            if (first < 0) { p.SInLo = double.MaxValue; p.SInHi = double.MinValue; continue; }
+            double At(int i) => p.SMin + (p.SMax - p.SMin) * i / n;
+            // The scan only brackets the edge; bisect to it, then stand 5 mm clear on the body's side of the line. A
+            // cutout a few mm too WIDE costs nothing (the body guards that span anyway); a few mm too narrow leaves the
+            // deadlock exactly where the scan stepped over the boundary.
+            p.SInLo = first == 0 ? p.SMin : Edge(p, At(first), At(first - 1)) - 0.005;
+            p.SInHi = last == n ? p.SMax : Edge(p, At(last), At(last + 1)) + 0.005;
+        }
+    }
+
+    /// <summary>Bisect for the station where the plate first has room beside it: noRoom has none, hasRoom does.</summary>
+    private double Edge(Plate p, double noRoom, double hasRoom)
+    {
+        for (int i = 0; i < 24; i++)
+        {
+            double mid = 0.5 * (noRoom + hasRoom);
+            if (RoomBesideFace(p, mid)) hasRoom = mid; else noRoom = mid;
+        }
+        return hasRoom;
+    }
+
+    /// <summary>Is there room to stand Eta off BOTH faces of this plate at station s, anywhere along its chord, without
+    /// being inside the body? Both faces, because a marker arrives from whichever side it likes.</summary>
+    private bool RoomBesideFace(Plate p, double s)
+    {
+        double le = Lerp(p.S, p.Le, s), te = Lerp(p.S, p.Te, s), plane = Lerp(p.S, p.Plane, s);
+        const int nx = 6;
+        for (int i = 0; i <= nx; i++)
+        {
+            double x = te + (le - te) * i / nx, R = RadiusAt(x);
+            if (R <= 0.02) continue;
+            double az = AxisAt(x);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                double y = p.Vertical ? plane + side * Eta : s;
+                double z = p.Vertical ? -s : plane + side * Eta;
+                if (new Vec3(0, y, z - az).Length <= R * 1.02) return false;
+            }
+        }
+        return true;
     }
 
     private static int Nearest(List<(double s, double le, double te, double plane)> st, double s)
@@ -227,14 +291,14 @@ public sealed class AirframeFlow
         foreach (var p in _plates)
         {
             double s = p.Vertical ? -to.Z : to.Y;
-            if (s < p.SMin || s > p.SMax) continue;
+            if (!Occupies(p, s)) continue;
             double le = Lerp(p.S, p.Le, s), te = Lerp(p.S, p.Te, s), plane = Lerp(p.S, p.Plane, s);
             if (to.X > le || to.X < te) continue;
             double e0 = (p.Vertical ? from.Y : from.Z) - plane, e1 = (p.Vertical ? to.Y : to.Z) - plane;
             if (e0 * e1 < 0 || System.Math.Abs(e1) < 0.03)
             {
                 double side = e0 != 0 ? System.Math.Sign(e0) : (e1 != 0 ? System.Math.Sign(e1) : 1);
-                double eta = side * 0.03;
+                double eta = side * Eta;
                 to = p.Vertical ? new Vec3(to.X, plane + eta, to.Z) : new Vec3(to.X, to.Y, plane + eta);
             }
         }
@@ -251,7 +315,9 @@ public sealed class AirframeFlow
         return to;
     }
 
-    /// <summary>Inside a body (for the tests): in the fuselage, or within <paramref name="tol"/> of a plate's face.</summary>
+    /// <summary>Inside a body (for the tests): in the fuselage, or within <paramref name="tol"/> of a plate's face.
+    /// <paramref name="tol"/> must stay below <see cref="Eta"/>: the plate span is clipped so that there is room to stand
+    /// Eta off a face and still be clear of the body, so a tolerance wider than that asks for room nothing promises.</summary>
     public bool Inside(Vec3 r, double tol = 0.01)
     {
         double R = RadiusAt(r.X);
@@ -259,7 +325,7 @@ public sealed class AirframeFlow
         foreach (var p in _plates)
         {
             double s = p.Vertical ? -r.Z : r.Y;
-            if (s < p.SMin || s > p.SMax) continue;
+            if (!Occupies(p, s)) continue;
             double le = Lerp(p.S, p.Le, s), te = Lerp(p.S, p.Te, s), plane = Lerp(p.S, p.Plane, s);
             if (r.X <= le && r.X >= te && System.Math.Abs((p.Vertical ? r.Y : r.Z) - plane) < tol) return true;
         }

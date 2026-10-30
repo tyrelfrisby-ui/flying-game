@@ -1,6 +1,20 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **Ty's answers of 2026-10-30, recorded so they outlive the chat (Claude).** Ten open questions went to Ty and all ten came back:
+  - **The Extra's four unbacked gauges -> build real engine systems in Sim.** Oil, cylinder heads, manifold and a fuel quantity that burns down. A physics change, its own lane, not started. It retires the presentation model in `CockpitRigState.FillEngineGauges`.
+  - **EA300 GPL -> closed. Ty: "I don't consider this to be based on his drawing."** His determination on the facts; the item is off this list. But `docs/models/ea300-own-PROVENANCE.md` still says the geometry was measured from the FlightGear mesh and **needs rewriting to match** -- not yet done.
+  - **J-3 63 in chord -> wait for Codex's corrected model**, then change aero and model in one commit so the drawn and the flown wing never disagree.
+  - **StreamingAssets `git add -f` trap -> Claude's call**, which is: untrack all four mirrors, have `BuildScript` call `ConfigSync.Sync()` itself so the build PRODUCES its data instead of inheriting it from an `[InitializeOnLoad]` side-effect, fail the build when a config has no mirror, and make ConfigSync DELETE stale mirrors -- it only ever copies today, so a renamed config leaves its old self in the player for good. Not started; it is a build change on the trunk.
+  - **Pitts ground handling -> Ty has not flown it; the three tests stay red.** Nothing forced green.
+  - **Crevasses -> fatal, but only where they are drawn big enough to see and avoid from the pattern.** Needs Codex to draw them at the size the physics uses.
+  - **Extra span 7.43 vs 7.99 m -> find out which variant we are building first** (EA300/L is 8.00 m, SC is 7.50 m) before touching the config.
+  - **Great Lakes stall -> back-solve CLmax from the published 57 mph**, and write down that the derivation ran backwards.
+  - **Flow plates -> fix properly, a surface starts at the skin.** DONE, see the Log entry below.
+  - **Lanes -> push the finished one, clear the dead worktrees.** Done as far as is safe; see the Log.
+- **The Extra's wing has one bad measurement station, and it costs roll rate (Claude, 2026-10-30).** In `configs/aircraft/extra-300-like.json` at y = +-2.523 m, THREE values jump and then snap back, in both `wing` and `wing-aileron`: z goes to +0.049 where every neighbour is -0.0735 (12.2 cm up), the aileron hinge x to -0.562 against an interpolated -0.681 (22 cm forward), and the aileron chord to 0.493 against an interpolated 0.338 (+46 %). The wing's own chord there (0.928) sits exactly on the taper, so the station was measured fine and the z/aileron probe caught something standing proud -- the hinge bracket or a balance horn. That strip is ~0.60 m of span, so the inflated chord adds about **+9 % aileron area per side**: the Extra's roll rate is likely several percent high from one probe. **Claude's suggestion:** interpolate the station from its neighbours and MEASURE the roll-rate change; ask Codex to re-measure y = +-2.523 on the model first, because if the model really is kinked there the config is right and the fix reverses; and do it in the span-variant lane so the wing is touched once, not twice. Untouched so far.
+- **26 of 28 branches had never been pushed (Claude, 2026-10-30).** Only `lane/claude-extra-cockpit` and `lane/claude-j3-edo1320` exist on GitHub; everything else lives on one Mac and nowhere else. **Ty: say the word and I push the finished lanes.** I did not put eleven branches on a public repo unasked.
+- **`main` is a week behind and is not where work lands (Claude, 2026-10-30).** `main` is at `860dd96` (10-23); `split-surfaces` is at `1b67dd5` (10-28) and is the real integration branch. NOTHING is merged into `main`, so "is it merged yet" asked against `main` is always no -- which is how the worktree cleanup first came back empty. **Ty: either fast-forward `main` to `split-surfaces`, or say plainly that `split-surfaces` is the trunk.**
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -41,6 +55,51 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-30 - Claude - lane/claude-flow-plates - a surface starts at the skin, and the flat-spin smoke check is green
+
+`AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin` had been red since the Extra's tail moved to the arm its
+drawing gives it. The earlier note in this log guessed the cause was a plate covering the part of a tailplane BURIED in
+the fuselage. **That guess was wrong, and it is why the first attempt at a fix failed at the wing root.**
+
+**What was actually happening.** The failing marker sat at `(-4.079, 0.122, -0.170)`: 3.6 mm OUTSIDE the fuselage skin
+(|rho| 0.2096 against R 0.206) and 15.8 mm from the stabiliser's plane, inside the 20 mm tolerance. Nothing was buried.
+At that station the body's lower surface is at z = -0.1657 while the stabiliser's keep-out band runs -0.206 .. -0.166:
+**the set of points clear of the stabiliser AND outside the body is empty there.** `KeepOut` pushed the marker to the
+plate's face, the fuselage pushed it radially back through that face, and the two never agreed. A corner, not a burial
+-- the stabiliser root emerges 17 mm proud of a 206 mm body radius and still leaves nowhere to stand.
+
+**The fix.** Each plate now carries the span the BODY owns (`SInLo..SInHi`), computed at construction and again in
+`SetFuselage` (a measured fuselage replaces the analytic one) by asking one question at each station: is there room to
+stand `Eta` off BOTH faces of this plate and still be clear of the body? Where there is not, the plate is no obstacle
+-- the body is, and it alone. `KeepOut` and `Inside` both go through one `Occupies(p, s)`. A scan brackets the edge, a
+bisection finds it, then the cutout is widened 5 mm: too wide costs nothing because the body guards that span anyway,
+while a few mm too narrow leaves the deadlock exactly where the scan stepped over the boundary -- which is what
+happened on the first two runs, at 0.4984 m and again at 0.506 m on the wing.
+
+The cutouts are not tuned; they fall out of the fuselage shape. On the Extra the wing gives way to the body at
++-0.513 m (the fuselage radius there is 0.500), the stabiliser at +-0.182 m, the fin root from 0.146 to 0.220 m.
+
+**`Velocity` was deliberately NOT changed.** A wing root really does disturb the air, and the root wake pocket is
+something Ty asked for by name (2026-10-13). The cutout answers "where is there solid structure a marker must not pass
+through", which is `KeepOut`'s and `Inside`'s question alone. The flow field is untouched.
+
+**Blast radius: none on flight.** `AirframeFlow` is referenced only by `SmokeTrail` and by these tests; forces come
+from the surface strips in `Aircraft.cs`. The plates being wrong cost nothing aerodynamically -- this is a geometry fix
+to a visual system. Worth knowing before anyone fears a shared-code change here.
+
+**Tests.** Two new, because a fix verified on one aeroplane is not verified:
+- `NoAirframeTrapsASmokeMarkerInItsOwnRoot` -- a Theory over **all 32 configs**, releasing rings of markers just
+  outside the skin all down the body (the corner itself) plus a sheet upstream. Release points that start inside a
+  surface are dropped, because smoke cannot be released inside a wing and a ring round the body knows nothing about a
+  tailplane mounted on the body axis (that is how the Cub, Stearman, Jenny, Sabre, Great Lakes and five others first
+  "failed"); the surviving count is asserted, so dropping them can never be how the test passes.
+- `APlateIsNoObstacleWhereTheBodyIsButStillOneOutboard` -- pins both halves of the rule on the two points that used to
+  deadlock, and pins that the surfaces are still solid outboard. Only clipping makes the corner solvable; only keeping
+  the rest makes the smoke go round the tailplane at all.
+
+`KeepOut`'s hardcoded 0.03 standoff is now the same `Eta` the clip is derived from, so the two cannot drift apart and
+silently reopen the deadlock, and `Inside`'s doc now says its tolerance must stay below `Eta`.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
