@@ -16,6 +16,7 @@ Shader "FlyingGame/Terrain"
             #pragma target 3.0
             #pragma vertex vert
             #pragma fragment frag
+            #pragma shader_feature_local __ TERRAIN_GREEN_PROBE
             #include "UnityCG.cginc"
             #include "UrbanGlow.cginc"
             #include "PowellSandstone.cginc"
@@ -121,7 +122,12 @@ Shader "FlyingGame/Terrain"
                 float joint=0;
                 return float4(joint,couloir,rib,opticalShape);
             }
+            #if defined(TERRAIN_GREEN_PROBE)
+            float _TerrainGreenProbeMode;
+            float4 frag (v2f i, float facing : VFACE) : SV_Target
+            #else
             fixed4 frag (v2f i, float facing : VFACE) : SV_Target
+            #endif
             {
                 // Explicit world-space half-space rejects submerged terrain even at grazing angles.
                 if (_ReflectionRendering > .5)
@@ -137,6 +143,12 @@ Shader "FlyingGame/Terrain"
                 else clip(facing);
                 float3 l = dot(_BubbleSunDir.xyz, _BubbleSunDir.xyz) > 0.001 ? normalize(_BubbleSunDir.xyz) : normalize(float3(0.4, 0.8, -0.4));
                 float3 n=normalize(i.n);
+                #if defined(TERRAIN_GREEN_PROBE)
+                // Editor-only float readback. Normal variant contains no probe arithmetic.
+                if(_TerrainGreenProbeMode<1.5) return float4(i.wp,1);
+                if(_TerrainGreenProbeMode<2.5) return i.c;
+                if(_TerrainGreenProbeMode<3.5) return float4(i.geology,normalize(i.n).y,1);
+                #endif
                 float3 albedo=i.c.rgb;
                 float forest=saturate(-i.c.a);
                 float alpine=mountainRegion(i.wp.xz,_MountainAlpine);
@@ -278,7 +290,28 @@ Shader "FlyingGame/Terrain"
                     // Do not erase that thin edge a second time with the rock mask.
                     float3 meadow=lerp(float3(.34,.41,.22),float3(.49,.47,.32),
                         saturate((i.wp.y-treeLine)/500));
+                    // Alaska headwall toes south of ALL glacier heads are dry tundra.
+                    // The padded Alpine meadow footprint reaches here, but its real
+                    // core ends 900 m inside that bound. Correct the meadow SOURCE,
+                    // before either meadow blend; snow/ice deposition stays unchanged.
+                    float southHead=min(_GlacierAxes[0].y,min(_GlacierAxes[1].y,_GlacierAxes[2].y));
+                    float southHeads=1-smoothstep(southHead-400,southHead,i.wp.x);
+                    float outsideMeadowCore=smoothstep(_MountainAlpine.z-900,_MountainAlpine.z-700,i.wp.x);
+                    float sourceMeadowChroma=meadow.g-max(meadow.r,meadow.b);
+                    float headwallMeadow=alaska*outsideMeadowCore*southHeads
+                        *smoothstep(.012,.055,sourceMeadowChroma);
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeOriginalMeadow=meadow;
+                    #endif
+                    meadow=lerp(meadow,lerp(float3(.43,.40,.35),float3(.55,.53,.48),broad),headwallMeadow);
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeBeforeEarlyMeadow=albedo;
+                    float probeEarlyMeadowWeight=mountain*(1-exposed)*(1-forest);
+                    #endif
                     albedo=lerp(albedo,meadow,mountain*(1-exposed)*(1-forest));
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeAfterEarlyMeadow=albedo;
+                    #endif
                     // Alpine upper ridges recover winter cover; low lake meadows retain
                     // their high sunny snowline. Aspect lowers the shaded-face line.
                     float snowLine=lerp(3000,1770,alaska)-aspect*lerp(300,240,alaska);
@@ -401,6 +434,11 @@ Shader "FlyingGame/Terrain"
                     gradient=lerp(gradient,alaskaGradient,alaska);
                     n=normalize(n-gradient);
                     float glacialSetting=0, corridorVegetation=0;
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float probeDistance=1e8;
+                    float4 probeCorridors=float4(0,0,0,0);
+                    float3 probeBeforeGlacier=albedo;
+                    #endif
                     if(alaska>.001)
                     {
                         float glacier=0, iceAcross=0, iceAlong=0, iceWidth=1, iceLength=1, marginDistance=1000;
@@ -437,6 +475,10 @@ Shader "FlyingGame/Terrain"
                             // wide axis rectangles reaching into the neighbouring alpine meadow.
                             float endDistance=max(0,max(-along,along-len));
                             float corridorDistance=length(float2(across,endDistance));
+                            #if defined(TERRAIN_GREEN_PROBE)
+                            probeDistance=min(probeDistance,corridorDistance);
+                            probeCorridors[gi]=corridorDistance;
+                            #endif
                             float wallBiome=alaska*(1-alpineMeadow)
                                 *(1-smoothstep(width+1200,width+1800,corridorDistance));
                             glacierSkyView=max(glacierSkyView,wallBiome);
@@ -548,13 +590,22 @@ Shader "FlyingGame/Terrain"
                     }
                     // Colony wall-foot grass came from meadow + residual vertex forest.
                     // Keep brown tundra on corridor walls only; no regional low-altitude fallback.
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeAfterGlacier=albedo;
+                    #endif
                     float colonySetting=alaska*(1-glacialSetting)*glacierSkyView*(1-snow);
                     float3 tundra=lerp(float3(.43,.40,.35),float3(.55,.53,.48),broad);
                     albedo=lerp(albedo,tundra,colonySetting);
                     forest*=1-max(colonySetting,glacierSkyView);
                     // Final low alpine meadow finish also excludes any corridor foreland white.
                     float meadowFinish=alpineMeadow*smoothstep(.72,.92,macroNormal.y);
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeBeforeMeadow=albedo;
+                    #endif
                     albedo=lerp(albedo,meadow,meadowFinish*(1-glacierSkyView));
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    float3 probeAfterMeadow=albedo;
+                    #endif
                     // Meadow must not inherit Alaska's rib normal or glacier-bounce lighting
                     // through the overlapping padded region. Retain the actual surface slope.
                     n=normalize(lerp(n,macroNormal,meadowFinish));
@@ -571,8 +622,32 @@ Shader "FlyingGame/Terrain"
                         *smoothstep(.012,.055,vegetationChroma);
                     float3 dryToe=lerp(float3(.34,.31,.27),float3(.49,.46,.40),broad);
                     albedo=lerp(albedo,dryToe,greenToe);
+                    #if defined(TERRAIN_GREEN_PROBE)
+                    if(_TerrainGreenProbeMode<4.5) return float4(alpineSnowDomain,alaska,alpineMeadow,mountain);
+                    if(_TerrainGreenProbeMode<5.5) return float4(snow,meadowFinish,canopy,forest);
+                    if(_TerrainGreenProbeMode<6.5) return float4(glacierSurface,glacierSkyView,corridorVegetation,glacialSetting);
+                    if(_TerrainGreenProbeMode<7.5) return float4(probeDistance,colonySetting,greenToe,vegetationChroma);
+                    if(_TerrainGreenProbeMode<8.5) return float4(meadow,1);
+                    if(_TerrainGreenProbeMode<9.5) return float4(probeBeforeGlacier,1);
+                    if(_TerrainGreenProbeMode<10.5) return float4(probeAfterGlacier,1);
+                    if(_TerrainGreenProbeMode<11.5) return float4(probeBeforeMeadow,1);
+                    if(_TerrainGreenProbeMode<12.5) return float4(probeAfterMeadow,1);
+                    if(_TerrainGreenProbeMode<13.5) return float4(albedo,1);
+                    if(_TerrainGreenProbeMode<14.5) return probeCorridors;
+                    if(_TerrainGreenProbeMode<15.5) return float4(probeBeforeEarlyMeadow,1);
+                    if(_TerrainGreenProbeMode<16.5) return float4(probeAfterEarlyMeadow,1);
+                    if(_TerrainGreenProbeMode<17.5) return float4(probeEarlyMeadowWeight,mountainRock,exposed,
+                        smoothstep(_MountainAlpine.z-900,_MountainAlpine.z-700,i.wp.x));
+                    if(_TerrainGreenProbeMode<18.5) return float4(probeOriginalMeadow,1);
+                    if(_TerrainGreenProbeMode<19.5) return float4(headwallMeadow,southHeads,outsideMeadowCore,sourceMeadowChroma);
+                    if(_TerrainGreenProbeMode<20.5) return float4(macroNormal,aspect);
+                    return float4(broad,treeLine,redrock,headwallMeadow);
+                    #endif
 
                 }
+                #if defined(TERRAIN_GREEN_PROBE)
+                return float4(-99999,-99999,-99999,-99999);
+                #endif
                 if(powellMask>.001)
                 {
                     float3 sandstone;
