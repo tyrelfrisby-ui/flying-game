@@ -14,8 +14,9 @@ OUT = ROOT/'renders/iac-pitts'
 MODELS = ROOT/'unity/Assets/_Project/Resources/Models'
 
 
-def render(path, output, eye, target, scale, include=None, label='', up=(0,1,0), perspective=False, triangle_filter=None):
-    glb = Glb(path); w,h = (2400,1800) if output.endswith(('rear-panel-straight.png','rear-panel-before.png')) else (1600,1200)
+def render(path, output, eye, target, scale, include=None, label='', up=(0,1,0), perspective=False, triangle_filter=None, image_size=None, clip_skin=False, view_kind=None):
+    glb = Glb(path); w,h = (2400,1800) if str(output).endswith(('rear-panel-straight.png','rear-panel-before.png')) else (1600,1200)
+    if image_size: w,h=image_size
     eye,target,up = map(lambda x:np.array(x,dtype=float),(eye,target,up))
     forward = target-eye; forward /= np.linalg.norm(forward)
     right = np.cross(forward,up); right /= np.linalg.norm(right)
@@ -38,14 +39,29 @@ def render(path, output, eye, target, scale, include=None, label='', up=(0,1,0),
             if mat.get('alphaMode') == 'BLEND': continue
             pos = glb.array(p['attributes']['POSITION'])
             matrix=world[node_index];pos=pos@matrix[:3,:3].T+matrix[:3,3]
+            # Sutherland-Hodgman clip of the near-side fuselage skin at raw Z=0.
+            uv = glb.array(p['attributes']['TEXCOORD_0']) if 'TEXCOORD_0' in p['attributes'] else None
+            inds = glb.array(p['indices']).reshape(-1,3) if 'indices' in p else np.arange(len(pos)).reshape(-1,3)
+            if clip_skin and name.startswith(('Fuselage','Headrest','Cockpit_Liner')):
+                clipped=[]; clipped_uv=[]
+                for ids in inds:
+                    polygon=[(pos[i],uv[i] if uv is not None else np.zeros(2)) for i in ids]
+                    result=[]
+                    for a,b in zip(polygon,polygon[1:]+polygon[:1]):
+                        ina=a[0][2]>=0;inb=b[0][2]>=0
+                        if ina:result.append(a)
+                        if ina!=inb:
+                            t=-a[0][2]/(b[0][2]-a[0][2]);result.append((a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1])))
+                    for i in range(1,len(result)-1):
+                        for vtx,tex in (result[0],result[i],result[i+1]):clipped.append(vtx);clipped_uv.append(tex)
+                if not clipped:continue
+                pos=np.array(clipped);uv=np.array(clipped_uv) if uv is not None else None;inds=np.arange(len(pos)).reshape(-1,3)
             v = (pos-eye)@basis
             if perspective:
                 focal=w/(2*np.tan(np.radians(scale)/2))
                 screen=np.column_stack((w/2+v[:,0]*focal/np.maximum(v[:,2],.001),h/2-v[:,1]*focal/np.maximum(v[:,2],.001)))
             else:
                 screen = np.column_stack((w/2+v[:,0]*w/scale,h/2-v[:,1]*w/scale))
-            inds = glb.array(p['indices']).reshape(-1,3) if 'indices' in p else np.arange(len(pos)).reshape(-1,3)
-            uv = glb.array(p['attributes']['TEXCOORD_0']) if 'TEXCOORD_0' in p['attributes'] else None
             col = np.array(mat.get('pbrMetallicRoughness',{}).get('baseColorFactor',[1,1,1,1])[:3])
             col = np.where(col<=.0031308,col*12.92,1.055*np.power(col,1/2.4)-.055)*255
             for ids in inds:
@@ -81,9 +97,10 @@ def render(path, output, eye, target, scale, include=None, label='', up=(0,1,0),
                 else: rgb = np.broadcast_to(col*shade,(*mask.shape,3))
                 frame[sl][mask] = np.clip(rgb[mask],0,255).astype('uint8'); depth[sl][mask] = zz[mask]
     im = Image.fromarray(frame); draw = ImageDraw.Draw(im)
-    draw.rectangle((0,0,w,40),fill=(27,35,46)); draw.text((18,14),label+(' | CPU GLB / perspective; glass omitted' if perspective else ' | CPU GLB / orthographic panel isolation'),fill='white')
+    draw.rectangle((0,0,w,40),fill=(27,35,46)); draw.text((18,14),label+(' | CPU GLB / perspective; glass omitted' if perspective else ' | CPU GLB / '+(view_kind or 'orthographic panel isolation')),fill='white')
     OUT.mkdir(parents=True,exist_ok=True); im.save(OUT/output)
     print(OUT/output)
+    return dict(eye=eye,basis=basis,w=w,h=h,scale=scale,perspective=perspective,path=OUT/output)
 
 
 def main():

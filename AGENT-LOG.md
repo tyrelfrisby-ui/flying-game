@@ -814,3 +814,72 @@ Straight-on before/after views use the same centre/projection, 2400×1800 and 0.
 - `SequenceCard_Face` node/material contract unchanged: glTF baseColorTexture/TEXCOORD_0, U increases pilot-right, V=0 at top, raw normal +X toward pilot. Identity transforms with baked raw coordinates, before glTFast handedness/placement. Raw centres Extra (1.2032,0.228,0), Pitts (0.8087,0.015,0), Great Lakes (1.6407,0.005,0). Find the renderer by name. Reusable `Models/sequence-card/sequence-card-holder`: centre (0.0012,0,0) relative to reference panel; mount on a real future Decathlon rear panel, never add a speculative front mount.
 - PDF upload/page selection/reset remains app work, untouched here: official 2026 IAC Power Sportsman Known **page 4** default; runtime reset `SequenceCards/sportsman-known-2026`; clone material per aircraft; rasterize upright with white letterbox to 8.5:11, preserve all figures and persist selection through livery/model swaps. Retain prior/default on invalid/cancel.
 - All `RearPanel_<function>_Face` textures are static review art; wire live gauges/heading using the app's existing approach if desired. Single compass is `RearPanel_Compass_Face`, **not PanelCompass_Face**; Extra's obsolete PanelCompass_* nodes are gone. On other-lane cockpit reconciliation preserve one card/compass, prefer its working rig but apply these flush dimensions/rear placement. Keep Extra's new lower rear-panel face aligned with the glareshield; moving the card back into the old recessed surface reintroduces top-edge occlusion. No C# app/physics/Tests/ changes in this lane.
+
+## 2026-10-31 — lane/codex-iac-pitts: round 3 Extra upper card / Great Lakes eye evidence
+
+### NEEDS YOU
+
+#### Great Lakes rear eye review — Ty to judge
+
+- **Eye unchanged:** body (-1.83650,0,-0.24437), native raw glTF (1.823660,0.274322,0). This lane: eye → rear panel **0.181024 m horizontal / 0.320709 m direct to centre**; source 4a45232 **0.182498 / 0.285472 m**. Horizontal goes to the panel's extended plane at eye height; the actual panel is below it.
+- Picked seat-back top: **0.254000 m aft / 0.248870 m below / 0.355601 m direct**. Sill: **0.259170 m ahead / 0.076000 m below / 0.270083 m direct**. Eye above this lane's rigid pan **0.817005 m**, above source cushion **0.773421 m**. Head proxy radius **0.105 m**, centre **0.080 m aft / 0.050 m above eye**; x-ray wire sphere, no occupant-fit claim.
+- **Pick verdict:** correct rear seat-shell top on source Cockpit_Interior / Cockpit_seat_shell, not pan/front back/headrest. But this lane's older actual seat-back top is **0.213 m farther aft** and 0.086 m higher. Applying the same forward rule there would give body **(-2.049318,0,-0.244370)** and **0.393841 m** horizontal panel clearance — **NOTE ONLY, not applied**, and aft head/coaming fit needs review. The source model also has the short panel distance, so it is not solely a transfer error. No cited real-aircraft eye-to-panel range was found in repo sources; TCDS seat arms do not establish one.
+- Review: `renders/iac-pitts/v3/great-lakes-rear-eye-side-cutaway.png`, `great-lakes-rear-eye-3q-cutaway.png`, `great-lakes-rear-eye-top.png`, `great-lakes-rear-eye-view.png`; compare `great-lakes-source-4a45232-rear-eye-side-cutaway.png` and `great-lakes-seatback-pick.png` in that same directory. **Forward eye views use -4°/86°; round 2 instead aimed down at the card.** Full numbers/paths/source comparison: docs/models/great-lakes-own-PROVENANCE.md and the v3 manifest. Ty must judge the eye/rule/cockpit combination before Claude applies it.
+- [codex -> Ty/Claude] Extra still needs Unity/device visual/import review and a full Blender builder check elsewhere. Neither Unity, Blender nor deployment/install/upload ran here.
+
+### What changed — Extra, all three liveries
+
+- Ty: "The extra seems to have two panels the card should be on the upper panel." Same **0.10795×0.13970 m card / 0.11395×0.14570 m frame**, now flush/centred on the **UPPER rear/PIC panel**, raw glTF centre **(1.2032,0.3500,0)**, builder face X=-1.202. Face offset 1.2 mm / hardware ≤3 mm. SequenceCard_Face node/material, upright UVs and all 11 default figures unchanged; zero stick-up.
+- Original upper face was **120 mm** high (up 0.308..0.428), 620 mm wide at bottom / 400 mm top. Card itself exceeded it by **19.70 mm**, frame by **25.70 mm**. Added **RearPanel_UpperExtension**, extending the bottom **36 mm downward** to 0.272 with matching colour and 6 mm thickness. Upper centre height now **156 mm**; frame up 0.27715..0.42285, 5.15 mm margins. Top/glareshield did not move. This explicitly enlarges the upper face so the unchanged card can fit.
+- **RearPanel_FlushPanel reverted/absent.** It existed only for seeing the round-2 lower card. Original lower slab/recess at builder X=-1.162 is restored; lower gauges return to that surface. ASI/alt/attitude/G use 57.15 mm bezels in one row, G in the centre; four 40 mm engine gauges form a right-hand 2×2 group below the upper lip. Upper voltmeter/compass/fuel quantity already clear the card/frame, so retain their positions. No omitted gauge or empty lower hole. Radio/front panel/seats/airframe/paint/rig buffers preserved. Pitts, Great Lakes and shared-holder GLBs are byte-unchanged.
+
+**Extra BEFORE (1a6a4d7) vs AFTER — panel coordinates metres, u=pilot right, v=model up; D=bezel diameter**
+
+| Instrument | Before tier / (u,v), D | After tier / (u,v), D |
+|---|---|---|
+| Airspeed | lower / (-0.230,+0.263), 0.06200 | lower / (-0.240,+0.201), 0.05715 |
+| Altimeter | lower / (-0.230,+0.193), 0.06200 | lower / (-0.160,+0.201), 0.05715 |
+| Attitude | lower / (-0.130,+0.193), 0.06200 | lower / (-0.080,+0.201), 0.05715 |
+| G meter | lower / (-0.130,+0.263), 0.06200 | lower / (+0.000,+0.201), 0.05715 |
+| Tachometer | lower / (+0.130,+0.263), 0.06200 | lower / (+0.130,+0.220), 0.04000 |
+| Oil pressure | lower / (+0.230,+0.263), 0.06200 | lower / (+0.230,+0.220), 0.04000 |
+| Oil temperature | lower / (+0.130,+0.193), 0.06200 | lower / (+0.130,+0.174), 0.04000 |
+| Fuel pressure | lower / (+0.230,+0.193), 0.06200 | lower / (+0.230,+0.174), 0.04000 |
+| Fuel quantity | upper / (+0.230,+0.365), 0.05400 | upper / (+0.230,+0.365), 0.05400 |
+| Voltmeter | upper / (-0.230,+0.365), 0.05400 | upper / (-0.230,+0.365), 0.05400 |
+| Compass | upper / (+0.130,+0.365), 0.06000 | upper / (+0.130,+0.365), 0.06000 |
+
+### Evidence and validation
+
+- **9/9 GLB asset checks pass**, including Extra upper-outline containment, actual slab/extension behind the card, flush offsets, zero protrusion, no obsolete lower fill, original recessed lower gauge station, bezel/frame separation and 99 full-scene visibility rays per aircraft. Original buffers/front-panel triangles preserved.
+- Existing **OwnPittsModelTests 17/17** and **GearMatchesTheModels 7/7** pass by the established direct compiled harness (**24/24**). No Tests/ or C# app changes. Python syntax and `git diff --check` pass. Repeated Extra CPU updates produce identical hashes; no non-Extra GLB changed.
+- Great Lakes source GLB read via git show 4a45232 into TMPDIR and SHA-verified against full v2 entry. Exact part/material/FRU search box reproduced; picked highest row matches supplied point. Equal native upper-wing bounds and rear windscreen sill verify the existing placement transform still aligns the shared airframe geometry. Source/current cockpit difference is rendered, not hidden.
+- Front-cockpit opening aft edge lies **0.485252 m ahead** of the eye. Upper-wing centreline TE witness is **0.811696 m ahead / 0.390099 m above** (not minimum clearance to every strut/wing). Seat-pan ray excludes the old horizontal crotch strap by selecting the actual 6° pan plane.
+- All **16 PNGs** verified. Straight Extra before/after camera matches (2400×1800, width 0.82 m); source/current Great Lakes side/3q/top cameras match, skin actually clipped at centreline. Head/points/dimensions are x-ray overlays; wings/gear omitted only in cutaways. Forward Great Lakes eye views retain opaque geometry at -4° / 86° hfov, glass omitted; panel mostly below frame here. Great Lakes data/model unchanged.
+- Failures corrected during tooling: Path output needed string conversion; source panel-centre extraction initially included non-panel primitives (restricted to Cockpit_panel); pan-height extraction initially hit crotch strap (restricted to the rigid pan's actual 6° plane). No unresolved offline check failure. Unity/Blender/full app build unrun, not claimed green. All baseline/temp/caches in TMPDIR; no push/merge/rebase/history rewrite/deploy.
+
+**Every render path** (untracked under `renders/iac-pitts/v3/`):
+- `renders/iac-pitts/v3/extra-n300uy-upper-panel-straight.png`
+- `renders/iac-pitts/v3/extra-n300uy-rear-eyepoint.png`
+- `renders/iac-pitts/v3/extra-unmarked-upper-panel-straight.png`
+- `renders/iac-pitts/v3/extra-unmarked-rear-eyepoint.png`
+- `renders/iac-pitts/v3/extra-talk-flying-upper-panel-straight.png`
+- `renders/iac-pitts/v3/extra-talk-flying-rear-eyepoint.png`
+- `renders/iac-pitts/v3/extra-rear-panels-before-v3.png`
+- `renders/iac-pitts/v3/great-lakes-rear-eye-side-cutaway.png`
+- `renders/iac-pitts/v3/great-lakes-rear-eye-3q-cutaway.png`
+- `renders/iac-pitts/v3/great-lakes-rear-eye-top.png`
+- `renders/iac-pitts/v3/great-lakes-rear-eye-view.png`
+- `renders/iac-pitts/v3/great-lakes-source-4a45232-rear-eye-side-cutaway.png`
+- `renders/iac-pitts/v3/great-lakes-source-4a45232-rear-eye-3q-cutaway.png`
+- `renders/iac-pitts/v3/great-lakes-source-4a45232-rear-eye-top.png`
+- `renders/iac-pitts/v3/great-lakes-source-4a45232-rear-eye-view.png`
+- `renders/iac-pitts/v3/great-lakes-seatback-pick.png`
+- `renders/iac-pitts/v3/great-lakes-rear-eye-measurements.json`
+- `renders/iac-pitts/v3/render-manifest.json` (camera/model hashes and exact measurement metadata).
+
+### HANDOFF [codex -> Claude]
+
+- **Extra round 3 supersedes round 2:** card belongs on the **UPPER rear/PIC** panel. Raw glTF face centre **(1.2032,0.3500,0)** (122 mm higher than round 2), builder panel face X=-1.202. Card/frame size 0.10795×0.13970 / 0.11395×0.14570 m, 1.2 mm paper / ≤3 mm hardware offsets, zero stick-up. Preserve the **36 mm downward upper-face extension** (top unchanged) because the old 120 mm face cannot contain the 145.7 mm frame. **Do not restore RearPanel_FlushPanel**; lower recess is back at X=-1.162, with central G-meter and compact layout. Spec records upper/lower outlines and new positions.
+- SequenceCard_Face node/material/baseColorTexture/TEXCOORD_0 contract, reset Resources key `SequenceCards/sportsman-known-2026`, PDF page-4 default/upload/page selection/per-instance material handling remain unchanged app work. All new instrument faces remain static. No app/C# logic changes here; find the renderer by name after glTFast handedness/placement.
+- Pitts and Great Lakes card transforms are unchanged from round 2. **Great Lakes eye remains the supplied proposal**, not approved by this review. Do not substitute the NOTE-ONLY alternative or silently transplant the newer source seat assumption into this older cockpit. Ty to judge eye/rule/model combination from the side/3q/pick/source views; the -4° forward view is intentionally not the round-2 downward panel-centred view. No eye-point data, app camera or Great Lakes GLB was changed.
