@@ -76,6 +76,18 @@ namespace FlyingGame.Bridge
         private Vector3 _dir = Vector3.forward; // smoothed follow direction (world)
         private Vector3 _offset;                // smoothed camera offset from the target (world)
         private Camera _cam;
+        /// <summary>The aeroplane's visual, for the eye points a rigged model brings. Looked up from Target the
+        /// first time it is wanted and whenever Target changes (switching aircraft rebuilds the hierarchy).</summary>
+        private AirframeVisual _visualCache; private Transform _visualFor;
+        private AirframeVisual _visual
+        {
+            get
+            {
+                if (Target == null) return null;
+                if (_visualFor != Target) { _visualFor = Target; _visualCache = Target.GetComponent<AirframeVisual>(); }
+                return _visualCache;
+            }
+        }
 
         /// <summary>Fit the chase distance to the airframe (a 737 needs ~3x the glider's 14 m).</summary>
         public void FitTo(float spanM, float lengthM = 0f)
@@ -163,7 +175,16 @@ namespace FlyingGame.Bridge
                     // aircraft — the cowl, wings and prop in view, the instruments as a panel below. The pilot's
                     // head turns on top of that (CockpitView: a hat, buttons or goggles).
                     if (Cockpit == null) Cockpit = Driver != null ? Driver.GetComponent<CockpitView>() : null;
-                    Vector3 eye = Cockpit != null ? Cockpit.EyeLocal : PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f;
+                    // With no authored seat eye, fall back to the MODEL's own eye empty (the Extra's Eye_Rear /
+                    // Eye_Front, drawn where its draughtsman sat the pilot) before the old canopy-top estimate.
+                    // The ORIENTATION still comes from the airframe either way: an eye point is a position, and a
+                    // stray rotation on one would cant the whole view with nothing on screen to say why.
+                    Transform modelEye = _visual != null ? _visual.CockpitEye() : null;
+                    bool authored = Cockpit != null && Cockpit.HasAuthoredViewPoint;
+                    Vector3 eye = authored ? Cockpit.EyeLocal
+                                : modelEye != null ? t.InverseTransformPoint(modelEye.position)
+                                : Cockpit != null ? Cockpit.EyeLocal
+                                : PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f;
                     // Unity's Euler is (pitch, yaw, roll) and a look UP is a NEGATIVE pitch, hence the sign.
                     float lookYaw = Cockpit != null ? (float)Cockpit.Look.YawDeg : 0f;
                     float lookPitch = Cockpit != null ? (float)Cockpit.Look.PitchDeg : 0f;

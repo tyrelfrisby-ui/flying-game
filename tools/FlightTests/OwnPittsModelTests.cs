@@ -39,17 +39,35 @@ public class OwnPittsModelTests
         return (json, d.AsSpan(off + 8, bl).ToArray());
     }
 
-    /// <summary>Each named node's mesh vertices (glTF frame: our exports put the nose at -x, up +y, span z).</summary>
+    /// <summary>Each named node's mesh vertices IN MODEL SPACE (glTF frame: our exports put the nose at -x,
+    /// up +y, span z), with every node's own transform and its parents' applied.
+    ///
+    /// This used to assert that the build baked every transform into the mesh, and for an unrigged model it
+    /// did. A RIGGED one cannot: a rig node's whole purpose is to sit at its own pivot with a transform of its
+    /// own, so the Extra's v15 cockpit turned that assertion into seven red tests the moment it landed
+    /// (2026-10-30) -- not because anything about the aeroplane was wrong, but because the reader was asking
+    /// for something a rig is not allowed to give it. So compose the transforms instead of forbidding them,
+    /// which is what the callers wanted all along: where each part really is on the aeroplane.</summary>
     internal static Dictionary<string, List<(float x, float y, float z)>> Vertices(string path)
     {
         var (j, bin) = ReadGlb(path);
         var res = new Dictionary<string, List<(float, float, float)>>();
         JsonElement acc = j.GetProperty("accessors"), views = j.GetProperty("bufferViews"), meshes = j.GetProperty("meshes");
-        foreach (JsonElement node in j.GetProperty("nodes").EnumerateArray())
+        JsonElement nodes = j.GetProperty("nodes");
+
+        // Parent of each node, from the children lists (glTF stores the tree downward only).
+        int count = nodes.GetArrayLength();
+        var parent = new int[count];
+        for (int i = 0; i < count; i++) parent[i] = -1;
+        for (int i = 0; i < count; i++)
+            if (nodes[i].TryGetProperty("children", out JsonElement kids))
+                foreach (JsonElement k in kids.EnumerateArray()) parent[k.GetInt32()] = i;
+
+        for (int i = 0; i < count; i++)
         {
+            JsonElement node = nodes[i];
             if (!node.TryGetProperty("mesh", out JsonElement mi)) continue;
-            Assert.False(node.TryGetProperty("translation", out _) || node.TryGetProperty("rotation", out _) || node.TryGetProperty("scale", out _),
-                "the build bakes every transform into the mesh");
+            double[] m = World(nodes, parent, i);
             var list = new List<(float, float, float)>();
             foreach (JsonElement prim in meshes[mi.GetInt32()].GetProperty("primitives").EnumerateArray())
             {
@@ -57,12 +75,60 @@ public class OwnPittsModelTests
                 JsonElement bv = views[a.GetProperty("bufferView").GetInt32()];
                 int o = (bv.TryGetProperty("byteOffset", out JsonElement bo) ? bo.GetInt32() : 0) + (a.TryGetProperty("byteOffset", out JsonElement ao) ? ao.GetInt32() : 0);
                 int stride = bv.TryGetProperty("byteStride", out JsonElement bs) ? bs.GetInt32() : 12;
-                for (int i = 0; i < a.GetProperty("count").GetInt32(); i++)
-                    list.Add((BitConverter.ToSingle(bin, o + i * stride), BitConverter.ToSingle(bin, o + i * stride + 4), BitConverter.ToSingle(bin, o + i * stride + 8)));
+                for (int k = 0; k < a.GetProperty("count").GetInt32(); k++)
+                {
+                    double x = BitConverter.ToSingle(bin, o + k * stride);
+                    double y = BitConverter.ToSingle(bin, o + k * stride + 4);
+                    double z = BitConverter.ToSingle(bin, o + k * stride + 8);
+                    list.Add(((float)(m[0] * x + m[4] * y + m[8] * z + m[12]),
+                              (float)(m[1] * x + m[5] * y + m[9] * z + m[13]),
+                              (float)(m[2] * x + m[6] * y + m[10] * z + m[14])));
+                }
             }
             res[node.GetProperty("name").GetString()!] = list;
         }
         return res;
+    }
+
+    /// <summary>A node's transform all the way up to the scene root, column-major like glTF's own.</summary>
+    private static double[] World(JsonElement nodes, int[] parent, int i)
+    {
+        double[] m = Local(nodes[i]);
+        for (int p = parent[i]; p >= 0; p = parent[p]) m = Mul(Local(nodes[p]), m);
+        return m;
+    }
+
+    /// <summary>One node's own transform: glTF gives either a 16-float matrix or translation / rotation
+    /// (quaternion x y z w) / scale, in that order, T * R * S.</summary>
+    private static double[] Local(JsonElement node)
+    {
+        if (node.TryGetProperty("matrix", out JsonElement mat))
+        {
+            var m = new double[16];
+            for (int i = 0; i < 16; i++) m[i] = mat[i].GetDouble();
+            return m;
+        }
+        double tx = 0, ty = 0, tz = 0, qx = 0, qy = 0, qz = 0, qw = 1, sx = 1, sy = 1, sz = 1;
+        if (node.TryGetProperty("translation", out JsonElement t)) { tx = t[0].GetDouble(); ty = t[1].GetDouble(); tz = t[2].GetDouble(); }
+        if (node.TryGetProperty("rotation", out JsonElement r)) { qx = r[0].GetDouble(); qy = r[1].GetDouble(); qz = r[2].GetDouble(); qw = r[3].GetDouble(); }
+        if (node.TryGetProperty("scale", out JsonElement s)) { sx = s[0].GetDouble(); sy = s[1].GetDouble(); sz = s[2].GetDouble(); }
+        double xx = qx * qx, yy = qy * qy, zz = qz * qz, xy = qx * qy, xz = qx * qz, yz = qy * qz, wx = qw * qx, wy = qw * qy, wz = qw * qz;
+        return new[]
+        {
+            (1 - 2 * (yy + zz)) * sx, (2 * (xy + wz)) * sx,     (2 * (xz - wy)) * sx,     0,
+            (2 * (xy - wz)) * sy,     (1 - 2 * (xx + zz)) * sy, (2 * (yz + wx)) * sy,     0,
+            (2 * (xz + wy)) * sz,     (2 * (yz - wx)) * sz,     (1 - 2 * (xx + yy)) * sz, 0,
+            tx, ty, tz, 1,
+        };
+    }
+
+    private static double[] Mul(double[] a, double[] b)
+    {
+        var m = new double[16];
+        for (int c = 0; c < 4; c++)
+            for (int r = 0; r < 4; r++)
+                m[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
+        return m;
     }
 
     private static string Guid(string meta) => Regex.Match(File.ReadAllText(meta), @"^guid: (\w+)", RegexOptions.Multiline).Groups[1].Value;

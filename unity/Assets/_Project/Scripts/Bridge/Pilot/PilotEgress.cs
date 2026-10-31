@@ -138,10 +138,15 @@ namespace FlyingGame.Bridge
             }
         }
 
-        /// <summary>Cockpit position in the aircraft's local Unity frame (right, up, fwd): the Canopy part
-        /// when the airframe has one, else ≈0.5 m above the centreline a little aft of the wing-root LE.</summary>
+        /// <summary>Cockpit position in the aircraft's local Unity frame (right, up, fwd): the model's own EYE
+        /// POINT where it has one, else the Canopy part, else ≈0.5 m above the centreline a little aft of the
+        /// wing-root LE. The eye point is where the draughtsman sat the pilot, so a bail-out from a rigged
+        /// aeroplane leaves from the seat rather than from an estimate.</summary>
         public static Vector3 CockpitLocal(FlightSimDriver driver)
         {
+            var visual = driver.GetComponent<AirframeVisual>();
+            Transform eye = visual != null ? visual.CockpitEye() : null;
+            if (eye != null) return driver.transform.InverseTransformPoint(eye.position);
             Transform canopy = driver.transform.Find("Canopy");
             if (canopy != null) return canopy.localPosition + Vector3.up * 0.15f;
             float le = 0f, bestSpan = -1f;
@@ -247,6 +252,18 @@ namespace FlyingGame.Bridge
         {
             _canopyDone = true;
             if (Current == Phase.BailingOut) Current = Phase.CanopyGone;
+            // A model that brought its own rig has a REAL canopy — one node, with its glass, frame and both
+            // lock levers under it, on the hinge its draughtsman put it on. That one leaves; there is no
+            // stand-in to spawn and nothing to hide, and the aeroplane stays canopy-less (AirframeVisual).
+            var visual = GetComponent<AirframeVisual>();
+            if (visual != null) visual.Cockpit.PullCanopyRelease();   // the red handle moves, wherever the hand came from
+            if (visual != null && visual.JettisonRigPart(_driver.WorldVelocityUnity))
+            {
+                Log("canopy jettisoned");
+                CanopyJettisoned?.Invoke();
+                GetComponent<FlightAudio>()?.CanopyJettison();
+                return;
+            }
             Transform part = _driver.transform.Find("Canopy");
             if (part != null) ReplayActors.Register(part.gameObject, hideBefore: false);   // on the aircraft until the jettison, in the replay too
             CanopyJettison.Spawn(_driver, part);

@@ -145,6 +145,10 @@
 - **Visuals pass 4, batch A iteration 4 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-P2 water/world ERRORS empty. Incoming airports **4.5/10**, dusk/night **4/10**, PAPI/beacon **2/10 visibility**. A3's “grid absent” assessment was too strong: Chief still sees lines. Airport infield is one shared mesh, world-space shading, grass overlay already disabled; no internal tile boundaries/UV texture wraps to weld. Replaced coarse triangle-averaged airport normals with shared world-space 8 m height gradients (120 m blend outside pad), unchanged vertices/collision. **Normal discontinuity diagnosis is provisional until A/B renders**: added `valley-airport-normal-control-night` using original normals, same camera/exposure as `valley-airport-night`. Stronger opposed beacon pulses (120 degrees/s), larger bounded beacon/PAPI halos; static 2 white/2 red PAPI retained at 300 m / left of both approaches. New `airport-beacon-green-night`, `airport-beacon-white-night`, `runway-papi-night`; fixed beacon phases only in the two inspection shots. Existing edge/end/taxi rows, signs/hangars/FBO/strip cameras retained. Chief: separate Bridge/Editor compile, strict Metal import, compare dusk/night and normal control, verify both beacon phases/PAPI/rows and full regression sets plus iPad timing. If normal A/B retains grid, root cause remains open; do not call it fixed. No new assets; source-only checks, no Unity/tests/build/git, uncommitted for runner. Water/Powell/city sources untouched.
 - **Visuals pass 4, batch M iteration 6 ready for Chief renders (Codex, 2026-10-29, `lane/codex-visuals`).** P4-C3 water/world ERRORS empty. Incoming alpine range/cirque/lakes/larch **3/10**, Alaska massif/ridge/Denali **3/10**, glacier **2/10**, first-wall/front-second **4/10** (Chief ~5 acknowledged). Added range-local grey/cream dipping limestone beds, massive Alaska granite, lower Alaska snow/meadow transitions, ragged slope/aspect/concavity snow, pale debris toes/channel-mouth aprons and stronger terrain-only range haze. M5 stationary coordinates and four-pixel filtering retained; Low omits 18 m beds. Existing tree instances/collision registry retained; ground canopy recedes with altitude/slope. **Maximum added displacement 0 m; no outgoing score without rerender.** Two existing sources/metas plus log only; no new assets/draws/textures/mesh payload. Chief: separate Bridge/Editor + strict Metal compile, rerender mountain set (especially the ten review shots), inspect bedding versus granite, snow extent, scree/treeline agreement, haze and shimmer at all tiers; full water/world regressions and iPad GPU timing. Rounded silhouettes, faceted glacier, hard tarn ellipses and sparse upper-valley stems remain limitations. Water/sky/sunset/hero sources untouched. No Unity/tests/build/git attempted; uncommitted for runner.
 - **Visuals pass 4, batch S iteration 8 ready for Chief renders (Codex, 2026-10-28, `lane/codex-visuals`).** P4-S7 water/world ERRORS empty. Incoming sunset **6/10**, hero **6/10**, idle **5/10**, day sky/water **4/10**, shore reflection **7/10 correctness**. S8 fixes hero bearing at 25 degrees aft-left / .65 m height / horizon 45% down; retains 78-degree lens and deterministic full mesh/mirror fit. Backlit airframe is modestly darker, reflected airframe strongly desaturated/darkened. Day reflected clouds use a Fresnel-dependent rough sky evaluation; adds compact idle ripple packets/bow shoulders. Sunset sky palette, shore reflection correction, speed overrides, Kelvin V/step whitewater, spray, haze tiers and waterfall sheets preserved. Chief: compile separate Bridge/Editor assemblies, strict Metal import, full water/world rerender; verify full J-3/Beaver mirror framing, dark backlit reflection, reduced near-water cloud contrast, visible subtle idle ripples and iPad timing. Source checks only; uncommitted. Cliff/peak reflection occlusion, Balanced stairs and procedural scenery remain open.
+- **The rigs mirror is no longer committed on this lane, and merging it needs `lane/claude-config-mirror` first (Claude, 2026-10-30).** `unity/Assets/StreamingAssets/rigs/` was gitignored-but-tracked here, the same trap that let great-lakes-like ship with no runtime config: `git add` on a new rig mirror does nothing, only `git add -f` works, and nothing notices. The mirror is now untracked and gitignored; `ConfigSync` on this lane still writes it at editor load, so the lane works standing alone. **Ty: merge order is `config-mirror`, then `flow-plates`, then `extra-cockpit`, then `sgs233-rig`.** `ConfigSync.cs` WILL conflict when this lane merges after `config-mirror` — both rewrote the file from the same base. The resolution is fixed: **take `config-mirror`'s version** (its `Mirrors` table already declares the rigs mirror and derives the destination name from each rig table's own `model` field), **drop this lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written** — that call clears an editor-side cache and `config-mirror`'s generic sync cannot make it, because `AirframeRig` does not exist on its base. **This lane is already pushed**, so the remote still carries the committed mirror until you push this fix.
+- **The Extra's cockpit wants a flight on a device (Claude, 2026-10-30).** All 60 rig nodes are bound and measured correct in the editor (worst pivot error 0.1 mm), but nobody has sat in it. Worth checking: (a) the REAR seat is the default view and the eye height feels right — OPTIONS > Display has a seat picker; (b) the sequence card — tap OPTIONS > Display > Card > Choose PDF, pick a sequence off the device or iCloud Drive, step pages, and Default to put the IAC card back; **this is the only part that cannot be tested anywhere but a device**, because the picker and the rasteriser are iOS's (UIDocumentPickerViewController + PDFKit); (c) the canopy — OPTIONS has Shut/Open, it refuses to open above 60 kt and shuts itself if you accelerate with it open; (d) bail out and watch the real canopy leave, and confirm the aeroplane stays canopy-less until the flight is reset.
+- **Four gauges on the Extra's panel have no sim behind them (Claude, 2026-10-30), and you should decide whether that is acceptable.** The sim has no oil, no cylinder heads, no manifold and no fuel quantity, so manifold pressure, oil pressure, oil temperature and CHT are a PRESENTATION model built from throttle, rpm and ambient pressure (`CockpitRigState.FillEngineGauges`, marked (P)), tuned so the needles sit inside the dial markings the model is drawn with. The FUEL gauge reads full always, because an engine that cannot run dry should not have a needle falling toward E. Nothing here reaches the flight model. The alternative is a real engine-systems model in Sim, which is a bigger piece of work and a physics change this lane was told not to make.
+- **Codex: the Extra's ASI prose and its map disagree (Claude, 2026-10-30).** `docs/models/ea300-own-RIG.md` says the ASI needle "rests at 0 below 40", but the map in `ea300-own-rig.json` is 0 kt -> 0 deg, 40 -> 25, 260 -> 335, so the needle lifts off the peg smoothly from a standstill. The DATA is the better behaviour (that is what a real ASI does) and it is what the game now draws; the prose is the loose part. One line in the doc, no rebuild.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -887,6 +891,138 @@ gains `-rpm <rpm>` and `-propdeg <deg>`, which hold a turning hub at a chosen an
 rpm over dt, so `dt = deg / (rpm * 6)`), and `-own`, without which the c172 and Seminole GLBs cannot be
 reached at all. Rendered at 0 rpm, at 300 rpm with the hub turned 60°, and at 2,500 rpm: the spinner stays
 on the cowl nose and the blur disc is centred on it. Lane only; not pushed, not merged.
+
+### 2026-10-30 — the rigs mirror stops being committed (Claude)
+
+`unity/Assets/StreamingAssets/rigs/` was gitignored **and** tracked on this lane — `docs/models/ea300-own-rig.json`
+mirrored to `extra-300-like-own.json` — which is exactly the trap that shipped the Great Lakes with no runtime config.
+In that state `git add` on a new mirror silently does nothing and only `git add -f` works, so a rebuilt or renamed
+rig reaches the player only if somebody remembers the flag.
+
+- `.gitignore`: `unity/Assets/StreamingAssets/rigs/` and `rigs.meta`.
+- `git rm -r --cached unity/Assets/StreamingAssets/rigs unity/Assets/StreamingAssets/rigs.meta`. No `git add -f`
+  anywhere; the files stay on disk and `ConfigSync` rewrites them on editor load, so the cockpit still animates.
+- `rigs.meta` sits BESIDE the directory, not inside it, so `git rm -r --cached .../rigs` misses it. It took a second
+  `git ls-files | git check-ignore --no-index --stdin -v` to notice. Mind the `--no-index`: without it `check-ignore`
+  says nothing about tracked files, which is precisely the set in question.
+
+Tracked-but-ignored on this lane is now the 62 aircraft configs and `build/cg-check.csv` only — both of which are
+`lane/claude-config-mirror`'s to remove, by design. `StreamingAssetsTests` is deliberately NOT ported here: its
+`NoTrackedFileIsGitignored` check would fail on those 62, and it arrives with the branch that deletes them.
+
+**Why the rigs row lives on `config-mirror` and not here.** The destination name is not a mapping anybody should
+type: a rig table declares the model it belongs to in its own `model` field, and that is what names the file the game
+looks for. A fixed source→dest table would hold a second copy of something the file already says, and a rebuilt rig
+that changed its model name would mirror to the old path and go on looking right. So `config-mirror`'s `Mirror` gained
+a content resolver rather than a name field, and its row — `new("docs/models", "rigs", "*-rig.json", destGlob:
+"*.json", nameFromContent: RigModelName)` — matches zero files on `split-surfaces` and picks this lane's rig up the
+moment it merges. Verified there against this very file: it landed as `extra-300-like-own.json`, byte-identical,
+and was swept by name when the source was removed.
+
+**Gates.** Suite **4 failed / 790 passed / 3 skipped** — the baseline four (Pitts ground handling x3, flat-spin
+smoke). That 4 is flattered, and worth knowing before anyone reads it as clean:
+`EveryAircraftPassesTheNewAirplaneProtocol` passes here only because this worktree holds an **untracked**
+`great-lakes-like.json` that a Unity run left behind. A fresh clone of this branch would show 5. That is the trap
+itself, demonstrated one more time, and the reason `config-mirror` was measured in a brand-new worktree.
+`** BUILD SUCCEEDED **`, installed on the iPad mini, and the built player carries the rig at
+`Data/Raw/rigs/extra-300-like-own.json`.
+
+**Recommended merge order:** `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`. `config-mirror` first because it removes the aircraft trap and adds the tests everything else assumes; `flow-plates` second because it is independent and takes the failure baseline from 4 to 3, leaving only the three Pitts ground-handling tests awaiting your feel-test.
+
+### 2026-10-30 — Claude · lane/claude-extra-cockpit · the Extra 300's cockpit is wired to the sim
+
+Branched off `lane/codex-extra-cockpit` 073f113. Physics and configs untouched, as asked.
+
+**The rig drives itself from the file.** The 2-33's rig machinery (`src/FlyingGame.Core/ModelRig.cs` +
+`AirframeRig.cs`, from `lane/claude-sgs233-rig`) reads the Extra's table with no change at all -- the schema is
+the same, so nothing was transcribed and a rebuilt model brings its own new rig. `RigInputs` grew from the
+2-33's 11 params to the 33 this panel asks for; a param no rig names costs one unread field, and `TryGet` still
+returns false for anything the sim cannot supply, so a rig that grows a param is REPORTED rather than silently
+still. ConfigSync mirrors `docs/models/*-rig.json` into StreamingAssets keyed by the `model` field inside each
+file.
+
+**Measured, not eyeballed** (`OwnRigCheck`, generic so the Pitts and the Great Lakes can use it:
+`-executeMethod FlyingGame.EditorTools.OwnRigCheck.Run`, `RIG_TYPE=` to pick a type, `RIG_SHOTS=<dir>` for
+renders). 60/60 nodes bound, 0 off their pivot (worst: the canopy, 0.1 mm), 0 under the wrong parent, every
+fixture present. Then each control to its stop, reported in the aeroplane's own frame:
+
+    stick right      both grips 140/146 mm stbd; L aileron TE down, R TE up, 30 deg each
+    stick aft        both grips 138/144 mm aft;  both elevator halves TE up 130 mm
+    right pedal      L pedal 56 mm aft, R 52 mm fwd; rudder TE 267 mm to starboard
+    left toe brake   only the two LEFT brake plates move, 20 mm fwd
+    throttle open    both levers 122 mm fwd;  prop/mixture pulled: 50 mm aft
+    canopy open      789 mm up and 835 mm to STARBOARD, on the right sill, both locks riding with it
+    release pulled   both handles 40 mm inboard
+    150 kt/3500 ft   ASI 180 deg, altimeter 3.5 turns, tach 205.7, MP 168, VSI 64, CHT 108, G +48/max 72/min -36
+
+A warning about reading that output, written down because it cost an hour: the probe follows the vertex
+FARTHEST FROM THE HINGE LINE, and on this model the ailerons' farthest vertex is 246 mm FORWARD of and 282 mm
+below the hinge, not behind it. "The far point moved up" therefore means the trailing edge went DOWN. Taken at
+face value it reads as a reversed aileron. It is not: the rig is correct, on every surface and every lever.
+
+**What was built on top of the rig.**
+- CAMERA: the cockpit view sits on the model's own eye point, `Eye_Rear` by default because solo aerobatics is
+  flown from the back (the model marks it `default_view`), `Eye_Front` from OPTIONS > Display. The ORIENTATION
+  still comes from the airframe, not from the empty: an eye point is a position, and a stray rotation on one
+  would cant the whole view with nothing on screen to say why. A bail-out now also leaves from the real seat.
+- DISPLAYS: the COM and transponder faces are drawn by generating a texture from a 5x7 font kept in
+  `CockpitDisplays`, NOT by a TextMesh. The livery code already carries the scar -- "a TextMesh with a null font
+  draws nothing" -- and on a cockpit LCD that would read as a dead radio with nothing in the log. The material
+  is FlyingGame/Decal, already force-included in the player, which takes the image's luminance as alpha so the
+  black field drops out onto the head's own dark face. Costs one small upload when the frequency changes.
+- CANOPY: `canopy_open` / `canopy_lock` / `canopy_jettison` all driven. OPTIONS opens and shuts it below 60 kt
+  (E -- the POH gives no figure); faster than that it shuts and locks itself. On a bail-out the REAL `Canopy`
+  node leaves -- glass, frame and both lock levers, because they are its children in the GLB -- with the
+  airframe's velocity and a hinge kick, the rig stops driving it, and the aeroplane stays canopy-less until the
+  next flight's rebuild. The old procedural stand-in dome is still there for types without a rigged canopy.
+- SEQUENCE CARD: generic, not the Extra's. Any model with a `SequenceCard_Face` node and material gets it, so
+  the Pitts, the Great Lakes and the Decathlon need no code when Codex adds the holder. Pick a PDF
+  (UIDocumentPickerViewController, PDFs only, asCopy), choose a page, PDFKit rasterises it LETTERBOXED onto a
+  white 1275x1650 canvas and never stretches it; kept per aeroplane under
+  `persistentDataPath/sequence-cards/<aircraftId>/` with the source PDF and page beside it, so turning a page
+  does not need the picker again; "Default" puts the IAC card back. Presentation only -- nothing in Core or Sim
+  knows the card exists. Off iOS there is no PDFKit, so the editor takes a PNG path instead (OPTIONS, the
+  `SEQ_CARD` env var, or the editor's own file panel).
+
+**Tests.** 14 in `tools/FlightTests/ModelRigTests.cs`: the map's clamping, wrapping, running past the ends and
+lever notches; that a turn and a slide do NOT convert to Unity the same way; that every one of the 33 params is
+readable; and the Extra's own table against the POH travels (aileron +-30, elevator +-25, rudder +-30), the
+canopy being the one part that comes off, both seats being on the same controls, every child listed after its
+parent, and every node's map reading zero at the param the model was drawn at -- which is the invariant the
+whole driver rests on, since interp() is applied to the imported rest pose.
+
+**Two bugs found in my own work, both of the kind a render cannot show.** `RigInputs` is a struct, so the
+check's probe helper took `Action<RigInputs>` and every `r.Aileron = 1` was written to a copy: the first run
+measured the parked cockpit against itself and printed eleven empty probe blocks. And the transponder read
+"4321 AL" -- eight characters at the scale the frequency wanted overflowed a 156-px face -- so the glyph scale
+is now fitted to the longest line instead of trusting a constant.
+
+**Also fixed in passing:** the chain-perpendicularity rule (the one that found the 2-33's yaw-string fault) was
+calling the Extra's two canopy lock levers broken. It only governs a TRUE chain, where parent and child move on
+the SAME param; a part that merely rides on a moving parent and has a hinge of its own is free to sit anywhere.
+Narrowed, and the 2-33's yaw string still fails it.
+
+**And one that only the player build could find**, which is the whole reason for the deploy gate: the first
+`deploy.sh` compiled everything and then failed at the LINK with `"_OBJC_CLASS_$_PDFDocument", referenced
+from:` — Unity links neither PDFKit nor UniformTypeIdentifiers on its own, and nothing in the editor or the
+test suite wants them. Both are now added in `BuildScript.OnPostProcessBuild` beside the clip encoder's.
+
+**Seven tests had been red since the v15 cockpit landed, and nobody had noticed.** The suite on this lane came
+back 11 failed. Running the same tests at `073f113` gave the same 11, and at `fe9c35e` — the v15 commit itself —
+seven of them were already failing, all at one assertion in `OwnPittsModelTests.Vertices`: *"the build bakes
+every transform into the mesh"*. For an unrigged model that was true. A RIGGED one cannot satisfy it: a rig
+node's whole purpose is to sit on its own pivot with a transform of its own, so `GearMatchesTheModels` x3,
+`EachLiveryHasItsOwnPropeller` x3 and `UnmarkedIsTheSameAirframeAsItsMarkedSibling` went red the moment the
+cockpit arrived — not because anything about the aeroplane was wrong, but because the reader was asking for
+something a rig is not allowed to give it. `Vertices` now composes each node's transform up to the scene root
+(glTF `matrix`, or T * R * S) instead of forbidding transforms, which is what every caller wanted anyway: where
+each part really is on the aeroplane. Seven green, the Pitts' unrigged GLBs unaffected (identity composes to
+identity), and the suite is 4 failed / 790 passed / 3 skipped — the four being the Pitts ground handling (x3)
+and the flat-spin smoke check, all already written up above and all deliberately not forced green.
+
+Gates: suite 4 failed / 790 passed / 3 skipped (down from 11 failed), the Unity editor compiling all four
+assemblies clean, and `tools/deploy/deploy.sh` to `** BUILD SUCCEEDED **` (build 2026.1030.0728, installed and
+launched on the iPad mini). Not pushed, not merged.
 ### 2026-10-30 — Grok Bot executor · lane/codex-extra-cockpit · Extra 300 v15.1 compass + sequence card
 
 Ty: compass into the panel, sequence holder centred on the dash top standing about 2 in above it, 2026 IAC Sportsman Known on the card, card swappable. The wet compass is now a 2-1/4 in panel-mount unit at the lower right of the rear panel (same Compass_Card_R node and heading_deg rig, new pivot); the blank placard moved to the centre stack. The holder sits on the glareshield's aft face, top 50 mm above the dash. The card face is its own node and material `SequenceCard_Face` (one quad, letter portrait 8.5 x 11, UV 0..1), documented in docs/models/ea300-own-RIG.md and under `card_slots` in the rig JSON. Default texture: the IAC's 2026 Power Sportsman Known pilot card (make_ea_seqcard.py; source in PROVENANCE v15.1). Physics and configs not touched. Open: the compass card is still static until the game drives heading_deg; the runtime PDF card swap is not built; the Pitts and Great Lakes need the same holder and card node.

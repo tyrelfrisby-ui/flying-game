@@ -386,8 +386,12 @@ namespace FlyingGame.EditorTools
             proj.ReadFromFile(projPath);
             string fw = proj.GetUnityFrameworkTargetGuid();
             // AVFoundation/CoreMedia/CoreVideo + Photos for the quick clips encoder (Plugins/iOS/ClipEncoder.mm).
+            // PDFKit + UniformTypeIdentifiers for the cockpit sequence card (Plugins/iOS/SequenceCard.mm): the
+            // document picker asks for UTTypePDF and PDFKit rasterises the page. Unity links neither on its own,
+            // and without them the player fails at the LINK, not the compile — "_OBJC_CLASS_$_PDFDocument,
+            // referenced from:" with nothing to say which plugin wanted it (2026-10-30).
             foreach (string f in new[] { "AVFoundation.framework", "CoreMedia.framework", "CoreVideo.framework", "Photos.framework", "Network.framework",
-                                         "MultipeerConnectivity.framework" })
+                                         "MultipeerConnectivity.framework", "PDFKit.framework", "UniformTypeIdentifiers.framework" })
                 proj.AddFrameworkToProject(fw, f, false);
             // The encoder guards its AVAssetWriter appends with @try (an append exception would otherwise abort the app);
             // Unity builds plugins with Objective-C exceptions off, so turn them on for that file.
