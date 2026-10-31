@@ -34,7 +34,13 @@ Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (L
   PITTS_LIVERY=N1191 blender -b --python tools/own_models/build_pitts_s2b.py
   PITTS_LIVERY=CHECKER-UNMARKED | FACTORY-UNMARKED : the same schemes with no registration (Ty 2026-10-28)
 """
-import bpy, bmesh, sys, os, math, numpy as np
+import sys, os
+if '--offline-update' in sys.argv:
+    from glb_visuals import checker_update
+    assert os.environ.get('PITTS_LIVERY', '').upper() == 'CHECKER-UNMARKED'
+    checker_update(os.path.join(os.path.dirname(__file__), '../../unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb'))
+    sys.exit(0)
+import bpy, bmesh, math, numpy as np
 from mathutils import Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
@@ -851,8 +857,22 @@ VST.fill(np.ones_like(Y, bool), RED)
 th = np.degrees(np.arctan2(np.abs(Y) - 0.205, (H_T + 0.621) - X))
 paint_white(VST, (th < 5) | ((th >= 21) & (th < 34)) | ((th >= 49) & (th < 61)))
 
+# Ty 2026-10-31: extend ONLY the unmarked Checkered livery to the upper wing and horizontal tail.
+# Same red/white, 0.254 m squares, mirrored centreline phase and LE-to-TE rows as the lower wing.
+# One tail projection spans the fixed stab and both elevators, keeping the grid continuous at the hinge.
+CHECKER_EXTENDED = LIV_ID == 'CHECKER-UNMARKED'
+if CHECKER_EXTENDED:
+    VUB, Y, X = plan('pitts_uw_bot', False, (-3.15, 3.15), (-0.75, 0.72), 4096, 1024)
+    VUB.fill(np.ones_like(Y, bool), RED)
+    VUB.fill((np.floor(np.abs(Y) / Q_W) + np.floor((LEU(Y) - X) / Q_W)) % 2 == 1, WHITE)
+    VSB, Y, X = plan('pitts_stab_bot', False, (-1.25, 1.25), (-3.85, -2.55), 2048, 1024)
+    VSB.fill(np.ones_like(Y, bool), RED)
+    VSB.fill((np.floor(np.abs(Y) / Q_W) + np.floor(((H_T + 0.621) - X) / Q_W)) % 2 == 1, WHITE)
+
 M = {}
 for v in (VL, VR, VFT, VFB, VUT, VLT, VLB, VST): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))
+if CHECKER_EXTENDED:
+    for v in (VUB, VSB): M[v.name] = paint.mat_image('Paint_' + v.name, v.to_image(os.path.join(TEX, v.name + '.png')))
 M['red'] = paint.mat_colour('Paint_red', RED); M['white'] = paint.mat_colour('Paint_white', WHITE)
 M['steel'] = paint.mat_colour('Wire_steel', STEEL, rough=0.25, metal=0.9)
 M['tyre'] = paint.mat_colour('Paint_tyre', TYRE, rough=0.8); M['cabin'] = paint.mat_colour('Paint_cabin', CABIN, rough=0.85)
@@ -872,6 +892,11 @@ for n in ('Wing_Upper', 'Aileron_UL', 'Aileron_UR'):                            
     setm(P[n], [VUT.name, 'red']); paint.project(P[n], lambda nrm, c: (0, VUT) if nrm.z >= 0 else (1, None))
 for n in ('Stab', 'Elevator_L', 'Elevator_R'):
     setm(P[n], [VST.name, 'red']); paint.project(P[n], lambda nrm, c: (0, VST) if nrm.z >= 0 else (1, None))
+if CHECKER_EXTENDED:
+    for names, top, bot in ((('Wing_Upper', 'Aileron_UL', 'Aileron_UR'), VUT, VUB),
+                            (('Stab', 'Elevator_L', 'Elevator_R'), VST, VSB)):
+        for n in names:
+            setm(P[n], [top.name, bot.name]); paint.project(P[n], wing_assign(top, bot))
 def fus_assign(nrm, c):
     if X_CA - 0.01 < c.x < X_CF + 0.01 and c.z < 0.18:            # cockpit inner skin + bulkheads: interior colour
         if abs(nrm.x) > 0.85 or nrm.y * c.y + nrm.z * (c.z + 0.2) < 0: return (3, None)

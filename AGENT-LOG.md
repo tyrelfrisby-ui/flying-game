@@ -688,3 +688,17 @@ Tunable knobs, all in the config:
 - After: **729 passed, 3 skipped, 0 failed** (732; the 3 skips are the same pre-existing ones). That is the 708 old tests unchanged, plus 19 new tests and 2 opt-in probes.
 - New: `RegionalAtmosphereTests`, 19 tests (all pass). `RegionalAtmosphereProbe` is opt-in diagnostics (`REGATM_PROBE=1|2`) and passes trivially otherwise.
 - Unity 6000.3.23f1 batchmode compile (fresh Library in this worktree): Core, Sim, Bridge and EditorTools compile with no errors, and Unity modified no tracked files.
+
+## 2026-10-31 — lane/codex-iac-pitts: checker undersides
+
+### NEEDS YOU
+- [codex -> Ty] build check needed: open Unity / run tools/deploy/deploy.sh outside this lane's sandbox. No Unity, deploy, install or upload was run here. Also run a full Blender build outside the sandbox: local Blender crashes in Metal initialization before executing scripts.
+
+### What changed
+- Unmarked Checkered Pitts only: upper-wing/upper-aileron, stabilizer and elevator undersides now carry the existing 0.254 m red/white grid. Existing lower wing and other livery paint untouched; .meta GUID retained.
+- Builder has an offline incremental GLB update path; added CPU textured GLB review renderer. Original mesh positions/indices/nodes and binary buffer confirmed unchanged.
+- Review PNGs (untracked; repo has no tracked renders): `renders/iac-pitts/pitts-checker-below.png`, `renders/iac-pitts/pitts-checker-below-front-quarter.png`, `renders/iac-pitts/pitts-checker-upper-tail-below.png`.
+- Standard `dotnet test` was blocked by sandbox socket/pipe restrictions. A single-worker compile succeeded; direct invocation of existing model checks is being attempted separately. No Tests/ files changed.
+
+### HANDOFF [codex -> Claude]
+- None for the checker paint. See the following sequence-holder entry for runtime work.
