@@ -722,3 +722,95 @@ Tunable knobs, all in the config:
 - **Transforms:** card size 0.120×0.155294 m, centred Y=0 in builder coordinates; raw glTF face centres Extra **(1.214,0.394353,0)**, Pitts **(0.8195,0.236353,0)**, Great Lakes **(1.6515,0.222353,0)**. Nodes use identity transforms with positions baked; these coordinates are before glTFast handedness conversion and aircraft placement/scale. Raw glTF up +Y, face normal +X (toward pilot); U increases to pilot's right, V=0 at top. Exact builder/raw centres and panel heights: `docs/models/sequence-card-spec.json`. Find the face renderer by name rather than treating these as world coordinates.
 - **Future Decathlon:** reusable Resources key **`Models/sequence-card/sequence-card-holder`**, same face/material names and texture. Local reference panel at zero; raw face centre **(0.012,0.086353,0)**, top 0.170 m, face 12 mm aft of reference panel. Mount/align to its actual panel when it exists, or add its placement to the shared Blender helper. No speculative Decathlon cockpit/app code added.
 - **Extra lane reconciliation:** `lane/codex-extra-cockpit` has `SequenceCard_Face` already (`e431e36`, default generator `77d6e2c`, rig docs `f64c67e`). Preserve one holder; use this shared default/contract or that lane's equivalent, not two overlaid cards. That lane's `Compass_Card_R` is rigged: keep it and drop this base's **`PanelCompass_Housing` / `PanelCompass_Face`** when its cockpit is integrated. If this base is used independently, the compass is static N and needs runtime magnetic-heading wiring; its material/art is `PanelCompass_Face`, 512×512, authored centre **(-1.202,-0.145,0.366)** (builder), 66 mm housing diameter.
+
+## 2026-10-31 — lane/codex-iac-pitts: round 2 flush rear/PIC layouts
+
+### NEEDS YOU
+- [codex -> Ty/Claude] Unity import/device visual review and a full Blender build remain external checks. Per Ty, this lane ran neither Unity nor Blender/deploy/install/upload. Round 1 established the local Blender Metal-init crash and dotnet-test socket restriction. Review rear-eye readability at actual app camera/scale and glTFast import. **Ty explicitly dropped Extra's 2-inch stick-up: zero protrusion on all types.** No design decision remains pending here.
+
+### What changed
+- All **8 aircraft GLBs** (Extra ×3, Pitts ×4, Great Lakes ×1) plus the shared holder now use **4.25×5.5 in = 0.10795×0.13970 m** (rounded 0.108×0.140), 8.5:11 aspect. Frame 0.11395×0.14570 m, 3 mm rails/lip, 22 mm clip; paper offset 1.2 mm, hardware maximum 3 mm at the panel face. No raised foot. **Card/frame fully inside every rear panel, above-panel protrusion 0.** Default 1275×1650 texture and all 11 figures preserved without cropping; SequenceCard_Face node/material/UV contract retained.
+- Round-1 holders were already on rear panels; their elevated placements are replaced. **Front-panel instruments and all their triangles remain unchanged**; nothing displaced in round 1 needed restoration. Flight instruments go left, engine instruments right, G-meter prominent at the top left beside the card. The old anonymous dials are replaced with original labelled static art; these visual assignments are not a factory equipment survey.
+- Extra's lower rear-panel face was recessed 40 mm ahead of its glareshield aft edge. Initial rear-eye rendering showed that overhang hid the card's top. `RearPanel_FlushPanel` fills that recess aft to builder X=-1.202 m, aligning with the existing glareshield. The card remains flush/inside the main panel, not raised. The front panel/glareshield/seats are preserved. Static `PanelCompass_Housing` / `PanelCompass_Face` nodes removed; one `RearPanel_Compass_Face` is on the PIC panel.
+- Exact raw glTF face centres: Extra **(1.2032,0.228,0)**; Pitts **(0.8087,0.015,0)**; Great Lakes **(1.6407,0.005,0)**. Shared reusable holder **(0.0012,0,0)** relative to its reference panel. Source specs/provenance updated, including each panel outline and full before/after instrument inventory.
+- The supplied v2 body-to-model inverse puts rear eyes at raw glTF Extra **(1.593487,0.546503,0)**, Pitts **(1.407662,0.340660,0)**, Great Lakes **(1.823660,0.274322,0)**. **No adjustments.** Extra/Great Lakes use source commits 073f113/4a45232 with different cockpit interiors; on this lane the eyes still lie within the rear opening/seat-pan fore-aft footprint with panel ahead (391/600/184 mm respectively). Great Lakes retains the close/steep view; this is placement evidence, not anthropometric approval. Spec snapshots the original matrices/translations and exact body inputs.
+
+**BEFORE vs AFTER rear-panel layouts.** Coordinates below: `(u,v)` metres, u=pilot right, v=model up, origin at centreline/model Z=0; D is outer bezel diameter. Before dials had **no function labels**. Rows compare inventories, not a claim that an identified before instrument moved to the paired slot. Radio unchanged on Extra.
+
+**Extra 300 — all 3 liveries**
+
+| BEFORE instrument | BEFORE (u,v), D | AFTER instrument | AFTER (u,v), D |
+|---|---|---|---|
+| Anonymous 1 | (+0.240,+0.193), 0.062 | Airspeed | (-0.230,+0.263), 0.062 |
+| Anonymous 2 | (+0.120,+0.193), 0.062 | Altimeter | (-0.230,+0.193), 0.062 |
+| Anonymous 3 | (+0.000,+0.193), 0.062 | Attitude | (-0.130,+0.193), 0.062 |
+| Anonymous 4 | (-0.120,+0.193), 0.062 | G meter | (-0.130,+0.263), 0.062 |
+| Anonymous 5 | (-0.240,+0.193), 0.062 | Tachometer | (+0.130,+0.263), 0.062 |
+| Anonymous 6 | (+0.240,+0.263), 0.062 | Oil pressure | (+0.230,+0.263), 0.062 |
+| Anonymous 7 | (+0.120,+0.263), 0.062 | Oil temperature | (+0.130,+0.193), 0.062 |
+| Anonymous 8 | (+0.000,+0.263), 0.062 | Fuel pressure | (+0.230,+0.193), 0.062 |
+| Anonymous 9 | (-0.120,+0.263), 0.062 | Fuel quantity | (+0.230,+0.365), 0.054 |
+| Anonymous 10 | (-0.240,+0.263), 0.062 | Voltmeter | (-0.230,+0.365), 0.054 |
+| Static compass | (+0.145,+0.366), 0.066 | Compass | (+0.130,+0.365), 0.060 |
+
+**Pitts S-2B — all 4 liveries**
+
+| BEFORE instrument | BEFORE (u,v), D | AFTER instrument | AFTER (u,v), D |
+|---|---|---|---|
+| Anonymous 1 | (+0.180,+0.065), 0.068 | Airspeed | (-0.210,+0.065), 0.068 |
+| Anonymous 2 | (+0.060,+0.065), 0.068 | Altimeter | (-0.160,-0.035), 0.060 |
+| Anonymous 3 | (-0.060,+0.065), 0.068 | G meter | (-0.110,+0.065), 0.068 |
+| Anonymous 4 | (-0.180,+0.065), 0.068 | Tachometer | (+0.110,+0.065), 0.068 |
+| Anonymous 5 | (+0.120,-0.035), 0.060 | Oil pressure | (+0.210,+0.065), 0.068 |
+| Anonymous 6 | (+0.000,-0.035), 0.060 | Oil temperature | (+0.110,-0.035), 0.060 |
+| Anonymous 7 | (-0.120,-0.035), 0.060 | Compass | (+0.210,-0.035), 0.060 |
+
+**Great Lakes — v1**
+
+| BEFORE instrument | BEFORE (u,v), D | AFTER instrument | AFTER (u,v), D |
+|---|---|---|---|
+| Anonymous 1 | (+0.160,+0.040), 0.064 | Airspeed | (-0.210,+0.040), 0.064 |
+| Anonymous 2 | (+0.055,+0.040), 0.064 | Altimeter | (-0.160,-0.050), 0.056 |
+| Anonymous 3 | (-0.055,+0.040), 0.064 | G meter | (-0.110,+0.040), 0.064 |
+| Anonymous 4 | (-0.160,+0.040), 0.064 | Tachometer | (+0.110,+0.040), 0.064 |
+| Anonymous 5 | (+0.110,-0.050), 0.056 | Oil pressure | (+0.210,+0.040), 0.064 |
+| Anonymous 6 | (+0.000,-0.050), 0.056 | Oil temperature | (+0.110,-0.050), 0.056 |
+| Anonymous 7 | (-0.110,-0.050), 0.056 | Compass | (+0.210,-0.050), 0.056 |
+
+**Validation/evidence**
+
+- `check_iac_assets.py`: **9/9 GLBs pass**, including new dimensions, flush offsets, zero protrusion, full card/frame outline containment, instrument-circle vs holder rectangle, actual projected bezel/face hull clearance from each rear eye, and 99 full opaque-scene visibility rays across each card (792 rays across 8 aircraft). Original binary buffers and airframe/paint/rig stay intact; front triangles preserved. The renderer now evaluates node hierarchy/TRS (Great Lakes oleos) and perspective-correct UV/depth.
+- Direct existing `OwnPittsModelTests` harness: **17/17 pass** (includes Extra livery, propeller and sibling checks). No Tests/ source edits. Additional existing `GearMatchesTheModels`: **7/7 pass**, Pitts ×4 / Extra ×3 (**24/24 direct checks total**). No separate offline Great Lakes model test class exists on this base; its model/card checks are covered above.
+- Repeated CPU offline builds produce identical aircraft GLB SHA-256 hashes. Python syntax parse and `git diff --check` pass. All caches/temp baselines/harness work stayed in temporary storage. Original test DLL reused because no test/app source changed.
+- Corrected during the pass: dial-volume filter initially excluded the aft needle faces (expanded from 10.1 to 10.6 mm; exact 132 removed triangles per original dial asserted), renderer initially lacked Great Lakes oleo TRS (implemented scene transforms), and initial temporary C# harness globbed symlinked Unity sources (restricted compilation to Program.cs). Dependency download failed DNS; preinstalled runtime Python supplied NumPy/Pillow. No remaining asset-check failure. Full Unity/Blender/build tests are unrun, not claimed green.
+
+**Every render path** (all untracked; 20 PNGs, not Unity screenshots):
+- `renders/iac-pitts/v2/extra-n300uy-rear-panel-straight.png`
+- `renders/iac-pitts/v2/extra-n300uy-rear-eyepoint.png`
+- `renders/iac-pitts/v2/extra-unmarked-rear-panel-straight.png`
+- `renders/iac-pitts/v2/extra-unmarked-rear-eyepoint.png`
+- `renders/iac-pitts/v2/extra-talk-flying-rear-panel-straight.png`
+- `renders/iac-pitts/v2/extra-talk-flying-rear-eyepoint.png`
+- `renders/iac-pitts/v2/pitts-checker-unmarked-rear-panel-straight.png`
+- `renders/iac-pitts/v2/pitts-checker-unmarked-rear-eyepoint.png`
+- `renders/iac-pitts/v2/pitts-factory-unmarked-rear-panel-straight.png`
+- `renders/iac-pitts/v2/pitts-factory-unmarked-rear-eyepoint.png`
+- `renders/iac-pitts/v2/pitts-n1191-rear-panel-straight.png`
+- `renders/iac-pitts/v2/pitts-n1191-rear-eyepoint.png`
+- `renders/iac-pitts/v2/pitts-n31dg-rear-panel-straight.png`
+- `renders/iac-pitts/v2/pitts-n31dg-rear-eyepoint.png`
+- `renders/iac-pitts/v2/great-lakes-v1-rear-panel-straight.png`
+- `renders/iac-pitts/v2/great-lakes-v1-rear-eyepoint.png`
+- `renders/iac-pitts/v2/extra-rear-panel-before.png`
+- `renders/iac-pitts/v2/pitts-rear-panel-before.png`
+- `renders/iac-pitts/v2/great-lakes-rear-panel-before.png`
+- `renders/iac-pitts/v2/sequence-card-flat-v2.png`
+- Camera/livery manifest: `renders/iac-pitts/v2/render-manifest.json`.
+
+Straight-on before/after views use the same centre/projection, 2400×1800 and 0.90 m horizontal field, with rear slab/hood isolation. Before GLBs are from `git show 38e8746` in temporary storage. Rear-eye views are 1600×1200 perspective, 86° horizontal FOV, forward yaw with downward pitch centring the panel, full opaque scene/glass omitted. The original 1275×1650 flat image preserves all 11 figures at full resolution. Small card text at cockpit viewing distance still needs device review.
+
+### HANDOFF [codex -> Claude]
+- **This round-2 entry supersedes round-1 transforms, raised mounting, compass names and protrusion.** Rear/PIC panel for Extra, Pitts and Great Lakes; front panels/instruments unchanged. Card 0.10795×0.13970 m, frame 0.11395×0.14570 m; paper 1.2 mm aft of the face, hardware ≤3 mm; zero above-panel protrusion, including Extra (2-inch stick-up dropped per Ty). Exact transforms/outlines/eye evidence: `docs/models/sequence-card-spec.json`.
+- `SequenceCard_Face` node/material contract unchanged: glTF baseColorTexture/TEXCOORD_0, U increases pilot-right, V=0 at top, raw normal +X toward pilot. Identity transforms with baked raw coordinates, before glTFast handedness/placement. Raw centres Extra (1.2032,0.228,0), Pitts (0.8087,0.015,0), Great Lakes (1.6407,0.005,0). Find the renderer by name. Reusable `Models/sequence-card/sequence-card-holder`: centre (0.0012,0,0) relative to reference panel; mount on a real future Decathlon rear panel, never add a speculative front mount.
+- PDF upload/page selection/reset remains app work, untouched here: official 2026 IAC Power Sportsman Known **page 4** default; runtime reset `SequenceCards/sportsman-known-2026`; clone material per aircraft; rasterize upright with white letterbox to 8.5:11, preserve all figures and persist selection through livery/model swaps. Retain prior/default on invalid/cancel.
+- All `RearPanel_<function>_Face` textures are static review art; wire live gauges/heading using the app's existing approach if desired. Single compass is `RearPanel_Compass_Face`, **not PanelCompass_Face**; Extra's obsolete PanelCompass_* nodes are gone. On other-lane cockpit reconciliation preserve one card/compass, prefer its working rig but apply these flush dimensions/rear placement. Keep Extra's new lower rear-panel face aligned with the glareshield; moving the card back into the old recessed surface reintroduces top-edge occlusion. No C# app/physics/Tests/ changes in this lane.
