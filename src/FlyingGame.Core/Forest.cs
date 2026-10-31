@@ -158,7 +158,9 @@ public static class Forest
     }
 
     /// <summary>True where timber is allowed at all: the right surface, and nobody has built here.</summary>
-    public static bool Timbered(double x, double y)
+    public static bool Timbered(double x, double y) => IslandGeometry.Timbered(x, y);
+
+    private static bool LegacyTimbered(double x, double y)
     {
         // Nothing stands outside the built world: the height field answers everywhere, but the mesh stops,
         // and a render from the north edge showed a line of conifers standing in mid-air over the sea.
@@ -248,8 +250,8 @@ public static class Forest
     {
         tree = default;
         double key = i * 2147.31 + j * 7919.17;
-        double x = (i + 0.08 + 0.84 * WorldTerrain.Hash(key, 1.7)) * CellM;
-        double y = (j + 0.08 + 0.84 * WorldTerrain.Hash(key, 2.3)) * CellM;
+        double x = (i + 0.08 + 0.84 * WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 1.7)) * CellM;
+        double y = (j + 0.08 + 0.84 * WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 2.3)) * CellM;
         WorldTerrain? t = WorldTerrain.Active;
         if (t is null) return false;
         // The cheapest question first: is timber allowed here at all? That costs no height queries, and it is
@@ -258,15 +260,17 @@ public static class Forest
         double g = t.HeightAt(x, y);
         var (slope, grad) = SlopeAt(x, y);
         double cover = CoverAt(x, y, g, slope, grad);
-        if (cover <= 0 || WorldTerrain.Hash(key, 2.9) > cover) return false;
+        if (cover <= 0 || WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 2.9) > cover) return false;
 
         // Height: full in the valleys, waist-high in the last of the krummholz.
         double below = System.Math.Clamp((TreeLineAt(x, y, grad) - g) / FullHeightBelowM, 0, 1);
-        double tall = (2.5 + (MaxHeightM - 2.5) * Smooth(below)) * (0.74 + 0.5 * WorldTerrain.Hash(key, 4.3));
+        double tall = (2.5 + (MaxHeightM - 2.5) * Smooth(below)) * (0.74 + 0.5 * WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 4.3));
         tall = System.Math.Clamp(tall, 2.0, MaxHeightM);
+        tall = System.Math.Min(tall, IslandGeometry.ClearanceCap(new IslandPoint(y/1000,x/1000),.010)-g);
+        if(tall<2.0)return false;
         tree = new Tree(x, y, g, tall, 0.22 + tall / 24.0,
-                        (WorldTerrain.Hash(key, 5.1) * 2 - 1) * 5,
-                        WorldTerrain.Hash(key, 6.7) * 360);
+                        (WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 5.1) * 2 - 1) * 5,
+                        WorldTerrain.Hash(key + IslandTerrain.World["seeds"].N("forest"), 6.7) * 360);
         return true;
     }
 

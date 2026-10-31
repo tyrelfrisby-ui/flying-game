@@ -1,5 +1,4 @@
 # Xcode
-build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
@@ -38,8 +37,6 @@ unity/Temp/
 unity/Logs/
 unity/UserSettings/
 unity/obj/
-unity/Assets/StreamingAssets/aircraft/
-unity/Assets/StreamingAssets/aircraft.meta
 *.csproj.meta
 unity/*.csproj
 unity/*.sln
@@ -69,3 +66,6 @@ assets-incoming/
 
 # Agent worktrees: full checkouts of this repo (329 MB), never part of it.
 .claude/worktrees/
+
+# On this branch build/cg-check.csv and aircraft mirrors are already tracked.
+# Claude restores the generated aircraft ignore rules when his mirror cleanup lands.

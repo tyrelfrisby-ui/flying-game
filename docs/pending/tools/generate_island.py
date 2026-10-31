@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 1A review artefacts. Python 3 standard library only.
+"""Island design/runtime review artefacts. Python 3 standard library only.
 Run from any directory. Optional --png uses macOS AppKit through Swift; never installs dependencies.
 The binary is a documented review interchange, not an existing engine import format.
 """
@@ -184,6 +184,9 @@ def height(x,y):
    if dd<core:h=water+cfg['ridge_height_m']*smooth(dd/core)
    elif dd<width:
     a=1-smooth((dd-core)/(width-core));h=h*(1-a)+(water+cfg['ridge_height_m'])*a
+ # Landable Page mesa detailplanes; continuous blend before authoritative fieldpads.
+ for q in W.get('mesa_pads',[]):
+  ad,cr=local(p,q);da=max(0,abs(ad)-q['length_m']/2000);db=max(0,abs(cr)-q['width_m']/2000);dd=math.hypot(da,db);h=h*(smooth(dd/(q['blend_m']/1000)))+q['elevation_ft']*FT*(1-smooth(dd/(q['blend_m']/1000)))
  # Simultaneous overlapping claims use nearest rectangle; conflicts reported separately.
  claims=[]
  for original in FIELDS:
@@ -258,6 +261,7 @@ def runway_finals():
  for r in FIELDS:
   l,b=dimensions(r);u=vec(r['heading_true_deg'])
   for sign in [-1,1]:
+   if r['field']=='DRAKE' and sign==1:continue  # Ty: single portal, no reverse final.
    c=(r['heading_true_deg']+(180 if sign==1 else 0))%360;th=[r['centre'][0]+sign*u[0]*l/2,r['centre'][1]+sign*u[1]*l/2]
    z=r['elevation_ft']+sign*l*500*r.get('slope_percent',0)/100/FT;v=vec(c)
    out.append(dict(airport=r['field'],title=r['key']+(' end A' if sign==-1 else ' end B'),threshold=th,outer=[th[0]-v[0]*7.408,th[1]-v[1]*7.408],course_true_deg=c,elevation_ft=z,precision=False,source='all-runway-end 20:1 design protection'))
@@ -317,7 +321,7 @@ def map_svg():
   v=' '.join(f'{x:.2f},{y:.2f}' for x,y in map(xy,p));parts.append(f'<polygon points="{v}" fill="{fill}" stroke="{stroke}" stroke-width="{width}"/>')
  def circle(p,r,fill,stroke='none'):
   x,y=xy(p);parts.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{r}" fill="{fill}" stroke="{stroke}"/>')
- text([-22,22.6],'AERO PLAYGROUND / ISLAND WORLD',30);text([-22,21.7],'PHASE 1A.2 · G1a PENDING Ty · DESIGN TARGETS / SEE FIT FAILURES',18,'#a43a35')
+ text([-22,22.6],'AERO PLAYGROUND / ISLAND WORLD',30);text([-22,21.7],'PHASE 1B · G1 PENDING Ty · APPROVED LAYOUT / LOCAL FIT EVIDENCE',18,'#a43a35')
  circle([0,0],20*scale,'#d9e8ed','#829ca8')
  for coast in LAND:poly(coast,'#c2d0ac')
  for i in W.get('outer_islands',[]):
@@ -378,6 +382,8 @@ def map_svg():
   elif r['field'] not in [a['id'] for a in W['airports']]:text([c[0]+.1,c[1]],r['field'],9,'#6a5f3f')
   else:
    l,b=dimensions(r);u=vec(r['heading_true_deg']);text([c[0]+u[0]*(l/2+.1),c[1]+u[1]*(l/2+.1)],r['id'],10)
+ for q in W.get('mesa_pads',[]):
+  poly(rect(q),'#c2a883','#866749',1);text(q['centre'],q['id']+' '+str(q['elevation_ft'])+' ft',9,'#765838')
  for t in W['hazards']['towers']:
   x,y=t['centre'];poly([[x,y+.17],[x-.11,y-.1],[x+.11,y-.1]],'none','#a53243',1.5);text([x+.17,y+.06],t['id']+' '+str(t['height_agl_m'])+'m',10,'#a53243')
  for q in W['hazards']['wires']:
@@ -447,7 +453,7 @@ def map_svg():
  scale,cx,cy=main_transform
  # Spacious keyed inventory, so dense main chart uses concise identifiers.
  y=1775;parts.append(f'<line x1="85" y1="{y-30}" x2="1715" y2="{y-30}" stroke="#8a9a91"/>')
- legends=[('LEGEND / READ WITH FIT CHECK',['Teal ring: coastal start; ochre diamond: inland start','Dark ring: non-start airport / PALH float variant','Runway rectangles: true length and heading; text: magnetic numbers','Green AP: airpark; small brown text: Middle Fork strip','Red triangle: tower T1–T6; red line: wire W1–W5','Orange fork L1–L4: lesson safe path; red: box branch','Brown triangle: peak + elevation ft; blue: water; white: glacier','Blue ×: final / box / zone / thermal start; S1–S7: lift terrain','Orange square + white markers: AB box; labels are target MSL','Magenta hatch: active MOA; gaps=cutouts; violet=raised floor','Purple dash: IFR/outerstrip finals; teal dash: proposed perimeter','Tan=B beach; open circle=nav site; B/A/C/S=bridge/arch/channel/stack']),('FEATURE KEY', [f['id']+' '+f['name'] for f in W['features'][:10]]),('FEATURE KEY / AIRPARKS',[f['id']+' '+f['name'] for f in W['features'][10:]]),('REVIEW STATUS',['G1a PENDING: see fit failures and Open for Ty.','Thin finals use supplied magnetic course + 7E.','Teal dash: proposed perimeter traffic reservation (Claude review).','AB1/AB2: 9 marker rafts + judge raft + 4 buoys each.','CZ1–CZ3/CZ5: HOT entry spawns targets/drones; COLD does not.','All elevations/geometry are targets except locked values.','Grid: 5 km; extent: 20 km radius from Frank Church.','Main-island coast is a design polygon, not real geography.','PALH belongs to PANC start; KAVX is not a start.','PNG and SVG generated from the same spec.'])]
+ legends=[('LEGEND / READ WITH FIT CHECK',['Teal ring: coastal start; ochre diamond: inland start','Dark ring: non-start airport / PALH float variant','Runway rectangles: true length and heading; text: magnetic numbers','Green AP: airpark; small brown text: Middle Fork strip','Red triangle: tower T1–T6; red line: wire W1–W5','Orange fork L1–L4: lesson safe path; red: box branch','Brown triangle: peak + elevation ft; blue: water; white: glacier','Blue ×: final / box / zone / thermal start; S1–S7: lift terrain','Orange square + white markers: AB box; labels are target MSL','Magenta hatch: active MOA; gaps=cutouts; violet=raised floor','Purple dash: IFR/outerstrip finals; teal dash: proposed perimeter','Tan=B beach; open circle=nav site; B/A/C/S=bridge/arch/channel/stack']),('FEATURE KEY', [f['id']+' '+f['name'] for f in W['features'][:10]]),('FEATURE KEY / AIRPARKS',[f['id']+' '+f['name'] for f in W['features'][10:]]),('REVIEW STATUS',['G1 PENDING: player build + Ty VFR review remain.','Thin finals use supplied magnetic course + 7E.','Teal dash: proposed perimeter traffic reservation (Claude review).','AB1/AB2: 9 marker rafts + judge raft + 4 buoys each.','CZ1–CZ3/CZ5: HOT entry spawns targets/drones; COLD does not.','All elevations/geometry are targets except locked values.','Grid: 5 km; extent: 20 km radius from Frank Church.','Main-island coast is a design polygon, not real geography.','PALH belongs to PANC start; KAVX is not a start.','PNG and SVG generated from the same spec.'])]
  for col,(title,ls) in enumerate(legends):
   xx=85+col*420;parts.append(f'<text x="{xx}" y="{y}" font-family="Arial" font-size="15" font-weight="bold" fill="#233c44">{title}</text>')
   for i,t in enumerate(ls):parts.append(f'<text x="{xx}" y="{y+25+i*20}" font-family="Arial" font-size="11" fill="#263e46">{html.escape(t)}</text>')

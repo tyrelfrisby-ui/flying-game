@@ -40,7 +40,7 @@ public sealed class WorldTerrain
     /// outside this there is nothing drawn, so anything that places objects on the ground — the forest above
     /// all — has to stop here or it stands on air. (The renderer's own bounds; it reads them from here.)
     /// </summary>
-    public const double MeshMinX = -7000, MeshMaxX = 9000, MeshMinY = -15000, MeshMaxY = 12500;
+    public const double MeshMinX = -20000, MeshMaxX = 20000, MeshMinY = -20000, MeshMaxY = 20000;
 
     /// <summary>Is (x, y) on ground that is actually built?</summary>
     public static bool OnBuiltGround(double x, double y)
@@ -62,13 +62,10 @@ public sealed class WorldTerrain
     }
 
     /// <summary>Runway centre (x,y) and field elevation for the four airports; runways run along +x.</summary>
-    public static readonly Airport[] Airports =
-    {
-        new("Valley", 400, 0, DatumM),                                                                      // 1,000 ft
-        new("Bench", 400, FirstEdgeY - PlateauAirportOffsetM, DatumM + StepHeightM),                        // 3,000 ft
-        new("Mesa", 400, FirstEdgeY - StepSpacingM - PlateauAirportOffsetM, DatumM + StepHeightM * 2),      // 5,000 ft
-        new("Summit", 400, FirstEdgeY - StepSpacingM * 2 - PlateauAirportOffsetM, DatumM + StepHeightM * 3), // 7,000 ft
-    };
+    public static readonly Airport[] Airports = IslandTerrain.World["airports"].Items
+        .Where(a => a.S("start_group") == "coastal" || a.S("start_group") == "inland")
+        .Select(a => new Airport(a.S("id"), a["runways"][0]["centre"].Point.X,
+            a["runways"][0]["centre"].Point.Y, a.N("elevation_ft") * IslandTerrain.Feet)).ToArray();
 
     /// <summary>
     /// The airport a session starts at unless the pilot picks another (SessionSettings.AirportIndex defaults to this).
@@ -504,6 +501,7 @@ public sealed class WorldTerrain
     public static Surface SurfaceAt(double x, double y)
     {
         if (SurfaceOverride.HasValue) return SurfaceOverride.Value;
+        if (Active != null) return IslandTerrain.SurfaceAt(x, y);
         foreach (Airport a in Airports)
         {
             if (PadOutsideX(a, x) > 50 || System.Math.Abs(y - a.Y) > PadHalfY + 50) continue;
@@ -591,7 +589,8 @@ public sealed class WorldTerrain
     /// <summary>Ground under a wheel / hard point at height <paramref name="up"/>: the terrain, or a raised deck it is on.</summary>
     public static double WheelGroundHeightAt(double x, double y, double up)
     {
-        double g = WheelGroundHeightAt(x, y);
+        double g = Active != null && IslandCavities.TryFloor(x, y, up, out double floor)
+            ? floor : WheelGroundHeightAt(x, y);
         return WorldDecks.All.Count > 0 && WorldDecks.DeckUnder(x, y, up, out double top) && top > g ? top : g;
     }
 
@@ -1175,6 +1174,15 @@ public sealed class WorldTerrain
     public double HeightAt(double x, double y, bool shelfTop, bool withTunnel,
                            System.Collections.Generic.List<(string stage, double h)>? trace)
     {
+        double islandHeight = IslandTerrain.HeightAt(x, y);
+        trace?.Add(("approved island height field", islandHeight));
+        return islandHeight;
+    }
+
+    // Retained solely for Claude's later legacy-code/test cleanup; never placed by the island builder.
+    private double LegacyHeightAt(double x, double y, bool shelfTop, bool withTunnel,
+                           System.Collections.Generic.List<(string stage, double h)>? trace)
+    {
         double h = BaseHeightAt(x, y, shelfTop);
         trace?.Add(("base terrain", h));
 
@@ -1321,7 +1329,9 @@ public sealed class WorldTerrain
     /// way to tell a float on the river from a wheel on the rock beneath it, and the height-less answer has to
     /// stay the river, because that is what the water mesh is drawn from.
     /// </summary>
-    public double? WaterSurfaceAt(double x, double y, double up)
+    public double? WaterSurfaceAt(double x, double y, double up) => IslandTerrain.WaterAt(x, y, up);
+
+    private double? LegacyWaterSurfaceAt(double x, double y, double up)
     {
         if (!double.IsNaN(up))
         {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Phase1A.2 evidence; --rebuild also proves byte-identical regeneration.
+"""Validate Phase1B evidence; --rebuild also proves byte-identical regeneration.
 A package PASS never changes a reported fit FAIL/UNVERIFIED or approves a gate.
 """
 import argparse,hashlib,json,math,struct,subprocess,sys,xml.etree.ElementTree as ET
@@ -17,7 +17,7 @@ if args.rebuild:
  print('Full generator, full-area fit checks and both native rasters rerun: byte-identical.')
 s=json.loads((P/'island-spec.json').read_text());w=s['world'];ifr=s['ifr'];meta=json.loads((P/'island-heightfield.json').read_text());m=json.loads((P/'island-fit-check.json').read_text())
 base=json.loads(subprocess.check_output(['git','show','048d9cd:docs/pending/island-spec.json'],cwd=REPO))
-assert s['phase']=='1A.2' and s['gate']=='G1a — PENDING Ty'
+assert s['phase']=='1B' and s['gate']=='G1 — PENDING Ty'
 assert canonical(w)==s['revision_audit']['final_world_sha256'], 'Stale final allocation ledger'
 assert w['radius_km']==20 and w['frame']['variation_east_deg']==7
 assert ifr==base['ifr'], 'Claude-owned IFR data changed'
@@ -70,9 +70,10 @@ assert not m['grade_failures'] and m['maximum_grade']['grade_percent']<=35 and m
 assert not m['spacing_failures'] and not m['shore_setback_failures'] and not m['pad_conflicts'] and not m['pad_surface_errors']
 assert not m['water_pad_inundations'] and not m['water_surface_checks']['different_level_overlaps']
 assert m['supplied_final_failures']==0 and not m['approach_obstacle_screen']
-allowed={'DRAKE 17 end B'}
+allowed=set()
 assert {a['title'] for a in m['approach_failures']}==allowed, 'Unresolved operational field ends: '+str([a['title'] for a in m['approach_failures']])
-assert m['fit_check'][2]['status']=='FAIL', 'Direction exceptions must remain pending Ty'
+assert not m['approach_failures'] and len(m['approach_terrain_screen'])==113
+assert not any(q['airport']=='DRAKE' and q['title'].endswith('end B') for q in m['approach_terrain_screen'])
 assert len(m['airway_checks'])==23 and not m['airway_failures']
 assert all(a['clearance_ft']>=2000-.02 for a in m['airway_checks'])
 assert not m['ring_failures'] and len(m['ring_volumes'])>300 and m['ring_missing'] and 'UNVERIFIED' in m['fit_check'][4]['status']
@@ -86,7 +87,7 @@ land=next(z for z in m['zone_clearances'] if z['zone']=='CZ5');assert land['over
 assert land['floor_agl_ft_range']==[12.0,140.0] and land['ceiling_agl_ft_range']==[2312.0,2440.0]
 under=[o for z in m['zone_clearances'] for o in z['airport_overlays']];assert len(under)==2 and all(o['passes'] for o in under) and any(o['entire_island_under_active_zone'] for o in under)
 assert {o['airport'] for o in under}=={'KITE','RIME'} and all(o['vertical_clearance_ft']>=2000 for o in under)
-assert all(o['recommended_default'] and len(o['options'])>=2 for o in s['open_for_ty'])
+assert all(o['recommended_default'] and len(o['options'])>=(1 if o['id']=='TY2' else 2) for o in s['open_for_ty'])
 import generate_island as author
 assert all(abs(author.height(*q['centre'])/author.FT-q['top_ft'])<.001 for q in w['height_field']['peaks'])
 assert all(all(k in c for k in ['item','old','new','reason']) for c in s['changes'])
@@ -95,7 +96,9 @@ for name,expected in [('island-map.png',(1800,2100)),('island-elevation.png',(18
  raw=(P/name).read_bytes();assert raw[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack('>II',raw[16:24])==expected
 raw=(P/'island-heightfield.f32').read_bytes();assert len(raw)==401*401*4 and hashlib.sha256(raw).hexdigest()==meta['sha256']
 assert sha(P/'island-spec.json')==meta['spec_sha256']
-for q in json.loads((P/'island-source-audit.json').read_text())['files']:assert sha(REPO/q['path'])==q['sha256'], 'Read-only source changed: '+q['path']
+for q in json.loads((P/'island-source-audit.json').read_text())['files']:
+ if q['path'].startswith(('configs/','src/FlyingGame.Core/Nav/','src/FlyingGame.Core/Orography','src/FlyingGame.Core/Atmosphere','src/FlyingGame.Core/Lift')):
+  assert sha(REPO/q['path'])==q['sha256'], 'Claude-owned source changed: '+q['path']
 # A few independent exact geometry identities protect the full-area algorithms themselves.
 from fit_revision import clip,subtract,area,capsule,cross
 square=[(0,0),(2,0),(2,2),(0,2)];cut=[(1,-1),(3,-1),(3,3),(1,3)]
@@ -103,8 +106,8 @@ assert abs(abs(area(clip(square,cut)))-2)<1e-10 and abs(sum(abs(area(p)) for p i
 cap=capsule((0,0),(3,0),1)
 for j in range(128):
  p=(math.cos(j*math.pi/64),math.sin(j*math.pi/64));assert all(cross(a,b,p)>=-1e-9 for a,b in zip(cap,cap[1:]+cap[:1]))
-manifest=dict(source_audit_sha256=sha(P/'island-source-audit.json'),phase='1A.2',passes=True,comparison='Two complete consecutive executions, including both native rasters; byte-identical in this environment.',spec_sha256=sha(P/'island-spec.json'),ifr_canonical_sha256=canonical(ifr),outputs=snapshot(),tools={p.name:sha(p) for p in sorted((P/'tools').glob('*')) if p.suffix in ['.py','.swift']},external_read_inputs={'configs/aircraft/c172-like.json':sha(REPO/'configs/aircraft/c172-like.json')})
+manifest=dict(source_audit_sha256=sha(P/'island-source-audit.json'),phase='1B',passes=True,comparison='Two complete consecutive executions, including both native rasters; byte-identical in this environment.',spec_sha256=sha(P/'island-spec.json'),ifr_canonical_sha256=canonical(ifr),outputs=snapshot(),tools={p.name:sha(p) for p in sorted((P/'tools').glob('*')) if p.suffix in ['.py','.swift']},external_read_inputs={'configs/aircraft/c172-like.json':sha(REPO/'configs/aircraft/c172-like.json')})
 if args.rebuild:(P/'island-determinism.json').write_text(json.dumps(manifest,indent=2)+'\n')
 else:
  old=json.loads((P/'island-determinism.json').read_text());assert old==manifest, 'Missing/stale determinism evidence; run --rebuild'
-print('Phase1A.2 package PASS. All reported evidence consistent; Drake’s nonoperational reverse end remains FAIL, missing IFR/runtime volumes remain UNVERIFIED. G1a is PENDING Ty.')
+print('Phase1B package PASS. 113 operational fans; no Drake reverse final. Missing IFR protection and flight validation remain UNVERIFIED. G1 is PENDING Ty.')

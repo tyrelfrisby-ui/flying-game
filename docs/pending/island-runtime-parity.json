@@ -1,0 +1,10 @@
+{
+  "points": 8038,
+  "max_error_m": 2.9558577807620168e-12,
+  "worst_position_km": [
+    -5.492287520820431,
+    -2.965133624257792
+  ],
+  "passes": true,
+  "spec_sha256": "34739ca2f5c16505798dfa9d187512f20931c96bbca7dd35761178231ccfc4ab"
+}

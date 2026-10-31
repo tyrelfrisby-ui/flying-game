@@ -1,0 +1,7 @@
+{
+  "block_count": 1144,
+  "checks": 4828,
+  "failures": [],
+  "passes": true,
+  "scope": "All oriented built block footprints, whole known finalfans and2nm airway/perimeter swaths; Drake interior excluded from exterior obstructions. Cables/tower/wire envelopes remain separately conservatively checked in fit. Unknown IFR stays unverified."
+}

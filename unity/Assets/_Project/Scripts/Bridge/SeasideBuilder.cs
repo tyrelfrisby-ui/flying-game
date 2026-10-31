@@ -154,7 +154,7 @@ namespace FlyingGame.Bridge
         // ---- the aircraft carrier (Core: Carrier) ---------------------------------------------------------------------
         // Built in the ship's own frame (Unity z = forward/bow, x = starboard, y = up from the waterline); CarrierRuntime
         // moves the whole thing each frame to the pose the physics uses.
-        private static void BuildCarrier(Transform parent)
+        internal static void BuildCarrier(Transform parent)
         {
             var b = new Batch();
             Color hull = new(0.42f, 0.44f, 0.46f), deck = new(0.26f, 0.27f, 0.28f), white = new(0.92f, 0.92f, 0.9f),

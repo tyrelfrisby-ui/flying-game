@@ -205,7 +205,7 @@ def measure_revision(g):
     p=[r['centre'][k]+t*l*u[k]+c0*b*v[k] for k in [0,1]];expected=padheight(g,r,p)-(w['height_field']['water_lane_bed_offset_m'] if r['surface']=='water' else 0);worst=max(worst,abs(g.height(*p)-expected))
   if worst>.05:pad_errors.append(dict(field=r['key'],max_error_m=round(worst,4)))
  m['pad_surface_errors']=pad_errors
- row(1,'FAIL' if overlaps or pad_errors or not caveok or not drakeok else 'PASS design geometry',f'{len(F)} complete pad rectangles; {len(overlaps)} incompatible intersections; {len(pad_errors)} evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: {m["pirate_cave_verification"]["status"]}. Drake full chamber/roof/pad analytic proof: {m['drake_shell_verification']['status']}. Runtime colliders remain unbuilt.')
+ row(1,'FAIL' if overlaps or pad_errors or not caveok or not drakeok else 'PASS design geometry',f'{len(F)} complete pad rectangles; {len(overlaps)} incompatible intersections; {len(pad_errors)} evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: {m["pirate_cave_verification"]["status"]}. Drake full chamber/roof/pad analytic proof: {m['drake_shell_verification']['status']}. Runtime cavity/solid checks are recorded separately in island-runtime-solids.json and island-runtime-checks.json.')
  row(2,'FAIL' if grades else 'PASS',f'Exact padded-rectangle edge distances for every flat-field pair: {len(grades)} above locked 35%; beaches and all outer runways included. Mean endpoint feasibility, not global peak/canyon slope cap.')
  inundation=[]
  for r in F:
@@ -278,7 +278,7 @@ def measure_revision(g):
     if z>top:top=z;who=wire['id']+' full-span conservative upper bound'
   clear=r['mea_ft']-top/g.FT;air.append(dict(segment=r['id'],clearance_ft=round(clear,3),terrain_or_solid_top_ft=round(top/g.FT,3),limiting=who,terrain_max_location=result['location'],mea_ft=r['mea_ft'],triangles=result['triangles']))
  m['airway_checks']=air;m['airway_failures']=[a for a in air if a['clearance_ft']<2000-.02]
- row(4,'FAIL' if m['airway_failures'] else 'PASS known geometry / UNVERIFIED T201',f'{len(m["airway_failures"])} of {len(air)} known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; exact solid build remains Phase1B.')
+ row(4,'FAIL' if m['airway_failures'] else 'PASS known geometry / UNVERIFIED T201',f'{len(m["airway_failures"])} of {len(air)} known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; built-solid screening is recorded separately in island-runtime-solids.json.')
  # Complete authored flight-volume ring containment by convex radius maxima.
  volumes=[]
  def volume(name,points,guard=0):
@@ -396,7 +396,7 @@ def measure_revision(g):
  m['water_surface_checks']=dict(water_count=len(waters),full_final_fans=len(fs),full_airway_segments=len(air),method='Complete circumscribed64-gon ellipse enclosures against everyprotectionpolygon; fixedwaterheight supersedes cutbed. No radial/pointsampling pass.',inundated_pads=inundation,different_level_overlaps=water_overlap)
  if water_overlap:rows[0]['status']='FAIL';rows[0]['evidence']+=' Overlappingdifferent-level waterplanes.'
  row(9,'PASS deterministic algorithm','Fixed authored seeds, no random calls. External two-generation byte comparison recorded in island-determinism.json and checked by verify_island.py.')
- row(10,'PASS design / UNVERIFIED runtime','One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. Engine/renderer integration requires Phase 1B; runtime unchanged.')
+ row(10,'PASS shared runtime evaluator / UNVERIFIED player','One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. WorldTerrain and IslandWorldBuilder use the same C# evaluator; numerical parity and contact probes recorded separately. Unity player/render validation remains pending sandbox build.')
  m['fit_check']=rows;m['method']={'grid':'Every clipped triangle, fixed SW-NE diagonal; maximum of affine terrain minus affine plane at all intersection vertices; exact on baked grid, not a certificate for sub-grid authoring relief. Exact pad planes overlaid separately.','limitations':'100 m design bake misses some sub-grid relief; continuous evaluator is screened on pads but not globally interval-certified. Forest/building exclusions are design contracts, not built solids. Full continuous-terrain/collider/flight certification remains later phase.','airspace':'All supplied IFR remains byte-for-byte semantic identical; no procedures invented. Known protected corridors checked; missing geometry remains explicit.'}
  from design_audit import audit
  audit(g,m,grid)

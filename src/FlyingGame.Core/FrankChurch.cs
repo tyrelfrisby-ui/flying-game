@@ -113,33 +113,10 @@ public static class FrankChurch
     /// mountain and the approach end hangs over the canyon, so there is no going around. That is Soldier Bar
     /// and Dewey Moore exactly.
     /// </summary>
-    public static readonly Strip[] Strips =
-    {
-        //         name            x       y    hdg  len  wid  depth slope  surface          one-way
-        // ---- up on the rim: high, long, and the density-altitude lesson. Depth 0 = the rim, 7,000 ft.
-        new Strip("Chamberlain", -3900, -11000,  85, 1100, 40,    0,  0.0, Ground.Gravel, null,
-                  "On the plateau in an open basin at 7,000 ft. Long and flat — and 7,000 ft on a warm day is the whole lesson."),
-        new Strip("Big Creek", -2600, -11400, 108, 1070, 34,    0,  0.8, Ground.Gravel, null,
-                  "On the rim, slightly uphill to the west. Long enough to be comfortable, high enough not to be."),
-        new Strip("Thomas Creek", -4700, -14100,  25, 1220, 30,    0,  1.2, Ground.Gravel, null,
-                  "The longest of them, and uphill. Fine until you try to leave on a warm afternoon."),
-        new Strip("Sulphur Creek", -3200, -14300,  70,  915, 30,    0,  0.0, Ground.Turf, null,
-                  "A meadow strip on the rim, timber off the east end."),
-        // ---- benches cut into the canyon walls.
-        new Strip("Johnson Creek", -1400, -12600,  12, 1040, 46,  176,  0.0, Ground.Turf, null,
-                  "3,400 ft of grass on a wide bench at 6,400 ft, timber at both ends. Two-way, forgiving, and the one to arrive at first."),
-        new Strip("Soldier Bar",  -1900, -13900, 250,  400, 20,  346,  1.5, Ground.Dirt, 250,
-                  "A 1,300 ft shelf above the river with nothing under the approach end. ONE WAY: land uphill, and there is no going around."),
-        new Strip("Cabin Creek", -3500, -12126,  70,  460, 20,  226,  3.0, Ground.Dirt, 70,
-                  "Short, 3 % uphill, and you come at it off the canyon. ONE WAY to the north-east."),
-        new Strip("Dewey Moore", -2900, -13528, 290,  370, 18,  276,  4.0, Ground.Dirt, 290,
-                  "The shortest and the steepest: 4 % up, 1,200 ft, and a 400 m drop off the low end. ONE WAY."),
-        // ---- bars on the canyon floor, sloping with the river.
-        new Strip("Indian Creek",  -300, -12830,  34, 1220, 30,  658,  1.8, Ground.Gravel, null,
-                  "On a bar in the canyon bottom beside the river. Long, but the walls are close on both sides."),
-        new Strip("Mackay Bar",    1000, -12486,   8,  460, 24,  635,  1.8, Ground.Gravel, null,
-                  "Right down on the river bar where the canyon opens out — and the walls lean over it."),
-    };
+    public static readonly Strip[] Strips = IslandTerrain.World["backcountry_strips"].Items.Select(d =>
+        new Strip(d.S("id"),d["centre"].Point.X,d["centre"].Point.Y,d.N("heading_true_deg"),d.N("length_m"),d.N("width_m"),
+            RimM-d.N("elevation_ft")*IslandTerrain.Feet,d.N("slope_percent"),d.S("surface")=="dirt"?Ground.Dirt:(d.S("surface")=="turf"||d.S("surface").Contains("grass"))?Ground.Turf:Ground.Gravel,
+            d.Has("one_way_true_deg")?d.N("one_way_true_deg"):(double?)null,"Approved island Middle Fork strip; see island-spec.json.")).ToArray();
 
     /// <summary>How far outside the block the canyon's own ground still wins — the footprint it FLATTENS.</summary>
     public const double FootprintPadM = 400;
@@ -303,8 +280,7 @@ public static class FrankChurch
     /// <summary>The strip under (x, y), if any — what the gear rolls on.</summary>
     public static bool TryStripAt(double x, double y, out Strip found)
     {
-        if (InBlock(x, y))
-            foreach (Strip s in Strips)
+        foreach (Strip s in Strips)
                 if (s.On(x, y)) { found = s; return true; }
         found = default;
         return false;

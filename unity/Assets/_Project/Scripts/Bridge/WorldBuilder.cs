@@ -39,44 +39,7 @@ namespace FlyingGame.Bridge
         public static GameObject BuildAll()
         {
             WorldTerrain.Active ??= new WorldTerrain();
-            var root = new GameObject("World");
-            BuildTerrain(WorldTerrain.Active, root.transform);
-            BuildWater(WorldTerrain.Active, root.transform);
-            BuildSeaplaneLanes(root.transform);
-            BuildSeaplaneBase(WorldTerrain.Active, root.transform);
-            BuildWaterfalls(WorldTerrain.Active, root.transform);
-            BuildWaterfallTunnel(WorldTerrain.Active, root.transform);   // the hidden runway behind the first fall
-            foreach (WorldTerrain.Airport a in WorldTerrain.Airports) BuildAirport(a, root.transform);
-            // The same landscape on every plateau (owner 2026-09-09): bridge, crop field, landmarks, aerobatic
-            // box and race course are built once per step, shifted by WorldTerrain.PlateauDy.
-            CropFieldMeshes = new Mesh[WorldTerrain.PlateauCount];
-            PylonTops.Clear();
-            for (int p = 0; p < WorldTerrain.PlateauCount; p++)
-            {
-                if (WorldTerrain.Has(p, WorldTerrain.Feature.Bridge)) BuildBridge(WorldTerrain.Active, root.transform, p);
-                if (WorldTerrain.Has(p, WorldTerrain.Feature.CropField)) BuildCropField(WorldTerrain.Active, root.transform, p);
-                BuildLandmarks(WorldTerrain.Active, root.transform, p);      // arch, tower and town, each on the plateaus that have it
-                if (WorldTerrain.Has(p, WorldTerrain.Feature.AeroBox)) BuildAeroBox(WorldTerrain.Active, root.transform, p);
-                if (WorldTerrain.Has(p, WorldTerrain.Feature.RaceCourse)) BuildRaceCourse(WorldTerrain.Active, root.transform, p);
-            }
-            Landmarks.RegisterSolids(WorldTerrain.Active);
-            WorldTerrain.Active.RegisterWaterfallSolids();   // the rock shelves over the plunge falls
-            BraidedRiver.RegisterSolids();                  // the boulders and driftwood on the gravel bars
-            HighDesert.RegisterSolids();                    // the desert rock, the junipers and the threshold cairns
-            AlpineRange.RegisterSolids();                   // the timber at the alpine lakes' outlets
-            Forest.RegisterSolids();                        // and the forest everywhere else: a function, not a list
-            BuildCombatZone(WorldTerrain.Active, root.transform);
-            AlaskaBuilder.Build(WorldTerrain.Active, root.transform);    // the glaciers, the bergs, the braided river
-            HighDesertBuilder.Build(WorldTerrain.Active, root.transform); // the Reno desert: scrub, strips, cairns
-            AlpineBuilder.Build(WorldTerrain.Active, root.transform);     // the alpine lakes' timber
-            ForestStreamer.Attach(WorldTerrain.Active, root.transform);   // the world's timber, built round the camera as it goes
-            SeasideBuilder.Build(WorldTerrain.Active, root.transform);   // ocean, Golden Gate, the island
-            PlaygroundBuilder.Build(WorldTerrain.Active, root.transform); // canyon lake, the city built for flying, the Mall
-            // Slope soaring: terrain-following flow over every wall (air rises up a windward face, sinks on the
-            // lee) — replaces the old single Gaussian lift band.
-            Atmosphere.ActiveRidge = null;
-            Atmosphere.SlopeLiftEnabled = true;
-            return root;
+            return IslandWorldBuilder.Build();
         }
 
         // ---- terrain mesh ------------------------------------------------------------------------

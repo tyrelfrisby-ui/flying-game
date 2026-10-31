@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><OutputPath>../../FlightTests/bin/Debug/net8.0/</OutputPath><AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath></PropertyGroup>
+<ItemGroup>
+<Reference Include="xunit.abstractions"><HintPath>../../FlightTests/bin/Debug/net8.0/xunit.abstractions.dll</HintPath></Reference>
+<Reference Include="xunit.core"><HintPath>../../FlightTests/bin/Debug/net8.0/xunit.core.dll</HintPath></Reference>
+<Reference Include="xunit.execution.dotnet"><HintPath>../../FlightTests/bin/Debug/net8.0/xunit.execution.dotnet.dll</HintPath></Reference>
+<Reference Include="xunit.runner.utility.netcoreapp10"><HintPath>../../FlightTests/bin/Debug/net8.0/xunit.runner.utility.netcoreapp10.dll</HintPath></Reference>
+<Reference Include="FlightTests"><HintPath>../../FlightTests/bin/Debug/net8.0/FlightTests.dll</HintPath></Reference>
+<Reference Include="FlyingGame.Core"><HintPath>../../FlightTests/bin/Debug/net8.0/FlyingGame.Core.dll</HintPath></Reference>
+<Reference Include="FlyingGame.Sim"><HintPath>../../FlightTests/bin/Debug/net8.0/FlyingGame.Sim.dll</HintPath></Reference>
+<Reference Include="xunit.assert"><HintPath>../../FlightTests/bin/Debug/net8.0/xunit.assert.dll</HintPath></Reference>
+<None Include="../../FlightTests/bin/Debug/net8.0/TestData/**/*"><Link>TestData/%(RecursiveDir)%(Filename)%(Extension)</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></None>
+</ItemGroup>
+</Project>

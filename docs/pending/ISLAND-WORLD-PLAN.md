@@ -1,33 +1,33 @@
-# Aero Playground island world — Phase 1A.2
+# Aero Playground island world — Phase 1B
 
-**G1a — PENDING Ty. Design, documentation and review generators only. No Phase 1B work or runtime approval.**
+**G1 — PENDING Ty. Phase 1A.2 approved by Ty 2026-10-30 20:25 PDT at e23bb64, defaults TY1–TY8; Drake single-portal ruling supersedes TY2. Phase 1B implementation accompanies this specification.**
 
 The 19 original grade failures and seven spacing conflicts have been addressed. Full water surfaces are included, so a cut lake bed cannot hide an obstruction above it. Every supplied final is checked across its whole protection fan; every known airway and proposed perimeter segment is checked across its full 2 nm terrain swath. Remaining failures and missing procedure geometry are explicit below. No failed check is converted into an approved waiver.
 
 ## Authority, frame and numerical status
 
-Ty’s original Phase 1A brief and nine decisions dated 2026-10-30 govern. The Cursor source Page remains inaccessible; the complete brief restatement is the source of truth. The baseline is local commit `048d9cd`. No new branch, push, merge, rebase, deployment, game-code edit or other-worktree edit belongs to this package.
+Ty’s original Phase 1A brief and nine decisions dated 2026-10-30 govern. The Cursor source Page remains inaccessible; the complete brief restatement is the source of truth. The baseline is local commit `048d9cd`. No new branch, push, merge, rebase, deployment, other-worktree edit belongs to this package. Runtime world code is included for Phase 1B.
 
 Coordinates are km east/north from Frank Church summit (0,0); true north is up. Engine mapping remains `(simX,simY,simZ)=(1000*north,1000*east,-0.3048*MSL_ft)`. Physics headings are true; published magnetic courses are true minus the locked 7° E. Supplied ICAO field elevations, runway lengths, Lake Powell 3,700 ft, glacier landing zones 1,000–1,300 ft, Drake’s 4,700 ft valley and 2,992 ft strip, pirate cave dimensions, Catalina position and the 20 km ring are retained.
 
-Main coast extent is **[20.2, 17.6] km**, versus approximately 18.3 × 17.5 km in the locked context. This western expansion is explicitly **TY1, pending**, not silently approved. Five outer runway islands and the combat islets remain inside the same 20 km ring.
+Main coast extent is **[20.2, 17.6] km**, versus approximately 18.3 × 17.5 km in the locked context. This western expansion is explicitly **TY1, approved by Ty**, not silently approved. Five outer runway islands and the combat islets remain inside the same 20 km ring.
 
 Every authored number is a **design target** unless Ty explicitly locked it. Fit-report numbers are **computed measurements/proofs**, with their stated representation limits. A 100 m review bake is not an engine-ready terrain import or flight certification.
 
 ## Fit check — baseline to revision
 
-| Rule | 1A result | 1A.2 result | Computed evidence |
+| Rule | 1A result | Current 1B evidence | Computed evidence |
 | --- | --- | --- | --- |
-| 1 | PASS sampled | PASS design geometry | 51 complete pad rectangles; 0 incompatible intersections; 0 evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: PASS analytic shell. Drake full chamber/roof/pad analytic proof: PASS analytic design. Runtime colliders remain unbuilt. |
+| 1 | PASS sampled | PASS design geometry | 51 complete pad rectangles; 0 incompatible intersections; 0 evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: PASS analytic shell. Drake full chamber/roof/pad analytic proof: PASS analytic design. Runtime cavity/solid checks are recorded separately in island-runtime-solids.json and island-runtime-checks.json. |
 | 2 | FAIL | PASS | Exact padded-rectangle edge distances for every flat-field pair: 0 above locked 35%; beaches and all outer runways included. Mean endpoint feasibility, not global peak/canyon slope cap. |
-| 3 | FAIL | FAIL | Full clipped-triangle sweeps of 114 fans, including all 12 supplied finals: 0/12 supplied and 1 total terrain/pad failures; 0 tower/wire failures or conservative bounds. Missing non-KSNA miss/hold geometry and future building/tree solids prevent full rule certification. |
-| 4 | FAIL | PASS known geometry / UNVERIFIED T201 | 0 of 23 known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; exact solid build remains Phase1B. |
-| 5 | PASS footprint / UNVERIFIED flight volumes | UNVERIFIED | Full analytic radius bounds for 379 authored footprints/flight volumes: 0 outside 20 km. Missing IFR hold/miss/T201 volumes prevent whole-rule verification; targets are not accepted as proofs. |
+| 3 | FAIL | UNVERIFIED | Full clipped-triangle sweeps of 113 fans, including all 12 supplied finals: 0/12 supplied and 0 total terrain/pad failures; 0 tower/wire failures or conservative bounds. Missing non-KSNA miss/hold geometry and future building/tree solids prevent full rule certification. |
+| 4 | FAIL | PASS known geometry / UNVERIFIED T201 | 0 of 23 known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; built-solid screening is recorded separately in island-runtime-solids.json. |
+| 5 | PASS footprint / UNVERIFIED flight volumes | UNVERIFIED | Full analytic radius bounds for 378 authored footprints/flight volumes: 0 outside 20 km. Missing IFR hold/miss/T201 volumes prevent whole-rule verification; targets are not accepted as proofs. |
 | 6 | FAIL | PASS | All 51 runways/strips including beaches/outer islands: 0 spacing conflicts, 0 shore-setback violations; only PANC/PALH spacing waiver used. |
 | 7 | PASS target / UNVERIFIED flight | PASS profile / UNVERIFIED flight | Entire post-cut piecewise-linear profiles checked againstC172-like1043kg/134000W loaded sustainedROC bound 2579fpm (100%efficiency/no drag/no DA loss),50kt conservative ground speed and30m entry clearance (80kt profile rates also shown). L1 5722fpm, L2 8862fpm, L3 6865fpm, L4 8323fpm. Physical flight/zoom/turnback certification requires later build. |
 | 8 | UNVERIFIED | PASS known geometry / UNVERIFIED missing IFR | Full polygon/segment boundary distances, complete clipped-grid areas and rounded2nm airway swaths; 150m box/final guard. 0 box, 0 zone and 0 combat-feature failures. Sector exclusions preserve2.05km; own airport corridors have5000ft combat floor above3000ft traffic. Missing IFR misses/holds/T201 remain UNVERIFIED. |
 | 9 | PASS generated | PASS deterministic algorithm | Fixed authored seeds, no random calls. External two-generation byte comparison recorded in island-determinism.json and checked by verify_island.py. |
-| 10 | PASS design / UNVERIFIED integration | PASS design / UNVERIFIED runtime | One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. Engine/renderer integration requires Phase 1B; runtime unchanged. |
+| 10 | PASS design / UNVERIFIED integration | PASS shared runtime evaluator / UNVERIFIED player | One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. WorldTerrain and IslandWorldBuilder use the same C# evaluator; numerical parity and contact probes recorded separately. Unity player/render validation remains pending sandbox build. |
 
 Full machine-readable evidence, active MOA polygon unions, exclusion masks, raised-floor masks, cave proofs and individual field results: [island-fit-check.json](island-fit-check.json).
 
@@ -37,20 +37,21 @@ Flat-field pairs checked: **854**. Maximum edge-to-edge mean grade: **34.954359%
 
 | Final/end | Terrain penetration m | Pad / water penetration m | Limiting pad |
 | --- | --- | --- | --- |
-| DRAKE 17 end B | 320.04 | 0 / 0 | None |
+
+No known terrain/pad penetration remains.
 
 | Final | Obstacle | Penetration/bound m |
 | --- | --- | --- |
 
-Drake’s reverse end terminates inside a closed underground shell; applying an exterior approach surface to that end contradicts its locked one-way design. KSNA north-side conflicts are resolved by relocating Page/Powell and the backcountry terraces. **TY2 proposes only the Drake reverse-end exemption; it remains a failure until Ty accepts it.** Any other listed end still needs a layout fix.
+Drake is **ONE WAY IN / ONE WAY OUT** through its single north portal. Only operational end A is screened; there is no reverse final, exemption or second portal. KSNA conflicts are resolved by the approved Page/Powell/backcountry layout.
 
 Missing: BALBO hold exact speed/turn geometry (19.2 km supplied target only); KSNA missed exact curved boundary; T201 complete route protection; other missed approaches/holds; KAVX circling. No full clearance/ring pass is claimed for geometry that was never supplied. All of the supplied `ifr` data remains semantically identical to the baseline; Claude owns the final procedure geometry and computed minima.
 
 ## Height field, landforms, water and continuity
 
-One standard-library Python authoring evaluator supplies the review grid and both chart/elevation annotations. The grid is 401 × 401, 100 m spacing, little-endian float32 metres MSL, rows south to north, columns west to east. Interpolation uses fixed SW–NE triangle diagonals. Analytic pad planes and cavity decks are detail from the same authoring definition; roofs/arches/bridges become height-aware WorldSolids, not a second ground field. Runtime integration is deferred.
+One standard-library Python authoring evaluator supplies the review grid and both chart/elevation annotations. The grid is 401 × 401, 100 m spacing, little-endian float32 metres MSL, rows south to north, columns west to east. Interpolation uses fixed SW–NE triangle diagonals. Analytic pad planes and cavity decks are detail from the same authoring definition; roofs/arches/bridges become height-aware WorldSolids, not a second ground field. Runtime integration uses the compiled same-source analytic evaluator, with shared sim/render height queries.
 
-Outer-island contributions fade independently into the ocean and combine by continuous maxima. Pad exterior blends use inverse-distance weights and tend exactly to each plane at its boundary. Finite influence weights fade to zero; only Drake’s named north cliff is intentionally vertical. The ocean continues through the ring with a 19.5–20 km visual fade and no collision wall. Broad arrival/airway cuts are a design prototype for valleys and terraces; they are not final terrain art.
+Outer-island contributions fade independently into the ocean and combine by continuous maxima. Pad exterior blends use inverse-distance weights and tend exactly to each plane at its boundary. Finite influence weights fade to zero; only Drake’s named north cliff is intentionally vertical. The ocean continues through the ring with a 19.5–20 km visual fade and no collision wall. Broad arrival/airway cuts are a design prototype for valleys and terraces; the built renderer adds regional materials and procedural geometry.
 
 | Peak | Centre E,N km | Top ft MSL | Envelope radius km |
 | --- | --- | --- | --- |
@@ -324,7 +325,7 @@ Drake proof: `{"status":"PASS analytic design","maximum_chamber_corner_radius_m"
 | L3 | [[2.9,-6.3],[3.14,-6.48]] | 254.216 | 6865.103 | 4290.69 | 2578.91 | PASS conservative sustained-climb profile |
 | L4 | [[-4.5,4.7],[-4.5,5.1]] | 410.913 | 8322.508 | 5201.568 | 2578.91 | PASS conservative sustained-climb profile |
 
-Each full piecewise-linear path is tested against the C172-like configuration’s loaded 1,043 kg / 134 kW engine-power ceiling, assuming 100% propeller efficiency, zero drag and no density-altitude power loss. Those deliberately generous assumptions bound sustained climb at every DA. At conservative 50 kt ground speed and 30 m entry clearance, the rising terrain overtakes that path. Runtime trajectories, zoom, turnback, atmospheric lift and collision behavior remain unverified in this docs-only phase.
+Each full piecewise-linear path is tested against the C172-like configuration’s loaded 1,043 kg / 134 kW engine-power ceiling, assuming 100% propeller efficiency, zero drag and no density-altitude power loss. Those deliberately generous assumptions bound sustained climb at every DA. At conservative 50 kt ground speed and 30 m entry clearance, the rising terrain overtakes that path. Runtime trajectories, zoom, turnback, atmospheric lift and collision behavior remain unverified until Ty’s flight review.
 
 ## Hazards, race, legacy features and inventory
 
@@ -367,7 +368,7 @@ All six towers and five wires remain deterministic and charted. Complete guy foo
 | RACE Air race pylon course | [10, -13] | {"status":"target","extent_km":[1.11,0.35],"gate_half_width_m":22.86,"pylon_height_m":75,"element_count":12,"chart":true,"platform":"moored offshore racepylons; collisiongeometryanchored atwater0MSL, no land made; allseeds retained"} |
 | CARRIER Carrier off OC | [6.8, -10.5] | {"status":"target","moving_deck":true,"operating_radius_km":0.3} |
 | FOREST Regional forest | [0, 2] | {"status":"target","cell_m":18,"treeline_m":2350,"max_height_m":42,"exclude":["pads","approach corridors","water","cities","canyon safe lines"]} |
-| GATEWAY Gateway style river arch | [0.5, -6.7] | {"status":"target"} |
+| GATEWAY Gateway style river arch | [0.3, -6.5] | {"status":"target"} |
 | PLAYA Page dry playa | [5.8, -4.9] | {"status":"target"} |
 
 The race course keeps all 12 original gates/pylons and moves offshore to (10,-13), on moored bases. Whole gate/pylon enclosure final clearance: 1.669351 km; it is clear of every box and active combat footprint. Carrier stays off OC, clear of the southern LOC BC/hold reservation.
@@ -445,73 +446,77 @@ The race course keeps all 12 original gates/pylons and moves offshore to (10,-13
 
 The inventory retains all 68 original entries: six events, six challenges, lesson/practice variants, rooftop/city, STOL/dusting, tow/float/ski infrastructure, backcountry bars, historic glider slope, carrier, Catalina/Avalon/cave/arch, Powell, glaciers, forest, landable mesas and Drake school geometry. Golden Gate, Eiffel tower, DC Mall and waterfall tunnel remain deleted. No lesson/event/scoring/weather runtime is changed.
 
-## Open for Ty — recommended defaults
+## G1a approved defaults — G1 flight review pending
 
-A single **approve** can accept the recommended defaults together; it does not start Phase 1B in this session. Locked-decision differences and proposed exceptions remain pending until Ty acts.
+Ty approved TY1–TY8 at G1a on 2026-10-30 20:25 PDT. TY2 is superseded by his single-portal one-way ruling. The following records the accepted design assumptions; G1 remains pending Ty’s VFR review.
 
 **TY1 — Main-island footprint versus the locked approximate size**
 
 The west coast needed for the PANC/Lake Hood fit makes the main polygon 20.2 × 17.6 km, versus the brief’s approximately 18.3 × 17.5 km. The 20 km world ring remains unchanged. This size difference is a proposal requiring Ty, not an approved change to the locked context.
 
-**RECOMMENDED DEFAULT:** Approve the 20.2 × 17.6 km main polygon and the five outer runway islands inside the unchanged ring.
+**APPROVED DEFAULT:** Approve the 20.2 × 17.6 km main polygon and the five outer runway islands inside the unchanged ring.
 
-Other options: Approve the wider west coast; Require another layout pass to retain approximately 18.3 km main-island width, relocating the western high-field/Drake allocation.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
-**TY2 — Drake’s locked one-way underground strip versus both-end approach rule**
+**TY2 — Drake one-way operation**
 
-The reverse runway end lies inside a closed rock shell. A 4 nm exterior approach surface cannot clear that end while retaining the locked one-way strip and sealed cave. KSNA north-side conflicts are resolved by moving Page/Powell/backcountry geometry; they do not receive an exception.
+ONE WAY IN / ONE WAY OUT through the single north portal. Land runway17; depart back through the same north portal. No reverse final, no second portal.
 
-**RECOMMENDED DEFAULT:** Approve an explicit exemption for Drake’s nonoperational reverse final only; retain its FAIL until Ty records that exception. All operational field ends must pass.
+**APPROVED DEFAULT:** ONE WAY IN / ONE WAY OUT through the single north portal. Land runway17; depart back through the same north portal. No reverse final, no second portal.
 
-Other options: Approve the one-way reverse-end exemption; Require a second exterior portal or move the strip outside the hill, which changes the locked cave/one-way concept.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY3 — Missing Claude-owned procedure protection**
 
 T201 fix coordinates/segment MEAs, complete missed approaches/holds including BALBO’s exact turns, and KAVX circling geometry were not supplied. Whole-rule certification for rules 3–5 and 8 remains UNVERIFIED for these volumes.
 
-**RECOMMENDED DEFAULT:** Approve the design reservations conditionally; Claude supplies the missing polygons and recomputes TERPS/MEAs, and Codex repairs any terrain conflicts before G1. Preserve the known 2.05 km MOA guards and 20 km ring.
+**APPROVED DEFAULT:** Approve the design reservations conditionally; Claude supplies the missing polygons and recomputes TERPS/MEAs, and Codex repairs any terrain conflicts before G1. Preserve the known 2.05 km MOA guards and 20 km ring.
 
-Other options: Retain conditional design approval with the explicit geometry handoff; Require the missing geometry before approving G1a.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY4 — Unspecified real-field survey details**
 
 PALH gravel elevation 79 ft, 3U2 longitudinal slope 0.5%, and KMEV glider-strip dimensions are provisional targets because the brief supplied no definitive values. Outer airfields, airparks and beach datums are fictional design values. Payette Lake’s 4,900 ft level is a fictional design target; only Powell at 3,700 ft is locked among these lake levels.
 
-**RECOMMENDED DEFAULT:** Retain those provisional values for design review, visibly labelled as targets; replace them with confirmed survey values before G1 if Ty provides them, then rerun all fits.
+**APPROVED DEFAULT:** Retain those provisional values for design review, visibly labelled as targets; replace them with confirmed survey values before G1 if Ty provides them, then rerun all fits.
 
-Other options: Retain the explicit provisional targets; Supply replacement survey values now.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY5 — IFR alignment after world-coordinate revisions**
 
 The supplied IFR section is unchanged. PANC/Lake Hood, KMYL, KMEV, KAVX and KPGA world geometry moved; station/fix geometry and the supplied KSNA threshold remain for Claude to reconcile. KPGA crossrunway is now true102° (magnetic095°,10/28). New outer navaids are sites only.
 
-**RECOMMENDED DEFAULT:** Approve the revised world positions and have Claude fit the IFR layer to them after the design gate; no world-agent edit to the supplied IFR transcription.
+**APPROVED DEFAULT:** Approve the revised world positions and have Claude fit the IFR layer to them after the design gate; no world-agent edit to the supplied IFR transcription.
 
-Other options: Approve the world positions and explicit IFR handoff; Request another world layout aligned to every starting station/fix position.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY6 — Terrain, fictional airpark datums and combat operating defaults**
 
 The complete changes ledger records all moved peaks, reheaded strips, fictional elevations, outer islands, beaches, combat islands/structures and the offshore race course. Combat base floors are 150 ft MSL, or 200 ft at the land MOA; airport traffic overlays raise the floor to 5,000 ft above traffic capped at 3,000 ft.
 
-**RECOMMENDED DEFAULT:** Approve the final coordinates/dimensions/datums and default-HOT zones, with targets and drones appearing only upon entry into the active 3D volume; COLD zones do not spawn them.
+**APPROVED DEFAULT:** Approve the final coordinates/dimensions/datums and default-HOT zones, with targets and drones appearing only upon entry into the active 3D volume; COLD zones do not spawn them.
 
-Other options: Approve the final logged layout and operating defaults; Specify individual items for a further design revision.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY7 — Combat-zone names**
 
 Susitna is an actual MOA name in an FAA chart supplement. All four design names now carry an AP prefix to identify fictional simulator airspace; no claim of authoritative worldwide name uniqueness is made.
 
-**RECOMMENDED DEFAULT:** Approve AP KAIWI, AP PAINTED, AP SUSITNA and AP TERN MESA as fictional chart names.
+**APPROVED DEFAULT:** Approve AP KAIWI, AP PAINTED, AP SUSITNA and AP TERN MESA as fictional chart names.
 
-Other options: Approve the AP-prefixed names; Provide replacement fictional names.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
 
 **TY8 — Design proofs versus runtime validation**
 
 The full clipped-triangle checks are exact on the 100 m review grid; analytic pad/cavity/marker/structure bounds cover their detail. Fine terrain continuity, water containment, cave contact routing, loaded-trainer zoom/turnback and collider/airframe behavior cannot be flight-certified without the Phase 1B build.
 
-**RECOMMENDED DEFAULT:** Approve the design evidence and keep runtime/flight certification pending for G1. This session stops at G1a; it does not authorize or start implementation.
+**APPROVED DEFAULT:** Approve the design evidence and keep runtime/flight certification pending for G1. This session stops at G1a; it does not authorize or start implementation.
 
-Other options: Accept the explicit design-only verification scope; Request a finer or additional design proof before G1a.
+Status: APPROVED by Ty 2026-10-30 20:25 PDT.
+
+## Phase 1B runtime and G1 verification
+
+Implementation, local compile evidence, runtime checks, broken tests, concept gallery and remaining G1 review items are recorded in [ISLAND-WORLD-G1.md](ISLAND-WORLD-G1.md). Fixed WorldRender cameras are authored; no sandbox screenshot is claimed. New runtime asset kinds read from StreamingAssets: **none**.
 
 ## Closed review items
 
@@ -526,6 +531,7 @@ Other options: Accept the explicit design-only verification scope; Request a fin
 | Floating gunnery targets | Replaced by groundtargets oncombat islands/landterrace. Everyzone now has explicitHOT-entry target/drone spawning and COLD behavior. |
 | AP8 numbering | 36/18 follows true007 minus7E; opposite18. Added explicitAP8 floatlane and allfit checks. |
 | KSNA north-side / water-surface conflicts | RelocatedPage/Powell/backcountryallocation andsixCrags lakes; fullwaterplanes nowincluded in allapproach/airwaychecks. NoKSNA directional waiver. |
+| Drake operation (TY2 superseded) | ONE WAY IN / ONE WAY OUT through the single north portal. Land runway17; depart back through the same north portal. No reverse final, no second portal. |
 
 ## Reproduction and verification
 
@@ -10701,6 +10707,51 @@ Every entry carries item, old value, new value and reason. Baseline 1A entries a
 
 ```json
 {"phase":"1A.2 final reconciliation","item":"/world/water/Payette Lake/radii_km","old":[0.55,0.8],"new":[0.5,0.6],"reason":"Final design allocation after full pad, water, terrain, final, airway, ring and combat sweeps. Ty decisions1–9 applied; original ICAO elevations/lengths,35% cap,20km ring and cave dimensions retained. Western mainland expansion remains TY1 pending. Chronological entries above explain individual layout iterations."}
+```
+
+</details>
+
+<details>
+<summary>1130. DRAKE17 operational geometry</summary>
+
+```json
+{"phase":"1B","item":"DRAKE17 operational geometry","old":"Runway17 only; reversefinal meets closedfarwall/roof and remainsFAIL until Ty approves explicitone-way exemption. No secondentrance/tunnel added.","new":"ONE WAY IN / ONE WAY OUT through the single north portal. Land runway17; depart back through the same north portal. No reverse final, no second portal.","reason":"Ty ruling 2026-10-30 20:25 PDT; remove the nonoperational reverse fan and its failure, not a clearance exemption."}
+```
+
+</details>
+
+<details>
+<summary>1131. GATEWAY/centre</summary>
+
+```json
+{"phase":"1B","item":"GATEWAY/centre","old":[0.5,-6.7],"new":[0.3,-6.5],"reason":"Built arch whole-footprint audit found AP14 endB conflict; move280m northwest along the C3 neighbourhood to clear all operational finals."}
+```
+
+</details>
+
+<details>
+<summary>1132. world/runtime_geometry</summary>
+
+```json
+{"phase":"1B","item":"world/runtime_geometry","old":null,"new":{"representation":"Compiled C# data plus same-source continuous evaluator; WorldTerrain is shared by renderer/contact. No StreamingAssets read.","implementation":"src/FlyingGame.Core/IslandGeometry.cs; unity/Assets/_Project/Scripts/Bridge/IslandWorldBuilder.cs","city":"25 deterministic building sites inside approved CITY extent. Height caps against whole known final and airway reservations; roof rings only where whole radius fits. Central300m hole tower retained if budget allows; spinning ring uses shared WorldClock.","powell_marina":{"dock_reference":[4.295,-4.525],"reason":"Lake centre minus180m east; docks/boats advance120–220m east so full bodies float inside actual approved lake, away from AP14 protection."},"float_bases":"Lake Hood and Powell ellipse-shore docks and90x24m continuous ramps from1.5m below water to actual drybank height. PALH open-front hangar.","drake":"Continuous260x80m interior slope rising70m, pillowpool70x45m, westapron240x90m, six glasslabs spanning240m; same single northportal only.","markers":"Cross80x4m overall beams (40m arms each side); inward L30m legs; sideT30m inward stem/crossbar. Moored0.5m water decks and orange cornerbuoys.","scenery_randomness":"Explicit fixed uint hash against approved building/parked/driftwood seeds; no process/global random state.","hot_entry_handoff":"Dormant per-zone target/drone geometry and SetHot/SetContentsVisible adapters. Claude implements entry/AI/scoring/ATIS/chart menu bindings.","starts_handoff":"Approved world.starts exposes airport/final/runway/thermal/AB/CZ candidates. Claude implements runway choice, trim and event spawn routing."},"reason":"Concrete solid/mesh placement details for approved inventory. City silhouettes and marina allocation changed after actual built-solid clearance screening; no other field/coast/terrain datum changed."}
+```
+
+</details>
+
+<details>
+<summary>1133. runtime streams and adapters</summary>
+
+```json
+{"phase":"1B","item":"runtime streams and adapters","old":null,"new":{"water":{"paths":"C1-C4 thalwegs and8 meandering shallow braids at each F13/F14/F15 bar complex","depth_m":0.15,"half_width_m":{"C3":18,"other_canyons":10,"braids":4},"bar_clean_lane_m":[520,52],"pad_guard":"No stream on any runway/pad/60m shoulders or inside cavities; float lanes/lakes retain fixed water planes.","representation":"Same IslandWater.StreamAt domain read by water queries and renderer. Stream surface follows approved terrain bed +0.15m; shallow riverbeds are not seaplane float lanes."},"adapters":"IslandSites.Starts/Fields/Boxes/NavaidSitesOnly/Obstructions; IslandCombatZone.ContainsActive/FloorAt/Hot; IslandZoneView.SetHot/SetContentsVisible"},"reason":"Build approved canyon and braided river water, clean gravel lanes and all chart/spawn handoff positions. Preserve Claude ownership of navigation, menus, event/AI/scoring/weather."}
+```
+
+</details>
+
+<details>
+<summary>1134. F12 landable mesa detail planes</summary>
+
+```json
+{"phase":"1B","item":"F12 landable mesa detail planes","old":"Target only: landable mesas and46m cleanlanes atF12, no explicitplane implementation.","new":[{"id":"PAGE-M1","centre":[5,-3.7],"heading_true_deg":0,"length_m":360,"width_m":120,"elevation_ft":4475,"blend_m":150,"clean_lane_width_m":46},{"id":"PAGE-M2","centre":[5.4,-3.7],"heading_true_deg":0,"length_m":360,"width_m":120,"elevation_ft":4075,"blend_m":150,"clean_lane_width_m":46}],"reason":"Build two continuous flat mesa tops and rock-pile/rut strips for the approvedF12 feature. Exact planes and fullknownfan/airway screening; no field elevations/lengths changed."}
 ```
 
 </details>

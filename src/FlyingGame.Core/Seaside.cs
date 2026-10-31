@@ -22,7 +22,7 @@ public static class Coast
     public static double ShoreY(double x) => MeanShoreY + 240.0 * System.Math.Sin(x / 1400.0 + 0.7) + 90.0 * System.Math.Sin(x / 530.0 + 2.0);
 
     /// <summary>Seaward of the cliff foot: the sea's surface applies where the ground is below it.</summary>
-    public static bool IsSea(double x, double y) => y > ShoreY(x) - BeachM;
+    public static bool IsSea(double x, double y) => IslandTerrain.HeightAt(x, y) < 0;
 
     /// <summary>The coast's cap on terrain height (+∞ inland of the cliff top). <paramref name="plainH"/> = the tableland
     /// height there. Cliff: rounded top, near-vertical foot (75°); beach: sand from the cliff foot to the waterline;
@@ -342,15 +342,9 @@ public static class Carrier
     /// <summary>Centre (x, y), heading (rad, 0 = north, + = clockwise) and turn rate (rad/s) at time t.</summary>
     public static (double x, double y, double heading, double turnRate) PoseAt(double t)
     {
-        double s = (SpeedMs * t) % LapM; if (s < 0) s += LapM;
-        double y1 = TrackY, r = TurnRadiusM, w = SpeedMs / r, a = System.Math.PI * r;
-        if (s < Straight) return (TrackX0 + s, y1, 0, 0);                                                 // northbound
-        s -= Straight;
-        if (s < a) { double h = s / r; return (TrackX1 + r * System.Math.Sin(h), y1 + r - r * System.Math.Cos(h), h, w); }   // turning east, then south
-        s -= a;
-        if (s < Straight) return (TrackX1 - s, y1 + 2 * r, System.Math.PI, 0);                           // southbound
-        s -= Straight;
-        { double h = System.Math.PI + s / r; return (TrackX0 + r * System.Math.Sin(h), y1 + r - r * System.Math.Cos(h), h, w); }
+        var c = IslandTerrain.Feature("CARRIER")["centre"].Point;
+        const double radius = 100; double a = SpeedMs * t / radius;
+        return (c.X + radius * Math.Sin(a), c.Y - radius * Math.Cos(a), a, SpeedMs / radius);
     }
 
     /// <summary>World (x, y) → the carrier's frame at time t: u forward (bow +), v to starboard.</summary>

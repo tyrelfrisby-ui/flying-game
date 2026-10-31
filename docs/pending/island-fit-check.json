@@ -805,22 +805,6 @@
       "pad": null
     },
     {
-      "maximum_m": 320.04,
-      "location": [
-        -5.0,
-        -4.6359808
-      ],
-      "minimum_height_m": -30.0,
-      "triangles": 1155,
-      "water_surface_penetration_m": 0,
-      "water": null,
-      "airport": "DRAKE",
-      "title": "DRAKE 17 end B",
-      "source": "runway end",
-      "pad_overlay_penetration_m": 0,
-      "pad": null
-    },
-    {
       "maximum_m": -1.1934,
       "location": [
         -15.0750000000228,
@@ -1942,24 +1926,7 @@
     }
   ],
   "approach_obstacle_screen": [],
-  "approach_failures": [
-    {
-      "maximum_m": 320.04,
-      "location": [
-        -5.0,
-        -4.6359808
-      ],
-      "minimum_height_m": -30.0,
-      "triangles": 1155,
-      "water_surface_penetration_m": 0,
-      "water": null,
-      "airport": "DRAKE",
-      "title": "DRAKE 17 end B",
-      "source": "runway end",
-      "pad_overlay_penetration_m": 0,
-      "pad": null
-    }
-  ],
+  "approach_failures": [],
   "supplied_final_failures": 0,
   "airway_checks": [
     {
@@ -3055,12 +3022,6 @@
       "id": "final DRAKE 17 end A",
       "max_radius_km": 6.553812,
       "margin_km": 13.446188,
-      "passes": true
-    },
-    {
-      "id": "final DRAKE 17 end B",
-      "max_radius_km": 13.207506,
-      "margin_km": 6.792494,
       "passes": true
     },
     {
@@ -54749,7 +54710,7 @@
   },
   "water_surface_checks": {
     "water_count": 10,
-    "full_final_fans": 114,
+    "full_final_fans": 113,
     "full_airway_segments": 23,
     "method": "Complete circumscribed64-gon ellipse enclosures against everyprotectionpolygon; fixedwaterheight supersedes cutbed. No radial/pointsampling pass.",
     "inundated_pads": [],
@@ -54759,7 +54720,7 @@
     {
       "rule": 1,
       "status": "PASS design geometry",
-      "evidence": "51 complete pad rectangles; 0 incompatible intersections; 0 evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: PASS analytic shell. Drake full chamber/roof/pad analytic proof: PASS analytic design. Runtime colliders remain unbuilt."
+      "evidence": "51 complete pad rectangles; 0 incompatible intersections; 0 evaluator pad errors. Full planes/60m shoulders are analytic authoritative detail; inverse-distance exterior pad blend is continuous and tends to own plane at edge. Pirate cave full pad/flight-volume shell proof: PASS analytic shell. Drake full chamber/roof/pad analytic proof: PASS analytic design. Runtime cavity/solid checks are recorded separately in island-runtime-solids.json and island-runtime-checks.json."
     },
     {
       "rule": 2,
@@ -54768,18 +54729,18 @@
     },
     {
       "rule": 3,
-      "status": "FAIL",
-      "evidence": "Full clipped-triangle sweeps of 114 fans, including all 12 supplied finals: 0/12 supplied and 1 total terrain/pad failures; 0 tower/wire failures or conservative bounds. Missing non-KSNA miss/hold geometry and future building/tree solids prevent full rule certification."
+      "status": "UNVERIFIED",
+      "evidence": "Full clipped-triangle sweeps of 113 fans, including all 12 supplied finals: 0/12 supplied and 0 total terrain/pad failures; 0 tower/wire failures or conservative bounds. Missing non-KSNA miss/hold geometry and future building/tree solids prevent full rule certification."
     },
     {
       "rule": 4,
       "status": "PASS known geometry / UNVERIFIED T201",
-      "evidence": "0 of 23 known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; exact solid build remains Phase1B."
+      "evidence": "0 of 23 known segments below 2000 ft; full waterplanes + 2 nm swath + rounded circumscribed32-gon endcaps, all grid triangles and pads/towers. Nine proposed perimeter segments included with2nm terrain swaths. T201 positions/MEAs absent; built-solid screening is recorded separately in island-runtime-solids.json."
     },
     {
       "rule": 5,
       "status": "UNVERIFIED",
-      "evidence": "Full analytic radius bounds for 379 authored footprints/flight volumes: 0 outside 20 km. Missing IFR hold/miss/T201 volumes prevent whole-rule verification; targets are not accepted as proofs."
+      "evidence": "Full analytic radius bounds for 378 authored footprints/flight volumes: 0 outside 20 km. Missing IFR hold/miss/T201 volumes prevent whole-rule verification; targets are not accepted as proofs."
     },
     {
       "rule": 6,
@@ -54803,8 +54764,8 @@
     },
     {
       "rule": 10,
-      "status": "PASS design / UNVERIFIED runtime",
-      "evidence": "One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. Engine/renderer integration requires Phase 1B; runtime unchanged."
+      "status": "PASS shared runtime evaluator / UNVERIFIED player",
+      "evidence": "One deterministic height authoring evaluator/bake drives grid/elevation/full-area tests; explicit analytic pad/cave detail. WorldTerrain and IslandWorldBuilder use the same C# evaluator; numerical parity and contact probes recorded separately. Unity player/render validation remains pending sandbox build."
     }
   ],
   "method": {
