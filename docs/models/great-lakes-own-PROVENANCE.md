@@ -1,11 +1,8 @@
-# Great Lakes 2T-1A-2 style biplane: our own model (v13.1, NOT approved)
+# Great Lakes 2T-1A-2 style biplane: our own model (v6, NOT approved)
 
 - Outputs (`unity/Assets/_Project/Resources/Models/great-lakes-like/`): `great-lakes-like-own.glb` (v1 placeholder paint),
   `great-lakes-like-own-red-sunburst.glb`, `great-lakes-like-own-white-stripes.glb`
-- In the game (Claude, 2026-10-28): the red-sunburst build is installed AS `great-lakes-like-own.glb`, i.e.
-  `GL_LIVERY=red-sunburst GL_OUT=unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb`.
-- Build: `GL_LIVERY=v1|red-sunburst|white-stripes [GL_RIGJSON=<json>] blender -b --python tools/own_models/build_great_lakes.py`
-- Rig (v13): `docs/models/great-lakes-own-RIG.md` + `great-lakes-own-rig.json` (58 nodes in v13.1)
+- Build: `GL_LIVERY=v1|red-sunburst|white-stripes blender -b --python tools/own_models/build_great_lakes.py`
 - Gear poses: `blender -b --python tools/own_models/gl_gearpose.py -- <glb> <extended|static|full|deg> <outprefix>`
 - Renders: `blender -b --python tools/own_models/gl_fourview.py -- <glb> <outprefix>`
 
@@ -33,29 +30,13 @@ manufacturer logos or trademarks on the model.
   authors and licences listed in REFERENCES.md). These were used for the nose, the big-tail rudder outline, the gear
   and pants, the cockpits and paint ideas.
 
-- v13 cockpit references (public web pages, viewed 2026-10-29; photos saved on the build box only under
-  `/workspace/refs/great-lakes/cockpit/`, never committed; used by eye only):
-  - https://www.greatlakes2t.co.uk/gl_pics/inst.html — 2T-1A-2 panel photos: chandler/KPT_0054_472.jpg (front
-    panel, the main front reference), KPT_0053, KPT_0592, IMG_1664_JPG.jpg (rear panel, the main rear reference),
-    IMG_1666_JPG.jpg (rear cockpit, left-wall quadrant and trim).
-  - https://www.greatlakes2t.co.uk/sales/n76gl/index.html — N76GL sales photos n76l_1..8.jpg (both cockpits, seats,
-    belts, sticks, rear left wall; n76l_4 is the rear-cockpit comparison view).
-  - https://www.greatlakes2t.co.uk/restoration/diary_2008/diary2008.html — restoration diary photos, used only as a
-    general check of the fuselage tube frame around the cockpits.
-  - https://greatlakes2t.org/photo-galleries/ — Great Lakes club galleries, general cockpit / coaming checks.
-  - FAA TCDS A18EA rev 11 (seat arms 27.5 / 61.5 in, Vne 153 / Vno 120 mph, 2700 rpm, +5.40 / -4.00 g, surface
-    and stabilizer travels) and the maintenance manual (stabilizer trim and brake descriptions; the stick
-    torque-tube layout is our estimate (E)).
-  - Other saved interior photos with no recorded source (pv*.jpg) were looked at but are not cited and nothing
-    depends on them.
-
 ## Variant modelled (v1 assumptions, to confirm)
 - 2T-1A-2 with a Lycoming IO-360 class flat four, round cowl with two inlets, Hartzell spinner.
 - 2-blade 74 in prop, grey with white tips. It turns **clockwise seen from the cockpit** (American / Lycoming). The
   blade sections advance along `cross(+X, radial)`, the same rule as our Pitts.
 - "Big tail" fin and rudder, and wheel pants.
-- Ailerons: four since v11 (TCDS 4-aileron configuration, upper and lower joined by a slave strut each side). Lower |y| 1.32-3.46 m, upper |y| 2.16-3.455 m, hinge at 76 % chord. (v1-v10 had the factory 2-aileron lower-only layout.)
-- N interplane struts, an N cabane each side, double flying and landing wires. Tail: (v10) single fin (upper) and stabilizer (lower) brace wires per side at the stab rear beam, no stab struts.
+- Ailerons on the lower wing only (factory 2-aileron). Friese-style, hinge at 76 % chord, |y| 1.32-3.46 m.
+- N interplane struts, an N cabane each side, double flying and landing wires, struts under the stab and wires above.
 
 ## Geometry summary (model frame)
 - Frame: metres, +X nose, +Y port, +Z up. The origin is the upper-wing centre-section LE station on the thrust line.
@@ -102,8 +83,8 @@ Stroke: **9 in (0.2286 m)**. No published figure was found (manual, TCDS); this 
 
 | State | Source | Hinge | Oleo length | Compression | Wheel rise | 3-pt height | 3-pt pitch |
 |---|---|---|---|---|---|---|---|
-| Extended (modelled; exported up to v11) | geometry | 0 deg | 0.931 m (36.6 in) | 0 | 0 | 2.469 m (97.2 in) | 9.96 deg |
-| Static (derived; exported from v12) | solved so height = published 7 ft 4 in | 15.79 deg | 0.774 m | 6.19 in (69 %) | 0.227 m | 2.235 m (88.0 in) | 6.91 deg |
+| Extended (as exported) | geometry | 0 deg | 0.931 m (36.6 in) | 0 | 0 | 2.469 m (97.2 in) | 9.96 deg |
+| Static (derived) | solved so height = published 7 ft 4 in | 15.79 deg | 0.774 m | 6.19 in (69 %) | 0.227 m | 2.235 m (88.0 in) | 6.91 deg |
 | Full (Ty stroke) | 9 in stroke | 22.92 deg | 0.702 m | 9.00 in | 0.342 m | 2.119 m (83.4 in) | 5.41 deg |
 
 At full compression the wheel also moves 0.148 m aft and 0.158 m outboard (track widens). The extended gear explains the
@@ -116,8 +97,7 @@ Rig in the GLB: Gear_Pivot_<s> (at H) parents Gear_Axle, Wheel, Wheel_Pant and O
 Rotate the pivot about (Gear_HingeAxis - Gear_Pivot) by the hinge angle (sign in extras wheel_up_sign_model_frame; check
 the wheel goes up after import), then aim Oleo_Cylinder at Gear_OleoTop and Oleo_Shaft (fixed, origin at T) at the
 cylinder origin (re-aim 3.1 deg static, 4.4 deg full). Pivot extras: stroke_m, strut_len_extended_m, hinge_deg_static,
-hinge_deg_full. From v12 the GLB is exported in the static pose: rotate by (target - hinge_deg_as_exported) instead;
-see 'v12 changes'.
+hinge_deg_full.
 
 ## Liveries
 No registration, logos or text on the liveries. Painted by eye from Ty's photos as our own simple geometry (bands,
@@ -273,163 +253,142 @@ Ty: red fuselage paint APPROVED and frozen; white wings/stab frozen. v8 = red-su
   Per Ty's description, which overrides the photos (the deflected-down elevator hides this area in white-1/2/3).
 - Nothing else changed; red-sunburst GLB not rebuilt. Compares: compare-white-rudder.png, white-tail-side.png.
 
-## v10 changes (2026-10-28). NOT approved by Ty.
-- 4-view defined: one 2x2 image of the full aircraft (TOP, BOTTOM, SIDE port, 3/4 front-left perspective) on white,
-  top/bottom/side at an identical ortho scale, each panel labelled. Rendered for every livery from now on.
-- White-stripes: the fuselage top and bottom paint maps are now generated FROM the side maps (each top/bottom texel
-  takes the side-map colour at the same 3D surface point), replacing the hand-placed v7 navy chin rectangle and the v8
-  cowl-wrap block. The chin and collar now cross the centreline as continuous, symmetric curves that meet the side
-  edges exactly (no square or disjoint spots). The red stripe no longer tapers off: between x 0.20 and 0.39 its upper
-  edge is lifted over the top, so it wraps as a red collar behind the blue collar. (The band that wraps the bottom
-  is the navy chin; the light blue does not reach the bottom in this scheme.)
-- Tail bracing (all liveries). Ty: the Great Lakes has jack-screw stabilizer trim, so the leading edge moves and
-  there is no trim tab. Only aft wires, no forward or double wires. Maintenance manual (2T-1A-2): "Attach 30130-5
-  stabilizer lower brace wires and 30130-6 fin (upper) brace wires", "assure alignment of stabilizer hinges with
-  lower wires, then adjust upper wires"; rigging lengths (pin centres) are stabilizer brace wire 37.12 in and fin brace
-  wire 45.06 in. The model now has ONE upper and ONE lower brace wire per side, both in the plane of the stab rear
-  beam (x -4.555, just ahead of the elevator hinge). Stab fitting |y| 0.912; fin fitting z 0.587; lower fitting at the
-  tail-post bottom longeron. Modelled lengths: lower 0.943 m, upper 1.145 m, matching the manual. Removed: the
-  fin-to-mid-chord wire and the Strut_Stab streamlined struts (not in the manual; forward of the rear beam, so they
-  would lock a moving-LE stab).
-- Stabilizer trim rig (same convention as the gear pivots): empty Stab_TrimPivot on the rear beam at the centreline
-  parents Stab, Elevator_L and Elevator_R (mesh origins on the pivot). Pivot axis = Stab_TrimPivot -> Stab_TrimAxis
-  (lateral); Stab_TrimJack marks the front-spar actuator. Extras: trim_travel_up_deg_min 0.25, trim_travel_up_deg_max
-  7.25, trim_tolerance_deg 0.5 (TCDS A18EA / manual: travel 1/4 deg up to 7 1/4 deg up), trim_deg_as_modelled 0,
-  trim_type, trim_sense_note. "Up" = LE up and nose-up trim = LE down, confirmed by Ty 2026-10-30. The brace wires lie on
-  the pivot line, so they stay valid through trim travel.
-
-## v11 changes (2026-10-28). NOT approved by Ty.
-Ty: "I noticed the Great Lakes only had lower ailerons. Give it 4 ailerons and slave struts." All 3 liveries rebuilt.
-Nothing else changed: 39 other objects are identical to v10 (checked by re-import: vertex counts and bounds); Wing_Upper
-only gains vertices at the new cut lines (same bounds); the lower aileron meshes only gain the bracket vertices.
-- Source: TCDS A18EA lists the 2T-1A-2 with four ailerons as an approved configuration (most flying 2T-1A-2s have
-  it); travel from the TCDS / manual section III-7: 24 deg up, 22 deg down, +-1 deg, same figures for both pairs.
-- Upper ailerons Aileron_UL / Aileron_UR: Friese-style like the lowers, hinge line at 76 % chord following the swept
-  upper LE, |y| 2.16-3.455 m (about 1.30 m). Span by eye from the 1970 AAM three-view and Ty's/reference photos
-  (N6220L, D-EHMM, N100GL): the outboard end stops where the TE tip curve starts (as on the lower), the inboard end
-  sits about one bay outboard of the cabane. Judgement call; no published upper aileron span found.
-- Slave struts Strut_Slave_L / _R at |y| 3.00 (just outboard of the interplane N strut at 2.875), one rigid tube per
-  side (r 9.5 mm, strut paint) with steel shanks, jam nuts, spanwise rod-end eyes (r 12.5 mm) and AN bolts. Each end
-  pins between two 4 mm steel cheek brackets: the upper bracket hangs under the upper aileron skin, the lower stands on
-  top of the lower aileron skin, both 0.24 m aft of the hinge line (near the TE, as in the photos) and 0.018 m off the
-  skin. Pins (glTF re-import frame, nose -x, port -y, up +z): upper (-1.457, +-3.00, 0.609), lower (-1.778, +-3.00,
-  -0.667); strut 1.315 m pin to pin, leaning 14.1 deg forward at the top, roughly parallel to the rear N-strut leg and
-  0.35-0.41 m aft of it (photos suggest about 0.2-0.3 m; accepted).
-- Linkage: the brackets are on opposite skins, so it is not a true parallelogram. With a 0.15 m arm the upper reached
-  -36 deg at 22 deg lower TE down, so the arm was lengthened to 0.24 m. Upper vs lower TE-up angle at constant strut
-  length: lower -22 / -11 / 0 / 12 / 24 -> upper -25.37 / -12.11 / 0 / 12.49 / 24.42. The upper is about 3.4 deg past
-  the TCDS down limit at full down; in the real aircraft the rigging is adjusted at the rod ends to get both pairs in
-  limits, so a game may also simply clamp the upper to +24/-22.
-- Rig (same style as the gear and stab trim pivots): empty Aileron_<s>_Pivot at the mid-span hinge point (mid
-  thickness) parents Aileron_<s> (mesh origin on the pivot); hinge axis = Aileron_<s>_Pivot -> Aileron_<s>_HingeAxis
-  (outboard end). Pivot extras: travel_te_up_deg 24, travel_te_down_deg 22, travel_tolerance_deg 1, travel_source,
-  te_up_sign (rotation sign about the pivot->HingeAxis vector, right-hand rule, in the glTF/Blender frame; verify after
-  import), wing, drive ("driver" on the lowers; "follower via Strut_Slave_<s>" on the uppers, which also carry the
-  follower_lower_te_up_deg / follower_upper_te_up_deg table above). To animate: rotate the lower pivot by the control
-  angle, solve the upper angle that keeps the strut length (or use the table), then place Strut_Slave_<s> at
-  _PinUpper and aim it at _PinLower. tools/own_models/gl_aileronpose.py does exactly this in Blender (roll -1..+1) and
-  prints the length error (0.000 m) and pin travel (about 0.09-0.10 m).
-- Game note (for the integrator): AirframeVisual split-surfaces binds "aileron" meshes to the nearest ModelHinge
-  region within 0.6 m; configs/aircraft/great-lakes-like.json only has lower-wing aileron regions, so it needs upper
-  regions (or the pivot rig above) before the upper ailerons move in game. The brackets add up to about 0.03 m below
-  the upper aileron skin, which shifts the mesh mid-thickness the game sees slightly.
-- The v11 GLBs were exported with the gear fully extended, as in v2-v10 (superseded in v12: static pose).
-- The arm, pins and follower figures above are superseded by 'v12 changes' (the upper overshoot is fixed).
-- Renders on the agent box: /workspace/great-lakes-ailerons/ (4-views per livery, white standard and grey background;
-  aileron -1/0/+1 roll strips from port side, port aft and starboard aft).
-
-## v12 changes (2026-10-28). NOT approved by Ty.
-Follow-ups on v11 (9b3f1f5). All 3 liveries rebuilt. Checked by re-import against v11: 44 objects unchanged; only the
-gear moving parts, Strut_Slave_L/R and the upper aileron brackets (Aileron_UL/UR min z 0.5976 -> 0.5980) differ.
-- Gear exported in the STATIC pose (Ty's standing preference: the drawn wheels match the physics stance at rest under
-  load). The build bakes hinge 15.79 deg (6.19 in compression) into the vertices of Gear_Axle, Wheel, Wheel_Pant and
-  Oleo_Cylinder (both sides). Oleo_Cylinder is re-aimed at Gear_OleoTop about the posed axle end (3.08 deg) and
-  Oleo_Shaft about the top pin (13.85 deg), so the two stay collinear; strut 0.774 m pin to pin. 3-point height as
-  exported 2.235 m (the published 7 ft 4 in). The rig is unchanged: same hierarchy and markers, pivots at identity
-  rotation, cylinder origin on the posed axle pin. New Gear_Pivot extras: hinge_deg_as_exported 15.79,
-  strut_len_as_exported_m 0.774, hinge_reference ("angles measured from extended; rotate by target - as_exported from
-  rest, then re-aim the oleo parts"). hinge_deg_static / hinge_deg_full / strut_len_extended_m keep their meaning
-  (measured from extended), so extended = rotate by -15.79 deg, full = +7.13 deg. tools/own_models/gl_gearpose.py
-  updated to this convention (prints strut 0.931 / 0.774 / 0.702 m for extended / static / full).
-- Upper aileron overshoot fixed. Geometry alone could not do it: sweeps of upper/lower arm 0.16-0.265 m and bracket
-  stand-off 0.018-0.06 (upper) / 0.018-0.09 (lower) found nothing inside +24/-22 at the full lower 24/22; the brackets
-  sit on facing skins, so the arms tilt opposite ways and the linkage is inherently asymmetric (best: -21.65/+21.53,
-  short on the up side). Chosen: upper arm 0.262 m, lower arm 0.247 m aft of the hinge (stand-off 0.018 m both; aft
-  cheek overhang trimmed 0.022 -> 0.016 m to stay on the 0.280 m chord), and a rigged lower down stop of 21.01 deg.
-  Rigged stops: lower 24.00 up / 21.01 down -> upper 23.00 up / 22.00 down. All four within TCDS 24/22 +-1; the upper
-  never passes +24/-22; strut length exact (constant 1.313 m, error 0.00000 m in gl_aileronpose.py).
-- New pins (glTF re-import frame, nose -x, port -y, up +z): upper (-1.479, +-3.00, 0.609), lower (-1.785, +-3.00,
-  -0.668); strut 1.313 m, leaning 13.5 deg forward at the top.
-- Follower table (lower -> upper TE-up deg): -21.01 / -11 / 0 / 12 / 24 -> -22.00 / -11.22 / 0 / 11.73 / 23.00.
-- Pivot extras: travel_te_up_deg / travel_te_down_deg now hold the RIGGED stops (lower 24 / 21.01, upper 23.0 / 22.0);
-  new travel_tcds_te_up_deg 24 / travel_tcds_te_down_deg 22 keep the nominal figures; travel_tolerance_deg 1. The
-  control should map full roll to the lower pivot's rigged stops. gl_aileronpose.py reads them from the extras.
-- Alternative not taken: keep the lower at the full 22 deg down and clamp the upper at -22 (that breaks the constant
-  strut length by a few mm at full down). The lower down stop sits on the TCDS -1 tolerance edge (21 deg).
-- Renders on the agent box: /workspace/great-lakes-ailerons/v12/ (4-views per livery, white standard; gear front view
-  v11 extended vs v12 static; aileron -1/0/+1 poses).
-
-## v13.1 changes (2026-10-30). NOT approved by Ty.
-- Front G-meter (Ty: "make sure the Great Lakes front seat has airspeed, altitude and g meter"): Needle_G_F /
-  Needle_GMax_F / Needle_GMin_F, the same dial art, maps and TCDS A18EA NOTE 6 red marks (+5.4 / -4.0) as the rear
-  accelerometer. NOT in the KPT_0054 front-panel photo: added at Ty's request, top right of the front panel (position E).
-- Rear-panel avionics (Ty: the "no radios" rule was only for the J-3 and 2-33, which have no electrics; aircraft with
-  electrics get their real avionics). A compact panel-mount radio control head (TY91/TY96-style) over a compact
-  transponder control head (TT21/TT22-style) in the photo's radio hole (IMG_1664), replacing v13's blank plug. Face size
-  63 x 44 mm each from the public Trig datasheets / installation manuals (TC90 radio controller, 00839-00; TC20
-  transponder controller, 00560-00; 35-54 mm behind the panel). Faces are our own plain PIL art (make_gl_dials.py ->
-  art/gl-avx-com.png, gl-avx-xpdr.png): dark LCD window, knob seats, plain buttons, NO maker name or text. Knob /
-  button / window layout by eye off the public product photos (E). Rigged knobs + two display nodes for the sim's
-  frequency / squawk text (RIG doc, Displays).
-- Still left out: intercoms, headsets, tablet mounts and any other avionics box.
-- Default solo view: Eye_Rear (Ty, 2026-10-30).
-
-## v13 changes (2026-10-29). NOT approved by Ty.
-Ty: "accurate tandem open cockpits for the cockpit view ... every instrument working as a rig node ... every control
-moving with real pivots ... hinged at the real hinge lines". Geometry: `tools/own_models/gl_cockpit.py` (exec'd by the
-build in the pre-yaw frame); rig: `tools/own_models/gl_rig.py` (post-yaw, before export); dial art:
-`make_gl_dials.py` -> `art/gl-dial-*.png`, `art/gl-compass-band.png` (our own PIL drawings, generic markings, no
-maker's name, no registration); scales: `gl_dialmaps.py`.
-- Both cockpits, by eye off the photos above (front: KPT_0054; rear: IMG_1664, IMG_1666, n76l_4): instrument panels
-  front and rear (front: altimeter, ASI, tach, oil pressure / temperature, toggle switch + light; rear (PIC):
-  accelerometer, wet compass on the coaming, MP, VSI, altimeter, ASI, turn coordinator, tach, CHT, oil P/T, Hobbs,
-  mag key, a blank plug where the photo's radio sits (v13.1: the radio + transponder heads), a blank placard), seats with cushions and 4-point belts, sticks
-  on one torque tube, hinged rudder pedals with heel brakes in both cockpits, left-wall throttle / prop / mixture
-  quadrants, stabilizer trim knobs, fuel shut-off handles, floor boards, frame tubes and an inner liner.
-- Left out on purpose (Ty; radio + transponder heads added back in v13.1): radios, intercoms, headsets, transponder / GPS boxes, radio brackets, tablet mounts; the
-  "SOLO REAR SEAT ONLY" and other placards are blank plates; no "Great Lakes" text on the dials; no N-number.
-- Rig: 51 nodes (table and maps in great-lakes-own-RIG.md). New Elevator_L_Pivot / Elevator_R_Pivot (children of
-  Stab_TrimPivot) and Rudder_Pivot on the real hinge lines, with _HingeAxis markers, like the v11 aileron pivots.
-  Elevator 21 up / 29 down, rudder 35 L / R, stabilizer 7-1/4 to 1/4 deg up: TCDS. Stick, pedal, lever, trim,
-  fuel-valve ranges and all dial sweep angles are estimates (E).
-- The mesh names Aileron_*, Elevator_L/R, Rudder, Stab are unchanged, so the game's namedSurfaces binding keeps working.
-- Verification renders (agent box, not committed): /workspace/greatlakes-cockpit/ (pilot-eye views, panel close-ups,
-  photo comparisons, MIN / NEUTRAL / MAX sheets of every moving part).
-
 ## Unity part names
 The part names are compatible with AirframeVisual / RemoteAircraft:
 
 | Group | Parts |
 |---|---|
-| Fuselage | Fuselage_Painted, Headrest, Windscreen_Glass, Windscreen_Frame |
-| Cockpit (v13) | Cockpit > Instruments_Front, Instruments_Rear (Needle_*_F/_R, TC_Symbol_R, TC_Ball_R, MagKey_R, Compass_Card_R), Controls (TorqueTube > Stick_F, Stick_R; Pedal_F/R_L/R, Brake_F/R_L/R, Throttle_F/R, Prop_F/R, Mixture_F/R, Trim_F/R, FuelValve_F/R), Interior (Cockpit_Interior, Cockpit_Liner), Eye_Front, Eye_Rear |
-| Wings | Wing_Upper, Wing_Lower; Aileron_<s>_Pivot > Aileron_<s> for s = UL, UR, LL, LR (markers Aileron_<s>_HingeAxis) |
-| Aileron slave struts (v11) | Strut_Slave_L, Strut_Slave_R (origin on the upper pin); markers Strut_Slave_<L/R>_PinUpper (child of Aileron_U<L/R>), Strut_Slave_<L/R>_PinLower (child of Aileron_L<L/R>) |
-| Tail | Fin; Rudder_Pivot > Rudder (marker Rudder_HingeAxis); Stab_TrimPivot > Stab, Elevator_L_Pivot > Elevator_L, Elevator_R_Pivot > Elevator_R (markers Elevator_<L/R>_HingeAxis); markers Stab_TrimAxis, Stab_TrimJack |
-| Struts and wires | Strut_Cabane, Strut_Interplane, Wire_Bracing (includes the v10 tail brace wires; Strut_Stab removed in v10) |
+| Fuselage and cockpit | Fuselage_Painted, Headrest, Windscreen_Glass, Windscreen_Frame, Cockpit |
+| Wings | Wing_Upper, Wing_Lower, Aileron_LL, Aileron_LR |
+| Tail | Stab, Elevator_L, Elevator_R, Fin, Rudder |
+| Struts and wires | Strut_Cabane, Strut_Interplane, Strut_Stab, Wire_Bracing |
 | Gear | Gear_Main (fixed tubes), Wheel_Tail, Gear_Pivot_L/R > Gear_Axle_<s>, Wheel_<s>, Wheel_Pant_<s>, Oleo_Cylinder_<s>; Oleo_Shaft_<s>; markers Gear_HingeAxis_<s>, Gear_OleoTop_<s> |
 | Nose | Prop, Spinner, Engine, Exhaust |
 
-The aircraft config and Unity integration are Claude's (lane/claude-menu-aero, 2026-10-28). The v13 cockpit rig is not wired yet (AGENT-LOG HANDOFF).
+There is no aircraft config or Unity integration yet; those are a later handoff.
 
 ## Known differences / open items
 - Height: resolved in v2 by the gear model (see the suspension table).
-- Resolved in v11: four ailerons with slave struts (Ty). Still open with Ty: which livery is the default, N-number. (Tail resolved in v3: matched to the drawing.) 180 hp 2T-1A-2 kept.
-- Simplified items: the engine is primitives only, the cowl has no hinge or
+- Still open with Ty: ailerons (2 vs 4), which livery is the default, N-number. (Tail resolved in v3: matched to the drawing.) 180 hp 2T-1A-2 kept.
+- Simplified items: the engine is primitives only, the cockpit has a few gauges only, and the cowl has no hinge or
   fastener detail.
-- v13 cockpit: every value marked (E) in great-lakes-own-RIG.md is an estimate (layout by eye, control ranges, dial
-  sweeps, eye points). The small top-right rear gauge is read as CHT (E).
-- Stabilizer trim sense CONFIRMED by Ty (2026-10-30): nose-up trim = stabilizer LE down (trim +1 = 1/4 deg up,
-  -1 = 7-1/4 deg up per the TCDS); the stab sits at 0 deg in the GLB, which is trim 1.0714, so the sim must drive it.
-- Aileron lower down stop is the v12 rigged 21.01 deg (TCDS 22 +-1).
-- Doors / canopies: the Great Lakes is open-cockpit, nothing to open or jettison (no canopy or door nodes).
+
+## 2026-10-31 — shared sequence holder
+Every own livery on this base now includes an original centre rear-panel sequence-card holder and a separately swappable `SequenceCard_Face` material. Default art is the official 2026 IAC Power Sportsman Known (pilot card page 4), 1275 × 1650 px. Shared source/credits, transforms, Decathlon reuse and offline-build limitations: [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), with exact dimensions in [sequence-card-spec.json](sequence-card-spec.json). Other aircraft paint and original mesh buffers are preserved.
+
+## 2026-10-31 round 2 — flush rear/PIC card and instrument layout
+
+Supersedes round-1 holder/compass placement. All Great Lakes own livery GLBs on this lane use a
+4.25×5.5 in (0.10795×0.13970 m; rounded 0.108×0.140 m) card centred in the **rear/PIC** panel.
+Face centre raw glTF: **(1.6407, 0.0050, 0)**; panel face builder X=-1.6395.
+The flush frame is 0.11395×0.14570 m, paper offset 1.2 mm and maximum hardware offset 3 mm;
+**zero above-panel protrusion**. Ty dropped the 2-inch stick-up for all types, including Extra.
+Flight instruments are on the pilot's left, engine on the right, with a prominent labelled G-meter and one compass.
+Old dials were anonymous placeholders; new functions/art are procedural visual assignments, all static.
+Front-panel instruments/triangles, seats, exterior paint and flight-model/rig geometry are preserved.
+The supplied v2 rear eye maps into this lane's rear cockpit without adjustment. Review renders cover every
+livery in `renders/iac-pitts/v2/` (untracked), with matched 38e8746 before views and true rear-eye perspective.
+Exact layout tables, eye-transform caveats, original IAC artwork/font provenance, build and acceptance checks:
+[sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), [sequence-card-spec.json](sequence-card-spec.json),
+and the round-2 entry in [AGENT-LOG.md](../../AGENT-LOG.md). CPU rebuild and asset checks passed; full Blender/Unity
+import/render remain unverified here. No Tests/ or app logic changes.
+
+## 2026-10-31 round 3 — Great Lakes rear eye review (Ty to judge)
+
+**No Great Lakes model or eye-point data changed.** The prescribed exact v2 eye remains body
+**(-1.83650,0,-0.24437) m** (rounded in Ty's prompt to -1.837,0,-0.244). Native raw glTF inverse:
+**(1.823660,0.274322,0)**. Rule/reference files read from Ty's `refs/eyepoints-v2-great-lakes-full.json`
+and `refs/EYEPOINTS-v2.md`; generator/selectors inspected via `git show lane/codex-eyepoints`.
+
+The measurement model is `lane/codex-greatlakes-cockpit` **4a45232**, SHA-256
+`c98e0d23db58b91148c22d60d9e921ae2f019e6baf6262190557c4476caccec3`.
+This lane has the older generic `Cockpit`; the source has a redesigned `Cockpit_Interior`, different seats,
+cushions, wider/taller panels and rigged controls. Both are rendered. Native upper-wing bounds are identical
+((-0.000000,0.620289,-4.063000) to (1.577214,0.764261,4.063000)); rear windscreen sill is identical
+(1.560,0.197,0). The source's scale **0.982968201**, body matrix and translation still map the same aircraft
+reference geometry. No pose/scale/eye adjustment was applied to hide the short distance.
+
+### Distances (body metres, after span placement)
+
+| Measurement | This lane | Source 4a45232 |
+|---|---:|---:|
+| Eye → rear panel face, horizontal | 0.181024 | 0.182498 |
+| Eye → panel centre, straight line | 0.320709 | 0.285472 |
+| Eye → picked seat-back top, straight line | 0.355601 | 0.355601 |
+| Picked seat top aft of eye | 0.254000 | 0.254000 |
+| Picked seat top below eye | 0.248870 | 0.248870 |
+| Eye → windshield sill, straight line | 0.270083 | 0.270083 |
+| Sill ahead of eye | 0.259170 | 0.259170 |
+| Sill below eye | 0.076000 | 0.076000 |
+| Eye above seat-pan top / source cushion top | 0.817005 | 0.773421 |
+| Front cockpit opening aft edge ahead of eye | 0.485252 | 0.485252 |
+| Upper-wing centreline TE ahead of eye | 0.811696 | 0.811696 |
+| Upper-wing centreline TE above eye | 0.390099 | 0.390099 |
+
+Horizontal dimension is to the **extended panel plane at eye height**, not a claim the panel exists that high.
+This lane face raw X=1.6395, centre up=0.005, actual slab range -0.120..+0.130; source face X=1.638,
+centre up=0.051, range -0.080..+0.182. The native/raw horizontal distances are 0.184160 / 0.185660 m;
+body placement reduces these to the table values. Eye height is from a vertical ray to the actual seating
+surface at the eye's station: this lane's **rigid 6° pan** (raw up=-0.556839), source **cushion top** (-0.512500).
+The old flat crotch strap is explicitly excluded; neither height is a compressed-occupant measurement.
+Front opening edge is native X=1.33. TE witness is native (0.997900,0.671180,0), not a minimum clearance
+to every wing/strut; cutaways omit wings/gear, while the -4° eye view retains them.
+
+### Pick verdict and alternative (NOTE ONLY)
+
+The exact source selector is part **Cockpit_Interior**, material **Cockpit_seat_shell**, native FRU box
+**[[-2.12,-0.21,0.01],[-2.00,0.21,0.03]]**. Reproducing it selects the highest actual top-row vertices near
+raw glTF **(2.082074,0.021140,±0.200)**. Their midpoint is the supplied body **(-2.0905,0,+0.0045)**.
+The pink highlighted surface is the top edge/side of the **rear seat back**: it is not the pan, bulkhead,
+front back, or external headrest fairing. The source pan/cushion is roughly 0.534 native m below this edge.
+Thus the pick's mesh identity is correct on 4a45232; this is not evidence that its eye/rule is approved.
+The source itself still has only 182 mm horizontal panel clearance.
+
+The transferred point **is not this lane's actual rear seat-back top**. On this lane the same highest-edge
+method gives raw **(2.298566,0.108550,0)**, body **(-2.303318,0,-0.081422)**. It is approximately **0.213 m aft**
+and **0.086 m higher** than the source pick. The unchanged eye is 0.494440 m straight-line from that old
+back edge (0.466818 m forward and 0.162948 m above it). Orange markers show this actual older edge;
+pink markers on this lane are explicitly the transferred source witnesses, not falsely claimed old-seat vertices.
+
+Applying only the same 0.254 m forward rule to the old back edge, retaining the prescribed sill/height,
+would yield body **(-2.049318,0,-0.244370)**, native approximately **(2.040165,0.274322,0)**, and
+**0.393841 m horizontal panel distance** on this lane. This is a **NOTE ONLY**, not an approved alternative:
+it moves the head towards the aft coaming/headrest and needs its own enclosure/occupant-fit review.
+No eye, camera/app setting or eyepoints file was modified. The round-2 "inside the rear opening" check
+was a footprint check; it did not establish consistency with this older seat back.
+
+### Real-aircraft comparison and evidence limitations
+
+No cited real Great Lakes eye-to-panel distance or type-specific eye XYZ was found in this repo/research.
+The newer cockpit source provenance cites TCDS A18EA seat arms **27.5 / 61.5 in** and photo estimates;
+those are seat loading stations, not eye/panel separation. Its `gl_cockpit.py` seats/back tops and eye references
+are estimates. The older builder's seat is also procedural. These sources cannot establish a real eye-to-panel
+range; **no generic aerobatic range is invented here**. Ty should judge the close position and which cockpit
+geometry/rule is intended before Claude applies a game camera.
+
+### Render evidence
+
+All paths below are untracked under `renders/iac-pitts/v3/`:
+
+- `great-lakes-rear-eye-side-cutaway.png`
+- `great-lakes-rear-eye-3q-cutaway.png`
+- `great-lakes-rear-eye-top.png`
+- `great-lakes-rear-eye-view.png`
+- `great-lakes-source-4a45232-rear-eye-side-cutaway.png`
+- `great-lakes-source-4a45232-rear-eye-3q-cutaway.png`
+- `great-lakes-source-4a45232-rear-eye-top.png`
+- `great-lakes-source-4a45232-rear-eye-view.png`
+- `great-lakes-seatback-pick.png`
+- `great-lakes-rear-eye-measurements.json`
+- `render-manifest.json` (also records Extra renders/hashes).
+
+Side camera is orthographic from body +Y/right. Fuselage/headrest/liner skin is clipped at the centreline,
+removing the right half; cockpit geometry retained, wings/gear omitted in cutaways. 3/4 and top views use the
+same points. Pink highlights the source-picked actual mesh/top vertices; orange the older seat top.
+The bright eye and dimensions are x-ray overlays. Head scale proxy: **body radius 0.105 m**, centre
+**0.080 m aft and 0.050 m above eye**. It is a wire sphere, not a validated occupant/head shape.
+
+Forward eye renders use **86° horizontal FOV, pitch -4°** as requested, glass omitted, all opaque structure
+retained. The older rear panel/card is largely below this forward field, whereas the round-2 view was aimed
+steeply down to centre the panel; those are different look directions at the same eye. No eye relocation or
+forward-view aiming change was made to improve readability. Renderer: `tools/own_models/render_iac_round3.py`.

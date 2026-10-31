@@ -1,0 +1,650 @@
+{
+  "extra-300-like": {
+    "centre_builder": [
+      -1.2032,
+      0,
+      0.35
+    ],
+    "centre_gltf": [
+      1.2032,
+      0.35,
+      0
+    ],
+    "panel_top": 0.428,
+    "holder_top": 0.42285,
+    "above": 0,
+    "width": 0.10795,
+    "height": 0.13970000000000002,
+    "panel_face_builder": -1.202,
+    "face_offset_m": 0.0012,
+    "max_hardware_offset_m": 0.003,
+    "holder_width": 0.11395000000000001,
+    "holder_height": 0.14570000000000002,
+    "cockpit": "rear",
+    "panel_coordinates": "u=pilot right, v=model up; origin on centreline at model Z=0",
+    "card_top": 0.41985,
+    "card_above_panel": 0,
+    "holder_protrusion": 0,
+    "panel_outline_uv": [
+      [
+        -0.31,
+        0.272
+      ],
+      [
+        0.31,
+        0.272
+      ],
+      [
+        0.31,
+        0.338
+      ],
+      [
+        0.2,
+        0.428
+      ],
+      [
+        -0.2,
+        0.428
+      ],
+      [
+        -0.31,
+        0.338
+      ]
+    ],
+    "instruments": [
+      [
+        "Airspeed",
+        -0.24,
+        0.201,
+        0.05715
+      ],
+      [
+        "Altimeter",
+        -0.16,
+        0.201,
+        0.05715
+      ],
+      [
+        "Attitude",
+        -0.08,
+        0.201,
+        0.05715
+      ],
+      [
+        "G_meter",
+        0,
+        0.201,
+        0.05715
+      ],
+      [
+        "Tachometer",
+        0.13,
+        0.22,
+        0.04
+      ],
+      [
+        "Oil_pressure",
+        0.23,
+        0.22,
+        0.04
+      ],
+      [
+        "Oil_temperature",
+        0.13,
+        0.174,
+        0.04
+      ],
+      [
+        "Fuel_pressure",
+        0.23,
+        0.174,
+        0.04
+      ],
+      [
+        "Fuel_quantity",
+        0.23,
+        0.365,
+        0.054
+      ],
+      [
+        "Voltmeter",
+        -0.23,
+        0.365,
+        0.054
+      ],
+      [
+        "Compass",
+        0.13,
+        0.365,
+        0.06
+      ]
+    ],
+    "before_instruments": [
+      [
+        "Anonymous_1",
+        0.24,
+        0.193,
+        0.062
+      ],
+      [
+        "Anonymous_2",
+        0.12,
+        0.193,
+        0.062
+      ],
+      [
+        "Anonymous_3",
+        0,
+        0.193,
+        0.062
+      ],
+      [
+        "Anonymous_4",
+        -0.12,
+        0.193,
+        0.062
+      ],
+      [
+        "Anonymous_5",
+        -0.24,
+        0.193,
+        0.062
+      ],
+      [
+        "Anonymous_6",
+        0.24,
+        0.263,
+        0.062
+      ],
+      [
+        "Anonymous_7",
+        0.12,
+        0.263,
+        0.062
+      ],
+      [
+        "Anonymous_8",
+        0,
+        0.263,
+        0.062
+      ],
+      [
+        "Anonymous_9",
+        -0.12,
+        0.263,
+        0.062
+      ],
+      [
+        "Anonymous_10",
+        -0.24,
+        0.263,
+        0.062
+      ],
+      [
+        "Static_compass",
+        0.145,
+        0.366,
+        0.066
+      ]
+    ],
+    "panel_tier": "upper",
+    "original_upper_height_m": 0.12,
+    "upper_downward_extension_m": 0.036,
+    "lower_panel_face_builder": -1.162,
+    "lower_recess_restored": true,
+    "lower_panel_outline_uv": [
+      [
+        -0.3,
+        0.148
+      ],
+      [
+        0.3,
+        0.148
+      ],
+      [
+        0.3,
+        0.308
+      ],
+      [
+        -0.3,
+        0.308
+      ]
+    ],
+    "mount_surface_nodes": [
+      "Cockpit",
+      "RearPanel_UpperExtension"
+    ],
+    "rear_eye": {
+      "body_m": [
+        -1.56855,
+        -0.0,
+        -0.5388
+      ],
+      "gltf_m": [
+        1.5934871875286647,
+        0.5465031905624169,
+        -0.0
+      ],
+      "raw_model_to_body_matrix": [
+        [
+          -0.990387630569895,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.990387630569895
+        ],
+        [
+          0.0,
+          -0.990387630569895,
+          0.0
+        ]
+      ],
+      "raw_model_to_body_translation_m": [
+        0.00962,
+        -0.0,
+        0.00245
+      ],
+      "source_model_commit": "073f11359c9e665ee0ef481a415a5627f2bcb980",
+      "adjustment_model_m": [
+        0,
+        0,
+        0
+      ],
+      "verified": "Within rear opening/seat-pan fore-aft footprint; rear panel ahead; no eye adjustment. Cockpit differs from source lane."
+    }
+  },
+  "pitts-s2b-like": {
+    "centre_builder": [
+      -0.8087,
+      0,
+      0.015
+    ],
+    "centre_gltf": [
+      0.8087,
+      0.015,
+      0
+    ],
+    "panel_top": 0.158,
+    "holder_top": 0.08785000000000001,
+    "above": 0,
+    "width": 0.10795,
+    "height": 0.13970000000000002,
+    "panel_face_builder": -0.8075,
+    "face_offset_m": 0.0012,
+    "max_hardware_offset_m": 0.003,
+    "holder_width": 0.11395000000000001,
+    "holder_height": 0.14570000000000002,
+    "cockpit": "rear",
+    "panel_coordinates": "u=pilot right, v=model up; origin on centreline at model Z=0",
+    "card_top": 0.08485000000000001,
+    "card_above_panel": 0,
+    "holder_protrusion": 0,
+    "panel_outline_uv": [
+      [
+        -0.3,
+        -0.12
+      ],
+      [
+        0.3,
+        -0.12
+      ],
+      [
+        0.31,
+        0.12
+      ],
+      [
+        0.22,
+        0.15
+      ],
+      [
+        -0.22,
+        0.15
+      ],
+      [
+        -0.31,
+        0.12
+      ]
+    ],
+    "instruments": [
+      [
+        "Airspeed",
+        -0.21,
+        0.065,
+        0.068
+      ],
+      [
+        "Altimeter",
+        -0.16,
+        -0.035,
+        0.06
+      ],
+      [
+        "G_meter",
+        -0.11,
+        0.065,
+        0.068
+      ],
+      [
+        "Tachometer",
+        0.11,
+        0.065,
+        0.068
+      ],
+      [
+        "Oil_pressure",
+        0.21,
+        0.065,
+        0.068
+      ],
+      [
+        "Oil_temperature",
+        0.11,
+        -0.035,
+        0.06
+      ],
+      [
+        "Compass",
+        0.21,
+        -0.035,
+        0.06
+      ]
+    ],
+    "before_instruments": [
+      [
+        "Anonymous_1",
+        0.18,
+        0.065,
+        0.068
+      ],
+      [
+        "Anonymous_2",
+        0.06,
+        0.065,
+        0.068
+      ],
+      [
+        "Anonymous_3",
+        -0.06,
+        0.065,
+        0.068
+      ],
+      [
+        "Anonymous_4",
+        -0.18,
+        0.065,
+        0.068
+      ],
+      [
+        "Anonymous_5",
+        0.12,
+        -0.035,
+        0.06
+      ],
+      [
+        "Anonymous_6",
+        0,
+        -0.035,
+        0.06
+      ],
+      [
+        "Anonymous_7",
+        -0.12,
+        -0.035,
+        0.06
+      ]
+    ],
+    "rear_eye": {
+      "body_m": [
+        -1.41855,
+        -0.0,
+        -0.34004
+      ],
+      "gltf_m": [
+        1.4076616156355075,
+        0.340659516212211,
+        -0.0
+      ],
+      "raw_model_to_body_matrix": [
+        [
+          -0.999032710972308,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.999032710972308
+        ],
+        [
+          0.0,
+          -0.999032710972308,
+          0.0
+        ]
+      ],
+      "raw_model_to_body_translation_m": [
+        -0.01225,
+        -0.0,
+        0.00029
+      ],
+      "source_model_commit": "38e87461d7ca974eb3b64090e5d1fecda8530064",
+      "adjustment_model_m": [
+        0,
+        0,
+        0
+      ],
+      "verified": "Within rear opening/seat-pan fore-aft footprint; rear panel ahead; no eye adjustment. Cockpit differs from source lane."
+    }
+  },
+  "great-lakes-like": {
+    "centre_builder": [
+      -1.6407,
+      0,
+      0.005
+    ],
+    "centre_gltf": [
+      1.6407,
+      0.005,
+      0
+    ],
+    "panel_top": 0.136,
+    "holder_top": 0.07785000000000002,
+    "above": 0,
+    "width": 0.10795,
+    "height": 0.13970000000000002,
+    "panel_face_builder": -1.6395,
+    "face_offset_m": 0.0012,
+    "max_hardware_offset_m": 0.003,
+    "holder_width": 0.11395000000000001,
+    "holder_height": 0.14570000000000002,
+    "cockpit": "rear",
+    "panel_coordinates": "u=pilot right, v=model up; origin on centreline at model Z=0",
+    "card_top": 0.07485000000000001,
+    "card_above_panel": 0,
+    "holder_protrusion": 0,
+    "panel_outline_uv": [
+      [
+        -0.26,
+        -0.12
+      ],
+      [
+        0.26,
+        -0.12
+      ],
+      [
+        0.27,
+        0.06
+      ],
+      [
+        0.16,
+        0.13
+      ],
+      [
+        -0.16,
+        0.13
+      ],
+      [
+        -0.27,
+        0.06
+      ]
+    ],
+    "instruments": [
+      [
+        "Airspeed",
+        -0.21,
+        0.04,
+        0.064
+      ],
+      [
+        "Altimeter",
+        -0.16,
+        -0.05,
+        0.056
+      ],
+      [
+        "G_meter",
+        -0.11,
+        0.04,
+        0.064
+      ],
+      [
+        "Tachometer",
+        0.11,
+        0.04,
+        0.064
+      ],
+      [
+        "Oil_pressure",
+        0.21,
+        0.04,
+        0.064
+      ],
+      [
+        "Oil_temperature",
+        0.11,
+        -0.05,
+        0.056
+      ],
+      [
+        "Compass",
+        0.21,
+        -0.05,
+        0.056
+      ]
+    ],
+    "before_instruments": [
+      [
+        "Anonymous_1",
+        0.16,
+        0.04,
+        0.064
+      ],
+      [
+        "Anonymous_2",
+        0.055,
+        0.04,
+        0.064
+      ],
+      [
+        "Anonymous_3",
+        -0.055,
+        0.04,
+        0.064
+      ],
+      [
+        "Anonymous_4",
+        -0.16,
+        0.04,
+        0.064
+      ],
+      [
+        "Anonymous_5",
+        0.11,
+        -0.05,
+        0.056
+      ],
+      [
+        "Anonymous_6",
+        0,
+        -0.05,
+        0.056
+      ],
+      [
+        "Anonymous_7",
+        -0.11,
+        -0.05,
+        0.056
+      ]
+    ],
+    "rear_eye": {
+      "body_m": [
+        -1.8365,
+        -0.0,
+        -0.24437
+      ],
+      "gltf_m": [
+        1.8236602139381028,
+        0.27432220054022616,
+        -0.0
+      ],
+      "raw_model_to_body_matrix": [
+        [
+          -0.9829682011480473,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9829682011480473
+        ],
+        [
+          0.0,
+          -0.9829682011480473,
+          0.0
+        ]
+      ],
+      "raw_model_to_body_translation_m": [
+        -0.0439,
+        -0.0,
+        0.02528
+      ],
+      "source_model_commit": "4a45232dccab0e162c42bc817394177739e25e94",
+      "adjustment_model_m": [
+        0,
+        0,
+        0
+      ],
+      "verified": "Within rear opening/seat-pan fore-aft footprint; rear panel ahead; no eye adjustment. Cockpit differs from source lane."
+    }
+  },
+  "reusable-decathlon": {
+    "centre_builder": [
+      -0.0012,
+      0,
+      0
+    ],
+    "centre_gltf": [
+      0.0012,
+      0,
+      0
+    ],
+    "panel_top": 0.1,
+    "holder_top": 0.07285000000000001,
+    "above": 0,
+    "width": 0.10795,
+    "height": 0.13970000000000002,
+    "panel_face_builder": 0,
+    "face_offset_m": 0.0012,
+    "max_hardware_offset_m": 0.003,
+    "holder_width": 0.11395000000000001,
+    "holder_height": 0.14570000000000002,
+    "cockpit": "rear",
+    "panel_coordinates": "u=pilot right, v=model up; origin on centreline at model Z=0",
+    "card_top": 0.06985000000000001,
+    "card_above_panel": 0,
+    "holder_protrusion": 0
+  }
+}

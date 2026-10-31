@@ -29,14 +29,14 @@ fin navy cap with 3 white stars and red line; wing/stab navy front 32 %, 0.03 ga
 TALK/FLYING underneath (tapered, off the ailerons); clear canopy; white prop with 5 in red tips and 1 in nickel LE; navy-topped wheel pants with red stripe.
 
 ## Known differences from the real aircraft
-- Ailerons run y 1.011–3.997 m (measured), hinge-to-TE area 0.913 m² each vs the manual's 0.855 m² (+7 %, within measurement/definition tolerance; chord 23 % inboard → 30 % at the tip, hinge swept 8.3°). The game config's aileron strips (from |y| 0.905, 4.1° sweep) do not match this; see v14.
+- Ailerons start at y 1.40 m to match the game's aileron rig; the real ones run further inboard.
 - Airfoil is a generic symmetric 16→12 % section; no dihedral modelled; root chord and planform measured from the 300/L drawing.
 - Fuselage cross-sections are superellipses — no cowl seams, louvres, exhausts, access panels, antennas or step.
 - Canopy is a single smooth bubble with three frame bows; no hinge hardware, no interior/pilots.
 - Gear legs, pants and tailwheel are simplified; no brakes.
 - Registration N300UY is replaced by TALKFLYING per the approved scheme; real stripe geometry differs.
 - Belly is plain white (side paint not wrapped underneath).
-- In-game the model is rescaled to the config span (~0.94). Since v13 each control surface carries its own hinge line (node origin + `<Name>_HingeAxis` marker), so the rig no longer needs the config hinge/chord to line up with the mesh.
+- In-game the model is rescaled to the config span (~0.94) and the config tail arm is ~15 cm shorter, so elevator hinge alignment is approximate.
 
 
 ---
@@ -144,45 +144,48 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 underwing bar are kept. Geometry and the 3-blade prop are node for node the N300UY GLB's (checked by FlightTests). The
 provenance, including the GPL question above, is the same as the other two liveries'.
 
-## v13 (2026-10-29, lane/codex-extra-hinges): real hinged surfaces
-Problem: the rudder was one full-height mesh but the game rig (generic carve, no `namedSurfaces`) re-cut it from config
-strips that start ~0.15 m up and moved the hinge 0.38 m aft, so only the part above the stab moved; the elevator carve
-also pulled ~300 aft stab vertices into the elevator, so the stab sheared with it.
-- Rudder, elevators and ailerons are rebuilt as true hinged surfaces (`Hinge` class in build_ea300.py): a straight
-  fitted hinge line, a half-round nose about it (radius = local half-thickness), and the fixed surface cut 3 mm aft of the
-  nose, so ±30° rudder / ±25° elevator / 30° aileron swing with no faces through the fixed parts and no visible gap.
-- The rudder runs the full height, foot at z -0.184 (fuselage bottom) to the cap; the tail cone is trimmed flat just
-  ahead of the rudder nose (x -4.578) and the fin starts where it has chord ahead of the nose.
-- Each hinged mesh's node origin is the hinge's inboard/bottom point, and a top-level empty `<Name>_HingeAxis` marks the
-  other end (exported with extras, `hinge_axis_marker`). Hinge lines (build frame, m): rudder (-4.614,0,-0.184)→(-4.610,0,1.260);
-  elevators (-4.315,±0.075,0.181)→(-4.315,±1.590,0.189); ailerons (-0.827,±1.020,0.075)→(-0.392,±3.993,0.074).
-- Rudder cables moved to a static `Tail_Cables` object (they detach ~4 cm at the horn at full rudder). The elevator root
-  rib sits ~1 cm inside the fuselage skin (hidden). Stab stations now match the elevator stations.
-- All three liveries rebuilt. The game still needs `namedSurfaces` + marker support in the rig to use these hinges.
+## 2026-10-31 — shared sequence holder
+Every own livery on this base now includes an original centre rear-panel sequence-card holder and a separately swappable `SequenceCard_Face` material. Default art is the official 2026 IAC Power Sportsman Known (pilot card page 4), 1275 × 1650 px. Shared source/credits, transforms, Decathlon reuse and offline-build limitations: [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), with exact dimensions in [sequence-card-spec.json](sequence-card-spec.json). Other aircraft paint and original mesh buffers are preserved.
 
-## v14 (2026-10-29, lane/codex-extra-hinges): aileron check, spade strut foot
-- Checked both ailerons at ±30° (manual: ±30°) about their v13 hinge markers ((0.8267, ±1.0195, 0.0749) → (0.3918, ±3.9929, 0.0737) in Blender import frame):
-  straight hinge, half-round nose (r 0.023–0.042 m) inside the wing cut-out, no BVH overlap with any other mesh in either direction, spade plate clears the wing at 30° TE-down.
-- Fix: the spade strut foot used the measured reference z (0.008 m), which left the whole spade hanging 4–5 cm below our aileron's lower skin (0.050–0.060 m).
-  The top strut ring is now raised to our aileron lower skin + 4 mm (z 0.064, still well under the upper skin at ≥0.088), so the spade is attached and rotates with the aileron.
-  Plate and weight positions are unchanged (raising them would cost the plate its ~3 cm clearance under the wing at full TE-down).
-- Real Extra 300 (Service Manual ch. 6): span 8.00 m, wing 10.7 m² (model 10.77), tip chord 0.83 m (model 0.826), aileron 2 × 0.855 m² (model 2 × 0.913), ±30°.
+## 2026-10-31 round 2 — flush rear/PIC card and instrument layout
 
+Supersedes round-1 holder/compass placement. All Extra 300 own livery GLBs on this lane use a
+4.25×5.5 in (0.10795×0.13970 m; rounded 0.108×0.140 m) card centred in the **rear/PIC** panel.
+Face centre raw glTF: **(1.2032, 0.2280, 0)**; panel face builder X=-1.2020.
+The flush frame is 0.11395×0.14570 m, paper offset 1.2 mm and maximum hardware offset 3 mm;
+**zero above-panel protrusion**. Ty dropped the 2-inch stick-up for all types, including Extra.
+Flight instruments are on the pilot's left, engine on the right, with a prominent labelled G-meter and one compass.
+Old dials were anonymous placeholders; new functions/art are procedural visual assignments, all static.
+Front-panel instruments/triangles, seats, exterior paint and flight-model/rig geometry are preserved.
+The recessed lower rear panel is filled aft by 40 mm to align with its existing glareshield face and prevent
+its overhang hiding the card from the supplied rear eye. This is `RearPanel_FlushPanel`, not a raised card.
+Old `PanelCompass_*` nodes are removed; the one compass is `RearPanel_Compass_Face` on the rear panel.
+The supplied v2 rear eye maps into this lane's rear cockpit without adjustment. Review renders cover every
+livery in `renders/iac-pitts/v2/` (untracked), with matched 38e8746 before views and true rear-eye perspective.
+Exact layout tables, eye-transform caveats, original IAC artwork/font provenance, build and acceptance checks:
+[sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), [sequence-card-spec.json](sequence-card-spec.json),
+and the round-2 entry in [AGENT-LOG.md](../../AGENT-LOG.md). CPU rebuild and asset checks passed; full Blender/Unity
+import/render remain unverified here. No Tests/ or app logic changes.
 
-## v15 (2026-10-30, lane/codex-extra-cockpit): clean-room cockpit, full rig, canopy that jettisons
-- **New cockpit, clean-room.** `tools/own_models/ea_cockpit.py` (geometry) and `ea_rig.py` (rig) are new code. They were placed by eye from public photos only (kept on the agent box under /workspace/refs/extra/, never committed): the Extra 300L rear-seat panel photo (imgur xWpVN2o via reddit r/flying, u/sgsollie), the Extra 330LX cockpit photo (Wikimedia Commons "Extra_330_LX_cockpit.jpg") and the EA 300-L c/n 019 side photo (Wikimedia Commons, Chuck Coleman), plus text sources for layout and limits: EA 300/L POH (instrument markings, ±10 g, control travels, which controls are in which seat), AAIB report G-ZXCL (one-piece canopy hinged on the right), Patty Wagstaff's Extra egress notes (red canopy handles, canopy hinges right) and the Extra 300L IPC (parts layout only). No meshes, textures or numbers were taken from any third-party model; nothing from FlightGear was opened for this job.
-- **Shell provenance unchanged — GPL question pending Ty.** The v2–v12 exterior (fuselage, wing, tail, canopy outline, gear) is still the shape measured from Patrizio Melis's GPL FlightGear EA300 (see v2; `build_ea300.py`'s docstring says so). That probably makes the shell a derivative work. Ty has not decided yet whether to keep it, relicense, or redraw the shell clean-room. The v15 cockpit does not depend on it beyond fitting inside the tub.
-- **Shell touches (small, mechanical).** The old cockpit object is now `Cockpit_Shell`; its front-panel gauges, rear gauges and old radio face were removed (replaced by the rigged panels), the rear panel slab was trimmed to z −0.048..0.16 and the centre stack resized. `Canopy_Glass` / `Canopy_Frame` were split by connected piece: the opening-canopy pieces stay, the fixed fuselage side windows below became `Window_Glass` / `Window_Frame`. A new static `Canopy_Sill` rail follows the opening. The wing-root trim now uses the firewall station X_FW. Materials, the approved one-piece light-blue canopy glass (v3) and all three liveries are unchanged.
-- **Front seat:** ASI, G-meter and altimeter (Ty, 2026-10-30) plus tach and oil in a 5-dial arch; throttle on the left ledge, fuel selector on the right ledge, stick on a roll gimbal, pedals with toe brakes, canopy lock and red release.
-- **Rear seat (default view, `Eye_Rear`):** full panel (ASI, altimeter, VSI, turn coordinator, G-meter, MP, tach, oil, CHT, fuel, mag key, master, prop + mixture verniers), wet compass on the glareshield, throttle, trim lever (right ledge), fuel selector (centre stack), stick, pedals with toe brakes, canopy lock and release.
-- **Avionics:** TY91/TY96-style radio head above a TT21/TT22-style transponder head at the right edge of the rear panel, 63 × 44 mm faces, plain dark displays, no maker text; rigged knobs and two display nodes (`docs/models/ea300-own-RIG.md`). No intercoms, headsets, cables or other boxes. Placards blank; no maker text on any dial.
-- **Canopy:** a `Canopy` root empty on the right-sill hinge line carries the glass, frame and both lock levers; opens 100° to the right (E stop), locks with the red levers, and jettisons as one piece (`rig_jettison_param: canopy_jettison`, pulled by `CanopyRelease_F/R`).
-- **Not modelled:** an elevator trim tab (trim is a sim effect only); intercom / headset jacks. The seats and 5-point straps are the earlier v4–v12 shell cockpit parts, kept as they were.
-- Verification renders: /workspace/extra-cockpit/ on the agent box (not committed). Every estimate is marked (E) in the RIG doc.
-- **Pitts S-2B:** needs the same treatment (front ASI / ALT / G, full rear panel with radio + transponder heads, controls on real pivots, canopy open / close / jettison); not done here.
+## 2026-10-31 round 3 — IAC card on UPPER rear panel
 
-## v15.1 rear panel: panel compass + sequence card (2026-10-30, Ty)
-- The wet compass moved from the glareshield into the rear panel: a 2-1/4 in panel-mount compass (round flush bezel, short case, the same drum card art/ea-compass-band.png behind a window, lubber line), lower right under the radio heads. Size and the exact spot are estimates. The blank placard that sat there moved to the centre stack.
-- New sequence card holder centred on the top edge of the rear dash, standing 50 mm above it, with the card face as its own node and material `SequenceCard_Face` (letter portrait, UV 0..1) so the sim can swap the texture.
-- Default card art (art/ea-seqcard-default.png, made by make_ea_seqcard.py): page 4 (the pilot's card) of the IAC's published 2026 Power Sportsman Known sheet, https://www.iac.org/sites/default/files/Sequences/SPTP-Known-2026.pdf (listed on https://www.iac.org/sequences, announced 2025-11-20), rasterised at 150 dpi with the strokes thickened, plus a figure / Aresti catalogue number / K list copied from the sheet's Form A (total K 127). The page has no IAC logo and none was added. The PDF itself is not in the repo (build/refs).
+Ty: "The extra seems to have two panels the card should be on the upper panel."
+All 3 Extra livery GLBs now mount the same 0.10795×0.13970 m card and 0.11395×0.14570 m low-profile
+frame on the **upper** PIC/rear panel. Raw glTF face centre **(1.2032,0.3500,0)**; builder panel face X=-1.202.
+Paper offset 1.2 mm, maximum frame/clip offset 3 mm, normal/UV/SequenceCard_Face contract unchanged.
 
+Original upper face: 120 mm high at centre, 620 mm wide at bottom / 400 mm at top. The card alone was
+19.70 mm too tall; frame 25.70 mm too tall. The **upper face is extended downward 36 mm** to up=0.272,
+keeping its top at 0.428. New centre height 156 mm; frame spans up=0.27715–0.42285 (5.15 mm margins).
+No stick-up. `RearPanel_UpperExtension` is an original 6 mm thick lower strip matching the upper face colour.
+
+`RearPanel_FlushPanel` (40 mm round-2 fill) **is reverted/absent** because its only purpose was seeing the
+lower-mounted card. Original lower slab at builder X=-1.162 and radio remain unchanged; gauges return to it.
+Upper voltmeter/compass/fuel quantity already clear the central frame and keep their positions.
+Lower ASI/alt/attitude/G form a 57.15 mm row, G centred; tach/oil-pressure/oil-temp/fuel-pressure form a compact
+40 mm 2×2 group at the right, below the upper lip. No gauge omitted or overlapping; no lower hole.
+All values are static visual assignments, not a specific aircraft's certified installation.
+
+Exact layout/spec and provenance: [sequence-card-spec.json](sequence-card-spec.json),
+[sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md). Renders: untracked `renders/iac-pitts/v3/`,
+all three liveries, plus a matched 1a6a4d7 before view. No app/Tests/ edits; Unity/Blender remain unrun here.
