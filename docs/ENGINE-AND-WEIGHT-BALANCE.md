@@ -36,46 +36,20 @@ nothing. See the file's own comments for the full reasoning; in short:
 Still to come, on top of the engine systems: carb ice (conditions table, needs induction type per aircraft), vapour
 lock, the surge model, and the symptom plumbing.
 
-## 2. Weight and balance — NEXT
+## 2. Weight and balance — BUILT (in part)
 
-### Shape
+**Moved to its own page: `docs/WEIGHT-AND-BALANCE.md`.** It has the design, the derivation rule for adding a type,
+the sources, and the three things that need the owner. In short:
 
-New config block per aircraft:
-
-- `empty`: empty mass, empty CG, empty inertia. Everything else is built up from it.
-- `stations[]`: pilot, passengers, baggage, cargo — id, display name, arm (body axes), max kg, default kg.
-- `tanks[]`: id, name, arm, capacity, fuel density, selectable.
-- `envelope[]`: the CG limit polygon as (cg arm, mass) vertices, plus max take-off mass.
-
-Runtime load sheet: what is in each station and tank now. It computes total mass, CG in all three axes (lateral too,
-so asymmetric fuel is felt), and inertia by parallel axis from the empty aircraft plus point masses.
-
-### How the computed CG reaches the 93 read sites
-
-`AircraftConfig` instances are **not shared**: `UnityAircraftConfigLoader.LoadFromStreamingAssets` deserializes fresh
-on every call, and there is already precedent for mutating the instance per session (`config.Bushwheels`,
-`config.Skis`). So the load sheet writes computed mass, CG and inertia into the aircraft's own config, and all 93
-read sites pick it up with no change. That is a far smaller and safer diff than threading a CG argument through
-41 files.
-
-### The one hazard, found by checking
-
-Seven per-config caches are keyed on the instance (`ConditionalWeakTable<AircraftConfig, …>`), so a mutated config
-could leave a stale cached value. Six do not touch mass at all. **One does**: `AeroModel._span` caches
-`[span, meanWingZ - cg.Z]` — the wing's height above the CG, which is the **ground-effect** geometry. Move the CG
-vertically (wing fuel against low baggage) and that cached height goes stale, silently, in ground effect only.
-
-Fix, before anything else in this phase: cache `meanWingZ` alone and subtract the live CG z at the point of use. One
-line, and the staleness cannot come back. Noted here because it is the kind of thing that would otherwise be found
-as a strange landing-flare bug months later.
-
-### What else needs doing
-
-- Fuel burn from power (BSFC), reducing tank mass and moving the CG in flight.
-- Envelope test and the plotted diagram. Charts in this project never show own-ship position, but a W&B envelope plot
-  is not a navigation chart — it must show the loaded point, or it is useless.
-- A loading screen before flight, and the handling consequences: static margin, stall speed, climb, and the
-  aft-CG spin behaviour that makes a loading mistake interesting rather than cosmetic.
+- `LoadingConfig` + `WeightAndBalance` + `LoadSheet` are in `src/FlyingGame.Core/Loading/`, with 11 tests.
+- Done for `c172-like` and `j3-cub-like` from the POH and the type certificates. `pa28-archer-like` is blocked on
+  TCDS 2A13 for the Archer's MAC and LEMAC station.
+- The ground-effect hazard flagged below **is fixed**: `AeroModel.WingHeightAboveCg` caches the wing's own body z
+  and reads the live CG at the point of use.
+- Also fixed on the way: `PitchStabilityTests` was measuring static margin against its own unpaired MAC, 8.5 %
+  smaller than the type's real one, so every static margin in the suite was overstated by that much.
+- Still to build: fuel burn from power (wants a BSFC, so it belongs with the engine systems), the envelope plot, a
+  loading screen, a per-tank selector, and the other 30 types.
 
 ## 3. Engine systems — AFTER W&B
 

@@ -1568,5 +1568,144 @@
     "gMax": 3.8,
     "gMin": -1.52
   },
-  "verticalBlanketFactor": 0.5
+  "verticalBlanketFactor": 0.5,
+  "loading": {
+    "emptyMassKg": 659.523,
+    "emptyCg": [
+      0.0125,
+      0.0,
+      0.1117
+    ],
+    "emptyInertia": {
+      "ixx": 787.02,
+      "iyy": 1734.01,
+      "izz": 2161.82,
+      "ixz": 65.11
+    },
+    "maxTakeoffMassKg": 1043.26,
+    "stations": [
+      {
+        "id": "front-left",
+        "displayName": "Pilot",
+        "arm": [
+          0.0786,
+          -0.27,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 104.3685,
+        "isSeat": true
+      },
+      {
+        "id": "front-right",
+        "displayName": "Front passenger",
+        "arm": [
+          0.0786,
+          0.27,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 104.3685,
+        "isSeat": true
+      },
+      {
+        "id": "rear-left",
+        "displayName": "Rear passenger L",
+        "arm": [
+          -0.8358,
+          -0.27,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 32.8599,
+        "isSeat": true
+      },
+      {
+        "id": "rear-right",
+        "displayName": "Rear passenger R",
+        "arm": [
+          -0.8358,
+          0.27,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 32.8599,
+        "isSeat": true
+      },
+      {
+        "id": "baggage1",
+        "displayName": "Baggage area 1",
+        "arm": [
+          -1.3946,
+          0.0,
+          0.15
+        ],
+        "maxKg": 54.43,
+        "defaultKg": 0.0,
+        "isSeat": false
+      },
+      {
+        "id": "baggage2",
+        "displayName": "Baggage area 2",
+        "arm": [
+          -2.1058,
+          0.0,
+          0.15
+        ],
+        "maxKg": 22.68,
+        "defaultKg": 0.0,
+        "isSeat": false
+      }
+    ],
+    "tanks": [
+      {
+        "id": "left",
+        "displayName": "Left wing",
+        "arm": [
+          -0.2008,
+          -2.0,
+          -0.55
+        ],
+        "capacityL": 75.71,
+        "densityKgPerL": 0.72,
+        "defaultKg": 54.51,
+        "selectable": true
+      },
+      {
+        "id": "right",
+        "displayName": "Right wing",
+        "arm": [
+          -0.2008,
+          2.0,
+          -0.55
+        ],
+        "capacityL": 75.71,
+        "densityKgPerL": 0.72,
+        "defaultKg": 54.51,
+        "selectable": true
+      }
+    ],
+    "envelope": [
+      [
+        15.188,
+        659.52
+      ],
+      [
+        15.188,
+        884.51
+      ],
+      [
+        21.03,
+        1043.26
+      ],
+      [
+        35.717,
+        1043.26
+      ],
+      [
+        35.717,
+        659.52
+      ]
+    ]
+  }
 }
