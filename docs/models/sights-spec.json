@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "body_axes": "+X forward, +Y right, +Z down, origin aircraft root/CG",
+  "source_commit": "aab015b",
+  "source_field": "entries[rear].v4.position_body",
+  "geometry_baseline_commit": "f9c2e034ec47d5a0b4cf2205e693ec5a74432dd4",
+  "frame": {
+    "bar_length_m": 0.5,
+    "rod_diameter_m": 0.008,
+    "bracket_diameter_m": 0.01,
+    "colour_srgb": [
+      200,
+      24,
+      36
+    ],
+    "plane": "body y = +/-y_mount_m",
+    "directions_body": {
+      "Vertical": [
+        0,
+        0,
+        1
+      ],
+      "Plus45": [
+        0.7071067811865476,
+        0,
+        0.7071067811865476
+      ],
+      "Minus45": [
+        -0.7071067811865476,
+        0,
+        0.7071067811865476
+      ]
+    },
+    "fitting_embed_m": 0.008,
+    "fitting_projection_m": 0.012,
+    "fitting_diameter_m": 0.018,
+    "cylinder_segments": 16
+  },
+  "aircraft": {
+    "extra-300-like": {
+      "eye_body_m": [
+        -1.597,
+        0.0,
+        -0.518
+      ],
+      "eye_source_commit": "aab015b",
+      "eye_source_field": "entries[aircraft_id=extra-300-like,seat_id=rear].v4.position_body",
+      "gltf_to_body_matrix": [
+        [
+          -0.990387630569895,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.990387630569895
+        ],
+        [
+          0.0,
+          -0.990387630569895,
+          0.0
+        ]
+      ],
+      "gltf_to_body_translation_m": [
+        0.009618783451671109,
+        0.0,
+        0.002452081110231097
+      ],
+      "transform_formula": "body=(-s*gltf.x+tx, -s*gltf.z, -s*gltf.y+tz); builder=( -gltf.x, gltf.z, gltf.y )",
+      "transform_method": "Reproduced current readable-vertex AirframeModels.Place; span trim, outer-wing chord midpoint, gear-lowest vertex; checked invariant after sights.",
+      "source_transform_matrix": [
+        [
+          -0.990387630569895,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.990387630569895
+        ],
+        [
+          0.0,
+          -0.990387630569895,
+          0.0
+        ]
+      ],
+      "source_transform_translation_m": [
+        0.00962,
+        -0.0,
+        0.00245
+      ],
+      "y_mount_m": 3.936790831515333,
+      "attachment_body_m": [
+        -0.03990059807682364,
+        3.936790831515333,
+        -0.11915083184267342
+      ],
+      "attachment_gltf_m": [
+        0.05,
+        0.12278314995001605,
+        -3.975
+      ],
+      "attachment_structure": "Wing",
+      "attachment_outward_body": [
+        0.0,
+        0,
+        -1.0
+      ],
+      "support_body_m": [
+        [
+          -0.03990059807682364,
+          3.936790831515333,
+          -0.13115083184267343
+        ],
+        [
+          -0.03990059807682364,
+          3.936790831515333,
+          -0.518
+        ],
+        [
+          -1.597,
+          3.936790831515333,
+          -0.518
+        ]
+      ],
+      "glbs": [
+        "extra-300-like-own-n300uy.glb",
+        "extra-300-like-own-unmarked.glb",
+        "extra-300-like-own.glb"
+      ],
+      "aileron_sweep": {
+        "hinges_body_m": {
+          "Aileron_L": [
+            [
+              -0.6920205851869302,
+              -1.8510615945601534,
+              0.09395255252362006
+            ],
+            [
+              -0.44592075104610707,
+              -3.5338429303954704,
+              0.09395255252362006
+            ]
+          ],
+          "Aileron_R": [
+            [
+              -0.44592134136313616,
+              3.5338429303954704,
+              0.09395255252362006
+            ],
+            [
+              -0.6920209393771477,
+              1.851061358433342,
+              0.09395255252362006
+            ]
+          ]
+        },
+        "hinge_position_uncertainty_m": 0.1,
+        "max_deflection_rad": 0.5236,
+        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
+      }
+    },
+    "pitts-s2b-like": {
+      "eye_body_m": [
+        -1.325,
+        0.0,
+        -0.3
+      ],
+      "eye_source_commit": "aab015b",
+      "eye_source_field": "entries[aircraft_id=pitts-s2b-like,seat_id=rear].v4.position_body",
+      "gltf_to_body_matrix": [
+        [
+          -0.999032710972308,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.999032710972308
+        ],
+        [
+          0.0,
+          -0.999032710972308,
+          0.0
+        ]
+      ],
+      "gltf_to_body_translation_m": [
+        -0.012249326601852795,
+        0.0,
+        0.0002855309288101182
+      ],
+      "transform_formula": "body=(-s*gltf.x+tx, -s*gltf.z, -s*gltf.y+tz); builder=( -gltf.x, gltf.z, gltf.y )",
+      "transform_method": "Reproduced current readable-vertex AirframeModels.Place; span trim, outer-wing chord midpoint, gear-lowest vertex; checked invariant after sights.",
+      "source_transform_matrix": [
+        [
+          -0.999032710972308,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.999032710972308
+        ],
+        [
+          0.0,
+          -0.999032710972308,
+          0.0
+        ]
+      ],
+      "source_transform_translation_m": [
+        -0.01225,
+        -0.0,
+        0.00029
+      ],
+      "y_mount_m": 1.85,
+      "attachment_body_m": [
+        -0.08218161636991436,
+        2.2351889450918767,
+        -0.30000000000000004
+      ],
+      "attachment_gltf_m": [
+        0.07,
+        0.30057627506166185,
+        -2.2373531122083885
+      ],
+      "attachment_structure": "Strut_Interplane",
+      "attachment_outward_body": [
+        0.0,
+        -1,
+        0.0
+      ],
+      "support_body_m": [
+        [
+          -0.08218161636991436,
+          2.2231889450918767,
+          -0.30000000000000004
+        ],
+        [
+          -0.08218161636991436,
+          1.85,
+          -0.30000000000000004
+        ],
+        [
+          -1.325,
+          1.85,
+          -0.3
+        ]
+      ],
+      "glbs": [
+        "pitts-s2b-like-own-checker-unmarked.glb",
+        "pitts-s2b-like-own-factory-unmarked.glb",
+        "pitts-s2b-like-own-n1191.glb",
+        "pitts-s2b-like-own.glb"
+      ],
+      "aileron_sweep": {
+        "hinges_body_m": {
+          "Aileron_UL": [
+            [
+              -0.2485843772312352,
+              -1.4286167242890493,
+              -0.5793457317657129
+            ],
+            [
+              -0.33420060753123426,
+              -2.3317424579285797,
+              -0.5793457317657129
+            ]
+          ],
+          "Aileron_UR": [
+            [
+              -0.3342010243601633,
+              2.3317424579285797,
+              -0.5793457317657129
+            ],
+            [
+              -0.2485846154191946,
+              1.4286167242890493,
+              -0.5793457317657129
+            ]
+          ],
+          "Aileron_LL": [
+            [
+              -0.7765092171104111,
+              -1.3641079219557666,
+              0.4680755330676228
+            ],
+            [
+              -0.7765090980164313,
+              -2.420228093915542,
+              0.4680755330676228
+            ]
+          ],
+          "Aileron_LR": [
+            [
+              -0.7765095148453605,
+              2.209003964248403,
+              0.48244879195146767
+            ],
+            [
+              -0.7765094552983705,
+              1.3641076837678072,
+              0.48244879195146767
+            ]
+          ]
+        },
+        "hinge_position_uncertainty_m": 0.1,
+        "max_deflection_rad": 0.4363,
+        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
+      }
+    },
+    "great-lakes-like": {
+      "eye_body_m": [
+        -1.97,
+        0.0,
+        -0.264
+      ],
+      "eye_source_commit": "aab015b",
+      "eye_source_field": "entries[aircraft_id=great-lakes-like,seat_id=rear].v4.position_body",
+      "gltf_to_body_matrix": [
+        [
+          -0.9829682011480473,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9829682011480473
+        ],
+        [
+          0.0,
+          -0.9829682011480473,
+          0.0
+        ]
+      ],
+      "gltf_to_body_translation_m": [
+        -0.03345895101815821,
+        0.0,
+        -0.197892647325129
+      ],
+      "transform_formula": "body=(-s*gltf.x+tx, -s*gltf.z, -s*gltf.y+tz); builder=( -gltf.x, gltf.z, gltf.y )",
+      "transform_method": "Reproduced current readable-vertex AirframeModels.Place; span trim, outer-wing chord midpoint, gear-lowest vertex; checked invariant after sights.",
+      "source_transform_matrix": [
+        [
+          -0.9829682011480473,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          -0.9829682011480473
+        ],
+        [
+          0.0,
+          -0.9829682011480473,
+          0.0
+        ]
+      ],
+      "source_transform_translation_m": [
+        -0.0439,
+        -0.0,
+        0.02528
+      ],
+      "y_mount_m": 2.45,
+      "attachment_body_m": [
+        -1.2425098384302564,
+        2.8161035772062393,
+        -0.264
+      ],
+      "attachment_gltf_m": [
+        1.23,
+        0.06725278864327618,
+        -2.8648979426976386
+      ],
+      "attachment_structure": "Strut_Interplane",
+      "attachment_outward_body": [
+        0.0,
+        -1,
+        0.0
+      ],
+      "support_body_m": [
+        [
+          -1.2425098384302564,
+          2.8041035772062393,
+          -0.264
+        ],
+        [
+          -1.2425098384302564,
+          2.45,
+          -0.264
+        ],
+        [
+          -1.97,
+          2.45,
+          -0.264
+        ]
+      ],
+      "glbs": [
+        "great-lakes-like-own.glb"
+      ],
+      "aileron_sweep": {
+        "hinges_body_m": {
+          "Aileron_LL": [
+            [
+              -1.5511460634940977,
+              -1.534304258086368,
+              0.4789920907354289
+            ],
+            [
+              -1.551145946315157,
+              -2.9314299423441352,
+              0.4789920907354289
+            ]
+          ],
+          "Aileron_LR": [
+            [
+              -1.5511464150309204,
+              2.9314294736283713,
+              0.4789920907354289
+            ],
+            [
+              -1.5511462978519794,
+              1.5343040237284862,
+              0.4789920907354289
+            ]
+          ]
+        },
+        "hinge_position_uncertainty_m": 0.1,
+        "max_deflection_rad": 0.4014,
+        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
+      }
+    }
+  }
+}

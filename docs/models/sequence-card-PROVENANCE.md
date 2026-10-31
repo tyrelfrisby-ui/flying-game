@@ -30,7 +30,7 @@ change texture resolution. Review the flat image at full resolution for the smal
 | Aircraft | Rear panel face (builder X) | Face centre raw glTF (X,Y,Z) | Card top | Frame top | Panel/glareshield top | Protrusion |
 |---|---:|---|---:|---:|---:|---:|
 | Extra 300, UPPER | -1.2020 | (1.2032, 0.3500, 0) | 0.41985 | 0.42285 | 0.428 | 0 |
-| Pitts S-2B | -0.8075 | (0.8087, 0.0150, 0) | 0.08485 | 0.08785 | 0.158 | 0 |
+| Pitts S-2B (2026-10-31 lowered) | -0.8075 | (0.8087, -0.0350, 0) | 0.03485 | 0.03785 | 0.158 | 0 |
 | Great Lakes | -1.6395 | (1.6407, 0.0050, 0) | 0.07485 | 0.07785 | 0.136 | 0 |
 
 **Extra round 3:** Ty selected the **upper rear-panel/glareshield face**. Its original centre height was
@@ -157,3 +157,9 @@ forward eye views retain opaque geometry (glass omitted), with the specified pit
 The asset checker verifies Extra against its **upper** outline and actual original face + downward extension,
 with no `RearPanel_FlushPanel`, original recessed lower gauge stations, zero protrusion, bezel/projected-hull
 clearance and full-scene card visibility. Pitts/Great Lakes/shared holder stay unchanged from round 2.
+
+## 2026-10-31 — Pitts card down on the panel
+
+Ty: “the sight position looks good”, but the Pitts card should be down on the panel. The four Pitts livery face centres move from builder (-0.8087,0,+0.015) to (-0.8087,0,-0.035), exactly **50 mm down**. Raw GLB centre becomes (0.8087,-0.035,0). Frame bottom -0.10785 has 12.15 mm clearance above the panel bottom. The card remains 4.25 × 5.5 inches, centred, flush, with original art/UV/material contract. No instrument relocation was needed; existing seven bezels clear the holder and each other. Original front-panel geometry is retained.
+
+Review: `docs/pending/sights-renders/pitts-panel-rear-eye.png` (Ty’s specified sight eye), `pitts-panel-closeup.png`. Existing `check_iac_assets.py` passes all original flush/size/visibility/preservation checks. The shared sequence helper now also calls the parametric aerobatic sight helper for both offline and full Blender builds; see [sights-PROVENANCE.md](sights-PROVENANCE.md) for scope, exact transforms, the separate unresolved Great Lakes visibility gate, and external rebuild commands. No eyepoint status or approval gate changed.

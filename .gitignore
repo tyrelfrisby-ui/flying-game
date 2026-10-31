@@ -1,5 +1,5 @@
-# Xcode
-build/
+# Xcode outputs (build/cg-check.csv is versioned)
+build/*/
 DerivedData/
 *.xcuserstate
 xcuserdata/
@@ -38,7 +38,7 @@ unity/Temp/
 unity/Logs/
 unity/UserSettings/
 unity/obj/
-unity/Assets/StreamingAssets/aircraft/
+# Aircraft JSON mirrors are versioned; only generated folder metadata is ignored.
 unity/Assets/StreamingAssets/aircraft.meta
 *.csproj.meta
 unity/*.csproj

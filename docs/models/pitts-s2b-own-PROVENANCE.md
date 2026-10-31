@@ -379,3 +379,9 @@ Exact layout tables, eye-transform caveats, original IAC artwork/font provenance
 [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), [sequence-card-spec.json](sequence-card-spec.json),
 and the round-2 entry in [AGENT-LOG.md](../../AGENT-LOG.md). CPU rebuild and asset checks passed; full Blender/Unity
 import/render remain unverified here. No Tests/ or app logic changes.
+
+## 2026-10-31 — I-strut sights and lowered rear card
+
+All four own liveries add original mirrored red rod sights, generated from [sights-spec.json](sights-spec.json) by the shared `sights.py` helper invoked by this builder through `sequence_card.blender_add`. Bars are 0.500 m long × 8 mm diameter, vertical and ±45° in body-Y planes, centred laterally from Ty’s accepted sight-reference eye (-1.325,0,-0.300). Measured I-strut attachments body (-0.082181616, ±2.235188945, -0.300); frame centres (-1.325, ±1.850, -0.300). Fittings engage the waist; supports step inboard before extending aft, preserving the importer’s outer-wing alignment. Photos ref2/ref3 were viewed only; no copied photo texture or third-party geometry.
+
+The rear IAC card moves down 50 mm: builder centre (-0.8087,0,0.015) → (-0.8087,0,-0.035), raw GLB (0.8087,-0.035,0). No instruments moved; size, flush contact, centreline, UVs and source artwork remain unchanged. Original round-1 buffers, front-panel triangles, seats and all airframe paint are retained by the native updater. Sight angles, full-aileron-travel clearance bounds and eye visibility pass for all four Pitts liveries; existing IAC checks pass. Full Blender/Unity verification remains external. See [sights-PROVENANCE.md](sights-PROVENANCE.md) for exact data, renders, numerical checks and commands. Ty’s feedback is logged without changing any approval gate or eyepoint status.
