@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **Engine reliability, engine systems and weight-and-balance are one piece of work, and the first part is built (Claude, 2026-10-30).** `lane/claude-engine-systems`. Searching for engine state returned NOTHING — no oil, MP, CHT, mixture or fuel anywhere — which is why the Extra's four gauges read dead. And CG is static JSON read in **93 places across 41 files**, which is what W&B has to make live. Order agreed with Ty: W&B, then engine systems, then the failure symptoms. The randomizer is done (`29fe6bb`): measured MTBF 3700.6 h against 3700 over 74 million simulated hours, failures spread over 12 causes without the rate drifting, and `m` clamped to [1, 1000] so an engine is never better than the fleet. **Ty: two things need you.** (a) The **carburettor icing envelope must come from FAA SAIB CE-09-35 itself** — my fetch timed out, and a version circulating online is provably wrong (it plots dew point above ambient temperature). If you have the SAIB or the PHAK figure to hand, that table is otherwise guesswork. (b) The **failure-cause weights are an allocation, not a measurement**: the NTSB record counts accidents, and most of its fuel share is exhaustion and mismanagement, which the random pool deliberately excludes. A service-difficulty or warranty-claim distribution would be the right source and I could not find one.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -41,6 +42,54 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-10-30 — the engine fails once every 3700 hours, and three requests turn out to be one (Claude)
+
+`lane/claude-engine-systems` off `split-surfaces` at `1b67dd5`. Owner asked for engine reliability with a 1-in-3700
+hour failure rate and an adjustable multiplier, and separately for a true weight-and-balance system.
+
+**They are the same piece of work.** `grep` for engine state came back empty: no oil pressure, oil temperature,
+manifold pressure, CHT, mixture or fuel quantity anywhere in `src/` or the Unity scripts. The Extra's four unbacked
+gauges are unbacked because there is nothing behind them. And W&B needs CG to be live, where today it is
+`Config.Mass.CgVec()` — static JSON, read in 93 places across 41 files. Fuel is the hinge between them: W&B needs
+tanks to load, engine systems need fuel flow, and fuel burn is what moves the CG in flight. Order agreed with Ty:
+W&B first, then engine systems, then the symptoms. Full plan in `docs/ENGINE-AND-WEIGHT-BALANCE.md`.
+
+**The randomizer (`29fe6bb`), which was worth building first because every ordering needs it.** A hazard rate, not a
+dice roll per cause: `lambda = m/3700` per hour and `P = 1 - exp(-lambda*dt)`, with each cause owning a SHARE of that
+one rate and the weights summing to exactly 1. So reweighting the causes changes what breaks and never how often —
+a radial sheds cylinders where a flat four burns valves, and both still fail once per 3700 hours. Measured over
+74 million simulated hours rather than argued from the algebra: 3700.6 h against 3700, 3.7 against 3.7 at the worst
+setting, electrical smoke 10060 h against its own 10000-hour clock.
+
+Carb ice, vapour lock, fuel exhaustion and detonation are deliberately OUT of that pool. They are conditional, not
+random. In the pool they would stop happening when the conditions warranted them, and they would steal probability
+from the mechanical causes — making the engine quietly MORE reliable than 1-in-3700 in exactly the ways the owner
+cares about.
+
+**Two things caught before they shipped, and one before it was built on.**
+
+- The cause weights summed to **1.02**, so every engine would have failed 2 % too often with nothing in the hazard
+  code to show it. A test now pins the sum at exactly 1.
+- `FailureMode` used `{ get; init; }`. .NET 8 compiles that happily; Unity has no `IsExternalInit`, and that is the
+  CS0518 that cost a day's build on 2026-10-28. `BiplaneCellule.cs:41` carries the warning comment and my file was the
+  only thing in `src/` ignoring it. Changed to `set` with the reason written beside it.
+- Before designing W&B around writing the computed CG into the aircraft's own config — which works because configs
+  are deserialized fresh per aircraft and are already mutated per session for bushwheels and skis — I checked the
+  seven per-config caches for anything that would go stale. Six are pure geometry. **One is not**: `AeroModel._span`
+  caches `[span, meanWingZ - cg.Z]`, the wing's height above the CG, which is the **ground-effect** geometry. Move the
+  CG vertically — wing fuel against low baggage — and that height goes stale, silently, in ground effect only. The fix
+  is one line (cache `meanWingZ`, subtract the live CG at the point of use) and it is the first thing in the W&B phase.
+  Worth writing down because otherwise it surfaces months later as a strange landing-flare bug.
+
+Also: .NET has no `Math.Expm1`, and `1.0 - Math.Exp(-x)` throws away most of the significant digits at the values
+this is actually called with — a 20 ms step at 1-in-3700 is x = 1.5e-9 — so the series is used below 1e-5.
+
+Oil on the windscreen, engine smoke and cockpit electrical smoke are art and belong to Codex (Ty's call). This lane
+publishes the state and the handoff spec; Codex draws it.
+
+19 tests. deploy.sh: `** BUILD SUCCEEDED **`, installed on 2 of 2 devices.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it
