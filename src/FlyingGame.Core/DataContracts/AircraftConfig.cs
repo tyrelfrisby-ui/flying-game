@@ -96,6 +96,12 @@ public sealed class AircraftConfig
     public double VerticalBlanketFactor { get; set; } = 0.5;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
+
+    /// <summary>
+    /// Weight and balance data: the empty aeroplane, its seats, holds and tanks, and its CG envelope. Null on a type
+    /// that has not been given any, which flies at its tuned <see cref="Mass"/> exactly as before.
+    /// </summary>
+    public LoadingConfig? Loading { get; set; }
 }
 
 /// <summary>

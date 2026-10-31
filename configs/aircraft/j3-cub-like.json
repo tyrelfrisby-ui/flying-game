@@ -1511,5 +1511,91 @@
     ],
     "weakLinkN": 3920,
     "isTug": true
+  },
+  "loading": {
+    "emptyMassKg": 346.998,
+    "emptyCg": [
+      -0.0855,
+      0.0,
+      0.0485
+    ],
+    "emptyInertia": {
+      "ixx": 999.71,
+      "iyy": 1261.29,
+      "izz": 2025.59,
+      "ixz": 49.08
+    },
+    "maxTakeoffMassKg": 553.38,
+    "stations": [
+      {
+        "id": "front",
+        "displayName": "Front seat",
+        "arm": [
+          0.1787,
+          0.0,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 86.6479,
+        "isSeat": true
+      },
+      {
+        "id": "rear",
+        "displayName": "Rear seat",
+        "arm": [
+          -0.5071,
+          0.0,
+          -0.05
+        ],
+        "maxKg": 136.08,
+        "defaultKg": 86.6479,
+        "isSeat": true
+      },
+      {
+        "id": "baggage",
+        "displayName": "Baggage",
+        "arm": [
+          -0.8373,
+          0.0,
+          0.0
+        ],
+        "maxKg": 9.07,
+        "defaultKg": 0.0,
+        "isSeat": false
+      }
+    ],
+    "tanks": [
+      {
+        "id": "nose",
+        "displayName": "Nose tank",
+        "arm": [
+          0.8644,
+          0.0,
+          -0.25
+        ],
+        "capacityL": 45.42,
+        "densityKgPerL": 0.72,
+        "defaultKg": 32.706,
+        "selectable": true
+      }
+    ],
+    "envelope": [
+      [
+        14.601,
+        347.0
+      ],
+      [
+        14.601,
+        553.38
+      ],
+      [
+        34.436,
+        553.38
+      ],
+      [
+        34.436,
+        347.0
+      ]
+    ]
   }
 }

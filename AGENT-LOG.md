@@ -151,6 +151,10 @@
 - **Codex: the Extra's ASI prose and its map disagree (Claude, 2026-10-30).** `docs/models/ea300-own-RIG.md` says the ASI needle "rests at 0 below 40", but the map in `ea300-own-rig.json` is 0 kt -> 0 deg, 40 -> 25, 260 -> 335, so the needle lifts off the peg smoothly from a standstill. The DATA is the better behaviour (that is what a real ASI does) and it is what the game now draws; the prose is the loose part. One line in the doc, no rebuild.
 - **Merge order for the four ready lanes (Claude, 2026-10-30): `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`.** `config-mirror` first: it removes the aircraft trap and adds the guard and tests the rest assume. `flow-plates` second: independent (`AirframeFlow` only), and it takes the failure baseline from 4 to 3, leaving just the three Pitts ground-handling tests awaiting your feel-test. Then the two rig lanes, each of which **will conflict on `ConfigSync.cs`** — both rewrote it from the same base. The resolution is fixed: take `config-mirror`'s version, drop the lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written (it clears an editor cache; the generic sync cannot call it because `AirframeRig` does not exist on this base). `sgs233-rig` is last because it branched at `ed2cc7ca`, not `1b67dd5`, so it needs bringing forward.
 - **StreamingAssets is generated now; three pushed/unmerged lanes still carry a hand-committed mirror (Claude, 2026-10-30).** `lane/claude-config-mirror` makes `configs/**` + `docs/CREDITS.md` the only copies in the repo and has the build write the player's. **Ty: two things.** (a) `lane/claude-extra-cockpit` is **already pushed** and adds a fifth mirror class, `StreamingAssets/rigs/` (`docs/models/*-rig.json`, with a filename mapping), committed by hand. Merging it reintroduces the trap unless whoever merges adds a rigs row to ConfigSync's `Mirrors` table (it needs a name-mapping field the struct does not have yet), gitignores `rigs/` + `rigs.meta`, and `git rm -r --cached`es the copy. `lane/claude-sgs233-rig` carries a second rigs file. `StreamingAssetsTests.NothingGeneratedIsCommitted` fails until that is done, by design. (b) `lane/claude-glacier-ski`, `claude-glacier-visuals`, `claude-j3-edo1320`, `claude-regional-atmosphere` and `claude-soft-wings` each carry a mirror copy that will conflict trivially — take the deletion side.
+- **The load sheet and the envelope plot are in, and three more types have certificated CG limits (Claude, 2026-10-30).** `lane/claude-engine-systems`. **Landing page → AIRCRAFT → Load sheet**: a slider per seat, hold and tank, Full/Half/Default fuel, and the type's own CG envelope plotted with the loaded point on it. Loading it aft and flying it feels different, because the config is what the physics reads. **Ty: please thumb it on a device** — the 172 and the J-3 Cub are the two that can be loaded, and the J-3 is the interesting one (which seat the pilot sits in is worth 8 %MAC). Two things to know: (a) **the plot shows where the aeroplane is, and I believe that is right** — your charts-never-show-position rule is about navigation, and a weight-and-balance envelope carries no geography and is unreadable without the point, so I have shown it and written the reasoning into the file rather than leave it to be "fixed" either way later. Say the word and it comes out. (b) **The Aero Widget already had a weight-and-balance control** (protocol 8, your 2026-10-09 ask) and I did not duplicate it: it stays the teaching instrument — two abstract sliders that will happily go outside the limits to show why they exist — while the load sheet is the real thing. But it was carrying invented limits (`empty ≈ 62 % of gross`, `CG ± 9 % MAC`) and a comment saying the configs have no POH envelope; it now uses the certificated envelope where the type has one, and its limits move with weight as a real envelope does.
+- **Weight and balance is built, and the published data says two things about the fleet (Claude, 2026-10-30).** `lane/claude-engine-systems`. You can now load an aeroplane — seats, baggage, cargo, fuel in each tank — and the mass, CG in all three axes and inertia go into the aircraft's own config, so all 93 CG read sites fly the loaded aeroplane with no change. Done for `c172-like` (Cessna 172N POH + TCDS 3A12) and `j3-cub-like` (TCDS A-691); the rule for adding a type, and everything below, is in `docs/WEIGHT-AND-BALANCE.md`. Moving the 172's front occupants into the back seats moves the CG 9.3 %MAC aft and takes 9.4 %MAC off its measured static margin — the handling follows the load, measured rather than asserted. **Ty: three things need you.** (a) **Every type is simulated at max gross and most sit a little nose-heavy of where a real one balances** — the 172 at 27 %MAC against about 32 %MAC for a typical gross load, so roughly 5 %MAC more stable than the real thing. Closing that means moving the tuned CG, which retunes pitch stability on calibrated aeroplanes; your call, not a quiet fix. (b) **The CG positions look authored by convention**: seven types land within 0.1 % of each other at exactly 27.0 %MAC. Sensible as a default, not the same as knowing where the aeroplane balances. (c) **`pa28-archer-like` is blocked on TCDS 2A13** for the Archer's MAC and LEMAC station — the POH gives the arms and the envelope but defines its datum off the wing leading edge, and anchoring there puts the published aft limit at 18 %MAC and the config's CG behind it. The 172 hangs together under the same treatment, so it is the Archer's anchor that is wrong, and I have not guessed it.
+- **The StreamingAssets trap has a second mouth: `git add` on a tracked-but-ignored file exits 1 AND stages it anyway (Claude, 2026-10-30).** Reproducible on this lane: `git add unity/Assets/StreamingAssets/aircraft/j3-cub-like.json` prints "The following paths are ignored... use -f", returns exit code **1**, and leaves the file staged. So a script that trusts the exit code would believe nothing happened, and a mirror edit can ride into a commit without anyone typing `-f`. It nearly got me. There is a second edge too: `GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` fails if you run the suite after editing a config and passes once you build, because `ConfigSync` regenerates the mirror during the build — so its result depends on build order rather than on the code. `lane/claude-config-mirror` is the cure for both; until it merges, an aircraft JSON change on any other lane leaves a modified-but-uncommittable mirror file behind.
+- **Engine reliability, engine systems and weight-and-balance are one piece of work, and the first part is built (Claude, 2026-10-30).** `lane/claude-engine-systems`. Searching for engine state returned NOTHING — no oil, MP, CHT, mixture or fuel anywhere — which is why the Extra's four gauges read dead. And CG is static JSON read in **93 places across 41 files**, which is what W&B has to make live. Order agreed with Ty: W&B, then engine systems, then the failure symptoms. The randomizer is done (`29fe6bb`): measured MTBF 3700.6 h against 3700 over 74 million simulated hours, failures spread over 12 causes without the rate drifting, and `m` clamped to [1, 1000] so an engine is never better than the fleet. **Ty: two things need you.** (a) The **carburettor icing envelope must come from FAA SAIB CE-09-35 itself** — my fetch timed out, and a version circulating online is provably wrong (it plots dew point above ambient temperature). If you have the SAIB or the PHAK figure to hand, that table is otherwise guesswork. (b) The **failure-cause weights are an allocation, not a measurement**: the NTSB record counts accidents, and most of its fuel share is exhaustion and mismanagement, which the random pool deliberately excludes. A service-difficulty or warranty-claim distribution would be the right source and I could not find one.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -1123,6 +1127,156 @@ after `check-ignore` without `--no-index`; both looked exactly like success.
 
 **`configs/progression.json` and its mirror are read by nothing** — no C# anywhere loads `progression.json`. I left
 both in place and am only noting it; deleting a config nobody reads is a separate call.
+
+### 2026-10-30 — the load sheet, the envelope plot, and splitting the data in two (Claude)
+
+`lane/claude-engine-systems`, continuing. Full write-up in `docs/WEIGHT-AND-BALANCE.md`.
+
+**The screen.** `LoadingPanel` (landing page → AIRCRAFT → Load sheet): a slider per station and per tank in pounds
+and gallons, Full / Half / Type-default fuel, the verdict (`WITHIN LIMITS`, `OVER GROSS by n lb`, `CG AFT OF THE
+LIMIT`), and the envelope plot — the certificated polygon with weight up the side and percent MAC across, the loaded
+point on it, and the axes padded so an illegal point stays visible instead of clipping off the edge.
+`SessionLoading` remembers the load per type and does the two easily-forgotten things: it pushes mass and inertia into
+the flying aeroplane (which copies them once at construction; the CG it reads live) and re-applies the choice after a
+respawn builds a fresh config. `FlightSimDriver.Spawn` applies it before the `Aircraft` is built.
+
+**What I nearly duplicated.** The Aero Widget has had a weight-and-balance control since 2026-10-09. Both are wanted
+and they are different things — that one is a teaching instrument with two abstract sliders that will take the
+aeroplane outside its limits on purpose — so it stays, and the load sheet is the real one. It was carrying three stale
+pieces, though: its own unpaired MAC (the same 8.5 % error fixed in `PitchStabilityTests` earlier today), invented
+limits (`EmptyKg = 0.62 * DefaultKg`, `CG ± 9 % MAC around the default`), and a comment saying "the configs carry no
+POH envelope". It now shares the one MAC and uses the certificated envelope where there is one.
+
+**The data splits in two, and the halves cost very different amounts.** The envelope half — max weight and the CG
+limits — is one line of a type certificate, and it is all the widget and the plot need. The loading half — empty
+weight and the arm of every seat, hold and tank — is a scanned POH per type. So `LoadSheet.HasEnvelope` is now
+separate from `LoadSheet.Loadable`, a type can have the first without the second, and the cheap half can be done in
+bulk. Three types gained it with no new research, because the repo had already located each datum for other work:
+
+| type | anchor | envelope |
+|---|---|---|
+| `pitts-s2b-like` | TCDS A8SO: datum 91.81 in fwd of the lower wing LE, which is the model's origin | 20.0–22.2 %MAC at 1625 lb — a 2.2 % band |
+| `great-lakes-like` | TCDS A18EA: MAC 46.0 in, LE at Sta. 9.0, which put the datum at body x −0.200 by two routes 25 mm apart | 25.1–32.5 %MAC |
+| `glider-swift-s1-like` | EASA A.038 quotes the limits in percent MAC itself — no datum mapping at all | 26.0–41.9 %MAC |
+
+**Every type with an envelope is tuned inside it**, which is the check that validates each mapping and the condition
+for adding one (`EveryTypeWithAnEnvelopeIsTunedInsideIt`). Five agreeing is why the method can be trusted.
+
+**And it is why the Archer is out, with evidence rather than suspicion.** Anchored where its POH defines the datum,
+the published FORWARD limit of 82.0 in lands at **0.3 % MAC** — on the leading edge of the mean chord, which no
+aeroplane has — and the config's tuned CG falls 5.6 in behind the published aft limit. Four other types are fine under
+identical treatment, so it is the Archer: either its wing sits differently from the real aeroplane's or the datum note
+means something other than the obvious reading. TCDS 2A13 gives the CG range in inches only, with no MAC to settle it,
+and neither does the UK CAA sheet. Left out.
+
+
+### 2026-10-30 — load the aeroplane, and the ground-effect cache that the CG would have staled (Claude)
+
+`lane/claude-engine-systems`, continuing the same lane. Full write-up in `docs/WEIGHT-AND-BALANCE.md`.
+
+**The fix that had to come first.** Seven caches are keyed on an `AircraftConfig` instance, and writing a computed
+CG into the config would have staled one of them: `AeroModel._span` cached `[span, meanWingZ - cg.Z]`, the wing's
+height above the CG, which is the **ground-effect** geometry. Move the CG vertically — wing fuel against low
+baggage — and a loaded aeroplane would have flown ground effect at its empty wing height, silently, in the flare
+only. It now caches the wing's own body z and reads the live CG at the point of use (`WingHeightAboveCg`), with a
+regression test that fails against the old form. Six caches are pure geometry and were left alone.
+
+**New.** `LoadingConfig` (empty mass/CG/inertia, stations, tanks, envelope), `WeightAndBalance` (MAC geometry,
+percent MAC both ways, the mass/CG/inertia solve by parallel axis, envelope point-in-polygon and fore/aft limits at
+a weight), `LoadSheet` (the per-flight load, which writes its answer into the config and drains the selectable
+tanks in proportion so the wings stay symmetric). 11 tests in `WeightAndBalanceTests`.
+
+**The frame.** Envelopes are stored in percent MAC, because a POH quotes limits from a datum this project has never
+had and percent MAC is the frame both ends share. Mapping a station into body x needs one anchor, since an inch is
+an inch: the 172's is the MAC leading edge (TCDS 3A12, station 25.9), the J-3's is the wing leading edge, which is
+its datum (TCDS A-691).
+
+**Two measurement corrections found on the way.**
+
+- **MAC must be measured from paired sections** — each wing strip plus the aileron hinged behind it. Unpaired, an
+  aileron row counts as its own narrow wing and the 172 measures 50 in against the 58.8 in on its type certificate:
+  every percent-MAC figure would have been out by a sixth. Paired it measures 59.9 in.
+- **`PitchStabilityTests` was computing its own unpaired MAC**, so every static margin in the suite was overstated
+  by about 8.5 %. It now calls `WeightAndBalance.MeanAerodynamicChord`; there is one definition of MAC in the tree.
+  The fleet moves from a 3–26 % band to 2.8–22 %, every type still stable, and the 172 reads 20.6 % where it read
+  24.4 %. No assertion changed.
+
+**What the data does not cover, and was not invented.** Lateral and vertical arms are estimated from the config's
+own geometry, because no POH publishes them, and the derived empty inertia depends on them — the 172's empty Ixx
+moves 200 kg·m² if the tanks sit at half span instead of 2 m out. Flagged in the doc, per type.
+
+**Gates.** `** BUILD SUCCEEDED **`, installed and launched on the iPad mini (the iPhone answered `Locked`, which
+is the device). Full suite at this lane's documented 4-failure baseline:
+`AerobatGroundHandlingTests.PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`,
+`ThreePointAndWheelLandingsAreWorkable` (pitts, both wheel and three-point) and
+`AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin` — all four pre-existing, all four under NEEDS YOU
+already, and all four confirmed failing on their own before this work.
+
+**And a flaky gate found by tripping it.** Run before the Unity build, the suite showed a fifth failure:
+`GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol`, which requires
+`unity/Assets/StreamingAssets/aircraft/*.json` to match `configs/aircraft/*.json`. Changing an aircraft config
+staled the mirror, and on this lane the mirror is tracked AND gitignored, so it cannot be committed without
+`git add -f`. Run *after* the build it passes — because `ConfigSync` regenerates the mirror as part of the build.
+
+So that test's result depends on whether you have built since you last edited a config, not on the code: the
+mirror is **generated output that a build recreates**, which is the whole argument for not having it in git. It
+also means an aircraft-config change on any lane but `claude-config-mirror` leaves a modified-but-uncommittable
+file in the working tree afterwards. Left as it is; `lane/claude-config-mirror` deletes that assertion and makes
+StreamingAssets generated. Merge order unchanged: config-mirror first.
+
+**First build attempt failed and it was not the code.** Unity's licensing client timed out
+(`Timed-out after 60.00s, waiting for Licensing to initialize`), so `FlyingGame.Core` was never compiled and the
+log filled with about 1100 `CS0234: 'Core' does not exist in the namespace 'FlyingGame'` in files nobody had
+touched. The tell was that the errors were in `WidgetLoading.cs` and `CombatController.cs` — the assembly below
+them was missing, not broken. `pkill -f Unity.Licensing.Client` and a retry built clean.
+
+
+### 2026-10-30 — the engine fails once every 3700 hours, and three requests turn out to be one (Claude)
+
+`lane/claude-engine-systems` off `split-surfaces` at `1b67dd5`. Owner asked for engine reliability with a 1-in-3700
+hour failure rate and an adjustable multiplier, and separately for a true weight-and-balance system.
+
+**They are the same piece of work.** `grep` for engine state came back empty: no oil pressure, oil temperature,
+manifold pressure, CHT, mixture or fuel quantity anywhere in `src/` or the Unity scripts. The Extra's four unbacked
+gauges are unbacked because there is nothing behind them. And W&B needs CG to be live, where today it is
+`Config.Mass.CgVec()` — static JSON, read in 93 places across 41 files. Fuel is the hinge between them: W&B needs
+tanks to load, engine systems need fuel flow, and fuel burn is what moves the CG in flight. Order agreed with Ty:
+W&B first, then engine systems, then the symptoms. Full plan in `docs/ENGINE-AND-WEIGHT-BALANCE.md`.
+
+**The randomizer (`29fe6bb`), which was worth building first because every ordering needs it.** A hazard rate, not a
+dice roll per cause: `lambda = m/3700` per hour and `P = 1 - exp(-lambda*dt)`, with each cause owning a SHARE of that
+one rate and the weights summing to exactly 1. So reweighting the causes changes what breaks and never how often —
+a radial sheds cylinders where a flat four burns valves, and both still fail once per 3700 hours. Measured over
+74 million simulated hours rather than argued from the algebra: 3700.6 h against 3700, 3.7 against 3.7 at the worst
+setting, electrical smoke 10060 h against its own 10000-hour clock.
+
+Carb ice, vapour lock, fuel exhaustion and detonation are deliberately OUT of that pool. They are conditional, not
+random. In the pool they would stop happening when the conditions warranted them, and they would steal probability
+from the mechanical causes — making the engine quietly MORE reliable than 1-in-3700 in exactly the ways the owner
+cares about.
+
+**Two things caught before they shipped, and one before it was built on.**
+
+- The cause weights summed to **1.02**, so every engine would have failed 2 % too often with nothing in the hazard
+  code to show it. A test now pins the sum at exactly 1.
+- `FailureMode` used `{ get; init; }`. .NET 8 compiles that happily; Unity has no `IsExternalInit`, and that is the
+  CS0518 that cost a day's build on 2026-10-28. `BiplaneCellule.cs:41` carries the warning comment and my file was the
+  only thing in `src/` ignoring it. Changed to `set` with the reason written beside it.
+- Before designing W&B around writing the computed CG into the aircraft's own config — which works because configs
+  are deserialized fresh per aircraft and are already mutated per session for bushwheels and skis — I checked the
+  seven per-config caches for anything that would go stale. Six are pure geometry. **One is not**: `AeroModel._span`
+  caches `[span, meanWingZ - cg.Z]`, the wing's height above the CG, which is the **ground-effect** geometry. Move the
+  CG vertically — wing fuel against low baggage — and that height goes stale, silently, in ground effect only. The fix
+  is one line (cache `meanWingZ`, subtract the live CG at the point of use) and it is the first thing in the W&B phase.
+  Worth writing down because otherwise it surfaces months later as a strange landing-flare bug.
+
+Also: .NET has no `Math.Expm1`, and `1.0 - Math.Exp(-x)` throws away most of the significant digits at the values
+this is actually called with — a 20 ms step at 1-in-3700 is x = 1.5e-9 — so the series is used below 1e-5.
+
+Oil on the windscreen, engine smoke and cockpit electrical smoke are art and belong to Codex (Ty's call). This lane
+publishes the state and the handoff spec; Codex draws it.
+
+19 tests. deploy.sh: `** BUILD SUCCEEDED **`, installed on 2 of 2 devices.
 
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 

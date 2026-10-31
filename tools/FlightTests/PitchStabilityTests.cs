@@ -21,7 +21,10 @@ public class PitchStabilityTests
         var tables = Aircraft.BuildAirfoilTables(c);
         double v = 40, rho = 1.225, S = 0, cS = 0;
         foreach (var sf in c.Surfaces) if (sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) foreach (var st in sf.Strips) { S += st.Area; cS += st.Area * st.Chord; }
-        double mac = cS / S, q = 0.5 * rho * v * v;
+        // The MAC is the type's own, measured from PAIRED sections (wing strip + the aileron behind it). Taking the
+        // strips as they come — cS/S, as this probe used to — counts each aileron row as its own narrow wing and
+        // comes out 8.5 % short on the 172, which overstated every static margin here by the same 8.5 %.
+        double mac = FlyingGame.Core.Loading.WeightAndBalance.MeanAerodynamicChord(c), q = 0.5 * rho * v * v;
         (double cl, double cm) At(double aDeg, double eDeg)
         {
             double a = aDeg * Math.PI / 180;

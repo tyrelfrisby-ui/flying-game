@@ -34,4 +34,23 @@ public class GroundEffectTests
         Assert.True(D(fLow) < D(fHigh) * 0.95, "less drag in ground effect");
         Assert.True(mLow.Y < mHigh.Y, "nose-down: the tail loses its downwash");
     }
+
+    /// <summary>
+    /// The wing's height above the CG is geometry plus the LIVE CG, not a cached difference. Weight and balance moves
+    /// the CG vertically (wing fuel against low baggage), and the cache used to hold `meanWingZ - cg.Z`, so a loaded
+    /// aircraft would have flown ground effect at its empty-weight wing height — wrong only in the flare, where it is
+    /// hardest to notice and most dangerous to be wrong.
+    /// </summary>
+    [Fact]
+    public void MovingTheCgVerticallyMovesTheWingHeightGroundEffectSees()
+    {
+        var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "c172-like.json"));
+        double before = AeroModel.WingHeightAboveCg(c);
+        AeroModel.WingSpan(c);                       // prime the geometry cache, as a flight would
+        c.Mass.Cg[2] += 0.25;                        // body z is + down: the CG drops a quarter metre
+        double after = AeroModel.WingHeightAboveCg(c);
+        _o.WriteLine($"c172: wing {before:F3} m above the CG, {after:F3} m after the CG drops 0.25 m");
+        Assert.Equal(before + 0.25, after, 9);
+        Assert.True(before > 0, $"the 172 is a high-wing: the wing should sit above the CG, got {before:F3} m");
+    }
 }

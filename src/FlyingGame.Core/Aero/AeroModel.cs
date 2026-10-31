@@ -22,9 +22,20 @@ public static class AeroModel
     /// that strip alone (width²/area).
     /// </summary>
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _span = new();
-    /// <summary>Wing span (m) and the wing's mean height offset from the CG (body z, + down), cached per config.</summary>
+    /// <summary>Wing span (m) and the wing's area-weighted mean body z (+ down), cached per config.</summary>
     public static double WingSpan(AircraftConfig c) => WingGeom(c)[0];
-    public static double WingZ(AircraftConfig c) => WingGeom(c)[1];
+
+    /// <summary>
+    /// How far the wing sits above the CG (metres, + up), which is the geometry ground effect needs. The CG is read
+    /// LIVE and only the wing's own body z is cached: weight and balance moves the CG vertically in flight (wing fuel
+    /// against low baggage), and this used to cache the difference — so a loaded aircraft would have flown ground
+    /// effect at its empty wing height, silently, in the flare only.
+    /// </summary>
+    public static double WingHeightAboveCg(AircraftConfig c)
+    {
+        double wingZ = WingGeom(c)[1];
+        return double.IsNaN(wingZ) ? 0 : c.Mass.CgVec().Z - wingZ;
+    }
     private static double[] WingGeom(AircraftConfig c) => _span.GetValue(c, cfg =>
     {
         double maxY = 0, zSum = 0, aSum = 0;
@@ -33,7 +44,7 @@ public static class AeroModel
             if (!sf.Id.Contains("wing", StringComparison.OrdinalIgnoreCase)) continue;
             foreach (StripConfig st in sf.Strips) { Vec3 p = st.PosVec(); maxY = Math.Max(maxY, Math.Abs(p.Y) + 0.5 * st.Area / Math.Max(0.1, st.Chord)); zSum += p.Z * st.Area; aSum += st.Area; }
         }
-        return new[] { 2 * maxY, aSum > 0 ? zSum / aSum - cfg.Mass.CgVec().Z : 0 };
+        return new[] { 2 * maxY, aSum > 0 ? zSum / aSum : double.NaN };
     });
 
     /// <summary>

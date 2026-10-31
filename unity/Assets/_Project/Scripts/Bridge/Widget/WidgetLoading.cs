@@ -1,4 +1,5 @@
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.Loading;
 using FlyingGame.Core.MathTypes;
 using UnityEngine;
 
@@ -11,9 +12,15 @@ namespace FlyingGame.Bridge.Widget
     ///   Weight changes the mass and scales the inertia; a CG shift moves Config.Mass.Cg (every force and moment is taken
     ///   about it) and adds the parallel-axis term to pitch and yaw inertia.
     ///   Changes are slewed (weight 15 %/s, CG 6 % MAC/s) so a dragged slider (~4 updates/s) never jolts the airplane.
-    /// Limits are this sim's approximations around the type's default loading (the configs carry no POH envelope):
-    /// gross = the config's weight, empty ≈ 62 % of it, CG fwd = default − 9 % MAC, aft = default + 9 % MAC capped 5 % MAC ahead
-    /// of the neutral point.
+    /// Limits come from the type's CERTIFICATED envelope where it has one (2026-10-30: `loading` in the aircraft config —
+    /// empty weight, max take-off weight and the CG polygon, from the POH and the type certificate). Only a type without
+    /// that data still falls back to this sim's old approximations around its default loading: gross = the config's
+    /// weight, empty ≈ 62 % of it, CG fwd = default − 9 % MAC, aft = default + 9 % MAC capped 5 % MAC ahead of the
+    /// neutral point. A real envelope is weight-dependent, so the fore and aft limits move as the slider does.
+    ///
+    /// The MAC is <see cref="WeightAndBalance.MeanAerodynamicChord"/>, which measures PAIRED sections (a wing strip plus
+    /// the aileron behind it). This class used to measure its own, unpaired, which came out 8.5 % short and put every
+    /// percent-MAC figure here — and the lessons' CG limits — out by the same amount.
     /// </summary>
     public sealed class WidgetLoading
     {
@@ -21,7 +28,15 @@ namespace FlyingGame.Bridge.Widget
         public WidgetLoading(AeroHost w) { _w = w; }
 
         public double MacM, LemacX;                // MAC length and its leading edge (body x, config coords; + forward)
-        public double DefaultKg, EmptyKg, MaxGrossKg, DefaultCgMac, NpMac, FwdLimitMac, AftLimitMac;
+        public double DefaultKg, EmptyKg, MaxGrossKg, DefaultCgMac, NpMac;
+        /// <summary>The certificated envelope, or null for a type that has no weight-and-balance data yet.</summary>
+        private LoadingConfig _env;
+        private double _fwdGuess, _aftGuess;
+        /// <summary>Forward CG limit at the CURRENT weight — a real envelope narrows as the aeroplane fills up.</summary>
+        public double FwdLimitMac => _env != null ? WeightAndBalance.LimitsAt(_env, Kg).Forward : _fwdGuess;
+        public double AftLimitMac => _env != null ? WeightAndBalance.LimitsAt(_env, Kg).Aft : _aftGuess;
+        /// <summary>True when the limits above are the type's own certificated ones rather than this sim's stand-in.</summary>
+        public bool LimitsArePublished => _env != null;
         private double _cg0X; private InertiaConfig _i0;
         public double Cg0X => _cg0X;
         public double TargetKg, TargetCgMac;
@@ -34,25 +49,30 @@ namespace FlyingGame.Bridge.Widget
         /// <summary>A new aircraft: its geometry, default loading and limits.</summary>
         public void Configure(AircraftConfig cfg, bool keepCurrent, double keepKg, double keepCgMac)
         {
-            double sc = 0, sc2 = 0, sle = 0;
-            foreach (var sf in cfg.Surfaces)
-            {
-                string id = sf.Id.ToLowerInvariant();
-                if (!id.Contains("wing")) continue;
-                foreach (var st in sf.Strips)
-                {
-                    double c = st.Chord, span = st.Area / System.Math.Max(1e-6, c);
-                    sc += c * span; sc2 += c * c * span; sle += (st.Pos[0] + 0.25 * c) * c * span;   // Pos is the quarter-chord
-                }
-            }
-            MacM = sc > 0 ? sc2 / sc : 1.5; LemacX = sc > 0 ? sle / sc : cfg.Mass.Cg[0] + 0.375;
-            DefaultKg = cfg.Mass.MassKg; EmptyKg = 0.62 * DefaultKg; MaxGrossKg = DefaultKg;
+            MacM = WeightAndBalance.MeanAerodynamicChord(cfg);
+            LemacX = WeightAndBalance.LeadingEdgeMacX(cfg);
+            if (MacM <= 1e-6) { MacM = 1.5; LemacX = cfg.Mass.Cg[0] + 0.375; }   // no wing to measure (a drone body)
+            DefaultKg = cfg.Mass.MassKg;
             _cg0X = cfg.Mass.Cg[0];
             _i0 = new InertiaConfig { Ixx = cfg.Mass.Inertia.Ixx, Iyy = cfg.Mass.Inertia.Iyy, Izz = cfg.Mass.Inertia.Izz, Ixz = cfg.Mass.Inertia.Ixz };
             DefaultCgMac = XToMac(_cg0X);
             NpMac = XToMac(_w.NeutralPointBody().X);
-            FwdLimitMac = DefaultCgMac - 9.0;
-            AftLimitMac = System.Math.Min(DefaultCgMac + 9.0, NpMac - 5.0);
+            // Only the ENVELOPE is needed here — this control loads by gross weight and CG, not by station — so a type
+            // with its certificate read but no loading table still gets its real limits.
+            _env = LoadSheet.HasEnvelope(cfg) ? cfg.Loading : null;
+            if (_env != null)
+            {
+                MaxGrossKg = _env.MaxTakeoffMassKg;
+                // An empty weight is a separate fact from the envelope and some certificates do not carry one; the
+                // old 62 % stand-in covers that case rather than claiming a number nobody published.
+                EmptyKg = _env.EmptyMassKg > 0 ? _env.EmptyMassKg : 0.62 * DefaultKg;
+            }
+            else
+            {
+                EmptyKg = 0.62 * DefaultKg; MaxGrossKg = DefaultKg;
+                _fwdGuess = DefaultCgMac - 9.0;
+                _aftGuess = System.Math.Min(DefaultCgMac + 9.0, NpMac - 5.0);
+            }
             TargetKg = keepCurrent ? keepKg : DefaultKg;
             TargetCgMac = keepCurrent ? keepCgMac : DefaultCgMac;
             if (keepCurrent) ApplyNow();
@@ -90,7 +110,15 @@ namespace FlyingGame.Bridge.Widget
 
         public double StaticMarginMac => NpMac - CgMac;
         public bool Overweight => Kg > MaxGrossKg * 1.0005;
-        public string CgOut => CgMac < FwdLimitMac - 0.05 ? "fwd" : CgMac > AftLimitMac + 0.05 ? "aft" : null;
+        public string CgOut
+        {
+            get
+            {
+                double fwd = FwdLimitMac, aft = AftLimitMac;
+                if (double.IsNaN(fwd) || double.IsNaN(aft)) return Kg > MaxGrossKg ? "aft" : "fwd";   // off the chart entirely
+                return CgMac < fwd - 0.05 ? "fwd" : CgMac > aft + 0.05 ? "aft" : null;
+            }
+        }
         public bool WithinLimits => !Overweight && CgOut == null && Kg >= EmptyKg;
     }
 }
