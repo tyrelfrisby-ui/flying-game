@@ -1,0 +1,70 @@
+{
+  "extra-300-like": {
+    "centre_builder": [
+      -1.214,
+      0,
+      0.3943529411764706
+    ],
+    "centre_gltf": [
+      1.214,
+      0.3943529411764706,
+      0
+    ],
+    "panel_top": 0.428,
+    "holder_top": 0.478,
+    "above": 0.05,
+    "width": 0.12,
+    "height": 0.1552941176470588
+  },
+  "pitts-s2b-like": {
+    "centre_builder": [
+      -0.8195,
+      0,
+      0.2363529411764706
+    ],
+    "centre_gltf": [
+      0.8195,
+      0.2363529411764706,
+      0
+    ],
+    "panel_top": 0.15,
+    "holder_top": 0.32,
+    "above": 0.17,
+    "width": 0.12,
+    "height": 0.1552941176470588
+  },
+  "great-lakes-like": {
+    "centre_builder": [
+      -1.6515,
+      0,
+      0.22235294117647064
+    ],
+    "centre_gltf": [
+      1.6515,
+      0.22235294117647064,
+      0
+    ],
+    "panel_top": 0.136,
+    "holder_top": 0.30600000000000005,
+    "above": 0.17,
+    "width": 0.12,
+    "height": 0.1552941176470588
+  },
+  "reusable-decathlon": {
+    "centre_builder": [
+      -0.012,
+      0,
+      0.0863529411764706
+    ],
+    "centre_gltf": [
+      0.012,
+      0.0863529411764706,
+      0
+    ],
+    "panel_top": 0,
+    "holder_top": 0.17,
+    "above": 0.17,
+    "width": 0.12,
+    "height": 0.1552941176470588
+  }
+}

@@ -3,7 +3,6 @@
 Used by builders' --offline-update when Blender cannot start (e.g. Metal unavailable).
 No triangulation/re-export of the existing airframe. Python stdlib, NumPy and Pillow.
 """
-import copy
 import io
 import json
 import struct
@@ -23,6 +22,7 @@ class Glb:
             size = struct.unpack_from('<I', raw, 20+n)[0]
             self.bin = bytearray(raw[28+n:28+n+size])
         else:
+            self.bin = bytearray()
             self.doc = dict(asset=dict(version='2.0', generator='Aero Playground visual assets'),
                             scenes=[dict(nodes=[])], scene=0, nodes=[], meshes=[], materials=[],
                             buffers=[dict(byteLength=0)], bufferViews=[], accessors=[])

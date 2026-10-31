@@ -272,3 +272,6 @@ There is no aircraft config or Unity integration yet; those are a later handoff.
 - Still open with Ty: ailerons (2 vs 4), which livery is the default, N-number. (Tail resolved in v3: matched to the drawing.) 180 hp 2T-1A-2 kept.
 - Simplified items: the engine is primitives only, the cockpit has a few gauges only, and the cowl has no hinge or
   fastener detail.
+
+## 2026-10-31 — shared sequence holder
+Every own livery on this base now includes an original centre rear-panel sequence-card holder and a separately swappable `SequenceCard_Face` material. Default art is the official 2026 IAC Power Sportsman Known (pilot card page 4), 1275 × 1650 px. Shared source/credits, transforms, Decathlon reuse and offline-build limitations: [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), with exact dimensions in [sequence-card-spec.json](sequence-card-spec.json). Other aircraft paint and original mesh buffers are preserved.

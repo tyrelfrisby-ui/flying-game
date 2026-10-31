@@ -82,10 +82,13 @@ def main():
                include=lambda n:n in ('Wing_Upper','Aileron_UL','Aileron_UR','Stab','Elevator_L','Elevator_R'),
                label='Pitts Checkered - upper wing and tail underside isolation',up=(-1,0,0))
     if args.cockpits:
-        for aircraft,filename,cx,cz in (
-            ('extra','extra-300-like/extra-300-like-own-unmarked.glb',-1.212,.3923529412),
-            ('pitts','pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb',-.82,.1143529412),
-            ('great-lakes','great-lakes-like/great-lakes-like-own.glb',-1.87,.0943529412)):
+        from sequence_card import PLACEMENTS, geometry
+        for aircraft,model,filename in (
+            ('extra','extra-300-like','extra-300-like-own-unmarked.glb'),
+            ('pitts','pitts-s2b-like','pitts-s2b-like-own-checker-unmarked.glb'),
+            ('great-lakes','great-lakes-like','great-lakes-like-own.glb')):
+            cx,_,cz = geometry(**PLACEMENTS[model])[2]['centre_builder']
+            filename = model+'/'+filename
             path = MODELS/filename
             # Convert builder coordinates to raw glTF (-x,z,y).
             convert = lambda x,y,z:(-x,z,y)

@@ -1,0 +1,8 @@
+Sequence-card holder geometry and Extra compass art: original Aero Playground procedural assets.
+Default sequence graphics: International Aerobatic Club, 2026 Power Sportsman Known, official OpenAero sheet:
+https://www.iac.org/sites/default/files/Sequences/SPTP-Known-2026.pdf
+Pilot card page 4; catalogue and K values page 1. Source PDF SHA-256:
+4f110bf7a3574fe7b9d317f136195007f21bb8ccbe2bb1d76f5536f0ec0da8f6
+Added text: Liberation Sans Regular/Bold, SIL Open Font License 1.1; baked pixels only, no font binaries.
+External sequence graphics are credited separately from the original holder geometry.
+Full provenance: docs/models/sequence-card-PROVENANCE.md.

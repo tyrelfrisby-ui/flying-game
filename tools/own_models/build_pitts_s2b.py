@@ -37,8 +37,13 @@ Lettering art: tools/own_models/art/pitts-*.png, our own renders of OFL fonts (L
 import sys, os
 if '--offline-update' in sys.argv:
     from glb_visuals import checker_update
-    assert os.environ.get('PITTS_LIVERY', '').upper() == 'CHECKER-UNMARKED'
-    checker_update(os.path.join(os.path.dirname(__file__), '../../unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb'))
+    from sequence_card import offline_update
+    liv = os.environ.get('PITTS_LIVERY', 'N31DG').upper()
+    suffix = {'N31DG':'', 'N1191':'-n1191', 'CHECKER-UNMARKED':'-checker-unmarked', 'FACTORY-UNMARKED':'-factory-unmarked'}[liv]
+    filename = 'pitts-s2b-like-own'+suffix+'.glb'
+    if liv == 'CHECKER-UNMARKED':
+        checker_update(os.path.join(os.path.dirname(__file__), '../../unity/Assets/_Project/Resources/Models/pitts-s2b-like',filename))
+    offline_update('pitts-s2b-like',filename)
     sys.exit(0)
 import bpy, bmesh, math, numpy as np
 from mathutils import Matrix, Vector
@@ -945,6 +950,8 @@ for o in P.values():
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
     except Exception: pass
+from sequence_card import blender_add
+blender_add(P, 'pitts-s2b-like')
 P['Fuselage'].name = 'Fuselage_Painted'
 allv = np.concatenate([np.array([v.co[:] for v in o.data.vertices]) for o in P.values()])
 print('BOUNDS', allv.min(0), allv.max(0), 'size', allv.max(0) - allv.min(0), 'parts', sorted(P))

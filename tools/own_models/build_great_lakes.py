@@ -32,6 +32,13 @@ Frame: metres, nose +X, port +Y, up +Z; origin = upper-wing centre-section LE st
 at export, like the Pitts / EA300).
   blender -b --python tools/own_models/build_great_lakes.py
 """
+import sys, os
+if '--offline-update' in sys.argv:
+    from sequence_card import offline_update
+    liv = os.environ.get('GL_LIVERY','v1').lower()
+    suffix = '' if liv == 'v1' else '-'+liv
+    offline_update('great-lakes-like','great-lakes-like-own'+suffix+'.glb')
+    sys.exit(0)
 import bpy, bmesh, sys, os, math, json, numpy as np
 from mathutils import Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
@@ -1063,6 +1070,8 @@ for o in P.values():
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
     except Exception: pass
+from sequence_card import blender_add
+blender_add(P, 'great-lakes-like')
 P['Fuselage'].name = 'Fuselage_Painted'
 # ---- gear travel: hinge angle for a given strut compression, and the 3-point height at each state -----------------
 MOV = {s: ['Gear_Axle_' + s, 'Wheel_' + s, 'Wheel_Pant_' + s, 'Oleo_Cylinder_' + s] for s in ('L', 'R')}

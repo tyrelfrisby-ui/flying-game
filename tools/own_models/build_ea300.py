@@ -9,6 +9,13 @@ Paint: the approved N300UY / Sunrise Aviation scheme with TALKFLYING (codex/fg-m
 
   blender -b --python tools/own_models/build_ea300.py
 """
+import sys, os
+if '--offline-update' in sys.argv:
+    from sequence_card import offline_update
+    liv = os.environ.get('EA_LIVERY','tf').lower()
+    suffix = {'tf':'','n300uy':'-n300uy','unmarked':'-unmarked'}[liv]
+    offline_update('extra-300-like','extra-300-like-own'+suffix+'.glb')
+    sys.exit(0)
 import bpy, bmesh, sys, os, math, json, numpy as np
 from mathutils import Matrix
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
@@ -619,6 +626,8 @@ for o in P.values():
     for p in o.data.polygons: p.use_smooth = True
     try: o.data.set_sharp_from_angle(angle=math.radians(50))
     except Exception: pass
+from sequence_card import blender_add
+blender_add(P, 'extra-300-like')
 P['Fuselage'].name = 'Fuselage_Painted'
 allv = np.concatenate([np.array([v.co[:] for v in o.data.vertices]) for o in P.values()])
 print('BOUNDS', allv.min(0), allv.max(0), 'size', allv.max(0) - allv.min(0), 'parts', sorted(P))

@@ -143,3 +143,6 @@ Same geometry, two liveries; `EA_LIVERY=tf|n300uy blender -b --python tools/own_
 (TALKFLYING.COM, TF fin badge, wing lettering) and no SUNRISE / AVIATION; the fin stars and stripes and the red
 underwing bar are kept. Geometry and the 3-blade prop are node for node the N300UY GLB's (checked by FlightTests). The
 provenance, including the GPL question above, is the same as the other two liveries'.
+
+## 2026-10-31 — shared sequence holder
+Every own livery on this base now includes an original centre rear-panel sequence-card holder and a separately swappable `SequenceCard_Face` material. Default art is the official 2026 IAC Power Sportsman Known (pilot card page 4), 1275 × 1650 px. Shared source/credits, transforms, Decathlon reuse and offline-build limitations: [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), with exact dimensions in [sequence-card-spec.json](sequence-card-spec.json). Other aircraft paint and original mesh buffers are preserved.
