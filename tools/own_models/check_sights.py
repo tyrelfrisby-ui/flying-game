@@ -11,7 +11,7 @@ import json
 import math
 import numpy as np
 from glb_visuals import Glb
-from sights import spec,body,native,parts,placement,segments,ray_hits,MODELS,ROOT
+from sights import spec,body,native,parts,placement,segments,collar_meshes,cylinder,ray_hits,MODELS,ROOT
 
 
 def endpoints(vertices):
@@ -84,7 +84,8 @@ def check_file(path,row,aircraft):
     assert np.allclose(M,row['gltf_to_body_matrix'],atol=1e-10,rtol=0)
     assert np.allclose(tr,row['gltf_to_body_translation_m'],atol=1e-9,rtol=0),('Place shifted',tr)
     nodes={n:body(a,row) for n,p,a,i in parts(g) if n.startswith('Sight_')}
-    assert len(nodes)==12,('missing/duplicate sights',len(nodes))
+    expected_names={n for n,a,b,r in segments(row)}|{n for n,v,t in collar_meshes(row)}
+    assert nodes.keys()==expected_names,('missing/unexpected sights',nodes.keys()^expected_names)
     scene=[];names=[]
     for n,p,a,i in parts(g):
         if n.startswith('Sight_'):continue
@@ -92,15 +93,14 @@ def check_file(path,row,aircraft):
         t=body(a[i],row);scene.extend(t);names.extend([n]*len(t))
     scene=np.array(scene);names=np.array(names)
     # Check every actual rod/support/fitting against the spec before collision analysis.
-    for name,a,b,r in segments(row):
-        actual=endpoints(nodes[name])
-        expected=np.array([a,b])
-        if np.linalg.norm(actual-expected)>np.linalg.norm(actual[::-1]-expected):actual=actual[::-1]
-        assert np.allclose(actual,expected,atol=1e-6,rtol=0),(name,'mesh differs from spec')
-        axis=b-a;axis/=np.linalg.norm(axis);q=nodes[name]-a
-        radius=np.linalg.norm(q-(q@axis)[:,None]*axis,axis=1)
-        assert np.max(abs(radius-r))<1e-6,(name,'rod diameter')
+    meshes=[(n,*cylinder(a,b,r)) for n,a,b,r in segments(row)]+list(collar_meshes(row))
+    for name,vertices,triangles in meshes:
+        actual=np.unique(nodes[name],axis=0);expected=np.array(vertices)
+        distances=np.linalg.norm(actual[:,None]-expected[None,:],axis=2)
+        assert max(distances.min(0).max(),distances.min(1).max())<1e-6,(name,'mesh differs from spec')
     result={'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'sides':{},'clearance_m':{},'visibility':{'tested_rays':0,'blocked_rays':0,'first_witnesses':[]}}
+    mount_tris=np.concatenate([body(a[i],row) for n,p,a,i in parts(g) if n.startswith('Sight_') and n not in {f'Sight_{s}_{b}' for s in ['L','R'] for b in ['Vertical','Plus45','Minus45']}])
+    result['mount_occlusion']={'tested_rays_outside_20mm_hub_join':0,'blocked_rays':0}
     for side,sign in [('L',-1),('R',1)]:
         result['sides'][side]={}
         for label in ['Vertical','Plus45','Minus45']:
@@ -120,31 +120,50 @@ def check_file(path,row,aircraft):
                     result['visibility']['blocked_rays']+=1
                     if len(result['visibility']['first_witnesses'])<6:
                         result['visibility']['first_witnesses'].append(dict(bar=name,fraction=float(f),hit_body_m=(eye+blocked.min()*(target-eye)).tolist()))
+                if np.linalg.norm(target-ends.mean(0))>.020:
+                    result['mount_occlusion']['tested_rays_outside_20mm_hub_join']+=1
+                    hits=ray_hits(mount_tris,eye,target-eye)
+                    result['mount_occlusion']['blocked_rays']+=int(np.any(hits<1-1e-6))
+    assert result['mount_occlusion']['blocked_rays']==0,(path.name,'mount blocks bars',result['mount_occlusion'])
     for name,a,b,r in segments(row):
-        if name.endswith('Fitting'):continue # fitting intentionally overlaps the named attachment structure
-        a,b=endpoints(nodes[name])
-        distance=segment_tri(a,b,scene)-r
+        # Anchor fittings alone may engage their named structure; the hub has
+        # no airframe exemption. Tubes and bars have no exemptions at all.
+        target=scene[names!=row['mount']['structure']] if name.endswith('Fitting') and 'Hub' not in name else scene
+        if not name.endswith('Fitting'):a,b=endpoints(nodes[name])
+        distance=segment_tri(a,b,target)-r
         assert distance>.001,(path.name,name,'collision',distance)
         result['clearance_m'][name]=distance
-    # A conservative continuous swept-volume enclosure: every vertex of a rotating
-    # triangle stays within 2*r*sin(limit/2) of its undeformed location. The same
-    # bound holds for every barycentric point. Include 100 mm pivot uncertainty.
+    # Enclose each collar in a sphere for conservative checks against all OTHER
+    # structure. Its only intentional engagement is with the named strut.
+    collars=[]
+    for name,v,t in collar_meshes(row):
+        v=np.unique(nodes[name],axis=0);centre=v.mean(0);radius=np.linalg.norm(v-centre,axis=1).max()
+        gap=float(point_tri(centre,scene[names!=row['mount']['structure']]).min()-radius)
+        assert gap>.001,(path.name,name,'collar to other structure',gap)
+        result['clearance_m'][name]=gap;collars.append((name,centre,centre,radius))
+    # Cover the full motion with <=2-degree intervals. Each sampled triangle is
+    # dilated by its maximum movement over HALF an interval, plus pivot-location
+    # uncertainty over the full deflection. Thus there are no sampling gaps; this
+    # is tighter than dilating an undeformed triangle by the entire +/- travel.
     swept={}
     for n,p,vertices,ids in parts(g):
         if not n.startswith('Aileron'):continue
         aileron=body(vertices,row);axispoints=np.array(row['aileron_sweep']['hinges_body_m'][n])
         origin=axispoints[0];axis=axispoints[1]-origin;axis/=np.linalg.norm(axis)
         q=aileron-origin;radial=np.linalg.norm(q-(q@axis)[:,None]*axis,axis=1)
-        dilation=2*(radial[ids].max(1)+row['aileron_sweep']['hinge_position_uncertainty_m'])*math.sin(row['aileron_sweep']['max_deflection_rad']/2)
-        triangles=aileron[ids];minimum=float('inf')
-        for name,a,b,r in segments(row):
-            if name.endswith('Fitting'):continue
-            margin=dilation+r
-            near=np.all(triangles.max(1)+margin[:,None]>=np.minimum(a,b),axis=1)&np.all(triangles.min(1)-margin[:,None]<=np.maximum(a,b),axis=1)
-            if not near.any():continue
-            distances=segment_tri(a,b,triangles[near],all_distances=True)
-            gap=float(np.min(distances-dilation[near]-r));minimum=min(minimum,gap)
-            assert gap>.001,(path.name,name,n,'full-deflection clearance bound',gap)
+        limit=row['aileron_sweep']['max_deflection_rad'];steps=math.ceil(2*limit/math.radians(2))
+        dilation=2*radial[ids].max(1)*math.sin(limit/(2*steps))+2*row['aileron_sweep']['hinge_position_uncertainty_m']*math.sin(limit/2)
+        minimum=float('inf')
+        for angle in np.linspace(-limit,limit,steps+1):
+            rotated=origin+q*math.cos(angle)+np.cross(axis,q)*math.sin(angle)+(q@axis)[:,None]*axis*(1-math.cos(angle))
+            triangles=rotated[ids]
+            for name,a,b,r in list(segments(row))+collars:
+                margin=dilation+r
+                near=np.all(triangles.max(1)+margin[:,None]>=np.minimum(a,b),axis=1)&np.all(triangles.min(1)-margin[:,None]<=np.maximum(a,b),axis=1)
+                if not near.any():continue
+                distances=point_tri(a,triangles[near]) if np.array_equal(a,b) else segment_tri(a,b,triangles[near],all_distances=True)
+                gap=float(np.min(distances-dilation[near]-r));minimum=min(minimum,gap)
+                assert gap>.001,(path.name,name,n,'full-deflection clearance bound',gap)
         swept[n]=minimum if np.isfinite(minimum) else 'outside conservative swept AABBs'
     result['full_aileron_sweep_clearance_bound_m']=swept
     if aircraft=='pitts-s2b-like':
@@ -157,11 +176,23 @@ def check_file(path,row,aircraft):
                 target=np.array([face[0,0],y,z]);hits=ray_hits(scene,eye,target-eye)
                 assert not np.any(hits<1-1e-5),'lowered Pitts card blocked from specified sight eye'
         result['lowered_card_visibility_from_sight_eye_rays']=99
-    # Attachment surface, mirrored exactly; measured source point must lie on the named structure.
+    # Every tube has two explicit socket fittings and contacts a surface-fitted
+    # collar / wingtip plate at its structure end. Only fittings engage the skin.
     for side in [-1,1]:
-        a=np.array(row['attachment_body_m']);a[1]*=side
-        t=scene[names==row['attachment_structure']]
-        assert point_tri(a,t).min()<1e-5
+        t=scene[names==row['mount']['structure']]
+        for anchor in row['mount']['anchors']:
+            a=np.array(anchor['surface_body_m']);a[1]*=side
+            assert point_tri(a,t).min()<1e-5,(anchor['id'],'attachment off structure')
+            if 'collar_radii_m' in anchor:
+                clamp=nodes[f"Sight_{'R' if side>0 else 'L'}_{anchor['id']}_Clamp_Fitting"]
+                assert max(point_tri(v,t).min() for v in clamp)<.006,'floating collar'
+    # Entire conservative rotating-prop slab: all components must remain aft
+    # of even its rearmost blade vertex. Stronger than a finite disc test here.
+    prop=np.concatenate([body(a,row) for n,p,a,i in parts(g) if n=='Prop'])
+    all_sight=np.concatenate(list(nodes.values()))
+    gap=float(prop[:,0].min()-all_sight[:,0].max())
+    assert gap>.001,('propeller swept disc slab',gap)
+    result['propeller_swept_slab_clearance_m']=gap
     return result
 
 

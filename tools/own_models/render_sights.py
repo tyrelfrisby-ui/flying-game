@@ -4,6 +4,7 @@ python3 tools/own_models/render_sights.py
 import json
 import hashlib
 import math
+import argparse
 from pathlib import Path
 import numpy as np
 from PIL import Image,ImageDraw,ImageFont
@@ -38,6 +39,9 @@ def eye_overlay(camera,metrics,title,blocked=False,isolated=False):
     im.save(camera['path'])
 
 def main():
+    global OUT
+    ap=argparse.ArgumentParser();ap.add_argument('--out',default=str(OUT.relative_to(ROOT)));args=ap.parse_args()
+    OUT=ROOT/args.out
     OUT.mkdir(parents=True,exist_ok=True);manifest={}
     for aircraft,row in spec()['aircraft'].items():
         short={'extra-300-like':'extra','pitts-s2b-like':'pitts','great-lakes-like':'great-lakes'}[aircraft]
@@ -69,6 +73,27 @@ def main():
             draw.text((x-40,y+45),side+' SIGHT',font=font(20),fill='#002e3b',stroke_width=2,stroke_fill='#cfe9ec')
         im.save(camera['path'])
         entries.append(dict(path=name,eye_gltf_m=[9,3,-5],target_gltf_m=[.6,0,0],orthographic_width_m=11.5 if short=='great-lakes' else 10))
+        # Full-scene close-ups retain wing skins, wires and struts at the sockets.
+        anchors=[np.array(a['surface_body_m']) for a in row['mount']['anchors']]
+        hub=np.array(row['eye_body_m']);hub[1]=row['y_mount_m']+row['mount']['hub_outboard_m']
+        target_body=(np.mean(anchors,axis=0)+hub)/2
+        close_eye=target_body+[-1.0,-2.5,-.65]
+        name=f'{short}-mount-closeup.png'
+        camera=cpu.render(path,OUT/name,native(close_eye,row),native(target_body,row),2.0,
+            label=short+' RIGHT mount | two 12 mm tubes; metal structure fittings and outboard hub; full airframe retained',
+            image_size=(2400,1800),view_kind='mount close-up')
+        im=Image.open(camera['path']);d=ImageDraw.Draw(im)
+        for text,point in [(a['id']+' fitting',p) for a,p in zip(row['mount']['anchors'],anchors)]+[('Frame hub (behind bars)',hub)]:
+            x,y=project(camera,native(point,row));d.ellipse((x-20,y-20,x+20,y+20),outline='#00bacb',width=2)
+            tx=max(20,min(x+27,im.width-d.textlength(text,font=font(23))-20))
+            d.text((tx,y-30),text,font=font(23),fill='#002e3b',stroke_width=2,stroke_fill='#d3dee7')
+        im.save(camera['path']);entries.append(dict(path=name,**{k:v for k,v in camera.items() if k!='path'}))
+        detail=(anchors[0]+anchors[1])/2
+        name=f'{short}-fittings-detail.png'
+        camera=cpu.render(path,OUT/name,native(detail+[-.35,-1.,-.2],row),native(detail,row),.85 if short=='extra' else .75,
+            label=short+' structure fittings | 26 mm sockets; '+('40 mm wingtip plates' if short=='extra' else '24 mm wide, 3 mm wall surface-fitted strut collars'),
+            image_size=(1800,1500),view_kind='fitting detail')
+        entries.append(dict(path=name,**{k:v for k,v in camera.items() if k!='path'}))
         manifest[aircraft]=dict(model=str(path.relative_to(ROOT)),model_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),views=entries)
         if short=='pitts':
             target=np.array([.8087,-.035,0])
@@ -77,6 +102,6 @@ def main():
             clip=lambda n,a:n!='Cockpit' or (a[:,0].min()>.79 and a[:,0].max()<.83)
             cpu.render(path,OUT/'pitts-panel-closeup.png',(1.8,-.005,0),(.8075,-.005,0),.72,only,'Pitts rear panel; card DOWN 50 mm; instruments unchanged',triangle_filter=clip,image_size=(2200,1650))
             manifest[aircraft]['panel_views']=['pitts-panel-rear-eye.png','pitts-panel-closeup.png']
-    (OUT/'render-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (OUT/'render-manifest.json').write_text(json.dumps(manifest,indent=2,default=lambda value:value.tolist())+'\n')
 
 if __name__=='__main__':main()

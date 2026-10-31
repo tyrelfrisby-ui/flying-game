@@ -1,5 +1,6 @@
-# Xcode outputs (build/cg-check.csv is versioned)
+# Xcode exports are directories; deploy/build logs are files. Keep build/cg-check.csv versioned.
 build/*/
+build/*.log
 DerivedData/
 *.xcuserstate
 xcuserdata/
@@ -38,7 +39,9 @@ unity/Temp/
 unity/Logs/
 unity/UserSettings/
 unity/obj/
-# Aircraft JSON mirrors are versioned; only generated folder metadata is ignored.
+# Aircraft JSON mirrors and existing metadata are versioned. Ignore generated folder metadata
+# and the new Great Lakes Unity metadata (the JSON mirror is versioned).
+unity/Assets/StreamingAssets/aircraft/great-lakes-like.json.meta
 unity/Assets/StreamingAssets/aircraft.meta
 *.csproj.meta
 unity/*.csproj
