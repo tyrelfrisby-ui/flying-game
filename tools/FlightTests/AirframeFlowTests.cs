@@ -1,3 +1,4 @@
+using System.Linq;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -49,6 +50,86 @@ public class AirframeFlowTests
         }
         _out.WriteLine($"{starts.Count} markers, {checkedPts} points checked, {pushed} pushed round the airframe");
         Assert.True(pushed > starts.Count / 10, "the airframe should deflect a good share of the sheet");
+    }
+
+    public static System.Collections.Generic.IEnumerable<object[]> EveryAirframe()
+    {
+        string repo = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../.."));
+        foreach (string f in System.IO.Directory.GetFiles(System.IO.Path.Combine(repo, "configs", "aircraft"), "*.json").OrderBy(f => f))
+            yield return new object[] { System.IO.Path.GetFileName(f) };
+    }
+
+    /// <summary>A wing or tail root is a corner between two keep-outs, and the corner is where they can disagree: if the
+    /// plate holds a marker off its face while the body shoves it radially back through that face, the marker is trapped
+    /// and ends up inside the aeroplane. It is pure geometry, so EVERY airframe can have it, not just the one it was
+    /// found on. Markers are released in rings close to the skin at the wing and tail stations -- the corner itself --
+    /// and in a sheet upstream, and none of them may finish inside the airframe.</summary>
+    [Theory]
+    [MemberData(nameof(EveryAirframe))]
+    public void NoAirframeTrapsASmokeMarkerInItsOwnRoot(string file)
+    {
+        string repo = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../.."));
+        var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(repo, "configs", "aircraft", file));
+        double span = cfg.Surfaces.Count > 0 ? cfg.Surfaces.Max(sf => sf.Strips.Count == 0 ? 0 : sf.Strips.Max(st => System.Math.Abs(st.Pos[1]))) * 2 : 8;
+        if (span < 0.5) span = 8;
+        double len = cfg.Fuselage?.Crossflow?.LengthM is double fl && fl > 0.5 ? fl : 0.8 * span;
+        double radius = cfg.Fuselage?.Crossflow?.BodyRadiusM is double br && br > 0 ? br : 0.5;
+        var flow = new AirframeFlow(cfg, 0.4 * len, radius);
+        double v = 28, a = 77 * System.Math.PI / 180;
+        Vec3 V = new(v * System.Math.Cos(a), 1.5, v * System.Math.Sin(a)), w = new(0.6, -0.4, -3.8);
+        var starts = new System.Collections.Generic.List<Vec3>();
+        // The corner: rings a touch outside the skin, all the way down the body.
+        for (double x = 0.4 * len; x > -0.7 * len; x -= 0.05 * len)
+        {
+            double R = flow.RadiusAt(x); if (R <= 0.02) continue;
+            for (int k = 0; k < 16; k++)
+            {
+                double th = k * 2 * System.Math.PI / 16;
+                starts.Add(new Vec3(x, (R + 0.02) * System.Math.Sin(th), (R + 0.02) * System.Math.Cos(th)));
+            }
+        }
+        // And a sheet upstream at this attitude.
+        for (double x = -0.7 * len; x <= 0.4 * len; x += 0.1 * len)
+            for (double y = -0.6 * span; y <= 0.6 * span; y += 0.1 * span) starts.Add(new Vec3(x, y, 0.4 * span));
+        // Smoke cannot be released INSIDE a surface, and a ring drawn round the body knows nothing about a tailplane
+        // mounted on the body axis, so those release points are dropped rather than asserted on. The count is checked
+        // below so that dropping them can never be how this test passes.
+        int offered = starts.Count;
+        starts.RemoveAll(q => flow.Inside(q, 0.02));
+        Assert.True(starts.Count > offered / 2, $"{file}: {offered - starts.Count} of {offered} release points were inside a surface");
+        int n = 0;
+        foreach (var r0 in starts)
+        {
+            var d = flow.Deflection(r0, V, w, Vec3.Zero, 0, 0.1016, 1.0, seed: (uint)n + 11);
+            Vec3 pos = r0;
+            foreach (var di in d)
+            {
+                Assert.False(flow.Inside(pos + di, 0.02), $"{file}: marker from {r0} finished inside the airframe at {pos + di}");
+                Vec3 Onset(Vec3 q) => -1.0 * (V + Vec3.Cross(w, q));
+                Vec3 fm = pos + Onset(pos) * 0.002; pos += Onset(fm) * 0.004;
+            }
+            n++;
+        }
+        _out.WriteLine($"{file}: span {span:0.00} m, body {len:0.00} m x r {radius:0.00} m -- {starts.Count} of {offered} markers released, all clear");
+    }
+
+    /// <summary>The rule the fix states, pinned on both sides: a surface STARTS at the skin, so the plate is no obstacle
+    /// in the span the body occupies -- but it is still a solid barrier everywhere outboard of that. Both halves matter:
+    /// only clipping makes the corner solvable, and only keeping the rest makes the smoke go round the tailplane at all.
+    /// The two points are the ones that used to deadlock, on the Extra's stabiliser root and its wing root.</summary>
+    [Fact]
+    public void APlateIsNoObstacleWhereTheBodyIsButStillOneOutboard()
+    {
+        string repo = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppContext.BaseDirectory, "../../../../.."));
+        var cfg = AircraftConfigLoader.LoadFromFile(System.IO.Path.Combine(repo, "configs", "aircraft", "extra-300-like.json"));
+        var flow = new AirframeFlow(cfg, 2.3, 0.5);
+        // Just outside the skin at the stabiliser root (body r = 0.206 here) and at the wing root (r = 0.499): the body
+        // owns this span, so the plate must not also claim it -- there is no room between the two for a marker to sit.
+        Assert.False(flow.Inside(new Vec3(-4.0793, 0.1223, -0.1702), 0.02), "trapped in the stabiliser-root corner");
+        Assert.False(flow.Inside(new Vec3(-0.3055, 0.5060, -0.0568), 0.02), "trapped in the wing-root corner");
+        // Outboard, the surfaces are as solid as they ever were.
+        Assert.True(flow.Inside(new Vec3(-4.0793, 1.0, -0.186)), "the stabiliser stopped being solid outboard of the body");
+        Assert.True(flow.Inside(new Vec3(-0.3055, 1.0, -0.073)), "the wing stopped being solid outboard of the body");
     }
 
     /// <summary>The separated wakes hold smoke (Ty 2026-10-13): released at the belly in the INVERTED spin (the belly is the
