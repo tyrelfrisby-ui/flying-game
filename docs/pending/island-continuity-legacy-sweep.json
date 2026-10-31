@@ -1,0 +1,15 @@
+{
+  "Passed": 0,
+  "Failed": 1,
+  "Skipped": 0,
+  "failures": [
+    {
+      "name": "FlyingGame.FlightTests.WorldContinuityTests.NowhereDoesTheGroundStopDead",
+      "messages": [
+        "the ground stops dead at (-3875, -4800): 207 m in 0.1 m (and in 2 square kilometre(s) in all)"
+      ],
+      "output": "6241 crossings worth a closer look; 2 square kilometres hold a real step, all of them:\n    207.2 m over 0.1 m at (  -3875,    -4800)\n    204.1 m over 0.1 m at (  -3875,    -5040)\nworst step that is neither allowed nor known: 207.2 m at (-3875, -4800)\n"
+    }
+  ],
+  "note": "The two reported cells are the approved200m Drake north cliff. Test source/old allow-list unchanged."
+}

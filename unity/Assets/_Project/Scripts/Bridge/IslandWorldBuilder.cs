@@ -48,7 +48,8 @@ namespace FlyingGame.Bridge
         {
             // A mesh aperture for the cave throat: physical roof/side shell supplied separately.
             var f = IslandTerrain.Feature("F2"); var dp = p - f["centre"].Point; var u = IslandPoint.Heading(f.N("mouth_true_deg") + 180);
-            return dp.Dot(u) >= -.015 && dp.Dot(u) < .115 && Math.Abs(dp.E * u.N - dp.N * u.E) < .030 || IslandCavities.Skylight(p);
+            return dp.Dot(u) >= -.015 && dp.Dot(u) < .20 && Math.Abs(dp.E * u.N - dp.N * u.E) < .030
+                &&(p-f["interior"]["chamber_centre"].Point).Length>.090 || IslandCavities.Skylight(p);
         }
         private static void Terrain(Transform parent)
         {
@@ -117,7 +118,7 @@ namespace FlyingGame.Bridge
                     if(Math.Abs((a-c).N)>.030) StreamRibbon(b,a,d,8);
                 }
             }
-            b.Build("Ocean-lakes-water-lanes", parent, WorldBuilder.Mat("FlyingGame/LitVC", Color.white));
+            b.Build("Ocean-lakes-water-lanes", parent, WorldBuilder.Mat("FlyingGame/Water", new Color(.075f,.30f,.41f,.95f)));
         }
         private static void StreamRibbon(B b, IslandPoint a, IslandPoint c, double width)
         {
@@ -153,7 +154,7 @@ namespace FlyingGame.Bridge
                     for (double a = -f.Length / 2; a <= f.Length / 2; a += 50) foreach (int s in new[] { -1, 1 }) b.Cylinder(P(f.Centre + f.U * (a / 1000) + f.V * (s * f.Width / 2000), f.Elevation), 1.3f, 1.2f, 8, Orange);
                     continue;
                 }
-                double length = f.Field == "DRAKE" ? 152.4 : f.Length; double offset = f.Field == "DRAKE" ? -f.Length / 2 + length / 2 : 0;
+                double length = f.Length, offset = 0; // Interior runway paint/deck stays beneath the opaque rock roof.
                 Color surface = f.Surface == "asphalt" || f.Surface == "paved" ? new Color(.15f, .17f, .18f) : f.Surface.Contains("grass") || f.Surface == "turf" ? new Color(.44f, .50f, .27f) : f.Surface == "hard sand" ? Sand : new Color(.58f, .54f, .45f);
                 SurfaceQuad(b, f, length, f.Width, f.Elevation + .04, surface, offset);
                 // Shoulder planes are authored at the exact field datum,60m beyond both edges.
@@ -238,9 +239,16 @@ namespace FlyingGame.Bridge
             }
             var mouth = f["centre"].Point; var u = IslandPoint.Heading(f.N("mouth_true_deg") + 180); var v = new IslandPoint(u.N, -u.E); var end = mouth + u * .20;
             b.Quad(P(mouth - v * .03, cf), P(end - v * .03, cf), P(end + v * .03, cf), P(mouth + v * .03, cf), Sand);
-            // Throat roof only before the circular chamber begins. No interior blockingcap at the junction.
-            var join = mouth + u * .115; double tr = ci.N("throat_ceiling_msl_m");
-            b.Quad(P(mouth + v * .03, tr), P(join + v * .03, tr), P(join - v * .03, tr), P(mouth - v * .03, tr), Rock);
+            // Union of throat and chamber air volumes: low throat roof stops at the curved
+            // chamber boundary, so no spurious low slab or extra skylight crosses the junction.
+            double tr=ci.N("throat_ceiling_msl_m");
+            for(int along=0;along<200;along+=2)for(int across=-30;across<30;across+=2)
+            {
+                var pc=mouth+u*((along+1)/1000.0)+v*((across+1)/1000.0);if((pc-cc).Length<=.090)continue;
+                var p0=mouth+u*(along/1000.0)+v*(across/1000.0);var p1=p0+u*.002;var p2=p1+v*.002;var p3=p0+v*.002;
+                b.Quad(P(p3,tr),P(p2,tr),P(p1,tr),P(p0,tr),Rock);
+                double top=ci.N("throat_roof_top_msl_m_min");b.Quad(P(p0,top),P(p1,top),P(p2,top),P(p3,top),Rock);
+            }
             b.Build("Drake-pirate-interior-shells", parent, Lit);
             // Hologram is a translucent visual; no solid and no enrolment/trigger logic.
             var holo = new B(); var m = d["mouth"].Point;

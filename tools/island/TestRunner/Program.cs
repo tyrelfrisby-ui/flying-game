@@ -17,7 +17,8 @@ else
 {
     var cases=new Cases();framework.GetDiscoverer(new ReflectionAssemblyInfo(Assembly.Load("FlightTests"))).Find(false,cases,discovery);
     if(!cases.Done.Wait(TimeSpan.FromMinutes(2)))throw new TimeoutException("discovery");
-    executor.RunTests(cases.All.Where(c=>args.Any(a=>c.DisplayName.Contains(a))),sink,execution);
+    var names=args[0]=="--world"?Assembly.Load("FlightTests").GetTypes().Where(t=>t.GetCustomAttributesData().Any(a=>a.AttributeType.FullName=="Xunit.CollectionAttribute"&&a.ConstructorArguments[0].Value?.ToString()=="WorldTerrainActive")).Select(t=>t.FullName!).ToArray():args;
+    executor.RunTests(cases.All.Where(c=>names.Any(a=>c.DisplayName.Contains(a))),sink,execution);
 }
 if (!sink.Done.Wait(TimeSpan.FromMinutes(30))) throw new TimeoutException("xUnit execution timed out");
 Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { sink.Passed, sink.Failed, sink.Skipped, sink.Failures }));
@@ -34,7 +35,7 @@ sealed class Results : IMessageSink
         if (message is ITestFailed fail)
         {
             Interlocked.Increment(ref Failed);
-            lock (Failures) Failures.Add(new { name = fail.Test.DisplayName, messages = fail.Messages, stack = fail.StackTraces });
+            lock (Failures) Failures.Add(new { name = fail.Test.DisplayName, messages = fail.Messages, output = fail.Output, stack = fail.StackTraces });
             Console.Error.WriteLine("FAIL " + fail.Test.DisplayName + " " + string.Join("; ", fail.Messages));
         }
         if (message is IErrorMessage error) Console.Error.WriteLine("ERROR " + string.Join("; ", error.Messages));

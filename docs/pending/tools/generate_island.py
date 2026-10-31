@@ -208,14 +208,21 @@ def height(x,y):
   h=h*(1-a)+z*a
  # Clip only exterior pad blends to exact final planes; full authored pad planes
  # remain authoritative and any incompatible pad itself remains a reported failure.
- if claims and dd>1e-10 and not any(dist(p,q['centre'])<.4 for q in W['height_field']['peaks']):
+ if claims and dd>1e-10:
+  release=min(smooth((dist(p,q['centre'])-.12)/.28) for q in W['height_field']['peaks']);clipweight=max(q[1] for q in claims)*release
   for e in CLEARANCE_ENVELOPES:
    if protected_volcano:continue
    if e['kind']=='airway':
-    d0,_=seg(p,e['a'],e['b']);alpha=(1-smooth((d0-e['width'])/e['blend']))*smooth(dd/.03);h=h*(1-alpha)+min(h,e['cap_m'])*alpha;continue
+    d0,_=seg(p,e['a'],e['b']);alpha=(1-smooth((d0-e['width'])/e['blend']))*smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,e['cap_m'])*alpha;continue
    u=e['u'];v=(u[1],-u[0]);dx=x-e['a'][0];dy=y-e['a'][1];ad=-(dx*u[0]+dy*u[1]);cr=abs(dx*v[0]+dy*v[1]);ww=.15+.05*max(0,ad)
    d0=max(-ad-.25,ad-e['length']-.25,cr-ww-.25,0);alpha=1-smooth(d0/e['blend']);cap=e['elevation_m']+ad*1000/e['ratio']
-   alpha*=smooth(dd/.03);h=h*(1-alpha)+min(h,cap)*alpha
+   alpha*=smooth(dd/.03)*clipweight;h=h*(1-alpha)+min(h,cap)*alpha
+ # Airway budget is a continuous global layer, not conditional on a pad claim.
+ # Protect exact fieldplanes and authored peakcores; fade at actual2nm boundary.
+ release=min(smooth((dist(p,q['centre'])-.12)/.28) for q in W['height_field']['peaks']);padrelease=smooth(dd/.03) if claims else 1
+ for e in CLEARANCE_ENVELOPES:
+  if e['kind']!='airway':continue
+  d0,_=seg(p,e['a'],e['b']);alpha=(1-smooth((d0-3.704)/e['blend']))*padrelease*release;h=h*(1-alpha)+min(h,e['cap_m'])*alpha
  # Coast fade is last; a field crossing the shore will FAIL rather than fabricate land silently.
  a=smooth(d/W['edge']['land_shore_fade_km']);return -30+(h+30)*a
 

@@ -1,0 +1,39 @@
+{
+  "scope": "Phase1B local compile/validation only; no deployment or device build",
+  "implementation_commit": "e1d13ca; later validation repair recorded in final G1 commit",
+  "core_sim_test_source_compile": {
+    "status": "PASS",
+    "command": "dotnet build tools/FlightTests/FlightTests.csproj --no-restore --disable-build-servers -m:1 -nr:false -p:UseSharedCompilation=false",
+    "note": "Existing compiler warnings retained; no test source edited."
+  },
+  "runtime_probe_compile": {
+    "status": "PASS",
+    "command": "dotnet build tools/IslandCheck/IslandCheck.csproj --no-restore --disable-build-servers -m:1 -nr:false -p:UseSharedCompilation=false"
+  },
+  "unity_world_source_compile": {
+    "status": "PASS limited source check",
+    "command": "python3 tools/island/check_unity_sources.py",
+    "installed_editor": "6000.3.23f1",
+    "actual_sources": "WorldBuilder, IslandWorldBuilder, SeasideBuilder, ForestBuilder, AlaskaBuilder, AlpineBuilder, HighDesertBuilder, Playground geometry, fixed WorldRender cameras, Windsock, Spin, PylonTopBurst",
+    "adapters_stubbed": [
+      "Cumulus",
+      "SessionSettings.ReplayActive",
+      "CoordinateMap conversion",
+      "WaterReflection.PropsLayer",
+      "PlaygroundRuntime event adapter"
+    ],
+    "note": "Installed Unity engine/editor assemblies referenced; existing unused PylonTopBurst field warning. This is not a Unity player build."
+  },
+  "unity_batch_startup": {
+    "status": "BLOCKED by sandbox",
+    "exit_code": 1,
+    "error": "Error: listen EPERM: operation not permitted /tmp/Unity-Upm-37487.sock",
+    "consequence": "No fixed WorldRender screenshot or Unity/iOS BUILD SUCCEEDED available."
+  },
+  "device_build_deploy": {
+    "status": "NOT RUN per Ty session rule",
+    "handoff": "[codex -> Ty] build check needed: run tools/deploy/deploy.sh"
+  },
+  "streamingassets_new_kinds": [],
+  "caches": "dotnet and Swift caches under TMPDIR; Unity startup could not create its PackageManager socket."
+}

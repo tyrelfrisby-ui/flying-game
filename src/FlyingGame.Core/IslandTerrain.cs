@@ -199,7 +199,19 @@ public static class IslandTerrain
         if (nearest < double.PositiveInfinity)
         {
             h = Mix(h, nearest > 1e-10 ? sumZ / sumW : bestZ, nearest > 1e-10 ? maxA : bestA);
-            if (nearest > 1e-10 && !Peaks.Any(q => (p - q["centre"].Point).Length < .4)) foreach (var e in Budgets) if (!volcanoProtected) h = ApplyBudget(p, e, h, Smooth(nearest / .03), false);
+            if (nearest > 1e-10)
+            {
+                double release=Peaks.Min(q=>Smooth(((p-q["centre"].Point).Length-.12)/.28));
+                foreach (var e in Budgets) if (!volcanoProtected) h = ApplyBudget(p, e, h, maxA*release*Smooth(nearest / .03), false);
+            }
+        }
+        double peakRelease=Peaks.Min(q=>Smooth(((p-q["centre"].Point).Length-.12)/.28));
+        double padRelease=nearest<double.PositiveInfinity?Smooth(nearest/.03):1;
+        foreach(var e in Budgets)
+        {
+            if(e.S("kind")!="airway")continue;
+            double alpha=(1-Smooth((Segment(p,e["a"].Point,e["b"].Point).d-3.704)/e.N("blend")))*padRelease*peakRelease;
+            h=Mix(h,Math.Min(h,e.N("cap_m")),alpha);
         }
         return -30 + (h + 30) * Smooth(d / World["edge"].N("land_shore_fade_km"));
     }

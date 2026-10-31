@@ -1573,7 +1573,7 @@
           "reason": "50m tower top2864ft MSL + fullguy footprint belowA2 budget3000ft; no field datum changes"
         }
       ],
-      "pad_blend": "inverse-distance squared weighting outside exactpad rectangles, maxinfluence envelope; final/airway exteriorblends capped with30m fade backto eachplane edge",
+      "pad_blend": "Inverse-distance squared exterior plane weighting; final/airway correction fades tozero at both exactpad edge (30m release) and outerblend boundary (max pad influence); continuous0.12–0.4km peakcore release, never a boolean gate. Airway budget also applies as a continuous global layer after details, with actual2nm core/continuousouterfade, exactpad30m release and peakcore release; no conditional outer-edge cap switch.",
       "water_surface_checks": "All water planes use circumscribed64-gon ellipse enclosures, tested against everyfinal and2nm airway swath; waterheight overridesbedheight forclearance. Highlakebeds/rims restored afterbroadcuts tosupport thewater.",
       "canyon_composition": "Eachfinite polyline segment applies its owncontinuous cut using globalalong-pathfloor interpolation; sequentialcontinuous cuts avoid nearest-segment elevation-owner jumps atmeanders."
     },
@@ -35876,6 +35876,13 @@
         }
       ],
       "reason": "Build two continuous flat mesa tops and rock-pile/rut strips for the approvedF12 feature. Exact planes and fullknownfan/airway screening; no field elevations/lengths changed."
+    },
+    {
+      "phase": "1B validation repair",
+      "item": "height_field/pad_blend exterior clearance correction",
+      "old": "inverse-distance squared weighting outside exactpad rectangles, maxinfluence envelope; final/airway exteriorblends capped with30m fade backto eachplane edge",
+      "new": "Inverse-distance squared exterior plane weighting; final/airway correction fades tozero at both exactpad edge (30m release) and outerblend boundary (max pad influence); continuous0.12–0.4km peakcore release, never a boolean gate. Airway budget also applies as a continuous global layer after details, with actual2nm core/continuousouterfade, exactpad30m release and peakcore release; no conditional outer-edge cap switch.",
+      "reason": "Existing WorldContinuityTests exposed a238m discontinuity at(E-0.3622,N4.45)km where a zero-influence exteriorpad claim abruptly activated a full-strength clearance cut. Fade by pad influence at the outer edge and continuously release peakcore exclusion. Preserve every exact pad datum and summit. Restored the V2 clearance budget as a global continuous layer after details rather than a conditional pad-claim cut; full pads/summits remain exact."
     }
   ],
   "ifr": {
@@ -36558,7 +36565,7 @@
     "final_world_delta_count": 421,
     "ledger": "Chronological edits plus one complete baseline-to-final canonical reconciliation; superseded duplicate snapshots removed.",
     "scope": "Approved1A.2 design plus Phase1B world-owned runtime, docs and AGENT-LOG. Stop atG1; no deployments or later phases.",
-    "final_world_sha256": "e33049be9b9986952cc530775fa6695832c6dc79cd59c521fa6c3f9880fc992a",
+    "final_world_sha256": "11d0648bf003dd2a9aea95e6d082aec3955752f2edb0b6e41303289b03416278",
     "approved_1a2_world_sha256": "7eb088e256711849be8e637f099dea2b7d44b68541b1f67844920b1125a466fb"
   },
   "approval_1a2": {

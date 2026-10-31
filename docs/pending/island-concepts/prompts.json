@@ -4,7 +4,7 @@
   "images": [
     {
       "name": "mokuleia",
-      "prompt": "Mokuleia coast, ridge and standard offshore IAC raft markers. Stylized concept; not screenshot.",
+      "prompt": "Use case: stylized-concept. Asset type: Aero Playground Phase 1B region concept art, reference only. Create a wide landscape illustration of the Mokuleia coastal region: low sea-level paved airfield behind a pale sand beach, forested 2950 ft ridge with an outdoor historic glider launch slope behind, sea stacks, deep blue Pacific, and a standard 1 km aerobatic practice square offshore marked by nine moored white cross/L/T rafts, a judge raft, four orange buoys. A small light training airplane conveys scale. Crisp hand-painted realistic game environment concept, natural daylight, aerial three-quarter view, no labels or UI. Preserve land-water relationship, no buildings on runway or approach. This is concept art, not an actual game screenshot.",
       "source": "/Users/tyfrisby/.codex/generated_images/01a18ffe-ad7a-77b2-b0fb-d2d44f186a44/exec-49d7c2ac-65f5-480b-a90d-4352dc32cad9.png"
     },
     {
@@ -14,7 +14,7 @@
     },
     {
       "name": "alaska",
-      "prompt": "Use case: stylized-concept. Asset type: Aero Playground Phase1B concept art, reference only, not game screenshot. Alaska region: Talkeetna village gravel airpark, braided river gravel bars with driftwood and clean landing lanes, blue Knik and Ruth glacier tongues with ski landing pads at1000–1300ft, dark Chugach walls and a snowcapped8530ft Denali-like peak. Style: polished hand-painted realistic game environment study, aerial three-quarter landscape framing, natural daylight, restrained materials, tiny light aircraft for scale. No UI, no logos, no geographic labels. Preserve specified runway safety space. Avoid fantasy oversized buildings or extra portals.",
+      "prompt": "Use case: stylized-concept. Asset type: Aero Playground Phase1B concept art, reference only, not game screenshot. Alaska region: Talkeetna village gravel airpark, braided river gravel bars with driftwood and clean landing lanes, blue Knik and Ruth glacier tongues with ski landing pads at1000\u20131300ft, dark Chugach walls and a snowcapped8530ft Denali-like peak. Style: polished hand-painted realistic game environment study, aerial three-quarter landscape framing, natural daylight, restrained materials, tiny light aircraft for scale. No UI, no logos, no geographic labels. Preserve specified runway safety space. Avoid fantasy oversized buildings or extra portals.",
       "source": "/Users/tyfrisby/.codex/generated_images/01a18ffe-ad7a-77b2-b0fb-d2d44f186a44/exec-deab8c30-bca8-46fc-ad5f-d8b0225221ad.png"
     },
     {

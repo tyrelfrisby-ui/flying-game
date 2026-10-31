@@ -10755,3 +10755,12 @@ Every entry carries item, old value, new value and reason. Baseline 1A entries a
 ```
 
 </details>
+
+<details>
+<summary>1135. height_field/pad_blend exterior clearance correction</summary>
+
+```json
+{"phase":"1B validation repair","item":"height_field/pad_blend exterior clearance correction","old":"inverse-distance squared weighting outside exactpad rectangles, maxinfluence envelope; final/airway exteriorblends capped with30m fade backto eachplane edge","new":"Inverse-distance squared exterior plane weighting; final/airway correction fades tozero at both exactpad edge (30m release) and outerblend boundary (max pad influence); continuous0.12–0.4km peakcore release, never a boolean gate. Airway budget also applies as a continuous global layer after details, with actual2nm core/continuousouterfade, exactpad30m release and peakcore release; no conditional outer-edge cap switch.","reason":"Existing WorldContinuityTests exposed a238m discontinuity at(E-0.3622,N4.45)km where a zero-influence exteriorpad claim abruptly activated a full-strength clearance cut. Fade by pad influence at the outer edge and continuously release peakcore exclusion. Preserve every exact pad datum and summit. Restored the V2 clearance budget as a global continuous layer after details rather than a conditional pad-claim cut; full pads/summits remain exact."}
+```
+
+</details>

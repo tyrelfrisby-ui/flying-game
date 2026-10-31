@@ -536,8 +536,22 @@ public sealed class WorldTerrain
     }
 
     /// <summary>Surface under a wheel at height <paramref name="up"/>: a raised deck (the pad) is paved.</summary>
-    public static Surface SurfaceAt(double x, double y, double up) =>
-        WorldDecks.DeckUnder(x, y, up, out double top) && top > GroundHeightAt(x, y) + 1 ? Surface.Paved : SurfaceAt(x, y);
+    public static Surface SurfaceAt(double x, double y, double up)
+    {
+        if(SurfaceOverride.HasValue)return SurfaceOverride.Value;
+        if(Active!=null&&IslandCavities.TryFloor(x,y,up,out _))
+        {
+            var p=new IslandPoint(y/1000,x/1000);if(IslandCavities.DrakeInside(p))return Surface.Paved;
+            var ci=IslandCavities.Pirate;var delta=p-ci["chamber_centre"].Point;
+            foreach(var pad in ci["pads"].Items)
+            {
+                var d=delta-pad["offset_m"].Point*.001;
+                if(System.Math.Abs(d.E)<=pad["size_m"][0].Number()/2000&&System.Math.Abs(d.N)<=pad["size_m"][1].Number()/2000)return Surface.Paved;
+            }
+            return Surface.Gravel;
+        }
+        return WorldDecks.DeckUnder(x,y,up,out double top)&&top>GroundHeightAt(x,y)+1?Surface.Paved:SurfaceAt(x,y);
+    }
 
     /// <summary>True inside the strip's rectangle (grown by `margin` m on every side).</summary>
     public static bool InStrip(Airport a, Strip st, double x, double y, double margin)

@@ -3,23 +3,23 @@
   "phase": "1B",
   "passes": true,
   "comparison": "Two complete consecutive executions, including both native rasters; byte-identical in this environment.",
-  "spec_sha256": "34739ca2f5c16505798dfa9d187512f20931c96bbca7dd35761178231ccfc4ab",
+  "spec_sha256": "46dbdd14da9ef022bd05768897066ebe847d75b026e2470c8c823e6ad157b430",
   "ifr_canonical_sha256": "8e95a22378c6d225c146a63d67649a4acf6e30d826c5de733b1278c4db80a02c",
   "outputs": {
-    "island-heightfield.f32": "7a41be6ab41fad6aa32cc4346ea9ac09ff93efcdb2956393fa0c4ccb4b1ffb56",
-    "island-heightfield.json": "878f3b81d550cc8b69dd0ebafe4b45f18bf195e201b2e5002bb65d9dc44589b8",
-    "island-elevation-base.png": "7dcc4e9ba94b73837ec78a7c99faf3f17b69cae9165baeecd1eadc7feb2bbfd5",
-    "island-elevation.svg": "b40279c84cee0548bce093840605807c4ececb431de6df4313eeafda09284adf",
-    "island-elevation.png": "9ea52764ab96da772e5a3975c7daeaa08a01eb597d135afe6fee7be74484b097",
+    "island-heightfield.f32": "9afea3076f2d16cff5e995f5e6f0327361a0fe6b1432c341900a051255241eb9",
+    "island-heightfield.json": "79afa4533f55a5e94234f3edff5407068787a977d7ccfca2b8b96001b369ff75",
+    "island-elevation-base.png": "b6f627308715ad02d375722b27c758186c613a366f00f792209636aad837af43",
+    "island-elevation.svg": "29fe45d72a8069487e6dd6992beafbfe172f8cde2eaf3850ea558b0c1596f824",
+    "island-elevation.png": "25434989f4a5478e2b9aa95ff2e1af739e299733d8410aced521c205927f48b6",
     "island-map.svg": "1f905e4beffbabfa4b144712e08c95e60662b859c92c2a46b6b51f6f2ad42845",
     "island-map.png": "4b6c74c8dae8732205ec5fa9e74cb731ed514730df09333851c845c7d7b1f735",
-    "island-fit-check.json": "76c3076e4a368eb1e98dc0ead147b6e28d6bb6179ccf7e2fc87c2c6b3594984e",
-    "ISLAND-WORLD-PLAN.md": "0509ddb7f8c172ecdb7939271ec97db629616d79249ab5f2401a395cdb62418e"
+    "island-fit-check.json": "69ff8e17a67936734471926fdb7ace487d6ed6e53a6ed07a4fd2f24933941932",
+    "ISLAND-WORLD-PLAN.md": "9472133a007a29e1b306b13894de0943d02adc2a5aee05ab2bf712facadfe06c"
   },
   "tools": {
     "design_audit.py": "91b93b086415f723916112ec2393986ef0f5ff7ec7fc6dddab0097183a70bfc4",
     "fit_revision.py": "d239361027dc4f8606014091ee578a379e04610a9d382bdfa90cf9cdba456efe",
-    "generate_island.py": "ba1af5010928f0368d107a629f5aaf2c6845d7f2557fe6db3e40587799c603bb",
+    "generate_island.py": "25fa21acbb99f7a76d9e452a364664ed9d77c1c35b802588dc79c5ad9b6ef44a",
     "render_svg.swift": "74f1745bf6bf706e47f462628c962c05efd1afc3cf81b3e307aedba317dfc820",
     "report_revision.py": "1cc892f1968a81f7c86be7c5bd9d142cc27e529ca33e166da4f9134358fd797e",
     "verify_island.py": "c7895dba1ccb24041a57a6893576dd34e36a4080dd151ed56717da04c0b24a75"

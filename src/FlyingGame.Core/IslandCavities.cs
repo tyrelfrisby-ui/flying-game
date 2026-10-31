@@ -20,7 +20,8 @@ public static class IslandCavities
     {
         var p = new IslandPoint(y / 1000, x / 1000); floor = 0;
         if (DrakeInside(p) && up < Drake.N("minimum_roof_msl_m") - 1) { floor = Drake.N("floor_msl_m"); return true; }
-        if (PirateInside(p) && (up < IslandTerrain.HeightAt(x, y) - 1 || Skylight(p))) { floor = Pirate.N("floor_msl_m"); return true; }
+        if (PirateInside(p) && (up < Math.Max(IslandTerrain.HeightAt(x,y),
+            (p-Pirate["chamber_centre"].Point).Length<=.090?Pirate.N("roof_top_msl_m"):Pirate.N("throat_roof_top_msl_m_min"))-1 || Skylight(p))) { floor = Pirate.N("floor_msl_m"); return true; }
         return false;
     }
     public static double Ceiling(IslandPoint p, bool drake)

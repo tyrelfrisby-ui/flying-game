@@ -1,0 +1,1340 @@
+{
+  "method": "xUnit own in-process framework; unchanged test sources; sequential execution, normal fixtures/data rows/skips. Frozen repaired-height world binaries/config/docs. Final cavity surface-only changes separately covered by runtime probes.",
+  "baseline": {
+    "Passed": 765,
+    "Failed": 15,
+    "Skipped": 3
+  },
+  "world": {
+    "Passed": 670,
+    "Failed": 110,
+    "Skipped": 3
+  },
+  "baseline_notes": "Two baseline-only CREDITS fixture failures came from the temporary baseline lacking docs; actual-repository/final fixtures include docs. Eight LAN cases cannot bind in sandbox; other baseline aircraft/mirror failures are retained.",
+  "world_failures_absent_baseline": [
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.RiverDropsCleanlyAtTheLip",
+      "messages": [
+        "Assert.False() Failure\nExpected: False\nActual:   True"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.GroundUnderTheShelfIsTheLowerPlateau",
+      "messages": [
+        "fall 0: ground under the shelf at 373 m, lower plateau 305"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.FlyableSlotBehindTheCurtainIsAtLeast150FtDeep",
+      "messages": [
+        "fall 0: slot floor 372"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Snow\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WheelSkiTests.TheSameCubOnWheelsSlidesMuchFurtherUpTheKnik",
+      "messages": [
+        "the ski should slide further even uphill (ski 60 m, wheel 60 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.PlaygroundTests.MallIs3000FeetOfLandableWaterAndGrass",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 304.5 (rounded from 304.5)\nActual:   2249.424 (rounded from 2249.424)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.PlaygroundTests.CanyonLakeIsLongDeepAndWalled",
+      "messages": [
+        "lake only 0 m long"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.NoWaterInsideTheTunnelThoughTheRiverRunsOverIt",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheAmphitheaterBehindEveryCurtainIsDryUnderTheShelf",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.ThereIsPavementToLandOnAndItIsPavedOnlyWhereItShouldBe",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Paved\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheRiverItselfStillHasWaterAboveAndBelowTheFall",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheBoreFloorIsFlatAndFlushWithTheShelfOutsideItsMouth",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 304.80000000000001 (rounded from 304.80000000000001)\nActual:   370.92399999999998 (rounded from 370.92404408974653)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.EveryLegHasAMountainOverItsCrown",
+      "messages": [
+        "exit.bore at s=0.00: only -11 m of rock over the crown"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.EventTests.AeroBoxIsOnFlatValleyGround",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (1482.4556828187979 - 1492.4556828187979)\nActual: 2745.4452947524405"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.AOneWayStripHasSomethingAtTheFarEndAndAirAtTheNear",
+      "messages": [
+        "Soldier Bar: the far end is open \u2014 it is not one-way at all (-6 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.TheBackcountryLeavesTheRestOfTheWorldAlone",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 0 decimal places\nExpected: 2134 (rounded from 2133.6000000000004)\nActual:   -30 (rounded from -30)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.TheCanyonIsAKilometreDeepAndHasARiverInIt",
+      "messages": [
+        "at x=-5200 the canyon is only 34 m deep"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.EveryStripIsWithinTenMinutesOfEveryOther",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 10\nActual:   9"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheIceIsSnowUnderTheWheelsAndTheRockIsNot",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Snow\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThereIsADenaliAndItIsHuge",
+      "messages": [
+        "The High One is only 2975 ft"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.BothMadeStripsAreGradedFlatAndClearOfObstacles",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 227 (rounded from 226.95217524868144)\nActual:   226.90000000000001 (rounded from 226.94019853476402)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheGlacierWindAlwaysBlowsDownTheValley",
+      "messages": [
+        "Long Bar has almost no glacier wind (1.7 m/s)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThePlainOwnsItsOwnGround",
+      "messages": [
+        "something else owns the ground at (3700,-4050): the plain says 969.9, the world says 906.8"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheLanesAreActuallyFlatEnoughToLandOn",
+      "messages": [
+        "Long Bar's lane falls at 95.3 %"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.EachGlacierEndsInALakeWithBergsFloatingInIt",
+      "messages": [
+        "Knik has no lake at its foot"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThePracticeStripIsTheSizeTheOwnerAskedForAndIsMarked",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Gravel\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheChannelsAreShallowEnoughToSkimAndTheBarsAreDry",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (0.050000000000000003 - 1.3)\nActual: 61.083879958593002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheStepsOffTheBarsAreCappedSoTheyCanBeSurvived",
+      "messages": [
+        "Cut Bank Bar is supposed to be a cut bank, but its step is 0.6 m"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.NobodysRunwayApronOrStripHasTreesOnIt",
+      "messages": [
+        "timber on PHDH's paved-xwind strip at 6371,5028"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.NothingGrowsInTheWaterOnAGlacierOrInTheDryCountry",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 0\nActual:   0.63987689053109809"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.ATreeStandsOnTheGroundAndTheOnesNearTheLineAreStunted",
+      "messages": [
+        "the line is a wall \u2014 nothing is stunted approaching it"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.WhatEachPlateauDoesCarrySitsOnFlatGroundAtItsOwnLevel",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3.2671999999999999 - 34.267200000000003)\nActual: 1439.8297569861281"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.SolidsAndAeroBoxAreRegisteredOnEveryPlateau",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: True\nActual:   False"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.TheValleyCityIsTheCombatCityOnFlatDryGroundClearOfTheOtherFeatures",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3.2671999999999999 - 5.2671999999999999)\nActual: 1390.3217556784982"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.EachUpperPlateauKeepsTwoThingsAndNothingIsLostAltogether",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 2\nActual:   0"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.StepsAre2000Feet",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (-1 - 1)\nActual: -986.000031552"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AirframeContactTests.GentleFlightAndNormalLandingsBreakNothing",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ApproachSpawnTests.HandsOffFromFinalRidesTheGlidePathToTheAimPoint(id: \"pa18-cub-like\")",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ApproachSpawnTests.HandsOffFromFinalRidesTheGlidePathToTheAimPoint(id: \"glider-2-33-like\")",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.CarrierTests.TheDeckIsWhereTheShipIsAndMovesWithIt",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 6 decimal places\nExpected: 36.854866999999999 (rounded from 36.854866776461627)\nActual:   5.4389399999999997 (rounded from 5.438940240563694)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ChartRasterTests.TheHighPeaksReadHigherThanTheCoast",
+      "messages": [
+        "the chart misses the high country: highest 2749 m"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ChartRasterTests.TheSeaIsBlueOnEveryLayerThatDrawsGround",
+      "messages": [
+        "Vfr draws the sea with more red than blue"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GroundSurfaceTests.GrassStripSwoopsSmoothlyAndRoughGroundIsBumpy",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (0.29999999999999999 - 0.59999999999999998)\nActual: 654.18864696078026"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GroundSurfaceTests.RolloutOnRoughGroundIsShortAndViolent",
+      "messages": [
+        "paved rollout 25 m"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheBlockOwnsItsOwnGround",
+      "messages": [
+        "the ground at -6900,-7450 is -30 m \u2014 outside anything the desert builds"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheBlockSitsOnTheMesaPlateauAndNowhereNearAnythingElse",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Paved\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheMadeStripsAreGradedAndEmpty",
+      "messages": [
+        "Red Rock Strip is 997.91 m off its graded plane \u2014 it is supposed to have been bladed"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.NoHillCarvesAnother",
+      "messages": [
+        "Red Rock Mesa: the top is 1002.9 m off its own plane at -5664,-5383 \u2014 something carved it"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.ThePlayaIsDeadLevelAndCompletelyClear",
+      "messages": [
+        "the playa varies by 765.5 m \u2014 a dry lake is level"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MountainFrontTests.TheAerodromesSitInBaysInTheRange",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 183 (rounded from 183)\nActual:   192.09999999999999 (rounded from 192.0652751622705)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheBeaconsSitOnTheGroundTheTableSaysTheyDo",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 304.80000000000001 (rounded from 304.80000000000001)\nActual:   1353.2 (rounded from 1353.1914962803937)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheFresnelFadeIsSoftRatherThanABinary",
+      "messages": [
+        "the fade should be a ramp, not a switch: only 0 partial values"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheHillSitesBeatTheAirportSites",
+      "messages": [
+        "the Rimrock crest (9.8 %) should hear more than twice what the Mesa field does (27.1 %)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheTerrainBendsTheNeedleButOnlyWhereThereIsTerrain",
+      "messages": [
+        "the needle lies by 8.0 deg where the ground is flat"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheGroundInTheWayTakesTheSignalAway",
+      "messages": [
+        "climbing must help"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryAirwayLegHasAMinimumAltitudeYouCouldActuallyClimbTo",
+      "messages": [
+        "SEALS-VLY: MEA 24000 ft is above anything in this fleet"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.OneApproachHasACourseReversalAndItIsFlownWhereThereIsRoomForIt",
+      "messages": [
+        "Valley ILS RWY 27: the procedure turn is charted at 3100 ft but 1,000 ft over the highest thing within 2.0 NM is 6100 ft"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.NoApproachClaimsAProcedureTurnTheTerrainWouldNotAllow",
+      "messages": [
+        "a 2.0 NM procedure turn at Summit now needs only 4000 ft \u2014 the terrain has changed and Summit could have a course reversal after all"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryPublishedMinimumIsStillWhatTheGroundForces",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.TheDescentFromEachFinalApproachFixIsFlyable",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryFinalApproachFixIsOnItsOwnFinalApproachCourse",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.AnIlsIsAlignedWithItsRunwayAndAVorFinalIsCloseEnough",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.TheHillStationsAreWhyNoAirwayMeaIsSetByTheRadio",
+      "messages": [
+        "Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"terrain\"\nActual:   \"signal\"\n           \u2191 (pos 0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.Airport3IsFiveGustingFifteenFromASteadyDirection",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.Airport2WindWandersAllTheWayRoundAtAboutFiveKnots",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.FullRegionalConditionsApplyAwayFromHome",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.StartAirportIsExactlyCalmIsaFromTheSurfaceThroughThePattern",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.SamplingIsCheap",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.NoThermalStandsInTheCalmZone",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.CalmZoneBlendsOutSmoothlyAndMonotonically",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.RealBluffHasLiftInFrontOfIt",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.CalmZoneIsTheDefaultStartAirportsAndCoversThePattern",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SlopeAndThermalTests.WindOntoTheFirstWallRisesOnTheFaceAndSinksInTheLee",
+      "messages": [
+        "lift on the windward face"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheMailRouteIsLitExceptOnTheEscarpments",
+      "messages": [
+        "only 7 pots on the route"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheRangeCourseIsLowerThanTheVictorAirwayOverTheSameGround",
+      "messages": [
+        "Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"signal\"\nActual:   \"terrain\"\n           \u2191 (pos 0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheParallelBeaconAirwayCostsTwoThousandFeetForFourHundredMetres",
+      "messages": [
+        "RED 1 should be well above GREEN 1: 11100 vs 11100"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldContinuityTests.NowhereDoesTheGroundStopDead",
+      "messages": [
+        "the ground stops dead at (-3875, -4800): 207 m in 0.1 m (and in 2 square kilometre(s) in all)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.LakesAndRiverHaveWater",
+      "messages": [
+        "Assert.True() Failure\nExpected: True\nActual:   False"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.WallsAreSteepAndIrregular",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (559.60000000000002 - 659.60000000000002)\nActual: 480.1443691018078"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.AirportsSitOnFlatPadsAtTheirElevations",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 4.2670000000000003 (rounded from 4.2671999999999999)\nActual:   386.17099999999999 (rounded from 386.17067192809475)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.ACentredGliderIsTowedRoundWithoutTouchingTheRock",
+      "messages": [
+        "the tow hit the rock on NaN (clearance 179769313486232000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.TheTugTakesOffInsideTheTunnel",
+      "messages": [
+        "it hit the rock on NaN"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.TheGliderPilotCanAskForADifferentBranch",
+      "messages": [
+        "Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.ThePeaksAreMountainsAndTheyCarrySnow",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3017.6000000000004 - 3237.6000000000004)\nActual: 298.2456905192804"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.NoOutletValleyTakesTheTopOffAMountain",
+      "messages": [
+        "Thunder has lost 2777 m off the top"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheRangeStandsOnTheSummitPlateauAndLeavesEverythingElseAlone",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (2125.6000000000004 - 2141.6000000000004)\nActual: 3.1151869352861823"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheBowledLakesAreReallyEnclosed",
+      "messages": [
+        "Cirque: the rim is only -2794 m above the water at 0\u00b0 \u2014 that is a way in"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheOpenLakesHaveOneWayInAndItIsFlyable",
+      "messages": [
+        "Outlet: the far end is open too \u2014 it is a valley, not a lake in a basin"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.EveryLakeIsWaterYouCanFloatOn",
+      "messages": [
+        "Outlet: no water at 0.0 along it"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheExitsAreGradedFromNothingToAWallOfTimber",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (-6 - 6)\nActual: -1526.8200000000002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.IslandHasItsRunwayArchAvalonAndHarborOffshore",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (487.80000000000001 - 488.80000000000001)\nActual: 611.5748096813893"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.GoldenGateSpansTheMouth",
+      "messages": [
+        "water under the middle of the bridge"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.SeaCaveCanBeTaxiedIntoAndHasABeachAndASkylight",
+      "messages": [
+        "mouth wide enough for a Beaver (15 m span)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.RiverReachesTheSeaAtSeaLevelThroughCliffs",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (301.80000000000001 - 334.80000000000001)\nActual: 1375.4938556324371"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.CityStandsOnFlatDryGroundInsideTheCombatZone",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (301.80000000000001 - 312.80000000000001)\nActual: 1402.0800000000002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.BrsTests.DeployedSlowItCostsAFewHundredFeet",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (150 - 800)\nActual: -6851.9903514938578"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.BrsTests.PulledAtCruiseItZoomsBeforeItSinks",
+      "messages": [
+        "and 25 seconds later it should be well below where it started"
+      ]
+    }
+  ],
+  "failures_also_in_baseline": [
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.ThreePointAndWheelLandingsAreWorkable(file: \"pitts-s2b-like.json\", wheel: False)",
+      "messages": [
+        "rolling: off the runway or swung (21.9 m, 161.1\u00b0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.ThreePointAndWheelLandingsAreWorkable(file: \"pitts-s2b-like.json\", wheel: True)",
+      "messages": [
+        "bounced"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes",
+      "messages": [
+        "pitts-s2b-like not recovered at 12 m/s"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin",
+      "messages": [
+        "marker from (-3.5000, 1.2000, 1.6000) inside the airframe at t 0.112: (-4.0793, 0.1223, -0.1702)"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APilotTooFarAwayToSeeGetsASlowerRate",
+      "messages": [
+        "no free port in 48370..48373"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ChangingAeroplaneTellsTheRoom",
+      "messages": [
+        "no free port in 48390..48393"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.TwoPilotsFindEachOtherWithNoServerAtAll",
+      "messages": [
+        "no free port in 48310..48313"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APayloadComesThroughUntouchedWhateverIsInIt",
+      "messages": [
+        "no free port in 48320..48323"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ARoomOnlyHearsItself",
+      "messages": [
+        "no free port in 48350..48353"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APilotWhoVanishesIsNoticedAndOneWhoLeavesGoesAtOnce",
+      "messages": [
+        "no free port in 48360..48363"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.OnePilotFoundIsTheWholeRoomFound",
+      "messages": [
+        "no free port in 48330..48333"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ItSweepsWhileItIsAloneAndStopsWhenItIsNot",
+      "messages": [
+        "no free port in 48380..48383"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol",
+      "messages": [
+        "great-lakes-like: StreamingAssets copy missing or different \u2014 copy configs/aircraft/great-lakes-like.json into unity/Assets/StreamingAssets/aircraft/"
+      ]
+    }
+  ],
+  "all_world_failures": [
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.RiverDropsCleanlyAtTheLip",
+      "messages": [
+        "Assert.False() Failure\nExpected: False\nActual:   True"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.GroundUnderTheShelfIsTheLowerPlateau",
+      "messages": [
+        "fall 0: ground under the shelf at 373 m, lower plateau 305"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTests.FlyableSlotBehindTheCurtainIsAtLeast150FtDeep",
+      "messages": [
+        "fall 0: slot floor 372"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WheelSkiTests.ACubOnSkisCanBePutOnTheKnikAndStop",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Snow\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WheelSkiTests.TheSameCubOnWheelsSlidesMuchFurtherUpTheKnik",
+      "messages": [
+        "the ski should slide further even uphill (ski 60 m, wheel 60 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.PlaygroundTests.MallIs3000FeetOfLandableWaterAndGrass",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 304.5 (rounded from 304.5)\nActual:   2249.424 (rounded from 2249.424)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.PlaygroundTests.CanyonLakeIsLongDeepAndWalled",
+      "messages": [
+        "lake only 0 m long"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.NoWaterInsideTheTunnelThoughTheRiverRunsOverIt",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheAmphitheaterBehindEveryCurtainIsDryUnderTheShelf",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.ThereIsPavementToLandOnAndItIsPavedOnlyWhereItShouldBe",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Paved\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheRiverItselfStillHasWaterAboveAndBelowTheFall",
+      "messages": [
+        "Assert.NotNull() Failure: Value of type 'Nullable<double>' does not have a value"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.TheBoreFloorIsFlatAndFlushWithTheShelfOutsideItsMouth",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 304.80000000000001 (rounded from 304.80000000000001)\nActual:   370.92399999999998 (rounded from 370.92404408974653)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WaterfallTunnelTests.EveryLegHasAMountainOverItsCrown",
+      "messages": [
+        "exit.bore at s=0.00: only -11 m of rock over the crown"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.EventTests.AeroBoxIsOnFlatValleyGround",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (1482.4556828187979 - 1492.4556828187979)\nActual: 2745.4452947524405"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.AOneWayStripHasSomethingAtTheFarEndAndAirAtTheNear",
+      "messages": [
+        "Soldier Bar: the far end is open \u2014 it is not one-way at all (-6 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.TheBackcountryLeavesTheRestOfTheWorldAlone",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 0 decimal places\nExpected: 2134 (rounded from 2133.6000000000004)\nActual:   -30 (rounded from -30)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.TheCanyonIsAKilometreDeepAndHasARiverInIt",
+      "messages": [
+        "at x=-5200 the canyon is only 34 m deep"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.FrankChurchTests.EveryStripIsWithinTenMinutesOfEveryOther",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 10\nActual:   9"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheIceIsSnowUnderTheWheelsAndTheRockIsNot",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Snow\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThereIsADenaliAndItIsHuge",
+      "messages": [
+        "The High One is only 2975 ft"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.BothMadeStripsAreGradedFlatAndClearOfObstacles",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 227 (rounded from 226.95217524868144)\nActual:   226.90000000000001 (rounded from 226.94019853476402)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheGlacierWindAlwaysBlowsDownTheValley",
+      "messages": [
+        "Long Bar has almost no glacier wind (1.7 m/s)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThePlainOwnsItsOwnGround",
+      "messages": [
+        "something else owns the ground at (3700,-4050): the plain says 969.9, the world says 906.8"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheLanesAreActuallyFlatEnoughToLandOn",
+      "messages": [
+        "Long Bar's lane falls at 95.3 %"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.EachGlacierEndsInALakeWithBergsFloatingInIt",
+      "messages": [
+        "Knik has no lake at its foot"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.ThePracticeStripIsTheSizeTheOwnerAskedForAndIsMarked",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Gravel\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheChannelsAreShallowEnoughToSkimAndTheBarsAreDry",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (0.050000000000000003 - 1.3)\nActual: 61.083879958593002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlaskaTests.TheStepsOffTheBarsAreCappedSoTheyCanBeSurvived",
+      "messages": [
+        "Cut Bank Bar is supposed to be a cut bank, but its step is 0.6 m"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.NobodysRunwayApronOrStripHasTreesOnIt",
+      "messages": [
+        "timber on PHDH's paved-xwind strip at 6371,5028"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.NothingGrowsInTheWaterOnAGlacierOrInTheDryCountry",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 0\nActual:   0.63987689053109809"
+      ]
+    },
+    {
+      "name": "FlightTests.ForestTests.ATreeStandsOnTheGroundAndTheOnesNearTheLineAreStunted",
+      "messages": [
+        "the line is a wall \u2014 nothing is stunted approaching it"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.WhatEachPlateauDoesCarrySitsOnFlatGroundAtItsOwnLevel",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3.2671999999999999 - 34.267200000000003)\nActual: 1439.8297569861281"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.SolidsAndAeroBoxAreRegisteredOnEveryPlateau",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: True\nActual:   False"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.TheValleyCityIsTheCombatCityOnFlatDryGroundClearOfTheOtherFeatures",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3.2671999999999999 - 5.2671999999999999)\nActual: 1390.3217556784982"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.EachUpperPlateauKeepsTwoThingsAndNothingIsLostAltogether",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: 2\nActual:   0"
+      ]
+    },
+    {
+      "name": "FlightTests.PlateauCopyTests.StepsAre2000Feet",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (-1 - 1)\nActual: -986.000031552"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.ThreePointAndWheelLandingsAreWorkable(file: \"pitts-s2b-like.json\", wheel: False)",
+      "messages": [
+        "rolling: off the runway or swung (21.9 m, 161.1\u00b0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.ThreePointAndWheelLandingsAreWorkable(file: \"pitts-s2b-like.json\", wheel: True)",
+      "messages": [
+        "bounced"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AerobatGroundHandlingTests.PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes",
+      "messages": [
+        "pitts-s2b-like not recovered at 12 m/s"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AirframeContactTests.GentleFlightAndNormalLandingsBreakNothing",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ApproachSpawnTests.HandsOffFromFinalRidesTheGlidePathToTheAimPoint(id: \"pa18-cub-like\")",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ApproachSpawnTests.HandsOffFromFinalRidesTheGlidePathToTheAimPoint(id: \"glider-2-33-like\")",
+      "messages": [
+        "Function does not accept floating point Not-a-Number values."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.CarrierTests.TheDeckIsWhereTheShipIsAndMovesWithIt",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 6 decimal places\nExpected: 36.854866999999999 (rounded from 36.854866776461627)\nActual:   5.4389399999999997 (rounded from 5.438940240563694)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ChartRasterTests.TheHighPeaksReadHigherThanTheCoast",
+      "messages": [
+        "the chart misses the high country: highest 2749 m"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.ChartRasterTests.TheSeaIsBlueOnEveryLayerThatDrawsGround",
+      "messages": [
+        "Vfr draws the sea with more red than blue"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GroundSurfaceTests.GrassStripSwoopsSmoothlyAndRoughGroundIsBumpy",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (0.29999999999999999 - 0.59999999999999998)\nActual: 654.18864696078026"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GroundSurfaceTests.RolloutOnRoughGroundIsShortAndViolent",
+      "messages": [
+        "paved rollout 25 m"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheBlockOwnsItsOwnGround",
+      "messages": [
+        "the ground at -6900,-7450 is -30 m \u2014 outside anything the desert builds"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheBlockSitsOnTheMesaPlateauAndNowhereNearAnythingElse",
+      "messages": [
+        "Assert.Equal() Failure: Values differ\nExpected: Paved\nActual:   Rough"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.TheMadeStripsAreGradedAndEmpty",
+      "messages": [
+        "Red Rock Strip is 997.91 m off its graded plane \u2014 it is supposed to have been bladed"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.NoHillCarvesAnother",
+      "messages": [
+        "Red Rock Mesa: the top is 1002.9 m off its own plane at -5664,-5383 \u2014 something carved it"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.HighDesertTests.ThePlayaIsDeadLevelAndCompletelyClear",
+      "messages": [
+        "the playa varies by 765.5 m \u2014 a dry lake is level"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MountainFrontTests.TheAerodromesSitInBaysInTheRange",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 183 (rounded from 183)\nActual:   192.09999999999999 (rounded from 192.0652751622705)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheBeaconsSitOnTheGroundTheTableSaysTheyDo",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 1 decimal place\nExpected: 304.80000000000001 (rounded from 304.80000000000001)\nActual:   1353.2 (rounded from 1353.1914962803937)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheFresnelFadeIsSoftRatherThanABinary",
+      "messages": [
+        "the fade should be a ramp, not a switch: only 0 partial values"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheHillSitesBeatTheAirportSites",
+      "messages": [
+        "the Rimrock crest (9.8 %) should hear more than twice what the Mesa field does (27.1 %)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheTerrainBendsTheNeedleButOnlyWhereThereIsTerrain",
+      "messages": [
+        "the needle lies by 8.0 deg where the ground is flat"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavigationTests.TheGroundInTheWayTakesTheSignalAway",
+      "messages": [
+        "climbing must help"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryAirwayLegHasAMinimumAltitudeYouCouldActuallyClimbTo",
+      "messages": [
+        "SEALS-VLY: MEA 24000 ft is above anything in this fleet"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.OneApproachHasACourseReversalAndItIsFlownWhereThereIsRoomForIt",
+      "messages": [
+        "Valley ILS RWY 27: the procedure turn is charted at 3100 ft but 1,000 ft over the highest thing within 2.0 NM is 6100 ft"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.NoApproachClaimsAProcedureTurnTheTerrainWouldNotAllow",
+      "messages": [
+        "a 2.0 NM procedure turn at Summit now needs only 4000 ft \u2014 the terrain has changed and Summit could have a course reversal after all"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryPublishedMinimumIsStillWhatTheGroundForces",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.TheDescentFromEachFinalApproachFixIsFlyable",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.EveryFinalApproachFixIsOnItsOwnFinalApproachCourse",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.AnIlsIsAlignedWithItsRunwayAndAVorFinalIsCloseEnough",
+      "messages": [
+        "Valley 27"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.NavProcedureTests.TheHillStationsAreWhyNoAirwayMeaIsSetByTheRadio",
+      "messages": [
+        "Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"terrain\"\nActual:   \"signal\"\n           \u2191 (pos 0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.Airport3IsFiveGustingFifteenFromASteadyDirection",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.Airport2WindWandersAllTheWayRoundAtAboutFiveKnots",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.FullRegionalConditionsApplyAwayFromHome",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.StartAirportIsExactlyCalmIsaFromTheSurfaceThroughThePattern",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.SamplingIsCheap",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.NoThermalStandsInTheCalmZone",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.CalmZoneBlendsOutSmoothlyAndMonotonically",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.RealBluffHasLiftInFrontOfIt",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.RegionalAtmosphereTests.CalmZoneIsTheDefaultStartAirportsAndCoversThePattern",
+      "messages": [
+        "Atmosphere config: unknown airport anchor 'airport:Bench'."
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SlopeAndThermalTests.WindOntoTheFirstWallRisesOnTheFaceAndSinksInTheLee",
+      "messages": [
+        "lift on the windward face"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheMailRouteIsLitExceptOnTheEscarpments",
+      "messages": [
+        "only 7 pots on the route"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheRangeCourseIsLowerThanTheVictorAirwayOverTheSameGround",
+      "messages": [
+        "Assert.Equal() Failure: Strings differ\n           \u2193 (pos 0)\nExpected: \"signal\"\nActual:   \"terrain\"\n           \u2191 (pos 0)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.VintageNavTests.TheParallelBeaconAirwayCostsTwoThousandFeetForFourHundredMetres",
+      "messages": [
+        "RED 1 should be well above GREEN 1: 11100 vs 11100"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldContinuityTests.NowhereDoesTheGroundStopDead",
+      "messages": [
+        "the ground stops dead at (-3875, -4800): 207 m in 0.1 m (and in 2 square kilometre(s) in all)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.LakesAndRiverHaveWater",
+      "messages": [
+        "Assert.True() Failure\nExpected: True\nActual:   False"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.WallsAreSteepAndIrregular",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (559.60000000000002 - 659.60000000000002)\nActual: 480.1443691018078"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.WorldTerrainTests.AirportsSitOnFlatPadsAtTheirElevations",
+      "messages": [
+        "Assert.Equal() Failure: Values are not within 3 decimal places\nExpected: 4.2670000000000003 (rounded from 4.2671999999999999)\nActual:   386.17099999999999 (rounded from 386.17067192809475)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin",
+      "messages": [
+        "marker from (-3.5000, 1.2000, 1.6000) inside the airframe at t 0.112: (-4.0793, 0.1223, -0.1702)"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APilotTooFarAwayToSeeGetsASlowerRate",
+      "messages": [
+        "no free port in 48370..48373"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ChangingAeroplaneTellsTheRoom",
+      "messages": [
+        "no free port in 48390..48393"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.TwoPilotsFindEachOtherWithNoServerAtAll",
+      "messages": [
+        "no free port in 48310..48313"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APayloadComesThroughUntouchedWhateverIsInIt",
+      "messages": [
+        "no free port in 48320..48323"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ARoomOnlyHearsItself",
+      "messages": [
+        "no free port in 48350..48353"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.APilotWhoVanishesIsNoticedAndOneWhoLeavesGoesAtOnce",
+      "messages": [
+        "no free port in 48360..48363"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.OnePilotFoundIsTheWholeRoomFound",
+      "messages": [
+        "no free port in 48330..48333"
+      ]
+    },
+    {
+      "name": "FlightTests.LanMeshTests.ItSweepsWhileItIsAloneAndStopsWhenItIsNot",
+      "messages": [
+        "no free port in 48380..48383"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.ACentredGliderIsTowedRoundWithoutTouchingTheRock",
+      "messages": [
+        "the tow hit the rock on NaN (clearance 179769313486232000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0 m)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.TheTugTakesOffInsideTheTunnel",
+      "messages": [
+        "it hit the rock on NaN"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.MazeTowTests.TheGliderPilotCanAskForADifferentBranch",
+      "messages": [
+        "Index was out of range. Must be non-negative and less than the size of the collection. (Parameter 'index')"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.ThePeaksAreMountainsAndTheyCarrySnow",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (3017.6000000000004 - 3237.6000000000004)\nActual: 298.2456905192804"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.NoOutletValleyTakesTheTopOffAMountain",
+      "messages": [
+        "Thunder has lost 2777 m off the top"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheRangeStandsOnTheSummitPlateauAndLeavesEverythingElseAlone",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (2125.6000000000004 - 2141.6000000000004)\nActual: 3.1151869352861823"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheBowledLakesAreReallyEnclosed",
+      "messages": [
+        "Cirque: the rim is only -2794 m above the water at 0\u00b0 \u2014 that is a way in"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheOpenLakesHaveOneWayInAndItIsFlyable",
+      "messages": [
+        "Outlet: the far end is open too \u2014 it is a valley, not a lake in a basin"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.EveryLakeIsWaterYouCanFloatOn",
+      "messages": [
+        "Outlet: no water at 0.0 along it"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.AlpineRangeTests.TheExitsAreGradedFromNothingToAWallOfTimber",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (-6 - 6)\nActual: -1526.8200000000002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.IslandHasItsRunwayArchAvalonAndHarborOffshore",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (487.80000000000001 - 488.80000000000001)\nActual: 611.5748096813893"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.GoldenGateSpansTheMouth",
+      "messages": [
+        "water under the middle of the bridge"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.SeaCaveCanBeTaxiedIntoAndHasABeachAndASkylight",
+      "messages": [
+        "mouth wide enough for a Beaver (15 m span)"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.RiverReachesTheSeaAtSeaLevelThroughCliffs",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (301.80000000000001 - 334.80000000000001)\nActual: 1375.4938556324371"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.SeasideTests.CityStandsOnFlatDryGroundInsideTheCombatZone",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (301.80000000000001 - 312.80000000000001)\nActual: 1402.0800000000002"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol",
+      "messages": [
+        "great-lakes-like: StreamingAssets copy missing or different \u2014 copy configs/aircraft/great-lakes-like.json into unity/Assets/StreamingAssets/aircraft/"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.BrsTests.DeployedSlowItCostsAFewHundredFeet",
+      "messages": [
+        "Assert.InRange() Failure: Value not in range\nRange:  (150 - 800)\nActual: -6851.9903514938578"
+      ]
+    },
+    {
+      "name": "FlyingGame.FlightTests.BrsTests.PulledAtCruiseItZoomsBeforeItSinks",
+      "messages": [
+        "and 25 seconds later it should be well below where it started"
+      ]
+    }
+  ]
+}
