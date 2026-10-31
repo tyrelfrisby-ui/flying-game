@@ -19,6 +19,11 @@ namespace FlyingGame.Bridge
             // 60 everywhere — the sim steps at its own fixed rate, so this is smoothness only.
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = 60;
+            // A flight sim must never let the screen sleep. Hands-off at altitude an aeroplane needs no input for
+            // minutes at a time, and iOS auto-lock can be set as low as THIRTY SECONDS: the screen locks, the app is
+            // suspended, and what the pilot sees is a frozen picture with dead controls that comes back when he taps.
+            // Nothing in this project had ever set it, so every flight was on the device's auto-lock timer.
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
             // The Aero Widget build (owner 2026-10-07): no world, no game — two transparent scenarios for Glass Overlay.
             if (FlyingGame.Bridge.Widget.AeroWidget.IsWidget) { FlyingGame.Bridge.Widget.AeroWidget.Create(); return; }
             WorldBuilder.BuildAll();   // terrain (valley + 3 canyon steps), water, 4 airports, ridge lift
@@ -129,6 +134,11 @@ namespace FlyingGame.Bridge
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
             chase.SnapBehind();
+
+            // Says what the frame was doing when it stopped (Ty's Pitts freeze, 2026-10-31). One comparison a frame
+            // when nothing is wrong, so it stays in: a freeze nobody can reproduce on demand needs the evidence to
+            // already be being written when it happens.
+            cam.gameObject.AddComponent<FreezeWatch>().Driver = aircraft.GetComponent<FlightSimDriver>();
 
             var hud = cam.gameObject.AddComponent<FlightHud>();
             hud.Driver = aircraft.GetComponent<FlightSimDriver>();

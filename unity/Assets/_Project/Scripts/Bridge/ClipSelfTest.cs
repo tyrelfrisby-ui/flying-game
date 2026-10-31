@@ -32,6 +32,8 @@ namespace FlyingGame.Bridge
             if (mode == "menu") { yield return MenuLayoutTest(); yield break; }
             if (mode == "ui") { yield return UiLayoutTest(); yield break; }
             if (mode == "perf") { yield return PerfTest(); yield break; }
+            if (mode == "starts") { yield return StartsTest(); yield break; }
+            if (mode == "cruise") { yield return CruiseTest(); yield break; }
             if (mode == "skins") { yield return SkinsTest(); yield break; }
             if (mode == "flarecmp") { yield return FlareCompareTest(); yield break; }
             if (mode == "viewmenu")
@@ -95,10 +97,18 @@ namespace FlyingGame.Bridge
         /// time in phases — everything on; rolling clip capture off; air bubbles off; both off — 12 s each.</summary>
         private IEnumerator PerfTest()
         {
-            SessionSettings.ChallengeId = null; SessionSettings.AircraftId = "c172-like";
+            SessionSettings.ChallengeId = null;
+            // AERO_TYPE picks the aeroplane and AERO_START the start mode, so the same measurement can be pointed at
+            // the case that actually misbehaves (the Pitts in the aerobatic box) instead of only the 172 off a runway.
+            string wanted = System.Environment.GetEnvironmentVariable("AERO_TYPE");
+            SessionSettings.AircraftId = string.IsNullOrEmpty(wanted) ? "c172-like" : wanted;
+            string wantedStart = System.Environment.GetEnvironmentVariable("AERO_START");
+            if (!string.IsNullOrEmpty(wantedStart) && System.Enum.TryParse(wantedStart, out SessionSettings.Start ws))
+                SessionSettings.StartMode = ws;
             yield return new WaitForSecondsRealtime(2f);
             Menu.Fly();
             yield return new WaitForSecondsRealtime(5f);
+            Debug.Log($"[Perf] flying {SessionSettings.AircraftId} from {SessionSettings.StartMode}");
             Debug.Log($"[Perf] screen {Screen.width}x{Screen.height} dpi {Screen.dpi:F0} quality {QualitySettings.GetQualityLevel()} ({QualitySettings.names[QualitySettings.GetQualityLevel()]}) vSync {QualitySettings.vSyncCount} targetFps {Application.targetFrameRate} AA {QualitySettings.antiAliasing} shadows {QualitySettings.shadows}");
             // A minute second-by-second (owner 2026-10-04: "choppy at the beginning, smooth for about 30 s, then choppy
             // again"): fps, and the CPU main-thread and GPU frame times from FrameTimingManager.
@@ -134,6 +144,148 @@ namespace FlyingGame.Bridge
             }
             ClipRecorder.Suspended = false; SessionSettings.BubblesOn = true; SessionSettings.BubbleInstancing = true;
             Debug.Log("[Perf] DONE");
+        }
+
+        /// <summary>AERO_SELFTEST=starts (2026-10-31): every airport and every start mode, in turn — does the app reach a
+        /// normal view with working controls? For each one it reports the height above the ground the aeroplane spawned at,
+        /// where the camera ended up relative to it, how many Unity errors the frames threw, and how far the aeroplane
+        /// moves when the controls are pushed.
+        ///
+        /// It exists because the first island build opened, spawned, answered the menu and still could not be flown: the
+        /// start came from the four-airport runway template, which at PHDH was 785 m inside a hillside. An aeroplane under
+        /// the ground takes LandingGear.Compute to NaN, so FlightSimDriver.Update throws before it poses the transform —
+        /// the airframe never moves and the controls do nothing — and the chase camera, which may not go below ground,
+        /// climbs to the surface and looks down at it. Both of those are measured here, per start, on the device.</summary>
+        private IEnumerator StartsTest()
+        {
+            SessionSettings.ChallengeId = null;
+            // Two types, because one is not enough: the landplane exercises the runway starts and the floatplane the
+            // water ones, which are a different table and broke the same way. Ty found the float case by flying it
+            // when this sweep ran the 172 alone.
+            string[] types = { "c172-like", "j3-cub-floats-like" };
+            var driver = Object.FindAnyObjectByType<FlightSimDriver>();
+            var touch = Object.FindAnyObjectByType<TouchFlightControls>();
+            int errors = 0;
+            Application.LogCallback count = (c, t, ty) => { if (ty == LogType.Error || ty == LogType.Exception || ty == LogType.Assert) errors++; };
+            Application.logMessageReceived += count;
+            int bad = 0, n = 0;
+            var modes = new[] { SessionSettings.Start.OnTheRunway, SessionSettings.Start.OnFinal, SessionSettings.Start.InTheAir,
+                                SessionSettings.Start.InThermal, SessionSettings.Start.InAeroBox, SessionSettings.Start.InCombatZone };
+            yield return new WaitForSecondsRealtime(2f);
+            Debug.Log($"[Starts] {FlyingGame.Core.WorldTerrain.Airports.Length} airports x {modes.Length} modes x {types.Length} types");
+            foreach (string type in types)
+            for (int ai = 0; ai < FlyingGame.Core.WorldTerrain.Airports.Length; ai++)
+            {
+                foreach (SessionSettings.Start mode in modes)
+                {
+                    SessionSettings.AircraftId = type;
+                    SessionSettings.AirportIndex = ai;
+                    SessionSettings.StartMode = mode;
+                    string name = FlyingGame.Core.WorldTerrain.Airports[ai].Name;
+                    errors = 0;
+                    // Logged BEFORE the call, because a hang prints nothing after it: the last "->" line with no
+                    // result after it names exactly which start wedged, which a line printed afterwards cannot.
+                    Debug.Log($"[Starts] -> {type,-18} {name,-6} {mode}");
+                    string threw = null;
+                    double flyBegan = Time.realtimeSinceStartupAsDouble;
+                    try { Menu.Fly(); }
+                    catch (System.Exception ex) { threw = ex.GetType().Name + ": " + ex.Message; }
+                    double flyMs = (Time.realtimeSinceStartupAsDouble - flyBegan) * 1000.0;
+                    if (threw != null) { Debug.Log($"[Starts] {type,-18} {name,-6} {mode,-13} THREW {threw}"); bad++; n++; continue; }
+                    yield return new WaitForSecondsRealtime(1.5f);
+                    if (driver?.Sim?.Aircraft == null) { Debug.Log($"[Starts] {type,-18} {name,-6} {mode,-13} NO SIM"); bad++; n++; continue; }
+
+                    var st = driver.Sim.Aircraft.State;
+                    double ground = FlyingGame.Core.WorldTerrain.GroundHeightAt(st.Position.X, st.Position.Y);
+                    double agl = -st.Position.Z - ground;
+                    Vector3 plane = driver.transform.position;
+                    Vector3 cam = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+                    float dist = Vector3.Distance(cam, plane), above = cam.y - plane.y;
+
+                    // The controls: full throttle and a little back pressure for four seconds, with the touch pad out of
+                    // the way so nothing competes for the axis. Four, not two: a 172 starting from rest covers only
+                    // about 4 m in two, which is not enough to tell a moving aeroplane from a frozen one.
+                    Vector3 from = plane;
+                    bool wasOn = touch != null && touch.enabled;
+                    if (touch != null) touch.enabled = false;
+                    driver.Inputs = new FlyingGame.Sim.ControlInputs(0, -0.3, 0, -1);
+                    yield return new WaitForSecondsRealtime(4f);
+                    driver.Inputs = FlyingGame.Sim.ControlInputs.Neutral;
+                    if (touch != null) touch.enabled = wasOn;
+                    float moved = Vector3.Distance(driver.transform.position, from);
+
+                    bool okAgl = agl > -1.0;
+                    bool okView = dist < 400f && above < dist * 0.9f;
+                    bool okCtl = moved > 3f && errors == 0;
+                    if (!(okAgl && okView && okCtl)) bad++;
+                    n++;
+                    Debug.Log($"[Starts] {type,-18} {name,-6} {mode,-13} agl {agl,8:F1} m  camera {dist,6:F1} m away {above,7:F1} m above  moved {moved,7:F1} m in 4 s  Fly {flyMs,7:F0} ms  errors {errors,3}  {(okAgl && okView && okCtl ? "ok" : (okAgl ? "" : "BURIED ") + (okView ? "" : "VIEW ") + (okCtl ? "" : "CONTROLS"))}");
+                }
+            }
+            Application.logMessageReceived -= count;
+            SessionSettings.AircraftId = types[0];
+            SessionSettings.AirportIndex = FlyingGame.Core.WorldTerrain.DefaultAirportIndex;
+            SessionSettings.StartMode = SessionSettings.Start.OnTheRunway;
+            Debug.Log($"[Starts] DONE {n - bad}/{n} starts reach a normal view with working controls");
+        }
+
+        /// <summary>AERO_SELFTEST=cruise (Ty, 2026-10-31: "I was not underwater when it froze I was flying around at
+        /// ~3,000 ft"). Three minutes of ordinary flying at 3,000 ft in whatever AERO_TYPE says, with the stick
+        /// actually being moved — turns, pitch changes, and a spin entry at two minutes, because the screenshot of the
+        /// freeze showed alpha 61 degrees and 3.2 s a turn. Every second logs fps and CPU; FreezeWatch logs anything
+        /// over 300 ms with the counters. If it stops, the last line before the silence says where and on what.</summary>
+        private IEnumerator CruiseTest()
+        {
+            SessionSettings.ChallengeId = null;
+            string wanted = System.Environment.GetEnvironmentVariable("AERO_TYPE");
+            SessionSettings.AircraftId = string.IsNullOrEmpty(wanted) ? "pitts-s2b-like" : wanted;
+            SessionSettings.StartMode = SessionSettings.Start.InTheAir;
+            var driver = Object.FindAnyObjectByType<FlightSimDriver>();
+            var touch = Object.FindAnyObjectByType<TouchFlightControls>();
+            yield return new WaitForSecondsRealtime(2f);
+            Debug.Log($"[Cruise] flying {SessionSettings.AircraftId} at the InTheAir start");
+            Menu.Fly();
+            yield return new WaitForSecondsRealtime(3f);
+            if (touch != null) touch.enabled = false;
+            int errors = 0;
+            Application.LogCallback count = (c, t, ty) => { if (ty == LogType.Error || ty == LogType.Exception || ty == LogType.Assert) errors++; };
+            Application.logMessageReceived += count;
+            // Hold 3,000 ft, because that is the altitude Ty was at. Flown, not scripted: a scripted stick position
+            // put the first attempt in the sea twelve seconds after take-off, which measures nothing.
+            const double TargetAltM = 914.4;   // 3,000 ft
+            for (int sec = 0; sec < 180; sec++)
+            {
+                int fr = 0; float t1 = Time.realtimeSinceStartup;
+                while (Time.realtimeSinceStartup - t1 < 1f)
+                {
+                    var now = driver?.Sim?.Aircraft?.State;
+                    if (now != null)
+                    {
+                        // Altitude and wings held on simple proportional terms; the rate terms keep it from porpoising.
+                        double alt = -now.Value.Position.Z, climb = -now.Value.Attitude.Rotate(now.Value.Velocity).Z;
+                        double wantClimb = System.Math.Clamp((TargetAltM - alt) * 0.1, -8, 8);
+                        double elevator = System.Math.Clamp(-(wantClimb - climb) * 0.06, -0.8, 0.8);
+                        var q = now.Value.Attitude;
+                        double roll = System.Math.Atan2(2 * (q.W * q.X + q.Y * q.Z), 1 - 2 * (q.X * q.X + q.Y * q.Y));
+                        double wantRoll = sec < 120 ? 0.35 * System.Math.Sin(sec * 0.08) : 0.0;   // lazy turns
+                        double aileron = System.Math.Clamp((wantRoll - roll) * 0.9 - now.Value.Rates.X * 0.25, -0.8, 0.8);
+                        // At two minutes: full aft and full rudder, the spin his screenshot was in.
+                        if (sec >= 120) { elevator = -1.0; aileron = 0.0; }
+                        double rudder = sec >= 120 ? 1.0 : 0.0;
+                        driver.Inputs = new FlyingGame.Sim.ControlInputs(aileron, elevator, rudder, -0.7);
+                    }
+                    yield return null; fr++;
+                }
+                var st = driver?.Sim?.Aircraft?.State;
+                string where = st == null ? "NO SIM"
+                    : $"at ({st.Value.Position.X,8:F0},{st.Value.Position.Y,8:F0}) alt {-st.Value.Position.Z,7:F0} agl {-st.Value.Position.Z - FlyingGame.Core.WorldTerrain.GroundHeightAt(st.Value.Position.X, st.Value.Position.Y),7:F0} speed {st.Value.Velocity.Length,6:F1}";
+                if (sec % 5 == 0 || fr < 30)
+                    Debug.Log($"[Cruise] t={sec,3}s {fr,3} fps  {where}  errors {errors}  heap {System.GC.GetTotalMemory(false) / 1048576,4} MB");
+            }
+            Application.logMessageReceived -= count;
+            if (touch != null) touch.enabled = true;
+            driver.Inputs = FlyingGame.Sim.ControlInputs.Neutral;
+            Debug.Log("[Cruise] DONE");
         }
 
         /// <summary>AERO_SELFTEST=flarecmp (owner 2026-10-05: "the side view feels like it has a lot of lag … compare the physics"):

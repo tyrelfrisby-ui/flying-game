@@ -106,6 +106,10 @@ public sealed class ImpactRecorder
 public static class AirframeContact
 {
     public const double SpringNPerM = 150000.0, DampNsPerM = 9000.0, FrictionMu = 0.7;
+    /// <summary>What an airframe that cannot float meets when it ditches: a tenth of the ground's stiffness, so it
+    /// goes in rather than bouncing, and three times its damping, so it stops in a wingspan or two instead of
+    /// continuing to the bottom of the sea.</summary>
+    public const double WaterSpringNPerM = 15000.0, WaterDampNsPerM = 27000.0;
     /// <summary>A crushed airframe does not spring back: while a point is SEPARATING only this fraction of the stored
     /// spring force is returned (owner 2026-09-09: "it shouldn't bounce 100 ft in the air"). Restitution ≈ √0.08 ≈ 0.28
     /// before damping; the rest of the impact energy goes into the structure.</summary>
@@ -289,14 +293,14 @@ public static class AirframeContact
     /// Within that height — which is where landing, taxiing and every contact actually happen — every point is
     /// sampled exactly as before, so no contact behaviour changes.
     /// </summary>
-    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null)
+    public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false)
     {
         if (points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s))
         {
             foreach (ContactPoint p in points) p.Touching = false;
             return (Vec3.Zero, Vec3.Zero);
         }
-        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts);
+        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts, floatsCarryWater);
     }
 
     /// <summary>
@@ -304,7 +308,7 @@ public static class AirframeContact
     /// <see cref="Compute"/> did before the shortcut existed, and the regression test holds the two to the same
     /// answer at every altitude — a shortcut that ever skips a real contact is a worse bug than a slow frame.
     /// </summary>
-    public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null)
+    public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null, bool floatsCarryWater = false)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         foreach (ContactPoint p in points)
@@ -319,7 +323,15 @@ public static class AirframeContact
             double? waterH = FloatHydro.WaterSurfaceAt(w.X, w.Y, -w.Z);
             bool onWater = waterH.HasValue && waterH.Value >= groundH - 0.01;
             Vec3 normal = new(0, 0, -1);   // outward (NED up)
-            double depth = onWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-groundH);
+            // On water, a SEAPLANE's hull is FloatHydro's business and this must keep its hands off it. A wheeled
+            // aeroplane's is nobody's: every point over water used to return no force at all, so a landplane that
+            // ditched sank through the sea, through the bed under it, and went on falling for ever — which is what
+            // Ty saw as the Pitts "freezing" about thirty seconds into a flight out of the aerobatic box, the box
+            // being over the sea. Water now pushes back on an airframe that cannot float, at a tenth of the ground's
+            // stiffness and three times its damping: an arrival, not a trampoline, and not a runway either.
+            double depth = onWater
+                ? (floatsCarryWater ? -1.0 : (w.Z + surfaceOffsetZ) - (-waterH!.Value))
+                : (w.Z + surfaceOffsetZ) - (-groundH);
             // Solids (buildings etc.): whichever is deeper.
             var solid = WorldSolids.Penetration(w.X, w.Y, -w.Z);
             if (solid.HasValue && solid.Value.depth > depth) { normal = solid.Value.normalNed; depth = solid.Value.depth; }
@@ -336,9 +348,10 @@ public static class AirframeContact
                     broken.Add(p.Component);
                 }
             }
-            double spring = SpringNPerM * depth;
+            bool ditching = onWater && !floatsCarryWater;
+            double spring = (ditching ? WaterSpringNPerM : SpringNPerM) * depth;
             if (closing < 0.0) spring *= ReboundFraction;                        // crumpling, not a trampoline
-            double n = spring + DampNsPerM * System.Math.Max(0.0, closing);
+            double n = spring + (ditching ? WaterDampNsPerM : DampNsPerM) * System.Math.Max(0.0, closing);
             Vec3 f = normal * n;
             // Coulomb friction against the tangential velocity (regularised at low speed).
             Vec3 vt = vel - normal * Vec3.Dot(vel, normal);

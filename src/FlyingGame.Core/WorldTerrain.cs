@@ -422,7 +422,16 @@ public sealed class WorldTerrain
 
     /// <summary>The paved runway end to use: headwind = the end of any paved runway best aligned into the wind;
     /// crosswind = the other paved runway, its end with the lesser tailwind. Calm wind: main runway, north.</summary>
-    public static RunwayEnd ChooseRunway(Airport a, double windFromRad, bool headwind, double windSpeedMs = 1.0)
+    public static RunwayEnd ChooseRunway(Airport a, double windFromRad, bool headwind, double windSpeedMs = 1.0) =>
+        Active != null
+            ? IslandRunways.Choose(a, windFromRad, headwind, windSpeedMs)
+            : ChooseTemplateRunway(a, windFromRad, headwind, windSpeedMs);
+
+    /// <summary>The four-airport world's runway choice: the same strip template at every field. The island
+    /// world authors its runways one by one, so there <see cref="ChooseRunway"/> reads them through
+    /// <see cref="IslandRunways"/> instead; this remains the answer when no world is installed (the widget,
+    /// and the tests that run on flat ground).</summary>
+    public static RunwayEnd ChooseTemplateRunway(Airport a, double windFromRad, bool headwind, double windSpeedMs = 1.0)
     {
         var ends = new List<RunwayEnd>();
         foreach (Strip st in AirportStrips)

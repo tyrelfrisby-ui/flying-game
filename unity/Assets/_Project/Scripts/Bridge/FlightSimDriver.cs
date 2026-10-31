@@ -124,7 +124,14 @@ namespace FlyingGame.Bridge
             {
                 // Already circling in the field's best thermal: banked at the turning min-sink speed, trimmed, idle.
                 FlyingGame.Core.Thermal th = PickThermal(ap);
-                double baseAlt = -th.SurfaceCenter.Z;
+                // Above the ground that is under the COLUMN, not the ground at the airport. SoaringScenery still
+                // places its columns on the four-plateau pattern, so on the island a thermal can stand over a
+                // mesa 1,000 m above its field; starting 300 m over the field would then be 700 m inside it, and
+                // an aeroplane inside terrain takes LandingGear.Compute to NaN on its first step. Re-authoring the
+                // columns onto the world's own lift_terrain (S1-S7) is the weather pass; this makes the START safe
+                // whatever the layout.
+                double baseAlt = System.Math.Max(-th.SurfaceCenter.Z,
+                    FlyingGame.Core.WorldTerrain.GroundHeightAt(th.SurfaceCenter.X, th.SurfaceCenter.Y));
                 double alt = System.Math.Max(baseAlt + 300, baseAlt + 0.3 * (th.TopAltitudeM - baseAlt));
                 ThermalSpawn.Plan plan = ThermalSpawn.Compute(config, th, alt);
                 TrimStick = Aircraft.StickForDeflection(plan.ElevatorRad, config.Controls.Elevator);
@@ -154,8 +161,7 @@ namespace FlyingGame.Bridge
             {
                 // Floatplane on final: to the field's lake, 300 ft over the water, idle, best glide (owner 2026-09-14).
                 // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.
-                FlyingGame.Core.WorldTerrain.Lake lake = config.Floats.Count == 1 ? FlyingGame.Core.WorldTerrain.Harbor
-                    : FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 2)];
+                FlyingGame.Core.WorldTerrain.Lake lake = StartWater(config, ap);
                 var (fState, glide, _) = ApproachSpawn.ComputeToLake(config, lake);
                 TrimStick = Aircraft.StickForDeflection(glide.ElevatorRad, config.Controls.Elevator);
                 Sim = new SimLoop(new Aircraft(config, fState, new ControlDeflections(0, glide.ElevatorRad, 0, glide.SpoilerFraction)));
@@ -167,8 +173,7 @@ namespace FlyingGame.Bridge
             {
                 // Floatplane: "on the runway" means on the water — at rest on the field's lake, heading north.
                 // Flying boats (a hull: floats count 1) use the big harbor; floatplanes the field's own lake.
-                FlyingGame.Core.WorldTerrain.Lake lake = config.Floats.Count == 1 ? FlyingGame.Core.WorldTerrain.Harbor
-                    : FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 2)];
+                FlyingGame.Core.WorldTerrain.Lake lake = StartWater(config, ap);
                 // CG above the water: keel depth below the CG less a resting draft (Cub floats 1.55 → 1.3 m; the H-4 hull ~5.8 m).
                 var wpos = new Vec3(lake.Cx - lake.Rx * (config.Floats.Count == 1 ? 0.85 : 0.5), lake.Cy, -(lake.SurfaceM + config.Floats.KeelZ - 0.25));
                 var wstate = new RigidBodyState(wpos, new Quat(0, 0, 0, 1), Vec3.Zero, Vec3.Zero);
@@ -183,7 +188,13 @@ namespace FlyingGame.Bridge
                 // wheels (three-point stance for a taildragger — spawned level, the tail dropped and broke off).
                 var rw = SessionSettings.ChosenRunway();   // headwind or crosswind runway, lined up on its heading
                 (double sx, double sy) = rw.Start;
-                RigidBodyState state = FlyingGame.Core.LandingGear.RestingState(config, sx, sy, ap.ElevationM, rw.HeadingRad);
+                // Sit on the ground that is actually there. A field-wide elevation is a metre or two out on a
+                // sloping strip (3U2 is 0.5 %, Cabin Creek 3 %) and was hundreds of metres out while the runway
+                // itself came from a template instead of the world: an aeroplane spawned inside terrain takes
+                // LandingGear.Compute to NaN on its first step, which is a dead aeroplane and a lost camera.
+                double padElev = FlyingGame.Core.WorldTerrain.Active != null
+                    ? FlyingGame.Core.WorldTerrain.GroundHeightAt(sx, sy) : ap.ElevationM;
+                RigidBodyState state = FlyingGame.Core.LandingGear.RestingState(config, sx, sy, padElev, rw.HeadingRad);
                 TrimStick = 0.0;
                 Sim = new SimLoop(new Aircraft(config, state, ControlDeflections.Neutral));
                 ApplyFixedSlats(config);
@@ -194,6 +205,13 @@ namespace FlyingGame.Bridge
             // Event starts: the race begins 800 m short of gate 1 at 60 m AGL heading through it; the STOL
             // contest begins on a 1.2 km final for the gravel strip at 90 m AGL.
             double spawnAlt = ap.ElevationM + SpawnAltitudeM, spawnX = ap.X - 600, spawnY = ap.Y, spawnHdg = 0.0;
+            // The world authors a start for each mode (IslandSites.Starts): position, true heading and the
+            // altitude it means, over the ground it means. Consume it rather than deriving one — a derived
+            // start has no way to know that the ground 600 m off the end of KMEV's runway is 1,100 m lower.
+            FlyingGame.Core.IslandSites.Start? authored = FlyingGame.Core.WorldTerrain.Active == null ? null
+                : SessionSettings.StartMode == SessionSettings.Start.InTheAir
+                    ? FlyingGame.Core.IslandRunways.Authored(ap.Name, "InTheAir")
+                    : FlyingGame.Core.IslandRunways.AuthoredNearest(SessionSettings.StartMode.ToString(), ap.X, ap.Y);
             string ch = SessionSettings.StartMode == SessionSettings.Start.InCombatZone ? "event:combat" : SessionSettings.ChallengeId;   // same start as the combat event
             if (dogfight)
             {
@@ -236,6 +254,13 @@ namespace FlyingGame.Bridge
                 spawnX = ap.X + dirt.Dx - dirt.Length / 2 - 1200; spawnY = ap.Y + dirt.Dy;
                 spawnAlt = ap.ElevationM + 90;
             }
+            // Free flight: the world's authored start wins. An EVENT (race, crop dust, STOL, dogfight) keeps its
+            // own start, because the event defines where it begins.
+            if (!dogfight && authored.HasValue && string.IsNullOrEmpty(SessionSettings.ChallengeId))
+            {
+                spawnX = authored.Value.X; spawnY = authored.Value.Y; spawnAlt = authored.Value.AltitudeM;
+                spawnHdg = authored.Value.HeadingTrueDeg * System.Math.PI / 180;
+            }
             TrimSolver.Result trim = TrimSolver.SolveGliderTrim(config, SpawnIasMs, spawnAlt);
             TrimStick = trim.Converged ? Aircraft.StickForDeflection(trim.ElevatorRad, config.Controls.Elevator) : 0.0;
             if (!trim.Converged)
@@ -270,6 +295,26 @@ namespace FlyingGame.Bridge
         public void ShowReplayPose(Vec3 windWorld) => ApplyStateToTransform(windWorld);
 
         /// <summary>The strongest thermal within 1.5 km of the airport (else the nearest one).</summary>
+        /// <summary>The water a seaplane starts from. `WorldTerrain.Lakes` is the four-airport world's water the way
+        /// `AirportStrips` was its land — one lake 3 km south-west of every field at the field's elevation less 2 m —
+        /// and on the island that is a hillside: at PHDH it sits at 2.3 m where the ground is 450 m and there is no
+        /// water at all, so the Cub on floats was spawned 448 m inside a hill, went to NaN on its first step and
+        /// froze with its controls dead. The island authors its own water; this asks it for the nearest piece at
+        /// roughly the field's own height that is long enough for the hull, and keeps the old table for the widget
+        /// and anywhere no world is installed.</summary>
+        private static FlyingGame.Core.WorldTerrain.Lake StartWater(FlyingGame.Core.DataContracts.AircraftConfig config,
+                                                                   FlyingGame.Core.WorldTerrain.Airport ap)
+        {
+            bool hull = config.Floats.Count == 1;   // a flying boat: one hull, and it needs about 2.2 km of water
+            if (FlyingGame.Core.WorldTerrain.Active != null)
+            {
+                FlyingGame.Core.WorldTerrain.Lake? w = FlyingGame.Core.IslandRunways.Water(ap, hull ? 2200 : 600);
+                if (w.HasValue) return w.Value;
+            }
+            return hull ? FlyingGame.Core.WorldTerrain.Harbor
+                : FlyingGame.Core.WorldTerrain.Lakes[Mathf.Clamp(SessionSettings.AirportIndex, 0, FlyingGame.Core.WorldTerrain.Lakes.Length - 2)];
+        }
+
         private static FlyingGame.Core.Thermal PickThermal(FlyingGame.Core.WorldTerrain.Airport ap)
         {
             FlyingGame.Core.Thermal best = null, nearest = null; double bestW = -1, nearD = double.MaxValue;

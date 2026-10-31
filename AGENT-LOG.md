@@ -2,6 +2,107 @@
 - **START (Claude, 2026-10-30): lane/claude-island-nav off 1fe347d for Phase 2 IFR + weather.** Gate confirmed read-only in `~/Developer/flying-game-worktrees/codex-island-world/AGENT-LOG.md` line 753, copied here verbatim and not moved or edited:
   `[Ty] G1 APPROVED 2026-10-30 22:11 PDT: island world built (1fe347d), APPROVED by Ty for Claude IFR + weather`
   That worktree was left exactly as found: its modified AGENT-LOG and ProjectSettings, and its untracked `build/ios.log` and StreamingAssets aircraft mirrors, are Ty's and the build's and were read only.
+- **WHY IT OPENED AND STILL WOULD NOT FLY: the view and the controls were one bug, and it was neither (Claude, 2026-10-31). FIXED.** Codex's `e2f4fd6` made the world affordable (70.4 -> 0.78 us a sample) and Ty installed it at 05:40 PDT: it plays. It then showed two faults — the camera far away with the aeroplane a tiny speck below it, and controls that did nothing. **One cause, and it is not the camera rig and not the input binding.** `WorldTerrain.Airports` reads the island's eight airports, but `WorldTerrain.AirportStrips` was still the four-airport world's template — one 2,400 m runway along +x at every field, with a crosswind runway along +y — and `ChooseRunway` was applying it to the island's airport centres. Every start therefore sat 1,570 m off the field on a heading of 000, on ground that has nothing to do with the pad:
+
+  | field | template start | island ground there | field elevation | out by |
+  |---|---|---|---|---|
+  | PHDH | (4330, 4990) | 789.1 m | 4.3 m | **785 m underground** |
+  | PATK | (3420, -6340) | 906.8 m | 111.3 m | **795 m underground** |
+  | 3U2 | (-2330, 1820) | 1363.7 m | 1511.8 m | 148 m in the air |
+  | KMYL | (1210, -880) | 394.6 m | 1531.3 m | **1,137 m in the air** |
+  | KMEV | (-3300, -3020) | 1402.1 m | 1439.9 m | 38 m in the air |
+  | PANC / KPGA / KSNA | — | — | — | 30 m, 24 m up; KSNA 7 m under |
+
+  PHDH is `DefaultAirportIndex`, so the FLY button's own default start was 785 m inside a hillside. **An aeroplane under the ground reaches `Math.Sign(NaN)` in `LandingGear.Compute` (LandingGear.cs:428) and throws `ArithmeticException` on its FIRST step** — reproduced in a probe, stack trace and all. `FlightSimDriver.Update` has no catch, so `ApplyStateToTransform()` never runs: the airframe never moves and nothing the pilot does reaches the sim. Meanwhile `ChaseCamera.KeepAboveSurface` — which by owner rule may never go below the ground — lifts the camera to 790 m every frame and re-aims it down at an aeroplane 785 m below. **That is the wrong view and the dead controls, both of them, from the one spawn.** Ty's `AERO_SELFTEST=perf` run was clean because the perf test flies and never sat on that runway.
+  **The fix, consuming Codex's geometry and changing none of it.** New `src/FlyingGame.Core/IslandRunways.cs` (mine) serves the island's own runways as the `RunwayEnd` the spawn, tow, approach and practice paths already speak, read straight from `IslandField` — real centre, real true heading, real length, real surface, real slope — and chooses an end by headwind for arbitrary true headings, the crosswind choice being a runway on a genuinely different axis (KMEV 17/35 vs 13/31) rather than the other end of the same one (KSNA 2L and 2R are parallel and are not a crosswind choice). `WorldTerrain.ChooseRunway` delegates to it when a world is installed and keeps the old template as `ChooseTemplateRunway` for the widget and the flat-ground tests — that is the only edit to `WorldTerrain.cs`, three lines and a comment, and no airport, runway, pad or elevation was touched. `FlightSimDriver.Spawn` now takes its pad elevation from the ground at the start point rather than a field-wide figure (3U2 slopes 0.5 %, Cabin Creek 3 %), and in free flight takes its airborne start from `IslandSites.Starts` — the world's own authored position, true heading and altitude — instead of deriving one, because a derived start has no way to know the ground 600 m off KMEV's runway is 1,100 m lower. Events keep their own starts.
+  **What says it works.** `TheRunwayChoiceAgreesWithTheStartTheWorldAuthored`: in calm air the end my chooser picks matches Codex's authored `OnTheRunway` start **to 0.1 m and 0.1 degrees at all eight airports** — the world and the sim now agree about where a flight begins, which is the real proof that this reads the island rather than guessing at it. `EveryAirportStartsOnItsOwnRunway` holds the start on a runway of that field, on ground within 1 m of the strip's own plane, across 8 wind directions x headwind/crosswind x calm/breeze. `NoStartPutsAnAeroplaneInsideTheGround` holds the 172 and the Cub on their wheels (CG 0.2-6 m above the pad) and both the on-final and airborne starts clear. `TheControlsMoveTheAeroplaneAtEveryStart` is the direct regression for the dead controls: full throttle for 15 s rolls the 172 **220-260 m and reaches 28-30 m/s at every one of the eight airports**, and asserts no NaN. New `AERO_SELFTEST=starts` walks all eight airports x six start modes on the device and reports, per start, the height above ground, where the camera ended up relative to the aeroplane, Unity errors thrown, and how far the aeroplane moves when the controls are pushed.
+- **THE SAME BUG AGAIN, IN THE WATER (Claude, 2026-10-31). FIXED.** Ty flew the first fixed build and the J-3 on
+  floats launched frozen: 12 ft, 10 kt, alpha 180, beta +90, nothing on the pads moving it. Those are not flight
+  values, they are the spawn, frozen — and every one of them is arithmetic. `WorldTerrain.Lakes` is the
+  four-airport world's water the way `AirportStrips` was its land: one lake 3 km south-west of every field at the
+  field's elevation less 2 m. On the island, PHDH's is at 2.3 m where the ground is **450.1 m and there is no
+  water at all**; PATK's is 798 m under; KMYL's 254 m under; and the flying boats' HARBOR stands **1,529 m up a
+  mountain**. Only PANC and KSNA land on open sea, by accident. 12 ft is PHDH's phantom lake surface (2.3 m) plus
+  the Cub's float keel (1.55) less its resting draft (0.25); 10 kt is the 5 m/s session wind; beta 90 is that
+  wind from the east on an aeroplane heading north; alpha 180 is what is left when there is no forward airspeed
+  at all. The state never advanced because the first step went to NaN, 448 m inside a hill.
+  **Fixed** by asking the island for its own water (`IslandRunways.Water`): the nearest piece at roughly the
+  field's own height that is long enough for the hull. It now picks what a pilot would — PANC gets **Lake Hood**
+  1.3 km away, KMYL **Payette Lake** 1.2 km (McCall really is on it), KPGA **Lake Powell**, PATK the AP8 float
+  pond, and the coastal fields the sea 2 km out. Nearest-by-distance alone was not enough: it sent PHDH's Cub,
+  which lives at 4 m by the sea, to an alpine tarn 2,030 m up a mountain because it was 3 km closer, so the
+  choice weights every metre of climb as ten metres of travel. Flying boats need 2.2 km and no authored lake has
+  it, so the H-4 goes to sea, found by walking outward from the field until there is a clear run — not by me
+  inventing a harbour, because the coast is Codex's. `EverySeaplaneStartsOnWaterDeepEnoughToFloat` holds it for
+  the J-3, PA-18 and Beaver on floats and the H-4, at all eight fields: water present, bed below it, long enough,
+  and the resting spawn above the bed.
+  **The device sweep had been running the 172 alone, which is exactly how this got past me.** It now sweeps a
+  floatplane too (96 starts, not 48), and it survives a start that throws instead of dying on the first one — the
+  thing built to find bad starts was being stopped by the first bad start.
+- **WHAT THE PITTS "FREEZE" ACTUALLY IS: low-altitude flight costs 13 fps, and the water query is why (Claude,
+  2026-10-31). NOT FIXED — the expensive part is Codex's, handed off below.** Ty: "I was not underwater when it
+  froze I was flying around at ~3,000 ft." He was right and my first answer was wrong. Reproduced on the iPad
+  with `AERO_SELFTEST=cruise`, a Pitts holding altitude for three minutes:
+  `t=0s 61 fps agl 412` ... `t=30s **13 fps** agl 10` ... `t=36s **13 fps** agl 19` ... `t=42s 17 fps agl 1`.
+  **At 412 m above the ground it runs at 61 fps; at 10-20 m above the ground it runs at 13.** Nothing else
+  changed — same aeroplane, same flight, no errors, heap flat at 33-36 MB. And note what "3,000 ft" means on this
+  island: the inland fields are at 1,500 m (4,900 ft), so 3,000 ft on the altimeter over the plateau is BELOW the
+  terrain tops, in a valley, at low AGL. His cruise was a low-level cruise whether or not he meant it to be.
+  Measured per query, on this machine: `GroundHeightAt` **3.6-4.2 us** (Codex's index, working), but
+  `FloatHydro.WaterSurfaceAt` **7.5 us over the sea and 14.4 us at KSNA**, and `WheelGroundHeightAt` 4.4-9.6 us.
+  The contact solver asks for all of them for every contact point at every RK4 stage: 15 points x 4 stages x
+  200 Hz is 12,000 of each per second of flight, and the altitude gate I added only closes above 60 m AGL, which
+  is exactly where the frame rate is fine anyway. Below it, the water query alone is 90-170 ms of CPU per second.
+- **[Claude -> codex] HANDOFF: `IslandTerrain.WaterAt` never got the treatment `HeightKm` did, and it is now the
+  most expensive thing in low-level flight** (src/FlyingGame.Core/IslandTerrain.cs:75). Every call walks the whole
+  world again: `World["water"]` by dictionary lookup and an `EllipseRadius` per body, then every entry of `Fields`
+  by `Contains`, then — on dry land above sea level, which is most of the island — `IslandWater.StreamAt`, which
+  walks **every canyon with a full `Path()` polyline distance** and then every field a second time. Measured
+  **7.5 us over the sea, 14.4 us at KSNA**, against **3.6-4.2 us** for the indexed `GroundHeightAt` beside it.
+  **Needs:** the same bounded-cost treatment as the height field — a spatial index so a sample only visits the
+  water bodies, fields and canyons whose footprints contain it, with an early-out for the common case of dry land
+  nowhere near a stream. Target the same order as the height query. For scale: at 14 us a Pitts flying 10-20 m
+  above the ground runs at **13 fps on an iPad mini**; the same flight 400 m up runs at 61. I have not touched any
+  world file or the water geometry.
+- **Mine to weigh after that, and NOT done:** the contact solver asks the ground and the water for every point at
+  every one of RK4's four stages, though the aeroplane moves less than 0.2 m between them. A per-step memo would
+  cut both query counts fourfold for a bounded error, and is worth doing whatever Codex's index costs — but it
+  changes forces within a step, so it wants the same 180-state proof the altitude gate got, not a quick patch.
+- **`Screen.sleepTimeout` was never set, anywhere in the project (Claude, 2026-10-31). FIXED.** Every flight ran on
+  the device's own auto-lock timer, so hands-off at altitude — which is most of a cross-country — the screen locks,
+  the app suspends, and what the pilot sees is a frozen picture with dead controls that comes back when he taps.
+  Now `SleepTimeout.NeverSleep` in `SceneBootstrap`. **I offered this to Ty as the explanation of his freeze and
+  then withdrew it**: the 60-second perf run completed fine on the same device, which a 30-second auto-lock would
+  have cut off, so the dropped console sessions were the link, not the screen. It is the right setting regardless
+  and may still be what his iPhone was doing; the measured 13 fps above is the explanation I stand behind.
+- **STILL OPEN, mine: 3.5 seconds of locked frame on every FLY.** `[Freeze] SLOW FRAME 3,508 ms` every single
+  launch, while the forest streamer builds its first ~100 chunks with nothing budgeting that first batch. Felt on
+  every flight, every time.
+- **STILL OPEN, mine: an aeroplane at rest on water runs at 8-35 fps** where one at rest on a runway runs at 60.
+  Same cause as the low-level cost above: every point is in contact, and every point pays the water query.
+- **(SUPERSEDED by the entry above, kept for the ruling-out it records) The Pitts "freeze" (Ty, 2026-10-31).** Not the same bug and
+  not the simulation. Ruled out by measurement, not by reading: the island height field has **no non-finite value
+  anywhere** (40,401 samples on a 200 m grid across the full 20 km ring); a Pitts driven into terrain at 90 ft/s
+  at eight places — KSNA, mid-island, Drake, KMYL, 3U2's slope, Powell canyon, the sea and the PHDH hill —
+  survives all eight with no NaN and no exception; and **sixty seconds of island flight is clean in the sim** for
+  both the Pitts and the 172, worst single sim-second 288 ms of CPU on this machine. Ty's screenshot shows
+  ordinary flight values at the moment it stopped (54 kt, alpha 61.4, 90 ft/s down, mid-spin, descending toward
+  terrain), which is consistent with the frame stopping rather than the aeroplane. So it is above the sim.
+  New `FreezeWatch` (always on, one float comparison a frame) prints a line for every frame over 300 ms and a
+  heartbeat every 5 s, carrying where the aeroplane is, the camera's height above ground, the forest streamer's
+  live/queued/worst, the bubble count and the managed heap — so a freeze that cannot be reproduced on demand
+  leaves evidence instead of silence. `AERO_SELFTEST=perf` now takes `AERO_TYPE` and `AERO_START`, so the
+  measurement can be pointed at the Pitts in the box instead of only the 172 off a runway.
+- **Test baseline on this lane: 102 failures at the merge commit, 102 with all of this work — my changes added
+  none.** They are the four-airport world's geography (Alaska 10, RegionalAtmosphere 9, NavProcedure 8,
+  AlpineRange 7, WaterfallTunnel 6, Seaside 5, Navigation 5, HighDesert 5, PlateauCopy 5, FrankChurch 4 ...),
+  which the island replaced. Note for my own Phase 2: 9 of them are RegionalAtmosphere and 13 are
+  NavProcedure/Navigation, so the weather and IFR passes own them.
+- **This lane still has the StreamingAssets trap.** `git check-ignore` returns nothing for
+  `unity/Assets/StreamingAssets/aircraft/*` or `build/ios.log`, so the generated mirror and the build log appear
+  as ordinary untracked files after every build. The .gitignore fix is on another branch. Stage explicit paths
+  only on this lane; never `git add -A`, and never force-add.
+- **[Claude -> codex] HANDOFF: the S3 thermal start and its lift centre are 1,200 m apart.** `starts[id=S3].centre` is (E 4.5, N -4.6) km while `lift_terrain[id=S3].centre` is (E 5.7, N -4.6) km. Codex's decision of 2026-10-31 is to keep the lift centre and move the start; both live in the world data, so the move is Codex's. Nothing is broken by it today — the start is 457 m above good ground — it simply does not begin in the lift it is named for, so a thermal start there is a glide. `TheOnlyThermalStartAwayFromItsLiftIsS3` holds the line meanwhile: it passes with this one mismatch, passes once the start moves, and fails if a second one appears.
 - **THE APP OPENS AND DOES NOT PLAY — root cause confirmed and quantified, and it is NOT fully fixable in my lane (Claude, 2026-10-30).** It is neither a crash nor a hang nor a config failure. Build 2026.1030.2201 on Ty's iPad mini, launched through `devicectl --console` with `AERO_SELFTEST=perf`, which drives the menu's own FLY path: `StartMenu:Fly()` ran, the aeroplane spawned, the simulation ran and kept running. It ran at **5 fps, with 220–235 ms of CPU main-thread time per frame against 4–5 ms of GPU**. No exception, no NaN, no watchdog kill, GPU idle. The aeroplane flies; it flies far too slowly to fly.
   **Why, measured on this machine, one aeroplane and no AI traffic:**
   - `AirframeContact.Compute` cost **1,488 us per call** — 99 us for each of the 172's 15 contact points — against **37 us for the entire aerodynamic pass**. Contact, not aero, not graphics.

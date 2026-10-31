@@ -809,7 +809,8 @@ public sealed class Aircraft
             }
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
-                (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts);
+                (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts,
+                    floatsCarryWater: Config.Floats is not null);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
             }
