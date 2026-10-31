@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -11,8 +12,19 @@ namespace FlyingGame.FlightTests;
 /// <summary>Owner 2026-09-12: a real castoring tailwheel — soft steering springs, ground force through a trail, breakout
 /// to free swivel, small contact patch, load = whatever the tail spring carries.</summary>
 [Collection("WorldTerrainActive")]
-public class TailwheelTests
+public class TailwheelTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private readonly ITestOutputHelper _out;
     public TailwheelTests(ITestOutputHelper o) { _out = o; }
     private static AircraftConfig Cub() => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));

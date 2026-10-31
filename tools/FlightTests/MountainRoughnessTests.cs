@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
@@ -14,8 +15,19 @@ namespace FlyingGame.FlightTests;
 /// airport is still exactly calm.
 /// </summary>
 [Collection("WorldTerrainActive")]
-public class MountainRoughnessTests
+public class MountainRoughnessTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private readonly ITestOutputHelper _out;
     public MountainRoughnessTests(ITestOutputHelper output) => _out = output;
 

@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -9,8 +10,19 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Soaring energy (owner-directed hill + thermals): a thermal core makes rising air that
 /// beats the glider's sink so it climbs when centered; ridge lift rises on the windward slope.</summary>
-public class SoaringTests
+public class SoaringTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private static Aircraft Glider(double x, double y, double alt, double v)
     {
         var c = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "glider-2-33-like.json"));

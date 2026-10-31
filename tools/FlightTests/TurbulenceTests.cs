@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -10,8 +11,19 @@ namespace FlyingGame.FlightTests;
 /// <summary>Turbulence realism pins: correct RMS intensity, zero mean, divergence-free, bounded
 /// aircraft response (buffets but doesn't blow up in moderate turbulence).</summary>
 [Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
-public class TurbulenceTests
+public class TurbulenceTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     [Fact]
     public void RmsMatchesIntensityAndMeanIsZero()
     {

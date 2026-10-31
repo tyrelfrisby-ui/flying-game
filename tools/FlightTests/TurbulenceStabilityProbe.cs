@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -19,8 +20,19 @@ namespace FlyingGame.FlightTests;
 /// dihedral and geometry. This asks how far it reaches — which types, and how badly.
 /// </summary>
 [Collection("WorldTerrainActive")]   // writes the global Atmosphere
-public class TurbulenceStabilityProbe
+public class TurbulenceStabilityProbe : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private readonly ITestOutputHelper _out;
     public TurbulenceStabilityProbe(ITestOutputHelper o) { _out = o; }
 

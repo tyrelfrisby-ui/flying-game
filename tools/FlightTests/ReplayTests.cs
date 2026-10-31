@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
@@ -13,8 +14,19 @@ namespace FlyingGame.FlightTests;
 /// samples, keep only the newest window, and leaving a replay must resume the live flight exactly where it was.
 /// </summary>
 [Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
-public class ReplayTests
+public class ReplayTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private static (Aircraft ac, SimLoop sim, ControlInputs hold) Cub()
     {
         AircraftConfig cfg = AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));

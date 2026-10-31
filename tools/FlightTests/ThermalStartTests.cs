@@ -1,3 +1,4 @@
+using System;
 using FlyingGame.Core;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
@@ -13,8 +14,19 @@ namespace FlyingGame.FlightTests;
 /// climbing, in still air AND in the default 5 m/s easterly (the plume leans with the wind, Thermal.CoreAt).
 /// </summary>
 [Collection("WorldTerrainActive")]   // writes/reads the global Atmosphere (wind, turbulence): not in parallel with others that do
-public class ThermalStartTests
+public class ThermalStartTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private readonly ITestOutputHelper _out;
     public ThermalStartTests(ITestOutputHelper o) { _out = o; }
 

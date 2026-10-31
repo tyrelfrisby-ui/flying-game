@@ -13,8 +13,19 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Crosswind / flare / approach practice (owner 2026-09-15): the game flies every axis but the user's.</summary>
 [Collection("WorldTerrainActive")]
-public class PracticeScenarioTests
+public class PracticeScenarioTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. Atmosphere.SteadyWind / ActiveTurbulence /
+    /// Field are global: a class that sets the weather and resets it only at the end of a test method leaves
+    /// that weather blowing through every test that runs after it when the test throws. That is what put the
+    /// whole fleet into a stall in SpawnSpeedTests while all 34 passed in isolation.</summary>
+    public void Dispose()
+    {
+        Atmosphere.SteadyWind = FlyingGame.Core.MathTypes.Vec3.Zero;
+        Atmosphere.ActiveTurbulence = null;
+        Atmosphere.Field = null;
+    }
+
     private readonly ITestOutputHelper _out;
     private bool Trace;
     public PracticeScenarioTests(ITestOutputHelper o) { _out = o; }
