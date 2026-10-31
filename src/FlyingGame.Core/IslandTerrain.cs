@@ -67,6 +67,27 @@ public static partial class IslandTerrain
         int index=(int)(hash&16383);var found=cache[index];if(found.Used&&found.E==e&&found.N==n)return found.Height;
         double h=Evaluate(p);cache[index]=new HeightCacheEntry{E=e,N=n,Height=h,Used=true};return h;
     }
+    /// <summary>Height and analytic branch derivatives (metres per sim metre), evaluated together.
+    /// Generated from IslandHeightIndex; no displaced samples. At creases/ties the evaluator's
+    /// first selected branch wins. At a true jump only that surface's derivative is defined.</summary>
+    public static double HeightAndGradientAt(double x,double y,out double dhdx,out double dhdy)
+    {
+        var h=IslandGradientIndex.Evaluate(TerrainJetPoint.Variable(new IslandPoint(y/1000,x/1000)));
+        dhdx=h.N/1000; dhdy=h.E/1000; return h.Value;
+    }
+    /// <summary>Outward unit normal in NED for HeightAt's surface, including the roof above cavities.</summary>
+    public static MathTypes.Vec3 GroundNormalAt(double x,double y)
+    {
+        HeightAndGradientAt(x,y,out double dx,out double dy);
+        if(dx==0&&dy==0) return new MathTypes.Vec3(0,0,-1);
+        return new MathTypes.Vec3(-dx,-dy,-1).Normalized();
+    }
+    /// <summary>Whether the local slope magnitude exceeds the supplied nonnegative tangent.</summary>
+    public static bool IsWallAt(double x,double y,double slopeTangent)
+    {
+        HeightAndGradientAt(x,y,out double dx,out double dy);
+        return dx*dx+dy*dy>slopeTangent*slopeTangent;
+    }
     public static string HeightIndexWorkBounds => IslandHeightIndex.WorkBounds;
     /// <summary>Uncached continuous query; useful for fresh-sample performance and parity checks.</summary>
     public static double Evaluate(IslandPoint p) => IslandHeightIndex.Evaluate(p);
@@ -76,12 +97,9 @@ public static partial class IslandTerrain
     {
         if (!double.IsNaN(up) && IslandCavities.TryFloor(x, y, up, out _)) return null;
         var p = new IslandPoint(y / 1000, x / 1000);
-        foreach (var q in World["water"].Items) if (EllipseRadius(p, q) <= 1) return q.N("elevation_ft") * Feet;
-        foreach (var f in Fields) if (f.Surface == "water" && f.Contains(p)) return f.Elevation;
-        double ground = HeightKm(p);
-        if (ground < 0) return 0;
-        return IslandWater.StreamAt(p) ? ground + .15 : (double?)null;
+        return IslandWater.WaterAt(p);
     }
+    public static string WaterIndexWorkBounds => IslandWater.WorkBounds;
     public static WorldTerrain.Surface SurfaceAt(double x, double y)
     {
         var p = new IslandPoint(y / 1000, x / 1000);

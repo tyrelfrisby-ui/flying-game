@@ -1,6 +1,7 @@
 # Agent log — codex/own-ea300
 
 ## NEEDS YOU
+- **Water/analytic-normal query and terrain normal (Codex, 2026-10-31): built and committed; iPhone install not confirmed.** All eight targeted tests pass (344,990 bitwise water comparisons, 168,926 bitwise height/gradient comparisons, zero hot allocations). `tools/deploy/deploy.sh`, run outside the Codex sandbox at 11:24 PDT, reached **`** BUILD SUCCEEDED **`** for build 2026.1031.1125; installed and launched on Ty's iPad mini at 11:29 AM PDT. The iPhone install started at 11:29 but did not report a result and the phone then showed unavailable, so **re-run deploy.sh for the iPhone when it is reachable**. No gate is approved. [Evidence](docs/pending/island-water-normal-checks.json). Claude's lane is untouched; the normal API is ready for Claude.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -41,6 +42,58 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-31 — Codex · lane/codex-island-world · indexed water and analytic terrain normal
+
+**Status: implementation validated; `** BUILD SUCCEEDED **` (build 2026.1031.1125); committed locally. No gate approved.**
+Inside the Codex sandbox, deploy.sh could not run Unity (Package Manager `listen EPERM` on `/tmp/Unity-Upm-51954.sock`),
+so the build was run outside the sandbox on 2026-10-31: `tools/deploy/deploy.sh` exported at 11:24-11:26 PDT, xcodebuild
+reported `** BUILD SUCCEEDED **`, and the app installed and launched on Ty's iPad mini at 11:29 AM PDT. The iPhone install
+started at 11:29:24 but reported no result and the phone then showed unavailable: iPhone install NOT confirmed.
+No push, merge, split-surfaces change, or Claude-lane/worktree edit.
+No files are staged. The pre-existing ProjectSettings and StreamingAssets working-tree changes remain outside this work.
+
+`WaterAt` now uses ordered 0.5 km cells for lake ellipses, water lanes, stream paths, outwash and dry-pad exclusions.
+Canyon paths reuse the bounded 0.125 km geometry index with precomputed segment lengths; there is no whole-world
+fallback. Per-cell maxima are 3 lakes, 1 water lane, 2 streams, 1 outwash feature and 3 dry pads. Cavity definitions
+are cached, eliminating repeated allocating feature lookups on the height-aware path. The original water/stream
+scan is frozen as `WaterAtReference` for independent parity checks. No authored world value changed.
+
+**Claude API:** `WorldTerrain.GroundNormalAt(x,y)` returns the outward NED unit normal for precisely the upper
+surface `GroundHeightAt` returns, with flat ground exactly `(0,0,-1)`. `WorldTerrain.IsWallAt(x,y,slopeTangent)`
+compares slope without vector construction/normalization. `IslandTerrain.HeightAndGradientAt` returns height and
+both sim-metre derivatives together. Existing `WorldTerrain.NormalAt` also uses this analytic path. The analytic
+expressions are generated directly from `IslandHeightIndex.cs`; scalar and derivative evaluation share the same
+precomputed nearest-segment/ray cells. `python3 tools/island/generate_gradient.py --check` and a source-hash test
+reject stale generation. At a crease/tie the selected branch is used; a clamped endpoint/zero norm uses zero
+derivative. A true jump has no unique normal; this reports the chosen surface's one-sided derivative. There are
+no finite differences or displaced height queries in the production normal/predicate.
+
+**Validation:** all 8 targeted tests pass. Water: 344,990 bitwise comparisons, including 100,000 uniform-area random
+points in the full 20 km ring with and without `up`, every lake centre/rim, all water lanes and dry-pad exclusions,
+every canyon segment and stream edge, outwash, grid seams, 3,803 reached cavity floors, sea and dry null cases.
+Gradient: 168,926 bitwise height comparisons and 30,469 smooth derivative checks; known strip slope, unit length,
+NED signs, inactive/sea flats and wall thresholds checked. The existing 46,161 exact height comparisons still pass.
+Fresh water, normal, predicate and both cavity-floor paths allocate **zero bytes after initialization**.
+
+Matched arm64 macOS / .NET 8.0.30 Release probes, tiered compilation disabled, five trials with fresh exact
+coordinates per evaluator/trial (median microseconds; these are not device/IL2CPP measurements):
+
+| Location | Old water scan | Indexed water | Analytic normal |
+| --- | ---: | ---: | ---: |
+| Full 20 km ring | 1.622 | 0.510 | 0.508 |
+| Sea | 0.955 | 0.225 | 0.144 |
+| KSNA | 2.538 | 0.535 | 1.031 |
+
+**Cliff answer:** authored Bighorn Crown high-lake bank, not an index artefact. The bank's `basin_detail` blends
+from the 7,840 ft lake/ridge down to the surrounding 1,402 m terrain within its 40 m authored bank envelope.
+All 31 samples at N=3245 m, E=870..900 m match the pre-index evaluator bit for bit. It is a steep continuous blend;
+the earlier coarse continuity sweep was not a bound on its local slope. No terrain/world repair is made here.
+
+[Structured validation/build record](docs/pending/island-water-normal-checks.json) ·
+[Full fresh-query timings and cliff profile](docs/pending/island-water-normal-cost.txt) ·
+[API/generation/reproduction notes](tools/island/README.md).
+`git ls-files | git check-ignore --no-index --stdin -v` printed nothing before the commit.
+
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
 Ty is handing the app to ChatGPT for a visuals upgrade. What the next agent is walking into, written down so it

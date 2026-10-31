@@ -1,0 +1,60 @@
+0.5 km water cells: lakes 3, water lanes 1, streams 2, outwash 1, dry pads 3; stream paths use bounded 0.125 km nearest-segment cells
+0.5 km feature cells: before outer 8, outer 6, after outer 4, budgets 26, after budget 5, fields 3, peak cores 1; 0.125 km geometry cells: nearest segments 46, ray edges 22; enforced limits 128 features / 64 segments per list
+analytic index initialization: 56.7 ms
+ring          water reference  : median 1.622 us/sample; 106.5 B/sample; sum 1863232.65896191
+ring          water indexed    : median 0.510 us/sample; 0.0 B/sample; sum 1863232.6595947014
+ring          height indexed   : median 0.341 us/sample; 0.0 B/sample; sum 70109234.46189742
+ring          analytic normal  : median 0.508 us/sample; 0.0 B/sample; sum -1172.2900185352787
+ring          wall predicate   : median 0.499 us/sample; 0.0 B/sample; sum 17923
+sea           water reference  : median 0.955 us/sample; 0.0 B/sample; sum 0
+sea           water indexed    : median 0.225 us/sample; 0.0 B/sample; sum 0
+sea           height indexed   : median 0.096 us/sample; 0.0 B/sample; sum -3300000
+sea           analytic normal  : median 0.144 us/sample; 0.0 B/sample; sum 0
+sea           wall predicate   : median 0.138 us/sample; 0.0 B/sample; sum 0
+KSNA          water reference  : median 2.538 us/sample; 408.0 B/sample; sum -110000
+KSNA          water indexed    : median 0.535 us/sample; 0.0 B/sample; sum -110000
+KSNA          height indexed   : median 0.376 us/sample; 0.0 B/sample; sum 1877568.0000008163
+KSNA          analytic normal  : median 1.031 us/sample; 0.0 B/sample; sum 0
+KSNA          wall predicate   : median 1.034 us/sample; 0.0 B/sample; sum 0
+Drake floor   water reference  : median 0.042 us/sample; 0.0 B/sample; sum -110000
+Drake floor   water indexed    : median 0.042 us/sample; 0.0 B/sample; sum -110000
+Drake floor   height indexed   : median 0.261 us/sample; 0.0 B/sample; sum 192785999.99961287
+Drake floor   analytic normal  : median 0.739 us/sample; 0.0 B/sample; sum 0
+Drake floor   wall predicate   : median 0.746 us/sample; 0.0 B/sample; sum 0
+Pirate floor  water reference  : median 0.247 us/sample; 0.0 B/sample; sum -110000
+Pirate floor  water indexed    : median 0.241 us/sample; 0.0 B/sample; sum -110000
+Pirate floor  height indexed   : median 0.149 us/sample; 0.0 B/sample; sum 6600000
+Pirate floor  analytic normal  : median 0.355 us/sample; 0.0 B/sample; sum 0
+Pirate floor  wall predicate   : median 0.356 us/sample; 0.0 B/sample; sum 0
+Cliff profile (north 3245 m; bitwise equality with the pre-index evaluator):
+E870: h=2085.846876268581 reference=2085.846876268581 identical=True dh/dN=-14.7736 dh/dE=-34.5578
+E871: h=2050.8350863300084 reference=2050.8350863300084 identical=True dh/dN=-15.0602 dh/dE=-35.4355
+E872: h=2015.036672327481 reference=2015.036672327481 identical=True dh/dN=-15.2665 dh/dE=-36.1309
+E873: h=1978.6342740905561 reference=1978.6342740905561 identical=True dh/dN=-15.3935 dh/dE=-36.6433
+E874: h=1941.8111831756114 reference=1941.8111831756114 identical=True dh/dN=-15.4424 dh/dE=-36.9722
+E875: h=1904.7513269778476 reference=1904.7513269778476 identical=True dh/dN=-15.4142 dh/dE=-37.1168
+E876: h=1867.63925329109 reference=1867.63925329109 identical=True dh/dN=-15.3100 dh/dE=-37.0765
+E877: h=1830.660115301227 reference=1830.660115301227 identical=True dh/dN=-15.1309 dh/dE=-36.8508
+E878: h=1793.9996569997243 reference=1793.9996569997243 identical=True dh/dN=-14.8777 dh/dE=-36.4391
+E879: h=1757.8441990039817 reference=1757.8441990039817 identical=True dh/dN=-14.5517 dh/dE=-35.8407
+E880: h=1722.3806247718549 reference=1722.3806247718549 identical=True dh/dN=-14.1537 dh/dE=-35.0552
+E881: h=1687.7963671980597 reference=1687.7963671980597 identical=True dh/dN=-13.6847 dh/dE=-34.0820
+E882: h=1654.279395580567 reference=1654.279395580567 identical=True dh/dN=-13.1457 dh/dE=-32.9205
+E883: h=1622.0182029455477 reference=1622.0182029455477 identical=True dh/dN=-12.5377 dh/dE=-31.5703
+E884: h=1591.201793719791 reference=1591.201793719791 identical=True dh/dN=-11.8615 dh/dE=-30.0309
+E885: h=1562.019671739878 reference=1562.019671739878 identical=True dh/dN=-11.1181 dh/dE=-28.3017
+E886: h=1534.6618285877937 reference=1534.6618285877937 identical=True dh/dN=-10.3083 dh/dE=-26.3823
+E887: h=1509.3187322429528 reference=1509.3187322429528 identical=True dh/dN=-9.4331 dh/dE=-24.2721
+E888: h=1486.181316041018 reference=1486.181316041018 identical=True dh/dN=-8.4933 dh/dE=-21.9708
+E889: h=1465.4409679301427 reference=1465.4409679301427 identical=True dh/dN=-7.4898 dh/dE=-19.4779
+E890: h=1447.289520015631 reference=1447.289520015631 identical=True dh/dN=-6.4234 dh/dE=-16.7929
+E891: h=1431.9192383842917 reference=1431.9192383842917 identical=True dh/dN=-5.2949 dh/dE=-13.9155
+E892: h=1419.5228132000443 reference=1419.5228132000443 identical=True dh/dN=-4.1051 dh/dE=-10.8452
+E893: h=1410.29334906263 reference=1410.29334906263 identical=True dh/dN=-2.8549 dh/dE=-7.5815
+E894: h=1404.4243556215415 reference=1404.4243556215415 identical=True dh/dN=-1.5450 dh/dE=-4.1242
+E895: h=1402.1097384375414 reference=1402.1097384375414 identical=True dh/dN=-0.1762 dh/dE=-0.4727
+E896: h=1402.0800000000002 reference=1402.0800000000002 identical=True dh/dN=0.0000 dh/dE=0.0000
+E897: h=1402.0800000000002 reference=1402.0800000000002 identical=True dh/dN=0.0000 dh/dE=0.0000
+E898: h=1402.0800000000002 reference=1402.0800000000002 identical=True dh/dN=0.0000 dh/dE=0.0000
+E899: h=1402.0800000000002 reference=1402.0800000000002 identical=True dh/dN=0.0000 dh/dE=0.0000
+E900: h=1402.0800000000002 reference=1402.0800000000002 identical=True dh/dN=0.0000 dh/dE=0.0000

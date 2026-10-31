@@ -2,6 +2,35 @@ namespace FlyingGame.Core;
 
 public static partial class IslandTerrain
 {
+    public static double? WaterAtReference(double x, double y, double up = double.NaN)
+    {
+        if (!double.IsNaN(up) && IslandCavities.TryFloor(x, y, up, out _)) return null;
+        var p = new IslandPoint(y / 1000, x / 1000);
+        foreach (var q in World["water"].Items) if (EllipseRadius(p, q) <= 1) return q.N("elevation_ft") * Feet;
+        foreach (var f in Fields) if (f.Surface == "water" && f.Contains(p)) return f.Elevation;
+        double ground = HeightKm(p);
+        if (ground < 0) return 0;
+        return StreamAtReference(p) ? ground + .15 : (double?)null;
+    }
+    private static bool StreamAtReference(IslandPoint p)
+    {
+        bool wet = false;
+        foreach (var c in World["canyons"].Items)
+            if (IslandTerrain.Path(p, c["path"]).d < (c.S("id") == "C3" ? .018 : .010)) { wet = true; break; }
+        if (!wet) foreach (string id in new[] { "F13", "F14", "F15" })
+        {
+            var c = IslandTerrain.Feature(id)["centre"].Point; var d = p - c;
+            if (Math.Abs(d.E) > .35 || Math.Abs(d.N) > .11 || Math.Abs(d.N) < .030) continue;
+            for (int i = 0; i < 8; i++) if (Math.Abs(d.N - ((i - 3.5) * .025 + .004 * Math.Sin(d.E * 27 + i))) < .004) { wet = true; break; }
+        }
+        if (!wet) return false;
+        foreach (var f in IslandTerrain.Fields)
+        {
+            var d = p - f.Centre;
+            if (Math.Abs(d.Dot(f.U)) < f.Length / 2000 + f.EndShoulder / 1000 && Math.Abs(d.Dot(f.V)) < f.Width / 2000 + f.Shoulder / 1000) return false;
+        }
+        return !IslandCavities.DrakeInside(p) && !IslandCavities.PirateInside(p);
+    }
     // Frozen pre-index continuous evaluator (1fe347d). Validation/benchmark oracle only.
     // Keep this path independent of the optimized feature data and spatial rejection.
     public static double EvaluateReference(IslandPoint p)

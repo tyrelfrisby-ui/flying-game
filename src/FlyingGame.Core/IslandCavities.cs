@@ -5,12 +5,13 @@ namespace FlyingGame.Core;
 /// upper terrain for the interior floor. No reverse runway final or second Drake portal exists.</summary>
 public static class IslandCavities
 {
-    public static IslandValue Drake => IslandTerrain.Feature("F1")["shell_geometry"];
-    public static IslandValue Pirate => IslandTerrain.Feature("F2")["interior"];
+    public static IslandValue Drake { get; } = IslandTerrain.Feature("F1")["shell_geometry"];
+    private static readonly IslandValue PirateFeature = IslandTerrain.Feature("F2");
+    public static IslandValue Pirate { get; } = PirateFeature["interior"];
     public static bool DrakeInside(IslandPoint p) { var d = p - Drake["chamber_centre"].Point; return Math.Abs(d.E) <= .210 && Math.Abs(d.N) <= .410; }
     public static bool PirateInside(IslandPoint p)
     {
-        var f = IslandTerrain.Feature("F2"); var ci = f["interior"]; var c = ci["chamber_centre"].Point;
+        var f = PirateFeature; var ci = f["interior"]; var c = ci["chamber_centre"].Point;
         if ((p - c).Length <= .090) return true;
         var mouth = f["centre"].Point; var u = IslandPoint.Heading(f.N("mouth_true_deg") + 180); var d = p - mouth;
         return d.Dot(u) >= 0 && d.Dot(u) <= ci.N("throat_length_m") / 1000 && Math.Abs(d.E * u.N - d.N * u.E) <= ci.N("throat_width_m") / 2000;
