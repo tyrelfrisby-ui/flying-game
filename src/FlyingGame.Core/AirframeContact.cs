@@ -239,8 +239,72 @@ public static class AirframeContact
         return pts;
     }
 
-    /// <summary>Contact forces (world) and the components whose points just hit hard enough to break.</summary>
+    /// <summary>
+    /// How far above the ground the whole airframe is unambiguously clear of it. Terrain cannot rise by this much
+    /// inside the few metres an airframe spans — towers, buildings and bridge decks are <see cref="WorldSolids"/>,
+    /// which is a bounded list test and is still checked at every altitude.
+    /// </summary>
+    private const double ClearAboveM = 60.0;
+
+    /// <summary>
+    /// Five height samples that say whether the airframe is clear of the ground altogether: under the CG and at
+    /// four points on its own radius. Returns false whenever anything could be close, so the caller falls back to
+    /// the exact per-point test.
+    /// </summary>
+    private static bool ClearOfTheGround(List<ContactPoint> points, Vec3 cg, RigidBodyState s)
+    {
+        double reach = 0, lowestZ = double.MinValue;
+        foreach (ContactPoint p in points)
+        {
+            Vec3 rWorld = s.Attitude.Rotate(p.Body - cg);
+            Vec3 w = s.Position + rWorld;
+            double horiz = System.Math.Sqrt(rWorld.X * rWorld.X + rWorld.Y * rWorld.Y);
+            if (horiz > reach) reach = horiz;
+            if (w.Z > lowestZ) lowestZ = w.Z;        // z is + DOWN, so the largest z is the lowest point
+        }
+        double highestGround = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
+        foreach ((double dx, double dy) in new[] { (reach, 0.0), (-reach, 0.0), (0.0, reach), (0.0, -reach) })
+        {
+            double g = WorldTerrain.GroundHeightAt(s.Position.X + dx, s.Position.Y + dy);
+            if (g > highestGround) highestGround = g;
+        }
+        // Water counts as ground here: a float or a hull touches it.
+        double? water = FloatHydro.WaterSurfaceAt(s.Position.X, s.Position.Y, -s.Position.Z);
+        if (water.HasValue && water.Value > highestGround) highestGround = water.Value;
+        return -lowestZ - highestGround > ClearAboveM;
+    }
+
+    /// <summary>
+    /// Contact forces (world) and the components whose points just hit hard enough to break.
+    ///
+    /// PERFORMANCE, and it is the difference between flying and not (2026-10-30). One island height query costs
+    /// about 99 us, because the height field evaluates the whole world description per sample. This loop asks for
+    /// one per contact point, and the RK4 integrator evaluates forces four times per step at 200 Hz — fifteen
+    /// points therefore cost 12,000 height queries per second of flight, about 1.2 s of CPU per second on a Mac
+    /// Studio. The iPad ran the simulation at 5 fps: the aeroplane flew, far too slowly to fly.
+    ///
+    /// So the footprint is tested first, with five samples instead of fifteen-per-stage: the ground under the CG
+    /// and under four points on the airframe's own radius. If the lowest part of the aeroplane is more than
+    /// <see cref="ClearAboveM"/> above the highest of those, nothing can be touching and the loop is skipped.
+    /// Within that height — which is where landing, taxiing and every contact actually happen — every point is
+    /// sampled exactly as before, so no contact behaviour changes.
+    /// </summary>
     public static (Vec3 Force, Vec3 Moment) Compute(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null)
+    {
+        if (points.Count > 0 && WorldTerrain.Active != null && ClearOfTheGround(points, cg, s))
+        {
+            foreach (ContactPoint p in points) p.Touching = false;
+            return (Vec3.Zero, Vec3.Zero);
+        }
+        return ComputeEveryPoint(points, cg, s, broken, surfaceOffsetZ, impacts);
+    }
+
+    /// <summary>
+    /// The exact test: every contact point against the ground, with no footprint shortcut. This is what
+    /// <see cref="Compute"/> did before the shortcut existed, and the regression test holds the two to the same
+    /// answer at every altitude — a shortcut that ever skips a real contact is a worse bug than a slow frame.
+    /// </summary>
+    public static (Vec3 Force, Vec3 Moment) ComputeEveryPoint(List<ContactPoint> points, Vec3 cg, RigidBodyState s, List<AirframeComponent>? broken, double surfaceOffsetZ = 0.0, ImpactRecorder? impacts = null)
     {
         Vec3 totalF = Vec3.Zero, totalM = Vec3.Zero;
         foreach (ContactPoint p in points)
