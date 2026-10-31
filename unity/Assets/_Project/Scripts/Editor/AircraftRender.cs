@@ -31,12 +31,21 @@ namespace FlyingGame.EditorTools
                 // the model's carved control surfaces move.
                 int d = Array.IndexOf(args, "-deflect");
                 float deflectDeg = d >= 0 && d + 1 < args.Length ? float.Parse(args[d + 1], System.Globalization.CultureInfo.InvariantCulture) : 0f;
-                Render(Read("-aircraft"), Read("-livery"), Read("-out"), deflectDeg);
+                // Optional -rpm <rpm>: turn the propeller, so a shot shows where the hub really is (below the blur rpm the
+                // blades are drawn; above it they give way to the blur disc). Optional -propdeg <deg> holds the hub at that
+                // angle, which is how a lopsided hub shows itself: a prop off its axis sweeps a cone, not a disc.
+                int r = Array.IndexOf(args, "-rpm");
+                float rpm = r >= 0 && r + 1 < args.Length ? float.Parse(args[r + 1], System.Globalization.CultureInfo.InvariantCulture) : 0f;
+                int pd = Array.IndexOf(args, "-propdeg");
+                float propDeg = pd >= 0 && pd + 1 < args.Length ? float.Parse(args[pd + 1], System.Globalization.CultureInfo.InvariantCulture) : 0f;
+                // Optional -own: draw our own GLB where we have one, as the Airframe option "ours" does. Without it only
+                // the types that are ours unconditionally (the Extra, the Pitts, the Great Lakes) use their GLB.
+                Render(Read("-aircraft"), Read("-livery"), Read("-out"), deflectDeg, rpm, propDeg, Array.IndexOf(args, "-own") >= 0);
             }
             catch (Exception e) { Debug.LogException(e); EditorApplication.Exit(1); }
         }
 
-        public static void Render(string id, string livery, string outDir, float deflectDeg = 0f)
+        public static void Render(string id, string livery, string outDir, float deflectDeg = 0f, float rpm = 0f, float propDeg = 0f, bool own = false)
         {
             int exitCode = 1;
             RenderTexture previous = RenderTexture.active;
@@ -67,7 +76,7 @@ namespace FlyingGame.EditorTools
                 Directory.CreateDirectory(output);
                 SessionSettings.LiveryOverride = livery;
                 SessionSettings.UseAirframeModels = true;
-                if (id == "glider-2-33-like") SessionSettings.UseOwnModels = true;
+                if (own || id == "glider-2-33-like") SessionSettings.UseOwnModels = true;
                 // Temporary scene only: never save or modify a project scene or asset.
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 sunObject = new GameObject("Aircraft Render Sun");
@@ -86,7 +95,9 @@ namespace FlyingGame.EditorTools
                 builder.Build(root.transform, UnityAircraftConfigLoader.LoadFromStreamingAssets(id));
                 float rad = deflectDeg * Mathf.Deg2Rad;
                 builder.SetDeflections(rad, rad, rad, 0f);
-                builder.SpinProps(_ => 0f, 0.02f);
+                // SpinProps integrates rpm over dt, so the dt that lands the hub on the asked-for angle is deg / (rpm * 6),
+                // 6 deg/s being one rpm. Without an angle, one short step: the rpm still decides blades against blur disc.
+                builder.SpinProps(_ => rpm, rpm > 0f && propDeg != 0f ? propDeg / (rpm * 6f) : 0.02f);
                 foreach (var skin in root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
                     skin.forceMatrixRecalculationPerRender = true;
 

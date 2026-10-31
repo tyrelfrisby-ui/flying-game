@@ -785,12 +785,73 @@ namespace FlyingGame.Bridge
             var namedKinds = new HashSet<string>();
             if (namedSurfaces)
             {
+                // HINGE-AXIS MARKERS. Our build scripts put each moving surface's node origin ON its hinge
+                // line and an empty "<Name>_HingeAxis" at the other end (tools/own_models/build_ea300.py,
+                // and the Great Lakes' Gear_Pivot/Gear_HingeAxis before it), so the hinge is two points and
+                // needs no detection at all. Empties carry no MeshFilter, so they are not in `filters` and
+                // have to be found in the hierarchy by name; glTFast is also free to drop a node it thinks
+                // is empty, which is why a missing marker falls back per surface instead of failing.
+                // Both sides of the match have to be NORMALISED. The loader prefixes mesh GameObjects with
+                // "Model:" ("Model:Aileron_L") and leaves the marker empties alone ("Aileron_L_HingeAxis"),
+                // and glTFast appends "_1"/"_2" per extra primitive -- so a raw name comparison matches
+                // nothing at all. It silently fell back to the leading-edge carve on all five surfaces, with
+                // the markers sitting right there in the hierarchy.
+                static string Norm(string n)
+                {
+                    int c = n.LastIndexOf(':');
+                    if (c >= 0) n = n.Substring(c + 1);
+                    return System.Text.RegularExpressions.Regex.Replace(n, @"_\d+$", "");
+                }
+                var markers = new Dictionary<string, Transform>();
+                foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!t.name.EndsWith("_HingeAxis")) continue;
+                    string key = t.name.Substring(0, t.name.Length - "_HingeAxis".Length);
+                    markers[Norm(key)] = t;
+                }
+                // NO GLOBAL NAME SCAN. The airframe's own control-surface transforms are named after
+                // their surface too -- there is a GameObject called plain "Rudder" carrying the CONFIG's
+                // hinge at Unity (0, 0.93, -4.83) -- so looking the node up by name found the rig's own
+                // object instead of the model's mesh node and read a hinge axis 48 deg off vertical out of
+                // it. The base node is whichever ANCESTOR OF THE MESH normalises onto a marker, which is
+                // what BaseNode returns, and nothing else can masquerade as it.
+                if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                    Debug.Log($"[Airframe] DIAG hinge markers kept by the importer: {markers.Count} " +
+                              $"({string.Join(", ", markers.Keys)})");
+
                 static string Kind(string n)
                 {
                     n = n.ToLowerInvariant();
+                    // The hinge-axis MARKERS are named after their surface ("Aileron_L_HingeAxis"), so the
+                    // substring match below claims them as aileron/elevator/rudder geometry. They carry no
+                    // mesh, but anything that reaches the fitting loop with no vertices is a warning at best
+                    // and a hinge read off an empty at worst. TAIL_CABLES is a mesh and it is STATIC: the
+                    // rudder cables are drawn between fin and rudder and do not move with either.
+                    if (n.Contains("hingeaxis") || n.Contains("tail_cables") || n.Contains("tailcables")) return null;
                     return n.Contains("aileron") ? "aileron" : n.Contains("elevator") ? "elevator" : n.Contains("rudder") ? "rudder" : null;
                 }
+
+                // glTFast splits a multi-material mesh into one GameObject per primitive: our Aileron_L has
+                // three materials and arrives as Aileron_L, Aileron_L_1, Aileron_L_2. They all belong to the
+                // same hinge, so a split piece has to resolve back to the node that carries the marker --
+                // first by stripping a trailing _<digits>, then by walking up the parents.
+                Transform BaseNode(Transform t, out string key)
+                {
+                    var chain = new List<string>();
+                    for (Transform w = t; w != null; w = w.parent)
+                    {
+                        chain.Add(w.name);
+                        string k = Norm(w.name);
+                        if (markers.ContainsKey(k)) { key = k; return w; }
+                        if (w == root) break;
+                    }
+                    if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                        Debug.Log($"[Airframe] DIAG no hinge node for '{t.name}' -- ancestors [{string.Join(" < ", chain)}]; " +
+                                  $"markers [{string.Join(", ", markers.Keys)}]");
+                    key = null; return null;
+                }
                 var pts = new Dictionary<int, List<Vector3>>();
+                var baseOf = new Dictionary<int, (string key, Transform node)>();
                 foreach (MeshFilter mf in filters)
                 {
                     string kind = Kind(mf.name);
@@ -816,35 +877,72 @@ namespace FlyingGame.Bridge
                     namedRegion[mf] = best; namedKinds.Add(kind);
                     if (!pts.TryGetValue(best, out var l)) pts[best] = l = new List<Vector3>();
                     l.AddRange(r);
+                    Transform bnT = BaseNode(mf.transform, out string bn);
+                    if (bnT != null) baseOf[best] = (bn, bnT);
                 }
                 foreach (var kv in pts)
                 {
                     var rg = regions[kv.Key]; List<Vector3> p = kv.Value;
                     float aLo = float.MaxValue, aHi = float.MinValue;
                     foreach (Vector3 v in p) { float qa = Vector3.Dot(v - rg.pivot, rg.a); aLo = Mathf.Min(aLo, qa); aHi = Mathf.Max(aHi, qa); }
-                    // The hinge line: the leading edge (front-most point) in a band near each end of the span, clear of the tips.
-                    Vector3 Le(float f0, float f1)
+                    // THE HINGE, from the model's own two points. The node's origin sits ON the hinge line
+                    // and its "<Name>_HingeAxis" empty marks the far end, so there is nothing to detect.
+                    //
+                    // What this replaces: the front-most vertex in a band near each end of the span, pulled
+                    // onto the mesh's mid-thickness. That works on a surface whose leading edge IS its hinge,
+                    // and the Extra's are not -- its ailerons carry balance SPADES that hang below and ahead
+                    // of the hinge, so the front-most point in the inboard band was the spade and the hinge
+                    // came out ahead of and below the real one. The markers put it where the aeroplane has it.
+                    Vector3 hinge, axis;
+                    bool haveBase = baseOf.TryGetValue(kv.Key, out var bn0);
+                    string baseName = haveBase ? bn0.key : null;
+                    Transform node = haveBase ? bn0.node : null;
+                    if (node != null && markers.TryGetValue(baseName, out Transform mark))
                     {
-                        Vector3 bestP = Vector3.zero; float bq = float.MaxValue;
-                        foreach (Vector3 v in p)
+                        Matrix4x4 w2l = root.worldToLocalMatrix;
+                        hinge = w2l.MultiplyPoint3x4(node.position);
+                        Vector3 tip = w2l.MultiplyPoint3x4(mark.position);
+                        axis = tip - hinge;
+                        if (axis.sqrMagnitude < 1e-4f)
                         {
-                            Vector3 q = v - rg.pivot; float f = (Vector3.Dot(q, rg.a) - aLo) / Mathf.Max(1e-3f, aHi - aLo);
-                            if (f < f0 || f > f1) continue;
-                            float qc = Vector3.Dot(q, rg.cd);
-                            if (qc < bq) { bq = qc; bestP = v; }
+                            Debug.LogWarning($"[Airframe] {baseName}: its hinge marker sits on its own origin -- " +
+                                             "no axis to read; keeping the config's.");
+                            axis = rg.a;
                         }
-                        return bestP;
+                        axis.Normalize();
+                        if (Vector3.Dot(axis, rg.a) < 0f) axis = -axis;   // same sense as the config's span axis
                     }
-                    Vector3 le0 = Le(0.1f, 0.3f), le1 = Le(0.7f, 0.9f);
-                    // The LE point sits on the surface's skin, the hinge on its mid-plane: take the mid-thickness of the mesh there.
-                    float nLo = float.MaxValue, nHi = float.MinValue;
-                    foreach (Vector3 v in p) { float qn = Vector3.Dot(v - rg.pivot, rg.n); nLo = Mathf.Min(nLo, qn); nHi = Mathf.Max(nHi, qn); }
-                    Vector3 axis = le1 - le0;
-                    if (axis.sqrMagnitude < 0.01f) continue;
-                    axis.Normalize();
-                    if (Vector3.Dot(axis, rg.a) < 0f) axis = -axis;
-                    if (Vector3.Angle(axis, rg.a) > 15f) axis = rg.a;   // a mesh too odd to read a hinge off: keep the config's axis
-                    Vector3 hinge = le0 + rg.n * (0.5f * (nLo + nHi) - Vector3.Dot(le0 - rg.pivot, rg.n));
+                    else
+                    {
+                        // No marker: glTFast is free to drop a node it considers empty. Fall back to the old
+                        // leading-edge read for THIS SURFACE ONLY, rather than losing the whole rig.
+                        Debug.LogWarning($"[Airframe] named surface {rg.c.Surface} ({baseName ?? "?"}): no " +
+                                         "_HingeAxis marker survived the import -- falling back to the " +
+                                         "leading-edge carve for this surface. Spade-balanced surfaces will " +
+                                         "hinge ahead of their real line.");
+                        Vector3 Le(float f0, float f1)
+                        {
+                            Vector3 bestP = Vector3.zero; float bq = float.MaxValue;
+                            foreach (Vector3 v in p)
+                            {
+                                Vector3 q = v - rg.pivot; float f = (Vector3.Dot(q, rg.a) - aLo) / Mathf.Max(1e-3f, aHi - aLo);
+                                if (f < f0 || f > f1) continue;
+                                float qc = Vector3.Dot(q, rg.cd);
+                                if (qc < bq) { bq = qc; bestP = v; }
+                            }
+                            return bestP;
+                        }
+                        Vector3 le0 = Le(0.1f, 0.3f), le1 = Le(0.7f, 0.9f);
+                        float nLo = float.MaxValue, nHi = float.MinValue;
+                        foreach (Vector3 v in p) { float qn = Vector3.Dot(v - rg.pivot, rg.n); nLo = Mathf.Min(nLo, qn); nHi = Mathf.Max(nHi, qn); }
+                        axis = le1 - le0;
+                        if (axis.sqrMagnitude < 0.01f) continue;
+                        axis.Normalize();
+                        if (Vector3.Dot(axis, rg.a) < 0f) axis = -axis;
+                        if (Vector3.Angle(axis, rg.a) > 15f) axis = rg.a;
+                        hinge = le0 + rg.n * (0.5f * (nLo + nHi) - Vector3.Dot(le0 - rg.pivot, rg.n));
+                    }
+                    Vector3 configHinge = rg.c.T.localPosition;   // read before it is overwritten, for the diag
                     rg.c.T.localPosition = hinge;
                     rg.c.AxisUnity = axis;
                     Vector3 cd = Vector3.Cross(rg.n, axis).normalized; if (Vector3.Dot(cd, rg.cd) < 0f) cd = -cd;
@@ -859,7 +957,11 @@ namespace FlyingGame.Bridge
                     }
                     regions[kv.Key] = (rg.c, hinge, axis, cd, n, new Vector2(sLo - 0.03f, sHi + 0.03f), new Vector2(-0.02f, cHi + 0.02f), new Vector2(tLo - 0.02f, tHi + 0.02f));
                     if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
-                        Debug.Log($"[Airframe] DIAG named {rg.c.Surface}: {p.Count} vertices, hinge {hinge} axis {axis} ({Vector3.Angle(axis, rg.a):F1} deg off the config's), chord {cHi:F2} m");
+                        Debug.Log($"[Airframe] DIAG named {rg.c.Surface} ({baseName ?? "?"}): {p.Count} vertices, " +
+                                  $"hinge {hinge} from {(baseName != null && markers.ContainsKey(baseName) ? "its _HingeAxis marker" : "the leading-edge fallback")}, " +
+                                  $"axis {axis} ({Vector3.Angle(axis, rg.a):F2} deg off the config's), " +
+                                  $"chord {cHi:F3} m, span {sHi - sLo:F3} m, thickness {tHi - tLo:F3} m, " +
+                                  $"config hinge was {configHinge}, moved {Vector3.Distance(hinge, configHinge) * 100f:F1} cm");
                 }
             }
 
@@ -982,6 +1084,13 @@ namespace FlyingGame.Bridge
             var owners = new List<int[]>();
             var comps = new List<int[]>();   // welded connected-piece id per vertex (null when there are no props)
             var propLo = new Vector3[_props.Count]; var propHi = new Vector3[_props.Count]; var propAny = new bool[_props.Count];
+            // The hub goes on the SPINNER, not on the middle of the propeller's bounding box: with an odd number of
+            // blades one blade points up and the box is lopsided (the Extra's 3-blade box ran -0.52..+1.00 m, centre
+            // 0.24 m high, and the prop turned about a point a quarter of a metre above its real axis). The spinner's
+            // own centroid is on the axis whatever the blade count; the mean of every bound vertex is the fallback,
+            // which is also on the axis for any evenly spaced blades.
+            var propSpinSum = new Vector3[_props.Count]; var propSpinN = new int[_props.Count];
+            var propAllSum = new Vector3[_props.Count]; var propAllN = new int[_props.Count];
             foreach (var (mf, rp, tris, mats, _) in meshes)
             {
                 int nv = rp.Length;
@@ -1048,6 +1157,9 @@ namespace FlyingGame.Bridge
                             if (own[i] != nR + 2 * h) continue;
                             if (!propAny[h]) { propLo[h] = propHi[h] = rp[i]; propAny[h] = true; }
                             else { propLo[h] = Vector3.Min(propLo[h], rp[i]); propHi[h] = Vector3.Max(propHi[h], rp[i]); }
+                            propAllSum[h] += rp[i]; propAllN[h]++;
+                            float sdx = rp[i].x - hc.x, sdy = rp[i].y - hc.y;
+                            if (sdx * sdx + sdy * sdy < 0.4f * 0.4f * R * R) { propSpinSum[h] += rp[i]; propSpinN[h]++; }
                         }
                     }
                 }
@@ -1151,7 +1263,12 @@ namespace FlyingGame.Bridge
             {
                 if (!propAny[h]) continue;
                 PropHub hub = _props[h];
-                Vector3 c = 0.5f * (propLo[h] + propHi[h]), hp = hub.Hub.localPosition;
+                // On the axis: the spinner's centroid (vertices inside 0.4 R of the hub the tip snap found), or the mean of
+                // every bound vertex when the model has no spinner.
+                Vector3 c = propSpinN[h] > 0 ? propSpinSum[h] / propSpinN[h]
+                          : propAllN[h] > 0 ? propAllSum[h] / propAllN[h]
+                          : 0.5f * (propLo[h] + propHi[h]);
+                Vector3 hp = hub.Hub.localPosition;
                 Vector3 delta = new Vector3(c.x - hp.x, c.y - hp.y, 0f);
                 if (delta.magnitude > 0.5f * hub.Radius)
                 {
@@ -1162,6 +1279,10 @@ namespace FlyingGame.Bridge
                 }
                 hub.Hub.localPosition = hp + delta;
                 foreach (Transform ch in hub.Hub) ch.localPosition -= delta;
+                if (System.Environment.GetEnvironmentVariable("SKIN_DIAG") != null)
+                    Debug.Log($"[Airframe] DIAG prop {h} hub {hub.Hub.localPosition} from the "
+                              + (propSpinN[h] > 0 ? $"spinner ({propSpinN[h]} vertices inside 0.4 R)" : $"mean of {propAllN[h]} bound vertices")
+                              + $", moved {delta.magnitude * 100f:F1} cm; box centre would have been {0.5f * (propLo[h] + propHi[h])}, box {propLo[h]}..{propHi[h]}, R {hub.Radius:F2}");
                 if (hub.Disc != null) hub.Disc.transform.localPosition = new Vector3(0f, 0f, propHi[h].z - hub.Hub.localPosition.z + 0.02f);
                 hub.ModelBound = true;
                 hub.BladeBone = new GameObject("PropBlades").transform;

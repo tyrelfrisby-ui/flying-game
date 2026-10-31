@@ -107,7 +107,13 @@ namespace FlyingGame.Bridge
             { "c172-like", new Spec(Vector3.right, Vector3.up) },
             // tools/own_models/build_ea300.py (docs/models/ea300-own-PROVENANCE.md): our mid-wing EA 300, drawn
             // level, glTF Y-up, paint baked in. THE Extra for every livery (Ty 2026-10-27) -- see PickOwn.
-            { "extra-300-like", new Spec(Vector3.right, Vector3.up) },
+            // v14 (Ty 2026-10-29) has REAL hinged surfaces: Rudder, Elevator_L/R and Aileron_L/R are separate
+            // nodes whose origins sit on their hinge lines, each with a "<Name>_HingeAxis" empty at the far
+            // end. namedSurfaces makes CarveModel move each one whole about that line instead of carving the
+            // config's hinge out of the skin -- which on this aeroplane cut ~630 wing vertices into every
+            // aileron, and could not have found the right line anyway: the ailerons carry balance SPADES
+            // hanging below and ahead of the hinge, so a leading-edge read lands on the spade.
+            { "extra-300-like", new Spec(Vector3.right, Vector3.up, namedSurfaces: true) },
             // tools/own_models/build_pitts_s2b.py (docs/models/pitts-s2b-own-PROVENANCE.md): our clean-room S-2B, same
             // export convention as the EA300 (nose +x after import, glTF Y-up), drawn level on the thrust line, paint
             // baked in. THE Pitts for every livery (Ty 2026-10-27) -- see PickOwn. Span-fitting alone would make it the
