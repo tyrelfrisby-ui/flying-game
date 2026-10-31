@@ -46,6 +46,10 @@ namespace FlyingGame.Bridge
             int n = 0;
             foreach (Forest.Tree tr in Forest.InRect(x0, y0, x0 + ChunkM, y0 + ChunkM))
             {
+                // Owner-requested Powell visual clearance; the sim forest registry is unchanged.
+                float desert = WorldBuilder.PowellRegionMask(tr.X, tr.Y, rimTrees: true);
+                float keep = (float)(tr.TwistDeg / 360.0);
+                if (desert > .001f && keep < desert) continue;
                 Add(b, tr, detail);
                 n++;
             }
@@ -109,11 +113,17 @@ namespace FlyingGame.Bridge
             Vector3 c = U(tr.X, tr.Y, baseUp);
             Vector3 apex = c + rot * new Vector3(0, riseM, 0);
             Vector3 P(float sx, float sz) => c + rot * new Vector3(sx * r, 0, sz * r);
-            Vector3 p00 = P(-1, -1), p10 = P(1, -1), p11 = P(1, 1), p01 = P(-1, 1);
-            b.Tri(p00, p10, apex, needle);
-            b.Tri(p10, p11, apex, lit);
-            b.Tri(p11, p01, apex, needle);
-            b.Tri(p01, p00, apex, lit);
+            // Uneven branch tips soften the regular pyramid at the same triangle budget.
+            const int sides = 4;
+            for (int k = 0; k < sides; k++)
+            {
+                float a0 = k * Mathf.PI * 2 / sides + Mathf.PI * .25f, a1 = (k + 1) * Mathf.PI * 2 / sides + Mathf.PI * .25f;
+                float r0 = ((k & 1) == 0 ? 1f : .83f) * 1.414214f;
+                float r1 = (((k + 1) & 1) == 0 ? 1f : .83f) * 1.414214f;
+                b.Tri(P(Mathf.Cos(a0)*r0, Mathf.Sin(a0)*r0),
+                      P(Mathf.Cos(a1)*r1, Mathf.Sin(a1)*r1), apex,
+                      Color.Lerp(needle, lit, .25f + .25f * Mathf.Cos(a0 + twistDeg * Mathf.Deg2Rad)));
+            }
         }
     }
 

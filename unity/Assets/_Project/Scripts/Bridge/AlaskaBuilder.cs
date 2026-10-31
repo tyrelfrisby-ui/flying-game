@@ -32,42 +32,35 @@ namespace FlyingGame.Bridge
         {
             var root = new GameObject("Alaska");
             root.transform.SetParent(parent, false);
-            BuildGlaciers(root.transform);
+            // Ice finish is on the exact terrain, eliminating the detached faceted ice slab.
             BuildGlacierLakes(root.transform);
             BuildBraids(t, root.transform);
             BuildObstacles(root.transform);
             BuildMadeStrips(root.transform);
         }
 
-        /// <summary>The ice: a crowned surface down each trough, dirtier toward the snout where the moraine is.</summary>
-        private static void BuildGlaciers(Transform parent)
+        // The ice corridors, all three from Core (AlaskaRange.Corridors). The third one — the East Fork —
+        // used to be a literal here: `new Vector4(7500, -7000, 7700, -5500)` with a half-width of 280, which
+        // the sim could not see. So the shader painted ice along a corridor the height field called gravel
+        // and the surface model called Rough: a pilot could see a glacier out of the window, land on it, and
+        // find rock. One source now answers for all three, and the sim's landing zones, surface designation
+        // and crevasse no-go areas are stated in the same S/U frame these feed the shader.
+        public static Vector4 GlacierAxis(int index)
         {
-            var b = new SeasideBuilder.Batch();
-            foreach (AlaskaRange.Glacier g in AlaskaRange.Glaciers)
-            {
-                double dx = (g.TermX - g.HeadX) / g.LengthM, dy = (g.TermY - g.HeadY) / g.LengthM;
-                double rx = -dy, ry = dx;
-                const int ns = 60, nu = 10;
-                for (int i = 0; i < ns; i++)
-                {
-                    double t0 = (double)i / ns, t1 = (double)(i + 1) / ns;
-                    for (int j = 0; j < nu; j++)
-                    {
-                        double u0 = -g.HalfWidthM + 2 * g.HalfWidthM * j / nu;
-                        double u1 = -g.HalfWidthM + 2 * g.HalfWidthM * (j + 1) / nu;
-                        Vector3 P(double tt, double uu) =>
-                            U(g.HeadX + dx * g.LengthM * tt + rx * uu,
-                              g.HeadY + dy * g.LengthM * tt + ry * uu,
-                              g.IceHeightAt(tt, System.Math.Abs(uu)) + 0.4);
-                        // Crevasse striping across the ice, and moraine dirt down the sides and at the snout.
-                        float stripe = (i % 3 == 0) ? 0.90f : 1f;
-                        float dirt = (float)System.Math.Max(System.Math.Abs(u0) / g.HalfWidthM, t0 * t0);
-                        Color c = Color.Lerp(Ice, IceDirty, Mathf.Clamp01(dirt * 0.9f)) * stripe;
-                        b.Quad(P(t0, u0), P(t1, u0), P(t1, u1), P(t0, u1), c);
-                    }
-                }
-            }
-            b.Build("GlacierIce", parent, SeasideBuilder.VC);
+            var c = AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)];
+            return new Vector4((float)c.HeadX, (float)c.HeadY, (float)c.TermX, (float)c.TermY);
+        }
+        public static float GlacierHalfWidth(int index) =>
+            (float)AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)].HalfWidthM;
+        public static string GlacierName(int index) =>
+            AlaskaRange.Corridors[Mathf.Clamp(index, 0, AlaskaRange.Corridors.Length - 1)].Name;
+        public static void ConfigureTerrain(Material material)
+        {
+            var axes = new Vector4[3]; var widths = new Vector4();
+            for (int index=0; index<3; index++)
+            { axes[index]=GlacierAxis(index); widths[index]=GlacierHalfWidth(index); }
+            material.SetVectorArray("_GlacierAxes", axes);
+            material.SetVector("_GlacierWidths", widths);
         }
 
         /// <summary>The proglacial lakes, and the bergs floating in them.</summary>

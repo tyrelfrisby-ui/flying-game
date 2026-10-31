@@ -57,6 +57,31 @@ namespace FlyingGame.Bridge
 
             public void Box(Vector3 centre, Vector3 size, Color col, Color? top = null) => Box(centre, size, Quaternion.identity, col, top);
 
+            // Opaque facade panes share the existing colour batch: no materials, textures or colliders per window.
+            // Bounds cap geometry for tall buildings; distant panes merge into a restrained blue-grey facade.
+            public void Facade(Vector3 bottom, Vector3 size, Quaternion rotation, int style)
+            {
+                for (int face = 0; face < 4; face++)
+                {
+                    Quaternion q = rotation * Quaternion.Euler(0, face * 90, 0);
+                    float width = face % 2 == 0 ? size.x : size.z;
+                    float depth = face % 2 == 0 ? size.z : size.x;
+                    int cols = Mathf.Clamp(Mathf.FloorToInt(width / 4.5f), 2, 6);
+                    int rows = Mathf.Clamp(Mathf.FloorToInt(size.y / 4.2f), 1, 40);
+                    float dx = width / (cols + 1), dy = size.y / (rows + 1);
+                    Vector3 P(float x, float y) => bottom + q * new Vector3(x, y, depth * .5f + .035f);
+                    for (int r = 0; r < rows; r++)
+                    for (int c = 0; c < cols; c++)
+                    {
+                        float x = -width * .5f + dx * (c + 1), y = dy * (r + 1);
+                        float hw = dx * (style % 2 == 0 ? .37f : .29f), hh = Mathf.Min(1.8f, dy * .32f);
+                        float v = ((r * 7 + c * 13 + style * 3 + face) % 11) / 10f;
+                        Color glass = Color.Lerp(new Color(.16f,.22f,.25f), new Color(.39f,.48f,.52f), v);
+                        Quad(P(x-hw,y-hh), P(x+hw,y-hh), P(x+hw,y+hh), P(x-hw,y+hh), glass);
+                    }
+                }
+            }
+
             /// <summary>A beam between two points with a square-ish cross-section.</summary>
             public void Beam(Vector3 a, Vector3 b, float w, float h, Color col)
             {
@@ -115,10 +140,41 @@ namespace FlyingGame.Bridge
                 }
             }
 
-            public GameObject Build(string name, Transform parent, Material m)
+            public GameObject Build(string name, Transform parent, Material m, bool smooth = false)
             {
                 var mesh = new Mesh { name = name, indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
                 mesh.SetVertices(_v); mesh.SetNormals(_n); mesh.SetColors(_c); mesh.SetTriangles(_t, 0);
+                if (smooth)
+                {
+                    // Powell only (default off): weld seam roundoff in 2 mm bins and
+                    // angle-weight actual triangle normals, including nonplanar quads.
+                    // Keep horizontal caps separate from cliff sides for a crisp mesa lip.
+                    (Vector3Int, bool) Key(int i) => (new Vector3Int(
+                        Mathf.RoundToInt(_v[i].x*500), Mathf.RoundToInt(_v[i].y*500),
+                        Mathf.RoundToInt(_v[i].z*500)), Mathf.Abs(_n[i].y) > .94f);
+                    var sums = new Dictionary<(Vector3Int, bool), Vector3>();
+                    for (int t=0; t<_t.Count; t+=3)
+                    {
+                        int ia=_t[t], ib=_t[t+1], ic=_t[t+2];
+                        Vector3 face=Vector3.Cross(_v[ib]-_v[ia],_v[ic]-_v[ia]).normalized;
+                        void Add(int i, int j, int k)
+                        {
+                            Vector3 u=(_v[j]-_v[i]).normalized, v=(_v[k]-_v[i]).normalized;
+                            float angle=Mathf.Acos(Mathf.Clamp(Vector3.Dot(u,v),-1,1));
+                            var key=Key(i);
+                            sums.TryGetValue(key,out Vector3 sum);
+                            sums[key]=sum+face*angle;
+                        }
+                        Add(ia,ib,ic); Add(ib,ic,ia); Add(ic,ia,ib);
+                    }
+                    var normals = new List<Vector3>(_v.Count);
+                    for (int i=0; i<_v.Count; i++)
+                    {
+                        Vector3 normal=sums[Key(i)];
+                        normals.Add(normal.sqrMagnitude>.000001f ? normal.normalized : _n[i]);
+                    }
+                    mesh.SetNormals(normals);
+                }
                 mesh.RecalculateBounds();
                 var go = new GameObject(name);
                 go.transform.SetParent(parent, false);
@@ -173,7 +229,19 @@ namespace FlyingGame.Bridge
             float y = top + 0.03f;
             void Stripe(float u0, float v0, float u1, float v1, float w, Color c)
             {
-                Vector3 a = new(v0, y, u0), e = new(v1, y, u1), d = (e - a).normalized, n = new Vector3(d.z, 0, -d.x) * (w / 2);
+                // Clip decorative paint to the existing deck; the angled guide otherwise floats over water.
+                float t0 = 0, t1 = 1;
+                bool ClipAxis(float start, float delta, float lo, float hi)
+                {
+                    if (Mathf.Abs(delta) < .00001f) return start >= lo && start <= hi;
+                    float aT = (lo - start) / delta, bT = (hi - start) / delta;
+                    t0 = Mathf.Max(t0, Mathf.Min(aT,bT));
+                    t1 = Mathf.Min(t1, Mathf.Max(aT,bT));
+                    return t1 > t0;
+                }
+                float du = u1-u0, dv = v1-v0;
+                if (!ClipAxis(u0,du,-L+w*.5f,L-w*.5f) || !ClipAxis(v0,dv,vp+w*.5f,vs-w*.5f)) return;
+                Vector3 a = new(v0+dv*t0, y, u0+du*t0), e = new(v0+dv*t1, y, u0+du*t1), d = (e - a).normalized, n = new Vector3(d.z, 0, -d.x) * (w / 2);
                 b.Quad(a - n, a + n, e + n, e - n, c);   // facing up
             }
             // Deck edges, the bow (straight) centreline, the angled landing area: edges, dashed centreline, the wires.
@@ -183,7 +251,7 @@ namespace FlyingGame.Bridge
             double tan = System.Math.Tan(Carrier.AngledDeckDeg * System.Math.PI / 180);
             float La = 210, u0a = -L + 2;
             float V(float u, float off) => (float)(-3 - (u - u0a) * tan) + off;
-            Stripe(u0a, V(u0a, 0), u0a + La, V(u0a + La, 0), 0.5f, white);
+            // Dashed centreline below; do not paint a continuous stripe underneath it.
             Stripe(u0a, V(u0a, 11), u0a + La, V(u0a + La, 11), 0.6f, white);
             Stripe(u0a, V(u0a, -11), u0a + La, V(u0a + La, -11), 0.6f, white);
             for (float u = u0a + 6; u < u0a + La; u += 14) Stripe(u, V(u, 0), u + 7, V(u + 7, 0), 0.9f, white);
@@ -192,6 +260,25 @@ namespace FlyingGame.Bridge
                 float u = -L + 45 + i * 12;
                 Vector3 a = new(V(u, -12), y + 0.05f, u), e = new(V(u, 12), y + 0.05f, u);
                 b.Beam(a, e, 0.25f, 0.12f, new Color(0.1f, 0.1f, 0.1f));
+            }
+            // Landing-area foul line: alternating short red/white marks on the island side.
+            for (float u=u0a+4;u<u0a+La-5;u+=5)
+                Stripe(u,V(u,13),u+2.5f,V(u+2.5f,13),.45f,((int)((u-u0a)/5)%2)==0?white:red);
+            // Recessed tie-down crosses, deliberately kept away from the landing markings.
+            Color recess = new Color(.15f,.16f,.17f);
+            for (float u=-L+12;u<L-10;u+=7)
+                for (float v=vp+4;v<vs-3;v+=6)
+                {
+                    if (Mathf.Abs(v-V(u,0))<13) continue;
+                    Stripe(u-.18f,v,u+.18f,v,.09f,recess);
+                    Stripe(u,v-.18f,u,v+.18f,.09f,recess);
+                }
+            // Deck-edge catwalk and repeated support ribs below the existing landing surface.
+            foreach (float side in new[] {vp,vs})
+            {
+                b.Box(new Vector3(side,top-1.7f,0),new Vector3(1.4f,.3f,2*L-12),hull);
+                for (float u=-L+10;u<L-8;u+=12)
+                    b.Box(new Vector3(side,top-2.2f,u),new Vector3(1.2f,1.2f,.35f),hull*.82f);
             }
             // Bow catapults (two pairs of tracks).
             foreach (float v in new[] { -6f, 8f }) Stripe(L - 100, v, L - 6, v, 0.3f, new Color(0.15f, 0.15f, 0.15f));
@@ -202,6 +289,12 @@ namespace FlyingGame.Bridge
             b.Box(new Vector3(iv0 - 0.05f, top + ih * 0.74f, (iu0 + iu1) / 2 + 8), new Vector3(0.1f, 1.6f, (iu1 - iu0) * 0.5f), new Color(0.08f, 0.1f, 0.13f));
             b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 0.95f, (iu0 + iu1) / 2 + 6), new Vector3(1.2f, ih * 0.3f, 1.2f), hull);
             b.Box(new Vector3((iv0 + iv1) / 2, top + ih * 1.02f, (iu0 + iu1) / 2 + 6), new Vector3(9f, 0.6f, 2.5f), hull);
+            // Individual bridge glazing and mullions on the forward and starboard faces.
+            Color glass = new Color(.12f,.20f,.24f);
+            for (float v=iv0+1;v<iv1-1;v+=2)
+                b.Box(new Vector3(v,top+ih*.74f,(iu0+iu1)/2+8+(iu1-iu0)*.275f+.06f),new Vector3(1.5f,1.4f,.12f),glass);
+            for (float u=(iu0+iu1)/2+8-(iu1-iu0)*.23f;u<(iu0+iu1)/2+8+(iu1-iu0)*.23f;u+=3)
+                b.Box(new Vector3(iv1-.69f,top+ih*.74f,u),new Vector3(.12f,1.4f,2.3f),glass);
             // "68" on the island's port face, in white strokes (seven-segment style).
             void Digit(int d, float cu)
             {
@@ -230,6 +323,12 @@ namespace FlyingGame.Bridge
             }
             var root = new GameObject("Carrier"); root.transform.SetParent(parent, false);
             b.Build("CarrierShip", root.transform, VC);
+            // A separate opaque finish lies on the unaltered deck, below all paint and wires.
+            var finish = new Batch();
+            finish.Quad(new Vector3(vp,top+.01f,-L),new Vector3(vp,top+.01f,L),new Vector3(vs,top+.01f,L),new Vector3(vs,top+.01f,-L),Color.white);
+            var deckMat = new Material(Shader.Find("FlyingGame/AirportSurface"));
+            deckMat.SetColor("_Color",deck); deckMat.SetFloat("_Kind",5); deckMat.SetFloat("_Length",2*L);
+            finish.Build("CarrierDeckFinish",root.transform,deckMat);
             root.AddComponent<CarrierRuntime>();
         }
 
@@ -244,6 +343,7 @@ namespace FlyingGame.Bridge
             mesh.RecalculateNormals(); mesh.bounds = new Bounds(Vector3.zero, Vector3.one * 200000f);
             var go = new GameObject("Ocean"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.layer = WaterReflection.WaterLayer;
             go.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.05f, 0.22f, 0.4f, 0.95f));
         }
 
@@ -343,6 +443,7 @@ namespace FlyingGame.Bridge
         private static void BuildAvalon(WorldTerrain t, Transform parent)
         {
             var b = new Batch();
+            var facades = new UrbanFacades();
             double ax = Island.AvalonX, ay = Island.AvalonY, R = Island.AvalonCoveR;
             // The Casino: round, white, red-tile roof, on the bay's north point.
             var (kx, ky) = Island.CasinoXY;
@@ -364,12 +465,32 @@ namespace FlyingGame.Bridge
                 Color wall = rng.NextDouble() < 0.7 ? Stucco : new Color(0.95f, 0.84f, 0.7f);
                 Quaternion q = Quaternion.Euler(0, yaw, 0);
                 b.Box(U(hx, hy, hg + hh / 2 - 1), new Vector3(w, hh + 2, l), q, wall, Tile);
-                b.Box(U(hx, hy, hg + hh + 1), new Vector3(w * 1.08f, 1.6f, l * 1.08f), q, Tile);
+                facades.Add(U(hx,hy,hg-2),new Vector3(w,hh+2,l),4,i*17,wall,q);
+                // Gabled clay/slate roof; original house footprint and wall height remain unchanged.
+                Vector3 centre = U(hx, hy, hg + hh);
+                Vector3 P(float x, float y, float z) => centre + q * new Vector3(x,y,z);
+                float rw = w * .54f, rl = l * .54f, rise = w * .28f;
+                Color roof = i % 5 == 0 ? new Color(.28f,.30f,.31f) : Tile * ( .85f + (i % 4) * .05f);
+                b.Quad(P(-rw,0,-rl), P(0,rise,-rl), P(0,rise,rl), P(-rw,0,rl), roof);
+                b.Quad(P(0,rise,-rl), P(rw,0,-rl), P(rw,0,rl), P(0,rise,rl), roof * .9f);
+                b.Tri(P(-rw,0,-rl), P(rw,0,-rl), P(0,rise,-rl), wall);
+                b.Tri(P(rw,0,rl), P(-rw,0,rl), P(0,rise,rl), wall);
             }
             // The green Pleasure Pier, from mid-beach out into the bay.
             double px = ax, py0 = ay + R * 0.97, py1 = ay + R * 0.55;
             b.Box(U(px, (py0 + py1) / 2, 3), new Vector3((float)(py0 - py1), 1f, 9f), Wood);
             for (double py = py1; py < py0; py += 12) b.Box(U(px, py, -2), new Vector3(0.8f, 9f, 0.8f), Wood);
+            // Timber edge fascia, mooring cleats and dark fenders on the existing pier.
+            // No quay/shoreline footprint or boat mooring is moved.
+            foreach (double side in new[] { -1.0, 1.0 })
+            {
+                b.Box(U(px + side * 4.4, (py0 + py1) / 2, 2.85), new Vector3((float)(py0-py1), .45f, .22f), Wood * .72f);
+                for (double py = py1 + 18; py < py0 - 6; py += 24)
+                {
+                    b.Box(U(px + side * 4.65, py, 2.2), new Vector3(1.2f, 1.6f, .35f), new Color(.16f,.17f,.16f));
+                    b.Box(U(px + side * 3.8, py, 3.8), new Vector3(.8f,.3f,1.1f), new Color(.28f,.29f,.27f));
+                }
+            }
             b.Box(U(px, py1 + 8, 6), new Vector3(10f, 6f, 12f), PierGreen, PierGreen * 0.8f);
             // Boats on their moorings, in rows, all head to wind.
             for (int i = 0; i < 70; i++)
@@ -381,6 +502,7 @@ namespace FlyingGame.Bridge
                 b.Box(U(bx, by, 0.6), new Vector3(len * 0.32f, 1.6f, len), q, Color.white, new Color(0.85f, 0.8f, 0.7f));
                 if (rng.NextDouble() < 0.5) b.Box(U(bx, by, 6), new Vector3(0.2f, 10f, 0.2f), q, new Color(0.85f, 0.85f, 0.85f));
             }
+            facades.Build(parent);
             b.Build("Avalon", parent, VC);
         }
 

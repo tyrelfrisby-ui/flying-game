@@ -20,6 +20,7 @@ namespace FlyingGame.Bridge
         Paint,
         /// <summary>Bare or polished metal — cowls, spinners, a bare-metal airliner. Sharp highlight, strongly tinted.</summary>
         Metal,
+        AluminiumFloat,
         /// <summary>Tyres, bungee, boots. Nearly no highlight, no panel detail.</summary>
         Rubber,
         /// <summary>Struts, wires, gear legs: small, hard, metallic.</summary>
@@ -128,6 +129,7 @@ namespace FlyingGame.Bridge
             (Texture2D tex, float tile, float depth, float smooth, float spec, Color tint) p = kind switch
             {
                 SurfaceKind.Fabric => (Fabric(), 1.0f, 0.5f, 0.12f, 0.10f, Color.white),
+                SurfaceKind.AluminiumFloat => (Panels(), 1.0f, 0.5f, 0.80f, 1.10f, colour),
                 SurfaceKind.Metal  => (Panels(), 1.0f, 0.9f, 0.80f, 1.10f, colour),
                 SurfaceKind.Rubber => (Blank(), 1.0f, 0.0f, 0.05f, 0.04f, Color.white),
                 SurfaceKind.Strut  => (Blank(), 1.0f, 0.0f, 0.65f, 0.70f, colour),
@@ -139,6 +141,7 @@ namespace FlyingGame.Bridge
             m.SetFloat("_DetailDepth", p.depth);
             m.SetFloat("_Smoothness", p.smooth);
             m.SetFloat("_SpecStrength", p.spec);
+            m.SetFloat("_WaterMetal", kind == SurfaceKind.AluminiumFloat ? 1 : 0);
             m.SetColor("_SpecTint", p.tint);
             Cache[(kind, colour)] = m;
             return m;
@@ -153,6 +156,7 @@ namespace FlyingGame.Bridge
             if (name.StartsWith("Tyre") || name.StartsWith("Tire") || name.Contains("Wheel")) return SurfaceKind.Rubber;
             if (name.StartsWith("Strut") || name.StartsWith("Leg") || name.StartsWith("Wire")
                 || name.StartsWith("Gear") || name.Contains("Bungee")) return SurfaceKind.Strut;
+            if (name == "Float") return SurfaceKind.AluminiumFloat;
             if (name.StartsWith("Blade") || name.StartsWith("Spinner") || name.StartsWith("Prop")
                 || name.StartsWith("Exhaust") || name.StartsWith("Cowl")) return SurfaceKind.Metal;
             // a fabric aeroplane's wings and tail are doped linen; its cowl is still metal, caught above

@@ -11,7 +11,7 @@ namespace FlyingGame.Bridge
     /// distance marks, undulating grass), an apron and an open hangar — plus the ploughed field and its power line. Edit-mode safe (used by the editor's
     /// world render tool as well as at play start).
     /// </summary>
-    public static class WorldBuilder
+    public static partial class WorldBuilder
     {
         // Sim (x north, y east, up) → Unity (east, up, north).
         public static Vector3 U(double x, double y, double up) => new((float)y, (float)up, (float)x);
@@ -38,6 +38,7 @@ namespace FlyingGame.Bridge
         /// <summary>Build everything under one root; returns it.</summary>
         public static GameObject BuildAll()
         {
+            SunsetLighting.ApplyDay();
             WorldTerrain.Active ??= new WorldTerrain();
             return IslandWorldBuilder.Build();
         }
@@ -52,15 +53,20 @@ namespace FlyingGame.Bridge
         private const double CoarseStep = 60.0, FineStep = 6.0;
 
         /// <summary>Terrain vertex colour by slope and height (shared by the coarse mesh and the fine waterfall patches).</summary>
-        private static Color TerrainColor(WorldTerrain t, double x, double y, double h)
+        private static Color TerrainColor(WorldTerrain t, double x, double y, double h, out Vector2 geology)
         {
             var grass = new Color(0.42f, 0.55f, 0.28f);
             var dry = new Color(0.62f, 0.56f, 0.36f);
             var rock = new Color(0.47f, 0.42f, 0.37f);
             var snow = new Color(0.9f, 0.9f, 0.92f);
             var conifer = new Color(0.15f, 0.25f, 0.18f);
-            double dhx = (t.HeightAt(x + 8, y) - t.HeightAt(x - 8, y)) / 16.0;
-            double dhy = (t.HeightAt(x, y + 8) - t.HeightAt(x, y - 8)) / 16.0;
+            double east = t.HeightAt(x + 8, y), west = t.HeightAt(x - 8, y);
+            double north = t.HeightAt(x, y + 8), south = t.HeightAt(x, y - 8);
+            double dhx = (east - west) / 16.0, dhy = (north - south) / 16.0;
+            // Signed concavity, normalized by slope: positive in drainage hollows.
+            // Data only; all rendered vertices remain exactly on the sampled sim surface.
+            geology = new Vector2(0, Mathf.Clamp((float)((east + west + north + south - 4 * h)
+                / (8 * (1 + System.Math.Sqrt(dhx * dhx + dhy * dhy)))), -1, 1));
             float slope = (float)System.Math.Sqrt(dhx * dhx + dhy * dhy);
             float hf = Mathf.Clamp01((float)h / 2800f);
             Color c = Color.Lerp(grass, dry, hf * 0.9f);
@@ -91,9 +97,11 @@ namespace FlyingGame.Bridge
             // channel walls alone, which are the only thing on these mountains steeper than 72° — so the
             // erosion shows as rock stripes down a white peak, which is what a snow peak looks like.
             snowy *= 1f - Mathf.Clamp01((slope - 2.6f) / 1.6f);
+            geology.x = snowy;
             if (snowy > 0) c = Color.Lerp(c, snow, snowy);
             // Glacier ice: bluer and brighter than snow, so the ice reads as a river through the rock.
-            if (AlaskaRange.OnIce(x, y)) c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f);
+            if (AlaskaRange.OnIce(x, y))
+            { c = Color.Lerp(c, new Color(0.83f, 0.88f, 0.93f), 0.85f); geology.x = -1; }
             // Sand: the beaches under the sea cliffs, Avalon's cove, the cave's beach; the sea floor below.
             if (h < 3.0 && Coast.IsSea(x, y))
             {
@@ -110,7 +118,7 @@ namespace FlyingGame.Bridge
             if (HighDesert.InArea(x, y))
             {
                 var sage = new Color(0.52f, 0.50f, 0.36f);
-                var desertRock = new Color(0.56f, 0.42f, 0.33f);
+                var desertRock = new Color(0.63f, 0.40f, 0.28f);
                 var clay = new Color(0.76f, 0.73f, 0.66f);
                 var mesaTop = new Color(0.62f, 0.55f, 0.43f);
                 float fade = (float)HighDesert.EdgeFade(x, y);
@@ -121,23 +129,139 @@ namespace FlyingGame.Bridge
                 if (HighDesert.SurfaceAt(x, y) == WorldTerrain.Surface.Gravel) d = mesaTop;
                 if (HighDesert.OnPlaya(x, y)) d = clay;
                 c = Color.Lerp(c, d, fade);
-                c.a = 1f - Mathf.Clamp01(slope / 0.08f);
+                geology.x = 0; // Desert palette above replaces the snowy biome completely.
+                c.a = 0f; // Desert shelves are not farm fields.
                 return c;
             }
-            // The canyon lake's walls: banded Navajo sandstone.
-            if (y > CanyonLake.Y0 - 60 && y < CanyonLake.DamY + 80 && slope > 0.5f && System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < CanyonLake.HalfWidthAt(y) + 40)
+            // Powell includes the enclosing cliffs and dry plateau, with a soft biome boundary.
+            // No altitude ceiling: the high walls behind the narrow carved shore are sandstone too.
+            float powell = PowellRegionMask(x, y);
+            if (powell > 0)
             {
-                int band = (int)(h / 9) % 3;
-                Color sandstone = band == 0 ? new Color(0.78f, 0.43f, 0.27f) : band == 1 ? new Color(0.86f, 0.58f, 0.38f) : new Color(0.66f, 0.34f, 0.22f);
-                c = Color.Lerp(c, sandstone, Mathf.Clamp01((slope - 0.35f) / 0.4f));
+                geology.x = -2-powell;
+                c = Color.Lerp(c, new Color(.79f,.44f,.25f,0), powell);
+                cover *= 1-powell;
             }
+            // A narrow damp mineral band at the existing water line. No bank geometry is moved.
+            double shore = double.MaxValue;
+            foreach (WorldTerrain.Lake lake in WorldTerrain.Lakes)
+            {
+                double r = lake.Inside(x, y);
+                if (r < 1.12) shore = System.Math.Min(shore, System.Math.Abs(h - lake.SurfaceM));
+            }
+            if (System.Math.Abs(x - WorldTerrain.RiverCentreX(y)) < WorldTerrain.RiverHalfWidthM + 24)
+                shore = System.Math.Min(shore, System.Math.Abs(h - t.RiverSurfaceAt(y)));
+            if (CanyonLake.OnWater(x, y)) shore = System.Math.Min(shore, System.Math.Abs(h - CanyonLake.SurfaceM));
+            foreach (AlpineRange.Lake lake in AlpineRange.Lakes)
+            {
+                double angle = lake.HeadingDeg * System.Math.PI / 180;
+                double dx = x-lake.X, dy = y-lake.Y;
+                double along = (dx*System.Math.Cos(angle)+dy*System.Math.Sin(angle))/(lake.LengthM*.5);
+                double across = (-dx*System.Math.Sin(angle)+dy*System.Math.Cos(angle))/(lake.WidthM*.5);
+                if (along*along+across*across < 1.25) shore = System.Math.Min(shore,System.Math.Abs(h-lake.SurfaceM));
+            }
+            float damp = 1 - Mathf.SmoothStep(0, 1, (float)(shore / 5));
+            c = Color.Lerp(c, Color.Lerp(new Color(.30f,.29f,.23f), new Color(.23f,.25f,.24f), rockiness), damp * .8f);
+            cover *= 1 - damp;
             // Flatness → field grid lines, which are pasture fences and section lines and belong on farmed
             // ground. They were being drawn on every flat shelf in the world, including the rims of the
             // alpine basins at 9,000 ft, where they read as grey staircases cut into the rock. Nobody fences
             // ground above the treeline, so the grid dies out as the timber does.
             float farmed = Mathf.Clamp01((float)((Forest.TreeLineAt(x, y, dhx) - h) / 300.0));
-            c.a = (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
+            c.a = cover > .05f ? -cover : (1f - Mathf.Clamp01(slope / 0.08f)) * farmed;
             return c;
+        }
+
+        // Shared by terrain metadata and visual vegetation only; never changes Forest solids.
+        internal static float PowellRegionMask(double x, double y, bool rimTrees = false)
+        {
+            double along = System.Math.Max(CanyonLake.Y0-y, y-CanyonLake.DamY);
+            double sampleY = System.Math.Max(CanyonLake.Y0, System.Math.Min(CanyonLake.DamY, y));
+            double edge = System.Math.Abs(x-CanyonLake.CentreX(sampleY))-CanyonLake.HalfWidthAt(sampleY);
+            float across = 1-Mathf.SmoothStep(0,1,(float)((edge-(rimTrees ? 1100 : 650))/(rimTrees ? 450 : 400)));
+            float ends = 1-Mathf.SmoothStep(0,1,(float)((along-(rimTrees ? 650 : 220))/350));
+            float region = across*ends;
+            if (region <= 0) return 0;
+            // Tree clearance must continue across airport-adjacent shores and rims.
+            if (rimTrees) return region;
+            var terrain = WorldTerrain.Active;
+            if (terrain == null || edge < 250) return region;
+            double height = terrain.HeightAt(x,y);
+            double gx=(terrain.HeightAt(x+8,y)-terrain.HeightAt(x-8,y))/16;
+            double gy=(terrain.HeightAt(x,y+8)-terrain.HeightAt(x,y-8))/16;
+            float flat=1-Mathf.SmoothStep(0,1,(float)((System.Math.Sqrt(gx*gx+gy*gy)-.35)/.116));
+            foreach (var airport in WorldTerrain.Airports)
+            {
+                float level=1-Mathf.SmoothStep(0,1,(float)((System.Math.Abs(height-airport.ElevationM)-5)/3));
+                if (level*flat<=0) continue;
+                double outside = System.Math.Max(WorldTerrain.PadOutsideX(airport,x),
+                    System.Math.Max(0,System.Math.Abs(y-airport.Y)-WorldTerrain.PadHalfY));
+                // Keep the authored flat infield; feather only outside it. Noise breaks
+                // the rectangular boundary without changing any surface or collision.
+                float noise=Mathf.PerlinNoise((float)x*.009f,(float)y*.009f);
+                float fringe=Mathf.SmoothStep(0,1,(float)(outside/(60+60*noise)));
+                float shore=Mathf.SmoothStep(0,1,(float)((edge-250)/100));
+                region*=1-(1-fringe)*level*flat*shore;
+            }
+            return region;
+        }
+
+        private static Texture2D powellRimLookup;
+        // Small, generated height lookup: nearest higher flat surface is the source
+        // of runoff. No repeated world-height ledge families, runtime terrain queries,
+        // extra geometry or persistent photo assets.
+        private static void BuildPowellRimLookup(WorldTerrain terrain)
+        {
+            const int size=256;
+            const float step=20;
+            float north=(float)CanyonLake.CentreX((CanyonLake.Y0+CanyonLake.DamY)*.5)-size*step*.5f;
+            float east=(float)((CanyonLake.Y0+CanyonLake.DamY)*.5)-size*step*.5f;
+            var heights=new float[size*size];
+            for(int j=0;j<size;j++) for(int i=0;i<size;i++)
+                heights[j*size+i]=(float)terrain.HeightAt(north+i*step,east+j*step);
+            var rocks=new List<Spire>(CanyonLake.Spires);
+            rocks.AddRange(CanyonLake.ArchPillars());
+            var pixels=new float[size*size];
+            for(int j=0;j<size;j++) for(int i=0;i<size;i++)
+            {
+                float h=heights[j*size+i], rim=h, nearest=float.MaxValue;
+                for(int dz=-1;dz<=1;dz++) for(int dx=-1;dx<=1;dx++)
+                {
+                    if(dx==0 && dz==0) continue;
+                    for(int k=1;k<=25;k++)
+                    {
+                        int x=i+dx*k, z=j+dz*k;
+                        if(x<1 || x>=size-1 || z<1 || z>=size-1) break;
+                        int q=z*size+x;
+                        float candidate=heights[q];
+                        float sx=(heights[q+1]-heights[q-1])/(2*step);
+                        float sz=(heights[q+size]-heights[q-size])/(2*step);
+                        float distance=k*Mathf.Sqrt(dx*dx+dz*dz);
+                        if(candidate>=h && sx*sx+sz*sz<.217f && distance<nearest)
+                        { rim=candidate; nearest=distance; break; }
+                    }
+                }
+                // Authored spires/arch crowns have their own true local rims,
+                // independent of the terrain beneath the flooded lake.
+                double px=north+i*step, py=east+j*step;
+                foreach(var spire in rocks)
+                    if((px-spire.X)*(px-spire.X)+(py-spire.Y)*(py-spire.Y)<
+                        (spire.BaseR+step)*(spire.BaseR+step)) rim=(float)spire.TopM;
+                foreach(var arch in CanyonLake.Arches)
+                {
+                    var local=arch.Local(px,py);
+                    if(System.Math.Abs(local.s)<arch.HalfSpan+step && System.Math.Abs(local.c)<arch.WidthM*.5+step)
+                        rim=(float)arch.OuterAt(System.Math.Clamp(local.s,-arch.HalfSpan,arch.HalfSpan));
+                }
+                pixels[j*size+i]=rim;
+            }
+            Kill(powellRimLookup);
+            powellRimLookup=new Texture2D(size,size,TextureFormat.RFloat,false,true)
+                { name="Powell generated rim heights",wrapMode=TextureWrapMode.Clamp,filterMode=FilterMode.Bilinear };
+            powellRimLookup.SetPixelData(pixels,0); powellRimLookup.Apply(false,true);
+            Shader.SetGlobalTexture("_PowellRimHeights",powellRimLookup);
+            // Unity horizontal coordinates are (east,north).
+            Shader.SetGlobalVector("_PowellRimBounds",new Vector4(east-step*.5f,north-step*.5f,1/(size*step),1/(size*step)));
         }
 
         /// <summary>Coarse-cell index rectangle [i0,i1) × [j0,j1) that a waterfall's fine patch replaces.</summary>
@@ -201,17 +325,48 @@ namespace FlyingGame.Bridge
 
         private static void BuildTerrain(WorldTerrain t, Transform parent)
         {
+            var airportGrass = new Vector4[4];
+            var airportPasture = new Vector4[4];
+            var airportPastureHeights = new Vector4();
+            WorldTerrain.Strip grassStrip = WorldTerrain.AirportStrips[3];
+            for(int index=0;index<System.Math.Min(4,WorldTerrain.Airports.Length);index++)
+            {
+                var airport=WorldTerrain.Airports[index];
+                // Exact existing asymmetric pad bounds; shader colour only, never geometry.
+                airportPasture[index]=new Vector4((float)airport.Y,
+                    (float)(airport.X+(WorldTerrain.PadHalfX-WorldTerrain.PadSouthX)*.5),
+                    (float)WorldTerrain.PadHalfY,(float)((WorldTerrain.PadHalfX+WorldTerrain.PadSouthX)*.5));
+                airportPastureHeights[index]=(float)airport.ElevationM;
+                airportGrass[index]=new Vector4((float)(airport.Y+grassStrip.Dy),(float)(airport.X+grassStrip.Dx),
+                    (float)(grassStrip.Width/2),(float)(grassStrip.Length/2));
+            }
+            var terrainMaterial=Mat("FlyingGame/Terrain",Color.white);
+            terrainMaterial.SetVectorArray("_AirportGrass",airportGrass);
+            terrainMaterial.SetVectorArray("_AirportPasture",airportPasture);
+            terrainMaterial.SetVector("_AirportPastureHeights",airportPastureHeights);
+            // Visual biome rectangles in Unity XZ (sim YX). Inward feathering keeps
+            // the two adjacent ranges distinct without changing the height field.
+            terrainMaterial.SetVector("_MountainAlpine", new Vector4(
+                (float)(AlpineRange.Y0-AlpineRange.FootprintPadM), (float)(AlpineRange.X0-AlpineRange.FootprintPadM),
+                (float)(AlpineRange.Y1+AlpineRange.FootprintPadM), (float)(AlpineRange.X1+AlpineRange.FootprintPadM)));
+            terrainMaterial.SetVector("_MountainAlaska", new Vector4(
+                (float)(AlaskaRange.Y0-AlaskaRange.PadSouthM), (float)(AlaskaRange.X0-AlaskaRange.PadWestM),
+                (float)(AlaskaRange.Y1+AlaskaRange.PadNorthM), (float)(AlaskaRange.X1+AlaskaRange.PadEastM)));
+
+            AlaskaBuilder.ConfigureTerrain(terrainMaterial);
+
             double step = CoarseStep;
             int nx = (int)((MaxX - MinX) / step) + 1, ny = (int)((MaxY - MinY) / step) + 1;
             var verts = new Vector3[nx * ny];
             var cols = new Color[nx * ny];
+            var geology = new Vector2[nx * ny];
             for (int j = 0; j < ny; j++)
             for (int i = 0; i < nx; i++)
             {
                 double x = MinX + i * step, y = MinY + j * step;
                 double h = t.HeightAt(x, y);
                 verts[j * nx + i] = U(x, y, h);
-                cols[j * nx + i] = TerrainColor(t, x, y, h);
+                cols[j * nx + i] = TerrainColor(t, x, y, h, out geology[j * nx + i]);
             }
             // Cells replaced by a waterfall's fine patch (a 60 m grid cannot show a 60 m vertical recess).
             var patches = new List<Patch>();
@@ -241,12 +396,36 @@ namespace FlyingGame.Bridge
                 tris.Add(b); tris.Add(d); tris.Add(c);
             }
             var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "Terrain" };
-            mesh.vertices = verts; mesh.colors = cols; mesh.triangles = tris.ToArray();
-            mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            mesh.vertices = verts; mesh.colors = cols; mesh.uv = geology; mesh.triangles = tris.ToArray();
+            mesh.RecalculateNormals();
+            // The infield is part of ONE shared mesh, not separately tiled grass.
+            // Area-weighted 60 m triangle normals sample grass swells asymmetrically,
+            // producing straight lighting bands across an otherwise smooth field.
+            // Sample a common world-space gradient instead, only on airport pasture.
+            // No vertex, triangle, depth or collision changes; non-airport normals retained.
+            var terrainNormals=mesh.normals;
+            for(int index=0;index<verts.Length;index++)
+            {
+                Vector3 point=verts[index];
+                foreach(var airport in WorldTerrain.Airports)
+                {
+                    double outsideX=WorldTerrain.PadOutsideX(airport,point.z);
+                    double outsideY=System.Math.Max(0,System.Math.Abs(point.x-airport.Y)-WorldTerrain.PadHalfY);
+                    double outside=System.Math.Sqrt(outsideX*outsideX+outsideY*outsideY);
+                    if(outside>=120 || System.Math.Abs(point.y-airport.ElevationM)>25) continue;
+                    const double sample=8;
+                    float east=(float)((t.HeightAt(point.z,point.x+sample)-t.HeightAt(point.z,point.x-sample))/(2*sample));
+                    float north=(float)((t.HeightAt(point.z+sample,point.x)-t.HeightAt(point.z-sample,point.x))/(2*sample));
+                    float blend=1-Mathf.SmoothStep(0,1,(float)(outside/120));
+                    terrainNormals[index]=Vector3.Slerp(terrainNormals[index],new Vector3(-east,1,-north).normalized,blend);
+                    break;
+                }
+            }
+            mesh.normals=terrainNormals; mesh.RecalculateBounds();
             var go = new GameObject("Terrain");
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            go.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+            go.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
 
             // Fine patches: same height field at 6 m so the lip, the sheer concave back wall and the notch read.
             // Their edges land exactly on the coarse grid lines (60 / 6 = 10), so there is no seam.
@@ -256,13 +435,14 @@ namespace FlyingGame.Bridge
                 double fs = p.Step;
                 int fx = (int)System.Math.Round((x1 - x0) / fs) + 1, fy = (int)System.Math.Round((y1 - y0) / fs) + 1;
                 var fv = new Vector3[fx * fy]; var fc = new Color[fx * fy];
+                var fg = new Vector2[fx * fy];
                 for (int j = 0; j < fy; j++)
                 for (int i = 0; i < fx; i++)
                 {
                     double x = x0 + i * fs, y = y0 + j * fs;
                     double h = t.HeightAt(x, y, false, withTunnel: !p.Unbored);
                     fv[j * fx + i] = U(x, y, h);
-                    fc[j * fx + i] = TerrainColor(t, x, y, h);
+                    fc[j * fx + i] = TerrainColor(t, x, y, h, out fg[j * fx + i]);
                 }
                 var ft = new int[(fx - 1) * (fy - 1) * 6];
                 int k = 0;
@@ -274,12 +454,12 @@ namespace FlyingGame.Bridge
                     ft[k++] = b; ft[k++] = d; ft[k++] = c;
                 }
                 var fm = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = "TerrainFine" };
-                fm.vertices = fv; fm.colors = fc; fm.triangles = ft;
+                fm.vertices = fv; fm.colors = fc; fm.uv = fg; fm.triangles = ft;
                 fm.RecalculateNormals(); fm.RecalculateBounds();
                 var fgo = new GameObject("TerrainFine");
                 fgo.transform.SetParent(parent, false);
                 fgo.AddComponent<MeshFilter>().sharedMesh = fm;
-                fgo.AddComponent<MeshRenderer>().sharedMaterial = Mat("FlyingGame/Terrain", Color.white);
+                fgo.AddComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
             }
         }
 
@@ -288,37 +468,35 @@ namespace FlyingGame.Bridge
         private static void BuildWater(WorldTerrain t, Transform parent)
         {
             var water = Mat("FlyingGame/Water", new Color(0.08f, 0.28f, 0.5f, 0.92f));
-            // Lakes: ellipse fans.
+            water.SetFloat("_SceneryWater", 1);
+            // Concentric rings retain the shoreline and sample the actual bowl's optical depth.
+            void LakeMesh(string name, double cx, double cy, double rx, double ry, double heading, double surface, Material mat)
+            {
+                const int seg = 96, rings = 8;
+                var v = new List<Vector3> { U(cx, cy, surface) }; var tr = new List<int>();
+                double ca = System.Math.Cos(heading), sa = System.Math.Sin(heading);
+                for (int r = 1; r <= rings; r++)
+                for (int i = 0; i < seg; i++)
+                {
+                    double a = i * System.Math.PI * 2 / seg, radius = 1 - System.Math.Pow(1 - (double)r / rings, 2);
+                    double dx = rx * System.Math.Cos(a) * radius, dy = ry * System.Math.Sin(a) * radius;
+                    v.Add(U(cx + dx * ca - dy * sa, cy + dx * sa + dy * ca, surface));
+                    int here = 1 + (r - 1) * seg + i, next = 1 + (r - 1) * seg + (i + 1) % seg;
+                    if (r == 1) tr.AddRange(new[] { 0, here, next });
+                    else { int inner = here - seg, innerNext = next - seg; tr.AddRange(new[] { inner, here, innerNext, innerNext, here, next }); }
+                }
+                WaterOptics(Spawn(name, v.ToArray(), tr.ToArray(), mat, parent, false), t);
+            }
             foreach (WorldTerrain.Lake l in WorldTerrain.Lakes)
-            {
-                const int seg = 48;
-                var v = new Vector3[seg + 1]; var tr = new int[seg * 3];
-                v[0] = U(l.Cx, l.Cy, l.SurfaceM);
-                for (int i = 0; i < seg; i++)
-                {
-                    double a = i * System.Math.PI * 2 / seg;
-                    v[i + 1] = U(l.Cx + l.Rx * System.Math.Cos(a), l.Cy + l.Ry * System.Math.Sin(a), l.SurfaceM);
-                }
-                for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
-                Spawn("Lake", v, tr, water, parent, true);
-            }
-            // The alpine lakes: the same fan, turned to each lake's own long axis.
-            var alpine = Mat("FlyingGame/Water", new Color(0.10f, 0.42f, 0.55f, 0.92f));   // colder, clearer
+                LakeMesh("Lake", l.Cx, l.Cy, l.Rx, l.Ry, 0, l.SurfaceM, water);
+            var alpine = Mat("FlyingGame/Water", new Color(0.055f, 0.22f, 0.25f, 1));
+            alpine.SetFloat("_SceneryWater", 1);
             foreach (AlpineRange.Lake l in AlpineRange.Lakes)
-            {
-                const int seg = 48;
-                double hd = l.HeadingDeg * System.Math.PI / 180, ca = System.Math.Cos(hd), sa = System.Math.Sin(hd);
-                var v = new Vector3[seg + 1]; var tr = new int[seg * 3];
-                v[0] = U(l.X, l.Y, l.SurfaceM);
-                for (int i = 0; i < seg; i++)
-                {
-                    double a = i * System.Math.PI * 2 / seg;
-                    double along = l.LengthM * 0.5 * System.Math.Cos(a), across = l.WidthM * 0.5 * System.Math.Sin(a);
-                    v[i + 1] = U(l.X + along * ca - across * sa, l.Y + along * sa + across * ca, l.SurfaceM);
-                }
-                for (int i = 0; i < seg; i++) { tr[i * 3] = 0; tr[i * 3 + 1] = i + 1; tr[i * 3 + 2] = (i + 1) % seg + 1; }
-                Spawn($"AlpineLake-{l.Name}", v, tr, alpine, parent, true);
-            }
+                LakeMesh($"AlpineLake-{l.Name}", l.X, l.Y, l.LengthM * .5, l.WidthM * .5,
+                    l.HeadingDeg * System.Math.PI / 180, l.SurfaceM, alpine);
+            var river = Mat("FlyingGame/Water", new Color(.035f, .16f, .17f, 1));
+            river.SetFloat("_SceneryWater", 1); river.SetFloat("_RiverFlow", 1);
+            var backRiver = new Material(river); backRiver.SetVector("_FlowDirection", new Vector4(0,1,0,0));
             // The backcountry canyon's river: a ribbon down the bottom, broken where a strip's bar covers it.
             {
                 var bv = new List<Vector3>(); var bt = new List<int>();
@@ -329,15 +507,15 @@ namespace FlyingGame.Bridge
                     if (FrankChurch.OnWorkedGround(x, cy)) { run = 0; continue; }
                     double surf = FrankChurch.RiverSurfaceAt(x);
                     double hw = FrankChurch.RiverHalfWidthM;
-                    bv.Add(U(x, cy - hw, surf)); bv.Add(U(x, cy + hw, surf));
+                    for (int c = 0; c < 5; c++) bv.Add(U(x, cy + hw * (c * .5 - 1), surf));
                     if (run > 0)
                     {
-                        int b = bv.Count - 4;
-                        bt.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
+                        for (int c = 0; c < 4; c++)
+                        { int b = bv.Count - 10 + c; bt.AddRange(new[] { b, b+5, b+1, b+1, b+5, b+6 }); }
                     }
                     run++;
                 }
-                if (bt.Count > 0) Spawn("BackcountryRiver", bv.ToArray(), bt.ToArray(), water, parent, true);
+                if (bt.Count > 0) WaterOptics(Spawn("BackcountryRiver", bv.ToArray(), bt.ToArray(), backRiver, parent, false), t);
             }
             // River: ribbon along the meander; the surface steps down at each wall.
             var rv = new List<Vector3>(); var rt = new List<int>();
@@ -349,17 +527,28 @@ namespace FlyingGame.Bridge
                 if (WorldTerrain.PastRiverMouth(y)) break;   // the river ends in the sea
                 double cx = WorldTerrain.RiverCentreX(y);
                 double surf = t.WaterSurfaceAt(cx, y) ?? (t.BaseHeightAt(cx, y) - 2.0);
-                rv.Add(U(cx - halfW, y, surf)); rv.Add(U(cx + halfW, y, surf));
+                for (int c = 0; c < 5; c++) rv.Add(U(cx + halfW * (c * .5 - 1), y, surf));
                 // Break the ribbon at a plunge fall (drop ≫ a staircase step): the curtain mesh takes over.
                 if (n > 0 && prevSurf - surf < 100)
                 {
-                    int b = rv.Count - 4;
-                    rt.AddRange(new[] { b, b + 2, b + 1, b + 1, b + 2, b + 3 });
+                    for (int c = 0; c < 4; c++)
+                    { int b = rv.Count - 10 + c; rt.AddRange(new[] { b, b+1, b+5, b+1, b+6, b+5 }); }
                 }
                 prevSurf = surf;
                 n++;
             }
-            Spawn("River", rv.ToArray(), rt.ToArray(), water, parent, true);
+            WaterOptics(Spawn("River", rv.ToArray(), rt.ToArray(), river, parent, false), t);
+        }
+
+        // CPU optical depth is independent of the view ray and also works without a depth camera.
+        // No heights or collision are changed; uv2.y marks meshes carrying this optional channel.
+        internal static void WaterOptics(GameObject go, WorldTerrain terrain)
+        {
+            var mesh = go.GetComponent<MeshFilter>().sharedMesh;
+            var v = mesh.vertices; var depth = new Vector2[v.Length];
+            for (int i = 0; i < v.Length; i++)
+                depth[i] = new Vector2(Mathf.Max(0, v[i].y - (float)terrain.HeightAt(v[i].z, v[i].x)), 1);
+            mesh.uv2 = depth;
         }
 
         // ---- seaplane lanes and base (owner 2026-10-07) --------------------------------------------
@@ -426,10 +615,13 @@ namespace FlyingGame.Bridge
                 ramp.transform.position = (a + b) * 0.5f + ramp.transform.up * 0.04f - ramp.transform.up * 0.4f;
                 ramp.transform.localScale = new Vector3((float)(2 * WorldTerrain.BaseRampHalfWidthM), 0.8f, (b - a).magnitude);
                 ramp.GetComponent<MeshRenderer>().sharedMaterial = Lit(concrete);
+                AirportFinish(ramp, concrete, 1);
             }
             // Parking pad (sim x along the lake, y inland), with a yellow lead-in line ramp → hangar and tie-down rows.
             double padCy = Y(8.0 + WorldTerrain.BasePadDepthM / 2);
-            Slab(root.transform, "SeaplanePad", sx, padCy, pad + 0.06, 2 * WorldTerrain.BasePadHalfXM, WorldTerrain.BasePadDepthM, 1.2, 0, concrete);
+            var basePad = Slab(root.transform, "SeaplanePad", sx, padCy, pad + 0.06, 2 * WorldTerrain.BasePadHalfXM, WorldTerrain.BasePadDepthM, 1.2, 0, concrete);
+            AirportFinish(basePad, concrete, 1);
+            var dockDetails = new SeasideBuilder.Batch();
             Slab(root.transform, "LeadIn", sx, Y(8.0 + (WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0) / 2), pad + 0.09, 0.6, WorldTerrain.BaseHangarDy - WorldTerrain.BaseHangarHalfY - 8.0, 0.03, 0, paint);
             for (int row = 0; row < 2; row++)
                 for (double dx = -110; dx <= 110; dx += 22)
@@ -450,11 +642,32 @@ namespace FlyingGame.Bridge
                 roof.transform.localScale = new Vector3((float)(hd * 1.05), 0.4f, (float)(2 * hx + 1));
                 roof.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.45f, 0.20f, 0.18f));
             }
+            // Hangar cladding, door panel joints and clerestory glazing use the existing fittings batch.
+            Color metalSeam = new Color(.48f,.52f,.53f), pane = new Color(.18f,.27f,.30f);
+            for (double d=-hx+2;d<hx-1;d+=4)
+            {
+                dockDetails.Box(U(sx+d,hy-inl*(hd+.12),pad+hh*.42),new Vector3(.025f,(float)(hh*.80),.065f),metalSeam);
+                dockDetails.Box(U(sx+d,hy+inl*(hd+.04),pad+hh*.73),new Vector3(.035f,1.1f,2.5f),pane);
+            }
+            foreach (int side in new[] {-1,1})
+                for (double d=-hd+2;d<hd-1;d+=4)
+                    dockDetails.Box(U(sx+side*(hx+.04),hy+d,pad+hh*.72),new Vector3(2.5f,1.1f,.035f),pane);
             // Floating docks either side of the ramp: pontoon decks (no pilings) riding the water, finger piers, gangways.
             foreach (int side in new[] { -1, 1 })
             {
                 double dxDock = side * 40, len = 60;
-                Slab(root.transform, "DockDeck", sx + dxDock, Y(-2 - len / 2), surf + 0.40, 3.0, len, 0.25, 0, wood);
+                var dock = Slab(root.transform, "DockDeck", sx + dxDock, Y(-2 - len / 2), surf + 0.40, 3.0, len, 0.25, 0, wood);
+                AirportFinish(dock, new Color(.45f,.39f,.29f), 4);
+                for (double d = 5; d < len; d += 8)
+                {
+                    foreach (int edge in new[] { -1, 1 })
+                    {
+                        Vector3 cleat = U(sx+dxDock+edge*1.3,Y(-2-d),surf+.47);
+                        dockDetails.Box(cleat,new Vector3(.16f,.16f,.7f),new Color(.25f,.28f,.29f));
+                        dockDetails.Box(cleat+Vector3.up*.13f,new Vector3(.18f,.12f,1.0f),new Color(.42f,.44f,.42f));
+                        dockDetails.Box(U(sx+dxDock+edge*1.55,Y(-2-d),surf+.20),new Vector3(.65f,.48f,.22f),new Color(.18f,.20f,.21f));
+                    }
+                }
                 for (double d = 4; d < len; d += 8)
                     foreach (int s2 in new[] { -1, 1 })
                     {
@@ -466,7 +679,7 @@ namespace FlyingGame.Bridge
                         p.GetComponent<MeshRenderer>().sharedMaterial = Lit(drum);
                     }
                 for (double d = 12; d < len; d += 16)
-                    Slab(root.transform, "FingerPier", sx + dxDock + side * 6.5, Y(-2 - d), surf + 0.40, 10.0, 1.6, 0.2, 0, wood);
+                    AirportFinish(Slab(root.transform, "FingerPier", sx + dxDock + side * 6.5, Y(-2 - d), surf + 0.40, 10.0, 1.6, 0.2, 0, wood), new Color(.45f,.39f,.29f), 4);
                 // Gangway from the pad edge down to the floating deck.
                 Vector3 g0 = U(sx + dxDock, Y(6), pad + 0.1), g1 = U(sx + dxDock, Y(-3), surf + 0.42);
                 var gw = GameObject.CreatePrimitive(PrimitiveType.Cube); Kill(gw.GetComponent<Collider>());
@@ -475,6 +688,7 @@ namespace FlyingGame.Bridge
                 gw.transform.position = (g0 + g1) * 0.5f; gw.transform.localScale = new Vector3(1.6f, 0.15f, (g1 - g0).magnitude);
                 gw.GetComponent<MeshRenderer>().sharedMaterial = Lit(new Color(0.5f, 0.5f, 0.52f));
             }
+            dockDetails.Build("DockFittings",root.transform,SeasideBuilder.VC);
             Reflected(root);
         }
 
@@ -490,9 +704,14 @@ namespace FlyingGame.Bridge
         private static void BuildWaterfalls(WorldTerrain t, Transform parent)
         {
             var rock = Mat("FlyingGame/Lit", new Color(0.45f, 0.40f, 0.35f));
+            var powellRock = Mat("FlyingGame/PowellSandstone", Color.white);
             var curtainMat = Mat("FlyingGame/Waterfall", new Color(0.80f, 0.90f, 1.0f, 0.82f));
-            var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.55f));
+            var mistMat = Mat("FlyingGame/Waterfall", new Color(1f, 1f, 1f, 0.72f));
             mistMat.SetFloat("_Mist", 1f);
+            var poolMat = Mat("FlyingGame/Waterfall", new Color(.91f,.95f,.94f,.94f));
+            poolMat.SetFloat("_Mist", 2f);
+            var sprayMat = Mat("FlyingGame/Waterfall", new Color(.94f,.97f,1,.38f));
+            sprayMat.SetFloat("_Mist", 3f);
 
             foreach (WorldTerrain.Waterfall f in t.Waterfalls)
             {
@@ -530,7 +749,10 @@ namespace FlyingGame.Bridge
                     int topRow = (ny - 1) * nx;
                     for (int i = 0; i < nx - 1; i++)
                     {
-                        int a = topRow + i, b = a + 1;
+                        // Separate vertical lip vertices from the roof normal sums.
+                        int roofA = topRow + i, roofB = roofA + 1;
+                        int a = v.Count; v.Add(v[roofA]);
+                        int b = v.Count; v.Add(v[roofB]);
                         int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
                         int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
                         tr.AddRange(new[] { a, b, p0, b, p1, p0 });
@@ -540,13 +762,36 @@ namespace FlyingGame.Bridge
                     {
                         for (int j = 0; j < ny - 1; j++)
                         {
-                            int a = j * nx + col, b = a + nx;
+                            int roofA = j * nx + col, roofB = roofA + nx;
+                            int a = v.Count; v.Add(v[roofA]);
+                            int b = v.Count; v.Add(v[roofB]);
                             int p0 = v.Count; v.Add(new Vector3(v[a].x, (float)bottom, v[a].z));
                             int p1 = v.Count; v.Add(new Vector3(v[b].x, (float)bottom, v[b].z));
-                            tr.AddRange(new[] { a, p0, b, b, p0, p1 });
+                            // U swaps sim east/north; each end needs outward winding.
+                            tr.AddRange(col == 0
+                                ? new[] { a, b, p0, b, p1, p0 }
+                                : new[] { a, p0, b, b, p0, p1 });
                         }
                     }
-                    Spawn("Shelf", v.ToArray(), tr.ToArray(), rock, root.transform, true);
+                    // Powell lip uses the same world-space beds/caps as the surrounding cliff.
+                    // Its shader is two-sided: duplicated reverse triangles would cancel normals.
+                    bool powellShelf = PowellRegionMask(f.X,f.LipY) > .1f;
+                    var shelfObject = Spawn("Shelf", v.ToArray(), tr.ToArray(), powellShelf ? powellRock : rock,
+                        root.transform, !powellShelf);
+                    if (powellShelf)
+                    {
+                        // The flat four-vertex soffit reads as a dark ruler along
+                        // the otherwise matched cliff panels from the lake.
+                        // Give only that visual face the lip's outward shading
+                        // normal, treating it as a rounded rock return. No change
+                        // to positions, winding, roof/skirt normals or collision.
+                        var shelfMesh = shelfObject.GetComponent<MeshFilter>().sharedMesh;
+                        var shelfNormals = shelfMesh.normals;
+                        Vector3 lipNormal = U(0, 1, 0);
+                        for (int k = baseIdx; k < baseIdx + 4; k++)
+                            shelfNormals[k] = lipNormal;
+                        shelfMesh.normals = shelfNormals;
+                    }
                 }
 
                 // -- curtain: parabola from the lip; two sheets (front/back) for depth.
@@ -555,11 +800,19 @@ namespace FlyingGame.Bridge
                     double zPool = t.RiverSurfaceAt(f.LipY + WorldTerrain.RiverTableStepPublic + 2.0);
                     double drop = System.Math.Max(10.0, zTop - zPool);
                     double tFall = System.Math.Sqrt(2.0 * drop / 9.81);
-                    const int rows = 48;
+                    // The river may be drowned by the canyon lake: impact belongs on the visible water.
+                    for (int solve = 0; solve < 3; solve++)
+                    {
+                        double hitY = f.LipY + WorldTerrain.FallLipSpeedMs * tFall;
+                        zPool = t.WaterSurfaceAt(f.X, hitY) ?? zPool;
+                        drop = System.Math.Max(10.0, zTop-zPool);
+                        tFall = System.Math.Sqrt(2.0*drop/9.81);
+                    }
+                    const int rows = 48, cols = 16;
                     foreach (double sheet in new[] { 0.0, -3.0 })
                     {
-                        var v = new Vector3[(rows + 1) * 2]; var uv = new Vector2[(rows + 1) * 2];
-                        var tr = new int[rows * 6];
+                        var v = new Vector3[(rows + 1) * (cols + 1)]; var uv = new Vector2[v.Length];
+                        var tr = new int[rows * cols * 6];
                         for (int k = 0; k <= rows; k++)
                         {
                             double s01 = (double)k / rows;
@@ -567,12 +820,19 @@ namespace FlyingGame.Bridge
                             double y = f.LipY + WorldTerrain.FallLipSpeedMs * tk + sheet;
                             double z = zTop - 0.5 * 9.81 * tk * tk;
                             double half = (WorldTerrain.RiverHalfWidthM + 2) * (1.0 + 0.25 * s01);   // the sheet spreads as it falls
-                            v[k * 2] = U(f.X - half, y, z); v[k * 2 + 1] = U(f.X + half, y, z);
-                            uv[k * 2] = new Vector2(0, (float)s01); uv[k * 2 + 1] = new Vector2(1, (float)s01);
-                            if (k > 0)
+                            for (int c = 0; c <= cols; c++)
                             {
-                                int b = (k - 1) * 2, o = (k - 1) * 6;
-                                tr[o] = b; tr[o + 1] = b + 2; tr[o + 2] = b + 1; tr[o + 3] = b + 1; tr[o + 4] = b + 2; tr[o + 5] = b + 3;
+                                double u = (double)c / cols;
+                                double rag = System.Math.Sin(c * 2.17 + s01 * 13 + sheet) * s01 * 1.5;
+                                int idx = k * (cols + 1) + c;
+                                v[idx] = U(f.X + (u * 2 - 1) * half + rag, y + rag * .35, z);
+                                uv[idx] = new Vector2((float)u, (float)s01);
+                                if (k > 0 && c < cols)
+                                {
+                                    int b = (k - 1) * (cols + 1) + c, o = ((k - 1) * cols + c) * 6;
+                                    tr[o] = b; tr[o+1] = b+cols+1; tr[o+2] = b+1;
+                                    tr[o+3] = b+1; tr[o+4] = b+cols+1; tr[o+5] = b+cols+2;
+                                }
                             }
                         }
                         SpawnUv(sheet == 0.0 ? "Curtain" : "CurtainBack", v, uv, tr, curtainMat, root.transform);
@@ -580,6 +840,36 @@ namespace FlyingGame.Bridge
 
                     // -- mist at the plunge pool: three crossed vertical quads, 160 m wide, 90 m tall, boiling.
                     double yHit = f.LipY + WorldTerrain.FallLipSpeedMs * tFall;
+                    // One low oval of aerated water, with outward moving broken rafts.
+                    const int poolSeg = 64;
+                    var pv = new Vector3[poolSeg+1]; var puv = new Vector2[poolSeg+1]; var pt = new int[poolSeg*3];
+                    pv[0] = U(f.X,yHit+12,zPool+.32); puv[0] = new Vector2(.5f,.5f);
+                    for (int c = 0; c < poolSeg; c++)
+                    {
+                        double a = c * System.Math.PI * 2 / poolSeg;
+                        double dx = System.Math.Cos(a), dy = System.Math.Sin(a);
+                        double px = f.X+dx*95, py = yHit+12+dy*66;
+                        pv[c+1] = U(px,py,zPool+.32);
+                        puv[c+1] = new Vector2((float)(.5+dx*.5),(float)(.5+dy*.5));
+                        pt[c*3] = 0; pt[c*3+1] = c+1; pt[c*3+2] = (c+1)%poolSeg+1;
+                    }
+                    SpawnUv("PlungeFoam",pv,puv,pt,poolMat,root.transform);
+                    // Render foam after its underlying water regardless of large ribbon bounds.
+                    poolMat.renderQueue = 3002;
+                    // Bounded spray fans: small translucent fragments, batched into one draw per fall.
+                    var sv = new List<Vector3>(); var suv = new List<Vector2>(); var st = new List<int>();
+                    for (int c = 0; c < 32; c++)
+                    {
+                        double a = c * 2.39996, radius = 8 + (c%7)*7, height = 5 + (c%5)*3;
+                        double dx = System.Math.Cos(a), dy = System.Math.Sin(a);
+                        double x = f.X+dx*radius, y = yHit+dy*radius;
+                        int b = sv.Count;
+                        sv.Add(U(x-2,y,zPool+1)); sv.Add(U(x+2,y,zPool+1));
+                        sv.Add(U(x+dx*height-1,y+dy*height,zPool+height)); sv.Add(U(x+dx*height+1,y+dy*height,zPool+height));
+                        suv.Add(new Vector2(0,0)); suv.Add(new Vector2(1,0)); suv.Add(new Vector2(0,1)); suv.Add(new Vector2(1,1));
+                        st.AddRange(new[] { b,b+2,b+1,b+1,b+2,b+3 });
+                    }
+                    SpawnUv("ImpactSpray",sv.ToArray(),suv.ToArray(),st.ToArray(),sprayMat,root.transform);
                     for (int q = 0; q < 3; q++)
                     {
                         double ang = q * System.Math.PI / 3.0;
@@ -735,6 +1025,7 @@ namespace FlyingGame.Bridge
             }
             mesh.triangles = tris; mesh.RecalculateNormals(); mesh.RecalculateBounds();
             var go = new GameObject(name);
+            if (m.shader.name == "FlyingGame/Water") go.layer = WaterReflection.WaterLayer;
             go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = m;
@@ -1134,7 +1425,7 @@ namespace FlyingGame.Bridge
 
         // ---- airports ----------------------------------------------------------------------------
 
-        private static readonly Color Asphalt = new(0.24f, 0.24f, 0.26f), Gravel = new(0.58f, 0.55f, 0.48f), Earth = new(0.36f, 0.25f, 0.15f),
+        private static readonly Color Asphalt = new(0.34f, 0.34f, 0.35f), Gravel = new(0.58f, 0.55f, 0.48f), Earth = new(0.36f, 0.25f, 0.15f),
             Grass = new(0.36f, 0.52f, 0.22f), Paint = Color.white, Apron = new(0.62f, 0.62f, 0.60f);
 
         private static void BuildAirport(WorldTerrain.Airport a, Transform parent)
@@ -1142,7 +1433,10 @@ namespace FlyingGame.Bridge
             var root = new GameObject($"Airport-{a.Name}");
             root.transform.SetParent(parent, false);
             // Paved apron around the hangar (the only other hard surface on the pad — the infield is rough ground).
-            Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
+            var apron = Slab(root.transform, "Apron", a.X + WorldTerrain.ApronDx, a.Y + WorldTerrain.ApronDy, a.ElevationM + 0.03, WorldTerrain.ApronLengthM, WorldTerrain.ApronWidthM, 0.05, 0, Apron);
+            AirportFinish(apron, Apron, 1);
+            apron.GetComponent<MeshRenderer>().sharedMaterial.SetFloat("_Apron",1);
+            AirportApronDetails(root.transform, a);
             foreach (WorldTerrain.Strip s in WorldTerrain.AirportStrips)
             {
                 bool paved = WorldTerrain.IsPaved(s.Kind);
@@ -1150,6 +1444,7 @@ namespace FlyingGame.Bridge
                 GameObject strip = s.Kind == "grass"
                     ? GrassStrip(root.transform, a, s)   // follows the Snoopy swoops in the height field
                     : Slab(root.transform, $"Strip-{s.Kind}", a.X + s.Dx, a.Y + s.Dy, a.ElevationM + (s.Kind == "paved-xwind" ? 0.045 : 0.04), s.Length, s.Width, 0.06, s.HeadingDeg, c);
+                if (s.Kind != "grass") AirportFinish(strip, c, paved ? 0 : 2, paved ? s.Length : 0);
                 if (paved) RunwayMarkings(strip, s);
                 if (s.Kind == "gravel")
                 {
@@ -1169,14 +1464,65 @@ namespace FlyingGame.Bridge
             // Apron + open hangar.
             BuildHangar(root.transform, a.X + WorldTerrain.HangarDx, a.Y + WorldTerrain.HangarDy, a.ElevationM);
             BuildWindsocks(root.transform, a);
+            AirportVisualDressing(root.transform, a);
             // Field name on the apron.
             Label(root, a.Name.ToUpperInvariant(), a.X + WorldTerrain.HangarDx + 60, a.Y + WorldTerrain.HangarDy - 70, a.ElevationM + 0.1, 8f);
         }
 
+        // Visual finishes only: same mesh, transform and collision footprint as the original slab.
+        private static void AirportFinish(GameObject go, Color color, int kind, double length = 0, Vector3? origin = null)
+        {
+            var m = new Material(Shader.Find("FlyingGame/AirportSurface"));
+            m.SetColor("_Color", color); m.SetFloat("_Kind", kind); m.SetFloat("_Length", (float)length);
+            Vector3 size = go.transform.localScale;
+            m.SetVector("_Size", new Vector4(size.x,size.y,size.z,0));
+            Vector3 o = origin ?? Vector3.zero;
+            m.SetVector("_Origin", new Vector4(o.x,o.y,o.z,0));
+            go.GetComponent<MeshRenderer>().sharedMaterial = m;
+        }
+
+        private static void AirportApronDetails(Transform parent, WorldTerrain.Airport a)
+        {
+            var b = new SeasideBuilder.Batch();
+            double x = a.X + WorldTerrain.ApronDx, y = a.Y + WorldTerrain.ApronDy;
+            double z = a.ElevationM;
+            Color yellow = new Color(.83f,.65f,.16f), dark = new Color(.22f,.25f,.27f);
+            // Lead-in and parking tees stay entirely on existing apron pavement.
+            b.Box(U(x+105,y,z+.085),new Vector3(220,.025f,.30f),yellow);
+            for (int k = 0; k < 5; k++)
+            {
+                double py = y-95+k*42;
+                b.Box(U(x+80,py,z+.09),new Vector3(.30f,.025f,50),yellow);
+                b.Box(U(x+55,py,z+.09),new Vector3(12,.025f,.30f),yellow);
+                // Two original, static light-aircraft silhouettes. No models or colliders.
+                if (k != 1 && k != 2 && k != 3) continue;
+                Vector3 c = U(x+47,py,z+1.25);
+                Color body = new Color(.78f,.77f,.70f);
+                b.Box(c,new Vector3(.85f,.9f,7.2f),body);
+                b.Box(c+new Vector3(0,.35f,.8f),new Vector3(10.4f,.16f,1.3f),body);
+                b.Box(c+new Vector3(0,.05f,-2.8f),new Vector3(3.5f,.12f,.8f),body);
+                b.Box(c+new Vector3(0,.7f,-2.9f),new Vector3(.12f,1.4f,1.0f),new Color(.35f,.40f,.49f));
+                b.Box(c+new Vector3(0,.57f,1.0f),new Vector3(.7f,.5f,1.5f),new Color(.16f,.24f,.29f));
+                foreach (float side in new[] {-1f,1f})
+                    b.Box(c+new Vector3(side*.95f,-.85f,.7f),new Vector3(.25f,.65f,.6f),dark);
+            }
+            // Office and service equipment sit clear of the hangar openings and parking row.
+            Vector3 office = U(x-85,y+85,z);
+            b.Box(office+Vector3.up*2,new Vector3(12,4,18),new Color(.64f,.61f,.53f));
+            b.Box(office+Vector3.up*4.15f,new Vector3(13,.3f,19),dark);
+            for (int k=0;k<4;k++)
+                b.Box(office+new Vector3(-6.04f,2.4f,-6+k*4),new Vector3(.08f,1.2f,2.2f),new Color(.18f,.28f,.33f));
+            b.Box(U(x-100,y+50,z+1.1),new Vector3(4,2.2f,7),new Color(.64f,.65f,.61f));
+            // Raised standing seams on the existing hangar roof, batched with the apron furniture.
+            for (int k=-10;k<=10;k++)
+                b.Box(U(a.X+WorldTerrain.HangarDx,a.Y+WorldTerrain.HangarDy+k*2.1,z+16.65),new Vector3(.06f,.09f,51),new Color(.34f,.36f,.39f));
+            b.Build("AirportApronDressing",parent,SeasideBuilder.VC);
+        }
+
         /// <summary>
-        /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (8 stripes, 150 ft), the
-        /// runway NUMBERS (60 ft tall, magnetic heading / 10, read upright from each approach end), touchdown-zone bars at
-        /// 500 / 1,500 / 2,000 ft, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
+        /// Standard (FAA AC 150/5340-1) runway markings, owner 2026-10-03: threshold "piano keys" (width-dependent count, 150 ft), the
+        /// runway NUMBERS (60 ft tall, geometry heading / 10 (world has no magnetic variation), read upright from each approach end), touchdown-zone bars at
+        /// 500 / 1,500 / 2,000 / 2,500 ft on the long runway, aiming-point blocks at 1,000 ft, the 120 ft centreline stripes with 80 ft gaps, and
         /// edge stripes. Main runway along x (north) = 36 / 18; the crosswind runway along y = 09 / 27.
         /// </summary>
         private static void RunwayMarkings(GameObject strip, WorldTerrain.Strip s)
@@ -1189,23 +1535,25 @@ namespace FlyingGame.Bridge
                 // "along" measured from THIS threshold, inward; across mirrored so each end reads correctly.
                 double A(double d) => end < 0 ? -L / 2 + d : L / 2 - d;
                 double X(double c) => end < 0 ? c : -c;
-                // Threshold stripes: 8, 150 ft long, starting 20 ft in.
-                double sw = 5.75 * ft, gap = (W - 2 * 3 * ft - 8 * sw) / 7.0;
-                for (int k = 0; k < 8; k++)
-                {
-                    double c = -W / 2 + 3 * ft + sw / 2 + k * (sw + gap);
-                    if (k >= 4) c += 0; // (a centreline gap is implicit in the even spacing)
-                    Child(strip, "Thresh", A(20 * ft + 75 * ft), X(c), 0.05, 150 * ft, sw, 0.03, Paint);
-                }
+                // FAA width table: 60 ft = 4, 75 ft = 6, 100 ft = 8 stripes.
+                int count = W >= 60 ? 16 : W >= 45 ? 12 : W >= 29 ? 8 : W >= 22 ? 6 : 4;
+                double sw = 5.75 * ft;
+                for (int k = 0; k < count / 2; k++)
+                    foreach (int side in new[] { -1, 1 })
+                    {
+                        double c = side * (sw * 1.5 + k * sw * 2);
+                        Child(strip, "Thresh", A(20 * ft + 75 * ft), X(c), 0.05, 150 * ft, sw, 0.03, Paint);
+                    }
                 // Numbers, 60 ft tall, 20 ft beyond the stripes.
                 Numerals(strip, (end < 0 ? hdg : recip).ToString("00"), A(190 * ft + 30 * ft), end > 0);
-                // Touchdown zone (3 bars at 500 ft, 2 at 1,500, 2 at 2,000), aiming point at 1,000 ft.
-                foreach ((double d, int n) in new[] { (500.0, 3), (1500.0, 2), (2000.0, 2) })
+                // Long-runway touchdown zones; omit reciprocal-end overlap. Aim begins at 1,020 ft.
+                foreach ((double d, int n) in new[] { (500.0, 3), (1500.0, 2), (2000.0, 1), (2500.0, 1) })
+                    if (L > 1800 && d * ft + 75 * ft < L / 2 - 200)
                     for (int side = -1; side <= 1; side += 2)
                         for (int k = 0; k < n; k++)
                             Child(strip, "TDZ", A(d * ft + 37.5 * ft), X(side * (W / 2 - 4 * ft - k * 5 * ft - 1.5 * ft)), 0.05, 75 * ft, 3 * ft, 0.03, Paint);
                 for (int side = -1; side <= 1; side += 2)
-                    Child(strip, "Aim", A(1020 * ft + 75 * ft), X(side * (W / 2 - 4 * ft - 7.5 * ft)), 0.05, 150 * ft, 15 * ft, 0.03, Paint);
+                    Child(strip, "Aim", A(1020 * ft + 75 * ft), X(side * System.Math.Min(43.5 * ft, W / 2 - 3 * ft - 7.5 * ft)), 0.05, 150 * ft, 15 * ft, 0.03, Paint);
             }
             // Centreline: 120 ft stripes, 80 ft gaps, between the numbers.
             for (double d = -L / 2 + 280 * ft; d < L / 2 - 280 * ft - 120 * ft; d += 200 * ft)
@@ -1270,6 +1618,10 @@ namespace FlyingGame.Bridge
             var go = new GameObject("Strip-grass"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterial = Lit(Grass);
+            AirportFinish(go, new Color(.38f,.46f,.24f), 3, 0, U(a.X+s.Dx,a.Y+s.Dy,0));
+            // Fine strip lies below the coarse visible terrain in places. Its finish now lives
+            // on that terrain, with the same authored footprint; retain mesh/transform untouched.
+            go.GetComponent<MeshRenderer>().enabled=false;
             // Winding check: flip if the normal came out downward.
             if (mesh.normals.Length > 0 && mesh.normals[0].y < 0) { System.Array.Reverse(tris); mesh.triangles = tris; mesh.RecalculateNormals(); }
             return go;
@@ -1347,6 +1699,7 @@ namespace FlyingGame.Bridge
         private static void BuildLandmarks(WorldTerrain t, Transform parent, int p)
         {
             var root = new GameObject($"Landmarks{p}"); root.transform.SetParent(parent, false);
+            var dressing = new SeasideBuilder.Batch();
             var steel = new Color(0.72f, 0.74f, 0.78f);
             // Plateau copy: the Valley layout shifted in y (Landmarks.*At(p)) — but only the parts this
             // plateau carries (2026-10-16: the repeated landscape was thinned out).
@@ -1365,13 +1718,13 @@ namespace FlyingGame.Bridge
                 double h0 = Landmarks.ArchHeightAt(x0), h1 = Landmarks.ArchHeightAt(x1);
                 double um = (u0 + u1) / 2, w = Landmarks.ArchLegWidthM + (Landmarks.ArchTopWidthM - Landmarks.ArchLegWidthM) * (1 - um * um);
                 Vector3 a = U(cx + x0, archY, baseUp + h0), b = U(cx + x1, archY, baseUp + h1);
-                Beam(root, "ArchSeg", a, b, (float)w, (float)w, steel);
+                dressing.Beam(a, b, (float)w, (float)w, steel);
             }
             // Legs reach down to the wall they stand on.
             foreach (double sgn in new[] { -1.0, 1.0 })
             {
                 double lx = cx + sgn * Landmarks.ArchHalfSpanM;
-                Beam(root, "ArchLeg", U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
+                dressing.Beam(U(lx, archY, t.HeightAt(lx, archY) - 25), U(lx, archY, baseUp + 2), (float)Landmarks.ArchLegWidthM, (float)Landmarks.ArchLegWidthM, steel);
             }
             }
 
@@ -1388,12 +1741,21 @@ namespace FlyingGame.Bridge
                     double h = Landmarks.TowerHeightM * i / segs;
                     double r0 = Landmarks.TowerHalfAt(prevH), r1 = Landmarks.TowerHalfAt(h);
                     float thick = (float)(6.0 * (1 - h / Landmarks.TowerHeightM) + 1.5);
-                    Beam(root, "TowerLeg", U(Landmarks.TowerX + sx * r0, towerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, towerY + sy * r1, tg + h), thick, thick, iron);
+                    dressing.Beam(U(Landmarks.TowerX + sx * r0, towerY + sy * r0, tg + prevH), U(Landmarks.TowerX + sx * r1, towerY + sy * r1, tg + h), thick, thick, iron);
                     // Lattice cross-braces between neighbouring legs at each segment.
                     if (sx < 0 && i <= segs)
                     {
-                        Beam(root, "Brace", U(Landmarks.TowerX - r1, towerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, towerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
-                        Beam(root, "Brace", U(Landmarks.TowerX + sy * r1, towerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, towerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        dressing.Beam(U(Landmarks.TowerX - r1, towerY + sy * r1, tg + h), U(Landmarks.TowerX + r1, towerY + sy * r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                        dressing.Beam(U(Landmarks.TowerX + sy * r1, towerY - r1, tg + h), U(Landmarks.TowerX + sy * r1, towerY + r1, tg + h), thick * 0.5f, thick * 0.5f, iron);
+                    }
+                    // Diagonal lattice on all four faces, within the original leg envelope.
+                    if (sx < 0 && i > 2)
+                    {
+                        float brace = Mathf.Max(.45f, thick * .22f);
+                        dressing.Beam(U(Landmarks.TowerX-r0,towerY+sy*r0,tg+prevH), U(Landmarks.TowerX+r1,towerY+sy*r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+r0,towerY+sy*r0,tg+prevH), U(Landmarks.TowerX-r1,towerY+sy*r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+sy*r0,towerY-r0,tg+prevH), U(Landmarks.TowerX+sy*r1,towerY+r1,tg+h), brace, brace, iron);
+                        dressing.Beam(U(Landmarks.TowerX+sy*r0,towerY+r0,tg+prevH), U(Landmarks.TowerX+sy*r1,towerY-r1,tg+h), brace, brace, iron);
                     }
                     prevH = h;
                 }
@@ -1401,7 +1763,7 @@ namespace FlyingGame.Bridge
             foreach (double fh in new[] { Landmarks.TowerFirstFloorM, Landmarks.TowerSecondFloorM, Landmarks.TowerTopFloorM })
             {
                 float half = (float)Landmarks.TowerHalfAt(fh) + 4f;
-                WBox(root, "TowerFloor", U(Landmarks.TowerX, towerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
+                dressing.Box(U(Landmarks.TowerX, towerY, tg + fh), new Vector3(half * 2, fh > 200 ? 6f : 4f, half * 2), iron);
             }
             // First-floor arches (the road passes under them): a low curved beam between the legs on each side.
             foreach (double sy in new[] { -1.0, 1.0 })
@@ -1410,14 +1772,24 @@ namespace FlyingGame.Bridge
                 for (int i = 0; i < 12; i++)
                 {
                     double a0 = System.Math.PI * i / 12, a1 = System.Math.PI * (i + 1) / 12;
-                    Beam(root, "TowerArch", U(Landmarks.TowerX - r * System.Math.Cos(a0), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
+                    dressing.Beam(U(Landmarks.TowerX - r * System.Math.Cos(a0), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a0)),
                                             U(Landmarks.TowerX - r * System.Math.Cos(a1), towerY + sy * Landmarks.TowerHalfAt(0) * 0.85, tg + 20 + 30 * System.Math.Sin(a1)), 2.5f, 2.5f, iron);
                 }
             }
             Slab(root.transform, "TowerRoad", Landmarks.TowerX, towerY, tg + 0.05, Landmarks.RoadHalfLengthM * 2, Landmarks.RoadWidthM, 0.08, 0, Asphalt);
             for (double d = -Landmarks.RoadHalfLengthM + 20; d < Landmarks.RoadHalfLengthM; d += 40)
                 Slab(root.transform, "RoadDash", Landmarks.TowerX + d, towerY, tg + 0.11, 12, 0.4, 0.03, 0, Paint);
+            // Sparse night dots follow only the existing landmark road, never an invented highway.
+            for(double d=-Landmarks.RoadHalfLengthM+40;d<Landmarks.RoadHalfLengthM;d+=100)
+            {
+                double side=((int)(d/100)%2==0?1:-1)*(Landmarks.RoadWidthM*.5+1);
+                Vector3 foot=U(Landmarks.TowerX+d,towerY+side,tg+.15);
+                dressing.Box(foot+Vector3.up*3.5f,new Vector3(.16f,7,.16f),new Color(.24f,.26f,.27f));
+                dressing.Box(foot+Vector3.up*7,new Vector3(1.4f,.3f,1.4f),new Color(1,.58f,.23f,0));
             }
+            }
+
+            if (dressing.Count > 0) dressing.Build("LandmarkStructure", root.transform, SeasideBuilder.VC);
 
             // The town (owner 2026-10-05: "identical to the one you built in the combat zone"): the combat city's grid —
             // towers, sky-bridges, the fountain plaza with its crossing water cannons — on the old town site.
@@ -1552,7 +1924,7 @@ namespace FlyingGame.Bridge
             root.transform.SetParent(parent, false);
             root.transform.position = U(cx, cy, elev);
 
-            Box(root, "Apron", new Vector3(0f, 0.02f, 0f), new Vector3(2f * halfW + 30f, 0.04f, 2f * halfL + 40f), Apron);
+            // Main apron already covers this footprint; omit the duplicate coplanar slab.
             Box(root, "WallWest", new Vector3(-halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
             Box(root, "WallEast", new Vector3(halfW, height * 0.5f, 0f), new Vector3(wall, height, 2f * halfL), wallCol);
             Box(root, "Roof", new Vector3(0f, height + wall * 0.5f, 0f), new Vector3(2f * halfW + 2f, wall, 2f * halfL + 2f), roofCol);

@@ -28,28 +28,136 @@ namespace FlyingGame.Bridge
         // ---- the canyon lake ------------------------------------------------------------------------------------------
         private static void BuildLake(WorldTerrain t, Transform parent)
         {
+            Shader.SetGlobalFloat("_PowellWaterLevel", (float)CanyonLake.SurfaceM);
             // Water: a strip down the canyon at the lake level, stopping at the dam's upstream face.
             var v = new List<Vector3>(); var tr = new List<int>();
             for (double y = CanyonLake.Y0; y <= CanyonLake.DamY; y += 15)
             {
                 double cx = CanyonLake.CentreX(y), W = CanyonLake.HalfWidthAt(y) - 1;
                 double yl = System.Math.Min(y, CanyonLake.DamCentreY(cx - W) - 4), yr = System.Math.Min(y, CanyonLake.DamCentreY(cx + W) - 4);
-                v.Add(U(cx - W, yl, CanyonLake.SurfaceM)); v.Add(U(cx + W, yr, CanyonLake.SurfaceM));
-                if (v.Count >= 4) { int b0 = v.Count - 4; tr.AddRange(new[] { b0, b0 + 2, b0 + 1, b0 + 1, b0 + 2, b0 + 3, b0, b0 + 1, b0 + 2, b0 + 1, b0 + 3, b0 + 2 }); }
+                for (int c = 0; c <= 8; c++)
+                {
+                    double f = c / 8.0;
+                    v.Add(U(cx + W * (f*2-1), yl + (yr-yl)*f, CanyonLake.SurfaceM));
+                    if (v.Count > 9 && c < 8)
+                    { int b0 = v.Count - 1 - 9; tr.AddRange(new[] { b0,b0+1,b0+9,b0+1,b0+10,b0+9 }); }
+                }
             }
             var wm = new Mesh { name = "CanyonLake", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
             wm.SetVertices(v); wm.SetTriangles(tr, 0); wm.RecalculateNormals(); wm.RecalculateBounds();
             var wgo = new GameObject("CanyonLakeWater"); wgo.transform.SetParent(parent, false);
             wgo.AddComponent<MeshFilter>().sharedMesh = wm;
-            wgo.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.06f, 0.3f, 0.42f, 0.93f));
+            wgo.layer = WaterReflection.WaterLayer;
+            var water = WorldBuilder.Mat("FlyingGame/Water", new Color(.085f,.34f,.39f,1));
+            water.SetFloat("_SceneryWater", 1);
+            water.SetFloat("_PowellWater", 1);
+            wgo.AddComponent<MeshRenderer>().sharedMaterial = water;
+            WorldBuilder.WaterOptics(wgo, t);
 
             var b = new SeasideBuilder.Batch();
             int seed = 0;
             foreach (Spire s in CanyonLake.Spires) Spire(b, s, seed++);
             foreach (Spire s in CanyonLake.ArchPillars()) Spire(b, s, seed++);
             foreach (NaturalArch a in CanyonLake.Arches) Arch(b, a);
-            Dam(b);
-            b.Build("CanyonLakeRock", parent, SeasideBuilder.VC);
+            b.Build("CanyonLakeRock", parent, WorldBuilder.Mat("FlyingGame/PowellSandstone", Color.white), true);
+            BuildPowellWalls(t, parent);
+            var dam = new SeasideBuilder.Batch();
+            Dam(dam);
+            dam.Build("CanyonLakeDam", parent, SeasideBuilder.VC);
+        }
+
+        // Collider-free shore dressing. An isoheight search follows the ACTUAL sim wall;
+        // ledges project at most 0.9 m toward the lake. Sloping terrain stays sloping:
+        // a sheer replacement outside that envelope would conceal collision surprises.
+        private static void BuildPowellWalls(WorldTerrain t, Transform parent)
+        {
+            var walls = new SeasideBuilder.Batch();
+            bool low = QualitySettings.GetQualityLevel() <= 1;
+            double alongStep = low ? 24 : 12;
+            const int levels = 18;
+            Vector3 WallPoint(double y, int side, int level)
+            {
+                double cx = CanyonLake.CentreX(y), width = CanyonLake.HalfWidthAt(y);
+                double rim = t.HeightAt(cx+side*(width+3),y);
+                double top = System.Math.Max(CanyonLake.SurfaceM+1, rim);
+                double h = CanyonLake.SurfaceM-1+(top-CanyonLake.SurfaceM+1)*level/levels;
+                double a = System.Math.Max(0,width-CanyonLake.WallM-6), z = width+8;
+                // Use the first shore crossing, avoiding unrelated plateau props.
+                for (int k=0; k<10; k++)
+                {
+                    double mid=(a+z)*.5;
+                    if(t.HeightAt(cx+side*mid,y)<h) a=mid; else z=mid;
+                }
+                double distance=(a+z)*.5;
+                // Broad alcoves recede INTO rock. Small alternating ledges stay in envelope.
+                double alcove=System.Math.Pow(System.Math.Max(0,System.Math.Sin(y*.019+side)),6)*1.2;
+                double ledge=.55+.30*System.Math.Cos(h*1.1);
+                double x=cx+side*(distance-ledge+alcove);
+                return U(x,y,h);
+            }
+            for(int side=-1; side<=1; side+=2)
+            {
+                Vector3[] Row(double y)
+                {
+                    var row=new Vector3[levels+1];
+                    for(int j=0;j<=levels;j++) row[j]=WallPoint(y,side,j);
+                    return row;
+                }
+                var previous=Row(CanyonLake.Y0+8);
+                for(double y=CanyonLake.Y0+8; y<CanyonLake.DamY-75; y+=alongStep)
+                {
+                    double next=System.Math.Min(CanyonLake.DamY-75,y+alongStep);
+                    var current=Row(next);
+                    for(int j=0;j<levels;j++)
+                        walls.Quad(previous[j],previous[j+1],current[j+1],current[j],Color.white);
+                    previous=current;
+                }
+            }
+            // Low flat-topped slickrock benches outside the lake/flight corridor.
+            // Accept only naturally flat, unpaved sites; every point stays within 2.4 m
+            // of the existing terrain, rather than creating tall uncollidable buttes.
+            int made=0;
+            for(double y=CanyonLake.Y0+180; y<CanyonLake.DamY-160 && made<8; y+=185)
+                for(int side=-1;side<=1;side+=2)
+                {
+                    double x=CanyonLake.CentreX(y)+side*(CanyonLake.HalfWidthAt(y)+190);
+                    if(WorldTerrain.SurfaceAt(x,y)!=WorldTerrain.Surface.Rough) continue;
+                    bool airport=false;
+                    foreach(var field in WorldTerrain.Airports)
+                        if(System.Math.Abs(x-field.X)<1800 && System.Math.Abs(y-field.Y)<650) airport=true;
+                    if(airport) continue;
+                    double floor=t.HeightAt(x,y), min=floor, max=floor;
+                    const int sides=12;
+                    const double radius=23;
+                    for(int k=0;k<sides;k++)
+                    {
+                        double a=k*System.Math.PI*2/sides;
+                        double h=t.HeightAt(x+radius*System.Math.Cos(a),y+radius*System.Math.Sin(a));
+                        min=System.Math.Min(min,h); max=System.Math.Max(max,h);
+                    }
+                    // Check the cap interior as well as its boundary before flattening it.
+                    bool clear=true;
+                    for(double dx=-radius;dx<=radius;dx+=4)
+                        for(double dy=-radius;dy<=radius;dy+=4)
+                        {
+                            if(dx*dx+dy*dy>radius*radius) continue;
+                            if(WorldTerrain.SurfaceAt(x+dx,y+dy)!=WorldTerrain.Surface.Rough) clear=false;
+                            double h=t.HeightAt(x+dx,y+dy);
+                            min=System.Math.Min(min,h); max=System.Math.Max(max,h);
+                        }
+                    if(!clear || max-min>.8) continue;
+                    double top=max+1.5;
+                    for(int k=0;k<sides;k++)
+                    {
+                        double a=k*System.Math.PI*2/sides, b=(k+1)*System.Math.PI*2/sides;
+                        double ax=x+radius*System.Math.Cos(a), ay=y+radius*System.Math.Sin(a);
+                        double bx=x+radius*System.Math.Cos(b), by=y+radius*System.Math.Sin(b);
+                        walls.Quad(U(ax,ay,t.HeightAt(ax,ay)),U(ax,ay,top),U(bx,by,top),U(bx,by,t.HeightAt(bx,by)),Color.white);
+                        walls.Tri(U(ax,ay,top),U(x,y,top),U(bx,by,top),Color.white);
+                    }
+                    made++;
+                }
+            walls.Build("PowellShoreLedges",parent,WorldBuilder.Mat("FlyingGame/PowellSandstone",Color.white),true);
         }
 
         /// <summary>A sandstone spire: stacked rough frustums in Navajo-sandstone bands, a flat cap.</summary>
@@ -160,6 +268,15 @@ namespace FlyingGame.Bridge
                     b.Quad(q0, r0, r1, q1, Color.white);
                 }
                 for (double d = -R + 14; d < R - 14; d += 18) b.Box(U(px + d, py, top + 0.06), new Vector3(1.2f, 0.04f, 9f), Color.white);
+                // Fine deck expansion seams clipped to the existing circular landing pad.
+                // The pad is for fixed-wing practice, so retain its existing ring/centreline scheme.
+                Color joint = new Color(.18f,.19f,.20f);
+                for (double d=-R+10;d<R-8;d+=12)
+                {
+                    double half=System.Math.Sqrt((R-3)*(R-3)-d*d);
+                    b.Box(U(px+d,py,top+.015),new Vector3((float)(2*half),.015f,.055f),joint);
+                    b.Box(U(px,py+d,top+.015),new Vector3(.055f,.015f,(float)(2*half)),joint);
+                }
                 // Brackets: raking struts from the tower face down to the pad's underside.
                 // (along whichever way the pad hangs: d out from the tower, q across)
                 double dx = px - tw.Cx, dy = py - tw.Cy, dl = System.Math.Sqrt(dx * dx + dy * dy); dx /= dl; dy /= dl;
@@ -216,23 +333,74 @@ namespace FlyingGame.Bridge
         /// avenue paving, the towers with floor bands, the sky-bridges, the fountain plaza with its two basins and the
         /// crossing water cannons. The pad, the rooftop rings and the spinning ring are the combat city's own.
         /// </summary>
+        static int urbanGlowRoot, urbanGlowCount;
+
         internal static void BuildCityGrid(CityGrid grid, WorldTerrain t, SeasideBuilder.Batch b, Transform parent)
         {
+            var facades = new UrbanFacades();
             Color[] walls = { new(0.78f, 0.75f, 0.7f), new(0.55f, 0.6f, 0.68f), new(0.7f, 0.52f, 0.44f), new(0.86f, 0.86f, 0.88f) };
             var (ex0, ey0, ex1, ey1) = grid.Extent(100);
             var (cgx, cgy) = grid.Centre;
             double g0 = t.HeightAt(cgx, cgy);
+            // Register each city independently: multiple cities can share an elevation.
+            int rootId=parent.root.GetInstanceID();
+            if(urbanGlowRoot!=rootId)
+            {
+                urbanGlowRoot=rootId; urbanGlowCount=0;
+                for(int k=0;k<8;k++) Shader.SetGlobalVector("_UrbanGlow"+k,Vector4.zero);
+            }
+            int glowIndex=Mathf.Min(7,urbanGlowCount++);
+            Shader.SetGlobalVector("_UrbanGlow"+glowIndex,new Vector4((float)cgy,(float)g0,(float)cgx,1));
             // Plaza-paved city ground (the avenues).
-            b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.6f, 0.6f, 0.58f));
+            b.Box(U(0.5 * (ex0 + ex1), 0.5 * (ey0 + ey1), g0 + 0.04), new Vector3((float)(ey1 - ey0), 0.08f, (float)(ex1 - ex0)), new Color(0.25f, 0.26f, 0.26f));
+            var ringRoofs = grid.RooftopRings();
             foreach (FlyCity.Tower tw in grid.Towers())
             {
                 double g = t.HeightAt(tw.Cx, tw.Cy);
-                Color c = tw.HeightM > 170 && tw.Style % 2 == 0 ? Glass : walls[System.Math.Min(tw.Style, 3)];
+                int archetype = (tw.I*3+tw.J*7)%4;
+                if(tw.HeightM>190 && tw.Style%2==0) archetype=0;
+                Color c = archetype == 0 ? new Color(.24f,.36f,.39f)
+                    : archetype == 1 ? Color.Lerp(new Color(.42f,.24f,.18f),new Color(.61f,.42f,.30f),tw.Style*.22f)
+                    : archetype == 2 ? new Color(.61f,.61f,.56f) : walls[System.Math.Min(tw.Style,3)];
                 b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM / 2), new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2)), c, c * 0.8f);
-                // Floor bands every 4 floors so height reads.
-                for (double z = 14; z < tw.HeightM - 4; z += 16)
-                    b.Box(U(tw.Cx, tw.Cy, g + z), new Vector3((float)(tw.Hy * 2) + 0.6f, 0.8f, (float)(tw.Hx * 2) + 0.6f), c * 0.7f);
+                Vector3 size = new Vector3((float)(tw.Hy * 2), (float)tw.HeightM, (float)(tw.Hx * 2));
+                facades.Add(U(tw.Cx,tw.Cy,g),size,archetype,tw.I*53+tw.J*19,c);
+                bool protectedLot = grid.PadLot.HasValue && tw.J == grid.PadLot.Value.j;
+                bool protectedRoof=protectedLot || tw.HeightM>=330;
+                foreach(var ring in ringRoofs) if(ring.t.I==tw.I && ring.t.J==tw.J) protectedRoof=true;
+                UrbanDressing.Lot(b,facades,U(tw.Cx,tw.Cy,g),size,tw.I,tw.J,archetype,protectedRoof);
+                // Sidewalk block and roof membrane sit on the existing ground/roof, with no collision change.
+                b.Box(U(tw.Cx, tw.Cy, g + .13), new Vector3(140, .16f, 140), new Color(.58f,.57f,.53f));
+                // Landscaped inset beds make the 140 m lots read as blocks around the existing towers.
+                // Flat opaque surfaces only: nothing added to the flight/collision envelope.
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    float bedWidth = Mathf.Max(0, (140-size.x)*.5f-12);
+                    if (bedWidth > 3)
+                    {
+                        Vector3 bed = U(tw.Cx, tw.Cy, g+.23) + new Vector3(side*(size.x*.5f+6+bedWidth*.5f),0,0);
+                        b.Box(bed,new Vector3(bedWidth,.035f,Mathf.Min(110,size.z+24)),new Color(.30f,.36f,.24f));
+                    }
+                }
+                Color roof = tw.Style % 2 == 0 ? new Color(.34f,.36f,.36f) : new Color(.52f,.50f,.45f);
+                if(protectedRoof) b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .10), new Vector3(size.x - 1, .24f, size.z - 1), roof);
+                // Flush roof service panels preserve every landable roof height.
+                Vector3 roofCentre = U(tw.Cx,tw.Cy,g+tw.HeightM+.05);
+                for (int k=0;k<(protectedRoof?3:0);k++)
+                {
+                    Vector3 panel = roofCentre + new Vector3(-size.x*.28f+k*size.x*.27f,0,size.z*.25f);
+                    float hw=size.x*.075f, hd=size.z*.12f;
+                    b.Quad(panel+new Vector3(-hw,0,-hd),panel+new Vector3(-hw,0,hd),panel+new Vector3(hw,0,hd),panel+new Vector3(hw,0,-hd),new Color(.25f,.28f,.29f));
+                }
+                if(tw.HeightM>=330)
+                    b.Box(roofCentre+new Vector3(size.x*.4f,-.015f,size.z*.4f),new Vector3(1.8f,.02f,1.8f),new Color(1,.025f,.015f,0));
+                // Cornice and occasional belt course rather than black stripes on every fourth floor.
+                b.Box(U(tw.Cx, tw.Cy, g + tw.HeightM - .6), new Vector3(size.x + .25f, .45f, size.z + .25f), c * .86f);
+                if (tw.HeightM > 90)
+                    b.Box(U(tw.Cx, tw.Cy, g + 6), new Vector3(size.x + .2f, .35f, size.z + .2f), c * .85f);
             }
+            UrbanDressing.Streets(grid,g0,b,facades);
+            facades.Build(parent);
             foreach (var (a, n, h) in grid.SkyBridges())
             {
                 double g = t.HeightAt(a.Cx, a.Cy);
@@ -360,6 +528,7 @@ namespace FlyingGame.Bridge
             var mesh = new Mesh { name = "ReflectingPond" }; mesh.vertices = v; mesh.triangles = new[] { 0, 2, 1, 0, 3, 2, 0, 1, 2, 0, 2, 3 }; mesh.RecalculateNormals();
             var go = new GameObject("ReflectingPond"); go.transform.SetParent(parent, false);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            go.layer = WaterReflection.WaterLayer;
             go.AddComponent<MeshRenderer>().sharedMaterial = WorldBuilder.Mat("FlyingGame/Water", new Color(0.12f, 0.3f, 0.36f, 0.95f));
         }
     }

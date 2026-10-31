@@ -17,18 +17,26 @@ namespace FlyingGame.Bridge
         public float DragForFullSpray = 2500f;   // N of float drag that gives the biggest spray
 
         private ParticleSystem[] _step = new ParticleSystem[2], _stern = new ParticleSystem[2], _bow = new ParticleSystem[2], _trail = new ParticleSystem[2];
-        private Material _mat;
+        private Material _mat, _mistMat;
+        private ParticleSystem[] _prop = new ParticleSystem[0];
+        private Transform[] _discs = new Transform[0];
+        private string _propAircraft;
+        private readonly System.Collections.Generic.List<ParticleSystem> _owned = new System.Collections.Generic.List<ParticleSystem>();
         private bool _built;
 
         private void Build()
         {
             _mat = new Material(Shader.Find("FlyingGame/Spray") ?? Shader.Find("FlyingGame/UnlitTransparent")) { color = new Color(0.92f, 0.97f, 1f, 0.75f) };
+            _mistMat = new Material(_mat); _mistMat.SetFloat("_Mist", 1f);
             for (int i = 0; i < 2; i++)
             {
                 _step[i] = Make($"Spray{i}", 0.45f, 0.9f, 160);
                 _stern[i] = Make($"SternSplash{i}", 0.5f, 0.8f, 60);
                 _bow[i] = Make($"BowWave{i}", 0.7f, 1.0f, 60);
-                _trail[i] = Make($"SprayTrail{i}", 0.9f, 1.6f, 220);
+                _trail[i] = Make($"SprayTrail{i}", 0.9f, 1.6f, 140);
+                var mistRenderer = _trail[i].GetComponent<ParticleSystemRenderer>();
+                mistRenderer.sharedMaterial = _mistMat;
+                mistRenderer.renderMode = ParticleSystemRenderMode.Billboard;
             }
             _built = true;
         }
@@ -38,13 +46,15 @@ namespace FlyingGame.Bridge
             var go = new GameObject(name);
             go.transform.SetParent(null, true);
             var ps = go.AddComponent<ParticleSystem>();
+            _owned.Add(ps);
             var main = ps.main;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.startLifetime = life;
-            main.startSize = size;
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .25f, size);
             main.startSpeed = 0f;
             main.gravityModifier = 0.9f;
-            main.maxParticles = maxParticles * 4;
+            main.maxParticles = maxParticles * 2;
+            main.startRotation = new ParticleSystem.MinMaxCurve(-.15f, .15f);
             main.startColor = new Color(0.92f, 0.97f, 1f, 0.7f);
             main.loop = true;
             main.playOnAwake = true;
@@ -58,7 +68,8 @@ namespace FlyingGame.Bridge
             sz.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0f, 0.6f), new Keyframe(0.5f, 1f), new Keyframe(1f, 1.4f)));
             var r = ps.GetComponent<ParticleSystemRenderer>();
             r.sharedMaterial = _mat;
-            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.renderMode = ParticleSystemRenderMode.Stretch;
+            r.velocityScale = .12f; r.lengthScale = 2.4f;
             var sh = ps.shape; sh.enabled = false;
             return ps;
         }
@@ -67,10 +78,11 @@ namespace FlyingGame.Bridge
         {
             if (Driver?.Sim == null || Driver.Sim.Aircraft.Config.Floats == null)
             {
-                if (_built) foreach (var arr in new[] { _step, _stern, _bow, _trail }) foreach (var p in arr) { if (p) SetRate(p, 0); }
+                if (_built) foreach (var p in _owned) { if (p) SetRate(p, 0); }
                 return;
             }
             if (!_built) Build();
+            UpdatePropSpray();
             var cfg = Driver.Sim.Aircraft.Config.Floats;
             var att = Driver.Sim.Aircraft.State.Attitude;
             Vector3 fwd = CoordinateMap.ToUnity(att.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0)));
@@ -90,11 +102,16 @@ namespace FlyingGame.Bridge
                 // Spray only while PLANING (owner 2026-10-07: "an area of spray behind the actual body but only while it is
                 // planing — once it goes to displacement the spray should go away"): planing lift carrying more than buoyancy.
                 bool planing = f.Wet && f.PlaningLiftN > f.BuoyancyN && speed > 4f;
-                if (!planing) { SetRate(_step[i], 0); SetRate(_stern[i], 0); SetRate(_bow[i], 0); SetRate(_trail[i], 0); continue; }
+                // A digging bow can throw water before planing; retain the planing-only step/mist rule.
+                float side = i == 0 ? -1f : 1f;
+                float bowK = f.Wet && f.BowDraftM > .05 ? Mathf.Clamp01((float)f.BowDraftM / .4f) : 0f;
+                Emit(_bow[i], bowK * Mathf.Clamp01(speed / 4f) * (30f + 80f * Mathf.Clamp01(speed / 12f)),
+                    .35f + .7f * bowK, bow, waterY, fwd, right, side, speed * .8f, (float)f.BowDraftM);
+                if (!planing) { SetRate(_step[i], 0); SetRate(_stern[i], 0); SetRate(_trail[i], 0); continue; }
                 // Main spray: driven by this float's drag (owner: more drag = bigger splash).
                 float k = Mathf.Clamp01((float)f.DragN / DragForFullSpray);
                 float sizeK = 0.25f + 1.6f * k;                    // planing sheet → deep plunge
-                float rate = k * (40f + 120f * Mathf.Clamp01(speed / 15f));
+                float rate = Mathf.Sqrt(k) * (100f + 220f * Mathf.Clamp01(speed / 15f));
                 Emit(_step[i], rate, sizeK, step, waterY, fwd, right, i == 0 ? -1f : 1f, speed, (float)f.StepDraftM);
                 // The spray area behind the body: thrown up from just aft of the step with little forward speed, so the
                 // aircraft runs away from it and it hangs behind as a field of mist over the wake.
@@ -106,45 +123,113 @@ namespace FlyingGame.Bridge
                 float sternK = f.SternDraftM > 0.01 ? Mathf.Clamp01((float)f.SternDraftM / 0.25f) : 0f;
                 Emit(_stern[i], sternK * (25f + 60f * Mathf.Clamp01(speed / 10f)), 0.5f + sternK, stern, waterY, fwd, right, i == 0 ? -1f : 1f, speed * 0.5f, (float)f.SternDraftM);
 
-                // Bow wave when the bow keel digs in.
-                float bowK = f.BowDraftM > 0.05 ? Mathf.Clamp01((float)f.BowDraftM / 0.4f) : 0f;
-                Emit(_bow[i], bowK * (30f + 80f * Mathf.Clamp01(speed / 12f)), 0.8f + 1.5f * bowK, bow, waterY, fwd, right, i == 0 ? -1f : 1f, speed * 0.8f, (float)f.BowDraftM);
             }
         }
 
-        private static void SetRate(ParticleSystem ps, float rate) { var em = ps.emission; em.rateOverTime = rate; }
+        // Read the existing drawn discs, including twin pushers; never duplicate StyleFor hub dimensions.
+        private void UpdatePropSpray()
+        {
+            var ac = Driver.Sim.Aircraft;
+            if (_propAircraft != ac.Config.Id || _discs.Length == 0 || !_discs[0])
+            {
+                foreach (var p in _prop) if (p) { _owned.Remove(p); Destroy(p.gameObject); }
+                var discs = new System.Collections.Generic.List<Transform>();
+                foreach (var mf in Driver.GetComponentsInChildren<MeshFilter>(true))
+                    if (mf.name == "PropDisc") discs.Add(mf.transform);
+                _discs = discs.ToArray(); _prop = new ParticleSystem[_discs.Length];
+                for (int i = 0; i < _prop.Length; i++) _prop[i] = Make("PropSpray" + i, .35f, .85f, 100);
+                _propAircraft = ac.Config.Id;
+            }
+            float rpm = ac.EngineStopped ? 0f : (float)ac.EngineRpm;
+            float power = Mathf.SmoothStep(0, 1, Mathf.InverseLerp(650, 2200, rpm));
+            for (int i = 0; i < _discs.Length; i++)
+            {
+                var disc = _discs[i];
+                if (!disc || !disc.gameObject.activeInHierarchy) { SetRate(_prop[i], 0); continue; }
+                var mesh = disc.GetComponent<MeshFilter>().sharedMesh;
+                float radius = mesh.bounds.extents.x * Mathf.Abs(disc.lossyScale.x);
+                Vector3 hub = disc.position;
+                double? water = WorldTerrain.Active?.WaterSurfaceAt(hub.z, hub.x);
+                // Project the disc's vertical radius, so pitch/roll and pusher installations count.
+                float verticalRadius = radius * Mathf.Sqrt(Mathf.Clamp01(1f - disc.forward.y * disc.forward.y));
+                float clearance = water.HasValue ? hub.y - verticalRadius - (float)water.Value : float.PositiveInfinity;
+                float proximity = 1f - Mathf.SmoothStep(0f, Mathf.Max(.3f, radius * .85f), Mathf.Max(0, clearance));
+                float strength = water.HasValue && hub.y > water.Value ? power * proximity : 0f;
+                // Slipstream entrains water at the bottom of the disc, then carries it aft.
+                var ps = _prop[i];
+                SetRate(ps, strength * 220);
+                ps.GetComponent<ParticleSystemRenderer>().sharedMaterial = _mistMat;
+                if (strength <= 0) continue;
+                ps.transform.position = new Vector3(hub.x, (float)water.Value + .06f, hub.z);
+                var main = ps.main; main.startSize = new ParticleSystem.MinMaxCurve(.04f, .2f + strength * .35f);
+                var shape = ps.shape; shape.enabled = true;
+                shape.shapeType = ParticleSystemShapeType.Circle; shape.radius = radius * .35f;
+                ps.transform.rotation = Quaternion.Euler(90, 0, 0);
+                var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
+                Vector3 aft = -Driver.transform.forward * (3 + strength * 9);
+                vel.x = new ParticleSystem.MinMaxCurve(aft.x - 1, aft.x + 1);
+                vel.y = new ParticleSystem.MinMaxCurve(1f, 2f + strength * 3);
+                vel.z = new ParticleSystem.MinMaxCurve(aft.z - 1, aft.z + 1);
+            }
+        }
+
+        private void OnDisable()
+        {
+            foreach (var p in _owned) if (p) p.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var p in _owned) if (p) Destroy(p.gameObject);
+            if (_mat) Destroy(_mat);
+            if (_mistMat) Destroy(_mistMat);
+        }
+
+        // Negative world components still need an ascending MinMaxCurve range.
+        private static ParticleSystem.MinMaxCurve Spread(float v, float low, float high)
+        {
+            return new ParticleSystem.MinMaxCurve(Mathf.Min(v * low, v * high), Mathf.Max(v * low, v * high));
+        }
+
+        private static void SetRate(ParticleSystem ps, float rate)
+        {
+            var em = ps.emission; em.rateOverTime = rate;
+            if (rate > 0 && !ps.isPlaying) ps.Play();
+        }
 
         /// <summary>The hanging spray area: a wide, low emitter behind the step; mostly up and outboard, barely moving forward.</summary>
         private static void EmitTrail(ParticleSystem ps, float rate, float size, Vector3 at, float waterY, Vector3 right, float side, float speed, float beam)
         {
-            var em = ps.emission; em.rateOverTime = rate;
-            var main = ps.main; main.startSize = size; main.gravityModifier = 0.35f;
+            SetRate(ps, rate);
+            var main = ps.main; main.startSize = new ParticleSystem.MinMaxCurve(size * .35f, size * .65f); main.gravityModifier = .35f;
             ps.transform.position = new Vector3(at.x, waterY + 0.1f, at.z);
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-            float up = Mathf.Clamp(speed * 0.12f, 1f, 4f), out_ = Mathf.Clamp(speed * 0.08f, 0.5f, 3f);
+            float up = Mathf.Clamp(speed * 0.055f, .35f, 1.8f), out_ = Mathf.Clamp(speed * 0.08f, 0.5f, 3f);
             Vector3 o = right * side * out_;
-            vel.x = new ParticleSystem.MinMaxCurve(o.x * 0.3f, o.x * 1.2f);
+            vel.x = Spread(o.x, .3f, 1.2f);
             vel.y = new ParticleSystem.MinMaxCurve(up * 0.5f, up);
-            vel.z = new ParticleSystem.MinMaxCurve(o.z * 0.3f, o.z * 1.2f);
-            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.4f + 0.5f * beam;
+            vel.z = Spread(o.z, .3f, 1.2f);
+            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Box; sh.scale = new Vector3(.3f + .4f * beam, .06f, .5f);
         }
 
         /// <summary>Position the emitter on the water at the keel point and throw spray outboard/up with the boat speed.</summary>
         private static void Emit(ParticleSystem ps, float rate, float size, Vector3 keelPoint, float waterY, Vector3 fwd, Vector3 right, float side, float speed, float draft)
         {
-            var em = ps.emission; em.rateOverTime = rate;
+            SetRate(ps, rate);
             if (rate <= 0f) return;
             var main = ps.main;
-            main.startSize = size;
+            main.startSize = new ParticleSystem.MinMaxCurve(size * .28f, size * .82f);
             ps.transform.position = new Vector3(keelPoint.x, waterY + 0.05f, keelPoint.z);
             // Spray sheet: outboard and up, plus a little aft (it's left behind), speed ~ boat speed.
             var vel = ps.velocityOverLifetime; vel.enabled = true; vel.space = ParticleSystemSimulationSpace.World;
-            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.6f + Mathf.Clamp01(draft / 0.3f)) - fwd * 0.4f).normalized;
-            float v = Mathf.Clamp(speed * 0.6f, 1.5f, 14f);
-            vel.x = new ParticleSystem.MinMaxCurve(dir.x * v * 0.6f, dir.x * v * 1.2f);
-            vel.y = new ParticleSystem.MinMaxCurve(dir.y * v * 0.6f, dir.y * v * 1.2f);
-            vel.z = new ParticleSystem.MinMaxCurve(dir.z * v * 0.6f, dir.z * v * 1.2f);
-            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Sphere; sh.radius = 0.25f + 0.4f * draft;
+            Vector3 dir = (right * side * 0.9f + Vector3.up * (0.20f + .45f * Mathf.Clamp01(draft / 0.3f)) - fwd * 0.55f).normalized;
+            float v = Mathf.Clamp(speed * 0.5f, 1.5f, 12f);
+            vel.x = Spread(dir.x * v, .6f, 1.2f);
+            vel.y = Spread(dir.y * v, .6f, 1.2f);
+            vel.z = Spread(dir.z * v, .6f, 1.2f);
+            var sh = ps.shape; sh.enabled = true; sh.shapeType = ParticleSystemShapeType.Box;
+            ps.transform.rotation = Quaternion.LookRotation(fwd, Vector3.up);
+            sh.scale = new Vector3(.12f, .05f, .45f + Mathf.Max(0, draft));
         }
     }
 }

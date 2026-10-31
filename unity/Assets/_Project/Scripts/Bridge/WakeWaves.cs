@@ -16,11 +16,13 @@ namespace FlyingGame.Bridge
         public FlightSimDriver Driver;
         public const float WaveSpeedMs = 6f, StepSec = 0.05f, DecaySec = 100f, LastsSec = 300f;
 
-        private Material _sim;
+        private Material _sim, _foamSim;
+        private RenderTexture _foam, _foamNext;
         private RenderTexture _prev, _curr, _next;
         private int _lake = -1;
         private float _cell, _width, _depth, _acc, _sinceForcing = 1e9f;
         private Vector2 _min;   // Unity xz of the grid's corner
+        private readonly Vector4[] _foamOrigins = new Vector4[2], _foamMotion = new Vector4[2];
         private readonly Vector4[] _src = new Vector4[8];
         private static readonly int WakeTexId = Shader.PropertyToID("_WakeTex"), WakeRectId = Shader.PropertyToID("_WakeRect"),
             WakeOnId = Shader.PropertyToID("_WakeOn"), WakeYId = Shader.PropertyToID("_WakeY"), WakeTexelId = Shader.PropertyToID("_WakeTexel");
@@ -30,6 +32,8 @@ namespace FlyingGame.Bridge
             Shader sh = Shader.Find("Hidden/FlyingGame/WaveSim");
             if (sh == null || !SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.RHalf)) { enabled = false; Shader.SetGlobalFloat(WakeOnId, 0f); return; }
             _sim = new Material(sh);
+            var foamShader = Shader.Find("Hidden/FlyingGame/WakeFoam");
+            if (foamShader != null && foamShader.isSupported) _foamSim = new Material(foamShader);
             Shader.SetGlobalFloat(WakeOnId, 0f);
         }
 
@@ -49,13 +53,14 @@ namespace FlyingGame.Bridge
 
             _acc += Mathf.Min(Time.deltaTime, 0.25f);
             int n = 0;
-            if (forcing && best == _lake) n = Sources(ac);
+            if (best == _lake) n = Sources(ac);
             while (_acc >= StepSec)
             {
                 _acc -= StepSec;
                 Step(n);
             }
             Shader.SetGlobalTexture(WakeTexId, _curr);
+            Shader.SetGlobalTexture("_WakeFoamTex", _foam != null ? (Texture)_foam : Texture2D.blackTexture);
         }
 
         private void Allocate(int lake)
@@ -71,6 +76,7 @@ namespace FlyingGame.Bridge
             _width = tw * _cell; _depth = th * _cell;
             _min = new Vector2(c.x - _width / 2, c.z - _depth / 2);
             _prev = Make(tw, th); _curr = Make(tw, th); _next = Make(tw, th);
+            if (_foamSim != null) { _foam = Make(tw, th); _foamNext = Make(tw, th); _foamSim.SetFloat("_Cell", _cell); }
             _lake = lake; _acc = 0f;
             Shader.SetGlobalVector(WakeRectId, new Vector4(_min.x, _min.y, 1f / _width, 1f / _depth));
             Shader.SetGlobalVector(WakeTexelId, new Vector4(1f / tw, 1f / th, _cell, 0));
@@ -91,8 +97,11 @@ namespace FlyingGame.Bridge
 
         private void Release()
         {
-            foreach (var rt in new[] { _prev, _curr, _next }) if (rt != null) { rt.Release(); Destroy(rt); }
-            _prev = _curr = _next = null; _lake = -1;
+            foreach (var rt in new[] { _prev, _curr, _next, _foam, _foamNext }) if (rt != null) { rt.Release(); Destroy(rt); }
+            _prev = _curr = _next = _foam = _foamNext = null;
+            Shader.SetGlobalTexture("_WakeFoamTex", Texture2D.blackTexture);
+            Shader.SetGlobalVectorArray("_FoamOrigins", new Vector4[2]);
+            _lake = -1;
             Shader.SetGlobalFloat(WakeOnId, 0f);
         }
 
@@ -102,11 +111,19 @@ namespace FlyingGame.Bridge
             var fl = ac.Config.Floats;
             int n = 0, floats = fl.SpreadM > 0.1 ? 2 : 1;
             float beam = (float)fl.BeamM;
+            Vector3 forward = CoordinateMap.ToUnity(ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0)));
+            forward.y = 0; forward.Normalize();
+            for (int i = 0; i < 2; i++) { _foamOrigins[i] = Vector4.zero; _foamMotion[i] = Vector4.zero; }
             for (int i = 0; i < floats && n < 7; i++)
             {
                 var f = FloatHydro.Floats[i];
                 if (!f.Wet) continue;
                 float speed = (float)f.SpeedMs;
+                Vector3 origin = CoordinateMap.ToUnity(f.StepWorld);
+                float load = Mathf.Clamp01((float)(f.PlaningLiftN + f.BuoyancyN) / 1500f);
+                // Displacement taxi keeps solver ripples without cosmetic step whitewater.
+                _foamOrigins[i] = new Vector4(origin.x, origin.z, beam, load * Mathf.InverseLerp(4, 10, speed));
+                _foamMotion[i] = new Vector4(forward.x, forward.z, speed, floats == 1 ? 0 : i == 0 ? -1 : 1);
                 bool planing = f.PlaningLiftN > f.BuoyancyN && speed > 4f;
                 // Height pushed per step: a displacement hull heaps water at the bow; planing, the step throws the bigger
                 // wave. Scaled by beam (a 7.6 m H-4 hull makes a far bigger wake than a 0.66 m Cub float).
@@ -115,6 +132,8 @@ namespace FlyingGame.Bridge
                 n = Add(n, f.StepWorld, beam * 0.6f, step);
                 n = Add(n, f.BowWorld, beam * 0.5f, bow);
             }
+            Shader.SetGlobalVectorArray("_FoamOrigins", _foamOrigins);
+            Shader.SetGlobalVectorArray("_FoamMotion", _foamMotion);
             return n;
         }
 
@@ -134,8 +153,19 @@ namespace FlyingGame.Bridge
             _sim.SetVectorArray("_Src", _src);
             Graphics.Blit(_curr, _next, _sim);
             var t = _prev; _prev = _curr; _curr = _next; _next = t;
+            if (_foamSim != null && _foam != null)
+            {
+                _foamSim.SetTexture("_Height", _curr);
+                Graphics.Blit(_foam, _foamNext, _foamSim);
+                t = _foam; _foam = _foamNext; _foamNext = t;
+            }
         }
 
-        private void OnDestroy() => Release();
+        private void OnDestroy()
+        {
+            Release();
+            if (_sim != null) Destroy(_sim);
+            if (_foamSim != null) Destroy(_foamSim);
+        }
     }
 }
