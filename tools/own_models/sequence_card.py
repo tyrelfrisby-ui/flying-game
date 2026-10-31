@@ -4,19 +4,22 @@ Builder axes: nose +X, port +Y, up +Z. All dimensions in metres.
 Native output uses the builders' existing baked glTF frame (-x,z,y).
 """
 from pathlib import Path
-import math
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 ART = HERE/'art/sequence-card-sportsman-known-2026.png'
-WIDTH = .120
+WIDTH = .10795
 HEIGHT = WIDTH*11/8.5
 MATERIAL_RGB = dict(frame=(.012,.013,.016), clip=(.38,.40,.43), paper=(.92,.92,.87))
+# Panel outline in (pilot-right u, model-up v), independent of the glareshield.
+OUTLINES = {
+ 'extra-300-like':[(-.30,.148),(.30,.148),(.30,.308),(-.30,.308)],
+ 'pitts-s2b-like':[(-.30,-.12),(.30,-.12),(.31,.12),(.22,.15),(-.22,.15),(-.31,.12)],
+ 'great-lakes-like':[(-.26,-.12),(.26,-.12),(.27,.06),(.16,.13),(-.16,.13),(-.27,.06)]}
 PLACEMENTS = {
-    'extra-300-like': dict(panel_face=-1.202, panel_top=.428, above=.050),
-    'pitts-s2b-like': dict(panel_face=-.8075, panel_top=.150, above=.170),
-    'great-lakes-like': dict(panel_face=-1.6395, panel_top=.136, above=.170),
-}
+ 'extra-300-like':dict(panel_face=-1.202,panel_top=.428,centre_z=.228),
+ 'pitts-s2b-like':dict(panel_face=-.8075,panel_top=.158,centre_z=.015),
+ 'great-lakes-like':dict(panel_face=-1.6395,panel_top=.136,centre_z=.005)}
 
 
 def box(centre, size):
@@ -27,24 +30,28 @@ def box(centre, size):
     return v,[(a,b,c) for a,b,c,d in faces]+[(a,c,d) for a,b,c,d in faces]
 
 
-def geometry(panel_face=0, panel_top=0, above=.170):
-    top = panel_top+above; cz = top-.006-HEIGHT/2; x = panel_face-.012
-    boxes = []
+def geometry(panel_face=0, panel_top=.1, centre_z=0):
+    # Flush surface mount: paper face 1.2 mm aft of panel; all hardware <= 3 mm.
+    cz=centre_z; x=panel_face-.0012; rail=.003
+    top=cz+HEIGHT/2+rail
+    boxes=[]
     def add(c,s,material): boxes.append((*box(c,s),material))
-    add((x+.007,0,cz),(.004,WIDTH+.012,HEIGHT+.012),'frame')
-    for side in (-1,1): add((x+.0005,side*(WIDTH/2+.003),cz),(.005,.006,HEIGHT+.012),'frame')
-    add((x-.0005,0,cz-HEIGHT/2-.003),(.007,WIDTH+.012,.006),'frame')
-    add((x+.002,0,cz),(.003,WIDTH,HEIGHT),'paper')
-    add((x-.002,0,top-.003),(.004,.030,.006),'clip')
-    # Short central mounting foot reaches down to the panel when the whole card is above it.
-    bottom = cz-HEIGHT/2-.006
-    if bottom > panel_top:
-        add((panel_face-.003,0,(bottom+panel_top)/2),(.012,.022,bottom-panel_top+.008),'frame')
+    add((panel_face-.0004,0,cz),(.0008,WIDTH+2*rail,HEIGHT+2*rail),'frame')
+    for side in (-1,1):
+        add((panel_face-.0015,side*(WIDTH/2+rail/2),cz),(.003,rail,HEIGHT+2*rail),'frame')
+    add((panel_face-.0015,0,cz-HEIGHT/2-rail/2),(.003,WIDTH+2*rail,rail),'frame')
+    add((panel_face-.0009,0,cz),(.0004,WIDTH,HEIGHT),'paper')
+    add((panel_face-.0015,0,top-rail/2),(.003,.022,rail),'clip')
     # Pilot sees u increase to their right (-Y), v increase up. glTF texture v is downward.
     face = [(x,WIDTH/2,cz-HEIGHT/2),(x,-WIDTH/2,cz-HEIGHT/2),
             (x,-WIDTH/2,cz+HEIGHT/2),(x,WIDTH/2,cz+HEIGHT/2)]
     return boxes,face,dict(centre_builder=[x,0,cz],centre_gltf=[-x,cz,0],
-                          panel_top=panel_top,holder_top=top,above=above,width=WIDTH,height=HEIGHT)
+                          panel_top=panel_top,holder_top=top,above=0,width=WIDTH,height=HEIGHT,
+                          panel_face_builder=panel_face,face_offset_m=.0012,max_hardware_offset_m=.003,
+                          holder_width=WIDTH+.006,holder_height=HEIGHT+.006,
+                          cockpit='rear',panel_coordinates='u=pilot right, v=model up; origin on centreline at model Z=0',
+                          card_top=cz+HEIGHT/2,card_above_panel=max(0,cz+HEIGHT/2-panel_top),
+                          holder_protrusion=0)
 
 
 def blender_add(parts, aircraft):
@@ -69,33 +76,18 @@ def blender_add(parts, aircraft):
     for poly in me.polygons:
         for index in poly.loop_indices: uv.data[index].uv=uvs[me.loops[index].vertex_index]
     obj=bpy.data.objects.new('SequenceCard_Face',me);bpy.context.scene.collection.objects.link(obj);parts[obj.name]=obj
-    if aircraft == 'extra-300-like':
-        for name,v,t,uv,png in compass_geometry():
-            me=bpy.data.meshes.new(name);me.from_pydata(v,[],t)
-            mat=paint.mat_image('PanelCompass_Face',bpy.data.images.load(str(png),check_existing=True),.9) if png else paint.mat_colour('PanelCompass_Housing',(25,27,30),rough=.9)
-            if not png: mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.01,.011,.013,1)
-            me.materials.append(mat)
-            if uv:
-                layer=me.uv_layers.new()
-                for poly in me.polygons:
-                    for index in poly.loop_indices:
-                        u,vv=uv[me.loops[index].vertex_index];layer.data[index].uv=(u,1-vv)
-            obj=bpy.data.objects.new(name,me);bpy.context.scene.collection.objects.link(obj);parts[name]=obj
+    from rear_panel import blender_add as add_panel
+    add_panel(parts, aircraft)
     return spec
 
 
 def native_add(glb, aircraft=None):
-    if any(n.get('name')=='SequenceCard_Face' for n in glb.doc['nodes']):
-        # Refresh authored art without accumulating duplicate meshes on repeated incremental builds.
-        for name,png in (('SequenceCard_Face',ART),('PanelCompass_Face',HERE/'art/panel-compass-static.png')):
-            for mat in glb.doc['materials']:
-                if mat.get('name') != name: continue
-                tex=mat['pbrMetallicRoughness']['baseColorTexture']['index']
-                image=glb.doc['images'][glb.doc['textures'][tex]['source']]
-                view=glb.doc['bufferViews'][image['bufferView']];start=view.get('byteOffset',0)
-                raw=png.read_bytes()
-                if bytes(glb.bin[start:start+view['byteLength']]) != raw: image['bufferView']=glb.data(raw)
-        return
+    # Remove obsolete static compass nodes; the new PIC compass is the sole compass.
+    if aircraft=='extra-300-like':
+        remove={i for i,n in enumerate(glb.doc['nodes']) if n.get('name','').startswith('PanelCompass_')}
+        remap={old:new for new,old in enumerate(i for i in range(len(glb.doc['nodes'])) if i not in remove)}
+        glb.doc['nodes']=[n for i,n in enumerate(glb.doc['nodes']) if i not in remove]
+        for scene in glb.doc['scenes']: scene['nodes']=[remap[i] for i in scene['nodes'] if i not in remove]
     boxes,face,spec=geometry(**PLACEMENTS[aircraft]) if aircraft else geometry()
     materials = dict(frame=glb.material('SequenceCard_Frame',MATERIAL_RGB['frame']),
                      clip=glb.material('SequenceCard_Clip',MATERIAL_RGB['clip']),
@@ -111,33 +103,21 @@ def native_add(glb, aircraft=None):
         glb.mesh(name,convert(vertices),triangles,materials[kind])
     glb.mesh('SequenceCard_Face',convert(face),[(0,1,2),(0,2,3)],materials['face'],[(0,1),(1,1),(1,0),(0,0)])
     glb.doc.setdefault('extras',{})['sequenceCard']=spec
-    if aircraft == 'extra-300-like':
-        for name,v,t,uv,png in compass_geometry():
-            mat=glb.material(name,png=png) if png else glb.material(name,(.01,.011,.013))
-            glb.mesh(name,convert(v),t,mat,uv)
-
-
-def compass_geometry():
-    """Static panel compass for this base; the newer Extra cockpit lane has a rigged replacement."""
-    x,y,z=-1.202,-.145,.366
-    segments=64
-    ring=lambda xx,r:[(xx,y+r*math.cos(t),z+r*math.sin(t)) for t in [k*2*math.pi/segments for k in range(segments)]]
-    vertices=ring(x+.002,.033)+ring(x-.009,.033)
-    tris=[]
-    for k in range(segments):
-        j=(k+1)%segments;tris.extend([(k,segments+j,j),(k,segments+k,segments+j)])
-    tris.extend((segments,segments+k+1,segments+k) for k in range(1,segments-1))
-    housing=('PanelCompass_Housing',vertices,tris,None,None)
-    vertices=[(x-.010,y,z)]+ring(x-.010,.030)
-    tris=[(0,1+(k+1)%segments,1+k) for k in range(segments)]
-    uv=[(.5-(yy-y)/.060,.5-(zz-z)/.060) for xx,yy,zz in vertices]
-    return [housing,('PanelCompass_Face',vertices,tris,uv,HERE/'art/panel-compass-static.png')]
+    if aircraft:
+        from rear_panel import native_add as add_panel
+        add_panel(glb, aircraft)
 
 
 def offline_update(aircraft, filename):
     from glb_visuals import Glb
     path=ROOT/'unity/Assets/_Project/Resources/Models'/aircraft/filename
-    glb=Glb(path);native_add(glb,aircraft);glb.save(path)
+    # Rebuild from the immutable round-1 GLB: repeatable without dead-buffer accumulation.
+    import subprocess, tempfile
+    with tempfile.TemporaryDirectory(prefix='iac-v2-base-') as td:
+        base=Path(td)/path.name
+        base.write_bytes(subprocess.check_output(['git','show','38e8746:'+str(path.relative_to(ROOT))],cwd=ROOT))
+        glb=Glb(base)
+    native_add(glb,aircraft);glb.save(path)
     print('WROTE',path)
 
 
@@ -149,5 +129,12 @@ if __name__=='__main__':
     path.parent.mkdir(parents=True,exist_ok=True);glb.save(path)
     specs={key:geometry(**value)[2] for key,value in PLACEMENTS.items()}
     specs['reusable-decathlon']=geometry()[2]
-    (ROOT/'docs/models/sequence-card-spec.json').write_text(json.dumps(specs,indent=2)+'\n')
+    from rear_panel import LAYOUTS, before
+    for key in PLACEMENTS:
+        specs[key].update(panel_outline_uv=OUTLINES[key],instruments=LAYOUTS[key],before_instruments=before(key))
+    specpath=ROOT/'docs/models/sequence-card-spec.json'
+    prior=json.loads(specpath.read_text()) if specpath.exists() else {}
+    for key in PLACEMENTS:
+        if 'rear_eye' in prior.get(key,{}): specs[key]['rear_eye']=prior[key]['rear_eye']
+    specpath.write_text(json.dumps(specs,indent=2)+'\n')
     print('WROTE',path)

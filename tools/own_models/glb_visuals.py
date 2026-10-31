@@ -50,6 +50,24 @@ class Glb:
                           offset=v.get('byteOffset',0)+a.get('byteOffset',0),
                           strides=(v.get('byteStride',dim*dtype.itemsize),dtype.itemsize)).copy()
 
+    def world_matrices(self):
+        """Active-scene node transforms, glTF column-vector convention."""
+        result={}
+        def visit(i,parent):
+            node=self.doc['nodes'][i]
+            if 'matrix' in node: local=np.array(node['matrix']).reshape(4,4).T
+            else:
+                x,y,z,w=node.get('rotation',[0,0,0,1])
+                rot=np.array([[1-2*(y*y+z*z),2*(x*y-z*w),2*(x*z+y*w)],
+                              [2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w)],
+                              [2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]])
+                local=np.eye(4);local[:3,:3]=rot@np.diag(node.get('scale',[1,1,1]))
+                local[:3,3]=node.get('translation',[0,0,0])
+            result[i]=parent@local
+            for child in node.get('children',[]): visit(child,result[i])
+        for i in self.doc['scenes'][self.doc.get('scene',0)]['nodes']: visit(i,np.eye(4))
+        return result
+
     def material(self, name, rgb=(1,1,1), png=None):
         m = dict(name=name, doubleSided=False,
                  pbrMetallicRoughness=dict(baseColorFactor=[*rgb,1],metallicFactor=0,roughnessFactor=0.9))
@@ -61,6 +79,10 @@ class Glb:
             textures = self.doc.setdefault('textures',[])
             textures.append(dict(source=len(images)-1,sampler=len(samplers)-1))
             m['pbrMetallicRoughness']['baseColorTexture'] = dict(index=len(textures)-1)
+        existing=next((i for i,mat in enumerate(self.doc['materials']) if mat.get('name')==name),None)
+        if existing is not None:
+            self.doc['materials'][existing]=m
+            return existing
         self.doc['materials'].append(m)
         return len(self.doc['materials'])-1
 
@@ -73,6 +95,10 @@ class Glb:
         attrs = dict(POSITION=self.accessor(flat,'VEC3'), NORMAL=self.accessor(np.repeat(n,3,axis=0),'VEC3'))
         if uv is not None: attrs['TEXCOORD_0'] = self.accessor(np.asarray(uv)[triangles].reshape(-1,2),'VEC2')
         self.doc['meshes'].append(dict(name=name,primitives=[dict(attributes=attrs,material=material,mode=4)]))
+        existing=next((n for n in self.doc['nodes'] if n.get('name')==name),None)
+        if existing is not None:
+            self.doc['meshes'][existing['mesh']]=self.doc['meshes'].pop()
+            return
         self.doc['nodes'].append(dict(name=name,mesh=len(self.doc['meshes'])-1))
         self.doc['scenes'][self.doc.get('scene',0)]['nodes'].append(len(self.doc['nodes'])-1)
 
