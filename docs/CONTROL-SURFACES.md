@@ -374,6 +374,38 @@ That did not explain the whole fleet, and the claim should not be stretched: the
 *at* 14°, so there was nothing to recover and neither moved. Their remaining error, and the Pitts' +20 %, have
 causes not yet isolated — but they are no longer confounded by a measurement artefact.
 
+### Travel, and the stops that are not symmetric
+
+A type certificate lists each surface's movement, and for most aeroplanes the elevator's two stops are not the same
+distance from neutral: more up than down, because the flare needs it and a pushover does not. `ControlAxisConfig` now
+carries an optional **`maxDeflNegRad`** beside `maxDeflRad` — the limit in the NEGATIVE-deflection direction, 0 meaning
+symmetric. In the sim's sign convention positive elevator is trailing-edge DOWN, so `maxDeflNegRad` is the UP travel.
+Everything that clamps a deflection (stick shaping, its inverse, the free-float balance, the tab calibration, the trim
+solver, the practice scenarios' pitch search) goes through `axis.ClampDefl`/`axis.LimitFor(sign)` rather than
+±`MaxDeflRad`, and the full-aft authority measurement uses `LimitFor(-1)`.
+
+The J-3 was the first type measured against its certificate (FAA Aircraft Specification **A-691 Rev 34**, Item 4
+"Control Surface Movements"), 2026-10-30:
+
+| Surface | A-691 | config before | config now |
+|---|---|---|---|
+| Elevator | 34° up / 29° down | ±29.8° | 34° up / 29° down |
+| Aileron | 18° up / 18° down | ±20.1° | ±18° |
+| Rudder | 30° left / 30° right | ±25.2° | ±30° |
+| Stabiliser (trim) | 2.5° up / 4° down | not modelled | not modelled |
+
+The same reading of A-691 settled the engine: Item 311C certificates the C-85 as an optional engine for the J-3, which
+is the 85 hp the config claims, but the config turned it at **2,700 rpm** — above the C-85's 2,575 and well above the
+A-65's 2,350. The redline is now 2,575 (owner, 2026-10-30), so the 85 hp is made where the engine makes it. Power and
+thrust do not depend on `maxRpm`; torque reaction and the gyroscopic couple do, in opposite directions — the same power
+at lower rpm is **+4.9 % torque** (a little more left swing) and **−4.6 % prop angular momentum**.
+
+It matters twice over. The 12 % of extra aileron was part of why the Cub rolled at 78°/s where a real one rolls at
+45–55 (70°/s now — the rest is effectiveness, not travel), and the own-model GLB is rigged to the certificate's
+numbers, so a config that disagrees draws a surface in one place and flies it in another. Full-aft authority moves with
+the up travel, so both J-3 configs were re-calibrated after the change: saturation 71.9 → 42.7° (landplane),
+120 → 59.8° (floats).
+
 ## Control effectiveness τ (thin-airfoil theory)
 
 Flat plate with a plain flap, Glauert: cos θ_h = 2E − 1, A₀ = α + δ(π − θ_h)/π, A_n = 2δ sin(nθ_h)/(nπ).

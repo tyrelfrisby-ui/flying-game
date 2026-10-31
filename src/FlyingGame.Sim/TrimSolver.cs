@@ -49,7 +49,7 @@ public static class TrimSolver
         double airDensity = Atmosphere.DensityAtAltitude(altitudeM);
         double mass = config.Mass.MassKg;
         double weight = mass * Atmosphere.GravityMs2;
-        double elevatorLimit = config.Controls.Elevator.MaxDeflRad;
+        double elevatorLimit = config.Controls.Elevator.MaxTravelRad;
 
         double[] x = { 5.0 * Math.PI / 180.0, -3.0 * Math.PI / 180.0, 0.0 };
         double[] residual = Residual(x);
