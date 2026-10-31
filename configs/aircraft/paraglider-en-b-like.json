@@ -1,0 +1,536 @@
+{
+  "schemaVersion": 1,
+  "id": "paraglider-en-b-like",
+  "displayName": "Paraglider-like (EN-B)",
+  "spawnIasMs": 10.0,
+  "mass": {
+    "massKg": 100.0,
+    "cg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "inertia": {
+      "ixx": 253.0,
+      "iyy": 210.7,
+      "izz": 95.6,
+      "ixz": 0.0
+    }
+  },
+  "surfaces": [
+    {
+      "id": "wing",
+      "heightAboveBodyAxisM": 6.175,
+      "oswaldE": 0.9,
+      "strips": [
+        {
+          "pos": [
+            -0.0474,
+            -0.3111,
+            -6.175
+          ],
+          "chord": 2.82627,
+          "area": 1.75857,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.4722
+          }
+        },
+        {
+          "pos": [
+            -0.1218,
+            -0.9333,
+            -6.175
+          ],
+          "chord": 2.79105,
+          "area": 1.73666,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.4167
+          }
+        },
+        {
+          "pos": [
+            -0.1962,
+            -1.5556,
+            -6.175
+          ],
+          "chord": 2.71925,
+          "area": 1.69197,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.3611
+          }
+        },
+        {
+          "pos": [
+            -0.2706,
+            -2.1778,
+            -6.175
+          ],
+          "chord": 2.60783,
+          "area": 1.62265,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.3056
+          }
+        },
+        {
+          "pos": [
+            -0.345,
+            -2.8,
+            -6.175
+          ],
+          "chord": 2.45141,
+          "area": 1.52532,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.2121
+          }
+        },
+        {
+          "pos": [
+            -0.4194,
+            -3.4222,
+            -6.175
+          ],
+          "chord": 2.24058,
+          "area": 1.39414,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.2866
+          }
+        },
+        {
+          "pos": [
+            -0.4938,
+            -4.0444,
+            -6.175
+          ],
+          "chord": 1.95785,
+          "area": 1.21822,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.3683
+          }
+        },
+        {
+          "pos": [
+            -0.5682,
+            -4.6667,
+            -6.175
+          ],
+          "chord": 1.5647,
+          "area": 0.97359,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.4564
+          }
+        },
+        {
+          "pos": [
+            -0.6426,
+            -5.2889,
+            -6.175
+          ],
+          "chord": 0.93035,
+          "area": 0.57889,
+          "incidenceRad": 0.0,
+          "dihedralRad": -0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.5507
+          }
+        },
+        {
+          "pos": [
+            -0.0474,
+            0.3111,
+            -6.175
+          ],
+          "chord": 2.82627,
+          "area": 1.75857,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.4722
+          }
+        },
+        {
+          "pos": [
+            -0.1218,
+            0.9333,
+            -6.175
+          ],
+          "chord": 2.79105,
+          "area": 1.73666,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.4167
+          }
+        },
+        {
+          "pos": [
+            -0.1962,
+            1.5556,
+            -6.175
+          ],
+          "chord": 2.71925,
+          "area": 1.69197,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.3611
+          }
+        },
+        {
+          "pos": [
+            -0.2706,
+            2.1778,
+            -6.175
+          ],
+          "chord": 2.60783,
+          "area": 1.62265,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "elevator",
+            "gain": 0.3056
+          }
+        },
+        {
+          "pos": [
+            -0.345,
+            2.8,
+            -6.175
+          ],
+          "chord": 2.45141,
+          "area": 1.52532,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.2121
+          }
+        },
+        {
+          "pos": [
+            -0.4194,
+            3.4222,
+            -6.175
+          ],
+          "chord": 2.24058,
+          "area": 1.39414,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.2866
+          }
+        },
+        {
+          "pos": [
+            -0.4938,
+            4.0444,
+            -6.175
+          ],
+          "chord": 1.95785,
+          "area": 1.21822,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.3683
+          }
+        },
+        {
+          "pos": [
+            -0.5682,
+            4.6667,
+            -6.175
+          ],
+          "chord": 1.5647,
+          "area": 0.97359,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.4564
+          }
+        },
+        {
+          "pos": [
+            -0.6426,
+            5.2889,
+            -6.175
+          ],
+          "chord": 0.93035,
+          "area": 0.57889,
+          "incidenceRad": 0.0,
+          "dihedralRad": 0.0,
+          "airfoil": "paraglider-en-b-like-sec",
+          "control": {
+            "surface": "aileron",
+            "gain": 0.5507
+          }
+        }
+      ]
+    }
+  ],
+  "airfoilTables": {
+    "paraglider-en-b-like-sec": {
+      "alphaRad": [
+        -3.14159,
+        -2.87979,
+        -2.61799,
+        -2.35619,
+        -2.0944,
+        -1.8326,
+        -1.5708,
+        -1.309,
+        -1.0472,
+        -0.7854,
+        -0.5236,
+        -0.34907,
+        -0.27925,
+        -0.20944,
+        -0.13963,
+        -0.06981,
+        0.0,
+        0.03491,
+        0.06981,
+        0.10472,
+        0.13963,
+        0.17453,
+        0.19199,
+        0.20944,
+        0.22689,
+        0.24435,
+        0.2618,
+        0.27925,
+        0.31416,
+        0.34907,
+        0.41888,
+        0.5236,
+        0.69813,
+        1.0472,
+        1.5708,
+        2.0944,
+        2.61799,
+        3.14159
+      ],
+      "cl": [
+        0.0,
+        0.5,
+        0.866,
+        1.0,
+        0.866,
+        0.5,
+        -0.0,
+        -0.5,
+        -0.866,
+        -1.0,
+        -0.8929,
+        -1.075,
+        -1.2133,
+        -0.581,
+        -0.204,
+        0.173,
+        0.55,
+        0.7385,
+        0.927,
+        1.1155,
+        1.304,
+        1.35,
+        1.35,
+        1.35,
+        1.35,
+        1.3011,
+        1.2556,
+        1.2133,
+        1.1383,
+        1.075,
+        0.9791,
+        0.8929,
+        0.9848,
+        0.866,
+        0.0,
+        -0.866,
+        -0.866,
+        -0.0
+      ],
+      "cd": [
+        0.03364,
+        0.09477,
+        0.31773,
+        0.62264,
+        0.91773,
+        1.13401,
+        1.23364,
+        1.20001,
+        1.03205,
+        0.75464,
+        0.41976,
+        0.22273,
+        0.20988,
+        0.09055,
+        0.04939,
+        0.02387,
+        0.01398,
+        0.01489,
+        0.01972,
+        0.02845,
+        0.0411,
+        0.04478,
+        0.04478,
+        0.04478,
+        0.04478,
+        0.04478,
+        0.04641,
+        0.04972,
+        0.06161,
+        0.08084,
+        0.14307,
+        0.30189,
+        0.5178,
+        0.91773,
+        1.23364,
+        1.03205,
+        0.43205,
+        0.03364
+      ],
+      "cm": [
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0458,
+        -0.0588,
+        -0.0719,
+        -0.085,
+        -0.0785,
+        -0.0719,
+        -0.0654,
+        -0.0588,
+        -0.0523,
+        -0.049,
+        -0.0458,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425,
+        -0.0425
+      ]
+    }
+  },
+  "fuselage": {
+    "cd0Area": 0.7,
+    "sideForceArea": 0.25,
+    "munkScale": 0.0
+  },
+  "stallDynamics": {
+    "stripSepTau": 0.2,
+    "stripReattachTau": 0.8,
+    "wakeGrowTau": 0.3,
+    "wakeDecayTau": 1.2,
+    "wakeSpreadDeg": 8.0
+  },
+  "limits": {
+    "vneMs": 14.0,
+    "gMax": 5.5,
+    "gMin": -1.0
+  },
+  "controls": {
+    "aileron": {
+      "maxDeflRad": 0.52,
+      "rateRadPerSec": 2.0,
+      "expo": 0.2,
+      "deadZone": 0.04,
+      "reversible": false,
+      "centeringSpringKt": 0,
+      "trimType": "none"
+    },
+    "elevator": {
+      "maxDeflRad": 0.42,
+      "rateRadPerSec": 1.8,
+      "expo": 0.15,
+      "deadZone": 0.03,
+      "reversible": false,
+      "centeringSpringKt": 0,
+      "trimType": "none"
+    }
+  },
+  "gear": [
+    {
+      "pos": [
+        0.0,
+        0.0,
+        0.95
+      ],
+      "springN": 9000,
+      "dampNs": 3500,
+      "brake": true,
+      "isTailwheel": false,
+      "isSteerable": false,
+      "maxSteerRad": 0.0,
+      "tireMu": 0.9,
+      "corneringStiffnessN": 1200,
+      "rollResistN": 900
+    }
+  ]
+}

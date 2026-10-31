@@ -580,6 +580,41 @@ public sealed class GearConfig
     public MathTypes.Vec3 PosVec() => new(Pos[0], Pos[1], Pos[2]);
 }
 
+/// <summary>A wing with no moving surface at all, flown by swinging the pilot's own mass about the hang point: a hang
+/// glider. The control axes carry the SWING ANGLE rather than a deflection, so the offset is h*tan(theta) and the axis
+/// limit is the furthest the pilot can actually move, atan(maxShift / hangHeight).
+///
+/// The moment is the pilot's APPARENT weight at that offset, not his static weight: what he presses the wing with is
+/// m_pilot*(g - a), and since gravity is already applied at the cg with no moment, that leaves -(m_pilot/m) times the
+/// aerodynamic force. This is why a flex wing's roll authority RISES with load factor -- in a 2 g turn the same body
+/// movement gives twice the moment -- which a plain m*g*d model gets wrong.</summary>
+public sealed class WeightShiftConfig
+{
+    public double PilotMassKg { get; set; }
+    /// <summary>Hang point above the combined cg (m).</summary>
+    public double HangHeightM { get; set; }
+    public double MaxLateralM { get; set; }
+    public double MaxLongitudinalM { get; set; }
+
+    /// <summary>The moment the pilot makes by swinging, given the swing angles his control axes carry and the
+    /// aerodynamic force on the wing. ONE implementation: both the sim's force assembly and the trim solver call
+    /// this, because a wing whose pitch control the trim solver did not know about would simply fail to trim --
+    /// which is exactly how the first hang glider behaved.
+    ///
+    /// Signs follow the sim's own conventions: positive roll swing moves the pilot right and rolls right; positive
+    /// pitch swing moves him forward and pitches down.</summary>
+    public MathTypes.Vec3 SwingMoment(double swingPitchRad, double swingRollRad, MathTypes.Vec3 aeroForceBody, double totalMassKg)
+    {
+        if (PilotMassKg <= 0.0 || HangHeightM <= 1e-6) return MathTypes.Vec3.Zero;
+        MathTypes.Vec3 shift = new(HangHeightM * Math.Tan(swingPitchRad), HangHeightM * Math.Tan(swingRollRad), 0.0);
+        // His APPARENT weight, m*(g - a). Gravity is already applied at the cg with no moment, so what is left is
+        // -(his share) times the aerodynamic force: nothing in free fall, double in a 2 g turn. That is why a flex
+        // wing's roll authority grows with load factor, which a plain m*g*d model gets wrong.
+        MathTypes.Vec3 pilotForce = -(PilotMassKg / Math.Max(1e-6, totalMassKg)) * aeroForceBody;
+        return MathTypes.Vec3.Cross(shift, pilotForce);
+    }
+}
+
 public sealed class LimitsConfig
 {
     public double VneMs { get; set; } = 1000;

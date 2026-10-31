@@ -50,6 +50,11 @@ namespace FlyingGame.Bridge
 
         /// <summary>Raw aileron stick (-1..1) regardless of egress — after bail out / eject it steers the canopy.</summary>
         public float StickAileron { get; private set; }
+
+        /// <summary>Raw pitch stick (-1..1) regardless of egress — in free fall it sets the pilot's BODY
+        /// POSITION (PilotEgress.ReadBodyPos): neutral tracks, back is flat and slow, forward is head down
+        /// and fast. The canopy ignores it.</summary>
+        public float StickElevator { get; private set; }
         /// <summary>Elevator bias from the trim slider alone (stick units) — what the abandoned aircraft keeps.</summary>
         public float TrimElevator => (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
 
@@ -644,7 +649,9 @@ namespace FlyingGame.Bridge
         private void PublishToDriver()
         {
             StickAileron = _aileron;
-            // After bail out / eject the stick steers the CANOPY (PilotEgress reads StickAileron); the
+            StickElevator = _elevator;   // (_elevator already has InvertElevator applied where it is read)
+            // After bail out / eject the stick steers the CANOPY and sets the free-fall body position
+            // (PilotEgress reads StickAileron and StickElevator); the
             // abandoned aircraft's inputs are frozen by PilotEgress, so nothing is published here.
             if (_egress != null && _egress.PilotOut) return;
 

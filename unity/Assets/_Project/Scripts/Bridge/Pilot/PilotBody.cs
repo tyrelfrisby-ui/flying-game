@@ -18,7 +18,17 @@ namespace FlyingGame.Bridge
     {
         public const float MassKg = 105f;          // 90 kg pilot + 15 kg kit
         public const float SeatMassKg = 70f;
-        public const float CdATumbling = 0.7f;     // m², pilot tumbling in free fall
+        public const float CdATumbling = 0.7f;     // m², pilot tumbling in free fall -- uncontrolled, so draggier
+                                                   // than a stable belly-to-earth body (0.585 m²)
+
+        /// <summary>What the pilot is doing with his body in free fall: 0 flat and stable belly to earth
+        /// (120 mph), 0.5 the steepest useful track (136 mph, and the best forward glide at about 0.7),
+        /// 1 head down (210 mph). The drag areas behind it are back-solved from those published speeds in
+        /// <see cref="FlyingGame.Core.SkydiverAero"/>, which the flight tests check; this field is only the
+        /// pilot's choice of position, lagged because a body takes about a second to move.</summary>
+        public float BodyPos { get { return _bodyPos; } set { _bodyPosCmd = Mathf.Clamp01(value); } }
+        private float _bodyPos, _bodyPosCmd;
+        public const float BodyMoveTau = 0.9f;     // s, how fast a body actually changes position
         public const float CdAHanging = 0.5f;      // m², pilot upright under the canopy
         public const float CdASeat = 0.45f;        // m² extra while strapped to the seat
         public const float HalfHeightM = 0.9f;     // capsule half-height (1.8 m pilot)
@@ -161,10 +171,35 @@ namespace FlyingGame.Bridge
                 if (_flame != null && _rocketT >= RocketBurn2Sec) _flame.SetActive(false);
             }
 
-            // Body drag (tumbling → hanging as the canopy fills).
+            // Body position: a body takes about a second to go from flat to head down, so the command is
+            // lagged rather than applied the instant the pad moves.
+            _bodyPos = Mathf.Lerp(_bodyPos, _bodyPosCmd, 1f - Mathf.Exp(-dt / BodyMoveTau));
+
+            // Body drag. In free fall the drag area is whatever the pilot's position makes it -- 0.585 m²
+            // flat, 0.191 m² head down, a factor of three, which is why a falling body is steerable at all.
+            // Tumbling (straight off the wing, or strapped to a seat) is uncontrolled and draggier; under a
+            // filling canopy he straightens out and hangs.
             float fill = Chute?.Fill ?? 0f;
-            float cdA = HasSeat ? CdATumbling + CdASeat : Mathf.Lerp(CdATumbling, CdAHanging, fill);
+            float freeCdA = (float)FlyingGame.Core.SkydiverAero.CdA(_bodyPos);
+            float cdA = HasSeat ? CdATumbling + CdASeat
+                      : Tumbling ? Mathf.Lerp(CdATumbling, CdAHanging, fill)
+                      : Mathf.Lerp(freeCdA, CdAHanging, fill);
             Velocity += EgressAir.ImplicitDragDelta(Velocity - wind, rho, cdA, m, dt);
+
+            // Tracking: leaning into the fall turns some of it into forward travel, up to about 0.7 across
+            // for 1 down at the best body angle. It is a LIFT, so it acts across the relative wind, in
+            // whichever direction he has turned himself -- and it goes away as the canopy takes over.
+            if (!HasSeat && !Tumbling && fill < 0.999f)
+            {
+                float glide = (float)FlyingGame.Core.SkydiverAero.GlideRatio(_bodyPos) * (1f - fill);
+                Vector3 rel = Velocity - wind;
+                float vDown = Mathf.Max(0f, -rel.y);
+                if (vDown > 1f && glide > 1e-3f)
+                {
+                    float dragN = 0.5f * rho * freeCdA * vDown * vDown;
+                    Velocity += HeadingDir * (glide * dragN / m * dt);
+                }
+            }
 
             // Canopy: deployment model, steering, drive, drag on the drive-relative airflow.
             if (Chute != null)

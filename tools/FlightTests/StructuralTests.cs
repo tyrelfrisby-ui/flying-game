@@ -223,15 +223,23 @@ public class StructuralTests
         AircraftConfig cfg = Load(id);
         bool[] wings = Aircraft.MainWingSurfaces(cfg);
         int wingCount = 0;
+        bool hasAileronRow = false;
         for (int i = 0; i < cfg.Surfaces.Count; i++)
         {
             string sid = cfg.Surfaces[i].Id.ToLowerInvariant();
             bool tail = sid.Contains("stab") || sid.Contains("elevator") || sid.Contains("rudder");
             if (tail) Assert.False(wings[i], $"{id}: tail surface '{sid}' must not be treated as wing.");
-            if (sid.Contains("aileron")) Assert.True(wings[i], $"{id}: aileron row '{sid}' must leave with the wing.");
+            if (sid.Contains("aileron")) { hasAileronRow = true; Assert.True(wings[i], $"{id}: aileron row '{sid}' must leave with the wing."); }
             if (wings[i]) wingCount++;
         }
-        Assert.True(wingCount >= 2, $"{id}: expected wing + aileron row(s); found {wingCount}.");
+        // A wing must exist, and any aileron row must go with it. The row itself is NOT universal: a hang
+        // glider has no moving surface at all -- the pilot swings his own mass -- and a paraglider's brakes
+        // are a deflection applied to the wing's own strips, not a separate planform. So the "wing plus a
+        // row" count is required only of a type that HAS a row, which keeps it at full strength for every
+        // aeroplane with ailerons while letting a soft wing be what it is.
+        Assert.True(wingCount >= 1, $"{id}: no main wing surface at all.");
+        if (hasAileronRow)
+            Assert.True(wingCount >= 2, $"{id}: expected wing + aileron row(s); found {wingCount}.");
         if (id.Contains("pitts") || id.Contains("stearman")) Assert.True(wingCount >= 3, $"{id}: both biplane planes must go.");
 
         double V = cfg.SpawnIasMs > 0 ? cfg.SpawnIasMs : 25;

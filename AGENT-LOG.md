@@ -169,6 +169,11 @@
 - **The Extra's wing has one bad measurement station, and it costs roll rate (Claude, 2026-10-30).** In `configs/aircraft/extra-300-like.json` at y = +-2.523 m, THREE values jump and then snap back, in both `wing` and `wing-aileron`: z goes to +0.049 where every neighbour is -0.0735 (12.2 cm up), the aileron hinge x to -0.562 against an interpolated -0.681 (22 cm forward), and the aileron chord to 0.493 against an interpolated 0.338 (+46 %). The wing's own chord there (0.928) sits exactly on the taper, so the station was measured fine and the z/aileron probe caught something standing proud -- the hinge bracket or a balance horn. That strip is ~0.60 m of span, so the inflated chord adds about **+9 % aileron area per side**: the Extra's roll rate is likely several percent high from one probe. **Claude's suggestion:** interpolate the station from its neighbours and MEASURE the roll-rate change; ask Codex to re-measure y = +-2.523 on the model first, because if the model really is kinked there the config is right and the fix reverses; and do it in the span-variant lane so the wing is touched once, not twice. Untouched so far.
 - **26 of 28 branches had never been pushed (Claude, 2026-10-30).** Only `lane/claude-extra-cockpit` and `lane/claude-j3-edo1320` exist on GitHub; everything else lives on one Mac and nowhere else. **Ty: say the word and I push the finished lanes.** I did not put eleven branches on a public repo unasked.
 - **`main` is a week behind and is not where work lands (Claude, 2026-10-30).** `main` is at `860dd96` (10-23); `split-surfaces` is at `1b67dd5` (10-28) and is the real integration branch. NOTHING is merged into `main`, so "is it merged yet" asked against `main` is always no -- which is how the worktree cleanup first came back empty. **Ty: either fast-forward `main` to `split-surfaces`, or say plainly that `split-surfaces` is the trunk.**
+- **The paraglider and the hang glider fly, but they have no MODEL (Claude, 2026-10-30).** Both are in the fleet picker and both hit their published polars in the sim, but neither has a GLB, so `AirframeVisual` falls through to its default "high-wing strut-braced tandem trainer": they fly right and look completely wrong. **Codex:** a paraglider is a 25 m^2 canopy on ~6.2 m of line with a seated pilot in a harness, and a hang glider is a 14.4 m^2 swept flex wing with a prone pilot under a control frame, hanging 1.09 m below. `docs/SOFT-WINGS.md` has every dimension.
+- **No ram-air canopy yet (Claude, 2026-10-30).** `Parachute.cs` is a properly modelled ROUND emergency canopy (28 gores, D0 8.5 m, Knacke fill, opening shock, 6.2 m/s sink) and it was left alone -- it is the right canopy for a bailout from an aerobatic aeroplane. But "flying" a round is 0.48:1 and a heading change. A sport ram-air is a WING: ~3:1, 10 m/s forward, 3.5-5 m/s down, brakes that trade speed for sink, and a flare that can put the descent near zero. That is a second canopy type, and it is the one piece of the four-item brief that is **not built**.
+- **The hang glider's published stall does not close, by 7 % (Claude, 2026-10-30).** 30 km/h at 110 kg over 14.4 m^2 demands CL 1.78, which no sail section gives. Read as a minimum CONTROLLABLE speed rather than a CL break, CLmax 1.55 (the top of the credible range for a cambered double-surface sail) puts the break at 32 km/h. **Ty: if that feels too fast, the lever is the all-up weight or the area, not the section** -- 1.78 is not available. A manufacturer polar for any specific glider would settle this and the glide and sink figures too, which are currently CLASS figures: Wills Wing publishes Vne, sizes and weight ranges but no polar. That is the weakest number in `docs/SOFT-WINGS.md`.
+- **Launch is untouched for both soft wings (Claude, 2026-10-30).** They spawn in the air at trim speed. Foot-launching off a slope -- which is how both types actually start -- and a tow for the hang glider are separate work, and the slope launch wants terrain that Codex's island world will provide.
+- **The Great Lakes ships with NO runtime config on the trunk, right now (Claude, 2026-10-30).** `GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` fails on clean `split-surfaces` at `1b67dd5` with: *great-lakes-like: StreamingAssets copy missing or different*. This is the `git add -f` trap from the StreamingAssets item, live on the trunk and already caught by a test. `lane/claude-glacier-visuals` has the one-line fix (`beea9ff`) and it never reached `split-surfaces`.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -1335,6 +1340,96 @@ to a visual system. Worth knowing before anyone fears a shared-code change here.
 
 `KeepOut`'s hardcoded 0.03 standoff is now the same `Eta` the clip is derived from, so the two cannot drift apart and
 silently reopen the deadlock, and `Inside`'s doc now says its tolerance must stay below `Eta`.
+### 2026-10-30 - Claude - lane/claude-soft-wings - a falling body, a paraglider and a hang glider
+
+Ty: *"I'm adding 4 new things to model. 1 human in free fall 2 parachute opening and flying 3 paraglider
+4 hang glider"*, then *"do research build the flight model in offline next two hours don't ask questions"*.
+
+**First finding: half of it already existed.** `unity/.../Pilot/` already held `PilotBody`, `Parachute`,
+`EgressAir` and a `PilotEgress` that sequences freefall -> line stretch -> inflation, and the chute is a
+properly sourced ROUND emergency canopy -- 28 gores, D0 8.5 m, Knacke's fill constant, a 1.3x opening shock,
+6.2 m/s sink. So items 1 and 2 were improvements to a working system, not new builds, and the canopy itself
+was left exactly as it was.
+
+**The method, because none of these four publish what an aeroplane publishes.** No section, no
+weight-and-balance sheet, no TCDS -- only the answer: a polar, a terminal velocity, a glide ratio. So the
+derivation runs BACKWARDS, the same direction Ty chose for the Great Lakes' CLmax the same day:
+`CD0 = pi*AR*e / (4*(L/D)^2)` from the published best glide, and `CdA = 2mg/(rho V^2)` from the published
+terminal velocity. A backwards derivation proves nothing alone, so the test flies what the generator makes
+and holds it to the numbers that went in. Every figure below is the SIM's.
+
+**1. The falling body** (`src/FlyingGame.Core/SkydiverAero.cs`, in Core so the suite can reach it -- the
+Unity assembly cannot be tested). A human body has a three-to-one range of drag area, which is the whole
+reason it is steerable: 0.585 m^2 flat (53.6 m/s, 120 mph), 0.452 m^2 in the steepest useful track
+(61.0 m/s, 136 mph) and 0.191 m^2 head down (93.9 m/s, 210 mph). The areas are derived, the speeds are the
+agreed part; the derived 0.585 sits inside the 0.44-0.63 the sources' own Cd and area ranges imply, which is
+the check that the back-solve is sane. Tracking is a HUMP peaking at one body angle (0.74 forward for 1
+down), so holding it is a skill and being either side costs. Control is the PITCH axis, which the canopy
+does not use: hands neutral is the steepest track, so a pilot who has just left an aeroplane flies AWAY from
+it without being told to.
+
+**3. Paraglider**, 25 m^2, 11.2 m span, 100 kg: best glide **8.59:1 at 35 km/h** (published 9.0, class
+8.3-9.5), min sink **1.04 m/s at 29 km/h** (published 1.05). Only a third of its CD0 is wing -- 0.700 m^2 of
+parasite area, about 0.30 of line and 0.40 of harnessed pilot, is 0.0280 of 0.0438. That is why a paraglider
+glides at 9 and a sailplane at 40. Min sink is deliberately WORSE than a parabolic polar predicts (which
+wanted 0.87, better than any real EN-B wing), because below trim the canopy's drag climbs steeply; a soft
+wing that beats the book is flattering itself. Brakes are the controls: outboard differential on `aileron`,
+inboard symmetric on `elevator`, which is the only pitch control a tailless pendulum wing has. The wing
+hangs **6.18 m above the cg** and a test pins that, because a config that lost the pendulum would still
+glide correctly and fly like nothing real.
+
+**4. Hang glider**, 14.4 m^2, 10 m span, 110 kg: best glide **13.09:1 at 49 km/h** (published 13), min sink
+**0.93 m/s at 38 km/h** (published 0.85), Vne 85 km/h.
+
+**Weight shift is new code, and it broke twice in instructive ways.** A flex wing has NO moving surface, so
+its control axes are not deflections -- they carry the angle the pilot swings on the hang strap, limited by
+how far a prone pilot reaches: atan(0.45/1.09) = 0.391 rad (22.4 deg) laterally. The offset is h*tan(theta),
+exact rather than small-angle, because a hang glider pilot really does swing most of the way to the frame.
+The moment is his APPARENT weight, m*(g - a); gravity is already applied at the cg with no moment, so what is
+left is -(his share)*(the aerodynamic force) -- nothing in free fall, double in a 2 g turn. Roll authority
+therefore grows with load factor, as it does in the air, which a plain m*g*d model gets wrong.
+  - **Break 1: it would not trim at any speed.** The moment was only in `Aircraft.ForceMoment`, and
+    `TrimSolver` never calls that -- it was hunting for an elevator that does not exist, and the polar sweep
+    found **zero** flyable points over the whole speed band. Fixed by making `WeightShiftConfig.SwingMoment`
+    the single implementation that both call.
+  - **Break 2: the balance was wrong, and that was the real reason.** Even with the solver fixed, the wing
+    was built with its cg at the origin and its mean ac 0.68 m aft: a 734 N m nose-down moment against
+    314 N m of available swing. Neither type has a tail, so the ONLY thing setting trim is where the hang
+    point sits fore and aft of the wing's centre of lift --
+    `x_cg = x_ac - q*S*c_bar*Cm / W` -- and that same offset is the static margin, so a wing balanced this
+    way is stable for the reason it trims. Balanced: 5.4 % MAC on the hang glider, 13.3 % on the paraglider,
+    and the hang glider went from 0 trimmed points to 124.
+
+**One more self-inflicted one worth recording:** the paraglider first glided 8.27 against a target of 9.0,
+and the cause was my own section. `cd_min` was a GUESS while the table also charged a drag bucket at the
+best-glide CL, so the bucket was paid twice. Deriving `cd_min` from the target instead of guessing it
+recovered it to 8.59.
+
+**Two tests had to change, and one of them was a real assumption.** `StructuralTests` asserted that EVERY
+config has at least two wing surfaces -- a wing plus a separate aileron row. That encodes "every aeroplane
+has ailerons", which a flex wing genuinely does not: it has no moving surface at all, and a paraglider's
+brakes are a deflection on the wing's own strips rather than a second planform. Same shape as the
+`OwnPittsModelTests.Vertices` case on 2026-10-30: a true assumption that a new kind of thing legitimately
+violates. Narrowed to "a wing must exist, and any aileron row goes with it", with the count of two required
+only of a type that HAS a row -- so it stays at full strength for all 32 aeroplanes that do. The glide
+table was regenerated for the two new rows (both copies, `configs/` and StreamingAssets).
+
+**Also fixed here, and it is NOT soft wings:** `unity/Assets/StreamingAssets/aircraft/great-lakes-like.json`
+was never tracked, so the Great Lakes shipped with no runtime config and
+`GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` failed on clean `split-surfaces`. One
+`git add -f`. It is in this commit because my own two aircraft walk into the identical trap and the test
+that polices it cannot be left red; the same one-line fix exists unmerged on `lane/claude-glacier-visuals`
+(`beea9ff`).
+
+**Gates.** Suite **4 failed / 788 passed / 3 skipped**, up from 785 passed. All four are accounted for: the
+Pitts ground handling x3 (red on clean `split-surfaces`, Ty has not flown it) and
+`SmokeGoesRoundTheAirframeInTheFlatSpin`, which is red here ONLY because this lane branched off
+`split-surfaces` before the fix on `lane/claude-flow-plates` (`b2d5996`) -- it is green there. Nothing new
+was introduced and all three failures this lane created were fixed rather than excused.
+`tools/deploy/deploy.sh`: `** BUILD SUCCEEDED **`.
+
+What is deliberately missing -- no models, no ram-air canopy, no foot launch -- is in NEEDS YOU above and
+`docs/SOFT-WINGS.md`.
 
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 
