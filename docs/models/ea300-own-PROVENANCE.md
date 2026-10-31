@@ -166,3 +166,26 @@ Exact layout tables, eye-transform caveats, original IAC artwork/font provenance
 [sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md), [sequence-card-spec.json](sequence-card-spec.json),
 and the round-2 entry in [AGENT-LOG.md](../../AGENT-LOG.md). CPU rebuild and asset checks passed; full Blender/Unity
 import/render remain unverified here. No Tests/ or app logic changes.
+
+## 2026-10-31 round 3 — IAC card on UPPER rear panel
+
+Ty: "The extra seems to have two panels the card should be on the upper panel."
+All 3 Extra livery GLBs now mount the same 0.10795×0.13970 m card and 0.11395×0.14570 m low-profile
+frame on the **upper** PIC/rear panel. Raw glTF face centre **(1.2032,0.3500,0)**; builder panel face X=-1.202.
+Paper offset 1.2 mm, maximum frame/clip offset 3 mm, normal/UV/SequenceCard_Face contract unchanged.
+
+Original upper face: 120 mm high at centre, 620 mm wide at bottom / 400 mm at top. The card alone was
+19.70 mm too tall; frame 25.70 mm too tall. The **upper face is extended downward 36 mm** to up=0.272,
+keeping its top at 0.428. New centre height 156 mm; frame spans up=0.27715–0.42285 (5.15 mm margins).
+No stick-up. `RearPanel_UpperExtension` is an original 6 mm thick lower strip matching the upper face colour.
+
+`RearPanel_FlushPanel` (40 mm round-2 fill) **is reverted/absent** because its only purpose was seeing the
+lower-mounted card. Original lower slab at builder X=-1.162 and radio remain unchanged; gauges return to it.
+Upper voltmeter/compass/fuel quantity already clear the central frame and keep their positions.
+Lower ASI/alt/attitude/G form a 57.15 mm row, G centred; tach/oil-pressure/oil-temp/fuel-pressure form a compact
+40 mm 2×2 group at the right, below the upper lip. No gauge omitted or overlapping; no lower hole.
+All values are static visual assignments, not a specific aircraft's certified installation.
+
+Exact layout/spec and provenance: [sequence-card-spec.json](sequence-card-spec.json),
+[sequence-card-PROVENANCE.md](sequence-card-PROVENANCE.md). Renders: untracked `renders/iac-pitts/v3/`,
+all three liveries, plus a matched 1a6a4d7 before view. No app/Tests/ edits; Unity/Blender remain unrun here.

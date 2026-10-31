@@ -13,11 +13,11 @@ HEIGHT = WIDTH*11/8.5
 MATERIAL_RGB = dict(frame=(.012,.013,.016), clip=(.38,.40,.43), paper=(.92,.92,.87))
 # Panel outline in (pilot-right u, model-up v), independent of the glareshield.
 OUTLINES = {
- 'extra-300-like':[(-.30,.148),(.30,.148),(.30,.308),(-.30,.308)],
+ 'extra-300-like':[(-.31,.272),(.31,.272),(.31,.338),(.20,.428),(-.20,.428),(-.31,.338)],
  'pitts-s2b-like':[(-.30,-.12),(.30,-.12),(.31,.12),(.22,.15),(-.22,.15),(-.31,.12)],
  'great-lakes-like':[(-.26,-.12),(.26,-.12),(.27,.06),(.16,.13),(-.16,.13),(-.27,.06)]}
 PLACEMENTS = {
- 'extra-300-like':dict(panel_face=-1.202,panel_top=.428,centre_z=.228),
+ 'extra-300-like':dict(panel_face=-1.202,panel_top=.428,centre_z=.350),
  'pitts-s2b-like':dict(panel_face=-.8075,panel_top=.158,centre_z=.015),
  'great-lakes-like':dict(panel_face=-1.6395,panel_top=.136,centre_z=.005)}
 
@@ -132,6 +132,11 @@ if __name__=='__main__':
     from rear_panel import LAYOUTS, before
     for key in PLACEMENTS:
         specs[key].update(panel_outline_uv=OUTLINES[key],instruments=LAYOUTS[key],before_instruments=before(key))
+        if key=='extra-300-like':
+            specs[key].update(panel_tier='upper',original_upper_height_m=.120,upper_downward_extension_m=.036,
+                              lower_panel_face_builder=-1.162,lower_recess_restored=True,
+                              lower_panel_outline_uv=[[-.30,.148],[.30,.148],[.30,.308],[-.30,.308]],
+                              mount_surface_nodes=['Cockpit','RearPanel_UpperExtension'])
     specpath=ROOT/'docs/models/sequence-card-spec.json'
     prior=json.loads(specpath.read_text()) if specpath.exists() else {}
     for key in PLACEMENTS:

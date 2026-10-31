@@ -65,13 +65,18 @@ for path in paths+[MODELS/'sequence-card/sequence-card-holder.glb']:
             edge=b-a; delta=points-a
             assert np.all(edge[0]*delta[:,1]-edge[1]*delta[:,0]>=-1e-7),'card/holder outside rear panel'
         # Verify flush contact against the actual rear slab, not only a declared face coordinate.
-        slab=nodes['RearPanel_FlushPanel' if model=='extra-300-like' else 'Cockpit']
+        if model=='extra-300-like':
+            assert spec['panel_tier']=='upper' and 'RearPanel_FlushPanel' not in nodes
+            assert np.isclose(spec['centre_gltf'][1],.350)
+            assert np.isclose(spec['lower_panel_face_builder'],-1.162)
         surface=[]
-        for prim in d['meshes'][slab['mesh']]['primitives']:
-            positions=glb.array(prim['attributes']['POSITION'])
-            ids=glb.array(prim['indices']).reshape(-1,3) if 'indices' in prim else np.arange(len(positions)).reshape(-1,3)
-            tris=positions[ids]
-            surface.extend(tris[np.all(abs(tris[:,:,0]-panel_x)<1e-6,axis=1)][:,:,[2,1]])
+        for slabname in spec.get('mount_surface_nodes',['Cockpit']):
+            slab=nodes[slabname]
+            for prim in d['meshes'][slab['mesh']]['primitives']:
+                positions=glb.array(prim['attributes']['POSITION'])
+                ids=glb.array(prim['indices']).reshape(-1,3) if 'indices' in prim else np.arange(len(positions)).reshape(-1,3)
+                tris=positions[ids]
+                surface.extend(tris[np.all(abs(tris[:,:,0]-panel_x)<1e-6,axis=1)][:,:,[2,1]])
         surface=np.array(surface)
         for point in ((-WIDTH/2,spec['centre_gltf'][1]-HEIGHT/2),(WIDTH/2,spec['centre_gltf'][1]-HEIGHT/2),
                       (-WIDTH/2,spec['centre_gltf'][1]+HEIGHT/2),(WIDTH/2,spec['centre_gltf'][1]+HEIGHT/2)):
@@ -116,6 +121,11 @@ for path in paths+[MODELS/'sequence-card/sequence-card-holder.glb']:
                 mesh=d['meshes'][nodes['RearPanel_'+name+'_'+suffix]['mesh']]
                 a=glb.array(mesh['primitives'][0]['attributes']['POSITION'])
                 assert separate(cardproj,hull(project(a))),name+' occludes holder from rear eye'
+        if model=='extra-300-like':
+            for name,u,v,diam in LAYOUTS[model]:
+                if v>.272: continue
+                a=glb.array(d['meshes'][nodes['RearPanel_'+name+'_Face']['mesh']]['primitives'][0]['attributes']['POSITION'])
+                assert np.allclose(a[:,0],1.173),'lower instruments must return to original recessed panel'
         # Full opaque scene ray test: 9x11 points across the printable card must be visible.
         # This catches glareshield/knob/placard occlusion that bezel-only tests cannot catch.
         triangles=[];world=glb.world_matrices()

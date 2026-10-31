@@ -1,8 +1,8 @@
-# Shared aerobatic sequence card and holder — round 2
+# Shared aerobatic sequence card and holder — round 3
 
-2026-10-31, lane/codex-iac-pitts. Supersedes the round-1 mounting/layout numbers in 38e8746.
+2026-10-31, lane/codex-iac-pitts. Extra placement supersedes rounds 1–2 (38e8746 / 1a6a4d7); Pitts/Great Lakes retain round 2.
 All three Extra, all four Pitts and the one Great Lakes own GLB on this lane are updated.
-Ty's steering: **flush in the centre of every rear/PIC panel, including Extra; no 2-inch stick-up.**
+Ty's steering: **flush in the centre of every rear/PIC panel; on Extra use the UPPER panel, with no stick-up.**
 
 ## Source and artwork
 
@@ -29,16 +29,26 @@ change texture resolution. Review the flat image at full resolution for the smal
 
 | Aircraft | Rear panel face (builder X) | Face centre raw glTF (X,Y,Z) | Card top | Frame top | Panel/glareshield top | Protrusion |
 |---|---:|---|---:|---:|---:|---:|
-| Extra 300 | -1.2020 | (1.2032, 0.2280, 0) | 0.29785 | 0.30085 | 0.428 | 0 |
+| Extra 300, UPPER | -1.2020 | (1.2032, 0.3500, 0) | 0.41985 | 0.42285 | 0.428 | 0 |
 | Pitts S-2B | -0.8075 | (0.8087, 0.0150, 0) | 0.08485 | 0.08785 | 0.158 | 0 |
 | Great Lakes | -1.6395 | (1.6407, 0.0050, 0) | 0.07485 | 0.07785 | 0.136 | 0 |
 
-**Extra:** the 2-inch/50 mm raised-holder requirement was dropped per Ty, not carried forward as a target.
-The reduced card fits inside the main rectangular panel (vertical range 0.148–0.308 m).
-The original lower panel face was 40 mm forward of its glareshield rear face. A card flush to that recessed
-surface lost its top behind the overhang from the supplied eye. `RearPanel_FlushPanel` fills that 40 mm recess,
-aligning the main rear panel face with the existing glareshield at builder X=-1.202 m. Card and gauges mount on
-that face; the glareshield, outer silhouette, front panel and seats are unchanged. This eliminates the occlusion.
+**Extra round 3:** Ty selected the **upper rear-panel/glareshield face**. Its original centre height was
+**0.120 m**, from model up 0.308 to 0.428; width 0.620 m at its lower edge, 0.400 m at the top.
+The card (0.13970 m high) exceeds that height by **19.70 mm**, and its frame (0.14570 m) by **25.70 mm**.
+It cannot fit unchanged. `RearPanel_UpperExtension` extends the **bottom downward 36 mm** to 0.272,
+matching the original face colour; top/glareshield stay at 0.428. The resulting centre height is 0.156 m.
+Card/frame are centred at up=0.350 with 5.15 mm frame clearance above/below, zero stick-up.
+This is a documented enlargement of the upper face, not a claim the original upper face could contain the card.
+
+The round-2 `RearPanel_FlushPanel` **is removed**: its only purpose was lower-card visibility.
+The original lower slab/recess at builder X=-1.162 is restored, 40 mm forward of the upper face.
+Upper voltmeter/compass/fuel-quantity slots already clear the central 0.11395 m frame and retain their positions.
+Lower flight instruments use a row of 57.15 mm bezels (ASI -0.24, alt -0.16, attitude -0.08, G 0 at v=0.201);
+engine instruments use 40 mm bezels in two rows (tach/oil pressure at u=+0.13/+0.23,v=0.220;
+oil temperature/fuel pressure at the same u,v=0.174). This fits below the enlarged upper lip and remains
+visible from the rear eye despite the restored recess. The G-meter fills the former lower-card centre;
+there is no hole. Lower radio, front cockpit, seats and original aircraft buffers/geometry remain unchanged.
 
 Raw glTF: nose -X, up +Y, pilot's right -Z. Builder: nose +X, port +Y, up +Z; conversion (-x,z,y).
 Nodes have baked positions/identity transforms. `SequenceCard_Face` node and material, baseColorTexture /
@@ -54,7 +64,7 @@ There is no Decathlon panel in this base.
 Panel coordinates are metres: **u=pilot's right, v=model up**, origin on the panel centreline at model Z=0.
 Flight instruments occupy the left group; engine instruments the right group. The G-meter sits at the top
 of the left group next to the card, where it is prominent during aerobatics. The compass occupies a separate
-right-side slot. Extra retains room for an attitude display, fuel/voltage instruments and the lower radio face.
+right-side slot. Extra uses the upper card/three auxiliary gauges and the restored lower panel layout described above, retaining attitude and the lower radio face.
 Pitts/Great Lakes have seven suitably spaced dials each. Everything fits; no gauge was squeezed under the card.
 These are visual arrangements, not a claim to reproduce a particular serial number's installed equipment.
 
@@ -86,8 +96,7 @@ Exact inputs, inverse results and source commits are snapshotted in the spec's `
 **No eye-position adjustments.** Extra source model was 073f113 and Great Lakes 4a45232; those have newer
 cockpit interiors than this lane. Extra's seat stations remain the same; Great Lakes uses different seat/back
 geometry, but the supplied eye remains inside this lane's rear opening, above the pan and aft of the rear panel.
-The short 184 mm horizontal panel distance on Great Lakes makes its view steep and foreshortened; it is retained,
-not silently moved aft to make the picture nicer. This verifies placement, not anthropometric/Unity camera approval.
+Round-3 review qualifies that round-2 footprint check: the source and this lane have materially different rear seat backs. The native horizontal distance is 184 mm (181 mm after span placement). The eye is retained unchanged; its correctness relative to this older seat is for Ty to judge. See the round-3 Great Lakes review in its provenance and AGENT-LOG; a footprint is not an adult-fit validation.
 
 Straight-on renders are orthographic, normal to the actual rear panel, 2400×1800 with a 0.90 m horizontal field.
 They isolate the rear slab/hood and instruments from seats/tub. Before renders load 38e8746 GLBs via `git show`
@@ -133,3 +142,18 @@ No Unity, Blender, deploy, installation or upload was attempted in round 2, per 
 Blender's Metal-init crash and standard dotnet-test sandbox socket failure. The direct harness uses the existing
 compiled test DLL and reads this worktree's current GLBs. Device import/render and a full Blender build remain
 external checks. No Tests/ or app logic was edited.
+
+## Round-3 review renders and checks
+
+`python3 tools/own_models/render_iac_round3.py` writes untracked `renders/iac-pitts/v3/`:
+all three Extra upper-panel straight/rear-eye views and matched **1a6a4d7** before; Great Lakes right-side,
+3/4 and top cutaways, forward -4°/86° eye views, plus picked seat-shell isolation. Great Lakes is rendered
+from both this lane and source **4a45232**, without changing either the eye point or Great Lakes GLB.
+Manifest records model hashes, source selectors, transformed points, measurements and render paths.
+The scale proxy is a wire sphere of body radius 0.105 m, centre 0.080 m aft / 0.050 m above the eye;
+markers/dimensions are x-ray overlays. Cutaways clip the right fuselage skin at centreline and omit wings/gear;
+forward eye views retain opaque geometry (glass omitted), with the specified pitch rather than aiming down at the card.
+
+The asset checker verifies Extra against its **upper** outline and actual original face + downward extension,
+with no `RearPanel_FlushPanel`, original recessed lower gauge stations, zero protrusion, bezel/projected-hull
+clearance and full-scene card visibility. Pitts/Great Lakes/shared holder stay unchanged from round 2.

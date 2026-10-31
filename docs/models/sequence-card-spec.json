@@ -3,15 +3,15 @@
     "centre_builder": [
       -1.2032,
       0,
-      0.228
+      0.35
     ],
     "centre_gltf": [
       1.2032,
-      0.228,
+      0.35,
       0
     ],
     "panel_top": 0.428,
-    "holder_top": 0.30085,
+    "holder_top": 0.42285,
     "above": 0,
     "width": 0.10795,
     "height": 0.13970000000000002,
@@ -22,75 +22,83 @@
     "holder_height": 0.14570000000000002,
     "cockpit": "rear",
     "panel_coordinates": "u=pilot right, v=model up; origin on centreline at model Z=0",
-    "card_top": 0.29785,
+    "card_top": 0.41985,
     "card_above_panel": 0,
     "holder_protrusion": 0,
     "panel_outline_uv": [
       [
-        -0.3,
-        0.148
+        -0.31,
+        0.272
       ],
       [
-        0.3,
-        0.148
+        0.31,
+        0.272
       ],
       [
-        0.3,
-        0.308
+        0.31,
+        0.338
       ],
       [
-        -0.3,
-        0.308
+        0.2,
+        0.428
+      ],
+      [
+        -0.2,
+        0.428
+      ],
+      [
+        -0.31,
+        0.338
       ]
     ],
     "instruments": [
       [
         "Airspeed",
-        -0.23,
-        0.263,
-        0.062
+        -0.24,
+        0.201,
+        0.05715
       ],
       [
         "Altimeter",
-        -0.23,
-        0.193,
-        0.062
+        -0.16,
+        0.201,
+        0.05715
       ],
       [
         "Attitude",
-        -0.13,
-        0.193,
-        0.062
+        -0.08,
+        0.201,
+        0.05715
       ],
       [
         "G_meter",
-        -0.13,
-        0.263,
-        0.062
+        0,
+        0.201,
+        0.05715
       ],
       [
         "Tachometer",
         0.13,
-        0.263,
-        0.062
+        0.22,
+        0.04
       ],
       [
         "Oil_pressure",
         0.23,
-        0.263,
-        0.062
+        0.22,
+        0.04
       ],
       [
         "Oil_temperature",
         0.13,
-        0.193,
-        0.062
+        0.174,
+        0.04
       ],
       [
         "Fuel_pressure",
         0.23,
-        0.193,
-        0.062
+        0.174,
+        0.04
       ],
       [
         "Fuel_quantity",
@@ -178,6 +186,33 @@
         0.366,
         0.066
       ]
+    ],
+    "panel_tier": "upper",
+    "original_upper_height_m": 0.12,
+    "upper_downward_extension_m": 0.036,
+    "lower_panel_face_builder": -1.162,
+    "lower_recess_restored": true,
+    "lower_panel_outline_uv": [
+      [
+        -0.3,
+        0.148
+      ],
+      [
+        0.3,
+        0.148
+      ],
+      [
+        0.3,
+        0.308
+      ],
+      [
+        -0.3,
+        0.308
+      ]
+    ],
+    "mount_surface_nodes": [
+      "Cockpit",
+      "RearPanel_UpperExtension"
     ],
     "rear_eye": {
       "body_m": [

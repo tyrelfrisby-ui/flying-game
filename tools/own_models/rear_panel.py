@@ -9,10 +9,10 @@ from pathlib import Path
 # name, u, v, bezel diameter. Extra preserves ten dial slots plus its compass.
 LAYOUTS = {
  'extra-300-like': [
-  ('Airspeed',-.23,.263,.062),('Altimeter',-.23,.193,.062),
-  ('Attitude',-.13,.193,.062),('G_meter',-.13,.263,.062),
-  ('Tachometer',.13,.263,.062),('Oil_pressure',.23,.263,.062),
-  ('Oil_temperature',.13,.193,.062),('Fuel_pressure',.23,.193,.062),
+  ('Airspeed',-.24,.201,.05715),('Altimeter',-.16,.201,.05715),
+  ('Attitude',-.08,.201,.05715),('G_meter',0,.201,.05715),
+  ('Tachometer',.13,.220,.040),('Oil_pressure',.23,.220,.040),
+  ('Oil_temperature',.13,.174,.040),('Fuel_pressure',.23,.174,.040),
   ('Fuel_quantity',.23,.365,.054),('Voltmeter',-.23,.365,.054),
   ('Compass',.13,.365,.060)],
  'pitts-s2b-like': [
@@ -25,7 +25,7 @@ LAYOUTS = {
   ('G_meter',-.11,.04,.064),('Tachometer',.11,.04,.064),
   ('Oil_pressure',.21,.04,.064),('Oil_temperature',.11,-.05,.056),
   ('Compass',.21,-.05,.056)]}
-GAUGE_X = {'extra-300-like':-1.203,'pitts-s2b-like':-.808,'great-lakes-like':-1.638}
+GAUGE_X = {'extra-300-like':-1.163,'pitts-s2b-like':-.808,'great-lakes-like':-1.638}
 
 def before(aircraft):
     if aircraft=='extra-300-like':
@@ -85,10 +85,12 @@ def meshes(aircraft):
     """Builder-space mesh tuples matching SequenceCard helper interface."""
     if aircraft=='extra-300-like':
         from sequence_card import box
-        v,t=box((-1.182,0,.228),(.040,.600,.160))
-        yield 'RearPanel_FlushPanel',v,t,None,None
+        # The 120 mm original upper face is shorter than the 145.7 mm frame.
+        # Extend its bottom 36 mm, leaving the top/glareshield fixed; restore lower recess.
+        v,t=box((-1.199,0,.290),(.006,.620,.036))
+        yield 'RearPanel_UpperExtension',v,t,None,None
     for name,u,v,diam in LAYOUTS[aircraft]:
-        x=-1.202 if aircraft=='extra-300-like' and v>.308 else GAUGE_X[aircraft]
+        x=-1.202 if aircraft=='extra-300-like' and v>.272 else GAUGE_X[aircraft]
         y=-u;r=diam/2;segments=64
         ring=lambda xx,rr:[(xx,y+rr*math.cos(k*2*math.pi/segments),v+rr*math.sin(k*2*math.pi/segments)) for k in range(segments)]
         verts=ring(x+.002,r)+ring(x-.009,r)
@@ -106,7 +108,7 @@ def meshes(aircraft):
 def native_add(glb, aircraft):
     strip_old_dials(glb,aircraft)
     for name,v,t,uv,png in meshes(aircraft):
-        mat=glb.material(name,png=png) if png else glb.material(name,(.025,.027,.030))
+        mat=glb.material(name,png=png) if png else glb.material(name,(.30498737,.32314324,.35153270) if name=='RearPanel_UpperExtension' else (.025,.027,.030))
         glb.mesh(name,[(-x,z,y) for x,y,z in v],t,mat,uv)
     glb.doc.setdefault('extras',{})['rearPanelLayout']=LAYOUTS[aircraft]
 
@@ -116,7 +118,10 @@ def blender_add(parts, aircraft):
         me=bpy.data.meshes.new(name);me.from_pydata(v,[],t)
         if png:
             im=bpy.data.images.load(str(png));im.pack();mat=paint.mat_image(name,im,.9)
-        else: mat=paint.mat_colour(name,(44,46,49),rough=.9)
+        else:
+            mat=paint.mat_colour(name,(44,46,49),rough=.9)
+            if name=='RearPanel_UpperExtension':
+                mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.30498737,.32314324,.35153270,1)
         me.materials.append(mat)
         if uv:
             layer=me.uv_layers.new()
