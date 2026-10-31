@@ -87,6 +87,13 @@ namespace FlyingGame.Bridge
             var list = new List<Vec3>(); var dirs = new List<Vec3>();
             double down = (cfg.Smoke?.DownDeg ?? 30) * System.Math.PI / 180;
             var aftDown = new Vec3(-System.Math.Cos(down), 0, System.Math.Sin(down));   // body z is DOWN
+            // Measured on the placed model, relative to its CG. In particular, do not move this point
+            // to a procedural hub or back onto the centreline of an asymmetric/paired exhaust.
+            if (cfg.Smoke != null && cfg.Smoke.TryOutlet(out Vec3 measured))
+            {
+                jet = new[] { aftDown };
+                return new[] { measured };
+            }
             if (propHubsBody != null && propHubsBody.Count > 0)
             {
                 foreach (var h in propHubsBody)

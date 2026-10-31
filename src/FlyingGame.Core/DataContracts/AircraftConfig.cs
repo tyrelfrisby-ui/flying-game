@@ -355,6 +355,19 @@ public sealed class SpinAeroConfig
 
 public sealed class SmokeConfig
 {
+    /// <summary>Measured outlet in body axes (+x forward, +y right, +z down), metres from the CG.
+    /// Optional: overrides the prop-hub estimate, whose hub need not coincide with the placed model.
+    /// A single smoke-fed pipe may be selected on an airframe with paired exhausts.</summary>
+    public double[]? OutletBodyM { get; set; }
+    /// <summary>Return a measured outlet only when all three coordinates are finite.</summary>
+    public bool TryOutlet(out MathTypes.Vec3 outlet)
+    {
+        outlet = MathTypes.Vec3.Zero;
+        if (OutletBodyM == null || OutletBodyM.Length != 3) return false;
+        foreach (double v in OutletBodyM) if (double.IsNaN(v) || double.IsInfinity(v)) return false;
+        outlet = new MathTypes.Vec3(OutletBodyM[0], OutletBodyM[1], OutletBodyM[2]);
+        return true;
+    }
     /// <summary>The exhaust's distance aft of the nose (spinner tip), m.</summary>
     public double AftOfNoseM { get; set; }
     /// <summary>The exhaust's line below the longitudinal axis, pointing aft (°).</summary>
