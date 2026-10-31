@@ -1020,3 +1020,16 @@ NEEDS YOU: the required `tools/deploy/deploy.sh` / `** BUILD SUCCEEDED **` gate 
 - Validation: .NET test-project build **succeeded, 0 errors**. **25 unique tests passed**: 17 new smoke cases + 8 existing airflow/jet/glide/protocol cases. After the final float-z correction, the 17 smoke cases passed again. The repo's in-process xUnit runner was used because standard VSTest cannot bind its socket in this sandbox. The aircraft protocol test includes all mirrors and passed. Config mirrors are byte-identical. Offline render assertions pass on all eight models. `git diff --check` is clean.
 - **One baseline failure, not a passing gate:** `AirframeFlowTests.SmokeGoesRoundTheAirframeInTheFlatSpin` failed with the old compiled code before these source edits, for the Extra marker from `(-3.5,1.2,1.6)` at `t=0.112`, entering the flow body at `(-4.0793,0.1223,-0.1702)`. Extra config and AirframeFlow were not changed. The initial existing-test run was 8 pass / 1 fail; that baseline failure is reported separately from the 25 passing targeted tests, not hidden or fixed out of scope.
 - Precommit tracked-file ignore check: `git ls-files | git check-ignore --no-index --stdin -v` printed nothing. Local commit only on `lane/codex-smoke`; other branches/worktrees were read only via git objects.
+# Agent log — Codex preparation review
+
+## NEEDS YOU
+- Draft glider warning is stale: split-surfaces is clean at ed2cc7c, containing the eight specified files. Claude owns their validation; Codex has not approved calibration.
+- Register existing external work before headless dispatch: ../flying-game-reference/out/reference-fleet/ contains the new C172 rough draft; ../flying-game-reference/out/beaver-v2/ contains the reference-built Beaver; ../flying-game-audit/ contains the unfinished physics audit. Geometry must follow drawings/photos, not existing fleet meshes or aerodynamic config fitting.
+
+## HANDOFF
+- [codex → Claude] lane/codex-lanes-prep-review · review measured visual/config discrepancies when audit is complete; retain physics ownership · ../flying-game-audit/ and aircraft configs · verify source measurements before any calibration edits; current audit remains unfinished.
+- [codex → Chief] lane/codex-lanes-prep-review · register current visual/audit work and resolve runner conflicts before go-live · external locations above and Glass Overlay LANES-PREP-REVIEW-2026-10-26.md · check owner tags, isolated worktrees and no-deploy rule; install drafts only after Ty approval.
+
+## Log
+### 2026-10-26 — Codex · lane/codex-lanes-prep-review · prep only
+Read all draft lane files. Added this original log in an isolated sparse worktree; no draft was installed or edited. No configs, assets, source or tests changed. Both draft runners pass zsh -n; no live execution, push, merge, deploy or migration. Main checkout unchanged. Stop after reporting as requested.
