@@ -111,6 +111,32 @@ namespace FlyingGame.EditorTools
                 changed |= m.Glob == null ? SyncFile(m) : SyncDirectory(m);
             }
 
+            // Mirror the models' RIG tables (docs/models/*-rig.json: every moving part of a model we drew
+            // ourselves — surfaces, cockpit controls, instrument needles — written by that model's Blender
+            // build script alongside the GLB). The destination is keyed by the "model" field INSIDE each
+            // file, so a rebuilt rig arrives with nothing re-typed here and nothing renamed there.
+            string repoRigs = Path.GetFullPath(Path.Combine(Application.dataPath, "../../docs/models"));
+            string destRigs = Path.Combine(Application.streamingAssetsPath, "rigs");
+            if (Directory.Exists(repoRigs))
+            {
+                Directory.CreateDirectory(destRigs);
+                foreach (string src in Directory.GetFiles(repoRigs, "*-rig.json"))
+                {
+                    string text = File.ReadAllText(src);
+                    string model;
+                    try { model = FlyingGame.Bridge.AirframeRig.Parse(text).Model; }
+                    catch (System.Exception e) { Debug.LogWarning($"ConfigSync: {Path.GetFileName(src)} is not a rig table ({e.Message})."); continue; }
+                    if (string.IsNullOrEmpty(model)) { Debug.LogWarning($"ConfigSync: {Path.GetFileName(src)} names no model; skipped."); continue; }
+                    string target = Path.Combine(destRigs, model + ".json");
+                    if (!File.Exists(target) || File.ReadAllText(target) != text)
+                    {
+                        File.WriteAllText(target, text);
+                        FlyingGame.Bridge.AirframeRig.Forget();
+                        changed = true;
+                    }
+                }
+            }
+
             if (changed)
             {
                 AssetDatabase.Refresh();

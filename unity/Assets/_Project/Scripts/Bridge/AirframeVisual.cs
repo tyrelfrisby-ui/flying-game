@@ -85,6 +85,15 @@ namespace FlyingGame.Bridge
             var d = _driver.Sim.Aircraft.CurrentDeflections;
             if (DebugDeflect.HasValue) { Vector3 dd = DebugDeflect.Value; _builder.SetDeflections(dd.x, dd.y, dd.z, 0f); }   // self-test (skins)
             else _builder.SetDeflections((float)d.AileronRad, (float)d.ElevatorRad, (float)d.RudderRad, (float)d.SpoilerFraction);
+            // A model that brought its own rig moves ITS parts — the same control positions, so the drawn
+            // surfaces and the cockpit always agree with the aeroplane the sim is flying.
+            if (_builder.HasOwnRig)
+                _builder.SetRig(RigInputsNow(_driver.Sim.Aircraft,
+                                             DebugDeflect.HasValue
+                                                 ? new FlyingGame.Core.Aero.ControlDeflections(DebugDeflect.Value.x, DebugDeflect.Value.y, DebugDeflect.Value.z, d.SpoilerFraction)
+                                                 : d,
+                                             Time.deltaTime),
+                                Time.deltaTime);
             var acp = _driver.Sim.Aircraft;
             float rpm = DebugRpm ?? (acp.EngineStopped ? 0f : (float)acp.EngineRpm);
             _builder.SpinProps(i =>
@@ -217,6 +226,63 @@ namespace FlyingGame.Bridge
             Bounds b = rs[0].bounds;
             for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
             return b;
+        }
+
+        // ---- what the model's own rig is fed (AirframeRig) --------------------------------------------------
+
+        private TouchFlightControls _touch; private TowController _tow; private bool _cockpitLooked;
+        private double _energyHeightM = double.NaN, _varioMs;
+        private float _headingFiltDeg = float.NaN;
+
+        /// <summary>The control positions the AERO MODEL is using, plus the instrument readings, in the units
+        /// the rig table asks for.
+        ///
+        /// The stick positions come from RigInputs.FromDeflections, which owns the one sign that has to be got
+        /// right (the sim's elevator is positive trailing-edge down, the rig's is positive stick aft); the trim
+        /// slider needs the same flip, and is done here because it is the pilot's control, not the airframe's.
+        /// β already arrives positive for a relative wind from the right (FlightSimDriver.BetaDeg = asin(v_y / V)).</summary>
+        private FlyingGame.Core.RigInputs RigInputsNow(FlyingGame.Sim.Aircraft ac, in FlyingGame.Core.Aero.ControlDeflections d, float dt)
+        {
+            if (!_cockpitLooked)
+            {
+                // The trim lever and the release knob are the pilot's, not the airframe's: they live on the
+                // controls and the tow, where the player's hands reach them.
+                _touch = GetComponent<TouchFlightControls>();
+                _tow = GetComponent<TowController>();
+                _cockpitLooked = true;
+            }
+            ControlsConfig c = ac.Config.Controls;
+            FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
+                d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
+                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
+
+            // Total-energy variometer: the rate of change of HEIGHT PLUS KINETIC HEIGHT, so a pull-up reads as
+            // the trade it is rather than as lift. Lagged about a second, like the capacity bottle on a real one.
+            double v = _driver.IasMs, alt = _driver.AltitudeM;
+            double he = alt + v * v / (2.0 * 9.80665);
+            if (dt > 1e-4 && !double.IsNaN(_energyHeightM))
+                _varioMs += ((he - _energyHeightM) / dt - _varioMs) * (1.0 - System.Math.Exp(-dt / 1.0));
+            _energyHeightM = he;
+
+            // Magnetic heading. Variation in this world is zero (ChartPanel says so to the pilot), so the
+            // compass reads the sim's own heading: x is north, y east.
+            var fwd = ac.State.Attitude.Rotate(new FlyingGame.Core.MathTypes.Vec3(1, 0, 0));
+            float hdg = Mathf.Atan2((float)fwd.Y, (float)fwd.X) * Mathf.Rad2Deg;
+            if (float.IsNaN(_headingFiltDeg)) _headingFiltDeg = hdg;
+            else _headingFiltDeg += Mathf.DeltaAngle(_headingFiltDeg, hdg) * (1f - Mathf.Exp(-dt / 0.25f));   // a damped card, not a dead one
+            _headingFiltDeg = Mathf.Repeat(_headingFiltDeg, 360f);
+
+            // The trim LEVER's own position. The slider biases the elevator nose-DOWN for positive, and the
+            // lever is positive aft / nose-up, so it is the negative of the bias in stick units.
+            r.Trim = _touch != null ? System.Math.Clamp(-_touch.TrimElevator / Mathf.Max(0.01f, _touch.TrimAuthority), -1.0, 1.0)
+                                    : System.Math.Clamp(-_driver.TrimStick / 0.6, -1.0, 1.0);
+            r.TowRelease = _tow != null ? _tow.KnobPull01 : 0.0;
+            r.AirspeedMph = v * 2.2369363;
+            r.AltitudeFt = alt * 3.2808399;
+            r.VarioKt = _varioMs * 1.9438445;
+            r.HeadingDeg = _headingFiltDeg;
+            r.SideslipDeg = _driver.BetaDeg;
+            return r;
         }
 
         /// <summary>

@@ -1,5 +1,9 @@
 using System.Text.Json;
 using FlyingGame.Core;
+using FlyingGame.Core.Aero;
+using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.MathTypes;
+using FlyingGame.Sim;
 using Xunit;
 
 namespace FlyingGame.FlightTests;
@@ -9,13 +13,12 @@ namespace FlyingGame.FlightTests;
 ///
 ///  - the map itself — clamping, running past the ends, wrapping, lever notches. None of this shows in a
 ///    render: an altimeter hand that clamps at 1000 ft looks exactly like one that doesn't until you climb.
-///  - the EXTRA 300's own table, read straight out of the file the Blender script writes, against what the sim
-///    can actually drive and against the aeroplane's POH. A regenerated rig that renames a param, drops a node
-///    or quietly re-rigs a surface fails here rather than in play.
+///  - the SGS 2-33's own table, read straight out of the file the Blender script writes, against what the
+///    sim can actually drive and against the aeroplane's manual. A regenerated rig that renames a param,
+///    drops a node or quietly re-rigs a surface fails here rather than in play.
 ///
-/// The one invariant worth stating plainly: a rig node's map must read ZERO at the param the model was DRAWN
-/// at, because the driver applies interp() to the imported rest pose. A rig that breaks it moves every needle
-/// off its own dial from the first frame, and no still would show which way.
+/// The sign chain gets its own test: the file's axes are in the model's glTF frame, and whether a given
+/// control goes the right way depends on a reflection that is easy to get backwards.
 /// </summary>
 public class ModelRigTests
 {
@@ -24,133 +27,94 @@ public class ModelRigTests
                                 double ax = 0, double ay = 1, double az = 0)
         => new(name, "", param, move, ax, ay, az, 0, 0, 0, p, v, wrap, extrap, detents);
 
-    // ---- the map ---------------------------------------------------------------------------------------------
-
     [Fact]
     public void AMapRunsStraightBetweenItsPointsAndStopsAtItsEnds()
     {
-        RigNode n = Node("Needle", "airspeed_kias", false, new[] { 0.0, 40.0, 260.0 }, new[] { 0.0, 25.0, 335.0 });
-        Assert.Equal(0.0, n.Value(0), 9);
-        Assert.Equal(25.0, n.Value(40), 9);
-        Assert.Equal(180.0, n.Value(40 + 220 * (180 - 25) / 310.0), 6);   // halfway along the second leg
-        Assert.Equal(335.0, n.Value(260), 9);
-        Assert.Equal(0.0, n.Value(-50), 9);                               // clamps rather than running backwards
-        Assert.Equal(335.0, n.Value(400), 9);
+        // The left aileron's real travel: 38 deg up one way, 18 down the other, about one hinge.
+        RigNode ail = Node("Aileron_L", "aileron", false, new[] { -1.0, 0.0, 1.0 }, new[] { -38.0, 0.0, 18.0 });
+        Assert.Equal(-38.0, ail.Value(-1.0), 6);
+        Assert.Equal(0.0, ail.Value(0.0), 6);
+        Assert.Equal(18.0, ail.Value(1.0), 6);
+        Assert.Equal(-19.0, ail.Value(-0.5), 6);
+        Assert.Equal(9.0, ail.Value(0.5), 6);
+        // A stick cannot ask for more than full travel.
+        Assert.Equal(-38.0, ail.Value(-4.0), 6);
+        Assert.Equal(18.0, ail.Value(4.0), 6);
+
+        // The ASI's dial is not linear in airspeed: 0..20 mph covers 15 deg, 20..160 covers the other 330.
+        RigNode asi = Node("Needle_ASI_F", "airspeed_mph", false, new[] { 0.0, 20.0, 160.0 }, new[] { 0.0, 15.0, 345.0 });
+        Assert.Equal(7.5, asi.Value(10), 6);
+        Assert.Equal(15.0, asi.Value(20), 6);
+        Assert.Equal(180.0, asi.Value(90), 6);
+        Assert.Equal(345.0, asi.Value(500), 6);   // off the top of the dial: the needle stops on the peg
     }
 
     [Fact]
     public void TheAltimeterHandsKeepGoingRoundAndTheCompassCardWrapsOnce()
     {
-        RigNode hand = Node("Needle_Alt100_R", "altitude_ft", false, new[] { 0.0, 1000.0 }, new[] { 0.0, 360.0 }, extrap: true);
-        Assert.Equal(1080.0, hand.Value(3000), 6);        // three turns up, and it keeps going
-        Assert.Equal(-360.0, hand.Value(-1000), 6);       // and below sea level, the other way
+        RigNode hundreds = Node("Needle_Alt100_F", "altitude_ft", false, new[] { 0.0, 1000.0 }, new[] { 0.0, 360.0 }, extrap: true);
+        RigNode thousands = Node("Needle_Alt1000_F", "altitude_ft", false, new[] { 0.0, 10000.0 }, new[] { 0.0, 360.0 }, extrap: true);
+        Assert.Equal(360.0 * 4.5, hundreds.Value(4500), 6);    // four and a half turns at 4500 ft
+        Assert.Equal(360.0 * 0.45, thousands.Value(4500), 6);
+        Assert.Equal(-36.0, hundreds.Value(-100), 6);          // below sea level the hand goes the other way
 
-        RigNode card = Node("Compass_Card_R", "heading_deg", false, new[] { 0.0, 360.0 }, new[] { 0.0, 360.0 }, wrap: 360);
-        Assert.Equal(10.0, card.Value(370), 6);           // round the top, not off the end
+        // The compass card is a drum: the param runs round and round, and 370 deg is 010.
+        RigNode card = Node("Compass_Card", "heading_deg", false, new[] { 0.0, 360.0 }, new[] { 0.0, 360.0 }, wrap: 360);
+        Assert.Equal(10.0, card.Value(370), 6);
         Assert.Equal(350.0, card.Value(-10), 6);
-        Assert.Equal(90.0, card.Value(90 + 360 * 7), 6);
+        Assert.Equal(90.0, card.Value(90 + 7200), 6);
     }
 
     [Fact]
     public void ANotchedLeverSitsInANotch()
     {
-        // The Extra's ignition key: OFF, R, L, BOTH, START, and nothing in between.
-        RigNode key = Node("MagKey_R", "magneto", false, new[] { 0.0, 1.0, 2.0, 3.0, 4.0 },
-                           new[] { 0.0, 30.0, 60.0, 90.0, 130.0 }, detents: new[] { 0.0, 1.0, 2.0, 3.0, 4.0 });
-        Assert.Equal(90.0, key.Value(2.8), 9);            // nearest notch, not 84 degrees
-        Assert.Equal(60.0, key.Value(2.4), 9);
-        Assert.Equal(130.0, key.Value(9.0), 9);
+        // The 2-33's trim is a four-position quadrant, not a continuum: the lever is always in a notch, even
+        // though the sim's trim is a smooth bias. The nearest notch is what the pilot sees.
+        var detents = new[] { -1.0, -0.3333, 0.3333, 1.0 };
+        RigNode trim = Node("Trim_Lever", "trim", false, new[] { -1.0, 0.0, 1.0 }, new[] { -20.0, 0.0, 20.0 }, detents: detents);
+        Assert.Equal(-1.0, trim.Snap(-0.9), 6);
+        Assert.Equal(-0.3333, trim.Snap(-0.2), 6);
+        Assert.Equal(0.3333, trim.Snap(0.1), 6);      // nothing sits at zero: there is no middle notch
+        Assert.Equal(1.0, trim.Snap(0.8), 6);
+        Assert.Equal(20.0 * 0.3333, trim.Value(0.1), 4);
+        Assert.Equal(-20.0, trim.Value(-0.95), 6);
     }
 
     [Fact]
     public void AMapThatDoesNotAscendIsRejectedRatherThanInterpolatedBackwards()
     {
         Assert.Throws<ArgumentException>(() =>
-            Node("Bad", "aileron", false, new[] { 1.0, 0.0, -1.0 }, new[] { -30.0, 0.0, 30.0 }));
+            Node("bad", "aileron", false, new[] { 1.0, 0.0 }, new[] { 0.0, 1.0 }));
         Assert.Throws<ArgumentException>(() =>
-            Node("Bad", "aileron", false, new[] { -1.0, 1.0 }, new[] { 0.0 }));
-    }
-
-    [Fact]
-    public void ATurnAndASlideDoNotConvertToUnityTheSameWay()
-    {
-        // glTFast negates x. That is a REFLECTION, so a direction to slide along flips its x while an axis to
-        // turn about flips the other two. Crossing them rakes a hinge the wrong way and sends every lever
-        // backwards, and neither shows in a still.
-        RigNode n = Node("X", "rudder", false, new[] { -1.0, 1.0 }, new[] { -30.0, 30.0 }, ax: 0.2, ay: -0.3, az: 0.9);
-        Assert.Equal((0.2, 0.3, -0.9), n.TurnAxisUnity);
-        Assert.Equal((-0.2, -0.3, 0.9), n.SlideAxisUnity);
+            Node("bad", "aileron", false, new[] { 0.0, 0.0 }, new[] { 0.0, 1.0 }));
+        Assert.Throws<ArgumentException>(() =>
+            Node("bad", "aileron", false, new[] { 0.0, 1.0 }, new[] { 0.0 }));
     }
 
     [Fact]
     public void EveryParamTheSimKnowsIsReadableAndAnythingElseIsReportedNotIgnored()
     {
-        var inputs = new RigInputs
-        {
-            Aileron = 0.5, Elevator = -0.25, Rudder = 1, Spoiler = 0.75, Trim = -1, TowRelease = 0.4,
-            AirspeedMph = 55, AltitudeFt = 3200, VarioKt = -2.5, HeadingDeg = 275, SideslipDeg = -6,
-            BrakeLeft = 0.2, BrakeRight = 0.8, Throttle = 0.6, PropLever = 1, Mixture = 0.9,
-            FuelSelector = 2, Magneto = 3, Master = 1,
-            CanopyOpen = 0.3, CanopyLock = 0, CanopyJettison = 0.5,
-            AirspeedKias = 145, VsiFpm = -700, Rpm = 2450, ManifoldInHg = 24.5,
-            OilPressPsi = 72, OilTempF = 190, ChtF = 380, FuelCentreFrac = 0.4,
-            TurnRateDps = 3, SlipBall = -0.5, GLoad = 4.2, GMaxSeen = 6.1, GMinSeen = -3.4,
-            ComFreqMhz = 122.8, ComStandbyMhz = 121.5, ComVolume = 0.7,
-            XpdrSquawk = 1200, XpdrMode = 3, XpdrKnobClicks = 17,
-        };
+        var inputs = new RigInputs { Aileron = 0.5, Elevator = -0.25, Rudder = 1, Spoiler = 0.75, Trim = -1, TowRelease = 0.4,
+                                     AirspeedMph = 55, AltitudeFt = 3200, VarioKt = -2.5, HeadingDeg = 275, SideslipDeg = -6 };
         foreach ((string param, double want) in new[]
                  {
                      ("aileron", 0.5), ("elevator", -0.25), ("rudder", 1.0), ("spoiler", 0.75), ("trim", -1.0),
                      ("tow_release", 0.4), ("airspeed_mph", 55.0), ("altitude_ft", 3200.0), ("vario_kt", -2.5),
                      ("heading_deg", 275.0), ("sideslip_deg", -6.0),
-                     ("brake_left", 0.2), ("brake_right", 0.8), ("throttle", 0.6), ("prop", 1.0), ("mixture", 0.9),
-                     ("fuel_selector", 2.0), ("magneto", 3.0), ("master", 1.0),
-                     ("canopy_open", 0.3), ("canopy_lock", 0.0), ("canopy_jettison", 0.5),
-                     ("airspeed_kias", 145.0), ("vsi_fpm", -700.0), ("rpm", 2450.0), ("manifold_inhg", 24.5),
-                     ("oil_press_psi", 72.0), ("oil_temp_f", 190.0), ("cht_f", 380.0), ("fuel_centre_frac", 0.4),
-                     ("turn_rate_dps", 3.0), ("slip_ball", -0.5), ("g_load", 4.2), ("g_max_seen", 6.1), ("g_min_seen", -3.4),
-                     ("com_freq_mhz", 122.8), ("com_standby_mhz", 121.5), ("com_volume", 0.7),
-                     ("xpdr_squawk", 1200.0), ("xpdr_mode", 3.0), ("xpdr_knob_clicks", 17.0),
                  })
         {
             Assert.True(inputs.TryGet(param, out double got), $"the sim should supply '{param}'");
             Assert.Equal(want, got, 9);
         }
         Assert.False(inputs.TryGet("flap", out _));
-        Assert.False(inputs.TryGet("gear", out _));
     }
 
-    [Fact]
-    public void ATakenControlSetDoesNotDisturbTheInstruments()
-    {
-        var panel = new RigInputs { AirspeedKias = 120, AltitudeFt = 4000, Rpm = 2300, Aileron = 0 };
-        panel.TakeControlsFrom(new RigInputs { Aileron = 1, Elevator = -0.5, Rudder = 0.25, Spoiler = 0.5 });
-        Assert.Equal(1.0, panel.Aileron, 9);
-        Assert.Equal(-0.5, panel.Elevator, 9);
-        Assert.Equal(120.0, panel.AirspeedKias, 9);     // the panel was not touched
-        Assert.Equal(2300.0, panel.Rpm, 9);
-    }
+    // ---- the 2-33's own table -------------------------------------------------------------------------------
 
-    [Fact]
-    public void AParkedCockpitHasItsSwitchesWhereAPilotLeavesThem()
+    private static ModelRig Sgs233()
     {
-        RigInputs parked = RigInputs.Parked();
-        Assert.Equal(3.0, parked.Magneto, 9);           // BOTH
-        Assert.Equal(1.0, parked.Master, 9);
-        Assert.Equal(1.0, parked.CanopyLock, 9);        // shut and locked
-        Assert.Equal(0.0, parked.CanopyOpen, 9);
-        Assert.Equal(1.0, parked.Mixture, 9);
-        Assert.Equal(0.0, parked.GLoad, 9);             // no readings: a remote panel is nobody's to read
-    }
-
-    // ---- the Extra's own table -------------------------------------------------------------------------------
-
-    /// <summary>Read a rig table the way the game does, with System.Text.Json (the Unity side uses Newtonsoft,
-    /// which this suite does not carry — the FILE is the contract, not the parser).</summary>
-    private static ModelRig Read(string file)
-    {
-        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", file);
-        Assert.True(File.Exists(path), $"the rig table should be beside the test data at {path}");
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", "sgs233-own-rig.json");
+        Assert.True(File.Exists(path), $"the 2-33's rig table should be beside the test data at {path}");
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
         JsonElement root = doc.RootElement;
         var nodes = new List<RigNode>();
@@ -182,149 +146,211 @@ public class ModelRigTests
                 extra.TryGetProperty("rig_map_extrapolate", out JsonElement ex) && ex.GetInt32() != 0,
                 detents,
                 row.GetProperty("model").GetDouble(),
-                row.GetProperty("desc").GetString() ?? "",
-                extra.TryGetProperty("rig_jettison_param", out JsonElement jp) ? jp.GetString() ?? "" : ""));
+                row.GetProperty("desc").GetString() ?? ""));
         }
         return new ModelRig(root.GetProperty("model").GetString()!, nodes);
     }
 
-    private static ModelRig Extra() => Read("ea300-own-rig.json");
-
     [Fact]
-    public void TheExtrasRigAsksOnlyForThingsTheSimCanGive()
+    public void TheTwoThirtyThreesRigAsksOnlyForThingsTheSimCanGive()
     {
-        ModelRig rig = Extra();
-        Assert.Equal("extra-300-like-own", rig.Model);
-        Assert.Equal(60, rig.Nodes.Count);
-        var inputs = new RigInputs();
-        foreach (string param in rig.Params())
-            Assert.True(inputs.TryGet(param, out _), $"the rig wants '{param}' and the sim has no such value");
-    }
+        ModelRig rig = Sgs233();
+        Assert.Equal("glider-2-33-like-own", rig.Model);
+        Assert.Equal(30, rig.Nodes.Count);
 
-    /// <summary>The invariant the whole driver rests on: interp() is applied to the node's IMPORTED pose, so the
-    /// map has to read zero at the param the model was drawn at. Checked for every node, with the axes while we
-    /// are here — a non-unit axis turns the right way by the wrong amount.</summary>
-    [Fact]
-    public void EveryNodeIsDrawnWhereItsOwnMapSaysZero()
-    {
-        foreach (RigNode n in Extra().Nodes)
-        {
-            Assert.Equal(0.0, n.Value(n.ModelAt), 6);
-            double len = Math.Sqrt(n.Ax * n.Ax + n.Ay * n.Ay + n.Az * n.Az);
-            Assert.Equal(1.0, len, 3);
-        }
-    }
-
-    /// <summary>The POH travels (EA 300/L: aileron ±30, elevator ±25, rudder ±30) and the sense of each, which
-    /// is the half a render cannot check. The rig's own convention: + degrees about its axis is trailing edge up
-    /// / to starboard.</summary>
-    [Fact]
-    public void TheControlSurfacesCarryTheTravelInThePoh()
-    {
-        ModelRig rig = Extra();
-        RigNode ailL = rig.Find("Aileron_L")!, ailR = rig.Find("Aileron_R")!;
-        RigNode eleL = rig.Find("Elevator_L")!, eleR = rig.Find("Elevator_R")!;
-        RigNode rud = rig.Find("Rudder")!;
-
-        // Roll right: the LEFT aileron goes trailing edge DOWN and the right one UP, by the same 30 degrees.
-        Assert.Equal(-30.0, ailL.Value(1), 6);
-        Assert.Equal(30.0, ailR.Value(1), 6);
-        Assert.Equal(30.0, ailL.Value(-1), 6);
-        Assert.Equal(-30.0, ailR.Value(-1), 6);
-
-        // Stick aft: both elevator halves trailing edge UP, 25 degrees.
-        Assert.Equal(25.0, eleL.Value(1), 6);
-        Assert.Equal(25.0, eleR.Value(1), 6);
-        Assert.Equal(-25.0, eleL.Value(-1), 6);
-
-        // Right pedal: rudder trailing edge to starboard, 30 degrees.
-        Assert.Equal(30.0, rud.Value(1), 6);
-        Assert.Equal(-30.0, rud.Value(-1), 6);
-        Assert.Equal(0.0, rud.Value(0), 9);
-    }
-
-    [Fact]
-    public void TheCanopyIsTheOnePartThatComesOff()
-    {
-        ModelRig rig = Extra();
-        var comesOff = new List<string>();
-        foreach (RigNode n in rig.Nodes) if (n.JettisonParam.Length > 0) comesOff.Add(n.Node);
-        Assert.Equal(new[] { "Canopy" }, comesOff);          // nothing else leaves on a bailout
-
-        RigNode canopy = rig.Find("Canopy")!;
-        Assert.Equal("canopy_jettison", canopy.JettisonParam);
-        Assert.Equal("canopy_open", canopy.Param);
-        Assert.Equal(0.0, canopy.Value(0), 9);
-        Assert.Equal(100.0, canopy.Value(1), 6);             // 100 degrees over to starboard
-        // Both lock levers are children of the canopy, so they leave with it.
-        Assert.Equal("Canopy", rig.Find("CanopyLock_F")!.Parent);
-        Assert.Equal("Canopy", rig.Find("CanopyLock_R")!.Parent);
-        // ...and the two release handles are on the SILL, which stays.
-        Assert.Equal("Cockpit", rig.Find("CanopyRelease_F")!.Parent);
-        Assert.Equal(0.04, rig.Find("CanopyRelease_R")!.Value(1), 9);   // a 40 mm pull
-    }
-
-    [Fact]
-    public void BothSeatsSticksAndPedalsAreOnTheSameControls()
-    {
-        ModelRig rig = Extra();
-        foreach (string node in new[] { "StickRoll_F", "StickRoll_R" }) Assert.Equal("aileron", rig.Find(node)!.Param);
-        foreach (string node in new[] { "Stick_F", "Stick_R" }) Assert.Equal("elevator", rig.Find(node)!.Param);
-        foreach (string node in new[] { "Pedal_F_L", "Pedal_F_R", "Pedal_R_L", "Pedal_R_R" })
-            Assert.Equal("rudder", rig.Find(node)!.Param);
-        // The pitch stick rides on the roll gimbal, and the toe brakes ride on their pedals.
-        Assert.Equal("StickRoll_F", rig.Find("Stick_F")!.Parent);
-        Assert.Equal("Pedal_R_L", rig.Find("Brake_R_L")!.Parent);
-        Assert.Equal("brake_left", rig.Find("Brake_R_L")!.Param);
-        Assert.Equal("brake_right", rig.Find("Brake_F_R")!.Param);
-        // A child is listed after its parent, so applying the file in order never poses a child first.
-        var seen = new HashSet<string>();
+        var neutral = new RigInputs();
+        var names = new HashSet<string>();
         foreach (RigNode n in rig.Nodes)
         {
-            if (n.Parent.Length > 0 && rig.Find(n.Parent) != null)
-                Assert.True(seen.Contains(n.Parent), $"{n.Node} is listed before its parent {n.Parent}");
-            seen.Add(n.Node);
+            Assert.True(names.Add(n.Node), $"two rig nodes are called '{n.Node}'; the binder matches by name");
+            Assert.True(neutral.TryGet(n.Param, out _), $"'{n.Node}' wants '{n.Param}', which the sim does not supply");
+            double len = Math.Sqrt(n.Ax * n.Ax + n.Ay * n.Ay + n.Az * n.Az);
+            Assert.True(Math.Abs(len - 1) < 1e-3, $"'{n.Node}' axis is not a unit vector (|a| = {len:F4})");
+            Assert.True(n.MapPoints >= 2, $"'{n.Node}' has a one-point map and so cannot move");
+            // The model is DRAWN at the neutral of every param, and the map passes through zero there — so
+            // the imported pose IS the rest pose, which is what the binder assumes. (The trim lever is the one
+            // oddity: its quadrant has no central notch, so at zero trim it snaps to the nearest, 6.7 deg off.)
+            bool drawnAtZero = false;
+            for (int i = 0; i < n.MapPoints; i++)
+            {
+                (double param, double value) = n.MapPoint(i);
+                if (Math.Abs(param - n.ModelAt) < 1e-9 && Math.Abs(value) < 1e-9) drawnAtZero = true;
+            }
+            Assert.True(drawnAtZero, $"'{n.Node}' is drawn at {n.Param} = {n.ModelAt}, where its map does not read zero");
         }
+        // Parented nodes hang off something the file also rigs, or off a static group in the GLB.
+        var staticGroups = new HashSet<string> { "", "Controls", "Instruments_Front", "Interior" };
+        foreach (RigNode n in rig.Nodes)
+            Assert.True(staticGroups.Contains(n.Parent) || names.Contains(n.Parent),
+                        $"'{n.Node}' hangs off '{n.Parent}', which is neither rigged nor a known static group");
     }
 
     [Fact]
-    public void ThePanelsNeedlesSweepTheWayTheirDialsAreDrawn()
+    public void TheControlSurfacesCarryTheTravelInTheManual()
     {
-        ModelRig rig = Extra();
-        // The accelerometer: 12 degrees per g either side of nine o'clock, and the tell-tales only go one way.
-        Assert.Equal(120.0, rig.Find("Needle_G_R")!.Value(10), 6);
-        Assert.Equal(-120.0, rig.Find("Needle_G_R")!.Value(-10), 6);
-        Assert.Equal(120.0, rig.Find("Needle_GMax_R")!.Value(10), 6);
-        Assert.Equal(0.0, rig.Find("Needle_GMax_R")!.Value(-5), 6);      // the max hand never goes below zero
-        Assert.Equal(-120.0, rig.Find("Needle_GMin_R")!.Value(-10), 6);
-        Assert.Equal(0.0, rig.Find("Needle_GMin_R")!.Value(5), 6);
+        ModelRig rig = Sgs233();
+        // FAA AFM travels. The ailerons are differential: more up than down, and mirrored left to right.
+        Assert.Equal(-38.0, rig.Find("Aileron_L")!.Value(-1), 3);
+        Assert.Equal(18.0, rig.Find("Aileron_L")!.Value(1), 3);
+        Assert.Equal(-18.0, rig.Find("Aileron_R")!.Value(-1), 3);
+        Assert.Equal(38.0, rig.Find("Aileron_R")!.Value(1), 3);
+        // Both elevator halves move together, 25 up and 23 down.
+        foreach (string half in new[] { "Elevator_L", "Elevator_R" })
+        {
+            Assert.Equal(25.0, rig.Find(half)!.Value(1), 3);
+            Assert.Equal(-23.0, rig.Find(half)!.Value(-1), 3);
+        }
+        Assert.Equal(30.0, rig.Find("Rudder")!.Value(1), 3);
+        Assert.Equal(-30.0, rig.Find("Rudder")!.Value(-1), 3);
+        // Dive brakes: 85 deg up through the top skin, 75 down through the bottom, and stowed at 0.
+        foreach (string door in new[] { "Spoiler_L", "Spoiler_R" }) Assert.Equal(85.0, rig.Find(door)!.Value(1), 3);
+        foreach (string door in new[] { "Spoiler_Lower_L", "Spoiler_Lower_R" }) Assert.Equal(75.0, rig.Find(door)!.Value(1), 3);
+        foreach (string door in new[] { "Spoiler_L", "Spoiler_R", "Spoiler_Lower_L", "Spoiler_Lower_R" })
+            Assert.Equal(0.0, rig.Find(door)!.Value(0), 6);
+        // The knobs pull 50 mm; the pedals slide 60 mm either way, the left pair opposite the right.
+        Assert.Equal(0.05, rig.Find("TowRelease_F")!.Value(1), 6);
+        Assert.Equal(0.05, rig.Find("TowRelease_R")!.Value(1), 6);
+        Assert.Equal(0.06, rig.Find("Pedal_F_L")!.Value(1), 6);
+        Assert.Equal(0.06, rig.Find("Pedal_F_R")!.Value(1), 6);
+        Assert.Equal(1.0, rig.Find("Pedal_F_L")!.Ax, 6);     // mirrored axes, so the same +value is opposite travel
+        Assert.Equal(-1.0, rig.Find("Pedal_F_R")!.Ax, 6);
+    }
 
-        // The two altimeter hands: one turn per 1000 ft and one per 10 000, both unbounded.
-        Assert.Equal(360.0, rig.Find("Needle_Alt100_R")!.Value(1000), 6);
-        Assert.Equal(360.0, rig.Find("Needle_Alt1000_R")!.Value(10000), 6);
-        Assert.Equal(3600.0, rig.Find("Needle_Alt100_R")!.Value(10000), 6);
+    [Fact]
+    public void TheYawStringsFourLinksAddUpToTheSideslip()
+    {
+        ModelRig rig = Sgs233();
+        string[] chain = { "YawString_1", "YawString_2", "YawString_3", "YawString_4" };
+        double total = 0;
+        for (int i = 0; i < chain.Length; i++)
+        {
+            RigNode n = rig.Find(chain[i])!;
+            Assert.Equal(i == 0 ? "Interior" : chain[i - 1], n.Parent);   // a chain, so the links accumulate
+            total += n.Value(20);
+        }
+        Assert.Equal(20.0, total, 3);          // the tip is laid over by the full sideslip
+        Assert.Equal(8.0, rig.Find("YawString_1")!.Value(20), 3);   // 40 % on the first link, 20 on each of the rest
+        Assert.Equal(-20.0, rig.Find("YawString_1")!.Value(-20) + rig.Find("YawString_2")!.Value(-20)
+                            + rig.Find("YawString_3")!.Value(-20) + rig.Find("YawString_4")!.Value(-20), 3);
+    }
 
-        // VSI, turn coordinator and ball, all symmetric about neutral.
-        Assert.Equal(160.0, rig.Find("Needle_VSI_R")!.Value(3000), 6);
-        Assert.Equal(-160.0, rig.Find("Needle_VSI_R")!.Value(-3000), 6);
-        Assert.Equal(40.0, rig.Find("TC_Symbol_R")!.Value(6), 6);
-        Assert.Equal(18.0, rig.Find("TC_Ball_R")!.Value(1), 6);
+    [Fact]
+    public void EachControlGoesTheWayThePilotExpectsOnceTheModelIsImported()
+    {
+        // The chain that is easy to get backwards: the file's axis is in the model's glTF frame, the importer
+        // reflects x, and a TURN converts differently from a SLIDE. So take the axis the binder will actually
+        // use, turn the point a quarter of the way AFT of the hinge about it, and see where it ends up.
+        // Imported model frame: +x nose, +y up, +z PORT (glTF +x aft, +z port, x negated on import).
+        ModelRig rig = Sgs233();
+        static (double x, double y, double z) Turn(RigNode n, double deg, (double x, double y, double z) p)
+        {
+            (double ax, double ay, double az) = n.TurnAxisUnity;
+            double len = Math.Sqrt(ax * ax + ay * ay + az * az);
+            ax /= len; ay /= len; az /= len;
+            double c = Math.Cos(deg * Math.PI / 180), s = Math.Sin(deg * Math.PI / 180);
+            double dot = ax * p.x + ay * p.y + az * p.z;
+            // Rodrigues, plain right-handed algebra — which is what Unity's quaternions do to the numbers.
+            return (p.x * c + (ay * p.z - az * p.y) * s + ax * dot * (1 - c),
+                    p.y * c + (az * p.x - ax * p.z) * s + ay * dot * (1 - c),
+                    p.z * c + (ax * p.y - ay * p.x) * s + az * dot * (1 - c));
+        }
+        var aft = (x: -1.0, y: 0.0, z: 0.0);    // a point on the trailing edge, 1 m behind the hinge
 
-        // The ASI. The rig doc's prose says the needle "rests at 0 below 40", but the MAP it ships is
-        // 0 kt -> 0 deg, 40 -> 25, 260 -> 335: the needle lifts off the peg smoothly from a standstill rather
-        // than sitting on it to 40 kt. The map is what drives the needle, and a needle creeping up off the peg
-        // is what a real ASI does, so the data is kept and the prose is the part that is loose
-        // (reported to Codex, 2026-10-30). This test pins the DATA so a silent change to it is caught.
-        Assert.Equal(12.5, rig.Find("Needle_ASI_R")!.Value(20), 6);
-        Assert.Equal(25.0, rig.Find("Needle_ASI_R")!.Value(40), 6);
-        Assert.Equal(335.0, rig.Find("Needle_ASI_R")!.Value(260), 6);
-        Assert.Equal(0.0, rig.Find("Needle_ASI_R")!.Value(0), 9);
+        // Right pedal: the rudder's trailing edge goes to STARBOARD (-z).
+        var rud = Turn(rig.Find("Rudder")!, rig.Find("Rudder")!.Value(1), aft);
+        Assert.True(rud.z < -0.4, $"right rudder must take the trailing edge to starboard; got z={rud.z:F3}");
 
-        // The wet compass reads BACKWARDS by design: the card turns with the heading so the number sits under
-        // the lubber line, and it wraps instead of unwinding.
-        RigNode card = rig.Find("Compass_Card_R")!;
-        Assert.Equal(360.0, card.WrapPeriod, 9);
-        Assert.Equal(90.0, card.Value(90), 6);
-        Assert.Equal(10.0, card.Value(370), 6);
+        // Roll right: the LEFT aileron goes DOWN and the RIGHT one UP.
+        var left = Turn(rig.Find("Aileron_L")!, rig.Find("Aileron_L")!.Value(1), aft);
+        var right = Turn(rig.Find("Aileron_R")!, rig.Find("Aileron_R")!.Value(1), aft);
+        Assert.True(left.y < -0.2, $"rolling right must put the left aileron's trailing edge DOWN; got y={left.y:F3}");
+        Assert.True(right.y > 0.2, $"rolling right must put the right aileron's trailing edge UP; got y={right.y:F3}");
+
+        // Stick aft: both elevator halves' trailing edges go UP.
+        foreach (string half in new[] { "Elevator_L", "Elevator_R" })
+        {
+            var e = Turn(rig.Find(half)!, rig.Find(half)!.Value(1), aft);
+            Assert.True(e.y > 0.2, $"stick aft must put {half}'s trailing edge UP; got y={e.y:F3}");
+        }
+
+        // Air brake out: the upper door rises through the top skin (+y), the lower one drops below (-y). Each
+        // is hinged at its FORWARD edge, so the moving edge is the one aft of the hinge.
+        var upper = Turn(rig.Find("Spoiler_L")!, rig.Find("Spoiler_L")!.Value(1), aft);
+        var lower = Turn(rig.Find("Spoiler_Lower_L")!, rig.Find("Spoiler_Lower_L")!.Value(1), aft);
+        Assert.True(upper.y > 0.5, $"the upper dive-brake door must open UPWARD; got y={upper.y:F3}");
+        Assert.True(lower.y < -0.5, $"the lower dive-brake door must open DOWNWARD; got y={lower.y:F3}");
+
+        // The tow release pulls AFT (-x in the imported frame), a slide not a turn.
+        RigNode knob = rig.Find("TowRelease_F")!;
+        (double sx, _, _) = knob.SlideAxisUnity;
+        Assert.True(sx * knob.Value(1) < 0, "pulling the release must move the knob AFT (imported -x)");
+    }
+
+    // ---- the brake on the end of the handle ------------------------------------------------------------------
+
+    [Fact]
+    public void TheAirBrakeHandleBringsOnTheWheelBrakeAtTheEndOfItsTravel()
+    {
+        AircraftConfig cfg = TestAircraftConfig.Load();
+        SpoilerConfig sp = cfg.Controls.Spoiler;
+        Assert.Equal(0.9, sp.WheelBrakeFromSpoiler, 6);
+        Assert.Equal(1.0, sp.WheelBrakeFullSpoiler, 6);
+        Assert.Equal(0.0, sp.BrakeFromHandle(0.0), 6);
+        Assert.Equal(0.0, sp.BrakeFromHandle(0.5), 6);     // half brakes on the approach: the wheel runs free
+        Assert.Equal(0.0, sp.BrakeFromHandle(0.9), 6);
+        Assert.Equal(0.5, sp.BrakeFromHandle(0.95), 6);
+        Assert.Equal(1.0, sp.BrakeFromHandle(1.0), 6);
+
+        // A type with no such linkage gets no brake from its spoilers, however far out they are.
+        var none = new SpoilerConfig();
+        Assert.Equal(0.0, none.BrakeFromHandle(1.0), 6);
+    }
+
+    [Fact]
+    public void FullAirBrakeStopsTheGliderSoonerWithNoHandOnTheBrake()
+    {
+        // The linkage, not just the arithmetic: the same aeroplane, the same handle fully aft (so the same
+        // air brake drag), the pilot's own brake input at zero — only the coupling differs.
+        static double RollOut(bool linked)
+        {
+            AircraftConfig c = TestAircraftConfig.Load();
+            if (!linked) c.Controls.Spoiler.WheelBrakeFromSpoiler = 0.0;
+            var t = new WorldTerrain(); WorldTerrain.Active = t;
+            WorldTerrain.Airport a = WorldTerrain.Airports[0];
+            var mains = c.Gear.FindAll(g => !g.IsTailwheel); var tw = c.Gear.Find(g => g.IsTailwheel)!;
+            double pitch = Math.Atan((mains[0].Pos[2] - tw.Pos[2]) / (mains[0].Pos[0] - tw.Pos[0]));
+            var att = new Quat(0, Math.Sin(pitch / 2), 0, Math.Cos(pitch / 2));
+            double maxWz = -999; foreach (var g in c.Gear) maxWz = Math.Max(maxWz, att.Rotate(g.PosVec() - c.Mass.CgVec()).Z);
+            double x0 = a.X - 600;
+            var ac = new Aircraft(c, new RigidBodyState(new Vec3(x0, a.Y, -(a.ElevationM + maxWz + 0.01)), att,
+                                                        att.Conjugate().Rotate(new Vec3(12, 0, 0)), Vec3.Zero),
+                                  ControlDeflections.Neutral);
+            ac.BrakeInput = 0.0;                       // hands off the brake: the handle is doing it or nothing is
+            var sim = new SimLoop(ac);
+            for (double tt = 0; tt < 8; tt += 0.02) sim.RunFor(0.02, new ControlInputs(0, 0, 0, 1.0));   // handle fully aft
+            return ac.State.Position.X - x0;
+        }
+        double linkedM = RollOut(true), freeM = RollOut(false);
+        Assert.True(linkedM < freeM - 5.0,
+            $"full air brake should also brake the wheel: rolled {linkedM:F1} m linked against {freeM:F1} m with the linkage out");
+    }
+
+    [Fact]
+    public void TheConfigAndTheRigTableAgreeAboutThatBrake()
+    {
+        // The model's own table carries the same coupling as advice ("wheel_brake_from_spoiler"). If a
+        // rebuilt rig changes it, the config has to follow, and this is where that is noticed.
+        string path = Path.Combine(AppContext.BaseDirectory, "TestData", "rigs", "sgs233-own-rig.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        double from = double.NaN, full = double.NaN;
+        foreach (JsonElement row in doc.RootElement.GetProperty("rig").EnumerateArray())
+            if (row.GetProperty("extra").TryGetProperty("wheel_brake_from_spoiler", out JsonElement band))
+            {
+                from = band[0].GetDouble(); full = band[1].GetDouble();
+            }
+        Assert.False(double.IsNaN(from), "the 2-33's rig should still say where the wheel brake comes in");
+        SpoilerConfig sp = TestAircraftConfig.Load().Controls.Spoiler;
+        Assert.Equal(from, sp.WheelBrakeFromSpoiler, 6);
+        Assert.Equal(full, sp.WheelBrakeFullSpoiler, 6);
     }
 }

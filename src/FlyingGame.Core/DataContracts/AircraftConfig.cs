@@ -336,6 +336,21 @@ public sealed class SpoilerConfig
     /// penalty of the spoiled lift. 0 = 2 % of wing area. 2-33: 1.2 m² (0.45 m² of panel alone felt like nothing;
     /// whole-wing plate dove vertically at 27 kt). Drag = q · area · Cd 1.2 · fraction.</summary>
     public double PlateAreaM2 { get; set; }
+
+    /// <summary>Handle position (0..1) at which the WHEEL BRAKE starts to bite, for a glider whose brake is on
+    /// the end of the dive-brake handle's travel (SGS 2-33: 0.9, i.e. the last tenth; the AFM has the pilot go
+    /// full aft after touchdown). 0 = no such linkage, which is every other type.</summary>
+    public double WheelBrakeFromSpoiler { get; set; }
+    /// <summary>Handle position at which that brake is full on.</summary>
+    public double WheelBrakeFullSpoiler { get; set; } = 1.0;
+
+    /// <summary>The wheel brake the handle itself is applying at this deflection, 0..1.</summary>
+    public double BrakeFromHandle(double spoilerFraction)
+    {
+        if (WheelBrakeFromSpoiler <= 0.0) return 0.0;
+        double full = Math.Max(WheelBrakeFullSpoiler, WheelBrakeFromSpoiler + 1e-6);
+        return Math.Clamp((spoilerFraction - WheelBrakeFromSpoiler) / (full - WheelBrakeFromSpoiler), 0.0, 1.0);
+    }
 }
 
 public sealed class FuselageConfig
