@@ -1,0 +1,1035 @@
+{
+ "model": "glider-2-33-like-own",
+ "livery": "factory",
+ "rig": [
+  {
+   "node": "Aileron_L",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.08891,
+    -0.03442,
+    -0.99545
+   ],
+   "pivot_gltf": [
+    0.5749,
+    0.5513,
+    4.09
+   ],
+   "map": [
+    [
+     -1.0,
+     -38.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "L aileron: +1 (roll right) TE down 18, -1 TE up 38 (FAA AFM travel)",
+   "link": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_L",
+   "parent": null,
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.91,
+    0.2562,
+    0.02
+   ],
+   "map": [
+    [
+     -1.0,
+     -23.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     25.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "elevator: +1 (stick aft) TE up 25, -1 TE down 23 (FAA AFM travel, 1080 lb rigging)",
+   "link": "",
+   "extra": {}
+  },
+  {
+   "node": "Spoiler_L",
+   "parent": null,
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    0.02618,
+    0.99966
+   ],
+   "pivot_gltf": [
+    0.1644,
+    0.618,
+    1.9
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     85.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "upper dive-brake door hinged at its front edge, opens up 85 deg at 1 (FAA AFM travel 85 +-5)",
+   "link": "DiveBrake_Lever_F/R (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Spoiler_Lower_L",
+   "parent": null,
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    -0.02618,
+    -0.99966
+   ],
+   "pivot_gltf": [
+    0.1644,
+    0.4518,
+    1.9
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     75.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "lower dive-brake door hinged at its front edge, opens down 75 deg at 1 (FAA AFM travel 75 +-5)",
+   "link": "DiveBrake_Lever_F/R (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Aileron_R",
+   "parent": null,
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.08891,
+    -0.03442,
+    0.99545
+   ],
+   "pivot_gltf": [
+    0.5749,
+    0.5513,
+    -4.09
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     38.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "R aileron: +1 (roll right) TE up 38, -1 TE down 18 (FAA AFM travel 38/18 +-2)",
+   "link": "",
+   "extra": {}
+  },
+  {
+   "node": "Elevator_R",
+   "parent": null,
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    4.91,
+    0.2562,
+    -0.02
+   ],
+   "map": [
+    [
+     -1.0,
+     -23.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     25.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "elevator: +1 (stick aft) TE up 25, -1 TE down 23 (FAA AFM travel, 1080 lb rigging)",
+   "link": "",
+   "extra": {}
+  },
+  {
+   "node": "Spoiler_R",
+   "parent": null,
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.02618,
+    0.99966
+   ],
+   "pivot_gltf": [
+    0.1644,
+    0.618,
+    -1.9
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     85.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "upper dive-brake door hinged at its front edge, opens up 85 deg at 1 (FAA AFM travel 85 +-5)",
+   "link": "DiveBrake_Lever_F/R (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Spoiler_Lower_R",
+   "parent": null,
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.02618,
+    -0.99966
+   ],
+   "pivot_gltf": [
+    0.1644,
+    0.4518,
+    -1.9
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     75.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "lower dive-brake door hinged at its front edge, opens down 75 deg at 1 (FAA AFM travel 75 +-5)",
+   "link": "DiveBrake_Lever_F/R (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Rudder",
+   "parent": null,
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.13991,
+    0.99016,
+    0.0
+   ],
+   "pivot_gltf": [
+    4.4586,
+    0.2868,
+    0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -30.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     30.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "rudder on the raked hinge: +1 (right pedal) TE to starboard 30 (FAA AFM travel 30 +-2)",
+   "link": "",
+   "extra": {}
+  },
+  {
+   "node": "Needle_ASI_F",
+   "parent": "Instruments_Front",
+   "param": "airspeed_mph",
+   "unit": "mph",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.744,
+    -0.1,
+    -0.125
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     15.0
+    ],
+    [
+     160.0,
+     345.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "ASI 20..160 mph over 15..345 deg (photographed dial layout; AFM arcs: green 38-65, yellow 65-98, red 98), rests at 0 below 20; +deg clockwise from the seat",
+   "link": "front panel only (v8: rear instruments removed)",
+   "extra": {}
+  },
+  {
+   "node": "Needle_Alt100_F",
+   "parent": "Instruments_Front",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.744,
+    -0.136,
+    0.228
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); +deg clockwise from the seat",
+   "link": "front panel only (v8: rear instruments removed)",
+   "extra": {
+    "rig_map_extrapolate": 1
+   }
+  },
+  {
+   "node": "Needle_Alt1000_F",
+   "parent": "Instruments_Front",
+   "param": "altitude_ft",
+   "unit": "ft",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.7465,
+    -0.136,
+    0.228
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10000.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); +deg clockwise from the seat",
+   "link": "front panel only (v8: rear instruments removed)",
+   "extra": {
+    "rig_map_extrapolate": 1
+   }
+  },
+  {
+   "node": "Needle_Vario_F",
+   "parent": "Instruments_Front",
+   "param": "vario_kt",
+   "unit": "kt",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.744,
+    -0.153,
+    -0.217
+   ],
+   "map": [
+    [
+     -10.0,
+     -150.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     10.0,
+     150.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "variometer, modelled at 0 (9 o'clock), +10 kt climb = 150 deg clockwise; +deg clockwise from the seat",
+   "link": "front panel only (v8: rear instruments removed)",
+   "extra": {}
+  },
+  {
+   "node": "Compass_Card",
+   "parent": "Instruments_Front",
+   "param": "heading_deg",
+   "unit": "deg magnetic",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.74,
+    -0.126,
+    -0.0
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     360.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
+   "link": "",
+   "extra": {
+    "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "TorqueTube",
+   "parent": "Controls",
+   "param": "aileron",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.07,
+    -0.907,
+    -0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "single torque tube carrying both sticks: +1 = stick tops to the right (roll right), 18 deg (judgement)",
+   "link": "Aileron_L/R; Stick_F and Stick_R are children (linked)",
+   "extra": {}
+  },
+  {
+   "node": "Stick_F",
+   "parent": "TorqueTube",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -1.46,
+    -0.907,
+    -0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch on the torque tube: +1 aft 18, -1 forward 15 (judgement)",
+   "link": "Elevator_L/R; front + rear sticks linked (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Stick_R",
+   "parent": "TorqueTube",
+   "param": "elevator",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -0.7,
+    -0.907,
+    -0.0
+   ],
+   "map": [
+    [
+     -1.0,
+     -15.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "stick pitch on the torque tube: +1 aft 18, -1 forward 15 (judgement)",
+   "link": "Elevator_L/R; front + rear sticks linked (same param)",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_F_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.9,
+    -0.853,
+    0.125
+   ],
+   "map": [
+    [
+     -1.0,
+     -0.06
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.06
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left pedal slides aft 60 mm at +1 (right rudder) (judgement)",
+   "link": "Rudder; all four pedals linked (rear pedals beside the front seat)",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_F_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.9,
+    -0.853,
+    -0.125
+   ],
+   "map": [
+    [
+     -1.0,
+     -0.06
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.06
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right pedal slides forward 60 mm at +1 (right rudder) (judgement)",
+   "link": "Rudder; all four pedals linked (rear pedals beside the front seat)",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_R_L",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.015,
+    -0.853,
+    0.255
+   ],
+   "map": [
+    [
+     -1.0,
+     -0.06
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.06
+    ]
+   ],
+   "model": 0.0,
+   "desc": "left pedal slides aft 60 mm at +1 (right rudder) (judgement)",
+   "link": "Rudder; all four pedals linked (rear pedals beside the front seat)",
+   "extra": {}
+  },
+  {
+   "node": "Pedal_R_R",
+   "parent": "Controls",
+   "param": "rudder",
+   "unit": "-1..+1",
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.015,
+    -0.853,
+    -0.255
+   ],
+   "map": [
+    [
+     -1.0,
+     -0.06
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.06
+    ]
+   ],
+   "model": 0.0,
+   "desc": "right pedal slides forward 60 mm at +1 (right rudder) (judgement)",
+   "link": "Rudder; all four pedals linked (rear pedals beside the front seat)",
+   "extra": {}
+  },
+  {
+   "node": "TowRelease_F",
+   "parent": "Controls",
+   "param": "tow_release",
+   "unit": "0..1",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -1.752,
+    -0.19,
+    -0.0
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tow release: pull the knob full out (50 mm aft) to release (AFM); yellow per Ty, AFM says red",
+   "link": "front (big yellow ball, panel bottom centre) and rear (left end of the white seat-back cross tube) knobs on one cable",
+   "extra": {}
+  },
+  {
+   "node": "TowRelease_R",
+   "parent": "Controls",
+   "param": "tow_release",
+   "unit": "0..1",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    -0.815,
+    -0.125,
+    0.2734
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     0.05
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tow release: pull the knob full out (50 mm aft) to release (AFM); yellow per Ty, AFM says red",
+   "link": "front (big yellow ball, panel bottom centre) and rear (left end of the white seat-back cross tube) knobs on one cable",
+   "extra": {}
+  },
+  {
+   "node": "DiveBrake_Lever_F",
+   "parent": "Controls",
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -1.5368,
+    -0.5418,
+    0.334
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     33.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "AIR BRAKE handle in the left-wall slot: modelled stowed at the forward RETRACT end, swings aft 33 deg to EXTEND (wall placard + AFM: pull aft to extend)",
+   "link": "Spoiler_L/R + Spoiler_Lower_L/R; front + rear levers linked; wheel_brake engages over spoiler 0.9..1.0",
+   "extra": {
+    "wheel_brake_from_spoiler": [
+     0.9,
+     1.0
+    ]
+   }
+  },
+  {
+   "node": "DiveBrake_Lever_R",
+   "parent": "Controls",
+   "param": "spoiler",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -0.6368,
+    -0.6318,
+    0.3472
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     33.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "AIR BRAKE handle in the left-wall slot: modelled stowed at the forward RETRACT end, swings aft 33 deg to EXTEND (wall placard + AFM: pull aft to extend)",
+   "link": "Spoiler_L/R + Spoiler_Lower_L/R; front + rear levers linked; wheel_brake engages over spoiler 0.9..1.0",
+   "extra": {
+    "wheel_brake_from_spoiler": [
+     0.9,
+     1.0
+    ]
+   }
+  },
+  {
+   "node": "Trim_Lever",
+   "parent": "Controls",
+   "param": "trim",
+   "unit": "-1 nose down .. +1 nose up",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "pivot_gltf": [
+    -1.4,
+    -0.62,
+    0.3127
+   ],
+   "map": [
+    [
+     -1.0,
+     -20.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     20.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "red-ball trim lever low on the left wall, 4-notch quadrant: aft = nose up (judgement 20 deg each way)",
+   "link": "",
+   "extra": {
+    "rig_detents": [
+     -1.0,
+     -0.3333,
+     0.3333,
+     1.0
+    ]
+   }
+  },
+  {
+   "node": "YawString_1",
+   "parent": "Interior",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.56524,
+    0.82493,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.588,
+    0.2152,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -8.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     8.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 1/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 40% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_2",
+   "parent": "YawString_1",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.5145,
+    0.85749,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.553,
+    0.2392,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 2/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_3",
+   "parent": "YawString_2",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.5145,
+    0.85749,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.518,
+    0.2602,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 3/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  },
+  {
+   "node": "YawString_4",
+   "parent": "YawString_3",
+   "param": "sideslip_deg",
+   "unit": "deg (beta)",
+   "kind": "rot",
+   "axis_gltf": [
+    0.50718,
+    0.86184,
+    0.0
+   ],
+   "pivot_gltf": [
+    -1.483,
+    0.2812,
+    -0.0
+   ],
+   "map": [
+    [
+     -20.0,
+     -4.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     20.0,
+     4.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "yaw-string link 4/4 (pivot at its forward end, axis = canopy normal): +beta = relative wind from the right, string tail swings to PORT (step on the head: right rudder centres it); 20% of beta on this link, tip = beta in total; sim may add a small flutter",
+   "link": "chain: YawString_1 > _2 > _3 > _4 (each child of the previous; apply local rotations)",
+   "extra": {}
+  }
+ ]
+}
