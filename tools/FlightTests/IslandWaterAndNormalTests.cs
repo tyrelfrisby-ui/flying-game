@@ -6,8 +6,12 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 [Collection("WorldTerrainActive")]
-public class IslandWaterAndNormalTests
+public class IslandWaterAndNormalTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper output;
     public IslandWaterAndNormalTests(ITestOutputHelper output) { this.output=output; }
     private static IEnumerable<IslandPoint> Points()

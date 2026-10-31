@@ -8,8 +8,12 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-10: choose the headwind (into-wind 09/27) or crosswind (main) runway at launch.</summary>
 [Collection("WorldTerrainActive")]
-public class RunwayChoiceTests
+public class RunwayChoiceTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private static AircraftConfig Cub() => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", "pa18-cub-like.json"));
 
     /// <summary>The four-airport world's template: the same two crossing runways at every field. No world installed

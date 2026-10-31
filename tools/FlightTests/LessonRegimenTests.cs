@@ -21,8 +21,12 @@ namespace FlyingGame.FlightTests;
 /// the anomalies. Opt-in: REGIMEN=1, REGIMEN_AIRCRAFT=id[,id…], REGIMEN_OUT=file.csv.
 /// </summary>
 [Collection("WorldTerrainActive")]
-public class LessonRegimenTests
+public class LessonRegimenTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public LessonRegimenTests(ITestOutputHelper o) { _out = o; }
 

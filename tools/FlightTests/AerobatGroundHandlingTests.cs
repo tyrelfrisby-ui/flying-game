@@ -22,8 +22,12 @@ namespace FlyingGame.FlightTests;
 /// The gear geometry itself is checked against the GLB measurements in <see cref="GearMatchesTheModels"/>.
 /// </summary>
 [Collection("WorldTerrainActive")]
-public class AerobatGroundHandlingTests
+public class AerobatGroundHandlingTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public AerobatGroundHandlingTests(ITestOutputHelper o) { _out = o; }
 

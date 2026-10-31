@@ -12,8 +12,12 @@ namespace FlyingGame.FlightTests;
 /// pinned at a fixed height, its pitch servoed so lift = weight and its elevator so the pitching moment balances (trim drag
 /// counted), engine idle. What is left is pure physics: how fast it bleeds and the slowest speed it can still be held.</summary>
 [Collection("WorldTerrainActive")]
-public class HoldOffPhysicsTests
+public class HoldOffPhysicsTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _o;
     public HoldOffPhysicsTests(ITestOutputHelper o) { _o = o; }
 

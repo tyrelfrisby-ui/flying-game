@@ -21,6 +21,9 @@ namespace FlyingGame.FlightTests;
 /// is not the thing that was graded; measuring it that way made the Knik read 5.57° along when its graded
 /// surface is 2.8° by construction.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active: must not run in parallel with anything that steps
+// an aeroplane, because LandingGear, AirframeContact and FloatHydro all read the ground through it.
+[Collection("WorldTerrainActive")]
 public class GlacierLandingZoneTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

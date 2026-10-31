@@ -8,8 +8,12 @@ using Xunit;
 
 namespace FlyingGame.FlightTests;
 
-public class EventTests
+public class EventTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     [Fact]
     public void RaceCountsGatesInOrderAndPenalises()
     {

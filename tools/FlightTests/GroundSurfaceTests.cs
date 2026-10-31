@@ -13,8 +13,12 @@ namespace FlyingGame.FlightTests;
 /// Rolling coefficients follow published ground-roll data (paved 0.02–0.03, gravel ~0.05, grass 0.05–0.08,
 /// rough/soft 0.1–0.3).</summary>
 [Collection("WorldTerrainActive")]
-public class GroundSurfaceTests
+public class GroundSurfaceTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public GroundSurfaceTests(ITestOutputHelper o) { _out = o; }
 

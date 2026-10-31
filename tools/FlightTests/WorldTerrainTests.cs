@@ -6,8 +6,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>The stepped-plateau world: four airports at rising elevations behind steep irregular walls,
 /// flat runways, lakes at each field, a river that steps down the walls. Flat when no terrain is active.</summary>
 [Collection("WorldTerrainActive")]
-public class WorldTerrainTests
+public class WorldTerrainTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     [Fact]
     public void FlatWhenInactive()
     {

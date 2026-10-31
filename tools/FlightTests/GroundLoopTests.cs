@@ -12,8 +12,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>Owner 2026-09-12: a taildragger yawed on the ground must not reverse the swerve on its own — the mains ahead of
 /// the CG feed it; the castoring tailwheel and the fin can only slow it. Hands off, a started swerve grows.</summary>
 [Collection("WorldTerrainActive")]
-public class GroundLoopTests
+public class GroundLoopTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public GroundLoopTests(ITestOutputHelper o) { _out = o; }
     private static AircraftConfig Load(string f) => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", f));

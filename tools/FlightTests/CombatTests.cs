@@ -11,8 +11,12 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Owner 2026-09-10: combat damage (wing panels, control surfaces, fuel and fire) and gunnery.</summary>
 [Collection("WorldTerrainActive")]
-public class CombatTests
+public class CombatTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public CombatTests(ITestOutputHelper o) { _out = o; }
     private static AircraftConfig Load(string f) => AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", f));

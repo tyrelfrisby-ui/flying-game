@@ -20,6 +20,9 @@ namespace FlyingGame.FlightTests;
 /// The sign chain gets its own test: the file's axes are in the model's glTF frame, and whether a given
 /// control goes the right way depends on a reflection that is easy to get backwards.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active: must not run in parallel with anything that steps
+// an aeroplane, because LandingGear, AirframeContact and FloatHydro all read the ground through it.
+[Collection("WorldTerrainActive")]
 public class ModelRigTests
 {
     private static RigNode Node(string name, string param, bool move, double[] p, double[] v,

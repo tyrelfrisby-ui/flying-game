@@ -11,8 +11,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>Owner 2026-09-09: a hard touchdown tears off the gear leg that took it (individually), and the fuselage
 /// is three sections — a tail-cone strike snaps the tail boom, a mid-fuselage slam breaks both ends off.</summary>
 [Collection("WorldTerrainActive")]
-public class BreakupTests
+public class BreakupTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public BreakupTests(ITestOutputHelper o) { _out = o; }
 

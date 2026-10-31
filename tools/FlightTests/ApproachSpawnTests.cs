@@ -11,8 +11,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>"On final" start: 300 ft on the centreline at best glide, idle, trimmed — hands off it should ride
 /// its own glide path down to the aim point.</summary>
 [Collection("WorldTerrainActive")]
-public class ApproachSpawnTests
+public class ApproachSpawnTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public ApproachSpawnTests(ITestOutputHelper o) { _out = o; }
 

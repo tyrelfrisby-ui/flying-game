@@ -11,8 +11,12 @@ namespace FlyingGame.FlightTests;
 /// <summary>Retractable gear: it travels over ~4 s, carries nothing while up, and hangs the type's flat-plate drag
 /// area in the wind while down.</summary>
 [Collection("WorldTerrainActive")]
-public class RetractableGearTests
+public class RetractableGearTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method does
+    /// not run when the test throws, so a failing test left its world installed for the whole rest of the run.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public RetractableGearTests(ITestOutputHelper o) { _out = o; }
 
