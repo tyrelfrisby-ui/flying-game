@@ -50,6 +50,27 @@ One file per aircraft. The physics reads ONLY this — no aircraft-specific code
 }
 ```
 
+### Smoke outlets
+
+The optional `smoke` block sits beside `propulsion`. `aftOfNoseM` measures aft from the
+spinner tip; `downDeg` is the outlet axis below the aft longitudinal direction. The
+legacy hub estimate subtracts 0.25 m from `aftOfNoseM` and drops the outlet by one
+body radius (at least 0.25 m). Without a smoke block it drops by 0.8 body radii.
+
+`outletBodyM`, when present, overrides that estimated position: three finite metres
+from the **CG**, in body axes **forward, right, down**. This is deliberately different
+from a config reference-frame station such as a gear position. Measure the placed
+visual, including its span fit, wing alignment and vertical placement. A missing or
+malformed vector uses the legacy estimate. `downDeg` still supplies the jet direction;
+it is the pipe's longitudinal/vertical projection, with no lateral jet angle.
+
+`displacementCuIn` sets mass flow (0 estimates it from power); `pipeDiameterIn` defaults
+to 4 and `exhaustTempK` to 900. One authored outlet produces one smoke stream, including
+when selecting one smoke-fed pipe on an airframe with paired exhausts. Glider wingtip
+canisters and configs without a measured outlet retain their existing paths.
+
+See [the measured fleet and annotated renders](pending/smoke-renders/README.md).
+
 ## ChallengeDefinition
 New challenges = new JSON, not new C#.
 

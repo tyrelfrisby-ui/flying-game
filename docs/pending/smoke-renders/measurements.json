@@ -1,0 +1,154 @@
+{
+  "pitts-s2b-like": {
+    "modelCommit": "f9c2e034ec47d5a0b4cf2205e693ec5a74432dd4",
+    "modelPath": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb",
+    "scale": 0.999032710972308,
+    "shiftForwardPortUpM": [
+      -0.01224932660185274,
+      -0.0,
+      -0.0002855309288101182
+    ],
+    "measuredMouthBodyM": [
+      0.7270348795176551,
+      -0.20979686930418467,
+      0.6296761388413641
+    ],
+    "aftOfNoseMeasuredM": 1.1578789606072488,
+    "downMeasuredDeg": 14.036243467926454,
+    "authoredErrorM": 0.0003838811149395985,
+    "legacyErrorM": 0.2896621428678483
+  },
+  "great-lakes-like": {
+    "modelCommit": "f9c2e034ec47d5a0b4cf2205e693ec5a74432dd4",
+    "modelPath": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb",
+    "scale": 0.9829682011480473,
+    "shiftForwardPortUpM": [
+      -0.03345895101815821,
+      -0.0,
+      0.197892647325129
+    ],
+    "measuredMouthBodyM": [
+      -0.15141513515592386,
+      -0.186763958218129,
+      0.6278006416392307
+    ],
+    "aftOfNoseMeasuredM": 1.199221228836406,
+    "downMeasuredDeg": 30.96375653207348,
+    "authoredErrorM": 0.0005174907501409202,
+    "legacyErrorM": 0.25497871475945894
+  },
+  "c172-like": {
+    "modelCommit": "340cc5a76e51b83f071df707d0b29c6226cb1027",
+    "modelPath": "unity/Assets/_Project/Resources/Models/c172-like/c172-like-own.glb",
+    "scale": 0.99162264913967,
+    "shiftForwardPortUpM": [
+      -0.06944638394013536,
+      -0.0,
+      0.19860689221147965
+    ],
+    "measuredMouthBodyM": [
+      1.281639475512665,
+      -0.20328264307363234,
+      0.6442723595572398
+    ],
+    "aftOfNoseMeasuredM": 1.0114550362712729,
+    "downMeasuredDeg": 63.43494882292195,
+    "authoredErrorM": 0.0005329584800529779,
+    "legacyErrorM": 0.4317876344756743
+  },
+  "pa18-cub-like": {
+    "modelCommit": "c0f2ad5f424abf211e528e1d59bde4c64295244b",
+    "modelPath": "unity/Assets/_Project/Resources/Models/pa18-cub-like/pa18-cub-like.obj",
+    "scale": 0.009918531204608321,
+    "shiftForwardPortUpM": [
+      -1.6078319310837936,
+      -0.0,
+      0.14062944277811162
+    ],
+    "measuredMouthBodyM": [
+      0.9944291265430216,
+      0.2487081618086741,
+      0.45517573482958973
+    ],
+    "aftOfNoseMeasuredM": 0.8651255350392324,
+    "downMeasuredDeg": 90.0,
+    "authoredErrorM": 0.011841634720509532,
+    "legacyErrorM": 0.5996288351982114
+  },
+  "j3-cub-like": {
+    "modelCommit": "c16f0bd58e79bd4cc7d559afd60b0e512bff6b55",
+    "modelPath": "unity/Assets/_Project/Resources/Models/j3-cub-like/j3-cub-like-own.glb",
+    "scale": 0.9905010321406365,
+    "shiftForwardPortUpM": [
+      -0.07003064635725798,
+      -0.0,
+      -0.012884476139446877
+    ],
+    "measuredMouthBodyM": [
+      0.9472139136511755,
+      0.17829018578531455,
+      0.46757793694773464
+    ],
+    "aftOfNoseMeasuredM": 0.7493141054390078,
+    "downMeasuredDeg": 38.65980825409009,
+    "authoredErrorM": 0.0005550712208766028,
+    "legacyErrorM": 0.6833667085419656
+  },
+  "j3-cub-floats-like": {
+    "modelCommit": "c16f0bd58e79bd4cc7d559afd60b0e512bff6b55",
+    "modelPath": "unity/Assets/_Project/Resources/Models/j3-cub-floats-like/j3-cub-floats-like-own.glb",
+    "scale": 0.9905010321406365,
+    "shiftForwardPortUpM": [
+      -0.07003064635725798,
+      -0.0,
+      -0.11327670654460564
+    ],
+    "measuredMouthBodyM": [
+      0.9472139136511755,
+      0.17829018578531455,
+      0.5679701673528934
+    ],
+    "aftOfNoseMeasuredM": 0.7493141054390078,
+    "downMeasuredDeg": 38.65980825409009,
+    "authoredErrorM": 0.0003617413813641608,
+    "legacyErrorM": 0.7216335129575637
+  },
+  "pa18-bush-like": {
+    "modelCommit": "c0f2ad5f424abf211e528e1d59bde4c64295244b",
+    "modelPath": "unity/Assets/_Project/Resources/Models/pa18-cub-like/pa18-cub-like.obj",
+    "scale": 0.009918531204608321,
+    "shiftForwardPortUpM": [
+      -1.6078319310837936,
+      -0.0,
+      0.11839147135956929
+    ],
+    "measuredMouthBodyM": [
+      0.9944291265430216,
+      0.2487081618086741,
+      0.47741370624813206
+    ],
+    "aftOfNoseMeasuredM": 0.8651255350392324,
+    "downMeasuredDeg": 90.0,
+    "authoredErrorM": 0.010433424359057914,
+    "legacyErrorM": 0.607597442084653
+  },
+  "pa18-floats-like": {
+    "modelCommit": "c0f2ad5f424abf211e528e1d59bde4c64295244b",
+    "modelPath": "unity/Assets/_Project/Resources/Models/pa18-cub-like/pa18-cub-like.obj",
+    "scale": 0.009918531204608321,
+    "shiftForwardPortUpM": [
+      -1.6078319310837936,
+      -0.0,
+      0.11839147135956929
+    ],
+    "measuredMouthBodyM": [
+      0.9944291265430216,
+      0.2487081618086741,
+      0.47741370624813206
+    ],
+    "aftOfNoseMeasuredM": 0.8651255350392324,
+    "downMeasuredDeg": 90.0,
+    "authoredErrorM": 0.010433424359057914,
+    "legacyErrorM": 0.607597442084653
+  }
+}
