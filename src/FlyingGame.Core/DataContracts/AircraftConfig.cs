@@ -45,6 +45,9 @@ public sealed class AircraftConfig
     public double ImpactStrength { get; set; } = 1.0;
 
     public MassConfig Mass { get; set; } = new();
+    /// <summary>Seats, tanks and baggage, and the weight-and-balance envelope. Optional; absent means the authored
+    /// <see cref="MassConfig"/> is the only loading there is.</summary>
+    public LoadingConfig Loading { get; set; } = new();
     public List<SurfaceConfig> Surfaces { get; set; } = new();
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
     public ControlsConfig Controls { get; set; } = new();
@@ -91,6 +94,79 @@ public sealed class AircraftConfig
     public double VerticalBlanketFactor { get; set; } = 0.5;
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
+}
+
+/// <summary>
+/// One place something heavy sits: a seat, a fuel tank or bag, a baggage locker. Positions are in the airframe's
+/// own BODY REFERENCE FRAME — the same frame as <see cref="GearConfig.Pos"/> and <see cref="StripConfig.Pos"/>,
+/// +x forward, +y right, +z DOWN — not relative to the CG. <see cref="MassConfig.Cg"/> is the CG's position in that
+/// same frame, which is why the loading model can move it.
+/// </summary>
+public sealed class StationConfig
+{
+    /// <summary>Stable key the saved loadout refers to. Never renamed once shipped.</summary>
+    public string Id { get; set; } = "";
+    /// <summary>What the loading page calls it: "Pilot", "Left wing", "Aft baggage".</summary>
+    public string Label { get; set; } = "";
+    /// <summary>Where the mass acts, body reference frame, metres.</summary>
+    public double[] Station { get; set; } = { 0, 0, 0 };
+    /// <summary>The most that may be put here, kg. A placard, not a physics limit.</summary>
+    public double MaxKg { get; set; }
+    /// <summary>How much of this station is ALREADY INCLUDED in <see cref="MassConfig.MassKg"/> and
+    /// <see cref="MassConfig.Cg"/>. This is what makes the loading model exact: load the aeroplane to its reference
+    /// and it flies with precisely the authored mass, CG and inertia, so every tuned book number is untouched. Only
+    /// a change away from the reference moves anything.</summary>
+    public double ReferenceKg { get; set; }
+    /// <summary>Fuel only: the order tanks drain in, lowest first. Equal numbers drain together.</summary>
+    public int BurnOrder { get; set; }
+
+    /// <summary>SEATS only: the pilot's EYE in that seat — the view point (owner 2026-10-31, authored by Codex), body
+    /// reference frame, +x forward, +y right, +z DOWN, so an eye above the reference has a NEGATIVE z. It is on the
+    /// seat rather than in a separate table because it is the same seat: one authored entry gives the loading page
+    /// its mass station and the cockpit view its view point, and they can never drift apart. Null or absent means the
+    /// seat has no authored view point yet and the camera falls back to its own estimate.</summary>
+    public double[]? Eye { get; set; }
+
+    public bool HasEye => Eye is { Length: 3 };
+
+    public MathTypes.Vec3 StationVec() => new(Station[0], Station[1], Station[2]);
+
+    /// <summary>The authored eye point, or the mass station raised to roughly head height when none is authored —
+    /// a seated pilot's eye is about half a metre above the seat pan he is weighed at.</summary>
+    public MathTypes.Vec3 EyeVec() => HasEye ? new(Eye![0], Eye[1], Eye[2]) : new(Station[0], Station[1], Station[2] - 0.5);
+}
+
+/// <summary>
+/// What can be put IN the aeroplane, and where that leaves the weight and balance (owner 2026-10-31: "build a
+/// configuration on the launch page for loading the airplane with fuel bags and people then model the resulting
+/// weight and cg while they fly").
+///
+/// Entirely optional. An aeroplane with no loading block has no stations, so <see cref="FlyingGame.Core.AircraftLoad"/>
+/// reports exactly the authored <see cref="MassConfig"/> and nothing about its handling changes.
+///
+/// Seats carry the pilot's EYE position as well as the occupant's mass station, because they are the same seat: one
+/// authored seat serves both the loading page and the cockpit view.
+/// </summary>
+public sealed class LoadingConfig
+{
+    /// <summary>Airframe, oil, everything that never comes out. Optional: when 0 it is derived as
+    /// <see cref="MassConfig.MassKg"/> minus every station's <see cref="StationConfig.ReferenceKg"/>.</summary>
+    public double EmptyMassKg { get; set; }
+    /// <summary>Maximum certificated take-off mass. 0 = no placard, and the page will not complain about weight.</summary>
+    public double MaxGrossMassKg { get; set; }
+    /// <summary>CG envelope in the body reference frame's x, metres. The frame has +x FORWARD, so the forward limit
+    /// is the LARGER number and the aft limit the smaller one — a nose-heavy aeroplane has a bigger x than a
+    /// tail-heavy one. Equal values, or an aft limit above the forward one, mean no published envelope and the page
+    /// will not complain about balance.</summary>
+    public double CgForwardLimitM { get; set; }
+    public double CgAftLimitM { get; set; }
+
+    public List<StationConfig> Seats { get; set; } = new();
+    /// <summary>Fuel: wing tanks, a belly tank, or a bladder bag strapped in the cabin — a bag is just a tank with a
+    /// cabin station. All of these burn off, in <see cref="StationConfig.BurnOrder"/>.</summary>
+    public List<StationConfig> Tanks { get; set; } = new();
+    /// <summary>Dead weight that does not burn: baggage, freight, a dog.</summary>
+    public List<StationConfig> Baggage { get; set; } = new();
 }
 
 public sealed class MassConfig
@@ -315,6 +391,10 @@ public sealed class PropulsionConfig
     public double ThrustLineZ { get; set; } = 0.0;      // + below CG (z down)
     public double PFactorK { get; set; } = 0.35;        // lateral thrust offset fraction of radius per sin(alpha)
     public double SlipstreamK { get; set; } = 0.12;     // spiral-slipstream yaw moment coefficient
+    /// <summary>Brake specific fuel consumption, kg of fuel per watt-second of SHAFT power. The default is a normally
+    /// aspirated piston's 0.45 lb/hp/hr: a 160 hp four at 75 % cruise burns about 34 litres an hour on it, which is
+    /// what the book says. Turbines want their own number.</summary>
+    public double BsfcKgPerWs { get; set; } = 7.6e-8;
     /// <summary>Constant-speed propeller: the governor holds <see cref="GovernedRpm"/> whenever there is enough
     /// power to govern, so the throttle changes manifold pressure (loudness), not rpm (pitch). Fixed-pitch:
     /// rpm follows throttle and airspeed.</summary>
@@ -470,7 +550,18 @@ public sealed class LimitsConfig
     public double GMax { get; set; } = 10;
     public double GMin { get; set; } = -10;
 
-    /// <summary>ULTIMATE load = limit × this factor (FAR 23.303 / 25.303: 1.5). Between limit and ultimate
-    /// the airframe deforms and groans; beyond ultimate the wings separate. Optional, schema-safe default.</summary>
-    public double UltimateFactor { get; set; } = 1.5;
+    /// <summary>Where the airframe starts to COMPLAIN, as a multiple of the limit load (owner 2026-10-31: "make the
+    /// wings pop and groan above 1.5 limit load"). Real certification has no such band — a limit load is the load the
+    /// structure carries without permanent deformation, full stop — but a game needs to tell the pilot he is pushing
+    /// it before it takes the wings off him, and silence up to the limit then an instant failure is no warning at all.
+    /// So between the limit and this the airframe is quiet, and from here to <see cref="UltimateFactor"/> it groans
+    /// and pops. Exceeding the LIMIT is still an exceedance for scoring: that is what Limits.GMax means and the
+    /// syllabus grades against it (Standards.GLimit).</summary>
+    public double GroanFactor { get; set; } = 1.5;
+
+    /// <summary>ULTIMATE load = limit × this factor: where the wings actually separate (owner 2026-10-31: "don't have
+    /// the wings actually break off until 2.0 limit load"). FAR 23.303 / 25.303 puts real ultimate at 1.5 × limit;
+    /// this is deliberately more forgiving than the certification basis, so a pilot who overstresses it gets a band
+    /// of noise to react in. Optional, schema-safe default.</summary>
+    public double UltimateFactor { get; set; } = 2.0;
 }

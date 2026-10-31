@@ -1,3 +1,4 @@
+using FlyingGame.Core.DataContracts;
 using UnityEngine;
 
 namespace FlyingGame.Bridge
@@ -219,8 +220,8 @@ namespace FlyingGame.Bridge
         // One page at a time, one column, the same shape in portrait and landscape so the page does not move
         // around under your thumb when the iPad turns. Each page is short enough to need no scrolling on a
         // phone; the scroll group underneath is kept as the safety net, not as the way the page is read.
-        private enum Page { Aircraft, Start, Lessons, Weather, Players }
-        private static readonly string[] PageNames = { "Aircraft", "Start", "Lessons", "Weather", "Players" };
+        private enum Page { Aircraft, Loading, Start, Lessons, Weather, Players }
+        private static readonly string[] PageNames = { "Aircraft", "Loading", "Start", "Lessons", "Weather", "Players" };
         private Page _page = Page.Aircraft;
         /// <summary>Self-test / tools: show a given chapter by name ("aircraft", "start", …).</summary>
         public void ShowPage(string name)
@@ -309,6 +310,7 @@ namespace FlyingGame.Bridge
             switch (_page)
             {
                 case Page.Aircraft: AircraftPage(ref y); break;
+                case Page.Loading: LoadingPage(ref y); break;
                 case Page.Start: StartPage(ref y); break;
                 case Page.Lessons: LessonsPage(ref y); break;
                 case Page.Weather: WeatherPage(ref y); break;
@@ -350,6 +352,140 @@ namespace FlyingGame.Bridge
         private void Head(string text, ref float y) { UiLayout.Label(new Rect(_x, y, _colW, _lh), text, _head); y += _lh; }
 
         // ---- chapter: aircraft · livery · tow plane
+        /// <summary>
+        /// LOADING (owner 2026-10-31): who and what is in the aeroplane, and the weight and balance that follow.
+        /// Steppers rather than sliders, because there is no slider in UiLayout and a stepper is kinder to a thumb.
+        ///
+        /// An aeroplane whose config authors no stations says so instead of pretending: the stations are authored per
+        /// type (AircraftConfig.Loading), and seats come with the view point for the same seat, so this page fills
+        /// out as the fleet is authored.
+        /// </summary>
+        private void LoadingPage(ref float y)
+        {
+            float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;
+            string acId = SessionSettings.AircraftId;
+            // OnGUI runs every frame and LoadFromStreamingAssets reads the file and parses the JSON every call, so
+            // this is cached per type. It also throws rather than returning null, and a throw out of OnGUI takes the
+            // whole menu with it.
+            if (_loadPageFor != acId)
+            {
+                _loadPageFor = acId;
+                _loadPageLoad = null;
+                try { _loadPageLoad = new FlyingGame.Core.AircraftLoad(UnityAircraftConfigLoader.LoadFromStreamingAssets(acId)); }
+                catch (System.Exception e) { _loadPageError = e.Message; }
+            }
+            if (_loadPageLoad == null)
+            {
+                Head("LOADING", ref y);
+                UiLayout.Label(new Rect(x, y, colW, lh), _loadPageError ?? "aircraft not loaded", _label);
+                y += row;
+                return;
+            }
+            FlyingGame.Core.AircraftLoad load = _loadPageLoad;
+            foreach (var slot in load.Slots)
+            {
+                double? saved = SessionSettings.SavedLoadKg(acId, slot.Id);
+                load.Set(slot.Id, saved ?? slot.Config.ReferenceKg);
+            }
+
+            if (load.Slots.Count == 0)
+            {
+                Head("LOADING", ref y);
+                UiLayout.Label(new Rect(x, y, colW, lh * 2f),
+                    "This type has no loading stations authored yet, so it flies at its\nauthored weight and balance.", _label);
+                y += row * 1.6f;
+                return;
+            }
+
+            // ---- the stations ----
+            string lastGroup = null;
+            foreach (var slot in load.Slots)
+            {
+                string group = slot.Kind == FlyingGame.Core.AircraftLoad.StationKind.Seat ? "SEATS"
+                             : slot.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel ? "FUEL"
+                             : "BAGGAGE";
+                if (group != lastGroup) { Head(group, ref y); lastGroup = group; }
+
+                float stepW = bh * 1.15f;
+                float labelW = colW - stepW * 2f - gap;
+                string label = slot.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel
+                    ? $"{slot.Label}   {slot.Kg:0} / {slot.MaxKg:0} kg   ({LitresOf(slot.Kg):0} L)"
+                    : $"{slot.Label}   {slot.Kg:0} kg";
+                UiLayout.Label(new Rect(x, y, labelW, bh), label, _label);
+
+                // 5 kg a tap for fuel and baggage, 5 kg for people too: a person is set by weight, not by count,
+                // because a 55 kg passenger and a 110 kg one balance the aeroplane very differently.
+                double step = 5.0;
+                if (UiLayout.Button(new Rect(x + labelW + gap, y, stepW, bh), "-", _btn))
+                    SessionSettings.SetLoadKg(acId, slot.Id, System.Math.Max(0.0, slot.Kg - step));
+                if (UiLayout.Button(new Rect(x + labelW + gap + stepW, y, stepW, bh), "+", _btn))
+                    SessionSettings.SetLoadKg(acId, slot.Id, System.Math.Min(slot.MaxKg, slot.Kg + step));
+                y += row;
+            }
+
+            // ---- quick actions ----
+            {
+                float third = (colW - gap * 2f) / 3f;
+                Head("", ref y);
+                if (UiLayout.Button(new Rect(x, y, third, bh), "Full fuel", _btn))
+                    foreach (var slot in load.Slots)
+                        if (slot.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel) SessionSettings.SetLoadKg(acId, slot.Id, slot.MaxKg);
+                if (UiLayout.Button(new Rect(x + third + gap, y, third, bh), "Tabs", _btn))
+                    foreach (var slot in load.Slots)
+                        if (slot.Kind == FlyingGame.Core.AircraftLoad.StationKind.Fuel) SessionSettings.SetLoadKg(acId, slot.Id, slot.MaxKg * 0.5);
+                if (UiLayout.Button(new Rect(x + (third + gap) * 2f, y, third, bh), "As authored", _btn))
+                    SessionSettings.ForgetLoad(acId, load);
+                y += row;
+            }
+
+            // ---- what that weighs ----
+            Head("WEIGHT AND BALANCE", ref y);
+            double total = load.TotalMassKg;
+            string weight = load.HasWeightPlacard
+                ? $"{total:0} kg of {load.MaxGrossMassKg:0} kg max"
+                : $"{total:0} kg";
+            UiLayout.Label(new Rect(x, y, colW, lh), weight, _label); y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh),
+                $"empty {load.EmptyMassKg:0}   people {load.OccupantsKg:0}   fuel {load.FuelKg:0}   bags {load.BaggageKg:0} kg", _label);
+            y += lh;
+            UiLayout.Label(new Rect(x, y, colW, lh),
+                load.HasCgEnvelope
+                    ? $"CG {load.Cg.X:0.000} m   ({load.CgFraction * 100.0:0} % aft through the envelope)"
+                    : $"CG {load.Cg.X:0.000} m", _label);
+            y += lh;
+
+            string placard = load.Placard;
+            if (placard != null)
+            {
+                UiLayout.Label(new Rect(x, y, colW, lh), placard + " - it will fly like it", _head);
+                y += lh;
+            }
+            y += gap;
+
+            // The envelope, drawn: the only way a weight-and-balance page is actually readable at a glance.
+            if (load.HasCgEnvelope)
+            {
+                var bar = new Rect(x, y, colW, bh * 0.55f);
+                GUI.Box(bar, GUIContent.none);
+                float f = (float)System.Math.Clamp(load.CgFraction, -0.08, 1.08);
+                var mark = new Rect(bar.x + (bar.width - 4f) * f, bar.y - 3f, 4f, bar.height + 6f);
+                GUI.Box(mark, GUIContent.none);
+                y += bh * 0.55f + lh * 0.2f;
+                UiLayout.Label(new Rect(x, y, colW, lh * 0.8f), "forward limit                                        aft limit", _label);
+                y += row * 0.6f;
+            }
+
+            UiLayout.Label(new Rect(x, y, colW, lh * 2f),
+                "Fuel burns off as you fly and the balance moves with it.", _label);
+            y += row * 1.2f;
+        }
+
+        /// <summary>Avgas at 0.72 kg/L, for a number a pilot recognises on the fuel rows.</summary>
+        private static double LitresOf(double kg) => kg / 0.72;
+
+        private string _loadPageFor, _loadPageError;
+        private FlyingGame.Core.AircraftLoad _loadPageLoad;
+
         private void AircraftPage(ref float y)
         {
             float x = _x, colW = _colW, lh = _lh, gap = _gap, bh = _bh, row = _row;

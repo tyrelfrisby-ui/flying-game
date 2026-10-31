@@ -10,6 +10,9 @@ namespace FlyingGame.FlightTests;
 /// more buoyancy than its share of the max weight (pair >= 1.8 W); EDO floats are named for their displacement per
 /// float (EDO 2000 = 2,000 lb each on a Super Cub). Measured from the hydrostatics the sim actually uses: the floats
 /// pushed fully under, at rest.</summary>
+// Mutates the global FloatHydro.FlatWaterOverride, so it must not run in parallel with another class that
+// does: one class's finally clears the water out from under another class's seaplane mid-flight.
+[Collection("WorldTerrainActive")]
 public class DisplacementTests
 {
     private readonly ITestOutputHelper _out;

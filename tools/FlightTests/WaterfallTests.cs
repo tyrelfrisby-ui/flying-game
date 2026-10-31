@@ -6,8 +6,18 @@ namespace FlyingGame.FlightTests;
 /// <summary>Plunge waterfalls at the canyon walls: a straight lip the river leaves in free fall, a concave
 /// back wall set back behind it, an overhanging rock shelf (collision solid) carrying the river to the lip,
 /// and a flyable slot of at least 150 ft between curtain and cliff across the river's width.</summary>
-public class WaterfallTests
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
+public class WaterfallTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private const double FeetPerMetre = 3.28084;
 
     [Fact]

@@ -11,6 +11,10 @@ namespace FlyingGame.FlightTests;
 /// not on the shore, bars with a clean lane down the middle, steps you can see rather than steps that eat
 /// you, and a wind that is always blowing down the valley so an upstream landing is into it.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class AlaskaTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

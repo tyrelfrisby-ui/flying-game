@@ -107,6 +107,7 @@ namespace FlyingGame.Bridge
             bool other = Chase.CurrentView != ChaseCamera.View.RelativeWind;
             if (UiLayout.Button(UiLayout.ToolbarSlot(0, n), other ? "VIEW: " + ChaseCamera.ViewNames[(int)Chase.CurrentView] : "VIEW", other || _viewMenu ? _btnOn : _btn)) _viewMenu = !_viewMenu;
             if (_viewMenu) DrawViewMenu(UiLayout.ToolbarBottom, Screen.height);
+            DrawLookPad();
             if (Replay != null && UiLayout.Button(UiLayout.ToolbarSlot(1, n), "REPLAY", _btn)) Replay.Enter();
             if (UiLayout.Button(UiLayout.ToolbarSlot(2, n), ClipRecorder.Busy ? "SAVING..." : "CLIP " + ClipRecorder.Length(ClipRecorder.ClipSeconds), _btn)) ClipRecorder.SaveClip();
             bool rec = ClipRecorder.Recording;
@@ -144,6 +145,72 @@ namespace FlyingGame.Bridge
         /// from, not a list that cycles through with each press"): every view as a button, the current one lit; tap one to fly
         /// it (the panel closes), or VIEW / CLOSE to dismiss. Laid out between <paramref name="top"/> and <paramref name="bottom"/>
         /// (under the toolbar; above the replay bar), the HUD stepping aside while it is up.</summary>
+        /// <summary>
+        /// LOOKING AROUND on glass (owner 2026-10-31), for a device with no stick: a four-way pad bottom-left, a seat
+        /// button and CENTRE. Held pans, tapped snaps — the same two gestures a real hat gives, decided in
+        /// <see cref="CockpitView"/> so the stick and the glass behave identically. Only drawn in the cockpit, where
+        /// the pilot has a head to turn; the outside views already have their own camera.
+        ///
+        /// While goggles are on the pad is not drawn at all: the device's attitude is the head, and a pad that also
+        /// wrote the look would fight it every frame.
+        /// </summary>
+        private void DrawLookPad()
+        {
+            _cockpit ??= Object.FindFirstObjectByType<CockpitView>();
+            if (_cockpit == null) { return; }
+            if (Chase == null || Chase.CurrentView != ChaseCamera.View.Cockpit) { _cockpit.OnScreenHat = Vector2Int.zero; return; }
+            if (_cockpit.Goggles)
+            {
+                _cockpit.OnScreenHat = Vector2Int.zero;
+                float gb = UiLayout.ButtonH, gm = UiLayout.Margin;
+                var gr = new Rect(gm, UiLayout.ToolbarBottom + gm, gb * 3.4f, gb);
+                LookRect = gr; _lookFrame = Time.frameCount;
+                if (UiLayout.Button(gr, "RECENTRE", _btn)) _cockpit.Centre();
+                return;
+            }
+
+            float b = UiLayout.ButtonH, m = UiLayout.Margin;
+            float cell = b * 1.05f;
+            // Under the toolbar on the LEFT. Not along the bottom: that is where the throttle strip and the stick
+            // live, and a look pad on top of the controls would be read as both.
+            float x0 = m, y0 = UiLayout.ToolbarBottom + m;
+            LookRect = new Rect(x0, y0 - m * 0.4f, cell * 3f, cell * 3f + b + m);
+            _lookFrame = Time.frameCount;
+
+            int hx = 0, hy = 0;
+            if (Pad(new Rect(x0 + cell, y0, cell, cell), "▲")) hy += 1;
+            if (Pad(new Rect(x0, y0 + cell, cell, cell), "◄")) hx -= 1;
+            if (Pad(new Rect(x0 + cell * 2f, y0 + cell, cell, cell), "►")) hx += 1;
+            if (Pad(new Rect(x0 + cell, y0 + cell * 2f, cell, cell), "▼")) hy -= 1;
+            _cockpit.OnScreenHat = new Vector2Int(hx, hy);
+
+            // The middle of the pad centres the view; it is the one place a thumb expects it.
+            if (UiLayout.Button(new Rect(x0 + cell, y0 + cell, cell, cell),
+                                _cockpit.Look.LookingAway ? "●" : "", _cockpit.Look.LookingAway ? _btnOn : _btn))
+                _cockpit.Centre();
+
+            // The seat, when the aeroplane has more than one authored.
+            if (_cockpit.SeatCount > 1 &&
+                UiLayout.Button(new Rect(x0, y0 + cell * 3f + m * 0.3f, cell * 3f, b), "SEAT: " + _cockpit.SeatLabel, _btn))
+                _cockpit.NextSeat();
+        }
+
+        /// <summary>A pad key reports HELD, not clicked: panning needs the held state every frame.</summary>
+        private bool Pad(Rect r, string glyph)
+        {
+            bool held = Input.GetMouseButton(0) && r.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y));
+            for (int i = 0; i < Input.touchCount && !held; i++)
+            {
+                Touch t = Input.GetTouch(i);
+                if (t.phase != TouchPhase.Ended && t.phase != TouchPhase.Canceled &&
+                    r.Contains(new Vector2(t.position.x, Screen.height - t.position.y))) held = true;
+            }
+            UiLayout.Button(r, glyph, held ? _btnOn : _btn);
+            return held;
+        }
+
+        private CockpitView _cockpit;
+
         private void DrawViewMenu(float top, float bottom)
         {
             UiLayout.ModalShown();
@@ -172,12 +239,17 @@ namespace FlyingGame.Bridge
         /// <summary>Self-test: open the view menu.</summary>
         public static bool OpenViewMenuRequest;
         private static Rect BlockRect; private static int _blockFrame = -10;
+        private static Rect LookRect; private static int _lookFrame = -10;
         /// <summary>The open view menu (SCREEN coordinates, bottom-left origin) — the flight pads ignore touches that start on it.</summary>
         public static bool BlocksTouch(Vector2 screenPos)
         {
             if (Widget.GameAeroPanel.Blocks(screenPos)) return true;   // the AERO panel's switches are not the stick
+            var p = new Vector2(screenPos.x, Screen.height - screenPos.y);
+            // The look pad is its own rect: it can be up at the same time as the view menu, and a thumb panning the
+            // view must not also be flying the aeroplane.
+            if (Time.frameCount - _lookFrame <= 2 && LookRect.Contains(p)) return true;
             if (Time.frameCount - _blockFrame > 2) return false;
-            return BlockRect.Contains(new Vector2(screenPos.x, Screen.height - screenPos.y));
+            return BlockRect.Contains(p);
         }
 
         private void DrawReplayBar()

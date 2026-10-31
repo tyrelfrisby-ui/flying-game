@@ -11,6 +11,11 @@ namespace FlyingGame.FlightTests;
 /// <summary>Hughes H-4 Hercules (owner 2026-10-02): a flying-boat HULL on the centreline + wingtip floats. Floats at a sane
 /// draft with a tip float catching the heel, and gets off the water inside the harbor (its ~2.2 km run doesn't fit the
 /// field's 1 km lakes — the real one operated from Long Beach harbor).</summary>
+// Mutates the global FloatHydro.FlatWaterOverride, so it must not run in parallel with another class that
+// does. Seven classes set that one static; when one class's finally clears it while this one is mid-flight,
+// the seaplane loses its water and goes NaN at rest. The real fix is for the hydrodynamics not to read a
+// static test hook at all, which is a production API change and its own piece of work.
+[Collection("WorldTerrainActive")]
 public class FlyingBoatTests
 {
     private readonly ITestOutputHelper _out;

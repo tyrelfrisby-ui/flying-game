@@ -12,8 +12,18 @@ namespace FlyingGame.FlightTests;
 /// <summary>Ty: "the pitts flys for about 30 seconds then freezes." If that freeze is in the simulation it will
 /// show up here — an exception, a NaN, or a second of sim that suddenly costs far more than the ones before it.
 /// If sixty seconds run clean and flat, the freeze is above the sim, in the Unity layer.</summary>
-public sealed class IslandLongFlightProbe
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
+public sealed class IslandLongFlightProbe : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _o;
     public IslandLongFlightProbe(ITestOutputHelper o) { _o = o; }
 

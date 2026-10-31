@@ -32,6 +32,8 @@ namespace FlyingGame.Bridge
         public View CurrentView = View.RelativeWind;
 
         public Transform Target;
+        /// <summary>Which seat, and where the pilot is looking from it. Found from the Driver when first needed.</summary>
+        public CockpitView Cockpit;
         public FlightSimDriver Driver;
         public float Distance = 14f;
         public float Height = 3.5f;
@@ -156,10 +158,17 @@ namespace FlyingGame.Bridge
             switch (CurrentView)
             {
                 case View.Cockpit:
-                    // Simple cockpit (owner 2026-10-01): the eye at the canopy, looking along the nose a few degrees down,
-                    // rolling with the aircraft — the cowl, wings and prop in view, the instruments as a panel below.
-                    transform.position = t.TransformPoint(PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f);
-                    transform.rotation = t.rotation * Quaternion.Euler(CockpitLookDownDeg, 0f, 0f);
+                    // Cockpit (owner 2026-10-01; per-seat view point and look-around 2026-10-31): the eye at the
+                    // seat's own authored view point, looking along the nose a few degrees down, rolling with the
+                    // aircraft — the cowl, wings and prop in view, the instruments as a panel below. The pilot's
+                    // head turns on top of that (CockpitView: a hat, buttons or goggles).
+                    if (Cockpit == null) Cockpit = Driver != null ? Driver.GetComponent<CockpitView>() : null;
+                    Vector3 eye = Cockpit != null ? Cockpit.EyeLocal : PilotEgress.CockpitLocal(Driver) + Vector3.up * 0.1f;
+                    // Unity's Euler is (pitch, yaw, roll) and a look UP is a NEGATIVE pitch, hence the sign.
+                    float lookYaw = Cockpit != null ? (float)Cockpit.Look.YawDeg : 0f;
+                    float lookPitch = Cockpit != null ? (float)Cockpit.Look.PitchDeg : 0f;
+                    transform.position = t.TransformPoint(eye);
+                    transform.rotation = t.rotation * Quaternion.Euler(CockpitLookDownDeg - lookPitch, lookYaw, 0f);
                     break;
                 case View.Tail:
                     transform.position = p - f * d + u * Height;

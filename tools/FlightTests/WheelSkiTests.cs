@@ -15,6 +15,9 @@ namespace FlyingGame.FlightTests;
 /// the wheel protrudes through and nothing changes. Both halves are checked here, and the glacier landing
 /// is flown rather than asserted.
 /// </summary>
+// Mutates the global FloatHydro.FlatWaterOverride, so it must not run in parallel with another class that
+// does: one class's finally clears the water out from under another class's seaplane mid-flight.
+[Collection("WorldTerrainActive")]
 public class WheelSkiTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

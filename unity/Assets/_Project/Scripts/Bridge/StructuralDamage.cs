@@ -5,10 +5,11 @@ using UnityEngine;
 namespace FlyingGame.Bridge
 {
     /// <summary>
-    /// Bridge for the sim's REAL structural g limits (owner request 2026-09-08). The physics lives in
-    /// FlyingGame.Sim.Aircraft.Structure: limit load = AircraftConfig.Limits.GMax / GMin, ultimate = 1.5 × limit
-    /// (FAR 23/25). Over the limit the airframe groans/creaks (Severity 0..1 = how far from limit toward
-    /// ultimate); over ultimate for a short dwell the WINGS BREAK OFF — the sim drops the wing surfaces and
+    /// Bridge for the sim's REAL structural g limits (owner request 2026-09-08, thresholds revised 2026-10-31). The
+    /// physics lives in FlyingGame.Sim.Aircraft.Structure. THREE thresholds: the rated LIMIT load
+    /// (AircraftConfig.Limits.GMax / GMin), which the syllabus grades against and which makes no noise; the GROAN
+    /// threshold at 1.5 × limit, where the airframe starts to creak and pop (Severity 0..1 = how far from groan
+    /// toward ultimate); and ULTIMATE at 2.0 × limit, where for a short dwell the WINGS BREAK OFF — the sim drops the wing surfaces and
     /// keeps flying fuselage/tail/engine, so elevator, rudder and throttle still work as it drops.
     ///
     /// This component polls that state every frame, raises Groan / WingsFailed for the other systems
@@ -19,8 +20,10 @@ namespace FlyingGame.Bridge
     [RequireComponent(typeof(FlightSimDriver))]
     public sealed class StructuralDamage : MonoBehaviour
     {
-        /// <summary>Raised every frame while over the LIMIT load: severity 0 (at limit) .. 1 (at ultimate).</summary>
+        /// <summary>Raised every frame while past the GROAN threshold: severity 0 (there) .. 1 (at ultimate).</summary>
         public event Action<float> Groan;
+        /// <summary>Raised once per structural pop, with the severity at that moment.</summary>
+        public event Action<float> Pop;
         /// <summary>Raised once when the ULTIMATE load is exceeded and the wings separate.</summary>
         public event Action WingsFailed;
 
@@ -28,7 +31,11 @@ namespace FlyingGame.Bridge
         public float Severity { get; private set; }     // 0 when under limit
         public float LoadFactorG { get; private set; }  // current n_z (g)
         public float LimitG { get; private set; }
+        /// <summary>Where the complaining starts: 1.5 x the limit.</summary>
+        public float GroanG { get; private set; }
         public float UltimateG { get; private set; }
+        /// <summary>Pops heard so far, mirrored from the sim so a changed count means a new pop.</summary>
+        public int Pops { get; private set; }
 
         private FlightSimDriver _driver;
         private FlightAudio _audio;
@@ -136,7 +143,9 @@ namespace FlyingGame.Bridge
             if (_watched == null) return;
             StructuralState st = _watched.Structure;
             LimitG = (float)st.LimitPosG;
+            GroanG = (float)st.GroanPosG;
             UltimateG = (float)st.UltimatePosG;
+            Pops = st.Pops;
         }
 
         private void Update()
@@ -153,6 +162,7 @@ namespace FlyingGame.Bridge
             // Report the limit on the side currently being loaded (positive by default).
             bool negative = ac.LoadFactorZ < 0.0;
             LimitG = (float)(negative ? st.LimitNegG : st.LimitPosG);
+            GroanG = (float)(negative ? st.GroanNegG : st.GroanPosG);
             UltimateG = (float)(negative ? st.UltimateNegG : st.UltimatePosG);
             Severity = (float)st.OverLimitSeverity;
 
@@ -162,6 +172,16 @@ namespace FlyingGame.Bridge
                 if (_audio == null) _audio = GetComponent<FlightAudio>();
                 if (_audio != null) _audio.StructuralGroan(Severity);
             }
+
+            // One sound per pop the sim counted, however many frames it took to get here. Capped so a pathological
+            // frame cannot fire a hundred voices at once.
+            if (!WingsGone && st.Pops != Pops)
+            {
+                int owed = Mathf.Clamp(st.Pops - Pops, 0, 3);
+                if (_audio == null) _audio = GetComponent<FlightAudio>();
+                for (int i = 0; i < owed; i++) { Pop?.Invoke(Severity); if (_audio != null) _audio.StructuralPop(Severity); }
+            }
+            Pops = st.Pops;
 
             if (st.WingsFailed && !WingsGone)
             {

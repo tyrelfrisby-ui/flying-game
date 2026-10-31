@@ -74,6 +74,50 @@ namespace FlyingGame.Bridge
         public static string LiveryOverride =
             System.Environment.GetEnvironmentVariable("AERO_LIVERY") is string lv && lv.Length > 0 ? lv : null;
 
+        // ---- LOADING (owner 2026-10-31: "a configuration on the launch page for loading the airplane with fuel bags
+        // and people then model the resulting weight and cg while they fly") ----
+        //
+        // Kept per aircraft type in PlayerPrefs, like the livery, keyed by the station's own id so adding a station
+        // later cannot shuffle anyone's saved loadout. A station that has never been set is left at its authored
+        // reference mass, which is the loading the aeroplane was tuned at.
+
+        private static string LoadKey(string aircraftId, string stationId) => $"load.{aircraftId}.{stationId}";
+
+        /// <summary>What the pilot last put in this station, or null if he never has.</summary>
+        public static double? SavedLoadKg(string aircraftId, string stationId)
+        {
+            string k = LoadKey(aircraftId, stationId);
+            return PlayerPrefs.HasKey(k) ? PlayerPrefs.GetFloat(k) : (double?)null;
+        }
+
+        public static void SetLoadKg(string aircraftId, string stationId, double kg)
+        {
+            PlayerPrefs.SetFloat(LoadKey(aircraftId, stationId), (float)kg);
+            PlayerPrefs.Save();
+        }
+
+        /// <summary>Forget the loadout for this type: every station back to its authored reference.</summary>
+        public static void ForgetLoad(string aircraftId, FlyingGame.Core.AircraftLoad load)
+        {
+            foreach (var slot in load.Slots) PlayerPrefs.DeleteKey(LoadKey(aircraftId, slot.Id));
+            PlayerPrefs.Save();
+            load.Reset();
+        }
+
+        /// <summary>Put the saved loadout into a freshly built aeroplane and make its mass properties follow. Every
+        /// spawn goes through here (FlightSimDriver.Sim's setter), so the loading page and the aeroplane never
+        /// disagree.</summary>
+        public static void ApplyLoadTo(string aircraftId, FlyingGame.Sim.Aircraft aircraft)
+        {
+            if (aircraft == null) return;
+            foreach (var slot in aircraft.Load.Slots)
+            {
+                double? saved = SavedLoadKg(aircraftId, slot.Id);
+                if (saved.HasValue) aircraft.Load.Set(slot.Id, saved.Value);
+            }
+            aircraft.ApplyLoad();
+        }
+
         /// <summary>The livery picker's choices (owner 2026-10-28), per type, as saved in PlayerPrefs: read once per type.</summary>
         private static readonly System.Collections.Generic.Dictionary<string, string> _liveryChoice = new();
 

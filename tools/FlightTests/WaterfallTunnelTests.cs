@@ -12,6 +12,10 @@ namespace FlyingGame.FlightTests;
 /// the aeroplane it was sized for, a height field that has ONE answer at every junction, and — the thing that
 /// made the tunnel possible at all — no phantom water inside rock that sits under a river.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class WaterfallTunnelTests : IDisposable
 {
     /// <summary>Put the world back as it was: these tests set the active terrain and fill the solids list, and

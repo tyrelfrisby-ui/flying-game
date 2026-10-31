@@ -9,6 +9,10 @@ namespace FlyingGame.FlightTests;
 /// that it is flat where it should be, sloped where it should be, has something at the end that makes it
 /// one-way, and is close enough to the next one to go and look. All measured here.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class FrankChurchTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

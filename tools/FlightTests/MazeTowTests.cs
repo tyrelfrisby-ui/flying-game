@@ -14,6 +14,10 @@ namespace FlyingGame.FlightTests;
 /// looks right in the code and puts a wing into the rock at the first bend, so these tests fly it with the
 /// real flight model and measure the clearance — which is the only way to know without a device.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class MazeTowTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

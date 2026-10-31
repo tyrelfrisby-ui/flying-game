@@ -13,8 +13,10 @@ namespace FlyingGame.Sim;
 /// <summary>
 /// Airframe structural state — REAL g limits (owner request 2026-09-08). Limit loads come from
 /// AircraftConfig.Limits (GMax/GMin, the FAR 23/25 limit load factors); ultimate = limit ×
-/// Limits.UltimateFactor (1.5). Between limit and ultimate the structure yields and groans
-/// (<see cref="OverLimitSeverity"/> 0..1); past ultimate for a short continuous dwell the WINGS SEPARATE
+/// Limits.GroanFactor (1.5) and Limits.UltimateFactor (2.0). Three thresholds, not two: inside the LIMIT
+/// the structure is rated and silent; past the limit it is an exceedance the syllabus grades but the
+/// airframe still says nothing; past the GROAN threshold it creaks and pops (<see cref="OverLimitSeverity"/>
+/// 0..1, <see cref="Pops"/>); past ULTIMATE for a short continuous dwell the WINGS SEPARATE
 /// (<see cref="WingsFailed"/>) — the sim then flies the fuselage, tail, gear and engine without them.
 /// Per-instance state only: a fresh Aircraft (ResetFlight) is intact.
 /// </summary>
@@ -24,13 +26,64 @@ public sealed class StructuralState
     /// single 5 ms RK4 spike or a gust tick, short enough that a real overstress snaps them.</summary>
     public const double FailureDwellSec = 0.05;
 
+    /// <summary>The rated LIMIT load factors: what the structure carries without permanent deformation. Exceeding
+    /// these is an exceedance for scoring (Standards.GLimit) even though nothing is heard yet.</summary>
     public double LimitPosG { get; }
     public double LimitNegG { get; }
+
+    /// <summary>Where the airframe starts to complain: limit × Limits.GroanFactor. Nothing is audible inside this.</summary>
+    public double GroanPosG { get; }
+    public double GroanNegG { get; }
+
+    /// <summary>Where the wings come off: limit × Limits.UltimateFactor.</summary>
     public double UltimatePosG { get; }
     public double UltimateNegG { get; }
 
-    /// <summary>0 under the limit load; ramps to 1 at the ultimate load (by sign of n). Drives the groan.</summary>
+    /// <summary>0 at the GROAN threshold, ramping to 1 at ultimate (by sign of n). Drives the groan's loudness and
+    /// the pop rate. Zero everywhere below the groan threshold, including between limit and groan.</summary>
     public double OverLimitSeverity { get; internal set; }
+
+    /// <summary>How many times the structure has POPPED — a rivet letting go, a spar creaking over. Monotonic while
+    /// the airframe is intact; the bridge plays one sound per increment. The sim decides WHEN (deterministically, so
+    /// a test can count them); the bridge varies the timbre, so nothing random lives in the physics.</summary>
+    public int Pops { get; internal set; }
+
+    /// <summary>Raised once per pop, with the severity at that moment (0..1).</summary>
+    public event Action<double>? OnPop;
+
+    /// <summary>Pops per second at a given severity: a slow tick just past the groan threshold rising to a rattle at
+    /// ultimate. Deliberately audible as separate events rather than a texture.</summary>
+    public static double PopsPerSec(double severity) =>
+        severity <= 0.0 ? 0.0 : 1.5 + 10.5 * Math.Clamp(severity, 0.0, 1.0);
+
+    private double _popAccum;
+
+    /// <summary>Advance the structural model one step at load factor <paramref name="n"/>. Returns true on the step
+    /// the wings have been past ultimate long enough to let go — the caller does the separating, because dropping the
+    /// wing surfaces and re-deriving the inertia is the Aircraft's business, not this bookkeeping's.</summary>
+    public bool Step(double n, double dt)
+    {
+        if (WingsFailed) { OverLimitSeverity = 0.0; return false; }   // nothing left to groan
+        OverLimitSeverity = SeverityFor(n);
+        AccumulatePops(OverLimitSeverity, dt);
+        bool beyondUltimate = n > UltimatePosG || n < UltimateNegG;
+        OverUltimateDwellSec = beyondUltimate ? OverUltimateDwellSec + dt : 0.0;
+        return OverUltimateDwellSec >= FailureDwellSec;
+    }
+
+    /// <summary>Advance the pop clock. Raises as many pops as the elapsed time earned, so a long slow frame does not
+    /// swallow them.</summary>
+    private void AccumulatePops(double severity, double dt)
+    {
+        if (severity <= 0.0) { _popAccum = 0.0; return; }
+        _popAccum += PopsPerSec(severity) * dt;
+        while (_popAccum >= 1.0)
+        {
+            _popAccum -= 1.0;
+            Pops++;
+            OnPop?.Invoke(severity);
+        }
+    }
 
     /// <summary>Continuous time (s) the load has been beyond ultimate; resets when it comes back inside.</summary>
     public double OverUltimateDwellSec { get; internal set; }
@@ -46,29 +99,37 @@ public sealed class StructuralState
 
     internal StructuralState(LimitsConfig limits)
     {
-        double factor = limits.UltimateFactor > 1.0 ? limits.UltimateFactor : 1.5;
+        double ultimate = limits.UltimateFactor > 1.0 ? limits.UltimateFactor : 2.0;
+        double groan = limits.GroanFactor > 1.0 ? limits.GroanFactor : 1.5;
+        if (groan >= ultimate) groan = 1.0 + (ultimate - 1.0) * 0.5;   // a config that inverts them still gets a band
         LimitPosG = limits.GMax > 0.0 ? limits.GMax : 10.0;
         LimitNegG = limits.GMin < 0.0 ? limits.GMin : -10.0;
-        UltimatePosG = LimitPosG * factor;
-        UltimateNegG = LimitNegG * factor;
+        GroanPosG = LimitPosG * groan;
+        GroanNegG = LimitNegG * groan;
+        UltimatePosG = LimitPosG * ultimate;
+        UltimateNegG = LimitNegG * ultimate;
     }
 
-    /// <summary>Severity of load factor n against the limit/ultimate band on its own sign: 0 inside the
-    /// limit envelope, 1 at (or beyond) ultimate.</summary>
+    /// <summary>Severity of load factor n against the groan/ultimate band on its own sign: 0 anywhere below the groan
+    /// threshold (the limit included), 1 at or beyond ultimate.</summary>
     public double SeverityFor(double n)
     {
-        if (n > LimitPosG)
+        if (n > GroanPosG)
         {
-            return Math.Clamp((n - LimitPosG) / (UltimatePosG - LimitPosG), 0.0, 1.0);
+            return Math.Clamp((n - GroanPosG) / (UltimatePosG - GroanPosG), 0.0, 1.0);
         }
 
-        if (n < LimitNegG)
+        if (n < GroanNegG)
         {
-            return Math.Clamp((LimitNegG - n) / (LimitNegG - UltimateNegG), 0.0, 1.0);
+            return Math.Clamp((GroanNegG - n) / (GroanNegG - UltimateNegG), 0.0, 1.0);
         }
 
         return 0.0;
     }
+
+    /// <summary>True when the load factor is past the rated limit — an exceedance for scoring, whether or not the
+    /// airframe has started to complain yet.</summary>
+    public bool OverLimit(double n) => n > LimitPosG || n < LimitNegG;
 
     internal void RaiseFailed() => OnWingsFailed?.Invoke();
 }
@@ -186,12 +247,10 @@ public sealed class Aircraft
     public Aircraft(AircraftConfig config, RigidBodyState initialState, ControlDeflections? initialDeflections = null)
     {
         Config = config;
-        MassProperties = new MassProperties(
-            config.Mass.MassKg,
-            config.Mass.Inertia.Ixx,
-            config.Mass.Inertia.Iyy,
-            config.Mass.Inertia.Izz,
-            config.Mass.Inertia.Ixz);
+        Load = new AircraftLoad(config);
+        // At the reference loading — and for every aeroplane with no loading block at all — this is exactly the
+        // authored MassConfig, so nothing that is already tuned moves. See AircraftLoad.
+        MassProperties = Load.Properties;
         State = initialState;
         _airfoilTables = BuildAirfoilTables(config);
         _contacts = AirframeContact.BuildPoints(config);
@@ -231,6 +290,37 @@ public sealed class Aircraft
 
     /// <summary>Commanded power 0..1 (0 for gliders).</summary>
     public double Throttle01 => _throttle01;
+
+    /// <summary>What is in the aeroplane: people, fuel, baggage. The loading page sets it before flight; in flight
+    /// only the fuel changes, and the mass, CG and inertia follow it every step.</summary>
+    public AircraftLoad Load { get; }
+
+    /// <summary>Once anything has broken off or the wings have gone, DAMAGE owns the mass tensor — it scales the mass
+    /// and cuts the inertia — and the loading stops re-deriving it, or the next step would quietly put the wings'
+    /// inertia back. Fuel still drains; it just no longer moves the CG of an aeroplane that is coming apart.</summary>
+    private bool _massOwnedByDamage;
+
+    /// <summary>Re-derive the mass properties from <see cref="Load"/>. The loading page calls this after an edit.
+    /// Ignored once damage owns the tensor.</summary>
+    public void ApplyLoad()
+    {
+        if (!_massOwnedByDamage) MassProperties = Load.Properties;
+    }
+
+    /// <summary>Fuel mass burned per second at the current throttle. Shaft power is MaxPowerW x throttle
+    /// (PropModel), so this is BSFC x that. For a JET (propDiameterM &lt;= 0) MaxPowerW is thrust in newtons, so the
+    /// same coefficient reads as a thrust-specific consumption in kg per newton-second — a turbine wants its own
+    /// number authored, the default is a piston's.</summary>
+    public double FuelFlowKgPerSec
+    {
+        get
+        {
+            if (Config.Propulsion is null || Load.FuelCapacityKg <= 0.0) return 0.0;
+            double bsfc = Config.Propulsion.BsfcKgPerWs;
+            if (bsfc <= 0.0) return 0.0;
+            return Config.Propulsion.MaxPowerW * Math.Clamp(_throttle01, 0.0, 1.0) * bsfc;
+        }
+    }
 
     /// <summary>
     /// Body-z load factor in g from the NON-gravitational forces (aero + thrust + gear + hydro + rope)
@@ -355,6 +445,8 @@ public sealed class Aircraft
     /// </summary>
     public void LoseComponent(AirframeComponent comp)
     {
+        // From here the mass tensor is damage's: the loading model must stop re-deriving it (see ApplyLoad).
+        _massOwnedByDamage = true;
         if (!_lost.Add(comp)) return;
         int total = 0; foreach (SurfaceConfig sf in Config.Surfaces) total += sf.Strips.Count;
         _stripMask ??= Enumerable.Repeat(true, total).ToArray();
@@ -477,6 +569,7 @@ public sealed class Aircraft
             MassProperties.Izz * 0.60,   // wing span contributes ~40 % of yaw inertia
             MassProperties.Ixz * 0.50);
 
+        _massOwnedByDamage = true;
         Structure.WingsFailed = true;
         Structure.OverLimitSeverity = 0.0;
         Structure.OverUltimateDwellSec = 0.0;
@@ -487,20 +580,17 @@ public sealed class Aircraft
     /// <summary>Per-step structural bookkeeping from the load factor of the step just integrated.</summary>
     private void UpdateStructure(double dt)
     {
-        if (Structure.WingsFailed)
-        {
-            Structure.OverLimitSeverity = 0.0; // nothing left to groan
-            return;
-        }
+        if (Structure.Step(LoadFactorZ, dt)) FailWings();
+    }
 
-        double n = LoadFactorZ;
-        Structure.OverLimitSeverity = Structure.SeverityFor(n);
-        bool beyondUltimate = n > Structure.UltimatePosG || n < Structure.UltimateNegG;
-        Structure.OverUltimateDwellSec = beyondUltimate ? Structure.OverUltimateDwellSec + dt : 0.0;
-        if (Structure.OverUltimateDwellSec >= StructuralState.FailureDwellSec)
-        {
-            FailWings();
-        }
+    /// <summary>Burn the fuel this step used and let the mass, CG and inertia follow it. An aeroplane with no tanks
+    /// authored burns nothing and this does nothing at all.</summary>
+    private void UpdateLoad(double dt)
+    {
+        double flow = FuelFlowKgPerSec;
+        if (flow <= 0.0) return;
+        double drawn = Load.BurnFuel(flow * dt);
+        if (drawn > 0.0) ApplyLoad();
     }
 
     /// <summary>Advances the aircraft by one fixed timestep: shapes stick input into deflection targets (dead zone/expo/max travel), slews actuators toward them, then integrates the rigid body via RK4.</summary>
@@ -867,6 +957,7 @@ public sealed class Aircraft
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
+        UpdateLoad(dt);
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
         Damage.Update(dt);

@@ -133,6 +133,8 @@ namespace FlyingGame.Bridge
             y += _lh * 0.8f;
         }
 
+        private CockpitView _cockpitView;
+
         private bool Check(string name, bool v, ref float y)
         {
             bool hit = false;
@@ -312,6 +314,21 @@ namespace FlyingGame.Bridge
             y += _lh + _gap * 0.4f;
             // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
             if (Check("Intercom: talk and hear yourself (headphones)", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
+            // LOOKING AROUND (owner 2026-10-31). The hat on a stick and the pad on glass need no option; these two do.
+            {
+                _cockpitView ??= Object.FindFirstObjectByType<CockpitView>();
+                if (_cockpitView != null)
+                {
+                    if (CockpitView.DeviceAttitudeAvailable)
+                    {
+                        if (Check("Goggles: look around by moving the device (cockpit view)", _cockpitView.Goggles, ref y))
+                            _cockpitView.SetGoggles(!_cockpitView.Goggles);
+                    }
+                    if (!_cockpitView.Goggles &&
+                        Check("Look snaps back to straight ahead when you let go", _cockpitView.Look.SpringCentre, ref y))
+                        _cockpitView.SetSpringCentre(!_cockpitView.Look.SpringCentre);
+                }
+            }
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Radio frequency", _label);
             int nf = VoiceComms.Frequencies.Length;
             float bw = (_cw * 0.6f - (nf - 1) * _gap * 0.4f) / nf, bx = _x + _cw * 0.4f;

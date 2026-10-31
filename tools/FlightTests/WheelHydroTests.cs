@@ -14,6 +14,9 @@ namespace FlyingGame.FlightTests;
 /// The numbers are checked against the documented hydroplaning speed, and the flip is FLOWN rather than
 /// asserted — it has to come out of the moment arm, not out of a special case.
 /// </summary>
+// Mutates the global FloatHydro.FlatWaterOverride, so it must not run in parallel with another class that
+// does: one class's finally clears the water out from under another class's seaplane mid-flight.
+[Collection("WorldTerrainActive")]
 public class WheelHydroTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

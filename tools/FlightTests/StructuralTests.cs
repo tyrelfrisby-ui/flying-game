@@ -45,26 +45,33 @@ public class StructuralTests
     }
 
     [Fact]
-    public void LimitsComeFromConfigWithUltimateAtOnePointFive()
+    public void LimitsComeFromConfigWithGroanAtOnePointFiveAndUltimateAtTwo()
     {
         var (ac, _) = Spawn(Load("glider-2-33-like"), 30, 0);
-        // SGS 2-33 flight manual: limit load factors +4.67 / -2.33 g (utility category).
+        // SGS 2-33 flight manual: limit load factors +4.67 / -2.33 g (utility category). Owner 2026-10-31: the
+        // airframe is quiet to 1.5 x limit and the wings hold to 2.0 x limit, which is deliberately more forgiving
+        // than the FAR 23 certification basis of 1.5 x limit for ultimate.
         Assert.Equal(4.67, ac.Structure.LimitPosG, 6);
         Assert.Equal(-2.33, ac.Structure.LimitNegG, 6);
-        Assert.Equal(4.67 * 1.5, ac.Structure.UltimatePosG, 6);
-        Assert.Equal(-2.33 * 1.5, ac.Structure.UltimateNegG, 6);
+        Assert.Equal(4.67 * 1.5, ac.Structure.GroanPosG, 6);
+        Assert.Equal(-2.33 * 1.5, ac.Structure.GroanNegG, 6);
+        Assert.Equal(4.67 * 2.0, ac.Structure.UltimatePosG, 6);
+        Assert.Equal(-2.33 * 2.0, ac.Structure.UltimateNegG, 6);
         Assert.Equal(0.0, ac.Structure.SeverityFor(1.0));
-        Assert.Equal(0.0, ac.Structure.SeverityFor(4.67));
-        Assert.InRange(ac.Structure.SeverityFor(4.67 * 1.25), 0.49, 0.51);   // halfway limit→ultimate
-        Assert.Equal(1.0, ac.Structure.SeverityFor(9.0));
-        Assert.InRange(ac.Structure.SeverityFor(-2.33 * 1.25), 0.49, 0.51);  // negative side, by sign
+        Assert.Equal(0.0, ac.Structure.SeverityFor(4.67));           // at the limit: an exceedance, but silent
+        Assert.Equal(0.0, ac.Structure.SeverityFor(4.67 * 1.4));     // still inside the quiet band
+        Assert.True(ac.Structure.OverLimit(4.67 * 1.4));             // and still an exceedance for scoring
+        Assert.InRange(ac.Structure.SeverityFor(4.67 * 1.75), 0.49, 0.51);   // halfway groan→ultimate
+        Assert.Equal(1.0, ac.Structure.SeverityFor(4.67 * 2.0));
+        Assert.InRange(ac.Structure.SeverityFor(-2.33 * 1.75), 0.49, 0.51);  // negative side, by sign
     }
 
     [Fact]
-    public void PullBetweenLimitAndUltimateGroansButWingsHold()
+    public void PullPastTheLimitHoldsAndIsSilentUntilTheGroanThreshold()
     {
-        // (a) 2-33 in a shallow dive at 45 m/s, half aft stick: peaks just over the 4.7 g limit, well
-        // under the 7.05 g ultimate — the structure groans and holds.
+        // (a) 2-33 in a shallow dive at 45 m/s, half aft stick: peaks just over the 4.7 g limit, far under the
+        // 9.34 g ultimate — the structure holds. Whether it is AUDIBLE now depends on whether the peak reached
+        // 1.5 x limit (7.0 g), which this pull does not, so the assertion is on the band rather than on noise.
         var (ac, sim) = Spawn(Load("glider-2-33-like"), 45, -0.3);
         var pull = new ControlInputs(0, -0.5, 0, 0);
         double maxN = 0, maxSev = 0;
@@ -75,22 +82,28 @@ public class StructuralTests
             maxSev = Math.Max(maxSev, ac.Structure.OverLimitSeverity);
             Assert.False(ac.Structure.WingsFailed, $"Wings failed at n={ac.LoadFactorZ:F2} (ultimate {ac.Structure.UltimatePosG:F2}).");
         }
-        _out.WriteLine($"peak n={maxN:F2}, peak severity={maxSev:F2}");
-        Assert.True(maxN > ac.Structure.LimitPosG && maxN < ac.Structure.UltimatePosG, $"Pull must land between limit and ultimate; peak n={maxN:F2}.");
-        Assert.True(maxSev > 0.0 && maxSev < 1.0, $"Severity must be in (0,1); got {maxSev:F2}.");
+        _out.WriteLine($"peak n={maxN:F2}, peak severity={maxSev:F2}, groan at {ac.Structure.GroanPosG:F2}, ultimate {ac.Structure.UltimatePosG:F2}");
+        Assert.True(maxN > ac.Structure.LimitPosG, $"Pull must exceed the limit; peak n={maxN:F2}.");
+        Assert.True(maxN < ac.Structure.UltimatePosG, $"Pull must stay under ultimate; peak n={maxN:F2}.");
+        Assert.True(ac.Structure.OverLimit(maxN), "a peak past the limit must read as an exceedance");
+        // Audible only past the groan threshold, and never saturated below ultimate.
+        Assert.Equal(maxN > ac.Structure.GroanPosG, maxSev > 0.0);
+        Assert.True(maxSev < 1.0, $"Severity must stay under 1 below ultimate; got {maxSev:F2}.");
         Assert.Equal(ac.Config.Mass.MassKg, ac.MassProperties.MassKg);
     }
 
     [Fact]
     public void SustainedPullPastUltimateFailsTheWings()
     {
-        // (b) Extra 300 diving at 130 m/s (253 kt, past its 220-kt Vne), full aft stick: n runs past 15 g and the wings let go.
-        var (ac, sim) = Spawn(Load("extra-300-like"), 130, -0.5);
+        // (b) Extra 300 in a steep dive, full aft stick: n runs past its ULTIMATE and the wings let go. Owner
+        // 2026-10-31 moved ultimate from 1.5 x limit to 2.0 x limit, so the old 130 m/s dive — which peaked at
+        // 17.96 g against a 20 g ultimate — now correctly holds, and the dive has to be harder to break it.
+        var (ac, sim) = Spawn(Load("extra-300-like"), 165, -0.6);
         int fired = 0;
         ac.Structure.OnWingsFailed += () => fired++;
         var pull = new ControlInputs(0, -1.0, 0, -1.0);
         double maxN = 0;
-        for (int i = 0; i < 40 && !ac.Structure.WingsFailed; i++)
+        for (int i = 0; i < 80 && !ac.Structure.WingsFailed; i++)
         {
             sim.RunFor(0.025, pull);
             maxN = Math.Max(maxN, ac.LoadFactorZ);

@@ -10,6 +10,11 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Super Cub on EDO 2000 floats and the DHC-2 Beaver on EDO 4930s: floats at rest at a sane draft, takes off from the water
 /// under full power, and lands on the water without drama.</summary>
+// Mutates the global FloatHydro.FlatWaterOverride, so it must not run in parallel with another class that
+// does. Seven classes set that one static; when one class's finally clears it while this one is mid-flight,
+// the seaplane loses its water and goes NaN at rest. The real fix is for the hydrodynamics not to read a
+// static test hook at all, which is a production API change and its own piece of work.
+[Collection("WorldTerrainActive")]
 public class FloatTests
 {
     private readonly ITestOutputHelper _out;

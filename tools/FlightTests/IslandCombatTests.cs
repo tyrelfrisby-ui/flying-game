@@ -15,8 +15,14 @@ namespace FlyingGame.FlightTests;
 /// He was right that there was a second aeroplane; there were fifteen. These hold each fix in place.
 /// </summary>
 [Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
-public sealed class IslandCombatTests
+public sealed class IslandCombatTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private static AircraftConfig Load(string id) =>
         AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 

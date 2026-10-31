@@ -86,6 +86,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<GroundShadow>();   // airframe silhouette projected onto the ground (height cue on landing)
             root.AddComponent<StructuralDamage>();
             root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
+            root.AddComponent<CockpitView>().Driver = driver;        // which seat, and where the pilot is looking
             root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<WakeWaves>().Driver = driver;     // the wake on the water: V from each float/hull, 5 min, reflects off the shore
@@ -147,6 +148,7 @@ namespace FlyingGame.Bridge
             hud.Dust = aircraft.GetComponent<CropDustController>();
             hud.Tow = aircraft.GetComponent<TowController>();
             hud.Combat = aircraft.GetComponent<CombatController>();
+            chase.Cockpit = aircraft.GetComponent<CockpitView>();   // `cam` is Unity's Camera; the ChaseCamera is `chase`
             cam.gameObject.AddComponent<TracerOverlay>().Combat = aircraft.GetComponent<CombatController>();
             var reflection = cam.gameObject.AddComponent<WaterReflection>();   // glassy water: aircraft mirrored in the lake
             reflection.Driver = aircraft.GetComponent<FlightSimDriver>();

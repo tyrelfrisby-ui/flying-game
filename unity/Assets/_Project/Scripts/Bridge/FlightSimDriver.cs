@@ -22,7 +22,20 @@ namespace FlyingGame.Bridge
         /// stick shaping — the pitch-trim slider is preset to this so the aircraft holds level hands-off.</summary>
         public double TrimStick { get; set; }
 
-        public SimLoop Sim { get; private set; }
+        private SimLoop _sim;
+
+        /// <summary>The flying aeroplane. Assigning it applies the pilot's saved loadout, so every path that builds or
+        /// adopts an aeroplane — Spawn's six branches, ResetFlight, a challenge's AdoptSim — gets the weight and
+        /// balance he set on the launch page without each of them having to remember.</summary>
+        public SimLoop Sim
+        {
+            get => _sim;
+            private set
+            {
+                _sim = value;
+                if (_sim?.Aircraft != null) SessionSettings.ApplyLoadTo(AircraftId, _sim.Aircraft);
+            }
+        }
 
         /// <summary>Optional constraint applied after each frame's sim steps (wing runner).</summary>
         public System.Action<Aircraft> PostStep;

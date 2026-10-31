@@ -3,13 +3,13 @@ using System.Threading;
 
 namespace FlyingGame.Bridge
 {
-    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, BulletHit, Explosion, Count }
+    internal enum FxKind { WingFailure = 0, CanopyJettison, EjectionSeat, ChuteDeploy, ChuteInflate, PylonBurst, BodyThud, Grunt, Wince, Crash, TireChirp, BulletHit, Explosion, StructurePop, Count }
 
     internal static class FxSource
     {
         /// <summary>Sounds made AT THE AIRCRAFT (attenuated and delayed by distance once the pilot has left it); the
         /// rest happen at the listener (the pilot / seat / canopy).</summary>
-        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp;   // BulletHit/Explosion: at the target, mixed at listener level
+        public static bool AtAircraft(FxKind k) => k is FxKind.WingFailure or FxKind.PylonBurst or FxKind.Crash or FxKind.TireChirp or FxKind.StructurePop;   // BulletHit/Explosion: at the target, mixed at listener level
     }
 
     /// <summary>
@@ -66,6 +66,18 @@ namespace FlyingGame.Bridge
             _bpA.Reset(); _bpB.Reset(); _hp.Reset(); _lp.Reset();
             switch (kind)
             {
+                case FxKind.StructurePop:
+                    // One rivet or spar fitting letting go under load (owner 2026-10-31: "pop and groan"). Very
+                    // short and METALLIC, nothing woody about it: a 1 ms tick, then a thin ring that dies in about
+                    // a tenth of a second. The ring pitch rises with severity so the airframe sounds more frantic
+                    // the harder it is being pulled, and the whole thing has to cut through the groan under it.
+                    _len = 0.13f;
+                    _hp.HighPass(_fs, 3400f, 0.7f);                        // the tick
+                    _bpA.BandPass(_fs, 1500f + 900f * _level, 14f);        // the ring: high Q, so it sings
+                    _bpB.BandPass(_fs, 2600f + 1400f * _level, 9f);        // a second mode, slightly detuned
+                    _lp.SetCutoff(420f, _fs);                              // a touch of body so it is not just fizz
+                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.001f, _fs);
+                    break;
                 case FxKind.WingFailure:
                     // One clean SNAP, like a thick branch breaking (owner 2026-10-01): a 3 ms crack, two or three
                     // splinter clicks inside the first 25 ms, a short woody knock and a dull thock under it. ~0.35 s.
@@ -183,6 +195,7 @@ namespace FlyingGame.Bridge
             float t = T;
             switch (Kind)
             {
+                case FxKind.StructurePop:
                 case FxKind.WingFailure:
                     _gAT = _gBT = _gCT = 1f;   // the burst / splinter envelopes shape the snap
                     break;
@@ -263,6 +276,16 @@ namespace FlyingGame.Bridge
             float outp = 0f;
             switch (Kind)
             {
+                case FxKind.StructurePop:
+                {
+                    _burst *= _burstDec;
+                    float exc = n * _burst;
+                    float tick = _hp.Process(exc) * 2.2f;
+                    float ring = _bpA.Process(exc) * 9f + _bpB.Process(exc) * 5f;
+                    float body = _lp.Process(exc) * 2f;
+                    outp = Dsp.SoftClip((tick + ring + body) * (0.5f + 0.7f * _level));
+                    break;
+                }
                 case FxKind.WingFailure:
                 {
                     _burst *= _burstDec;

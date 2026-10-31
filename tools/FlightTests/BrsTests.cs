@@ -20,6 +20,10 @@ namespace FlyingGame.FlightTests;
 /// Every number here is checked against the published CAPS figures, and the ATTITUDE is flown rather than
 /// asserted — the aeroplane is thrown in upside down and has to right itself on the pendulum alone.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class BrsTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

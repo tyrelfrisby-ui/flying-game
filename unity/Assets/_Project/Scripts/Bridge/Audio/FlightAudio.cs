@@ -57,6 +57,10 @@ namespace FlyingGame.Bridge
             _groanHold = GroanHoldS;
         }
 
+        /// <summary>One rivet or fitting letting go: a metallic pop over the groan. The sim decides when (so a test
+        /// can count them); the severity only shapes the timbre and level here.</summary>
+        public void StructuralPop(float severity) { AtAircraft(FxKind.StructurePop, Mathf.Clamp01(severity)); }
+
         /// <summary>The wings let go: the hum stops dead and one snap.</summary>
         public void WingFailure() { _groanSeverity = 0f; _groanHold = 0f; AtAircraft(FxKind.WingFailure, 1f); }
         public void CanopyJettison() { _fx?.Trigger(FxKind.CanopyJettison); }

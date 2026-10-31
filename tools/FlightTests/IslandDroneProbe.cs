@@ -13,8 +13,14 @@ namespace FlyingGame.FlightTests;
 /// <summary>Not an assertion — where the legacy COMBAT ZONE box lands on the island, and what the fifteen AI
 /// aeroplanes that orbit it actually do when they are flown there. The player hears their crashes.</summary>
 [Collection("WorldTerrainActive")]   // swaps the global terrain: never in parallel with the legacy-world tests
-public sealed class IslandDroneProbe
+public sealed class IslandDroneProbe : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public IslandDroneProbe(ITestOutputHelper o) { _out = o; }
 

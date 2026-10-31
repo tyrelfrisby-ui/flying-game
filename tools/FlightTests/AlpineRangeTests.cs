@@ -11,6 +11,10 @@ namespace FlyingGame.FlightTests;
 /// room inside a bowl to turn an aeroplane round in — because "circling down and up are the only ways in"
 /// is only true if the circle fits.
 /// </summary>
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
 public class AlpineRangeTests : IDisposable
 {
     private readonly ITestOutputHelper _o;

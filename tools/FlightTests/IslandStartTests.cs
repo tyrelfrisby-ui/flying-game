@@ -22,8 +22,14 @@ namespace FlyingGame.FlightTests;
 /// here. If the spawn path changes shape, change them together.
 /// </summary>
 [Collection("WorldTerrainActive")]
-public sealed class IslandStartTests
+public sealed class IslandStartTests : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public IslandStartTests(ITestOutputHelper o) { _out = o; }
 

@@ -26,8 +26,27 @@ public static class FloatHydro
     public const double WaterDensity = 1000.0;
     public const double WaterKinematicViscosity = 1.0e-6;
 
-    /// <summary>Test hook: water everywhere at this height (m, up). Null = use the world terrain's water.</summary>
-    public static double? FlatWaterOverride { get; set; }
+    /// <summary>
+    /// Test hook: water everywhere at this height (m, up). Null = use the world terrain's water. Production never
+    /// sets this; only tests do.
+    ///
+    /// THREAD-LOCAL deliberately (owner asked 2026-10-31 whether the real fix was being made, and it is this).
+    /// As a plain static it was one value shared by seven test classes, and xUnit runs classes in parallel: each
+    /// class wrapped its work in `finally { FlatWaterOverride = null; }`, so one class finishing cleared the water
+    /// out from under another class's seaplane mid-flight. The hull was left floating on nothing and went NaN at
+    /// rest — eight float and flying-boat tests failing in the suite while every one of them passed alone.
+    ///
+    /// Thread-local, a class cannot see another's override at all, so the collision cannot happen rather than
+    /// merely being scheduled around. It costs nothing anywhere else: production never writes it, so every
+    /// production thread reads the same null it read before, none of the ten call sites change, and the contact
+    /// path — which asks for this at every contact point at every RK4 stage — is untouched.
+    ///
+    /// The alternative was passing a water source through all ten call sites. That is a real API change through the
+    /// hot path for no gameplay benefit, when the only thing actually broken was tests sharing a static.
+    /// </summary>
+    public static double? FlatWaterOverride { get => _flatWaterOverride; set => _flatWaterOverride = value; }
+
+    [ThreadStatic] private static double? _flatWaterOverride;
 
     public static double? WaterSurfaceAt(double x, double y)
     {

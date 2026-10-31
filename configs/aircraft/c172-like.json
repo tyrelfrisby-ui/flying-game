@@ -1568,5 +1568,97 @@
     "gMax": 3.8,
     "gMin": -1.52
   },
-  "verticalBlanketFactor": 0.5
+  "verticalBlanketFactor": 0.5,
+  "loading": {
+    "_comment": "Stations in the body reference frame (+x fwd, +y right, +z DOWN), the same frame as gear[].pos. referenceKg is what mass.massKg already contains, so the reference loading reproduces the authored mass, CG and inertia exactly. No maxGrossMassKg or CG limits authored: this airframe's authored massKg implies an 877 kg empty weight, heavier than the real type's, so a real 1111 kg placard would make ordinary loads illegal. Retuning massKg would move every book speed, so the placards wait for authored W&B rather than being invented here. Eye points are Codex's to author.",
+    "emptyMassKg": 0,
+    "maxGrossMassKg": 0,
+    "cgForwardLimitM": 0,
+    "cgAftLimitM": 0,
+    "seats": [
+      {
+        "id": "pilot",
+        "label": "Pilot",
+        "station": [
+          0.026,
+          -0.28,
+          0.05
+        ],
+        "maxKg": 140,
+        "referenceKg": 86
+      },
+      {
+        "id": "copilot",
+        "label": "Right front",
+        "station": [
+          0.026,
+          0.28,
+          0.05
+        ],
+        "maxKg": 140,
+        "referenceKg": 0
+      },
+      {
+        "id": "rearL",
+        "label": "Rear left",
+        "station": [
+          -0.888,
+          -0.28,
+          0.05
+        ],
+        "maxKg": 140,
+        "referenceKg": 0
+      },
+      {
+        "id": "rearR",
+        "label": "Rear right",
+        "station": [
+          -0.888,
+          0.28,
+          0.05
+        ],
+        "maxKg": 140,
+        "referenceKg": 0
+      }
+    ],
+    "tanks": [
+      {
+        "id": "left",
+        "label": "Left wing",
+        "station": [
+          -0.253,
+          -2.18,
+          -0.55
+        ],
+        "maxKg": 54,
+        "referenceKg": 40,
+        "burnOrder": 0
+      },
+      {
+        "id": "right",
+        "label": "Right wing",
+        "station": [
+          -0.253,
+          2.18,
+          -0.55
+        ],
+        "maxKg": 54,
+        "referenceKg": 40,
+        "burnOrder": 0
+      }
+    ],
+    "baggage": [
+      {
+        "id": "aft",
+        "label": "Baggage",
+        "station": [
+          -1.447,
+          0.0,
+          0.1
+        ],
+        "maxKg": 54,
+        "referenceKg": 0
+      }
+    ]
+  }
 }

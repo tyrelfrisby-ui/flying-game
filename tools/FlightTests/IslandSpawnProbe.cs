@@ -7,8 +7,18 @@ namespace FlyingGame.FlightTests;
 /// <summary>Not an assertion — the table I want in front of me when a start goes wrong on the device: where the
 /// runway choice puts the aeroplane at every airport, against the ground that is actually there, and every runway
 /// and authored start the world holds. <see cref="IslandStartTests"/> is what holds the line.</summary>
-public sealed class IslandSpawnProbe
+// INSTALLS a world into the global WorldTerrain.Active, so it must not run in parallel with anything that
+// steps an aeroplane: LandingGear, AirframeContact and FloatHydro all read the ground and the water through
+// that static, so a class holding a world here silently changes the ground under 29 other test classes.
+[Collection("WorldTerrainActive")]
+public sealed class IslandSpawnProbe : IDisposable
 {
+    /// <summary>xUnit calls this after EVERY test, pass or FAIL. A bare reset at the end of a test method
+    /// does not run when the test throws, so a failing test used to leave its world installed in the global
+    /// WorldTerrain.Active for the whole rest of the run — which silently changed the ground under every
+    /// class that came after it, whether or not it was serialised.</summary>
+    public void Dispose() => WorldTerrain.Active = null;
+
     private readonly ITestOutputHelper _out;
     public IslandSpawnProbe(ITestOutputHelper o) { _out = o; }
 
