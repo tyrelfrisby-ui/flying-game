@@ -110,7 +110,6 @@ public class StallAuthorityTests
                 var node = JsonNode.Parse(File.ReadAllText(file))!;
                 node["controls"]!["elevator"]!["maxDeflRad"] = Math.Round(travel * Math.PI / 180, 4);
                 File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-                File.Copy(file, Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "aircraft", Path.GetFileName(file)), true);
                 c.Controls.Elevator.MaxDeflRad = travel * Math.PI / 180;
                 _o.WriteLine($"CALIBRATED {c.Id}: stabilator travel {travel:F1}°");
             }
@@ -126,7 +125,6 @@ public class StallAuthorityTests
                     var node = JsonNode.Parse(File.ReadAllText(file))!;
                     node["controls"]!["elevator"]!["saturationDeg"] = sat;
                     File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-                    File.Copy(file, Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "aircraft", Path.GetFileName(file)), true);
                     c.Controls.Elevator.SaturationDeg = sat;
                 }
                 else
@@ -157,8 +155,7 @@ public class StallAuthorityTests
                         node = JsonNode.Parse(File.ReadAllText(file))!;
                         node["controls"]!["elevator"]!["saturationDeg"] = Math.Round(hi2, 1);
                         File.WriteAllText(file, node.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
-                        File.Copy(file, Path.Combine(Repo, "unity", "Assets", "StreamingAssets", "aircraft", Path.GetFileName(file)), true);
-                        c = AircraftConfigLoader.LoadFromFile(file);
+                            c = AircraftConfigLoader.LoadFromFile(file);
                         _o.WriteLine($"  {c.Id}: elevator chord x{k:F2} (it was too small to stall the wing)");
                     }
                 }

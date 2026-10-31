@@ -149,6 +149,8 @@
 - **The Extra's cockpit wants a flight on a device (Claude, 2026-10-30).** All 60 rig nodes are bound and measured correct in the editor (worst pivot error 0.1 mm), but nobody has sat in it. Worth checking: (a) the REAR seat is the default view and the eye height feels right — OPTIONS > Display has a seat picker; (b) the sequence card — tap OPTIONS > Display > Card > Choose PDF, pick a sequence off the device or iCloud Drive, step pages, and Default to put the IAC card back; **this is the only part that cannot be tested anywhere but a device**, because the picker and the rasteriser are iOS's (UIDocumentPickerViewController + PDFKit); (c) the canopy — OPTIONS has Shut/Open, it refuses to open above 60 kt and shuts itself if you accelerate with it open; (d) bail out and watch the real canopy leave, and confirm the aeroplane stays canopy-less until the flight is reset.
 - **Four gauges on the Extra's panel have no sim behind them (Claude, 2026-10-30), and you should decide whether that is acceptable.** The sim has no oil, no cylinder heads, no manifold and no fuel quantity, so manifold pressure, oil pressure, oil temperature and CHT are a PRESENTATION model built from throttle, rpm and ambient pressure (`CockpitRigState.FillEngineGauges`, marked (P)), tuned so the needles sit inside the dial markings the model is drawn with. The FUEL gauge reads full always, because an engine that cannot run dry should not have a needle falling toward E. Nothing here reaches the flight model. The alternative is a real engine-systems model in Sim, which is a bigger piece of work and a physics change this lane was told not to make.
 - **Codex: the Extra's ASI prose and its map disagree (Claude, 2026-10-30).** `docs/models/ea300-own-RIG.md` says the ASI needle "rests at 0 below 40", but the map in `ea300-own-rig.json` is 0 kt -> 0 deg, 40 -> 25, 260 -> 335, so the needle lifts off the peg smoothly from a standstill. The DATA is the better behaviour (that is what a real ASI does) and it is what the game now draws; the prose is the loose part. One line in the doc, no rebuild.
+- **Merge order for the four ready lanes (Claude, 2026-10-30): `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`.** `config-mirror` first: it removes the aircraft trap and adds the guard and tests the rest assume. `flow-plates` second: independent (`AirframeFlow` only), and it takes the failure baseline from 4 to 3, leaving just the three Pitts ground-handling tests awaiting your feel-test. Then the two rig lanes, each of which **will conflict on `ConfigSync.cs`** — both rewrote it from the same base. The resolution is fixed: take `config-mirror`'s version, drop the lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written (it clears an editor cache; the generic sync cannot call it because `AirframeRig` does not exist on this base). `sgs233-rig` is last because it branched at `ed2cc7ca`, not `1b67dd5`, so it needs bringing forward.
+- **StreamingAssets is generated now; three pushed/unmerged lanes still carry a hand-committed mirror (Claude, 2026-10-30).** `lane/claude-config-mirror` makes `configs/**` + `docs/CREDITS.md` the only copies in the repo and has the build write the player's. **Ty: two things.** (a) `lane/claude-extra-cockpit` is **already pushed** and adds a fifth mirror class, `StreamingAssets/rigs/` (`docs/models/*-rig.json`, with a filename mapping), committed by hand. Merging it reintroduces the trap unless whoever merges adds a rigs row to ConfigSync's `Mirrors` table (it needs a name-mapping field the struct does not have yet), gitignores `rigs/` + `rigs.meta`, and `git rm -r --cached`es the copy. `lane/claude-sgs233-rig` carries a second rigs file. `StreamingAssetsTests.NothingGeneratedIsCommitted` fails until that is done, by design. (b) `lane/claude-glacier-ski`, `claude-glacier-visuals`, `claude-j3-edo1320`, `claude-regional-atmosphere` and `claude-soft-wings` each carry a mirror copy that will conflict trivially — take the deletion side.
 - **A green test suite is not a build, and it cost us a day's build (Claude, 2026-10-28).** `BiplaneCellule` used `{ get; private init; }`. The .NET 8 suite compiled it and reported 776 passing; Unity's compiler has no `System.Runtime.CompilerServices.IsExternalInit`, so the same file was 30 x CS0518 and the iOS player would not build **at all** from 14:41 to 16:22. Fixed in `141be0b`. **Anyone finishing a change that touches `src/` must run `tools/deploy/deploy.sh` and see `** BUILD SUCCEEDED **`, not just the test suite** -- they are two compilers and two runtimes, and only one of them was being asked.
 - **The Great Lakes needs a look, and three things on it are not sourced (Claude, 2026-10-28).** It is in the fleet picker and flies; see the Log. (a) Its **stall is 10 % low** — Vso 51 mph against the manufacturer's 57 — which is a lift limit, so no drag change moves it; closing it needs a lower cellule CLmax and the wing section is not known for this type. (b) Its **inertias are estimates** scaled off the Pitts and the Extra; there is no mass breakdown. (c) Its **CG height** (0.25 m below the thrust line) is derived — a TCDS gives no vertical CG. Also: the GLB is exported with the gear EXTENDED, so until the oleo rig is animated the drawn wheels hang about 0.23 m below where the physics has the aeroplane standing. **Ty: fly it and say whether it feels right**, and if you have a section or a weight-and-balance sheet for the type, those are the two numbers that would close it.
 - **Pitts ground handling after the rebuild (Claude, 2026-10-28): three tests are red and I do not think they should be forced green.** With the wing quarter-chords corrected, the drawn main wheels sit 0.39 m ahead of the CG (they were 0.23 m), and the vertical tail lost 12 % of its area, so the Pitts is far more ground-loop prone: the scripted pilot swings 91–97° off the runway on the landing roll (`ThreePointAndWheelLandingsAreWorkable` x2, `PittsNeedsQuickFeetTheExtraForgivesRelaxedOnes`). I tried the tailwheel steering spring (15 → 25/40/60) and its cornering stiffness (2200 → 3200/4500); neither moves it, because the cause is geometric, not a tuning value. Two facts say the aeroplane is right and the benchmark is the stale part: TCDS A8SO says the S-2B moved its "wings and landing gear forward 6 inches" against the S-2A, and the scripted pilot is already faster than human on the rudder (no rate limit on its command; the surface slews at 229°/s, neutral to full in 0.13 s, and `Kr = 6` saturates the pedal at a 9.5°/s yaw-rate error — it runs out of authority, not speed). **Ty: fly a few landings and tell me whether it feels like an S-2B or like a bug.** If it is right, `QuickFeet` wants raising for this type; if it feels wrong, the drawn main-wheel station is the thing to question (Codex).
@@ -1044,6 +1046,83 @@ Owner (Ty): "make sure the Great Lakes front seat has airspeed, altitude and g m
 ### 2026-10-29 — Grok Bot executor · lane/codex-greatlakes-cockpit · Great Lakes v13: tandem open cockpits, every instrument and control rigged
 
 Owner (Ty): accurate tandem open cockpits for the cockpit view (panels front and rear, seats, belts, sticks, pedals, throttle / mixture quadrant, trim, fuel valve, mag switch), every instrument a rig node, every control on real pivots with front and rear coupled, the surfaces hinged at the real hinge lines; strict to real 2T-1A photos; no radios / intercoms / headsets; every estimate marked. New `tools/own_models/gl_cockpit.py`, `gl_rig.py`, `gl_dialmaps.py`, `make_gl_dials.py` + `art/gl-dial-*.png`, `art/gl-compass-band.png`; `build_great_lakes.py` execs them (v13). Docs: `docs/models/great-lakes-own-RIG.md`, `great-lakes-own-rig.json`, PROVENANCE v13 (web references cited; the photos stay on the agent box). The same commit carries the uncommitted v12 work (gear STATIC export, aileron stop 21.01 deg, gl_* tools). Signs checked numerically on re-import (stick aft = elevator TE up, stick right = left ailerons down, right pedal forward = rudder TE right, levers forward = +1, trim +1 = knob aft = stab LE down). The G-meter red marks are the TCDS +5.4 / -4.0 g. Not pushed or merged. Follow-ups: see HANDOFF (wiring, stab trim at rest, door / canopy jettison rules).
+
+### 2026-10-30 — StreamingAssets is generated, and a build that would ship the wrong configs now fails (Claude)
+
+Branch `lane/claude-config-mirror`, off `split-surfaces` at `1b67dd5`. The owner asked for this after the Great Lakes
+turned out to have been shipping with no runtime config.
+
+**The bug, properly.** `unity/Assets/StreamingAssets/aircraft/` was gitignored **and** tracked. `git add` on a new
+mirror silently did nothing; only `git add -f` worked. The suite never noticed, because it read the mirror off the
+working copy, which always had it. So a new aircraft reached the player only if someone remembered the `-f`.
+`great-lakes-like.json` was never added: the Great Lakes was in the menu and could not be flown, and
+`GlideTableTests.EveryAircraftPassesTheNewAirplaneProtocol` had been red on clean `split-surfaces` for days saying so.
+Three lanes ended up carrying the same one-line `git add -f` without any of them being the cure. Two smaller symptoms
+of the same shape: `ConfigSync` copied but never deleted, so four dead challenge copies (`a1c1`–`a1c4`) had been
+shipping at the StreamingAssets root since the challenges moved into `challenges/`, read by nothing; and nothing
+checked the mirror at **build** time, so a green suite said nothing about what the player would load.
+
+**The fix is to stop having two copies.** `configs/**` and `docs/CREDITS.md` are the sources. Nothing under
+StreamingAssets is tracked any more except `commerce.json`, which has no repo source and is the original.
+
+- `ConfigSync.cs` is now a declared `Mirrors` manifest of six (source → destination) pairs. It copies, and it
+  **sweeps**: a mirror whose source is gone is deleted, so a renamed config cannot linger in the player.
+- `ConfigSync.SyncAndRequireComplete()` runs first in `BuildiOS`, `BuildMac` and `BuildWidget`: sync, then verify
+  byte-for-byte, then `EditorApplication.Exit(1)` in batch mode if the player would get the wrong configs.
+- `ConfigSync.CheckMirrors` is a headless read-only check, with `FLYINGGAME_NO_CONFIG_SYNC=1` to hold the editor's
+  load-time sync back so it reports what a **checkout** ships rather than what a sync would ship.
+- `tools/FlightTests/StreamingAssetsTests.cs` holds the shape: nothing committed outside an allowlist, every generated
+  path ignored, every mirror has its source, all three builds call the guard. It reads ConfigSync's own manifest, so
+  adding a mirror and forgetting `.gitignore` fails the suite.
+- Four tests that asserted the mirror exists are gone or narrowed, because on a fresh clone it correctly does not:
+  the mirror assertion in `EveryAircraftPassesTheNewAirplaneProtocol`, the byte-equality half of `CreditsReachTheUser`
+  (its model-credit half stays), `RegionalAtmosphereTests.ConfigIsMirroredToStreamingAssets` → `TheRegionalConfigSaysWhatTheWorldNeeds`,
+  and four `File.Copy` calls in the REGEN paths of `GlideTableTests` and `StallAuthorityTests`.
+
+**Why the test is an allowlist and not manifest-driven.** A manifest-driven check only catches mirrors ConfigSync
+already knows about, and every instance of this bug so far arrived as a *new* mirror someone added by hand. An
+allowlist fails on a committed mirror it has never heard of, which is what should happen.
+
+**Proven, not assumed.** The guard was run against the live bug rather than reasoned about. With the load-time sync
+suppressed it printed `aircraft/great-lakes-like.json missing (from configs/aircraft/great-lakes-like.json)` and exited
+1; with the sync allowed it regenerated the file, logged `StreamingAssets complete (6 mirrors verified)` and exited 0
+(31 → 32 of 32 configs). A planted `renamed-away-like.json` was swept with
+`deleted stale mirror aircraft/renamed-away-like.json (no configs/aircraft source)`. And the allowlist test was
+negative-tested by force-adding `aircraft/c172-like.json`, which failed it by name — then caught my own slip a few
+minutes later, when a `git reset` on that path restored the index entry from HEAD instead of dropping it.
+
+**The same trap was in one more place, and the repo now has none.** Asking git the general question —
+`git ls-files | git check-ignore --no-index --stdin -v` — found 63 tracked-but-ignored files on `split-surfaces`: the
+62 aircraft mirrors, and `build/cg-check.csv`, a generated CG report committed inside the ignored `build/` directory.
+It had gone stale at 28 rows against a 32-aircraft fleet, because refreshing it would have needed `git add -f` too,
+and `docs/pending/VERTICAL-CG-2026-10-10.md` cites it as evidence. Moved to
+`docs/pending/cg-check-2026-10-10.csv`, beside the page that reads it, where a re-run is an ordinary commit; `build/`
+stays scratch. `StreamingAssetsTests.NoTrackedFileIsGitignored` now holds the whole repo at zero. Note the `--no-index`:
+without it `check-ignore` says nothing about tracked files, which is precisely the set in question, and the test
+passes vacuously — mine did, and reported a clean repo twice before I noticed the flag was missing.
+
+**The rigs mirror, declared here and closed on its own lanes (follow-up commit).** The instruction was to give
+`Mirror` a destination-NAME field for an `ea300-own-rig.json` → `extra-300-like-own.json` mapping. There is no mapping
+to type: a rig table declares the model it belongs to in its own `model` field, and that is what names the file the
+game looks for. A fixed name table would hold a second copy of something the file already says, and a rebuilt rig that
+changed its model name would mirror to the old path and go on looking right — the same shape of bug as the one being
+removed. So `Mirror` gained a content **resolver** (`NameFromContent`) and a separate `DestGlob` for the sweep, and
+the row is `new("docs/models", "rigs", "*-rig.json", destGlob: "*.json", nameFromContent: RigModelName)`. It reads the
+field with Newtonsoft, which meant adding `Unity.Newtonsoft.Json` to the Editor asmdef — the Editor assembly had no
+JSON reader. `docs/models/` exists on `split-surfaces` with zero `*-rig.json`, so the row is a true declaration
+matching nothing, and the rig lanes only have to stop committing their mirror rather than teach ConfigSync again.
+
+Proven by planting the real `ea300-own-rig.json` from `lane/claude-extra-cockpit`: it landed as
+`rigs/extra-300-like-own.json`, byte-identical, named from its own field; removing the source swept it by name.
+
+**And the test passed vacuously first.** My manifest regex demanded a `)` straight after the glob, so the rigs row —
+which has named arguments after it — was invisible, and the `>= 6` assertion was satisfied by the other six. A row the
+test cannot see is a row it does not check. It now asserts the parsed count EQUALS the number of `new(` calls in the
+table, so a row it cannot parse fails instead of disappearing. That is the second vacuous pass in this one change,
+after `check-ignore` without `--no-index`; both looked exactly like success.
+
+**`configs/progression.json` and its mirror are read by nothing** — no C# anywhere loads `progression.json`. I left
+both in place and am only noting it; deleting a config nobody reads is a separate call.
 
 ### 2026-10-28 — Claude · lane/claude-menu-aero · handover state for a ChatGPT/Codex visuals pass
 

@@ -57,7 +57,11 @@ span, then measure:
 - Flaps: put a `flap` block on the inboard (non-aileron) wing strips if the real airplane has flaps.
 - Idle prop drag (`propulsion.idleDragCd`): the default is 0.15. Set the type's own value if its **published power-off glide**
   isn't matched (e.g. Extra 0.08, P-51 0.05). Never zero it to make a test pass.
-- Copy the file into `unity/Assets/StreamingAssets/aircraft/`. It must be byte-identical; the gate checks.
+- **Do not copy it anywhere.** `configs/aircraft/<id>.json` is the only copy in the repo; `ConfigSync` writes the
+  player's copy into `unity/Assets/StreamingAssets/aircraft/` on editor load and before every player build, and the
+  build fails if it cannot. StreamingAssets is generated and gitignored — never `git add -f` anything under it.
+  (Until 2026-10-30 the mirror was committed as well, and a new aircraft reached the player only if someone remembered
+  `git add -f`; great-lakes-like shipped with no runtime config because nobody did.)
 
 ## 3. Model (free only, until the app makes money)
 - Licence: CC0, CC BY or Sketchfab Free Standard only. Save `assets-incoming/models/<id>/LICENSE.txt` and add a line to `CREDITS.md`.
@@ -73,15 +77,20 @@ span, then measure:
 - Special equipment: floats or hull → `FloatTests` / `FlyingBoatTests` / `DisplacementTests`; reversible controls →
   a row in `ReversibleControlTests`; retractable gear, ejection seat, guns → their tests.
 - **The gate** (`GlideTableTests`):
-  - `EveryAircraftPassesTheNewAirplaneProtocol`: the file name matches the id, the StreamingAssets copy is identical,
-    it trims at its spawn speed, Vso is plausible, and every flap setting's idle glide is sane and trimmable.
+  - `EveryAircraftPassesTheNewAirplaneProtocol`: the file name matches the id, it trims at its spawn speed, Vso is
+    plausible, and every flap setting's idle glide is sane and trimmable.
   - `GlideTableIsCurrentForEveryAircraftAndFlapSetting`: the airplane is in the **idle-glide table**, and the table is up to date.
+- `StreamingAssetsTests`: nothing generated is committed, every generated path is ignored, every mirror has its source,
+  and all three player builds run the guard. These hold the shape of the fix, not any one aircraft.
+- Ask what a checkout would actually ship, without building it:
+  `FLYINGGAME_NO_CONFIG_SYNC=1 Unity -batchmode -quit -nographics -projectPath unity -executeMethod FlyingGame.EditorTools.ConfigSync.CheckMirrors`
+  — exits 1 and names every config the player is missing.
 
 ## 6. Idle-glide table
 - Regenerate with `REGEN_GLIDE_TABLE=1 ~/.dotnet/dotnet test --filter GlideTable` (from `tools/FlightTests`).
-- This writes `configs/glide-table.json`, copies it to StreamingAssets, and writes `docs/GLIDE-TABLE.md`.
+- This writes `configs/glide-table.json` and `docs/GLIDE-TABLE.md`. The player's copy is ConfigSync's job, not yours.
 - The landing lessons start on the table row for the aircraft and flap setting: idle, 1.3 Vso, on the power-off glide,
-  with the elevator trim from the table. Commit all three files.
+  with the elevator trim from the table. Commit both files.
 
 ## 7. Fly it on every surface (parity rule)
 - iPhone, iPad and Mac. Fly the round-out and flare lesson with each flap setting (`AERO_SELFTEST=lesson` for screenshots).

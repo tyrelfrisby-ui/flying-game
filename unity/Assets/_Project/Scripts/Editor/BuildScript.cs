@@ -68,6 +68,9 @@ namespace FlyingGame.EditorTools
         [MenuItem("FlyingGame/Build iOS (Xcode project)")]
         public static void BuildiOS()
         {
+            // The configs the player will read are generated here, and a mirror that does not match the repo fails the
+            // build (2026-10-30: great-lakes-like shipped with no runtime config, because the mirror was committed by hand).
+            ConfigSync.SyncAndRequireComplete();
             ConfigureiOS();
             // Build stamp: version = build date/time (dotted numeric so iOS accepts it); the HUD shows it so a
             // device build can be told apart at a glance.
@@ -122,6 +125,7 @@ namespace FlyingGame.EditorTools
         [MenuItem("FlyingGame/Build macOS app")]
         public static void BuildMac()
         {
+            ConfigSync.SyncAndRequireComplete();
             PlayerSettings.companyName = "FlyingGame";
             PlayerSettings.productName = ProductName;
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Standalone, BundleId + ".mac");
@@ -173,6 +177,7 @@ namespace FlyingGame.EditorTools
         {
             string productWas = PlayerSettings.productName, idWas = PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.Standalone);
             int wWas = PlayerSettings.defaultScreenWidth, hWas = PlayerSettings.defaultScreenHeight;
+            ConfigSync.SyncAndRequireComplete();
             try
             {
                 PlayerSettings.companyName = "FlyingGame";
