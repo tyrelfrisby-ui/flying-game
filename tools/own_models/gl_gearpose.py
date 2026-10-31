@@ -2,7 +2,9 @@
   blender -b --python tools/own_models/gl_gearpose.py -- model.glb outprefix state   (state: extended|static|full|<deg>)
 Rig (written by build_great_lakes.py): Gear_Pivot_<s> at the axle hinge, hinge axis = Pivot -> Gear_HingeAxis_<s>;
 children Gear_Axle/Wheel/Wheel_Pant/Oleo_Cylinder_<s>; Oleo_Shaft_<s> is fixed at Gear_OleoTop_<s>. The cylinder and
-shaft are re-aimed at each other (what a LookAt constraint does in the game)."""
+shaft are re-aimed at each other (what a LookAt constraint does in the game).
+v12: the GLB is exported in the STATIC pose (pivot extra hinge_deg_as_exported, angles measured from extended), so the
+pivot is rotated by (target - as_exported); 'extended' therefore drops the wheels from the exported stance."""
 import bpy, sys, math, mathutils
 from mathutils import Vector, Matrix
 a = sys.argv[sys.argv.index('--') + 1:]; G, OUT, STATE = a[0], a[1], a[2]
@@ -21,7 +23,8 @@ def W(n): return O[n].matrix_world.translation.copy()
 for s in ('L', 'R'):
     piv = O['Gear_Pivot_' + s]
     th = {'extended': 0.0, 'full': piv['hinge_deg_full'], 'static': piv.get('hinge_deg_static', 0.0)}.get(STATE)
-    th = math.radians(float(STATE) if th is None else th)
+    th0 = float(piv.get('hinge_deg_as_exported', 0.0))
+    th = math.radians((float(STATE) if th is None else th) - th0)
     bpy.context.view_layer.update()
     H, C, T = W('Gear_Pivot_' + s), W('Gear_HingeAxis_' + s), W('Gear_OleoTop_' + s)
     cyl, sh, wh = O['Oleo_Cylinder_' + s], O['Oleo_Shaft_' + s], O['Wheel_' + s]
@@ -29,7 +32,8 @@ for s in ('L', 'R'):
     ax = (C - H).normalized()
     def try_rot(sign):
         R = Matrix.Rotation(sign * th, 4, ax); return (H + (R.to_3x3() @ (A0 - H)))
-    sign = 1 if try_rot(1).z > try_rot(-1).z or th == 0 else -1
+    up = 1 if (H + (Matrix.Rotation(0.1, 4, ax).to_3x3() @ (A0 - H))).z > (H + (Matrix.Rotation(-0.1, 4, ax).to_3x3() @ (A0 - H))).z else -1
+    sign = up  # positive th = compress (wheel up); negative th = extend from the exported static stance
     R = Matrix.Translation(H) @ Matrix.Rotation(sign * th, 4, ax) @ Matrix.Translation(-H)
     piv.matrix_world = R @ piv.matrix_world; bpy.context.view_layer.update()
     A1 = W(cyl.name)
@@ -41,7 +45,7 @@ for s in ('L', 'R'):
     mw = sh.matrix_world.copy(); sh.matrix_world = Matrix.Translation(T) @ q2.to_matrix().to_4x4() @ Matrix.Translation(-T) @ mw
     bpy.context.view_layer.update()
     print('POSE %s %s hinge %.2f deg (sign %+d) strut %.3f -> %.3f m (%.2f in) wheel dz %+.3f  aim-correction %.2f deg'
-          % (s, STATE, math.degrees(th), sign, L0, (T - A1).length, (L0 - (T - A1).length) / 0.0254,
+          % (s, STATE, math.degrees(th) + th0, sign, L0, (T - A1).length, (L0 - (T - A1).length) / 0.0254,
              (A1 - A0).z * 0 + (wh.matrix_world.translation.z - wh.matrix_world.translation.z), math.degrees(d_cur.angle(d_new))))
 def cam(name, loc, look, scale, res, roll=None):
     c = bpy.data.cameras.new(name); c.type = 'ORTHO'; c.ortho_scale = scale

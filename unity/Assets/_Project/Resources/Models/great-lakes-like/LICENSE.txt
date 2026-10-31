@@ -1,4 +1,4 @@
-Source: built here, not downloaded. tools/own_models/build_great_lakes.py (Blender, 2026-10-28, v6).
+Source: built here, not downloaded. tools/own_models/build_great_lakes.py (Blender, 2026-10-29, v13: with both cockpits and the rig; v13.1 2026-10-30: front G-meter and plain own-art radio / transponder heads, no maker text).
 Model: Great Lakes 2T-1A-2, red-sunburst livery: great-lakes-like-own.glb (all-red airframe with navy and white
 fuselage stripes, sunburst rays on the wings and tail, no registration or logos; the default and currently the
 only livery wired in).
