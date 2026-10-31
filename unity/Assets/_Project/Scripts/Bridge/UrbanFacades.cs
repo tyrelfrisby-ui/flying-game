@@ -137,64 +137,9 @@ namespace FlyingGame.Bridge
         static Color Emission(float r,float g,float b) => new Color(r,g,b,0);
         public static void Lot(SeasideBuilder.Batch b, UrbanFacades facades, Vector3 bottom, Vector3 size, int i, int j, int style, bool protectedLot)
         {
-            Vector3 roof = bottom+Vector3.up*size.y;
-            // Challenge roofs/approach rows are left entirely clear. Everything here is visual only.
-            if(!protectedLot)
-            {
-                Roof(b,roof,size,style,i*53+j*19);
-                // Outward cladding tiers retain the original core and its roof elevation.
-                // Limited to non-challenge lots, within the existing 140 m pavement block.
-                if(size.y>120 && (i*7+j)%3!=1)
-                {
-                    int tiers=3;
-                    for(int tier=0;tier<tiers;tier++)
-                    {
-                        float spread=tier==0?56:tier==1?32:12;
-                        Vector3 tierSize=new Vector3(Mathf.Min(128,size.x+spread),size.y*(tier==0?.38f:tier==1?.68f:.90f),Mathf.Min(128,size.z+(tier==0?48:tier==1?28:12)));
-                        Color tierWall=style==0?new Color(.28f,.36f,.38f):style==1?new Color(.49f,.30f,.23f):style==2?new Color(.59f,.59f,.55f):new Color(.55f,.49f,.41f);
-                        tierWall*=.92f+((i*13+j*7)%11)*.016f;
-                        b.Box(bottom+Vector3.up*tierSize.y*.5f,tierSize,tierWall);
-                        facades.Add(bottom,tierSize,style,i*53+j*19,tierWall);
-                        // Only exposed terrace rim; service equipment belongs on the top roof.
-                        Vector3 top=bottom+Vector3.up*(tierSize.y+.05f);
-                        Color terrace=(i+j+tier)%3==0?new Color(.26f,.33f,.22f):new Color(.42f,.43f,.40f);
-                        b.Box(top,new Vector3(tierSize.x-.6f,.10f,tierSize.z-.6f),terrace);
-                        Color trim=new(.49f,.48f,.44f);
-                        foreach(int side in new[]{-1,1})
-                        {
-                            b.Box(top+new Vector3(side*(tierSize.x*.5f-.2f),.4f,0),new Vector3(.4f,.8f,tierSize.z),trim);
-                            b.Box(top+new Vector3(0,.4f,side*(tierSize.z*.5f-.2f)),new Vector3(tierSize.x,.8f,.4f),trim);
-                        }
-                    }
-                }
-                else if(size.y>=125 && i>0 && i<6 && j>2 && j<13)
-                {
-                    // Broad masonry podium below the original slab: no tower/core replacement.
-                    Vector3 podium=new Vector3(Mathf.Max(size.x,126),28+(i+j)%3*6,Mathf.Max(size.z,124));
-                    Color stone=(i+j)%2==0?new Color(.56f,.52f,.44f):new Color(.44f,.32f,.25f);
-                    b.Box(bottom+Vector3.up*podium.y*.5f,podium,stone);
-                    facades.Add(bottom,podium,3,i*53+j*19,stone);
-                    b.Box(bottom+Vector3.up*(podium.y+.08f),new Vector3(podium.x-.5f,.12f,podium.z-.5f),new Color(.29f,.35f,.25f));
-                }
-                else if(size.y<125 && (i+j)%3==0)
-                {
-                    // Two perpendicular wings form an asymmetric L around the existing core.
-                    Color stone=new(.50f,.44f,.37f);
-                    Vector3 wingSize=new(Mathf.Min(126,size.x+38),Mathf.Min(48,size.y*.72f),size.z*.5f);
-                    Vector3 wing=bottom+new Vector3(6,0,-size.z*.25f);
-                    b.Box(wing+Vector3.up*wingSize.y*.5f,wingSize,stone);
-                    facades.Add(wing,wingSize,1,i*53+j*19,stone);
-                    if((i+j)%2==0)
-                    {
-                        Vector3 returnSize=new Vector3(18,wingSize.y*.74f,Mathf.Min(110,size.z+32));
-                        Vector3 returnBottom=bottom+new Vector3(-Mathf.Min(55,size.x*.5f+6),0,8);
-                        b.Box(returnBottom+Vector3.up*returnSize.y*.5f,returnSize,stone*.88f);
-                        facades.Add(returnBottom,returnSize,3,i*53+j*19,stone*.88f);
-                    }
-                    Vector3 service=wing+new Vector3(size.x*.5f+3,wingSize.y+1,0);
-                    b.Box(service,new Vector3(4,2,5),new Color(.63f,.66f,.65f));
-                }
-            }
+            // Original bodies are authored by PlaygroundBuilder and may carry sim challenges.
+            // This additive shell never edits their dimensions, collision, pad or ring surfaces.
+            if(!protectedLot) Massing(b,facades,bottom,size,i,j,style);
             if(protectedLot) return;
             // Small mixed-use infill occupies the existing sidewalk lot, clear of the 30 m road.
             float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
@@ -207,30 +152,29 @@ namespace FlyingGame.Bridge
             facades.Add(shop,shopSize,house?4:1,i*37+j*11,wall);
             if(house)
             {
-                float x=shopSize.x*.53f,z=shopSize.z*.53f;
-                Vector3 a=shop+new Vector3(-x,h,-z), c=shop+new Vector3(x,h,-z), d=shop+new Vector3(-x,h,z), e=shop+new Vector3(x,h,z);
-                Vector3 r=shop+new Vector3(0,h+4,-z), t=shop+new Vector3(0,h+4,z);
-                Color tile=(j%2==0)?new Color(.32f,.19f,.14f):new Color(.23f,.27f,.28f);
-                b.Quad(a,r,t,d,tile); b.Quad(r,c,e,t,tile*.85f);
-                b.Tri(a,c,r,wall); b.Tri(d,t,e,wall);
-                b.Box(shop+new Vector3(5,h+2,3),new Vector3(1.1f,4,1.1f),new Color(.39f,.24f,.19f));
+                PitchedRoof(b,shop+Vector3.up*h,shopSize,i*53+j*19,wall);
             }
             else
             {
-                // Parapet, stairwell, paired HVAC on these non-landable decorative shops.
-                b.Box(shop+Vector3.up*(h+.02f),new Vector3(shopSize.x-1,.04f,19),new Color(.30f,.32f,.30f));
-                for(int side=-1;side<=1;side+=2)
+                if(h<=18)
+                    PitchedRoof(b,shop+Vector3.up*h,shopSize,i*53+j*19,wall);
+                else
                 {
-                    b.Box(shop+new Vector3(side*(shopSize.x*.5f-.3f),h+.35f,0),new Vector3(.5f,.7f,20),wall*.85f);
-                    b.Box(shop+new Vector3(0,h+.35f,side*9.7f),new Vector3(shopSize.x,.7f,.5f),wall*.85f);
-                }
-                b.Box(shop+new Vector3(-11,h+1,3),new Vector3(5,2,6),new Color(.38f,.37f,.33f));
-                for(int k=0;k<2;k++) b.Box(shop+new Vector3(k*7,h+.8f,3),new Vector3(4,1.6f,4),new Color(.48f,.50f,.48f));
-                if((i+j)%5==0)
-                {
-                    Vector3 tank=shop+new Vector3(10,h, -4);
-                    for(int leg=-1;leg<=1;leg+=2) b.Box(tank+new Vector3(leg*1.3f,1,0),new Vector3(.2f,2,.2f),new Color(.23f,.23f,.21f));
-                    b.Cylinder(tank+Vector3.up*2,2,3,8,new Color(.32f,.25f,.18f),new Color(.22f,.22f,.20f),.7f);
+                    // Flat roofs remain on taller mixed-use blocks.
+                    b.Box(shop+Vector3.up*(h+.02f),new Vector3(shopSize.x-1,.04f,19),new Color(.30f,.32f,.30f));
+                    for(int side=-1;side<=1;side+=2)
+                    {
+                        b.Box(shop+new Vector3(side*(shopSize.x*.5f-.3f),h+.35f,0),new Vector3(.5f,.7f,20),wall*.85f);
+                        b.Box(shop+new Vector3(0,h+.35f,side*9.7f),new Vector3(shopSize.x,.7f,.5f),wall*.85f);
+                    }
+                    b.Box(shop+new Vector3(-11,h+1,3),new Vector3(5,2,6),new Color(.38f,.37f,.33f));
+                    for(int k=0;k<2;k++) b.Box(shop+new Vector3(k*7,h+.8f,3),new Vector3(4,1.6f,4),new Color(.48f,.50f,.48f));
+                    if((i+j)%5==0)
+                    {
+                        Vector3 tank=shop+new Vector3(10,h, -4);
+                        for(int leg=-1;leg<=1;leg+=2) b.Box(tank+new Vector3(leg*1.3f,1,0),new Vector3(.2f,2,.2f),new Color(.23f,.23f,.21f));
+                        b.Cylinder(tank+Vector3.up*2,2,3,8,new Color(.32f,.25f,.18f),new Color(.22f,.22f,.20f),.7f);
+                    }
                 }
                 Color awning=(i%2==0)?new Color(.18f,.31f,.25f):new Color(.51f,.20f,.14f);
                 foreach(int front in new[]{-1,1})
@@ -251,7 +195,9 @@ namespace FlyingGame.Bridge
                 Color stone=(i+j)%2==0?new Color(.55f,.51f,.43f):new Color(.37f,.32f,.28f);
                 b.Box(rear+Vector3.up*rearSize.y*.5f,rearSize,stone);
                 facades.Add(rear,rearSize,(i+j)%2==0?3:1,i*53+j*19+401,stone);
-                Roof(b,rear+Vector3.up*rearSize.y,rearSize,3,i*53+j*19+401);
+                if(rearSize.y<=18)
+                    PitchedRoof(b,rear+Vector3.up*rearSize.y,rearSize,i*53+j*19+401,stone);
+                else Roof(b,rear+Vector3.up*rearSize.y,rearSize,3,i*53+j*19+401);
                 if(core>.55f && size.x<94)
                 {
                     Vector3 side=bottom+new Vector3(-58,0,0);
@@ -271,21 +217,226 @@ namespace FlyingGame.Bridge
                     Color siding=(i+j+side)%2==0?new Color(.58f,.61f,.56f):new Color(.64f,.53f,.41f);
                     b.Box(foot+Vector3.up*hs.y*.5f,hs,siding);
                     facades.Add(foot,hs,4,i*53+j*19+side*101,siding);
-                    Vector3 a=foot+new Vector3(-10,hs.y,-9),c=foot+new Vector3(10,hs.y,-9);
-                    Vector3 d=foot+new Vector3(-10,hs.y,9),e=foot+new Vector3(10,hs.y,9);
-                    Vector3 r=foot+new Vector3(0,hs.y+5,-9),t=foot+new Vector3(0,hs.y+5,9);
-                    Color tile=(i+j)%2==0?new Color(.27f,.20f,.16f):new Color(.22f,.27f,.29f);
-                    b.Quad(a,r,t,d,tile); b.Quad(r,c,e,t,tile*.82f);
-                    b.Tri(a,c,r,siding); b.Tri(d,t,e,siding);
-                    b.Box(foot+new Vector3(5,hs.y+2,3),new Vector3(1,4,1),new Color(.38f,.24f,.18f));
+                    PitchedRoof(b,foot+Vector3.up*hs.y,hs,i*53+j*19+side*101,siding);
                 }
             }
-            // Six surface parking bays on the clear side of each non-challenge block.
-            for(int k=0;k<(size.y>120 && (i*7+j)%3!=1?0:QualitySettings.GetQualityLevel()<=2?4:6);k++)
+            // Forecourt parking stays between the shop strip and main shaft, clear of the
+            // new side wings. Stepped podium lots have no surface bays under the building.
+            bool podiumLot=(size.y>90 && (i*7+j*3)%5<2) || ((i==2 || i==4) && (j==6 || j==9));
+            if(!podiumLot && size.z<62)
+            for(int k=0;k<(QualitySettings.GetQualityLevel()<=2?4:6);k++)
             {
-                Vector3 car=bottom+new Vector3(53,.30f,-20+k*6);
-                if(size.x*.5f+((size.y>120 && (i*7+j)%3!=1)?30:0)<48 && (i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
-                b.Box(car+new Vector3(0,-.005f,3),new Vector3(6,.02f,.13f),Paint);
+                Vector3 car=bottom+new Vector3(-30+k*12,.30f,-40);
+                if((i+j+k)%4!=0) Car(b,car,Quaternion.Euler(0,90,0),i*29+j*7+k);
+                b.Box(car+new Vector3(5,-.005f,0),new Vector3(.13f,.02f,5),Paint);
+            }
+        }
+
+        // All architecture is baked into the two existing city batches. No per-lot renderer.
+        static void Massing(SeasideBuilder.Batch b,UrbanFacades facades,Vector3 bottom,Vector3 size,int i,int j,int style)
+        {
+            int seed=i*53+j*19;
+            float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
+            Color wall=style==0?new Color(.28f,.36f,.38f):style==1?new Color(.49f,.30f,.23f)
+                :style==2?new Color(.59f,.59f,.55f):new Color(.55f,.49f,.41f);
+            wall*=.92f+seed%11*.016f;
+            void Block(Vector3 foot,Vector3 extent,int kind,Color paint,bool dress=true)
+            {
+                b.Box(foot+Vector3.up*extent.y*.5f,extent,paint);
+                facades.Add(foot,extent,kind,seed,paint);
+                if(dress)
+                {
+                    Vector3 roof=foot+Vector3.up*extent.y;
+                    if(extent.y<=18)
+                    {
+                        PitchedRoof(b,roof,extent,seed,paint);
+                        return;
+                    }
+                    Terrace(b,roof,extent,seed);
+                    // Wing roofs have bounded service geometry; tanks remain on main roofs.
+                    b.Box(roof+new Vector3(-extent.x*.25f,1.5f,-extent.z*.25f),new Vector3(4,3,5),paint*.82f);
+                    int units=QualitySettings.GetQualityLevel()<=2?1:2;
+                    for(int unit=0;unit<units;unit++)
+                    {
+                        Vector3 hvac=roof+new Vector3(0,1.1f,(unit-.5f)*7);
+                        b.Box(hvac,new Vector3(5,2.2f,5),new Color(.60f,.63f,.61f));
+                        b.Cylinder(hvac+Vector3.up*1.12f,1.6f,.16f,6,new Color(.16f,.20f,.21f));
+                    }
+                }
+            }
+            // Forty percent of the deterministic mid/high-rise families get genuine stacked
+            // volumes. Their original cores remain inside; the upper extension creates the
+            // central height profile rather than merely widening the old rectangular shaft.
+            bool stepped=size.y>90 && (i*7+j*3)%5<2;
+            bool pinnacle=(i==2 || i==4) && (j==6 || j==9);
+            float height=Mathf.Max(size.y,70+Mathf.Pow(core,1.45f)*460);
+            if(pinnacle) height=Mathf.Max(height,450+((i+j)%3)*25);
+            if(stepped || pinnacle)
+            {
+                float podiumHeight=10+(seed%4)*3.3f;
+                Vector3 podium=new Vector3(Mathf.Min(128,size.x+54),podiumHeight,Mathf.Min(128,size.z+54));
+                Block(bottom,podium,3,Color.Lerp(wall,new Color(.58f,.52f,.43f),.55f),false);
+                Terrace(b,bottom+Vector3.up*podiumHeight,podium,seed);
+                float previous=podiumHeight;
+                for(int tier=0;tier<3;tier++)
+                {
+                    float spread=36-tier*18;
+                    float top=height*(tier==0?.42f:tier==1?.73f:1);
+                    Vector3 extent=new Vector3(Mathf.Min(128,size.x+spread+.6f),top-previous,Mathf.Min(128,size.z+spread+.6f));
+                    Vector3 foot=bottom+Vector3.up*previous;
+                    Block(foot,extent,style,wall,false);
+                    Terrace(b,bottom+Vector3.up*top,extent,seed+tier);
+                    if(tier==2)
+                    {
+                        // Dress the actual top, not the roof buried inside the new shell.
+                        Vector3 roofSize=new Vector3(extent.x,height,extent.z);
+                        Roof(b,bottom+Vector3.up*top,roofSize,style,seed);
+                        if(style!=1)
+                            Crown(b,bottom+Vector3.up*(top+.3f)+new Vector3(extent.x*.12f,0,-extent.z*.16f),
+                                extent*.80f,24+core*22,seed,pinnacle);
+                        else if(pinnacle)
+                        {
+                            // Brick tank stays at the rear-right; mast occupies the left edge.
+                            Vector3 mast=bottom+new Vector3(-extent.x*.42f,top+1,0);
+                            b.Cylinder(mast,.65f,42,6,new Color(.54f,.55f,.52f));
+                            b.Cylinder(mast+Vector3.up*42,.95f,1.2f,6,Emission(1,.035f,.015f));
+                        }
+                    }
+                    previous=top;
+                }
+            }
+            else
+            {
+                Vector3 roof=bottom+Vector3.up*size.y;
+                if(size.y<=18)
+                    PitchedRoof(b,roof,size,seed,wall);
+                else Roof(b,roof,size,style,seed);
+                if(size.y>18 && (core<.36f || size.y<100))
+                {
+                    // Preserve C7's taller peripheral cap and its clear service strip.
+                    Vector3 cap=new Vector3(size.x*(style==1?.45f:.94f),0,size.z*.60f);
+                    PitchedRoof(b,roof+new Vector3(style==1?-size.x*.23f:0,1,-size.z*.14f),cap,seed,wall);
+                }
+                else if(size.y>18 && style!=1)
+                    Crown(b,roof+new Vector3(size.x*.12f,.3f,-size.z*.16f),size*.80f,18+core*22,seed,false);
+
+                // L, U, enclosed courtyard and twin slab families around the retained shaft.
+                // Low wings frame the shaft; new volumes stay inside the 140 m block.
+                float wingHeight=Mathf.Min(size.y*.70f,18+core*86);
+                float edge=Mathf.Max(size.x,size.z)*.5f;
+                float room=67-edge;
+                if(room>=16)
+                {
+                    int family=seed%4;
+                    float depth=Mathf.Min(24,room-2);
+                    float offset=67-depth*.5f;
+                    Color masonry=Color.Lerp(wall,new Color(.51f,.43f,.34f),.55f);
+                    Vector3 bar=new Vector3(depth,wingHeight,Mathf.Min(94,size.z+24));
+                    Block(bottom+new Vector3(-offset,0,0),bar,style==0?2:1,masonry);
+                    if(family==0)
+                    {
+                        // Join the long side slab to one corner of the shaft: a real L,
+                        // rather than two disconnected rectangular buildings on the lot.
+                        float inner=-67+depth;
+                        float gap=-size.x*.5f-inner;
+                        Vector3 link=new Vector3(gap+2,wingHeight,depth);
+                        Vector3 foot=bottom+new Vector3((inner-size.x*.5f)*.5f,0,size.z*.5f-depth*.5f);
+                        Block(foot,link,3,masonry,false);
+                        Terrace(b,foot+Vector3.up*link.y,link,seed);
+                    }
+                    if(family!=0)
+                        Block(bottom+new Vector3(offset,0,0),new Vector3(depth,wingHeight*(family==3?.83f:1),bar.z),3,masonry*.94f);
+                    if(family==1 || family==2)
+                    {
+                        Vector3 link=new Vector3(offset*2-depth,wingHeight*.82f,depth);
+                        Block(bottom+new Vector3(0,0,-offset),link,1,masonry);
+                        if(family==2) Block(bottom+new Vector3(0,0,offset),link,3,masonry*.94f);
+                    }
+                }
+            }
+        }
+        static void Terrace(SeasideBuilder.Batch b,Vector3 top,Vector3 size,int seed)
+        {
+            Color membrane=Membranes[Mathf.Abs(seed)%Membranes.Length];
+            b.Box(top+Vector3.up*.12f,new Vector3(size.x-.3f,.18f,size.z-.3f),membrane);
+            Color stone=new Color(.49f,.48f,.44f);
+            foreach(int side in new[]{-1,1})
+            {
+                b.Box(top+new Vector3(side*(size.x*.5f-.2f),.5f,0),new Vector3(.4f,1,size.z),stone);
+                b.Box(top+new Vector3(0,.5f,side*(size.z*.5f-.2f)),new Vector3(size.x,1,.4f),stone);
+            }
+        }
+        static readonly Color[] PitchedColours={
+            new(.19f,.22f,.25f), new(.39f,.20f,.14f), new(.31f,.25f,.19f),
+            new(.24f,.34f,.29f), new(.53f,.56f,.55f)};
+        static void PitchedRoof(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,int seed,Color wall,bool district=false)
+        {
+            int variant=Mathf.Abs(seed);
+            // Local z is always the long axis. Overhang is measured from the wall,
+            // not a percentage of its width; broad warehouse roofs retain a real pitch.
+            bool turn=size.x>size.z;
+            Quaternion q=turn?Quaternion.Euler(0,90,0):Quaternion.identity;
+            float halfWidth=Mathf.Min(size.x,size.z)*.5f;
+            float halfLength=Mathf.Max(size.x,size.z)*.5f;
+            float eave=district?(halfWidth<=4?.5f:1.05f):.3f+(variant%4)*.1f;
+            float x=halfWidth+eave,z=halfLength+eave;
+            float pitch=(district?36:25+variant%16)*Mathf.Deg2Rad;
+            float rise=x*Mathf.Tan(pitch);
+            // Put the eave just below the wall top: roof planes intersect the body
+            // at the wall and leave no bright floating slit under the overhang.
+            Vector3 P(float u,float y,float v)=>foot+q*new Vector3(u,y-eave*Mathf.Tan(pitch),v);
+            Vector3 a=P(-x,0,-z),c=P(x,0,-z),d=P(-x,0,z),e=P(x,0,z);
+            Color tile=PitchedColours[district?(variant%10<6?0:variant%10<9?2:1):variant%PitchedColours.Length];
+            bool hip=!district && variant%3==0;
+            float inset=hip?x:0;
+            Vector3 r=P(0,rise,-z+inset),t=P(0,rise,z-inset);
+            b.Quad(a,d,t,r,tile); b.Quad(r,t,e,c,tile);
+            if(hip)
+            {
+                b.Tri(a,r,c,tile); b.Tri(d,e,t,tile);
+            }
+            else
+            {
+                // Wall-aligned gable ends stop at the roof slope, inside the eaves.
+                float wallRise=halfWidth*Mathf.Tan(pitch);
+                Vector3 A(float u,float y,float v)=>foot+q*new Vector3(u,y,v);
+                b.Tri(A(-halfWidth,0,-halfLength),A(0,wallRise,-halfLength),A(halfWidth,0,-halfLength),wall);
+                b.Tri(A(-halfWidth,0,halfLength),A(halfWidth,0,halfLength),A(0,wallRise,halfLength),wall);
+            }
+            // A narrow fascia makes the overhang readable without extra materials.
+            foreach(int side in new[]{-1,1})
+            {
+                Vector3 centre=P(side*x,-.13f,0);
+                b.Box(centre,new Vector3(.16f,.26f,2*z),q,tile*.8f);
+            }
+            if(size.y>0 && variant%2==0)
+            {
+                Vector3 chimney=foot+q*new Vector3(halfWidth*.45f,0,-halfLength*.3f);
+                float top=halfWidth*.55f*Mathf.Tan(pitch)+1.6f;
+                b.Box(chimney+Vector3.up*top*.5f,new Vector3(1.1f,top,1.1f),new Color(.38f,.25f,.20f));
+            }
+        }
+        static void Crown(SeasideBuilder.Batch b,Vector3 foot,Vector3 size,float height,int seed,bool mast)
+        {
+            // Clipped rectangular footprint, four broad sloping faces and four chamfer faces.
+            // Cyclic footprint is clockwise from above for outward wall normals.
+            float x=size.x*.40f,z=size.z*.32f,clip=Mathf.Min(x,z)*.30f;
+            Vector3[] ring={new(-x+clip,0,-z),new(-x,0,-z+clip),new(-x,0,z-clip),new(-x+clip,0,z),
+                new(x-clip,0,z),new(x,0,z-clip),new(x,0,-z+clip),new(x-clip,0,-z)};
+            Color metal=seed%3==0?new Color(.31f,.35f,.35f):seed%3==1?new Color(.46f,.43f,.36f):new Color(.22f,.31f,.31f);
+            float inset=seed%2==0?.48f:.16f;
+            for(int k=0;k<8;k++)
+            {
+                Vector3 a=ring[k],c=ring[(k+1)%8];
+                Vector3 u=a*inset+Vector3.up*height,v=c*inset+Vector3.up*height;
+                b.Quad(foot+a,foot+c,foot+v,foot+u,metal*(k%2==0?1:.88f));
+                b.Tri(foot+Vector3.up*height,foot+u,foot+v,metal*.86f);
+            }
+            if(mast)
+            {
+                b.Box(foot+Vector3.up*(height+2),new Vector3(6,4,6),metal);
+                b.Cylinder(foot+Vector3.up*(height+4),.65f,38,6,new Color(.54f,.55f,.52f));
+                b.Cylinder(foot+Vector3.up*(height+42),.95f,1.2f,6,Emission(1,.035f,.015f));
             }
         }
 
@@ -300,10 +451,13 @@ namespace FlyingGame.Bridge
                 b.Box(roof+new Vector3(0,.5f,side*(size.z*.5f-.25f)),new Vector3(size.x,1.4f,.65f),rim);
             }
             b.Box(roof+new Vector3(-size.x*.30f,2.5f,-size.z*.30f),new Vector3(8,5,9),rim*.8f);
-            int units=size.z<28?3:QualitySettings.GetQualityLevel()<=2?3:4+seed%3;
+            int units=Mathf.Min(size.z<28?3:QualitySettings.GetQualityLevel()<=2?3:4+seed%3,
+                size.x<30?2:6);
             for(int k=0;k<units;k++)
             {
-                Vector3 hvac=roof+new Vector3((k%3-1)*10,2.3f,Mathf.Min(size.z*.5f-5,size.z*.30f+(k/3)*10));
+                float serviceX=size.x<30?0:(k%3-1)*Mathf.Min(10,(size.x-10)*.33f);
+                float serviceZ=size.x<30?(k-.5f)*10:Mathf.Min(size.z*.5f-5,size.z*.30f+(k/3)*10);
+                Vector3 hvac=roof+new Vector3(serviceX,2.3f,serviceZ);
                 b.Box(hvac-Vector3.up*1.45f,new Vector3(9.5f,1.2f,8.5f),new Color(.22f,.24f,.24f));
                 b.Box(hvac,new Vector3(8.5f,3.4f,7.5f),new Color(.66f,.69f,.68f));
                 for(int fan=0;fan<2;fan++)
@@ -320,39 +474,6 @@ namespace FlyingGame.Bridge
                     b.Cylinder(tank+Vector3.up*(4.6f+band*3.25f),4.84f,.14f,10,new Color(.19f,.22f,.23f));
                 foreach(int side in new[]{-1,1})
                     b.Beam(tank+new Vector3(-2.4f,.3f,side*2.4f),tank+new Vector3(2.4f,4.2f,side*2.4f),.16f,.16f,new Color(.23f,.24f,.23f));
-            }
-            if(size.y>220 && seed%3==0 && style!=1)
-            {
-                for(int k=0;k<3;k++)
-                    b.Box(roof+new Vector3(size.x*.22f,2+k*3.5f,-size.z*.25f),new Vector3(size.x*(.25f-k*.06f),4,size.z*(.25f-k*.06f)),rim*.8f);
-                b.Cylinder(roof+new Vector3(size.x*.22f,10.8f,-size.z*.25f),.3f,10,6,new Color(.43f,.46f,.46f));
-            }
-            // Large roof silhouettes on non-challenge lots only. Original tower/roof stays intact.
-            // Keep the tank family unchanged; crowns occupy the rear half away from front HVAC.
-            if(size.y>95 && style!=1 && seed%4!=1 && (size.y<=220 || seed%3!=0))
-            {
-                float h=Mathf.Clamp(size.y*.18f,17,44);
-                Vector3 centre=roof+new Vector3(size.x*.14f,.24f,-size.z*.18f);
-                float x=size.x*.32f,z=size.z*.28f;
-                Color metal=seed%2==0?new Color(.23f,.34f,.34f):new Color(.48f,.47f,.43f);
-                Vector3 a=centre+new Vector3(-x,0,-z),c=centre+new Vector3(x,0,-z);
-                Vector3 d=centre+new Vector3(x,0,z),e=centre+new Vector3(-x,0,z);
-                if(seed%2==0)
-                {
-                    // Mansard/chamfered crown, broad enough to survive the 1–3 km views.
-                    Vector3 u=centre+new Vector3(-x*.48f,h,-z*.48f),v=centre+new Vector3(x*.48f,h,-z*.48f);
-                    Vector3 w=centre+new Vector3(x*.48f,h,z*.48f),q=centre+new Vector3(-x*.48f,h,z*.48f);
-                    b.Quad(a,c,v,u,metal); b.Quad(c,d,w,v,metal*.83f);
-                    b.Quad(d,e,q,w,metal); b.Quad(e,a,u,q,metal*.83f); b.Quad(u,v,w,q,metal*.74f);
-                }
-                else
-                {
-                    Vector3 peak=centre+Vector3.up*h;
-                    b.Tri(a,c,peak,metal); b.Tri(c,d,peak,metal*.82f);
-                    b.Tri(d,e,peak,metal); b.Tri(e,a,peak,metal*.82f);
-                }
-                if(seed%5==0)
-                    b.Cylinder(centre+Vector3.up*h,.55f,18,6,new Color(.49f,.51f,.50f));
             }
             if(size.y>230)
                 b.Box(roof+new Vector3(size.x*.38f,.54f,size.z*.38f),new Vector3(1.1f,.6f,1.1f),Emission(1,.035f,.015f));
@@ -389,8 +510,498 @@ namespace FlyingGame.Bridge
                 }
             }
         }
+        // Visual-only low-rise infill. Uses existing paved blocks/lawns, never the forest,
+        // roads, plaza, or any challenge row. Bodies/facades/roofs share the two city batches.
+        static void RoofDistrict(FlyingGame.Core.CityGrid grid,double ground,SeasideBuilder.Batch b,UrbanFacades facades)
+        {
+            var occupied=new Dictionary<(int,int),FlyingGame.Core.FlyCity.Tower>();
+            foreach(var tower in grid.Towers()) occupied[(tower.I,tower.J)]=tower;
+            var reservedRows=new HashSet<int>();
+            if(grid.PadLot.HasValue) reservedRows.Add(grid.PadLot.Value.j);
+            reservedRows.Add(grid.Tallest.J);
+            foreach(var ring in grid.RooftopRings()) reservedRows.Add(ring.t.J);
+            int count=0,emptyBlocks=0,bodyStart=b.Count;
+            bool roofChimneys=QualitySettings.GetQualityLevel()>2;
+            float area=0;
+            // Sim collision, from the same foot and size that make the mesh (no second copy of the layout).
+            // Unity (x,up,z) is sim (y,up,x); the district roof is a 36-degree gable ridged along the long
+            // axis, so it rises halfWidth*tan(36) above the wall top. A building the sim will not have --
+            // on a pad, under a ring, on a final -- is not drawn either, or the roof would be a ghost.
+            bool Solid(Vector3 foot,Vector3 size)
+            {
+                bool ridgeAlongX=size.z>=size.x;
+                float ridge=Mathf.Min(size.x,size.z)*.5f*Mathf.Tan(36f*Mathf.Deg2Rad);
+                return FlyingGame.Core.UrbanLowRise.Add(foot.z,foot.x,size.z*.5f,size.x*.5f,foot.y,size.y,ridge,ridgeAlongX);
+            }
+            void Building(Vector3 foot,Vector3 size,int seed,int kind,int roofSeed)
+            {
+                if(!Solid(foot,size)) return;
+                // Pale plaster, buff stone and muted brick: the roof carries the silhouette.
+                Color wall=kind==1?new Color(.66f,.53f,.43f):kind==3?new Color(.72f,.67f,.57f)
+                    :seed%3==0?new Color(.74f,.73f,.66f):seed%3==1?new Color(.73f,.66f,.55f):new Color(.66f,.68f,.65f);
+                b.Box(foot+Vector3.up*size.y*.5f,size,wall);
+                facades.Add(foot,size,kind,seed,wall);
+                Vector3 roofSize=size;
+                if(!roofChimneys) roofSize.y=0; // C8 builder omits optional chimneys at zero metadata height.
+                PitchedRoof(b,foot+Vector3.up*size.y,roofSize,roofSeed,wall,true);
+                if(kind==3)
+                {
+                    Color awning=seed%2==0?new Color(.19f,.34f,.27f):new Color(.49f,.22f,.16f);
+                    b.Box(foot+new Vector3(0,3,-size.z*.5f-.7f),new Vector3(size.x-.5f,.22f,1.6f),awning);
+                }
+                count++; area+=size.x*size.z;
+            }
+            for(int i=0;i<7;i++) for(int j=0;j<16;j++)
+            {
+                if(reservedRows.Contains(j)) continue;
+                var map=grid.Map(i*170,j*170);
+                if(grid.InPlaza(map.x,map.y)) continue;
+                Vector3 centre=WorldBuilder.U(map.x,map.y,ground+.33);
+                if(!occupied.TryGetValue((i,j),out var tower))
+                {
+                    // Six garden rows of seven separate roofs fill each existing open block.
+                    // 18 m frontage / 21 m depth leaves gaps, garden strips and rear access.
+                    emptyBlocks++;
+                    // Flush garden/path dressing uses the same opaque colour batch.
+                    Vector3 garden=centre-Vector3.up*.18f;
+                    b.Quad(garden+new Vector3(-64,0,-64),garden+new Vector3(-64,0,64),
+                        garden+new Vector3(64,0,64),garden+new Vector3(64,0,-64),new Color(.33f,.39f,.28f));
+                    for(int row=0;row<6;row++)
+                    {
+                        Vector3 path=garden+new Vector3(0,.025f,-43.5f+row*21);
+                        b.Quad(path+new Vector3(-63,0,-1),path+new Vector3(-63,0,1),
+                            path+new Vector3(63,0,1),path+new Vector3(63,0,-1),new Color(.57f,.55f,.49f));
+                    }
+                    for(int row=0;row<6;row++) for(int col=0;col<7;col++)
+                    {
+                        int seed=1009+i*997+j*71+row*13+col*17;
+                        bool warehouse=row==4 && col==5 && (i+j)%3==0;
+                        // A single warehouse replaces four house slots, with no overlapping roofs.
+                        if((i+j)%3==0 && row>=4 && col>=5 && !warehouse) continue;
+                        int kind=row==0 && col%3==0?3:col%3==1?1:4;
+                        Vector3 size=warehouse?new Vector3(29,5,18)
+                            :new Vector3(kind==1?8:10+seed%5,kind==3?9:3.1f*(1+seed%2),kind==3?11:14+seed%3);
+                        Vector3 offset=new Vector3(-54+col*18,0,-52.5f+row*21);
+                        if(warehouse) offset+=new Vector3(9,0,10.5f);
+                        if(kind==1 && !warehouse)
+                        {
+                            // Paired narrow rowhouses read as a terrace with individual ridges.
+                            foreach(int side in new[]{-1,1})
+                                Building(centre+offset+new Vector3(side*4.6f,0,0),size,seed+side*103,kind,i*3+j+row);
+                        }
+                        else Building(centre+offset,size,seed,warehouse?2:kind,i*3+j+row);
+                    }
+                }
+                else
+                {
+                    // Peripheral rear lawns only. Lot's shops are at world z=-58;
+                    // its side wings end by z=47. Family 2 has a rear crossbar: exclude it.
+                    float core=1-Mathf.Clamp01(Mathf.Max(Mathf.Abs(i-3)/3f,Mathf.Abs(j-7.5f)/7.5f));
+                    int seed=i*53+j*19;
+                    if(core>.25f || seed%4==2 || tower.HeightM>=330) continue;
+                    for(int col=0;col<5;col++)
+                        Building(centre+new Vector3(-36+col*18,0,57),
+                            new Vector3(10+col%3,3.1f*(1+(col+i+j)%2),12),2003+seed*7+col*23,4,i+j);
+                }
+            }
+            // The town camera is south of the pad row, behind the forest belt. Put the
+            // visible suburb on the open eastern flank, beyond the pad/approach columns.
+            // Do not hide registered forest: reject whole gardens containing a tree crown.
+            // All positions are outside the original city blocks and protected challenge rows.
+            int flankCount=0;
+            var terrain=FlyingGame.Core.WorldTerrain.Active;
+            if(grid.Rotated && terrain!=null)
+            {
+                for(int row=0;row<6;row++) for(int col=0;col<6;col++)
+                {
+                    double u=1190+col*76, v=-590+row*70;
+                    var map=grid.Map(u,v);
+                    bool terrace=(row+col)%3!=0;
+                    Vector3 size=terrace?new Vector3(52,7,17):new Vector3(18,6.4f,16);
+                    // Garden includes eaves and a crown buffer. Existing forest is untouched.
+                    double hx=27,hy=size.x*.5+12;
+                    bool blocked=false;
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-hx-12,map.y-hy-12,map.x+hx+12,map.y+hy+12))
+                        if(System.Math.Abs(tr.X-map.x)<hx+tr.CrownRadiusM && System.Math.Abs(tr.Y-map.y)<hy+tr.CrownRadiusM)
+                        { blocked=true; break; }
+                    double g=terrain.HeightAt(map.x,map.y);
+                    if(blocked || System.Math.Abs(g-ground)>3) continue;
+                    // Keep gardens on genuinely flat lawn; no terrain cuts or raised pads.
+                    foreach(int dx in new[]{-1,1}) foreach(int dy in new[]{-1,1})
+                        if(System.Math.Abs(terrain.HeightAt(map.x+dx*hx,map.y+dy*hy)-g)>.3) blocked=true;
+                    if(blocked) continue;
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,g+.34);
+                    // Continuous 52 m terraces have one shared gable ridge; detached homes
+                    // have 58 m clear frontage gaps. Both face the same garden frontage.
+                    Vector3 garden=foot-Vector3.up*.17f;
+                    float gx=size.x*.5f+8,gz=27;
+                    b.Quad(garden+new Vector3(-gx,0,-gz),garden+new Vector3(-gx,0,gz),
+                        garden+new Vector3(gx,0,gz),garden+new Vector3(gx,0,-gz),new Color(.31f,.40f,.25f));
+                    Building(foot,size,7001+row*37+col*13,terrace?1:4,row+col/3);
+                    // Short door paths, not paved parking lots.
+                    int doors=terrace?6:1;
+                    for(int door=0;door<doors;door++)
+                    {
+                        float x=(door-(doors-1)*.5f)*8;
+                        b.Box(foot+new Vector3(x,.01f,-15),new Vector3(1.25f,.07f,12),new Color(.54f,.51f,.44f));
+                    }
+                    Tree(b,foot+new Vector3(gx-3,0,19),row*31+col);
+                    flankCount++;
+                }
+            }
+            // C11: C10's close southern flank is mostly OUTSIDE the town lens. Retain
+            // every surviving C10 body, and extend along the eastern edge instead.
+            // Map axes are sim (north,east), U swaps these into Unity (east,up,north).
+            // This band is beyond the last tower/road column and every protected row.
+            int extension=0, candidates=0, treesRejected=0, terrainRejected=0;
+            int waterRejected=0, airportRejected=0, viewRejected=0, sightRejected=0;
+            int extensionStart=b.Count,extensionEnd=b.Count;
+            float extensionArea=0;
+            int nearCount=0,nearTested=0,nearForest=0,nearGround=0,nearView=0,nearSight=0,nearOverlap=0;
+            int streetTrees=0;
+            int frontageMoved=0,frontageRetained=0,frontageTested=0,frontageForest=0,frontageGround=0;
+            int foreground=0,foregroundTested=0,foregroundForest=0,foregroundGround=0,foregroundView=0,foregroundSight=0;
+            var usedFrontage=new List<Vector3>();
+            if(grid.Rotated && terrain!=null)
+            {
+                // Exact town eye/look, translated with the city's plateau. Never move a camera.
+                Vector3 eye=WorldBuilder.U(grid.X0-900,grid.Y0+780,ground+95.2);
+                Vector3 aim=WorldBuilder.U(grid.X0+1050,grid.Y0+780,ground-244.8);
+                Vector3 forward=(aim-eye).normalized;
+                Vector3 right=Vector3.Cross(Vector3.up,forward).normalized;
+                Vector3 up=Vector3.Cross(forward,right);
+                const float tanHalfFov=.46630766f, aspect=1.6f;
+                // Generate the sight corridor's registered trees once, not once per lot.
+                // Temporary CPU list only; never added to the mesh or collision registry.
+                var sightTrees=new List<FlyingGame.Core.Forest.Tree>();
+                foreach(var tr in FlyingGame.Core.Forest.InRect(grid.X0-912,grid.Y0-40,
+                    grid.X0+1352,grid.Y0+2084)) sightTrees.Add(tr);
+                // Reject a lot whose roof cannot be seen above actual terrain/registered
+                // forest. No visual clearing of trees that still have sim collision.
+                bool ClearSight(Vector3 roof)
+                {
+                    Vector3 ray=roof-eye;
+                    float length=ray.magnitude;
+                    int steps=Mathf.CeilToInt(length/18);
+                    for(int step=1;step<steps;step++)
+                    {
+                        Vector3 sample=eye+ray*((float)step/steps);
+                        if(terrain.HeightAt(sample.z,sample.x)+1>sample.y) return false;
+                    }
+                    // Public forest query returns deterministic trees including crown radius.
+                    foreach(var tr in sightTrees)
+                    {
+                        double dz=roof.z-eye.z,dx=roof.x-eye.x;
+                        double t=((tr.X-eye.z)*dz+(tr.Y-eye.x)*dx)/(dz*dz+dx*dx);
+                        if(t<=0 || t>=1) continue;
+                        double z=eye.z+t*dz,x=eye.x+t*dx;
+                        double radius=tr.CrownRadiusM+2;
+                        if((tr.X-z)*(tr.X-z)+(tr.Y-x)*(tr.Y-x)<radius*radius
+                            && tr.TopM+2>eye.y+t*(roof.y-eye.y)) return false;
+                    }
+                    return true;
+                }
+                var sourceLots=new List<((double x,double y) map,Vector3 size,double low,double high,int row,int col)>();
+                var rejectedFrontage=new HashSet<(int edge,int block,int depth,int slot,int width)>();
+                // C13: registered conifers are SIM trees, so none may be hidden here.
+                // Relocate the detached C11 estate to the existing asphalt rectangle's
+                // street ends. No collector or new carriageway is authored. Each garden
+                // starts beside the old paved edge, with up to two adjoining garden depths.
+                // Source acceptance below stays unchanged: relocation cannot delete homes.
+                bool Frontage(Vector3 size,out (double x,double y) target,out double low,out double high)
+                {
+                    target=default; low=high=0;
+                    // Work in whole street-end groups, rather than scattered meadow samples.
+                    // East then west, then the northern edge; south is the pad approach.
+                    for(int edge=0;edge<3;edge++)
+                    for(int block=0;block<(edge<2?15:6);block++)
+                    for(int depthRow=0;depthRow<3;depthRow++)
+                    for(int slot=0;slot<5;slot++)
+                    {
+                        int row=edge<2?block:15;
+                        if(reservedRows.Contains(row) || (edge<2 && reservedRows.Contains(row+1))) continue;
+                        double u=edge==0?1146+depthRow*44:edge==1?-126-depthRow*44:85+block*170+(slot-2)*24;
+                        double v=edge<2?85+block*170+(slot-2)*24:2666+depthRow*28;
+                        // A second/third garden depth requires an occupied inner neighbour:
+                        // this can extend frontage, never restart an isolated field cluster.
+                        if(depthRow>0)
+                        {
+                            var inner=grid.Map(edge==0?u-44:edge==1?u+44:u,edge<2?v:v-28);
+                            bool anchored=false;
+                            foreach(var placed in usedFrontage)
+                                if(Mathf.Abs(placed.x-(float)inner.y)<1 && Mathf.Abs(placed.z-(float)inner.x)<1) anchored=true;
+                            if(!anchored) continue;
+                        }
+                        var m=grid.Map(u,v);
+                        float gx=size.x*.5f+3,gz=size.z*.5f+3;
+                        Vector3 centre=WorldBuilder.U(m.x,m.y,0);
+                        bool blocked=false;
+                        foreach(var placed in usedFrontage)
+                            if(Mathf.Abs(placed.x-centre.x)<placed.y+gx+2 && Mathf.Abs(placed.z-centre.z)<24)
+                            { blocked=true; break; }
+                        if(edge==0 && v<1280) continue; // retain all C10/C12 gardens unchanged
+                        if(blocked) continue;
+                        // Reserve every incoming source until ALL relocations finish.
+                        // A late source guard must never overlap an earlier moved house.
+                        foreach(var source in sourceLots)
+                            if(System.Math.Abs(source.map.y-m.y)<source.size.x*.5+gx+3
+                                && System.Math.Abs(source.map.x-m.x)<source.size.z*.5+gz+3)
+                            { blocked=true; break; }
+                        if(blocked) continue;
+                        var key=(edge,block,depthRow,slot,(int)size.x);
+                        if(rejectedFrontage.Contains(key)) continue;
+                        frontageTested++;
+                        foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                            if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,m.x-gz)<70
+                                && System.Math.Abs(m.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+gx+70) blocked=true;
+                        low=double.MaxValue; high=double.MinValue;
+                        foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                        {
+                            double x=m.x+dx*gz,y=m.y+dy*gx,h=terrain.HeightAt(x,y);
+                            low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                            if(terrain.WaterSurfaceAt(x,y).HasValue) blocked=true;
+                        }
+                        if(blocked || high-low>2.5 || System.Math.Abs(high-ground)>12)
+                        { rejectedFrontage.Add(key); frontageGround++; continue; }
+                        // Include the short door path all the way to the EXISTING asphalt.
+                        double pathX=edge==2?grid.X0+2632:m.x+14;
+                        double pathY=edge==0?grid.Y0+1112:edge==1?grid.Y0-92:m.y;
+                        foreach(var tr in FlyingGame.Core.Forest.InRect(
+                            System.Math.Min(m.x-gz,pathX)-12,System.Math.Min(m.y-gx,pathY)-12,
+                            System.Math.Max(m.x+gz,pathX)+12,System.Math.Max(m.y+gx,pathY)+12))
+                            if(System.Math.Abs(tr.X-m.x)<gz+tr.CrownRadiusM && System.Math.Abs(tr.Y-m.y)<gx+tr.CrownRadiusM
+                                || tr.X>System.Math.Min(m.x,pathX)-2-tr.CrownRadiusM
+                                    && tr.X<System.Math.Max(m.x,pathX)+2+tr.CrownRadiusM
+                                    && tr.Y>System.Math.Min(m.y,pathY)-2-tr.CrownRadiusM
+                                    && tr.Y<System.Math.Max(m.y,pathY)+2+tr.CrownRadiusM)
+                            { blocked=true; break; }
+                        if(blocked) { rejectedFrontage.Add(key); frontageForest++; continue; }
+                        usedFrontage.Add(new Vector3(centre.x,gx,centre.z));
+                        target=m; return true;
+                    }
+                    return false;
+                }
+                // Up to 96 distinct ridges, each terrace containing four homes. 48 m
+                // spacing leaves 14 m between eaves and 30 m between garden fronts.
+                // Start on the camera side; a failed lot never shifts any existing body.
+                for(int row=0;row<26 && sourceLots.Count<96;row++)
+                for(int col=0;col<20 && sourceLots.Count<96;col++)
+                {
+                    candidates++;
+                    double u=1140+col*48,v=140+row*48;
+                    var map=grid.Map(u,v);
+                    bool detached=(row+col)%4==0;
+                    Vector3 size=detached?new Vector3(18,6.4f,16):new Vector3(32,7,16);
+                    double hx=21,hy=size.x*.5+4;
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-hx)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+hy+70)
+                            blocked=true;
+                    if(blocked) { airportRejected++; continue; }
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                        if(terrain.WaterSurfaceAt(map.x+dx*hx,map.y+dy*hy).HasValue) blocked=true;
+                    if(blocked) { waterRejected++; continue; }
+                    double g=terrain.HeightAt(map.x,map.y);
+                    // Hills begin at sim east=1650: C10's city-height gate excluded
+                    // this open grass even though small houses can follow its gentle slope.
+                    // Individual stone footings meet unchanged terrain; no estate-wide pad.
+                    double low=g,high=g;
+                    foreach(int dx in new[]{-1,1}) foreach(int dy in new[]{-1,1})
+                    {
+                        double corner=terrain.HeightAt(map.x+dx*size.z*.5,map.y+dy*size.x*.5);
+                        low=System.Math.Min(low,corner); high=System.Math.Max(high,corner);
+                    }
+                    if(System.Math.Abs(g-ground)>100 || high-low>2.5)
+                    { terrainRejected++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-hx-12,map.y-hy-12,map.x+hx+12,map.y+hy+12))
+                        if(System.Math.Abs(tr.X-map.x)<hx+tr.CrownRadiusM
+                            && System.Math.Abs(tr.Y-map.y)<hy+tr.CrownRadiusM) { blocked=true; break; }
+                    if(blocked) { treesRejected++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 roof=foot+Vector3.up*12;
+                    Vector3 relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    // Keep the whole roof inside the lens with an 8% horizontal margin.
+                    if(depth<950 || depth>2800 || Mathf.Abs(Vector3.Dot(relative,right))+size.x*.5f>depth*tanHalfFov*aspect*.84f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+14>depth*tanHalfFov*.9f)
+                    { viewRejected++; continue; }
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,5,-8)))
+                    { sightRejected++; continue; }
+                    sourceLots.Add((map,size,low,high,row,col));
+                }
+                // Move the most detached lots first. If frontage is exhausted, the
+                // preservation guard favours the sources already nearest the city edge.
+                sourceLots.Sort((a,c)=>c.map.y.CompareTo(a.map.y));
+                foreach(var source in sourceLots)
+                {
+                    var map=source.map;
+                    var size=source.size;
+                    double low=source.low,high=source.high;
+                    int row=source.row,col=source.col;
+                    bool detached=(row+col)%4==0;
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    // Preserve the source lot count/roof identity; use a validated street
+                    // frontage when available. Guard retained sources are explicitly logged,
+                    // never silently counted as successful relocations.
+                    bool moved=Frontage(size,out var frontage,out double frontageLow,out double frontageHigh);
+                    if(moved)
+                    {
+                        map=frontage; low=frontageLow; high=frontageHigh;
+                        foot=WorldBuilder.U(map.x,map.y,high+.16);
+                        frontageMoved++;
+                    }
+                    else frontageRetained++;
+                    // Green garden, pale door paths, restrained C10 light walls/36-degree
+                    // slate and brown roofs. No asphalt/paved lot or new road surface.
+                    float gx=size.x*.5f+3,gz=moved?11:20;
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,
+                        terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-gx,-gz),Lawn(-gx,gz),Lawn(gx,gz),Lawn(gx,-gz),new Color(.32f,.39f,.27f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,11003+row*37+col*13,detached?4:1,row+col/4);
+                    int doors=detached?1:4;
+                    for(int door=0;door<doors;door++)
+                    {
+                        float x=(door-(doors-1)*.5f)*8;
+                        b.Quad(Lawn(x-.55f,moved?-11:-19.5f),Lawn(x-.55f,-8.5f),
+                            Lawn(x+.55f,-8.5f),Lawn(x+.55f,moved?-11:-19.5f),new Color(.54f,.51f,.44f));
+                    }
+                    if(moved)
+                    {
+                        var local=grid.Unmap(map.x,map.y);
+                        // Garden gate/path connects to the original city asphalt, no road.
+                        if(local.u>1100 || local.u<0)
+                        {
+                            float end=(float)(local.u>1100?1112-local.u:-92-local.u);
+                            float gate=local.u>1100?-size.x*.5f:size.x*.5f;
+                            // Shared path follows the garden side, clear of every body.
+                            float pathMin=Mathf.Min(end,gate),pathMax=Mathf.Max(end,gate);
+                            b.Quad(Lawn(pathMin,13),Lawn(pathMin,15),Lawn(pathMax,15),Lawn(pathMax,13),new Color(.56f,.53f,.47f));
+                            b.Quad(Lawn(gate-.7f,0),Lawn(gate-.7f,14),Lawn(gate+.7f,14),Lawn(gate+.7f,0),new Color(.56f,.53f,.47f));
+                        }
+                        else
+                        {
+                            float end=(float)(2632-local.v);
+                            b.Quad(Lawn(-.8f,end),Lawn(-.8f,-9),Lawn(.8f,-9),Lawn(.8f,end),new Color(.56f,.53f,.47f));
+                        }
+                        if(frontageMoved%12==0)
+                        { Tree(b,Lawn(gx+2,12),17003+frontageMoved); streetTrees++; }
+                    }
+                    extension++; extensionArea+=size.x*size.z;
+                }
+                extensionEnd=b.Count;
+                // C12: retain the second, smaller-grain band at the town-facing edge.
+                // C11 source count is preserved, with C13 street-edge relocations. Small footprints fit real forest gaps;
+                // registered forest is never cleared for the sake of the render.
+                for(int candidate=0;candidate<72 && nearCount<72;candidate++)
+                {
+                    double u,v;
+                    if(candidate<48) { u=1092+(candidate%8)*34; v=-196+(candidate/8)*48; }
+                    else { u=1092; v=140+(candidate-48)*48; }
+                    nearTested++;
+                    // Keep the existing six-by-six flank and every C11 garden intact.
+                    if(u>=1150 && v<=-202) { nearOverlap++; continue; }
+                    var map=grid.Map(u,v);
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-18)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+84) blocked=true;
+                    double g=terrain.HeightAt(map.x,map.y),low=g,high=g;
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                    {
+                        double h=terrain.HeightAt(map.x+dx*9,map.y+dy*9);
+                        low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                        if(terrain.WaterSurfaceAt(map.x+dx*18,map.y+dy*14).HasValue) blocked=true;
+                    }
+                    if(blocked || System.Math.Abs(g-ground)>100 || high-low>2.5)
+                    { nearGround++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-30,map.y-26,map.x+30,map.y+26))
+                        if(System.Math.Abs(tr.X-map.x)<18+tr.CrownRadiusM
+                            && System.Math.Abs(tr.Y-map.y)<14+tr.CrownRadiusM) { blocked=true; break; }
+                    if(blocked) { nearForest++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 size=new Vector3(16,9.3f,14); // three-storey town walk-up
+                    Vector3 roof=foot+Vector3.up*14;
+                    Vector3 relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    if(depth<650 || depth>2050 || Mathf.Abs(Vector3.Dot(relative,right))+10>depth*tanHalfFov*aspect*.94f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+14>depth*tanHalfFov*.94f)
+                    { nearView++; continue; }
+                    // Roof AND upper facade must clear the forest. The former low 5 m
+                    // test discarded houses with visible upper storeys behind the tree belt.
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,9,-7)))
+                    { nearSight++; continue; }
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,
+                        terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-12,-18),Lawn(-12,18),Lawn(12,18),Lawn(12,-18),new Color(.34f,.41f,.28f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,15001+candidate*37,1,candidate/3);
+                    b.Quad(Lawn(-.7f,-18),Lawn(-.7f,-7),Lawn(.7f,-7),Lawn(.7f,-18),new Color(.56f,.53f,.46f));
+                    nearCount++;
+
+                }
+                // C13 fallback: houses IN FRONT of the sim-owned belt, never clear it.
+                // The existing C10/C12 rows remain; these small garden walk-ups occupy
+                // only genuinely open near-camera land, with no invented road/collision.
+                // Scan near-to-far to favour a readable lower-middle band in the town lens.
+                for(int row=0;row<10 && foreground<72;row++)
+                for(int col=0;col<20 && foreground<72;col++)
+                {
+                    double u=548+col*30,v=-780+row*36;
+                    // C10 starts at u=1190; its gardens/eaves remain beyond this band.
+                    foregroundTested++;
+                    var map=grid.Map(u,v);
+                    bool blocked=false;
+                    foreach(var a in FlyingGame.Core.WorldTerrain.Airports)
+                        if(FlyingGame.Core.WorldTerrain.PadOutsideX(a,map.x-12)<70
+                            && System.Math.Abs(map.y-a.Y)<FlyingGame.Core.WorldTerrain.PadHalfY+82) blocked=true;
+                    double low=double.MaxValue,high=double.MinValue;
+                    foreach(int dx in new[]{-1,0,1}) foreach(int dy in new[]{-1,0,1})
+                    {
+                        double x=map.x+dx*12,y=map.y+dy*12,h=terrain.HeightAt(x,y);
+                        low=System.Math.Min(low,h); high=System.Math.Max(high,h);
+                        if(terrain.WaterSurfaceAt(x,y).HasValue) blocked=true;
+                    }
+                    if(blocked || high-low>1.3 || System.Math.Abs(high-ground)>12)
+                    { foregroundGround++; continue; }
+                    foreach(var tr in FlyingGame.Core.Forest.InRect(map.x-26,map.y-26,map.x+26,map.y+26))
+                        if(System.Math.Abs(tr.X-map.x)<12+tr.CrownRadiusM && System.Math.Abs(tr.Y-map.y)<12+tr.CrownRadiusM)
+                        { blocked=true; break; }
+                    if(blocked) { foregroundForest++; continue; }
+                    Vector3 foot=WorldBuilder.U(map.x,map.y,high+.16);
+                    Vector3 size=new Vector3(16,6.2f,14);
+                    Vector3 roof=foot+Vector3.up*11,relative=roof-eye;
+                    float depth=Vector3.Dot(relative,forward);
+                    if(depth<260 || depth>850 || Mathf.Abs(Vector3.Dot(relative,right))+12>depth*tanHalfFov*aspect*.9f
+                        || Mathf.Abs(Vector3.Dot(relative,up))+12>depth*tanHalfFov*.88f)
+                    { foregroundView++; continue; }
+                    if(!ClearSight(roof) || !ClearSight(foot+new Vector3(0,4.5f,-7)))
+                    { foregroundSight++; continue; }
+                    Vector3 Lawn(float x,float z)=>WorldBuilder.U(map.x+z,map.y+x,terrain.HeightAt(map.x+z,map.y+x)+.08);
+                    b.Quad(Lawn(-12,-12),Lawn(-12,12),Lawn(12,12),Lawn(12,-12),new Color(.34f,.41f,.28f));
+                    float foundation=(float)(high-low)+.3f;
+                    b.Box(new Vector3(foot.x,(float)(low-.14)+foundation*.5f,foot.z),
+                        new Vector3(size.x,foundation,size.z),new Color(.46f,.45f,.41f));
+                    Building(foot,size,19001+row*71+col*13,4,row+col/3);
+                    b.Quad(Lawn(-.7f,-12),Lawn(-.7f,-7),Lawn(.7f,-7),Lawn(.7f,-12),new Color(.56f,.53f,.46f));
+                    foreground++;
+                }
+            }
+            Debug.Log($"Roof district C13 {grid.X0},{grid.Y0}: sim-owned belt, trees removed=0; frontage moved={frontageMoved}, retained source guards={frontageRetained}, tested={frontageTested}, rejects forest={frontageForest}, ground/water/airport={frontageGround}; foreground {foreground}/72 from {foregroundTested}, rejects ground/water/airport={foregroundGround}, forest={foregroundForest}, frustum={foregroundView}, sightline={foregroundSight}; garden trees={streetTrees}; no new streets. Retained source guards mean isolated-cluster acceptance is NOT met.");
+            Debug.Log($"Roof district C12 near band {grid.X0},{grid.Y0}: {nearCount}/72 placed from {nearTested}; rejects overlap={nearOverlap}, ground/water/airport={nearGround}, forest={nearForest}, frustum={nearView}, sightline={nearSight}. C11 source quota retained; see C13 relocation log. Visible band requires renders.");
+            Debug.Log($"Roof district C11 eastern extension {grid.X0},{grid.Y0}: {extension}/96 placed from {candidates} tested; rejects airport={airportRejected}, water={waterRejected}, terrain={terrainRejected}, forest={treesRejected}, frustum={viewRejected}, sightline={sightRejected}; {extensionArea:F0} m2, {extensionEnd-extensionStart} body vertices + {extension*16} facade vertices. Existing C10 bodies retained. Town visibility remains subject to rendered verification.");
+            Debug.Log($"Roof district camera-facing flank: {flankCount} new buildings; tree/terrain checked, original district retained.");
+            // Count/footprint are emitted for Chief's render log; no collision registration.
+            Debug.Log($"Roof district {grid.X0},{grid.Y0}: {count} buildings, {emptyBlocks} open blocks, {area:F0} m2 footprints, {b.Count-bodyStart} body/roof vertices + {count*16} facade vertices; all {count} are sim solids (UrbanLowRise), {FlyingGame.Core.UrbanLowRise.Refused} refused so far for standing on a pad, under a ring or on a final.");
+        }
         public static void Streets(FlyingGame.Core.CityGrid grid, double ground, SeasideBuilder.Batch b, UrbanFacades facades)
         {
+            RoofDistrict(grid,ground,b,facades);
             Vector3 P(double u,double v,double h) { var p=grid.Map(u,v); return WorldBuilder.U(p.x,p.y,ground+h); }
             // Longitudinal coordinates a (across street), z (along street) rotate through the public map.
             for(int axis=0;axis<2;axis++)
