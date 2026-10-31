@@ -20,6 +20,12 @@ public sealed class AtmosphereFieldConfig
     public List<RegionConfig> Regions { get; set; } = new();
     public TurbulenceModelConfig Turbulence { get; set; } = new();
     public OrographyConfig Orography { get; set; } = new();
+    /// <summary>How rough each mountain is: layered bottom to top over a factor of 1 (owner 2026-10-27: "I want some
+    /// mountains to be rough and some to be more smooth").</summary>
+    public List<RoughnessZoneConfig> Roughness { get; set; } = new();
+    /// <summary>The smooth air over and around seaplane lakes (owner 2026-10-27: "make the mountains with lakes to land
+    /// seaplanes on smoother").</summary>
+    public LakeSmoothingConfig LakeSmoothing { get; set; } = new();
     public ConvectionConfig Convection { get; set; } = new();
 }
 
@@ -166,6 +172,67 @@ public sealed class OrographyConfig
     public double WaveLengthCompression { get; set; } = 0.35;
     public double WaveAmplitude { get; set; } = 0.25;
     public double MinWaveWindMs { get; set; } = 6;
+}
+
+/// <summary>
+/// One mountain's (or range's, or wall's) roughness. <see cref="Factor"/> multiplies the MECHANICAL part of what the
+/// terrain does to the air — its turbulence (slope and lee σ), the rotor's spin and the lee downdraught — and leaves the
+/// laminar part alone (speed-up, upslope lift, lee waves), so a smooth ridge still soars and a rough one is not a better
+/// ridge, only a harder ride. <see cref="LengthScale"/> multiplies the turbulence length scale in proportion to how much
+/// of the turbulence is the terrain's own: below 1 is a sharper, choppier jolt, above 1 a longer, gentler heave.
+///
+/// The shape is a <see cref="Feature"/> of the world, resolved from the terrain code's own extents so it moves when the
+/// terrain does: "alaskaRange", "alpineRange", "frankChurch", "highDesert", "hills", "seaCliffs", "front:0|1|2" (the
+/// mountain front over escarpment i, its whole run from back slope to spur toe), "peak:alaska:&lt;name&gt;" or
+/// "peak:alpine:&lt;name&gt;" (a circle the peak's own radius). Without one, Shape/Center/Half/Radius as for a region.
+/// </summary>
+public sealed class RoughnessZoneConfig
+{
+    public string Id { get; set; } = "";
+    public string Note { get; set; } = "";
+    public string? Feature { get; set; }
+    /// <summary>Grow (+) or shrink (−) the resolved feature by this much on every side (m).</summary>
+    public double PadM { get; set; }
+    /// <summary>"box" or "circle" (when there is no Feature).</summary>
+    public string Shape { get; set; } = "box";
+    public double CenterX { get; set; }
+    public double CenterY { get; set; }
+    public double HalfX { get; set; } = 1000;
+    public double HalfY { get; set; } = 1000;
+    public double RadiusM { get; set; } = 1000;
+    /// <summary>Smootherstep blend outward from the shape's edge (m).</summary>
+    public double BlendM { get; set; } = 600;
+    /// <summary>× mechanical orographic turbulence, rotor and lee sink. 1 = the standard terrain.</summary>
+    public double Factor { get; set; } = 1.0;
+    /// <summary>× the turbulence length scale, weighted by the terrain's share of the turbulence.</summary>
+    public double LengthScale { get; set; } = 1.0;
+}
+
+/// <summary>
+/// Seaplane lakes get smooth air. The lakes are taken from the terrain's own water data (<see cref="Sources"/>): each one's
+/// water plus <see cref="ShoreMarginM"/> beyond its shoreline, plus APPROACH CORRIDORS
+/// <see cref="ApproachLengthM"/> long and <see cref="ApproachHalfWidthM"/> either side of the landing axis off both ends of
+/// the water (and down the outlet valley where the lake has one), is the core; the effect fades to nothing across
+/// <see cref="BlendWidthM"/> outside that on a smootherstep. In the core the orographic turbulence, rotor and lee sink are
+/// multiplied by <see cref="Factor"/> ON TOP of the mountain's own roughness, the boundary-layer turbulence by
+/// <see cref="BoundaryLayerFactor"/>, and the turbulence length by <see cref="LengthScale"/>.
+///
+/// Sources: "alpineLandableLakes" (the Cascades lakes flagged Landable), "alaskaGlacierLakes" (the Knik and Colony
+/// proglacial lakes), "plateauLakes" (the lake beside each airport — the seaplane base's and the float lessons'),
+/// "canyonLake" (the Valley's flooded gorge). The harbour is at sea and has no mountain to smooth.
+/// </summary>
+public sealed class LakeSmoothingConfig
+{
+    public bool Enabled { get; set; } = true;
+    public string Note { get; set; } = "";
+    public List<string> Sources { get; set; } = new();
+    public double Factor { get; set; } = 0.35;
+    public double BoundaryLayerFactor { get; set; } = 0.7;
+    public double LengthScale { get; set; } = 1.3;
+    public double ShoreMarginM { get; set; } = 300;
+    public double ApproachLengthM { get; set; } = 1500;
+    public double ApproachHalfWidthM { get; set; } = 250;
+    public double BlendWidthM { get; set; } = 600;
 }
 
 public sealed class ConvectionConfig

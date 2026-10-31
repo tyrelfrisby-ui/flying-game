@@ -21,11 +21,18 @@ public readonly struct AtmosphereSample
     /// <summary>Diagnostics for the overlay and the tests.</summary>
     public readonly double SpeedUp, SlopeLiftMs, LeeMs, WaveMs, ConvectiveMs, HeatingIndex, GustIncrementMs;
     public readonly string RegionId;
+    /// <summary>The terrain's own turbulence σ and the rotor's speed here (calm-faded, like the rest).</summary>
+    public readonly double OrographicSigmaMs, RotorMs;
+    /// <summary>The mechanical-roughness factor applied here (the mountain's own × a seaplane lake's smoothing), and how
+    /// far into a lake's smooth zone this is (1 in its core, 0 clear of it).</summary>
+    public readonly double RoughnessFactor, LakeSmoothing;
 
     public AtmosphereSample(Vec3 mean, Vec3 gust, double tK, double pPa, double rho, double da, double qnh, double isaDev,
         double sh, double sv, double lh, double lv, double thermalFactor, double calm,
-        double speedUp, double slope, double lee, double wave, double conv, double heat, double gustInc, string regionId)
+        double speedUp, double slope, double lee, double wave, double conv, double heat, double gustInc, string regionId,
+        double oroSigma = 0, double rotor = 0, double roughness = 1, double lakeSmoothing = 0)
     {
+        OrographicSigmaMs = oroSigma; RotorMs = rotor; RoughnessFactor = roughness; LakeSmoothing = lakeSmoothing;
         MeanWind = mean; Gust = gust; TemperatureK = tK; PressurePa = pPa; DensityKgM3 = rho; DensityAltitudeM = da; QnhPa = qnh;
         IsaDeviationK = isaDev; SigmaHorizMs = sh; SigmaVertMs = sv; LengthHorizM = lh; LengthVertM = lv; ThermalFactor = thermalFactor;
         CalmWeight = calm; SpeedUp = speedUp; SlopeLiftMs = slope; LeeMs = lee; WaveMs = wave; ConvectiveMs = conv; HeatingIndex = heat;
@@ -147,6 +154,8 @@ public sealed class AtmosphereField
         foreach (RegionConfig rc in config.Regions)
             if (!ReferenceEquals(rc, bg)) _regions.Add(new Region(rc));
         if (config.CalmZone.Enabled) Calm = new CalmZone(config.CalmZone);
+        foreach (RoughnessZoneConfig z in config.Roughness) _roughness.Add(new RoughnessZone(z));
+        if (config.LakeSmoothing.Enabled) _lakes.AddRange(SeaplaneLake.FromSources(config.LakeSmoothing));
     }
 
     // =============================================================================================================
@@ -325,6 +334,261 @@ public sealed class AtmosphereField
         double r = Calm.RadiusM + Calm.BlendWidthM + marginM;
         double a2 = clamped + nx / len * r, c2 = ny / len * r;
         return (Calm.CentreX + a2 * c - c2 * s, Calm.CentreY + a2 * s + c2 * c);
+    }
+
+    // =============================================================================================================
+    // Mountain roughness and seaplane lakes
+    // =============================================================================================================
+
+    public IReadOnlyList<RoughnessZone> RoughnessZones => _roughness;
+    private readonly List<RoughnessZone> _roughness = new();
+    public IReadOnlyList<SeaplaneLake> SeaplaneLakes => _lakes;
+    private readonly List<SeaplaneLake> _lakes = new();
+
+    /// <summary>A mountain's roughness: a world feature (or authored shape) resolved to a box or a circle, with a blend.</summary>
+    public sealed class RoughnessZone
+    {
+        public RoughnessZoneConfig Cfg { get; }
+        public string Id => Cfg.Id;
+        public bool IsCircle { get; }
+        public double CenterX { get; }
+        public double CenterY { get; }
+        public double HalfX { get; }
+        public double HalfY { get; }
+        public double RadiusM { get; }
+
+        public RoughnessZone(RoughnessZoneConfig c)
+        {
+            Cfg = c;
+            double x0, x1, y0, y1;
+            string f = (c.Feature ?? "").Trim();
+            string fl = f.ToLowerInvariant();
+            if (f.Length == 0)
+            {
+                IsCircle = c.Shape.Equals("circle", System.StringComparison.OrdinalIgnoreCase);
+                CenterX = c.CenterX; CenterY = c.CenterY; HalfX = c.HalfX + c.PadM; HalfY = c.HalfY + c.PadM; RadiusM = c.RadiusM + c.PadM;
+                return;
+            }
+            if (fl.StartsWith("peak:"))
+            {
+                string[] parts = f.Split(':');
+                if (parts.Length != 3) throw new System.ArgumentException($"Atmosphere config: roughness feature '{f}' must be peak:<range>:<name>.");
+                (double x, double y, double r)? pk = null;
+                if (parts[1].Equals("alaska", System.StringComparison.OrdinalIgnoreCase))
+                    foreach (AlaskaRange.Peak p in AlaskaRange.Peaks) { if (p.Name.Equals(parts[2], System.StringComparison.OrdinalIgnoreCase)) pk = (p.X, p.Y, p.RadiusM); }
+                else if (parts[1].Equals("alpine", System.StringComparison.OrdinalIgnoreCase))
+                    foreach (AlpineRange.Peak p in AlpineRange.Peaks) { if (p.Name.Equals(parts[2], System.StringComparison.OrdinalIgnoreCase)) pk = (p.X, p.Y, p.RadiusM); }
+                if (pk is null) throw new System.ArgumentException($"Atmosphere config: unknown peak '{f}'.");
+                IsCircle = true; CenterX = pk.Value.x; CenterY = pk.Value.y; RadiusM = pk.Value.r + c.PadM;
+                return;
+            }
+            if (fl.StartsWith("front:") && int.TryParse(f.Substring(6), out int step))
+            {
+                if (step < 0 || step >= WorldTerrain.StepCount) throw new System.ArgumentException($"Atmosphere config: no mountain front {step}.");
+                // From the back slope behind the crest (crest = edge − the wall's run; the summits' back slopes reach
+                // ~400 m behind it) to the farthest spur toe on the lower plateau, both widened by the edge's wander.
+                double e = WorldTerrain.EdgeMeanY(step), wander = 210;
+                x0 = WorldTerrain.MeshMinX; x1 = WorldTerrain.MeshMaxX;
+                y0 = e - WorldTerrain.EscarpmentWidthM - 400 - wander; y1 = e + WorldTerrain.FrontExtraWidthM + wander;
+            }
+            else switch (fl)
+            {
+                case "alaskarange": x0 = AlaskaRange.X0; x1 = AlaskaRange.X1; y0 = AlaskaRange.Y0; y1 = AlaskaRange.Y1; break;
+                case "alpinerange": x0 = AlpineRange.X0; x1 = AlpineRange.X1; y0 = AlpineRange.Y0; y1 = AlpineRange.Y1; break;
+                case "frankchurch": x0 = FrankChurch.X0; x1 = FrankChurch.X1; y0 = FrankChurch.Y0; y1 = FrankChurch.Y1; break;
+                case "highdesert": x0 = HighDesert.X0; x1 = HighDesert.X1; y0 = HighDesert.Y0; y1 = HighDesert.Y1; break;
+                case "hills": x0 = Hills.X0; x1 = Hills.X1; y0 = Hills.Y0; y1 = Hills.Y1; break;
+                case "seacliffs":
+                    // The cliff line wanders ±330 m about the mean shore (Coast.ShoreY); 90 m of cliff run seaward of it.
+                    x0 = WorldTerrain.MeshMinX; x1 = WorldTerrain.MeshMaxX; y0 = Coast.MeanShoreY - 450; y1 = Coast.MeanShoreY + 450; break;
+                default: throw new System.ArgumentException($"Atmosphere config: unknown roughness feature '{f}'.");
+            }
+            CenterX = 0.5 * (x0 + x1); CenterY = 0.5 * (y0 + y1);
+            HalfX = 0.5 * (x1 - x0) + c.PadM; HalfY = 0.5 * (y1 - y0) + c.PadM;
+        }
+
+        public double DistanceOutside(double x, double y)
+        {
+            double dx = x - CenterX, dy = y - CenterY;
+            if (IsCircle) return System.Math.Sqrt(dx * dx + dy * dy) - RadiusM;
+            double ox = System.Math.Abs(dx) - HalfX, oy = System.Math.Abs(dy) - HalfY;
+            double outside = System.Math.Sqrt(System.Math.Pow(System.Math.Max(ox, 0), 2) + System.Math.Pow(System.Math.Max(oy, 0), 2));
+            return outside > 0 ? outside : System.Math.Max(ox, oy);
+        }
+
+        public double Weight(double x, double y)
+        {
+            double d = DistanceOutside(x, y);
+            return d <= 0 ? 1.0 : d >= Cfg.BlendM ? 0.0 : 1.0 - Smootherstep(d / System.Math.Max(1e-6, Cfg.BlendM));
+        }
+    }
+
+    /// <summary>
+    /// A seaplane lake's smooth zone, built from the terrain's own lake data: the water (an ellipse, or for the canyon
+    /// lake a run of capsules down its gorge) grown by the shore margin, and approach corridors off both ends of the
+    /// landing axis (and down an alpine lake's outlet valley).
+    /// </summary>
+    public sealed class SeaplaneLake
+    {
+        public string Name { get; }
+        public double CentreX { get; }
+        public double CentreY { get; }
+        private readonly double _a, _b, _heading;   // ellipse semi-axes along / across the heading (0 = none)
+        private readonly double _margin;
+        /// <summary>Segments (x0, y0, x1, y1, half-width): the corridors, and a gorge lake's water.</summary>
+        public IReadOnlyList<(double x0, double y0, double x1, double y1, double halfW)> Segments => _segs;
+        private readonly List<(double x0, double y0, double x1, double y1, double halfW)> _segs = new();
+        public double SemiMajorM => _a;
+        public double SemiMinorM => _b;
+        public double HeadingRad => _heading;
+
+        private SeaplaneLake(string name, double cx, double cy, double a, double b, double headingRad, double margin)
+        { Name = name; CentreX = cx; CentreY = cy; _a = a; _b = b; _heading = headingRad; _margin = margin; }
+
+        /// <summary>A corridor from the centre out along a bearing, to the shore plus the approach length.</summary>
+        private void Corridor(double bearingRad, double lengthM, double halfW)
+        {
+            double c = System.Math.Cos(bearingRad), s = System.Math.Sin(bearingRad);
+            _segs.Add((CentreX, CentreY, CentreX + c * lengthM, CentreY + s * lengthM, halfW));
+        }
+
+        /// <summary>An elliptical lake landed along its long axis (both ways), and out along its outlet if it has one.</summary>
+        private static SeaplaneLake Ellipse(string name, double cx, double cy, double a, double b, double headingDeg, double? outletDeg, LakeSmoothingConfig c)
+        {
+            double h = headingDeg * System.Math.PI / 180;
+            var l = new SeaplaneLake(name, cx, cy, a, b, h, c.ShoreMarginM);
+            if (c.ApproachLengthM > 0)
+            {
+                l.Corridor(h, a + c.ApproachLengthM, c.ApproachHalfWidthM);
+                l.Corridor(h + System.Math.PI, a + c.ApproachLengthM, c.ApproachHalfWidthM);
+                if (outletDeg.HasValue)
+                {
+                    double o = outletDeg.Value * System.Math.PI / 180;
+                    double co = System.Math.Cos(o - h), so = System.Math.Sin(o - h);
+                    double shore = 1.0 / System.Math.Sqrt(co * co / (a * a) + so * so / (b * b));   // the shore on that bearing
+                    if (System.Math.Abs(System.Math.Sin(o - h)) > 0.17) l.Corridor(o, shore + c.ApproachLengthM, c.ApproachHalfWidthM);
+                }
+            }
+            return l;
+        }
+
+        public static IEnumerable<SeaplaneLake> FromSources(LakeSmoothingConfig c)
+        {
+            foreach (string src in c.Sources)
+            {
+                switch (src.Trim().ToLowerInvariant())
+                {
+                    case "alpinelandablelakes":
+                        foreach (AlpineRange.Lake l in AlpineRange.Lakes)
+                            if (l.Landable) yield return Ellipse("alpine:" + l.Name, l.X, l.Y, 0.5 * l.LengthM, 0.5 * l.WidthM, l.HeadingDeg, l.OutletHeadingDeg, c);
+                        break;
+                    case "alaskaglacierlakes":
+                        foreach (AlaskaRange.Glacier g in AlaskaRange.Glaciers)
+                        {
+                            var (gx, gy) = g.LakeCentre;
+                            // Axis-aligned ellipses (LakeRx along x); landed along whichever axis is longer.
+                            bool alongX = g.LakeRx >= g.LakeRy;
+                            yield return Ellipse("alaska:" + g.Name, gx, gy, System.Math.Max(g.LakeRx, g.LakeRy), System.Math.Min(g.LakeRx, g.LakeRy), alongX ? 0 : 90, null, c);
+                        }
+                        break;
+                    case "plateaulakes":
+                        // One beside each airport (the last entry of WorldTerrain.Lakes is the harbour, at sea: no mountain).
+                        for (int i = 0; i < WorldTerrain.Lakes.Length - 1; i++)
+                        {
+                            WorldTerrain.Lake l = WorldTerrain.Lakes[i];
+                            bool alongX = l.Rx >= l.Ry;
+                            string name = i < WorldTerrain.Airports.Length ? WorldTerrain.Airports[i].Name : i.ToString();
+                            yield return Ellipse("plateau:" + name, l.Cx, l.Cy, System.Math.Max(l.Rx, l.Ry), System.Math.Min(l.Rx, l.Ry), alongX ? 0 : 90, null, c);
+                        }
+                        break;
+                    case "canyonlake":
+                    {
+                        // The flooded gorge: capsules down the river's centreline over the water, then corridors on up and
+                        // down the gorge for the approach.
+                        double y0 = CanyonLake.Y0, y1 = CanyonLake.DamY, ym = 0.5 * (y0 + y1);
+                        var l = new SeaplaneLake("canyon", CanyonLake.CentreX(ym), ym, 0, 0, 0, c.ShoreMarginM);
+                        double maxHalf = 0;
+                        for (double y = y0; y <= y1; y += 25) maxHalf = System.Math.Max(maxHalf, CanyonLake.HalfWidthAt(y));
+                        const int n = 8;
+                        for (int k = 0; k < n; k++)
+                        {
+                            double ya = y0 + (y1 - y0) * k / n, yb = y0 + (y1 - y0) * (k + 1) / n;
+                            l._segs.Add((CanyonLake.CentreX(ya), ya, CanyonLake.CentreX(yb), yb, maxHalf + c.ShoreMarginM));
+                        }
+                        if (c.ApproachLengthM > 0)
+                        {
+                            l._segs.Add((CanyonLake.CentreX(y0), y0, CanyonLake.CentreX(y0 - c.ApproachLengthM), y0 - c.ApproachLengthM, c.ApproachHalfWidthM));
+                            l._segs.Add((CanyonLake.CentreX(y1), y1, CanyonLake.CentreX(y1 + c.ApproachLengthM), y1 + c.ApproachLengthM, c.ApproachHalfWidthM));
+                        }
+                        yield return l;
+                        break;
+                    }
+                    default: throw new System.ArgumentException($"Atmosphere config: unknown seaplane lake source '{src}'.");
+                }
+            }
+        }
+
+        /// <summary>Distance (m) outside the smooth core (≤ 0 inside): the water plus its margin, or a corridor.</summary>
+        public double DistanceOutside(double x, double y)
+        {
+            double d = double.PositiveInfinity;
+            if (_a > 0 && _b > 0)
+            {
+                double dx = x - CentreX, dy = y - CentreY;
+                double c = System.Math.Cos(_heading), s = System.Math.Sin(_heading);
+                double u = dx * c + dy * s, v = -dx * s + dy * c;
+                double r = System.Math.Sqrt(u * u + v * v);
+                // Radial distance to the shore: |p| − (the shore's distance on this bearing).
+                double shore = r < 1e-9 ? _b : r / System.Math.Sqrt(u * u / (_a * _a) + v * v / (_b * _b));
+                d = r - shore - _margin;
+            }
+            foreach (var (x0, y0, x1, y1, hw) in _segs)
+            {
+                double ex = x1 - x0, ey = y1 - y0, len2 = ex * ex + ey * ey;
+                double t = len2 > 0 ? System.Math.Clamp(((x - x0) * ex + (y - y0) * ey) / len2, 0, 1) : 0;
+                double px = x0 + t * ex - x, py = y0 + t * ey - y;
+                d = System.Math.Min(d, System.Math.Sqrt(px * px + py * py) - hw);
+            }
+            return d;
+        }
+
+        public double Weight(double x, double y, double blendM)
+        {
+            double d = DistanceOutside(x, y);
+            return d <= 0 ? 1.0 : d >= blendM ? 0.0 : 1.0 - Smootherstep(d / System.Math.Max(1e-6, blendM));
+        }
+    }
+
+    /// <summary>The mountain's own roughness here (before any lake): the zones layered in list order over 1, each
+    /// painting its factor over what is below it across its blend. Returns (factor, length-scale multiplier).</summary>
+    public (double factor, double lengthScale) MountainRoughnessAt(double x, double y)
+    {
+        double f = 1.0, l = 1.0;
+        for (int i = 0; i < _roughness.Count; i++)
+        {
+            double w = _roughness[i].Weight(x, y);
+            if (w <= 0) continue;
+            f += (_roughness[i].Cfg.Factor - f) * w;
+            l += (_roughness[i].Cfg.LengthScale - l) * w;
+        }
+        return (f, l);
+    }
+
+    /// <summary>How far into a seaplane lake's smooth zone (x, y) is: 1 in a core, 0 clear of every lake (the most of
+    /// any lake, so overlapping zones never add).</summary>
+    public double LakeSmoothingAt(double x, double y)
+    {
+        double w = 0;
+        double blend = Config.LakeSmoothing.BlendWidthM;
+        for (int i = 0; i < _lakes.Count && w < 1.0; i++) w = System.Math.Max(w, _lakes[i].Weight(x, y, blend));
+        return w;
+    }
+
+    /// <summary>The roughness the terrain's mechanical effects get here: the mountain's × the lake's smoothing.</summary>
+    public double OrographicRoughnessAt(double x, double y)
+    {
+        double lake = LakeSmoothingAt(x, y);
+        return MountainRoughnessAt(x, y).factor * (1.0 - lake * (1.0 - Config.LakeSmoothing.Factor));
     }
 
     // =============================================================================================================
@@ -534,7 +798,12 @@ public sealed class AtmosphereField
         // Terrain.
         var (tK0, _, _, _) = Thermo(alt, air.IsaDevK, air.LapseKPerM, Atmosphere.SeaLevelPressurePa);
         double exp = air.ProfileExp, gh = air.GradientH;
-        Orography.Result oro = Orography.Evaluate(_ground, pos, windH, Config.Orography, air.OroScale, air.LapseKPerM, tK0, z => ProfileFactor(z, exp, gh));
+        // How rough this mountain is, and how much of a seaplane lake's smoothing reaches here.
+        var (mRough, mLength) = MountainRoughnessAt(pos.X, pos.Y);
+        double lakeW = LakeSmoothingAt(pos.X, pos.Y);
+        LakeSmoothingConfig lc = Config.LakeSmoothing;
+        double roughness = mRough * (1.0 - lakeW * (1.0 - lc.Factor));
+        Orography.Result oro = Orography.Evaluate(_ground, pos, windH, Config.Orography, air.OroScale, air.LapseKPerM, tK0, z => ProfileFactor(z, exp, gh), roughness);
         Vec3 mean = windH * (1 + oro.SpeedUp) + oro.Rotor;
         double w = oro.SlopeLiftMs + oro.LeeMs + oro.WaveMs + air.BackgroundW;
 
@@ -562,7 +831,8 @@ public sealed class AtmosphereField
         TurbulenceScales.Scales mil = TurbulenceScales.LowAltitude(agl, w20, Spectrum);
         double rough = System.Math.Clamp(System.Math.Log(10.0 / 0.03) / (System.Math.Log(10.0) - air.LnZ0), 0.4, 2.0);
         double blDecay = agl <= 305 ? 1.0 : System.Math.Exp(-(agl - 305) / 600.0);
-        double su = mil.SigmaU * rough * blDecay * air.TurbScale, sw = mil.SigmaW * rough * blDecay * air.TurbScale;
+        double lakeBl = 1.0 - lakeW * (1.0 - lc.BoundaryLayerFactor);   // water is a smoother surface than the hills round it
+        double su = mil.SigmaU * rough * blDecay * air.TurbScale * lakeBl, sw = mil.SigmaW * rough * blDecay * air.TurbScale * lakeBl;
         double wStar = 2.0 * air.ThermalScale * ConvectionScale * System.Math.Max(0, heat);
         double zn = agl / zi;
         double sConv = zn < 1 ? 0.6 * wStar * System.Math.Pow(System.Math.Max(zn, 0.02), 1.0 / 3.0) * (1 - 0.8 * zn) : 0;
@@ -570,8 +840,12 @@ public sealed class AtmosphereField
         double clear = air.ClearAir * air.TurbScale;
         double sigH = System.Math.Sqrt(su * su + 0.36 * sConv * sConv + sOro * sOro + clear * clear) * TurbulenceScale;
         double sigV = System.Math.Sqrt(sw * sw + sConv * sConv + 0.6 * sOro * sOro + clear * clear) * TurbulenceScale;
-        double lh = System.Math.Clamp(mil.LengthU, Config.Turbulence.MinLengthM, Config.Turbulence.MaxLengthM);
-        double lv = System.Math.Clamp(mil.LengthW, Config.Turbulence.MinLengthM, Config.Turbulence.MaxLengthM);
+        // A rough mountain's eddies are its own size and sharper; the length follows the terrain's share of the variance.
+        double total2 = su * su + 0.36 * sConv * sConv + sOro * sOro + clear * clear;
+        double oroShare = total2 > 1e-12 ? sOro * sOro / total2 : 0.0;
+        double lenMul = (1.0 + (mLength - 1.0) * oroShare) * (1.0 + lakeW * (lc.LengthScale - 1.0));
+        double lh = System.Math.Clamp(mil.LengthU * lenMul, Config.Turbulence.MinLengthM, Config.Turbulence.MaxLengthM);
+        double lv = System.Math.Clamp(mil.LengthW * lenMul, Config.Turbulence.MinLengthM, Config.Turbulence.MaxLengthM);
 
         Vec3 gust = Vec3.Zero;
         if (sigH > 0 || sigV > 0)
@@ -585,7 +859,8 @@ public sealed class AtmosphereField
             Atmosphere.SeaLevelPressurePa + air.QnhOffPa * keep);
         return new AtmosphereSample(mean * keep, gust * keep, tK, pPa, rho, da, Atmosphere.SeaLevelPressurePa + air.QnhOffPa * keep, air.IsaDevK * keep,
             sigH * keep, sigV * keep, lh, lv, air.ThermalScale * keep, calm,
-            oro.SpeedUp * keep, oro.SlopeLiftMs * keep, oro.LeeMs * keep, oro.WaveMs * keep, conv * keep, heat, air.GustInc10.Length * profile * keep, air.Id);
+            oro.SpeedUp * keep, oro.SlopeLiftMs * keep, oro.LeeMs * keep, oro.WaveMs * keep, conv * keep, heat, air.GustInc10.Length * profile * keep, air.Id,
+            sOro * keep, oro.RotorMs * keep, roughness, lakeW);
     }
 
     /// <summary>The wind the frozen turbulence drifts with: the synoptic wind near gradient height (one vector for the

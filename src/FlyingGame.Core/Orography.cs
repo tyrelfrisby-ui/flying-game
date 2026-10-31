@@ -30,6 +30,9 @@ namespace FlyingGame.Core;
 ///                sink first, decaying downstream.
 /// Turbulence: σ_oro = (SlopeTurbulence·|∇h|·U + lee/rotor σ) · e^(−agl / max(150, relief)), so it is strongest
 /// against the ground, in the rotor, and dies away above the ridge tops.
+/// Roughness (owner 2026-10-27: "some mountains rough, some more smooth"): the MECHANICAL part — σ_oro, the rotor's
+/// spin and the lee downdraught — is multiplied by the local roughness factor (the mountain's own, times a seaplane
+/// lake's smoothing); the laminar part (speed-up, upslope lift, lee waves) is not, so a smooth ridge soars just as well.
 /// </summary>
 public static class Orography
 {
@@ -44,6 +47,7 @@ public static class Orography
         public double LeeDropM;      // height of the upwind crest above here
         public double CrestDistanceM;// how far downwind of it
         public double ReliefM;       // local relief
+        public double RotorMs => Rotor.Length;
     }
 
     private static readonly double[] Upwind = { 100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3200 };
@@ -51,8 +55,9 @@ public static class Orography
     /// <param name="windH">The horizontal wind here, its height profile applied.</param>
     /// <param name="crestProfile">The wind profile factor as a function of height above ground (to refer the lee's
     /// turbulence to the wind at crest height).</param>
+    /// <param name="roughness">× the mechanical part: σ_oro, the rotor and the lee sink (1 = the standard terrain).</param>
     public static Result Evaluate(System.Func<double, double, double> height, Vec3 pos, Vec3 windH, OrographyConfig c,
-        double scale, double lapseKPerM, double temperatureK, System.Func<double, double> crestProfile)
+        double scale, double lapseKPerM, double temperatureK, System.Func<double, double> crestProfile, double roughness = 1.0)
     {
         var r = new Result();
         double u = System.Math.Sqrt(windH.X * windH.X + windH.Y * windH.Y);
@@ -108,14 +113,14 @@ public static class Orography
             double zs = (z - 0.6) / 0.7;
             double leeGate = gate * SmoothStep((u - c.LeeMinWindMs) / System.Math.Max(0.1, c.LeeFullWindMs - c.LeeMinWindMs));
             double rotorGate = gate * SmoothStep((uCrest - c.RotorMinWindMs) / System.Math.Max(0.1, c.RotorFullWindMs - c.RotorMinWindMs));
-            r.LeeMs = -leeGate * scale * c.LeeSinkFraction * u * System.Math.Exp(-s / (2 * H)) * System.Math.Exp(-zs * zs);
+            r.LeeMs = -leeGate * scale * roughness * c.LeeSinkFraction * u * System.Math.Exp(-s / (2 * H)) * System.Math.Exp(-zs * zs);
 
             double sr = c.RotorDistanceDrops * H, zr = 0.45 * H, R = 0.45 * H;
             double ds = s - sr, dz = agl - zr, dist = System.Math.Sqrt(ds * ds + dz * dz);
             if (dist > 1e-6)
             {
                 double rho = dist / R;
-                double ut = rotorGate * scale * c.RotorStrength * uCrest * rho * System.Math.Exp(0.5 * (1 - rho * rho));
+                double ut = rotorGate * scale * roughness * c.RotorStrength * uCrest * rho * System.Math.Exp(0.5 * (1 - rho * rho));
                 double us = ut * dz / dist, wz = -ut * ds / dist;   // top downwind, bottom back upwind; down on the far side
                 r.Rotor = new Vec3(dx * us, dy * us, -wz);
             }
@@ -136,7 +141,7 @@ public static class Orography
             }
         }
         double decay = System.Math.Exp(-agl / System.Math.Max(150.0, relief));
-        r.SigmaMs = scale * (c.SlopeTurbulence * System.Math.Min(slope, 1.0) * u * decay + sigmaLee);
+        r.SigmaMs = scale * roughness * (c.SlopeTurbulence * System.Math.Min(slope, 1.0) * u * decay + sigmaLee);
         return r;
     }
 
