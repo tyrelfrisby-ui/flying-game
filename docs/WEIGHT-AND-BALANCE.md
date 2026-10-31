@@ -71,27 +71,66 @@ inboard half of the span. They matter to Ixx and Izz and to the vertical CG, and
 on them — the 172's empty Ixx moves by 200 kg·m² if the tanks are placed at half-span instead of 2 m out. Worth
 revisiting per type, not worth blocking on.
 
+### Two halves of the data, and why that matters
+
+Adding a type divides cleanly in two, and the halves have very different costs.
+
+- **The envelope half** — max take-off weight and the certificated CG limits — needs only the type certificate, which
+  is one document and usually one line. It gives the type real limits in the Aero Widget's weight-and-balance control
+  and a real plot to show them on. `LoadSheet.HasEnvelope`.
+- **The loading half** — empty weight, and the arm of every seat, hold and tank — needs the type's POH loading table,
+  which is a scanned handbook per type and the slow part. It is what lets you actually put people and fuel in.
+  `LoadSheet.Loadable`.
+
+A type can have the first without the second, and several now do. The load sheet says so plainly instead of
+pretending the type does not exist, and shows the envelope with where the aeroplane is flying on it.
+
 ### Types done
 
-| type | source | empty | gross | envelope (%MAC) |
-|---|---|---|---|---|
-| `c172-like` | Cessna 172N POH 1979 §2.13, §6 figs 6-3/6-5; TCDS 3A12 | 1454 lb @ sta 39.6 | 2300 lb | 21.0–35.7 at gross, 15.2 fwd below 1950 lb |
-| `j3-cub-like` | FAA TCDS A-691 (J3C-65) | 765 lb, CG derived @ sta 19.4 | 1220 lb | 14.6–34.4 |
+| type | source | envelope (%MAC) | loadable |
+|---|---|---|---|
+| `c172-like` | Cessna 172N POH 1979 §2.13, §6 figs 6-3/6-5; TCDS 3A12 | 21.0–35.7 at gross, 15.2 fwd below 1950 lb | yes — 1454 lb @ sta 39.6, 2300 lb gross |
+| `j3-cub-like` | FAA TCDS A-691 (J3C-65) | 14.6–34.4 | yes — 765 lb, CG derived @ sta 19.4, 1220 lb gross |
+| `pitts-s2b-like` | FAA TCDS A8SO rev 21, acrobatic category | **20.0–22.2 at 1625 lb** | limits only |
+| `great-lakes-like` | FAA TCDS A18EA rev 11 | 25.1–32.5 | limits only |
+| `glider-swift-s1-like` | EASA TCDS A.038 | 26.0–41.9 | limits only |
+
+Those three needed no new research: the repo had already located each one's datum for other work
+(`docs/CONTROL-SURFACES.md` for the Pitts and the Great Lakes, `assets-incoming/ref-swift-s1/MEASUREMENTS.md` for the
+Swift). Their anchors are worth recording, because each is a different kind:
+
+- **Pitts** — the datum is 91.81 in forward of the lower wing leading edge, and this project's model has its origin
+  exactly there, so the anchor is body x = 0. Its acrobatic band is **2.2 % MAC wide**, which is what an aerobatic
+  biplane's envelope looks like.
+- **Great Lakes** — the certificate's datum ("centre of most forward lateral fuselage tube") is not a feature of a
+  mesh, but the same sheet gives MAC 46.0 in with its leading edge at Sta. 9.0, which located the datum at body
+  x −0.200 by two routes 25 mm apart. The sheet gives one CG range, so it is taken as constant with weight.
+- **Swift S-1** — EASA quotes the limits in **percent MAC itself**, so no datum mapping is needed at all. Its MAC of
+  984 mm against our measured 970 mm is the whole error.
+
+**Each type's tuned CG lands inside its own certificated envelope**, which is the check that validates the mapping and
+the condition for adding one at all — `EveryTypeWithAnEnvelopeIsTunedInsideIt`. Five types agreeing is why the method
+is trustworthy, and it is exactly what the Archer fails.
 
 The J-3's two seats are at stations +9 and +36 on a 61-inch chord, so which one the pilot sits in is worth 8 %MAC —
 nearly half the whole range. That is why a Cub is soloed from the back seat, and it falls out of the published data
 rather than being written in.
 
-### `pa28-archer-like` is blocked, and why
+### `pa28-archer-like` is blocked, and why — now with the evidence
 
 The factory POH gives everything except the one thing the mapping needs. Arms (front 80.5, rear 118.1, fuel 95.0,
 baggage 142.8), empty weight (1547 lb at 86.4), gross (2550 lb) and the envelope (82.0 in below 2050 lb to 88.6 in
 at 2550; aft 93.0 throughout) are all in Section 6 and §2.13. But the datum is defined as *78.4 inches ahead of the
-wing leading edge at the inboard intersection of the straight and tapered section*, and anchoring on that point puts
-the published aft CG limit at about 18 %MAC and the config's own tuned CG about 6 %MAC **behind** the aft limit —
-which would also mean an Archer flies its whole envelope with 24 % of static margin in hand. The 172's numbers hang
-together under the same treatment, so the Archer's anchor is the suspect, not the method. It needs the Archer's MAC
-and LEMAC station from TCDS 2A13, which the POH does not carry. Not guessed.
+wing leading edge at the inboard intersection of the straight and tapered section*, and anchoring on that point gives
+numbers that cannot be right: the published **forward** limit of 82.0 in lands at **0.3 % MAC**, essentially on the
+MAC leading edge, and the config's tuned CG falls 5.6 in behind the published aft limit. No aeroplane has a forward
+CG limit at the leading edge of its own mean chord.
+
+Four other types hang together under identical treatment, so this is the Archer, not the method — either the config's
+wing is positioned differently from the real aeroplane's, or the datum note means something other than the obvious
+reading. The number that would settle it is the Archer's MAC and LEMAC station, which FAA TCDS 2A13 does not carry
+(it gives the CG range in inches only) and the POH does not either. The UK CAA sheet for the PA-28-181 repeats the
+same wing-leading-edge datum without a MAC. Left out rather than fudged.
 
 ## Still to build
 
@@ -101,8 +140,13 @@ and LEMAC station from TCDS 2A13, which the POH does not carry. Not guessed.
   project never show own-ship position, but a weight-and-balance envelope is not a navigation chart and is useless
   without the loaded point on it, so it shows there.
 - **A loading screen** before flight, and a per-tank fuel selector.
-- **The rest of the fleet.** Each type needs one anchor and its published loading table. The gliders want water
-  ballast rather than fuel, which is the same mechanism with a density of 1.0 and a dump valve.
+- **The rest of the fleet.** Each type needs one anchor and, for the loading half, its POH loading table. The cheap
+  half is worth doing first and in bulk: a certificate gives the envelope, and the envelope is what the widget and
+  the plot need. The gliders want water ballast rather than fuel, which is the same mechanism with a density of 1.0
+  and a dump valve.
+- **Where it is reached from.** The load sheet is on the landing page's AIRCRAFT chapter, before you fly, which is
+  when a pilot does it. There is no in-flight entry yet, and there is not much point in one until fuel burn moves
+  the CG during a flight.
 
 ## Two things for the owner
 
@@ -139,5 +183,10 @@ convention; the loading blocks above are the first two.
   <https://upload.wikimedia.org/wikipedia/commons/8/8a/US_FAA_A-691.pdf>
 - Piper PA-28-181 Cherokee Archer II POH, Report VB-790, 1976 — §2.13 and §6 Figures 6-9/6-11.
   <https://aacit.org/wp-content/uploads/2016/02/PA28-181-POH.pdf>
+- FAA TCDS A8SO (Pitts S-2B) and A18EA (Great Lakes 2T-1A-2), both already read for this project and recorded in
+  `docs/CONTROL-SURFACES.md`; EASA TCDS A.038 (Swift S-1), recorded in `assets-incoming/ref-swift-s1/MEASUREMENTS.md`.
+- Great Lakes standard empty weight 1230 lb and 1800 lb gross: Plane & Pilot's type specification. A newer build is
+  1290 lb, so this is a type figure and not a particular aeroplane's.
+  <https://planeandpilotmag.com/article/great-lakes-2t-1a-2>
 - J-3 empty weight 765 lb is the type figure, not a particular aeroplane's; an individual Cub's empty weight and CG
   come from its own weight-and-balance record, as the type certificate says.

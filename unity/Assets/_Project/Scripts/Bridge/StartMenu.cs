@@ -25,7 +25,7 @@ namespace FlyingGame.Bridge
 
         public bool IsOpen { get; private set; } = true;
 
-        private GUIStyle _title, _head, _btn, _btnOn, _label, _small, _field, _tab, _tabOn;
+        private GUIStyle _title, _head, _btn, _btnOn, _btnDim, _label, _small, _field, _tab, _tabOn;
         private const string PrefPilotName = "net.pilotName", PrefRoomCode = "net.roomCode", PrefMode = "net.mode";
         private const string PrefLanHint = "net.lanHint", PrefLanNoRouter = "net.lanNoRouter";
         private string _flapsFor; private bool _flapsHas;
@@ -136,6 +136,8 @@ namespace FlyingGame.Bridge
             _head = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 1.05f), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.55f, 0.95f, 1f) } };
             _btn = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleCenter, normal = { textColor = Color.white, background = _btnBg }, active = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(6, 6, 4, 4) };
             _btnOn = new GUIStyle(_btn) { fontStyle = FontStyle.Bold, normal = { textColor = Color.white, background = _btnOnBg }, active = { textColor = Color.white, background = _btnOnBg } };
+            // A button that still opens, but says there is nothing behind it yet (a type with no loading table).
+            _btnDim = new GUIStyle(_btn) { normal = { textColor = new Color(0.62f, 0.68f, 0.75f), background = _btnBg }, active = { textColor = new Color(0.62f, 0.68f, 0.75f), background = _btnBg } };
             _label = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white } };
             _small = new GUIStyle { font = f, fontSize = Mathf.RoundToInt(fs * 0.8f), alignment = TextAnchor.MiddleLeft, normal = { textColor = new Color(0.8f, 0.85f, 0.9f) } };
             _field = new GUIStyle { font = f, fontSize = fs, alignment = TextAnchor.MiddleLeft, normal = { textColor = Color.white, background = _btnBg }, focused = { textColor = Color.white, background = _btnBg }, padding = new RectOffset(8, 8, 4, 4) };
@@ -382,6 +384,21 @@ namespace FlyingGame.Bridge
                 Head("TOW PLANE", ref y);
                 if (UiLayout.Button(new Rect(x, y, half, bh), "Pawnee", SessionSettings.TugId == "pa25-pawnee-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa25-pawnee-like";
                 if (UiLayout.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
+                y += row;
+            }
+            // LOAD SHEET (owner 2026-10-30): occupants, baggage, cargo and fuel on the type's own CG envelope. Only
+            // offered for a type that has its published loading table; the rest say so when you open it.
+            {
+                var sheet = SessionLoading.Current;
+                var live = Driver != null && Driver.Sim != null ? Driver.Sim.Aircraft.Config : null;
+                bool loadable = sheet != null;
+                bool envelopeOnly = !loadable && live != null && FlyingGame.Core.Loading.LoadSheet.HasEnvelope(live);
+                Head("LOADING", ref y);
+                string label = loadable
+                    ? $"Load sheet — {sheet.Last.MassKg * 2.20462:#,0} lb, {sheet.PercentMac:0.0} % MAC"
+                    : envelopeOnly ? "Load sheet — CG limits only for this type"
+                    : "Load sheet — no weight-and-balance data for this type";
+                if (UiLayout.Button(new Rect(x, y, colW, bh), label, loadable ? _btn : _btnDim)) LoadingPanel.Open();
                 y += row;
             }
             y += gap * 0.4f;

@@ -35,9 +35,25 @@ public sealed class LoadSheet
         Reset();
     }
 
-    /// <summary>True for a type that has weight and balance data at all. Most do not, and fly at their tuned mass.</summary>
-    public static bool Loadable(AircraftConfig c) => c.Loading is not null && c.Loading.EmptyMassKg > 0;
+    /// <summary>
+    /// True for a type that can actually be LOADED — it knows its empty weight and has somewhere to put people or
+    /// fuel. That needs a POH loading table, which is the slow part of adding a type.
+    /// </summary>
+    public static bool Loadable(AircraftConfig c) =>
+        c.Loading is not null && c.Loading.EmptyMassKg > 0
+        && (c.Loading.Stations.Count > 0 || c.Loading.Tanks.Count > 0);
 
+    /// <summary>
+    /// True for a type that knows its certificated CG ENVELOPE, whether or not it can be loaded. This is the cheap
+    /// half of the data and it is worth having on its own: it gives the type real limits in the Aero Widget's
+    /// weight-and-balance control and a real plot to show them on, and it needs only the type certificate — no
+    /// loading table, no station arms. A type gains <see cref="Loadable"/> later, when its POH turns up.
+    /// </summary>
+    public static bool HasEnvelope(AircraftConfig c) =>
+        c.Loading is not null && c.Loading.MaxTakeoffMassKg > 0 && c.Loading.Envelope.Count >= 3;
+
+    /// <summary>The aircraft this sheet loads — and the instance it writes its answer into.</summary>
+    public AircraftConfig Config => _config;
     public LoadingConfig Loading => _loading;
     public IReadOnlyList<StationConfig> Stations => _loading.Stations;
     public IReadOnlyList<TankConfig> Tanks => _loading.Tanks;
@@ -128,6 +144,12 @@ public sealed class LoadSheet
     /// <summary>The computed mass, CG and inertia of the aeroplane as loaded.</summary>
     public WeightAndBalance.Result Compute() => WeightAndBalance.Solve(_loading, Items());
 
+    /// <summary>
+    /// The last computed result. Every change applies immediately, so this is always current — and reading it costs
+    /// nothing, which matters because a UI asks for it several times per frame and <see cref="Compute"/> allocates.
+    /// </summary>
+    public WeightAndBalance.Result Last { get; private set; }
+
     private IEnumerable<(Vec3 Arm, double MassKg)> Items()
     {
         foreach (StationConfig s in _loading.Stations)
@@ -137,20 +159,14 @@ public sealed class LoadSheet
     }
 
     /// <summary>Percent MAC of the loaded CG — the x axis of the envelope chart.</summary>
-    public double PercentMac => WeightAndBalance.PercentMac(_config, Compute().Cg.X);
+    public double PercentMac => WeightAndBalance.PercentMac(_config, Last.Cg.X);
 
     /// <summary>Is the aeroplane legal as loaded: inside the CG envelope and not over gross.</summary>
-    public bool InEnvelope
-    {
-        get
-        {
-            WeightAndBalance.Result r = Compute();
-            return r.MassKg <= _loading.MaxTakeoffMassKg + 1e-6
-                   && WeightAndBalance.InEnvelope(_loading, WeightAndBalance.PercentMac(_config, r.Cg.X), r.MassKg);
-        }
-    }
+    public bool InEnvelope =>
+        Last.MassKg <= _loading.MaxTakeoffMassKg + 1e-6
+        && WeightAndBalance.InEnvelope(_loading, PercentMac, Last.MassKg);
 
-    public bool OverGross => Compute().MassKg > _loading.MaxTakeoffMassKg + 1e-6;
+    public bool OverGross => Last.MassKg > _loading.MaxTakeoffMassKg + 1e-6;
 
     /// <summary>
     /// Writes the computed mass, CG and inertia into the config, so every existing read site flies the loaded
@@ -160,6 +176,7 @@ public sealed class LoadSheet
     public WeightAndBalance.Result Apply()
     {
         WeightAndBalance.Result r = Compute();
+        Last = r;
         _config.Mass.MassKg = r.MassKg;
         _config.Mass.Cg = new[] { r.Cg.X, r.Cg.Y, r.Cg.Z };
         _config.Mass.Inertia = new InertiaConfig { Ixx = r.Ixx, Iyy = r.Iyy, Izz = r.Izz, Ixz = r.Ixz };

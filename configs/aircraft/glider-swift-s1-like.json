@@ -1979,5 +1979,40 @@
     ],
     "weakLinkN": 2940,
     "canRelease": true
+  },
+  "loading": {
+    "emptyMassKg": 280.0,
+    "emptyCg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "emptyInertia": {
+      "ixx": 0.0,
+      "iyy": 0.0,
+      "izz": 0.0,
+      "ixz": 0.0
+    },
+    "maxTakeoffMassKg": 410.0,
+    "stations": [],
+    "tanks": [],
+    "envelope": [
+      [
+        26.0,
+        280.0
+      ],
+      [
+        26.0,
+        410.0
+      ],
+      [
+        41.9,
+        410.0
+      ],
+      [
+        41.9,
+        280.0
+      ]
+    ]
   }
 }

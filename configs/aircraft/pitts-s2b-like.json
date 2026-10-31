@@ -2159,5 +2159,40 @@
     "gMax": 6.0,
     "gMin": -3.0
   },
-  "verticalBlanketFactor": 0.5
+  "verticalBlanketFactor": 0.5,
+  "loading": {
+    "emptyMassKg": 0.0,
+    "emptyCg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "emptyInertia": {
+      "ixx": 0.0,
+      "iyy": 0.0,
+      "izz": 0.0,
+      "ixz": 0.0
+    },
+    "maxTakeoffMassKg": 737.09,
+    "stations": [],
+    "tanks": [],
+    "envelope": [
+      [
+        12.429,
+        669.05
+      ],
+      [
+        20.033,
+        737.09
+      ],
+      [
+        22.199,
+        737.09
+      ],
+      [
+        22.199,
+        669.05
+      ]
+    ]
+  }
 }

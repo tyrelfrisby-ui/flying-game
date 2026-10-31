@@ -249,6 +249,40 @@ public class WeightAndBalanceTests
     }
 
     /// <summary>
+    /// The check that validates each type's datum mapping, and the reason a type is only given an envelope once it
+    /// passes: where the certificate's limits are written into this project's frame, the aeroplane as tuned must
+    /// land INSIDE them. Three independent types agreeing is what says the method is right — and it is what caught
+    /// `pa28-archer-like`, whose POH limits map to a forward limit at 0.3 % MAC, on the MAC leading edge, which no
+    /// aeroplane has. That one is left out rather than fudged (docs/WEIGHT-AND-BALANCE.md).
+    /// </summary>
+    [Fact]
+    public void EveryTypeWithAnEnvelopeIsTunedInsideIt()
+    {
+        string[] ids = Directory
+            .GetFiles(Path.Combine(AppContext.BaseDirectory, "TestData"), "*.json")
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(id => LoadSheet.HasEnvelope(Load(id!)))
+            .OrderBy(id => id)
+            .ToArray()!;
+        Assert.True(ids.Length >= 5, $"only {ids.Length} types have a CG envelope");
+
+        foreach (string id in ids)
+        {
+            AircraftConfig c = Load(id);
+            double pct = WeightAndBalance.PercentMac(c, c.Mass.CgVec().X);
+            (double fwd, double aft) = WeightAndBalance.LimitsAt(c.Loading!, c.Mass.MassKg);
+            bool loadable = LoadSheet.Loadable(c);
+            _o.WriteLine($"{id,-22} {c.Mass.MassKg,7:F0} kg  tuned {pct,5:F1} %MAC  limits {fwd,5:F1}..{aft,5:F1}"
+                         + $"  gross {c.Loading!.MaxTakeoffMassKg,7:F0} kg  {(loadable ? "loadable" : "limits only")}");
+            Assert.True(WeightAndBalance.InEnvelope(c.Loading!, pct, c.Mass.MassKg),
+                $"{id} is tuned at {pct:F1} %MAC and {c.Mass.MassKg:F0} kg, outside its own certificated envelope "
+                + $"({fwd:F1}..{aft:F1} %MAC at that weight) — the datum mapping or the tuned CG is wrong");
+            Assert.True(c.Mass.MassKg <= c.Loading!.MaxTakeoffMassKg + 1e-6,
+                $"{id} is tuned above its own max take-off weight");
+        }
+    }
+
+    /// <summary>
     /// What the published data says about each type as it is tuned today, printed rather than asserted. The gap
     /// between the tuned CG and where a realistic load at that weight would actually put it is a question for the
     /// owner, not something to fix silently: closing it would retune pitch stability on a calibrated aeroplane.
