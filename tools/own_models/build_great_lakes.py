@@ -32,7 +32,7 @@ Frame: metres, nose +X, port +Y, up +Z; origin = upper-wing centre-section LE st
 at export, like the Pitts / EA300).
   blender -b --python tools/own_models/build_great_lakes.py
 """
-import bpy, bmesh, sys, os, math, json, numpy as np
+import bpy, bmesh, sys, os, math, numpy as np
 from mathutils import Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import paint
@@ -93,10 +93,9 @@ NT, NB, ZWF = 3.0, 4.0, 0.62
 def tbl(t):
     xs = [p[0] for p in t][::-1]; ys = [p[1] for p in t][::-1]
     return lambda x: float(np.interp(x, xs, ys))
-F_TOP0 = tbl([(0.57, 0.238), (0.47, 0.247), (-0.17, 0.25), (-0.40, 0.235),
+F_TOP0 = tbl([(0.57, 0.245), (0.47, 0.25), (-0.17, 0.25), (-0.40, 0.235),
              (-0.70, 0.215), (-0.95, 0.20), (-2.03, 0.20), (-2.30, 0.18), (-3.0, 0.13), (-3.8, 0.066), (-4.3, 0.0), (-4.565, -0.04)])
-# v6 (red-2-ramp back-projection + nose crop): the real cowl chin is ~6-10 cm shallower than the three-view lines
-F_BOT0 = tbl([(0.57, -0.50), (0.47, -0.55), (0.30, -0.615), (0.10, -0.69),
+F_BOT0 = tbl([(0.57, -0.56), (0.47, -0.61), (0.30, -0.67), (0.10, -0.73),
              (-0.17, -0.79), (-0.40, -0.81), (-0.70, -0.82), (-1.80, -0.82), (-4.565, -0.455)])
 F_HW0 = tbl([(0.57, 0.41), (0.47, 0.435), (0.30, 0.445), (0.10, 0.445),
             (-0.17, 0.43), (-0.40, 0.405), (-0.70, 0.40), (-2.03, 0.40), (-2.30, 0.385), (-3.77, 0.20), (-4.30, 0.085),
@@ -104,10 +103,8 @@ F_HW0 = tbl([(0.57, 0.41), (0.47, 0.435), (0.30, 0.445), (0.10, 0.445),
 # v4 (Ty: "the cowling is left chopped off on the front"): the cowl nose is a full rounded lip, a quarter-ellipse in
 # side and plan from the x 0.57 station (tangent to the cowl sides) to a smaller front face at X_FACE 0.69 round the
 # spinner, by eye from red-2-ramp / white-3-ramp / white-2-grass, instead of the v3 flat face with a 3 cm chamfer.
-# v6 (red-2-ramp, measured against the spinner): the cowl runs ~0.11 m further forward and the spinner is shorter
-# (0.30 m) and slimmer (r 0.155), spinner tip unchanged at x 1.10, so the navy bowl reads as long as on the photo.
-X_LIP0, X_FACE = 0.64, 0.80
-LIP_FACE = dict(top=0.17, bot=-0.26, hw=0.27)   # v6: smaller face ring hugging the slimmer spinner (red-2-ramp)
+X_LIP0, X_FACE = 0.57, 0.69
+LIP_FACE = dict(top=0.165, bot=-0.30, hw=0.30)
 def _lip(f0, face):
     b = f0(X_LIP0)
     def g(x):
@@ -117,17 +114,7 @@ def _lip(f0, face):
     return g
 F_TOP, F_BOT, F_HW = _lip(F_TOP0, LIP_FACE['top']), _lip(F_BOT0, LIP_FACE['bot']), _lip(F_HW0, LIP_FACE['hw'])
 SILL = 0.12
-# v6 (Ty: "very tight cockpit openings ... rounded, like the real ones"; white-3-ramp, N3765F, three-view top view):
-# two small oval holes in the rounded top deck (rounded front and rear ends in plan, a black padded coaming rim round
-# each), instead of the v1-v5 full-width square-ended cuts down to a flat sill. (front x, aft x, half-width) per cockpit.
-CKP = [(-0.97, -1.33, 0.19), (-1.64, -2.08, 0.215)]   # rear placed off the N3765F side photo (spinner-rudder scale)
-P_CK = 2.0                                                         # plan superellipse exponent of the openings
-XC1F, XC1A, XC2F, XC2A = CKP[0][0], CKP[0][1], CKP[1][0], CKP[1][1]  # front / rear cockpit openings (top view)
-def ck_w(x, ck):
-    xf, xa, hw = ck; u = (x - 0.5 * (xf + xa)) / (0.5 * (xf - xa))
-    return hw * max(1 - abs(u) ** P_CK, 0.0) ** (1 / P_CK) if abs(u) < 1 else 0.0
-def ck_xs(ck, n=19):
-    xf, xa, _ = ck; return [0.5 * (xf + xa) + 0.5 * (xf - xa) * math.cos(t) for t in np.linspace(0, math.pi, n)]
+XC1F, XC1A, XC2F, XC2A = -0.95, -1.28, -1.48, -2.03      # front / rear cockpit openings (top view)
 def se_pt(t, top, bot, hw):
     zw = bot + ZWF * (top - bot); c, s = math.cos(t), math.sin(t); up = s >= 0
     n = NT if up else NB; h = (top - zw) if up else (zw - bot)
@@ -146,15 +133,6 @@ def ring_u(x, top, bot, hw, sill, wall=0.012, m=30):
     inn = [(x, *se_pt(t, top - wall, bot + wall, hw - wall)) for t in ts]
     inn[0] = (x, inn[0][1], sill); inn[-1] = (x, inn[-1][1], sill)
     return out + inn[::-1]
-def ring_cut(x, top, bot, hw, w, wall=0.012, m=49):
-    """section with an opening of half-width w cut out of the top deck (w ~ 0 closes it)"""
-    # v6: fixed angular sampling clipped at the opening edge, so every station's vertex k sits at the same angle
-    # (the old per-station spacing twisted the side quads and smeared the side stripe map into scallops)
-    w = max(w, 0.003); t0 = math.acos(min((w / hw) ** (NT / 2), 1.0))
-    ts = np.clip(np.linspace(math.pi / 2, -1.5 * math.pi, m), -math.pi - t0, t0)
-    out = [(x, *se_pt(t, top, bot, hw)) for t in ts]
-    inn = [(x, *se_pt(t, top - wall, bot + wall, hw - wall)) for t in ts]
-    return out + inn[::-1]
 def sill_w(x):
     top, bot, hw = F_TOP(x), F_BOT(x), F_HW(x)
     return abs(se_pt(t_at(SILL, top, bot), top, bot, hw)[0]), SILL
@@ -163,18 +141,18 @@ def fus_z(x, y, up=True):
     top, bot, hw = F_TOP(x), F_BOT(x), F_HW(x); zw = bot + ZWF * (top - bot); r = min(abs(y) / hw, 1.0)
     return zw + (top - zw) * (1 - r ** NT) ** (1 / NT) if up else zw - (zw - bot) * (1 - r ** NB) ** (1 / NB)
 SEG_FWD = [round(X_LIP0 + (X_FACE - X_LIP0) * math.sin(a), 5) for a in np.linspace(math.pi / 2, 0, 12)] + [ 0.52, 0.47, 0.40, 0.30, 0.10, -0.17, -0.40, -0.70, -0.85, XC1F]
-SEG_U1 = ck_xs(CKP[0])
-SEG_BR = [XC1A, 0.5 * (XC1A + XC2F), XC2F]
-SEG_U2 = ck_xs(CKP[1])
+SEG_U1 = list(np.linspace(XC1F, XC1A, 6))
+SEG_BR = [XC1A, -1.38, XC2F]
+SEG_U2 = list(np.linspace(XC2F, XC2A, 7))
 SEG_AFT = [XC2A, -2.30, -2.70, -3.10, -3.50, -3.80, -4.10, -4.30, -4.45, -4.565]
 bm = bmesh.new()
 fv, _ = loft_rings(bm, [ring_closed(*stn(x)) for x in SEG_FWD], cap0=False, cap1=True)
-loft_rings(bm, [ring_cut(*stn(x), ck_w(x, CKP[0])) for x in SEG_U1], False, False)
+loft_rings(bm, [ring_u(*stn(x), SILL) for x in SEG_U1])
 loft_rings(bm, [ring_closed(*stn(x)) for x in SEG_BR])
-loft_rings(bm, [ring_cut(*stn(x), ck_w(x, CKP[1])) for x in SEG_U2], False, False)
+loft_rings(bm, [ring_u(*stn(x), SILL) for x in SEG_U2])
 loft_rings(bm, [ring_closed(*stn(x)) for x in SEG_AFT])
 # cowl front face: two round cooling inlets beside the spinner, as real holes
-INL = dict(y=0.20, z=-0.02, a=0.04, b=0.058)   # v4: moved in to sit on the smaller rounded face; v6 smaller again
+INL = dict(y=0.215, z=-0.02, a=0.048, b=0.066)   # v4: moved in to sit on the smaller rounded face
 def inlet_pts(sy, s=1.0, x=X_FACE, n=24):
     return [(x, sy * INL['y'] + s * INL['a'] * math.cos(t), INL['z'] + s * INL['b'] * math.sin(t)) for t in np.linspace(0, 2 * math.pi, n, endpoint=False)]
 outer = fv[0]; edges = [bm.edges.get((outer[i], outer[(i + 1) % NR])) for i in range(NR)]
@@ -189,9 +167,9 @@ print('COWL FACE tris', len(newf), 'removed in inlets', len(holes))
 bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Fuselage'] = link('Fuselage', bm)
 
 # ---- headrest fairing behind the rear cockpit (the drawing's "metal" headrest, narrowing aft into the fin root) -------
-HR_X0, HR_X1, HR_Z0, HR_Z1 = -2.10, -3.75, 0.345, 0.07   # v6: starts behind the moved rear coaming
+HR_X0, HR_X1, HR_Z0, HR_Z1 = -2.03, -3.75, 0.345, 0.07
 bm = bmesh.new(); rs = []
-for k, x in enumerate([HR_X0 + 0.005, HR_X0 - 0.002, HR_X0 - 0.015, HR_X0 - 0.04, HR_X0 - 0.12, -2.40, -2.70, -3.00, -3.30, -3.55, -3.75]):
+for k, x in enumerate([-2.025, -2.032, -2.045, -2.07, -2.15, -2.40, -2.70, -3.00, -3.30, -3.55, -3.75]):
     f = (HR_X0 - x) / (HR_X0 - HR_X1); hw = 0.115 - 0.085 * f; top = HR_Z0 + (HR_Z1 - HR_Z0) * f
     if k < 3: hw *= (0.55, 0.82, 0.95)[k]; top -= (0.05, 0.015, 0.004)[k]
     base = fus_z(x, hw) - 0.02
@@ -202,34 +180,26 @@ for k, x in enumerate([HR_X0 + 0.005, HR_X0 - 0.002, HR_X0 - 0.015, HR_X0 - 0.04
     rs.append(ring)
 loft_rings(bm, rs, closed=False); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Headrest'] = link('Headrest', bm)
 
-# ---- windscreens: v6 (Ty: "should wrap around"): a bent three-panel wraparound screen ahead of each cockpit, a flat
-# centre panel and two side wings swept back round the front of the opening, framed at the top, sides and bends. The
-# rear screen moved aft (base x -1.35 -> -1.56) so it stands right at the front of the rear coaming, as in white-3-ramp
-# and the N3765F side photo.
-def wrap_screen(xc, W, h, D, rake, n=21, nr=6):
+# ---- windscreens: one small curved screen ahead of each cockpit --------------------------------------------------
+def screen(xb, hw=0.23, h=0.17, rake=38, n=13):
     rows = []
-    for q in np.linspace(0, 1, nr):
+    for k, q in enumerate(np.linspace(0, 1, 5)):
         row = []
-        for v in np.linspace(-1, 1, n):
-            bend = max(abs(v) - 0.5, 0.0) / 0.5
-            y = v * W * (1 - 0.10 * q); x0 = xc - D * bend
-            hz = h * (1 - 0.30 * bend ** 1.5)
-            row.append((x0 - hz * q * math.tan(math.radians(rake)) * (1 - 0.35 * bend), y, fus_z(x0, y) - 0.003 + hz * q))
+        for y in np.linspace(-hw, hw, n):
+            w = hw * (1 - 0.18 * q); yy = y * w / hw
+            zb = fus_z(xb, yy) - 0.004
+            z = zb + h * q * (1 - 0.35 * (yy / hw) ** 2)
+            row.append((xb - h * q * math.tan(math.radians(rake)), yy, z))
         rows.append(row)
     return rows
 bm_g = bmesh.new(); bm_f = bmesh.new()
-for xc, W, h, D, rk in ((-0.90, 0.215, 0.15, 0.07, 40), (-1.56, 0.24, 0.18, 0.08, 38)):
-    rows = wrap_screen(xc, W, h, D, rk); loft_rings(bm_g, rows, False, False, closed=False)
+for xb in (-0.86, -1.35):
+    rows = screen(xb); loft_rings(bm_g, rows, False, False, closed=False)
     tube(bm_f, rows[-1], 0.008, 6); tube(bm_f, [r[0] for r in rows], 0.008, 6); tube(bm_f, [r[-1] for r in rows], 0.008, 6)
-    for k in (5, 15): tube(bm_f, [r[k] for r in rows], 0.005, 6)                       # bend posts
 P['Windscreen_Glass'] = link('Windscreen_Glass', bm_g)
-for ck in CKP:   # black padded coaming rim round each opening
-    xf, xa, hw = ck; xm, a_ = 0.5 * (xf + xa), 0.5 * (xf - xa); pts = []
-    for t in np.linspace(0, 2 * math.pi, 73):
-        c, s_ = math.cos(t), math.sin(t)
-        x = xm + a_ * math.copysign(abs(c) ** (2 / P_CK), c); y = (hw + 0.008) * math.copysign(abs(s_) ** (2 / P_CK), s_)
-        pts.append((x, y, fus_z(x, y) + 0.008))
-    tube(bm_f, pts, 0.019, 8, cap=False)
+for sy in (1, -1):   # cockpit coaming rails round both openings
+    for xa, xb in ((XC1F, XC1A), (XC2F, XC2A)):
+        tube(bm_f, [(x, sy * (sill_w(x)[0] - 0.004), SILL + 0.006) for x in np.linspace(xa, xb, 8)], 0.013, 8)
 P['Windscreen_Frame'] = link('Windscreen_Frame', bm_f)
 
 
@@ -279,23 +249,23 @@ ZFL = -0.70                                                                     
 for xa, xb in ((XC1F + 0.12, XC1A - 0.02), (XC2F + 0.10, XC2A - 0.02)):
     ck_box('ck_tub', (0.5 * (xa + xb), 0, ZFL - 0.005), (xa - xb, 0.62, 0.01))
 # front cockpit: small panel under the windscreen, seat, stick (seat pan front x -1.00)
-ck_prism('ck_panel', [(-0.24, -0.10), (0.24, -0.10), (0.25, 0.05), (0.15, 0.12), (-0.15, 0.12), (-0.25, 0.05)], XC1F + 0.008, 0.012)  # v6: fits under the tighter deck
-for y in (-0.13, -0.045, 0.045, 0.13): ck_gauge(XC1F + 0.002, y, 0.02, 0.032)
+ck_prism('ck_panel', [(-0.30, -0.10), (0.30, -0.10), (0.33, 0.08), (0.20, 0.14), (-0.20, 0.14), (-0.33, 0.08)], XC1F + 0.008, 0.012)
+for y in (-0.16, -0.05, 0.05, 0.16): ck_gauge(XC1F + 0.002, y, 0.03, 0.034)
 ck_seat(-0.98, ZFL + 0.08, 0.06, 0.22, pan_l=0.30)
 ck_stick(-0.90, ZFL, 0.55)
 # rear (PIC) cockpit: panel on the bulkhead behind the front seat, seat, stick
-ck_prism('ck_panel', [(-0.26, -0.12), (0.26, -0.12), (0.27, 0.06), (0.16, 0.13), (-0.16, 0.13), (-0.27, 0.06)], XC2F + 0.008, 0.015)
-ck_box('ck_black', (XC2F + 0.02, 0, 0.13), (0.06, 0.34, 0.012))
-for y in (-0.16, -0.055, 0.055, 0.16): ck_gauge(XC2F + 0.002, y, 0.04, 0.032)
-for y in (-0.11, 0.0, 0.11): ck_gauge(XC2F + 0.002, y, -0.05, 0.028)
-ck_seat(-1.74, ZFL + 0.08, 0.10, 0.22, pan_l=0.32)
-ck_stick(-1.66, ZFL, 0.56)
+ck_prism('ck_panel', [(-0.32, -0.12), (0.32, -0.12), (0.34, 0.10), (0.22, 0.15), (-0.22, 0.15), (-0.34, 0.10)], XC2F + 0.008, 0.015)
+ck_box('ck_black', (XC2F + 0.02, 0, 0.152), (0.06, 0.56, 0.012))
+for y in (-0.20, -0.07, 0.07, 0.20): ck_gauge(XC2F + 0.002, y, 0.06, 0.034)
+for y in (-0.13, 0.0, 0.13): ck_gauge(XC2F + 0.002, y, -0.04, 0.030)
+ck_seat(-1.66, ZFL + 0.08, 0.10, 0.22, pan_l=0.32)
+ck_stick(-1.58, ZFL, 0.56)
 for sy in (1, -1):                                                                                     # steel-tube longerons + diagonals
     p = lambda x, dz=0.0: (x, sy * (sill_w(x)[0] - 0.035), SILL - 0.025 + dz)
     for xa, xb in ((XC1F, XC1A), (XC2F, XC2A)):
         ck_cyl('ck_tube', p(xa - 0.01), p(xb + 0.01), 0.011, 8)
         ck_cyl('ck_tube', p(xa - 0.01), (xb + 0.01, sy * (sill_w(xb)[0] - 0.05), ZFL + 0.05), 0.010, 8)
-for x0 in (-0.80, -1.50):                                                                              # rudder pedals (under the decks)
+for x0 in (-0.80, -1.45):                                                                              # rudder pedals (under the decks)
     for sy in (1, -1): ck_box('ck_stick', (x0, sy * 0.13, ZFL + 0.10), (0.03, 0.08, 0.13), ry=0.35)
 bmesh.ops.recalc_face_normals(ck, faces=ck.faces); P['Cockpit'] = link('Cockpit', ck)
 
@@ -522,14 +492,9 @@ bmesh.ops.create_cone(bm, cap_ends=True, segments=16, radius1=TW['r'], radius2=T
                       matrix=Matrix.Translation(TW['c']) @ Matrix.Rotation(math.pi / 2, 4, 'X'))
 P['Wheel_Tail'] = link('Wheel_Tail', bm)
 WP = [(-0.076, 0.12), (-0.072, 0.183), (-0.055, 0.213), (-0.024, 0.222), (0.024, 0.222), (0.055, 0.213), (0.072, 0.183), (0.076, 0.12)]
-PANT_V7 = [(0.46, 0, .01, .01, .01), (0.42, 0, .11, .10, .083), (0.31, 0, .20, .165, .12), (0.13, 0, .26, .165, .13),
+PANT = [(0.46, 0, .01, .01, .01), (0.42, 0, .11, .10, .083), (0.31, 0, .20, .165, .12), (0.13, 0, .26, .165, .13),
         (0, 0, .27, .165, .13), (-0.17, .02, .245, .155, .12), (-0.355, .045, .18, .12, .094), (-0.53, .065, .09, .055, .05),
         (-0.64, .075, .01, .01, .01)]          # (dx from the axle, dz centre, top half-height, bottom half-height, half-width)
-PANT = [(0.46, .03, .01, .01, .01), (0.42, .03, .10, .09, .083), (0.31, .02, .18, .145, .12), (0.13, .01, .225, .145, .13),
-        (0, 0, .23, .145, .13), (-0.17, .03, .21, .13, .12), (-0.355, .075, .155, .095, .094), (-0.53, .12, .075, .045, .05),
-        (-0.64, .155, .01, .01, .01)]          # v8 (red-2-ramp PnP overlay): ~10% shallower (0.375 m), tail swept UP to dz .155;
-                                               # length unchanged (nose/tail matched the photo).
-if LIV != 'red-sunburst': PANT = PANT_V7          # white-stripes pants unchanged (different aircraft)
 GEAR_SIDES = {}
 for side, sy in (('L', 1), ('R', -1)):
     m = np.array((1, sy, 1.0)); H, C, T, A = G_H * m, G_C * m, G_T * m, G_A * m
@@ -557,7 +522,7 @@ for side, sy in (('L', 1), ('R', -1)):
     GEAR_SIDES[side] = dict(H=H, C=C, T=T, A=A)
 
 # ---- spinner and prop: Hartzell 2-blade constant speed, 74 in, clockwise seen from the cockpit (Lycoming) -----------
-SPB, SPX, SPR = X_FACE + 0.006, 1.10, 0.155
+SPB, SPX, SPR = X_FACE + 0.006, 1.10, 0.185
 bm = bmesh.new(); ts = np.linspace(0.97, 0.0, 12)
 rs = [[bm.verts.new((SPB + (SPX - SPB) * t, SPR * (1 - t ** 2) ** 0.6 * math.sin(a), SPR * (1 - t ** 2) ** 0.6 * math.cos(a))) for a in np.linspace(0, 2 * math.pi, 28, endpoint=False)] for t in ts]
 tipv = bm.verts.new((SPX, 0, 0))
@@ -565,7 +530,7 @@ for i in range(28): j = (i + 1) % 28; bm.faces.new((tipv, rs[0][i], rs[0][j]))
 for a_, b2 in zip(rs, rs[1:]):
     for i in range(28): j = (i + 1) % 28; bm.faces.new((a_[i], b2[i], b2[j], a_[j]))
 bm.faces.new(rs[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); P['Spinner'] = link('Spinner', bm)
-PROP_X, R_P, PITCH, NBL, TIP = 0.85, 37 * IN, 1.7, 2, 4 * IN
+PROP_X, R_P, PITCH, NBL, TIP = 0.75, 37 * IN, 1.7, 2, 4 * IN
 def chord(q):
     c = (0.085 + 0.075 * math.sin(math.pi * min(q / 0.5, 1) * 0.5)) - 0.03 * max(q - 0.5, 0) - (0.09 * ((q - 0.9) / 0.1) ** 2 if q > 0.9 else 0)
     return max(c, 0.02)
@@ -728,12 +693,8 @@ else:
     # the red scheme's navy nose bowl ends in a shallow CHEVRON pointing aft at the level of the LOWER stripe (whose
     # front tapers into it); top edge at x ~0.47, lower edge sweeping forward to x ~0.53-0.56 at the chin.
     # XB(z) = its aft edge (navy forward of it, white outline just aft).
-    # v6 (Ty: "just copy what is in the photos"): traced off red-2-ramp BACK-PROJECTED onto this side map through a
-    # PnP-matched camera (greatlakes-own-v6/projmap.py), so these are photo positions in model metres, read by eye /
-    # colour profile. Near-vertical upper edge at x ~0.55-0.565, aft-pointing chevron at (0.447, -0.12), lower edge
-    # sweeping forward to x ~0.60 down the chin.
-    _XBZ = [-0.95, -0.62, -0.45, -0.32, -0.24, -0.186, -0.171, -0.156, -0.141, -0.12, -0.10, -0.079, -0.054, -0.03, 0.02, 0.10, 0.19, 0.30]
-    _XBX = [0.600, 0.600, 0.590, 0.575, 0.550, 0.520, 0.500, 0.480, 0.460, 0.447, 0.460, 0.480, 0.500, 0.520, 0.548, 0.555, 0.560, 0.565]
+    _XBZ = [-0.95, -0.60, -0.40, -0.22, -0.15, -0.08, 0.05, 0.15, 0.245, 0.40]
+    _XBX = [0.565, 0.535, 0.480, 0.405, 0.370, 0.392, 0.425, 0.448, 0.468, 0.475]
     def XB(z): return np.interp(z, _XBZ, _XBX)
     def dil(m, metres, v):
         pa = abs(v.a1 - v.a0) / v.w; n = max(1, int(round(metres / pa))); d = m.copy()
@@ -744,11 +705,7 @@ else:
     def lerp(x, xs, zs): return np.interp(x, xs[::-1], zs[::-1]) if xs[0] > xs[-1] else np.interp(x, xs, zs)
     BASE = RED if LIV == 'red-sunburst' else WHITE
     PANT_Z = Z_AX + 0.0
-    # white-stripes navy fin core ellipse (centre aft of hinge, z; radii). v7 (white-3 tail crop, measured against the
-    # fin top, hinge line and stab): flatter, higher-shouldered dome whose top runs near-level from the hinge (z ~0.54)
-    # to the rudder TE, and whose front edge sits further aft (stab level ~0.32 m ahead of the hinge, mid-fin ~0.26 m),
-    # so the light-blue band between the red LE stripe and the core is ~0.21 m wide as on the photo (v6: 0.15 m).
-    FCX, FCZ, FCA, FCB = 0.26, -0.10, 0.58, 0.72
+    FCX, FCZ, FCA, FCB = 0.20, -0.05, 0.60, 0.62      # white-stripes navy fin core ellipse (centre aft of hinge, z; radii)
     def side(name, flip):
         v = View(name, (X0, X1), (Z0, Z1), 4096, 1748, flip_a=flip, axes=(0, 2)); A, Z = v.A, v.B
         v.fill(np.ones_like(A, bool), BASE)
@@ -763,24 +720,30 @@ else:
             #    cowl top, its lower edge drops toward the chevron, and its front edge parallels the bowl outline with a
             #    thin red gap.
             #  - lower stripe (~0.16 m below): tapers to a point that runs into the bowl's aft-pointing chevron.
-            # v6: both stripes TRACED from the red-2 back-projection (edge knots = navy edges, model metres). They run
-            # aft and converge to one point at x -3.78 just ahead of the stab LE. At the front they curl AWAY from the
-            # bowl's chevron: the upper stripe's front is a sharp tip curling UP (0.455, 0.09), the lower stripe's a
-            # tip curling DOWN (0.47, -0.33); each ~0.075 m wide at the nose, ~0.15 m red between them.
-            ok = ~fin & ~pant & (Z > -0.95)
-            WO = 0.013
-            UA = [-3.78, -3.6, -3.4, -3.0, -2.2, -1.4, -0.7, -0.3, -0.1, 0.10, 0.25, 0.35, 0.40, 0.42, 0.44, 0.455]
-            UH = [-0.270, -0.262, -0.250, -0.216, -0.162, -0.104, -0.048, -0.013, -0.003, 0.019, 0.032, 0.049, 0.057, 0.080, 0.086, 0.090]
-            UL = [-0.270, -0.282, -0.268, -0.244, -0.194, -0.146, -0.100, -0.079, -0.068, -0.058, -0.046, -0.016, 0.006, 0.029, 0.066, 0.090]
-            LA = [-3.78, -3.6, -3.4, -3.0, -2.2, -1.4, -0.7, -0.3, -0.1, 0.10, 0.25, 0.35, 0.40, 0.42, 0.44, 0.46, 0.47]
-            LH = [-0.272, -0.270, -0.272, -0.276, -0.258, -0.252, -0.248, -0.238, -0.226, -0.214, -0.213, -0.221, -0.239, -0.253, -0.268, -0.309, -0.330]
-            LL = [-0.272, -0.292, -0.294, -0.304, -0.290, -0.296, -0.304, -0.291, -0.291, -0.292, -0.291, -0.287, -0.303, -0.306, -0.320, -0.322, -0.330]
-            nav1 = ok & (A > UA[0]) & (A < UA[-1]) & (Z < np.interp(A, UA, UH)) & (Z > np.interp(A, UA, UL))
-            nav2 = ok & (A > LA[0]) & (A < LA[-1]) & (Z < np.interp(A, LA, LH)) & (Z > np.interp(A, LA, LL))
-            v.fill(ok & dil(nav1 | nav2, WO, v) & (A < XB(Z) - 0.004), WHITE)
+            z1 = lerp(A, [0.70, -0.5, -4.5], [0.012, -0.03, -0.13]); w1 = lerp(A, [0.70, -0.3, -4.5], [0.056, 0.056, 0.035])
+            z2 = z1 - lerp(A, [0.70, -0.5, -4.5], [0.162, 0.150, 0.055]); w2 = lerp(A, [0.70, -0.3, -4.5], [0.044, 0.042, 0.02])
+            X_SL = float(SLE(0.0)); g = np.clip((A - X_SL) / (-2.8 - X_SL), 0, 1)
+            ok = (A > X_SL) & ~fin & ~pant & (Z > -0.95)
+            WO = 0.014; GAPB = 0.018 + 0.012 + WO          # bowl white + red gap + stripe white
+            # upper stripe: flares at the front into a tall navy panel whose front edge parallels the bowl outline,
+            # top edge sweeping up (hockey stick) to ~4 cm under the cowl top, lower edge dropping to just above the chevron
+            zc, wc = Z_S + (z1 - Z_S) * g, w1 * g
+            ztop = zc + 0.5 * wc + (0.200 - (0.012 + 0.028)) * sstep((A + 0.35) / (0.44 + 0.35)) ** 2.2
+            zlo1 = zc - 0.5 * wc - (0.075) * sstep((A + 0.15) / (0.36 + 0.15)) ** 1.6
+            nav1 = ok & (Z > zlo1) & (Z < ztop) & (A < XB(Z) - GAPB)
+            # lower stripe: tapers symmetrically to a point that runs into the bowl's chevron
+            zc2, wc2 = Z_S + (z2 - Z_S) * g, w2 * g
+            XT2 = float(XB(-0.15)) - GAPB + 0.012
+            hw2 = 0.5 * wc2 * (1 - np.clip((A - 0.12) / (XT2 - 0.12), 0, 1) ** 1.5)
+            nav2 = ok & (np.abs(Z - zc2) < hw2) & (A < XT2)
+            for nv in (nav1, nav2):
+                v.fill(ok & dil(nv, WO, v) & (A < XB(Z) - 0.004) & (A >= -2.0), WHITE)
+            # taper-to-point aft ends keep the v4 proportional outline (0.014 g)
+            for zc_, wc_ in ((zc, wc), (zc2, wc2)):
+                v.fill(ok & (A < -2.0) & (np.abs(Z - zc_) < 0.5 * wc_ + WO * g), WHITE)
             v.fill(nav1, NAVY); v.fill(nav2, NAVY)
-            # nose bowl: white outline (0.014) then navy
-            v.fill((A > XB(Z) - 0.014) & (Z > -0.95) & ~pant, WHITE); v.fill((A > XB(Z)) & (Z > -0.95) & ~pant, NAVY)
+            # nose bowl: white outline then navy
+            v.fill((A > XB(Z) - 0.018) & (Z > -0.95) & ~pant, WHITE); v.fill((A > XB(Z)) & (Z > -0.95) & ~pant, NAVY)
             # v4 fin / rudder border (Ty, red-tail-closeup): red edge, navy, white pinstripe, following the outline from
             # where the fin LE meets the fuselage, over the top, down the rudder TE and round the rudder bottom; it tapers
             # to a point at BOTH ends (fin root LE; rudder bottom-front at the hinge) and does not run along the fuselage
@@ -802,14 +765,12 @@ else:
             # its upper white edge sweeps from the top of the pant nose (du 0.39, dz 0.25) down-aft to a point at
             # (du -0.23, dz -0.015); its lower white edge runs from the nose bottom (du 0.45, dz -0.08) up and aft to
             # dz ~-0.02 and carries on as a white pinstripe almost to the pant tail. Red above and below.
-            # v8 (red-2-ramp overlay): navy wedge ends ~0.13 m further forward (du -0.10) and is slimmer; the lower white
-            # line sits ~80% down the nose (thin red bottom band) and runs aft into the up-swept tail tip.
             du, dz = A - X_AX, Z - Z_AX
-            zu_ = np.interp(du, [-0.10, 0.02, 0.15, 0.30, 0.39, 0.47], [-0.065, 0.0, 0.05, 0.12, 0.20, 0.28])
-            zl_ = np.interp(du, [-0.64, -0.40, -0.10, 0.17, 0.33, 0.45, 0.47], [0.150, 0.040, -0.060, -0.075, -0.090, -0.105, -0.11])
-            pn = pant & (dz < zu_) & (dz > zl_) & (du > -0.10)
-            v.fill(pant & dil(pn, 0.012, v) & (du > -0.12), WHITE)
-            v.fill(pant & (np.abs(dz - zl_) < 0.0065 + 0.0) & (du > -0.63) & (du < 0.47), WHITE)   # pinstripe aft, runs into the up-swept tail tip
+            zu_ = np.interp(du, [-0.23, 0.10, 0.30, 0.39, 0.47], [-0.015, 0.10, 0.20, 0.25, 0.30])
+            zl_ = np.interp(du, [-0.60, -0.23, 0.17, 0.33, 0.45, 0.47], [-0.010, -0.016, -0.030, -0.045, -0.085, -0.10])
+            pn = pant & (dz < zu_) & (dz > zl_) & (du > -0.23)
+            v.fill(pant & dil(pn, 0.012, v) & (du > -0.25), WHITE)
+            v.fill(pant & (np.abs(dz - zl_) < 0.0065 + 0.0) & (du > -0.60) & (du < 0.47), WHITE)   # pinstripe aft
             v.fill(pn, NAVY)
         else:
             # v3 white-stripes, by eye from white-1/2/3: three bands red / light blue / navy with white separations,
@@ -840,16 +801,7 @@ else:
             # onto the cowl top at the front (thin white above it), the red wedge starts further aft (x ~0.22, over the
             # cabane) and reaches full width by x ~-0.20.
             t0 = lerp(xe, [0.55, 0.20, XR], [0.02, 0.05, 0.035])                     # white above the red
-            # v8 (Ty: cowl paint must cross the top like the Pitts; white-2 / white-3 show the light blue rising at the cowl
-            # front and running over the top behind the white ring): ahead of x ~0.42 the white strip above the blue
-            # vanishes, so the blue reaches the side/top seam; the top map (VFT) continues the same level sets across the
-            # centreline, giving one continuous blue collar from side to side.
-            t0 = t0 - 0.6 * sstep((A - 0.42) / 0.08)
-            # v7 (white-3 nose zoom / white-2): the red wedge's front tip sits ~40 % of the way from the blue's front
-            # edge back to the front cabane leg (x ~0.40, ahead of the strut, not over it); its lower edge drops in a
-            # steep S (smoothstep) and reaches full width ~0.35 m further aft, then tapers to the fin as before.
-            xr_ = A[0][None, :]
-            wr = np.where(xr_ > 0.05, 0.13 * sstep((0.40 - xr_) / 0.35), lerp(xe, [0.05, XR], [0.13, 0.07]))
+            wr = lerp(xe, [0.22, -0.20, XR], [0.0, 0.13, 0.07])                      # red starts behind the cowl
             fr = np.clip((A - (H_T - 0.15)) / 0.45, 0, 1)            # red arc thins out over the fin top toward the rudder
             t1 = t0 + wr * fr; t2 = t1 + GAP_ * np.clip(wr / 0.03, 0, 1)
             t3 = 0.41 + (0.235 - 0.41) * q; t4 = t3 + GAP_                          # light-blue bottom edge: straight
@@ -858,13 +810,9 @@ else:
             # v5 nose: the navy's lower edge drops into a CHIN LOBE under the cowl (white-3: deepest just aft of the bowl,
             # sweeping back up to the straight band edge behind the firewall); white below.
             _zb = Zr(A) - t5
-            # v7 (white-3 nose zoom, by the cowl / gear-fairing edges): the navy covers the WHOLE lower cowl side down to
-            # the bottom line from its front edge (x ~0.70) back to x ~0.30; there its lower edge turns up in a quarter
-            # ellipse (steep at the bottom, flattening) and joins the straight band edge at x ~0.08, ahead of the gear
-            # fairing; white below aft of that.
-            _s = np.clip((0.30 - A) / 0.22, 0, 1)
-            _zl = np.where(A >= 0.30, -1.5, _zb - (_zb + 0.66) * np.sqrt(np.clip(1 - _s * _s, 0, 1)))
-            nb = Z > np.where(A > 0.08, np.minimum(_zl, _zb), _zb)
+            _zl = np.interp(A, [-0.70, -0.40, -0.15, 0.05, 0.22, 0.38, 0.53, 0.70], [-0.40, -0.45, -0.54, -0.60, -0.58, -0.47, -0.34, -0.30])
+            _bl = sstep((A + 0.75) / 0.10)
+            nb = Z > (_zb * (1 - _bl) + np.minimum(_zl, _zb) * _bl)
             inF = fin & (Z > top1 - 0.005)                           # fin / rudder above the fuselage line
             aft = (A < H_T + 0.01) | inF                             # rudder + fin: no lower limit on the navy core
             core = (((A - (H_T - FCX)) / FCA) ** 2 + ((Z - FCZ) / FCB) ** 2) < 1.0   # navy core (white-3: dome, apex near hinge)
@@ -879,26 +827,12 @@ else:
             # stab the rudder is WHITE; only the fuselage's navy band runs aft to the tail post (forward of the hinge),
             # with the white belly under it. v4 painted the whole fin/rudder below the stab navy.
             _ut = ok & (A < H_T + 0.40) & (A > H_T + 0.005) & (Z < Z_S - 0.03)
-            # v7 (white-3 tail crop): ahead of the hinge the navy under the stab runs right down to the fuselage bottom
-            # at the tail post (~0.29 m below the stab), not a thin strip; the rudder below the stab stays white.
-            _ub = (Z_S - 0.32) + (Zr(A) - t5 - (Z_S - 0.32)) * sstep((A - H_T - 0.08) / 0.34)
+            _ub = (Z_S - 0.15) + (Zr(A) - t5 - (Z_S - 0.15)) * sstep((A - H_T - 0.10) / 0.30)
             v.fill(_ut & (Z > _ub), NAVY); v.fill(_ut & (Z <= _ub), WHITE)
             v.fill(ok & fin & (A < H_T + 0.005) & (Z < Z_S - 0.01), WHITE)
-            # v9 (Ty, overriding the photos -- the deflected-down elevator hides this area in white-1/2/3): the lower rudder
-            # is NAVY below a boundary parallel to the lower edge of the navy fuselage/fin stripe, projected aft (_zb =
-            # Zr - t5, the band's straight lower edge, continued across the rudder); navy from there down to the rudder
-            # bottom and out to the TE. Replaces v5/v7's all-white lower rudder; above the boundary it stays white.
-            v.fill(ok & fin & (A < H_T + 0.005) & (Z < Z_S - 0.01) & (Z < _zb), NAVY)
-            # v7 (white-3 nose zoom, white-2, white-1): the white nose is only a RING behind the cowl lip. The light-blue
-            # front edge runs parallel to the lip, ~6-7 cm behind it (x ~0.73 at the top, slanting aft to ~0.61 at the
-            # blue's lower edge); the white widens into a crescent at the blue/navy pinstripe, where the navy's
-            # front-top corner is rounded at x ~0.575; the navy front edge then sweeps FORWARD going down to x ~0.70 and
-            # meets the cowl bottom line close behind the lip.
-            # knots are in depth below the reference line (d = Zr - Z) so they follow the bands: blue 0.05..0.41,
-            # pinstripe 0.41..0.44, navy below.
-            _fd = [-0.30, 0.05, 0.15, 0.25, 0.33, 0.41, 0.44, 0.50, 0.58, 0.68, 0.80, 2.0]
-            _fx = [0.745, 0.735, 0.718, 0.695, 0.665, 0.625, 0.575, 0.588, 0.622, 0.665, 0.695, 0.700]
-            v.fill(ok & (A > np.interp(Zr(A) - Z, _fd, _fx)), WHITE)
+            # v5 white nose bowl (white-3 nose crop): its aft edge is near-vertical over the light blue (x ~0.51-0.53),
+            # then the navy's front edge slants FORWARD going down so the navy wraps under the cowl toward the chin
+            v.fill(ok & (A > np.interp(Z, [-1.0, -0.60, -0.45, -0.30, -0.15, 0.05, 0.25, 0.40], [0.70, 0.66, 0.62, 0.575, 0.525, 0.51, 0.53, 0.55])), WHITE)
             # pants (white-3): white nose cap; light-blue and red bands rise at the front and sweep aft along the side as
             # tapering lines; navy swoosh low at the front running aft below them; all converging on the pant tail.
             du, dz = A - X_AX, Z - Z_AX
@@ -916,28 +850,10 @@ else:
     VL, VR = side('gl_side_l', True), side('gl_side_r', False)
     VFT, Y, X = plan('gl_fus_top', True, (-0.5, 0.5), (X0, X1), 1024, 4096); VFT.fill(np.ones_like(Y, bool), BASE)
     VFB, Y, X = plan('gl_fus_bot', False, (-0.5, 0.5), (X0, X1), 1024, 4096); VFB.fill(np.ones_like(Y, bool), BASE)
-    if LIV == 'white-stripes':
-        # v7: the navy chin wraps under the cowl (side views show it reaching the bottom line); white ring at the lip.
-        VFB.fill((VFB.B > 0.30) & (VFB.B < 0.685), NAVY)
-    if LIV == 'white-stripes':
-        # v8 cowl wrap: evaluate the side bands' level sets on the real top surface (z = fus_z) so the light-blue collar
-        # and white ring run continuously over the top centreline into the other side's bands (symmetric in |y|).
-        _XR = float(fle(0.062)); _Zr = lambda x: 0.24 + (0.062 - 0.24) * (0.66 - x) / (0.66 - _XR)
-        _zz = np.vectorize(lambda x, y: fus_z(x, y, True))(VFT.B, VFT.A); _B = VFT.B; _d = _Zr(_B) - _zz
-        _xe = np.clip(_B, _XR, 0.55); _q = (0.55 - _xe) / (0.55 - _XR)
-        _t0 = lerp(_xe, [0.55, 0.20, _XR], [0.02, 0.05, 0.035]) - 0.6 * sstep((_B - 0.42) / 0.08)
-        _wr = np.where(_B > 0.05, 0.13 * sstep((0.40 - _B) / 0.35), 0.13)
-        _t1 = _t0 + _wr; _t2 = _t1 + 0.03 * np.clip(_wr / 0.03, 0, 1); _t3 = 0.41 + (0.235 - 0.41) * _q
-        _fr = (_B > 0.0)
-        VFT.fill(_fr & (_d > _t0) & (_d < _t1), RED)
-        VFT.fill(_fr & (_d > _t2) & (_d < _t3), LBLUE)
-        _fd = [-0.30, 0.05, 0.15, 0.25, 0.33, 0.41, 0.44, 0.50, 0.58, 0.68, 0.80, 2.0]
-        _fx = [0.745, 0.735, 0.718, 0.695, 0.665, 0.625, 0.575, 0.588, 0.622, 0.665, 0.695, 0.700]
-        VFT.fill(_B > np.interp(_d, _fd, _fx), WHITE)
     if LIV == 'red-sunburst':
         for VF, up in ((VFT, True), (VFB, False)):
             _zz = np.vectorize(lambda x, y: fus_z(x, y, up))(VF.B, VF.A)        # v5: same chevron bowl edge XB as the sides
-            VF.fill(VF.B > XB(_zz) - 0.014, WHITE)
+            VF.fill(VF.B > XB(_zz) - 0.018, WHITE)
             VF.fill(VF.B > XB(_zz), NAVY)
     def surface(v, names, x0, rays, y0=0.0):
         m = sil(v, names); Y_, X_ = v.A, v.B
@@ -949,9 +865,7 @@ else:
             ph = np.degrees(np.arctan2(dy, dx)); r = np.hypot(dy, dx); k = np.searchsorted(bnd, ph)
             for i, c in enumerate(cols): v.fill(m & (k == i), c)
             for b in bnd: v.fill(m & (r * np.abs(np.sin(np.radians(ph - b))) < 0.011) & (np.abs(ph - b) < 90), WHITE)
-            if v.kind in ('lower', 'upper'):
-                pass
-            elif v.kind == 'stab':   # v4 (red-tail-closeup): no navy rim or navy tip on the tail, just a white pinstripe edge
+            if v.kind == 'stab':   # v4 (red-tail-closeup): no navy rim or navy tip on the tail, just a white pinstripe edge
                 bands(v, m, [(0.012, WHITE)])
             else:
                 bands(v, m, [(0.035, NAVY), (0.012, WHITE)])
@@ -980,17 +894,9 @@ else:
             for i_, c_ in enumerate([RED, WHITE, LBLUE, WHITE, NAVY]): v.fill(m & (idx == i_), c_)
     WRAYS = ([13, 27, 41, 54, 66, 76, 84], [RED, NAVY, RED, NAVY, RED, NAVY, RED, NAVY])
     VUW, Y, X = plan('gl_wing_u', True, (-4.1, 4.1), (-1.75, 0.05), 4096, 1024); VUW.tipcut = S_W - 0.16; VUW.kind = 'upper'
-    # v8 (red-1-air zoom of the upper-wing underside, red-3-tail starboard underside): same layout as the lower wing --
-    # five rays from the LE on the centreline, sectors root -> LE red, navy, red, navy, red (big, to the tip TE), navy
-    # (LE band out to the tip); no navy rim / tip cap. The top skin is not visible in any red photo: same plan map.
-    _ur = [36.5, 48.5, 56, 68, 78]
-    surface(VUW, ['Wing_Upper'], float(LEU0(0.0)), (_ur, [RED, NAVY, RED, NAVY, RED, NAVY]))
+    surface(VUW, ['Wing_Upper'], float(LEU0(0.0)) + 0.03, WRAYS)
     VLW, Y, X = plan('gl_wing_l', True, (-4.1, 4.1), (-1.85, -0.60), 4096, 768); VLW.tipcut = S_W - 0.16; VLW.kind = 'lower'
-    # v8 (red-3-tail back-projected onto this plan map through a re-solved PnP camera, err 5.5 px): the lower-wing rays
-    # fan from the root LE on the centreline; boundaries 36.5 / 48.5 / 56 / 68 / 78 deg from aft; sectors root -> LE:
-    # red, navy, red, navy (big, to the TE), red (big, over the tip TE), navy (LE band out to the tip). No navy rim and
-    # no navy tip cap: the tip is navy forward / red aft as the sectors fall.
-    surface(VLW, ['Wing_Lower', 'Aileron_LL', 'Aileron_LR'], LE_L, ([36.5, 48.5, 56, 68, 78], [RED, NAVY, RED, NAVY, RED, NAVY]), y0=0.0)
+    surface(VLW, ['Wing_Lower', 'Aileron_LL', 'Aileron_LR'], LE_L + 0.03, ([20, 40, 58, 72, 82], [NAVY, RED, NAVY, RED, NAVY, RED]), y0=0.40)
     VST, Y, X = plan('gl_stab', True, (-1.6, 1.6), (-5.15, -3.85), 2048, 1024)
     _sv = np.array([x.co[:] for n in ('Stab', 'Elevator_L', 'Elevator_R') for x in P[n].data.vertices])
     VST.tipcut = np.abs(_sv[:, 1]).max() - 0.10; VST.kind = 'stab'
@@ -1006,7 +912,7 @@ M['steel'] = paint.mat_colour('Wire_steel', STEEL, rough=0.25, metal=0.9)
 M['tyre'] = paint.mat_colour('Paint_tyre', TYRE, rough=0.8); M['cabin'] = paint.mat_colour('Paint_cabin', CABIN, rough=0.85)
 M['glass'] = paint.mat_glass('Glass', col=(120, 150, 185), alpha=0.35)
 M['frame'] = paint.mat_colour('Windscreen_frame', (40, 40, 44), rough=0.5)
-M['prop_spinner'] = paint.mat_colour('Prop_spinner', RED) if LIV == 'v1' else paint.mat_colour('Prop_spinner_chrome', (225, 228, 232), rough=0.12, metal=1.0)  # v6: red-2-ramp shows a polished spinner too
+M['prop_spinner'] = paint.mat_colour('Prop_spinner', RED) if LIV == 'v1' else (paint.mat_colour('Prop_spinner', WHITE) if LIV == 'red-sunburst' else paint.mat_colour('Prop_spinner_chrome', (225, 228, 232), rough=0.12, metal=1.0))
 M['base'] = paint.mat_colour('Paint_base', WHITE if LIV != 'red-sunburst' else RED)
 M['strut'] = M['red'] if LIV in ('v1', 'red-sunburst') else M['white']
 M['gear'] = M['red'] if LIV == 'red-sunburst' else M['white']
@@ -1018,7 +924,7 @@ def setm(o, names):
 for n, V_ in (('Wing_Upper', VUW), ('Wing_Lower', VLW), ('Aileron_LL', VLW), ('Aileron_LR', VLW), ('Stab', VST), ('Elevator_L', VST), ('Elevator_R', VST)):
     setm(P[n], [V_.name]); paint.project(P[n], lambda nrm, c, V_=V_: (0, V_))   # tips are symmetric in y: same map top and bottom
 def fus_assign(nrm, c):
-    if c.z < 0.215 and any(xa - 0.01 < c.x < xb + 0.01 for xb, xa in ((XC1F, XC1A), (XC2F, XC2A))):
+    if c.z < 0.18 and any(xa - 0.01 < c.x < xb + 0.01 for xb, xa in ((XC1F, XC1A), (XC2F, XC2A))):
         if abs(nrm.x) > 0.85 or nrm.y * c.y + nrm.z * (c.z + 0.2) < 0: return (3, None)   # cockpit inner skin + bulkheads
     if nrm.z <= -0.7: return (4, VFB)
     if nrm.z >= 0.7: return (2, VFT)

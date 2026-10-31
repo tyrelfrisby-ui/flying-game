@@ -175,6 +175,129 @@
   - Build: PITTS_LIVERY=CHECKER-UNMARKED|FACTORY-UNMARKED tools/own_models/build_pitts_s2b.py; EA_LIVERY=unmarked tools/own_models/build_ea300.py. Renders (agent box): /workspace/unmarked-v1/{pitts-checker-unmarked,pitts-factory-unmarked,extra-unmarked}-{side,top,front,bottom}.png.
 - [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: **DONE by Claude on lane/claude-pitts-own (2026-10-27), see Log; open points under NEEDS YOU** · own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
   - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, Hartzell 2-blade prop, grey with white tips) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, MT 3-blade prop, white with red tips). The n1191 GLB has no .meta yet (Unity generates it).
+- [codex → Claude] aircraft-config · codex/own-j3-cub · J-3 v15 COCKPIT RIG (Ty: "make the J-3 fully animatable so Aero can drive it") · for configs/aircraft/j3-cub-like.json and j3-cub-floats-like.json · NOT yet reviewed by Ty:
+  - Both GLBs (wheels and floats) were rebuilt. The full spec is in docs/models/j3-cub-own-RIG.md. Every value below is also stored in the node's glTF extras.
+  - **Convention**
+    - The frame is glTF: +x aft, +y up, +z port, with the origin at the config datum (unchanged).
+    - Each node rotates or translates about its own origin. Rest rotation is identity.
+    - Extras:
+      - rig_param: shared names mean the parts are linked;
+      - rig_axis_gltf (rotation) or rig_move_axis_gltf (translation);
+      - rig_map_param / rig_map_deg (or rig_map_m): a piecewise-linear table, offset from the modelled pose, clamped at the ends;
+      - rig_map_extrapolate=1 on the altimeter hands; rig_map_wrap=360 on the compass;
+      - rig_param_model; rig_detents on the mag switch.
+    - Apply it as q = AxisAngle(axis, deg) * q_rest.
+    - Reference implementation: tools/own_models/j3_fourview.py with J3_POSE.
+  - **Hierarchy:** Cockpit > Instruments (needles, Compass_Card, Primer_Plunger) and Controls (Stick_*_Roll > Stick_*, Pedal_*, levers); MagSwitch_Knob sits directly under Cockpit.
+  - **Parameters:**
+    - aileron, elevator, rudder, trim: −1..1 (+ = roll right / stick aft / right pedal / nose-up);
+    - throttle 0..1; fuel_valve (1 = ON); carb_heat 0..1; magneto 0..3 (OFF/L/R/BOTH); primer 0..1;
+    - engine_rpm, airspeed_mph, altitude_ft, oil_temp_f, oil_psi, heading_deg.
+  - **Linkage, to be driven together:**
+    - the front and rear sticks;
+    - all four pedals with the Rudder (±30), TailWheel_Steer (±30, wheels) and WaterRudder_L (±25, floats);
+    - Trim_Crank with Stab (trim +1 = LE down 4°, −1 = LE up 2.5°; Elevator_L/R are children of Stab);
+    - both throttles;
+    - CarbHeat_Lever with CarbHeat_Knob_Rear.
+  - The surface nodes (Aileron_L/R ±18, Elevator_L/R +34/−29, Rudder, TailWheel_Steer, WaterRudder_L, WaterRudder_Blade_L water_rudder_up, doors, FuelGauge_Wire, Prop) keep their v7 extras (rig_deg_pos/neg). They are listed in the RIG doc.
+  - **Cockpit nodes** (wheels GLB values; the floats GLB is identical):
+      - Needle_Tach (parent Instruments): engine_rpm rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, 0.164], 0→0, 500→5, 3500→275 deg
+      - Needle_Airspeed (parent Instruments): airspeed_mph rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, 0.075], 0→0, 40→12, 140→312, 150→327 deg
+      - Needle_Alt_100ft (parent Instruments): altitude_ft rotate, axis [-1.0, 0.0, -0.0], pivot [-0.5792, 0.233, -0.095], 0→0, 1000→360 deg rig_map_extrapolate=1
+      - Needle_Alt_1000ft (parent Instruments): altitude_ft rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.233, -0.095], 0→0, 10000→360 deg rig_map_extrapolate=1
+      - Needle_OilTemp (parent Instruments): oil_temp_f rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.2378, -0.181], 100→0, 250→120 deg
+      - Needle_OilPress (parent Instruments): oil_psi rotate, axis [-1.0, 0.0, -0.0], pivot [-0.58, 0.2089, -0.181], 0→0, 80→120 deg
+      - Compass_Card (parent Instruments): heading_deg rotate, axis [0.0, 1.0, -0.0], pivot [-0.579, 0.233, -0.011], 0→0, 360→360 deg rig_map_wrap=360.0
+      - Throttle_Lever_Front (parent Controls): throttle rotate, axis [-0.0, -0.0, 1.0], pivot [-0.482, 0.065, 0.3056], 0→0, 1→41.3322 deg
+      - Throttle_Lever_Rear (parent Controls): throttle rotate, axis [-0.0, -0.0, 1.0], pivot [0.388, 0.065, 0.3075], 0→0, 1→41.3322 deg
+      - FuelValve_Lever (parent Controls): fuel_valve rotate, axis [0.0, 0.0, -1.0], pivot [-0.303, 0.035, 0.3074], 0→90, 1→0 deg
+      - Trim_Crank (parent Controls): trim rotate, axis [0.0, 0.0, -1.0], pivot [-0.252, -0.087, 0.3066], -1→-450, 0→0, 1→450 deg
+      - Stab (parent None): trim rotate, axis [0.0, 0.0, -1.0], pivot [4.373, 0.485, 0.0], -1→2.5, 0→0, 1→-4 deg
+      - CarbHeat_Lever (parent Controls): carb_heat rotate, axis [0.0, -0.0, -1.0], pivot [-0.358, -0.064, -0.307], 0→0, 1→35 deg
+      - CarbHeat_Knob_Rear (parent Controls): carb_heat translate, axis [0.99546, -0.09488, 0.00701], pivot [0.333, -0.127, -0.2903], 0→0, 1→0.035 m
+      - MagSwitch_Knob (parent Cockpit): magneto rotate, axis [-0.08196, -0.99664, -0.0], pivot [-0.259, 0.6609, 0.215], 0→0, 1→-37, 2→-73, 3→-115 deg rig_detents=['OFF', 'L', 'R', 'BOTH']
+      - Primer_Plunger (parent Instruments): primer translate, axis [1.0, 0.0, -0.0], pivot [-0.57, 0.164, -0.24], 0→0, 1→0.05 m
+      - Stick_Front_Roll (parent Controls): aileron rotate, axis [-1.0, 0.0, -0.0], pivot [-0.267, -0.4576, -0.0], -1→-20, 0→0, 1→20 deg
+      - Stick_Front (parent Stick_Front_Roll): elevator rotate, axis [0.0, 0.0, -1.0], pivot [-0.267, -0.4576, -0.0], -1→-15, 0→0, 1→20 deg
+      - Stick_Rear_Roll (parent Controls): aileron rotate, axis [-1.0, 0.0, -0.0], pivot [0.483, -0.4077, 0.0], -1→-20, 0→0, 1→20 deg
+      - Stick_Rear (parent Stick_Rear_Roll): elevator rotate, axis [0.0, 0.0, -1.0], pivot [0.483, -0.4077, 0.0], -1→-15, 0→0, 1→20 deg
+      - Pedal_Front_L (parent Controls): rudder rotate, axis [0.0, 0.0, -1.0], pivot [-0.697, -0.395, 0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Front_R (parent Controls): rudder rotate, axis [-0.0, -0.0, 1.0], pivot [-0.697, -0.395, -0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Rear_L (parent Controls): rudder rotate, axis [0.0, 0.0, -1.0], pivot [0.033, -0.395, 0.13], -1→-18, 0→0, 1→18 deg
+      - Pedal_Rear_R (parent Controls): rudder rotate, axis [-0.0, -0.0, 1.0], pivot [0.033, -0.395, -0.13], -1→-18, 0→0, 1→18 deg
+  - **Judgement calls, for Ty to confirm:**
+    - stick travel ±20° roll and +20/−15° pitch at the grip;
+    - pedals ±18°;
+    - trim crank ±450° (1.25 turns each way);
+    - carb heat lever 35° and rear knob 35 mm;
+    - primer 50 mm;
+    - the fuel valve is a 90° quarter-turn.
+  - Gauge dials are as painted: ASI 40–140 mph over 300°, tach 500–3500 over 270°, oil 120° arcs.
+  - The heel brakes are static. There is no brake rig.
+  - The painted needles were removed from the panel atlas, so Aero must drive the needle nodes. At the rest pose they read engine off, 0 ft and heading 000.
+  - Contact sheet on the agent box: /workspace/j3-cub-v14/rig/.
+- [codex → Claude] codex/own-j3-cub · own Piper J-3C-65 Cub style model v1, wheels + EDO 1320 floats (NOT yet reviewed by Ty) · wire in as the visual for configs/aircraft/j3-cub-like.json and j3-cub-floats-like.json · details:
+  - Models: unity/Assets/_Project/Resources/Models/j3-cub-like/j3-cub-like-own.glb (wheels) and j3-cub-floats-like/j3-cub-floats-like-own.glb (floats). No .meta yet. Same frame/convention as the own Pitts/EA300/Great Lakes (origin = config datum). Cub yellow + plain black lightning stripe, no logo/registration. 72 in wood prop, clockwise from the cockpit.
+  - Rig (extras, glTF axes): Aileron/Elevator/Rudder hinge_axis_gltf; Prop/Wheel_* spin_axis_gltf; TailWheel_Steer steer_axis_gltf; right split door DoorUpper_R open_deg +90 (folds up under the wing) and DoorLower_R open_deg -175 (folds down), both about hinge_axis_gltf, 0 = closed — please add a door open/close toggle. Bungee gear: Gear_Pivot_L/R rotate about Pivot->Gear_HingeAxis_<s> (hinge_deg_full 9.02 at wheel_rise_full_m 0.10; verify the wheel moves UP); the bungee strut EXTENDS +1.57 in at full travel (v3; strut_len_extended_m 0.812). Floats: WaterRudder_L only (steer_axis_gltf, link to rudder) + child WaterRudder_Blade_L (retract_axis_gltf, retract_deg 90 = up).
+  - Wheels physics vs config (please reconcile): main axle x 0.337 (config 0.112), tailwheel x -4.76 (config -3.854), wheel centre z 0.975 with 8.00-4 tyre radius 0.2235 m (17.6 in OD), 3-point height 81.3 in (published 80 in), 3-point pitch 13.5 deg; at full nominal travel 77.8 in / 12.45 deg. Gear travel unpublished; 0.10 m wheel rise is nominal.
+  - Floats config block (j3-cub-floats-like.json), suggested from the EDO 60-1320 drawing: lengthM 4.43 (was 4.95), beamM 0.54 (0.66), depthM 0.50 (0.42), stepFraction 0.556, spreadM 1.905 (75 in; was 2.6), bowX 2.135 (2.6), keelZ 1.44 (1.55); volume 0.614 m3 each; level-deck waterline z 1.183 at 1160 lb (10.2 in step draft), 1.246 at 730 lb (7.7 in). One water rudder (left) instead of two; keep waterRudderAreaM2 for one blade. Values also in the Float_L extras (edo1320_*; GLB frame, nose -x, z up).
+  - Provenance: docs/models/j3-cub-own-PROVENANCE.md. Renders on the agent box: /workspace/j3-cub-v1/ (wheels, wheels-doors-open, floats).
+  - v2 (both GLBs rebuilt): (a) tail bracing is now AFT wires only (one over to the fin, one under to the fuselage per side, at the stab rear spar) - forward wires removed; (b) Stab is a trimmable part: origin on the rear spar / elevator hinge line, extras trim_axis_gltf (+deg = LE up = nose-down trim), trim_deg_le_up 2.5, trim_deg_le_down 4.0 (TCDS A-691 stab travel). Elevator_L/R are now CHILDREN of Stab (their hinge_axis_gltf is unchanged, local to the stab) - please drive pitch trim by rotating Stab, not with a tab; (c) right door front edge is a chevron (forward point at the sill), door hinges/open_deg unchanged; (d) main gear: sheet-metal vee fairing between the legs (part of Gear_Leg_L/R, moves with the gear), 3-leaf tail spring. No physics/brake changes. Renders: /workspace/j3-cub-v2/ (box).
+  - v3 (Ty review): the main-gear X (bungee shock struts + inverted centre V) now lies in the plane of the FRONT legs - apex pin Gear_ShockTop_<s> moved from xd 2.12 to 1.4675 on the front-leg line; float front cross wires end exactly on the front strut axes. Nothing else changed. Gear_Pivot extras updated by the build: strut_len_extended_m 0.812, strut_extension_full_m 0.040 (wheel rise / hinge angle / 3-point numbers unchanged). Renders: /workspace/j3-cub-v3/ (box).
+  - v4 (Ty review, both GLBs):
+    - Jury struts tie the front and rear lift struts together at the jury station (each jury runs to its own spar).
+    - Factory lightning-bolt stripe redrawn from photos.
+    - Seats are black; the front seatback has a rounded top.
+    - Right door is narrow at the bottom and wide at the top. The lower panel bottom is raised 0.095 m, so folded it clears the lift struts by 0.065 m (asserted in the build).
+    - Red fuel cap with an 8 in gauge wire (90° bend).
+    - Black cylinder eyebrows.
+    - Tail corrected to the Severin/Paul Matt and Commons 3-views: stab/elevator group 0.14 m aft, new stab planform at the 9 ft 6 in span, rounder lower rudder. See PROVENANCE v4.
+    - Part names and extras are unchanged. If the stab position is hard-coded in physics, check it (the hinge moved aft 0.14 m).
+    - Renders: /workspace/j3-cub-v4/ (box).
+  - v5 (Ty review, both GLBs; matched side by side against Ty's photos):
+    - Exposed Continental A-65-8 heads with pillow-domed polished valve covers standing 2.5 in proud of narrow black half-tube eyebrow scoops. The scoops close at the back into flat riveted plates with no flare.
+    - Two plugs per cylinder with yellow leads to the two magnetos. Exhaust stacks run into a collector out of the lower cowl.
+    - Dzus fasteners, a 72 in wood prop (42 in pitch, generic decal) and an original "CUB" bear fin emblem.
+    - TailWheel_Steer extras: steer_deg_springs 30, full_swivel true (please steer ±30° and caster beyond that).
+    - Instrument panel per Ty's photo on the new Panel_Gauges mesh: RPM, ASI, ball compass, altimeter, oil T/P, cream faces, and the "REAR SEAT FOR SOLO FLYING" placard.
+    - Tandem interior: black seats, sticks, heel brakes (geometry only), trim crank, yellow fabric sidewalls, tube truss. Also new: the Liner_Stbd and Fin_Decal_L/R meshes.
+    - Renders: /workspace/j3-cub-v5 (box).
+  - v6 (Ty review of v5, both GLBs):
+    - Eyebrow hoods funnel from a large front mouth down over the aft cylinder and wrap round its back in a rounded, riveted cap (no flat plate).
+    - Valve covers have a flange with 10 screws each.
+    - The cabin is fabric-lined, with no exposed truss; only a couple of tubes show under the fuel tank.
+    - The exhaust stacks are continuous: tube() now uses parallel-transport frames.
+    - Renders: /workspace/j3-cub-v6 (box).
+  - v7 (Ty review of v6, both GLBs):
+    - Eyebrows smaller (never above the cowl top), less taper, inner edge to the cylinder base.
+    - Windshield_Fairing into the wing LE.
+    - Door inner faces are yellow.
+    - Wingtip traced from the Kaboldy 3-view.
+    - Rig: doors, fuel wire, control travels (TCDS A-691), prop spin, tailwheel steer, water rudder steer and retract.
+    - Renders: /workspace/j3-cub-v7 (box).
+  - v8 (Ty windshield fix, both GLBs):
+    - Windshield top flush with the wing top skin: it leaves on a tangent at 5 % chord and runs down and forward to 6 in aft of the fuel cap.
+    - New A_Pillar and A_Pillar_Screws parts: a raked 44° black screwed strip per side. The glass is only ahead of / above the pillar; the side window is aft of / below it.
+    - Windshield_Fairing removed.
+    - Renders: /workspace/j3-cub-v8 (box).
+  - v8b (Ty wedge): tank deck clamped inside the fuselage skin; removes the dark wedge behind the cowl's rear top corner.
+  - v9 (Ty A-pillar): the black strip and its screws are gone. A_Pillar is now a 1 in OD yellow tube at the windshield's side corner, on the v8 pillar line from the deck corner to the wing LE. The windshield plan-wraps (ws_wrap) from the centreline profile round to the tube. The v8 top tangent is kept.
+  - v10 (Ty markup): the A-pillar tube now runs from the windshield's bottom side corner (1.232, 0.030) to 3 in aft of the wing LE (1.478, 0.545). A vertical tube at xd 1.510 makes the first side window a triangle; the left door-post strip is removed. The v9 diagonal is now an internal Cabin_Tubes member. The glass wrap and top tangent are unchanged.
+  - v11 (Ty V-tubes/panel/skylight): Cabin_Tubes are now the internal V. The tubes run from the A-pillar bottoms (1.236, +/-0.286, 0.036) to the front-spar centre (1.781, +/-0.016) and the v10 diagonal is gone. The panel top rolls forward into the dash above the gauges (p_knee/p_rad). The centre-section skylight covers |y| < 0.30, LE to the spar (Skylight glass + Skylight_Frame).
+  - v12 (Ty photo skylight): the skylight is a roof panel, |y| < 0.30, 13.6 -> 23.2 pct chord (SK_F0/SK_F1). The LE nose is solid yellow and Skylight_Trim adds black rubber across the forward edge and round both root noses. The V tubes and panel were camera-checked and are unchanged.
+  - v12b (Ty seat photo panel): PKZ = PZB + 0.152 and PRC = 0.065 hood-roll radius cap, so the panel rolls into the dash from the gauge tops. The top height is unchanged.
+  - v12c (Ty ceiling V tube): new part Ceiling_Tubes (yellow, 1 in OD). Apex at the front-spar fitting (xd 1.769), legs to the upper cabin corners at the A-pillar tops (xd 1.494, |y| 0.290), under the skylight. The build prints CEILING V v12c.
+  - v12d (Ty cockpit controls): in Cabin. Linked front and rear throttles on the left wall (xd 1.450 and 2.335; replace the old v6 placeholder box). Fuel shut-off valve under the panel centre with a push-pull knob at the lower-left panel corner on the left wall. Carb heat knob on the right wall below the door front (xd 1.745, z -0.30). The build prints CONTROLS v12d. Positions are estimates; Ty to confirm.
+  - v13 (Ty spar-bay greenhouse): front-spar apex at 15 pct chord (xd 1.648) is the single meeting point for the windshield V tubes and the ceiling tubes. The ceiling tubes run from the rear-spar attach points (xd 2.400, |y| 0.28) forward to the apex. There is a rear-spar carry-through tube. The skylight is a 0.75 x 0.60 m rectangle between the spars with a dark rubber frame all round; the LE ahead of it is solid yellow. The build prints V TUBES v13, CEILING v13 and SKYLIGHT v13. Open item: the front lift strut still attaches at 17.9 pct chord (xd 1.695), not at the 15 pct front spar. Ty to confirm.
+  - v14 (Ty photo controls): in Cabin, the v12d guesses were replaced with the controls from Ty's photos. Two triangle throttle plates with ball knobs (linked); the D-shaped fuel shut-off plate; the square elevator trim plate with crank; the D-shaped carb heat plate on the right wall with its rod to a red rear knob; and the magneto switch on the left wing-root ceiling. White label text is font geometry. New materials: ck_label, ck_red, ck_maroon. The build prints CONTROLS v14 and MAGSWITCH v14. No intercoms, headsets, radios or tablet mounts. Heights and stations are by eye; Ty to confirm.
+  - v15 (Ty: fully animatable cockpit): rig spec in docs/models/j3-cub-own-RIG.md; see the aircraft-config HANDOFF entry at the top of HANDOFF. The build prints GAUGES v15 and RIG lines and fails on a wrong axis sign.
+- [codex → Claude] codex/own-great-lakes · Great Lakes 2T-1A-2 own model v5 (supersedes v4, v3 and v2; NOT approved by Ty; use latest v5; for planning gear suspension + livery wiring). v5 (2026-10-28) changes: red-sunburst side stripes curve and blend into the navy nose bowl per Ty's red photos (lower stripe tapers to a chevron at the bowl, upper stripe flares to parallel it; wheel pants get a matching navy wedge + white pinstripe); white-stripes nose bowl/chin redrawn to the white-3 photos, wing tips and stab carry nested parallel red/white/light-blue/white/navy bands along the LE that turn and rake aft at the tips, lower rudder is white below the stab (navy no longer wraps the whole lower rudder). v4 (2026-10-28) changes: cowl front closed and rounded on all liveries (inlets in the face); red-sunburst stab rays per Ty's tail photo, fin/rudder trim tapers out at the rudder bottom-front, fuselage stripes taper to the stab LE; white-stripes wings and stab are white with diagonal red-tip / light-blue / navy bands top and bottom, fuselage stripes straight until they curve up at the fin. v3: tail matched to the 1970 AAM three-view incl. the fin-root blend; sunburst rays sweep aft. GLB file names and part names unchanged · details:
+  - Models (unity/Assets/_Project/Resources/Models/great-lakes-like/): great-lakes-like-own.glb (v1 placeholder paint, N719GL), great-lakes-like-own-red-sunburst.glb (id 'red-sunburst', suffix "-own-red-sunburst"), great-lakes-like-own-white-stripes.glb (id 'white-stripes', suffix "-own-white-stripes"). Both new liveries: no registration, no logos/text; Hartzell 2-blade prop (clockwise from the cockpit). Default livery is undecided (ask Ty); suggest adding both to LiveryChoice when the Great Lakes is wired in.
+  - Gear suspension values: stroke 9 in = 0.2286 m (Ty-supplied 8-10 in; no published figure); oleo length extended 0.931 m; static (derived from published 7 ft 4 in height) = 6.19 in compression, hinge 15.79 deg, wheel rise 0.227 m, 3-pt pitch 6.91 deg; full = 9 in, hinge 22.92 deg, wheel rise 0.342 m (+0.148 m aft, +0.158 m outboard), pitch 5.41 deg. GLB is exported fully extended (3-pt height 2.469 m).
+  - Rig: Gear_Pivot_L/R (axle U-joint hinge) parents Gear_Axle_<s>, Wheel_<s>, Wheel_Pant_<s>, Oleo_Cylinder_<s>. Rotate the pivot about the axis (Gear_HingeAxis_<s> - Gear_Pivot_<s>) by the hinge angle (pivot extras: stroke_m, strut_len_extended_m, hinge_deg_static, hinge_deg_full, wheel_up_sign_model_frame; verify the wheel moves UP after import). Then aim Oleo_Cylinder_<s> at Gear_OleoTop_<s> and Oleo_Shaft_<s> (fixed, origin at the top pin) at the cylinder origin (aim change 3.1 deg static, 4.4 deg full). Map strut compression to hinge angle roughly linearly (0 -> 0, 6.19 in -> 15.79, 9 in -> 22.92) or solve it from the pin positions.
+  - Provenance: docs/models/great-lakes-own-PROVENANCE.md (manual I-7/I-9 gear layout, rigging 0/2 deg dihedral + 3 deg incidence, suspension table, liveries by eye from Ty's photos). Renders on the agent box: /workspace/greatlakes-own-v3/ (tail overlays overlay-side/top/bottom.png; tools/own_models/gl_overlay.py).
+- [codex → Claude] codex/own-pitts-s2b · APPROVED by Ty (2026-10-27, v10 c8b90bc: "send them to aero"; v10.1 removes the fin "Pitts S-2B" script on Ty's request — use v10.1) as DONE: own clean-room Pitts S-2B in two liveries · wire into Aero Playground as the in-game Pitts S-2B · details:
+  - Models: unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb (N31DG: red/white sunburst, checkered rudder, MT 3-blade prop) and pitts-s2b-like-own-n1191.glb (N1191: factory sunburst with diamonds, Hartzell 2-blade prop). The n1191 GLB has no .meta yet (Unity generates it).
   - Task: make these the in-game Pitts S-2B (existing flight config configs/aircraft/pitts-s2b-like.json). N31DG (-own) is the default; N1191 (-own-n1191) is selectable the same way as the Extra's N300UY (AirframeModels suffix / AERO_LIVERY), or a picker if easy. Check scale/orientation, US prop rotation (clockwise from the cockpit), control-surface binding.
   - Credits/licensing (docs/models/pitts-s2b-own-PROVENANCE.md): fully clean-room procedural Blender build (tools/own_models/build_pitts_s2b.py); no third-party mesh used or measured; dimensions from Aviat/Jane's/TCDS A8SO; paint from reference photos only; fonts SIL OFL 1.1. No GPL question.
 - [codex → Claude] codex/own-ea300 · APPROVED by Ty (2026-10-27, v12 d0c6130) as DONE: own EA300 in two liveries · swap in as the in-game Extra 300, review provenance · **DONE by Claude on lane/claude-ea300-swap (2026-10-27), see Log; the GPL decision is in NEEDS YOU** · details:
@@ -1164,6 +1287,50 @@ I checked each GLB directly: blade runs counted round the spinner axis, plus pro
 - Aside: `glider-2-33-like-own-tf.glb`, which `OwnSuffix` maps the 2-33's `talk-flying` livery to, is not on this branch. `PickOwn` falls back, so it is not broken, but it may be worth bringing over.
 - Local commits only. No push, merge, deploy or device build.
 
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v15 (Ty): fully animatable cockpit. Needles and the compass card are separate pivoted nodes. The throttles (linked), fuel valve, trim crank (drives Stab), carb heat lever and rear knob, mag switch (OFF/L/R/BOTH detents) and primer are movable. Linked sticks and pedals drive the surfaces, the tailwheel and the water rudder. Rig spec in docs/models/j3-cub-own-RIG.md, plus an aircraft-config HANDOFF. Wheels and floats GLBs rebuilt. Contact sheet at /workspace/j3-cub-v14/rig/ (box). Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v14 (Ty photos): cockpit controls rebuilt to match Ty's photos, with labelled triangle throttles, D-shaped fuel and carb heat plates, the trim crank plate and the magneto switch. Wheels and floats GLBs rebuilt. Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v13 (Ty): front-spar apex moved to 15 pct chord where the windshield V tubes and the ceiling tubes meet. The ceiling tubes now run from the rear-spar attach points. A rear-spar carry-through tube was added. The skylight is now a large rectangle from the front spar to the rear spar with a dark rubber frame all round. Wheels and floats GLBs rebuilt. Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v12d (Ty): cockpit controls. Linked front and rear throttles (left wall), fuel shut-off valve and knob, carb heat knob (right wall below the door). Wheels and floats GLBs rebuilt. Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v12c (Ty): yellow steel ceiling V tube under the skylight, apex at the front-spar fitting, legs to the A-pillar tops. Wheels and floats GLBs rebuilt. Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v12b (Ty seat photo): instrument panel hood roll starts at the gauge tops with a 0.063 m radius (v11 0.045); camera-matched seat compare. Wheels and floats GLBs rebuilt. Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v12 (Ty 3/4 photo): skylight reworked as a flush clear roof panel between the wing roots (13.6 -> 23.2 pct chord) with black rubber along the forward edge and root noses; LE skin solid yellow. V tubes and panel checked against Ty's photos with a fitted camera (unchanged). Wheels and floats GLBs rebuilt; PROVENANCE v12; HANDOFF updated. Renders in /workspace/j3-cub-v12 (box). Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v11 (Ty photos): internal yellow V tubes from the A-pillar bottoms to the front-spar centre (v10 diagonal removed); instrument panel top curves forward into the dash just above the gauges; clear centre-section skylight (LE to front spar, between the root ribs). Wheels and floats GLBs rebuilt; PROVENANCE v11; HANDOFF updated. Renders in /workspace/j3-cub-v11 (box). Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v10 (Ty markup): A-pillar moved aft and steeper (windshield bottom side corner to 3 in aft of the wing LE); vertical frame tube moved forward to xd 1.51, making a triangle first side window (both sides); front diagonal kept as an internal yellow cabin tube. Wheels and floats GLBs rebuilt; PROVENANCE v10; HANDOFF updated. Renders in /workspace/j3-cub-v10 (box). Local commit only.
+### 2026-10-29 — Grok Bot executor · codex/own-j3-cub · J-3 v9 (Ty): the A-pillar is now a yellow 1 in OD round tube at the windshield corner, replacing the black strip and its screws. The windshield plan-wraps to the tube, and the flush top tangent is kept. Wheels and floats GLBs rebuilt; PROVENANCE v9; HANDOFF updated. Renders and compares are in /workspace/j3-cub-v9 (box). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v8 per Ty (windshield wrap / A-pillar / flush top):
+- The windshield no longer wraps round to the door post. The angled A-pillar per photos c37/c38/c47 splits the windshield from the side window.
+- The windshield top is tangent to the wing upper skin at 5 % chord, and the base is 6.0 in aft of the fuel cap (build prints a WINDSHIELD v8 line).
+- Windshield_Fairing is removed. A_Pillar and A_Pillar_Screws are added (both static and unrigged). All other part names are unchanged.
+- The door split dissolves degenerate faces before solidify.
+- HANDOFF: next is Beaver Part A on codex/beaver-edo-floats.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v7 per Ty (eyebrows, windshield fairing, door colour, rig, water rudder, wingtip):
+- Eyebrows: the crown is capped below the cowl top (build check), the mouth/aft crown is 0.15/0.12 m, and the inner edge is re-anchored to the cylinder base. The rear wrap is kept.
+- New part Windshield_Fairing: wraps the wing nose across the cabin top and tapers into a root fillet outboard.
+- Door_inner_yellow material on the door inner faces.
+- The wingtip LE and TE come from a traced table (Kaboldy 3-view). The overlay is verified top-down.
+- Rig extras on all movables (see PROVENANCE v7), with sign asserts printed as RIG lines. The fourview takes J3_POSE=param=value,... for pose renders.
+- Part names are unchanged apart from the new Windshield_Fairing.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v6 per Ty (eyebrow taper/wrap, cover screws, lined cabin, exhaust gap):
+- Eyebrows taper (crown 0.265 → 0.150 m). The outboard lip drops behind the aft head, and the hood ends in a rounded cap down onto the cowl, enclosing the aft cylinder. Rivets run on the cap and the flange.
+- Valve covers: a flange plus 10 screws each (counted from ty-eyebrows.png).
+- Interior: the sidewall truss and window-frame tubes are removed and the liner covers everything. Two diagonals and a cross tube remain under the tank.
+- Exhaust: one continuous stack per cylinder with a radiused bend. The gap was a ring-frame flip in tube(), now parallel transport.
+- No part renames.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v5 per Ty (matched side by side with Ty's photos ty-eyebrows / ty-cowl-eyebrow-rear / ty-panel):
+- Engine: exposed A-65-8 cylinders, narrow half-tube eyebrow scoops closing into flat riveted rear plates (no flare), and polished pillow valve covers 2.5 in proud. Two plugs per cylinder with yellow leads to the magnetos; stacks into a collector.
+- Cowl and decoration: Dzus fasteners, wood prop with a generic decal, and an original bear emblem.
+- Tailwheel: ±30° swivel extras.
+- Cabin: black arched panel with cream gauges and the solo placard; J-3 tandem interior.
+- Both GLBs rebuilt. Renders and side-by-sides are in /workspace/j3-cub-v5 (box). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v4 per Ty: juries tie the front and rear struts at the jury station; factory bolt stripe; black seats with a rounded front seatback; trapezoid split door with a raised lower panel (0.065 m strut clearance folded); red fuel cap and gauge wire; cylinder eyebrows; tail checked against the Severin/Paul Matt and Commons 3-views and corrected (stab group 0.14 m aft, planform, rudder). Both GLBs rebuilt; renders and overlays in /workspace/j3-cub-v4 (box). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3 v3 per Ty: main-gear X (shock struts + centre V) moved into the front-leg plane (apex xd 2.12 -> 1.4675); float front cross wires snapped onto the front strut axes. Both GLBs rebuilt; renders /workspace/j3-cub-v3 (box). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3C-65 own model v2 per Ty: forward tail flying wires removed (aft only, jack-screw trim), Stab rigged as a trimmable part about the rear spar with the elevators parented to it; chevron split door edge and gear vee fairings from Commons photos (by eye; list in the PROVENANCE doc); 3-leaf tail spring. Both GLBs rebuilt; renders /workspace/j3-cub-v2 (box). HANDOFF updated. Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-j3-cub · J-3C-65 own model v1: wheels (A-65 exposed heads under hoods, 72 in wood prop, right split door upper-up/lower-down as hinged parts, 8.00-4 tyres on 4 in wheels, bungee gear rigged, leaf-spring tailwheel, Cub yellow + black lightning stripe) and EDO 60-1320 floats (Piper/EDO 60-S-908A + Kenmore 60-1320 parts list; struts, spreaders, wires, LH water rudder only). tools/own_models/build_j3_cub.py, j3_fourview.py, PROVENANCE doc, two GLBs. Renders /workspace/j3-cub-v1 (box). HANDOFF added. Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · v5 (Ty, NOT approved by Ty): red-sunburst fuselage + wheel-pant stripes curve/blend into the nose bowl like Ty's red photos (lower stripe ends in a chevron at the bowl, upper stripe flares to parallel the bowl); white-stripes nose bowl and navy chin redrawn to the white-3 nose photo; wing-tip and stab bands are now several nested parallel spanwise stripes along the LE that turn and rake aft at the tips (LE legs on both faces since the plan map is shared — judgement call); fin fix: under the stab the navy is a band that runs to the tail post and the lower rudder is white (was all navy). All 3 GLBs rebuilt; renders + photo compares on the agent box in /workspace/greatlakes-own-v5/. Details: docs/models/great-lakes-own-PROVENANCE.md 'v5 changes'.
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · v4 (Ty): rounded, complete cowl front (quarter-ellipse lip to a face at x 0.69, inlets cut) on all liveries; red-sunburst tail per red-tail-closeup (stab rays navy/red with white pinstripes, fin trim tapering to the rudder bottom-front, fuselage stripes tapering to a point at the stab LE); white-stripes wings + stab white with raked red-tip/light-blue/navy bands on both faces (white-wings-1/2), fuselage stripes straight until the fin. All three GLBs rebuilt; renders + photo compares /workspace/greatlakes-own-v4 (box). HANDOFF updated. Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · v3 (Ty): fin/rudder + stab/elevator exact to the 1970 AAM three-view (checked by ortho overlays, tools/own_models/gl_overlay.py); fin-to-fuselage root blend follows the drawn line (Ty's review); rudder +-35 deg clearance 0.036 m, elevator 21/29 kept; red-sunburst top-wing rays now sweep aft; white-stripes livery redone from white-1/2/3 (banded fuselage sweeping round the fin, red wing tops, striped upper-wing underside, stab diagonals, pants); no N-number/text. All three GLBs rebuilt; renders /workspace/greatlakes-own-v3 (box). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · v2: rigged long-travel main gear (9 in stroke; published 7 ft 4 in = static at ~6.2 in), manual rigging (0/2 deg dihedral, 3 deg incidence), Ty's two liveries red-sunburst + white-stripes (no N-number/text); 180 hp kept; handed to Claude (see HANDOFF). Local commit only.
+### 2026-10-28 — Grok Bot executor · codex/own-great-lakes · Great Lakes 2T-1A-2-style own model v1 draft (tools/own_models/build_great_lakes.py, gl_fourview.py, docs/models/great-lakes-own-PROVENANCE.md); GLB great-lakes-like/great-lakes-like-own.glb; renders /workspace/greatlakes-own-v1 (box); placeholder livery N719GL, variant questions pending Ty; no Unity integration. Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · v10.1: fin "Pitts"/"S-2B" script removed from both liveries (Ty); GLBs rebuilt; renders /workspace/pitts-own-v10-1 (box). Local commit only.
 ### 2026-10-27 — Grok Bot executor · codex/own-pitts-s2b · Ty approved Pitts S-2B v10 (c8b90bc) in N31DG + N1191; handed to Claude (see HANDOFF). Local commit only.
 
