@@ -14,8 +14,8 @@ namespace FlyingGame.Bridge
     {
         public const int AxisCount = 8, ButtonCount = 32, HatButton0 = 28;   // (the Mac: 28…31 = the hat's up / right / down / left)
         /// <summary>The assignable actions, in the order the setup asks for them.</summary>
-        public static readonly string[] Actions = { "brakes", "guns", "flapsDown", "flapsUp", "flapsHalf", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view" };
-        public static readonly string[] ActionNames = { "BRAKES (held)", "GUNS (held)", "FLAPS DOWN", "FLAPS UP", "FLAPS 50 %", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW" };
+        public static readonly string[] Actions = { "brakes", "guns", "flapsDown", "flapsUp", "flapsHalf", "gear", "trimUp", "trimDown", "apDisconnect", "pause", "reset", "view", "smoke" };
+        public static readonly string[] ActionNames = { "BRAKES (held)", "GUNS (held)", "FLAPS DOWN", "FLAPS UP", "FLAPS 50 %", "GEAR UP / DOWN", "TRIM NOSE UP", "TRIM NOSE DOWN", "AUTOPILOT DISCONNECT", "PAUSE / REVIEW", "RESET", "CHANGE VIEW", "SMOKE ON / OFF" };
 
         // The Mac reads joysticks straight from macOS's HID manager (AeroNative HJ_*): Unity's Input Manager only reads them
         // while its app is in front, and the widget runs behind Glass Overlay (owner 2026-10-11: the Hotas X did nothing in

@@ -87,6 +87,7 @@ namespace FlyingGame.Bridge
             root.AddComponent<StructuralDamage>();
             root.AddComponent<CombatController>().Driver = driver;   // guns, target drones, the combat zone
             root.AddComponent<CockpitView>().Driver = driver;        // which seat, and where the pilot is looking
+            root.AddComponent<SmokeController>().Driver = driver;     // the smoke oil, on the SMOKE button
             root.AddComponent<FlightPathVector>().Driver = driver;   // magenta 5 s predicted path with a cone tip
             root.AddComponent<FloatSplash>().Driver = driver;   // per-float water spray (floatplane only)
             root.AddComponent<WakeWaves>().Driver = driver;     // the wake on the water: V from each float/hull, 5 min, reflects off the shore

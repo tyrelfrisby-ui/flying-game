@@ -99,9 +99,15 @@ namespace FlyingGame.Bridge
         public float TrimAileron => _aileronTrim * TrimAuthority;
         public float TrimRudder => _rudderTrim * TrimAuthority;
         // Buttons fire on the finger that touches them (not IMGUI), so they work while the pads are held (owner).
-        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail }
+        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke }
         private readonly HashSet<Btn> _tapped = new();
         private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
+        private Rect _smokeRect;                            // SMOKE ON / OFF (owner 2026-10-31: a full-time button, not a menu)
+        private SmokeController _smokeCache;
+        private SmokeController _smoke => _smokeCache ??= GetComponent<SmokeController>();
+        /// <summary>Whether to give SMOKE a slot at all: anything that can carry the oil, which is every type with an
+        /// engine's exhaust and every glider with wingtip canisters. Laid out per frame, so it follows an aircraft change.</summary>
+        private bool SmokeAvailable => _smoke != null && _smoke.Available;
         private int _ejectFinger = int.MinValue;            // pointer holding EJECT
         private float _ejectHold;                           // seconds held so far
         private PilotEgress _egress;
@@ -203,13 +209,18 @@ namespace FlyingGame.Bridge
             // Three rows of two, from the bottom: [Reset | Flaps] [Aircraft | Gear] [Tow | Bail] (or [Bail | Eject]).
             // RULE: nothing covers the aircraft — if the top row would reach the aircraft's screen rect, the rows shrink.
             float rowGap = gap * 0.6f;
+            // Four rows now, not three: SMOKE is a full-time button of its own (owner 2026-10-31) rather than a
+            // control squeezed in beside BAIL. The keep-out shrink has to divide by four or the top row climbs onto
+            // the aeroplane, which the rule below forbids.
+            int rows = SmokeAvailable ? 4 : 3;
             if (ScreenLayout.HasAircraftKeepOut)
             {
                 float maxTop = ScreenLayout.AircraftKeepOut.yMin - gap;
-                float fit = (maxTop - margin - 2f * rowGap) / 3f;
+                float fit = (maxTop - margin - (rows - 1) * rowGap) / rows;
                 if (fit < bh) bh = Mathf.Max(_half * 0.16f, fit);
             }
             float r0 = margin, r1 = margin + bh + rowGap, r2 = margin + 2f * (bh + rowGap);
+            float r3 = margin + 3f * (bh + rowGap);
             _resetRect = new Rect(x0, r0, bw, bh);
             _brakeRect = new Rect(x0 + bw + gap, r0, bw, bh);     // the FLAPS slot
             _acftRect = new Rect(x0, r1, bw, bh);
@@ -227,6 +238,7 @@ namespace FlyingGame.Bridge
                 _bailRect = towSlot ? new Rect(x0 + bw + gap, r2, bw, bh) : new Rect(x0, r2, 2f * bw + gap, bh);
                 _ejectRect = new Rect(x0 + bw + gap, r2, bw, bh);
             }
+            _smokeRect = SmokeAvailable ? new Rect(x0, r3, 2f * bw + gap, bh) : new Rect(0, 0, 0, 0);
             // Trim bars: rudder under the left pad, aileron under the right pad (RC transmitter style).
             float barH = s * 0.045f;
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
@@ -291,12 +303,14 @@ namespace FlyingGame.Bridge
             // One button row above the pad labels: Reset · Aircraft · Flaps · Tow.
             float bh = w * ScreenLayout.ButtonHeight;
             float rowY = barY + barH + ScreenLayout.LabelBlockPx + gap;
-            float bw = (w - 2f * margin - 4f * gap) * 0.2f;
+            int slots = SmokeAvailable ? 6 : 5;
+            float bw = (w - 2f * margin - (slots - 1) * gap) / slots;
             _resetRect = new Rect(margin, rowY, bw, bh);
             _acftRect = new Rect(margin + (bw + gap), rowY, bw, bh);
             _brakeRect = new Rect(margin + 2f * (bw + gap), rowY, bw, bh);
             _gearRect = new Rect(margin + 3f * (bw + gap), rowY, bw, bh);
             _towRect = new Rect(margin + 4f * (bw + gap), rowY, bw, bh);
+            _smokeRect = SmokeAvailable ? new Rect(margin + 5f * (bw + gap), rowY, bw, bh) : new Rect(0, 0, 0, 0);
 
             // Second, shorter row above it: BAIL OUT · EJECT (ScreenLayout.TrayHeightPx includes it).
             float eh = w * ScreenLayout.EgressRowHeight;
@@ -422,6 +436,7 @@ namespace FlyingGame.Bridge
                     if (_acftRect.Contains(p.pos)) { _tapped.Add(Btn.Aircraft); continue; }
                     if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp(Mathf.FloorToInt((p.pos.x - _brakeRect.x) / _brakeRect.width * 3f), 0, 2); _tapped.Add(Btn.Flaps); continue; }
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
+                    if (SmokeAvailable && _smokeRect.Contains(p.pos)) { _tapped.Add(Btn.Smoke); continue; }
                     if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
                     if (DeskMode) continue;   // Mac: no touch pads / trim sliders to grab
@@ -488,6 +503,9 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Gear:
                         if (ac?.Config?.RetractableGear == true) ac.SetGear(!ac.GearDown);
+                        break;
+                    case Btn.Smoke:
+                        if (SmokeAvailable) _smoke.Toggle();
                         break;
                     case Btn.Tow:
                         if (tow != null && ac?.Config?.Propulsion == null)
@@ -799,6 +817,15 @@ namespace FlyingGame.Bridge
                 string lbl = acg.GearDown ? (acg.GearExtension < 0.99 ? "GEAR ↓ …" : "GEAR UP") : (acg.GearExtension > 0.01 ? "GEAR ↑ …" : "GEAR DOWN");
                 Button(_gearRect, lbl);
             }
+            // SMOKE (owner 2026-10-31): a full-time button like GEAR, lit while the oil is on. Shown for anything that
+            // can carry it — an engine's exhaust, or a glider's wingtip canisters.
+            if (SmokeAvailable)
+            {
+                bool on = _smoke.On;
+                GUI.color = on ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                Button(_smokeRect, on ? "SMOKE ON" : "SMOKE");
+                GUI.color = Color.white;
+            }
             // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset. In a lesson the flaps are part of
             // the lesson's SETUP (owner 2026-10-05: changing them in flight "balloons wildly") — no buttons there.
             if (_driver.HasFlaps && !Practice.PracticeController.AnyActive)
@@ -915,6 +942,7 @@ namespace FlyingGame.Bridge
             if (jp.RudderTrim.Set) { float rt = jp.RudderTrim.Value(); _rudderTrim = Mathf.Clamp(_rudderTrim + rt * Mathf.Abs(rt) * 0.083f * dt, -1f, 1f); }   // the rocker runs the rudder trim, progressive and slow (∝ deflection², centre → full ~12 s); it stays
             if (JoystickInput.Pressed("reset")) DoReset();
             if (JoystickInput.Pressed("view")) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
+            if (JoystickInput.Pressed("smoke") && SmokeAvailable) _smoke.Toggle();
             if (JoystickInput.Pressed("apDisconnect")) Object.FindFirstObjectByType<Widget.GameAeroHost>()?.Autopilot?.Off(disconnect: true);
             if (JoystickInput.Pressed("pause")) Object.FindFirstObjectByType<FlightReplay>()?.Enter();
         }

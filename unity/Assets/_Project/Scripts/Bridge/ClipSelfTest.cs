@@ -252,7 +252,14 @@ namespace FlyingGame.Bridge
             Application.logMessageReceived += count;
             // Hold 3,000 ft, because that is the altitude Ty was at. Flown, not scripted: a scripted stick position
             // put the first attempt in the sea twelve seconds after take-off, which measures nothing.
-            const double TargetAltM = 914.4;   // 3,000 ft
+            // AERO_ALT (metres MSL) overrides the hold, because 3,000 ft over a 1,500 m plateau is NOT a high cruise
+            // and the first version of this test flew itself into rising ground at t=40 s. To tell a TIME-based
+            // slowdown from an ALTITUDE-based one, the hold has to be settable.
+            double TargetAltM = 914.4;   // 3,000 ft
+            {
+                string a = System.Environment.GetEnvironmentVariable("AERO_ALT");
+                if (!string.IsNullOrEmpty(a) && double.TryParse(a, out double m) && m > 0) TargetAltM = m;
+            }
             for (int sec = 0; sec < 180; sec++)
             {
                 int fr = 0; float t1 = Time.realtimeSinceStartup;

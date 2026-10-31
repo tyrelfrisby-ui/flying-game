@@ -22,9 +22,29 @@ namespace FlyingGame.Bridge
         public static float Gap => S * 0.012f;
         public static float ButtonH => S * 0.062f;
 
-        public static Rect MenuRect => new Rect(Margin, Margin, S * 0.13f, ButtonH);
-        public static Rect OptionsRect => new Rect(Screen.width - Margin - S * 0.17f, Margin, S * 0.17f, ButtonH);
-        public static float ToolbarBottom => Margin + ButtonH;
+        // ---- THE SAFE AREA (owner 2026-10-31: "the landing page has ui behind the black camera pill on the iPhone
+        // screen move it down") ----
+        //
+        // Unity reports Screen.safeArea in SCREEN pixels with the origin at the BOTTOM left; IMGUI draws with the
+        // origin at the TOP left. These four give the inset on each edge in GUI coordinates, so a caller never has to
+        // remember which way up the rectangle is. On a device with no notch, pill or home indicator they are all
+        // zero and nothing moves.
+
+        /// <summary>Pixels of the top edge the Dynamic Island, notch or status bar is sitting in.</summary>
+        public static float SafeTop => Mathf.Max(0f, Screen.height - Screen.safeArea.yMax);
+        /// <summary>Pixels of the bottom edge the home indicator is sitting in.</summary>
+        public static float SafeBottom => Mathf.Max(0f, Screen.safeArea.yMin);
+        public static float SafeLeft => Mathf.Max(0f, Screen.safeArea.xMin);
+        public static float SafeRight => Mathf.Max(0f, Screen.width - Screen.safeArea.xMax);
+
+        /// <summary>The toolbar's own top edge: the margin, pushed clear of whatever the hardware is sitting in. The
+        /// in-flight row had the same defect the owner reported on the launch page — MENU and OPTIONS were under the
+        /// Dynamic Island — and everything that hangs off ToolbarBottom follows this down.</summary>
+        private static float ToolbarTop => SafeTop + Margin;
+
+        public static Rect MenuRect => new Rect(SafeLeft + Margin, ToolbarTop, S * 0.13f, ButtonH);
+        public static Rect OptionsRect => new Rect(Screen.width - SafeRight - Margin - S * 0.17f, ToolbarTop, S * 0.17f, ButtonH);
+        public static float ToolbarBottom => ToolbarTop + ButtonH;
 
         /// <summary>Toolbar slot <paramref name="i"/> of <paramref name="n"/>, filled right-to-left from just left of OPTIONS.</summary>
         public static Rect ToolbarSlot(int i, int n)
@@ -32,7 +52,7 @@ namespace FlyingGame.Bridge
             float left = MenuRect.xMax + Gap, right = OptionsRect.x - Gap;
             float w = Mathf.Min(S * 0.17f, (right - left - Gap * (n - 1)) / Mathf.Max(1, n));
             float x0 = right - n * w - (n - 1) * Gap;
-            return new Rect(x0 + i * (w + Gap), Margin, w, ButtonH);
+            return new Rect(x0 + i * (w + Gap), ToolbarTop, w, ButtonH);
         }
 
         // ---- centre band (set by the controls layout each time it changes) ----

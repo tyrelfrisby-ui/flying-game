@@ -177,7 +177,7 @@ namespace FlyingGame.Bridge
             Event e = Event.current;
             float rowH = bh * 1.05f, pad = gap * 0.5f;
             float wantH = _ddItems.Count * rowH + 2 * pad;
-            float below = Screen.height - _ddAnchor.yMax - gap, above = _ddAnchor.y - gap;
+            float below = Screen.height - UiLayout.SafeBottom - _ddAnchor.yMax - gap, above = _ddAnchor.y - UiLayout.SafeTop - gap;
             bool down = below >= Mathf.Min(wantH, Screen.height * 0.45f) || below >= above;
             float h = Mathf.Min(wantH, down ? below : above);
             float w = Mathf.Max(_ddAnchor.width, Screen.width * 0.26f);
@@ -272,24 +272,31 @@ namespace FlyingGame.Bridge
                 return;
             }
 
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);
-            float m = s * 0.03f, w = Screen.width - 2 * m;
+            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _bg);   // the backdrop DOES go under the pill
+            // ...but nothing readable or tappable does. The page is framed inside the safe area: the title clears the
+            // Dynamic Island and the bottom row clears the home indicator.
+            float safeTop = UiLayout.SafeTop, safeBottom = UiLayout.SafeBottom;
+            float bottom = Screen.height - safeBottom;
+            float m = s * 0.03f;
+            float sideM = Mathf.Max(m, Mathf.Max(UiLayout.SafeLeft, UiLayout.SafeRight));   // landscape: the pill is at a side
+            float w = Screen.width - 2 * sideM;
             _lh = _fs * 1.55f; _gap = _fs * 0.45f;
             _bh = _lh * 1.05f; _row = _bh + _gap * 0.4f;
             float lh = _lh, gap = _gap, bh = _bh, row = _row;
             bool listOpen = _dd != null;
             // An open list has the page's touches: the page underneath dims and ignores them.
             GUI.enabled = !listOpen;
-            UiLayout.Label(new Rect(m, m * 0.6f, w * 0.52f, lh * 1.3f), "FLIGHT SETUP", _title);
-            UiLayout.Label(new Rect(m + w * 0.52f, m * 0.6f, w * 0.48f, lh * 1.3f), SetupLine(), _small);
+            float titleY = safeTop + m * 0.6f;
+            UiLayout.Label(new Rect(sideM, titleY, w * 0.52f, lh * 1.3f), "FLIGHT SETUP", _title);
+            UiLayout.Label(new Rect(sideM + w * 0.52f, titleY, w * 0.48f, lh * 1.3f), SetupLine(), _small);
 
             // The chapter tabs, one row across whatever the shape.
-            float tabY = m * 0.6f + lh * 1.5f;
+            float tabY = titleY + lh * 1.5f;
             {
                 int n = PageNames.Length;
                 float tw = (w - (n - 1) * gap * 0.4f) / n;
                 for (int i = 0; i < n; i++)
-                    if (UiLayout.Button(new Rect(m + i * (tw + gap * 0.4f), tabY, tw, bh * 1.15f), PageNames[i], (int)_page == i ? _tabOn : _tab))
+                    if (UiLayout.Button(new Rect(sideM + i * (tw + gap * 0.4f), tabY, tw, bh * 1.15f), PageNames[i], (int)_page == i ? _tabOn : _tab))
                     { _page = (Page)i; _scrollY = 0f; _dd = null; }
             }
             float pageTop = tabY + bh * 1.15f + gap;
@@ -299,7 +306,7 @@ namespace FlyingGame.Bridge
             _colW = Mathf.Min(w, s * 0.86f);
 
             float fh0 = s * 0.09f;
-            var viewport = new Rect(0f, pageTop, Screen.width, Screen.height - pageTop - fh0 - m * 1.5f);
+            var viewport = new Rect(0f, pageTop, Screen.width, bottom - pageTop - fh0 - m * 1.5f);
             if (!listOpen) ScrollInput(viewport, lh);   // (kept for very small screens; a chapter normally fits)
             _scrollY = Mathf.Clamp(_scrollY, 0f, Mathf.Max(0f, _contentH - viewport.height));
             GUI.BeginGroup(viewport);
@@ -329,21 +336,21 @@ namespace FlyingGame.Bridge
 
             // ---- FLY
             float fw = s * 0.26f, fh = s * 0.09f;
-            if (UiLayout.Button(new Rect(Screen.width - m - fw, Screen.height - m - fh, fw, fh), "FLY", _btnOn)) Fly();
+            if (UiLayout.Button(new Rect(Screen.width - sideM - fw, bottom - m - fh, fw, fh), "FLY", _btnOn)) Fly();
 
             // ---- HELP, bottom left, in the strip the page's viewport already leaves clear for FLY (no-overlap
             // rule). The pause menu and the in-flight OPTIONS panel both carry it, on all three platforms
             // (handoff 2026-10-17): a web page in the browser, nothing sent from the app. See SupportDesk.
             float hw = s * 0.17f, hh = fh * 0.62f;
-            if (UiLayout.Button(new Rect(m, Screen.height - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
-            if (UiLayout.Button(new Rect(m + hw + gap * 0.5f, Screen.height - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
+            if (UiLayout.Button(new Rect(sideM, bottom - m - hh, hw, hh), "HELP", _btn)) SupportDesk.OpenHelp();
+            if (UiLayout.Button(new Rect(sideM + hw + gap * 0.5f, bottom - m - hh, hw * 1.25f, hh), "Copy diagnostics", _btn)) SupportDesk.CopyDiagnostics();
             // CHART (owner 2026-10-18): readable on the ground as well as in the air — the point of a chart
             // is that you look at it before you go.
-            if (UiLayout.Button(new Rect(m + hw * 2.25f + gap, Screen.height - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(sideM + hw * 2.25f + gap, bottom - m - hh, hw, hh), "CHART", _btn)) { ChartPanel.Toggle(); }
             // CREDITS: required attribution for the 3-D models, not a courtesy. See CreditsPanel.
-            if (UiLayout.Button(new Rect(m + hw * 3.25f + gap * 1.5f, Screen.height - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
+            if (UiLayout.Button(new Rect(sideM + hw * 3.25f + gap * 1.5f, bottom - m - hh, hw, hh), "CREDITS", _btn)) { CreditsPanel.Toggle(); }
             if (SupportDesk.Note.Length > 0)
-                UiLayout.Label(new Rect(m, Screen.height - m - hh - _fs * 1.1f, Screen.width - 2 * m - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
+                UiLayout.Label(new Rect(sideM, bottom - m - hh - _fs * 1.1f, Screen.width - 2 * sideM - fw - gap, _fs * 1.05f), SupportDesk.Note, _small);
 
             GUI.enabled = true;
             DrawDropdown(bh, gap);

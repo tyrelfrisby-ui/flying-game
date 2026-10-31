@@ -24,6 +24,11 @@ namespace FlyingGame.Bridge
     {
         private FlightSimDriver _driver;
         private readonly AirframeBuilder _builder = new();
+
+        /// <summary>The propeller hubs in body axes, read-only, for anything that has to sit relative to the disc —
+        /// the smoke stacks (SmokeController) hang just ahead of a tractor's. A getter only: nothing here is changed
+        /// by asking.</summary>
+        public List<Vector3> PropHubsBody() => _builder.PropHubsBody();
         private string _builtId;
         // Which airframe the hierarchy currently holds, so the Options picker can take effect where you are
         // rather than at the next aircraft change (owner 2026-10-25: switch between them "as needed/desired").
