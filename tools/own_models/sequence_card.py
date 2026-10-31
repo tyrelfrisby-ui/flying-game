@@ -18,7 +18,7 @@ OUTLINES = {
  'great-lakes-like':[(-.26,-.12),(.26,-.12),(.27,.06),(.16,.13),(-.16,.13),(-.27,.06)]}
 PLACEMENTS = {
  'extra-300-like':dict(panel_face=-1.202,panel_top=.428,centre_z=.350),
- 'pitts-s2b-like':dict(panel_face=-.8075,panel_top=.158,centre_z=.015),
+ 'pitts-s2b-like':dict(panel_face=-.8075,panel_top=.158,centre_z=-.035),
  'great-lakes-like':dict(panel_face=-1.6395,panel_top=.136,centre_z=.005)}
 
 
@@ -78,6 +78,8 @@ def blender_add(parts, aircraft):
     obj=bpy.data.objects.new('SequenceCard_Face',me);bpy.context.scene.collection.objects.link(obj);parts[obj.name]=obj
     from rear_panel import blender_add as add_panel
     add_panel(parts, aircraft)
+    from sights import blender_add as add_sights
+    add_sights(parts, aircraft)
     return spec
 
 
@@ -106,6 +108,8 @@ def native_add(glb, aircraft=None):
     if aircraft:
         from rear_panel import native_add as add_panel
         add_panel(glb, aircraft)
+        from sights import native_add as add_sights
+        add_sights(glb, aircraft)
 
 
 def offline_update(aircraft, filename):
