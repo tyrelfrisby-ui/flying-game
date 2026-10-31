@@ -1,0 +1,229 @@
+{
+  "date": "2026-10-31",
+  "branch": "lane/codex-island-world",
+  "commit": null,
+  "state": "Implementation and targeted validation complete; ** BUILD SUCCEEDED ** for build 2026.1031.1125; committed locally on lane/codex-island-world.",
+  "scalar_source_sha256": "cf3fe9f989d27f38e70cc2cf062c5541b239fcd9c999cf629a6655be632cc824",
+  "gates": "Unchanged; no gate marked approved.",
+  "tests": {
+    "Passed": 8,
+    "Failed": 0,
+    "Skipped": 0,
+    "Failures": [],
+    "water_bitwise_comparisons": 344990,
+    "uniform_random_ring_points": 100000,
+    "ring_radius_km": 20,
+    "sea_cases": 179424,
+    "dry_null_cases": 134802,
+    "positive_water_cases": 30764,
+    "cavity_floor_cases": 3803,
+    "gradient_height_bitwise_comparisons": 168926,
+    "smooth_derivative_checks": 30469,
+    "steep_branch_samples": 353,
+    "existing_height_bitwise_comparisons": 46161,
+    "allocation_test_bytes": 0
+  },
+  "api": {
+    "normal": "WorldTerrain.GroundNormalAt(double x,double y): Vec3, outward NED, flat exactly (0,0,-1)",
+    "wall": "WorldTerrain.IsWallAt(double x,double y,double slopeTangent): bool; slope magnitude strictly exceeds threshold",
+    "combined": "IslandTerrain.HeightAndGradientAt(double x,double y,out double dhdx,out double dhdy): double height; derivatives in metres per sim metre",
+    "construction": "Forward differentiation generated from IslandHeightIndex expressions. Same scalar geometry cells and ordered candidates; first-branch tie rules and zero derivative at clamped endpoints/zero norms. No displaced samples or full-world fallback."
+  },
+  "work_bounds": [
+    "0.5 km water cells: lakes 3, water lanes 1, streams 2, outwash 1, dry pads 3; stream paths use bounded 0.125 km nearest-segment cells",
+    "0.5 km feature cells: before outer 8, outer 6, after outer 4, budgets 26, after budget 5, fields 3, peak cores 1; 0.125 km geometry cells: nearest segments 46, ray edges 22; enforced limits 128 features / 64 segments per list"
+  ],
+  "benchmark": {
+    "runtime": ".NET 8.0.30, arm64 macOS",
+    "configuration": "Release; DOTNET_TieredCompilation=0; five trials, median; separate fresh coordinates per evaluator/trial to avoid memo hits; 100,000 ring points or 20,000 local points per trial; up=0 for water",
+    "analytic_initialization_ms": 56.7,
+    "timings": [
+      {
+        "location": "ring",
+        "query": "water reference",
+        "us_per_fresh_sample": 1.622,
+        "bytes_per_sample": 106.5
+      },
+      {
+        "location": "ring",
+        "query": "water indexed",
+        "us_per_fresh_sample": 0.51,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "ring",
+        "query": "height indexed",
+        "us_per_fresh_sample": 0.341,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "ring",
+        "query": "analytic normal",
+        "us_per_fresh_sample": 0.508,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "ring",
+        "query": "wall predicate",
+        "us_per_fresh_sample": 0.499,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "sea",
+        "query": "water reference",
+        "us_per_fresh_sample": 0.955,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "sea",
+        "query": "water indexed",
+        "us_per_fresh_sample": 0.225,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "sea",
+        "query": "height indexed",
+        "us_per_fresh_sample": 0.096,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "sea",
+        "query": "analytic normal",
+        "us_per_fresh_sample": 0.144,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "sea",
+        "query": "wall predicate",
+        "us_per_fresh_sample": 0.138,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "KSNA",
+        "query": "water reference",
+        "us_per_fresh_sample": 2.538,
+        "bytes_per_sample": 408.0
+      },
+      {
+        "location": "KSNA",
+        "query": "water indexed",
+        "us_per_fresh_sample": 0.535,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "KSNA",
+        "query": "height indexed",
+        "us_per_fresh_sample": 0.376,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "KSNA",
+        "query": "analytic normal",
+        "us_per_fresh_sample": 1.031,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "KSNA",
+        "query": "wall predicate",
+        "us_per_fresh_sample": 1.034,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Drake floor",
+        "query": "water reference",
+        "us_per_fresh_sample": 0.042,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Drake floor",
+        "query": "water indexed",
+        "us_per_fresh_sample": 0.042,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Drake floor",
+        "query": "height indexed",
+        "us_per_fresh_sample": 0.261,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Drake floor",
+        "query": "analytic normal",
+        "us_per_fresh_sample": 0.739,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Drake floor",
+        "query": "wall predicate",
+        "us_per_fresh_sample": 0.746,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Pirate floor",
+        "query": "water reference",
+        "us_per_fresh_sample": 0.247,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Pirate floor",
+        "query": "water indexed",
+        "us_per_fresh_sample": 0.241,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Pirate floor",
+        "query": "height indexed",
+        "us_per_fresh_sample": 0.149,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Pirate floor",
+        "query": "analytic normal",
+        "us_per_fresh_sample": 0.355,
+        "bytes_per_sample": 0.0
+      },
+      {
+        "location": "Pirate floor",
+        "query": "wall predicate",
+        "us_per_fresh_sample": 0.356,
+        "bytes_per_sample": 0.0
+      }
+    ],
+    "raw": "island-water-normal-cost.txt",
+    "note": "Reference water retains old scans but uses the same cached cavity definitions as indexed water. Timings are headless .NET evidence, not device/IL2CPP measurements."
+  },
+  "cliff": {
+    "authored": true,
+    "source": "Bighorn Crown basin_detail bank, centre E 0.7 / N 3.2 km; 40 m bank width, 10 m ridge offset, 5 m ridge height; 7,840 ft water plane",
+    "profile": "N=3245 m, E=870..900 m at 1 m intervals; all 31 samples bitwise equal to pre-index EvaluateReference",
+    "conclusion": "Continuous steep authored high-lake bank, not spatial rejection artefact. No authored-world change."
+  },
+  "required_build": {
+    "command": "tools/deploy/deploy.sh",
+    "status": "** BUILD SUCCEEDED **",
+    "build_succeeded": true,
+    "build": "2026.1031.1125",
+    "run": "Outside the Codex sandbox, 2026-10-31 11:24-11:29 PDT (inside the sandbox Unity Package Manager failed: listen EPERM /tmp/Unity-Upm-51954.sock)",
+    "installs": {
+      "Ty's iPad mini": "installed and launched 11:29 AM PDT",
+      "Ty's iPhone": "install started 11:29:24 PDT, no result reported; device then unavailable; NOT confirmed",
+      "iPad Air": "unavailable"
+    },
+    "log": "~/Developer/agent-lanes/aero-playground/logs/deploy-water-normal-20261031-1124.log"
+  },
+  "scope": {
+    "push": false,
+    "merge": false,
+    "staged_paths": "Codex's files only; ProjectSettings.asset, build/ios.log and StreamingAssets left uncommitted.",
+    "claude_lane_touched": false,
+    "authored_world_changed": false,
+    "tracked_ignore_check": "Printed nothing before commit."
+  },
+  "reproduce": [
+    "python3 tools/island/generate_gradient.py --check",
+    "dotnet build tools/FlightTests/FlightTests.csproj --no-restore -m:1 -p:UseSharedCompilation=false -nodeReuse:false",
+    "dotnet tools/FlightTests/bin/Debug/net8.0/TestRunner.dll IslandWaterAndNormalTests IslandHeightIndexTests",
+    "DOTNET_TieredCompilation=0 dotnet run -c Release --project tools/IslandCost -- --queries",
+    "tools/deploy/deploy.sh"
+  ]
+}

@@ -6,6 +6,10 @@ using FlyingGame.Sim;
 
 // Same three probes as Claude's IslandStartupCostTests, read from lane/claude-island-nav.
 // Timing is evidence, not an assertion. No cache reset, quantization or baked terrain.
+if(args.Contains("--queries"))
+{
+    QueryCost.Run(); return;
+}
 var probe=new CostProbe();
 var initialization=System.Diagnostics.Stopwatch.StartNew();
 long memoryBefore=GC.GetTotalMemory(true);
@@ -134,4 +138,52 @@ sealed class CostProbe
         Console.WriteLine($"at {perSec:F0} evaluations per second of flight: aero {aeroUs * perSec / 1000,7:F0} ms/s, contact {contactUs * perSec / 1000,7:F0} ms/s");
     }
 
+}
+
+static class QueryCost
+{
+    public static void Run()
+    {
+        Console.WriteLine(IslandTerrain.WaterIndexWorkBounds);
+        Console.WriteLine(IslandTerrain.HeightIndexWorkBounds);
+        var initialization=System.Diagnostics.Stopwatch.StartNew();
+        IslandTerrain.GroundNormalAt(0,0); initialization.Stop();
+        Console.WriteLine($"analytic index initialization: {initialization.Elapsed.TotalMilliseconds:F1} ms");
+        var rng=new Random(771); const int count=100000;
+        var ring=Enumerable.Range(0,count).Select(_=> { double r=20*Math.Sqrt(rng.NextDouble()),a=2*Math.PI*rng.NextDouble(); return new IslandPoint(r*Math.Cos(a),r*Math.Sin(a)); }).ToArray();
+        var sets=new[]{("ring",ring),("sea",Moving(new IslandPoint(18,0))),("KSNA",Moving(new IslandPoint(.96,-8.06))),("Drake floor",Moving(IslandCavities.Drake["chamber_centre"].Point)),("Pirate floor",Moving(IslandCavities.Pirate["chamber_centre"].Point))};
+        foreach(var (name,points) in sets)
+        {
+            int queryIndex=0;
+            foreach(var (label,query) in new (string,Func<IslandPoint,double>)[]{
+                ("water reference",p=>IslandTerrain.WaterAtReference(p.X,p.Y,0)??-1),
+                ("water indexed",p=>IslandTerrain.WaterAt(p.X,p.Y,0)??-1),
+                ("height indexed",p=>IslandTerrain.Evaluate(p)),
+                ("analytic normal",p=>IslandTerrain.GroundNormalAt(p.X,p.Y).X),
+                ("wall predicate",p=>IslandTerrain.IsWallAt(p.X,p.Y,1)?1:0)})
+            {
+                double sum=0; for(int i=0;i<10000;i++) sum+=query(points[i%points.Length]);
+                var elapsed=new double[5]; long bytes=0;
+                queryIndex++;
+                for(int trial=0;trial<5;trial++)
+                {
+                    // Distinct exact coordinates for every trial/evaluator: never time memo hits.
+                    double offset=(queryIndex*5+trial+1)*1e-8;
+                    var fresh=points.Select(p=>p+new IslandPoint(offset,offset*.713)).ToArray();
+                    var sw=System.Diagnostics.Stopwatch.StartNew(); long before=GC.GetAllocatedBytesForCurrentThread();
+                    foreach(var p in fresh) sum+=query(p);
+                    bytes=GC.GetAllocatedBytesForCurrentThread()-before;sw.Stop();elapsed[trial]=sw.Elapsed.TotalMilliseconds*1000/points.Length;
+                }
+                Array.Sort(elapsed);
+                Console.WriteLine($"{name,-13} {label,-17}: median {elapsed[2]:F3} us/sample; {bytes/(double)points.Length:F1} B/sample; sum {sum:R}");
+            }
+        }
+        Console.WriteLine("Cliff profile (north 3245 m; bitwise equality with the pre-index evaluator):");
+        for(int east=870;east<=900;east++)
+        {
+            double h=IslandTerrain.HeightAndGradientAt(3245,east,out double dx,out double dy),reference=IslandTerrain.EvaluateReference(new IslandPoint(east/1000.0,3.245));
+            Console.WriteLine($"E{east}: h={h:R} reference={reference:R} identical={BitConverter.DoubleToInt64Bits(h)==BitConverter.DoubleToInt64Bits(reference)} dh/dN={dx:F4} dh/dE={dy:F4}");
+        }
+    }
+    private static IslandPoint[] Moving(IslandPoint c) => Enumerable.Range(0,20000).Select(i=>c+new IslandPoint(i*.0000001,i*.00000007)).ToArray();
 }

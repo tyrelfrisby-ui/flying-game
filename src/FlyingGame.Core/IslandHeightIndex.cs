@@ -4,6 +4,8 @@ namespace FlyingGame.Core;
 /// Spatial rejection for the continuous authoring evaluator. Cells contain ordered feature references,
 /// never sampled elevations. Every arithmetic operation still evaluates at the caller's exact point.
 /// Construction may scan the world; a query only visits its cell's local candidates.
+/// Query expressions are also the source of the analytic normal: regenerate with
+/// python3 tools/island/generate_gradient.py after editing; --check detects stale output.
 /// </summary>
 internal static class IslandHeightIndex
 {
@@ -12,12 +14,21 @@ internal static class IslandHeightIndex
     // at initialization, rather than silently increasing the cost of every physics sample.
     private const int CandidateLimit = 128, SegmentLimit = 64;
     private static int maxNearestSegments, maxRayEdges;
+    private static readonly List<Geometry> Geometries = new();
+    // Initialization-only lookup: differentiation reuses these exact segment/ray buckets.
+    internal static Geometry SharedGeometry(IslandPoint[] points,double radius,bool closed)
+    {
+        lock(Geometries)
+            foreach(var geometry in Geometries)
+                if(geometry.Radius==radius&&geometry.Closed==closed&&geometry.Points.SequenceEqual(points)) return geometry;
+        throw new InvalidOperationException("Analytic terrain geometry differs from the scalar evaluator; regenerate the gradient.");
+    }
     private static IslandValue W => IslandTerrain.World;
     private static double Smooth(double t) => IslandTerrain.Smooth(t);
     private static double Mix(double h, double z, double a) => IslandTerrain.Mix(h, z, a);
     private const double Feet = IslandTerrain.Feet;
     private delegate double Layer(IslandPoint p, double h);
-    private readonly struct Rect
+    internal readonly struct Rect
     {
         public readonly double MinE, MaxE, MinN, MaxN;
         public Rect(double minE, double maxE, double minN, double maxN, double padding=Margin)
@@ -26,7 +37,7 @@ internal static class IslandHeightIndex
         public static Rect Points(IslandPoint[] points, double r, double padding=Margin) => new(points.Min(p=>p.E)-r, points.Max(p=>p.E)+r, points.Min(p=>p.N)-r, points.Max(p=>p.N)+r,padding);
         public bool Contains(IslandPoint p) => p.E>=MinE && p.E<=MaxE && p.N>=MinN && p.N<=MaxN;
     }
-    private sealed class Grid<T>
+    internal sealed class Grid<T>
     {
         private readonly T[][] cells;
         private readonly int minE, minN, sizeE, sizeN;
@@ -55,26 +66,30 @@ internal static class IslandHeightIndex
         }
     }
     private static int Cell(double x) => (int)Math.Floor(x/CellSize);
-    private readonly struct Edge
+    internal readonly struct Edge
     {
         public readonly IslandPoint A,B;
         public readonly double Length,Run;
         public Edge(IslandPoint a,IslandPoint b,double run) { A=a; B=b; Length=(b-a).Length; Run=run; }
     }
-    private sealed class GeometryCell
+    internal sealed class GeometryCell
     {
         public readonly Edge[] Nearest, Rays;
         public GeometryCell(Edge[] nearest,Edge[] rays) { Nearest=nearest; Rays=rays; }
     }
-    private sealed class Geometry
+    internal sealed class Geometry
     {
         private const double GeometryCellSize=.125;
         private static int GeometryCoordinate(double x) => (int)Math.Floor(x/GeometryCellSize);
         private readonly GeometryCell[] cells;
         private readonly int minE,minN,sizeE,sizeN;
         private readonly Edge[] Edges;
+        internal readonly IslandPoint[] Points;
+        internal readonly double Radius;
+        internal readonly bool Closed;
         public Geometry(IslandPoint[] points,double radius,bool closed)
         {
+            Points=points; Radius=radius; Closed=closed;
             Edges=new Edge[closed?points.Length:points.Length-1]; double run=0;
             for(int i=0;i<Edges.Length;i++) { Edges[i]=new Edge(points[i],points[(i+1)%points.Length],run); run+=Edges[i].Length; }
             var bounds=Rect.Points(points,radius);
@@ -97,8 +112,9 @@ internal static class IslandHeightIndex
                 maxNearestSegments=Math.Max(maxNearestSegments,nearest.Length); maxRayEdges=Math.Max(maxRayEdges,rays.Length);
                 cells[n*sizeE+e]=new GeometryCell(nearest,rays);
             }
+            lock(Geometries) Geometries.Add(this);
         }
-        private GeometryCell? At(IslandPoint p)
+        internal GeometryCell? At(IslandPoint p)
         {
             double e=Math.Floor(p.E/GeometryCellSize)-minE,n=Math.Floor(p.N/GeometryCellSize)-minN;
             return e>=0&&e<sizeE&&n>=0&&n<sizeN?cells[(int)n*sizeE+(int)e]:null;
@@ -133,7 +149,7 @@ internal static class IslandHeightIndex
             return inside?distance:-distance;
         }
     }
-    private sealed class Line
+    internal sealed class Line
     {
         public readonly IslandPoint[] Points;
         public readonly double[] Lengths,Runs;

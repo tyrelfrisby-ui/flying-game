@@ -25,6 +25,16 @@ public sealed class WorldTerrain
     /// <summary>Ground height (m, up) at a sim x/y — 0 everywhere when no terrain is active.</summary>
     public static double GroundHeightAt(double x, double y) => Active?.HeightAt(x, y) ?? 0.0;
 
+    /// <summary>Outward unit normal in NED for the exact surface GroundHeightAt returns.
+    /// Flat ground (including an inactive world) is exactly (0,0,-1). At a crease the selected
+    /// analytic branch wins; no finite difference crosses a cliff or cavity boundary.</summary>
+    public static MathTypes.Vec3 GroundNormalAt(double x,double y)
+        => Active==null?new MathTypes.Vec3(0,0,-1):IslandTerrain.GroundNormalAt(x,y);
+
+    /// <summary>True when the selected ground branch's slope exceeds slopeTangent.</summary>
+    public static bool IsWallAt(double x,double y,double slopeTangent)
+        => Active!=null&&IslandTerrain.IsWallAt(x,y,slopeTangent);
+
     // ---- layout ---------------------------------------------------------------------------------
     public const double StepHeightM = 609.6;       // 2,000 ft a step (owner 2026-10-16: the top field at 7,000 ft)
     /// <summary>The Valley plain's height above SEA LEVEL (owner 2026-10-03: a coast and an ocean). The gorge is ~150 m
@@ -1395,16 +1405,9 @@ public sealed class WorldTerrain
         return null;
     }
 
-    /// <summary>Unit ground normal (sim frame, z DOWN) from finite differences — for wheels/floats on slopes.</summary>
-    public MathTypes.Vec3 NormalAt(double x, double y)
-    {
-        const double e = 2.0;
-        double dhdx = (HeightAt(x + e, y) - HeightAt(x - e, y)) / (2 * e);
-        double dhdy = (HeightAt(x, y + e) - HeightAt(x, y - e)) / (2 * e);
-        // Up-vector (x, y, up) = (-dhdx, -dhdy, 1); NED: z = -up.
-        var n = new MathTypes.Vec3(-dhdx, -dhdy, -1.0);
-        return n / n.Length;
-    }
+    /// <summary>Analytic outward unit normal for this terrain's height surface (NED).</summary>
+    public MathTypes.Vec3 NormalAt(double x,double y) => IslandTerrain.GroundNormalAt(x,y);
+
 }
 
 /// <summary>
