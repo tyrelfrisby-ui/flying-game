@@ -51,6 +51,7 @@ namespace FlyingGame.Bridge
         }
 
         private SmokeTrail _smoke;
+        private GameObject _root;          // scene root, identity transform: the trail is world-space
         private Vec3[] _exhausts, _jet;
         private FlyingGame.Sim.Aircraft _builtFor;
         private readonly List<SmokeTrail.Sample> _hist = new();
@@ -66,6 +67,7 @@ namespace FlyingGame.Bridge
         private void OnDestroy()
         {
             if (Driver != null) Driver.AircraftChanged -= OnAircraftChanged;
+            if (_root != null) Destroy(_root);
         }
 
         /// <summary>A new aeroplane, or a reset: different exhausts, and the smoke must never join one flight's path to
@@ -83,7 +85,14 @@ namespace FlyingGame.Bridge
             _builtFor = ac;
             _hist.Clear();
             AircraftConfig cfg = ac.Config;
-            _smoke ??= new SmokeTrail(transform, gameObject.layer);
+            // The trail's mesh is built in WORLD coordinates (shown = CoordinateMap.ToUnity below), so its GameObject
+            // must hang off something with an identity transform. Parenting it to THIS transform — the aeroplane —
+            // transformed every vertex a second time by the aeroplane's own position and attitude, which put the
+            // smoke far off screen and rotating with the airframe: the trail was being drawn, just nowhere a camera
+            // was looking. (The Aero Widget passes its own transform and gets away with it because the widget host
+            // sits at the origin and its sample mapping is widget-local, not world.)
+            if (_root == null) _root = new GameObject("SmokeRoot");
+            _smoke ??= new SmokeTrail(_root.transform, gameObject.layer);
 
             float lengthM = 7f, bodyRadiusM = 0.5f;
             if (cfg.Fuselage?.Crossflow != null)
