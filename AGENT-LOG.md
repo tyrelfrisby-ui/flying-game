@@ -750,3 +750,4 @@ Tunable knobs, all in the config:
 - Final G1 report:docs/pending/ISLAND-WORLD-G1.md. Fixed cameras authored; nine image_gen concepts and exact prompts saved, explicitly not screenshots. Ty still needs the allowed external build check and VFR review. Scope ends here: no later phase, other worktree, deployment, push, merge, rebase or history rewrite.
 [codex -> Ty] build check needed: run tools/deploy/deploy.sh
 [codex -> Claude] island world built, ready for IFR + weather - PENDING Ty
+[Ty] G1 APPROVED 2026-10-30 22:11 PDT: island world built (1fe347d), APPROVED by Ty for Claude IFR + weather
