@@ -184,7 +184,6 @@ namespace FlyingGame.Bridge
             cam.gameObject.AddComponent<CreditsPanel>();
             // THE LOAD SHEET (owner 2026-10-30): occupants, bags, cargo and fuel, plotted on the type's own CG
             // envelope, from the landing page's AIRCRAFT chapter.
-            cam.gameObject.AddComponent<LoadingPanel>().Driver = aircraft.GetComponent<FlightSimDriver>();
             // And the half that lets you work out where you are instead: two VOR/ILS receivers, a heading
             // card and a leg clock. These DO read the position, because that is what a receiver does.
             cam.gameObject.AddComponent<NavRadios>().Driver = aircraft.GetComponent<FlightSimDriver>();

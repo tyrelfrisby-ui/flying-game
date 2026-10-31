@@ -97,11 +97,12 @@ public sealed class AircraftConfig
     public List<GearConfig> Gear { get; set; } = new();
     public LimitsConfig Limits { get; set; } = new();
 
-    /// <summary>
-    /// Weight and balance data: the empty aeroplane, its seats, holds and tanks, and its CG envelope. Null on a type
-    /// that has not been given any, which flies at its tuned <see cref="Mass"/> exactly as before.
-    /// </summary>
-    public LoadingConfig? Loading { get; set; }
+    /// <summary>Set on a wing flown by weight shift instead of control surfaces (<see cref="WeightShiftConfig"/>);
+    /// null on everything with a stick connected to something.</summary>
+    public WeightShiftConfig? WeightShift { get; set; }
+
+    // (The 2026-10-30 `LoadingConfig? Loading` stood here, from the load-sheet implementation that collided with
+    // this one. Only one may own AircraftConfig.Loading. See the note in StartMenu.cs and e4755c9.)
 }
 
 /// <summary>

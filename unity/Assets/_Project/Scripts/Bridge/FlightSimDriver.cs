@@ -123,9 +123,8 @@ namespace FlyingGame.Bridge
         {
             var config = UnityAircraftConfigLoader.LoadFromStreamingAssets(AircraftId);
             SessionSettings.ApplyFeel(config);   // the user's expo / dead-zone tuning (OPTIONS)
-            // WEIGHT AND BALANCE: the chosen load writes the mass, CG and inertia into this config. It has to happen
-            // here, before the Aircraft below is constructed, because the Aircraft copies mass and inertia once.
-            SessionLoading.Apply(config);
+            // (The 2026-10-30 SessionLoading.Apply stood here. The 2026-10-31 loading model applies the load
+            // through Sim's setter instead - SessionSettings.ApplyLoadTo - which also covers AdoptSim.)
             AircraftName = string.IsNullOrEmpty(config.DisplayName) ? AircraftId : config.DisplayName;
             SpawnIasMs = config.SpawnIasMs > 0 ? config.SpawnIasMs : 22.0;
             FlyingGame.Core.WorldTerrain.Airport ap = SessionSettings.Airport;

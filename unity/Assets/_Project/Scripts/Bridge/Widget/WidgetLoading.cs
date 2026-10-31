@@ -1,5 +1,4 @@
 using FlyingGame.Core.DataContracts;
-using FlyingGame.Core.Loading;
 using FlyingGame.Core.MathTypes;
 using UnityEngine;
 
@@ -59,7 +58,7 @@ namespace FlyingGame.Bridge.Widget
             NpMac = XToMac(_w.NeutralPointBody().X);
             // Only the ENVELOPE is needed here — this control loads by gross weight and CG, not by station — so a type
             // with its certificate read but no loading table still gets its real limits.
-            _env = LoadSheet.HasEnvelope(cfg) ? cfg.Loading : null;
+            _env = null;   // the published CG envelope went with the 2026-10-30 load sheet (see StartMenu); the sliders stay
             if (_env != null)
             {
                 MaxGrossKg = _env.MaxTakeoffMassKg;

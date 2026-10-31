@@ -529,21 +529,11 @@ namespace FlyingGame.Bridge
                 if (UiLayout.Button(new Rect(x + half + gap * 0.4f, y, half, bh), "Super Cub", SessionSettings.TugId == "pa18-cub-like" ? _btnOn : _btn)) SessionSettings.TugId = "pa18-cub-like";
                 y += row;
             }
-            // LOAD SHEET (owner 2026-10-30): occupants, baggage, cargo and fuel on the type's own CG envelope. Only
-            // offered for a type that has its published loading table; the rest say so when you open it.
-            {
-                var sheet = SessionLoading.Current;
-                var live = Driver != null && Driver.Sim != null ? Driver.Sim.Aircraft.Config : null;
-                bool loadable = sheet != null;
-                bool envelopeOnly = !loadable && live != null && FlyingGame.Core.Loading.LoadSheet.HasEnvelope(live);
-                Head("LOADING", ref y);
-                string label = loadable
-                    ? $"Load sheet — {sheet.Last.MassKg * 2.20462:#,0} lb, {sheet.PercentMac:0.0} % MAC"
-                    : envelopeOnly ? "Load sheet — CG limits only for this type"
-                    : "Load sheet — no weight-and-balance data for this type";
-                if (UiLayout.Button(new Rect(x, y, colW, bh), label, loadable ? _btn : _btnDim)) LoadingPanel.Open();
-                y += row;
-            }
+            // (The 2026-10-30 LOAD SHEET button stood here. Its whole implementation - LoadingConfig.cs,
+            // Loading/LoadSheet.cs, LoadingPanel.cs, SessionLoading.cs - collided with the 2026-10-31 loading
+            // model, which defines LoadingConfig and StationConfig of its own: the two cannot compile together.
+            // The newer one won because it is what the seats, the smoke and the LOADING chapter read, and what is
+            // flying. Revive the older one from e4755c9 if its CG envelope, %MAC or TankConfig are wanted.)
             y += gap * 0.4f;
             UiLayout.Label(new Rect(x, y, colW, lh * 2f),
                 SessionSettings.AircraftId.StartsWith("glider") ? "A sailplane: no engine. Tap TOW on the runway for the aerotow, or start in a thermal."
