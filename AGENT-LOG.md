@@ -1,6 +1,7 @@
 # Agent log — Codex preparation review
 
 ## NEEDS YOU
+- **The rigs mirror is no longer committed on this lane, and merging it needs `lane/claude-config-mirror` first (Claude, 2026-10-30).** `unity/Assets/StreamingAssets/rigs/` was gitignored-but-tracked here, the same trap that let great-lakes-like ship with no runtime config: `git add` on a new rig mirror does nothing, only `git add -f` works, and nothing notices. The mirror is now untracked and gitignored; `ConfigSync` on this lane still writes it at editor load, so the lane works standing alone. **Ty: merge order is `config-mirror`, then `flow-plates`, then `extra-cockpit`, then `sgs233-rig`.** `ConfigSync.cs` WILL conflict when this lane merges after `config-mirror` — both rewrote the file from the same base. The resolution is fixed: **take `config-mirror`'s version** (its `Mirrors` table already declares the rigs mirror and derives the destination name from each rig table's own `model` field), **drop this lane's bespoke rigs block, and re-add `AirframeRig.Forget()` where a changed rig is written** — that call clears an editor-side cache and `config-mirror`'s generic sync cannot make it, because `AirframeRig` does not exist on its base. This lane branched at `ed2cc7ca`, not `1b67dd5`, so it needs bringing forward before it is merged — it is the last of the four for that reason.
 - [Ty/codex] lane/claude-sgs233-rig · the 2-33's YAW STRING swings the WRONG WAY, and barely swings · one sign in docs/models/sgs233-own-rig.json · details:
   - `axis_gltf` on YawString_1..4 is meant to be the canopy normal, which must be square to the string. It is 21-29 deg off the string's own direction instead, so each link twists about its own length: at beta +20 the tip moves 17 mm to STARBOARD, where the rig doc's own text says the tail should swing to PORT.
   - The y component has the wrong sign. Flip it and both problems go: `0.56524, -0.82493, 0` / `0.5145, -0.85749, 0` (links 2 and 3) / `0.50718, -0.86184, 0`. Checked by hand: with those the axes are square to the links and the tip lays over 40 mm to PORT at beta +20, exactly as the doc describes.
@@ -44,6 +45,46 @@
 - [codex → Chief] lane/codex-lanes-prep-review · register current visual/audit work and resolve runner conflicts before go-live · external locations above and Glass Overlay LANES-PREP-REVIEW-2026-10-26.md · check owner tags, isolated worktrees and no-deploy rule; install drafts only after Ty approval.
 
 ## Log
+
+### 2026-10-30 — the rigs mirror stops being committed (Claude)
+
+`unity/Assets/StreamingAssets/rigs/` was gitignored **and** tracked on this lane — `docs/models/sgs233-own-rig.json`
+mirrored to `glider-2-33-like-own.json` — which is exactly the trap that shipped the Great Lakes with no runtime config.
+In that state `git add` on a new mirror silently does nothing and only `git add -f` works, so a rebuilt or renamed
+rig reaches the player only if somebody remembers the flag.
+
+- `.gitignore`: `unity/Assets/StreamingAssets/rigs/` and `rigs.meta`.
+- `git rm -r --cached unity/Assets/StreamingAssets/rigs unity/Assets/StreamingAssets/rigs.meta`. No `git add -f`
+  anywhere; the files stay on disk and `ConfigSync` rewrites them on editor load, so the cockpit still animates.
+- `rigs.meta` sits BESIDE the directory, not inside it, so `git rm -r --cached .../rigs` misses it. It took a second
+  `git ls-files | git check-ignore --no-index --stdin -v` to notice. Mind the `--no-index`: without it `check-ignore`
+  says nothing about tracked files, which is precisely the set in question.
+
+Tracked-but-ignored on this lane is now the 62 aircraft configs and `build/cg-check.csv` only — both of which are
+`lane/claude-config-mirror`'s to remove, by design. `StreamingAssetsTests` is deliberately NOT ported here: its
+`NoTrackedFileIsGitignored` check would fail on those 62, and it arrives with the branch that deletes them.
+
+**Why the rigs row lives on `config-mirror` and not here.** The destination name is not a mapping anybody should
+type: a rig table declares the model it belongs to in its own `model` field, and that is what names the file the game
+looks for. A fixed source→dest table would hold a second copy of something the file already says, and a rebuilt rig
+that changed its model name would mirror to the old path and go on looking right. So `config-mirror`'s `Mirror` gained
+a content resolver rather than a name field, and its row — `new("docs/models", "rigs", "*-rig.json", destGlob:
+"*.json", nameFromContent: RigModelName)` — matches zero files on `split-surfaces` and picks this lane's rig up the
+moment it merges. Verified there against this very file: it landed as `glider-2-33-like-own.json`, byte-identical,
+and was swept by name when the source was removed.
+
+**Gates.** Suite **1 failed / 719 passed / 3 skipped**. The 4-failure baseline does NOT apply to this lane: it
+branched at `ed2cc7ca`, about 90 commits behind `split-surfaces`, and does not even contain
+`AerobatGroundHandlingTests.cs`, so the three Pitts failures cannot occur here, and it predates the Extra tail move
+that reddened the flat-spin smoke check. The one failure is
+`NoseSkidTests.HardBrakingRolloutDoesNotTipOver`, which is **not recorded anywhere in this log** and cannot be mine:
+this change is `.gitignore`, this log entry, and three index-only removals — no code at all, and no test on this
+branch reads either file. **Ty: re-check that test when the lane is brought forward**; it may well already be fixed
+by the ~90 intervening commits. Deleting the whole `rigs/` mirror and running `ConfigSync.Sync` brought
+`glider-2-33-like-own.json` back byte-identical.
+
+**Recommended merge order:** `config-mirror` → `flow-plates` → `extra-cockpit` → `sgs233-rig`. This lane is last: it branched at `ed2cc7ca` rather than `1b67dd5`, so it needs bringing forward first.
+
 ### 2026-10-29 — Claude · lane/claude-sgs233-rig · the 2-33's 30 moving parts, wired
 Codex's v10 rig table now drives the model in play, read from docs/models/sgs233-own-rig.json itself (mirrored to StreamingAssets/rigs by ConfigSync) rather than copied into code. `FlyingGame.Core.ModelRig` holds the engine-free half — the piecewise map, the clamp, the run past the ends for the altimeter hands, the 360 wrap for the compass card, the trim quadrant's notches, and the two glTF-to-Unity axis conversions (a TURN and a SLIDE convert differently, because the importer's x-negation is a reflection). `AirframeRig` binds node names inside the placed model only and applies it.
 
