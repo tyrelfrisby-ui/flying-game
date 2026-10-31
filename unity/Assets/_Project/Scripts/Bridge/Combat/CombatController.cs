@@ -115,6 +115,8 @@ namespace FlyingGame.Bridge
         {
             public int Id; public Aircraft Aircraft; public DronePilot Pilot; public GameObject Go; public AirframeBuilder Builder; public DamageFx Fx;
             public GunTarget Target; public bool Dead; public float DeadT; public AircraftConfig Config; public bool Aerobatic; public string Kind;
+            /// <summary>Down and on the ground: the sim is finished with it. See the note on Settle.</summary>
+            public bool Settled;
             public Flight Flight; public FormationPilot Fp; public AttackPilot Ap;
         }
 
@@ -152,6 +154,16 @@ namespace FlyingGame.Bridge
             _dc3Cfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("dc3-like");
             _seedBase = System.Environment.TickCount;   // a different set of patterns every session
             BuildPuffs();
+            // On the ISLAND nothing is created here. The world authors four combat zones with three drones each,
+            // appearing on HOT entry and at no other time ("3 drones per zone; HOT 3D entry only", and of the AI,
+            // "owner: Claude opponent/AI logic"), so the drones are built in UpdateIslandZone when the pilot flies
+            // into one. The legacy fifteen — six Cassutts, two DC-3s, a four-ship and a three-ship, orbiting a
+            // hard-coded box — belong to the world that box was authored for. Owner-reported 2026-10-31: on the
+            // island that box lies across 2,082 m of relief 1.5 km from the PHDH start, so all fifteen were live
+            // from every FLY, five of them flew into mountainsides inside three minutes, each crash sounded an
+            // explosion at the pilot's own aeroplane, and each wreck then cost 1.93 ms of CPU per 50 Hz step for
+            // the rest of the session. That was the "crashing sounds, then my airplane freezes up".
+            if (WorldTerrain.Active != null) return;
             for (int i = 0; i < CassuttCount + Dc3Count; i++) SpawnDrone(i);
             _flights.Add(new Flight { Kind = "P-51", ConfigId = "p51d-like", Cruise = 85, Slots = P51Slots, CanFightBack = true });
             _flights.Add(new Flight { Kind = "DC-3", ConfigId = "dc3-like", Cruise = 62, Slots = Dc3Slots });
@@ -214,7 +226,7 @@ namespace FlyingGame.Bridge
             d.Builder.Build(d.Go.transform, cfg);
             d.Fx = new DamageFx(d.Go.transform, cfg);
             d.Target = new GunTarget { Id = d.Id, Config = cfg, Volumes = HitVolumes.Build(cfg), State = () => d.Aircraft.State, Lost = d.Aircraft.IsLost, Damage = d.Aircraft.Damage };
-            d.Dead = false; d.DeadT = 0f;
+            d.Dead = false; d.DeadT = 0f; d.Settled = false;
             Drone dd = d;
             d.Aircraft.ComponentLost += c => { if (dd.Go != null) AirframeVisual.DetachStatic(dd.Builder, dd.Go.transform, dd.Config, c, WorldVel(dd.Aircraft)); };
         }
@@ -266,6 +278,48 @@ namespace FlyingGame.Bridge
             }
         }
 
+        // ---- the island's authored combat zones (owner 2026-10-31) ----
+        private string _zoneIn;                 // the authored zone the pilot is inside, null when outside every one
+        private AircraftConfig _zoneCfg; private bool _zoneCfgLoaded;
+
+        /// <summary>HOT entry and exit. The drones of the zone the pilot is in exist; nothing else does.</summary>
+        private void UpdateIslandZone(Aircraft ac)
+        {
+            IslandCombat.Zone? z = IslandCombat.ZoneAt(ac.State.Position);
+            string id = z.HasValue ? z.Value.Id : null;
+            if (id == _zoneIn) return;
+            _zoneIn = id;
+            foreach (Drone d in _drones) if (d.Go != null) Destroy(d.Go);
+            _drones.Clear(); _targets.Clear(); _flights.Clear();
+            GroundTargets.Clear();                 // the legacy bullseyes sit in the legacy box
+            if (!z.HasValue) { Flash("LEAVING THE COMBAT ZONE"); return; }
+            foreach ((double tx, double ty, double tr) in z.Value.GroundTargets) GroundTargets.Add(new GroundTarget(tx, ty, tr));
+            SpawnZoneDrones(z.Value);
+            Flash($"{z.Value.Name} - GUNS HOT");
+        }
+
+        /// <summary>The zone's own drones: its authored count, about its authored orbit centre, at its authored height.
+        /// Aerobatic Cassutts, as in the legacy zone, so the fight is worth having.</summary>
+        private void SpawnZoneDrones(IslandCombat.Zone z)
+        {
+            if (!_zoneCfgLoaded) { _zoneCfg = UnityAircraftConfigLoader.LoadFromStreamingAssets("target-drone-like"); _zoneCfgLoaded = true; }
+            double ground = WorldTerrain.GroundHeightAt(z.OrbitX, z.OrbitY);
+            double heightAgl = System.Math.Max(120.0, z.OrbitAltM - ground);
+            for (int i = 0; i < System.Math.Max(1, z.DroneCount); i++)
+            {
+                var d = new Drone { Id = 100 + i };
+                _drones.Add(d);
+                var pilot = new DronePilot(_seedBase + i * 7919 + z.Id.GetHashCode(), true, 65.0,
+                                           z.OrbitX, z.OrbitY, z.OrbitRadiusM, heightAgl);
+                Vec3 wp = pilot.Waypoints[(pilot.Next + 3) % pilot.Waypoints.Count];
+                var start = new Vec3(wp.X, wp.Y, -(WorldTerrain.GroundHeightAt(wp.X, wp.Y) + wp.Z));
+                double hdg = Random.Range(0f, 6.28f);
+                var att = new Quat(0, 0, System.Math.Sin(hdg / 2), System.Math.Cos(hdg / 2));
+                CreateDrone(d, _zoneCfg, "CASSUTT", pilot, start, att, pilot.CruiseMs, aerobatic: true);
+            }
+            _targets.Clear(); foreach (Drone x in _drones) _targets.Add(x.Target);
+        }
+
         private static double DistanceToZone(Vec3 p)
         {
             double dx = System.Math.Max(0, System.Math.Max(CombatZone.X0 - p.X, p.X - CombatZone.X1));
@@ -279,7 +333,9 @@ namespace FlyingGame.Bridge
         {
             if (Driver?.Sim == null) return;
             var ac = Driver.Sim.Aircraft;
-            InZone = CombatZone.Inside(ac.State.Position);
+            bool island = WorldTerrain.Active != null;
+            if (island && !Dogfight) UpdateIslandZone(ac);
+            InZone = island ? _zoneIn != null : CombatZone.Inside(ac.State.Position);
             float dt = Time.deltaTime;
             // Capped catch-up (a slow frame must not ask for more steps next frame — SimLoop.MaxCatchUpSec).
             _accum = System.Math.Min(_accum + dt, SimLoop.MaxCatchUpSec);
@@ -287,7 +343,9 @@ namespace FlyingGame.Bridge
             bool firing = Firing && GunsHot && !SessionSettings.MenuOpen && !(GetComponent<PilotEgress>()?.PilotOut ?? false);
             _audio?.SetGuns(firing, ac.Guns != null ? (float)ac.Guns.RateHz : 0f);
             bool pilotOut = GetComponent<PilotEgress>()?.PilotOut ?? false;
-            bool active = DistanceToZone(ac.State.Position) < ActiveRangeM;   // far away: the drones wait (CPU)
+            // Far away the drones wait (CPU). On the island there are no drones at all unless the pilot is inside an
+            // authored zone, so being in one IS being active.
+            bool active = island ? _zoneIn != null : DistanceToZone(ac.State.Position) < ActiveRangeM;
             AssignFlights(InZone && !pilotOut);
             // The AI traffic flies at 50 Hz (SimLoop.AiFixedDtSec — fifteen aircraft at 200 Hz outran the iPad mini's CPU).
             while (_aiAccum >= SimLoop.AiFixedDtSec)
@@ -296,6 +354,12 @@ namespace FlyingGame.Bridge
                 foreach (Drone d in _drones)
                 {
                     if (d.Aircraft == null || !active || Dogfight) continue;
+                    // A wreck is not flown. It tumbles in under gravity while it still has air beneath it, and once
+                    // it is down it is left where it lies: a dead drone resting on the island measured 1.93 ms of CPU
+                    // per 50 Hz step against 0.52 ms for the same aeroplane flying, because every contact point asks
+                    // the ground AND the water for a height at every one of RK4's four stages. Five of them is more
+                    // than the whole frame budget, which is what the owner felt as a freeze.
+                    if (d.Settled) continue;
                     ControlInputs ci;
                     if (d.Dead) ci = new ControlInputs(0, 0, 0, 1.0);
                     else if (d.Flight != null && d.Flight.Attacker == d)
@@ -357,7 +421,16 @@ namespace FlyingGame.Bridge
                 {
                     d.Dead = true; DronesDown++; _audio?.Explosion(); Flash("DRONE DOWN");
                 }
-                if (d.Dead) { d.DeadT += dt; if (d.Flight == null && d.DeadT > RespawnSec) SpawnDrone(_drones.IndexOf(d)); }
+                if (d.Dead && !d.Settled && (agl < 2.0 || st.Velocity.Length < 2.0 || d.DeadT > RespawnSec)) d.Settled = true;
+                if (d.Dead)
+                {
+                    d.DeadT += dt;
+                    if (d.DeadT > RespawnSec)
+                    {
+                        if (_zoneIn != null) { IslandCombat.Zone? z = IslandCombat.ZoneAt(ac.State.Position); if (z.HasValue) RespawnZoneDrone(d, z.Value); }
+                        else if (d.Flight == null) SpawnDrone(_drones.IndexOf(d));
+                    }
+                }
             }
             // A formation comes back as a whole once every member has been down for a while.
             foreach (Flight f in _flights)
@@ -367,6 +440,21 @@ namespace FlyingGame.Bridge
                 if (allDown) SpawnFlight(f);
             }
             if (_flashT > 0f) _flashT -= dt;
+        }
+
+        /// <summary>One zone drone back on its authored orbit, the rest left alone.</summary>
+        private void RespawnZoneDrone(Drone d, IslandCombat.Zone z)
+        {
+            double ground = WorldTerrain.GroundHeightAt(z.OrbitX, z.OrbitY);
+            double heightAgl = System.Math.Max(120.0, z.OrbitAltM - ground);
+            var pilot = new DronePilot(_seedBase + d.Id * 7919 + Random.Range(0, 1000), true, 65.0,
+                                       z.OrbitX, z.OrbitY, z.OrbitRadiusM, heightAgl);
+            Vec3 wp = pilot.Waypoints[(pilot.Next + 3) % pilot.Waypoints.Count];
+            var start = new Vec3(wp.X, wp.Y, -(WorldTerrain.GroundHeightAt(wp.X, wp.Y) + wp.Z));
+            double hdg = Random.Range(0f, 6.28f);
+            var att = new Quat(0, 0, System.Math.Sin(hdg / 2), System.Math.Cos(hdg / 2));
+            CreateDrone(d, d.Config ?? _zoneCfg, "CASSUTT", pilot, start, att, pilot.CruiseMs, aerobatic: true);
+            _targets.Clear(); foreach (Drone x in _drones) _targets.Add(x.Target);
         }
 
         private void UpdateDogfight(Aircraft ac, float dt)
@@ -444,7 +532,14 @@ namespace FlyingGame.Bridge
                     if (!InZone) return $"{head}   GUNS COLD - you have left the combat zone, turn back";
                     return $"{head}   GUNS HOT  rounds {ac.Guns.RoundsLeft}   hits {HitsOnDrones}   hits taken {HitsTaken}{(_flashT > 0f ? "   " + _flash : "")}";
                 }
-                if (!InZone) return "GUNS COLD  fly to the COMBAT ZONE (north-east, past the lakes)";
+                if (!InZone)
+                {
+                    if (WorldTerrain.Active == null) return "GUNS COLD  fly to the COMBAT ZONE (north-east, past the lakes)";
+                    IslandCombat.Zone? near = IslandCombat.Nearest(ac.State.Position.X, ac.State.Position.Y, out double dm);
+                    return near.HasValue
+                        ? $"GUNS COLD  nearest combat zone {near.Value.Name} {dm / 1852:F0} nm"
+                        : "GUNS COLD  no combat zone in this world";
+                }
                 string flash = _flashT > 0f ? $"   {_flash}" : "";
                 // Nearest live drone: range and clock position so it can be found.
                 string nearest = "";

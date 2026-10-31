@@ -17,6 +17,17 @@ public sealed class DronePilot
     public enum Manoeuvre { Cruise, Loop, BarrelRoll, Immelmann, SplitS, Scissors, Jink, BreakTurn, Recover }
 
     public double CruiseMs = 45.0, MaxBankDeg = 35.0, FloorAglM = 250.0, CeilingAglM = 1800.0;
+    /// <summary>How far ahead along the present track the pilot looks for rising ground, in seconds of flight
+    /// (owner-reported 2026-10-31). Height is held over the HIGHEST ground within this reach, not the ground
+    /// underneath: a reactive floor cannot save a drone from a cliff FACE. The island's height field rises 364 m in
+    /// 12 m horizontally near (3245, 880) — 0.18 s of warning at cruise — and five of the fifteen AI aeroplanes flew
+    /// into terrain inside three minutes there, against none of fifteen in the legacy world.
+    ///
+    /// Thirty seconds, because the reach has to be the CLIMB distance, not a glance: at 70 m/s and the 10 degree
+    /// pitch limit, out-climbing that 364 m takes 2,100 m of travel, and a fifteen-second look gave 1,100 m — the
+    /// drone saw the wall and still could not clear it. A look this long is also why <see cref="Escape"/> exists:
+    /// past a certain rise the honest answer is to turn away rather than pull into the hill.</summary>
+    public double LookaheadSec = 30.0;
     /// <summary>A waypoint counts as reached inside this radius (formation leaders turn gently: give them more room).</summary>
     public double CaptureRadiusM = 250.0;
     public bool Aerobatic;
@@ -45,6 +56,76 @@ public sealed class DronePilot
         _cruiseFor = 6 + 10 * _rng.NextDouble();
     }
 
+    /// <summary>The highest ground within the next <see cref="LookaheadSec"/> of flight along the present track, so a
+    /// drone begins its climb at the foot of a rise rather than at its face. Four samples: at cruise and a 10 degree
+    /// climb limit, anything nearer than this is unavoidable anyway.</summary>
+    private double GroundAhead(RigidBodyState s, Quat q, double v)
+    {
+        double hi = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
+        Vec3 vw = q.Rotate(s.Velocity);
+        double vh = Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y);
+        if (vh < 1.0) return hi;
+        double reach = Math.Min(4000.0, Math.Max(200.0, v * LookaheadSec));
+        for (int i = 1; i <= 8; i++)
+        {
+            double d = reach * i / 8.0;
+            hi = Math.Max(hi, WorldTerrain.GroundHeightAt(s.Position.X + vw.X / vh * d, s.Position.Y + vw.Y / vh * d));
+        }
+        return hi;
+    }
+
+    /// <summary>Which way to turn when the ground ahead cannot be out-climbed: the signed bank, left or right,
+    /// toward whichever side has the lower terrain, or zero when turning would not help. Climbing is the first
+    /// answer and this is the second — a drone that only ever pulls flies into the hill at a steeper angle.</summary>
+    private double Escape(RigidBodyState s, Quat q, double v, double aglAhead)
+    {
+        if (aglAhead > FloorAglM * 0.6) return 0.0;        // the climb has room to work
+        Vec3 vw = q.Rotate(s.Velocity);
+        double vh = Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y);
+        if (vh < 1.0) return 0.0;
+        double reach = Math.Min(4000.0, Math.Max(200.0, v * LookaheadSec));
+        double fx = vw.X / vh, fy = vw.Y / vh;
+        double left = 0, right = 0;
+        for (int i = 1; i <= 4; i++)
+        {
+            double d = reach * i / 4.0;
+            // 45 degrees either side of the nose: far enough to find a way out, near enough to still be a turn.
+            double c = 0.7071, t = 0.7071;
+            left = Math.Max(left, WorldTerrain.GroundHeightAt(s.Position.X + (fx * c - fy * t) * d, s.Position.Y + (fy * c + fx * t) * d));
+            right = Math.Max(right, WorldTerrain.GroundHeightAt(s.Position.X + (fx * c + fy * t) * d, s.Position.Y + (fy * c - fx * t) * d));
+        }
+        double maxBank = MaxBankDeg * Math.PI / 180;
+        return left < right ? maxBank : -maxBank;          // +bank = right wing down = turn right, so toward +y
+    }
+
+    /// <summary>The orbit a combat zone AUTHORS (IslandCombat.Zone): six waypoints on a circle about the zone's own
+    /// centre, at its own height. The authored radius is a target and is widened to what the drone can actually fly —
+    /// 150 m at 65 m/s needs a 70 degree bank, which nothing here holds — and the floor comes down to suit a zone
+    /// whose authored orbit sits lower than the legacy 250 m (CZ5 orbits at 600 ft MSL over an 188 ft mesa).</summary>
+    public DronePilot(int seed, bool aerobatic, double cruiseMs, double centreX, double centreY, double radiusM, double heightAglM)
+    {
+        _rng = new Random(seed);
+        Aerobatic = aerobatic; CruiseMs = cruiseMs;
+        double flyable = cruiseMs * cruiseMs / (9.80665 * Math.Tan(MaxBankDeg * Math.PI / 180));
+        double r = Math.Max(radiusM, flyable);
+        FloorAglM = Math.Clamp(heightAglM - 60, 40, FloorAglM);
+        CeilingAglM = Math.Max(heightAglM + 300, FloorAglM + 200);
+        CaptureRadiusM = Math.Max(150.0, r * 0.35);
+        int n = 6; double phase = _rng.NextDouble() * 6.28;
+        for (int i = 0; i < n; i++)
+        {
+            double a = phase + i * 6.28318 / n;
+            Waypoints.Add(new Vec3(centreX + r * Math.Cos(a), centreY + r * Math.Sin(a), heightAglM));
+        }
+        Next = _rng.Next(n);
+        _cruiseFor = 6 + 10 * _rng.NextDouble();
+        _orbit = true;
+    }
+
+    /// <summary>True when this pilot flies an authored zone orbit rather than the legacy box's waypoints: the legacy
+    /// box walls do not apply to it, and its own circle keeps it in place.</summary>
+    private readonly bool _orbit;
+
     private static double Wrap(double a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
 
     public ControlInputs Update(Aircraft drone, double dt)
@@ -56,12 +137,15 @@ public sealed class DronePilot
         double v = s.Velocity.Length;
         double ground = WorldTerrain.GroundHeightAt(s.Position.X, s.Position.Y);
         double agl = -s.Position.Z - ground;
-        bool inside = s.Position.X > CombatZone.X0 + 150 && s.Position.X < CombatZone.X1 - 150 && s.Position.Y > CombatZone.Y0 + 150 && s.Position.Y < CombatZone.Y1 - 150;
+        // The height the pilot FLIES to is measured against the worst ground it is about to be over, not the ground
+        // beneath it. Everything below uses aglAhead; plain agl stays for the ceiling, which is a real altitude.
+        double aglAhead = -s.Position.Z - GroundAhead(s, q, v);
+        bool inside = _orbit || (s.Position.X > CombatZone.X0 + 150 && s.Position.X < CombatZone.X1 - 150 && s.Position.Y > CombatZone.Y0 + 150 && s.Position.Y < CombatZone.Y1 - 150);
         _t += dt;
 
         // Safety first: too low, too slow or outside → recover / come back, whatever was being flown.
         double vMin = CruiseMs * 0.55;
-        if (Aerobatic && Current != Manoeuvre.Recover && (agl < FloorAglM || v < vMin || agl > CeilingAglM))
+        if (Current != Manoeuvre.Recover && (aglAhead < FloorAglM || v < vMin || agl > CeilingAglM))
         {
             Current = Manoeuvre.Recover; _stage = 0; _legT = 0;
         }
@@ -69,10 +153,14 @@ public sealed class DronePilot
         {
             _legT += dt;
             // Roll wings level, then pull to a climb (or push if too high) until back inside the band.
-            double ail = Math.Clamp(-roll * 1.5 - s.Rates.X * 0.3, -1, 1);
-            double pitchCmd = agl < FloorAglM ? 12 * Math.PI / 180 : agl > CeilingAglM ? -6 * Math.PI / 180 : 3 * Math.PI / 180;
-            double ele = Math.Abs(roll) < 0.5 ? Math.Clamp(-(pitchCmd - pitch) * 3.0 + s.Rates.Y * 0.5, -0.7, 0.5) : 0.1;
-            bool safe = agl > FloorAglM + 80 && agl < CeilingAglM - 50 && v > vMin * 1.2 && Math.Abs(roll) < 0.3;
+            // Climb, and if the rise cannot be out-climbed, turn toward the lower ground while climbing. The bank
+            // costs climb rate, which is why it is only asked for when the climb alone has already lost.
+            double escape = Escape(s, q, v, aglAhead);
+            double bankWanted = escape == 0.0 ? 0.0 : escape;
+            double ail = Math.Clamp((bankWanted - roll) * 1.5 - s.Rates.X * 0.3, -1, 1);
+            double pitchCmd = aglAhead < FloorAglM ? 12 * Math.PI / 180 : agl > CeilingAglM ? -6 * Math.PI / 180 : 3 * Math.PI / 180;
+            double ele = Math.Abs(roll - bankWanted) < 0.5 ? Math.Clamp(-(pitchCmd - pitch) * 3.0 + s.Rates.Y * 0.5, -0.7, 0.5) : 0.1;
+            bool safe = aglAhead > FloorAglM + 80 && agl < CeilingAglM - 50 && v > vMin * 1.2 && Math.Abs(roll) < 0.3;
             if (safe || _legT > 12) { Current = Manoeuvre.Cruise; _legT = 0; _cruiseFor = 4 + 8 * _rng.NextDouble(); }
             return new ControlInputs(ail, AoaLimit(ele, s, v), Math.Clamp(-s.Velocity.Y * 0.02, -0.3, 0.3), -1.0);
         }
@@ -84,9 +172,9 @@ public sealed class DronePilot
             // carries the drone on; started at the edge heading out, it would end up outside).
             Vec3 vw = q.Rotate(s.Velocity); double vh = Math.Max(1, Math.Sqrt(vw.X * vw.X + vw.Y * vw.Y));
             double ax = s.Position.X + vw.X / vh * 700, ay = s.Position.Y + vw.Y / vh * 700;
-            bool roomAhead = ax > CombatZone.X0 + 150 && ax < CombatZone.X1 - 150 && ay > CombatZone.Y0 + 150 && ay < CombatZone.Y1 - 150;
-            if (Aerobatic && inside && roomAhead && _legT > _cruiseFor && agl > FloorAglM + 120 && v > CruiseMs * 0.85) StartRandomManoeuvre(pitch);
-            else return Cruise(s, q, roll, pitch, psi, v, agl);
+            bool roomAhead = _orbit || (ax > CombatZone.X0 + 150 && ax < CombatZone.X1 - 150 && ay > CombatZone.Y0 + 150 && ay < CombatZone.Y1 - 150);
+            if (Aerobatic && inside && roomAhead && _legT > _cruiseFor && aglAhead > FloorAglM + 120 && v > CruiseMs * 0.85) StartRandomManoeuvre(pitch);
+            else return Cruise(s, q, roll, pitch, psi, v, aglAhead);
         }
 
         // ---- manoeuvres: scripted on attitude and rates, full power throughout

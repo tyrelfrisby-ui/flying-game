@@ -425,7 +425,11 @@ public static class LandingGear
             }
             else
             {
-                double longN = -(rollN + brakeDemandN) * System.Math.Sign(vFwd == 0 ? 1 : vFwd);
+                // Math.Sign THROWS on NaN, and this is reached four times a step. An aeroplane deep inside geometry
+                // used to arrive here with a non-finite forward speed, and the throw left FlightSimDriver.Update
+                // without its ApplyStateToTransform — a frozen aeroplane with dead controls, which is what the owner
+                // saw. A sign is a sign: it cannot be the thing that stops the game.
+                double longN = -(rollN + brakeDemandN) * System.Math.Sign(double.IsFinite(vFwd) && vFwd != 0 ? vFwd : 1);
                 // A ski's friction is ANISOTROPIC: it slides forwards on its own base (SkiRollingCoefficient) and
                 // holds sideways only by its length in the snow (SkiGripScale). So the forward drag is not capped by
                 // the lateral budget — on snow that budget (0.8 × 0.20 × 0.33 = 0.053) is actually SMALLER than the
