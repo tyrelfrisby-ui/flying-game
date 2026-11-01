@@ -39,9 +39,37 @@ public sealed class VrDistortionTests
         Assert.Equal(.5592747021875, eyeTangent, 12);
         Assert.Equal(.5, (2 * linear.U - 1) * .8, 12);
         Assert.True(eyeTangent > .5);
-        // Out-of-frustum coordinates stay out of range for the shader's black mask.
+        // The screen's own edges land on the texture's own edges: no black margin where the lens could see more.
+        // Both reaches are .032 / .04 = .8 tangent, and Distort(.8) = 1.1533096460288 (hand literal) is far
+        // inside the 85° lens, so the frustum edge IS the distorted screen reach.
+        Assert.Equal(1.1533096460288, edge, 12);
+        Assert.Equal(0.0, VrDistortion.Sample(lens, false, .128, .08, 0, .5).U, 10);
+        Assert.Equal(1.0, VrDistortion.Sample(lens, false, .128, .08, 1, .5).U, 10);
+        // Where the LENS is the limit, what the screen shows beyond it stays out of range for the black mask.
+        lens.FovRightDeg = 45;
         var outside = VrDistortion.Sample(lens, false, .128, .08, 1, .5);
         Assert.True(outside.U > 1);
+    }
+
+    /// <summary>The bug this pins: the frustum edge was Undistort(reach / d), narrower than the eye tangent the
+    /// compositor computes for the screen's own edge, so the edge sampled outside the eye texture and showed
+    /// black. On an iPhone 17 Pro (0.1406 x 0.0650 m) the inner, bottom and top edges are screen-limited and
+    /// must map to exactly 1, 0 and 1; the outer edge is lens-limited (60°), so it may fall outside.</summary>
+    [Fact]
+    public void ScreenLimitedEdgesLeaveNoBlackMargin()
+    {
+        var lens = new VrLensConfig().Sane();
+        const double wM = 0.1406, hM = 0.0650;
+        // Sample along the lens axes so each edge is a pure horizontal or vertical tangent.
+        const double axisRow = .035 / .0650;                  // v of the lens axis: 35 mm above the bottom
+        const double axisColumn = .03835 / .0703;             // u of the left lens axis: (0.0703 - 0.03195) / 0.0703
+        Assert.Equal(1.0, VrDistortion.Sample(lens, false, wM, hM, 1, axisRow).U, 9);   // inner edge, left eye
+        Assert.Equal(0.0, VrDistortion.Sample(lens, true, wM, hM, 0, axisRow).U, 9);    // inner edge, right eye
+        Assert.Equal(0.0, VrDistortion.Sample(lens, false, wM, hM, axisColumn, 0).V, 9);  // bottom edge
+        Assert.Equal(1.0, VrDistortion.Sample(lens, false, wM, hM, axisColumn, 1).V, 9);  // top edge
+        // Outer edge: screen tangent .9758 is SEEN at 1.7776 > tan 60°, so it lies just beyond the lens:
+        // (1.7320508075688767 - 1.777630305736899) / (1.7320508075688767 + 1.1899857961857687) (hand literal).
+        Assert.Equal(-0.015598537714912682, VrDistortion.Sample(lens, false, wM, hM, 0, axisRow).U, 9);
     }
 
     [Fact]
