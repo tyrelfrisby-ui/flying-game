@@ -2072,7 +2072,14 @@
       "sideCenterX": -0.83,
       "cd": 1.2,
       "lengthM": 5.189,
-      "sharpSectionFraction": 0.5
+      "sharpSectionFraction": 0.5,
+      "sectionCamberCl": 0.6,
+      "sectionCamberArea": 2.0,
+      "sectionCamberCenterX": -1.36,
+      "cowlCamberCl": 0.35,
+      "cowlCamberArea": 0.9,
+      "cowlCamberCenterX": 1.18,
+      "_camberNote": "Sideslip -> nose down (owner Ty, 2026-11-01: \"The Pitts is similar but less pronounced\"). Same mechanism as the Extra's; this type had no camber keys at all, so the effect was absent rather than reduced. Areas and stations are the Extra's scaled by this airframe's own geometry (sideArea 4.442 vs 6.064, length 5.189 vs 6.942, measured from each type's sideCenterX); the coefficients are then lower again, 0.6 and 0.35 against 1.0 and 0.6, because the S-2B's turtledeck is rounder and shallower than the Extra's. Together that is about a third of the Extra's pitching moment at the same speed and sideslip. NOT measured against a wind tunnel: this is a feel number, and it is Ty's to move."
     }
   },
   "spinAero": {

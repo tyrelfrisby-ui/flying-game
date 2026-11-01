@@ -1,4 +1,28 @@
 ## NEEDS YOU
+- **SIDESLIP → NOSE DOWN, built (Claude, 2026-11-01, lane/claude-sideslip-camber) — NEEDS YOU, three things:**
+  1. **These are feel numbers, not measurements, and they are yours to move.** You described the mechanism
+     (low pressure over the turtledeck against higher pressure under the fuselage; low pressure under the cowling
+     against higher pressure above — both even in beta, so either direction pitches down) and said the Pitts is
+     "similar but less pronounced". Nothing here is from a wind tunnel. At 50 m/s and 15° of sideslip:
+     | | turtledeck | cowl | total | as pitch accel |
+     |---|---|---|---|---|
+     | Extra 300 | −540 N·m | −112 N·m | **−652 N·m** | −0.593 rad/s² |
+     | Pitts S-2B | −173 N·m | −37 N·m | **−210 N·m** | −0.187 rad/s² |
+     The Pitts comes out at **0.32 of the Extra's**. Most of that is geometry — smaller side area, shorter arms
+     — and the rest is a lower coefficient (0.6/0.35 against 1.0/0.6) because the S-2B's turtledeck is rounder.
+     If "less pronounced" should be nearer a half than a third, raise `pitts-s2b-like.fuselage.crossflow`'s two
+     `*CamberCl` and nothing else needs to change.
+  2. **Half of the Extra's was already written down and had never once acted.** `cowlCamberCl` was `0.0` and
+     `AeroModel` gates on `> 0.0`, so the forward half of the mechanism was in the config, looked present in a
+     diff, and did nothing. It is 0.6 now. The Pitts had no camber keys at all — absent, not reduced. Every test
+     in `SideslipCamberTests` isolates the camber by recomputing with both coefficients zeroed, which is the only
+     way to tell "authored" from "authored and reaching the aeroplane".
+  3. **The Great Lakes still has no camber authored and I left it that way.** You named the Extra and the Pitts;
+     the Great Lakes is the third type with a deep turtledeck and a cowled engine and it has none of this. It is a
+     one-line change once you say what it should feel like, and `ATypeWithNoCamberAuthoredStillHasNone` currently
+     pins it at zero, so it will fail loudly the moment someone adds it without deciding.
+  Not retuned: this moves the Extra's and the Pitts' pitching moment in a slip, which is spin and tumble
+  behaviour. The spin tests pass, but they are coarse; the aeroplane is the real check.
 - **LOADING ARMS WIRED IN (Claude, 2026-11-01, lane/claude-loading-arms) — NEEDS YOU, five things:**
   1. **The arms are in, and nothing moved at spawn.** Codex's table (`docs/pending/loading-arm-estimates.md`,
      merged here at ee088db) is wired into the eight configs that carry a loading block, as
