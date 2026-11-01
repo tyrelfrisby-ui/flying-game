@@ -18,6 +18,7 @@ DIALS = {
     'TACH':    ('rpm', [0, 3500], [0, 300], -150.0, 'rpm', 'tachometer 0..3500 rpm over 300 deg from 7 o\'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS)', {}),
     'MP':      ('manifold_inhg', [10, 35], [0, 300], -120.0, 'inHg', 'manifold pressure 10..35 inHg, 12 deg per inHg from 8 o\'clock (photo layout, E); pinned at 10 below', {}),
     'OILP':    ('oil_press_psi', [0, 115], [0, 160], -80.0, 'psi', 'dual engine gauge upper scale: oil pressure 0..115 psi over the top half (E); green 60-90, red 25 / 115 (Lycoming typical, E)', {}),
+    'OILP2':   ('oil_press_psi', [0, 120], [0, 300], -150.0, 'psi', 'standalone front oil pressure: 0..120 psi, 7 to 5 o\'clock clockwise (E layout); yellow 25-60, green 60-90, red radials 25 / 115 psi (Lycoming typical, E; not aircraft-specific approved limits)', {}),
     'OILT':    ('oil_temp_f', [100, 250], [0, 160], 100.0, 'degF', 'dual engine gauge lower scale: oil temp 100..250 F over the bottom half, clockwise (E); red 245 (Lycoming typical, E)', {}),
     'CHT':     ('cht_f', [200, 500], [0, 180], -90.0, 'degF', 'small top-right gauge read as CHT (identity E), 200..500 F, 9 -> 3 o\'clock; red 500 (Lycoming typical, E)', {}),
     'G':       ('g_load', [-4, 0, 10], [-92, 0, 230], 0.0, 'g', 'accelerometer -4..+10 g, 0 g at 12 o\'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors)', {}),

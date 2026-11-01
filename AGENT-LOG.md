@@ -1,4 +1,16 @@
 ## NEEDS YOU
+- **GREAT LAKES FRONT PANEL ART: OIL PRESSURE + COMPASS (Codex, 2026-11-01, lane/codex-gl-dials) — NEEDS YOU, art
+  only, not yet in the model:**
+  1. **New standalone oil-pressure face** `tools/own_models/art/gl-dial-oilpress.png` (0-120 psi, 7 to 5 o'clock,
+     yellow 25-60, green 60-90, red radials 25 / 115 — typical Lycoming (E), not your airplane's placarded limits;
+     tell us if yours differ). Scale shared with the needle as `DIALS['OILP2']` in `gl_dialmaps.py`.
+  2. **Front wet compass art**: `gl-front-compass-band.png` (reverse-sensing strip card, headings increase to the
+     left as seen from aft, 2048 px = 360 deg) and `gl-front-compass-face.png` (static case, window, lubber line).
+  3. **Audit** `tools/own_models/art/GL-FRONT-PANEL-AUDIT.md`: row must be ALT, ASI, small centre instrument,
+     combined oil temp/press, chrome-bezel oil pressure, tach; compass above centre replaces the front G-meter.
+     **Open question for you: what is the small centre instrument?** The photo doesn't settle it; it is still our
+     turn-coordinator placeholder.
+  Claude wires the model on lane/claude-gl-dials (branched off this). Existing PNGs byte-for-byte unchanged.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
