@@ -87,7 +87,7 @@ public class GlacierLandingZoneTests : IDisposable
 
     // ---- the tolerances -------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the graded glacier ski landing zones. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryZoneIsGradedToTheOwnersTolerances()
     {
         const double ha = AlaskaRange.LzHalfLengthM, hw = AlaskaRange.LzHalfWidthM;
@@ -130,7 +130,7 @@ public class GlacierLandingZoneTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the graded glacier ski landing zones. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheGradedSurfaceIsTheOneTheHeightFieldReturns()
     {
         // The zone is not just "flat enough": the height field has to BE the declared plane inside the clear
@@ -182,7 +182,7 @@ public class GlacierLandingZoneTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the graded glacier ski landing zones. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void BrokenIceIsSomethingTheWheelsCanFeel()
     {
         // A no-go area a wheel cannot feel is a decoration. Outside the buffer the broken surface is half a
@@ -202,7 +202,7 @@ public class GlacierLandingZoneTests : IDisposable
 
     // ---- the surface ----------------------------------------------------------------------------
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the graded glacier ski landing zones. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheZonesArePackedGlacierSnowAndTheRestOfTheIceIsNot()
     {
         foreach (AlaskaRange.LandingZone z in AlaskaRange.LandingZones)
@@ -270,7 +270,7 @@ public class GlacierLandingZoneTests : IDisposable
         return c;
     }
 
-    [Theory]
+    [Theory(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the graded glacier ski landing zones. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     [InlineData("Knik")]
     [InlineData("Colony")]
     [InlineData("East Fork")]

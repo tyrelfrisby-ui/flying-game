@@ -76,7 +76,7 @@ public class AlpineRangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryLakeIsWaterYouCanFloatOn()
     {
         foreach (AlpineRange.Lake l in AlpineRange.Lakes)
@@ -101,7 +101,7 @@ public class AlpineRangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBowledLakesAreReallyEnclosed()
     {
         // The whole way round, the rim stands well above the water: no straight-in approach exists, so the
@@ -149,7 +149,7 @@ public class AlpineRangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheOpenLakesHaveOneWayInAndItIsFlyable()
     {
         foreach (AlpineRange.Lake l in AlpineRange.Lakes)
@@ -188,7 +188,7 @@ public class AlpineRangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void ThePeaksAreMountainsAndTheyCarrySnow()
     {
         // Above 2,500 m the terrain shader puts snow on them, which is what makes it read as the Cascades.
@@ -206,7 +206,7 @@ public class AlpineRangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheRangeStandsOnTheSummitPlateauAndLeavesEverythingElseAlone()
     {
         // It sits east of the river on flat ground, and nothing outside its block moves by a millimetre.
@@ -285,7 +285,7 @@ public class AlpineRangeTests : IDisposable
     /// 20–100 ft or tall trees." So they are graded, and the grading is in the height field and the solids
     /// rather than in the comments.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheExitsAreGradedFromNothingToAWallOfTimber()
     {
         int free = 0, obstructed = 0;
@@ -354,7 +354,7 @@ public class AlpineRangeTests : IDisposable
     /// A glacial trough cuts a mountain's flank; it does not take the top off one. Outlet's first valley
     /// passed 667 m from Sentinel's summit and its shoulder took 780 m off it, which this would have caught.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the alpine range and its bowled lakes. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void NoOutletValleyTakesTheTopOffAMountain()
     {
         foreach (AlpineRange.Peak p in AlpineRange.Peaks)

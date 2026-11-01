@@ -1,4 +1,49 @@
 ## NEEDS YOU
+- **TEST SUITE TRIAGE (Claude, 2026-11-01, lane/claude-test-triage) — three decisions are yours, and one
+  number in the brief was wrong:**
+  1. **It was never 109 failing of 783. On a QUIET machine the branch point `aacb429` fails 211 of 1233.**
+     The 109/783 in the 2026-10-31 entry is long stale. Worse, the same tree run while three other worktrees
+     were running their suites gave **198**, and re-run alone gave **211** — the two runs disagree with each
+     other, so any count taken here has to say what else was running.
+  2. **DOES THE LEGACY WORLD CONTENT COME BACK? 104 tests are parked waiting on your answer.** The approved
+     island world (1fe347d, your G1 in a0617a1) replaced the old world outright: `WorldTerrain.HeightAt`
+     returns `IslandTerrain.HeightAt` and nothing else, and `LegacyHeightAt` is dead code Codex left marked
+     *"Retained solely for Claude's later legacy-code/test cleanup"*. So the tests for **the Alaska range and
+     its glaciers, the Frank Church strips, the high desert, the alpine range, the seaside coast and Golden
+     Gate, the waterfalls and their tunnels, the stacked plateaus, the playground, the maze tow, the carrier,
+     the legacy navaids, procedures, light-lines and weather sites** are all asserting ground that no longer
+     exists. I **parked them with `Skip`, I did not delete them**: each one still specifies what that content
+     has to do, so if you want any of it rebuilt on the island the specification is still there. **Tell me
+     which to rebuild and which to retire.** I did NOT rewrite them against island values — there is no island
+     Denali to update the number to, and inventing expectations for content I did not author is how a test
+     stops meaning anything.
+  3. **The aircraft StreamingAssets mirrors: still your open decision, untouched.** Two `StreamingAssetsTests`
+     fail because the mirrors are tracked, which `.gitignore` already records as an open question. Either
+     `git rm --cached` the 69 tracked paths and let ConfigSync generate them (what `c3cc22c`'s one-copy policy
+     intends, and what stopped great-lakes shipping with no config), or retire the two tests. **Note the trap:
+     ignoring them while they are still tracked makes the `git ls-files | git check-ignore` guard print, so it
+     has to be `rm --cached` AND ignore in ONE commit.** I changed nothing here.
+  4. **The Pitts still does not land or roll out well** (3 `AerobatGroundHandlingTests`: swings off the runway
+     three-point, bounces on a wheel landing, and will not recover at 12 m/s). That is a handling-feel number
+     and therefore yours; I did not touch it, and I did not loosen the tolerance to hide it.
+  5. **What I did fix, all of it test-side — no flight-model number, config performance figure or tolerance was
+     changed.** `SoaringTests` was setting the process-wide weather while running in PARALLEL with everything
+     that flies: 81 of the 211 failures, `StructuralTests` 39 of 40 and the whole fleet stalling in
+     `SpawnSpeedTests`, almost all NaN. `LanMeshTests` used fixed UDP port blocks that collide when several
+     worktrees run the suite at once (four were). `j3-cub-like` and `j3-cub-floats-like` shipped own-built
+     models with **no LICENSE.txt and no CREDITS.md entry at all** — written now from the provenance doc, with
+     nothing invented. `ModelRigTests` installed a world and left it standing for the next class.
+  Not merged and not deployed unless the suite improved and the build is green; see the report.
+- **STRAY MAIN-CHECKOUT `OptionsPanel.cs` EDIT — RESOLVED, no action needed, can be closed** (Claude,
+  2026-11-01, lane/claude-test-triage). The "uncommitted OptionsPanel.cs change in the main checkout" noted in
+  the 2026-10-28 handover entry (aaa5b9d, written 16:45 -0700) is **gone**: as of 2026-11-01 ~12:10 PST the
+  main checkout (split-surfaces @ 1b67dd5) is clean, nothing is stashed, and no worktree holds an uncommitted
+  `OptionsPanel.cs`. The file's mtime (2026-10-28 16:56:33 -0700) equals the fast-forward of
+  `lane/claude-menu-aero` into `split-surfaces`, which rewrote the panel into chapters (0936079) — so the old
+  edit (an earlier fix for the unclosable-menu bug, superseded by that rewrite) was already gone by then. The
+  `OptionsPanel` changes made since are intentional and committed: the look-settings move, 934a866
+  (2026-11-01 05:16) and cd30d02 (05:47), on `lane/claude-device-look` and the lanes built on it, not on
+  `split-surfaces`. **Nothing to keep and nothing to drop.** I did not touch the file or the main checkout.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both

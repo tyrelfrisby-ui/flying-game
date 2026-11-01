@@ -104,3 +104,42 @@ against the build you made before reasoning about the code.
 `grep -rl "x" --include=*.unity .` dies with `no matches found: --include=*.unity`, and in a `&&` chain the echo
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
+
+### Half a fix for a global is no fix at all
+`SoaringTests` sets `Atmosphere.SteadyWind / ActiveTurbulence / Field`, which are process-wide. It was given a
+`Dispose` (5b5eb46, "Reset the weather after every test, not at the end of a passing one") and never given
+`[Collection("WorldTerrainActive")]`, which 68 other classes carry. Those two guards stop DIFFERENT things:
+the `Dispose` stops a throwing test leaking its weather FORWARD, and the collection stops xUnit running the
+class ALONGSIDE another one. With only the first, the class still put a thermal under other people's
+aeroplanes mid-flight: on 2026-11-01 that was **81 of 211 failures** — `StructuralTests` 39 of 40 and the
+whole fleet of `SpawnSpeedTests` stalling, almost all of them NaN. The symptom was written down in that very
+class's own `Dispose` comment ("That is what put the whole fleet into a stall in SpawnSpeedTests while all 34
+passed in isolation") a commit before the cure was finished. If a class touches process-wide state it needs
+BOTH, and the audit is one line: every class that assigns `Atmosphere.*`, `WorldTerrain.Active`,
+`WorldTerrain.SurfaceOverride` or `FloatHydro.FlatWaterOverride` must carry the collection attribute and reset
+in `Dispose`, not in the body of a test that might throw first.
+
+### A process check that greps command lines matches the agents doing the checking
+`pgrep -f 'tools/deploy/(deploy|testflight).sh'` reported a running deploy twice on 2026-11-01 when there was
+none. The first hit was another agent's `claude` process whose PROMPT TEXT contained the path; the second was
+another agent's own WAIT LOOP, a `zsh -c` whose `pgrep` pattern contained it. A checker that matches other
+checkers will either block forever or, worse, be "cleared" by someone killing an unrelated process. Match the
+real thing — `pgrep -x Unity`, `pgrep -x xcodebuild`, and for a script the invocation itself — then drop any
+hit whose `comm` is `claude` or whose args contain `pgrep`. A genuine one looks like
+`zsh tools/deploy/deploy.sh 00008130-...`, with the script as argv[1].
+
+### A fixed port number is a global shared between PROCESSES
+`LanMeshTests` gave each test its own UDP block (48310, 48320 … 48390), which is unique within one process and
+not between them. Several worktrees run this suite at once here — four were running together on 2026-11-01 —
+so the second arrival lost every port in a block and all eight tests reported "no free port in 48370..48373".
+It had been written off as a sandbox socket restriction; binding `0.0.0.0` and `127.0.0.1` by hand proved it
+was not. A block must be the SAME for every peer in one test (they find each other by sweeping
+`basePort..basePort+PortsPerHost-1`) but need only be UNIQUE PER PROCESS, so offset the origin by the process
+id — and keep the band below 49152 so the kernel's ephemeral range cannot take one first.
+
+### A count from the log is not a baseline — re-measure, and say what was running
+The brief for this triage quoted "109 failing of 783" from an AGENT-LOG entry. The suite was by then 1233
+tests and failing 211. Worse, a first run taken while three other worktrees were running theirs gave 198, and
+the same tree re-run on a quiet machine gave 211: the numbers disagree with each other, not just with the log.
+Counts in this repo decay, and two runs of the same tree are not comparable unless both say what else was
+running. Re-run the branch point yourself, record what the machine was doing, and compare BY NAME.

@@ -36,7 +36,7 @@ public class VintageNavTests : IDisposable
     /// The route exists, it runs from one airport to another, every light stands on ground you could build
     /// on, and — the part that makes it a lesson rather than a decoration — IT GOES DARK AT EVERY WALL.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy light-line and range airways. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheMailRouteIsLitExceptOnTheEscarpments()
     {
         var pots = FirePots.All(_t);
@@ -175,7 +175,7 @@ public class VintageNavTests : IDisposable
     /// signal is what holds you up. The coloured airway's signal follows the earth, so only the rocks matter.
     /// This is the measurable reason the ladder is worth climbing down as well as up.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy light-line and range airways. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheRangeCourseIsLowerThanTheVictorAirwayOverTheSameGround()
     {
         Airway green = Airways.All.First(a => a.Designator == "GREEN 1");
@@ -214,7 +214,7 @@ public class VintageNavTests : IDisposable
             }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy light-line and range airways. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheParallelBeaconAirwayCostsTwoThousandFeetForFourHundredMetres()
     {
         // RED 1 runs 450 m east of GREEN 1 up the same valley, and its MEA is far higher — because 450 m of

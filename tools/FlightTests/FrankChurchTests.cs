@@ -27,7 +27,7 @@ public class FrankChurchTests : IDisposable
 
     public void Dispose() => WorldTerrain.Active = null;
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Frank Church backcountry strips. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void EveryStripIsWithinTenMinutesOfEveryOther()
     {
         // The owner's compactness rule, in the unit that matters: minutes in a Cub.
@@ -96,7 +96,7 @@ public class FrankChurchTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Frank Church backcountry strips. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void AOneWayStripHasSomethingAtTheFarEndAndAirAtTheNear()
     {
         // That is what makes it one-way: you land toward the hill, and there is no going around.
@@ -146,7 +146,7 @@ public class FrankChurchTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Frank Church backcountry strips. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheCanyonIsAKilometreDeepAndHasARiverInIt()
     {
         // The country, not the strips: a canyon cut into the plateau with water in the bottom.
@@ -192,7 +192,7 @@ public class FrankChurchTests : IDisposable
         }
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the Frank Church backcountry strips. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void TheBackcountryLeavesTheRestOfTheWorldAlone()
     {
         // It is cut into its own block, and the Cascades next door are untouched. The canyon's cut now dies

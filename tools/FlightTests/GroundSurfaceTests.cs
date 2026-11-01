@@ -48,7 +48,7 @@ public class GroundSurfaceTests : IDisposable
         Assert.InRange(WorldTerrain.RollingCoefficient(WorldTerrain.Surface.Rough), 0.1, 0.3);
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy ground surfaces. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void GrassStripSwoopsSmoothlyAndRoughGroundIsBumpy()
     {
         var t = new WorldTerrain();
@@ -76,7 +76,7 @@ public class GroundSurfaceTests : IDisposable
         WorldTerrain.Active = null;
     }
 
-    [Fact]
+    [Fact(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy ground surfaces. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     public void RolloutOnRoughGroundIsShortAndViolent()
     {
         var (pavedRoll, pavedG, _) = Rollout(WorldTerrain.Surface.Paved);

@@ -36,7 +36,7 @@ public class ApproachSpawnTests : IDisposable
         Assert.InRange(g.GlideRatio, ldMin, ldMax);
     }
 
-    [Theory]
+    [Theory(Skip = "Legacy world: the approved island world (1fe347d; Ty's G1 approval recorded in a0617a1) does not build the legacy approach terrain. Parked by the 2026-11-01 test triage, NOT deleted — it still specifies what this content has to do if it is ever rebuilt on the island. See AGENT-LOG NEEDS YOU.")]
     [InlineData("glider-2-33-like")]
     [InlineData("pa18-cub-like")]
     public void HandsOffFromFinalRidesTheGlidePathToTheAimPoint(string id)
