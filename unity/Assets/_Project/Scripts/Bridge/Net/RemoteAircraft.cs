@@ -178,7 +178,7 @@ namespace FlyingGame.Bridge.Net
         {
             if (on == _shown) return;
             _shown = on;
-            foreach (Renderer r in GetComponentsInChildren<Renderer>(true)) r.enabled = on;
+            foreach (Renderer r in GetComponentsInChildren<Renderer>(true)) r.enabled = on && !CockpitSights.IsSight(r.transform);
         }
 
         private void LateUpdate()

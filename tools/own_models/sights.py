@@ -52,45 +52,12 @@ def ray_hits(tris,origin,direction):
     return t[(abs(det)>1e-12)&(u>=-1e-8)&(v>=-1e-8)&(u+v<=1+1e-8)&(t>1e-8)]
 
 def segments(row):
-    dimensions=spec()['frame'];length=dimensions['bar_length_m'];half=length/2
+    dimensions=spec()['frame'];half=dimensions['bar_length_m']/2
     for side,sign in [('L',-1),('R',1)]:
-        c=np.array(row['eye_body_m'],dtype=float);c[1]=sign*row['y_mount_m']
-        for label,d in [('Vertical',(0,0,1)),('Plus45',(1/math.sqrt(2),0,1/math.sqrt(2))),('Minus45',(-1/math.sqrt(2),0,1/math.sqrt(2)))]:
-            d=np.array(d);yield f'Sight_{side}_{label}',c-half*d,c+half*d,spec()['frame']['rod_diameter_m']/2
-        # Fixed structure anchors, moving hub: changing E regenerates the entire mount.
-        # The hub and tube ends sit OUTBOARD of the frame, behind the bars from E.
-        hub=c+np.array([0,sign*row['mount']['hub_outboard_m'],0])
-        yield f'Sight_{side}_Hub_Fitting',c,hub,dimensions['fitting_diameter_m']/2
-        for anchor in row['mount']['anchors']:
-            a=np.array(anchor['surface_body_m']);a[1]*=sign
-            normal=np.array(anchor['outward_body']);normal[1]*=sign
-            socket=a+normal*dimensions['fitting_projection_m']
-            yield f"Sight_{side}_{anchor['id']}_Tube",socket,hub,row['mount']['tube_diameter_m']/2
-            yield f"Sight_{side}_{anchor['id']}_Fitting",a-normal*dimensions['fitting_embed_m'],socket,dimensions['fitting_diameter_m']/2
-            if 'section_centre' not in anchor:
-                # Wingtip mounting plate, proud of the surface with only its fastening spigot embedded.
-                yield f"Sight_{side}_{anchor['id']}_Plate_Fitting",a+normal*.001,a+normal*.005,row['mount']['plate_diameter_m']/2
-
-def collar_meshes(row):
-    """Surface-fitted band collars baked by fit_sight_mounts.py; never eye-dependent."""
-    for side,sign in [('L',-1),('R',1)]:
-        for anchor in row['mount']['anchors']:
-            if 'collar_radii_m' not in anchor:continue
-            mount=row['mount'];centre=np.array(anchor['section_centre'])
-            axis=np.array(anchor['section_axis'],float);axis/=np.linalg.norm(axis)
-            u=np.array([0,1,0.]);v=np.cross(axis,u);v/=np.linalg.norm(v)
-            count=len(anchor['collar_radii_m'][0]);rings=[];faces=[]
-            for end,radii in zip([-1,1],anchor['collar_radii_m']):
-                c=centre+end*axis*mount['collar_width_m']/2
-                for offset in [-.00025,mount['collar_wall_m']]:
-                    rings.append([c+(u*math.cos(k*2*math.pi/count)+v*math.sin(k*2*math.pi/count))*(r+offset) for k,r in enumerate(radii)])
-            for a,b in [(0,1),(1,3),(3,2),(2,0)]:
-                for k in range(count):
-                    j=(k+1)%count
-                    faces.extend([(a*count+k,a*count+j,b*count+j),(a*count+k,b*count+j,b*count+k)])
-            v=np.array(rings).reshape(-1,3);v[:,1]*=sign;t=np.array(faces)
-            if sign<0:t=t[:,::-1]
-            yield f"Sight_{side}_{anchor['id']}_Clamp_Fitting",v,t
+        c=np.array(row['eye_body_m'],dtype=float);c[1]=sign*row['y_frame_m']
+        for label,d in dimensions['directions_body'].items():
+            d=np.array(d,dtype=float)
+            yield f'Sight_{side}_{label}',c-half*d,c+half*d,dimensions['rod_diameter_m']/2
 
 def cylinder(a,b,r):
     n=spec()['frame']['cylinder_segments']
@@ -106,24 +73,22 @@ def cylinder(a,b,r):
 
 def native_add(g,aircraft):
     row=spec()['aircraft'][aircraft];mat=g.material('Sight_Red',(.578,.009,.017))
-    metal=g.material('Sight_Clamp',(.32,.34,.36))
     for name,a,b,r in segments(row):
-        v,t=cylinder(a,b,r);g.mesh(name,native(v,row),t,metal if name.endswith('Fitting') else mat)
-    for name,v,t in collar_meshes(row):g.mesh(name,native(v,row),t,metal)
-    g.doc.setdefault('extras',{})['aerobaticSights']=dict(spec='docs/models/sights-spec.json',eyeBodyM=row['eye_body_m'])
+        v,t=cylinder(a,b,r);g.mesh(name,native(v,row),t,mat)
+    g.doc.setdefault('extras',{})['aerobaticSights']=dict(
+        spec='docs/models/sights-spec.json',eyeBodyM=row['eye_body_m'],
+        nodePrefix='Sight_',visibility='local-cockpit-only',defaultVisible=False)
 
 def blender_add(objects,aircraft):
     import bpy,paint
     row=spec()['aircraft'][aircraft];mat=paint.mat_colour('Sight_Red',(200,24,36),rough=.65)
     mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.578,.009,.017,1)
-    metal=paint.mat_colour('Sight_Clamp',(153,158,162),rough=.9,metal=0)
-    metal.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.32,.34,.36,1)
-    meshes=[(name,*cylinder(a,b,r)) for name,a,b,r in segments(row)]+list(collar_meshes(row))
-    for name,vertices,triangles in meshes:
+    for name,a,b,r in segments(row):
+        vertices,triangles=cylinder(a,b,r)
         v=native(vertices,row)
         # Inverse of native (-builder x,builder z,builder y).
         vertices=[(-x,z,y) for x,y,z in v]
-        me=bpy.data.meshes.new(name);me.from_pydata(vertices,[],triangles);me.materials.append(metal if name.endswith('Fitting') else mat)
+        me=bpy.data.meshes.new(name);me.from_pydata(vertices,[],triangles);me.materials.append(mat)
         obj=bpy.data.objects.new(name,me);bpy.context.scene.collection.objects.link(obj);objects[name]=obj
 
 if __name__=='__main__':

@@ -309,6 +309,7 @@ namespace FlyingGame.Bridge
             _wingsDetached = false;
             _componentsDetached = false;
             float halfSpan = _builder.Build(transform, _driver.Sim.Aircraft.Config);
+            foreach (var sights in GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(_driver);
             GetComponent<GroundShadow>()?.Refresh();
             if (Camera.main != null && Camera.main.TryGetComponent(out ChaseCamera chase))
             {
@@ -1282,6 +1283,8 @@ namespace FlyingGame.Bridge
         /// <summary>Destroy previously built parts.</summary>
         public void Clear()
         {
+            if (_root != null)
+                foreach (var sights in _root.GetComponentsInChildren<CockpitSights>(true)) sights.BindLocal(null);
             foreach (GameObject p in _parts) if (p != null) Kill(p);
             // Belt and braces: anything else under the root that draws (a model prefab's container, a split piece that
             // slipped past the bookkeeping) goes too — owner 2026-09-14: the DC-3's fuselage section rode along on the
@@ -1756,6 +1759,8 @@ namespace FlyingGame.Bridge
             var filters = new List<MeshFilter>();
             foreach (MeshFilter mf in inst.GetComponentsInChildren<MeshFilter>(true))
             {
+                // Floating cockpit references never join control skins, wing debris or damage splits.
+                if (CockpitSights.IsSight(mf.transform)) continue;
                 GameObject go = mf.gameObject;
                 go.name = "Model:" + go.name;
                 _parts.Add(go); _wingParts.Add(go); _modelParts.Add(go);

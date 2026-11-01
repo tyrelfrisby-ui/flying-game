@@ -1,0 +1,864 @@
+{
+  "schema_version": 3,
+  "renderer": "Deterministic CPU textured triangle z-buffer; transparent glass omitted",
+  "visibility": "Rear-eye views include Sight_ nodes. External views filter every Sight_ node before rasterization, matching cockpit-only exclusion.",
+  "angle_convention": "Undirected screen angle from horizontal with up=-body Z: Level=0, Vertical=90, Plus45=side*45, Minus45=-side*45; side L=-1, R=+1.",
+  "runtime_limit": "CPU geometry evidence only; Unity camera callback check and device visual review remain operator tasks.",
+  "aircraft": {
+    "extra-300-like": {
+      "model": "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-unmarked.glb",
+      "model_sha256": "9ce01ebf4a56c118538373f24187a01a405d58a7d2cdd8b1fe7992cbd6d23943",
+      "views": [
+        {
+          "path": "extra-cockpit-rear-eye-L.png",
+          "eye_body_m": [
+            -1.597,
+            0.0,
+            -0.518
+          ],
+          "eye_gltf_m": [
+            1.6222120853096487,
+            0.5255034140629861,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.6222120853096487,
+            0.5255034140629861,
+            3.9750000000000005
+          ],
+          "hfov_deg": 20.164753282344776,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.9145374629347014e-07,
+              "eye_lateral_line_residual_m": 2.689677198139475e-08,
+              "centre_body_m": [
+                -1.597000026384196,
+                -3.9367908256121615,
+                -0.5180000052259495
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.847000055620435,
+                  -3.9367908256121615,
+                  -0.5180000052259495
+                ],
+                [
+                  -1.346999997147957,
+                  -3.9367908256121615,
+                  -0.5180000052259495
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.185020304800209e-07,
+              "eye_lateral_line_residual_m": 2.1884262369557156e-08,
+              "centre_body_m": [
+                -1.5969999821104186,
+                -3.9367908256121615,
+                -0.5180000126049125
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.5969999821104186,
+                  -3.9367908256121615,
+                  -0.7680000123253005
+                ],
+                [
+                  -1.5969999821104186,
+                  -3.9367908256121615,
+                  -0.26800001288452446
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": -44.99999955157043,
+              "target_deg": -45,
+              "error_deg": 4.484295743623079e-07,
+              "centre_offset_deg": 3.704703720554043e-07,
+              "eye_lateral_line_residual_m": 2.5455005137609294e-08,
+              "centre_body_m": [
+                -1.5969999747314563,
+                -3.9367908256121615,
+                -0.5179999969246162
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.7737766738351004,
+                  -3.9367908256121615,
+                  -0.6947766932611492
+                ],
+                [
+                  -1.420223275627812,
+                  -3.9367908256121615,
+                  -0.3412233005880832
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": 44.999999551570454,
+              "target_deg": 45,
+              "error_deg": 4.4842954594059847e-07,
+              "centre_offset_deg": 3.7047037166497124e-07,
+              "eye_lateral_line_residual_m": 2.545500511078265e-08,
+              "centre_body_m": [
+                -1.5969999747314563,
+                -3.9367908256121615,
+                -0.5179999969246164
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.7737766738351004,
+                  -3.9367908256121615,
+                  -0.3412233005880833
+                ],
+                [
+                  -1.420223275627812,
+                  -3.9367908256121615,
+                  -0.6947766932611494
+                ]
+              ]
+            }
+          },
+          "png_sha256": "de40d53afb08f0603444511059382bc786b0aaadcc97447aacfb4804345e5b8b"
+        },
+        {
+          "path": "extra-cockpit-rear-eye-R.png",
+          "eye_body_m": [
+            -1.597,
+            0.0,
+            -0.518
+          ],
+          "eye_gltf_m": [
+            1.6222120853096487,
+            0.5255034140629861,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.6222120853096487,
+            0.5255034140629861,
+            -3.9750000000000005
+          ],
+          "hfov_deg": 20.164753282344776,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.914537462934701e-07,
+              "eye_lateral_line_residual_m": 2.689677198139475e-08,
+              "centre_body_m": [
+                -1.597000026384196,
+                3.936790825612162,
+                -0.5180000052259495
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.847000055620435,
+                  3.936790825612162,
+                  -0.5180000052259495
+                ],
+                [
+                  -1.346999997147957,
+                  3.936790825612162,
+                  -0.5180000052259495
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.185020304800209e-07,
+              "eye_lateral_line_residual_m": 2.1884262369557156e-08,
+              "centre_body_m": [
+                -1.5969999821104186,
+                3.9367908256121615,
+                -0.5180000126049125
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.5969999821104186,
+                  3.9367908256121615,
+                  -0.7680000123253005
+                ],
+                [
+                  -1.5969999821104186,
+                  3.9367908256121615,
+                  -0.26800001288452446
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": 44.999999551570454,
+              "target_deg": 45,
+              "error_deg": 4.4842954594059847e-07,
+              "centre_offset_deg": 3.704703720554043e-07,
+              "eye_lateral_line_residual_m": 2.5455005137609294e-08,
+              "centre_body_m": [
+                -1.5969999747314563,
+                3.9367908256121615,
+                -0.5179999969246162
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.7737766738351004,
+                  3.9367908256121615,
+                  -0.6947766932611492
+                ],
+                [
+                  -1.420223275627812,
+                  3.9367908256121615,
+                  -0.3412233005880832
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": -44.999999551570454,
+              "target_deg": -45,
+              "error_deg": 4.4842954594059847e-07,
+              "centre_offset_deg": 3.7047037166497124e-07,
+              "eye_lateral_line_residual_m": 2.545500511078265e-08,
+              "centre_body_m": [
+                -1.5969999747314563,
+                3.9367908256121615,
+                -0.5179999969246164
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.7737766738351004,
+                  3.9367908256121615,
+                  -0.3412233005880833
+                ],
+                [
+                  -1.420223275627812,
+                  3.9367908256121615,
+                  -0.6947766932611494
+                ]
+              ]
+            }
+          },
+          "png_sha256": "cb84916269e528aa5a7c37341a05f858371432651754d72133c5e6c124c7083a"
+        },
+        {
+          "path": "extra-exterior-34.png",
+          "eye_gltf_m": [
+            9,
+            3,
+            -5
+          ],
+          "target_gltf_m": [
+            0.6,
+            0,
+            0
+          ],
+          "orthographic_width_m": 10,
+          "cockpit_only_nodes_included": false,
+          "exclude_node_prefix": "Sight_",
+          "excluded_nodes": [
+            "Sight_L_Level",
+            "Sight_L_Vertical",
+            "Sight_L_Plus45",
+            "Sight_L_Minus45",
+            "Sight_R_Level",
+            "Sight_R_Vertical",
+            "Sight_R_Plus45",
+            "Sight_R_Minus45"
+          ],
+          "png_sha256": "e7a8a4fe71bc9526d45e8f67b7f38c50afa05d13e6c6d453c3c7755eff5ae5e6"
+        }
+      ]
+    },
+    "pitts-s2b-like": {
+      "model": "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb",
+      "model_sha256": "325065b69adc128bb48165fbc2cca2610741e37530d83441e3833107ce9993ab",
+      "views": [
+        {
+          "path": "pitts-cockpit-rear-eye-L.png",
+          "eye_body_m": [
+            -1.325,
+            0.0,
+            -0.3
+          ],
+          "eye_gltf_m": [
+            1.3140217121824904,
+            0.30057627506166185,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.3140217121824904,
+            0.30057627506166185,
+            1.8517912173260964
+          ],
+          "hfov_deg": 41.45111773112107,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 1.6709075149528834e-06,
+              "eye_lateral_line_residual_m": 5.395124963704714e-08,
+              "centre_body_m": [
+                -1.3250000539510334,
+                -1.8500000005964905,
+                -0.30000000015274314
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.5750000520199174,
+                  -1.8500000005964905,
+                  -0.30000000015274314
+                ],
+                [
+                  -1.0750000558821493,
+                  -1.8500000005964905,
+                  -0.30000000015274314
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.082418775257588e-07,
+              "eye_lateral_line_residual_m": 9.95269596561319e-09,
+              "centre_body_m": [
+                -1.325000009290791,
+                -1.850000000596491,
+                -0.2999999964310563
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.325000009290791,
+                  -1.850000000596491,
+                  -0.549999992639097
+                ],
+                [
+                  -1.325000009290791,
+                  -1.850000000596491,
+                  -0.05000000022301553
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": -44.999996418944484,
+              "target_deg": -45,
+              "error_deg": 3.5810555232274055e-06,
+              "centre_offset_deg": 7.947373838674921e-08,
+              "eye_lateral_line_residual_m": 2.566095047704533e-09,
+              "centre_body_m": [
+                -1.325000001847417,
+                -1.850000000596491,
+                -0.30000000178098113
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.501776718918732,
+                  -1.850000000596491,
+                  -0.4767766967547802
+                ],
+                [
+                  -1.1482232847761022,
+                  -1.850000000596491,
+                  -0.1232233068071821
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": 44.99999641894448,
+              "target_deg": 45,
+              "error_deg": 3.5810555232274055e-06,
+              "centre_offset_deg": 7.947373957996151e-08,
+              "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+              "centre_body_m": [
+                -1.325000001847417,
+                -1.850000000596491,
+                -0.3000000017809812
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.501776718918732,
+                  -1.850000000596491,
+                  -0.12322330680718213
+                ],
+                [
+                  -1.1482232847761022,
+                  -1.850000000596491,
+                  -0.4767766967547803
+                ]
+              ]
+            }
+          },
+          "png_sha256": "cdb5bf32089bbd5685a1e5d43d841fa7c85a6b7df6bd75d5c9adc2915e0294e7"
+        },
+        {
+          "path": "pitts-cockpit-rear-eye-R.png",
+          "eye_body_m": [
+            -1.325,
+            0.0,
+            -0.3
+          ],
+          "eye_gltf_m": [
+            1.3140217121824904,
+            0.30057627506166185,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.3140217121824904,
+            0.30057627506166185,
+            -1.8517912173260964
+          ],
+          "hfov_deg": 41.45111773112107,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 1.6709075149528834e-06,
+              "eye_lateral_line_residual_m": 5.395124963704714e-08,
+              "centre_body_m": [
+                -1.3250000539510334,
+                1.8500000005964907,
+                -0.30000000015274314
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.5750000520199174,
+                  1.8500000005964907,
+                  -0.30000000015274314
+                ],
+                [
+                  -1.0750000558821493,
+                  1.8500000005964907,
+                  -0.30000000015274314
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.0824187752575885e-07,
+              "eye_lateral_line_residual_m": 9.95269596561319e-09,
+              "centre_body_m": [
+                -1.325000009290791,
+                1.8500000005964905,
+                -0.2999999964310563
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.325000009290791,
+                  1.8500000005964905,
+                  -0.549999992639097
+                ],
+                [
+                  -1.325000009290791,
+                  1.8500000005964905,
+                  -0.05000000022301553
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": 44.99999641894448,
+              "target_deg": 45,
+              "error_deg": 3.5810555232274055e-06,
+              "centre_offset_deg": 7.947373838674924e-08,
+              "eye_lateral_line_residual_m": 2.566095047704533e-09,
+              "centre_body_m": [
+                -1.325000001847417,
+                1.8500000005964905,
+                -0.30000000178098113
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.501776718918732,
+                  1.8500000005964905,
+                  -0.4767766967547802
+                ],
+                [
+                  -1.1482232847761022,
+                  1.8500000005964905,
+                  -0.1232233068071821
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": -44.99999641894448,
+              "target_deg": -45,
+              "error_deg": 3.5810555232274055e-06,
+              "centre_offset_deg": 7.947373957996152e-08,
+              "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+              "centre_body_m": [
+                -1.325000001847417,
+                1.8500000005964905,
+                -0.3000000017809812
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.501776718918732,
+                  1.8500000005964905,
+                  -0.12322330680718213
+                ],
+                [
+                  -1.1482232847761022,
+                  1.8500000005964905,
+                  -0.4767766967547803
+                ]
+              ]
+            }
+          },
+          "png_sha256": "778b5c287231c934bcb88804d3e7542194cb1f93256574f50a9459ab1b56cb9b"
+        },
+        {
+          "path": "pitts-exterior-34.png",
+          "eye_gltf_m": [
+            9,
+            3,
+            -5
+          ],
+          "target_gltf_m": [
+            0.6,
+            0,
+            0
+          ],
+          "orthographic_width_m": 10,
+          "cockpit_only_nodes_included": false,
+          "exclude_node_prefix": "Sight_",
+          "excluded_nodes": [
+            "Sight_L_Level",
+            "Sight_L_Vertical",
+            "Sight_L_Plus45",
+            "Sight_L_Minus45",
+            "Sight_R_Level",
+            "Sight_R_Vertical",
+            "Sight_R_Plus45",
+            "Sight_R_Minus45"
+          ],
+          "png_sha256": "84aa206e4f01159081c0c712b0a6766fea77d8c621780060b09efce7d91f36e7"
+        }
+      ]
+    },
+    "great-lakes-like": {
+      "model": "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb",
+      "model_sha256": "6e4150ce07a1ea4f3164659b5ebf56006d2a82b0d554a34fbd6033967ed7c65e",
+      "views": [
+        {
+          "path": "great-lakes-cockpit-rear-eye-L.png",
+          "eye_body_m": [
+            -1.97,
+            0.0,
+            -0.264
+          ],
+          "eye_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            2.492450922764896
+          ],
+          "hfov_deg": 31.890791801845708,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 9.033000655515213e-07,
+              "eye_lateral_line_residual_m": 3.8625622678940685e-08,
+              "centre_body_m": [
+                -1.9699999613765442,
+                -2.449999999963324,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.2199999428393977,
+                  -2.449999999963324,
+                  -0.2639999995908644
+                ],
+                [
+                  -1.719999979913691,
+                  -2.449999999963324,
+                  -0.2639999995908644
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.0812451778357923e-07,
+              "eye_lateral_line_residual_m": 1.31755789863388e-08,
+              "centre_body_m": [
+                -1.9700000126423314,
+                -2.4499999999633246,
+                -0.2640000037104364
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.9700000126423314,
+                  -2.4499999999633246,
+                  -0.5140000071443415
+                ],
+                [
+                  -1.9700000126423314,
+                  -2.4499999999633246,
+                  -0.014000000276531421
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": -45.00000111267542,
+              "target_deg": -45,
+              "error_deg": 1.1126754202450684e-06,
+              "centre_offset_deg": 2.102358468233249e-07,
+              "eye_lateral_line_residual_m": 8.989803945189855e-09,
+              "centre_body_m": [
+                -1.970000008980489,
+                -2.4499999999633246,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.146776697527876,
+                  -2.4499999999633246,
+                  -0.4407766950042049
+                ],
+                [
+                  -1.793223320433102,
+                  -2.4499999999633246,
+                  -0.08722330417752391
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": 45.00000111267542,
+              "target_deg": 45,
+              "error_deg": 1.1126754202450684e-06,
+              "centre_offset_deg": 2.102358468233249e-07,
+              "eye_lateral_line_residual_m": 8.989803945189855e-09,
+              "centre_body_m": [
+                -1.970000008980489,
+                -2.4499999999633246,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.146776697527876,
+                  -2.4499999999633246,
+                  -0.08722330417752393
+                ],
+                [
+                  -1.793223320433102,
+                  -2.4499999999633246,
+                  -0.44077669500420485
+                ]
+              ]
+            }
+          },
+          "png_sha256": "9cc17567c678dbcd1b5bc9c05705db0d59760d990520484bf087ec121abbbbba"
+        },
+        {
+          "path": "great-lakes-cockpit-rear-eye-L-frame-isolated.png",
+          "geometry_isolation": true,
+          "opaque_aircraft_omitted": true,
+          "include_node_prefix": "Sight_L_",
+          "eye_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            2.492450922764896
+          ],
+          "hfov_deg": 31.890791801845708,
+          "png_sha256": "5ed5215922cbb30cf4153357425362fe5d219bf83d0d56ed4480018b1edfc63e"
+        },
+        {
+          "path": "great-lakes-cockpit-rear-eye-R.png",
+          "eye_body_m": [
+            -1.97,
+            0.0,
+            -0.264
+          ],
+          "eye_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -2.492450922764896
+          ],
+          "hfov_deg": 31.890791801845708,
+          "cockpit_only_nodes_included": true,
+          "opaque_aircraft_retained": true,
+          "metrics": {
+            "Level": {
+              "angle_deg": 0.0,
+              "target_deg": 0,
+              "error_deg": 0.0,
+              "centre_offset_deg": 9.033000655515211e-07,
+              "eye_lateral_line_residual_m": 3.8625622678940685e-08,
+              "centre_body_m": [
+                -1.9699999613765442,
+                2.4499999999633246,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.2199999428393977,
+                  2.4499999999633246,
+                  -0.2639999995908644
+                ],
+                [
+                  -1.719999979913691,
+                  2.4499999999633246,
+                  -0.2639999995908644
+                ]
+              ]
+            },
+            "Vertical": {
+              "angle_deg": 90.0,
+              "target_deg": 90,
+              "error_deg": 0.0,
+              "centre_offset_deg": 3.081245177835793e-07,
+              "eye_lateral_line_residual_m": 1.31755789863388e-08,
+              "centre_body_m": [
+                -1.9700000126423314,
+                2.449999999963324,
+                -0.2640000037104364
+              ],
+              "endpoints_body_m": [
+                [
+                  -1.9700000126423314,
+                  2.449999999963324,
+                  -0.5140000071443415
+                ],
+                [
+                  -1.9700000126423314,
+                  2.449999999963324,
+                  -0.014000000276531421
+                ]
+              ]
+            },
+            "Plus45": {
+              "angle_deg": 45.00000111267542,
+              "target_deg": 45,
+              "error_deg": 1.1126754202450684e-06,
+              "centre_offset_deg": 2.1023584682332495e-07,
+              "eye_lateral_line_residual_m": 8.989803945189855e-09,
+              "centre_body_m": [
+                -1.970000008980489,
+                2.449999999963324,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.146776697527876,
+                  2.449999999963324,
+                  -0.4407766950042049
+                ],
+                [
+                  -1.793223320433102,
+                  2.449999999963324,
+                  -0.08722330417752391
+                ]
+              ]
+            },
+            "Minus45": {
+              "angle_deg": -45.00000111267539,
+              "target_deg": -45,
+              "error_deg": 1.112675391823359e-06,
+              "centre_offset_deg": 2.1023584682332495e-07,
+              "eye_lateral_line_residual_m": 8.989803945189855e-09,
+              "centre_body_m": [
+                -1.970000008980489,
+                2.449999999963324,
+                -0.2639999995908644
+              ],
+              "endpoints_body_m": [
+                [
+                  -2.146776697527876,
+                  2.449999999963324,
+                  -0.08722330417752393
+                ],
+                [
+                  -1.793223320433102,
+                  2.449999999963324,
+                  -0.44077669500420485
+                ]
+              ]
+            }
+          },
+          "png_sha256": "a4bd2777a50e5f80d85a878f258140f0ec02d487aaea815486aa1a0e6c9db414"
+        },
+        {
+          "path": "great-lakes-cockpit-rear-eye-R-frame-isolated.png",
+          "geometry_isolation": true,
+          "opaque_aircraft_omitted": true,
+          "include_node_prefix": "Sight_R_",
+          "eye_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -0.0
+          ],
+          "target_gltf_m": [
+            1.9700953161252615,
+            0.06725278864327618,
+            -2.492450922764896
+          ],
+          "hfov_deg": 31.890791801845708,
+          "png_sha256": "c0bb4f21cde2ca541ee44fa7ec538648c49a7a1e4ccfd59ae76643980ade5f6f"
+        },
+        {
+          "path": "great-lakes-exterior-34.png",
+          "eye_gltf_m": [
+            9,
+            3,
+            -5
+          ],
+          "target_gltf_m": [
+            0.6,
+            0,
+            0
+          ],
+          "orthographic_width_m": 11.5,
+          "cockpit_only_nodes_included": false,
+          "exclude_node_prefix": "Sight_",
+          "excluded_nodes": [
+            "Sight_L_Level",
+            "Sight_L_Vertical",
+            "Sight_L_Plus45",
+            "Sight_L_Minus45",
+            "Sight_R_Level",
+            "Sight_R_Vertical",
+            "Sight_R_Plus45",
+            "Sight_R_Minus45"
+          ],
+          "png_sha256": "e1b31b23f01423fa3fd688ba47afce672f77dd61ac7132211e800b64cc054882"
+        }
+      ]
+    }
+  }
+}
