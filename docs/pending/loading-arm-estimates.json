@@ -1,0 +1,4093 @@
+{
+ "title": "Loading arm estimates",
+ "generated": "2026-11-01",
+ "frame": "game body frame: +x forward, +y right, +z down, metres from aircraft root; conventional arms in inches per the source datum",
+ "conventions": {
+  "delta_x_m_est_minus_pub": "+ means our estimate is FORWARD of the published arm",
+  "delta_in_est_minus_pub": "+ means our estimate is AFT of the published arm (source sign)",
+  "conversion": "body_x = datum_body_x - arm_in*0.0254 (arms +aft); Beaver: body_x = datum_body_x + arm_in*0.0254 (arms +fwd)"
+ },
+ "aircraft": [
+  {
+   "aircraft": "c172-like",
+   "name": "172-like Trainer",
+   "variants": [
+    "c172-stock (in game)",
+    "c172"
+   ],
+   "datum": "C172N POH datum: front face of firewall (arms in aft)",
+   "datum_body_x_m": 0.9658,
+   "arm_sign": "+aft",
+   "anchor": "repo docs/WEIGHT-AND-BALANCE.md: config stations are POH arms (37 in at x 0.026); cross-check game LEMAC 0.3605 + 25.9 in = 1.018 (2 in)",
+   "anchor_confidence": "HIGH",
+   "primary_source": "Cessna 172N POH Sec 6 loading arrangements / loading graph (seats 37, rear 73, fuel 48, bag A1 95, A2 123); TCDS 3A12",
+   "notes": ""
+  },
+  {
+   "aircraft": "j3-cub-like",
+   "name": "J-3 Cub-like (85 hp)",
+   "variants": [
+    "j3-cub"
+   ],
+   "datum": "Wing leading edge (TCDS A-691)",
+   "datum_body_x_m": 0.4073,
+   "arm_sign": "+aft",
+   "anchor": "wing LE: repo anchor 0.4073 = config inner strip LE 0.407",
+   "anchor_confidence": "HIGH",
+   "primary_source": "FAA TCDS A-691 (J3C-65: seats +9/+36, baggage 20 lb +49, fuel 12 gal -18), https://openairdocs.org/tcds/A-691",
+   "notes": "floats variant: TCDS J3C-65S uses same seat/fuel/baggage arms"
+  },
+  {
+   "aircraft": "j3-cub-floats-like",
+   "name": "J-3 Cub-like on Floats",
+   "variants": [
+    "j3-cub-floats"
+   ],
+   "datum": "Wing leading edge (TCDS A-691)",
+   "datum_body_x_m": 0.4073,
+   "arm_sign": "+aft",
+   "anchor": "wing LE: repo anchor 0.4073 = config inner strip LE 0.407",
+   "anchor_confidence": "HIGH",
+   "primary_source": "FAA TCDS A-691 (J3C-65: seats +9/+36, baggage 20 lb +49, fuel 12 gal -18), https://openairdocs.org/tcds/A-691",
+   "notes": "floats variant: TCDS J3C-65S uses same seat/fuel/baggage arms"
+  },
+  {
+   "aircraft": "pa18-cub-like",
+   "name": "Super Cub-like",
+   "variants": [
+    "pa18"
+   ],
+   "datum": "Wing leading edge (TCDS 1A2)",
+   "datum_body_x_m": 0.408,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE (pos.x+0.25c) 0.408; J-3 identical wing anchors at 0.4073",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS 1A2 PA-18 '150' (seats 2 at +11 and +37; baggage 50 lb +57; fuel 36 gal, 2 wing tanks at +24), https://openairdocs.org/tcds/1A2 , https://www.supercub.org/woe/pa18type.pdf",
+   "notes": "some field W&B sheets use a datum 60 in ahead of the LE; the TCDS datum is the LE"
+  },
+  {
+   "aircraft": "pa18-bush-like",
+   "name": "Super Cub-like, Bushwheels",
+   "variants": [
+    "pa18-bush"
+   ],
+   "datum": "Wing leading edge (TCDS 1A2)",
+   "datum_body_x_m": 0.408,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE (pos.x+0.25c) 0.408; J-3 identical wing anchors at 0.4073",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS 1A2 PA-18 '150' (seats 2 at +11 and +37; baggage 50 lb +57; fuel 36 gal, 2 wing tanks at +24), https://openairdocs.org/tcds/1A2 , https://www.supercub.org/woe/pa18type.pdf",
+   "notes": "some field W&B sheets use a datum 60 in ahead of the LE; the TCDS datum is the LE"
+  },
+  {
+   "aircraft": "pa18-floats-like",
+   "name": "Super Cub-like on Floats",
+   "variants": [
+    "pa18-floats"
+   ],
+   "datum": "Wing leading edge (TCDS 1A2)",
+   "datum_body_x_m": 0.408,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE (pos.x+0.25c) 0.408; J-3 identical wing anchors at 0.4073",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS 1A2 PA-18 '150' (seats 2 at +11 and +37; baggage 50 lb +57; fuel 36 gal, 2 wing tanks at +24), https://openairdocs.org/tcds/1A2 , https://www.supercub.org/woe/pa18type.pdf",
+   "notes": "some field W&B sheets use a datum 60 in ahead of the LE; the TCDS datum is the LE"
+  },
+  {
+   "aircraft": "decathlon-8kcab-like",
+   "name": "Decathlon-like Aerobat",
+   "variants": [
+    "decathlon-8kcab"
+   ],
+   "datum": "Wing leading edge (TCDS A21CE, all models)",
+   "datum_body_x_m": 0.446,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE 0.446",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS A21CE Rev 16, Model 8KCAB, https://openairdocs.org/tcds/A21CE",
+   "notes": ""
+  },
+  {
+   "aircraft": "glider-2-33-like",
+   "name": "2-33-like Trainer Glider",
+   "variants": [
+    "sgs233",
+    "sgs233-talk-flying"
+   ],
+   "datum": "Wing leading edge at root (= Fuselage Sta 66.3) (TCDS G2EA)",
+   "datum_body_x_m": 0.45,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE 0.450",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS G2EA Rev 4 (seats 1 at -23, 1 at +8), https://www.soarccsc.com/wp-content/uploads/2016/01/G2EA_Rev-4.pdf ; Schweizer W&B form / N2615H sheet (front pilot FS 43.80, rear FS 74.70 => -22.5/+8.4), http://www.soarccsc.com/wp-content/uploads/2016/01/N2615H-Weight-and-Balance.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "pitts-s2b-like",
+   "name": "Pitts S-2-like Aerobat",
+   "variants": [
+    "pitts-s2b (rear v4)",
+    "pitts-s2b-factory-unmarked/n31dg/n1191 (rear v3)"
+   ],
+   "datum": "91.81 in forward of lower wing LE (TCDS A8SO, S-2B)",
+   "datum_body_x_m": 2.332,
+   "arm_sign": "+aft",
+   "anchor": "lower wing LE at config x 0.000 (repo doc + config strip)",
+   "anchor_confidence": "HIGH",
+   "primary_source": "FAA TCDS A8SO, Model S-2B (seats +105.15/+136.50; fuel 24 gal +81.32 & 5 gal +81.75; baggage 20 lb +157.81), https://openairdocs.org/tcds/A8SO , https://pittss2b.com/a8sopitts.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "extra-300-like",
+   "name": "Extra 300-like Aerobat",
+   "variants": [
+    "extra-300 (rear v4)",
+    "extra-300-talk-flying / n300uy (rear v3)"
+   ],
+   "datum": "Plane of firewall (EASA TCDS A.362; POH 300L Sec 6.2), arms in cm aft",
+   "datum_body_x_m": 0.79,
+   "arm_sign": "+aft",
+   "anchor": "firewall at config x +0.79 ±0.05 (engine aft end); no direct firewall node",
+   "anchor_confidence": "MED",
+   "primary_source": "EXTRA 300L POH Sec 6.4 'Loading weights and moments' (pilot rear seat arm 207 cm, copilot front 98 cm; tank arms from moment tables), https://cdn.b12.io/client_media/GuGdX0se/18b04b0c-81aa-11f0-b92c-0242ac110002-300l.pdf ; EASA TCDS A.362 Issue 09 (datum firewall, baggage none), https://www.easa.europa.eu/en/downloads/7174/en",
+   "notes": ""
+  },
+  {
+   "aircraft": "great-lakes-like",
+   "name": "Great Lakes 2T-1A-2-like Biplane",
+   "variants": [
+    "great-lakes (extended-gear corrected placement)"
+   ],
+   "datum": "Fuselage Sta 00 = centre of most forward lateral fuselage tube (TCDS A18EA)",
+   "datum_body_x_m": -0.2,
+   "arm_sign": "+aft",
+   "anchor": "MAC route (LEMAC Sta 9.0, MAC 46.0) gives -0.200; firewall route -0.175 (±0.025)",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS A18EA Rev 14, Model 2T-1A-2 (seats 1 at 27.5, 1 at 61.5; fuel 26 gal top-wing tank +13.0 & 1.4 gal header +5.0; baggage 40 lb +92.0), https://openairdocs.org/tcds/A18EA",
+   "notes": ""
+  },
+  {
+   "aircraft": "stearman-pt17-like",
+   "name": "Stearman-like Trainer Biplane",
+   "variants": [
+    "stearman"
+   ],
+   "datum": "Leading edge of lower wing (TCDS A-743)",
+   "datum_body_x_m": -0.044,
+   "arm_sign": "+aft",
+   "anchor": "config lower wing inner strip LE -0.044",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS A-743 Model A75N1 (PT-17) (seats +19/+55; fuel 46 gal -5; baggage 60 lb +84), https://openairdocs.org/tcds/A-743",
+   "notes": ""
+  },
+  {
+   "aircraft": "dhc2-beaver-like",
+   "name": "Beaver-like",
+   "variants": [
+    "dhc2-beaver"
+   ],
+   "datum": "17.5 in aft of wing LE; arms +forward / -aft (TCDS A-806 Mk I)",
+   "datum_body_x_m": -0.0255,
+   "arm_sign": "+fwd",
+   "anchor": "config inner wing strip LE 0.419 → datum x -0.0255",
+   "anchor_confidence": "MED",
+   "primary_source": "TCDS A-806 DHC-2 Mk I (seats 2 front +5, 3 centre -31, 3 rear -66; tanks +4.5 / -19.6 / -40.0 under floor; baggage per approved loading instructions), https://openairdocs.org/tcds/A-806",
+   "notes": ""
+  },
+  {
+   "aircraft": "dhc2-beaver-floats-like",
+   "name": "Beaver-like on Floats",
+   "variants": [
+    "dhc2-beaver-floats"
+   ],
+   "datum": "17.5 in aft of wing LE; arms +forward / -aft (TCDS A-806 Mk I)",
+   "datum_body_x_m": -0.0255,
+   "arm_sign": "+fwd",
+   "anchor": "config inner wing strip LE 0.419 → datum x -0.0255",
+   "anchor_confidence": "MED",
+   "primary_source": "TCDS A-806 DHC-2 Mk I (seats 2 front +5, 3 centre -31, 3 rear -66; tanks +4.5 / -19.6 / -40.0 under floor; baggage per approved loading instructions), https://openairdocs.org/tcds/A-806",
+   "notes": ""
+  },
+  {
+   "aircraft": "pa25-pawnee-like",
+   "name": "Pawnee-like Tow Plane",
+   "variants": [
+    "pa25-pawnee"
+   ],
+   "datum": "78 in forward of wing LE (TCDS 2A8, PA-25-235)",
+   "datum_body_x_m": 2.4112,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE 0.430",
+   "anchor_confidence": "MED",
+   "primary_source": "FAA TCDS 2A8 PA-25-235 (pilot +135; fuel 38/42 gal +63; hopper/cargo +93), https://openairdocs.org/tcds/2A8 , https://www.soarcsa.org/uploads/file/aircraft/Pawnee%20TCDS%202A8-23.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "pa28-archer-like",
+   "name": "Archer-like",
+   "variants": [
+    "archer"
+   ],
+   "datum": "78.4 in ahead of wing LE at inboard edge of tapered section (PA-28-181 POH)",
+   "datum_body_x_m": 2.4614,
+   "arm_sign": "+aft",
+   "anchor": "config inner (straight) strip LE 0.470; repo doc flags the Archer anchor as suspect",
+   "anchor_confidence": "LOW",
+   "primary_source": "Piper PA-28-181 Archer POH Sec 6 (front 80.5, rear 118.1, fuel 95.0, baggage 142.8), https://fliegen.ch/pdf/afm/Archer_3/ArcherIIISection6.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "seminole-like",
+   "name": "Seminole-like Twin",
+   "variants": [
+    "seminole",
+    "seminole-stock (alt frame, CG x -0.0259 z -0.665)"
+   ],
+   "datum": "78.4 in forward of wing LE at wing station 106 (TCDS A19SO / PA-44-180 POH)",
+   "datum_body_x_m": 2.3224,
+   "arm_sign": "+aft",
+   "anchor": "config wing LE interpolated at y=2.69 m (WS 106) = 0.331",
+   "anchor_confidence": "MED",
+   "primary_source": "Piper PA-44-180 POH Sec 6 loading table (front 80.5, rear 118.1, fuel 95.0, baggage 142.8), https://ou.edu/content/dam/ags/aviation/documents/resources/weights-and-balance/seminole-section-6.pdf ; TCDS A19SO",
+   "notes": ""
+  },
+  {
+   "aircraft": "cirrus-sr22-like",
+   "name": "SR22-like",
+   "variants": [
+    "sr22"
+   ],
+   "datum": "FS 0, 100 in forward of firewall (SR22 POH)",
+   "datum_body_x_m": 3.6845,
+   "arm_sign": "+aft",
+   "anchor": "game LEMAC (WeightAndBalance MacGeom) 0.3037 + 133.1 in (published LEMAC FS 133.1, MAC 47.7)",
+   "anchor_confidence": "MED",
+   "primary_source": "Cirrus SR22 POH Sec 6 (front 143.5, rear 180.0, fuel 154.9, baggage 208.0), https://nova.aero/repository/Manuals/SR22/G3/SR22%20POH%20G3.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "glasair3-like",
+   "name": "Glasair III-like",
+   "variants": [
+    "glasair3"
+   ],
+   "datum": "60 in forward of cowl-to-firewall joint (CAFE report N313CH)",
+   "datum_body_x_m": 2.4179,
+   "arm_sign": "+aft",
+   "anchor": "game LEMAC 0.5078 + 75.20 in (CG range 79.65-87.88 in = 10-28.5 %MAC → LEMAC 75.20, MAC 44.5); main-gear route (arm 95.75) gives 2.388 (1.2 in)",
+   "anchor_confidence": "MED",
+   "primary_source": "CAFE Foundation Aircraft Performance Report, Glasair III N313CH (Sport Aviation Feb 1997), W&B data block: crew 108.75, fuel front/rear 65.75/81.35, baggage 132.2, http://acversailles.free.fr/documentation/03~Documentation_Generale_M_Suire/Vol/Performances/Glasair-III.pdf",
+   "notes": ""
+  },
+  {
+   "aircraft": "dc3-like",
+   "name": "DC-3-like Airliner",
+   "variants": [
+    "dc3"
+   ],
+   "datum": "Leading edge of wing centre section (TCDS A-669)",
+   "datum_body_x_m": 2.284,
+   "arm_sign": "+aft",
+   "anchor": "config inner wing strip LE 2.284 at y 1.13 (centre section; ±0.36 m if LE taken at y=0)",
+   "anchor_confidence": "LOW",
+   "primary_source": "FAA TCDS A-669 (fuel main +48, aux +83.5; baggage fwd -63/-45, aft +354), https://douglasdc3.com/faa/a-669.pdf",
+   "notes": "passenger cabin not modeled; no published crew arm"
+  },
+  {
+   "aircraft": "p51d-like",
+   "name": "P-51D-like Fighter",
+   "variants": [
+    "p51"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": "T.O. 01-60J-5 loading data exists (aircorpslibrary) but arms not openly published"
+  },
+  {
+   "aircraft": "f86-sabre-like",
+   "name": "F-86-like Jet Fighter",
+   "variants": [
+    "f86"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "boeing-737-like",
+   "name": "737-like Airliner",
+   "variants": [
+    "737"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": "Boeing W&B manual is not public; cabin passengers not modeled"
+  },
+  {
+   "aircraft": "hughes-h4-like",
+   "name": "H-4-like Flying Boat",
+   "variants": [
+    "h4"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "geebee-r2-like",
+   "name": "Gee Bee R-2-like",
+   "variants": [
+    "geebee"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "cassutt-f1-like",
+   "name": "Cassutt-like Racer",
+   "variants": [
+    "cassutt-f1"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "aircam-like",
+   "name": "AirCam-like",
+   "variants": [
+    "aircam"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "aircam-amphib-like",
+   "name": "AirCam-like (amphib)",
+   "variants": [
+    "aircam-amphib"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "glider-eb29r-like",
+   "name": "EB29R-like Open Class",
+   "variants": [
+    "eb29r"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": "eb29r-stock entry is in a different frame (x 1.3759, z -2.13); use eb29r"
+  },
+  {
+   "aircraft": "glider-swift-s1-like",
+   "name": "Swift S-1-like Aerobat",
+   "variants": [
+    "swift"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": ""
+  },
+  {
+   "aircraft": "jn4-jenny-like",
+   "name": "JN-4D-like Trainer Biplane",
+   "variants": [
+    "jenny"
+   ],
+   "datum": "none published (game body frame only)",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "no published W&B arms found (search: POH/TCDS/W&B sheets)",
+   "notes": "JN-4D spec sheet (NTSB docket) gives weights/fuel only"
+  },
+  {
+   "aircraft": "hang-glider-like",
+   "name": "Hang Glider-like",
+   "variants": [],
+   "datum": "n/a",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "n/a",
+   "notes": ""
+  },
+  {
+   "aircraft": "paraglider-en-b-like",
+   "name": "Paraglider-like (EN-B)",
+   "variants": [],
+   "datum": "n/a",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "n/a",
+   "notes": ""
+  },
+  {
+   "aircraft": "target-drone-like",
+   "name": "Target drone",
+   "variants": [],
+   "datum": "n/a",
+   "datum_body_x_m": null,
+   "arm_sign": "+aft",
+   "anchor": "n/a",
+   "anchor_confidence": "n/a",
+   "primary_source": "n/a",
+   "notes": ""
+  }
+ ],
+ "rows": [
+  {
+   "item": "Pilot (front L)",
+   "kind": "seat",
+   "pub_in": 37,
+   "est": [
+    -0.2059,
+    -0.3375,
+    -0.0206
+   ],
+   "source": "C172N POH Sec 6 (front seat arm 37, adjustable 34-46)",
+   "current": "[0.026,-0.28,0.05]",
+   "notes": "alt variant c172: x -0.2239",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant c172-stock/left",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.026,
+    -0.3375,
+    -0.0206
+   ],
+   "estimate_body_m": [
+    -0.2059,
+    -0.3375,
+    -0.0206
+   ],
+   "delta_x_m_est_minus_pub": -0.2319,
+   "estimate_arm_in": 46.1,
+   "delta_in_est_minus_pub": 9.1
+  },
+  {
+   "item": "Front passenger (front R)",
+   "kind": "seat",
+   "pub_in": 37,
+   "est": [
+    -0.2059,
+    0.332,
+    -0.0206
+   ],
+   "source": "C172N POH Sec 6",
+   "current": "[0.026,0.28,0.05]",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant c172-stock/right",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.026,
+    0.332,
+    -0.0206
+   ],
+   "estimate_body_m": [
+    -0.2059,
+    0.332,
+    -0.0206
+   ],
+   "delta_x_m_est_minus_pub": -0.2319,
+   "estimate_arm_in": 46.1,
+   "delta_in_est_minus_pub": 9.1
+  },
+  {
+   "item": "Rear seats L/R",
+   "kind": "seat",
+   "pub_in": 73,
+   "est": null,
+   "yz_from": [
+    0,
+    0.28,
+    0.05
+   ],
+   "source": "C172N POH Sec 6",
+   "current": "[-0.888,±0.28,0.05]",
+   "notes": "no rear-seat eyepoint/mannequin in the eyelines set; no estimate",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8884,
+    0.28,
+    0.05
+   ],
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Fuel L/R wing tanks (std 40 gal)",
+   "kind": "fuel",
+   "pub_in": 48,
+   "est": [
+    -0.061,
+    1.42,
+    -0.6
+   ],
+   "source": "C172N POH Sec 6",
+   "current": "[-0.253,∓2.18,-0.55], 54 kg each",
+   "est_method": "inboard wing 30% chord at 30% semispan",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2534,
+    1.42,
+    -0.6
+   ],
+   "estimate_body_m": [
+    -0.061,
+    1.42,
+    -0.6
+   ],
+   "delta_x_m_est_minus_pub": 0.1924,
+   "estimate_arm_in": 40.4,
+   "delta_in_est_minus_pub": -7.6,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Baggage area 1",
+   "kind": "baggage",
+   "pub_in": 95,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    0.1
+   ],
+   "source": "C172N POH Sec 6 (area 1, 120 lb, sta 82-108)",
+   "current": "[-1.447,0,0.1], 54 kg",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.4472,
+    0,
+    0.1
+   ],
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Baggage area 2",
+   "kind": "baggage",
+   "pub_in": 123,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    0.1
+   ],
+   "source": "C172N POH Sec 6 (area 2, 50 lb, sta 108-142)",
+   "current": "not modeled",
+   "aircraft": "c172-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -2.1584,
+    0,
+    0.1
+   ],
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 9,
+   "est": [
+    -0.0787,
+    -0.0005,
+    -0.0713
+   ],
+   "source": "TCDS A-691 J3C-65 'Number of Seats 2 (one at +9 and one at +36)'",
+   "current": "[0.1787,0,-0.05]",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant j3-cub/front",
+   "aircraft": "j3-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1787,
+    -0.0005,
+    -0.0713
+   ],
+   "estimate_body_m": [
+    -0.0787,
+    -0.0005,
+    -0.0713
+   ],
+   "delta_x_m_est_minus_pub": -0.2574,
+   "estimate_arm_in": 19.1,
+   "delta_in_est_minus_pub": 10.1
+  },
+  {
+   "item": "Rear seat (solo)",
+   "kind": "seat",
+   "pub_in": 36,
+   "est": [
+    -0.7966,
+    -0.0005,
+    0.0342
+   ],
+   "source": "TCDS A-691",
+   "current": "[-0.5071,0,-0.05]",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant j3-cub/rear",
+   "aircraft": "j3-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5071,
+    -0.0005,
+    0.0342
+   ],
+   "estimate_body_m": [
+    -0.7966,
+    -0.0005,
+    0.0342
+   ],
+   "delta_x_m_est_minus_pub": -0.2895,
+   "estimate_arm_in": 47.4,
+   "delta_in_est_minus_pub": 11.4
+  },
+  {
+   "item": "Nose tank 12 gal",
+   "kind": "fuel",
+   "pub_in": -18,
+   "est": [
+    0.6713,
+    -0.0005,
+    -0.4213
+   ],
+   "source": "TCDS A-691 'Fuel Capacity 12 gallons (-18)'",
+   "current": "[0.8644,0,-0.25] 45.42 L",
+   "est_method": "front seat CG +0.75 m fwd, 0.35 m up (behind firewall above the legs)",
+   "aircraft": "j3-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.8645,
+    -0.0005,
+    -0.4213
+   ],
+   "estimate_body_m": [
+    0.6713,
+    -0.0005,
+    -0.4213
+   ],
+   "delta_x_m_est_minus_pub": -0.1932,
+   "estimate_arm_in": -10.4,
+   "delta_in_est_minus_pub": 7.6,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 49,
+   "est": [
+    -1.3966,
+    -0.0005,
+    0.0342
+   ],
+   "source": "TCDS A-691 'Maximum Baggage 20 lb. (+49)'",
+   "current": "[-0.8373,0,0] 9.07 kg",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "j3-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8373,
+    -0.0005,
+    0.0342
+   ],
+   "estimate_body_m": [
+    -1.3966,
+    -0.0005,
+    0.0342
+   ],
+   "delta_x_m_est_minus_pub": -0.5593,
+   "estimate_arm_in": 71.0,
+   "delta_in_est_minus_pub": 22.0,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 9,
+   "est": [
+    -0.0787,
+    -0.0005,
+    0.0291
+   ],
+   "source": "TCDS A-691 J3C-65 'Number of Seats 2 (one at +9 and one at +36)'",
+   "current": "[0.1787,0,-0.05]",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant j3-cub-floats/front",
+   "aircraft": "j3-cub-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1787,
+    -0.0005,
+    0.0291
+   ],
+   "estimate_body_m": [
+    -0.0787,
+    -0.0005,
+    0.0291
+   ],
+   "delta_x_m_est_minus_pub": -0.2574,
+   "estimate_arm_in": 19.1,
+   "delta_in_est_minus_pub": 10.1
+  },
+  {
+   "item": "Rear seat (solo)",
+   "kind": "seat",
+   "pub_in": 36,
+   "est": [
+    -0.7966,
+    -0.0005,
+    0.1346
+   ],
+   "source": "TCDS A-691",
+   "current": "[-0.5071,0,-0.05]",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant j3-cub-floats/rear",
+   "aircraft": "j3-cub-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5071,
+    -0.0005,
+    0.1346
+   ],
+   "estimate_body_m": [
+    -0.7966,
+    -0.0005,
+    0.1346
+   ],
+   "delta_x_m_est_minus_pub": -0.2895,
+   "estimate_arm_in": 47.4,
+   "delta_in_est_minus_pub": 11.4
+  },
+  {
+   "item": "Nose tank 12 gal",
+   "kind": "fuel",
+   "pub_in": -18,
+   "est": [
+    0.6713,
+    -0.0005,
+    -0.3209
+   ],
+   "source": "TCDS A-691 'Fuel Capacity 12 gallons (-18)'",
+   "current": "none (no loading block tanks)",
+   "est_method": "front seat CG +0.75 m fwd, 0.35 m up (behind firewall above the legs)",
+   "aircraft": "j3-cub-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.8645,
+    -0.0005,
+    -0.3209
+   ],
+   "estimate_body_m": [
+    0.6713,
+    -0.0005,
+    -0.3209
+   ],
+   "delta_x_m_est_minus_pub": -0.1932,
+   "estimate_arm_in": -10.4,
+   "delta_in_est_minus_pub": 7.6,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 49,
+   "est": [
+    -1.3966,
+    -0.0005,
+    0.1346
+   ],
+   "source": "TCDS A-691 'Maximum Baggage 20 lb. (+49)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "j3-cub-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8373,
+    -0.0005,
+    0.1346
+   ],
+   "estimate_body_m": [
+    -1.3966,
+    -0.0005,
+    0.1346
+   ],
+   "delta_x_m_est_minus_pub": -0.5593,
+   "estimate_arm_in": 71.0,
+   "delta_in_est_minus_pub": 22.0,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 11,
+   "est": [
+    0.0349,
+    0.001,
+    -0.1789
+   ],
+   "source": "TCDS 1A2 'Number of Seats 2 at (+11) and (+37)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18/front",
+   "aircraft": "pa18-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1286,
+    0.001,
+    -0.1789
+   ],
+   "estimate_body_m": [
+    0.0349,
+    0.001,
+    -0.1789
+   ],
+   "delta_x_m_est_minus_pub": -0.0937,
+   "estimate_arm_in": 14.7,
+   "delta_in_est_minus_pub": 3.7
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": 37,
+   "est": [
+    -0.7387,
+    0.001,
+    -0.1785
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18/rear",
+   "aircraft": "pa18-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5318,
+    0.001,
+    -0.1785
+   ],
+   "estimate_body_m": [
+    -0.7387,
+    0.001,
+    -0.1785
+   ],
+   "delta_x_m_est_minus_pub": -0.2069,
+   "estimate_arm_in": 45.1,
+   "delta_in_est_minus_pub": 8.1
+  },
+  {
+   "item": "Wing tank L (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2 '36 gallons at (2 wing tanks at +24)'",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    -1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Wing tank R (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 57,
+   "est": [
+    -1.3387,
+    0.001,
+    -0.1785
+   ],
+   "source": "TCDS 1A2 'Maximum Baggage 50 lb. at (+57)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "pa18-cub-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0398,
+    0.001,
+    -0.1785
+   ],
+   "estimate_body_m": [
+    -1.3387,
+    0.001,
+    -0.1785
+   ],
+   "delta_x_m_est_minus_pub": -0.2989,
+   "estimate_arm_in": 68.8,
+   "delta_in_est_minus_pub": 11.8,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 11,
+   "est": [
+    0.0349,
+    0.001,
+    -0.1558
+   ],
+   "source": "TCDS 1A2 'Number of Seats 2 at (+11) and (+37)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18-bush/front",
+   "aircraft": "pa18-bush-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1286,
+    0.001,
+    -0.1558
+   ],
+   "estimate_body_m": [
+    0.0349,
+    0.001,
+    -0.1558
+   ],
+   "delta_x_m_est_minus_pub": -0.0937,
+   "estimate_arm_in": 14.7,
+   "delta_in_est_minus_pub": 3.7
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": 37,
+   "est": [
+    -0.7387,
+    0.001,
+    -0.1554
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18-bush/rear",
+   "aircraft": "pa18-bush-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5318,
+    0.001,
+    -0.1554
+   ],
+   "estimate_body_m": [
+    -0.7387,
+    0.001,
+    -0.1554
+   ],
+   "delta_x_m_est_minus_pub": -0.2069,
+   "estimate_arm_in": 45.1,
+   "delta_in_est_minus_pub": 8.1
+  },
+  {
+   "item": "Wing tank L (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2 '36 gallons at (2 wing tanks at +24)'",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-bush-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    -1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Wing tank R (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-bush-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 57,
+   "est": [
+    -1.3387,
+    0.001,
+    -0.1554
+   ],
+   "source": "TCDS 1A2 'Maximum Baggage 50 lb. at (+57)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "pa18-bush-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0398,
+    0.001,
+    -0.1554
+   ],
+   "estimate_body_m": [
+    -1.3387,
+    0.001,
+    -0.1554
+   ],
+   "delta_x_m_est_minus_pub": -0.2989,
+   "estimate_arm_in": 68.8,
+   "delta_in_est_minus_pub": 11.8,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 11,
+   "est": [
+    0.0349,
+    0.001,
+    -0.1558
+   ],
+   "source": "TCDS 1A2 'Number of Seats 2 at (+11) and (+37)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18-floats/front",
+   "aircraft": "pa18-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1286,
+    0.001,
+    -0.1558
+   ],
+   "estimate_body_m": [
+    0.0349,
+    0.001,
+    -0.1558
+   ],
+   "delta_x_m_est_minus_pub": -0.0937,
+   "estimate_arm_in": 14.7,
+   "delta_in_est_minus_pub": 3.7
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": 37,
+   "est": [
+    -0.7387,
+    0.001,
+    -0.1554
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa18-floats/rear",
+   "aircraft": "pa18-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5318,
+    0.001,
+    -0.1554
+   ],
+   "estimate_body_m": [
+    -0.7387,
+    0.001,
+    -0.1554
+   ],
+   "delta_x_m_est_minus_pub": -0.2069,
+   "estimate_arm_in": 45.1,
+   "delta_in_est_minus_pub": 8.1
+  },
+  {
+   "item": "Wing tank L (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2 '36 gallons at (2 wing tanks at +24)'",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    -1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    -1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Wing tank R (18 gal)",
+   "kind": "fuel",
+   "pub_in": 24,
+   "est": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "source": "TCDS 1A2",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa18-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2016,
+    1.55,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.057,
+    1.55,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1446,
+   "estimate_arm_in": 18.3,
+   "delta_in_est_minus_pub": -5.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 57,
+   "est": [
+    -1.3387,
+    0.001,
+    -0.1554
+   ],
+   "source": "TCDS 1A2 'Maximum Baggage 50 lb. at (+57)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "pa18-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0398,
+    0.001,
+    -0.1554
+   ],
+   "estimate_body_m": [
+    -1.3387,
+    0.001,
+    -0.1554
+   ],
+   "delta_x_m_est_minus_pub": -0.2989,
+   "estimate_arm_in": 68.8,
+   "delta_in_est_minus_pub": 11.8,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 14,
+   "est": [
+    0.5014,
+    0.0,
+    -0.2257
+   ],
+   "source": "TCDS A21CE 8KCAB 'No. of Seats 2 (1 at +14, 1 at +44)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant decathlon-8kcab/front",
+   "aircraft": "decathlon-8kcab-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.0904,
+    0.0,
+    -0.2257
+   ],
+   "estimate_body_m": [
+    0.5014,
+    0.0,
+    -0.2257
+   ],
+   "delta_x_m_est_minus_pub": 0.411,
+   "estimate_arm_in": -2.2,
+   "delta_in_est_minus_pub": -16.2
+  },
+  {
+   "item": "Rear seat (solo)",
+   "kind": "seat",
+   "pub_in": 44,
+   "est": [
+    -0.2686,
+    0.0,
+    -0.2257
+   ],
+   "source": "TCDS A21CE (+45 with Front Adjustable Seat)",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant decathlon-8kcab/rear",
+   "aircraft": "decathlon-8kcab-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.6716,
+    0.0,
+    -0.2257
+   ],
+   "estimate_body_m": [
+    -0.2686,
+    0.0,
+    -0.2257
+   ],
+   "delta_x_m_est_minus_pub": 0.403,
+   "estimate_arm_in": 28.1,
+   "delta_in_est_minus_pub": -15.9
+  },
+  {
+   "item": "Wing tanks 40 gal (L+R)",
+   "kind": "fuel",
+   "pub_in": 26,
+   "est": [
+    -0.037,
+    1.41,
+    -0.75
+   ],
+   "source": "TCDS A21CE 'Wing tanks: 40.0 gal. (+26)'",
+   "current": "none",
+   "est_method": "inboard wing 30% chord (±y)",
+   "aircraft": "decathlon-8kcab-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.2144,
+    1.41,
+    -0.75
+   ],
+   "estimate_body_m": [
+    -0.037,
+    1.41,
+    -0.75
+   ],
+   "delta_x_m_est_minus_pub": 0.1774,
+   "estimate_arm_in": 19.0,
+   "delta_in_est_minus_pub": -7.0,
+   "confidence": "MED"
+  },
+  {
+   "item": "Inverted header tank 1.5 gal",
+   "kind": "fuel",
+   "pub_in": -13,
+   "est": [
+    1.2514,
+    0.0,
+    -0.5257
+   ],
+   "source": "TCDS A21CE 'Inverted header tank: 1.5 gal. (-13)'",
+   "current": "none",
+   "est_method": "front seat CG +0.75 m",
+   "aircraft": "decathlon-8kcab-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.7762,
+    0.0,
+    -0.5257
+   ],
+   "estimate_body_m": [
+    1.2514,
+    0.0,
+    -0.5257
+   ],
+   "delta_x_m_est_minus_pub": 0.4752,
+   "estimate_arm_in": -31.7,
+   "delta_in_est_minus_pub": -18.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 71,
+   "est": [
+    -0.8686,
+    0.0,
+    -0.2257
+   ],
+   "source": "TCDS A21CE 'Maximum Baggage 100 lbs. (+71) (Normal Category Only)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "decathlon-8kcab-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.3574,
+    0.0,
+    -0.2257
+   ],
+   "estimate_body_m": [
+    -0.8686,
+    0.0,
+    -0.2257
+   ],
+   "delta_x_m_est_minus_pub": 0.4888,
+   "estimate_arm_in": 51.8,
+   "delta_in_est_minus_pub": -19.2,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": -23,
+   "est": [
+    1.0766,
+    0.0,
+    0.4092
+   ],
+   "source": "TCDS G2EA (FS 43.80 on Schweizer form = -22.5)",
+   "current": "[0.971,0,-0.111] (= eye)",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant sgs233/front",
+   "aircraft": "glider-2-33-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    1.0342,
+    0.0,
+    0.4092
+   ],
+   "estimate_body_m": [
+    1.0766,
+    0.0,
+    0.4092
+   ],
+   "delta_x_m_est_minus_pub": 0.0424,
+   "estimate_arm_in": -24.7,
+   "delta_in_est_minus_pub": -1.7
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": 8,
+   "est": [
+    0.2428,
+    -0.0002,
+    0.4709
+   ],
+   "source": "TCDS G2EA (FS 74.70 = +8.4)",
+   "current": "[0.164,0,-0.06] (= eye)",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant sgs233/rear",
+   "aircraft": "glider-2-33-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.2468,
+    -0.0002,
+    0.4709
+   ],
+   "estimate_body_m": [
+    0.2428,
+    -0.0002,
+    0.4709
+   ],
+   "delta_x_m_est_minus_pub": -0.004,
+   "estimate_arm_in": 8.2,
+   "delta_in_est_minus_pub": 0.2
+  },
+  {
+   "item": "Fuel",
+   "kind": "fuel",
+   "status": "NONE",
+   "source": "glider",
+   "current": "none",
+   "notes": "none",
+   "aircraft": "glider-2-33-like"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "status": "NONE",
+   "source": "TCDS G2EA: no baggage compartment (ballast 19.5 lb at Sta 14.75 noted on form)",
+   "current": "none",
+   "notes": "none",
+   "aircraft": "glider-2-33-like"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 105.15,
+   "est": [
+    -0.3897,
+    0.0,
+    0.1895
+   ],
+   "source": "TCDS A8SO S-2B 'Number of Seats 2 (1 @ +105.15) (1 @ +136.50)'",
+   "current": "[-0.564,0,-0.308] (= eye)",
+   "notes": "",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pitts-s2b/front",
+   "aircraft": "pitts-s2b-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.3388,
+    0.0,
+    0.1895
+   ],
+   "estimate_body_m": [
+    -0.3897,
+    0.0,
+    0.1895
+   ],
+   "delta_x_m_est_minus_pub": -0.0509,
+   "estimate_arm_in": 107.2,
+   "delta_in_est_minus_pub": 2.0
+  },
+  {
+   "item": "Rear seat (PIC)",
+   "kind": "seat",
+   "pub_in": 136.5,
+   "est": [
+    -1.1777,
+    -0.0022,
+    0.1503
+   ],
+   "source": "TCDS A8SO S-2B",
+   "current": "[-1.325,0,-0.3] (= eye)",
+   "notes": "livery variants rear v3 CG x -1.1481",
+   "confidence": "HIGH",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pitts-s2b/rear",
+   "aircraft": "pitts-s2b-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.1351,
+    -0.0022,
+    0.1503
+   ],
+   "estimate_body_m": [
+    -1.1777,
+    -0.0022,
+    0.1503
+   ],
+   "delta_x_m_est_minus_pub": -0.0426,
+   "estimate_arm_in": 138.2,
+   "delta_in_est_minus_pub": 1.7
+  },
+  {
+   "item": "Main fuselage tank 24 gal",
+   "kind": "fuel",
+   "pub_in": 81.32,
+   "est": [
+    0.3103,
+    0.0,
+    -0.0605
+   ],
+   "source": "TCDS A8SO S-2B '24 gal. @ +81.32'",
+   "current": "none",
+   "est_method": "front seat CG +0.7 m (tank between firewall and front cockpit)",
+   "aircraft": "pitts-s2b-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.2665,
+    0.0,
+    -0.0605
+   ],
+   "estimate_body_m": [
+    0.3103,
+    0.0,
+    -0.0605
+   ],
+   "delta_x_m_est_minus_pub": 0.0438,
+   "estimate_arm_in": 79.6,
+   "delta_in_est_minus_pub": -1.7,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Wing/aux tank 5 gal",
+   "kind": "fuel",
+   "pub_in": 81.75,
+   "est": [
+    0.33,
+    0.39,
+    -0.62
+   ],
+   "source": "TCDS A8SO S-2B '5 gal @ +81.75'",
+   "current": "none",
+   "est_method": "upper wing centre 30% chord",
+   "aircraft": "pitts-s2b-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.2555,
+    0.39,
+    -0.62
+   ],
+   "estimate_body_m": [
+    0.33,
+    0.39,
+    -0.62
+   ],
+   "delta_x_m_est_minus_pub": 0.0745,
+   "estimate_arm_in": 78.8,
+   "delta_in_est_minus_pub": -3.0,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 157.81,
+   "est": [
+    -1.7277,
+    -0.0022,
+    0.1503
+   ],
+   "source": "TCDS A8SO S-2B 'Maximum Baggage 20 pounds (@ +157.81)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.55 m",
+   "aircraft": "pitts-s2b-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.6764,
+    -0.0022,
+    0.1503
+   ],
+   "estimate_body_m": [
+    -1.7277,
+    -0.0022,
+    0.1503
+   ],
+   "delta_x_m_est_minus_pub": -0.0513,
+   "estimate_arm_in": 159.8,
+   "delta_in_est_minus_pub": 2.0,
+   "confidence": "HIGH"
+  },
+  {
+   "item": "Rear seat (PIC)",
+   "kind": "seat",
+   "pub_in": 81.5,
+   "est": [
+    -1.4436,
+    -0.0075,
+    -0.1043
+   ],
+   "source": "EXTRA 300L POH p.6-8 'Arm = 207cm (81.5 inch)'",
+   "current": "[-1.597,0,-0.518] (= eye, placeholder)",
+   "notes": "livery variants rear v3 CG x -1.3983",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant extra-300/rear",
+   "aircraft": "extra-300-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.2801,
+    -0.0075,
+    -0.1043
+   ],
+   "estimate_body_m": [
+    -1.4436,
+    -0.0075,
+    -0.1043
+   ],
+   "delta_x_m_est_minus_pub": -0.1635,
+   "estimate_arm_in": 87.9,
+   "delta_in_est_minus_pub": 6.4
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 38.58,
+   "est": [
+    -0.5204,
+    -0.0071,
+    -0.0296
+   ],
+   "source": "EXTRA 300L POH p.6-8 'Arm = 98 cm (38.4 inch)'",
+   "current": "[-0.687,0,-0.529] (= eye, placeholder)",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant extra-300/front",
+   "aircraft": "extra-300-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.1899,
+    -0.0071,
+    -0.0296
+   ],
+   "estimate_body_m": [
+    -0.5204,
+    -0.0071,
+    -0.0296
+   ],
+   "delta_x_m_est_minus_pub": -0.3305,
+   "estimate_arm_in": 51.6,
+   "delta_in_est_minus_pub": 13.0
+  },
+  {
+   "item": "Acro & center tank 51 L",
+   "kind": "fuel",
+   "pub_in": 11.73,
+   "est": [
+    0.0296,
+    -0.0071,
+    -0.1296
+   ],
+   "source": "EXTRA 300L POH p.6-8 moment table: 51 L = 36.7 kg -> 1094 kg·cm => 29.8 cm",
+   "current": "none",
+   "est_method": "front seat CG +0.55 m (tank just aft of firewall)",
+   "confidence": "MED",
+   "aircraft": "extra-300-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.4921,
+    -0.0071,
+    -0.1296
+   ],
+   "estimate_body_m": [
+    0.0296,
+    -0.0071,
+    -0.1296
+   ],
+   "delta_x_m_est_minus_pub": -0.4625,
+   "estimate_arm_in": 29.9,
+   "delta_in_est_minus_pub": 18.2
+  },
+  {
+   "item": "Wing tanks 2×60 L",
+   "kind": "fuel",
+   "pub_in": 19.72,
+   "est": [
+    -0.008,
+    1.15,
+    -0.07
+   ],
+   "source": "EXTRA 300L POH p.6-8 moment table: 120 L = 86.4 kg -> 4328 kg·cm => 50.1 cm",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "confidence": "MED",
+   "aircraft": "extra-300-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.2891,
+    1.15,
+    -0.07
+   ],
+   "estimate_body_m": [
+    -0.008,
+    1.15,
+    -0.07
+   ],
+   "delta_x_m_est_minus_pub": -0.2971,
+   "estimate_arm_in": 31.4,
+   "delta_in_est_minus_pub": 11.7
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "status": "NONE",
+   "source": "EASA TCDS A.362 §20 'Baggage/Cargo Compartments: None'; POH placard 'NO BAGGAGE'",
+   "current": "none",
+   "notes": "none",
+   "aircraft": "extra-300-like"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 27.5,
+   "est": [
+    -1.019,
+    -0.0,
+    0.0845
+   ],
+   "source": "TCDS A18EA 2T-1A-2 'No. of seats 2 (1 at 27.5, 1 at 61.5)'",
+   "current": "[-1.193,0,-0.413] (= eye, placeholder)",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant great-lakes/front",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8985,
+    -0.0,
+    0.0845
+   ],
+   "estimate_body_m": [
+    -1.019,
+    -0.0,
+    0.0845
+   ],
+   "delta_x_m_est_minus_pub": -0.1205,
+   "estimate_arm_in": 32.2,
+   "delta_in_est_minus_pub": 4.7
+  },
+  {
+   "item": "Rear seat (PIC)",
+   "kind": "seat",
+   "pub_in": 61.5,
+   "est": [
+    -1.8097,
+    0.0031,
+    0.0007
+   ],
+   "source": "TCDS A18EA",
+   "current": "[-1.96,0,-0.487] (= eye, placeholder)",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant great-lakes/rear",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.7621,
+    0.0031,
+    0.0007
+   ],
+   "estimate_body_m": [
+    -1.8097,
+    0.0031,
+    0.0007
+   ],
+   "delta_x_m_est_minus_pub": -0.0476,
+   "estimate_arm_in": 63.4,
+   "delta_in_est_minus_pub": 1.9
+  },
+  {
+   "item": "Top-wing tank 26 gal",
+   "kind": "fuel",
+   "pub_in": 13.0,
+   "est": [
+    -0.34,
+    0.53,
+    -0.69
+   ],
+   "source": "TCDS A18EA 'one 26.0 gal. tank in top wing at +13.0'",
+   "current": "none",
+   "est_method": "upper wing centre 30% chord",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5302,
+    0.53,
+    -0.69
+   ],
+   "estimate_body_m": [
+    -0.34,
+    0.53,
+    -0.69
+   ],
+   "delta_x_m_est_minus_pub": 0.1902,
+   "estimate_arm_in": 5.5,
+   "delta_in_est_minus_pub": -7.5,
+   "confidence": "MED"
+  },
+  {
+   "item": "Fuselage header tank 1.4 gal (IO-360)",
+   "kind": "fuel",
+   "pub_in": 5.0,
+   "est": [
+    -0.419,
+    -0.0,
+    -0.2155
+   ],
+   "source": "TCDS A18EA 'one 1.4 gal. header tank in fuselage at +5.0'",
+   "current": "none",
+   "est_method": "front seat CG +0.6 m",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.327,
+    -0.0,
+    -0.2155
+   ],
+   "estimate_body_m": [
+    -0.419,
+    -0.0,
+    -0.2155
+   ],
+   "delta_x_m_est_minus_pub": -0.092,
+   "estimate_arm_in": 8.6,
+   "delta_in_est_minus_pub": 3.6,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage aft compartment",
+   "kind": "baggage",
+   "pub_in": 92.0,
+   "est": [
+    -2.4097,
+    0.0031,
+    0.0007
+   ],
+   "source": "TCDS A18EA 2T-1A-2 'Maximum baggage (a) 40 lb. (+92.0)' (s/n 701-1199; s/n 1200+: 30 lb +92.0)",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -2.5368,
+    0.0031,
+    0.0007
+   ],
+   "estimate_body_m": [
+    -2.4097,
+    0.0031,
+    0.0007
+   ],
+   "delta_x_m_est_minus_pub": 0.1271,
+   "estimate_arm_in": 87.0,
+   "delta_in_est_minus_pub": -5.0,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage headrest (s/n 1200+)",
+   "kind": "baggage",
+   "pub_in": 84.0,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    0
+   ],
+   "source": "TCDS A18EA '(b) 10 lb (+84.0) pilot's headrest compartment'",
+   "current": "none",
+   "aircraft": "great-lakes-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -2.3336,
+    0,
+    0
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": 19,
+   "est": [
+    -0.5366,
+    0.0052,
+    -0.1458
+   ],
+   "source": "TCDS A-743 'No. of Seats 2 (+19) and (+55)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant stearman/front",
+   "aircraft": "stearman-pt17-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5266,
+    0.0052,
+    -0.1458
+   ],
+   "estimate_body_m": [
+    -0.5366,
+    0.0052,
+    -0.1458
+   ],
+   "delta_x_m_est_minus_pub": -0.01,
+   "estimate_arm_in": 19.4,
+   "delta_in_est_minus_pub": 0.4
+  },
+  {
+   "item": "Rear seat (PIC)",
+   "kind": "seat",
+   "pub_in": 55,
+   "est": [
+    -1.2537,
+    0.0,
+    -0.406
+   ],
+   "source": "TCDS A-743",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant stearman/rear",
+   "aircraft": "stearman-pt17-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.441,
+    0.0,
+    -0.406
+   ],
+   "estimate_body_m": [
+    -1.2537,
+    0.0,
+    -0.406
+   ],
+   "delta_x_m_est_minus_pub": 0.1873,
+   "estimate_arm_in": 47.6,
+   "delta_in_est_minus_pub": -7.4
+  },
+  {
+   "item": "Centre-section tank 46 gal",
+   "kind": "fuel",
+   "pub_in": -5,
+   "est": [
+    -0.05,
+    0.63,
+    -0.78
+   ],
+   "source": "TCDS A-743 'Fuel Capacity 46 gals. (-5)'",
+   "current": "none",
+   "est_method": "upper wing centre 30% chord",
+   "aircraft": "stearman-pt17-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.083,
+    0.63,
+    -0.78
+   ],
+   "estimate_body_m": [
+    -0.05,
+    0.63,
+    -0.78
+   ],
+   "delta_x_m_est_minus_pub": -0.133,
+   "estimate_arm_in": 0.2,
+   "delta_in_est_minus_pub": 5.2,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 84,
+   "est": [
+    -1.8537,
+    0.0,
+    -0.406
+   ],
+   "source": "TCDS A-743 'Maximum Baggage 60 lbs. (+84)'",
+   "current": "none",
+   "est_method": "rear seat CG -0.6 m",
+   "aircraft": "stearman-pt17-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -2.1776,
+    0.0,
+    -0.406
+   ],
+   "estimate_body_m": [
+    -1.8537,
+    0.0,
+    -0.406
+   ],
+   "delta_x_m_est_minus_pub": 0.3239,
+   "estimate_arm_in": 71.2,
+   "delta_in_est_minus_pub": -12.8,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seats L/R",
+   "kind": "seat",
+   "pub_in": 5,
+   "est": [
+    0.9934,
+    -0.3,
+    -0.377
+   ],
+   "source": "TCDS A-806 'Number of seats Eight 2 front (+5)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant dhc2-beaver/left",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1015,
+    -0.3,
+    -0.377
+   ],
+   "estimate_body_m": [
+    0.9934,
+    -0.3,
+    -0.377
+   ],
+   "delta_x_m_est_minus_pub": 0.8919,
+   "estimate_arm_in": 40.1,
+   "delta_in_est_minus_pub": 35.1
+  },
+  {
+   "item": "Centre bench (3)",
+   "kind": "seat",
+   "pub_in": -31,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.377
+   ],
+   "source": "TCDS A-806 '3 center (-31)'",
+   "current": "none",
+   "notes": "no mannequin/eyepoint",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8129,
+    0,
+    -0.377
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Rear bench (3)",
+   "kind": "seat",
+   "pub_in": -66,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.377
+   ],
+   "source": "TCDS A-806 '3 rear (-66)'",
+   "current": "none",
+   "notes": "no mannequin/eyepoint",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.7019,
+    0,
+    -0.377
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Front tank 29 imp gal",
+   "kind": "fuel",
+   "pub_in": 4.5,
+   "est": [
+    0.8934,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor below front seats",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.0888,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    0.8934,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.8046,
+   "estimate_arm_in": 36.2,
+   "delta_in_est_minus_pub": 31.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Centre tank 29 imp gal",
+   "kind": "fuel",
+   "pub_in": -19.6,
+   "est": [
+    0.2434,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor, front seat -0.75 m",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5233,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    0.2434,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.7667,
+   "estimate_arm_in": 10.6,
+   "delta_in_est_minus_pub": 30.2,
+   "confidence": "MED"
+  },
+  {
+   "item": "Rear tank 21 imp gal",
+   "kind": "fuel",
+   "pub_in": -40.0,
+   "est": [
+    -0.3066,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor, front seat -1.3 m",
+   "aircraft": "dhc2-beaver-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0415,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    -0.3066,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.7349,
+   "estimate_arm_in": -11.1,
+   "delta_in_est_minus_pub": 28.9,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage (aft cabin)",
+   "kind": "baggage",
+   "est": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "source": "TCDS A-806 'Maximum baggage: See approved loading instructions' (not published)",
+   "current": "none",
+   "est_method": "behind rear bench (front seat -2.6 m)",
+   "confidence": "LOW",
+   "aircraft": "dhc2-beaver-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "estimate_body_m": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "estimate_arm_in": -62.2
+  },
+  {
+   "item": "Front seats L/R",
+   "kind": "seat",
+   "pub_in": 5,
+   "est": [
+    0.9934,
+    -0.3,
+    -0.377
+   ],
+   "source": "TCDS A-806 'Number of seats Eight 2 front (+5)'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant dhc2-beaver-floats/left",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1015,
+    -0.3,
+    -0.377
+   ],
+   "estimate_body_m": [
+    0.9934,
+    -0.3,
+    -0.377
+   ],
+   "delta_x_m_est_minus_pub": 0.8919,
+   "estimate_arm_in": 40.1,
+   "delta_in_est_minus_pub": 35.1
+  },
+  {
+   "item": "Centre bench (3)",
+   "kind": "seat",
+   "pub_in": -31,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.377
+   ],
+   "source": "TCDS A-806 '3 center (-31)'",
+   "current": "none",
+   "notes": "no mannequin/eyepoint",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8129,
+    0,
+    -0.377
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Rear bench (3)",
+   "kind": "seat",
+   "pub_in": -66,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.377
+   ],
+   "source": "TCDS A-806 '3 rear (-66)'",
+   "current": "none",
+   "notes": "no mannequin/eyepoint",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.7019,
+    0,
+    -0.377
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Front tank 29 imp gal",
+   "kind": "fuel",
+   "pub_in": 4.5,
+   "est": [
+    0.8934,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor below front seats",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.0888,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    0.8934,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.8046,
+   "estimate_arm_in": 36.2,
+   "delta_in_est_minus_pub": 31.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Centre tank 29 imp gal",
+   "kind": "fuel",
+   "pub_in": -19.6,
+   "est": [
+    0.2434,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor, front seat -0.75 m",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5233,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    0.2434,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.7667,
+   "estimate_arm_in": 10.6,
+   "delta_in_est_minus_pub": 30.2,
+   "confidence": "MED"
+  },
+  {
+   "item": "Rear tank 21 imp gal",
+   "kind": "fuel",
+   "pub_in": -40.0,
+   "est": [
+    -0.3066,
+    0.0,
+    0.073
+   ],
+   "source": "TCDS A-806",
+   "current": "none",
+   "est_method": "under floor, front seat -1.3 m",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0415,
+    0.0,
+    0.073
+   ],
+   "estimate_body_m": [
+    -0.3066,
+    0.0,
+    0.073
+   ],
+   "delta_x_m_est_minus_pub": 0.7349,
+   "estimate_arm_in": -11.1,
+   "delta_in_est_minus_pub": 28.9,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage (aft cabin)",
+   "kind": "baggage",
+   "est": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "source": "TCDS A-806 'Maximum baggage: See approved loading instructions' (not published)",
+   "current": "none",
+   "est_method": "behind rear bench (front seat -2.6 m)",
+   "confidence": "LOW",
+   "aircraft": "dhc2-beaver-floats-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "estimate_body_m": [
+    -1.6066,
+    0.0,
+    -0.277
+   ],
+   "estimate_arm_in": -62.2
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": 135,
+   "est": [
+    -0.9066,
+    0.0,
+    -0.362
+   ],
+   "source": "TCDS 2A8 PA-25-235 (pilot +135; PA-25 LE datum: +59)",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant pa25-pawnee/pilot",
+   "aircraft": "pa25-pawnee-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.0178,
+    0.0,
+    -0.362
+   ],
+   "estimate_body_m": [
+    -0.9066,
+    0.0,
+    -0.362
+   ],
+   "delta_x_m_est_minus_pub": 0.1112,
+   "estimate_arm_in": 130.6,
+   "delta_in_est_minus_pub": -4.4
+  },
+  {
+   "item": "Fuselage tank 38/42 gal",
+   "kind": "fuel",
+   "pub_in": 63,
+   "est": [
+    0.6934,
+    0.0,
+    -0.362
+   ],
+   "source": "TCDS 2A8 PA-25-235 '42 gallons at (+63)'",
+   "current": "none",
+   "est_method": "pilot CG +1.6 m (tank between hopper and firewall)",
+   "confidence": "MED",
+   "aircraft": "pa25-pawnee-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.811,
+    0.0,
+    -0.362
+   ],
+   "estimate_body_m": [
+    0.6934,
+    0.0,
+    -0.362
+   ],
+   "delta_x_m_est_minus_pub": -0.1176,
+   "estimate_arm_in": 67.6,
+   "delta_in_est_minus_pub": 4.6
+  },
+  {
+   "item": "Hopper / cargo (unused as tow plane)",
+   "kind": "baggage",
+   "pub_in": 93,
+   "est": [
+    -0.0066,
+    0.0,
+    -0.362
+   ],
+   "source": "TCDS 2A8 hopper station +93",
+   "current": "none",
+   "est_method": "pilot CG +0.9 m",
+   "aircraft": "pa25-pawnee-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.049,
+    0.0,
+    -0.362
+   ],
+   "estimate_body_m": [
+    -0.0066,
+    0.0,
+    -0.362
+   ],
+   "delta_x_m_est_minus_pub": -0.0556,
+   "estimate_arm_in": 95.2,
+   "delta_in_est_minus_pub": 2.2,
+   "confidence": "MED"
+  },
+  {
+   "item": "Pilot (front L)",
+   "kind": "seat",
+   "pub_in": 80.5,
+   "est": [
+    0.6332,
+    -0.253,
+    -0.218
+   ],
+   "source": "PA-28-181 POH Sec 6",
+   "current": "none",
+   "notes": "",
+   "confidence": "LOW",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant archer/left",
+   "aircraft": "pa28-archer-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.4167,
+    -0.253,
+    -0.218
+   ],
+   "estimate_body_m": [
+    0.6332,
+    -0.253,
+    -0.218
+   ],
+   "delta_x_m_est_minus_pub": 0.2165,
+   "estimate_arm_in": 72.0,
+   "delta_in_est_minus_pub": -8.5
+  },
+  {
+   "item": "Front R",
+   "kind": "seat",
+   "pub_in": 80.5,
+   "est": [
+    0.5504,
+    0.2495,
+    -0.2302
+   ],
+   "source": "PA-28-181 POH Sec 6",
+   "current": "none",
+   "notes": "L/R mannequin CGs differ by 0.08 m (eyepoint asymmetry)",
+   "confidence": "LOW",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant archer/right",
+   "aircraft": "pa28-archer-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.4167,
+    0.2495,
+    -0.2302
+   ],
+   "estimate_body_m": [
+    0.5504,
+    0.2495,
+    -0.2302
+   ],
+   "delta_x_m_est_minus_pub": 0.1337,
+   "estimate_arm_in": 75.2,
+   "delta_in_est_minus_pub": -5.3
+  },
+  {
+   "item": "Rear seats",
+   "kind": "seat",
+   "pub_in": 118.1,
+   "est": null,
+   "yz_from": [
+    0,
+    0.25,
+    -0.22
+   ],
+   "source": "PA-28-181 POH Sec 6",
+   "current": "none",
+   "notes": "no rear mannequin",
+   "aircraft": "pa28-archer-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.5383,
+    0.25,
+    -0.22
+   ],
+   "confidence": "LOW"
+  },
+  {
+   "item": "Wing tanks 48 gal usable (L+R)",
+   "kind": "fuel",
+   "pub_in": 95.0,
+   "est": [
+    -0.068,
+    1.39,
+    0.45
+   ],
+   "source": "PA-28-181 POH Sec 6",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "pa28-archer-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.0484,
+    1.39,
+    0.45
+   ],
+   "estimate_body_m": [
+    -0.068,
+    1.39,
+    0.45
+   ],
+   "delta_x_m_est_minus_pub": -0.1164,
+   "estimate_arm_in": 99.6,
+   "delta_in_est_minus_pub": 4.6,
+   "confidence": "LOW"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 142.8,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.2
+   ],
+   "source": "PA-28-181 POH Sec 6 (200 lb)",
+   "current": "none",
+   "aircraft": "pa28-archer-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.1657,
+    0,
+    -0.2
+   ],
+   "confidence": "LOW"
+  },
+  {
+   "item": "Pilot / front pax",
+   "kind": "seat",
+   "pub_in": 80.5,
+   "est": [
+    0.3526,
+    -0.2975,
+    0.0338
+   ],
+   "source": "PA-44-180 POH Sec 6 'Pilot and Front Passenger 80.5'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant seminole/left",
+   "aircraft": "seminole-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.2777,
+    -0.2975,
+    0.0338
+   ],
+   "estimate_body_m": [
+    0.3526,
+    -0.2975,
+    0.0338
+   ],
+   "delta_x_m_est_minus_pub": 0.0749,
+   "estimate_arm_in": 77.6,
+   "delta_in_est_minus_pub": -2.9
+  },
+  {
+   "item": "Rear seats",
+   "kind": "seat",
+   "pub_in": 118.1,
+   "est": null,
+   "yz_from": [
+    0,
+    0.3,
+    0.0338
+   ],
+   "source": "PA-44-180 POH Sec 6",
+   "current": "none",
+   "notes": "no rear mannequin",
+   "aircraft": "seminole-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.6773,
+    0.3,
+    0.0338
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Nacelle/wing tanks 108 gal (L+R)",
+   "kind": "fuel",
+   "pub_in": 95.0,
+   "est": [
+    -0.073,
+    2.76,
+    0.2
+   ],
+   "source": "PA-44-180 POH Sec 6 'Fuel (108 Gallon Maximum Usable) 95.0'",
+   "current": "none",
+   "est_method": "wing 30% chord at 40% semispan (nacelle tanks)",
+   "aircraft": "seminole-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.0906,
+    2.76,
+    0.2
+   ],
+   "estimate_body_m": [
+    -0.073,
+    2.76,
+    0.2
+   ],
+   "delta_x_m_est_minus_pub": 0.0176,
+   "estimate_arm_in": 94.3,
+   "delta_in_est_minus_pub": -0.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 142.8,
+   "est": [
+    -1.3974,
+    0.0,
+    0.0338
+   ],
+   "source": "PA-44-180 POH Sec 6 (200 lb)",
+   "current": "none",
+   "est_method": "front seat CG -1.75 m",
+   "aircraft": "seminole-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.3047,
+    0.0,
+    0.0338
+   ],
+   "estimate_body_m": [
+    -1.3974,
+    0.0,
+    0.0338
+   ],
+   "delta_x_m_est_minus_pub": -0.0927,
+   "estimate_arm_in": 146.4,
+   "delta_in_est_minus_pub": 3.6,
+   "confidence": "MED"
+  },
+  {
+   "item": "Front seats L/R",
+   "kind": "seat",
+   "pub_in": 143.5,
+   "est": [
+    -0.0045,
+    -0.3406,
+    -0.4639
+   ],
+   "source": "SR22 POH Sec 6",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant sr22/left",
+   "aircraft": "cirrus-sr22-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.0396,
+    -0.3406,
+    -0.4639
+   ],
+   "estimate_body_m": [
+    -0.0045,
+    -0.3406,
+    -0.4639
+   ],
+   "delta_x_m_est_minus_pub": -0.0441,
+   "estimate_arm_in": 145.2,
+   "delta_in_est_minus_pub": 1.7
+  },
+  {
+   "item": "Rear seats",
+   "kind": "seat",
+   "pub_in": 180.0,
+   "est": null,
+   "yz_from": [
+    0,
+    0.34,
+    -0.4639
+   ],
+   "source": "SR22 POH Sec 6",
+   "current": "none",
+   "notes": "no rear mannequin",
+   "aircraft": "cirrus-sr22-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.8875,
+    0.34,
+    -0.4639
+   ],
+   "confidence": "MED"
+  },
+  {
+   "item": "Wing tanks 92 gal (L+R)",
+   "kind": "fuel",
+   "pub_in": 154.9,
+   "est": [
+    -0.054,
+    1.51,
+    0.4
+   ],
+   "source": "SR22 POH Sec 6",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "aircraft": "cirrus-sr22-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.25,
+    1.51,
+    0.4
+   ],
+   "estimate_body_m": [
+    -0.054,
+    1.51,
+    0.4
+   ],
+   "delta_x_m_est_minus_pub": 0.196,
+   "estimate_arm_in": 147.2,
+   "delta_in_est_minus_pub": -7.7,
+   "confidence": "MED"
+  },
+  {
+   "item": "Baggage",
+   "kind": "baggage",
+   "pub_in": 208.0,
+   "est": [
+    -1.7545,
+    0.0,
+    -0.2639
+   ],
+   "source": "SR22 POH Sec 6 (130 lb)",
+   "current": "none",
+   "est_method": "front seat CG -1.75 m",
+   "aircraft": "cirrus-sr22-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -1.5987,
+    0.0,
+    -0.2639
+   ],
+   "estimate_body_m": [
+    -1.7545,
+    0.0,
+    -0.2639
+   ],
+   "delta_x_m_est_minus_pub": -0.1558,
+   "estimate_arm_in": 214.1,
+   "delta_in_est_minus_pub": 6.1,
+   "confidence": "MED"
+  },
+  {
+   "item": "Pilot / pax (side by side)",
+   "kind": "seat",
+   "pub_in": 108.75,
+   "est": [
+    0.3934,
+    -0.195,
+    0.023
+   ],
+   "source": "CAFE report 'Crew moment arm 108.75 in'",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant glasair3/left",
+   "aircraft": "glasair3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.3443,
+    -0.195,
+    0.023
+   ],
+   "estimate_body_m": [
+    0.3934,
+    -0.195,
+    0.023
+   ],
+   "delta_x_m_est_minus_pub": 0.7377,
+   "estimate_arm_in": 79.7,
+   "delta_in_est_minus_pub": -29.0
+  },
+  {
+   "item": "Header tank 5.4 gal",
+   "kind": "fuel",
+   "pub_in": 65.75,
+   "est": [
+    0.9934,
+    0.0,
+    -0.277
+   ],
+   "source": "CAFE report 'Fuel moment arms front/rear 65.75/81.35'",
+   "current": "none",
+   "est_method": "seat CG +0.6 m (fwd of panel)",
+   "confidence": "MED",
+   "aircraft": "glasair3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.7478,
+    0.0,
+    -0.277
+   ],
+   "estimate_body_m": [
+    0.9934,
+    0.0,
+    -0.277
+   ],
+   "delta_x_m_est_minus_pub": 0.2456,
+   "estimate_arm_in": 56.1,
+   "delta_in_est_minus_pub": -9.6
+  },
+  {
+   "item": "Wing tank 51.8 gal",
+   "kind": "fuel",
+   "pub_in": 81.35,
+   "est": [
+    0.15,
+    0.76,
+    0.45
+   ],
+   "source": "CAFE report",
+   "current": "none",
+   "est_method": "inboard wing 30% chord",
+   "confidence": "MED",
+   "aircraft": "glasair3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.3516,
+    0.76,
+    0.45
+   ],
+   "estimate_body_m": [
+    0.15,
+    0.76,
+    0.45
+   ],
+   "delta_x_m_est_minus_pub": -0.2016,
+   "estimate_arm_in": 89.3,
+   "delta_in_est_minus_pub": 8.0
+  },
+  {
+   "item": "Baggage 100 lb",
+   "kind": "baggage",
+   "pub_in": 132.2,
+   "est": [
+    -0.2066,
+    0.0,
+    0.023
+   ],
+   "source": "CAFE report sample CG (baggage arm 132.2)",
+   "current": "none",
+   "est_method": "seat CG -0.6 m",
+   "confidence": "MED",
+   "aircraft": "glasair3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -0.94,
+    0.0,
+    0.023
+   ],
+   "estimate_body_m": [
+    -0.2066,
+    0.0,
+    0.023
+   ],
+   "delta_x_m_est_minus_pub": 0.7334,
+   "estimate_arm_in": 103.3,
+   "delta_in_est_minus_pub": -28.9
+  },
+  {
+   "item": "Crew seats L/R",
+   "kind": "seat",
+   "est": [
+    4.6273,
+    -0.4815,
+    -0.6342
+   ],
+   "source": "TCDS A-669 gives no crew arm",
+   "current": "none",
+   "est_method": "mannequin CG",
+   "confidence": "MED",
+   "aircraft": "dc3-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    4.6273,
+    -0.4815,
+    -0.6342
+   ],
+   "estimate_body_m": [
+    4.6273,
+    -0.4815,
+    -0.6342
+   ],
+   "estimate_arm_in": -92.3
+  },
+  {
+   "item": "Main tanks (2)",
+   "kind": "fuel",
+   "pub_in": 48,
+   "est": [
+    1.056,
+    1.13,
+    -0.9
+   ],
+   "source": "TCDS A-669",
+   "current": "none",
+   "est_method": "centre section 30% chord",
+   "confidence": "LOW",
+   "aircraft": "dc3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    1.0648,
+    1.13,
+    -0.9
+   ],
+   "estimate_body_m": [
+    1.056,
+    1.13,
+    -0.9
+   ],
+   "delta_x_m_est_minus_pub": -0.0088,
+   "estimate_arm_in": 48.3,
+   "delta_in_est_minus_pub": 0.3
+  },
+  {
+   "item": "Aux tanks (2)",
+   "kind": "fuel",
+   "pub_in": 83.5,
+   "est": [
+    0.238,
+    1.13,
+    -0.9
+   ],
+   "source": "TCDS A-669",
+   "current": "none",
+   "est_method": "centre section 50% chord",
+   "confidence": "LOW",
+   "aircraft": "dc3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    0.1631,
+    1.13,
+    -0.9
+   ],
+   "estimate_body_m": [
+    0.238,
+    1.13,
+    -0.9
+   ],
+   "delta_x_m_est_minus_pub": 0.0749,
+   "estimate_arm_in": 80.6,
+   "delta_in_est_minus_pub": -2.9
+  },
+  {
+   "item": "Fwd baggage R",
+   "kind": "baggage",
+   "pub_in": -63,
+   "est": [
+    3.1273,
+    0.0,
+    -0.3342
+   ],
+   "source": "TCDS A-669",
+   "current": "none",
+   "est_method": "crew CG -1.5 m",
+   "confidence": "LOW",
+   "aircraft": "dc3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    3.8842,
+    0.0,
+    -0.3342
+   ],
+   "estimate_body_m": [
+    3.1273,
+    0.0,
+    -0.3342
+   ],
+   "delta_x_m_est_minus_pub": -0.7569,
+   "estimate_arm_in": -33.2,
+   "delta_in_est_minus_pub": 29.8
+  },
+  {
+   "item": "Fwd baggage L",
+   "kind": "baggage",
+   "pub_in": -45,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.3
+   ],
+   "source": "TCDS A-669",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "dc3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    3.427,
+    0,
+    -0.3
+   ]
+  },
+  {
+   "item": "Aft baggage",
+   "kind": "baggage",
+   "pub_in": 354,
+   "est": null,
+   "yz_from": [
+    0,
+    0,
+    -0.3
+   ],
+   "source": "TCDS A-669",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "dc3-like",
+   "status": "CONFIRMED",
+   "primary_body_m": [
+    -6.7076,
+    0,
+    -0.3
+   ]
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.4201,
+    0.0,
+    -0.5955
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant p51/pilot",
+   "aircraft": "p51d-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.4201,
+    0.0,
+    -0.5955
+   ],
+   "estimate_body_m": [
+    0.4201,
+    0.0,
+    -0.5955
+   ]
+  },
+  {
+   "item": "Wing tanks 2×92 gal",
+   "est": [
+    0.046,
+    1.45,
+    0.25
+   ],
+   "est_method": "inboard wing 25% chord",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "p51d-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.046,
+    1.45,
+    0.25
+   ],
+   "estimate_body_m": [
+    0.046,
+    1.45,
+    0.25
+   ]
+  },
+  {
+   "item": "Fuselage tank 85 gal (behind pilot)",
+   "est": [
+    -0.3799,
+    0.0,
+    -0.4955
+   ],
+   "est_method": "pilot CG -0.8 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "p51d-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.3799,
+    0.0,
+    -0.4955
+   ],
+   "estimate_body_m": [
+    -0.3799,
+    0.0,
+    -0.4955
+   ]
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none (radio bay)",
+   "notes": "none",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "p51d-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    1.8558,
+    0.0,
+    -0.2322
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant f86/pilot",
+   "aircraft": "f86-sabre-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    1.8558,
+    0.0,
+    -0.2322
+   ],
+   "estimate_body_m": [
+    1.8558,
+    0.0,
+    -0.2322
+   ]
+  },
+  {
+   "item": "Fuselage tanks (fwd/aft)",
+   "est": [
+    -0.342,
+    0,
+    -0.2
+   ],
+   "est_method": "near MAC quarter chord",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "f86-sabre-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.342,
+    0,
+    -0.2
+   ],
+   "estimate_body_m": [
+    -0.342,
+    0,
+    -0.2
+   ]
+  },
+  {
+   "item": "Wing tanks",
+   "est": [
+    0.396,
+    1.31,
+    -0.3
+   ],
+   "est_method": "inboard wing 30% chord",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "f86-sabre-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.396,
+    1.31,
+    -0.3
+   ],
+   "estimate_body_m": [
+    0.396,
+    1.31,
+    -0.3
+   ]
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "f86-sabre-like"
+  },
+  {
+   "item": "Captain / F/O",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    17.4242,
+    -0.51,
+    -0.05
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant 737/left",
+   "aircraft": "boeing-737-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    17.4242,
+    -0.51,
+    -0.05
+   ],
+   "estimate_body_m": [
+    17.4242,
+    -0.51,
+    -0.05
+   ]
+  },
+  {
+   "item": "Centre tank",
+   "est": [
+    1.012,
+    0,
+    0.9
+   ],
+   "est_method": "wing root 45% chord",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "boeing-737-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    1.012,
+    0,
+    0.9
+   ],
+   "estimate_body_m": [
+    1.012,
+    0,
+    0.9
+   ]
+  },
+  {
+   "item": "Wing tanks (main 1/2)",
+   "est": [
+    0.44,
+    3.99,
+    1.0
+   ],
+   "est_method": "wing 35% chord @30% semispan",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "boeing-737-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.44,
+    3.99,
+    1.0
+   ],
+   "estimate_body_m": [
+    0.44,
+    3.99,
+    1.0
+   ]
+  },
+  {
+   "item": "Fwd cargo hold",
+   "est": [
+    10.556,
+    0,
+    1.2
+   ],
+   "est_method": "midway cockpit-wing LE",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "boeing-737-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    10.556,
+    0,
+    1.2
+   ],
+   "estimate_body_m": [
+    10.556,
+    0,
+    1.2
+   ]
+  },
+  {
+   "item": "Aft cargo hold",
+   "est": [
+    -10.804,
+    0,
+    1.2
+   ],
+   "est_method": "~7 m aft of MAC TE",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "boeing-737-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -10.804,
+    0,
+    1.2
+   ],
+   "estimate_body_m": [
+    -10.804,
+    0,
+    1.2
+   ]
+  },
+  {
+   "item": "Flight deck L/R",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    6.0797,
+    -0.5763,
+    -2.4608
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant h4/left",
+   "aircraft": "hughes-h4-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    6.0797,
+    -0.5763,
+    -2.4608
+   ],
+   "estimate_body_m": [
+    6.0797,
+    -0.5763,
+    -2.4608
+   ]
+  },
+  {
+   "item": "Hull/wing tanks",
+   "est": [
+    -0.847,
+    0,
+    -2.0
+   ],
+   "est_method": "MAC 30%",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "hughes-h4-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.847,
+    0,
+    -2.0
+   ],
+   "estimate_body_m": [
+    -0.847,
+    0,
+    -2.0
+   ]
+  },
+  {
+   "item": "Cargo deck",
+   "est": [
+    -0.313,
+    0,
+    0.5
+   ],
+   "est_method": "near quarter-chord MAC",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "hughes-h4-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.313,
+    0,
+    0.5
+   ],
+   "estimate_body_m": [
+    -0.313,
+    0,
+    0.5
+   ]
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    -1.7721,
+    0.0002,
+    -0.4593
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant geebee/pilot",
+   "aircraft": "geebee-r2-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -1.7721,
+    0.0002,
+    -0.4593
+   ],
+   "estimate_body_m": [
+    -1.7721,
+    0.0002,
+    -0.4593
+   ]
+  },
+  {
+   "item": "Fuselage tank (ahead of pilot)",
+   "est": [
+    -0.7721,
+    0.0002,
+    -0.3593
+   ],
+   "est_method": "pilot CG +1.0 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "geebee-r2-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.7721,
+    0.0002,
+    -0.3593
+   ],
+   "estimate_body_m": [
+    -0.7721,
+    0.0002,
+    -0.3593
+   ]
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "geebee-r2-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.1814,
+    0.0,
+    0.1173
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant cassutt-f1/pilot",
+   "aircraft": "cassutt-f1-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.1814,
+    0.0,
+    0.1173
+   ],
+   "estimate_body_m": [
+    0.1814,
+    0.0,
+    0.1173
+   ]
+  },
+  {
+   "item": "Fuselage tank 14.5 gal (behind firewall)",
+   "est": [
+    0.9314,
+    0.0,
+    -0.1327
+   ],
+   "est_method": "pilot CG +0.75 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "cassutt-f1-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.9314,
+    0.0,
+    -0.1327
+   ],
+   "estimate_body_m": [
+    0.9314,
+    0.0,
+    -0.1327
+   ]
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "cassutt-f1-like"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    1.3434,
+    0.0,
+    0.076
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant aircam/front",
+   "aircraft": "aircam-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    1.3434,
+    0.0,
+    0.076
+   ],
+   "estimate_body_m": [
+    1.3434,
+    0.0,
+    0.076
+   ]
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.4934,
+    0.0,
+    0.076
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant aircam/rear",
+   "aircraft": "aircam-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.4934,
+    0.0,
+    0.076
+   ],
+   "estimate_body_m": [
+    0.4934,
+    0.0,
+    0.076
+   ]
+  },
+  {
+   "item": "Fuel tanks (under/behind rear seat)",
+   "est": [
+    0.1434,
+    0.0,
+    0.226
+   ],
+   "est_method": "rear seat CG -0.35 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "aircam-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.1434,
+    0.0,
+    0.226
+   ],
+   "estimate_body_m": [
+    0.1434,
+    0.0,
+    0.226
+   ]
+  },
+  {
+   "item": "Baggage",
+   "est": [
+    -0.1066,
+    0.0,
+    -0.024
+   ],
+   "est_method": "rear seat CG -0.6 m",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "aircam-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.1066,
+    0.0,
+    -0.024
+   ],
+   "estimate_body_m": [
+    -0.1066,
+    0.0,
+    -0.024
+   ]
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    1.3434,
+    0.0,
+    0.076
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant aircam-amphib/front",
+   "aircraft": "aircam-amphib-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    1.3434,
+    0.0,
+    0.076
+   ],
+   "estimate_body_m": [
+    1.3434,
+    0.0,
+    0.076
+   ]
+  },
+  {
+   "item": "Rear seat",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.4934,
+    0.0,
+    0.076
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant aircam-amphib/rear",
+   "aircraft": "aircam-amphib-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.4934,
+    0.0,
+    0.076
+   ],
+   "estimate_body_m": [
+    0.4934,
+    0.0,
+    0.076
+   ]
+  },
+  {
+   "item": "Fuel tanks (under/behind rear seat)",
+   "est": [
+    0.1434,
+    0.0,
+    0.226
+   ],
+   "est_method": "rear seat CG -0.35 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "aircam-amphib-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.1434,
+    0.0,
+    0.226
+   ],
+   "estimate_body_m": [
+    0.1434,
+    0.0,
+    0.226
+   ]
+  },
+  {
+   "item": "Baggage",
+   "est": [
+    -0.1066,
+    0.0,
+    -0.024
+   ],
+   "est_method": "rear seat CG -0.6 m",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "aircam-amphib-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.1066,
+    0.0,
+    -0.024
+   ],
+   "estimate_body_m": [
+    -0.1066,
+    0.0,
+    -0.024
+   ]
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.178,
+    0.0,
+    0.1295
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant eb29r/pilot",
+   "aircraft": "glider-eb29r-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.178,
+    0.0,
+    0.1295
+   ],
+   "estimate_body_m": [
+    0.178,
+    0.0,
+    0.1295
+   ]
+  },
+  {
+   "item": "Fuel",
+   "status": "NONE",
+   "source": "glider",
+   "notes": "none",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "glider-eb29r-like"
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none (EB29R water ballast not modeled)",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "glider-eb29r-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.8882,
+    0.0,
+    0.1283
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant swift/pilot",
+   "aircraft": "glider-swift-s1-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.8882,
+    0.0,
+    0.1283
+   ],
+   "estimate_body_m": [
+    0.8882,
+    0.0,
+    0.1283
+   ]
+  },
+  {
+   "item": "Fuel",
+   "status": "NONE",
+   "source": "glider",
+   "notes": "none",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "glider-swift-s1-like"
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none (EB29R water ballast not modeled)",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "glider-swift-s1-like"
+  },
+  {
+   "item": "Front seat",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    0.0124,
+    0.0,
+    0.059
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant jenny/front",
+   "aircraft": "jn4-jenny-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.0124,
+    0.0,
+    0.059
+   ],
+   "estimate_body_m": [
+    0.0124,
+    0.0,
+    0.059
+   ]
+  },
+  {
+   "item": "Rear seat (PIC)",
+   "kind": "seat",
+   "pub_in": null,
+   "est": [
+    -0.9966,
+    0.0,
+    0.059
+   ],
+   "source": "",
+   "current": "none",
+   "notes": "",
+   "confidence": "MED",
+   "est_method": "seated 1.778 m de Leva mannequin CG, variant jenny/rear",
+   "aircraft": "jn4-jenny-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    -0.9966,
+    0.0,
+    0.059
+   ],
+   "estimate_body_m": [
+    -0.9966,
+    0.0,
+    0.059
+   ]
+  },
+  {
+   "item": "Fuselage tank 21 gal",
+   "est": [
+    0.5624,
+    0.0,
+    -0.041
+   ],
+   "est_method": "front seat CG +0.55 m",
+   "kind": "fuel",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "jn4-jenny-like",
+   "status": "ESTIMATED",
+   "primary_body_m": [
+    0.5624,
+    0.0,
+    -0.041
+   ],
+   "estimate_body_m": [
+    0.5624,
+    0.0,
+    -0.041
+   ]
+  },
+  {
+   "item": "Baggage",
+   "status": "NONE",
+   "source": "none",
+   "notes": "none",
+   "kind": "baggage",
+   "current": "none",
+   "confidence": "LOW",
+   "aircraft": "jn4-jenny-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "status": "NONE",
+   "source": "",
+   "current": "weightShift pilotMassKg 80",
+   "notes": "no seat (weight-shift / suspended pilot / unmanned)",
+   "aircraft": "hang-glider-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "status": "NONE",
+   "source": "",
+   "current": "none",
+   "notes": "no seat (weight-shift / suspended pilot / unmanned)",
+   "aircraft": "paraglider-en-b-like"
+  },
+  {
+   "item": "Pilot",
+   "kind": "seat",
+   "status": "NONE",
+   "source": "",
+   "current": "none",
+   "notes": "no seat (weight-shift / suspended pilot / unmanned)",
+   "aircraft": "target-drone-like"
+  }
+ ]
+}

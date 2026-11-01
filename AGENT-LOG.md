@@ -1,4 +1,22 @@
 ## NEEDS YOU
+- **LOADING ARM ESTIMATES (Codex, 2026-11-01, lane/codex-loading-arms) — NEEDS YOU, docs only, nothing approved:**
+  1. `docs/pending/loading-arm-estimates.md` and `.json` list seat, fuel and baggage arms for all 34 configs.
+     Each row is marked CONFIRMED (TCDS, POH or W&B sheet, cited with its source, datum kept, converted to the
+     game body frame) or ESTIMATED (seated 1.778 m mannequin CG, or model-geometry heuristics). Our estimate
+     is shown beside each published value with the difference.
+     - CONFIRMED: C172, J-3 x2, PA-18 x3, Decathlon, 2-33, Pitts, Extra, Great Lakes, Stearman, Beaver x2,
+       Pawnee, Archer, Seminole, SR22, Glasair III, and the DC-3 tanks and baggage.
+     - ESTIMATED only: P-51, F-86, 737, H-4, Gee Bee, Cassutt, AirCam x2, Swift, EB29R and Jenny.
+     - No seat: hang-glider, paraglider and target drone.
+  2. **Big model-vs-published gaps for you to judge.** These are cockpit/wing placement, not W&B, and none
+     were changed here:
+     - Beaver: the mannequin is 0.89 m forward of the TCDS A-806 front-seat arm.
+     - Glasair III: 0.74 m forward of the CAFE crew arm (the LEMAC and main-gear anchors agree).
+     - Decathlon: 0.41 m forward.
+     - Extra: the front-to-rear spacing is 0.92 m vs a published 1.09 m.
+  3. The anchors (where each datum sits in the game frame) are derived from model geometry. Archer and DC-3
+     are LOW, the Extra firewall is ±0.05 m, and Great Lakes is ±0.025 m.
+  4. No src/ or config was touched, so no deploy.sh or install was needed. Claude has a prompt to wire these in.
 - **SEAT EYES / COCKPIT CAMERA (Claude, 2026-10-31, lane/claude-eyepoints) — NEEDS YOU, six things:**
   1. **Does the Great Lakes rear eye look right?** You asked about "3 cm below the top line". Measured against
      the real GLB, not the procedural shell: the REAR eye (-1.960, 0, -0.487) is **3.5 cm below the top of the
