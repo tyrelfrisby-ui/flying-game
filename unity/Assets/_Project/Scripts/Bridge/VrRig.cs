@@ -154,7 +154,7 @@ namespace FlyingGame.Bridge
             _compositor = GetComponent<IVrCompositor>();
             if (_compositor == null)
             {
-                _compositor = gameObject.AddComponent<VrCompositorSideBySide>();
+                _compositor = gameObject.AddComponent<VrCompositorCardboard>();
                 _compositorIsOurs = true;      // only tear down the stand-in; Codex's own stays put
             }
             _compositor.Configure(lens, _leftRt, _rightRt);

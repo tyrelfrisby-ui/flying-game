@@ -1,4 +1,8 @@
 ## NEEDS YOU
+- **VR VISUALS (Codex, 2026-11-01, lane/codex-vr-stereo) — NEEDS YOU:** Unity compile, `VrStereoShots`
+  renders and iOS build done (see Log); Cardboard headset checks: image orientation, edge straightness, red/blue fringe,
+  binocular fusion, HUD size/depth/occlusion and frame time. HUD modes are `off` and `minimal` (IAS kt, altitude
+  ft MSL, true heading); unknown modes hide it. No build, render or headset approval is claimed.
 - **SIDE-BY-SIDE VR FOR A CARDBOARD HEADSET (Claude, 2026-11-01, lane/claude-vr-stereo) — engine and app logic
   only; the lenses are Codex's. NEEDS YOU on a real headset, five things:**
   1. **IPD.** It ships at **63 mm** with a slider from 55 to 75 in Options → Controls. 63 mm is the adult mean,
@@ -763,6 +767,61 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+
+### 2026-11-01 · Codex · lane/codex-vr-stereo · VR visuals
+
+- Implemented `VrCompositorCardboard` through `IVrCompositor`. The rig's only code change is the default
+  compositor component selection; the original side-by-side compositor remains as reference/fallback.
+  Both eyes occupy their respective full-height halves, with no gap/overscan; OnGUI repaint at depth 1000
+  drives the backbuffer while the main camera is disabled. Destination dimensions drive sizing.
+- Added engine-free `VrDistortion`: physical lens centres use inter-lens and tray/alignment geometry;
+  source eye tangents use `VrOptics.Distort(screen tangent)` followed by the CA colour scale, then
+  the same `EdgeTangent` frustum bounds as the rig. No JSON loading. Operator review corrected the
+  previous inverse mapping; shader valid() still blacks out out-of-frustum samples.
+  Assumption: a 64×64-cell mesh per eye, rebuilt on Configure or physical size change, is sufficient;
+  rendered edge quality and device cost still need measuring. CA applies profile red/blue radial scales to
+  source tangents about the lens axis; green is unscaled. Out-of-frustum samples are black per channel.
+  Shaders live in Resources and load explicitly for iOS inclusion; no literal lens coefficients in shaders.
+- Added a single world-space binocular HUD surface 1.5 m ahead, 0.24 m low (~9.1° below sight), following the head without a
+  second pose smoother. Text uses fontSize 64 with characterSize 0.01 and two-space field gaps, capped at
+  0.48 m rendered width. The backing follows root-local MeshRenderer bounds on each text change with
+  0.02 m horizontal / 0.012 m vertical total padding (at most 0.5 m wide, ~±9.5°), and 0.55 alpha.
+  White font-alpha text and semi-transparent dark backing use Resources-loaded
+  shaders with ZTest Always / ZWrite Off, queues Overlay+1 / Overlay, so cockpit geometry cannot hide
+  them. Geometry remains binocular and renders within each eye before the lens pass. Owned text material
+  is released alongside the backing material. Reads the same FlightSimDriver IAS/altitude and aircraft-forward heading as the flat HUD.
+  Vocabulary: `off` = hidden, `minimal` = IAS kt / altitude ft MSL / true heading; case-insensitive;
+  unknown/null = hidden. Only visible while VrMode.On. No touch controls.
+- Edit-mode references resolve lazily. `VrStereoShots` explicitly calls `PrepareForTesting` before eye
+  rendering to supply the same physical screen dimensions as the rig and refresh the HUD without lifecycle
+  messages. Runtime physical size uses destination pixels and Screen.dpi, falling back to the rig's 326 dpi.
+- Added VrDistortion tests for linear identity, colour scaling about the physical axis, nonlinear mirror
+  symmetry, vertical alignment and HUD vocabulary. Review added a hand-literal direction test:
+  screen tangent .5 maps to .5 + .041978205 + .0172964971875 = .5592747021875, further from the
+  axis than the linear lens; out-of-frustum UVs remain outside [0,1]. Removed the duplicate HudMode summary.
+  Validation re-run after operator review: Core, Sim and FlightTests compiled via the filtered dotnet command (single-process
+  MSBuild, shared compilation disabled after sandbox denied MSBuild's named pipe). VSTest then aborted
+  before executing tests: SocketException (13), permission denied binding its local communication socket.
+  Tests are therefore NOT reported green. `git diff --check` is clean. No Unity, Xcode,
+  deploy, ProjectSettings, StreamingAssets, head tracking, eye placement or Glass Overlay work performed.
+- **Open question for Claude (rig, deliberately unchanged):** `VrOptics.EdgeTangent` uses
+  `Undistort(reach/d)` for screen limits, contradicting Distort's doc and Cardboard's mesh convention.
+  Should use `Distort(reach/d)`, then min with the lens limit. Current iPhone outer edge is ~0.73 tan
+  instead of ~1.73 capped by the 60° lens limit; corrected compositor therefore leaves black eye margins.
+  This lane has not modified VrOptics or eye placement.
+- **Comfort question for Ty:** at 1.5 m the binocular HUD requires vergence at that depth, yet draws over
+  nearer 0.5–1 m panel/cowling geometry. Does that vergence/occlusion conflict remain comfortable and legible?
+  Headset judgement is pending; overlay visibility is intentional.
+- **Open gates:** operator must compile Unity and render the four shot-tool frames; Ty must judge actual
+  viewer fit, correction direction/strength, residual colour fringe, fusion, HUD legibility/occlusion and
+  comfort/frame time. The profile and phone dpi assumptions remain unmeasured. Nothing is approved.
+- **Operator verification (Grok Bot for Ty, 2026-11-01):** `dotnet test tools/FlightTests` filtered to
+  VrDistortion|VrStereo: 48 passed, 0 failed. `VrStereoShots.Render`: exit 0, 0 `error CS`, PASS (0 failures),
+  four frames (iPhone 2532×1170, iPad mini 2266×1488; ahead and yaw30-roll15). Unity BuildiOS export: 0 `error CS`;
+  xcodebuild Release generic iOS: `** BUILD SUCCEEDED **`. bundleVersion bump reverted. Not installed, not
+  merged, no TestFlight. Renders show the black eye margins from the EdgeTangent question above; iPad mini image
+  sits low (bottom alignment on a tall screen).
+
 ### 2026-11-01 — Claude · lane/claude-vr-stereo · side-by-side stereo VR (engine, rig, tracking, toggle, tests)
 
 **Branched from lane/claude-island-nav (aacb429). Local commit only; not merged.** A NEW mode alongside the
