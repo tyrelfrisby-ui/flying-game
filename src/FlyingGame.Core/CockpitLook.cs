@@ -52,13 +52,24 @@ public sealed class CockpitLook
     /// hand tremor reaches the stops.</summary>
     public const double MinDeviceGain = 1.0, MaxDeviceGain = 10.0;
 
-    private double _deviceGain = MinDeviceGain;
+    /// <summary>What the gain is before anybody touches the slider. Ty flew the phone at 1.0, 7.0 and 5.0 and
+    /// asked for "3 to 4" (2026-11-01), so 3.5 is the middle of what he asked for.
+    ///
+    /// This is deliberately NOT <see cref="MinDeviceGain"/>, which is only the bottom of the slider's travel.
+    /// Every default used to read the floor, so the feature shipped at 1.0 — one degree of view per degree of
+    /// phone, a window rather than a control, which is honest but means turning your whole body to look at the
+    /// wingtip. The two numbers answer different questions and now have different names.</summary>
+    public const double DefaultDeviceGain = 3.5;
+
+    private double _deviceGain = DefaultDeviceGain;
 
     public double DeviceGain
     {
         get => _deviceGain;
+        // A value that is not a number is not a setting: fall back to the DEFAULT rather than to the floor,
+        // which is what "we have nothing usable" means everywhere else.
         set => _deviceGain = double.IsFinite(value)
-            ? System.Math.Clamp(value, MinDeviceGain, MaxDeviceGain) : MinDeviceGain;
+            ? System.Math.Clamp(value, MinDeviceGain, MaxDeviceGain) : DefaultDeviceGain;
     }
 
     // The two contributions are kept apart so they can compose: the hat and the snaps own the first, the device

@@ -125,6 +125,17 @@ time the render showed something the numbers could not: a mirrored lever order, 
 behind a case. Geometry that passes every assertion can still be wrong on screen. Budget a render and actually
 open it.
 
+### A slider's floor is not its default
+Device look-around shipped at gain 1.0 because every default read `MinDeviceGain` — the bottom of the slider's
+travel — as though "the smallest legal value" and "the value you get before you choose" were the same question.
+They are not: Ty flew it at 1.0, 7.0 and 5.0 and asked for 3 to 4. Give the default its own named constant
+(`CockpitLook.DefaultDeviceGain`), and when you move it, check which tests were reading it IMPLICITLY — a dozen
+tests here were about direction, not gain, and constructing the object with no gain quietly multiplied all their
+expectations. Pin those at an explicit value (`OneToOne()`) so they keep testing what they are named after.
+
+And changing a default must not touch anybody's saved setting: `GetFloat(key, default)` already does the right
+thing, so leave the pref alone rather than "migrating" it.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it

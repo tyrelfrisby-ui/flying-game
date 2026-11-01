@@ -42,14 +42,16 @@ namespace FlyingGame.Bridge
         // active"). The instance below follows them; it does not own them.
 
         private static bool _settingsLoaded, _deviceLook, _springCentre;
-        private static float _deviceGain = (float)CockpitLook.MinDeviceGain;
+        private static float _deviceGain = (float)CockpitLook.DefaultDeviceGain;
 
         private static void LoadSettings()
         {
             if (_settingsLoaded) return;
             _settingsLoaded = true;
             _deviceLook = PlayerPrefs.GetInt(PrefDeviceLook, PlayerPrefs.GetInt(PrefGoggles, 0)) == 1;
-            _deviceGain = Mathf.Clamp((float)PlayerPrefs.GetFloat(PrefGain, (float)CockpitLook.MinDeviceGain),
+            // A pref that exists wins; the default only applies to a pilot who has never moved the slider, so
+            // nobody's saved setting is migrated or reset by this changing.
+            _deviceGain = Mathf.Clamp((float)PlayerPrefs.GetFloat(PrefGain, (float)CockpitLook.DefaultDeviceGain),
                                       (float)CockpitLook.MinDeviceGain, (float)CockpitLook.MaxDeviceGain);
             _springCentre = PlayerPrefs.GetInt(PrefSpring, 0) == 1;
         }
