@@ -80,6 +80,10 @@ unity/*.sln
 scripts/claude-run.sh
 scripts/NEXT-PROMPT.md
 
+# Cockpit view renders and other review artefacts written by the editor checks (generated; regenerate with
+# Unity -executeMethod FlyingGame.EditorTools.CockpitEyeCheck.Run, without -nographics).
+logs/
+
 # Unity performance-test run info (generated)
 unity/Assets/Resources/PerformanceTest*
 unity/Assets/Resources.meta

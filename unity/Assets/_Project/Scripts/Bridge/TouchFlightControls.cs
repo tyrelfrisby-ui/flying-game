@@ -104,10 +104,21 @@ namespace FlyingGame.Bridge
         public float TrimAileron => _aileronTrim * TrimAuthority;
         public float TrimRudder => _rudderTrim * TrimAuthority;
         // Buttons fire on the finger that touches them (not IMGUI), so they work while the pads are held (owner).
-        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke }
+        private enum Btn { Reset, Aircraft, Flaps, Gear, Tow, Bail, Smoke, LookCentre }
         private readonly HashSet<Btn> _tapped = new();
         private Rect _gearRect;                             // GEAR UP / DOWN (retractable types)
         private Rect _smokeRect;                            // SMOKE ON / OFF (owner 2026-10-31: a full-time button, not a menu)
+        private CockpitView _cockpitCache;
+        private CockpitView _cockpit => _cockpitCache ??= GetComponent<CockpitView>();
+        /// <summary>Looking around is only a thing when you are sitting in the aeroplane.</summary>
+        private bool LookAvailable => _cockpit != null && ChaseCamera.InCockpit;
+        private Rect _lookLeftRect, _lookCentreRect, _lookRightRect;
+        /// <summary>The finger on a look button and which way it points. Held is a pan and a tap is a snap, but
+        /// neither is decided here: the direction goes to CockpitView.OnScreenHat and ITS tap window decides,
+        /// exactly as it does for a stick's hat, so glass and hat cannot drift apart.</summary>
+        private int _lookFinger = int.MinValue;
+        private int _lookDir;
+
         private SmokeController _smokeCache;
         private SmokeController _smoke => _smokeCache ??= GetComponent<SmokeController>();
         /// <summary>Whether to give SMOKE a slot at all: anything that can carry the oil, which is every type with an
@@ -173,7 +184,13 @@ namespace FlyingGame.Bridge
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
-            if (SessionSettings.MenuOpen || SessionSettings.ReplayActive) { _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f; return; } // landing page owns the screen
+            if (SessionSettings.MenuOpen || SessionSettings.ReplayActive)
+            {
+                _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f;
+                _lookFinger = int.MinValue; _lookDir = 0;
+                if (_cockpit != null) _cockpit.OnScreenHat = Vector2Int.zero;
+                return;   // landing page owns the screen
+            }
             ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
             PublishToDriver();
@@ -248,6 +265,15 @@ namespace FlyingGame.Bridge
             float barH = s * 0.045f;
             _rudTrimRect = new Rect(_leftCenter.x - _half, _leftCenter.y - _half - gap - barH, 2f * _half, barH);
             _ailTrimRect = new Rect(_rightCenter.x - _half, _rightCenter.y - _half - gap - barH, 2f * _half, barH);
+            // LOOK: three buttons at the TOP centre, under the toolbar, only while in the cockpit. They go up
+            // there because the bottom cluster is already four rows deep and has a keep-out rule, and because
+            // looking around belongs beside VIEW rather than among the aeroplane's switches.
+            float lookW = Mathf.Min(_half * 0.62f, w * 0.14f), lookH = _half * 0.24f, lookGap = gap * 0.8f;
+            float lookY = UiLayout.ToolbarBottom + gap;
+            float lookX = w * 0.5f - (3f * lookW + 2f * lookGap) * 0.5f;
+            _lookLeftRect = new Rect(lookX, lookY, lookW, lookH);
+            _lookCentreRect = new Rect(lookX + lookW + lookGap, lookY, lookW, lookH);
+            _lookRightRect = new Rect(lookX + 2f * (lookW + lookGap), lookY, lookW, lookH);
             _fireRect = FireRectTopLeft();
             if (StripMode) LayOutStrips(w);
             PublishBand();
@@ -420,6 +446,7 @@ namespace FlyingGame.Bridge
                 {
                     if (p.id == _leftFinger) ReleaseLeft();
                     if (p.id == _rightFinger) ReleaseRight();
+                    if (p.id == _lookFinger) { _lookFinger = int.MinValue; _lookDir = 0; }
                     if (p.id == _trimFinger) _trimFinger = int.MinValue; // trim holds where it was left
                     if (p.id == _ailTrimFinger) _ailTrimFinger = int.MinValue;
                     if (p.id == _rudTrimFinger) _rudTrimFinger = int.MinValue;
@@ -442,6 +469,11 @@ namespace FlyingGame.Bridge
                     if (_brakeRect.Contains(p.pos)) { _flapTapThird = Mathf.Clamp(Mathf.FloorToInt((p.pos.x - _brakeRect.x) / _brakeRect.width * 3f), 0, 2); _tapped.Add(Btn.Flaps); continue; }
                     if (_gearRect.Contains(p.pos)) { _tapped.Add(Btn.Gear); continue; }
                     if (SmokeAvailable && _smokeRect.Contains(p.pos)) { _tapped.Add(Btn.Smoke); continue; }
+                    if (LookAvailable && _lookCentreRect.Contains(p.pos)) { _tapped.Add(Btn.LookCentre); continue; }
+                    if (LookAvailable && _lookLeftRect.Contains(p.pos) && _lookFinger == int.MinValue)
+                    { _lookFinger = p.id; _lookDir = -1; continue; }
+                    if (LookAvailable && _lookRightRect.Contains(p.pos) && _lookFinger == int.MinValue)
+                    { _lookFinger = p.id; _lookDir = 1; continue; }
                     if (_towRect.Contains(p.pos)) { _tapped.Add(Btn.Tow); continue; }
 
                     if (DeskMode) continue;   // Mac: no touch pads / trim sliders to grab
@@ -467,8 +499,14 @@ namespace FlyingGame.Bridge
                     if (_ejectRect.Contains(p.pos)) _ejectHold += Time.unscaledDeltaTime;
                     else { _ejectFinger = int.MinValue; _ejectHold = 0f; }   // slid off the button: cancel
                 }
+                else if (p.id == _lookFinger
+                         && !(_lookDir < 0 ? _lookLeftRect : _lookRightRect).Contains(p.pos))
+                { _lookFinger = int.MinValue; _lookDir = 0; }                                             // slid off: stop panning
                 else if (p.id == _fireFinger && !_fireRect.Contains(p.pos)) _fireFinger = int.MinValue;   // slid off: cease fire
             }
+            // Hand the held direction to CockpitView, which runs the same tap-vs-pan window a stick's hat runs
+            // through. Zero every frame no finger is down, or the head would keep turning after the lift.
+            if (_cockpit != null) _cockpit.OnScreenHat = new Vector2Int(_lookFinger != int.MinValue ? _lookDir : 0, 0);
             _combat ??= GetComponent<CombatController>();
             // Fire: the on-screen button, the space bar, or a game controller's A / right shoulder (MFi / PlayStation /
             // Xbox over Bluetooth — the phone's own volume, Action and Camera Control buttons are reserved by iOS for
@@ -511,6 +549,9 @@ namespace FlyingGame.Bridge
                         break;
                     case Btn.Smoke:
                         if (SmokeAvailable) _smoke.Toggle();
+                        break;
+                    case Btn.LookCentre:
+                        if (LookAvailable) _cockpit.Centre();
                         break;
                     case Btn.Tow:
                         if (tow != null && ac?.Config?.Propulsion == null)
@@ -831,6 +872,20 @@ namespace FlyingGame.Bridge
                 bool on = _smoke.On;
                 GUI.color = on ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
                 Button(_smokeRect, on ? "SMOKE ON" : "SMOKE");
+                GUI.color = Color.white;
+            }
+            // LOOK ◀ / centre / ▶ (owner 2026-10-31): the aerobatic sights sit on the eye's own lateral line, about
+            // 90 degrees off the nose, so without a way to turn your head they can never be seen. Shown only in the
+            // cockpit, lit while the head is off centre.
+            if (LookAvailable)
+            {
+                double yaw = _cockpit.Look.YawDeg;
+                GUI.color = yaw < -1.0 ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                Button(_lookLeftRect, "◀ LOOK");
+                GUI.color = System.Math.Abs(yaw) <= 1.0 ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                Button(_lookCentreRect, "AHEAD");
+                GUI.color = yaw > 1.0 ? new Color(1f, 0.85f, 0.3f, 1f) : Color.white;
+                Button(_lookRightRect, "LOOK ▶");
                 GUI.color = Color.white;
             }
             // Flaps (types that have them): cycle 0 / ½ / full, in the slot beside Reset. In a lesson the flaps are part of
