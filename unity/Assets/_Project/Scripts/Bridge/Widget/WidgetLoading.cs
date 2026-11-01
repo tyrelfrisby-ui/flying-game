@@ -1,4 +1,5 @@
 using FlyingGame.Core.DataContracts;
+using FlyingGame.Core.Loading;
 using FlyingGame.Core.MathTypes;
 using UnityEngine;
 
@@ -28,14 +29,14 @@ namespace FlyingGame.Bridge.Widget
 
         public double MacM, LemacX;                // MAC length and its leading edge (body x, config coords; + forward)
         public double DefaultKg, EmptyKg, MaxGrossKg, DefaultCgMac, NpMac;
-        /// <summary>The certificated envelope, or null for a type that has no weight-and-balance data yet.</summary>
-        private LoadingConfig _env;
         private double _fwdGuess, _aftGuess;
         /// <summary>Forward CG limit at the CURRENT weight — a real envelope narrows as the aeroplane fills up.</summary>
-        public double FwdLimitMac => _env != null ? WeightAndBalance.LimitsAt(_env, Kg).Forward : _fwdGuess;
-        public double AftLimitMac => _env != null ? WeightAndBalance.LimitsAt(_env, Kg).Aft : _aftGuess;
+        // The certificated envelope went with the 2026-10-30 load sheet (see StartMenu and e4755c9), so these
+        // are the sim's stand-in limits until it is revived on the newer schema.
+        public double FwdLimitMac => _fwdGuess;
+        public double AftLimitMac => _aftGuess;
         /// <summary>True when the limits above are the type's own certificated ones rather than this sim's stand-in.</summary>
-        public bool LimitsArePublished => _env != null;
+        public bool LimitsArePublished => false;
         private double _cg0X; private InertiaConfig _i0;
         public double Cg0X => _cg0X;
         public double TargetKg, TargetCgMac;
@@ -58,15 +59,6 @@ namespace FlyingGame.Bridge.Widget
             NpMac = XToMac(_w.NeutralPointBody().X);
             // Only the ENVELOPE is needed here — this control loads by gross weight and CG, not by station — so a type
             // with its certificate read but no loading table still gets its real limits.
-            _env = null;   // the published CG envelope went with the 2026-10-30 load sheet (see StartMenu); the sliders stay
-            if (_env != null)
-            {
-                MaxGrossKg = _env.MaxTakeoffMassKg;
-                // An empty weight is a separate fact from the envelope and some certificates do not carry one; the
-                // old 62 % stand-in covers that case rather than claiming a number nobody published.
-                EmptyKg = _env.EmptyMassKg > 0 ? _env.EmptyMassKg : 0.62 * DefaultKg;
-            }
-            else
             {
                 EmptyKg = 0.62 * DefaultKg; MaxGrossKg = DefaultKg;
                 _fwdGuess = DefaultCgMac - 9.0;

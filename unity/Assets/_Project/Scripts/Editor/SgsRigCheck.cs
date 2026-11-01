@@ -36,7 +36,9 @@ namespace FlyingGame.EditorTools
             try
             {
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-                SessionSettings.LiveryId = "factory";
+                // The livery is per TYPE now (SessionSettings.SetLivery / LiveryFor), not one global id: the picker
+                // reads it through one place and LiveryPickerTests holds that line.
+                SessionSettings.SetLivery(Type, "factory");
                 SessionSettings.UseAirframeModels = true;
                 SessionSettings.UseOwnModels = true;
 

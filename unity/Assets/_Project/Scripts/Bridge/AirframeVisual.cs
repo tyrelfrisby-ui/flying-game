@@ -131,37 +131,6 @@ namespace FlyingGame.Bridge
         private readonly CockpitDisplays _displays = new();
         public readonly SequenceCard Card = new();
 
-        /// <summary>The control positions the AERO MODEL is using, plus everything the panel shows, in the units
-        /// the rig table asks for.
-        ///
-        /// The stick positions come from RigInputs.FromDeflections, which owns the one sign that has to be got
-        /// right (the sim's elevator is positive trailing-edge down, the rig's is positive stick aft); the trim
-        /// lever needs the same flip, and is done here because it is the pilot's control, not the airframe's.
-        /// Everything else is <see cref="CockpitRigState"/>'s.</summary>
-        private FlyingGame.Core.RigInputs RigInputsNow(FlyingGame.Sim.Aircraft ac, in FlyingGame.Core.Aero.ControlDeflections d, float dt)
-        {
-            if (!_cockpitLooked)
-            {
-                // The trim lever and the release knob are the pilot's, not the airframe's: they live on the
-                // controls and the tow, where the player's hands reach them.
-                _touch = GetComponent<TouchFlightControls>();
-                _tow = GetComponent<TowController>();
-                _cockpitLooked = true;
-            }
-            ControlsConfig c = ac.Config.Controls;
-            FlyingGame.Core.RigInputs r = FlyingGame.Core.RigInputs.FromDeflections(
-                d.AileronRad, d.ElevatorRad, d.RudderRad, d.SpoilerFraction,
-                c.Aileron.MaxDeflRad, c.Elevator.MaxDeflRad, c.Rudder.MaxDeflRad);
-
-            // The trim LEVER's own position. The slider biases the elevator nose-DOWN for positive, and the
-            // lever is positive aft / nose-up, so it is the negative of the bias in stick units.
-            r.Trim = _touch != null ? System.Math.Clamp(-_touch.TrimElevator / Mathf.Max(0.01f, _touch.TrimAuthority), -1.0, 1.0)
-                                    : System.Math.Clamp(-_driver.TrimStick / 0.6, -1.0, 1.0);
-            r.TowRelease = _tow != null ? _tow.KnobPull01 : 0.0;
-            Cockpit.Fill(ref r, _driver, ac, d, dt);
-            _lastRig = r;
-            return r;
-        }
 
         private FlyingGame.Core.RigInputs _lastRig;
 
@@ -230,7 +199,6 @@ namespace FlyingGame.Bridge
 
         // ---- what the model's own rig is fed (AirframeRig) --------------------------------------------------
 
-        private TouchFlightControls _touch; private TowController _tow; private bool _cockpitLooked;
         private double _energyHeightM = double.NaN, _varioMs;
         private float _headingFiltDeg = float.NaN;
 
