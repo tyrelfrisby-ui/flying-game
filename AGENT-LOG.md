@@ -1,4 +1,52 @@
 ## NEEDS YOU
+- **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
+  lane/claude-gl-dials):**
+  1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
+     that Codex's case face was nowhere to be seen — and the cause was that I had built the thing inside out.
+     The pilot sits at smaller x; the card drum's near face was 29 mm NEARER you than the face plate, so the
+     drum was outside the case and the plate was buried behind it. From you outwards it now goes: the alpha
+     face plate (aft-most, 2 mm proud), then the case, then the card wholly inside it. The case is **five walls
+     with the aft side open** — a solid box would have hidden the very card the window exists to show — and it
+     is 62 mm deep, because a 53 mm card has to fit in there, which is about how deep a real wet compass is.
+     Measured off the export: the drum clears the case by 2.9 mm forward, 5.6 mm aft, 5.3 mm each side and
+     9.6 mm above and below, and the face plate is unobstructed from the front eye at 25 of 25 sample points,
+     so the lubber line is in view.
+  2. **The chrome bezel was never broken. Its neighbours were eating it.** I measured the ring first: 384
+     triangles, all 360 degrees covered, no hole — one step from telling you it was just reflection. It was the
+     **tachometer's face cutting into it**. Every adjacent pair in that row of six interpenetrated, by 8 to
+     16 mm; the five dark bezels had the same fault and hid it, because a dark ring cut by a dark face still
+     looks like a dark ring. **My doing, last commit**: I scaled the audit's photo spacing down to the row's
+     existing 290 mm width, and six real instruments do not fit in 290 mm.
+  3. **So the row is spaced properly now, and that is the part worth your eye.** Sizes are real instrument
+     cases — three 3-1/8 in (altimeter, ASI, tachometer) and three 2-1/4 in — and the photo's own numbers are
+     what argue for it: the three small ones measure 0.71, 0.70 and 0.67 of the ASI, all within a millimetre of
+     a 2-1/4 in case, and the large ones read 1.10 and 0.90 because the altimeter is nearest your oblique
+     camera and the tachometer furthest. Spacing is the audit's ratios taken **as metres** — one ASI diameter
+     per unit — giving a **477 mm row on a 724 mm panel**, with 12.9 mm of air at the tightest pair and 40 mm
+     at the widest. The panel's toggle switch moved up beside the warning lamp, because the altimeter now
+     occupies where it used to sit. **Does that row match your photograph?** It is wider than before and the
+     tachometer has moved outboard.
+  4. **I lit the compass card, and you should say whether you want that.** Once the card was inside a closed
+     case it went dark: at 000 the render read a bare N where it had read 3 N 33 out in the open. A real
+     whiskey compass carries its own lamp, so the card material is now self-lit (emissive at 0.6). It is the
+     only self-lit thing on the aeroplane apart from the avionics displays. If you would rather it were lit by
+     the cockpit like everything else and simply dim, say so and it comes straight back out.
+  5. **Codex's band art and his face art disagree, and I cannot settle it from here — ART, NEEDS YOU.** At 000
+     the card reads **N** under the lubber line and at 090 it reads **E**, so the sign is right. But only the
+     letter under the line is legible: the numbers either side compress away. The audit's band contract says
+     the window shows **66.8 degrees** of card, which is a FLAT strip read through a slot. The card in the
+     model is a drum, and the 360-degree band has to wrap its circumference, because one degree of heading must
+     be one degree of card. The window is 53.3 mm and the drum is 53.3 mm across — so the window spans **180
+     degrees** of it, and everything but the middle is squeezed into the silhouette. To show 66.8 degrees the
+     drum would have to be **96.8 mm across, in a case about 105 mm wide**, and the face art draws a 64 mm
+     housing. So either the compass gets bigger (and Codex redraws the face), or the band is redrawn for a
+     cylindrical card. Not mine to pick — it is his art and your panel.
+  The reverse-sensing sign is unchanged and still verified from the seat-eye renders. **Everything from the
+  first pass below still stands, including both open questions.** Re-run this round: `check_great_lakes_rig`
+  59/59 — and it now measures the exported dial faces and **fails if two instruments share space**, which it
+  does on the old model, all five pairs — `check_sights` PASS (8 GLBs, 808/808 rays), the sequence card still
+  25 of 25 from the rear eye, `CockpitEyeCheck` PASS, `GreatLakesQuadrantShots` PASS (rear 54 mm, front 97 mm).
+  Renders overwritten in `~/Developer/agent-lanes/aero-playground/gl-dials/`. No gate is marked approved.
 - **GREAT LAKES FRONT PANEL: SIX GAUGES AND A WET COMPASS (Claude, 2026-11-01, lane/claude-gl-dials) — NEEDS
   YOU, two things:**
   1. **`check_sights` PASSES now — and the upper hinge lines in it are invented, on your instruction.** You

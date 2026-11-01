@@ -99,6 +99,47 @@ def check(path):
     for a, b, lo, hi in zip(front_row, front_row[1:], seen, seen[1:]):
         assert lo > hi, ('front row out of order left to right', a, lo, b, hi)
 
+    # AND NO TWO OF THEM MAY OCCUPY THE SAME SPACE. Ty saw the chrome bezel on the oil pressure gauge in
+    # pieces (2026-11-01): it was whole, and the tachometer's face was cutting into it. Every adjacent pair in
+    # the row interpenetrated, by 8 to 16 mm, because the spacing had been scaled down to a 290 mm row while the
+    # instruments kept real diameters. Only the bright ring showed it. Measured here off the exported faces, so
+    # the next person to move a gauge finds out from a test and not from a render.
+    bin_at = 20 + size
+    blen = struct.unpack_from('<I', raw, bin_at)[0]
+    bin_ = raw[bin_at + 8:bin_at + 8 + blen]
+
+    def verts(accessor):
+        a = doc['accessors'][accessor]
+        v = doc['bufferViews'][a['bufferView']]
+        stride = v.get('byteStride', 12)
+        off = v.get('byteOffset', 0) + a.get('byteOffset', 0)
+        return [struct.unpack_from('<3f', bin_, off + k * stride) for k in range(a['count'])]
+
+    interior = names['Cockpit_Interior']
+    xshift = position(interior)[0]
+    discs = {}
+    for prim in doc['meshes'][nodes[interior]['mesh']]['primitives']:
+        mat = doc['materials'][prim['material']].get('name', '')
+        if not mat.startswith('Dial_'):
+            continue
+        # Both panels share a material per instrument type, so split them: the FRONT panel is the one nearer
+        # the pilot, at the smaller export x of the two.
+        front = [v for v in verts(prim['attributes']['POSITION']) if v[0] + xshift < 1.2]
+        if not front:
+            continue
+        lat = [v[2] for v in front]
+        discs[mat] = ((min(lat) + max(lat)) / 2, (max(lat) - min(lat)) / 2)
+    order = ['Dial_ALT', 'Dial_ASI', 'Dial_TC', 'Dial_OIL', 'Dial_OILPRESS', 'Dial_TACH']
+    missing = [m for m in order if m not in discs]
+    assert not missing, ('front panel dial faces missing', missing)
+    for a, b in zip(order, order[1:]):
+        (ca, fa), (cb, fb) = discs[a], discs[b]
+        # A face is 0.9 of the instrument's radius and the bezel ring stands 1.5 mm proud of it, so the case's
+        # outer radius is face / 0.9 + 0.0015. Two cases must not touch.
+        ra, rb = fa / 0.9 + 0.0015, fb / 0.9 + 0.0015
+        gap = abs(ca - cb) - ra - rb
+        assert gap > 0.002, ('front row instruments interpenetrate', a, b, 'overlap_mm', -1000 * gap)
+
     # Above centre is a WET COMPASS, not a G-meter. Ty's photo settles it, and the G hands are gone from the
     # front panel entirely -- the rear keeps its own G-meter and its own compass.
     assert 'Compass_Card_F' in names, 'front wet compass missing'

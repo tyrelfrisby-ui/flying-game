@@ -1127,7 +1127,7 @@ for k_ in ('asi', 'alt', 'vsi', 'tach', 'mp', 'oil', 'oilpress', 'cht', 'g', 'tc
 M['compass'] = paint.mat_image('Compass_Card', _img('gl-compass-band.png'), 0.5)
 # Front wet compass (2026-11-01, Ty's photo): its own band and a static case/window overlay with the lubber
 # line. The face is RGBA -- the window and everything outside the housing are transparent.
-M['compass_f'] = paint.mat_image('Compass_Card_Front', _img('gl-front-compass-band.png'), 0.5)
+M['compass_f'] = paint.mat_image_lit('Compass_Card_Front', _img('gl-front-compass-band.png'), 0.5)
 M['compass_face_f'] = paint.mat_image_alpha('Compass_Face_Front', _img('gl-front-compass-face.png'), 0.4)
 for k_ in ('com', 'xpdr'): M['avx_' + k_] = paint.mat_image('Avionics_Face_' + k_.upper(), _img('gl-avx-%s.png' % k_), 0.5)   # v13.1
 for n_, tg_ in CK_TAGS.items():

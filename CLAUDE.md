@@ -18,6 +18,23 @@ this file is the standing guidance that does not belong to any one lane.
 
 Append to this list whenever something here costs a rework. Each entry: what went wrong, why, what to do instead.
 
+### When something looks broken, measure what it TOUCHES
+Ty saw the chrome bezel on the Great Lakes front oil-pressure gauge as a broken ring. I measured the ring: 384
+triangles, every one of 360 degrees covered, no hole — so I was one step from reporting "it is only reflection"
+and changing nothing. The ring was whole. Its NEIGHBOURS were eating it: every adjacent pair in that row of six
+instruments interpenetrated, by 8 to 16 mm, and the tachometer's face was simply drawn over the chrome. The five
+dark bezels had the same fault and hid it, because a dark ring cut by a dark face still looks like a dark ring.
+A bright part is a fault detector for everything around it. When a part looks wrong and the part measures right,
+measure the things in contact with it before concluding the render is lying.
+
+### Scaling a layout guide to fit a span does not scale the objects in it
+The row spacing came from photo ratios — 1.54, 1.31, 1.05, 1.05, 1.06 of an ASI diameter — and I scaled them to
+the panel row's existing 290 mm width, reasoning that an oblique photograph does not fix absolute scale. True,
+but the instruments do: they are real 3-1/8 in and 2-1/4 in cases, and six of them cannot fit in 290 mm. The
+ratios were right and wanted a 477 mm row. Whenever a proportional guide is fitted to a span, check that the
+things being laid out still fit in it, and assert it — `check_great_lakes_rig` now measures the exported dial
+faces and fails if two instruments share space.
+
 ### A green test suite is not a build
 `tools/FlightTests` is .NET 8 and compiles `src/` only. Everything under `unity/Assets/_Project/Scripts/` is
 compiled only by `tools/deploy/deploy.sh` or a Unity batch run. A change that is green in the suite can break the

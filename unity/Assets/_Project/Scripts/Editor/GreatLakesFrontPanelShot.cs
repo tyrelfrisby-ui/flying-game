@@ -58,7 +58,9 @@ namespace FlyingGame.EditorTools
                 {
                     camGo.transform.position = eye;
                     camGo.transform.LookAt(centre.position);
-                    cam.fieldOfView = 48f;
+                    // Wide enough for the whole row. The row is 477 mm of instruments now that they are spaced
+                    // so they do not interpenetrate, and at 48 degrees the tachometer fell off the right edge.
+                    cam.fieldOfView = 62f;
                     Pose(builder, 0f);
                     Shoot(cam, Path.Combine(outDir, "front-panel-seat-eye.png"));
                     Debug.Log($"[FrontPanel] panel shot from the front eye {eye}, {Vector3.Distance(eye, centre.position):F2} m away.");
@@ -67,11 +69,15 @@ namespace FlyingGame.EditorTools
                 // The compass, close, at two headings. North first, then east.
                 if (compass != null)
                 {
-                    // Far enough back to be OUTSIDE the case: 18% of the way to the eye put the camera inside
-                    // it and rendered a black frame.
-                    camGo.transform.position = Vector3.Lerp(compass.position, eye, 0.62f);
-                    camGo.transform.LookAt(compass.position);
-                    cam.fieldOfView = 18f;
+                    // AIM AT THE WINDOW, NOT AT THE CARD. Compass_Card_F is the drum, which now sits 50 mm
+                    // deep inside a 62 mm case; aiming there pointed the camera at a spot behind the case front
+                    // and, from an eye half a metre above it, the case's own depth then filled and overflowed
+                    // the frame. The face plate is about an eighth of the way from the drum to the eye, so aim
+                    // there and stand a fixed distance back along the pilot's own sightline.
+                    Vector3 aim = Vector3.Lerp(compass.position, eye, 0.13f);
+                    camGo.transform.position = aim + (eye - aim).normalized * 0.17f;
+                    camGo.transform.LookAt(aim);
+                    cam.fieldOfView = 30f;
                     foreach ((string tag, float hdg) in new[] { ("000", 0f), ("090", 90f) })
                     {
                         Pose(builder, hdg);
