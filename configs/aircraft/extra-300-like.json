@@ -1721,7 +1721,7 @@
       "sectionCamberCl": 1.0,
       "sectionCamberArea": 2.8,
       "sectionCamberCenterX": -1.9,
-      "cowlCamberCl": 0.0,
+      "cowlCamberCl": 0.6,
       "cowlCamberArea": 1.2,
       "cowlCamberCenterX": 1.5,
       "planArea": 4.658,
@@ -1730,7 +1730,8 @@
       "sideCenterX": -1.184,
       "cd": 1.2,
       "lengthM": 6.942,
-      "sharpSectionFraction": 0.5
+      "sharpSectionFraction": 0.5,
+      "_camberNote": "Sideslip -> nose down (owner Ty, 2026-11-01): low pressure over the turtledeck against higher pressure under the fuselage lifts the aft body, and low pressure under the cowling against higher pressure above pulls the nose down -- both even in beta, so either direction pitches down. The turtledeck half was already authored; cowlCamberCl was 0.0 and AeroModel gates on > 0.0, so the forward half never acted. 0.6 against the turtledeck's 1.0: a cowl's flat-top/round-belly section is the shallower of the two. At 50 m/s and 20 deg of sideslip the cowl adds about -196 N.m to the turtledeck's -942."
     }
   },
   "spinAero": {
