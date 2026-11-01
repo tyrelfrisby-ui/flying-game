@@ -1,4 +1,26 @@
 ## NEEDS YOU
+- **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
+  is pinned shut:**
+  1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
+     cockpits. It was already right before I touched it on 6820540; I reversed it from my own reading of a dark
+     close-up photo. The "thinner prop lever set higher and further aft" went with it: it only ever existed to
+     justify the wrong order, so all three levers are the same length and shaft again.
+  2. **I got the lateral axis sign wrong twice more while fixing it.** The glTF lateral axis runs to the pilot's
+     LEFT, not his right. The thing that settled it was a render taken AT THE SEAT EYE — the earlier quadrant
+     renders were shot from in FRONT of the levers, which mirrors left and right, and that mirrored picture is
+     how the order got reversed in the first place. `GreatLakesQuadrantShots` now shoots from the seat eye.
+  3. **`check_great_lakes_rig` asserts the order now**, in both cockpits, by the levers' actual lateral
+     coordinates — so it cannot be "corrected" again by anyone reasoning about axis signs. Run against the old
+     model it fails exactly as it should.
+  4. **`check_sights` is RED, and this time I ran it.** It dies on `KeyError: 'Aileron_UL'`: the spec's
+     `aileron_sweep.hinges_body_m` lists only `Aileron_LL` and `Aileron_LR`, but the model has had upper
+     ailerons since v11. **Not this lane** — `Aileron_UL` is in the model at `c39451f`, before any of my Great
+     Lakes work. It was hidden until now behind the "Place shifted" assertion that fired first and that I fixed
+     yesterday, so fixing one staleness in that spec uncovered the next one. Closing it means authoring the two
+     upper hinge lines into the spec, which makes the bar-clearance test STRICTER and could legitimately start
+     failing — reference data for a gate, and not mine to invent.
+  Not merged and not deployed: yours to merge. The prop and mixture maps are re-pinned full forward and the
+  sight bars and the card's position re-applied on top of the regenerated model, as before.
 - **GREAT LAKES QUADRANTS AND FRONT PANEL (Claude, 2026-11-01, lane/claude-gl-quadrant) — NEEDS YOU to look at
   the renders:**
   1. **Knob order fixed.** It ran throttle, prop, mixture inboard→outboard, which put the BLUE lever between the

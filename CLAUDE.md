@@ -83,6 +83,18 @@ And the tests that missed it all zeroed from the same tidy pose. When a measurem
 at least one test must take the reference from somewhere awkward: `FromAnyPoseAMovementIsStillPure` is the one
 that would have caught this on the bench instead of on Ty's phone.
 
+### Don't "correct" a cockpit from your own reading of a photograph
+Ty flies a real Great Lakes. The lever order was throttle / prop / mixture left to right and it was RIGHT; I
+reversed it on 2026-11-01 because I thought I could read the layout off a dark close-up photo, and shipped it.
+When the owner states a layout, or his photograph is the reference, follow it or ask — do not infer a
+"correction" from the picture and do not defend it with axis arithmetic afterwards.
+
+And for a left/right question, a render is the only honest evidence — but only from the SEAT EYE. The first
+quadrant renders were shot from in front of the levers, which mirrors left and right, and that mirrored picture
+is how the order got reversed in the first place. I then got the glTF lateral sign wrong TWICE by reasoning
+about it (it runs to the pilot's LEFT) and only settled it by looking at an eye-point render.
+`check_great_lakes_rig` now asserts the left-to-right order so nobody can re-derive it wrongly.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it
