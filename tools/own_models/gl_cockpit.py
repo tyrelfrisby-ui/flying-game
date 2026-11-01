@@ -258,7 +258,9 @@ for sfx, xq in (('F', -1.04), ('R', -1.72)):
     zq = -0.32; yw = wall_y(xq, zq)
     put(CK_INT, 'ck_quadrant', gbox, (xq, yw - 0.006, zq + 0.05), (0.15, 0.012, 0.13))                        # wall plate
     put(CK_INT, 'ck_quadrant', gbox, (xq, 0.5 * (yw - 0.012 + 0.29), zq), (0.06, yw - 0.012 - 0.29, 0.04))      # lever box
-    for k, (n0, knob) in enumerate((('Throttle', 'ck_grip'), ('Prop', 'ck_grip'), ('Mixture', 'ck_knob_red'))):  # inboard -> outboard (n76l_4)
+    # Knob colours are the real aeroplane's (Ty's photos, 2026-11-01): throttle BLACK, mixture dark RED, prop
+    # BLUE. The prop lever was sharing the throttle's black grip, which is the one a pilot must never confuse.
+    for k, (n0, knob) in enumerate((('Throttle', 'ck_grip'), ('Prop', 'ck_knob_blue'), ('Mixture', 'ck_knob_red'))):  # inboard -> outboard (n76l_4)
         n = '%s_%s' % (n0, sfx); y_ = 0.300 + 0.025 * k; pv = V3((xq, y_, zq)); a = math.radians(LEV_A0)
         d = V3((math.sin(a), 0, math.cos(a)))
         put(n, 'ck_quadrant', gcyl, pv + V3((0, -0.006, 0)), pv + V3((0, 0.006, 0)), 0.012, 10)

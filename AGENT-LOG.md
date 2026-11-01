@@ -1,4 +1,38 @@
 ## NEEDS YOU
+- **GREAT LAKES COCKPIT + ENGINE TONE (Claude, 2026-11-01, lane/claude-gl-eye) — NEEDS YOU, four things:**
+  1. **The eye was 110 mm above its own windscreen.** You were right. Measured against the model: the rear
+     screen's glass spans glTF y 0.167..0.377 and the eye sat at 0.487, so **no level sightline touched the glass
+     at all** — looking straight ahead you cleared the frame entirely. Rear eye −0.487 → **−0.305** (182 mm
+     lower), front −0.413 → **−0.293** (120 mm). x and y untouched. Each now sits where the level sightline
+     passes through the MIDDLE of its own screen: rear glass −13.5° to +13.8°, front −16.5° to +16.3°, holding
+     out to ±20° of azimuth. The render shows the frame around the view and the top wing's TRAILING edge
+     overhead, which is what you asked for.
+  2. **The throttle quadrant was never the model's fault.** `CockpitRigState.Fill` has always known how to fill
+     in the throttle, the prop and mixture verniers, the key, the master and every engine gauge — and **nothing
+     ever called it**. `RigInputs.Throttle` sat at 0 for the life of the aeroplane, so the lever stayed at idle
+     however you flew, the prop and mixture levers sat full AFT, and every needle the rig drives from an engine
+     reading pointed at zero. One call in `AirframeVisual.RigInputsNow` fixes all of it. **Worth a look on the
+     Extra too** — its panel has been reading zeros for the same reason.
+     The prop lever was also sharing the THROTTLE's black knob material; it is blue now, mixture stays dark red,
+     throttle black. Prop and mixture are pinned full forward by a constant map, because tying mixture to the
+     engine state snapped the lever aft the moment the engine stopped.
+     **NOT done: the rear quadrant is still the wall-plate one, not the grey console box with short levers from
+     your newest photo.** That is a regeneration of the cockpit model and I judged the functional fix the better
+     use of the time. Say the word and it is a separate lane.
+  3. **`check_sights` has been RED since the cockpit was restored, and it was not this lane.** It fails its
+     "Place shifted" assertion on `c39451f` with the files untouched — I ran it there to be sure. The cockpit
+     restoration changed the model's bounds, which moved `AirframeModels.Place`, and the spec's
+     `gltf_to_body_translation_m` was left behind (the spec's own `source_transform_translation_m` already held
+     the current value). I re-measured it and rebuilt the sight bars on it **and** on the corrected eye — they
+     were being built on a line you could only reach by looking over the screen.
+  4. **The engine tone is a feel change and the numbers are yours to move.** Every formant and low-pass dropped,
+     radials hardest: Radial 7/9/14 ×0.62, flat-4 and flat-6 ×0.80, Merlin V-12 ×0.78, plus ~15% more
+     exhaust-body resonance everywhere and +35% crank thump on the radials. The Radial9's voice goes from 200 Hz
+     to 124 Hz. If it is now too boomy the single knob is `Formant1Hz` per profile in `EngineProfiles.cs`.
+  The sequence card was moved 24 mm proud of the panel and down-left of the gauges (52° below, 30° left of the
+  sightline): 17 of 25 sample points visible before, **25 of 25** now. The front panel in your photo — altimeter,
+  ASI, small centre instrument, oil temp/press, oil pressure, tacho — was not compared against the model's; worth
+  a look when the quadrant restyle happens.
 - **DEVICE LOOK-AROUND: THE AXES WERE NEVER RESOLVED AGAINST THE WORLD (Claude, 2026-11-01, lane/claude-device-look)
   — fixed, NEEDS YOU to re-fly it:**
   1. **What you flew on 2026.1101.0549 and what was wrong.** You reported three things — turning and rolling the

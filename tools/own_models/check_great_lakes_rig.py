@@ -45,6 +45,30 @@ def check(path):
     for name in ('Prop', 'Spinner', 'Eye_Front', 'Eye_Rear', 'Radio_Display_R', 'Xpdr_Display_R',
                  'SequenceCard_Face', 'Sight_L_Level', 'Sight_R_Level'):
         assert name in names, name
+
+    # THE QUADRANT, both cockpits (owner Ty, 2026-11-01: "the throttle quadrant lever does not move"). The two
+    # throttles must be on the SAME input so they move together, the prop and mixture levers must be pinned full
+    # forward rather than following an engine that can stop, and the three knobs must be the colours a pilot
+    # reaches for without looking: throttle BLACK, mixture dark RED, prop BLUE.
+    by_node = {row['node']: row for row in rig['rig']}
+    materials = [m.get('name') for m in doc.get('materials', [])]
+
+    def knob_materials(node_name):
+        i = names[node_name]
+        return {materials[p['material']] for p in doc['meshes'][nodes[i]['mesh']]['primitives']}
+
+    for seat in ('F', 'R'):
+        throttle = by_node['Throttle_%s' % seat]
+        assert throttle['param'] == 'throttle', (seat, 'throttle not on the throttle input')
+        travel = [v for _, v in throttle['map']]
+        assert max(travel) - min(travel) > 30, (seat, 'throttle has no travel', throttle['map'])
+        assert 'Cockpit_black' in knob_materials('Throttle_%s' % seat), (seat, 'throttle knob is not black')
+        for lever, param, knob in (('Prop', 'prop', 'Cockpit_knob_blue'), ('Mixture', 'mixture', 'Cockpit_knob_red')):
+            row = by_node['%s_%s' % (lever, seat)]
+            assert row['param'] == param, (seat, lever, 'parameter')
+            held = {v for _, v in row['map']}
+            assert len(held) == 1 and max(held) == max(travel), (seat, lever, 'not pinned full forward', row['map'])
+            assert knob in knob_materials('%s_%s' % (lever, seat)), (seat, lever, 'knob colour', knob)
     # Export frame: prop ahead of tail along -x, vertical tail above the gear, span along z.
     assert position(names['Rudder_Pivot'])[0] > position(names['Prop'])[0]
     assert position(names['Rudder_HingeAxis'])[1] > position(names['Gear_Pivot_L'])[1]
