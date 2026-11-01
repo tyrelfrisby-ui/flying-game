@@ -1,6 +1,6 @@
 {
  "model": "great-lakes-like-own",
- "livery": "red-sunburst",
+ "livery": "v1",
  "rig": [
   {
    "node": "Needle_Alt100_F",
@@ -15,7 +15,7 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.084,
+    0.03,
     0.14
    ],
    "map": [
@@ -50,7 +50,7 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.084,
+    0.03,
     0.14
    ],
    "map": [
@@ -85,8 +85,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.002,
-    0.048
+    0.03,
+    0.056
    ],
    "map": [
     [
@@ -111,10 +111,10 @@
    }
   },
   {
-   "node": "Needle_Tach_F",
+   "node": "TC_Symbol_F",
    "parent": "Instruments_Front",
-   "param": "rpm",
-   "unit": "rpm",
+   "param": "turn_rate_dps",
+   "unit": "deg/s",
    "kind": "rot",
    "axis_gltf": [
     -1.0,
@@ -123,26 +123,66 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.005,
-    -0.041
+    0.03,
+    -0.014
    ],
    "map": [
+    [
+     -6.0,
+     -40.0
+    ],
     [
      0.0,
      0.0
     ],
     [
-     3500.0,
-     300.0
+     6.0,
+     40.0
     ]
    ],
    "model": 0.0,
-   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
    "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
-    "rig_dial_ang0_deg": -150.0
+    "rig_dial_ang0_deg": 0.0
    }
+  },
+  {
+   "node": "TC_Ball_F",
+   "parent": "Instruments_Front",
+   "param": "slip_ball",
+   "unit": "-1..+1",
+   "kind": "rot",
+   "axis_gltf": [
+    1.0,
+    -0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.034,
+    -0.014
+   ],
+   "map": [
+    [
+     -1.0,
+     -18.0
+    ],
+    [
+     0.0,
+     0.0
+    ],
+    [
+     1.0,
+     18.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {}
   },
   {
    "node": "Needle_OilP_F",
@@ -157,8 +197,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.015,
-    -0.13
+    0.03,
+    -0.078
    ],
    "map": [
     [
@@ -191,8 +231,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.015,
-    -0.13
+    0.03,
+    -0.078
    ],
    "map": [
     [
@@ -213,6 +253,40 @@
    }
   },
   {
+   "node": "Needle_Tach_F",
+   "parent": "Instruments_Front",
+   "param": "rpm",
+   "unit": "rpm",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.15
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     3500.0,
+     300.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 2000(E)-2700, red line 2700 (TCDS); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   }
+  },
+  {
    "node": "Needle_G_F",
    "parent": "Instruments_Front",
    "param": "g_load",
@@ -225,8 +299,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.088,
-    -0.12
+    0.098,
+    0.045
    ],
    "map": [
     [
@@ -263,8 +337,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.088,
-    -0.12
+    0.098,
+    0.045
    ],
    "map": [
     [
@@ -297,8 +371,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.088,
-    -0.12
+    0.098,
+    0.045
    ],
    "map": [
     [
@@ -670,7 +744,7 @@
    ],
    "model": 0.0,
    "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -708,7 +782,7 @@
    ],
    "model": 0.0,
    "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {}
   },
@@ -1434,7 +1508,7 @@
    "pivot_gltf": [
     1.04,
     -0.32,
-    0.3
+    0.35
    ],
    "map": [
     [
@@ -1447,7 +1521,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME throttle input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown (AirframeVisual.RigInputsNow now calls CockpitRigState.Fill).",
+   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1465,8 +1539,8 @@
    ],
    "pivot_gltf": [
     1.72,
-    -0.32,
-    0.3
+    -0.3,
+    0.3508
    ],
    "map": [
     [
@@ -1479,7 +1553,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME throttle input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown (AirframeVisual.RigInputsNow now calls CockpitRigState.Fill).",
+   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1496,9 +1570,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.04,
-    -0.32,
-    0.325
+    1.07,
+    -0.29,
+    0.3
    ],
    "map": [
     [
@@ -1511,7 +1585,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01). The map is constant on purpose: a real Great Lakes is flown with both of these full forward, and tying mixture to the engine state made the lever snap aft the moment the engine stopped.",
+   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1528,9 +1602,9 @@
     1.0
    ],
    "pivot_gltf": [
-    1.72,
-    -0.32,
-    0.325
+    1.75,
+    -0.27,
+    0.3008
    ],
    "map": [
     [
@@ -1543,7 +1617,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01). The map is constant on purpose: a real Great Lakes is flown with both of these full forward, and tying mixture to the engine state made the lever snap aft the moment the engine stopped.",
+   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1562,7 +1636,7 @@
    "pivot_gltf": [
     1.04,
     -0.32,
-    0.35
+    0.325
    ],
    "map": [
     [
@@ -1575,7 +1649,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01). The map is constant on purpose: a real Great Lakes is flown with both of these full forward, and tying mixture to the engine state made the lever snap aft the moment the engine stopped.",
+   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1593,8 +1667,8 @@
    ],
    "pivot_gltf": [
     1.72,
-    -0.32,
-    0.35
+    -0.3,
+    0.3258
    ],
    "map": [
     [
@@ -1607,7 +1681,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01). The map is constant on purpose: a real Great Lakes is flown with both of these full forward, and tying mixture to the engine state made the lever snap aft the moment the engine stopped.",
+   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
