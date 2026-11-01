@@ -1669,5 +1669,42 @@
     ],
     "weakLinkN": 2940,
     "canRelease": true
+  },
+  "loading": {
+    "seats": [
+      {
+        "id": "front",
+        "label": "Front seat",
+        "station": [
+          0.971,
+          0,
+          -0.111
+        ],
+        "maxKg": 0,
+        "referenceKg": 0,
+        "eye": [
+          0.971,
+          0,
+          -0.111
+        ]
+      },
+      {
+        "id": "rear",
+        "label": "Rear seat",
+        "station": [
+          0.164,
+          0,
+          -0.06
+        ],
+        "maxKg": 0,
+        "referenceKg": 0,
+        "eye": [
+          0.164,
+          0,
+          -0.06
+        ]
+      }
+    ],
+    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. station/maxKg/referenceKg here are placeholders, NOT authored weight and balance: referenceKg 0 keeps the seat mass-neutral so nothing about the flight model changes. See AGENT-LOG NEEDS YOU."
   }
 }

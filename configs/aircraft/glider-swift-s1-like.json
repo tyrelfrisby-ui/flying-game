@@ -1981,7 +1981,7 @@
     "canRelease": true
   },
   "loading": {
-    "emptyMassKg": 280.0,
+    "emptyMassKg": 0,
     "emptyCg": [
       0.0,
       0.0,
@@ -2013,6 +2013,8 @@
         41.9,
         280.0
       ]
-    ]
+    ],
+    "_legacyEmptyMassKg": 280.0,
+    "_legacyEmptyMassKgNote": "the older weight-and-balance lane (e4755c9) authored emptyMassKg as a true EMPTY WEIGHT, excluding pilot and fuel. The current LoadingConfig reads that same key as 'what is left when every station is empty', and these types have no stations in the current schema, so every spawn loaded the aeroplane to its empty weight: the Great Lakes flew 258 kg light (816 -> 558), the Cub 206 kg (553 -> 347), the Swift 50 kg (330 -> 280). SessionSettings.ApplyLoadTo runs on EVERY spawn, so this was the flying mass in the game while the .NET tests, which do not call ApplyLoad, kept using the authored massKg. Set to 0 so it derives from mass.massKg again; the authored figure is kept below, unread, for the open W&B decision in AGENT-LOG NEEDS YOU."
   }
 }

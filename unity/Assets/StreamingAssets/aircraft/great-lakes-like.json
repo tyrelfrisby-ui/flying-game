@@ -1497,7 +1497,7 @@
     "gMin": -4.0
   },
   "loading": {
-    "emptyMassKg": 557.919,
+    "emptyMassKg": 0,
     "emptyCg": [
       0.0,
       0.0,
@@ -1529,6 +1529,43 @@
         32.54,
         557.92
       ]
-    ]
+    ],
+    "seats": [
+      {
+        "id": "rear",
+        "label": "Rear seat (solo)",
+        "station": [
+          -1.96,
+          0,
+          -0.487
+        ],
+        "maxKg": 0,
+        "referenceKg": 0,
+        "eye": [
+          -1.96,
+          0,
+          -0.487
+        ]
+      },
+      {
+        "id": "front",
+        "label": "Front seat",
+        "station": [
+          -1.193,
+          0,
+          -0.413
+        ],
+        "maxKg": 0,
+        "referenceKg": 0,
+        "eye": [
+          -1.193,
+          0,
+          -0.413
+        ]
+      }
+    ],
+    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. station/maxKg/referenceKg here are placeholders, NOT authored weight and balance: referenceKg 0 keeps the seat mass-neutral so nothing about the flight model changes. See AGENT-LOG NEEDS YOU.",
+    "_legacyEmptyMassKg": 557.919,
+    "_legacyEmptyMassKgNote": "the older weight-and-balance lane (e4755c9) authored emptyMassKg as a true EMPTY WEIGHT, excluding pilot and fuel. The current LoadingConfig reads that same key as 'what is left when every station is empty', and these types have no stations in the current schema, so every spawn loaded the aeroplane to its empty weight: the Great Lakes flew 258 kg light (816 -> 558), the Cub 206 kg (553 -> 347), the Swift 50 kg (330 -> 280). SessionSettings.ApplyLoadTo runs on EVERY spawn, so this was the flying mass in the game while the .NET tests, which do not call ApplyLoad, kept using the authored massKg. Set to 0 so it derives from mass.massKg again; the authored figure is kept below, unread, for the open W&B decision in AGENT-LOG NEEDS YOU."
   }
 }
