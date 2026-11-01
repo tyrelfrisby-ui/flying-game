@@ -14,10 +14,15 @@
      never saw it. I set the key to 0 so it derives from `mass.massKg` again and kept the authored figure as
      `_legacyEmptyMassKg`. **The two systems still coexist** (`src/FlyingGame.Core/Loading/WeightAndBalance.cs`
      and `AircraftLoad.cs`; `loading.stations` and `loading.seats`) and only one should survive. Not my call.
-  3. **The new seats carry placeholder mass stations.** For the 2-33, Great Lakes, Pitts and Extra no W&B seat
-     station is authored anywhere, so `station` equals the eye and `referenceKg` is 0 — mass-neutral, nothing
-     about the flight model moves. The J-3's come from its own older-schema arms. **Whether each airframe's
-     authored massKg already includes a pilot is the open question**, and it decides what referenceKg should be.
+  3. **The new seats carry placeholder mass stations and conventional placards.** For the 2-33, Great Lakes,
+     Pitts and Extra no W&B seat station is authored anywhere, so `station` equals the EYE — a placeholder, not
+     a weight-and-balance arm. `maxKg` is a conventional 113.4 kg (250 lb) occupant placard, and the J-3's own
+     authored 136.08 kg (300 lb); none of these is read from a POH. `referenceKg` follows the 172's convention
+     — the PRIMARY seat carries the 86 kg pilot that `mass.massKg` is assumed already to include — so the
+     reference loading still reproduces the authored mass, CG and inertia exactly and **nothing moves at
+     spawn**. **Whether each airframe's authored massKg really includes a pilot is the open question.** I had
+     these at maxKg 0 first, so nobody could load a seat while the decision is open; that tripped the older
+     rule in AircraftLoadTests that every station must carry a placard, and the older rule is the better one.
   4. **The Extra's propeller does not turn**, and it is the only type with its own authored rig. The hinge carve
      is skipped for a rigged model — correctly, carving one would tear its geometry — but the propeller binding
      lives inside the part that is skipped, so `SpinProps` runs every frame over an empty `_props`. Trap: the
