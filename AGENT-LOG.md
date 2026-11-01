@@ -1,4 +1,43 @@
 ## NEEDS YOU
+- **SEAT EYES / COCKPIT CAMERA (Claude, 2026-10-31, lane/claude-eyepoints) — NEEDS YOU, six things:**
+  1. **Does the Great Lakes rear eye look right?** You asked about "3 cm below the top line". Measured against
+     the real GLB, not the procedural shell: the REAR eye (-1.960, 0, -0.487) is **3.5 cm below the top of the
+     Headrest**, and the headrest is the ONLY structure above it at that station — which is where a headrest
+     belongs. The FRONT eye (-1.193, 0, -0.413) has `Wing_Upper` 43.5 cm overhead and the windscreen ahead,
+     which is what a front cockpit under a top wing should see. Both read right to me; the rear one is yours to
+     confirm, because 3.5 cm of headrest is the difference between sensing it behind you and peering under it.
+  2. **The weight-and-balance decision is no longer theoretical — it was costing real mass.** Three aeroplanes
+     were flying far under their authored weight because the two schemas collide on the key name
+     `loading.emptyMassKg`: great-lakes-like 816 -> 557.919 kg (-258, 32% light), j3-cub-like 553 -> 346.998
+     (-206, 37%), glider-swift-s1-like 330 -> 280 (-50, 15%). `SessionSettings.ApplyLoadTo` runs on EVERY spawn,
+     so that was the flying mass in the GAME; the .NET suite builds an Aircraft without calling ApplyLoad and so
+     never saw it. I set the key to 0 so it derives from `mass.massKg` again and kept the authored figure as
+     `_legacyEmptyMassKg`. **The two systems still coexist** (`src/FlyingGame.Core/Loading/WeightAndBalance.cs`
+     and `AircraftLoad.cs`; `loading.stations` and `loading.seats`) and only one should survive. Not my call.
+  3. **The new seats carry placeholder mass stations.** For the 2-33, Great Lakes, Pitts and Extra no W&B seat
+     station is authored anywhere, so `station` equals the eye and `referenceKg` is 0 — mass-neutral, nothing
+     about the flight model moves. The J-3's come from its own older-schema arms. **Whether each airframe's
+     authored massKg already includes a pilot is the open question**, and it decides what referenceKg should be.
+  4. **The Extra's propeller does not turn**, and it is the only type with its own authored rig. The hinge carve
+     is skipped for a rigged model — correctly, carving one would tear its geometry — but the propeller binding
+     lives inside the part that is skipped, so `SpinProps` runs every frame over an empty `_props`. Trap: the
+     rig DOES have an entry whose param is `prop`, but `Prop_R` is the blue rpm vernier KNOB on the rear panel;
+     the blades are separate `Prop` and `Spinner` nodes. A fix that matches nodes CONTAINING "prop" spins the
+     knob. Not fixed here: it is an AirframeVisual change and this is a camera lane.
+  5. **The sideslip-to-pitch coupling you described is half-built.** On the Extra the turtle-deck term is live
+     (`sectionCamberCl` 1.0, area 2.8, x -1.9) but the cowl term is authored with a ZERO coefficient
+     (`cowlCamberCl` 0.0, area 1.2, x +1.5), and `AeroModel.cs:1082` gates on `> 0.0`, so the cowl never acts.
+     The Pitts and the Great Lakes have no camber keys at all — the effect is absent, not reduced. Picking those
+     coefficients moves the spin and tumble behaviour, so it wants its own lane and its own run against the spin
+     tests.
+  6. **check_iac_assets.py is RED and I did not force it green** (inherited from the sights merge). The Extra
+     carries two sequence-card quads from two lanes: the IAC holder's card and the cockpit panel's own slot.
+     From the rear eye `Cockpit_Interior` blocks 81 of 99 sample points on the card and the duplicate slot
+     blocks 72. Which quad should survive, and at what depth, is a modelling decision.
+  Resolved rather than carried: the cockpit camera is no longer ahead of the rear eye (it is ON the eye, 0.000
+  mm, all fourteen seats); the Great Lakes rear eye is no longer inside the fuselage (808/808 rays clear); and
+  `tools/own_models/art/greatlakes-n719gl.png` IS present on this branch, so that model can be rebuilt here.
+  No gate is marked approved.
 - **SMOKE / Codex, 2026-10-31, lane/codex-smoke — NEEDS YOU:** run `tools/deploy/deploy.sh` outside the sandbox and obtain `** BUILD SUCCEEDED **`, then inspect the eight types with smoke on. Unity was deliberately not attempted here (operator reports Package Manager `listen EPERM`); the .NET build is not the Unity build. No gate is marked approved. The newer J-3/float J-3 models measured at `c16f0bd` are not installed on this lane, which still draws the J-3 procedurally; coordinate their adoption on the owning lane. One existing Extra flat-spin airflow test fails before the new code was compiled; details in the smoke entry below.
 - **START (Claude, 2026-10-30): lane/claude-island-nav off 1fe347d for Phase 2 IFR + weather.** Gate confirmed read-only in `~/Developer/flying-game-worktrees/codex-island-world/AGENT-LOG.md` line 753, copied here verbatim and not moved or edited:
   `[Ty] G1 APPROVED 2026-10-30 22:11 PDT: island world built (1fe347d), APPROVED by Ty for Claude IFR + weather`
@@ -362,6 +401,59 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-10-31 — Claude · lane/claude-eyepoints · the camera sits on the pilot's eye
+
+**Three commits: 9594128 the eyes and a mass bug, 0d4884d the Great Lakes sights on the corrected eye,
+229070a the camera and the look control. Built on lane/claude-island-nav at 6883ea4 (sights merged).**
+
+**What was wrong.** Nothing carried an eye — no config had one and no model had an Eye node — so the Cockpit
+view estimated one from the procedural canopy. The Unity log says how far out it was: the Extra's camera at
+(-0.280, 0, -0.900) against an eye at (-1.597, 0, -0.518), **1.32 m forward and 0.38 m high**; the Pitts
+(-0.645, 0, -0.900) against (-1.325, 0, -0.300). On every type but the 172 that put the camera above the
+canopy, the wing or the cabin roof.
+
+**The eye lives on the SEAT**, not in a table of its own, because it is the same seat: one authored entry
+gives the loading page its mass station and the cockpit view its view point, so they cannot drift apart. The
+PRIMARY seat is FIRST in the list, since CockpitView starts at SeatIndex 0 — rear on the tandems, front on the
+2-33, left on the 172.
+
+**Camera vs eye, all fourteen seats: 0.000 mm.** Near clip 0.050 m on each. `CockpitEyeCheck` drives the real
+ChaseCamera path rather than recomputing the answer, and writes 42 review shots to `logs/cockpit/` (ahead and
+both 90-degree snaps per seat, sights bound). The Pitts rear look-left shot shows all four bars crossing at one
+centre on the horizon.
+
+**Two of my own checks were wrong before they were right, and both failure modes are worth keeping.** The
+first reported the camera 400–1300 mm off, which reads exactly like the bug under test; it was the harness,
+which had not given the driver a sim, so CockpitView saw no seats and the camera fell back — a check that
+builds the failing condition itself agrees with you whatever the code does. The second asserted "the eye is not
+inside any mesh" and failed all fourteen: the drawn fuselage is a closed body of revolution with no cockpit
+cutout, and an enclosed cabin is a shell the pilot is legitimately inside. That question is answered against
+the real GLBs by check_sights instead.
+
+**The look control did not exist.** CockpitLook has had ±90° snaps, a held pan and over-the-shoulder since the
+seat work, and `CockpitView.OnScreenHat` was the channel for driving it from glass — **nothing ever wrote to
+it**. On a device the only ways to turn your head were a stick's hat or the gyro goggles, which is why the
+sights were unreachable: they sit on the eye's own lateral line, 1.85 m out on the Pitts and 3.94 m on the
+Extra, about 90° off the nose. Three buttons now sit at the top centre in the cockpit, feeding OnScreenHat so
+glass and hat share one tap-versus-pan window.
+
+**The Great Lakes sights were built on the superseded eye.** check_sights cross-checks sights-spec.json against
+`docs/models/eyepoints.json`, which did not exist here — so it was falling back to `git show aab015b:...`, the
+unapproved lane whose own file says `"status": "proposed"`. That file now exists on this branch as the approved
+record (Ty's v5, Codex's v4 kept beside it). Only one of twelve entries differs: great-lakes rear, by **0.2232
+m**, matching Ty's "0.223 m low" exactly. Rebuilding its bars on the corrected eye turned
+`FLAG: blocks 808 of 808 true-eye rays` into `PASS: 808/808`.
+
+**A mass bug found by the new tests, not caused by this lane.** `loading.emptyMassKg` means "empty weight" in
+the older W&B schema and "what is left when every station is empty" in the current one. Three types had the
+older key and no current stations, so every spawn loaded them to their empty weight: Great Lakes −258 kg,
+J-3 −206 kg, Swift −50 kg. Details and the open decision are in NEEDS YOU.
+
+**Gates.** check_sights PASS on all 8 GLBs plus 808/808 visibility; SightsVisibilityCheck PASS (0 failures);
+Unity batch 0 `error CS`; CockpitEyeCheck PASS (0 failures); the ignore guard printed nothing before every
+commit. check_iac_assets.py is RED, inherited, and left red on purpose (NEEDS YOU 6). No gate is marked
+approved.
+
 ### 2026-10-31 — Codex · lane/codex-island-world · indexed water and analytic terrain normal
 
 **Status: implementation validated; `** BUILD SUCCEEDED **` (build 2026.1031.1125); committed locally. No gate approved.**
