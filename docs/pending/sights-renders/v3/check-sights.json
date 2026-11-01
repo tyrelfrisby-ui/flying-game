@@ -1,0 +1,3189 @@
+{
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-n300uy.glb": {
+    "sha256": "fe882f2b7f5425a9c4c9636268591bbbb5faaf04488ecdb18cc4da16c04a1e0d",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            -3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              -3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              -3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            -3.936790825612162,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999955157043,
+          "target_deg": -45,
+          "error_deg": 4.484295743623079e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            3.9367908256121615,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.999999551570454,
+          "target_deg": -45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.8340683177662683,
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_R_Level": 0.8340677341257341,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.5969999784209377,
+          -3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874059e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      },
+      "R": {
+        "common_body_m": [
+          -1.5969999784209377,
+          3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874077e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.27999999999999997,
+        0.0,
+        -0.9
+      ],
+      "offset_from_rear_eye_body_m": [
+        1.317,
+        0.0,
+        -0.382
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": -18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999998091187,
+              "aimed_at_c_error_deg": 1.9088133740297053e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": -44.99999955157044,
+              "fixed_body_lateral_error_deg": 4.484295601514532e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": 44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": 18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.9999999809119,
+              "aimed_at_c_error_deg": 1.9088105318587623e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": 44.999999551570426,
+              "fixed_body_lateral_error_deg": 4.484295743623079e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": -44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": "outside conservative swept AABBs",
+      "Aileron_R": "outside conservative swept AABBs"
+    },
+    "propeller_swept_slab_clearance_m": 3.1938694360103494
+  },
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-unmarked.glb": {
+    "sha256": "9ce01ebf4a56c118538373f24187a01a405d58a7d2cdd8b1fe7992cbd6d23943",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            -3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              -3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              -3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            -3.936790825612162,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999955157043,
+          "target_deg": -45,
+          "error_deg": 4.484295743623079e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            3.9367908256121615,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.999999551570454,
+          "target_deg": -45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.8340683177662683,
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_R_Level": 0.8340677341257341,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.5969999784209377,
+          -3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874059e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      },
+      "R": {
+        "common_body_m": [
+          -1.5969999784209377,
+          3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874077e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.27999999999999997,
+        0.0,
+        -0.9
+      ],
+      "offset_from_rear_eye_body_m": [
+        1.317,
+        0.0,
+        -0.382
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": -18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999998091187,
+              "aimed_at_c_error_deg": 1.9088133740297053e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": -44.99999955157044,
+              "fixed_body_lateral_error_deg": 4.484295601514532e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": 44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": 18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.9999999809119,
+              "aimed_at_c_error_deg": 1.9088105318587623e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": 44.999999551570426,
+              "fixed_body_lateral_error_deg": 4.484295743623079e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": -44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": "outside conservative swept AABBs",
+      "Aileron_R": "outside conservative swept AABBs"
+    },
+    "propeller_swept_slab_clearance_m": 3.1938694360103494
+  },
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb": {
+    "sha256": "509bc6f31322c2992060ade3c1549ac94d5daef0752f28279c98c78a567417d9",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            -3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              -3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              -3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            -3.936790825612162,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999955157043,
+          "target_deg": -45,
+          "error_deg": 4.484295743623079e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            -3.936790825612162,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.914537462934701e-07,
+          "eye_lateral_line_residual_m": 2.689677198139475e-08,
+          "centre_body_m": [
+            -1.597000026384196,
+            3.936790825612162,
+            -0.5180000052259495
+          ],
+          "endpoints_body_m": [
+            [
+              -1.847000055620435,
+              3.936790825612162,
+              -0.5180000052259495
+            ],
+            [
+              -1.346999997147957,
+              3.936790825612162,
+              -0.5180000052259495
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "eye_lateral_line_residual_m": 2.1884262006530525e-08,
+          "centre_body_m": [
+            -1.596999982110419,
+            3.9367908256121615,
+            -0.5180000126049125
+          ],
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.999999551570454,
+          "target_deg": 45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "eye_lateral_line_residual_m": 2.545500512419597e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246163
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.999999551570454,
+          "target_deg": -45,
+          "error_deg": 4.4842954594059847e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "eye_lateral_line_residual_m": 2.545500511078265e-08,
+          "centre_body_m": [
+            -1.5969999747314563,
+            3.9367908256121615,
+            -0.5179999969246164
+          ],
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.8340683177662683,
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_R_Level": 0.8340677341257341,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.5969999784209377,
+          -3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874059e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      },
+      "R": {
+        "common_body_m": [
+          -1.5969999784209377,
+          3.936790825612162,
+          -0.5180000010752829
+        ],
+        "axis_residual_m": 5.543821722874077e-09,
+        "midpoint_residual_m": 4.814251941332472e-08,
+        "eye_lateral_line_residual_m": 2.1605836332378808e-08
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.27999999999999997,
+        0.0,
+        -0.9
+      ],
+      "offset_from_rear_eye_body_m": [
+        1.317,
+        0.0,
+        -0.382
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": -18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999998091187,
+              "aimed_at_c_error_deg": 1.9088133740297053e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": -44.99999955157044,
+              "fixed_body_lateral_error_deg": 4.484295601514532e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": 44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 19.204489651075857,
+          "centre_horizontal_bearing_deg": 18.49696618907471,
+          "centre_vertical_bearing_deg": -5.542250548551438,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 1.7558376661905584,
+              "aimed_at_c_error_deg": 1.7558376661905584,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.9999999809119,
+              "aimed_at_c_error_deg": 1.9088105318587623e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 47.22089282458637,
+              "aimed_at_c_error_deg": 2.2208928245863717,
+              "fixed_body_lateral_angle_deg": 44.999999551570426,
+              "fixed_body_lateral_error_deg": 4.484295743623079e-07
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -45.54992073931345,
+              "aimed_at_c_error_deg": 0.5499207393134498,
+              "fixed_body_lateral_angle_deg": -44.999999551570454,
+              "fixed_body_lateral_error_deg": 4.4842954594059847e-07
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.5365359496363786,
+            -1.0377538661764245
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.3045839826717305,
+            -1.2697057458386773
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.4758222547263802,
+            -1.0984674568744477
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.451159616773235,
+            -1.1231300948275929
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": "outside conservative swept AABBs",
+      "Aileron_R": "outside conservative swept AABBs"
+    },
+    "propeller_swept_slab_clearance_m": 3.1938694360103494
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb": {
+    "sha256": "325065b69adc128bb48165fbc2cca2610741e37530d83441e3833107ce9993ab",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297302e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            -1.8500000005964912,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            -1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999641894449,
+          "target_deg": -45,
+          "error_deg": 3.5810555090165508e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297304e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            1.850000000596491,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              1.850000000596491,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              1.850000000596491,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.99999641894448,
+          "target_deg": -45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.6045676277740322,
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_R_Level": 0.6045673160663813,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.3250000055691042,
+          -1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      },
+      "R": {
+        "common_body_m": [
+          -1.3250000055691042,
+          1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.645,
+        0.0,
+        -0.8999999999999999
+      ],
+      "offset_from_rear_eye_body_m": [
+        0.6799999999999999,
+        0.0,
+        -0.5999999999999999
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": -20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -6.109797208925912,
+              "aimed_at_c_error_deg": 6.109797208925912,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.99999992792029,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -48.39873756313505,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": -44.999996418944484,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": 20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 6.109797208925926,
+              "aimed_at_c_error_deg": 6.109797208925926,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999992792027,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 48.39873756313506,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": -44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 2.6141806191748027
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb": {
+    "sha256": "a985adb8550941a72cf6fb2d08ac4e102e2534a1ce23f7b590ccc150a7ad9764",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297302e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            -1.8500000005964912,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            -1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999641894449,
+          "target_deg": -45,
+          "error_deg": 3.5810555090165508e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297304e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            1.850000000596491,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              1.850000000596491,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              1.850000000596491,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.99999641894448,
+          "target_deg": -45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.6045676277740322,
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_R_Level": 0.6045673160663813,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.3250000055691042,
+          -1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      },
+      "R": {
+        "common_body_m": [
+          -1.3250000055691042,
+          1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.645,
+        0.0,
+        -0.8999999999999999
+      ],
+      "offset_from_rear_eye_body_m": [
+        0.6799999999999999,
+        0.0,
+        -0.5999999999999999
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": -20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -6.109797208925912,
+              "aimed_at_c_error_deg": 6.109797208925912,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.99999992792029,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -48.39873756313505,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": -44.999996418944484,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": 20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 6.109797208925926,
+              "aimed_at_c_error_deg": 6.109797208925926,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999992792027,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 48.39873756313506,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": -44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 2.5990880773137333
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-n1191.glb": {
+    "sha256": "e7e2141885f54ae1d5017e993eeafc17461e2401d0b4a36ac4162827677d7ab1",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297302e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            -1.8500000005964912,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            -1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999641894449,
+          "target_deg": -45,
+          "error_deg": 3.5810555090165508e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297304e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            1.850000000596491,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              1.850000000596491,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              1.850000000596491,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.99999641894448,
+          "target_deg": -45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.6045676277740322,
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_R_Level": 0.6045673160663813,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.3250000055691042,
+          -1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      },
+      "R": {
+        "common_body_m": [
+          -1.3250000055691042,
+          1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.645,
+        0.0,
+        -0.8999999999999999
+      ],
+      "offset_from_rear_eye_body_m": [
+        0.6799999999999999,
+        0.0,
+        -0.5999999999999999
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": -20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -6.109797208925912,
+              "aimed_at_c_error_deg": 6.109797208925912,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.99999992792029,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -48.39873756313505,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": -44.999996418944484,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": 20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 6.109797208925926,
+              "aimed_at_c_error_deg": 6.109797208925926,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999992792027,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 48.39873756313506,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": -44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 2.5990880773137333
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb": {
+    "sha256": "f1b35ac4071f2814b842647c43fc59d4ab4639bcfb5b7b0bbd81b57b4059abdf",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297302e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            -1.8500000005964912,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              -1.8500000005964912,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            -1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999641894449,
+          "target_deg": -45,
+          "error_deg": 3.5810555090165508e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            -1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 1.6709075218297304e-06,
+          "eye_lateral_line_residual_m": 5.395124985909085e-08,
+          "centre_body_m": [
+            -1.3250000539510336,
+            1.850000000596491,
+            -0.30000000015274314
+          ],
+          "endpoints_body_m": [
+            [
+              -1.5750000520199177,
+              1.850000000596491,
+              -0.30000000015274314
+            ],
+            [
+              -1.0750000558821493,
+              1.850000000596491,
+              -0.30000000015274314
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "eye_lateral_line_residual_m": 9.952695885990072e-09,
+          "centre_body_m": [
+            -1.325000009290791,
+            1.8500000005964912,
+            -0.2999999964310565
+          ],
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.99999641894448,
+          "target_deg": 45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.99999641894448,
+          "target_deg": -45,
+          "error_deg": 3.5810555232274055e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "eye_lateral_line_residual_m": 2.5660950862316773e-09,
+          "centre_body_m": [
+            -1.325000001847417,
+            1.8500000005964912,
+            -0.3000000017809812
+          ],
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.6045676277740322,
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_R_Level": 0.6045673160663813,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 0,
+      "first_witnesses": [],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 0
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.3250000055691042,
+          -1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      },
+      "R": {
+        "common_body_m": [
+          -1.3250000055691042,
+          1.8500000005964912,
+          -0.30000000096686213
+        ],
+        "axis_residual_m": 3.7216867365685857e-09,
+        "midpoint_residual_m": 4.8388778425733046e-08,
+        "eye_lateral_line_residual_m": 5.6524105467610115e-09
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.645,
+        0.0,
+        -0.8999999999999999
+      ],
+      "offset_from_rear_eye_body_m": [
+        0.6799999999999999,
+        0.0,
+        -0.5999999999999999
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": -20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -6.109797208925912,
+              "aimed_at_c_error_deg": 6.109797208925912,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.99999992792029,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -48.39873756313505,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": -44.999996418944484,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 26.11391210097474,
+          "centre_horizontal_bearing_deg": 20.181790699981697,
+          "centre_vertical_bearing_deg": -17.969139740157015,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 6.109797208925926,
+              "aimed_at_c_error_deg": 6.109797208925926,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999992792027,
+              "aimed_at_c_error_deg": 7.2079728852259e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 48.39873756313506,
+              "aimed_at_c_error_deg": 3.3987375631350574,
+              "fixed_body_lateral_angle_deg": 44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -42.37084810095578,
+              "aimed_at_c_error_deg": 2.629151899044217,
+              "fixed_body_lateral_angle_deg": -44.99999641894448,
+              "fixed_body_lateral_error_deg": 3.5810555232274055e-06
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -0.8858807343990158,
+            -0.38709871312192723
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -0.653928797120925,
+            -0.6190505607778898
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.8251670886521661,
+            -0.4478122551425482
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -0.80050445088914,
+            -0.4724748929055743
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 2.6141806191748027
+  },
+  "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb": {
+    "sha256": "6e4150ce07a1ea4f3164659b5ebf56006d2a82b0d554a34fbd6033967ed7c65e",
+    "sides": {
+      "L": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 9.033000655515213e-07,
+          "eye_lateral_line_residual_m": 3.8625622678940685e-08,
+          "centre_body_m": [
+            -1.9699999613765442,
+            -2.449999999963324,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.2199999428393977,
+              -2.449999999963324,
+              -0.2639999995908644
+            ],
+            [
+              -1.719999979913691,
+              -2.449999999963324,
+              -0.2639999995908644
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.0812451778357923e-07,
+          "eye_lateral_line_residual_m": 1.31755789863388e-08,
+          "centre_body_m": [
+            -1.9700000126423314,
+            -2.4499999999633246,
+            -0.2640000037104364
+          ],
+          "endpoints_body_m": [
+            [
+              -1.9700000126423314,
+              -2.4499999999633246,
+              -0.5140000071443415
+            ],
+            [
+              -1.9700000126423314,
+              -2.4499999999633246,
+              -0.014000000276531421
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.00000111267542,
+          "target_deg": -45,
+          "error_deg": 1.1126754202450684e-06,
+          "centre_offset_deg": 2.102358468233249e-07,
+          "eye_lateral_line_residual_m": 8.989803945189855e-09,
+          "centre_body_m": [
+            -1.970000008980489,
+            -2.4499999999633246,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              -2.4499999999633246,
+              -0.4407766950042049
+            ],
+            [
+              -1.793223320433102,
+              -2.4499999999633246,
+              -0.08722330417752391
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.00000111267542,
+          "target_deg": 45,
+          "error_deg": 1.1126754202450684e-06,
+          "centre_offset_deg": 2.102358468233249e-07,
+          "eye_lateral_line_residual_m": 8.989803945189855e-09,
+          "centre_body_m": [
+            -1.970000008980489,
+            -2.4499999999633246,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              -2.4499999999633246,
+              -0.08722330417752393
+            ],
+            [
+              -1.793223320433102,
+              -2.4499999999633246,
+              -0.44077669500420485
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Level": {
+          "angle_deg": 0.0,
+          "target_deg": 0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 9.033000655515211e-07,
+          "eye_lateral_line_residual_m": 3.8625622678940685e-08,
+          "centre_body_m": [
+            -1.9699999613765442,
+            2.4499999999633246,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.2199999428393977,
+              2.4499999999633246,
+              -0.2639999995908644
+            ],
+            [
+              -1.719999979913691,
+              2.4499999999633246,
+              -0.2639999995908644
+            ]
+          ]
+        },
+        "Vertical": {
+          "angle_deg": 90.0,
+          "target_deg": 90,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.081245177835793e-07,
+          "eye_lateral_line_residual_m": 1.31755789863388e-08,
+          "centre_body_m": [
+            -1.9700000126423314,
+            2.449999999963324,
+            -0.2640000037104364
+          ],
+          "endpoints_body_m": [
+            [
+              -1.9700000126423314,
+              2.449999999963324,
+              -0.5140000071443415
+            ],
+            [
+              -1.9700000126423314,
+              2.449999999963324,
+              -0.014000000276531421
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.00000111267542,
+          "target_deg": 45,
+          "error_deg": 1.1126754202450684e-06,
+          "centre_offset_deg": 2.1023584682332495e-07,
+          "eye_lateral_line_residual_m": 8.989803945189855e-09,
+          "centre_body_m": [
+            -1.970000008980489,
+            2.449999999963324,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              2.449999999963324,
+              -0.4407766950042049
+            ],
+            [
+              -1.793223320433102,
+              2.449999999963324,
+              -0.08722330417752391
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.00000111267539,
+          "target_deg": -45,
+          "error_deg": 1.112675391823359e-06,
+          "centre_offset_deg": 2.1023584682332495e-07,
+          "eye_lateral_line_residual_m": 8.989803945189855e-09,
+          "centre_body_m": [
+            -1.970000008980489,
+            2.449999999963324,
+            -0.2639999995908644
+          ],
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              2.449999999963324,
+              -0.08722330417752393
+            ],
+            [
+              -1.793223320433102,
+              2.449999999963324,
+              -0.44077669500420485
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Level": 0.5751562239161917,
+      "Sight_L_Vertical": 0.5333954370851427,
+      "Sight_L_Plus45": 0.5626235355196105,
+      "Sight_L_Minus45": 0.5163229012682763,
+      "Sight_R_Level": 0.5751558716109268,
+      "Sight_R_Vertical": 0.5333952913144366,
+      "Sight_R_Plus45": 0.5626234173392822,
+      "Sight_R_Minus45": 0.5163225282335242
+    },
+    "visibility": {
+      "tested_rays": 808,
+      "blocked_rays": 808,
+      "first_witnesses": [
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.0,
+          "hit_body_m": [
+            -2.0044020130446123,
+            -0.3371398049166108,
+            -0.26399999994369966
+          ]
+        },
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.01,
+          "hit_body_m": [
+            -2.0037133742727464,
+            -0.33713382086846927,
+            -0.26399999994370066
+          ]
+        },
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.02,
+          "hit_body_m": [
+            -2.003024759946374,
+            -0.3371278370327513,
+            -0.26399999994370166
+          ]
+        },
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.03,
+          "hit_body_m": [
+            -2.0023361700641935,
+            -0.3371218534094453,
+            -0.26399999994370266
+          ]
+        },
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.04,
+          "hit_body_m": [
+            -2.0016476046249028,
+            -0.33711586999854026,
+            -0.26399999994370366
+          ]
+        },
+        {
+          "bar": "Sight_L_Level",
+          "fraction": 0.05,
+          "hit_body_m": [
+            -2.0009590636272008,
+            -0.33710988680002457,
+            -0.26399999994370466
+          ]
+        }
+      ],
+      "legacy_three_bar_tested_rays": 606,
+      "legacy_three_bar_blocked_rays": 606
+    },
+    "mount_attachment_mesh_count": 0,
+    "intersection": {
+      "L": {
+        "common_body_m": [
+          -1.97000001081141,
+          -2.4499999999633246,
+          -0.26399999959086445
+        ],
+        "axis_residual_m": 1.8309214144807129e-09,
+        "midpoint_residual_m": 4.943486575648138e-08,
+        "eye_lateral_line_residual_m": 1.0819148666425178e-08
+      },
+      "R": {
+        "common_body_m": [
+          -1.97000001081141,
+          2.4499999999633246,
+          -0.26399999959086445
+        ],
+        "axis_residual_m": 1.8309214144807666e-09,
+        "midpoint_residual_m": 4.943486575648137e-08,
+        "eye_lateral_line_residual_m": 1.0819148666425178e-08
+      }
+    },
+    "in_game_cockpit_camera": {
+      "camera_body_m": [
+        -0.744,
+        0.0,
+        -0.95
+      ],
+      "offset_from_rear_eye_body_m": [
+        1.226,
+        0.0,
+        -0.6859999999999999
+      ],
+      "derivation": "Canopy U(x,0,z+BodyAxisZ) minus config mass.cg, PilotEgress +Unity up*0.15, ChaseCamera +Unity up*0.1",
+      "convention": "Angles from horizontal, up=-body Z; each side re-aimed at C with zero roll. Also report body-lateral fixed-axis projection. Default in-game camera looks forward/down 4 degrees; all bar endpoints are behind its forward plane, so actual visible angle errors are undefined. Re-aimed measurements are hypothetical diagnostics.",
+      "sides": {
+        "L": {
+          "centre_off_body_lateral_axis_deg": 29.83074023977169,
+          "centre_horizontal_bearing_deg": -26.58375694837326,
+          "centre_vertical_bearing_deg": -15.642246457208728,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": -6.9302463321516825,
+              "aimed_at_c_error_deg": 6.9302463321516825,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": -89.999999942484,
+              "aimed_at_c_error_deg": 5.7515990192769095e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": -50.34136123784801,
+              "aimed_at_c_error_deg": 5.3413612378480195,
+              "fixed_body_lateral_angle_deg": -45.00000111267543,
+              "fixed_body_lateral_error_deg": 1.1126754202450684e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": 43.92548796855448,
+              "aimed_at_c_error_deg": 1.074512031445522,
+              "fixed_body_lateral_angle_deg": 45.00000111267542,
+              "fixed_body_lateral_error_deg": 1.1126754202450684e-06
+            }
+          }
+        },
+        "R": {
+          "centre_off_body_lateral_axis_deg": 29.83074023977169,
+          "centre_horizontal_bearing_deg": 26.58375694837326,
+          "centre_vertical_bearing_deg": -15.642246457208728,
+          "bars": {
+            "Level": {
+              "aimed_at_c_angle_deg": 6.9302463321516825,
+              "aimed_at_c_error_deg": 6.9302463321516825,
+              "fixed_body_lateral_angle_deg": 0.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Vertical": {
+              "aimed_at_c_angle_deg": 89.99999994248401,
+              "aimed_at_c_error_deg": 5.7515990192769095e-08,
+              "fixed_body_lateral_angle_deg": 90.0,
+              "fixed_body_lateral_error_deg": 0.0
+            },
+            "Plus45": {
+              "aimed_at_c_angle_deg": 50.34136123784799,
+              "aimed_at_c_error_deg": 5.341361237847991,
+              "fixed_body_lateral_angle_deg": 45.00000111267542,
+              "fixed_body_lateral_error_deg": 1.1126754202450684e-06
+            },
+            "Minus45": {
+              "aimed_at_c_angle_deg": -43.92548796855448,
+              "aimed_at_c_error_deg": 1.074512031445522,
+              "fixed_body_lateral_angle_deg": -45.00000111267542,
+              "fixed_body_lateral_error_deg": 1.1126754202450684e-06
+            }
+          }
+        }
+      },
+      "default_forward_camera_bars": {
+        "L_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.4245515401451287,
+            -0.9257695519991989
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.1925997161760051,
+            -1.1577214788248684
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.3638379818911723,
+            -0.9864832052291228
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "L_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.3391753440668244,
+            -1.0111458430534708
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Level": {
+          "endpoint_forward_depth_range_m": [
+            -1.4245515401451287,
+            -0.9257695519991989
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Vertical": {
+          "endpoint_forward_depth_range_m": [
+            -1.1925997161760051,
+            -1.1577214788248684
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Plus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.3638379818911723,
+            -0.9864832052291228
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        },
+        "R_Minus45": {
+          "endpoint_forward_depth_range_m": [
+            -1.3391753440668244,
+            -1.0111458430534708
+          ],
+          "behind_camera": true,
+          "visible_angle_error_deg": null
+        }
+      }
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "propeller_swept_slab_clearance_m": 2.477128535994397
+  }
+}

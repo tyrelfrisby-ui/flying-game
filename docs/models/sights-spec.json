@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 3,
   "body_axes": "+X forward, +Y right, +Z down, origin aircraft root/CG",
   "source_commit": "aab015b",
   "source_field": "entries[rear].v4.position_body",
@@ -7,14 +7,18 @@
   "frame": {
     "bar_length_m": 0.5,
     "rod_diameter_m": 0.008,
-    "bracket_diameter_m": 0.01,
     "colour_srgb": [
       200,
       24,
       36
     ],
-    "plane": "body y = +/-y_mount_m",
+    "plane": "body y = +/-y_frame_m",
     "directions_body": {
+      "Level": [
+        1,
+        0,
+        0
+      ],
       "Vertical": [
         0,
         0,
@@ -31,10 +35,8 @@
         0.7071067811865476
       ]
     },
-    "fitting_embed_m": 0.008,
-    "fitting_projection_m": 0.012,
-    "fitting_diameter_m": 0.018,
-    "cylinder_segments": 16
+    "cylinder_segments": 16,
+    "visibility": "Sight_ nodes: local cockpit camera only; default hidden; no airframe attachments"
   },
   "aircraft": {
     "extra-300-like": {
@@ -91,40 +93,6 @@
         -0.0,
         0.00245
       ],
-      "y_mount_m": 3.936790831515333,
-      "attachment_body_m": [
-        -0.03990059807682364,
-        3.936790831515333,
-        -0.11915083184267342
-      ],
-      "attachment_gltf_m": [
-        0.05,
-        0.12278314995001605,
-        -3.975
-      ],
-      "attachment_structure": "Wing",
-      "attachment_outward_body": [
-        0.0,
-        0,
-        -1.0
-      ],
-      "support_body_m": [
-        [
-          -0.03990059807682364,
-          3.936790831515333,
-          -0.13115083184267343
-        ],
-        [
-          -0.03990059807682364,
-          3.936790831515333,
-          -0.518
-        ],
-        [
-          -1.597,
-          3.936790831515333,
-          -0.518
-        ]
-      ],
       "glbs": [
         "extra-300-like-own-n300uy.glb",
         "extra-300-like-own-unmarked.glb",
@@ -159,8 +127,9 @@
         },
         "hinge_position_uncertainty_m": 0.1,
         "max_deflection_rad": 0.5236,
-        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
-      }
+        "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
+      },
+      "y_frame_m": 3.936790831515333
     },
     "pitts-s2b-like": {
       "eye_body_m": [
@@ -215,40 +184,6 @@
         -0.01225,
         -0.0,
         0.00029
-      ],
-      "y_mount_m": 1.85,
-      "attachment_body_m": [
-        -0.08218161636991436,
-        2.2351889450918767,
-        -0.30000000000000004
-      ],
-      "attachment_gltf_m": [
-        0.07,
-        0.30057627506166185,
-        -2.2373531122083885
-      ],
-      "attachment_structure": "Strut_Interplane",
-      "attachment_outward_body": [
-        0.0,
-        -1,
-        0.0
-      ],
-      "support_body_m": [
-        [
-          -0.08218161636991436,
-          2.2231889450918767,
-          -0.30000000000000004
-        ],
-        [
-          -0.08218161636991436,
-          1.85,
-          -0.30000000000000004
-        ],
-        [
-          -1.325,
-          1.85,
-          -0.3
-        ]
       ],
       "glbs": [
         "pitts-s2b-like-own-checker-unmarked.glb",
@@ -309,8 +244,9 @@
         },
         "hinge_position_uncertainty_m": 0.1,
         "max_deflection_rad": 0.4363,
-        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
-      }
+        "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
+      },
+      "y_frame_m": 1.85
     },
     "great-lakes-like": {
       "eye_body_m": [
@@ -366,40 +302,6 @@
         -0.0,
         0.02528
       ],
-      "y_mount_m": 2.45,
-      "attachment_body_m": [
-        -1.2425098384302564,
-        2.8161035772062393,
-        -0.264
-      ],
-      "attachment_gltf_m": [
-        1.23,
-        0.06725278864327618,
-        -2.8648979426976386
-      ],
-      "attachment_structure": "Strut_Interplane",
-      "attachment_outward_body": [
-        0.0,
-        -1,
-        0.0
-      ],
-      "support_body_m": [
-        [
-          -1.2425098384302564,
-          2.8041035772062393,
-          -0.264
-        ],
-        [
-          -1.2425098384302564,
-          2.45,
-          -0.264
-        ],
-        [
-          -1.97,
-          2.45,
-          -0.264
-        ]
-      ],
       "glbs": [
         "great-lakes-like-own.glb"
       ],
@@ -432,8 +334,10 @@
         },
         "hinge_position_uncertainty_m": 0.1,
         "max_deflection_rad": 0.4014,
-        "method": "Axis through actual mesh leading-edge witnesses in 10-30% / 70-90% span bands at mesh mid-thickness. Conservative full-range displacement dilation: 2*(vertex distance to axis + 0.100 m hinge uncertainty)*sin(maxDefl/2); no angular sampling gaps."
-      }
+        "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
+      },
+      "y_frame_m": 2.45
     }
-  }
+  },
+  "offline_geometry_baseline_commit": "38e8746"
 }

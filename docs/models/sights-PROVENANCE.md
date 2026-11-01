@@ -1,77 +1,89 @@
-# Aerobatic sights — 2026-10-31
+# Floating aerobatic sights — round 3, 2026-10-31
 
-All eight own-livery GLBs contain spec-generated red rod sights on both sides. The shared helper `tools/own_models/sights.py` is called from `sequence_card.blender_add` / `native_add`, which all three builders already invoke. Dimensions, eye source and measured mount/support positions live in [sights-spec.json](sights-spec.json). No eyepoint statuses or application/config files change.
+## NEEDS YOU
 
-**Unresolved Great Lakes visibility:** the exact requested eye is inside opaque fuselage geometry under the current importer placement. All 606 sight visibility rays are blocked. Both full-scene eye renders retain and label this obstruction; separately labelled frame-isolation renders show the geometric angles only. The eye was not raised, the cockpit was not cut away in the full-scene renders, and no historical transform was silently substituted. Ty/operator resolution is needed before this type can satisfy the visibility requirement.
+- Run the external Blender rebuilds and Unity visibility check below, then inspect on device. Neither Blender nor Unity/dotnet/xcodebuild was run in this sandbox. The new EditMode command exercises imported renderers and the actual camera callback delegates without a graphics device; it is not a pixel-render test. No gate approved. Ty's Pitts eye acceptance remains feedback only.
+- **Camera mismatch, reported only:** the game uses the hidden procedural `Canopy` child, not the specified rear eye. `BuildCanopy` positions it at U(x,0,z+BodyAxisZ); `AirframeBuilder.Build` subtracts config `mass.cg`; `PilotEgress.CockpitLocal` adds Unity up×0.15; `ChaseCamera.FixedView` adds up×0.10. Body +Z is down. Values below are source-derived, pending runtime confirmation by the editor check's logged coordinates. Camera positions, eyepoints and configs are unchanged.
 
-## Reference and coordinate mapping
+| Type | Actual cockpit camera (body m) | Camera minus rear E (body m) | Centre off lateral axis ° (L/R) |
+|---|---|---|---:|
+| Extra | (-0.280, +0.000, -0.900) | (+1.317, +0.000, -0.382) | 19.204490 |
+| Pitts | (-0.645, +0.000, -0.900) | (+0.680, +0.000, -0.600) | 26.113912 |
+| Great Lakes | (-0.744, +0.000, -0.950) | (+1.226, +0.000, -0.686) | 29.830740 |
 
-Read-only source: `git show aab015b:docs/models/eyepoints.json`. The requested coordinates are confirmed in `entries[rear].v4.position_body` (the outer historic v3 `position_body` fields differ). Extra (-1.597,0,-0.518); Pitts (-1.325,0,-0.300); Great Lakes (-1.970,0,-0.264). Ty accepts the Pitts point as the sight reference; no gate or eyepoint status was edited.
+**Actual default cockpit view:** the camera looks forward with 4° down pitch, 72° vertical FOV. Every endpoint of all eight sight bars is behind that camera's forward plane for all three types. Consequently no bar has a visible projected angle/error in that default view. `check-sights.json` records each endpoint depth range and null visible-angle errors. A view must look sideways/aft to see the frames; adding such a view or moving the camera is outside this change.
 
-Body metres are +X forward, +Y right, +Z down relative to aircraft root/CG. Raw GLB is nose -X, up +Y, left +Z. Builder is forward +X, left +Y, up +Z; builder→GLB = (-x,z,y). For raw GLB g, **body = (-s*g.x+tx, -s*g.z, -s*g.y+tz)**:
+To quantify the position mismatch independently of the current forward orientation, aim a diagnostic camera from the actual cockpit position directly at C, using body up=-Z (zero roll). Absolute errors relative to the ideal rear-eye line angles are below, identical on L/R to the shown precision. These are **hypothetical re-aimed views**, not current game-camera renders:
 
-| Type | s | tx (m) | tz (m) | Eye in raw GLB (m) |
-|---|---:|---:|---:|---|
-| extra-300-like | 0.990387630570 | 0.009618783452 | 0.002452081110 | (1.622212085, 0.525503414, 0) |
-| pitts-s2b-like | 0.999032710972 | -0.012249326602 | 0.000285530929 | (1.314021712, 0.300576275, 0) |
-| great-lakes-like | 0.982968201148 | -0.033458951018 | -0.197892647325 | (1.970095316, 0.067252789, 0) |
+| Type | Level error ° | Vertical error ° | Plus45 error ° | Minus45 error ° |
+|---|---:|---:|---:|---:|
+| Extra | 1.755838 | 0.000000 | 2.220893 | 0.549921 |
+| Pitts | 6.109797 | 0.000000 | 3.398738 | 2.629152 |
+| Great Lakes | 6.930246 | 0.000000 | 5.341361 | 1.074512 |
 
-Transforms reproduce current `AirframeModels.Place` readable-vertex span fit (including Pitts scale trim), outer-wing chord midpoint alignment, lateral centring and lowest-wheel alignment. The checker recomputes them from each final GLB and asserts no placement drift. New frames lie outside the importer’s 65–92% half-span sampling band; their bounds remain inside the original aircraft span. The biplane supports attach to their struts then step inboard before reaching aft.
+Looking along fixed body ±Y instead leaves each plane parallel to the image: line-angle errors stay at rear-eye float32 precision, but the centre misses the optical axis by the angles in the camera table. Thus camera offset alone does not define a unique bar-angle error without a look direction/roll convention. Both diagnostics are in the JSON.
 
-The source commit’s Great Lakes transform is stale relative to this lane’s current geometry: tx=-0.0439, tz=+0.02528, versus the values above. It maps the requested eye to raw (1.95948,0.29429,0), about 227 mm above the actual-current mapped eye. This explains the conflict. Extra/Pitts source translation differences are only source rounding. Source transforms are retained separately in the spec for audit.
+- **Great Lakes eye still occluded:** E=(-1.970,0,-0.264) remains inside opaque fuselage under this lane's current importer transform. All 808/808 four-bar rays are blocked; the historical three-bar subset is still 606/606 blocked. The full-scene images retain the obstruction; frame-isolated images are diagnostics. No eye/cockpit correction or approval added.
 
-## Dimensions and attachments
+## Geometry and provenance
 
-Each of the three bars is 0.500 m end-to-end; vertical height 0.500 m, diagonal width/height 0.353553391 m. Rod diameter 8 mm, support diameter 10 mm; 18 mm diameter × 20 mm long attachment fitting (8 mm embedded / 12 mm projecting). Red RGB (200,24,36), original geometry inspired by Ty’s ref1.png (Extra wingtip) and ref2/ref3.png (Pitts I-strut). Photos were opened and inspected; no pixels or mesh were copied.
+This replaces all round-1/2 sight mounts on top of `ae1e0d8`, per Ty: “No attaching arms just a floating level vertical and 45 each direction with the exact center of the intersecting lines on the eye line”. Each LEFT/RIGHT frame has exactly four intersecting red cylinders (0.500 m × 8 mm), with axes body X (level), body Z (vertical), and (±1,0,1)/√2. No hub, support, fitting, tube, brace, socket, plate or collar; no centre marker/end treatment added. Existing airframe struts/wires and panel-card hardware remain aircraft geometry.
 
-L = negative body Y, R = positive body Y. Coordinates below are mirrored; JSON retains full precision. Attachment is the surface fitting, C is the three-bar intersection. The aft-reaching support is needed because each eye station is behind its structure.
+Spec C=(E.x,±y_frame,E.z): Extra E=(-1.597,0,-0.518), y=3.936790831515333; Pitts E=(-1.325,0,-0.300), y=1.850; Great Lakes E=(-1.970,0,-0.264), y=2.450. `sights-spec.json` retains the measured GLB→body placement transforms. `docs/models/eyepoints.json` is absent at this HEAD; the checker verifies the retained values against `aab015b:docs/models/eyepoints.json`, entries[rear].v4.position_body. No eyepoint status changed.
 
-| Type | Attachment L/R, body m | C L/R, body m | Structure |
-|---|---|---|---|
-| extra-300-like | (-0.039900598, ±3.936790832, -0.119150832) | (-1.597, ±3.936790832, -0.518) | Wing |
-| pitts-s2b-like | (-0.082181616, ±2.235188945, -0.300000000) | (-1.325, ±1.850000000, -0.300) | Strut_Interplane |
-| great-lakes-like | (-1.242509838, ±2.816103577, -0.264000000) | (-1.970, ±2.450000000, -0.264) | Strut_Interplane |
+`sights.py` supplies both native and Blender meshes through the existing `sequence_card.py` calls in all three builders. No duplicate geometry needed changing in the builders. Deleted `fit_sight_mounts.py` and all mount fields/emitters. Offline regeneration starts from immutable `38e8746` (before sights), so obsolete buffers/meshes are absent. All eight GLBs were regenerated; rerunning each builder's `--offline-update` produced identical SHA-256 hashes. All 11 PNGs and the render manifest are also byte-identical on regeneration.
 
-Nominal attachment coordinates come from triangle/surface ray intersections. Mirrored fittings overlap both structure surfaces; the triangulated Pitts waist’s mirrored surface differs by 0.0066 mm, below the 0.010 mm surface tolerance and far inside the 8 mm fitting engagement. All non-fitting rod/support capsules clear the opaque static airframe by at least 6.93 mm. Intended rod/rod joins at C and support elbows overlap.
+## Mesh checks and renders
 
-Aileron travel is read from current configs: Extra ±0.5236 rad, Pitts ±0.4363 rad, Great Lakes ±0.4014 rad. Each actual aileron triangle is dilated by a continuous full-travel displacement bound `2*(max vertex distance to hinge axis + 0.100 m pivot uncertainty)*sin(maxDeflection/2)`. All rod/support capsules lie outside those conservative swept triangle AABBs. This checks every angle in the interval, without gaps from angular sampling. Hinge witnesses, uncertainty and travel are recorded in the spec; Unity rig/import behavior remains an operator check.
+`check_sights.py` measures actual exported float32 cap centres and cylinder axes. It rejects missing/extra/dormant sight nodes or meshes, checks the eight meshes against the four-bar spec and rejects the old clamp material. Four-axis least-squares intersection, cap-midpoint coincidence and eye-lateral-line residuals must each be ≤1e-6 m. Maximum measured residual across those checks: 4.943486576e-08 m. Current Place invariance, static structure clearance, continuous full-aileron-travel enclosure, prop swept slab and lowered Pitts-card visibility checks remain. `check_iac_assets.py` passes all 9/9 assets, preserving airframe/front panels/paint and card fit.
 
-## Actual exported-mesh pinhole checks
+Pinhole angle convention: undirected angle from image horizontal, up=-body Z. Level=0°, vertical=90°, Plus45=L:-45°/R:+45°, Minus45=L:+45°/R:-45°. Absolute errors (all liveries agree):
 
-Each actual cylinder’s cap centres are recovered from its float32 vertices and transformed to body metres. The pinhole camera at E looks along body -Y on L / +Y on R, with true up -Z. Camera right is +X on L / -X on R. Plus45 therefore appears -45° on L and +45° on R; Minus45 is the reverse. C must project at the optical centre. Errors below are absolute degrees:
-
-| Type | Side | Vertical error | Plus45 error | Minus45 error | Maximum C offset |
+| Type | Side | Level error ° | Vertical error ° | Plus45 error ° | Minus45 error ° |
 |---|---|---:|---:|---:|---:|
-| extra-300-like | L | 0.000000000 | 0.000000448 | 0.000000448 | 0.000000370 |
-| extra-300-like | R | 0.000000000 | 0.000000448 | 0.000000448 | 0.000000370 |
-| pitts-s2b-like | L | 0.000000000 | 0.000003581 | 0.000003581 | 0.000000308 |
-| pitts-s2b-like | R | 0.000000000 | 0.000003581 | 0.000003581 | 0.000000308 |
-| great-lakes-like | L | 0.000000000 | 0.000001113 | 0.000001113 | 0.000000308 |
-| great-lakes-like | R | 0.000000000 | 0.000001113 | 0.000001113 | 0.000000308 |
+| Extra | L | 0.000000000 | 0.000000000 | 0.000000448 | 0.000000448 |
+| Extra | R | 0.000000000 | 0.000000000 | 0.000000448 | 0.000000448 |
+| Pitts | L | 0.000000000 | 0.000000000 | 0.000003581 | 0.000003581 |
+| Pitts | R | 0.000000000 | 0.000000000 | 0.000003581 | 0.000003581 |
+| Great Lakes | L | 0.000000000 | 0.000000000 | 0.000001113 | 0.000001113 |
+| Great Lakes | R | 0.000000000 | 0.000000000 | 0.000001113 | 0.000001113 |
 
-Results are identical across each type’s liveries to the shown precision. The angular/centre target <0.01° passes all eight. The lowered Pitts card also passes 99 full-scene visibility rays from this exact sight-reference eye (in addition to the unchanged historical-eye IAC checks). Visibility is a separate full-scene measurement: Pitts/Extra 606/606 rays pass per GLB; Great Lakes 0/606. Numerical alignment alone does not establish visibility.
+Pitts and Extra have 808/808 clear opaque-airframe rays. Great Lakes is flagged above; `--require-visible` deliberately fails. The known Great Lakes blockage is not waived.
 
-## Pitts card
+Committed `docs/pending/sights-renders/v3/`: 6 `*-cockpit-rear-eye-{L,R}.png`, 3 `*-exterior-34.png`, 2 Great Lakes frame-isolated variants, `check-sights.json`, `render-manifest.json`. Dotted true level/vertical/±45° references and measured errors are printed on eye views. Exterior rendering passes `include=lambda n:not n.startswith('Sight_')` before rasterization; the manifest lists the eight excluded nodes for each exterior view. Transparent glass is omitted by the CPU renderer. These are asset geometry evidence, not Unity lighting/UI screenshots. Older evidence is historical only.
 
-Face centre builder (-0.8087,0,+0.015) → (-0.8087,0,-0.035); raw GLB (0.8087,+0.015,0) → (0.8087,-0.035,0), **50 mm down**. Card top 0.08485 → 0.03485; frame top 0.08785 → 0.03785; frame bottom is -0.10785, 12.15 mm above the panel bottom. Flush 1.2 mm paper / 3 mm hardware, half-letter dimensions and centreline are preserved. **No instruments moved**: existing seven-dial layout clears the lowered holder and each other. All four Pitts liveries updated; original cockpit triangles, front panel, seats and airframe buffers retained.
+## Runtime visibility and audited camera paths
 
-## Reproduce and verify
+`AirframeModels.Place` immediately installs `CockpitSights` on every model with `Sight_` nodes. It caches the renderers once, disables them at spawn and disables their shadows. Only `AirframeVisual.Rebuild` binds a local driver. The guard brackets Built-in Pipeline `Camera.onPreCull` / `onPostRender`: enable only for Camera.main with an active matching ChaseCamera, matching local driver/target, Cockpit view, no side lesson, no override/egress, and neither replay flag. A camera stack hides for nested renders and restores the outer camera; the final post-render returns to OFF. Disable/unbind/rebuild fail closed. The decision is recomputed per render, so a stale static `InCockpit` cannot leak sights.
 
-CPU Python with NumPy/Pillow:
+Source paths checked:
+
+- `ChaseCamera`: every enum value (RelativeWind, Cockpit, Tail, SideLeft, SideRight, Top, Bottom, Front, Flyby, RelativeWindAhead, Locked), SideView lessons, pilot OverrideTarget, null target and disabled camera controller.
+- `FlightReplay`: SessionSettings.ReplayActive and driver.Replaying both deny sights, even with Cockpit selected.
+- `WaterReflection.OnPreCull`: nested `_refl.CopyFrom(_main)` + `_refl.Render()` is denied and outer state restored.
+- `ClipRecorder.LateUpdate`: `_clip.CopyFrom(_main)` + manual Render is denied, including cockpit recordings.
+- `Practice/LessonIllustrator`: both manual LessonCamera render paths are denied, including renders of the live local aircraft.
+- `Widget/AeroWidget`: WidgetCamera and review camera, WidgetTow and other builder-only models remain unbound.
+- `Net/RemoteAircraft`: builder-only model stays unbound; its Show toggle explicitly excludes sight renderers.
+- Combat/drone/tow builder-only models and editor ModelRender/AirframeRender/AircraftRender/SkinRender stay unbound; any other camera without the exact local cockpit identity is denied.
+- `GroundShadow` explicitly skips sight meshes, which also never join control-skin carving, damage splitting or wing debris lists.
+
+`SightsVisibilityCheck.Run` checks actual imported bars for all 8 liveries twice (including rebuilds), spawn OFF, every View, replay/side/egress/null/disabled states, unbound remote model, CopyFrom secondary camera, nested reflection restoration, final OFF, guard disable/re-enable and unbind. It logs the actual cockpit body position. This check is committed but cannot be run in this sandbox. Device rendering still needs operator review.
+
+## Operator commands
+
+Run from this worktree. CPU environment on this machine is `~/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3` (NumPy/Pillow); use that interpreter if system Python lacks them.
 
 ```sh
-python3 tools/own_models/sequence_card.py
 python3 tools/own_models/sights.py
-python3 tools/own_models/check_sights.py --report docs/pending/sights-renders/check-sights.json
+python3 tools/own_models/check_sights.py --report docs/pending/sights-renders/v3/check-sights.json
 python3 tools/own_models/check_iac_assets.py
-python3 tools/own_models/render_sights.py
-# Visibility gate (currently fails for Great Lakes; intentionally not waived):
+python3 tools/own_models/render_sights.py --out docs/pending/sights-renders/v3
+# Expected to fail on the unchanged Great Lakes eye:
 python3 tools/own_models/check_sights.py --require-visible
 ```
 
-Builders also retain their per-livery `--offline-update` entry points. The native update starts from immutable round-1 `38e8746` buffers; repeated runs do not accumulate dead buffers. No StreamingAssets GLB mirrors exist for these types.
-
-Full Blender verification, **outside the sandbox**, from this worktree:
+Full Blender builds, outside the sandbox:
 
 ```sh
 for liv in N31DG N1191 CHECKER-UNMARKED FACTORY-UNMARKED; do
@@ -83,8 +95,16 @@ done
 GL_LIVERY=v1 blender -b --python tools/own_models/build_great_lakes.py
 ```
 
-Full rebuilds can reorder/replace the historical base buffers, so the round-1 byte-preservation portion of `check_iac_assets.py` applies to native incremental exports, not a fresh Blender export. Angle/geometry/visibility checks apply to either export. The unchanged source model already needs Blender/Unity review; this lane did not run Unity, Blender, dotnet or deploy.sh.
+Re-run mesh checks after Blender to confirm Place invariance. Full Blender export may reorder original buffers: `check_iac_assets.py`'s immutable-buffer contract is specific to native offline exports, so run it on this committed/native set before full Blender rebuilds. No fresh Blender export was claimed validated.
 
-## Renders
+Unity EditMode command (requires this project's imported assets; no graphics device needed), then existing .NET model tests:
 
-`docs/pending/sights-renders/` contains each type’s rear-eye L/R with true-line/angle overlays and exterior 3/4 with both sights labelled, Pitts rear-eye panel + panel close-up, Great Lakes frame-isolation diagnostics, machine-readable measurements and camera manifest. Full-scene Great Lakes images explicitly show the unresolved occlusion. No gate is approved.
+```sh
+/Applications/Unity/Hub/Editor/6000.3.23f1/Unity.app/Contents/MacOS/Unity \
+  -batchmode -quit -nographics -projectPath "$PWD/unity" \
+  -executeMethod FlyingGame.EditorTools.SightsVisibilityCheck.Run \
+  -logFile /tmp/flying-game-sights-v3-unity.log
+dotnet test tools/FlightTests/FlightTests.csproj --filter FullyQualifiedName~OwnPittsModelTests
+```
+
+Then inspect/import/build in Unity and on device, especially nested water reflection and view transitions. No Unity, Blender, dotnet, xcodebuild or deploy command ran here. `src/` and `configs/` are untouched. ProjectSettings bundleVersion deploy leftovers and build/ios.log are preserved and excluded from the local commit. Before every commit: `git ls-files | git check-ignore --no-index --stdin -v` must print nothing. No forced add, push or merge.

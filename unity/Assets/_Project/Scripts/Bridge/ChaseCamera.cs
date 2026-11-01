@@ -25,6 +25,17 @@ namespace FlyingGame.Bridge
         public static readonly string[] ViewNames = { "Relative wind", "Cockpit", "Tail", "Left side", "Right side", "Top", "Bottom", "Front", "Fly-by", "Relative wind, ahead", "Direction lock" };
         /// <summary>The camera is in the cockpit this frame (instruments become a panel, nothing is "kept out" of the view).</summary>
         public static bool InCockpit { get; private set; }
+        /// <summary>Re-evaluated per camera render: stale InCockpit cannot leak sights after a view change.</summary>
+        public bool CockpitSightsAllowed(FlightSimDriver owner) => isActiveAndEnabled && owner != null
+            && Driver == owner && Target == owner.transform && OverrideTarget == null
+            && !SideView && CurrentView == View.Cockpit && !SessionSettings.ReplayActive && !owner.Replaying;
+
+        private void OnDisable()
+        {
+            InCockpit = false;
+            SetCockpitExtras(false);
+        }
+
         public float CockpitFov = 72f;
         public float CockpitLookDownDeg = 4f;
         private Renderer _hidCanopy;
@@ -364,6 +375,8 @@ namespace FlyingGame.Bridge
             Transform tgt = ovr ? OverrideTarget : Target;
             if (tgt == null)
             {
+                InCockpit = false;
+                SetCockpitExtras(false);
                 return;
             }
             bool cockpit = !ovr && !SideView && CurrentView == View.Cockpit;

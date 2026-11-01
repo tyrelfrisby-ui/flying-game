@@ -52,22 +52,12 @@ def ray_hits(tris,origin,direction):
     return t[(abs(det)>1e-12)&(u>=-1e-8)&(v>=-1e-8)&(u+v<=1+1e-8)&(t>1e-8)]
 
 def segments(row):
-    dimensions=spec()['frame'];length=dimensions['bar_length_m'];half=length/2
+    dimensions=spec()['frame'];half=dimensions['bar_length_m']/2
     for side,sign in [('L',-1),('R',1)]:
-        c=np.array(row['eye_body_m'],dtype=float);c[1]=sign*row['y_mount_m']
-        for label,d in [('Vertical',(0,0,1)),('Plus45',(1/math.sqrt(2),0,1/math.sqrt(2))),('Minus45',(-1/math.sqrt(2),0,1/math.sqrt(2)))]:
-            d=np.array(d);yield f'Sight_{side}_{label}',c-half*d,c+half*d,spec()['frame']['rod_diameter_m']/2
-        # Each support runs from a measured structure surface via a clear inboard elbow to C.
-        route=np.array(row['support_body_m']);route[:,1]*=sign
-        route[-1]=c
-        attachment=np.array(row['attachment_body_m']);attachment[1]*=sign
-        normal=np.array(row['attachment_outward_body']);normal[1]*=sign
-        route[0]=attachment+normal*dimensions['fitting_projection_m']
-        for j,(a,b) in enumerate(zip(route,route[1:])):
-            yield f'Sight_{side}_Support{j}',a,b,spec()['frame']['bracket_diameter_m']/2
-        a=np.array(row['attachment_body_m']);a[1]*=sign
-        normal=np.array(row['attachment_outward_body']);normal[1]*=sign
-        yield f'Sight_{side}_Fitting',a-normal*dimensions['fitting_embed_m'],a+normal*dimensions['fitting_projection_m'],dimensions['fitting_diameter_m']/2
+        c=np.array(row['eye_body_m'],dtype=float);c[1]=sign*row['y_frame_m']
+        for label,d in dimensions['directions_body'].items():
+            d=np.array(d,dtype=float)
+            yield f'Sight_{side}_{label}',c-half*d,c+half*d,dimensions['rod_diameter_m']/2
 
 def cylinder(a,b,r):
     n=spec()['frame']['cylinder_segments']
@@ -85,14 +75,17 @@ def native_add(g,aircraft):
     row=spec()['aircraft'][aircraft];mat=g.material('Sight_Red',(.578,.009,.017))
     for name,a,b,r in segments(row):
         v,t=cylinder(a,b,r);g.mesh(name,native(v,row),t,mat)
-    g.doc.setdefault('extras',{})['aerobaticSights']=dict(spec='docs/models/sights-spec.json',eyeBodyM=row['eye_body_m'])
+    g.doc.setdefault('extras',{})['aerobaticSights']=dict(
+        spec='docs/models/sights-spec.json',eyeBodyM=row['eye_body_m'],
+        nodePrefix='Sight_',visibility='local-cockpit-only',defaultVisible=False)
 
 def blender_add(objects,aircraft):
     import bpy,paint
     row=spec()['aircraft'][aircraft];mat=paint.mat_colour('Sight_Red',(200,24,36),rough=.65)
     mat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.578,.009,.017,1)
     for name,a,b,r in segments(row):
-        vertices,triangles=cylinder(a,b,r);v=native(vertices,row)
+        vertices,triangles=cylinder(a,b,r)
+        v=native(vertices,row)
         # Inverse of native (-builder x,builder z,builder y).
         vertices=[(-x,z,y) for x,y,z in v]
         me=bpy.data.meshes.new(name);me.from_pydata(vertices,[],triangles);me.materials.append(mat)

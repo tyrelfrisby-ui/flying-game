@@ -1,0 +1,1245 @@
+{
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-n300uy.glb": {
+    "sha256": "3b8420007259cc772e1d8da845f18a74c7e07e26ca22130335530af109c29f7f",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.00000044842955,
+          "error_deg": 4.4842955304602583e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.00000044842956,
+          "error_deg": 4.484295601514532e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_L_Hub_Fitting": 1.0410641049171394,
+      "Sight_L_Front_Tube": 0.008646551523780634,
+      "Sight_L_Front_Fitting": 0.5516765225019882,
+      "Sight_L_Front_Plate_Fitting": 0.5447709253091216,
+      "Sight_L_Rear_Tube": 0.01593023743721045,
+      "Sight_L_Rear_Fitting": 0.292558950528382,
+      "Sight_L_Rear_Plate_Fitting": 0.28627568649552027,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147,
+      "Sight_R_Hub_Fitting": 1.0410635135476176,
+      "Sight_R_Front_Tube": 0.008646699726610313,
+      "Sight_R_Front_Fitting": 0.5516772305302046,
+      "Sight_R_Front_Plate_Fitting": 0.5447716332189895,
+      "Sight_R_Rear_Tube": 0.015930192775811515,
+      "Sight_R_Rear_Fitting": 0.29255965621217656,
+      "Sight_R_Rear_Plate_Fitting": 0.2862763905279014
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": 0.015984843233539686,
+      "Aileron_R": 0.015984984389270186
+    },
+    "propeller_swept_slab_clearance_m": 1.6468694436437596
+  },
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own-unmarked.glb": {
+    "sha256": "8561bee1b5aca2486116ec7f7260e2cc91529244204020ca3a24e6a5e74c37ce",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.00000044842955,
+          "error_deg": 4.4842955304602583e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.00000044842956,
+          "error_deg": 4.484295601514532e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_L_Hub_Fitting": 1.0410641049171394,
+      "Sight_L_Front_Tube": 0.008646551523780634,
+      "Sight_L_Front_Fitting": 0.5516765225019882,
+      "Sight_L_Front_Plate_Fitting": 0.5447709253091216,
+      "Sight_L_Rear_Tube": 0.01593023743721045,
+      "Sight_L_Rear_Fitting": 0.292558950528382,
+      "Sight_L_Rear_Plate_Fitting": 0.28627568649552027,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147,
+      "Sight_R_Hub_Fitting": 1.0410635135476176,
+      "Sight_R_Front_Tube": 0.008646699726610313,
+      "Sight_R_Front_Fitting": 0.5516772305302046,
+      "Sight_R_Front_Plate_Fitting": 0.5447716332189895,
+      "Sight_R_Rear_Tube": 0.015930192775811515,
+      "Sight_R_Rear_Fitting": 0.29255965621217656,
+      "Sight_R_Rear_Plate_Fitting": 0.2862763905279014
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": 0.015984843233539686,
+      "Aileron_R": 0.015984984389270186
+    },
+    "propeller_swept_slab_clearance_m": 1.6468694436437596
+  },
+  "unity/Assets/_Project/Resources/Models/extra-300-like/extra-300-like-own.glb": {
+    "sha256": "cab58ea0106ee1c10a7aec355b6a03e79161d3c4b0ee4b0528eac7af82916185",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              -3.936790825612162,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.00000044842955,
+          "error_deg": 4.4842955304602583e-07,
+          "centre_offset_deg": 3.704703716649712e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              -3.936790825612162,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              -3.936790825612162,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.1850202519655663e-07,
+          "endpoints_body_m": [
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.7680000123253005
+            ],
+            [
+              -1.596999982110419,
+              3.9367908256121615,
+              -0.26800001288452446
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.00000044842957,
+          "error_deg": 4.4842956725688055e-07,
+          "centre_offset_deg": 3.704703718601877e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.6947766932611492
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.34122330058808326
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.00000044842956,
+          "error_deg": 4.484295601514532e-07,
+          "centre_offset_deg": 3.7047037166497124e-07,
+          "endpoints_body_m": [
+            [
+              -1.7737766738351006,
+              3.9367908256121615,
+              -0.3412233005880833
+            ],
+            [
+              -1.4202232756278121,
+              3.9367908256121615,
+              -0.6947766932611494
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.9705704009229894,
+      "Sight_L_Plus45": 0.8221758060443111,
+      "Sight_L_Minus45": 0.9953276201679191,
+      "Sight_L_Hub_Fitting": 1.0410641049171394,
+      "Sight_L_Front_Tube": 0.008646551523780634,
+      "Sight_L_Front_Fitting": 0.5516765225019882,
+      "Sight_L_Front_Plate_Fitting": 0.5447709253091216,
+      "Sight_L_Rear_Tube": 0.01593023743721045,
+      "Sight_L_Rear_Fitting": 0.292558950528382,
+      "Sight_L_Rear_Plate_Fitting": 0.28627568649552027,
+      "Sight_R_Vertical": 0.9705697611430022,
+      "Sight_R_Plus45": 0.8221751640088879,
+      "Sight_R_Minus45": 0.9953270889313147,
+      "Sight_R_Hub_Fitting": 1.0410635135476176,
+      "Sight_R_Front_Tube": 0.008646699726610313,
+      "Sight_R_Front_Fitting": 0.5516772305302046,
+      "Sight_R_Front_Plate_Fitting": 0.5447716332189895,
+      "Sight_R_Rear_Tube": 0.015930192775811515,
+      "Sight_R_Rear_Fitting": 0.29255965621217656,
+      "Sight_R_Rear_Plate_Fitting": 0.2862763905279014
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_L": 0.015984843233539686,
+      "Aileron_R": 0.015984984389270186
+    },
+    "propeller_swept_slab_clearance_m": 1.6468694436437596
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-checker-unmarked.glb": {
+    "sha256": "a332f8a2e62bb14a358dc29d97e3119c4612f65856648f3db57e1ad1790f0ca1",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_L_Hub_Fitting": 0.8105710159651444,
+      "Sight_L_Main_Tube": 0.01590360639850795,
+      "Sight_L_Main_Fitting": 0.24666053669822408,
+      "Sight_L_Brace_Tube": 0.01590027022873134,
+      "Sight_L_Brace_Fitting": 0.21661246391576947,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678,
+      "Sight_R_Hub_Fitting": 0.8105709182338912,
+      "Sight_R_Main_Tube": 0.01590138152982319,
+      "Sight_R_Main_Fitting": 0.24666052221753182,
+      "Sight_R_Brace_Tube": 0.01590080176348163,
+      "Sight_R_Brace_Fitting": 0.21661246791417735,
+      "Sight_L_Main_Clamp_Fitting": 0.17848707451188478,
+      "Sight_L_Brace_Clamp_Fitting": 0.14181747701411052,
+      "Sight_R_Main_Clamp_Fitting": 0.1784870599828105,
+      "Sight_R_Brace_Clamp_Fitting": 0.14181748112856873
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 1.5403340898889895
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-factory-unmarked.glb": {
+    "sha256": "2edf0d82386b572f4c7907a144042d792e134e11e919022b46cb68035f0751f3",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_L_Hub_Fitting": 0.8105710159651444,
+      "Sight_L_Main_Tube": 0.01590360639850795,
+      "Sight_L_Main_Fitting": 0.24666053669822408,
+      "Sight_L_Brace_Tube": 0.01590027022873134,
+      "Sight_L_Brace_Fitting": 0.21661246391576947,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678,
+      "Sight_R_Hub_Fitting": 0.8105709182338912,
+      "Sight_R_Main_Tube": 0.01590138152982319,
+      "Sight_R_Main_Fitting": 0.24666052221753182,
+      "Sight_R_Brace_Tube": 0.01590080176348163,
+      "Sight_R_Brace_Fitting": 0.21661246791417735,
+      "Sight_L_Main_Clamp_Fitting": 0.17848707451188478,
+      "Sight_L_Brace_Clamp_Fitting": 0.14181747701411052,
+      "Sight_R_Main_Clamp_Fitting": 0.1784870599828105,
+      "Sight_R_Brace_Clamp_Fitting": 0.14181748112856873
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 1.5252415480279202
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own-n1191.glb": {
+    "sha256": "a8062e42d84f21933c82e295f77244c43aa168ca5a64eceec01e26f790a45c81",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_L_Hub_Fitting": 0.8105710159651444,
+      "Sight_L_Main_Tube": 0.01590360639850795,
+      "Sight_L_Main_Fitting": 0.24666053669822408,
+      "Sight_L_Brace_Tube": 0.01590027022873134,
+      "Sight_L_Brace_Fitting": 0.21661246391576947,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678,
+      "Sight_R_Hub_Fitting": 0.8105709182338912,
+      "Sight_R_Main_Tube": 0.01590138152982319,
+      "Sight_R_Main_Fitting": 0.24666052221753182,
+      "Sight_R_Brace_Tube": 0.01590080176348163,
+      "Sight_R_Brace_Fitting": 0.21661246791417735,
+      "Sight_L_Main_Clamp_Fitting": 0.17848707451188478,
+      "Sight_L_Brace_Clamp_Fitting": 0.14181747701411052,
+      "Sight_R_Main_Clamp_Fitting": 0.1784870599828105,
+      "Sight_R_Brace_Clamp_Fitting": 0.14181748112856873
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 1.5252415480279202
+  },
+  "unity/Assets/_Project/Resources/Models/pitts-s2b-like/pitts-s2b-like-own.glb": {
+    "sha256": "e782f4c4b49e0b2bc9a635db9f2de70b1ee9cf1f0403cdbc08645b4bca92a6c3",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              -1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              -1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              -1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.082418750597758e-07,
+          "endpoints_body_m": [
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.5499999926390975
+            ],
+            [
+              -1.325000009290791,
+              1.8500000005964912,
+              -0.05000000022301553
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.47677669675478024
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.1232233068071821
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -45.000003581055516,
+          "error_deg": 3.581055516121978e-06,
+          "centre_offset_deg": 7.94737395799615e-08,
+          "endpoints_body_m": [
+            [
+              -1.501776718918732,
+              1.8500000005964912,
+              -0.12322330680718213
+            ],
+            [
+              -1.1482232847761022,
+              1.8500000005964912,
+              -0.4767766967547803
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.5947880202120599,
+      "Sight_L_Plus45": 0.5886804579933017,
+      "Sight_L_Minus45": 0.6132813497892476,
+      "Sight_L_Hub_Fitting": 0.8105710159651444,
+      "Sight_L_Main_Tube": 0.01590360639850795,
+      "Sight_L_Main_Fitting": 0.24666053669822408,
+      "Sight_L_Brace_Tube": 0.01590027022873134,
+      "Sight_L_Brace_Fitting": 0.21661246391576947,
+      "Sight_R_Vertical": 0.5947878909630401,
+      "Sight_R_Plus45": 0.5886801263384008,
+      "Sight_R_Minus45": 0.613281000477678,
+      "Sight_R_Hub_Fitting": 0.8105709182338912,
+      "Sight_R_Main_Tube": 0.01590138152982319,
+      "Sight_R_Main_Fitting": 0.24666052221753182,
+      "Sight_R_Brace_Tube": 0.01590080176348163,
+      "Sight_R_Brace_Fitting": 0.21661246791417735,
+      "Sight_L_Main_Clamp_Fitting": 0.17848707451188478,
+      "Sight_L_Brace_Clamp_Fitting": 0.14181747701411052,
+      "Sight_R_Main_Clamp_Fitting": 0.1784870599828105,
+      "Sight_R_Brace_Clamp_Fitting": 0.14181748112856873
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 0,
+      "first_witnesses": []
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 560,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_UL": "outside conservative swept AABBs",
+      "Aileron_UR": "outside conservative swept AABBs",
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "lowered_card_visibility_from_sight_eye_rays": 99,
+    "propeller_swept_slab_clearance_m": 1.5403340898889895
+  },
+  "unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb": {
+    "sha256": "ab81eea81cb49bfc0e4ed52f156fa98be85ac7ad570ba3cf85af6a4ed3e46e92",
+    "sides": {
+      "L": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.0812451778357923e-07,
+          "endpoints_body_m": [
+            [
+              -1.9700000126423314,
+              -2.4499999999633246,
+              -0.5140000071443415
+            ],
+            [
+              -1.9700000126423314,
+              -2.4499999999633246,
+              -0.014000000276531421
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": -44.99999888732458,
+          "error_deg": 1.1126754202450684e-06,
+          "centre_offset_deg": 2.102358468233249e-07,
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              -2.4499999999633246,
+              -0.4407766950042049
+            ],
+            [
+              -1.793223320433102,
+              -2.4499999999633246,
+              -0.08722330417752391
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": 44.99999888732459,
+          "error_deg": 1.112675413139641e-06,
+          "centre_offset_deg": 2.102358468233249e-07,
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              -2.4499999999633246,
+              -0.08722330417752393
+            ],
+            [
+              -1.793223320433102,
+              -2.4499999999633246,
+              -0.44077669500420485
+            ]
+          ]
+        }
+      },
+      "R": {
+        "Vertical": {
+          "angle_deg": -0.0,
+          "error_deg": 0.0,
+          "centre_offset_deg": 3.081245177835793e-07,
+          "endpoints_body_m": [
+            [
+              -1.9700000126423314,
+              2.449999999963324,
+              -0.5140000071443415
+            ],
+            [
+              -1.9700000126423314,
+              2.449999999963324,
+              -0.014000000276531421
+            ]
+          ]
+        },
+        "Plus45": {
+          "angle_deg": 44.99999888732457,
+          "error_deg": 1.1126754273504957e-06,
+          "centre_offset_deg": 2.1023584682332495e-07,
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              2.449999999963324,
+              -0.4407766950042049
+            ],
+            [
+              -1.793223320433102,
+              2.449999999963324,
+              -0.08722330417752391
+            ]
+          ]
+        },
+        "Minus45": {
+          "angle_deg": -44.99999888732459,
+          "error_deg": 1.112675413139641e-06,
+          "centre_offset_deg": 2.1023584682332495e-07,
+          "endpoints_body_m": [
+            [
+              -2.146776697527876,
+              2.449999999963324,
+              -0.08722330417752393
+            ],
+            [
+              -1.793223320433102,
+              2.449999999963324,
+              -0.44077669500420485
+            ]
+          ]
+        }
+      }
+    },
+    "clearance_m": {
+      "Sight_L_Vertical": 0.5333954370851427,
+      "Sight_L_Plus45": 0.5626235355196105,
+      "Sight_L_Minus45": 0.5163229012682763,
+      "Sight_L_Hub_Fitting": 0.7530560727691933,
+      "Sight_L_Main_Tube": 0.015977491467890854,
+      "Sight_L_Main_Fitting": 0.3169064960642886,
+      "Sight_L_Brace_Tube": 0.0156136051926469,
+      "Sight_L_Brace_Fitting": 0.3187348104881179,
+      "Sight_R_Vertical": 0.5333952913144366,
+      "Sight_R_Plus45": 0.5626234173392822,
+      "Sight_R_Minus45": 0.5163225282335242,
+      "Sight_R_Hub_Fitting": 0.7530556999063308,
+      "Sight_R_Main_Tube": 0.01597751223921589,
+      "Sight_R_Main_Fitting": 0.3169064904223305,
+      "Sight_R_Brace_Tube": 0.015613662235547126,
+      "Sight_R_Brace_Fitting": 0.31873475349005337,
+      "Sight_L_Main_Clamp_Fitting": 0.29356387617240604,
+      "Sight_L_Brace_Clamp_Fitting": 0.29695599419608043,
+      "Sight_R_Main_Clamp_Fitting": 0.2935638705304479,
+      "Sight_R_Brace_Clamp_Fitting": 0.2969559371980159
+    },
+    "visibility": {
+      "tested_rays": 606,
+      "blocked_rays": 606,
+      "first_witnesses": [
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.0,
+          "hit_body_m": [
+            -1.9700000013709267,
+            -0.2656764942753797,
+            -0.2911098471297644
+          ]
+        },
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.01,
+          "hit_body_m": [
+            -1.9700000013720516,
+            -0.26589451525378144,
+            -0.29058945229368643
+          ]
+        },
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.02,
+          "hit_body_m": [
+            -1.9700000013731784,
+            -0.2661128943533343,
+            -0.29006820265730837
+          ]
+        },
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.03,
+          "hit_body_m": [
+            -1.9700000013743073,
+            -0.26633163245713815,
+            -0.28954609611275717
+          ]
+        },
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.04,
+          "hit_body_m": [
+            -1.9700000013754377,
+            -0.2665507304511985,
+            -0.2890231305452237
+          ]
+        },
+        {
+          "bar": "Sight_L_Vertical",
+          "fraction": 0.05,
+          "hit_body_m": [
+            -1.9700000013765702,
+            -0.266770189224439,
+            -0.288499303832934
+          ]
+        }
+      ]
+    },
+    "mount_occlusion": {
+      "tested_rays_outside_20mm_hub_join": 556,
+      "blocked_rays": 0
+    },
+    "full_aileron_sweep_clearance_bound_m": {
+      "Aileron_LL": "outside conservative swept AABBs",
+      "Aileron_LR": "outside conservative swept AABBs"
+    },
+    "propeller_swept_slab_clearance_m": 1.9206289890248827
+  }
+}

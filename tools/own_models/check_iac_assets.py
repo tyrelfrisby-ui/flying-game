@@ -70,13 +70,26 @@ for path in paths+[MODELS/'sequence-card/sequence-card-holder.glb']:
             assert np.isclose(spec['centre_gltf'][1],.350)
             assert np.isclose(spec['lower_panel_face_builder'],-1.162)
         surface=[]
+        # A named mount surface may be a GROUP node rather than a mesh node -- the Extra's `Cockpit` carries the
+        # shell under Interior/Cockpit_Shell once the v14 cockpit is in the model -- so take every mesh in the
+        # named node's subtree, in world coordinates. For a model whose named node IS the mesh and sits at the
+        # scene root, the world matrix is the identity and this reads exactly as it did before.
+        index={id(n):i for i,n in enumerate(d['nodes'])}
+        world=glb.world_matrices()
+        def subtree(i):
+            yield i
+            for c in d['nodes'][i].get('children',[]):
+                yield from subtree(c)
         for slabname in spec.get('mount_surface_nodes',['Cockpit']):
-            slab=nodes[slabname]
-            for prim in d['meshes'][slab['mesh']]['primitives']:
-                positions=glb.array(prim['attributes']['POSITION'])
-                ids=glb.array(prim['indices']).reshape(-1,3) if 'indices' in prim else np.arange(len(positions)).reshape(-1,3)
-                tris=positions[ids]
-                surface.extend(tris[np.all(abs(tris[:,:,0]-panel_x)<1e-6,axis=1)][:,:,[2,1]])
+            for i in subtree(index[id(nodes[slabname])]):
+                node=d['nodes'][i]
+                if 'mesh' not in node: continue
+                M=world[i]
+                for prim in d['meshes'][node['mesh']]['primitives']:
+                    positions=glb.array(prim['attributes']['POSITION'])@M[:3,:3].T+M[:3,3]
+                    ids=glb.array(prim['indices']).reshape(-1,3) if 'indices' in prim else np.arange(len(positions)).reshape(-1,3)
+                    tris=positions[ids]
+                    surface.extend(tris[np.all(abs(tris[:,:,0]-panel_x)<1e-6,axis=1)][:,:,[2,1]])
         surface=np.array(surface)
         for point in ((-WIDTH/2,spec['centre_gltf'][1]-HEIGHT/2),(WIDTH/2,spec['centre_gltf'][1]-HEIGHT/2),
                       (-WIDTH/2,spec['centre_gltf'][1]+HEIGHT/2),(WIDTH/2,spec['centre_gltf'][1]+HEIGHT/2)):

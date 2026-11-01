@@ -87,7 +87,7 @@ namespace FlyingGame.Bridge
 
             foreach (MeshFilter mf in _parts)
             {
-                if (mf == null || mf.sharedMesh == null || !mf.gameObject.activeInHierarchy)
+                if (mf == null || mf.sharedMesh == null || !mf.gameObject.activeInHierarchy || CockpitSights.IsSight(mf.transform))
                 {
                     continue;
                 }

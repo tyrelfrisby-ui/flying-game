@@ -213,6 +213,7 @@ namespace FlyingGame.Bridge
             if (prefab == null || !(own ? OwnSpecs : Specs).TryGetValue(id, out Spec spec)) return null;
             var inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Model";
+            CockpitSights.Install(inst);   // hidden immediately, for EVERY model consumer
             foreach (Collider c in inst.GetComponentsInChildren<Collider>(true)) Object.Destroy(c);
             inst.transform.localPosition = Vector3.zero;
             inst.transform.localRotation = spec.Rotation;
