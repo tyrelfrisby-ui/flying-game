@@ -1,4 +1,27 @@
 ## NEEDS YOU
+- **THE EXTRA'S PROPELLER TURNS (Claude, 2026-11-01, lane/claude-prop-spin) — NEEDS YOU, two things, and one
+  correction to what I told you earlier:**
+  1. **Fixed, and it was only the Extra.** A model with its own rig skips the hinge carve — correctly, carving a
+     rigged model tears the draughtsman's parts — but the carve is ALSO where a model's propeller is handed to
+     the turning hub. So `SpinProps` turned a hub with nothing on it while the blades stood still, and the
+     procedural blades that would have turned were hidden with the rest of the procedural shell.
+     `AirframeBuilder.BindModelProp` now re-parents the model's `Prop` and `Spinner` nodes onto the hub, centred
+     on the spinner, with the blades on their own bone so the blur disc can still take over above ~350 rpm.
+     **I told you earlier that the Pitts and the Great Lakes were static too. They are not.** Neither of their
+     rigs binds, so both go down the carve path and both propellers were already turning — the carve skins the
+     blades to the hub's bones, which is why the node's transform never moves and why the first version of this
+     check reported four false failures. `PropSpinCheck` knows the difference now.
+  2. **The Great Lakes' rig is dead and says nothing about it.** `docs/models/great-lakes-own-rig.json` names 58
+     nodes and **all 58 are missing from `great-lakes-like-own.glb`** — it was written for a cockpit that never
+     shipped in that GLB. `AirframeRig.Bind` returns null when NOTHING binds and logs only when something does,
+     so a rig that matches nothing is completely silent. The aeroplane flies (the carve picks up the surfaces and
+     the propeller), but none of its instruments move and nobody would know. Two separate calls for you: whether
+     the Great Lakes should get its cockpit GLB rebuilt to match the rig, and whether `Bind` should shout when it
+     binds zero of N.
+  3. **The 172's and the J-3's propellers really are static**, for a different reason: the carve cannot separate
+     the propeller from those downloaded meshes, and `AirframeVisual` deliberately handles that by keeping the
+     model's own blades and suppressing the blur disc. `PropSpinCheck` reports it rather than failing, because
+     fixing it means re-cutting someone else's mesh. Your call whether that is worth a lane.
 - **LOADING ARMS WIRED IN (Claude, 2026-11-01, lane/claude-loading-arms) — NEEDS YOU, five things:**
   1. **The arms are in, and nothing moved at spawn.** Codex's table (`docs/pending/loading-arm-estimates.md`,
      merged here at ee088db) is wired into the eight configs that carry a loading block, as

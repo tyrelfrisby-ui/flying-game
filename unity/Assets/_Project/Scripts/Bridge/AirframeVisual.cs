@@ -2107,13 +2107,103 @@ namespace FlyingGame.Bridge
             // The carve is for a DOWNLOADED model, which arrives as one solid aeroplane: it cuts hinge regions
             // out of its meshes and skins them to bones. A model with its own rig already HAS those parts,
             // pivoted where its draughtsman put them — carving it would tear the geometry and deflect it twice.
-            if (_rig != null) Debug.Log("[Airframe] the model's own rig drives its moving parts; the hinge carve is skipped.");
+            if (_rig != null)
+            {
+                Debug.Log("[Airframe] the model's own rig drives its moving parts; the hinge carve is skipped.");
+                // ...but the carve is ALSO where a model's propeller is handed to the turning hub, so skipping it
+                // left every rigged aeroplane with its propeller nailed to the cowling. Bind it here instead.
+                BindModelProp(inst);
+            }
             else
             {
                 bool namedSurfaces = AirframeModels.TryPlacedSpec(cfg.Id, out AirframeModels.Spec placed) && placed.NamedSurfaces;
                 try { CarveModel(root, filters, namedSurfaces); }
                 catch (System.Exception e) { Debug.LogWarning("[Airframe] model carve failed: " + e.Message); }
             }
+        }
+
+        /// <summary>
+        /// Hang a RIGGED model's propeller on the turning hub (owner 2026-11-01, via Aero: "the extras propeller
+        /// is static" — the Great Lakes' was too, for the same reason; the Pitts has no rig, so its carve already
+        /// bound it).
+        ///
+        /// For a DOWNLOADED model the carve finds connected geometry inside the propeller slab and skins it to
+        /// bones. A model with its own rig skips the carve — correctly, carving it would tear the draughtsman's
+        /// parts — and the propeller went out with the bathwater: <see cref="SpinProps"/> turned a hub with
+        /// nothing on it while the model's blades stood still, and the procedural blades that WOULD have turned
+        /// were hidden along with the rest of the procedural shell.
+        ///
+        /// MATCHED BY EXACT NODE NAME, never by "contains prop". The Extra's own rig has a node called
+        /// <c>Prop_R</c> and it is the blue rpm vernier on the rear panel: a looser match spins the knob.
+        /// </summary>
+        private void BindModelProp(GameObject inst)
+        {
+            if (_props.Count == 0 || _root == null) return;
+            Transform blades = null, spinner = null;
+            foreach (Transform t in inst.GetComponentsInChildren<Transform>(true))
+            {
+                // The model's mesh nodes were renamed "Model:<node>" just above; group nodes keep their own name.
+                string name = t.name.StartsWith("Model:") ? t.name.Substring(6) : t.name;
+                if (name == "Prop") blades ??= t;
+                else if (name == "Spinner") spinner ??= t;
+            }
+            if (blades == null && spinner == null)
+            {
+                Debug.Log("[Airframe] the rigged model has no Prop or Spinner node; its propeller stays as drawn.");
+                return;
+            }
+
+            PropHub hub = _props[0];
+            // Centre the hub on the model's own spinner — the same rule the carve uses, and for the same reason:
+            // the config's hub can sit a few centimetres off the drawn propeller and the blades would wobble.
+            // x and y only; the hub keeps its own station along the axis.
+            if (!LocalCentre(spinner != null ? spinner : blades, out Vector3 centre)) return;
+            Vector3 hp = hub.Hub.localPosition;
+            var delta = new Vector3(centre.x - hp.x, centre.y - hp.y, 0f);
+            if (delta.magnitude > 0.5f * hub.Radius)
+            {
+                Debug.LogWarning($"[Airframe] the model's propeller is {delta.magnitude:F2} m off the config's hub "
+                                 + $"(R {hub.Radius:F2}); leaving it as drawn rather than turning it about the wrong axis.");
+                return;
+            }
+            hub.Hub.localPosition = hp + delta;
+            foreach (Transform ch in hub.Hub) ch.localPosition -= delta;
+
+            // The blades collapse onto the axis above the blur rpm (SpinProps scales this bone), so they hang on
+            // their own bone; the spinner turns with the hub and stays, because a real one does.
+            hub.BladeBone = new GameObject("PropBlades").transform;
+            hub.BladeBone.SetParent(hub.Hub, false);
+            if (blades != null) blades.SetParent(hub.BladeBone, true);
+            if (spinner != null) spinner.SetParent(hub.Hub, true);
+            hub.ModelBound = true;
+
+            // The blur disc belongs in the plane the blades actually sweep, not at the hub.
+            if (hub.Disc != null && blades != null && LocalCentre(blades, out Vector3 plane))
+                hub.Disc.transform.localPosition = new Vector3(0f, 0f, plane.z - hub.Hub.localPosition.z);
+
+            Debug.Log($"[Airframe] rigged model propeller bound: blades={(blades != null ? "yes" : "none")}, "
+                      + $"spinner={(spinner != null ? "yes" : "none")}, hub moved {delta.magnitude * 100f:F1} cm "
+                      + $"to {hub.Hub.localPosition}, R {hub.Radius:F2}.");
+        }
+
+        /// <summary>A transform's mesh centre in the airframe root's local frame, taken from the shared mesh
+        /// rather than the renderer so it reads the same in a headless editor check as it does in the game.</summary>
+        private bool LocalCentre(Transform t, out Vector3 centre)
+        {
+            centre = Vector3.zero;
+            Bounds box = default; bool any = false;
+            foreach (MeshFilter mf in t.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds b = mf.sharedMesh.bounds;
+                Vector3 c = _root.InverseTransformPoint(mf.transform.TransformPoint(b.center));
+                Vector3 e = mf.transform.TransformVector(b.extents);
+                var local = new Bounds(c, 2f * new Vector3(Mathf.Abs(e.x), Mathf.Abs(e.y), Mathf.Abs(e.z)));
+                if (!any) { box = local; any = true; } else box.Encapsulate(local);
+            }
+            if (!any) return false;
+            centre = box.center;
+            return true;
         }
 
         private static void Kill(Object o)
