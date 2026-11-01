@@ -1,4 +1,14 @@
 ## NEEDS YOU
+- **CERTIFICATE / PROGRESSION RESTRUCTURE — REVIEW BEFORE MERGE (Grok Bot / Claude, 2026-11-01,
+  lane/claude-cert-restructure):** Ty said GO (2026-11-01 3:24 PM PST) on restructuring the ratings into levels
+  Student pre-solo, Student solo, Pilot, Instrument (shown as "Blind Flying"), Commercial, Flight Instructor; no
+  "private", "certified" or "license" in player-facing text, with save-data migration for old saves. Progression:
+  glider first with a glider solo gate, then Cub solo, then the player picks Decathlon or Great Lakes for Pilot,
+  then an aerobatic glider stage (Grob 103 Acro or DG-class), with Instrument gated behind both the glider and
+  aerobatic stages. Job-scenario stubs only (bush/float/backcountry, Beech 18 air mail; airline track on DC-3 and
+  steam-gauge 737-200). The 737-800 glass cockpit is retired from progression and menus (assets kept). No
+  military/fighter path. No-position rule stays absolute. Missing aircraft are placeholders, listed as gaps in the
+  lane entry below. Local commits only — **your review is needed before this merges into lane/claude-island-nav.**
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and
