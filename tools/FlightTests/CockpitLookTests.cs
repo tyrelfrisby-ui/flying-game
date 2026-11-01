@@ -34,6 +34,12 @@ public sealed class CockpitLookTests
             Quat.Multiply(About(0, 0, 1, -turnRightDeg), Quat.Multiply(About(1, 0, 0, tiltUpDeg), About(1, 0, 0, 90))),
             About(0, 0, 1, rollDeg));
 
+    /// <summary>A look with the gain pinned at ONE FOR ONE. Most of this file is about DIRECTION — is a turn a
+    /// pure yaw, does roll do nothing, do the two halves compose — and those answers must not move when the
+    /// default gain changes. They used to read the default implicitly, so raising it to 3.5 multiplied a dozen
+    /// unrelated expectations by 3.5. The gain's own tests construct their own.</summary>
+    private static CockpitLook OneToOne() => new() { DeviceGain = CockpitLook.MinDeviceGain };
+
     /// <summary>The roll that each screen orientation puts on the phone. Portrait is the frame's own zero; the two
     /// landscapes are a quarter turn either way; upside down is a half turn.</summary>
     public static TheoryData<string, double> Orientations => new()
@@ -47,7 +53,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void ItStartsLookingStraightAhead()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         Assert.Equal(0.0, look.YawDeg, 9);
         Assert.Equal(0.0, look.PitchDeg, 9);
         Assert.False(look.LookingAway);
@@ -103,7 +109,7 @@ public sealed class CockpitLookTests
     [InlineData(CockpitLook.Direction.OverRightShoulder, false)]
     public void ATappedHatJumpsToItsDirectionAndLeftIsNegative(CockpitLook.Direction d, bool expectLeft)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Snap(d);
         Assert.True(expectLeft ? look.YawDeg < 0 : look.YawDeg > 0, $"{d} gave yaw {look.YawDeg}");
         Assert.True(System.Math.Abs(look.YawDeg) <= CockpitLook.MaxYawDeg);
@@ -118,7 +124,7 @@ public sealed class CockpitLookTests
             Assert.InRange(yaw, -CockpitLook.MaxYawDeg, CockpitLook.MaxYawDeg);
             Assert.InRange(pitch, -CockpitLook.MaxPitchDownDeg, CockpitLook.MaxPitchUpDeg);
         }
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Snap(CockpitLook.Direction.Right);
         look.Snap(CockpitLook.Direction.Centre);
         Assert.False(look.LookingAway);
@@ -141,7 +147,7 @@ public sealed class CockpitLookTests
     [InlineData(180.0, -40.0)]
     public void TurningTheDeviceGivesPureYaw(double rollDeg, double turnDeg)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, rollDeg));
         look.FromDevice(Held(turnDeg, 0, rollDeg));
         Assert.Equal(turnDeg, look.YawDeg, 3);
@@ -158,7 +164,7 @@ public sealed class CockpitLookTests
     [InlineData(180.0, 45.0)]
     public void TiltingTheDeviceGivesPurePitch(double rollDeg, double tiltDeg)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, rollDeg));
         look.FromDevice(Held(0, tiltDeg, rollDeg));
         Assert.Equal(tiltDeg, look.PitchDeg, 3);
@@ -175,7 +181,7 @@ public sealed class CockpitLookTests
     [InlineData(180.0)]
     public void RollingTheDeviceMovesNothing(double rollDeg)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(20, 10, 0));
         look.FromDevice(Held(20, 10, rollDeg));
         Assert.Equal(0.0, look.YawDeg, 6);
@@ -186,8 +192,8 @@ public sealed class CockpitLookTests
     [Fact]
     public void TurningAndRollingAreNotTheSameMovement()
     {
-        var turn = new CockpitLook(); turn.Recentre(Held(0, 0, 0)); turn.FromDevice(Held(30, 0, 0));
-        var roll = new CockpitLook(); roll.Recentre(Held(0, 0, 0)); roll.FromDevice(Held(0, 0, 30));
+        var turn = OneToOne(); turn.Recentre(Held(0, 0, 0)); turn.FromDevice(Held(30, 0, 0));
+        var roll = OneToOne(); roll.Recentre(Held(0, 0, 0)); roll.FromDevice(Held(0, 0, 30));
         Assert.Equal(30.0, turn.YawDeg, 3);
         Assert.Equal(0.0, roll.YawDeg, 6);
         Assert.True(System.Math.Abs(turn.YawDeg - roll.YawDeg) > 25.0,
@@ -201,7 +207,7 @@ public sealed class CockpitLookTests
     [MemberData(nameof(Orientations))]
     public void EveryScreenOrientationGivesTheSameView(string name, double rollDeg)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, rollDeg));
         look.FromDevice(Held(35, -20, rollDeg));
         Assert.Equal(35.0, look.YawDeg, 3);
@@ -216,7 +222,7 @@ public sealed class CockpitLookTests
     [InlineData(-90.0)]
     public void TurningAndTiltingTogetherStayIndependent(double rollDeg)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, rollDeg));
         look.FromDevice(Held(45, 25, rollDeg));
         Assert.Equal(45.0, look.YawDeg, 3);
@@ -239,7 +245,7 @@ public sealed class CockpitLookTests
     [InlineData(5.0, 62.0, 90.0, -30.0, 0.0)]
     public void FromAnyPoseAMovementIsStillPure(double turn0, double tilt0, double roll0, double dTurn, double dTilt)
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(turn0, tilt0, roll0));
         look.FromDevice(Held(turn0 + dTurn, tilt0 + dTilt, roll0));
         Assert.Equal(dTurn, look.YawDeg, 3);
@@ -251,7 +257,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void ItMeasuresTheTurnSinceItWasZeroedNotAnAbsoluteDirection()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(30, 0, 0));
         Assert.Equal(0.0, look.YawDeg, 6);
         look.FromDevice(Held(60, 0, 0));
@@ -265,7 +271,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void TheFirstReadingBecomesTheZero()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         Assert.False(look.HasReference);
         look.FromDevice(Held(0, 15, 0));
         Assert.True(look.HasReference);
@@ -277,7 +283,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void TheDeviceIsClampedToTheSameNeckAsTheHat()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, 0));
         look.FromDevice(Held(179, 0, 0));
         Assert.InRange(look.YawDeg, -CockpitLook.MaxYawDeg, CockpitLook.MaxYawDeg);
@@ -290,7 +296,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void APhoneLaidFlatHoldsItsYawInsteadOfSpinning()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, 0));
         look.FromDevice(Held(40, 0, 0));
         Assert.Equal(40.0, look.YawDeg, 3);
@@ -303,7 +309,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void ANonFiniteLookIsRefusedRatherThanStored()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Snap(CockpitLook.Direction.Right);
         look.Set(double.NaN, double.PositiveInfinity);
         Assert.Equal(0.0, look.YawDeg, 9);
@@ -312,16 +318,51 @@ public sealed class CockpitLookTests
 
     // ---- the gain, and living alongside the touch look (owner Ty, 2026-11-01) ----
 
-    /// <summary>"1x (1 deg of device = 1 deg of view, the default)". The default is the only setting that reads as
-    /// a window rather than a control, so it is the one that must not need choosing.</summary>
+    /// <summary>The gain a pilot gets before he touches anything. It was 1.0 — one degree of view per degree of
+    /// phone — because every default read the slider's FLOOR. Ty flew it at 1.0, 7.0 and 5.0 and asked for "3 to
+    /// 4" (2026-11-01), so it is 3.5, and the floor is still 1.0 for anyone who wants the window.</summary>
     [Fact]
-    public void TheGainStartsAtOneForOne()
+    public void TheGainStartsWhereTyAskedForIt()
     {
         var look = new CockpitLook();
-        Assert.Equal(1.0, look.DeviceGain, 9);
+        Assert.Equal(3.5, look.DeviceGain, 9);
+        Assert.Equal(3.5, CockpitLook.DefaultDeviceGain, 9);
         look.Recentre(Held(0, 0, 0));
         look.FromDevice(Held(20, 0, 0));
-        Assert.Equal(20.0, look.YawDeg, 3);
+        Assert.Equal(70.0, look.YawDeg, 3);          // 20 degrees of phone, 70 of view
+    }
+
+    /// <summary>The default is NOT the floor. They were the same constant, which is how the feature shipped at
+    /// 1.0, and a slider whose bottom end is also its default hides that it was never chosen.</summary>
+    [Fact]
+    public void TheDefaultIsItsOwnNumberInsideTheSlidersTravel()
+    {
+        Assert.NotEqual(CockpitLook.MinDeviceGain, CockpitLook.DefaultDeviceGain);
+        Assert.InRange(CockpitLook.DefaultDeviceGain, CockpitLook.MinDeviceGain, CockpitLook.MaxDeviceGain);
+        Assert.InRange(CockpitLook.DefaultDeviceGain, 3.0, 4.0);     // Ty asked for 3 to 4
+        // ...and the slider the Options panel draws spans the whole range, so 3.5 is reachable by hand and so
+        // are both ends.
+        var look = new CockpitLook();
+        foreach (double g in new[] { CockpitLook.MinDeviceGain, 3.5, CockpitLook.MaxDeviceGain })
+        {
+            look.DeviceGain = g;
+            Assert.Equal(g, look.DeviceGain, 9);
+        }
+    }
+
+    /// <summary>A saved setting still wins: assigning any legal value overrides the default and sticks, so an
+    /// existing pref is neither migrated nor reset by the default moving.</summary>
+    [Theory]
+    [InlineData(1.0)]
+    [InlineData(5.0)]
+    [InlineData(7.0)]
+    public void ASavedGainOverridesTheDefault(double saved)
+    {
+        var look = new CockpitLook { DeviceGain = saved };
+        Assert.Equal(saved, look.DeviceGain, 9);
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(2, 0, 0));
+        Assert.Equal(2.0 * saved, look.YawDeg, 3);
     }
 
     /// <summary>"up to 10x, continuous" — not a set of notches. 3.7 is a gain a pilot can land on with a slider,
@@ -350,7 +391,7 @@ public sealed class CockpitLookTests
     [InlineData(0.99, 1.0)]
     [InlineData(10.5, 10.0)]
     [InlineData(1e9, 10.0)]
-    [InlineData(double.NaN, 1.0)]
+    [InlineData(double.NaN, 3.5)]          // not a number is not a setting: fall back to the DEFAULT
     public void TheGainIsClampedToItsSlider(double asked, double stored)
     {
         var look = new CockpitLook { DeviceGain = asked };
@@ -362,7 +403,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void ChangingTheGainDoesNotMoveAViewNobodyIsTurning()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(-30, 12, 0));
         foreach (double g in new[] { 1.0, 4.0, 10.0 })
         {
@@ -378,7 +419,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void TheHatAndTheDeviceComposeInsteadOfOverwritingEachOther()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.Left);          // -90
         Assert.Equal(-90.0, look.YawDeg, 4);
@@ -394,7 +435,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void SpringCentreReturnsTheHatButLeavesTheDeviceWhereItIs()
     {
-        var look = new CockpitLook { SpringCentre = true };
+        var look = new CockpitLook { SpringCentre = true, DeviceGain = CockpitLook.MinDeviceGain };
         look.Recentre(Held(0, 0, 0));
         look.FromDevice(Held(25, 0, 0));
         look.Snap(CockpitLook.Direction.Right);         // +90 on top of the device's 25
@@ -453,7 +494,7 @@ public sealed class CockpitLookTests
     [Fact]
     public void TurningTheDeviceOffDropsItsOffsetAndItsZero()
     {
-        var look = new CockpitLook();
+        var look = OneToOne();
         look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.Left);
         look.FromDevice(Held(30, 0, 0));

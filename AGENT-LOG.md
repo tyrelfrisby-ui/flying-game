@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **DEVICE LOOK GAIN NOW DEFAULTS TO 3.5 (Claude, 2026-11-01, lane/claude-look-default) — NEEDS YOU to fly it:**
+  1. **You asked for "3 to 4" after trying 1.0, 7.0 and 5.0; the default is now 3.5**, the middle of that. It was
+     1.0, which is one degree of view per degree of phone — honest, but it means turning your whole body to look
+     at the wingtip.
+  2. **It was 1.0 because every default read the SLIDER'S FLOOR.** `MinDeviceGain` was doing two jobs: the bottom
+     of the slider's travel and the value you get before you touch it. They are different questions, so the
+     default is its own constant now (`CockpitLook.DefaultDeviceGain`). The floor is still 1.0 for anyone who
+     wants the pure window, and the top is still 10.
+  3. **Your saved setting is untouched.** The default only applies to a device that has never moved the slider —
+     `PlayerPrefs.GetFloat(key, default)` — so nothing is migrated or reset. If your phone still has 5.0 on it
+     from testing, it will come up at 5.0; drag the slider to 3.5 (or clear the app's data) to feel the new
+     default.
+  4. **The slider already spans 1–10, so 3.5 is reachable by hand**, and a test now pins that the default sits
+     inside the travel and is not equal to either end.
+  Not merged, not installed, not uploaded. No gate marked approved.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
