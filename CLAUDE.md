@@ -50,6 +50,18 @@ Expected values belong in the test as literals, copied by hand from the source d
 and `CockpitEyeTests.ApprovedEyes` are the pattern: moving a number in a config then has to be a deliberate edit
 in two places.
 
+### A check must measure the mechanism, not the symptom you expected
+`PropSpinCheck` v1 asked "did the Prop node's transform rotate?" and reported four aeroplanes static that were
+turning perfectly well: a carved model's blades are SKINNED to the hub's bones, so the vertices move and the node
+never does. Two mechanisms produce the same visible result, and a check written against one of them fails the
+other. Before trusting a red check, find out which mechanism the passing case uses.
+
+### A silent exclusive mode is usually a bug in disguise
+Turning on "look around by moving the device" used to `return` out of the frame before the hat ran, which quietly
+removed the on-screen look pad — no message, no setting, the buttons simply stopped working. Where two inputs
+write the same state, give each its own offset and sum them (`CockpitLook` keeps a manual and a device half and
+clamps only the total) rather than letting whichever runs first win.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it

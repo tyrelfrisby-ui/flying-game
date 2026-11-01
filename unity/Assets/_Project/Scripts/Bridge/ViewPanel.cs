@@ -151,24 +151,15 @@ namespace FlyingGame.Bridge
         /// <see cref="CockpitView"/> so the stick and the glass behave identically. Only drawn in the cockpit, where
         /// the pilot has a head to turn; the outside views already have their own camera.
         ///
-        /// While goggles are on the pad is not drawn at all: the device's attitude is the head, and a pad that also
-        /// wrote the look would fight it every frame.
+        /// The pad stays even while the device is driving the view (owner Ty, 2026-11-01). The two no longer fight:
+        /// CockpitLook keeps the hat's offset and the device's apart and sums them, so the pad still works as a
+        /// coarse adjustment on top of where the phone is pointing, and RECENTRE joins the row below.
         /// </summary>
         private void DrawLookPad()
         {
             _cockpit ??= Object.FindFirstObjectByType<CockpitView>();
             if (_cockpit == null) { return; }
             if (Chase == null || Chase.CurrentView != ChaseCamera.View.Cockpit) { _cockpit.OnScreenHat = Vector2Int.zero; return; }
-            if (_cockpit.Goggles)
-            {
-                _cockpit.OnScreenHat = Vector2Int.zero;
-                float gb = UiLayout.ButtonH, gm = UiLayout.Margin;
-                var gr = new Rect(gm, UiLayout.ToolbarBottom + gm, gb * 3.4f, gb);
-                LookRect = gr; _lookFrame = Time.frameCount;
-                if (UiLayout.Button(gr, "RECENTRE", _btn)) _cockpit.Centre();
-                return;
-            }
-
             float b = UiLayout.ButtonH, m = UiLayout.Margin;
             float cell = b * 1.05f;
             // Under the toolbar on the LEFT. Not along the bottom: that is where the throttle strip and the stick
@@ -189,10 +180,21 @@ namespace FlyingGame.Bridge
                                 _cockpit.Look.LookingAway ? "●" : "", _cockpit.Look.LookingAway ? _btnOn : _btn))
                 _cockpit.Centre();
 
+            // RECENTRE, only while the device is driving the view. The pad's own middle key centres the hat's
+            // offset; this one also re-zeroes against however the device is being held, which is the thing a pilot
+            // actually needs after shifting in his seat.
+            float row = y0 + cell * 3f + m * 0.3f;
+            if (_cockpit.DeviceLook)
+            {
+                if (UiLayout.Button(new Rect(x0, row, cell * 3f, b), "RECENTRE", _btn)) _cockpit.Centre();
+                row += b + m * 0.3f;
+            }
+
             // The seat, when the aeroplane has more than one authored.
             if (_cockpit.SeatCount > 1 &&
-                UiLayout.Button(new Rect(x0, y0 + cell * 3f + m * 0.3f, cell * 3f, b), "SEAT: " + _cockpit.SeatLabel, _btn))
+                UiLayout.Button(new Rect(x0, row, cell * 3f, b), "SEAT: " + _cockpit.SeatLabel, _btn))
                 _cockpit.NextSeat();
+            LookRect = new Rect(x0, y0 - m * 0.4f, cell * 3f, row + b + m - (y0 - m * 0.4f));
         }
 
         /// <summary>A pad key reports HELD, not clicked: panning needs the held state every frame.</summary>
