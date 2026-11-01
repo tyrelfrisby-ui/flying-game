@@ -54,7 +54,7 @@ def geometry(panel_face=0, panel_top=.1, centre_z=0):
                           holder_protrusion=0)
 
 
-def blender_add(parts, aircraft):
+def blender_add(parts, aircraft, *, rigged_panel=False):
     import bpy
     import paint
     boxes,face,spec = geometry(**PLACEMENTS[aircraft])
@@ -77,13 +77,13 @@ def blender_add(parts, aircraft):
         for index in poly.loop_indices: uv.data[index].uv=uvs[me.loops[index].vertex_index]
     obj=bpy.data.objects.new('SequenceCard_Face',me);bpy.context.scene.collection.objects.link(obj);parts[obj.name]=obj
     from rear_panel import blender_add as add_panel
-    add_panel(parts, aircraft)
+    if not rigged_panel: add_panel(parts, aircraft)
     from sights import blender_add as add_sights
     add_sights(parts, aircraft)
     return spec
 
 
-def native_add(glb, aircraft=None):
+def native_add(glb, aircraft=None, *, rigged_panel=False):
     # Remove obsolete static compass nodes; the new PIC compass is the sole compass.
     if aircraft=='extra-300-like':
         remove={i for i,n in enumerate(glb.doc['nodes']) if n.get('name','').startswith('PanelCompass_')}
@@ -107,21 +107,21 @@ def native_add(glb, aircraft=None):
     glb.doc.setdefault('extras',{})['sequenceCard']=spec
     if aircraft:
         from rear_panel import native_add as add_panel
-        add_panel(glb, aircraft)
+        if not rigged_panel: add_panel(glb, aircraft)
         from sights import native_add as add_sights
         add_sights(glb, aircraft)
 
 
-def offline_update(aircraft, filename):
+def offline_update(aircraft, filename, *, base_revision='38e8746', rigged_panel=False):
     from glb_visuals import Glb
     path=ROOT/'unity/Assets/_Project/Resources/Models'/aircraft/filename
-    # Rebuild from the immutable round-1 GLB: repeatable without dead-buffer accumulation.
+    # Rebuild from an immutable generated GLB: repeatable without dead-buffer accumulation.
     import subprocess, tempfile
     with tempfile.TemporaryDirectory(prefix='iac-v2-base-') as td:
         base=Path(td)/path.name
-        base.write_bytes(subprocess.check_output(['git','show','38e8746:'+str(path.relative_to(ROOT))],cwd=ROOT))
+        base.write_bytes(subprocess.check_output(['git','show',base_revision+':'+str(path.relative_to(ROOT))],cwd=ROOT))
         glb=Glb(base)
-    native_add(glb,aircraft);glb.save(path)
+    native_add(glb,aircraft,rigged_panel=rigged_panel);glb.save(path)
     print('WROTE',path)
 
 
