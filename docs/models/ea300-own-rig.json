@@ -2184,8 +2184,8 @@
    "parent": "Instruments_Rear",
    "material": "SequenceCard_Face",
    "centre_gltf": [
-    1.212,
-    0.3974,
+    1.2032,
+    0.35,
     0.0
    ],
    "facing_gltf": [
@@ -2194,14 +2194,14 @@
     -0.0
    ],
    "size_m": [
-    0.12,
-    0.1553
+    0.10795,
+    0.1397
    ],
    "aspect": "8.5x11 portrait",
    "uv": "one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot's right, v up); material SequenceCard_Face",
-   "default_texture": "tools/own_models/art/ea-seqcard-default.png",
-   "holder_top_above_dash_m": 0.05,
-   "note": "static card in a holder centred on the top edge of the rear dash; replace the texture at runtime (any PDF page rasterised at 8.5:11)"
+   "default_texture": "tools/own_models/art/sequence-card-sportsman-known-2026.png",
+   "holder_top_above_dash_m": 0.1149,
+   "note": "static card in an alloy holder with a spring clip and paper stock, centred above the top edge of the rear dash (holder_top_above_dash_m is measured from RearPanel_UpperExtension's top, y 0.308); the picked PDF is drawn onto this node's material at runtime (Bridge/SequenceCard.cs). OWNER DECISION 2026-11-01 (Ty, \"B\"): the Extra carried TWO cards after the sights merge -- this holder and a bare SequenceCard_Slot quad 9 mm nearer the pilot whose surround and backing were welded into Cockpit_Interior. The quad, its surround and its backing are gone (tools/own_models/drop_card_slot.py); this is the only card."
   }
  ]
 }

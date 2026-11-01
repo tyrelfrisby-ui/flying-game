@@ -1,4 +1,25 @@
 ## NEEDS YOU
+- **EXTRA SEQUENCE CARD: option B kept (Claude, 2026-11-01, lane/claude-extra-card) — NEEDS YOU, two things:**
+  1. **One card now, the alloy holder.** Ty chose B. The Extra carried two after the sights merge: the holder
+     (`SequenceCard_Face` + `SequenceCard_Holder`/`Clip`/`Stock`, 108 × 140 mm, flush on the rear panel, the one
+     `Bridge/SequenceCard.cs` writes a picked PDF onto) and a bare `SequenceCard_Slot` quad 120 × 155 mm sitting
+     9 mm nearer the pilot. The quad was not just a quad: its surround (a `Cockpit_black` box standing 14 mm
+     proud) and its backing plate (`Cockpit_placard_blank`) were WELDED into the `Cockpit_Interior` mesh, which
+     is why removing the quad alone would have left the holder still hidden. All three are gone
+     (`tools/own_models/drop_card_slot.py`), and the small placard lower down that shared the backing primitive
+     is kept. `docs/models/ea300-own-rig.json`'s `card_slots` entry described the DELETED quad; it now describes
+     the holder, and its `default_texture` pointed at art the model does not carry.
+  2. **`check_iac_assets.py` is still red, on an assertion that has nothing to do with the card, and I did not
+     touch it.** Everything through line 167 now passes — including the full opaque-scene ray test that was the
+     actual complaint: **99 of 99 points across the printable card are visible from the rear eye**, where before
+     `Cockpit_Interior` blocked 81 and the duplicate quad 72. What fails is the last block, which compares the
+     GLB's buffer byte-for-byte against round-1 HEAD `38e8746`. That baseline is a **25-node** Extra from before
+     the v14 cockpit; the model has 130 nodes now. I checked: the same assertion fails on `a5e5a20` with the
+     files untouched, so it has been stale since the cockpit was rebuilt and is not something this lane broke.
+     **Someone has to choose the new baseline commit** — the intent ("an incremental card update must not
+     disturb the rest of the model") is worth keeping, and re-pointing a gate is not mine to do.
+  Verified: `check_sights.py` PASS on all 8 GLBs plus 808/808 true-eye rays; Unity `OwnRigCheck` PASS with the
+  Extra's own rig binding 60 of 60 nodes and 0 `error CS`.
 - **LOADING ARMS WIRED IN (Claude, 2026-11-01, lane/claude-loading-arms) — NEEDS YOU, five things:**
   1. **The arms are in, and nothing moved at spawn.** Codex's table (`docs/pending/loading-arm-estimates.md`,
      merged here at ee088db) is wired into the eight configs that carry a loading block, as
