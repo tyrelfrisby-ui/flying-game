@@ -120,6 +120,16 @@
           -0.264
         ],
         "status": "proposed, superseded by v5"
+      },
+      "v6": {
+        "position_body": [
+          -1.96,
+          0.0,
+          -0.305
+        ],
+        "approved_by": "Ty (reported the fault; value measured against the model)",
+        "approved_on": "2026-11-01",
+        "supersedes_note": "Lowered after Ty flew build 2026.1101.0733 and reported the rear viewpoint looking OVER the top of the windscreen at the cowling, with the top wing's leading edge across the view. Measured against great-lakes-like-own.glb: v5 put the rear eye 110 mm above the top of its own screen's glass, so no level sightline touched the glass at all. Each eye now sits where the level sightline passes through the middle of its own screen (rear: glass from -13.5 to +13.8 degrees; front: -16.5 to +16.3)."
       }
     },
     {
@@ -134,6 +144,16 @@
         ],
         "approved_by": "Ty",
         "approved_on": "2026-10-31"
+      },
+      "v6": {
+        "position_body": [
+          -1.193,
+          0.0,
+          -0.293
+        ],
+        "approved_by": "Ty (reported the fault; value measured against the model)",
+        "approved_on": "2026-11-01",
+        "supersedes_note": "Lowered after Ty flew build 2026.1101.0733 and reported the rear viewpoint looking OVER the top of the windscreen at the cowling, with the top wing's leading edge across the view. Measured against great-lakes-like-own.glb: v5 put the rear eye 110 mm above the top of its own screen's glass, so no level sightline touched the glass at all. Each eye now sits where the level sightline passes through the middle of its own screen (rear: glass from -13.5 to +13.8 degrees; front: -16.5 to +16.3)."
       }
     },
     {

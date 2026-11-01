@@ -252,10 +252,10 @@
       "eye_body_m": [
         -1.96,
         0.0,
-        -0.487
+        -0.305
       ],
-      "eye_source_commit": "aab015b",
-      "eye_source_field": "entries[aircraft_id=great-lakes-like,seat_id=rear].v4.position_body",
+      "eye_source_commit": "lane/claude-gl-eye 2026-11-01",
+      "eye_source_field": "configs/aircraft/great-lakes-like.json loading.seats[id=rear].eye",
       "gltf_to_body_matrix": [
         [
           -0.9829682011480473,
@@ -274,9 +274,9 @@
         ]
       ],
       "gltf_to_body_translation_m": [
-        -0.03345895101815821,
+        -0.04389776373227572,
         0.0,
-        -0.197892647325129
+        0.025275817427123926
       ],
       "transform_formula": "body=(-s*gltf.x+tx, -s*gltf.z, -s*gltf.y+tz); builder=( -gltf.x, gltf.z, gltf.y )",
       "transform_method": "Reproduced current readable-vertex AirframeModels.Place; span trim, outer-wing chord midpoint, gear-lowest vertex; checked invariant after sights.",
@@ -337,7 +337,8 @@
         "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
       },
       "y_frame_m": 2.45,
-      "eye_note": "Ty's corrected rear eye, 2026-10-31. The previous [-1.97, 0.0, -0.264] was computed with the aeroplane 0.223 m low and sits inside the tub, which is why every one of its 808 true-eye rays was blocked."
+      "eye_note": "Lowered 182 mm on 2026-11-01: the previous -0.487 put the eye above the top of the rear windscreen, so the bars were built on a line the pilot could only reach by looking over the screen. Rebuilt on this eye.",
+      "transform_note": "gltf_to_body_translation_m re-measured 2026-11-01. The cockpit restoration on lane/codex-greatlakes-rig changed this model's bounds, which moved AirframeModels.Place, and this constant was left behind: check_sights has been failing its 'Place shifted' assertion on c39451f with the files untouched. The spec's own source_transform_translation_m already held the current value."
     }
   },
   "offline_geometry_baseline_commit": "38e8746"

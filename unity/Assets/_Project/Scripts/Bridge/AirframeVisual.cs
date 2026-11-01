@@ -250,6 +250,15 @@ namespace FlyingGame.Bridge
             r.VarioKt = _varioMs * 1.9438445;
             r.HeadingDeg = _headingFiltDeg;
             r.SideslipDeg = _driver.BetaDeg;
+
+            // THE ENGINE HALF. CockpitRigState.Fill has always known how to fill this in -- the throttle, the
+            // prop and mixture verniers, the key, the master, and every engine gauge on the panel -- and nothing
+            // ever called it (owner Ty, 2026-11-01: "the throttle quadrant lever does not move when the throttle
+            // changes"). RigInputs.Throttle therefore sat at 0 for the life of the aeroplane, so the quadrant
+            // stayed at idle however the player flew; the prop and mixture levers sat full AFT; and every needle
+            // the rig drives from an engine reading pointed at zero.
+            Cockpit.Fill(ref r, _driver, ac, d, dt);
+            _lastRig = r;      // what the avionics displays and the sequence card read, one frame's state
             return r;
         }
 

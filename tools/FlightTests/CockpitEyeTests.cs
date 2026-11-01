@@ -24,8 +24,13 @@ public sealed class CockpitEyeTests
     private static AircraftConfig Load(string id) =>
         AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
-    /// <summary>The eyes Ty approved, newest values. The Great Lakes rear is the CORRECTED one: the v4 figure
-    /// (-1.970, 0, -0.264) on lane/codex-eyepoints was computed with the aeroplane 0.223 m low and sits in the tub.</summary>
+    /// <summary>The eyes Ty approved, newest values.
+    ///
+    /// The Great Lakes pair were LOWERED on 2026-11-01 (rear -0.487 -> -0.305, front -0.413 -> -0.293) after Ty
+    /// flew build 2026.1101.0733 and found himself looking over the top of the windscreen at the cowling. Each
+    /// now sits where the level sightline passes through the middle of its own screen's glass. Before that the
+    /// rear was corrected once already: the v4 figure (-1.970, 0, -0.264) on lane/codex-eyepoints was computed
+    /// with the aeroplane 0.223 m low and sat in the tub.</summary>
     public static TheoryData<string, string, double, double, double> ApprovedEyes => new()
     {
         { "glider-2-33-like",   "front",   0.971,  0.000, -0.111 },
@@ -36,8 +41,8 @@ public sealed class CockpitEyeTests
         { "j3-cub-like",        "front",  -0.157,  0.000, -0.599 },
         { "j3-cub-floats-like", "rear",   -0.840,  0.000, -0.489 },
         { "j3-cub-floats-like", "front",  -0.157,  0.000, -0.599 },
-        { "great-lakes-like",   "rear",   -1.960,  0.000, -0.487 },
-        { "great-lakes-like",   "front",  -1.193,  0.000, -0.413 },
+        { "great-lakes-like",   "rear",   -1.960,  0.000, -0.305 },
+        { "great-lakes-like",   "front",  -1.193,  0.000, -0.293 },
         { "pitts-s2b-like",     "rear",   -1.325,  0.000, -0.300 },
         { "pitts-s2b-like",     "front",  -0.564,  0.000, -0.308 },
         { "extra-300-like",     "rear",   -1.597,  0.000, -0.518 },

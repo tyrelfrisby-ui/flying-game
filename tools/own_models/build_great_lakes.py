@@ -1113,6 +1113,7 @@ CK_COL = {'ck_wall': ('Cockpit_side_panel', (150, 160, 172)), 'ck_floor': ('Cock
           'ck_hub': ('Cockpit_hub', (20, 20, 22)), 'ck_ball': ('Cockpit_tc_ball', (16, 16, 18)), 'ck_lubber': ('Cockpit_lubber', (230, 110, 30)),
           'ck_plug': ('Cockpit_blank_plug', (34, 34, 36)), 'ck_placard': ('Cockpit_placard_blank', (226, 222, 206)), 'ck_lamp': ('Cockpit_lamp_red', (200, 30, 22)),
           'ck_stick': ('Cockpit_stick_tube', (186, 188, 192)), 'ck_grip': ('Cockpit_black', (22, 22, 24)), 'ck_knob_red': ('Cockpit_knob_red', (180, 30, 26)),
+          'ck_knob_blue': ('Cockpit_knob_blue', (36, 60, 150)),
           'ck_pedal': ('Cockpit_pedal', (176, 178, 182)), 'ck_quadrant': ('Cockpit_quadrant', (120, 124, 130)), 'ck_trim': ('Cockpit_trim_knob', (24, 24, 26)),
           'ck_lcd': ('Cockpit_avionics_display', (12, 16, 15))}
 for k_, (nm_, col_) in CK_COL.items():
