@@ -1,4 +1,32 @@
 ## NEEDS YOU
+- **DEVICE LOOK-AROUND: THE AXES WERE NEVER RESOLVED AGAINST THE WORLD (Claude, 2026-11-01, lane/claude-device-look)
+  — fixed, NEEDS YOU to re-fly it:**
+  1. **What you flew on 2026.1101.0549 and what was wrong.** You reported three things — turning and rolling the
+     phone did the same thing, neither moved the view purely (everything came out diagonal), and tilting did
+     nothing. All three are one bug. `CockpitLook.FromDevice` took `reference⁻¹ · current` and read yaw and pitch
+     off that quaternion's components. **That delta is expressed in the phone's OWN axes**, so which component a
+     movement landed in depended entirely on how you happened to be holding the phone when it zeroed: from any
+     natural pose one physical rotation spilled into two components at once (diagonal), two different rotations
+     landed on overlapping components (turn ≡ roll), and the third landed on the roll component, which was thrown
+     away (pitch ignored). It was **not** a handedness bug and **not** a screen-orientation bug — no axis swap
+     fixes a frame that moves with the sensor.
+  2. **What it does now.** It follows where the phone is AIMED — the back of the device, its local −z — and
+     resolves that against world vertical: yaw is the change in the aim's bearing about world up, pitch the change
+     in its elevation above the horizon. The three come out independent by construction, and **rolling the phone
+     does not move the aim at all**, so it does nothing — which is also why **portrait and landscape need no
+     special case**: holding the phone the other way up IS a roll about the aim. No Unity-side change was needed;
+     the bug was entirely in the Core arithmetic, and `Input.gyro.attitude`'s raw CoreMotion numbers are exactly
+     what that arithmetic wants.
+  3. **Please re-fly it and say whether 1× is right.** Turn the phone about the vertical → view pans left/right;
+     tilt it toward or away → view pitches up/down; roll it → nothing. Each pure. RECENTRE under the look pad
+     zeroes it wherever you are holding it. **One assumption I could not test from here**: that the attitude
+     frame's vertical is its +z, which is what CoreMotion documents and what Unity passes through. If pitch and
+     yaw come out swapped, that is the assumption — `CockpitLook.BackOf` and `ViewDeltaOf` are the only two
+     places it lives, and the symptom would be a clean swap, not the mush you flew.
+  4. **The old tests all passed while it was broken**, because every one of them zeroed from a tidy pose.
+     `FromAnyPoseAMovementIsStillPure` zeroes from turned-37 tilted-23 rolled-61 and is the test that would have
+     caught this on the bench. 62 tests in `CockpitLookTests` now, including pure yaw / pure pitch / inert roll in
+     portrait, both landscapes and upside down, fed as raw CoreMotion-style attitudes.
 - **EXTRA COCKPIT FLICKER FIXED; MAGENTA GRID NOT FOUND (Claude, 2026-11-01 05:02, lane/claude-extra-flicker) — NEEDS YOU:**
   1. **Flicker: fixed in code, not yet seen on a device.** The Extra's GLB has three coplanar, double-sided pairs on the
      rear panel (measured): the card face 0.1 mm in front of its stock, `RearPanel_UpperExtension` exactly in

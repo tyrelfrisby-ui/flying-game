@@ -321,9 +321,21 @@ namespace FlyingGame.Bridge
             return true;
         }
 
-        /// <summary>Unity's quaternion into the sim's. Only the CHANGE since the last recentre is ever used
-        /// (CockpitLook.FromDevice), so the handedness of the absolute frame does not matter and is deliberately not
-        /// converted — which is also why this needs no device to test.</summary>
+        /// <summary>
+        /// Unity's quaternion into the sim's, component for component, deliberately NOT converted to Unity's
+        /// left-handed frame.
+        ///
+        /// `Input.gyro.attitude` carries CoreMotion's own numbers: a RIGHT-handed frame whose identity is the
+        /// phone lying flat with its screen up, +x across the screen, +y toward the top of the screen, +z out of
+        /// the screen and therefore vertical. CockpitLook works in exactly that frame — it rotates the device's
+        /// own -z (the back of the phone, where it is aimed) and resolves the result against +z as world up — and
+        /// only ever returns two scalar angles, so the usual (x, y, -z, -w) swap and the 90 degree X rotation that
+        /// an AR camera needs would be undone again immediately.
+        ///
+        /// If a platform ever reports a frame whose vertical is not +z, CockpitLook.BackOf and ViewDeltaOf are the
+        /// two places that say so, and the symptom would be yaw and pitch trading places — not the mush that
+        /// reading angles out of the raw delta produced.
+        /// </summary>
         private static FlyingGame.Core.MathTypes.Quat ToCore(Quaternion q) =>
             new FlyingGame.Core.MathTypes.Quat(q.x, q.y, q.z, q.w);
     }
