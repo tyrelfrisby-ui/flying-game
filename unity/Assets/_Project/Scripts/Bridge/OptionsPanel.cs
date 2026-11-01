@@ -188,7 +188,6 @@ namespace FlyingGame.Bridge
             y += _lh * 0.8f;
         }
 
-        private CockpitView _cockpitView;
 
         private bool Check(string name, bool v, ref float y)
         {
@@ -354,6 +353,45 @@ namespace FlyingGame.Bridge
                 if (Mathf.Abs(d - dzNow) > 0.002f) { SessionSettings.FeelDeadZone[i] = Mathf.Round(d * 100f) / 100f; SessionSettings.SaveFeel(); ApplyFeelLive(); }
                 y += _lh * 0.95f;
             }
+            // LOOKING AROUND (owner 2026-10-31; moved out of the Audio tab 2026-11-01 after Ty found it there and
+            // said it makes no sense in Audio). These are CONTROLS: they decide how the pilot's head is pointed,
+            // the same way expo and dead zone decide how his hands reach the stick. The hat on a real stick and the
+            // pad on glass need no option; these three do.
+            //
+            // Shown whatever the current view is and whether or not a cockpit exists right now: the settings live
+            // on CockpitView as statics, backed by PlayerPrefs, and apply the moment the cockpit view is active.
+            // Before this they were drawn only when FindFirstObjectByType<CockpitView>() found one, so on the menu
+            // or in an outside view the options simply were not there.
+            y += _gap * 0.5f;
+            {
+                if (CockpitView.DeviceAttitudeAvailable)
+                {
+                    if (Check("Move the device to look around (cockpit view)", CockpitView.DeviceLookEnabled, ref y))
+                        CockpitView.DeviceLookEnabled = !CockpitView.DeviceLookEnabled;
+                    if (CockpitView.DeviceLookEnabled)
+                    {
+                        // Owner Ty, 2026-11-01: "an adjustable gain from 1x (1 deg of device = 1 deg of view, the
+                        // default) up to 10x, continuous". The label says what the number MEANS, because "3.4x" on
+                        // its own tells a pilot nothing about how far to turn the phone.
+                        float g = CockpitView.DeviceLookGain;
+                        UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh),
+                            $"   Look gain  {g:0.0}x  (1\u00b0 of device = {g:0.0}\u00b0 of view)", _label);
+                        float ng = GUI.HorizontalSlider(new Rect(_x + _cw * 0.54f, y + _lh * 0.35f, _cw * 0.46f, _lh * 0.4f),
+                                                        g, (float)FlyingGame.Core.CockpitLook.MinDeviceGain,
+                                                        (float)FlyingGame.Core.CockpitLook.MaxDeviceGain);
+                        if (Mathf.Abs(ng - g) > 0.02f) CockpitView.DeviceLookGain = ng;
+                        y += _lh + _gap * 0.4f;
+                    }
+                }
+                else
+                {
+                    UiLayout.Label(new Rect(_x, y, _cw, _lh), "Move the device to look around: this device has no gyro", _label);
+                    y += _lh + _gap * 0.4f;
+                }
+                if (Check("Look snaps back to straight ahead when you let go", CockpitView.SpringCentreEnabled, ref y))
+                    CockpitView.SpringCentreEnabled = !CockpitView.SpringCentreEnabled;
+            }
+            y += _gap * 0.5f;
             // JOYSTICK LINK (owner 2026-10-12): the Mac's joystick / RC radio flies the iPad and iPhone over the local network.
             y += _gap * 0.5f;
             {
@@ -371,33 +409,6 @@ namespace FlyingGame.Bridge
             y += _lh + _gap * 0.4f;
             // Intercom + radio (owner 2026-10-01): intercom = voice-activated, heard in headphones; radio = hold TALK.
             if (Check("Intercom: talk and hear yourself (headphones)", VoiceComms.IntercomOn, ref y)) VoiceComms.IntercomOn = !VoiceComms.IntercomOn;
-            // LOOKING AROUND (owner 2026-10-31). The hat on a stick and the pad on glass need no option; these two do.
-            {
-                _cockpitView ??= Object.FindFirstObjectByType<CockpitView>();
-                if (_cockpitView != null)
-                {
-                    if (CockpitView.DeviceAttitudeAvailable)
-                    {
-                        if (Check("Move the device to look around (cockpit view)", _cockpitView.DeviceLook, ref y))
-                            _cockpitView.SetDeviceLook(!_cockpitView.DeviceLook);
-                        if (_cockpitView.DeviceLook)
-                        {
-                            // Owner Ty, 2026-11-01: "an adjustable gain from 1x (1 deg of device = 1 deg of view,
-                            // the default) up to 10x, continuous". The label says what the number MEANS, because
-                            // "3.4x" on its own tells a pilot nothing about how far to turn the phone.
-                            float g = _cockpitView.DeviceGain;
-                            UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh),
-                                $"   Look gain  {g:0.0}x  (1\u00b0 of device = {g:0.0}\u00b0 of view)", _label);
-                            float ng = GUI.HorizontalSlider(new Rect(_x + _cw * 0.54f, y + _lh * 0.35f, _cw * 0.46f, _lh * 0.4f),
-                                                            g, (float)FlyingGame.Core.CockpitLook.MinDeviceGain, (float)FlyingGame.Core.CockpitLook.MaxDeviceGain);
-                            if (Mathf.Abs(ng - g) > 0.02f) _cockpitView.SetDeviceGain(ng);
-                            y += _lh + _gap * 0.4f;
-                        }
-                    }
-                    if (Check("Look snaps back to straight ahead when you let go", _cockpitView.Look.SpringCentre, ref y))
-                        _cockpitView.SetSpringCentre(!_cockpitView.Look.SpringCentre);
-                }
-            }
             UiLayout.Label(new Rect(_x, y, _cw * 0.38f, _lh), "Radio frequency", _label);
             int nf = VoiceComms.Frequencies.Length;
             float bw = (_cw * 0.6f - (nf - 1) * _gap * 0.4f) / nf, bx = _x + _cw * 0.4f;

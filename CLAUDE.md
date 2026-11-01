@@ -62,6 +62,14 @@ removed the on-screen look pad — no message, no setting, the buttons simply st
 write the same state, give each its own offset and sum them (`CockpitLook` keeps a manual and a device half and
 clamps only the total) rather than letting whichever runs first win.
 
+### Put a setting in the tab a pilot would look in
+"Move the device to look around" and its gain slider shipped on the **Audio** tab, next to the radio volume,
+because that was where the other looking-around options already happened to be. Ty found it and said it made no
+sense there. It is an input: it decides where the pilot's head points, the same way expo and dead zone decide how
+his hands reach the stick, so it belongs under **Controls**. Same rule for visibility: a setting drawn only when
+`FindFirstObjectByType<CockpitView>()` happens to find one is invisible from the menu and from any outside view.
+Keep the setting static and persisted, show it always, and let whatever component exists apply it.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it
