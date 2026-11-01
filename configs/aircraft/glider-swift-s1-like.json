@@ -2015,6 +2015,21 @@
       ]
     ],
     "_legacyEmptyMassKg": 280.0,
-    "_legacyEmptyMassKgNote": "the older weight-and-balance lane (e4755c9) authored emptyMassKg as a true EMPTY WEIGHT, excluding pilot and fuel. The current LoadingConfig reads that same key as 'what is left when every station is empty', and these types have no stations in the current schema, so every spawn loaded the aeroplane to its empty weight: the Great Lakes flew 258 kg light (816 -> 558), the Cub 206 kg (553 -> 347), the Swift 50 kg (330 -> 280). SessionSettings.ApplyLoadTo runs on EVERY spawn, so this was the flying mass in the game while the .NET tests, which do not call ApplyLoad, kept using the authored massKg. Set to 0 so it derives from mass.massKg again; the authored figure is kept below, unread, for the open W&B decision in AGENT-LOG NEEDS YOU."
+    "_legacyEmptyMassKgNote": "the older weight-and-balance lane (e4755c9) authored emptyMassKg as a true EMPTY WEIGHT, excluding pilot and fuel. The current LoadingConfig reads that same key as 'what is left when every station is empty', and these types have no stations in the current schema, so every spawn loaded the aeroplane to its empty weight: the Great Lakes flew 258 kg light (816 -> 558), the Cub 206 kg (553 -> 347), the Swift 50 kg (330 -> 280). SessionSettings.ApplyLoadTo runs on EVERY spawn, so this was the flying mass in the game while the .NET tests, which do not call ApplyLoad, kept using the authored massKg. Set to 0 so it derives from mass.massKg again; the authored figure is kept below, unread, for the open W&B decision in AGENT-LOG NEEDS YOU.",
+    "seats": [
+      {
+        "id": "pilot",
+        "label": "Pilot",
+        "station": [
+          0.8882,
+          0.0,
+          0.1283
+        ],
+        "maxKg": 113.4,
+        "referenceKg": 0
+      }
+    ],
+    "_comment": "loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
+    "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
   }
 }

@@ -1831,9 +1831,9 @@
         "id": "rear",
         "label": "Rear seat (solo)",
         "station": [
-          -1.597,
-          0,
-          -0.518
+          -1.2801,
+          0.0,
+          -0.1043
         ],
         "maxKg": 113.4,
         "referenceKg": 86.0,
@@ -1847,9 +1847,9 @@
         "id": "front",
         "label": "Front seat",
         "station": [
-          -0.687,
-          0,
-          -0.529
+          -0.1899,
+          0.0,
+          -0.0296
         ],
         "maxKg": 113.4,
         "referenceKg": 0,
@@ -1860,7 +1860,46 @@
         ]
       }
     ],
-    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. station/maxKg/referenceKg here are placeholders, NOT authored weight and balance: referenceKg 0 keeps the seat mass-neutral so nothing about the flight model changes. See AGENT-LOG NEEDS YOU.",
-    "_seatPlacardNote": "maxKg is a CONVENTIONAL occupant placard (250 lb, and the J-3's own authored 300 lb), not a figure read from a POH. referenceKg follows the 172's convention: the primary seat carries the pilot that mass.massKg already includes, so the reference loading still reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg really includes a pilot is the open W&B decision in AGENT-LOG NEEDS YOU."
+    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
+    "_seatPlacardNote": "maxKg is a CONVENTIONAL occupant placard (250 lb, and the J-3's own authored 300 lb), not a figure read from a POH. referenceKg follows the 172's convention: the primary seat carries the pilot that mass.massKg already includes, so the reference loading still reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg really includes a pilot is the open W&B decision in AGENT-LOG NEEDS YOU.",
+    "tanks": [
+      {
+        "id": "centre",
+        "label": "Acro / centre",
+        "station": [
+          0.4921,
+          0.0,
+          -0.1296
+        ],
+        "maxKg": 36.7,
+        "referenceKg": 0,
+        "burnOrder": 0
+      },
+      {
+        "id": "wingLeft",
+        "label": "Left wing",
+        "station": [
+          0.2891,
+          -1.15,
+          -0.07
+        ],
+        "maxKg": 43.2,
+        "referenceKg": 0,
+        "burnOrder": 0
+      },
+      {
+        "id": "wingRight",
+        "label": "Right wing",
+        "station": [
+          0.2891,
+          1.15,
+          -0.07
+        ],
+        "maxKg": 43.2,
+        "referenceKg": 0,
+        "burnOrder": 0
+      }
+    ],
+    "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
   }
 }

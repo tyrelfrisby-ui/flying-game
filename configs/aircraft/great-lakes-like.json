@@ -1511,7 +1511,32 @@
     },
     "maxTakeoffMassKg": 816.47,
     "stations": [],
-    "tanks": [],
+    "tanks": [
+      {
+        "id": "topWing",
+        "label": "Top wing",
+        "station": [
+          -0.5302,
+          0.0,
+          -0.69
+        ],
+        "maxKg": 70.86,
+        "referenceKg": 0,
+        "burnOrder": 0
+      },
+      {
+        "id": "header",
+        "label": "Fuselage header",
+        "station": [
+          -0.327,
+          0.0,
+          -0.2155
+        ],
+        "maxKg": 3.82,
+        "referenceKg": 0,
+        "burnOrder": 0
+      }
+    ],
     "envelope": [
       [
         25.052,
@@ -1535,9 +1560,9 @@
         "id": "rear",
         "label": "Rear seat (solo)",
         "station": [
-          -1.96,
-          0,
-          -0.487
+          -1.7621,
+          0.0,
+          0.0007
         ],
         "maxKg": 113.4,
         "referenceKg": 86.0,
@@ -1551,9 +1576,9 @@
         "id": "front",
         "label": "Front seat",
         "station": [
-          -1.193,
-          0,
-          -0.413
+          -0.8985,
+          0.0,
+          0.0845
         ],
         "maxKg": 113.4,
         "referenceKg": 0,
@@ -1564,9 +1589,34 @@
         ]
       }
     ],
-    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. station/maxKg/referenceKg here are placeholders, NOT authored weight and balance: referenceKg 0 keeps the seat mass-neutral so nothing about the flight model changes. See AGENT-LOG NEEDS YOU.",
+    "_comment": "seats[].eye is the seated pilot's EYE (owner Ty, approved 2026-10-31), body frame +x fwd, +y right, +z DOWN, measured on extended gear; the Cockpit camera sits exactly there. The PRIMARY seat is first. loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
     "_legacyEmptyMassKg": 557.919,
     "_legacyEmptyMassKgNote": "the older weight-and-balance lane (e4755c9) authored emptyMassKg as a true EMPTY WEIGHT, excluding pilot and fuel. The current LoadingConfig reads that same key as 'what is left when every station is empty', and these types have no stations in the current schema, so every spawn loaded the aeroplane to its empty weight: the Great Lakes flew 258 kg light (816 -> 558), the Cub 206 kg (553 -> 347), the Swift 50 kg (330 -> 280). SessionSettings.ApplyLoadTo runs on EVERY spawn, so this was the flying mass in the game while the .NET tests, which do not call ApplyLoad, kept using the authored massKg. Set to 0 so it derives from mass.massKg again; the authored figure is kept below, unread, for the open W&B decision in AGENT-LOG NEEDS YOU.",
-    "_seatPlacardNote": "maxKg is a CONVENTIONAL occupant placard (250 lb, and the J-3's own authored 300 lb), not a figure read from a POH. referenceKg follows the 172's convention: the primary seat carries the pilot that mass.massKg already includes, so the reference loading still reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg really includes a pilot is the open W&B decision in AGENT-LOG NEEDS YOU."
+    "_seatPlacardNote": "maxKg is a CONVENTIONAL occupant placard (250 lb, and the J-3's own authored 300 lb), not a figure read from a POH. referenceKg follows the 172's convention: the primary seat carries the pilot that mass.massKg already includes, so the reference loading still reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg really includes a pilot is the open W&B decision in AGENT-LOG NEEDS YOU.",
+    "baggage": [
+      {
+        "id": "aft",
+        "label": "Baggage (aft)",
+        "station": [
+          -2.5368,
+          0.0,
+          0.0007
+        ],
+        "maxKg": 18.14,
+        "referenceKg": 0
+      },
+      {
+        "id": "headrest",
+        "label": "Headrest locker",
+        "station": [
+          -2.3336,
+          0.0,
+          0.0
+        ],
+        "maxKg": 4.54,
+        "referenceKg": 0
+      }
+    ],
+    "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
   }
 }

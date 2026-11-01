@@ -1571,7 +1571,7 @@
   },
   "verticalBlanketFactor": 0.5,
   "loading": {
-    "_comment": "Stations in the body reference frame (+x fwd, +y right, +z DOWN), the same frame as gear[].pos. referenceKg is what mass.massKg already contains, so the reference loading reproduces the authored mass, CG and inertia exactly. No maxGrossMassKg or CG limits authored: this airframe's authored massKg implies an 877 kg empty weight, heavier than the real type's, so a real 1111 kg placard would make ordinary loads illegal. Retuning massKg would move every book speed, so the placards wait for authored W&B rather than being invented here. Eye points are Codex's to author.",
+    "_comment": "Stations in the body reference frame (+x fwd, +y right, +z DOWN), the same frame as gear[].pos. referenceKg is what mass.massKg already contains, so the reference loading reproduces the authored mass, CG and inertia exactly. No maxGrossMassKg or CG limits authored: this airframe's authored massKg implies an 877 kg empty weight, heavier than the real type's, so a real 1111 kg placard would make ordinary loads illegal. Retuning massKg would move every book speed, so the placards wait for authored W&B rather than being invented here. Eye points are Codex's to author. loading.seats[].station, loading.tanks[] and loading.baggage[] are the arms from docs/pending/loading-arm-estimates.md (Codex lane, 2026-11-01): a published TCDS/POH arm where the row is CONFIRMED, converted to this frame through that aircraft's anchor. maxKg is the published placard where the source gives one. referenceKg is UNCHANGED and still follows the 172's convention, so the reference loading reproduces the authored mass, CG and inertia exactly and nothing moves at spawn. Whether each airframe's authored massKg includes a pilot or fuel is still the open W&B decision in AGENT-LOG NEEDS YOU.",
     "emptyMassKg": 0,
     "maxGrossMassKg": 0,
     "cgForwardLimitM": 0,
@@ -1660,6 +1660,17 @@
     ],
     "baggage": [
       {
+        "id": "aft2",
+        "label": "Baggage area 2",
+        "station": [
+          -2.1584,
+          0.0,
+          0.1
+        ],
+        "maxKg": 22.68,
+        "referenceKg": 0
+      },
+      {
         "id": "aft",
         "label": "Baggage",
         "station": [
@@ -1670,6 +1681,7 @@
         "maxKg": 54,
         "referenceKg": 0
       }
-    ]
+    ],
+    "_armSource": "docs/pending/loading-arm-estimates.md (and .json), lane/codex-loading-arms ee088db"
   }
 }
