@@ -51,10 +51,15 @@ namespace FlyingGame.EditorTools
                 {
                     Transform lever = Find(root.transform, "Throttle" + suffix);
                     if (lever == null) { Debug.LogError("[Quadrant] no Throttle" + suffix); failures++; continue; }
-                    // Look at the quadrant from inboard and a little above, the way the pilot glances down-left.
+                    // FROM THE SEAT EYE, looking down at the quadrant. This matters more than it sounds: the
+                    // earlier version shot from in FRONT of the levers, so left and right in the picture were the
+                    // pilot's right and left, and a mirrored picture is exactly how the lever order got reversed
+                    // in the first place. Shot from the eye, what reads left-to-right IS left-to-right in the seat.
                     Bounds b = Box(lever);
-                    camGo.transform.position = b.center + new Vector3(0f, 0.22f, 0.30f);
+                    StationConfig seated = cfg.Loading.Seats[seat == "rear" ? 0 : 1];
+                    camGo.transform.position = CoordinateMap.ToUnity(seated.EyeVec());
                     camGo.transform.LookAt(b.center);
+                    cam.fieldOfView = 55f;
 
                     Vector3 idleTip = Pose(builder, lever, 0f);
                     Shoot(cam, Path.Combine(outDir, (seat == "rear" ? "" : "front-") + "quadrant-idle.png"));

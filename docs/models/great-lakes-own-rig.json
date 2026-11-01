@@ -1521,7 +1521,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown.",
+   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1553,7 +1553,7 @@
     ]
    ],
    "model": 0.0,
-   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input. Until 2026-11-01 nothing filled RigInputs.Throttle, so this sat at idle however the aeroplane was flown.",
+   "desc": "throttle lever, full travel idle to full, both cockpits on the SAME input.",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
@@ -1562,70 +1562,6 @@
    "node": "Prop_F",
    "parent": "Controls",
    "param": "prop",
-   "unit": "0..1",
-   "kind": "rot",
-   "axis_gltf": [
-    -0.0,
-    -0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.07,
-    -0.29,
-    0.3
-   ],
-   "map": [
-    [
-     0.0,
-     50.0
-    ],
-    [
-     1.0,
-     50.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
-   "link": "front + rear quadrants linked (same param)",
-   "note": "",
-   "extra": {}
-  },
-  {
-   "node": "Prop_R",
-   "parent": "Controls",
-   "param": "prop",
-   "unit": "0..1",
-   "kind": "rot",
-   "axis_gltf": [
-    -0.0,
-    -0.0,
-    1.0
-   ],
-   "pivot_gltf": [
-    1.75,
-    -0.27,
-    0.3008
-   ],
-   "map": [
-    [
-     0.0,
-     50.0
-    ],
-    [
-     1.0,
-     50.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "propeller lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
-   "link": "front + rear quadrants linked (same param)",
-   "note": "",
-   "extra": {}
-  },
-  {
-   "node": "Mixture_F",
-   "parent": "Controls",
-   "param": "mixture",
    "unit": "0..1",
    "kind": "rot",
    "axis_gltf": [
@@ -1649,15 +1585,15 @@
     ]
    ],
    "model": 0.0,
-   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
+   "desc": "propeller lever, FIXED full forward (owner Ty).",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}
   },
   {
-   "node": "Mixture_R",
+   "node": "Prop_R",
    "parent": "Controls",
-   "param": "mixture",
+   "param": "prop",
    "unit": "0..1",
    "kind": "rot",
    "axis_gltf": [
@@ -1681,7 +1617,71 @@
     ]
    ],
    "model": 0.0,
-   "desc": "mixture lever, FIXED full forward (owner Ty, 2026-11-01): a real Great Lakes flies with both full forward, and tying mixture to the engine state snapped the lever aft the moment the engine stopped.",
+   "desc": "propeller lever, FIXED full forward (owner Ty).",
+   "link": "front + rear quadrants linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Mixture_F",
+   "parent": "Controls",
+   "param": "mixture",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.04,
+    -0.32,
+    0.3
+   ],
+   "map": [
+    [
+     0.0,
+     50.0
+    ],
+    [
+     1.0,
+     50.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "mixture lever, FIXED full forward (owner Ty).",
+   "link": "front + rear quadrants linked (same param)",
+   "note": "",
+   "extra": {}
+  },
+  {
+   "node": "Mixture_R",
+   "parent": "Controls",
+   "param": "mixture",
+   "unit": "0..1",
+   "kind": "rot",
+   "axis_gltf": [
+    -0.0,
+    -0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.72,
+    -0.3,
+    0.3008
+   ],
+   "map": [
+    [
+     0.0,
+     50.0
+    ],
+    [
+     1.0,
+     50.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "mixture lever, FIXED full forward (owner Ty).",
    "link": "front + rear quadrants linked (same param)",
    "note": "",
    "extra": {}

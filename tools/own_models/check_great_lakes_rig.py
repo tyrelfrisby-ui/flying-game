@@ -69,6 +69,24 @@ def check(path):
             held = {v for _, v in row['map']}
             assert len(held) == 1 and max(held) == max(travel), (seat, lever, 'not pinned full forward', row['map'])
             assert knob in knob_materials('%s_%s' % (lever, seat)), (seat, lever, 'knob colour', knob)
+
+        # LEFT TO RIGHT FROM THE SEAT: throttle, prop, mixture. Ty flies a real Great Lakes and that is his
+        # order; it was reversed on 2026-11-01 from a misread photograph and is asserted here so it cannot be
+        # "corrected" again by anyone reasoning about axis signs. The glTF lateral axis runs to the pilot's
+        # LEFT -- measured from a render taken at the seat eye, after guessing it the other way round twice --
+        # so left-to-right is DESCENDING lateral coordinate.
+        def lateral(node_name):
+            # The accessor's own min/max is enough and needs no binary read.
+            i = names[node_name]
+            lo, hi = [], []
+            for prim in doc['meshes'][nodes[i]['mesh']]['primitives']:
+                a = doc['accessors'][prim['attributes']['POSITION']]
+                lo.append(a['min'][2]); hi.append(a['max'][2])
+            return (min(lo) + max(hi)) / 2 + position(i)[2]
+
+        across = [lateral('%s_%s' % (l, seat)) for l in ('Throttle', 'Prop', 'Mixture')]
+        assert across[0] > across[1] > across[2], (
+            seat, 'lever order is not throttle, prop, mixture left to right', across)
     # Export frame: prop ahead of tail along -x, vertical tail above the gear, span along z.
     assert position(names['Rudder_Pivot'])[0] > position(names['Prop'])[0]
     assert position(names['Rudder_HingeAxis'])[1] > position(names['Gear_Pivot_L'])[1]

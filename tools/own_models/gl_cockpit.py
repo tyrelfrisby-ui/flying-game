@@ -264,9 +264,10 @@ LEV_L, LEV_A0 = 0.15, -25.0                    # lever length, angle from vertic
 #          quadrant.png).
 #   REAR:  a grey console BOX on the left sidewall at hip/elbow height with SHORT levers standing out of its top
 #          face, switch panels below (ref-real-great-lakes-rear-quadrant.jpg).
-# Knob order is the same in both and is the order a hand finds without looking: BLACK throttle outboard, dark RED
-# mixture right beside it, BLUE prop on a thinner lever set higher and further aft. Until now the loop ran
-# throttle, prop, mixture, which put the blue lever between the two a pilot grabs in a hurry.
+# LEVER ORDER, left to right as the pilot sees it from the seat: THROTTLE (black), PROP (blue), MIXTURE (red).
+# Ty flies a real Great Lakes and that is his order. On 2026-11-01 I reversed it to prop/mixture/throttle from my
+# own reading of a dark photograph; it was right before I touched it. Do not re-derive this from axis signs --
+# render it from the seat eye and look (GreatLakesQuadrantShots).
 for sfx, xq in (('F', -1.04), ('R', -1.72)):
     zq = -0.32; yw = wall_y(xq, zq); rear = sfx == 'R'
     if rear:
@@ -281,16 +282,16 @@ for sfx, xq in (('F', -1.04), ('R', -1.72)):
         put(CK_INT, 'ck_quadrant', gbox, (xq, 0.5 * (yw - 0.012 + 0.29), zq), (0.06, yw - 0.012 - 0.29, 0.04))  # lever box
     lev_l = 0.085 if rear else LEV_L                                                                          # short levers in the console
     base_y = (yw - 0.055 - 0.030) if rear else 0.300
-    for k, (n0, knob) in enumerate((('Prop', 'ck_knob_blue'), ('Mixture', 'ck_knob_red'), ('Throttle', 'ck_grip'))):  # inboard -> outboard
+    # Three levers side by side on one gate, same length and same shaft. The "thinner prop lever set higher and
+    # further aft" that was here briefly only ever existed to prop up the wrong order, and goes with it.
+    # k ascends toward the pilot's LEFT (measured from a render taken AT THE SEAT EYE, not reasoned about), so
+    # the leftmost lever is the LAST one in this tuple.
+    for k, (n0, knob) in enumerate((('Mixture', 'ck_knob_red'), ('Prop', 'ck_knob_blue'), ('Throttle', 'ck_grip'))):
         n = '%s_%s' % (n0, sfx); y_ = base_y + 0.025 * k
-        # The prop lever is the thin one, set higher and further aft, exactly as it sits in the photographs.
-        prop = n0 == 'Prop'
-        pv = V3((xq - (0.030 if prop else 0.0), y_, zq + (0.030 if prop else 0.0)))
-        a = math.radians(LEV_A0); d = V3((math.sin(a), 0, math.cos(a)))
-        ln = lev_l * (1.12 if prop else 1.0)
+        pv = V3((xq, y_, zq)); a = math.radians(LEV_A0); d = V3((math.sin(a), 0, math.cos(a)))
         put(n, 'ck_quadrant', gcyl, pv + V3((0, -0.006, 0)), pv + V3((0, 0.006, 0)), 0.012, 10)
-        put(n, 'ck_stick', segbox, pv, pv + ln * d, 0.004 if prop else 0.006, 0.008 if prop else 0.012, (0, 1, 0))
-        put(n, knob, gsph, pv + (ln + 0.008) * d, 0.015, 12, 8); RIGPTS[n] = tuple(pv); RIGPTS[n + '_tip'] = tuple(pv + ln * d)
+        put(n, 'ck_stick', segbox, pv, pv + lev_l * d, 0.006, 0.012, (0, 1, 0))
+        put(n, knob, gsph, pv + (lev_l + 0.008) * d, 0.015, 12, 8); RIGPTS[n] = tuple(pv); RIGPTS[n + '_tip'] = tuple(pv + lev_l * d)
     zt = -0.42; yt_ = wall_y(xq, zt)
     put(CK_INT, 'ck_quadrant', gbox, (xq, yt_ - 0.006, zt), (0.16, 0.012, 0.03))                               # trim slot
     n = 'Trim_' + sfx; put(n, 'ck_stick', gcyl, (xq, yt_ - 0.012, zt), (xq, yt_ - 0.05, zt), 0.005, 8)
