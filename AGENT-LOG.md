@@ -1,4 +1,48 @@
 ## NEEDS YOU
+- **LOADING ARMS WIRED IN (Claude, 2026-11-01, lane/claude-loading-arms) — NEEDS YOU, five things:**
+  1. **The arms are in, and nothing moved at spawn.** Codex's table (`docs/pending/loading-arm-estimates.md`,
+     merged here at ee088db) is wired into the eight configs that carry a loading block, as
+     `loading.seats[].station`, `loading.tanks[]` and `loading.baggage[]`. `referenceKg` was NOT touched, so
+     `AircraftLoad` still solves the empty airframe backwards and the reference loading reproduces the authored
+     mass, CG and inertia exactly — asserted per type by `MovingTheArmsLeavesTheAeroplaneExactlyAsAuthored`.
+     The four placeholder seat stations that equalled the EYE are gone:
+     | type | seat | was (= eye) | now (published arm) |
+     |---|---|---|---|
+     | glider-2-33-like | front | 0.971, 0, -0.111 | **1.034, 0, +0.409** |
+     | pitts-s2b-like | rear | -1.325, 0, -0.300 | **-1.135, 0, +0.150** |
+     | extra-300-like | rear | -1.597, 0, -0.518 | **-1.280, 0, -0.104** |
+     | great-lakes-like | rear | -1.960, 0, -0.487 | **-1.762, 0, +0.001** |
+     The z moves are the big ones (up to 52 cm on the 2-33) and they are right: the EYE is a head, the station is
+     the mass centre of a seated body, which sits roughly half a metre lower. The J-3 already carried its TCDS
+     arms in x; only z was refined.
+  2. **The `loading.tanks` key is shared by both schemas, and that was a live bug.** The J-3's legacy tank entry
+     (`arm`/`capacityL`/`defaultKg`) carries no field the current `LoadingConfig` reads, so it deserialised into a
+     phantom fuel station at the ORIGIN with `maxKg` 0 — the only reason it never showed is that a zero capacity
+     switches fuel flow off entirely. I did NOT delete the legacy keys: the live keys (`station`, `maxKg`,
+     `referenceKg`, `burnOrder`) now sit on the SAME object beside them. **That is a stay of execution, not a
+     decision.**
+  3. **The J-3's legacy block contains a complete decomposition that disagrees with the live one.** Legacy:
+     empty 346.998 + two seats at 86.6479 + nose tank 32.706 = 553.0 kg = the authored `mass.massKg`, exactly.
+     Live `seats`: 86 kg in the REAR seat only, 0 in front, 0 fuel. Both reproduce the authored aeroplane at
+     their own reference, so no test can choose between them — but they say different things about what the
+     authored mass contains, which is your open W&B question with an actual worked example attached. I left the
+     live side alone.
+  4. **Two deliberate departures from the table's own y, and one row split.** The Great Lakes' 26 gal top-wing
+     tank and the Pitts' 5 gal upper-wing tank are SINGLE centre-section tanks in their type certificates
+     ("one 26.0 gal. tank in top wing at +13.0"); the table's lateral figures for them (0.53 m and 0.39 m) came
+     from the generic wing-tank heuristic, not from the source, so I put both on the centreline and took only x
+     and z from the table. The Extra's one "Wing tanks 2×60 L" row became `wingLeft`/`wingRight` at ∓ 1.15 m,
+     43.2 kg each. New `maxKg` figures are the cited placards at 0.72 kg/L avgas (the density the J-3's own
+     block already used).
+  5. **Still yours to judge, and NOT touched here** (Codex's item 2 above, restated because it is now the only
+     thing left in the table that nobody has acted on): Beaver and Beaver-on-floats cabins sit 0.89 m forward of
+     the TCDS A-806 seat arm; Glasair III crew 0.74 m forward of the CAFE arm with two anchors agreeing;
+     Decathlon 0.41 m forward; the Extra's seat SPACING is 0.92 m against a published 1.09 m, and the Stearman's
+     0.72 m against 0.91 m. Every one of those is a cockpit or wing placement question, so closing them means
+     moving a model, which I was told not to do.
+  Scope, stated plainly: **26 of the 34 configs have no `loading` block at all** and got nothing. Creating one
+  would mean choosing which schema a new block is written in, which is exactly the decision in item 3. The table
+  covers them; the wiring waits on you.
 - **LOADING ARM ESTIMATES (Codex, 2026-11-01, lane/codex-loading-arms) — NEEDS YOU, docs only, nothing approved:**
   1. `docs/pending/loading-arm-estimates.md` and `.json` list seat, fuel and baggage arms for all 34 configs.
      Each row is marked CONFIRMED (TCDS, POH or W&B sheet, cited with its source, datum kept, converted to the
@@ -424,6 +468,37 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-01 — Claude · lane/claude-loading-arms · the published arms, wired
+
+**Branched from lane/claude-island-nav (69089df) and fast-forwarded Codex's table lane (ee088db) in first.**
+
+**What this is.** Codex measured seat, fuel and baggage arms for all 34 configs and marked each row CONFIRMED
+(a published TCDS/POH/W&B arm, cited, converted to this frame through a named anchor) or ESTIMATED (a seated
+1.778 m de Leva mannequin, or geometry heuristics). This lane wires the `primary_body_m` column into the eight
+configs that actually carry a `loading` block, and into their StreamingAssets mirrors.
+
+**Why it is safe to move a station.** `AircraftLoad` solves the empty airframe BACKWARDS from the authored mass,
+CG and inertia and the reference stations, so moving a station re-solves the empty CG to match and the reference
+loading still lands exactly on the authored figures. That is not careful authoring, it is construction — which is
+why a W&B edit of this size can land without retuning a single book speed. `referenceKg` was not touched
+anywhere, and every new tank and baggage station went in at `referenceKg` 0, so a type that never burned fuel
+still spawns dry and still burns nothing.
+
+**The four placeholders are gone.** The 2-33, Pitts, Extra and Great Lakes had `station` set equal to the EYE,
+because no W&B arm existed for them anywhere in the repo. They now carry published arms, and the big move is in
+z: an eye is a head, a station is the mass centre of a seated body about half a metre lower.
+
+**What the tests pin.** `ArmTable` in AircraftLoadTests repeats all 35 stations by hand — a test that reads the
+file it is checking passes whatever the file says. Beside it: every station inside its own airframe (fuselage
+extent from `crossflow`, semi-span from the wing strips), the reference loading reproducing the authored
+aeroplane per type, the tandems' rear station aft of the front one and both on the centreline, and the new
+tanks and baggage empty at spawn.
+
+**One live bug found on the way.** The J-3's legacy tank entry shares the `tanks` key with the current schema
+but carries none of its fields, so it was deserialising into a phantom fuel station at the origin with a zero
+placard. Its legacy keys are kept; the live ones now sit beside them. See NEEDS YOU — it is the open schema
+question with a worked example attached, not something to settle in a wiring lane.
+
 ### 2026-10-31 — Claude · lane/claude-eyepoints · the camera sits on the pilot's eye
 
 **Three commits: 9594128 the eyes and a mass bug, 0d4884d the Great Lakes sights on the corrected eye,
