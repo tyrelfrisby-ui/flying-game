@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **EXTRA COCKPIT FLICKER FIXED; MAGENTA GRID NOT FOUND (Claude, 2026-11-01 05:02, lane/claude-extra-flicker) — NEEDS YOU:**
+  1. **Flicker: fixed in code, not yet seen on a device.** The Extra's GLB has three coplanar, double-sided pairs on the
+     rear panel (measured): the card face 0.1 mm in front of its stock, `RearPanel_UpperExtension` exactly in
+     `Cockpit_Shell`'s panel plane (x 1.202) behind the holder, and both LCD quads 0.6 mm off
+     `Avionics_Face_COM/XPDR`. `CockpitDisplays.SeparateCoplanar` pulls each toward `Eye_Rear` once per aeroplane
+     (card and LCDs 1 mm, the extension 0.5 mm, inside the holder's 3 mm lip). The near plane is unchanged (0.05 m).
+     Checked: the file compiles with 0 errors against Unity 6000.3.23f1 and island-nav's ScriptAssemblies. **No Unity
+     batch or deploy was run** (this worktree has no Library, and a deploy may be running), and no `src/` was touched, so the suite was not run.
+  2. **Magenta grid: NOT fixed. I could not find a missing shader, and I did not change anything for it.** The 04:45 island-nav
+     `build/ios.log` compiled every shader the runtime `Shader.Find`s for Metal with no shader errors. Every
+     `FlyingGame/*` shader is in Always Included, strict variant matching is off, instancing is Keep All, and no
+     `.mat` points at an unknown shader GUID. The only names that miss are fallbacks behind `??` (`Unlit/Transparent`,
+     `GUI/3D Text Shader`). **First check which build is on the phone** (`bundleVersion`), then get a screenshot or
+     the Xcode console from the device (glTFast or "shader is not supported" lines). Also note: the FPV's ground
+     track turns magenta on purpose below 500 ft AGL.
 - **EXTRA SEQUENCE CARD: option B kept (Claude, 2026-11-01, lane/claude-extra-card) — NEEDS YOU, two things:**
   1. **One card now, the alloy holder.** Ty chose B. The Extra carried two after the sights merge: the holder
      (`SequenceCard_Face` + `SequenceCard_Holder`/`Clip`/`Stock`, 108 × 140 mm, flush on the rear panel, the one

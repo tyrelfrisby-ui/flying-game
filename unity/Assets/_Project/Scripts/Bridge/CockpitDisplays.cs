@@ -43,6 +43,7 @@ namespace FlyingGame.Bridge
         {
             if (_looked || find == null) return;
             _looked = true;
+            SeparateCoplanar(find);
             // 32 x 19 mm and 39 x 16 mm faces (the rig's size_m): the textures carry the same aspect, so a
             // glyph is square on the glass.
             _com = Make(find("Radio_Display_R"), 128, 76, 3);
@@ -56,6 +57,35 @@ namespace FlyingGame.Bridge
             _looked = false;
             Drop(_com); Drop(_xpdr);
             _com = _xpdr = null;
+        }
+
+        /// <summary>Surfaces the Extra's GLB lays flat against another, double-sided, so the depth test decides
+        /// between them pixel by pixel and the panel flickers as the eye moves (owner on device 2026-11-01: the
+        /// sequence card and the radio stack). Measured in the GLB: the card face 0.1 mm in front of its paper
+        /// stock, RearPanel_UpperExtension exactly in Cockpit_Shell's panel plane (x 1.202) behind the holder,
+        /// and both LCD quads 0.6 mm off Cockpit_Interior's Avionics_Face_COM/XPDR. Each is pulled toward the
+        /// pilot's eye by the amount given here, once per aeroplane: still inside the holder's 3 mm lip and
+        /// clear of every knob, and far more than the depth buffer can resolve at arm's length.</summary>
+        private static readonly (string Node, float Metres)[] Proud =
+        {
+            ("SequenceCard_Face", 0.001f),
+            ("RearPanel_UpperExtension", 0.0005f),
+            ("Radio_Display_R", 0.001f),
+            ("Xpdr_Display_R", 0.001f),
+        };
+
+        private static void SeparateCoplanar(System.Func<string, Transform> find)
+        {
+            Transform eye = find("Eye_Rear") ?? find("Eye_Front");
+            if (eye == null) return;
+            foreach (var (node, metres) in Proud)
+            {
+                Transform t = find(node);
+                if (t == null || !t.TryGetComponent(out Renderer r)) continue;
+                Vector3 toEye = eye.position - r.bounds.center;
+                if (toEye.sqrMagnitude < 1e-6f) continue;
+                t.position += toEye.normalized * metres;
+            }
         }
 
         private static void Drop(Lcd lcd)
