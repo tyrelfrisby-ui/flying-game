@@ -126,6 +126,23 @@ def mat_image(name, image, rough=0.45):
     return m
 
 
+def mat_image_alpha(name, image, rough=0.45):
+    """An image material that HONOURS THE PNG'S ALPHA. mat_image links colour only, which is right for a dial
+    face that fills its quad; a cut-out overlay like the front compass's case needs its transparent padding and
+    its window to actually be transparent, or the quad renders as an opaque slab over whatever is behind it."""
+    m = mat_image(name, image, rough)
+    bsdf = m.node_tree.nodes.get('Principled BSDF')
+    tex = next((n for n in m.node_tree.nodes if n.type == 'TEX_IMAGE'), None)
+    if tex is not None and 'Alpha' in bsdf.inputs:
+        m.node_tree.links.new(tex.outputs['Alpha'], bsdf.inputs['Alpha'])
+    try:
+        m.surface_render_method = 'BLENDED'
+    except Exception:
+        pass
+    m.blend_method = 'BLEND' if hasattr(m, 'blend_method') else None
+    return m
+
+
 def mat_colour(name, col, rough=0.45, metal=0.0):
     m = bpy.data.materials.new(name)
     m.use_nodes = True

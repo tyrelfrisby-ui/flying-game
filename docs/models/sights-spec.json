@@ -330,11 +330,36 @@
               1.5343040237284862,
               0.4789920907354289
             ]
+          ],
+          "Aileron_UL": [
+            [
+              -1.5511,
+              -1.5343,
+              -0.622
+            ],
+            [
+              -1.5511,
+              -2.9314,
+              -0.622
+            ]
+          ],
+          "Aileron_UR": [
+            [
+              -1.5511,
+              2.9314,
+              -0.622
+            ],
+            [
+              -1.5511,
+              1.5343,
+              -0.622
+            ]
           ]
         },
         "hinge_position_uncertainty_m": 0.1,
         "max_deflection_rad": 0.4014,
-        "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
+        "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver.",
+        "upper_hinge_note": "Aileron_UL/UR added 2026-11-01 on Ty's decision, with NO reference data: their fore-aft (x -1.5511) and span (|y| 1.5343..2.9314) are COPIED FROM THE LOWER AILERONS and only the height is the upper wing's own (z -0.622, measured off great-lakes-like-own.glb). The model's real upper hinges are NOT there: they are swept forward to x -1.2106..-1.3114 and span |y| 2.7597..3.3962. So this makes the bar-clearance test check a hinge line the aeroplane does not have - deliberately, as the owner asked, until someone measures the real one."
       },
       "y_frame_m": 2.45,
       "eye_note": "Lowered 182 mm on 2026-11-01: the previous -0.487 put the eye above the top of the rear windscreen, so the bars were built on a line the pilot could only reach by looking over the screen. Rebuilt on this eye.",

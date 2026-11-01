@@ -86,7 +86,7 @@
    "pivot_gltf": [
     0.968,
     0.03,
-    0.056
+    0.0657
    ],
    "map": [
     [
@@ -124,7 +124,7 @@
    "pivot_gltf": [
     0.968,
     0.03,
-    -0.014
+    0.0025
    ],
    "map": [
     [
@@ -161,8 +161,8 @@
    ],
    "pivot_gltf": [
     0.968,
-    0.034,
-    -0.014
+    0.0341,
+    0.0025
    ],
    "map": [
     [
@@ -198,7 +198,7 @@
    "pivot_gltf": [
     0.968,
     0.03,
-    -0.078
+    -0.0482
    ],
    "map": [
     [
@@ -232,7 +232,7 @@
    "pivot_gltf": [
     0.968,
     0.03,
-    -0.078
+    -0.0482
    ],
    "map": [
     [
@@ -250,6 +250,40 @@
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 100.0
+   }
+  },
+  {
+   "node": "Needle_OilP2_F",
+   "parent": "Instruments_Front",
+   "param": "oil_press_psi",
+   "unit": "psi",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.968,
+    0.03,
+    -0.0989
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     120.0,
+     300.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "standalone front oil pressure: 0..120 psi, 7 to 5 o'clock clockwise (E layout); yellow 25-60, green 60-90, red radials 25 / 115 psi (Lycoming typical, E; not aircraft-specific approved limits); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
+   "link": "rear (PIC) panel only",
+   "note": "",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
    }
   },
   {
@@ -287,112 +321,6 @@
    }
   },
   {
-   "node": "Needle_G_F",
-   "parent": "Instruments_Front",
-   "param": "g_load",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.968,
-    0.098,
-    0.045
-   ],
-   "map": [
-    [
-     -4.0,
-     -92.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     230.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_GMax_F",
-   "parent": "Instruments_Front",
-   "param": "g_max_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.968,
-    0.098,
-    0.045
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     230.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_GMin_F",
-   "parent": "Instruments_Front",
-   "param": "g_min_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.968,
-    0.098,
-    0.045
-   ],
-   "map": [
-    [
-     -4.0,
-     -92.0
-    ],
-    [
-     0.0,
-     0.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
    "node": "Needle_G_R",
    "parent": "Instruments_Rear",
    "param": "g_load",
@@ -424,7 +352,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer -4..+10 g, 0 g at 12 o'clock, 23 deg/g (photo layout, E); red +5.4 / -4.0 (TCDS A18EA rev 11 NOTE 6 load factors); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
+   "link": "rear (PIC) panel only",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -458,7 +386,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
+   "link": "rear (PIC) panel only",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -492,7 +420,7 @@
    ],
    "model": 0.0,
    "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
+   "link": "rear (PIC) panel only",
    "note": "",
    "extra": {
     "rig_dial_ang0_deg": 0.0
@@ -969,7 +897,41 @@
    ],
    "model": 0.0,
    "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
-   "link": "rear (PIC) panel only",
+   "link": "front + rear panels both show it (same param)",
+   "note": "",
+   "extra": {
+    "rig_map_wrap": 360.0
+   }
+  },
+  {
+   "node": "Compass_Card_F",
+   "parent": "Instruments_Front",
+   "param": "heading_deg",
+   "unit": "deg magnetic",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    -0.0
+   ],
+   "pivot_gltf": [
+    0.976,
+    0.125,
+    -0.0305
+   ],
+   "map": [
+    [
+     0.0,
+     0.0
+    ],
+    [
+     360.0,
+     360.0
+    ]
+   ],
+   "model": 0.0,
+   "desc": "wet-compass card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
+   "link": "front + rear panels both show it (same param)",
    "note": "",
    "extra": {
     "rig_map_wrap": 360.0

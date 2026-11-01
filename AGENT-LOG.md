@@ -1,4 +1,28 @@
 ## NEEDS YOU
+- **GREAT LAKES FRONT PANEL: SIX GAUGES AND A WET COMPASS (Claude, 2026-11-01, lane/claude-gl-dials) — NEEDS
+  YOU, two things:**
+  1. **`check_sights` PASSES now — and the upper hinge lines in it are invented, on your instruction.** You
+     asked for `Aileron_UL`/`UR` set equal to the lower ailerons. They are: fore-aft x −1.5511 and span
+     |y| 1.5343..2.9314 **copied from `Aileron_LL`/`LR`**, with only the height taken from the model
+     (z −0.622, the upper wing's real hinge). **The model's real upper hinges are not there**: they are swept
+     forward to x −1.2106..−1.3114 and span |y| 2.7597..3.3962, because the upper wing is swept and staggered.
+     So the bar-clearance test now checks a hinge line the aeroplane does not have. It passes — 8/8 GLBs,
+     808/808 rays — but it passes against the wrong line, and the pass is only as good as that assumption.
+     Someone measuring the real upper hinge would make this a real test.
+  2. **Two things in your photo I could not match, both art rather than layout.** The small centre instrument is
+     still the existing turn-coordinator face: Codex's audit says the photograph does not establish what it
+     actually is, and I did not invent one. And the altimeter still carries a painted 29.9 Kollsman window that
+     is not a live barometric setting. Both want a closer photograph or your word.
+  What changed: the front row is **six** gauges now, left to right as you see them — altimeter, airspeed, the
+  small centre instrument, the combined oil temp/pressure, the **separate oil pressure in its chrome bezel**, and
+  the tachometer at the right-hand end. Spacing is the audit's photo ratios (1.54, 1.31, 1.05, 1.05, 1.06 of an
+  ASI diameter) scaled to the row's existing width, because the photograph is oblique and the ratios are a
+  composition guide rather than a blueprint; the tachometer lands exactly where it already was. Above centre the
+  G-meter is gone and a **wet compass** is in its place, a drum card like the rear one, turning the opposite way
+  to the aeroplane so the heading sits under the lubber line. The REAR panel's G-meter and compass are untouched.
+  Verified: `check_great_lakes_rig` 59/59 — it asserts the six-gauge order by lateral coordinate, the compass
+  above centre, and that no front G-meter survives — `CockpitEyeCheck` PASS, `GreatLakesQuadrantShots` PASS, the
+  sequence card still 25 of 25 from the rear eye, `check_sights` PASS. No gate is marked approved.
 - **GREAT LAKES FRONT PANEL ART: OIL PRESSURE + COMPASS (Codex, 2026-11-01, lane/codex-gl-dials) — NEEDS YOU, art
   only, not yet in the model:**
   1. **New standalone oil-pressure face** `tools/own_models/art/gl-dial-oilpress.png` (0-120 psi, 7 to 5 o'clock,

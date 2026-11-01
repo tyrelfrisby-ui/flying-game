@@ -95,6 +95,19 @@ is how the order got reversed in the first place. I then got the glTF lateral si
 about it (it runs to the pilot's LEFT) and only settled it by looking at an eye-point render.
 `check_great_lakes_rig` now asserts the left-to-right order so nobody can re-derive it wrongly.
 
+### An image material with a transparent PNG is not transparent by itself
+`paint.mat_image` links the texture's COLOUR and nothing else, which is right for a dial face that fills its
+quad. Give it a cut-out PNG — the front compass's case, whose padding and whose window are both transparent —
+and the quad renders as an opaque slab over whatever is behind it, which is how the new compass came to hide the
+combined oil gauge. Link the texture's Alpha AND set the blend method (`paint.mat_image_alpha`, which follows
+`mat_glass`); confirm it took by reading `alphaMode: BLEND` back out of the exported GLB, not by assuming.
+
+### Check a cockpit change by rendering it, then LOOK at the render
+The panel layout, the lever order and this compass were all verified by eye from a seat-eye render, and each
+time the render showed something the numbers could not: a mirrored lever order, an opaque slab, a gauge hidden
+behind a case. Geometry that passes every assertion can still be wrong on screen. Budget a render and actually
+open it.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it

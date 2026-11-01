@@ -145,20 +145,33 @@ def panel_plate(xp, zb):
     put(CK_INT, 'ck_panel', prism, pts, (0.006, 0, 0))
 panel_plate(XP_F, ZPB_F); panel_plate(XP_R, ZPB_R)
 DIALMAT = {'ASI': 'dial_asi', 'ALT': 'dial_alt', 'VSI': 'dial_vsi', 'TACH': 'dial_tach', 'MP': 'dial_mp', 'OIL': 'dial_oil', 'CHT': 'dial_cht',
-           'G': 'dial_g', 'TC': 'dial_tc', 'HOBBS': 'dial_hobbs', 'MAG': 'dial_mag'}
+           'G': 'dial_g', 'TC': 'dial_tc', 'HOBBS': 'dial_hobbs', 'MAG': 'dial_mag', 'OILP2': 'dial_oilpress'}
 HANDS = {'ASI': [('ASI', 0.86, 0.075)], 'ALT': [('ALT100', 0.86, 0.06), ('ALT1000', 0.56, 0.12)], 'VSI': [('VSI', 0.86, 0.075)],
-         'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)],
+         'TACH': [('TACH', 0.86, 0.075)], 'MP': [('MP', 0.86, 0.075)], 'OIL': [('OILP', 0.84, 0.09), ('OILT', 0.84, 0.09)], 'OILP2': [('OILP2', 0.86, 0.075)],
          'CHT': [('CHT', 0.84, 0.09)], 'G': [('G', 0.86, 0.075), ('GMAX', 0.80, 0.05), ('GMIN', 0.80, 0.05)]}
 HNAME = {'ASI': 'ASI', 'ALT100': 'Alt100', 'ALT1000': 'Alt1000', 'VSI': 'VSI', 'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
-         'CHT': 'CHT', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin'}
+         'CHT': 'CHT', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin', 'OILP2': 'OilP2'}
 # (y, z, bezel radius) on each panel, +y = pilot's left. 3-1/8 in instruments r 0.040, 2-1/4 in r 0.028 (by eye off the photos)
-# FRONT, re-laid 2026-11-01 from Ty's photograph of the real front cockpit: one row, left to right as the pilot
-# sees it (+y is his LEFT, so y descends across the row) -- altimeter, airspeed, the small centre instrument,
-# the oil gauge, and the tachometer at the right-hand end. It used to read altimeter, airspeed, TACHOMETER, oil,
-# with no centre instrument at all and the tacho in the middle of the row.
-PANEL = {'F': (XP_F, {'ALT': (0.140, 0.030, 0.040), 'ASI': (0.056, 0.030, 0.040), 'TC': (-0.014, 0.030, 0.028),
-                      'OIL': (-0.078, 0.030, 0.028), 'TACH': (-0.150, 0.030, 0.040),
-                      'G': (0.045, 0.098, 0.040)}),    # G-meter above centre, where the photo's compass sits
+# FRONT, laid out from Ty's photograph of the real front cockpit (art/GL-FRONT-PANEL-AUDIT.md). One row of SIX,
+# left to right as the pilot sees it (+y is his LEFT, so y descends across the row): altimeter, airspeed, the
+# small centre instrument, the combined oil temp/pressure, the SEPARATE chrome-bezel oil pressure, tachometer.
+#
+# Centre spacing is the audit's photo ratios -- 1.54, 1.31, 1.05, 1.05, 1.06 of an ASI diameter -- scaled to the
+# row's existing width rather than taken as metres: the photograph is oblique, so the ratios are a composition
+# guide and their absolute scale is not. Sizes are the audit's mid-range: three large (ALT 1.10, ASI 1.00, TACH
+# 0.90) and three small (centre 0.71, combined oil 0.70, oil pressure 0.67).
+#
+# There is NO front G-meter. The thing above centre in the photograph is a wet compass, built below.
+_ASI_R = 0.040
+_ROW = [('ALT', 1.10), ('ASI', 1.00), ('TC', 0.71), ('OIL', 0.70), ('OILP2', 0.67), ('TACH', 0.90)]
+_GAPS = [1.54, 1.31, 1.05, 1.05, 1.06]
+_Y0, _Y1, _ROWZ = 0.140, -0.150, 0.030                 # the row keeps the span it already had on this panel
+_STEP = (_Y0 - _Y1) / sum(_GAPS)
+_FY, _acc = {}, _Y0
+for _i, (_k, _rr) in enumerate(_ROW):
+    _FY[_k] = (round(_acc, 4), _ROWZ, round(_ASI_R * _rr, 4))
+    if _i < len(_GAPS): _acc -= _GAPS[_i] * _STEP
+PANEL = {'F': (XP_F, dict(_FY)),
          'R': (XP_R, {'G': (0.124, 0.071, 0.040), 'MP': (-0.154, 0.071, 0.040), 'CHT': (-0.228, 0.032, 0.028), 'VSI': (0.203, -0.019, 0.040),
                       'ALT': (0.115, -0.019, 0.040), 'ASI': (0.028, -0.019, 0.040), 'TC': (-0.059, -0.019, 0.040), 'TACH': (-0.148, -0.019, 0.040),
                       'OIL': (-0.224, -0.029, 0.028), 'HOBBS': (0.296, -0.032, 0.025), 'MAG': (0.279, 0.020, 0.014)})}
@@ -166,7 +179,9 @@ for sfx, (xp, inst) in PANEL.items():
     for key, (y, z, r) in inst.items():
         rf = 0.9 * r if key != 'MAG' else r
         put(CK_INT, DIALMAT[key], dial, xp, y, z, rf)
-        if key != 'MAG': put(CK_INT, 'ck_bezel', bezel, xp, y, z, r)
+        # The standalone oil-pressure gauge is the one bright rim on a black panel (audit): chrome, not the
+        # shared dark bezel every other instrument gets.
+        if key != 'MAG': put(CK_INT, 'ck_bezel_chrome' if key == 'OILP2' else 'ck_bezel', bezel, xp, y, z, r)
         c = (xp, y, z)
         for hk, lf, wf in HANDS.get(key, []):
             n = 'Needle_%s_%s' % (HNAME[hk], sfx); mat = 'ck_telltale' if hk in ('GMAX', 'GMIN') else 'ck_needle'
@@ -204,6 +219,35 @@ for k in range(N_):
     for lp, (u_, v_) in zip(f.loops, ((1 - k / N_, 0), (1 - (k + 1) / N_, 0), (1 - (k + 1) / N_, 1), (1 - k / N_, 1))): lp[uv].uv = (u_, v_)
 for h, rr in ((0, ra[0][:N_]), (1, ra[1][:N_])): bc.faces.new(rr if h else rr[::-1])
 CK['Compass_Card_R'] = [bc, ['compass']]; NEEDLES['Compass_Card_R'] = dict(c=(cx, cy, cz), key='COMPASS', grp='R')
+# FRONT wet compass (Ty's photo, 2026-11-01): the thing above the centre instrument is a whiskey compass, not a
+# G-meter. Same drum mechanism as the rear -- the card turns OPPOSITE the aeroplane so the heading sits under the
+# lubber line -- with Codex's own front band and a static RGBA case/window overlay carrying the lubber line.
+#
+# Sized from art/GL-FRONT-PANEL-AUDIT.md: the housing is about 0.8 ASI diameters wide and 0.4-0.45 high, and the
+# face texture carries transparent padding, so the PLANE is bigger than the visible case by 512/456 across and
+# 512/256 up. Placed above the centre instrument and a little toward the pilot's right, where the photo has it
+# (photo x 410 against the centre instrument's 368, at the audit's 0.0008 m/px).
+fcx = XP_F - 0.004
+fcy = _FY['TC'][0] - 0.033
+# On the GLARESHIELD, clear above the gauges, like the rear one at z 0.128. The audit's photo offset (80 px
+# above the centre instrument) is foreshortened by a camera looking down, and taken literally it put the case
+# 3 mm above the gauge tops while standing 28 mm proud of the panel, so from the seat it leaned over the
+# combined oil gauge and hid it. Checked on a seat-eye render, not by arithmetic.
+fcz = _ROWZ + 0.095
+FC_W, FC_H = 0.0719, 0.0688                               # the face PLANE, padding included
+FW_W, FW_H = 0.0533, 0.0145                               # the window the card shows through
+# The case: a shallow box behind the face, so the compass reads as hardware rather than a sticker.
+put(CK_INT, 'ck_bezel', gbox, (fcx - 0.009, fcy, fcz), (0.018, 0.064, 0.034))
+put(CK_INT, 'ck_tube', gbox, (fcx - 0.016, fcy, fcz - 0.024), (0.014, 0.016, 0.014))        # bracket down to the panel
+# The card drum, axis VERTICAL like the rear one, masked by the window in the face overlay.
+bf = bmesh.new(); uvf = bf.loops.layers.uv.verify(); NF_ = 48; RF_, HF_ = FW_W / 2, FW_H
+raf = [[bf.verts.new((fcx - 0.004 - RF_ * math.cos(2 * math.pi * k / NF_), fcy + RF_ * math.sin(2 * math.pi * k / NF_), fcz + h))
+        for k in range(NF_ + 1)] for h in (-HF_ / 2, HF_ / 2)]
+for k in range(NF_):
+    f = bf.faces.new((raf[0][k], raf[0][k + 1], raf[1][k + 1], raf[1][k]))
+    for lp, (u_, v_) in zip(f.loops, ((1 - k / NF_, 0), (1 - (k + 1) / NF_, 0), (1 - (k + 1) / NF_, 1), (1 - k / NF_, 1))): lp[uvf].uv = (u_, v_)
+for h, rr in ((0, raf[0][:NF_]), (1, raf[1][:NF_])): bf.faces.new(rr if h else rr[::-1])
+CK['Compass_Card_F'] = [bf, ['compass_f']]; NEEDLES['Compass_Card_F'] = dict(c=(fcx - 0.004, fcy, fcz), key='COMPASS', grp='F')
 # v13.1 (Ty, 2026-10-30): the GL has electrics, so the rear panel's radio hole gets real compact avionics: a TY91/TY96-style
 # radio control head over a TT21/TT22-style transponder control head, each 63 W x 44 H mm (Trig datasheets), stacked on a
 # black mounting plate that fills the old blank hole. Plain faces (gl-avx-*.png, no text); knob / display layout E.
@@ -234,6 +278,9 @@ put(CK_INT, 'ck_grip', gbox, (XP_F - 0.004, 0.21, 0.05), (0.008, 0.018, 0.026)) 
 put(CK_INT, 'ck_buckle', gcyl, (XP_F - 0.008, 0.21, 0.05), (XP_F - 0.024, 0.21, 0.058), 0.0025, 6)
 put(CK_INT, 'ck_bezel', gcyl, (XP_F, 0.23, 0.095), (XP_F - 0.006, 0.23, 0.095), 0.009, 12)
 put(CK_INT, 'ck_lamp', gsph, (XP_F - 0.006, 0.23, 0.095), 0.0065, 10, 6)
+
+# The front compass's static case front: window, housing and the fixed lubber line, in front of its card.
+put(CK_INT, 'compass_face_f', texbox, fcx, fcy, fcz, FC_W, FC_H, 0.002)
 
 # ---- flight controls: aileron torque tube with both sticks, four rudder pedals, four heel brakes ---------------------
 put('TorqueTube', 'ck_tube', gcyl, (-0.80, 0, ZTT), (-1.70, 0, ZTT), 0.019, 12); RIGPTS['TorqueTube'] = (-1.25, 0, ZTT)
