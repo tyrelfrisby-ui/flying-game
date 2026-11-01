@@ -36,13 +36,71 @@ namespace FlyingGame.Bridge
         /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has.</summary>
         public int SeatIndex { get; private set; }
 
-        /// <summary>Head tracking from the device's attitude: turn the phone, the view pans. The pilot turns this
-        /// on in Options.</summary>
-        public bool DeviceLook { get; private set; }
+        // THE SETTINGS ARE STATIC, and deliberately so. Options must be able to show and change them whether or
+        // not a CockpitView exists right now -- on the menu, in an outside view, before an aeroplane is loaded
+        // (owner Ty via Aero, 2026-11-01: "show them regardless of the current view, applying when cockpit view is
+        // active"). The instance below follows them; it does not own them.
 
-        /// <summary>Degrees of view per degree of device, 1..10, continuous. Lives on the look itself; this is the
-        /// persisted copy.</summary>
-        public float DeviceGain => (float)Look.DeviceGain;
+        private static bool _settingsLoaded, _deviceLook, _springCentre;
+        private static float _deviceGain = (float)CockpitLook.MinDeviceGain;
+
+        private static void LoadSettings()
+        {
+            if (_settingsLoaded) return;
+            _settingsLoaded = true;
+            _deviceLook = PlayerPrefs.GetInt(PrefDeviceLook, PlayerPrefs.GetInt(PrefGoggles, 0)) == 1;
+            _deviceGain = Mathf.Clamp((float)PlayerPrefs.GetFloat(PrefGain, (float)CockpitLook.MinDeviceGain),
+                                      (float)CockpitLook.MinDeviceGain, (float)CockpitLook.MaxDeviceGain);
+            _springCentre = PlayerPrefs.GetInt(PrefSpring, 0) == 1;
+        }
+
+        /// <summary>Head tracking from the device's attitude: turn the phone, the view pans. Set in Options, read
+        /// by whichever CockpitView happens to exist; it applies the moment the cockpit view is active.</summary>
+        public static bool DeviceLookEnabled
+        {
+            get { LoadSettings(); return _deviceLook; }
+            set
+            {
+                LoadSettings();
+                if (_deviceLook == value) return;
+                _deviceLook = value;
+                PlayerPrefs.SetInt(PrefDeviceLook, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>Degrees of view per degree of device, 1..10, continuous.</summary>
+        public static float DeviceLookGain
+        {
+            get { LoadSettings(); return _deviceGain; }
+            set
+            {
+                LoadSettings();
+                float g = Mathf.Clamp(value, (float)CockpitLook.MinDeviceGain, (float)CockpitLook.MaxDeviceGain);
+                if (Mathf.Approximately(_deviceGain, g)) return;
+                _deviceGain = g;
+                PlayerPrefs.SetFloat(PrefGain, g);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>Let go of the look pad and the view returns to straight ahead.</summary>
+        public static bool SpringCentreEnabled
+        {
+            get { LoadSettings(); return _springCentre; }
+            set
+            {
+                LoadSettings();
+                if (_springCentre == value) return;
+                _springCentre = value;
+                PlayerPrefs.SetInt(PrefSpring, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>This instance's view of the setting, for the view panel.</summary>
+        public bool DeviceLook => DeviceLookEnabled;
+        public float DeviceGain => DeviceLookGain;
 
         /// <summary>Set by the view panel each frame while an on-screen look button is held: right and up positive.</summary>
         public Vector2Int OnScreenHat;
@@ -62,11 +120,9 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             if (Driver == null) Driver = GetComponent<FlightSimDriver>();
-            DeviceLook = PlayerPrefs.GetInt(PrefDeviceLook, PlayerPrefs.GetInt(PrefGoggles, 0)) == 1;
-            Look.DeviceGain = PlayerPrefs.GetFloat(PrefGain, (float)CockpitLook.MinDeviceGain);
-            Look.SpringCentre = PlayerPrefs.GetInt(PrefSpring, 0) == 1;
+            LoadSettings();
             if (Driver != null) Driver.AircraftChanged += OnAircraftChanged;
-            if (DeviceLook) EnableDeviceAttitude(true);
+            ApplySettings();
         }
 
         private void OnDestroy()
@@ -142,6 +198,9 @@ namespace FlyingGame.Bridge
         private void Update()
         {
             float dt = Time.deltaTime;
+            // Settings first, and even while the menu is open: the pilot is standing in Options moving the slider,
+            // and the gyro has to come on there so the view is already following him when he closes it.
+            ApplySettings();
             if (SessionSettings.MenuOpen) { _hadHat = false; _hatHeld = 0f; return; }
 
             // The device first, then the hat. They do NOT exclude each other: CockpitLook keeps the two offsets
@@ -199,15 +258,21 @@ namespace FlyingGame.Bridge
             else Look.Centre();
         }
 
-        public void SetDeviceLook(bool on)
+        public void SetDeviceLook(bool on) => DeviceLookEnabled = on;
+
+        /// <summary>Carry whatever Options currently says into this instance: the gyro on or off, the gain, the
+        /// spring. Called at Start and every frame, because the setting can be changed from a menu that has no
+        /// idea whether a cockpit exists.</summary>
+        private void ApplySettings()
         {
-            if (DeviceLook == on) return;
-            DeviceLook = on;
-            PlayerPrefs.SetInt(PrefDeviceLook, on ? 1 : 0);
-            PlayerPrefs.Save();
-            EnableDeviceAttitude(on);
+            Look.DeviceGain = DeviceLookGain;
+            Look.SpringCentre = SpringCentreEnabled;
+            bool want = DeviceLookEnabled;
+            if (want == _deviceLookApplied) return;
+            _deviceLookApplied = want;
+            EnableDeviceAttitude(want);
             Look.Centre();
-            if (on)
+            if (want)
             {
                 // Zero it wherever he is holding the device right now, so switching on does not swing the view.
                 if (TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
@@ -220,21 +285,13 @@ namespace FlyingGame.Bridge
             }
         }
 
+        private bool _deviceLookApplied;
+
         /// <summary>Degrees of view per degree of device, 1..10 (owner Ty, 2026-11-01). Continuous; CockpitLook
         /// clamps it, and this only has to persist it.</summary>
-        public void SetDeviceGain(float gain)
-        {
-            Look.DeviceGain = gain;
-            PlayerPrefs.SetFloat(PrefGain, (float)Look.DeviceGain);
-            PlayerPrefs.Save();
-        }
+        public void SetDeviceGain(float gain) => DeviceLookGain = gain;
 
-        public void SetSpringCentre(bool on)
-        {
-            Look.SpringCentre = on;
-            PlayerPrefs.SetInt(PrefSpring, on ? 1 : 0);
-            PlayerPrefs.Save();
-        }
+        public void SetSpringCentre(bool on) => SpringCentreEnabled = on;
 
         // ---- the device's attitude ----
 
