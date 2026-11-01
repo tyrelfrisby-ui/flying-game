@@ -104,3 +104,22 @@ against the build you made before reasoning about the code.
 `grep -rl "x" --include=*.unity .` dies with `no matches found: --include=*.unity`, and in a `&&` chain the echo
 after it can still print, which reads as a passing check. Quote the pattern (`--include='*.unity'`) and check the
 exit status rather than trusting the next line of output.
+
+### `src/` is compiled by Unity too, so it may only use what Unity has
+`src/FlyingGame.Core` is not a library Unity consumes as a DLL — Unity compiles those .cs files itself (hence the
+tracked `.meta` files beside them). So anything the .NET 8 suite happily links is not automatically available:
+`System.Text.Json` is not in Unity, and a new `JsonSerializer.Deserialize` in Core is six `error CS0234`s in a
+batch run while all 36 test cases stay green. The repo's answer is already written down in
+`AtmosphereFieldConfigLoader` / `UnityAtmosphereLoader`: wrap the headless loader in `#if !UNITY_5_3_OR_NEWER`
+and put a Newtonsoft counterpart in the Bridge assembly. Add POCOs and maths to Core freely; add a dependency to
+Core only after checking Unity has it.
+
+### An editor batch tool has to drive the component itself
+`Awake`, `OnEnable`, `Start` and `Update` do NOT fire on a plain `MonoBehaviour` added in edit mode, so a tool
+that adds a component and then reads what it built gets nothing — `VrStereoShots` reported "the rig built no
+eyes", which reads like a gyro or a config problem and is neither. Give the component an explicit entry point
+the tool calls (`VrRig.SetActiveForTesting`), resolve references lazily rather than in `Awake`, and don't reach
+for `SendMessage`. The same applies to anything sized from `Screen`: the batch window is 640x480, so a rig that
+sized its eye targets from it rendered 272x408 instead of 963x1265 — blurry shots and far too narrow a field of
+view, with no error anywhere. A shot tool must state the device's pixels AND its physical size
+(`VrRig.SetScreenForTesting`), the same way `CockpitEyeCheck` states the eye it is checking.

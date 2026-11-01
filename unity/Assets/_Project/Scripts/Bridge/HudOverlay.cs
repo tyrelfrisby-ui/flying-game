@@ -227,7 +227,12 @@ namespace FlyingGame.Bridge
             Line(new Vector2(r.x, r.yMax), new Vector2(r.x, r.y));
         }
 
-        private void OnGUI() => DrawLabels(_labels, _cam.pixelRect, Screen.height);
+        private void OnGUI()
+        {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth.
+            if (VrMode.SuppressFlatOverlays) return;
+            DrawLabels(_labels, _cam.pixelRect, Screen.height);
+        }
 
         private void DrawLabels(System.Collections.Generic.List<Sym> labels, Rect vp, float screenH)
         {

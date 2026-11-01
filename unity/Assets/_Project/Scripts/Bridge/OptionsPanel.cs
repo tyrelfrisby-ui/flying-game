@@ -390,6 +390,28 @@ namespace FlyingGame.Bridge
                 }
                 if (Check("Look snaps back to straight ahead when you let go", CockpitView.SpringCentreEnabled, ref y))
                     CockpitView.SpringCentreEnabled = !CockpitView.SpringCentreEnabled;
+
+                // VR, next to the look settings because it is the same question -- where the pilot's head is --
+                // answered with a headset instead of a hand. Only offered where the phone can track itself.
+                if (VrMode.Available)
+                {
+                    if (Check("VR (Cardboard headset): split screen, full head tracking", VrMode.On, ref y))
+                        VrMode.On = !VrMode.On;
+                    if (VrMode.On)
+                    {
+                        float ipd = VrMode.IpdM * 1000f;
+                        UiLayout.Label(new Rect(_x, y, _cw * 0.52f, _lh), $"   Eye spacing (IPD)  {ipd:0} mm", _label);
+                        float nipd = GUI.HorizontalSlider(new Rect(_x + _cw * 0.54f, y + _lh * 0.35f, _cw * 0.46f, _lh * 0.4f),
+                                                          ipd, (float)FlyingGame.Core.Vr.VrLensConfig.MinIpdM * 1000f,
+                                                          (float)FlyingGame.Core.Vr.VrLensConfig.MaxIpdM * 1000f);
+                        if (Mathf.Abs(nipd - ipd) > 0.4f) VrMode.IpdM = nipd / 1000f;
+                        y += _lh + _gap * 0.4f;
+                        if (UiLayout.Button(new Rect(_x, y, _cw * 0.5f, _lh), "Recentre the view", _btn)) VrMode.Recentre();
+                        y += _lh + _gap * 0.4f;
+                        Note("In the headset: press and hold the screen (or the Cardboard trigger) for " +
+                             "0.6 s to recentre. Fly with a joystick or gamepad \u2014 the touch controls are hidden.", ref y);
+                    }
+                }
             }
             y += _gap * 0.5f;
             // JOYSTICK LINK (owner 2026-10-12): the Mac's joystick / RC radio flies the iPad and iPhone over the local network.

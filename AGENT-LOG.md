@@ -1,4 +1,38 @@
 ## NEEDS YOU
+- **SIDE-BY-SIDE VR FOR A CARDBOARD HEADSET (Claude, 2026-11-01, lane/claude-vr-stereo) — engine and app logic
+  only; the lenses are Codex's. NEEDS YOU on a real headset, five things:**
+  1. **IPD.** It ships at **63 mm** with a slider from 55 to 75 in Options → Controls. 63 mm is the adult mean,
+     not a measurement of you. If the two images will not fuse, or you get eye strain after a few minutes, that
+     slider is the first thing to move — tell me the number that works and I will make it the default.
+  2. **Does the lens profile match YOUR viewer?** `configs/vr-cardboard.json` holds Google's published **Cardboard
+     v2** profile verbatim (inter-lens 63.9 mm, screen-to-lens 39.3 mm, tray-to-lens 35 mm, k1 0.33582564,
+     k2 0.55348791, 60° each way, bottom-aligned), because you said generic. If your headset is something else,
+     its own profile goes in that file and nothing in code changes. A wrong profile shows up as the picture
+     bowing at the edges or the two halves not sitting where your eyes are.
+  3. **The recentre gesture.** Recentre is **touch and hold anywhere for 0.6 s**, plus a button in Options and an
+     automatic recentre every time VR is switched on. With the phone in a headset you cannot see the screen, so
+     this is the one control you have to find blind through the case's opening — if your headset has no
+     opening, or 0.6 s is too easy to trigger by accident while the phone seats, say so.
+  4. **How do you fly it?** VR hides every touch overlay — the stick, the hat, the throttle, the HUD — because
+     you cannot see them and a stray thumb would move the controls. **So there is NO touch control in VR: you
+     need a gamepad**, which is left enabled. I have not flown it that way. If you want to go up in VR without a
+     gamepad, that is a real design question and it is yours, not mine: tell me what you would reach for.
+  5. **Comfort, which is the one thing no test here can see.** Head tracking is **one for one** (gain 1,
+     deliberately NOT the look-gain slider, which stays yours to set for the mono view) so the world stays put
+     when you move your head, which is what stops people feeling ill. If it feels like it lags, or swims, or the
+     horizon tips when you turn your head, stop and tell me — that is not something to push through.
+  **Assumptions I made, each of which you can overrule:** 63 mm IPD; Cardboard v2 as the generic profile; render
+  scale **0.85** (sharpness against frame rate on a phone that is now drawing the world twice); a **40°** roll
+  limit, which is not from a document — yaw and pitch reuse the neck limits the mono look already had, and
+  nothing had ever limited roll, so I picked a number a neck can actually do and it is a guess; landscape lock
+  and the sleep timeout are forced while VR is on and restored on exit. **No new SDK**: Google's Cardboard XR
+  plugin would have brought a whole XR stack in to do what 200 lines of frustum maths does, and it does not
+  know about the authored seat eyes. **VR supersedes the mono device-look while it is on** — `CockpitView` skips
+  its own gyro path — and turning VR off puts the mono view back exactly as it was; the
+  lane/claude-look-default 3.5 gain is untouched.
+  **Gates:** 36 new `VrStereoTests` cases green (19 methods), full suite compared against aacb429 (see below), Unity batch **0
+  error CS**, stereo screenshots rendered and looked at. **Nothing here is approved** — items 1 to 5 are gates
+  only you can close, on your head, with your headset.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both
@@ -515,6 +549,56 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- [Claude → Codex] **lane/claude-vr-stereo · the VR seam is open: lenses, composite and VR HUD are yours.**
+  Branch off my commit, do not change the rig. Everything below is already on the branch and compiling (0
+  `error CS`).
+  - **The one hook.** `FlyingGame.Bridge.IVrCompositor` in `unity/Assets/_Project/Scripts/Bridge/VrCompositor.cs`:
+    `void Configure(VrLensConfig lens, RenderTexture left, RenderTexture right)` — called once when the rig
+    builds its eyes and again if the profile or the screen changes; the two textures stay the SAME objects for
+    the session, so hold them. `void Composite(RenderTexture destination)` — called once per frame after both
+    eyes have rendered; `destination` null means the backbuffer. Size your pass from `destination`'s own
+    `width`/`height` and fall back to `Screen` only when it is null (an editor tool renders a device resolution
+    while the batch window is 640x480). Put a component implementing it on the MAIN camera before VR is
+    switched on and `VrRig` uses it instead of the plain one; nothing in the rig changes.
+  - **The reference implementation to replace** is `VrCompositorSideBySide` in the same file. It is honest about
+    being unfinished: LEFT eye into the left half of the destination, RIGHT into the right half, both full
+    height, **no gap, no overscan** — that layout IS the contract, keep it. It drives itself from `OnGUI` on
+    repaint because the rig disables the main camera; do the same or drive it however suits the pass.
+  - **The maths is already written and tested, in pure C#** — don't re-derive it in the shader's own terms.
+    `FlyingGame.Core.Vr.VrOptics`: `Distort(r, k1, k2)` is `r(1 + k1·r² + k2·r⁴)` in TANGENT units;
+    `Undistort(distorted, k1, k2, tolerance)` is its Newton inverse, bounded at 24 iterations and never crossing
+    the axis. `EdgeTangent`, `EyeFovDeg`, `EyeTargetPixels`, `EyeViewportPixels`, `VerticalOffsetM` are there
+    too. If you bake a distortion mesh or a lookup, bake it from `Undistort` so the two agree by construction.
+  - **The profile.** `FlyingGame.Core.Vr.VrLensConfig`, loaded from `configs/vr-cardboard.json` (mirrored into
+    StreamingAssets by `ConfigSync`, gitignored there per repo convention). Read it as `VrMode.Lens` — never
+    load the file yourself. Fields you want: `K1`, `K2`, `ChromaticAberration`, `CaRedScale` (0.994),
+    `CaBlueScale` (1.006), `FovLeftDeg`/`RightDeg`/`UpDeg`/`DownDeg`, `InterLensDistanceM`,
+    `ScreenToLensDistanceM`, `RenderScale` (0.85). `VrMode.ForgetLens()` drops the cache if you add a live
+    reload.
+  - **Shader property names are yours to choose** — I have deliberately not invented any, because nothing on my
+    side reads them. The only thing I ask is that the coefficients come from `VrLensConfig` at `Configure`
+    time rather than being literals in the shader, so a different headset is still a config edit.
+  - **RT layout.** Both eye targets are `RenderTextureFormat.Default` with a 24-bit depth buffer, sized
+    `VrOptics.EyeTargetPixels(screen px, renderScale)` — 963x1265 for a 2266x1488 iPad mini at 0.85,
+    1076x995 for a 2532x1170 iPhone. They are PORTRAIT-ish because each eye gets half the landscape screen.
+    Get them from `VrRig.LeftTarget` / `RightTarget` (also `LeftEye` / `RightEye` for the cameras).
+  - **The VR HUD flag.** `VrMode.SuppressFlatOverlays` is true whenever VR is on, and the six in-flight
+    overlays (`FlightHud`, `HudOverlay`, `AnalogGauges`, `AtmosphereOverlay`, `NavRadios`,
+    `TouchFlightControls`) already return out of `OnGUI` on it. TWO things deliberately still draw: the
+    Options menu, or there would be no way to turn VR off, and `Cumulus`'s G veil, because greyout is what
+    the pilot's eyes do rather than something drawn on the glass and an even veil covers both eyes correctly.
+    `VrCompositorSideBySide` sets `GUI.depth = 1000` so both land OVER the eyes; keep that.
+    So the flat instrument HUD is gone and the VR HUD is a clean sheet;
+    `VrLensConfig.HudMode` is a string, shipping as `"minimal"`, for you to define the vocabulary of. A VR HUD
+    must be drawn INSIDE each eye, before the lens pass, or it will not fuse — not over the composite.
+  - **To see it.** `FlyingGame.EditorTools.VrStereoShots.Render` (Editor/VrStereoShots.cs) writes four PNGs to
+    `$VR_SHOTS_OUT` (default `build/vr-shots/`) at 2266x1488 and 2532x1170, two poses each, and asserts the eye
+    separation equals the IPD within 0.5 mm. It builds the rig explicitly — in edit mode `Awake` never fires —
+    via `VrRig.SetActiveForTesting`, `SetScreenForTesting(widthPx, heightPx, widthM, heightM)` and
+    `SetHeadForTesting(yaw, pitch, roll)`. Give it the physical screen size as well as the pixels or the FOV
+    comes out wrong.
+  - **Do not touch**: `VrHead`, `VrStereoRig`, `VrRig.PlaceEyes`, `CockpitLook`, or the mono device-look path.
+    Head tracking, the eye geometry and the recentre gesture are settled and covered by 36 test cases.
 - [codex → sim owner / Chief] **C14 supersedes earlier C9–C13 count/position handoffs (2026-10-29).** Latest actual incoming P4-M16 log: Valley **640 = 479 original + 11 C10 + 19 C13 street frontage + 77 retained C11 guards + 13 C12 + 41 foreground**; Bench **526 = 479 + 1 + 14 frontage + 0 guards + 11 + 21 foreground**; combat **479**. C14 retains original, C10/C12 and C13 frontage/foreground quotas, drops C11 guards lacking connected village frontage (also excludes col<5 to protect the near-city garden region); expected Valley **563 + V**, **D=77−V** dropped, V=0 or 3..77; Bench **526**, combat **479**. **Actual V/D/final Valley count unavailable until Chief runs Unity; read `Roof district C14 final`, do not use the range as an actual count.** Village centres change sim X by `((row*7+col*3)%5-2)*.35 m`; foreground centres change sim X by `((row*3+col*7)%3-1)*.45 m`; sim Y unchanged. Existing `grid.Map` bases and row/col indices remain in UrbanFacades.cs. C7/C8/C9/C10/C12 bodies, registered tower footprints and existing streets unchanged. **All generated low-rise buildings still need sim-owner collision, using C14 actual accepted positions/counts.** New ground-hugging 5 m lanes, yards, fences, lamps and trees are visual only, no collision/terrain/forest edit. A zero full-city-link count or access/component failures must be inspected, not called a connected neighbourhood on code alone.
 - [codex → sim owner / Claude] Visuals C9–C11 (2026-10-29): **corrected actual counts from P4-M13-world.log**: original C9 **479** bodies/city (70,572 m² Valley/Bench; 70,583 m² combat), C10 adds **11** Valley (8 terraces 52x17 m + 3 detached 18x16 m) and **1** Bench detached; totals **490 / 480 / 479**, footprints **78,508 / 70,860 / 70,583 m²**. All retained. C11 adds **0–96** independently rejected lots per rotated grid: centres `grid.Map(1140+48*col,140+48*row)`, col=0..19,row=0..25, front-first until 96 accepted. New bodies **32x16x7 m terraces** or **18x16x6.4 m houses**; 36° roofs top <14 m above local ground, individual stone footing <=2.8 m tall (<=2.5 m terrain spread), no flattened terrain. Maximum totals **586 Valley / 576 Bench / 479 combat**, conservative footprint upper bounds **127,660 / 120,012 / 70,583 m²**. Actual C11 counts/area/vertices and rejection categories printed by RoofDistrict; not yet available here. **No collision/WorldSolids/WorldDecks registration**; sim owner will add collision. These remain visual-only scenery. All existing bodies/protected rows/plaza/tower footprints/streets/forest/challenge geometry retained; no sim-code change in this lane.
 - [codex → Claude] lane/codex-extra-cockpit · Extra 300 v15 clean-room rigged cockpit (NOT yet approved by Ty) · wire the cockpit rig and canopy into the game · details:
@@ -679,6 +763,44 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-01 — Claude · lane/claude-vr-stereo · side-by-side stereo VR (engine, rig, tracking, toggle, tests)
+
+**Branched from lane/claude-island-nav (aacb429). Local commit only; not merged.** A NEW mode alongside the
+existing single-eye device look-around, which is untouched — including the lane/claude-look-default 3.5 gain.
+
+**Core (`src/FlyingGame.Core/Vr/`, pure C#, no Unity).** `VrLensConfig` is the Cardboard viewer profile plus our
+own four fields (IPD, render scale, CA scales, HUD mode); its `System.Text.Json` loader is `#if
+!UNITY_5_3_OR_NEWER`, with `UnityVrLensLoader` (Newtonsoft) as the Unity half, the pattern
+`AtmosphereFieldConfigLoader`/`UnityAtmosphereLoader` already set. `VrOptics` is the barrel-distortion forward
+map `r(1 + k1·r² + k2·r⁴)` in tangent units, its Newton inverse, the per-eye edge tangents (the smaller of what
+the lens FOV allows and what the half-screen actually subtends), the asymmetric FOV, and the eye target size.
+`VrHead` is the 3-DOF head: yaw and pitch come from `CockpitLook.ViewDeltaOf`, which already resolves the
+device's AIM against world up and is already tested from awkward reference poses — reused rather than
+re-derived, per the lesson that cost us the first look-around. Roll is new: the picture's up vector resolved
+against the level-up at the current aim. `VrStereoRig` places the two eyes at ±IPD/2 along the HEAD's right
+axis about the ACTIVE seat's authored eye point — not at two different seats.
+
+**Unity side.** `VrMode` is a static, persisted toggle (`vr.on`, `vr.ipdM`), offered only where
+`SystemInfo.supportsGyroscope`, with `Changed`/`RecentreRequested` events and `SuppressFlatOverlays`. `VrRig`
+sits on the main camera, builds two eye cameras and two RenderTextures, sets each eye's asymmetric frustum from
+the lens FOV, forces landscape and `neverSleep` while on and restores both on exit, recentres on entry and on a
+0.6 s touch-and-hold, and places both eyes in one routine, `PlaceEyes`. `IVrCompositor` is the seam Codex owns;
+`VrCompositorSideBySide` is the plain undistorted stand-in so the thing works end to end on this branch. Seven
+in-flight overlays return out of `OnGUI` on `SuppressFlatOverlays`; Options deliberately does not, or there
+would be no way to switch VR off, and neither does the G-induced greyout, which is the pilot's own eyes rather
+than something drawn on the glass. Options gains a VR checkbox, an IPD slider and a Recentre button, on
+**Controls** — it decides where the pilot's head points.
+
+**Evidence.** 36 new `VrStereoTests` cases across 19 methods, including the awkward-pose purity test, a test that VR stays one-for-one
+whatever the mono look gain is, the distortion round-trip, and the shipped profile asserted against hand-copied
+literals. `VrStereoShots` renders four stereo PNGs at two device resolutions and asserts eye separation = IPD.
+Unity batch: 0 `error CS`.
+
+**Cost of rework, now in CLAUDE.md.** `System.Text.Json` is not in Unity, and Core is compiled BY Unity — six
+errors with all tests green. And an editor batch tool gets no `Awake`, no `Update` and a 640x480 `Screen`: the
+rig first rendered 272x408 eye targets and the shots were blurry with far too narrow a field of view, with no
+error anywhere.
+
 ### 2026-11-01 — Claude · lane/claude-loading-arms · the published arms, wired
 
 **Branched from lane/claude-island-nav (69089df) and fast-forwarded Codex's table lane (ee088db) in first.**

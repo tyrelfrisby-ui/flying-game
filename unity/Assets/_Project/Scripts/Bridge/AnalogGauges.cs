@@ -172,7 +172,12 @@ namespace FlyingGame.Bridge
             GUI.matrix = m;
         }
 
-        private void OnGUI() => Draw(true);
+        private void OnGUI()
+        {
+            // In a headset a screen-space overlay smears across both eyes at the wrong depth.
+            if (VrMode.SuppressFlatOverlays) return;
+            Draw(true);
+        }
 
         /// <summary>Clip recorder: draw the dials again into the clip image (GUI.matrix maps the screen view onto it).
         /// No state is advanced (anchor smoothing, g tell-tales) — the live pass owns that.</summary>

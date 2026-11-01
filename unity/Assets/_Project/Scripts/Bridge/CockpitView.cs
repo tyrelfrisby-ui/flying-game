@@ -207,7 +207,9 @@ namespace FlyingGame.Bridge
             // apart and sums them, so holding the phone turned and tapping the pad compose the way a pilot's neck
             // and his seat do. (Before 2026-11-01 the device took the frame and returned here, which meant turning
             // the option on silently disabled the look pad.)
-            if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
+            // VR owns the gyro while it is on: both applying would double every head movement, and VR
+            // is one-for-one where this is geared. VrRig drives the camera instead.
+            if (DeviceLook && !VrMode.On && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;

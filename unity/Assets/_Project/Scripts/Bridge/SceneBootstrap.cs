@@ -133,6 +133,9 @@ namespace FlyingGame.Bridge
             cam.clearFlags = RenderSettings.skybox != null ? CameraClearFlags.Skybox : CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.45f, 0.66f, 0.95f); // clear sky
             var chase = cam.gameObject.AddComponent<ChaseCamera>();
+            // The stereo rig rides the same camera and only wakes up when VR is switched on; off, it
+            // costs one disabled component and the mono view is untouched.
+            cam.gameObject.AddComponent<VrRig>();
             cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();
