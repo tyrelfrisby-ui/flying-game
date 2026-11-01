@@ -13,8 +13,14 @@ namespace FlyingGame.Core;
 ///    four-way hat on a stick or four buttons on glass actually feel like.
 ///  • A HAT, tapped — <see cref="Snap"/> — jumps to a named direction, because looking over your shoulder on base is
 ///    one tap, not a two-second pan.
-///  • GOGGLES — <see cref="FromDevice"/> — the head follows the device's own attitude, measured against wherever it
-///    was when <see cref="Recentre"/> was last called, so the pilot can sit however he likes and zero it there.
+///  • THE DEVICE ITSELF — <see cref="FromDevice"/> — the head follows the device's own attitude, measured against
+///    wherever it was when <see cref="Recentre"/> was last called, so the pilot can sit however he likes and zero
+///    it there, at <see cref="DeviceGain"/> degrees of view per degree of device.
+///
+/// They COMPOSE rather than exclude each other (owner Ty, 2026-11-01: "keep it working alongside the existing
+/// touch look"). The hat and the snaps move a MANUAL offset; the device moves a separate one; the view is the sum,
+/// clamped once at the end. So a pilot can snap over his shoulder and then lean the last few degrees with the
+/// device, and letting go of the hat does not throw away where he is holding the phone.
 ///
 /// The limits are a neck's, not a gimbal's: a pilot can look a long way over his shoulder, further up than down,
 /// and he cannot look through the seat back.
@@ -39,20 +45,53 @@ public sealed class CockpitLook
     /// his passenger should be able to leave it there.</summary>
     public bool SpringCentre;
 
+    /// <summary>Degrees of view per degree of device (owner Ty, 2026-11-01: "an adjustable gain from 1x … up to
+    /// 10x, continuous"). 1 is one-for-one and the default, which is the only setting that reads as a window
+    /// rather than a control; above that the pilot trades fidelity for not having to turn his whole body.
+    /// Continuous, and clamped — a gain below 1 would make the device less useful than no device, and above 10 a
+    /// hand tremor reaches the stops.</summary>
+    public const double MinDeviceGain = 1.0, MaxDeviceGain = 10.0;
+
+    private double _deviceGain = MinDeviceGain;
+
+    public double DeviceGain
+    {
+        get => _deviceGain;
+        set => _deviceGain = double.IsFinite(value)
+            ? System.Math.Clamp(value, MinDeviceGain, MaxDeviceGain) : MinDeviceGain;
+    }
+
+    // The two contributions are kept apart so they can compose: the hat and the snaps own the first, the device
+    // owns the second, and only the SUM is clamped. Clamping them separately would let a pilot looking over his
+    // shoulder lose the device's last few degrees silently.
+    private double _manualYaw, _manualPitch;
+    private double _deviceYaw, _devicePitch;
+
     /// <summary>Right is positive, matching a positive yaw to the right in the body frame.</summary>
-    public double YawDeg { get; private set; }
+    public double YawDeg => System.Math.Clamp(_manualYaw + _deviceYaw, -MaxYawDeg, MaxYawDeg);
     /// <summary>Up is positive.</summary>
-    public double PitchDeg { get; private set; }
+    public double PitchDeg => System.Math.Clamp(_manualPitch + _devicePitch, -MaxPitchDownDeg, MaxPitchUpDeg);
+
+    /// <summary>What the hat and the snaps have asked for, before the device is added. For the view panel, which
+    /// has to know whether letting go would leave the pilot looking anywhere.</summary>
+    public double ManualYawDeg => _manualYaw;
+    public double ManualPitchDeg => _manualPitch;
+    /// <summary>What the device is contributing right now, gain already applied.</summary>
+    public double DeviceYawDeg => _deviceYaw;
+    public double DevicePitchDeg => _devicePitch;
 
     /// <summary>True while the view is anywhere but straight ahead — for the HUD to say so.</summary>
     public bool LookingAway => System.Math.Abs(YawDeg) > 0.5 || System.Math.Abs(PitchDeg) > 0.5;
 
-    private Quat? _reference;      // device attitude at the last Recentre; null until goggles are first zeroed
+    private Quat? _reference;      // device attitude at the last Recentre; null until the device is first zeroed
 
+    /// <summary>Let go of the hat: the MANUAL half goes back to straight ahead. The device's half is left alone on
+    /// purpose — the phone is still being held where it is being held, and snatching the view back from it would
+    /// be a camera moving while the pilot's hands are still. <see cref="Recentre"/> is what zeroes both.</summary>
     public void Centre()
     {
-        YawDeg = 0.0;
-        PitchDeg = 0.0;
+        _manualYaw = 0.0;
+        _manualPitch = 0.0;
     }
 
     /// <summary>Pan while held. <paramref name="x"/> and <paramref name="y"/> are -1, 0 or +1: right and up positive.
@@ -64,15 +103,15 @@ public sealed class CockpitLook
         {
             if (!SpringCentre) return;
             double back = CentreRateDegPerSec * dt;
-            YawDeg = Decay(YawDeg, back);
-            PitchDeg = Decay(PitchDeg, back);
+            _manualYaw = Decay(_manualYaw, back);
+            _manualPitch = Decay(_manualPitch, back);
             return;
         }
 
         double step = RateDegPerSec * dt;
         // A diagonal must not pan faster than a straight one.
         if (x != 0 && y != 0) step *= 0.70710678;
-        Set(YawDeg + System.Math.Sign(x) * step, PitchDeg + System.Math.Sign(y) * step);
+        Set(_manualYaw + System.Math.Sign(x) * step, _manualPitch + System.Math.Sign(y) * step);
     }
 
     private static double Decay(double v, double by) =>
@@ -101,26 +140,56 @@ public sealed class CockpitLook
         Set(y, p);
     }
 
-    /// <summary>Zero the goggles wherever the device is now: the pilot's "straight ahead" is here. Called when he
-    /// asks for it, and whenever goggles are switched on, so he can hold the device however he is sitting.</summary>
+    /// <summary>RECENTRE: straight ahead is wherever the device is being held right now, and the hat's offset goes
+    /// with it. This is the one call that zeroes everything, which is why the button on glass is wired to it.
+    /// Called when the pilot asks, and whenever device look is switched on, so he can hold the device however he
+    /// happens to be sitting.</summary>
     public void Recentre(Quat deviceAttitude)
     {
         _reference = deviceAttitude.Normalized();
+        _deviceYaw = 0.0;
+        _devicePitch = 0.0;
         Centre();
     }
 
-    /// <summary>True once the goggles have a zero to measure against.</summary>
+    /// <summary>Forget the device's contribution without a new attitude to zero against — for switching device look
+    /// off, where leaving its last offset in would hold the view off-centre with nothing driving it.</summary>
+    public void ForgetDevice()
+    {
+        _reference = null;
+        _deviceYaw = 0.0;
+        _devicePitch = 0.0;
+    }
+
+    /// <summary>True once the device has a zero to measure against.</summary>
     public bool HasReference => _reference.HasValue;
 
     /// <summary>Follow the device. The attitude is whatever the platform reports; only the CHANGE since
     /// <see cref="Recentre"/> is used, so the convention of the absolute frame does not matter — which is what makes
-    /// this testable without a phone, and robust to a platform that reports a different zero.</summary>
+    /// this testable without a phone, and robust to a platform that reports a different zero.
+    ///
+    /// The change is multiplied by <see cref="DeviceGain"/> and kept as the device's OWN offset, so whatever the
+    /// hat has asked for still counts. The first call with no reference zeroes itself rather than swinging the
+    /// view by however the phone happened to be lying.</summary>
     public void FromDevice(Quat deviceAttitude)
     {
-        if (!_reference.HasValue) { Recentre(deviceAttitude); return; }
+        if (!_reference.HasValue)
+        {
+            // Adopt this reading as the zero, but do NOT disturb the hat: an implicit first frame (the gyro coming
+            // up a moment after the option was switched on) must not throw away a look the pilot asked for. Only an
+            // explicit Recentre clears both.
+            _reference = deviceAttitude.Normalized();
+            _deviceYaw = 0.0;
+            _devicePitch = 0.0;
+            return;
+        }
         Quat delta = Quat.Multiply(_reference.Value.Conjugate(), deviceAttitude.Normalized());
         (double yaw, double pitch) = YawPitchOf(delta);
-        Set(yaw, pitch);
+        if (!double.IsFinite(yaw) || !double.IsFinite(pitch)) return;
+        // Clamped to the neck here as well as in the sum: at 10x a quarter turn of the wrist would otherwise carry
+        // thousands of degrees of offset that the pilot then has to unwind before the view moves at all.
+        _deviceYaw = System.Math.Clamp(yaw * _deviceGain, -MaxYawDeg, MaxYawDeg);
+        _devicePitch = System.Math.Clamp(pitch * _deviceGain, -MaxPitchDownDeg, MaxPitchUpDeg);
     }
 
     /// <summary>Yaw (right positive) and pitch (up positive) of a rotation, in degrees. Standard aircraft extraction:
@@ -135,11 +204,12 @@ public sealed class CockpitLook
         return (yaw * toDeg, pitch * toDeg);
     }
 
-    /// <summary>Set the look directly, clamped to the neck. Everything above goes through here, so no path can
-    /// produce a look a pilot could not hold.</summary>
+    /// <summary>Set the MANUAL look directly, clamped to the neck. The hat and the snaps go through here, so no
+    /// path can ask for a look a pilot could not hold; the device adds its own offset on top and the sum is
+    /// clamped again by <see cref="YawDeg"/> / <see cref="PitchDeg"/>.</summary>
     public void Set(double yawDeg, double pitchDeg)
     {
-        YawDeg = double.IsFinite(yawDeg) ? System.Math.Clamp(yawDeg, -MaxYawDeg, MaxYawDeg) : 0.0;
-        PitchDeg = double.IsFinite(pitchDeg) ? System.Math.Clamp(pitchDeg, -MaxPitchDownDeg, MaxPitchUpDeg) : 0.0;
+        _manualYaw = double.IsFinite(yawDeg) ? System.Math.Clamp(yawDeg, -MaxYawDeg, MaxYawDeg) : 0.0;
+        _manualPitch = double.IsFinite(pitchDeg) ? System.Math.Clamp(pitchDeg, -MaxPitchDownDeg, MaxPitchUpDeg) : 0.0;
     }
 }

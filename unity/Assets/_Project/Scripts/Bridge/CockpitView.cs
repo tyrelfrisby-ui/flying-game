@@ -18,8 +18,10 @@ namespace FlyingGame.Bridge
     ///    so the hat does what a hat does. Held pans; a tap under <see cref="TapSeconds"/> snaps to that direction,
     ///    which is how a pilot actually looks over his shoulder on base.
     ///  • BUTTONS ON GLASS, for a device with no stick: <see cref="OnScreenHat"/> is set by the view panel.
-    ///  • GOGGLES: the device's own attitude, zeroed wherever the pilot holds it. Off unless he asks for it, because
-    ///    a phone lying on a desk reporting gravity is not a head.
+    ///  • THE DEVICE ITSELF: its own attitude, zeroed wherever the pilot holds it, at a gain he sets. Off unless he
+    ///    asks for it, because a phone lying on a desk reporting gravity is not a head. It runs ALONGSIDE the two
+    ///    above (owner Ty, 2026-11-01) — CockpitLook keeps the hat's offset and the device's apart and sums them —
+    ///    so a snap over the shoulder and a lean of the phone add up instead of cancelling.
     ///
     /// Seats come from the aircraft config's authored seats, so an aeroplane whose seats Codex has not authored yet
     /// falls back to one seat at the camera's own estimate of the cockpit and nothing breaks.
@@ -34,8 +36,13 @@ namespace FlyingGame.Bridge
         /// <summary>Which authored seat the pilot is in. Clamped to what the aeroplane has.</summary>
         public int SeatIndex { get; private set; }
 
-        /// <summary>Head tracking from the device's attitude. The pilot turns this on.</summary>
-        public bool Goggles { get; private set; }
+        /// <summary>Head tracking from the device's attitude: turn the phone, the view pans. The pilot turns this
+        /// on in Options.</summary>
+        public bool DeviceLook { get; private set; }
+
+        /// <summary>Degrees of view per degree of device, 1..10, continuous. Lives on the look itself; this is the
+        /// persisted copy.</summary>
+        public float DeviceGain => (float)Look.DeviceGain;
 
         /// <summary>Set by the view panel each frame while an on-screen look button is held: right and up positive.</summary>
         public Vector2Int OnScreenHat;
@@ -43,7 +50,9 @@ namespace FlyingGame.Bridge
         /// <summary>A hat push shorter than this is a tap — snap to that direction — rather than a pan.</summary>
         public const float TapSeconds = 0.22f;
 
-        private const string PrefGoggles = "view.goggles";
+        private const string PrefDeviceLook = "view.deviceLook";
+        private const string PrefGoggles = "view.goggles";     // what it was called before 2026-11-01
+        private const string PrefGain = "view.deviceGain";
         private const string PrefSpring = "view.springCentre";
 
         private float _hatHeld;
@@ -53,10 +62,11 @@ namespace FlyingGame.Bridge
         private void Start()
         {
             if (Driver == null) Driver = GetComponent<FlightSimDriver>();
-            Goggles = PlayerPrefs.GetInt(PrefGoggles, 0) == 1;
+            DeviceLook = PlayerPrefs.GetInt(PrefDeviceLook, PlayerPrefs.GetInt(PrefGoggles, 0)) == 1;
+            Look.DeviceGain = PlayerPrefs.GetFloat(PrefGain, (float)CockpitLook.MinDeviceGain);
             Look.SpringCentre = PlayerPrefs.GetInt(PrefSpring, 0) == 1;
             if (Driver != null) Driver.AircraftChanged += OnAircraftChanged;
-            if (Goggles) EnableDeviceAttitude(true);
+            if (DeviceLook) EnableDeviceAttitude(true);
         }
 
         private void OnDestroy()
@@ -134,13 +144,11 @@ namespace FlyingGame.Bridge
             float dt = Time.deltaTime;
             if (SessionSettings.MenuOpen) { _hadHat = false; _hatHeld = 0f; return; }
 
-            if (Goggles)
-            {
-                // The device's attitude IS the head. Nothing else may write the look while goggles are on, or the
-                // two fight each other every frame.
-                if (TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
-                return;
-            }
+            // The device first, then the hat. They do NOT exclude each other: CockpitLook keeps the two offsets
+            // apart and sums them, so holding the phone turned and tapping the pad compose the way a pilot's neck
+            // and his seat do. (Before 2026-11-01 the device took the frame and returned here, which meant turning
+            // the option on silently disabled the look pad.)
+            if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;
@@ -182,22 +190,43 @@ namespace FlyingGame.Bridge
             return CockpitLook.Direction.Centre;
         }
 
+        /// <summary>RECENTRE: straight ahead is here. With device look on that means re-zeroing against however the
+        /// device is being held, not just dropping the hat's offset — otherwise the view would spring back to
+        /// wherever the phone points and the button would look broken.</summary>
         public void Centre()
         {
-            if (Goggles && TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
+            if (DeviceLook && TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
             else Look.Centre();
         }
 
-        public void SetGoggles(bool on)
+        public void SetDeviceLook(bool on)
         {
-            if (Goggles == on) return;
-            Goggles = on;
-            PlayerPrefs.SetInt(PrefGoggles, on ? 1 : 0);
+            if (DeviceLook == on) return;
+            DeviceLook = on;
+            PlayerPrefs.SetInt(PrefDeviceLook, on ? 1 : 0);
             PlayerPrefs.Save();
             EnableDeviceAttitude(on);
             Look.Centre();
-            // Zero them wherever he is holding the device right now, so switching on does not swing the view.
-            if (on && TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
+            if (on)
+            {
+                // Zero it wherever he is holding the device right now, so switching on does not swing the view.
+                if (TryDeviceAttitude(out Quaternion q)) Look.Recentre(ToCore(q));
+            }
+            else
+            {
+                // Switching off must not leave the device's last offset holding the view off-centre with nothing
+                // driving it any more.
+                Look.ForgetDevice();
+            }
+        }
+
+        /// <summary>Degrees of view per degree of device, 1..10 (owner Ty, 2026-11-01). Continuous; CockpitLook
+        /// clamps it, and this only has to persist it.</summary>
+        public void SetDeviceGain(float gain)
+        {
+            Look.DeviceGain = gain;
+            PlayerPrefs.SetFloat(PrefGain, (float)Look.DeviceGain);
+            PlayerPrefs.Save();
         }
 
         public void SetSpringCentre(bool on)
@@ -209,10 +238,16 @@ namespace FlyingGame.Bridge
 
         // ---- the device's attitude ----
 
-        /// <summary>Whether this device can report its own attitude at all. A desktop cannot, so the goggles option
-        /// does not offer itself there.</summary>
+        /// <summary>Whether this device can report its own attitude at all. A desktop cannot, so the option does
+        /// not offer itself there.</summary>
         public static bool DeviceAttitudeAvailable => SystemInfo.supportsGyroscope;
 
+        // NOTHING ELSE IN THE GAME READS THE DEVICE'S MOTION (checked 2026-11-01: Input.gyro, Input.acceleration and
+        // the InputSystem sensors appear in this file and nowhere else), so tilting the phone moves the VIEW and
+        // only the view — there is no tilt steering for it to double-count against. If one is ever added, it must
+        // take its own reference and its own zero: feeding the same attitude to both would make looking out of the
+        // left window also roll the aeroplane left, which is the one way this feature can go badly wrong.
+        //
         // The project is on the old input handler (ProjectSettings activeInputHandler: 0), so Input.gyro is the API.
         // Deliberately no InputSystem.AttitudeSensor branch: it would be dead code today and a compile error the day
         // someone switches the handler without the package installed.

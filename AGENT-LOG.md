@@ -1,4 +1,26 @@
 ## NEEDS YOU
+- **MOVE THE DEVICE TO LOOK AROUND (Claude, 2026-11-01, lane/claude-device-look) — NEEDS YOU, three things:**
+  1. **It is on a slider and the default is 1×, which is the one worth flying first.** Options → "Move the
+     device to look around (cockpit view)", then "Look gain 1.0× (1° of device = 1.0° of view)", continuous to
+     10×. 1× reads as a window: the phone is a hole in the canopy. Above about 3× it stops being a window and
+     becomes a control — useful for finding the runway on base without turning your whole body, but the horizon
+     no longer sits still. **Which gain feels right is yours**; the slider is there so you can land on it in the
+     air rather than me guessing a number.
+  2. **The look pad did NOT work while the old "goggles" option was on**, and nothing said so — `CockpitView`
+     returned out of the frame before the hat ran, so switching the option on silently removed the on-screen
+     arrows. They compose now: `CockpitLook` keeps the hat's offset and the device's apart and clamps only the
+     sum, so a snap over the shoulder plus a lean of the phone add up, and letting go of the pad no longer
+     snatches the view back from where you are holding the device. RECENTRE sits under the pad and zeroes both
+     against however you are holding it at that moment.
+  3. **There is no tilt steering in the game, so nothing double-counts — today.** `Input.gyro`,
+     `Input.acceleration` and the InputSystem sensors appear in `CockpitView.cs` and nowhere else; tilting the
+     phone moves the view and only the view. If tilt steering is ever added it must take its OWN reference and
+     its own zero, because feeding one attitude to both would make looking out of the left window roll the
+     aeroplane left. That is written at the point where the gyro is switched on, where whoever adds it will be
+     standing.
+  Limits unchanged and still enforced on the SUM: 160° of yaw, 75° up, 60° down. At 10× that is reached after
+  16° of device, and turning back brings the view straight back rather than unwinding stored offset, which is
+  asserted. Not VR: this is one eye, not stereo — the seat eye points are the basis for that when it comes.
 - **EXTRA SEQUENCE CARD: option B kept (Claude, 2026-11-01, lane/claude-extra-card) — NEEDS YOU, two things:**
   1. **One card now, the alloy holder.** Ty chose B. The Extra carried two after the sights merge: the holder
      (`SequenceCard_Face` + `SequenceCard_Holder`/`Clip`/`Stock`, 108 × 140 mm, flush on the rear panel, the one
