@@ -25,6 +25,15 @@ public sealed class AircraftLoadTests
     {
         "c172-like", "pitts-s2b-like", "extra-300-like", "dc3-like", "p51d-like", "pa18-cub-like",
         "glider-2-33-like", "boeing-737-like", "pa18-floats-like", "cassutt-f1-like", "stearman-pt17-like",
+        // The types that got published arms on 2026-11-01 (see ArmTable below).
+        "great-lakes-like", "j3-cub-like", "j3-cub-floats-like", "glider-swift-s1-like",
+    };
+
+    /// <summary>Every type that authors a loading block, so the arm tests below cover the lot without naming them twice.</summary>
+    private static readonly string[] Authored =
+    {
+        "c172-like", "extra-300-like", "glider-2-33-like", "glider-swift-s1-like",
+        "great-lakes-like", "j3-cub-floats-like", "j3-cub-like", "pitts-s2b-like",
     };
 
     [Theory]
@@ -403,5 +412,173 @@ public sealed class AircraftLoadTests
 
         // 40 US gallons usable is about 109 kg of avgas.
         Assert.InRange(load.FuelCapacityKg, 95.0, 120.0);
+    }
+
+    // ---- the published arms (docs/pending/loading-arm-estimates.md, Codex lane ee088db, wired 2026-11-01) --------
+
+    /// <summary>
+    /// The arms, pinned. Every row here is the table's <c>primary_body_m</c>: a published TCDS/POH arm converted
+    /// through that aircraft's anchor where the row is CONFIRMED, our seated-mannequin or geometry estimate where it
+    /// is ESTIMATED (the Swift's pilot is the only one of those). Body frame, +x FORWARD, +y RIGHT, +z DOWN.
+    ///
+    /// Why the numbers are repeated here rather than read back out of the config: a test that reads the file it is
+    /// checking passes whatever the file says. These came off the table by hand, so an edit to a config that moves a
+    /// station has to be a deliberate edit here too.
+    ///
+    /// Two deliberate departures from the table's own y, both flagged in AGENT-LOG: the Great Lakes' 26 gal top-wing
+    /// tank and the Pitts' 5 gal upper-wing tank are single CENTRE-SECTION tanks in their type certificates
+    /// ("one 26.0 gal. tank in top wing"), and the table's lateral figure for them came from the wing-tank heuristic,
+    /// not the source — so they sit on the centreline and only x and z are the table's.
+    /// </summary>
+    public static TheoryData<string, string, double, double, double> ArmTable => new()
+    {
+        // 172: already carried its POH arms; only baggage area 2 (sta 123) was missing.
+        { "c172-like",            "pilot",     0.0260, -0.2800,  0.0500 },
+        { "c172-like",            "copilot",   0.0260,  0.2800,  0.0500 },
+        { "c172-like",            "rearL",    -0.8880, -0.2800,  0.0500 },
+        { "c172-like",            "rearR",    -0.8880,  0.2800,  0.0500 },
+        { "c172-like",            "left",     -0.2530, -2.1800, -0.5500 },
+        { "c172-like",            "right",    -0.2530,  2.1800, -0.5500 },
+        { "c172-like",            "aft",      -1.4470,  0.0000,  0.1000 },
+        { "c172-like",            "aft2",     -2.1584,  0.0000,  0.1000 },
+        // Extra 300: POH p.6-8 moment table, anchored on the firewall (MED - the anchor is soft by +-0.05 m).
+        { "extra-300-like",       "rear",     -1.2801,  0.0000, -0.1043 },
+        { "extra-300-like",       "front",    -0.1899,  0.0000, -0.0296 },
+        { "extra-300-like",       "centre",    0.4921,  0.0000, -0.1296 },
+        { "extra-300-like",       "wingLeft",  0.2891, -1.1500, -0.0700 },
+        { "extra-300-like",       "wingRight", 0.2891,  1.1500, -0.0700 },
+        // SGS 2-33: seats only, a glider has neither fuel nor a baggage placard.
+        { "glider-2-33-like",     "front",     1.0342,  0.0000,  0.4092 },
+        { "glider-2-33-like",     "rear",      0.2468,  0.0000,  0.4709 },
+        // Swift S-1: ESTIMATED, the seated mannequin. No published sheet was found for this type.
+        { "glider-swift-s1-like", "pilot",     0.8882,  0.0000,  0.1283 },
+        // Great Lakes 2T-1A-2: TCDS A18EA.
+        { "great-lakes-like",     "rear",     -1.7621,  0.0000,  0.0007 },
+        { "great-lakes-like",     "front",    -0.8985,  0.0000,  0.0845 },
+        { "great-lakes-like",     "topWing",  -0.5302,  0.0000, -0.6900 },
+        { "great-lakes-like",     "header",   -0.3270,  0.0000, -0.2155 },
+        { "great-lakes-like",     "aft",      -2.5368,  0.0000,  0.0007 },
+        { "great-lakes-like",     "headrest", -2.3336,  0.0000,  0.0000 },
+        // J-3: TCDS A-691, seats +9 / +36, baggage +49, fuel -18 off the wing leading edge.
+        { "j3-cub-like",          "rear",     -0.5071,  0.0000,  0.0342 },
+        { "j3-cub-like",          "front",     0.1787,  0.0000, -0.0713 },
+        { "j3-cub-like",          "nose",      0.8645,  0.0000, -0.4213 },
+        { "j3-cub-like",          "baggage",  -0.8373,  0.0000,  0.0342 },
+        // On floats the same arms, with the whole aeroplane carried higher: only z differs.
+        { "j3-cub-floats-like",   "rear",     -0.5071,  0.0000,  0.1346 },
+        { "j3-cub-floats-like",   "front",     0.1787,  0.0000,  0.0291 },
+        { "j3-cub-floats-like",   "nose",      0.8645,  0.0000, -0.3209 },
+        { "j3-cub-floats-like",   "baggage",  -0.8373,  0.0000,  0.1346 },
+        // Pitts S-2B: TCDS A8SO.
+        { "pitts-s2b-like",       "rear",     -1.1351,  0.0000,  0.1503 },
+        { "pitts-s2b-like",       "front",    -0.3388,  0.0000,  0.1895 },
+        { "pitts-s2b-like",       "main",      0.2665,  0.0000, -0.0605 },
+        { "pitts-s2b-like",       "aux",       0.2555,  0.0000, -0.6200 },
+        { "pitts-s2b-like",       "baggage",  -1.6764,  0.0000,  0.1503 },
+    };
+
+    [Theory]
+    [MemberData(nameof(ArmTable))]
+    public void EveryAuthoredStationCarriesItsPublishedArm(string id, string station, double x, double y, double z)
+    {
+        var load = new AircraftLoad(Load(id));
+        AircraftLoad.Slot? slot = load.Find(station);
+        Assert.True(slot is not null, $"{id} has no station '{station}'");
+        Assert.Equal(x, slot!.Station.X, 3);
+        Assert.Equal(y, slot.Station.Y, 3);
+        Assert.Equal(z, slot.Station.Z, 3);
+    }
+
+    /// <summary>A station outside the aeroplane is an arm converted through the wrong datum, which is the failure
+    /// this whole table exists to risk. Checked against the airframe's OWN geometry: the fuselage's longitudinal
+    /// extent, the wing's semi-span, and a couple of metres either side of the reference plane.</summary>
+    [Theory]
+    [MemberData(nameof(EveryAuthoredType))]
+    public void EveryAuthoredStationSitsInsideItsOwnAirframe(string id)
+    {
+        AircraftConfig c = Load(id);
+        var load = new AircraftLoad(c);
+        Assert.NotEmpty(load.Slots);
+
+        CrossflowConfig x = c.Fuselage.Crossflow;
+        Assert.True(x.LengthM > 0.5, $"{id}: no fuselage length authored, so there is nothing to check an arm against");
+        double nose = x.PlanCenterX + 0.5 * x.LengthM, tail = x.PlanCenterX - 0.5 * x.LengthM;
+        double semiSpan = 0.0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+            if (sf.Id.ToLowerInvariant().Contains("wing"))
+                foreach (StripConfig st in sf.Strips) semiSpan = Math.Max(semiSpan, Math.Abs(st.Pos[1]));
+
+        foreach (AircraftLoad.Slot s in load.Slots)
+        {
+            Assert.True(s.Station.X <= nose + 0.05 && s.Station.X >= tail - 0.05,
+                $"{id}/{s.Id} at x={s.Station.X:F3} is outside the fuselage ({tail:F3}..{nose:F3} m) — a datum conversion gone wrong");
+            Assert.True(Math.Abs(s.Station.Y) <= semiSpan,
+                $"{id}/{s.Id} at y={s.Station.Y:F3} is outboard of the {semiSpan:F3} m semi-span");
+            Assert.InRange(s.Station.Z, -2.0, 2.0);
+        }
+    }
+
+    /// <summary>The arms moved; the aeroplane must not. AircraftLoad solves the empty airframe backwards, so moving a
+    /// station re-solves the empty CG and the reference loading still lands exactly on the authored mass, CG and
+    /// inertia — which is what keeps every tuned book speed in this suite valid across a W&amp;B edit.</summary>
+    [Theory]
+    [MemberData(nameof(EveryAuthoredType))]
+    public void MovingTheArmsLeavesTheAeroplaneExactlyAsAuthored(string id)
+    {
+        AircraftConfig c = Load(id);
+        var load = new AircraftLoad(c);
+        Assert.False(load.Degenerate, $"{id}: the loading block does not add up against mass.massKg");
+        MassProperties p = load.Properties;
+        Assert.Equal(c.Mass.MassKg, p.MassKg, 6);
+        Assert.Equal(c.Mass.Cg[0], load.Cg.X, 8);
+        Assert.Equal(c.Mass.Cg[1], load.Cg.Y, 8);
+        Assert.Equal(c.Mass.Cg[2], load.Cg.Z, 8);
+        Assert.Equal(c.Mass.Inertia.Ixx, p.Ixx, 5);
+        Assert.Equal(c.Mass.Inertia.Iyy, p.Iyy, 5);
+        Assert.Equal(c.Mass.Inertia.Izz, p.Izz, 5);
+        Assert.Equal(c.Mass.Inertia.Ixz, p.Ixz, 5);
+    }
+
+    /// <summary>A tandem flies solo from the BACK, and every one of these is a centreline aeroplane: the rear station
+    /// must be aft of the front one, and neither may sit off to one side. Swapping the two reads as a plausible
+    /// loading sheet until the aeroplane is flown out of balance.</summary>
+    [Theory]
+    [InlineData("j3-cub-like")]
+    [InlineData("j3-cub-floats-like")]
+    [InlineData("great-lakes-like")]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("extra-300-like")]
+    [InlineData("glider-2-33-like")]
+    public void TheTandemsRearStationIsBehindItsFrontOneAndBothAreOnTheCentreline(string id)
+    {
+        var load = new AircraftLoad(Load(id));
+        double rear = load.Find("rear")!.Station.X, front = load.Find("front")!.Station.X;
+        Assert.True(rear < front, $"{id}: the rear seat station must be aft of the front one (-x is aft)");
+        foreach (AircraftLoad.Slot s in load.Slots)
+            if (s.Kind == AircraftLoad.StationKind.Seat)
+                Assert.Equal(0.0, s.Station.Y, 9);
+    }
+
+    /// <summary>Fuel and baggage went in with referenceKg 0, so the aeroplane still spawns at exactly the mass it was
+    /// authored with and a type that never burned fuel still never does. Filling the tanks must ADD mass, not
+    /// rearrange it — the open W&amp;B decision in AGENT-LOG is about which of those is right.</summary>
+    [Theory]
+    [MemberData(nameof(EveryAuthoredType))]
+    public void TheNewTanksAndBaggageAreEmptyAtSpawn(string id)
+    {
+        var load = new AircraftLoad(Load(id));
+        double spawn = load.TotalMassKg;
+        foreach (AircraftLoad.Slot s in load.Slots)
+        {
+            if (s.Kind == AircraftLoad.StationKind.Baggage) Assert.Equal(0.0, s.Kg, 9);
+            if (s.Kind == AircraftLoad.StationKind.Fuel && id != "c172-like") Assert.Equal(0.0, s.Kg, 9);
+        }
+        load.FillFuel();
+        Assert.True(load.TotalMassKg >= spawn - 1e-9, $"{id}: filling the tanks took mass OUT of the aeroplane");
+    }
+
+    public static TheoryData<string> EveryAuthoredType
+    {
+        get { var d = new TheoryData<string>(); foreach (string id in Authored) d.Add(id); return d; }
     }
 }
