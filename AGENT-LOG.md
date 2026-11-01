@@ -1,4 +1,26 @@
 ## NEEDS YOU
+- **GREAT LAKES QUADRANTS AND FRONT PANEL (Claude, 2026-11-01, lane/claude-gl-quadrant) — NEEDS YOU to look at
+  the renders:**
+  1. **Knob order fixed.** It ran throttle, prop, mixture inboard→outboard, which put the BLUE lever between the
+     two a pilot grabs in a hurry. Now **prop (blue, thinner, higher and further aft), mixture (dark red),
+     throttle (black, outboard)** — the order in your photographs, in both cockpits.
+  2. **The rear quadrant is the console now**, rebuilt in Blender from your rear-cockpit photo: a grey console box
+     on the left sidewall at hip/elbow height with a top plate, **85 mm levers** instead of 150, and two switch
+     panels below it. The FRONT keeps its curved gate plate and long levers, per the other photo. The rear
+     lever's tip travels 54 mm idle→full (short levers), the front's 97 mm.
+  3. **The front panel was laid out wrong and now matches your photo**: one row, left to right — altimeter,
+     airspeed, the small centre instrument, the oil gauge, tachometer at the right-hand end, G-meter above centre
+     where your photo has the compass. It used to read altimeter, airspeed, TACHOMETER, oil, with the tacho in
+     the MIDDLE of the row and no centre instrument at all.
+     **Two things I could not match:** your photo has a separate oil-pressure gauge beside the combined oil
+     temp/pressure one, and we have art for only the combined dial — so there are five gauges in the row, not
+     six. And the compass above centre is the G-meter; there is no front compass dial in the model. Both are new
+     art, not layout, so they want their own pass.
+  The model was regenerated properly through Blender rather than patched, so the generator and the shipped GLB
+  agree. `check_great_lakes_rig` is **60/60** (was 58 — the rebuild brings two more rig nodes) and now asserts
+  the quadrant in both cockpits: same throttle input, real travel, prop and mixture pinned full forward, and the
+  three knob colours. `CockpitEyeCheck` PASS, both seats 0.000 mm from the authored eye. The sequence card is
+  still **25 of 25** sample points visible from the rear eye.
 - **GREAT LAKES COCKPIT + ENGINE TONE (Claude, 2026-11-01, lane/claude-gl-eye) — NEEDS YOU, four things:**
   1. **The eye was 110 mm above its own windscreen.** You were right. Measured against the model: the rear
      screen's glass spans glTF y 0.167..0.377 and the eye sat at 0.487, so **no level sightline touched the glass

@@ -152,8 +152,13 @@ HANDS = {'ASI': [('ASI', 0.86, 0.075)], 'ALT': [('ALT100', 0.86, 0.06), ('ALT100
 HNAME = {'ASI': 'ASI', 'ALT100': 'Alt100', 'ALT1000': 'Alt1000', 'VSI': 'VSI', 'TACH': 'Tach', 'MP': 'MP', 'OILP': 'OilP', 'OILT': 'OilT',
          'CHT': 'CHT', 'G': 'G', 'GMAX': 'GMax', 'GMIN': 'GMin'}
 # (y, z, bezel radius) on each panel, +y = pilot's left. 3-1/8 in instruments r 0.040, 2-1/4 in r 0.028 (by eye off the photos)
-PANEL = {'F': (XP_F, {'ALT': (0.140, 0.084, 0.040), 'ASI': (0.048, 0.002, 0.040), 'TACH': (-0.041, 0.005, 0.040), 'OIL': (-0.130, 0.015, 0.028),
-                      'G': (-0.120, 0.088, 0.040)}),   # v13.1 (Ty): front G-meter, mirrors the altimeter (E: not in KPT_0054)
+# FRONT, re-laid 2026-11-01 from Ty's photograph of the real front cockpit: one row, left to right as the pilot
+# sees it (+y is his LEFT, so y descends across the row) -- altimeter, airspeed, the small centre instrument,
+# the oil gauge, and the tachometer at the right-hand end. It used to read altimeter, airspeed, TACHOMETER, oil,
+# with no centre instrument at all and the tacho in the middle of the row.
+PANEL = {'F': (XP_F, {'ALT': (0.140, 0.030, 0.040), 'ASI': (0.056, 0.030, 0.040), 'TC': (-0.014, 0.030, 0.028),
+                      'OIL': (-0.078, 0.030, 0.028), 'TACH': (-0.150, 0.030, 0.040),
+                      'G': (0.045, 0.098, 0.040)}),    # G-meter above centre, where the photo's compass sits
          'R': (XP_R, {'G': (0.124, 0.071, 0.040), 'MP': (-0.154, 0.071, 0.040), 'CHT': (-0.228, 0.032, 0.028), 'VSI': (0.203, -0.019, 0.040),
                       'ALT': (0.115, -0.019, 0.040), 'ASI': (0.028, -0.019, 0.040), 'TC': (-0.059, -0.019, 0.040), 'TACH': (-0.148, -0.019, 0.040),
                       'OIL': (-0.224, -0.029, 0.028), 'HOBBS': (0.296, -0.032, 0.025), 'MAG': (0.279, 0.020, 0.014)})}
@@ -254,18 +259,38 @@ put(CK_INT, 'ck_tube', gcyl, (-1.50, 0.09, ZFL), (-1.50, 0.09, ZFL + 0.08), 0.02
 
 # ---- engine controls on the left wall: throttle / prop / mixture quadrant, stabilizer trim, fuel shut-off -----------
 LEV_L, LEV_A0 = 0.15, -25.0                    # lever length, angle from vertical at 0 (aft); +50 deg forward at 1 (E)
+# THE TWO QUADRANTS ARE NOT THE SAME, and Ty's photographs are why (2026-11-01).
+#   FRONT: a curved raw-metal gate plate on the sidewall, long levers angled up and aft (ref-real-great-lakes-
+#          quadrant.png).
+#   REAR:  a grey console BOX on the left sidewall at hip/elbow height with SHORT levers standing out of its top
+#          face, switch panels below (ref-real-great-lakes-rear-quadrant.jpg).
+# Knob order is the same in both and is the order a hand finds without looking: BLACK throttle outboard, dark RED
+# mixture right beside it, BLUE prop on a thinner lever set higher and further aft. Until now the loop ran
+# throttle, prop, mixture, which put the blue lever between the two a pilot grabs in a hurry.
 for sfx, xq in (('F', -1.04), ('R', -1.72)):
-    zq = -0.32; yw = wall_y(xq, zq)
-    put(CK_INT, 'ck_quadrant', gbox, (xq, yw - 0.006, zq + 0.05), (0.15, 0.012, 0.13))                        # wall plate
-    put(CK_INT, 'ck_quadrant', gbox, (xq, 0.5 * (yw - 0.012 + 0.29), zq), (0.06, yw - 0.012 - 0.29, 0.04))      # lever box
-    # Knob colours are the real aeroplane's (Ty's photos, 2026-11-01): throttle BLACK, mixture dark RED, prop
-    # BLUE. The prop lever was sharing the throttle's black grip, which is the one a pilot must never confuse.
-    for k, (n0, knob) in enumerate((('Throttle', 'ck_grip'), ('Prop', 'ck_knob_blue'), ('Mixture', 'ck_knob_red'))):  # inboard -> outboard (n76l_4)
-        n = '%s_%s' % (n0, sfx); y_ = 0.300 + 0.025 * k; pv = V3((xq, y_, zq)); a = math.radians(LEV_A0)
-        d = V3((math.sin(a), 0, math.cos(a)))
+    zq = -0.32; yw = wall_y(xq, zq); rear = sfx == 'R'
+    if rear:
+        zq = -0.30                                                                                            # console top, hip/elbow height
+        yc_ = yw - 0.055
+        put(CK_INT, 'ck_quadrant', gbox, (xq, yc_, zq - 0.075), (0.24, 0.105, 0.15))                          # console box
+        put(CK_INT, 'ck_quadrant', gbox, (xq, yc_, zq + 0.004), (0.22, 0.095, 0.008))                         # its top plate
+        put(CK_INT, 'ck_grip', gbox, (xq - 0.085, yw - 0.030, zq - 0.115), (0.07, 0.052, 0.055))              # switch panel below, forward
+        put(CK_INT, 'ck_grip', gbox, (xq + 0.040, yw - 0.030, zq - 0.115), (0.07, 0.052, 0.055))              # switch panel below, aft
+    else:
+        put(CK_INT, 'ck_quadrant', gbox, (xq, yw - 0.006, zq + 0.05), (0.15, 0.012, 0.13))                    # wall plate (gate)
+        put(CK_INT, 'ck_quadrant', gbox, (xq, 0.5 * (yw - 0.012 + 0.29), zq), (0.06, yw - 0.012 - 0.29, 0.04))  # lever box
+    lev_l = 0.085 if rear else LEV_L                                                                          # short levers in the console
+    base_y = (yw - 0.055 - 0.030) if rear else 0.300
+    for k, (n0, knob) in enumerate((('Prop', 'ck_knob_blue'), ('Mixture', 'ck_knob_red'), ('Throttle', 'ck_grip'))):  # inboard -> outboard
+        n = '%s_%s' % (n0, sfx); y_ = base_y + 0.025 * k
+        # The prop lever is the thin one, set higher and further aft, exactly as it sits in the photographs.
+        prop = n0 == 'Prop'
+        pv = V3((xq - (0.030 if prop else 0.0), y_, zq + (0.030 if prop else 0.0)))
+        a = math.radians(LEV_A0); d = V3((math.sin(a), 0, math.cos(a)))
+        ln = lev_l * (1.12 if prop else 1.0)
         put(n, 'ck_quadrant', gcyl, pv + V3((0, -0.006, 0)), pv + V3((0, 0.006, 0)), 0.012, 10)
-        put(n, 'ck_stick', segbox, pv, pv + LEV_L * d, 0.006, 0.012, (0, 1, 0))
-        put(n, knob, gsph, pv + (LEV_L + 0.008) * d, 0.0125, 12, 8); RIGPTS[n] = tuple(pv); RIGPTS[n + '_tip'] = tuple(pv + LEV_L * d)
+        put(n, 'ck_stick', segbox, pv, pv + ln * d, 0.004 if prop else 0.006, 0.008 if prop else 0.012, (0, 1, 0))
+        put(n, knob, gsph, pv + (ln + 0.008) * d, 0.015, 12, 8); RIGPTS[n] = tuple(pv); RIGPTS[n + '_tip'] = tuple(pv + ln * d)
     zt = -0.42; yt_ = wall_y(xq, zt)
     put(CK_INT, 'ck_quadrant', gbox, (xq, yt_ - 0.006, zt), (0.16, 0.012, 0.03))                               # trim slot
     n = 'Trim_' + sfx; put(n, 'ck_stick', gcyl, (xq, yt_ - 0.012, zt), (xq, yt_ - 0.05, zt), 0.005, 8)
