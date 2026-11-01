@@ -70,6 +70,19 @@ his hands reach the stick, so it belongs under **Controls**. Same rule for visib
 `FindFirstObjectByType<CockpitView>()` happens to find one is invisible from the menu and from any outside view.
 Keep the setting static and persisted, show it always, and let whatever component exists apply it.
 
+### A delta in the sensor's own frame is not a measurement of the world
+Device look-around shipped reading yaw and pitch straight off `reference⁻¹ · current` from the gyro. That delta is
+expressed in the PHONE'S axes, so what a movement did depended on how the phone happened to be held when it was
+zeroed: from a real pose one rotation spilled into two components (every movement came out diagonal), two
+different rotations overlapped (turning and rolling felt identical), and the third landed on the component that
+was discarded (tilting did nothing). No axis swap or handedness flip fixes a frame that moves with the sensor.
+Resolve the thing you actually care about — here, where the phone is AIMED — against a world axis, and the
+components come out independent by construction.
+
+And the tests that missed it all zeroed from the same tidy pose. When a measurement is relative to a reference,
+at least one test must take the reference from somewhere awkward: `FromAnyPoseAMovementIsStillPure` is the one
+that would have caught this on the bench instead of on Ty's phone.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it

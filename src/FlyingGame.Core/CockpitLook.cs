@@ -164,44 +164,97 @@ public sealed class CockpitLook
     /// <summary>True once the device has a zero to measure against.</summary>
     public bool HasReference => _reference.HasValue;
 
-    /// <summary>Follow the device. The attitude is whatever the platform reports; only the CHANGE since
-    /// <see cref="Recentre"/> is used, so the convention of the absolute frame does not matter — which is what makes
-    /// this testable without a phone, and robust to a platform that reports a different zero.
-    ///
-    /// The change is multiplied by <see cref="DeviceGain"/> and kept as the device's OWN offset, so whatever the
-    /// hat has asked for still counts. The first call with no reference zeroes itself rather than swinging the
-    /// view by however the phone happened to be lying.</summary>
+    /// <summary>Follow the device, at <see cref="DeviceGain"/> degrees of view per degree of device, kept as the
+    /// device's OWN offset so whatever the hat has asked for still counts. The first call with no reference zeroes
+    /// itself rather than swinging the view by however the phone happened to be lying.</summary>
     public void FromDevice(Quat deviceAttitude)
     {
+        Quat now = deviceAttitude.Normalized();
         if (!_reference.HasValue)
         {
             // Adopt this reading as the zero, but do NOT disturb the hat: an implicit first frame (the gyro coming
             // up a moment after the option was switched on) must not throw away a look the pilot asked for. Only an
             // explicit Recentre clears both.
-            _reference = deviceAttitude.Normalized();
+            _reference = now;
             _deviceYaw = 0.0;
             _devicePitch = 0.0;
             return;
         }
-        Quat delta = Quat.Multiply(_reference.Value.Conjugate(), deviceAttitude.Normalized());
-        (double yaw, double pitch) = YawPitchOf(delta);
-        if (!double.IsFinite(yaw) || !double.IsFinite(pitch)) return;
+        (double yaw, double pitch, bool yawUsable) = ViewDeltaOf(_reference.Value, now);
+        if (!double.IsFinite(pitch)) return;
         // Clamped to the neck here as well as in the sum: at 10x a quarter turn of the wrist would otherwise carry
-        // thousands of degrees of offset that the pilot then has to unwind before the view moves at all.
-        _deviceYaw = System.Math.Clamp(yaw * _deviceGain, -MaxYawDeg, MaxYawDeg);
+        // hundreds of degrees of offset that the pilot then has to unwind before the view moves at all.
+        if (yawUsable && double.IsFinite(yaw))
+            _deviceYaw = System.Math.Clamp(yaw * _deviceGain, -MaxYawDeg, MaxYawDeg);
         _devicePitch = System.Math.Clamp(pitch * _deviceGain, -MaxPitchDownDeg, MaxPitchUpDeg);
     }
 
-    /// <summary>Yaw (right positive) and pitch (up positive) of a rotation, in degrees. Standard aircraft extraction:
-    /// yaw about z, pitch about y, with the pitch clamped before the asin so a gimbal-locked device reports a
-    /// straight-up look rather than a NaN.</summary>
-    public static (double yawDeg, double pitchDeg) YawPitchOf(Quat q)
+    /// <summary>
+    /// Where the BACK of the device points, in the attitude frame's own axes. The device's local -z: with the
+    /// phone lying flat and screen up — which is the attitude frame's identity — the back faces straight down.
+    ///
+    /// This one vector is the whole fix. The view follows where the phone is AIMED, like looking through a window,
+    /// and aiming is a direction in the world, not a rotation in the phone's own axes.
+    /// </summary>
+    public static Vec3 BackOf(Quat deviceAttitude) => deviceAttitude.Rotate(new Vec3(0.0, 0.0, -1.0));
+
+    /// <summary>
+    /// How far the device has been turned and tilted since the reference pose, as a view yaw (right positive) and
+    /// pitch (up positive) in degrees.
+    ///
+    /// WHY IT IS DONE THIS WAY (the bug Ty flew on build 2026.1101.0549). The old code took
+    /// <c>reference⁻¹ · current</c> and read yaw and pitch straight off that quaternion's components. That delta is
+    /// expressed in the DEVICE'S OWN axes, so which component a given movement landed in depended entirely on how
+    /// the phone happened to be held when it was zeroed: for any natural "phone held up at an angle" pose one
+    /// physical rotation spilled into two components at once (every movement came out diagonal), two different
+    /// rotations landed on overlapping components (turning and rolling felt the same), and the third landed on the
+    /// roll component, which was discarded (tilting did nothing). No amount of axis-swapping fixes that, because
+    /// the frame it measures in moves with the phone.
+    ///
+    /// Resolving the AIM against world vertical instead makes the three independent by construction:
+    ///  • yaw   = change in compass bearing of the aim, about world up (+z in the attitude frame)
+    ///  • pitch = change in its elevation above the horizon
+    ///  • roll  = rotating the phone in its own plane does not move where it is aimed, so it does nothing at all,
+    ///            which is what the owner asked for and is also why PORTRAIT AND LANDSCAPE NEED NO SPECIAL CASE:
+    ///            holding the phone the other way up is exactly a roll about the aim.
+    ///
+    /// <paramref name="yawUsable"/> is false within a few degrees of the phone lying flat or pointing at the sky,
+    /// where the aim is vertical and its bearing is meaningless. The caller holds the last good yaw rather than
+    /// letting the view spin while the phone is on the pilot's knee.
+    /// </summary>
+    public static (double yawDeg, double pitchDeg, bool yawUsable) ViewDeltaOf(Quat reference, Quat current)
     {
-        double sinPitch = 2.0 * (q.W * q.Y - q.Z * q.X);
-        double pitch = System.Math.Asin(System.Math.Clamp(sinPitch, -1.0, 1.0));
-        double yaw = System.Math.Atan2(2.0 * (q.W * q.Z + q.X * q.Y), 1.0 - 2.0 * (q.Y * q.Y + q.Z * q.Z));
+        Vec3 from = BackOf(reference), to = BackOf(current);
         const double toDeg = 180.0 / System.Math.PI;
-        return (yaw * toDeg, pitch * toDeg);
+        double pitch = (Elevation(to) - Elevation(from)) * toDeg;
+
+        // Within this much of straight up or down the aim has no bearing to speak of: 0.08 is about 4.6 degrees.
+        const double flat = 0.08;
+        double hFrom = System.Math.Sqrt(from.X * from.X + from.Y * from.Y);
+        double hTo = System.Math.Sqrt(to.X * to.X + to.Y * to.Y);
+        if (hFrom < flat || hTo < flat) return (0.0, pitch, false);
+
+        // Turning the phone to the pilot's LEFT is a positive rotation about world up, and the view should go
+        // left, which is a negative yaw — hence the sign.
+        double bearing = System.Math.Atan2(to.Y, to.X) - System.Math.Atan2(from.Y, from.X);
+        return (-Wrap(bearing) * toDeg, pitch, true);
+    }
+
+    /// <summary>Elevation of a direction above the horizontal, radians, flat-safe for a zero vector.</summary>
+    private static double Elevation(Vec3 v)
+    {
+        double len = System.Math.Sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z);
+        return len < 1e-9 ? 0.0 : System.Math.Asin(System.Math.Clamp(v.Z / len, -1.0, 1.0));
+    }
+
+    /// <summary>An angle difference into (-pi, pi], so turning past due north is not a 359 degree swing.</summary>
+    private static double Wrap(double rad)
+    {
+        const double twoPi = 2.0 * System.Math.PI;
+        rad %= twoPi;
+        if (rad > System.Math.PI) rad -= twoPi;
+        if (rad <= -System.Math.PI) rad += twoPi;
+        return rad;
     }
 
     /// <summary>Set the MANUAL look directly, clamped to the neck. The hat and the snaps go through here, so no

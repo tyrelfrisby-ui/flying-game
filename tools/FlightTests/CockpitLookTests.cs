@@ -10,17 +10,39 @@ namespace FlyingGame.FlightTests;
 /// </summary>
 public sealed class CockpitLookTests
 {
-    private static Quat Yaw(double deg)
+    // ---- synthetic device attitudes, as CoreMotion / Input.gyro.attitude would report them ----
+    //
+    // The attitude frame's identity is the phone LYING FLAT, SCREEN UP: +x across the screen, +y toward the top of
+    // the screen, +z out of the screen, which is straight up. So the back of the phone faces (0, 0, -1).
+
+    private static Quat About(double ax, double ay, double az, double deg)
     {
-        double h = deg * System.Math.PI / 360.0;
-        return new Quat(0, 0, System.Math.Sin(h), System.Math.Cos(h));
+        double h = deg * System.Math.PI / 360.0, s = System.Math.Sin(h);
+        return new Quat(ax * s, ay * s, az * s, System.Math.Cos(h));
     }
 
-    private static Quat Pitch(double deg)
+    /// <summary>
+    /// A phone held up like a window and aimed somewhere: turned <paramref name="turnRightDeg"/> to the pilot's
+    /// right, tilted <paramref name="tiltUpDeg"/> so its back aims that much above the horizon, and rolled
+    /// <paramref name="rollDeg"/> in its own plane — which is all that separates portrait from landscape.
+    ///
+    /// Built the way the movement actually happens: the world turns and tilts pre-multiply, the phone's own roll
+    /// post-multiplies, and the 90 degrees about x in the middle is what stands the phone up from flat.
+    /// </summary>
+    private static Quat Held(double turnRightDeg, double tiltUpDeg, double rollDeg) =>
+        Quat.Multiply(
+            Quat.Multiply(About(0, 0, 1, -turnRightDeg), Quat.Multiply(About(1, 0, 0, tiltUpDeg), About(1, 0, 0, 90))),
+            About(0, 0, 1, rollDeg));
+
+    /// <summary>The roll that each screen orientation puts on the phone. Portrait is the frame's own zero; the two
+    /// landscapes are a quarter turn either way; upside down is a half turn.</summary>
+    public static TheoryData<string, double> Orientations => new()
     {
-        double h = deg * System.Math.PI / 360.0;
-        return new Quat(0, System.Math.Sin(h), 0, System.Math.Cos(h));
-    }
+        { "portrait", 0.0 },
+        { "landscape left", 90.0 },
+        { "landscape right", -90.0 },
+        { "portrait upside down", 180.0 },
+    };
 
     [Fact]
     public void ItStartsLookingStraightAhead()
@@ -102,57 +124,180 @@ public sealed class CockpitLookTests
         Assert.False(look.LookingAway);
     }
 
-    // ---- goggles ----
+    // ---- the device: where the phone is AIMED ----
+    //
+    // Ty flew build 2026.1101.0549 and reported three things: turning the phone and rolling it did the same thing,
+    // neither moved the view purely (everything came out diagonal, down-left or up-right), and tilting it did
+    // nothing at all. Every test in this section is one of those three sentences.
 
-    /// <summary>The goggles measure the CHANGE since they were zeroed, so the pilot can hold the device however he is
-    /// sitting. Zeroed facing 30 degrees left, turning to 60 left is a 30 degree look, not a 60 degree one.</summary>
-    [Fact]
-    public void GogglesMeasureTheTurnSinceTheyWereZeroedNotAnAbsoluteDirection()
+    /// <summary>Turning the phone about the vertical turns the view, and does NOTHING else. Any pitch here is the
+    /// cross-axis leakage that made every movement diagonal.</summary>
+    [Theory]
+    [InlineData(0.0, 10.0)]
+    [InlineData(0.0, -25.0)]
+    [InlineData(90.0, 10.0)]
+    [InlineData(90.0, -25.0)]
+    [InlineData(-90.0, 40.0)]
+    [InlineData(180.0, -40.0)]
+    public void TurningTheDeviceGivesPureYaw(double rollDeg, double turnDeg)
     {
         var look = new CockpitLook();
-        look.Recentre(Yaw(-30));
+        look.Recentre(Held(0, 0, rollDeg));
+        look.FromDevice(Held(turnDeg, 0, rollDeg));
+        Assert.Equal(turnDeg, look.YawDeg, 3);
+        Assert.Equal(0.0, look.PitchDeg, 6);
+    }
+
+    /// <summary>Tilting the phone toward or away pitches the view, and does NOTHING else. This is the one that was
+    /// ignored entirely: it landed on the roll component of a device-frame extraction and was thrown away.</summary>
+    [Theory]
+    [InlineData(0.0, 15.0)]
+    [InlineData(0.0, -15.0)]
+    [InlineData(90.0, 30.0)]
+    [InlineData(-90.0, -30.0)]
+    [InlineData(180.0, 45.0)]
+    public void TiltingTheDeviceGivesPurePitch(double rollDeg, double tiltDeg)
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(0, 0, rollDeg));
+        look.FromDevice(Held(0, tiltDeg, rollDeg));
+        Assert.Equal(tiltDeg, look.PitchDeg, 3);
         Assert.Equal(0.0, look.YawDeg, 6);
-        look.FromDevice(Yaw(-60));
-        Assert.Equal(-30.0, look.YawDeg, 4);
-        look.FromDevice(Yaw(-30));
+    }
+
+    /// <summary>Rolling the phone in its own plane does not change where it is AIMED, so the view does not move.
+    /// This is the one that used to feel identical to turning.</summary>
+    [Theory]
+    [InlineData(30.0)]
+    [InlineData(-30.0)]
+    [InlineData(90.0)]
+    [InlineData(-90.0)]
+    [InlineData(180.0)]
+    public void RollingTheDeviceMovesNothing(double rollDeg)
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(20, 10, 0));
+        look.FromDevice(Held(20, 10, rollDeg));
+        Assert.Equal(0.0, look.YawDeg, 6);
+        Assert.Equal(0.0, look.PitchDeg, 6);
+    }
+
+    /// <summary>The bug in one line: turning and rolling are different movements and must not give the same view.</summary>
+    [Fact]
+    public void TurningAndRollingAreNotTheSameMovement()
+    {
+        var turn = new CockpitLook(); turn.Recentre(Held(0, 0, 0)); turn.FromDevice(Held(30, 0, 0));
+        var roll = new CockpitLook(); roll.Recentre(Held(0, 0, 0)); roll.FromDevice(Held(0, 0, 30));
+        Assert.Equal(30.0, turn.YawDeg, 3);
+        Assert.Equal(0.0, roll.YawDeg, 6);
+        Assert.True(System.Math.Abs(turn.YawDeg - roll.YawDeg) > 25.0,
+            $"turning gave {turn.YawDeg:F1} deg and rolling gave {roll.YawDeg:F1} — they are the same movement again");
+    }
+
+    /// <summary>Portrait and landscape must behave identically, because holding the phone the other way up IS a
+    /// roll about the aim and the aim is what the view follows. No orientation offset is needed, and this is the
+    /// test that says so rather than leaving it to be rediscovered.</summary>
+    [Theory]
+    [MemberData(nameof(Orientations))]
+    public void EveryScreenOrientationGivesTheSameView(string name, double rollDeg)
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(0, 0, rollDeg));
+        look.FromDevice(Held(35, -20, rollDeg));
+        Assert.Equal(35.0, look.YawDeg, 3);
+        Assert.Equal(-20.0, look.PitchDeg, 3);
+        Assert.False(string.IsNullOrEmpty(name));
+    }
+
+    /// <summary>Turn AND tilt at once: each still reads its own movement, with nothing of the other in it.</summary>
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(90.0)]
+    [InlineData(-90.0)]
+    public void TurningAndTiltingTogetherStayIndependent(double rollDeg)
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(0, 0, rollDeg));
+        look.FromDevice(Held(45, 25, rollDeg));
+        Assert.Equal(45.0, look.YawDeg, 3);
+        Assert.Equal(25.0, look.PitchDeg, 3);
+    }
+
+    /// <summary>
+    /// THE ONE THAT WOULD HAVE CAUGHT IT. Zero from an awkward pose — turned 37, tilted 23, rolled 61, which is
+    /// just "however he happened to be holding it" — and a pure turn from there must STILL be a pure yaw.
+    ///
+    /// The old code read yaw and pitch off `reference⁻¹ · current`, whose axes are the phone's own, so the answer
+    /// depended on the reference pose: from a canonical pose it looked almost right, and from a real one every
+    /// movement came out diagonal. Every test above zeroes from a tidy pose and would have passed either way.
+    /// </summary>
+    [Theory]
+    [InlineData(37.0, 23.0, 61.0, 20.0, 0.0)]
+    [InlineData(37.0, 23.0, 61.0, 0.0, 20.0)]
+    [InlineData(-112.0, -41.0, -168.0, 15.0, 0.0)]
+    [InlineData(-112.0, -41.0, -168.0, 0.0, -15.0)]
+    [InlineData(5.0, 62.0, 90.0, -30.0, 0.0)]
+    public void FromAnyPoseAMovementIsStillPure(double turn0, double tilt0, double roll0, double dTurn, double dTilt)
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(turn0, tilt0, roll0));
+        look.FromDevice(Held(turn0 + dTurn, tilt0 + dTilt, roll0));
+        Assert.Equal(dTurn, look.YawDeg, 3);
+        Assert.Equal(dTilt, look.PitchDeg, 3);
+    }
+
+    /// <summary>It measures the CHANGE since it was zeroed, so the pilot can sit however he likes. Zeroed aiming
+    /// 30 to the right, aiming 60 right is a 30 degree look, not a 60 degree one.</summary>
+    [Fact]
+    public void ItMeasuresTheTurnSinceItWasZeroedNotAnAbsoluteDirection()
+    {
+        var look = new CockpitLook();
+        look.Recentre(Held(30, 0, 0));
+        Assert.Equal(0.0, look.YawDeg, 6);
+        look.FromDevice(Held(60, 0, 0));
+        Assert.Equal(30.0, look.YawDeg, 3);
+        look.FromDevice(Held(30, 0, 0));
         Assert.Equal(0.0, look.YawDeg, 4);
-        look.FromDevice(Yaw(20));
-        Assert.Equal(50.0, look.YawDeg, 4);
+        look.FromDevice(Held(10, 0, 0));
+        Assert.Equal(-20.0, look.YawDeg, 3);
     }
 
     [Fact]
-    public void GogglesFollowPitchTooAndTheFirstReadingZeroesThem()
+    public void TheFirstReadingBecomesTheZero()
     {
         var look = new CockpitLook();
         Assert.False(look.HasReference);
-        look.FromDevice(Pitch(15));             // first ever reading becomes the zero
+        look.FromDevice(Held(0, 15, 0));
         Assert.True(look.HasReference);
         Assert.Equal(0.0, look.PitchDeg, 6);
-        look.FromDevice(Pitch(40));
-        Assert.Equal(25.0, look.PitchDeg, 4);
+        look.FromDevice(Held(0, 40, 0));
+        Assert.Equal(25.0, look.PitchDeg, 3);
     }
 
     [Fact]
-    public void GogglesAreClampedToTheSameNeckAsTheHat()
+    public void TheDeviceIsClampedToTheSameNeckAsTheHat()
     {
         var look = new CockpitLook();
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(179));
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(179, 0, 0));
         Assert.InRange(look.YawDeg, -CockpitLook.MaxYawDeg, CockpitLook.MaxYawDeg);
-        look.FromDevice(Pitch(89));
+        look.FromDevice(Held(0, 89, 0));
         Assert.InRange(look.PitchDeg, -CockpitLook.MaxPitchDownDeg, CockpitLook.MaxPitchUpDeg);
     }
 
-    /// <summary>A device pointed straight up is where a yaw/pitch extraction goes singular. It must report a
-    /// straight-up look, not a NaN that would take the camera with it.</summary>
+    /// <summary>A phone laid flat on a knee is aimed at the floor, and a direction straight down has no bearing.
+    /// The yaw must HOLD there rather than spinning or going NaN, and the pitch must still read.</summary>
     [Fact]
-    public void ADevicePointedStraightUpDoesNotProduceANan()
+    public void APhoneLaidFlatHoldsItsYawInsteadOfSpinning()
     {
         var look = new CockpitLook();
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Pitch(90));
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(40, 0, 0));
+        Assert.Equal(40.0, look.YawDeg, 3);
+        look.FromDevice(Quat.Identity);                 // flat on the knee, aimed at the floor
         Assert.True(double.IsFinite(look.YawDeg) && double.IsFinite(look.PitchDeg));
-        Assert.Equal(CockpitLook.MaxPitchUpDeg, look.PitchDeg, 6);
+        Assert.Equal(40.0, look.YawDeg, 3);             // held, not spun
+        Assert.Equal(-CockpitLook.MaxPitchDownDeg, look.PitchDeg, 6);
     }
 
     [Fact]
@@ -165,20 +310,7 @@ public sealed class CockpitLookTests
         Assert.Equal(0.0, look.PitchDeg, 9);
     }
 
-    [Fact]
-    public void RecentringTheGogglesAlsoCentresTheView()
-    {
-        var look = new CockpitLook();
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(40));
-        Assert.True(look.LookingAway);
-        look.Recentre(Yaw(40));                 // zero it where he is now holding it
-        Assert.False(look.LookingAway);
-        look.FromDevice(Yaw(40));
-        Assert.Equal(0.0, look.YawDeg, 4);
-    }
-
-    // ---- moving the DEVICE to look around (owner Ty, 2026-11-01) ----
+    // ---- the gain, and living alongside the touch look (owner Ty, 2026-11-01) ----
 
     /// <summary>"1x (1 deg of device = 1 deg of view, the default)". The default is the only setting that reads as
     /// a window rather than a control, so it is the one that must not need choosing.</summary>
@@ -187,28 +319,31 @@ public sealed class CockpitLookTests
     {
         var look = new CockpitLook();
         Assert.Equal(1.0, look.DeviceGain, 9);
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(20));
-        Assert.Equal(20.0, look.YawDeg, 4);
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(20, 0, 0));
+        Assert.Equal(20.0, look.YawDeg, 3);
     }
 
-    /// <summary>"up to 10x, continuous" — not a set of notches. 3.7 is a gain a pilot can actually land on with a
-    /// slider, so 2 degrees of device has to be 7.4 of view.</summary>
+    /// <summary>"up to 10x, continuous" — not a set of notches. 3.7 is a gain a pilot can land on with a slider,
+    /// so 2 degrees of device has to be 7.4 of view, and the same multiple must apply to pitch.</summary>
     [Theory]
     [InlineData(1.0, 2.0)]
     [InlineData(2.5, 5.0)]
     [InlineData(3.7, 7.4)]
     [InlineData(10.0, 20.0)]
-    public void TheGainMultipliesTheDeviceOneForOne(double gain, double expectedYaw)
+    public void TheGainMultipliesBothAxesOneForOne(double gain, double expected)
     {
-        var look = new CockpitLook { DeviceGain = gain };
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(2));
-        Assert.Equal(expectedYaw, look.YawDeg, 3);
+        var yaw = new CockpitLook { DeviceGain = gain };
+        yaw.Recentre(Held(0, 0, 0));
+        yaw.FromDevice(Held(2, 0, 0));
+        Assert.Equal(expected, yaw.YawDeg, 3);
+
+        var pitch = new CockpitLook { DeviceGain = gain };
+        pitch.Recentre(Held(0, 0, 0));
+        pitch.FromDevice(Held(0, 2, 0));
+        Assert.Equal(expected, pitch.PitchDeg, 3);
     }
 
-    /// <summary>Below 1 the device would be worse than useless and above 10 a tremor reaches the stops, so the
-    /// slider's ends are the model's ends and nothing outside them can be stored.</summary>
     [Theory]
     [InlineData(0.0, 1.0)]
     [InlineData(-5.0, 1.0)]
@@ -222,47 +357,46 @@ public sealed class CockpitLookTests
         Assert.Equal(stored, look.DeviceGain, 9);
     }
 
-    /// <summary>The gain applies to the TURN SINCE the zero, not to the absolute attitude: changing it must not
-    /// move the view until the device moves. Zeroed at 30 left, held still, any gain still reads straight ahead.</summary>
+    /// <summary>The gain applies to the TURN SINCE the zero, so changing it must not move a view nobody is
+    /// turning.</summary>
     [Fact]
     public void ChangingTheGainDoesNotMoveAViewNobodyIsTurning()
     {
         var look = new CockpitLook();
-        look.Recentre(Yaw(-30));
+        look.Recentre(Held(-30, 12, 0));
         foreach (double g in new[] { 1.0, 4.0, 10.0 })
         {
             look.DeviceGain = g;
-            look.FromDevice(Yaw(-30));
+            look.FromDevice(Held(-30, 12, 0));
             Assert.Equal(0.0, look.YawDeg, 4);
+            Assert.Equal(0.0, look.PitchDeg, 4);
         }
     }
 
-    /// <summary>"keep it working alongside the existing touch look". Before this they were exclusive — turning the
-    /// option on silently disabled the look pad. A snap over the shoulder and a lean of the phone must ADD.</summary>
+    /// <summary>"keep it working alongside the existing touch look". A snap over the shoulder and a lean of the
+    /// phone must ADD, and the two halves stay separate.</summary>
     [Fact]
     public void TheHatAndTheDeviceComposeInsteadOfOverwritingEachOther()
     {
         var look = new CockpitLook();
-        look.Recentre(new Quat(0, 0, 0, 1));
+        look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.Left);          // -90
         Assert.Equal(-90.0, look.YawDeg, 4);
-        look.FromDevice(Yaw(-20));                      // lean the phone another 20 left
+        look.FromDevice(Held(-20, 0, 0));               // aim the phone another 20 left
         Assert.Equal(-110.0, look.YawDeg, 3);
-        Assert.Equal(-90.0, look.ManualYawDeg, 4);      // the two halves stay separate
+        Assert.Equal(-90.0, look.ManualYawDeg, 4);
         Assert.Equal(-20.0, look.DeviceYawDeg, 3);
-        // And the device holding still does not stop the hat panning on top of it.
         look.Hat(1, 0, 0.5);                            // +70 at the default 140 deg/s
         Assert.Equal(-40.0, look.YawDeg, 3);
     }
 
-    /// <summary>Letting go of the hat must not snatch the view away from where the phone is pointing: the pilot's
-    /// hands are still, so the view should be too. Spring-centre returns the HAT's offset only.</summary>
+    /// <summary>Letting go of the hat must not snatch the view away from where the phone is aimed.</summary>
     [Fact]
     public void SpringCentreReturnsTheHatButLeavesTheDeviceWhereItIs()
     {
         var look = new CockpitLook { SpringCentre = true };
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(25));
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(25, 0, 0));
         look.Snap(CockpitLook.Direction.Right);         // +90 on top of the device's 25
         Assert.Equal(115.0, look.YawDeg, 3);
         for (int i = 0; i < 200; i++) look.Hat(0, 0, 0.02);
@@ -270,70 +404,64 @@ public sealed class CockpitLookTests
         Assert.Equal(25.0, look.YawDeg, 3);
     }
 
-    /// <summary>At 10x a quarter turn of the wrist asks for 900 degrees. The view stops at the neck, and — the part
-    /// that matters — turning back by the same amount brings it straight back, instead of making the pilot unwind
-    /// hundreds of degrees of stored offset first.</summary>
+    /// <summary>At 10x a 20 degree turn asks for 200. The view stops at the neck, and — the part that matters —
+    /// aiming back brings it straight back instead of unwinding stored offset first.</summary>
     [Fact]
     public void AHighGainStopsAtTheNeckAndComesStraightBack()
     {
         var look = new CockpitLook { DeviceGain = 10.0 };
-        look.Recentre(new Quat(0, 0, 0, 1));
-        look.FromDevice(Yaw(90));
+        look.Recentre(Held(0, 0, 0));
+        look.FromDevice(Held(20, 0, 0));
         Assert.Equal(CockpitLook.MaxYawDeg, look.YawDeg, 6);
-        look.FromDevice(Yaw(10));
+        look.FromDevice(Held(10, 0, 0));
         Assert.Equal(100.0, look.YawDeg, 3);
-        look.FromDevice(new Quat(0, 0, 0, 1));
+        look.FromDevice(Held(0, 0, 0));
         Assert.Equal(0.0, look.YawDeg, 4);
     }
 
-    /// <summary>However the two halves are stacked, the view stays inside a neck — including the sum, which is the
-    /// case a per-source clamp would miss.</summary>
     [Theory]
     [InlineData(1.0)]
     [InlineData(10.0)]
     public void TheSumOfBothHalvesIsStillInsideTheNeck(double gain)
     {
         var look = new CockpitLook { DeviceGain = gain };
-        look.Recentre(new Quat(0, 0, 0, 1));
+        look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.OverRightShoulder);
-        look.FromDevice(Yaw(80));
+        look.FromDevice(Held(80, 0, 0));
         Assert.InRange(look.YawDeg, -CockpitLook.MaxYawDeg, CockpitLook.MaxYawDeg);
         look.Snap(CockpitLook.Direction.Up);
-        look.FromDevice(Pitch(80));
+        look.FromDevice(Held(0, 80, 0));
         Assert.InRange(look.PitchDeg, -CockpitLook.MaxPitchDownDeg, CockpitLook.MaxPitchUpDeg);
     }
 
-    /// <summary>RECENTRE is the one call that zeroes everything: the hat's offset AND the device's, against however
-    /// the device is being held at that moment.</summary>
+    /// <summary>RECENTRE zeroes the hat's offset AND the device's, against however the phone is aimed then.</summary>
     [Fact]
     public void RecentreZeroesBothHalvesAtWhateverTheDeviceIsDoing()
     {
         var look = new CockpitLook { DeviceGain = 5.0 };
-        look.Recentre(new Quat(0, 0, 0, 1));
+        look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.Right);
-        look.FromDevice(Yaw(10));
+        look.FromDevice(Held(10, 0, 0));
         Assert.True(look.LookingAway);
-        look.Recentre(Yaw(10));
+        look.Recentre(Held(10, 0, 0));
         Assert.Equal(0.0, look.YawDeg, 6);
         Assert.Equal(0.0, look.ManualYawDeg, 9);
         Assert.Equal(0.0, look.DeviceYawDeg, 9);
         Assert.False(look.LookingAway);
     }
 
-    /// <summary>Switching the option off must not leave the device's last offset holding the view off-centre with
-    /// nothing driving it, and the next time it is switched on the first reading becomes the new zero.</summary>
     [Fact]
     public void TurningTheDeviceOffDropsItsOffsetAndItsZero()
     {
         var look = new CockpitLook();
-        look.Recentre(new Quat(0, 0, 0, 1));
+        look.Recentre(Held(0, 0, 0));
         look.Snap(CockpitLook.Direction.Left);
-        look.FromDevice(Yaw(30));
+        look.FromDevice(Held(30, 0, 0));
         Assert.Equal(-60.0, look.YawDeg, 3);
         look.ForgetDevice();
         Assert.False(look.HasReference);
-        Assert.Equal(-90.0, look.YawDeg, 4);            // the hat's own offset survives, as it should
-        look.FromDevice(Yaw(30));                        // switched back on, wherever he is holding it
+        Assert.Equal(-90.0, look.YawDeg, 4);
+        look.FromDevice(Held(30, 0, 0));
         Assert.Equal(-90.0, look.YawDeg, 4);
     }
 }
