@@ -244,10 +244,18 @@ def check_eye_source():
     data=spec();path=ROOT/'docs/models/eyepoints.json'
     source=json.loads(path.read_text() if path.exists() else subprocess.check_output(
         ['git','show',data['source_commit']+':docs/models/eyepoints.json'],cwd=ROOT))
+    # Take the NEWEST version each entry carries. v4 is Codex's proposal (lane/codex-eyepoints, marked
+    # proposed/requires_approval); v5 is the one Ty approved on 2026-10-31 and is what the configs, the camera
+    # and these bars are built on. The Great Lakes rear is the only one where they differ -- v4 was computed
+    # with the aeroplane 0.223 m low and sat inside the tub.
+    def newest(entry):
+        version=max((k for k in entry if k.startswith('v') and k[1:].isdigit()), key=lambda k: int(k[1:]))
+        return entry[version]['position_body']
     for aircraft,row in data['aircraft'].items():
-        eyes=[e['v4']['position_body'] for e in source['entries']
-              if e.get('aircraft_id')==aircraft and e.get('seat_id')=='rear' and 'v4' in e]
-        assert eyes and all(np.array_equal(eye,row['eye_body_m']) for eye in eyes),(aircraft,'rear eye source drift',eyes)
+        eyes=[newest(e) for e in source['entries']
+              if e.get('aircraft_id')==aircraft and e.get('seat_id')=='rear'
+              and any(k.startswith('v') and k[1:].isdigit() for k in e)]
+        assert eyes and all(np.allclose(eye,row['eye_body_m'],atol=1e-9) for eye in eyes),(aircraft,'rear eye source drift',eyes)
 
 
 def main():

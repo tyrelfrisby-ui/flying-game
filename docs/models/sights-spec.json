@@ -250,9 +250,9 @@
     },
     "great-lakes-like": {
       "eye_body_m": [
-        -1.97,
+        -1.96,
         0.0,
-        -0.264
+        -0.487
       ],
       "eye_source_commit": "aab015b",
       "eye_source_field": "entries[aircraft_id=great-lakes-like,seat_id=rear].v4.position_body",
@@ -336,7 +336,8 @@
         "max_deflection_rad": 0.4014,
         "method": "Continuous interval enclosure: <=2 degree samples including both full-deflection endpoints; per-triangle dilation = 2*max vertex radius*sin(interval/4) + 2*0.100m pivot-position uncertainty*sin(maxDefl/2). Covers every barycentric point and every angle between samples. No clearance waiver."
       },
-      "y_frame_m": 2.45
+      "y_frame_m": 2.45,
+      "eye_note": "Ty's corrected rear eye, 2026-10-31. The previous [-1.97, 0.0, -0.264] was computed with the aeroplane 0.223 m low and sits inside the tub, which is why every one of its 808 true-eye rays was blocked."
     }
   },
   "offline_geometry_baseline_commit": "38e8746"

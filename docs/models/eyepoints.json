@@ -1,0 +1,212 @@
+{
+  "schema_version": 5,
+  "status": "approved",
+  "approved_by": "Ty",
+  "approved_on": "2026-10-31",
+  "units": "m",
+  "body_axes": "+X forward, +Y right, +Z down; origin the aircraft root / physics CG",
+  "measured_on": "the game's own placement on extended gear",
+  "rule": "The cockpit camera sits exactly at the seated pilot's eye, with no offset. The PRIMARY seat is the solo seat: the rear on a tandem, the front on the 2-33, the left on the 172. Eyes stay above the forward fuselage top line. These points are also the basis for VR.",
+  "proposal_commit": "aab015b",
+  "proposal_note": "v4 came from lane/codex-eyepoints aab015b, which is marked proposed/requires_approval. Ty's v5 supersedes it. The Great Lakes rear in particular was computed with the aeroplane 0.223 m low and sat inside the tub, which is why all 808 of its true-eye rays were blocked.",
+  "consumed_by": [
+    "configs/aircraft/*.json loading.seats[].eye",
+    "docs/models/sights-spec.json aircraft[].eye_body_m",
+    "FlyingGame.Bridge.CockpitView / ChaseCamera Cockpit view"
+  ],
+  "entries": [
+    {
+      "aircraft_id": "glider-2-33-like",
+      "seat_id": "front",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          0.971,
+          0.0,
+          -0.111
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "glider-2-33-like",
+      "seat_id": "rear",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          0.164,
+          0.0,
+          -0.06
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "c172-like",
+      "seat_id": "left",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          -0.346,
+          -0.337,
+          -0.548
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "c172-like",
+      "seat_id": "right",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          -0.346,
+          0.332,
+          -0.548
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "j3-cub-like",
+      "seat_id": "rear",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          -0.84,
+          0.0,
+          -0.489
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "j3-cub-like",
+      "seat_id": "front",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          -0.157,
+          0.0,
+          -0.599
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "great-lakes-like",
+      "seat_id": "rear",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          -1.96,
+          0.0,
+          -0.487
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31",
+        "supersedes_note": "v4 [-1.97, 0.0, -0.264] differs by 0.2232 m"
+      },
+      "v4": {
+        "position_body": [
+          -1.97,
+          0.0,
+          -0.264
+        ],
+        "status": "proposed, superseded by v5"
+      }
+    },
+    {
+      "aircraft_id": "great-lakes-like",
+      "seat_id": "front",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          -1.193,
+          0.0,
+          -0.413
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "pitts-s2b-like",
+      "seat_id": "rear",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          -1.325,
+          0.0,
+          -0.3
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      },
+      "v4": {
+        "position_body": [
+          -1.325,
+          0.0,
+          -0.3
+        ],
+        "status": "proposed, superseded by v5"
+      }
+    },
+    {
+      "aircraft_id": "pitts-s2b-like",
+      "seat_id": "front",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          -0.564,
+          0.0,
+          -0.308
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    },
+    {
+      "aircraft_id": "extra-300-like",
+      "seat_id": "rear",
+      "primary": true,
+      "v5": {
+        "position_body": [
+          -1.597,
+          0.0,
+          -0.518
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      },
+      "v4": {
+        "position_body": [
+          -1.597,
+          0.0,
+          -0.518
+        ],
+        "status": "proposed, superseded by v5"
+      }
+    },
+    {
+      "aircraft_id": "extra-300-like",
+      "seat_id": "front",
+      "primary": false,
+      "v5": {
+        "position_body": [
+          -0.687,
+          0.0,
+          -0.529
+        ],
+        "approved_by": "Ty",
+        "approved_on": "2026-10-31"
+      }
+    }
+  ]
+}
