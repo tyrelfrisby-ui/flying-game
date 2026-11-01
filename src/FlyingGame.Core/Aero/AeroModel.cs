@@ -502,7 +502,15 @@ public static class AeroModel
                     double rotGate = Math.Clamp(Math.Sqrt(bodyRates.X * bodyRates.X + bodyRates.Z * bodyRates.Z) / 1.5, 0.0, 1.0);
                     deflEff *= 1.0 - 0.3 * rotGate;   // was 0.5 (owner 2026-09-08: spins too flat, no elevator authority)
                 }
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor;
+                // CONTROL EFFECTIVENESS (τ): the strip model turns a control row to its full geometric angle, which
+                // is the τ = 1 assumption and overstates how much lift a plain hinged surface really buys. The
+                // per-axis factor (default 1.0 — every config before 2026-11-01 reads exactly as it did) scales the
+                // INCIDENCE the deflection commands. It deliberately does not touch `deltaGeom` below: the surface
+                // still sticks out as far as it ever did, so its pressure drag and the adverse yaw are unchanged.
+                double controlEff = strip.Control is null
+                    ? 1.0
+                    : config.Controls.AxisFor(strip.Control.Surface)?.Effectiveness ?? 1.0;
+                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor * controlEff;
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure drag — so roll authority fades

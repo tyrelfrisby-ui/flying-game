@@ -275,6 +275,17 @@ public sealed class ControlsConfig
     public ControlAxisConfig Elevator { get; set; } = new();
     public ControlAxisConfig Rudder { get; set; } = new();
     public SpoilerConfig Spoiler { get; set; } = new();
+
+    /// <summary>The axis a strip's <see cref="StripControlConfig.Surface"/> name belongs to, or null if it names
+    /// nothing (a flap or spoiler row, which have their own models). Mirrors
+    /// <c>ControlDeflections.GetDeflection</c>'s names.</summary>
+    public ControlAxisConfig? AxisFor(string? surface) => surface switch
+    {
+        "aileron" => Aileron,
+        "elevator" => Elevator,
+        "rudder" => Rudder,
+        _ => null,
+    };
 }
 
 public sealed class ControlAxisConfig
@@ -300,6 +311,22 @@ public sealed class ControlAxisConfig
 
     /// <summary>The bigger of the two stops: a search bound, not a limit to deflect to.</summary>
     public double MaxTravelRad => Math.Max(MaxDeflRad, MaxDeflNegRad);
+
+    /// <summary>CONTROL EFFECTIVENESS: how much of this surface's GEOMETRIC deflection the flow actually turns into
+    /// a change of section incidence. Classical thin-aerofoil theory calls it τ, and for a plain hinged flap it is a
+    /// function of the flap-to-chord ratio alone — about 0.4–0.6 for the 20–25 % chord typical of an aileron, NOT 1.
+    /// The strip model deflects a control row to its full geometric angle (gain ±1), i.e. τ = 1, which overstates
+    /// every hinged surface's lift response; this is the factor that puts it back.
+    ///
+    /// Default 1.0 = the behaviour every config written before 2026-11-01 had, so leaving it out changes nothing.
+    /// It scales the LIFT response only. The geometric angle is still what sets the surface's pressure drag (a
+    /// deflected aileron really is sticking out that far, whatever the flow does about it), so adverse yaw and
+    /// post-stall aileron drag are untouched.
+    ///
+    /// This is the honest place to put aileron authority. The alternative — shrinking MaxDeflRad until the roll
+    /// rate comes out right — makes the config lie about the aeroplane: the Pitts' travel is a TCDS number
+    /// (A8SO Rev. 21, 25° ± 2° symmetrical), not a knob.</summary>
+    public double Effectiveness { get; set; } = 1.0;
 
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
     public double Expo { get; set; }

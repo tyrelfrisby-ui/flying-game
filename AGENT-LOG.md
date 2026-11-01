@@ -1,4 +1,35 @@
 ## NEEDS YOU
+- **PITTS ROLL RATE: 392 → 271 deg/s, and the travel is back on its TCDS number (Claude, 2026-11-01,
+  lane/claude-pitts-roll) — NEEDS YOU: fly it.**
+  1. **391.6 → 270.7 deg/s** at 160 mph IAS, full aileron, measured the same way before and after
+     (`PittsRollProbe`). Onset is unchanged — 0.41 s to 90 % before, **0.36 s** after — so it bites as fast as
+     it did and simply stops at a lower rate. The Extra (409.3) and the Great Lakes (83.3) did not move by so
+     much as a tenth.
+  2. **Your call on the previous attempt was right.** I had got there by shrinking aileron travel 25° → 16.5°,
+     and flagged that 16.5° is less than this model gives a J-3 Cub. You rejected it; that is now undone.
+     **`maxDeflRad` is back to 0.4363 rad = 25.0°**, which is the certificated figure — FAA TCDS **A8SO
+     Rev. 21, 15 Feb 2005, p. 9, Model S-2B: "Ailerons (symmetrical) UP 25° ± 2° DOWN 25° ± 2°"**. Both config
+     copies are identical and a test pins the travel to 25° as a literal.
+  3. **What moved instead is a new field, `controls.aileron.effectiveness` = 0.66.** The strip model used to
+     turn a control surface's section by its full geometric angle — effectiveness τ = 1 — and for a plain
+     hinged flap τ depends on chord ratio and is nowhere near 1. That assumption was the actual error, and the
+     travel had been absorbing it. The field defaults to **1.0**, so every other aeroplane in the fleet is
+     bit-for-bit what it was; the Extra and Great Lakes numbers above are the proof, and a test asserts it.
+  4. **It is corroborated, not just fitted.** Thin-aerofoil theory on this config's OWN authored aileron chords
+     (cf/c = 0.247 upper, 0.237 lower) gives τ ≈ **0.60**; the value that lands your 270 is **0.66** — within
+     10 %. A test (`TheTunedEffectivenessAgreesWithThinAerofoilTheory`) keeps the two within 15 % of each other,
+     so if anyone re-chords the ailerons it will say so.
+  5. **Roll damping was deliberately not touched.** `fuselage.damping.p` is still 0 and all of it comes out of
+     the wing strips' own geometry, which is the half that was already right. Adding fuselage damping would
+     have bought the same 270 and made the onset mushy.
+  6. **ASSUMPTION, still open and still yours:** 270 is well above the book for this airframe — Aviat quote the
+     S-2B at roughly 180 deg/s, and 240-280 is usually the S-1S you owned. You flew it and asked for 270 twice,
+     so 270 is what it does. If you want it nearer the published S-2B figure it is now one number — extrapolating
+     the sweep I measured, `effectiveness` ≈ 0.42-0.44 should put it near 180 — and no config would have to lie
+     to get there. Say the word and I will measure it rather than extrapolate.
+  Pinned by `PittsRollRateTests` at **270 ± 15 deg/s** (± 5.5 %) — tight enough to catch a real change in
+  aileron authority or the damping model, loose enough to survive integrator noise. **No gate is marked
+  approved.**
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both

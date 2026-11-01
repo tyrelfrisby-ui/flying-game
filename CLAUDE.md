@@ -95,6 +95,34 @@ is how the order got reversed in the first place. I then got the glTF lateral si
 about it (it runs to the pilot's LEFT) and only settled it by looking at an eye-point render.
 `check_great_lakes_rig` now asserts the left-to-right order so nobody can re-derive it wrongly.
 
+### Tune the half that is wrong, not the half that is easy
+A steady roll rate is aileron moment divided by roll damping, and either one will buy you the number. The Pitts
+was rolling 392 deg/s against Ty's 270: adding `fuselage.damping.p` would have hit 270 exactly and made the
+onset mushy, because this model's roll damping is not a fudge factor — it falls out of the wing strips' own
+geometry (p·y/V per strip) and was already right. Before turning a knob, work out which side of the ratio is
+the wrong one and say so in the test, or the next person will "fix" it from the other end.
+
+### When the only knob you have would make the config lie, the knob is missing — add it
+Having decided the aileron side was the wrong half, I reached for the only aileron-authority number the config
+exposed and shrank the TRAVEL, 25° → 16.5°, until the rate came out right. It worked and it was false: 16.5° is
+less travel than this same model gives a J-3 Cub, and `maxDeflRad` is not a free parameter at all — it is a
+certificated figure (FAA TCDS A8SO Rev. 21 p. 9: ailerons symmetrical 25° ± 2°). I flagged it as a calibration
+knob rather than a description of the aeroplane; Ty read that and rejected it, which is the only reason it did
+not ship.
+
+The real defect was upstream of the config: the strip model turns a control row by its FULL geometric angle,
+i.e. it assumes effectiveness τ = 1, and for a plain hinged flap τ is a function of chord ratio and is nowhere
+near 1. There was no field for it, so the travel was absorbing the error. The fix was to add the missing
+parameter (`controls.<axis>.effectiveness`, default 1.0 so every existing config is bit-for-bit unchanged) and
+put the Pitts on 0.66.
+
+Two things make that honest rather than a knob with a better name. First, it has a UNIT and a theory: τ = 1 −
+(θ − sin θ)/π. Second, it is CORROBORATED — thin-aerofoil theory on the config's own authored aileron chords
+(cf/c ≈ 0.24) independently predicts τ ≈ 0.60 against the 0.66 that lands the rate, and a test asserts the two
+stay within 15 % of each other. A calibration constant that an independent calculation also predicts is a
+measurement. One that only ever matches the number you tuned it to is a fudge. Write the corroborating test, or
+you cannot tell which kind you have.
+
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
 another lane's build, installed over the top. The build stamp is `bundleVersion` (`2026.MMDD.HHMM`); check it
