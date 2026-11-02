@@ -44,7 +44,7 @@ public static class Export
         for (int k = 0; k < g.N; k++)
         {
             a[0][k] = B(m.Ice[k]); a[1][k] = B(m.Debris[k]); a[2][k] = B(m.Wet[k]);
-            a[3][k] = (byte)Math.Clamp(Math.Round((Climate.Ela(m.Rain[k]) - 1200) / 8), 0, 255);
+            a[3][k] = (byte)Math.Clamp(Math.Round((Climate.Ela(m.Rain[k]) - FlyingGame.Core.IslandRelief.ElaBaseM) / FlyingGame.Core.IslandRelief.ElaStepM), 0, 255);
         }
         return a;
     }

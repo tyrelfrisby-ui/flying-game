@@ -1348,12 +1348,12 @@
           "radius_km": 1.6
         },
         {
-          "id": "Denali-like",
+          "id": "Fairweather",
           "centre": [
-            0.5,
-            7.1
+            -0.5,
+            6.3
           ],
-          "top_ft": 2175.9,
+          "top_ft": 5187.0,
           "radius_km": 1.5
         },
         {
@@ -1814,22 +1814,22 @@
         "half_width_m": 200
       },
       {
-        "id": "Ruth",
+        "id": "Fairweather",
         "path": [
           [
-            -3.46,
-            5.86
+            -1.2,
+            5.6
           ],
           [
-            -4.1,
-            5.2
+            -3.0,
+            4.15
           ],
           [
             -3.9,
             4.7
           ]
         ],
-        "head_ft": 7300,
+        "head_ft": 5187,
         "ski_zone": {
           "centre": [
             -3.9,
@@ -5189,49 +5189,49 @@
       {
         "id": "extra:59",
         "name": "aerotow and tow hookup",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:60",
         "name": "float bases ramps buoy lanes",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:61",
         "name": "glacier ski landings and icebergs",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:62",
         "name": "sloped grass Snoopy swoop training lane",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:63",
         "name": "waterfalls and plunge pools",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:64",
         "name": "river road bridge",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
       {
         "id": "extra:65",
         "name": "hidden school interior shell and outdoor historic gliders",
-        "destination": "AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
+        "destination": "AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school",
         "source": "world source audit beyond supplied list",
         "owner": "Codex geometry; Claude logic"
       },
@@ -35855,6 +35855,18 @@
       "old": "8530 ft",
       "new": "2175.9 ft",
       "reason": "Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea-cliff face allows. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "summit Denali-like -> Fairweather",
+      "old": "Denali-like at [0.5, 7.1] 2175.9 ft",
+      "new": "Fairweather at [-0.5, 6.3] (top from the relief)",
+      "reason": "Claude 2026-11-02 real-topo pass (Ty: the Fairweather area replaces the Ruth feature): the north summit is the compacted Mount Fairweather (tools/island/topo, c = 2.6). It moved 1.2 km SW of the old Denali-like point (0.45 km from the sea, which could hold only 2,176 ft) to the one place near the north coast where ~1,600 m can stand clear of the A2 swath and the PHDH 8 visual surface; docs/pending/ISLAND-TERRAIN-CLAUDE.md"
+    },
+    {
+      "item": "glacier Ruth -> Fairweather",
+      "old": "{\"id\": \"Ruth\", \"path\": [[-3.46, 5.86], [-4.1, 5.2], [-3.9, 4.7]], \"head_ft\": 7300, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}",
+      "new": "{\"id\": \"Fairweather\", \"path\": [[-1.2, 5.6], [-3.0, 4.15], [-3.9, 4.7]], \"head_ft\": 5187, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}",
+      "reason": "Claude 2026-11-02 real-topo pass, Ty: the Fairweather area replaces the Ruth Glacier feature. The ski zone is CONVERTED, not moved: same centre, 1,300 ft, 450 x 100 m, still Snow and flat. Its glacier is now the SW outlet of the Fairweather icefield, whose lobe ends 0.6 km SSE of the zone at ~1,400 ft; the path follows that outlet. Locked decision 7 (ski zones 1,000-1,300 ft) kept. docs/pending/ISLAND-TERRAIN-CLAUDE.md"
     }
   ],
   "ifr": {
@@ -36537,7 +36549,7 @@
     "final_world_delta_count": 421,
     "ledger": "Chronological edits plus one complete baseline-to-final canonical reconciliation; superseded duplicate snapshots removed.",
     "scope": "Approved1A.2 design plus Phase1B world-owned runtime, docs and AGENT-LOG. Stop atG1; no deployments or later phases.",
-    "final_world_sha256": "c106edf72f2ca611ed5b41dba475387195be083b24778b507e1a5cd3cbbcf107",
+    "final_world_sha256": "f2b9d7d6a0153c198b2a7e82ad9e1919f2218f89527de889f039a01de00584e1",
     "approved_1a2_world_sha256": "7eb088e256711849be8e637f099dea2b7d44b68541b1f67844920b1125a466fb"
   },
   "approval_1a2": {

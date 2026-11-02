@@ -58,7 +58,7 @@ Outer-island contributions fade independently into the ocean and combine by cont
 | Frank Church | [0, 0] | 8072.2 | 2.0 |
 | Sierra | [-1.6, -0.3] | 7328.7 | 1.3 |
 | Chugach | [-3.8, -1.8] | 5914.9 | 1.6 |
-| Denali-like | [0.5, 7.1] | 2175.9 | 1.5 |
+| Fairweather | [-0.5, 6.3] | 5187.0 | 1.5 |
 | Mokuleia | [5.8, 3.3] | 2950 | 1.5 |
 | Catalina | [2.9, -13.7] | 2100 | 0.8 |
 | Drake Hill | [-4.9, -4.5] | 5750 | 0.7 |
@@ -86,7 +86,7 @@ Outer-island contributions fade independently into the ocean and combine by cont
 | Glacier | Path | Ski-zone centre | Ski-zone ft MSL |
 | --- | --- | --- | --- |
 | Knik | [[-5.4, -1.4], [-6, 0.1], [-6.5, 0.1]] | [-6.2, 0.1] | 1100 |
-| Ruth | [[-3.46, 5.86], [-4.1, 5.2], [-3.9, 4.7]] | [-3.9, 4.7] | 1300 |
+| Fairweather | [[-1.2, 5.6], [-3.0, 4.15], [-3.9, 4.7]] | [-3.9, 4.7] | 1300 |
 
 | Canyon | Path | Rim widths m | Floor widths m | Floor ft MSL |
 | --- | --- | --- | --- | --- |
@@ -433,13 +433,13 @@ The race course keeps all 12 original gates/pylons and moves offshore to (10,-13
 | strip:Dewey Moore | Dewey Moore | C2 Middle Fork | Codex; FrankChurch.Strips |
 | strip:Indian Creek | Indian Creek | C2 Middle Fork | Codex; FrankChurch.Strips |
 | strip:Mackay Bar | Mackay Bar | C2 Middle Fork | Codex; FrankChurch.Strips |
-| extra:59 | aerotow and tow hookup | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:60 | float bases ramps buoy lanes | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:61 | glacier ski landings and icebergs | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:62 | sloped grass Snoopy swoop training lane | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:63 | waterfalls and plunge pools | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:64 | river road bridge | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
-| extra:65 | hidden school interior shell and outdoor historic gliders | AP3 tow; PALH/Powell floats; Knik/Ruth ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:59 | aerotow and tow hookup | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:60 | float bases ramps buoy lanes | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:61 | glacier ski landings and icebergs | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:62 | sloped grass Snoopy swoop training lane | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:63 | waterfalls and plunge pools | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:64 | river road bridge | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
+| extra:65 | hidden school interior shell and outdoor historic gliders | AP3 tow; PALH/Powell floats; Knik/Fairweather ski; AP3 separate undulation lane; C3 falls/bridge; F1/F18 school | Codex geometry; Claude logic; world source audit beyond supplied list |
 | gunnery:targets | Island ground bullseyes and target drones | 3 groundtargets ineachCZ1-CZ3,2 inCZ5;3 dronesperzone; HOT3Dentry only | Codex target geometry; Claude AI/hit/event logic; Combat/Gunnery.cs CombatZone.BuildGroundTargets; CombatController |
 | combat:concealment | six legacy puffy combat clouds / concealment | CZ1-CZ3 weather volumes proposed; Claude-owned | Claude weather; no world cloud implementation; Combat/Gunnery.cs CombatZone.Clouds |
 
@@ -10805,6 +10805,24 @@ Every entry carries item, old value, new value and reason. Baseline 1A entries a
 
 ```json
 {"item":"summit Denali-like","old":"8530 ft","new":"2175.9 ft","reason":"Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea-cliff face allows. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1141. summit Denali-like -> Fairweather</summary>
+
+```json
+{"item":"summit Denali-like -> Fairweather","old":"Denali-like at [0.5, 7.1] 2175.9 ft","new":"Fairweather at [-0.5, 6.3] (top from the relief)","reason":"Claude 2026-11-02 real-topo pass (Ty: the Fairweather area replaces the Ruth feature): the north summit is the compacted Mount Fairweather (tools/island/topo, c = 2.6). It moved 1.2 km SW of the old Denali-like point (0.45 km from the sea, which could hold only 2,176 ft) to the one place near the north coast where ~1,600 m can stand clear of the A2 swath and the PHDH 8 visual surface; docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1142. glacier Ruth -> Fairweather</summary>
+
+```json
+{"item":"glacier Ruth -> Fairweather","old":"{\"id\": \"Ruth\", \"path\": [[-3.46, 5.86], [-4.1, 5.2], [-3.9, 4.7]], \"head_ft\": 7300, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}","new":"{\"id\": \"Fairweather\", \"path\": [[-1.2, 5.6], [-3.0, 4.15], [-3.9, 4.7]], \"head_ft\": 5187, \"ski_zone\": {\"centre\": [-3.9, 4.7], \"elevation_ft\": 1300, \"length_m\": 450, \"width_m\": 100}, \"half_width_m\": 200}","reason":"Claude 2026-11-02 real-topo pass, Ty: the Fairweather area replaces the Ruth Glacier feature. The ski zone is CONVERTED, not moved: same centre, 1,300 ft, 450 x 100 m, still Snow and flat. Its glacier is now the SW outlet of the Fairweather icefield, whose lobe ends 0.6 km SSE of the zone at ~1,400 ft; the path follows that outlet. Locked decision 7 (ski zones 1,000-1,300 ft) kept. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
 ```
 
 </details>

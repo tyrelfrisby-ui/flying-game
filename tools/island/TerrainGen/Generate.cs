@@ -10,6 +10,8 @@ public sealed class Mass
     public double[] Upper = null!;      // min(ceiling, slope envelope)
     public double[] Lower = null!, Conflict = null!;      // max(floor, bench envelope round every anchor)
     public double[] Macro = null!, H = null!, Rain = null!, Ice = null!, Debris = null!, Wet = null!;
+    /// <summary>Real-topography template height and weight (Topo.cs); weight 0 outside the six areas.</summary>
+    public double[] TopoZ = null!, TopoW = null!;
     public bool[] Fixed = null!;
     public List<string> Log = new();
 }
@@ -134,12 +136,21 @@ public static class Generate
         foreach (var (p, _, _) in c.Summits) fixM[g.Nearest(p)] = double.NaN;
         var basin = Macro.Solve(g, fixM, loM, upperM);
         m.Macro = Massifs(m, basin, loM, upperM);
+        // Inside the six real-topography areas the compacted real surface IS the macro shape, under the same bounds.
+        (m.TopoZ, m.TopoW) = Topo.Field(g, Topo.Repo);
+        for (int k = 0; k < g.N; k++)
+        {
+            double w = m.TopoW[k]; if (w <= 0 || c.Ocean[k] || !double.IsNaN(c.Fix[k])) continue;
+            double t = Math.Clamp(m.TopoZ[k], loM[k], Math.Max(loM[k], c.Hi[k] - 6));
+            m.Macro[k] = m.Macro[k] * (1 - w) + t * w;
+        }
         say($"{name}: macro {sw.Elapsed.TotalSeconds:F1}s");
 
         m.Fixed = new bool[g.N];
         for (int k = 0; k < g.N; k++) m.Fixed[k] = c.Ocean[k] || !double.IsNaN(c.Fix[k]);
         m.Rain = Climate.Precipitation(g, m.Macro);
         say($"{name}: climate {sw.Elapsed.TotalSeconds:F1}s");
+        if (Environment.GetEnvironmentVariable("CLIMATE_ONLY") != null) { m.H = m.Macro; m.Ice = new double[g.N]; m.Debris = new double[g.N]; m.Wet = new double[g.N]; return m; }
 
         Erode(m, (uint)seed, say);
         say($"{name}: erosion {sw.Elapsed.TotalSeconds:F1}s");
@@ -274,7 +285,7 @@ public static class Generate
             var p = g.P(k); double low = 1 - IslandTerrain.Smooth((mb[k] - 150) / 500);
             double shore = IslandTerrain.Smooth(m.C.Shore[k] / .6);
             double n = Noise.Fbm(p, 1.4, 5, seed + 101, .5);
-            h[k] = SoftClamp(h[k] + low * shore * 55 * (n + .25), Math.Max(.5, m.Lower[k]), m.Upper[k]);
+            h[k] = SoftClamp(h[k] + low * shore * 55 * (n + .25) * (1 - m.TopoW[k]), Math.Max(.5, m.Lower[k]), m.Upper[k]);
         }
     }
 
@@ -291,7 +302,8 @@ public static class Generate
         {
             // Initial roughness scales with the macro SLOPE, not its height: a high plateau stays a plateau
             // (gentle relief the rivers can still find), a mountain flank gets the full 255 m.
-            var p = g.P(k); double amplitude = 25 + 230 * IslandTerrain.Smooth(macroSlope[k] / .30);
+            // Inside a real-topography area the template already carries its valleys and ridges: only fine roughness.
+            var p = g.P(k); double amplitude = (25 + 230 * IslandTerrain.Smooth(macroSlope[k] / .30)) * (1 - .85 * m.TopoW[k]);
             h[k] = m.Fixed[k] ? (c.Ocean[k] ? -40 : c.Fix[k]) : m.Macro[k] + amplitude * Noise.Fbm(p + new IslandPoint(.8 * Noise.Fbm(p, 4, 2, seed + 7), .8 * Noise.Fbm(p, 4, 2, seed + 9)), 2.6, 8, seed, .55);
         }
         var ev = new Evolve(g); var kf = new double[g.N];
@@ -318,7 +330,11 @@ public static class Generate
         // Restore the macro exactly at low frequency: h + blur(M - h). Drainage survives because the
         // correction is smooth (sigma ~0.5 km) and the eroded valleys already follow M's own slopes.
         var corr = new double[g.N]; for (int k = 0; k < g.N; k++) corr[k] = m.Macro[k] - h[k];
+        // Inside a real-topography area the restoration is fine (sigma ~60 m): the real valley network comes back
+        // at every scale the template resolves (100 m and up), the erosion keeps only what is finer.
+        var fine = g.Blur(corr, 2);
         corr = g.Blur(corr, 20);
+        for (int k = 0; k < g.N; k++) corr[k] = corr[k] * (1 - m.TopoW[k]) + fine[k] * m.TopoW[k];
         for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k] + corr[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
         Lowland(m, h, seed);
         // A short second run integrates the lowland relief into the drainage (no closed hollows left).

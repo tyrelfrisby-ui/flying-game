@@ -5,17 +5,25 @@ namespace IslandTerrainGen;
 /// The island's climate, chosen and then held to (docs/pending/ISLAND-TERRAIN-CLAUDE.md):
 /// a temperate maritime island in the westerlies, the Olympic Mountains being the closest real analogue
 /// (2,400 m summits, glaciers on the shaded faces, rainforest on the windward side, a semi-arid rain shadow).
-///   * Moist flow from 280 deg true; background precipitation 2.2 m/yr at the windward coast.
-///   * Orographic precipitation: condensate generated where the wind is forced up a slope, carried downwind
+///   * Moist flow from 310 deg true; background precipitation 2.2 m/yr at the windward coast. (v1 used 280 deg and
+///     14 m/yr per unit slope. The real-topography pass, 2026-11-02, put a 1,580 m compacted Mount Fairweather
+///     1.2 km from the north-west coast: turning the storm track 30 deg to the north-west puts that massif, Sitka's
+///     coast and the Knik square in the onshore flow, as the Gulf of Alaska's storms are at the real places, and
+///     keeps the red-rock desert in the shadow.)
+///   * Orographic precipitation, 30 m/yr per unit upslope: condensate generated where the wind is forced up a slope, carried downwind
 ///     and falling out over FalloutKm (Smith 2003, linear upslope model reduced to its 1-D essentials);
 ///     descending lee air evaporates cloud and the background is depleted by what has already fallen.
 ///   * Summer (JJA) mean temperature 18 C at sea level, lapse 6.5 K/km.
 ///   * Equilibrium-line altitude from a degree-day balance: winter snow (60% of annual precipitation)
 ///     equals summer melt (4 mm w.e. per degree-day over 92 days), so T_JJA(ELA) = P / 613 mm.
+///   * Why 30 m/yr per unit slope: windward maritime barriers carry 3-6 m/yr above their coastal background over
+///     mean upwind slopes of 0.1-0.2 (Olympics: Forks 3 m -> Mt Olympus ~5.5 m w.e.; Fairweather coast 4 m ->
+///     icefields 5-8 m w.e.; Westland 3 m -> 10+ m), i.e. 20-40 m/yr per unit slope after the fallout delay.
+///     14 sat at the bottom of that range and left the compacted Fairweather (P 4 m/yr, ELA 1.6 km) bare.
 /// </summary>
 public static class Climate
 {
-    public const double WindFromDeg = 280, BackgroundM = 2.2, FalloutKm = 4.0, UpslopeM = 14.0, DepletionM = 2600;
+    public const double WindFromDeg = 310, BackgroundM = 2.2, FalloutKm = 4.0, UpslopeM = 30.0, DepletionM = 2600;
     public const double SeaLevelJjaC = 18.0, LapseKPerKm = 6.5, MeltPerDegreeDayM = .004, SummerDays = 92, SnowFraction = .6;
 
     /// <summary>Annual precipitation (m/yr) on the grid, from a (smoothed) surface.</summary>

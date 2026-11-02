@@ -85,7 +85,7 @@ public static class EnvelopeMap
         for (int k = 0; k < g.N; k++) src[k] = c.Ocean[k] ? 0 : c.Hi[k];
         var env = Envelope.Compute(g, src, Math.Tan(double.Parse(Environment.GetEnvironmentVariable("ENVSLOPE") ?? "38") * Math.PI / 180));
         foreach (var s in c.Summits) Console.WriteLine($"summit {s.id,-14} authored {s.z,6:F0} m ({s.z / .3048,5:F0} ft)  envelope {env[g.Nearest(s.p)],6:F0} m ({env[g.Nearest(s.p)] / .3048,5:F0} ft)");
-        foreach (var (id, e, n) in new[] { ("Knik ski", -6.2, .1), ("Ruth ski", -3.9, 4.7), ("Chugach", -3.8, -1.8) }) Console.WriteLine($"{id}: envelope {env[g.Nearest(new IslandPoint(e, n))]:F0}");
+        foreach (var (id, e, n) in new[] { ("Knik ski", -6.2, .1), ("Fairweather ski", -3.9, 4.7), ("Chugach", -3.8, -1.8) }) Console.WriteLine($"{id}: envelope {env[g.Nearest(new IslandPoint(e, n))]:F0}");
         Png.Write(Path.Combine(outDir, "envelope.png"), g.W, g.H, (x, y) =>
         {
             int k = (g.H - 1 - y) * g.W + x; if (c.Ocean[k]) return (20, 40, 80);

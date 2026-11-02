@@ -144,10 +144,10 @@
 <path d="M678.00,896.30 L659.50,896.30" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
 <circle cx="670.60" cy="896.30" r="4" fill="white" stroke="#4b7a94"/>
 <text x="676.15" y="891.86" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Knik ski 1100 ft</text><text x="676.15" y="891.86" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Knik ski 1100 ft</text>
-<path d="M771.98,683.18 L748.30,707.60" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
-<path d="M748.30,707.60 L755.70,726.10" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
+<path d="M855.60,692.80 L789.00,746.45" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
+<path d="M789.00,746.45 L755.70,726.10" fill="none" stroke="#f4fcff" stroke-width="9" stroke-dasharray=""/>
 <circle cx="755.70" cy="726.10" r="4" fill="white" stroke="#4b7a94"/>
-<text x="761.25" y="721.66" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Ruth ski 1300 ft</text><text x="761.25" y="721.66" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Ruth ski 1300 ft</text>
+<text x="761.25" y="721.66" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Fairweather ski 1300 ft</text><text x="761.25" y="721.66" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Fairweather ski 1300 ft</text>
 <polygon points="900.00,894.08 894.82,904.44 905.18,904.44" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
 <text x="905.55" y="894.45" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Frank Church 8072.2</text><text x="905.55" y="894.45" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Frank Church 8072.2</text>
 <polygon points="840.80,905.18 835.62,915.54 845.98,915.54" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
@@ -155,8 +155,8 @@
 <text x="846.35" y="919.55" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Sierra 7328.7</text><text x="846.35" y="919.55" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Sierra 7328.7</text>
 <polygon points="759.40,960.68 754.22,971.04 764.58,971.04" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
 <text x="764.95" y="961.05" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Chugach 5914.9</text><text x="764.95" y="961.05" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Chugach 5914.9</text>
-<polygon points="918.50,631.38 913.32,641.74 923.68,641.74" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
-<text x="924.05" y="631.75" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Denali-like 2175.9</text><text x="924.05" y="631.75" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Denali-like 2175.9</text>
+<polygon points="881.50,660.98 876.32,671.34 886.68,671.34" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
+<text x="887.05" y="661.35" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Fairweather 5187.0</text><text x="887.05" y="661.35" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Fairweather 5187.0</text>
 <polygon points="1114.60,771.98 1109.42,782.34 1119.78,782.34" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>
 <text x="1120.15" y="772.35" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="none" stroke="#f4f0e7" stroke-width="2" stroke-linejoin="round">Mokuleia 2950</text><text x="1120.15" y="772.35" font-family="Arial, sans-serif" font-size="11" text-anchor="start" fill="#1a2930">Mokuleia 2950</text>
 <polygon points="1007.30,1400.98 1002.12,1411.34 1012.48,1411.34" fill="#6b6153" stroke="#546e5f" stroke-width="1"/>

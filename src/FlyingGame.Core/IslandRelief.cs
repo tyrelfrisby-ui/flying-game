@@ -67,11 +67,14 @@ public static class IslandRelief
             int i = System.Math.Min(l.W - 2, (int)x), j = System.Math.Min(l.H - 2, (int)y); float tx = (float)(x - i), ty = (float)(y - j);
             int k = j * l.W + i;
             float B(byte[] c) => ((c[k] * (1 - tx) + c[k + 1] * tx) * (1 - ty) + (c[k + l.W] * (1 - tx) + c[k + l.W + 1] * tx) * ty) / 255f;
-            return (B(l.Ice), B(l.Debris), B(l.Wet), 1200 + B(l.Ela) * 255 * 8);
+            return (B(l.Ice), B(l.Debris), B(l.Wet), ElaBaseM + B(l.Ela) * 255 * ElaStepM);
         }
         return (0, 0, 0, OffLatticeElaM);
     }
     public const float OffLatticeElaM = 2220;
+    /// <summary>The ELA channel: one byte, ElaBaseM + v x ElaStepM, 300..3,360 m (the wettest windward faces
+    /// reach ~550 m; the rain-shadow desert ~2,700 m).</summary>
+    public const float ElaBaseM = 300, ElaStepM = 12;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static double Bicubic(Lattice l, double x, double y, out double dx, out double dy)
