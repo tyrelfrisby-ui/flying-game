@@ -458,8 +458,15 @@ public sealed class Aircraft
     /// Break a component off NOW (a hard ground/solid impact does this itself; exposed for scenarios/tests).
     /// Its strips leave the aero model — a lost wing half flies on as a half-winged aircraft with the
     /// rolling moment that implies, a lost tail loses its pitch/yaw stability — and its contact points go
-    /// with it. Mass and inertia are deliberately left alone (owner: no dynamic/inertial bookkeeping for
-    /// the lost piece). A lost nose stops the propeller. Idempotent.
+    /// with it. A lost nose stops the propeller. Idempotent.
+    ///
+    /// MASS (decision for Ty, AGENT-LOG NEEDS YOU, 2026-11-02 — this replaces the 2026-09 rule that left mass and
+    /// inertia alone). Every piece that breaks off is now a body of its own in the wreck (CrashRelay/WreckSim), with
+    /// the mass of the elements it took (Core/Wreck/AirframeHydroModel's Raymer buildup). Leaving that mass on the
+    /// aeroplane counted it twice, and — worse — left the remainder's weight acting at the WHOLE aeroplane's CG: a
+    /// Pitts cockpit with its engine still on and its tail and wings gone sank TAIL first, held up at the back by
+    /// the weight of parts it no longer had. So the aeroplane sheds exactly what the wreck piece took
+    /// (<see cref="ShedMass"/>).
     /// </summary>
     public void LoseComponent(AirframeComponent comp)
     {
@@ -545,11 +552,48 @@ public sealed class Aircraft
             for (int i = 0; i < Config.Engines.Count; i++)
                 if ((Config.Engines[i].Pos[1] < 0) == (comp == AirframeComponent.NacelleLeft)) SetEngineThrottleScale(i, 0.0);
         }
-        // The volumes it takes with it (CrashRelay turns them into a wreck piece). Their MASS stays on the rigid body:
-        // owner's rule (2026-09, pinned by AirframeContactTests), so the remainder in the water carries the weight of
-        // what it lost — logged in AGENT-LOG NEEDS YOU.
-        Hydro.Detach(comp);
+        // The volumes it takes with it (CrashRelay turns them into a wreck piece), and their mass with them.
+        ShedMass(Hydro.Detach(comp));
         ComponentLost?.Invoke(comp);
+    }
+
+    /// <summary>Where the remaining airframe's CG is relative to Config.Mass.Cg, body frame, m. Zero until something
+    /// with mass breaks off (<see cref="ShedMass"/>).</summary>
+    public Vec3 CgShiftBody { get; private set; }
+
+    /// <summary>
+    /// Take the mass of elements that have left the airframe off the rigid body. Every force and moment in this class
+    /// is taken about Config.Mass.Cg (the reference point P), so P stays the reference and the remainder's true CG is
+    /// carried as an offset c from it:
+    ///   m' = m − Σm_e;   c' = (m·c − Σ m_e·r_e) / m'   (r_e from P);
+    ///   I_P' = I_P − Σ [box inertia of e + m_e·(parallel axis to P)],  never below the inertia about P of the boxes
+    ///   that remain;  weight m'·g acts at P + c' (the gravity moment c' × W in ForceMoment).
+    /// The rigid-body equations are then written about P rather than the CG, which leaves out the coupling term
+    /// m'·c' × a_P: exact at rest and in steady sinking, an approximation while it tumbles (|c'| is tens of cm).
+    /// </summary>
+    private void ShedMass(List<FlyingGame.Core.Wreck.HydroElement> gone)
+    {
+        if (gone.Count == 0) return;
+        Vec3 cg0 = Config.Mass.CgVec();
+        double dm = 0, ix = 0, iy = 0, iz = 0;
+        Vec3 first = Vec3.Zero;
+        void Box(FlyingGame.Core.Wreck.HydroElement e, ref double x, ref double y, ref double z)
+        {
+            Vec3 r = e.Centre - cg0, h = e.Half;
+            x += e.MassKg * ((h.Y * h.Y + h.Z * h.Z) / 3 + r.Y * r.Y + r.Z * r.Z);
+            y += e.MassKg * ((h.X * h.X + h.Z * h.Z) / 3 + r.X * r.X + r.Z * r.Z);
+            z += e.MassKg * ((h.X * h.X + h.Y * h.Y) / 3 + r.X * r.X + r.Y * r.Y);
+        }
+        foreach (var e in gone) { dm += e.MassKg; first += (e.Centre - cg0) * e.MassKg; Box(e, ref ix, ref iy, ref iz); }
+        if (dm <= 0) return;
+        MassProperties mp = MassProperties;
+        double m1 = mp.MassKg - dm;
+        if (m1 <= 1.0) return;   // nothing would be left: a broken config, keep the body as it is
+        double fx = 0, fy = 0, fz = 0;
+        foreach (var e in Hydro.Attached) Box(e, ref fx, ref fy, ref fz);
+        CgShiftBody = (CgShiftBody * mp.MassKg - first) / m1;
+        MassProperties = new MassProperties(m1,
+            System.Math.Max(mp.Ixx - ix, fx), System.Math.Max(mp.Iyy - iy, fy), System.Math.Max(mp.Izz - iz, fz), mp.Ixz);
     }
     private bool _noseLost;
 
@@ -900,7 +944,7 @@ public sealed class Aircraft
             Vec3 gravityWorld = new(0, 0, weightN);
             Vec3 gravityBody = s.Attitude.Conjugate().Rotate(gravityWorld);
             Vec3 totalF = aeroForce + gravityBody;
-            Vec3 totalM = aeroMoment;
+            Vec3 totalM = aeroMoment + Vec3.Cross(CgShiftBody, gravityBody);   // weight at the remainder's own CG (ShedMass)
             if (Config.WeightShift is not null)
             {
                 // A flex wing has nothing to deflect: the pilot swings his own mass on the hang strap and the whole
@@ -1032,6 +1076,8 @@ public sealed class Aircraft
         {
             State = Hydro.AfterStep(preStep, State, MassProperties, dt);
             FloatFlood?.Flood(State, Hydro.WaterUp, dt);
+            foreach (AirframeComponent c in Hydro.TakeBreaks())   // the water break-up rule (AirframeFlooding.CheckJoints)
+                if (!_lost.Contains(c) && !_pendingBreaks.Contains(c)) _pendingBreaks.Add(c);
         }
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
