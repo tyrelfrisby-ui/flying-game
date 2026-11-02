@@ -126,12 +126,12 @@ Whether a run went NaN was down to scheduling. So the audit is two lines, not on
 `[Collection("WorldTerrainActive")]` if it ASSIGNS any of that state **or if it constructs an `Aircraft` or a
 `SimLoop`**. 211 → 7 once both halves were done, and NaN messages across the suite 82 → 1.
 
-Serialising them made the suite **faster** — 16m27s against 21m43s — because the parallelism being given up was
-parallel classes fighting over the same statics and redoing the work. There is no wall-clock case for leaving
-a reader unprotected.
+Serialising them cost no measurable wall-clock: 16m27s and 22m20s afterwards against 23m21s and 21m43s before,
+which is two overlapping ranges and not a speed-up either way. I claimed a speed-up off the first run alone and
+the second contradicted it — one timing on a machine shared with other agents' suites says nothing.
 
 A suite that disagrees with itself by 26 names cannot report a regression, so prove a fix to nondeterminism
-with TWO runs compared BY NAME, never one.
+with TWO runs compared BY NAME, never one. Here both gave 1116/7/107 with identical failing sets.
 
 ### A process check that greps command lines matches the agents doing the checking
 `pgrep -f 'tools/deploy/(deploy|testflight).sh'` reported a running deploy twice on 2026-11-01 when there was
