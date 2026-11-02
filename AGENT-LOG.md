@@ -1,4 +1,22 @@
 ## NEEDS YOU
+- **CRASH AUDIO + WATER VISUALS — TY LISTEN/LOOK REVIEW (Codex, 2026-11-02, lane/codex-crash-audio):**
+  Listen in `/Users/tyfrisby/Developer/agent-lanes/aero-playground/crash-audio/`:
+  `crash-land-OLD-{0.3,0.7,1.0}.wav` vs `crash-land-NEW-{0.3,0.7,1.0}.wav`,
+  `splash-water-{small-piece,engine,intact-ditch}.wav`, `gurgle-flooding-{fast,slow}.wav`.
+  All eleven are 48 kHz mono / 10 seconds, fixed comparison gain (no per-file normalisation).
+  Look at `spectrogram-land-old-vs-new.png`, `spectrogram-splash-water.png`, and `measurements.md` there.
+  OLD→NEW, severities .3/.7/1: power centroid Hz 7199→7637 / 6262→7557 / 5473→7624;
+  energy below 150 Hz .86→.05% / .71→.03% / .74→.02%; crest dB 12.68→20.14 / 8.58→17.56 / 5.54→16.66;
+  T99.9 duration seconds .68→.27 / .92→.36 / .96→.45. The drum was primarily the 290/330 Hz body:
+  200–450 Hz energy 36.44→.12% / 46.40→.10% / 54.27→.11%. New land is shorter and less sustained/loud;
+  open question: enough metal crunch over the running engine? Do the water slap/spray and flow-driven
+  gurgles read correctly? The plots were inspected; listening and in-game visuals remain for Ty.
+  Runtime-installed pooled spray/foam/rings and enabled-lifetime event subscribers are ready for the physics
+  lane's frozen CrashEvents contract; no physics/config/scene changes. Physics lane must replace direct
+  Crash calls with Impact, not also invoke both. DSP C# builds headlessly; 10 runner checks + 6 spectral
+  assertions pass. No existing audio tests in FlightTests. Required pgrep checks failed (sandbox cannot
+  read process list), so no dotnet test. Unity compile/device/performance/merged event delivery NOT verified;
+  Unity/deploy/xcodebuild not run. No approval claimed. Reproduction/scaling notes: `tools/CrashAudio/README.md`.
 - **EXTRA 300 VISIBLE WING B — TY VISUAL REVIEW (Codex, 2026-11-02, lane/codex-extra-wing-b):**
   Review `renders/extra-wing-b/after-root-end.png` against `before-root-end.png` and `section-overlay.png`:
   look for the fat round nose, thickness peak near 17% chord, and gently concave aft skin. Compare
@@ -788,6 +806,16 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Codex · lane/codex-crash-audio · land crunch, splash, flooding audio and pooled visuals
+- Replaced the 48/290 Hz crash body with irregular broadband metal grains; legacy Crash(float) retained.
+  Added pure-managed CrashSound/FloodSound, bounded SPSC command queue, 8 impact / 12 flood voices,
+  event-position gain and integer-sample travel delay. FlightAudio installs pooled CrashWaterVisuals.
+  Frozen contract, src/, configs/, protected physics/visual-airframe files untouched.
+- Added tools/CrashAudio: compiles actual production DSP plus frozen HEAD baseline in /tmp, renders 11 WAVs,
+  runs 10 DSP checks and 6 spectral assertions, draws two spectrograms outside the worktree. Final run passes.
+  All new C# files have unique metas. Unity compile/in-game listening, visuals, iOS CPU and merged physics
+  integration remain unconfirmed; no dotnet test because process-list gate could not be established.
+
 ### 2026-11-02 07:55 PT · codex (Grok Bot committing) · lane/codex-extra-wing-b · Extra 300 visible wing -> airfoil B
 
 Codex: rebuilt Extra 300 visible Wing + Aileron_L/R to B (90d0e85), all three liveries; added exported-section/rig/paint checks, matched CPU review renders, and provenance. Ty visual review pending. Grok Bot: build-only check (Unity iOS export 0 error CS, xcodebuild ** BUILD SUCCEEDED **, 07:59 PT; bundleVersion bump reverted); committed locally, not merged, not deployed.
