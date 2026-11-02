@@ -13,7 +13,12 @@ namespace FlyingGame.Bridge
     /// carries what a pilot needs from inside the cockpit:
     ///
     ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · HUD in cockpit · Display 72 / 90 Hz ·
-    ///   Record video · Recentre · Reset flight · Bail out / Deploy BRS / Eject (asks twice)
+    ///   Rudder pedals (a page of its own) · Record video · Recentre · Reset flight · Bail out / Deploy BRS /
+    ///   Eject (asks twice)
+    ///
+    /// THE RUDDER PEDALS PAGE is the same mapping and calibration as Options → Controls on the flat screens (Core's
+    /// PedalSession; docs/RUDDER-PEDALS.md): device, on / off, each role's axis (&lt; &gt;) and invert (select), dead
+    /// zones, and the guided calibration with the axes' live values.
     ///
     /// It is deliberately NOT the whole landing page: lessons, challenges, weather and multiplayer have OnGUI
     /// cards of their own that would be just as invisible, so a flight started from here is FREE FLIGHT
@@ -42,6 +47,8 @@ namespace FlyingGame.Bridge
             public System.Action Activate;
             public System.Action<int> Cycle;
             public System.Func<bool> Visible;
+            /// <summary>On the Rudder pedals page rather than the main one.</summary>
+            public bool PedalPage;
             public TextMesh Text;
         }
 
@@ -53,7 +60,7 @@ namespace FlyingGame.Bridge
         private Transform _highlight;
         private LineRenderer _laser;
         private TextMesh _title, _hint;
-        private bool _open, _built;
+        private bool _open, _built, _pedalPage;
         private int _sel, _openedFrame;
         private float _navHeld, _cycleHeld;
         private bool _prevTrig, _prevA, _prevX, _prevB, _prevY, _prevPinch;
@@ -115,6 +122,7 @@ namespace FlyingGame.Bridge
             XrHeadset.MenuOpen = true;
             if (!OnLanding) { SessionSettings.PanelPause = true; SessionSettings.ApplyTimeScale(); }
             _sel = 0;
+            _pedalPage = false;
             _confirmUntil = 0f;
             EndTip();
             PlaceInFrontOfHead();
@@ -145,6 +153,7 @@ namespace FlyingGame.Bridge
         {
             _rig = rig;
             if (!_open && OnLanding) Open(rig);
+            if (_open && _pedalPage) { RudderPedals.CalibrationShown(); RudderPedals.Tick(); }   // live values and the calibration, with the sim paused
             TickTip();
             TickPower();
             if (!_open) return;
@@ -192,6 +201,7 @@ namespace FlyingGame.Bridge
             AddRow(() => $"HUD in cockpit:  {(XrHeadset.HudInCockpit ? "On" : "Off")}", ToggleHud, _ => ToggleHud());
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
+            AddRow(() => $"Rudder pedals:  {PedalSummary()}   >", OpenPedals);
             // Starting a recording from the menu in flight closes it, so the film starts on the flying, not on
             // the menu; stopping leaves it open. A + B held does the same from the air (QuestRecordChord).
             AddRow(() => QuestRecorder.MenuLabel, () =>
@@ -204,6 +214,8 @@ namespace FlyingGame.Bridge
             AddRow(() => "Reset flight", () => { Controls?.MenuReset(); Close(force: false); }, visible: () => !OnLanding && Controls != null);
             AddRow(() => Time.unscaledTime < _confirmUntil ? $"PRESS AGAIN: {HandleName()}" : HandleName(), PullHandle,
                 visible: () => !OnLanding && Controls != null && Controls.MenuHandleAvailable);
+
+            BuildPedalRows();
 
             var panel = Quad("Panel", _panelMat);
             panel.SetParent(_root.transform, false);
@@ -223,8 +235,76 @@ namespace FlyingGame.Bridge
             _laser.receiveShadows = false;
         }
 
-        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null) =>
-            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true) });
+        private void AddRow(System.Func<string> label, System.Action activate, System.Action<int> cycle = null, System.Func<bool> visible = null, bool pedalPage = false) =>
+            _rows.Add(new Row { Label = label, Activate = activate, Cycle = cycle, Visible = visible ?? (() => true), PedalPage = pedalPage });
+
+        // ---- the rudder pedals page ----
+
+        private static FlyingGame.Core.PedalSession Pedals => RudderPedals.Session;
+        private static bool Calibrating => Pedals.Calibration != null;
+        private static bool Mapping => Pedals.Connected && !Calibrating;
+
+        private static string PedalSummary()
+        {
+            var s = Pedals;
+            if (!s.Connected) return "none";
+            return !s.Profile.Enabled ? "connected, OFF" : Calibrating ? "calibrating" : "ON";
+        }
+
+        private void OpenPedals() { _pedalPage = true; _sel = 1; RudderPedals.Tick(); }
+
+        private static string Short(string s, int n) => s.Length <= n ? s : s.Substring(0, n - 1) + "~";
+
+        private void BuildPedalRows()
+        {
+            var roles = new[] { (FlyingGame.Core.PedalRole.Rudder, "Rudder"), (FlyingGame.Core.PedalRole.LeftBrake, "L toe"), (FlyingGame.Core.PedalRole.RightBrake, "R toe") };
+            AddRow(() => "<  BACK", () => { _pedalPage = false; _sel = 0; }, pedalPage: true);
+            AddRow(() => $"Device:  {Short(Pedals.DeviceLine(), 34)}", () => Pedals.CycleDevice(1), d => Pedals.CycleDevice(d),
+                visible: () => !Calibrating, pedalPage: true);
+            AddRow(() => "Plug pedals in (USB-C OTG adapter)", null, visible: () => !Pedals.Connected, pedalPage: true);
+            AddRow(() => "Without them: rudder + brakes on the controllers", null, visible: () => !Pedals.Connected, pedalPage: true);
+            AddRow(() => $"Use pedals:  {(Pedals.Profile.Enabled ? "On" : "Off")}", () => Pedals.SetEnabled(!Pedals.Profile.Enabled),
+                _ => Pedals.SetEnabled(!Pedals.Profile.Enabled), visible: () => Mapping, pedalPage: true);
+            foreach (var (role, name) in roles)
+            {
+                var r = role;
+                // < > picks the axis; select flips it.
+                AddRow(() => $"{name}:  {Pedals.RoleCompact(r)}", () => Pedals.ToggleInvert(r), d => Pedals.CycleAxis(r, d),
+                    visible: () => Mapping, pedalPage: true);
+            }
+            AddRow(() => $"Dead zone  rud {Pedals.Profile.Rudder.Dead * 100:0}%", null, d => Pedals.AdjustDead(FlyingGame.Core.PedalRole.Rudder, 0.01 * d),
+                visible: () => Mapping, pedalPage: true);
+            AddRow(() => $"Dead zone  toes {Pedals.Profile.LeftBrake.Dead * 100:0}%", null, d =>
+            {
+                Pedals.AdjustDead(FlyingGame.Core.PedalRole.LeftBrake, 0.01 * d);
+                Pedals.SetDead(FlyingGame.Core.PedalRole.RightBrake, Pedals.Profile.LeftBrake.Dead);
+            }, visible: () => Mapping, pedalPage: true);
+            AddRow(() => "CALIBRATE (guided)", () => Pedals.StartCalibration(), visible: () => Mapping, pedalPage: true);
+            AddRow(() => "Reset to detected", () => Pedals.ResetToDefaults(), visible: () => Mapping, pedalPage: true);
+            AddRow(() => "select = invert   < > = axis", null, visible: () => Mapping, pedalPage: true);
+
+            // While calibrating: what to do, how far, each axis live with the ends seen, Skip / FINISH, Cancel.
+            AddRow(() => Pedals.Calibration?.ShortInstruction ?? "", null, visible: () => Calibrating, pedalPage: true);
+            AddRow(() => Pedals.Calibration == null ? "" : $"   {Pedals.Calibration.Status}  {Pedals.Calibration.Progress * 100:0}%", null, visible: () => Calibrating, pedalPage: true);
+            for (int i = 0; i < 6; i++)
+            {
+                int a = i;
+                AddRow(() => CalAxisLine(a), null, visible: () => Calibrating && a < Pedals.Device.Axes.Length, pedalPage: true);
+            }
+            AddRow(() => Pedals.Calibration?.Current == FlyingGame.Core.PedalCalibrator.Step.Sweep ? "FINISH" : "Skip this step",
+                () => { if (Pedals.Calibration?.Current == FlyingGame.Core.PedalCalibrator.Step.Sweep) Pedals.FinishCalibration(); else Pedals.SkipCalibrationStep(); },
+                visible: () => Calibrating, pedalPage: true);
+            AddRow(() => "Cancel calibration", () => Pedals.CancelCalibration(), visible: () => Calibrating, pedalPage: true);
+        }
+
+        private static string CalAxisLine(int a)
+        {
+            var s = Pedals;
+            if (s.Calibration == null || s.Device == null || a >= s.Device.Axes.Length) return "";
+            (double lo, double hi) = s.Calibration.Seen(a);
+            string name = s.Device.AxisNames[a].ToUpperInvariant();
+            return $"{(a == s.Calibration.Focus ? ">" : " ")} {name,-7} {s.Device.Axes[a]:+0.00;-0.00}  {lo:+0.00;-0.00}..{hi:+0.00;-0.00}";
+        }
 
         /// <summary>Lay the visible rows out top to bottom and refresh their text (only when it changes).</summary>
         private void Refresh()
@@ -232,7 +312,7 @@ namespace FlyingGame.Bridge
             _shown.Clear();
             foreach (Row r in _rows)
             {
-                bool v = r.Visible();
+                bool v = r.PedalPage == _pedalPage && r.Visible();
                 r.Text.gameObject.SetActive(v);
                 if (v) _shown.Add(r);
             }
@@ -242,7 +322,8 @@ namespace FlyingGame.Bridge
             panel.localPosition = new Vector3(0f, 0f, 0.002f);
             panel.localScale = new Vector3(Width, h, 1f);
             float top = h * 0.5f;
-            string title = OnLanding ? "AERO PLAYGROUND" : "AERO PLAYGROUND  -  PAUSED";
+            string title = _pedalPage ? "RUDDER PEDALS" + (Calibrating ? "  -  CALIBRATING" : "")
+                         : OnLanding ? "AERO PLAYGROUND" : "AERO PLAYGROUND  -  PAUSED";
             if (_title.text != title) _title.text = title;
             Place(_title, top - RowHeight * 0.75f);
             for (int i = 0; i < _shown.Count; i++)
@@ -303,6 +384,7 @@ namespace FlyingGame.Bridge
             _prevTrig = trig; _prevA = f.A; _prevX = f.X; _prevB = f.B; _prevY = f.Y; _prevPinch = pinch;
 
             if (select && _sel < _shown.Count) _shown[_sel].Activate?.Invoke();
+            else if (back && _pedalPage) { _pedalPage = false; _sel = 0; }   // B / Y: up a page first
             else if (back) Close(force: false);
         }
 

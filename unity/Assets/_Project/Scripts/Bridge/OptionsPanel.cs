@@ -427,6 +427,91 @@ namespace FlyingGame.Bridge
                 string st = JoyLink.StatusText;
                 if (Check(st.Length > 0 ? $"{what}: {st}" : $"{what} (same Wi-Fi)", on, ref y)) JoyLink.On = !on;
             }
+            y += _gap * 0.5f;
+            RudderPedalsSection(ref y);
+        }
+
+        // RUDDER PEDALS (owner Ty, 2026-11-02, item 11): which device, which axis is the rudder and which each toe
+        // brake, invert, dead zone, and the guided calibration with its ends learnt live. The same settings as the
+        // VR menu's Rudder pedals page (QuestMenu); both edit Core's PedalSession, which saves every change.
+        // docs/RUDDER-PEDALS.md.
+        private static readonly (FlyingGame.Core.PedalRole role, string name)[] PedalRoles =
+            { (FlyingGame.Core.PedalRole.Rudder, "Rudder"), (FlyingGame.Core.PedalRole.LeftBrake, "Left toe brake"), (FlyingGame.Core.PedalRole.RightBrake, "Right toe brake") };
+
+        private void RudderPedalsSection(ref float y)
+        {
+            RudderPedals.CalibrationShown();
+            RudderPedals.Tick();
+            FlyingGame.Core.PedalSession s = RudderPedals.Session;
+            float sb = _lh * 1.3f, g = _gap * 0.4f;
+            UiLayout.Label(new Rect(_x, y, _cw - 2f * (sb + g), _lh), "Rudder pedals:  " + s.DeviceLine(), _label);
+            if (s.Devices.Count > 0)
+            {
+                if (UiLayout.Button(new Rect(_x + _cw - 2f * sb - g, y, sb, _lh), "<", _btn)) s.CycleDevice(-1);
+                if (UiLayout.Button(new Rect(_x + _cw - sb, y, sb, _lh), ">", _btn)) s.CycleDevice(1);
+            }
+            y += _lh + g;
+            if (!s.Connected)
+            {
+                if (Application.platform == RuntimePlatform.IPhonePlayer)
+                {
+                    // iOS hands apps gamepads (GameController) but not generic USB HID devices: say so rather than
+                    // leave a pilot plugging pedals in and wondering.
+                    Note("iPhone / iPad cannot read USB rudder pedals: iOS only gives games gamepads.", ref y);
+                    Note("The Mac app and the Quest can. Here the rudder and brakes stay on the pads.", ref y);
+                    return;
+                }
+                Note("Plug USB rudder pedals in (on a Quest through a USB-C OTG adapter). Without them the rudder and brakes", ref y);
+                Note("stay on the controls you fly with. < > picks a device the game did not recognise as pedals.", ref y);
+                return;
+            }
+            if (Check("Fly the rudder and the toe brakes with the pedals", s.Profile.Enabled, ref y)) s.SetEnabled(!s.Profile.Enabled);
+
+            FlyingGame.Core.PedalCalibrator cal = s.Calibration;
+            if (cal != null)
+            {
+                UiLayout.Label(new Rect(_x, y, _cw, _lh), "CALIBRATING:  " + cal.Instruction, _label); y += _lh;
+                UiLayout.Label(new Rect(_x, y, _cw, _lh), $"   {cal.Status}  {cal.Progress * 100f:0}%", _note); y += _lh;
+                for (int i = 0; i < s.Device.Axes.Length; i++)
+                {
+                    (double lo, double hi) = cal.Seen(i);
+                    string mark = i == cal.Focus ? "  <" : "";
+                    UiLayout.Label(new Rect(_x, y, _cw, _lh * 0.8f),
+                        $"   {s.Device.AxisNames[i].ToUpperInvariant(),-8} {s.Device.Axes[i],6:+0.00;-0.00}   seen {lo:+0.00;-0.00} .. {hi:+0.00;-0.00}{mark}", _note);
+                    y += _lh * 0.8f;
+                }
+                float cw3 = (_cw - 2f * g) / 3f;
+                bool sweep = cal.Current == FlyingGame.Core.PedalCalibrator.Step.Sweep;
+                if (UiLayout.Button(new Rect(_x, y, cw3, _lh), sweep ? "FINISH" : "Skip", _btnOn)) { if (sweep) s.FinishCalibration(); else s.SkipCalibrationStep(); }
+                if (sweep && UiLayout.Button(new Rect(_x + cw3 + g, y, cw3, _lh), "Redo", _btn)) s.StartCalibration();
+                if (UiLayout.Button(new Rect(_x + 2f * (cw3 + g), y, cw3, _lh), "Cancel", _btn)) s.CancelCalibration();
+                y += _lh + g;
+                return;
+            }
+
+            // One row per role: name and live value, then < > (axis), Inv, dz - / +.
+            float small = _lh * 1.3f, inv = _lh * 1.9f, right = 4f * small + inv + 4f * g;
+            foreach (var (role, name) in PedalRoles)
+            {
+                FlyingGame.Core.PedalAxisCal c = s.Profile[role];
+                UiLayout.Label(new Rect(_x, y, _cw - right - g, _lh), $"{name}:  {s.RoleLine(role)}", _label);
+                float bx = _x + _cw - right;
+                if (UiLayout.Button(new Rect(bx, y, small, _lh), "<", _btn)) s.CycleAxis(role, -1);
+                bx += small + g;
+                if (UiLayout.Button(new Rect(bx, y, small, _lh), ">", _btn)) s.CycleAxis(role, 1);
+                bx += small + g;
+                if (UiLayout.Button(new Rect(bx, y, inv, _lh), "Inv", c.Invert ? _btnOn : _btn)) s.ToggleInvert(role);
+                bx += inv + g;
+                if (UiLayout.Button(new Rect(bx, y, small, _lh), "dz-", _btn)) s.AdjustDead(role, -0.01);
+                bx += small + g;
+                if (UiLayout.Button(new Rect(bx, y, small, _lh), "dz+", _btn)) s.AdjustDead(role, 0.01);
+                y += _lh + g;
+            }
+            float half = (_cw - g) / 2f;
+            if (UiLayout.Button(new Rect(_x, y, half, _lh), "Calibrate (guided)", _btn)) s.StartCalibration();
+            if (UiLayout.Button(new Rect(_x + half + g, y, half, _lh), "Reset to detected", _btn)) s.ResetToDefaults();
+            y += _lh + g;
+            Note("Right pedal forward should read +, each toe brake 0 % released and 100 % on the floor.", ref y);
         }
 
         private void AudioPage(ref float y)

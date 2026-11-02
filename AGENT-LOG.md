@@ -1,4 +1,31 @@
 ## NEEDS YOU
+- **QUEST: USB RUDDER PEDALS (Claude, 2026-11-02, lane/claude-vr-quest), your item 11. Code only: NOT built, NOT
+  on the headset, and never met a real pair of pedals. NEEDS YOU after the operator's rebuild:**
+  1. **Plug them in.** Use a USB-C OTG adapter into the 3S, with the headset on and the game running. Then run
+     `adb logcat -s Unity | grep Pedals`. Expect `[Pedals] reading game controllers through InputSystem`, then
+     `connected: "<name>" VID:PID via Android, n axes [x y rz …] -> PEDALS`, then `using … rudder RZ, left brake X,
+     right brake Y`.
+     - If it says `not pedals`, or the axes are wrong, send me that line. VR menu → Rudder pedals → Device `<` `>`
+       picks them by hand.
+     - If no `connected:` line appears at all, the Input System backend did not come up in the APK. Check the
+       build log for `[QuestBuild] active input handler 2`.
+  2. **Signs.** VR menu → Rudder pedals: **right pedal forward must read +** on the Rudder row, and each toe must
+     read 0 % released and 100 % on the floor. Then fly: the Pitts' pedals should follow your feet. On the
+     runway, the left toe alone should yaw you left.
+  3. **CALIBRATE (guided)**: feet off → right pedal → left toe → right toe → sweep → FINISH. Is any step
+     confusing? Did it find the right axes?
+  4. **Hot-plug.** Pull the cable mid-flight: the left stick has the rudder again at once
+     (`[Pedals] disconnected` / `no pedals now`). Plug it back in: the pedals return with their calibration.
+  5. **Controllers unchanged?** The APK now runs the Input System backend beside the old one (Both, for the
+     Android build only). The Touch controllers, the menu button, recording and hand pinches should all behave
+     exactly as before. If anything changed, build with `AERO_QUEST_OLD_INPUT=1` to compare. In that build the
+     pedals use the old Input Manager's per-joystick axes.
+  **Evidence (bench only):** 45 `RudderPedalTests` green: simulated Saitek / TFRP / name-only / layout-only
+  devices, a HOTAS and a gamepad rejected, mapping, invert, dead zone, an awkward guided calibration, the
+  toe-brake split exactly invertible through the sim's brake / bias, hot-plug, fallback and persistence. Roslyn:
+  Android il2cpp player, iOS player and editor DLLs give 0 errors for Core, Bridge and Quest. EditorTools (with
+  UNITY_ANDROID) has 0 errors outside the 2 known harness lines in BuildScript. Full suite on this branch: 120 failed / 1285 passed / 3 skipped (17 min, with two other lanes' suites loading the Mac); no RudderPedal test among the 115 unique failing names (Alaska, RegionalAtmosphere, Nav, Alpine … the coupled world classes); not diffed against a base run — this change adds a Core file and touches no existing Core / Sim code.
+  **Nothing approved.**
 - **QUEST: FRAME RATE, LIVE COCKPIT, THROTTLE, CARD FLICKER (Claude, 2026-11-02, lane/claude-vr-quest) — your bugs
   6–10. Code only: NOT built, NOT on the headset (`adb devices` showed the 3S as **unauthorized**: accept "Allow USB
   debugging" inside the headset and I can read logcat next time). NEEDS YOU after the operator's rebuild:**
@@ -924,6 +951,43 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · USB rudder pedals (item 11): Quest over OTG, Mac, editor; mapping + calibration in both menus
+Ty's item 11. Read the rudder and both toe brakes from USB pedals, fed into the one control path.
+**Core** (`src/FlyingGame.Core/RudderPedals.cs`, engine-free):
+- `PedalCatalog`: a score from known VID:PID (06A3:0763 Saitek / Logitech PFRP; 044F:B679 TFRP), a pedal word in
+  the name, a pedal axis layout, a sim-maker vendor ID, minus hat / throttle / many buttons / gamepad. Taken for
+  pedals at 50. Default mapping goes by known model, else by axis name, else by HID order.
+- `PedalAxisCal`: centred (own centre, separate half-ranges) and one-sided, invert, rescaled dead zone.
+- `PedalProfile`: one line, invariant culture.
+- `PedalBlend`: rudder = hand + pedals, clamped. Toe brakes go to the sim as brake = (L+R)/2 and
+  bias = (R−L)/(L+R), which LandingGear turns back into exactly L and R. Each wheel gets max(hand, toe).
+- `PedalCalibrator`: rest → right pedal (axis + sign) → left toe → right toe → sweep with live ends → finish.
+  Brake direction comes from where the brake rested.
+- `PedalSession`: hot-plug by object identity, a manual device choice, save on every change, a `[Pedals]` line
+  per device that comes or goes (name, VID:PID, backend, axes, buttons, verdict), and the menu text.
+**Bridge** (`Bridge/RudderPedals.cs`): three readers, the first that sees a controller wins.
+- Input System: Android motion axes are read from `AndroidGameControllerState` through `CopyState`, because the
+  AndroidJoystick layout has only X / Y. HID axis controls are read elsewhere.
+- The Mac's HJ_* reader.
+- The old Input Manager, through 48 new `PJoy{1-4}A{1-12}` entries.
+No per-frame garbage. A calibration whose page is closed is cancelled and logged.
+**Elsewhere:**
+- `TouchFlightControls.PublishToDriver` blends the pedals. With feet on the pedals the rudder never goes "free".
+- Options → Controls → Rudder pedals (OnGUI). On iOS it says pedals cannot be read there.
+- VR menu → Rudder pedals page: device, on/off, axis `< >`, select = invert, dead zones, guided calibration with
+  live axes.
+- `JoystickInput` (Mac native) takes the first non-pedal HID device as the stick.
+- `QuestBuild` sets activeInputHandler = Both for the Android build only, restored in `finally`
+  (`AERO_QUEST_OLD_INPUT=1` opts out), and adds an optional `android.hardware.usb.host` uses-feature. No
+  permission is needed: HID controllers come through Android's input stack.
+- Docs: docs/RUDDER-PEDALS.md (new), docs/quest-controls.md.
+- CLAUDE.md lesson: "A device's layout is not the device".
+**Checks:**
+- 45 RudderPedalTests green.
+- Roslyn 0 errors on Android, iOS and the editor (Core, Bridge, Quest). EditorTools has only the 2 known harness
+  lines.
+- Full suite on this branch: 120 failed / 1285 passed / 3 skipped (17 min, with two other lanes' suites loading the Mac); no RudderPedal test among the 115 unique failing names (Alaska, RegionalAtmosphere, Nav, Alpine … the coupled world classes); not diffed against a base run — this change adds a Core file and touches no existing Core / Sim code.
+- Not built, no Unity run, no adb (per instructions).
 ### 2026-11-02 — Claude · lane/claude-vr-quest · Quest bugs 6–10: stutter, dead gauges, still stick/pedals, throttle, card flicker
 **Device:** `adb devices -l` showed 340YC10GBK0TYV as **unauthorized** for the whole session, so no logcat, VrApi or
 dumpsys could be read. Every cause below comes from code plus headless measurement. Nothing was built or installed.

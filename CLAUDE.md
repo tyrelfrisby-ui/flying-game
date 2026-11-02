@@ -193,3 +193,12 @@ reading and writing world positions.
 `GroundShadow` read two names per ancestor of every airframe mesh, every frame: on the Quest that was the largest
 source of garbage, and a non-generational collector turns steady garbage into a periodic stutter. Resolve anything a
 name decides once (on build / `Refresh`) and keep the answer; never read `.name` in a per-frame loop.
+
+### A device's layout is not the device
+The Input System turns a USB joystick on Android into an `AndroidJoystick` whose layout has a `stick` (X, Y) and
+nothing else. Rudder pedals put the rudder on Rz and may put the toe brakes on Android's BRAKE / GAS axes. None of
+those are controls on that layout, so reading `allControls` finds two axes, and both are toe brakes. Nothing errors,
+and the rudder is simply never there. The values are in the device's state (`AndroidGameControllerState.axis`, one
+float per Android axis code), and the device description lists which ones it has (`motionAxes`). Read what the
+description says the hardware has, not what the layout chose to name (`Bridge/RudderPedals.cs`). Also,
+`InputControl.currentStatePtr` is not public: use `CopyState<T>`.

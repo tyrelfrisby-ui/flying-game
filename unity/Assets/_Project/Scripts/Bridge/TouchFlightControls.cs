@@ -188,6 +188,7 @@ namespace FlyingGame.Bridge
             if (!_layoutKeySet || !key.Equals(_layoutKey)) { _layoutKey = key; _layoutKeySet = true; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
+            RudderPedals.Tick();   // (hot-plug and the calibration's live readout work with the menus open, too)
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive)
             {
                 _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f;
@@ -705,8 +706,14 @@ namespace FlyingGame.Bridge
             float brake = Mathf.Max(Mathf.Max(padBrake, _brakeHeld ? 1f : 0f), _questBrake);
             bool poweredNow = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             if (StripMode && StripBrakes) brake = poweredNow ? _stripBrake01 : Mathf.Clamp01((_stripBrake01 - 0.85f) / 0.15f);
-            _driver.Sim.Aircraft.BrakeInput = brake;
-            _driver.Sim.Aircraft.BrakeBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
+            // RUDDER PEDALS (docs/RUDDER-PEDALS.md) join here, so there is still one input path: each wheel gets the
+            // harder of its toe brake and the hand's brake (biased by the hand's rudder, as before), carried to the
+            // sim as its brake + bias; the rudder below adds the pedals to the hand's. No pedals = exactly as before.
+            FlyingGame.Core.PedalFrame pedals = RudderPedals.Frame;
+            float handBias = brake > 0f ? Mathf.Clamp(_rudder * BrakeRudderBias, -1f, 1f) : 0f;
+            (double simBrake, double simBias) = FlyingGame.Core.PedalBlend.Combine(brake, handBias, pedals);
+            _driver.Sim.Aircraft.BrakeInput = simBrake;
+            _driver.Sim.Aircraft.BrakeBias = simBias;
             // Trim biases the elevator like a real trim tab: hands-off stick still holds the trimmed attitude.
             float trim = (InvertElevator ? -_pitchTrim : _pitchTrim) * TrimAuthority;
             float elevator = Mathf.Clamp(_elevator + trim, -1f, 1f);
@@ -718,11 +725,11 @@ namespace FlyingGame.Bridge
             if (StripMode && StripBrakes) lever = powered ? 1f : _stripBrake01;   // powered: idle (the game holds it); glider: the spoiler handle
             // Aileron / rudder trim (RC-transmitter style): a sticky bias under the stick, like the pitch trim.
             float aileron = Mathf.Clamp(_aileron + _aileronTrim * TrimAuthority, -1f, 1f);
-            float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
+            float rudder = Mathf.Clamp((float)FlyingGame.Core.PedalBlend.Rudder(_rudder, pedals) + _rudderTrim * TrimAuthority, -1f, 1f);
             // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
             // cable-controlled aircraft those surfaces then trail with the air loads (the values above are just the trims).
             bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
-            bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
+            bool leftFree = !pedals.Active && _leftFinger == int.MinValue && _rudder == 0f;   // feet on the pedals hold the rudder
             _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
         }
 

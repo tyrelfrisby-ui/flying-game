@@ -34,6 +34,12 @@ namespace FlyingGame.EditorTools
     ///    sees them: the default orientation (Meta's validation REFUSES to build unless it is Landscape Left; iOS
     ///    is AutoRotation and BuildScript.ConfigureiOS sets that itself anyway) and Frame Timing Stats (for the
     ///    [QuestPerf] log line). The bundleVersion build stamp is also put back, as deploy.sh does.
+    ///  • A third, the ACTIVE INPUT HANDLER, goes from Old to Both for this build only, so the APK runs the Input
+    ///    System's Android backend beside the old Input Manager: USB rudder pedals (RudderPedals, docs/RUDDER-PEDALS.md)
+    ///    are read through it with their VID / PID and Android's own axis list. The controllers are untouched (they
+    ///    are read through UnityEngine.XR.InputDevices whichever handler is active), and iOS / the Mac keep Old.
+    ///    AERO_QUEST_OLD_INPUT=1 builds with Old as before; the pedals then fall back to the old Input Manager's
+    ///    per-joystick axes (PJoy1A1 … PJoy4A12).
     /// </summary>
     public static class QuestBuild
     {
@@ -125,11 +131,14 @@ namespace FlyingGame.EditorTools
             bool frameStatsWas = PlayerSettings.enableFrameTimingStats;
             string versionWas = PlayerSettings.bundleVersion;
             int codeWas = PlayerSettings.Android.bundleVersionCode;
+            int inputWas = InputHandler();
             bool ok = false;
             try
             {
                 PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;   // Meta Quest: Landscape Left only
                 PlayerSettings.enableFrameTimingStats = true;                                 // the [QuestPerf] cpu numbers
+                if (System.Environment.GetEnvironmentVariable("AERO_QUEST_OLD_INPUT") != "1") SetInputHandler(2);   // Both: USB pedals
+                Debug.Log($"[QuestBuild] active input handler {InputHandler()} (0 Old, 2 Both; was {inputWas})");
                 string stamp = System.DateTime.Now.ToString("yyyy.MMdd.HHmm");
                 PlayerSettings.bundleVersion = stamp;   // shown on the HUD in the flat game; in the log here
                 Debug.Log($"[QuestBuild] build stamp {stamp}");
@@ -157,9 +166,28 @@ namespace FlyingGame.EditorTools
                 PlayerSettings.enableFrameTimingStats = frameStatsWas;
                 PlayerSettings.bundleVersion = versionWas;
                 PlayerSettings.Android.bundleVersionCode = codeWas;
+                if (InputHandler() != inputWas) SetInputHandler(inputWas);
                 AssetDatabase.SaveAssets();
             }
             if (!ok && Application.isBatchMode) EditorApplication.Exit(1);
+        }
+
+        // ProjectSettings' activeInputHandler (0 Old, 1 Input System, 2 Both) has no PlayerSettings API; the Input
+        // System package itself sets it through the serialized PlayerSettings (EditorPlayerSettingHelpers).
+        private static SerializedProperty InputHandlerProperty()
+        {
+            UnityEngine.Object ps = Unsupported.GetSerializedAssetInterfaceSingleton("PlayerSettings");
+            return ps == null ? null : new SerializedObject(ps).FindProperty("activeInputHandler");
+        }
+
+        private static int InputHandler() => InputHandlerProperty()?.intValue ?? 0;
+
+        private static void SetInputHandler(int v)
+        {
+            SerializedProperty p = InputHandlerProperty();
+            if (p == null) { Debug.LogWarning("[QuestBuild] activeInputHandler not found: building with the handler as it is"); return; }
+            p.intValue = v;
+            p.serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
     }
 
@@ -183,11 +211,15 @@ namespace FlyingGame.EditorTools
                 add += "\n  <uses-permission android:name=\"com.oculus.permission.HAND_TRACKING\" />";
             if (!xml.Contains("oculus.software.handtracking"))
                 add += "\n  <uses-feature android:name=\"oculus.software.handtracking\" android:required=\"false\" />";
+            // USB rudder pedals: a HID game controller reaches the app through Android's input stack and needs no
+            // permission; this only says the app uses a USB host port, and required="false" filters no device out.
+            if (!xml.Contains("android.hardware.usb.host"))
+                add += "\n  <uses-feature android:name=\"android.hardware.usb.host\" android:required=\"false\" />";
             if (add.Length == 0) return;
             int at = xml.IndexOf("<application", System.StringComparison.Ordinal);
             if (at < 0) return;
             File.WriteAllText(manifest, xml.Insert(at, add.TrimStart('\n') + "\n  "));
-            Debug.Log("[QuestBuild] manifest: hand tracking permission + optional feature added");
+            Debug.Log("[QuestBuild] manifest: hand tracking permission + optional features (hand tracking, USB host) added");
         }
     }
 #endif

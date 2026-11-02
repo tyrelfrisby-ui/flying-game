@@ -29,6 +29,11 @@ stick, left pad = rudder + throttle).
 | **Left stick click, held 1 s** | **VR menu** too | The fallback if ☰ is hard to find: it recentres on the press (harmless) and opens / closes the menu after a second. |
 | **Meta button (hold)** | The headset's own recentre | The game follows it: same as the left stick click. |
 
+**USB rudder pedals** (a USB-C OTG adapter into the headset) take the rudder and the toe brakes as well: the
+pedals' rudder ADDS to the left stick's, and each wheel brakes with the harder of its toe brake and the left
+trigger. Unplug them and the controllers have it all again on the next frame. Mapping and calibration: VR menu →
+**Rudder pedals**. Everything else: docs/RUDDER-PEDALS.md.
+
 Dead zones: thumbsticks have a 0.10 hardware dead zone (rescaled, so full deflection is still full), the throttle
 rate 0.25. The aeroplane's own dead zone and expo (`AircraftConfig`) come on top, exactly as for the touch pads.
 One stick carries rudder and throttle, so whichever axis is clearly dominant wins: a bootful of rudder with your
@@ -84,10 +89,24 @@ horizon; once you have opened the menu yourself in flight it is not shown again 
 | View | Cockpit / outside (the chase view, levelled to the horizon). |
 | HUD in cockpit | **Off** (default) / On. Persisted. In the headset's cockpit view the aeroplane's own instruments are what count, so the green HUD is not drawn there unless this is On. Outside views keep the HUD as before, and the iPhone / iPad / Mac are unchanged. Only the HUD's lines exist in the headset (its numbers are a flat overlay). |
 | Display | 72 Hz (default) / 90 Hz. Persisted. |
+| Rudder pedals | none / ON / connected, OFF / calibrating. Opens the **Rudder pedals page** (below). |
 | Record video | Off / **ON 0:42** / saving … Starts or stops a recording, the same as A + B held. Starting it in flight also closes the menu, so the film starts on the flying. |
 | Recentre the view | Same as the left stick click. |
 | Reset flight | The touch pad's RESET. |
 | Bail out / Deploy BRS / Eject | Asks twice: the first press arms it for 3 s. |
+
+### The Rudder pedals page
+
+B / Y (or **< BACK**) goes back to the main page. A calibration running when you leave is cancelled (nothing saved).
+
+| Row | Does |
+|---|---|
+| Device | The pedals in use (name, VID:PID), or *none*. `<` `>`: auto-detect → each connected controller → auto, for a pair the game did not recognise. |
+| Use pedals | On / Off. Off = the controllers keep the rudder and brakes. |
+| Rudder / L toe / R toe | The axis and its live value (`RZ [----\|##--] +42`, `X [####----] 50%`). `<` `>` picks the axis; **select flips it** (shown as *inv*). Right pedal forward must read +; each toe brake 0 % released, 100 % on the floor. |
+| Dead zone rud / toes | `<` `>`, 1 % steps. |
+| CALIBRATE (guided) | Feet off → push the RIGHT pedal → LEFT toe brake → RIGHT toe brake → sweep everything → FINISH. Shows each axis live with the ends seen. Skip / Cancel on every step. |
+| Reset to detected | Back to the detected mapping, uncalibrated. |
 
 Not in VR yet: the replay / review screen, lessons, challenges, the joystick setup, the full Options panel (all
 OnGUI). The rows above are the settings that matter in a headset.
