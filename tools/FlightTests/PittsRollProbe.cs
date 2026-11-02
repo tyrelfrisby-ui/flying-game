@@ -19,10 +19,15 @@ public sealed class PittsRollProbe
     private readonly ITestOutputHelper _out;
     public PittsRollProbe(ITestOutputHelper o) { _out = o; }
 
+    // The three aerobatic types at the same 160 mph IAS so they are directly comparable, and the slow types at
+    // a speed they actually fly: roll rate scales roughly with airspeed, and 160 mph is past Vne for a 2-33.
     [Theory]
     [InlineData("pitts-s2b-like", 160.0)]
     [InlineData("extra-300-like", 160.0)]
     [InlineData("great-lakes-like", 160.0)]
+    [InlineData("c172-like", 110.0)]
+    [InlineData("j3-cub-like", 75.0)]
+    [InlineData("glider-2-33-like", 60.0)]
     public void SteadyFullAileronRollRate(string id, double iasMph)
     {
         (double steadyDps, double toNinety, double peak) = PittsRoll.Measure(id, iasMph);

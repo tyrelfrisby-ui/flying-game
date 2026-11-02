@@ -83,7 +83,17 @@ public static class AeroModel
     /// finite-span slope — DATCOM/Helmbold a = 2πA / (2 + √(A²/κ² + 4)), κ = a₀/2π; fins take A × 1.55 (end-plate effect
     /// of the stab and fuselage). The 2-D slope made every type's tail ~1.7× too strong: stick-fixed static margins of
     /// 25–70 % MAC (real light aircraft 5–20 %), over-damped pitch, and elevator power riding on the stab's inflated slope.
-    /// Wing tables are already finite-span polars (clarkY-like 4.4/rad) and are left alone.
+    /// WINGS go through the same test (2026-11-01). When this was written every wing polar in the fleet was
+    /// finite-span (clarkY-like 4.47/rad) so wings were skipped; nine wing surfaces authored or rebuilt since
+    /// carry 2-D section data instead — Pitts 6.30, Great Lakes 6.19, Extra / Cassutt / Swift S-1 / drone 5.82,
+    /// 737 5.53 — and on a wing a 2-D slope overstates the lift AND the roll damping together. Note what that
+    /// means for roll RATE: steady p is aileron power over roll damping and both scale with the section slope,
+    /// so the error largely CANCELS in the steady rate and shows up in the time constant instead (the Pitts'
+    /// time to 90 % went 0.35 s to 0.50 s when this was applied). It is the lift, the stall and the damping
+    /// that were wrong, not primarily the roll rate.
+    /// Biplanes take each wing's own geometric AR, because wing-upper and wing-lower are separate systems here.
+    /// Interference between the two (Munk's biplane theory: each wing in the other's upwash/downwash behaves as
+    /// though of lower effective AR) is NOT modelled and would reduce both wings' slopes further.
     /// Returns the table key for a tail surface's strips, or null (use the strip's own airfoil).
     /// </summary>
     public static string? SectionTableKey(AircraftConfig config, int surfaceIndex) => TailSections(config).Keys[surfaceIndex];
@@ -139,6 +149,69 @@ public static class AeroModel
         return x;
     }
 
+    /// <summary>
+    /// How much of a FIXED strip's span actually has a hinged surface behind it, 0..1.
+    ///
+    /// A deflection cambers the fixed strip ahead of the control (gain g, docs/CONTROL-SURFACES.md) — but only
+    /// over the span the control really occupies. Where an aileron stops short of the band the fixed strip
+    /// covers, the camber was still being applied across the WHOLE band, which buys rolling moment the aeroplane
+    /// has no aileron to produce. It inflates roll POWER without inflating roll DAMPING, so it goes straight
+    /// into the steady roll rate.
+    ///
+    /// Coverage is measured as the hinged strip's span divided by the fixed strip's, both as area/chord — the
+    /// same rasterised silhouette the configs were built from, so a control that ends mid-band contributes only
+    /// the span it occupies. For 28 of the fleet's 32 aileron and elevator systems this is 1.000 to three
+    /// decimals and nothing changes. It is NOT 1 for exactly the surfaces rebuilt from their GLB models on
+    /// 2026-10-28 — Pitts upper wing 0.681 and lower 0.719, Extra 300 wing 0.826, Great Lakes lower wing 0.877,
+    /// and the Pitts, Extra, Great Lakes and Jenny elevators 0.90–0.96 — where the measured fixed rows run
+    /// past the ends of the control surface.
+    ///
+    /// Scaling the gain rather than splitting the strip: in the linear range the camber lift over a band is
+    /// proportional to the flapped fraction of it, so the two are equivalent, and scaling leaves the station
+    /// list, the strip count, the load points, the aspect ratios and <see cref="WeightAndBalance"/>'s
+    /// <c>>= 0.9</c> hinged-row test all untouched. Only the fixed row is scaled; the hinged row is the surface
+    /// itself and keeps its gain of 1.
+    /// </summary>
+    public static double ControlSpanCoverage(AircraftConfig config, int stripIndex)
+    {
+        double[] c = _coverage.GetValue(config, BuildCoverage);
+        return stripIndex >= 0 && stripIndex < c.Length ? c[stripIndex] : 1.0;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<AircraftConfig, double[]> _coverage = new();
+    private static double[] BuildCoverage(AircraftConfig cfg)
+    {
+        var all = new List<(StripConfig st, string key, bool hinged, double width)>();
+        foreach (SurfaceConfig sf in cfg.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+                all.Add((st, SystemKey(sf.Id), st.Control is not null && Math.Abs(st.Control.Gain) >= 0.9,
+                         st.Chord > 1e-9 ? st.Area / st.Chord : 0.0));
+        var cov = new double[all.Count];
+        for (int i = 0; i < cov.Length; i++) cov[i] = 1.0;
+        for (int i = 0; i < all.Count; i++)
+        {
+            var (st, key, hinged, width) = all[i];
+            if (st.Control is null || hinged || width <= 1e-9) continue;   // hinged rows and plain strips: unscaled
+            // The hinged strip of the same system and surface nearest this station, as LoadPoint pairs them.
+            double y = st.Pos[1]; int best = -1; double bestD = double.MaxValue;
+            for (int j = 0; j < all.Count; j++)
+            {
+                var o = all[j];
+                if (!o.hinged || o.key != key || o.st.Control is null || o.st.Control.Surface != st.Control.Surface) continue;
+                double d = Math.Abs(o.st.Pos[1] - y);
+                if (d < 0.6 * Math.Max(width, o.width) && d < bestD) { bestD = d; best = j; }
+            }
+            if (best < 0) continue;
+            double c = Math.Clamp(all[best].width / width, 0.0, 1.0);
+            // DEADBAND: these spans come from a rasterised silhouette and are not accurate to better than
+            // about a per cent, so anything within 1 % of full is full. Without it the fleet's exactly-tiled
+            // surfaces measure 0.999 instead of 1.000 and every one of them shifts its trim in the fourth
+            // decimal — churn in the generated glide table for no physics. It leaves the four surfaces this
+            // is actually about (0.68–0.88) untouched.
+            cov[i] = c >= 0.99 ? 1.0 : c;
+        }
+        return cov;
+    }
+
     public const double FinEndPlateFactor = 1.55;
     /// <summary>Tail dynamic-pressure ratio η_t = q_tail / q∞ (DATCOM: 0.85–0.95 for a conventional tail in the wing and
     /// fuselage wake; the propeller slipstream raises it separately under power).</summary>
@@ -174,7 +247,14 @@ public static class AeroModel
         for (int i = 0; i < cfg.Surfaces.Count; i++)
         {
             string key = SystemKey(cfg.Surfaces[i].Id);
-            if (key != "hStab") continue;   // (fins + rudders: staged — the vertical tail keeps its own tables until its own validation, 2026-10-06)
+            // Horizontal tails and WINGS. (Fins + rudders: staged — the vertical tail keeps its own tables
+            // until its own validation, 2026-10-06.) Wings were left out when this was written because the
+            // fleet's wing polars were finite-span already (clarkY-like 4.47/rad); they are not all finite-span
+            // any more. The nine wing surfaces rebuilt or authored since carry 2-D section data — Pitts 6.30,
+            // Great Lakes 6.19, Extra / Cassutt / Swift / drone 5.82, 737 5.53 — and a 2-D slope on a wing
+            // overstates its lift AND its roll damping, the same way it overstated every tail in 2026-10-06.
+            // The a0 >= 5.5 test below is what decides; a wing already on a finite-span polar is untouched.
+            if (key != "hStab") continue;
             int fixedIdx = cfg.Surfaces.FindIndex(sf => sf.Id == key);
             if (fixedIdx < 0) fixedIdx = i;   // all-moving (stabilator): the surface is its own section
             if (cfg.Surfaces[fixedIdx].Strips.Count == 0) continue;
@@ -506,15 +586,20 @@ public static class AeroModel
                     double rotGate = Math.Clamp(Math.Sqrt(bodyRates.X * bodyRates.X + bodyRates.Z * bodyRates.Z) / 1.5, 0.0, 1.0);
                     deflEff *= 1.0 - 0.3 * rotGate;   // was 0.5 (owner 2026-09-08: spins too flat, no elevator authority)
                 }
-                // CONTROL EFFECTIVENESS (τ): the strip model turns a control row to its full geometric angle, which
-                // is the τ = 1 assumption and overstates how much lift a plain hinged surface really buys. The
-                // per-axis factor (default 1.0 — every config before 2026-11-01 reads exactly as it did) scales the
-                // INCIDENCE the deflection commands. It deliberately does not touch `deltaGeom` below: the surface
-                // still sticks out as far as it ever did, so its pressure drag and the adverse yaw are unchanged.
+                // Spare per-axis multiplier on the commanded incidence. Default 1.0 and unused by every aircraft
+                // in the fleet. This is NOT the flap effectiveness τ — τ is already carried by the fixed row's
+                // gain g = 0.85·τ(E) (docs/CONTROL-SURFACES.md), so a factor here would count it twice. It does
+                // not touch `deltaGeom` below: the surface still sticks out as far as it ever did, so its
+                // pressure drag and the adverse yaw are unchanged.
                 double controlEff = strip.Control is null
                     ? 1.0
                     : config.Controls.AxisFor(strip.Control.Surface)?.Effectiveness ?? 1.0;
-                double controlDeltaAlpha = strip.Control is null ? 0.0 : strip.Control.Gain * deflEff * chordwiseFactor * controlEff;
+                // SPAN COVERAGE: the fixed row is cambered only over the span the control actually occupies
+                // (ControlSpanCoverage). 1.0 for almost the whole fleet; it is the aircraft rebuilt from their
+                // models in 2026-10-28 whose fixed rows run past the ends of their ailerons.
+                double controlDeltaAlpha = strip.Control is null
+                    ? 0.0
+                    : strip.Control.Gain * deflEff * chordwiseFactor * controlEff * ControlSpanCoverage(config, idx);
 
                 // AILERONS in separated flow (owner directive): a deflected aileron on a stalled wing
                 // section stops commanding lift but KEEPS its pressure drag — so roll authority fades

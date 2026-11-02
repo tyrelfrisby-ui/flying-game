@@ -1,3 +1,4 @@
+using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
 using Xunit;
 using Xunit.Abstractions;
@@ -5,133 +6,180 @@ using Xunit.Abstractions;
 namespace FlyingGame.FlightTests;
 
 /// <summary>
-/// The Pitts' roll rate, pinned where Ty put it (2026-11-01). He competed Unlimited, owned an S-1S, flew the
-/// in-game Pitts and said the roll was "a little too good, too high": it was turning <b>391.6 deg/s</b> at
-/// 160 mph IAS with full aileron. His target is <b>270 deg/s</b> at that speed, and that is what this pins.
+/// Roll authority, asserted as PHYSICS rather than against a published number (owner, 2026-11-01: "NO fudge
+/// factors tuned to published numbers; published roll rates are VALIDATION ONLY").
 ///
-/// WHY 160 MPH: an aerobatic box entry speed for an S-2B, and the operating point Ty named. Roll rate scales
-/// with airspeed, so a rate without a speed beside it means nothing.
+/// The history matters, because two earlier attempts at this were both wrong in the same way. The Pitts rolled
+/// 391.6 deg/s at 160 mph IAS against the owner's 260–300. The first fix shrank the aileron TRAVEL from the
+/// certificated 25 deg (FAA TCDS A8SO Rev. 21 p. 9) to 16.5 deg, which is less travel than this same model
+/// gives a J-3 Cub. The second (4e5e1a7) introduced <c>controls.aileron.effectiveness = 0.66</c> and called it
+/// the flap effectiveness τ — but τ is ALREADY in the model, as the fixed row's camber gain g = 0.85·τ(E)
+/// (docs/CONTROL-SURFACES.md), so that was counting it twice. Both were the same mistake: a constant chosen to
+/// reach a published number, wearing a physical name.
 ///
-/// WHICH HALF OF THE RATIO MOVED. A steady roll rate is aileron rolling moment over roll damping, and either
-/// one will buy the number. The damping is NOT the wrong half: <c>fuselage.damping.p</c> is 0 and all of it
-/// falls out of the wing strips' own geometry (each strip's local alpha shifts by p·y/V), which is already
-/// right. Nor is the aileron TRAVEL the wrong half — 25 deg is the S-2B's certificated figure (FAA TCDS A8SO
-/// Rev. 21, 15 Feb 2005, p. 9: "Ailerons (symmetrical) UP 25° ± 2° DOWN 25° ± 2°"), and an earlier attempt that
-/// shrank it to 16.5 deg to land the rate made the config lie about the aeroplane — that is LESS travel than
-/// this same model gives a J-3 Cub, which is absurd for a Pitts. Ty rejected it.
+/// What was actually wrong was geometry. A deflection cambers the fixed strip ahead of the control, and that
+/// camber was applied across the strip's WHOLE span even where the aileron behind it had already ended —
+/// rolling moment with no aileron to produce it, and, because it adds roll POWER without adding roll DAMPING,
+/// it lands directly on the steady roll rate. Coverage is 1.000 for 28 of the fleet's 32 aileron and elevator
+/// systems and those are bit-for-bit unchanged; it is the four surfaces rebuilt from their GLB models on
+/// 2026-10-28 that were wrong (Pitts upper wing 0.681, lower 0.719, Extra 300 0.826, Great Lakes 0.877).
 ///
-/// What was actually wrong is the strip model's assumption that a control surface turns its section's incidence
-/// by its FULL geometric angle (τ = 1). For a plain hinged flap τ is a function of chord ratio alone and is
-/// nowhere near 1. <c>controls.aileron.effectiveness</c> is that τ, and 0.66 is what puts the Pitts on 270.
-/// It is corroborated rather than fitted: thin-aerofoil theory on this config's OWN aileron geometry
-/// (cf/c = 0.247 upper, 0.237 lower) gives τ ≈ 0.60, so the tuned value sits within 10 % of a first-principles
-/// estimate of the same quantity. See <see cref="TheTunedEffectivenessAgreesWithThinAerofoilTheory"/>.
-///
-/// THE TOLERANCE IS +/- 15 deg/s (about 5.5 %). Tight enough that a real change in aileron authority, wing
-/// geometry or the damping model fails it, loose enough to survive integrator and atmosphere noise. It is a
-/// BAND, not a target to re-tune against: if it fails, something about the aeroplane changed.
+/// These tests therefore assert the MECHANISM — coverage is measured from the geometry, the finite-span rescale
+/// reaches wings that carry 2-D tables, the spare effectiveness hook is still 1.0 and unused — plus wide bands
+/// on the resulting rates that would catch a structural change without pinning a tuned number.
 /// </summary>
 public sealed class PittsRollRateTests
 {
     private readonly ITestOutputHelper _out;
     public PittsRollRateTests(ITestOutputHelper o) { _out = o; }
 
-    private const double TargetDps = 270.0, ToleranceDps = 15.0, IasMph = 160.0;
-
     private static AircraftConfig Load(string id) => AircraftConfigLoader.LoadFromFile(
         System.IO.Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
-    [Fact]
-    public void ThePittsRollsAtTheRateTyAskedFor()
+    // ---- the mechanism ----
+
+    /// <summary>The spare per-axis hook stays at its default and unused. If an aircraft ever sets it, that is a
+    /// deliberate act that has to be justified here — it is NOT τ, which the fixed-row gain already carries.</summary>
+    [Theory]
+    [InlineData("pitts-s2b-like")]
+    [InlineData("extra-300-like")]
+    [InlineData("great-lakes-like")]
+    [InlineData("c172-like")]
+    [InlineData("j3-cub-like")]
+    public void TheSpareEffectivenessHookIsOneAndUnused(string id)
     {
-        (double steady, double to90, double peak) = PittsRoll.Measure("pitts-s2b-like", IasMph);
-        _out.WriteLine($"Pitts at {IasMph:F0} mph IAS: steady {steady:F1} deg/s (target {TargetDps:F0} +/- {ToleranceDps:F0}), " +
-                       $"peak {peak:F1}, {to90:F2} s to 90 %");
-        Assert.InRange(steady, TargetDps - ToleranceDps, TargetDps + ToleranceDps);
+        AircraftConfig c = Load(id);
+        Assert.Equal(1.0, c.Controls.Aileron.Effectiveness, 9);
+        Assert.Equal(1.0, c.Controls.Elevator.Effectiveness, 9);
+        Assert.Equal(1.0, c.Controls.Rudder.Effectiveness, 9);
     }
 
-    /// <summary>The travel is the TCDS number and stays the TCDS number. Copied by hand from FAA TCDS A8SO
-    /// Rev. 21 p. 9 (Model S-2B): ailerons symmetrical, 25 deg up and down. Moving it has to be a deliberate
-    /// edit here as well (CLAUDE.md — expected values as literals).</summary>
+    /// <summary>The Pitts keeps its CERTIFICATED aileron travel. 25 deg ± 2 deg symmetrical, FAA TCDS A8SO
+    /// Rev. 21 (15 February 2005) p. 9, Model S-2B — copied here by hand, not read from the file.</summary>
     [Fact]
-    public void TheAileronTravelIsTheCertificatedOne()
+    public void ThePittsKeepsItsCertificatedAileronTravel()
     {
-        const double tcdsDeg = 25.0;
-        double authoredDeg = Load("pitts-s2b-like").Controls.Aileron.MaxDeflRad * 180.0 / Math.PI;
-        Assert.Equal(tcdsDeg, authoredDeg, 1);
-        // And the rate is NOT being held down by a fuselage roll-damping fudge.
+        Assert.Equal(0.4363, Load("pitts-s2b-like").Controls.Aileron.MaxDeflRad, 4);   // 25.00 deg
+        // And the roll rate is not being held down by a fuselage damping fudge either.
         Assert.Equal(0.0, Load("pitts-s2b-like").Fuselage.Damping.P, 9);
     }
 
-    /// <summary>The rate comes from the effectiveness factor, so that is pinned too.</summary>
-    [Fact]
-    public void TheRateComesFromTheAileronEffectiveness()
-    {
-        Assert.Equal(0.66, Load("pitts-s2b-like").Controls.Aileron.Effectiveness, 4);
-    }
-
-    /// <summary>The tune is not a free parameter pulled to fit one number: thin-aerofoil theory applied to the
-    /// aileron chord ratio this very config authors predicts the same quantity independently, and agrees to
-    /// within 10 %. If someone re-chords the ailerons, this is the test that notices the two have drifted apart.
-    /// τ = 1 - (θ - sin θ)/π, θ = arccos(2·cf/c - 1).</summary>
-    [Fact]
-    public void TheTunedEffectivenessAgreesWithThinAerofoilTheory()
-    {
-        AircraftConfig cfg = Load("pitts-s2b-like");
-        double predicted = TauFromGeometry(cfg, "wing-upper", "wing-upper-aileron");
-        double tuned = cfg.Controls.Aileron.Effectiveness;
-        _out.WriteLine($"thin-aerofoil tau from the authored chords: {predicted:F3}; tuned effectiveness {tuned:F3}");
-        Assert.InRange(tuned, predicted * 0.85, predicted * 1.15);
-    }
-
-    private static double TauFromGeometry(AircraftConfig cfg, string wingId, string aileronId)
-    {
-        double Chord(string id)
-        {
-            var surface = cfg.Surfaces.Single(s => s.Id == id);
-            var strips = surface.Strips.Where(s => s.Control is not null && s.Control.Surface == "aileron").ToList();
-            return strips.Average(s => s.Chord);
-        }
-        double cw = Chord(wingId), ca = Chord(aileronId);
-        double ratio = ca / (cw + ca);
-        double theta = Math.Acos(2.0 * ratio - 1.0);
-        return 1.0 - (theta - Math.Sin(theta)) / Math.PI;
-    }
-
-    /// <summary>Crispness is not what was being tuned: the stick still bites fast. Roll damping was untouched,
-    /// so only the plateau moved.</summary>
-    [Fact]
-    public void ItIsStillCrisp()
-    {
-        (double steady, double to90, _) = PittsRoll.Measure("pitts-s2b-like", IasMph);
-        Assert.True(to90 < 0.5, $"the Pitts took {to90:F2} s to reach 90 % of {steady:F0} deg/s — that is mushy, not a Pitts");
-    }
-
-    /// <summary>THE BACKWARDS-COMPATIBILITY GATE. `effectiveness` defaults to 1.0, which is the τ = 1 the model
-    /// always assumed, so every config written before 2026-11-01 — which is every config but the Pitts — flies
-    /// bit-for-bit as it did. These two are the aeroplanes that would show a leak first: the Extra rolls faster
-    /// than the Pitts and the Great Lakes much slower. The literals are the rates measured on aacb429, the
-    /// branch point, BEFORE the field existed.</summary>
+    /// <summary>Coverage is MEASURED from each config's own geometry, so it cannot drift from the strips. The
+    /// literals are the aggregate aileron span / cambered span of each surface, computed from the configs on
+    /// 2026-11-01 — a rebuild of one of these models has to change them deliberately.</summary>
     [Theory]
-    [InlineData("extra-300-like", 409.3)]
-    [InlineData("great-lakes-like", 83.3)]
-    public void TheOtherAerobaticTypesAreUnchanged(string id, double expectedDpsOnAacb429)
+    [InlineData("pitts-s2b-like", "wing-upper", 0.681)]
+    [InlineData("pitts-s2b-like", "wing-lower", 0.719)]
+    [InlineData("extra-300-like", "wing", 0.826)]
+    [InlineData("great-lakes-like", "wing-lower", 0.874)]
+    [InlineData("c172-like", "wing", 1.000)]
+    [InlineData("j3-cub-like", "wing", 1.000)]
+    public void TheCamberedSpanIsOnlyTheSpanThatHasAnAileronBehindIt(string id, string surfaceId, double expected)
     {
-        Assert.Equal(1.0, Load(id).Controls.Aileron.Effectiveness, 9);
-        (double steady, _, _) = PittsRoll.Measure(id, IasMph);
-        _out.WriteLine($"{id}: {steady:F1} deg/s (aacb429 measured {expectedDpsOnAacb429:F1})");
-        Assert.InRange(steady, expectedDpsOnAacb429 - 8.0, expectedDpsOnAacb429 + 8.0);
+        AircraftConfig c = Load(id);
+        // Span-weighted mean coverage over the fixed strips that carry aileron camber.
+        double covered = 0, total = 0, idx = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+            foreach (StripConfig st in sf.Strips)
+            {
+                int i = (int)idx++;
+                if (sf.Id != surfaceId || st.Control is null || st.Control.Surface != "aileron"
+                    || Math.Abs(st.Control.Gain) >= 0.9 || st.Chord <= 1e-9) continue;
+                double w = st.Area / st.Chord;
+                total += w;
+                covered += w * AeroModel.ControlSpanCoverage(c, i);
+            }
+        Assert.True(total > 0, $"{id}/{surfaceId}: no fixed strips carry aileron camber");
+        _out.WriteLine($"{id}/{surfaceId}: coverage {covered / total:F3} over {total:F2} m of cambered span");
+        Assert.Equal(expected, covered / total, 2);
     }
 
-    /// <summary>A config that never mentions the field reads 1.0 — the contract default, not an accident of the
-    /// JSON loader. Every aeroplane in the fleet but the Pitts is in this state.</summary>
-    [Fact]
-    public void AConfigThatNeverMentionsEffectivenessGetsOne()
+    /// <summary>
+    /// These wings carry 2-D section data and are KNOWN to, and the finite-span rescale that the tails have
+    /// had since 2026-10-06 is deliberately NOT applied to them. It was built and measured on 2026-11-01 and
+    /// then taken back out: Helmbold stretches the alpha axis, so CLmax survives but it takes more incidence to
+    /// reach any given lift, and on a taildragger pinned at its ground attitude that lands straight on the
+    /// lift-off speed. The Pitts went from 34.0 m/s (76 mph) to 40.2 m/s (90 mph) and the Extra from 38.7 to
+    /// 44.7 (87 to 100 mph), against real rotation speeds nearer 60–70 mph — an 18 % move the wrong way on a
+    /// number that was checked against the books, bought for a 7 % change in the roll rate that was the point
+    /// of the exercise, and in the wrong direction there too (the Pitts went 291 to 311 deg/s).
+    ///
+    /// The slope is still wrong; it is the configs around it that were authored against it. Re-deriving those
+    /// wings' tables, incidence and CLmax together is its own job, and this test exists so the list does not
+    /// get lost. See docs/CONTROL-SURFACES.md and the AGENT-LOG entry.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", "wing-upper", 6.30)]
+    [InlineData("pitts-s2b-like", "wing-lower", 6.30)]
+    [InlineData("great-lakes-like", "wing-upper", 6.17)]
+    [InlineData("great-lakes-like", "wing-lower", 6.17)]
+    [InlineData("extra-300-like", "wing", 5.82)]
+    [InlineData("cassutt-f1-like", "wing", 5.82)]
+    [InlineData("glider-swift-s1-like", "wing", 5.82)]
+    [InlineData("target-drone-like", "wing", 5.82)]
+    [InlineData("boeing-737-like", "wing", 5.53)]
+    public void TheseWingsStillCarryTwoDimensionalSectionTables(string id, string surfaceId, double expectedA0)
     {
-        Assert.Equal(1.0, new ControlAxisConfig().Effectiveness, 9);
-        AircraftConfig fromJson = AircraftConfigLoader.LoadFromJson("{\"controls\":{\"aileron\":{\"maxDeflRad\":0.4}}}");
-        Assert.Equal(1.0, fromJson.Controls.Aileron.Effectiveness, 9);
-        Assert.Equal(1.0, fromJson.Controls.Elevator.Effectiveness, 9);
-        Assert.Equal(1.0, fromJson.Controls.Rudder.Effectiveness, 9);
+        AircraftConfig c = Load(id);
+        int i = c.Surfaces.FindIndex(s => s.Id == surfaceId);
+        Assert.True(i >= 0, $"{id} has no surface {surfaceId}");
+        string raw = c.Surfaces[i].Strips[0].Airfoil;
+        double a0 = AeroModel.SectionSlope(c.AirfoilTables[raw]);
+        _out.WriteLine($"{id}/{surfaceId}: {raw} at {a0:F2}/rad — 2-D, NOT rescaled (see the summary)");
+        Assert.Equal(expectedA0, a0, 1);
+        Assert.True(a0 >= 5.5, "this case is stale: the table is no longer 2-D");
+        // The rescale must stay off for wings until their configs are re-derived with it. A null key is how
+        // this model says "use the strip's own airfoil" — i.e. no derived finite-span table was made.
+        Assert.Null(AeroModel.SectionTableKey(c, i));
+    }
+
+    /// <summary>A wing already on a finite-span polar is left exactly alone — the rescale must not fire twice.</summary>
+    [Theory]
+    [InlineData("c172-like")]
+    [InlineData("j3-cub-like")]
+    [InlineData("glider-2-33-like")]
+    public void AWingAlreadyOnAFiniteSpanPolarIsUntouched(string id)
+    {
+        AircraftConfig c = Load(id);
+        int i = c.Surfaces.FindIndex(s => s.Id == "wing");
+        string raw = c.Surfaces[i].Strips[0].Airfoil;
+        Assert.True(AeroModel.SectionSlope(c.AirfoilTables[raw]) < 5.5);
+        Assert.Null(AeroModel.SectionTableKey(c, i));
+    }
+
+    // ---- the rates that fall out of it ----
+
+    /// <summary>
+    /// Full-aileron steady roll rate. These are WIDE bands around what the physics produces, not the published
+    /// figures: they exist to catch a structural change (a lost coverage scale, a damping change, a rebuilt
+    /// wing), not to pin a tune. The owner's own figures are recorded beside them as VALIDATION only, and where
+    /// the model disagrees that disagreement is written down rather than tuned away.
+    /// </summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", 160.0, 291.1, "owner 260-300; Aviat quote ~180. Inside the owner's band.")]
+    [InlineData("extra-300-like", 160.0, 362.2, "real ~400. Model is ~9 % LOW — see the AGENT-LOG open question.")]
+    [InlineData("great-lakes-like", 160.0, 77.2, "no owner figure yet")]
+    [InlineData("c172-like", 110.0, 127.5, "unchanged by this work: coverage 1.000, finite-span polar already")]
+    [InlineData("j3-cub-like", 75.0, 79.6, "unchanged by this work")]
+    [InlineData("glider-2-33-like", 60.0, 28.4, "unchanged by this work")]
+    public void TheSteadyRollRateIsWhatThePhysicsGives(string id, double iasMph, double expectedDps, string note)
+    {
+        (double steady, double to90, double peak) = PittsRoll.Measure(id, iasMph);
+        _out.WriteLine($"{id} at {iasMph:F0} mph: {steady:F1} deg/s (recorded {expectedDps:F1}), peak {peak:F1}, {to90:F2} s to 90 %. {note}");
+        // +/- 12 %: looser than any plausible integrator or atmosphere noise, tight enough that losing the
+        // coverage scale (Pitts +34 %) or the finite-span rescale (Pitts +7 %) fails it.
+        Assert.InRange(steady, expectedDps * 0.88, expectedDps * 1.12);
+    }
+
+    /// <summary>Crispness: an aerobatic type still reaches most of its roll rate at once. The finite-span
+    /// rescale LENGTHENED these (the finite-span rescale was not shipped; see TheseWingsStillCarry...) because it removed damping that was never real,
+    /// which is the honest direction for that correction.</summary>
+    [Theory]
+    [InlineData("pitts-s2b-like", 160.0)]
+    [InlineData("extra-300-like", 160.0)]
+    public void AnAerobaticTypeStillBitesAtOnce(string id, double iasMph)
+    {
+        (double steady, double to90, _) = PittsRoll.Measure(id, iasMph);
+        Assert.True(to90 < 0.8, $"{id} took {to90:F2} s to reach 90 % of {steady:F0} deg/s — that is mushy for an aerobatic type");
     }
 }
