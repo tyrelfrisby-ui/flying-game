@@ -348,6 +348,113 @@ namespace FlyingGame.EditorTools
             RenderTexture.active = null;
             Debug.Log($"WorldRender: wrote {views.Length} images to {outDir}");
         }
+        /// <summary>
+        /// Island terrain review plates (2026-11-02, lane/claude-island-terrain): ONE fixed camera list in sim
+        /// km east/north and metres MSL, so the shipping island and the rebuilt one are shot from exactly the same
+        /// places. Writes build/island-terrain/&lt;tag&gt;/*.png plus mesh-stats.txt (terrain triangles, vertices,
+        /// renderers, build time). Editor only; nothing here is reachable from the player.
+        ///   Unity -batchmode -quit -projectPath unity -executeMethod FlyingGame.EditorTools.WorldRender.RenderIslandTerrain -terrainTag before
+        /// </summary>
+        public static void RenderIslandTerrain()
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            int tagAt = System.Array.IndexOf(args, "-terrainTag");
+            string tag = tagAt >= 0 && tagAt + 1 < args.Length ? args[tagAt + 1] : "after";
+            string outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/island-terrain", tag));
+            Directory.CreateDirectory(outDir);
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
+            FlyingGame.Core.WorldTerrain.Active = new FlyingGame.Core.WorldTerrain();
+            FlyingGame.Core.WorldClock.TimeS = 20;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var world = WorldBuilder.BuildAll();
+            double buildS = clock.Elapsed.TotalSeconds;
+            SunsetLighting.ApplyDay();
+            RenderSettings.fog = false;
+            foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                bool training = false;
+                for (Transform t = renderer.transform; t != null; t = t.parent)
+                    if (t.name == "CombatZone" || t.name.StartsWith("AeroBox")) training = true;
+                if (training || (renderer.sharedMaterial != null && renderer.sharedMaterial.shader.name == "FlyingGame/Glass")) renderer.enabled = false;
+            }
+            // Terrain mesh statistics: every renderer whose object name starts "Terrain".
+            long tris = 0, verts = 0, meshBytes = 0; int terrainRenderers = 0, lodRenderers = 0;
+            var shaders = new System.Collections.Generic.HashSet<string>();
+            foreach (var mf in world.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (!mf.name.StartsWith("Terrain") || mf.sharedMesh == null) continue;
+                var mesh = mf.sharedMesh; terrainRenderers++;
+                bool lod = mf.GetComponentInParent<LODGroup>() != null && mf.transform.parent != null && mf.name.Contains("LOD") && !mf.name.EndsWith("LOD0");
+                if (lod) lodRenderers++; else { tris += mesh.triangles.Length / 3; verts += mesh.vertexCount; }
+                meshBytes += UnityEngine.Profiling.Profiler.GetRuntimeMemorySizeLong(mesh);
+                var r = mf.GetComponent<Renderer>(); if (r != null && r.sharedMaterial != null) shaders.Add(r.sharedMaterial.shader.name);
+            }
+            File.WriteAllText(Path.Combine(outDir, "mesh-stats.txt"),
+                $"tag={tag}\nworld build (WorldBuilder.BuildAll) {buildS:F2} s in the editor\n" +
+                $"terrain renderers {terrainRenderers} (of which coarser-LOD renderers {lodRenderers})\n" +
+                $"finest-level terrain triangles {tris}, vertices {verts}\nterrain mesh memory (all LODs, editor, CPU+GPU copies) {meshBytes / 1048576.0:F1} MiB\n" +
+                $"terrain shaders: {string.Join(", ", shaders)}\n");
+            var camGo = new GameObject("RenderCam");
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.Skybox; camGo.AddComponent<Skybox>().material = RenderSettings.skybox;
+            cam.depthTextureMode = DepthTextureMode.Depth; cam.nearClipPlane = 1f; cam.farClipPlane = 80000f;
+            var rt = new RenderTexture(1600, 1000, 24) { antiAliasing = 4 }; cam.targetTexture = rt;
+            Vector3 S(double e, double n, double up) => WorldBuilder.U(n * 1000, e * 1000, up);
+            const double ft = .3048;
+            (string name, Vector3 eye, Vector3 look, float fov)[] views =
+            {
+                ("01-overview-from-southeast", S(16, -16, 9000), S(0, 0, 800), 50),
+                ("02-topdown", S(0, -.5, 42000), S(0, -.49, 0), 40),
+                ("03-oblique-from-north", S(0, 22, 3000), S(0, 0, 900), 50),
+                ("04-oblique-from-east", S(22, 0, 3000), S(0, 0, 900), 50),
+                ("05-oblique-from-south", S(0, -22, 3000), S(0, 0, 900), 50),
+                ("06-oblique-from-west", S(-24, 0, 3000), S(0, 0, 900), 50),
+                ("07-f86-cruise-25000ft", S(-18, -14, 25000 * ft), S(0, 0, 0), 60),
+                ("08-f86-25000ft-looking-down", S(10, -12, 25000 * ft), S(0, 0, 500), 60),
+                ("09-low-level-1000ft-agl-PANC", S(-12.5, -5.5, 151 * ft + 1000 * ft), S(-5, -1, 700), 60),
+                ("10-low-level-1000ft-agl-KMYL", S(-0.88, -0.6, 5024 * ft + 1000 * ft), S(-0.88, 3.6, 5024 * ft), 60),
+                ("11-low-level-1000ft-agl-PHDH", S(8.5, 4.6, 14 * ft + 1000 * ft), S(2, 6.5, 250), 60),
+                ("12-low-level-1000ft-agl-middle-fork", S(3.5, -2.2, 5500 * ft), S(3.5, 1.8, 4400 * ft), 60),
+                ("13-frank-church-north-face", S(0.2, 4.6, 2700), S(0, 0.2, 2100), 50),
+                ("14-frank-church-south-face", S(0.2, -4.6, 2700), S(0, -0.2, 2100), 50),
+                ("15-sierra-north-face", S(-1.6, 3.4, 2500), S(-1.6, -0.2, 1900), 50),
+                ("16-sierra-south-face", S(-1.6, -4.0, 2500), S(-1.6, -0.4, 1900), 50),
+                ("17-knik-ski-zone", S(-8.6, 1.6, 900), S(-6.2, 0.1, 335), 50),
+                ("18-knik-valley-overview", S(-9.5, -3.5, 2000), S(-5, -0.5, 700), 50),
+                ("19-ruth-ski-zone", S(-6.2, 6.6, 1100), S(-3.9, 4.7, 400), 50),
+                ("20-ruth-valley-overview", S(-7.0, 8.0, 2400), S(-2.5, 5.2, 1000), 50),
+                ("21-central-massif-cirques", S(2.8, 5.8, 3200), S(0.2, 1.5, 2000), 50),
+                ("22-denali-like", S(3.2, 10.5, 1500), S(0.5, 7.1, 700), 50),
+                ("23-drainage-middle-fork-valley", S(7.0, 3.2, 2300), S(3.0, 0.3, 1300), 50),
+                ("24-treeline-payette-mccall", S(-3.8, 6.4, 1900), S(-1.0, 3.6, 1550), 50),
+                ("25-beach-oc-B1", S(4.6, -10.6, 250), S(2.2, -8.4, 15), 50),
+                ("26-west-coast-cliffs", S(-14.5, -2.5, 450), S(-11.2, -0.8, 100), 50),
+                ("27-page-desert-mesas", S(8.5, -7.5, 2200), S(5, -4, 1250), 50),
+                ("28-catalina", S(3.5, -19, 1300), S(3.5, -14, 300), 50),
+                ("29-drake-hill", S(-4.9, -1.2, 1900), S(-4.9, -4.4, 1500), 50),
+                ("30-north-coast-low", S(-3.5, 10.5, 500), S(-1.0, 6.5, 200), 50),
+            };
+            foreach (var (name, eye, look, fov) in views)
+            {
+                cam.fieldOfView = fov;
+                cam.transform.position = eye; cam.transform.LookAt(look, Vector3.up);
+                var forest = new GameObject("ForestView");
+                ForestBuilder.BuildAround(FlyingGame.Core.WorldTerrain.Active, forest.transform, look.z, look.x, 2600, 800);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+                Object.DestroyImmediate(tex); Object.DestroyImmediate(forest);
+            }
+            RenderTexture.active = null;
+            var cams = new System.Text.StringBuilder();
+            foreach (var (name, eye, look, fov) in views) cams.AppendLine($"{name}\teye(unity)={eye}\tlook={look}\tfov={fov}");
+            File.WriteAllText(Path.Combine(outDir, "cameras.txt"), cams.ToString());
+            Debug.Log($"RenderIslandTerrain: wrote {views.Length} plates to {outDir}");
+        }
+
         // M17: sample the actual rasterized terrain and shader terms, using the exact
         // named-shot camera and pixel centres. No guessed mountain bounds or sim edits.
         // Runs AFTER saving the normal PNG. Probe variant is never enabled in play.
