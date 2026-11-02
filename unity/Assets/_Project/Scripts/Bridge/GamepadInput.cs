@@ -24,11 +24,12 @@ namespace FlyingGame.Bridge
     public static class GamepadInput
     {
         /// <summary>One frame of the pad, shaped. Sticks and rudder are −1…1 in the PAD'S sense: right and pushed
-        /// away from you are positive.</summary>
+        /// away from you are positive. <see cref="Throttle"/> is a RATE, −1…1 of the full rate (see
+        /// <see cref="GamepadShaping.ThrottleRate"/>): a self-centring stick at rest leaves the power where it is.</summary>
         public struct Frame
         {
             public bool Connected;
-            public float Roll, Pitch, Rudder;
+            public float Roll, Pitch, Rudder, Throttle;
             public bool ThrottleUp, ThrottleDown, TrimNoseDown, TrimNoseUp, Brakes, Fire;
             public bool FlapsUpPressed, FlapsDownPressed, SmokePressed, ViewPressed, MenuPressed, RecordPressed;
         }
@@ -52,8 +53,8 @@ namespace FlyingGame.Bridge
             get
             {
 #if ENABLE_INPUT_SYSTEM
-                var p = Gamepad.current;
-                return p != null && p.added ? p.displayName ?? p.name : null;
+                var p = Pad();
+                return p != null ? p.displayName ?? p.name : null;
 #else
                 return null;
 #endif
@@ -61,16 +62,44 @@ namespace FlyingGame.Bridge
         }
 
 #if ENABLE_INPUT_SYSTEM
+        /// <summary>
+        /// The pad to read. A pad connected WHILE THE GAME RUNS needs nothing from us: the player's own GameController
+        /// observer (GCControllerDidConnectNotification, compiled into UnityFramework) hands it to the Input System as
+        /// an Added device, and an added device is made <see cref="Gamepad.current"/> on the spot
+        /// (InputManager.AddDevice, Input System 1.20). What <c>current</c> alone can miss: it is only re-pointed when
+        /// a pad SENDS INPUT or is added / removed, so it can be left on a pad that is disabled (the Input System
+        /// switches pads off while the app is in the background, e.g. while pairing in Settings, and back on when it
+        /// returns) while another live pad sits idle in <see cref="Gamepad.all"/>. So: <c>current</c> if it is live,
+        /// else the live pad that spoke most recently.
+        /// </summary>
+        private static Gamepad Pad()
+        {
+            var c = Gamepad.current;
+            if (c != null && c.added && c.enabled) return c;
+            Gamepad best = null;
+            foreach (var g in Gamepad.all)
+                if (g.added && g.enabled && (best == null || g.lastUpdateTime > best.lastUpdateTime)) best = g;
+            return best;
+        }
+
+        // THE MAPPING (Ty, 2026-11-02: "the right hand on the stick"), on every platform:
+        //   RIGHT stick         roll and pitch (expo)
+        //   LEFT stick X        rudder (expo), plus RT − LT, summed and clamped
+        //   LEFT stick Y        throttle as a RATE (linear, no expo): up = more power, down = less, let go = holds
+        //   RB / LB (held)      throttle up / down too, at a fixed rate
+        //   d-pad up / down     pitch trim nose down / nose up (held)    d-pad right / left   flaps down / up a step
+        //   A guns (held) · B smoke · X wheel brakes (held) · Y change view · Menu OPTIONS · View REC
         private static Frame Read()
         {
             var f = new Frame();
-            var p = Gamepad.current;
-            if (p == null || !p.added) return f;   // never connected, or disconnected: everything idle
+            var p = Pad();
+            if (p == null) return f;   // never connected, or gone: everything idle, which lets go of the controls
             f.Connected = true;
-            Vector2 l = p.leftStick.ReadValue();
-            var (roll, pitch) = GamepadShaping.Stick(l.x, l.y);
+            Vector2 r = p.rightStick.ReadValue(), l = p.leftStick.ReadValue();
+            var (roll, pitch) = GamepadShaping.Stick(r.x, r.y);
             f.Roll = (float)roll; f.Pitch = (float)pitch;
-            f.Rudder = (float)GamepadShaping.Rudder(p.leftTrigger.ReadValue(), p.rightTrigger.ReadValue(), p.rightStick.ReadValue().x);
+            f.Rudder = (float)GamepadShaping.Rudder(l.x, p.leftTrigger.ReadValue(), p.rightTrigger.ReadValue());
+            f.Throttle = (float)GamepadShaping.ThrottleRate(l.y);
             f.ThrottleUp = p.rightShoulder.isPressed;
             f.ThrottleDown = p.leftShoulder.isPressed;
             f.TrimNoseDown = p.dpad.up.isPressed;
@@ -86,9 +115,9 @@ namespace FlyingGame.Bridge
             return f;
         }
 
-        // Connect / disconnect are logged so a "nothing works" report can be answered from the device log. Nothing
-        // else needs the event: Gamepad.current follows the most recently used pad, and a pad that goes away is
-        // read as idle on the next frame, which releases whatever it was holding.
+        // Connect / disconnect / enable are logged so a "nothing works" report can be answered from the device log.
+        // Nothing else needs the event: Pad() is asked again every frame, so a pad that arrives is flown from on its
+        // first frame, and one that goes away is read as idle, which releases whatever it was holding.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Watch()
         {
@@ -97,9 +126,11 @@ namespace FlyingGame.Bridge
             {
                 if (d is not Gamepad) return;
                 if (change == InputDeviceChange.Added || change == InputDeviceChange.Reconnected)
-                    Debug.Log($"[Gamepad] connected: {d.displayName} ({d.layout})");
+                    Debug.Log($"[Gamepad] connected: {d.displayName} ({d.layout}) · {Gamepad.all.Count} pad(s)");
                 else if (change == InputDeviceChange.Removed || change == InputDeviceChange.Disconnected)
-                    Debug.Log($"[Gamepad] disconnected: {d.displayName}");
+                    Debug.Log($"[Gamepad] disconnected: {d.displayName} · {Gamepad.all.Count} pad(s) left");
+                else if (change == InputDeviceChange.Enabled || change == InputDeviceChange.Disabled)
+                    Debug.Log($"[Gamepad] {d.displayName} {(change == InputDeviceChange.Enabled ? "enabled" : "disabled")}");
             };
         }
 #else

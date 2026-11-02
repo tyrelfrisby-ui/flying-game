@@ -1032,10 +1032,13 @@ namespace FlyingGame.Bridge
 
         // ---- gamepad (Input System: MFi / Xbox / PlayStation / 8BitDo) -------------------------------------------
         //
-        //   left stick        roll and pitch: stick back (toward you) = nose UP, pushed away = nose down, the same
+        //   RIGHT stick       roll and pitch: stick back (toward you) = nose UP, pushed away = nose down, the same
         //                     sense as the touch pad and a real stick (InvertElevator flips it, as it does for touch)
-        //   RT / LT           right / left rudder (RT − LT); right stick X is a second rudder, summed and clamped
-        //   RB / LB (held)    throttle up / down, ramping; LB stops at idle (brakes are X, not the bottom of the lever)
+        //   LEFT stick X      rudder; RT / LT are a second rudder (RT − LT), summed and clamped
+        //   LEFT stick Y      throttle as a RATE: held up = power comes up, held down = comes off, let go = stays.
+        //                     (A self-centring stick read as a POSITION would snap to half power every time the
+        //                     thumb lifted.) Linear, no expo. Stops at idle: brakes are X, not the bottom of the lever.
+        //   RB / LB (held)    throttle up / down too, at a fixed rate
         //   d-pad up / down   pitch trim nose down / nose up (held)
         //   d-pad left/right  flaps up / down one step
         //   A (held)          guns          B   smoke on / off       X (held)   wheel brakes       Y   change view
@@ -1044,7 +1047,8 @@ namespace FlyingGame.Bridge
         // The pad takes over a group of controls only while it is moving them, and for the one frame after, so a
         // stick let go returns its surfaces to centre; while it rests, the touch pads work exactly as before, and a
         // finger on a pad always wins that pad's controls.
-        private const float GamepadThrottleRate = 0.8f;   // lever travel per second: idle to full in under 2 s
+        private const float GamepadStickThrottleRate = 1.0f;    // lever travel per second at full left-stick: idle to full in 1.5 s
+        private const float GamepadButtonThrottleRate = 0.8f;   // the shoulders: idle to full in just under 2 s
         private bool _gpStickWas, _gpRudderWas;
         private OptionsPanel _options;
 
@@ -1079,9 +1083,10 @@ namespace FlyingGame.Bridge
             if (!gp.Connected) return;
 
             float dt = Time.unscaledDeltaTime;   // (real time, as the keyboard's W / S, so it works in slow motion too)
-            if (_leftFinger == int.MinValue && (gp.ThrottleUp || gp.ThrottleDown))
+            if (_leftFinger == int.MinValue && (gp.Throttle != 0f || gp.ThrottleUp || gp.ThrottleDown))
             {
-                _throttle = (float)FlyingGame.Core.GamepadShaping.Ramp(_throttle, gp.ThrottleUp, gp.ThrottleDown, GamepadThrottleRate, dt, AxisForFraction(IdleFraction), 1f);
+                _throttle = (float)FlyingGame.Core.GamepadShaping.Lever(_throttle, gp.Throttle, gp.ThrottleUp, gp.ThrottleDown,
+                    GamepadStickThrottleRate, GamepadButtonThrottleRate, dt, AxisForFraction(IdleFraction), 1f);
                 _leftKnob = IdleLeftKnob();
             }
             if (_trimFinger == int.MinValue)

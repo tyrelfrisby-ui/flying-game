@@ -16,6 +16,10 @@ namespace FlyingGame.Core;
 ///  • EXPO: out = (1 − e)·x + e·x³. At x = ±1 that is ±1 for every e, so full deflection is exactly full; for e in
 ///    0…1 the slope (1 − e) + 3e·x² is never negative, so more stick never gives less control.
 ///
+/// The mapping (Ty, 2026-11-02, "the right hand on the stick"): RIGHT stick = roll and pitch, LEFT stick X = rudder
+/// (triggers as a second rudder), LEFT stick Y = throttle as a rate (<see cref="ThrottleRate"/>). Expo on the three
+/// flight controls only. This file is shared by every platform (iOS, Mac, Quest).
+///
 /// Sign conventions are the PAD'S: stick right and stick up (pushed away from you) are positive, triggers 0…1.
 /// The aeroplane's own senses (push = nose down) are applied by the caller, which owns <c>InvertElevator</c>.
 /// </summary>
@@ -56,7 +60,7 @@ public static class GamepadShaping
         return (1.0 - e) * c + e * c * c * c;
     }
 
-    /// <summary>A stick, dead zone then expo per axis: (roll, pitch) or (rudder, —).</summary>
+    /// <summary>The flying stick (the RIGHT stick), dead zone then expo per axis: (roll, pitch).</summary>
     public static (double X, double Y) Stick(double x, double y,
         double deadZone = DefaultStickDeadZone, double expo = DefaultExpo)
     {
@@ -65,17 +69,27 @@ public static class GamepadShaping
     }
 
     /// <summary>
-    /// The rudder: right trigger is right pedal, left trigger is left pedal (RT − LT), and the right stick's X is a
-    /// second way to the same pedals. Each is shaped on its own and the two are summed and clamped, so either one
-    /// alone reaches full rudder and both together cannot exceed it.
+    /// The rudder: the LEFT stick's X, and the triggers as a second way to the same pedals (right trigger = right
+    /// pedal, left = left: RT − LT). Each is shaped on its own and the two are summed and clamped, so either one alone
+    /// reaches full rudder and both together cannot exceed it.
     /// </summary>
-    public static double Rudder(double leftTrigger, double rightTrigger, double rightStickX,
-        double triggerDeadZone = DefaultTriggerDeadZone, double stickDeadZone = DefaultStickDeadZone, double expo = DefaultExpo)
+    public static double Rudder(double leftStickX, double leftTrigger, double rightTrigger,
+        double stickDeadZone = DefaultStickDeadZone, double triggerDeadZone = DefaultTriggerDeadZone, double expo = DefaultExpo)
     {
+        double s = DeadZone(leftStickX, stickDeadZone);
         double t = DeadZone(Math.Clamp(rightTrigger, 0.0, 1.0), triggerDeadZone) - DeadZone(Math.Clamp(leftTrigger, 0.0, 1.0), triggerDeadZone);
-        double s = DeadZone(rightStickX, stickDeadZone);
-        return Math.Clamp(Expo(t, expo) + Expo(s, expo), -1.0, 1.0);
+        return Math.Clamp(Expo(s, expo) + Expo(t, expo), -1.0, 1.0);
     }
+
+    /// <summary>
+    /// The throttle from the LEFT stick's Y, as a RATE, not a position. A gamepad stick springs back to centre the
+    /// moment the thumb lifts; read as a position, that spring would chop the power to half every time the pilot
+    /// let go to press a button. Read as a rate it behaves like a throttle: held up, the power comes up; held down,
+    /// it comes off; let go, it stays where it was put. Linear with a dead zone and NO expo — this is how fast the
+    /// lever moves, not a control surface, and a deflection of half should move it at half speed.
+    /// Returns −1…1, a fraction of the full rate; the shoulder buttons add a fixed rate of their own.
+    /// </summary>
+    public static double ThrottleRate(double leftStickY, double deadZone = DefaultStickDeadZone) => DeadZone(leftStickY, deadZone);
 
     /// <summary>
     /// Undo a dead zone that will be applied AGAIN downstream. The aeroplane already zones every control once
@@ -91,12 +105,16 @@ public static class GamepadShaping
         return Math.Sign(c) * (dz + Math.Abs(c) * (1.0 - dz));
     }
 
-    /// <summary>A lever driven by two held buttons: moves at <paramref name="ratePerSec"/> toward whichever is held
-    /// (both or neither: stays), and stops at the given ends.</summary>
-    public static double Ramp(double current, bool up, bool down, double ratePerSec, double dt, double min, double max)
+    /// <summary>The throttle lever moved for one frame: the stick's rate (fraction of <paramref name="stickRatePerSec"/>)
+    /// plus the shoulder buttons' (up − down at <paramref name="buttonRatePerSec"/>), then clamped to the lever's ends.
+    /// Nothing asking for a change leaves the lever exactly where it was — including outside the ends, so a lever
+    /// the touch pad has put in the brake band below idle is not dragged back to idle by a stick at rest.</summary>
+    public static double Lever(double current, double stickRate, bool up, bool down,
+        double stickRatePerSec, double buttonRatePerSec, double dt, double min, double max)
     {
-        double dir = (up ? 1.0 : 0.0) - (down ? 1.0 : 0.0);
-        if (dir == 0.0) return current;
-        return Math.Clamp(current + dir * Math.Abs(ratePerSec) * Math.Max(0.0, dt), min, max);
+        double rate = Math.Clamp(stickRate, -1.0, 1.0) * Math.Abs(stickRatePerSec)
+            + ((up ? 1.0 : 0.0) - (down ? 1.0 : 0.0)) * Math.Abs(buttonRatePerSec);
+        if (rate == 0.0) return current;
+        return Math.Clamp(current + rate * Math.Max(0.0, dt), min, max);
     }
 }

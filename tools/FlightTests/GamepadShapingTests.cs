@@ -114,30 +114,61 @@ public sealed class GamepadShapingTests
     {
         var (r, p) = GamepadShaping.Stick(0.6, -0.6);
         Assert.True(r > 0);   // stick right → roll right
-        Assert.True(p < 0);   // stick pulled back toward you → negative (the caller makes that nose UP)
+        Assert.True(p < 0);   // right stick pulled back toward you → negative (the caller makes that nose UP)
     }
 
-    // ---- rudder ----
+    // ---- rudder: left stick X, triggers as a second way ----
+
+    [Fact]
+    public void LeftStickIsTheRudderRightIsRight()
+    {
+        Assert.Equal(1.0, GamepadShaping.Rudder(1.0, 0.0, 0.0), Tol);
+        Assert.Equal(-1.0, GamepadShaping.Rudder(-1.0, 0.0, 0.0), Tol);
+        Assert.Equal(0.0, GamepadShaping.Rudder(0.05, 0.0, 0.0), Tol);    // inside the stick's dead zone
+        // Expo applies: half stick after the 0.07 zone is 0.5, and 0.35·0.5 + 0.65·0.125 = 0.25625.
+        Assert.Equal(0.25625, GamepadShaping.Rudder(0.535, 0.0, 0.0), Tol);
+    }
 
     [Fact]
     public void RightTriggerIsRightRudderAndLeftIsLeft()
     {
-        Assert.Equal(1.0, GamepadShaping.Rudder(0.0, 1.0, 0.0), Tol);
-        Assert.Equal(-1.0, GamepadShaping.Rudder(1.0, 0.0, 0.0), Tol);
-        Assert.Equal(0.0, GamepadShaping.Rudder(1.0, 1.0, 0.0), Tol);   // both pedals pressed: they cancel
-        Assert.Equal(0.0, GamepadShaping.Rudder(0.04, 0.0, 0.0), Tol);  // a resting trigger is nothing
-        Assert.True(GamepadShaping.Rudder(0.0, 0.5, 0.0) > 0.0);
+        Assert.Equal(1.0, GamepadShaping.Rudder(0.0, 0.0, 1.0), Tol);
+        Assert.Equal(-1.0, GamepadShaping.Rudder(0.0, 1.0, 0.0), Tol);
+        Assert.Equal(0.0, GamepadShaping.Rudder(0.0, 1.0, 1.0), Tol);   // both pedals pressed: they cancel
+        Assert.Equal(0.0, GamepadShaping.Rudder(0.0, 0.04, 0.0), Tol);  // a resting trigger is nothing
+        Assert.True(GamepadShaping.Rudder(0.0, 0.0, 0.5) > 0.0);
     }
 
     [Fact]
-    public void RightStickIsASecondRudderAndTheSumIsClamped()
+    public void StickAndTriggersSumAndTheSumIsClamped()
     {
-        Assert.Equal(1.0, GamepadShaping.Rudder(0.0, 0.0, 1.0), Tol);
-        Assert.Equal(-1.0, GamepadShaping.Rudder(0.0, 0.0, -1.0), Tol);
-        Assert.Equal(1.0, GamepadShaping.Rudder(0.0, 1.0, 1.0), Tol);     // both full right: still only full
-        Assert.Equal(0.0, GamepadShaping.Rudder(0.0, 1.0, -1.0), Tol);    // opposed: cancel
-        double half = GamepadShaping.Expo(GamepadShaping.DeadZone(0.535, 0.05), 0.65);
-        Assert.Equal(half, GamepadShaping.Rudder(0.0, 0.535, 0.0), Tol);
+        Assert.Equal(1.0, GamepadShaping.Rudder(1.0, 0.0, 1.0), Tol);     // both full right: still only full
+        Assert.Equal(0.0, GamepadShaping.Rudder(-1.0, 0.0, 1.0), Tol);    // opposed: cancel
+        Assert.Equal(0.5125, GamepadShaping.Rudder(0.535, 0.0, 0.525), Tol);   // 0.25625 + 0.25625 (trigger zone 0.05: 0.475/0.95 = 0.5)
+    }
+
+    // ---- throttle: left stick Y, a rate, linear ----
+
+    [Theory]
+    [InlineData(0.0, 0.0)]
+    [InlineData(0.06, 0.0)]       // inside the dead zone: the lever holds
+    [InlineData(0.535, 0.5)]      // (0.535 − 0.07) / 0.93, and NO expo on top
+    [InlineData(-0.535, -0.5)]
+    [InlineData(1.0, 1.0)]
+    [InlineData(-1.0, -1.0)]
+    public void ThrottleStickIsLinearWithADeadZone(double y, double expected) =>
+        Assert.Equal(expected, GamepadShaping.ThrottleRate(y), Tol);
+
+    [Fact]
+    public void ThrottleRateIsMonotonic()
+    {
+        double prev = double.NegativeInfinity;
+        for (int i = -1000; i <= 1000; i++)
+        {
+            double r = GamepadShaping.ThrottleRate(i / 1000.0);
+            Assert.True(r >= prev);
+            prev = r;
+        }
     }
 
     // ---- the aeroplane's own dead zone ----
@@ -161,16 +192,30 @@ public sealed class GamepadShapingTests
         Assert.Equal(shaped, (v - 0.05) / (1.0 - 0.05), 1e-12);
     }
 
-    // ---- throttle ramp ----
+    // ---- the lever ----
 
     [Fact]
-    public void RampMovesWhileHeldAndStopsAtTheEnds()
+    public void LeverMovesAtTheSticksRateAndHoldsWhenLetGo()
     {
-        Assert.Equal(0.3, GamepadShaping.Ramp(0.2, up: true, down: false, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
-        Assert.Equal(0.1, GamepadShaping.Ramp(0.2, up: false, down: true, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
-        Assert.Equal(0.2, GamepadShaping.Ramp(0.2, up: true, down: true, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
-        Assert.Equal(0.2, GamepadShaping.Ramp(0.2, up: false, down: false, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
-        Assert.Equal(1.0, GamepadShaping.Ramp(0.95, up: true, down: false, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
-        Assert.Equal(-0.5, GamepadShaping.Ramp(-0.45, up: false, down: true, ratePerSec: 1.0, dt: 0.1, min: -0.5, max: 1.0), Tol);
+        // stick full rate 1.0/s, buttons 0.8/s, a 0.1 s frame, lever ends −0.5 (idle) … 1.
+        Assert.Equal(0.3, GamepadShaping.Lever(0.2, 1.0, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(0.15, GamepadShaping.Lever(0.2, -0.5, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(0.2, GamepadShaping.Lever(0.2, 0.0, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);   // centred: holds
     }
+
+    [Fact]
+    public void LeverButtonsAddToTheStickAndTheEndsHold()
+    {
+        Assert.Equal(0.28, GamepadShaping.Lever(0.2, 0.0, true, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(0.12, GamepadShaping.Lever(0.2, 0.0, false, true, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(0.2, GamepadShaping.Lever(0.2, 0.0, true, true, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(0.38, GamepadShaping.Lever(0.2, 1.0, true, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(1.0, GamepadShaping.Lever(0.95, 1.0, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+        Assert.Equal(-0.5, GamepadShaping.Lever(-0.45, -1.0, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
+    }
+
+    [Fact]
+    public void LeverAtRestIsNotPulledBackIntoRange() =>
+        // The touch pad's brake band sits below idle; a pad at rest must not drag the lever up to idle.
+        Assert.Equal(-0.8, GamepadShaping.Lever(-0.8, 0.0, false, false, 1.0, 0.8, 0.1, -0.5, 1.0), Tol);
 }
