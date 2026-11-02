@@ -221,20 +221,11 @@ def pitts(path):
     a.node('Canopy_Slide',(-.8,-.36,.16));a.rigged('Canopy_Slide','canopy_open',(-1,0,0),[0,.2,1],[0,.1016,.1016],kind='move',desc='S-2B 4 inch estimated aft track; slide first, then hinge')
     a.node('Canopy',(-.8,-.36,.16),'Canopy_Slide');a.rigged('Canopy','canopy_open',(1,0,0),[0,.2,1],[0,0,100],desc='Right side hinge; estimated 100 degree stop; first 20 percent is aft slide')
     for n in ('Canopy_Glass','Canopy_Frame'): a.attach_existing(n,'Canopy')
-    for n,x in [('Canopy_Bow_F',-.76),('Canopy_Bow_R',-.84)]:
-        # Bow is the same closed canopy section, not an invented straight bar.
-        width=skin_y(x,sill(x))-.004;z0=sill(x)+.004;zt=.554
-        pts=[(x,width*math.copysign(abs(math.cos(t))**(2/2.4),math.cos(t)),z0+(zt-z0)*math.sin(t)**(2/2.4)) for t in np.linspace(0,math.pi,33)]
-        sh=Shape()
-        for p,q in zip(pts,pts[1:]): sh.tube(p,q,.009525,10)
-        a.node(n,(0,0,0),'Canopy',sh,grey)
-    # Knob right (negative builder Y) locked; 3 in left travel releases. Pin belongs to bow assembly.
-    sh=Shape();sh.box((-.80,0,.170),(.07,.12,.016));sh.box((-.827,0,.191),(.016,.12,.026));sh.box((-.773,0,.191),(.016,.12,.026));a.node('Canopy_Latch_Block',shape=sh,mat=white)
-    sh=Shape();sh.tube((-.80,-.0381,.183),(-.80,-.0381,.55),.004);a.node('Canopy_Latch_Pin',(-.80,-.0381,.183),'Canopy',sh,grey);a.rigged('Canopy_Latch_Pin','canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move')
-    sh=Shape();sh.tube((-.82,-.0381,.193),(-.85,-.0381,.235),.005);sh.sphere((-.85,-.0381,.235),.018)
-    a.node('Canopy_Latch_Knob',(-.85,-.0381,.235),shape=sh,mat=black)
-    a.rigged('Canopy_Latch_Knob','canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move',desc='Black ball: fully right locked, 76.2 mm left unlocked; mechanism dimensions estimated')
-    a.node('Grip_Canopy_Latch',(-.85,-.0381,.235),'Canopy_Latch_Knob');a.node('Grip_Canopy_Rail',(-1.15,.34,.16),'Canopy')
+    # Phase 2 correction is shared with the offline path: LOW panel-top bows,
+    # short capture pin and transverse channel. No tall hoops/vertical linkage.
+    from vr_phase2 import canopy
+    canopy(a)
+    a.node('Grip_Canopy_Rail',(-1.15,.34,.16),'Canopy')
     report=dict(tube_members=len(segments),tube_ends=len(errors),max_endpoint_axis_error_mm=max(errors)*1000,lateral_skin_clearance_mm=min(skin_clear)*1000,min_tube_vertex_lateral_skin_gap_mm=min(surface_clear)*1000,
                 longeron_widths=widths,tube_od_mm=[25.4,19.05],panel=dict(half_width=hw,bottom=zb,crown=top,min_gauge_margin_mm=min(margins)*1000),
                 grips_builder=grips,removed_triangles=removed,rear_pedal_eye_reach_m=float(np.linalg.norm(np.array((-.43,.285,-.46))-np.array((-1.325,0,.3)))))
@@ -281,7 +272,10 @@ def extra(path):
 
 def update(path):
     path=Path(path)
-    return pitts(path) if path.parent.name=='pitts-s2b-like' else extra(path)
+    result = pitts(path) if path.parent.name=='pitts-s2b-like' else extra(path)
+    from vr_phase2 import update as phase2_update
+    phase2_update(path)
+    return result
 if __name__=='__main__':
     for model in ('pitts-s2b-like','extra-300-like'):
         for path in sorted((MODELS/model).glob('*own*.glb')): update(path)

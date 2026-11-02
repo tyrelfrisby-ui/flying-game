@@ -2182,6 +2182,582 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.6199999999999999,
+    0.060000000000000005,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -65
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.8,
+    -0.12,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.8,
+    -0.12,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.6199999999999999,
+    0.015000000000000006,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     65
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.8,
+    -0.165,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.8,
+    -0.165,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.8699999999999999,
+    0.39,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.8699999999999999,
+    0.39,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Rear",
+   "param": "harness_latch",
+   "parent": "Harness_Rear",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.675,
+    -0.09999999999999999,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Primary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.72,
+    0.060000000000000005,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -65
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8999999999999999,
+    -0.12,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Primary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8999999999999999,
+    -0.12,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Release_Secondary_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Buckle_Secondary_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.72,
+    0.015000000000000006,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     65
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Visual simultaneous release; two physically independent lap belts; Ty review required",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8999999999999999,
+    -0.165,
+    0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Lap_Secondary_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.8999999999999999,
+    -0.165,
+    -0.24
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -75
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_L_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    0.39,
+    0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Shoulder_R_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.97,
+    0.39,
+    -0.13
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Harness_Strap_Crotch_Front",
+   "param": "harness_latch",
+   "parent": "Harness_Front",
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.7749999999999999,
+    -0.09999999999999999,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     100
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
   }
  ],
  "displays": [
@@ -2257,5 +2833,6 @@
    "holder_top_above_dash_m": 0.1149,
    "note": "static card in an alloy holder with a spring clip and paper stock, centred above the top edge of the rear dash (holder_top_above_dash_m is measured from RearPanel_UpperExtension's top, y 0.308); the picked PDF is drawn onto this node's material at runtime (Bridge/SequenceCard.cs). OWNER DECISION 2026-11-01 (Ty, \"B\"): the Extra carried TWO cards after the sights merge -- this holder and a bare SequenceCard_Slot quad 9 mm nearer the pilot whose surround and backing were welded into Cockpit_Interior. The quad, its surround and its backing are gone (tools/own_models/drop_card_slot.py); this is the only card."
   }
- ]
+ ],
+ "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually."
 }

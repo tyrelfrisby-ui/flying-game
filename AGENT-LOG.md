@@ -1,4 +1,40 @@
 ## NEEDS YOU
+- **VR COCKPIT PHASE 2 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
+  Supersedes Phase 1's tall-bow/long-pin interpretation. Seven aircraft GLBs updated by builder-shared CPU path;
+  new original pilot-gear GLB is explicitly CPU fallback. **Blender rebuild/export and all twelve renders PENDING**;
+  Blender was not started here per the task instruction. No C#, Unity, deploy, Glass Overlay or ProjectSettings changes.
+  Operator: `zsh tools/own_models/rebuild_vr_phase2.sh`, then the exact validation/render commands in
+  docs/models/vr-cockpit-phase2.md. That document records sources, estimates and runtime binding details.
+  Ty must inspect these after2 renders and decide (none is approved):
+  1. **pitts_eye:** low rounded panel-top bows, card/dial visibility, body size from the actual rear eye.
+  2. **pitts_bows_closeup:** rail-to-rail bow curve, 40 mm spacing, small bridge, 35 mm pin, Delrin notch.
+     **Question:** do these bracket/channel dimensions and stations match your machine? Exact linkage remains estimated.
+  3. **pitts_latch_unlocked:** black ball moves 76.2 mm pilot-left; pin exits open channel. Right is locked.
+  4. **pitts_canopy_open:** whole assembly slides 101.6 mm aft then hinges right 100° (estimated).
+     **Question:** confirm travel, stop and which forward section must remain a fixed windscreen.
+  5. **pitts_frame:** side x-ray tube topology; no red star. Sight centres are ±1.852 m, wingtips ±3.047 m;
+     sights are intentionally floating cockpit-only references per existing provenance. Red X was a render-only artefact.
+  6. **harness_latched:** five-point primary plus a second independent lap belt. **Question:** your Pitts lever latch
+     or cam-lock, ratchet position, routing, anchors and colours? Geometry does not assert a universal factory fitting.
+  7. **harness_released:** all seven straps fall open; both release fittings visible. Single visual param currently
+     releases both; Claude must retain two independent interaction states before freeing the pilot.
+  8. **extra_harness:** two releases, lower pilot-left / upper pilot-right per Wagstaff 300S card.
+     **Question:** does that fitting/routing match the intended early two-seat Extra? Source establishes directions only.
+  9. **headset_plugged:** H10-13.4-style GA twin PJ-055/PJ-068 plugs, provisional right-side jacks, cord stand-in.
+     **Question:** where exactly are front/rear jack pairs on your Pitts and intended Extra? No primary station found.
+  10. **pilot_lookdown:** separate aircraft belts and parachute straps; reachable left-side open D-ring.
+  11. **parachute_packed:** Mini Softie-style 15 × 23 × 2.25 in pack. **Question:** is this the rig family you want?
+  12. **parachute_deployed:** round/conical 26-ft nominal class, inflated shape and hanging pilot proportions;
+      projected diameter/dome/line geometry are art estimates, not Strong manufacturing measurements.
+  Numbers: bows X −.835/−.875, radius 6.35 mm, crown .218; closed minimum clearances panel 64.65 mm,
+  instruments 104.84, IAC 174.61, estimated helmet sphere 310.56, full-control stick volumes 228.59.
+  Continuous full-sweep bow/panel separating-axis clearance ≥21.15 mm. Intentional pin engagement excluded.
+  Gear 3,780 tris (body + gear 6,196); current entire Pitts 63,198/64,490, Extra 124,866 tris.
+  Seven aircraft + gear graph/name/rig/skin/morph and numeric checks PASS; update idempotence PASS.
+  Existing Phase 1 graph/body/limb checker also PASS after Phase 2.
+  Fresh 0a1a7b4 Pitts/Extra base → current builder postprocess replay PASS (CPU; no Blender claim).
+  Syntax/shell checks and diff whitespace PASS. Blender import/export, render, runtime interaction and Quest performance
+  remain unverified. CONTRACT unchanged. All new required files checked visible with `git status --ignored`.
 - **VR COCKPIT PHASE 1 — lane/codex-vr-cockpit (Codex, 2026-11-02), UNCOMMITTED / NO GATE APPROVED.**
   Pitts all four own liveries: connected tube clusters, loft-inset top-wider-than-bottom rails, rounded rear
   panel with existing dials/card retained, bows/lateral black latch, rear pedals beside front seat, own rig/grips.
@@ -652,6 +688,30 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- **Codex → Claude · VR COCKPIT PHASE 2 · lane/codex-vr-cockpit · 2026-11-02.**
+  Art only, uncommitted. CONTRACT unchanged; no C#. Read docs/models/vr-cockpit-phase2.md for bindings/estimates.
+  Pitts `Canopy_Bow_F/R` now LOW at panel crown, children of `Canopy`; `Canopy_Latch_Bracket` carries a 35 mm
+  `Canopy_Latch_Pin`. Same canopy_open and canopy_latch 0 locked/right .. 1 unlocked/left; unlock before opening.
+  All seven GLBs: `Harness_Rear/Front`, `Harness_Buckle_Rear/Front`, `Grip_Harness_Release_Rear/Front`,
+  `Harness_Strap_Lap_Primary_L/R_*`, `Harness_Strap_Lap_Secondary_L/R_*`, `Harness_Strap_Shoulder_L/R_*`,
+  `Harness_Strap_Crotch_*`. `Harness_Buckle_Secondary_Rear/Front` is independent lower lap fitting.
+  `Harness_Release_Primary_*` / `Harness_Release_Secondary_*` animate; `harness_latch` 0..1 in both own rigs
+  visually drives both releases/all straps. Interaction must distinguish both belts; do not free pilot after only one.
+  Headset jacks now real meshes, provisional pilot-right locations: `Headset_Jack_Rear/Front` with Phone/Mic children.
+  New Resources/Models/pilot-gear/pilot-gear-own.glb: `Headset`, `Headset_Cable_Root`, `Headset_Plug`,
+  `Grip_Headset_Plug`; plug root owns `Headset_Plug_PJ055/PJ068`. Chosen DC H10-13.4 style, GA twin plugs.
+  Rope material **HeadsetCord**, sourced length **1.524 m**, estimated diameter **.004 m**. No runtime static cord;
+  renderer-only stand-in is not published. One grip moves both plugs; coordinate independent disconnection if needed.
+  `Parachute_Container`, `Parachute_Harness`, `Ripcord_Handle`, `Grip_Ripcord`, `Ripcord_Cable` are Chest-bound.
+  Gear has its own one-joint `Chest` skin: remap to pilot-body Chest retaining inverse bind; avoid double seated offset.
+  Authored Chest head builder (−1.335,0,.005), headset eye (−1.325,0,.30); retarget for Extra body/camera.
+  Ripcord on wearer's **LEFT** main lift web (Softie manual). Mini Softie 15×23×2.25 in back pack, conical round
+  **26 ft / 7.9248 m nominal** class; inflated projected size/line geometry estimated. Gear **3,780 tris**.
+  `Parachute_Deployed` root defaults **scale 0** plus default_visible=false extras: set scale 1 to show.
+  Children `Parachute_Pilotchute`, `Parachute_Lines`, `Parachute_Risers`, `Parachute_Canopy`.
+  Canopy morph **Inflate 0..1**, default 0=line stretch, 1=full. Stage root/children visibility and pack opening in code.
+  Chest skin rigid approximation; leg-loop deformation during hanging not authored. Headset/plug/deployed roots independent.
+  Builder/GLB numeric checks pass; Blender export and renders remain pending operator. No visual/runtime gate approved.
 - **Codex → Claude, VR cockpit Phase 1 (2026-11-02, lane/codex-vr-cockpit):** No CONTRACT names changed.
   New Pitts rig docs/models/pitts-s2b-own-rig.json, model pitts-s2b-like-own; existing ConfigSync mirrors by model
   field, no ignored StreamingAssets files created. All 4 Pitts / 3 Extra own GLBs updated. Additive Canopy_Slide

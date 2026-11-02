@@ -31,3 +31,13 @@ Ty should identify the intended variant and reference cockpit for each enclosed 
 
 All downloaded-model nodes remain outside this own-model audit. Nothing in this table claims
 that absence of a named node means absence of latch-shaped triangles inside a combined mesh.
+
+## Phase 2 correction, 2026-11-02
+
+The Phase 1 tall bows/long vertical rod were a misreading of Ty's description and are
+superseded. Two **low** panel-top cross bows, 40 mm apart, now carry a small bridge and
+35 mm capture pin. The Delrin channel is open at the pilot-left end; 76.2 mm leftward
+travel releases it. Black ball fully pilot-right is locked. All dimensions and latch
+notch/linkage details remain estimates requiring Ty's eye review. See
+[vr-cockpit-phase2.md](vr-cockpit-phase2.md) for numbers, continuous opening-clearance
+proof, sources, unresolved questions and operator render/rebuild commands.

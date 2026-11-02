@@ -1,0 +1,42 @@
+{
+  "bows": {
+    "x_m": [
+      -0.835,
+      -0.875
+    ],
+    "tube_radius_m": 0.00635,
+    "crown_m": 0.218,
+    "pin_length_m": 0.035,
+    "closed_conservative_clearance_mm": {
+      "panel": 64.65000267762429,
+      "instruments": 104.83579133308135,
+      "IAC_card": 174.61482016380108,
+      "head_helmet_sphere": 310.5601004569094,
+      "both_sticks_full_control_envelope": 228.5889606343135
+    },
+    "open_sweep_panel_separating_axis_min_mm": 21.14999294281006,
+    "sweep": "continuous proof: X-axis hinge preserves X; aft slide only increases separation; bows only, intentional pin/channel engagement excluded"
+  },
+  "sights": {
+    "abs_y_centre_m": 1.851791262626648,
+    "wingtip_abs_y_m": 3.046999931335449,
+    "finding": "Floating cockpit-only bars per sights-PROVENANCE; external star is projection artefact. Do not relocate to wingtip."
+  },
+  "gear": {
+    "originalGeometry": true,
+    "build": "CPU fallback; shared Blender source",
+    "triangles": 3780,
+    "cord_length_m": 1.524,
+    "cord_diameter_m": 0.004,
+    "nominal_canopy_diameter_m": 7.9248
+  },
+  "airframe_triangles": {
+    "pitts-s2b-like-own-checker-unmarked.glb": 63198,
+    "pitts-s2b-like-own-factory-unmarked.glb": 64490,
+    "pitts-s2b-like-own-n1191.glb": 64490,
+    "pitts-s2b-like-own.glb": 63198,
+    "extra-300-like-own-n300uy.glb": 124866,
+    "extra-300-like-own-unmarked.glb": 124866,
+    "extra-300-like-own.glb": 124866
+  }
+}

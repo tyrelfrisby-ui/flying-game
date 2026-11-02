@@ -45,6 +45,8 @@ def load(kind):
         o.rotation_euler=(Vector((.8,0,0))-o.location).to_track_quat('-Z','Y').to_euler()
     sc.view_settings.view_transform='AgX'
 def shot(name,loc,target,scale=None):
+    for obj in bpy.data.objects:
+        if obj.name.startswith('Sight_'): obj.hide_render = 'eye' not in name
     sc=bpy.context.scene; c=bpy.data.cameras.new(name); o=bpy.data.objects.new(name,c); sc.collection.objects.link(o)
     o.location=loc; o.rotation_euler=(Vector(target)-o.location).to_track_quat('-Z','Y').to_euler()
     if scale: c.type='ORTHO'; c.ortho_scale=scale
