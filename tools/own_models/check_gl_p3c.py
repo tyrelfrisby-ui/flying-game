@@ -67,10 +67,39 @@ def check(path):
    padtris=fit[:nodes[leg['fitting']]['extras']['skin_pad_triangle_count']];pad=np.concatenate([padtris.reshape(-1,3),padtris.mean(1),(padtris[:,0]+padtris[:,1])/2,(padtris[:,1]+padtris[:,2])/2,(padtris[:,2]+padtris[:,0])/2]);lo=pad.min(0)-.01;hi=pad.max(0)+.01;local=skin[((skin.max(1)>=lo)&(skin.min(1)<=hi)).all(1)];assert len(local);padgap=max(distance(v,local) for v in pad);assert padgap<=.002,(leg['fitting'],padgap)
    if group=='cabane':assert np.allclose(q,[-.80 if '_Aft_' in leg['node'] else -.15,.70 if leg['node'].endswith('_L') else -.70,.62],atol=1e-7)
    if group=='gear':assert np.linalg.norm(q-builder(world[idx[leg['top_node']]][:3,3]))<1e-6
-   report[group].append(dict(node=leg['node'],endpoint_fitting_mm=endpoint_fit*1000,fitting_skin_mm=padgap*1000,**({'before_endpoint_skin_gap_mm':leg['before_endpoint_skin_gap_mm'],'after_endpoint_skin_gap_mm':distance(p,skin)*1000} if group=='cabane' else {})))
+   elevation=None
+   if leg['node'].startswith('Gear_Support_'):
+    axle=vertices(g,leg['axle_node']);axle_gap=solid_distance(q,axle)
+    assert axle_gap<=.002,(leg['node'],'lower axle contact',axle_gap)
+    assert abs(p[1])<.15 and abs(q[1])>.8 and p[2]>q[2]
+    elevation=float(np.degrees(np.arctan2(p[2]-q[2],np.linalg.norm((p-q)[:2]))))
+    assert 20<elevation<65,(leg['node'],elevation)
+   report[group].append(dict(node=leg['node'],endpoint_fitting_mm=endpoint_fit*1000,**(dict(axle_contact_mm=axle_gap*1000,elevation_deg=elevation,belly_endpoint_m=p.tolist(),axle_endpoint_m=q.tolist()) if elevation is not None else {}),fitting_skin_mm=padgap*1000,**({'before_endpoint_skin_gap_mm':leg['before_endpoint_skin_gap_mm'],'after_endpoint_skin_gap_mm':distance(p,skin)*1000} if group=='cabane' else {})))
  for screen in meta['screens']:
-  n=nodes[screen['node']];mesh=g.doc['meshes'][n['mesh']];assert len(mesh['primitives'])==1
-  v=vertices(g,screen['node']).reshape(-1,3);top=float(v[:,2].max());edge=v[np.isclose(abs(v[:,1]),abs(v[:,1]).max(),atol=1e-6),2].max();drop=top-float(edge)
+  n=nodes[screen['node']];mesh=g.doc['meshes'][n['mesh']];assert len(mesh['primitives'])==2
+  triangles=vertices(g,screen['node']);face_tris=triangles[:3072][:,::-1];edges=triangles[3072:]
+  assert len(edges)==304==screen['edge_triangles']
+  thickness=np.linalg.norm(face_tris[:1536]-face_tris[1536:][:,::-1],axis=2)
+  assert np.all((thickness>.00349)&(thickness<.00351))
+  # All welded edges of the two surfaces + perimeter must have two incident faces.
+  weld,indices=np.unique(np.round(triangles.reshape(-1,3),6),axis=0,return_inverse=True)
+  faces=indices.reshape(-1,3);pairs=np.sort(np.concatenate([faces[:,[0,1]],faces[:,[1,2]],faces[:,[2,0]]]),axis=1)
+  _,counts=np.unique(pairs,axis=0,return_counts=True);assert np.all(counts==2)
+  seat=0 if screen['node'].endswith('Front') else 1;xf,xa,hw=meta['cockpits'][seat]
+  base=np.concatenate([face_tris[:128:2,:2].reshape(-1,3)])
+  centre=base[np.argmin(abs(base[:,1]))];base_distance=float(centre[0]-xf)
+  assert .020<=base_distance<=.030 and abs(base_distance-screen['base_forward_distance_m'])<1e-6
+  assert base[:,1].min() < -hw and base[:,1].max() > hw
+  # Base follows the deck (4 mm seating clearance) and wraps both forward corners.
+  from vr_phase3c import ray_skin
+  assert max(abs(p[2]-ray_skin(skin,p[0],p[1])-.004) for p in base)<1e-6
+  for prim in mesh['primitives']:
+   material=g.doc['materials'][prim['material']];assert material['alphaMode']=='BLEND'
+   assert .2<material['pbrMetallicRoughness']['baseColorFactor'][3]<.75
+   assert material['pbrMetallicRoughness']['roughnessFactor']<.1
+   assert 'KHR_materials_transmission' not in material.get('extensions',{})
+  assert g.doc['materials'][mesh['primitives'][0]['material']]['extensions']['KHR_materials_ior']['ior']==1.49
+  v=triangles.reshape(-1,3);top=float(v[:,2].max());edge=max(face_tris[1409,2,2],face_tris[1534,2,2],face_tris[2945,0,2],face_tris[3070,0,2]);drop=top-float(edge)
   assert abs(top-screen['top_height_m'])<1e-6 and abs(drop-screen['top_edge_drop_m'])<1e-6
   # Weld coordinates and verify one connected sheet, with no separate frame components.
   unique,ids=np.unique(np.round(v,6),axis=0,return_inverse=True);adj=[set() for _ in unique]
@@ -80,7 +109,7 @@ def check(path):
   while todo:
    for i in adj[todo.pop()]-seen:seen.add(i);todo.append(i)
   assert len(seen)==len(unique)
-  report['screens'].append(dict(node=screen['node'],top_height_m=top,top_edge_drop_mm=drop*1000,centre_height_mm=screen['centre_height_above_skin_m']*1000,components=1))
+  report['screens'].append(dict(node=screen['node'],top_height_m=top,top_edge_drop_mm=drop*1000,thickness_min_mm=float(thickness.min()*1000),thickness_max_mm=float(thickness.max()*1000),edge_triangles=len(edges),closed_manifold=True,base_to_opening_forward_edge_mm=base_distance*1000,centre_height_mm=screen['centre_height_above_skin_m']*1000,components=1))
  assert report['screens'][0]['top_height_m']<report['screens'][1]['top_height_m']
  assert report['screens'][0]['top_edge_drop_mm']<report['screens'][1]['top_edge_drop_mm']
  # Test every new triangle against an aperture extrusion above the local coaming.

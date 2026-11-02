@@ -81,12 +81,13 @@ def update(path):
   for label,oldend,end,top,fit in [('Fwd',(-.12,sy*.33,.20),fb,ft,'Fwd'),('Aft',(-.80,sy*.33,.17),rb,rt,'Aft'),('Diagonal',(-.80,sy*.33,.17),rb,ft,'Aft')]:
    name='Cabane_Leg_'+label+'_'+side;sh=Shape();sh.tube(end,top,.012,16);node(name,sh,strutmat)
    meta['cabane'].append(dict(node=name,fitting='Cabane_Fitting_'+fit+'_'+side,bottom=end.tolist(),top=top.tolist(),before_endpoint_skin_gap_mm=distance(oldend,skin)*1000,after_endpoint_skin_gap_mm=distance(end,skin)*1000))
-  # Fixed V from the existing oleo top pin to two lower longeron skin fittings.
-  w=g.world_matrices();top=builder(w[a.idx('Gear_OleoTop_'+side)][:3,3])
-  for label,x,y in [('Fwd',.10,.33),('Aft',-.70,.33)]:
+  # Rest-pose V: actual lower oleo/axle pin to fore/aft inboard belly fittings.
+  # Gear_Axle origin is H (inboard pivot), NOT the outer axle pin A.
+  w=g.world_matrices();top=builder(w[a.idx('Oleo_Cylinder_'+side)][:3,3])
+  for label,x,y in [('Fwd',.10,.10),('Aft',-.70,.10)]:
    fit='Gear_Fitting_'+label+'_'+side;end=fitting(fit,x,sy*y,False)
    sh=Shape();sh.tube(end,top,.0175,16);name='Gear_Support_'+label+'_'+side;node(name,sh,strutmat)
-   meta['gear'].append(dict(node=name,fitting=fit,bottom=end.tolist(),top=top.tolist(),top_node='Gear_OleoTop_'+side))
+   meta['gear'].append(dict(node=name,fitting=fit,bottom=end.tolist(),top=top.tolist(),top_node='Oleo_Cylinder_'+side, axle_node='Gear_Axle_'+side, elevation_deg=float(np.degrees(np.arctan2(end[2]-top[2],np.linalg.norm((end-top)[:2]))))))
   # Keep the centreline U-joint pivot fixed; bridge its existing skin stand-off.
   pivot=builder(g.world_matrices()[a.idx('Gear_Pivot_'+side)][:3,3]);fit='Gear_Fitting_Pivot_'+side
   end=fitting(fit,float(pivot[0]),float(pivot[1]),False);sh=Shape();sh.tube(end,pivot,.014,12);name='Gear_Pivot_Sleeve_'+side;node(name,sh,metal)
@@ -112,11 +113,12 @@ def update(path):
  mask=np.array([all(i in keep for i in f) for f in ids.reshape(-1,3)])
  sh.v=oldpadding[mask].reshape(-1,3).tolist();sh.t=np.arange(len(sh.v)).reshape(-1,3).tolist()
  node('GL3c_Coaming_Padding',sh,black)
- glass=g.material('GL3c_Clear_Acrylic',(.91,.97,1));m=g.doc['materials'][glass];m.update(alphaMode='BLEND',doubleSided=True);m['pbrMetallicRoughness'].update(baseColorFactor=[.91,.97,1,.12],roughnessFactor=.09)
- # Alpha fallback remains clear on Unity shaders without transmission support.
- m['extensions']={'KHR_materials_transmission':{'transmissionFactor':.96},'KHR_materials_ior':{'ior':1.49}}
+ glass=g.material('GL3c_Clear_Acrylic',(.91,.97,1));m=g.doc['materials'][glass];m.update(alphaMode='BLEND',doubleSided=True);m['pbrMetallicRoughness'].update(baseColorFactor=[.94,.98,1,.28],roughnessFactor=.055)
+ # Alpha PBR deliberately avoids Built-In glTFast's transmission alpha workaround.
+ m['extensions']={'KHR_materials_ior':{'ior':1.49}}
  for ext in m['extensions']:
   if ext not in g.doc.setdefault('extensionsUsed',[]):g.doc['extensionsUsed'].append(ext)
+ edge_mat=g.material('GL3d_Polished_Acrylic_Edge',(.84,.94,1));em=g.doc['materials'][edge_mat];em.update(alphaMode='BLEND',doubleSided=True);em['pbrMetallicRoughness'].update(baseColorFactor=[.84,.94,1,.68],roughnessFactor=.035)
  for seat,ck,h,crown in [('Front',cockpits[0],.125,.008),('Rear',cockpits[1],.175,.030)]:
   xf,xa,hw=ck;rows=[]
   for q in np.linspace(0,1,13):
@@ -133,12 +135,28 @@ def update(path):
   for j in range(12):
    for i in range(64):
     k=j*65+i;sh.t.extend([(k,k+1,k+66),(k,k+66,k+65)])
+  # Offset along the local sheet normal; both surfaces and all four edges render.
+  surface=np.array(rows);du=np.gradient(surface,axis=1);dv=np.gradient(surface,axis=0)
+  normals=np.cross(du,dv);normals/=np.linalg.norm(normals,axis=2)[:,:,None]
+  thickness=.0035;outer=surface+thickness*normals
+  count=13*65;faces=sh.t[:];sh.v+=outer.reshape(-1,3).tolist()
+  sh.t = [f[::-1] for f in faces]+[tuple(count+i for i in f) for f in faces]
   name='Windscreen_'+seat;node(name,sh,glass)
+  boundary=list(range(65))+[j*65+64 for j in range(1,13)]+list(range(count-2,count-66,-1))+[j*65 for j in range(11,0,-1)]
+  edges=Shape();edges.v=sh.v
+  for i,j in zip(boundary,boundary[1:]+boundary[:1]):edges.t.extend([(i,j,j+count),(i,j+count,i+count)])
+  # Edge faces share the windshield node, as a second material primitive.
+  temp=name+'_EdgeBuild';a.node(temp,shape=edges,mat=edge_mat)
+  edge_index=a.idx(temp);g.doc['nodes'].pop();assert edge_index==len(g.doc['nodes'])
+  g.doc['scenes'][0]['nodes'].remove(edge_index)
+  edge_mesh=g.doc['meshes'].pop();g.doc['meshes'][g.doc['nodes'][a.idx(name)]['mesh']]['primitives']+=edge_mesh['primitives']
+
   clips=Shape()
   for i in (3,16,32,48,61):
    p=np.array(rows[0][i]);clips.tube(p,p+(0,0,.006),.003,8)
   node('Windscreen_Base_Screws_'+seat,clips,steel)
-  meta['screens'].append(dict(node=name,rows=13,columns=65,centre_height_above_skin_m=h,top_crown_m=crown,top_height_m=rows[-1][32][2],top_edge_drop_m=rows[-1][32][2]-rows[-1][0][2]))
+  meta['screens'].append(dict(node=name,rows=13,columns=65,thickness_m=thickness,edge_triangles=len(edges.t),base_forward_distance_m=rows[0][32][0]-xf,centre_height_above_skin_m=h,top_crown_m=crown,top_height_m=float(np.array(sh.v)[:,2].max()),top_edge_drop_m=float(np.array(sh.v)[:,2].max()-max(np.array(sh.v)[[12*65,count-1,count+12*65,2*count-1],2]))))
+ meta['revision']='P3d'
  g.doc.setdefault('extras',{})['vrCockpitPhase3c']=meta
  validate(g,path);g.save(path)
  print('P3c',path.name)

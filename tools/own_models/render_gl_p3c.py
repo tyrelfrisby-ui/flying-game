@@ -10,6 +10,9 @@ from mathutils import Vector
 p=argparse.ArgumentParser();p.add_argument('output',type=Path);p.add_argument('--model',type=Path,default=Path('unity/Assets/_Project/Resources/Models/great-lakes-like/great-lakes-like-own.glb'))
 a=p.parse_args(sys.argv[sys.argv.index('--')+1:]);a.output.mkdir(parents=True,exist_ok=True)
 CAMERAS=[
+ ('windscreen_rear',(-2.22,1.0,.63),(-1.65,0,.27),55,None),
+ ('windscreen_front',(-1.40,1.0,.60),(-.97,0,.26),55,None),
+ ('gear_front',(3.8,0,-.72),(-.30,0,-.98),55,2.5),
  ('cockpit',(-2.16,.30,.62),(-1.60,0,.06),28,None),
  ('cabane_gear_side',(.90,2.65,.42),(-.35,0,-.40),48,None),
  ('cockpits_above',(-2.75,2.10,2.10),(-1.40,0,.12),50,None),

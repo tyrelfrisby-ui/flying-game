@@ -49,12 +49,36 @@
    {
     "node": "Gear_Support_Fwd_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.5010272601446732
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324420894371,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.742379918525309
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.8054522861738792e-05
    },
    {
     "node": "Gear_Support_Aft_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24807062864771345
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.045683942108276,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_L",
@@ -69,12 +93,36 @@
    {
     "node": "Gear_Support_Fwd_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.39127264489757974
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324552138385,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7423799140504399
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.9352173054514633e-05
    },
    {
     "node": "Gear_Support_Aft_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24768096488502628
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.0456894859464,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_R",
@@ -90,15 +138,25 @@
   "screens": [
    {
     "node": "Windscreen_Front",
-    "top_height_m": 0.3264999985694885,
-    "top_edge_drop_mm": 7.999986410140991,
+    "top_height_m": 0.32693058252334595,
+    "top_edge_drop_mm": 8.430570363998413,
+    "thickness_min_mm": 3.499945203584617,
+    "thickness_max_mm": 3.5000547249618306,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 24.999988079071002,
     "centre_height_mm": 125.0,
     "components": 1
    },
    {
     "node": "Windscreen_Rear",
-    "top_height_m": 0.375,
-    "top_edge_drop_mm": 30.000001192092896,
+    "top_height_m": 0.37530583143234253,
+    "top_edge_drop_mm": 30.305832624435425,
+    "thickness_min_mm": 3.4998810848691426,
+    "thickness_max_mm": 3.50011378727804,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 24.999957084655744,
     "centre_height_mm": 175.0,
     "components": 1
    }
@@ -155,12 +213,36 @@
    {
     "node": "Gear_Support_Fwd_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.5010272601446732
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324420894371,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.742379918525309
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.8054522861738792e-05
    },
    {
     "node": "Gear_Support_Aft_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24807062864771345
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.045683942108276,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.37699994444847107,
+     0.8400000520050526,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_L",
@@ -175,12 +257,36 @@
    {
     "node": "Gear_Support_Fwd_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.39127264489757974
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 40.22324552138385,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7423799140504399
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 2.9352173054514633e-05
    },
    {
     "node": "Gear_Support_Aft_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24768096488502628
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 39.0456894859464,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.3770000636577606,
+     -0.839999932795763,
+     -1.4869999885559082
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_R",
@@ -196,15 +302,25 @@
   "screens": [
    {
     "node": "Windscreen_Front",
-    "top_height_m": 0.3264999985694885,
-    "top_edge_drop_mm": 7.999986410140991,
+    "top_height_m": 0.32693058252334595,
+    "top_edge_drop_mm": 8.430570363998413,
+    "thickness_min_mm": 3.499945203584617,
+    "thickness_max_mm": 3.5000547249618306,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 24.999988079071002,
     "centre_height_mm": 125.0,
     "components": 1
    },
    {
     "node": "Windscreen_Rear",
-    "top_height_m": 0.375,
-    "top_edge_drop_mm": 30.000001192092896,
+    "top_height_m": 0.37530583143234253,
+    "top_edge_drop_mm": 30.305832624435425,
+    "thickness_min_mm": 3.4998810848691426,
+    "thickness_max_mm": 3.50011378727804,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 24.999957084655744,
     "centre_height_mm": 175.0,
     "components": 1
    }
@@ -261,12 +377,36 @@
    {
     "node": "Gear_Support_Fwd_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.5225813682361948
+    "axle_contact_mm": 4.529536535277226e-06,
+    "elevation_deg": 31.985140862937072,
+    "belly_endpoint_m": [
+     0.1,
+     0.1,
+     -0.7024481514055361
+    ],
+    "axle_endpoint_m": [
+     -0.26777398586273193,
+     0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.724292807784984e-05
    },
    {
     "node": "Gear_Support_Aft_L",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24807062864771345
+    "axle_contact_mm": 4.529536535277226e-06,
+    "elevation_deg": 25.310295867130748,
+    "belly_endpoint_m": [
+     -0.7,
+     0.1,
+     -0.8320964965131082
+    ],
+    "axle_endpoint_m": [
+     -0.26777398586273193,
+     0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.825369020778939e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_L",
@@ -281,12 +421,36 @@
    {
     "node": "Gear_Support_Fwd_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.3697867217923806
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 31.985139228688794,
+    "belly_endpoint_m": [
+     0.1,
+     -0.1,
+     -0.7024481449511338
+    ],
+    "axle_endpoint_m": [
+     -0.26777416467666626,
+     -0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 2.820615464073388e-05
    },
    {
     "node": "Gear_Support_Aft_R",
     "endpoint_fitting_mm": 0.0,
-    "fitting_skin_mm": 0.24768096488502628
+    "axle_contact_mm": 0.0,
+    "elevation_deg": 25.310297806344746,
+    "belly_endpoint_m": [
+     -0.7,
+     -0.1,
+     -0.8320964942885655
+    ],
+    "axle_endpoint_m": [
+     -0.26777416467666626,
+     -0.9646672196686268,
+     -1.28925621509552
+    ],
+    "fitting_skin_mm": 3.812549053533906e-05
    },
    {
     "node": "Gear_Pivot_Sleeve_R",
@@ -302,15 +466,25 @@
   "screens": [
    {
     "node": "Windscreen_Front",
-    "top_height_m": 0.32625001668930054,
-    "top_edge_drop_mm": 8.000016212463379,
+    "top_height_m": 0.32668060064315796,
+    "top_edge_drop_mm": 8.4306001663208,
+    "thickness_min_mm": 3.499915413741016,
+    "thickness_max_mm": 3.5000823166993253,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 25.000007152557345,
     "centre_height_mm": 125.0,
     "components": 1
    },
    {
     "node": "Windscreen_Rear",
-    "top_height_m": 0.375,
-    "top_edge_drop_mm": 30.000001192092896,
+    "top_height_m": 0.37530583143234253,
+    "top_edge_drop_mm": 30.305832624435425,
+    "thickness_min_mm": 3.499901014762051,
+    "thickness_max_mm": 3.5001067368138545,
+    "edge_triangles": 304,
+    "closed_manifold": true,
+    "base_to_opening_forward_edge_mm": 24.999990463256736,
     "centre_height_mm": 175.0,
     "components": 1
    }
