@@ -1,35 +1,70 @@
 ## NEEDS YOU
-- **PITTS ROLL RATE: 392 → 271 deg/s, and the travel is back on its TCDS number (Claude, 2026-11-01,
-  lane/claude-pitts-roll) — NEEDS YOU: fly it.**
-  1. **391.6 → 270.7 deg/s** at 160 mph IAS, full aileron, measured the same way before and after
-     (`PittsRollProbe`). Onset is unchanged — 0.41 s to 90 % before, **0.36 s** after — so it bites as fast as
-     it did and simply stops at a lower rate. The Extra (409.3) and the Great Lakes (83.3) did not move by so
-     much as a tenth.
-  2. **Your call on the previous attempt was right.** I had got there by shrinking aileron travel 25° → 16.5°,
-     and flagged that 16.5° is less than this model gives a J-3 Cub. You rejected it; that is now undone.
-     **`maxDeflRad` is back to 0.4363 rad = 25.0°**, which is the certificated figure — FAA TCDS **A8SO
-     Rev. 21, 15 Feb 2005, p. 9, Model S-2B: "Ailerons (symmetrical) UP 25° ± 2° DOWN 25° ± 2°"**. Both config
-     copies are identical and a test pins the travel to 25° as a literal.
-  3. **What moved instead is a new field, `controls.aileron.effectiveness` = 0.66.** The strip model used to
-     turn a control surface's section by its full geometric angle — effectiveness τ = 1 — and for a plain
-     hinged flap τ depends on chord ratio and is nowhere near 1. That assumption was the actual error, and the
-     travel had been absorbing it. The field defaults to **1.0**, so every other aeroplane in the fleet is
-     bit-for-bit what it was; the Extra and Great Lakes numbers above are the proof, and a test asserts it.
-  4. **It is corroborated, not just fitted.** Thin-aerofoil theory on this config's OWN authored aileron chords
-     (cf/c = 0.247 upper, 0.237 lower) gives τ ≈ **0.60**; the value that lands your 270 is **0.66** — within
-     10 %. A test (`TheTunedEffectivenessAgreesWithThinAerofoilTheory`) keeps the two within 15 % of each other,
-     so if anyone re-chords the ailerons it will say so.
-  5. **Roll damping was deliberately not touched.** `fuselage.damping.p` is still 0 and all of it comes out of
-     the wing strips' own geometry, which is the half that was already right. Adding fuselage damping would
-     have bought the same 270 and made the onset mushy.
-  6. **ASSUMPTION, still open and still yours:** 270 is well above the book for this airframe — Aviat quote the
-     S-2B at roughly 180 deg/s, and 240-280 is usually the S-1S you owned. You flew it and asked for 270 twice,
-     so 270 is what it does. If you want it nearer the published S-2B figure it is now one number — extrapolating
-     the sweep I measured, `effectiveness` ≈ 0.42-0.44 should put it near 180 — and no config would have to lie
-     to get there. Say the word and I will measure it rather than extrapolate.
-  Pinned by `PittsRollRateTests` at **270 ± 15 deg/s** (± 5.5 %) — tight enough to catch a real change in
-  aileron authority or the damping model, loose enough to survive integrator noise. **No gate is marked
-  approved.**
+- **PITTS ROLL RATE, third time — the 0.66 is GONE and the cause was geometry (Claude, 2026-11-01,
+  lane/claude-pitts-roll) — PLEASE FLY IT, and three open questions:**
+  1. **You were right about the double-count, and the "corroboration" I offered was circular.** τ is already in
+     the model as the fixed row's camber gain `g = 0.85·τ(E)` (docs/CONTROL-SURFACES.md). The thin-aerofoil
+     τ ≈ 0.60 I cited as independent confirmation of 0.66 was the model's own assumption handed back to me.
+     `effectiveness` is removed from both copies of the Pitts config; the field stays as a documented hook at
+     1.0, used by no aircraft, and is explicitly **not** τ. The travel stays on TCDS A8SO 25°.
+  2. **What was actually wrong: camber applied past the end of the aileron.** A deflection cambers the fixed
+     strip ahead of it, and that was being applied across the strip's WHOLE span even where the aileron had
+     already ended — roll power with no roll damping to go with it, which lands straight on the steady rate.
+     Coverage is **1.000 for 28 of the fleet's 32 aileron and elevator systems and they are bit-for-bit
+     unchanged**; it is wrong only on the four surfaces rebuilt from their GLB models on 2026-10-28 (Pitts
+     upper 0.681, lower 0.719, Extra 0.826, Great Lakes 0.877). Nothing was tuned.
+  3. **Roll rate at 160 mph IAS, full aileron** — before (physics, no 0.66) → after, with the per-fix split:
+
+     | aircraft | before | SHIPPED (+coverage) | (wing rescale, not shipped) | real | to 90 % |
+     |---|---|---|---|---|---|
+     | Pitts S-2B | 391.6 | **291.1** | 311.4 | yours 260–300 (Aviat ~180) | 0.41 → 0.35 s |
+     | Extra 300 | 409.3 | **362.2** | 364.1 | ~400 | 0.30 s |
+     | Great Lakes | 83.3 | **77.2** | 80.7 | — | 0.18 s |
+     | C172 (110 mph) | 127.5 | **127.5** | 127.5 | — | 1.14 s |
+     | J-3 Cub (75 mph) | 79.6 | **79.6** | 79.6 | — | 1.78 s |
+     | 2-33 (60 mph) | 28.4 | **28.4** | 28.4 | — | 0.14 s |
+
+     **The Pitts lands at 291 deg/s, inside your 260–300, from the geometry fix alone with nothing tuned.**
+
+  4. **OPEN — the Pitts is ~4 % above the top of your band and the Extra is ~9 % BELOW its ~400.** I have not
+     touched either. The Extra moved the wrong way when the geometry was fixed, which makes me suspect its
+     0.826 coverage is partly a measurement artefact of its GLB rather than real. **Does an Extra 300 really
+     out-roll a Pitts S-2B, and by how much?** Your answer decides whether the Extra's aileron geometry needs
+     re-measuring.
+  5. **OPEN — the Aviat ~180 deg/s figure contradicts your 260–300.** I have used yours. If Aviat's is a
+     different condition (a lower speed, a half-deflection, an S-2C) it would be worth knowing which.
+  6. **OPEN — the model over-saturates the ailerons by 18 % and I left it.** You asked for DATCOM large-
+     deflection saturation; it is already there and already stronger than DATCOM. The hinged strip samples its
+     section table at α + δ, which at 25° is past the stall, giving effectiveness **0.63 against DATCOM's
+     0.75**. Adding a `tanh` would have made it ~0.47 — the same double-count as the 0.66. Forcing it UP to the
+     DATCOM curve instead would put the Pitts at ~369, above your band, so something else is also off
+     (Munk biplane interference is not modelled; the Pitts' own section table is a candidate). Two errors are
+     currently pointing opposite ways and I would rather say so than let the total look right.
+  7. **Not done, with reasons.** No hinge-gap/flex loss: a ~0.9 is real physics but nothing in any config
+     records whether a gap is sealed, so the number would be chosen rather than derived. No Extra spade
+     geometry: they are stick-force devices (neutral, they lie along the airstream and do nothing), no public
+     source gives their chord/span/area, and the effect is already carried where it belongs — the Extra's
+     aileron has the BALANCED hinge coefficients −0.10/−0.30 against a plain surface's −0.20/−0.45.
+  8. **OPEN, and the one I want your steer on — the wing finite-span rescale is BUILT, MEASURED and NOT
+     SHIPPED.** You were right that nine wing surfaces carry 2-D slopes with no finite-span correction (Pitts
+     6.30, Great Lakes 6.17, Extra / Cassutt / Swift / drone 5.82, 737 5.53) and that the tails have had the
+     Helmbold rescale since 2026-10-06. I applied it, measured it, and took it back out, because it makes the
+     aeroplanes fly worse:
+
+     | | lift-off as shipped | with the rescale | real |
+     |---|---|---|---|
+     | Pitts S-2B | 34.0 m/s (76 mph) | 40.2 m/s (90 mph) | ~60–70 mph |
+     | Extra 300 | 38.7 m/s (87 mph) | 44.7 m/s (100 mph) | ~60–70 mph |
+
+     Helmbold keeps CLmax and moves the stall to a higher incidence, and a taildragger is pinned at its ground
+     attitude, so it simply needs more speed. That is an 18 % error on a book-checked number, bought for 7 %
+     on the roll rate — in the wrong direction there too. **The slope is still wrong**; what the measurement
+     says is that these wings' area, incidence and CLmax were authored against the 2-D slope and absorb it, so
+     the wing has to be re-derived as a whole rather than the table corrected under it. Say the word and it is
+     its own lane. `TheseWingsStillCarryTwoDimensionalSectionTables` keeps the list so it cannot be lost.
+  9. **Fleet effect of what DID ship**: four glide-table rows moved (Pitts, Extra, Great Lakes, Jenny — the
+     same surfaces, via their elevators: the Pitts needs −4.97° of elevator to trim where it needed −4.71°,
+     glide ratio 5.697 → 5.695). Everything else is bit-for-bit unchanged, protected by a 1 % deadband on the
+     coverage measurement. Visuals unaffected. Local commits only; not merged, not installed, no TestFlight.
 - **GREAT LAKES LEVER ORDER PUT BACK (Claude, 2026-11-01, lane/claude-gl-lever-order) — my mistake, and how it
   is pinned shut:**
   1. **Throttle (black), prop (blue), mixture (red), left to right from the seat** — your order, in both

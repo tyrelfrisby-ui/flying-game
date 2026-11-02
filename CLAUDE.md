@@ -102,26 +102,59 @@ onset mushy, because this model's roll damping is not a fudge factor — it fall
 geometry (p·y/V per strip) and was already right. Before turning a knob, work out which side of the ratio is
 the wrong one and say so in the test, or the next person will "fix" it from the other end.
 
-### When the only knob you have would make the config lie, the knob is missing — add it
-Having decided the aileron side was the wrong half, I reached for the only aileron-authority number the config
-exposed and shrank the TRAVEL, 25° → 16.5°, until the rate came out right. It worked and it was false: 16.5° is
-less travel than this same model gives a J-3 Cub, and `maxDeflRad` is not a free parameter at all — it is a
-certificated figure (FAA TCDS A8SO Rev. 21 p. 9: ailerons symmetrical 25° ± 2°). I flagged it as a calibration
-knob rather than a description of the aeroplane; Ty read that and rejected it, which is the only reason it did
-not ship.
+### Before adding a factor, find out whether the model already applies it
+This one cost three attempts at the same number and two rejected commits, so it is worth the length.
 
-The real defect was upstream of the config: the strip model turns a control row by its FULL geometric angle,
-i.e. it assumes effectiveness τ = 1, and for a plain hinged flap τ is a function of chord ratio and is nowhere
-near 1. There was no field for it, so the travel was absorbing the error. The fix was to add the missing
-parameter (`controls.<axis>.effectiveness`, default 1.0 so every existing config is bit-for-bit unchanged) and
-put the Pitts on 0.66.
+The Pitts rolled 392 deg/s against Ty's 260–300. Attempt one shrank the aileron TRAVEL to 16.5°, which is less
+than this model gives a J-3 Cub and is a certificated figure besides (FAA TCDS A8SO Rev. 21 p. 9: 25° ± 2°).
+Attempt two added `controls.aileron.effectiveness = 0.66`, called it the flap effectiveness τ, and defended it
+with "thin-aerofoil theory independently predicts τ ≈ 0.60, so a calibration constant another calculation also
+predicts is a measurement."
 
-Two things make that honest rather than a knob with a better name. First, it has a UNIT and a theory: τ = 1 −
-(θ − sin θ)/π. Second, it is CORROBORATED — thin-aerofoil theory on the config's own authored aileron chords
-(cf/c ≈ 0.24) independently predicts τ ≈ 0.60 against the 0.66 that lands the rate, and a test asserts the two
-stay within 15 % of each other. A calibration constant that an independent calculation also predicts is a
-measurement. One that only ever matches the number you tuned it to is a fudge. Write the corroborating test, or
-you cannot tell which kind you have.
+That defence was wrong, and the way it was wrong is the lesson. **τ was already in the model** — the fixed row
+ahead of a control is cambered by `g = 0.85·τ(E)` and the whole scheme is written down in
+docs/CONTROL-SURFACES.md. The "independent corroboration" was the model's own assumption handed back. A second
+factor did not add physics, it counted the same physics twice, and it happened to land near the ratio needed to
+reach a published number — which is exactly what a fudge looks like from the inside. Ty, who flies these, caught
+it both times.
+
+The same trap was waiting twice more in the same job and was only avoided by measuring first:
+- **A DATCOM `tanh` saturation for ailerons.** The hinged strip already samples its section table at α + δ, and
+  at 25° that is past the stall: the model's effectiveness at full aileron is 0.63 against DATCOM's 0.75, i.e.
+  already saturating HARDER than the correction would have imposed. Adding it would have given ~0.47.
+- **A ~0.9 hinge-gap loss.** Real physics, but nothing in any config records whether a gap is sealed, so the
+  value would have been chosen rather than derived.
+
+What the rate actually was: camber applied across the whole fixed-row span, including the part with no aileron
+behind it — roll power with no roll damping to go with it. Coverage is 1.000 for 28 of the fleet's 32 systems
+and they did not move at all; it was 0.68–0.88 on exactly the four surfaces rebuilt from GLB models, and
+fixing it took the Pitts from 392 to 291 with nothing tuned.
+
+So: before adding a coefficient, go and find where the model already handles that effect, and MEASURE what it
+currently produces. If the measurement says the effect is already there, the coefficient is not a refinement,
+it is a second helping. And a constant that matches an independent calculation is only corroborated if that
+calculation is genuinely independent of the model — check that it is not just your own assumption returning.
+
+### A correction can be right in theory and still make the aeroplane fly worse
+Nine wing surfaces in this fleet carry 2-D section slopes (6.30/rad on the Pitts) with no finite-span
+correction, while the tails have had the DATCOM/Helmbold rescale since 2026-10-06. Applying the same rescale to
+those wings is unambiguously the better physics, and it was built, run against the whole fleet, and then taken
+back out — because Helmbold keeps CLmax and moves the stall to a higher incidence, and a taildragger sitting on
+its wheels is pinned at its ground attitude. The Pitts' lift-off went 76 mph → 90 mph and the Extra's 87 → 100,
+against real rotation speeds nearer 60–70: an 18 % error on a number checked against the books, bought for a
+7 % change in the roll rate that was the point of the job — and in the wrong direction there too.
+
+The reason is worth remembering: those configs' wing area, incidence and CLmax were authored against the 2-D
+slope and quietly absorb it. You cannot correct one term of a calibration that other terms were fitted around;
+the wing has to be re-derived as a whole, which is a different piece of work. So when a theoretically-correct
+change moves a validated number the wrong way, the change is not necessarily wrong — but shipping it alone is.
+Measure the validated numbers too, not only the one you are chasing, and be willing to leave a correct change
+on the shelf with the measurement written down.
+
+And the converse, which nearly happened here: the Pitts sits at 291 deg/s partly because the model
+over-saturates its ailerons by 18 % against DATCOM. Fixing that alone would put it at ~369. Two errors pointing
+opposite ways can make a total look right, so say which effects you measured SEPARATELY and never treat a
+matching total as proof that each part is right.
 
 ### Say which build is on the device, don't infer it
 A missing button was diagnosed three ways before anyone read the build number on screen — the device was carrying
