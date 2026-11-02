@@ -10,6 +10,13 @@ namespace FlyingGame.FlightTests;
 
 /// <summary>Diagnostic (B737_PROBE=1): the widget's cruise start inputs for a type — Vso, the 75 % cruise estimate, the
 /// glide-trim solve at that speed — and 10 s hands-off from that start. 2026-10-13: the 737's widget cruise start came up at ~0 kt.</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class B737CruiseProbe
 {
     private readonly ITestOutputHelper _out;

@@ -12,6 +12,13 @@ namespace FlyingGame.FlightTests;
 /// Every type spawns at its own cruise-ish airspeed (owner: the Pitts / P-51 / Sabre stalled instantly at
 /// glider speed) and, with the pitch-trim slider preset to the solved trim, holds level flight hands-off.
 /// </summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class SpawnSpeedTests
 {
     private readonly ITestOutputHelper _out;

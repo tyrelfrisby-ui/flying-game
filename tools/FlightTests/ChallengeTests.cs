@@ -9,6 +9,13 @@ namespace FlyingGame.FlightTests;
 /// <summary>The challenge system must GRADE flight: a good pilot scores high, doing nothing scores
 /// low, and the pass threshold discriminates. Uses the wings-level challenge with the trimmed glider
 /// as a simple, deterministic autopilot (hold trim = wings level = high score).</summary>
+// FLIES an aeroplane, so it READS the global ground and weather (WorldTerrain.Active, Atmosphere.*,
+// FloatHydro) through the sim even though it sets none of them. The collection was protecting the
+// classes that WRITE that state from each other and leaving their victims outside it, so this class ran
+// in parallel with 68 that install worlds and weather: StructuralTests went 39 of 40 NaN in one run and
+// passed clean in the next on identical code (2026-11-01). A reader needs the same serialisation as a
+// writer.
+[Collection("WorldTerrainActive")]
 public class ChallengeTests
 {
     private static ChallengeDefinition Load(string id) =>
