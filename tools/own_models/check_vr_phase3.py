@@ -1,4 +1,4 @@
-"""CPU P3a graph, binding and conservative clearance checks; no visual approval."""
+"""CPU P3a controls + P3b measured panel circles, coplanarity and needle binding checks."""
 import json
 import numpy as np
 from vr_cockpit import Glb, MODELS, ROOT, builder
@@ -45,8 +45,55 @@ def check(path):
   clear={label:round(float(np.linalg.norm(centre-v)-r-radius)*1000,2) for label,v,r in obstacles}
   assert min(clear.values())>0,(path.name,c['node'],clear)
   rows.append(dict(node=c['node'],clearance_mm=clear))
- return dict(file=str(path.relative_to(ROOT)),controls=len(controls),clearances=rows,scope='Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval.')
+ panel=check_panels(g,path) if path.parent.name=='extra-300-like' else None
+ return dict(panel=panel,file=str(path.relative_to(ROOT)),controls=len(controls),clearances=rows,scope='Conservative 40mm control sphere plus full pull stroke; estimated knee spheres and primary sweep boxes. No anthropometric/VR approval.')
+def check_panels(g,path):
+ from vr_phase3b import LAYOUT,SCALES
+ meta=g.doc['extras']['vrCockpitPhase3b'];world=g.world_matrices();nodes={n['name']:(i,n) for i,n in enumerate(g.doc['nodes'])}
+ rig=json.loads((ROOT/'docs/models/ea300-own-rig.json').read_text())['rig'];report=[]
+ def vertices(name):
+  i,n=nodes[name];m=world[i]
+  v=np.concatenate([g.array(p['attributes']['POSITION']) for p in g.doc['meshes'][n['mesh']]['primitives']])
+  return np.array([builder(q) for q in v@m[:3,:3].T+m[:3,3]])
+ for name in meta['retired_nodes']:
+  assert 'mesh' not in nodes['Legacy_P3b_'+name][1],name
+ assert not any(n.startswith('RearPanel_') for n in nodes)
+ for panel in meta['panels']:
+  rows=panel['gauges'];assert [r['gauge'] for r in rows]==[r[0] for r in LAYOUT]
+  circles=[];maxerr=0;count=0
+  for row in rows:
+   u,v,r=row['u'],row['v'],row['bezel_radius_m'];face=vertices(row['face'])
+   err=float(abs(face[:,0]-panel['plane_x']).max());maxerr=max(maxerr,err);assert err<=.001
+   assert np.allclose(face[:,0],face[0,0],atol=1e-6)
+   # Triangle normals point toward pilot (builder -X); both sections same normal.
+   normals=np.cross(face[1::3]-face[::3],face[2::3]-face[::3]);normals/=np.linalg.norm(normals,axis=1)[:,None]
+   assert np.allclose(normals,[-1,0,0],atol=1e-5)
+   assert np.allclose([-face[:,1].mean(),face[:,2].mean()],[u,v],atol=.002)
+   bezel=vertices('Bezel_P3b_'+row['gauge']+'_'+panel['suffix'])
+   measured=np.linalg.norm(bezel[:,1:]-np.array([-u,v]),axis=1).max();assert abs(measured-r)<1e-6
+   assert abs(u)+r<=.22 and .075<=v-r and v+r<=.36
+   circles.append((u,v,float(measured)))
+   for name in row['needles']:
+    k=name[:-2];k=k[7:] if k.startswith('Needle_') else k
+    param,points,angles,unit=SCALES[k];entries=[e for e in rig if e['node']==name];assert len(entries)==1,(name,len(entries))
+    e=entries[0];i,n=nodes[name];assert 'mesh' in n and e['param']==param
+    initial=e['extra']['rig_dial_ang0_deg'];assert np.allclose(e['map'],list(zip(points,np.array(angles)-initial)))
+    assert abs(float(np.interp(e['model'],points,np.array(angles)-initial)))<1e-6
+    assert np.allclose(e['axis_gltf'],[-1,0,0]);assert np.allclose(world[i][:3,3],e['pivot_gltf'])
+    p=builder(world[i][:3,3]);assert np.allclose(p[1:],[-u,v],atol=1e-6)
+    if k.startswith('Alt'):assert n['extras']['rig_map_extrapolate']==1
+    count+=1
+  gaps=[np.linalg.norm(np.array(c[:2])-d[:2])-c[2]-d[2] for i,c in enumerate(circles) for d in circles[i+1:]]
+  assert min(gaps)>=.006-1e-6,min(gaps)
+  # Every relocated control's conservative sphere stays below the instrument area.
+  for c in g.doc['extras']['vrCockpitPhase3a']['controls']:
+   if c['seat']==panel['seat']:assert builder(c['pivot_gltf'])[2]+c['sweep_radius_m']<.075
+  report.append(dict(seat=panel['seat'],gauges=len(rows),live_needle_nodes=count,min_bezel_gap_mm=round(float(min(gaps))*1000,4),max_face_plane_error_mm=round(maxerr*1000,6)))
+ return report
 if __name__=='__main__':
  report=[check(p) for model in SPECS for p in sorted((MODELS/model).glob('*own*.glb'))]
  (ROOT/'docs/models/vr-cockpit-phase3-checks.json').write_text(json.dumps(report,indent=1)+'\n')
  print('PASS',len(report),'assets;',sum(r['controls'] for r in report),'controls; minimum clearance mm',min(v for r in report for c in r['clearances'] for v in c['clearance_mm'].values()))
+
+ for r in report:
+  if r['panel']:print(r['file'],r['panel'])

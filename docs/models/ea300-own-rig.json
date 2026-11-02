@@ -3,886 +3,6 @@
  "livery": "unmarked",
  "rig": [
   {
-   "node": "Needle_ASI_F",
-   "parent": "Instruments_Front",
-   "param": "airspeed_kias",
-   "unit": "kt",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    0.095
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     40.0,
-     25.0
-    ],
-    [
-     260.0,
-     335.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "ASI 40..260 KIAS over 25..335 deg (E layout), rests at 0 below 40; green 60-158, yellow 158-220, red 220 (POH); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_G_F",
-   "parent": "Instruments_Front",
-   "param": "g_load",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    0.0
-   ],
-   "map": [
-    [
-     -10.0,
-     -120.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     120.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer -10..+10 g, 0 g at 9 o'clock, 12 deg/g (E layout); green -5..+8, yellow +8..+10, red +-10 (POH, solo); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_GMax_F",
-   "parent": "Instruments_Front",
-   "param": "g_max_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    0.0
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     120.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_GMin_F",
-   "parent": "Instruments_Front",
-   "param": "g_min_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    0.0
-   ],
-   "map": [
-    [
-     -10.0,
-     -120.0
-    ],
-    [
-     0.0,
-     0.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_Alt100_F",
-   "parent": "Instruments_Front",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    -0.095
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_Alt1000_F",
-   "parent": "Instruments_Front",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.255,
-    -0.095
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_Tach_F",
-   "parent": "Instruments_Front",
-   "param": "rpm",
-   "unit": "rpm",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.23,
-    0.2
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     3500.0,
-     300.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 700-2400, yellow 2400-2700, red 2700 (POH); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -150.0
-   }
-  },
-  {
-   "node": "Needle_OilP_F",
-   "parent": "Instruments_Front",
-   "param": "oil_press_psi",
-   "unit": "psi",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.23,
-    -0.2
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     120.0,
-     160.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "dual engine gauge upper scale: oil pressure 0..120 psi over the top half (E layout); red 25, green 55-95, red 115 (POH); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -80.0
-   }
-  },
-  {
-   "node": "Needle_OilT_F",
-   "parent": "Instruments_Front",
-   "param": "oil_temp_f",
-   "unit": "degF",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    0.15,
-    0.23,
-    -0.2
-   ],
-   "map": [
-    [
-     100.0,
-     0.0
-    ],
-    [
-     250.0,
-     160.0
-    ]
-   ],
-   "model": 100.0,
-   "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half (E layout); green 140-210, red 245 (POH); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 100.0
-   }
-  },
-  {
-   "node": "Needle_ASI_R",
-   "parent": "Instruments_Rear",
-   "param": "airspeed_kias",
-   "unit": "kt",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.258,
-    0.092
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     40.0,
-     25.0
-    ],
-    [
-     260.0,
-     335.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "ASI 40..260 KIAS over 25..335 deg (E layout), rests at 0 below 40; green 60-158, yellow 158-220, red 220 (POH); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "TC_Symbol_R",
-   "parent": "Instruments_Rear",
-   "param": "turn_rate_dps",
-   "unit": "deg/s",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.258,
-    0.0
-   ],
-   "map": [
-    [
-     -6.0,
-     -40.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     6.0,
-     40.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "turn coordinator airplane symbol, standard rate (3 deg/s) = the 20 deg L/R index (E); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "TC_Ball_R",
-   "parent": "Instruments_Rear",
-   "param": "slip_ball",
-   "unit": "-1..+1",
-   "kind": "rot",
-   "axis_gltf": [
-    1.0,
-    -0.0,
-    0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.2637,
-    0.0
-   ],
-   "map": [
-    [
-     -1.0,
-     -18.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     18.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "turn coordinator ball, swings on the tube arc about this pivot (above the dial centre): +1 = ball to the pilot's right (E 18 deg)",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {}
-  },
-  {
-   "node": "Needle_Alt100_R",
-   "parent": "Instruments_Rear",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.258,
-    -0.092
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter long hand, 1 turn per 1000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_Alt1000_R",
-   "parent": "Instruments_Rear",
-   "param": "altitude_ft",
-   "unit": "ft",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.258,
-    -0.092
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10000.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "altimeter short hand, 1 turn per 10000 ft (unbounded); modelled at 0 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_map_extrapolate": 1,
-    "rig_dial_ang0_deg": 0.0
-   }
-  },
-  {
-   "node": "Needle_G_R",
-   "parent": "Instruments_Rear",
-   "param": "g_load",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.152,
-    0.092
-   ],
-   "map": [
-    [
-     -10.0,
-     -120.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     120.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer -10..+10 g, 0 g at 9 o'clock, 12 deg/g (E layout); green -5..+8, yellow +8..+10, red +-10 (POH, solo); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_GMax_R",
-   "parent": "Instruments_Rear",
-   "param": "g_max_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.152,
-    0.092
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     10.0,
-     120.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer max tell-tale (follows g_load up, stays; reset knob not rigged); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_GMin_R",
-   "parent": "Instruments_Rear",
-   "param": "g_min_seen",
-   "unit": "g",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.152,
-    0.092
-   ],
-   "map": [
-    [
-     -10.0,
-     -120.0
-    ],
-    [
-     0.0,
-     0.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "accelerometer min tell-tale (follows g_load down, stays); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_MP_R",
-   "parent": "Instruments_Rear",
-   "param": "manifold_inhg",
-   "unit": "inHg",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.152,
-    0.0
-   ],
-   "map": [
-    [
-     10.0,
-     0.0
-    ],
-    [
-     35.0,
-     300.0
-    ]
-   ],
-   "model": 10.0,
-   "desc": "manifold pressure 10..35 inHg, 12 deg per inHg from 8 o'clock (E layout); green 10-25, yellow 25-29.5, red 29.5 (POH); pinned at 10 below; modelled at -120 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -120.0
-   }
-  },
-  {
-   "node": "Needle_VSI_R",
-   "parent": "Instruments_Rear",
-   "param": "vsi_fpm",
-   "unit": "ft/min",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.152,
-    -0.092
-   ],
-   "map": [
-    [
-     -3000.0,
-     -160.0
-    ],
-    [
-     0.0,
-     0.0
-    ],
-    [
-     3000.0,
-     160.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "VSI +-3000 fpm, modelled at 0 (9 o'clock), climb clockwise (E layout); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_CHT_R",
-   "parent": "Instruments_Rear",
-   "param": "cht_f",
-   "unit": "degF",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.27,
-    0.185
-   ],
-   "map": [
-    [
-     200.0,
-     0.0
-    ],
-    [
-     500.0,
-     180.0
-    ]
-   ],
-   "model": 200.0,
-   "desc": "CHT 200..500 F, 9 -> 3 o'clock (E layout); red 500 (POH), green 200-435 (E); modelled at -90 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -90.0
-   }
-  },
-  {
-   "node": "Needle_Fuel_R",
-   "parent": "Instruments_Rear",
-   "param": "fuel_centre_frac",
-   "unit": "0..1",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.19,
-    0.185
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     1.0,
-     120.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "fuel quantity (acro / centre tank, E identity) E..F over 10 -> 2 o'clock (E); modelled at -60 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -60.0
-   }
-  },
-  {
-   "node": "Needle_OilP_R",
-   "parent": "Instruments_Rear",
-   "param": "oil_press_psi",
-   "unit": "psi",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.262,
-    -0.18
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     120.0,
-     160.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "dual engine gauge upper scale: oil pressure 0..120 psi over the top half (E layout); red 25, green 55-95, red 115 (POH); modelled at -80 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -80.0
-   }
-  },
-  {
-   "node": "Needle_OilT_R",
-   "parent": "Instruments_Rear",
-   "param": "oil_temp_f",
-   "unit": "degF",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.262,
-    -0.18
-   ],
-   "map": [
-    [
-     100.0,
-     0.0
-    ],
-    [
-     250.0,
-     160.0
-    ]
-   ],
-   "model": 100.0,
-   "desc": "dual engine gauge lower scale: oil temp 100..250 F over the bottom half (E layout); green 140-210, red 245 (POH); modelled at 100 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": 100.0
-   }
-  },
-  {
-   "node": "Needle_Tach_R",
-   "parent": "Instruments_Rear",
-   "param": "rpm",
-   "unit": "rpm",
-   "kind": "rot",
-   "axis_gltf": [
-    -1.0,
-    0.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.162,
-    0.16,
-    -0.18
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     3500.0,
-     300.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "tachometer 0..3500 rpm over 300 deg from 7 o'clock (E layout); green 700-2400, yellow 2400-2700, red 2700 (POH); modelled at -150 deg clockwise from 12; +deg clockwise from the seat",
-   "link": "front + rear panels both show it (same param)",
-   "note": "",
-   "extra": {
-    "rig_dial_ang0_deg": -150.0
-   }
-  },
-  {
-   "node": "Compass_Card_R",
-   "parent": "Instruments_Rear",
-   "param": "heading_deg",
-   "unit": "deg magnetic",
-   "kind": "rot",
-   "axis_gltf": [
-    0.0,
-    1.0,
-    -0.0
-   ],
-   "pivot_gltf": [
-    1.184,
-    0.14,
-    -0.262
-   ],
-   "map": [
-    [
-     0.0,
-     0.0
-    ],
-    [
-     360.0,
-     360.0
-    ]
-   ],
-   "model": 0.0,
-   "desc": "panel-mount wet compass (rear panel, lower right) card drum: turns opposite the airplane so the heading sits under the lubber line (modelled at 000; reverse-sensing card)",
-   "link": "rear (PIC) panel only",
-   "note": "",
-   "extra": {
-    "rig_map_wrap": 360.0
-   }
-  },
-  {
    "node": "StickRoll_F",
    "parent": "Controls",
    "param": "aileron",
@@ -1653,7 +773,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -1685,7 +805,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -1717,7 +837,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -1749,7 +869,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -1781,7 +901,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -1813,7 +933,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -1845,7 +965,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -1877,7 +997,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -1909,7 +1029,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -1941,7 +1061,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -1973,7 +1093,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2005,7 +1125,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2037,7 +1157,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -2069,7 +1189,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -2101,7 +1221,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2133,7 +1253,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2165,7 +1285,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2197,7 +1317,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -2229,7 +1349,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -2261,7 +1381,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -2293,7 +1413,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2325,7 +1445,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -2357,7 +1477,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2389,7 +1509,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2421,7 +1541,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2453,7 +1573,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -2485,7 +1605,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2517,7 +1637,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2549,7 +1669,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -2581,7 +1701,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -2613,7 +1733,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2645,7 +1765,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2677,7 +1797,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2709,7 +1829,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -2741,7 +1861,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -2773,7 +1893,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -2805,7 +1925,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2837,7 +1957,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -2869,7 +1989,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -2901,7 +2021,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -2933,7 +2053,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -2965,7 +2085,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -2997,7 +2117,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3029,7 +2149,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3061,7 +2181,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -3093,7 +2213,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -3125,7 +2245,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3157,7 +2277,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3189,7 +2309,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3221,7 +2341,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -3253,7 +2373,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -3285,7 +2405,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -3317,7 +2437,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3349,7 +2469,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -3381,7 +2501,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3413,7 +2533,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3445,7 +2565,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3477,7 +2597,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -3509,7 +2629,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3541,7 +2661,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3573,7 +2693,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -3605,7 +2725,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -3637,7 +2757,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3669,7 +2789,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3701,7 +2821,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3733,7 +2853,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -3765,7 +2885,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -3797,7 +2917,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -3829,7 +2949,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3861,7 +2981,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -3893,7 +3013,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -3925,7 +3045,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -3957,7 +3077,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -3989,7 +3109,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -4021,7 +3141,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4053,7 +3173,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -4085,7 +3205,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -4117,7 +3237,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -4149,7 +3269,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4181,7 +3301,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -4213,7 +3333,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4245,7 +3365,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -4277,7 +3397,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -4309,7 +3429,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -4341,7 +3461,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4373,7 +3493,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -4405,7 +3525,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4437,7 +3557,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4469,7 +3589,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -4501,7 +3621,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -4533,7 +3653,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4565,7 +3685,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -4597,7 +3717,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -4629,7 +3749,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -4661,7 +3781,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4693,7 +3813,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -4725,7 +3845,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4757,7 +3877,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -4789,7 +3909,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -4821,7 +3941,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -4853,7 +3973,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4885,7 +4005,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -4917,7 +4037,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -4949,7 +4069,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -4981,7 +4101,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5013,7 +4133,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -5045,7 +4165,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -5077,7 +4197,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5109,7 +4229,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -5141,7 +4261,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -5173,7 +4293,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -5205,7 +4325,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5237,7 +4357,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5269,7 +4389,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -5301,7 +4421,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -5333,7 +4453,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -5365,7 +4485,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5397,7 +4517,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -5429,7 +4549,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5461,7 +4581,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -5493,7 +4613,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5525,7 +4645,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -5557,7 +4677,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -5589,7 +4709,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5621,7 +4741,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -5653,7 +4773,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -5685,7 +4805,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -5717,7 +4837,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -5749,7 +4869,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5781,7 +4901,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -5813,7 +4933,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -5845,7 +4965,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -5877,7 +4997,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5909,7 +5029,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -5941,7 +5061,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -5973,7 +5093,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6005,7 +5125,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6037,7 +5157,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -6069,7 +5189,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6101,7 +5221,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6133,7 +5253,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -6165,7 +5285,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -6197,7 +5317,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6229,7 +5349,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6261,7 +5381,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6293,7 +5413,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -6325,7 +5445,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -6357,7 +5477,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -6389,7 +5509,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6421,7 +5541,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -6453,7 +5573,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6485,7 +5605,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6517,7 +5637,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6549,7 +5669,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -6581,7 +5701,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6613,7 +5733,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6645,7 +5765,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -6677,7 +5797,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -6709,7 +5829,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -6741,7 +5861,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -6773,7 +5893,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6805,7 +5925,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -6837,7 +5957,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -6869,7 +5989,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -6901,7 +6021,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6933,7 +6053,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -6965,7 +6085,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -6997,7 +6117,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7029,7 +6149,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -7061,7 +6181,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -7093,7 +6213,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7125,7 +6245,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -7157,7 +6277,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -7189,7 +6309,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -7221,7 +6341,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7253,7 +6373,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -7285,7 +6405,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -7317,7 +6437,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -7349,7 +6469,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -7381,7 +6501,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -7413,7 +6533,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -7445,7 +6565,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -7477,7 +6597,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -7509,7 +6629,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7541,7 +6661,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -7573,7 +6693,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -7605,7 +6725,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7637,7 +6757,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -7669,7 +6789,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -7701,7 +6821,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -7733,7 +6853,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -7765,7 +6885,3079 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.117,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.052,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.987,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_FuelPump_Front",
+   "param": "fuel_pump",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_NavLights_Front",
+   "param": "nav_lights",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Strobe_Front",
+   "param": "strobe",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_LandingLight_Front",
+   "param": "landing_light",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Toggle_Smoke_Front",
+   "param": "smoke",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     40
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_AlternateAir_Front",
+   "param": "alternate_air",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_Trim_Front",
+   "param": "trim",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    0.287
+   ],
+   "map": [
+    [
+     -1,
+     0
+    ],
+    [
+     1,
+     300
+    ]
+   ],
+   "model": -1.0,
+   "unit": "-1..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComOuter_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     118,
+     0
+    ],
+    [
+     136,
+     540
+    ]
+   ],
+   "model": 118.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_ComInner_Front",
+   "param": "com_standby_mhz",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     0.975,
+     360
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_ComSwap_Front",
+   "param": "com_swap",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.35500000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     -0.004
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit1_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit2_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.251
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit3_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.287
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrDigit4_Front",
+   "param": "xpdr_squawk",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.29000000000000004,
+    0.0,
+    -0.32299999999999995
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     7,
+     315
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_Rotary_XpdrMode_Front",
+   "param": "xpdr_mode",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
+    -0.215
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     90
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "(E) P3a reachable side console; owner review pending",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ctl_PushPull_XpdrIdent_Front",
+   "param": "xpdr_ident",
+   "parent": null,
+   "kind": "move",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.22500000000000003,
+    0.0,
     -0.251
    ],
    "map": [
@@ -8629,7 +10821,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -8673,7 +10865,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -8705,7 +10897,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -8737,7 +10929,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -8769,7 +10961,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -8801,7 +10993,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -8833,7 +11025,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -8865,7 +11057,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -8897,7 +11089,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -8929,7 +11121,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -8961,7 +11153,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -8993,7 +11185,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -9025,7 +11217,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -9057,7 +11249,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -9089,7 +11281,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -9121,7 +11313,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -9153,7 +11345,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -9185,7 +11377,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -9217,7 +11409,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -9249,7 +11441,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -9281,7 +11473,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -9313,7 +11505,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -9345,7 +11537,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -9389,7 +11581,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -9421,7 +11613,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -9453,7 +11645,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -9485,7 +11677,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -9517,7 +11709,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -9549,7 +11741,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -9581,7 +11773,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -9613,7 +11805,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.215
    ],
    "map": [
@@ -9645,7 +11837,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "map": [
@@ -9677,7 +11869,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "map": [
@@ -9709,7 +11901,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "map": [
@@ -9741,7 +11933,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -9773,7 +11965,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -9805,7 +11997,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -9837,7 +12029,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -9869,7 +12061,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -9901,7 +12093,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -9933,7 +12125,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "map": [
@@ -9965,7 +12157,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "map": [
@@ -9997,7 +12189,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "map": [
@@ -10029,7 +12221,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "map": [
@@ -10048,20 +12240,1276 @@
    "extra": {},
    "link": "",
    "note": ""
+  },
+  {
+   "node": "Needle_ASI_R",
+   "param": "airspeed_kias",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    0.15
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     40,
+     35.0
+    ],
+    [
+     60,
+     60.0
+    ],
+    [
+     158,
+     185.0
+    ],
+    [
+     220,
+     265.0
+    ],
+    [
+     260,
+     300.0
+    ]
+   ],
+   "model": 0,
+   "unit": "kt",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Alt100_R",
+   "param": "altitude_ft",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     1000,
+     360.0
+    ]
+   ],
+   "model": 0,
+   "unit": "ft",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0,
+    "rig_map_extrapolate": 1
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Alt1000_R",
+   "param": "altitude_ft",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     10000,
+     360.0
+    ]
+   ],
+   "model": 0,
+   "unit": "ft",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0,
+    "rig_map_extrapolate": 1
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_TC_R",
+   "param": "turn_rate_dps",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    -0.05
+   ],
+   "map": [
+    [
+     -6,
+     -40.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     6,
+     40.0
+    ]
+   ],
+   "model": 0,
+   "unit": "deg/s",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ball_TC_R",
+   "param": "slip_ball",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    -0.05
+   ],
+   "map": [
+    [
+     -1,
+     18.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     1,
+     -18.0
+    ]
+   ],
+   "model": 0,
+   "unit": "normalized",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_G_R",
+   "param": "g_load",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_GMax_R",
+   "param": "g_max_seen",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_GMin_R",
+   "param": "g_min_seen",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Tach_R",
+   "param": "rpm",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    0.15
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     3000,
+     300.0
+    ]
+   ],
+   "model": 0,
+   "unit": "rpm",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_MP_R",
+   "param": "manifold_inhg",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    0.05
+   ],
+   "map": [
+    [
+     10,
+     0.0
+    ],
+    [
+     35,
+     300.0
+    ]
+   ],
+   "model": 10,
+   "unit": "inHg",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_OilP_R",
+   "param": "oil_press_psi",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    -0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     120,
+     160.0
+    ]
+   ],
+   "model": 0,
+   "unit": "psi",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_OilT_R",
+   "param": "oil_temp_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    -0.05
+   ],
+   "map": [
+    [
+     100,
+     0.0
+    ],
+    [
+     250,
+     160.0
+    ]
+   ],
+   "model": 100,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_EGT_R",
+   "param": "egt_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    -0.15
+   ],
+   "map": [
+    [
+     800,
+     0.0
+    ],
+    [
+     1800,
+     160.0
+    ]
+   ],
+   "model": 800,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_CHT_R",
+   "param": "cht_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.2,
+    -0.15
+   ],
+   "map": [
+    [
+     100,
+     0.0
+    ],
+    [
+     500,
+     160.0
+    ]
+   ],
+   "model": 100,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Amps_R",
+   "param": "amps",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.11,
+    0.1
+   ],
+   "map": [
+    [
+     -60,
+     -120.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     60,
+     120.0
+    ]
+   ],
+   "model": 0,
+   "unit": "A",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Fuel_Wing_R",
+   "param": "fuel_wing_gal",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.11,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     31.7,
+     240.0
+    ]
+   ],
+   "model": 0,
+   "unit": "US gal",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -120.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Fuel_Akro_R",
+   "param": "fuel_akro_gal",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    1.1758,
+    0.11,
+    -0.1
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     2.6,
+     0.0
+    ],
+    [
+     10,
+     240.0
+    ],
+    [
+     10.6,
+     240.0
+    ]
+   ],
+   "model": 0,
+   "unit": "US gal",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -120.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_ASI_F",
+   "param": "airspeed_kias",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    0.15
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     40,
+     35.0
+    ],
+    [
+     60,
+     60.0
+    ],
+    [
+     158,
+     185.0
+    ],
+    [
+     220,
+     265.0
+    ],
+    [
+     260,
+     300.0
+    ]
+   ],
+   "model": 0,
+   "unit": "kt",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Alt100_F",
+   "param": "altitude_ft",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     1000,
+     360.0
+    ]
+   ],
+   "model": 0,
+   "unit": "ft",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0,
+    "rig_map_extrapolate": 1
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Alt1000_F",
+   "param": "altitude_ft",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     10000,
+     360.0
+    ]
+   ],
+   "model": 0,
+   "unit": "ft",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0,
+    "rig_map_extrapolate": 1
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_TC_F",
+   "param": "turn_rate_dps",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    -0.05
+   ],
+   "map": [
+    [
+     -6,
+     -40.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     6,
+     40.0
+    ]
+   ],
+   "model": 0,
+   "unit": "deg/s",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Ball_TC_F",
+   "param": "slip_ball",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    -0.05
+   ],
+   "map": [
+    [
+     -1,
+     18.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     1,
+     -18.0
+    ]
+   ],
+   "model": 0,
+   "unit": "normalized",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_G_F",
+   "param": "g_load",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_GMax_F",
+   "param": "g_max_seen",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_GMin_F",
+   "param": "g_min_seen",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.3,
+    -0.15
+   ],
+   "map": [
+    [
+     -10,
+     -165.0
+    ],
+    [
+     0,
+     -15.0
+    ],
+    [
+     10,
+     135.0
+    ]
+   ],
+   "model": 1,
+   "unit": "g",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 15.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Tach_F",
+   "param": "rpm",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    0.15
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     3000,
+     300.0
+    ]
+   ],
+   "model": 0,
+   "unit": "rpm",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_MP_F",
+   "param": "manifold_inhg",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    0.05
+   ],
+   "map": [
+    [
+     10,
+     0.0
+    ],
+    [
+     35,
+     300.0
+    ]
+   ],
+   "model": 10,
+   "unit": "inHg",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -150.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_OilP_F",
+   "param": "oil_press_psi",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    -0.05
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     120,
+     160.0
+    ]
+   ],
+   "model": 0,
+   "unit": "psi",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_OilT_F",
+   "param": "oil_temp_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    -0.05
+   ],
+   "map": [
+    [
+     100,
+     0.0
+    ],
+    [
+     250,
+     160.0
+    ]
+   ],
+   "model": 100,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_EGT_F",
+   "param": "egt_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    -0.15
+   ],
+   "map": [
+    [
+     800,
+     0.0
+    ],
+    [
+     1800,
+     160.0
+    ]
+   ],
+   "model": 800,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -80.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_CHT_F",
+   "param": "cht_f",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.2,
+    -0.15
+   ],
+   "map": [
+    [
+     100,
+     0.0
+    ],
+    [
+     500,
+     160.0
+    ]
+   ],
+   "model": 100,
+   "unit": "degF",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 100.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Amps_F",
+   "param": "amps",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.11,
+    0.1
+   ],
+   "map": [
+    [
+     -60,
+     -120.0
+    ],
+    [
+     0,
+     0.0
+    ],
+    [
+     60,
+     120.0
+    ]
+   ],
+   "model": 0,
+   "unit": "A",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": 0.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Fuel_Wing_F",
+   "param": "fuel_wing_gal",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.11,
+    0.0
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     31.7,
+     240.0
+    ]
+   ],
+   "model": 0,
+   "unit": "US gal",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -120.0
+   },
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Needle_Fuel_Akro_F",
+   "param": "fuel_akro_gal",
+   "parent": null,
+   "kind": "rot",
+   "axis_gltf": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.1508,
+    0.11,
+    -0.1
+   ],
+   "map": [
+    [
+     0,
+     0.0
+    ],
+    [
+     2.6,
+     0.0
+    ],
+    [
+     10,
+     240.0
+    ],
+    [
+     10.6,
+     240.0
+    ]
+   ],
+   "model": 0,
+   "unit": "US gal",
+   "desc": "P3b clockwise from 12; map relative to modelled dial angle; E scale/case layout",
+   "extra": {
+    "rig_dial_ang0_deg": -120.0
+   },
+   "link": "",
+   "note": ""
   }
  ],
  "displays": [
   {
    "node": "Radio_Display_R",
-   "parent": "Instruments_Rear",
+   "parent": null,
    "params": [
     "com_freq_mhz",
     "com_standby_mhz"
    ],
    "centre_gltf": [
-    1.1751,
-    0.2545,
-    -0.258
+    1.175,
+    0.035,
+    -0.055
    ],
    "facing_gltf": [
     1.0,
@@ -10069,22 +13517,22 @@
     -0.0
    ],
    "size_m": [
-    0.032,
-    0.019
+    0.095,
+    0.035
    ],
    "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); active + standby frequency, 25 / 8.33 kHz"
   },
   {
    "node": "Xpdr_Display_R",
-   "parent": "Instruments_Rear",
+   "parent": null,
    "params": [
     "xpdr_squawk",
     "xpdr_mode"
    ],
    "centre_gltf": [
-    1.1751,
-    0.211,
-    -0.2505
+    1.175,
+    0.035,
+    0.055
    ],
    "facing_gltf": [
     1.0,
@@ -10092,8 +13540,8 @@
     -0.0
    ],
    "size_m": [
-    0.039,
-    0.016
+    0.095,
+    0.035
    ],
    "note": "dark LCD face: UV 0..1 over the window (u to the pilot's right, v up); the sim draws the text on it (render texture / TMP); 4-digit octal squawk + mode (OFF / SBY / ON / ALT), IDENT"
   }
@@ -10105,8 +13553,8 @@
    "material": "SequenceCard_Face",
    "centre_gltf": [
     1.2032,
-    0.35,
-    0.0
+    -0.55,
+    -1.7099999999999997
    ],
    "facing_gltf": [
     1.0,
@@ -10121,7 +13569,7 @@
    "uv": "one quad, UV 0..1: (0,0) bottom-left, (1,1) top-right as the pilot sees it (u to the pilot's right, v up); material SequenceCard_Face",
    "default_texture": "tools/own_models/art/sequence-card-sportsman-known-2026.png",
    "holder_top_above_dash_m": 0.1149,
-   "note": "static card in an alloy holder with a spring clip and paper stock, centred above the top edge of the rear dash (holder_top_above_dash_m is measured from RearPanel_UpperExtension's top, y 0.308); the picked PDF is drawn onto this node's material at runtime (Bridge/SequenceCard.cs). OWNER DECISION 2026-11-01 (Ty, \"B\"): the Extra carried TWO cards after the sights merge -- this holder and a bare SequenceCard_Slot quad 9 mm nearer the pilot whose surround and backing were welded into Cockpit_Interior. The quad, its surround and its backing are gone (tools/own_models/drop_card_slot.py); this is the only card."
+   "note": "P3b holder relocated to right side, outside gauge rectangle; E."
   }
  ],
  "notes": "Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.",
@@ -10138,7 +13586,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 130,
@@ -10176,7 +13624,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 40,
@@ -10211,7 +13659,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 40,
@@ -10246,7 +13694,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 40,
@@ -10281,7 +13729,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 40,
@@ -10316,7 +13764,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 40,
@@ -10351,7 +13799,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 40,
@@ -10386,7 +13834,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 50,
@@ -10418,7 +13866,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 50,
@@ -10450,7 +13898,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 35,
@@ -10485,7 +13933,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 300,
@@ -10517,7 +13965,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 180,
@@ -10553,7 +14001,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 540,
@@ -10610,7 +14058,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 360,
@@ -10686,7 +14134,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.287
    ],
    "travel": 270,
@@ -10718,7 +14166,7 @@
    ],
    "pivot_gltf": [
     1.117,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "travel": 4,
@@ -10753,7 +14201,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 315,
@@ -10799,7 +14247,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 315,
@@ -10845,7 +14293,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.287
    ],
    "travel": 315,
@@ -10891,7 +14339,7 @@
    ],
    "pivot_gltf": [
     1.052,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "travel": 315,
@@ -10937,7 +14385,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 90,
@@ -10974,7 +14422,7 @@
    ],
    "pivot_gltf": [
     0.987,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 4,
@@ -11009,7 +14457,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 130,
@@ -11047,7 +14495,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 40,
@@ -11082,7 +14530,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 40,
@@ -11117,7 +14565,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 40,
@@ -11152,7 +14600,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 40,
@@ -11187,7 +14635,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 40,
@@ -11222,7 +14670,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 40,
@@ -11257,7 +14705,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 50,
@@ -11289,7 +14737,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.215
    ],
    "travel": 50,
@@ -11321,7 +14769,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.251
    ],
    "travel": 35,
@@ -11356,7 +14804,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.287
    ],
    "travel": 300,
@@ -11388,7 +14836,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     0.32299999999999995
    ],
    "travel": 180,
@@ -11424,7 +14872,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 540,
@@ -11481,7 +14929,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 360,
@@ -11557,7 +15005,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "travel": 270,
@@ -11589,7 +15037,7 @@
    ],
    "pivot_gltf": [
     0.35500000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "travel": 4,
@@ -11624,7 +15072,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 315,
@@ -11670,7 +15118,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 315,
@@ -11716,7 +15164,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.287
    ],
    "travel": 315,
@@ -11762,7 +15210,7 @@
    ],
    "pivot_gltf": [
     0.29000000000000004,
-    0.45,
+    0.0,
     -0.32299999999999995
    ],
    "travel": 315,
@@ -11808,7 +15256,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.215
    ],
    "travel": 90,
@@ -11845,7 +15293,7 @@
    ],
    "pivot_gltf": [
     0.22500000000000003,
-    0.45,
+    0.0,
     -0.251
    ],
    "travel": 4,
@@ -11869,5 +15317,369 @@
    "semantics": "absolute"
   }
  ],
- "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs."
+ "phase3a_notes": "All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs.",
+ "phase3b": {
+  "panels": [
+   {
+    "seat": "Rear",
+    "suffix": "R",
+    "plane_x": -1.175,
+    "normal_builder": [
+     -1,
+     0,
+     0
+    ],
+    "eye_builder": [
+     -1.7000000476837158,
+     0.0,
+     0.5500000342726707
+    ],
+    "gauges": [
+     {
+      "gauge": "ASI",
+      "u": -0.15,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_ASI_R",
+      "needles": [
+       "Needle_ASI_R"
+      ]
+     },
+     {
+      "gauge": "Altimeter",
+      "u": -0.05,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Altimeter_R",
+      "needles": [
+       "Needle_Alt100_R",
+       "Needle_Alt1000_R"
+      ]
+     },
+     {
+      "gauge": "TC",
+      "u": 0.05,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_TC_R",
+      "needles": [
+       "Needle_TC_R",
+       "Ball_TC_R"
+      ]
+     },
+     {
+      "gauge": "G",
+      "u": 0.15,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_G_R",
+      "needles": [
+       "Needle_G_R",
+       "Needle_GMax_R",
+       "Needle_GMin_R"
+      ]
+     },
+     {
+      "gauge": "Tach",
+      "u": -0.15,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Tach_R",
+      "needles": [
+       "Needle_Tach_R"
+      ]
+     },
+     {
+      "gauge": "MP",
+      "u": -0.05,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_MP_R",
+      "needles": [
+       "Needle_MP_R"
+      ]
+     },
+     {
+      "gauge": "Oil",
+      "u": 0.05,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Oil_R",
+      "needles": [
+       "Needle_OilP_R",
+       "Needle_OilT_R"
+      ]
+     },
+     {
+      "gauge": "Temps",
+      "u": 0.15,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Temps_R",
+      "needles": [
+       "Needle_EGT_R",
+       "Needle_CHT_R"
+      ]
+     },
+     {
+      "gauge": "Amps",
+      "u": -0.1,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Amps_R",
+      "needles": [
+       "Needle_Amps_R"
+      ]
+     },
+     {
+      "gauge": "Fuel_Wing",
+      "u": 0,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Fuel_Wing_R",
+      "needles": [
+       "Needle_Fuel_Wing_R"
+      ]
+     },
+     {
+      "gauge": "Fuel_Akro",
+      "u": 0.1,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Fuel_Akro_R",
+      "needles": [
+       "Needle_Fuel_Akro_R"
+      ]
+     }
+    ]
+   },
+   {
+    "seat": "Front",
+    "suffix": "F",
+    "plane_x": -0.15,
+    "normal_builder": [
+     -1,
+     0,
+     0
+    ],
+    "eye_builder": [
+     -0.800000011920929,
+     0.0,
+     0.5500000342726707
+    ],
+    "gauges": [
+     {
+      "gauge": "ASI",
+      "u": -0.15,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_ASI_F",
+      "needles": [
+       "Needle_ASI_F"
+      ]
+     },
+     {
+      "gauge": "Altimeter",
+      "u": -0.05,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Altimeter_F",
+      "needles": [
+       "Needle_Alt100_F",
+       "Needle_Alt1000_F"
+      ]
+     },
+     {
+      "gauge": "TC",
+      "u": 0.05,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_TC_F",
+      "needles": [
+       "Needle_TC_F",
+       "Ball_TC_F"
+      ]
+     },
+     {
+      "gauge": "G",
+      "u": 0.15,
+      "v": 0.3,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_G_F",
+      "needles": [
+       "Needle_G_F",
+       "Needle_GMax_F",
+       "Needle_GMin_F"
+      ]
+     },
+     {
+      "gauge": "Tach",
+      "u": -0.15,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Tach_F",
+      "needles": [
+       "Needle_Tach_F"
+      ]
+     },
+     {
+      "gauge": "MP",
+      "u": -0.05,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_MP_F",
+      "needles": [
+       "Needle_MP_F"
+      ]
+     },
+     {
+      "gauge": "Oil",
+      "u": 0.05,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Oil_F",
+      "needles": [
+       "Needle_OilP_F",
+       "Needle_OilT_F"
+      ]
+     },
+     {
+      "gauge": "Temps",
+      "u": 0.15,
+      "v": 0.2,
+      "case_inches": 3.125,
+      "bezel_radius_m": 0.0426875,
+      "face": "Face_P3b_Temps_F",
+      "needles": [
+       "Needle_EGT_F",
+       "Needle_CHT_F"
+      ]
+     },
+     {
+      "gauge": "Amps",
+      "u": -0.1,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Amps_F",
+      "needles": [
+       "Needle_Amps_F"
+      ]
+     },
+     {
+      "gauge": "Fuel_Wing",
+      "u": 0,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Fuel_Wing_F",
+      "needles": [
+       "Needle_Fuel_Wing_F"
+      ]
+     },
+     {
+      "gauge": "Fuel_Akro",
+      "u": 0.1,
+      "v": 0.11,
+      "case_inches": 2.25,
+      "bezel_radius_m": 0.031575,
+      "face": "Face_P3b_Fuel_Akro_F",
+      "needles": [
+       "Needle_Fuel_Akro_F"
+      ]
+     }
+    ]
+   }
+  ],
+  "retired_nodes": [
+   "FuelSel_F",
+   "FuelSel_R",
+   "Trim_R",
+   "Needle_Alt100_F",
+   "Needle_Alt1000_F",
+   "Needle_ASI_F",
+   "Needle_G_F",
+   "Needle_GMax_F",
+   "Needle_GMin_F",
+   "Needle_OilP_F",
+   "Needle_OilT_F",
+   "Needle_Tach_F",
+   "Compass_Card_R",
+   "MagKey_R",
+   "Mixture_R",
+   "Needle_Alt100_R",
+   "Needle_Alt1000_R",
+   "Needle_ASI_R",
+   "Needle_CHT_R",
+   "Needle_Fuel_R",
+   "Needle_G_R",
+   "Needle_GMax_R",
+   "Needle_GMin_R",
+   "Needle_MP_R",
+   "Needle_OilP_R",
+   "Needle_OilT_R",
+   "Needle_Tach_R",
+   "Needle_VSI_R",
+   "Prop_R",
+   "Radio_Display_R",
+   "Radio_TuneInner_R",
+   "Radio_TuneOuter_R",
+   "Radio_VolumeKnob_R",
+   "Switch_Master_R",
+   "TC_Ball_R",
+   "TC_Symbol_R",
+   "Xpdr_Display_R",
+   "Xpdr_Knob_R",
+   "RearPanel_Airspeed_Bezel",
+   "RearPanel_Airspeed_Face",
+   "RearPanel_Altimeter_Bezel",
+   "RearPanel_Altimeter_Face",
+   "RearPanel_Attitude_Bezel",
+   "RearPanel_Attitude_Face",
+   "RearPanel_Compass_Bezel",
+   "RearPanel_Compass_Face",
+   "RearPanel_Fuel_pressure_Bezel",
+   "RearPanel_Fuel_pressure_Face",
+   "RearPanel_Fuel_quantity_Bezel",
+   "RearPanel_Fuel_quantity_Face",
+   "RearPanel_G_meter_Bezel",
+   "RearPanel_G_meter_Face",
+   "RearPanel_Oil_pressure_Bezel",
+   "RearPanel_Oil_pressure_Face",
+   "RearPanel_Oil_temperature_Bezel",
+   "RearPanel_Oil_temperature_Face",
+   "RearPanel_Tachometer_Bezel",
+   "RearPanel_Tachometer_Face",
+   "RearPanel_UpperExtension",
+   "RearPanel_Voltmeter_Bezel",
+   "RearPanel_Voltmeter_Face"
+  ],
+  "case_status": "E",
+  "new_params": [
+   "egt_f",
+   "amps",
+   "turn_rate_dps",
+   "slip_ball",
+   "fuel_wing_gal",
+   "fuel_akro_gal"
+  ]
+ }
 }

@@ -4219,3 +4219,45 @@ raw model coordinates to body config. Smoke visuals/config/logic unchanged.
 Full control table, Ty questions, limits and exact CPU/operator Blender render commands:
 `docs/models/vr-cockpit-phase3a.md`. Render preset `render_vr_phase3.py` emits six panel
 views, Smoke off/on in all three, Magneto OFF/START close-ups, prefix after3a_. Not run.
+
+## Codex P3b — 2026-11-02 — no gate approved
+
+Rebuilt all three Extra liveries with CPU entrypoint `vr_cockpit.py` (new
+`vr_phase3b.py`), one flat panel per seat. Front and rear now share the requested
+4 flight + 7 engine/fuel gauge layout, physical 3⅛/2¼ inch cases (E), original
+marked faces, and 17 separately pivoted live rig targets per seat. Full layout,
+absolute/relative angle conventions, source markings and operator commands:
+`docs/models/vr-cockpit-phase3b.md`.
+
+Operator copy-to-CONTRACT seam (external contract read, not edited here):
+`Needle_ASI`, `Needle_Alt100`, `Needle_Alt1000`, `Needle_TC`, `Ball_TC`,
+`Needle_G`, `Needle_GMax`, `Needle_GMin`, `Needle_Tach`, `Needle_MP`,
+`Needle_OilP`, `Needle_OilT`, `Needle_EGT`, `Needle_CHT`, `Needle_Amps`,
+`Needle_Fuel_Wing`, `Needle_Fuel_Akro`, each with BOTH `_R` and `_F` suffixes.
+`Needle_TC` / `Ball_TC` replace the legacy TC_Symbol / TC_Ball names. Old
+instrument nodes are inert `Legacy_P3b_*`; their meshes and original mixed-mesh
+faces/bezels are removed, not hidden. No VSI, compass, fuel pressure or other
+extra bottom gauge. Radio/XPDR displays now on a sub-panel below the gauges;
+P3a controls and their mounts lowered to side consoles at builder Z=0, with
+rig/interaction pivots updated. Sequence-card holder moved right of gauges.
+
+Claude reuse: airspeed_kias, altitude_ft, g_load, g_max_seen, g_min_seen, rpm,
+manifold_inhg, oil_press_psi, oil_temp_f, cht_f. New/requested bindings:
+egt_f, amps, turn_rate_dps, slip_ball, fuel_wing_gal, fuel_akro_gal. Positive
+turn = right; positive slip = ball right; amps = positive charging. AKRO face
+E–F follows the ground-indication placard: E at/below 2.6 gal, F at/above 10;
+pass actual gallons, map plateaus through physical capacity 10.6 gal.
+
+Checker passes all 10 assets / 440 controls; all 6 Extra seat panels have
+11 gauges / 17 moving rig nodes, minimum measured bezel gap 14.625 mm,
+maximum face-to-metal-plane distance 0.500035 mm (all normals match).
+Injected depth/overlap faults rejected. Isolated updates from 0a1a7b4 pass all
+three Extras, matching per-node geometry counts; baseline and current asset
+updates are byte-identical on repeat, including the shared rig. No runtime
+binding or pilot-eye visual approval claimed. Six `after3b_` operator Blender
+presets: rear/front authored eye points at 75° and 45° FOV, plus each panel
+straight-on ortho. Review pose is applied through the same needle rig maps.
+
+Only this worktree modified. No commit, Blender process, Unity, xcodebuild or
+deployment. CPU used `/tmp/topo-venv/bin/python` with NumPy/Pillow and
+`PYTHONDONTWRITEBYTECODE=1`. No CONTRACT.md created in repo.
