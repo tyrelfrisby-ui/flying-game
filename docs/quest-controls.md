@@ -49,12 +49,15 @@ thumb drifting 0.3 forward does not open the throttle, and easing the power off 
 **A Bluetooth gamepad** (an 8BitDo, an Xbox or PlayStation pad, any Android pad: pair it in the headset's Settings →
 Devices → Bluetooth, with the pad in its Android / X-input mode) is read through the Input System and turned into the
 same controller frame (`QuestGamepadMap`), merged with the Touch controllers', so it flies, works the VR menu and has
-the same feel — use either, or both:
+the same feel — use either, or both. The sticks are Ty's mapping for every platform (2026-11-02), the same as the
+iPhone and the Mac and the same split as the Touch controllers: right hand flies, left hand has the rudder and the
+power.
 
 | Pad | Does |
 |---|---|
-| **Left stick** | Aileron and elevator (forward = push), as an uncalibrated pad on the iPhone and the Mac |
-| **Right stick X / Y** | Rudder / the throttle lever as a rate (push to open, let go and it stays) |
+| **Right stick X / Y** | Aileron / elevator (forward = push = nose down) — expo as above |
+| **Left stick X** | Rudder — expo as above |
+| **Left stick Y** | The throttle lever **as a rate**: push to open, pull to close, **let go and it stays** (idle to full in 2 s, the Touch's rate). A pad's stick springs back to centre, so read as a position it would chop the power to half every time the thumb lifted; the iPhone reads it as a rate for the same reason |
 | **Left / right trigger** | Wheel brakes / guns (where they are hot) |
 | **South (Xbox A) / East (B)** | Pitch trim nose up / nose down — the Touch A / B |
 | **West (X) / North (Y)** | Flaps one step down / up — the Touch X / Y |

@@ -76,16 +76,35 @@ public sealed class QuestStickFeelTests
     [Fact]
     public void TheGamepadFliesLikeTheControllers()
     {
-        var f = QuestGamepadMap.ToFrame(new GamepadState { LeftX = 0.5, LeftY = 0.4, RightX = -0.7, RightY = 0.9, LeftTrigger = 0.3, RightTrigger = 0.8 });
-        Assert.Equal(0.5, f.RightX); Assert.Equal(0.4, f.RightY);        // left stick = the flying stick (forward = push)
-        Assert.Equal(-0.7, f.LeftX); Assert.Equal(0.9, f.LeftY);        // right stick = rudder + throttle lever
+        // Ty 2026-11-02, all platforms: RIGHT stick = aileron / elevator, LEFT stick X = rudder, LEFT stick Y = throttle.
+        var f = QuestGamepadMap.ToFrame(new GamepadState { RightX = 0.5, RightY = 0.4, LeftX = -0.7, LeftY = 0.9, LeftTrigger = 0.3, RightTrigger = 0.8 });
+        Assert.Equal(0.5, f.RightX); Assert.Equal(0.4, f.RightY);        // right stick = the flying stick (forward = push)
+        Assert.Equal(-0.7, f.LeftX); Assert.Equal(0.9, f.LeftY);        // left stick = rudder + throttle lever
         Assert.Equal(0.3, f.LeftTrigger); Assert.Equal(0.8, f.RightTrigger);
         var m = new QuestControlMapper();
         var c = m.Step(f, 0.1, 0.5);
         Assert.True(c.Aileron > 0); Assert.True(c.Elevator > 0);          // right roll, push
         Assert.Equal(0.3, c.Brake, 9);
         Assert.True(c.Fire);
-        Assert.True(c.ThrottleMoved && c.Throttle01 > 0.5);              // right stick forward opens the lever
+        Assert.True(c.ThrottleMoved && c.Throttle01 > 0.5);              // left stick forward opens the lever
+    }
+
+    [Fact]
+    public void TheGamepadsLeftStickIsRudderAndThrottleNotTheStick()
+    {
+        var m = new QuestControlMapper();
+        var rud = m.Step(QuestGamepadMap.ToFrame(new GamepadState { LeftX = 0.9 }), 0.1, 0.5);
+        Assert.True(rud.Rudder > 0); Assert.Equal(0.0, rud.Aileron); Assert.Equal(0.0, rud.Elevator);
+        Assert.False(rud.ThrottleMoved);
+        // The throttle is a rate: held forward it opens, let go it stays where it was put.
+        var open = m.Step(QuestGamepadMap.ToFrame(new GamepadState { LeftY = 1.0 }), 0.2, 0.5);
+        Assert.True(open.ThrottleMoved && open.Throttle01 > 0.5);
+        Assert.Equal(0.0, open.Aileron); Assert.Equal(0.0, open.Elevator);
+        var held = m.Step(QuestGamepadMap.ToFrame(new GamepadState()), 0.2, open.Throttle01);
+        Assert.False(held.ThrottleMoved);
+        var fly = new QuestControlMapper().Step(QuestGamepadMap.ToFrame(new GamepadState { RightX = -0.8, RightY = -0.8 }), 0.1, 0.5);
+        Assert.True(fly.Aileron < 0); Assert.True(fly.Elevator < 0);     // right stick left and back: roll left, pull
+        Assert.Equal(0.0, fly.Rudder); Assert.False(fly.ThrottleMoved);
     }
 
     [Fact]

@@ -305,21 +305,27 @@ namespace FlyingGame.Core.Vr
     /// <see cref="QuestControllerFrame"/>, merged with the Touch controllers', so every rule the controllers fly by —
     /// dead zones, the throttle as a lever, trim, flaps, the menu — is the same code and the same tests.
     ///
-    ///   left stick        aileron and elevator (forward = push), like the iPhone and the Mac with an uncalibrated pad
-    ///   right stick X     rudder;  right stick Y  the throttle lever as a rate (push to open, let go and it stays)
+    ///   right stick       aileron (X) and elevator (Y; forward = push) — the Touch's right stick
+    ///   left stick X      rudder;  left stick Y  the throttle lever as a rate (push to open, let go and it stays)
     ///   left trigger      wheel brakes;  right trigger  guns (where they are hot)
     ///   south / east      pitch trim nose UP / nose DOWN (the Touch A / B)
     ///   west / north      flaps one step down / up (the Touch X / Y)
-    ///   left stick press  gear (glider: tow / release) — the flying stick's click, as on the Touch
-    ///   right stick press recentre; held 1 s, the menu — the other stick's click, as on the Touch
+    ///   left stick press  gear (glider: tow / release)
+    ///   right stick press recentre; held 1 s, the menu
     ///   Start             the VR menu;  Select  recentre;  right shoulder  smoke on / off
+    ///
+    /// The sticks are Ty's mapping for every platform (2026-11-02: right stick flies, left stick X rudder, left stick
+    /// Y throttle — the iPhone's GamepadShaping has the same, with the throttle a rate there too), which is the Touch
+    /// controllers' own split, so the pad's sticks go straight through. The two stick PRESSES stay where eeb12758 put
+    /// them: neither collides with anything, and the 1 s menu hold sits on the flying stick, where a thumb pressing
+    /// down nudges only the expo'd aileron and elevator rather than winding the throttle rate up or down.
     /// </summary>
     public static class QuestGamepadMap
     {
         public static QuestControllerFrame ToFrame(in GamepadState g) => new QuestControllerFrame
         {
-            RightX = g.LeftX, RightY = g.LeftY,         // the flying stick
-            LeftX = g.RightX, LeftY = g.RightY,         // rudder and the throttle lever
+            RightX = g.RightX, RightY = g.RightY,       // the flying stick
+            LeftX = g.LeftX, LeftY = g.LeftY,           // rudder and the throttle lever
             LeftTrigger = g.LeftTrigger, RightTrigger = g.RightTrigger,
             RightGrip = g.RightShoulder ? 1.0 : 0.0,
             A = g.South, B = g.East, X = g.West, Y = g.North,

@@ -262,7 +262,7 @@ namespace FlyingGame.Bridge
             _pad = UnityEngine.InputSystem.Gamepad.current;
             if (_pad == null && UnityEngine.InputSystem.Gamepad.all.Count > 0) _pad = UnityEngine.InputSystem.Gamepad.all[0];
             GamepadLine = _pad != null ? Short(_pad) : "none connected";
-            if (_pad != was) Debug.Log(_pad != null ? $"[QuestInput] gamepad in use: {Describe(_pad)} — left stick flies, right stick rudder + throttle, Start = menu" : "[QuestInput] no gamepad");
+            if (_pad != was) Debug.Log(_pad != null ? $"[QuestInput] gamepad in use: {Describe(_pad)} — right stick flies, left stick rudder + throttle, Start = menu" : "[QuestInput] no gamepad");
         }
 
         private static string Short(UnityEngine.InputSystem.Gamepad p)
