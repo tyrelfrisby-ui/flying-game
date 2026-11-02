@@ -51,14 +51,8 @@ def pitts_panels(a):
         pr['indices']=g.accessor(ids[~rm].reshape(-1,1),'SCALAR',5125)
 
 def pitts_frame(a):
-    # Preserve bubble and fixed windscreen; frame only follows bubble end outlines.
-    tops=[(-.131,.222),(-.25,.345),(-.393,.458),(-.601,.530),(-.869,.554),(-1.05,.552),(-1.226,.530),(-1.464,.482),(-1.601,.429)]
+    # Preserve bubble and fixed windscreen; moving sill rails only, no tall end hoops.
     sh=Shape()
-    for x in (-.135,-1.595):
-        ztop=float(np.interp(-x,[-p[0] for p in tops],[p[1] for p in tops]))+.004
-        w=skin_y(x,sill(x));z=sill(x)-.002
-        pts=[(x,w*math.copysign(abs(math.cos(t))**(2/2.4),math.cos(t)),z+(ztop-z)*math.sin(t)**(2/2.4)) for t in np.linspace(0,math.pi,65)]
-        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.011,8)
     for sy in (-1,1):
         pts=[(x,sy*(skin_y(x,sill(x))-.004),sill(x)+.006) for x in np.linspace(-.13,-1.60,65)]
         for u,v in zip(pts,pts[1:]):sh.tube(u,v,.014,8)

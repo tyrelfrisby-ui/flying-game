@@ -263,6 +263,8 @@ def update(path):
     result = pitts(path) if path.parent.name=='pitts-s2b-like' else extra(path)
     from vr_phase2 import update as phase2_update
     phase2_update(path)
+    from vr_phase2d import update as phase2d_update
+    phase2d_update(path)
     return result
 if __name__=='__main__':
     for model in ('pitts-s2b-like','extra-300-like'):

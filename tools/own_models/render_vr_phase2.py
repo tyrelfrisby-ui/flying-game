@@ -16,6 +16,8 @@ def load(kind='pitts',aircraft=True):
     if aircraft:
         model='pitts-s2b-like' if kind=='pitts' else 'extra-300-like'
         bpy.ops.import_scene.gltf(filepath=str(MODELS/model/(model+'-own.glb')))
+    for o in bpy.data.objects:
+        if o.get('default_visible') is False:o.hide_render=True
     s=bpy.context.scene;s.render.engine='CYCLES';s.cycles.samples=24;s.cycles.use_denoising=True
     s.render.resolution_x=1600;s.render.resolution_y=1000;s.render.resolution_percentage=100
     s.world=bpy.data.worlds.new('Studio');s.world.use_nodes=True
@@ -141,3 +143,24 @@ rig('canopy_open',1)
 for o in bpy.data.objects:
     if o.name.startswith('Canopy_Glass'):o.hide_render=False
 shot2c('extra_canopy_open',(3.2,-3.4,1.9),(1.1,0,.45),3.9)
+
+# P2d: hide recursively (Blender object visibility does not inherit from empties).
+def departed():
+    root=bpy.data.objects['Canopy_Detachable']
+    for o in [root,*root.children_recursive]:o.hide_render=True
+    for o in bpy.data.objects:
+        if o.name.startswith('Canopy_Hinge_Broken_'):o.hide_render=False
+
+def shot2d(name,*args,**kwargs):
+    shot(name,*args,**kwargs)
+    (OUT/('after2_'+name+'.png')).replace(OUT/('after2d_'+name+'.png'))
+
+load();departed()
+shot2d('pitts_canopy_departed',(2.7,-3.1,1.8),(.8,0,.20),3.6)
+load('extra');departed()
+shot2d('extra_canopy_departed',(3.2,-3.4,1.9),(1.1,0,.45),3.9)
+load('extra');rig('canopy_latch',1);rig('canopy_open',1)
+shot2d('extra_canopy_flapping',(3.2,-3.4,1.9),(1.1,0,.45),3.9)
+load();hide_canopy_glass()
+# Rear pilot-eye close crop, right-hand bow/rail junction.
+shot2d('pitts_jettison_knob',(1.325,0,.30),(.875,.30,.15),eye=True)

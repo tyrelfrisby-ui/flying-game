@@ -4068,3 +4068,60 @@ zsh tools/own_models/rebuild_vr_phase2.sh
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
 /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
 ```
+
+## HANDOFF (Codex → Claude) — P2d / P2d-2, 2026-11-02
+
+Builds on operator commit 45d2654. No commits, Blender startup, Unity/C#, Glass
+Overlay or deployment performed. Repo GLBs await operator rebuild/CPU regeneration;
+seven CPU previews at `/tmp/p2d-models` pass graph, ownership, metadata and
+byte-identical repeat-update checks. Python parses pass. Full operator check/render
+and visual open-cockpit approval remain pending.
+
+**CONTRACT — operator copy to shared contract; no root CONTRACT.md created:**
+`Canopy_Detachable` is the only detach target on Pitts/Extra, containing existing
+Pitts `Canopy_Slide > Canopy`, or Extra `Canopy`. `Canopy_COM` child marks COM.
+Root extras: `mass_kg`, `com_gltf_m`, `inertia_tensor_gltf_kg_m2`,
+`principal_inertia_kg_m2`, `principal_axes_gltf_columns`, `mass_estimate`,
+`rig_jettison_param=canopy_jettison`. Remove reliance on Extra's former detach
+metadata on Canopy; Canopy now has `detachable_root=Canopy_Detachable`.
+Both types add `Canopy_Hinge_Airframe_Rear/Front` (fixed),
+`Canopy_Hinge_Canopy_Rear/Front` (moving), `Canopy_Hinge_Broken_Rear/Front`
+(children of fixed halves; `default_visible=false`, show after departure).
+Pitts adds fixed `Canopy_Sill_Airframe_L/R`, moving
+`Canopy_Jettison_Knob_Rear/Front`, child `Grip_Canopy_Jettison_Rear/Front`,
+`Canopy_Jettison_Cable_Rear/Front`, `Canopy_Jettison_Placard_Rear/Front`.
+Jettison pull 0..1 = estimated 0..40 mm inboard; **releases at any speed**.
+Confirmed by Ty, 2026-11-02: far-right bow/rail junction. Model controls ride
+moving frame; front repeats junction because both cockpits have bows (front
+hardware plausibility is an estimate). Original procedural placard texture.
+
+Both tall red Pitts end hoops removed per Ty, preserving bubble and low paired
+bows. Fixed rails/sockets/pulls stay airframe; moving glass/frame/bows/latch
+blocks/Extra handles depart in one subtree. Claude implements ~80 KIAS Extra /
+80 MPH Pitts hinge-failure tear-away, below-speed hinge flapping and explicit
+Pitts jettison override. Preserve world pose and rotate COM/inertia through the
+current canopy pose on departure. No runtime speed code in this lane.
+
+Mass estimate: Pitts **10.7171 kg**, principal inertia **(.97805,2.03788,2.64562)
+kg m²**; Extra **12.0690 kg**, **(1.08227,4.90222,5.52271) kg m²**. Acrylic area
+1.63252/2.24521 m² ×3 mm ×1180 kg/m³; steel outer tube area ×1 mm ×7850 kg/m³,
+plus0.8 kg fittings. Full matrices, axis convention and approximations in
+`docs/models/vr-cockpit-phase2.md`; controls/names in `canopy-latches.md`.
+
+CPU path `python tools/own_models/vr_cockpit.py` now applies P2d even to P2c-marked
+inputs. Clean 0a1a7b4 bases receive P1/P2c/P2d; repeat P2d leaves bytes untouched.
+`rebuild_vr_phase2.sh` continues invoking postprocess through each aircraft builder.
+Four render presets added: after2d_pitts_canopy_departed,
+after2d_extra_canopy_departed, after2d_extra_canopy_flapping,
+after2d_pitts_jettison_knob. Broken fittings are hidden by default in all presets.
+
+**Operator commands (outside sandbox, this worktree):**
+```sh
+export PYTHONDONTWRITEBYTECODE=1
+# After restoring 0a1a7b4 own GLB bases, use the CPU update path:
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/vr_cockpit.py
+# Or rebuild all bases with Blender:
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- renders/phase2d
+```

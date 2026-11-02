@@ -356,7 +356,7 @@
   {
    "node": "Canopy_Slide",
    "param": "canopy_open",
-   "parent": null,
+   "parent": "Canopy_Detachable",
    "kind": "move",
    "axis_gltf": [
     1.0,
@@ -421,7 +421,9 @@
    "model": 0.0,
    "unit": "0..1",
    "desc": "Right side hinge; estimated 100 degree stop; first 20 percent is aft slide",
-   "extra": {},
+   "extra": {
+    "detachable_root": "Canopy_Detachable"
+   },
    "link": "",
    "note": ""
   },
@@ -1125,6 +1127,70 @@
    "model": 0.0,
    "unit": "0..1",
    "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Rear",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.875,
+    0.18045,
+    -0.31840100440030916
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Jettison_Knob_Front",
+   "param": "canopy_jettison",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22,
+    0.19218518518518518,
+    -0.2573582321171389
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.04
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Right bow/sill junction confirmed by Ty 2026-11-02; estimated 40 mm inboard pull releases right hinge pins at any speed",
    "extra": {},
    "link": "",
    "note": ""

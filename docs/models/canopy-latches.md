@@ -62,3 +62,43 @@ All dimensions, derived placement and clearance proxy assumptions are estimates;
 see [P2c dimensions and checks](vr-cockpit-phase2.md). canopy_latch 0 = spring released,
 pins in; 1 = squeezed, pins out. Opening requires pins retracted; interaction logic
 remains Claude's responsibility. No operating procedure or approval is asserted.
+
+## P2d-2 Pitts jettison — confirmed by Ty, 2026-11-02
+
+Ty's 12:40 PST confirmation supersedes the unconfirmed-location fallback: **red
+knob on the far right, where the parallel curved bows meet the lower moving
+canopy frame/sill rail, at the right hinge end of the bows**. All five supplied
+reference photos were reviewed; internal photos 3–5 are consistent with this
+junction. Ty's direct confirmation is the placement authority; no POH-derived
+measurement is claimed.
+
+Modelled on the **moving canopy frame**, adjacent to the canopy-side hinge
+fitting, not on the fixed airframe. At rest it sits at that bow/rail junction.
+Both cockpits have low bow pairs in this model, so both receive reachable knobs:
+`Canopy_Jettison_Knob_Rear/Front` and child `Grip_Canopy_Jettison_Rear/Front`.
+The front control is plausible because it repeats the confirmed bow/hinge junction
+on a dual-control tandem canopy; independent front-seat release hardware is an
+estimate, not separate confirmation from a maintenance manual.
+
+Rear/front knob centres: X −.875/−.220 m, Y = right rail +25 mm inboard,
+Z = rail +18 mm. Red ball 32 mm diameter; short 6 mm cable stem. Pull axis is
+builder +Y (pilot-left/inboard), **40 mm estimated travel**, driven by
+`canopy_jettison` 0 stowed → 1 pulled; grips follow knobs. Thin 4 mm cable runs
+`Canopy_Jettison_Cable_Rear/Front` terminate at the right hinge-pin release
+junction on `Canopy_Hinge_Airframe_Rear/Front` when closed. These short release
+links leave with the canopy, disengaging from the fixed fittings; no long cable
+floats after departure. `Canopy_Jettison_Placard_Rear/Front` use an original
+procedurally generated red-on-white **CANOPY JETTISON** texture. Knob pull releases
+right hinge pins at any speed; Claude implements release semantics.
+
+CONTRACT additions for operator copy (no root CONTRACT.md created):
+- Both types: `Canopy_Detachable` (sole detach target; mass/inertia extras),
+  `Canopy_COM`, `Canopy_Hinge_Airframe_Rear/Front`,
+  `Canopy_Hinge_Canopy_Rear/Front`, `Canopy_Hinge_Broken_Rear/Front`
+  (`default_visible=false`; show on departure).
+- Pitts: `Canopy_Sill_Airframe_L/R`, `Canopy_Jettison_Knob_Rear/Front`,
+  `Grip_Canopy_Jettison_Rear/Front`, `Canopy_Jettison_Cable_Rear/Front`,
+  `Canopy_Jettison_Placard_Rear/Front`; rig `canopy_jettison`, 0..1, 40 mm inboard.
+- Existing Canopy/Canopy_Slide and canopy_open maps remain; Extra handles stay
+  inside the new detachable root; fixed sill, latch holes and emergency pulls stay
+  airframe. Full properties and ownership: [P2d](vr-cockpit-phase2.md#p2d--p2d-2--separable-canopy-2026-11-02).

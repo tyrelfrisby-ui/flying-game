@@ -273,3 +273,83 @@ All `after2_*.png`, 1600×1000, generated only when the operator runs the comman
   render-only; chest-bound leg loops retain the seated approximation pending runtime deformation.
 
 All renders remain **pending**, no visual gate approved.
+
+## P2d / P2d-2 — separable canopy, 2026-11-02
+
+CPU postprocess: `vr_cockpit.update` now always calls `vr_phase2d.update` after P2c.
+Its separate `vrCockpitPhase2d` marker allows committed P2c inputs to advance, while
+fresh bases receive P1 → P2c → P2d. Repeat P2d is byte-identical. All seven own
+liveries receive the same hierarchy. No Blender was started in the sandbox; repo
+GLBs await operator regeneration. Temporary CPU evidence is in `/tmp/p2d-models`.
+
+`Canopy_Detachable` is the actual common parent, not a sibling alias. Pitts:
+`Canopy_Detachable > Canopy_Slide > Canopy`; Extra: `Canopy_Detachable > Canopy`.
+Glass, moving frame, both low bow pairs, moving latch blocks/brackets/pins/knobs,
+placards, grips and Extra squeeze handles all depart together. Existing opening
+pivots retain their closed transforms and 100° stops. Detach the **outer root**
+with its current world transform, including partial slide/open pose. Do not detach
+only `Canopy`: that would discard the Pitts slide root and mass/COM metadata.
+The old Extra `rig_jettison_param` on Canopy is moved to the detachable root;
+Canopy now identifies it through `detachable_root`.
+
+New fixed Pitts `Canopy_Sill_Airframe_L/R` rails remain below the moving bubble
+rails. Extra `Canopy_Sill`, its four `Canopy_Latch_Hole_*` sockets and existing
+`CanopyRelease_F/R` airframe pulls remain. Pitts white bridge latch blocks belong
+to the moving low bows, so leave with those bows. No moving hardware mesh is left
+outside the detachable subtree. `Canopy_Hinge_Airframe_Rear/Front` remain;
+`Canopy_Hinge_Canopy_Rear/Front` depart. Each fixed half carries a small jagged
+`Canopy_Hinge_Broken_Rear/Front` mesh with extras `default_visible=false` and
+`show_when="canopy departed"`. Importers must honor this visibility extra (glTF
+has no core node visibility flag); render script does. Runtime shows these only
+after departure. Hinge knuckles are 20 mm OD, 30 mm long; tabs 30×22×25 mm,
+fore/aft offset ±18 mm, simplified visual estimates rather than measured fittings.
+No prior dedicated hinge meshes existed to retain as duplicate fittings.
+
+Removed **both** tall red Pitts front/rear end arcs (X −.135/−1.595) from P2c.
+The glass stays a single bubble on moving sill rails, with only the two low parallel
+bows per cockpit. Exterior reference photos show variant end framing, but Ty's
+explicit no-tall-hoops direction governs this model. Fixed windscreen unchanged.
+All five supplied `reference/pitts-s2b-photos/pitts-s2b-ref-*.png` were reviewed;
+photos 3–5 show the internal bow/rail arrangement and right-side knob region.
+
+### Mass properties (estimates, not aircraft specifications)
+
+| Own canopy | Acrylic area | Estimated mass | Principal inertia kg·m² (ascending) | Closed COM, builder X/Y/Z metres |
+|---|---:|---:|---|---|
+| Pitts | 1.63252 m² | 10.7171 kg | 0.97805, 2.03788, 2.64562 | −.847436, +.000008, +.287373 |
+| Extra | 2.24521 m² | 12.0690 kg | 1.08227, 4.90222, 5.52271 | −1.129569, −.001718, +.460714 |
+
+Glass mass = authored triangulated surface area × 3 mm acrylic × 1180 kg/m³:
+Pitts 5.7791 kg; Extra 7.9470 kg. Frame mass uses authored outer tube surface ×
+1 mm steel wall × 7850 kg/m³ (thin-wall approximation; includes end caps and for
+Pitts the four white bows). Remaining handles, pins and small fittings get a
+combined 0.8 kg allowance distributed over frame surface. Thus frame/bows are
+about 4.1380 kg Pitts, 3.3220 kg Extra. These estimates intentionally omit detailed
+hinge-pin/cable engineering and assume steel tubing; change constants if Ty supplies
+materials or measured canopy weight. Added jettison controls use that allowance.
+
+Triangle centroid masses determine COM and inertia about COM; finite triangle
+inertia is neglected. Extras on `Canopy_Detachable`: `mass_kg`, `com_gltf_m`,
+`inertia_tensor_gltf_kg_m2`, `principal_inertia_kg_m2`,
+`principal_axes_gltf_columns` (right-handed eigenvectors as **columns**, matching
+ascending moments), `mass_estimate` (inputs). Coordinates are local to the identity
+root in the closed authored pose: glTF = (−builder X, builder Z, builder Y).
+`Canopy_COM` is an empty at that COM. Runtime must transform mass axes/COM through
+the current opening pose when creating the detached body's physics representation.
+
+### Runtime handoff and evidence
+
+Claude owns interaction/aerodynamics: per Ty, above approximately **80 KIAS Extra**
+or **80 MPH Pitts**, hinges fail and the canopy departs; below that it opens/flaps
+on its hinges. Pitts `canopy_jettison=1` explicitly releases at **any speed**.
+Visual rig `canopy_open=1` remains the estimated 100° full-open stop. No speed logic
+or C#/Unity work was added. Show broken fittings on departure, hide the complete
+moving subtree, retain fixed rails/sockets and release pulls. The source graph
+checks confirm that ownership; open-cockpit visual confirmation awaits operator
+renders, and there is no render-review approval yet.
+
+Four presets: `after2d_pitts_canopy_departed`, `after2d_extra_canopy_departed`,
+`after2d_extra_canopy_flapping` (full stop), `after2d_pitts_jettison_knob` (rear
+pilot-eye close view). Departed presets recursively hide root descendants and show
+torn fittings; other renders hide torn fittings by default. All external views
+continue excluding Sight_ markers.

@@ -1777,7 +1777,7 @@
   },
   {
    "node": "Canopy",
-   "parent": null,
+   "parent": "Canopy_Detachable",
    "param": "canopy_open",
    "unit": "0 closed .. 1 open",
    "kind": "rot",
@@ -1807,8 +1807,7 @@
    "note": "",
    "extra": {
     "hinge_axis_marker": "Canopy_HingeAxis",
-    "rig_jettison_param": "canopy_jettison",
-    "rig_jettison_desc": "canopy_jettison 1 = the sim detaches this node (with its children) and gives it the airflow; bailout uses it"
+    "detachable_root": "Canopy_Detachable"
    }
   },
   {

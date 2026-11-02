@@ -61,11 +61,36 @@ def extra_checks(g):
     assert min(clear.values())>0,clear
     return dict(handle_travel_mm=35,pin_travel_mm=18,pin_diameter_mm=6,pin_count=4,opening_sweep_sphere_clearance_mm=clear,scope='100 degree sweep, 0.5 degree samples minus arc and latch sampling bounds, latch sampled every 0.1; stated proxy spheres, excludes intentional grasp')
 
+def detachable_checks(g,kind):
+    nodes={n['name']:n for n in g.doc['nodes']}
+    def descendants(name):
+        result={name}
+        for i in nodes[name].get('children',[]):result |= descendants(g.doc['nodes'][i]['name'])
+        return result
+    moving=descendants('Canopy_Detachable');e=nodes['Canopy_Detachable']['extras']
+    assert {'Canopy','Canopy_Glass','Canopy_Frame','Canopy_COM'}<=moving
+    assert e['mass_kg']>0 and min(e['principal_inertia_kg_m2'])>0
+    assert np.allclose(np.linalg.eigvalsh(e['inertia_tensor_gltf_kg_m2']),e['principal_inertia_kg_m2'])
+    assert not any(n.startswith(('Fuselage','Canopy_Sill','Canopy_Latch_Hole','CanopyRelease_','Canopy_Hinge_Airframe_','Canopy_Hinge_Broken_')) for n in moving)
+    for seat in ('Rear','Front'):
+        assert 'Canopy_Hinge_Canopy_'+seat in moving
+        air='Canopy_Hinge_Airframe_'+seat;broken='Canopy_Hinge_Broken_'+seat
+        assert broken in descendants(air) and nodes[broken]['extras']['default_visible'] is False
+        if kind=='pitts-s2b-like':
+            knob='Canopy_Jettison_Knob_'+seat
+            assert knob in moving and 'Grip_Canopy_Jettison_'+seat in descendants(knob)
+            assert nodes[knob]['extras']['rig_map_m']==[0,.040]
+    # All independent moving canopy hardware must depart, including Extra handles.
+    for n in nodes:
+        if n.startswith(('Canopy_Bow_','Canopy_Latch_Handle_','Canopy_Latch_Pin','Canopy_Latch_Knob','Canopy_Latch_Block','Canopy_Jettison_')) and 'mesh' in nodes[n]:assert n in moving,n
+    return e
+
 def main():
     report={'evidence':('CPU previews from committed phase2 assets; Blender rebuild/renders pending' if os.environ.get('VR_PHASE2_MODELS') else 'Numeric checks on exported assets; visual render review pending')+'; no gate approved'};counts={}
     for kind in ('pitts-s2b-like','extra-300-like'):
         for path in sorted((MODELS/kind).glob('*own*.glb')):
             g=Glb(path);graph(g,path);assert g.doc['extras']['vrCockpitPhase2c']
+            report.setdefault('detachable',{})[path.name]=detachable_checks(g,kind)
             names={n['name'] for n in g.doc['nodes']}
             for seat in ('Rear','Front'):
                 for prefix in ('Harness_','Harness_Buckle_','Grip_Harness_Release_','Headset_Jack_'):assert prefix+seat in names
