@@ -1,4 +1,14 @@
 ## NEEDS YOU
+- **GROB G 103 ACRO (TWIN II ACRO) — AEROBATIC GLIDER, IN PROGRESS, REVIEW BEFORE MERGE (Grok Bot, 2026-11-01,
+  lane/claude-grob103 + lane/codex-grob103, both off d0986c0):** Ty chose to keep the progression blocked until a
+  real aerobatic glider exists and asked for it to be built; the Grob 103 Acro is the pick (two seats, instructor
+  and student) over the DG. Claude replaces the placeholder `glider-grob103-acro-like` with a full config derived
+  from first-principles physics on published geometry (17.5 m span, E603 airfoil, masses, CG range, control
+  surfaces); published performance (L/D, min sink, Vne 250 km/h, +6.5/-4 g Acro limits) is used for VALIDATION
+  ONLY, with gaps reported honestly. Spoilers/airbrakes, g and structural limits on StructuralTests, tests for
+  polar / stall / roll rate / g limits / spin, and the aerobatic-glider stage uses it. Codex builds the GLB and
+  cockpit in the house style, with previews for your visual review. No position shown anywhere. Local commits
+  only; **your review is needed for the numbers and the look before anything merges. No gate marked approved.**
 - **CERTIFICATE / PROGRESSION RESTRUCTURE — REVIEW BEFORE MERGE (Grok Bot / Claude, 2026-11-01,
   lane/claude-cert-restructure):** Ty said GO (2026-11-01 3:24 PM PST) on restructuring the ratings into levels
   Student pre-solo, Student solo, Pilot, Instrument (shown as "Blind Flying"), Commercial, Flight Instructor; no
