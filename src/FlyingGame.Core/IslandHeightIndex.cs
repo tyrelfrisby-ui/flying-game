@@ -169,17 +169,20 @@ internal static class IslandHeightIndex
     {
         public readonly bool Airway;
         public readonly IslandPoint A,B,U;
-        public readonly double Width, Blend, Cap, Length, Elevation, Ratio;
+        public readonly double Width, Blend, Cap, Length, Elevation, Ratio, Guard, Margin;
         public readonly Rect Bounds;
         public Budget(IslandValue q)
         {
             Airway=q.S("kind")=="airway"; A=q["a"].Point; B=q["b"].Point; U=q["u"].Point;
             Width=q.N("width"); Blend=q.N("blend"); Cap=q.N("cap_m"); Length=q.N("length"); Elevation=q.N("elevation_m"); Ratio=q.N("ratio");
+            // Instrument finals keep the 0.25 km constant guard and 30 m vertical margin; a visual runway end's
+            // FAA Part 77 surface starts at the runway end itself (guard_km 0, margin_m 0).
+            Guard=q.N("guard_km",.25); Margin=q.N("margin_m",30);
             if(Airway) Bounds=Rect.Points(new[]{A,B},Math.Max(Width,3.704)+Blend);
             else
             {
-                // ad in [-.25-blend,length+.25+blend]; cross <= .15+.05*max(0,ad)+.25+blend.
-                double lo=-.25-Blend, hi=Length+.25+Blend, cross=.4+.05*Math.Max(0,hi)+Blend;
+                // ad in [-guard-blend,length+guard+blend]; cross <= .15+.05*max(0,ad)+guard+blend.
+                double lo=-Guard-Blend, hi=Length+Guard+Blend, cross=.15+Guard+.05*Math.Max(0,hi)+Blend;
                 var v=new IslandPoint(U.N,-U.E);
                 Bounds=Rect.Points(new[]{A-U*lo+v*cross,A-U*lo-v*cross,A-U*hi+v*cross,A-U*hi-v*cross},0);
             }
@@ -191,8 +194,8 @@ internal static class IslandHeightIndex
             else
             {
                 var dp=p-A; double ad=-dp.Dot(U), cross=Math.Abs(dp.E*U.N-dp.N*U.E), width=.15+.05*Math.Max(0,ad);
-                double dd=Math.Max(0,Math.Max(Math.Max(-ad-.25,ad-Length-.25),cross-width-.25));
-                alpha=1-Smooth(dd/Blend); cap=Elevation+(broad?Math.Max(0,ad):ad)*1000/Ratio-(broad?30:0);
+                double dd=Math.Max(0,Math.Max(Math.Max(-ad-Guard,ad-Length-Guard),cross-width-Guard));
+                alpha=1-Smooth(dd/Blend); cap=Elevation+(broad?Math.Max(0,ad):ad)*1000/Ratio-(broad?Margin:0);
             }
             return Mix(h,Math.Min(h,cap),alpha*factor);
         }
@@ -254,19 +257,8 @@ internal static class IslandHeightIndex
     private static Grid<Layer> BuildBeforeOuter()
     {
         var layers=new List<(Rect,Layer)>(); var hf=W["height_field"];
-        foreach(var q in hf["regional_overrides"].Items)
-        {
-            var c=q["centre"].Point; double rx=q["radii_km"][0].Number(),ry=q["radii_km"][1].Number(),z=q.N("elevation_ft")*Feet;
-            Add(layers,new Rect(c.E-rx,c.E+rx,c.N-ry,c.N+ry),(p,h)=> {
-                var d=p-c; return Mix(h,z,1-Smooth(Math.Sqrt(d.E*d.E/(rx*rx)+d.N*d.N/(ry*ry))));
-            });
-        }
-        foreach(var q in hf["crests"].Items)
-        {
-            var line=new Line(q["path"]); double top=q.N("top_ft")*Feet,width=q.N("width_km");
-            Add(layers,line.Bounds(width),(p,h)=>Math.Max(h,Mix(h,top,1-Smooth(line.At(p).d/width))));
-        }
-        foreach(var q in hf["peaks"].Items) Radial(layers,q["centre"].Point,0,q.N("radius_km"),q.N("top_ft")*Feet,true);
+        // Regional envelopes, crest ribbons and radial peaks are gone: the natural relief (IslandRelief) carries
+        // the island's landforms, generated to agree with every authored layer below.
         foreach(var q in W["water"].Items)
         {
             var c=q["centre"].Point; var u=IslandPoint.Heading(q.N("long_axis_true_deg",90));
@@ -276,15 +268,8 @@ internal static class IslandHeightIndex
                 return Mix(h,Math.Min(h,z),1-Smooth((Math.Sqrt(a*a+b*b)-.85)/.45));
             });
         }
-        foreach(var q in W["glaciers"].Items)
-        {
-            var line=new Line(q["path"]); double width=q.N("half_width_m")/1000,head=q.N("head_ft"),ski=q["ski_zone"].N("elevation_ft");
-            Add(layers,line.Bounds(width+.3),(p,h)=> {
-                var (d,t)=line.At(p); double a=(1-Smooth((d-width)/.3))*Smooth(t/.12);
-                return Mix(h,(head*(1-t)+ski*t)*Feet,a);
-            });
-            Radial(layers,q["ski_zone"]["centre"].Point,.15,.25,ski*Feet);
-        }
+        // Glacier ice is part of the relief now; only the authored ski landing zones remain exact pads.
+        foreach(var q in W["glaciers"].Items) Radial(layers,q["ski_zone"]["centre"].Point,.15,.25,q["ski_zone"].N("elevation_ft")*Feet);
         foreach(var q in W["canyons"].Items)
         {
             var line=new Line(q["path"]); var rw=q["rim_width_m"].Items; var fw=q["floor_width_m"].Items; var zf=q["floor_ft"].Items;
@@ -346,7 +331,13 @@ internal static class IslandHeightIndex
                 Add(layers,line.Bounds(width+blend),(p,h)=> { var (d,t)=line.At(p); return Mix(h,saddle+rise*t,1-Smooth((d-width)/blend)); });
                 var wall=q["headwall_geometry"]; Radial(layers,wall["centre"].Point,wall.N("core_radius_m")/1000,wall.N("blend_m")/1000,wall.N("top_ft")*Feet,true);
             }
-            foreach(var q in hf["peaks"].Items) Radial(layers,q["centre"].Point,.12,.28,q.N("top_ft")*Feet);
+            // Summit cores: put back the uncut natural summit (the relief's own peak), as the cuts may have
+            // taken it. The relief generator kept every clearance surface, so this is normally a no-op.
+            foreach(var q in hf["peaks"].Items)
+            {
+                var centre=q["centre"].Point;
+                Add(layers,Rect.Around(centre,.4),(p,h)=>Mix(h,IslandRelief.Height(p),1-Smooth(((p-centre).Length-.12)/.28)));
+            }
             var box=W["aerobatic_boxes"][2]; var c=box["centre"].Point; double z=box.N("centre_ground_ft")*Feet;
             Add(layers,Rect.Around(c,.65),(p,h)=> { var d=p-c; return Mix(h,z,1-Smooth((Math.Max(Math.Abs(d.E),Math.Abs(d.N))-.5)/.15)); });
             var shell=IslandTerrain.Feature("F1")["shell_geometry"]; var chamber=shell["chamber_centre"].Point;
@@ -410,7 +401,7 @@ internal static class IslandHeightIndex
             if(q.Volcano&&(p-q.VolcanoCentre).Length<=q.VolcanoRadius) volcanoProtected=true;
         }
         if(d<-.35) return -30;
-        double h=(dc>dm?30:30+4570*Smooth(dm/2))*Feet;
+        double h=IslandRelief.Height(p);
         h=Layers(BeforeOuter,p,h,indexed);
         if(owner)
         {

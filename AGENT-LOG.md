@@ -7,6 +7,10 @@
   beaches and sea cliffs, smooth per-pixel shading. **You must judge it from the before/after renders** in
   `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`; results will be added here as they land.
   No gate is marked approved.
+  **Process slip, for whoever owned the overlapping runs:** on 2026-11-02 at about 06:30 local my first
+  "after" Unity render (lane/claude-island-terrain, its own worktree) ran while another lane's Unity (pid 68104)
+  and `dotnet` runs (pids 64771/64879/68141/68177) were already going — my guard check printed them and I
+  started anyway. Distrust any suite result or timing taken in that window. Every later run waits on the guard.
 - **GREAT LAKES FRONT PANEL, SECOND PASS — YOUR TWO FAULTS, AND A THIRD UNDER ONE OF THEM (Claude, 2026-11-01,
   lane/claude-gl-dials):**
   1. **The compass is a box with a window in it now.** You were right that the card hung out in the open and

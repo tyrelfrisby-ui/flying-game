@@ -64,7 +64,26 @@ public static class Glaciers
             if (ice[k] <= 0) continue;
             double perWidth = q[k] / g.CellM, sinA = Math.Max(.06, Math.Sin(Math.Atan(slope[k])));
             double h5 = perWidth * 5 / (2 * a * sliding * Math.Pow(rhoG * sinA, 3));
-            thick[k] = Math.Min(180, Math.Pow(Math.Max(0, h5), .2)); cells++; vol += thick[k] * area; maxH = Math.Max(maxH, thick[k]);
+            thick[k] = Math.Min(120, Math.Pow(Math.Max(0, h5), .2)); cells++; vol += thick[k] * area; maxH = Math.Max(maxH, thick[k]);
+        }
+        // Ice fills its valley up to its own surface: ground lower than an adjacent ice surface is under the ice.
+        // (Flux routing alone puts ice only in the thalweg; a real valley glacier is wall to wall.)
+        for (int pass = 0; pass < 4; pass++)
+        {
+            var add = new List<(int k, double t)>();
+            for (int j = 1; j < g.H - 1; j++) for (int i = 1; i < g.W - 1; i++)
+            {
+                int k = j * g.W + i; if (ice[k] > 0 || m.Fixed[k] || m.C.Ocean[k]) continue;
+                double best = 0, bq = 0;
+                for (int d = 0; d < 8; d++)
+                {
+                    int nk = (j + Grid.DJ[d]) * g.W + i + Grid.DI[d]; if (ice[nk] <= 0) continue;
+                    double t = bed[nk] + thick[nk] - bed[k] - 12; if (t > best) { best = t; bq = ice[nk]; }
+                }
+                if (best > 0) add.Add((k, best));
+            }
+            foreach (var (k, t) in add) { ice[k] = 1e-3; thick[k] = Math.Min(120, t); cells++; vol += t * area; }
+            if (add.Count == 0) break;
         }
         // Ice fraction: smooth the binary extent so the margin is a feathered line, not cell steps.
         var frac = new double[n]; for (int k = 0; k < n; k++) frac[k] = ice[k] > 0 ? 1 : 0;
@@ -98,6 +117,10 @@ public static class Glaciers
             debris[k] = Math.Max(debris[k], ridge[k]);
         }
         m.Ice = frac; m.Debris = debris;
+        // Diagnostics: accumulation-area ratio and terminus heights (sanity against real glaciers: AAR 0.5-0.7).
+        int acc = 0, iceCells = 0, lowest = 0; double minZ = double.PositiveInfinity, maxZ = 0;
+        for (int k = 0; k < n; k++) if (ice[k] > 0) { iceCells++; if (balance[k] > 0) acc++; if (bed[k] < minZ) { minZ = bed[k]; lowest = k; } maxZ = Math.Max(maxZ, bed[k]); }
+        if (iceCells > 0) m.Log.Add($"glacier surface {minZ:F0}-{maxZ:F0} m, accumulation-area ratio {acc / (double)iceCells:F2}, lowest ice at ({g.P(lowest).E:F2},{g.P(lowest).N:F2}) km");
         say($"glaciers: {cells} cells ({cells * area / 1e6:F2} km2), volume {vol / 1e9:F3} km3, max thickness {maxH:F0} m");
         m.Log.Add($"glaciers: {cells * area / 1e6:F2} km2 of ice, {vol / 1e9:F3} km3, thickest {maxH:F0} m");
     }

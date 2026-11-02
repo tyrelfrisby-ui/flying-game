@@ -55,10 +55,10 @@ Outer-island contributions fade independently into the ocean and combine by cont
 
 | Peak | Centre E,N km | Top ft MSL | Envelope radius km |
 | --- | --- | --- | --- |
-| Frank Church | [0, 0] | 9020 | 2.0 |
-| Sierra | [-1.6, -0.3] | 7550 | 1.3 |
-| Chugach | [-3.8, -1.8] | 6890 | 1.6 |
-| Denali-like | [0.5, 7.1] | 8530 | 1.5 |
+| Frank Church | [0, 0] | 8072.2 | 2.0 |
+| Sierra | [-1.6, -0.3] | 7328.7 | 1.3 |
+| Chugach | [-3.8, -1.8] | 5914.9 | 1.6 |
+| Denali-like | [0.5, 7.1] | 2175.9 | 1.5 |
 | Mokuleia | [5.8, 3.3] | 2950 | 1.5 |
 | Catalina | [2.9, -13.7] | 2100 | 0.8 |
 | Drake Hill | [-4.9, -4.5] | 5750 | 0.7 |
@@ -91,7 +91,6 @@ Outer-island contributions fade independently into the ocean and combine by cont
 | Canyon | Path | Rim widths m | Floor widths m | Floor ft MSL |
 | --- | --- | --- | --- | --- |
 | C1 | [[1.05, 2.1], [1.85, 0.25], [1.82, -0.76], [0.7, -1.8]] | [1300, 900] | [250, 250] | [4900, 4900] |
-| C2 | [[0.7, -1.8], [2.5, -0.3], [3.1, 0.55], [3.5, 2], [4, 1.35], [5.1, 1.3], [3.4, -0.4], [4.4, 0.65], [-0.8, -2.8]] | [900, 600, 400] | [300, 225, 150] | [4400, 3450] |
 | C3 | [[4.58, -5.38], [2.9, -6.3], [0, -6.72], [-1.15, -7.87], [-1.54, -9.6]] | [1400, 1400] | [350, 350] | [3700, 0] |
 | C4 | [[-4.6, -0.9], [-5.7, -0.4], [-6.95, -0.4]] | [800, 800] | [300, 300] | [100, 100] |
 
@@ -199,9 +198,9 @@ Exactly three IAC boxes remain: two water boxes and only one high-DA box, at McC
 
 | Box | Centre | DA | Floor–ceiling ft MSL | Nearest full final km | Overhead minimum gap ft |
 | --- | --- | --- | --- | --- | --- |
-| AB1 Dillingham | [6.9, 7.6] | low | 328.084–3608.924 | 0.6333 | 2391.076 |
+| AB1 Dillingham | [6.9, 7.6] | low | 328.084–3608.924 | 1.0398 | 2391.076 |
 | AB2 Cook Inlet | [-12.2, -6.3] | low | 328.084–3608.924 | 0.5868 | 2391.076 |
-| AB3 McCall | [-1.8, 2.8] | high | 5328.084–8608.924 | 0.2385 | 2391.076 |
+| AB3 McCall | [-1.8, 2.8] | high | 5328.084–8608.924 | 0.4444 | 2391.076 |
 
 **AB1**: nine moored marker rafts (one centre cross, four corner Ls, four side Ts), **one additional 12 × 8 m judge raft**, four orange corner buoys; ten rafts total. Cross arms are 40 × 4 m; L/T legs are 30 × 4 m. Every raft is at 0.5 m MSL.
 
@@ -243,9 +242,9 @@ All zones are **HOT by default**, selectable COLD, with no automatic timed sched
 
 | Zone | Reference boundary E,N or sector | Base floor–ceiling ft MSL | Computed floor AGL ft | Computed ceiling AGL ft | Full final / airway minimum km |
 | --- | --- | --- | --- | --- | --- |
-| CZ1 AP KAIWI MOA | {"bearings_true_deg":[15,50],"radii_km":[14,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 2.05 / 2.0527 |
-| CZ2 AP PAINTED MOA | {"bearings_true_deg":[95,135],"radii_km":[13.5,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 2.737 / 2.05 |
-| CZ3 AP SUSITNA MOA | {"bearings_true_deg":[315,350],"radii_km":[14.5,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 2.05 / 2.05 |
+| CZ1 AP KAIWI MOA | {"bearings_true_deg":[15,50],"radii_km":[14,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 3.5775 / 2.05 |
+| CZ2 AP PAINTED MOA | {"bearings_true_deg":[95,135],"radii_km":[13.5,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 5.1328 / 2.05 |
+| CZ3 AP SUSITNA MOA | {"bearings_true_deg":[315,350],"radii_km":[14.5,19.5]} | 150–12500 | [40, 150] | [12390, 12500] | 4.0135 / 2.05 |
 | CZ5 AP TERN MESA MOA | [[17.1,2.2],[17.5,2.2],[17.5,2.6],[17.1,2.6]] | 200–2500 | [12, 140.0] | [2312, 2440.0] | 4.2488 / 2.0877 |
 
 **CZ5 AP TERN MESA MOA** is a 0.16 km² polygon entirely over Tern Island. Its four vertices, in order, are [[17.1,2.2],[17.5,2.2],[17.5,2.6],[17.1,2.6]]. It has **no airport/approach cut-out** and stays at least **2.05 km** from the full known final and airway boundaries, including the proposed perimeter’s full 2 nm terrain swath. It is separate from the airport-over-MOA arrangements.
@@ -371,7 +370,7 @@ All six towers and five wires remain deterministic and charted. Complete guy foo
 | GATEWAY Gateway style river arch | [0.3, -6.5] | {"status":"target"} |
 | PLAYA Page dry playa | [5.8, -4.9] | {"status":"target"} |
 
-The race course keeps all 12 original gates/pylons and moves offshore to (10,-13), on moored bases. Whole gate/pylon enclosure final clearance: 1.669351 km; it is clear of every box and active combat footprint. Carrier stays off OC, clear of the southern LOC BC/hold reservation.
+The race course keeps all 12 original gates/pylons and moves offshore to (10,-13), on moored bases. Whole gate/pylon enclosure final clearance: 3.963749 km; it is clear of every box and active combat footprint. Carrier stays off OC, clear of the southern LOC BC/hold reservation.
 
 | Inventory ID | Feature/task | Destination | Owner/source |
 | --- | --- | --- | --- |
@@ -10761,6 +10760,51 @@ Every entry carries item, old value, new value and reason. Baseline 1A entries a
 
 ```json
 {"phase":"1B validation repair","item":"height_field/pad_blend exterior clearance correction","old":"inverse-distance squared weighting outside exactpad rectangles, maxinfluence envelope; final/airway exteriorblends capped with30m fade backto eachplane edge","new":"Inverse-distance squared exterior plane weighting; final/airway correction fades tozero at both exactpad edge (30m release) and outerblend boundary (max pad influence); continuous0.12–0.4km peakcore release, never a boolean gate. Airway budget also applies as a continuous global layer after details, with actual2nm core/continuousouterfade, exactpad30m release and peakcore release; no conditional outer-edge cap switch.","reason":"Existing WorldContinuityTests exposed a238m discontinuity at(E-0.3622,N4.45)km where a zero-influence exteriorpad claim abruptly activated a full-strength clearance cut. Fade by pad influence at the outer edge and continuously release peakcore exclusion. Preserve every exact pad datum and summit. Restored the V2 clearance budget as a global continuous layer after details rather than a conditional pad-claim cut; full pads/summits remain exact."}
+```
+
+</details>
+
+<details>
+<summary>1136. C2 canyon</summary>
+
+```json
+{"item":"C2 canyon","old":"{\"id\":\"C2\",\"path\":[[0.7,-1.8],[2.5,-0.3],[3.1,0.55],[3.5,2],[4,1.35],[5.1,1.3],[3.4,-0.4],[4.4,0.65],[-0.8,-2.8]],\"rim_width_m\":[900,600,400],\"floor_width_m\":[300,225,150],\"depth_m\":[600,600],\"floor_ft\":[4400,3450]}","new":"deleted; Middle Fork valleys come from the generated relief (tools/island/TerrainGen)","reason":"Physically impossible as authored: a single linear floor profile 4,400->3,450 ft along a path that zig-zags through nine strips at 4,400-5,000 ft; see docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1137. summit Frank Church</summary>
+
+```json
+{"item":"summit Frank Church","old":"9020 ft","new":"8072.2 ft","reason":"Claude 2026-11-02 island terrain rebuild: its summit stands on the ground the Bighorn Cirque tarn (7,580 ft, 320 m away) holds up; Yellow Pine's (AP10) runway-end surface 0.7 km south-east made 9,020 ft a 1,300 m wall. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1138. summit Sierra</summary>
+
+```json
+{"item":"summit Sierra","old":"7550 ft","new":"7328.7 ft","reason":"Claude 2026-11-02 island terrain rebuild: runway-end surfaces of KMEV/Chamberlain and the AP7 strip within 1.2 km allow this much at a 42-degree mountainside. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1139. summit Chugach</summary>
+
+```json
+{"item":"summit Chugach","old":"6890 ft","new":"5914.9 ft","reason":"Claude 2026-11-02 island terrain rebuild: canyon C4's sea-level floor heads 0.95 km away; the summit stands on the ground held up by the L2 lesson headwall (6,950 ft) beside it. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
+```
+
+</details>
+
+<details>
+<summary>1140. summit Denali-like</summary>
+
+```json
+{"item":"summit Denali-like","old":"8530 ft","new":"2175.9 ft","reason":"Claude 2026-11-02 island terrain rebuild: the coast is 0.45 km north and PHDH's runway-end surface 1 km south: 8,530 ft there was a 2,000 m needle (before/22); this is what a 55-degree sea cliff and a 42-degree landward face allow. docs/pending/ISLAND-TERRAIN-CLAUDE.md"}
 ```
 
 </details>

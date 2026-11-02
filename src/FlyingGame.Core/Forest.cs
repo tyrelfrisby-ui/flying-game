@@ -84,15 +84,31 @@ public static class Forest
     /// </summary>
     public static double TreeLineAt(double x, double y) => TreeLineAt(x, y, NorthGradientAt(x, y));
 
-    /// <summary>The treeline where the caller already has dh/dx (the renderer has it per vertex).</summary>
+    /// <summary>The treeline where the caller already has dh/dx (the renderer has it per vertex).
+    /// The island (2026-11-02): the line is the 8.5 C mean-summer isotherm of the island's climate — 18 C at
+    /// sea level, 6.5 K/km — so 1,460 m, raised on the faces that look into the sun and lowered on the shaded
+    /// ones. The island spans 20 km: latitude moves the line by about a metre over it, so it does not.
+    /// FlyingGame/IslandTerrain paints the alpine ground above the same line.</summary>
     public static double TreeLineAt(double x, double y, double northGrad)
     {
-        double line = MeanTreeLineM - TreeLineLapsePerM * x;
+        double line = IslandTreeLineM;
         line += TreeLineAspectM * System.Math.Clamp(northGrad / 0.6, -1, 1);
         line += 70 * (Lattice(x / 2400.0, y / 2400.0, 19.3) - 0.5);
-        line += AlpineMassLiftM * WorldTerrain.BlockFade(x, y, AlpineRange.X0, AlpineRange.Y0,
-                                                        AlpineRange.X1, AlpineRange.Y1, MassLiftFadeM);
         return line;
+    }
+
+    /// <summary>The island's treeline: (18 C - 8.5 C) / 6.5 K/km. docs/pending/ISLAND-TERRAIN-CLAUDE.md.</summary>
+    public const double IslandTreeLineM = 1460.0;
+    /// <summary>Annual precipitation (m) at which a closed conifer forest gives way to open woodland and then
+    /// to grass: below about 0.55 m there is no forest, above 0.95 m it is no longer limited by water.</summary>
+    public const double DryLimitM = 0.55, WetEnoughM = 0.95;
+
+    /// <summary>Annual precipitation (m/yr) recovered from the relief's equilibrium-line channel, inverting the
+    /// generator's degree-day balance: T_JJA(ELA) = 1.63 x P.</summary>
+    public static double PrecipitationAt(double x, double y)
+    {
+        double ela = IslandRelief.Channels(new IslandPoint(y / 1000, x / 1000)).elaM;
+        return System.Math.Max(0, (18.0 - 6.5 * ela / 1000) / (0.6 / (0.004 * 92)));
     }
 
     /// <summary>
@@ -165,7 +181,9 @@ public static class Forest
         if (below <= 0) return 0;
         double alt = Smooth(System.Math.Clamp(below / TreeLineFadeM, 0, 1));
 
-        return Stand(x, y) * alt * steep;
+        // The rain shadow: water, not cold, limits the forest in the dry east.
+        double water = Smooth(System.Math.Clamp((PrecipitationAt(x, y) - DryLimitM) / (WetEnoughM - DryLimitM), 0, 1));
+        return Stand(x, y) * alt * steep * water;
     }
 
     /// <summary>The stand pattern: where the forest is solid and where it opens into meadow. Two lattices —

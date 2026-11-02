@@ -19,77 +19,11 @@ namespace FlyingGame.Bridge
             var root = new GameObject("IslandWorld-1B");
             root.AddComponent<IslandSceneryClock>();
             IslandGeometry.Build();
-            Terrain(root.transform); Water(root.transform); Runways(root.transform); StaticGeometry(root.transform); Cavities(root.transform); SurfaceDetails(root.transform);
+            IslandTerrainMesh.Build(root.transform, WorldBuilder.Mat("FlyingGame/IslandTerrain", Color.white)); Water(root.transform); Runways(root.transform); StaticGeometry(root.transform); Cavities(root.transform); SurfaceDetails(root.transform);
             SeasideBuilder.BuildCarrier(root.transform);
             foreach (var z in IslandGeometry.Zones) Zone(z, root.transform);
             ForestStreamer.Attach(WorldTerrain.Active, root.transform);
             return root;
-        }
-        private static Color TerrainColour(double x, double y, double h)
-        {
-            if (h < 6) return Sand;
-            var p = new IslandPoint(y / 1000, x / 1000);
-            if (IslandTerrain.SurfaceAt(x, y) == WorldTerrain.Surface.Gravel) return new Color(.59f,.54f,.42f);
-            if (IslandTerrain.SurfaceAt(x, y) == WorldTerrain.Surface.Snow) return new Color(.76f, .86f, .91f);
-            if (p.E > 2 && p.N < -1 && p.N > -7) return Color.Lerp(new Color(.66f, .41f, .25f), Sand, .2f + .13f * Mathf.Sin((float)h / 9));
-            if (p.E < -12) return Color.Lerp(new Color(.19f, .30f, .23f), Rock, Mathf.Clamp01((float)h / 700));
-            float t = Mathf.Clamp01((float)(h - 2000) / 600);
-            return Color.Lerp(Color.Lerp(new Color(.28f, .40f, .23f), Rock, Mathf.Clamp01((float)h / 2400)), new Color(.94f, .95f, .94f), t);
-        }
-        private static bool NearDetail(double n, double e)
-        {
-            var p = new IslandPoint(e / 1000, n / 1000);
-            foreach (var f in IslandTerrain.Fields) if (f.Contains(p, 130)) return true;
-            foreach(var q in W["mesa_pads"].Items) if((p-q["centre"].Point).Length<.35)return true;
-            if ((p - IslandCavities.Drake["chamber_centre"].Point).Length < .65 || (p - IslandCavities.Pirate["chamber_centre"].Point).Length < .35) return true;
-            return false;
-        }
-        private static bool PortalHole(IslandPoint p)
-        {
-            // A mesh aperture for the cave throat: physical roof/side shell supplied separately.
-            var f = IslandTerrain.Feature("F2"); var dp = p - f["centre"].Point; var u = IslandPoint.Heading(f.N("mouth_true_deg") + 180);
-            return dp.Dot(u) >= -.015 && dp.Dot(u) < .20 && Math.Abs(dp.E * u.N - dp.N * u.E) < .030
-                &&(p-f["interior"]["chamber_centre"].Point).Length>.090 || IslandCavities.Skylight(p);
-        }
-        private static void Terrain(Transform parent)
-        {
-            // 2 km chunks keep index counts and culling bounded. Detail cells use10m vertices;
-            // coarse neighbours add matching edge vertices where detail patches meet them.
-            var mat = Lit;
-            for (int north = -20000; north < 20000; north += 2000) for (int east = -20000; east < 20000; east += 2000)
-            {
-                var b = new B();
-                for (int n = north; n < north + 2000; n += 100) for (int e = east; e < east + 2000; e += 100)
-                {
-                    double middle = IslandTerrain.HeightAt(n + 50, e + 50);
-                    if (middle < -29.99) continue;
-                    int step = NearDetail(n + 50, e + 50) ? 10 : 100;
-                    for (int dn = 0; dn < 100; dn += step) for (int de = 0; de < 100; de += step)
-                    {
-                        double n0 = n + dn, e0 = e + de; var pc = new IslandPoint((e0 + step / 2.0) / 1000, (n0 + step / 2.0) / 1000);
-                        if (PortalHole(pc)) continue;
-                        Vector3 V(double nn, double ee) => WorldBuilder.U(nn, ee, IslandTerrain.HeightAt(nn, ee));
-                        Color c = TerrainColour(n0, e0, IslandTerrain.HeightAt(n0, e0));
-                        // SW–NE diagonal agrees with review bake; top faces wind clockwise in Unity.
-                        var sw = V(n0, e0); var se = V(n0, e0 + step); var nw = V(n0 + step, e0); var ne = V(n0 + step, e0 + step);
-                        bool stitch = step == 100 && (NearDetail(n + 50, e - 50) || NearDetail(n + 50, e + 150) || NearDetail(n - 50, e + 50) || NearDetail(n + 150, e + 50));
-                        if (stitch)
-                        {
-                            var centre=V(n0+50,e0+50);
-                            for(int k=0;k<10;k++)
-                            {
-                                double q=k*10,r=(k+1)*10;
-                                b.Tri(centre,V(n0+q,e0),V(n0+r,e0),c);
-                                b.Tri(centre,V(n0+100,e0+q),V(n0+100,e0+r),c);
-                                b.Tri(centre,V(n0+100-q,e0+100),V(n0+100-r,e0+100),c);
-                                b.Tri(centre,V(n0,e0+100-q),V(n0,e0+100-r),c);
-                            }
-                        }
-                        else { b.Tri(sw, nw, ne, c); b.Tri(sw, ne, se, c); }
-                    }
-                }
-                if (b.Count > 0) b.Build("Terrain-" + north + "-" + east, parent, mat);
-            }
         }
         private static void Water(Transform parent)
         {

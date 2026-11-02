@@ -366,6 +366,8 @@ namespace FlyingGame.EditorTools
             Shader.SetGlobalVector("_BubbleSunDir", new Vector3(0.4f, 0.8f, -0.4f).normalized);
             FlyingGame.Core.WorldTerrain.Active = new FlyingGame.Core.WorldTerrain();
             FlyingGame.Core.WorldClock.TimeS = 20;
+            // The device's level of detail: iOS runs the Medium quality level (lodBias 0.7) and nothing changes it.
+            float savedLodBias = QualitySettings.lodBias; QualitySettings.lodBias = .7f; // restored below: never saved
             var clock = System.Diagnostics.Stopwatch.StartNew();
             var world = WorldBuilder.BuildAll();
             double buildS = clock.Elapsed.TotalSeconds;
@@ -394,7 +396,7 @@ namespace FlyingGame.EditorTools
                 $"tag={tag}\nworld build (WorldBuilder.BuildAll) {buildS:F2} s in the editor\n" +
                 $"terrain renderers {terrainRenderers} (of which coarser-LOD renderers {lodRenderers})\n" +
                 $"finest-level terrain triangles {tris}, vertices {verts}\nterrain mesh memory (all LODs, editor, CPU+GPU copies) {meshBytes / 1048576.0:F1} MiB\n" +
-                $"terrain shaders: {string.Join(", ", shaders)}\n");
+                $"terrain shaders: {string.Join(", ", shaders)}\n" + IslandTerrainStats());
             var camGo = new GameObject("RenderCam");
             var cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.Skybox; camGo.AddComponent<Skybox>().material = RenderSettings.skybox;
@@ -413,9 +415,12 @@ namespace FlyingGame.EditorTools
                 ("07-f86-cruise-25000ft", S(-18, -14, 25000 * ft), S(0, 0, 0), 60),
                 ("08-f86-25000ft-looking-down", S(10, -12, 25000 * ft), S(0, 0, 500), 60),
                 ("09-low-level-1000ft-agl-PANC", S(-12.5, -5.5, 151 * ft + 1000 * ft), S(-5, -1, 700), 60),
-                ("10-low-level-1000ft-agl-KMYL", S(-0.88, -0.6, 5024 * ft + 1000 * ft), S(-0.88, 3.6, 5024 * ft), 60),
+                // On the KMYL RNAV 17 final (course 179), 2 km before the north threshold, 1,000 ft above the field.
+                ("10-low-level-1000ft-agl-KMYL", S(-0.88, 5.71, 5024 * ft + 1000 * ft), S(-0.88, 2.78, 5024 * ft), 60),
                 ("11-low-level-1000ft-agl-PHDH", S(8.5, 4.6, 14 * ft + 1000 * ft), S(2, 6.5, 250), 60),
-                ("12-low-level-1000ft-agl-middle-fork", S(3.5, -2.2, 5500 * ft), S(3.5, 1.8, 4400 * ft), 60),
+                ("12-low-level-1000ft-agl-middle-fork", S(3.5, -2.2, 6000 * ft), S(3.5, 1.8, 4600 * ft), 60),
+                // On the PANC ILS 16 final (course 165), 2 km before the north threshold, 1,000 ft above the field.
+                ("31-PANC-ILS16-final-1000ft", S(-11.19, 0.46, 151 * ft + 1000 * ft), S(-10.24, -3.07, 151 * ft), 60),
                 ("13-frank-church-north-face", S(0.2, 4.6, 2700), S(0, 0.2, 2100), 50),
                 ("14-frank-church-south-face", S(0.2, -4.6, 2700), S(0, -0.2, 2100), 50),
                 ("15-sierra-north-face", S(-1.6, 3.4, 2500), S(-1.6, -0.2, 1900), 50),
@@ -435,6 +440,7 @@ namespace FlyingGame.EditorTools
                 ("29-drake-hill", S(-4.9, -1.2, 1900), S(-4.9, -4.4, 1500), 50),
                 ("30-north-coast-low", S(-3.5, 10.5, 500), S(-1.0, 6.5, 200), 50),
             };
+            var viewStats = new System.Text.StringBuilder();
             foreach (var (name, eye, look, fov) in views)
             {
                 cam.fieldOfView = fov;
@@ -447,14 +453,45 @@ namespace FlyingGame.EditorTools
                 tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); tex.Apply();
                 File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
                 Object.DestroyImmediate(tex); Object.DestroyImmediate(forest);
+                viewStats.AppendLine($"{name}\t{TerrainDrawn(world, cam)}");
             }
             RenderTexture.active = null;
+            File.WriteAllText(Path.Combine(outDir, "view-stats.txt"), "view\tterrain draw calls / triangles drawn (frustum-culled; LOD as LODGroup selects it at lodBias " + QualitySettings.lodBias + ")\n" + viewStats);
             var cams = new System.Text.StringBuilder();
             foreach (var (name, eye, look, fov) in views) cams.AppendLine($"{name}\teye(unity)={eye}\tlook={look}\tfov={fov}");
             File.WriteAllText(Path.Combine(outDir, "cameras.txt"), cams.ToString());
+            QualitySettings.lodBias = savedLodBias;
             Debug.Log($"RenderIslandTerrain: wrote {views.Length} plates to {outDir}");
         }
 
+        /// <summary>Terrain renderers this camera would draw and their triangles: frustum test on bounds, and for
+        /// a LODGroup the level its screen-relative height selects (size / (2 d tan(fov/2)) x lodBias).</summary>
+        static string TerrainDrawn(GameObject world, Camera cam)
+        {
+            var planes = GeometryUtility.CalculateFrustumPlanes(cam); long tris = 0; int calls = 0;
+            float k = 2 * Mathf.Tan(cam.fieldOfView * .5f * Mathf.Deg2Rad);
+            foreach (var group in world.GetComponentsInChildren<LODGroup>())
+            {
+                if (!group.name.StartsWith("Terrain")) continue;
+                var lods = group.GetLODs(); Vector3 c = group.transform.TransformPoint(group.localReferencePoint);
+                float rel = group.size / (k * Mathf.Max(1, Vector3.Distance(cam.transform.position, c))) * QualitySettings.lodBias;
+                int chosen = -1; for (int l = 0; l < lods.Length; l++) if (rel >= lods[l].screenRelativeTransitionHeight) { chosen = l; break; }
+                if (chosen < 0) continue;
+                foreach (var r in lods[chosen].renderers)
+                    if (r != null && GeometryUtility.TestPlanesAABB(planes, r.bounds)) { calls++; tris += r.GetComponent<MeshFilter>().sharedMesh.GetIndexCount(0) / 3; }
+            }
+            foreach (var mf in world.GetComponentsInChildren<MeshFilter>())
+            {
+                if (!mf.name.StartsWith("Terrain") || mf.GetComponentInParent<LODGroup>() != null || mf.sharedMesh == null) continue;
+                if (GeometryUtility.TestPlanesAABB(planes, mf.GetComponent<Renderer>().bounds)) { calls++; tris += mf.sharedMesh.triangles.Length / 3; }
+            }
+            return $"{calls} draws, {tris} triangles";
+        }
+        static string IslandTerrainStats()
+        {
+            var t = IslandTerrainMesh.Last;
+            return $"IslandTerrainMesh: {t.Chunks} chunks, {t.Renderers} LOD renderers, LOD0 triangles {t.Lod0Triangles}, all-level triangles {t.AllTriangles}, vertices {t.Vertices}, est. GPU {t.GpuBytes / 1048576.0:F1} MiB, sampling {t.SampleS:F2} s, total {t.BuildS:F2} s\n";
+        }
         // M17: sample the actual rasterized terrain and shader terms, using the exact
         // named-shot camera and pixel centres. No guessed mountain bounds or sim edits.
         // Runs AFTER saving the normal PNG. Probe variant is never enabled in play.

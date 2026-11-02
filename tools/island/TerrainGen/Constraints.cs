@@ -12,6 +12,9 @@ public sealed class Constraints
 {
     public readonly Grid G;
     public readonly double[] Fix, Lo, Hi;
+    /// <summary>The rising ground behind an alpine tarn: a landform preference, not an authored constraint,
+    /// so it yields to every runtime ceiling (Generate merges it into the soft bench).</summary>
+    public readonly double[] TarnRim;
     public readonly bool[] Ocean;
     public readonly double[] Shore; // signed km, + inland, of the owning land polygon
     public readonly List<(IslandPoint p, double z, string id)> Summits = new();
@@ -19,18 +22,29 @@ public sealed class Constraints
     const double Ft = IslandTerrain.Feet;
     static double Smooth(double t) => IslandTerrain.Smooth(t);
 
-    /// <summary>Experiment hook: shorten visual-only runway-end surfaces (budget list order: airways, IFR finals, runway ends).</summary>
-    public static double? VfrEndLengthKm;
-    public static readonly Dictionary<int, double> AirwayCapOverride = new();
-    public static double VfrGuardKm = .25, VfrBlendKm = .2;
-    static readonly IslandValue[] BudgetList = W["clearance_budgets"].Items;
-    static bool IfrFinalCount(IslandValue e) => Array.IndexOf(BudgetList, e) >= 35;
     public Constraints(Grid g, IslandPoint[] landPolygon)
     {
-        G = g; Fix = new double[g.N]; Lo = new double[g.N]; Hi = new double[g.N]; Ocean = new bool[g.N]; Shore = new double[g.N];
-        Array.Fill(Fix, double.NaN); Array.Fill(Lo, double.NegativeInfinity); Array.Fill(Hi, double.PositiveInfinity);
+        G = g; Fix = new double[g.N]; Lo = new double[g.N]; Hi = new double[g.N]; TarnRim = new double[g.N]; Ocean = new bool[g.N]; Shore = new double[g.N];
+        Array.Fill(Fix, double.NaN); Array.Fill(TarnRim, double.NaN); Array.Fill(Lo, double.NegativeInfinity); Array.Fill(Hi, double.PositiveInfinity);
         Parallel.For(0, g.N, k => { Shore[k] = IslandTerrain.Shore(g.P(k), landPolygon); Ocean[k] = Shore[k] <= 0; });
         Parallel.For(0, g.N, k => Point(k, g.P(k)));
+        // Charted wires inside an airway swath: the airway check takes the highest ground under the span plus the
+        // wire's height and sag, and needs it 2,000 ft under the MEA (MEA - 2,025 ft is the swath's cap_m).
+        foreach (var wire in W["hazards"]["wires"].Items)
+        {
+            var a = wire["endpoints"][0].Point; var b = wire["endpoints"][1].Point; double span = (b - a).Length * 1000;
+            double top = wire.N("lowest_agl_m") + span * wire.N("sag_fraction"), cap = double.PositiveInfinity;
+            var mid = (a + b) * .5;
+            foreach (var e in W["clearance_budgets"].Items)
+                if (e.S("kind") == "airway" && IslandTerrain.Segment(mid, e["a"].Point, e["b"].Point).d <= e.N("width") + e.N("blend") + span / 1000)
+                    cap = Math.Min(cap, e.N("cap_m") + 25 * Ft - top - 5);
+            if (double.IsInfinity(cap)) continue;
+            for (int k = 0; k < g.N; k++)
+            {
+                var p = g.P(k);
+                if (p.E >= Math.Min(a.E, b.E) - .03 && p.E <= Math.Max(a.E, b.E) + .03 && p.N >= Math.Min(a.N, b.N) - .03 && p.N <= Math.Max(a.N, b.N) + .03 && !Ocean[k]) SetHi(k, cap);
+            }
+        }
         foreach (var q in W["height_field"]["peaks"].Items)
         {
             var c = q["centre"].Point; int k = g.Nearest(c); if (k < 0 || Ocean[k]) continue;
@@ -68,6 +82,13 @@ public sealed class Constraints
             double rr = IslandTerrain.EllipseRadius(p, q), z = q.N("elevation_ft") * Ft;
             if (rr <= 1) SetFix(k, z);
             else if (rr <= 1.45) SetLo(k, z + (q.Has("basin_detail") ? q["basin_detail"].N("ridge_height_m") : 2));
+            // An alpine tarn (above 1,900 m) lies in a cirque: the ground RISES behind it, 40% over the first
+            // 300 m of rim, so the lake is in a basin and not on a mound.
+            if (z > 1900 && rr > 1)
+            {
+                double rim = (rr - 1) * Math.Min(q["radii_km"][0].Number(), q["radii_km"][1].Number()) * 1000;
+                if (rim < 450) TarnRim[k] = Math.Max(double.IsNaN(TarnRim[k]) ? double.NegativeInfinity : TarnRim[k], z + Math.Min(120, .4 * rim));
+            }
         }
         foreach (var q in W["glaciers"].Items)
         {
@@ -110,21 +131,20 @@ public sealed class Constraints
         bool nearSummit = W["height_field"]["peaks"].Items.Any(q => (p - q["centre"].Point).Length < .4);
         foreach (var e in W["clearance_budgets"].Items)
         {
-            double length = e.Has("length") ? e.N("length") : 0;
-            if (VfrEndLengthKm.HasValue && e.S("kind") == "final" && !e.Has("ifr") && IfrFinalCount(e) ) length = VfrEndLengthKm.Value;
             if (e.S("kind") == "airway")
             {
                 if (nearSummit) continue;
-                double cap = e.N("cap_m"); if (AirwayCapOverride.TryGetValue(Array.IndexOf(BudgetList, e), out double o)) cap = o;
-                if (IslandTerrain.Segment(p, e["a"].Point, e["b"].Point).d <= e.N("width") + e.N("blend")) SetHi(k, cap - 12);
+                if (IslandTerrain.Segment(p, e["a"].Point, e["b"].Point).d <= e.N("width") + e.N("blend")) SetHi(k, e.N("cap_m") - 12);
                 continue;
             }
-            var u = e["u"].Point; var dp = p - e["a"].Point; double along = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E), blend = e.N("blend");
-            bool vfr = VfrEndLengthKm.HasValue && IfrFinalCount(e); double guard = vfr ? VfrGuardKm : .25; if (vfr) blend = VfrBlendKm;
+            // Same footprint and ceiling as IslandHeightIndex.Budget (its broad pass), from the budget's own data:
+            // instrument finals 7.408 km with a 0.25 km guard and 30 m margin; visual runway ends 1.524 km, none.
+            var u = e["u"].Point; var dp = p - e["a"].Point; double along = -dp.Dot(u), cross = Math.Abs(dp.E * u.N - dp.N * u.E);
+            double guard = e.N("guard_km", .25), margin = e.N("margin_m", 30), length = e.N("length");
             double dd = Math.Max(0, Math.Max(Math.Max(-along - guard, along - length - guard), cross - (.15 + .05 * Math.Max(0, along)) - guard));
-            // A Part 77 visual approach surface starts AT the runway end's elevation; the 30 m TERPS-style margin
-            // belongs to the instrument finals only.
-            if (dd < blend) SetHi(k, e.N("elevation_m") + Math.Max(0, along) * 1000 / e.N("ratio") - (vfr ? 0 : 30) - 8);
+            // Generation margin under the runtime ceiling: 8 m below an instrument surface, 2 m below a visual
+            // one (whose surface starts level with the runway end, so a bigger margin would dig a moat round it).
+            if (dd < e.N("blend")) SetHi(k, e.N("elevation_m") + Math.Max(0, along) * 1000 / e.N("ratio") - margin - (margin > 0 ? 8 : 2));
         }
     }
 }

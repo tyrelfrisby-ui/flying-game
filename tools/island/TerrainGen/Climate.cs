@@ -5,18 +5,18 @@ namespace IslandTerrainGen;
 /// The island's climate, chosen and then held to (docs/pending/ISLAND-TERRAIN-CLAUDE.md):
 /// a temperate maritime island in the westerlies, the Olympic Mountains being the closest real analogue
 /// (2,400 m summits, glaciers on the shaded faces, rainforest on the windward side, a semi-arid rain shadow).
-///   * Moist flow from 280 deg true; background precipitation 1.8 m/yr at the windward coast.
+///   * Moist flow from 280 deg true; background precipitation 2.2 m/yr at the windward coast.
 ///   * Orographic precipitation: condensate generated where the wind is forced up a slope, carried downwind
 ///     and falling out over FalloutKm (Smith 2003, linear upslope model reduced to its 1-D essentials);
 ///     descending lee air evaporates cloud and the background is depleted by what has already fallen.
-///   * Summer (JJA) mean temperature 19 C at sea level, lapse 6.5 K/km.
+///   * Summer (JJA) mean temperature 18 C at sea level, lapse 6.5 K/km.
 ///   * Equilibrium-line altitude from a degree-day balance: winter snow (60% of annual precipitation)
 ///     equals summer melt (4 mm w.e. per degree-day over 92 days), so T_JJA(ELA) = P / 613 mm.
 /// </summary>
 public static class Climate
 {
-    public const double WindFromDeg = 280, BackgroundM = 1.8, FalloutKm = 4.0, UpslopeM = 9.0, DepletionM = 2600;
-    public const double SeaLevelJjaC = 19.0, LapseKPerKm = 6.5, MeltPerDegreeDayM = .004, SummerDays = 92, SnowFraction = .6;
+    public const double WindFromDeg = 280, BackgroundM = 2.2, FalloutKm = 4.0, UpslopeM = 14.0, DepletionM = 2600;
+    public const double SeaLevelJjaC = 18.0, LapseKPerKm = 6.5, MeltPerDegreeDayM = .004, SummerDays = 92, SnowFraction = .6;
 
     /// <summary>Annual precipitation (m/yr) on the grid, from a (smoothed) surface.</summary>
     public static double[] Precipitation(Grid g, double[] surface)

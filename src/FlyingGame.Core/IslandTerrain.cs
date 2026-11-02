@@ -104,7 +104,10 @@ public static partial class IslandTerrain
     {
         var p = new IslandPoint(y / 1000, x / 1000);
         foreach (var f in Fields) if (f.Contains(p)) return f.Surface == "asphalt" || f.Surface == "paved" ? WorldTerrain.Surface.Paved : f.Surface.Contains("grass") || f.Surface == "turf" ? WorldTerrain.Surface.Grass : WorldTerrain.Surface.Gravel;
-        foreach (var q in World["glaciers"].Items) if (Path(p, q["path"]).d <= q.N("half_width_m") / 1000 || (p - q["ski_zone"]["centre"].Point).Length < .15) return WorldTerrain.Surface.Snow;
+        // Glacier ice is where the relief generator's mass balance put it (IslandRelief ice channel); the authored
+        // ski landing zones stay snow whatever the ice does.
+        foreach (var q in World["glaciers"].Items) if ((p - q["ski_zone"]["centre"].Point).Length < .15) return WorldTerrain.Surface.Snow;
+        if (IslandRelief.Channels(p).ice > .5f) return WorldTerrain.Surface.Snow;
         foreach(var q in World["mesa_pads"].Items)
         {
             var d=p-q["centre"].Point;var u=IslandPoint.Heading(q.N("heading_true_deg"));

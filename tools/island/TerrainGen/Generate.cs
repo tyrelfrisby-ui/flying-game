@@ -8,6 +8,7 @@ public sealed class Mass
     public Grid G = null!;
     public Constraints C = null!;
     public double[] Upper = null!;      // min(ceiling, slope envelope)
+    public double[] Lower = null!, Conflict = null!;      // max(floor, bench envelope round every anchor)
     public double[] Macro = null!, H = null!, Rain = null!, Ice = null!, Debris = null!, Wet = null!;
     public bool[] Fixed = null!;
     public List<string> Log = new();
@@ -16,11 +17,13 @@ public sealed class Mass
 public static class Generate
 {
     const double Ft = IslandTerrain.Feet;
-    /// <summary>Sustained mountainside gradient bounding how high ground can stand beside a ceiling: 45 deg.
+    /// <summary>Sustained mountainside gradient bounding how high ground can stand beside a ceiling: 42 deg.
     /// Steeper than this over hundreds of metres is a cliff band, which the erosion makes locally, not a slope.</summary>
-    public const double EnvelopeSlope = 1.0;
+    public const double EnvelopeSlope = .9;
     /// <summary>Sea cliffs may be steeper than a mountainside: 55 deg from the shoreline.</summary>
     public const double CoastSlope = 1.43;
+    /// <summary>A cliff band: 60 deg. The most any support may climb away from a runtime ceiling.</summary>
+    public const double CliffSlope = 1.73;
 
     public static Mass Build(string name, Grid g, IslandPoint[] polygon, int seed, Action<string> say)
     {
@@ -34,6 +37,9 @@ public static class Generate
         var src = new double[g.N];
         for (int k = 0; k < g.N; k++) src[k] = double.IsFinite(c.Hi[k]) ? c.Hi[k] : double.PositiveInfinity;
         var envCap = Envelope.Compute(g, src, EnvelopeSlope);
+        // The steepest ground can rise from a ceiling at all: a 60-degree cliff. An anchor's support may beat
+        // the 42-degree hillside envelope, never this; an anchor higher still stands on its own footprint.
+        var envCliff = Envelope.Compute(g, src, CliffSlope);
         for (int k = 0; k < g.N; k++) src[k] = c.Ocean[k] ? 0 : double.PositiveInfinity;
         var envCoast = Envelope.Compute(g, src, CoastSlope);
         m.Upper = new double[g.N];
@@ -56,7 +62,57 @@ public static class Generate
             // Let the summit be the summit: nothing nearby may stand above it.
             for (int q = 0; q < g.N; q++) if ((g.P(q) - p).Length < 1.2) m.Upper[q] = Math.Min(m.Upper[q], z - 1);
         }
-        for (int k = 0; k < g.N; k++) m.Upper[k] = Math.Max(m.Upper[k], c.Lo[k]);
+        // ---- the ground round an anchor holds it up ---------------------------------------------------
+        // A strip or a lake stands on a bench, not a column: within ~200 m the ground may fall at most 18%
+        // (about 10 deg), beyond that at the mountainside gradient. L = max over anchors of z - f(d) with
+        // f(d) = max(0.18 d, 0.9 d - 145 m). Where that meets a ceiling the anchor wins (it is authored and the
+        // runtime restores it regardless); those conflict cells are counted and reported.
+        var summitNodes = new HashSet<int>(c.Summits.Select(sm => g.Nearest(sm.p)));
+        // Stage 1: the bench, z - 0.18 d, only within 200 m of an anchor. Stage 2: its edge carried outward at the
+        // mountainside gradient. Both are distance envelopes (Envelope.Compute) on negated heights.
+        var negZ = new double[g.N]; var zero = new double[g.N];
+        for (int k = 0; k < g.N; k++)
+        {
+            bool anchor = !double.IsNaN(c.Fix[k]) && !c.Ocean[k] && !summitNodes.Contains(k);
+            negZ[k] = anchor ? -c.Fix[k] : double.PositiveInfinity; zero[k] = anchor ? 0 : double.PositiveInfinity;
+        }
+        var bench1 = Envelope.ComputeLimited(g, negZ, .18, 200);
+        var bench2 = Envelope.Compute(g, bench1, .9);
+        // A summit is held up by its own shoulders (37 deg), so the fixed summit node can never be a spike.
+        var negSummit = new double[g.N]; Array.Fill(negSummit, double.PositiveInfinity);
+        foreach (int k in summitNodes) negSummit[k] = -c.Fix[k];
+        var cone = Envelope.Compute(g, negSummit, .75);
+        for (int k = 0; k < g.N; k++) bench2[k] = Math.Min(bench2[k], cone[k]);
+        m.Lower = new double[g.N]; m.Conflict = new double[g.N]; int conflicts = 0, hard = 0;
+        for (int k = 0; k < g.N; k++)
+        {
+            double bench = -bench2[k];
+            if (!double.IsNaN(c.TarnRim[k])) bench = Math.Max(bench, c.TarnRim[k]);
+            m.Lower[k] = c.Ocean[k] ? double.NegativeInfinity : Math.Max(c.Lo[k], Math.Min(bench, envCliff[k]));
+            if (m.Lower[k] > m.Upper[k] + .5 && double.IsNaN(c.Fix[k])) { conflicts++; m.Conflict[k] = m.Lower[k] - m.Upper[k]; }
+            if (m.Lower[k] > c.Hi[k] + .5 && double.IsNaN(c.Fix[k])) { hard++; m.Conflict[k] = 1e6; }
+            m.Upper[k] = Math.Max(m.Upper[k], m.Lower[k]);
+            // An anchor may out-rank my plausibility envelope, never a runtime ceiling: the relief itself comes
+            // down to the ceiling (steeply if it must), so the runtime cap has nothing left to cut into a wall.
+            if (double.IsNaN(c.Fix[k]))
+            {
+                double ceiling = Math.Max(c.Hi[k], c.Lo[k]);
+                m.Upper[k] = Math.Min(m.Upper[k], ceiling); m.Lower[k] = Math.Min(m.Lower[k], ceiling);
+            }
+        }
+        // A summit stands at least as high as the ground its neighbouring anchors hold up within 400 m.
+        foreach (var (p, top, id) in c.Summits)
+        {
+            int k0 = g.Nearest(p); double held = double.NegativeInfinity;
+            for (int k = 0; k < g.N; k++) if (k != k0 && (g.P(k) - p).Length < .4) held = Math.Max(held, m.Lower[k]);
+            if (held + 30 > c.Fix[k0] + 1)
+            {
+                double z = Math.Min(top, held + 30); if (z <= c.Fix[k0] + 1) continue;
+                m.Log.Add($"summit {id}: raised from {c.Fix[k0]:F0} m to {z:F0} m ({z / Ft:F0} ft) to stand above the ground held up beside it");
+                c.Fix[k0] = z; m.Lower[k0] = m.Upper[k0] = z;
+            }
+        }
+        m.Log.Add($"anchor benches steeper than the 42-degree envelope on {conflicts * g.CellM * g.CellM / 1e6:F2} km2 (cliffs between authored anchors); above a runtime ceiling on {hard * g.CellM * g.CellM / 1e6:F2} km2 (there the relief yields to the ceiling: the anchor stands on a steep pedestal)");
         say($"{name}: envelope + summits {sw.Elapsed.TotalSeconds:F1}s");
 
         // ---- macro shape -----------------------------------------------------------------------------
@@ -65,7 +121,7 @@ public static class Generate
         // A thin plate between a shoreline at 0 and inland anchors can sag below the sea; the land floor rises
         // from 3 m at the shore (a beach) to 60 m 1.5 km inland, the height of an old raised shoreline.
         var loM = new double[g.N];
-        for (int k = 0; k < g.N; k++) loM[k] = c.Ocean[k] ? double.NegativeInfinity : Math.Max(c.Lo[k], Math.Min(3 + 57 * IslandTerrain.Smooth(c.Shore[k] / 1.5), m.Upper[k] - 1));
+        for (int k = 0; k < g.N; k++) loM[k] = c.Ocean[k] ? double.NegativeInfinity : Math.Max(m.Lower[k], Math.Min(3 + 57 * IslandTerrain.Smooth(c.Shore[k] / 1.5), m.Upper[k] - 1));
         // The macro target keeps clear of the hard bound, so ridges may reach a ceiling but slopes do not lie on it.
         var upperM = new double[g.N];
         // Margin only below the slope envelopes (a hillside should not lie ON a 45-degree bound); a flat ceiling
@@ -86,6 +142,7 @@ public static class Generate
         Erode(m, (uint)seed, say);
         say($"{name}: erosion {sw.Elapsed.TotalSeconds:F1}s");
         Glaciers.Apply(m, say);
+        Antialias(m);
         return m;
     }
 
@@ -170,6 +227,29 @@ public static class Generate
         return z;
     }
 
+    /// <summary>
+    /// Two passes of a [1 2 1] x [1 2 1] / 16 filter on the free nodes: removes relief at the lattice's own
+    /// scale (a one-cell crest or gully is aliasing, not landform), so the Catmull-Rom surface the sim uses and
+    /// the triangulated mesh drawn from the same nodes agree closely. Fixed nodes, bounds and the coast stay.
+    /// </summary>
+    static void Antialias(Mass m)
+    {
+        var g = m.G; var h = m.H;
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var o = (double[])h.Clone();
+            Parallel.For(1, g.H - 1, j =>
+            {
+                for (int i = 1; i < g.W - 1; i++)
+                {
+                    int k = j * g.W + i; if (m.Fixed[k] || m.C.Ocean[k]) continue;
+                    double v = 4 * o[k] + 2 * (o[k - 1] + o[k + 1] + o[k - g.W] + o[k + g.W]) + o[k - g.W - 1] + o[k - g.W + 1] + o[k + g.W - 1] + o[k + g.W + 1];
+                    h[k] = SoftClamp(v / 16, Math.Max(.5, m.Lower[k]), m.Upper[k]);
+                }
+            });
+        }
+    }
+
     /// <summary>Below a ceiling, ground that would stand higher is compressed smoothly into the last 20 m
     /// under it instead of being sheared flat, so no plane of the clearance surface shows in the terrain.</summary>
     static double SoftClamp(double h, double lo, double up)
@@ -192,17 +272,25 @@ public static class Generate
             var p = g.P(k); double low = 1 - IslandTerrain.Smooth((mb[k] - 150) / 500);
             double shore = IslandTerrain.Smooth(m.C.Shore[k] / .6);
             double n = Noise.Fbm(p, 1.4, 5, seed + 101, .5);
-            h[k] = SoftClamp(h[k] + low * shore * 55 * (n + .25), Math.Max(.5, m.C.Lo[k]), m.Upper[k]);
+            h[k] = SoftClamp(h[k] + low * shore * 55 * (n + .25), Math.Max(.5, m.Lower[k]), m.Upper[k]);
         }
     }
 
     static void Erode(Mass m, uint seed, Action<string> say)
     {
         var g = m.G; var c = m.C; var h = new double[g.N];
+        var mbs = g.Blur(m.Macro, 8); var macroSlope = new double[g.N];
+        for (int j = 1; j < g.H - 1; j++) for (int i = 1; i < g.W - 1; i++)
+        {
+            int k = j * g.W + i; double dx = (mbs[k + 1] - mbs[k - 1]) / (2 * g.CellM), dy = (mbs[k + g.W] - mbs[k - g.W]) / (2 * g.CellM);
+            macroSlope[k] = Math.Sqrt(dx * dx + dy * dy);
+        }
         for (int k = 0; k < g.N; k++)
         {
-            var p = g.P(k); double relief = Math.Clamp(m.Macro[k] / 1500, .15, 1);
-            h[k] = m.Fixed[k] ? (c.Ocean[k] ? -40 : c.Fix[k]) : m.Macro[k] + 200 * relief * Noise.Fbm(p + new IslandPoint(.8 * Noise.Fbm(p, 4, 2, seed + 7), .8 * Noise.Fbm(p, 4, 2, seed + 9)), 2.6, 8, seed, .55);
+            // Initial roughness scales with the macro SLOPE, not its height: a high plateau stays a plateau
+            // (gentle relief the rivers can still find), a mountain flank gets the full 255 m.
+            var p = g.P(k); double amplitude = 25 + 230 * IslandTerrain.Smooth(macroSlope[k] / .30);
+            h[k] = m.Fixed[k] ? (c.Ocean[k] ? -40 : c.Fix[k]) : m.Macro[k] + amplitude * Noise.Fbm(p + new IslandPoint(.8 * Noise.Fbm(p, 4, 2, seed + 7), .8 * Noise.Fbm(p, 4, 2, seed + 9)), 2.6, 8, seed, .55);
         }
         var ev = new Evolve(g); var kf = new double[g.N];
         var mb = g.Blur(m.Macro, 24);
@@ -220,8 +308,8 @@ public static class Generate
                 for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] += (mb[k] - hb[k]) * 4 / 30.0;
             }
             ev.Creep(h, m.Fixed, .04, dt);
-            if (t % 2 == 0) ev.Talus(h, m.Fixed, 1.2, 1);
-            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, c.Lo[k]), m.Upper[k]);
+            if (t % 2 == 0) ev.Talus(h, m.Fixed, .9, 1);
+            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
             if (t % 40 == 0) say($"  step {t}");
         }
         // The erosion supplies the relief below ~1 km; the anchored macro surface supplies everything above.
@@ -229,7 +317,7 @@ public static class Generate
         // correction is smooth (sigma ~0.5 km) and the eroded valleys already follow M's own slopes.
         var corr = new double[g.N]; for (int k = 0; k < g.N; k++) corr[k] = m.Macro[k] - h[k];
         corr = g.Blur(corr, 20);
-        for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k] + corr[k], Math.Max(.5, c.Lo[k]), m.Upper[k]);
+        for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k] + corr[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
         Lowland(m, h, seed);
         // A short second run integrates the lowland relief into the drainage (no closed hollows left).
         for (int t = 0; t < 30; t++)
@@ -237,7 +325,7 @@ public static class Generate
             ev.Route(h, outlet); ev.Accumulate(m.Rain);
             for (int k = 0; k < g.N; k++) kf[k] = Erodibility(g.P(k), h[k]);
             ev.Incise(h, m.Fixed, kf, mExp, 600);
-            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, c.Lo[k]), m.Upper[k]);
+            for (int k = 0; k < g.N; k++) if (!m.Fixed[k]) h[k] = SoftClamp(h[k], Math.Max(.5, m.Lower[k]), m.Upper[k]);
         }
         Feather(m, h);
         ev.Route(h, outlet); ev.Accumulate(m.Rain);
