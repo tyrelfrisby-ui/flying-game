@@ -2,6 +2,7 @@ using FlyingGame.Core;
 using FlyingGame.Core.Aero;
 using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.MathTypes;
+using FlyingGame.Core.Wreck;
 
 namespace FlyingGame.Sim;
 
@@ -169,6 +170,22 @@ public sealed class Aircraft
     /// <summary>Raised after a step in which a hard point or wheel first touched the ground/a solid: (closing speed m/s, point name). Drives the crash sound.</summary>
     public event Action<double, string>? HardImpact;
 
+    /// <summary>The hardest first contact of the last step that had one (what HardImpact reported, with the surface it
+    /// struck and where): read by CrashRelay to tell land from water. Set before ComponentLost fires for that step.</summary>
+    public ImpactRecorder.Hit LastImpact { get; private set; }
+
+    /// <summary>The airframe's own volumes in the water: buoyancy, water drag, added mass and flooding through its
+    /// openings (Core/Wreck/AirframeFlooding). Inactive away from water.</summary>
+    public AirframeFlooding Hydro => _hydro ??= new AirframeFlooding(Config, Load);
+    private AirframeFlooding? _hydro;
+
+    /// <summary>Float compartments (14 CFR 23.751: four per float), null for a type without floats. Sealed unless a
+    /// lesson or scenario punctures one (<see cref="PunctureFloat"/>).</summary>
+    public FloatFlooding? FloatFlood { get; }
+
+    /// <summary>Put a hole in a float compartment (lessons/scenarios). False if the type has no such float.</summary>
+    public bool PunctureFloat(FloatPuncture p) => FloatFlood?.Puncture(p) ?? false;
+
     /// <summary>Mass fraction each wing takes with it (light/utility/transport types: ~12 % of MTOW per wing).</summary>
     public const double WingMassFractionPerWing = 0.12;
 
@@ -260,6 +277,7 @@ public sealed class Aircraft
         Guns = FlyingGame.Core.Combat.Armament.For(config);
         foreach (ContactPoint cp in _contacts) if (cp.Name == "nose") _noseBody = cp.Body;
         Structure = new StructuralState(config.Limits);
+        if (config.Floats is not null) FloatFlood = new FloatFlooding(config);
 
         ControlDeflections initial = initialDeflections ?? ControlDeflections.Neutral;
         _aileronRad = initial.AileronRad;
@@ -440,8 +458,10 @@ public sealed class Aircraft
     /// Break a component off NOW (a hard ground/solid impact does this itself; exposed for scenarios/tests).
     /// Its strips leave the aero model — a lost wing half flies on as a half-winged aircraft with the
     /// rolling moment that implies, a lost tail loses its pitch/yaw stability — and its contact points go
-    /// with it. Mass and inertia are deliberately left alone (owner: no dynamic/inertial bookkeeping for
-    /// the lost piece). A lost nose stops the propeller. Idempotent.
+    /// with it. The piece's mass leaves with it (its share from Wreck/AirframeHydroModel; inertia scaled in
+    /// proportion) — it used to stay (owner, 2026-09: no bookkeeping for the lost piece), but the piece is now a body
+    /// of its own in WreckSim, so keeping it here too would count it twice (2026-11-02, NEEDS YOU). A lost nose stops
+    /// the propeller. Idempotent.
     /// </summary>
     public void LoseComponent(AirframeComponent comp)
     {
@@ -527,9 +547,41 @@ public sealed class Aircraft
             for (int i = 0; i < Config.Engines.Count; i++)
                 if ((Config.Engines[i].Pos[1] < 0) == (comp == AirframeComponent.NacelleLeft)) SetEngineThrottleScale(i, 0.0);
         }
+        // The volumes it takes with it (CrashRelay turns them into a wreck piece) — and their mass. Until the wreck
+        // existed the lost piece was nobody's and the mass stayed put (owner's call, 2026-09); now that the piece is
+        // simulated on its own, leaving its mass here as well would count it twice, and a cabin carrying the engine and
+        // both wings it has lost goes to the bottom of a lake in three seconds.
+        ShedMass(Hydro.Detach(comp));
         ComponentLost?.Invoke(comp);
     }
     private bool _noseLost;
+
+    /// <summary>Take the mass of parts that have left off the rigid body; inertia scales with it (the parts' own
+    /// distribution is not tracked). Never below a fifth of what it was.</summary>
+    private void ShedMass(List<HydroElement> gone)
+    {
+        double md = 0; foreach (HydroElement e in gone) md += e.MassKg;
+        if (md <= 0) return;
+        MassProperties mp = MassProperties;
+        double k = System.Math.Max(0.2, (mp.MassKg - md) / mp.MassKg);
+        MassProperties = new MassProperties(mp.MassKg * k, mp.Ixx * k, mp.Iyy * k, mp.Izz * k, mp.Ixz * k);
+    }
+
+    // Water: one query at the CG per step while anywhere near a surface; far above one (or over land), only every
+    // half second — 100 m of margin is more than any aeroplane closes in that time.
+    private bool _hydroArmed;
+    private double _hydroRecheckSec;
+    private void PrepareWater(double dt)
+    {
+        _hydroRecheckSec -= dt;
+        bool wet = _hydro is { EverWet: true } || (FloatFlood is not null);
+        if (!wet && _hydroRecheckSec > 0) { _hydroArmed = false; return; }
+        double? w = FloatHydro.WaterSurfaceAt(State.Position.X, State.Position.Y, -State.Position.Z);
+        double above = w.HasValue ? -State.Position.Z - w.Value : double.PositiveInfinity;
+        if (!wet && above > 100.0) { _hydroArmed = false; _hydroRecheckSec = 0.5; return; }
+        _hydroArmed = true;
+        Hydro.Prepare(State, w);
+    }
     private Vec3 _noseBody = new(1.5, 0, 0);
     /// <summary>True once the propeller has hit the ground (or the nose is gone): engine stopped, no thrust.</summary>
     public bool EngineStopped => _noseLost;
@@ -570,6 +622,8 @@ public sealed class Aircraft
             MassProperties.Ixz * 0.50);
 
         _massOwnedByDamage = true;
+        Hydro.Detach(AirframeComponent.WingLeft);
+        Hydro.Detach(AirframeComponent.WingRight);
         Structure.WingsFailed = true;
         Structure.OverLimitSeverity = 0.0;
         Structure.OverUltimateDwellSec = 0.0;
@@ -878,6 +932,23 @@ public sealed class Aircraft
                 (Vec3 hF, Vec3 hM) = FloatHydro.Compute(Config, s, rudderCmdW);
                 totalF += s.Attitude.Conjugate().Rotate(hF);
                 totalM += s.Attitude.Conjugate().Rotate(hM);
+                if (FloatFlood is not null && _hydroArmed)
+                {
+                    // Water that has got into a punctured compartment: weight at the compartment (the hull's own
+                    // displacement is FloatHydro's, above).
+                    (Vec3 fF, Vec3 fM) = FloatFlood.Forces(s, Hydro.WaterUp);
+                    totalF += fF;
+                    totalM += fM;
+                }
+            }
+            if (_hydroArmed && Hydro.Active)
+            {
+                // The airframe's own volumes in the water (buoyancy, floodwater). Drag and added mass go on after the
+                // RK4 step, implicitly (HydroBody.Correct) — they are far too stiff for it.
+                (Vec3 wF, Vec3 wM) = Hydro.Forces(s);
+                ForceDebug.Add(Config.Mass.CgVec(), wF, wM, "water");
+                totalF += wF;
+                totalM += wM;
             }
             bool amphibUp = Config.Floats != null && GearExtension <= 0.9;   // amphibian, wheels up: the float keels still carry it
             if (Config.Gear.Count > 0 && (GearExtension > 0.9 || amphibUp))   // retracted gear carries nothing (belly contact does)
@@ -909,7 +980,7 @@ public sealed class Aircraft
             {
                 // The rest of the airframe against the ground/solids (a flipped aircraft rests on fin and tips).
                 (Vec3 cF, Vec3 cM) = AirframeContact.Compute(_contacts, Config.Mass.CgVec(), s, _pendingBreaks, 0.0, _impacts,
-                    floatsCarryWater: Config.Floats is not null);
+                    floatsCarryWater: Config.Floats is not null, waterByHydro: true);
                 totalF += s.Attitude.Conjugate().Rotate(cF);
                 totalM += s.Attitude.Conjugate().Rotate(cM);
             }
@@ -963,10 +1034,18 @@ public sealed class Aircraft
             return (totalF, totalM);
         }
 
+        PrepareWater(dt);
+        RigidBodyState preStep = State;
         State = RigidBody6DOF.IntegrateRK4(State, dt, MassProperties, ForceMoment);
+        if (_hydroArmed)
+        {
+            State = Hydro.AfterStep(preStep, State, MassProperties, dt);
+            FloatFlood?.Flood(State, Hydro.WaterUp, dt);
+        }
         Atmosphere.AdvanceTime(dt);
         UpdateStructure(dt);
         UpdateLoad(dt);
+        if (_impacts.MaxClosingMs > 0.0) LastImpact = _impacts.Last;
         foreach (AirframeComponent c in _pendingBreaks) LoseComponent(c);
         if (_impacts.MaxClosingMs > 0.0) HardImpact?.Invoke(_impacts.MaxClosingMs, _impacts.Point);
         Damage.Update(dt);
