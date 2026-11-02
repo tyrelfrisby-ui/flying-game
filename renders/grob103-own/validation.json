@@ -1,0 +1,132 @@
+[
+  {
+    "file": "glider-grob103-acro-like-own.glb",
+    "dimensions_m": {
+      "span": 17.5,
+      "length": 8.179999988079071,
+      "height": 1.550000011920929
+    },
+    "nodes": 313,
+    "rig_nodes": 29,
+    "head_clearance_m": {
+      "front": 0.10105811830830402,
+      "rear": 0.10696572806484461
+    },
+    "instrument_gap_m": {
+      "F": 0.09200274891614851,
+      "R": 0.09200274216160331
+    },
+    "graph": "PASS",
+    "hinge_origins": "PASS",
+    "canopy_alpha": "PASS",
+    "cockpit_adjacent_instruments_and_colored_controls": "PASS",
+    "whole_cockpit_collision_audit": {
+      "independent_pairs": 2145,
+      "unintended_intersections": [],
+      "intentional_assembly_contacts": [
+        [
+          "Stick_F",
+          "Stick_Grip_F"
+        ],
+        [
+          "DiveBrake_Lever_F",
+          "HandleMount_DiveBrake_Lever_F"
+        ],
+        [
+          "Trim_Lever_F",
+          "HandleMount_Trim_Lever_F"
+        ],
+        [
+          "TowRelease_F",
+          "TowCable_F"
+        ],
+        [
+          "Stick_R",
+          "Stick_Grip_R"
+        ],
+        [
+          "DiveBrake_Lever_R",
+          "HandleMount_DiveBrake_Lever_R"
+        ],
+        [
+          "Trim_Lever_R",
+          "HandleMount_Trim_Lever_R"
+        ],
+        [
+          "TowRelease_R",
+          "TowCable_R"
+        ]
+      ],
+      "scope": "all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded"
+    },
+    "cockpit_envelope_samples": 1680,
+    "cockpit_outside_shell": [],
+    "visual_approval": "PENDING",
+    "paired_geometry": "IDENTICAL"
+  },
+  {
+    "file": "glider-grob103-acro-like-own-tf.glb",
+    "dimensions_m": {
+      "span": 17.5,
+      "length": 8.179999988079071,
+      "height": 1.550000011920929
+    },
+    "nodes": 313,
+    "rig_nodes": 29,
+    "head_clearance_m": {
+      "front": 0.10105811830830402,
+      "rear": 0.10696572806484461
+    },
+    "instrument_gap_m": {
+      "F": 0.09200274891614851,
+      "R": 0.09200274216160331
+    },
+    "graph": "PASS",
+    "hinge_origins": "PASS",
+    "canopy_alpha": "PASS",
+    "cockpit_adjacent_instruments_and_colored_controls": "PASS",
+    "whole_cockpit_collision_audit": {
+      "independent_pairs": 2145,
+      "unintended_intersections": [],
+      "intentional_assembly_contacts": [
+        [
+          "Stick_F",
+          "Stick_Grip_F"
+        ],
+        [
+          "DiveBrake_Lever_F",
+          "HandleMount_DiveBrake_Lever_F"
+        ],
+        [
+          "Trim_Lever_F",
+          "HandleMount_Trim_Lever_F"
+        ],
+        [
+          "TowRelease_F",
+          "TowCable_F"
+        ],
+        [
+          "Stick_R",
+          "Stick_Grip_R"
+        ],
+        [
+          "DiveBrake_Lever_R",
+          "HandleMount_DiveBrake_Lever_R"
+        ],
+        [
+          "Trim_Lever_R",
+          "HandleMount_Trim_Lever_R"
+        ],
+        [
+          "TowRelease_R",
+          "TowCable_R"
+        ]
+      ],
+      "scope": "all independent cockpit mesh pairs; shell/liner contacts and coplanar touching excluded"
+    },
+    "cockpit_envelope_samples": 1680,
+    "cockpit_outside_shell": [],
+    "visual_approval": "PENDING",
+    "paired_geometry": "IDENTICAL"
+  }
+]
