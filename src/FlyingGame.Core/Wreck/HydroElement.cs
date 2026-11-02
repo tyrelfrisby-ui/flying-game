@@ -27,6 +27,43 @@ public sealed class Opening
 }
 
 /// <summary>
+/// A region of an element's skin that water pressure can break open in a crash: a skin face (it bursts over the part
+/// that is wet while the pressure exceeds its strength, so a harder arrival tears a bigger hole), or a hatch — a
+/// windshield, canopy or door — that fails all at once and opens its whole area. The face is a rectangle in the
+/// airframe body frame: centre <see cref="At"/>, outward normal <see cref="Normal"/> (a box axis), half-extents
+/// <see cref="U"/> and <see cref="V"/> in its plane. Pressure model: <see cref="WaterPhysics.FacePressurePa"/>;
+/// strengths: <see cref="WaterPhysics"/> (MetalSkinBurstPa, FabricSkinBurstPa, GlazingBurstPa, DoorLatchN).
+/// </summary>
+public sealed class Panel
+{
+    public string Why = "";
+    public Vec3 At, Normal, U, V;
+    public double AreaM2;
+    /// <summary>Pressure that breaks it, Pa.</summary>
+    public double FailPa;
+    /// <summary>True for a skin face (grows with the wetted fraction); false for a hatch (all or nothing).</summary>
+    public bool Skin;
+    /// <summary>Where the hole goes when it breaks (a hatch: its own openings; a skin face: the face centre).</summary>
+    public readonly List<Vec3> HoleAt = new();
+    /// <summary>Fraction of the area broken open so far (a hatch: 0 or 1).</summary>
+    public double Broken;
+    /// <summary>Highest pressure it has seen, Pa (probe / tests).</summary>
+    public double PeakPa;
+    internal readonly List<Opening> Holes = new();
+    /// <summary>The element it is on (set by <see cref="HydroElement.AddPanel"/>).</summary>
+    public HydroElement? Owner { get; internal set; }
+    /// <summary>Panels that are the same physical piece (a canopy over two fuselage sections): when one breaks, all do.</summary>
+    public readonly List<Panel> Linked = new();
+
+    public Panel Copy()
+    {
+        var p = new Panel { Why = Why, At = At, Normal = Normal, U = U, V = V, AreaM2 = AreaM2, FailPa = FailPa, Skin = Skin, Broken = Broken, PeakPa = PeakPa };
+        p.HoleAt.AddRange(HoleAt);
+        return p;
+    }
+}
+
+/// <summary>
 /// One closed volume of an airframe (a wing panel, the cabin, a fuel tank, an engine block): a box in the airframe
 /// body frame carrying a displaced envelope volume, a mass, a floodable void, openings to the outside, and its flood
 /// state (the air still trapped inside).
@@ -69,6 +106,12 @@ public sealed class HydroElement
     /// <summary>No drag or added mass from this element (a float compartment; FloatHydro has the hull's).</summary>
     public bool NoDrag;
     public readonly List<Opening> Openings = new();
+    /// <summary>Added mass along body x when fully submerged, kg, where the strip formula does not apply (a section of a
+    /// slender fuselage moving along its own axis: <see cref="WaterPhysics.LambAxialCoefficient"/>). Negative = use the
+    /// strip formula.</summary>
+    public double AxialAddedMassKg = -1;
+    /// <summary>Skin faces and hatches a crash can break open (<see cref="WaterSlam.Damage"/>).</summary>
+    public readonly List<Panel> Panels = new();
 
     /// <summary>Trapped air as free-air volume at one atmosphere, m^3.</summary>
     public double AirFreeM3;
@@ -96,15 +139,33 @@ public sealed class HydroElement
     {
         var e = new HydroElement(Name, Atom, Centre, Half, EnvelopeM3, MassKg, 0)
         {
-            VoidM3 = VoidM3, BuoyancyElsewhere = BuoyancyElsewhere, NoDrag = NoDrag, AirFreeM3 = AirFreeM3,
+            VoidM3 = VoidM3, BuoyancyElsewhere = BuoyancyElsewhere, NoDrag = NoDrag, AirFreeM3 = AirFreeM3, AxialAddedMassKg = AxialAddedMassKg,
         };
         e.AirM3 = AirM3;
         e.AdmittedFreeM3 = AdmittedFreeM3;
         foreach (Opening o in Openings) e.Openings.Add(new Opening(o.Body, o.AreaM2, o.Why));
+        foreach (Panel p in Panels) e.Panels.Add(p.Copy());
         return e;
     }
 
     public double TakeEscaped() { double e = EscapedFreeM3; EscapedFreeM3 = 0; return e; }
+
+    public Panel AddPanel(Panel p) { p.Owner = this; Panels.Add(p); return p; }
+
+    /// <summary>A skin face of the box: the face normal to body axis <paramref name="axis"/> (0 x, 1 y, 2 z) on the
+    /// <paramref name="sign"/> side, bursting at <paramref name="failPa"/>.</summary>
+    public Panel AddSkinFace(int axis, int sign, double failPa, string why)
+    {
+        Vec3 ax = axis == 0 ? new Vec3(1, 0, 0) : axis == 1 ? new Vec3(0, 1, 0) : new Vec3(0, 0, 1);
+        double h = axis == 0 ? Half.X : axis == 1 ? Half.Y : Half.Z;
+        Vec3 u = axis == 0 ? new Vec3(0, Half.Y, 0) : new Vec3(Half.X, 0, 0);
+        Vec3 v = axis == 2 ? new Vec3(0, Half.Y, 0) : new Vec3(0, 0, Half.Z);
+        return AddPanel(new Panel
+        {
+            Why = why, At = Centre + ax * (sign * h), Normal = ax * sign, U = u, V = v,
+            AreaM2 = 4 * u.Length * v.Length, FailPa = failPa, Skin = true,
+        });
+    }
 
     public double TotalOpeningM2 { get { double a = 0; foreach (Opening o in Openings) a += o.AreaM2; return a; } }
 
@@ -261,6 +322,7 @@ public sealed class HydroElement
     /// </summary>
     public double AddedMass(int axis)
     {
+        if (axis == 0 && AxialAddedMassKg >= 0) return AxialAddedMassKg;
         double dx = 2 * Half.X, dy = 2 * Half.Y, dz = 2 * Half.Z;
         (double a, double b) = axis == 0 ? (dy, dz) : axis == 1 ? (dx, dz) : (dx, dy);
         double w = System.Math.Min(a, b), len = System.Math.Max(a, b);

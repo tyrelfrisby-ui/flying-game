@@ -48,6 +48,35 @@ public sealed class Cut
 }
 
 /// <summary>
+/// A structural joint that a water impact can break (AirframeFlooding): the component it holds on, the atoms beyond
+/// it, where it is, its long axis (x for the fuselage, y for a wing), and the bending moment it was built to carry.
+///
+/// STRENGTH. Each joint is taken to be exactly as strong as its design case requires at the type's ultimate load
+/// factor n_ult = limits.gMax × limits.ultimateFactor (the factor the game breaks the wings at; 14 CFR 23.303 is
+/// 1.5): a fuselage joint carries the inertia of everything beyond it, n_ult·g·Σ m·|Δx| (the tail load that also sizes
+/// a real aft fuselage is left out, so the aft fuselage is if anything weaker than a real one); a wing joint carries
+/// the lift outboard of it at n_ult less the inertia relief of the wing's own mass, the lift spread spanwise by
+/// Schrenk's approximation (NACA TM 948, 1940: the mean of the planform and the elliptic distributions). Along the
+/// fuselage a joint holds everything beyond it at the emergency-landing forward ultimate inertia factor, 9.0 g
+/// (14 CFR 23.561(b)(3), pre-amendment 23-64) — what a nose-first arrival loads it with. Empennage and control-surface
+/// joints, and a wing's chordwise bending, are not checked.
+/// </summary>
+public sealed class Joint
+{
+    public AirframeComponent Component;
+    public WreckAtom[] Atoms = System.Array.Empty<WreckAtom>();
+    public Vec3 At, Axis;
+    public double UltimateNm;
+    /// <summary>Ultimate load along the joint's axis (fuselage joints), N; 0 = not checked.</summary>
+    public double UltimateAxialN;
+    public string Why = "";
+    /// <summary>Largest bending moment it has carried in the water, N·m (probe / tests).</summary>
+    public double PeakNm;
+    /// <summary>Largest force along its axis, N.</summary>
+    public double PeakAxialN;
+}
+
+/// <summary>
 /// The airframe as closed volumes, from the aircraft config alone. Written down so it can be checked:
 ///
 /// GEOMETRY. Fuselage: the config's body radius r and length L (fuselage.crossflow), laid out exactly as
@@ -75,6 +104,9 @@ public sealed class AirframeHydroModel
 {
     public readonly List<HydroElement> Elements = new();
     public readonly List<Cut> Cuts = new();
+    public readonly List<Joint> Joints = new();
+    /// <summary>Ultimate load factor the joints are sized for (limits.gMax × limits.ultimateFactor).</summary>
+    public double UltimateLoadFactor { get; private set; }
     public double EmptyMassKg { get; private set; }
     public double DesignGrossKg { get; private set; }
     public double EngineDryKg { get; private set; }
@@ -266,18 +298,103 @@ public sealed class AirframeHydroModel
         }
         HydroElement cabin = Add("cabin", WreckAtom.Cabin, new Vec3((tailCut + noseCut) * 0.5, 0, 0), new Vec3(lCab * 0.5, rBody, rBody),
             cyl(lCab) + centreWingVol, cabMass, cabSolid);
-        // Two doors, each a square 1.6·r on a side (a 172's door is about 0.95 m with r = 0.6 m), sealed by a gap
-        // DoorSealGapM wide all round; each door edge spans the cabin side from sill to top.
+        ConstructionConfig cons = c.Construction ?? new ConstructionConfig();
+        bool fabric = cons.IsFabric;
+        double fusSkinPa = fabric ? WaterPhysics.FabricSkinBurstPa(WaterPhysics.FabricPanelSpanM) : WaterPhysics.MetalSkinBurstPa(WaterPhysics.FuselageStringerPitchM);
         double doorSide = 1.6 * rBody, doorGap = WaterPhysics.DoorSealGapM * 4 * doorSide;
-        cabin.AddSpanningOpening(new Vec3(cabin.Centre.X, -rBody, 0), doorGap, "left door seal");
-        cabin.AddSpanningOpening(new Vec3(cabin.Centre.X, rBody, 0), doorGap, "right door seal");
-        m.Derivation.Add($"cabin payload {payload:F0} kg (seats + baggage), door seal area {2 * doorGap * 1e4:F0} cm^2");
+        if (cons.Cockpits.Count == 0)
+        {
+            // An enclosed cabin. Two doors, each a square 1.6·r on a side (a 172's door is about 0.95 m with r = 0.6 m),
+            // sealed by a gap DoorSealGapM wide all round; each door edge spans the cabin side from sill to top. A crash
+            // can burst a door off its latch (DoorLatchN over the door's area) or the windshield (acrylic across the
+            // cabin, 2r): the windshield is the top half of the cabin's front face, the step between the cowling and
+            // the roof, πr²/2 seen from ahead.
+            cabin.AddSpanningOpening(new Vec3(cabin.Centre.X, -rBody, 0), doorGap, "left door seal");
+            cabin.AddSpanningOpening(new Vec3(cabin.Centre.X, rBody, 0), doorGap, "right door seal");
+            double doorPa = WaterPhysics.DoorLatchN / (doorSide * doorSide);
+            foreach (int sg in new[] { -1, 1 })
+            {
+                var door = new Panel
+                {
+                    Why = (sg < 0 ? "left" : "right") + " door burst off its latch", At = new Vec3(cabin.Centre.X, sg * rBody, 0), Normal = new Vec3(0, sg, 0),
+                    U = new Vec3(0.5 * doorSide, 0, 0), V = new Vec3(0, 0, 0.5 * doorSide), AreaM2 = doorSide * doorSide, FailPa = doorPa,
+                };
+                door.HoleAt.Add(new Vec3(cabin.Centre.X, sg * rBody, -0.5 * doorSide));
+                door.HoleAt.Add(new Vec3(cabin.Centre.X, sg * rBody, 0.5 * doorSide));
+                cabin.AddPanel(door);
+            }
+            var ws = new Panel
+            {
+                Why = "windshield broken", At = new Vec3(noseCut, 0, -0.5 * rBody), Normal = new Vec3(1, 0, 0),
+                U = new Vec3(0, rBody, 0), V = new Vec3(0, 0, 0.5 * rBody), AreaM2 = 0.5 * System.Math.PI * rBody * rBody,
+                FailPa = WaterPhysics.GlazingBurstPa(2 * rBody),
+            };
+            ws.HoleAt.Add(new Vec3(noseCut, 0, 0)); ws.HoleAt.Add(new Vec3(noseCut, 0, -rBody));
+            cabin.AddPanel(ws);
+            m.Derivation.Add($"cabin payload {payload:F0} kg (seats + baggage), door seal area {2 * doorGap * 1e4:F0} cm^2; doors burst at {doorPa / 1000:F1} kPa, windshield {ws.AreaM2:F2} m^2 at {ws.FailPa / 1000:F0} kPa");
+        }
+        else m.Derivation.Add($"cabin payload {payload:F0} kg (seats + baggage), {cons.Cockpits.Count} cockpit opening(s) from the config, no doors");
 
         double tailStruct = k * fusRaw(wetTail);
         double rEq = rBody / System.Math.Sqrt(3);
         HydroElement tail = Add("tailcone", WreckAtom.TailCone, new Vec3(tailCut - lTail * 0.25, 0, 0), new Vec3(lTail * 0.5, rEq, rEq),
             cyl(lTail) / 3, tailStruct, tailStruct / WaterPhysics.RhoAluminium);
         tail.AddDistributedOpening(2 * drain, "drain holes");
+
+        // ---- along its own axis the fuselage is one slender body: Lamb's k1 for its whole fineness, shared by section ----
+        {
+            double k1 = WaterPhysics.LambAxialCoefficient((noseX - tailX) / (2 * rBody));
+            foreach (HydroElement fe in new[] { nose, cabin, tail }) fe.AxialAddedMassKg = k1 * WaterPhysics.RhoWater * fe.EnvelopeM3;
+            m.Derivation.Add($"fuselage fineness {(noseX - tailX) / (2 * rBody):F1}: axial added mass k1 = {k1:F3} of the water displaced (Lamb)");
+        }
+
+        // ---- cockpit openings (config construction.cockpits): split between the fuselage sections they lie over ----
+        var fusEls = new[] { nose, cabin, tail };
+        foreach (CockpitOpeningConfig ck in cons.Cockpits)
+        {
+            double xf = System.Math.Max(ck.FrontX, ck.AftX), xa = System.Math.Min(ck.FrontX, ck.AftX), ckLen = xf - xa;
+            if (ckLen <= 1e-6 || ck.AreaM2 <= 0) continue;
+            var canopy = new List<Panel>();
+            foreach (HydroElement fe in fusEls)
+            {
+                // The section's own stations (the tail cone's box sits on its centroid and reaches past the cut).
+                double ex0 = fe == nose ? noseCut : fe == cabin ? tailCut : tailX, ex1 = fe == nose ? noseX : fe == cabin ? noseCut : tailCut;
+                double o0 = System.Math.Max(xa, ex0), o1 = System.Math.Min(xf, ex1);
+                if (o1 - o0 <= 1e-6) continue;
+                double area = ck.AreaM2 * (o1 - o0) / ckLen, top = fe.Centre.Z - fe.Half.Z;
+                Vec3 front = new(o1, 0, top), aft = new(o0, 0, top);
+                if (ck.IsOpen)
+                {
+                    fe.Openings.Add(new Opening(front, 0.5 * area, "open cockpit"));
+                    fe.Openings.Add(new Opening(aft, 0.5 * area, "open cockpit"));
+                    continue;
+                }
+                double w = ck.WidthM > 0 ? ck.WidthM : area / (o1 - o0);
+                double fail = WaterPhysics.GlazingBurstPa(w);
+                var plan = new Panel { Why = "canopy broken", At = new Vec3(0.5 * (o0 + o1), 0, top), Normal = new Vec3(0, 0, -1), U = new Vec3(0.5 * (o1 - o0), 0, 0), V = new Vec3(0, 0.5 * w, 0), AreaM2 = area, FailPa = fail };
+                plan.HoleAt.Add(front); plan.HoleAt.Add(aft);
+                canopy.Add(fe.AddPanel(plan));
+                if (o1 >= xf - 1e-6)
+                {
+                    // The windscreen: the canopy's front, seen from ahead a half-disc as wide as the canopy (it is the same
+                    // acrylic: when either breaks, all of it goes). It adds no area of its own: the hole is the canopy's.
+                    var screen = new Panel { Why = "canopy broken (windscreen)", At = new Vec3(xf, 0, top), Normal = new Vec3(1, 0, 0), U = new Vec3(0, 0.5 * w, 0), V = new Vec3(0, 0, 0.25 * w), AreaM2 = 0, FailPa = fail };
+                    canopy.Add(fe.AddPanel(screen));
+                }
+            }
+            foreach (Panel pc in canopy) foreach (Panel q in canopy) if (q != pc) pc.Linked.Add(q);
+            m.Derivation.Add($"cockpit x {xa:F2}..{xf:F2}: {ck.AreaM2:F3} m^2 {(ck.IsOpen ? "OPEN" : $"under a canopy bursting at {WaterPhysics.GlazingBurstPa(ck.WidthM) / 1000:F0} kPa")}");
+        }
+        // ---- skin: belly, top and both sides of each fuselage section can burst in a slam (the cowling is metal) ----
+        foreach (HydroElement fe in fusEls)
+        {
+            double pa = fe == nose ? WaterPhysics.MetalSkinBurstPa(WaterPhysics.FuselageStringerPitchM) : fusSkinPa;
+            fe.AddSkinFace(2, 1, pa, fe.Name + " belly burst");
+            fe.AddSkinFace(2, -1, pa, fe.Name + " top burst");
+            fe.AddSkinFace(1, -1, pa, fe.Name + " left side burst");
+            fe.AddSkinFace(1, 1, pa, fe.Name + " right side burst");
+        }
+        m.Derivation.Add($"skin {(fabric ? "doped fabric" : "riveted 2024-T3")}: fuselage panels burst at {fusSkinPa / 1000:F0} kPa (slam speed {System.Math.Sqrt(2 * fusSkinPa / (WaterPhysics.RhoWater * WaterPhysics.SlamCoefficient)):F1} m/s)");
 
         m.Cuts.Add(new Cut { Child = WreckAtom.Nose, Parent = WreckAtom.Cabin, At = new Vec3(noseCut, 0, axisZ), AreaM2 = System.Math.PI * rBody * rBody, HalfHeight = rBody, Why = "fuselage torn at the firewall" });
         m.Cuts.Add(new Cut { Child = WreckAtom.TailCone, Parent = WreckAtom.Cabin, At = new Vec3(tailCut, 0, 0), AreaM2 = System.Math.PI * rBody * rBody, HalfHeight = rBody, Why = "fuselage torn aft of the cabin" });
@@ -295,6 +412,13 @@ public sealed class AirframeHydroModel
             HydroElement e = Add(gr.Name, gr.Atom, centre, half, gr.Vol, structKg, structKg / WaterPhysics.RhoAluminium);
             int bays = System.Math.Max(1, (int)System.Math.Round(spanLen / WaterPhysics.RibPitchM));
             e.AddDistributedOpening(2 * bays * drain, $"drain holes and seams ({bays} bays)");
+            {
+                // The two broad faces (normal to the thinnest axis): a slam bursts skin between the ribs.
+                double skinPa = fabric ? WaterPhysics.FabricSkinBurstPa(WaterPhysics.FabricPanelSpanM) : WaterPhysics.MetalSkinBurstPa(WaterPhysics.RibPitchM);
+                int thin = gr.Vertical ? 1 : 2;
+                e.AddSkinFace(thin, 1, skinPa, e.Name + " skin burst");
+                e.AddSkinFace(thin, -1, skinPa, e.Name + " skin burst");
+            }
             // The joint to whatever it hangs on: the full section at its inboard end.
             WreckAtom? parent = gr.Atom switch
             {
@@ -354,7 +478,81 @@ public sealed class AirframeHydroModel
             Add("gear-" + atom, atom, new Vec3(g.Pos[0], g.Pos[1], g.Pos[2] * 0.6), new Vec3(hxy, hxy, hzLeg), v, legKg, v);
         }
         m.Derivation.Add($"total element mass {m.TotalMassKg:F0} kg vs config {wdg:F0} kg at this loading");
+        BuildJoints(m, c, noseCut, tailCut, axisZ, wdg);
         return m;
+    }
+
+    /// <summary>
+    /// Ultimate bending moment the elliptic part of Schrenk's lift carries about a station y_j of a half-wing of
+    /// semispan s, per newton of half-wing lift: ∫ l(y)·(y − y_j) dy over y_j..s with l(y) = (4/(π s))·√(1 − (y/s)²):
+    /// (4/π)·[(s/3)(1 − η²)^{3/2} − y_j·(π/4 − ½(η√(1 − η²) + asin η))], η = y_j/s. At the root, 4s/(3π).
+    /// </summary>
+    public static double EllipticArm(double yj, double s)
+    {
+        if (s <= 0) return 0;
+        double eta = System.Math.Clamp(yj / s, 0.0, 1.0), q = System.Math.Sqrt(1 - eta * eta);
+        return 4 / System.Math.PI * (s / 3 * q * q * q - yj * (System.Math.PI / 4 - 0.5 * (eta * q + System.Math.Asin(eta))));
+    }
+
+    private static void BuildJoints(AirframeHydroModel m, AircraftConfig c, double noseCut, double tailCut, double axisZ, double wdg)
+    {
+        double gMax = c.Limits.GMax > 0 && c.Limits.GMax < 10 ? c.Limits.GMax : 3.8;   // 3.8: 14 CFR 23.337 normal category
+        double uf = c.Limits.UltimateFactor > 0 ? c.Limits.UltimateFactor : 1.5;
+        double n = gMax * uf, g = WaterPhysics.G;
+        m.UltimateLoadFactor = n;
+        List<HydroElement> Beyond(WreckAtom[] atoms) => m.Elements.Where(e => atoms.Contains(e.Atom)).ToList();
+
+        void Fuselage(AirframeComponent comp, Vec3 at, string why)
+        {
+            WreckAtom[] atoms = WreckAtoms.Of(comp);
+            List<HydroElement> els = Beyond(atoms);
+            if (els.Count == 0) return;
+            double mom = 0, mass = 0; foreach (HydroElement e in els) { mom += e.MassKg * System.Math.Abs(e.Centre.X - at.X); mass += e.MassKg; }
+            m.Joints.Add(new Joint { Component = comp, Atoms = atoms, At = at, Axis = new Vec3(1, 0, 0), UltimateNm = n * g * mom, UltimateAxialN = WaterPhysics.EmergencyForwardG * g * mass, Why = why });
+        }
+        Fuselage(AirframeComponent.Nose, new Vec3(noseCut, 0, axisZ), "firewall / engine mount");
+        Fuselage(AirframeComponent.TailBoom, new Vec3(tailCut, 0, 0), "aft fuselage");
+
+        // Wing lift by Schrenk: per side, half the design weight at n_ult, spread as the mean of planform and elliptic.
+        var strips = new List<(double y, double area)>();
+        double semi = 0;
+        foreach (SurfaceConfig sf in c.Surfaces)
+        {
+            if (!sf.Id.ToLowerInvariant().Contains("wing")) continue;
+            foreach (StripConfig st in sf.Strips)
+            {
+                double w = st.Chord > 1e-6 ? st.Area / st.Chord : 0.3;
+                strips.Add((st.Pos[1], st.Area));
+                semi = System.Math.Max(semi, System.Math.Abs(st.Pos[1]) + 0.5 * w);
+            }
+        }
+        void Wing(AirframeComponent comp, WreckAtom child, int side)
+        {
+            WreckAtom[] atoms = WreckAtoms.Of(comp);
+            List<HydroElement> els = Beyond(atoms);
+            List<Cut> cuts = m.Cuts.Where(k => k.Child == child && !k.OneSided).ToList();
+            if (els.Count == 0 || cuts.Count == 0 || semi <= 0) return;
+            Vec3 at = new(cuts.Average(k => k.At.X), side * cuts.Average(k => System.Math.Abs(k.At.Y)), cuts.Average(k => k.At.Z));
+            double yj = System.Math.Abs(at.Y);
+            double sideArea = 0, planArm = 0;
+            foreach ((double y, double a) in strips)
+            {
+                if (System.Math.Sign(y) != side) continue;
+                sideArea += a;
+                if (System.Math.Abs(y) > yj) planArm += a * (System.Math.Abs(y) - yj);
+            }
+            if (sideArea <= 0) return;
+            double arm = 0.5 * (planArm / sideArea + EllipticArm(yj, semi));
+            double relief = 0; foreach (HydroElement e in els) relief += e.MassKg * System.Math.Max(0.0, System.Math.Abs(e.Centre.Y) - yj);
+            double ult = n * g * (0.5 * wdg * arm - relief);
+            if (ult <= 0) return;
+            m.Joints.Add(new Joint { Component = comp, Atoms = atoms, At = at, Axis = new Vec3(0, 1, 0), UltimateNm = ult, Why = $"{comp} root (Schrenk arm {arm:F2} m)" });
+        }
+        Wing(AirframeComponent.WingLeft, WreckAtom.WingLInner, -1);
+        Wing(AirframeComponent.WingRight, WreckAtom.WingRInner, 1);
+        Wing(AirframeComponent.WingLeftOuter, WreckAtom.WingLOuter, -1);
+        Wing(AirframeComponent.WingRightOuter, WreckAtom.WingROuter, 1);
+        foreach (Joint j in m.Joints) m.Derivation.Add($"joint {j.Component,-15} at x {j.At.X:F2} y {j.At.Y:F2}: ultimate {j.UltimateNm / 1000:F1} kN·m{(j.UltimateAxialN > 0 ? $", {j.UltimateAxialN / 1000:F1} kN along" : "")} ({j.Why}, n_ult {n:F1})");
     }
 
     public string Describe()

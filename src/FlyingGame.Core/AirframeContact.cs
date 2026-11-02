@@ -365,7 +365,11 @@ public static class AirframeContact
             {
                 p.Touching = true;
                 impacts?.Record(closing, p.Name, ditching, w, vel);
-                if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !broken.Contains(p.Component))
+                // On water whose forces are the airframe's own (waterByHydro) the break-up is load-based
+                // (Wreck/AirframeFlooding.CheckJoints): a closing speed at first touch says nothing about the load once
+                // the water's added mass has taken it up. A propeller blade in the water still bends.
+                bool loadRuled = onWater && !floatsCarryWater && !solidWins && waterByHydro && p.Component != AirframeComponent.Propeller;
+                if (broken is not null && p.BreakSpeedMs > 0 && closing > p.BreakSpeedMs && !broken.Contains(p.Component) && !loadRuled)
                 {
                     broken.Add(p.Component);
                 }

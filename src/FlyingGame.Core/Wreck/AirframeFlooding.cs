@@ -14,8 +14,8 @@ namespace FlyingGame.Core.Wreck;
 /// Gear legs are excluded from the forces (WheelHydro carries a wheel in water); a flying boat's fuselage is
 /// excluded (its hull is FloatHydro's).
 ///
-/// Mass: the aeroplane's rigid body keeps its full mass when parts break off (owner's call, Aircraft.LoseComponent),
-/// so the remainder floats lower than its own parts would. Logged in AGENT-LOG.md NEEDS YOU.
+/// Mass: when a part breaks off, the aeroplane's rigid body sheds exactly the elements <see cref="Detach"/> hands to
+/// the wreck, and its CG moves to what is left (Aircraft.LoseComponent; decision for Ty in AGENT-LOG NEEDS YOU).
 /// </summary>
 public sealed class AirframeFlooding
 {
@@ -71,7 +71,8 @@ public sealed class AirframeFlooding
     public (Vec3 Force, Vec3 Moment) Forces(RigidBodyState s) =>
         Active ? HydroBody.Hydrostatics(_forceEls, _cg, s, WaterUp) : (Vec3.Zero, Vec3.Zero);
 
-    /// <summary>Implicit water drag and added mass on the step just integrated, then flooding.</summary>
+    /// <summary>Implicit water drag and added mass on the step just integrated, then crash damage (skin, glazing, doors,
+    /// and joints that the water has loaded past their strength — <see cref="TakeBreaks"/>), then flooding.</summary>
     public RigidBodyState AfterStep(RigidBodyState before, RigidBodyState after, MassProperties mp, double dt)
     {
         RigidBodyState s = after;
@@ -79,11 +80,84 @@ public sealed class AirframeFlooding
         {
             WaterCoeffs now = HydroBody.Coefficients(_forceEls, _cg, after, WaterUp, airDrag: false);
             s = HydroBody.Correct(before, after, mp.MassKg, new Vec3(mp.Ixx, mp.Iyy, mp.Izz), _old, now, dt);
+            List<Panel>? broke = WaterSlam.Damage(_forceEls, _cg, s, WaterUp);
+            if (broke != null) foreach (Panel p in broke) DamageLog.Add(p.Why);
+            CheckJoints(before, s, dt);
         }
         if (EverWet)
             foreach (HydroElement e in _attached) e.Flood(_cg, s, Active ? WaterUp : double.NaN, dt);
         return s;
     }
+
+    /// <summary>What has broken open so far, in order (one entry per break or growth step).</summary>
+    public readonly List<string> DamageLog = new();
+    private readonly List<AirframeComponent> _breaks = new();
+
+    /// <summary>Components whose joint the water has broken since the last call (the aircraft breaks them off).</summary>
+    public List<AirframeComponent> TakeBreaks()
+    {
+        var l = new List<AirframeComponent>(_breaks);
+        _breaks.Clear();
+        return l;
+    }
+
+    /// <summary>
+    /// The water break-up rule (decision 1 in AGENT-LOG): on a step where any of the airframe is in the water, each
+    /// joint carries what it must to make the parts beyond it move as they did — Σ (r_e − r_joint) × [m_e·(a_e − g) −
+    /// F_water,e], a_e each element's inertial acceleration over the step (finite difference of its velocity plus
+    /// ω × v) and F_water,e its own water force (<see cref="WaterSlam.ElementForce"/>). When the bending part (about
+    /// the axes across the joint; for a wing only the flapwise moment, about x) exceeds the joint's ultimate moment, or
+    /// the force along a fuselage joint exceeds its ultimate axial load (<see cref="Joint"/>), the component breaks off.
+    /// </summary>
+    private void CheckJoints(RigidBodyState s0, RigidBodyState s1, double dt)
+    {
+        if (Model.Joints.Count == 0 || dt <= 0) return;
+        bool wet = false;
+        foreach (HydroElement e in _forceEls)
+        {
+            double depth = s1.Position.Z + s1.Attitude.Rotate(e.Centre - _cg).Z + WaterUp;
+            if (HydroElement.SubmergedFraction(depth, e.VerticalHalf(s1.Attitude)) > 0) { wet = true; break; }
+        }
+        if (!wet) return;
+        Vec3 gB = s1.Attitude.Conjugate().Rotate(new Vec3(0, 0, WaterPhysics.G));
+        var force = new HashSet<HydroElement>(_forceEls);
+        foreach (Joint j in Model.Joints)
+        {
+            if (_breaks.Contains(j.Component)) continue;
+            Vec3 mom = Vec3.Zero;
+            double axial = 0;
+            bool any = false;
+            foreach (HydroElement e in _attached)
+            {
+                if (!j.Atoms.Contains(e.Atom)) continue;
+                any = true;
+                Vec3 rb = e.Centre - _cg;
+                Vec3 v0 = s0.Velocity + Vec3.Cross(s0.Rates, rb), v1 = s1.Velocity + Vec3.Cross(s1.Rates, rb);
+                Vec3 a = (v1 - v0) / dt + Vec3.Cross(s1.Rates, v1);
+                Vec3 fw = force.Contains(e) ? WaterSlam.ElementForce(e, _cg, s0, s1, WaterUp, dt) : Vec3.Zero;
+                Vec3 fj = (a - gB) * e.MassKg - fw;
+                mom += Vec3.Cross(e.Centre - j.At, fj);
+                axial += Vec3.Dot(fj, j.Axis);
+            }
+            if (!any) continue;
+            double bend = j.Axis.Y > 0.5 ? System.Math.Abs(mom.X) : System.Math.Sqrt(mom.Y * mom.Y + mom.Z * mom.Z);
+            if (bend > j.PeakNm) j.PeakNm = bend;
+            if (System.Math.Abs(axial) > j.PeakAxialN) j.PeakAxialN = System.Math.Abs(axial);
+            if (bend > j.UltimateNm)
+            {
+                _breaks.Add(j.Component);
+                DamageLog.Add($"{j.Component} broken off in the water: {bend / 1000:F1} kN·m against {j.UltimateNm / 1000:F1}");
+            }
+            else if (j.UltimateAxialN > 0 && System.Math.Abs(axial) > j.UltimateAxialN)
+            {
+                _breaks.Add(j.Component);
+                DamageLog.Add($"{j.Component} broken off in the water: {System.Math.Abs(axial) / 1000:F1} kN along the fuselage against {j.UltimateAxialN / 1000:F1}");
+            }
+        }
+    }
+
+    /// <summary>Area the crash has broken open on the attached airframe, m^2.</summary>
+    public double CrashOpeningM2 => WaterSlam.BrokenAreaM2(_attached);
 
     /// <summary>
     /// A component has broken off: its atoms that are still attached leave (returned, and kept for
