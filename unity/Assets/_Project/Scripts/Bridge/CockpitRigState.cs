@@ -51,6 +51,10 @@ namespace FlyingGame.Bridge
         public float CanopyPull01;
         /// <summary>Set once the canopy has left: the aeroplane stays canopy-less until it is reset.</summary>
         public bool CanopyGone;
+        /// <summary>The latch a headset hand works (the Pitts' sliding ball, the Extra's squeeze handles), or null for
+        /// a type with none. Set by VrCockpitHands; reset with the aeroplane; it drives the rig's `canopy_latch` and
+        /// <see cref="CanopyLocked"/>. Phase 2's canopy opening asks <see cref="CanopyLocked"/>.</summary>
+        public FlyingGame.Core.Vr.ICanopyLatch HandLatch;
 
         /// <summary>How fast the canopy swings when the player asks for it, and how fast the release handle
         /// moves under a hand and springs back after.</summary>
@@ -99,6 +103,7 @@ namespace FlyingGame.Bridge
             _oilTempF = 180.0; _chtF = 320.0;
             CanopyOpen01 = 0f; _canopyTarget = 0f; CanopyLocked = true;
             CanopyPull01 = 0f; _handOnRelease = 0f; CanopyGone = false;
+            HandLatch?.Reset();
         }
 
         /// <summary>Clear the accelerometer's max / min tell-tales (the knob on a real one).</summary>
@@ -195,6 +200,7 @@ namespace FlyingGame.Bridge
             r.CanopyOpen = CanopyOpen01;
             r.CanopyLock = CanopyLocked ? 1.0 : 0.0;
             r.CanopyJettison = CanopyPull01;
+            r.CanopyLatch = HandLatch != null ? HandLatch.Latch01 : CanopyLocked ? 0.0 : 1.0;
         }
 
         /// <summary>The four gauges with no sim behind them (P), from throttle, rpm and ambient pressure. The

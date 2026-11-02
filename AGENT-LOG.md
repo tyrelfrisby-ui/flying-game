@@ -1,4 +1,44 @@
 ## NEEDS YOU
+- **QUEST: HANDS ON THE CONTROLS, A BODY YOU CAN SEE, THE CANOPY LATCHES (Claude, 2026-11-02, lane/claude-vr-cockpit,
+  Phase 1 of 3) — from your "there should be hands and legs and feet on controls … just 'grab' the stick throttle canopy
+  latch etc and move them". Code only: NOT built, NOT on the headset. NEEDS YOU after the operator's build:**
+  1. **Grab the stick.** In the cockpit, reach the right controller to where the stick grip is: a light tick within
+     6 cm, squeeze the grip, a firmer tick, your drawn hand snaps on. Move it: the stick should follow your hand about
+     its own pivot (roll gimbal on the torque tube, pitch on top). Fly a loop and a roll on the stick alone. **Then let
+     go in level flight and in a spin**: the stick is FREE and trails with the elevator's and ailerons' hinge moments
+     (the sim's existing free-control model, the Pitts' own Chα / Chδ) — you should see it move by itself. Tell me if
+     it trails the way a Pitts stick does.
+  2. **Grab the throttle** with the left hand where it is, on the left side, both seats. Forward = power, let go = it
+     stays. The left grip no longer grabs the throttle from anywhere in the cockpit (it still does in outside views),
+     and the left thumbstick Y still works when you are not holding it.
+  3. **Pitts latch.** Rear seat: reach to the top of the rear panel, centre-line, a hand's width below your eye line;
+     grab the ball, slide it LEFT (pull ~1 cm to get out of the detent) to unlock, RIGHT until it clicks to lock. The
+     log says `[VrCockpit] canopy latch UNLOCKED / LOCKED`. **Opening the canopy is Phase 2**; today only the lock moves.
+  4. **Extra latch.** Grab the pair of handles (proxy: left canopy frame, ahead of you) and pull the TRIGGER to squeeze;
+     past 85 % it unlocks with a click, let go and it springs back and re-locks.
+  5. **Your body.** Look down: arms from your shoulders to the controllers, gloved hands that close with the grip,
+     thighs, shins and boots on the pedals, the pedals moving with the left thumbstick X. **Until Codex's skinned body
+     lands it is a crude stand-in made of capsules and boxes** (sage suit, tan gloves, black boots). Hidden in every
+     outside view. Put a controller down and that hand rests on its control.
+  6. **Does any of it fight you?** Tell me which of these is wrong in a real cockpit: the reach (6 cm), having to
+     close the grip to take hold rather than just touching, the stick surface being LINEAR in stick angle (I take the
+     type's expo out for a grabbed stick, because a cable has none), the smoke toggle now only on a right grip in free
+     air.
+  **Assumptions that are really yours:** (a) **where the controls are in the Pitts.** Its model has no stick, throttle
+  or latch nodes yet, so they sit at proxy positions relative to the seat's eye (stick grip 0.50 m below and 0.42 m
+  ahead of the eye on a 0.55 m stick; throttle 0.26 m left; pedals 0.85 m ahead) and the Pitts' **model stick will not
+  move with your hand until Codex's rig lands** — your hand moves, the drawn stick does not. (b) **Pitts stick travel:**
+  I used the Extra's rig numbers, ±18° roll, 18° aft, 12° forward — what are the S-2B's? (c) **The Pitts latch:** 3 in of
+  travel as you said, fully RIGHT = locked per the contract, a 4 mm capture and a 1 cm breakout for the detent (my
+  guesses). Which seat can reach it — is it only the rear pilot's? (d) **The Extra's squeeze handles:** where exactly
+  are they (I placed them on the left canopy frame where the rig's red levers are), and do both have to be squeezed,
+  or does one handle release it? (e) **The rest of the fleet:** Great Lakes open (no latch), Cub and 172 doors. The 2-33
+  canopy and any other canopy have NO latch yet rather than a guessed one — tell me how each one actually latches.
+  (f) **Your body:** 50th-percentile man from ANSUR II (upper arm 0.31, forearm 0.26, thigh 0.42, shin 0.45 m),
+  shoulders fixed to the seat (strapped in). If your arms look too short or long, that is one number.
+  **Evidence (bench only):** 32 new `VrCockpitTests` cases green (stick signs / limits / gimbal order / grab offset,
+  the throttle arc, both latch state machines, two-bone IK reach / clamp / pole, the grab rules incl. the menu gate);
+  full suite on this branch 117 failed / 1242 passed (113 unique names) vs 199 failed / 1128 passed at 0a1a7b4 (128 unique): **no failing name introduced**, the base's extra 15 are flakes of the globally coupled suite (e.g. ModelRigTests.FullAirBrakeStopsTheGliderSooner… fails alone at the base too); Unity batch, scripts only: **Android 0 error CS, iOS 0 error CS** (the first Android run had 7: a name clash with the Bridge's own `PilotBody` and a wrong `ModelRoot`, both fixed — CLAUDE.md lesson). No APK, no xcodebuild, nothing installed. Nothing here is approved.
 - **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
   first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
   really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
@@ -619,6 +659,31 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- [Claude → Codex] **lane/claude-vr-cockpit · what the hands expect from your cockpit models and the pilot body
+  (CONTRACT.md names; Phase 1).** Nothing of yours was edited. Where a node is missing the code uses a proxy and logs
+  `[VrCockpit] missing node <name> (<aircraft>)` once; each bind logs `[VrCockpit] <type> seat '<id>': stick … throttle
+  … feet … latch …` saying which source each control came from — grep for it after your models land.
+  - **Stick:** pivot = `StickRoll_R/F` (or `Stick_R/F`) node ORIGIN on the gimbal; roll outer, pitch inner; limits from
+    those nodes' rig maps (`aileron` / `elevator`, −1..+1, +1 = right / aft). Length = distance to `Grip_Stick_Rear/Front`,
+    which must sit ON THE STICK at the grip's centre (it may ride the stick: only its distance is read). For the Pitts
+    please use the same `StickRoll_*` / `Stick_*` names in pitts-s2b-own-rig.json, or tell me yours.
+  - **Throttle:** `Throttle_R/F` node origin = pivot, turning about the lateral axis, + = forward, its map end = sweep;
+    `Grip_Throttle_Rear/Front` on the knob (I read the idle angle from it at the lever's current position).
+  - **Pedals:** `Foot_L/R_Rear/Front` at the ball of the foot, riding the pedal; else `Pedal_L/R_Rear/Front` (or the
+    existing `Pedal_R/F_L/R`) with the ball assumed 0.12 m up the face from the hinge.
+  - **Pitts latch:** `Grip_Canopy_Latch` (or `Canopy_Latch_Knob`) riding the ball; drive the knob from rig param
+    `canopy_latch` (0 locked = fully RIGHT … 1 = fully left, 3 in = 0.0762 m along the lateral axis). `RigInputs` now
+    answers `canopy_latch`. **Extra:** `Grip_Canopy_Latch` midway between `Canopy_Latch_Handle_L/R`; `canopy_latch` 0 at
+    rest … 1 fully squeezed (I send the mean of the two handles).
+  - **pilot-body-own.glb** at `Resources/Models/pilot-body/`: I need at least 8 of Hips, L/R_UpperArm, L/R_LowerArm,
+    L/R_Hand, L/R_UpperLeg, L/R_LowerLeg, L/R_Foot, L/R_Toes, plus L/R_Middle1 (aims the hand) and the finger bones
+    `L/R_<Thumb|Index|Middle|Ring|Little><1..3>`. The asset must face glTF +Z (the nose), hips at its own origin is not
+    needed (I move the root so Hips lands on the seat's hip point). Limb bones are AIMED at the solved next joint, so
+    your bone axes are free, but **finger curl turns each finger bone about its LOCAL +X** — say if your rig curls
+    about another axis. The IK uses YOUR shoulder / hip joint positions and bone lengths. Rest = relaxed open hand.
+    Colliders are removed and shadows switched off on load.
+  - **The stand-in body** (22 primitives, `Bridge/VrPilotBody.cs`) is placeholder art; it goes away by itself when
+    your glb is present. Hidden outside the cockpit view.
 - [Claude → Codex] **lane/claude-vr-quest · the Quest seam: rendering quality, lens/comfort and the VR HUD are
   yours.** Branch off my commit. What exists and where:
   - **The XR camera is the main camera.** `QuestRig` (`Bridge/QuestRig.cs`) sits on it beside `ChaseCamera` and
@@ -857,6 +922,32 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-cockpit · Phase 1: hands on the controls, the body, the canopy latches
+Ty: "the user can just 'grab' the stick throttle canopy latch etc and move them … hands and legs and feet on controls".
+Built on lane/claude-vr-quest 0a1a7b4; Codex's models were not available, so everything binds to CONTRACT.md names
+and falls back to proxies (logged once). Design: docs/vr-cockpit.md; controls: docs/quest-controls.md.
+- **Hand abstraction** `HandPose` (Core): source, position, rotation, grip, pinch, in the cockpit frame. Controllers
+  fill it now (grip pose via `XrHandInput`, through `QuestRig.TrackingToSeat`); tracked hands fill it in Phase 3.
+- **Grab** `CockpitGrab`: 6 cm, grip closing (0.6 on / 0.4 off), one hand per control, menu releases everything,
+  haptic ticks on reach / grab / detent. Nothing touches the camera.
+- **Stick** `StickGimbal`: roll outer, pitch inner, φ = atan2(vx, vy), θ = atan2(−vz, √(vx²+vy²)), clamped per axis,
+  grab offset kept. Fed through `TouchFlightControls` (the thumbsticks' own state) via `Aircraft.StickForDeflection`
+  so the surface is linear in stick angle, trim subtracted. **Free stick:** released = `AileronFree/ElevatorFree`, the
+  sim's existing hinge-moment float (`Aircraft.FreeFloat`); the drawn stick trails with it. No new physics.
+- **Throttle** `LeverArc`: angle about the lateral pivot, sweep from the rig (50°), stays put. The left grip no
+  longer grabs the throttle from anywhere in the cockpit.
+- **Latches** `PittsCanopyLatch` (3 in slide, right = locked, 4 mm capture / 10 mm breakout detent, stays put) and
+  `ExtraCanopyLatch` (both handles ≥ 0.85 unlocks, springs back, re-locks when shut). Held on
+  `CockpitRigState.HandLatch`, drive `canopy_latch` (new `RigInputs` param) and `CanopyLocked`.
+- **Body** two-bone IK (`TwoBoneIk`) for both arms and legs from ANSUR II 50th-percentile joint lengths
+  (`SeatedPilot`), shoulders and hips fixed to the seat's eye; `VrPilotBody` draws Codex's skinned glb if present
+  (bones aimed, its own joints and lengths) else a 22-primitive stand-in. Shown only in the headset's cockpit view.
+- **Files:** new Core `Vr/VrHand.cs, HandControls.cs, CanopyLatch.cs, TwoBoneIk.cs, CockpitGrab.cs, SeatedPilot.cs`;
+  new Bridge `VrCockpitHands.cs, VrPilotBody.cs, XrHandInput.cs`; small edits to `QuestRig` (one method),
+  `TouchFlightControls.QuestInput` (the hook), `CockpitRigState` (latch), `ModelRig` (`canopy_latch`),
+  `SceneBootstrap` (one AddComponent). `XrControllers` and `QuestControlMapper` untouched.
+- **Evidence:** 32 `VrCockpitTests` green; full suite on this branch 117 failed / 1242 passed (113 unique names) vs 199 failed / 1128 passed at 0a1a7b4 (128 unique): **no failing name introduced**, the base's extra 15 are flakes of the globally coupled suite (e.g. ModelRigTests.FullAirBrakeStopsTheGliderSooner… fails alone at the base too); Unity batch, scripts only: **Android 0 error CS, iOS 0 error CS** (the first Android run had 7: a name clash with the Bridge's own `PilotBody` and a wrong `ModelRoot`, both fixed — CLAUDE.md lesson). No APK, no xcodebuild, nothing installed. Not on a headset. Nothing approved.
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · back seat honoured, HUD off in the VR cockpit, the menu findable
 Ty, first Pitts flight on the 3S: "i chose the back seat and it put me in the front seat. the hud display is not
 necessary and really confusing while in the airplane and i couldn't figure out how to get to options".

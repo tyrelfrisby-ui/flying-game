@@ -168,6 +168,9 @@ public struct RigInputs
     public double CanopyLock;
     /// <summary>0..1 pull of the emergency release.</summary>
     public double CanopyJettison;
+    /// <summary>The canopy latch, 0 locked .. 1 fully open (the Pitts' ball slid left) / squeezed (the Extra's two
+    /// handles) — CONTRACT.md `canopy_latch`, driven by the hand that holds it (Core/Vr/CanopyLatch.cs).</summary>
+    public double CanopyLatch;
 
     /// <summary>Indicated airspeed in KNOTS (the Extra's ASI is in kt; the 2-33's in mph — both are here
     /// because the dial art is drawn in one or the other and converting in the rig would hide it).</summary>
@@ -273,6 +276,7 @@ public struct RigInputs
             case "canopy_open": value = CanopyOpen; return true;
             case "canopy_lock": value = CanopyLock; return true;
             case "canopy_jettison": value = CanopyJettison; return true;
+            case "canopy_latch": value = CanopyLatch; return true;
             case "airspeed_kias": value = AirspeedKias; return true;
             case "vsi_fpm": value = VsiFpm; return true;
             case "rpm": value = Rpm; return true;

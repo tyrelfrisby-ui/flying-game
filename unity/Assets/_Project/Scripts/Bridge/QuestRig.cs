@@ -251,6 +251,20 @@ namespace FlyingGame.Bridge
             return true;
         }
 
+        /// <summary>Tracking space → the SEAT's axes (the aeroplane's own: +x right, +y up, +z nose), relative to the
+        /// authored eye, unclamped. A hand at <c>EyeLocal + seatPos</c> in the aeroplane's local frame is where the
+        /// pilot sees it, and moves with the aeroplane for free (VrCockpitHands).</summary>
+        public bool TrackingToSeat(Vector3 p, Quaternion q, out Vector3 seatPos, out Quaternion seatRot)
+        {
+            seatPos = default; seatRot = Quaternion.identity;
+            if (!_running || !_head.IsCentred) return false;
+            Vec3 lp = _head.ToSeat(ToCore(p));
+            Quat lq = _head.ToSeat(ToCore(q));
+            seatPos = new Vector3((float)lp.X, (float)lp.Y, (float)lp.Z);
+            seatRot = new Quaternion((float)lq.X, (float)lq.Y, (float)lq.Z, (float)lq.W);
+            return true;
+        }
+
         // ---- buttons that work everywhere: menu and recentre ----
 
         private void SystemInput()

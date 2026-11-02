@@ -14,10 +14,10 @@ stick, left pad = rudder + throttle).
 | **Right thumbstick Y** | Elevator | Forward = **push = nose down** (the realistic sense the pads use). `TouchFlightControls.InvertElevator` flips it for both (it is not in Options today). |
 | **Left thumbstick X** | Rudder | Right = right rudder. Springs back. |
 | **Left thumbstick Y** | **Throttle lever, as a rate** | Push to open, pull to close, **let go and it stays**. Idle to full in 2 s. On a glider the same lever is the spoiler handle (forward = stowed, back = out), exactly as the touch pad's upper band. |
-| **Left grip (hold) + move hand** | **Grab the throttle lever** | Squeeze, move your hand forward / back, let go: 20 cm of hand travel is the full lever. Starts from wherever the lever is, so a reset never makes it jump. |
+| **Left grip (hold) + move hand** | **Grab the throttle lever** — *outside views only* | Squeeze, move your hand forward / back, let go: 20 cm of hand travel is the full lever. Starts from wherever the lever is, so a reset never makes it jump. **In the cockpit the throttle is grabbed where it is** (below). |
 | **Left trigger** | Wheel brakes (analog) | Rudder biases them left / right, as on the touch pad (toe-brake feel). |
 | **Right trigger** | Guns (held) | Only where the guns are hot (combat zone / dogfight). Otherwise nothing. |
-| **Right grip** | Smoke on / off | One toggle per squeeze. |
+| **Right grip** | Smoke on / off | One toggle per squeeze. In the cockpit only when the hand is NOT on a control (closing on the stick never toggles the smoke). |
 | **A (hold)** | Pitch trim **nose up** | 0.5 of the trim range per second, the same rate as a joystick's TRIM buttons. |
 | **B (hold)** | Pitch trim **nose down** | B sits further from the thumb: "forward" = nose down, like a trim wheel. |
 | **X** | Flaps one notch **down** | 0 → 50 → 100, from where the flaps actually are. |
@@ -32,6 +32,25 @@ Dead zones: thumbsticks have a 0.10 hardware dead zone (rescaled, so full deflec
 rate 0.25. The aeroplane's own dead zone and expo (`AircraftConfig`) come on top, exactly as for the touch pads.
 One stick carries rudder and throttle, so whichever axis is clearly dominant wins: a bootful of rudder with your
 thumb drifting 0.3 forward does not open the throttle, and easing the power off does not kick the rudder.
+
+## Grabbing the aeroplane's own controls (cockpit view)
+
+Reach out with the controller to the control itself; within **6 cm** the controller ticks lightly. **Squeeze the grip**
+to take hold (a firmer tick); your drawn hand snaps onto it. Let go by opening the grip. Nothing can be grabbed while
+the VR menu is open, and grabbing never moves your head. The design is in [vr-cockpit.md](vr-cockpit.md).
+
+| Control | Hand | How it moves | Let go |
+|---|---|---|---|
+| **Stick** | either (right, normally) | Follows your hand about its real pivot: roll gimbal on the torque tube, pitch yoke on it. Limits from the model's rig (Extra / Great Lakes: ±18° roll, 18° aft, 12° fwd); proxy otherwise. The surfaces are linear in stick angle (no expo on a real stick). The right thumbstick does nothing while you hold it. | **Free stick**: on a reversible type it trails with the surfaces' hinge moments (the sim's free-control model), and you see it move. |
+| **Throttle** | either (left, normally) | On its real arc on the left of the seat, both cockpits: move your hand forward = power. Sideways hand movement does nothing. | Stays where it was left. The left thumbstick Y still works as before when you are not holding it. |
+| **Canopy latch, Pitts** | either | Grab the **black ball** on top of the rear panel and slide it **left / right** (3 in). **Fully RIGHT = LOCKED**, with a detent click at the end; pull 1 cm left to come out of it. | Stays where it was left. |
+| **Canopy latch, Extra** | either | Grab the **two red-and-white handles** with one hand and pull the **trigger** to squeeze them together. Squeezed home (85 %) = UNLOCKED (click). | They spring back; with the canopy shut they re-lock (click). |
+
+Opening the canopy itself is Phase 2: today the latch only changes the locked state (the rig's `canopy_latch` and the
+cockpit's lock). The rudder is still the **left thumbstick X**, and your feet ride the pedals.
+
+**You see yourself:** arms, gloved hands, legs and boots, posed from the controllers and the pedals. With a controller
+put down, that hand rests on its control. Hidden in outside views.
 
 ## The VR menu
 

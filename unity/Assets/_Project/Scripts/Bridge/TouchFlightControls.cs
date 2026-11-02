@@ -717,7 +717,7 @@ namespace FlyingGame.Bridge
             float rudder = Mathf.Clamp(_rudder + _rudderTrim * TrimAuthority, -1f, 1f);
             // Reversible controls (owner 2026-10-02): a pad with no finger (and no key) lets go of its controls — on a
             // cable-controlled aircraft those surfaces then trail with the air loads (the values above are just the trims).
-            bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
+            bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f && !_vrStickHeld;   // a hand on the stick is never "let go"
             bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
             _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
         }
@@ -730,10 +730,13 @@ namespace FlyingGame.Bridge
         private readonly FlyingGame.Core.Vr.QuestControlMapper _quest = new();
         private float _questBrake;
         private bool _questFlying, _questWaitRelease;
+        /// <summary>A headset hand is holding the cockpit's own stick (VrCockpitHands): the stick is held even at neutral.</summary>
+        private bool _vrStickHeld;
 
         private void QuestInput()
         {
             _questBrake = 0f;
+            _vrStickHeld = false;
             if (!XrHeadset.Active) { _questFlying = false; return; }
             // The press that closed the VR menu (A, B, X, Y, a trigger) must not carry on into trim, flaps or guns:
             // after the menu, nothing is read until every button is up.
@@ -757,12 +760,25 @@ namespace FlyingGame.Bridge
             float dt = Time.unscaledDeltaTime;
             _quest.InvertElevator = InvertElevator;
             (float thr01, _) = SplitLeftAxis();
+            // In the cockpit the grips belong to the hands on the aeroplane's own controls (VrCockpitHands): the
+            // mapper's grab-anywhere throttle and the smoke toggle only see a grip that isn't closing on a control.
+            VrCockpitHands hands = VrCockpitHands.Current;
+            if (hands != null) { hands.Tick(); hands.MaskGrips(ref f); }
             var c = _quest.Step(f, dt, thr01);
             if (_rightFinger == int.MinValue) { _aileron = (float)c.Aileron; _elevator = (float)c.Elevator; }
+            if (hands != null && hands.StickHeld && _rightFinger == int.MinValue)
+            {
+                // The held stick, in the sim's own sense (already linear in stick angle), less the trim this class adds
+                // back in PublishToDriver: the surface goes where the hand put the stick, trimmed or not.
+                _aileron = Mathf.Clamp(hands.AileronInput - TrimAileron, -1f, 1f);
+                _elevator = Mathf.Clamp(hands.ElevatorInput - TrimElevator, -1f, 1f);
+                _vrStickHeld = true;
+            }
             if (_leftFinger == int.MinValue)
             {
                 _rudder = (float)c.Rudder;
                 if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); }
+                if (hands != null && hands.ThrottleHeld) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * hands.Throttle01); _leftKnob = IdleLeftKnob(); }
             }
             _questBrake = (float)c.Brake;
             if (c.PitchTrimRate != 0.0) _pitchTrim = Mathf.Clamp(_pitchTrim + (float)c.PitchTrimRate * dt, -1f, 1f);

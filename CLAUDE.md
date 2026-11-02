@@ -169,3 +169,11 @@ aircraft change made it look safe: every index stayed in range. Keep a choice by
 (`SeatChoice`, seat ids are "never renamed once shipped") and resolve it against the list it is applied to, with a
 stated default when the ID is absent; and a menu that offers a choice for "the aeroplane you will fly" must read
 THAT aeroplane, not the one that happens to be loaded.
+
+### A Core type name can be shadowed in the Bridge, and only Unity sees it
+`FlyingGame.Core.Vr.PilotBody` compiled and 32 tests passed in the .NET suite, then gave five `error CS0117` in the
+Unity batch: the Bridge already has an `internal sealed class PilotBody` (the bailout's jumper, `Bridge/Pilot`), and
+inside `namespace FlyingGame.Bridge` the Bridge's own type wins over a `using FlyingGame.Core.Vr`. The suite cannot
+see it because it never compiles the Bridge. The same run found `AirframeVisual.ModelRoot`, which is on the
+builder, not the visual. Before naming a new Core type, `grep -rn "class <Name>\b" unity/Assets` (with perl or
+`grep -w`; BSD sed has no `\b`), and run the Unity batch before trusting any Bridge code that calls into it.
