@@ -436,8 +436,8 @@
     1.0
    ],
    "pivot_gltf": [
-    0.855,
-    0.218,
+    0.8550000000000001,
+    0.31633333333333336,
     -0.0381
    ],
    "map": [
@@ -460,7 +460,7 @@
   {
    "node": "Canopy_Latch_Knob",
    "param": "canopy_latch",
-   "parent": null,
+   "parent": "Canopy",
    "kind": "move",
    "axis_gltf": [
     0.0,
@@ -468,8 +468,72 @@
     1.0
    ],
    "pivot_gltf": [
-    0.865,
-    0.205,
+    0.8770000000000001,
+    0.3413333333333334,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.19999999999999998,
+    0.2212222222222222,
+    -0.0381
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0762
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Estimated visual travel; needs Ty review",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Knob_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "pivot_gltf": [
+    0.22199999999999998,
+    0.2462222222222222,
     -0.0381
    ],
    "map": [

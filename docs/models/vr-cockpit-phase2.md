@@ -2,10 +2,11 @@
 
 2026-11-02. Builder frame: X forward, Y pilot-left, Z up, metres. No C#,
 Glass Overlay, packages, ProjectSettings, Unity, device or deploy changes. No gate approved.
-The published aircraft previews were made by the CPU post-processor from committed Phase 1
-assets. Gear is the explicit CPU fallback. **Blender export/rebuild equivalence and all twelve
-renders remain unexecuted.** Per task instruction Blender was not started in this sandbox.
-Standalone Blender-bundled Python with NumPy runs successfully.
+P2c supersedes the earlier canopy/panel dimensions below. All five local Pitts photos,
+the Extra open-canopy photo, and prior frame/eye renders were inspected. CPU previews
+were generated only in `/tmp/p2c-models`, preserving committed Unity assets. Seven
+liveries pass the revised numeric checker. **Blender rebuild and 21 renders remain
+operator work; no gate approved.** No Blender process was started.
 
 ## Reproducible geometry path
 
@@ -28,7 +29,7 @@ From this worktree, exact operator commands:
 export PYTHONDONTWRITEBYTECODE=1
 zsh tools/own_models/rebuild_vr_phase2.sh
 /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
-/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/agent-lanes/aero-playground/vr-cockpit/renders/phase2
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
 ```
 
 The rebuild script runs all four `PITTS_LIVERY` values (N31DG, N1191,
@@ -40,42 +41,105 @@ success is not evidence that Blender export/import succeeded. The checker valida
 seven aircraft, the gear, graph reachability/cycles/unique parents, names, rig tags, skin
 weights, morph names and clearances. See `vr-cockpit-phase2-checks.json` for current numbers.
 
-## Pitts canopy correction
+## P2c — Pitts photo correction (supersedes previous Phase 2 geometry)
 
-Ty's direct description and the Phase 2 CONTRACT supersede the Phase 1 interpretation.
-The two low bows are at X −0.835 / −0.875 m (40 mm apart), centre crown Z .218 m.
-Tube radius .00635 m (12.7 mm OD). Their transverse half widths are .347091 / .347664 m;
-rail endpoints Z .16065 / .16025 m. Vertical rises .05735 / .05775 m, following a
-2.4-power superellipse, **not a circular arc with a single bend radius**. These are
-modelling dimensions, not measured Pitts factory dimensions. Ends meet the existing
-canopy sill rail volume. A small .053 × .100 × .008 m bridge spans the crowns.
-The short pin is 35 mm long, 8 mm diameter, Z .183–.218, X −.855. Its top belongs to
-the canopy bracket. The black ball is 28 mm diameter at X −.865, Z .205; Y −.0381 is
-pilot-right/locked. Travel .0762 m moves it to +.0381 (pilot-left/unlocked).
-White Delrin transverse channel opens at its left end, so the unlocked pin clears the
-channel; small stepped lips near the right end show a notch. Detailed detent geometry,
-bracket design, pin translation linkage and track mushroom hardware need Ty's reference.
-This is an owner-description visual study, not an airworthy latch design.
+`panel_curve` derives each outline from `build_pitts_s2b.ST` / `sec` at X −.800 rear,
+−.145 front: actual upper skin section, inset **25 mm along its normal**. The builder's
+2.4-power skin section is inherited; the previous independently scaled squarish crown
+and vertical sides are gone. The outline runs continuously from one side through the
+crown to the other, closed by a straight lower edge. No fixed windscreen or bubble
+vertices move. The old front hexagonal plate is removed from the combined Cockpit mesh.
+White-painted panels and 5 mm diameter polished edge tubes (metallic 1, roughness .16)
+follow the full perimeter. Estimated rear panel width 741.3 mm, height 363.7 mm,
+bottom Z −69.4 mm, crown Z 294.3 mm; front width 808.7 mm, height 322.8 mm,
+bottom −123.5 mm, crown 199.2 mm. Plate thickness rear/front 15/12 mm.
+Rear/front dial perimeter margins are 4.39/109.00 mm minimum; the card retains its original visible
+placement and may project below the straight panel bottom. Layout is otherwise unchanged.
 
-`Canopy` still owns both bows, bridge, pin, glass and frame. `Canopy_Slide` moves aft
-101.6 mm over canopy_open 0–.2; `Canopy` hinges right 0–100° over .2–1. These existing
-travel estimates require Ty's confirmation. Knob/block stay on panel. Open only after
-unlocking. Intentional closed pin/channel engagement is excluded from bow-clearance tests.
+Each panel has two 10 mm OD white tubes, 35 and 75 mm aft of its station (40 mm apart).
+Their curve is the **22 mm outward normal offset** of the panel arch, truncated at the
+moving sill rail; short endpoint segments meet the actual rail centreline. This is a
+constant curve offset except the rail landing transitions, not a circular bend radius.
+Rear tube stations −.835/−.875; front −.180/−.220 m. Crowns Z 316.3/221.2 mm.
+Centreline offset minus 5 mm tube radius and 2.5 mm rim radius gives 14.5 mm nominal
+radial surface gap, before accounting for the aft offset. All are estimates from photos.
 
-Closed conservative bow clearances: panel **64.65 mm**, instruments **104.84 mm**,
-IAC card **174.61 mm**, assumed 280 mm head/helmet sphere **310.56 mm**, both stick
-full-control enclosing volumes **228.59 mm**. Centreline sampling ≤1 mm, minus tube
-radius and .5 mm sample bound. Helmet envelope is a stated estimate at the authored eye,
-not a measured Ty helmet or all possible head lean positions. Control check transforms the published mesh of both
-sticks at 1° pitch/roll increments and encloses each in a box dilated by the maximum
-vertex movement between samples (both rotation axes), covering intermediate control values. These checks concern the new bows, not every possible cockpit collision.
+At each crown: a 55 × 110 × 24 mm block and 53 × 100 × 5 mm bracket at
+X panel−55 mm, Z bow crown (bracket 14 mm lower). A 6 mm diameter ×12 mm internal
+catch is fully hidden inside the block. Knob ball diameter 28 mm, stem diameter 6 mm;
+ball centre X block−22 mm, Z crown+25 mm. It moves from Y −38.1 to +38.1 mm:
+**76.2 mm leftward = unlock**, unchanged rig parameter. Block, bracket, pin, knob,
+placard and both bows move with `Canopy`; `Grip_Canopy_Latch` rides the ball.
+Placard is a simplified red/white 50 ×17 mm face (white band 46 ×4 mm), with no invented
+operating text. Front assembly duplicates rear names with `_Front` suffix.
 
-For the **entire continuous opening sweep**, minimum bow-to-panel separation is at least
-**21.15 mm**: rotation about the fore-aft X axis preserves every bow vertex's X, while
-aft translation increases its separation from the panel. Thus a separating plane exists
-at every opening value, including between angle samples. This is a stronger proof than
-checking a few sampled pictures. It does not certify clearance to the front-seat occupant,
-all surrounding fuselage geometry or the original glass during opening.
+The tall red intermediate hoop at X −.47 was inside the bubble, not its end edge, and
+is removed. `Canopy_Frame` now consists of 28 mm OD sill rails and 22 mm OD front/rear
+bubble-edge arcs at X −.135/−1.595, using the unchanged bubble loft profile. The rear edge
+is still taller than the panel bows because it follows the bubble's own edge. The fixed
+windscreen geometry stays unchanged. Retained opening estimates: 101.6 mm aft slide
+through canopy_open .0–.2 then 100° right hinge through .2–1.
+
+CPU conservative closed bow clearance, both pairs together: panel **29.72 mm**,
+instruments **124.58 mm**, sequence card **271.33 mm**, two 280 mm helmet spheres
+**134.98 mm**, both stick full control enclosing volumes **245.40 mm**. Sampling and
+control bounds retain the prior ≤1 mm centreline / 0.5 mm deduction and 1° control grid
+with angular inflation. Panel opening sweep separation (both bows, block and ball)
+**20.00 mm** minimum using continuous X separation; helmet X separation throughout
+slide/hinge **77.40 mm**, full-control stick envelopes during opening **221.44 mm** (0.005 opening
+steps, dilated by maximum between-step slide/rotation displacement). These concern specified added geometry and proxies; visual
+card sightline, all fuselage/bubble collisions and head leaning remain Ty/operator review.
+
+## P2c-2 — Extra latch v2
+
+Ty's supplied open-canopy photo and fore/aft mechanism description supersede L/R
+rotating paddles. Both cockpit pairs mount directly to the moving port canopy frame,
+selected from actual low frame vertices near X −1.55 rear / −.70 front. Frame centre Y/Z
+are derived per export, not hard-coded world points. Handle centres are ±45 mm fore/aft,
+18 mm inboard and 30 mm below that rail point. Handles use 12 mm OD stems and
+14 ×27 ×55 mm red grips, with 16 ×29 ×20 mm white inserts 12 mm below their centres.
+Rear handle fixed; front slides **35 mm aft** on canopy_latch 0 released .. 1 squeezed.
+Compatibility grip moves **17.5 mm aft**, staying halfway between the handle grips.
+Two 6 mm diameter ×24 mm pins per pair (four total), at rail X ±70 mm, Y rail centre,
+Z rail−12 mm, retract **18 mm upward**. Matching airframe socket rings sit another
+6 mm lower, with 10 mm centreline diameter and 3 mm section diameter. Rest pins cross
+the socket plane, squeezed tips clear it by at least 10 mm. Linkage is simplified,
+not copied measured hardware. All placement/travel/dimensions are estimates.
+
+`Canopy_Latch_Handle_Aft/Fwd` and corresponding `Grip_Canopy_Latch_Aft/Fwd` are rear
+names; front names append `_Front`. `Canopy_Latch_Pin_1/2` and matching
+`Canopy_Latch_Hole_1/2` also have front duplicates. Handle White children follow handles.
+All handles/pins/grips are canopy children; holes remain airframe roots. Legacy
+`Canopy_Latch_Handle_L/R` (and front duplicates), plus `CanopyLock_F/R`, remain inert
+compatibility empties with obsolete mesh/rig removed. `CanopyRelease_F/R` are distinct
+right-sill emergency jettison pulls in ea_rig.py, so remain unchanged on the airframe.
+Rig JSON contains Fwd/pin translation and midpoint travel; no C# changes.
+
+Opening sweep tests sample 0–100° every .5°, latch 0–1 every .1, subtract both maximum
+between-sample displacements. Proxy helmet radius 140 mm at (−1.72,0,.62) and
+(−.82,0,.62); resting control hand radius 65 mm at (−1.52,0,.04)/(−.62,0,.04).
+Minimum rear/front helmet gaps **46.67/105.31 mm**, hands **280.10/325.26 mm**.
+Intentional latch grasp contact is excluded. These proxies do not certify arbitrary hand
+poses. Checker verifies pins engage at rest and leave socket bounds when squeezed.
+
+## P2c operator renders and review
+
+Nine additional files, output directory supplied as CLI argument:
+`after2c_pitts_eye`, `after2c_pitts_panel_front_on`, `after2c_pitts_latch_locked`,
+`after2c_pitts_latch_unlocked`, `after2c_pitts_canopy_side`, `after2c_pitts_frame`,
+`after2c_extra_latch_closed`, `after2c_extra_latch_squeezed`, `after2c_extra_canopy_open`
+(all `.png`). Eye camera matches Phase 2; front-on camera is horizontal and centred.
+Extra closed/squeezed share one camera; opened view restores glass and shows canopy-frame
+attachment. Existing twelve Phase 2 renders remain available, now of corrected geometry.
+Compare panel/rim and low arcs with Pitts refs 3–5, bubble edge/sill with refs 1–2,
+black ball's right/left position in latch closeups, and Extra moving frame/fore-aft handles
+with its photo. No visual approval until operator renders are reviewed.
+
+`CONTRACT.md` in this worktree copies the supplied contract and appends implementation
+names. The supplied copy in the other worktree was read only; operator can reconcile
+this addition into the shared handoff. All report numbers currently describe CPU previews,
+not a Blender export. `VR_PHASE2_MODELS` optionally selects a temporary aircraft directory;
+normal rebuild/check commands use the exported Unity model directory.
 
 ## Red star in side view
 
@@ -185,7 +249,7 @@ body retarget transform as its pilot; this asset does not hard-code an Extra sea
 
 Geometry: **3,780 gear triangles**, plus Phase 1 pilot body's 2,416 (6,196 combined).
 New harnesses/jacks add **680 triangles per aircraft** (both seats together).
-Current entire airframes: Pitts 63,198 checker / 64,490 factory, Extra 124,866 triangles;
+Historical Phase 2 airframes before P2c (superseded by JSON report): Pitts 63,198 checker / 64,490 factory, Extra 124,866 triangles;
 those include pre-existing airframe detail and are not claims of a completed Quest performance
 audit. The new gear has one rigid Chest skin, one Inflate target, no downloaded geometry,
 texture or package. Released harness and deployment are visual previews until Claude binds them.

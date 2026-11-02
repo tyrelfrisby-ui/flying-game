@@ -6,17 +6,63 @@ import json
 import math
 from pathlib import Path
 import numpy as np
-from vr_cockpit import Author, Shape, Glb, MODELS, ROOT, gl, builder, sill, skin_y
+from vr_cockpit import Author, Shape, Glb, MODELS, ROOT, gl, builder, sill, skin_y, sec
 from drop_card_slot import validate
 
+PANEL_INSET=.025
+BOW_OFFSET=.022
 BOW_X=(-.835,-.875)
-BOW_RADIUS=.00635
+BOW_RADIUS=.005
+PANEL_STATIONS={'Rear':-.80,'Front':-.145}
 
-def bow_points(x):
-    # Same 2.4 superellipse as rounded panel, with 60 mm crown clearance.
-    z0=sill(x)+.004; width=skin_y(x,sill(x))
-    return np.array([(x,width*math.copysign(abs(math.cos(t))**(2/2.4),math.cos(t)),
-                      z0+(.218-z0)*math.sin(t)**(2/2.4)) for t in np.linspace(0,math.pi,49)])
+def panel_curve(x,offset=0):
+    """Normal inset of the builder's actual upper skin section; no vertical sides.
+    The skin exponent is intentionally inherited, not a separate panel superellipse.
+    """
+    top,bot,hw=sec(x);zw=bot+.62*(top-bot);h=top-zw
+    t=np.linspace(0,math.pi,161)
+    yz=np.array([(hw*math.copysign(abs(math.cos(v))**(2/2.4),math.cos(v)),zw+h*math.sin(v)**(2/2.4)) for v in t])
+    tangent=np.gradient(yz,axis=0);normal=np.column_stack((tangent[:,1],-tangent[:,0]));normal/=np.linalg.norm(normal,axis=1)[:,None]
+    return yz+(offset-PANEL_INSET)*normal
+
+def bow_points(x,panel_x=-.80):
+    yz=panel_curve(panel_x,BOW_OFFSET)
+    # Trim at the actual moving sill rail and land the ends on its centreline.
+    rail_z=sill(x)+.006
+    yz=yz[yz[:,1]>rail_z]
+    rail_y=skin_y(x,sill(x))-.004
+    yz=np.vstack(((rail_y,rail_z),yz,(-rail_y,rail_z)))
+    return np.column_stack((np.full(len(yz),x),yz))
+
+def pitts_panels(a):
+    g=a.g;white=g.material('P2c_Panel_White',(.88,.87,.82));metal=g.material('P2c_Polished_Rim',(.83,.85,.88))
+    g.doc['materials'][metal]['pbrMetallicRoughness'].update(metallicFactor=1,roughnessFactor=.16)
+    for seat,x in PANEL_STATIONS.items():
+        yz=panel_curve(x);sh=Shape();sh.prism(yz,x,.015 if seat=='Rear' else .012)
+        a.node('RearPanel_Rounded' if seat=='Rear' else 'FrontPanel_Arched',shape=sh,mat=white)
+        sh=Shape();pts=[(x-.008,y,z) for y,z in yz];pts.append(pts[0])
+        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.0025,8)
+        a.node('Panel_Rim_'+seat,shape=sh,mat=metal)
+    # Remove the old front hexagonal plate from the combined Cockpit mesh only.
+    o=g.doc['nodes'][a.idx('Cockpit')]
+    for pr in g.doc['meshes'][o['mesh']]['primitives']:
+        ids=g.array(pr['indices']).reshape(-1,3);v=np.array([builder(q) for q in g.array(pr['attributes']['POSITION'])]);t=v[ids]
+        rm=((abs(abs(t[:,:,0]+.145)-.006)<.00001)&(abs(t[:,:,1])<.2701)&(t[:,:,2]>=-.0801)&(t[:,:,2]<=.1601)).all(1)
+        pr['indices']=g.accessor(ids[~rm].reshape(-1,1),'SCALAR',5125)
+
+def pitts_frame(a):
+    # Preserve bubble and fixed windscreen; frame only follows bubble end outlines.
+    tops=[(-.131,.222),(-.25,.345),(-.393,.458),(-.601,.530),(-.869,.554),(-1.05,.552),(-1.226,.530),(-1.464,.482),(-1.601,.429)]
+    sh=Shape()
+    for x in (-.135,-1.595):
+        ztop=float(np.interp(-x,[-p[0] for p in tops],[p[1] for p in tops]))+.004
+        w=skin_y(x,sill(x));z=sill(x)-.002
+        pts=[(x,w*math.copysign(abs(math.cos(t))**(2/2.4),math.cos(t)),z+(ztop-z)*math.sin(t)**(2/2.4)) for t in np.linspace(0,math.pi,65)]
+        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.011,8)
+    for sy in (-1,1):
+        pts=[(x,sy*(skin_y(x,sill(x))-.004),sill(x)+.006) for x in np.linspace(-.13,-1.60,65)]
+        for u,v in zip(pts,pts[1:]):sh.tube(u,v,.014,8)
+    a.node('Canopy_Frame',parent='Canopy',shape=sh,mat=a.g.material('P2c_Frame_Red',(.55,.012,.018)))
 
 def ribbon(points,width=.04445,thick=.003):
     """Flat webbing, constant rectangular section, continuous between waypoints."""
@@ -53,30 +99,59 @@ class Edit(Author):
         return o
 
 def canopy(a):
-    g=a.g;grey=g.material('VR_4130',(.42,.45,.48));white=g.material('VR_Delrin',(.89,.89,.84));black=g.material('VR_Black',(.012,.014,.016))
-    for name,x in zip(('Canopy_Bow_F','Canopy_Bow_R'),BOW_X):
-        sh=Shape();pts=bow_points(x)
-        for p,q in zip(pts,pts[1:]):sh.tube(p,q,BOW_RADIUS,10)
-        a.node(name,parent='Canopy',shape=sh,mat=grey)
-    # Bridge between low crowns; short downward capture pin. Both move with canopy.
-    sh=Shape();sh.box((-.855,0,.218),(.053,.10,.008))
-    a.node('Canopy_Latch_Bracket',parent='Canopy',shape=sh,mat=grey)
-    sh=Shape();sh.tube((-.855,-.0381,.183),(-.855,-.0381,.218),.004)
-    a.node('Canopy_Latch_Pin',(-.855,-.0381,.218),'Canopy',sh,grey)
-    a.rigged('Canopy_Latch_Pin','canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move')
-    # Transverse channel, open at pilot-left end: +76.2 mm moves pin OUT.
-    # A shallow step near the pilot-right end represents the locking notch.
-    sh=Shape();sh.box((-.855,-.018,.170),(.052,.084,.016))
-    for xx in (-.877,-.833):
-        sh.box((xx,-.003,.190),(.008,.054,.024))
-        sh.box((xx,-.050,.190),(.008,.020,.024))
-        sh.box((xx,-.035,.187),(.008,.010,.018))
-    sh.box((-.855,-.056,.187),(.044,.008,.018))
-    a.node('Canopy_Latch_Block',shape=sh,mat=white)
-    sh=Shape();sh.tube((-.835,-.0381,.187),(-.865,-.0381,.205),.004);sh.sphere((-.865,-.0381,.205),.014)
-    a.node('Canopy_Latch_Knob',(-.865,-.0381,.205),shape=sh,mat=black)
-    a.rigged('Canopy_Latch_Knob','canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move')
-    a.node('Grip_Canopy_Latch',(-.865,-.0381,.205),'Canopy_Latch_Knob')
+    g=a.g;white=g.material('P2c_Bow_White',(.92,.92,.88));black=g.material('VR_Black',(.012,.014,.016));metal=g.material('P2c_Latch_Metal',(.55,.57,.60))
+    for seat,xp in PANEL_STATIONS.items():
+        suffix='' if seat=='Rear' else '_Front'
+        for label,dx in (('F',-.035),('R',-.075)):
+            sh=Shape();pts=bow_points(xp+dx,xp)
+            for p,q in zip(pts,pts[1:]):sh.tube(p,q,BOW_RADIUS,10)
+            a.node('Canopy_Bow_'+label+suffix,parent='Canopy',shape=sh,mat=white)
+        z=panel_curve(xp,BOW_OFFSET)[:,1].max();x=xp-.055
+        sh=Shape();sh.box((x,0,z),(.055,.110,.024))
+        a.node('Canopy_Latch_Block'+suffix,parent='Canopy',shape=sh,mat=white)
+        sh=Shape();sh.box((x,0,z-.014),(.053,.10,.005))
+        a.node('Canopy_Latch_Bracket'+suffix,parent='Canopy',shape=sh,mat=metal)
+        # Short internal catch, entirely inside the block. No hanging rod.
+        sh=Shape();sh.tube((x,-.0381,z-.006),(x,-.0381,z+.006),.003)
+        a.node('Canopy_Latch_Pin'+suffix,(x,-.0381,z),'Canopy',sh,metal)
+        a.rigged('Canopy_Latch_Pin'+suffix,'canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move')
+        p=(x-.022,-.0381,z+.025);sh=Shape();sh.tube((x,-.0381,z+.007),p,.003);sh.sphere(p,.014)
+        n='Canopy_Latch_Knob'+suffix;a.node(n,p,'Canopy',sh,black)
+        a.rigged(n,'canopy_latch',(0,1,0),[0,1],[0,.0762],kind='move')
+        a.node('Grip_Canopy_Latch'+suffix,p,n)
+        sh=Shape();sh.box((x-.028,0,z),(.001,.050,.017))
+        a.node('Canopy_Latch_Placard'+suffix,parent='Canopy',shape=sh,mat=g.material('P2c_Placard_Red',(.7,.015,.015)))
+        sh=Shape();sh.box((x-.0286,0,z+.005),(.0005,.046,.004))
+        a.node('Canopy_Latch_Placard_White'+suffix,parent='Canopy',shape=sh,mat=white)
+
+def extra_latch(a):
+    g=a.g;red=g.material('VR_Latch_Red',(.7,.015,.015));white=g.material('VR_Latch_White',(.9,.9,.86));steel=g.material('P2c_Pin_Steel',(.6,.62,.65))
+    # Legacy contract aliases retained as inert empties; obsolete paddle meshes retired.
+    for n in g.doc['nodes']:
+        if n['name'].startswith(('Canopy_Latch_Handle_L','Canopy_Latch_Handle_R','CanopyLock_')):
+            n.pop('mesh',None);n.pop('extras',None)
+    # Existing right-side CanopyRelease_* are separate jettison pulls: retained.
+    frame=g.doc['nodes'][a.idx('Canopy_Frame')];m=g.world_matrices()[a.idx('Canopy_Frame')]
+    v=np.concatenate([g.array(pr['attributes']['POSITION']) for pr in g.doc['meshes'][frame['mesh']]['primitives']]);v=np.array([builder(q) for q in ((m[:3,:3]@v.T).T+m[:3,3])])
+    for suffix,station in (('',-1.55),('_Front',-.70)):
+        # Select port sill frame samples at each original latch station.
+        near=v[(abs(v[:,0]-station)<.09)&(v[:,1]>0)]
+        low=near[near[:,2]<np.percentile(near[:,2],20)+.012];p=np.array((station,float(np.median(low[:,1])),float(np.median(low[:,2]))))
+        for label,dx in (('Aft',-.045),('Fwd',.045)):
+            q=p+(dx,-.018,-.030);n='Canopy_Latch_Handle_'+label+suffix
+            sh=Shape();sh.tube(p+(dx,0,0),q,.006);sh.box(q,(.014,.027,.055));a.node(n,q,'Canopy',sh,red)
+            sh=Shape();sh.box(q+(0,0,-.012),(.016,.029,.020));a.node(n+'_White',q,n,sh,white)
+            a.node('Grip_Canopy_Latch_'+label+suffix,q,n)
+            if label=='Fwd':a.rigged(n,'canopy_latch',(-1,0,0),[0,1],[0,.035],kind='move',desc='Spring forward at rest; squeeze slides forward handle aft 35 mm; estimated')
+        q=p+(0,-.018,-.030);n='Grip_Canopy_Latch'+suffix;a.node(n,q,'Canopy');a.rigged(n,'canopy_latch',(-1,0,0),[0,1],[0,.0175],kind='move',desc='Compatibility midpoint follows half the forward handle travel')
+        for j,dx in enumerate((-.070,.070)):
+            q=p+(dx,0,-.012);n='Canopy_Latch_Pin_'+str(j+1)+suffix
+            sh=Shape();sh.tube(q+(0,0,-.012),q+(0,0,.012),.003)
+            a.node(n,q,'Canopy',sh,steel);a.rigged(n,'canopy_latch',(0,0,1),[0,1],[0,.018],kind='move',desc='6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate')
+            sh=Shape();c=q+(0,0,-.006)
+            pts=[c+(.005*math.cos(t),.005*math.sin(t),0) for t in np.linspace(0,2*math.pi,17)]
+            for u,vv in zip(pts,pts[1:]):sh.tube(u,vv,.0015,8)
+            a.node('Canopy_Latch_Hole_'+str(j+1)+suffix,shape=sh,mat=steel)
 
 def harness(a,kind,seat,hip):
     g=a.g;hip=np.array(hip);root='Harness_'+seat;a.node(root,hip)
@@ -113,17 +188,20 @@ def harness(a,kind,seat,hip):
 
 def update(path):
     path=Path(path);g=Glb(path)
-    if g.doc.get('extras',{}).get('vrCockpitPhase2'):return
+    if g.doc.get('extras',{}).get('vrCockpitPhase2c'):return
     kind='pitts' if path.parent.name=='pitts-s2b-like' else 'extra';a=Edit(g)
-    if kind=='pitts':canopy(a)
+    if kind=='pitts':
+        pitts_panels(a);pitts_frame(a);canopy(a)
+    else:extra_latch(a)
     hips={'pitts':[('Rear',(-1.30,0,-.335)),('Front',(-.53,0,-.335))],
           'extra':[('Rear',(-1.72,0,-.01)),('Front',(-.82,0,-.01))]}
     for seat,hip in hips[kind]:harness(a,kind,seat,hip)
     rp=ROOT/'docs/models'/('pitts-s2b-own-rig.json' if kind=='pitts' else 'ea300-own-rig.json')
-    rig=json.loads(rp.read_text());names={r['node'] for r in a.rig};rig['rig']=[r for r in rig['rig'] if r['node'] not in names]+a.rig
+    rig=json.loads(rp.read_text());names={r['node'] for r in a.rig};rig['rig']=[r for r in rig['rig'] if r['node'] not in names and not (kind=='extra' and r['node'].startswith(('CanopyLock_', 'Canopy_Latch_Handle_L', 'Canopy_Latch_Handle_R')))]+a.rig
     rig['notes']='Phase 2 original visual geometry; dimensions/placement estimates require Ty review. harness_latch drives both independent releases visually.'
     rp.write_text(json.dumps(rig,indent=1)+'\n')
-    g.doc.setdefault('extras',{})['vrCockpitPhase2']=dict(originalGeometry=True,bow_tube_radius_m=BOW_RADIUS if kind=='pitts' else None,pin_length_m=.035 if kind=='pitts' else None)
+    g.doc.setdefault('extras',{})['vrCockpitPhase2c']=dict(panel_inset_m=PANEL_INSET,bow_normal_offset_m=BOW_OFFSET)
+    g.doc.setdefault('extras',{})['vrCockpitPhase2']=dict(originalGeometry=True,bow_tube_radius_m=BOW_RADIUS if kind=='pitts' else None,pin_length_m=.012 if kind=='pitts' else None)
     validate(g,path);g.save(path);print('PHASE2',path.name)
 
 if __name__=='__main__':

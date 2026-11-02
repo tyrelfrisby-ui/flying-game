@@ -1,4 +1,4 @@
-"""Operator-only Blender renders. No Unity/deploy. Exactly twelve 1600x1000 PNGs.
+"""Operator-only Blender renders. No Unity/deploy. Twelve Phase 2 plus nine P2c 1600x1000 PNGs.
 blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- OUTPUT_DIR
 Imported frame: nose -X, port -Y, Z up. Sight_ excluded from EVERY non-eye view.
 """
@@ -117,3 +117,27 @@ c=bpy.data.objects['Parachute_Canopy']
 if not c.data.shape_keys or 'Inflate' not in c.data.shape_keys.key_blocks:raise RuntimeError('Missing Inflate morph')
 c.data.shape_keys.key_blocks['Inflate'].value=1
 shot('parachute_deployed',(11,-15,9),(1.335,0,3.5),16)
+
+# P2c photo comparison evidence. Same rear eye camera as after2_pitts_eye.
+def shot2c(name,*args,**kwargs):
+    shot(name,*args,**kwargs)
+    (OUT/('after2_'+name+'.png')).replace(OUT/('after2c_'+name+'.png'))
+load();body();gear()
+shot2c('pitts_eye',(1.325,0,.30),(-1,0,-.25),eye=True)
+load();hide_canopy_glass()
+shot2c('pitts_panel_front_on',(1.34,0,.25),(.80,0,.25),.95)
+shot2c('pitts_latch_locked',(1.02,-.32,.43),(.855,0,.32),.30)
+rig('canopy_latch',1)
+shot2c('pitts_latch_unlocked',(1.02,-.32,.43),(.855,0,.32),.30)
+load()
+shot2c('pitts_canopy_side',(2.7,-3.1,1.35),(.85,0,.22),2.8)
+load();hide_skin()
+shot2c('pitts_frame',(1,-3,.55),(.85,0,-.20),2.1)
+load('extra');hide_canopy_glass()
+shot2c('extra_latch_closed',(1.72,0,.62),(1.55,-.35,.25),eye=True)
+rig('canopy_latch',1)
+shot2c('extra_latch_squeezed',(1.72,0,.62),(1.55,-.35,.25),eye=True)
+rig('canopy_open',1)
+for o in bpy.data.objects:
+    if o.name.startswith('Canopy_Glass'):o.hide_render=False
+shot2c('extra_canopy_open',(3.2,-3.4,1.9),(1.1,0,.45),3.9)

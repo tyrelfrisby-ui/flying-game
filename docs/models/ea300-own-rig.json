@@ -2056,19 +2056,19 @@
    "extra": {}
   },
   {
-   "node": "Canopy_Latch_Handle_L",
+   "node": "Canopy_Latch_Handle_Fwd",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.5499999225139618,
-    0.2839193642139435,
-    0.3410773034095764
+    1.5050000000000001,
+    0.22545334815979004,
+    0.3291216559410095
    ],
    "map": [
     [
@@ -2077,30 +2077,30 @@
     ],
     [
      1,
-     25
+     0.035
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "desc": "Spring forward at rest; squeeze slides forward handle aft 35 mm; estimated",
    "extra": {},
    "link": "",
    "note": ""
   },
   {
-   "node": "Canopy_Latch_Handle_R",
+   "node": "Grip_Canopy_Latch",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
+    1.0,
     0.0,
     0.0
    ],
    "pivot_gltf": [
-    1.5499999225139618,
-    0.2839193642139435,
-    0.2870773034095764
+    1.55,
+    0.22545334815979004,
+    0.3291216559410095
    ],
    "map": [
     [
@@ -2109,30 +2109,30 @@
     ],
     [
      1,
-     -25
+     0.0175
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "desc": "Compatibility midpoint follows half the forward handle travel",
    "extra": {},
    "link": "",
    "note": ""
   },
   {
-   "node": "Canopy_Latch_Handle_L_Front",
+   "node": "Canopy_Latch_Pin_1",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
     0.0,
+    1.0,
     0.0
    ],
    "pivot_gltf": [
-    0.6999999284744263,
-    0.3215038478374481,
-    0.3702127094268799
+    1.62,
+    0.24345334815979003,
+    0.3471216559410095
    ],
    "map": [
     [
@@ -2141,30 +2141,30 @@
     ],
     [
      1,
-     25
+     0.018
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "desc": "6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate",
    "extra": {},
    "link": "",
    "note": ""
   },
   {
-   "node": "Canopy_Latch_Handle_R_Front",
+   "node": "Canopy_Latch_Pin_2",
    "param": "canopy_latch",
    "parent": "Canopy",
-   "kind": "rot",
+   "kind": "move",
    "axis_gltf": [
-    -1.0,
     0.0,
+    1.0,
     0.0
    ],
    "pivot_gltf": [
-    0.6999999284744263,
-    0.3215038478374481,
-    0.31621270942687985
+    1.48,
+    0.24345334815979003,
+    0.3471216559410095
    ],
    "map": [
     [
@@ -2173,12 +2173,140 @@
     ],
     [
      1,
-     -25
+     0.018
     ]
    ],
    "model": 0.0,
    "unit": "0..1",
-   "desc": "Red and white squeeze paddles on left sill; 25 degrees estimated; both seats linked",
+   "desc": "6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Handle_Fwd_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.6549999999999999,
+    0.26329654574394223,
+    0.35898853015899657
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.035
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Spring forward at rest; squeeze slides forward handle aft 35 mm; estimated",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Grip_Canopy_Latch_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.7,
+    0.26329654574394223,
+    0.35898853015899657
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.0175
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "Compatibility midpoint follows half the forward handle travel",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin_1_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.77,
+    0.28129654574394225,
+    0.3769885301589966
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.018
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate",
+   "extra": {},
+   "link": "",
+   "note": ""
+  },
+  {
+   "node": "Canopy_Latch_Pin_2_Front",
+   "param": "canopy_latch",
+   "parent": "Canopy",
+   "kind": "move",
+   "axis_gltf": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "pivot_gltf": [
+    0.6299999999999999,
+    0.28129654574394225,
+    0.3769885301589966
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0.018
+    ]
+   ],
+   "model": 0.0,
+   "unit": "0..1",
+   "desc": "6 mm pin retracts upward 18 mm from airframe socket; simplified linkage estimate",
    "extra": {},
    "link": "",
    "note": ""

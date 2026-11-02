@@ -185,21 +185,9 @@ def pitts(path):
     # Check the actual round tube vertices against the curved loft as well.
     surface_clear=[skin_y(x,z)-abs(y) for x,y,z in frame.v]
     assert min(surface_clear)>0,(min(surface_clear),'tube vertex outside fuselage')
-    # Same superellipse top-section maths as GL panel_plate, scaled to Pitts loft.
-    xp=-.80;top,bot,hw=sec(xp);top=.152;hw=min(hw-.025,.335);zb=-.12;zw=bot+.62*(top-bot)
-    # Rounded top, vertical lower sides: GL superellipse crown mapped between sill and centre crown.
-    poly=[(-hw,zb),(hw,zb),(hw,.045)]
-    poly += [(hw*math.copysign(abs(math.cos(t))**(2/2.4),math.cos(t)),.045+(top-.045)*math.sin(t)**(2/2.4)) for t in np.linspace(0,math.pi,41)]
-    poly += [(-hw,.045)]
-    sh=Shape();sh.prism(poly,xp,.015);a.node('RearPanel_Rounded',shape=sh,mat=panel)
-    # Instruments unchanged. At outer gauge edges the crown remains above z=.099.
-    from rear_panel import LAYOUTS
-    margins=[]
-    crown=lambda y:.045+(top-.045)*max(0,1-(abs(y)/hw)**2.4)**(1/2.4)
-    for name,u,z,d in LAYOUTS['pitts-s2b-like']:
-        for t in np.linspace(0,2*math.pi,129):
-            y=u+d/2*math.cos(t);zz=z+d/2*math.sin(t);margins.append(min(crown(y)-zz,zz-zb,hw-abs(y)))
-    assert min(margins)>0
+    from vr_phase2 import pitts_panels
+    pitts_panels(a)
+    hw=sec(-.8)[2]-.025;zb=sec(-.8)[1]+.62*(sec(-.8)[0]-sec(-.8)[1]);top=sec(-.8)[0]-.025
     # Full forward pedals preserved at old x; rear pedals now straddle front seat pan.
     grips={}
     for seat,x,yw in [('Front',-.22,.13),('Rear',-.43,.285)]:
@@ -227,7 +215,7 @@ def pitts(path):
     canopy(a)
     a.node('Grip_Canopy_Rail',(-1.15,.34,.16),'Canopy')
     report=dict(tube_members=len(segments),tube_ends=len(errors),max_endpoint_axis_error_mm=max(errors)*1000,lateral_skin_clearance_mm=min(skin_clear)*1000,min_tube_vertex_lateral_skin_gap_mm=min(surface_clear)*1000,
-                longeron_widths=widths,tube_od_mm=[25.4,19.05],panel=dict(half_width=hw,bottom=zb,crown=top,min_gauge_margin_mm=min(margins)*1000),
+                longeron_widths=widths,tube_od_mm=[25.4,19.05],panel=dict(half_width=hw,bottom=zb,crown=top,min_gauge_margin_mm=None),
                 grips_builder=grips,removed_triangles=removed,rear_pedal_eye_reach_m=float(np.linalg.norm(np.array((-.43,.285,-.46))-np.array((-1.325,0,.3)))))
     g.doc.setdefault('extras',{})['vrCockpitPhase1']=report
     validate(g,path);g.save(path)

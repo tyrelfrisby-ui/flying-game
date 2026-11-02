@@ -3997,3 +3997,74 @@ Restored the matching v13.1 Great Lakes builder integration from local cockpit c
 Rebuilt the requested `great-lakes-like-own.glb` through `build_great_lakes.py --offline-update`, using the immutable v13.1 generated cockpit GLB at the commit above and applying the current sequence-card/sight geometry. Blender 5.2.2 crashes in Metal device detection before Python in this sandbox; no fresh Blender export or Unity runtime validation is claimed. The full Blender builder is restored for subsequent exports. Existing alternate-livery GLBs and their offline base behavior are unchanged; this urgent asset repair targets the explicitly requested default GLB. Existing GLB `.meta` retained; no new Unity asset introduced. Glass Overlay untouched.
 
 Validation: `check_great_lakes_rig.py` passes 58/58 exact node bindings against the runtime rig table, expected parents and world pivots (0.11 mm tolerance), rig parameters, moving mesh descendants, prop/spinner, eyes, avionics displays, sequence card and sights; all nodes have identity rotation and unit scale, with nose -x, up +y and span z. Offline rebuild repeated with identical SHA-256 `0e556105a076cca100ef014f315a2cbc67a10abe41705ed37b1a35cfdbc7653f`. Python syntax compilation and `git diff --check` pass. Required tracked-file ignore audit printed nothing. Commit attempt blocked at `git add`: sandbox denies creation of `/Users/tyfrisby/Developer/flying-game/.git/worktrees/codex-greatlakes-rig/index.lock` outside writable roots. Files remain unstaged; no commit, push, merge, deployment, or forced add occurred.
+
+## 2026-11-02 — Codex visuals P2c + P2c-2 — NEEDS YOU
+
+**NEEDS YOU — Ty/operator:** compare the white arched panel outline, polished rim and
+close concentric tubes against Pitts refs 3–5; compare the one-piece bubble's end arcs
+and sill rail against refs 1–2. Check the black ball is right when locked and moves
+left when unlocked, and that the sequence card remains visible from the rear eye.
+Compare the Extra fore/aft red/white handles against its open-canopy photo: aft fixed,
+front spring-forward, squeezing front aft withdraws pins, and the entire assembly
+follows the opened frame. Confirm both-seat duplication, frame stations, handle reach,
+helmet/hand proxies, windscreen boundary and all estimated dimensions below. Run the
+operator rebuild/check/render commands before judging the visuals. **No gate approved.**
+
+Looked at all five supplied Pitts PNGs, Extra PNG and prior after2 frame/eye renders.
+Pitts first: replaced independent squarish panel with actual builder upper-skin section
+at each panel station, normal-inset; white paint and metallic polished rim; parallel
+normal-offset bows; compact moving block and internal catch, ball/grip on moving canopy.
+Removed intermediate red frame hoop X −.47 (old builder comment called it a windscreen
+bow, but it belonged to moving Canopy_Frame); retained bubble end arcs and sill rails.
+Fixed windscreen glass/other fixed nodes and all bubble vertices were not moved.
+Extra second: frame-derived fore/aft translating latch pairs, four pins and airframe
+sockets; old L/R and CanopyLock roots retained as inert aliases. CanopyRelease_F/R were
+checked in ea_rig.py: distinct right-sill emergency jettison pulls, retained separately.
+No C#, Unity assets/editor, ProjectSettings, Glass Overlay, deploy, commit or other
+worktree writes. Supplied CONTRACT read only; added a local CONTRACT copy plus additions
+for operator reconciliation. Blender was never started; standalone bundled Python only.
+
+**Estimated dimensions (metres unless marked mm):**
+Pitts panels X rear/front −.800/−.145, actual ST skin upper section normal inset 25 mm,
+rear width/height 741.3/363.7 mm, bottom/crown Z −.06939/.29433; front 808.7/322.8 mm,
+bottom/crown −.12355/.19922. Plate thickness 15/12 mm. Polished perimeter section diameter
+5 mm, aft face offset 8 mm, metallic 1 / roughness .16. White bows OD 10 mm, normal
+offset 22 mm, nominal radial rim surface gap 14.5 mm; X panel−.035/−.075, spacing40 mm,
+crowns .31633/.22122; ends transition to existing sill centreline. Block 55×110×24 mm,
+X panel−.055, Z bow crown; bracket 53×100×5 mm, 14 mm lower. Internal catch 6 mm diameter
+×12 mm, ball28 mm diameter, stem6 mm diameter. Ball centre block X−22 mm/Z+25 mm,
+Y−38.1→+38.1 mm, travel76.2 mm pilot-left. Placard50×17×1 mm, white band46×4×.5 mm.
+Frame rails28 mm OD, end arcs22 mm OD at X−.135/−1.595, follow original bubble profile;
+rail centre skin_y−4 mm, sill+6 mm. Retained slide101.6 mm then right hinge100°,
+canopy_open split .2. No factory measurements claimed.
+Extra: each actual port frame sample near X−1.55/−.70 supplies Y/Z. Handle centres
+X±45 mm, 18 mm inboard/30 mm below frame. Stem12 mm OD; red grip14×27×55 mm;
+white16×29×20 mm, 12 mm below centre. Fwd travel35 mm aft; midpoint17.5 mm aft;
+Aft fixed. Four pins total, 6 mm diameter×24 mm, X frame±70 mm, Z frame−12 mm;
+retract18 mm up. Socket centre another6 mm lower; ring centreline diameter10 mm,
+section diameter3 mm; squeezed pin tips clear socket upper bound by10.5 mm.
+Simplified linkage, not an engineering mechanism. Proxies: helmet140 mm radius at
+Pitts eyes (−1.325/−.555,0,.30), Extra (−1.72/−.82,0,.62); Extra control hands65 mm
+radius at (−1.52/−.62,0,.04). These estimates exclude deliberate latch grasp contact.
+
+**Validation:** all seven temporary CPU previews under /tmp/p2c-models pass graph,
+names, pin engagement/retraction, geometry and numerical clearance checks. Reapplying
+postprocess is byte-identical for all seven. Modified Python parses; git diff --check
+passes. Revised JSON report is CPU-preview evidence, not fresh Blender export evidence.
+Pitts minimum bow gaps mm: panels29.72, instruments124.58, card271.33, helmets134.98,
+both sticks full-control245.40. Rear/front gauge outline margin4.39/109.00 mm. Continuous opening
+panel separation20.00 mm, helmet X separation77.40 mm, full-control stick opening
+sweep221.44 mm. Extra opening/latch sweep gaps
+rear/front helmets46.67/105.31 mm, control hands280.10/325.26 mm. Full numbers and
+scope/bounds: docs/models/vr-cockpit-phase2-checks.json; dimensions and names:
+docs/models/vr-cockpit-phase2.md, canopy-latches.md, local CONTRACT.md and both rig JSONs.
+Nine after2c shots added alongside existing12. Renders and fresh Blender export unexecuted.
+
+**Exact operator commands (outside sandbox, this worktree only):**
+```sh
+cd /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit
+export PYTHONDONTWRITEBYTECODE=1
+zsh tools/own_models/rebuild_vr_phase2.sh
+/Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 tools/own_models/check_vr_phase2.py --write-report
+/Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup --python tools/own_models/render_vr_phase2.py -- /Users/tyfrisby/Developer/flying-game-worktrees/codex-vr-cockpit/renders/phase2c
+```

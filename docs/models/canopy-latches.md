@@ -41,3 +41,24 @@ travel releases it. Black ball fully pilot-right is locked. All dimensions and l
 notch/linkage details remain estimates requiring Ty's eye review. See
 [vr-cockpit-phase2.md](vr-cockpit-phase2.md) for numbers, continuous opening-clearance
 proof, sources, unresolved questions and operator render/rebuild commands.
+
+## P2c / P2c-2 supersession — Ty photo correction
+
+The earlier Phase 1 table and Phase 2 pin dimensions are historical. Pitts now has
+normal-inset skin-section white panels with polished rims, 22 mm offset low white bows
+at both panels, 12 mm hidden catch, and a 28 mm black ball travelling 76.2 mm leftward.
+Latch blocks/knobs/bows are on Canopy. Intermediate red hoop removed; bubble edge and
+sill rails retained. Fixed windscreen unchanged.
+
+Extra has fore/aft red/white handles **on the moving canopy frame**, at both cockpit
+stations. Aft fixed; spring-forward Fwd translates aft 35 mm to squeeze, retracting
+two 6 mm pins per cockpit upward 18 mm from airframe sockets. Releasing returns them.
+Grip midpoint travels half as far. Nodes: Canopy_Latch_Handle_Aft/Fwd,
+Grip_Canopy_Latch_Aft/Fwd, Canopy_Latch_Pin_1/2, Canopy_Latch_Hole_1/2; front pair
+appends _Front. Old L/R handles and CanopyLock_F/R retained as inert compatibility
+empties; separate CanopyRelease_F/R jettison pulls remain on airframe.
+
+All dimensions, derived placement and clearance proxy assumptions are estimates;
+see [P2c dimensions and checks](vr-cockpit-phase2.md). canopy_latch 0 = spring released,
+pins in; 1 = squeezed, pins out. Opening requires pins retracted; interaction logic
+remains Claude's responsibility. No operating procedure or approval is asserted.
