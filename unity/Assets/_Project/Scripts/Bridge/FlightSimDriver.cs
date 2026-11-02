@@ -346,6 +346,10 @@ namespace FlyingGame.Bridge
         /// increase): a steady count means the frame cannot carry the physics.</summary>
         public static int CatchUpCappedFrames;
 
+        /// <summary>Stopwatch ticks spent inside <see cref="SimLoop.Advance(double, ControlInputs, ref double, double)"/>
+        /// by every driver, summed (the [QuestPerf] line reports it per frame beside SimProfile's breakdown).</summary>
+        public static long SimAdvanceTicks;
+
         private void Update()
         {
             if (Replaying) return;
@@ -355,7 +359,9 @@ namespace FlyingGame.Bridge
             // In a headset the catch-up is capped at two display periods (SimLoop.HeadsetCatchUpSec): chasing a long
             // frame with up to ten physics steps made the next frame late as well, and so on.
             double cap = XrHeadset.Active ? SimLoop.HeadsetCatchUpSec(XrHeadset.CurrentRefreshHz) : SimLoop.MaxCatchUpSec;
+            long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
             if (Sim.Advance(Time.deltaTime, inputs, ref _accumulator, cap)) CatchUpCappedFrames++;
+            SimAdvanceTicks += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
             PostStep?.Invoke(Sim.Aircraft);   // e.g. the wing runner holding the wings level on the ground roll
             ApplyStateToTransform();
             UpdateSpinMetrics(Time.deltaTime);

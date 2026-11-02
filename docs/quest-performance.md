@@ -1,12 +1,81 @@
-# Meta Quest 3S performance budget
-
-**Status: still unmeasured ON THE HEADSET.** Every frame number in the budget table is a budget. On 2026-11-02 the
-3S was on the cable but `adb devices -l` listed it as **unauthorized** (the "Allow USB debugging" prompt has to be
-accepted inside the headset), so no logcat could be read. What IS measured is the sim's cost on the Mac
-(*The stutter*, below). The build logs a `[QuestPerf]` line every 5 s, so the next capture fills in the rest.
+**Status: MEASURED on the headset once (build a222bda, 2026-11-02, logcat in /tmp/questlogs/perf-1410), and the
+cause of the slowdown found from it — see *Slow near the ground*. The fix is measured on the Mac only.** Above 100 m
+that build ran 72 fps with the main thread at 4.5–8 ms and the GPU (app) at 6.7–7 ms (VrApi's own `App=`), 10–11 ms
+with the recorder running. Everything else in the budget table is still a budget.
 
 Hardware: Snapdragon XR2 Gen 2, 1832 × 1920 per eye, refresh 72 / 90 / 120 Hz. The runtime picks the recommended
 eye-buffer size; `[Quest] XR on` in the log prints it.
+
+## Slow near the ground (Ty, build a222bda, 2026-11-02): "slows to a crawl after a couple of minutes"
+
+**Measured on the device** (logcat, `[Freeze]` + `[QuestPerf]` every 5 s). Not memory (heap steady 37–43 MB), not
+the collector (+1…+13 per 5 s), not heat (Thermal Status 0, CPU/GPU level 4/4), not the recorder (on and off alike),
+not the GPU (6.7–11 ms). It was the main thread, and it followed **height above the ground**, not time:
+
+| Where (from the log) | fps | cpu main | sim capped / 5 s |
+|---|---|---|---|
+| any flight above ~100 m agl | 72 | 4.5–8 ms | 0 |
+| descending through ~60 m (e.g. 13:59:41, agl 43) | 20 | 48 ms | ~95 (every frame) |
+| climbing back through ~100 m (14:01:51, agl 208) | 72 | 6.5 ms | 0 |
+| sitting on the water at (8544, 2673) | 62–66 | 14–15 ms | 0–30 |
+| on the ground at (5882, 4390) / (6371, 5303) | 19–22 | 46–53 ms | ~95 |
+| on the ground at (6188, 5183) | 8–9 | 110–120 ms | ~45 (every frame) |
+
+**The cause: the airframe's ground contact, asked at every RK4 stage.** `AirframeContact.Compute` skips its 21-odd
+hard points (the Pitts: wing tips, stab tips, fin top, prop tip, tail cone, belly, cowl …) only while the airframe is
+more than `ClearAboveM` = **60 m** above the highest of five ground samples — that is the threshold in the table.
+Below it, every point asks for the ground (height field, cave floors, decks, micro-bumps — which needs the surface
+type, three dozen region tests with string-keyed lookups into the island description — the water, the solids) at
+each of RK4's four stages, 200 times a second: ~17,000 point tests a second. On the ground the gear's three wheels
+do the same, and the gear had no altitude test at all, so it asked at 500 m too. Then the frame-rate cap made it
+worse: a slow frame makes the sim run its catch-up limit (27.8 ms of sim, 5–6 steps) on every frame instead of 2.8,
+so the work per frame doubled exactly when the frame could least afford it — `sim capped` counting every frame.
+
+**Reproduced engine-free** (`tools/FlightTests/QuestLowAltitudeProbe`: the Pitts on the island at the log's own
+coordinates, driven at 72 Hz). With `SimProfile` on, `contactPoints` went from 0 to 5–8 ms per 72 Hz frame below 60 m
+on this Mac, and island height evaluations from 88 to ~320 a frame. The headset's cores run this code roughly ten
+times slower than the Mac's (≈1.5 ms a step in cruise against ≈8 ms below 60 m on the device, inferred from the
+log's capped frames), which is the 40 ms.
+
+**The fix** (no flight-model change; `GroundContactCullTests` flies 52 flights — takeoff runs, a crash into rising
+ground, low passes, sitting still, a float and a landplane ditching, at the logged spots, in a Pitts, a 172 and a
+2-33 — with it on and off and gets **bit-identical** states):
+
+| Change | Where |
+|---|---|
+| The 60 m "clear of the ground" test once per STEP, not per stage, with the wheels counted and the step's own travel added; when clear, gear and hard points are skipped on all four stages (the old per-stage shortcut returned the same zero) | `AirframeContact.ClearOfTheGround(…, wheels, …, extraM)`, `Aircraft.StepWithDeflectionTargets` |
+| Below 60 m, each hard point and wheel is tested exactly on stage 1; one that is clear by more than 0.1 m + 11 × its travel in the step skips stages 2–4 (any slope up to 84°; against a steeper wall a contact can begin one 5 ms step later) | `AirframeContact.StageCullMargin`, `ContactPoint.StageClearM`, `LandingGear.Compute(…, stage, dt, stageClear)` |
+| A hard point more than 0.8 m above the bare height field skips the micro-bump surface lookup (it cannot touch a bump) | `WorldTerrain.HardPointGroundAt`, `MaxMicroBumpM` |
+| A wheel in the air no longer looks up the surface type | `LandingGear.Compute` |
+| The cave and surface tests read their numbers once instead of by string key on every call | `IslandCavities`, `IslandTerrain.SurfaceTables` |
+
+**Measured on the Mac, same session, before (HEAD 677e3745) and after, ms of CPU per 72 Hz frame** (the probe, the
+Pitts, the island's world):
+
+| Spot | 500 m | 50 m | 30 m | on the ground |
+|---|---|---|---|---|
+| (5941, 2618) spawn | 1.15 → 0.65 | 2.61 → 1.28 | 2.87 → 1.16 | 3.16 → 1.58 |
+| (5882, 4390) | 1.04 → 0.63 | 2.56 → 1.16 | 2.84 → 1.20 | 2.97 → 1.51 |
+| (6188, 5183) | 1.07 → 0.61 | 2.30 → 1.09 | 2.82 → 1.33 | 3.04 → 1.69 |
+| (8544, 2673) sea | 0.73 → 0.56 | 1.73 → 0.84 | 2.00 → 0.84 | 1.71 → 1.09 |
+
+Low flight costs about half what it did, cruise ~40 % less (the gear no longer asks for the ground in the air), and
+the gap between 500 m and the ground is now ~1 ms on the Mac instead of ~2. **Not measured on the headset.** If the
+rate there is still low near the ground, the new `top:` field says which part is left.
+
+**Reading it on the next run** (`adb logcat -s Unity | grep QuestPerf`): the line now ends
+
+    … | sim 3.1 ms/frame, 2.8 steps | top: step 3.0, forces 2.9, aero 1.4, contact 0.9, contactPoints 0.7 ms/frame | height 160 q 85 eval /frame
+
+`sim` is the wall time inside `SimLoop.Advance` per frame and the steps it ran (2.8 at 72 Hz; 5–6 means the cap is
+biting); `top:` the five costliest `SimProfile` scopes per frame (inclusive: `step` ⊃ `forces` ⊃ `aero`, `gear`,
+`contact` ⊃ `contactClear`, `contactPoints`; `air` is the regional field's samples, `afterStep` the bookkeeping);
+`height` the island height queries and the evaluations that missed the memo, per frame. Healthy near the ground:
+`steps` ≈ 2.8 and `contactPoints` a small fraction of `step`.
+
+Also fixed on that line: `gpu app` and `compositor` printed thousands of ms at 72 fps. The OpenXR display subsystem
+returns them in **milliseconds** on the Quest and the code multiplied by 1000 (a222bda's "gpu app 6886.8" was VrApi's
+`App=6.89ms`, "compositor 696.7" its `TW=0.70ms`).
 
 ## The stutter (Ty, 2026-11-02): "after a few minutes the frame rate gets really slow, catches up, then slows again"
 
@@ -147,13 +216,15 @@ compare a 5 s window with it on against one with it off. If it costs too much, t
 
 `QuestRig` logs, every 5 s:
 
-    [QuestPerf] 71.9 fps at 72 Hz | frame max 15.1 ms, 0 long | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.9 ms | dropped 0 in 5s | gc +1 heap 212 MB | sim capped 0 | scale 1.00 fov-level 0.50 | runtime none | rec off
+    [QuestPerf] 71.9 fps at 72 Hz | frame max 15.1 ms, 0 long | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.90 ms | dropped 0 in 5s | gc +1 heap 41 MB | sim capped 0 | scale 1.00 fov-level 0.50 | runtime none | rec off | sim 1.9 ms/frame, 2.8 steps | top: step 1.8, forces 1.7, aero 1.0, contact 0.3, gear 0.2 ms/frame | height 60 q 32 eval /frame
 
 - `frame max` — the longest frame in the window; `long` — frames over 1.5 display periods.
 - `cpu main` from `FrameTimingManager` (the Quest build switches it on); `gpu app`, `compositor`, `dropped` from
   the OpenXR display subsystem.
 - `gc +n` — garbage collections started in the window; `heap` — the managed heap (`GC.GetTotalMemory`).
 - `sim capped` — frames on which the sim stopped chasing real time (`FlightSimDriver.CatchUpCappedFrames`).
+- `sim … ms/frame, n steps | top: …` — where the sim's time goes, per subsystem (`SimProfile`; see *Slow near the
+  ground*).
 - `runtime` — the last performance notice from the runtime (`Cpu Thermal Normal->Warning`, …), or `none`.
   Each notice is also its own `[QuestPerf] runtime: …` line when it happens, and the start of the flight logs
   `[Quest] performance level hint sustained-high: CPU accepted, GPU accepted`.
