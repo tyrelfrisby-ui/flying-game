@@ -5,7 +5,13 @@
         "FlyingGame.Bridge",
         "FlyingGame.Core",
         "FlyingGame.Sim",
-        "Unity.Newtonsoft.Json"
+        "Unity.Newtonsoft.Json",
+        "FlyingGame.Quest",
+        "Unity.XR.Management",
+        "Unity.XR.Management.Editor",
+        "Unity.XR.OpenXR",
+        "Unity.XR.OpenXR.Editor",
+        "Unity.XR.OpenXR.Features.MetaQuestSupport"
     ],
     "includePlatforms": [
         "Editor"

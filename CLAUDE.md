@@ -123,3 +123,31 @@ for `SendMessage`. The same applies to anything sized from `Screen`: the batch w
 sized its eye targets from it rendered 272x408 instead of 963x1265 — blurry shots and far too narrow a field of
 view, with no error anywhere. A shot tool must state the device's pixels AND its physical size
 (`VrRig.SetScreenForTesting`), the same way `CockpitEyeCheck` states the eye it is checking.
+
+### A menu drawn with OnGUI does not exist inside a headset
+Every menu in this game is IMGUI, and on a Quest IMGUI draws to a back buffer nobody sees. The first Quest build
+would have opened on the landing page, paused, invisible, with no way out, and nothing in the log would have
+said so: the app "runs". Anything a pilot must reach in VR needs a world-space counterpart (`QuestMenu`), and a
+flight started from it must not lead into another OnGUI-only screen (a lesson card, a challenge brief), which is
+why the VR menu starts free flight only. Ask "can he see this with the headset on?" of every new screen.
+
+### OpenXR refuses to build on a validation error, and some of its rules are shared settings
+`OpenXRProjectValidationBuildStep` throws `BuildFailedException` for any error-level rule, and Meta Quest Support
+has one that iOS cares about: the default orientation must be Landscape Left, while iOS is AutoRotation. Changing
+the shared setting in ProjectSettings would have changed the iPhone build. `QuestBuild.BuildQuest` sets it for the
+duration of the Android build and restores it in `finally`, the same way the bundleVersion stamp is restored. Any
+future rule that touches a shared setting gets the same treatment, never a committed change.
+
+### `build/*.log` ignores logs, not everything you write into build/
+The Quest deploy first wrote its logcat capture to `build/quest-logcat.txt`, which `git check-ignore` showed was
+NOT ignored: the rules are `build/*/` (directories) and `build/*.log`. Put new artefacts inside a build/
+subdirectory (`build/quest/logcat.txt`) or give them a .log name, and check with `git check-ignore -v` before the
+first run, not after.
+
+### A shader name in a list is not a shader in the build
+The VR menu was written against `Shader.Find("GUI/3D Text Shader")`, because `EnsureAlwaysIncludedShaders` lists
+that name and a comment in WorldText.shader mentions it. It does not exist in this editor: every build logs
+`'GUI/3D Text Shader' not found in editor — skipped`, and `new Material(null)` threw inside the menu's Build(), so
+the headset would have opened on an invisible, paused landing page with no menu at all. The shot tool
+(`QuestMenuShots`) caught it on the bench. Before depending on a shader by name, grep the build log for
+"not found" and render the thing once; prefer a shader of our own in `Shaders/` (`FlyingGame/XrOverlay`).

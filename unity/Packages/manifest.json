@@ -15,7 +15,11 @@
     "com.unity.modules.unitywebrequest": "1.0.0",
     "com.unity.cloud.gltfast": "6.9.1",
     "jp.keijiro.klak.syphon": "1.0.4",
-    "jp.keijiro.klak.ndi": "2.1.6"
+    "jp.keijiro.klak.ndi": "2.1.6",
+    "com.unity.xr.management": "4.6.1",
+    "com.unity.xr.openxr": "1.16.1",
+    "com.unity.modules.xr": "1.0.0",
+    "com.unity.modules.vr": "1.0.0"
   },
   "scopedRegistries": [
     {

@@ -1,4 +1,56 @@
 ## NEEDS YOU
+- **META QUEST 3S NATIVE BUILD (Claude, 2026-11-02, lane/claude-vr-quest, off lane/claude-vr-stereo bf0484a) —
+  the APK is built; it has NOT been on your headset yet. NEEDS YOU, in this order:**
+  1. **Get the Quest onto the Mac.** At 05:10 and again after the build, `adb devices -l` listed **nothing at all**
+     (and nothing from Meta, USB vendor 0x2833, on the bus). So: Meta Horizon app on your phone → Devices → your
+     3S → Headset settings → **Developer Mode on** (needs a developer org on your Meta account, free); plug the
+     headset into the Mac with a data-capable USB-C cable; **put the headset on and accept "Allow USB debugging"**
+     (tick "Always allow from this computer"). Then `zsh tools/deploy/deploy-quest.sh` builds, installs and
+     launches it, and prints exactly why if the headset is absent / unauthorized / offline. It never touches iOS.
+  2. **First run, boundary.** Set a **stationary (seated) boundary**: this is a sit-down experience. The app opens
+     straight onto the VR menu (the landing page is OnGUI, which a headset cannot show). Choose aircraft and start,
+     **FLY**. It is **free flight only** from VR for now: lessons, challenges, weather, multiplayer and replay are all
+     OnGUI screens you could not see.
+  3. **Eye height in each seat.** Sit as you would in the aeroplane and press the **left stick click** (recentre).
+     You should be at the authored eye of the selected seat, looking at the nose. Check it in the Pitts / Great Lakes
+     front AND rear (VR menu → Seat; your head moves to the new seat's eye and recentres). If an eye is too high or
+     low, that is the seat's authored eye in the aircraft config, the same number the flat cockpit view uses.
+  4. **Recentre** three ways: left stick click, holding the Meta button (the headset's own), and VR menu → Recentre.
+     Recentring while looking down at the panel must NOT tilt the horizon (only the heading is taken out).
+  5. **The control mapping** (docs/quest-controls.md): right stick = stick (forward = nose down), left stick X =
+     rudder, left stick Y = throttle as a lever that STAYS where you leave it, left grip + move your hand = grab
+     the throttle, left trigger = brakes, A/B = trim up/down, X/Y = flaps down/up, right stick click = gear (glider:
+     tow/release), right grip = smoke, right trigger = guns, ☰ = menu. **Every one of those is my proposal, not
+     yours** — the split (right hand flies, left hand runs the engine) matches the touch pads. Tell me what to move.
+  6. **Lean.** Your head is held inside a box around the eye: ±30 cm sideways, 30 cm down / **15 cm up**, 15 cm aft /
+     30 cm forward, so leaning cannot put your head through the canopy or the top wing. Inside the box the world is
+     exactly world-locked. Past it the view stops following your head, which can feel odd: if it does, the softer
+     option (fade to black past the box) is in Codex's handoff. The numbers are my guess at a strapped-in pilot.
+  7. **Comfort, and 72 vs 90 Hz.** It starts at **72 Hz**; VR menu → Display → 90 Hz (remembered). Head tracking is
+     one-for-one, no gain, no hat look. The outside view is levelled to the horizon. If anything swims or lags, stop.
+  8. **Hands.** Put the controllers down: a held **left pinch** (1 s) opens the menu, a held **right pinch**
+     recentres, point + pinch selects in the menu. **Hands do not fly the aeroplane** — I do not think tracked hands
+     can hold a stick and a throttle precisely enough, and a resting hand pinches constantly. Yours to overrule.
+  **Packages added** (the versions this editor, 6000.3.23f1, lists as its own): **com.unity.xr.management 4.6.1**
+  and **com.unity.xr.openxr 1.16.1**, both Unity Companion License (OpenXR: Unity Companion License for source,
+  Unity Package Distribution License otherwise); they pull in com.unity.inputsystem 1.20.0, com.unity.xr.core-utils
+  2.6.0 and com.unity.xr.legacyinputhelpers 2.1.13 (Unity Companion License). Plus the built-in modules
+  com.unity.modules.xr / .vr. **No Meta XR SDK** and no XR Hands package: OpenXR's own Meta Quest Support, Oculus
+  Touch and Hand Interaction profiles cover it, and refresh rate is 120 lines of our own (`QuestDisplayRateFeature`).
+  **The input handler stays Old (activeInputHandler 0)**: controllers are read through UnityEngine.XR.InputDevices,
+  which OpenXR feeds natively; touch and gamepad on iOS are untouched.
+  **iOS / macOS:** no XR loader for either (Assets/XR has Android settings only, and the build tool removes any
+  loader that appears there). Two shared settings OpenXR insists on (Landscape Left; frame-timing stats) are set
+  only for the duration of the Android build and restored. **Target API is 36** (auto = highest installed): fine
+  for sideloading; the Quest store has its own targetSdk rule to check before any store submission.
+  **Evidence (bench only):** 31 new `QuestControlsTests` green; full suite on this branch 118 failed / 1179 passed
+  vs 163 failed at bf0484a, **no failing name introduced** (the 45 extra at the base are Structural/Spin flakes of
+  the globally coupled suite). Android batch **0 error CS**; APK `build/quest/AeroPlayground.apk` **184 MB**
+  (arm64-v8a, minSdk 32, target 36, Vulkan, supportedDevices includes quest3s); VR menu rendered and looked at
+  (`QuestMenuShots`, logs/quest-menu.png) — that shot caught a null shader that would have left the headset with
+  no menu at all. iOS export + xcodebuild (own derived data, no install): **BUILD SUCCEEDED**. Performance:
+  **unmeasured** — budget in docs/quest-performance.md; the build logs a `[QuestPerf]` line every 10 s.
+  **Nothing here is approved.** Items 1–8 are gates only you can close, on your head, with your headset.
 - **SIDE-BY-SIDE VR FOR A CARDBOARD HEADSET (Claude, 2026-11-01, lane/claude-vr-stereo) — engine and app logic
   only; the lenses are Codex's. NEEDS YOU on a real headset, five things:**
   1. **IPD.** It ships at **63 mm** with a slider from 55 to 75 in Options → Controls. 63 mm is the adult mean,
@@ -549,6 +601,30 @@
 - **Extra unmarked label (Claude, 2026-10-28):** I named it "Unmarked", not the HANDOFF's "Extra". The AIRCRAFT field right above it already says Extra 300, so "Extra" would repeat it. Easy to rename in `LiveryChoice.Options` and `Livery.UnmarkedExtra` if you prefer something else.
 
 ## HANDOFF
+- [Claude → Codex] **lane/claude-vr-quest · the Quest seam: rendering quality, lens/comfort and the VR HUD are
+  yours.** Branch off my commit. What exists and where:
+  - **The XR camera is the main camera.** `QuestRig` (`Bridge/QuestRig.cs`) sits on it beside `ChaseCamera` and
+    `VrRig`, runs at execution order 10000 (after ChaseCamera) and again in `Application.onBeforeRender`. It turns
+    off implicit XR tracking and places the camera at `origin · head`, origin = the aircraft at
+    `CockpitView.EyeLocal` (selected seat), head = `XrHeadPose` (Core, tested) relative to the last recentre,
+    heading-only, lean clamped. Outside views: origin = ChaseCamera's pose, levelled.
+  - **The HUD-in-VR hook: `QuestRig.HudAnchor`**, a transform at the seat's eye oriented with the aeroplane (NOT
+    the head), re-placed every frame. Parent world-space HUD geometry to it. Every flat overlay already returns
+    early while a headset is up (`VrMode.SuppressFlatOverlays` = Cardboard on OR `XrHeadset.Active`).
+  - **The knobs: `XrHeadset`** (`Bridge/XrHeadset.cs`): `RenderScale` (1.0 → `XRSettings.eyeTextureResolutionScale`),
+    `FoveationLevel` (0.5 → `XRDisplaySubsystem.foveatedRenderingLevel`, legacy API, Vulkan), `Prefer90Hz`
+    (persisted; requested via `QuestDisplayRateFeature`, `Scripts/Quest/`, Android-only assembly). Change them and
+    `SettingsChanged` makes QuestRig re-apply. The defaults and the frame budget are docs/quest-performance.md.
+  - **Comfort hook: `QuestRig.HeadClamped`** is true while the head is held at the edge of the lean box — the place
+    for a fade-to-black instead of the hard stop, if Ty finds the stop odd.
+  - **Things I deliberately did not do, all yours:** MSAA (Medium quality has none; 4× is nearly free on Quest's
+    tiled GPU and the biggest single win); shaders: none of ours carry the single-pass-instanced macros. On Quest
+    that is Vulkan MULTIVIEW, where `UnityObjectToClipPos` picks the eye from `gl_ViewID`, so they should render
+    per eye — but anything screen-space (WaterReflection's mirror camera, which renders ONE view for both eyes, any
+    grab / depth-texture use) needs checking on the headset; Cumulus overdraw; the world-space VR menu's look
+    (`QuestMenu`, `FlyingGame/XrOverlay`, draws through everything); bringing lessons/challenges/replay into VR.
+  - **Build:** `zsh tools/deploy/deploy-quest.sh` (or `-executeMethod FlyingGame.EditorTools.QuestBuild.BuildQuest`,
+    `-buildTarget Android`). `QuestBuild.ConfigureXr` is the one place the XR / OpenXR settings are written.
 - [Claude → Codex] **lane/claude-vr-stereo · the VR seam is open: lenses, composite and VR HUD are yours.**
   Branch off my commit, do not change the rig. Everything below is already on the branch and compiling (0
   `error CS`).
@@ -763,6 +839,18 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · native Meta Quest 3S build (OpenXR, Android)
+Branched off lane/claude-vr-stereo (bf0484a) for its eye-point, recentre and overlay-suppression seams. Added
+com.unity.xr.management 4.6.1 + com.unity.xr.openxr 1.16.1 (the editor's own verified versions). OpenXR loader on
+Android only (`QuestBuild.ConfigureXr`), Meta Quest Support + Oculus Touch + Hand Interaction + our
+`QuestDisplayRateFeature` (XR_FB_display_refresh_rate, ~120 lines, no Meta SDK). Old input handler kept:
+controllers read via `UnityEngine.XR.InputDevices` (`XrControllers`), mapped by the engine-free
+`QuestControlMapper` (Core, 31 tests) into the same `TouchFlightControls` state the pads and joystick feed.
+`QuestRig` makes the main camera the XR camera at the active seat's `EyeLocal`, head from `XrHeadPose` (Core,
+heading-only recentre, lean box). `VrMode.Available` is false and the device look stands down while a headset is
+active; flat overlays hide. `QuestMenu` is a world-space menu because every OnGUI screen is invisible in a headset.
+`tools/deploy/deploy-quest.sh` builds, then installs/launches if an authorized Quest is attached (it was not:
+`adb devices -l` empty all session). Docs: docs/quest-controls.md, docs/quest-performance.md.
 ### 2026-11-01 — Claude · lane/claude-vr-stereo · side-by-side stereo VR (engine, rig, tracking, toggle, tests)
 
 **Branched from lane/claude-island-nav (aacb429). Local commit only; not merged.** A NEW mode alongside the

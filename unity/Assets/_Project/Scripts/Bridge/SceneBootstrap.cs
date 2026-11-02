@@ -136,6 +136,9 @@ namespace FlyingGame.Bridge
             // The stereo rig rides the same camera and only wakes up when VR is switched on; off, it
             // costs one disabled component and the mono view is untouched.
             cam.gameObject.AddComponent<VrRig>();
+            // And the native-headset rig (Meta Quest through OpenXR): inert unless an XR runtime is up, which only an
+            // Android build with the OpenXR loader can start. It makes this same camera the XR camera.
+            cam.gameObject.AddComponent<QuestRig>();
             cam.gameObject.AddComponent<AudioListener>();
             chase.Target = aircraft.transform;
             chase.Driver = aircraft.GetComponent<FlightSimDriver>();

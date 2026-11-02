@@ -31,8 +31,10 @@ namespace FlyingGame.Bridge
         }
 
         /// <summary>Only offered where the phone can actually track its own attitude. A headset without a gyro
-        /// is a stereoscope, which is not what this is for.</summary>
-        public static bool Available => SystemInfo.supportsGyroscope || ForceAvailableForTesting;
+        /// is a stereoscope, which is not what this is for. Never while a NATIVE headset (<see cref="XrHeadset"/>,
+        /// the Quest) is up: its runtime does the stereo and the tracking, and the Cardboard rig splitting the
+        /// picture again on top would be two pictures inside each eye.</summary>
+        public static bool Available => !XrHeadset.Active && (SystemInfo.supportsGyroscope || ForceAvailableForTesting);
 
         /// <summary>Editor checks and the shot tool run on a Mac, which reports no gyroscope. They set this to
         /// build the rig anyway and drive the head themselves; it is never set in a player build.</summary>
@@ -94,6 +96,10 @@ namespace FlyingGame.Bridge
 
         /// <summary>True when the flat-screen overlays must not draw: in a headset they would be smeared across
         /// both eyes and sit at the wrong depth. Codex's VR HUD replaces them.</summary>
-        public static bool SuppressFlatOverlays => On;
+        public static bool SuppressFlatOverlays => On || XrHeadset.Active;
+
+        /// <summary>True when ANY headset is tracking the head (Cardboard or native): the mono device look stands
+        /// down, because both reading a head would double every movement.</summary>
+        public static bool HeadTracked => On || XrHeadset.Active;
     }
 }

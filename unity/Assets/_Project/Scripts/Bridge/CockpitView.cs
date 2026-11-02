@@ -209,7 +209,8 @@ namespace FlyingGame.Bridge
             // the option on silently disabled the look pad.)
             // VR owns the gyro while it is on: both applying would double every head movement, and VR
             // is one-for-one where this is geared. VrRig drives the camera instead.
-            if (DeviceLook && !VrMode.On && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
+            // A native headset (Quest) likewise: QuestRig drives the camera from the headset's own pose.
+            if (DeviceLook && !VrMode.HeadTracked && TryDeviceAttitude(out Quaternion q)) Look.FromDevice(ToCore(q));
 
             // The stick's hat, then the buttons on glass. Either may be the only one present.
             int x = 0, y = 0;

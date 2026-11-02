@@ -193,6 +193,7 @@ namespace FlyingGame.Bridge
             }
             ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
+            QuestInput();
             PublishToDriver();
         }
 
@@ -697,7 +698,7 @@ namespace FlyingGame.Bridge
             if (_egress != null && _egress.PilotOut) return;
 
             (float throttle01, float padBrake) = SplitLeftAxis();
-            float brake = Mathf.Max(padBrake, _brakeHeld ? 1f : 0f);
+            float brake = Mathf.Max(Mathf.Max(padBrake, _brakeHeld ? 1f : 0f), _questBrake);
             bool poweredNow = _driver.Sim?.Aircraft?.Config?.Propulsion != null;
             if (StripMode && StripBrakes) brake = poweredNow ? _stripBrake01 : Mathf.Clamp01((_stripBrake01 - 0.85f) / 0.15f);
             _driver.Sim.Aircraft.BrakeInput = brake;
@@ -719,6 +720,74 @@ namespace FlyingGame.Bridge
             bool rightFree = _rightFinger == int.MinValue && _aileron == 0f && _elevator == 0f;
             bool leftFree = _leftFinger == int.MinValue && _rudder == 0f;
             _driver.Inputs = new ControlInputs(aileron, elevator, rudder, lever, rightFree, rightFree, leftFree);
+        }
+
+        // ---- Meta Quest (native OpenXR headset) -------------------------------
+        // The Touch controllers feed the SAME state the pads and a joystick feed (aileron, elevator, rudder, the
+        // sticky throttle knob, trim, brakes, the tap buttons), so the flight model has one input path. The mapping
+        // itself is QuestControlMapper in Core (tested in QuestControlsTests); the table is docs/quest-controls.md.
+
+        private readonly FlyingGame.Core.Vr.QuestControlMapper _quest = new();
+        private float _questBrake;
+        private bool _questFlying, _questWaitRelease;
+
+        private void QuestInput()
+        {
+            _questBrake = 0f;
+            if (!XrHeadset.Active) { _questFlying = false; return; }
+            // The press that closed the VR menu (A, B, X, Y, a trigger) must not carry on into trim, flaps or guns:
+            // after the menu, nothing is read until every button is up.
+            if (XrHeadset.MenuOpen) { _questWaitRelease = true; return; }
+            var f = XrControllers.Read(out bool any);
+            if (!any || f.HandsOnly)
+            {
+                // Controllers put down or asleep: LET GO of the stick and rudder rather than holding the last
+                // deflection (a stick latched full right would keep rolling). The throttle is a lever and stays.
+                if (_questFlying && _rightFinger == int.MinValue) { _aileron = 0f; _elevator = 0f; }
+                if (_questFlying && _leftFinger == int.MinValue) _rudder = 0f;
+                _questFlying = false;
+                return;
+            }
+            if (_questWaitRelease)
+            {
+                if (f.A || f.B || f.X || f.Y || f.LeftTrigger > 0.2 || f.RightTrigger > 0.2 || f.LeftStickClick || f.RightStickClick) return;
+                _questWaitRelease = false;
+            }
+            _questFlying = true;
+            float dt = Time.unscaledDeltaTime;
+            _quest.InvertElevator = InvertElevator;
+            (float thr01, _) = SplitLeftAxis();
+            var c = _quest.Step(f, dt, thr01);
+            if (_rightFinger == int.MinValue) { _aileron = (float)c.Aileron; _elevator = (float)c.Elevator; }
+            if (_leftFinger == int.MinValue)
+            {
+                _rudder = (float)c.Rudder;
+                if (c.ThrottleMoved) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * (float)c.Throttle01); _leftKnob = IdleLeftKnob(); }
+            }
+            _questBrake = (float)c.Brake;
+            if (c.PitchTrimRate != 0.0) _pitchTrim = Mathf.Clamp(_pitchTrim + (float)c.PitchTrimRate * dt, -1f, 1f);
+            var ac = _driver.Sim?.Aircraft;
+            if ((c.FlapsDown || c.FlapsUp) && ac != null)
+            {
+                // From where the flaps ARE (a lesson or a reset may have set them), one notch at a time.
+                int step = Mathf.Clamp(Mathf.RoundToInt((float)ac.FlapFraction * 2f) + (c.FlapsDown ? 1 : -1), 0, 2);
+                _deskFlapStep = step; _flapTapThird = step; _tapped.Add(Btn.Flaps);
+            }
+            if (c.Gear) _tapped.Add(ac?.Config?.Propulsion == null ? Btn.Tow : Btn.Gear);   // a glider has no gear: the stick click is TOW / RELEASE
+            if (c.Smoke) _tapped.Add(Btn.Smoke);
+            _combat ??= GetComponent<CombatController>();
+            if (c.Fire && FireAvailable && _combat != null) _combat.Firing = true;
+            ActOnTaps();
+        }
+
+        // The VR menu's handles on the buttons a pilot would otherwise tap on the glass.
+        public void MenuReset() => DoReset();
+        public bool MenuHandleAvailable => EjectAvailable || BailAvailable;
+        public string MenuHandleLabel => EjectAvailable ? "Eject" : HasBrs ? "Deploy BRS" : "Bail out";
+        public void MenuPullHandle()
+        {
+            if (EjectAvailable) _egress.Eject();
+            else if (BailAvailable) PullTheHandle();
         }
 
         // ---- shaping helpers -------------------------------------------------
