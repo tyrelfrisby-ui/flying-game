@@ -26,6 +26,8 @@ namespace FlyingGame.Bridge
         private bool _open;
         public bool IsOpen => _open;
         public void Close() { _open = false; Unpause(); }
+        /// <summary>A gamepad's Menu button: open the panel, or close it if it is open (never over the landing page).</summary>
+        public void Toggle() { if (_open) Close(); else if (!SessionSettings.MenuOpen) Open(); }
         private GUIStyle _btn, _btnOn, _tab, _tabOn, _head, _label, _note;
         private Texture2D _bg, _btnBg, _btnOnBg, _tabBg, _tabOnBg;
         private int _fs;

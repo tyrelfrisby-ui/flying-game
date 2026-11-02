@@ -184,6 +184,7 @@ namespace FlyingGame.Bridge
             if (key != _layoutKey) { _layoutKey = key; LayOut(); }
             _egress ??= GetComponent<PilotEgress>();
             JoyLink.Tick();   // (the Mac keeps sending its joystick to a linked iPad / iPhone, menus open or not)
+            GamepadMenuButtons();   // (Menu has to be able to CLOSE the options panel, so this runs with it open)
             if (SessionSettings.MenuOpen || SessionSettings.ReplayActive)
             {
                 _leftFinger = _rightFinger = _trimFinger = _ejectFinger = int.MinValue; _ejectHold = 0f;
@@ -193,6 +194,7 @@ namespace FlyingGame.Bridge
             }
             ReadPointers();
             if (DeskMode) DeskInput(); else { MergeKeyboardFallback(); MobileJoystick(); }
+            GamepadFlight();
             PublishToDriver();
         }
 
@@ -511,10 +513,14 @@ namespace FlyingGame.Bridge
             // Fire: the on-screen button, the space bar, or a game controller's A / right shoulder (MFi / PlayStation /
             // Xbox over Bluetooth — the phone's own volume, Action and Camera Control buttons are reserved by iOS for
             // camera apps and cannot be read here).
+            // A pad the Input System can see fires from A alone (GamepadInput): its right shoulder is the throttle,
+            // its Menu is the menu and its d-pad the trim and flaps, and the old Input Manager button numbers below
+            // land on exactly those buttons — so they only count when no such pad is connected.
             if (_combat != null)
             {
-                _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space)
-                    || Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5)
+                var gp = GamepadInput.Now;
+                _combat.Firing = _fireFinger != int.MinValue || Input.GetKey(KeyCode.Space) || gp.Fire
+                    || (!gp.Connected && (Input.GetKey(KeyCode.JoystickButton14) || Input.GetKey(KeyCode.JoystickButton9) || Input.GetKey(KeyCode.JoystickButton0) || Input.GetKey(KeyCode.JoystickButton5)))
                     || JoystickInput.Held("guns");   // a calibrated joystick's GUNS button (or an RC radio's button channel)
             }
 
@@ -1022,6 +1028,76 @@ namespace FlyingGame.Bridge
             if (_joySeen && _leftFinger == int.MinValue && jp.Rudder.Set) _rudder = r.rud;
             if (r.hasThr && _leftFinger == int.MinValue) { _throttle = AxisForFraction(IdleFraction + (1f - IdleFraction) * r.thr01); _leftKnob = IdleLeftKnob(); }
             JoyActions(jp, dt);
+        }
+
+        // ---- gamepad (Input System: MFi / Xbox / PlayStation / 8BitDo) -------------------------------------------
+        //
+        //   left stick        roll and pitch: stick back (toward you) = nose UP, pushed away = nose down, the same
+        //                     sense as the touch pad and a real stick (InvertElevator flips it, as it does for touch)
+        //   RT / LT           right / left rudder (RT − LT); right stick X is a second rudder, summed and clamped
+        //   RB / LB (held)    throttle up / down, ramping; LB stops at idle (brakes are X, not the bottom of the lever)
+        //   d-pad up / down   pitch trim nose down / nose up (held)
+        //   d-pad left/right  flaps up / down one step
+        //   A (held)          guns          B   smoke on / off       X (held)   wheel brakes       Y   change view
+        //   Menu (Start)      open / close OPTIONS                  View (Select)   REC: start / stop recording
+        //
+        // The pad takes over a group of controls only while it is moving them, and for the one frame after, so a
+        // stick let go returns its surfaces to centre; while it rests, the touch pads work exactly as before, and a
+        // finger on a pad always wins that pad's controls.
+        private const float GamepadThrottleRate = 0.8f;   // lever travel per second: idle to full in under 2 s
+        private bool _gpStickWas, _gpRudderWas;
+        private OptionsPanel _options;
+
+        /// <summary>Menu and View: run before the early return for menus, so Menu can close what it opened.</summary>
+        private void GamepadMenuButtons()
+        {
+            var gp = GamepadInput.Now;
+            if (!gp.Connected || SessionSettings.MenuOpen) return;   // (the landing page has its own buttons)
+            if (gp.MenuPressed && (_options != null || (_options = Object.FindFirstObjectByType<OptionsPanel>()) != null)) _options.Toggle();
+            if (gp.RecordPressed && !SessionSettings.ReplayActive) ClipRecorder.ToggleRecording();
+        }
+
+        /// <summary>The sticks, triggers and flying buttons, after touch / keyboard / a calibrated joystick have run.</summary>
+        private void GamepadFlight()
+        {
+            var gp = GamepadInput.Now;
+            if (JoystickInput.SetupActive) return;   // (the setup owns every stick while it runs)
+            var controls = _driver.Sim?.Aircraft?.Config?.Controls;
+            float Lift(float v, ControlAxisConfig axis) => axis == null ? v : (float)FlyingGame.Core.GamepadShaping.PreCompensateDeadZone(v, axis.DeadZone);
+
+            // Sticks. Disconnected reads as all-zero, so a pad that drops out mid-roll lets go on the next frame.
+            bool stick = gp.Roll != 0f || gp.Pitch != 0f;
+            if ((stick || _gpStickWas) && _rightFinger == int.MinValue)
+            {
+                _aileron = Lift(gp.Roll, controls?.Aileron);
+                _elevator = Lift(InvertElevator ? -gp.Pitch : gp.Pitch, controls?.Elevator);   // pad y + = pushed away = nose down
+            }
+            _gpStickWas = stick;
+            bool rudder = gp.Rudder != 0f;
+            if ((rudder || _gpRudderWas) && _leftFinger == int.MinValue) _rudder = Lift(gp.Rudder, controls?.Rudder);
+            _gpRudderWas = rudder;
+            if (!gp.Connected) return;
+
+            float dt = Time.unscaledDeltaTime;   // (real time, as the keyboard's W / S, so it works in slow motion too)
+            if (_leftFinger == int.MinValue && (gp.ThrottleUp || gp.ThrottleDown))
+            {
+                _throttle = (float)FlyingGame.Core.GamepadShaping.Ramp(_throttle, gp.ThrottleUp, gp.ThrottleDown, GamepadThrottleRate, dt, AxisForFraction(IdleFraction), 1f);
+                _leftKnob = IdleLeftKnob();
+            }
+            if (_trimFinger == int.MinValue)
+            {
+                if (gp.TrimNoseDown) _pitchTrim = Mathf.Clamp(_pitchTrim + 0.5f * dt, -1f, 1f);   // the slider's sense: up = nose down
+                if (gp.TrimNoseUp) _pitchTrim = Mathf.Clamp(_pitchTrim - 0.5f * dt, -1f, 1f);
+            }
+            if (gp.Brakes) _brakeHeld = true;
+            if (gp.FlapsDownPressed || gp.FlapsUpPressed)
+            {
+                // A step from where the flaps ARE (0 / 50 / 100), not from a count of presses: the touch slot may have moved them.
+                int at = Mathf.RoundToInt((float)(_driver.Sim?.Aircraft?.FlapFraction ?? 0.0) * 2f);
+                _deskFlapStep = Mathf.Clamp(at + (gp.FlapsDownPressed ? 1 : -1), 0, 2); _flapTapThird = _deskFlapStep; _tapped.Add(Btn.Flaps);
+            }
+            if (gp.SmokePressed && SmokeAvailable) _smoke.Toggle();
+            if (gp.ViewPressed) (_joyChase ??= Object.FindFirstObjectByType<ChaseCamera>())?.NextView();
         }
 
         private static float SafeAxis(string name)

@@ -153,3 +153,9 @@ sets and non-target meshes before calling a scoped rebuild complete. `build_ea30
 replaces just the three wing meshes in the approved existing GLB. Also keep the paint-placement reference
 on its original chord grid when changing the geometry's sampling grid; mixing them caused an interpolation
 length error on the first B build.
+
+### A comment is not a shell option
+`deploy.sh` said "the installs are not under set -e" over a loop that WAS under `set -e`, so a locked iPad's
+failed `OUT=$(devicectl …)` ended the script without a word and the iPhone after it never got the build. If a
+block must survive failures, say `set +e` in the code above it, and when a script stops with no message, look at
+its error options before the device.
