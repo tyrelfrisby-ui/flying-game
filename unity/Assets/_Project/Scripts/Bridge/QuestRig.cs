@@ -159,6 +159,9 @@ namespace FlyingGame.Bridge
             }
             if (_hudAnchor == null) _hudAnchor = new GameObject("VR HUD Anchor").transform;
             _menu ??= new QuestMenu();
+            // The "what I see" recorder (A + B held, or the menu): Android only, on this camera because the
+            // AudioListener is here and it records the head's view.
+            if (QuestRecorder.Supported && GetComponent<QuestRecorder>() == null) gameObject.AddComponent<QuestRecorder>();
             ApplySettings();
             _head.Forget();          // the first head pose recentres
             Debug.Log($"[Quest] XR on — device '{XRSettings.loadedDeviceName}', eye texture {XRSettings.eyeTextureWidth}x{XRSettings.eyeTextureHeight}, " +
@@ -174,6 +177,7 @@ namespace FlyingGame.Bridge
             SubsystemManager.GetSubsystems(inputs);
             foreach (var s in inputs) s.trackingOriginUpdated -= OnRuntimeRecentre;
             if (_cam != null) XRDevice.DisableAutoXRCameraTracking(_cam, false);
+            QuestRecorder.Instance?.StopRecording(QuestRecorder.StopWaitMs);
             _menu?.Close(force: true);
             Debug.Log("[Quest] XR off.");
         }
@@ -251,7 +255,7 @@ namespace FlyingGame.Bridge
             return true;
         }
 
-        // ---- buttons that work everywhere: menu and recentre ----
+        // ---- buttons that work everywhere: menu, recentre and record ----
 
         private void SystemInput()
         {
@@ -262,6 +266,7 @@ namespace FlyingGame.Bridge
             QuestFlightCommand c = _system.Step(f, Time.unscaledDeltaTime, 0.0);
             if (c.Recentre) RecentreNow();
             if (c.Menu) _menu?.Toggle(this);
+            if (c.Record && !XrHeadset.MenuOpen) QuestRecorder.Toggle();   // in the menu A selects and B closes: use its row
         }
 
         /// <summary>Log a frame-time line every 10 s so a logcat capture carries real numbers (docs/quest-performance.md).
@@ -291,7 +296,7 @@ namespace FlyingGame.Bridge
             }
             string cpuMain = _perfCpuMs > 0f ? $"{_perfCpuMs / _perfFrames:F1} (max {_perfCpuMax:F1})" : "n/a";
             Debug.Log($"[QuestPerf] {_perfFrames / _perfT:F1} fps at {XrHeadset.CurrentRefreshHz:F0} Hz | cpu main {cpuMain} ms | " +
-                      $"gpu app {gpu} ms | compositor {comp} ms | dropped {dropped} in {_perfT:F0}s | scale {XRSettings.eyeTextureResolutionScale:F2} fov-level {XrHeadset.FoveationLevel:F2}");
+                      $"gpu app {gpu} ms | compositor {comp} ms | dropped {dropped} in {_perfT:F0}s | scale {XRSettings.eyeTextureResolutionScale:F2} fov-level {XrHeadset.FoveationLevel:F2} | {QuestRecorder.PerfTag}");
             _perfT = 0f; _perfFrames = 0; _perfCpuMs = 0f; _perfCpuMax = 0f;
         }
 

@@ -13,7 +13,7 @@ namespace FlyingGame.Bridge
     /// carries what a pilot needs from inside the cockpit:
     ///
     ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · HUD in cockpit · Display 72 / 90 Hz ·
-    ///   Recentre · Reset flight · Bail out / Deploy BRS / Eject (asks twice)
+    ///   Record video · Recentre · Reset flight · Bail out / Deploy BRS / Eject (asks twice)
     ///
     /// It is deliberately NOT the whole landing page: lessons, challenges, weather and multiplayer have OnGUI
     /// cards of their own that would be just as invisible, so a flight started from here is FREE FLIGHT
@@ -182,6 +182,14 @@ namespace FlyingGame.Bridge
             AddRow(() => $"HUD in cockpit:  {(XrHeadset.HudInCockpit ? "On" : "Off")}", ToggleHud, _ => ToggleHud());
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
+            // Starting a recording from the menu in flight closes it, so the film starts on the flying, not on
+            // the menu; stopping leaves it open. A + B held does the same from the air (QuestRecordChord).
+            AddRow(() => QuestRecorder.MenuLabel, () =>
+            {
+                bool starting = !QuestRecorder.Recording;
+                QuestRecorder.Toggle();
+                if (starting && QuestRecorder.Recording && !OnLanding) Close(force: false);
+            }, visible: () => QuestRecorder.Instance != null);
             AddRow(() => "Recentre the view", () => { XrHeadset.Recentre(); });
             AddRow(() => "Reset flight", () => { Controls?.MenuReset(); Close(force: false); }, visible: () => !OnLanding && Controls != null);
             AddRow(() => Time.unscaledTime < _confirmUntil ? $"PRESS AGAIN: {HandleName()}" : HandleName(), PullHandle,

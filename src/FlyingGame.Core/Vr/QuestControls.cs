@@ -45,6 +45,9 @@ namespace FlyingGame.Core.Vr
         /// <summary>One-shot presses (true on the frame the button goes down).</summary>
         public bool FlapsDown, FlapsUp, Gear, Smoke, Recentre, Menu;
 
+        /// <summary>A + B held together for a second: start / stop the "what I see" recording (QuestRecordChord).</summary>
+        public bool Record;
+
         /// <summary>Held: guns, while the trigger is pulled.</summary>
         public bool Fire;
 
@@ -69,6 +72,7 @@ namespace FlyingGame.Core.Vr
     ///   X / Y             flaps one step down / up
     ///   left stick click  recentre the head at the seat's eye point; HELD 1 s it also opens / closes the menu
     ///   menu (☰)          the VR menu, which pauses
+    ///   A + B held 1 s    start / stop recording what the headset shows (QuestRecordChord: the two trims cancel)
     ///
     /// The held stick click is the fallback for the menu button (owner Ty, 2026-11-02: "i couldn't figure out how
     /// to get to options"). Every other button already flies something, and the click's own job (recentre) is
@@ -118,6 +122,7 @@ namespace FlyingGame.Core.Vr
         private bool _leftPinchFired, _rightPinchFired;
         private double _leftClickHeld;
         private bool _leftClickFired;
+        private readonly QuestRecordChord _record = new();
 
         /// <summary>Thumbstick drift removed, rescaled so the edge is still 1.</summary>
         public static double DeadZone(double v, double zone)
@@ -146,6 +151,7 @@ namespace FlyingGame.Core.Vr
                 c.Recentre = PinchHold(f.RightPinch, dt, ref _rightPinch, ref _rightPinchHeld, ref _rightPinchFired);
                 c.Throttle01 = throttle01;
                 _leverGrabbed = false;
+                _record.Step(false, false, dt);
                 _prev = f; _havePrev = true;
                 return c;
             }
@@ -195,6 +201,7 @@ namespace FlyingGame.Core.Vr
             c.Gear = Down(f.RightStickClick, p.RightStickClick);
             c.Recentre = Down(f.LeftStickClick, p.LeftStickClick);
             c.Menu = Down(f.Menu, p.Menu) | ClickHold(f.LeftStickClick, dt);
+            c.Record = _record.Step(f.A, f.B, dt);
             bool rg = _rightGrip ? f.RightGrip > GripOff : f.RightGrip >= GripOn;
             c.Smoke = rg && !_rightGrip;
             _rightGrip = rg;

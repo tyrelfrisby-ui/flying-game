@@ -1,4 +1,20 @@
 ## NEEDS YOU
+- **QUEST: RECORD WHAT YOU SEE (Claude, 2026-11-02, lane/claude-vr-quest). Code only: NOT built, NOT on the
+  headset. NEEDS YOU after the operator's rebuild:**
+  1. **In the headset: hold A and B together for a second.** A red "REC 0:00" should appear high on the left of
+     your view and count up. Fly a minute, hold A + B again: "Saved AeroQuest-<date>-<time>.mp4" for a few
+     seconds. Also try VR menu → "Record video" (starting it from the menu in flight closes the menu). Is the REC
+     indicator in the way, too small, or fine? Is A + B the right shortcut? (Why A + B: every single button already
+     flies something and acts on its press; A and B together cancel, so the trim does not move. docs/quest-controls.md.)
+  2. **Get the file:** `zsh tools/deploy/quest-record.sh --pull` → ~/Movies/AeroQuest/. Tell me: does it play,
+     is it the right way up (if it is upside down, that is one line in Shaders/QuestRecordPack.shader), are the
+     colours right, is there sound, and is the field of view about right (60° tall)?
+  3. **Frame rate while recording:** `adb logcat -s Unity | grep QuestPerf` with the recorder on and off; the line
+     ends `rec ON (n sent, n dropped)`. If it stutters in the headset while recording, say so.
+  4. **Paused / quit:** start a recording, take the headset off (or quit from the Meta menu), then `--pull`: the
+     file must still play.
+  5. **From the Mac:** `zsh tools/deploy/quest-record.sh` records the left eye with sound until Ctrl-C
+     (`--full` both eyes, `--watch` a live window, `--no-audio`). Is the left-half crop right on your 3S?
 - **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
   first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
   really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
@@ -857,6 +873,42 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · record what the headset shows: A + B in the headset, quest-record.sh on the Mac
+Ty: a controller shortcut that starts / stops a "what I see" recording without the Meta menu, and a Mac-side recorder.
+**In-app (Android only).** Options weighed: MediaProjection needs a consent dialog every session (a 2D system
+activity: the OpenXR session loses focus each time, and capturing the compositor through it is not supported on
+Horizon OS); Meta's own capture has no intent a third-party app may send. Chosen: the app records itself. A mono
+camera at the head (QuestRig's pose, 60° tall) renders 1280 × 720 at 30 fps (`QuestRecording.Due`, the ClipRecorder
+pacing), `Shaders/QuestRecordPack.shader` packs it to I420 on the GPU, AsyncGPUReadback brings back 1.4 MB, and
+`Plugins/Android/QuestRecorder.java` (new; Android-only PluginImporter meta) encodes H.264 + AAC with MediaCodec /
+MediaMuxer on two Java threads (Unity's main thread only memcpys into a pooled buffer; a frame with no free buffer
+or encoder input is dropped and counted). Sound: the AudioListener's mix via OnAudioFilterRead → ring → main
+thread → Java. Files: `getExternalFilesDir("Movies")` = /sdcard/Android/data/com.tyrelfrisby.aeroplayground.quest/files/Movies,
+no permission needed. Finalised on stop, OnApplicationPause(true), quit, destroy and QuestRig stopping (blocks up
+to 3 s); auto-stop at 30 min. If no audio format arrives within 2 s of the video's, it records video alone.
+REC indicator + toast are head-locked on layer 30, which the recording camera excludes. VR menu "Record video" row.
+`[QuestPerf]` ends `rec ON (n sent, n dropped)` / `rec off`. The pack shader is force-included (BuildScript list).
+**Button:** A + B held 1 s (`QuestRecordChord`, in `QuestControlMapper.Step` → `QuestFlightCommand.Record`, acted on
+by QuestRig's system mapper, not while the VR menu is open). Not a right-stick-click hold: the press cycles the gear
+or releases the tow first. A and B are trim up / down, which cancel while both are held.
+**Mac:** `tools/deploy/quest-record.sh` (zsh): scrcpy 5.0.1 flags checked against its `--help`: `--record`,
+`--record-format=mp4`, `--no-window --no-audio-playback --no-control`, `--audio-source=playback --audio-dup
+--audio-codec=aac` (keeps sound in the headset; scrcpy falls back to video-only if capture fails), `--crop`
+= left half of `adb shell wm size` (override size wins), `--full`, `--watch`, `--no-audio`, `--crop W:H:X:Y`,
+`-s/--serial`, `-o`. Fallback without scrcpy: `adb shell screenrecord` (≤180 s, no sound), stopped with `pkill -2`
+so it finalises, then pulled. `--pull` copies the in-app recordings to ~/Movies/AeroQuest/, skipping same-size files.
+**Checks:** `zsh -n` clean; `--help` / bad `--crop` exercised (they exit before any adb call). NOT run against the
+device, no Unity run, no build (operator builds). Java: Unity's own javac against android-34 android.jar, `-Xlint:all`:
+0 warnings. C#: Core, Sim and Bridge compiled with Roslyn against the 6000.3.23f1 **Android il2cpp player** DLLs
+(the `#if UNITY_ANDROID` JNI path) and the **iOS** player DLLs: 0 errors each; editor DLLs: 0 errors in anything
+touched (the one error, `UnityEditor.EditorUtility` in SequenceCardPicker, is the harness not loading UnityEditor.dll).
+Tests (no Unity running): `QuestRecordingTests` (new, 13) with QuestControls / QuestCockpit / SeatChoice / CockpitEye /
+StreamingAssets: **163 passed, 2 failed** — `StreamingAssetsTests.EveryGeneratedPathIsIgnored` and `NothingGeneratedIsCommitted`,
+which read git and .gitignore (untouched here) and list the aircraft JSON mirrors this branch already versions. Full suite not run.
+**Risks:** the readback row order (video upside down if Vulkan's readback is not bottom-first as ClipEncoder.mm
+says it is on Metal); `getInputImage` strides on the XR2 Gen 2 encoder (handled generically, untested on device);
+the extra mono render's frame cost (unmeasured); `UnityPlayer.currentActivity` (falls back to persistentDataPath/Movies).
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · back seat honoured, HUD off in the VR cockpit, the menu findable
 Ty, first Pitts flight on the 3S: "i chose the back seat and it put me in the front seat. the hud display is not
 necessary and really confusing while in the airplane and i couldn't figure out how to get to options".

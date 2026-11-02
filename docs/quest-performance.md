@@ -65,11 +65,18 @@ Things that are already off in VR and cost nothing: every flat OnGUI overlay (HU
 returns before drawing (`VrMode.SuppressFlatOverlays`); the Cardboard rig never builds its two cameras; the clip
 recorder renders only while recording.
 
+**The in-headset recorder** (A + B held, docs/quest-controls.md *Recording*) is the one thing that adds rendering
+on purpose: while it runs, a mono camera renders the scene at 1280 × 720 about every other frame (30 fps of 72),
+plus one full-screen YUV pack pass and an asynchronous 1.4 MB readback; the encoding is Android's hardware encoder
+on Java threads. It is unmeasured. The `[QuestPerf]` line ends `rec ON (n sent, n dropped)` while it runs, so
+compare a 10 s window with it on against one with it off. If it costs too much, the levers are in
+`QuestRecording` (size, fps) and `QuestRecorder.Capture` (the camera's culling mask, a shorter far plane).
+
 ## Measuring
 
 `QuestRig` logs, every 10 s:
 
-    [QuestPerf] 71.9 fps at 72 Hz | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.9 ms | dropped 0 in 10s | scale 1.00 fov-level 0.50
+    [QuestPerf] 71.9 fps at 72 Hz | cpu main 7.8 (max 11.2) ms | gpu app 9.4 ms | compositor 0.9 ms | dropped 0 in 10s | scale 1.00 fov-level 0.50 | rec off
 
 (`cpu main` comes from `FrameTimingManager`, which the Quest build switches on; `gpu app`, `compositor` and
 `dropped` from the OpenXR display subsystem.) Capture with:

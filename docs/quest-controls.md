@@ -20,6 +20,7 @@ stick, left pad = rudder + throttle).
 | **Right grip** | Smoke on / off | One toggle per squeeze. |
 | **A (hold)** | Pitch trim **nose up** | 0.5 of the trim range per second, the same rate as a joystick's TRIM buttons. |
 | **B (hold)** | Pitch trim **nose down** | B sits further from the thumb: "forward" = nose down, like a trim wheel. |
+| **A + B together, held 1 s** | **Record video on / off** | See *Recording* below. Held together the two trims cancel, so the trim does not move. Not while the VR menu is open (there A selects and B closes; use its Record row). |
 | **X** | Flaps one notch **down** | 0 → 50 → 100, from where the flaps actually are. |
 | **Y** | Flaps one notch **up** | |
 | **Right stick click** | Gear up / down | Retractable types. On a glider it is **TOW** on the runway and **RELEASE** on tow. |
@@ -55,6 +56,7 @@ horizon; once you have opened the menu yourself in flight it is not shown again 
 | View | Cockpit / outside (the chase view, levelled to the horizon). |
 | HUD in cockpit | **Off** (default) / On. Persisted. In the headset's cockpit view the aeroplane's own instruments are what count, so the green HUD is not drawn there unless this is On. Outside views keep the HUD as before, and the iPhone / iPad / Mac are unchanged. Only the HUD's lines exist in the headset (its numbers are a flat overlay). |
 | Display | 72 Hz (default) / 90 Hz. Persisted. |
+| Record video | Off / **ON 0:42** / saving … Starts or stops a recording, the same as A + B held. Starting it in flight also closes the menu, so the film starts on the flying. |
 | Recentre the view | Same as the left stick click. |
 | Reset flight | The touch pad's RESET. |
 | Bail out / Deploy BRS / Eject | Asks twice: the first press arms it for 3 s. |
@@ -62,6 +64,51 @@ horizon; once you have opened the menu yourself in flight it is not shown again 
 Not in VR yet: the replay / review screen, lessons, challenges, the joystick setup, the full Options panel (all
 OnGUI). The rows above are the settings that matter in a headset.
 The autopilot disconnect belongs to the widget, which does not exist on a Quest.
+
+## Recording
+
+**In the headset: hold A and B together for a second** (or VR menu → Record video). A red **REC 0:42** shows high
+in the left of your view while it runs; hold A + B again to stop, and **Saved AeroQuest-20261102-093005.mp4** shows
+for a few seconds. The indicator and that message are never in the film.
+
+What is recorded is what you see, from your head: 1280 × 720 at 30 fps, H.264, about 60° tall (91° wide), with the
+game's sound (engine, wind, radio). Mono, from between your eyes, and without the lens's distorted edge. The HUD's
+lines are not in it.
+
+**Files** go to the game's own folder on the headset, `/sdcard/Android/data/com.tyrelfrisby.aeroplayground.quest/files/Movies/`
+(no storage permission needed), and **reach the Mac with**
+
+    zsh tools/deploy/quest-record.sh --pull        # → ~/Movies/AeroQuest/, skips the ones already there
+
+A recording is only a playable file once it is closed, so it is closed for you when the app is paused (headset
+off, the Meta menu's quit) or quits; it also stops by itself after 30 minutes (about 1.8 GB).
+
+**Why A + B.** Every single button already flies something, and a hold on a button that acts on its press does that
+thing first: holding the right stick click would cycle the gear (or release the tow) before it started recording,
+and the left stick click is recentre and, held, the menu. A and B are the one pair that does nothing when both are
+down: nose-up and nose-down trim cancel. Rule and tests: `QuestRecordChord` in `src/FlyingGame.Core/Vr/QuestRecording.cs`,
+`tools/FlightTests/QuestRecordingTests.cs`.
+
+**Why the game records itself** rather than Android's screen capture: MediaProjection asks for consent in a 2D
+system dialog every session, which takes an immersive OpenXR app out of focus every time, and it is not a supported
+way to capture the compositor on Horizon OS; Meta's own capture (Meta button → Camera) has no intent another app may
+send. So a second, mono camera at your head renders 30 times a second (not 72), the GPU packs the frame to YUV
+(`Shaders/QuestRecordPack.shader`), and `Plugins/Android/QuestRecorder.java` encodes it with MediaCodec on its own
+threads. The cost shows in the `[QuestPerf]` line, which says `rec ON (… sent, … dropped)` while it runs.
+
+### From the Mac, without the game's recorder
+
+    zsh tools/deploy/quest-record.sh                # the LEFT eye, with sound, until Ctrl-C → ~/Movies/AeroQuest/<date>_<time>.mp4
+    zsh tools/deploy/quest-record.sh --full         # both eyes, uncropped
+    zsh tools/deploy/quest-record.sh --watch        # and show it live in a window
+    zsh tools/deploy/quest-record.sh --no-audio     # video only
+    zsh tools/deploy/quest-record.sh -s SERIAL …    # if more than one device is attached
+
+It uses scrcpy (Homebrew) over the USB cable and records the headset's own mirror of the display: what the
+compositor shows, lens edge and all, at the panel's resolution. The left eye is the left half of `adb shell wm size`;
+`--crop W:H:X:Y` sets your own. Sound is the headset's app audio, still playing in the headset (Android 13+; on an
+older system scrcpy records video only and says so). Ctrl-C stops it and scrcpy closes the file. Without scrcpy it
+falls back to `adb shell screenrecord`: no sound, no crop, 3 minutes at most.
 
 ## Hands (no controllers)
 
