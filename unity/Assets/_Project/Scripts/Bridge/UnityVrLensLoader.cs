@@ -24,10 +24,9 @@ namespace FlyingGame.Bridge
         {
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, "vr-cardboard.json");
-                if (File.Exists(path))
+                if (StreamingFiles.TryReadAllText("vr-cardboard.json", out string json, out _))
                 {
-                    var c = JsonConvert.DeserializeObject<VrLensConfig>(File.ReadAllText(path), Settings);
+                    var c = JsonConvert.DeserializeObject<VrLensConfig>(json, Settings);
                     if (c != null) return c.Sane();
                 }
                 else Debug.Log("[VR] no vr-cardboard.json in StreamingAssets; using the built-in Cardboard v2 profile.");

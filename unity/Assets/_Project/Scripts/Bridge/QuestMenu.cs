@@ -300,10 +300,14 @@ namespace FlyingGame.Bridge
         private void FlyNow()
         {
             SessionSettings.ChallengeId = null;     // free flight: a lesson's OnGUI cards could not be seen in here
-            if (Landing != null) Landing.Fly();
+            // A start that throws must not leave the pilot behind a half-closed menu with no cockpit: say why, and
+            // still put him in the seat (the 2026-11-02 Quest build threw here on every FLY — StreamingFiles).
+            try { if (Landing != null) Landing.Fly(); }
+            catch (System.Exception e) { Debug.LogError($"[Quest] FLY: the flight did not start: {e}"); }
             Close(force: true);
-            if (Cockpit != null && Chase != null) Chase.SetView(ChaseCamera.View.Cockpit);
+            if (Chase != null) Chase.SetView(ChaseCamera.View.Cockpit);
             XrHeadset.Recentre();
+            _rig?.ReportAfterFly();
         }
 
         private static string AircraftName(string id)

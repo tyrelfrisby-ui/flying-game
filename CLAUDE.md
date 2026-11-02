@@ -151,3 +151,13 @@ that name and a comment in WorldText.shader mentions it. It does not exist in th
 the headset would have opened on an invisible, paused landing page with no menu at all. The shot tool
 (`QuestMenuShots`) caught it on the bench. Before depending on a shader by name, grep the build log for
 "not found" and render the thing once; prefer a shader of our own in `Shaders/` (`FlyingGame/XrOverlay`).
+
+### StreamingAssets is a folder on iOS and a zip on Android
+Every runtime loader read `Path.Combine(Application.streamingAssetsPath, …)` with `File.ReadAllText`, which works
+in the editor and on iOS and throws on Android, where that path is `jar:file://…/base.apk!/assets`. On the Quest
+the aircraft config never loaded, so `FlightSimDriver.Spawn` threw in `Awake` and again on FLY, the aeroplane stayed
+at the world origin with no sim — 2,749 m inside the island's summit — and the chase camera, which may not go
+underground, sat on the peak. Ty reported "on top of a mountain looking around"; no bench check could have seen it
+because the bench has a real folder. Read StreamingAssets only through `StreamingFiles` (it reads inside the APK);
+`StreamingAssetsTests.RuntimeCodeReadsStreamingAssetsOnlyThroughStreamingFiles` holds runtime code to that. For a
+new platform, ask what its file system looks like before trusting a loader that "works everywhere".

@@ -122,6 +122,18 @@ public sealed class IslandStartTests : IDisposable
                 Assert.True(air.HasValue, $"{a.Name} has no authored InTheAir start");
                 double aAgl = air.Value.AltitudeM - WorldTerrain.GroundHeightAt(air.Value.X, air.Value.Y);
                 Assert.True(aAgl > 50, $"{a.Name} in the air is {aAgl:F0} m above the ground");
+
+                // The rest of the VR menu's START list: free flight takes the world's authored start nearest the
+                // field (FlightSimDriver.Spawn → IslandRunways.AuthoredNearest), so every one of them must be in
+                // the air, not in a hillside — Ty's first Quest flight looked like exactly that (2026-11-02).
+                foreach (string mode in new[] { "InAeroBox", "InCombatZone", "InThermal" })
+                {
+                    IslandSites.Start? s = IslandRunways.AuthoredNearest(mode, a.X, a.Y);
+                    Assert.True(s.HasValue, $"{a.Name}: no authored {mode} start anywhere");
+                    double agl = s.Value.AltitudeM - WorldTerrain.GroundHeightAt(s.Value.X, s.Value.Y);
+                    _out.WriteLine($"{a.Name,-6} {mode,-12} start {s.Value.AltitudeM,7:F0} m over ground {s.Value.AltitudeM - agl,7:F0} m: AGL {agl,6:F0} m");
+                    Assert.True(agl > 50, $"{a.Name} {mode} start is {agl:F0} m above the ground");
+                }
             }
         }
         finally { WorldTerrain.Active = null; }

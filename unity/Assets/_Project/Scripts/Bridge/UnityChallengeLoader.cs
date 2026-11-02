@@ -17,8 +17,7 @@ namespace FlyingGame.Bridge
 
         public static ChallengeDefinition Load(string challengeId)
         {
-            string path = Path.Combine(Application.streamingAssetsPath, "challenges", challengeId + ".json");
-            string json = File.ReadAllText(path);
+            string json = StreamingFiles.ReadAllText("challenges/" + challengeId + ".json");
             return JsonConvert.DeserializeObject<ChallengeDefinition>(json, Settings)
                 ?? throw new InvalidDataException($"Challenge {challengeId} deserialized to null.");
         }
@@ -31,8 +30,7 @@ namespace FlyingGame.Bridge
         {
             try
             {
-                string path = Path.Combine(Application.streamingAssetsPath, "glide-table.json");
-                var list = JsonConvert.DeserializeObject<System.Collections.Generic.List<FlyingGame.Sim.Practice.GlideEntry>>(File.ReadAllText(path));
+                var list = JsonConvert.DeserializeObject<System.Collections.Generic.List<FlyingGame.Sim.Practice.GlideEntry>>(StreamingFiles.ReadAllText("glide-table.json"));
                 if (list != null) FlyingGame.Sim.Practice.GlideTable.Load(list);
                 Debug.Log($"[GlideTable] {FlyingGame.Sim.Practice.GlideTable.Count} rows");
             }

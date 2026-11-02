@@ -1,6 +1,9 @@
 ## NEEDS YOU
 - **META QUEST 3S NATIVE BUILD (Claude, 2026-11-02, lane/claude-vr-quest, off lane/claude-vr-stereo bf0484a) —
   the APK is built; it has NOT been on your headset yet. NEEDS YOU, in this order:**
+  0. **Your "on top of a mountain" bug is fixed in the rebuilt APK** (the aeroplane never loaded on Android; see the
+     Log, 2026-11-02 "FLY in the headset"). Re-install and FLY: you should be in the seat. If not, send the
+     `[Quest] FLY:` line from `adb logcat -s Unity`.
   1. **Get the Quest onto the Mac.** At 05:10 and again after the build, `adb devices -l` listed **nothing at all**
      (and nothing from Meta, USB vendor 0x2833, on the bus). So: Meta Horizon app on your phone → Devices → your
      3S → Headset settings → **Developer Mode on** (needs a developer org on your Meta account, free); plug the
@@ -839,6 +842,33 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · FLY in the headset left Ty on a mountaintop: the aeroplane never loaded
+Ty, first flight on the 3S: "when i try to fly i just end up on top of a mountain looking around. i think the
+starting point is inside of the mountain?" He was right about where, wrong about why: there was no starting point.
+**Root cause:** every runtime loader read StreamingAssets with `File.ReadAllText(Path.Combine(
+Application.streamingAssetsPath, …))`. On Android that path is `jar:file://…/base.apk!/assets` (the configs are
+entries inside the APK, `unzip -l` shows `assets/aircraft/*.json`), and System.IO cannot open it. So
+`UnityAircraftConfigLoader` threw in `FlightSimDriver.Awake` → `Spawn`, and again on every FLY
+(`StartMenu.Fly` → `ApplySession` → `Spawn`); `QuestMenu.FlyNow` then aborted before closing the menu and before
+switching to the cockpit. The aeroplane stayed at the world origin with no sim. **The ground at (0,0) is 2,749.3 m**
+(the island's summit; nothing within 300 m is higher), so it sat 2.7 km inside the mountain, and ChaseCamera's
+`KeepAboveSurface` (outside views never go underground) parked the camera 1.5 m above the peak, with the head
+tracking on top. The start positions themselves were never wrong: every VR START mode's authored start is
+165–731 m AGL at all 8 fields (numbers in the test output below).
+**Fix:** `Bridge/StreamingFiles.cs` is now the one reader: System.IO where StreamingAssets is a folder (editor,
+iOS), a blocking `UnityWebRequest` (10 s cap) where it is inside an archive (Android). Every runtime caller
+uses it (aircraft, rigs, atmosphere, challenges, glide table, credits, commerce, Cardboard lens). `FlyNow` now
+always closes the menu and goes to the cockpit even if the start throws (and logs `[Quest] FLY: the flight did not
+start`), and two frames after FLY `QuestRig` logs one line: `[Quest] FLY: <type> start <mode> | aircraft (x,y,z)
+ground g m AGL a m | sim running/NONE | camera (x,y,z) d m from the seat eye | InCockpit True/False`.
+**Tests:** `StreamingAssetsTests.RuntimeCodeReadsStreamingAssetsOnlyThroughStreamingFiles` (new: no runtime script
+outside StreamingFiles touches `streamingAssetsPath`); `IslandStartTests.NoStartPutsAnAeroplaneInsideTheGround`
+now also covers InAeroBox / InCombatZone / InThermal at every field (green, both types). The other StreamingAssets
+tests `NothingGeneratedIsCommitted` / `EveryGeneratedPathIsIgnored` are red on this branch with or without this
+change (69 StreamingAssets files are tracked here since 48a43a9; not touched). Android batch **0 error CS**, APK
+rebuilt. **Not verified on the headset** (none attached): on device, `adb logcat -s Unity | grep "\[Quest\] FLY"`
+should show `sim running`, AGL > 0, `InCockpit True` and the camera within a few cm of the seat eye.
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · native Meta Quest 3S build (OpenXR, Android)
 Branched off lane/claude-vr-stereo (bf0484a) for its eye-point, recentre and overlay-suppression seams. Added
 com.unity.xr.management 4.6.1 + com.unity.xr.openxr 1.16.1 (the editor's own verified versions). OpenXR loader on

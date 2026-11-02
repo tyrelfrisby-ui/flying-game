@@ -190,10 +190,10 @@ namespace FlyingGame.Bridge
             if (string.IsNullOrEmpty(modelId)) return null;
             if (Cache.TryGetValue(modelId, out ModelRig cached)) return cached;
             ModelRig rig = null;
-            string path = Path.Combine(Application.streamingAssetsPath, "rigs", modelId + ".json");
+            string path = "rigs/" + modelId + ".json";
             try
             {
-                if (File.Exists(path)) rig = Parse(File.ReadAllText(path));
+                if (StreamingFiles.TryReadAllText(path, out string json, out _)) rig = Parse(json);
             }
             catch (System.Exception e)
             {

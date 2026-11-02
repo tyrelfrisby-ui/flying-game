@@ -102,7 +102,32 @@ namespace FlyingGame.Bridge
             SystemInput();
             Place();
             _menu?.Tick(this);
+            FlyReport();
             PerfLog();
+        }
+
+        private int _reportAtFrame = -1;
+
+        /// <summary>Log where FLY put everything once the head has been placed for it (two frames on: the
+        /// ChaseCamera has been into the cockpit and this rig has recentred on the eye).</summary>
+        public void ReportAfterFly() => _reportAtFrame = Time.frameCount + 2;
+
+        /// <summary>One line logcat can prove a start with: the aeroplane, the ground under it, the head. Positions
+        /// are Unity world metres (x east, y up, z north).</summary>
+        private void FlyReport()
+        {
+            if (_reportAtFrame < 0 || Time.frameCount < _reportAtFrame) return;
+            _reportAtFrame = -1;
+            Transform air = _chase != null ? _chase.Target : null;
+            FlightSimDriver d = _chase != null ? _chase.Driver : null;
+            if (air == null) { Debug.LogWarning("[Quest] FLY: no aeroplane to report"); return; }
+            Vector3 a = air.position;
+            double ground = FlyingGame.Core.WorldTerrain.GroundHeightAt(a.z, a.x);   // Unity (east, up, north) → sim (north, east)
+            Vector3 eye = _chase.Cockpit != null ? air.TransformPoint(_chase.Cockpit.EyeLocal) : a;
+            Debug.Log($"[Quest] FLY: {(d != null ? d.AircraftId : "?")} start {SessionSettings.StartMode} | aircraft ({a.x:F1}, {a.y:F1}, {a.z:F1}) " +
+                      $"ground {ground:F1} m AGL {a.y - ground:F1} m | sim {(d != null && d.Sim != null ? "running" : "NONE")} | " +
+                      $"camera ({transform.position.x:F1}, {transform.position.y:F1}, {transform.position.z:F1}) " +
+                      $"{Vector3.Distance(transform.position, eye):F2} m from the seat eye | InCockpit {ChaseCamera.InCockpit}");
         }
 
         private void OnBeforeRender()
