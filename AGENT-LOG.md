@@ -1,4 +1,42 @@
 ## NEEDS YOU
+- **QUEST: THE MENU OPENS IN FLIGHT, CHANGE AIRCRAFT WITHOUT A RESTART, THE PITTS' STICK AND PEDALS MOVE (Claude,
+  2026-11-02, lane/claude-vr-quest) — Ty's report on build a222bda ("cannot open the menu or options at all … has to
+  quit and relaunch to change aircraft"; "in the Pitts the stick and rudder pedals still don't move"). Code only: NOT
+  built, NOT on the headset. NEEDS YOU after the operator's rebuild:**
+  1. **The menu, every way in.** In flight: ☰ (short press); left stick click held 1 s; the new **MENU tab** low on the
+     left of the panel — poke it, or point at it until it lights and pull the trigger. Each must open the menu, and
+     B / ☰ close it. Then fly a loop with your hands moving around: the tab must NOT open by itself. Is it in a good
+     place, big enough, in the way? (`QuestMenuTabView.At`, one line.)
+  2. **The tip.** The first three flights should show the MENU card low, a little right of centre, for 12 s (the
+     count was reset: the old one was used up while the menu could not open).
+  3. **Change aircraft.** Menu → **CHANGE AIRCRAFT (main menu)** → pick another type → FLY. Also: change the Aircraft
+     row in flight; the row under RESUME becomes **FLY THE <TYPE> NOW**.
+  4. **Pitts stick and pedals**: stick aft = top toward you, right aileron = top right, right rudder = right pedal
+     forward. Then `adb logcat -s Unity | grep -E "QuestInput|Cockpit"` and send me the `[Cockpit] pitts…` line and
+     the `[QuestInput] devices` line.
+  **What was wrong (by reading the code and the GLB; the a222bda logs were lost with the 256 KB buffer, and the
+  installed build could not be driven without the headset on):**
+  - **Menu**: NOT the "Both" input handler. `QuestMenu` parented its panel to the aeroplane's transform, and
+    `AirframeVisual.Clear` (every FLY) destroys every child with a renderer it did not build ("stray child cleared on
+    rebuild"). The menu worked on the landing page and was a destroyed object from the first flight on: ☰ and the
+    held click both threw a MissingReferenceException inside `Open` (in a log that was lost). This has been true since
+    the first Quest build (ba39008), which is likely why "i couldn't figure out how to get to options" the first time.
+    Now it rides the rig's own seat anchor, rebuilds itself if destroyed, and errors are logged ([QuestInput]).
+    Belt and braces as asked: ☰ is also read through the Input System; the MENU tab is a third, button-free way in;
+    the startup / connect lines list what both input systems see.
+  - **Pitts**: glTFast puts a mesh's first primitive on the node and every other primitive on a CHILD GameObject. The
+    Pitts' `Cockpit` is nine primitives; the cut read only the node's own (the seats), found 0 triangles in every
+    volume and left all six parts static. The 80 / 12 counts were checked over the whole GLB mesh, so they were
+    right and could not show it. The cut now reads every mesh under the node (3 meshes for Stick_R, 5 for Stick_F).
+    Readability was not it: glTFast's importer keeps meshes readable.
+  **Evidence (bench only):** new `QuestMenuTab` tests (poke from outside / brush-through / hand already inside / hover
+  then a fresh pull / a held trigger sweeping over it) and `MenuBy` on the mapper: QuestCockpit, QuestControls,
+  CockpitLive and QuestRecording tests 76 / 76 green (pure engine-free classes, run while other lanes' suites were
+  loading the Mac; full suite not run). Roslyn 0 errors for Core, Sim,
+  Bridge and Quest against the Android il2cpp player DLLs with ENABLE_INPUT_SYSTEM + ENABLE_LEGACY_INPUT_MANAGER (the
+  APK's "Both"), the iOS player and the editor. Per-primitive triangle counts from the GLB with a numpy reader
+  (all four liveries: Stick_R 12 + 24 + 44, Stick_F 12 + 14 + 26 + 24 + 4, pedals 12 over 2-3 meshes).
+  **Nothing approved.**
 - **QUEST: USB RUDDER PEDALS (Claude, 2026-11-02, lane/claude-vr-quest), your item 11. Code only: NOT built, NOT
   on the headset, and never met a real pair of pedals. NEEDS YOU after the operator's rebuild:**
   1. **Plug them in.** Use a USB-C OTG adapter into the 3S, with the headset on and the game running. Then run

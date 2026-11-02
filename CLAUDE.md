@@ -202,3 +202,20 @@ and the rudder is simply never there. The values are in the device's state (`And
 float per Android axis code), and the device description lists which ones it has (`motionAxes`). Read what the
 description says the hardware has, not what the layout chose to name (`Bridge/RudderPedals.cs`). Also,
 `InputControl.currentStatePtr` is not public: use `CopyState<T>`.
+
+### Never parent your object to something another system rebuilds
+The VR menu's panel was parented to the aeroplane so it would ride the cockpit. The airframe's rebuild (every FLY)
+destroys every drawable child it did not build itself — a rule written to stop a model's fuselage riding along to the
+next aircraft — so the menu worked on the landing page and was a destroyed object from the first flight on. `_built`
+stayed true, every ☰ threw inside `Open`, and on the headset nothing happened at all; it was first blamed on the
+input handler. Hang things on a root object you own (`QuestRig.HudAnchor`) and make anything a pilot cannot do
+without rebuild itself when it finds its objects gone.
+
+### A glTF mesh is not a Unity mesh
+glTFast puts a mesh's first primitive on the node's GameObject and each further primitive (one per material, when
+they do not share a vertex buffer) on a child of its own. The Pitts' `Cockpit` is nine Unity meshes; a cut that read
+`cockpit.GetComponent<MeshFilter>()` saw only the seats and left the sticks static. The bench check summed triangles
+over all the GLB's primitives, so it agreed with the table and proved nothing about the code. When code reads a
+model's geometry, check it against the hierarchy glTFast BUILDS (`GetComponentsInChildren<MeshFilter>`), not the
+file's mesh list.
+

@@ -25,8 +25,9 @@ stick, left pad = rudder + throttle).
 | **Y** | Flaps one notch **up** | |
 | **Right stick click** | Gear up / down | Retractable types. On a glider it is **TOW** on the runway and **RELEASE** on tow. |
 | **Left stick click** | **Recentre** | Puts your head where it is now at the seat's eye, facing the nose. |
-| **Menu (☰, left)** | **VR menu (pauses)** | The small button with three lines on the LEFT controller, below the thumbstick. Press again, or B / Y, to close. |
+| **Menu (☰, left)** | **VR menu (pauses)** | The small button with three lines on the LEFT controller, below the thumbstick. A short press (a long press is Meta's). Read through both the legacy XR and the Input System paths, whichever fires. Press again, or B / Y, to close. |
 | **Left stick click, held 1 s** | **VR menu** too | The fallback if ☰ is hard to find: it recentres on the press (harmless) and opens / closes the menu after a second. |
+| **The MENU tab** (low left on the panel) | **VR menu** too | Poke it with either hand, or point at it until it lights and pull the trigger. See *Opening the menu*. |
 | **Meta button (hold)** | The headset's own recentre | The game follows it: same as the left stick click. |
 
 **USB rudder pedals** (a USB-C OTG adapter into the headset) take the rudder and the toe brakes as well: the
@@ -46,7 +47,7 @@ aeroplane (from the sim, every frame, the same numbers the iPhone's dials show):
 
 | Aeroplane | Instruments | Stick, pedals | Throttle lever |
 |---|---|---|---|
-| **Pitts S-2B** | Rear (PIC) panel live: airspeed (mph), altimeter (both hands), g meter with max / min tell-tales, tach, oil (pressure + temperature, one dial), manifold pressure, compass card. The front panel's three small dials are still painted. | Both sticks and all four pedals, cut out of the model's cockpit mesh and hinged at the floor. | **Added**: the model has none. A lever on the left wall of the rear cockpit, 5 cm ahead of the seat, 10 cm below the sill. **Ty: say where it really is and I will move it.** |
+| **Pitts S-2B** | Rear (PIC) panel live: airspeed (mph), altimeter (both hands), g meter with max / min tell-tales, tach, oil (pressure + temperature, one dial), manifold pressure, compass card. The front panel's three small dials are still painted. | Both sticks and all four pedals, cut out of the model's cockpit meshes and hinged at the floor. (Static in builds up to a222bda: see below.) | **Added**: the model has none. A lever on the left wall of the rear cockpit, 5 cm ahead of the seat, 10 cm below the sill. **Ty: say where it really is and I will move it.** |
 | **Extra 300** | Front panel: the model's own rig (as before). Rear panel: airspeed (kt), altimeter, attitude (bank only), g meter, tach, oil, manifold pressure, fuel, compass card live; fuel pressure and volts stay painted. | The rig (as before). | The rig (as before). |
 | **Great Lakes, 2-33** | The model's own rig. | The rig. | The rig. |
 | **Cub** | Not yet: its needles, sticks and pedals are separate nodes with their rig in the GLB, but there is no rig file for the game to read. | Not yet. | Not yet. |
@@ -56,8 +57,23 @@ Signs, so they can be checked from the seat: **stick aft = top comes toward you*
 aileron = top to the right** (18°), **right rudder = right pedal forward, left pedal back** (15°), **throttle
 forward = power** (50° of travel). The table and the signs are in `src/FlyingGame.Core/CockpitLive.cs` and pinned
 by `tools/FlightTests/CockpitLiveTests.cs`; the Unity side is `Bridge/CockpitLiveParts.cs`, which logs
-`[Cockpit] <model>: n of m dials live, cut Stick_R 80, … ` once per aeroplane (a rebuilt model that no longer
-matches says `LEFT STATIC` there instead of carving the wrong triangles).
+`[Cockpit] <model>: …` once per aeroplane (a rebuilt model that no longer matches says `LEFT STATIC` there instead
+of carving the wrong triangles). For the Pitts it should read:
+
+    [Cockpit] pitts-s2b-like-own: 7 of 7 dials live, 9 mesh(es) under Cockpit, 9 read; cut Stick_R 80 from 3 mesh(es)
+    pivot (…), Stick_F 80 from 5 mesh(es) pivot (…), Pedal_R_L 12 from 2 mesh(es) pivot (…), … , 1 throttle lever(s) added …
+
+Every other aeroplane says whether its own rig moves the cockpit or it is static. `NOT READABLE` or `skinned by the
+carve` in that line names the next suspect.
+
+**Why the Pitts' stick and pedals stood still until a222bda.** In the GLB the cockpit is one mesh of nine
+primitives (one per material). glTFast gives the node's GameObject only the FIRST primitive (the seats) and puts
+each of the others on a child GameObject of its own. The cut read the node's own mesh, found no stick in the seats,
+and left every part static (`Stick_R 0 (expected 80: LEFT STATIC)` — the log that would have said so was lost with
+the 256 KB logcat buffer). The 80 / 12 triangle counts had been checked over the whole GLB mesh, so they were right
+and could not show it. The stick's triangles are in fact spread over three to five of the nine primitives (the
+GLB's primitive materials do not match the build script's tags; a separate, visual matter, left to the cockpit
+lane). The cut now reads every mesh under the node, transformed into the node's frame from local transforms.
 
 **The POWER card.** Whenever the throttle moves (stick or grip), a small green **POWER 65 %** card shows low on
 the left, 0.55 m out, by the throttle hand, for 1.5 s after the lever stops (**AIRBRAKE 40 %** on a glider). On
@@ -70,11 +86,49 @@ never over the horizon.
 ## The VR menu
 
 Every menu in the game is OnGUI, which draws to a screen the headset never shows, so the Quest build has its own
-small world-space menu. **It opens by itself at launch** (the landing page is invisible in the headset) and in flight
-from the **left ☰ button** or the **left stick click held for a second**. It pauses the flight while it is open
-(the title says PAUSED). On the first three flights a small card low in the cockpit says "MENU / OPTIONS: press the
-left MENU button (or hold the left stick click)" for 12 s, below the windscreen line so it never covers the
-horizon; once you have opened the menu yourself in flight it is not shown again (persisted).
+small world-space menu. **It opens by itself at launch** (the landing page is invisible in the headset), and in
+flight from any of the ways below. It pauses the flight while it is open (the title says PAUSED). On the first
+three flights a small card low in the cockpit, a little right of centre, says *"MENU / OPTIONS: touch the MENU tab
+(lower left) or press the left MENU button or hold the left stick click for a second"* for 12 s, below the
+windscreen line so it never covers the horizon; once you have opened the menu yourself in flight it is not shown
+again (persisted; the count was reset for this build, because the old one was spent while the menu could not open).
+
+### Opening the menu
+
+| Way | How | Why it cannot happen by accident |
+|---|---|---|
+| **☰** (left controller) | A short press. Read through the legacy XR usage (`CommonUsages.menuButton`) AND the Input System's left-hand XR controller (`menu` / `menuButton` / `start`), whichever says it is down. | A button of its own. |
+| **Left stick click, held 1 s** | Hold. The click recentres at once (harmless); the menu opens after a second. | A second of holding. |
+| **The MENU tab** | A small dark tab marked MENU, low on the left of the panel (0.18 m left, 0.19 m down, 0.5 m out from the seat's eye), drawn over the panel. **Poke it** with either controller or a tracked fingertip and hold it there a fifth of a second; or **point at it** until it lights up (0.3 s) and **pull the trigger** (pinch with a tracked hand). Cockpit view, in flight, menu closed. | A poke must come IN from outside and stay; a hand resting there when it appears does nothing until it leaves. A ray needs the hover first and a FRESH trigger pull: a trigger already held (brakes, guns) as the ray sweeps over it never counts. No gaze dwell: eyes rest on the panel all the time. Rule and tests: `QuestMenuTab` in `src/FlyingGame.Core/Vr/QuestCockpit.cs`, `tools/FlightTests/QuestCockpitTests.cs`. |
+| **Left pinch, held 1 s** | Hands only (controllers put down). | A second of pinching. |
+
+**Why it would not open in builds up to a222bda.** Not the input handling: the panel was parented to the aeroplane's
+transform, and every airframe rebuild (every FLY) destroys any child with a renderer it did not build itself
+(`AirframeVisual.Clear`, the `[Airframe] stray child 'VR Menu' cleared on rebuild` warning). The menu worked on the
+landing page and was a destroyed object from the first flight on, so ☰ and the held click both threw inside
+`Open` and nothing appeared. It now rides the rig's own seat anchor (a root object), is rebuilt if anything ever
+destroys it, and an error in it is logged rather than lost.
+
+### Changing aircraft without restarting
+
+In flight the menu has two ways:
+
+- **CHANGE AIRCRAFT (main menu) >** goes back to the landing page's rows (FLY, Aircraft, Start, Seat …) in the
+  headset. Pick, then **FLY**.
+- Or change the **Aircraft** row in flight: the row under RESUME becomes **FLY THE <TYPE> NOW**, which starts it
+  straight away (it is RESTART FLIGHT when the row is the one you are flying).
+
+### What the log says (`adb logcat -s Unity | grep QuestInput`)
+
+    [QuestInput] devices (headset started); input handler: Both | legacy XR n: ["Oculus Touch Controller OpenXR" …, menu yes …] | Input System XR n: [… layout …, usages LeftHand, menu menu]
+    [QuestInput] Input System menu button: /…/menu + /…/thumbstickClicked
+    [QuestInput] MENU tab built at the seat eye + (-0.18, -0.19, 0.50) m …
+    [QuestInput] menu trigger: the left MENU button (legacy XR | Input System | both) / the left stick click held 1 s / a poke on the MENU tab / the MENU tab, pointed at + trigger
+    [QuestInput] menu OPEN by … (in flight, paused)      [QuestInput] menu closed by B / RESUME / FLY …
+    [QuestInput] menu: CHANGE AIRCRAFT - back to the landing page      [QuestInput] FLY: <aircraft>, <start>
+
+The device line is written again on every connect / disconnect (a controller waking up, hands taking over), never
+per frame. A `[QuestInput] VR menu … failed:` error line, if one ever appears, carries the exception.
 
 **Point** with either hand and pull the **trigger** (or press **A / X**), or move the highlight with a
 **thumbstick** and push it **left / right** to change a value. **B / Y / ☰** closes it in flight.
@@ -82,8 +136,9 @@ horizon; once you have opened the menu yourself in flight it is not shown again 
 | Row | Does |
 |---|---|
 | FLY / RESUME | Starts a **free flight** with the choices below (lessons, challenges, weather and multiplayer have OnGUI cards of their own and are not reachable in VR yet). In flight: closes the menu. |
-| RESTART FLIGHT | Starts again with the current aircraft / start choice. |
-| Aircraft | The fleet, cycled. In flight it applies on RESTART. |
+| RESTART FLIGHT / FLY THE <TYPE> NOW | Starts again with the current aircraft / start choice; named for the new type when the Aircraft row has been changed. |
+| CHANGE AIRCRAFT (main menu) > | In flight: back to the landing page's rows, FLY starts the new choice. No app restart. |
+| Aircraft | The fleet, cycled. In flight it applies on the row above. |
 | Start | In the air · On the runway · On final · Aerobatic box · Combat zone · In a thermal. |
 | Seat | The seats of the aircraft **that will fly** (on the landing page: the one on the Aircraft row). Remembered per aircraft, by seat (rear / front / pilot …), so the rear seat is the rear seat in every type. Nothing chosen = the solo / PIC seat: **rear** in the Pitts, Great Lakes, Extra and Cub, **front** in the 2-33, **left** in the 172. In flight your head goes to the new seat's eye at once. |
 | View | Cockpit / outside (the chase view, levelled to the horizon). |
