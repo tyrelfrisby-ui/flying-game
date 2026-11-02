@@ -83,21 +83,7 @@ namespace FlyingGame.Bridge
             _note = new GUIStyle(_label) { fontSize = Mathf.RoundToInt(fs * 0.85f), normal = { textColor = new Color(0.62f, 0.68f, 0.76f) } };
         }
 
-        private void ApplyFeelLive()
-        {
-            var cfg = Driver?.Sim?.Aircraft?.Config;
-            if (cfg == null) return;
-            // Re-load the type's own values first so switching a setting back to "aircraft" restores them.
-            try
-            {
-                var fresh = UnityAircraftConfigLoader.LoadFromStreamingAssets(cfg.Id);
-                cfg.Controls.Aileron.Expo = fresh.Controls.Aileron.Expo; cfg.Controls.Aileron.DeadZone = fresh.Controls.Aileron.DeadZone;
-                cfg.Controls.Elevator.Expo = fresh.Controls.Elevator.Expo; cfg.Controls.Elevator.DeadZone = fresh.Controls.Elevator.DeadZone;
-                cfg.Controls.Rudder.Expo = fresh.Controls.Rudder.Expo; cfg.Controls.Rudder.DeadZone = fresh.Controls.Rudder.DeadZone;
-            }
-            catch (System.Exception) { }
-            SessionSettings.ApplyFeel(cfg);
-        }
+        private void ApplyFeelLive() => SessionSettings.ReapplyFeel(Driver?.Sim?.Aircraft?.Config);
 
         // ---- row helpers. Each advances y and reports whether the player changed anything, so the caller
         // ---- can write the choice out straight away: nothing on this panel is forgotten on the next launch.

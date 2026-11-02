@@ -97,7 +97,11 @@ namespace FlyingGame.Core.Vr
     /// </summary>
     public sealed class QuestControlMapper
     {
-        public const double StickDeadZone = 0.10;
+        /// <summary>Thumbstick drift, removed and rescaled. 0.10 until 2026-11-02, when Ty found the stick "far too
+        /// sensitive, especially around neutral": the cure for that is the curve (<see cref="QuestStickFeel"/>), and a
+        /// wide dead band in front of a gentle curve only moves the jump outwards. 0.05 is the small dead zone of the
+        /// requested feel; the Touch controllers' and a gamepad's rest drift sit inside it.</summary>
+        public const double StickDeadZone = 0.05;
         /// <summary>The throttle needs a wider zone than the stick: it is a rate, and drift would creep it.</summary>
         public const double ThrottleDeadZone = 0.25;
         /// <summary>Lever travel per second at full stick: idle to full in 2 s.</summary>
@@ -244,5 +248,104 @@ namespace FlyingGame.Core.Vr
         }
 
         private static double Clamp01(double v) => v < 0 ? 0 : v > 1 ? 1 : v;
+    }
+
+    /// <summary>
+    /// THE STICK FEEL IN A HEADSET (Ty on the Quest, 2026-11-02: "far too sensitive, especially around neutral").
+    ///
+    /// The curve is the one the game already has, applied once by Aircraft.ShapeAxis to whatever the stick says:
+    ///   out = sign(x) · ((1 − k)·u + k·u³),  u = (|x| − dz) / (1 − dz) past the dead zone dz, 0 inside it
+    /// so 0 → 0, it rises monotonically, and full stick is still full deflection (|x| = 1 → 1). With k = 0.65 a
+    /// small movement does a third of what it did linearly (the slope at neutral is 1 − k = 0.35) and half stick is
+    /// a quarter of the travel. The dead zone is taken by the stick reader (QuestControlMapper.StickDeadZone, 0.05,
+    /// rescaled so there is no step at its edge); on top of it a headset adds none of its own.
+    ///
+    /// The setting is the one Options → Controls already has (SessionSettings.FeelExpo / FeelDeadZone, per axis,
+    /// "unset" meaning the aircraft's own value). In a headset "unset" means THESE values instead, for aileron,
+    /// elevator and rudder alike; phones and the Mac keep each aircraft's own (0.1–0.3). A value the pilot has set
+    /// wins everywhere. The VR menu's "Stick expo" row sets it in the headset.
+    /// </summary>
+    public static class QuestStickFeel
+    {
+        public const double DefaultExpo = 0.65;
+        /// <summary>On top of the stick reader's own 0.05: none.</summary>
+        public const double DefaultExtraDeadZone = 0.0;
+
+        /// <summary>The shaping curve (the same arithmetic as Aircraft.ShapeAxis, before the surface's travel).</summary>
+        public static double Curve(double x, double expo, double deadZone)
+        {
+            double a = Math.Min(1.0, Math.Abs(x));
+            if (a <= deadZone) return 0.0;
+            double u = Math.Min(1.0, (a - deadZone) / (1.0 - deadZone));
+            return Math.Sign(x) * (expo * u * u * u + (1.0 - expo) * u);
+        }
+
+        /// <summary>What a control-feel setting resolves to: the pilot's own value if set (&gt;= 0), otherwise the
+        /// headset default in a headset, otherwise the aircraft's own.</summary>
+        public static double Resolve(double pilotSetting, double aircraftValue, bool headset, double headsetDefault) =>
+            pilotSetting >= 0 ? pilotSetting : headset ? headsetDefault : aircraftValue;
+
+        /// <summary>The whole path a thumbstick or gamepad stick takes in a headset with the defaults: the reader's
+        /// dead zone, then the curve.</summary>
+        public static double StickToCommand(double raw) =>
+            Curve(QuestControlMapper.DeadZone(raw, QuestControlMapper.StickDeadZone), DefaultExpo, DefaultExtraDeadZone);
+    }
+
+    /// <summary>A gamepad as the Input System reports it (the standard Gamepad layout: Xbox, PlayStation, 8BitDo …),
+    /// read off the device by the Bridge. Sticks −1..1, +x right, +y forward; triggers 0..1. Buttons by POSITION
+    /// (south = Xbox A / 8BitDo B), which is what the Input System's layout means by them.</summary>
+    public struct GamepadState
+    {
+        public double LeftX, LeftY, RightX, RightY, LeftTrigger, RightTrigger;
+        public bool South, East, West, North, LeftShoulder, RightShoulder, LeftStickPress, RightStickPress, Start, Select;
+    }
+
+    /// <summary>
+    /// A BLUETOOTH GAMEPAD IN THE HEADSET (Ty has an 8BitDo, 2026-11-02). It becomes one more
+    /// <see cref="QuestControllerFrame"/>, merged with the Touch controllers', so every rule the controllers fly by —
+    /// dead zones, the throttle as a lever, trim, flaps, the menu — is the same code and the same tests.
+    ///
+    ///   left stick        aileron and elevator (forward = push), like the iPhone and the Mac with an uncalibrated pad
+    ///   right stick X     rudder;  right stick Y  the throttle lever as a rate (push to open, let go and it stays)
+    ///   left trigger      wheel brakes;  right trigger  guns (where they are hot)
+    ///   south / east      pitch trim nose UP / nose DOWN (the Touch A / B)
+    ///   west / north      flaps one step down / up (the Touch X / Y)
+    ///   left stick press  gear (glider: tow / release) — the flying stick's click, as on the Touch
+    ///   right stick press recentre; held 1 s, the menu — the other stick's click, as on the Touch
+    ///   Start             the VR menu;  Select  recentre;  right shoulder  smoke on / off
+    /// </summary>
+    public static class QuestGamepadMap
+    {
+        public static QuestControllerFrame ToFrame(in GamepadState g) => new QuestControllerFrame
+        {
+            RightX = g.LeftX, RightY = g.LeftY,         // the flying stick
+            LeftX = g.RightX, LeftY = g.RightY,         // rudder and the throttle lever
+            LeftTrigger = g.LeftTrigger, RightTrigger = g.RightTrigger,
+            RightGrip = g.RightShoulder ? 1.0 : 0.0,
+            A = g.South, B = g.East, X = g.West, Y = g.North,
+            RightStickClick = g.LeftStickPress,
+            LeftStickClick = g.RightStickPress || g.Select,
+            Menu = g.Start,
+        };
+
+        /// <summary>Two frames as one: each stick axis from whichever source is further from centre (a resting thumb
+        /// on one does not cancel the other), triggers and grips the larger, buttons either. The hand position for the
+        /// grabbed throttle and the hand-tracking fields come from <paramref name="controllers"/>; with a gamepad in
+        /// use the pilot is not flying by hand gestures, so it is not "hands only".</summary>
+        public static QuestControllerFrame Merge(in QuestControllerFrame controllers, in QuestControllerFrame pad, bool padPresent)
+        {
+            if (!padPresent) return controllers;
+            QuestControllerFrame f = controllers;
+            f.LeftX = Bigger(controllers.LeftX, pad.LeftX); f.LeftY = Bigger(controllers.LeftY, pad.LeftY);
+            f.RightX = Bigger(controllers.RightX, pad.RightX); f.RightY = Bigger(controllers.RightY, pad.RightY);
+            f.LeftTrigger = Math.Max(controllers.LeftTrigger, pad.LeftTrigger); f.RightTrigger = Math.Max(controllers.RightTrigger, pad.RightTrigger);
+            f.LeftGrip = Math.Max(controllers.LeftGrip, pad.LeftGrip); f.RightGrip = Math.Max(controllers.RightGrip, pad.RightGrip);
+            f.A |= pad.A; f.B |= pad.B; f.X |= pad.X; f.Y |= pad.Y;
+            f.LeftStickClick |= pad.LeftStickClick; f.RightStickClick |= pad.RightStickClick; f.Menu |= pad.Menu;
+            f.HandsOnly = false;
+            return f;
+        }
+
+        private static double Bigger(double a, double b) => Math.Abs(b) > Math.Abs(a) ? b : a;
     }
 }

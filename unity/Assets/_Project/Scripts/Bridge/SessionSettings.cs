@@ -571,18 +571,41 @@ namespace FlyingGame.Bridge
             for (int i = 0; i < 3; i++) { PlayerPrefs.SetFloat("feel.expo." + i, FeelExpo[i]); PlayerPrefs.SetFloat("feel.dz." + i, FeelDeadZone[i]); }
             PlayerPrefs.Save();
         }
-        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is off).</summary>
+        /// <summary>The headset's stick feel applies (FlyingGame.Core.Vr.QuestStickFeel): a headset is up, or this is
+        /// the Quest's APK (the only Android build), where the landing page's aeroplane can load before XR reports in.</summary>
+        public static bool HeadsetFeel => XrHeadset.Active || Application.platform == RuntimePlatform.Android;
+
+        /// <summary>Push the user's feel settings into a loaded config (the aircraft's own values stay where a setting is
+        /// off). In a headset an unset setting means the headset's own feel instead — heavy expo, no extra dead zone
+        /// (Ty 2026-11-02, "far too sensitive"); phones and the Mac are unchanged.</summary>
         public static void ApplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
         {
             LoadFeel();
             if (cfg?.Controls == null) return;
+            bool headset = HeadsetFeel;
             var axes = new[] { cfg.Controls.Aileron, cfg.Controls.Elevator, cfg.Controls.Rudder };
             for (int i = 0; i < 3; i++)
             {
                 if (axes[i] == null) continue;
-                if (FeelExpo[i] >= 0f) axes[i].Expo = FeelExpo[i];
-                if (FeelDeadZone[i] >= 0f) axes[i].DeadZone = FeelDeadZone[i];
+                axes[i].Expo = FlyingGame.Core.Vr.QuestStickFeel.Resolve(FeelExpo[i], axes[i].Expo, headset, FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo);
+                axes[i].DeadZone = FlyingGame.Core.Vr.QuestStickFeel.Resolve(FeelDeadZone[i], axes[i].DeadZone, headset, FlyingGame.Core.Vr.QuestStickFeel.DefaultExtraDeadZone);
             }
+        }
+
+        /// <summary>Apply the feel to the aeroplane in flight now: the type's own values first (so a setting put back
+        /// to "unset" restores them), then <see cref="ApplyFeel"/>. Options and the VR menu both call this.</summary>
+        public static void ReapplyFeel(FlyingGame.Core.DataContracts.AircraftConfig cfg)
+        {
+            if (cfg?.Controls == null) return;
+            try
+            {
+                var fresh = UnityAircraftConfigLoader.LoadFromStreamingAssets(cfg.Id);
+                cfg.Controls.Aileron.Expo = fresh.Controls.Aileron.Expo; cfg.Controls.Aileron.DeadZone = fresh.Controls.Aileron.DeadZone;
+                cfg.Controls.Elevator.Expo = fresh.Controls.Elevator.Expo; cfg.Controls.Elevator.DeadZone = fresh.Controls.Elevator.DeadZone;
+                cfg.Controls.Rudder.Expo = fresh.Controls.Rudder.Expo; cfg.Controls.Rudder.DeadZone = fresh.Controls.Rudder.DeadZone;
+            }
+            catch (System.Exception) { }
+            ApplyFeel(cfg);
         }
 
         // ---- regional air (owner 2026-10-27: "atmospheric conditions should vary by region across the landscape") ----

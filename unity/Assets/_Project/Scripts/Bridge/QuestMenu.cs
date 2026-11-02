@@ -240,6 +240,11 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
             AddRow(() => $"Rudder pedals:  {PedalSummary()}   >", OpenPedals);
+            // STICK FEEL (Ty 2026-11-02: "far too sensitive, especially around neutral"). The Options → Controls expo,
+            // all three axes at once; unset means the headset's own default (QuestStickFeel). Select puts it back.
+            AddRow(() => $"Stick expo:  {StickExpo() * 100:0} %" + (SessionSettings.FeelExpo[0] < 0f ? "  (default)" : "") + "   < >",
+                () => SetStickExpo(-1f), d => SetStickExpo(Mathf.Clamp(Mathf.Round(StickExpo() * 20f + d) / 20f, 0f, 0.9f)));
+            AddRow(() => $"Gamepad:  {XrControllers.GamepadLine}", null);
             // Starting a recording from the menu in flight closes it, so the film starts on the flying, not on
             // the menu; stopping leaves it open. A + B held does the same from the air (QuestRecordChord).
             AddRow(() => QuestRecorder.MenuLabel, () =>
@@ -653,6 +658,18 @@ namespace FlyingGame.Bridge
             FlyingGame.Core.Vr.QuestFleet.HiddenBecause.TryGetValue(was ?? "", out string reason);
             Debug.Log($"[Quest] aircraft '{was}' is not offered in a headset ({reason ?? "no cockpit of our own with a checked eye"}): {now} instead ({why})");
             SessionSettings.AircraftId = now;
+        }
+
+        /// <summary>The expo the three axes fly with now: the pilot's setting, else the headset default.</summary>
+        private static float StickExpo() => SessionSettings.FeelExpo[0] >= 0f ? SessionSettings.FeelExpo[0] : (float)FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo;
+
+        /// <summary>Set aileron, elevator and rudder expo together (&lt; 0 = back to the default) and fly it at once.</summary>
+        private void SetStickExpo(float expo)
+        {
+            for (int i = 0; i < 3; i++) SessionSettings.FeelExpo[i] = expo;
+            SessionSettings.SaveFeel();
+            SessionSettings.ReapplyFeel(Driver?.Sim?.Aircraft?.Config);
+            Debug.Log($"[QuestInput] stick expo {(expo < 0f ? $"default ({FlyingGame.Core.Vr.QuestStickFeel.DefaultExpo * 100:0} %)" : $"{expo * 100:0} %")}");
         }
 
         private static void CycleAircraft(int step)

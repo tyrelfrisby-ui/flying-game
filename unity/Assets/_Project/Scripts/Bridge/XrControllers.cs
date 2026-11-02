@@ -111,8 +111,13 @@ namespace FlyingGame.Bridge
                 f.LeftPinch = lh ? Float(_leftHand, PinchValue) : 0.0;
                 f.RightPinch = rh ? Float(_rightHand, PinchValue) : 0.0;
             }
+            // A Bluetooth gamepad (QuestGamepadMap): one more frame, merged, so it flies and works the menu exactly
+            // as the controllers do. Its Start is the menu button.
+            bool pad = ReadGamepad(out QuestControllerFrame gp);
+            if (pad && gp.Menu && !f.Menu) MenuVia = "gamepad";
+            f = QuestGamepadMap.Merge(f, gp, pad);
             _f = f;
-            _any = l || r || f.HandsOnly || f.Menu;
+            _any = l || r || f.HandsOnly || f.Menu || pad;
             XrHeadset.HandsOnly = f.HandsOnly;
         }
 
@@ -162,6 +167,7 @@ namespace FlyingGame.Bridge
                             && c != UnityEngine.InputSystem.InputDeviceChange.Reconnected && c != UnityEngine.InputSystem.InputDeviceChange.Disconnected) return;
                         _isDirty = true;
                         if (IsXr(d)) LogDevices($"Input System {c}: {d.displayName ?? d.name}");
+                        if (d is UnityEngine.InputSystem.Gamepad) { _padDirty = true; Debug.Log($"[QuestInput] gamepad {c}: {Describe(d)}"); }
                     };
                 }
                 if (_isDirty) FindInputSystemLeft();
@@ -222,6 +228,92 @@ namespace FlyingGame.Bridge
         }
 #endif
 
+        // ---- a gamepad, through the Input System (Gamepad: Xbox / PlayStation / 8BitDo / any Android pad) ----
+
+        /// <summary>For the VR menu's Gamepad row: the pad in use, or "none connected".</summary>
+        public static string GamepadLine { get; private set; } = "none connected";
+
+#if AERO_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM
+        private static UnityEngine.InputSystem.Gamepad _pad;
+        private static bool _padDirty = true, _padBroken;
+
+        /// <summary>Name, layout and USB / Bluetooth vendor and product ids, for the [QuestInput] lines.</summary>
+        private static string Describe(UnityEngine.InputSystem.InputDevice d)
+        {
+            int vid = 0, pid = 0;
+            try
+            {
+                if (!string.IsNullOrEmpty(d.description.capabilities))
+                {
+                    var j = Newtonsoft.Json.Linq.JObject.Parse(d.description.capabilities);
+                    vid = (int?)j["vendorId"] ?? 0; pid = (int?)j["productId"] ?? 0;
+                }
+            }
+            catch (System.Exception) { }
+            string name = !string.IsNullOrEmpty(d.description.product) ? d.description.product : d.displayName ?? d.name;
+            return $"\"{name}\" layout {d.layout} VID:PID {vid:X4}:{pid:X4} interface {d.description.interfaceName}";
+        }
+
+        /// <summary>The pad to read: the one most recently used (Gamepad.current), else the first. On a device change only.</summary>
+        private static void FindGamepad()
+        {
+            _padDirty = false;
+            var was = _pad;
+            _pad = UnityEngine.InputSystem.Gamepad.current;
+            if (_pad == null && UnityEngine.InputSystem.Gamepad.all.Count > 0) _pad = UnityEngine.InputSystem.Gamepad.all[0];
+            GamepadLine = _pad != null ? Short(_pad) : "none connected";
+            if (_pad != was) Debug.Log(_pad != null ? $"[QuestInput] gamepad in use: {Describe(_pad)} — left stick flies, right stick rudder + throttle, Start = menu" : "[QuestInput] no gamepad");
+        }
+
+        private static string Short(UnityEngine.InputSystem.Gamepad p)
+        {
+            string n = !string.IsNullOrEmpty(p.description.product) ? p.description.product : p.displayName ?? p.name;
+            return n.Length > 26 ? n.Substring(0, 26) : n;
+        }
+
+        private static double Axis1(float v) => v < -1f ? -1.0 : v > 1f ? 1.0 : v;
+#endif
+
+        /// <summary>This frame's gamepad as a controller frame (QuestGamepadMap); false when there is none. Sticks are read
+        /// UNPROCESSED — without the Input System's own 0.125 stick dead zone — so the pad gets the same 0.05 dead zone and
+        /// curve as the Touch sticks (QuestControlMapper, QuestStickFeel). Android's inverted Y is a control parameter,
+        /// which the unprocessed read still applies, so forward is +y on every pad.</summary>
+        private static bool ReadGamepad(out QuestControllerFrame frame)
+        {
+            frame = default;
+#if AERO_INPUT_SYSTEM && ENABLE_INPUT_SYSTEM
+            if (_padBroken || _isBroken) return false;
+            try
+            {
+                if (!_isWatching) { ReadInputSystem(out _, out _); }   // installs the device-change hook
+                var cur = UnityEngine.InputSystem.Gamepad.current;
+                if (_padDirty || (cur != null && cur != _pad)) FindGamepad();
+                var p = _pad;
+                if (p == null || !p.added) return false;
+                Vector2 ls = p.leftStick.ReadUnprocessedValue(), rs = p.rightStick.ReadUnprocessedValue();
+                var g = new GamepadState
+                {
+                    LeftX = Axis1(ls.x), LeftY = Axis1(ls.y), RightX = Axis1(rs.x), RightY = Axis1(rs.y),
+                    LeftTrigger = p.leftTrigger.ReadValue(), RightTrigger = p.rightTrigger.ReadValue(),
+                    South = p.buttonSouth.isPressed, East = p.buttonEast.isPressed, West = p.buttonWest.isPressed, North = p.buttonNorth.isPressed,
+                    LeftShoulder = p.leftShoulder.isPressed, RightShoulder = p.rightShoulder.isPressed,
+                    LeftStickPress = p.leftStickButton.isPressed, RightStickPress = p.rightStickButton.isPressed,
+                    Start = p.startButton.isPressed, Select = p.selectButton.isPressed,
+                };
+                frame = QuestGamepadMap.ToFrame(g);
+                return true;
+            }
+            catch (System.Exception e)
+            {
+                _padBroken = true;
+                Debug.LogWarning($"[QuestInput] gamepad not readable: {e.Message}");
+                return false;
+            }
+#else
+            return false;
+#endif
+        }
+
         // ---- diagnostics ----
 
         private static bool _legacyWatching;
@@ -273,7 +365,9 @@ namespace FlyingGame.Bridge
                     isb.Append($" [\"{d.displayName ?? d.name}\" layout {d.layout}, usages {string.Join("/", d.usages)}, menu {(m != null ? m.name : "none")}]");
                 }
                 sb.Append($" | Input System XR {n}:").Append(isb);
-                _isDirty = true;
+                sb.Append($" | gamepads {UnityEngine.InputSystem.Gamepad.all.Count}:");
+                foreach (var g in UnityEngine.InputSystem.Gamepad.all) sb.Append(" [").Append(Describe(g)).Append(']');
+                _isDirty = true; _padDirty = true;
 #endif
                 Debug.Log(sb.ToString());
             }

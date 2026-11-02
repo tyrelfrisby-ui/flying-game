@@ -70,7 +70,9 @@ public sealed class QuestControlsTests
     [Fact]
     public void ADriftingStickIsLetGo()
     {
-        var c = Once(new QuestControllerFrame { RightX = 0.06, RightY = -0.07, LeftX = 0.05 });
+        // Drift inside the 0.05 dead zone (0.10 until 2026-11-02, when Ty asked for a gentler, smaller-dead-zone
+        // stick: QuestStickFeel). A real rest drift on the Touch and on a gamepad is a few hundredths.
+        var c = Once(new QuestControllerFrame { RightX = 0.04, RightY = -0.045, LeftX = 0.05 });
         Assert.Equal(0.0, c.Aileron);
         Assert.Equal(0.0, c.Elevator);
         Assert.Equal(0.0, c.Rudder);

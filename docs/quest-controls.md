@@ -35,8 +35,39 @@ pedals' rudder ADDS to the left stick's, and each wheel brakes with the harder o
 trigger. Unplug them and the controllers have it all again on the next frame. Mapping and calibration: VR menu →
 **Rudder pedals**. Everything else: docs/RUDDER-PEDALS.md.
 
-Dead zones: thumbsticks have a 0.10 hardware dead zone (rescaled, so full deflection is still full), the throttle
-rate 0.25. The aeroplane's own dead zone and expo (`AircraftConfig`) come on top, exactly as for the touch pads.
+**Stick feel (Ty 2026-11-02: "far too sensitive, especially around neutral").** In a headset the stick runs
+through `out = 0.35·u + 0.65·u³` on aileron, elevator and rudder alike, where `u` is the stick past a **0.05** dead
+zone, rescaled so there is no step at its edge (`QuestStickFeel`, `QuestControlMapper.StickDeadZone`; it was 0.10 and
+each aircraft's own 10–30 % expo). Full stick is still full deflection; a small movement does about a third of what it
+did linearly; half stick is a quarter of the travel (the Pitts' aileron at 0.3 of stick: 0.141 of its travel before,
+0.104 now). It is the same setting as Options → Controls' expo on the phone and the Mac — there "unset" still means
+the aircraft's own, here it means 65 % — and **VR menu → Stick expo** changes it (`<` `>` in 5 % steps, all three
+axes; select = back to the default). The throttle's rate dead zone stays 0.25. One stick carries rudder and
+throttle, so whichever axis is clearly dominant wins: a bootful of rudder with your
+thumb drifting 0.3 forward does not open the throttle, and easing the power off does not kick the rudder.
+
+**A Bluetooth gamepad** (an 8BitDo, an Xbox or PlayStation pad, any Android pad: pair it in the headset's Settings →
+Devices → Bluetooth, with the pad in its Android / X-input mode) is read through the Input System and turned into the
+same controller frame (`QuestGamepadMap`), merged with the Touch controllers', so it flies, works the VR menu and has
+the same feel — use either, or both:
+
+| Pad | Does |
+|---|---|
+| **Left stick** | Aileron and elevator (forward = push), as an uncalibrated pad on the iPhone and the Mac |
+| **Right stick X / Y** | Rudder / the throttle lever as a rate (push to open, let go and it stays) |
+| **Left / right trigger** | Wheel brakes / guns (where they are hot) |
+| **South (Xbox A) / East (B)** | Pitch trim nose up / nose down — the Touch A / B |
+| **West (X) / North (Y)** | Flaps one step down / up — the Touch X / Y |
+| **Left stick press** | Gear (glider: tow / release) — the flying stick's click |
+| **Right stick press** | Recentre; **held 1 s**, the VR menu |
+| **Start** | **VR menu**. In it either stick moves and changes values, South / West or a trigger selects, East / North goes back — the Touch's A / X and B / Y |
+| **Select** | Recentre |
+| **Right shoulder** | Smoke on / off |
+
+The sticks are read without the Input System's own 0.125 dead zone, so the 0.05 one above is the only one. When a pad
+connects or goes, the log says so: `adb logcat -s Unity | grep QuestInput` shows `[QuestInput] gamepad Added: "<name>"
+layout <layout> VID:PID xxxx:xxxx …` and `gamepad in use: …`, and the VR menu's **Gamepad** row names it. Buttons
+are by POSITION: on an 8BitDo in Nintendo labelling the bottom button (labelled B) is South.
 One stick carries rudder and throttle, so whichever axis is clearly dominant wins: a bootful of rudder with your
 thumb drifting 0.3 forward does not open the throttle, and easing the power off does not kick the rudder.
 
