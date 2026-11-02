@@ -47,18 +47,24 @@ public sealed class CrashWaterProbe : IDisposable
         _txt.Append(AirframeHydroModel.Build(c172).Describe());
         _txt.AppendLine();
 
-        BreakUp("LAND break-up", c172, water: false);
-        BreakUp("WATER break-up", c172, water: true);
-        Ditch("INTACT ditching", c172, 12, 0.5, 8);
-        Ditch("FAST ditching, gear down", c172, 24, 0.8, 6);
-        Floatplane("FLOATPLANE undamaged", false);
-        Floatplane("FLOATPLANE left float holed (4 compartments, RockStrike)", true);
+        try { RunAll(c172); } finally { FloatHydro.FlatWaterOverride = null; }   // thread-static: clear it on this thread
 
         string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Developer", "agent-lanes", "aero-playground", "crash-water");
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "probe.txt"), _txt.ToString());
         File.WriteAllText(Path.Combine(dir, "probe.csv"), _csv.ToString());
         _out.WriteLine(_txt.ToString());
+    }
+
+    private void RunAll(AircraftConfig c172)
+    {
+        BreakUp("LAND break-up", c172, water: false);
+        BreakUp("WATER, same arrival (break rule as it is)", c172, water: true);
+        BreakUp("WATER, break-up FORCED at first water contact (nose, tail boom, both wings)", c172, water: true, forceBreak: true);
+        Ditch("INTACT ditching", c172, 12, 0.5, 8);
+        Ditch("FAST ditching, gear down", c172, 24, 0.8, 6);
+        Floatplane("FLOATPLANE undamaged", false);
+        Floatplane("FLOATPLANE left float holed (4 compartments, RockStrike)", true);
     }
 
     private static bool Sample(double t, ref double next)
@@ -86,16 +92,18 @@ public sealed class CrashWaterProbe : IDisposable
         _txt.AppendLine("       t  body                depth      vz   air m3   buoy N   state");
     }
 
-    private void BreakUp(string title, AircraftConfig c, bool water)
+    private void BreakUp(string title, AircraftConfig c, bool water, bool forceBreak = false)
     {
         CrashEvents.ClearForTests();
         FloatHydro.FlatWaterOverride = water ? WaterUp : null;
         double surface = water ? WaterUp : 0.0;
         var impacts = new List<CrashImpact>();
         CrashEvents.Impact += impacts.Add;
-        // 30 m/s (58 kt) along, 12 m/s down, 15 deg nose-down: past every break speed in AirframeContact.
-        var att = Pitch(-15);
-        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(surface + 2.5)), att, att.Conjugate().Rotate(new Vec3(30, 0, 12)), Vec3.Zero));
+        // A stall-spin style arrival, the same for land and water: 30 m/s (58 kt) along, 20 m/s down, 30 deg nose-down.
+        // (At 12 m/s down and 15 deg the 172 now survives water: wheels and hull added mass take the speed off before the
+        // hard points arrive — the cabin hits at 6.3 m/s against its 8 m/s break.)
+        var att = Pitch(-30);
+        var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(surface + 3.5)), att, att.Conjugate().Rotate(new Vec3(30, 0, 20)), Vec3.Zero));
         var relay = new CrashRelay(ac);
         var loop = new SimLoop(ac);
         double dt = SimLoop.DefaultFixedDtSec, next = 0;
@@ -103,10 +111,19 @@ public sealed class CrashWaterProbe : IDisposable
         var tracks = new Dictionary<int, Track>();
         Track airT = new() { Name = "airframe" };
         double tEnd = 1800;
+        bool forced = false;
         for (int i = 0; ; i++)
         {
             double t = i * dt;
             if (i > 0) { loop.RunFor(dt, ControlInputs.Neutral); relay.Step(dt); }
+            if (forceBreak && !forced && impacts.Any(e => e.PieceId == -1 && e.Surface == ImpactSurface.Water))
+            {
+                // What a load-based water-impact break rule would do here (see NEEDS YOU): the arrival state is real.
+                forced = true;
+                ac.LoseComponent(AirframeComponent.Cabin);
+                ac.LoseComponent(AirframeComponent.WingLeft);
+                ac.LoseComponent(AirframeComponent.WingRight);
+            }
             foreach (WreckPiece p in relay.Wreck.Pieces)
             {
                 if (!tracks.TryGetValue(p.Id, out Track? tr)) tracks[p.Id] = tr = new Track { Name = p.Name };
@@ -131,7 +148,7 @@ public sealed class CrashWaterProbe : IDisposable
         {
             _txt.AppendLine($"    #{p.Id} {p.Name,-14} {p.MassKg,6:F0} kg  elements: {string.Join(", ", p.Elements.Select(e => $"{e.Name}({e.MassKg:F0} kg, env {e.EnvelopeM3:F3}, void {e.VoidM3:F3} m3, open {e.TotalOpeningM2 * 1e4:F0} cm2)"))}");
             if (water && tracks.TryGetValue(p.Id, out Track? tr))
-                _txt.AppendLine($"       max plunge {tr.MaxDepth:F2} m; resurfaced {Fmt(tr.Resurface)}; reserve<0 (sinking) {Fmt(tr.Sink)}; on the bed {Fmt(tr.Bottom)}");
+                _txt.AppendLine($"       max plunge (first 5 s, off the bed) {tr.MaxDepth:F2} m; resurfaced {Fmt(tr.Resurface)}; reserve<0 (sinking) {Fmt(tr.Sink)}; on the bed {Fmt(tr.Bottom)}");
         }
         if (water) _txt.AppendLine($"    airframe: max depth {airT.MaxDepth:F2} m; resurfaced {Fmt(airT.Resurface)}; sinking {Fmt(airT.Sink)}");
         _txt.AppendLine("  impacts raised:");
@@ -146,7 +163,8 @@ public sealed class CrashWaterProbe : IDisposable
     private static void Follow(Track tr, double t, double depth, double vz, bool bottom, bool sinking)
     {
         if (double.IsNaN(depth)) return;
-        if (depth > tr.MaxDepth && t < 20) tr.MaxDepth = depth;
+        // The plunge: deepest the centre goes in the first 5 s, not counting lying on the bed.
+        if (depth > tr.MaxDepth && t < 5 && !bottom) tr.MaxDepth = depth;
         if (double.IsNaN(tr.FirstUnder) && depth > 0.2) tr.FirstUnder = t;
         if (!double.IsNaN(tr.FirstUnder) && double.IsNaN(tr.Resurface) && depth < 0.05 && vz <= 0 && t > tr.FirstUnder) tr.Resurface = t;
         if (double.IsNaN(tr.Sink) && sinking) tr.Sink = t;

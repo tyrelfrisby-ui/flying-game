@@ -29,6 +29,14 @@ public sealed class CrashWaterTests : IDisposable
     public CrashWaterTests(ITestOutputHelper o) { _out = o; CrashEvents.ClearForTests(); WorldTerrain.Active = null; FloatHydro.FlatWaterOverride = null; }
     public void Dispose() { CrashEvents.ClearForTests(); WorldTerrain.Active = null; FloatHydro.FlatWaterOverride = null; }
 
+    /// <summary>FloatHydro.FlatWaterOverride is THREAD-static: set and cleared on the test's own thread (Dispose can run
+    /// on another, and a stale lake then sits over every later test on this thread).</summary>
+    internal sealed class FlatWater : IDisposable
+    {
+        public FlatWater(double up) { FloatHydro.FlatWaterOverride = up; }
+        public void Dispose() { FloatHydro.FlatWaterOverride = null; }
+    }
+
     private static AircraftConfig Load(string id) =>
         AircraftConfigLoader.LoadFromFile(Path.Combine(AppContext.BaseDirectory, "TestData", id + ".json"));
 
@@ -60,7 +68,8 @@ public sealed class CrashWaterTests : IDisposable
     {
         AircraftConfig c = Load("c172-like");
         // Water 10 m deep over flat ground at 0 (the water test), or the bare ground (the land test).
-        if (water) FloatHydro.FlatWaterOverride = 10.0;
+        using var lake = new FlatWater(water ? 10.0 : double.NaN);
+        if (!water) FloatHydro.FlatWaterOverride = null;
         double surface = water ? 10.0 : 0.0;
         var att = Pitch(-15);
         var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(surface + 3.0)), att, att.Conjugate().Rotate(new Vec3(25, 0, 9)), Vec3.Zero));
@@ -126,7 +135,7 @@ public sealed class CrashWaterTests : IDisposable
     {
         (WreckSim sim, WreckPiece nose) = DropPiece(AirframeComponent.Nose);
         _out.WriteLine($"nose piece {nose.MassKg:F0} kg, reserve {nose.ReserveKg:F0} kg");
-        double deepest = 0, sinceUnder = double.NaN;
+        double deepest = 0, sinceUnder = double.NaN, sinkingAt = double.NaN;
         bool wentUnder = false;
         for (int i = 0; i < (int)(120 / sim.Dt); i++)
         {
@@ -135,10 +144,14 @@ public sealed class CrashWaterTests : IDisposable
             if (!wentUnder && d > 0.5) wentUnder = true;
             if (wentUnder) { deepest = System.Math.Max(deepest, d); Assert.True(d > 0.3, $"t {sim.Time:F1}: nose back up to {d:F2} m"); }
             if (double.IsNaN(sinceUnder) && nose.Phase == WreckPhase.OnBottom) sinceUnder = sim.Time;
+            if (double.IsNaN(sinkingAt) && nose.Sinking) sinkingAt = sim.Time;
         }
-        _out.WriteLine($"on the bottom (30 m) after {sinceUnder:F1} s");
+        _out.WriteLine($"sinking (no reserve left) at {sinkingAt:F1} s, on the bottom (30 m) after {sinceUnder:F1} s");
         Assert.True(wentUnder);
-        Assert.True(sinceUnder < 20, $"engine took {sinceUnder:F1} s to reach the bed 30 m down");
+        // The cowl can carry a bubble of air down trapped above its torn face; the deeper it goes the more that bubble
+        // is squeezed and the faster it sinks. It has lost its reserve within seconds and is on a 30 m bed within a minute.
+        Assert.True(sinkingAt < 10, $"engine piece still had reserve at {sinkingAt:F1} s");
+        Assert.True(sinceUnder < 60, $"engine took {sinceUnder:F1} s to reach the bed 30 m down");
     }
 
     /// <summary>
@@ -179,14 +192,17 @@ public sealed class CrashWaterTests : IDisposable
         // broadside is ρ·π·(c/2)²·span ≈ 1000·π·0.8²·4.9 ≈ 9,900 kg against 173 kg of wing, so 10 m/s becomes a few
         // tenths of a metre per second within the wing's own thickness. It does not go under.
         (WreckSim sim, WreckPiece wing) = DropPiece(AirframeComponent.WingLeft, heightM: 2.0, fwdMs: 0, downMs: 10);
-        double vAfter = double.NaN;
+        double vAfter = double.NaN, deepest = double.MinValue;
         for (int i = 0; i < (int)(3 / sim.Dt); i++)
         {
             sim.StepOnce();
-            if (double.IsNaN(vAfter) && wing.DepthM > 0.0) vAfter = wing.WorldVelocity.Z;
+            // Once its underside is a wing-thickness (0.19 m) into the water:
+            if (double.IsNaN(vAfter) && wing.LowestPoint().Z > 0.19) vAfter = wing.WorldVelocity.Z;
+            deepest = System.Math.Max(deepest, wing.DepthM);
         }
-        _out.WriteLine($"down speed once the centre is in: {vAfter:F2} m/s");
+        _out.WriteLine($"down speed a thickness in: {vAfter:F2} m/s; deepest the centre went {deepest:F2} m");
         Assert.InRange(vAfter, -1.0, 1.5);
+        Assert.True(deepest < 0.3, $"the flat wing's centre went {deepest:F2} m under");
     }
 
     [Fact]
@@ -243,7 +259,7 @@ public sealed class CrashWaterTests : IDisposable
     private double DitchAndTimeTheSink(double maxSec, out Aircraft ac)
     {
         AircraftConfig c = Load("c172-like");
-        FloatHydro.FlatWaterOverride = 10.0;   // 10 m of water over ground at 0
+        using var lake = new FlatWater(10.0);   // 10 m of water over ground at 0
         // Set down slowly, nose up: 12 m/s along, 0.5 m/s down, 8°. (At 24 m/s the fixed gear digs in — WheelHydro —
         // and the aeroplane goes over onto its nose hard enough to break up; the probe shows that case.)
         var att = Pitch(8);
@@ -277,8 +293,7 @@ public sealed class CrashWaterTests : IDisposable
 
     private static Aircraft FloatplaneAtRest(out SimLoop loop)
     {
-        AircraftConfig c = Load("pa18-floats-like");
-        FloatHydro.FlatWaterOverride = 10.0;
+        AircraftConfig c = Load("pa18-floats-like");   // caller holds a FlatWater(10) scope
         // Keel 0.25 m into the water, level, at rest; it settles to its own draft.
         var ac = new Aircraft(c, new RigidBodyState(new Vec3(0, 0, -(10.0 + c.Floats!.KeelZ - 0.25)), Quat.Identity, Vec3.Zero, Vec3.Zero));
         loop = new SimLoop(ac);
@@ -305,6 +320,7 @@ public sealed class CrashWaterTests : IDisposable
     [Fact]
     public void AnUndamagedFloatNeverTakesWater()
     {
+        using var lake = new FlatWater(10.0);
         Aircraft ac = FloatplaneAtRest(out SimLoop loop);
         double z0 = double.NaN;
         for (int i = 0; i < (int)(900 / SimLoop.DefaultFixedDtSec); i++)
@@ -321,6 +337,7 @@ public sealed class CrashWaterTests : IDisposable
     [Fact]
     public void ALessonCanHoleAFloatAndTheAeroplaneListsTowardIt()
     {
+        using var lake = new FlatWater(10.0);
         Aircraft ac = FloatplaneAtRest(out SimLoop loop);
         for (int i = 0; i < (int)(20 / SimLoop.DefaultFixedDtSec); i++) loop.RunFor(SimLoop.DefaultFixedDtSec, new ControlInputs(0, 0, 0, 1.0));
         double roll0 = RollDeg(ac.State.Attitude);

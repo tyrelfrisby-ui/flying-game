@@ -116,6 +116,14 @@ public sealed class AirframeHydroModel
         foreach (SurfaceConfig sf in c.Surfaces) foreach (StripConfig st in sf.Strips) minTe = System.Math.Min(minTe, st.Pos[0] - 0.75 * st.Chord);
         if (minTe == double.MaxValue) minTe = -len * 0.6;
         double tailX = minTe - 0.2, noseX = tailX + len;
+        // Where the nose really is. fuselage.crossflow.lengthM is the aerodynamic crossflow length and on several types
+        // falls short of the airframe: laid aft-to-fore from the tail it put the 172's nose at x = -0.43 m, behind its
+        // own wing leading edge (a real 172 is 8.3 m long). Two config facts locate it better, whichever reaches further:
+        // the smoke system's measured exhaust outlet plus its aftOfNoseM (172: 1.282 + 1.01 = 2.29 m), and the nosewheel,
+        // which sits under the cowling (its contact point + 0.3 m of cowling ahead of it).
+        if (c.Smoke is { } sm && sm.AftOfNoseM > 0 && sm.TryOutlet(out Vec3 outlet)) noseX = System.Math.Max(noseX, outlet.X + sm.AftOfNoseM);
+        foreach (GearConfig g in c.Gear)
+            if (!g.IsTailwheel && System.Math.Abs(g.Pos[1]) < 0.05 && g.GearType != "float-keel") noseX = System.Math.Max(noseX, g.Pos[0] + 0.3);
         (double noseCut, double tailCut) = AirframeContact.FuselageStations(c);
         noseCut = System.Math.Clamp(noseCut, tailX + 0.6, noseX - 0.2);
         tailCut = System.Math.Clamp(tailCut, tailX + 0.2, noseCut - 0.4);

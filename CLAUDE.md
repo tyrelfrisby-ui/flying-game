@@ -160,3 +160,9 @@ and an overloaded soft clipper rounding slightly past 1. Use integer sample coun
 new voice-pool outputs. Review also caught R~Q^(1/3) cancelling Q/V, so bubble packet rate stayed constant:
 check actual rates at representative SI flows as well as listening. The vent approximation now shares flow
 between size and rate (R~Q^(1/6)); the runner asserts both rise before the cap.
+### A thread-static override must be cleared on the thread that set it
+`FloatHydro.FlatWaterOverride` is `[ThreadStatic]`. The crash-water tests set it inside the test and cleared it in
+the class's `Dispose`, which xUnit can run on a different thread. The test's own thread then kept a 10 m lake over
+flat ground for whatever ran on it next: aeroplanes "on the runway" were under water, taxi tests tore off gear, and
+a full run showed fifty new failures that all passed alone. Set and clear it in the same synchronous scope (a
+`using` helper or try/finally in the test method), never in a constructor/Dispose pair.
