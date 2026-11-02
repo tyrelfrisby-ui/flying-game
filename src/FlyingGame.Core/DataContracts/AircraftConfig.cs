@@ -54,6 +54,10 @@ public sealed class AircraftConfig
     public Dictionary<string, AirfoilTableData> AirfoilTables { get; set; } = new();
     public ControlsConfig Controls { get; set; } = new();
     public FuselageConfig Fuselage { get; set; } = new();
+    /// <summary>How the airframe is built, for what a crash in water does to it (Core/Wreck): skin covering and
+    /// cockpit openings. Optional; absent means a riveted aluminium skin and an enclosed cabin with a windshield and
+    /// two doors.</summary>
+    public ConstructionConfig Construction { get; set; } = new();
     public PropulsionConfig? Propulsion { get; set; }
 
     /// <summary>Airshow smoke exhaust (optional; owner 2026-10-12, the Extra: "the exhaust location … 4 ft from the nose on
@@ -370,6 +374,33 @@ public sealed class FuselageConfig
     /// respective area centers (x vs CG), giving the moments a point-model fuselage cannot.
     /// </summary>
     public CrossflowConfig Crossflow { get; set; } = new();
+}
+
+/// <summary>How the airframe is built (crash-in-water damage, Core/Wreck/AirframeHydroModel).</summary>
+public sealed class ConstructionConfig
+{
+    /// <summary>"metal" (riveted 2024-T3 sheet, the default) or "fabric" (doped fabric over a steel-tube fuselage and
+    /// wooden or metal wings).</summary>
+    public string Covering { get; set; } = "metal";
+    /// <summary>Cockpit openings in the top of the fuselage. Empty = an enclosed cabin (windshield and two doors).</summary>
+    public List<CockpitOpeningConfig> Cockpits { get; set; } = new();
+    public bool IsFabric => string.Equals(Covering, "fabric", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>One cockpit opening in the fuselage top deck, body frame (+x forward), measured from the type's model.</summary>
+public sealed class CockpitOpeningConfig
+{
+    /// <summary>Forward edge of the opening, body x, m.</summary>
+    public double FrontX { get; set; }
+    /// <summary>Aft edge of the opening, body x, m.</summary>
+    public double AftX { get; set; }
+    /// <summary>Plan area of the opening, m^2.</summary>
+    public double AreaM2 { get; set; }
+    /// <summary>Width of the opening, m (the span of a canopy over it).</summary>
+    public double WidthM { get; set; }
+    /// <summary>"open" (nothing over it: always an opening) or "canopy" (acrylic over it: an opening once it breaks).</summary>
+    public string Enclosure { get; set; } = "open";
+    public bool IsOpen => string.Equals(Enclosure, "open", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Per-type switches for the wing cellule of a multi-wing aeroplane.</summary>

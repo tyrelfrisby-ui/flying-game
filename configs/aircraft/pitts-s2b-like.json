@@ -2056,6 +2056,13 @@
       "axisMap": "aftOnly"
     }
   },
+  "construction": {
+    "_comment": "Crash-in-water damage (Core/Wreck, lane/claude-crash-water 2026-11-02). Welded steel-tube fuselage, wooden wings, doped fabric covering. Both cockpits under ONE acrylic canopy, measured from the own model (tools/own_models/build_pitts_s2b.py: X_CF/X_CA windscreen base -0.13 to rear bow -1.60, width from sill_w): plan area integrated over the sills 0.976 m2, mean width 0.664 m.",
+    "covering": "fabric",
+    "cockpits": [
+      { "frontX": -0.13, "aftX": -1.60, "widthM": 0.664, "areaM2": 0.976, "enclosure": "canopy" }
+    ]
+  },
   "fuselage": {
     "cd0Area": 0.42,
     "sideForceArea": 4.442,

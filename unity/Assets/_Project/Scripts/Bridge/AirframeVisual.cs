@@ -267,18 +267,19 @@ namespace FlyingGame.Bridge
         /// and everything else stays. A wing loft spanning both sides is split at the centreline and the kept half
         /// stays on the aircraft.
         /// </summary>
-        public void DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        /// <returns>The debris object (a <see cref="WingDebris"/>), or null when nothing visible left.</returns>
+        public GameObject DetachComponent(FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
             _componentsDetached = true;
-            if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return; }
-            DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
+            if (comp == FlyingGame.Core.AirframeComponent.Propeller) { BendPropeller(); return null; }
+            return DetachStatic(_builder, transform, _driver?.Sim?.Aircraft?.Config, comp, worldVelocityUnity);
         }
 
         /// <summary>Detach a component's visual parts as tumbling debris — shared by the player's airframe and the
         /// target drones (any AirframeBuilder-built airframe).</summary>
-        public static void DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
+        public static GameObject DetachStatic(AirframeBuilder _builder, Transform root, AircraftConfig cfg, FlyingGame.Core.AirframeComponent comp, Vector3 worldVelocityUnity)
         {
-            if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return;   // the break-up arrives as Nose + TailBoom events
+            if (comp == FlyingGame.Core.AirframeComponent.Cabin || comp == FlyingGame.Core.AirframeComponent.Propeller) return null;   // the break-up arrives as Nose + TailBoom events
             _builder?.FreezeRig();   // the break-up cuts the rigid model meshes
             var debris = new GameObject("Debris-" + comp);
             debris.transform.SetPositionAndRotation(root.position, root.rotation);
@@ -420,7 +421,7 @@ namespace FlyingGame.Bridge
                 : tailBoom ? -root.forward * 3f + root.up * 2.5f
                 : nose ? root.forward * 2f + root.up * 3f
                 : -root.forward * 3f + root.up * 4f;
-            LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
+            return LaunchDebris(debris, worldVelocityUnity + kick, leftWing || rightWing || panel ? sideDir : root.right, (leftWing || side < 0f) ? 1f : -1f);
         }
 
         /// <summary>Split a part's mesh on one side of the centreline at a spanwise station (root-local x = sim y):
@@ -505,13 +506,14 @@ namespace FlyingGame.Bridge
         /// away under gravity. Fuselage, tail and prop keep animating on the airframe. Idempotent; the next
         /// Rebuild (fresh sim Aircraft) restores the wings.
         /// </summary>
-        public void DetachWings(Vector3 worldVelocityUnity)
+        /// <returns>The left and right wing debris objects (either may be null).</returns>
+        public (GameObject left, GameObject right) DetachWings(Vector3 worldVelocityUnity)
         {
-            if (_wingsDetached) return;
+            if (_wingsDetached) return (null, null);
             _builder.FreezeRig();
             _wingsDetached = true;
             List<GameObject> parts = _builder.TakeWingParts();
-            if (parts.Count == 0) return;
+            if (parts.Count == 0) return (null, null);
 
             Transform root = transform;
             GameObject left = new GameObject("WingDebris-L");
@@ -556,17 +558,19 @@ namespace FlyingGame.Bridge
             // Ballistic tumble: inherit the aircraft's velocity, kick outward and up, spin about a random axis
             // biased to the span (a freed wing pinwheels), each side its own way.
             Vector3 outward = root.right, up = root.up;
-            LaunchDebris(left, worldVelocityUnity - outward * 4f + up * 3f, -root.right, 1f);
-            LaunchDebris(right, worldVelocityUnity + outward * 4f + up * 3f, root.right, -1f);
+            GameObject l = LaunchDebris(left, worldVelocityUnity - outward * 4f + up * 3f, -root.right, 1f);
+            GameObject r = LaunchDebris(right, worldVelocityUnity + outward * 4f + up * 3f, root.right, -1f);
+            return (l, r);
         }
 
-        private static void LaunchDebris(GameObject go, Vector3 velocity, Vector3 spanAxis, float sign)
+        private static GameObject LaunchDebris(GameObject go, Vector3 velocity, Vector3 spanAxis, float sign)
         {
-            if (go.transform.childCount == 0) { Object.Destroy(go); return; }
+            if (go.transform.childCount == 0) { Object.Destroy(go); return null; }
             WingDebris d = go.AddComponent<WingDebris>();
             d.Velocity = velocity;
             Vector3 tumble = (spanAxis * 2.5f + Random.onUnitSphere).normalized;
             d.AngularVelocityDeg = tumble * Random.Range(180f, 320f) * sign;
+            return go;
         }
 
         private static void AddPiece(Transform parent, string name, Mesh mesh, Material mat, Vector3 localPos, Quaternion localRot, Vector3 scale)
@@ -662,15 +666,22 @@ namespace FlyingGame.Bridge
     }
 
     /// <summary>
-    /// A separated wing: simple kinematic ballistics — gravity, a drag-ish velocity damping (a loose panel
-    /// flutters down at ~15 m/s rather than streamlining), a decaying tumble — until it reaches the ground
-    /// (FlyingGame.Core.WorldTerrain via CoordinateMap) or 30 s pass.
+    /// A separated piece of airframe. When the crash physics owns it (<see cref="Piece"/> set by StructuralDamage) it
+    /// simply sits where the sim's wreck piece is — falling, striking, plunging, floating, sinking: all of that is
+    /// FlyingGame.Core.Wreck.WreckSim, and this is only its picture. Otherwise (combat drones, the widget) it falls back to
+    /// simple kinematic ballistics — gravity, a drag-ish velocity damping (a loose panel flutters down at ~15 m/s rather
+    /// than streamlining), a decaying tumble — until it reaches the ground or 30 s pass.
     /// </summary>
     public sealed class WingDebris : MonoBehaviour
     {
         public Vector3 Velocity;
         public Vector3 AngularVelocityDeg;
         public float LifeSec = 30f;
+        /// <summary>The sim piece this is the picture of (null = the old free ballistics).</summary>
+        public FlyingGame.Core.Wreck.WreckPiece Piece;
+        /// <summary>The piece's CG relative to the aeroplane's CG, body frame: this object's origin is the aeroplane's
+        /// CG at the moment of the break, carried rigidly with the piece.</summary>
+        public FlyingGame.Core.MathTypes.Vec3 PieceOffsetBody;
 
         private const float GravityMs2 = 9.80665f;
         private const float DragPerSec = 0.65f;     // terminal ≈ g/drag ≈ 15 m/s
@@ -678,6 +689,13 @@ namespace FlyingGame.Bridge
 
         private void Update()
         {
+            if (Piece != null)
+            {
+                FlyingGame.Core.RigidBodyState s = Piece.State;
+                FlyingGame.Core.MathTypes.Vec3 origin = s.Position - s.Attitude.Rotate(PieceOffsetBody);
+                transform.SetPositionAndRotation(CoordinateMap.ToUnity(origin), CoordinateMap.ToUnity(s.Attitude));
+                return;
+            }
             float dt = Time.deltaTime;
             Velocity += Vector3.down * (GravityMs2 * dt);
             Velocity *= Mathf.Max(0f, 1f - DragPerSec * dt);

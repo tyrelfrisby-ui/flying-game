@@ -159,3 +159,15 @@ length error on the first B build.
 failed `OUT=$(devicectl …)` ended the script without a word and the iPhone after it never got the build. If a
 block must survive failures, say `set +e` in the code above it, and when a script stops with no message, look at
 its error options before the device.
+### Audio timing and bubble rates need checks in samples and SI units
+The crash-audio renderer caught a travel delay drifting early when each sample subtracted a float second,
+and an overloaded soft clipper rounding slightly past 1. Use integer sample countdowns and explicitly bound
+new voice-pool outputs. Review also caught R~Q^(1/3) cancelling Q/V, so bubble packet rate stayed constant:
+check actual rates at representative SI flows as well as listening. The vent approximation now shares flow
+between size and rate (R~Q^(1/6)); the runner asserts both rise before the cap.
+### A thread-static override must be cleared on the thread that set it
+`FloatHydro.FlatWaterOverride` is `[ThreadStatic]`. The crash-water tests set it inside the test and cleared it in
+the class's `Dispose`, which xUnit can run on a different thread. The test's own thread then kept a 10 m lake over
+flat ground for whatever ran on it next: aeroplanes "on the runway" were under water, taxi tests tore off gear, and
+a full run showed fifty new failures that all passed alone. Set and clear it in the same synchronous scope (a
+`using` helper or try/finally in the test method), never in a constructor/Dispose pair.

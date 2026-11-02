@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using FlyingGame.Core.Wreck;
 using FlyingGame.Sim;
 using UnityEngine;
 
@@ -16,6 +18,11 @@ namespace FlyingGame.Bridge
     /// (FlightAudio, PilotEgress, NetSession, HUD), drives FlightAudio directly, and tells AirframeVisual to
     /// let the wings tumble away. A fresh sim Aircraft (ResetFlight / aircraft switch / challenge spawn) is
     /// intact, so this repairs whenever the driver's Aircraft instance changes.
+    ///
+    /// CRASH IMPACTS (2026-11-02, lane/claude-crash-water): this no longer plays the crash sound itself. A hard hit
+    /// and every piece that breaks off go through FlyingGame.Sim.CrashRelay, which raises FlyingGame.Core.CrashEvents
+    /// with the surface struck (Land / Water); FlightAudio subscribes and plays the crunch or the splash. The relay
+    /// also runs the wreck (WreckSim): each debris object is bound to its sim piece and only shows where it is.
     /// </summary>
     [RequireComponent(typeof(FlightSimDriver))]
     public sealed class StructuralDamage : MonoBehaviour
@@ -41,6 +48,10 @@ namespace FlyingGame.Bridge
         private FlightAudio _audio;
         private AirframeVisual _visual;
         private Aircraft _watched;   // the sim Aircraft this state was read from (a new instance = intact airframe)
+        private CrashRelay _relay;   // crash events + wreck pieces for _watched
+        private readonly List<GameObject> _wreckVisuals = new();
+        /// <summary>The crash relay for the current aircraft (null before the sim exists).</summary>
+        public CrashRelay Relay => _relay;
 
         private void Awake()
         {
@@ -68,6 +79,10 @@ namespace FlyingGame.Bridge
             if (_watched != null) { _watched.ComponentLost -= OnComponentLost; _watched.HardImpact -= OnHardImpact; _watched.Damage.Changed -= OnDamage; }
             _watched = _driver != null && _driver.Sim != null ? _driver.Sim.Aircraft : null;
             if (_watched != null) { _watched.ComponentLost += OnComponentLost; _watched.HardImpact += OnHardImpact; _watched.Damage.Changed += OnDamage; }
+            // The old wreck goes with the old aeroplane.
+            foreach (GameObject g in _wreckVisuals) if (g != null) Destroy(g);
+            _wreckVisuals.Clear();
+            _relay = _watched != null ? new CrashRelay(_watched, subscribe: false) : null;
             LostLine = null;
             ReadLimits();
         }
@@ -75,20 +90,31 @@ namespace FlyingGame.Bridge
         /// <summary>HUD text naming what has broken off, null while intact.</summary>
         public string LostLine { get; private set; }
 
-        /// <summary>A hard point or wheel just hit: crunching metal scaled by the closing speed (a 1.5 m/s arrival is
-        /// a thump, 8 m/s a full crunch). A break in the same step adds its own full-weight crash.</summary>
+        /// <summary>A hard point or wheel just hit. A wheel on land is a tyre chirp; anything else is a crash impact,
+        /// raised by the relay as a CrashEvents impact with the surface it struck (FlightAudio plays crunch or splash).</summary>
         private void OnHardImpact(double closingMs, string point)
         {
             if (_audio == null) _audio = GetComponent<FlightAudio>();
-            if (point.StartsWith("Gear"))
+            if (point.StartsWith("Gear") && (_watched == null || !_watched.LastImpact.OnWater))
             {
                 // A wheel: a subtle tyre chirp (owner: not a gong); a leg that breaks adds its own crash via ComponentLost.
                 if (closingMs < 0.4) return;
                 _audio?.TireChirp(Mathf.Clamp01((float)((closingMs - 0.4) / 3.0)));
                 return;
             }
-            if (closingMs < 1.2) return;
-            _audio?.Crash(Mathf.Clamp01((float)((closingMs - 1.2) / 7.0)));
+            _relay?.OnHardImpact(closingMs, point);
+        }
+
+        /// <summary>Hand a debris object to its sim piece: from here the wreck physics moves it.</summary>
+        private void Bind(GameObject go, WreckPiece piece)
+        {
+            if (go == null) return;
+            _wreckVisuals.Add(go);
+            if (piece == null || _watched == null) return;
+            WingDebris d = go.GetComponent<WingDebris>();
+            if (d == null) return;
+            d.Piece = piece;
+            d.PieceOffsetBody = piece.CgBody - _watched.Config.Mass.CgVec();
         }
 
         /// <summary>Bullet damage that is not a part loss: fuel streaming, fire.</summary>
@@ -105,10 +131,11 @@ namespace FlyingGame.Bridge
         private void OnComponentLost(FlyingGame.Core.AirframeComponent c)
         {
             if (_visual == null) _visual = GetComponent<AirframeVisual>();
-            if (_visual != null) _visual.DetachComponent(c, _driver.WorldVelocityUnity);
-            if (_audio == null) _audio = GetComponent<FlightAudio>();
-            // Impact break-ups crunch (owner: "crash = crunching, breaking metal"); the g-limit wing failure keeps its own sound.
-            if (_audio != null) _audio.Crash(c == FlyingGame.Core.AirframeComponent.Propeller ? 0.6f : 1f);
+            GameObject debris = _visual != null ? _visual.DetachComponent(c, _driver.WorldVelocityUnity) : null;
+            // The break's sound is the relay's: the piece's first touch of land or water raises its own CrashEvents
+            // impact (and a prop strike raises one for the airframe). The g-limit wing failure keeps its own sound.
+            WreckPiece piece = _relay?.OnComponentLost(c);
+            Bind(debris, piece);
             string name = c switch
             {
                 FlyingGame.Core.AirframeComponent.WingLeft => "LEFT WING",
@@ -157,6 +184,9 @@ namespace FlyingGame.Bridge
                 Repair();   // AdoptSim / spawn built a new Aircraft: intact again
             }
 
+            // The wreck and the airframe's flooding, in step with the game clock.
+            _relay?.Step(Time.deltaTime);
+
             StructuralState st = ac.Structure;
             LoadFactorG = (float)ac.LoadFactorZ;
             // Report the limit on the side currently being loaded (positive by default).
@@ -188,7 +218,16 @@ namespace FlyingGame.Bridge
                 WingsGone = true;
                 Severity = 0f;
                 if (_visual == null) _visual = GetComponent<AirframeVisual>();
-                if (_visual != null) _visual.DetachWings(_driver.WorldVelocityUnity);
+                (GameObject leftWing, GameObject rightWing) = _visual != null ? _visual.DetachWings(_driver.WorldVelocityUnity) : (null, null);
+                IReadOnlyList<WreckPiece> wings = _relay != null ? _relay.OnWingsFailed() : Array.Empty<WreckPiece>();
+                WreckPiece leftPiece = null, rightPiece = null;
+                foreach (WreckPiece wp in wings)
+                {
+                    if (wp.Component == FlyingGame.Core.AirframeComponent.WingLeft) leftPiece = wp;
+                    else if (wp.Component == FlyingGame.Core.AirframeComponent.WingRight) rightPiece = wp;
+                }
+                Bind(leftWing, leftPiece);
+                Bind(rightWing, rightPiece);
                 if (_audio == null) _audio = GetComponent<FlightAudio>();
                 if (_audio != null) _audio.WingFailure();
                 WingsFailed?.Invoke();
