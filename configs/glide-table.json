@@ -468,6 +468,19 @@
     "TrimStick": -0.1507
   },
   {
+    "Id": "glider-grob103-acro-like",
+    "Flaps": 0,
+    "VsoKt": 33.51,
+    "SpeedKt": 43.57,
+    "GlideDeg": 3.945,
+    "GlideRatio": 14.501,
+    "SinkFpm": 303.5,
+    "AlphaDeg": 3.716,
+    "PitchDeg": -0.228,
+    "ElevatorDeg": -1.128,
+    "TrimStick": -0.0821
+  },
+  {
     "Id": "glider-swift-s1-like",
     "Flaps": 0,
     "VsoKt": 34.99,
