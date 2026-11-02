@@ -153,3 +153,10 @@ sets and non-target meshes before calling a scoped rebuild complete. `build_ea30
 replaces just the three wing meshes in the approved existing GLB. Also keep the paint-placement reference
 on its original chord grid when changing the geometry's sampling grid; mixing them caused an interpolation
 length error on the first B build.
+
+### Audio timing and bubble rates need checks in samples and SI units
+The crash-audio renderer caught a travel delay drifting early when each sample subtracted a float second,
+and an overloaded soft clipper rounding slightly past 1. Use integer sample countdowns and explicitly bound
+new voice-pool outputs. Review also caught R~Q^(1/3) cancelling Q/V, so bubble packet rate stayed constant:
+check actual rates at representative SI flows as well as listening. The vent approximation now shares flow
+between size and rate (R~Q^(1/6)); the runner asserts both rise before the cap.

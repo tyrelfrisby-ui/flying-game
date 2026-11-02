@@ -24,6 +24,7 @@ namespace FlyingGame.Bridge
 
         private readonly float _fs;
         private readonly Noise _n;
+        private readonly CrashSound _land;
         private readonly Biquad _bpA = new Biquad(), _bpB = new Biquad(), _hp = new Biquad();
         private readonly OnePole _lp = new OnePole();
         private float _phA, _phB, _phC;
@@ -33,13 +34,13 @@ namespace FlyingGame.Bridge
         private int _gateCount, _sub;
         private float _flutHz = 25f, _len, _ias;
         private float _level = 1f;           // 0..1 severity for the pilot sounds (thud weight, grunt effort) / crash weight
-        private float _ring, _ringDec, _gateDec, _crunchRate;   // Crash: metallic ring envelope, crunch-event rate
+        private float _gateDec, _crunchRate;   // Explosion grain envelope/rate
         private float _distGain = 1f;        // distance attenuation fixed at trigger time (aircraft-bound sounds)
         private bool _snapped;
         private int _splinters;              // WingFailure: splinter clicks left after the main crack
         private const float Smooth = 1f / 48f;
 
-        public FxVoice(float fs, uint seed) { _fs = fs; _n = new Noise(seed); }
+        public FxVoice(float fs, uint seed) { _fs = fs; _n = new Noise(seed); _land = new CrashSound(fs, seed); }
 
         private static float Env(float t, float attack, float hold, float decayTau)
         {
@@ -143,17 +144,8 @@ namespace FlyingGame.Bridge
                     break;
                 // ---- the airframe hitting the ground / a building: crunching, tearing, ringing metal (owner: "not popcorn") ----
                 case FxKind.Crash:
-                    // Owner: "a splat crunch, like a pop can being crushed" — a soft wideband splat, then a dense
-                    // crackle of small buckles (thin skin folding), dull body, hardly any ring or boom.
-                    _len = 0.9f + 0.7f * _level;
-                    _lp.SetCutoff(75f, _fs);               // a little weight under it
-                    _bpA.BandPass(_fs, 330f, 1.4f);        // the can body: dull, wide
-                    _bpB.BandPass(_fs, 750f, 0.8f);        // the splat (wideband thump at contact)
-                    _hp.HighPass(_fs, 2800f, 0.7f);        // crinkle: each buckle is a tiny HF snap
-                    _burst = 1f; _burstDec = Dsp.DecayCoef(0.035f, _fs);
-                    _gateDec = Dsp.DecayCoef(0.004f, _fs);
-                    _ringDec = Dsp.DecayCoef(0.10f, _fs);
-                    _ring = 0f; _gate = 0f; _gateCount = 0; _crunchRate = 90f;
+                    _land.Start(false, _level, 800f, 10f);
+                    _len = 2f; // actual lifetime comes from the shared land synth
                     break;
                 // ---- tyres meeting the runway: a short, subtle chirp (owner: "not a gong") ----
                 case FxKind.TireChirp:
@@ -238,11 +230,7 @@ namespace FlyingGame.Bridge
                     _gBT = 0.25f * Env(t, 0.005f, 0.04f, 0.06f);
                     break;
                 case FxKind.Crash:
-                    _gAT = (0.8f + 1.4f * _level) * Env(t, 0.002f, 0.02f, 0.10f);                      // splat + weight
-                    _gBT = (1.2f + 2.0f * _level) * Env(t, 0.003f, 0.18f + 0.35f * _level, 0.22f);     // crunch / crackle
-                    _gCT = (0.5f + 0.9f * _level) * Env(t, 0.003f, 0.12f + 0.25f * _level, 0.18f);     // crinkle
-                    _crunchRate = (60f + 110f * _level) * (float)Math.Exp(-t / (0.25f + 0.35f * _level)); // dense, dying fast
-                    break;
+                    break; // shared CrashSound owns its envelope
                 case FxKind.TireChirp:
                     _gAT = (0.10f + 0.22f * _level) * Env(t, 0.006f, 0.05f + 0.08f * _level, 0.035f);   // chirp
                     _gBT = (0.15f + 0.35f * _level) * Env(t, 0.002f, 0.01f, 0.03f);                    // thump
@@ -352,28 +340,9 @@ namespace FlyingGame.Bridge
                     break;
                 }
                 case FxKind.Crash:
-                {
-                    // Crunch events: an irregular train of buckling snaps, each ringing the 460 Hz panel mode and
-                    // kicking the metallic ring; a boom under it and tearing noise on top.
-                    if (--_gateCount <= 0)
-                    {
-                        float rate = _crunchRate < 3f ? 3f : _crunchRate;
-                        _gateCount = (int)(_fs / rate * (0.4f + 1.2f * (_n.Next() * 0.5f + 0.5f)));
-                        _gate = 0.5f + 0.5f * (_n.Next() * 0.5f + 0.5f);
-                        _ring += _gate * 0.45f;
-                    }
-                    _gate *= _gateDec;
-                    _ring *= _ringDec;
-                    _burst *= _burstDec;
-                    _phA += 48f / _fs;                                   // a little low weight
-                    _phB += 290f / _fs;                                  // short dull body tone (aluminium can, not a bell)
-                    float splat = (_bpB.Process(n * _burst) * 4f + _lp.Process(n) * 1.5f + 0.3f * Dsp.Sin01(_phA) * _burst) * _gA;
-                    float crunch = _bpA.Process(n * _gate * 12f) * _gB;                        // each buckle thumps the body
-                    float crinkle = _hp.Process(n * _gate * 6f) * _gC;                         // ... and snaps
-                    float body = Dsp.Sin01(_phB) * _ring * 0.15f * _gB;
-                    outp = splat + crunch + crinkle + body;
+                    outp = _land.Next();
+                    if (!_land.Active) Active = false;
                     break;
-                }
                 case FxKind.TireChirp:
                 {
                     // Squeal: a pitched tone sliding up as the tyre spins up, lightly noisy, plus a tiny thump.
