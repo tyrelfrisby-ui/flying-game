@@ -47,18 +47,23 @@ public sealed class CrashWaterProbe : IDisposable
         _txt.Append(AirframeHydroModel.Build(c172).Describe());
         _txt.AppendLine();
 
-        BreakUp("LAND break-up", c172, water: false);
-        BreakUp("WATER break-up", c172, water: true);
-        Ditch("INTACT ditching", c172, 12, 0.5, 8);
-        Ditch("FAST ditching, gear down", c172, 24, 0.8, 6);
-        Floatplane("FLOATPLANE undamaged", false);
-        Floatplane("FLOATPLANE left float holed (4 compartments, RockStrike)", true);
+        try { RunAll(c172); } finally { FloatHydro.FlatWaterOverride = null; }   // thread-static: clear it on this thread
 
         string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Developer", "agent-lanes", "aero-playground", "crash-water");
         Directory.CreateDirectory(dir);
         File.WriteAllText(Path.Combine(dir, "probe.txt"), _txt.ToString());
         File.WriteAllText(Path.Combine(dir, "probe.csv"), _csv.ToString());
         _out.WriteLine(_txt.ToString());
+    }
+
+    private void RunAll(AircraftConfig c172)
+    {
+        BreakUp("LAND break-up", c172, water: false);
+        BreakUp("WATER break-up", c172, water: true);
+        Ditch("INTACT ditching", c172, 12, 0.5, 8);
+        Ditch("FAST ditching, gear down", c172, 24, 0.8, 6);
+        Floatplane("FLOATPLANE undamaged", false);
+        Floatplane("FLOATPLANE left float holed (4 compartments, RockStrike)", true);
     }
 
     private static bool Sample(double t, ref double next)
