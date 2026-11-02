@@ -1,4 +1,19 @@
 ## NEEDS YOU
+- **QUEST: REAR SEAT, NO HUD IN THE COCKPIT, A WAY TO THE MENU (Claude, 2026-11-02, lane/claude-vr-quest) — from your
+  first Pitts flight ("i chose the back seat and it put me in the front seat. the hud display is not necessary and
+  really confusing … i couldn't figure out how to get to options"). Code only: NOT built, NOT on the headset.
+  NEEDS YOU after the operator's rebuild:**
+  1. **Seat.** Pitts → FLY with no seat chosen: you should be in the **rear** (eye -1.325, 0, -0.3). VR menu → Seat →
+     Front: your head moves to the front eye; RESTART: still front; Seat → Rear: back. Then do the thing that broke:
+     on the landing page pick the seat FIRST, change the aircraft, FLY. Check the Great Lakes and the Cub the same way.
+  2. **HUD.** In the cockpit there is no green HUD now. VR menu → "HUD in cockpit: On" brings it back (lines only:
+     its numbers are a flat overlay a headset cannot show). Outside views still have it. Tell me if you want it gone
+     outside too.
+  3. **Menu.** The left **☰** (three lines, under the left thumbstick) opens it. If that does nothing on your 3S, hold
+     the **left stick click** for a second (my fallback) and tell me ☰ did not work: the binding is OpenXR's own Oculus
+     Touch profile (`/input/menu/click`, left hand → `MenuButton`), which I could only read, not press. The card
+     "MENU / OPTIONS: press the left MENU button" shows low in the cockpit for 12 s on your first three flights, or
+     until you open the menu yourself. Is it in the way, too small, or fine?
 - **META QUEST 3S NATIVE BUILD (Claude, 2026-11-02, lane/claude-vr-quest, off lane/claude-vr-stereo bf0484a) —
   the APK is built; it has NOT been on your headset yet. NEEDS YOU, in this order:**
   0. **Your "on top of a mountain" bug is fixed in the rebuilt APK** (the aeroplane never loaded on Android; see the
@@ -842,6 +857,41 @@
   - Revert to the v1 clean-room commit 638c05a.
 
 ## Log
+### 2026-11-02 — Claude · lane/claude-vr-quest · back seat honoured, HUD off in the VR cockpit, the menu findable
+Ty, first Pitts flight on the 3S: "i chose the back seat and it put me in the front seat. the hud display is not
+necessary and really confusing while in the airplane and i couldn't figure out how to get to options".
+**Seat, root cause:** `CockpitView` kept the seat as a bare INDEX into whatever aeroplane was loaded, and on
+`AircraftChanged` only clamped it. On the landing page the driver holds the type it spawned at Awake, the **2-33**
+(`FlightSimDriver.AircraftId` default), whose seats are front = 0, rear = 1; the VR menu's Seat row cycled THOSE.
+"Rear seat" stored 1, FLY spawned the Pitts, and the Pitts' seat 1 is **front** (its configs list the primary,
+solo seat first). Not StreamingAssets (the Pitts' seats load and carry the approved v5 eyes), not QuestRig (it
+follows `EyeLocal`). **Fix:** the choice is kept per aircraft BY SEAT ID (`SessionSettings.ChooseSeat` /
+`SeatIdFor`, PlayerPrefs `set.seatId.<type>`), resolved through `Core/SeatChoice` (no choice or an unknown id = the
+primary seat, index 0), re-resolved on every aircraft change and every choice. The VR Seat row now lists the seats
+of the aircraft that WILL fly (landing page: the Aircraft row's type, read once from its config); the iOS view
+panel's SEAT button and the Options Rear/Front row write the same choice (the Options row used to steer only the
+model's eye empties, which the authored eyes override). Side effect on iOS: a seat chosen there is now remembered per
+type across launches instead of an index carried between types.
+**HUD:** the green HUD's LINES are GL in `HudOverlay.OnPostRender`, which the XR camera renders; only its OnGUI
+numbers were suppressed in a headset. Now `XrHeadset.HudAllowed` (rule in `Core/Vr/QuestCockpit.ShowHud`) skips it in
+the headset's cockpit view unless VR menu → "HUD in cockpit" is On (PlayerPrefs `quest.hudInCockpit`, default off).
+Outside views and every flat screen are unchanged (`!XrHeadset.Active` → allowed).
+**Menu:** the ☰ path reads correctly on paper: OpenXR 1.16.1's `OculusTouchControllerProfile` binds left
+`/input/menu/click` to usage `MenuButton`, which `XrControllers` reads as `CommonUsages.menuButton`, and only that
+profile is enabled for Android. So the likely failure is that nothing in the headset ever said the button existed.
+Added: the left stick click **held 1 s** also toggles the menu (`QuestControlMapper.MenuHoldSec`; the press still
+recentres, once); a tip card riding the cockpit 0.7 m ahead / 0.2 m below the eye for 12 s on the first 3 flights
+until the menu is opened in flight (`quest.menuTipFlights`, `quest.menuFound`); the menu title says PAUSED in
+flight; the landing page footer says "in flight: left MENU button". (The UI font has no ☰ glyph, hence words.)
+**Tests:** new `SeatChoiceTests` (the glider-rear → Pitts-rear regression, primary seat per type, every two-seater's
+front/rear eye as literals from eyepoints.json) and `QuestCockpitTests` (HUD rule, tip policy, ☰ press, the held
+stick click fires once at 1 s and a short click is only a recentre). With `QuestControlsTests` and
+`CockpitEyeTests`: **146 passed, 0 failed**. The full suite was NOT run: another lane's Unity batch was running the
+whole time (CLAUDE.md: distrust a suite taken during a build). **Compile:** no Unity run (operator builds).
+FlyingGame.Core and FlyingGame.Bridge were compiled with dotnet against the 6000.3.23f1 UnityEngine DLLs and this
+project's Library/ScriptAssemblies: **0 errors** (the same harness compiles HEAD clean); EditorTools likewise, apart
+from `UnityEditor.iOS` in BuildScript, an extension DLL the harness does not load.
+
 ### 2026-11-02 — Claude · lane/claude-vr-quest · FLY in the headset left Ty on a mountaintop: the aeroplane never loaded
 Ty, first flight on the 3S: "when i try to fly i just end up on top of a mountain looking around. i think the
 starting point is inside of the mountain?" He was right about where, wrong about why: there was no starting point.

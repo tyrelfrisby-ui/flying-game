@@ -24,7 +24,8 @@ stick, left pad = rudder + throttle).
 | **Y** | Flaps one notch **up** | |
 | **Right stick click** | Gear up / down | Retractable types. On a glider it is **TOW** on the runway and **RELEASE** on tow. |
 | **Left stick click** | **Recentre** | Puts your head where it is now at the seat's eye, facing the nose. |
-| **Menu (☰, left)** | VR menu (pauses) | Press again, or B / Y, to close. |
+| **Menu (☰, left)** | **VR menu (pauses)** | The small button with three lines on the LEFT controller, below the thumbstick. Press again, or B / Y, to close. |
+| **Left stick click, held 1 s** | **VR menu** too | The fallback if ☰ is hard to find: it recentres on the press (harmless) and opens / closes the menu after a second. |
 | **Meta button (hold)** | The headset's own recentre | The game follows it: same as the left stick click. |
 
 Dead zones: thumbsticks have a 0.10 hardware dead zone (rescaled, so full deflection is still full), the throttle
@@ -35,8 +36,11 @@ thumb drifting 0.3 forward does not open the throttle, and easing the power off 
 ## The VR menu
 
 Every menu in the game is OnGUI, which draws to a screen the headset never shows, so the Quest build has its own
-small world-space menu. **It opens by itself at launch** (the landing page is invisible in the headset) and from
-the ☰ button in flight.
+small world-space menu. **It opens by itself at launch** (the landing page is invisible in the headset) and in flight
+from the **left ☰ button** or the **left stick click held for a second**. It pauses the flight while it is open
+(the title says PAUSED). On the first three flights a small card low in the cockpit says "MENU / OPTIONS: press the
+left MENU button (or hold the left stick click)" for 12 s, below the windscreen line so it never covers the
+horizon; once you have opened the menu yourself in flight it is not shown again (persisted).
 
 **Point** with either hand and pull the **trigger** (or press **A / X**), or move the highlight with a
 **thumbstick** and push it **left / right** to change a value. **B / Y / ☰** closes it in flight.
@@ -47,14 +51,16 @@ the ☰ button in flight.
 | RESTART FLIGHT | Starts again with the current aircraft / start choice. |
 | Aircraft | The fleet, cycled. In flight it applies on RESTART. |
 | Start | In the air · On the runway · On final · Aerobatic box · Combat zone · In a thermal. |
-| Seat | Front / rear on two-seaters. Your head goes to the new seat's eye. |
+| Seat | The seats of the aircraft **that will fly** (on the landing page: the one on the Aircraft row). Remembered per aircraft, by seat (rear / front / pilot …), so the rear seat is the rear seat in every type. Nothing chosen = the solo / PIC seat: **rear** in the Pitts, Great Lakes, Extra and Cub, **front** in the 2-33, **left** in the 172. In flight your head goes to the new seat's eye at once. |
 | View | Cockpit / outside (the chase view, levelled to the horizon). |
+| HUD in cockpit | **Off** (default) / On. Persisted. In the headset's cockpit view the aeroplane's own instruments are what count, so the green HUD is not drawn there unless this is On. Outside views keep the HUD as before, and the iPhone / iPad / Mac are unchanged. Only the HUD's lines exist in the headset (its numbers are a flat overlay). |
 | Display | 72 Hz (default) / 90 Hz. Persisted. |
 | Recentre the view | Same as the left stick click. |
 | Reset flight | The touch pad's RESET. |
 | Bail out / Deploy BRS / Eject | Asks twice: the first press arms it for 3 s. |
 
-Not in VR yet: the replay / review screen, lessons, challenges, the joystick setup, the Options panel (all OnGUI).
+Not in VR yet: the replay / review screen, lessons, challenges, the joystick setup, the full Options panel (all
+OnGUI). The rows above are the settings that matter in a headset.
 The autopilot disconnect belongs to the widget, which does not exist on a Quest.
 
 ## Hands (no controllers)

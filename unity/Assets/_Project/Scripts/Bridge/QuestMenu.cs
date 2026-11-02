@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using FlyingGame.Core;
+using FlyingGame.Core.DataContracts;
 using FlyingGame.Core.Vr;
 using UnityEngine;
 
@@ -10,8 +12,8 @@ namespace FlyingGame.Bridge
     /// pilot cannot see, paused, with no way out. So a small world-space panel, built from the game's own font,
     /// carries what a pilot needs from inside the cockpit:
     ///
-    ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · Display 72 / 90 Hz · Recentre ·
-    ///   Reset flight · Bail out / Deploy BRS / Eject (asks twice)
+    ///   FLY / RESUME · RESTART FLIGHT · Aircraft · Start · Seat · View · HUD in cockpit · Display 72 / 90 Hz ·
+    ///   Recentre · Reset flight · Bail out / Deploy BRS / Eject (asks twice)
     ///
     /// It is deliberately NOT the whole landing page: lessons, challenges, weather and multiplayer have OnGUI
     /// cards of their own that would be just as invisible, so a flight started from here is FREE FLIGHT
@@ -20,7 +22,14 @@ namespace FlyingGame.Bridge
     /// Point with either hand (controller or tracked hand) and pull the trigger / press A or X / pinch; or move
     /// the highlight with a thumbstick and push it left / right to change a value. B, Y or the menu button
     /// closes it in flight. It opens by itself whenever the landing page is up, and pauses the sim while it is
-    /// open in flight, exactly as the Options panel does.
+    /// open in flight, exactly as the Options panel does. In flight it opens from the LEFT controller's menu
+    /// button (☰), or the left stick click held for a second (QuestControlMapper.MenuHoldSec); the first few
+    /// flights show a small tip in the cockpit saying so (owner Ty, 2026-11-02: "i couldn't figure out how to
+    /// get to options").
+    ///
+    /// THE SEAT ROW chooses for the aeroplane that will FLY (on the landing page that is the Aircraft row's, not
+    /// the glider the driver happens to have loaded) and keeps the choice by seat ID (SessionSettings.ChooseSeat):
+    /// see SeatChoice for how an index once put a "rear" pilot in the Pitts' front seat.
     ///
     /// Drawn with FlyingGame/XrOverlay (force-included), which ignores depth, so the panel shows through the
     /// instrument panel it is floating in front of.
@@ -52,6 +61,13 @@ namespace FlyingGame.Bridge
         private Material _textMat, _panelMat, _barMat, _laserMat;
         private StartMenu _start;
         private QuestRig _rig;
+        private readonly Dictionary<string, List<StationConfig>> _seatsByType = new();
+
+        // The "press MENU" tip: a small card low in the cockpit for the first flights (QuestCockpit.ShowTip).
+        private Transform _tip;
+        private TextMesh _tipText;
+        private Material _tipPanelMat;
+        private float _tipShownAt = -1f;
 
         public bool IsOpen => _open;
 
@@ -71,10 +87,13 @@ namespace FlyingGame.Bridge
 
         // ---- open / close ----
 
+        /// <summary>The menu button (or the held stick click). Opening it in flight means he has found it: the
+        /// tip is retired for good.</summary>
         public void Toggle(QuestRig rig)
         {
-            if (_open) Close(force: false);
-            else Open(rig);
+            if (_open) { Close(force: false); return; }
+            Open(rig);
+            if (!OnLanding) XrHeadset.MenuFound = true;
         }
 
         public void Open(QuestRig rig)
@@ -88,6 +107,7 @@ namespace FlyingGame.Bridge
             if (!OnLanding) { SessionSettings.PanelPause = true; SessionSettings.ApplyTimeScale(); }
             _sel = 0;
             _confirmUntil = 0f;
+            EndTip();
             PlaceInFrontOfHead();
         }
 
@@ -116,6 +136,7 @@ namespace FlyingGame.Bridge
         {
             _rig = rig;
             if (!_open && OnLanding) Open(rig);
+            TickTip();
             if (!_open) return;
             Refresh();
             if (Time.frameCount != _openedFrame) HandleInput();
@@ -155,8 +176,10 @@ namespace FlyingGame.Bridge
             AddRow(() => $"Aircraft:  {AircraftName(SessionSettings.AircraftId)}" + (!OnLanding && Driver != null && Driver.AircraftId != SessionSettings.AircraftId ? "   (restart to fly it)" : ""),
                 () => CycleAircraft(1), CycleAircraft);
             AddRow(() => $"Start:  {StartName()}", () => CycleStart(1), CycleStart);
-            AddRow(() => $"Seat:  {(Cockpit != null ? Cockpit.SeatLabel : "-")}", () => CycleSeat(1), CycleSeat, () => Cockpit != null && Cockpit.SeatCount > 1);
+            AddRow(() => $"Seat:  {SeatChoice.Label(SeatsOf(SeatAircraftId), SessionSettings.SeatIdFor(SeatAircraftId))}",
+                () => CycleSeat(1), CycleSeat, () => SeatsOf(SeatAircraftId).Count > 1);
             AddRow(() => $"View:  {(ChaseCamera.InCockpit ? "Cockpit" : "Outside")}", ToggleView, _ => ToggleView());
+            AddRow(() => $"HUD in cockpit:  {(XrHeadset.HudInCockpit ? "On" : "Off")}", ToggleHud, _ => ToggleHud());
             AddRow(() => $"Display:  {(XrHeadset.Prefer90Hz ? "90 Hz" : "72 Hz")}" + (XrHeadset.CurrentRefreshHz > 0f ? $"   (running {XrHeadset.CurrentRefreshHz:F0})" : ""),
                 () => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz, _ => XrHeadset.Prefer90Hz = !XrHeadset.Prefer90Hz);
             AddRow(() => "Recentre the view", () => { XrHeadset.Recentre(); });
@@ -201,6 +224,8 @@ namespace FlyingGame.Bridge
             panel.localPosition = new Vector3(0f, 0f, 0.002f);
             panel.localScale = new Vector3(Width, h, 1f);
             float top = h * 0.5f;
+            string title = OnLanding ? "AERO PLAYGROUND" : "AERO PLAYGROUND  -  PAUSED";
+            if (_title.text != title) _title.text = title;
             Place(_title, top - RowHeight * 0.75f);
             for (int i = 0; i < _shown.Count; i++)
             {
@@ -209,7 +234,12 @@ namespace FlyingGame.Bridge
                 if (r.Text.text != s) r.Text.text = s;
                 Place(r.Text, top - RowHeight * (i + 1.75f));
             }
-            _hint.text = XrHeadset.HandsOnly ? "point and pinch  -  hold a left pinch to close" : "point + trigger / A   stick < > changes   B closes";
+            // The font has no ☰, so the button is named in words. On the landing page the line says how to get
+            // back here from the air, which is the thing Ty could not find on his first flight.
+            string hint = XrHeadset.HandsOnly ? "point and pinch  -  hold a left pinch to close"
+                        : OnLanding ? "trigger / A selects   < > changes   in flight: left MENU button"
+                        : "point + trigger / A   stick < > changes   B or MENU closes";
+            if (_hint.text != hint) _hint.text = hint;
             Place(_hint, -top + RowHeight * 0.55f);
             _highlight.localPosition = new Vector3(0f, top - RowHeight * (_sel + 1.75f), 0.001f);
             _highlight.localScale = new Vector3(Width - 0.02f, RowHeight * 0.9f, 1f);
@@ -308,6 +338,73 @@ namespace FlyingGame.Bridge
             if (Chase != null) Chase.SetView(ChaseCamera.View.Cockpit);
             XrHeadset.Recentre();
             _rig?.ReportAfterFly();
+            StartTipIfDue();
+        }
+
+        // ---- the "press MENU" tip ----
+
+        /// <summary>On the first <see cref="QuestCockpit.TipFlights"/> flights, until he has opened the menu
+        /// himself: a small card low in the cockpit for <see cref="QuestCockpit.TipSeconds"/>.</summary>
+        private void StartTipIfDue()
+        {
+            if (XrControllers.Read(out _).HandsOnly) return;   // hands have their own gesture, shown on the menu
+            if (!QuestCockpit.ShowTip(XrHeadset.MenuTipFlights, XrHeadset.MenuFound)) return;
+            XrHeadset.MenuTipFlights = XrHeadset.MenuTipFlights + 1;
+            _tipShownAt = Time.unscaledTime;
+        }
+
+        private void EndTip()
+        {
+            _tipShownAt = -1f;
+            if (_tip != null) _tip.gameObject.SetActive(false);
+        }
+
+        /// <summary>Ride the cockpit: parented to the rig's HUD anchor (the seat's eye, the aeroplane's axes), 0.7 m
+        /// ahead and 0.2 m down — below the windscreen line, over the panel, so it is read with a glance down and
+        /// never covers the horizon. Only in the cockpit view; outside it would float at the aeroplane.</summary>
+        private void TickTip()
+        {
+            if (_tipShownAt < 0f) return;
+            float op = (float)QuestCockpit.TipOpacity(Time.unscaledTime - _tipShownAt);
+            if (op <= 0f) { EndTip(); return; }
+            Transform anchor = _rig != null ? _rig.HudAnchor : null;
+            bool show = !_open && anchor != null && ChaseCamera.InCockpit;
+            if (show && _tip == null) BuildTip();
+            if (_tip == null) return;
+            _tip.gameObject.SetActive(show);
+            if (!show) return;
+            if (_tip.parent != anchor) _tip.SetParent(anchor, false);
+            var at = new Vector3(0f, -0.2f, 0.7f);
+            _tip.localPosition = at;
+            _tip.localRotation = Quaternion.LookRotation(at.normalized, Vector3.up);   // square on to the eye
+            Color tc = _tipText.color; tc.a = op; _tipText.color = tc;
+            Color pc = _tipPanelMat.color; pc.a = 0.85f * op; _tipPanelMat.color = pc;
+        }
+
+        private void BuildTip()
+        {
+            if (!_built) { Build(); if (!_open) _root.SetActive(false); }
+            var root = new GameObject("VR Menu Tip");
+            _tip = root.transform;
+            _tipPanelMat = Solid(_panelMat.shader, new Color(0.05f, 0.08f, 0.12f, 0.85f), 4000);
+            Transform panel = Quad("Panel", _tipPanelMat);
+            panel.SetParent(_tip, false);
+            panel.localPosition = new Vector3(0f, 0f, 0.002f);
+            panel.localScale = new Vector3(0.56f, 0.085f, 1f);
+            var go = new GameObject("Text");
+            go.transform.SetParent(_tip, false);
+            _tipText = go.AddComponent<TextMesh>();
+            _tipText.font = UiFont.Get();
+            _tipText.fontSize = 64;
+            _tipText.characterSize = CharHeight * 0.8f * 10f / _tipText.fontSize;
+            _tipText.anchor = TextAnchor.MiddleCenter;
+            _tipText.alignment = TextAlignment.Center;
+            _tipText.color = new Color(0.92f, 0.95f, 1f, 1f);
+            _tipText.text = "MENU / OPTIONS:  press the left MENU button\n(or hold the left stick click)";
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = _textMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
         }
 
         private static string AircraftName(string id)
@@ -335,11 +432,45 @@ namespace FlyingGame.Bridge
             SessionSettings.StartMode = Starts[((i < 0 ? 0 : i) + step + Starts.Length) % Starts.Length].mode;
         }
 
+        /// <summary>The aeroplane the Seat row is about: on the landing page the one FLY will spawn (the driver
+        /// still holds whatever it loaded at start, the 2-33), in flight the one being flown.</summary>
+        private string SeatAircraftId => OnLanding || Driver == null ? SessionSettings.AircraftId : Driver.AircraftId;
+
+        /// <summary>That aeroplane's authored seats: the loaded config's when it is the one flying, else read once
+        /// from its config and kept.</summary>
+        private IReadOnlyList<StationConfig> SeatsOf(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return System.Array.Empty<StationConfig>();
+            if (Driver != null && Driver.AircraftId == id && Driver.Sim != null && Cockpit != null) return Cockpit.Seats;
+            if (!_seatsByType.TryGetValue(id, out List<StationConfig> seats))
+            {
+                try { seats = UnityAircraftConfigLoader.LoadFromStreamingAssets(id)?.Loading?.Seats; }
+                catch (System.Exception e) { Debug.LogWarning($"[Quest] seats of {id} not read: {e.Message}"); }
+                _seatsByType[id] = seats ??= new List<StationConfig>();
+            }
+            return seats;
+        }
+
+        /// <summary>Choose the next / previous seat FOR THAT TYPE, by ID. CockpitView follows the choice (now if
+        /// that type is flying, on FLY otherwise) and QuestRig recentres the head at the new eye.</summary>
         private void CycleSeat(int step)
         {
-            if (Cockpit == null) return;
-            int n = Cockpit.SeatCount;
-            Cockpit.SelectSeat((Cockpit.SeatIndex + step + n) % n);   // QuestRig recentres on the seat change
+            string id = SeatAircraftId;
+            var seats = SeatsOf(id);
+            if (seats.Count < 2) return;
+            SessionSettings.ChooseSeat(id, SeatChoice.Cycle(seats, SessionSettings.SeatIdFor(id), step));
+        }
+
+        /// <summary>The green HUD in the cockpit view (off by default in a headset). Turning it on also selects the
+        /// HUD as the instrument display, since the dials are a flat overlay a headset cannot show.</summary>
+        private static void ToggleHud()
+        {
+            XrHeadset.HudInCockpit = !XrHeadset.HudInCockpit;
+            if (XrHeadset.HudInCockpit && SessionSettings.Instruments != SessionSettings.InstrumentMode.Hud)
+            {
+                SessionSettings.Instruments = SessionSettings.InstrumentMode.Hud;
+                SessionSettings.SavePrefs();
+            }
         }
 
         private void ToggleView()

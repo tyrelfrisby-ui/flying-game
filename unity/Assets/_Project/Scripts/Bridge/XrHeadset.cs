@@ -74,6 +74,38 @@ namespace FlyingGame.Bridge
 
         public static float WantedRefreshHz => Prefer90Hz ? 90f : 72f;
 
+        // ---- the HUD in the cockpit, and the "press MENU" tip (persisted) ----
+
+        private const string PrefHud = "quest.hudInCockpit", PrefTipFlights = "quest.menuTipFlights", PrefMenuFound = "quest.menuFound";
+
+        /// <summary>The green HUD in the COCKPIT view, in a headset. OFF by default (owner Ty, 2026-11-02: "the hud
+        /// display is not necessary and really confusing while in the airplane") — the aeroplane's own instruments
+        /// are what count. VR menu → HUD turns it on. Outside views and flat screens are not affected
+        /// (QuestCockpit.ShowHud).</summary>
+        public static bool HudInCockpit
+        {
+            get { _hud ??= PlayerPrefs.GetInt(PrefHud, 0) == 1; return _hud.Value; }
+            set { if (HudInCockpit == value) return; _hud = value; PlayerPrefs.SetInt(PrefHud, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+        private static bool? _hud;
+
+        /// <summary>Whether the HUD may draw this frame (HudOverlay asks). Always true without a headset.</summary>
+        public static bool HudAllowed => !Active || FlyingGame.Core.Vr.QuestCockpit.ShowHud(true, ChaseCamera.InCockpit, HudInCockpit);
+
+        /// <summary>Flights the "press MENU" tip has been shown on.</summary>
+        public static int MenuTipFlights
+        {
+            get => PlayerPrefs.GetInt(PrefTipFlights, 0);
+            set { PlayerPrefs.SetInt(PrefTipFlights, value); PlayerPrefs.Save(); }
+        }
+
+        /// <summary>True once the pilot has opened the menu himself in flight: he has found it, so no more tip.</summary>
+        public static bool MenuFound
+        {
+            get => PlayerPrefs.GetInt(PrefMenuFound, 0) == 1;
+            set { if (MenuFound == value) return; PlayerPrefs.SetInt(PrefMenuFound, value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+
         /// <summary>
         /// Set by the Android-only FlyingGame.Quest assembly (QuestDisplayRateFeature) to ask the OpenXR runtime
         /// for a display rate through XR_FB_display_refresh_rate. Null where there is no such runtime — the request

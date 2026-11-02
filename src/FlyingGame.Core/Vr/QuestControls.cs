@@ -67,8 +67,12 @@ namespace FlyingGame.Core.Vr
     ///   left grip + move  grab the lever: squeeze, move the hand forward / back, let go — 20 cm is full travel
     ///   left trigger      wheel brakes (rudder biases them, as on the touch pad)
     ///   X / Y             flaps one step down / up
-    ///   left stick click  recentre the head at the seat's eye point
+    ///   left stick click  recentre the head at the seat's eye point; HELD 1 s it also opens / closes the menu
     ///   menu (☰)          the VR menu, which pauses
+    ///
+    /// The held stick click is the fallback for the menu button (owner Ty, 2026-11-02: "i couldn't figure out how
+    /// to get to options"). Every other button already flies something, and the click's own job (recentre) is
+    /// harmless to repeat, so holding it costs nothing in the air.
     ///
     /// The throttle is NEVER sprung. A thumbstick returns to centre, so its Y is a RATE: the lever moves while the
     /// stick is held and stays where it was left. One stick carries both rudder and throttle, so whichever axis
@@ -100,6 +104,8 @@ namespace FlyingGame.Core.Vr
         /// pinches of a hand resting on a knee do not.</summary>
         public const double PinchHoldSec = 1.0;
         public const double PinchOn = 0.8, PinchOff = 0.5;
+        /// <summary>The left stick click held this long opens (or closes) the menu, as well as ☰.</summary>
+        public const double MenuHoldSec = 1.0;
 
         public bool InvertElevator;
 
@@ -110,6 +116,8 @@ namespace FlyingGame.Core.Vr
         private bool _leftPinch, _rightPinch;
         private double _leftPinchHeld, _rightPinchHeld;
         private bool _leftPinchFired, _rightPinchFired;
+        private double _leftClickHeld;
+        private bool _leftClickFired;
 
         /// <summary>Thumbstick drift removed, rescaled so the edge is still 1.</summary>
         public static double DeadZone(double v, double zone)
@@ -186,7 +194,7 @@ namespace FlyingGame.Core.Vr
             c.FlapsUp = Down(f.Y, p.Y);
             c.Gear = Down(f.RightStickClick, p.RightStickClick);
             c.Recentre = Down(f.LeftStickClick, p.LeftStickClick);
-            c.Menu = Down(f.Menu, p.Menu);
+            c.Menu = Down(f.Menu, p.Menu) | ClickHold(f.LeftStickClick, dt);
             bool rg = _rightGrip ? f.RightGrip > GripOff : f.RightGrip >= GripOn;
             c.Smoke = rg && !_rightGrip;
             _rightGrip = rg;
@@ -205,6 +213,16 @@ namespace FlyingGame.Core.Vr
             held += dt;
             if (fired || held < PinchHoldSec) return false;
             fired = true;
+            return true;
+        }
+
+        /// <summary>The left stick click, held <see cref="MenuHoldSec"/>: fires once, then not again until let go.</summary>
+        private bool ClickHold(bool down, double dt)
+        {
+            if (!down) { _leftClickHeld = 0; _leftClickFired = false; return false; }
+            _leftClickHeld += dt;
+            if (_leftClickFired || _leftClickHeld < MenuHoldSec) return false;
+            _leftClickFired = true;
             return true;
         }
 
