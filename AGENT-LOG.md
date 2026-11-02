@@ -1,12 +1,20 @@
 ## NEEDS YOU
-- **ISLAND TERRAIN REBUILT FROM SCRATCH — IN PROGRESS, REVIEW THE RENDERS (Claude, 2026-11-02,
-  lane/claude-island-terrain):** You flew the island in the F-86 and found it crude and blocky, with no snow and
-  no glaciers. I am rebuilding the island's TERRAIN (not its layout: every airport, strip, pad, lake, cave, nav
-  aid, spawn and chart feature stays where it is) on the basis of my earlier plateau-world landscape — erosion
-  drainage, aspect-dependent snowline, glaciers with cirques/icefalls/tongues/moraines, a real treeline,
-  beaches and sea cliffs, smooth per-pixel shading. **You must judge it from the before/after renders** in
-  `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`; results will be added here as they land.
-  No gate is marked approved.
+- **ISLAND TERRAIN, SECOND PASS: REAL TOPOGRAPHY AND A FAIRWEATHER MASSIF — IN PROGRESS, REVIEW THE RENDERS
+  (Claude, 2026-11-02, lane/claude-island-terrain):** Following your direction, six areas of the island are now
+  shaped on real elevation data, compacted by one factor both ways so the slopes are the real ones: **Sitka**
+  (west coast, c 2.2), **Mount Fairweather** (north coast, c 2.6, replacing the Ruth feature), **Grand Canyon**
+  (red-rock plateau, c 5), **Dillingham** (PHDH, true scale), **Knik Glacier/River** (canyon C4, c 4) and
+  **Johnson Creek** (3U2, c 2). Colours come from Sentinel-2 surface reflectance of the same places. Fairweather
+  is 5,187 ft, 1.2 km from the sea, and the storm track now feeds it ~7.5 m/yr: 38 km² of ice (v1 10), glaciers
+  to tidewater on the north coast and to a Knik face at the head of C4. **What moved:** the Denali-like summit
+  became Fairweather and moved 1.2 km SW (2,176 → 5,187 ft); the Ruth glacier is renamed Fairweather, **its ski
+  zone did not move** (still 1,300 ft, flat snow; no ice at that height can carry a 450 m strip — say if you want
+  it on the icefield at ~2,900 ft, which breaks locked decision 7). No airport, strip, pad, lake, cave, nav aid,
+  spawn, chart or IFR datum moved. Renders: `~/Developer/agent-lanes/aero-playground/island-terrain-renders/`
+  (`after/` new, `after-v1-eroded/` the first pass, `before/` shipping) with imagery-vs-render plates per area.
+  Details: `docs/pending/ISLAND-TERRAIN-CLAUDE.md` §11. Results land here as they come. No gate is marked approved.
+  Also: an untracked `docs/pending/ISLAND-TERRAIN-SURFACES-TY.md` (your glacier/ice/ledge surface spec, written
+  11:01 by someone else into this worktree) is left untouched for the next run.
   **Process slip, for whoever owned the overlapping runs:** on 2026-11-02 at about 06:30 local my first
   "after" Unity render (lane/claude-island-terrain, its own worktree) ran while another lane's Unity (pid 68104)
   and `dotnet` runs (pids 64771/64879/68141/68177) were already going — my guard check printed them and I
