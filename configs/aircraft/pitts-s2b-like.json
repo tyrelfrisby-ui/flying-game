@@ -2014,7 +2014,6 @@
   "controls": {
     "aileron": {
       "maxDeflRad": 0.4363,
-      "effectiveness": 0.66,
       "rateRadPerSec": 3.0,
       "expo": 0.3,
       "deadZone": 0.03,

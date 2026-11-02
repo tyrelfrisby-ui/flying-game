@@ -312,20 +312,23 @@ public sealed class ControlAxisConfig
     /// <summary>The bigger of the two stops: a search bound, not a limit to deflect to.</summary>
     public double MaxTravelRad => Math.Max(MaxDeflRad, MaxDeflNegRad);
 
-    /// <summary>CONTROL EFFECTIVENESS: how much of this surface's GEOMETRIC deflection the flow actually turns into
-    /// a change of section incidence. Classical thin-aerofoil theory calls it τ, and for a plain hinged flap it is a
-    /// function of the flap-to-chord ratio alone — about 0.4–0.6 for the 20–25 % chord typical of an aileron, NOT 1.
-    /// The strip model deflects a control row to its full geometric angle (gain ±1), i.e. τ = 1, which overstates
-    /// every hinged surface's lift response; this is the factor that puts it back.
+    /// <summary>
+    /// A spare per-axis multiplier on the INCIDENCE a deflection commands. <b>Default 1.0, and every aircraft in
+    /// the fleet leaves it there</b> — it is a hook for a future, physically-derived loss, not a tuning knob.
     ///
-    /// Default 1.0 = the behaviour every config written before 2026-11-01 had, so leaving it out changes nothing.
-    /// It scales the LIFT response only. The geometric angle is still what sets the surface's pressure drag (a
-    /// deflected aileron really is sticking out that far, whatever the flow does about it), so adverse yaw and
-    /// post-stall aileron drag are untouched.
+    /// <b>It is NOT the flap effectiveness τ.</b> τ is already in the model, and in the right place: a control
+    /// splits into a HINGED row that turns to its full geometric angle (gain ±1, because the surface really does
+    /// sit at α + δ) and a FIXED row ahead of it that is merely cambered by it (gain g = 0.85·τ(E), E = c_f/c).
+    /// The section's response is τ = E + (1 − E)·g by construction — see docs/CONTROL-SURFACES.md. Putting a
+    /// chord-ratio factor here as well counts it TWICE, which is exactly the mistake 4e5e1a7 made: it set 0.66 on
+    /// the Pitts, called it τ, and claimed thin-aerofoil theory corroborated it. It did not. The Pitts' own
+    /// authored gain of 0.356 already carries its chord ratio, and the number was only ever the ratio needed to
+    /// reach a published roll rate. It was removed on 2026-11-01.
     ///
-    /// This is the honest place to put aileron authority. The alternative — shrinking MaxDeflRad until the roll
-    /// rate comes out right — makes the config lie about the aeroplane: the Pitts' travel is a TCDS number
-    /// (A8SO Rev. 21, 25° ± 2° symmetrical), not a knob.</summary>
+    /// If you are about to set this to anything but 1.0, the question to answer first is which PHYSICAL loss it
+    /// stands for and what independent calculation predicts that value. A loss that only ever equals the number
+    /// you tuned it to belongs in neither this field nor this model.
+    /// </summary>
     public double Effectiveness { get; set; } = 1.0;
 
     public double RateRadPerSec { get; set; } = 1000; // effectively unlimited unless configured
