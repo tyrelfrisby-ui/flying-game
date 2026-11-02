@@ -98,8 +98,11 @@ namespace FlyingGame.Bridge
             return Vector3.Distance(pilotOut ? _egress.PilotTransform.position : transform.position, point);
         }
 
+        private readonly Dictionary<int, float> _waterImpactTimes = new();
         private void OnCrashImpact(FlyingGame.Core.CrashImpact impact)
         {
+            if (impact.Surface == FlyingGame.Core.ImpactSurface.Water && !_waterImpactTimes.ContainsKey(impact.PieceId))
+                _waterImpactTimes.Add(impact.PieceId, Time.unscaledTime);
             Vector3 point = CoordinateMap.ToUnity(impact.Position);
             float distance = DistanceTo(point);
             _crashes?.Impact(impact.Surface == FlyingGame.Core.ImpactSurface.Water, (float)impact.Severity01,
@@ -108,9 +111,12 @@ namespace FlyingGame.Bridge
 
         private void OnFlood(FlyingGame.Core.FloodState state)
         {
+            // No impact means no audible flooding; later updates cannot re-arm an expired piece.
+            if (!_waterImpactTimes.TryGetValue(state.PieceId, out float first)) return;
+            float age = Time.unscaledTime - first;
             Vector3 point = CoordinateMap.ToUnity(state.Position);
             _crashes?.Flood(state.PieceId, (float)state.AirEscapeM3s, (float)state.TrappedAirM3,
-                (float)state.DepthM, DistanceGain(DistanceTo(point)));
+                (float)state.DepthM, DistanceGain(DistanceTo(point)), age);
         }
 
         private static float DistanceGain(float d) => d <= 0f ? 1f : ReferenceDistanceM / (ReferenceDistanceM + d);
@@ -215,7 +221,7 @@ namespace FlyingGame.Bridge
             PlayerPrefs.SetFloat(PrefKey, Mathf.Clamp01(MasterVolume));
         }
 
-        private void OnAircraftChanged() => RebuildEngine();
+        private void OnAircraftChanged() { _waterImpactTimes.Clear(); RebuildEngine(); }
 
         private void RebuildEngine()
         {
