@@ -4261,3 +4261,46 @@ straight-on ortho. Review pose is applied through the same needle rig maps.
 Only this worktree modified. No commit, Blender process, Unity, xcodebuild or
 deployment. CPU used `/tmp/topo-venv/bin/python` with NumPy/Pillow and
 `PYTHONDONTWRITEBYTECODE=1`. No CONTRACT.md created in repo.
+
+## 2026-11-02 — Codex P3c Great Lakes photo geometry
+
+Read external CONTRACT.md and studied all four Great Lakes PNG references.
+All 3 Great Lakes liveries updated through CPU-only vr_cockpit.py from
+0a1a7b4 bases. No commits, Blender, Unity, xcodebuild, deploy, repo CONTRACT,
+or runtime/collider changes. No visual/VR gate approval claimed.
+
+Single frameless acrylic mesh per seat; only 5 small base screws each.
+Preserved original low coaming padding/rails separately. Front 125 mm high,
+8 mm top crown; rear 175 mm high, 30 mm crown. Absolute top Z front
+.32625/.32650 m (v1/liveries), rear .375 m. Different existing aperture shapes
+are respected rather than moving cockpit controls.
+
+Fixed 35 mm OD V supports from fore/aft lower-longeron fittings to each
+unchanged oleo top; 28 mm sleeves finish existing pivot/compression fittings.
+Six 24 mm cabane tubes terminate in bolted clevises; aft + diagonal share
+one fitting per side at X -.80, Y ±.33. Upper wing pins remain unchanged.
+Fwd lower axis-to-skin before 15.727–16.363 mm; aft/diagonal 40.083–40.141 mm.
+After: axis stands 9.110–11.079 mm above skin inside a real clevis, with 0 mm
+tube-to-fitting solid gap. Conforming pad skin separation max .5226 mm.
+Per-leg, per-livery numbers + node endpoints are in GLB P3c extras and
+phase3c-checks.json. Full handoff: docs/models/vr-cockpit-phase3c.md.
+
+Claude: no changed rig/collider numbers. Gear_Pivot, Gear_Axle, Gear_OleoTop,
+Gear_HingeAxis and all control/contact nodes exactly preserved, 140 protected
+nodes per livery. New V supports, sleeves, fittings and cabane remain FIXED
+on airframe. Optional contact/damage capsules should follow GLB metadata;
+never put the fixed V supports under the moving axle. No collider edits made.
+
+P3c checker: all 3 liveries PASS, connected sheets, front lower/flatter,
+<=2 mm fitting/skin contact, unchanged top pins, exact new-triangle aperture
+extrusion and eye-to-panel segment tests. Old liveries lack Eye nodes; those
+checks use documented v1 eye estimates. Existing P3 checker PASS 10 assets /
+440 controls. CPU base rebuild gives identical hashes; repeated update is
+byte-identical, including shared rig JSON. Fixed P3a shared-rig regeneration
+to retain existing Ctl entries and avoid appending identical records, keeping
+current shared rig byte-identical. No P3a placement/interaction changes.
+
+Standalone operator-only render_gl_p3c.py accepts OUT and --model FILE for
+any commit, produces five gl3c_ views plus camera manifest. Full before
+3a9e746 / after commands and photo-matching camera positions/lenses in handoff.
+Images still require operator rendering and review; no Blender run here.

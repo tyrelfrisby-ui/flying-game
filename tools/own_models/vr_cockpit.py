@@ -277,4 +277,7 @@ if __name__=='__main__':
         for path in sorted((MODELS/model).glob('*own*.glb')): update(path)
 
     from vr_phase3 import update as phase3_update
-    for path in sorted((MODELS/'great-lakes-like').glob('*own*.glb')): phase3_update(path)
+    for path in sorted((MODELS/'great-lakes-like').glob('*own*.glb')):
+        phase3_update(path)
+        from vr_phase3c import update as phase3c_update
+        phase3c_update(path)

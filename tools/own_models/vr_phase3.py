@@ -24,7 +24,7 @@ def update(path):
     rigpath=ROOT/f'docs/models/{key}-own-rig.json';doc=json.loads(rigpath.read_text());controls=[]
     # Superseded hand controls keep inert compatibility nodes, never coincident moving meshes.
     oldparams={'magneto','master','mixture','prop','com_freq_mhz','com_volume','xpdr_knob_clicks','fuel_selector','fuel_valve'}
-    obsolete={r['node'] for r in doc['rig'] if r['param'] in oldparams or (r['param']=='trim' and r['node'].startswith('Trim_'))}
+    obsolete={r['node'] for r in doc['rig'] if not r['node'].startswith('Ctl_') and (r['param'] in oldparams or (r['param']=='trim' and r['node'].startswith('Trim_')))}
     for n in g.doc['nodes']:
         if n['name'] in obsolete:n.pop('mesh',None);n['extras']={'p3_compatibility_empty':True}
     doc['rig']=[r for r in doc['rig'] if r['node'] not in obsolete]
@@ -52,7 +52,8 @@ def update(path):
             if label.startswith('XpdrDigit'):c.update(semantics='octal_digit',digit_place=10**(4-int(label[-1])),wrap=[0,7])
             g.doc['nodes'][a.idx(n)]['extras']['interaction']=c
             controls.append(c)
-    doc['rig']+=a.rig;doc['controls']=controls
+    # Multiple base liveries share one rig document; do not append identical entries.
+    doc['rig'] += [r for r in a.rig if r not in doc['rig']];doc['controls']=controls
     doc['phase3a_notes']='All placements (E). Both seats linked. Pitts/Extra: alternate air, no carb heat. Great Lakes: config 180hp/361in3, builder O-360; carb heat pending Ty engine confirmation. New params require Claude binding. Existing primary controls/canopy/egress retain prior rigs.'
     rigpath.write_text(json.dumps(doc,indent=1)+'\n');g.doc.setdefault('extras',{})['vrCockpitPhase3a']={'controls':controls,'position_status':'E'}
     validate(g,path);g.save(path)
