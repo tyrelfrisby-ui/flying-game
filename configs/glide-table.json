@@ -342,13 +342,13 @@
     "Flaps": 0,
     "VsoKt": 56.37,
     "SpeedKt": 73.28,
-    "GlideDeg": 9.835,
+    "GlideDeg": 9.836,
     "GlideRatio": 5.768,
-    "SinkFpm": 1267.6,
+    "SinkFpm": 1267.8,
     "AlphaDeg": 8.243,
-    "PitchDeg": -1.591,
-    "ElevatorDeg": -5.167,
-    "TrimStick": -0.2515
+    "PitchDeg": -1.593,
+    "ElevatorDeg": -5.275,
+    "TrimStick": -0.2561
   },
   {
     "Id": "f86-sabre-like",
@@ -489,9 +489,9 @@
     "GlideRatio": 7.84,
     "SinkFpm": 741.5,
     "AlphaDeg": 3.002,
-    "PitchDeg": -4.267,
-    "ElevatorDeg": -1.412,
-    "TrimStick": -0.0909
+    "PitchDeg": -4.268,
+    "ElevatorDeg": -1.445,
+    "TrimStick": -0.0923
   },
   {
     "Id": "hang-glider-like",
@@ -581,8 +581,8 @@
     "SinkFpm": 544.6,
     "AlphaDeg": 5.587,
     "PitchDeg": -1.656,
-    "ElevatorDeg": -1.008,
-    "TrimStick": -0.0731
+    "ElevatorDeg": -1.057,
+    "TrimStick": -0.0752
   },
   {
     "Id": "p51d-like",
@@ -836,13 +836,13 @@
     "Flaps": 0,
     "VsoKt": 58.32,
     "SpeedKt": 75.81,
-    "GlideDeg": 9.957,
-    "GlideRatio": 5.697,
-    "SinkFpm": 1327.4,
-    "AlphaDeg": 6.189,
-    "PitchDeg": -3.768,
-    "ElevatorDeg": -4.709,
-    "TrimStick": -0.2172
+    "GlideDeg": 9.959,
+    "GlideRatio": 5.695,
+    "SinkFpm": 1327.8,
+    "AlphaDeg": 6.188,
+    "PitchDeg": -3.771,
+    "ElevatorDeg": -4.967,
+    "TrimStick": -0.2274
   },
   {
     "Id": "seminole-like",
