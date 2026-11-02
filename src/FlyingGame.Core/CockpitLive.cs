@@ -220,7 +220,10 @@ public static class CockpitLive
     /// <summary>The Pitts S-2B (tools/own_models/build_pitts_s2b.py, rear_panel.py). Glass-panel numbers from
     /// the build script, glTF x = −builder x, y = builder z, z = builder y; the volumes were checked against all
     /// four liveries' GLBs: 80 triangles per stick (shaft and grip cylinders) and 12 per pedal (one box), nothing
-    /// else inside.</summary>
+    /// else inside. Those counts are over the WHOLE Cockpit mesh, which is nine glTF primitives — and glTFast puts
+    /// each primitive after the first on a child GameObject of its own, with the sticks' and pedals' triangles
+    /// spread over several of them (Stick_R: 12 + 24 + 44). The first cut read only the node's own mesh, found
+    /// nothing, and left every part static on the headset; CockpitLiveParts now reads them all.</summary>
     public static CockpitLiveSpec Pitts() => new()
     {
         Dials = new[]

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using FlyingGame.Core;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace FlyingGame.Bridge
 {
@@ -12,6 +13,9 @@ namespace FlyingGame.Bridge
     ///    A compass or an attitude indicator turns the face itself.
     ///  - STICKS AND PEDALS cut out of a static cockpit mesh (the Pitts draws them into its one <c>Cockpit</c>
     ///    mesh): the triangles inside each volume leave the mesh for a part of their own, pivoted at the floor.
+    ///    "One mesh" in the GLB is NINE in Unity — glTFast hangs each primitive after the first on a child of
+    ///    the node — and the sticks are spread over three or five of them, so every mesh under the node is cut.
+    ///    (The first version read only the node's own mesh, found 0 triangles everywhere and left them static.)
     ///  - A THROTTLE LEVER where the model has none (the Pitts).
     ///
     /// Why this exists: on an iPhone the flat dials (<see cref="AnalogGauges"/>) carried the readings, so a panel of
@@ -64,7 +68,12 @@ namespace FlyingGame.Bridge
             if (_looked || visual == null || visual.ModelRoot == null) return;
             _looked = true;
             CockpitLiveSpec spec = FlyingGame.Core.CockpitLive.For(ownModelName);
-            if (spec.IsEmpty) return;
+            if (spec.IsEmpty)
+            {
+                Debug.Log($"[Cockpit] {ownModelName ?? "(not one of our own models)"}: nothing to cut or make live here; " +
+                          (visual.HasOwnRig ? "the model's own rig moves its stick, pedals and needles" : "no rig: the cockpit is static"));
+                return;
+            }
             Transform air = visual.transform;
             foreach (string n in spec.Hide)
             {
@@ -216,53 +225,103 @@ namespace FlyingGame.Bridge
 
         // ---- sticks and pedals out of a static mesh ----
 
+        /// <summary>One mesh under the cockpit node. glTFast gives a node's FIRST primitive to the node's own
+        /// GameObject and every further primitive (one per material, when they do not share a vertex buffer) a
+        /// child GameObject of its own — the Pitts' <c>Cockpit</c> is nine meshes, and its sticks and pedals are
+        /// spread across several of them. So the cut reads them all.</summary>
+        private sealed class Src
+        {
+            public MeshFilter Mf; public MeshRenderer Mr; public Mesh Mesh;
+            public Matrix4x4 ToNode;                       // this mesh's frame -> the cockpit node's
+            public Vector3[] V, N;                          // in the node's frame
+            public List<int>[] Keep;
+            public bool Cut;
+        }
+
         private sealed class Cut
         {
             public string Name; public Kind Kind; public bool Right;
             public System.Func<double, double, double, bool> Contains;
-            public Vector3 PivotLocal;                     // in the cockpit mesh's frame
+            public Vector3 PivotLocal;                     // in the cockpit node's frame
             public int Expected;
-            public readonly List<int>[] Tris;
-            public Cut(int subMeshes) { Tris = new List<int>[subMeshes]; for (int i = 0; i < subMeshes; i++) Tris[i] = new List<int>(); }
-            public int Count { get { int c = 0; foreach (var l in Tris) c += l.Count / 3; return c; } }
+            /// <summary>Per source mesh, per submesh: the triangles inside the volume.</summary>
+            public readonly Dictionary<int, List<int>[]> Tris = new();
+            public List<int>[] For(int src, int subs)
+            {
+                if (!Tris.TryGetValue(src, out var l)) { l = new List<int>[subs]; for (int i = 0; i < subs; i++) l[i] = new List<int>(); Tris[src] = l; }
+                return l;
+            }
+            public int Count { get { int c = 0; foreach (var kv in Tris) foreach (var l in kv.Value) c += l.Count / 3; return c; } }
         }
 
         /// <summary>glTF (right-handed, the table's frame) to the mesh as glTFast imported it: x mirrored.</summary>
         private static Vector3 FromGltf(double x, double y, double z) => new((float)-x, (float)y, (float)z);
 
+        /// <summary><paramref name="t"/>'s frame in <paramref name="ancestor"/>'s, from local transforms only (never
+        /// through world space, which carries float error kilometres from the origin).</summary>
+        private static Matrix4x4 LocalTo(Transform t, Transform ancestor)
+        {
+            Matrix4x4 m = Matrix4x4.identity;
+            for (Transform c = t; c != null && c != ancestor; c = c.parent) m = Matrix4x4.TRS(c.localPosition, c.localRotation, c.localScale) * m;
+            return m;
+        }
+
         private string CutParts(AirframeVisual visual, Transform air, CockpitLiveSpec spec)
         {
             if (spec.Sticks.Count == 0 && spec.Pedals.Count == 0) return "no parts to cut";
             Transform cockpit = visual.FindInModel("Cockpit");
-            if (cockpit == null || !cockpit.TryGetComponent(out MeshFilter mf) || mf.sharedMesh == null
-                || !cockpit.TryGetComponent(out MeshRenderer mr)) return "NO Cockpit mesh to cut sticks and pedals from";
-            Mesh src = mf.sharedMesh;
-            if (!src.isReadable) return "Cockpit mesh not readable: sticks and pedals stay put";
+            if (cockpit == null) return "NO Cockpit node to cut sticks and pedals from: they stay put";
 
-            int subs = src.subMeshCount;
+            // Every mesh the cockpit node draws with: its own and its primitives' children (not ours, not a carve's skin).
+            var srcs = new List<Src>();
+            int found = 0, unreadable = 0, skinned = 0;
+            foreach (MeshFilter mf in cockpit.GetComponentsInChildren<MeshFilter>(true))
+            {
+                if (mf.sharedMesh == null || mf.name.StartsWith("Live:") || mf.name.StartsWith("Skin:")) continue;
+                found++;
+                MeshRenderer mr = mf.GetComponent<MeshRenderer>();
+                if (!mf.sharedMesh.isReadable) { unreadable++; continue; }
+                // The hinge carve draws a mesh it bound to a bone through a skinned COPY and switches this renderer off;
+                // cutting the hidden original would leave the visible copy's stick standing.
+                if (mr == null || !mr.enabled) { skinned++; continue; }
+                Matrix4x4 to = LocalTo(mf.transform, cockpit);
+                Vector3[] v = mf.sharedMesh.vertices, n = mf.sharedMesh.normals;
+                bool hasN = n != null && n.Length == v.Length;
+                var vn = new Vector3[v.Length]; var nn = new Vector3[v.Length];
+                for (int i = 0; i < v.Length; i++)
+                {
+                    vn[i] = to.MultiplyPoint3x4(v[i]);
+                    nn[i] = hasN ? to.MultiplyVector(n[i]).normalized : Vector3.up;
+                }
+                srcs.Add(new Src { Mf = mf, Mr = mr, Mesh = mf.sharedMesh, ToNode = to, V = vn, N = nn });
+            }
+            string meshes = $"{found} mesh(es) under Cockpit, {srcs.Count} read" +
+                            (unreadable > 0 ? $", {unreadable} NOT READABLE" : "") + (skinned > 0 ? $", {skinned} skinned by the carve (skipped)" : "");
+            if (srcs.Count == 0) return meshes + ": sticks and pedals stay put";
+
             var cuts = new List<Cut>();
             foreach (StickCut s in spec.Sticks)
-                cuts.Add(new Cut(subs) { Name = s.Name, Kind = Kind.Stick, Contains = s.Contains, PivotLocal = FromGltf(s.Px, s.Py, s.Pz), Expected = spec.StickTris });
+                cuts.Add(new Cut { Name = s.Name, Kind = Kind.Stick, Contains = s.Contains, PivotLocal = FromGltf(s.Px, s.Py, s.Pz), Expected = spec.StickTris });
             foreach (PedalCut s in spec.Pedals)
-                cuts.Add(new Cut(subs) { Name = s.Name, Kind = Kind.Pedal, Right = s.Right, Contains = s.Contains, PivotLocal = FromGltf(s.Px, s.Py, s.Pz), Expected = spec.PedalTris });
+                cuts.Add(new Cut { Name = s.Name, Kind = Kind.Pedal, Right = s.Right, Contains = s.Contains, PivotLocal = FromGltf(s.Px, s.Py, s.Pz), Expected = spec.PedalTris });
 
-            Vector3[] v = src.vertices;
-            Vector3[] nrm = src.normals;
-            bool hasN = nrm != null && nrm.Length == v.Length;
-            var keep = new List<int>[subs];
-            for (int sm = 0; sm < subs; sm++)
+            for (int si = 0; si < srcs.Count; si++)
             {
-                int[] t = src.GetTriangles(sm);
-                keep[sm] = new List<int>(t.Length);
-                for (int k = 0; k + 2 < t.Length; k += 3)
+                Src s = srcs[si];
+                int subs = s.Mesh.subMeshCount;
+                s.Keep = new List<int>[subs];
+                for (int sm = 0; sm < subs; sm++)
                 {
-                    Cut owner = null;
-                    foreach (Cut c in cuts)
+                    int[] t = s.Mesh.GetTriangles(sm);
+                    s.Keep[sm] = new List<int>(t.Length);
+                    for (int k = 0; k + 2 < t.Length; k += 3)
                     {
-                        if (In(c, v[t[k]]) && In(c, v[t[k + 1]]) && In(c, v[t[k + 2]])) { owner = c; break; }
+                        Cut owner = null;
+                        foreach (Cut c in cuts)
+                            if (In(c, s.V[t[k]]) && In(c, s.V[t[k + 1]]) && In(c, s.V[t[k + 2]])) { owner = c; break; }
+                        var into = owner != null ? owner.For(si, subs)[sm] : s.Keep[sm];
+                        into.Add(t[k]); into.Add(t[k + 1]); into.Add(t[k + 2]);
                     }
-                    var into = owner != null ? owner.Tris[sm] : keep[sm];
-                    into.Add(t[k]); into.Add(t[k + 1]); into.Add(t[k + 2]);
                 }
             }
 
@@ -274,62 +333,83 @@ namespace FlyingGame.Bridge
             {
                 int n = c.Count;
                 bool ok = n > 0 && (c.Expected == 0 || n == c.Expected);
-                report.Add($"{c.Name} {n}{(ok ? "" : $" (expected {c.Expected}: LEFT STATIC)")}");
+                Vector3 pa = LocalTo(cockpit, air).MultiplyPoint3x4(c.PivotLocal);
+                report.Add($"{c.Name} {n}{(ok ? "" : $" (expected {c.Expected}: LEFT STATIC)")} from {c.Tris.Count} mesh(es)" +
+                           (ok ? $" pivot ({pa.x:F2}, {pa.y:F2}, {pa.z:F2})" : ""));
                 if (ok) { made.Add(c); continue; }
-                for (int sm = 0; sm < subs; sm++) keep[sm].AddRange(c.Tris[sm]);
+                foreach (var kv in c.Tris)
+                    for (int sm = 0; sm < kv.Value.Length; sm++) srcs[kv.Key].Keep[sm].AddRange(kv.Value[sm]);
             }
-            if (made.Count == 0) return "cut " + string.Join(", ", report);
+            string head = meshes + "; cut " + string.Join(", ", report) + " (pivots in the aeroplane's frame, x right y up z fwd)";
+            if (made.Count == 0) return head;
 
-            Mesh rest = Object.Instantiate(src);
-            rest.name = src.name + "-live";
-            for (int sm = 0; sm < subs; sm++) rest.SetTriangles(keep[sm], sm);
-            _owned.Add(rest);
-            mf.sharedMesh = rest;
+            foreach (Cut c in made) foreach (int si in c.Tris.Keys) srcs[si].Cut = true;
+            foreach (Src s in srcs)
+            {
+                if (!s.Cut) continue;
+                Mesh rest = Object.Instantiate(s.Mesh);
+                rest.name = s.Mesh.name + "-live";
+                for (int sm = 0; sm < s.Keep.Length; sm++) rest.SetTriangles(s.Keep[sm], sm);
+                _owned.Add(rest);
+                s.Mf.sharedMesh = rest;
+            }
 
-            // Each part on a pivot whose axes are the aeroplane's (x right, y up, z forward).
+            // Each part on a pivot whose axes are the aeroplane's (x right, y up, z forward), drawn with the
+            // materials its triangles had: one submesh per (source mesh, submesh) it took any from.
             Quaternion axes = Quaternion.Inverse(cockpit.rotation) * air.rotation;
+            Quaternion inv = Quaternion.Inverse(axes);
             foreach (Cut c in made)
             {
                 var pivot = new GameObject("Live:" + c.Name).transform;
                 pivot.SetParent(cockpit, false);
                 pivot.localPosition = c.PivotLocal;
                 pivot.localRotation = axes;
-                Quaternion inv = Quaternion.Inverse(axes);
-                var map = new Dictionary<int, int>();
                 var pv = new List<Vector3>(); var pn = new List<Vector3>();
-                var part = new Mesh { name = c.Name };
-                part.subMeshCount = subs;
-                var subTris = new List<int>[subs];
-                for (int sm = 0; sm < subs; sm++)
+                var subTris = new List<List<int>>(); var mats = new List<Material>();
+                ShadowCastingMode shadows = ShadowCastingMode.Off; bool receive = false;
+                foreach (var kv in c.Tris)
                 {
-                    subTris[sm] = new List<int>(c.Tris[sm].Count);
-                    foreach (int i in c.Tris[sm])
+                    Src s = srcs[kv.Key];
+                    var map = new Dictionary<int, int>();
+                    Material[] sm0 = s.Mr.sharedMaterials;
+                    shadows = s.Mr.shadowCastingMode; receive |= s.Mr.receiveShadows;
+                    for (int sm = 0; sm < kv.Value.Length; sm++)
                     {
-                        if (!map.TryGetValue(i, out int j))
+                        if (kv.Value[sm].Count == 0) continue;
+                        var tris = new List<int>(kv.Value[sm].Count);
+                        foreach (int i in kv.Value[sm])
                         {
-                            j = pv.Count; map[i] = j;
-                            pv.Add(inv * (v[i] - c.PivotLocal));
-                            pn.Add(hasN ? inv * nrm[i] : Vector3.up);
+                            if (!map.TryGetValue(i, out int j))
+                            {
+                                j = pv.Count; map[i] = j;
+                                pv.Add(inv * (s.V[i] - c.PivotLocal));
+                                pn.Add(inv * s.N[i]);
+                            }
+                            tris.Add(j);
                         }
-                        subTris[sm].Add(j);
+                        subTris.Add(tris);
+                        mats.Add(sm0.Length == 0 ? null : sm0[Mathf.Min(sm, sm0.Length - 1)]);
                     }
                 }
+                var part = new Mesh { name = c.Name };
+                if (pv.Count > 65000) part.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
                 part.SetVertices(pv);
                 part.SetNormals(pn);
-                for (int sm = 0; sm < subs; sm++) part.SetTriangles(subTris[sm], sm);
+                part.subMeshCount = subTris.Count;
+                for (int sm = 0; sm < subTris.Count; sm++) part.SetTriangles(subTris[sm], sm);
                 part.RecalculateBounds();
                 _owned.Add(part);
                 pivot.gameObject.AddComponent<MeshFilter>().sharedMesh = part;
                 var r = pivot.gameObject.AddComponent<MeshRenderer>();
-                r.sharedMaterials = mr.sharedMaterials;
-                r.shadowCastingMode = mr.shadowCastingMode;
-                r.receiveShadows = mr.receiveShadows;
+                r.sharedMaterials = mats.ToArray();
+                r.shadowCastingMode = shadows;
+                r.receiveShadows = receive;
                 _parts.Add(new Part { Kind = c.Kind, Right = c.Right, Pivot = pivot, Rest = pivot.localRotation });
             }
-            return "cut " + string.Join(", ", report);
+            return head;
         }
 
-        private static bool In(Cut c, Vector3 meshLocal) => c.Contains(-meshLocal.x, meshLocal.y, meshLocal.z);
+        private static bool In(Cut c, Vector3 nodeLocal) => c.Contains(-nodeLocal.x, nodeLocal.y, nodeLocal.z);
 
         // ---- a throttle lever the model does not have ----
 

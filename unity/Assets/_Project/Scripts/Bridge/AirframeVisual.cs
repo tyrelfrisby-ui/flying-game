@@ -150,6 +150,9 @@ namespace FlyingGame.Bridge
         /// <summary>The placed model's root, or null where the aeroplane on screen is the procedural shell.</summary>
         public Transform ModelRoot => _builder.ModelRoot;
 
+        /// <summary>True when the placed model brought its own rig (its stick, pedals and needles move by it).</summary>
+        public bool HasOwnRig => _builder.HasOwnRig;
+
         private bool _rigPartGone;
 
         /// <summary>Where the cockpit camera's eye belongs, when the model was drawn with eye points
