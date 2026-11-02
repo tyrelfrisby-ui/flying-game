@@ -215,6 +215,8 @@ public sealed class WreckSim
         }
         p.State = s;
 
+        // The piece's own arrival can burst its skin too (the same pressure rule as the airframe's).
+        if (water) WaterSlam.Damage(p.Elements, p.CgBody, s, waterUp);
         foreach (HydroElement e in p.Elements) e.Flood(p.CgBody, s, waterUp, dt);
 
         // Bookkeeping.
